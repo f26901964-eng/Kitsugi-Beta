@@ -78,11 +78,12 @@ fun AiringSoonCountdownText(
 
     // episode <= 0: TMDB "upcoming" listesinden gelen film/dizi (bölüm numarası bilinmiyor)
     val isTmdbUpcoming = episode <= 0
+    val context = androidx.compose.ui.platform.LocalContext.current
     val dateLabel = remember(targetEpoch) { com.kitsugi.animelist.utils.NextAiringFormat.formatDate(targetEpoch) }
 
-    var countdownText by remember(episode, targetEpoch) { mutableStateOf("") }
+    var countdownText by remember(episode, targetEpoch, context) { mutableStateOf("") }
 
-    LaunchedEffect(episode, targetEpoch) {
+    LaunchedEffect(episode, targetEpoch, context) {
         while (true) {
             val now = System.currentTimeMillis() / 1000L
             val remaining = targetEpoch - now
@@ -93,13 +94,17 @@ fun AiringSoonCountdownText(
                 }
                 remaining < 3600L -> {
                     val mins = (remaining / 60).toInt()
-                    if (isTmdbUpcoming) "${mins} dk sonra çıkıyor"
-                    else "${mins} dk sonra yayınlanacak"
+                    context.getString(
+                        if (isTmdbUpcoming) R.string.explore_countdown_release_minutes else R.string.explore_countdown_airing_minutes,
+                        mins
+                    )
                 }
                 remaining < 86400L -> {
                     val hours = (remaining / 3600).toInt()
-                    if (isTmdbUpcoming) "${hours} saat sonra çıkıyor"
-                    else "${hours} saat sonra yayınlanacak"
+                    context.getString(
+                        if (isTmdbUpcoming) R.string.explore_countdown_release_hours else R.string.explore_countdown_airing_hours,
+                        hours
+                    )
                 }
                 else -> {
                     val days = (remaining / 86400).toInt()
@@ -107,12 +112,21 @@ fun AiringSoonCountdownText(
                         val weeks = days / 7
                         if (weeks > 4) {
                             val months = days / 30
-                            if (isTmdbUpcoming) "$months ay sonra çıkıyor" else "$months ay sonra yayınlanacak"
+                            context.getString(
+                                if (isTmdbUpcoming) R.string.explore_countdown_release_months else R.string.explore_countdown_airing_months,
+                                months
+                            )
                         } else {
-                            if (isTmdbUpcoming) "$weeks hafta sonra çıkıyor" else "$weeks hafta sonra yayınlanacak"
+                            context.getString(
+                                if (isTmdbUpcoming) R.string.explore_countdown_release_weeks else R.string.explore_countdown_airing_weeks,
+                                weeks
+                            )
                         }
                     } else {
-                        if (isTmdbUpcoming) "$days gün sonra çıkıyor" else "$days gün sonra yayınlanacak"
+                        context.getString(
+                            if (isTmdbUpcoming) R.string.explore_countdown_release_days else R.string.explore_countdown_airing_days,
+                            days
+                        )
                     }
                 }
             }
@@ -131,7 +145,11 @@ fun AiringSoonCountdownText(
         // episode > 0: AniList countdown → turuncu; TMDB upcoming → mavi/accent
         val textColor = if (isTmdbUpcoming) KitsugiColors.Accent else KitsugiColors.AccentOrange
         // Yayın tarihi + geri sayım — "Bölüm 5 · 2026-10-12 · 3 gün sonra yayınlanacak"
-        val fullText = if (episode > 0) "Bölüm $episode · $dateLabel · $countdownText" else "$dateLabel · $countdownText"
+        val fullText = if (episode > 0) {
+            stringResource(R.string.explore_countdown_episode_line, episode, dateLabel, countdownText)
+        } else {
+            stringResource(R.string.explore_countdown_date_line, dateLabel, countdownText)
+        }
         Text(
             text = fullText,
             color = textColor,

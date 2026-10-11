@@ -119,7 +119,6 @@ import com.kitsugi.animelist.utils.KitsugiTranslateUtils.openTranslator
 import com.kitsugi.animelist.model.MediaEntry
 import com.kitsugi.animelist.ui.components.KitsugiPageEnter
 import com.kitsugi.animelist.ui.components.KitsugiEpisodeOptionsDialog
-import com.kitsugi.animelist.ui.components.KitsugiCinematicLoadingScreen
 import com.kitsugi.animelist.ui.components.KitsugiImageGalleryDialog
 import com.kitsugi.animelist.data.remote.GalleryItem
 import com.kitsugi.animelist.data.remote.GalleryCategory
@@ -440,15 +439,7 @@ fun ApiResultDetailPage(
             listState = listState,
             tabListState = tabListState,
             loadingScreen = {
-                KitsugiCinematicLoadingScreen(
-                    title = displayResult.title,
-                    imageUrl = displayResult.imageUrl,
-                    onBackClick = onBackClick,
-                    logoUrl = if (showAnimeLogos) logoUrl else null,
-                    isAdult = displayResult.isAdult,
-                    blurAdultMedia = blurAdultMedia,
-                    source = displayResult.source
-                )
+                DetailPageLoadingSkeleton(onBackClick = onBackClick, person = false)
             },
             errorScreen = {
                 DataUnavailableScreen(

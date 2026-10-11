@@ -7,14 +7,14 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.kitsugi.animelist.KitsugiApplication
+import com.kitsugi.animelist.R
 import com.kitsugi.animelist.data.remote.AiringEntry
 import com.kitsugi.animelist.data.remote.KitsugiAiringCalendarClient
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import java.util.Calendar
-import com.kitsugi.animelist.utils.KitsugiStrings
-import com.kitsugi.animelist.R
 
 class KitsugiAiringCalendarViewModel : ViewModel() {
 
@@ -27,6 +27,10 @@ class KitsugiAiringCalendarViewModel : ViewModel() {
         private set
 
     var errorMessage by mutableStateOf<String?>(null)
+        private set
+
+    /** Prevent an empty-state flash before the first LaunchedEffect starts fetching. */
+    var hasLoaded by mutableStateOf(false)
         private set
 
     /** Seçili gün (Calendar.DAY_OF_WEEK). Varsayılan: bugün */
@@ -60,10 +64,20 @@ class KitsugiAiringCalendarViewModel : ViewModel() {
                 val schedule = client.fetchWeeklySchedule(accessToken, preferredSource)
                 weekSchedule.clear()
                 weekSchedule.putAll(schedule)
+                hasLoaded = true
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                errorMessage = KitsugiStrings.get(R.string.takvim_yuklenemedi_x, e.message)
+                hasLoaded = true
+                val detail = e.message.orEmpty()
+                val context = KitsugiApplication.getInstance()
+                errorMessage = if (detail.isBlank()) {
+                    context?.getString(R.string.explore_calendar_load_failed_title)
+                        ?: "Calendar could not be loaded"
+                } else {
+                    context?.getString(R.string.explore_calendar_load_failed, detail)
+                        ?: "Calendar could not be loaded: $detail"
+                }
             } finally {
                 isLoading = false
             }

@@ -236,7 +236,7 @@ fun MyListHeaderSection(
                         IconButton(onClick = onFilterPanelToggle) {
                             Icon(
                                 imageVector = Icons.Rounded.FilterList,
-                                contentDescription = stringResource(R.string.filtrele_ve_sirala),
+                                contentDescription = "Filtrele ve Sırala",
                                 tint = if (showFilterPanel || hasActiveFilters) accentColor else KitsugiColors.textSecondary
                             )
                         }
@@ -309,13 +309,7 @@ fun MyListHeaderSection(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    val typeItems = listOf(
-                        "all" to stringResource(R.string.notif_filter_all),
-                        "anime" to "Anime",
-                        "manga" to "Manga",
-                        "movie" to "Film",
-                        "tvshow" to "Dizi"
-                    )
+                    val typeItems = typeFilters.map { it.id to myListLocalizedTitle(it.title, it.titleRes) }
                     typeItems.forEach { (id, label) ->
                         val isSelected = selectedTypeFilterId == id
                         Box(
@@ -533,7 +527,7 @@ fun MyListTabBar(
             isConnected = isAniListConnected,
             username = anilistUsername,
             count = countAniList,
-            description = stringResource(R.string.en_zengin_anime_manga_manhwa_ve_studyo_veritabani)
+            description = "En zengin anime, manga, manhwa ve stüdyo veritabanı"
         ),
         MyListPlatformSource(
             index = MY_LIST_MAL_TAB_INDEX,
@@ -545,7 +539,7 @@ fun MyListTabBar(
             isConnected = isMalConnected,
             username = malUsername,
             count = countMal,
-            description = stringResource(R.string.klasik_myanimelist_katalogu_dergiler_ve_yapimcilar)
+            description = "Klasik MyAnimeList kataloğu, dergiler ve yapımcılar"
         ),
         MyListPlatformSource(
             index = MY_LIST_SIMKL_TAB_INDEX,
@@ -557,7 +551,7 @@ fun MyListTabBar(
             isConnected = isSimklConnected,
             username = simklUsername,
             count = countSimkl,
-            description = stringResource(R.string.tv_dizileri_filmler_ve_anime_takip_platformu)
+            description = "TV dizileri, filmler ve anime takip platformu"
         ),
         MyListPlatformSource(
             index = MY_LIST_KITSU_TAB_INDEX,
@@ -569,7 +563,7 @@ fun MyListTabBar(
             isConnected = isKitsuConnected,
             username = kitsuUsername,
             count = countKitsu,
-            description = stringResource(R.string.hizli_hafif_anime_ve_manga_topluluk_kutuphanesi)
+            description = "Hızlı, hafif anime ve manga topluluk kütüphanesi"
         ),
         MyListPlatformSource(
             index = MY_LIST_SHIKIMORI_TAB_INDEX,
@@ -581,7 +575,7 @@ fun MyListTabBar(
             isConnected = isShikimoriConnected,
             username = shikimoriUsername,
             count = countShikimori,
-            description = stringResource(R.string.kapsamli_anime_manga_ve_ranobe_veritabani)
+            description = "Kapsamlı anime, manga ve ranobe veritabanı"
         ),
         MyListPlatformSource(
             index = MY_LIST_BANGUMI_TAB_INDEX,
@@ -593,21 +587,21 @@ fun MyListTabBar(
             isConnected = isBangumiConnected,
             username = bangumiUsername,
             count = countBangumi,
-            description = stringResource(R.string.cin_in_anime_manga_topluluk_veritabani_bgm_tv)
+            description = "Çin'in anime/manga topluluk veritabanı (bgm.tv)"
         )
     )
 
     val allPlatform = MyListPlatformSource(
         index = MY_LIST_ALL_TAB_INDEX,
         id = "all",
-        name = stringResource(R.string.notif_filter_all),
-        shortName = stringResource(R.string.notif_filter_all),
+        name = "Tümü",
+        shortName = "Tümü",
         emoji = "🌐",
         brandColor = accentColor,
         isConnected = false,
         username = "",
         count = allLibraryEntryCount,
-        description = stringResource(R.string.x_platformdaki_icerikleri_tek_listede_birlestir, platforms.size)
+        description = "${platforms.size} platformdaki içerikleri tek listede birleştir"
     )
     val displayPlatforms = listOf(allPlatform) + platforms
     val currentPlatform = displayPlatforms.firstOrNull { it.index == selectedTabIndex } ?: platforms[0]
@@ -648,7 +642,7 @@ fun MyListTabBar(
             )
             Icon(
                 imageVector = Icons.Rounded.ArrowDropDown,
-                contentDescription = stringResource(R.string.kaynak_sec),
+                contentDescription = "Kaynak Seç",
                 tint = currentPlatform.brandColor,
                 modifier = Modifier.size(18.dp)
             )
@@ -728,14 +722,14 @@ fun MyListTabBar(
                     .padding(bottom = 32.dp)
             ) {
                 Text(
-                    text = stringResource(R.string.inline_choose_library_source_bcfd34e),
+                    text = "Kütüphane Kaynağı Seç",
                     style = MaterialTheme.typography.titleLarge.copy(
                         fontWeight = FontWeight.Bold,
                         color = KitsugiColors.textPrimary
                     )
                 )
                 Text(
-                    text = stringResource(R.string.inline_choose_the_platform_library_you_b140157),
+                    text = "Görüntülemek ve yönetmek istediğin platform kütüphanesini seç",
                     style = MaterialTheme.typography.bodySmall.copy(
                         color = KitsugiColors.textMuted
                     ),
@@ -806,7 +800,7 @@ fun MyListTabBar(
                                             .padding(horizontal = 6.dp, vertical = 2.dp)
                                     ) {
                                         Text(
-                                            text = if (platform.username.isNotBlank()) "@${platform.username}" else stringResource(R.string.notif_diag_connected),
+                                            text = if (platform.username.isNotBlank()) "@${platform.username}" else "Bağlı",
                                             color = Color(0xFF27AE60),
                                             style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
                                             fontWeight = FontWeight.Bold
@@ -830,7 +824,7 @@ fun MyListTabBar(
                             }
 
                             Text(
-                                text = stringResource(R.string.inline_1_s_2_s_titles_35e1ac3, platform.description, platform.count),
+                                text = "${platform.description} • ${platform.count} içerik",
                                 style = MaterialTheme.typography.bodySmall.copy(
                                     color = KitsugiColors.textMuted
                                 ),
@@ -963,7 +957,7 @@ fun MyListContentPage(
                 item {
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
-                        text = stringResource(R.string.inline_1_s_results_b4b4d39, displayEntries.size),
+                        text = "${displayEntries.size} sonuç",
                         color = KitsugiColors.textMuted,
                         style = MaterialTheme.typography.labelMedium,
                         fontWeight = FontWeight.Bold,

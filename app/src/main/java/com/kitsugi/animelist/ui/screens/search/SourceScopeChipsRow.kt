@@ -64,7 +64,7 @@ fun SourceScopeChipsRow(
                 contentAlignment = Alignment.Center
             ) {
                 Text(
-                    text = scope.displayLabel,
+                    text = scope.localizedDisplayLabel(),
                     style = MaterialTheme.typography.labelMedium.copy(
                         fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
                         color = if (isSelected) accentColor else KitsugiColors.TextSecondary

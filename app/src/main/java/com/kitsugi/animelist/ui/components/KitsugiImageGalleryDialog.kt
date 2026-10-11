@@ -72,7 +72,6 @@ import kotlinx.coroutines.launch
 import kotlin.math.abs
 import androidx.compose.ui.res.stringResource
 import com.kitsugi.animelist.R
-import com.kitsugi.animelist.utils.KitsugiStrings
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -193,7 +192,7 @@ fun KitsugiImageGalleryDialog(
                 KitsugiImageDownloadHelper.downloadImage(context, currentItem.url, title)
             }
         } else {
-            android.widget.Toast.makeText(context, "Depolama izni verilmedi.", android.widget.Toast.LENGTH_SHORT).show()
+            android.widget.Toast.makeText(context, context.getString(R.string.gallery_storage_permission_denied), android.widget.Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -228,10 +227,10 @@ fun KitsugiImageGalleryDialog(
             val url = currentItem.url
             when {
                 url.startsWith("file://") || url.startsWith("content://") -> {
-                    android.widget.Toast.makeText(context, KitsugiStrings.get(R.string.bu_resim_zaten_cihazda_kayitli), android.widget.Toast.LENGTH_SHORT).show()
+                    android.widget.Toast.makeText(context, context.getString(R.string.image_already_on_device), android.widget.Toast.LENGTH_SHORT).show()
                 }
                 downloadedUrls.contains(url) -> {
-                    android.widget.Toast.makeText(context, KitsugiStrings.get(R.string.bu_resim_zaten_indirilmis), android.widget.Toast.LENGTH_SHORT).show()
+                    android.widget.Toast.makeText(context, context.getString(R.string.image_already_downloaded), android.widget.Toast.LENGTH_SHORT).show()
                 }
                 KitsugiImageDownloadHelper.hasWritePermission(context) -> {
                     KitsugiImageDownloadHelper.downloadImage(context, url, title)
@@ -304,7 +303,8 @@ fun KitsugiImageGalleryDialog(
                         onItemsDeleted(urls)
                         android.widget.Toast.makeText(
                             context,
-                            if (deleted > 1) "$deleted resim silindi." else "Resim silindi.",
+                            if (deleted > 1) context.getString(R.string.gallery_deleted_multiple, deleted)
+                                else context.getString(R.string.gallery_deleted_single),
                             android.widget.Toast.LENGTH_SHORT
                         ).show()
                     }
@@ -313,7 +313,7 @@ fun KitsugiImageGalleryDialog(
                     else ->
                         android.widget.Toast.makeText(
                             context,
-                            "Silinecek indirilmiş kopya bulunamadı.",
+                            context.getString(R.string.gallery_no_downloaded_copy),
                             android.widget.Toast.LENGTH_SHORT
                         ).show()
                 }
@@ -328,7 +328,7 @@ fun KitsugiImageGalleryDialog(
             canDeleteCurrent -> pendingDeleteUrls = listOf(url)
             else -> android.widget.Toast.makeText(
                 context,
-                "Bu resim daha önce indirilmemiş — silinecek bir kopya yok.",
+                context.getString(R.string.gallery_not_downloaded),
                 android.widget.Toast.LENGTH_SHORT
             ).show()
         }
@@ -443,12 +443,9 @@ fun KitsugiImageGalleryDialog(
             KitsugiImageDownloadHelper.describeDeleteTarget(context, pendingDelete.first())
         }
         KitsugiConfirmDialog(
-            title = stringResource(R.string.resmi_sil),
-            message = stringResource(R.string.bu_gorselin_cihazdaki_kopyasi_silinecektir) +
-                "• Konum: $targetLabel\n" +
-                "• Uygulama içi önbellek ve İndirilenler klasöründeki dosya kaldırılır.\n" +
-                "• Uzak kaynaktaki içerik silinmez — daha sonra tekrar indirebilirsiniz.",
-            confirmText = stringResource(R.string.action_delete),
+            title = stringResource(R.string.gallery_delete_image_title),
+            message = stringResource(R.string.gallery_delete_image_message, targetLabel.orEmpty()),
+            confirmText = stringResource(R.string.gallery_delete_confirm),
             dismissText = stringResource(R.string.vazgec),
             isDestructive = true,
             onConfirm = { confirmDelete(pendingDelete) },
@@ -546,7 +543,7 @@ private fun GalleryLandscapeLayout(
                     ) {
                         KitsugiNsfwImage(
                             model = item.url,
-                            contentDescription = stringResource(R.string.kucuk_resim_x, index),
+                            contentDescription = stringResource(R.string.gallery_thumbnail_description, index),
                             isAdult = isAdult,
                             modifier = Modifier
                                 .size(width = 62.dp, height = 80.dp)
@@ -682,7 +679,7 @@ private fun GalleryLandscapeLayout(
                         ) {
                             Icon(
                                 imageVector = Icons.Rounded.ChevronRight,
-                                contentDescription = "Sonraki",
+                                contentDescription = stringResource(R.string.gallery_next_image),
                                 tint = KitsugiColors.TextPrimary,
                                 modifier = Modifier.size(24.dp)
                             )
@@ -761,7 +758,7 @@ private fun GalleryLandscapeLayout(
                         ) {
                             Icon(
                                 imageVector = if (isAlreadyDownloaded) Icons.Rounded.CheckCircle else Icons.Rounded.Download,
-                                contentDescription = if (isAlreadyDownloaded) stringResource(R.string.indirildi) else stringResource(R.string.indir),
+                                contentDescription = stringResource(if (isAlreadyDownloaded) R.string.gallery_downloaded_status else R.string.gallery_download_action),
                                 tint = downloadBtnColor,
                                 modifier = Modifier.size(18.dp)
                             )
@@ -857,7 +854,7 @@ private fun GalleryLandscapeLayout(
                         .padding(horizontal = 12.dp),
                     horizontalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
-                    listOf("Detaylar", stringResource(R.string.diger_resimler)).forEachIndexed { idx, tabLabel ->
+                    listOf(stringResource(R.string.gallery_tab_details), stringResource(R.string.gallery_tab_other_images)).forEachIndexed { idx, tabLabel ->
                         val sel = detailTab == idx
                         Box(
                             modifier = Modifier
@@ -894,6 +891,8 @@ private fun GalleryLandscapeLayout(
                 // Panel content
                 if (detailTab == 0) {
                     // ── Details tab ──
+                    val langInfo = currentItem?.let { formatLanguage(it.language) }
+                    val seasonLabel = currentItem?.let { formatGallerySeason(it.season) }
                     LazyColumn(
                         modifier = Modifier
                             .fillMaxSize()
@@ -917,7 +916,7 @@ private fun GalleryLandscapeLayout(
 
                             item {
                                 DetailRow(
-                                    label = "Kaynak",
+                                    label = stringResource(R.string.gallery_field_source),
                                     value = null,
                                     badge = {
                                         val logoRes = KitsugiPlatformLogos.resFor(currentItem.source)
@@ -964,10 +963,9 @@ private fun GalleryLandscapeLayout(
                             }
 
                             // Language
-                            val langInfo = formatLanguage(currentItem.language)
                             if (langInfo != null) {
                                 item {
-                                    DetailRow(label = "Dil", value = "${langInfo.first} ${langInfo.second}")
+                                    DetailRow(label = stringResource(R.string.gallery_field_language), value = "${langInfo.first} ${langInfo.second}")
                                 }
                             } else if (currentItem.language == null &&
                                 (currentItem.category == GalleryCategory.BACKDROP ||
@@ -975,14 +973,13 @@ private fun GalleryLandscapeLayout(
                                  currentItem.category == GalleryCategory.CLEARART)
                             ) {
                                 item {
-                                    DetailRow(label = "Dil", value = "✨ Metinsiz")
+                                    DetailRow(label = stringResource(R.string.gallery_field_language), value = stringResource(R.string.gallery_textless))
                                 }
                             }
 
-                            val seasonLabel = formatGallerySeason(currentItem.season)
                             if (seasonLabel != null) {
                                 item {
-                                    DetailRow(label = "Sezon", value = seasonLabel)
+                                    DetailRow(label = stringResource(R.string.gallery_field_season), value = seasonLabel)
                                 }
                             }
 
@@ -990,7 +987,7 @@ private fun GalleryLandscapeLayout(
                             val resStr = formatResolution(currentItem.width, currentItem.height)
                             if (resStr != null) {
                                 item {
-                                    DetailRow(label = "Boyut", value = "📐 $resStr")
+                                    DetailRow(label = stringResource(R.string.gallery_field_size), value = "📐 $resStr")
                                 }
                             }
 
@@ -1018,7 +1015,7 @@ private fun GalleryLandscapeLayout(
                             // Page indicator
                             item {
                                 DetailRow(
-                                    label = "Sayfa",
+                                    label = stringResource(R.string.gallery_field_page),
                                     value = "${pagerState.currentPage + 1} / ${filteredItems.size}"
                                 )
                             }
@@ -1036,7 +1033,7 @@ private fun GalleryLandscapeLayout(
                             contentAlignment = Alignment.Center
                         ) {
                             Text(
-                                text = stringResource(R.string.inline_no_more_images_in_this_adf5fe1),
+                                text = stringResource(R.string.gallery_no_more_images),
                                 color = KitsugiColors.TextMuted,
                                 fontSize = 12.sp,
                                 fontWeight = FontWeight.Medium,
@@ -1053,7 +1050,7 @@ private fun GalleryLandscapeLayout(
                                 val relIdx = filteredItems.indexOf(relatedItem)
                                 KitsugiNsfwImage(
                                     model = relatedItem.url,
-                                    contentDescription = stringResource(R.string.ilgili_resim),
+                                    contentDescription = stringResource(R.string.gallery_related_image),
                                     isAdult = isAdult,
                                     modifier = Modifier
                                         .fillMaxWidth()
@@ -1313,7 +1310,7 @@ private fun GalleryPortraitLayout(
                                         .padding(horizontal = 7.dp, vertical = 3.dp)
                                 ) {
                                     Text(
-                                        text = "✨ Metinsiz",
+                                        text = stringResource(R.string.gallery_textless),
                                         color = KitsugiColors.TextMuted,
                                         fontSize = 11.sp,
                                         fontWeight = FontWeight.Normal
@@ -1416,7 +1413,7 @@ private fun GalleryPortraitLayout(
                         ) {
                             KitsugiNsfwImage(
                                 model = item.url,
-                                contentDescription = "Thumbnail $index",
+                                contentDescription = stringResource(R.string.gallery_thumbnail_description, index),
                                 isAdult = isAdult,
                                 modifier = Modifier
                                     .size(width = 48.dp, height = 64.dp)
@@ -1528,7 +1525,7 @@ private fun GalleryDetailsSheet(
                 .padding(bottom = 32.dp)
         ) {
             Text(
-                text = stringResource(R.string.inline_image_details_a78dc36),
+                text = stringResource(R.string.gallery_details_title),
                 color = KitsugiColors.TextPrimary,
                 fontSize = 18.sp,
                 fontWeight = FontWeight.Bold
@@ -1536,7 +1533,7 @@ private fun GalleryDetailsSheet(
             Spacer(Modifier.height(12.dp))
 
             // Kaynak (logo + ad)
-            DetailRow(label = "Kaynak", value = null, badge = {
+            DetailRow(label = stringResource(R.string.gallery_field_source), value = null, badge = {
                 val logoRes = KitsugiPlatformLogos.resFor(item.source)
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     if (logoRes != null) {
@@ -1569,23 +1566,23 @@ private fun GalleryDetailsSheet(
             // Sezon
             val seasonLabel = formatGallerySeason(item.season)
             if (seasonLabel != null) {
-                DetailRow(label = "Sezon", value = seasonLabel)
+                DetailRow(label = stringResource(R.string.gallery_field_season), value = seasonLabel)
             }
 
             // Dil
             if (langInfo != null) {
-                DetailRow(label = "Dil", value = "${langInfo.first} ${langInfo.second}")
+                DetailRow(label = stringResource(R.string.gallery_field_language), value = "${langInfo.first} ${langInfo.second}")
             } else if (item.language == null &&
                 (item.category == GalleryCategory.BACKDROP ||
                  item.category == GalleryCategory.LOGO ||
                  item.category == GalleryCategory.CLEARART)
             ) {
-                DetailRow(label = "Dil", value = "✨ Metinsiz")
+                DetailRow(label = stringResource(R.string.gallery_field_language), value = stringResource(R.string.gallery_textless))
             }
 
             // Boyut (API/kaynak sağladıysa)
             if (resStr != null) {
-                DetailRow(label = "Boyut", value = "📐 $resStr")
+                DetailRow(label = stringResource(R.string.gallery_field_size), value = "📐 $resStr")
             }
 
             // API'ye özgü detay satırları (örn. Fanart.tv: Ad, IMDb ID)
@@ -1603,7 +1600,7 @@ private fun GalleryDetailsSheet(
             }
 
             Spacer(Modifier.height(4.dp))
-            DetailRow(label = "Sayfa", value = "${page + 1} / $total")
+            DetailRow(label = stringResource(R.string.gallery_field_page), value = "${page + 1} / $total")
         }
     }
 }
@@ -1794,7 +1791,7 @@ private fun GalleryImagePage(
             // +18 içeriklerde her koşulda bulanıklık (cihaz desteklemiyorsa bitmap blur)
             KitsugiNsfwImage(
                 model = imageUrl,
-                contentDescription = "$title - Resim $page",
+                contentDescription = stringResource(R.string.gallery_image_accessibility, title, page),
                 isAdult = isAdult,
                 modifier = Modifier
                     .fillMaxSize(0.88f)
@@ -1941,7 +1938,7 @@ private fun KitsugiGalleryHeader(
                         ) {
                             Icon(
                                 imageVector = Icons.Rounded.Info,
-                                contentDescription = "Detaylar",
+                                contentDescription = stringResource(R.string.gallery_details_accessibility),
                                 tint = accentColor,
                                 modifier = Modifier.size(20.dp)
                             )
@@ -1970,7 +1967,7 @@ private fun KitsugiGalleryHeader(
                         ) {
                             Icon(
                                 imageVector = if (isAlreadyDownloaded) Icons.Rounded.CheckCircle else Icons.Rounded.Download,
-                                contentDescription = if (isAlreadyDownloaded) stringResource(R.string.indirildi) else stringResource(R.string.indir),
+                                contentDescription = stringResource(if (isAlreadyDownloaded) R.string.gallery_downloaded_status else R.string.gallery_download_action),
                                 tint = downloadBtnColor,
                                 modifier = Modifier.size(20.dp)
                             )
@@ -2026,27 +2023,30 @@ private fun KitsugiGalleryHeader(
     }
 }
 
+@Composable
 private fun formatGallerySeason(season: String?): String? {
     val raw = season?.trim()?.takeIf { it.isNotBlank() && !it.equals("all", true) && it != "0" } ?: return null
     val number = raw.toIntOrNull()
-    return if (number != null && number > 0) "📺 Sezon $number" else "📺 $raw"
+    return if (number != null && number > 0) stringResource(R.string.gallery_season_number, number)
+    else stringResource(R.string.gallery_season_raw, raw)
 }
 
+@Composable
 private fun formatLanguage(code: String?): Pair<String, String>? {
     if (code.isNullOrBlank() || code == "00") return null
     val normalized = code.trim().lowercase().substringBefore('-').substringBefore('_')
     return when (normalized) {
-        "tr" -> Pair("🇹🇷", KitsugiStrings.get(R.string.pd_lang_tr))
-        "en", "eng", "ing" -> Pair("🇬🇧", KitsugiStrings.get(R.string.option_title_lang_english))
-        "ja" -> Pair("🇯🇵", "Japonca")
-        "de" -> Pair("🇩🇪", "Almanca")
-        "fr" -> Pair("🇫🇷", KitsugiStrings.get(R.string.pd_lang_fr))
-        "es" -> Pair("🇪🇸", KitsugiStrings.get(R.string.pd_lang_es))
-        "it" -> Pair("🇮🇹", KitsugiStrings.get(R.string.pd_lang_it))
-        "ko" -> Pair("🇰🇷", "Korece")
-        "zh" -> Pair("🇨🇳", KitsugiStrings.get(R.string.pd_lang_zh))
-        "ru" -> Pair("🇷🇺", KitsugiStrings.get(R.string.pd_lang_ru))
-        "pt" -> Pair("🇵🇹", "Portekizce")
+        "tr" -> Pair("🇹🇷", stringResource(R.string.pd_lang_tr))
+        "en", "eng", "ing" -> Pair("🇬🇧", stringResource(R.string.gallery_language_english))
+        "ja" -> Pair("🇯🇵", stringResource(R.string.gallery_language_japanese))
+        "de" -> Pair("🇩🇪", stringResource(R.string.pd_lang_de))
+        "fr" -> Pair("🇫🇷", stringResource(R.string.pd_lang_fr))
+        "es" -> Pair("🇪🇸", stringResource(R.string.pd_lang_es))
+        "it" -> Pair("🇮🇹", stringResource(R.string.pd_lang_it))
+        "ko" -> Pair("🇰🇷", stringResource(R.string.pd_lang_ko))
+        "zh" -> Pair("🇨🇳", stringResource(R.string.pd_lang_zh))
+        "ru" -> Pair("🇷🇺", stringResource(R.string.pd_lang_ru))
+        "pt" -> Pair("🇵🇹", stringResource(R.string.pd_lang_pt))
         else -> Pair("🌐", code.uppercase())
     }
 }
@@ -2079,7 +2079,7 @@ internal fun KitsugiGalleryDeleteButton(
     corner: androidx.compose.ui.unit.Dp,
     active: Boolean,
     glow: Float = 1f,
-    contentDescription: String = "İndirilen resmi sil",
+    contentDescription: String = "",
     onClick: () -> Unit
 ) {
     val danger = Color(0xFFFF3B3B)
@@ -2098,7 +2098,7 @@ internal fun KitsugiGalleryDeleteButton(
     ) {
         Icon(
             imageVector = Icons.Rounded.Delete,
-            contentDescription = contentDescription,
+            contentDescription = contentDescription.ifBlank { stringResource(R.string.gallery_delete_downloaded_accessibility) },
             tint = tint,
             modifier = Modifier.size(iconSize)
         )

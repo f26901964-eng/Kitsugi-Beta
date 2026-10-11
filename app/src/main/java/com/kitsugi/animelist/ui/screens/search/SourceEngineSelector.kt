@@ -80,7 +80,7 @@ fun SourceEngineSelectorPill(
         )
         if (!compact) {
             Text(
-                text = selectedEngine.label,
+                text = selectedEngine.localizedLabel(),
                 style = MaterialTheme.typography.labelMedium.copy(
                     fontWeight = FontWeight.SemiBold,
                     color = KitsugiColors.TextPrimary
@@ -89,7 +89,7 @@ fun SourceEngineSelectorPill(
         }
         Icon(
             imageVector = Icons.Rounded.ArrowDropDown,
-            contentDescription = stringResource(R.string.motor_sec),
+            contentDescription = stringResource(R.string.search_engine_picker_accessibility),
             tint = accentColor,
             modifier = Modifier.size(16.dp)
         )
@@ -132,14 +132,14 @@ fun SourceEnginePickerSheet(
                 .padding(bottom = 32.dp)
         ) {
             Text(
-                text = stringResource(R.string.inline_choose_search_source_20e924f),
+                text = stringResource(R.string.search_engine_picker_title),
                 style = MaterialTheme.typography.titleLarge.copy(
                     fontWeight = FontWeight.Bold,
                     color = KitsugiColors.TextPrimary
                 )
             )
             Text(
-                text = stringResource(R.string.inline_which_database_would_you_like_679fdaf),
+                text = stringResource(R.string.search_engine_picker_subtitle),
                 style = MaterialTheme.typography.bodySmall.copy(
                     color = KitsugiColors.TextMuted
                 ),
@@ -148,16 +148,18 @@ fun SourceEnginePickerSheet(
 
             SearchSourceEngine.entries.forEach { engine ->
                 val isSelected = engine == selectedEngine
-                val description = when (engine) {
-                    SearchSourceEngine.ALL -> stringResource(R.string.platformda_7_eszamanli_birlesik_arama)
-                    SearchSourceEngine.ANILIST -> "En zengin anime, manga, manhwa ve stüdyo veritabanı"
-                    SearchSourceEngine.MAL -> "Klasik MyAnimeList kataloğu, dergiler ve yapımcılar"
-                    SearchSourceEngine.TMDB -> "Film, dizi, oyuncu ve yapım şirketleri"
-                    SearchSourceEngine.SHIKIMORI -> "Rusça / Japonca anime, manga ve karakter arşivi"
-                    SearchSourceEngine.KITSU -> "Hızlı, hafif anime ve manga kataloğu"
-                    SearchSourceEngine.SIMKL -> "TV dizileri, filmler ve anime takip platformu"
-                    SearchSourceEngine.BANGUMI -> "Çin'in en büyük anime/manga veritabanı ve topluluk puanları"
-                }
+                val description = stringResource(
+                    when (engine) {
+                        SearchSourceEngine.ALL -> R.string.search_engine_desc_all
+                        SearchSourceEngine.ANILIST -> R.string.search_engine_desc_anilist
+                        SearchSourceEngine.MAL -> R.string.search_engine_desc_mal
+                        SearchSourceEngine.TMDB -> R.string.search_engine_desc_tmdb
+                        SearchSourceEngine.SHIKIMORI -> R.string.search_engine_desc_shikimori
+                        SearchSourceEngine.KITSU -> R.string.search_engine_desc_kitsu
+                        SearchSourceEngine.SIMKL -> R.string.search_engine_desc_simkl
+                        SearchSourceEngine.BANGUMI -> R.string.search_engine_desc_bangumi
+                    }
+                )
 
                 Row(
                     modifier = Modifier
@@ -189,7 +191,7 @@ fun SourceEnginePickerSheet(
 
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
-                            text = engine.label,
+                            text = engine.localizedLabel(),
                             style = MaterialTheme.typography.bodyLarge.copy(
                                 fontWeight = if (isSelected) FontWeight.Bold else FontWeight.SemiBold,
                                 color = if (isSelected) accentColor else KitsugiColors.TextPrimary

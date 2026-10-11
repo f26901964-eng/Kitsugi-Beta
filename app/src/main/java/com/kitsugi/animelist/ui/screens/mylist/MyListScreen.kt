@@ -85,7 +85,6 @@ import com.kitsugi.animelist.ui.utils.KitsugiScrollDefaults
 import kotlinx.coroutines.launch
 import androidx.compose.ui.res.stringResource
 import com.kitsugi.animelist.R
-import com.kitsugi.animelist.utils.KitsugiStrings
 
 @Composable
 fun MyListScreen(
@@ -597,10 +596,11 @@ fun MyListScreen(
                     )
                     .zIndex(10f)
             ) {
-                val activeStatusLabel = statusFilters.firstOrNull { it.id == selectedStatusFilterId }?.title
-                    ?: if (selectedStatusFilterId == "adult") "Yetişkin"
-                    else if (selectedStatusFilterId == "favorites") "Favoriler"
-                    else "Tümü"
+                val activeStatusLabel = statusFilters.firstOrNull { it.id == selectedStatusFilterId }
+                    ?.let { myListLocalizedTitle(it.title, it.titleRes) }
+                    ?: if (selectedStatusFilterId == "adult") stringResource(R.string.filter_adult)
+                    else if (selectedStatusFilterId == "favorites") stringResource(R.string.mylist_filter_favorites)
+                    else stringResource(R.string.mylist_filter_all)
 
                 Box(
                     modifier = Modifier
@@ -700,7 +700,7 @@ fun MyListScreen(
                     id = 0,
                     title = title,
                     subtitle = if (subtitle.isBlank()) {
-                        KitsugiStrings.get(R.string.manuel_x_kaydi, myListSourceDisplayName(manualAddSource))
+                        "Manuel ${myListSourceDisplayName(manualAddSource)} Kaydı"
                     } else {
                         subtitle
                     },
@@ -808,7 +808,7 @@ fun MyListScreen(
 
     duplicateMessage?.let { message ->
         KitsugiInfoDialog(
-            title = KitsugiStrings.get(R.string.zaten_listede),
+            title = "Zaten listede",
             message = message,
             onDismiss = {
                 duplicateMessage = null
@@ -845,7 +845,7 @@ fun MyListScreen(
                 val updatedEntry = entry.copy(
                     title = title,
                     subtitle = if (subtitle.isBlank()) {
-                        KitsugiStrings.get(R.string.manuel_eklenen_icerik)
+                        "Manuel eklenen içerik"
                     } else {
                         subtitle
                     },
@@ -885,7 +885,7 @@ fun MyListScreen(
         KitsugiConfirmDialog(
             title = stringResource(R.string.kaydi_sil),
             message = stringResource(R.string.entry_title_listenizden_kalici_olarak_kaldir, entry.title),
-            confirmText = KitsugiStrings.get(R.string.action_delete),
+            confirmText = "Sil",
             isDestructive = true,
             onConfirm = {
                 viewModel.deleteEntryById(entry.id)

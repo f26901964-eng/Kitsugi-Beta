@@ -1,13 +1,12 @@
 package com.kitsugi.animelist.data.auth
 
 import android.content.Context
+import com.kitsugi.animelist.R
 import com.kitsugi.animelist.model.MediaEntry
 import com.kitsugi.animelist.model.MediaType
 import com.kitsugi.animelist.model.WatchStatus
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import com.kitsugi.animelist.utils.KitsugiStrings
-import com.kitsugi.animelist.R
 
 /**
  * Shikimori.one kütüphane senkronizasyon yöneticisi.
@@ -48,7 +47,7 @@ object ShikimoriSyncManager {
         entry: MediaEntry
     ): SyncResult = withContext(Dispatchers.IO) {
         if (entry.type != MediaType.Anime && entry.type != MediaType.Manga) {
-            return@withContext SyncResult(emptyList(), listOf(KitsugiStrings.get(R.string.bu_servis_yalnizca_anime_manga_destekler)))
+            return@withContext SyncResult(emptyList(), listOf(context.getString(R.string.account_sync_service_anime_manga_only)))
         }
 
         val token = ExternalAuthManager.getOrRefreshShikimoriToken(context)
@@ -60,7 +59,7 @@ object ShikimoriSyncManager {
         }
 
         if (token.isNullOrBlank() || userId == null || userId <= 0) {
-            return@withContext SyncResult(messages = emptyList(), errors = listOf(KitsugiStrings.get(R.string.shikimori_hesabi_bagli_degil)))
+            return@withContext SyncResult(messages = emptyList(), errors = listOf(context.getString(R.string.account_sync_account_not_connected, "Shikimori")))
         }
 
         // Shikimori MAL ID'lerini doğrudan hedef ID (target_id) olarak kullanır!
@@ -68,7 +67,7 @@ object ShikimoriSyncManager {
             ?: if (entry.source == "shikimori" && entry.malId != null && entry.malId > 0) entry.malId else null
 
         if (targetId == null) {
-            return@withContext SyncResult(messages = emptyList(), errors = listOf(KitsugiStrings.get(R.string.shikimori_mal_id_bulunamadi_x, entry.title)))
+            return@withContext SyncResult(messages = emptyList(), errors = listOf(context.getString(R.string.account_sync_shikimori_id_not_found, entry.title)))
         }
 
         val targetType = if (entry.type == MediaType.Manga) "Manga" else "Anime"
@@ -94,9 +93,9 @@ object ShikimoriSyncManager {
         )
         if (rateId != null) {
             ExternalAuthManager.saveShikimoriRateId(context, targetId, targetType, rateId)
-            messages.add("Shikimori kaydı onaylandı (${entry.title})")
+            messages.add(context.getString(R.string.account_sync_shikimori_entry_confirmed, entry.title))
         } else {
-            errors.add("Shikimori kaydı onaylanmadı (${entry.title})")
+            errors.add(context.getString(R.string.account_sync_shikimori_entry_unconfirmed, entry.title))
         }
 
         SyncResult(messages = messages, errors = errors)
@@ -110,12 +109,12 @@ object ShikimoriSyncManager {
         entry: MediaEntry
     ): SyncResult = withContext(Dispatchers.IO) {
         if (entry.type != MediaType.Anime && entry.type != MediaType.Manga) {
-            return@withContext SyncResult(emptyList(), listOf(KitsugiStrings.get(R.string.bu_servis_yalnizca_anime_manga_destekler)))
+            return@withContext SyncResult(emptyList(), listOf(context.getString(R.string.account_sync_service_anime_manga_only)))
         }
 
         val token = ExternalAuthManager.getOrRefreshShikimoriToken(context)
         if (token.isNullOrBlank()) {
-            return@withContext SyncResult(messages = emptyList(), errors = listOf(KitsugiStrings.get(R.string.shikimori_hesabi_bagli_degil)))
+            return@withContext SyncResult(messages = emptyList(), errors = listOf(context.getString(R.string.account_sync_account_not_connected, "Shikimori")))
         }
         // getShikimoriRateId, kullanıcı kimliği kayıtlı değilse istisna fırlatır; önce çözmeye çalış.
         if (ExternalAuthManager.getShikimoriUserId(context) == null) {
@@ -133,10 +132,10 @@ object ShikimoriSyncManager {
         if (existingRateId != null) {
             val success = ShikimoriApiClient.deleteUserRate(token, existingRateId)
             if (success) ExternalAuthManager.removeShikimoriRateId(context, targetId!!, targetType)
-            if (success) SyncResult(messages = listOf(KitsugiStrings.get(R.string.shikimori_kutuphanesinden_silindi_x, entry.title)))
-            else SyncResult(messages = emptyList(), errors = listOf("Shikimori'den silinemedi"))
+            if (success) SyncResult(messages = listOf(context.getString(R.string.account_sync_entry_deleted, "Shikimori", entry.title)))
+            else SyncResult(messages = emptyList(), errors = listOf(context.getString(R.string.account_sync_entry_delete_failed, "Shikimori")))
         } else {
-            SyncResult(messages = emptyList(), errors = listOf(KitsugiStrings.get(R.string.shikimori_kaydi_bulunamadi)))
+            SyncResult(messages = emptyList(), errors = listOf(context.getString(R.string.account_sync_media_id_not_found, "Shikimori")))
         }
     }
 }

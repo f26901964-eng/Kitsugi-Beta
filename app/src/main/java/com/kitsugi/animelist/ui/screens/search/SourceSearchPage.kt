@@ -122,7 +122,7 @@ fun SourceSearchPage(
                     fallbackTint = KitsugiColors.TextPrimary
                 )
                 Text(
-                    text = "${engine.label} ${stringResource(R.string.arama)}",
+                    text = "${engine.localizedLabel()} ${stringResource(R.string.arama)}",
                     color = KitsugiColors.TextPrimary,
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold,

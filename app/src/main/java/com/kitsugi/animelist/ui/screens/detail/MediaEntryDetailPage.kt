@@ -104,7 +104,6 @@ import com.kitsugi.animelist.ui.utils.KitsugiScrollDefaults
 import com.kitsugi.animelist.ui.utils.dpadVerticalFastScroll
 import com.kitsugi.animelist.ui.components.KitsugiPageEnter
 import com.kitsugi.animelist.ui.components.KitsugiEpisodeOptionsDialog
-import com.kitsugi.animelist.ui.components.KitsugiCinematicLoadingScreen
 import com.kitsugi.animelist.ui.components.KitsugiImageGalleryDialog
 import com.kitsugi.animelist.ui.components.KitsugiStreamSelectorBottomSheet
 import com.kitsugi.animelist.ui.screens.fullscreen.KitsugiFullscreenPlayerActivity
@@ -326,15 +325,7 @@ fun MediaEntryDetailPage(
             listState = listState,
             tabListState = tabListState,
             loadingScreen = {
-                KitsugiCinematicLoadingScreen(
-                    title = displayEntry.title,
-                    imageUrl = displayEntry.imageUrl,
-                    onBackClick = onBackClick,
-                    logoUrl = if (showAnimeLogos) logoUrl else null,
-                    isAdult = displayEntry.isAdult,
-                    blurAdultMedia = blurAdultMedia,
-                    source = displayEntry.source
-                )
+                DetailPageLoadingSkeleton(onBackClick = onBackClick, person = false)
             },
             errorScreen = {
                 DataUnavailableScreen(

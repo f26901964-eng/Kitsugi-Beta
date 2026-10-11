@@ -1,6 +1,8 @@
 package com.kitsugi.animelist.ui.screens.search.composables
 
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.res.stringResource
+import com.kitsugi.animelist.R
 
 // ─── MediaFormat ─────────────────────────────────────────────────────────────
 
@@ -19,15 +21,15 @@ enum class KitsugiMediaFormat(val apiValue: String) : KitsugiLocalizable {
     @Composable
     override fun localized(): String = when (this) {
         TV -> "TV"
-        TV_SHORT -> "TV Kısa"
-        MOVIE -> "Film"
-        SPECIAL -> "Özel"
+        TV_SHORT -> stringResource(R.string.search_format_tv_short)
+        MOVIE -> stringResource(R.string.search_format_movie)
+        SPECIAL -> stringResource(R.string.search_format_special)
         OVA -> "OVA"
         ONA -> "ONA"
-        MUSIC -> "Müzik"
+        MUSIC -> stringResource(R.string.search_format_music)
         MANGA -> "Manga"
-        NOVEL -> "Romanı"
-        ONE_SHOT -> "Tek Bölüm"
+        NOVEL -> stringResource(R.string.search_format_novel)
+        ONE_SHOT -> stringResource(R.string.search_format_one_shot)
     }
 
     companion object {
@@ -47,11 +49,11 @@ enum class KitsugiMediaStatus(val apiValue: String) : KitsugiLocalizable {
 
     @Composable
     override fun localized(): String = when (this) {
-        FINISHED -> "Tamamlandı"
-        RELEASING -> "Yayınlanıyor"
-        NOT_YET_RELEASED -> "Henüz Yayınlanmadı"
-        CANCELLED -> "İptal Edildi"
-        HIATUS -> "Ara Verildi"
+        FINISHED -> stringResource(R.string.search_status_finished)
+        RELEASING -> stringResource(R.string.search_status_releasing)
+        NOT_YET_RELEASED -> stringResource(R.string.search_status_not_released)
+        CANCELLED -> stringResource(R.string.search_status_cancelled)
+        HIATUS -> stringResource(R.string.search_status_hiatus)
     }
 }
 
@@ -65,10 +67,10 @@ enum class KitsugiCountryOfOrigin(val code: String) : KitsugiLocalizable {
 
     @Composable
     override fun localized(): String = when (this) {
-        JAPAN -> "Japonya"
-        SOUTH_KOREA -> "Güney Kore"
-        CHINA -> "Çin"
-        TAIWAN -> "Tayvan"
+        JAPAN -> stringResource(R.string.search_country_japan)
+        SOUTH_KOREA -> stringResource(R.string.search_country_south_korea)
+        CHINA -> stringResource(R.string.search_country_china)
+        TAIWAN -> stringResource(R.string.search_country_taiwan)
     }
 }
 
@@ -93,21 +95,21 @@ enum class KitsugiMediaSource(val apiValue: String) : KitsugiLocalizable {
 
     @Composable
     override fun localized(): String = when (this) {
-        ORIGINAL -> "Orijinal"
+        ORIGINAL -> stringResource(R.string.search_source_original)
         MANGA -> "Manga"
-        LIGHT_NOVEL -> "Light Novel"
-        VISUAL_NOVEL -> "Görsel Roman"
-        VIDEO_GAME -> "Video Oyunu"
-        OTHER -> "Diğer"
-        NOVEL -> "Roman"
+        LIGHT_NOVEL -> stringResource(R.string.search_source_light_novel)
+        VISUAL_NOVEL -> stringResource(R.string.search_source_visual_novel)
+        VIDEO_GAME -> stringResource(R.string.search_source_video_game)
+        OTHER -> stringResource(R.string.search_source_other)
+        NOVEL -> stringResource(R.string.search_source_novel)
         DOUJINSHI -> "Doujinshi"
         ANIME -> "Anime"
-        WEB_NOVEL -> "Web Roman"
-        LIVE_ACTION -> "Canlı Aksiyon"
-        GAME -> "Oyun"
-        COMIC -> "Çizgi Roman"
-        MULTIMEDIA_PROJECT -> "Multimedya Projesi"
-        PICTURE_BOOK -> "Resimli Kitap"
+        WEB_NOVEL -> stringResource(R.string.search_source_web_novel)
+        LIVE_ACTION -> stringResource(R.string.search_source_live_action)
+        GAME -> stringResource(R.string.search_source_game)
+        COMIC -> stringResource(R.string.search_source_comic)
+        MULTIMEDIA_PROJECT -> stringResource(R.string.search_source_multimedia)
+        PICTURE_BOOK -> stringResource(R.string.search_source_picture_book)
     }
 }
 
@@ -124,13 +126,13 @@ enum class KitsugiMediaSortSearch(val ascApiValue: String, val descApiValue: Str
 
     @Composable
     override fun localized(): String = when (this) {
-        SEARCH_MATCH -> "Varsayılan"
-        POPULARITY -> "Popülerlik"
+        SEARCH_MATCH -> stringResource(R.string.search_sort_default)
+        POPULARITY -> stringResource(R.string.search_sort_popularity)
         SCORE -> "Puan"
-        TRENDING -> "Trend"
-        FAVOURITES -> "Favoriler"
-        START_DATE -> "Başlangıç Tarihi"
-        END_DATE -> "Bitiş Tarihi"
+        TRENDING -> stringResource(R.string.search_sort_trending)
+        FAVOURITES -> stringResource(R.string.search_sort_favourites)
+        START_DATE -> stringResource(R.string.search_sort_start_date)
+        END_DATE -> stringResource(R.string.search_sort_end_date)
     }
 
     companion object {
@@ -149,9 +151,9 @@ enum class KitsugiMediaSeason(val apiValue: String) : KitsugiLocalizable {
 
     @Composable
     override fun localized(): String = when (this) {
-        WINTER -> "Kış"
-        SPRING -> "İlkbahar"
-        SUMMER -> "Yaz"
-        FALL -> "Sonbahar"
+        WINTER -> stringResource(R.string.search_season_winter)
+        SPRING -> stringResource(R.string.search_season_spring)
+        SUMMER -> stringResource(R.string.search_season_summer)
+        FALL -> stringResource(R.string.search_season_fall)
     }
 }

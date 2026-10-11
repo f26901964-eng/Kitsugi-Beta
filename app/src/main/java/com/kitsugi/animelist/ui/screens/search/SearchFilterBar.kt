@@ -100,7 +100,7 @@ fun SearchFilterBar(
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
-                        text = platform.label,
+                        text = platform.localizedLabel(),
                         color = if (isSelected) KitsugiColors.Background else KitsugiColors.TextMuted,
                         style = MaterialTheme.typography.labelMedium,
                         fontWeight = if (isSelected) FontWeight.Black else FontWeight.Normal

@@ -1,5 +1,6 @@
 package com.kitsugi.animelist.ui.screens.explore
 
+import com.kitsugi.animelist.R
 import com.kitsugi.animelist.data.remote.JikanSearchResult
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.currentCoroutineContext
@@ -19,7 +20,8 @@ internal suspend fun loadExploreSource(
     forceRefresh: Boolean,
     fetch: suspend () -> ExplorePayload,
     readOffline: suspend () -> ExplorePayload?,
-    timeoutMillis: Long = 60_000L
+    timeoutMillis: Long = 60_000L,
+    context: android.content.Context? = null
 ): ExploreSourceState {
     val usableCache = cached?.takeIf { it.hasCatalogContent() }
     if (!forceRefresh && usableCache != null) return ExploreSourceState(payload = usableCache)
@@ -42,8 +44,15 @@ internal suspend fun loadExploreSource(
     }
     return ExploreSourceState(
         payload = offline,
-        error = if (offline != null) "Güncellenemedi; son kaydedilen içerikler gösteriliyor."
-            else "İçerik alınamadı. Kaynak boş veya geçici olarak erişilemiyor.",
+        error = if (offline != null) {
+            (context ?: com.kitsugi.animelist.KitsugiApplication.getInstance())
+                ?.getString(R.string.explore_source_refresh_failed_cached)
+                ?: "Could not refresh; showing the last saved content."
+        } else {
+            (context ?: com.kitsugi.animelist.KitsugiApplication.getInstance())
+                ?.getString(R.string.explore_source_unavailable)
+                ?: "Could not load content. The source is empty or temporarily unavailable."
+        },
         isCached = offline != null
     )
 }

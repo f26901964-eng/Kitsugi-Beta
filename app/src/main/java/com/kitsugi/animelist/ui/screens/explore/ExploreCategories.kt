@@ -28,7 +28,6 @@ import androidx.compose.ui.unit.dp
 import com.kitsugi.animelist.R
 import com.kitsugi.animelist.data.remote.JikanSearchResult
 import com.kitsugi.animelist.ui.theme.KitsugiColors
-import com.kitsugi.animelist.utils.KitsugiStrings
 
 @Composable
 fun TmdbCategoriesSection(
@@ -50,6 +49,18 @@ fun TmdbCategoriesSection(
     onOpenAiringCalendar: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val trendingAllTitle = stringResource(R.string.explore_source_trending_all)
+    val trendingAnimeTitle = stringResource(R.string.explore_source_trending_anime)
+    val trendingShowsTitle = stringResource(R.string.explore_source_trending_tv)
+    val trendingMoviesTitle = stringResource(R.string.explore_source_trending_movies)
+    val popularAnimeTitle = stringResource(R.string.explore_source_popular_anime)
+    val popularShowsTitle = stringResource(R.string.explore_source_popular_tv)
+    val popularMoviesTitle = stringResource(R.string.explore_source_popular_movies)
+    val upcomingMoviesAndShowsTitle = stringResource(R.string.explore_source_upcoming_tv_movies)
+    val topRatedAnimeTitle = stringResource(R.string.explore_source_top_rated_anime)
+    val topRatedShowsTitle = stringResource(R.string.explore_source_top_rated_tv)
+    val topRatedMoviesTitle = stringResource(R.string.explore_source_top_rated_movies)
+
     Column(
         modifier = modifier
             .fillMaxWidth()
@@ -74,7 +85,7 @@ fun TmdbCategoriesSection(
                 )
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
-                    text = "Kategoriler",
+                    text = stringResource(R.string.explore_categories_title),
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
                     color = KitsugiColors.TextPrimary
@@ -98,7 +109,7 @@ fun TmdbCategoriesSection(
                     .padding(top = 16.dp, start = 4.dp, end = 4.dp)
             ) {
                 Text(
-                    text = stringResource(R.string.dizi_ve_film),
+                    text = stringResource(R.string.explore_category_tv_movies),
                     style = MaterialTheme.typography.titleSmall,
                     fontWeight = FontWeight.Bold,
                     color = KitsugiColors.TextSecondary
@@ -110,50 +121,50 @@ fun TmdbCategoriesSection(
                 ) {
                     item {
                         ExploreCategoryChip(
-                            label = stringResource(R.string.trend_her_sey),
-                            onClick = { onSeeAllSection(KitsugiStrings.get(R.string.explore_tmdb_trending_all), ExploreCategoryType.TOP_ANIME, filteredTopAnime) }
+                            label = trendingAllTitle,
+                            onClick = { onSeeAllSection(trendingAllTitle, ExploreCategoryType.TOP_ANIME, filteredTopAnime) }
                         )
                     }
                     item {
                         ExploreCategoryChip(
-                            label = "Trend Diziler",
-                            onClick = { onSeeAllSection("Trend Diziler", ExploreCategoryType.AIRING_ANIME, filteredAiringAnime) }
+                            label = trendingShowsTitle,
+                            onClick = { onSeeAllSection(trendingShowsTitle, ExploreCategoryType.AIRING_ANIME, filteredAiringAnime) }
                         )
                     }
                     item {
                         ExploreCategoryChip(
-                            label = "Trend Filmler",
-                            onClick = { onSeeAllSection("Trend Filmler", ExploreCategoryType.MOVIE_ANIME, filteredMovieAnime) }
+                            label = trendingMoviesTitle,
+                            onClick = { onSeeAllSection(trendingMoviesTitle, ExploreCategoryType.MOVIE_ANIME, filteredMovieAnime) }
                         )
                     }
                     item {
                         ExploreCategoryChip(
-                            label = stringResource(R.string.populer_diziler),
-                            onClick = { onSeeAllSection(KitsugiStrings.get(R.string.explore_tmdb_popular_shows), ExploreCategoryType.TOP_MANGA, filteredTopManga) }
+                            label = popularShowsTitle,
+                            onClick = { onSeeAllSection(popularShowsTitle, ExploreCategoryType.TOP_MANGA, filteredTopManga) }
                         )
                     }
                     item {
                         ExploreCategoryChip(
-                            label = stringResource(R.string.populer_filmler),
-                            onClick = { onSeeAllSection(KitsugiStrings.get(R.string.explore_tmdb_popular_movies), ExploreCategoryType.UPCOMING_ANIME, filteredUpcomingAnime) }
+                            label = popularMoviesTitle,
+                            onClick = { onSeeAllSection(popularMoviesTitle, ExploreCategoryType.UPCOMING_ANIME, filteredUpcomingAnime) }
                         )
                     }
                     item {
                         ExploreCategoryChip(
-                            label = stringResource(R.string.yakinda_yayinda),
-                            onClick = { onSeeAllSection(KitsugiStrings.get(R.string.explore_airing_soon), ExploreCategoryType.UPCOMING_MEDIA_TMDB, filteredUpcomingMediaTmdb) }
+                            label = upcomingMoviesAndShowsTitle,
+                            onClick = { onSeeAllSection(upcomingMoviesAndShowsTitle, ExploreCategoryType.UPCOMING_MEDIA_TMDB, filteredUpcomingMediaTmdb) }
                         )
                     }
                     item {
                         ExploreCategoryChip(
-                            label = stringResource(R.string.en_yuksek_puanli_diziler),
-                            onClick = { onSeeAllSection(KitsugiStrings.get(R.string.en_yuksek_puanli_diziler), ExploreCategoryType.SEASONAL_ANIME, filteredSeasonalAnime) }
+                            label = topRatedShowsTitle,
+                            onClick = { onSeeAllSection(topRatedShowsTitle, ExploreCategoryType.SEASONAL_ANIME, filteredSeasonalAnime) }
                         )
                     }
                     item {
                         ExploreCategoryChip(
-                            label = stringResource(R.string.en_yuksek_puanli_filmler),
-                            onClick = { onSeeAllSection(KitsugiStrings.get(R.string.en_yuksek_puanli_filmler), ExploreCategoryType.PUBLISHING_MANGA, filteredPublishingManga) }
+                            label = topRatedMoviesTitle,
+                            onClick = { onSeeAllSection(topRatedMoviesTitle, ExploreCategoryType.PUBLISHING_MANGA, filteredPublishingManga) }
                         )
                     }
                 }
@@ -161,7 +172,7 @@ fun TmdbCategoriesSection(
                 Spacer(modifier = Modifier.height(20.dp))
 
                 Text(
-                    text = "Anime",
+                    text = stringResource(R.string.media_type_anime),
                     style = MaterialTheme.typography.titleSmall,
                     fontWeight = FontWeight.Bold,
                     color = KitsugiColors.TextSecondary
@@ -173,26 +184,26 @@ fun TmdbCategoriesSection(
                 ) {
                     item {
                         ExploreCategoryChip(
-                            label = "Trend Animeler",
-                            onClick = { onSeeAllSection("Trend Animeler", ExploreCategoryType.TRENDING_ANIME, filteredTrendingAnime) }
+                            label = trendingAnimeTitle,
+                            onClick = { onSeeAllSection(trendingAnimeTitle, ExploreCategoryType.TRENDING_ANIME, filteredTrendingAnime) }
                         )
                     }
                     item {
                         ExploreCategoryChip(
-                            label = stringResource(R.string.populer_animeler),
-                            onClick = { onSeeAllSection(KitsugiStrings.get(R.string.populer_animeler), ExploreCategoryType.NEWLY_ADDED_ANIME, filteredNewlyAddedAnime) }
+                            label = popularAnimeTitle,
+                            onClick = { onSeeAllSection(popularAnimeTitle, ExploreCategoryType.NEWLY_ADDED_ANIME, filteredNewlyAddedAnime) }
                         )
                     }
                     item {
                         ExploreCategoryChip(
-                            label = stringResource(R.string.en_yuksek_puanli_animeler),
-                            onClick = { onSeeAllSection(KitsugiStrings.get(R.string.explore_top_rated_anime), ExploreCategoryType.TRENDING_MANGA, filteredTrendingManga) }
+                            label = topRatedAnimeTitle,
+                            onClick = { onSeeAllSection(topRatedAnimeTitle, ExploreCategoryType.TRENDING_MANGA, filteredTrendingManga) }
                         )
                     }
                     item {
                         ExploreCategoryChip(
-                            label = stringResource(R.string.yakinda_yayinda),
-                            onClick = { onSeeAllSection(KitsugiStrings.get(R.string.explore_airing_soon), ExploreCategoryType.UPCOMING_MEDIA_TMDB, filteredUpcomingMediaTmdb) }
+                            label = upcomingMoviesAndShowsTitle,
+                            onClick = { onSeeAllSection(upcomingMoviesAndShowsTitle, ExploreCategoryType.UPCOMING_MEDIA_TMDB, filteredUpcomingMediaTmdb) }
                         )
                     }
                     item {
@@ -255,7 +266,7 @@ fun DefaultCategoriesSection(
                 )
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
-                    text = "Kategoriler",
+                    text = stringResource(R.string.explore_categories_title),
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
                     color = KitsugiColors.TextPrimary
@@ -279,7 +290,7 @@ fun DefaultCategoriesSection(
                     .padding(top = 16.dp, start = 4.dp, end = 4.dp)
             ) {
                 Text(
-                    text = "Anime",
+                    text = stringResource(R.string.media_type_anime),
                     style = MaterialTheme.typography.titleSmall,
                     fontWeight = FontWeight.Bold,
                     color = KitsugiColors.TextSecondary

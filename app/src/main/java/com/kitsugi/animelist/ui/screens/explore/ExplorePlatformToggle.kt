@@ -44,6 +44,32 @@ import com.kitsugi.animelist.ui.utils.tvClickable
 import androidx.compose.ui.res.stringResource
 import com.kitsugi.animelist.R
 
+@Composable
+internal fun ExplorePlatform.localizedLabel(): String = when (this) {
+    ExplorePlatform.ALL -> stringResource(R.string.explore_source_all_label)
+    else -> label
+}
+
+@Composable
+internal fun ExplorePlatform.localizedShortName(): String = when (this) {
+    ExplorePlatform.ALL -> stringResource(R.string.explore_source_all_label)
+    else -> shortName
+}
+
+@Composable
+internal fun ExplorePlatform.localizedDescription(): String = stringResource(
+    when (this) {
+        ExplorePlatform.ALL -> R.string.explore_platform_all_desc
+        ExplorePlatform.AniList -> R.string.explore_platform_anilist_desc
+        ExplorePlatform.MAL -> R.string.explore_platform_mal_desc
+        ExplorePlatform.TMDB -> R.string.explore_platform_tmdb_desc
+        ExplorePlatform.SIMKL -> R.string.explore_platform_simkl_desc
+        ExplorePlatform.KITSU -> R.string.explore_platform_kitsu_desc
+        ExplorePlatform.SHIKIMORI -> R.string.explore_platform_shikimori_desc
+        ExplorePlatform.BANGUMI -> R.string.explore_platform_bangumi_desc
+    }
+)
+
 /**
  * Keşfet Sayfası için Brave-Tarzı Kaynak Motoru Seçici Hap Buton.
  * Tıklandığında [ExploreSourcePickerSheet] açılır; Tümü ve 6 kaynak (AniList, MAL/Jikan, TMDB, Simkl, Kitsu, Shikimori) listelenir.
@@ -76,7 +102,7 @@ fun ExploreSourceEngineSelectorPill(
         )
         Column(modifier = Modifier.weight(1f, fill = false)) {
             Text(
-                text = selectedPlatform.label,
+                text = selectedPlatform.localizedLabel(),
                 style = MaterialTheme.typography.labelMedium.copy(
                     fontWeight = FontWeight.Bold,
                     color = KitsugiColors.TextPrimary
@@ -87,7 +113,7 @@ fun ExploreSourceEngineSelectorPill(
         }
         Icon(
             imageVector = Icons.Rounded.ArrowDropDown,
-            contentDescription = stringResource(R.string.platform_sec),
+            contentDescription = stringResource(R.string.explore_source_platform_select),
             tint = accentColor,
             modifier = Modifier.size(18.dp)
         )
@@ -132,14 +158,14 @@ fun ExploreSourcePickerSheet(
                 .padding(bottom = 32.dp)
         ) {
             Text(
-                text = stringResource(R.string.inline_choose_explore_source_3255ea9),
+                text = stringResource(R.string.explore_source_picker_title),
                 style = MaterialTheme.typography.titleLarge.copy(
                     fontWeight = FontWeight.Bold,
                     color = KitsugiColors.TextPrimary
                 )
             )
             Text(
-                text = stringResource(R.string.inline_choose_one_source_or_select_7f43953),
+                text = stringResource(R.string.explore_source_picker_subtitle),
                 style = MaterialTheme.typography.bodySmall.copy(
                     color = KitsugiColors.TextMuted
                 ),
@@ -178,14 +204,14 @@ fun ExploreSourcePickerSheet(
 
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
-                            text = platform.label,
+                            text = platform.localizedLabel(),
                             style = MaterialTheme.typography.bodyLarge.copy(
                                 fontWeight = if (isSelected) FontWeight.Bold else FontWeight.SemiBold,
                                 color = if (isSelected) accentColor else KitsugiColors.TextPrimary
                             )
                         )
                         Text(
-                            text = platform.description,
+                            text = platform.localizedDescription(),
                             style = MaterialTheme.typography.bodySmall.copy(
                                 color = KitsugiColors.TextMuted
                             )
@@ -250,7 +276,7 @@ fun ExploreSourceChipRow(
                         size = 16.dp
                     )
                     Text(
-                        text = platform.shortName,
+                        text = platform.localizedShortName(),
                         color = if (isSelected) KitsugiColors.Background else KitsugiColors.TextSecondary,
                         style = MaterialTheme.typography.labelMedium,
                         fontWeight = if (isSelected) FontWeight.Black else FontWeight.SemiBold
@@ -297,7 +323,7 @@ fun ExplorePlatformToggle(
                     ) {
                         KitsugiPlatformLogo(platformId = platform.name, size = 18.dp)
                         Text(
-                            text = platform.label,
+                            text = platform.localizedLabel(),
                             color = if (isSelected) KitsugiColors.Background else KitsugiColors.TextMuted,
                             style = MaterialTheme.typography.labelMedium,
                             fontWeight = if (isSelected) FontWeight.Black else FontWeight.Medium

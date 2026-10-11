@@ -1,5 +1,6 @@
 package com.kitsugi.animelist.ui.screens.fullscreen.runtime
 
+import android.content.Context
 import android.util.Log
 import com.kitsugi.animelist.data.auth.AniListSyncManager
 import com.kitsugi.animelist.model.MediaEntry
@@ -23,6 +24,7 @@ import kotlinx.coroutines.launch
  */
 class PlayerScrobbleController(
     private val scope: CoroutineScope,
+    private val context: Context,
     private val getAniListToken: () -> String?,
     private val onScrobbleSuccess: (mediaId: Int, episode: Int) -> Unit = { _, _ -> },
     private val onScrobbleFail: (reason: String) -> Unit = {}
@@ -85,7 +87,7 @@ class PlayerScrobbleController(
                         WatchStatus.Watching
                     }
                 )
-                val result = AniListSyncManager.updateAniListEntry(token, updatedEntry)
+                val result = AniListSyncManager.updateAniListEntry(token, updatedEntry, context = context)
                 if (result != null) {
                     Log.d(TAG, "Scrobble SUCCESS: aniListId=$result ep=$currentEpisode")
                     onScrobbleSuccess(result, currentEpisode)

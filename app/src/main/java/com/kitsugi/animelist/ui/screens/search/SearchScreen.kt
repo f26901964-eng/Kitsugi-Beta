@@ -2,7 +2,6 @@
 
 package com.kitsugi.animelist.ui.screens.search
 
-import com.kitsugi.animelist.utils.KitsugiStrings
 import com.kitsugi.animelist.ui.theme.gradient.FloatingActionButton
 import com.kitsugi.animelist.ui.theme.gradient.Icon
 import com.kitsugi.animelist.ui.theme.gradient.Text
@@ -255,25 +254,12 @@ fun SearchScreen(
     var showEnginePickerSheet by remember { mutableStateOf(false) }
     var showSourceEngineFilterSheet by remember { mutableStateOf(false) }
 
-    val animeFormats = listOf("TV", "MOVIE", "SPECIAL", "OVA", "ONA", "MUSIC")
-    val mangaFormats = listOf("MANGA", "NOVEL", "ONE_SHOT", "DOUJIN", "MANHWA", "MANHUA")
-    val formats = if (currentMediaType == MediaType.Manga) mangaFormats else animeFormats
-
-    val animeStatuses = listOf("AIRING" to stringResource(R.string.yayinda), "FINISHED" to stringResource(R.string.cs_diag_completed), "UPCOMING" to stringResource(R.string.yakinda))
-    val mangaStatuses = listOf("PUBLISHING" to stringResource(R.string.yayinlaniyor), "FINISHED" to stringResource(R.string.cs_diag_completed), "HIATUS" to stringResource(R.string.bangumi_tag_hiatus), "DISCONTINUED" to "Durduruldu")
-    val statuses = if (currentMediaType == MediaType.Manga) mangaStatuses else animeStatuses
-
-    val sortOptions = listOf(
-        "POPULARITY_DESC" to stringResource(R.string.populerlik_e5d41d0),
-        "SCORE_DESC" to "⭐ Puan",
-        "TITLE_ROMAJI_ASC" to "🔤 İsim (A-Z)",
-        "TITLE_ROMAJI_DESC" to "🔤 İsim (Z-A)"
-    )
-
+    // Keep canonical English values in state/API filters; localize only the visible labels.
     val tmdbGenres = listOf(
-        stringResource(R.string.notif_filter_all), "Aksiyon", "Macera", "Komedi", "Dram", "Fantastik",
-        "Korku", "Gizem", "Romantizm", "Sci-Fi", "Gerilim", "Müzik", "Tarihi", "Animasyon"
+        "All", "Action", "Adventure", "Comedy", "Drama", "Fantasy",
+        "Horror", "Mystery", "Romance", "Sci-Fi", "Thriller", "Music", "History", "Animation"
     )
+    val tmdbAllGenreLabel = stringResource(R.string.search_filter_all_genres)
 
     // Shimmer geçişleri tek paylaşımlı transition'dan çalışsın: "Tümü" aramasında
     // 7 platform rafı + sonuç listesi placeholder'ı aynı anda yüklenirken her biri
@@ -308,15 +294,14 @@ fun SearchScreen(
                     Spacer(modifier = Modifier.height(12.dp))
                 }
 
-                val placeholder = when (uiState.selectedEngine) {
-                    SearchSourceEngine.ALL -> stringResource(R.string.tum_platformlarda_ara_7_motor_eszamanli)
-                    SearchSourceEngine.ANILIST -> "AniList'te ${uiState.selectedScope.label.lowercase()} ara..."
-                    SearchSourceEngine.MAL -> "MyAnimeList'te ${uiState.selectedScope.label.lowercase()} ara..."
-                    SearchSourceEngine.TMDB -> "TMDB'de ${uiState.selectedScope.label.lowercase()} ara..."
-                    SearchSourceEngine.SHIKIMORI -> "Shikimori'de ${uiState.selectedScope.label.lowercase()} ara..."
-                    SearchSourceEngine.KITSU -> "Kitsu'da ${uiState.selectedScope.label.lowercase()} ara..."
-                    SearchSourceEngine.SIMKL -> "Simkl'de ${uiState.selectedScope.label.lowercase()} ara..."
-                    SearchSourceEngine.BANGUMI -> "Bangumi'de ${uiState.selectedScope.label.lowercase()} ara..."
+                val placeholder = if (uiState.selectedEngine == SearchSourceEngine.ALL) {
+                    stringResource(R.string.search_placeholder_all_sources)
+                } else {
+                    stringResource(
+                        R.string.search_placeholder_source_scope,
+                        uiState.selectedEngine.localizedLabel(),
+                        uiState.selectedScope.localizedLabel()
+                    )
                 }
 
                 // Uiverse Lakshay-art Cosmic Search Bar & Companion Button
@@ -469,7 +454,7 @@ fun SearchScreen(
 
                 item {
                     MultiSearchSection(
-                        title = "Film & Dizi (TMDB)",
+                        title = stringResource(R.string.search_section_tmdb),
                         platformId = "tmdb",
                         results = uiState.multiResults.tmdbResults,
                         isLoading = uiState.multiResults.isLoadingTmdb,
@@ -485,7 +470,7 @@ fun SearchScreen(
 
                 item {
                     MultiSearchSection(
-                        title = stringResource(R.string.shikimori_rusca_kaynak_anime_manga),
+                        title = stringResource(R.string.search_section_shikimori),
                         platformId = "shikimori",
                         results = uiState.multiResults.shikimoriResults,
                         isLoading = uiState.multiResults.isLoadingShikimori,
@@ -533,7 +518,7 @@ fun SearchScreen(
 
                 item {
                     MultiSearchSection(
-                        title = stringResource(R.string.bangumi_cin_kaynagi_anime_kitap),
+                        title = stringResource(R.string.search_section_bangumi),
                         platformId = "bangumi",
                         results = uiState.multiResults.bangumiResults,
                         isLoading = uiState.multiResults.isLoadingBangumi,
@@ -696,14 +681,14 @@ fun SearchScreen(
             SearchPlatform.Bangumi
         )
         DialogWithRadioSelection(
-            title = stringResource(R.string.kaynak_platform_sec),
+            title = stringResource(R.string.search_select_platform),
             options = platforms,
             selectedOption = uiState.selectedPlatform,
             onOptionSelected = { plat ->
                 if (plat != null) viewModel.setPlatform(plat)
             },
             onDismiss = { openPlatformDialog = false },
-            optionLabel = { it.label }
+            optionLabel = { it.localizedLabel() }
         )
     }
 
@@ -712,32 +697,35 @@ fun SearchScreen(
     // Dialog: TMDB Format Selection
     if (openTmdbFormatDialog) {
         val tmdbTypes = listOf(MediaType.Movie, MediaType.TvShow)
+        val movieLabel = stringResource(R.string.media_type_movie)
+        val tvLabel = stringResource(R.string.media_type_tv)
         DialogWithRadioSelection(
-            title = stringResource(R.string.tip_sec),
+            title = stringResource(R.string.search_select_type),
             options = tmdbTypes,
             selectedOption = currentMediaType,
             onOptionSelected = { mt ->
                 if (mt != null) viewModel.setMediaType(mt)
             },
             onDismiss = { openTmdbFormatDialog = false },
-            optionLabel = { if (it == MediaType.Movie) "Film" else "Dizi" }
+            optionLabel = { if (it == MediaType.Movie) movieLabel else tvLabel }
         )
     }
 
     // Dialog: TMDB Genre Selection
     if (openTmdbGenreDialog) {
-        val currentGenre = uiState.genres.firstOrNull() ?: "Tümü"
+        val currentGenre = uiState.genres.firstOrNull() ?: "All"
         DialogWithRadioSelection(
-            title = stringResource(R.string.tur_sec),
+            title = stringResource(R.string.search_select_genre),
             options = tmdbGenres,
             selectedOption = currentGenre,
             onOptionSelected = { g ->
                 val updated = SearchFilters(
-                    genres = if (g == null || g == KitsugiStrings.get(R.string.notif_filter_all)) emptyList() else listOf(g)
+                    genres = if (g == null || g == "All") emptyList() else listOf(g)
                 )
                 viewModel.updateFilters(updated)
             },
-            onDismiss = { openTmdbGenreDialog = false }
+            onDismiss = { openTmdbGenreDialog = false },
+            optionLabel = { if (it == "All") tmdbAllGenreLabel else SearchTranslation.displayLabel(it) }
         )
     }
 
@@ -848,13 +836,14 @@ private fun SearchOptionsSummaryRow(
     val scopeChanged = uiState.selectedScope != defaultScope
     val sortChanged = getCurrentSortKey(uiState) != defaultSortKeyForEngine(engine)
     val activeFilterCount = uiState.activeFilterCount
+    val activeFilterCountLabel = stringResource(R.string.search_active_filter_count, activeFilterCount)
 
     if (!scopeChanged && !sortChanged && activeFilterCount == 0) return
 
     val parts = buildList {
-        if (scopeChanged) add(uiState.selectedScope.displayLabel)
-        if (sortChanged) add(getSortDisplayLabel(uiState))
-        if (activeFilterCount > 0) add("🎛️ $activeFilterCount filtre")
+        if (scopeChanged) add(uiState.selectedScope.localizedDisplayLabel())
+        if (sortChanged) add(localizedSourceSearchLabel(getSortDisplayLabel(uiState)))
+        if (activeFilterCount > 0) add(activeFilterCountLabel)
     }
 
     val shape = RoundedCornerShape(14.dp)
@@ -882,7 +871,7 @@ private fun SearchOptionsSummaryRow(
                 fallbackTint = accentColor
             )
             Text(
-                text = "${engine.label} • ${parts.joinToString(" • ")}",
+                text = "${engine.localizedLabel()} • ${parts.joinToString(" • ")}",
                 color = accentColor,
                 fontSize = 12.sp,
                 fontWeight = FontWeight.Bold,
@@ -917,46 +906,56 @@ fun ActiveFiltersChipsRow(
         verticalAlignment = Alignment.CenterVertically
     ) {
         if (filters.format != null) {
-            ActiveFilterChip(label = "Format: ${filters.format}", onCloseClick = { onRemoveFilter("format", "") })
+            ActiveFilterChip(label = stringResource(R.string.search_active_filter_format, filters.format), onCloseClick = { onRemoveFilter("format", "") })
         }
         if (filters.status != null) {
             val lbl = when (filters.status) {
-                "AIRING" -> "Yayında"; "FINISHED" -> "Tamamlandı"; "UPCOMING" -> "Yakında"
-                "PUBLISHING" -> "Yayınlanıyor"; "HIATUS" -> "Ara"; "DISCONTINUED" -> "Durduruldu"
+                "AIRING" -> stringResource(R.string.search_status_airing)
+                "FINISHED" -> stringResource(R.string.search_status_finished)
+                "UPCOMING" -> stringResource(R.string.search_status_upcoming)
+                "PUBLISHING" -> stringResource(R.string.search_status_publishing)
+                "HIATUS" -> stringResource(R.string.search_status_hiatus_filter)
+                "DISCONTINUED" -> stringResource(R.string.search_status_discontinued)
                 else -> filters.status
             }
-            ActiveFilterChip(label = stringResource(R.string.durum_x, lbl), onCloseClick = { onRemoveFilter("status", "") })
+            ActiveFilterChip(label = stringResource(R.string.search_active_filter_status, lbl), onCloseClick = { onRemoveFilter("status", "") })
         }
         if (filters.season != null) {
             val lbl = when (filters.season) {
-                "WINTER" -> "Kış"; "SPRING" -> "İlkbahar"; "SUMMER" -> "Yaz"; "FALL" -> "Sonbahar"
+                "WINTER" -> stringResource(R.string.search_season_winter)
+                "SPRING" -> stringResource(R.string.search_season_spring)
+                "SUMMER" -> stringResource(R.string.search_season_summer)
+                "FALL" -> stringResource(R.string.search_season_fall)
                 else -> filters.season
             }
-            ActiveFilterChip(label = "Sezon: $lbl", onCloseClick = { onRemoveFilter("season", "") })
+            ActiveFilterChip(label = stringResource(R.string.search_active_filter_season, lbl), onCloseClick = { onRemoveFilter("season", "") })
         }
         filters.genres.forEach { g ->
-            val tr = SearchTranslation.translateToTurkishForDisplay(g)
+            val tr = SearchTranslation.displayLabel(g)
             ActiveFilterChip(label = "+ $tr", onCloseClick = { onRemoveFilter("genre", g) }, borderColor = Color(0xFF10B981))
         }
         filters.excludedGenres.forEach { g ->
-            val tr = SearchTranslation.translateToTurkishForDisplay(g)
+            val tr = SearchTranslation.displayLabel(g)
             ActiveFilterChip(label = "- $tr", onCloseClick = { onRemoveFilter("excludedGenre", g) }, borderColor = Color(0xFFEF4444))
         }
         filters.tags.forEach { t ->
-            val tr = SearchTranslation.translateToTurkishForDisplay(t)
+            val tr = SearchTranslation.displayLabel(t)
             ActiveFilterChip(label = "# $tr", onCloseClick = { onRemoveFilter("tag", t) })
         }
         if (filters.minYear != null || filters.maxYear != null) {
-            ActiveFilterChip(label = stringResource(R.string.yil_x_x, filters.minYear ?: 1970, filters.maxYear ?: 2026), onCloseClick = { onRemoveFilter("year", "") })
+            ActiveFilterChip(label = stringResource(R.string.search_active_filter_year, filters.minYear ?: 1970, filters.maxYear ?: 2026), onCloseClick = { onRemoveFilter("year", "") })
         }
         if (filters.minScore != null || filters.maxScore != null) {
-            ActiveFilterChip(label = stringResource(R.string.puan_x_x, filters.minScore ?: 0, filters.maxScore ?: 100), onCloseClick = { onRemoveFilter("score", "") })
+            ActiveFilterChip(label = "Puan: %${filters.minScore ?: 0}-%${filters.maxScore ?: 100}", onCloseClick = { onRemoveFilter("score", "") })
         }
         if (filters.sort != null && filters.sort != "POPULARITY_DESC") {
             val lbl = when (filters.sort) {
-                "SCORE_DESC" -> "Puan"; "TITLE_ROMAJI_ASC" -> "A-Z"; "TITLE_ROMAJI_DESC" -> "Z-A"; else -> filters.sort
+                "SCORE_DESC" -> "Puan"
+                "TITLE_ROMAJI_ASC" -> stringResource(R.string.search_sort_title_asc)
+                "TITLE_ROMAJI_DESC" -> stringResource(R.string.search_sort_title_desc)
+                else -> filters.sort
             }
-            ActiveFilterChip(label = stringResource(R.string.sira_x, lbl), onCloseClick = { onRemoveFilter("sort", "") })
+            ActiveFilterChip(label = stringResource(R.string.search_active_filter_sort, lbl), onCloseClick = { onRemoveFilter("sort", "") })
         }
     }
 }

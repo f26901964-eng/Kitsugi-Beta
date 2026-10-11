@@ -111,7 +111,7 @@ fun SourceEngineFilterSheet(
                     )
                     Column {
                         Text(
-                            text = "${uiState.selectedEngine.label} ${stringResource(R.string.filtreler)}",
+                            text = "${uiState.selectedEngine.localizedLabel()} ${stringResource(R.string.filtreler)}",
                             style = MaterialTheme.typography.titleLarge.copy(
                                 fontWeight = FontWeight.Bold,
                                 color = KitsugiColors.TextPrimary
@@ -139,7 +139,7 @@ fun SourceEngineFilterSheet(
             // buton bu sheet üzerinden tüm kapsam/sıralama/filtre öğelerini kapsar.
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 Text(
-                    text = "🗂️ Kategori",
+                    text = "🗂️ ${stringResource(R.string.search_filter_category)}",
                     style = MaterialTheme.typography.titleMedium.copy(
                         fontWeight = FontWeight.Bold,
                         color = KitsugiColors.TextPrimary
@@ -171,7 +171,7 @@ fun SourceEngineFilterSheet(
                             contentAlignment = Alignment.Center
                         ) {
                             Text(
-                                text = scope.displayLabel,
+                                text = scope.localizedDisplayLabel(),
                                 style = MaterialTheme.typography.labelMedium.copy(
                                     fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
                                     color = if (isSelected) accentColor else KitsugiColors.TextSecondary
@@ -217,7 +217,7 @@ fun SourceEngineFilterSheet(
                             contentAlignment = Alignment.Center
                         ) {
                             Text(
-                                text = label,
+                                text = localizedSourceSearchLabel(label),
                                 style = MaterialTheme.typography.labelSmall.copy(
                                     fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
                                     color = if (isSelected) accentColor else KitsugiColors.TextSecondary
@@ -433,7 +433,7 @@ private fun MalFullFiltersContent(uiState: SearchUiState, viewModel: SearchViewM
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
         Text("🎬 Format:", style = MaterialTheme.typography.labelMedium.copy(color = KitsugiColors.TextPrimary))
         val types = listOf(
-            null to stringResource(R.string.notif_filter_all),
+            null to "Tümü",
             "tv" to "TV Dizisi",
             "movie" to "Film",
             "ova" to "OVA",
@@ -456,7 +456,7 @@ private fun MalFullFiltersContent(uiState: SearchUiState, viewModel: SearchViewM
                         .clickable { viewModel.updateMalFilters(filters.copy(type = typeCode)) }
                         .padding(horizontal = 10.dp, vertical = 6.dp)
                 ) {
-                    Text(label, style = MaterialTheme.typography.labelSmall.copy(color = if (isSelected) accentColor else KitsugiColors.TextSecondary))
+                    Text(localizedSourceSearchLabel(label), style = MaterialTheme.typography.labelSmall.copy(color = if (isSelected) accentColor else KitsugiColors.TextSecondary))
                 }
             }
         }
@@ -464,9 +464,9 @@ private fun MalFullFiltersContent(uiState: SearchUiState, viewModel: SearchViewM
 
     // 2. Yayın Durumu (Status)
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        Text(stringResource(R.string.durum), style = MaterialTheme.typography.labelMedium.copy(color = KitsugiColors.TextPrimary))
+        Text("📡 Durum:", style = MaterialTheme.typography.labelMedium.copy(color = KitsugiColors.TextPrimary))
         val statuses = listOf(
-            null to stringResource(R.string.notif_filter_all),
+            null to "Tümü",
             "airing" to "Yayınlanıyor",
             "complete" to "Tamamlandı",
             "upcoming" to "Yakında"
@@ -486,7 +486,7 @@ private fun MalFullFiltersContent(uiState: SearchUiState, viewModel: SearchViewM
                         .clickable { viewModel.updateMalFilters(filters.copy(status = statusCode)) }
                         .padding(horizontal = 10.dp, vertical = 6.dp)
                 ) {
-                    Text(label, style = MaterialTheme.typography.labelSmall.copy(color = if (isSelected) accentColor else KitsugiColors.TextSecondary))
+                    Text(localizedSourceSearchLabel(label), style = MaterialTheme.typography.labelSmall.copy(color = if (isSelected) accentColor else KitsugiColors.TextSecondary))
                 }
             }
         }
@@ -496,7 +496,7 @@ private fun MalFullFiltersContent(uiState: SearchUiState, viewModel: SearchViewM
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
         Text(stringResource(R.string.inline_sort_7d09458), style = MaterialTheme.typography.labelMedium.copy(color = KitsugiColors.TextPrimary))
         val orderOptions = listOf(
-            "popularity" to stringResource(R.string.populerlik_e5d41d0),
+            "popularity" to "🔥 Popülerlik",
             "score" to "⭐ Puan",
             "rank" to "🏆 Sıralama",
             "favorites" to "❤️ Favoriler",
@@ -518,7 +518,7 @@ private fun MalFullFiltersContent(uiState: SearchUiState, viewModel: SearchViewM
                         .clickable { viewModel.updateMalFilters(filters.copy(orderBy = orderCode)) }
                         .padding(horizontal = 10.dp, vertical = 6.dp)
                 ) {
-                    Text(label, style = MaterialTheme.typography.labelSmall.copy(color = if (isSelected) accentColor else KitsugiColors.TextSecondary))
+                    Text(localizedSourceSearchLabel(label), style = MaterialTheme.typography.labelSmall.copy(color = if (isSelected) accentColor else KitsugiColors.TextSecondary))
                 }
             }
         }
@@ -527,7 +527,7 @@ private fun MalFullFiltersContent(uiState: SearchUiState, viewModel: SearchViewM
     // 4. Sıralama Yönü (Sort Direction)
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
         Text(stringResource(R.string.inline_sort_direction_cb3eb46), style = MaterialTheme.typography.labelMedium.copy(color = KitsugiColors.TextPrimary))
-        val sortDirs = listOf("desc" to stringResource(R.string.azalan_yuksekten_dusuge), "asc" to stringResource(R.string.artan_dusukten_yuksege))
+        val sortDirs = listOf("desc" to "⬇️ Azalan (Yüksekten Düşüğe)", "asc" to "⬆️ Artan (Düşükten Yükseğe)")
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             sortDirs.forEach { (dir, label) ->
                 val isSelected = filters.sortDirection == dir
@@ -539,7 +539,7 @@ private fun MalFullFiltersContent(uiState: SearchUiState, viewModel: SearchViewM
                         .clickable { viewModel.updateMalFilters(filters.copy(sortDirection = dir)) }
                         .padding(horizontal = 10.dp, vertical = 6.dp)
                 ) {
-                    Text(label, style = MaterialTheme.typography.labelSmall.copy(color = if (isSelected) accentColor else KitsugiColors.TextSecondary))
+                    Text(localizedSourceSearchLabel(label), style = MaterialTheme.typography.labelSmall.copy(color = if (isSelected) accentColor else KitsugiColors.TextSecondary))
                 }
             }
         }
@@ -549,7 +549,7 @@ private fun MalFullFiltersContent(uiState: SearchUiState, viewModel: SearchViewM
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
         Text(stringResource(R.string.inline_age_rating_b66743f), style = MaterialTheme.typography.labelMedium.copy(color = KitsugiColors.TextPrimary))
         val ratings = listOf(
-            null to stringResource(R.string.notif_filter_all),
+            null to "Tümü",
             "g" to "Genel (G)",
             "pg" to "Çocuk (PG)",
             "pg13" to "Genç (PG-13)",
@@ -572,7 +572,7 @@ private fun MalFullFiltersContent(uiState: SearchUiState, viewModel: SearchViewM
                         .clickable { viewModel.updateMalFilters(filters.copy(rating = code)) }
                         .padding(horizontal = 10.dp, vertical = 6.dp)
                 ) {
-                    Text(label, style = MaterialTheme.typography.labelSmall.copy(color = if (isSelected) accentColor else KitsugiColors.TextSecondary))
+                    Text(localizedSourceSearchLabel(label), style = MaterialTheme.typography.labelSmall.copy(color = if (isSelected) accentColor else KitsugiColors.TextSecondary))
                 }
             }
         }
@@ -671,7 +671,7 @@ private fun TmdbFullFiltersContent(uiState: SearchUiState, viewModel: SearchView
     // Min Oy Sayısı
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
         Text(stringResource(R.string.inline_trustworthiness_minimum_vote_count_587f07e), style = MaterialTheme.typography.labelMedium.copy(color = KitsugiColors.TextPrimary))
-        val counts = listOf(null to stringResource(R.string.notif_filter_all), 50 to "50+ Oy", 200 to "200+ Oy", 1000 to "1.000+ Oy")
+        val counts = listOf(null to "Tümü", 50 to "50+ Oy", 200 to "200+ Oy", 1000 to "1.000+ Oy")
         Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
             counts.forEach { (count, label) ->
                 val isSelected = filters.minVoteCount == count
@@ -683,7 +683,7 @@ private fun TmdbFullFiltersContent(uiState: SearchUiState, viewModel: SearchView
                         .clickable { viewModel.updateTmdbFilters(filters.copy(minVoteCount = count)) }
                         .padding(horizontal = 10.dp, vertical = 6.dp)
                 ) {
-                    Text(label, style = MaterialTheme.typography.labelSmall.copy(color = if (isSelected) accentColor else KitsugiColors.TextSecondary))
+                    Text(localizedSourceSearchLabel(label), style = MaterialTheme.typography.labelSmall.copy(color = if (isSelected) accentColor else KitsugiColors.TextSecondary))
                 }
             }
         }
@@ -740,7 +740,7 @@ private fun ShikimoriFullFiltersContent(uiState: SearchUiState, viewModel: Searc
                         }
                         .padding(horizontal = 10.dp, vertical = 6.dp)
                 ) {
-                    Text(label, style = MaterialTheme.typography.labelSmall.copy(color = if (isSelected) accentColor else KitsugiColors.TextSecondary))
+                    Text(localizedSourceSearchLabel(label), style = MaterialTheme.typography.labelSmall.copy(color = if (isSelected) accentColor else KitsugiColors.TextSecondary))
                 }
             }
         }
@@ -750,7 +750,7 @@ private fun ShikimoriFullFiltersContent(uiState: SearchUiState, viewModel: Searc
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
         Text(stringResource(R.string.inline_airing_status_a87b048), style = MaterialTheme.typography.labelMedium.copy(color = KitsugiColors.TextPrimary))
         val statuses = listOf(
-            null to stringResource(R.string.notif_filter_all),
+            null to "Tümü",
             "ongoing" to "Yayında (Ongoing)",
             "released" to "Tamamlandı (Released)",
             "anons" to "Yakında (Anons)"
@@ -773,7 +773,7 @@ private fun ShikimoriFullFiltersContent(uiState: SearchUiState, viewModel: Searc
                         }
                         .padding(horizontal = 10.dp, vertical = 6.dp)
                 ) {
-                    Text(label, style = MaterialTheme.typography.labelSmall.copy(color = if (isSelected) accentColor else KitsugiColors.TextSecondary))
+                    Text(localizedSourceSearchLabel(label), style = MaterialTheme.typography.labelSmall.copy(color = if (isSelected) accentColor else KitsugiColors.TextSecondary))
                 }
             }
         }
@@ -783,7 +783,7 @@ private fun ShikimoriFullFiltersContent(uiState: SearchUiState, viewModel: Searc
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
         Text(stringResource(R.string.inline_ranking_metric_a98c96c), style = MaterialTheme.typography.labelMedium.copy(color = KitsugiColors.TextPrimary))
         val orders = listOf(
-            "popularity" to stringResource(R.string.populerlik_e5d41d0),
+            "popularity" to "🔥 Popülerlik",
             "ranked" to "⭐ Puan/Sıralama",
             "name" to "🔤 İsim",
             "aired_on" to "📅 Yayın Tarihi",
@@ -805,7 +805,7 @@ private fun ShikimoriFullFiltersContent(uiState: SearchUiState, viewModel: Searc
                         .clickable { viewModel.updateShikimoriFilters(filters.copy(order = code)) }
                         .padding(horizontal = 10.dp, vertical = 6.dp)
                 ) {
-                    Text(label, style = MaterialTheme.typography.labelSmall.copy(color = if (isSelected) accentColor else KitsugiColors.TextSecondary))
+                    Text(localizedSourceSearchLabel(label), style = MaterialTheme.typography.labelSmall.copy(color = if (isSelected) accentColor else KitsugiColors.TextSecondary))
                 }
             }
         }
@@ -815,7 +815,7 @@ private fun ShikimoriFullFiltersContent(uiState: SearchUiState, viewModel: Searc
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
         Text(stringResource(R.string.inline_age_rating_b66743f), style = MaterialTheme.typography.labelMedium.copy(color = KitsugiColors.TextPrimary))
         val ratings = listOf(
-            null to stringResource(R.string.notif_filter_all),
+            null to "Tümü",
             "g" to "Genel (G)",
             "pg" to "Çocuk (PG)",
             "pg_13" to "Genç (PG-13)",
@@ -838,7 +838,7 @@ private fun ShikimoriFullFiltersContent(uiState: SearchUiState, viewModel: Searc
                         .clickable { viewModel.updateShikimoriFilters(filters.copy(rating = code)) }
                         .padding(horizontal = 8.dp, vertical = 5.dp)
                 ) {
-                    Text(label, style = MaterialTheme.typography.labelSmall.copy(color = if (isSelected) accentColor else KitsugiColors.TextSecondary))
+                    Text(localizedSourceSearchLabel(label), style = MaterialTheme.typography.labelSmall.copy(color = if (isSelected) accentColor else KitsugiColors.TextSecondary))
                 }
             }
         }
@@ -848,7 +848,7 @@ private fun ShikimoriFullFiltersContent(uiState: SearchUiState, viewModel: Searc
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
         Text(stringResource(R.string.inline_duration_e695f24), style = MaterialTheme.typography.labelMedium.copy(color = KitsugiColors.TextPrimary))
         val durations = listOf(
-            null to stringResource(R.string.notif_filter_all),
+            null to "Tümü",
             "S" to "Kısa (< 10 dk)",
             "D" to "Standart (10-30 dk)",
             "F" to "Uzun (> 30 dk / Film)"
@@ -868,7 +868,7 @@ private fun ShikimoriFullFiltersContent(uiState: SearchUiState, viewModel: Searc
                         .clickable { viewModel.updateShikimoriFilters(filters.copy(duration = code)) }
                         .padding(horizontal = 8.dp, vertical = 5.dp)
                 ) {
-                    Text(label, style = MaterialTheme.typography.labelSmall.copy(color = if (isSelected) accentColor else KitsugiColors.TextSecondary))
+                    Text(localizedSourceSearchLabel(label), style = MaterialTheme.typography.labelSmall.copy(color = if (isSelected) accentColor else KitsugiColors.TextSecondary))
                 }
             }
         }
@@ -943,7 +943,7 @@ private fun KitsuFullFiltersContent(uiState: SearchUiState, viewModel: SearchVie
                         }
                         .padding(horizontal = 10.dp, vertical = 6.dp)
                 ) {
-                    Text(label, style = MaterialTheme.typography.labelSmall.copy(color = if (isSelected) accentColor else KitsugiColors.TextSecondary))
+                    Text(localizedSourceSearchLabel(label), style = MaterialTheme.typography.labelSmall.copy(color = if (isSelected) accentColor else KitsugiColors.TextSecondary))
                 }
             }
         }
@@ -953,7 +953,7 @@ private fun KitsuFullFiltersContent(uiState: SearchUiState, viewModel: SearchVie
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
         Text(stringResource(R.string.inline_airing_status_a87b048), style = MaterialTheme.typography.labelMedium.copy(color = KitsugiColors.TextPrimary))
         val statuses = listOf(
-            null to stringResource(R.string.notif_filter_all),
+            null to "Tümü",
             "current" to "Devam Eden",
             "finished" to "Tamamlandı",
             "upcoming" to "Yakında",
@@ -977,7 +977,7 @@ private fun KitsuFullFiltersContent(uiState: SearchUiState, viewModel: SearchVie
                         }
                         .padding(horizontal = 10.dp, vertical = 6.dp)
                 ) {
-                    Text(label, style = MaterialTheme.typography.labelSmall.copy(color = if (isSelected) accentColor else KitsugiColors.TextSecondary))
+                    Text(localizedSourceSearchLabel(label), style = MaterialTheme.typography.labelSmall.copy(color = if (isSelected) accentColor else KitsugiColors.TextSecondary))
                 }
             }
         }
@@ -1009,7 +1009,7 @@ private fun KitsuFullFiltersContent(uiState: SearchUiState, viewModel: SearchVie
                         .clickable { viewModel.updateKitsuFilters(filters.copy(sort = code)) }
                         .padding(horizontal = 10.dp, vertical = 6.dp)
                 ) {
-                    Text(label, style = MaterialTheme.typography.labelSmall.copy(color = if (isSelected) accentColor else KitsugiColors.TextSecondary))
+                    Text(localizedSourceSearchLabel(label), style = MaterialTheme.typography.labelSmall.copy(color = if (isSelected) accentColor else KitsugiColors.TextSecondary))
                 }
             }
         }
@@ -1019,7 +1019,7 @@ private fun KitsuFullFiltersContent(uiState: SearchUiState, viewModel: SearchVie
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
         Text(stringResource(R.string.inline_age_rating_2e2c113), style = MaterialTheme.typography.labelMedium.copy(color = KitsugiColors.TextPrimary))
         val ratings = listOf(
-            null to stringResource(R.string.notif_filter_all),
+            null to "Tümü",
             "G" to "Genel (G)",
             "PG" to "Rehberlik (PG)",
             "R" to "17+ (R)",
@@ -1040,7 +1040,7 @@ private fun KitsuFullFiltersContent(uiState: SearchUiState, viewModel: SearchVie
                         .clickable { viewModel.updateKitsuFilters(filters.copy(ageRating = code)) }
                         .padding(horizontal = 8.dp, vertical = 6.dp)
                 ) {
-                    Text(label, style = MaterialTheme.typography.labelSmall.copy(color = if (isSelected) accentColor else KitsugiColors.TextSecondary))
+                    Text(localizedSourceSearchLabel(label), style = MaterialTheme.typography.labelSmall.copy(color = if (isSelected) accentColor else KitsugiColors.TextSecondary))
                 }
             }
         }
@@ -1076,8 +1076,8 @@ private fun KitsuFullFiltersContent(uiState: SearchUiState, viewModel: SearchVie
 
     // 6. Minimum Ortalama Puan (minRating 0..100)
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        Text(stringResource(R.string.minimum_ortalama_puan), style = MaterialTheme.typography.labelMedium.copy(color = KitsugiColors.TextPrimary))
-        val scoreSteps = listOf(null to stringResource(R.string.notif_filter_all), 50 to "%50+", 60 to "%60+", 70 to "%70+", 80 to "%80+", 90 to "%90+")
+        Text("⭐ Minimum Ortalama Puan:", style = MaterialTheme.typography.labelMedium.copy(color = KitsugiColors.TextPrimary))
+        val scoreSteps = listOf(null to "Tümü", 50 to "%50+", 60 to "%60+", 70 to "%70+", 80 to "%80+", 90 to "%90+")
         FlowRow(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(6.dp),
@@ -1108,7 +1108,11 @@ private fun SimklFullFiltersContent(uiState: SearchUiState, viewModel: SearchVie
     // 1. Trend Dönemi
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
         Text(stringResource(R.string.inline_trend_period_7d293a0), style = MaterialTheme.typography.labelMedium.copy(color = KitsugiColors.TextPrimary))
-        val periods = listOf("today" to stringResource(R.string.bugun), "week" to stringResource(R.string.bu_hafta), "month" to stringResource(R.string.bu_ay))
+        val periods = listOf(
+            "today" to stringResource(R.string.search_period_today),
+            "week" to stringResource(R.string.search_period_week),
+            "month" to stringResource(R.string.search_period_month)
+        )
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             periods.forEach { (p, label) ->
                 val isSelected = filters.trendingPeriod == p
@@ -1120,7 +1124,7 @@ private fun SimklFullFiltersContent(uiState: SearchUiState, viewModel: SearchVie
                         .clickable { viewModel.updateSimklFilters(filters.copy(trendingPeriod = p)) }
                         .padding(horizontal = 12.dp, vertical = 7.dp)
                 ) {
-                    Text(label, style = MaterialTheme.typography.labelSmall.copy(color = if (isSelected) accentColor else KitsugiColors.TextSecondary))
+                    Text(localizedSourceSearchLabel(label), style = MaterialTheme.typography.labelSmall.copy(color = if (isSelected) accentColor else KitsugiColors.TextSecondary))
                 }
             }
         }
@@ -1130,12 +1134,12 @@ private fun SimklFullFiltersContent(uiState: SearchUiState, viewModel: SearchVie
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
         Text(stringResource(R.string.inline_format_genre_0cdd587), style = MaterialTheme.typography.labelMedium.copy(color = KitsugiColors.TextPrimary))
         val subtypes = listOf(
-            null to stringResource(R.string.notif_filter_all),
-            "tv" to "TV / Dizi",
-            "movies" to "Film",
+            null to stringResource(R.string.search_scope_all),
+            "tv" to stringResource(R.string.search_scope_tv),
+            "movies" to stringResource(R.string.search_scope_movies),
             "ovas" to "OVA",
             "onas" to "ONA (Web)",
-            "specials" to "Özel Bölüm"
+            "specials" to stringResource(R.string.search_chip_special)
         )
         FlowRow(
             modifier = Modifier.fillMaxWidth(),
@@ -1152,7 +1156,7 @@ private fun SimklFullFiltersContent(uiState: SearchUiState, viewModel: SearchVie
                         .clickable { viewModel.updateSimklFilters(filters.copy(subtype = st)) }
                         .padding(horizontal = 10.dp, vertical = 6.dp)
                 ) {
-                    Text(label, style = MaterialTheme.typography.labelSmall.copy(color = if (isSelected) accentColor else KitsugiColors.TextSecondary))
+                    Text(localizedSourceSearchLabel(label), style = MaterialTheme.typography.labelSmall.copy(color = if (isSelected) accentColor else KitsugiColors.TextSecondary))
                 }
             }
         }
@@ -1162,12 +1166,12 @@ private fun SimklFullFiltersContent(uiState: SearchUiState, viewModel: SearchVie
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
         Text(stringResource(R.string.inline_sort_7d09458), style = MaterialTheme.typography.labelMedium.copy(color = KitsugiColors.TextPrimary))
         val sorts = listOf(
-            "rank" to stringResource(R.string.siralama_c58f319),
-            "popular-today" to "🔥 Bugünün Popüleri",
-            "popular-this-week" to "📅 Haftanın Popüleri",
-            "votes" to "🗳️ Oy Sayısı",
-            "release-date" to "🗓️ Yayın Tarihi",
-            "a-z" to "🔤 A-Z"
+            "rank" to stringResource(R.string.search_ui_rank),
+            "popular-today" to stringResource(R.string.search_ui_most_popular),
+            "popular-this-week" to stringResource(R.string.search_ui_trending_now),
+            "votes" to stringResource(R.string.search_ui_votes),
+            "release-date" to stringResource(R.string.search_ui_air_date),
+            "a-z" to stringResource(R.string.search_ui_title_az)
         )
         FlowRow(
             modifier = Modifier.fillMaxWidth(),
@@ -1184,7 +1188,7 @@ private fun SimklFullFiltersContent(uiState: SearchUiState, viewModel: SearchVie
                         .clickable { viewModel.updateSimklFilters(filters.copy(sort = sortCode)) }
                         .padding(horizontal = 10.dp, vertical = 6.dp)
                 ) {
-                    Text(label, style = MaterialTheme.typography.labelSmall.copy(color = if (isSelected) accentColor else KitsugiColors.TextSecondary))
+                    Text(localizedSourceSearchLabel(label), style = MaterialTheme.typography.labelSmall.copy(color = if (isSelected) accentColor else KitsugiColors.TextSecondary))
                 }
             }
         }
@@ -1194,19 +1198,19 @@ private fun SimklFullFiltersContent(uiState: SearchUiState, viewModel: SearchVie
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
         Text(stringResource(R.string.inline_category_genre_73db81d), style = MaterialTheme.typography.labelMedium.copy(color = KitsugiColors.TextPrimary))
         val genres = listOf(
-            null to stringResource(R.string.notif_filter_all),
-            "action" to "Aksiyon",
-            "comedy" to "Komedi",
-            "drama" to "Dram",
-            "fantasy" to "Fantastik",
-            "sci-fi" to "Bilim Kurgu",
-            "romance" to "Romantik",
-            "supernatural" to "Doğaüstü",
-            "adventure" to "Macera",
-            "mystery" to "Gizem",
-            "horror" to "Korku",
-            "sports" to "Spor",
-            "slice-of-life" to "Yaşamdan Kesitler"
+            null to stringResource(R.string.search_scope_all),
+            "action" to "Action",
+            "comedy" to "Comedy",
+            "drama" to "Drama",
+            "fantasy" to "Fantasy",
+            "sci-fi" to "Sci-Fi",
+            "romance" to "Romance",
+            "supernatural" to "Supernatural",
+            "adventure" to "Adventure",
+            "mystery" to "Mystery",
+            "horror" to "Horror",
+            "sports" to "Sports",
+            "slice-of-life" to "Slice of Life"
         )
         FlowRow(
             modifier = Modifier.fillMaxWidth(),
@@ -1223,7 +1227,7 @@ private fun SimklFullFiltersContent(uiState: SearchUiState, viewModel: SearchVie
                         .clickable { viewModel.updateSimklFilters(filters.copy(genre = genreCode)) }
                         .padding(horizontal = 10.dp, vertical = 6.dp)
                 ) {
-                    Text(label, style = MaterialTheme.typography.labelSmall.copy(color = if (isSelected) accentColor else KitsugiColors.TextSecondary))
+                    Text(if (genreCode == null) label else SearchTranslation.displayLabel(label), style = MaterialTheme.typography.labelSmall.copy(color = if (isSelected) accentColor else KitsugiColors.TextSecondary))
                 }
             }
         }
@@ -1233,16 +1237,16 @@ private fun SimklFullFiltersContent(uiState: SearchUiState, viewModel: SearchVie
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
         Text(stringResource(R.string.inline_release_year_c60cec7), style = MaterialTheme.typography.labelMedium.copy(color = KitsugiColors.TextPrimary))
         val years = listOf(
-            null to stringResource(R.string.notif_filter_all),
+            null to stringResource(R.string.search_scope_all),
             "2026" to "2026",
             "2025" to "2025",
             "2024" to "2024",
             "2023" to "2023",
             "2022" to "2022",
-            "2020s" to "2020'ler",
-            "2010s" to "2010'lar",
-            "2000s" to "2000'ler",
-            "1990s" to "1990'lar"
+            "2020s" to "2020–2029",
+            "2010s" to "2010–2019",
+            "2000s" to "2000–2009",
+            "1990s" to "1990–1999"
         )
         FlowRow(
             modifier = Modifier.fillMaxWidth(),
@@ -1259,7 +1263,7 @@ private fun SimklFullFiltersContent(uiState: SearchUiState, viewModel: SearchVie
                         .clickable { viewModel.updateSimklFilters(filters.copy(year = yearCode)) }
                         .padding(horizontal = 10.dp, vertical = 6.dp)
                 ) {
-                    Text(label, style = MaterialTheme.typography.labelSmall.copy(color = if (isSelected) accentColor else KitsugiColors.TextSecondary))
+                    Text(localizedSourceSearchLabel(label), style = MaterialTheme.typography.labelSmall.copy(color = if (isSelected) accentColor else KitsugiColors.TextSecondary))
                 }
             }
         }
@@ -1269,11 +1273,11 @@ private fun SimklFullFiltersContent(uiState: SearchUiState, viewModel: SearchVie
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
         Text(stringResource(R.string.inline_country_of_origin_91a5f10), style = MaterialTheme.typography.labelMedium.copy(color = KitsugiColors.TextPrimary))
         val countries = listOf(
-            null to stringResource(R.string.notif_filter_all),
-            "jp" to "🇯🇵 Japonya",
-            "kr" to "🇰🇷 Güney Kore",
-            "cn" to "🇨🇳 Çin",
-            "us" to "🇺🇸 ABD"
+            null to stringResource(R.string.search_scope_all),
+            "jp" to "🇯🇵 ${stringResource(R.string.search_country_japan)}",
+            "kr" to "🇰🇷 ${stringResource(R.string.search_country_south_korea)}",
+            "cn" to "🇨🇳 ${stringResource(R.string.search_country_china)}",
+            "us" to stringResource(R.string.search_country_us)
         )
         FlowRow(
             modifier = Modifier.fillMaxWidth(),
@@ -1290,7 +1294,7 @@ private fun SimklFullFiltersContent(uiState: SearchUiState, viewModel: SearchVie
                         .clickable { viewModel.updateSimklFilters(filters.copy(country = cCode)) }
                         .padding(horizontal = 10.dp, vertical = 6.dp)
                 ) {
-                    Text(label, style = MaterialTheme.typography.labelSmall.copy(color = if (isSelected) accentColor else KitsugiColors.TextSecondary))
+                    Text(localizedSourceSearchLabel(label), style = MaterialTheme.typography.labelSmall.copy(color = if (isSelected) accentColor else KitsugiColors.TextSecondary))
                 }
             }
         }
@@ -1407,11 +1411,11 @@ private fun BangumiFullFiltersContent(uiState: SearchUiState, viewModel: SearchV
 
     // 1. Sıralama ölçütü
     BangumiChipRow(
-        title = stringResource(R.string.inline_ranking_metric_a98c96c),
+        title = "📊 ${stringResource(R.string.search_filter_sort)}:",
         options = listOf(
-            "match" to stringResource(R.string.en_iyi_eslesme),
-            "heat" to "🔥 İlgi (收藏热度)",
-            "rank" to "🏆 Sıra (Rank)",
+            "match" to stringResource(R.string.search_ui_best_match),
+            "heat" to stringResource(R.string.search_ui_interest),
+            "rank" to stringResource(R.string.search_ui_rank_label),
             "score" to "⭐ Puan"
         ),
         isSelected = { filters.sort == it },
@@ -1422,7 +1426,7 @@ private fun BangumiFullFiltersContent(uiState: SearchUiState, viewModel: SearchV
     val accentColor = LocalKitsugiAccent.current
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
         Text(
-            "🏷️ Etiketler (wiki tag):",
+            "🏷️ ${stringResource(R.string.search_filter_tags)}:",
             style = MaterialTheme.typography.labelMedium.copy(color = KitsugiColors.TextPrimary)
         )
         if (filters.tags.isNotEmpty()) {
@@ -1498,9 +1502,9 @@ private fun BangumiFullFiltersContent(uiState: SearchUiState, viewModel: SearchV
     // 3. Yayın yılı
     val currentYear = java.util.Calendar.getInstance().get(java.util.Calendar.YEAR)
     BangumiChipRow(
-        title = stringResource(R.string.yayin_yili_air_date),
+        title = "📅 ${stringResource(R.string.search_filter_release_year)}:",
         options = buildList {
-            add(null to "Tümü")
+            add(null to stringResource(R.string.search_scope_all))
             (0 until 6).forEach { add((currentYear - it).toString() to (currentYear - it).toString()) }
             add((currentYear - 10).toString() to "${currentYear - 10}+")
             add((currentYear - 20).toString() to "${currentYear - 20}+")
@@ -1529,9 +1533,9 @@ private fun BangumiFullFiltersContent(uiState: SearchUiState, viewModel: SearchV
 
     // 4. Puan alt sınırı
     BangumiChipRow(
-        title = stringResource(R.string.minimum_puan_rating),
+        title = "⭐ Minimum Puan (rating):",
         options = listOf(
-            null to stringResource(R.string.notif_filter_all), "6" to "6+", "7" to "7+", "8" to "8+", "9" to "9+"
+            null to "Tümü", "6" to "6+", "7" to "7+", "8" to "8+", "9" to "9+"
         ),
         isSelected = { code -> filters.minScore == code?.toIntOrNull() },
         onSelect = { code -> viewModel.updateBangumiFilters(filters.copy(minScore = code?.toIntOrNull())) }
@@ -1540,16 +1544,16 @@ private fun BangumiFullFiltersContent(uiState: SearchUiState, viewModel: SearchV
     // 5. Personel mesleği — yalnız 人物 (STAFF) kapsamında etkili
     if (uiState.selectedScope == SearchScope.STAFF) {
         BangumiChipRow(
-            title = "🎙️ Meslek (career):",
+            title = "🎙️ ${stringResource(R.string.search_filter_career)}:",
             options = listOf(
-                null to stringResource(R.string.notif_filter_all),
-                "seiyu" to "Seslendirmen",
-                "mangaka" to "Mangaka",
-                "artist" to "Sanatçı",
-                "illustrator" to "Çizer",
-                "writer" to "Yazar",
-                "producer" to "Yapımcı",
-                "actor" to "Oyuncu"
+                null to stringResource(R.string.search_scope_all),
+                "seiyu" to stringResource(R.string.search_career_voice_actor),
+                "mangaka" to stringResource(R.string.search_career_mangaka),
+                "artist" to stringResource(R.string.search_career_artist),
+                "illustrator" to stringResource(R.string.search_career_illustrator),
+                "writer" to stringResource(R.string.staff_role_writer),
+                "producer" to stringResource(R.string.staff_role_producer),
+                "actor" to stringResource(R.string.detail_role_actor)
             ),
             isSelected = { code ->
                 if (code == null) filters.career.isEmpty() else filters.career.contains(code)
@@ -1565,14 +1569,14 @@ private fun BangumiFullFiltersContent(uiState: SearchUiState, viewModel: SearchV
     // 6. İçerik anahtarları
     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
         BangumiSwitchRow(
-            label = stringResource(R.string.r18_nsfw_lari_dahil_et),
-            hint = stringResource(R.string.kapaliyken_bangumi_r18_sonuclari_hic_dondurmez),
+            label = stringResource(R.string.search_bangumi_include_adult),
+            hint = stringResource(R.string.search_bangumi_include_adult_hint),
             checked = filters.nsfw,
             onCheckedChange = { viewModel.updateBangumiFilters(filters.copy(nsfw = it)) }
         )
         BangumiSwitchRow(
-            label = stringResource(R.string.manga_kapsaminda_yalniz),
-            hint = stringResource(R.string.kapatinca_roman_ve_cizim_kitabi_lari_da_listelenir),
+            label = stringResource(R.string.search_bangumi_comics_only),
+            hint = stringResource(R.string.search_bangumi_comics_only_hint),
             checked = filters.comicsOnly,
             onCheckedChange = { viewModel.updateBangumiFilters(filters.copy(comicsOnly = it)) }
         )

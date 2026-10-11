@@ -9,8 +9,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
-import com.kitsugi.animelist.ui.theme.gradient.CircularProgressIndicator
-import com.kitsugi.animelist.ui.components.KitsugiPlasmaLoader
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -18,7 +16,6 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -125,15 +122,15 @@ fun KitsugiAiringCalendarScreen(
 
         // ── İçerik listesi ─────────────────────────────────────────────────
         when {
-            viewModel.isLoading && viewModel.weekSchedule.isEmpty() -> {
-                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    KitsugiPlasmaLoader(size = 50.dp)
+            (viewModel.isLoading || !viewModel.hasLoaded) && viewModel.weekSchedule.isEmpty() -> {
+                Box(modifier = Modifier.weight(1f)) {
+                    AiringCalendarSkeleton(isGridView = isGridView)
                 }
             }
             viewModel.errorMessage != null && viewModel.weekSchedule.isEmpty() -> {
                 AiringErrorState(
                     message = viewModel.errorMessage.orEmpty(),
-                    onRetry = { viewModel.loadSchedule() }
+                    onRetry = { viewModel.loadSchedule(preferredSource = preferredSource, force = true) }
                 )
             }
             else -> {

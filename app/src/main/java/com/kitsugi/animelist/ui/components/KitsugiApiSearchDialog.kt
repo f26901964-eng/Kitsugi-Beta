@@ -57,8 +57,8 @@ import com.kitsugi.animelist.ui.utils.dpadVerticalFastScroll
 import com.kitsugi.animelist.utils.toFriendlySourceLabel
 import kotlinx.coroutines.launch
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.platform.LocalContext
 import com.kitsugi.animelist.R
-import com.kitsugi.animelist.utils.KitsugiStrings
 
 @Composable
 fun KitsugiApiSearchDialog(
@@ -67,6 +67,7 @@ fun KitsugiApiSearchDialog(
 ) {
     val isTvDevice = com.kitsugi.animelist.ui.theme.LocalIsTvDevice.current
     val accentColor = LocalKitsugiAccent.current
+    val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
     val apiClient = remember {
         JikanApiClient()
@@ -111,11 +112,11 @@ fun KitsugiApiSearchDialog(
             }.onSuccess { searchResults ->
                 results = searchResults
                 if (searchResults.isEmpty()) {
-                    errorMessage = KitsugiStrings.get(R.string.inline_no_results_found_5d2ab77)
+                    errorMessage = context.getString(R.string.source_search_no_results)
                 }
             }.onFailure { error ->
                 results = emptyList()
-                errorMessage = error.message ?: KitsugiStrings.get(R.string.api_istegi_basarisiz_oldu)
+                errorMessage = error.message ?: context.getString(R.string.source_search_api_failed)
             }
 
             isLoading = false
@@ -249,7 +250,7 @@ fun KitsugiApiSearchDialog(
                                     modifier = Modifier.fillMaxWidth()
                                 ) {
                                     Text(
-                                        text = if (isLoading) KitsugiStrings.get(R.string.inline_searching_1f83d73) else KitsugiStrings.get(R.string.ara),
+                                        text = if (isLoading) stringResource(R.string.source_searching) else stringResource(R.string.source_search_button),
                                         color = if (query.isNotBlank() && !isLoading) {
                                             accentColor
                                         } else {
@@ -288,7 +289,7 @@ fun KitsugiApiSearchDialog(
                                         contentAlignment = Alignment.Center
                                     ) {
                                         Text(
-                                            text = if (isLoading) KitsugiStrings.get(R.string.inline_searching_1f83d73) else KitsugiStrings.get(R.string.inline_no_results_found_5d2ab77),
+                                            text = if (isLoading) stringResource(R.string.source_searching) else stringResource(R.string.source_search_no_results),
                                             color = KitsugiColors.TextMuted,
                                             style = MaterialTheme.typography.bodyMedium
                                         )
@@ -423,7 +424,7 @@ fun KitsugiApiSearchDialog(
                                 modifier = Modifier.fillMaxWidth()
                             ) {
                                 Text(
-                                    text = if (isLoading) KitsugiStrings.get(R.string.inline_searching_1f83d73) else KitsugiStrings.get(R.string.ara),
+                                    text = if (isLoading) stringResource(R.string.source_searching) else stringResource(R.string.source_search_button),
                                     color = if (query.isNotBlank() && !isLoading) {
                                         accentColor
                                     } else {
@@ -462,7 +463,7 @@ fun KitsugiApiSearchDialog(
                                     contentAlignment = Alignment.Center
                                 ) {
                                     Text(
-                                        text = if (isLoading) KitsugiStrings.get(R.string.inline_searching_1f83d73) else KitsugiStrings.get(R.string.inline_no_results_found_5d2ab77),
+                                        text = if (isLoading) stringResource(R.string.source_searching) else stringResource(R.string.source_search_no_results),
                                         color = KitsugiColors.TextMuted,
                                         style = MaterialTheme.typography.bodyMedium
                                     )
@@ -567,7 +568,7 @@ fun KitsugiApiSearchDialog(
                             }
                         ) {
                             Text(
-                                text = if (isLoading) KitsugiStrings.get(R.string.inline_searching_1f83d73) else KitsugiStrings.get(R.string.ara),
+                                text = if (isLoading) stringResource(R.string.source_searching) else stringResource(R.string.source_search_button),
                                 color = if (query.isNotBlank() && !isLoading) {
                                     accentColor
                                 } else {
@@ -819,7 +820,7 @@ private fun ApiResultPreviewDialog(
                                 )
 
                                 PreviewInfoRow(
-                                    label = stringResource(R.string.toplam),
+                                    label = stringResource(R.string.source_total),
                                     value = result.total?.toString() ?: stringResource(R.string.label_unknown)
                                 )
 
@@ -830,7 +831,7 @@ private fun ApiResultPreviewDialog(
 
                                 PreviewInfoRow(
                                     label = "+18",
-                                    value = if (result.isAdult) stringResource(R.string.action_yes) else stringResource(R.string.action_no)
+                                    value = if (result.isAdult) stringResource(R.string.source_yes) else stringResource(R.string.action_no)
                                 )
 
                                 PreviewSynopsisBox(
@@ -938,7 +939,7 @@ private fun ApiResultPreviewDialog(
                             )
 
                             PreviewInfoRow(
-                                label = stringResource(R.string.toplam),
+                                label = stringResource(R.string.source_total),
                                 value = result.total?.toString() ?: stringResource(R.string.label_unknown)
                             )
 
@@ -949,7 +950,7 @@ private fun ApiResultPreviewDialog(
 
                             PreviewInfoRow(
                                 label = "+18",
-                                value = if (result.isAdult) stringResource(R.string.action_yes) else stringResource(R.string.action_no)
+                                value = if (result.isAdult) stringResource(R.string.source_yes) else stringResource(R.string.action_no)
                             )
 
                             PreviewSynopsisBox(
@@ -1017,7 +1018,7 @@ private fun ApiResultPreviewDialog(
                         )
 
                         PreviewInfoRow(
-                            label = stringResource(R.string.toplam),
+                            label = stringResource(R.string.source_total),
                             value = result.total?.toString() ?: stringResource(R.string.label_unknown)
                         )
 
@@ -1028,7 +1029,7 @@ private fun ApiResultPreviewDialog(
 
                         PreviewInfoRow(
                             label = "+18",
-                            value = if (result.isAdult) stringResource(R.string.action_yes) else stringResource(R.string.action_no)
+                            value = if (result.isAdult) stringResource(R.string.source_yes) else stringResource(R.string.action_no)
                         )
 
                         Spacer(modifier = Modifier.height(12.dp))
@@ -1119,8 +1120,8 @@ private fun PreviewSynopsisBox(
         Spacer(modifier = Modifier.height(8.dp))
 
         val text = when (synopsisState) {
-            PreviewSynopsisState.Loading -> stringResource(R.string.detail_synopsis_loading)
-            PreviewSynopsisState.Error -> "Açıklama alınamadı."
+            PreviewSynopsisState.Loading -> stringResource(R.string.source_synopsis_loading)
+            PreviewSynopsisState.Error -> stringResource(R.string.source_synopsis_error)
             is PreviewSynopsisState.Success -> synopsisState.text
         }
 
@@ -1275,7 +1276,7 @@ private fun ApiSearchResultCard(
 
                 if (result.total != null) {
                     Text(
-                        text = stringResource(R.string.toplam_x, result.total),
+                        text = "${stringResource(R.string.source_total)}: ${result.total}",
                         color = KitsugiColors.TextMuted,
                         style = MaterialTheme.typography.labelSmall,
                         fontWeight = FontWeight.Bold

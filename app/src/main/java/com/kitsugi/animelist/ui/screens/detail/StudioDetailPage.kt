@@ -10,12 +10,14 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
 import androidx.compose.animation.shrinkVertically
 import com.kitsugi.animelist.ui.theme.gradient.background
 import com.kitsugi.animelist.ui.theme.gradient.border
 import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -51,6 +53,7 @@ import androidx.compose.material.icons.rounded.GridView
 import androidx.compose.material.icons.rounded.Image
 import androidx.compose.material.icons.rounded.KeyboardArrowUp
 import androidx.compose.material.icons.rounded.SearchOff
+import androidx.compose.material.icons.rounded.Share
 import com.kitsugi.animelist.ui.theme.gradient.CircularProgressIndicator
 import com.kitsugi.animelist.ui.theme.gradient.Icon
 import androidx.compose.material3.IconButton
@@ -78,7 +81,9 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.kitsugi.animelist.data.remote.GalleryItem
-import com.kitsugi.animelist.ui.components.KitsugiCinematicLoadingScreen
+import com.kitsugi.animelist.ui.components.KitsugiShimmerProvider
+import com.kitsugi.animelist.ui.components.KitsugiShimmerBlock
+import com.kitsugi.animelist.ui.components.LocalShimmerBrush
 import com.kitsugi.animelist.ui.components.KitsugiEmptyState
 import com.kitsugi.animelist.ui.components.KitsugiExploreMediaCard
 import com.kitsugi.animelist.ui.components.KitsugiImageGalleryDialog
@@ -141,12 +146,7 @@ fun StudioDetailPage(
     ) {
         when (val currentState = state) {
             is StudioDetailState.Loading -> {
-                KitsugiCinematicLoadingScreen(
-                    title = name?.takeIf { it.isNotBlank() } ?: stringResource(R.string.studio_page_loading),
-                    imageUrl = imageUrl,
-                    onBackClick = onBackClick,
-                    source = source
-                )
+                StudioDetailLoadingSkeleton(onBackClick)
             }
             is StudioDetailState.Error -> {
                 Box(modifier = Modifier.fillMaxSize()) {
@@ -327,10 +327,29 @@ private fun StudioDetailSuccessContent(
         if (nearListEnd && detail.hasMoreWorks && !loadMoreFailed && !isLoadingMore) onLoadMore()
     }
 
-    val showFloatingHeader by remember(isGridView) {
+    // Only replace the original controls after they have actually left the viewport.
+    // Index 1 is the about card on many studios, so an index-only check showed
+    // the floating filter/view buttons while the originals were still on screen.
+    val controlsIndex = if (detail.about.isNullOrBlank()) 1 else 2
+    val showFloatingHeader by remember(isGridView, controlsIndex) {
         derivedStateOf {
-            if (isGridView) gridState.firstVisibleItemIndex >= 1
-            else listState.firstVisibleItemIndex >= 1
+            if (isGridView) {
+                val visible = gridState.layoutInfo.visibleItemsInfo
+                val control = visible.firstOrNull { it.key == "studio_controls" }
+                if (control != null) {
+                    control.offset.y + control.size.height <= 0
+                } else {
+                    (visible.firstOrNull()?.index ?: 0) > controlsIndex
+                }
+            } else {
+                val visible = listState.layoutInfo.visibleItemsInfo
+                val control = visible.firstOrNull { it.key == "studio_controls_list" }
+                if (control != null) {
+                    control.offset + control.size <= 0
+                } else {
+                    (visible.firstOrNull()?.index ?: 0) > controlsIndex
+                }
+            }
         }
     }
 
@@ -627,8 +646,8 @@ private fun StudioDetailSuccessContent(
             // ── Kaydırınca beliren üst şerit (floating header) ────────────────
             AnimatedVisibility(
                 visible = showFloatingHeader,
-                enter = fadeIn(),
-                exit = fadeOut(),
+                enter = fadeIn(animationSpec = tween(260)),
+                exit = fadeOut(animationSpec = tween(220)),
                 modifier = Modifier.align(Alignment.TopCenter)
             ) {
                 Row(
@@ -657,6 +676,12 @@ private fun StudioDetailSuccessContent(
                     )
                     if (onOpenGallery != null) {
                         KitsugiGalleryIconButton(onClick = onOpenGallery, accentColor = accentColor)
+                    }
+                    IconButton(onClick = {
+                        val url = com.kitsugi.animelist.utils.ShareUtils.buildStudioUrl(source, detail.id)
+                        com.kitsugi.animelist.utils.ShareUtils.shareText(context, detail.name, url)
+                    }) {
+                        Icon(Icons.Rounded.Share, contentDescription = stringResource(R.string.action_share), tint = KitsugiColors.TextSecondary)
                     }
                     if (showFavouriteButton) {
                         IconButton(onClick = onToggleFavourite) {
@@ -755,6 +780,97 @@ private fun StudioDetailSuccessContent(
                 selectedSortOption = StudioSortOption.DEFAULT
             }
         )
+    }
+}
+
+/** Studio loading follows the same hero / about / controls / works geometry as the loaded page. */
+@Composable
+private fun StudioDetailLoadingSkeleton(onBackClick: () -> Unit) {
+    val context = LocalContext.current
+    val isGridView = remember(context) {
+        context.getSharedPreferences("kitsugi_ui_prefs", android.content.Context.MODE_PRIVATE)
+            .getBoolean("studio_detail_is_grid_view", true)
+    }
+    val heroHeight = if (LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE) 260.dp else 340.dp
+    KitsugiShimmerProvider {
+        val brush = LocalShimmerBrush.current ?: return@KitsugiShimmerProvider
+        val hero: @Composable () -> Unit = {
+            Box(Modifier.fillMaxWidth().height(heroHeight)) {
+                KitsugiShimmerBlock(brush, Modifier.fillMaxSize(), 22.dp)
+                IconButton(onClick = onBackClick, modifier = Modifier.align(Alignment.TopStart).padding(12.dp)) {
+                    Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = stringResource(R.string.geri), tint = KitsugiColors.TextPrimary)
+                }
+                KitsugiShimmerBlock(brush, Modifier.align(Alignment.BottomStart).padding(20.dp).width(190.dp).height(28.dp))
+            }
+        }
+        val about: @Composable () -> Unit = {
+            Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(24.dp))
+                .background(KitsugiColors.Surface).padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                KitsugiShimmerBlock(brush, Modifier.width(105.dp).height(22.dp))
+                repeat(3) { line ->
+                    KitsugiShimmerBlock(brush, Modifier.fillMaxWidth(if (line == 2) 0.6f else 1f).height(14.dp))
+                }
+            }
+        }
+        val controls: @Composable () -> Unit = {
+            Column(Modifier.fillMaxWidth().padding(vertical = 12.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    KitsugiShimmerBlock(brush, Modifier.width(170.dp).height(28.dp))
+                    Spacer(Modifier.weight(1f))
+                    repeat(2) { KitsugiShimmerBlock(brush, Modifier.padding(start = 6.dp).size(48.dp)) }
+                }
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    repeat(4) { KitsugiShimmerBlock(brush, Modifier.width(70.dp).height(36.dp), 20.dp) }
+                }
+                KitsugiShimmerBlock(brush, Modifier.width(75.dp).height(14.dp))
+            }
+        }
+        val card: @Composable (Boolean) -> Unit = { wide ->
+            if (wide) {
+                Row(Modifier.fillMaxWidth().height(144.dp).clip(RoundedCornerShape(22.dp))
+                    .background(KitsugiColors.Surface).padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                    KitsugiShimmerBlock(brush, Modifier.size(width = 86.dp, height = 120.dp), 16.dp)
+                    Spacer(Modifier.width(14.dp))
+                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                        KitsugiShimmerBlock(brush, Modifier.fillMaxWidth(0.85f).height(16.dp))
+                        KitsugiShimmerBlock(brush, Modifier.fillMaxWidth(0.65f).height(12.dp))
+                        KitsugiShimmerBlock(brush, Modifier.fillMaxWidth(0.75f).height(12.dp))
+                    }
+                }
+            } else {
+                Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(24.dp))
+                    .background(KitsugiColors.Surface).padding(14.dp)) {
+                    KitsugiShimmerBlock(brush, Modifier.fillMaxWidth().aspectRatio(2f / 3f), 20.dp)
+                    Spacer(Modifier.height(12.dp))
+                    KitsugiShimmerBlock(brush, Modifier.fillMaxWidth(0.85f).height(16.dp))
+                    Spacer(Modifier.height(8.dp))
+                    KitsugiShimmerBlock(brush, Modifier.fillMaxWidth(0.6f).height(12.dp))
+                    Spacer(Modifier.height(8.dp))
+                    KitsugiShimmerBlock(brush, Modifier.fillMaxWidth(0.75f).height(12.dp))
+                }
+            }
+        }
+        if (isGridView) {
+            LazyVerticalGrid(
+                columns = GridCells.Fixed(rememberKitsugiGridColumns()),
+                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp),
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                item(span = { GridItemSpan(maxLineSpan) }) { hero() }
+                item(span = { GridItemSpan(maxLineSpan) }) { about() }
+                item(span = { GridItemSpan(maxLineSpan) }) { controls() }
+                items(count = 8) { card(heroHeight == 260.dp) }
+            }
+        } else {
+            LazyColumn(contentPadding = PaddingValues(horizontal = 20.dp, vertical = 8.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                item { hero() }
+                item { about() }
+                item { controls() }
+                items(6) { card(true) }
+            }
+        }
     }
 }
 

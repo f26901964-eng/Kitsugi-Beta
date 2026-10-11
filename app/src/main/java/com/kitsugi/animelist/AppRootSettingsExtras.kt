@@ -1134,7 +1134,9 @@ internal fun SettingsContext.onSyncEnabledBangumiChanged(enabled: Boolean) {
 internal fun SettingsContext.onFanartTvEnabledChanged(enabled: Boolean) {
     coroutineScope.launch {
         settingsDataStore.setFanartTvEnabled(enabled)
-        appViewModel.showSnackbarMessage(if (enabled) "Fanart.tv entegrasyonu etkin" else KitsugiStrings.get(R.string.fanart_tv_entegrasyonu_devre_disi))
+        appViewModel.showSnackbarMessage(
+            context.getString(if (enabled) R.string.fanart_tv_enabled_message else R.string.fanart_tv_disabled_message)
+        )
     }
 }
 

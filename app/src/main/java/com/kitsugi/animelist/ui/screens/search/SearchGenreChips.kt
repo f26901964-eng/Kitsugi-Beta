@@ -23,12 +23,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
+import com.kitsugi.animelist.R
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.kitsugi.animelist.ui.theme.LocalKitsugiAccent
 import com.kitsugi.animelist.ui.theme.KitsugiColors
-import androidx.compose.ui.res.stringResource
-import com.kitsugi.animelist.R
 
 /**
  * Popüler tür çipleri bölümü.
@@ -46,20 +46,20 @@ data class SearchGenre(
 )
 
 private val popularGenres = listOf(
-    SearchGenre("Aksiyon",    "⚔️",  Color(0xFFEF4444)),
-    SearchGenre("Komedi",     "😂",  Color(0xFFF59E0B)),
-    SearchGenre("Romantizm",  "💕",  Color(0xFFEC4899)),
-    SearchGenre("Fantastik",  "🧙",  Color(0xFF8B5CF6)),
-    SearchGenre("Macera",     "🗺️",  Color(0xFF10B981)),
-    SearchGenre("Dram",       "🎭",  Color(0xFF6366F1)),
-    SearchGenre("Korku",      "👻",  Color(0xFF374151)),
+    SearchGenre("Action",    "⚔️",  Color(0xFFEF4444)),
+    SearchGenre("Comedy",     "😂",  Color(0xFFF59E0B)),
+    SearchGenre("Romance",  "💕",  Color(0xFFEC4899)),
+    SearchGenre("Fantasy",  "🧙",  Color(0xFF8B5CF6)),
+    SearchGenre("Adventure",     "🗺️",  Color(0xFF10B981)),
+    SearchGenre("Drama",       "🎭",  Color(0xFF6366F1)),
+    SearchGenre("Horror",      "👻",  Color(0xFF374151)),
     SearchGenre("Sci-Fi",     "🚀",  Color(0xFF0EA5E9)),
-    SearchGenre("Spor",       "⚽",  Color(0xFF16A34A)),
-    SearchGenre("Psikoloji",  "🧠",  Color(0xFF7C3AED)),
-    SearchGenre("Doğaüstü",  "✨",  Color(0xFFF97316)),
-    SearchGenre("Müzik",      "🎵",  Color(0xFF06B6D4)),
-    SearchGenre("Okul",       "🏫",  Color(0xFF84CC16)),
-    SearchGenre("Tarihi",     "🏯",  Color(0xFF78716C)),
+    SearchGenre("Sports",       "⚽",  Color(0xFF16A34A)),
+    SearchGenre("Psychological",  "🧠",  Color(0xFF7C3AED)),
+    SearchGenre("Supernatural",  "✨",  Color(0xFFF97316)),
+    SearchGenre("Music",      "🎵",  Color(0xFF06B6D4)),
+    SearchGenre("School",       "🏫",  Color(0xFF84CC16)),
+    SearchGenre("Historical",     "🏯",  Color(0xFF78716C)),
     SearchGenre("Mecha",      "🤖",  Color(0xFF475569)),
 )
 
@@ -148,7 +148,7 @@ private fun GenreChip(
                 style = MaterialTheme.typography.bodySmall
             )
             Text(
-                text = genre.label,
+                text = SearchTranslation.displayLabel(genre.label),
                 color = genre.color.copy(alpha = 0.9f).let {
                     // Açık temada okunaksız olmaması için minimum parlaklık uygula
                     Color(

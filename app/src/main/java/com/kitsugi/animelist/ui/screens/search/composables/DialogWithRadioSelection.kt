@@ -50,12 +50,12 @@ fun <T : KitsugiLocalizable> DialogWithRadioSelection(
         onDismissRequest = onDismiss,
         confirmButton = {
             TextButton(onClick = { onConfirm(selectedValue) }) {
-                Text(text = stringResource(R.string.settings_ok))
+                Text(text = stringResource(R.string.search_dialog_ok))
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text(text = stringResource(R.string.settings_cancel))
+                Text(text = stringResource(R.string.iptal))
             }
         },
         title = { if (title != null) Text(text = title) },
@@ -72,7 +72,7 @@ fun <T : KitsugiLocalizable> DialogWithRadioSelection(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             RadioButton(selected = selectedValue == null, onClick = { selectedValue = null })
-                            Text(text = stringResource(R.string.notif_filter_all))
+                            Text(text = stringResource(R.string.search_dialog_all))
                         }
                     }
                 }
@@ -117,12 +117,12 @@ fun <T : KitsugiLocalizable> DialogWithCheckboxSelection(
         onDismissRequest = onDismiss,
         confirmButton = {
             TextButton(onClick = { onConfirm(selectedValues.toList()) }) {
-                Text(text = stringResource(R.string.settings_ok))
+                Text(text = stringResource(R.string.search_dialog_ok))
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text(text = stringResource(R.string.settings_cancel))
+                Text(text = stringResource(R.string.iptal))
             }
         },
         title = { if (title != null) Text(text = title) },

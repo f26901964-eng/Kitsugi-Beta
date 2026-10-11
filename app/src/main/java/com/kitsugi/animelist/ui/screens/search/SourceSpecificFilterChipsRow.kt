@@ -32,7 +32,116 @@ import com.kitsugi.animelist.ui.theme.KitsugiColors
 import com.kitsugi.animelist.ui.theme.LocalKitsugiAccent
 import androidx.compose.ui.res.stringResource
 import com.kitsugi.animelist.R
-import com.kitsugi.animelist.utils.KitsugiStrings
+
+@Composable
+internal fun localizedSourceSearchLabel(label: String): String {
+    val resourceId = when (label) {
+        "📺 TV Dizi" -> R.string.search_chip_tv_series
+        "📺 TV Dizileri" -> R.string.search_chip_tv_series_plural
+        "📺 Dizi" -> R.string.search_chip_tv_show
+        "🎬 Film" -> R.string.search_chip_movie
+        "🎬 Filmler" -> R.string.search_chip_movies
+        "⏱️ Kısa Dizi" -> R.string.search_chip_short_series
+        "✨ Özel" -> R.string.search_chip_special
+        "🏁 Tamamlandı" -> R.string.search_chip_finished
+        "⏳ Yakında" -> R.string.search_chip_upcoming
+        "🚫 İptal" -> R.string.search_chip_cancelled
+        "🟢 Devam Ediyor" -> R.string.search_chip_ongoing
+        "🎵 Müzik" -> R.string.search_chip_music
+        "🇨🇳 Çin" -> R.string.search_chip_china
+        "👶 Tüm Yaşlar (G)" -> R.string.search_chip_all_ages
+        "🧒 Çocuklar (PG)" -> R.string.search_chip_children
+        "🧑 13+ (PG-13)" -> R.string.search_chip_rating_13
+        "🔞 17+ (R)" -> R.string.search_chip_rating_17
+        "🇹🇷 Türkiye" -> R.string.search_country_turkey
+        "🇺🇸 ABD" -> R.string.search_country_us
+        "🇰🇷 G. Kore" -> R.string.search_country_korea
+        "🇰🇷 Kore" -> R.string.search_country_korea_short
+        "🇬🇧 Birleşik Krallık" -> R.string.search_country_uk
+        "🇯🇵 Japonya" -> R.string.search_country_japan
+        "🇫🇷 Fransa" -> R.string.search_country_france
+        "🇰🇷 Manhwa" -> R.string.search_chip_manhwa
+        "🔥 Bugün" -> R.string.search_period_today
+        "📅 Bu Hafta" -> R.string.search_period_week
+        "🗓️ Bu Ay" -> R.string.search_period_month
+        "👥 Popülerlik" -> R.string.search_ui_popularity
+        "🔥 Trendler" -> R.string.search_ui_trending
+        "🔥 Trend Olanlar" -> R.string.search_ui_trending_items
+        "💖 Favoriler" -> R.string.search_ui_favorites
+        "📅 Yeni Çıkanlar" -> R.string.search_ui_new_releases
+        "📅 Yeni Eklenenler" -> R.string.search_ui_new_additions
+        "📅 En Yeni Eklenenler" -> R.string.search_ui_newest_additions
+        "🔤 İsim: A-Z" -> R.string.search_ui_title_az
+        "🔥 Popülerlik" -> R.string.search_sort_popularity_chip
+        "🔤 İsim (A-Z)" -> R.string.search_sort_title_asc
+        "🔤 İsim (Z-A)" -> R.string.search_sort_title_desc
+        "📅 Yayın Tarihi" -> R.string.search_ui_air_date
+        "💰 Hasılat" -> R.string.search_ui_revenue
+        "🔤 İsim" -> R.string.search_ui_title
+        "🏆 Sıralama" -> R.string.search_ui_ranking
+        "👥 Oylar" -> R.string.search_ui_votes
+        "🎯 Eşleşme" -> R.string.search_ui_match
+        "🔥 İlgi" -> R.string.search_ui_interest
+        "🏆 Sıra" -> R.string.search_ui_rank
+        "👥 En Popüler" -> R.string.search_ui_most_popular
+        "🔥 Şimdi Trend Olanlar" -> R.string.search_ui_trending_now
+        "💖 En Çok Favorilenenler" -> R.string.search_ui_most_favorited
+        "📅 En Yeniler (Yayın Tarihi)" -> R.string.search_ui_newest_by_release
+        "📜 En Eskiler (Klasikler)" -> R.string.search_ui_oldest_classics
+        "👥 Popülerlik (Üye Sayısı)" -> R.string.search_ui_popularity_members
+        "📅 Yayın Tarihi: Yeniden Eskiye" -> R.string.search_ui_release_date_new_old
+        "📅 Çıkış Tarihi: En Yeniler" -> R.string.search_ui_release_date_newest
+        "💰 Gişe / Hasılat" -> R.string.search_ui_box_office
+        "👥 Kullanıcı Sayısı (Popülerlik)" -> R.string.search_ui_user_count
+        "🏆 Genel Sıralama" -> R.string.search_ui_overall_ranking
+        "👥 Oy Sayısı" -> R.string.search_ui_vote_count
+        "🎯 En İyi Eşleşme" -> R.string.search_ui_best_match
+        "🔥 İlgi (收藏热度)" -> R.string.search_ui_interest_rank
+        "🏆 Sıra (Rank)" -> R.string.search_ui_rank_label
+        "📅 Tüm Yıllar" -> R.string.search_all_years
+        "🔞 +18 Dahil" -> R.string.search_include_adult
+        "Tümü" -> R.string.search_scope_all
+        "TV Dizisi" -> R.string.search_scope_tv
+        "Film" -> R.string.media_type_movie
+        "Özel Bölüm" -> R.string.search_chip_special
+        "Müzik Videosu" -> R.string.search_filter_music_video
+        "Yayınlanıyor" -> R.string.search_status_releasing
+        "Tamamlandı" -> R.string.search_status_finished
+        "Yakında" -> R.string.search_status_upcoming
+        "❤️ Favoriler" -> R.string.search_ui_favorites
+        "📅 Çıkış Tarihi" -> R.string.search_ui_release_date_newest
+        "🔤 Başlık" -> R.string.search_ui_title
+        "⬇️ Azalan (Yüksekten Düşüğe)" -> R.string.search_sort_descending
+        "⬆️ Artan (Düşükten Yükseğe)" -> R.string.search_sort_ascending
+        "Genel (G)" -> R.string.search_chip_all_ages
+        "Çocuk (PG)" -> R.string.search_chip_children
+        "Genç (PG-13)" -> R.string.search_chip_rating_13
+        "R+ (Hafif Çıplaklık)" -> R.string.search_rating_r_plus
+        "Rx (Hentai)" -> R.string.search_rating_rx
+        "50+ Oy" -> R.string.search_vote_count_50
+        "200+ Oy" -> R.string.search_vote_count_200
+        "1.000+ Oy" -> R.string.search_vote_count_1000
+        "Rehberlik (PG)" -> R.string.search_rating_guidance
+        "Devam Eden" -> R.string.search_status_ongoing
+        "Duyurulmadı" -> R.string.search_status_not_released
+        "Kısa (< 10 dk)" -> R.string.search_duration_short
+        "Standart (10-30 dk)" -> R.string.search_duration_standard
+        "Uzun (> 30 dk / Film)" -> R.string.search_duration_long
+        "Özel" -> R.string.search_chip_special
+        "Novel" -> R.string.search_subtype_novel
+        "🔥 Trend" -> R.string.search_ui_trending
+        "🔢 Bölüm Sayısı" -> R.string.search_filter_episode_count
+        "🆕 En Yeni" -> R.string.search_ui_new_releases
+        "⏳ En Eski" -> R.string.search_ui_oldest_classics
+        "✨ Son Eklenen" -> R.string.search_ui_new_additions
+        "Yayında (Ongoing)" -> R.string.search_status_airing
+        "Tamamlandı (Released)" -> R.string.search_status_finished
+        "Yakında (Anons)" -> R.string.search_status_upcoming
+        "17+ (R)" -> R.string.search_rating_17_plus
+        else -> return SearchTranslation.displayLabel(label)
+    }
+    return stringResource(resourceId)
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // MOTOR HIZLI ÇİP BİLEŞENLERİ
@@ -83,7 +192,7 @@ fun AniListQuickChips(uiState: SearchUiState, viewModel: SearchViewModel) {
             horizontalArrangement = Arrangement.spacedBy(6.dp)
         ) {
             val statuses = listOf(
-                "RELEASING" to stringResource(R.string.devam_ediyor),
+                "RELEASING" to "🟢 Devam Ediyor",
                 "FINISHED" to "🏁 Tamamlandı",
                 "NOT_YET_RELEASED" to "⏳ Yakında",
                 "CANCELLED" to "🚫 İptal"
@@ -155,7 +264,7 @@ fun MalQuickChips(uiState: SearchUiState, viewModel: SearchViewModel) {
             horizontalArrangement = Arrangement.spacedBy(6.dp)
         ) {
             val statuses = listOf(
-                "airing" to stringResource(R.string.devam_ediyor), "complete" to stringResource(R.string.tamamlandi_0999d40), "upcoming" to stringResource(R.string.yakinda_f079b97)
+                "airing" to "🟢 Devam Ediyor", "complete" to "🏁 Tamamlandı", "upcoming" to "⏳ Yakında"
             )
             statuses.forEach { (key, label) ->
                 val isSelected = filters.status == key
@@ -169,7 +278,7 @@ fun MalQuickChips(uiState: SearchUiState, viewModel: SearchViewModel) {
             }
 
             val ratings = listOf(
-                "g" to stringResource(R.string.tum_yaslar_g),
+                "g" to "👶 Tüm Yaşlar (G)",
                 "pg" to "🧒 Çocuklar (PG)",
                 "pg13" to "🧑 13+ (PG-13)",
                 "r17" to "🔞 17+ (R)"
@@ -215,7 +324,7 @@ fun TmdbQuickChips(uiState: SearchUiState, viewModel: SearchViewModel) {
             }
 
             val countries = listOf(
-                "TR" to stringResource(R.string.turkiye), "US" to "🇺🇸 ABD", "KR" to "🇰🇷 G. Kore",
+                "TR" to "🇹🇷 Türkiye", "US" to "🇺🇸 ABD", "KR" to "🇰🇷 G. Kore",
                 "JP" to "🇯🇵 Japonya", "GB" to "🇬🇧 Birleşik Krallık", "FR" to "🇫🇷 Fransa"
             )
             countries.forEach { (code, label) ->
@@ -303,7 +412,7 @@ fun ShikimoriQuickChips(uiState: SearchUiState, viewModel: SearchViewModel) {
             horizontalArrangement = Arrangement.spacedBy(6.dp)
         ) {
             val statuses = listOf(
-                "ongoing" to stringResource(R.string.devam_ediyor), "released" to stringResource(R.string.tamamlandi_0999d40), "anons" to stringResource(R.string.yakinda_f079b97)
+                "ongoing" to "🟢 Devam Ediyor", "released" to "🏁 Tamamlandı", "anons" to "⏳ Yakında"
             )
             statuses.forEach { (key, label) ->
                 val isSelected = filters.statuses.contains(key)
@@ -355,7 +464,7 @@ fun KitsuQuickChips(uiState: SearchUiState, viewModel: SearchViewModel) {
             horizontalArrangement = Arrangement.spacedBy(6.dp)
         ) {
             val statuses = listOf(
-                "current" to stringResource(R.string.devam_ediyor), "finished" to stringResource(R.string.tamamlandi_0999d40), "upcoming" to stringResource(R.string.yakinda_f079b97)
+                "current" to "🟢 Devam Ediyor", "finished" to "🏁 Tamamlandı", "upcoming" to "⏳ Yakında"
             )
             statuses.forEach { (key, label) ->
                 val isSelected = filters.statuses.contains(key)
@@ -383,7 +492,7 @@ fun SimklQuickChips(uiState: SearchUiState, viewModel: SearchViewModel) {
         horizontalArrangement = Arrangement.spacedBy(6.dp)
     ) {
         val periods = listOf(
-            "today" to stringResource(R.string.bugun),
+            "today" to "🔥 Bugün",
             "week" to "📅 Bu Hafta",
             "month" to "🗓️ Bu Ay"
         )
@@ -425,7 +534,7 @@ private fun AllEnginesQuickChips(uiState: SearchUiState, viewModel: SearchViewMo
         horizontalArrangement = Arrangement.spacedBy(6.dp)
     ) {
         Text(
-            text = stringResource(R.string.inline_searching_all_sources_across_6_817f37d),
+            text = stringResource(R.string.search_all_sources_progress),
             style = MaterialTheme.typography.bodySmall.copy(color = KitsugiColors.TextMuted),
             modifier = Modifier.padding(horizontal = 4.dp, vertical = 6.dp)
         )
@@ -461,7 +570,7 @@ private fun QuickFilterToggleChip(
         contentAlignment = Alignment.Center
     ) {
         Text(
-            text = label,
+            text = localizedSourceSearchLabel(label),
             style = MaterialTheme.typography.labelSmall.copy(
                 fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
                 color = if (selected) accentColor else KitsugiColors.TextSecondary
@@ -598,7 +707,7 @@ fun applyEngineSort(engine: SearchSourceEngine, sortKey: String, viewModel: Sear
  */
 fun sortOptionsForEngine(engine: SearchSourceEngine): List<Pair<String, String>> = when (engine) {
         SearchSourceEngine.ANILIST, SearchSourceEngine.ALL -> listOf(
-            "POPULARITY_DESC" to KitsugiStrings.get(R.string.en_populer),
+            "POPULARITY_DESC" to "👥 En Popüler",
             "SCORE_DESC" to "⭐ En Yüksek Puanlı",
             "TRENDING_DESC" to "🔥 Şimdi Trend Olanlar",
             "FAVOURITES_DESC" to "💖 En Çok Favorilenenler",
@@ -607,20 +716,20 @@ fun sortOptionsForEngine(engine: SearchSourceEngine): List<Pair<String, String>>
             "TITLE_ROMAJI" to "🔤 İsim: A-Z"
         )
         SearchSourceEngine.MAL -> listOf(
-            "members" to KitsugiStrings.get(R.string.populerlik_uye_sayisi),
+            "members" to "👥 Popülerlik (Üye Sayısı)",
             "score" to "⭐ Puan: Yüksekten Düşüğe",
             "favorites" to "💖 En Çok Favorilenenler",
             "start_date" to "📅 Yayın Tarihi: Yeniden Eskiye",
             "title" to "🔤 İsim: A-Z"
         )
         SearchSourceEngine.TMDB -> listOf(
-            "popularity.desc" to KitsugiStrings.get(R.string.populerlik_848cd60),
+            "popularity.desc" to "👥 Popülerlik",
             "vote_average.desc" to "⭐ Puan: Yüksekten Düşüğe",
             "primary_release_date.desc" to "📅 Çıkış Tarihi: En Yeniler",
             "revenue.desc" to "💰 Gişe / Hasılat"
         )
         SearchSourceEngine.SHIKIMORI -> listOf(
-            "popularity" to KitsugiStrings.get(R.string.populerlik_848cd60),
+            "popularity" to "👥 Popülerlik",
             "ranked" to "⭐ Puan Sıralaması",
             "aired_on" to "📅 Yayın Tarihi",
             "name" to "🔤 İsim: A-Z"
@@ -632,12 +741,12 @@ fun sortOptionsForEngine(engine: SearchSourceEngine): List<Pair<String, String>>
             "-createdAt" to "📅 En Yeni Eklenenler"
         )
         SearchSourceEngine.SIMKL -> listOf(
-            "rank" to KitsugiStrings.get(R.string.genel_siralama),
+            "rank" to "🏆 Genel Sıralama",
             "votes" to "👥 Oy Sayısı",
             "rating" to "⭐ Puan"
         )
         SearchSourceEngine.BANGUMI -> listOf(
-            "match" to KitsugiStrings.get(R.string.en_iyi_eslesme),
+            "match" to "🎯 En İyi Eşleşme",
             "heat" to "🔥 İlgi (收藏热度)",
             "rank" to "🏆 Sıra (Rank)",
             "score" to "⭐ Puan: Yüksekten Düşüğe"
@@ -673,7 +782,7 @@ fun SortOptionsContent(
                 fallbackTint = KitsugiColors.TextPrimary
             )
             Text(
-                text = stringResource(R.string.inline_1_s_sorting_options_f94d7e1, engine.label),
+                text = stringResource(R.string.inline_1_s_sorting_options_f94d7e1, engine.localizedLabel()),
                 style = MaterialTheme.typography.titleLarge.copy(
                     fontWeight = FontWeight.Bold,
                     color = KitsugiColors.TextPrimary
@@ -698,7 +807,7 @@ fun SortOptionsContent(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = label,
+                    text = localizedSourceSearchLabel(label),
                     style = MaterialTheme.typography.bodyMedium.copy(
                         fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
                         color = if (isSelected) accentColor else KitsugiColors.TextPrimary
@@ -741,7 +850,7 @@ fun BangumiQuickChips(uiState: SearchUiState, viewModel: SearchViewModel) {
             horizontalArrangement = Arrangement.spacedBy(6.dp)
         ) {
             val sorts = listOf(
-                "match" to stringResource(R.string.eslesme), "heat" to stringResource(R.string.ilgi), "rank" to stringResource(R.string.sira), "score" to stringResource(R.string.puan)
+                "match" to "🎯 Eşleşme", "heat" to "🔥 İlgi", "rank" to "🏆 Sıra", "score" to "⭐ Puan"
             )
             sorts.forEach { (key, label) ->
                 QuickFilterToggleChip(
@@ -768,7 +877,7 @@ fun BangumiQuickChips(uiState: SearchUiState, viewModel: SearchViewModel) {
                 add((currentYear - 26) to null)
             }
             val yearLabels = listOf(
-                stringResource(R.string.tum_yillar),
+                "📅 Tüm Yıllar",
                 currentYear.toString(), (currentYear - 1).toString(), (currentYear - 2).toString(),
                 (currentYear - 3).toString(), "${currentYear - 6}+", "${currentYear - 16}+", "${currentYear - 26}+"
             )
@@ -787,7 +896,7 @@ fun BangumiQuickChips(uiState: SearchUiState, viewModel: SearchViewModel) {
                 .horizontalScroll(rememberScrollState()),
             horizontalArrangement = Arrangement.spacedBy(6.dp)
         ) {
-            val scores = listOf(null to stringResource(R.string.tum_puanlar), 6 to "6+", 7 to "7+", 8 to "8+", 9 to "9+")
+            val scores = listOf(null to "⭐ Tüm Puanlar", 6 to "6+", 7 to "7+", 8 to "8+", 9 to "9+")
             scores.forEach { (score, label) ->
                 QuickFilterToggleChip(
                     label = label,
@@ -796,7 +905,7 @@ fun BangumiQuickChips(uiState: SearchUiState, viewModel: SearchViewModel) {
                 )
             }
             QuickFilterToggleChip(
-                label = "🔞 +18 Dahil",
+                label = stringResource(R.string.search_include_adult),
                 selected = filters.nsfw,
                 onClick = { viewModel.updateBangumiFilters(filters.copy(nsfw = !filters.nsfw)) }
             )

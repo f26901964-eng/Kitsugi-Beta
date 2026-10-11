@@ -2,6 +2,7 @@ package com.kitsugi.animelist.data.auth
 
 import android.content.Context
 import android.util.Log
+import com.kitsugi.animelist.R
 import com.kitsugi.animelist.data.remote.BangumiIdNamespace
 import com.kitsugi.animelist.data.remote.canonicalMediaSourceId
 import com.kitsugi.animelist.model.MediaEntry
@@ -9,8 +10,6 @@ import com.kitsugi.animelist.model.MediaType
 import com.kitsugi.animelist.model.WatchStatus
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import com.kitsugi.animelist.utils.KitsugiStrings
-import com.kitsugi.animelist.R
 
 /**
  * Bangumi (bgm.tv) kütüphane senkronizasyon yöneticisi.
@@ -46,7 +45,9 @@ object BangumiSyncManager {
         val messages: List<String>,
         val errors: List<String> = emptyList(),
         val subjectId: Int? = null,
-        val collectionUpdated: Boolean = false
+        val collectionUpdated: Boolean = false,
+        /** True when no trustworthy Bangumi subject ID could be resolved (a safe skip, not an API error). */
+        val unresolvedSubject: Boolean = false
     )
 
     fun watchStatusToBangumi(status: WatchStatus?): Int = when (status) {
@@ -87,12 +88,12 @@ object BangumiSyncManager {
         entry: MediaEntry
     ): SyncResult = withContext(Dispatchers.IO) {
         if (!supportsMediaType(entry.type)) {
-            return@withContext SyncResult(emptyList(), listOf(KitsugiStrings.get(R.string.bangumi_bu_medya_turunu_desteklemiyor)))
+            return@withContext SyncResult(emptyList(), listOf(context.getString(R.string.account_sync_service_media_type_unsupported)))
         }
 
         val token = BangumiAuthStore.getValidToken(context)
         if (token.isNullOrBlank()) {
-            return@withContext SyncResult(emptyList(), listOf(KitsugiStrings.get(R.string.bangumi_hesabi_bagli_degil)))
+            return@withContext SyncResult(emptyList(), listOf(context.getString(R.string.account_sync_account_not_connected, "Bangumi")))
         }
 
         val isBook = entry.type == MediaType.Manga
@@ -100,7 +101,8 @@ object BangumiSyncManager {
         if (subjectId == null) {
             return@withContext SyncResult(
                 emptyList(),
-                listOf(KitsugiStrings.get(R.string.bangumi_eslesmesi_bulunamadi_x, entry.title))
+                listOf(context.getString(R.string.account_sync_bangumi_match_not_found, entry.title)),
+                unresolvedSubject = true
             )
         }
 
@@ -125,9 +127,9 @@ object BangumiSyncManager {
             tags = entry.tags?.split(',')?.map { it.trim() }?.filter { it.isNotEmpty() }?.takeIf { it.isNotEmpty() }
         )
         if (collectionUpdated) {
-            messages += "Bangumi kaydı güncellendi (${entry.title})"
+            messages += context.getString(R.string.account_sync_entry_updated, "Bangumi", entry.title)
         } else {
-            errors += "Bangumi kaydı güncellenemedi (${entry.title})"
+            errors += context.getString(R.string.account_sync_entry_update_failed, "Bangumi", entry.title, context.getString(R.string.account_sync_unknown_error))
         }
 
         // 2) Video subject'lerinde ilerleme bölüm bazlı işaretlenir (anime ve REAL dizi/film).
@@ -140,9 +142,9 @@ object BangumiSyncManager {
                 false
             }
             if (progressOk) {
-                messages += "Bangumi bölüm ilerlemesi yazıldı: $progress bölüm (${entry.title})"
+                messages += context.getString(R.string.bangumi_sync_progress_written, progress, entry.title)
             } else {
-                errors += "Bangumi bölüm ilerlemesi yazılamadı (${entry.title})"
+                errors += context.getString(R.string.bangumi_sync_progress_not_written, entry.title)
             }
         }
 
@@ -162,10 +164,14 @@ object BangumiSyncManager {
     ): SyncResult = withContext(Dispatchers.IO) {
         val token = BangumiAuthStore.getValidToken(context)
         if (token.isNullOrBlank()) {
-            return@withContext SyncResult(emptyList(), listOf(KitsugiStrings.get(R.string.bangumi_hesabi_bagli_degil)))
+            return@withContext SyncResult(emptyList(), listOf(context.getString(R.string.account_sync_account_not_connected, "Bangumi")))
         }
         val subjectId = resolveSubjectId(context, entry)
-            ?: return@withContext SyncResult(emptyList(), listOf(KitsugiStrings.get(R.string.bangumi_eslesmesi_bulunamadi_x, entry.title)))
+            ?: return@withContext SyncResult(
+                emptyList(),
+                listOf(context.getString(R.string.account_sync_bangumi_match_not_found, entry.title)),
+                unresolvedSubject = true
+            )
 
         val ok = BangumiApiClient.upsertCollection(
             token = token,
@@ -176,11 +182,11 @@ object BangumiSyncManager {
         if (ok) {
             SyncResult(
                 messages = listOf(
-                    KitsugiStrings.get(R.string.bangumi_api_si_koleksiyon_silmeyi_desteklemiyor_kayit_birakildi, entry.title)
+                    context.getString(R.string.bangumi_sync_delete_fallback, entry.title)
                 )
             )
         } else {
-            SyncResult(emptyList(), listOf(KitsugiStrings.get(R.string.bangumi_kaydi_guncellenemedi_x, entry.title)))
+            SyncResult(emptyList(), listOf(context.getString(R.string.account_sync_entry_update_failed, "Bangumi", entry.title, context.getString(R.string.account_sync_unknown_error))))
         }
     }
 

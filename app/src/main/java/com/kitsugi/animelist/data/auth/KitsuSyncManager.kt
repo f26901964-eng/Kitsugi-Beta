@@ -2,14 +2,13 @@ package com.kitsugi.animelist.data.auth
 
 import android.content.Context
 import android.util.Log
+import com.kitsugi.animelist.R
 import com.kitsugi.animelist.data.remote.KitsuIdNamespace
 import com.kitsugi.animelist.model.MediaEntry
 import com.kitsugi.animelist.model.MediaType
 import com.kitsugi.animelist.model.WatchStatus
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import com.kitsugi.animelist.utils.KitsugiStrings
-import com.kitsugi.animelist.R
 
 /**
  * Kitsu kütüphane senkronizasyon yöneticisi.
@@ -61,15 +60,15 @@ object KitsuSyncManager {
         knownKitsuMediaId: Int?,
         isAnime: Boolean
     ): ResolvedKitsuMedia? {
-        knownKitsuMediaId?.takeIf { it > 0 }?.let { return ResolvedKitsuMedia(it, "bilinen Kitsu ID") }
+        knownKitsuMediaId?.takeIf { it > 0 }?.let { return ResolvedKitsuMedia(it, context.getString(R.string.kitsu_sync_via_known_id)) }
 
         val realMalId = entry.malId?.takeIf { it in 1..99_999_999 }
         realMalId?.let { ExternalAuthManager.getKitsuMediaIdForMal(context, it, isAnime) }
             ?.takeIf { it > 0 }
-            ?.let { return ResolvedKitsuMedia(it, "önbellek (MAL→Kitsu)") }
+            ?.let { return ResolvedKitsuMedia(it, context.getString(R.string.kitsu_sync_via_mal_cache)) }
 
         KitsuIdNamespace.rawIdFromStable(entry.malId)?.let {
-            return ResolvedKitsuMedia(it, "Kitsu kaynaklı kayıt")
+            return ResolvedKitsuMedia(it, context.getString(R.string.kitsu_sync_via_kitsu_entry))
         }
 
         val rawAniListId = if (entry.source == "anilist" && entry.malId != null && entry.malId >= 100_000_000 && entry.malId < KITSU_OFFSET) {
@@ -84,7 +83,7 @@ object KitsuSyncManager {
             }.getOrNull()
             if (mapped != null && mapped > 0) {
                 ExternalAuthManager.saveKitsuMediaIdForMal(context, realMalId, isAnime, mapped)
-                return ResolvedKitsuMedia(mapped, "Kitsu mappings (MAL)")
+                return ResolvedKitsuMedia(mapped, context.getString(R.string.kitsu_sync_via_mal_mapping))
             }
         }
         if (rawAniListId != null) {
@@ -92,7 +91,7 @@ object KitsuSyncManager {
                 KitsuApiClient.lookupKitsuIdByExternalMapping("anilist/$typeSegment", rawAniListId)
             }.getOrNull()
             if (mapped != null && mapped > 0) {
-                return ResolvedKitsuMedia(mapped, "Kitsu mappings (AniList)")
+                return ResolvedKitsuMedia(mapped, context.getString(R.string.kitsu_sync_via_anilist_mapping))
             }
         }
 
@@ -110,7 +109,7 @@ object KitsuSyncManager {
             }.getOrNull()
             if (armKitsu != null && armKitsu > 0) {
                 if (realMalId != null) ExternalAuthManager.saveKitsuMediaIdForMal(context, realMalId, isAnime, armKitsu)
-                return ResolvedKitsuMedia(armKitsu, "ARM")
+                return ResolvedKitsuMedia(armKitsu, context.getString(R.string.kitsu_sync_via_arm))
             }
         }
 
@@ -122,7 +121,7 @@ object KitsuSyncManager {
         }
         if (byTitle != null && byTitle > 0) {
             if (realMalId != null) ExternalAuthManager.saveKitsuMediaIdForMal(context, realMalId, isAnime, byTitle)
-            return ResolvedKitsuMedia(byTitle, "başlık araması")
+            return ResolvedKitsuMedia(byTitle, context.getString(R.string.kitsu_sync_via_title_search))
         }
         return null
     }
@@ -136,14 +135,14 @@ object KitsuSyncManager {
         knownKitsuMediaId: Int? = null
     ): SyncResult = withContext(Dispatchers.IO) {
         if (entry.type != MediaType.Anime && entry.type != MediaType.Manga) {
-            return@withContext SyncResult(emptyList(), listOf(KitsugiStrings.get(R.string.bu_servis_yalnizca_anime_manga_destekler)))
+            return@withContext SyncResult(emptyList(), listOf(context.getString(R.string.account_sync_service_anime_manga_only)))
         }
 
         val token = ExternalAuthManager.getKitsuToken(context)
         val userId = ExternalAuthManager.getKitsuUserId(context)
 
         if (token.isNullOrBlank() || userId.isNullOrBlank()) {
-            return@withContext SyncResult(messages = emptyList(), errors = listOf(KitsugiStrings.get(R.string.kitsu_hesabi_bagli_degil)))
+            return@withContext SyncResult(messages = emptyList(), errors = listOf(context.getString(R.string.account_sync_account_not_connected, "Kitsu")))
         }
 
         // Kitsu sadece Anime ve Manga destekler
@@ -154,7 +153,7 @@ object KitsuSyncManager {
         if (resolved == null) {
             return@withContext SyncResult(
                 messages = emptyList(),
-                errors = listOf(KitsugiStrings.get(R.string.kitsu_da_eslesen_kayit_bulunamadi_x, entry.title)),
+                errors = listOf(context.getString(R.string.account_sync_kitsu_match_not_found, entry.title)),
                 unresolvedMedia = true
             )
         }
@@ -196,7 +195,7 @@ object KitsuSyncManager {
         }
 
         val cappedNote = {
-            cappedProgressTo?.let { " — ilerleme ${entry.progress}→$it (Kitsu medya uzunluğuna sınırlandı)" }.orEmpty()
+            cappedProgressTo?.let { context.getString(R.string.kitsu_sync_progress_capped, entry.progress, it) }.orEmpty()
         }
 
         if (existingEntryId != null) {
@@ -210,8 +209,8 @@ object KitsuSyncManager {
                     extras = kitsuExtras
                 )
             }
-            if (result.success) messages.add("Kitsu güncellendi (${entry.title})${cappedNote()}")
-            else errors.add("Kitsu güncellenemedi (${entry.title}): ${result.errorMessage ?: "bilinmeyen hata"}")
+            if (result.success) messages.add(context.getString(R.string.account_sync_entry_updated, "Kitsu", entry.title) + cappedNote())
+            else errors.add(context.getString(R.string.account_sync_entry_update_failed, "Kitsu", entry.title, result.errorMessage ?: context.getString(R.string.account_sync_unknown_error)))
         } else {
             val created = writeWithLengthGuard { p ->
                 KitsuApiClient.createLibraryEntryDetailed(
@@ -227,7 +226,7 @@ object KitsuSyncManager {
             }
             if (created.success && created.entryId != null) {
                 ExternalAuthManager.saveKitsuLibraryEntryId(context, kitsuMediaId, isAnime, created.entryId)
-                messages.add("Kitsu kütüphanesine eklendi (${entry.title})${cappedNote()}")
+                messages.add(context.getString(R.string.account_sync_entry_added, "Kitsu", entry.title) + cappedNote())
             } else {
                 // Kayıt zaten Kitsu'da var olabilir (HTTP 422 "already exists") -> ID'yi bulup güncellemeyi dene
                 val fallbackId = runSyncCatching {
@@ -245,10 +244,10 @@ object KitsuSyncManager {
                             extras = kitsuExtras
                         )
                     }
-                    if (updated.success) messages.add("Kitsu güncellendi (${entry.title})${cappedNote()}")
-                    else errors.add("Kitsu güncellenemedi (${entry.title}): ${updated.errorMessage ?: "bilinmeyen hata"}")
+                    if (updated.success) messages.add(context.getString(R.string.account_sync_entry_updated, "Kitsu", entry.title) + cappedNote())
+                    else errors.add(context.getString(R.string.account_sync_entry_update_failed, "Kitsu", entry.title, updated.errorMessage ?: context.getString(R.string.account_sync_unknown_error)))
                 } else {
-                    errors.add("Kitsu kütüphanesine eklenemedi (${entry.title}): ${created.errorMessage ?: "bilinmeyen hata"} [kitsu=$kitsuMediaId, ${resolved.via}]")
+                    errors.add(context.getString(R.string.account_sync_entry_add_failed, "Kitsu", entry.title, created.errorMessage ?: context.getString(R.string.account_sync_unknown_error), kitsuMediaId, resolved.via))
                 }
             }
         }
@@ -264,12 +263,12 @@ object KitsuSyncManager {
         entry: MediaEntry
     ): SyncResult = withContext(Dispatchers.IO) {
         if (entry.type != MediaType.Anime && entry.type != MediaType.Manga) {
-            return@withContext SyncResult(emptyList(), listOf(KitsugiStrings.get(R.string.bu_servis_yalnizca_anime_manga_destekler)))
+            return@withContext SyncResult(emptyList(), listOf(context.getString(R.string.account_sync_service_anime_manga_only)))
         }
 
         val token = ExternalAuthManager.getKitsuToken(context)
         if (token.isNullOrBlank()) {
-            return@withContext SyncResult(messages = emptyList(), errors = listOf(KitsugiStrings.get(R.string.kitsu_hesabi_bagli_degil)))
+            return@withContext SyncResult(messages = emptyList(), errors = listOf(context.getString(R.string.account_sync_account_not_connected, "Kitsu")))
         }
 
         val isAnime = entry.type != MediaType.Manga
@@ -281,18 +280,18 @@ object KitsuSyncManager {
         KitsuIdNamespace.rawIdFromStable(entry.malId)?.let { kitsuMediaId = it }
 
         val existingEntryId = if (kitsuMediaId != null) {
-            val userId = ExternalAuthManager.getKitsuUserId(context) ?: error("Kitsu kullanıcı kimliği yok")
+            val userId = ExternalAuthManager.getKitsuUserId(context) ?: error(context.getString(R.string.account_sync_kitsu_user_id_missing))
             KitsuApiClient.findLibraryEntryId(token, userId, kitsuMediaId, isAnime)
         } else null
 
         if (existingEntryId != null) {
             val success = KitsuApiClient.deleteLibraryEntry(token, existingEntryId)
             if (success) ExternalAuthManager.removeKitsuLibraryEntryId(context, kitsuMediaId!!, isAnime)
-            if (success) SyncResult(messages = listOf(KitsugiStrings.get(R.string.kitsu_kutuphanesinden_silindi_x, entry.title)))
-            else SyncResult(messages = emptyList(), errors = listOf("Kitsu'dan silinemedi"))
+            if (success) SyncResult(messages = listOf(context.getString(R.string.account_sync_entry_deleted, "Kitsu", entry.title)))
+            else SyncResult(messages = emptyList(), errors = listOf(context.getString(R.string.account_sync_entry_delete_failed, "Kitsu")))
         } else {
-            if (kitsuMediaId != null) SyncResult(messages = listOf(KitsugiStrings.get(R.string.kitsu_kaydi_zaten_yok_x, entry.title)))
-            else SyncResult(messages = emptyList(), errors = listOf(KitsugiStrings.get(R.string.kitsu_medya_kimligi_bulunamadi)))
+            if (kitsuMediaId != null) SyncResult(messages = listOf(context.getString(R.string.account_sync_entry_already_missing, "Kitsu", entry.title)))
+            else SyncResult(messages = emptyList(), errors = listOf(context.getString(R.string.account_sync_media_id_not_found, "Kitsu")))
         }
     }
 }

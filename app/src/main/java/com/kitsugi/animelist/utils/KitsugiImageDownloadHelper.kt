@@ -35,7 +35,6 @@ import kotlinx.coroutines.withContext
 import org.json.JSONObject
 import java.io.File
 import java.net.URL
-import com.kitsugi.animelist.utils.KitsugiStrings
 
 /**
  * İndirilen/paylaşılan görselin gerçek formatı.
@@ -209,7 +208,6 @@ internal fun normalizeBytesForSharing(
 object KitsugiImageDownloadHelper {
 
     private const val CHANNEL_ID    = "kitsugi_image_downloads"
-    private const val CHANNEL_NAME  = "Resim İndirmeleri"
     private const val NOTIF_ID_BASE = 50000
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -442,7 +440,7 @@ object KitsugiImageDownloadHelper {
     fun shareImage(context: Context, url: String, title: String) {
         CoroutineScope(Dispatchers.IO).launch {
             withContext(Dispatchers.Main) {
-                Toast.makeText(context, KitsugiStrings.get(R.string.resim_hazirlaniyor), Toast.LENGTH_SHORT).show()
+                Toast.makeText(context, context.getString(R.string.image_download_loading), Toast.LENGTH_SHORT).show()
             }
             val appContext = context.applicationContext
             var shareUri: Uri? = null
@@ -473,13 +471,13 @@ object KitsugiImageDownloadHelper {
                 } else {
                     // 2) content:// veya uzak URL → baytları al, biçimi koru.
                     val fetched = fetchImage(appContext, url, MAX_TRANSFER_BYTES)
-                        ?: error("Görsel alınamadı")
+                        ?: error(appContext.getString(R.string.image_download_fetch_failed))
                     val out = transcodeForShare(fetched.bytes, fetched.format)
                     shareUri = writeShareTemp(appContext, title, out.bytes, out.format)
                     mimeType = out.format.mimeType
                 }
 
-                val contentUri = shareUri ?: error("Paylaşım adresi üretilemedi")
+                val contentUri = shareUri ?: error(appContext.getString(R.string.image_share_uri_failed))
 
                 val shareIntent = Intent(Intent.ACTION_SEND).apply {
                     type = mimeType
@@ -490,7 +488,7 @@ object KitsugiImageDownloadHelper {
                     clipData = android.content.ClipData.newRawUri(null, contentUri)
                     addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
                 }
-                val chooser = Intent.createChooser(shareIntent, "Resmi/GIF'i Paylaş").apply {
+                val chooser = Intent.createChooser(shareIntent, appContext.getString(R.string.image_share_chooser)).apply {
                     addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                 }
                 withContext(Dispatchers.Main) { appContext.startActivity(chooser) }
@@ -509,19 +507,19 @@ object KitsugiImageDownloadHelper {
                                 putExtra(Intent.EXTRA_TEXT, "$title\n$url")
                             }
                             appContext.startActivity(
-                                Intent.createChooser(textIntent, "Bağlantıyı Paylaş")
+                                Intent.createChooser(textIntent, appContext.getString(R.string.image_share_link_chooser))
                                     .apply { addFlags(Intent.FLAG_ACTIVITY_NEW_TASK) }
                             )
                         }
                         Toast.makeText(
                             appContext,
-                            "Görsel indirilemedi, bağlantı paylaşıldı.",
+                            appContext.getString(R.string.image_share_link_fallback),
                             Toast.LENGTH_LONG
                         ).show()
                     } else {
                         Toast.makeText(
                             appContext,
-                            "Resim paylaşılamadı: ${e.localizedMessage}",
+                            appContext.getString(R.string.image_share_failed, e.localizedMessage.orEmpty()),
                             Toast.LENGTH_LONG
                         ).show()
                     }
@@ -583,13 +581,13 @@ object KitsugiImageDownloadHelper {
                     val f = File(Uri.parse(url).path ?: return null)
                     humanizePath(f) + " · " + f.name
                 }
-                url.startsWith("content://") -> "Cihaz depolaması"
+                url.startsWith("content://") -> appContext.getString(R.string.image_content_device_storage)
                 else -> {
                     val rec = loadIndex(appContext)[url] ?: return null
                     val location = when {
                         rec.customUri.startsWith("mediastore:") || rec.customUri.isBlank() ->
-                            "İndirilenler/Kitsugi/Images"
-                        else -> "Seçtiğin klasör"
+                            appContext.getString(R.string.image_default_folder)
+                        else -> appContext.getString(R.string.image_custom_folder)
                     }
                     "$location · ${rec.fileName}"
                 }
@@ -632,7 +630,7 @@ object KitsugiImageDownloadHelper {
             } catch (e: kotlinx.coroutines.CancellationException) {
                 throw e
             } catch (e: Throwable) {
-                GalleryDeleteOutcome.Failed(e.localizedMessage ?: "Bilinmeyen hata")
+                GalleryDeleteOutcome.Failed(e.localizedMessage ?: appContext.getString(R.string.source_unknown))
             }
         }
 
@@ -669,7 +667,7 @@ object KitsugiImageDownloadHelper {
             // Yerel dosya (örn. İndirilenler galerisinden açılan) tekrar indirilmez
             if (url.startsWith("file://") || url.startsWith("content://")) {
                 withContext(Dispatchers.Main) {
-                    Toast.makeText(context, KitsugiStrings.get(R.string.bu_resim_zaten_cihazda_kayitli), Toast.LENGTH_SHORT).show()
+                    Toast.makeText(context, context.getString(R.string.image_already_on_device), Toast.LENGTH_SHORT).show()
                 }
                 return@launch
             }
@@ -677,7 +675,7 @@ object KitsugiImageDownloadHelper {
             // Daha önce indirilmiş içerik tekrar indirilmez
             if (isImageDownloaded(context, url)) {
                 withContext(Dispatchers.Main) {
-                    Toast.makeText(context, KitsugiStrings.get(R.string.bu_resim_zaten_indirilmis), Toast.LENGTH_SHORT).show()
+                    Toast.makeText(context, context.getString(R.string.image_already_downloaded), Toast.LENGTH_SHORT).show()
                 }
                 return@launch
             }
@@ -692,7 +690,7 @@ object KitsugiImageDownloadHelper {
             val alreadyInFlight = synchronized(inFlightLock) { !inFlightDownloads.add(url) }
             if (alreadyInFlight) {
                 withContext(Dispatchers.Main) {
-                    Toast.makeText(context, KitsugiStrings.get(R.string.bu_resim_zaten_indiriliyor), Toast.LENGTH_SHORT).show()
+                    Toast.makeText(context, context.getString(R.string.image_already_downloading), Toast.LENGTH_SHORT).show()
                 }
                 return@launch
             }
@@ -719,7 +717,7 @@ object KitsugiImageDownloadHelper {
 
                 if (fetched == null) {
                     withContext(Dispatchers.Main) {
-                        Toast.makeText(context, KitsugiStrings.get(R.string.indirme_basarisiz_oldu), Toast.LENGTH_LONG).show()
+                        Toast.makeText(context, context.getString(R.string.image_download_failed), Toast.LENGTH_LONG).show()
                     }
                     cancelNotification(context, notifId)
                     return@launch
@@ -800,7 +798,7 @@ object KitsugiImageDownloadHelper {
                     }
                 } else {
                     withContext(Dispatchers.Main) {
-                        Toast.makeText(context, KitsugiStrings.get(R.string.dosya_kaydedilemedi_depolama_alanina_erisilemiyor), Toast.LENGTH_LONG).show()
+                        Toast.makeText(context, context.getString(R.string.image_storage_unavailable), Toast.LENGTH_LONG).show()
                     }
                 }
             } finally {
@@ -1013,7 +1011,7 @@ object KitsugiImageDownloadHelper {
         ) {
             return GalleryDeleteOutcome.Success
         }
-        return GalleryDeleteOutcome.Failed("Dosya silinemedi (depolama izni): ${file.name}")
+        return GalleryDeleteOutcome.Failed(context.getString(R.string.image_delete_failed_storage, file.name))
     }
 
     /** MediaStore/SAF content:// kaydını siler. */
@@ -1029,10 +1027,10 @@ object KitsugiImageDownloadHelper {
         } catch (e: SecurityException) {
             // Başka bir uygulamanın oluşturduğu kayıt: sistem onayı gerekir.
             GalleryDeleteOutcome.RequiresSystemConsent(
-                "Bu dosya başka bir uygulamaya ait — silmek için sistem dosya yöneticisini kullanın."
+                context.getString(R.string.image_file_delete_foreign)
             )
         } catch (e: Throwable) {
-            GalleryDeleteOutcome.Failed(e.localizedMessage ?: "Kayıt silinemedi")
+            GalleryDeleteOutcome.Failed(e.localizedMessage ?: context.getString(R.string.image_file_delete_failed))
         }
     }
 
@@ -1062,7 +1060,7 @@ object KitsugiImageDownloadHelper {
         val file = dir.findFile(record.fileName) ?: return GalleryDeleteOutcome.NothingToDelete
         val ok = runCatching { file.delete() }.getOrDefault(false)
         return if (ok) GalleryDeleteOutcome.Success
-        else GalleryDeleteOutcome.Failed("Seçili klasörde silmeye izin verilmedi: ${record.fileName}")
+        else GalleryDeleteOutcome.Failed(context.getString(R.string.image_folder_delete_denied, record.fileName))
     }
 
     /** İndirme klasörlerimizde (İndirilenler / Resimler / uygulama klasörü) duran dosyayı siler. */
@@ -1091,7 +1089,7 @@ object KitsugiImageDownloadHelper {
         var anyDeleted = false
         candidates.forEach { f -> if (deleteLocalFile(context, f) is GalleryDeleteOutcome.Success) anyDeleted = true }
         return if (anyDeleted) GalleryDeleteOutcome.Success
-        else GalleryDeleteOutcome.Failed("Dosya silinemedi: $fileName")
+        else GalleryDeleteOutcome.Failed(context.getString(R.string.image_delete_file_failed, fileName))
     }
 
     /**
@@ -1310,10 +1308,10 @@ object KitsugiImageDownloadHelper {
             if (nm.getNotificationChannel(CHANNEL_ID) == null) {
                 val ch = NotificationChannel(
                     CHANNEL_ID,
-                    CHANNEL_NAME,
+                    context.getString(R.string.image_download_channel),
                     NotificationManager.IMPORTANCE_DEFAULT
                 ).apply {
-                    description = "Galeri resim indirmelerini takip eder."
+                    description = context.getString(R.string.image_download_channel_desc)
                     setShowBadge(true)
                 }
                 nm.createNotificationChannel(ch)
@@ -1332,8 +1330,8 @@ object KitsugiImageDownloadHelper {
 
         // Small icon: use app icon or a system download icon
         val notif = NotificationCompat.Builder(context, CHANNEL_ID)
-            .setContentTitle("📥 $title")
-            .setContentText(KitsugiStrings.get(R.string.inline_downloading_1_s_0e62615, filename))
+            .setContentTitle(context.getString(R.string.image_download_notification_title, title))
+            .setContentText(context.getString(R.string.image_download_in_progress, filename))
             .setSmallIcon(android.R.drawable.stat_sys_download)
             .setProgress(0, 0, true)       // indeterminate
             .setOngoing(true)
@@ -1367,9 +1365,9 @@ object KitsugiImageDownloadHelper {
         )
 
         val builder = NotificationCompat.Builder(context, CHANNEL_ID)
-            .setContentTitle("✅ $title")
-            .setContentText("Kaydedildi • $sizeStr")
-            .setSubText(KitsugiStrings.get(R.string.resim_indirildi))
+            .setContentTitle(context.getString(R.string.image_download_notification_complete_title, title))
+            .setContentText(context.getString(R.string.image_download_saved, sizeStr))
+            .setSubText(context.getString(R.string.image_download_completed))
             .setSmallIcon(android.R.drawable.stat_sys_download_done)
             .setAutoCancel(true)
             .setPriority(NotificationCompat.PRIORITY_DEFAULT)

@@ -105,7 +105,7 @@ fun GenresTagsSheet(
         if (searchGenreQuery.isBlank()) allGenres
         else allGenres.filter {
             it.contains(searchGenreQuery, ignoreCase = true) ||
-            SearchTranslation.translateToTurkishForDisplay(it).contains(searchGenreQuery, ignoreCase = true)
+            SearchTranslation.displayLabel(it).contains(searchGenreQuery, ignoreCase = true)
         }
     }
 
@@ -113,7 +113,7 @@ fun GenresTagsSheet(
         if (searchGenreQuery.isBlank()) allTags
         else allTags.filter {
             it.contains(searchGenreQuery, ignoreCase = true) ||
-            SearchTranslation.translateToTurkishForDisplay(it).contains(searchGenreQuery, ignoreCase = true)
+            SearchTranslation.displayLabel(it).contains(searchGenreQuery, ignoreCase = true)
         }
     }
 
@@ -202,7 +202,7 @@ fun GenresTagsSheet(
                         ) {
                             filteredGenres.forEach { genre ->
                                 GenreTagChip(
-                                    label = SearchTranslation.translateToTurkishForDisplay(genre),
+                                    label = SearchTranslation.displayLabel(genre),
                                     isIncluded = selectedGenres.contains(genre),
                                     isExcluded = excludedGenres.contains(genre),
                                     accentColor = accentColor,
@@ -230,7 +230,7 @@ fun GenresTagsSheet(
                 if (filteredTags.isNotEmpty()) {
                     item {
                         Text(
-                            text = "Etiketler",
+                            text = stringResource(R.string.search_filter_tags),
                             color = KitsugiColors.TextSecondary,
                             fontSize = 12.sp,
                             fontWeight = FontWeight.SemiBold,
@@ -244,7 +244,7 @@ fun GenresTagsSheet(
                             filteredTags.forEach { tag ->
                                 val isSelected = selectedTags.contains(tag)
                                 SimpleTagChip(
-                                    label = SearchTranslation.translateToTurkishForDisplay(tag),
+                                    label = SearchTranslation.displayLabel(tag),
                                     isSelected = isSelected,
                                     accentColor = accentColor,
                                     onToggle = {

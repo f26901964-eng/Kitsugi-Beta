@@ -78,7 +78,7 @@ class PlayerRuntimeOrchestrator(
         )
 
     val scrobble: PlayerScrobbleController =
-        PlayerScrobbleController(scope, getAniListToken)
+        PlayerScrobbleController(scope, context, getAniListToken)
 
     val autoplay: PlayerAutoplayController =
         PlayerAutoplayController(

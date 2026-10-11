@@ -2,7 +2,10 @@ package com.kitsugi.animelist.ui.screens.mylist
 
 import com.kitsugi.animelist.ui.utils.plainLabel
 import com.kitsugi.animelist.ui.utils.localizedLabel
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.Dp
+import com.kitsugi.animelist.R
 import androidx.compose.ui.unit.dp
 import com.kitsugi.animelist.model.MediaEntry
 import com.kitsugi.animelist.model.WatchStatus
@@ -179,31 +182,34 @@ internal fun applySort(
     }
 }
 
-internal fun getSortTitle(sortId: String): String {
-    return when (sortId) {
-        "newest" -> "Son eklenen"
-        "oldest" -> "İlk eklenen"
-        "title" -> "Başlık (A-Z)"
-        "title_desc" -> "Başlık (Z-A)"
-        "score" -> "Puan (En yüksek)"
-        "score_asc" -> "Puan (En düşük)"
-        "progress" -> "İlerleme (En çok)"
-        "progress_asc" -> "İlerleme (En az)"
-        "favorites" -> "Favoriler"
-        "start_date_desc" -> "Başlangıç (Yeni)"
-        "start_date_asc" -> "Başlangıç (Eski)"
-        "end_date_desc" -> "Bitiş (Yeni)"
-        "end_date_asc" -> "Bitiş (Eski)"
-        "year_desc" -> "Yayın Yılı (Yeni)"
-        "year_asc" -> "Yayın Yılı (Eski)"
-        "updated_desc" -> "Son Güncelleme"
-        "updated_asc" -> "Güncelleme (Eski)"
-        "repeat_desc" -> "Tekrar Sayısı (Çok)"
-        "repeat_asc" -> "Tekrar Sayısı (Az)"
-        "priority_desc" -> "Öncelik (Yüksek)"
-        "priority_asc" -> "Öncelik (Düşük)"
-        else -> "Son eklenen"
-    }
+@Composable
+internal fun getSortTitle(sortId: String): String = when (sortId) {
+    "score" -> "Puan (En yüksek)"
+    "score_asc" -> "Puan (En düşük)"
+    else -> stringResource(
+        when (sortId) {
+            "newest" -> R.string.mylist_sort_newest
+            "oldest" -> R.string.mylist_sort_oldest
+            "title" -> R.string.mylist_sort_title_asc
+            "title_desc" -> R.string.mylist_sort_title_desc
+            "progress" -> R.string.mylist_sort_progress_high
+            "progress_asc" -> R.string.mylist_sort_progress_low
+            "favorites" -> R.string.mylist_sort_favorites
+            "start_date_desc" -> R.string.mylist_sort_start_new
+            "start_date_asc" -> R.string.mylist_sort_start_old
+            "end_date_desc" -> R.string.mylist_sort_end_new
+            "end_date_asc" -> R.string.mylist_sort_end_old
+            "year_desc" -> R.string.mylist_sort_year_new
+            "year_asc" -> R.string.mylist_sort_year_old
+            "updated_desc" -> R.string.mylist_sort_updated
+            "updated_asc" -> R.string.mylist_sort_updated_old
+            "repeat_desc" -> R.string.mylist_sort_repeat_high
+            "repeat_asc" -> R.string.mylist_sort_repeat_low
+            "priority_desc" -> R.string.mylist_sort_priority_high
+            "priority_asc" -> R.string.mylist_sort_priority_low
+            else -> R.string.mylist_sort_newest
+        }
+    )
 }
 
 internal fun cardSpacingForLayout(layoutId: String): Dp {

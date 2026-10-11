@@ -1,4 +1,4 @@
-﻿package com.kitsugi.animelist.ui.screens.search
+package com.kitsugi.animelist.ui.screens.search
 import com.kitsugi.animelist.ui.components.KitsugiButton
 
 import com.kitsugi.animelist.ui.theme.gradient.background
@@ -54,6 +54,23 @@ import kotlin.math.roundToInt
 import androidx.compose.ui.res.stringResource
 import com.kitsugi.animelist.R
 
+@Composable
+private fun localizedSearchFormatLabel(format: String): String = when (format) {
+    "TV" -> "TV"
+    "MOVIE" -> stringResource(R.string.search_format_movie)
+    "SPECIAL" -> stringResource(R.string.search_format_special)
+    "OVA" -> "OVA"
+    "ONA" -> "ONA"
+    "MUSIC" -> stringResource(R.string.search_format_music)
+    "MANGA" -> "Manga"
+    "NOVEL" -> stringResource(R.string.search_format_novel)
+    "ONE_SHOT" -> stringResource(R.string.search_format_one_shot)
+    "DOUJIN" -> stringResource(R.string.search_source_doujinshi)
+    "MANHWA" -> stringResource(R.string.search_chip_manhwa)
+    "MANHUA" -> "Manhua"
+    else -> format
+}
+
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun SearchFilterSheet(
@@ -73,11 +90,25 @@ fun SearchFilterSheet(
     val mangaFormats = listOf("MANGA", "NOVEL", "ONE_SHOT", "DOUJIN", "MANHWA", "MANHUA")
     val formats = if (mediaType == MediaType.Manga) mangaFormats else animeFormats
 
-    val animeStatuses = listOf("AIRING" to stringResource(R.string.yayinda), "FINISHED" to stringResource(R.string.cs_diag_completed), "UPCOMING" to stringResource(R.string.yakinda))
-    val mangaStatuses = listOf("PUBLISHING" to stringResource(R.string.yayinlaniyor), "FINISHED" to stringResource(R.string.cs_diag_completed), "HIATUS" to stringResource(R.string.bangumi_tag_hiatus), "DISCONTINUED" to "Durduruldu")
+    val animeStatuses = listOf(
+        "AIRING" to stringResource(R.string.search_status_airing),
+        "FINISHED" to stringResource(R.string.search_status_finished),
+        "UPCOMING" to stringResource(R.string.search_status_upcoming)
+    )
+    val mangaStatuses = listOf(
+        "PUBLISHING" to stringResource(R.string.search_status_publishing),
+        "FINISHED" to stringResource(R.string.search_status_finished),
+        "HIATUS" to stringResource(R.string.search_status_hiatus_filter),
+        "DISCONTINUED" to stringResource(R.string.search_status_discontinued)
+    )
     val statuses = if (mediaType == MediaType.Manga) mangaStatuses else animeStatuses
 
-    val seasons = listOf("WINTER" to stringResource(R.string.kis), "SPRING" to stringResource(R.string.ilkbahar), "SUMMER" to "☀️ Yaz", "FALL" to "🍂 Sonbahar")
+    val seasons = listOf(
+        "WINTER" to stringResource(R.string.search_season_winter_chip),
+        "SPRING" to stringResource(R.string.search_season_spring_chip),
+        "SUMMER" to stringResource(R.string.search_season_summer_chip),
+        "FALL" to stringResource(R.string.search_season_fall_chip)
+    )
 
     val genres = listOf(
         "Aksiyon", "Macera", "Komedi", "Dram", "Fantastik",
@@ -91,10 +122,10 @@ fun SearchFilterSheet(
     )
 
     val sortOptions = listOf(
-        "POPULARITY_DESC" to stringResource(R.string.populerlik_e5d41d0),
+        "POPULARITY_DESC" to stringResource(R.string.search_sort_popularity_chip),
         "SCORE_DESC" to "⭐ Puan",
-        "TITLE_ROMAJI_ASC" to "🔤 İsim (A-Z)",
-        "TITLE_ROMAJI_DESC" to "🔤 İsim (Z-A)"
+        "TITLE_ROMAJI_ASC" to stringResource(R.string.search_sort_title_asc),
+        "TITLE_ROMAJI_DESC" to stringResource(R.string.search_sort_title_desc)
     )
 
     var yearRange by remember(tempFilters.minYear, tempFilters.maxYear) {
@@ -126,7 +157,7 @@ fun SearchFilterSheet(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = stringResource(R.string.inline_advanced_filters_1877905),
+                    text = stringResource(R.string.search_filter_advanced),
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold,
                     color = KitsugiColors.TextPrimary
@@ -164,7 +195,7 @@ fun SearchFilterSheet(
             ) {
                 // 1. Format
                 item {
-                    FilterSectionTitle("Medya Formatı")
+                    FilterSectionTitle(stringResource(R.string.search_filter_media_format))
                     FlowRow(
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                         verticalArrangement = Arrangement.spacedBy(8.dp),
@@ -173,7 +204,7 @@ fun SearchFilterSheet(
                         formats.forEach { format ->
                             val isSelected = tempFilters.format == format
                             FilterChip(
-                                label = format,
+                                label = localizedSearchFormatLabel(format),
                                 isSelected = isSelected,
                                 onClick = {
                                     tempFilters = tempFilters.copy(format = if (isSelected) null else format)
@@ -185,7 +216,7 @@ fun SearchFilterSheet(
 
                 // 2. Status
                 item {
-                    FilterSectionTitle("Yayın Durumu")
+                    FilterSectionTitle(stringResource(R.string.search_filter_release_status))
                     FlowRow(
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                         verticalArrangement = Arrangement.spacedBy(8.dp),
@@ -194,7 +225,7 @@ fun SearchFilterSheet(
                         statuses.forEach { (value, label) ->
                             val isSelected = tempFilters.status == value
                             FilterChip(
-                                label = label,
+                                label = localizedSourceSearchLabel(label),
                                 isSelected = isSelected,
                                 onClick = {
                                     tempFilters = tempFilters.copy(status = if (isSelected) null else value)
@@ -207,7 +238,7 @@ fun SearchFilterSheet(
                 // 3. Season (Anime Only)
                 if (mediaType != MediaType.Manga) {
                     item {
-                        FilterSectionTitle("Sezon")
+                        FilterSectionTitle(stringResource(R.string.search_filter_season))
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -231,7 +262,7 @@ fun SearchFilterSheet(
                 // 4. Year Range Slider
                 item {
                     val displayYearText = if (tempFilters.minYear == null && tempFilters.maxYear == null) {
-                        "Tümü"
+                        stringResource(R.string.mylist_filter_all)
                     } else {
                         "${tempFilters.minYear ?: 1970} - ${tempFilters.maxYear ?: 2026}"
                     }
@@ -240,7 +271,7 @@ fun SearchFilterSheet(
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        FilterSectionTitle("Yayın Yılı Aralığı")
+                        FilterSectionTitle(stringResource(R.string.search_filter_year_range))
                         Text(
                             text = displayYearText,
                             color = accentColor,
@@ -308,7 +339,7 @@ fun SearchFilterSheet(
 
                 // 6. Genre Multi-Select (Include / Exclude / None)
                 item {
-                    FilterSectionTitle("Türler (Genres) - Tıklayarak Dahil Et / Hariç Tut")
+                    FilterSectionTitle(stringResource(R.string.search_filter_genres_include_exclude))
                     FlowRow(
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                         verticalArrangement = Arrangement.spacedBy(8.dp),
@@ -318,7 +349,7 @@ fun SearchFilterSheet(
                             val isIncluded = tempFilters.genres.contains(genre)
                             val isExcluded = tempFilters.excludedGenres.contains(genre)
                             GenreCycleChip(
-                                label = genre,
+                                label = SearchTranslation.displayLabel(genre),
                                 isIncluded = isIncluded,
                                 isExcluded = isExcluded,
                                 onClick = {
@@ -347,7 +378,7 @@ fun SearchFilterSheet(
 
                 // 7. Tag Multi-Select
                 item {
-                    FilterSectionTitle("Etiketler (Tags)")
+                    FilterSectionTitle(stringResource(R.string.search_filter_tags))
                     FlowRow(
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                         verticalArrangement = Arrangement.spacedBy(8.dp),
@@ -356,7 +387,7 @@ fun SearchFilterSheet(
                         popularTags.forEach { tag ->
                             val isSelected = tempFilters.tags.contains(tag)
                             FilterChip(
-                                label = tag,
+                                label = SearchTranslation.displayLabel(tag),
                                 isSelected = isSelected,
                                 onClick = {
                                     tempFilters = tempFilters.copy(
@@ -370,7 +401,7 @@ fun SearchFilterSheet(
 
                 // 8. Sort
                 item {
-                    FilterSectionTitle("Sıralama")
+                    FilterSectionTitle(stringResource(R.string.search_filter_sort))
                     FlowRow(
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                         verticalArrangement = Arrangement.spacedBy(8.dp),
@@ -379,7 +410,7 @@ fun SearchFilterSheet(
                         sortOptions.forEach { (value, label) ->
                             val isSelected = tempFilters.sort == value
                             FilterChip(
-                                label = label,
+                                label = localizedSourceSearchLabel(label),
                                 isSelected = isSelected,
                                 onClick = {
                                     tempFilters = tempFilters.copy(sort = value)
@@ -422,7 +453,7 @@ fun SearchFilterSheet(
                 ) {
                     Icon(Icons.Default.Done, contentDescription = null, modifier = Modifier.size(18.dp))
                     Spacer(modifier = Modifier.width(6.dp))
-                    Text("Filtreleri Uygula", fontWeight = FontWeight.Bold)
+                    Text(stringResource(R.string.search_filter_apply), fontWeight = FontWeight.Bold)
                 }
             }
         }

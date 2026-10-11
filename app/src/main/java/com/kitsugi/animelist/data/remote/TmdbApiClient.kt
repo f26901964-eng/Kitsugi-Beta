@@ -1,6 +1,8 @@
 package com.kitsugi.animelist.data.remote
 
 import android.util.Log
+import com.kitsugi.animelist.KitsugiApplication
+import com.kitsugi.animelist.R
 import com.kitsugi.animelist.model.MediaType
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
@@ -12,8 +14,6 @@ import okhttp3.Request
 import org.json.JSONObject
 import com.kitsugi.animelist.utils.*
 import java.util.concurrent.TimeUnit
-import com.kitsugi.animelist.utils.KitsugiStrings
-import com.kitsugi.animelist.R
 
 /**
  * TMDB API ana giriş noktası (Orkestrasyon katmanı).
@@ -399,7 +399,7 @@ class TmdbApiClient(
                 val score = if (rating > 0.0) (rating * 10).toInt().coerceIn(0, 100) / 10 else null
                 val imageUrl = if (posterPath.isNotEmpty()) "https://image.tmdb.org/t/p/w500$posterPath" else null
                 val subtitleParts = buildList {
-                    add(if (isMovie) "Film" else "Dizi")
+                    add(if (isMovie) "movie".toLocalizedMediaTypeString() else "tv".toLocalizedMediaTypeString())
                     if (year != null && year > 0) add(year.toString())
                 }
                 list.add(
@@ -515,7 +515,7 @@ class TmdbApiClient(
                 val score = if (rating > 0.0) (rating * 10).toInt().coerceIn(0, 100) / 10 else null
                 val imageUrl = if (posterPath.isNotEmpty()) "https://image.tmdb.org/t/p/w500$posterPath" else null
                 val subtitleParts = buildList {
-                    add(if (isMovie) "Film" else "Dizi")
+                    add(if (isMovie) "movie".toLocalizedMediaTypeString() else "tv".toLocalizedMediaTypeString())
                     if (year != null && year > 0) add(year.toString())
                 }
                 list.add(
@@ -593,10 +593,17 @@ class TmdbApiClient(
                 val logoPath = item.optNullableString("logo_path")
                 val imageUrl = logoPath?.let { "https://image.tmdb.org/t/p/w500$it" }
                 val originCountry = item.optString("origin_country", "")
+                val appContext = KitsugiApplication.getInstance()
+                val companySubtitle = if (originCountry.isNotBlank()) {
+                    appContext?.getString(R.string.source_production_company_country, originCountry)
+                        ?: "Production company ($originCountry)"
+                } else {
+                    appContext?.getString(R.string.source_production_company) ?: "Production company"
+                }
                 list.add(
                     JikanSearchResult(
                         malId = id, title = name,
-                        subtitle = if (originCountry.isNotBlank()) KitsugiStrings.get(R.string.yapim_sirketi_x, originCountry) else KitsugiStrings.get(R.string.yapim_sirketi),
+                        subtitle = companySubtitle,
                         type = MediaType.Movie, total = null, score = null,
                         isAdult = false,
                         imageUrl = imageUrl, year = null, source = "tmdb"

@@ -1,6 +1,8 @@
 package com.kitsugi.animelist.data.remote
 
 import android.util.Log
+import com.kitsugi.animelist.KitsugiApplication
+import com.kitsugi.animelist.R
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
@@ -29,6 +31,11 @@ internal object TmdbMediaDetailClient {
     private const val IMG_W500 = "https://image.tmdb.org/t/p/w500"
     private const val IMG_W780 = "https://image.tmdb.org/t/p/w780"
     private const val IMG_W1280 = "https://image.tmdb.org/t/p/w1280"
+
+    private fun appString(resId: Int, fallback: String, vararg args: Any): String {
+        val context = KitsugiApplication.getInstance() ?: return fallback.format(*args)
+        return runCatching { context.getString(resId, *args) }.getOrDefault(fallback.format(*args))
+    }
 
     suspend fun fetchMediaDetail(
         tmdbId: Int,
@@ -134,7 +141,9 @@ internal object TmdbMediaDetailClient {
             val nextAiring = if (features.useReleaseDates && nextEpisodeObj != null) {
                 val ep = nextEpisodeObj.optInt("episode_number")
                 val dateStr = nextEpisodeObj.optString("air_date")
-                if (ep > 0 && dateStr.isNotBlank()) "Bölüm $ep, $dateStr tarihinde yayında" else null
+                if (ep > 0 && dateStr.isNotBlank()) {
+                    appString(R.string.source_episode_airing_date, "Episode %1\$d airs on %2\$s", ep, dateStr)
+                } else null
             } else null
 
             val releaseDate = if (features.useReleaseDates) {
@@ -387,12 +396,12 @@ internal object TmdbMediaDetailClient {
                     val name = video.optString("name", "")
                     if (site.equals("YouTube", ignoreCase = true) && key.isNotEmpty()) {
                         val typeTr = when (type.lowercase()) {
-                            "trailer" -> "Fragman"
-                            "teaser" -> "Teaser"
-                            "clip" -> "Klip"
-                            "featurette" -> "Özel Bakış"
-                            "behind the scenes" -> "Kamera Arkası"
-                            "bloopers" -> "Çekim Hataları"
+                            "trailer" -> appString(R.string.source_video_trailer, "Trailer")
+                            "teaser" -> appString(R.string.source_video_teaser, "Teaser")
+                            "clip" -> appString(R.string.source_video_clip, "Clip")
+                            "featurette" -> appString(R.string.source_video_featurette, "Featurette")
+                            "behind the scenes" -> appString(R.string.source_video_behind_scenes, "Behind the scenes")
+                            "bloopers" -> appString(R.string.source_video_bloopers, "Bloopers")
                             else -> type
                         }
                         list.add(Pair(type, KitsugiTheme(label = "$typeTr - $name", videoUrl = "https://www.youtube.com/watch?v=$key")))

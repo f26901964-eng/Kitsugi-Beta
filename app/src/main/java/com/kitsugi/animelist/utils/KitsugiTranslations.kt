@@ -6,9 +6,26 @@ import com.kitsugi.animelist.data.remote.KitsugiVoiceActor
 // ─── Dil Yardımcısı ────────────────────────────────────────────────────────────
 
 /**
- * Cihazın aktif dili Türkçe mi? Değilse tüm çeviri fonksiyonları orijinal metni döner.
+ * Aktif uygulama dili Türkçe mi? Önce uygulama içi/per-app dil tercihini, sonra
+ * uygulama kaynaklarının yerel ayarını ve son olarak sistem varsayılanını kullanır.
  */
-fun isTurkish(): Boolean = java.util.Locale.getDefault().language.startsWith("tr")
+fun isTurkish(): Boolean {
+    val savedTag = runCatching { com.kitsugi.animelist.LocaleCache.localeTag }.getOrNull()
+        ?.takeIf { it != com.kitsugi.animelist.LocaleCache.UNSET && it.isNotBlank() }
+    if (savedTag != null) return java.util.Locale.forLanguageTag(savedTag).language.equals("tr", ignoreCase = true)
+
+    val frameworkTag = runCatching {
+        androidx.appcompat.app.AppCompatDelegate.getApplicationLocales().toLanguageTags()
+    }.getOrNull()?.takeIf { it.isNotBlank() }
+    if (frameworkTag != null) {
+        return java.util.Locale.forLanguageTag(frameworkTag.substringBefore(',')).language.equals("tr", ignoreCase = true)
+    }
+
+    val appLocale = runCatching {
+        com.kitsugi.animelist.KitsugiApplication.getInstance()?.resources?.configuration?.locales?.get(0)
+    }.getOrNull()
+    return (appLocale ?: java.util.Locale.getDefault()).language.equals("tr", ignoreCase = true)
+}
 
 /**
  * Kitsugi Türkçe Çeviri Eşleme Yardımcıları

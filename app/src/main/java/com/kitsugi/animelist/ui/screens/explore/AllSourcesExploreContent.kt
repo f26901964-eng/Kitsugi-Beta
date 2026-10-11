@@ -35,7 +35,43 @@ import com.kitsugi.animelist.ui.theme.KitsugiColors
 import com.kitsugi.animelist.ui.utils.tvClickable
 import androidx.compose.ui.res.stringResource
 import com.kitsugi.animelist.R
-import com.kitsugi.animelist.utils.KitsugiStrings
+
+@Composable
+private fun localizedExploreSectionTitle(title: String): String {
+    val titleRes = when (title) {
+        "Trend Her Şey" -> R.string.explore_source_trending_all
+        "Trend Animeler" -> R.string.explore_source_trending_anime
+        "Trend Mangalar" -> R.string.explore_source_trending_manga
+        "Trend Diziler" -> R.string.explore_source_trending_tv
+        "Trend Filmler" -> R.string.explore_source_trending_movies
+        "Popüler Animeler" -> R.string.explore_source_popular_anime
+        "Popüler Mangalar" -> R.string.explore_source_popular_manga
+        "Popüler Diziler" -> R.string.explore_source_popular_tv
+        "Popüler Filmler" -> R.string.explore_source_popular_movies
+        "En İyi Animeler" -> R.string.explore_source_best_anime
+        "En İyi Mangalar" -> R.string.explore_source_best_manga
+        "En İyi Diziler" -> R.string.explore_source_best_tv
+        "En Yüksek Puanlı Animeler" -> R.string.explore_source_top_rated_anime
+        "En Yüksek Puanlı Mangalar" -> R.string.explore_source_top_rated_manga
+        "En Yüksek Puanlı Diziler" -> R.string.explore_source_top_rated_tv
+        "En Yüksek Puanlı Filmler" -> R.string.explore_source_top_rated_movies
+        "Yayındaki Animeler" -> R.string.explore_source_airing_anime
+        "Yayındaki Diziler" -> R.string.explore_source_airing_tv
+        "Yaklaşan Animeler" -> R.string.explore_source_upcoming_anime
+        "Yaklaşan Film ve Diziler" -> R.string.explore_source_upcoming_tv_movies
+        "Anime Filmleri" -> R.string.explore_source_anime_movies
+        "Bu Sezon" -> R.string.explore_source_current_season
+        "Yeni Eklenen Animeler" -> R.string.explore_source_newly_added_anime
+        "Yeni Eklenen Mangalar" -> R.string.explore_source_newly_added_manga
+        "Yeni Filmler" -> R.string.explore_source_new_movies
+        "Manhwa & Manhua" -> R.string.explore_source_manhwa_manhua
+        "Noveller & Light Novel" -> R.string.explore_source_novels
+        "Bangumi Dizileri" -> R.string.explore_source_bangumi_tv
+        "Bangumi Filmleri" -> R.string.explore_source_bangumi_movies
+        else -> return title
+    }
+    return stringResource(titleRes)
+}
 
 /** One source = one distinct destination, with all its own categories underneath it. */
 @OptIn(ExperimentalFoundationApi::class)
@@ -50,7 +86,7 @@ fun LazyListScope.allSourcesExploreSections(
     /** Kaynak → benzersiz içerik sayısı (SourceHeader rozeti için, önceden hesaplanmış). */
     distinctCounts: Map<ExplorePlatform, Int>,
     airingSoonShelf: List<JikanSearchResult> = emptyList(),
-    airingSoonTitle: String = "Yakında Yayında",
+    airingSoonTitle: String = "",
     airingSoonIsLoading: Boolean = false,
     onOpenAiringCalendar: (() -> Unit)? = null,
     collapsedSources: Set<ExplorePlatform>,
@@ -77,10 +113,10 @@ fun LazyListScope.allSourcesExploreSections(
     )
     item(key = "all_sources_intro") {
         Column(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 20.dp)) {
-            Text(KitsugiStrings.get(R.string.inline_six_sources_one_discovery_20b7124), style = MaterialTheme.typography.headlineSmall,
+            Text(stringResource(R.string.explore_all_sources_title), style = MaterialTheme.typography.headlineSmall,
                 color = KitsugiColors.TextPrimary, fontWeight = FontWeight.Black)
             Spacer(Modifier.height(6.dp))
-            Text(KitsugiStrings.get(R.string.inline_each_platform_s_trending_top_231becd),
+            Text(stringResource(R.string.inline_each_platform_s_trending_top_231becd),
                 style = MaterialTheme.typography.bodyMedium, color = KitsugiColors.TextSecondary)
         }
     }
@@ -89,7 +125,7 @@ fun LazyListScope.allSourcesExploreSections(
         item(key = "all_airing_soon") {
             Column(Modifier.padding(bottom = 20.dp)) {
                 ExploreAiringSoonSection(
-                    title = airingSoonTitle,
+                    title = airingSoonTitle.ifBlank { stringResource(R.string.explore_airing_soon) },
                     airingSoonAnime = airingSoonShelf,
                     isLoading = airingSoonIsLoading,
                     alreadyInList = alreadyInList,
@@ -136,6 +172,8 @@ fun LazyListScope.allSourcesExploreSections(
         val sourceSections = sections[platform].orEmpty()
         val expanded = platform !in collapsedSources
         item(key = "all_source_${platform.name}") {
+            val platformLabel = platform.localizedLabel()
+            val sectionTitles = sourceSections.map { localizedExploreSectionTitle(it.title) }
             SourceHeader(
                 platform = platform,
                 state = state,
@@ -146,8 +184,9 @@ fun LazyListScope.allSourcesExploreSections(
                 onRetry = { onRetrySource(platform) },
                 onCategory = { index ->
                     sourceSections.getOrNull(index)?.let { section ->
+                        val sectionTitle = sectionTitles.getOrNull(index) ?: section.title
                         onSeeAllSection(
-                            "${platform.label} • ${section.title}",
+                            "$platformLabel • $sectionTitle",
                             section.category,
                             section.results,
                             platform
@@ -158,11 +197,13 @@ fun LazyListScope.allSourcesExploreSections(
         }
         if (expanded) {
             items(sourceSections, key = { "all_${it.key}" }) { section ->
+                val sectionTitle = localizedExploreSectionTitle(section.title)
+                val platformLabel = platform.localizedLabel()
                 Column(Modifier.padding(top = 6.dp, bottom = 20.dp)) {
                     // The source heading owns the rows; don't repeat its name on every title.
                     CompositionLocalProviderForSource(platform) {
                         KitsugiHorizontalMediaSection(
-                            title = section.title,
+                            title = sectionTitle,
                             results = section.results,
                             isLoading = false,
                             alreadyInList = alreadyInList,
@@ -170,7 +211,7 @@ fun LazyListScope.allSourcesExploreSections(
                             onItemClick = onItemClick,
                             onLongClickItem = onLongClickItem,
                             onSeeAllClick = {
-                                onSeeAllSection("${platform.label} · ${section.title}",
+                                onSeeAllSection("$platformLabel · $sectionTitle",
                                     section.category, section.results, platform)
                             },
                             titleLanguage = titleLanguage,
@@ -190,11 +231,11 @@ fun LazyListScope.allSourcesExploreSections(
                 Row(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 12.dp),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically) {
-                    TextButton(onClick = { onToggleSource(platform) }) { Text(KitsugiStrings.get(R.string.inline_narrow_1_s_5c7a9bb, platform.shortName)) }
+                    TextButton(onClick = { onToggleSource(platform) }) { Text(stringResource(R.string.explore_source_collapse, platform.localizedShortName())) }
                     val next = ExplorePlatform.sources.getOrNull(ExplorePlatform.sources.indexOf(platform) + 1)
                     if (next != null) {
                         TextButton(onClick = { onJumpToIndex(headerIndices.getValue(next)) }) {
-                            Text(KitsugiStrings.get(R.string.inline_up_next_1_s_a730b4c, next.shortName))
+                            Text(stringResource(R.string.explore_source_next, next.localizedShortName()))
                         }
                     }
                 }
@@ -263,7 +304,7 @@ private fun SourceJumpChip(platform: ExplorePlatform, loading: Boolean, onClick:
     ) {
         KitsugiPlatformLogo(platformId = platform.name, size = 18.dp)
         Text(
-            text = platform.shortName,
+            text = platform.localizedShortName(),
             color = KitsugiColors.TextPrimary,
             style = MaterialTheme.typography.labelMedium,
             fontWeight = FontWeight.SemiBold,
@@ -300,28 +341,28 @@ private fun SourceHeader(
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             KitsugiPlatformLogo(platformId = platform.name, size = 42.dp)
             Column(Modifier.weight(1f)) {
-                Text(platform.label, color = KitsugiColors.TextPrimary,
+                Text(platform.localizedLabel(), color = KitsugiColors.TextPrimary,
                     style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Black)
-                Text(stringResource(R.string.inline_1_s_categories_2_s_bcaabf2, sections.size, distinctItemCount),
+                Text(stringResource(R.string.explore_source_category_count, sections.size, distinctItemCount),
                     color = color, style = MaterialTheme.typography.labelMedium)
             }
             IconButton(onClick = onToggle) {
                 Icon(if (expanded) Icons.Rounded.ExpandLess else Icons.Rounded.ExpandMore,
-                    contentDescription = stringResource(R.string.x_alanini_x, platform.label, if (expanded) "daralt" else stringResource(R.string.genislet)), tint = color)
+                    contentDescription = stringResource(if (expanded) R.string.explore_source_collapse else R.string.explore_source_expand, platform.localizedLabel()), tint = color)
             }
         }
         Spacer(Modifier.height(10.dp))
-        Text(platform.description, color = KitsugiColors.TextSecondary, style = MaterialTheme.typography.bodyMedium)
+        Text(platform.localizedDescription(), color = KitsugiColors.TextSecondary, style = MaterialTheme.typography.bodyMedium)
         if (state.isLoading) {
             Spacer(Modifier.height(12.dp))
             LinearProgressIndicator(modifier = Modifier.fillMaxWidth(), color = color)
-            Text(if (state.payload != null) stringResource(R.string.ui_explore_updating) else stringResource(R.string.ui_source_discovery_loading),
+            Text(stringResource(if (state.payload != null) R.string.explore_source_refreshing else R.string.explore_source_preparing),
                 modifier = Modifier.padding(top = 6.dp), color = KitsugiColors.TextSecondary, style = MaterialTheme.typography.bodySmall)
         } else if (state.error != null) {
             Text(state.error, Modifier.padding(top = 10.dp), color = KitsugiColors.TextSecondary, style = MaterialTheme.typography.bodySmall)
-            TextButton(onClick = onRetry) { Text(KitsugiStrings.get(R.string.inline_retry_for_1_s_0db943e, platform.shortName), color = color) }
+            TextButton(onClick = onRetry) { Text(stringResource(R.string.explore_source_retry, platform.localizedShortName()), color = color) }
         } else if (sections.isEmpty()) {
-            Text(stringResource(R.string.inline_no_results_match_the_content_1026716), Modifier.padding(top = 10.dp),
+            Text(stringResource(R.string.explore_source_no_matching_content), Modifier.padding(top = 10.dp),
                 color = KitsugiColors.TextSecondary, style = MaterialTheme.typography.bodySmall)
         }
         if (expanded && sections.isNotEmpty()) {
@@ -330,7 +371,7 @@ private fun SourceHeader(
                 items(sections.size) { index ->
                     val section = sections[index]
                     SuggestionChip(onClick = { onCategory(index) }, label = {
-                        Text(section.title, color = color)
+                        Text(localizedExploreSectionTitle(section.title), color = color)
                     })
                 }
             }

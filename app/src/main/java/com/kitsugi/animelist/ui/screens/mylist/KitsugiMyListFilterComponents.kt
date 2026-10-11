@@ -39,69 +39,79 @@ import com.kitsugi.animelist.ui.theme.LocalKitsugiAccent
 import com.kitsugi.animelist.ui.theme.KitsugiColors
 import androidx.compose.ui.res.stringResource
 import com.kitsugi.animelist.R
-import com.kitsugi.animelist.utils.KitsugiStrings
 
 internal data class StatusFilter(
     val id: String,
     val title: String,
-    val status: WatchStatus?
+    val status: WatchStatus?,
+    val titleRes: Int? = null
 )
 
 internal data class TypeFilter(
     val id: String,
     val title: String,
-    val type: MediaType?
+    val type: MediaType?,
+    val titleRes: Int? = null
 )
 
 internal data class FavoriteFilter(
     val id: String,
-    val title: String
+    val title: String,
+    val titleRes: Int? = null
 )
 
 internal data class SortOption(
     val id: String,
-    val title: String
+    val title: String,
+    val titleRes: Int? = null
 )
 
 internal data class ScoreFilter(
     val id: String,
-    val title: String
+    val title: String,
+    val titleRes: Int? = null
 )
 
 internal data class YearFilter(
     val id: String,
-    val title: String
+    val title: String,
+    val titleRes: Int? = null
 )
 
 internal data class ExtraFilter(
     val id: String,
-    val title: String
+    val title: String,
+    val titleRes: Int? = null
 )
 
+@Composable
+internal fun myListLocalizedTitle(title: String, titleRes: Int?): String =
+    titleRes?.let { stringResource(it) } ?: title
+
 internal val statusFilters = listOf(
-    StatusFilter("all", KitsugiStrings.get(R.string.notif_filter_all), null),
-    StatusFilter("watching", "İzleniyor", WatchStatus.Watching),
-    StatusFilter("completed", "Tamamlandı", WatchStatus.Completed),
-    StatusFilter("planned", "Planlandı", WatchStatus.Planned),
-    StatusFilter("dropped", "Bırakıldı", WatchStatus.Dropped),
-    StatusFilter("paused", "Durduruldu", WatchStatus.Paused)
+    StatusFilter("all", "Tümü", null, R.string.mylist_filter_all),
+    StatusFilter("watching", "İzleniyor", WatchStatus.Watching, R.string.mylist_filter_watching),
+    StatusFilter("completed", "Tamamlandı", WatchStatus.Completed, R.string.mylist_filter_completed),
+    StatusFilter("planned", "Planlandı", WatchStatus.Planned, R.string.mylist_filter_planned),
+    StatusFilter("dropped", "Bırakıldı", WatchStatus.Dropped, R.string.mylist_filter_dropped),
+    StatusFilter("paused", "Durduruldu", WatchStatus.Paused, R.string.mylist_filter_paused)
 )
 
 internal val typeFilters = listOf(
-    TypeFilter("all", KitsugiStrings.get(R.string.notif_filter_all), null),
-    TypeFilter("anime", "Anime", MediaType.Anime),
-    TypeFilter("manga", "Manga", MediaType.Manga),
-    TypeFilter("movie", "Film", MediaType.Movie),
-    TypeFilter("tvshow", "Dizi", MediaType.TvShow)
+    TypeFilter("all", "Tümü", null, R.string.mylist_filter_all),
+    TypeFilter("anime", "Anime", MediaType.Anime, R.string.mylist_filter_anime),
+    TypeFilter("manga", "Manga", MediaType.Manga, R.string.mylist_filter_manga),
+    TypeFilter("movie", "Film", MediaType.Movie, R.string.mylist_filter_movie),
+    TypeFilter("tvshow", "Dizi", MediaType.TvShow, R.string.mylist_filter_tvshow)
 )
 
 internal val favoriteFilters = listOf(
-    FavoriteFilter("all", KitsugiStrings.get(R.string.notif_filter_all)),
-    FavoriteFilter("favorites", "Favoriler")
+    FavoriteFilter("all", "Tümü", R.string.mylist_filter_all),
+    FavoriteFilter("favorites", "Favoriler", R.string.mylist_filter_favorites)
 )
 
 internal val scoreFilters = listOf(
-    ScoreFilter("all", KitsugiStrings.get(R.string.notif_filter_all)),
+    ScoreFilter("all", "Tümü"),
     ScoreFilter("high", "Çok İyi (8-10)"),
     ScoreFilter("mid", "İyi (5-7)"),
     ScoreFilter("low", "Düşük (1-4)"),
@@ -109,36 +119,36 @@ internal val scoreFilters = listOf(
 )
 
 internal val yearFilters = listOf(
-    YearFilter("all", KitsugiStrings.get(R.string.notif_filter_all)),
-    YearFilter("new", "2025 ve Sonrası"),
-    YearFilter("2020s", "2020 - 2024"),
-    YearFilter("2010s", "2010'lar"),
-    YearFilter("2000s", "2000'ler"),
-    YearFilter("classic", "90'lar ve Öncesi")
+    YearFilter("all", "Tümü", R.string.mylist_filter_all),
+    YearFilter("new", "2025 ve Sonrası", R.string.mylist_year_new),
+    YearFilter("2020s", "2020 - 2024", R.string.mylist_year_2020s),
+    YearFilter("2010s", "2010'lar", R.string.mylist_year_2010s),
+    YearFilter("2000s", "2000'ler", R.string.mylist_year_2000s),
+    YearFilter("classic", "90'lar ve Öncesi", R.string.mylist_year_classic)
 )
 
 internal val extraFilters = listOf(
-    ExtraFilter("all", KitsugiStrings.get(R.string.notif_filter_all)),
-    ExtraFilter("repeating", "Tekrar İzlenenler"),
-    ExtraFilter("private", "Özel / Gizli"),
-    ExtraFilter("ongoing", "Tamamlanmamış")
+    ExtraFilter("all", "Tümü", R.string.mylist_filter_all),
+    ExtraFilter("repeating", "Tekrar İzlenenler", R.string.mylist_extra_repeating),
+    ExtraFilter("private", "Özel / Gizli", R.string.mylist_extra_private),
+    ExtraFilter("ongoing", "Tamamlanmamış", R.string.mylist_extra_ongoing)
 )
 
 internal val sortOptions = listOf(
-    SortOption("newest", "Son eklenen"),
-    SortOption("oldest", "İlk eklenen"),
-    SortOption("title", "Ada göre"),
+    SortOption("newest", "Son eklenen", R.string.mylist_sort_newest),
+    SortOption("oldest", "İlk eklenen", R.string.mylist_sort_oldest),
+    SortOption("title", "Ada göre", R.string.mylist_sort_title),
     SortOption("score", "Puan"),
-    SortOption("progress", "İlerleme"),
-    SortOption("favorites", "Favoriler"),
-    SortOption("start_date_desc", "Başlangıç (Yeni)"),
-    SortOption("start_date_asc", "Başlangıç (Eski)"),
-    SortOption("end_date_desc", "Bitiş (Yeni)"),
-    SortOption("end_date_asc", "Bitiş (Eski)"),
-    SortOption("year_desc", "Yayın Yılı (Yeni)"),
-    SortOption("year_asc", "Yayın Yılı (Eski)"),
-    SortOption("updated_desc", "Son Güncelleme"),
-    SortOption("priority_desc", "Öncelik")
+    SortOption("progress", "İlerleme", R.string.mylist_sort_progress),
+    SortOption("favorites", "Favoriler", R.string.mylist_sort_favorites),
+    SortOption("start_date_desc", "Başlangıç (Yeni)", R.string.mylist_sort_start_new),
+    SortOption("start_date_asc", "Başlangıç (Eski)", R.string.mylist_sort_start_old),
+    SortOption("end_date_desc", "Bitiş (Yeni)", R.string.mylist_sort_end_new),
+    SortOption("end_date_asc", "Bitiş (Eski)", R.string.mylist_sort_end_old),
+    SortOption("year_desc", "Yayın Yılı (Yeni)", R.string.mylist_sort_year_new),
+    SortOption("year_asc", "Yayın Yılı (Eski)", R.string.mylist_sort_year_old),
+    SortOption("updated_desc", "Son Güncelleme", R.string.mylist_sort_updated),
+    SortOption("priority_desc", "Öncelik", R.string.mylist_sort_priority)
 )
 
 @Composable
@@ -197,7 +207,7 @@ internal fun StatusFilterRow(
     onStatusSelected: (String) -> Unit
 ) {
     FilterChipRow(
-        items = statusFilters.map { it.id to it.title },
+        items = statusFilters.map { it.id to myListLocalizedTitle(it.title, it.titleRes) },
         selectedId = selectedStatusFilterId,
         onSelected = onStatusSelected
     )
@@ -209,7 +219,7 @@ internal fun TypeFilterRow(
     onTypeSelected: (String) -> Unit
 ) {
     FilterChipRow(
-        items = typeFilters.map { it.id to it.title },
+        items = typeFilters.map { it.id to myListLocalizedTitle(it.title, it.titleRes) },
         selectedId = selectedTypeFilterId,
         onSelected = onTypeSelected
     )
@@ -221,7 +231,7 @@ internal fun FavoriteFilterRow(
     onFavoriteFilterSelected: (String) -> Unit
 ) {
     FilterChipRow(
-        items = favoriteFilters.map { it.id to it.title },
+        items = favoriteFilters.map { it.id to myListLocalizedTitle(it.title, it.titleRes) },
         selectedId = selectedFavoriteFilterId,
         onSelected = onFavoriteFilterSelected
     )
@@ -233,7 +243,7 @@ internal fun ScoreFilterRow(
     onScoreSelected: (String) -> Unit
 ) {
     FilterChipRow(
-        items = scoreFilters.map { it.id to it.title },
+        items = scoreFilters.map { it.id to myListLocalizedTitle(it.title, it.titleRes) },
         selectedId = selectedScoreFilterId,
         onSelected = onScoreSelected
     )
@@ -245,7 +255,7 @@ internal fun YearFilterRow(
     onYearSelected: (String) -> Unit
 ) {
     FilterChipRow(
-        items = yearFilters.map { it.id to it.title },
+        items = yearFilters.map { it.id to myListLocalizedTitle(it.title, it.titleRes) },
         selectedId = selectedYearFilterId,
         onSelected = onYearSelected
     )
@@ -257,7 +267,7 @@ internal fun ExtraFilterRow(
     onExtraSelected: (String) -> Unit
 ) {
     FilterChipRow(
-        items = extraFilters.map { it.id to it.title },
+        items = extraFilters.map { it.id to myListLocalizedTitle(it.title, it.titleRes) },
         selectedId = selectedExtraFilterId,
         onSelected = onExtraSelected
     )
@@ -269,7 +279,7 @@ internal fun SortFilterRow(
     onSortSelected: (String) -> Unit
 ) {
     FilterChipRow(
-        items = sortOptions.map { it.id to it.title },
+        items = sortOptions.map { it.id to myListLocalizedTitle(it.title, it.titleRes) },
         selectedId = selectedSortId,
         onSelected = onSortSelected
     )
@@ -341,7 +351,7 @@ internal fun RichMyListFilterPanel(
 
         // Section: Status Filters
         Column {
-            FilterLabel(text = stringResource(R.string.detail_info_status))
+            FilterLabel(text = "Durum")
             Spacer(modifier = Modifier.height(6.dp))
             StatusFilterRow(
                 selectedStatusFilterId = selectedStatusFilterId,
@@ -351,7 +361,7 @@ internal fun RichMyListFilterPanel(
 
         // Section: Media Type
         Column {
-            FilterLabel(text = stringResource(R.string.medya_turu))
+            FilterLabel(text = "Medya Türü")
             Spacer(modifier = Modifier.height(6.dp))
             TypeFilterRow(
                 selectedTypeFilterId = selectedTypeFilterId,
@@ -361,7 +371,7 @@ internal fun RichMyListFilterPanel(
 
         // Section: Score Range
         Column {
-            FilterLabel(text = stringResource(R.string.puan_araligi))
+            FilterLabel(text = "Puan Aralığı")
             Spacer(modifier = Modifier.height(6.dp))
             ScoreFilterRow(
                 selectedScoreFilterId = selectedScoreFilterId,
@@ -381,7 +391,7 @@ internal fun RichMyListFilterPanel(
 
         // Section: Extra Options
         Column {
-            FilterLabel(text = stringResource(R.string.ekstra_ozel))
+            FilterLabel(text = "Ekstra / Özel")
             Spacer(modifier = Modifier.height(6.dp))
             ExtraFilterRow(
                 selectedExtraFilterId = selectedExtraFilterId,
@@ -456,7 +466,7 @@ internal fun RichMyListFilterPanel(
                     .padding(horizontal = 12.dp, vertical = 8.dp)
             ) {
                 Text(
-                    text = stringResource(R.string.filtreleri_gizle),
+                    text = "Filtreleri gizle",
                     color = KitsugiColors.TextMuted,
                     style = MaterialTheme.typography.labelMedium,
                     fontWeight = FontWeight.Bold
@@ -551,20 +561,20 @@ internal fun EmptyListResultCard(
     selectedExtraFilterId: String,
     selectedSortId: String
 ) {
-    val activeStatusTitle = statusFilters.firstOrNull { it.id == selectedStatusFilterId }?.title ?: "Tümü"
-    val activeTypeTitle = typeFilters.firstOrNull { it.id == selectedTypeFilterId }?.title ?: "Tümü"
-    val activeFavoriteTitle = favoriteFilters.firstOrNull { it.id == selectedFavoriteFilterId }?.title ?: "Tümü"
-    val activeScoreTitle = scoreFilters.firstOrNull { it.id == selectedScoreFilterId }?.title ?: "Tümü"
-    val activeYearTitle = yearFilters.firstOrNull { it.id == selectedYearFilterId }?.title ?: "Tümü"
-    val activeExtraTitle = extraFilters.firstOrNull { it.id == selectedExtraFilterId }?.title ?: "Tümü"
+    val activeStatusTitle = statusFilters.firstOrNull { it.id == selectedStatusFilterId }?.let { myListLocalizedTitle(it.title, it.titleRes) } ?: stringResource(R.string.mylist_filter_all)
+    val activeTypeTitle = typeFilters.firstOrNull { it.id == selectedTypeFilterId }?.let { myListLocalizedTitle(it.title, it.titleRes) } ?: stringResource(R.string.mylist_filter_all)
+    val activeFavoriteTitle = favoriteFilters.firstOrNull { it.id == selectedFavoriteFilterId }?.let { myListLocalizedTitle(it.title, it.titleRes) } ?: stringResource(R.string.mylist_filter_all)
+    val activeScoreTitle = scoreFilters.firstOrNull { it.id == selectedScoreFilterId }?.let { myListLocalizedTitle(it.title, it.titleRes) } ?: stringResource(R.string.mylist_filter_all)
+    val activeYearTitle = yearFilters.firstOrNull { it.id == selectedYearFilterId }?.let { myListLocalizedTitle(it.title, it.titleRes) } ?: stringResource(R.string.mylist_filter_all)
+    val activeExtraTitle = extraFilters.firstOrNull { it.id == selectedExtraFilterId }?.let { myListLocalizedTitle(it.title, it.titleRes) } ?: stringResource(R.string.mylist_filter_all)
     val activeSortTitle = getSortTitle(selectedSortId)
 
     KitsugiEmptyState(
         title = stringResource(R.string.sonuc_bulunamadi),
         subtitle = if (searchQuery.isBlank()) {
-            stringResource(R.string.secili_filtrelerle_icerik_bulunamadi)
+            stringResource(R.string.mylist_empty_filtered)
         } else {
-            "\"$searchQuery\" için içerik bulunamadı."
+            stringResource(R.string.mylist_empty_search_query, searchQuery)
         },
         icon = Icons.Rounded.FilterList
     )

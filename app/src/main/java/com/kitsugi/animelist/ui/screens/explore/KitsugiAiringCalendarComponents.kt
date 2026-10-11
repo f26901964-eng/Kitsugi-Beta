@@ -76,21 +76,32 @@ import com.kitsugi.animelist.ui.utils.tvClickable
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.util.Calendar
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalConfiguration
+import android.content.res.Configuration
+import com.kitsugi.animelist.ui.utils.rememberKitsugiGridColumns
+import com.kitsugi.animelist.ui.components.KitsugiShimmerBlock
+import com.kitsugi.animelist.ui.components.KitsugiShimmerProvider
+import com.kitsugi.animelist.ui.components.LocalShimmerBrush
 import com.kitsugi.animelist.R
 
 // ─── Yardımcı sabitler ─────────────────────────────────────────────────────
 
-/** Calendar.DAY_OF_WEEK sırasına göre kısa gün isimleri (TR) */
-internal val DAY_LABELS = mapOf(
-    Calendar.MONDAY    to "Pazartesi",
-    Calendar.TUESDAY   to "Salı",
-    Calendar.WEDNESDAY to "Çarşamba",
-    Calendar.THURSDAY  to "Perşembe",
-    Calendar.FRIDAY    to "Cuma",
-    Calendar.SATURDAY  to "Cumartesi",
-    Calendar.SUNDAY    to "Pazar"
+/** Calendar.DAY_OF_WEEK sırasına göre uygulama dilindeki gün adı. */
+@Composable
+internal fun airingCalendarDayLabel(day: Int): String = stringResource(
+    when (day) {
+        Calendar.MONDAY -> R.string.explore_calendar_day_monday
+        Calendar.TUESDAY -> R.string.explore_calendar_day_tuesday
+        Calendar.WEDNESDAY -> R.string.explore_calendar_day_wednesday
+        Calendar.THURSDAY -> R.string.explore_calendar_day_thursday
+        Calendar.FRIDAY -> R.string.explore_calendar_day_friday
+        Calendar.SATURDAY -> R.string.explore_calendar_day_saturday
+        Calendar.SUNDAY -> R.string.explore_calendar_day_sunday
+        else -> R.string.explore_calendar_day_monday
+    }
 )
 
 /** Pazartesi'den Pazar'a sıralı gün listesi */
@@ -148,7 +159,11 @@ internal fun AiringCalendarHeader(
             )
             if (totalCount > 0) {
                 Text(
-                    text = if (isTmdb) stringResource(R.string.x_icerik, totalCount) else stringResource(R.string.inline_1_s_episodes_d91c30c, totalCount),
+                    text = pluralStringResource(
+                        if (isTmdb) R.plurals.explore_calendar_content_count else R.plurals.explore_calendar_episode_count,
+                        totalCount,
+                        totalCount
+                    ),
                     style = MaterialTheme.typography.labelSmall,
                     color = KitsugiColors.TextSecondary
                 )
@@ -179,7 +194,7 @@ internal fun AiringCalendarHeader(
                     modifier = Modifier.size(16.dp)
                 )
                 Text(
-                    text = "Listemde",
+                    text = stringResource(R.string.explore_calendar_my_list),
                     style = MaterialTheme.typography.labelMedium,
                     fontWeight = FontWeight.Bold,
                     color = if (showOnlyMyList) KitsugiColors.AccentGreen else KitsugiColors.TextSecondary
@@ -249,7 +264,7 @@ internal fun AiringDayTabRow(
             val isToday = day == today
             val count = scheduleMap[day]?.size ?: 0
             AiringDayTab(
-                label = DAY_LABELS[day] ?: "?",
+                label = airingCalendarDayLabel(day),
                 count = count,
                 isSelected = isSelected,
                 isToday = isToday,
@@ -437,7 +452,8 @@ internal fun AiringEntryGridList(
 
     Box(modifier = Modifier.fillMaxSize()) {
         LazyVerticalGrid(
-            columns = GridCells.Adaptive(minSize = 105.dp),
+            // Same responsive density as the "Tümünü Gör" media grid.
+            columns = GridCells.Fixed(rememberKitsugiGridColumns()),
             state = gridState,
             modifier = Modifier.fillMaxSize(),
             contentPadding = PaddingValues(start = 16.dp, top = 4.dp, end = 16.dp, bottom = 80.dp),
@@ -498,6 +514,10 @@ internal fun AiringEntryGridCard(
     titleLanguage: String = "ROMAJI",
     onClick: () -> Unit = {}
 ) {
+    if (LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE) {
+        AiringEntryWideCard(entry, isInWatchingList, titleLanguage, onClick)
+        return
+    }
     val displayTitle = entry.getDisplayTitle(titleLanguage)
 
     val accentColor = if (isInWatchingList) KitsugiColors.AccentGreen else KitsugiColors.Accent
@@ -612,128 +632,143 @@ internal fun AiringEntryCard(
     isInWatchingList: Boolean,
     titleLanguage: String = "ROMAJI",
     onClick: () -> Unit = {}
+) = AiringEntryWideCard(entry, isInWatchingList, titleLanguage, onClick)
+
+/** List view and landscape grid share the same see-all-style horizontal media card. */
+@Composable
+private fun AiringEntryWideCard(
+    entry: AiringEntry,
+    isInWatchingList: Boolean,
+    titleLanguage: String,
+    onClick: () -> Unit
 ) {
-    val displayTitle = entry.getDisplayTitle(titleLanguage)
-
-    val accentColor = if (isInWatchingList) KitsugiColors.AccentGreen else KitsugiColors.Accent
+    val title = entry.getDisplayTitle(titleLanguage)
     val hasAired = entry.hasAired()
-
+    val shape = RoundedCornerShape(22.dp)
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(14.dp))
+            .clip(shape)
             .background(KitsugiColors.Surface)
-            .then(
-                if (isInWatchingList)
-                    Modifier.border(1.dp, KitsugiColors.AccentGreen.copy(0.45f), RoundedCornerShape(14.dp))
-                else Modifier
-            )
+            .border(1.dp, if (isInWatchingList) KitsugiColors.AccentGreen.copy(alpha = 0.7f) else KitsugiColors.Border, shape)
             .clickable(onClick = onClick)
-            .padding(10.dp),
+            .padding(12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        // Kapak görseli
         Box(
             modifier = Modifier
-                .size(60.dp)
-                .clip(RoundedCornerShape(10.dp))
+                .size(width = 86.dp, height = 120.dp)
+                .clip(RoundedCornerShape(16.dp))
                 .background(KitsugiColors.SurfaceSoft)
         ) {
             com.kitsugi.animelist.ui.components.KitsugiNsfwImage(
                 model = entry.coverUrl,
-                contentDescription = displayTitle,
+                contentDescription = title,
                 isAdult = entry.isAdult,
                 contentScale = ContentScale.Crop,
                 modifier = Modifier.fillMaxSize()
             )
-            // Yayında overlay
             if (hasAired) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .background(
-                            Brush.verticalGradient(
-                                listOf(Color.Transparent, Color.Black.copy(0.55f))
-                            )
-                        )
-                )
                 Icon(
                     imageVector = Icons.Rounded.CheckCircle,
                     contentDescription = stringResource(R.string.yayinda),
                     tint = KitsugiColors.AccentGreen,
-                    modifier = Modifier
-                        .size(18.dp)
-                        .align(Alignment.BottomEnd)
-                        .padding(3.dp)
+                    modifier = Modifier.align(Alignment.BottomEnd).padding(4.dp).size(18.dp)
                 )
             }
         }
-
-        Spacer(modifier = Modifier.width(12.dp))
-
-        // Başlık + bilgi
-        Column(modifier = Modifier.weight(1f)) {
+        Spacer(modifier = Modifier.width(14.dp))
+        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.Center) {
+            Text(title, style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.Bold, color = KitsugiColors.TextPrimary,
+                maxLines = 2, overflow = TextOverflow.Ellipsis)
+            Spacer(modifier = Modifier.height(6.dp))
             Text(
-                text = displayTitle,
-                style = MaterialTheme.typography.bodyMedium,
-                fontWeight = FontWeight.SemiBold,
-                color = KitsugiColors.TextPrimary,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis
+                text = when {
+                    entry.episode == 0 -> stringResource(R.string.media_type_movie)
+                    entry.episode < 0 -> stringResource(R.string.media_type_tv)
+                    else -> stringResource(R.string.explore_calendar_episode_badge, entry.episode)
+                },
+                style = MaterialTheme.typography.labelSmall,
+                color = if (isInWatchingList) KitsugiColors.AccentGreen else KitsugiColors.TextSecondary
             )
-            Spacer(modifier = Modifier.height(4.dp))
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(6.dp)
-            ) {
-                // Bölüm rozeti
-                Box(
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(6.dp))
-                        .background(accentColor.copy(0.18f))
-                        .padding(horizontal = 6.dp, vertical = 2.dp)
-                ) {
-                    Text(
-                        text = when {
-                            entry.episode == 0 -> "Film"
-                            entry.episode < 0 -> "Dizi"   // TMDB: bölüm numarası bilinmiyor
-                            else -> "Bölüm ${entry.episode}"
-                        },
-                        style = MaterialTheme.typography.labelSmall,
-                        fontWeight = FontWeight.Medium,
-                        color = accentColor
-                    )
-                }
-                // Saat rozeti
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(3.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Rounded.Schedule,
-                        contentDescription = null,
-                        tint = KitsugiColors.TextSecondary,
-                        modifier = Modifier.size(12.dp)
-                    )
-                    AiringTimeText(entry = entry)
-                }
+            Spacer(modifier = Modifier.height(5.dp))
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Rounded.Schedule, contentDescription = null,
+                    tint = KitsugiColors.TextSecondary, modifier = Modifier.size(12.dp))
+                Spacer(modifier = Modifier.width(4.dp))
+                AiringTimeText(entry = entry)
             }
         }
-
-        // İzliyorum ikonu
         if (isInWatchingList) {
-            Spacer(modifier = Modifier.width(8.dp))
-            Icon(
-                imageVector = Icons.Rounded.PlayCircle,
-                contentDescription = stringResource(R.string.izliyorum),
-                tint = KitsugiColors.AccentGreen,
-                modifier = Modifier.size(22.dp)
-            )
+            Icon(Icons.Rounded.PlayCircle, contentDescription = stringResource(R.string.izliyorum),
+                tint = KitsugiColors.AccentGreen, modifier = Modifier.size(20.dp))
         }
     }
 }
 
-private fun Long.secondsToLegibleText(): String {
+/** Layout-matched placeholders: identical columns, poster geometry and card spacing.
+ * One provider drives every block; no per-cell animation/recomposition clocks. */
+@Composable
+internal fun AiringCalendarSkeleton(isGridView: Boolean) {
+    KitsugiShimmerProvider {
+        val brush = LocalShimmerBrush.current ?: return@KitsugiShimmerProvider
+        val wide = !isGridView || LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
+        if (isGridView) {
+            LazyVerticalGrid(
+                columns = GridCells.Fixed(rememberKitsugiGridColumns()),
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(start = 16.dp, top = 4.dp, end = 16.dp, bottom = 80.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                items(8) {
+                    AiringSkeletonCard(wide, brush)
+                }
+            }
+        } else {
+            LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(start = 16.dp, top = 4.dp, end = 16.dp, bottom = 80.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                items(6) { AiringSkeletonCard(true, brush) }
+            }
+        }
+    }
+}
+
+@Composable
+private fun AiringSkeletonCard(wide: Boolean, brush: Brush) {
+    if (wide) {
+        Row(
+            modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(22.dp))
+                .background(KitsugiColors.Surface).padding(12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            KitsugiShimmerBlock(brush, Modifier.size(width = 86.dp, height = 120.dp), 16.dp)
+            Spacer(Modifier.width(14.dp))
+            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(9.dp)) {
+                KitsugiShimmerBlock(brush, Modifier.fillMaxWidth(0.85f).height(16.dp))
+                KitsugiShimmerBlock(brush, Modifier.fillMaxWidth(0.65f).height(12.dp))
+                KitsugiShimmerBlock(brush, Modifier.fillMaxWidth(0.40f).height(12.dp))
+            }
+        }
+    } else {
+        Column(modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp))
+            .background(KitsugiColors.Surface).padding(8.dp)) {
+            KitsugiShimmerBlock(brush, Modifier.fillMaxWidth().aspectRatio(2f / 3f), 14.dp)
+            Spacer(Modifier.height(8.dp))
+            KitsugiShimmerBlock(brush, Modifier.fillMaxWidth(0.85f).height(16.dp))
+            Spacer(Modifier.height(8.dp))
+            KitsugiShimmerBlock(brush, Modifier.fillMaxWidth(0.55f).height(14.dp))
+            Spacer(Modifier.height(8.dp))
+            KitsugiShimmerBlock(brush, Modifier.fillMaxWidth(0.75f).height(12.dp))
+        }
+    }
+}
+
+private fun Long.secondsToLegibleText(context: android.content.Context): String {
     val remaining = this
     val days = remaining / 86400
     val hours = (remaining % 86400) / 3600
@@ -741,28 +776,29 @@ private fun Long.secondsToLegibleText(): String {
     return when {
         days > 30 -> {
             val months = days / 30
-            "$months ay sonra yayında"
+            context.getString(R.string.explore_calendar_countdown_months, months)
         }
         days > 7 -> {
             val weeks = days / 7
-            "$weeks hafta sonra yayında"
+            context.getString(R.string.explore_calendar_countdown_weeks, weeks)
         }
         days >= 1 -> {
             if (hours > 0) {
-                "$days gün $hours saat sonra yayında"
+                context.getString(R.string.explore_calendar_countdown_days_hours, days, hours)
             } else {
-                "$days gün sonra yayında"
+                context.getString(R.string.explore_calendar_countdown_days, days)
             }
         }
         hours >= 1 -> {
             if (minutes > 0) {
-                "$hours saat $minutes dakika sonra yayında"
+                context.getString(R.string.explore_calendar_countdown_hours_minutes, hours, minutes)
             } else {
-                "$hours saat sonra yayında"
+                context.getString(R.string.explore_calendar_countdown_hours, hours)
             }
         }
         else -> {
-            if (minutes > 0) "$minutes dakika sonra yayında" else "Az sonra yayında"
+            if (minutes > 0) context.getString(R.string.explore_calendar_countdown_minutes, minutes)
+            else context.getString(R.string.explore_calendar_countdown_soon)
         }
     }
 }
@@ -784,7 +820,7 @@ private fun AiringTimeText(entry: AiringEntry, episode: Int? = null) {
                     text = context.getString(R.string.dateprefix_yayinda, datePrefix)
                     break
                 }
-                text = "$datePrefix • ${remaining.secondsToLegibleText()}"
+                text = "$datePrefix • ${remaining.secondsToLegibleText(context)}"
                 val delayTime = if (remaining > 86400) 60000L else 10000L
                 delay(delayTime)
             }
@@ -831,7 +867,7 @@ internal fun AiringErrorState(
         )
         Spacer(modifier = Modifier.height(12.dp))
         Text(
-            text = stringResource(R.string.inline_failed_to_load_calendar_93e29bb),
+            text = stringResource(R.string.explore_calendar_load_failed_title),
             style = MaterialTheme.typography.titleSmall,
             color = KitsugiColors.TextPrimary,
             fontWeight = FontWeight.SemiBold
@@ -851,7 +887,7 @@ internal fun AiringErrorState(
                 .padding(horizontal = 24.dp, vertical = 10.dp)
         ) {
             Text(
-                text = "Tekrar Dene",
+                text = stringResource(R.string.action_retry),
                 color = KitsugiColors.Background,
                 fontWeight = FontWeight.Bold
             )

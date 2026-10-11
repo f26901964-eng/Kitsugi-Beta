@@ -36,7 +36,7 @@ fun KitsugiSearchFormatChip(
             values = if (mediaType == MediaType.Manga) KitsugiMediaFormat.mangaEntries
                      else KitsugiMediaFormat.animeEntries,
             defaultValues = selectedFormats,
-            title = "Format",
+            title = stringResource(R.string.search_filter_media_format),
             onConfirm = { openDialog = false; onFormatsChanged(it) },
             onDismiss = { openDialog = false }
         )
@@ -45,7 +45,7 @@ fun KitsugiSearchFormatChip(
     FilterChip(
         selected = selectedFormats.isNotEmpty(),
         onClick = { openDialog = true },
-        label = { Text(text = "Format") }
+        label = { Text(text = stringResource(R.string.search_filter_media_format)) }
     )
 }
 
@@ -62,7 +62,7 @@ fun KitsugiSearchStatusChip(
         DialogWithCheckboxSelection(
             values = KitsugiMediaStatus.entries,
             defaultValues = selectedStatuses,
-            title = stringResource(R.string.detail_info_status),
+            title = stringResource(R.string.search_filter_release_status),
             onConfirm = { openDialog = false; onStatusesChanged(it) },
             onDismiss = { openDialog = false }
         )
@@ -71,7 +71,7 @@ fun KitsugiSearchStatusChip(
     FilterChip(
         selected = selectedStatuses.isNotEmpty(),
         onClick = { openDialog = true },
-        label = { Text(text = stringResource(R.string.detail_info_status)) }
+        label = { Text(text = stringResource(R.string.search_filter_release_status)) }
     )
 }
 
@@ -83,7 +83,7 @@ fun KitsugiSearchCountryChip(
     onCountryChanged: (KitsugiCountryOfOrigin?) -> Unit,
 ) {
     KitsugiChipWithMenu(
-        title = stringResource(R.string.ulke),
+        title = stringResource(R.string.search_filter_country),
         values = KitsugiCountryOfOrigin.entries,
         selectedValue = selectedCountry,
         onValueSelected = onCountryChanged,
@@ -104,7 +104,7 @@ fun KitsugiSearchSourceChip(
         DialogWithCheckboxSelection(
             values = KitsugiMediaSource.entries,
             defaultValues = selectedSources,
-            title = "Kaynak",
+            title = stringResource(R.string.search_filter_source),
             onConfirm = { openDialog = false; onSourcesChanged(it) },
             onDismiss = { openDialog = false }
         )
@@ -113,7 +113,7 @@ fun KitsugiSearchSourceChip(
     FilterChip(
         selected = selectedSources.isNotEmpty(),
         onClick = { openDialog = true },
-        label = { Text(text = "Kaynak") }
+        label = { Text(text = stringResource(R.string.search_filter_source)) }
     )
 }
 
@@ -159,7 +159,7 @@ fun KitsugiSearchDateChip(
             valueString = { it.toString() }
         )
         KitsugiChipWithMenu(
-            title = "Sezon",
+            title = stringResource(R.string.search_filter_season),
             values = KitsugiMediaSeason.entries,
             selectedValue = season,
             onValueSelected = onSeasonChanged,
@@ -202,7 +202,7 @@ fun KitsugiSearchEpChDurationChip(
                 onValueChanged = onEpChChanged
             )
             KitsugiChipWithRange(
-                title = "Ciltler",
+                title = stringResource(R.string.search_filter_volume_count),
                 startValue = minDuration?.toFloat(),
                 endValue = maxDuration?.toFloat(),
                 minValue = 0f,
@@ -219,7 +219,7 @@ fun KitsugiSearchEpChDurationChip(
                 onValueChanged = onEpChChanged
             )
             KitsugiChipWithRange(
-                title = stringResource(R.string.sure_dk),
+                title = stringResource(R.string.search_filter_duration_minutes),
                 startValue = minDuration?.toFloat(),
                 endValue = maxDuration?.toFloat(),
                 minValue = 0f,
@@ -259,7 +259,7 @@ fun KitsugiTriFilterChip(
             if (value == true) {
                 Icon(
                     imageVector = Icons.Rounded.Check,
-                    contentDescription = stringResource(R.string.action_yes)
+                    contentDescription = stringResource(R.string.common_yes)
                 )
             } else if (value == false) {
                 Icon(

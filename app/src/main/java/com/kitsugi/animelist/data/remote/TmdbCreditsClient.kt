@@ -7,6 +7,8 @@ import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
+import com.kitsugi.animelist.R
+import com.kitsugi.animelist.KitsugiApplication
 import com.kitsugi.animelist.core.memory.BoundedCache
 import com.kitsugi.animelist.model.MediaType
 import com.kitsugi.animelist.utils.*
@@ -29,6 +31,9 @@ internal object TmdbCreditsClient {
     /** TMDB person id → also_known_as listesi (Bounded LRU cache). */
     private val personAliasCache = BoundedCache<Int, List<String>>("tmdb.personAliases", 500)
 
+    private fun appString(resId: Int, fallback: String): String =
+        KitsugiApplication.getInstance()?.getString(resId) ?: fallback
+
     suspend fun fetchCredits(
         tmdbId: Int,
         isMovie: Boolean,
@@ -48,8 +53,8 @@ internal object TmdbCreditsClient {
                 for (i in 0 until castArray.length()) {
                     val item = castArray.getJSONObject(i)
                     val id = item.optInt("id")
-                    val actorName = item.optString("name", "Bilinmeyen")
-                    val rawCharacterName = item.optString("character", "Bilinmeyen")
+                    val actorName = item.optString("name", appString(R.string.source_unknown, "Unknown"))
+                    val rawCharacterName = item.optString("character", appString(R.string.source_unknown, "Unknown"))
                     val isVoiceRole = rawCharacterName.contains("(voice)", ignoreCase = true) ||
                         rawCharacterName.contains("(uncredited voice)", ignoreCase = true)
                     val characterName = rawCharacterName
@@ -59,7 +64,7 @@ internal object TmdbCreditsClient {
                     val order = item.optInt("order", 999)
                     val actorImageUrl = if (!profilePath.isNullOrEmpty()) "$IMG_W185$profilePath" else null
                     val va = KitsugiVoiceActor(
-                        id = id, name = actorName, language = "oyuncu",
+                        id = id, name = actorName, language = appString(R.string.source_actor, "Actor"),
                         imageUrl = actorImageUrl, source = "tmdb"
                     )
                     // Fictional/voice-acted character shouldn't display actor's human photo
@@ -68,7 +73,7 @@ internal object TmdbCreditsClient {
                         KitsugiCharacter(
                             id = id,
                             name = characterName,
-                            role = if (order < 5) "main".toTurkishCharacterRole() else "supporting".toTurkishCharacterRole(),
+                            role = if (order < 5) appString(R.string.source_main_character, "Main character") else appString(R.string.source_supporting_character, "Supporting character"),
                             imageUrl = charImageUrl,
                             voiceActors = listOf(va),
                             source = "tmdb"
@@ -84,7 +89,7 @@ internal object TmdbCreditsClient {
                 for (i in 0 until crewArray.length()) {
                     val item = crewArray.getJSONObject(i)
                     val id = item.optInt("id")
-                    val rawName = item.optString("name", "Bilinmeyen")
+                    val rawName = item.optString("name", appString(R.string.source_unknown, "Unknown"))
                     val origName = item.optString("original_name", "").trim()
                     val hasCjkName = PreferenceHelpers.hasCjkCharacters(rawName)
                     val latinOrig = origName.takeIf { it.isNotBlank() && !PreferenceHelpers.hasCjkCharacters(it) }
@@ -94,8 +99,8 @@ internal object TmdbCreditsClient {
                         origName.isNotBlank() && PreferenceHelpers.hasCjkCharacters(origName) -> origName
                         else -> null
                     }
-                    val job = item.optString("job", "Ekip Üyesi")
-                    val roleTr = job.toTurkishStaffRole()
+                    val job = item.optString("job", appString(R.string.source_crew_member, "Crew member"))
+                    val roleTr = job.toLocalizedStaffRole()
                     val dedupKey = "${id}_${roleTr.lowercase()}"
                     if (!seenStaffKeys.add(dedupKey)) continue
                     val profilePath = item.optNullableString("profile_path")
@@ -133,7 +138,7 @@ internal object TmdbCreditsClient {
                                 .take(35)
                             for (item in items) {
                                 val id = item.optInt("id")
-                                val rawName = item.optString("name", "Bilinmeyen")
+                                val rawName = item.optString("name", appString(R.string.source_unknown, "Unknown"))
                                 val origName = item.optString("original_name", "").trim()
                                 val hasCjkName = PreferenceHelpers.hasCjkCharacters(rawName)
                                 val latinOrig = origName.takeIf { it.isNotBlank() && !PreferenceHelpers.hasCjkCharacters(it) }
@@ -149,13 +154,13 @@ internal object TmdbCreditsClient {
                                     for (j in 0 until minOf(jobsArr.length(), 3)) {
                                         val jobStr = jobsArr.optJSONObject(j)?.optString("job", "")?.trim().orEmpty()
                                         if (jobStr.isNotBlank()) {
-                                            roles.add(jobStr.toTurkishStaffRole())
+                                            roles.add(jobStr.toLocalizedStaffRole())
                                         }
                                     }
                                 }
                                 if (roles.isEmpty()) {
-                                    val dept = item.optString("department", "Ekip Üyesi")
-                                    roles.add(dept.toTurkishStaffRole())
+                                    val dept = item.optString("department", appString(R.string.source_crew_member, "Crew member"))
+                                    roles.add(dept.toLocalizedStaffRole())
                                 }
                                 val combinedRole = roles.distinct().joinToString(", ")
                                 val dedupKey = "${id}_${combinedRole.lowercase()}"
@@ -273,7 +278,7 @@ internal object TmdbCreditsClient {
                                         val imageUrl = if (posterPath.isNotEmpty()) "$IMG_W185$posterPath" else null
                                         list.add(
                                             KitsugiRelation(
-                                                malId = partId, title = resolved.display, relationType = "Seri",
+                                                malId = partId, title = resolved.display, relationType = appString(R.string.source_series, "Series"),
                                                 imageUrl = imageUrl,
                                                 mediaType = MediaType.Movie,
                                                 source = "tmdb",
@@ -330,7 +335,7 @@ internal object TmdbCreditsClient {
                 val imageUrl = if (posterPath.isNotEmpty()) "$IMG_W185$posterPath" else null
                 list.add(
                     KitsugiRelation(
-                        malId = id, title = resolved.display, relationType = "Tavsiye",
+                        malId = id, title = resolved.display, relationType = appString(R.string.source_recommendation, "Recommendation"),
                         imageUrl = imageUrl,
                         mediaType = if (isMovie) MediaType.Movie else MediaType.TvShow,
                         source = "tmdb",
@@ -367,7 +372,7 @@ internal object TmdbCreditsClient {
             val list = mutableListOf<KitsugiReview>()
             for (i in 0 until results.length()) {
                 val item = results.getJSONObject(i)
-                val author = item.optString("author", "Kullanıcı")
+                val author = item.optString("author", appString(R.string.source_user, "User"))
                 val content = item.optString("content", "").cleanApiText()
                 val summary = if (content.length > 280) content.take(280) + "..." else content
                 val authorDetails = item.optJSONObject("author_details")
@@ -415,14 +420,19 @@ internal object TmdbCreditsClient {
         try {
             val responseText = executeGet(url) ?: return@withContext null
             val root = JSONObject(responseText)
-            val name = root.optString("name", "Bilinmeyen")
+            val name = root.optString("name", appString(R.string.source_unknown, "Unknown"))
             val biography = root.optString("biography", "").cleanApiText().takeIf { it.isNotBlank() }
             val profilePath = root.optNullableString("profile_path") ?: ""
             val imageUrl = if (profilePath.isNotEmpty()) "$IMG_W300$profilePath" else null
             val birthday = root.optString("birthday", "").takeIf { it.isNotBlank() }
             val placeOfBirth = root.optString("place_of_birth", "").takeIf { it.isNotBlank() }
             val genderInt = root.optInt("gender", 0)
-            val gender = when (genderInt) { 1 -> "Dişi"; 2 -> "Erkek"; 3 -> "Non-binary"; else -> null }
+            val gender = when (genderInt) {
+                1 -> appString(R.string.source_female, "Female")
+                2 -> appString(R.string.source_male, "Male")
+                3 -> appString(R.string.source_non_binary, "Non-binary")
+                else -> null
+            }
             val alternativeNames = mutableListOf<String>()
             val aka = root.optJSONArray("also_known_as")
             if (aka != null) {
@@ -468,14 +478,14 @@ internal object TmdbCreditsClient {
                 val id = item.optInt("id")
                 val isMovie = item.optString("media_type") == "movie"
                 val title = TmdbTitleFallback.resolve(item, isMovie, url, enTitles[id]).display
-                    .ifBlank { "Bilinmeyen" }
-                val character = item.optString("character", "Bilinmeyen")
+                    .ifBlank { appString(R.string.source_unknown, "Unknown") }
+                val character = item.optString("character", appString(R.string.source_unknown, "Unknown"))
                 val posterPath = item.optNullableString("poster_path") ?: ""
                 val imageUrl = if (posterPath.isNotEmpty()) "$IMG_W185$posterPath" else null
                 list.add(
                     KitsugiCharacterMediaAppearance(
                         mediaId = id, title = title, imageUrl = imageUrl,
-                        mediaType = if (isMovie) "movie".toTurkishMediaTypeString() else "tv".toTurkishMediaTypeString(),
+                        mediaType = if (isMovie) "movie".toLocalizedMediaTypeString() else "tv".toLocalizedMediaTypeString(),
                         characterRole = character, source = "tmdb"
                     )
                 )
@@ -497,14 +507,19 @@ internal object TmdbCreditsClient {
         try {
             val responseText = executeGet(url) ?: return@withContext null
             val root = JSONObject(responseText)
-            val name = root.optString("name", "Bilinmeyen")
+            val name = root.optString("name", appString(R.string.source_unknown, "Unknown"))
             val biography = root.optString("biography", "").cleanApiText().takeIf { it.isNotBlank() }
             val profilePath = root.optNullableString("profile_path") ?: ""
             val imageUrl = if (profilePath.isNotEmpty()) "$IMG_W300$profilePath" else null
             val birthday = root.optString("birthday", "").takeIf { it.isNotBlank() }
             val placeOfBirth = root.optString("place_of_birth", "").takeIf { it.isNotBlank() }
             val genderInt = root.optInt("gender", 0)
-            val gender = when (genderInt) { 1 -> "Dişi"; 2 -> "Erkek"; 3 -> "Non-binary"; else -> null }
+            val gender = when (genderInt) {
+                1 -> appString(R.string.source_female, "Female")
+                2 -> appString(R.string.source_male, "Male")
+                3 -> appString(R.string.source_non_binary, "Non-binary")
+                else -> null
+            }
             val alternativeNames = mutableListOf<String>()
             val aka = root.optJSONArray("also_known_as")
             if (aka != null) {
@@ -513,8 +528,8 @@ internal object TmdbCreditsClient {
                     if (nameStr.isNotBlank()) alternativeNames.add(nameStr)
                 }
             }
-            val department = root.optString("known_for_department", "Ekip Üyesi")
-                .takeIf { it.isNotBlank() }?.toTurkishStaffRole()
+            val department = root.optString("known_for_department", appString(R.string.source_crew_member, "Crew member"))
+                .takeIf { it.isNotBlank() }?.toLocalizedStaffRole()
             val works = fetchPersonMediaWorks(personId, apiKey, language, executeGet)
             val characterRoles = fetchPersonCharacterRoles(personId, apiKey, language, executeGet)
             KitsugiStaffDetail(
@@ -554,15 +569,15 @@ internal object TmdbCreditsClient {
                 val id = item.optInt("id")
                 val isMovie = item.optString("media_type") == "movie"
                 val title = TmdbTitleFallback.resolve(item, isMovie, url, enTitles[id]).display
-                    .ifBlank { "Bilinmeyen" }
-                val job = item.optString("job", "Ekip Üyesi")
+                    .ifBlank { appString(R.string.source_unknown, "Unknown") }
+                val job = item.optString("job", appString(R.string.source_crew_member, "Crew member"))
                 val posterPath = item.optNullableString("poster_path") ?: ""
                 val imageUrl = if (posterPath.isNotEmpty()) "$IMG_W185$posterPath" else null
                 list.add(
                     KitsugiStaffMediaWork(
                         mediaId = id, mediaTitle = title, mediaImageUrl = imageUrl,
-                        mediaType = if (isMovie) "movie".toTurkishMediaTypeString() else "tv".toTurkishMediaTypeString(),
-                        staffRole = job.toTurkishStaffRole(), source = "tmdb"
+                        mediaType = if (isMovie) "movie".toLocalizedMediaTypeString() else "tv".toLocalizedMediaTypeString(),
+                        staffRole = job.toLocalizedStaffRole(), source = "tmdb"
                     )
                 )
             }
@@ -600,11 +615,11 @@ internal object TmdbCreditsClient {
                 val mediaId = item.optInt("id")
                 val isMovie = item.optString("media_type") == "movie"
                 val mediaTitle = TmdbTitleFallback.resolve(item, isMovie, url, enTitles[mediaId]).display
-                    .ifBlank { "Bilinmeyen" }
-                val characterName = item.optString("character", "").ifBlank { "Bilinmeyen" }
+                    .ifBlank { appString(R.string.source_unknown, "Unknown") }
+                val characterName = item.optString("character", "").ifBlank { appString(R.string.source_unknown, "Unknown") }
                 val posterPath = item.optNullableString("poster_path") ?: ""
                 val mediaImageUrl = if (posterPath.isNotEmpty()) "$IMG_W185$posterPath" else null
-                val mediaType = if (isMovie) "movie".toTurkishMediaTypeString() else "tv".toTurkishMediaTypeString()
+                val mediaType = if (isMovie) "movie".toLocalizedMediaTypeString() else "tv".toLocalizedMediaTypeString()
                 // TMDB has no character profile images; use media poster as fallback
                 list.add(
                     KitsugiStaffCharacterRole(
@@ -616,7 +631,8 @@ internal object TmdbCreditsClient {
                         mediaTitle = mediaTitle,
                         mediaImageUrl = mediaImageUrl,
                         mediaType = mediaType,
-                        characterRole = if (item.optInt("order", 999) < 5) "Ana Karakter" else "Oyuncu",
+                        characterRole = if (item.optInt("order", 999) < 5) appString(R.string.source_main_character, "Main character")
+                            else appString(R.string.source_actor, "Actor"),
                         mediaSource = "tmdb"
                     )
                 )

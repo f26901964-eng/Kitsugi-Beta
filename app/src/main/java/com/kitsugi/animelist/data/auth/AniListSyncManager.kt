@@ -1,5 +1,7 @@
 package com.kitsugi.animelist.data.auth
 
+import android.content.Context
+import com.kitsugi.animelist.R
 import com.kitsugi.animelist.model.MediaEntry
 import com.kitsugi.animelist.model.MediaType
 import com.kitsugi.animelist.model.WatchStatus
@@ -21,13 +23,16 @@ object AniListSyncManager {
     fun updateAniListEntry(
         token: String,
         entry: MediaEntry,
-        advancedScores: List<Double>? = null
+        advancedScores: List<Double>? = null,
+        context: Context
     ): Int? {
-        require(entry.type == MediaType.Anime || entry.type == MediaType.Manga) { "AniList yalnızca anime/manga destekler" }
+        require(entry.type == MediaType.Anime || entry.type == MediaType.Manga) {
+            context.getString(R.string.account_sync_anilist_type_unsupported)
+        }
         val existingEntryId: Int? = entry.aniListEntryId
 
         val mediaId: Int? = if (existingEntryId == null) {
-            resolveAniListMediaId(token = token, entry = entry)
+            resolveAniListMediaId(token = token, entry = entry, context = context)
         } else {
             null
         }
@@ -110,7 +115,8 @@ object AniListSyncManager {
         val response = postAniList(
             token = token,
             query = query,
-            variables = variables
+            variables = variables,
+            context = context
         )
 
         return JSONObject(response)
@@ -118,7 +124,9 @@ object AniListSyncManager {
             ?.optJSONObject("SaveMediaListEntry")
             ?.optInt("id", 0)
             ?.takeIf { it > 0 }
-            ?: throw IllegalStateException("AniList SaveMediaListEntry kayıt kimliği döndürmedi (${entry.title})")
+            ?: throw IllegalStateException(
+                context.getString(R.string.account_sync_anilist_entry_id_missing, entry.title)
+            )
     }
 
     /**
@@ -126,9 +134,10 @@ object AniListSyncManager {
      */
     fun getAniListMediaFavoriteStatus(
         token: String,
-        entry: MediaEntry
+        entry: MediaEntry,
+        context: Context
     ): Boolean? {
-        val aniListMediaId: Int = resolveAniListMediaId(token = token, entry = entry) ?: return null
+        val aniListMediaId: Int = resolveAniListMediaId(token = token, entry = entry, context = context) ?: return null
 
         val query = """
             query (${'$'}id: Int) {
@@ -141,7 +150,7 @@ object AniListSyncManager {
         val variables = JSONObject().put("id", aniListMediaId)
 
         return runSyncCatching {
-            val response = postAniList(token = token, query = query, variables = variables)
+            val response = postAniList(token = token, query = query, variables = variables, context = context)
             JSONObject(response)
                 .optJSONObject("data")
                 ?.optJSONObject("Media")
@@ -157,9 +166,10 @@ object AniListSyncManager {
      */
     fun toggleAniListFavourite(
         token: String,
-        entry: MediaEntry
+        entry: MediaEntry,
+        context: Context
     ): Boolean {
-        val aniListMediaId: Int? = resolveAniListMediaId(token = token, entry = entry)
+        val aniListMediaId: Int? = resolveAniListMediaId(token = token, entry = entry, context = context)
 
         if (aniListMediaId == null) return false
 
@@ -180,18 +190,20 @@ object AniListSyncManager {
         val variables = JSONObject().put(varKey, aniListMediaId)
 
         return runSyncCatching {
-            postAniList(token = token, query = query, variables = variables)
+            postAniList(token = token, query = query, variables = variables, context = context)
             true
         }.getOrDefault(false)
     }
 
     fun deleteAniListEntry(
         token: String,
-        entry: MediaEntry
+        entry: MediaEntry,
+        context: Context
     ) {
         val entryId: Int? = entry.aniListEntryId ?: run {
-            val mediaId = resolveAniListMediaId(token = token, entry = entry) ?: error("AniList kimliği çözülemedi")
-            val userId = fetchAniListUserId(token)
+            val mediaId = resolveAniListMediaId(token = token, entry = entry, context = context)
+                ?: error(context.getString(R.string.account_sync_anilist_media_id_unresolved))
+            val userId = fetchAniListUserId(token, context)
 
             val findQuery = """
                 query (
@@ -214,7 +226,8 @@ object AniListSyncManager {
             val findResponse = postAniList(
                 token = token,
                 query = findQuery,
-                variables = findVariables
+                variables = findVariables,
+                context = context
             )
 
             JSONObject(findResponse)
@@ -244,13 +257,15 @@ object AniListSyncManager {
         postAniList(
             token = token,
             query = deleteQuery,
-            variables = deleteVariables
+            variables = deleteVariables,
+            context = context
         )
     }
 
     fun resolveAniListMediaId(
         token: String,
-        entry: MediaEntry
+        entry: MediaEntry,
+        context: Context
     ): Int? {
         val externalId = entry.malId
 
@@ -282,7 +297,8 @@ object AniListSyncManager {
                 val response = postAniList(
                     token = token,
                     query = query,
-                    variables = variables
+                    variables = variables,
+                    context = context
                 )
                 JSONObject(response)
                     .optJSONObject("data")
@@ -346,7 +362,8 @@ object AniListSyncManager {
     }
 
     fun fetchAniListUserId(
-        token: String
+        token: String,
+        context: Context
     ): Int {
         if (token == cachedAniListToken && cachedAniListUserId != null) {
             return cachedAniListUserId!!
@@ -363,7 +380,8 @@ object AniListSyncManager {
         val response = postAniList(
             token = token,
             query = query,
-            variables = JSONObject()
+            variables = JSONObject(),
+            context = context
         )
 
         val userId = JSONObject(response)
@@ -371,7 +389,9 @@ object AniListSyncManager {
             ?.optJSONObject("Viewer")
             ?.optInt("id", 0)
             ?.takeIf { it > 0 }
-            ?: throw IllegalStateException("AniList kullanıcı kimliği alınamadı (token geçersiz olabilir)")
+            ?: throw IllegalStateException(
+                context.getString(R.string.account_sync_anilist_user_id_unavailable)
+            )
 
         cachedAniListToken = token
         cachedAniListUserId = userId
@@ -610,7 +630,8 @@ object AniListSyncManager {
     private fun postAniList(
         token: String?,
         query: String,
-        variables: JSONObject
+        variables: JSONObject,
+        context: Context? = null
     ): String {
         val payload = JSONObject()
             .put("query", query)
@@ -643,13 +664,19 @@ object AniListSyncManager {
                             PlatformRateLimiter.notifyRateLimited("anilist", retrySec)
                         }
                         if (attempt >= MAX_ANILIST_ATTEMPTS) {
-                            throw IllegalStateException("AniList API hatası: 429 hız sınırı ($attempt deneme, Retry-After=${retrySec}s)")
+                            throw IllegalStateException(
+                                context?.getString(R.string.account_sync_anilist_rate_limit, attempt, retrySec)
+                                    ?: "AniList API hatası: 429 hız sınırı ($attempt deneme, Retry-After=${retrySec}s)"
+                            )
                         }
                         return@use
                     }
                     if (!response.isSuccessful) {
                         val errorText = response.body?.string().orEmpty().take(300)
-                        throw IllegalStateException("AniList API hatası: ${response.code} $errorText")
+                        throw IllegalStateException(
+                            context?.getString(R.string.account_sync_api_error, "AniList", response.code, errorText)
+                                ?: "AniList API hatası: ${response.code} $errorText"
+                        )
                     }
 
                     val responseText = response.body?.string() ?: ""
@@ -662,7 +689,12 @@ object AniListSyncManager {
                 }
             } catch (e: Exception) {
                 if (e is IllegalStateException) throw e
-                throw IllegalStateException("AniList bağlantı hatası: ${e.message}", e)
+                val reason = e.message ?: context?.getString(R.string.account_sync_unknown_error) ?: "Bilinmeyen hata"
+                throw IllegalStateException(
+                    context?.getString(R.string.account_sync_connection_error, "AniList", reason)
+                        ?: "AniList bağlantı hatası: $reason",
+                    e
+                )
             }
         }
     }

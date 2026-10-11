@@ -1,6 +1,7 @@
 package com.kitsugi.animelist.ui.screens.search
 
 import com.kitsugi.animelist.utils.toLocalizedBangumiTagOrNull
+import com.kitsugi.animelist.utils.isTurkish
 
 /**
  * Merkezi Türkçe ↔ İngilizce çeviri nesnesi.
@@ -449,6 +450,7 @@ object SearchTranslation {
         getLocalizedStringFromResource("staff_role", cleaned)?.let { return it }
         // Bangumi Çince/Japonca etiketleri (dil dosyası + statik harita)
         cleaned.toLocalizedBangumiTagOrNull()?.let { return it }
+        if (!isTurkish()) return translateToEnglishForSearch(cleaned)
 
         val exact = englishToTurkish[cleaned]
         if (exact != null) return exact

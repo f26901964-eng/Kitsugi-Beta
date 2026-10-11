@@ -7,12 +7,11 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.kitsugi.animelist.R
 import com.kitsugi.animelist.data.auth.ExternalAuthManager
 import com.kitsugi.animelist.data.auth.SimklSyncManager
 import com.kitsugi.animelist.data.remote.JikanApiClient
 import com.kitsugi.animelist.data.remote.JikanSearchResult
-import com.kitsugi.animelist.utils.KitsugiStrings
-import com.kitsugi.animelist.R
 // SimklApiClient: discovery için artık kullanılmıyor; sadece SimklSyncManager üzerinden watchlist sync'te kullanılır
 import com.kitsugi.animelist.data.remote.TmdbApiClient
 import com.kitsugi.animelist.data.settings.SettingsDataStore
@@ -31,6 +30,15 @@ import com.kitsugi.animelist.model.MediaType
 
 /** AniList keşfet toplu raf sorgusu için kısaltma (bkz. AniListSearchClient.ExploreShelfSpec). */
 private typealias AniListShelfSpec = com.kitsugi.animelist.data.remote.AniListSearchClient.ExploreShelfSpec
+
+/** Filter on the source's stable Turkish labels first, then localize only the visible subtitle. */
+private fun localizedSimklStatusItems(
+    items: List<JikanSearchResult>,
+    sourceStatus: String,
+    displayStatus: String
+): List<JikanSearchResult> = items
+    .filter { it.subtitle.contains(sourceStatus) }
+    .map { it.copy(subtitle = displayStatus) }
 
 /**
  * Keşfet hatalarının türünü belirler — UI'da platforma özgü aksiyon butonları göstermek için.
@@ -425,7 +433,7 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
                         }
                     }
 
-                    errorMessage = e.message ?: KitsugiStrings.get(R.string.kesfet_verileri_alinamadi)
+                    errorMessage = e.message ?: getApplication<Application>().getString(R.string.explore_source_unavailable)
                     if (!isFallbackInProgress) {
                         isFallbackInProgress = true
                         val nextPlatform = if (platformSnapshot == ExplorePlatform.AniList) {
@@ -519,7 +527,8 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
                     db.exploreCacheDao().getCategory(exploreCacheKey(platform))?.let {
                         com.google.gson.Gson().fromJson(it.payloadJson, ExplorePayload::class.java)?.forSource(platform)
                     }
-                }
+                },
+                context = getApplication()
             )
             currentCoroutineContext().ensureActive()
             if (generation != requestGeneration || selectedPlatform != ExplorePlatform.ALL) return@launch
@@ -564,14 +573,15 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
         val details = tmdbApiClient.fetchMediaDetail(tmdbId, isMovie) ?: return item
 
         val typeStr = when (item.type) {
-            com.kitsugi.animelist.model.MediaType.Movie -> "Film"
-            com.kitsugi.animelist.model.MediaType.TvShow -> "Dizi"
-            com.kitsugi.animelist.model.MediaType.Anime -> "Anime"
-            else -> "Anime"
+            com.kitsugi.animelist.model.MediaType.Movie -> R.string.media_type_movie
+            com.kitsugi.animelist.model.MediaType.TvShow -> R.string.media_type_tv
+            com.kitsugi.animelist.model.MediaType.Anime -> R.string.media_type_anime
+            else -> R.string.media_type_anime
         }
 
+        val context = getApplication<Application>()
         val subtitleParts = buildList {
-            add(typeStr)
+            add(context.getString(typeStr))
             val yearVal = item.year ?: details.year
             if (yearVal != null && yearVal > 0) add(yearVal.toString())
             addAll(details.genres.take(3))
@@ -647,7 +657,7 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
                 JikanSearchResult(
                     malId = e.malId ?: e.aniListId,
                     title = e.getDisplayTitle(),
-                    subtitle = KitsugiStrings.get(R.string.inline_1_s_episode_6f7288b, e.episode),
+                    subtitle = getApplication<Application>().getString(R.string.explore_episode_subtitle, e.episode),
                     type = MediaType.Anime,
                     total = null,
                     score = e.averageScore,
@@ -698,7 +708,9 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
                     JikanSearchResult(
                         malId = entry.aniListId,
                         title = entry.title,
-                        subtitle = if (entry.episode == 0) "Film" else "Dizi",
+                        subtitle = getApplication<Application>().getString(
+                            if (entry.episode == 0) R.string.media_type_movie else R.string.media_type_tv
+                        ),
                         type = finalType,
                         total = null,
                         score = entry.averageScore,
@@ -742,10 +754,12 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
         val userMovies = userMoviesDeferred?.let { runCatching { it.await() }.getOrDefault(emptyList()) } ?: emptyList()
         val userShows  = userShowsDeferred?.let { runCatching { it.await() }.getOrDefault(emptyList()) } ?: emptyList()
 
-        var continueMovies = userMovies.filter { it.subtitle.contains("İzleniyor") }
-        var plannedMovies  = userMovies.filter { it.subtitle.contains("Planlandı") }
-        var continueSeries = userShows.filter { it.subtitle.contains("İzleniyor") }
-        var plannedSeries  = userShows.filter { it.subtitle.contains("Planlandı") }
+        val watchingStatus = context.getString(R.string.explore_simkl_status_watching)
+        val plannedStatus = context.getString(R.string.explore_simkl_status_planned)
+        var continueMovies = localizedSimklStatusItems(userMovies, "İzleniyor", watchingStatus)
+        var plannedMovies = localizedSimklStatusItems(userMovies, "Planlandı", plannedStatus)
+        var continueSeries = localizedSimklStatusItems(userShows, "İzleniyor", watchingStatus)
+        var plannedSeries = localizedSimklStatusItems(userShows, "Planlandı", plannedStatus)
 
         if (tmdbEnabledState && tmdbEnrichContinueWatchingState) {
             // Sadece "İzlemeye Devam Et" listelerini paralel olarak zenginleştir (maksimum ilk 8 öğe)
@@ -1031,10 +1045,12 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
         val userMovies = userMoviesDeferred?.let { runCatching { it.await() }.getOrDefault(emptyList()) } ?: emptyList()
         val userShows  = userShowsDeferred?.let { runCatching { it.await() }.getOrDefault(emptyList()) } ?: emptyList()
 
-        val continueMovies = userMovies.filter { it.subtitle.contains("İzleniyor") }
-        val plannedMovies  = userMovies.filter { it.subtitle.contains("Planlandı") }
-        val continueSeries = userShows.filter { it.subtitle.contains("İzleniyor") }
-        val plannedSeries  = userShows.filter { it.subtitle.contains("Planlandı") }
+        val watchingStatus = context.getString(R.string.explore_simkl_status_watching)
+        val plannedStatus = context.getString(R.string.explore_simkl_status_planned)
+        val continueMovies = localizedSimklStatusItems(userMovies, "İzleniyor", watchingStatus)
+        val plannedMovies = localizedSimklStatusItems(userMovies, "Planlandı", plannedStatus)
+        val continueSeries = localizedSimklStatusItems(userShows, "İzleniyor", watchingStatus)
+        val plannedSeries = localizedSimklStatusItems(userShows, "Planlandı", plannedStatus)
 
         val topAnimeList = topAnimeDeferred.await()
         val airingAnimeList = airingAnimeDeferred.await()
@@ -1101,7 +1117,7 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
                     JikanSearchResult(
                         malId = entry.malId!!,
                         title = entry.getDisplayTitle(),
-                        subtitle = KitsugiStrings.get(R.string.inline_1_s_episode_6f7288b, entry.episode),
+                        subtitle = getApplication<Application>().getString(R.string.explore_episode_subtitle, entry.episode),
                         type = MediaType.Anime,
                         total = null,
                         score = entry.averageScore,
@@ -1216,7 +1232,7 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
                 .map { e ->
                     JikanSearchResult(
                         malId = e.malId ?: e.aniListId, title = e.getDisplayTitle(),
-                        subtitle = KitsugiStrings.get(R.string.inline_1_s_episode_6f7288b, e.episode), type = MediaType.Anime,
+                        subtitle = getApplication<Application>().getString(R.string.explore_episode_subtitle, e.episode), type = MediaType.Anime,
                         total = null, score = e.averageScore, isAdult = e.isAdult,
                         imageUrl = e.coverUrl, year = null, source = "anilist",
                         realMalId = e.malId, titleEnglish = e.titleEnglish,
@@ -1403,7 +1419,11 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
                                         JikanSearchResult(
                                             malId = entry.aniListId,
                                             title = entry.title,
-                                            subtitle = if (entry.episode == 0) "Film" else KitsugiStrings.get(R.string.inline_1_s_episode_6f7288b, entry.episode),
+                                            subtitle = if (entry.episode == 0) {
+                                                app.getString(R.string.media_type_movie)
+                                            } else {
+                                                app.getString(R.string.explore_episode_subtitle, entry.episode)
+                                            },
                                             type = finalType,
                                             total = null,
                                             score = entry.averageScore,
@@ -1443,10 +1463,12 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
                             val userMovies = userMoviesDeferred?.let { runCatching { it.await() }.getOrDefault(emptyList()) } ?: emptyList()
                             val userShows  = userShowsDeferred?.let { runCatching { it.await() }.getOrDefault(emptyList()) } ?: emptyList()
 
-                            var continueMovies = userMovies.filter { it.subtitle.contains("İzleniyor") }
-                            val plannedMovies  = userMovies.filter { it.subtitle.contains("Planlandı") }
-                            var continueSeries = userShows.filter { it.subtitle.contains("İzleniyor") }
-                            val plannedSeries  = userShows.filter { it.subtitle.contains("Planlandı") }
+                            val watchingStatus = app.getString(R.string.explore_simkl_status_watching)
+                            val plannedStatus = app.getString(R.string.explore_simkl_status_planned)
+                            var continueMovies = localizedSimklStatusItems(userMovies, "İzleniyor", watchingStatus)
+                            val plannedMovies = localizedSimklStatusItems(userMovies, "Planlandı", plannedStatus)
+                            var continueSeries = localizedSimklStatusItems(userShows, "İzleniyor", watchingStatus)
+                            val plannedSeries = localizedSimklStatusItems(userShows, "Planlandı", plannedStatus)
 
                             if (tmdbEnabled && tmdbEnrich) {
                                 val moviesToEnrich = continueMovies.take(8)
@@ -1460,13 +1482,13 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
                                                 val details = tmdbApiClient.fetchMediaDetail(tmdbId, isMovie)
                                                 if (details != null) {
                                                     val typeStr = when (item.type) {
-                                                        MediaType.Movie -> "Film"
-                                                        MediaType.TvShow -> "Dizi"
-                                                        MediaType.Anime -> "Anime"
-                                                        else -> "Anime"
+                                                        MediaType.Movie -> R.string.media_type_movie
+                                                        MediaType.TvShow -> R.string.media_type_tv
+                                                        MediaType.Anime -> R.string.media_type_anime
+                                                        else -> R.string.media_type_anime
                                                     }
                                                     val subtitleParts = buildList {
-                                                        add(typeStr)
+                                                        add(app.getString(typeStr))
                                                         val yearVal = item.year ?: details.year
                                                         if (yearVal != null && yearVal > 0) add(yearVal.toString())
                                                         addAll(details.genres.take(3))
@@ -1496,13 +1518,13 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
                                                 val details = tmdbApiClient.fetchMediaDetail(tmdbId, isMovie)
                                                 if (details != null) {
                                                     val typeStr = when (item.type) {
-                                                        MediaType.Movie -> "Film"
-                                                        MediaType.TvShow -> "Dizi"
-                                                        MediaType.Anime -> "Anime"
-                                                        else -> "Anime"
+                                                        MediaType.Movie -> R.string.media_type_movie
+                                                        MediaType.TvShow -> R.string.media_type_tv
+                                                        MediaType.Anime -> R.string.media_type_anime
+                                                        else -> R.string.media_type_anime
                                                     }
                                                     val subtitleParts = buildList {
-                                                        add(typeStr)
+                                                        add(app.getString(typeStr))
                                                         val yearVal = item.year ?: details.year
                                                         if (yearVal != null && yearVal > 0) add(yearVal.toString())
                                                         addAll(details.genres.take(3))
@@ -1529,8 +1551,8 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
                                 continueSeries = seriesJobs.mapIndexed { idx, job ->
                                     runCatching { job.await() }.getOrDefault(seriesToEnrich[idx])
                                 }
-                                continueMovies = continueMovies + userMovies.filter { it.subtitle.contains("İzleniyor") }.drop(8)
-                                continueSeries = continueSeries + userShows.filter { it.subtitle.contains("İzleniyor") }.drop(8)
+                                continueMovies = continueMovies + localizedSimklStatusItems(userMovies, "İzleniyor", watchingStatus).drop(8)
+                                continueSeries = continueSeries + localizedSimklStatusItems(userShows, "İzleniyor", watchingStatus).drop(8)
                             }
 
                             ExplorePayload(

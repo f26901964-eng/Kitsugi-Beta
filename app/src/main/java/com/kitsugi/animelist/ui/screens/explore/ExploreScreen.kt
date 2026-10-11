@@ -503,7 +503,7 @@ fun ExploreScreen(
                                                     ) {
                                                         Icon(
                                                             imageVector = Icons.Rounded.Notifications,
-                                                            contentDescription = "Bildirimler",
+                                                            contentDescription = stringResource(R.string.notif_title),
                                                             tint = KitsugiColors.TextPrimary,
                                                             modifier = Modifier.size(20.dp)
                                                         )
@@ -649,8 +649,8 @@ fun ExploreScreen(
                             } else if (isCatalogEmpty) {
                                 item {
                                     KitsugiEmptyState(
-                                        title = stringResource(R.string.gosterilecek_icerik_yok_bce80b2),
-                                        subtitle = stringResource(R.string.secilen_platformda_goruntulenebilecek_medya_bulunamadi)
+                                        title = stringResource(R.string.explore_source_empty_title),
+                                        subtitle = stringResource(R.string.explore_source_empty_subtitle)
                                     )
                                 }
                             } else {

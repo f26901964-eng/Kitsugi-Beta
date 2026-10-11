@@ -10,7 +10,6 @@ import com.kitsugi.animelist.R
 import com.kitsugi.animelist.data.remote.JikanSearchResult
 import com.kitsugi.animelist.model.MediaEntry
 import com.kitsugi.animelist.ui.components.KitsugiHorizontalMediaSection
-import com.kitsugi.animelist.utils.KitsugiStrings
 
 fun LazyListScope.tmdbExploreSections(
     viewModel: ExploreViewModel,
@@ -39,15 +38,16 @@ fun LazyListScope.tmdbExploreSections(
     // ─── TMDB TREND MEDYALAR ───
     if (filteredTrendingAnime.isNotEmpty()) {
         item {
+            val sectionTitle = stringResource(R.string.explore_source_trending_anime)
             KitsugiHorizontalMediaSection(
-                title = "Trend Animeler",
+                title = sectionTitle,
                 results = filteredTrendingAnime,
                 isLoading = viewModel.isLoading,
                 alreadyInList = isAlreadyInList,
                 getMediaEntry = getMediaEntry,
                 onItemClick = onItemClick,
                 onLongClickItem = onLongClickItem,
-                onSeeAllClick = { onSeeAllSection("Trend Animeler", ExploreCategoryType.TRENDING_ANIME, filteredTrendingAnime) },
+                onSeeAllClick = { onSeeAllSection(sectionTitle, ExploreCategoryType.TRENDING_ANIME, filteredTrendingAnime) },
                 titleLanguage = titleLanguage,
                 scoreFormat = scoreFormat,
                 hideScores = hideScores,
@@ -60,15 +60,16 @@ fun LazyListScope.tmdbExploreSections(
     // ─── TMDB POPÜLER MEDYALAR ───
     if (filteredNewlyAddedAnime.isNotEmpty()) {
         item {
+            val sectionTitle = stringResource(R.string.explore_source_popular_anime)
             KitsugiHorizontalMediaSection(
-                title = KitsugiStrings.get(R.string.populer_animeler),
+                title = sectionTitle,
                 results = filteredNewlyAddedAnime,
                 isLoading = viewModel.isLoading,
                 alreadyInList = isAlreadyInList,
                 getMediaEntry = getMediaEntry,
                 onItemClick = onItemClick,
                 onLongClickItem = onLongClickItem,
-                onSeeAllClick = { onSeeAllSection("Popüler Animeler", ExploreCategoryType.NEWLY_ADDED_ANIME, filteredNewlyAddedAnime) },
+                onSeeAllClick = { onSeeAllSection(sectionTitle, ExploreCategoryType.NEWLY_ADDED_ANIME, filteredNewlyAddedAnime) },
                 titleLanguage = titleLanguage,
                 scoreFormat = scoreFormat,
                 hideScores = hideScores,
@@ -81,15 +82,16 @@ fun LazyListScope.tmdbExploreSections(
     // ─── TMDB EN YÜKSEK PUANLI ANİMELER ───
     if (filteredTrendingManga.isNotEmpty()) {
         item {
+            val sectionTitle = stringResource(R.string.explore_source_top_rated_anime)
             KitsugiHorizontalMediaSection(
-                title = KitsugiStrings.get(R.string.explore_top_rated_anime),
+                title = sectionTitle,
                 results = filteredTrendingManga,
                 isLoading = viewModel.isLoading,
                 alreadyInList = isAlreadyInList,
                 getMediaEntry = getMediaEntry,
                 onItemClick = onItemClick,
                 onLongClickItem = onLongClickItem,
-                onSeeAllClick = { onSeeAllSection("En Yüksek Puanlı Animeler", ExploreCategoryType.TRENDING_MANGA, filteredTrendingManga) },
+                onSeeAllClick = { onSeeAllSection(sectionTitle, ExploreCategoryType.TRENDING_MANGA, filteredTrendingManga) },
                 titleLanguage = titleLanguage,
                 scoreFormat = scoreFormat,
                 hideScores = hideScores,

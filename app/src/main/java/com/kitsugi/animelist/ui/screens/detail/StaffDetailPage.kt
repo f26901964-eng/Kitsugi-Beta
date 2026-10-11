@@ -95,7 +95,6 @@ import com.kitsugi.animelist.ui.components.KitsugiMarkdownText
 import android.content.res.Configuration
 import androidx.compose.ui.platform.LocalConfiguration
 import com.kitsugi.animelist.data.remote.DetailCache
-import com.kitsugi.animelist.ui.components.KitsugiCinematicLoadingScreen
 import com.kitsugi.animelist.ui.components.KitsugiImageGalleryDialog
 import com.kitsugi.animelist.ui.components.KitsugiPageEnter
 import com.kitsugi.animelist.utils.copyOnDoubleTap
@@ -158,12 +157,7 @@ fun StaffDetailPage(
     ) {
         when (val currentState = state) {
             is StaffDetailState.Loading -> {
-                KitsugiCinematicLoadingScreen(
-                    title = name ?: stringResource(R.string.staff_loading),
-                    imageUrl = imageUrl,
-                    onBackClick = onBackClick,
-                    source = source
-                )
+                DetailPageLoadingSkeleton(onBackClick = onBackClick, person = true)
             }
             is StaffDetailState.Error -> {
                 Box(modifier = Modifier.fillMaxSize()) {

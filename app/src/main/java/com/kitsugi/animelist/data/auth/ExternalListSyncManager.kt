@@ -1,6 +1,7 @@
 package com.kitsugi.animelist.data.auth
 
 import android.content.Context
+import com.kitsugi.animelist.R
 import com.kitsugi.animelist.model.MediaEntry
 import com.kitsugi.animelist.model.MediaType
 import com.kitsugi.animelist.data.remote.canonicalMediaSourceId
@@ -13,6 +14,13 @@ import com.kitsugi.animelist.data.local.toEntity
 
 object ExternalListSyncManager {
     private const val ANILIST_SYNTHETIC_ID_OFFSET = 100_000_000
+
+    private fun Context.sourceFailure(platform: String, error: Throwable): String =
+        getString(
+            R.string.account_sync_source_failure,
+            platform,
+            error.message ?: getString(R.string.account_sync_unknown_error)
+        )
 
     suspend fun syncEntry(
         context: Context,
@@ -130,7 +138,8 @@ object ExternalListSyncManager {
                     AniListSyncManager.updateAniListEntry(
                         token = aniListToken!!,
                         entry = effectiveEntry,
-                        advancedScores = advancedScores
+                        advancedScores = advancedScores,
+                        context = context
                     )
                 }.onSuccess { remoteId ->
                     if (remoteId != null && remoteId > 0) {
@@ -144,24 +153,24 @@ object ExternalListSyncManager {
                             }
                         }
                     } else {
-                        errors.add("AniList: Kimlik çözülemedi veya sunucu güncellemeyi onaylamadı")
+                        errors.add(context.getString(R.string.account_sync_anilist_update_unconfirmed))
                     }
                 }.onFailure { error ->
-                    errors.add("AniList: ${error.message}")
+                    errors.add(context.sourceFailure("AniList", error))
                 }
             }
 
             // AniList favori durumu senkronizasyonu
             if (syncEnabledAniList && !aniListToken.isNullOrBlank() && isAnimeOrManga) {
                 runSyncCatching {
-                    val remoteFav = AniListSyncManager.getAniListMediaFavoriteStatus(aniListToken, effectiveEntry)
+                    val remoteFav = AniListSyncManager.getAniListMediaFavoriteStatus(aniListToken, effectiveEntry, context)
                     if (remoteFav != null && remoteFav != effectiveEntry.isFavorite) {
-                        check(AniListSyncManager.toggleAniListFavourite(aniListToken, effectiveEntry)) { "AniList favori güncellemesi onaylanmadı" }
+                        check(AniListSyncManager.toggleAniListFavourite(aniListToken, effectiveEntry, context)) { context.getString(R.string.account_sync_anilist_favorite_unconfirmed) }
                         if (!syncedSources.contains("AniList")) {
                             syncedSources.add("AniList")
                         }
                     }
-                }.onFailure { errors.add("AniList favori: ${it.message}") }
+                }.onFailure { error -> errors.add(context.getString(R.string.account_sync_favorite_error, error.message ?: context.getString(R.string.account_sync_unknown_error))) }
             }
 
             // ── MyAnimeList (MAL) Senkronizasyonu (Anime & Manga) ────────────────
@@ -171,12 +180,13 @@ object ExternalListSyncManager {
                 runSyncCatching {
                     MalSyncManager.updateMalEntry(
                         token = malToken!!,
-                        entry = effectiveEntry
+                        entry = effectiveEntry,
+                        context = context
                     )
                 }.onSuccess {
                     syncedSources.add("MyAnimeList")
                 }.onFailure { error ->
-                    errors.add("MAL: ${error.message}")
+                    errors.add(context.sourceFailure("MAL", error))
                 }
             }
 
@@ -193,7 +203,7 @@ object ExternalListSyncManager {
                         errors.addAll(simklResult.errors)
                     }
                 }.onFailure { error ->
-                    errors.add("Simkl: ${error.message}")
+                    errors.add(context.sourceFailure("Simkl", error))
                 }
             }
 
@@ -210,7 +220,7 @@ object ExternalListSyncManager {
                         errors.addAll(kitsuResult.errors)
                     }
                 }.onFailure { error ->
-                    errors.add("Kitsu: ${error.message}")
+                    errors.add(context.sourceFailure("Kitsu", error))
                 }
             }
 
@@ -227,7 +237,7 @@ object ExternalListSyncManager {
                         errors.addAll(shikiResult.errors)
                     }
                 }.onFailure { error ->
-                    errors.add("Shikimori: ${error.message}")
+                    errors.add(context.sourceFailure("Shikimori", error))
                 }
             }
 
@@ -244,14 +254,14 @@ object ExternalListSyncManager {
                         errors.addAll(bangumiResult.errors)
                     }
                 }.onFailure { error ->
-                    errors.add("Bangumi: ${error.message}")
+                    errors.add(context.sourceFailure("Bangumi", error))
                 }
             }
 
             if (syncEnabledMal && !malToken.isNullOrBlank() && isAnimeOrManga && realMalId == null) {
-                errors.add("MAL: doğrulanmış medya kimliği yok")
+                errors.add(context.getString(R.string.account_sync_no_valid_mal_id))
             }
-            val formatted = formatSyncSources(syncedSources, isDelete = false)
+            val formatted = formatSyncSources(context, syncedSources, isDelete = false)
             if (formatted.isNotEmpty()) {
                 messages.add(formatted)
             }
@@ -309,12 +319,13 @@ object ExternalListSyncManager {
                 runSyncCatching {
                     AniListSyncManager.deleteAniListEntry(
                         token = aniListToken!!,
-                        entry = entry
+                        entry = entry,
+                        context = context
                     )
                 }.onSuccess {
                     deletedSources.add("AniList")
                 }.onFailure { error ->
-                    errors.add("AniList silme: ${error.message}")
+                    errors.add(context.getString(R.string.account_sync_delete_error, "AniList", error.message ?: context.getString(R.string.account_sync_unknown_error)))
                 }
             }
 
@@ -322,12 +333,13 @@ object ExternalListSyncManager {
                 runSyncCatching {
                     MalSyncManager.deleteMalEntry(
                         token = malToken!!,
-                        entry = entry
+                        entry = entry,
+                        context = context
                     )
                 }.onSuccess {
                     deletedSources.add("MyAnimeList")
                 }.onFailure { error ->
-                    errors.add("MAL silme: ${error.message}")
+                    errors.add(context.getString(R.string.account_sync_delete_error, "MAL", error.message ?: context.getString(R.string.account_sync_unknown_error)))
                 }
             }
 
@@ -341,7 +353,7 @@ object ExternalListSyncManager {
                         errors.addAll(simklResult.errors)
                     }
                 }.onFailure { error ->
-                    errors.add("Simkl silme: ${error.message}")
+                    errors.add(context.getString(R.string.account_sync_delete_error, "Simkl", error.message ?: context.getString(R.string.account_sync_unknown_error)))
                 }
             }
 
@@ -355,7 +367,7 @@ object ExternalListSyncManager {
                         errors.addAll(kitsuResult.errors)
                     }
                 }.onFailure { error ->
-                    errors.add("Kitsu silme: ${error.message}")
+                    errors.add(context.getString(R.string.account_sync_delete_error, "Kitsu", error.message ?: context.getString(R.string.account_sync_unknown_error)))
                 }
             }
 
@@ -369,7 +381,7 @@ object ExternalListSyncManager {
                         errors.addAll(shikiResult.errors)
                     }
                 }.onFailure { error ->
-                    errors.add("Shikimori silme: ${error.message}")
+                    errors.add(context.getString(R.string.account_sync_delete_error, "Shikimori", error.message ?: context.getString(R.string.account_sync_unknown_error)))
                 }
             }
 
@@ -383,11 +395,11 @@ object ExternalListSyncManager {
                         errors.addAll(bangumiResult.errors)
                     }
                 }.onFailure { error ->
-                    errors.add("Bangumi silme: ${error.message}")
+                    errors.add(context.getString(R.string.account_sync_delete_error, "Bangumi", error.message ?: context.getString(R.string.account_sync_unknown_error)))
                 }
             }
 
-            val formatted = formatSyncSources(deletedSources, isDelete = true)
+            val formatted = formatSyncSources(context, deletedSources, isDelete = true)
             if (formatted.isNotEmpty()) {
                 messages.add(formatted)
             }
@@ -399,21 +411,21 @@ object ExternalListSyncManager {
         }
     }
 
-    private fun formatSyncSources(sources: List<String>, isDelete: Boolean): String {
+    private fun formatSyncSources(context: Context, sources: List<String>, isDelete: Boolean): String {
         if (sources.isEmpty()) return ""
         val joined = when (sources.size) {
             1 -> sources[0]
-            2 -> "${sources[0]} ve ${sources[1]}"
+            2 -> context.getString(R.string.account_sync_sources_join_two, sources[0], sources[1])
             else -> {
                 val last = sources.last()
                 val remaining = sources.dropLast(1).joinToString(", ")
-                "$remaining ve $last"
+                context.getString(R.string.account_sync_sources_join_many, remaining, last)
             }
         }
         return if (isDelete) {
-            "$joined kütüphanesinden silindi"
+            context.getString(R.string.account_sync_sources_deleted, joined)
         } else {
-            "$joined başarıyla eşitlendi"
+            context.getString(R.string.account_sync_sources_synced, joined)
         }
     }
 

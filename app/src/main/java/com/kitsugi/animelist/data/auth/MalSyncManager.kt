@@ -1,5 +1,7 @@
 package com.kitsugi.animelist.data.auth
 
+import android.content.Context
+import com.kitsugi.animelist.R
 import com.kitsugi.animelist.model.MediaEntry
 import com.kitsugi.animelist.model.MediaType
 import com.kitsugi.animelist.model.WatchStatus
@@ -16,11 +18,14 @@ import okhttp3.MediaType.Companion.toMediaTypeOrNull
 object MalSyncManager {
     fun updateMalEntry(
         token: String,
-        entry: MediaEntry
+        entry: MediaEntry,
+        context: Context
     ) {
-        require(entry.type == MediaType.Anime || entry.type == MediaType.Manga) { "MAL yalnızca anime/manga destekler" }
+        require(entry.type == MediaType.Anime || entry.type == MediaType.Manga) {
+            context.getString(R.string.account_sync_mal_type_unsupported)
+        }
         val malId = entry.malId?.takeIf { it.isRealMalId() }
-            ?: error("Geçerli MAL kimliği bulunamadı")
+            ?: error(context.getString(R.string.account_sync_mal_id_invalid))
 
         val endpointType = when (entry.type) {
             MediaType.Anime, MediaType.Movie, MediaType.TvShow -> "anime"
@@ -81,22 +86,31 @@ object MalSyncManager {
             com.kitsugi.animelist.core.network.KitsugiHttpClient.client.newCall(request).execute().use { response ->
                 if (!response.isSuccessful) {
                     val errorText = response.body?.string().orEmpty()
-                    throw IllegalStateException("MAL API hatası: ${response.code} $errorText")
+                    throw IllegalStateException(
+                        context.getString(R.string.account_sync_api_error, "MAL", response.code, errorText)
+                    )
                 }
             }
         } catch (e: Exception) {
             if (e is IllegalStateException) throw e
-            throw IllegalStateException("MAL bağlantı hatası: ${e.message}", e)
+            val reason = e.message ?: context.getString(R.string.account_sync_unknown_error)
+            throw IllegalStateException(
+                context.getString(R.string.account_sync_connection_error, "MAL", reason),
+                e
+            )
         }
     }
 
     fun deleteMalEntry(
         token: String,
-        entry: MediaEntry
+        entry: MediaEntry,
+        context: Context
     ) {
-        require(entry.type == MediaType.Anime || entry.type == MediaType.Manga) { "MAL yalnızca anime/manga destekler" }
+        require(entry.type == MediaType.Anime || entry.type == MediaType.Manga) {
+            context.getString(R.string.account_sync_mal_type_unsupported)
+        }
         val malId = entry.malId?.takeIf { it.isRealMalId() }
-            ?: error("Geçerli MAL kimliği bulunamadı")
+            ?: error(context.getString(R.string.account_sync_mal_id_invalid))
 
         val endpointType = when (entry.type) {
             MediaType.Anime, MediaType.Movie, MediaType.TvShow -> "anime"
@@ -118,12 +132,18 @@ object MalSyncManager {
                 }
                 if (!response.isSuccessful) {
                     val errorText = response.body?.string().orEmpty()
-                    throw IllegalStateException("MAL silme hatası: ${response.code} $errorText")
+                    throw IllegalStateException(
+                        context.getString(R.string.account_sync_mal_delete_api_error, response.code, errorText)
+                    )
                 }
             }
         } catch (e: Exception) {
             if (e is IllegalStateException) throw e
-            throw IllegalStateException("MAL bağlantı hatası: ${e.message}", e)
+            val reason = e.message ?: context.getString(R.string.account_sync_unknown_error)
+            throw IllegalStateException(
+                context.getString(R.string.account_sync_connection_error, "MAL", reason),
+                e
+            )
         }
     }
 

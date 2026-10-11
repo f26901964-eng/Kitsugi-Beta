@@ -92,7 +92,6 @@ import com.kitsugi.animelist.ui.theme.KitsugiColors
 import com.kitsugi.animelist.utils.KitsugiTranslateUtils.openTranslator
 import com.kitsugi.animelist.ui.components.KitsugiMarkdownText
 import com.kitsugi.animelist.data.remote.DetailCache
-import com.kitsugi.animelist.ui.components.KitsugiCinematicLoadingScreen
 import com.kitsugi.animelist.ui.components.KitsugiImageGalleryDialog
 import com.kitsugi.animelist.ui.components.KitsugiPageEnter
 import com.kitsugi.animelist.utils.copyOnDoubleTap
@@ -163,12 +162,7 @@ fun CharacterDetailPage(
     ) {
         when (val currentState = state) {
             is CharacterDetailState.Loading -> {
-                KitsugiCinematicLoadingScreen(
-                    title = name ?: stringResource(R.string.character_loading),
-                    imageUrl = imageUrl,
-                    onBackClick = onBackClick,
-                    source = source
-                )
+                DetailPageLoadingSkeleton(onBackClick = onBackClick, person = true)
             }
             is CharacterDetailState.Error -> {
                 Box(modifier = Modifier.fillMaxSize()) {

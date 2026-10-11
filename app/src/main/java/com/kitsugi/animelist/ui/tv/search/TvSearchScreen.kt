@@ -72,6 +72,7 @@ import com.kitsugi.animelist.utils.PreferenceHelpers.getDisplayTitle
 import com.kitsugi.animelist.ui.screens.search.SearchHistoryItem
 import com.kitsugi.animelist.ui.screens.search.SearchPlatform
 import com.kitsugi.animelist.ui.screens.search.SearchViewModel
+import com.kitsugi.animelist.ui.screens.search.localizedLabel
 import com.kitsugi.animelist.ui.theme.KitsugiTvTokens
 import com.kitsugi.animelist.ui.utils.FocusMarqueeText
 import com.kitsugi.animelist.ui.utils.KitsugiScrollDefaults
@@ -162,13 +163,13 @@ fun TvSearchScreen(
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         Text(
-                            text = stringResource(R.string.inline_no_results_found_for_1_681c88b, state.query),
+                            text = stringResource(R.string.search_tv_no_results, state.query),
                             style = MaterialTheme.typography.bodyLarge,
                             color = Color.White.copy(alpha = 0.6f)
                         )
                         Spacer(modifier = Modifier.height(8.dp))
                         Text(
-                            text = stringResource(R.string.inline_try_different_words_or_filters_0c36562),
+                            text = stringResource(R.string.search_tv_try_different_terms),
                             style = MaterialTheme.typography.bodySmall,
                             color = Color.White.copy(alpha = 0.4f)
                         )
@@ -211,7 +212,7 @@ fun TvSearchScreen(
             else -> {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     Text(
-                        text = stringResource(R.string.inline_search_for_anime_series_or_5990718),
+                        text = stringResource(R.string.search_tv_prompt),
                         style = MaterialTheme.typography.bodyLarge,
                         color = Color.White.copy(alpha = 0.4f)
                     )
@@ -277,7 +278,7 @@ private fun TvSearchBar(
             decorationBox = { innerTextField ->
                 if (query.isEmpty()) {
                     Text(
-                        text = stringResource(R.string.anime_film_veya_dizi_ara),
+                        text = stringResource(R.string.search_tv_placeholder),
                         style = MaterialTheme.typography.bodyMedium,
                         color = Color.White.copy(alpha = 0.4f)
                     )
@@ -359,7 +360,7 @@ private fun TvSearchFilters(
 
         items(availablePlatforms) { platform ->
             TvFilterChip(
-                label = platform.label,
+                label = platform.localizedLabel(),
                 selected = selectedPlatform == platform,
                 accent = accent,
                 onClick = { onPlatformSelected(platform) }
@@ -605,7 +606,7 @@ private fun TvSearchHistory(
                     )
                     // Platform badge
                     Text(
-                        text = item.platform.label,
+                        text = item.platform.localizedLabel(),
                         style = MaterialTheme.typography.labelSmall,
                         color = Color.White.copy(alpha = 0.35f),
                         modifier = Modifier.padding(start = 8.dp)

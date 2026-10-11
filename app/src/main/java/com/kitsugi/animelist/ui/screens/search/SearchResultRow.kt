@@ -258,7 +258,7 @@ fun SearchResultRow(
             ) {
                 Icon(
                     imageVector = if (alreadyInList) Icons.Rounded.Check else Icons.Rounded.Add,
-                    contentDescription = if (alreadyInList) "Listede" else stringResource(R.string.listeye_ekle_b366ba1),
+                    contentDescription = if (alreadyInList) "Listede" else "Listeye ekle",
                     tint = if (alreadyInList) KitsugiColors.AccentGreen else accentColor,
                     modifier = Modifier.size(20.dp)
                 )
@@ -405,7 +405,7 @@ fun CharacterStaffResultRow(
                         ) {
                             Icon(
                                 imageVector = Icons.Rounded.Favorite,
-                                contentDescription = "Favori",
+                                contentDescription = stringResource(R.string.search_accessibility_favorite),
                                 tint = KitsugiColors.AccentRed,
                                 modifier = Modifier.size(12.dp)
                             )

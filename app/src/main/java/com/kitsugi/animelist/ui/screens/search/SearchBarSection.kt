@@ -117,7 +117,7 @@ fun SearchBarSection(
                 decorationBox = { innerTextField ->
                     if (query.isEmpty()) {
                         Text(
-                            text = stringResource(R.string.anime_dizi_veya_film_ara),
+                            text = stringResource(R.string.search_placeholder_default),
                             color = KitsugiColors.TextMuted,
                             style = MaterialTheme.typography.bodyMedium
                         )
@@ -191,7 +191,7 @@ fun SearchBarSection(
             ) {
                 Icon(
                     imageVector = Icons.Rounded.Tune,
-                    contentDescription = "Filtrele",
+                    contentDescription = stringResource(R.string.search_accessibility_filter),
                     tint = if (hasActiveFilters) accentColor else KitsugiColors.TextMuted,
                     modifier = Modifier.size(18.dp)
                 )
