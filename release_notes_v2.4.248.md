@@ -25,12 +25,28 @@
 - Gömülü (embedded) modda gereksiz tekrarlanan "Tamam" altbilgisi kaldırıldı.
 - Depolama ekranındaki iç içe geçmiş kart yapısı sadeleştirildi; İndirilenler (Video, Görsel, Altyazı) yönetimi güvenle korundu.
 
-### 📋 4. Platform Hata Kodları Kataloğu (Ayarlar > Geliştirici & Tanılama)
+### 🎬 4. Detay Sayfaları Sinematik Yüklenme Ekranı
+
+- Medya (kütüphane ve arama), karakter, ekip/personel, stüdyo/yapımcı ve Android TV detay sayfalarında tam ekran sinematik yüklenme deneyimi yeniden bağlandı (`KitsugiCinematicLoadingScreen`).
+- Sayfa açılışında tıklanan öğenin mevcut başlığı/adı, görseli ve kaynak rozeti (`KitsugiSourceNamePill`) anında gösterilir. Medya logoları açıksa logo getirilir.
+- TMDB stüdyo/ağ varyantları (`tmdb_network`, `tmdb-network`, `tmdbnetwork`) TMDB logosu ve adıyla doğru eşleştirildi.
+- Yatay kompakt ekranlar için boyut optimizasyonu eklendi; GPU çökmesine yol açabilen çift bulanıklık katmanları temizlendi.
+
+### 🌄 5. Detay Vitrini Akıllı Görsel Seçimi ve Çözünürlük Sıralaması
+
+- API kaynaklı detay sayfalarında üst görsel ekran boyutuna ve yönüne göre seçilir:
+  - Dikey telefon: Dikey poster öncelikli.
+  - Yatay telefon, tablet ve TV: Yatay arka plan (backdrop) öncelikli.
+  - Manga: Her zaman dikey poster öncelikli.
+- Aday görseller TMDB, Fanart.tv ve kaynaktan gelen galeri öğeleri arasından taranır; dikey olanlar poster, yatay olanlar arka plan aday havuzuna eklenir ve en yüksek çözünürlükten en düşüğe doğru sıralanır.
+- Bir görsel yüklenemezse otomatik olarak sıradaki adaya geçilir. Geniş ekranda dikey görsel gösterilirken kesmek yerine çift katmanlı contain (net ön plan + hafif arka plan dolgusu) kullanılır.
+
+### 📋 6. Platform Hata Kodları Kataloğu (Ayarlar > Geliştirici & Tanılama)
 
 - Ayarlar'daki "Platform Hata Kodları" ekranı (`PlatformErrorCatalogScreen`) artık AniList, MyAnimeList, Kitsu, Shikimori, Bangumi, TMDB, Simkl, Manga/CloudStream ve ortak (`KTS-COM`) hata kodlarının tamamını kapsıyor.
 - Platform bazlı filtre çipleri ve anlık arama desteği eklendi. Tüm açıklamalar ve başlıklar TR/EN kaynaklarından çözülür.
 
-### 🌐 5. Anında Dil Değişimi ve Kitsugi Hesabı İyileştirmeleri
+### 🌐 7. Anında Dil Değişimi ve Kitsugi Hesabı İyileştirmeleri
 
 - `AndroidManifest.xml` içerisinden Activity'nin dil değişimini yutmasına neden olan `locale|layoutDirection` configChanges girdisi kaldırıldı; dil değiştiğinde arayüz anında yeni dile döner. API 33+ için çift recreate korumalı güvenlik kontrolü eklendi.
 - Kitsugi hesabı ekranına 3 bağımsız cihaz yereli anahtar eklendi: "Şifreli hesap yedeği", "Arama geçmişi eşitleme", "Bildirim arşivi eşitleme".
@@ -60,13 +76,29 @@
 - Preferences, Addons, Integrations, and System tabs unified under the modern, icon-accented `KitsugiSettingsSegmentedTabs` component.
 - Addon tab labels localized in English and Turkish.
 - Subpages respect navigation bar insets (`navigationBarsPadding`), player subscreen headers dynamically update, and redundant embedded "OK" footers removed.
-- Storage card hierarchy simplified while preserving Downloads (Video, Image, Subtitle) management.
+- Storage card hierarchy simplified while preserving Downloads management.
 
-### 📋 4. Complete Platform Error Codes Catalog
+### 🎬 4. Detail Pages Cinematic Loading Screen
 
-- The "Platform Error Codes" screen (`PlatformErrorCatalogScreen`) now catalogs AniList, MyAnimeList, Kitsu, Shikimori, Bangumi, TMDB, Simkl, Manga/CloudStream, and common (`KTS-COM`) error codes with filter chips and search in TR/EN.
+- Fullscreen cinematic loading experience restored across media, character, staff, studio, and Android TV detail screens (`KitsugiCinematicLoadingScreen`).
+- Item title/name, cover image, and provider badge (`KitsugiSourceNamePill`) appear immediately while detail queries load.
+- TMDB network identifiers correctly map to TMDB logo and brand.
+- Responsive scaling for compact landscape screens and duplicate blur layers removed to prevent GPU crashes.
 
-### 🌐 5. Instant Language Switching & Account UX
+### 🌄 5. Detail Hero Adaptive Visual Resolution
+
+- Top image on API detail pages selects between poster and backdrop based on screen size and orientation:
+  - Portrait phones: Vertical poster preferred.
+  - Landscape phones, tablets, TV: Horizontal backdrop preferred.
+  - Manga: Vertical poster always preferred.
+- Candidate visuals aggregated from TMDB, Fanart.tv, and source gallery items, ranked strictly by pixel resolution.
+- Graceful failover to next candidate if an image fails to load. Dual-layer contain display prevents cropping vertical artwork on wide screens.
+
+### 📋 6. Complete Platform Error Codes Catalog
+
+- The "Platform Error Codes" screen (`PlatformErrorCatalogScreen`) catalogs AniList, MyAnimeList, Kitsu, Shikimori, Bangumi, TMDB, Simkl, Manga/CloudStream, and common (`KTS-COM`) error codes with filter chips and search in TR/EN.
+
+### 🌐 7. Instant Language Switching & Account UX
 
 - Removed `locale|layoutDirection` from `AndroidManifest.xml` so the activity immediately recreates upon language change. Safety recreate watchdog added for API 33+.
 - Kitsugi account screen adds 3 local toggle switches for Encrypted backup, Search history sync, and Notification archive sync.
