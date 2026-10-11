@@ -1,5 +1,31 @@
 # Kitsugi-Beta — Sürüm Notları / Release Notes
 
+## 🇹🇷 Türkçe (v2.4.252)
+
+### 🖼️ 1. Detay Sayfası Vitrin Görseli — Tam Kalite + Sayfa Açılmadan Önce Hazır
+- **RGB_565 decode kapatıldı (asıl kalite sebebi):** Uygulamanın genel Coil `ImageLoader`'ı bellek tasarrufu için `allowRgb565(true)` ile kuruludur. RGB_565 kanal başına 5/6/5 bit olduğu için gökyüzü, sakura, ışık geçişleri gibi **yumuşak gradyanlarda bantlaşma (banding)** ve renk kaybı oluşuyordu — anime key visual'ları neredeyse tamamen gradyan olduğu için hasar gözle görülür seviyedeydi. Yeni `HeroArtworkImagePolicy` vitrin görsellerini `allowRgb565(false)` (tam 8-bit renk) ve ekrandan türetilmiş **sınırlı** ölçüde (en fazla 2560×1440 px) decode eder. Liste/grid kartları eskisi gibi RGB_565 ile devam eder.
+- **Görsel planı sayfa açılmadan ÖNCE çözülüyor:** `KitsugiDetailHero` görsel planını kendi içinde ağ çağrısıyla çözüyordu; sayfa bu çözüm bitmeden render ediliyordu → kullanıcı önce düşük çözünürlüklü kaynak görselini görüp sonra TMDB/Fanart görseliyle **değişim** yaşıyordu. `ApiResultDetailViewModel.resolveHeroArtwork()` artık planı `_detailLoading = false` olmadan önce çözüyor (5 sn zaman tavanı, iptal güvenli) ve en kaliteli adayı decode ederek önbelleğe koyuyor; `KitsugiDetailHero` bunu `preResolvedArtwork` olarak **ilk kareden** kullanıyor.
+- **Yatay modda vitrin büyütüldü:** Sol panel dar olduğu için 16:9 bant küçük kalıyordu. Yatayda bant artık 250dp taban ve ekran yüksekliğinin %72'si tavan ile hesaplanıyor.
+- **Tam görünürlük garantisi (dikey + yatay):** `heroArtworkFit(..., HERO_BANNER_FIT_TOLERANCE = 1.20)` → 16:9 görsel + 16:9 bant kayıpsız; dikey poster veya ultra geniş afiş banttan saparsa **KIRPILMIYOR**, "tam görünür + yumuşak dolgu" ile gösteriliyor.
+
+### ✅ 2. Testler
+- `HeroImageSelectionTest`'e 3 yeni test: hedef ölçü sınırları (4K decode'ı bellek taşmasını engeller), 16:9 bant oranı ve dikey posterin hiç kırpılmaması.
+
+---
+
+## 🇬🇧 English (v2.4.252)
+
+### 🖼️ 1. Detail Page Hero Artwork — Full Quality + Resolved BEFORE the Page Renders
+- **RGB_565 decode disabled (primary quality killer):** App-wide Coil `ImageLoader` uses `allowRgb565(true)` for memory savings. RGB_565 is 5/6/5 bits per channel without alpha, causing visible banding in smooth anime gradients. `HeroArtworkImagePolicy` now forces `allowRgb565(false)` (full 8-bit color) with bounded screen size (max 2560×1440 px) for the hero. Grid/list cards remain on RGB_565.
+- **Hero artwork plan resolved BEFORE page renders:** Previously resolved in-composition via `produceState`, causing a jarring pop/swap from low-res source image to TMDB/Fanart artwork. `ApiResultDetailViewModel.resolveHeroArtwork()` now resolves and preloads the best artwork prior to `_detailLoading = false`.
+- **Enlarged landscape hero:** Landscape mode now uses a 250dp floor and up to 72% of screen height ceiling. Non-standard aspect ratios use soft ambient fill rather than cropping.
+- **Full-visibility guarantee:** 16:9 artwork fits cleanly with `COVER`, while vertical posters or ultra-wide art adapt cleanly with `CONTAIN_WITH_FILL`.
+
+### ✅ 2. Tests
+- 3 new unit tests in `HeroImageSelectionTest` covering target size bounds, 16:9 cinematic ratio calculation, and zero cropping on vertical posters.
+
+---
+
 ## 🇹🇷 Türkçe (v2.4.251)
 
 ### 🇹🇷 1. TMDB Türkçe Başlık Varyantı (TR-Only Boşluğu Kapandı)

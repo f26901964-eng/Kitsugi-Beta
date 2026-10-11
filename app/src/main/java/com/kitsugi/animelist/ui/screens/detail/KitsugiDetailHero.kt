@@ -11,7 +11,7 @@ import com.kitsugi.animelist.data.remote.GalleryItem
 import com.kitsugi.animelist.data.remote.KitsugiHeroArtworkResolver
 import com.kitsugi.animelist.model.MediaType
 import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.produceState
+import kotlinx.coroutines.CancellationException
 import androidx.compose.ui.BiasAlignment
 import androidx.compose.ui.platform.LocalConfiguration
 
@@ -51,6 +51,7 @@ import androidx.compose.material3.MaterialTheme
 import com.kitsugi.animelist.ui.theme.gradient.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -106,6 +107,14 @@ fun KitsugiDetailHero(
     mediaType: MediaType = MediaType.Anime,
     /** Görsel çözümleyici için kaynak öğe (TMDB + Fanart.tv en kaliteli poster/arka plan). */
     artworkItem: JikanSearchResult? = null,
+    /**
+     * Sayfa açılmadan **ÖNCE** çözülmüş vitrin görsel planı.
+     *
+     * Verildiğinde vitrin ilk kareden itibaren en kaliteli TMDB/Fanart.tv görselini
+     * gösterir; kendi ağ çağrısını yapmaz. Böylece kullanıcı önce düşük çözünürlüklü
+     * kaynak görselini görüp sonra değişimini izlemez.
+     */
+    preResolvedArtwork: KitsugiHeroArtworkResolver.HeroArtwork? = null,
     /** Galeri görselleri (kaynak + TMDB/Fanart). Dikey/yatay adaylar olarak vitrine eklenir. */
     galleryItems: List<GalleryItem> = emptyList()
 ) {
@@ -121,14 +130,37 @@ fun KitsugiDetailHero(
     // içinde **kesilmeden** gösterilir; vitrin asla tam boy poster paneline dönüşmez.
     val configuration = LocalConfiguration.current
     val screenHeightDp = configuration.screenHeightDp.toFloat()
+    val isLandscapeScreen = configuration.screenWidthDp > configuration.screenHeightDp
 
     val artworkKey = artworkItem?.let { KitsugiHeroArtworkResolver.cacheKey(it) }
-    val artwork by produceState<KitsugiHeroArtworkResolver.HeroArtwork?>(
-        initialValue = artworkItem?.let { KitsugiHeroArtworkResolver.getCached(it) },
-        key1 = artworkKey
-    ) {
-        val item = artworkItem ?: return@produceState
-        value = runCatching { KitsugiHeroArtworkResolver.resolveArtwork(item) }.getOrNull() ?: value
+    // Önceden çözülmüş plan varsa ilk değer olarak onu kullan; yoksa önbelleğe bak.
+    // Böylece vitrin, "doğru" görsel seçilmeden asla düşük çözünürlüklü kaynak
+    // görselini ekrana basmaz. Kimlik sonradan netleşirse (ör. TMDB kimliği detay
+    // zenginleştirmesiyle gecikmeli çözülürse) mevcut görsel korunur, daha iyisi
+    // bulunduğunda yükseltilir.
+    var artwork by remember(preResolvedArtwork) {
+        mutableStateOf(
+            preResolvedArtwork
+                ?: artworkItem?.let { KitsugiHeroArtworkResolver.getCached(it) }
+        )
+    }
+    // Önceden çözüm yoksa (geri tuşuyla dönüş, önbellek temizliği) ya da çözülmüş
+    // planda hiç yatay aday yoksa vitrin kendi çözümlemesini arka planda tamamlar.
+    LaunchedEffect(artworkKey, preResolvedArtwork) {
+        val presetHasWideArtwork =
+            preResolvedArtwork?.backdropCandidates?.any { it.isNotBlank() } == true
+        if (presetHasWideArtwork) return@LaunchedEffect
+        val item = artworkItem ?: return@LaunchedEffect
+        val resolved = try {
+            KitsugiHeroArtworkResolver.resolveArtwork(item)
+        } catch (ce: CancellationException) {
+            throw ce
+        } catch (e: Exception) {
+            null
+        }
+        if (resolved != null && resolved != artwork) {
+            artwork = resolved
+        }
     }
 
     // Galeri adaylarını yön ve çözünürlüğe göre sırala (en yüksek çözünürlük önce).
@@ -190,8 +222,16 @@ fun KitsugiDetailHero(
     ) {
         // 16:9 SİNEMATİK BANT: görsel alanı panel genişliğinden türetilir (telefon, tablet,
         // TV — dikey/yatay hepsi aynı oranı görür) ve ekran yüksekliğinin %62'sini geçmez.
+        //
+        // YATAY modda sol panel dar olduğu için 16:9 bant küçük kalıyordu (ekran
+        // görüntülerindeki "ufak vitrin" şikâyeti). Bu yüzden yatayda bant bir taban
+        // yüksekliğe (250dp) ve daha yüksek tavana (%72) kavuşur; görsel banttan
+        // belirgin saparsa KIRPILMAZ, "tam görünür + yumuşak dolgu" ile gösterilir.
+        val bannerCapDp = if (isLandscapeScreen) screenHeightDp * 0.72f else screenHeightDp * 0.62f
+        val bannerFloorDp = if (isLandscapeScreen) 250f else 0f
         val bannerHeight = (maxWidth * DETAIL_HERO_BANNER_RATIO)
-            .coerceAtMost((screenHeightDp * 0.62f).dp)
+            .coerceAtLeast(bannerFloorDp.dp)
+            .coerceAtMost(bannerCapDp.dp)
         val heroBoxHeight = bannerHeight + DETAIL_HERO_INFO_AREA_HEIGHT
 
         // 2. ADIM: asıl vitrin alanı (bant + alt bilgi alanı)
@@ -237,7 +277,8 @@ fun KitsugiDetailHero(
                         blurAdultMedia = blurAdultMedia,
                         modifier = imageAreaModifier.alpha(0.30f),
                         contentScale = ContentScale.Crop,
-                        alignment = BiasAlignment(0f, -0.20f)
+                        alignment = BiasAlignment(0f, -0.20f),
+                        highQuality = true
                     )
                     KitsugiNsfwImage(
                         model = heroImageModel,
@@ -248,7 +289,8 @@ fun KitsugiDetailHero(
                         contentScale = ContentScale.Fit,
                         alignment = Alignment.Center,
                         onLoadingFailed = onFailed,
-                        onImageAspectResolved = onAspect
+                        onImageAspectResolved = onAspect,
+                        highQuality = true
                     )
                 } else {
                     KitsugiNsfwImage(
@@ -260,7 +302,8 @@ fun KitsugiDetailHero(
                         contentScale = ContentScale.Crop,
                         alignment = heroAlignment,
                         onLoadingFailed = onFailed,
-                        onImageAspectResolved = onAspect
+                        onImageAspectResolved = onAspect,
+                        highQuality = true
                     )
                 }
             } else {

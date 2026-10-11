@@ -104,6 +104,7 @@ internal fun DetailHero(
     // Poster yalnızca hiç yatay görsel yoksa bandın içinde kesilmeden gösterilir.
     val configuration = LocalConfiguration.current
     val screenHeightDp = configuration.screenHeightDp.toFloat()
+    val isLandscapeScreen = configuration.screenWidthDp > configuration.screenHeightDp
 
     val posterUrl = remember(entry.imageUrl) { KitsugiHeroArtworkResolver.upgradeNativePosterUrl(entry.imageUrl) }
     val wideGalleryUrls = remember(galleryItems) {
@@ -122,8 +123,14 @@ internal fun DetailHero(
     ) {
         // 16:9 SİNEMATİK BANT: görsel alanı panel genişliğinden türetilir ve ekran
         // yüksekliğinin %62'sini geçmez (TV / büyük tablet güvenliği).
+        // Yatay modda sol panel dar kaldığı için bant bir tabana (250dp) ve daha yüksek
+        // tavana (%72) kavuşur; görsel banttan saparsa KIRPILMAZ, "tam görünür + yumuşak
+        // dolgu" ile gösterilir.
+        val bannerCapDp = if (isLandscapeScreen) screenHeightDp * 0.72f else screenHeightDp * 0.62f
+        val bannerFloorDp = if (isLandscapeScreen) 250f else 0f
         val bannerHeight = (maxWidth * DETAIL_HERO_BANNER_RATIO)
-            .coerceAtMost((screenHeightDp * 0.62f).dp)
+            .coerceAtLeast(bannerFloorDp.dp)
+            .coerceAtMost(bannerCapDp.dp)
         val heroBoxHeight = bannerHeight + DETAIL_HERO_INFO_AREA_HEIGHT
 
         // 2. ADIM: asıl vitrin alanı (bant + alt bilgi alanı)
@@ -159,7 +166,8 @@ internal fun DetailHero(
                     blurAdultMedia = blurAdultMedia,
                     modifier = imageAreaModifier.alpha(0.30f),
                     contentScale = ContentScale.Crop,
-                    alignment = BiasAlignment(0f, -0.20f)
+                    alignment = BiasAlignment(0f, -0.20f),
+                    highQuality = true
                 )
                 // 2. Kesilmemiş, ortalanmış görsel
                 KitsugiNsfwImage(
@@ -173,7 +181,8 @@ internal fun DetailHero(
                     onLoadingFailed = {
                         if (imageIndex < imagePlan.lastIndex) imageIndex += 1
                     },
-                    onImageAspectResolved = { ratio -> loadedImageAspect = ratio }
+                    onImageAspectResolved = { ratio -> loadedImageAspect = ratio },
+                    highQuality = true
                 )
             } else if (!heroImageModel.isNullOrBlank()) {
                 KitsugiNsfwImage(
@@ -188,7 +197,8 @@ internal fun DetailHero(
                     onLoadingFailed = {
                         if (imageIndex < imagePlan.lastIndex) imageIndex += 1
                     },
-                    onImageAspectResolved = { ratio -> loadedImageAspect = ratio }
+                    onImageAspectResolved = { ratio -> loadedImageAspect = ratio },
+                    highQuality = true
                 )
             } else {
                 Box(

@@ -122,7 +122,17 @@ fun KitsugiNsfwImage(
     /** Görsel yüklenemezse çağrılır — çağıran taraf yedek bir kaynaka düşebilir. */
     onLoadingFailed: (() -> Unit)? = null,
     /** Görsel başarıyla yüklendiğinde gerçek en/boy oranını (width / height) bildirir. */
-    onImageAspectResolved: ((Float) -> Unit)? = null
+    onImageAspectResolved: ((Float) -> Unit)? = null,
+    /**
+     * Tam kalite modu — **yalnızca vitrin (hero) gibi ekranda tek ve büyük duran
+     * görsellerde** kullanılır.
+     *
+     * Uygulamanın genel [coil3.ImageLoader]'ı bellek tasarrufu için `allowRgb565(true)`
+     * ile kuruludur. RGB_565 kanal başına 5/6/5 bit olduğu için yumuşak gradyanlarda
+     * (gökyüzü, sakura, ışık geçişleri) bantlaşmaya yol açar. Bu mod vitrin görselini
+     * tam 8-bit renkte ve sınırlı ölçüde decode eder; ayrıntılar [HeroArtworkImagePolicy].
+     */
+    highQuality: Boolean = false
 ) {
     // Components that already receive the setting pass it through explicitly. Keep the
     // composition-local as a fallback (and OR it in) so nested screens cannot accidentally
@@ -139,20 +149,24 @@ fun KitsugiNsfwImage(
 
     val context = LocalContext.current
     val isBlankModel = model == null || (model is String && model.isBlank())
-    val imageModel: Any? = if (isBlankModel) {
-        null
-    } else if (useBitmapBlur) {
-        // blurRadius.dp → px dönüşümü; yoğun ekranda daha yumuşak görünür
-        val density = LocalDensity.current
-        val radiusPx = with(density) { blurRadius.toPx() }.toInt()
-        remember(model, radiusPx) {
-            ImageRequest.Builder(context)
-                .data(model)
-                .transformations(KitsugiBlurSupport.bitmapBlurTransformation(radiusPx))
-                .build()
+    val imageModel: Any? = when {
+        isBlankModel -> null
+        useBitmapBlur -> {
+            // blurRadius.dp → px dönüşümü; yoğun ekranda daha yumuşak görünür
+            val density = LocalDensity.current
+            val radiusPx = with(density) { blurRadius.toPx() }.toInt()
+            remember(model, radiusPx) {
+                ImageRequest.Builder(context)
+                    .data(model)
+                    .transformations(KitsugiBlurSupport.bitmapBlurTransformation(radiusPx))
+                    .build()
+            }
         }
-    } else {
-        model
+        // Vitrin: RGB_565 degrade'ini kapat, sınırlı ve sabit anahtarlı ölçü kullan.
+        highQuality && model is String -> remember(model) {
+            HeroArtworkImagePolicy.request(context, model)
+        }
+        else -> model
     }
 
     // Apply the blur at the Box level so that BOTH the placeholder background/shimmer

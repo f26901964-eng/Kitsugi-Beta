@@ -239,6 +239,8 @@ fun ApiResultDetailPage(
     val mdbListRatings by viewModel.mdbListRatings.collectAsState()
     val mdbListLoading by viewModel.mdbListLoading.collectAsState()
     val galleryLoading by viewModel.galleryLoading.collectAsState()
+    // Vitrin görsel planı sayfa açılmadan ÖNCE çözülür (TMDB/Fanart.tv en kaliteli sıra).
+    val heroArtwork by viewModel.heroArtwork.collectAsState()
     CompositionLocalProvider(LocalKitsugiGalleryLoading provides galleryLoading) {
     val pageResetTrigger by viewModel.pageResetTrigger.collectAsState()
 
@@ -487,7 +489,8 @@ fun ApiResultDetailPage(
                     onShowAuthWarning = { showAuthWarningDialog = true },
                     leftPanelFocusRequester = lpFocus,
                     tabBarFocusRequester = tbFocus,
-                    targetSeason = targetSeason
+                    targetSeason = targetSeason,
+                    heroArtwork = heroArtwork
                 )
             },
             floatingHeaderActions = {
@@ -576,7 +579,8 @@ fun ApiResultDetailPage(
                         onShowAuthWarning = { showAuthWarningDialog = true },
                         leftPanelFocusRequester = lpFocus,
                         tabBarFocusRequester = tbFocus,
-                        targetSeason = targetSeason
+                        targetSeason = targetSeason,
+                        heroArtwork = heroArtwork
                     )
                 }
             },
