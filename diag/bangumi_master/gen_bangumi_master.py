@@ -236,8 +236,8 @@ __ROWS__
     /** Sözlükteki tüm kayıtlar (test ve araç kullanımı için). */
     fun allEntries(): List<BangumiOrgEntry> = orgs.map { it.entry }
 
-    private val CORPORATE_PREFIX = Regex("^(合同会社|株式会社|有限会社|有限公司|股份有限公司)\\s*")
-    private val CORPORATE_SUFFIX = Regex("\\s*(合同会社|株式会社|有限会社|有限公司|股份有限公司)$")
+    private val CORPORATE_PREFIX = Regex("""^(合同会社|株式会社|有限会社|有限公司|股份有限公司)\\s*""")
+    private val CORPORATE_SUFFIX = Regex("""\\s*(合同会社|株式会社|有限会社|有限公司|股份有限公司)$""")
 
     /** `株式会社集英社` → `集英社`: unvan ekleri lookup için yok sayılır. */
     private fun stripCorporateSuffix(value: String): String {
@@ -261,7 +261,7 @@ __ROWS__
             }
         }
         return sb.toString()
-            .replace(Regex("\\s+"), " ")
+            .replace(Regex("""\\s+"""), " ")
             .trim()
             .lowercase(Locale.ROOT)
     }
@@ -371,7 +371,7 @@ __ROWS__
             }
         }
         return sb.toString()
-            .replace(Regex("\\s+"), " ")
+            .replace(Regex("""\\s+"""), " ")
             .trim()
             .lowercase(Locale.ROOT)
     }

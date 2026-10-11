@@ -119,7 +119,7 @@ internal object BangumiRoleDictionary {
             }
         }
         return sb.toString()
-            .replace(Regex("\s+"), " ")
+            .replace(Regex("""\s+"""), " ")
             .trim()
             .lowercase(Locale.ROOT)
     }

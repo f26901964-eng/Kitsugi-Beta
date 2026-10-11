@@ -36,6 +36,9 @@ STRINGS_TR = ROOT / "app/src/main/res/values/strings.xml"
 STRINGS_EN = ROOT / "app/src/main/res/values-en/strings.xml"
 
 RESOURCE_NAME_RE = re.compile(r"^[a-z_][a-z0-9_]*$")
+# Kotlin normal dizesinde geçerli kaçışlar. `\s`, `\d`, `\w` GİBİ regex kaçışları
+# normal dizede GEÇERSİZDİR (ham dize `"""..."""` gerekir) — derleme hatasıdır.
+VALID_KOTLIN_ESCAPES = {"t", "b", "n", "r", "f", "'", '"', "\\", "$", "u"}
 ORG_ROW_RE = re.compile(
     r'^        o\("(?P<key>[^"]+)", BangumiOrgRole\.(?P<role>[A-Z]+), '
     r'"(?P<tr>(?:[^"\\]|\\.)*)", "(?P<en>(?:[^"\\]|\\.)*)"(?P<rest>.*)\)(?P<comma>,?)\s*$',
@@ -299,6 +302,46 @@ def check_resource_names(report: Report, name: str, rows: list[dict], prefix: st
         report.ok(f"K7 {name}: {len(rows)} kaynak adı geçerli")
 
 
+def check_kotlin_escapes(report: Report, name: str, path: Path) -> None:
+    """
+    K9: üretilen Kotlin dosyalarında geçersiz dize kaçışı denetimi.
+
+    Geçmişte yaşanan hata: üreteç `Regex("\\s+")` yerine `Regex("\s+")` üretti —
+    normal Kotlin dizesinde `\s` geçersiz kaçıştır ve dosya derlenmez. Python
+    doğrulayıcı sözdizimini görmediği için bunu yalnızca kotlinc yakalamıştı; bu
+    kontrol aynı hatayı JVM olmadan yakalar. Ham dize blokları denetim dışıdır.
+    """
+    if not path.exists():
+        return
+    text = path.read_text(encoding="utf-8")
+    bad: list[str] = []
+    for lineno, line in enumerate(text.splitlines(), start=1):
+        # Ham dize parçalarını çıkar: onların içindeki \ geçerlidir.
+        stripped = re.sub(r'""".*?"""', '""', line)
+        index = 0
+        while index < len(stripped):
+            char = stripped[index]
+            if char != '"':
+                index += 1
+                continue
+            index += 1
+            while index < len(stripped) and stripped[index] != '"':
+                if stripped[index] == "\\":
+                    if index + 1 < len(stripped):
+                        esc = stripped[index + 1]
+                        if esc not in VALID_KOTLIN_ESCAPES:
+                            bad.append(f"{lineno}: `\\{esc}` → {line.strip()[:64]}")
+                        index += 2
+                        continue
+                index += 1
+            index += 1
+    if bad:
+        for entry in bad[:5]:
+            report.err(f"K9 {name}: geçersiz Kotlin kaçışı {entry}")
+    else:
+        report.ok(f"K9 {name}: dize kaçışları geçerli")
+
+
 def check_duplicate_resources(report: Report, label: str, path: Path) -> None:
     """K8: aynı kaynak adı bir dosyada iki kez tanımlanamaz (aapt2 derlemeyi reddeder)."""
     names: dict[str, int] = {}
@@ -319,6 +362,9 @@ def main() -> int:
     tags = read_tags()
     roles = read_roles() if ROLE_KT.exists() else []
 
+    check_kotlin_escapes(report, "BangumiOrgDictionary", ORG_KT)
+    check_kotlin_escapes(report, "BangumiRoleDictionary", ROLE_KT)
+    check_kotlin_escapes(report, "BangumiTagDictionary", TAG_KT)
     check_duplicate_resources(report, "values/", STRINGS_TR)
     check_duplicate_resources(report, "values-en/", STRINGS_EN)
     check_structure(report, "org", orgs, ORG_KT)
