@@ -533,6 +533,28 @@ class CloudstreamRepoRepository(private val context: Context) {
                 )
                 if (downloadSuccess) {
                     com.kitsugi.animelist.data.cloudstream.CsAutoUpdateBackoff.clear(context, latestPlugin.internalName)
+
+                    // İndirme BAŞARILI olsa bile dosya, manifestin bildirdiği içerik değilse
+                    // (ör. birincil kaynak engelli, yalnızca eski bir ayna erişilebilir) her
+                    // eşitlemede yeniden indirmeyi önlemek için bu içerik işaretlenir.
+                    // NOT: `clear` ÖNCE çağrılır; aksi halde yeni kayıt silinirdi.
+                    val expected = com.kitsugi.animelist.data.cloudstream.CsPluginUpdateChecker
+                        .normalizeHash(latestPlugin.fileHash)
+                    val actual = com.kitsugi.animelist.data.cloudstream.CsInstalledFingerprint
+                        .sha256(context, latestPlugin.internalName)
+                    val contentMatched = expected == null || actual == null || expected.equals(actual, ignoreCase = true)
+
+                    if (!contentMatched) {
+                        com.kitsugi.animelist.data.cloudstream.CsAutoUpdateBackoff.markFailed(
+                            context, latestPlugin.internalName, latestPlugin.version, latestPlugin.fileHash
+                        )
+                        Log.w(
+                            TAG,
+                            "İndirilen dosya manifestteki içerikle eşleşmiyor (${installedPlugin.name}): " +
+                                "beklenen=${expected?.take(12)}… gelen=${actual?.take(12)}… — " +
+                                "12 saat boyunca yeniden denenmeyecek."
+                        )
+                    }
                     val updatedEntity = installedPlugin.copy(
                         version = latestPlugin.version,
                         downloadUrl = latestPlugin.url,
