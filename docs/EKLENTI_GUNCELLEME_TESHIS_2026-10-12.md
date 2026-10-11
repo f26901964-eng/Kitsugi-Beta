@@ -81,6 +81,69 @@ için `PLUGINS_TO_BUILD` boş kalıyor → adım `exit 0` ile bitiyor → **hiç
 `plugins.json` güncellenmiyor**. 7 Ekim'deki `main` push'unda görülen tablo tam olarak budur:
 yayın adımı "success" ama içeride "Değişiklik yok, push atlanıyor".
 
+### Hazır iş akışı yaması (Kitsugi-Plugins → `.github/workflows/Derleyici.yml`)
+
+Aşağıdaki iki parçayı uygulamak, yukarıdaki 4 kanıtın tamamını kapatır:
+
+```yaml
+      - name: Degisen Eklentileri Bul ve Derle
+        run: |
+          cd $GITHUB_WORKSPACE/src
+
+          MANUAL="${{ github.event.inputs.plugins }}"
+          if [ -n "$MANUAL" ]; then
+            CHANGED="$MANUAL"
+          else
+            CHANGED=$(git diff --name-only HEAD~1 HEAD | grep -oP '^[^/]+' | sort -u)
+          fi
+          echo "Degisen klasorler: $CHANGED"
+
+          PLUGINS_TO_BUILD=""
+          for dir in $CHANGED; do
+            if [ -f "$dir/build.gradle.kts" ]; then
+              PLUGINS_TO_BUILD="$PLUGINS_TO_BUILD :$dir:make"
+            fi
+          done
+
+          chmod +x gradlew || true
+          if [ -n "$PLUGINS_TO_BUILD" ]; then
+            ./gradlew $PLUGINS_TO_BUILD makePluginsJson
+            for dir in $CHANGED; do
+              CS3="$dir/build/$dir.cs3"
+              [ -f "$CS3" ] && cp "$CS3" $GITHUB_WORKSPACE/builds/
+            done
+          else
+            echo "Derlenecek Gradle modulu yok — prebuilt/manifest adimina geciliyor."
+          fi
+
+          # prebuilt kopyalari ve manifest artik HER ZAMAN calisir
+          mkdir -p $GITHUB_WORKSPACE/builds/prebuilt
+          cp prebuilt/*.cs3 $GITHUB_WORKSPACE/builds/prebuilt/ 2>/dev/null || true
+          cp prebuilt/*.cs3 $GITHUB_WORKSPACE/builds/ 2>/dev/null || true
+          python3 merge_plugins.py
+          cp build/plugins.json $GITHUB_WORKSPACE/builds
+
+      - name: Derlemeleri Yukle
+        if: ${{ github.event.inputs.teshis != '1' }}
+        run: |
+          cd $GITHUB_WORKSPACE/builds
+          git config --local user.email "actions@github.com"
+          git config --local user.name "GitHub Actions"
+          git add .
+          if git diff --staged --quiet; then
+            echo "Degisiklik yok, push atlaniyor."
+            exit 0
+          fi
+          git commit -am "Derleme: ${GITHUB_SHA}"
+          git push origin HEAD:builds
+```
+
+Notlar:
+- `git push origin HEAD:builds` (force yerine normal push) geçmişi korur; force gerekliyse
+  `git push --force origin HEAD:builds` kullanılabilir.
+- Yayın adımı artık `main`'e bağlı değil: hangi dalda çalışırsa `builds` dalını günceller.
+- Geçici teşhis adımları ve `teshis-cikti` yayını kaldırılmalıdır.
+
 ### Depo tarafı için önerilen düzeltme (Kitsugi-Plugins)
 1. Yayın adımının koşulunu `main` dışındaki çalışma dallarına da aç (geçici dal dahil) —
    `arena/d4c5fe64-kitsugi-plugins` sürümünde bu yapılmış durumda, kalıcı olarak `main`'e taşınmalı.
