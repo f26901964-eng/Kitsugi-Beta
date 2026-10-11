@@ -401,15 +401,32 @@ class AddonViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    /**
+     * Depo listelerinden **canlı** kayıtların `internalName → en yeni kayıt` haritası.
+     *
+     * Yedek kaynaktan gelen kayıtlar (`fromOfflineFallback`) dışarıda bırakılır: Codeberg
+     * aynası ve APK içine gömülü liste, uygulamanın derlendiği/aynalandığı andaki sürümleri
+     * taşır. Bu bayat sürümlerle "güncelleme var/yok" demek yanıltıcı olur.
+     */
+    private fun latestLivePluginMap(): Map<String, CsPlugin> {
+        val map = mutableMapOf<String, CsPlugin>()
+        repoPluginsState.values.filterNotNull().flatten().forEach { plugin ->
+            if (plugin.fromOfflineFallback) return@forEach
+            val existing = map[plugin.internalName]
+            if (existing == null || plugin.version > existing.version) {
+                map[plugin.internalName] = plugin
+            }
+        }
+        return map
+    }
+
     fun calculateAvailableUpdates() {
         viewModelScope.launch {
             try {
-                val allPlugins = repoPluginsState.values.filterNotNull().flatten()
                 val installed = KitsugiDatabase.getDatabase(context).csPluginDao().getAllPlugins()
-                availableUpdatesCount = installed.count { inst ->
-                    val latest = allPlugins.find { it.internalName == inst.id }
-                    latest != null && latest.version > inst.version
-                }
+                availableUpdatesCount = com.kitsugi.animelist.data.cloudstream.CsPluginUpdateChecker
+                    .pendingUpdates(context, installed, latestLivePluginMap())
+                    .size
             } catch (_: Exception) {}
         }
     }
@@ -420,32 +437,51 @@ class AddonViewModel(application: Application) : AndroidViewModel(application) {
             try {
                 val repos = KitsugiDatabase.getDatabase(context).cloudstreamRepoDao().getAllRepos()
                 val allPluginsMap = mutableMapOf<String, CsPlugin>()
+                var liveRepoCount = 0
                 for (repo in repos) {
                     repoLoadingState = repoLoadingState + (repo.repoUrl to true)
-                    val plugins = csRepoRepository.fetchPluginsForRepo(repo.repoUrl, forceRefresh = true)
-                    repoPluginsState = repoPluginsState + (repo.repoUrl to plugins)
+                    val result = csRepoRepository.fetchPluginsForRepoDetailed(repo.repoUrl, forceRefresh = true)
+                    repoPluginsState = repoPluginsState + (repo.repoUrl to result.plugins)
                     repoLoadingState = repoLoadingState + (repo.repoUrl to false)
-                    if (plugins != null) {
-                        for (p in plugins) {
-                            val prev = allPluginsMap[p.internalName]
-                            if (prev == null || p.version > prev.version) {
-                                allPluginsMap[p.internalName] = p
-                            }
+                    if (!result.liveData) {
+                        android.util.Log.w(
+                            "AddonViewModel",
+                            "Canlı eklenti listesi alınamadı (yedek/asset verisi): ${repo.repoUrl}"
+                        )
+                        continue
+                    }
+                    liveRepoCount++
+                    for (p in result.plugins) {
+                        if (p.fromOfflineFallback) continue
+                        val prev = allPluginsMap[p.internalName]
+                        if (prev == null || p.version > prev.version) {
+                            allPluginsMap[p.internalName] = p
                         }
                     }
                 }
 
                 val installed = KitsugiDatabase.getDatabase(context).csPluginDao().getAllPlugins()
-                val updatable = installed.filter { inst ->
-                    val latest = allPluginsMap[inst.id]
-                    latest != null && latest.version > inst.version
-                }
+                val updatable = com.kitsugi.animelist.data.cloudstream.CsPluginUpdateChecker
+                    .pendingUpdates(context, installed, allPluginsMap)
                 availableUpdatesCount = updatable.size
 
-                val msg = if (updatable.isNotEmpty()) {
-                    "🎉 ${updatable.size} eklenti için güncelleme bulundu!"
-                } else {
-                    "✅ Tüm eklentiler güncel"
+                // Kaç tanesi yalnızca "dosya değişti" (sürüm numarası aynı kaldı) nedeniyle güncellenecek?
+                val contentOnlyCount = updatable.count { (entity, latest) ->
+                    com.kitsugi.animelist.data.cloudstream.CsPluginUpdateChecker.reason(context, entity, latest) ==
+                        com.kitsugi.animelist.data.cloudstream.CsPluginUpdateChecker.Reason.CONTENT
+                }
+
+                val msg = when {
+                    updatable.isNotEmpty() && contentOnlyCount == updatable.size ->
+                        "🎉 ${updatable.size} eklenti yeniden derlenmiş (içerik değişti) — güncellenebilir"
+                    updatable.isNotEmpty() && contentOnlyCount > 0 ->
+                        "🎉 ${updatable.size} eklenti için güncelleme bulundu (${contentOnlyCount} tanesi içerik değişikliği)"
+                    updatable.isNotEmpty() ->
+                        "🎉 ${updatable.size} eklenti için güncelleme bulundu!"
+                    liveRepoCount == 0 ->
+                        "⚠️ Eklenti deposuna ulaşılamadı — güncellemeler denetlenemedi"
+                    else ->
+                        "✅ Tüm eklentiler güncel"
                 }
                 if (!silent) {
                     onShowMessage?.invoke(msg)
@@ -463,12 +499,11 @@ class AddonViewModel(application: Application) : AndroidViewModel(application) {
 
     fun updateAllPendingPlugins() {
         viewModelScope.launch {
-            val allPlugins = repoPluginsState.values.filterNotNull().flatten()
             val installed = KitsugiDatabase.getDatabase(context).csPluginDao().getAllPlugins()
-            val toUpdate = allPlugins.filter { plugin ->
-                val inst = installed.find { it.id == plugin.internalName }
-                inst != null && inst.version < plugin.version
-            }.distinctBy { it.internalName }
+            // Güncelleme listesi: sürüm numarası VEYA dosya içeriği değişmiş eklentiler.
+            // (Yedek kaynaklı kayıtlar hesaba katılmaz — bkz. latestLivePluginMap.)
+            val toUpdate = com.kitsugi.animelist.data.cloudstream.CsPluginUpdateChecker
+                .pendingUpdates(context, installed, latestLivePluginMap())
 
             if (toUpdate.isEmpty()) {
                 onShowMessage?.invoke(KitsugiStrings.get(R.string.guncellenecek_eklenti_bulunamadi))
@@ -479,12 +514,13 @@ class AddonViewModel(application: Application) : AndroidViewModel(application) {
             bulkInstallRepoName = "Tüm Eklentiler"
             bulkInstallTotal = toUpdate.size
             bulkInstallDone = 0
-            bulkInstallCurrentName = toUpdate.firstOrNull()?.name ?: ""
+            bulkInstallCurrentName = toUpdate.firstOrNull()?.second?.name ?: ""
             bulkInstallResultMessage = null
 
             var successCount = 0
             val updatedIds = mutableListOf<String>()
-            for ((index, plugin) in toUpdate.withIndex()) {
+            for ((index, entry) in toUpdate.withIndex()) {
+                val plugin = entry.second
                 bulkInstallCurrentName = plugin.name
                 bulkInstallDone = index
                 installPluginMutex.withLock {
@@ -635,7 +671,8 @@ class AddonViewModel(application: Application) : AndroidViewModel(application) {
                     false
                 } else {
                     val installed = csPlugins.find { it.id == plugin.internalName }
-                    installed != null && installed.version < plugin.version
+                    installed != null && com.kitsugi.animelist.data.cloudstream.CsPluginUpdateChecker
+                        .hasUpdate(context, installed, plugin)
                 }
             }
             if (toUpdate.isEmpty()) {

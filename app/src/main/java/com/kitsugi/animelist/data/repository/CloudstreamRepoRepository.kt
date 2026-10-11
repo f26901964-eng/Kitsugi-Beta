@@ -51,12 +51,51 @@ class CloudstreamRepoRepository(private val context: Context) {
 
     companion object {
         private const val TAG = "CloudstreamRepoRepository"
-        /** App process seviyesinde tek bir sync çalışması yeterlidir.
-         *  30 dakika geçmeden ikinci bir syncAndAutoUpdate başlatılmaz.
+        private const val SYNC_PREFS = "cs_repo_sync"
+        private const val KEY_LAST_SYNC_AT = "last_sync_at"
+        private const val KEY_LAST_SYNC_LIVE = "last_sync_live"
+
+        /**
+         * Aynı süreçte art arda eşitleme yapılmasını engelleyen pencere.
+         *
+         * ÖNEMLİ: Bu süre artık kalıcı olarak (SharedPreferences) tutulur. Önce yalnızca
+         * `@Volatile` bir alandı; uygulama öldürülüp yeniden açıldığında sayaç sıfırlanıyor,
+         * ama aynı süreçte sekme değiştirmek/uygulamayı öne almak da eşitlemeyi atlıyordu.
+         * Kalıcı kayıt sayesinde "en son ne zaman CANLI veriyle denetlendi" bilgisi tutulur.
          */
-        @Volatile private var lastSyncAtMs: Long = 0L
-        private const val SYNC_THROTTLE_MS = 30 * 60 * 1000L // 30 dakika
+        private const val SYNC_THROTTLE_MS = 15 * 60 * 1000L // 15 dakika
+
+        /** Başarısız/çevrimdışı denemeler eşitleme zamanı sayılmaz → daha kısa süre sonra tekrar denenir. */
+        private const val OFFLINE_RETRY_MS = 2 * 60 * 1000L // 2 dakika
     }
+
+    private fun syncPrefs() =
+        context.applicationContext.getSharedPreferences(SYNC_PREFS, Context.MODE_PRIVATE)
+
+    private fun lastSyncAt(): Long = runCatching { syncPrefs().getLong(KEY_LAST_SYNC_AT, 0L) }.getOrDefault(0L)
+
+    private fun lastSyncWasLive(): Boolean = runCatching { syncPrefs().getBoolean(KEY_LAST_SYNC_LIVE, false) }.getOrDefault(false)
+
+    private fun recordSync(liveData: Boolean) {
+        runCatching {
+            syncPrefs().edit()
+                .putLong(KEY_LAST_SYNC_AT, System.currentTimeMillis())
+                .putBoolean(KEY_LAST_SYNC_LIVE, liveData)
+                .apply()
+        }
+    }
+
+    /**
+     * Depodan alınan eklenti listesi + verinin güvenilirliği.
+     *
+     * [liveData] false ise liste yedek kaynaktan gelmiştir (Codeberg aynası veya APK içine
+     * gömülü bayat `assets/plugins/plugins.json`). Bu durumda "güncelleme yok" sonucu
+     * GERÇEK değildir; gömülü liste uygulamanın derlendiği andaki sürümleri taşır.
+     */
+    data class RepoPluginsResult(
+        val plugins: List<CsPlugin>,
+        val liveData: Boolean
+    )
 
     /** Flow of all stored repos, ordered by insertion time. */
     fun getReposFlow(): Flow<List<CloudstreamRepoEntity>> = repoDao.getAllReposFlow()
@@ -219,15 +258,31 @@ class CloudstreamRepoRepository(private val context: Context) {
         Log.d(TAG, "Deleted repo: ${repo.name}")
     }
 
-    suspend fun fetchPluginsForRepo(repoUrl: String, forceRefresh: Boolean = false): List<CsPlugin>? = withContext(Dispatchers.IO) {
-        val normalizedUrl = normalizeRepoUrl(repoUrl)
-        val preferProxy = useGithubProxySetting()
-        var result = client.fetchAllPlugins(normalizedUrl, useGithubProxy = preferProxy, forceRefresh = forceRefresh)
-        if (result == null && !preferProxy && repoUrl.contains("raw.githubusercontent.com", ignoreCase = true)) {
-            result = client.fetchAllPlugins(normalizedUrl, useGithubProxy = true, forceRefresh = forceRefresh)
+    suspend fun fetchPluginsForRepo(repoUrl: String, forceRefresh: Boolean = false): List<CsPlugin>? =
+        fetchPluginsForRepoDetailed(repoUrl, forceRefresh).plugins.takeIf { it.isNotEmpty() }
+
+    /**
+     * [fetchPluginsForRepo] ile aynı çekimi yapar, ancak verinin CANLI depodan mı yoksa
+     * yedek kaynaktan mı geldiğini de döndürür. Güncelleme denetimi bu ayrımı kullanır:
+     * yedek kaynakla "her şey güncel" demek, kullanıcıya eklentilerinin güncelliği hakkında
+     * yanlış bilgi vermek olur.
+     */
+    suspend fun fetchPluginsForRepoDetailed(repoUrl: String, forceRefresh: Boolean = false): RepoPluginsResult =
+        withContext(Dispatchers.IO) {
+            val normalizedUrl = normalizeRepoUrl(repoUrl)
+            val preferProxy = useGithubProxySetting()
+            var result = client.fetchAllPlugins(normalizedUrl, useGithubProxy = preferProxy, forceRefresh = forceRefresh)
+            if ((result == null || result.isEmpty()) && !preferProxy && repoUrl.contains("raw.githubusercontent.com", ignoreCase = true)) {
+                result = client.fetchAllPlugins(normalizedUrl, useGithubProxy = true, forceRefresh = forceRefresh)
+            }
+            val all = result.orEmpty()
+            // Liste bütünüyle korunur (yedek kaynaktan gelen eklentiler kurulabilir kalsın),
+            // ancak güncelleme kararları yalnızca canlı kayıtlara dayanır.
+            RepoPluginsResult(
+                plugins = all,
+                liveData = all.any { !it.fromOfflineFallback }
+            )
         }
-        result
-    }
 
     /**
      * Installs a [CsPlugin] from a Cloudstream repo into the managed addons
@@ -365,6 +420,7 @@ class CloudstreamRepoRepository(private val context: Context) {
                 try { extensionFile.setWritable(true) } catch (_: Exception) {}
                 extensionFile.delete()
             }
+            com.kitsugi.animelist.data.cloudstream.CsInstalledFingerprint.invalidate(context, plugin.internalName)
             Log.d(TAG, "Successfully uninstalled CS plugin: ${plugin.name}")
         } catch (e: Exception) {
             Log.e(TAG, "uninstallCsPlugin failed for ${plugin.name}", e)
@@ -374,11 +430,13 @@ class CloudstreamRepoRepository(private val context: Context) {
     suspend fun syncAndAutoUpdate(force: Boolean = false): Int = withContext(Dispatchers.IO) {
         try {
             val now = System.currentTimeMillis()
-            if (!force && (now - lastSyncAtMs < SYNC_THROTTLE_MS)) {
-                Log.d(TAG, "syncAndAutoUpdate throttled — son sync'ten ${(now - lastSyncAtMs) / 1000}s geçti, 30dk dolmadı.")
+            val previousSyncAt = lastSyncAt()
+            val throttleWindow = if (lastSyncWasLive()) SYNC_THROTTLE_MS else OFFLINE_RETRY_MS
+            if (!force && previousSyncAt > 0L && (now - previousSyncAt < throttleWindow)) {
+                Log.d(TAG, "syncAndAutoUpdate ertelendi — son denetimden ${(now - previousSyncAt) / 1000}s geçti " +
+                    "(pencere ${throttleWindow / 1000}s, canlı=${lastSyncWasLive()}).")
                 return@withContext 0
             }
-            lastSyncAtMs = now
             Log.d(TAG, "Starting syncAndAutoUpdate (force=$force)...")
             val preferProxy = useGithubProxySetting()
             val currentRepos = repoDao.getAllRepos()
@@ -418,77 +476,89 @@ class CloudstreamRepoRepository(private val context: Context) {
             }
 
             // 2. Fetch all latest plugins from all active repos
+            //
+            // Yalnızca CANLI depo kayıtları güncelleme kararına girer. Yedek kaynaktan
+            // (Codeberg aynası / gömülü asset listesi) gelen kayıtlar bayat sürüm taşır;
+            // bunlarla ne güncelleme bulunabilir ne de "güncel" denebilir.
             val updatedRepos = repoDao.getAllRepos()
             val allLatestPluginsMap = mutableMapOf<String, CsPlugin>()
+            var liveRepoCount = 0
             for (repo in updatedRepos) {
                 try {
-                    val repoPlugins = fetchPluginsForRepo(repo.repoUrl, forceRefresh = force)
-                    if (repoPlugins != null) {
-                        for (plugin in repoPlugins) {
-                            val existing = allLatestPluginsMap[plugin.internalName]
-                            if (existing == null || plugin.version > existing.version) {
-                                allLatestPluginsMap[plugin.internalName] = plugin
-                            }
+                    val result = fetchPluginsForRepoDetailed(repo.repoUrl, forceRefresh = force)
+                    if (result.liveData) liveRepoCount++
+                    for (plugin in result.plugins) {
+                        if (plugin.fromOfflineFallback) continue
+                        val existing = allLatestPluginsMap[plugin.internalName]
+                        if (existing == null || plugin.version > existing.version) {
+                            allLatestPluginsMap[plugin.internalName] = plugin
                         }
                     }
                 } catch (e: Exception) {
                     Log.e(TAG, "Failed to fetch plugins for repo: ${repo.repoUrl}", e)
                 }
             }
+            recordSync(liveData = liveRepoCount > 0)
 
-            // 3. Auto-update installed CS plugins if newer versions are available
+            // 3. Auto-update installed CS plugins if newer versions are available.
+            //    Karar tek merkezden verilir: sürüm numarası VE dosya içerik parmak izi
+            //    (yeniden derlenen ama sürümü artırılmayan eklentiler de yakalanır).
             var updatedCount = 0
             val installedCsPlugins = csPluginDao.getAllPlugins()
             for (installedPlugin in installedCsPlugins) {
-                val latestPlugin = allLatestPluginsMap[installedPlugin.id]
-                if (latestPlugin != null && latestPlugin.version > installedPlugin.version) {
-                    // Bu sürüm için yakın zamanda tüm adaylar başarısız olduysa, her eşitlemede
-                    // yeniden denemek yerine bekle (aksi halde her açılışta ~15–20 gereksiz 404 isteği).
-                    if (com.kitsugi.animelist.data.cloudstream.CsAutoUpdateBackoff.shouldSkip(
-                            context, latestPlugin.internalName, latestPlugin.version
-                        )
-                    ) {
-                        Log.d(TAG, "Auto-update skipped (recent failure for v${latestPlugin.version}): ${installedPlugin.name}")
-                        continue
-                    }
-                    Log.d(TAG, "Auto-updating plugin: ${installedPlugin.name} from version ${installedPlugin.version} to ${latestPlugin.version}")
-                    
-                    val downloadSuccess = com.kitsugi.animelist.data.cloudstream.CsPluginLoader.downloadExtension(
-                        context,
-                        latestPlugin.internalName,
-                        latestPlugin.url,
-                        latestPlugin.fileHash,
-                        forceDownload = true
+                val latestPlugin = allLatestPluginsMap[installedPlugin.id] ?: continue
+                val updateReason = com.kitsugi.animelist.data.cloudstream.CsPluginUpdateChecker
+                    .reason(context, installedPlugin, latestPlugin)
+                if (updateReason == com.kitsugi.animelist.data.cloudstream.CsPluginUpdateChecker.Reason.NONE) {
+                    continue
+                }
+                // Bu içerik için yakın zamanda tüm adaylar başarısız olduysa, her eşitlemede
+                // yeniden denemek yerine bekle (aksi halde her açılışta ~15–20 gereksiz 404 isteği).
+                if (com.kitsugi.animelist.data.cloudstream.CsAutoUpdateBackoff.shouldSkip(
+                        context, latestPlugin.internalName, latestPlugin.version, latestPlugin.fileHash
                     )
-                    if (downloadSuccess) {
-                        com.kitsugi.animelist.data.cloudstream.CsAutoUpdateBackoff.clear(context, latestPlugin.internalName)
-                        val updatedEntity = installedPlugin.copy(
-                            version = latestPlugin.version,
-                            downloadUrl = latestPlugin.url,
-                            iconUrl = latestPlugin.iconUrl ?: installedPlugin.iconUrl,
-                            tvTypes = com.google.gson.Gson().toJson(latestPlugin.tvTypes ?: emptyList<String>()),
-                            installedAt = System.currentTimeMillis()
-                        )
-                        csPluginDao.upsert(updatedEntity)
-                        updatedCount++
-                        
-                        if (installedPlugin.enabled) {
-                            Log.d(TAG, "Reloading updated plugin in memory (async with forceReload=true): ${installedPlugin.name}")
-                            kotlinx.coroutines.GlobalScope.launch(Dispatchers.IO) {
-                                try {
-                                    com.kitsugi.animelist.data.cloudstream.CsPluginLoader.loadExtension(context, installedPlugin.id, forceReload = true)
-                                } catch (e: Exception) {
-                                    Log.e(TAG, "Failed to reload updated plugin: ${installedPlugin.name}", e)
-                                }
+                ) {
+                    Log.d(TAG, "Auto-update skipped (recent failure for v${latestPlugin.version}): ${installedPlugin.name}")
+                    continue
+                }
+                Log.d(TAG, "Auto-updating plugin: ${installedPlugin.name} " +
+                    "v${installedPlugin.version} → v${latestPlugin.version} (neden=$updateReason)")
+
+                val downloadSuccess = com.kitsugi.animelist.data.cloudstream.CsPluginLoader.downloadExtension(
+                    context,
+                    latestPlugin.internalName,
+                    latestPlugin.url,
+                    latestPlugin.fileHash,
+                    forceDownload = true
+                )
+                if (downloadSuccess) {
+                    com.kitsugi.animelist.data.cloudstream.CsAutoUpdateBackoff.clear(context, latestPlugin.internalName)
+                    val updatedEntity = installedPlugin.copy(
+                        version = latestPlugin.version,
+                        downloadUrl = latestPlugin.url,
+                        iconUrl = latestPlugin.iconUrl ?: installedPlugin.iconUrl,
+                        tvTypes = com.google.gson.Gson().toJson(latestPlugin.tvTypes ?: emptyList<String>()),
+                        installedAt = System.currentTimeMillis()
+                    )
+                    csPluginDao.upsert(updatedEntity)
+                    updatedCount++
+
+                    if (installedPlugin.enabled) {
+                        Log.d(TAG, "Reloading updated plugin in memory (async with forceReload=true): ${installedPlugin.name}")
+                        kotlinx.coroutines.GlobalScope.launch(Dispatchers.IO) {
+                            try {
+                                com.kitsugi.animelist.data.cloudstream.CsPluginLoader.loadExtension(context, installedPlugin.id, forceReload = true)
+                            } catch (e: Exception) {
+                                Log.e(TAG, "Failed to reload updated plugin: ${installedPlugin.name}", e)
                             }
                         }
-                        Log.d(TAG, "Successfully auto-updated plugin: ${installedPlugin.name}")
-                    } else {
-                        com.kitsugi.animelist.data.cloudstream.CsAutoUpdateBackoff.markFailed(
-                            context, latestPlugin.internalName, latestPlugin.version
-                        )
-                        Log.e(TAG, "Failed to download update for plugin: ${installedPlugin.name}")
                     }
+                    Log.d(TAG, "Successfully auto-updated plugin: ${installedPlugin.name}")
+                } else {
+                    com.kitsugi.animelist.data.cloudstream.CsAutoUpdateBackoff.markFailed(
+                        context, latestPlugin.internalName, latestPlugin.version, latestPlugin.fileHash
+                    )
+                    Log.e(TAG, "Failed to download update for plugin: ${installedPlugin.name}")
                 }
             }
             return@withContext updatedCount

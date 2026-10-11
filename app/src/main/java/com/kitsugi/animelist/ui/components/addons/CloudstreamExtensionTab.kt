@@ -522,7 +522,12 @@ internal fun CloudstreamExtensionsTab(
                 }
                 items(csPlugins, key = { it.id }) { plugin ->
                     val reinstallState = reinstallStates[plugin.id] ?: PluginInstallState.IDLE
-                    val latestPlugin = repoPlugins.values.filterNotNull().flatten().find { it.internalName == plugin.id }
+                    // Önce CANLI depo kaydı tercih edilir; yedek kaynaktan (ayna/gömülü liste)
+                    // gelen kayıt ancak canlı kayıt yoksa gösterilir.
+                    val candidatePlugins = repoPlugins.values.filterNotNull().flatten()
+                        .filter { it.internalName == plugin.id }
+                    val latestPlugin = candidatePlugins.firstOrNull { !it.fromOfflineFallback }
+                        ?: candidatePlugins.firstOrNull()
 
                     CsInstalledPluginRow(
                         plugin = plugin,
