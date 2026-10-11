@@ -417,8 +417,16 @@ internal object CsTitleMatcher {
             // A result that only matches the first word of a longer franchise title is usually
             // the wrong season/series (e.g. Naruto vs Naruto Shippuden). Require either a full
             // alias-token match or near-exact spelling before considering it.
+            //
+            // v2.4.249 (CS-TANI-2026-10-11): never reject a candidate that near-exactly equals ANY
+            // known title. Multi-word mixed-script aliases (e.g. 'SUPERNATURAL スーパーナチュラル'
+            // from AniList/TMDB synonyms) used to activate this filter and reject perfect 1.00
+            // Latin matches ('Supernatural') on Turkish providers (DiziMom/DiziYou/Dizilla/Movix
+            // EŞLEŞME YOK with score 1.00). An exact title hit is by definition correct; the
+            // franchise guard below still rejects partial hits (Naruto=0.38 vs Shippuden).
             if (strictAliasWordSets.isNotEmpty() && bestWordCoverage < 0.75 &&
-                strictTitleSimilarity < 0.90 && unicodeAliasSimilarity < 0.90
+                strictTitleSimilarity < 0.90 && unicodeAliasSimilarity < 0.90 &&
+                titleSimilarity < 0.90
             ) {
                 Log.d(TAG, "  -> Too few distinctive title tokens match '${result.name}'")
                 continue

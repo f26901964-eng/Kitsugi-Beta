@@ -1,4 +1,4 @@
-﻿package com.kitsugi.animelist.ui.screens.settings
+package com.kitsugi.animelist.ui.screens.settings
 
 import com.kitsugi.animelist.R
 import com.kitsugi.animelist.ui.components.KitsugiButton
@@ -605,6 +605,13 @@ private fun ResultRow(
                 color = KitsugiColors.TextMuted,
                 fontSize = 10.sp
             )
+            if (result.flowTested) {
+                Text(
+                    if (result.flowOk) "🔁${result.flowStreams}" else "🔁❌",
+                    color = KitsugiColors.TextMuted,
+                    fontSize = 10.sp
+                )
+            }
         }
     }
 }

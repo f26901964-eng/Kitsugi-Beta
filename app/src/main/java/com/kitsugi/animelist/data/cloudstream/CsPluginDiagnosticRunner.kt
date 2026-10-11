@@ -99,7 +99,7 @@ object CsPluginDiagnosticRunner {
 
     /** Her test fazında yakalanan hata kaydı */
     data class PhaseError(
-        val phase:         String,   // "download" | "load" | "search" | "detail" | "episode" | "stream" | "embed"
+        val phase:         String,   // "download" | "load" | "search" | "detail" | "episode" | "stream" | "embed" | "flow"
         val errorClass:    String,   // exception sınıfı adı
         val message:       String,   // hata mesajı
         val httpCode:      Int?,     // HTTP hata kodu (403, 429, 503 vb.) — yoksa null
@@ -137,7 +137,13 @@ object CsPluginDiagnosticRunner {
         val streamUrls:    List<String>,
         val embedResults:  List<EmbedResult>, // embed kaynak bazlı sonuçlar
         val phaseErrors:   List<PhaseError>,  // fazlar bazında tüm hatalar
-        val error:         String?           // genel/son hata özeti
+        val error:         String?,          // genel/son hata özeti
+        // v2.4.250 faz 2g: eklentinin KENDI dondurdugu baslik bizim getStreams
+        // hattindan (otomatik bulma + S/E eslestirme) gecirildi mi / gecti mi?
+        val flowTested:    Boolean = false,
+        val flowOk:        Boolean = false,
+        val flowStreams:   Int = 0,
+        val flowNote:      String? = null
     ) {
         private val phaseEvidence: List<String>
             get() = phaseErrors.map { phaseError ->
@@ -204,6 +210,8 @@ object CsPluginDiagnosticRunner {
         val runtimeIncompatible: Int,
         val authRequired: Int,
         val errorCodeCounts: Map<String, Int> = emptyMap(),
+        val flowPass: Int = 0,
+        val flowTested: Int = 0,
     )
 
     fun summarize(results: List<DiagnosticResult>): DiagnosticSummary {
@@ -221,6 +229,8 @@ object CsPluginDiagnosticRunner {
                 .groupingBy { it }
                 .eachCount()
                 .toSortedMap(),
+            flowPass = results.count { it.flowOk },
+            flowTested = results.count { it.flowTested },
         )
     }
 
@@ -564,6 +574,10 @@ object CsPluginDiagnosticRunner {
         var loadedTitle: String? = null
         var episodeFound = false
         var streamCount  = 0
+        var flowTested   = false
+        var flowOk       = false
+        var flowStreams  = 0
+        var flowNote: String? = null
         val streamUrls   = mutableListOf<String>()
         val embedResults = mutableListOf<EmbedResult>()
         val phaseErrors  = mutableListOf<PhaseError>()
@@ -798,7 +812,55 @@ object CsPluginDiagnosticRunner {
                 errorMsg = lastErr ?: phaseErrors.lastOrNull()?.message ?: "No streams resolved"
             }
 
-            Log.i(TAG, "[$idx/$total] ${plugin.internalName} → search=$searchCount load=$loadOk ep=$episodeFound streams=$streamCount")
+            // 2g. Gercek akis oz-tutarlilik testi (v2.4.250): eklentinin KENDI
+            // dondurdugu baslik, detay sayfasindaki Izle/Bolumler akisinin aynisindan
+            // (getStreams: otomatik bulma + sezon/bolum eslestirme) geciriliyor.
+            // Tesisat (2a-2f) calisip bu faz bos donerse suclu BIZIM eslestiricimizdir
+            // (ESLESME YOK / S1E1 bulunamadi), eklenti degil.
+            if (searchResults.isNotEmpty()) {
+                progress("Gercek akis testi (otomatik bulma)")
+                val rawProbe = (loadedTitle?.takeIf { it.isNotBlank() } ?: firstResult.name).trim()
+                val probeTitle = CsTitleMatcher.stripTurkishSiteNoise(rawProbe)
+                    .takeIf { it.isNotBlank() } ?: rawProbe
+                val probeType = try { firstResult.type } catch (_: Exception) { null }
+                val probeIsMovie = probeType == com.lagradost.cloudstream3.TvType.Movie ||
+                    probeType == com.lagradost.cloudstream3.TvType.AnimeMovie
+                val probeMediaType = when (probeType) {
+                    com.lagradost.cloudstream3.TvType.Anime -> com.kitsugi.animelist.model.MediaType.Anime
+                    com.lagradost.cloudstream3.TvType.Movie,
+                    com.lagradost.cloudstream3.TvType.AnimeMovie -> com.kitsugi.animelist.model.MediaType.Movie
+                    else -> com.kitsugi.animelist.model.MediaType.TvShow
+                }
+                flowTested = true
+                try {
+                    val flows = withTimeoutOrNull(60_000L) {
+                        CsStreamRunner.getStreams(
+                            api = api,
+                            title = probeTitle,
+                            alternativeTitles = emptyList(),
+                            year = null,
+                            season = 1,
+                            episode = 1,
+                            isMovie = probeIsMovie,
+                            mediaType = probeMediaType
+                        )
+                    } ?: emptyList()
+                    flowStreams = flows.size
+                    flowOk = flows.isNotEmpty()
+                    if (!flowOk) {
+                        flowNote = CsPluginStatusTracker.getErrorMessage(api.name)
+                            ?: "Otomatik bulma eklentinin kendi basligini eslestiremedi ('$probeTitle')"
+                        errMsg("flow", flowNote!!)
+                    }
+                } catch (c: kotlinx.coroutines.CancellationException) {
+                    throw c
+                } catch (t: Throwable) {
+                    err("flow", t)
+                    flowNote = "${t.javaClass.simpleName}: ${t.message}"
+                }
+            }
+
+            Log.i(TAG, "[$idx/$total] ${plugin.internalName} → search=$searchCount load=$loadOk ep=$episodeFound streams=$streamCount flow=$flowOk($flowStreams)")
 
         } catch (c: kotlinx.coroutines.CancellationException) {
             throw c
@@ -826,7 +888,11 @@ object CsPluginDiagnosticRunner {
             streamUrls   = streamUrls,
             embedResults = embedResults,
             phaseErrors  = phaseErrors,
-            error        = errorMsg
+            error        = errorMsg,
+            flowTested   = flowTested,
+            flowOk       = flowOk,
+            flowStreams  = flowStreams,
+            flowNote     = flowNote
         )
     }
 
@@ -855,6 +921,7 @@ object CsPluginDiagnosticRunner {
             sb.appendLine("| ❌ Eklenti/ağ hatası veya timeout | ${summary.dead} |")
             sb.appendLine("| 🧩 Çalışma zamanı uyumsuzluğu | ${summary.runtimeIncompatible} |")
             sb.appendLine("| 🔑 Hesap/giriş gerekli | ${summary.authRequired} |")
+            sb.appendLine("| 🔁 Gerçek akış (otomatik bulma) geçen | ${summary.flowPass}/${summary.flowTested} |")
             if (summary.errorCodeCounts.isNotEmpty()) {
                 sb.appendLine()
                 sb.appendLine("## Hata Kodu Özeti")
@@ -865,9 +932,14 @@ object CsPluginDiagnosticRunner {
             sb.appendLine()
             sb.appendLine("## Detaylı Sonuçlar")
             sb.appendLine()
-            sb.appendLine("| Kod | Plugin | Repo | mainUrl | DL | Load | Sorgu | Hits | LoadOK | Ep | Str | Koruma | TO | Durum |")
-            sb.appendLine("|---|---|---|---|---|---|---|---|---|---|---|---|---|---|")
+            sb.appendLine("| Kod | Plugin | Repo | mainUrl | DL | Load | Sorgu | Hits | LoadOK | Ep | Str | Flow | Koruma | TO | Durum |")
+            sb.appendLine("|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|")
             for (r in results) {
+                val flowCell = when {
+                    !r.flowTested -> "-"
+                    r.flowOk -> "✅ ${r.flowStreams}"
+                    else -> "❌ ${(r.flowNote ?: "").take(30)}"
+                }
                 val urlShort = r.mainUrl.removePrefix("https://").removePrefix("http://").trimEnd('/').take(32)
                 val statusStr = when (r.status) {
                     ResultStatus.WORKING      -> "✅ ${r.streamCount}"
@@ -884,7 +956,7 @@ object CsPluginDiagnosticRunner {
                     r.hasDdosGuard -> "DDoS"
                     else -> "-"
                 }
-                sb.appendLine("| `${r.errorCode ?: "—"}` | **${r.pluginId}** | ${r.repoSlug} | `$urlShort` | ${if (r.downloaded) "✅" else "❌"} | ${if (r.loaded) "✅" else "❌"} | `${r.searchQuery}` | ${r.searchCount} | ${if (r.loadOk) "✅" else "❌"} | ${if (r.episodeFound) "✅" else "❌"} | ${r.streamCount} | $protection | ${if (r.hasTimeout) "⏱" else "-"} | $statusStr |")
+                sb.appendLine("| `${r.errorCode ?: "—"}` | **${r.pluginId}** | ${r.repoSlug} | `$urlShort` | ${if (r.downloaded) "✅" else "❌"} | ${if (r.loaded) "✅" else "❌"} | `${r.searchQuery}` | ${r.searchCount} | ${if (r.loadOk) "✅" else "❌"} | ${if (r.episodeFound) "✅" else "❌"} | ${r.streamCount} | $flowCell | $protection | ${if (r.hasTimeout) "⏱" else "-"} | $statusStr |")
             }
             // ── Hata Detayları ─────────────────────────────────────────
             sb.appendLine()

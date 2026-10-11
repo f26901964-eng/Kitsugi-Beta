@@ -599,7 +599,10 @@ class StreamViewModel(application: Application) : AndroidViewModel(application) 
                                     tmdbId           = tmdbId ?: resolvedIds.tmdbId,
                                     bangumiId        = bangumiId,
                                     isMovie          = isMovie,
-                                    mediaType        = mediaType
+                                    mediaType        = mediaType,
+                                    // v2.4.250: yukarıda çözülen ID'leri aynen geçir —
+                                    // eklenti başına ARM/TMDB fırtınası dursun.
+                                    preResolvedIds   = resolvedIds
                                 )
                                 csStreams.addAll(streams)
                             }
