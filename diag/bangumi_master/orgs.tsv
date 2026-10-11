@@ -1,0 +1,123 @@
+# role	key	tr	en	variants(| ayraçlı CJK/Japonca adlar)
+# Kaynak: KitsugiTranslations.kt studioLatinNameMap (gerçek eşlemeler).
+# Politika: marka adlarında TR = EN; uydurma çeviri yoktur.
+studio	_8bit	8bit	8bit	エイトビット
+studio	a_1_pictures	A-1 Pictures	A-1 Pictures	A-1 Pictures|A-1|A1社
+studio	artland	Artland	Artland	アートランド
+studio	asahi_production	Asahi Production	Asahi Production	亜細亜堂
+studio	ashi_productions	Ashi Productions	Ashi Productions	葦プロダクション
+studio	bones	BONES	BONES	ボンズ|骨头社
+studio	brain_s_base	Brain's Base	Brain's Base	ブレインズ・ベース
+studio	cj_enm	CJ ENM	CJ ENM	CJ ENM
+studio	cloverworks	CloverWorks	CloverWorks	クローバーワークス
+studio	david_production	David Production	David Production	ダビプロ
+studio	dc_comics	DC Comics	DC Comics	DC漫画
+studio	diomedea	Diomedéa	Diomedéa	ディオメディア
+studio	disney	Disney	Disney	迪士尼|迪斯尼
+studio	doga_kobo	Doga Kobo	Doga Kobo	動画工房
+studio	dreamworks	DreamWorks	DreamWorks	梦工厂
+studio	dreamworks_animation	DreamWorks Animation	DreamWorks Animation	梦工厂动画
+studio	feel	feel.	feel.	feel.|FEEL
+studio	gallop	Gallop	Gallop	ぎゃろっぷ
+studio	gonzo	GONZO	GONZO	ゴンゾ
+studio	j_c_staff	J.C.Staff	J.C.Staff	J.C.STAFF
+studio	khara	khara	khara	カラー
+studio	kinema_citrus	KINEMA CITRUS	KINEMA CITRUS	キネマシトラス
+studio	kyoto_animation	Kyoto Animation	Kyoto Animation	京都アニメーション|京都动画|京都動画|京阿尼
+studio	lerche	Lerche	Lerche	ラルケ
+studio	lidenfilms	LIDENFILMS	LIDENFILMS	ライデンフィルム
+studio	madhouse	Madhouse	Madhouse	マッドハウス|疯房子
+studio	marvel	Marvel	Marvel	漫威
+studio	mushi_production	Mushi Production	Mushi Production	虫プロダクション
+studio	nippon_animation	Nippon Animation	Nippon Animation	日本アニメーション
+studio	olm	OLM	OLM	オー・エル・エム
+studio	p_a_works	P.A.Works	P.A.Works	ピーエーワークス
+studio	passione	Passione	Passione	パッショーネ
+studio	pixar	Pixar	Pixar	皮克斯|皮克斯动画工作室
+studio	production_i_g	Production I.G	Production I.G	プロダクション・アイジー
+studio	production_reed	Production Reed	Production Reed	プロダクションリード
+studio	shaft	Shaft	Shaft	シャフト
+studio	shin_ei_animation	Shin-Ei Animation	Shin-Ei Animation	シンエイ動画
+studio	silver_link	Silver Link	Silver Link	シルバーリンク
+studio	studio_deen	Studio Deen	Studio Deen	スタジオディーン|ディーン
+studio	studio_ghibli	Studio Ghibli	Studio Ghibli	ジブリ|スタジオジブリ|吉卜力|吉卜力工作室
+studio	studio_pierrot	Studio Pierrot	Studio Pierrot	ぴえろ|小丑社
+studio	studio_voln	Studio VOLN	Studio VOLN	スタジオヴォルン
+studio	sunrise	Sunrise	Sunrise	サンライズ|日升动画|日昇
+studio	tatsunoko_production	Tatsunoko Production	Tatsunoko Production	タツノコプロ
+studio	telecom_animation_film	Telecom Animation Film	Telecom Animation Film	テレコム・アニメーションフィルム
+studio	tezuka_productions	Tezuka Productions	Tezuka Productions	手塚プロダクション
+studio	tms_entertainment	TMS Entertainment	TMS Entertainment	東京ムービー|トムス・エンタテインメント
+studio	toei_animation	Toei Animation	Toei Animation	東映アニメーション|东映动画
+studio	triangle_staff	Triangle Staff	Triangle Staff	トライアングルスタッフ
+studio	trigger	TRIGGER	TRIGGER	トリガー|扳机社
+studio	troyca	TROYCA	TROYCA	トロイカ
+studio	ufotable	ufotable	ufotable	幽浮社|飞碟社
+studio	white_fox	WHITE FOX	WHITE FOX	白狐社
+studio	wit_studio	WIT STUDIO	WIT STUDIO	ウィットスタジオ|霸权社
+studio	xebec	XEBEC	XEBEC	ゼベック
+producer	aniplex	Aniplex	Aniplex	アニプレックス
+producer	bandai_namco_pictures	Bandai Namco Pictures	Bandai Namco Pictures	バンダイナムコピクチャーズ
+producer	bandai_visual	Bandai Visual	Bandai Visual	バンダイビジュアル
+producer	flyingdog	FlyingDog	FlyingDog	フライングドッグ
+producer	geneon	Geneon	Geneon	ジェネオン
+producer	geneon_entertainment	Geneon Entertainment	Geneon Entertainment	ジェネオンエンタテインメント
+producer	kadokawa_group	Kadokawa Group	Kadokawa Group	角川グループ
+producer	king_records	King Records	King Records	キングレコード
+producer	lantis	Lantis	Lantis	ランティス
+producer	movic	Movic	Movic	ムービック
+producer	nippon_columbia	Nippon Columbia	Nippon Columbia	日本コロムビア
+producer	pony_canyon	Pony Canyon	Pony Canyon	ポニーキャニオン
+producer	shochiku	Shochiku	Shochiku	松竹
+producer	sotsu	Sotsu	Sotsu	創通
+producer	starchild_records	Starchild Records	Starchild Records	スターチャイルドレコード
+producer	toho	Toho	Toho	東宝|東宝映像事業部
+producer	warner_bros	Warner Bros.	Warner Bros.	ワーナー・ブラザース
+network	asahi_broadcasting	Asahi Broadcasting	Asahi Broadcasting	朝日放送
+network	fuji_tv	Fuji TV	Fuji TV	フジテレビジョン|フジテレビ
+network	mainichi_broadcasting	Mainichi Broadcasting	Mainichi Broadcasting	毎日放送
+network	nippon_tv	Nippon TV	Nippon TV	日本テレビ
+network	tbs	TBS	TBS	TBSテレビ
+network	tv_tokyo	TV Tokyo	TV Tokyo	テレビ東京
+publisher	akita_shoten	Akita Shoten	Akita Shoten	秋田書店
+publisher	dengeki_bunko	Dengeki Bunko	Dengeki Bunko	電撃文庫
+publisher	futabasha	Futabasha	Futabasha	双葉社
+publisher	hakusensha	Hakusensha	Hakusensha	白泉社
+publisher	houbunsha	Houbunsha	Houbunsha	芳文社
+publisher	kadokawa_media_factory	KADOKAWA Media Factory	KADOKAWA Media Factory	KADOKAWA メディアファクトリー
+publisher	kadokawa_shoten	Kadokawa Shoten	Kadokawa Shoten	角川書店
+publisher	kadokawa_tsubasa_bunko	Kadokawa Tsubasa Bunko	Kadokawa Tsubasa Bunko	角川つばさ文庫
+publisher	kodansha	Kodansha	Kodansha	講談社
+publisher	media_factory	Media Factory	Media Factory	メディアファクトリー
+publisher	shinchosha	Shinchosha	Shinchosha	新潮社
+publisher	shogakukan	Shogakukan	Shogakukan	小学館
+publisher	shueisha	Shueisha	Shueisha	集英社
+publisher	square_enix	Square Enix	Square Enix	スクウェア・エニックス
+#
+# ── Ek 1: yaygın görülen ama studioLatinNameMap'te OLMAYAN kurumlar ───────────
+# Kaynak: resmî Latin yazımları (şirketin kendi kullandığı biçim). Marka adı
+# oldukları için TR = EN; uydurma çeviri yoktur.
+studio	mappa	MAPPA	MAPPA	株式会社マッパ|マッパ|MAPPA
+studio	studio_bind	Studio Bind	Studio Bind	スタジオバインド
+studio	nexus	Nexus	Nexus	ネクサス
+studio	project_no_9	Project No.9	Project No.9	project No.9|プロジェクトナンバーナイン
+studio	engi	ENGI	ENGI	エンギ
+studio	voil	Voil	Voil	ヴォイル
+studio	hal_film_maker	Hal Film Maker	Hal Film Maker	ハルフィルムメーカー
+studio	studio_3hz	Studio 3Hz	Studio 3Hz	スタジオ3Hz
+studio	nut	NUT	NUT	ナット
+studio	revoroot	Revoroot	Revoroot	レヴォルート
+studio	okuruto_noboru	Okuruto Noboru	Okuruto Noboru	オクルトノボル
+studio	bibury_animation	Bibury Animation Studios	Bibury Animation Studios	バイブリーアニメーションスタジオ
+studio	studio_comet	Studio Comet	Studio Comet	スタジオコメット
+studio	maho_film	Maho Film	Maho Film	旭プロダクション|マッハフィルム
+network	nhk	NHK	NHK	NHK|日本放送協会
+network	animax	Animax	Animax	アニマックス
+network	bs_nippon	BS Nippon TV	BS Nippon TV	BS日テレ
+network	bs_tbs	BS-TBS	BS-TBS	BS-TBS
+network	bs_fuji	BS Fuji	BS Fuji	BSフジ
+network	at_x	AT-X	AT-X	AT-X
+network	tokyo_mx	TOKYO MX	TOKYO MX	東京メトロポリタンテレビジョン|TOKYO MX
+producer	avex_pictures	Avex Pictures	Avex Pictures	エイベックス・ピクチャーズ
+producer	dmm_pictures	DMM Pictures	DMM Pictures	DMM pictures
+producer	king_amusement	KING AMUSEMENT CREATIVE	KING AMUSEMENT CREATIVE	KING AMUSEMENT CREATIVE

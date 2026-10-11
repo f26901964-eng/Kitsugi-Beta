@@ -1,6 +1,7 @@
 package com.kitsugi.animelist.ui.screens.detail
 
 import com.kitsugi.animelist.ui.theme.gradient.background
+import com.kitsugi.animelist.utils.toLocalizedOrgName
 import com.kitsugi.animelist.ui.theme.gradient.border
 import com.kitsugi.animelist.ui.utils.tvClickable
 import androidx.compose.foundation.layout.Arrangement
@@ -75,7 +76,9 @@ fun KitsugiStudiosCard(
             ) {
                 studios.forEach { studio ->
                     KitsugiChip(
-                        text = studio.name,
+                        // Yalnızca GÖSTERİM yerelleşir; onClick ham adla gider
+                        // (StudioDetailViewModel.matchesExpectedStudio ham adla karşılaştırır).
+                        text = studio.name.toLocalizedOrgName(),
                         color = accentColor,
                         solid = true,
                         // Kimliği henüz çözülmemiş Bangumi yerel kayıtları da tıklanabilir:
@@ -95,7 +98,7 @@ fun KitsugiStudiosCard(
             ) {
                 producers.forEach { producer ->
                     KitsugiChip(
-                        text = producer.name,
+                        text = producer.name.toLocalizedOrgName(),
                         color = accentColor,
                         solid = false,
                         onClick = if (producer.name.isNotBlank()) {
@@ -113,7 +116,7 @@ fun KitsugiStudiosCard(
             ) {
                 networks.forEach { network ->
                     KitsugiChip(
-                        text = network.name,
+                        text = network.name.toLocalizedOrgName(),
                         color = accentColor,
                         solid = false,
                         // Yayıncı ağlar da Bangumi'de şirket (type=2) kaydıdır; kimlik

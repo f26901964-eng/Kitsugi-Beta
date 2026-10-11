@@ -267,7 +267,7 @@ internal object BangumiTagDictionary {
         g("heterosexual", "Heteroseksüel", "Heterosexual"),
         g("male_protagonist", "Erkek Baş Karakter", "Male Protagonist"),
         g("female_protagonist", "Kadın Baş Karakter", "Female Protagonist"),
-        g("female_harem", "Ters Harem", "Female Harem"),
+        g("female_harem", "Kadın Haremi", "Female Harem"),
         g("primarily_male_cast", "Ağırlıklı Erkek Kadro", "Primarily Male Cast"),
         g("primarily_female_cast", "Ağırlıklı Kadın Kadro", "Primarily Female Cast"),
         g("primarily_teen_cast", "Ağırlıklı Genç Kadro", "Primarily Teen Cast"),
@@ -281,7 +281,7 @@ internal object BangumiTagDictionary {
         g("episodic", "Vaka Anlatısı", "Episodic", "单元剧", "單元劇", "オムニバス"),
         g("short_series", "Kısa Dizi", "Short Series", "迷你剧", "迷你劇", "泡面番", "短剧", "短劇"),
         g("long_series", "Uzun Soluklu Seri", "Long Running", "长篇", "長編", "长篇连载"),
-        g("sequel", "Devam", "Sequel", "续作", "續作", "系列续作", "系列續作", "续集", "續編", "第二季", "后续"),
+        g("sequel", "Devam", "Sequel", "续作", "續作", "系列续作", "系列續作", "续集", "續編", "第二季", "后续", "続編"),
         g("prequel", "Öncül", "Prequel", "前传", "前傳"),
         g("spin_off", "Spin-Off", "Spin-off", "外传", "外傳", "衍生", "スピンオフ"),
         g("side_story", "Yan Hikâye", "Side Story", "番外", "番外篇", "小剧场", "小劇場"),
@@ -444,7 +444,7 @@ internal object BangumiTagDictionary {
         // ── Duygu / ton ──
         g("healing", "İyileştirici", "Healing", "治愈", "治癒", "治愈系", "療癒", "癒し", "温馨", "溫馨", "温暖", "溫暖"),
         g("depressing", "Kederli", "Downer", "致郁", "致鬱", "压抑", "壓抑", "绝望", "絕望"),
-        g("tearjerker", "Duygusal", "Tearjerker", "催泪", "催涙", "感人", "感动", "感動", "泣ける"),
+        g("tearjerker", "Duygusal", "Tearjerker", "催泪", "催涙", "感人", "感动", "感動", "泣ける", "催淚"),
         g("masterpiece", "Başyapıt", "Masterpiece", "神作", "名作", "杰作", "傑作"),
         g("childish", "Çocuksu", "Childish", "幼稚"),
 
@@ -563,7 +563,7 @@ internal object BangumiTagDictionary {
         g("festival_winner", "Festival Ödüllü", "Festival Winner", "影展", "电影节获奖"),
 
         // ── Kurum takma adları (etiket olarak yazılanlar) ──
-        g("kyoto_animation", "Kyoto Animation", "Kyoto Animation", "京阿尼", "京都动画", "京都動畫", "京都動画", "京都アニメーション", "京アニ", "KyoAni", "Kyoto Animation"),
+        g("kyoto_animation", "Kyoto Animation", "Kyoto Animation", "京阿尼", "京都动画", "京都動畫", "京都動画", "京都アニメーション", "京アニ", "KyoAni", "Kyoto Animation", "京都"),
         g("key_studio", "Key", "Key", "key", "Key", "Key社", "K社"),
         g("type_moon", "Type-Moon", "Type-Moon", "型月", "TYPE-MOON", "型月世界"),
         g("ghibli", "Studio Ghibli", "Studio Ghibli", "吉卜力", "ジブリ", "吉卜力工作室"),
@@ -935,7 +935,11 @@ internal object BangumiTagDictionary {
         g("metal_music", "Metal", "Metal", "金属", "金屬", "重金属"),
         g("folk_music", "Folk", "Folk", "民谣", "民謠", "民族音乐"),
         g("ambient_music", "Ambient", "Ambient", "氛围音乐", "環境音樂"),
-        g("instrumental", "Enstrümantal", "Instrumental", "器乐", "純音樂", "纯音乐")
+        g("instrumental", "Enstrümantal", "Instrumental", "器乐", "純音樂", "纯音乐"),
+
+// ── MASTER ekleri (üreteç: diag/bangumi_master/tags.tsv) ──
+        g("after_story", "After Story", "After Story", "After Story", "AS", "～After Story～", "~After Story~"),
+        g("chinese_speaking", "Çince Konuşulan Bölge", "Chinese-speaking Region", "华语", "華語", "华语区", "華語區")
     )
 
     /** Normalleştirilmiş kaynak yazımı → giriş. İlk yazım kazanır (aynı anlam, birden çok yazım). */
@@ -997,6 +1001,9 @@ internal object BangumiTagDictionary {
 
     /** Sözlükteki tüm Çince/Japonca yazımlar (test ve araç kullanımı için). */
     fun knownLabels(): Set<String> = byLabel.keys.toSet()
+
+    /** Sözlükteki tüm girişler (test ve araç kullanımı için). */
+    fun allEntries(): List<BangumiTagEntry> = groups.map { it.entry }
 
     // ── Yardımcılar ────────────────────────────────────────────────────────────
 

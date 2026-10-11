@@ -1,0 +1,30 @@
+# Bangumi MASTER — EK etiket grupları / varyantları
+#
+# Sütunlar: key \t tr \t en \t variants(| ayraçlı Çince/Japonca yazımlar)
+#
+# Davranış (gen_bangumi_master.py):
+#   • key sözlükte YOKSA  → BangumiTagDictionary'ye yeni g(...) grubu eklenir
+#   • key sözlükte VARSA  → yalnızca eksik yazım varyantları mevcut gruba eklenir
+#                           (tr/en değerleri DEĞİŞTİRİLMEZ; elle yazılan tabloya dokunulmaz)
+#
+# Politika: uydurma çeviri yok. Bir yazımın gerçekten Bangumi'de görüldüğü
+# doğrulanmadan buraya eklenmez.
+
+# ── MASTER §7.4 ekran görüntüsü boşlukları ──────────────────────────────────
+# "tearjerker" grubunda basitleştirilmiş 催泪 ve Japonca 催涙 vardı; geleneksel
+# Çince 催淚 eksikti → ekranda çevrilmemiş çip olarak görünüyordu.
+tearjerker	Duygusal	Tearjerker	催淚
+# "kyoto_animation" grubunda 京都アニメーション / 京阿尼 vardı ama Bangumi
+# kullanıcılarının kullandığı kısa 京都 etiketi yoktu.
+kyoto_animation	Kyoto Animation	Kyoto Animation	京都
+# "sequel" grubunda geleneksel 續編 vardı; Japonca 続編 eksikti.
+sequel	Devam	Sequel	続編
+
+# ── Yeni gruplar ────────────────────────────────────────────────────────────
+# Clannad ~After Story~ çipi: "AS" kısaltması After Story demektir. Normalizasyon
+# boşluk koruduğu için "ASOBI" bu grupla eşleşmez (normalize("ASOBI") = "asobi").
+after_story	After Story	After Story	After Story|AS|～After Story～|~After Story~
+# Bangumi'nin 华语 etiketi "Çince" değil "Çince konuşulan bölge" anlamındadır:
+# Çin anakarası, Tayvan, Hong Kong ve denizaşırı Çince yapımları kapsar.
+# (Yazım notu: Türkçesi "Çince"dir, "Çinçe" değil.)
+chinese_speaking	Çince Konuşulan Bölge	Chinese-speaking Region	华语|華語|华语区|華語區

@@ -1,0 +1,102 @@
+name: 🎌 Bangumi MASTER Doğrulama
+
+# Bangumi sözlük üretimi + derleme + sözleşme testi.
+#
+# Üç katman, çünkü her biri farklı bir hata sınıfını yakalar:
+#   1. Python doğrulayıcı → simetri, değer eşitliği, gölgelenme, mükerrer kaynak adı
+#   2. kotlinc            → sözdizimi (Python doğrulayıcı bunu GÖRMEZ; geçmişte
+#                           virgülsüz eklenen g(...) bloğu derlemeyi kırmıştı)
+#   3. JUnit              → gerçek eşleştirme davranışı (AS ≠ ASOBI, 催淚 = 催泪 …)
+
+on:
+  push:
+    branches: ['arena/**', 'main']
+    paths:
+      - 'diag/bangumi_master/**'
+      - 'app/src/main/java/com/kitsugi/animelist/utils/BangumiOrgDictionary.kt'
+      - 'app/src/main/java/com/kitsugi/animelist/utils/BangumiTagDictionary.kt'
+      - 'app/src/main/java/com/kitsugi/animelist/utils/KitsugiTranslations.kt'
+      - 'app/src/main/res/values/strings.xml'
+      - 'app/src/main/res/values-en/strings.xml'
+      - 'app/src/test/java/com/kitsugi/animelist/utils/BangumiMasterDictionaryTest.kt'
+      - '.github/workflows/bangumi-master.yml'
+  pull_request:
+    paths:
+      - 'diag/bangumi_master/**'
+      - 'app/src/main/java/com/kitsugi/animelist/utils/Bangumi*Dictionary.kt'
+      - '.github/workflows/bangumi-master.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: bangumi-master-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: 📥 Repo klonla
+        uses: actions/checkout@v4
+
+      - name: 🐍 Python doğrulayıcı
+        run: |
+          python3 --version
+          python3 diag/bangumi_master/verify_bangumi_master.py
+
+      - name: ♻️ Üreteç güncellik denetimi (--check)
+        run: |
+          # Sözlük/dil dosyası elle düzenlenip üreteç çalıştırılmadıysa burada kırılır.
+          python3 diag/bangumi_master/gen_bangumi_master.py --check
+          if ! git diff --quiet; then
+            echo "::error::Üreteç çıktısı depodan farklı — gen_bangumi_master.py çalıştırıp commit edin"
+            git diff --stat
+            exit 1
+          fi
+
+  compile-and-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: 📥 Repo klonla
+        uses: actions/checkout@v4
+
+      - name: ☕ JDK 17 kur
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: 🔧 kotlinc kur
+        run: |
+          set -euo pipefail
+          URL=$(curl -sS https://api.github.com/repos/JetBrains/kotlin/releases/latest \
+            | python3 -c "import json,sys;d=json.load(sys.stdin);print(next(a['browser_download_url'] for a in d['assets'] if a['name'].startswith('kotlin-compiler-') and a['name'].endswith('.zip')))")
+          echo "kotlinc: $URL"
+          curl -sSL -o kotlinc.zip "$URL"
+          unzip -q kotlinc.zip -d "$HOME"
+          echo "$HOME/kotlinc/bin" >> "$GITHUB_PATH"
+
+      - name: 🔨 Sözlükleri derle (kotlinc)
+        run: |
+          chmod +x diag/bangumi_master/harness/compile_check.sh
+          bash diag/bangumi_master/harness/compile_check.sh
+
+      - name: 🤖 Gradle kur + önbellek
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: 🧪 BangumiMasterDictionaryTest
+        run: |
+          chmod +x gradlew
+          set -o pipefail
+          ./gradlew :app:testFossDebugUnitTest --tests 'com.kitsugi.animelist.utils.BangumiMasterDictionaryTest' --stacktrace --console=plain 2>&1 | tee test.log
+        env:
+          GRADLE_OPTS: -Dfile.encoding=UTF-8
+
+      - name: 🩺 Test günlüğünü yükle
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: bangumi-master-test-log
+          path: test.log
+          retention-days: 7

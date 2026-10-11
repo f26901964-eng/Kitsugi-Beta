@@ -436,10 +436,27 @@ fun String.toTurkishCharacterRole(): String = if (!isTurkish()) this else charac
  * diline çevirir. Sözlükte yoksa mevcut [toTurkishCharacterRole] davranışı korunur
  * (İngilizce kaynak değerler İngilizce arayüzde aynen kalır).
  */
+/**
+ * Bangumi rol yazımını arayüz diline çevirir; sözlükte yoksa null.
+ *
+ * Sıra: `bangumi_role_*` dil dosyası (yalnızca tr/en arayüzünde) → sözlük sütunu.
+ * Etiket ve kurum sözlükleriyle aynı düzen; böylece rol metinleri de kod derlenmeden
+ * `roles.tsv` üzerinden güncellenebilir.
+ */
+private fun localizedBangumiRoleOrNull(label: String): String? {
+    val entry = BangumiRoleDictionary.entryFor(label) ?: return null
+    if (isTurkish() || isEnglish()) {
+        getStringResourceByName("bangumi_role_${entry.key}")
+            ?.takeIf { it.isNotBlank() }
+            ?.let { return it }
+    }
+    return if (isTurkish()) entry.turkish else entry.english
+}
+
 fun String.toLocalizedCharacterRole(): String {
     val cleaned = this.trim()
     if (cleaned.isEmpty()) return cleaned
-    BangumiRoleDictionary.entryFor(cleaned)?.let { return if (isTurkish()) it.turkish else it.english }
+    localizedBangumiRoleOrNull(cleaned)?.let { return it }
     return toTurkishCharacterRole()
 }
 
@@ -458,7 +475,7 @@ fun String.toLocalizedStaffRole(): String {
             .filter { it.isNotEmpty() }
             .joinToString(", ")
     }
-    BangumiRoleDictionary.entryFor(cleaned)?.let { return if (isTurkish()) it.turkish else it.english }
+    localizedBangumiRoleOrNull(cleaned)?.let { return it }
     return toTurkishStaffRole()
 }
 
@@ -1460,4 +1477,63 @@ fun String.toLatinStudioName(): String {
         entry.key.equals(cleaned, ignoreCase = true) || entry.key.equals(normalized, ignoreCase = true)
     }?.value ?: this
 }
+
+// ─── Kurum Adı Yerelleştirme (stüdyo / yapımcı / yayıncı ağ / yayımcı) ───────
+
+/**
+ * `bangumi_org_*` kaynak araması önbelleği (anahtar: `dil:kaynakAdı`).
+ *
+ * [bangumiTagResourceCache] ile aynı gerekçe: stüdyo detay sayfası ve çipler her
+ * yeniden çizimde buraya uğruyor, `getIdentifier` ise isimle arama yapıyor.
+ */
+private val bangumiOrgResourceCache = java.util.concurrent.ConcurrentHashMap<String, String>()
+
+/** `bangumi_org_*` dil dosyası kaynağını ismiyle okur; bulunamazsa null. */
+private fun getOrgStringResourceByName(name: String): String? {
+    val cacheKey = java.util.Locale.getDefault().language + ":" + name
+    bangumiOrgResourceCache[cacheKey]?.let { return it.takeIf { cached -> cached.isNotEmpty() } }
+    val resolved = try {
+        val context = com.kitsugi.animelist.KitsugiApplication.getInstance()
+        if (context == null) {
+            null
+        } else {
+            val resId = context.resources.getIdentifier(name, "string", context.packageName)
+            if (resId != 0) context.getString(resId) else null
+        }
+    } catch (_: Throwable) { null }
+    // Uygulama bağlamı henüz yoksa önbelleğe yazma — ileride gerçek değer okunabilsin.
+    if (resolved != null || com.kitsugi.animelist.KitsugiApplication.getInstance() != null) {
+        bangumiOrgResourceCache[cacheKey] = resolved.orEmpty()
+    }
+    return resolved
+}
+
+/**
+ * Stüdyo/yapımcı/yayıncı ağ adını arayüz diline çevirir (yalnızca gösterim için).
+ *
+ * Sıra: Latin ada indirge ([toLatinStudioName]) → [BangumiOrgDictionary] →
+ * `bangumi_org_*` dil dosyası (yalnızca tr/en arayüzünde) → sözlük sütunu.
+ *
+ * Sözlükte olmayan ad olduğu gibi döner: **uydurma çeviri üretilmez**, üretim
+ * komiteleri (`PROJECT-XXX`, `光坂高校演劇部`) dokunulmadan kalır.
+ *
+ * ⚠️ Bu yardımcı **yalnızca ekrana yazılacak metin** içindir. Arama, kimlik
+ * doğrulama ve tekilleştirme ham/Latin adla yürümeye devam etmelidir; çünkü
+ * `StudioDetailViewModel.matchesExpectedStudio` ve `StudioSourceSupport.namesMatch`
+ * ham adla karşılaştırır. Yerelleştirilmiş adı oraya taşımak eşleştirmeyi bozar.
+ */
+fun String.toLocalizedOrgName(): String {
+    val cleaned = this.trim()
+    if (cleaned.isEmpty()) return cleaned
+    val entry = BangumiOrgDictionary.entryFor(cleaned) ?: return cleaned
+    if (isTurkish() || isEnglish()) {
+        getOrgStringResourceByName("bangumi_org_${entry.key}")
+            ?.takeIf { it.isNotBlank() }
+            ?.let { return it }
+    }
+    return if (isTurkish()) entry.turkish else entry.english
+}
+
+/** Kurum adının yerelleştirilmiş hâlinden üretilen iki harfli avatar kısaltması. */
+fun String.toOrgMonogram(): String = toLocalizedOrgName().take(2).uppercase()
 

@@ -1,5 +1,6 @@
 package com.kitsugi.animelist.ui.screens.detail
 
+import com.kitsugi.animelist.utils.toLocalizedOrgName
 import com.kitsugi.animelist.ui.utils.rememberKitsugiGridColumns
 import androidx.compose.runtime.CompositionLocalProvider
 import com.kitsugi.animelist.ui.components.LocalKitsugiGalleryLoading
@@ -222,7 +223,7 @@ fun StudioDetailPage(
                     KitsugiImageGalleryDialog(
                         galleryItems = activeGalleryItems,
                         initialIndex = activeGalleryIndex,
-                        title = detail.name,
+                        title = detail.name.toLocalizedOrgName(),
                         onDismiss = { activeGalleryItems = emptyList() }
                     )
                 }
@@ -666,7 +667,7 @@ private fun StudioDetailSuccessContent(
                     }
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
-                        text = detail.name,
+                        text = detail.name.toLocalizedOrgName(),
                         color = KitsugiColors.TextPrimary,
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Black,
@@ -679,7 +680,7 @@ private fun StudioDetailSuccessContent(
                     }
                     IconButton(onClick = {
                         val url = com.kitsugi.animelist.utils.ShareUtils.buildStudioUrl(source, detail.id)
-                        com.kitsugi.animelist.utils.ShareUtils.shareText(context, detail.name, url)
+                        com.kitsugi.animelist.utils.ShareUtils.shareText(context, detail.name.toLocalizedOrgName(), url)
                     }) {
                         Icon(Icons.Rounded.Share, contentDescription = stringResource(R.string.action_share), tint = KitsugiColors.TextSecondary)
                     }

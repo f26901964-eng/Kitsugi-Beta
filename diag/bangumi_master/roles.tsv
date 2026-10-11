@@ -1,0 +1,42 @@
+# Bangumi MASTER — kadro / karakter ROLLERİ
+# Sütunlar: key \t tr \t en \t variants(| ayraçlı Çince/Japonca yazımlar)
+# Kaynak: BangumiRoleDictionary.kt içindeki mevcut 37 grup (birebir aktarıldı).
+# Rol listesi Bangumi v0 kişiler/kişi-eser uçlarından gelir; yeni rol buraya eklenir.
+
+main_character	Ana Karakter	Main Character	主角|主演|主役|Lead
+supporting_character	Yardımcı Karakter	Supporting Character	配角|助演
+guest_character	Konuk Karakter	Guest Character	客串|ゲスト
+voice_actor	Seslendirme Sanatçısı	Voice Actor	声优|聲優|声優|CV
+voice_acting	Seslendirme	Voice Acting	配音|吹き替え|配音演员
+theme_song_performance	Tema Şarkısı Performansı	Theme Song Performance	主題歌演出|主题歌演出
+theme_song	Tema Şarkısı	Theme Song	主題歌|主题歌
+theme_song_composition	Tema Şarkısı Bestesi	Theme Song Composition	主題歌作曲|主题歌作曲
+theme_song_lyrics	Tema Şarkısı Söz Yazarı	Theme Song Lyrics	主題歌作詞|主题歌作词
+music	Müzik	Music	音乐|音楽
+original_creator	Orijinal Yaratıcı	Original Creator	原作
+director	Yönetmen	Director	导演|監督
+chief_director	Baş Yönetmen	Chief Director	总导演|総監督
+script	Senarist	Script	脚本|剧本
+series_composition	Seri Düzenlemesi	Series Composition	系列构成|系列構成|シリーズ構成
+episode_director	Bölüm Yönetmeni	Episode Director	演出
+supervisor	Süpervizör	Supervisor	监修|監修
+planning	Planlama	Planning	企划|企画
+animation_director	Animasyon Yönetmeni	Animation Director	作画监督|作画監督
+chief_animation_director	Baş Animasyon Yönetmeni	Chief Animation Director	总作画监督|総作画監督
+character_design	Karakter Tasarımı	Character Design	人物设定|人物設定|キャラクターデザイン
+original_character_design	Orijinal Karakter Tasarımı	Original Character Design	人物原案
+mechanical_design	Mekanik Tasarım	Mechanical Design	机械设计|機械設計|メカニカルデザイン
+color_design	Renk Tasarımı	Color Design	色彩设计|色彩設計
+art_director	Sanat Yönetmeni	Art Director	美术|美術|美术监督|美術監督
+director_of_photography	Görüntü Yönetmeni	Director of Photography	摄影|撮影
+sound_director	Ses Yönetmeni	Sound Director	音响监督|音響監督
+key_animation	Anahtar Animasyon	Key Animation	原画
+editing	Kurgu	Editing	剪辑|編集
+background_art	Arka Plan Sanatı	Background Art	背景|背景美术|背景美術
+special_effects	Özel Efektler	Special Effects	特效|特殊効果
+recording	Kayıt	Recording	录音|録音
+3d_cg	3D CG	3D CG	3DCG
+animation_production	Animasyon Yapımı	Animation Production	动画制作|アニメーション制作|アニメーション製作
+producer	Yapımcı	Producer	制作人|制片人|プロデューサー
+production	Yapım	Production	出品|製作|制作
+publisher	Yayıncı	Publisher	发行|發行|配給
