@@ -3,6 +3,8 @@ package com.kitsugi.animelist.data.manga
 import android.content.Context
 import com.kitsugi.animelist.data.local.MangaSourceStateEntity
 import com.kitsugi.animelist.data.local.KitsugiDatabase
+import com.kitsugi.animelist.data.diagnostics.PlatformErrorCode
+import com.kitsugi.animelist.data.manga.model.SourceErrorCategory
 import com.kitsugi.animelist.data.manga.model.SourceHealthStatus
 import com.kitsugi.animelist.data.manga.model.SourceRuntimeStats
 import kotlinx.coroutines.CoroutineScope
@@ -32,6 +34,19 @@ class MangaSourceStateStore(context: Context) {
 
     fun getLastErrorType(source: MangaSource): String? {
         return prefs.getString(key(source, KEY_ERROR_TYPE), null)
+    }
+
+    /** Stable public support code (e.g. KTS-SRC-9003), including a fallback for old state. */
+    fun getLastErrorCode(source: MangaSource): String? {
+        val stored = prefs.getString(key(source, KEY_ERROR_CODE), null)
+        if (!stored.isNullOrBlank()) return PlatformErrorCode.fromId(stored)?.id ?: stored
+
+        val category = getLastErrorType(source)
+            ?.let { raw -> runCatching { SourceErrorCategory.valueOf(raw) }.getOrNull() }
+            ?: getLastReason(source)?.let { reason ->
+                SourceFailureClassifier.classifyCategory(IllegalStateException(reason))
+            }
+        return category?.let { PlatformErrorCode.forMangaCategory(it)?.id }
     }
 
     fun getRuntimeStats(source: MangaSource): SourceRuntimeStats {
@@ -67,6 +82,7 @@ class MangaSourceStateStore(context: Context) {
             .putLong(key(source, KEY_LAST_CHECKED_AT), now)
             .putString(key(source, KEY_REASON), reason)
             .putString(key(source, KEY_ERROR_TYPE), null)
+            .putString(key(source, KEY_ERROR_CODE), null)
             .apply()
         persistSnapshotAsync(source)
     }
@@ -89,6 +105,9 @@ class MangaSourceStateStore(context: Context) {
             .putLong(key(source, KEY_UPDATED_AT), now)
             .putLong(key(source, KEY_LAST_CHECKED_AT), now)
             .putLong(key(source, KEY_LAST_SUCCESS_AT), now)
+            .putString(key(source, KEY_REASON), null)
+            .putString(key(source, KEY_ERROR_TYPE), null)
+            .putString(key(source, KEY_ERROR_CODE), null)
             .putInt(key(source, KEY_SUCCESS_COUNT), currentStats.successCount + 1)
             .putInt(key(source, KEY_FAILURE_STREAK), 0)
             .putLong(key(source, KEY_COOLDOWN_UNTIL), 0L)
@@ -111,9 +130,15 @@ class MangaSourceStateStore(context: Context) {
     ) {
         val now = System.currentTimeMillis()
         val currentStats = getRuntimeStats(source)
-        val category = SourceFailureClassifier.classifyCategory(
+        val detectedCategory = SourceFailureClassifier.classifyCategory(
             reason?.let { IllegalStateException(it) }
         )
+        val category = when {
+            detectedCategory != SourceErrorCategory.Unknown -> detectedCategory
+            statusOverride == SourceHealthStatus.RateLimited -> SourceErrorCategory.RateLimited
+            statusOverride == SourceHealthStatus.CaptchaRequired -> SourceErrorCategory.Captcha
+            else -> detectedCategory
+        }
         val resolvedStatus = statusOverride ?: classifyFailure(reason)
         val nextFailureStreak = getFailureStreak(source) + 1
         val cooldownUntil = computeCooldownUntil(
@@ -138,6 +163,7 @@ class MangaSourceStateStore(context: Context) {
             .putLong(key(source, KEY_LAST_FAILURE_AT), now)
             .putString(key(source, KEY_REASON), reason)
             .putString(key(source, KEY_ERROR_TYPE), category.name)
+            .putString(key(source, KEY_ERROR_CODE), PlatformErrorCode.forMangaCategory(category)?.id)
             .putInt(key(source, KEY_FAILURE_COUNT), currentStats.failureCount + 1)
             .putInt(key(source, KEY_FAILURE_STREAK), nextFailureStreak)
             .putLong(key(source, KEY_COOLDOWN_UNTIL), cooldownUntil)
@@ -174,6 +200,7 @@ class MangaSourceStateStore(context: Context) {
             .remove(key(source, KEY_HEALTH))
             .remove(key(source, KEY_REASON))
             .remove(key(source, KEY_ERROR_TYPE))
+            .remove(key(source, KEY_ERROR_CODE))
             .remove(key(source, KEY_UPDATED_AT))
             .remove(key(source, KEY_LAST_CHECKED_AT))
             .remove(key(source, KEY_LAST_SUCCESS_AT))
@@ -213,6 +240,8 @@ class MangaSourceStateStore(context: Context) {
             healthStatus = getHealthStatus(source).name,
             lastReason = getLastReason(source),
             lastErrorType = getLastErrorType(source),
+            lastErrorCode = getLastErrorCode(source),
+            cooldownUntil = getCooldownUntil(source),
             lastCheckedAt = prefs.getLong(key(source, KEY_LAST_CHECKED_AT), 0L),
             lastSuccessAt = prefs.getLong(key(source, KEY_LAST_SUCCESS_AT), 0L),
             lastFailureAt = prefs.getLong(key(source, KEY_LAST_FAILURE_AT), 0L),
@@ -228,20 +257,8 @@ class MangaSourceStateStore(context: Context) {
         )
     }
 
-    private fun classifyFailure(reason: String?): SourceHealthStatus {
-        val message = reason.orEmpty().lowercase()
-        return when {
-            message.contains("cloudflare") || message.contains("captcha") -> SourceHealthStatus.CaptchaRequired
-            message.contains("429") || message.contains("too many requests") -> SourceHealthStatus.RateLimited
-            message.contains("unable to resolve host") ||
-                message.contains("failed to connect") ||
-                message.contains("timeout") ||
-                message.contains("connection reset") -> SourceHealthStatus.Degraded
-            message.contains("404") || message.contains("not found") -> SourceHealthStatus.Degraded
-            message.isBlank() -> SourceHealthStatus.Degraded
-            else -> SourceHealthStatus.Degraded
-        }
-    }
+    private fun classifyFailure(reason: String?): SourceHealthStatus =
+        SourceFailureClassifier.classifyStatus(reason?.let { IllegalStateException(it) })
 
     private fun smoothAverage(current: Long, sample: Long): Long {
         if (sample <= 0L) return current
@@ -274,6 +291,7 @@ class MangaSourceStateStore(context: Context) {
         const val KEY_HEALTH = "health"
         const val KEY_REASON = "reason"
         const val KEY_ERROR_TYPE = "error_type"
+        const val KEY_ERROR_CODE = "error_code"
         const val KEY_UPDATED_AT = "updated_at"
         const val KEY_LAST_CHECKED_AT = "last_checked_at"
         const val KEY_LAST_SUCCESS_AT = "last_success_at"

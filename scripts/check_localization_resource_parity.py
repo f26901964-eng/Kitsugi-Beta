@@ -17,24 +17,26 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 RES = ROOT / "app/src/main/res"
-TR_STRINGS = RES / "values/strings.xml"
-EN_STRINGS = RES / "values-en/strings.xml"
-TR_ARRAYS = RES / "values/arrays.xml"
-EN_ARRAYS = RES / "values-en/arrays.xml"
+TR_VALUES = RES / "values"
+EN_VALUES = RES / "values-en"
 
 # Android's formatted string placeholders. ``%%`` is a literal percent sign,
 # not an argument, and is deliberately excluded.
 FORMAT_TOKEN = re.compile(r"%(?:(\d+)\$)?[-+0-9.]*[sdif]")
 
 
-def named_resources(path: Path, expected_tag: str) -> dict[str, ET.Element]:
-    root = ET.parse(path).getroot()
-    values = [node for node in root if node.tag == expected_tag]
-    names = [node.attrib.get("name", "") for node in values]
-    duplicates = sorted({name for name in names if names.count(name) > 1})
-    if duplicates:
-        raise ValueError(f"{path}: duplicate {expected_tag} names: {duplicates[:10]}")
-    return {node.attrib["name"]: node for node in values}
+def named_resources(directory: Path, expected_tag: str) -> dict[str, ET.Element]:
+    resources: dict[str, ET.Element] = {}
+    for path in sorted(directory.glob("*.xml")):
+        root = ET.parse(path).getroot()
+        for node in root:
+            if node.tag != expected_tag:
+                continue
+            name = node.attrib.get("name", "")
+            if name in resources:
+                raise ValueError(f"{directory}: duplicate {expected_tag} name: {name}")
+            resources[name] = node
+    return resources
 
 
 def text(node: ET.Element) -> str:
@@ -59,10 +61,10 @@ def placeholders(value: str) -> list[str]:
 
 def main() -> int:
     try:
-        tr_strings = named_resources(TR_STRINGS, "string")
-        en_strings = named_resources(EN_STRINGS, "string")
-        tr_arrays = named_resources(TR_ARRAYS, "string-array")
-        en_arrays = named_resources(EN_ARRAYS, "string-array")
+        tr_strings = named_resources(TR_VALUES, "string")
+        en_strings = named_resources(EN_VALUES, "string")
+        tr_arrays = named_resources(TR_VALUES, "string-array")
+        en_arrays = named_resources(EN_VALUES, "string-array")
     except (ET.ParseError, KeyError, ValueError) as error:
         print(error, file=sys.stderr)
         return 1

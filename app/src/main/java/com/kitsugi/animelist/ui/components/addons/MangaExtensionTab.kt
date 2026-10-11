@@ -1,4 +1,4 @@
-﻿package com.kitsugi.animelist.ui.components.addons
+package com.kitsugi.animelist.ui.components.addons
 import androidx.compose.foundation.lazy.itemsIndexed
 import com.kitsugi.animelist.ui.components.KitsugiTonalButton
 import com.kitsugi.animelist.ui.components.KitsugiButton
@@ -34,6 +34,9 @@ import androidx.compose.ui.unit.sp
 import coil3.compose.AsyncImage
 import com.kitsugi.animelist.data.manga.MangaSource
 import com.kitsugi.animelist.data.manga.stableSourceKey
+import com.kitsugi.animelist.data.diagnostics.PlatformErrorCode
+import com.kitsugi.animelist.ui.components.errors.PlatformErrorCodeHint
+import com.kitsugi.animelist.ui.components.errors.PlatformErrorExplanationBlock
 import com.kitsugi.animelist.ui.theme.KitsugiColors
 import com.kitsugi.animelist.ui.theme.LocalIsTv
 import com.kitsugi.animelist.ui.tv.components.TvDialog
@@ -105,6 +108,7 @@ internal fun MangaExtensionsTab(
     var langFilter by rememberSaveable { mutableStateOf("Tümü") }
     val installStates = remember { mutableStateMapOf<String, MangaInstallState>() }
     val installedSourceByKey = remember(sources) { sources.associateBy { it.stableSourceKey() } }
+    val sourceStateByKey = remember(sourceStateReport) { sourceStateReport.associateBy { it.sourceKey } }
     // Oto-güncelleme durumu
     var autoUpdateRunning by remember { mutableStateOf(false) }
     var autoUpdateResult by remember { mutableStateOf<String?>(null) }
@@ -845,6 +849,8 @@ internal fun MangaExtensionsTab(
                 val health = onGetSourceHealthStatus(source)
                 val isBusy = onIsSourceBusy(source)
                 val domain = onGetConfiguredDomain(source)
+                val sourceState = sourceStateByKey[source.stableSourceKey()]
+                val errorCode = PlatformErrorCode.fromMangaState(sourceState?.lastErrorCode, sourceState?.lastErrorType)?.id
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -868,6 +874,9 @@ internal fun MangaExtensionsTab(
                             if (!domain.isNullOrBlank()) {
                                 TinyInfoChip(text = domain, tint = accentColor)
                             }
+                        }
+                        if (errorCode != null) {
+                            PlatformErrorCodeHint(code = errorCode)
                         }
                     }
                     if (isBusy) {
@@ -986,7 +995,14 @@ internal fun MangaExtensionsTab(
                                     TinyInfoChip(text = "Trend", tint = trendTint(item.successCount, item.failureCount))
                                     SourceStatLine("Son kontrol", formatTimestamp(item.lastCheckedAt))
                                     SourceStatLine("Search / Image", "${formatMs(item.avgSearchMs)} / ${formatMs(item.avgImageMs)}")
-                                    if (!item.lastReason.isNullOrBlank()) {
+                                    val errorCode = PlatformErrorCode.fromMangaState(item.lastErrorCode, item.lastErrorType)?.id
+                                    if (errorCode != null) {
+                                        PlatformErrorExplanationBlock(
+                                            code = errorCode,
+                                            rawReason = item.lastReason,
+                                            cooldownUntil = item.cooldownUntil,
+                                        )
+                                    } else if (!item.lastReason.isNullOrBlank()) {
                                         SourceStatLine("Son neden", item.lastReason)
                                     }
                                 }

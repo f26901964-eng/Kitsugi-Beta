@@ -58,6 +58,8 @@ import coil.compose.AsyncImage
 import com.kitsugi.animelist.data.cloudstream.CsPluginStatusTracker
 import com.kitsugi.animelist.data.cloudstream.CsStreamRunner
 import com.kitsugi.animelist.ui.theme.KitsugiColors
+import com.kitsugi.animelist.ui.components.errors.PlatformErrorCodeHint
+import com.kitsugi.animelist.data.diagnostics.PlatformErrorCode
 import com.kitsugi.animelist.ui.theme.LocalKitsugiAccent
 import com.lagradost.cloudstream3.HomePageList
 import com.lagradost.cloudstream3.MainAPI
@@ -143,10 +145,18 @@ fun AddonExplorePage(
                                 api.getMainPage(1, req)?.let { list.addAll(it.items) }
                             } catch (t: Throwable) {
                                 Log.e("AddonExploreDialog", "Page load failed: ${pageData.name} — ${t.message}")
+                                CsPluginStatusTracker.recordSkip(
+                                    api.name,
+                                    t.localizedMessage ?: "${pageData.name}: ${t.javaClass.simpleName}",
+                                )
                             }
                         }
                     } catch (t: Throwable) {
                         Log.e("AddonExploreDialog", "mainPage list failed: ${t.message}")
+                        CsPluginStatusTracker.recordSkip(
+                            api.name,
+                            t.localizedMessage ?: t.javaClass.simpleName,
+                        )
                     }
                     list
                 }
@@ -172,7 +182,13 @@ fun AddonExplorePage(
                         // boş sonuç + challenge kanıtı halinde sabırlı yeniden deneme yapılır.
                         runCatching { CsStreamRunner.ensureCfClearance(api) }
                         CsStreamRunner.searchWithCfRetry(api, searchQuery)
-                    } catch (t: Throwable) { emptyList() }
+                    } catch (t: Throwable) {
+                        CsPluginStatusTracker.recordSkip(
+                            api.name,
+                            t.localizedMessage ?: t.javaClass.simpleName,
+                        )
+                        emptyList()
+                    }
                 }
                 searchResults = results
                 isSearchLoading = false
@@ -185,7 +201,8 @@ fun AddonExplorePage(
         homeLists.firstOrNull { it.list.isNotEmpty() }?.list?.take(10)
             ?.map { it.toAddonSearchResult() } ?: emptyList()
     }
-    val isBlocked = remember(api.name) { CsPluginStatusTracker.isBlocked(api.name) }
+    val isBlocked = CsPluginStatusTracker.isBlocked(api.name)
+    val errorCode = CsPluginStatusTracker.getErrorCode(api.name)
     val isCfProtected = remember(api.name) {
         CsStreamRunner.CF_PROTECTED_PLUGINS.contains(api.name) || api.usesWebView
     }
@@ -291,13 +308,14 @@ fun AddonExplorePage(
                             }
 
                             // Warning pill (CF / blocked)
-                            if (isBlocked || isCfProtected) {
+                            if (isBlocked || isCfProtected || errorCode != null) {
                                 item(key = "warning") {
                                     AddonStatusPill(
                                         isBlocked = isBlocked,
-                                        blockReason = if (isBlocked)
+                                        blockReason = if (isBlocked || errorCode != null)
                                             CsPluginStatusTracker.getErrorMessage(api.name) ?: "Ağ hatası"
-                                        else null
+                                        else null,
+                                        errorCode = errorCode,
                                     )
                                 }
                             }
@@ -510,14 +528,23 @@ private fun AddonFloatingSearchBar(
 @Composable
 private fun AddonStatusPill(
     isBlocked: Boolean,
-    blockReason: String?
+    blockReason: String?,
+    errorCode: String?,
 ) {
     val bgColor = if (isBlocked) KitsugiColors.AccentRed.copy(0.14f) else KitsugiColors.AccentOrange.copy(0.14f)
     val borderColor = if (isBlocked) KitsugiColors.AccentRed else KitsugiColors.AccentOrange
-    val text = if (isBlocked)
-        "⚠️ Eklenti engellendi: ${blockReason ?: "Bilinmeyen hata"}"
-    else
-        "🔐 Cloudflare korumalı eklenti. İlk açılışta tarayıcıda doğrulama gerekebilir."
+    val errorTitle = errorCode
+        ?.let { PlatformErrorCode.fromId(it) }
+        ?.let { stringResource(it.titleRes) }
+    val text = when {
+        isBlocked -> stringResource(
+            R.string.platform_error_plugin_blocked,
+            errorTitle ?: stringResource(R.string.platform_error_unknown_reason),
+            blockReason ?: stringResource(R.string.platform_error_unknown_reason),
+        )
+        errorTitle != null -> "⚠️ $errorTitle"
+        else -> stringResource(R.string.platform_error_cloudflare_warning)
+    }
 
     Box(
         modifier = Modifier
@@ -528,6 +555,19 @@ private fun AddonStatusPill(
             .border(1.dp, borderColor, RoundedCornerShape(10.dp))
             .padding(10.dp)
     ) {
-        Text(text, color = borderColor, fontSize = 12.sp, fontWeight = FontWeight.Medium)
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            Text(
+                text,
+                modifier = Modifier.weight(1f),
+                color = borderColor,
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Medium,
+            )
+            if (errorCode != null) PlatformErrorCodeHint(code = errorCode)
+        }
     }
 }

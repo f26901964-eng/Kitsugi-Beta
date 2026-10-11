@@ -35,6 +35,8 @@ import coil.request.ImageRequest
 import com.kitsugi.animelist.data.cloudstream.CsPluginStatusTracker
 import com.kitsugi.animelist.data.cloudstream.CsStreamRunner
 import com.kitsugi.animelist.ui.theme.KitsugiColors
+import com.kitsugi.animelist.ui.components.errors.PlatformErrorCodeHint
+import com.kitsugi.animelist.data.diagnostics.PlatformErrorCode
 import com.kitsugi.animelist.ui.theme.LocalKitsugiAccent
 import com.kitsugi.animelist.ui.components.KitsugiPlasmaLoader
 import com.kitsugi.animelist.model.MediaType
@@ -75,11 +77,13 @@ class AddonExploreInlineState(
     var isLoading by mutableStateOf(false)
     var isBlocked by mutableStateOf(false)
     var isCfProtected by mutableStateOf(false)
+    var errorCode by mutableStateOf<String?>(null)
 
     fun load(api: MainAPI, forceRefresh: Boolean = false) {
         if (isLoading) return
         isLoading = true
         isBlocked = CsPluginStatusTracker.isBlocked(api.name)
+        errorCode = CsPluginStatusTracker.getErrorCode(api.name)
         isCfProtected = CsStreamRunner.CF_PROTECTED_PLUGINS.contains(api.name) || api.usesWebView
         scope.launch {
             val cached = if (forceRefresh) null else AddonExploreCache.get(api.name)
@@ -99,15 +103,24 @@ class AddonExploreInlineState(
                             api.getMainPage(1, req)?.let { list.addAll(it.items) }
                         } catch (t: Throwable) {
                             Log.e("AddonExploreInline", "Page load failed: ${pageData.name} — ${t.message}")
+                            CsPluginStatusTracker.recordSkip(
+                                api.name,
+                                t.localizedMessage ?: "${pageData.name}: ${t.javaClass.simpleName}",
+                            )
                         }
                     }
                 } catch (t: Throwable) {
                     Log.e("AddonExploreInline", "mainPage list failed: ${t.message}")
+                    CsPluginStatusTracker.recordSkip(
+                        api.name,
+                        t.localizedMessage ?: t.javaClass.simpleName,
+                    )
                 }
                 list
             }
             homeLists = dataList
             AddonExploreCache.put(api.name, dataList)
+            errorCode = CsPluginStatusTracker.getErrorCode(api.name)
             isLoading = false
         }
     }
@@ -165,12 +178,21 @@ fun LazyListScope.addonExploreInlineSections(
     }
 
     // ── Uyarı Pill'i (CF / Engel) ──────────────────────────────────────────
-    if (state.isBlocked || state.isCfProtected) {
+    if (state.isBlocked || state.isCfProtected || state.errorCode != null) {
         item(key = "inline_warning_${api.name}") {
-            val text = if (state.isBlocked)
-                "⚠️ Eklenti engellendi: ${CsPluginStatusTracker.getErrorMessage(api.name) ?: "Bilinmeyen hata"}"
-            else
-                "🔐 Cloudflare korumalı eklenti. İlk açılışta doğrulama gerekebilir."
+            val errorTitle = state.errorCode
+                ?.let { PlatformErrorCode.fromId(it) }
+                ?.let { stringResource(it.titleRes) }
+            val text = when {
+                state.isBlocked -> stringResource(
+                    R.string.platform_error_plugin_blocked,
+                    errorTitle ?: stringResource(R.string.platform_error_unknown_reason),
+                    CsPluginStatusTracker.getErrorMessage(api.name)
+                        ?: stringResource(R.string.platform_error_unknown_reason),
+                )
+                errorTitle != null -> "⚠️ $errorTitle"
+                else -> stringResource(R.string.platform_error_cloudflare_warning)
+            }
             val borderColor = if (state.isBlocked) KitsugiColors.AccentRed else KitsugiColors.AccentOrange
             Box(
                 modifier = Modifier
@@ -181,7 +203,20 @@ fun LazyListScope.addonExploreInlineSections(
                     .border(1.dp, borderColor, RoundedCornerShape(10.dp))
                     .padding(10.dp)
             ) {
-                Text(text, color = borderColor, fontSize = 12.sp, fontWeight = FontWeight.Medium)
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    Text(
+                        text,
+                        modifier = Modifier.weight(1f),
+                        color = borderColor,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Medium,
+                    )
+                    state.errorCode?.let { PlatformErrorCodeHint(code = it) }
+                }
             }
         }
     }

@@ -69,6 +69,7 @@ import com.kitsugi.animelist.data.settings.SettingsDataStore
 import com.kitsugi.animelist.ui.tv.player.TvPlayerActivity
 import com.kitsugi.animelist.ui.screens.stream.AddonFetchState
 import com.kitsugi.animelist.ui.screens.stream.StreamViewModel
+import com.kitsugi.animelist.ui.components.errors.PlatformErrorExplanationBlock
 import com.kitsugi.animelist.ui.screens.stream.DebridCacheState
 import com.kitsugi.animelist.ui.screens.stream.getCacheState
 import com.kitsugi.animelist.ui.screens.stream.resolveStreamQuality
@@ -786,6 +787,9 @@ private fun TvStreamErrorItem(
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis
             )
+            addonState.errorCode?.let { code ->
+                PlatformErrorExplanationBlock(code = code)
+            }
 
             if (isVerifyAvailable && isFocused) {
                 Spacer(modifier = Modifier.height(4.dp))

@@ -36,6 +36,8 @@ import androidx.compose.ui.unit.sp
 import com.kitsugi.animelist.data.manga.MangaSource
 import com.kitsugi.animelist.data.manga.model.SourceHealthStatus
 import com.kitsugi.animelist.data.manga.model.SourceRuntimeStats
+import com.kitsugi.animelist.ui.components.errors.PlatformErrorCodeHint
+import com.kitsugi.animelist.ui.components.errors.PlatformErrorExplanationBlock
 import com.kitsugi.animelist.ui.theme.KitsugiColors
 import com.kitsugi.animelist.ui.utils.requestFocusAfterFrames
 import androidx.compose.ui.res.stringResource
@@ -63,6 +65,9 @@ fun TvMangaSourceHealthScreen(
     checkingSource: MangaSource? = null,
     onGetSourceHealth: (MangaSource) -> SourceHealthStatus = { SourceHealthStatus.Unknown },
     onGetRuntimeStats: (MangaSource) -> SourceRuntimeStats = { SourceRuntimeStats() },
+    onGetLastErrorCode: (MangaSource) -> String? = { null },
+    onGetLastReason: (MangaSource) -> String? = { null },
+    onGetCooldownUntil: (MangaSource) -> Long = { 0L },
     onQuickCheckSource: (MangaSource) -> Unit = {},
     onRefreshMirror: (MangaSource) -> Unit = {},
     onClearDiagnostics: (MangaSource) -> Unit = {},
@@ -216,6 +221,7 @@ fun TvMangaSourceHealthScreen(
                     TvHealthSourceRow(
                         source = source,
                         health = health,
+                        errorCode = onGetLastErrorCode(source),
                         isChecking = isChecking,
                         isSelected = isSelected,
                         onSelect = { selectedSource = source }
@@ -264,6 +270,9 @@ fun TvMangaSourceHealthScreen(
                         source = src,
                         health = health,
                         stats = stats,
+                        errorCode = onGetLastErrorCode(src),
+                        rawReason = onGetLastReason(src),
+                        cooldownUntil = onGetCooldownUntil(src),
                         isChecking = isChecking,
                         onQuickCheck = { onQuickCheckSource(src) },
                         onRefreshMirror = { onRefreshMirror(src) },
@@ -331,6 +340,7 @@ private fun TvHealthActionRow(
 private fun TvHealthSourceRow(
     source: MangaSource,
     health: SourceHealthStatus,
+    errorCode: String?,
     isChecking: Boolean,
     isSelected: Boolean,
     onSelect: () -> Unit
@@ -407,6 +417,7 @@ private fun TvHealthSourceRow(
                 Text(label, color = color, fontSize = 9.sp, fontWeight = FontWeight.SemiBold)
             }
         }
+        if (errorCode != null) PlatformErrorCodeHint(code = errorCode)
     }
 }
 
@@ -417,6 +428,9 @@ private fun TvHealthDetailPanel(
     source: MangaSource,
     health: SourceHealthStatus,
     stats: SourceRuntimeStats,
+    errorCode: String?,
+    rawReason: String?,
+    cooldownUntil: Long,
     isChecking: Boolean,
     onQuickCheck: () -> Unit,
     onRefreshMirror: () -> Unit,
@@ -552,6 +566,14 @@ private fun TvHealthDetailPanel(
                     fontSize = 12.sp
                 )
             }
+        }
+
+        if (errorCode != null) {
+            PlatformErrorExplanationBlock(
+                code = errorCode,
+                rawReason = rawReason,
+                cooldownUntil = cooldownUntil,
+            )
         }
 
         // Sağlık durumu açıklaması

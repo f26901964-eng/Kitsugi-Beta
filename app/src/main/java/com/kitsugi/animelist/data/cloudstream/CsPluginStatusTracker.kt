@@ -39,6 +39,7 @@ object CsPluginStatusTracker {
 
     private val blocklist = ConcurrentHashMap.newKeySet<String>()
     private val errorMessages = ConcurrentHashMap<String, String>()
+    private val errorCodes = ConcurrentHashMap<String, String>()
 
     /**
      * Records a failure for the given plugin.
@@ -69,6 +70,11 @@ object CsPluginStatusTracker {
             else -> error.localizedMessage ?: error.message ?: error.javaClass.simpleName
         }
         errorMessages[pluginId] = message
+        errorCodes[pluginId] = if (error is kotlin.NotImplementedError) {
+            com.kitsugi.animelist.data.diagnostics.PlatformErrorCode.CloudStreamPluginUnsupported.id
+        } else {
+            CloudStreamErrorClassifier.classify(error).id
+        }
 
         // Otomatik izleme: her hata kalıcı trace'e yazılır (rapor paylaşımı için)
         if (error is kotlin.NotImplementedError) {
@@ -125,6 +131,7 @@ object CsPluginStatusTracker {
      */
     fun recordSkip(pluginId: String, reason: String) {
         errorMessages[pluginId] = reason
+        errorCodes[pluginId] = CloudStreamErrorClassifier.classifyText(reason).id
         CsTrace.warn(pluginId, "skip", reason)
     }
 
@@ -132,12 +139,15 @@ object CsPluginStatusTracker {
 
     fun getErrorMessage(pluginId: String): String? = errorMessages[pluginId]
 
+    fun getErrorCode(pluginId: String): String? = errorCodes[pluginId]
+
     fun clearPluginStatus(pluginId: String) {
         failures.remove(pluginId)
         notImplCount.remove(pluginId)
         parseFailures.remove(pluginId)
         blocklist.remove(pluginId)
         errorMessages.remove(pluginId)
+        errorCodes.remove(pluginId)
         Log.d(TAG, "[$pluginId] durum takibi sıfırlandı.")
     }
 
@@ -147,6 +157,7 @@ object CsPluginStatusTracker {
         parseFailures.clear()
         blocklist.clear()
         errorMessages.clear()
+        errorCodes.clear()
         Log.d(TAG, "Plugin durum takibi sıfırlandı.")
     }
 }

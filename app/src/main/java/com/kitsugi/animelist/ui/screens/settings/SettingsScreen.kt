@@ -91,7 +91,8 @@ internal enum class SettingsRoute {
     Storage,
     About,
     Feedback,
-    PluginDiagnostic
+    PluginDiagnostic,
+    PlatformErrorCodes,
 }
 
 // ─── Main Screen ─────────────────────────────────────────────────────────────
@@ -105,6 +106,7 @@ fun SettingsScreen(
     val accentColor = LocalKitsugiAccent.current
 
     var route by rememberSaveable { mutableStateOf(SettingsRoute.Main) }
+    var errorCatalogBackRoute by rememberSaveable { mutableStateOf(SettingsRoute.Main) }
     var showDeleteAllConfirm by rememberSaveable { mutableStateOf(false) }
     var systemSettingsInitialPage by rememberSaveable { mutableStateOf(0) }
 
@@ -112,6 +114,7 @@ fun SettingsScreen(
     BackHandler(enabled = route != SettingsRoute.Main) {
         route = when (route) {
             SettingsRoute.PluginDiagnostic -> SettingsRoute.AddonsExtensions
+            SettingsRoute.PlatformErrorCodes -> errorCatalogBackRoute
             SettingsRoute.AniListSettings,
             SettingsRoute.MalSettings,
             SettingsRoute.SimklSettings,
@@ -155,7 +158,12 @@ fun SettingsScreen(
             SettingsRoute.Main -> {
                 SettingsMainPage(
                     params = params,
-                    onNavigate = { route = it }
+                    onNavigate = {
+                        if (it == SettingsRoute.PlatformErrorCodes) {
+                            errorCatalogBackRoute = SettingsRoute.Main
+                        }
+                        route = it
+                    }
                 )
             }
 
@@ -398,8 +406,21 @@ fun SettingsScreen(
                 ) {
                     CsPluginDiagnosticScreen(
                         embeddedMode = true,
-                        onDismiss = { route = SettingsRoute.AddonsExtensions }
+                        onDismiss = { route = SettingsRoute.AddonsExtensions },
+                        onOpenErrorCatalog = {
+                            errorCatalogBackRoute = SettingsRoute.PluginDiagnostic
+                            route = SettingsRoute.PlatformErrorCodes
+                        },
                     )
+                }
+            }
+
+            SettingsRoute.PlatformErrorCodes -> {
+                SettingsSubPage(
+                    title = stringResource(R.string.platform_error_catalog_title),
+                    onBack = { route = errorCatalogBackRoute },
+                ) {
+                    PlatformErrorCatalogScreen()
                 }
             }
         }
@@ -539,6 +560,14 @@ private fun SettingsMainPage(
                         icon = Icons.Rounded.Hub,
                         iconColor = KitsugiColors.AccentBlue,
                         onClick = { onNavigate(SettingsRoute.Integrations) }
+                    )
+                    KitsugiSettingsDivider()
+                    KitsugiSettingsItem(
+                        title = stringResource(R.string.platform_error_catalog_open),
+                        description = stringResource(R.string.platform_error_catalog_desc),
+                        icon = Icons.Rounded.Info,
+                        iconColor = KitsugiColors.AccentOrange,
+                        onClick = { onNavigate(SettingsRoute.PlatformErrorCodes) }
                     )
                 }
                 Spacer(Modifier.height(16.dp))

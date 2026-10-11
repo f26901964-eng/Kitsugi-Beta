@@ -17,6 +17,8 @@ class CsProtectionClassifierTest {
             "Please complete the CAPTCHA",
             "Security Verification required",
             "__waf_challenge is pending",
+            "WAF blocked the request",
+            "Bot/WAF verification is required",
             "Verify you are human",
             "Tarayıcı doğrulama gerekiyor"
         ).forEach { message ->

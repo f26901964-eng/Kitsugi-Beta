@@ -457,6 +457,12 @@ class MangaViewModel(application: Application) : AndroidViewModel(application) {
     fun getSourceCooldownUntil(source: MangaSource): Long =
         mangaRepository.getSourceCooldownUntil(source)
 
+    fun getSourceLastErrorCode(source: MangaSource): String? =
+        mangaRepository.getSourceLastErrorCode(source)
+
+    fun getSourceLastReason(source: MangaSource): String? =
+        mangaRepository.getSourceLastReason(source)
+
     fun getConfiguredSourceDomain(source: MangaSource): String? =
         mangaRepository.getConfiguredDomain(source)
 
