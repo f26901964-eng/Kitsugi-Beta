@@ -21,6 +21,8 @@ android {
     val anilistClientId   = localProperties.getProperty("anilist_client_id")    ?: "32022"
     val anilistSecret     = localProperties.getProperty("anilist_client_secret") ?: "RwKJVnuh1B76AMKaWyEgsig6KwjGQpkpbMwJSi4j"
     val malClientId       = localProperties.getProperty("mal_client_id")         ?: "7b77365a6acb496a4af1c08a375c7a71"
+    // MAL "Web" tipi kayıtlarda token takasında client_secret zorunludur. Boşsa gönderilmez (PKCE/public).
+    val malClientSecret   = localProperties.getProperty("mal_client_secret")     ?: ""
     // miribyou kök adresi (Jikan uyumlu, açık kaynak). local.properties ile geçersiz kılınabilir; boşsa atlanır.
     val miribyouBaseUrl   = localProperties.getProperty("miribyou_base_url")     ?: "https://miribyou-topaz.vercel.app"
     val simklClientId     = localProperties.getProperty("simkl_client_id")       ?: "650ad7c96b7e1ab1e0056f745708ee0d05558480e8e0c6ae80f1061d2ae31496"
@@ -48,6 +50,7 @@ android {
         buildConfigField("String", "ANILIST_CLIENT_ID",      "\"$anilistClientId\"")
         buildConfigField("String", "ANILIST_CLIENT_SECRET",  "\"$anilistSecret\"")
         buildConfigField("String", "MAL_CLIENT_ID",          "\"$malClientId\"")
+        buildConfigField("String", "MAL_CLIENT_SECRET",      "\"$malClientSecret\"")
         buildConfigField("String", "MIRIBYOU_BASE_URL",      "\"$miribyouBaseUrl\"")
         buildConfigField("String", "SIMKL_CLIENT_ID",        "\"$simklClientId\"")
         buildConfigField("String", "SIMKL_CLIENT_SECRET",    "\"$simklSecret\"")

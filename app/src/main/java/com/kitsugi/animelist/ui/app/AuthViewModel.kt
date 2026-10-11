@@ -194,8 +194,15 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
      * Şimdi tekrar in-app WebView'a döndük; harici tarayıcı fallback olarak korunuyor.
      */
     fun startExternalAuth(serviceName: String) {
-        // Mobil ve TV fark etmeksizin önce in-app WebView dene
-        // (TV'de zaten QR dialog var ama WebView de çalışır)
+        // MyAnimeList: kullanıcının istediği eski akış — doğrudan MAL'ın kendi sitesine
+        // (harici tarayıcı) yönlendirilir, hesap bilgileri orada girilir ve malapp://auth
+        // ile uygulamaya geri dönülür. In-app WebView MAL'de client/basic-auth hatalarını
+        // kullanıcıya daha karmaşık gösterdiği için MAL için kullanılmaz.
+        if (serviceName.equals("mal", ignoreCase = true)) {
+            startExternalAuthExternal(serviceName)
+            return
+        }
+        // AniList / Simkl: uygulama içi WebView
         showOAuthDialog(serviceName)
     }
 
