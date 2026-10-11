@@ -34,10 +34,37 @@ object KitsugiIdResolver {
     private const val SHIKIMORI_MAL_UNRESOLVED = 0
 
     /**
+     * v2.4.250: resolveIds SONUÇ önbelleği. runGetStreams HER eklenti için (164 paralel!)
+     * resolveIds çağırıyordu; her biri 8'e kadar ardışık HTTP (ARM + TMDB) demekti —
+     * İzle'ye her basışta ~1000 istek, 75 sn'lik provider bütçesi aramaya sıra gelmeden
+     * eriyordu ("sağlam eklentiden bile veri gelmiyor"). İlk eklenti öder, kalanı
+     * önbellekten okur. Yalnızca zenginleşmiş sonuçlar önbelleğe alınır; geçici ağ
+     * arızaları tekrar deneyebilir kalır. ID'ler değişmez veri → eskitme gerekmez.
+     */
+    private val resolvedIdsCache = BoundedCache<String, ResolvedIds>("ids.resolved", 500)
+
+    /**
      * Resolves both IMDb ID and Kitsu ID in a single ARM API call.
      * Falls back to TMDB for the IMDb ID if ARM doesn't have one.
      */
     suspend fun resolveIds(
+        malId: Int?,
+        aniListId: Int?,
+        tmdbId: Int? = null,
+        mediaType: MediaType? = null,
+        kitsuId: Int? = null,
+        bangumiId: Int? = null
+    ): ResolvedIds = withContext(Dispatchers.IO) {
+        val cacheKey = "m=$malId|a=$aniListId|t=$tmdbId|mt=${mediaType?.name}|k=$kitsuId|b=$bangumiId"
+        resolvedIdsCache[cacheKey]?.let { return@withContext it }
+        val result = resolveIdsUncached(malId, aniListId, tmdbId, mediaType, kitsuId, bangumiId)
+        if (result.imdbId != null || result.kitsuId != null || result.tvdbId != null || result.tmdbId != null) {
+            resolvedIdsCache[cacheKey] = result
+        }
+        result
+    }
+
+    private suspend fun resolveIdsUncached(
         malId: Int?,
         aniListId: Int?,
         tmdbId: Int? = null,

@@ -21,6 +21,7 @@ import com.lagradost.cloudstream3.AcraApplication
 import com.lagradost.cloudstream3.network.CloudflareKiller
 import com.kitsugi.animelist.data.repository.StreamSource
 import com.kitsugi.animelist.data.remote.KitsugiIdResolver
+import com.kitsugi.animelist.data.remote.ResolvedIds
 import com.kitsugi.animelist.model.MediaType
 import com.kitsugi.animelist.core.player.SubtitleInput
 import kotlinx.coroutines.Dispatchers
@@ -1216,7 +1217,10 @@ object CsStreamRunner {
         tmdbId: Int? = null,
         isMovie: Boolean? = null,
         mediaType: MediaType? = null,
-        bangumiId: Int? = null
+        bangumiId: Int? = null,
+        // v2.4.250: cagiran ID'leri zaten cozduyse (StreamViewModel) eklenti basina
+        // ARM/TMDB agini atla — aksi halde runGetStreams kendi cozer (onbellekli).
+        preResolvedIds: ResolvedIds? = null
     ): List<StreamSource> = withContext(Dispatchers.IO) {
         Log.d(TAG, "━━━ getStreams: provider=${api.name} ━━━")
         Log.d(TAG, "  title='$title' season=$season ep=$episode year=$year")
@@ -1317,7 +1321,8 @@ object CsStreamRunner {
                 isMovie = effectiveIsMovie,
                 mediaType = effectiveMediaType,
                 bangumiId = bangumiId,
-                partialSink = partialSink
+                partialSink = partialSink,
+                preResolvedIds = preResolvedIds
             )
         }
         if (result == null) {
@@ -1348,10 +1353,13 @@ object CsStreamRunner {
         isMovie: Boolean? = null,
         mediaType: MediaType? = null,
         bangumiId: Int? = null,
-        partialSink: MutableList<StreamSource>? = null
+        partialSink: MutableList<StreamSource>? = null,
+        preResolvedIds: ResolvedIds? = null
     ): List<StreamSource> {
-        // Resolve external IDs for validation
-        val resolvedIds = if (malId != null || aniListId != null || tmdbId != null || bangumiId != null) {
+        // Resolve external IDs for validation. v2.4.250: cagiran cozulmus ID'leri
+        // verdiyse aga CIKMA (164 eklenti x 8 istek firtinasi provider butcesini
+        // eritiyordu); yoksa onbellekli cozumleyiciye dus.
+        val resolvedIds = preResolvedIds ?: if (malId != null || aniListId != null || tmdbId != null || bangumiId != null) {
             try {
                 KitsugiIdResolver.resolveIds(
                     malId = malId,
@@ -4021,4 +4029,3 @@ object CsStreamRunner {
         loadAndExtractStreams(api, searchResponse, season, episode, isResolvedMovie)
     }
 }
-

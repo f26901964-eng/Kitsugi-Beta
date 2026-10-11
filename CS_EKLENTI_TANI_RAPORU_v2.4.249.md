@@ -260,6 +260,31 @@ Meta'da olup dağıtılmayanlar (isim varyantları — muhtemel çift kayıt): A
 
 Not: `meta=v?` girdilerinde (Cricify, Exxen, Gain, GolgeTV, SSportPlus, Tabii) meta bozuk/eksik yazılmış — sürüm anahtarı yok.
 
+## 7. v2.4.250 — Strateji Denetimi 2. Tur ("Ya Sorun Bizdeyse?")
+
+Kullanıcı itirazı üzerine detay sayfası İzle/Bölümler akışının TAMAMI denetlendi
+(`StreamViewModel.startFetch/fetchStreams` → `CsStreamRunner.getStreams/runGetStreams` →
+`safeSearch` → `CsTitleMatcher.findBestMatch` → `loadAndExtractStreams` →
+`CsEpisodeMatcher.findEpisodeData` → `extractStreamsFromEpisode` → `resolveEmbedUrl`)
++ `ensurePluginReady/applyDomainFix`, `KitsugiIdResolver`, `CsPluginLoader` yolu ve
+uygulama-içi tanı koşucusu. **2 yeni uygulama hatası bulundu ve düzeltildi:**
+
+| # | Hata | Etki | Düzeltme |
+|---|---|---|---|
+| 1 | `runGetStreams` EKLENTİ BAŞINA (164 paralel) önbelleksiz ARM+TMDB çözümlemesi — eklenti başına 8 ardışık HTTP, İzle başına ~1000 istek; 75 sn bütçe aramadan önce eriyor | Sağlam eklentiler bile zaman aşımı → boş | `preResolvedIds` passthrough (ana akışta eklenti başına ID ağı SIFIR) + `resolveIds` sonuç önbelleği |
+| 2 | Anime detayında `TvSeries`/`Movie` eklentiler tip filtresinde eleniyor | Dublajlı anime (dizi siteleri) + anime filmleri (film siteleri) erişilemez | Anime satırı genişletildi; ilgisiz sonuçlar zaten tür eşleştiricide eleniyor |
+
+**Strateji simülasyonu (Python birebir port, 7 senaryo):** dizi S1E1 1.00 kanarya
+(eski guard REDDEDİYOR → üretim arızasını yeniden üretiyor; v2.4.249 KABUL EDİYOR),
+dizi S2E3, anime mutlak numaralama (Shippuden eşleşiyor / çıplak Naruto eleniyor / E5
+bulunuyor), film eşleşme, gürültülü başlık temizliği — HEPSİ GEÇTİ. **Bilinen boşluk:**
+site yalnızca Türkçe başlık taşıyorsa eşleşme yok (detay sayfası TR başlık göndermiyor)
+→ sonraki sürüm: TMDB `tr-TR` başlık varyantı.
+
+**Kalıcı test:** tanı koşucusuna faz 2g eklendi — her eklentinin KENDİ döndürdüğü başlık
+cihazda bizim `getStreams` hattımızdan geçiriliyor; `Flow: ❌` = BİZİM eşleştiricimiz
+suçlu. Ayarlar → Eklenti Tanı ekranından çalıştırılıp rapor paylaşılabilir.
+
 ## Ek B. Bu Sürümde Değişen Dosyalar (uygulama deposu)
 
 - `app/src/main/java/com/kitsugi/animelist/data/cloudstream/CsTitleMatcher.kt` — §3.1 koruması

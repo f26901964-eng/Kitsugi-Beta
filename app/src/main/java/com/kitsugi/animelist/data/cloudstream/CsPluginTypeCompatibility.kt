@@ -44,7 +44,14 @@ internal object CsPluginTypeCompatibility {
         if (declared.isEmpty() || "nsfw" in declared || "adult" in declared) return true
 
         val expected = when (mediaType) {
-            MediaType.Anime -> setOf("anime", "anime movie", "animemovie", "ova", "cartoon")
+            // v2.4.250: TR dizi siteleri dublajlı anime, film siteleri anime filmleri
+            // barındırır — salt Anime bildiren filtre hepsini eliyordu ("Bu eklenti
+            // anime içeriklerini desteklemiyor"). İlgisiz sonuçlar zaten
+            // CsTitleMatcher.isTypeCompatible ile elenir; burada engellemek veri kaybıdır.
+            MediaType.Anime -> setOf(
+                "anime", "anime movie", "animemovie", "ova", "cartoon",
+                "tvseries", "tv series", "asiandrama", "documentary", "movie"
+            )
             MediaType.Manga -> setOf("manga", "comic")
             MediaType.Movie -> setOf("movie", "anime movie", "animemovie", "cartoon")
             MediaType.TvShow -> setOf("tvseries", "tv series", "asiandrama", "documentary")
