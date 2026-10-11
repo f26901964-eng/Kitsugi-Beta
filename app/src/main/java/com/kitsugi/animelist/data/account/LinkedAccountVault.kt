@@ -118,15 +118,37 @@ object LinkedAccountVault {
             } catch (e: Exception) {
                 _status.value = when (e) {
                     is VaultConflictException, is VaultLockedException -> e.message.orEmpty()
-                    else -> "İşlem tamamlanamadı. Açık kasa için bekleyen yedek işi yeniden denenir. Kasa açılmadıysa tekrar giriş yap; sunucu güncellemesini de kontrol et."
+                    else -> KitsugiStrings.get(R.string.vault_operation_incomplete_generic)
                 }
                 Result.failure(e)
             }
         }
     }
 
+    /** Kullanıcının elle yönettiği otomatik yedekleme anahtarı (varsayılan: açık). */
+    @Volatile
+    var autoBackupEnabled: Boolean = true
+        private set
+
+    /**
+     * Otomatik yedeği aç/kapa. Açılışta bekleyen işler kuyruklanır; kapanışta
+     * periyodik + bekleyen WorkManager işleri iptal edilir. Elle "Şimdi eşitle"
+     * bu anahtardan bağımsız olarak her zaman çalışır.
+     */
+    fun setAutoBackupEnabled(context: Context, enabled: Boolean) {
+        autoBackupEnabled = enabled
+        val uid = userId() ?: return
+        if (enabled) {
+            VaultBackupWorker.periodic(context, uid)
+            VaultBackupWorker.enqueue(context, uid)
+        } else {
+            VaultBackupWorker.cancel(context, uid)
+        }
+    }
+
     private fun scheduleBackup() {
         if (restoring) return
+        if (!autoBackupEnabled) return
         val uid = userId() ?: return
         appContext?.let { VaultBackupWorker.enqueue(it, uid) }
     }
@@ -285,9 +307,11 @@ object LinkedAccountVault {
                 }
                 LocalVaultKeyStore.save(context, uid, key)
                 LocalVaultKeyStore.saveBaseline(context, uid, emptyMap(), emptyMap())
-                VaultBackupWorker.periodic(context, uid)
-                VaultBackupWorker.enqueue(context, uid)
-                backupUnlocked(context, uid)
+                if (autoBackupEnabled) {
+                    VaultBackupWorker.periodic(context, uid)
+                    VaultBackupWorker.enqueue(context, uid)
+                    backupUnlocked(context, uid)
+                }
             } else {
                 val meta = blob(metaJson)
                 // After an interrupted password change either wrap can unlock the SAME vault key.
@@ -296,7 +320,7 @@ object LinkedAccountVault {
                 val cachedKey = runCatching { LocalVaultKeyStore.load(context, uid) }.getOrNull()
                 if (cachedKey != null && cachedKey.contentEquals(key) && LocalVaultKeyStore.baseline(context, uid) != null) {
                     // Preserve unsent offline token rotations on this device instead of restoring stale cloud tokens.
-                    backupUnlocked(context, uid)
+                    if (autoBackupEnabled) backupUnlocked(context, uid)
                 } else {
                     val remoteJson = fetchRow(uid, ROW_PAYLOAD)
                     val remote = payload(remoteJson, key)
@@ -304,7 +328,7 @@ object LinkedAccountVault {
                     LocalVaultKeyStore.save(context, uid, key)
                     val hashes = VaultMerge.hashes(VaultMerge.groups(remote))
                     LocalVaultKeyStore.saveBaseline(context, uid, hashes, hashes)
-                    if (remoteJson == null) backupUnlocked(context, uid)
+                    if (remoteJson == null) { if (autoBackupEnabled) backupUnlocked(context, uid) }
                     else _status.value = KitsugiStrings.get(R.string.bagli_hesaplarin_sifreli_yedegi_geri_yuklendi)
                 }
                 // Only a successfully authenticated NEW password may finalize a pending transition.
@@ -312,8 +336,10 @@ object LinkedAccountVault {
                 if (pendingKey != null) compareAndSwap(ROW_META, metaJson, blobJson(meta.pending!!.asBlob()))
             }
             _conflicts.value = emptySet()
-            VaultBackupWorker.periodic(context, uid)
-            VaultBackupWorker.enqueue(context, uid)
+            if (autoBackupEnabled) {
+                VaultBackupWorker.periodic(context, uid)
+                VaultBackupWorker.enqueue(context, uid)
+            }
         } finally { restoring = false }
     }
 
@@ -379,13 +405,26 @@ object LinkedAccountVault {
         tokenPrefs(app).registerOnSharedPreferenceChangeListener(autoBackupListener)
         scope.launch {
             try {
+                // Kullanıcının elle kapattığı anahtarı kuyruğa iş eklemeden önce yükle.
+                autoBackupEnabled = SettingsDataStore(app).settingsFlow.first().accountBackupEnabled
                 KitsugiAccountClient.client.auth.awaitInitialization()
                 userId()?.let {
-                    VaultBackupWorker.periodic(app, it)
-                    VaultBackupWorker.enqueue(app, it, startup = true)
+                    if (autoBackupEnabled) {
+                        VaultBackupWorker.periodic(app, it)
+                        VaultBackupWorker.enqueue(app, it, startup = true)
+                    }
                 }
             } catch (e: CancellationException) { throw e }
             catch (e: Exception) { _status.value = KitsugiStrings.get(R.string.oturum_baslatilamadi_tekrar_giris_yap) }
+        }
+        // Anahtar değişimlerini çalışma anında takip et (ayar ekranı bu süreci günceller).
+        scope.launch {
+            try {
+                SettingsDataStore(app).settingsFlow.drop(1).collect { s ->
+                    autoBackupEnabled = s.accountBackupEnabled
+                }
+            } catch (e: CancellationException) { throw e }
+            catch (_: Exception) { }
         }
         if (settingsObserver == null) settingsObserver = scope.launch {
             try {

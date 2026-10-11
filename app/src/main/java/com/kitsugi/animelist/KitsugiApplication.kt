@@ -114,6 +114,7 @@ class KitsugiApplication : Application(), SingletonImageLoader.Factory {
 
         // Only the main process may register vault listeners and persistent WorkManager jobs.
         runCatching { com.kitsugi.animelist.data.account.LinkedAccountVault.startAutoBackup(this) }
+        runCatching { com.kitsugi.animelist.data.account.KitsugiAccountRepository.startSettingsObserver(this) }
 
         // ── Bellek koruması ───────────────────────────────────────────────────────────
         // Gezindikçe şişen bellek önbellekleri, heap tavanına yaklaşınca sistem uyarısını

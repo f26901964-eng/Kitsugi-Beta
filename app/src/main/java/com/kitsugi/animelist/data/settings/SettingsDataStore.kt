@@ -177,6 +177,9 @@ class SettingsDataStore(
         val DefaultTab = stringPreferencesKey("default_tab")
         val LastUsedTab = stringPreferencesKey("last_used_tab")
         val AppLanguage = stringPreferencesKey("app_language")
+        val AccountBackupEnabled = booleanPreferencesKey("account_backup_enabled")
+        val AccountSearchSyncEnabled = booleanPreferencesKey("account_search_sync_enabled")
+        val AccountNotificationSyncEnabled = booleanPreferencesKey("account_notification_sync_enabled")
         val FixedNavBar = booleanPreferencesKey("fixed_nav_bar")
         val AspectMode = stringPreferencesKey("aspect_mode")
         val GainBoostDb = floatPreferencesKey("gain_boost_db")
@@ -489,6 +492,9 @@ class SettingsDataStore(
                     defaultTab = preferences[Keys.DefaultTab] ?: "LAST_USED",
                     lastUsedTab = preferences[Keys.LastUsedTab] ?: "Explore",
                     appLanguage = preferences[Keys.AppLanguage] ?: "system",
+                    accountBackupEnabled = preferences[Keys.AccountBackupEnabled] ?: true,
+                    accountSearchSyncEnabled = preferences[Keys.AccountSearchSyncEnabled] ?: true,
+                    accountNotificationSyncEnabled = preferences[Keys.AccountNotificationSyncEnabled] ?: true,
                     fixedNavBar = preferences[Keys.FixedNavBar] ?: false,
                     aspectMode = preferences[Keys.AspectMode] ?: "ORIGINAL",
                     gainBoostDb = preferences[Keys.GainBoostDb] ?: 0f,
@@ -1235,6 +1241,24 @@ class SettingsDataStore(
     suspend fun setAppLanguage(language: String) {
         context.settingsDataStore.edit { preferences ->
             preferences[Keys.AppLanguage] = language
+        }
+    }
+
+    suspend fun setAccountBackupEnabled(enabled: Boolean) {
+        context.settingsDataStore.edit { preferences ->
+            preferences[Keys.AccountBackupEnabled] = enabled
+        }
+    }
+
+    suspend fun setAccountSearchSyncEnabled(enabled: Boolean) {
+        context.settingsDataStore.edit { preferences ->
+            preferences[Keys.AccountSearchSyncEnabled] = enabled
+        }
+    }
+
+    suspend fun setAccountNotificationSyncEnabled(enabled: Boolean) {
+        context.settingsDataStore.edit { preferences ->
+            preferences[Keys.AccountNotificationSyncEnabled] = enabled
         }
     }
 

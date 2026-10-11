@@ -72,6 +72,36 @@ object KitsugiAccountRepository {
 
     private val scope = CoroutineScope(Dispatchers.IO)
 
+    /**
+     * Kullanıcının elle yönettiği eşitleme anahtarları (varsayılan: açık).
+     * Giriş/kayıt anında her şey OTOMATİK aktiftir; ayar ekranından kapatılabilir.
+     * [startSettingsObserver] çalışma anında günceller.
+     */
+    @Volatile
+    var searchSyncEnabled: Boolean = true
+        private set
+
+    @Volatile
+    var notificationSyncEnabled: Boolean = true
+        private set
+
+    /** Uygulama başlangıcında çağrılır; hesap eşitleme anahtarlarını canlı takip eder. */
+    fun startSettingsObserver(context: Context) {
+        scope.launch {
+            try {
+                com.kitsugi.animelist.data.settings.SettingsDataStore(context.applicationContext)
+                    .settingsFlow
+                    .collect { s ->
+                        searchSyncEnabled = s.accountSearchSyncEnabled
+                        notificationSyncEnabled = s.accountNotificationSyncEnabled
+                    }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (_: Exception) {
+            }
+        }
+    }
+
     /** Giriş yapılmışsa e-posta, yoksa null. */
     fun currentEmail(): String? =
         runCatching { KitsugiAccountClient.client.auth.currentUserOrNull()?.email }.getOrNull()
@@ -126,6 +156,7 @@ object KitsugiAccountRepository {
 
     /** Yerel arama geçmişini buluta yazar (son [SEARCH_HISTORY_LIMIT] kayıt). */
     suspend fun pushSearchHistory(dao: SearchHistoryDao): Result<Unit> = accountResult {
+        if (!searchSyncEnabled) return@accountResult
         val uid = currentUserId() ?: return@accountResult
         val local = dao.getRecentSearchHistory().first()
         val payload = local.map { RemoteSearchEntry(it.query, it.type, it.timestamp) }
@@ -137,6 +168,7 @@ object KitsugiAccountRepository {
      * sonra sonuç hem yerel veritabanına hem buluta yazılır.
      */
     suspend fun pullAndMergeSearchHistory(dao: SearchHistoryDao): Result<Unit> = accountResult {
+        if (!searchSyncEnabled) return@accountResult
         val uid = currentUserId() ?: return@accountResult
         val remote = fetchRemoteSearchHistory(uid)
         val local = dao.getRecentSearchHistory().first().map {
@@ -160,7 +192,7 @@ object KitsugiAccountRepository {
      * Ağ işlemi arka planda yapılır, arama akışını bekletmez.
      */
     fun onSearchHistoryChanged(dao: SearchHistoryDao) {
-        if (!isLoggedIn()) return
+        if (!isLoggedIn() || !searchSyncEnabled) return
         scope.launch { pushSearchHistory(dao) }
     }
 
@@ -175,6 +207,7 @@ object KitsugiAccountRepository {
      * hem hesapta kalıcı olurlar.
      */
     suspend fun pushNotificationArchive(context: Context): Result<Unit> = accountResult {
+        if (!notificationSyncEnabled) return@accountResult
         val uid = currentUserId() ?: return@accountResult
         writeKey(uid, KEY_NOTIFICATIONS, com.kitsugi.animelist.data.notifications.NotificationArchiveStore.toJsonElement(context))
     }
@@ -187,6 +220,7 @@ object KitsugiAccountRepository {
      * Sonuç hem yerel dosyaya hem buluta geri yazılır.
      */
     suspend fun pullAndMergeNotificationArchive(context: Context): Result<Unit> = accountResult {
+        if (!notificationSyncEnabled) return@accountResult
         val uid = currentUserId() ?: return@accountResult
         val rows = KitsugiAccountClient.client.from(TABLE)
             .select(columns = Columns.list("user_id", "key", "value")) {
