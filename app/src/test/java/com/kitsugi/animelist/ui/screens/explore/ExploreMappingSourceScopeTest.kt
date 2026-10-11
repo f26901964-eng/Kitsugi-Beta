@@ -74,6 +74,28 @@ class ExploreMappingSourceScopeTest {
     }
 
     @Test
+    fun `same-source realMalId match is found through the index without a full scan`() {
+        // Simkl kaydı MAL id'sini malId olarak taşır; sonuç farklı bir simkl id'si ama realMalId=21 getirir.
+        val simkl = entry(source = "simkl", id = 21, title = "Completely different title")
+        val map = generateExploreEntryMap(listOf(simkl))
+        val searchResult = JikanSearchResult(
+            malId = 9999,
+            title = "Other title",
+            subtitle = "",
+            type = MediaType.Anime,
+            total = null,
+            score = null,
+            isAdult = false,
+            imageUrl = null,
+            year = null,
+            source = "simkl",
+            realMalId = 21
+        )
+
+        assertSame(simkl, getMediaEntryFromMap(searchResult, map))
+    }
+
+    @Test
     fun `provider aliases are canonicalized without merging providers`() {
         assertEquals("bangumi", canonicalMediaSourceId("bgm.tv"))
         assertEquals("mal", canonicalMediaSourceId("jikan"))

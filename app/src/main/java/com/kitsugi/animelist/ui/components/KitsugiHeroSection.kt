@@ -40,6 +40,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.derivedStateOf
 import com.kitsugi.animelist.data.remote.KitsugiEpisodeRatingsRepository
 import com.kitsugi.animelist.data.remote.KitsugiBangumiDetailClient
 import com.kitsugi.animelist.data.remote.KitsugiIdResolver
@@ -476,14 +477,39 @@ fun KitsugiHeroSection(
             Box(modifier = Modifier.fillMaxSize())
         }
 
+        // Hit-test düzeltmesi: görünür sayfalar (current-1, current, current+1) üst üste
+        // çizilir. alpha=0 olan komşu katmanlar görsel olarak görünmese de dokunma
+        // olaylarını yiyor ve "yanlış anime" detay sayfası açılmasına sebep oluyordu
+        // (One Piece'e tıklayınca Frieren açılması vb.). Sadece o an ÖNDE olan sayfa
+        // (offset mutlak değeri en küçük olan) tıklama alsın; diğer katmanlar
+        // pointerInput'ı kendi üstlerine kapatmasın.
+        val frontPageIndex by remember(pagerState) {
+            derivedStateOf {
+                var best = visiblePageIndices.firstOrNull() ?: 0
+                var bestOffset = Float.MAX_VALUE
+                visiblePageIndices.forEach { idx ->
+                    val o = abs(heroPageOffset(pagerState, idx))
+                    if (o < bestOffset) {
+                        bestOffset = o
+                        best = idx
+                    }
+                }
+                best
+            }
+        }
+
         visiblePageIndices.forEach { page ->
             val item = items[page]
             val displayTitle = item.getDisplayTitle(titleLanguage)
+            val isFrontPage = (page == frontPageIndex)
             Box(
                 modifier = Modifier
                     .fillMaxSize()
                     .then(
-                        if (isTv) {
+                        if (isTv || !isFrontPage) {
+                            // Komşu sayfalar (alpha=0) ve TV odak modu: katman dokunmaları
+                            // yutmasın diye clickable ekleme. TV'de Enter tuşu zaten üstteki
+                            // ana Box'ta pagerState.currentPage ile doğru öğeyi tetikliyor.
                             Modifier
                         } else {
                             Modifier.tvClickable(
@@ -648,6 +674,7 @@ fun KitsugiHeroSection(
                     val item = items[page]
                     val displayTitle = item.getDisplayTitle(titleLanguage)
                     val alreadyInList = alreadyInList(item)
+                    val isFrontPageCol = (page == frontPageIndex)
 
                     val context = LocalContext.current
                     val copyTitleGesture = Modifier.copyOnDoubleTap(context, displayTitle)
@@ -661,7 +688,9 @@ fun KitsugiHeroSection(
                                 translationX = -offset * heroWidthPx * HERO_CONTENT_PARALLAX
                             }
                             .then(
-                                if (isTv) {
+                                if (isTv || !isFrontPageCol) {
+                                    // Komşu sayfaların metin/başlık katmanları (alpha=0)
+                                    // tıklamaları yutmasın; sadece öndeki sayfa detay açar.
                                     Modifier
                                 } else {
                                     Modifier.tvClickable(
