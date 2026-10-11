@@ -6,6 +6,8 @@ import com.kitsugi.animelist.core.network.KitsugiHttpClient
 import com.kitsugi.animelist.data.auth.ExternalAuthManager
 import com.kitsugi.animelist.data.auth.KitsuApiClient
 import com.kitsugi.animelist.data.auth.ShikimoriApiClient
+import com.kitsugi.animelist.data.platform.ListPlatform
+import com.kitsugi.animelist.data.platform.PlatformErrorCatalog
 import com.kitsugi.animelist.data.remote.KitsugiAiringCalendarClient
 import com.kitsugi.animelist.data.remote.SimklCalendarClient
 import com.kitsugi.animelist.model.MediaEntry
@@ -55,7 +57,12 @@ object NotificationDiagnostics {
         val durationMs: Long = 0L,
         val detail: String,
         val error: String? = null,
-        val hint: String? = null
+        val hint: String? = null,
+        /**
+         * `KTS-<PLATFORM>-<NNNN>` — başarısız satırın liste kaynağı hata kodu.
+         * [PlatformErrorCatalog] ile doldurulur; UI bu kodu ve nedeni kullanıcıya gösterir.
+         */
+        val errorCode: String? = null
     )
 
     suspend fun runAll(context: Context, mediaEntries: List<MediaEntry>): List<Row> {
@@ -66,11 +73,26 @@ object NotificationDiagnostics {
         rows += checkKitsu(context)
         rows += checkBangumi(context, mediaEntries)
         rows += checkShikimori(context)
-        rows.forEach { row ->
+        // Merkezi son adım: başarısız her satıra kaynağa özgü hata kodu ata.
+        val tagged = rows.map { row -> if (row.ok) row else row.copy(errorCode = classifyRow(row)) }
+        tagged.forEach { row ->
             Log.i(TAG, "${row.source}: ok=${row.ok} status=${row.httpStatus} count=${row.itemCount} " +
-                "ms=${row.durationMs} detail=${row.detail} error=${row.error}")
+                "ms=${row.durationMs} code=${row.errorCode} detail=${row.detail} error=${row.error}")
         }
-        return rows
+        return tagged
+    }
+
+    /**
+     * Satırdaki kanıtlardan (kaynak adı, HTTP kodu, hata metni, ayrıntı) hata kodunu çıkarır.
+     * Kanıt yetersizse `COM_1020` (sınıflandırılamayan hata) döner — kaybolmaz, gösterilir.
+     */
+    private fun classifyRow(row: Row): String {
+        val platform = ListPlatform.fromLabel(row.source)
+        return PlatformErrorCatalog.classify(
+            platform = platform,
+            httpCode = row.httpStatus,
+            rawMessage = listOfNotNull(row.error, row.detail).joinToString(" ")
+        ).code
     }
 
     // ─────────────────────────────────────────────────────────────────────────

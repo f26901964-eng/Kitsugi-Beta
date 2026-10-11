@@ -482,8 +482,21 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                 isError: Boolean = false,
                 isWarning: Boolean = false,
                 details: String? = null,
-                includeInLiveLog: Boolean = true
+                includeInLiveLog: Boolean = true,
+                errorCode: com.kitsugi.animelist.data.platform.PlatformErrorCode? = null
             ) {
+                // Hata/uyarı satırlarına, çağrı yerlerini tek tek değiştirmeye gerek kalmadan
+                // kaynağa özgü hata kodunu iliştir. Kod ve açıklaması UI'da dil dosyasından çözülür.
+                val resolvedCode = if (isError || isWarning) {
+                    val candidate = errorCode ?: com.kitsugi.animelist.data.platform.PlatformErrorCatalog
+                        .classifyMessage(platform, message, details)
+                    when {
+                        // Sınıflandırılamayan bir uyarıya yanıltıcı kod iliştirmeyelim…
+                        candidate == com.kitsugi.animelist.data.platform.PlatformErrorCode.COM_1020 && !isError -> null
+                        // …ama hatalar kodsuz kalmasın; "bilinmeyen" de bir sonuçtur.
+                        else -> candidate
+                    }
+                } else null
                 val entry = com.kitsugi.animelist.model.CrossSyncLogEntry(
                     platform = platform,
                     message = message,
@@ -491,7 +504,8 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                     isUpdate = isUpdate,
                     isError = isError,
                     isWarning = isWarning,
-                    details = details
+                    details = details,
+                    errorCode = resolvedCode?.code
                 )
                 reportLogs.add(entry)
                 if (isError || isWarning) issueCount++

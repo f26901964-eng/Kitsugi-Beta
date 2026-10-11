@@ -20,7 +20,16 @@ object CrossSyncReportFormatter {
     fun fileName(timestamp: Long): String =
         "Kitsugi_CrossSync_Report_${SimpleDateFormat(DATE_PATTERN, Locale.ROOT).format(Date(timestamp))}.txt"
 
-    fun format(state: CrossSyncProgressState, generatedAt: Long = System.currentTimeMillis()): String = buildString {
+    /**
+     * @param errorCodeProvider `KTS-XXX-####` kodunu iki dilli açıklama bloğuna çeviren
+     *   isteğe bağlı çözücü. [CrossSyncReportStore] bunu `PlatformErrorCatalog` ile besler;
+     *   null verilirse rapor kodları gösterir ama açıklama metinlerini atlar.
+     */
+    fun format(
+        state: CrossSyncProgressState,
+        generatedAt: Long = System.currentTimeMillis(),
+        errorCodeProvider: ((String) -> String?)? = null,
+    ): String = buildString {
         val reportEntries = state.reportLogs.ifEmpty { state.logs }
         val issues = reportEntries.filter { it.isError || it.isWarning }
         val formatter = SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS z", Locale.getDefault())
@@ -66,7 +75,7 @@ object CrossSyncReportFormatter {
             appendLine("Bu eşitleme sırasında kaydedilmiş bir hata veya uyarı yok.")
         } else {
             issues.forEachIndexed { index, entry ->
-                appendEntry(index + 1, entry, formatter)
+                appendEntry(index + 1, entry, formatter, errorCodeProvider)
             }
         }
 
@@ -76,18 +85,51 @@ object CrossSyncReportFormatter {
             appendLine("İşlem günlüğü boş.")
         } else {
             reportEntries.forEachIndexed { index, entry ->
-                appendEntry(index + 1, entry, formatter)
+                appendEntry(index + 1, entry, formatter, errorCodeProvider)
             }
         }
+
+        appendErrorCodeSection(reportEntries, errorCodeProvider)
 
         appendLine()
         appendLine("Not: Bu rapora OAuth erişim/yenileme anahtarları dahil edilmez. Medya başlıkları ve harici içerik kimlikleri, eşleştirme hatalarını teşhis edebilmek için rapora eklenir.")
     }
 
+    /**
+     * Bu koşuda görülen tüm hata kodlarını, iki dilli açıklamalarıyla birlikte listeler.
+     * Kullanıcı raporu paylaştığında "ne oldu / neden oldu / ne yapmalı" tek yerde durur.
+     */
+    private fun StringBuilder.appendErrorCodeSection(
+        entries: List<CrossSyncLogEntry>,
+        errorCodeProvider: ((String) -> String?)?,
+    ) {
+        val codes = entries.mapNotNull { it.errorCode?.takeIf { code -> code.isNotBlank() } }
+            .distinct()
+            .sorted()
+        if (codes.isEmpty()) return
+
+        appendLine()
+        appendLine("=== HATA KODLARI (${codes.size}) ===")
+        if (errorCodeProvider == null) {
+            codes.forEach { appendLine("• $it") }
+            return
+        }
+        codes.forEach { code ->
+            val explanation = errorCodeProvider(code)
+            if (explanation.isNullOrBlank()) {
+                appendLine("• $code (açıklama bulunamadı)")
+            } else {
+                explanation.lineSequence().forEach { line -> appendLine(safeText(line)) }
+                appendLine()
+            }
+        }
+    }
+
     private fun StringBuilder.appendEntry(
         index: Int,
         entry: CrossSyncLogEntry,
-        formatter: SimpleDateFormat
+        formatter: SimpleDateFormat,
+        errorCodeProvider: ((String) -> String?)? = null,
     ) {
         val severity = when {
             entry.isError -> "HATA"
@@ -95,6 +137,14 @@ object CrossSyncReportFormatter {
             else -> "BİLGİ"
         }
         appendLine("$index. [${formatter.format(Date(entry.timestamp))}] [$severity] [${safeText(entry.platform)}] ${safeText(entry.message)}")
+        entry.errorCode?.takeIf { it.isNotBlank() }?.let { code ->
+            appendLine("   Kod: $code")
+            errorCodeProvider?.invoke(code)?.takeIf { it.isNotBlank() }?.let { explanation ->
+                explanation.lineSequence()
+                    .filter { it.isNotBlank() }
+                    .forEach { line -> appendLine("   | ${safeText(line.trim())}") }
+            }
+        }
         entry.details?.takeIf { it.isNotBlank() }?.let { details ->
             details.lineSequence().forEach { line -> appendLine("   ${safeText(line)}") }
         }
