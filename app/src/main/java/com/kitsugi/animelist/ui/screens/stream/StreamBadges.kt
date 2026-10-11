@@ -100,7 +100,9 @@ fun AddonStatusChip(
         Text(
             text = buildString {
                 append(state.addonName)
-                if (state.streams.isNotEmpty() && state.addonName != "Tümü") {
+                // v2.4.239: "Tümü" çipi de toplam kaynak sayısını gösterir — kullanıcının
+                // "tüm video kaynakları listede mi?" sorusunu ekranda doğrudan yanıtlar.
+                if (state.streams.isNotEmpty()) {
                     append("  ${state.streams.size}")
                 }
             },

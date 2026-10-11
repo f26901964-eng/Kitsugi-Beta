@@ -134,6 +134,9 @@ fun AddonExplorePage(
                 val dataList = withContext(Dispatchers.IO) {
                     val list = mutableListOf<HomePageList>()
                     try {
+                        // v2.4.239: vitrin (Öne Çıkan) yüklemesi de gate'li — CF korumalı
+                        // eklentide ana sayfa istekleri clearance'siz başlayıp 403 yemesin.
+                        runCatching { CsStreamRunner.ensureCfClearance(api) }
                         for (pageData in api.mainPage) {
                             try {
                                 val req = MainPageRequest(pageData.name, pageData.data, pageData.horizontalImages)
@@ -163,8 +166,13 @@ fun AddonExplorePage(
             keyboardController?.hide()
             scope.launch {
                 val results = withContext(Dispatchers.IO) {
-                    try { CsStreamRunner.safeSearch(api, searchQuery) }
-                    catch (t: Throwable) { emptyList() }
+                    try {
+                        // v2.4.239: eklenti sayfası araması da CF gate'li — çıplak isim
+                        // sorgusundan önce clearance çözülür (sağlıklı sitede 0 ms);
+                        // boş sonuç + challenge kanıtı halinde sabırlı yeniden deneme yapılır.
+                        runCatching { CsStreamRunner.ensureCfClearance(api) }
+                        CsStreamRunner.searchWithCfRetry(api, searchQuery)
+                    } catch (t: Throwable) { emptyList() }
                 }
                 searchResults = results
                 isSearchLoading = false

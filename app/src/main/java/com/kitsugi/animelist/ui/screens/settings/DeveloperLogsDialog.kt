@@ -49,6 +49,7 @@ import kotlinx.coroutines.withContext
 import java.io.BufferedReader
 import java.io.File
 import java.io.InputStreamReader
+import com.kitsugi.animelist.utils.KitsugiStrings
 
 /** Günlük seviyesi filtreleri (logcat -v time biçimi: "MM-dd HH:mm:ss.SSS L/tag(pid): mesaj"). */
 private enum class LogLevelFilter(val label: String) {
@@ -121,9 +122,9 @@ fun DeveloperLogsDialog(
                             writer.write(snapLines.joinToString("\n"))
                         }
                     }
-                    Toast.makeText(context, "Loglar başarıyla kaydedildi", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(context, KitsugiStrings.get(R.string.loglar_basariyla_kaydedildi), Toast.LENGTH_SHORT).show()
                 } catch (e: Exception) {
-                    Toast.makeText(context, "Kaydetme başarısız: ${e.localizedMessage}", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(context, KitsugiStrings.get(R.string.kaydetme_basarisiz_x, e.localizedMessage), Toast.LENGTH_SHORT).show()
                 }
             }
         }
@@ -144,7 +145,7 @@ fun DeveloperLogsDialog(
                 process.waitFor()
                 logLines = lines.takeLast(1500).reversed()
             } catch (e: Exception) {
-                logLines = listOf("Loglar okunamadı: ${e.localizedMessage}")
+                logLines = listOf(KitsugiStrings.get(R.string.loglar_okunamadi_x, e.localizedMessage))
             } finally {
                 isLoading = false
             }
@@ -161,7 +162,7 @@ fun DeveloperLogsDialog(
                 crashReport = null
                 logLines = emptyList()
             } catch (e: Exception) {
-                logLines = listOf("Temizleme başarısız: ${e.localizedMessage}")
+                logLines = listOf(KitsugiStrings.get(R.string.temizleme_basarisiz_x, e.localizedMessage))
             } finally {
                 isLoading = false
             }
@@ -236,7 +237,7 @@ fun DeveloperLogsDialog(
                     }
                     LogToolButton(
                         icon = Icons.Rounded.Close,
-                        description = "Kapat",
+                        description = stringResource(R.string.kapat),
                         tint = KitsugiColors.TextPrimary,
                         onClick = onDismiss
                     )
@@ -252,10 +253,10 @@ fun DeveloperLogsDialog(
                     horizontalArrangement = Arrangement.spacedBy(6.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    LogToolButton(Icons.Rounded.Refresh, "Yenile", KitsugiColors.TextPrimary) {
+                    LogToolButton(Icons.Rounded.Refresh, stringResource(R.string.yenile), KitsugiColors.TextPrimary) {
                         scope.launch { loadLogs(true) }
                     }
-                    LogToolButton(Icons.Rounded.ContentCopy, "Kopyala", KitsugiColors.TextPrimary) {
+                    LogToolButton(Icons.Rounded.ContentCopy, stringResource(R.string.action_copy), KitsugiColors.TextPrimary) {
                         val textToCopy = buildString {
                             if (crashReport != null) {
                                 append("=== SON ÇÖKME RAPORU ===\n")
@@ -265,9 +266,9 @@ fun DeveloperLogsDialog(
                             append(filteredLines.joinToString("\n"))
                         }
                         clipboardManager.setText(AnnotatedString(textToCopy))
-                        Toast.makeText(context, "Loglar panoya kopyalandı", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(context, KitsugiStrings.get(R.string.loglar_panoya_kopyalandi), Toast.LENGTH_SHORT).show()
                     }
-                    LogToolButton(Icons.Rounded.Save, "Kaydet", KitsugiColors.TextPrimary) {
+                    LogToolButton(Icons.Rounded.Save, stringResource(R.string.kaydet), KitsugiColors.TextPrimary) {
                         logSnapshotRef.value = crashReport to filteredLines
                         val timestamp = java.text.SimpleDateFormat(
                             "yyyyMMdd-HHmm",
@@ -275,7 +276,7 @@ fun DeveloperLogsDialog(
                         ).format(java.util.Date())
                         saveLogLauncher.launch("Kitsugi-logcat-$timestamp.txt")
                     }
-                    LogToolButton(Icons.Rounded.Share, "Paylaş", KitsugiColors.TextPrimary) {
+                    LogToolButton(Icons.Rounded.Share, stringResource(R.string.paylas), KitsugiColors.TextPrimary) {
                         // Filtrelenmiş metni düz metin olarak paylaş (dosya sağlayıcısı gerektirmez).
                         val shareText = buildString {
                             if (crashReport != null) {
@@ -289,9 +290,9 @@ fun DeveloperLogsDialog(
                             type = "text/plain"
                             putExtra(Intent.EXTRA_TEXT, shareText)
                         }
-                        context.startActivity(Intent.createChooser(intent, "Logları Paylaş"))
+                        context.startActivity(Intent.createChooser(intent, KitsugiStrings.get(R.string.loglari_paylas)))
                     }
-                    LogToolButton(Icons.Rounded.Delete, "Temizle", KitsugiColors.AccentRed) {
+                    LogToolButton(Icons.Rounded.Delete, stringResource(R.string.temizle), KitsugiColors.AccentRed) {
                         scope.launch { clearLogs() }
                     }
                 }
@@ -300,7 +301,10 @@ fun DeveloperLogsDialog(
 
                 // ── Özet sayaçları ──
                 Text(
-                    text = "Toplam ${logLines.size} • Hata $errorCount • Uyarı $warnCount • Gösterilen ${filteredLines.size}",
+                    text = stringResource(
+                        R.string.gelistirici_log_ozet_sayaclari,
+                        logLines.size, errorCount, warnCount, filteredLines.size
+                    ),
                     color = KitsugiColors.TextMuted,
                     fontSize = 11.sp,
                     maxLines = 1,

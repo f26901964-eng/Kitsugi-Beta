@@ -28,44 +28,53 @@ object CrossSyncReportFormatter {
         val formatter = SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS z", Locale.getDefault())
         formatter.timeZone = TimeZone.getDefault()
 
-        appendLine("Kitsugi — Çapraz Platform Eşitleme Raporu")
-        appendLine("Rapor oluşturma zamanı: ${formatter.format(Date(generatedAt))}")
-        state.startedAt?.let { appendLine("Eşitleme başlangıcı: ${formatter.format(Date(it))}") }
-        state.finishedAt?.let { appendLine("Eşitleme bitişi: ${formatter.format(Date(it))}") }
-        appendLine("Sonuç: ${when {
-            state.isRunning -> "Devam ediyor (kısmi rapor)"
-            state.errorMessage != null -> "Hata ile sonlandı"
-            state.isCompleted && issues.any { it.isError } -> "Kısmen tamamlandı; hata var"
-            state.isCompleted -> "Tamamlandı"
-            else -> "Tamamlanmadı / durduruldu"
-        }}")
-        if (state.currentStep.isNotBlank()) appendLine(KitsugiStrings.get(R.string.son_adim_x, safeText(state.currentStep)))
-        if (state.currentDetail.isNotBlank()) appendLine(KitsugiStrings.get(R.string.ayrinti_x, safeText(state.currentDetail)))
-        state.errorMessage?.takeIf { it.isNotBlank() }?.let { appendLine(KitsugiStrings.get(R.string.genel_hata_x, safeText(it))) }
+        appendLine(KitsugiStrings.get(R.string.cross_sync_rapor_basligi).ifBlank { "Kitsugi — Çapraz Platform Eşitleme Raporu" })
+        appendLine(KitsugiStrings.get(R.string.rapor_olusturma_zamani_x, formatter.format(Date(generatedAt))).ifBlank { "Rapor oluşturma zamanı: ${formatter.format(Date(generatedAt))}" })
+        state.startedAt?.let { appendLine(KitsugiStrings.get(R.string.esitleme_baslangici_x, formatter.format(Date(it))).ifBlank { "Eşitleme başlangıcı: ${formatter.format(Date(it))}" }) }
+        state.finishedAt?.let { appendLine(KitsugiStrings.get(R.string.esitleme_bitisi_x, formatter.format(Date(it))).ifBlank { "Eşitleme bitişi: ${formatter.format(Date(it))}" }) }
+        val outcome = when {
+            state.isRunning -> KitsugiStrings.get(R.string.sonuc_devam_ediyor_kismi_rapor).ifBlank { "Devam ediyor (kısmi rapor)" }
+            state.errorMessage != null -> KitsugiStrings.get(R.string.sonuc_hata_ile_sonlandi).ifBlank { "Hata ile sonlandı" }
+            state.isCompleted && issues.any { it.isError } -> KitsugiStrings.get(R.string.sonuc_kismen_tamamlandi_hata_var).ifBlank { "Kısmen tamamlandı; hata var" }
+            state.isCompleted -> KitsugiStrings.get(R.string.tamamlandi).ifBlank { "Tamamlandı" }
+            else -> KitsugiStrings.get(R.string.sonuc_tamamlanmadi_durduruldu).ifBlank { "Tamamlanmadı / durduruldu" }
+        }
+        appendLine(KitsugiStrings.get(R.string.sonuc_x, outcome).ifBlank { "Sonuç: $outcome" })
+        if (state.currentStep.isNotBlank()) appendLine(KitsugiStrings.get(R.string.son_adim_x, safeText(state.currentStep)).ifBlank { "Son adım: ${safeText(state.currentStep)}" })
+        if (state.currentDetail.isNotBlank()) appendLine(KitsugiStrings.get(R.string.ayrinti_x, safeText(state.currentDetail)).ifBlank { "Ayrıntı: ${safeText(state.currentDetail)}" })
+        state.errorMessage?.takeIf { it.isNotBlank() }?.let { appendLine(KitsugiStrings.get(R.string.genel_hata_x, safeText(it)).ifBlank { "Genel hata: ${safeText(it)}" }) }
         val elapsedMs = state.startedAt?.let { start -> (state.finishedAt ?: generatedAt) - start }
-        elapsedMs?.takeIf { it >= 0 }?.let { appendLine("Geçen süre: ${it / 1000} sn") }
-        appendLine(KitsugiStrings.get(R.string.ilerleme_x_x_x, state.processedItems, state.totalItems, safeText(state.progressUnit)))
-        appendLine(KitsugiStrings.get(R.string.olusturulan_islem_kaydi_x, state.totalEventCount))
-        appendLine("Hata/uyarı sayısı: ${state.issueCount}")
+        elapsedMs?.takeIf { it >= 0 }?.let { appendLine(KitsugiStrings.get(R.string.gecen_sure_x_sn, it / 1000).ifBlank { "Geçen süre: ${it / 1000} sn" }) }
+        appendLine(KitsugiStrings.get(R.string.ilerleme_x_x_x, state.processedItems, state.totalItems, safeText(state.progressUnit)).ifBlank { "İlerleme: ${state.processedItems} / ${state.totalItems} ${safeText(state.progressUnit)}" })
+        appendLine(KitsugiStrings.get(R.string.olusturulan_islem_kaydi_x, state.totalEventCount).ifBlank { "Oluşturulan işlem kaydı: ${state.totalEventCount}" })
+        appendLine(KitsugiStrings.get(R.string.hata_uyari_sayisi_x, state.issueCount).ifBlank { "Hata/uyarı sayısı: ${state.issueCount}" })
 
         appendLine()
-        appendLine("=== PLATFORM ÖZETİ ===")
+        appendLine(KitsugiStrings.get(R.string.platform_ozeti_baslik).ifBlank { "=== PLATFORM ÖZETİ ===" })
         if (state.platformStats.isEmpty()) {
-            appendLine("Platform istatistiği yok.")
+            appendLine(KitsugiStrings.get(R.string.platform_istatistigi_yok).ifBlank { "Platform istatistiği yok." })
         } else {
             state.platformStats.values.forEach { stats ->
                 appendLine(
-                    KitsugiStrings.get(R.string.x_baslangic_x, safeText(stats.platformName), stats.initialCount) +
-                        KitsugiStrings.get(R.string.eklenen_x_guncellenen_x, stats.addedCount, stats.updatedCount) +
-                        "atlanan=${stats.skippedCount}, hata=${stats.errorCount}"
+                    KitsugiStrings.get(
+                        R.string.platform_ozet_satiri_x,
+                        safeText(stats.platformName),
+                        stats.initialCount,
+                        stats.addedCount,
+                        stats.updatedCount,
+                        stats.skippedCount,
+                        stats.errorCount
+                    ).ifBlank {
+                        "${safeText(stats.platformName)}: başlangıç=${stats.initialCount}, eklenen=${stats.addedCount}, güncellenen=${stats.updatedCount}, atlanan=${stats.skippedCount}, hata=${stats.errorCount}"
+                    }
                 )
             }
         }
 
         appendLine()
-        appendLine("=== SORUNLAR / UYARILAR (${issues.size}) ===")
+        appendLine(KitsugiStrings.get(R.string.sorunlar_uyarilar_baslik_x, issues.size).ifBlank { "=== SORUNLAR / UYARILAR (${issues.size}) ===" })
         if (issues.isEmpty()) {
-            appendLine("Bu eşitleme sırasında kaydedilmiş bir hata veya uyarı yok.")
+            appendLine(KitsugiStrings.get(R.string.sorun_uyari_kaydi_yok).ifBlank { "Bu eşitleme sırasında kaydedilmiş bir hata veya uyarı yok." })
         } else {
             issues.forEachIndexed { index, entry ->
                 appendEntry(index + 1, entry, formatter)
@@ -73,9 +82,9 @@ object CrossSyncReportFormatter {
         }
 
         appendLine()
-        appendLine("=== TÜM İŞLEM VE EŞLEŞTİRME KAYITLARI (${reportEntries.size}) ===")
+        appendLine(KitsugiStrings.get(R.string.tum_islem_kayitlari_baslik_x, reportEntries.size).ifBlank { "=== TÜM İŞLEM VE EŞLEŞTİRME KAYITLARI (${reportEntries.size}) ===" })
         if (reportEntries.isEmpty()) {
-            appendLine("İşlem günlüğü boş.")
+            appendLine(KitsugiStrings.get(R.string.islem_gunlugu_bos).ifBlank { "İşlem günlüğü boş." })
         } else {
             reportEntries.forEachIndexed { index, entry ->
                 appendEntry(index + 1, entry, formatter)
@@ -83,7 +92,7 @@ object CrossSyncReportFormatter {
         }
 
         appendLine()
-        appendLine("Not: Bu rapora OAuth erişim/yenileme anahtarları dahil edilmez. Medya başlıkları ve harici içerik kimlikleri, eşleştirme hatalarını teşhis edebilmek için rapora eklenir.")
+        appendLine(KitsugiStrings.get(R.string.cross_sync_rapor_gizlilik_notu).ifBlank { "Not: Bu rapora OAuth erişim/yenileme anahtarları dahil edilmez. Medya başlıkları ve harici içerik kimlikleri, eşleştirme hatalarını teşhis edebilmek için rapora eklenir." })
     }
 
     private fun StringBuilder.appendEntry(
@@ -92,9 +101,9 @@ object CrossSyncReportFormatter {
         formatter: SimpleDateFormat
     ) {
         val severity = when {
-            entry.isError -> "HATA"
-            entry.isWarning -> "UYARI"
-            else -> "BİLGİ"
+            entry.isError -> KitsugiStrings.get(R.string.onem_hata).ifBlank { "HATA" }
+            entry.isWarning -> KitsugiStrings.get(R.string.onem_uyari).ifBlank { "UYARI" }
+            else -> KitsugiStrings.get(R.string.onem_bilgi).ifBlank { "BİLGİ" }
         }
         appendLine("$index. [${formatter.format(Date(entry.timestamp))}] [$severity] [${safeText(entry.platform)}] ${safeText(entry.message)}")
         entry.details?.takeIf { it.isNotBlank() }?.let { details ->

@@ -201,9 +201,9 @@ class PlayerSettingsViewModel(application: Application) : AndroidViewModel(appli
         viewModelScope.launch {
             settingsDataStore.setGestureScrollSensitivity(sensitivity)
             val label = when {
-                sensitivity <= 0.6f -> KitsugiStrings.get(R.string.player_scroll_slow).format(sensitivity)
-                sensitivity >= 1.6f -> "Hızlı (%.1fx)".format(sensitivity)
-                else                -> "Normal (%.1fx)".format(sensitivity)
+                sensitivity <= 0.6f -> KitsugiStrings.get(R.string.player_scroll_speed_slow, sensitivity)
+                sensitivity >= 1.6f -> KitsugiStrings.get(R.string.player_scroll_speed_fast, sensitivity)
+                else                -> KitsugiStrings.get(R.string.player_scroll_speed_normal, sensitivity)
             }
             onShowMessage?.invoke(KitsugiStrings.get(R.string.kaydirma_hassasiyeti_x, label))
         }

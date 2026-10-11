@@ -1135,9 +1135,6 @@
     <string name="player_double_tap_seek_desc">Ekranın soluna/sağına çift dokunulduğunda atlanacak süre</string>
     <string name="player_hold_speed">Basılı Tutma Hız Çarpanı</string>
     <string name="player_hold_speed_desc">Ekrana basılı tutulduğundaki oynatma hızı</string>
-    <string name="player_scroll_slow">Yavaş (%.1fx)</string>
-    <string name="player_scroll_fast">Hızlı (%.1fx)</string>
-    <string name="player_scroll_normal">Normal (%.1fx)</string>
     <string name="player_scroll_sensitivity_label">Kaydırma Hassasiyeti: %1$s</string>
     <string name="player_section_mpv">MPV Motoru Gelişmiş Ayarları</string>
     <string name="player_section_mpv_desc">GPU arka yüzü, donanım kod çözme, debanding ve önbellek ayarlarını yapılandırın. Yalnızca MPV motoru seçildiğinde geçerlidir.</string>
@@ -4463,15 +4460,13 @@ Eklentiler ekranından eklenti etkinleştirin.</string>
     <string name="bangumi_token_yanitinda_access_token_yok_x">Bangumi token yanıtında access_token yok: %1$s</string>
     <string name="bangumi_senkronu_yalnizca_anime_manga_destekler">Bangumi senkronu yalnızca anime/manga destekler</string>
     <string name="bangumi_hesabi_bagli_degil">Bangumi hesabı bağlı değil</string>
-    <string name="bangumi_eslesmesi_bulunamadi_x">Bangumi条目 eşleşmesi bulunamadı: %1$s</string>
+    <string name="bangumi_eslesmesi_bulunamadi_x">Bangumi eşleşmesi bulunamadı: %1$s</string>
     <string name="bangumi_api_si_koleksiyon_silmeyi_desteklemiyor_kayit_birakildi">Bangumi API\'si koleksiyon silmeyi desteklemiyor; kayıt \'抛弃 (Bırakıldı)\' olarak işaretlendi (%1$s)</string>
     <string name="bangumi_kaydi_guncellenemedi_x">Bangumi kaydı güncellenemedi (%1$s)</string>
     <string name="son_adim_x">Son adım: %1$s</string>
     <string name="ayrinti_x">Ayrıntı: %1$s</string>
     <string name="ilerleme_x_x_x">İlerleme: %1$s / %2$s %3$s</string>
     <string name="olusturulan_islem_kaydi_x">Oluşturulan işlem kaydı: %1$s</string>
-    <string name="x_baslangic_x">%1$s: başlangıç=%2$s, </string>
-    <string name="eklenen_x_guncellenen_x">eklenen=%1$s, güncellenen=%2$s, </string>
     <string name="kitsu_kullanicisi">Kitsu Kullanıcısı</string>
     <string name="kitsu_istegi_gonderilemedi">Kitsu isteği gönderilemedi</string>
     <string name="http_429_hiz_siniri">HTTP 429 (hız sınırı)</string>
@@ -5003,8 +4998,8 @@ Eklentiler ekranından eklenti etkinleştirin.</string>
     <string name="yayin_yili_air_date">📅 Yayın Yılı (air_date):</string>
     <string name="r18_nsfw_lari_dahil_et">🔞 +18 (NSFW)条目\'ları dahil et</string>
     <string name="kapaliyken_bangumi_r18_sonuclari_hic_dondurmez">Kapalıyken Bangumi R18 sonuçları hiç döndürmez.</string>
-    <string name="manga_kapsaminda_yalniz">📖 Manga kapsamında yalnız 漫画</string>
-    <string name="kapatinca_roman_ve_cizim_kitabi_lari_da_listelenir">Kapatınca roman (小说) ve çizim kitabı (画集)条目\'ları da listelenir.</string>
+    <string name="manga_kapsaminda_yalniz">📖 Manga kapsamında yalnızca manga</string>
+    <string name="kapatinca_roman_ve_cizim_kitabi_lari_da_listelenir">Kapatınca roman (小说) ve çizim kitabı (画集) kayıtları da listelenir.</string>
     <string name="motor_sec">Motor Seç</string>
     <string name="platformda_7_eszamanli_birlesik_arama">7 platformda eşzamanlı birleşik arama</string>
     <string name="tamamlandi_0999d40">🏁 Tamamlandı</string>
@@ -5192,4 +5187,29 @@ Eklentiler ekranından eklenti etkinleştirin.</string>
     <string name="kurulu_kaynak_yok">Kurulu kaynak yok</string>
     <string name="anime_film_veya_dizi_ara">Anime, film veya dizi ara...</string>
     <string name="bu_resim_zaten_indiriliyor">Bu resim zaten indiriliyor.</string>
+    <string name="cross_sync_rapor_basligi">Kitsugi — Çapraz Platform Eşitleme Raporu</string>
+    <string name="rapor_olusturma_zamani_x">Rapor oluşturma zamanı: %1$s</string>
+    <string name="esitleme_baslangici_x">Eşitleme başlangıcı: %1$s</string>
+    <string name="esitleme_bitisi_x">Eşitleme bitişi: %1$s</string>
+    <string name="sonuc_x">Sonuç: %1$s</string>
+    <string name="sonuc_devam_ediyor_kismi_rapor">Devam ediyor (kısmi rapor)</string>
+    <string name="sonuc_hata_ile_sonlandi">Hata ile sonlandı</string>
+    <string name="sonuc_kismen_tamamlandi_hata_var">Kısmen tamamlandı; hata var</string>
+    <string name="sonuc_tamamlanmadi_durduruldu">Tamamlanmadı / durduruldu</string>
+    <string name="gecen_sure_x_sn">Geçen süre: %1$s sn</string>
+    <string name="hata_uyari_sayisi_x">Hata/uyarı sayısı: %1$s</string>
+    <string name="platform_ozeti_baslik">=== PLATFORM ÖZETİ ===</string>
+    <string name="platform_ozet_satiri_x">%1$s: başlangıç=%2$s, eklenen=%3$s, güncellenen=%4$s, atlanan=%5$s, hata=%6$s</string>
+    <string name="platform_istatistigi_yok">Platform istatistiği yok.</string>
+    <string name="sorunlar_uyarilar_baslik_x">=== SORUNLAR / UYARILAR (%1$s) ===</string>
+    <string name="sorun_uyari_kaydi_yok">Bu eşitleme sırasında kaydedilmiş bir hata veya uyarı yok.</string>
+    <string name="tum_islem_kayitlari_baslik_x">=== TÜM İŞLEM VE EŞLEŞTİRME KAYITLARI (%1$s) ===</string>
+    <string name="islem_gunlugu_bos">İşlem günlüğü boş.</string>
+    <string name="cross_sync_rapor_gizlilik_notu">Not: Bu rapora OAuth erişim/yenileme anahtarları dahil edilmez. Medya başlıkları ve harici içerik kimlikleri, eşleştirme hatalarını teşhis edebilmek için rapora eklenir.</string>
+    <string name="onem_hata">HATA</string>
+    <string name="onem_uyari">UYARI</string>
+    <string name="onem_bilgi">BİLGİ</string>
+    <string name="gelistirici_log_ozet_sayaclari">Toplam %1$d • Hata %2$d • Uyarı %3$d • Gösterilen %4$d</string>
+    <string name="loglari_paylas">Logları Paylaş</string>
+    <string name="bangumi_bu_medya_turunu_desteklemiyor">Bangumi bu medya türünü desteklemiyor</string>
 </resources>

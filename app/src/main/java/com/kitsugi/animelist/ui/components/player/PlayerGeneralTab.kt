@@ -819,9 +819,9 @@ internal fun PlayerGeneralTab(
                         .padding(horizontal = 16.dp, vertical = 8.dp)
                 ) {
                     val scrollLabel = when {
-                        gestureScrollSensitivity <= 0.6f -> stringResource(R.string.player_scroll_slow, gestureScrollSensitivity)
-                        gestureScrollSensitivity >= 1.6f -> stringResource(R.string.player_scroll_fast, gestureScrollSensitivity)
-                        else -> stringResource(R.string.player_scroll_normal, gestureScrollSensitivity)
+                        gestureScrollSensitivity <= 0.6f -> stringResource(R.string.player_scroll_speed_slow, gestureScrollSensitivity)
+                        gestureScrollSensitivity >= 1.6f -> stringResource(R.string.player_scroll_speed_fast, gestureScrollSensitivity)
+                        else -> stringResource(R.string.player_scroll_speed_normal, gestureScrollSensitivity)
                     }
                     Text(
                         stringResource(R.string.player_scroll_sensitivity_label, scrollLabel),

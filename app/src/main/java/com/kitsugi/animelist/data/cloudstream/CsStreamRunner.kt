@@ -17,6 +17,8 @@ import com.lagradost.cloudstream3.utils.ExtractorLinkType
 import com.lagradost.cloudstream3.utils.loadExtractor
 import com.lagradost.cloudstream3.extractors.helper.AesHelper
 import com.lagradost.cloudstream3.Prerelease
+import com.lagradost.cloudstream3.AcraApplication
+import com.lagradost.cloudstream3.network.CloudflareKiller
 import com.kitsugi.animelist.data.repository.StreamSource
 import com.kitsugi.animelist.data.remote.KitsugiIdResolver
 import com.kitsugi.animelist.model.MediaType
@@ -518,8 +520,13 @@ object CsStreamRunner {
         "TurkAnime"
     )
 
-    /** CF korumalı eklentiler için uzatılmış timeout (120 saniye — arama 40 sn + loadLinks 90 sn aşamaları) */
-    private const val CF_PROVIDER_TIMEOUT_MS = 120_000L
+    /** CF korumalı eklentiler için uzatılmış timeout (v2.4.239: 240 sn = 90 sn CF gate +
+     *  60 sn arama + 15 sn load + ~75 sn sezon/bölüm/loadLinks zinciri). Eski 120 sn,
+     *  gate'in tek başına tükettiği süre yüzünden zincirin son halkalarını kesiyordu. */
+    private const val CF_PROVIDER_TIMEOUT_MS = 240_000L
+
+    /** CF şüpheli hostlarda aşama bazlı sabır süresi (120 sn) — safeSearch / safeLoad / loadLinks */
+    private const val CF_STAGE_TIMEOUT_MS = 120_000L
 
     private val dynamicDomains = java.util.concurrent.ConcurrentHashMap<String, String>()
     private val dynamicBlockedPlugins = java.util.concurrent.ConcurrentHashMap.newKeySet<String>()
@@ -963,6 +970,121 @@ object CsStreamRunner {
         }
     }
 
+    private fun hostOf(api: MainAPI): String? =
+        runCatching { java.net.URI(getFixedUrl(api.mainUrl)).host }.getOrNull()
+
+    /**
+     * Bu eklenti için arama öncesi CF gate'i gerekli mi?
+     * Hızlı yol koşulları (çerez var / site sağlıklı doğrulanmış) false döndürür —
+     * yani sağlıklı kaynaklara gate hiçbir gecikme eklemez.
+     */
+    internal fun cfGateNeeded(api: MainAPI): Boolean {
+        val host = hostOf(api) ?: return false
+        if (CloudflareKiller.getSavedCookiesForHost(host)?.isNotEmpty() == true) return false
+        if (CsCfWarmupManager.isKnownHealthy(host)) return false
+        return api.name in CF_PROTECTED_PLUGINS ||
+            CloudflareKiller.wasChallenged(host) ||
+            CsCfWarmupManager.isWarmupListedHost(host) ||
+            CsProtectionClassifier.isWafChallenge(CsPluginStatusTracker.getErrorMessage(api.name) ?: "")
+    }
+
+    /**
+     * Arama öncesi clearance gate'i. Süresi arama bütçesinden DÜŞÜLMEZ:
+     * çağrı, arama zaman kutusu başlamadan önce yapılır; kullanıcı tarafında
+     * "kaynak zaten kendi çözüyormuş" hissi buradan gelir.
+     */
+    private suspend fun runCfGateIfNeeded(api: MainAPI) {
+        if (!cfGateNeeded(api)) return
+        val ctx = AcraApplication.context ?: run {
+            Log.w(TAG, "[${api.name}] CF gate: context yok — atlanıyor")
+            return
+        }
+        val host = hostOf(api)
+        Log.w(
+            TAG,
+            "[${api.name}] 🔐 CF gate: $host için clearance arama ÖNCESİ çözülüyor " +
+                "(bütçe ${CsCfWarmupManager.CF_GATE_BUDGET_MS}ms; arama bütçesinden düşülmez)"
+        )
+        CsTrace.info(
+            api.name,
+            "cf-gate",
+            "Arama öncesi clearance gate'i (${CsCfWarmupManager.CF_GATE_BUDGET_MS}ms bütçe)"
+        )
+        runCatching {
+            CsCfWarmupManager.ensureClearance(
+                ctx,
+                getFixedUrl(api.mainUrl),
+                CsCfWarmupManager.CF_GATE_BUDGET_MS
+            )
+        }.onFailure { e ->
+            Log.w(TAG, "[${api.name}] CF gate hatası: ${e.message}")
+        }
+    }
+
+    /**
+     * UI akışları (Eklenti Portalı içi arama / ana sayfa vitrini) için arama öncesi
+     * CF gate'i. v2.4.239: eklenti sayfasındaki çıplak-isim araması da stream akışıyla
+     * aynı korumayı alır — clearance yoksa ≤90 sn'de gizli WebView çözer, sağlıklı
+     * sitelerde 0 ms'de döner.
+     */
+    suspend fun ensureCfClearance(api: MainAPI) {
+        runCfGateIfNeeded(api)
+    }
+
+    /**
+     * v2.4.239 "boş + kanıt" yeniden denemesi: ilk arama boş döner VE host'un challenge
+     * gördüğüne dair kanıt varsa (CloudflareKiller.wasChallenged), tam bütçeli CF gate'i
+     * çalıştırılıp arama SABIRLI (120 sn aşama bütçesi) biçimde bir kez daha denenecek.
+     * Sağlıklı kaynaklarda kanıt olmayacağı için bu yol asla ekstra gecikme üretmez;
+     * "her kaynak en azından veri versin" ilkesinin güvenlik ağıdır.
+     */
+    internal suspend fun searchWithCfRetry(api: MainAPI, query: String): List<SearchResponse> {
+        val first = safeSearch(api, query)
+        if (first.isNotEmpty()) return first
+        val host = hostOf(api) ?: return first
+        if (!CloudflareKiller.wasChallenged(host)) return first
+        Log.w(TAG, "[${api.name}] 🔍 Arama boş + challenge kanıtı → CF gate + sabırlı tek yeniden deneme")
+        CsTrace.info(api.name, "search", "boş sonuç + challenge kanıtı → gate ve sabırlı yeniden deneme")
+        runCatching { runCfGateIfNeeded(api) }
+        return safeSearch(api, query)
+    }
+
+    /**
+     * Aşama timeout'ı: host challenge gördüyse / çözüm sürüyorsa CF sabır bütçesi,
+     * değilse mevcut hızlı bütçe. CloudflareKiller WebView'ı 90-120 sn açık
+     * tutabildiği için dış zaman aşımı ondan uzun olmak zorundadır.
+     */
+    private fun stageTimeoutMs(api: MainAPI, baseMs: Long): Long {
+        val host = hostOf(api) ?: return baseMs
+        val cfActive = api.name in CF_PROTECTED_PLUGINS ||
+            CloudflareKiller.isSolvingHost(host) ||
+            CloudflareKiller.wasChallenged(host) ||
+            CloudflareKiller.getSavedCookiesForHost(host) == null &&
+                CsCfWarmupManager.isWarmupListedHost(host)
+        return if (cfActive) CF_STAGE_TIMEOUT_MS else baseMs
+    }
+
+    /**
+     * "Üst sezon barı" doğrudan gezinmesi: detay sayfasının URL'sinde sezon jetonu
+     * (sezon-2 / season-2 / s2 ...) varsa, hedef sezonun sayfasını ARAMA YAPMADAN
+     * yükler — sitedeki sezon sekmesine tıklamanın kaynak-bağımsız karşılığıdır.
+     */
+    internal fun buildSeasonUrlCandidates(url: String?, season: Int): List<String> {
+        if (url.isNullOrBlank() || season < 1) return emptyList()
+        val patterns = listOf(
+            Regex("""sezon[-_]?\d+""", RegexOption.IGNORE_CASE),
+            Regex("""season[-_]?\d+""", RegexOption.IGNORE_CASE),
+            Regex("""(?<=[/-])s\d+(?=[/-])""")
+        )
+        val out = LinkedHashSet<String>()
+        for (pattern in patterns) {
+            if (!pattern.containsMatchIn(url)) continue
+            out += url.replace(pattern) { m -> m.value.replace(Regex("""\d+"""), season.toString()) }
+        }
+        out.remove(url)
+        return out.take(3)
+    }
+
     suspend fun getStreams(
         api: MainAPI,
         title: String,
@@ -1190,7 +1312,10 @@ object CsStreamRunner {
         // often use Turkish-translated titles, ASCII-only transliterations, and different
         // naming conventions than the canonical (English/Romaji/Japanese) titles.
         val maxSearchVariants = minOf(titleVariants.size, 18)
-        val searchTimeBudgetMs = if (api.name in CF_PROTECTED_PLUGINS) 40_000L else 20_000L
+        // v2.4.239: gate arama ÖNCESİNDE koştuğu için bu bütçe yalnızca saf arama
+        // sorgularını kapsar; CF şüpheli hostlarda varyant başına sabır stageTimeoutMs
+        // ile ayrıca genişletilir.
+        val searchTimeBudgetMs = if (api.name in CF_PROTECTED_PLUGINS || cfGateNeeded(api)) 60_000L else 20_000L
         val searchStartMs = System.currentTimeMillis()
         val searchVariants = titleVariants.take(maxSearchVariants)
         var variantIndex = 0
@@ -2191,7 +2316,10 @@ object CsStreamRunner {
         var embedPageHtml: String? = null
         if (resolvedStreams.isEmpty()) {
             try {
-                val needsHtml = com.kitsugi.animelist.data.cloudstream.extractors.McloudWrapper.isMcloudUrl(resolvedUrl) ||
+                // v2.4.239 fix: GdriveplayerWrapper aşağıdaki when'da olmasına rağmen
+                // needsHtml listesinde YOKTU → pageContent boş kalıp fallback hiç çalışmıyordu.
+                val needsHtml = com.kitsugi.animelist.data.cloudstream.extractors.GdriveplayerWrapper.isGdriveplayerUrl(resolvedUrl) ||
+                        com.kitsugi.animelist.data.cloudstream.extractors.McloudWrapper.isMcloudUrl(resolvedUrl) ||
                         com.kitsugi.animelist.data.cloudstream.extractors.MixdropWrapper.isMixdropUrl(resolvedUrl) ||
                         com.kitsugi.animelist.data.cloudstream.extractors.Mp4UploadWrapper.isMp4UploadUrl(resolvedUrl) ||
                         com.kitsugi.animelist.data.cloudstream.extractors.StreamTapeWrapper.isStreamTapeUrl(resolvedUrl) ||
@@ -2606,8 +2734,11 @@ object CsStreamRunner {
                 ensurePluginReady(api)
                 Log.d(TAG, "[${api.name}] loadLinks çağrılıyor...")
                 
-                // Wrap the loadLinks in a timeout — CF korumalı siteler için 90s, diğerleri 25s
-                val loadLinksTimeoutMs = if (api.name in CF_PROTECTED_PLUGINS) CF_PROVIDER_TIMEOUT_MS else 25_000L
+                // Wrap the loadLinks in a timeout — CF korumalı/şüpheli siteler için 120s, diğerleri 25s.
+                // v2.4.239: eski davranış CF_PROTECTED için provider bütçesinin (o zaman 120s)
+                // tamamını loadLinks'e veriyordu; provider bütçesi 240s'ye çıkınca loadLinks'in
+                // zinciri tek başına kilitlememesi için ayrı aşama bütçesi (CF_STAGE_TIMEOUT_MS) kullanılır.
+                val loadLinksTimeoutMs = stageTimeoutMs(api, 25_000L)
                 withTimeoutOrNull(loadLinksTimeoutMs) {
                     api.loadLinks(
                         data = episodeData,

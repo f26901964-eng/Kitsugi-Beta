@@ -1135,9 +1135,6 @@
     <string name="player_double_tap_seek_desc">Duration skipped when double-tapping the left/right side of the screen</string>
     <string name="player_hold_speed">Hold-to-Speed Multiplier</string>
     <string name="player_hold_speed_desc">Playback speed while holding the screen</string>
-    <string name="player_scroll_slow">Slow (%.1fx)</string>
-    <string name="player_scroll_fast">Fast (%.1fx)</string>
-    <string name="player_scroll_normal">Normal (%.1fx)</string>
     <string name="player_scroll_sensitivity_label">Scroll Sensitivity: %1$s</string>
     <string name="player_section_mpv">MPV Engine Advanced Settings</string>
     <string name="player_section_mpv_desc">Configure GPU backend, hardware decoding, debanding and cache settings. Only applies when the MPV engine is selected.</string>
@@ -4468,8 +4465,6 @@
     <string name="ayrinti_x">Details: %1$s</string>
     <string name="ilerleme_x_x_x">Progress: %1$s / %2$s %3$s</string>
     <string name="olusturulan_islem_kaydi_x">Created transaction record: %1$s</string>
-    <string name="x_baslangic_x">%1$s: started=%2$s, </string>
-    <string name="eklenen_x_guncellenen_x">added=%1$s, updated=%2$s, </string>
     <string name="kitsu_kullanicisi">Kitsu User</string>
     <string name="kitsu_istegi_gonderilemedi">Kitsu request could not be sent</string>
     <string name="http_429_hiz_siniri">HTTP 429 (rate limit)</string>
@@ -5001,7 +4996,7 @@
     <string name="yayin_yili_air_date">📅 Release Year (air_date):</string>
     <string name="r18_nsfw_lari_dahil_et">🔞 Include +18 (NSFW) entries</string>
     <string name="kapaliyken_bangumi_r18_sonuclari_hic_dondurmez">When off, Bangumi never returns R18 results.</string>
-    <string name="manga_kapsaminda_yalniz">📖 Only 漫画 within the manga scope</string>
+    <string name="manga_kapsaminda_yalniz">📖 Only manga within the manga scope</string>
     <string name="kapatinca_roman_ve_cizim_kitabi_lari_da_listelenir">When off, light novel and art book entries are also listed.</string>
     <string name="motor_sec">Select Engine</string>
     <string name="platformda_7_eszamanli_birlesik_arama">Unified search across 7 platforms in parallel</string>
@@ -5190,4 +5185,29 @@
     <string name="kurulu_kaynak_yok">No installed sources</string>
     <string name="anime_film_veya_dizi_ara">Search anime, movie or series...</string>
     <string name="bu_resim_zaten_indiriliyor">This image is already being downloaded.</string>
+    <string name="cross_sync_rapor_basligi">Kitsugi — Cross-Platform Sync Report</string>
+    <string name="rapor_olusturma_zamani_x">Report generated at: %1$s</string>
+    <string name="esitleme_baslangici_x">Sync started: %1$s</string>
+    <string name="esitleme_bitisi_x">Sync finished: %1$s</string>
+    <string name="sonuc_x">Result: %1$s</string>
+    <string name="sonuc_devam_ediyor_kismi_rapor">In progress (partial report)</string>
+    <string name="sonuc_hata_ile_sonlandi">Ended with an error</string>
+    <string name="sonuc_kismen_tamamlandi_hata_var">Partially completed; errors present</string>
+    <string name="sonuc_tamamlanmadi_durduruldu">Not completed / stopped</string>
+    <string name="gecen_sure_x_sn">Elapsed time: %1$s s</string>
+    <string name="hata_uyari_sayisi_x">Error/warning count: %1$s</string>
+    <string name="platform_ozeti_baslik">=== PLATFORM SUMMARY ===</string>
+    <string name="platform_ozet_satiri_x">%1$s: started=%2$s, added=%3$s, updated=%4$s, skipped=%5$s, errors=%6$s</string>
+    <string name="platform_istatistigi_yok">No platform statistics available.</string>
+    <string name="sorunlar_uyarilar_baslik_x">=== ISSUES / WARNINGS (%1$s) ===</string>
+    <string name="sorun_uyari_kaydi_yok">No error or warning was recorded during this sync.</string>
+    <string name="tum_islem_kayitlari_baslik_x">=== ALL TRANSACTION AND MATCHING RECORDS (%1$s) ===</string>
+    <string name="islem_gunlugu_bos">The operation log is empty.</string>
+    <string name="cross_sync_rapor_gizlilik_notu">Note: OAuth access/refresh tokens are never included in this report. Media titles and external content IDs are included so that matching errors can be diagnosed.</string>
+    <string name="onem_hata">ERROR</string>
+    <string name="onem_uyari">WARNING</string>
+    <string name="onem_bilgi">INFO</string>
+    <string name="gelistirici_log_ozet_sayaclari">Total %1$d • Errors %2$d • Warnings %3$d • Shown %4$d</string>
+    <string name="loglari_paylas">Share Logs</string>
+    <string name="bangumi_bu_medya_turunu_desteklemiyor">Bangumi does not support this media type</string>
 </resources>

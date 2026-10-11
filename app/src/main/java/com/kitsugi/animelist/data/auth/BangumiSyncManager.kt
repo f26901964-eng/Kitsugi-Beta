@@ -87,7 +87,7 @@ object BangumiSyncManager {
         entry: MediaEntry
     ): SyncResult = withContext(Dispatchers.IO) {
         if (!supportsMediaType(entry.type)) {
-            return@withContext SyncResult(emptyList(), listOf(KitsugiStrings.get(R.string.bangumi_senkronu_yalnizca_anime_manga_destekler)))
+            return@withContext SyncResult(emptyList(), listOf(KitsugiStrings.get(R.string.bangumi_bu_medya_turunu_desteklemiyor)))
         }
 
         val token = BangumiAuthStore.getValidToken(context)
