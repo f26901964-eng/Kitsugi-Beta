@@ -99,38 +99,14 @@ fun KitsugiSystemSettingsDialog(
                     }
                 }
             }
-            TabRow(
-                selectedTabIndex = pagerState.currentPage,
-                containerColor = KitsugiColors.Surface,
-                contentColor = accentColor
-            ) {
-                Tab(
-                    selected = pagerState.currentPage == 0,
-                    onClick = {
-                        scope.launch { pagerState.animateScrollToPage(0) }
-                    },
-                    text = {
-                        Text(
-                            stringResource(R.string.inline_data_management_4b7c656),
-                            fontWeight = if (pagerState.currentPage == 0) FontWeight.Bold else FontWeight.Normal,
-                            fontSize = 13.sp
-                        )
-                    }
-                )
-                Tab(
-                    selected = pagerState.currentPage == 1,
-                    onClick = {
-                        scope.launch { pagerState.animateScrollToPage(1) }
-                    },
-                    text = {
-                        Text(
-                            "DNS (DoH)",
-                            fontWeight = if (pagerState.currentPage == 1) FontWeight.Bold else FontWeight.Normal,
-                            fontSize = 13.sp
-                        )
-                    }
-                )
-            }
+            KitsugiSettingsTabRow(
+                labels = listOf(
+                    stringResource(R.string.inline_data_management_4b7c656),
+                    "DNS (DoH)",
+                ),
+                selectedIndex = pagerState.currentPage,
+                onSelect = { scope.launch { pagerState.animateScrollToPage(it) } }
+            )
         }
 
         // Body

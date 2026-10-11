@@ -2,7 +2,6 @@ package com.kitsugi.animelist.ui.components
 
 import com.kitsugi.animelist.ui.theme.gradient.CircularProgressIndicator
 import com.kitsugi.animelist.ui.theme.gradient.Icon
-import com.kitsugi.animelist.ui.theme.gradient.TabRow
 import com.kitsugi.animelist.ui.theme.gradient.Text
 
 import androidx.compose.ui.res.stringResource
@@ -167,64 +166,16 @@ fun KitsugiIntegrationsSettingsDialog(
                         }
                     }
                 }
-                TabRow(
-                    selectedTabIndex = pagerState.currentPage,
-                    containerColor = KitsugiColors.Surface,
-                    contentColor = accentColor
-                ) {
-                    Tab(
-                        selected = pagerState.currentPage == 0,
-                        onClick = {
-                            scope.launch { pagerState.animateScrollToPage(0) }
-                        },
-                        text = {
-                            Text(
-                                stringResource(R.string.integrations_tab_tmdb),
-                                fontWeight = if (pagerState.currentPage == 0) FontWeight.Bold else FontWeight.Normal,
-                                fontSize = 13.sp
-                            )
-                        }
-                    )
-                    Tab(
-                        selected = pagerState.currentPage == 1,
-                        onClick = {
-                            scope.launch { pagerState.animateScrollToPage(1) }
-                        },
-                        text = {
-                            Text(
-                                stringResource(R.string.integrations_tab_mdblist),
-                                fontWeight = if (pagerState.currentPage == 1) FontWeight.Bold else FontWeight.Normal,
-                                fontSize = 13.sp
-                            )
-                        }
-                    )
-                    Tab(
-                        selected = pagerState.currentPage == 2,
-                        onClick = {
-                            scope.launch { pagerState.animateScrollToPage(2) }
-                        },
-                        text = {
-                            Text(
-                                stringResource(R.string.integrations_tab_skip),
-                                fontWeight = if (pagerState.currentPage == 2) FontWeight.Bold else FontWeight.Normal,
-                                fontSize = 13.sp
-                            )
-                        }
-                    )
-                    Tab(
-                        selected = pagerState.currentPage == 3,
-                        onClick = {
-                            scope.launch { pagerState.animateScrollToPage(3) }
-                        },
-                        text = {
-                            Text(
-                                "Fanart.tv",
-                                fontWeight = if (pagerState.currentPage == 3) FontWeight.Bold else FontWeight.Normal,
-                                fontSize = 13.sp
-                            )
-                        }
-                    )
-                }
+                KitsugiSettingsTabRow(
+                    labels = listOf(
+                        stringResource(R.string.integrations_tab_tmdb),
+                        stringResource(R.string.integrations_tab_mdblist),
+                        stringResource(R.string.integrations_tab_skip),
+                        "Fanart.tv",
+                    ),
+                    selectedIndex = pagerState.currentPage,
+                    onSelect = { scope.launch { pagerState.animateScrollToPage(it) } }
+                )
             }
 
             // Body

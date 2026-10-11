@@ -62,6 +62,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.kitsugi.animelist.ui.theme.LocalIsTv
 import com.kitsugi.animelist.ui.theme.LocalKitsugiAccent
 import com.kitsugi.animelist.ui.theme.LocalKitsugiAccentBrush
@@ -659,5 +660,38 @@ private fun SettingsIcon(
             tint = tint,
             modifier = Modifier.size(20.dp)
         )
+    }
+}
+/**
+ * Ayarlar gömülü sayfalarındaki (Tercihler, Entegrasyonlar, Veri & Yedekleme) ortak sekme çubuğu.
+ * Tüm ayar sekmeleri aynı yüzey, vurgu rengi ve yazı ölçüsünü kullanır.
+ */
+@Composable
+fun KitsugiSettingsTabRow(
+    labels: List<String>,
+    selectedIndex: Int,
+    onSelect: (Int) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val accentColor = LocalKitsugiAccent.current
+    com.kitsugi.animelist.ui.theme.gradient.TabRow(
+        selectedTabIndex = selectedIndex,
+        modifier = modifier,
+        containerColor = KitsugiColors.Surface,
+        contentColor = accentColor
+    ) {
+        labels.forEachIndexed { index, label ->
+            androidx.compose.material3.Tab(
+                selected = selectedIndex == index,
+                onClick = { onSelect(index) },
+                text = {
+                    Text(
+                        text = label,
+                        fontWeight = if (selectedIndex == index) FontWeight.Bold else FontWeight.Normal,
+                        fontSize = 13.sp
+                    )
+                }
+            )
+        }
     }
 }
