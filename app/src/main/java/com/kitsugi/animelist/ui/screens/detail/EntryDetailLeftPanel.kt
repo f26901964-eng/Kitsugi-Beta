@@ -101,7 +101,9 @@ fun EntryDetailLeftPanel(
         } else null,
         nextAiring = detailState?.nextAiringEpisode,
         showFavoriteButton = showFavouriteButton,
-        onToggleFavoriteClick = onToggleFavoriteClick
+        onToggleFavoriteClick = onToggleFavoriteClick,
+        // Yatay modda en kaliteli YATAY görsel (TMDB/Fanart arka planı) vitrinde kullanılır.
+        galleryItems = galleryItems
     )
 
     Column(modifier = Modifier.padding(horizontal = 16.dp)) {

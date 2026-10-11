@@ -259,20 +259,49 @@ internal fun heroImageCandidates(
 
 /**
  * Vitrin görselinin kırpma hizalaması:
- * - Dikey poster geniş bir kutuda gösterildiğinde üst-orta (`-0.25f`) odaklanır.
- * - Dikey poster dikey telefonda gösterildiğinde hafif üst-orta (`-0.20f`) odaklanır ki
- *   karakterlerin başı/yüzü üstten kesilmesin, kırpma alt metin scrim'inin arkasında kalsın.
- * - Yatay (16:9) arka plan çok geniş bir şeritte (`heroAspect >= 1.85f`, ör. yatay tablet/telefon)
- *   gösterildiğinde üst-orta (`-0.32f`) odaklanır ki karakterlerin kafası üstten kesilmesin.
+ *
+ * Gerçek en-boy oranı (`imageAspect`) biliniyorsa kırpma dinamik olarak hesaplanır:
+ * yatayda görselin merkezine, dikeyde ise karakterlerin başını/yüzünü korumak için
+ * üstten küçük bir pay (`topMargin = 5%` yatay, `2%` poster) bırakılacak şekilde odaklanır.
+ *
+ * Görsel kutudan daha darsa (ör. yatay arka plan dikey telefonda) yatay kırpma her iki yandan eşit
+ * kaydırılır ve yatayda ortalanır. Böylece karakterlerin başı/yüzü asla üstten kesilmez,
+ * aynı zamanda görsel gereğinden fazla "yukarı kaymış" görünmez.
+ *
+ * @param chosenIsPoster Dikey görsel mi?
+ * @param heroAspect     Kutunun en-boy oranı (genişlik / yükseklik).
+ * @param imageAspect    Görselin gerçek en-boy oranı; yüklenmediyse `null` (eski davranış).
  */
 internal fun heroImageAlignment(
     chosenIsPoster: Boolean,
-    heroAspect: Float
-): Alignment = when {
-    chosenIsPoster && heroAspect >= 1.15f -> BiasAlignment(0f, -0.25f)
-    chosenIsPoster -> BiasAlignment(0f, -0.20f)
-    heroAspect >= 1.85f -> BiasAlignment(0f, -0.32f)
-    else -> Alignment.Center
+    heroAspect: Float,
+    imageAspect: Float? = null
+): Alignment {
+    if (imageAspect != null && imageAspect.isFinite() && imageAspect > 0.05f &&
+        heroAspect.isFinite() && heroAspect > 0.05f
+    ) {
+        val ratio = heroAspect / imageAspect
+        return if (ratio > 1f) {
+            // Kutu görselden geniş → görselin ALT/ÜST kısmı kırpılır.
+            // Görünen yükseklik oranı: 1 / ratio
+            val visible = (1f / ratio).coerceIn(0.05f, 1f)
+            // Üstte korunacak pay: posterlerde 2%, yatay görsellerde 5%
+            val topMargin = if (chosenIsPoster) 0.02f else 0.05f
+            val bias = (topMargin + visible / 2f) - 0.5f
+            BiasAlignment(0f, bias.coerceIn(-0.36f, 0.08f))
+        } else {
+            // Kutu görselden dar → görselin SAĞ/SOL kısmı kırpılır: yatayda ortala.
+            // Posterlerde dikeyde hafif üst odak (yüzler genelde üst yarıda).
+            BiasAlignment(0f, if (chosenIsPoster) -0.10f else 0f)
+        }
+    }
+    // Gerçek oran henüz bilinmiyor → kanıtlanmış eski davranış (görsel yüklenince düzeltilir).
+    return when {
+        chosenIsPoster && heroAspect >= 1.15f -> BiasAlignment(0f, -0.25f)
+        chosenIsPoster -> BiasAlignment(0f, -0.20f)
+        heroAspect >= 1.85f -> BiasAlignment(0f, -0.32f)
+        else -> Alignment.Center
+    }
 }
 
 @Composable
@@ -393,7 +422,7 @@ fun KitsugiHeroSection(
             HomeHeroLayout(
                 isTablet = true,
                 isLandscape = true,
-                heroHeight = (screenHeightDp * 0.68f).coerceIn(380f, 500f).dp,
+                heroHeight = heroBandHeightDp(screenHeightDp.toFloat(), isLandscape = true, isTablet = true, isTv = true).dp,
                 contentMaxWidth = 640.dp,
                 contentWidthFraction = 0.54f,
                 contentHorizontalPadding = 48.dp,
@@ -406,8 +435,7 @@ fun KitsugiHeroSection(
                 HomeHeroLayout(
                     isTablet = true,
                     isLandscape = true,
-                    // Yatay tablette 16:9 arka plan görselinin sıkıp kırpılmaması için daha dengeli yükseklik
-                    heroHeight = (screenHeightDp * 0.56f).coerceIn(350f, 460f).dp,
+                    heroHeight = heroBandHeightDp(screenHeightDp.toFloat(), isLandscape = true, isTablet = true, isTv = false).dp,
                     contentMaxWidth = 560.dp,
                     contentWidthFraction = 0.54f,
                     contentHorizontalPadding = 32.dp,
@@ -416,11 +444,12 @@ fun KitsugiHeroSection(
                     logoWidthFraction = 0.52f,
                 )
             } else {
-                // Yatay modda telefon: yukarı aşağı kısa (kompakt), sağa sola uzun, alttaki blokları açıkta bırakır
+                // Yatay modda telefon: yatay (16:9) kapak görselleri neredeyse kırpılmadan
+                // görünsün diye bant ekran yüksekliğinin büyük kısmını kaplar.
                 HomeHeroLayout(
                     isTablet = false,
                     isLandscape = true,
-                    heroHeight = (screenHeightDp * 0.65f).coerceIn(230f, 295f).dp,
+                    heroHeight = heroBandHeightDp(screenHeightDp.toFloat(), isLandscape = true, isTablet = false, isTv = false).dp,
                     contentMaxWidth = 440.dp,
                     contentWidthFraction = 0.56f,
                     contentHorizontalPadding = 24.dp,
@@ -431,11 +460,10 @@ fun KitsugiHeroSection(
             }
         } else {
             if (isTablet) {
-                // Dikey tablette ~16:9 / 3:2 vitrin alanı: görsel çok daha ferah ve net görünür
                 HomeHeroLayout(
                     isTablet = true,
                     isLandscape = false,
-                    heroHeight = (screenHeightDp * 0.46f).coerceIn(440f, 560f).dp,
+                    heroHeight = heroBandHeightDp(screenHeightDp.toFloat(), isLandscape = false, isTablet = true, isTv = false).dp,
                     contentMaxWidth = 600.dp,
                     contentWidthFraction = 0.88f,
                     contentHorizontalPadding = 28.dp,
@@ -444,11 +472,10 @@ fun KitsugiHeroSection(
                     logoWidthFraction = 0.56f,
                 )
             } else {
-                // Dikey modda telefon: dikey posterin tam ve belirgin sergilenmesi için optimize edilmiş yükseklik
                 HomeHeroLayout(
                     isTablet = false,
                     isLandscape = false,
-                    heroHeight = (screenHeightDp * 0.55f).coerceIn(430f, 530f).dp,
+                    heroHeight = heroBandHeightDp(screenHeightDp.toFloat(), isLandscape = false, isTablet = false, isTv = false).dp,
                     contentMaxWidth = 520.dp,
                     contentWidthFraction = 1f,
                     contentHorizontalPadding = 16.dp,
@@ -674,16 +701,17 @@ fun KitsugiHeroSection(
                 // Yüklü görselin gerçek en-boy oranı (width / height).
                 var loadedImageAspect by remember(heroImageModel) { mutableStateOf<Float?>(null) }
                 val isVerticalArtwork = loadedImageAspect?.let { it < 1.05f } ?: chosenIsPoster
-                val isWideShowcaseBox = heroBoxAspect >= 1.18f
+                val isWideShowcaseBox = isWideHeroBox(heroBoxAspect, minAspect = 1.18f)
 
                 // Geniş/yatay vitrin alanında (tablet yatay, tablet dikey geniş bant, telefon yatay)
                 // dikey bir görsel gösteriliyorsa:
                 // arkada yumuşak atmosferik katman + ön planda tam boy kesilmemiş dikey görsel gösterilir.
                 val useDualLayerContain = isVerticalArtwork && isWideShowcaseBox
-                val heroAlignment = remember(isVerticalArtwork, heroBoxAspect) {
+                val heroAlignment = remember(isVerticalArtwork, heroBoxAspect, loadedImageAspect) {
                     heroImageAlignment(
                         chosenIsPoster = isVerticalArtwork,
-                        heroAspect = heroBoxAspect
+                        heroAspect = heroBoxAspect,
+                        imageAspect = loadedImageAspect
                     )
                 }
 
@@ -708,19 +736,21 @@ fun KitsugiHeroSection(
                                 isAdult = item.isAdult,
                                 blurAdultMedia = blurAdultMedia,
                                 contentScale = ContentScale.Crop,
-                                alignment = BiasAlignment(0f, -0.25f),
+                                alignment = BiasAlignment(0f, -0.20f),
                                 modifier = Modifier
                                     .fillMaxSize()
-                                    .alpha(0.30f)
+                                    .alpha(0.28f)
                             )
-                            // 2. Kesilmemiş, net dikey görsel katmanı
+                            // 2. Kesilmemiş, TAM ORTADA dikey görsel katmanı
+                            //    (manga/poster geniş yatay bantta sağa yaslanmaz; ekranın
+                            //    tam ortasında, olabildiğince büyük gösterilir)
                             KitsugiNsfwImage(
                                 model = heroImageModel,
                                 contentDescription = displayTitle,
                                 isAdult = item.isAdult,
                                 blurAdultMedia = blurAdultMedia,
                                 contentScale = ContentScale.Fit,
-                                alignment = if (layout.isLandscape) BiasAlignment(0.42f, -0.04f) else Alignment.TopCenter,
+                                alignment = Alignment.Center,
                                 initials = displayTitle,
                                 onLoadingFailed = {
                                     if (heroImageIndex < heroImagePlan.lastIndex) {
@@ -735,9 +765,12 @@ fun KitsugiHeroSection(
                                 modifier = Modifier
                                     .fillMaxSize()
                                     .padding(
-                                        top = if (layout.isLandscape) 8.dp else 6.dp,
-                                        bottom = if (layout.isLandscape) 18.dp else 32.dp,
-                                        end = if (layout.isLandscape) layout.contentHorizontalPadding else 0.dp
+                                        start = if (layout.isLandscape) layout.contentHorizontalPadding else 0.dp,
+                                        end = if (layout.isLandscape) layout.contentHorizontalPadding else 0.dp,
+                                        top = if (layout.isLandscape) 10.dp else 6.dp,
+                                        // Altta başlık/meta bloğuna yer bırak: poster metnin
+                                        // arkasına gömülmesin, görsel alanın ortasında kalsın.
+                                        bottom = if (layout.isLandscape) 96.dp else 48.dp
                                     )
                             )
                         } else {
@@ -795,12 +828,12 @@ fun KitsugiHeroSection(
             Box(
                 modifier = Modifier
                     .fillMaxHeight()
-                    .fillMaxWidth(0.55f)
+                    .fillMaxWidth(0.50f)
                     .align(Alignment.CenterStart)
                     .background(
                         Brush.horizontalGradient(
-                            0.00f to KitsugiColors.Background.copy(alpha = 0.54f),
-                            0.42f to KitsugiColors.Background.copy(alpha = 0.22f),
+                            0.00f to KitsugiColors.Background.copy(alpha = 0.34f),
+                            0.46f to KitsugiColors.Background.copy(alpha = 0.12f),
                             1.00f to Color.Transparent
                         )
                     )
@@ -809,16 +842,18 @@ fun KitsugiHeroSection(
 
         // 2. Berrak dikey scrim: görselin üst %60'lık kısmını tamamen açık ve net bırakır,
         // yalnızca alt kısımda başlık ve meta verilerin okunurluğu için yumuşak geçiş sağlar.
+        // NOT: Görselin "karanlık/çamurlu" görünmemesi için toplam karartma hafifletildi;
+        // okunurluk yine de garanti (en altta opak zemine bağlanır).
         Box(
             modifier = Modifier
                 .fillMaxSize()
                 .background(
                     Brush.verticalGradient(
-                        0.00f to KitsugiColors.Background.copy(alpha = 0.14f),
-                        0.12f to Color.Transparent,
-                        0.58f to Color.Transparent,
-                        0.76f to KitsugiColors.Background.copy(alpha = 0.38f),
-                        0.90f to KitsugiColors.Background.copy(alpha = 0.78f),
+                        0.00f to KitsugiColors.Background.copy(alpha = 0.10f),
+                        0.10f to Color.Transparent,
+                        0.62f to Color.Transparent,
+                        0.80f to KitsugiColors.Background.copy(alpha = 0.28f),
+                        0.92f to KitsugiColors.Background.copy(alpha = 0.70f),
                         1.00f to KitsugiColors.Background
                     )
                 )
