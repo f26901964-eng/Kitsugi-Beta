@@ -425,6 +425,43 @@ class CsTitleMatcherTest {
     }
 
     @Test
+    fun misTaggedExactTitleIsKeptWhenProviderOnlyReturnsTheOtherType() {
+        // TR plugins frequently tag every result as Movie (or every result as TvSeries).
+        // A 1.00 title used to be hard-rejected → "isim gitti, devamı gelmedi".
+        val movieTaggedSeries = createSearchResponse(
+            "Supernatural",
+            "https://example.com/supernatural",
+            2005,
+            TvType.Movie
+        )
+        val seriesMatch = CsTitleMatcher.findBestMatch(
+            results = listOf(movieTaggedSeries),
+            mainTitle = "Supernatural",
+            altTitles = listOf("SUPERNATURAL スーパーナチュラル"),
+            targetYear = 2005,
+            targetSeason = 1,
+            targetEpisode = 1,
+            isMovie = false
+        )
+        assertEquals(movieTaggedSeries.url, seriesMatch?.url)
+
+        val seriesTaggedMovie = createSearchResponse(
+            "Inception",
+            "https://example.com/inception",
+            2010,
+            TvType.TvSeries
+        )
+        val movieMatch = CsTitleMatcher.findBestMatch(
+            results = listOf(seriesTaggedMovie),
+            mainTitle = "Inception",
+            altTitles = emptyList(),
+            targetYear = 2010,
+            isMovie = true
+        )
+        assertEquals(seriesTaggedMovie.url, movieMatch?.url)
+    }
+
+    @Test
     fun movieLookupDoesNotChooseAnotherSequelOrDistantYear() {
         val results = listOf(
             createSearchResponse("Cars", "https://example.com/cars", 2006, TvType.Movie),

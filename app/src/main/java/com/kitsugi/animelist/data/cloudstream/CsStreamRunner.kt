@@ -1170,18 +1170,35 @@ object CsStreamRunner {
     }
 
     /**
-     * Aşama timeout'ı: host challenge gördüyse / çözüm sürüyorsa CF sabır bütçesi,
-     * değilse mevcut hızlı bütçe. CloudflareKiller WebView'ı 90-120 sn açık
-     * tutabildiği için dış zaman aşımı ondan uzun olmak zorundadır.
+     * Bu eklenti CF/WAF sabır bütçesine ihtiyaç duyuyor mu?
+     *
+     * ESKİ DAVRANIŞ (HATA): yalnızca 4 isimlik [CF_PROTECTED_PLUGINS] veya warmup
+     * listesindeki (bayat domain'li) host'lar 120 sn alıyordu. Diğer herkes 15 sn
+     * arama kutusuna düşüyordu. CloudflareKiller.intercept meydan okumayı görünce
+     * 120 sn'lik WebView çözümünü o 15 sn'lik kutunun İÇİNDE başlatıyor — kutu
+     * patlayınca çözüm iptal, çerez yok, kart "pat" diye boş. Detay sayfası İzle
+     * hattının "isim gidiyor, devamı gelmiyor" şikâyetinin ana saatidir.
+     *
+     * YENİ: çerezi olmayan ve "sağlıklı" diye doğrulanmamış her host sabır ister.
+     * Sağlıklı siteler 1-3 sn'de döner (üst sınır beklenmez); CF'li siteler
+     * intercept'in WebView'sini bitirecek zamanı gerçekten alır.
+     */
+    internal fun needsCfPatience(api: MainAPI): Boolean {
+        if (api.name in CF_PROTECTED_PLUGINS) return true
+        val host = hostOf(api) ?: return false
+        if (CsCfWarmupManager.isKnownHealthy(host)) return false
+        if (CloudflareKiller.wasChallenged(host) || CloudflareKiller.isSolvingHost(host)) return true
+        if (CloudflareKiller.getSavedCookiesForHost(host).isNullOrEmpty()) return true
+        return cfGateNeeded(api)
+    }
+
+    /**
+     * Aşama timeout'ı: host challenge gördüyse / çözüm sürüyorsa / çerezi yoksa
+     * CF sabır bütçesi, değilse mevcut hızlı bütçe. CloudflareKiller WebView'ı
+     * 90-120 sn açık tutabildiği için dış zaman aşımı ondan uzun olmak zorundadır.
      */
     private fun stageTimeoutMs(api: MainAPI, baseMs: Long): Long {
-        val host = hostOf(api) ?: return baseMs
-        val cfActive = api.name in CF_PROTECTED_PLUGINS ||
-            CloudflareKiller.isSolvingHost(host) ||
-            CloudflareKiller.wasChallenged(host) ||
-            CloudflareKiller.getSavedCookiesForHost(host) == null &&
-                CsCfWarmupManager.isWarmupListedHost(host)
-        return if (cfActive) CF_STAGE_TIMEOUT_MS else baseMs
+        return if (needsCfPatience(api)) CF_STAGE_TIMEOUT_MS else baseMs
     }
 
     /**
@@ -1295,11 +1312,12 @@ object CsStreamRunner {
             return@withContext emptyList()
         }
 
-        val isCfProtected = api.name in CF_PROTECTED_PLUGINS
-        val effectiveTimeout = if (isCfProtected) CF_PROVIDER_TIMEOUT_MS else PROVIDER_TIMEOUT_MS
-        if (isCfProtected) {
-            Log.w(TAG, "[${api.name}] CF korumalı eklenti — timeout ${effectiveTimeout}ms olarak uzatıldı, ID doğrulaması devre dışı.")
-            Log.e(SERR, "🔐 CF_PROTECTED [${api.name}] — ${effectiveTimeout}ms timeout ile çalışıyor. title='$title' S${season}E${episode}")
+        // Çerezi olmayan / challenge görmüş host'larda 75 sn'lik dış kutu, 120 sn'lik
+        // aşama kutusunu (CF WebView çözümü) kesiyordu → bulunanlar bile çöp.
+        val effectiveTimeout = if (needsCfPatience(api)) CF_PROVIDER_TIMEOUT_MS else PROVIDER_TIMEOUT_MS
+        if (effectiveTimeout > PROVIDER_TIMEOUT_MS) {
+            Log.w(TAG, "[${api.name}] CF/WAF sabır — timeout ${effectiveTimeout}ms (çerez yok veya challenge).")
+            Log.e(SERR, "🔐 CF_PATIENCE [${api.name}] — ${effectiveTimeout}ms timeout ile çalışıyor. title='$title' S${season}E${episode}")
         }
 
         // KRİTİK DÜZELTME: eski davranışta provider zaman aşımına uğrayınca (40 sn) daha önce
@@ -1450,7 +1468,7 @@ object CsStreamRunner {
         // v2.4.239: gate arama ÖNCESİNDE koştuğu için bu bütçe yalnızca saf arama
         // sorgularını kapsar; CF şüpheli hostlarda varyant başına sabır stageTimeoutMs
         // ile ayrıca genişletilir.
-        val searchTimeBudgetMs = if (api.name in CF_PROTECTED_PLUGINS || cfGateNeeded(api)) 60_000L else 20_000L
+        var searchTimeBudgetMs = if (api.name in CF_PROTECTED_PLUGINS || needsCfPatience(api) || cfGateNeeded(api)) 60_000L else 20_000L
         val searchStartMs = System.currentTimeMillis()
         // v2.4.240 (KN-K): kuyrukta geçen süre bütçeden sayılmaz — aşağıdaki her bütçe
         // kontrolü bu lambda üzerinden ölçülür.
@@ -1462,6 +1480,7 @@ object CsStreamRunner {
         }
         val searchVariants = titleVariants.take(maxSearchVariants)
         var variantIndex = 0
+        var cfSearchRetried = false
         searchLoop@ while (variantIndex < searchVariants.size) {
             val elapsedNow = searchElapsedMs()
             if (elapsedNow > searchTimeBudgetMs) {
@@ -1487,6 +1506,32 @@ object CsStreamRunner {
                     for (result in variantResults) {
                         val key = "${result.type}:${result.url.trim().lowercase(Locale.ROOT)}"
                         collectedResults.putIfAbsent(key, result)
+                    }
+                }
+            }
+            // Detay sayfası İzle hattı eskiden searchWithCfRetry'yi HİÇ kullanmıyordu
+            // (yalnızca eklenti arama UI'sı kullanıyordu). İlk batch 15 sn'de CF'ye
+            // çarpıp boş dönünce kalan varyantlar da aynı duvara tosluyordu.
+            if (collectedResults.isEmpty() && !cfSearchRetried) {
+                cfSearchRetried = true
+                val host = hostOf(api)
+                val cfHit = host != null && (
+                    CloudflareKiller.wasChallenged(host) ||
+                        CloudflareKiller.isSolvingHost(host) ||
+                        isBotProtectionChallenge(CsPluginStatusTracker.getErrorMessage(api.name) ?: "")
+                    )
+                if (cfHit) {
+                    searchTimeBudgetMs = maxOf(searchTimeBudgetMs, 60_000L)
+                    Log.w(TAG, "[${api.name}] İlk arama boş + CF kanıtı — gate + sabırlı yeniden deneme")
+                    CsTrace.warn(api.name, "search", "İlk batch boş + CF kanıtı → gate + retry")
+                    val retryQuery = batch.firstOrNull() ?: searchVariants.firstOrNull() ?: title
+                    val retryResults = searchWithCfRetry(api, retryQuery)
+                    if (retryResults.isNotEmpty()) {
+                        searchedVariant = "$retryQuery (cf-retry)"
+                        for (result in retryResults) {
+                            val key = "${result.type}:${result.url.trim().lowercase(Locale.ROOT)}"
+                            collectedResults.putIfAbsent(key, result)
+                        }
                     }
                 }
             }

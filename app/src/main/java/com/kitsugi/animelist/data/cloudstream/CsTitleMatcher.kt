@@ -343,8 +343,12 @@ internal object CsTitleMatcher {
             .distinct()
 
         for (result in results) {
-            if (!isTypeCompatible(result.type, isMovie)) {
-                Log.d(TAG, "  -> Media type mismatch, rejecting '${result.name}' type=${result.type} movie=$isMovie")
+            // Live/Music/etc. are never playable video — always drop.
+            // Movie↔TvSeries mismatch is deferred until after similarity: TR plugins
+            // frequently tag every result as Movie (or every result as TvSeries).
+            // A 1.00 title hit used to be thrown away here ("isim gitti, devamı gelmedi").
+            if (isNonVideoType(result.type)) {
+                Log.d(TAG, "  -> Non-video type, rejecting '${result.name}' type=${result.type}")
                 continue
             }
 
@@ -432,7 +436,19 @@ internal object CsTitleMatcher {
                 continue
             }
 
+            val typeMismatch = !isTypeCompatible(result.type, isMovie)
+            if (typeMismatch && titleSimilarity < 0.85) {
+                Log.d(TAG, "  -> Media type mismatch, rejecting '${result.name}' type=${result.type} movie=$isMovie sim=${"%.2f".format(titleSimilarity)}")
+                continue
+            }
+
             var score = titleSimilarity + overlapBonus
+            if (typeMismatch) {
+                // Prefer a correctly-typed sibling when both exist (The Silent Voice
+                // movie vs series). A lone mis-tagged exact title still survives.
+                score -= 0.20
+                Log.d(TAG, "  -> Type mismatch kept for strong title '${result.name}' type=${result.type} movie=$isMovie")
+            }
             if (targetYear != null && resultYear != null) {
                 val yearDelta = kotlin.math.abs(resultYear - targetYear)
                 score += when {
@@ -771,10 +787,14 @@ internal object CsTitleMatcher {
         else -> null
     }
 
+    fun isNonVideoType(type: TvType?): Boolean {
+        if (type == null) return false
+        return type in setOf(TvType.Music, TvType.Audio, TvType.AudioBook, TvType.Podcast, TvType.Live)
+    }
+
     fun isTypeCompatible(type: TvType?, isMovie: Boolean?): Boolean {
         if (type == null || isMovie == null) return true
-        val nonVideoTypes = setOf(TvType.Music, TvType.Audio, TvType.AudioBook, TvType.Podcast, TvType.Live)
-        if (type in nonVideoTypes) return false
+        if (isNonVideoType(type)) return false
         val episodicTypes = setOf(TvType.TvSeries, TvType.Anime, TvType.AsianDrama)
         val movieOnlyTypes = setOf(TvType.Movie, TvType.AnimeMovie)
         return if (isMovie) type !in episodicTypes else type !in movieOnlyTypes

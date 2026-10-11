@@ -1,5 +1,29 @@
 # Kitsugi-Beta — Sürüm Notları / Release Notes
 
+## 🇹🇷 Türkçe (v2.4.255)
+
+### 🚀 1. Detay Sayfasından Eklenti Video Hattı (Süre, CF Sabrı ve Tip Eşleştirme)
+- **15 sn Arama Kutusu ve CF Çözüm İptali:** CloudflareKiller meydan okumayı görünce 90–120 sn'lik WebView başlatıyordu; 15 sn'lik arama kutusu patlayınca çözüm iptal oluyor, çerez hiç kaydedilemiyor ve eklenti pat diye boş dönüyordu. Çerezi olmayan ve sağlıklı diye doğrulanmamış her host için 120 sn aşama ve 240 sn sağlayıcı sabır bütçesi tanındı (`needsCfPatience`). Sağlıklı siteler yine 1–3 sn'de döner, üst sınır beklenmez.
+- **Detay İzle Hattında `searchWithCfRetry`:** Detay İzle hattı bot koruması yeniden denemesine bağlandı. İlk arama grubu boş dönüp CF kanıtı tespit edilirse gate açılıp sabırlı tek yeniden deneme yapılıyor.
+- **Yanlış Tip Etiketinde Güçlü Eşleşmelerin Korunması:** Yerli eklentilerin dizi sonucunu `Movie` (veya filmi `TvSeries`) olarak etiketlemesi durumunda güçlü başlık benzerliğinde ($\ge 0.85$) aday artık elenmiyor (-0.20 ceza alır); hem film hem dizi varyantı varsa doğru tip kazanır, tek başına gelen mükemmel başlık korunur.
+
+### 🧪 2. Testler
+- `CsTitleMatcherTest`'e yalnız Movie etiketli dizi sonucunun korunduğunu doğrulayan birim testi eklendi (`misTaggedExactTitleIsKeptWhenProviderOnlyReturnsTheOtherType`).
+
+---
+
+## 🇬🇧 English (v2.4.255)
+
+### 🚀 1. Detail Page Provider Video Pipeline (Timeout, CF Patience & Type Matcher)
+- **15s Search Window Aborting Cloudflare Resolution:** CloudflareKiller launches a 90–120s background WebView when challenged. Uncached/challenged hosts now receive 120s stage patience and 240s overall provider timeout (`needsCfPatience`). Healthy sites still return in 1–3s without waiting.
+- **`searchWithCfRetry` in Detail Pipeline:** Detail watch flow now triggers a patient CF retry when the initial batch returns empty with challenge evidence.
+- **Preserving Mis-tagged Exact Matches:** Strong similarity ($\ge 0.85$) matches are retained with a slight penalty (-0.20), allowing valid content with incorrect metadata tags to resolve smoothly while prioritizing correctly-typed siblings if available.
+
+### 🧪 2. Tests
+- Added unit test in `CsTitleMatcherTest` verifying mis-tagged exact titles are retained (`misTaggedExactTitleIsKeptWhenProviderOnlyReturnsTheOtherType`).
+
+---
+
 ## 🇹🇷 Türkçe (v2.4.254)
 
 ### 🔄 1. Eklenti Güncellemelerinin Görünmemesi Düzeltildi
