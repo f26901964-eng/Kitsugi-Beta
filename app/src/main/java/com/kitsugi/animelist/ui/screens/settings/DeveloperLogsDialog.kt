@@ -6,7 +6,7 @@ import com.kitsugi.animelist.ui.theme.gradient.Text
 
 import com.kitsugi.animelist.R
 import androidx.compose.ui.res.stringResource
-import android.content.Context
+import android.content.Intent
 import android.widget.Toast
 import com.kitsugi.animelist.ui.theme.gradient.background
 import com.kitsugi.animelist.ui.utils.tvClickable
@@ -14,6 +14,7 @@ import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.selection.SelectionContainer
@@ -25,11 +26,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
@@ -39,11 +42,42 @@ import com.kitsugi.animelist.ui.theme.LocalKitsugiAccent
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.BufferedReader
 import java.io.File
 import java.io.InputStreamReader
+
+/** Günlük seviyesi filtreleri (logcat -v time biçimi: "MM-dd HH:mm:ss.SSS L/tag(pid): mesaj"). */
+private enum class LogLevelFilter(val label: String) {
+    ALL("Tümü"),
+    ERROR("Hata"),
+    WARN("Uyarı"),
+    INFO("Bilgi"),
+    DEBUG("Debug");
+
+    fun matches(line: String): Boolean = when (this) {
+        ALL -> true
+        ERROR -> logLevelOf(line).let { it == 'E' || it == 'F' }
+        WARN -> logLevelOf(line) == 'W'
+        INFO -> logLevelOf(line) == 'I'
+        DEBUG -> logLevelOf(line).let { it == 'D' || it == 'V' }
+    }
+}
+
+private val LOG_LEVEL_REGEX = Regex("""\s([VDIWEF])/""")
+
+private fun logLevelOf(line: String): Char? =
+    LOG_LEVEL_REGEX.find(line)?.groupValues?.get(1)?.firstOrNull()
+
+private fun logLevelColor(line: String): Color = when (logLevelOf(line)) {
+    'E', 'F' -> KitsugiColors.AccentRed
+    'W' -> KitsugiColors.AccentOrange
+    'I' -> KitsugiColors.AccentPurple
+    'D', 'V' -> KitsugiColors.AccentBlue
+    else -> if (line.contains("KRİTİK HATA")) KitsugiColors.AccentRed else KitsugiColors.TextSecondary
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -54,31 +88,35 @@ fun DeveloperLogsDialog(
     val accentColor = LocalKitsugiAccent.current
     val clipboardManager = LocalClipboardManager.current
     val scope = rememberCoroutineScope()
+    val myPid = remember { android.os.Process.myPid() }
 
     var logLines by remember { mutableStateOf<List<String>>(emptyList()) }
     var searchQuery by remember { mutableStateOf("") }
     var isLoading by remember { mutableStateOf(true) }
     var crashReport by remember { mutableStateOf<String?>(null) }
+    var levelFilter by remember { mutableStateOf(LogLevelFilter.ALL) }
+    var onlyThisApp by rememberSaveable { mutableStateOf(false) }
+    var wrapLines by rememberSaveable { mutableStateOf(true) }
+    var autoRefresh by rememberSaveable { mutableStateOf(false) }
 
-    // Snapshot ref so the launcher callback can read the latest logLines/crashReport
-    // without a forward-reference to filteredLines (which is defined later).
-    val logSnapshotRef = remember { androidx.compose.runtime.mutableStateOf<Pair<String?, List<String>>>(null to emptyList()) }
+    // Kaydetme diyaloğu geri çağrısı en güncel veriyi okuyabilsin diye anlık görüntü.
+    val logSnapshotRef = remember { mutableStateOf<Pair<String?, List<String>>>(null to emptyList()) }
 
     val saveLogLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.CreateDocument("text/plain")
     ) { uri ->
         if (uri != null) {
-            val (snap_crash, snap_lines) = logSnapshotRef.value
+            val (snapCrash, snapLines) = logSnapshotRef.value
             scope.launch {
                 try {
                     withContext(Dispatchers.IO) {
                         context.contentResolver.openOutputStream(uri)?.bufferedWriter()?.use { writer ->
-                            if (snap_crash != null) {
+                            if (snapCrash != null) {
                                 writer.write("=== SON ÇÖKME RAPORU ===\n")
-                                writer.write(snap_crash)
+                                writer.write(snapCrash)
                                 writer.write("\n=========================\n\n")
                             }
-                            writer.write(snap_lines.joinToString("\n"))
+                            writer.write(snapLines.joinToString("\n"))
                         }
                     }
                     Toast.makeText(context, "Loglar başarıyla kaydedildi", Toast.LENGTH_SHORT).show()
@@ -89,23 +127,19 @@ fun DeveloperLogsDialog(
         }
     }
 
-    val fetchLogs = suspend {
-        isLoading = true
+    // Logcat'i ve çökme raporunu okur. showSpinner=false: otomatik yenilemede ekran titremesin.
+    val loadLogs: suspend (Boolean) -> Unit = { showSpinner ->
+        if (showSpinner) isLoading = true
         withContext(Dispatchers.IO) {
             try {
-                // Fetch crash report if exists
                 val crashFile = File(context.filesDir, "crash_log.txt")
                 crashReport = if (crashFile.exists()) crashFile.readText() else null
 
-                // Fetch logcat
                 val process = Runtime.getRuntime().exec(arrayOf("logcat", "-d", "-v", "time", "*:D"))
-                val reader = BufferedReader(InputStreamReader(process.inputStream))
-                val lines = mutableListOf<String>()
-                var line: String?
-                while (reader.readLine().also { line = it } != null) {
-                    lines.add(line!!)
+                val lines = BufferedReader(InputStreamReader(process.inputStream)).use { reader ->
+                    reader.readLines()
                 }
-                reader.close()
+                process.waitFor()
                 logLines = lines.takeLast(1500).reversed()
             } catch (e: Exception) {
                 logLines = listOf("Loglar okunamadı: ${e.localizedMessage}")
@@ -115,11 +149,11 @@ fun DeveloperLogsDialog(
         }
     }
 
-    val clearLogs = suspend {
+    val clearLogs: suspend () -> Unit = {
         isLoading = true
         withContext(Dispatchers.IO) {
             try {
-                Runtime.getRuntime().exec(arrayOf("logcat", "-c"))
+                Runtime.getRuntime().exec(arrayOf("logcat", "-c")).waitFor()
                 val crashFile = File(context.filesDir, "crash_log.txt")
                 if (crashFile.exists()) crashFile.delete()
                 crashReport = null
@@ -133,15 +167,30 @@ fun DeveloperLogsDialog(
     }
 
     LaunchedEffect(Unit) {
-        fetchLogs()
+        loadLogs(true)
     }
 
-    val filteredLines = remember(logLines, searchQuery) {
-        if (searchQuery.isBlank()) {
-            logLines
-        } else {
-            logLines.filter { it.contains(searchQuery, ignoreCase = true) }
+    // Otomatik yenileme: açıkken 3 saniyede bir sessizce güncelle.
+    LaunchedEffect(autoRefresh) {
+        while (autoRefresh) {
+            delay(3000L)
+            loadLogs(false)
         }
+    }
+
+    val filteredLines = remember(logLines, searchQuery, levelFilter, onlyThisApp) {
+        val pidTag = "($myPid)"
+        logLines.asSequence()
+            .filter { !onlyThisApp || it.contains(pidTag) }
+            .filter { levelFilter.matches(it) }
+            .filter { searchQuery.isBlank() || it.contains(searchQuery, ignoreCase = true) }
+            .toList()
+    }
+
+    val errorCount = remember(logLines) { logLines.count { LogLevelFilter.ERROR.matches(it) } }
+    val warnCount = remember(logLines) { logLines.count { LogLevelFilter.WARN.matches(it) } }
+    val chipCounts = remember(logLines) {
+        LogLevelFilter.entries.associateWith { f -> logLines.count { f.matches(it) } }
     }
 
     Dialog(
@@ -151,201 +200,163 @@ fun DeveloperLogsDialog(
         Surface(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(16.dp),
-            shape = RoundedCornerShape(24.dp),
+                .padding(8.dp),
+            shape = RoundedCornerShape(20.dp),
             color = KitsugiColors.Surface,
             tonalElevation = 8.dp
         ) {
             Column(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(16.dp)
+                    .padding(12.dp)
             ) {
-                // Header
+                // ── Başlık: tam genişlik. Kapat butonu sağda, başlık alanı kalan tüm genişliği kullanır ──
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
                             text = stringResource(R.string.inline_developer_logs_1c5507d),
                             color = KitsugiColors.TextPrimary,
                             fontSize = 20.sp,
-                            fontWeight = FontWeight.Bold
+                            fontWeight = FontWeight.Bold,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
                         )
                         Text(
                             text = stringResource(R.string.inline_in_app_logcat_and_error_268f061),
                             color = KitsugiColors.TextSecondary,
-                            fontSize = 12.sp
+                            fontSize = 12.sp,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
                         )
                     }
+                    LogToolButton(
+                        icon = Icons.Rounded.Close,
+                        description = "Kapat",
+                        tint = KitsugiColors.TextPrimary,
+                        onClick = onDismiss
+                    )
+                }
 
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(6.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        IconButton(
-                            onClick = { scope.launch { fetchLogs() } },
-                            colors = IconButtonDefaults.iconButtonColors(containerColor = KitsugiColors.SurfaceStrong)
-                        ) {
-                            Icon(Icons.Rounded.Refresh, "Yenile", tint = KitsugiColors.TextPrimary)
+                Spacer(modifier = Modifier.height(8.dp))
+
+                // ── Araç çubuğu: ekran dar olsa da butonlar yatay kaydırılarak erişilebilir ──
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    LogToolButton(Icons.Rounded.Refresh, "Yenile", KitsugiColors.TextPrimary) {
+                        scope.launch { loadLogs(true) }
+                    }
+                    LogToolButton(Icons.Rounded.ContentCopy, "Kopyala", KitsugiColors.TextPrimary) {
+                        val textToCopy = buildString {
+                            if (crashReport != null) {
+                                append("=== SON ÇÖKME RAPORU ===\n")
+                                append(crashReport)
+                                append("\n=========================\n\n")
+                            }
+                            append(filteredLines.joinToString("\n"))
                         }
-
-                        IconButton(
-                            onClick = {
-                                val textToCopy = buildString {
-                                    if (crashReport != null) {
-                                        append("=== SON ÇÖKME RAPORU ===\n")
-                                        append(crashReport)
-                                        append("\n=========================\n\n")
-                                    }
-                                    append(filteredLines.joinToString("\n"))
-                                }
-                                clipboardManager.setText(AnnotatedString(textToCopy))
-                                Toast.makeText(context, "Loglar panoya kopyalandı", Toast.LENGTH_SHORT).show()
-                            },
-                            colors = IconButtonDefaults.iconButtonColors(containerColor = KitsugiColors.SurfaceStrong)
-                        ) {
-                            Icon(Icons.Rounded.ContentCopy, "Kopyala", tint = KitsugiColors.TextPrimary)
+                        clipboardManager.setText(AnnotatedString(textToCopy))
+                        Toast.makeText(context, "Loglar panoya kopyalandı", Toast.LENGTH_SHORT).show()
+                    }
+                    LogToolButton(Icons.Rounded.Save, "Kaydet", KitsugiColors.TextPrimary) {
+                        logSnapshotRef.value = crashReport to filteredLines
+                        val timestamp = java.text.SimpleDateFormat(
+                            "yyyyMMdd-HHmm",
+                            java.util.Locale.US
+                        ).format(java.util.Date())
+                        saveLogLauncher.launch("Kitsugi-logcat-$timestamp.txt")
+                    }
+                    LogToolButton(Icons.Rounded.Share, "Paylaş", KitsugiColors.TextPrimary) {
+                        // Filtrelenmiş metni düz metin olarak paylaş (dosya sağlayıcısı gerektirmez).
+                        val shareText = buildString {
+                            if (crashReport != null) {
+                                append("=== SON ÇÖKME RAPORU ===\n")
+                                append(crashReport)
+                                append("\n=========================\n\n")
+                            }
+                            append(filteredLines.take(800).joinToString("\n"))
                         }
-
-                        IconButton(
-                            onClick = {
-                                // Snapshot current state so the launcher callback can access it
-                                logSnapshotRef.value = crashReport to filteredLines
-                                val timestamp = java.text.SimpleDateFormat(
-                                    "yyyyMMdd-HHmm",
-                                    java.util.Locale.US
-                                ).format(java.util.Date())
-                                saveLogLauncher.launch("Kitsugi-logcat-$timestamp.txt")
-                            },
-                            colors = IconButtonDefaults.iconButtonColors(containerColor = KitsugiColors.SurfaceStrong)
-                        ) {
-                            Icon(Icons.Rounded.Save, "Kaydet", tint = KitsugiColors.TextPrimary)
+                        val intent = Intent(Intent.ACTION_SEND).apply {
+                            type = "text/plain"
+                            putExtra(Intent.EXTRA_TEXT, shareText)
                         }
-
-                        IconButton(
-                            onClick = {
-                                scope.launch {
-                                    try {
-                                        val filesToShare = ArrayList<android.net.Uri>()
-
-                                        // 1. Cihaz ve Uygulama Bilgisi
-                                        val infoFile = File(context.filesDir, "device_info.txt")
-                                        val infoText = buildString {
-                                            append("Uygulama Sürümü: ${com.kitsugi.animelist.BuildConfig.VERSION_NAME} (${com.kitsugi.animelist.BuildConfig.VERSION_CODE})\n")
-                                            append("Cihaz Markası: ${android.os.Build.BRAND}\n")
-                                            append("Cihaz Modeli: ${android.os.Build.MODEL}\n")
-                                            append("Android Sürümü: ${android.os.Build.VERSION.RELEASE} (API ${android.os.Build.VERSION.SDK_INT})\n")
-                                            append("Üretici: ${android.os.Build.MANUFACTURER}\n")
-                                            append("Zaman Dilimi: ${java.util.TimeZone.getDefault().id}\n")
-                                            append("Yerel Saat: ${java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss", java.util.Locale.getDefault()).format(java.util.Date())}\n")
-                                        }
-                                        infoFile.writeText(infoText)
-                                        val infoUri = androidx.core.content.FileProvider.getUriForFile(
-                                            context,
-                                            "com.kitsugi.animelist.fileprovider",
-                                            infoFile
-                                        )
-                                        filesToShare.add(infoUri)
-
-                                        // 2. Son Çökme Kaydı
-                                        val crashFile = File(context.filesDir, "crash_log.txt")
-                                        if (crashFile.exists()) {
-                                            val crashUri = androidx.core.content.FileProvider.getUriForFile(
-                                                context,
-                                                "com.kitsugi.animelist.fileprovider",
-                                                crashFile
-                                            )
-                                            filesToShare.add(crashUri)
-                                        }
-
-                                        // 3. Arka Planda Dönen Log Dosyaları (Rotasyon Dahil)
-                                        val logFiles = listOf("app_logs.txt", "app_logs.txt.1", "app_logs.txt.2")
-                                        for (fileName in logFiles) {
-                                            val logFile = File(context.filesDir, fileName)
-                                            if (logFile.exists() && logFile.length() > 0) {
-                                                val logUri = androidx.core.content.FileProvider.getUriForFile(
-                                                    context,
-                                                    "com.kitsugi.animelist.fileprovider",
-                                                    logFile
-                                                )
-                                                filesToShare.add(logUri)
-                                            }
-                                        }
-
-                                        // 4. Canlı Anlık Logcat Dökümü
-                                        val currentLogcatFile = File(context.filesDir, "current_logcat.txt")
-                                        withContext(Dispatchers.IO) {
-                                            try {
-                                                val process = Runtime.getRuntime().exec(arrayOf("logcat", "-d", "-v", "time", "*:D"))
-                                                val reader = BufferedReader(InputStreamReader(process.inputStream))
-                                                val writer = currentLogcatFile.bufferedWriter()
-                                                var line: String?
-                                                while (reader.readLine().also { line = it } != null) {
-                                                    writer.write(line)
-                                                    writer.newLine()
-                                                }
-                                                writer.close()
-                                                reader.close()
-                                            } catch (e: Exception) {
-                                                currentLogcatFile.writeText("Anlık log alınamadı: ${e.localizedMessage}")
-                                            }
-                                        }
-                                        if (currentLogcatFile.exists() && currentLogcatFile.length() > 0) {
-                                            val currentUri = androidx.core.content.FileProvider.getUriForFile(
-                                                context,
-                                                "com.kitsugi.animelist.fileprovider",
-                                                currentLogcatFile
-                                            )
-                                            filesToShare.add(currentUri)
-                                        }
-
-                                        if (filesToShare.isNotEmpty()) {
-                                            val intent = android.content.Intent().apply {
-                                                action = android.content.Intent.ACTION_SEND_MULTIPLE
-                                                type = "text/plain"
-                                                putParcelableArrayListExtra(android.content.Intent.EXTRA_STREAM, filesToShare)
-                                                addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                                            }
-                                            context.startActivity(android.content.Intent.createChooser(intent, "Logları Paylaş"))
-                                        } else {
-                                            Toast.makeText(context, "Paylaşılacak log dosyası bulunamadı", Toast.LENGTH_SHORT).show()
-                                        }
-                                    } catch (e: Exception) {
-                                        Toast.makeText(context, "Paylaşım Hatası: ${e.localizedMessage}", Toast.LENGTH_SHORT).show()
-                                    }
-                                }
-                            },
-                            colors = IconButtonDefaults.iconButtonColors(containerColor = KitsugiColors.SurfaceStrong)
-                        ) {
-                            Icon(Icons.Rounded.Share, "Paylaş", tint = KitsugiColors.TextPrimary)
-                        }
-
-                        IconButton(
-                            onClick = { scope.launch { clearLogs() } },
-                            colors = IconButtonDefaults.iconButtonColors(containerColor = KitsugiColors.SurfaceStrong)
-                        ) {
-                            Icon(Icons.Rounded.Delete, "Temizle", tint = KitsugiColors.AccentRed)
-                        }
-
-                        IconButton(
-                            onClick = onDismiss,
-                            colors = IconButtonDefaults.iconButtonColors(containerColor = KitsugiColors.SurfaceStrong)
-                        ) {
-                            Icon(Icons.Rounded.Close, "Kapat", tint = KitsugiColors.TextPrimary)
-                        }
+                        context.startActivity(Intent.createChooser(intent, "Logları Paylaş"))
+                    }
+                    LogToolButton(Icons.Rounded.Delete, "Temizle", KitsugiColors.AccentRed) {
+                        scope.launch { clearLogs() }
                     }
                 }
 
-                Spacer(modifier = Modifier.height(12.dp))
+                Spacer(modifier = Modifier.height(8.dp))
 
-                // Search Box
+                // ── Özet sayaçları ──
+                Text(
+                    text = "Toplam ${logLines.size} • Hata $errorCount • Uyarı $warnCount • Gösterilen ${filteredLines.size}",
+                    color = KitsugiColors.TextMuted,
+                    fontSize = 11.sp,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                // ── Seviye filtreleri ──
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    LogLevelFilter.entries.forEach { filter ->
+                        FilterChip(
+                            selected = levelFilter == filter,
+                            onClick = { levelFilter = filter },
+                            label = {
+                                Text(
+                                    text = "${filter.label} (${chipCounts[filter] ?: 0})",
+                                    fontSize = 12.sp
+                                )
+                            }
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(4.dp))
+
+                // ── Anahtarlar ──
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(14.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    LogSwitch("Sadece bu uygulama", onlyThisApp, accentColor) { onlyThisApp = it }
+                    LogSwitch("Satır kaydır", wrapLines, accentColor) { wrapLines = it }
+                    LogSwitch("Otomatik yenile", autoRefresh, accentColor) { autoRefresh = it }
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                // ── Arama ──
                 OutlinedTextField(
                     value = searchQuery,
                     onValueChange = { searchQuery = it },
-                    placeholder = { Text(stringResource(R.string.inline_search_logs_e_g_turkanime_fea64cb), color = KitsugiColors.TextMuted, fontSize = 13.sp) },
+                    placeholder = {
+                        Text(
+                            stringResource(R.string.inline_search_logs_e_g_turkanime_fea64cb),
+                            color = KitsugiColors.TextMuted,
+                            fontSize = 13.sp
+                        )
+                    },
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(12.dp),
                     leadingIcon = { Icon(Icons.Rounded.Search, null, tint = KitsugiColors.TextSecondary) },
@@ -367,15 +378,15 @@ fun DeveloperLogsDialog(
                     singleLine = true
                 )
 
-                Spacer(modifier = Modifier.height(12.dp))
+                Spacer(modifier = Modifier.height(8.dp))
 
-                // Show Crash Report Warning if exists
+                // ── Son çökme raporu uyarısı ──
                 if (crashReport != null) {
                     var isCrashExpanded by remember { mutableStateOf(false) }
                     Card(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(bottom = 12.dp)
+                            .padding(bottom = 8.dp)
                             .tvClickable(shape = RoundedCornerShape(12.dp)) { isCrashExpanded = !isCrashExpanded },
                         shape = RoundedCornerShape(12.dp),
                         colors = CardDefaults.cardColors(
@@ -420,7 +431,7 @@ fun DeveloperLogsDialog(
                     }
                 }
 
-                // Log display
+                // ── Log listesi ──
                 Box(
                     modifier = Modifier
                         .weight(1f)
@@ -429,41 +440,43 @@ fun DeveloperLogsDialog(
                         .background(KitsugiColors.Background)
                         .padding(8.dp)
                 ) {
-                    if (isLoading) {
-                        CircularProgressIndicator(
-                            color = accentColor,
-                            modifier = Modifier.align(Alignment.Center)
-                        )
-                    } else if (filteredLines.isEmpty()) {
-                        Text(
-                            text = stringResource(R.string.inline_no_matching_log_entry_found_7aebe62),
-                            color = KitsugiColors.TextMuted,
-                            fontSize = 14.sp,
-                            modifier = Modifier.align(Alignment.Center)
-                        )
-                    } else {
-                        SelectionContainer {
-                            LazyColumn(
-                                modifier = Modifier
-                                    .fillMaxSize()
-                                    .horizontalScroll(rememberScrollState()),
-                                verticalArrangement = Arrangement.spacedBy(2.dp)
-                            ) {
-                                items(filteredLines) { line ->
-                                    val color = when {
-                                        line.contains(" E/") || line.contains(" E ") || line.contains("KRİTİK HATA") || line.contains("FATAL") -> KitsugiColors.AccentRed
-                                        line.contains(" W/") || line.contains(" W ") -> KitsugiColors.AccentOrange
-                                        line.contains(" D/") || line.contains(" D ") -> KitsugiColors.AccentBlue
-                                        line.contains(" I/") || line.contains(" I ") -> KitsugiColors.AccentPurple
-                                        else -> KitsugiColors.TextSecondary
+                    when {
+                        isLoading && logLines.isEmpty() -> {
+                            CircularProgressIndicator(
+                                color = accentColor,
+                                modifier = Modifier.align(Alignment.Center)
+                            )
+                        }
+                        filteredLines.isEmpty() -> {
+                            Text(
+                                text = stringResource(R.string.inline_no_matching_log_entry_found_7aebe62),
+                                color = KitsugiColors.TextMuted,
+                                fontSize = 14.sp,
+                                modifier = Modifier.align(Alignment.Center)
+                            )
+                        }
+                        else -> {
+                            val listState = rememberLazyListState()
+                            SelectionContainer {
+                                LazyColumn(
+                                    state = listState,
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .then(
+                                            // Satır kaydırma kapalıysa yatay kaydırma; açıksa satırlar ekrana sığar.
+                                            if (wrapLines) Modifier else Modifier.horizontalScroll(rememberScrollState())
+                                        ),
+                                    verticalArrangement = Arrangement.spacedBy(2.dp)
+                                ) {
+                                    items(filteredLines) { line ->
+                                        Text(
+                                            text = line,
+                                            color = logLevelColor(line),
+                                            fontSize = 11.sp,
+                                            fontFamily = FontFamily.Monospace,
+                                            lineHeight = 15.sp
+                                        )
                                     }
-                                    Text(
-                                        text = line,
-                                        color = color,
-                                        fontSize = 11.sp,
-                                        fontFamily = FontFamily.Monospace,
-                                        lineHeight = 15.sp
-                                    )
                                 }
                             }
                         }
@@ -471,5 +484,46 @@ fun DeveloperLogsDialog(
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun LogToolButton(
+    icon: ImageVector,
+    description: String,
+    tint: Color,
+    onClick: () -> Unit
+) {
+    IconButton(
+        onClick = onClick,
+        colors = IconButtonDefaults.iconButtonColors(containerColor = KitsugiColors.SurfaceStrong)
+    ) {
+        Icon(icon, description, tint = tint)
+    }
+}
+
+@Composable
+private fun LogSwitch(
+    label: String,
+    checked: Boolean,
+    accentColor: Color,
+    onCheckedChange: (Boolean) -> Unit
+) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Text(
+            text = label,
+            color = KitsugiColors.TextSecondary,
+            fontSize = 12.sp,
+            maxLines = 1
+        )
+        Spacer(modifier = Modifier.width(4.dp))
+        Switch(
+            checked = checked,
+            onCheckedChange = onCheckedChange,
+            colors = SwitchDefaults.colors(
+                checkedThumbColor = accentColor,
+                checkedTrackColor = accentColor.copy(alpha = 0.35f)
+            )
+        )
     }
 }

@@ -1,5 +1,6 @@
 package com.kitsugi.animelist.ui.screens.manga
 
+import com.kitsugi.animelist.ui.utils.rememberKitsugiGridColumns
 import com.kitsugi.animelist.ui.theme.gradient.CircularProgressIndicator
 import com.kitsugi.animelist.ui.theme.gradient.Icon
 import com.kitsugi.animelist.ui.theme.gradient.Text
@@ -100,7 +101,7 @@ fun MangaBrowseScreen(
     }
     val accentColor = LocalKitsugiAccent.current
     val isLandscape = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
-    val cols = if (isLandscape) 4 else 2
+    val cols = rememberKitsugiGridColumns()
 
     // Snapshot delegated props → allow smart cast
     val query          = ui.searchQuery
