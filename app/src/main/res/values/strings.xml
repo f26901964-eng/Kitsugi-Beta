@@ -4777,7 +4777,7 @@ Eklentiler ekranından eklenti etkinleştirin.</string>
     <!-- ─── Depolama Yönetimi (StorageJanitor) ─────────────────────────────── -->
     <string name="storage_title">Depolama</string>
     <string name="storage_section_buckets">Önbellekler ve Veriler</string>
-    <string name="storage_menu_desc">Önbellek boyutlarını gör ve yer aç</string>
+    <string name="storage_menu_desc">Önbellek ve indirilen dosya boyutlarını gör, yer aç</string>
     <string name="storage_total">Toplam kullanım</string>
     <string name="storage_calculating">Hesaplanıyor…</string>
     <string name="storage_clear_all">Güvenli önbellekleri temizle</string>
@@ -4790,9 +4790,31 @@ Eklentiler ekranından eklenti etkinleştirin.</string>
     <string name="storage_clear_webview_confirm_title">Web verileri temizlensin mi?</string>
     <string name="storage_clear_webview_confirm_message">Bulut akış eklentilerinin oturum çerezleri ve yerel kayıtları silinir. Eklentilere yeniden giriş yapmanız gerekebilir.</string>
     <string name="storage_confirm_clear">Temizle</string>
-    <string name="storage_protected_note">Hesap bilgileriniz, listeleriniz ve indirdiğiniz videolar bu ekrandan silinmez.</string>
+    <string name="storage_protected_note">Hesap bilgileriniz, listeleriniz ve izleme geçmişiniz bu ekrandan silinmez. İndirdiğiniz video, görsel ve altyazılar aşağıdaki İndirilenler bölümünden yönetilir.</string>
     <string name="storage_files_count">%1$d dosya</string>
     <string name="storage_info_only">Bilgi</string>
+
+    <!-- ─── Depolama > İndirilenler (kullanıcı dosyaları) ───────────────────── -->
+    <string name="storage_section_downloads">İndirilenler</string>
+    <string name="storage_downloads_total">İndirilen dosyalar: %1$s</string>
+    <string name="storage_downloads_hint">Bu bölümdeki dosyalar cihazınıza kaydedilmiş gerçek içeriklerdir; buradan tek tek veya topluca silinir.</string>
+    <string name="storage_downloads_videos">İndirilen videolar</string>
+    <string name="storage_downloads_videos_desc">Çevrimdışı izlemek için indirilen bölümler (Kitsugi/Video). Silmek geri alınamaz.</string>
+    <string name="storage_downloads_images">İndirilen görseller</string>
+    <string name="storage_downloads_images_desc">Galeriden cihaza kaydettiğiniz resim dosyaları (Kitsugi/Images)</string>
+    <string name="storage_downloads_subtitles">İndirilen altyazılar</string>
+    <string name="storage_downloads_subtitles_desc">Video indirmeleriyle birlikte inen altyazı dosyaları (subs klasörleri)</string>
+    <string name="storage_downloads_delete_all">Tümünü sil</string>
+    <string name="storage_downloads_delete_all_short">Tüm indirilenleri sil</string>
+    <string name="storage_downloads_delete_all_desc">Videolar, görseller ve altyazılar birlikte silinir</string>
+    <string name="storage_deleted_amount">%1$s silindi</string>
+    <string name="storage_deleted_nothing">Silinecek indirilmiş dosya yoktu</string>
+    <string name="storage_downloads_delete_confirm_title">%1$s silinsin mi?</string>
+    <string name="storage_downloads_videos_confirm_message">Cihazdaki tüm indirilmiş video dosyaları ve yanlarındaki altyazı/meta dosyaları silinir; İndirilenler ekranı boşalır. Bu işlem geri alınamaz, izlemek için bölümü tekrar indirmeniz gerekir. Devam eden indirmeler durdurulur.\n\nNot: Özel bir klasöre (Ayarlar &gt; İndirme klasörü) kopyalanan dosyalar oradan silinmelidir. Hesap bilgileriniz ve listeleriniz korunur.</string>
+    <string name="storage_downloads_images_confirm_message">Galeriden cihaza indirdiğiniz tüm resim dosyaları silinir (özel klasöre kopyalananlar dahil). Galerideki \"indirildi\" rozetleri kalkar; isterseniz aynı resmi yeniden indirebilirsiniz.</string>
+    <string name="storage_downloads_subtitles_confirm_message">İndirilen altyazı dosyaları silinir (video indirmelerinin yanındaki subs klasörleri dahil). Videolar silinmez; altyazılar oynatıcıdan yeniden indirilebilir.</string>
+    <string name="storage_downloads_all_confirm_title">Tüm indirilenler silinsin mi?</string>
+    <string name="storage_downloads_all_confirm_message">İndirilen videolar, görseller ve altyazılar cihazdan tamamen silinir ve İndirilenler ekranı boşalır. Bu işlem geri alınamaz. Devam eden indirmeler durdurulur; hesap bilgileriniz, listeleriniz ve izleme geçmişiniz korunur.</string>
     <string name="storage_bucket_images">Görsel önbelleği</string>
     <string name="storage_bucket_images_desc">Poster ve kapak resimleri (Coil disk önbelleği)</string>
     <string name="storage_bucket_p2p">P2P torrent önbelleği</string>

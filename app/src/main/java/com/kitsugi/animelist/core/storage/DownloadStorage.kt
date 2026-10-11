@@ -1,0 +1,335 @@
+package com.kitsugi.animelist.core.storage
+
+import android.content.Context
+import android.content.Intent
+import android.media.MediaScannerConnection
+import android.os.Environment
+import android.util.Log
+import androidx.annotation.StringRes
+import com.kitsugi.animelist.R
+import com.kitsugi.animelist.core.download.AnimeDownloadService
+import com.kitsugi.animelist.data.local.AnimeDownloadManager
+import com.kitsugi.animelist.data.model.AnimeDownload
+import com.kitsugi.animelist.utils.KitsugiImageDownloadHelper
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import java.io.File
+
+/**
+ * Kullanıcının **kendi indirdiği dosyaların** (video / görsel / altyazı) depolama bekçisi.
+ *
+ * ## Neden ayrı bir nesne?
+ * [StorageJanitor] yalnızca **yeniden üretilebilir önbellekleri** yönetir ve
+ * `cleanAll` çağrısı "Güvenli önbellekleri temizle" düğmesine bağlıdır; oraya indirilen
+ * video/görsel/alt yazı eklenirse kullanıcı tek dokunuşla çevrimdışı arşivini kaybederdi.
+ * Bu yüzden indirilen dosyalar ayrı tutulur, yalnızca **açık kullanıcı onayıyla** silinir
+ * ([clean] / [cleanAll]) ve hiçbir otomatik bakım kuralı bunlara dokunmaz.
+ *
+ * ## Ölçülen konumlar
+ * ```
+ * Download/Kitsugi/Video/<mediaId>/video.mp4 + subs/*.srt + metadata.json   (uygulama indirmeleri)
+ * Download/Kitsugi/Video/<Başlık>_Bölüm_N.mp4                              (dışa aktarılan kopya)
+ * Download/Kitsugi/Subtitles/*.srt                                        (dışa aktarılan altyazılar)
+ * cacheDir/Kitsugi_downloads/…                                            (eski konum)
+ * Download/Kitsugi/Images/*.jpg · Pictures/Kitsugi/Images/*.jpg           ([KitsugiImageDownloadHelper])
+ * ```
+ *
+ * ## Güvenlik kuralları
+ *  - Tüm işler `Dispatchers.IO` üzerinde; her dosya işlemi `runCatching` ile korunur,
+ *    tek bir dosya hatası toplu silmeyi düşürmez.
+ *  - Silinen video dosyaları `MediaScanner` üzerinden sistemden de düşürülür (hayalet
+ *    kayıt kalmaz), indirme kayıtları ([AnimeDownloadManager]) aynı anda temizlenir.
+ *  - Hiçbir işlem ana iş parçacığında çalışmaz.
+ */
+object DownloadStorage {
+
+    private const val TAG = "DownloadStorage"
+
+    /** Video indirme köklerinin eski (legacy) kopyası — `OfflinePlaybackHelper` ile aynı ad. */
+    private const val LEGACY_DOWNLOADS_DIR = "Kitsugi_downloads"
+
+    private const val PUBLIC_KITSUGI_DIR = "Kitsugi"
+
+    private val VIDEO_EXTENSIONS = setOf(
+        "mp4", "mkv", "avi", "webm", "ts", "m2ts", "mov", "m4v", "flv", "wmv", "partial"
+    )
+
+    private val SUBTITLE_EXTENSIONS = setOf("srt", "vtt", "ass", "ssa", "sub")
+
+    /** Kullanıcıya gösterilen indirme türü. */
+    enum class Kind(
+        @StringRes val labelRes: Int,
+        @StringRes val descriptionRes: Int
+    ) {
+        VIDEOS(R.string.storage_downloads_videos, R.string.storage_downloads_videos_desc),
+        IMAGES(R.string.storage_downloads_images, R.string.storage_downloads_images_desc),
+        SUBTITLES(R.string.storage_downloads_subtitles, R.string.storage_downloads_subtitles_desc),
+    }
+
+    data class Usage(
+        val kind: Kind,
+        val bytes: Long,
+        val fileCount: Int
+    )
+
+    data class CleanResult(
+        val freedBytes: Long,
+        val removedFiles: Int,
+        val failures: Int,
+        /** Silme engellendi/hata verdi ise kullanıcıya gösterilecek açıklama. */
+        val message: String? = null
+    )
+
+    // ─── Ölçüm ─────────────────────────────────────────────────────────────────
+
+    /** Üç indirme türünü de ölçer (dosya sayısı + bayt). */
+    suspend fun scan(context: Context): List<Usage> = withContext(Dispatchers.IO) {
+        val appContext = context.applicationContext
+        Kind.entries.map { kind ->
+            when (kind) {
+                Kind.VIDEOS -> usageOf(kind, filesIn(videoRoots(appContext), VIDEO_EXTENSIONS))
+                Kind.SUBTITLES -> usageOf(kind, filesIn(subtitleRoots(appContext), SUBTITLE_EXTENSIONS))
+                Kind.IMAGES -> {
+                    val stats = KitsugiImageDownloadHelper.downloadedImagesStats(appContext)
+                    Usage(kind, stats.bytes, stats.fileCount)
+                }
+            }
+        }
+    }
+
+    /**
+     * Bölüm başlığındaki "İndirilen dosyalar: X" için **tekrarsız** toplam.
+     *
+     * Video klasörlerindeki altyazılar hem [Kind.VIDEOS] hem [Kind.SUBTITLES] tarafından
+     * sayıldığı için satırların toplamı gerçek disk kullanımından büyük çıkar; bu fonksiyon
+     * her dosyayı yalnızca bir kez sayar.
+     */
+    suspend fun totalBytes(context: Context): Long = withContext(Dispatchers.IO) {
+        val appContext = context.applicationContext
+        val seen = HashSet<String>()
+        var total = 0L
+        (videoRoots(appContext) + subtitleRoots(appContext)).forEach { root ->
+            walkFiles(root).forEach { file ->
+                if (seen.add(file.absolutePath)) total += file.length()
+            }
+        }
+        KitsugiImageDownloadHelper.downloadedImageFiles(appContext).forEach { file ->
+            if (seen.add(file.absolutePath)) total += runCatching { file.length() }.getOrDefault(0L)
+        }
+        total
+    }
+
+    // ─── Silme (yalnızca açık kullanıcı onayıyla) ──────────────────────────────
+
+    /** Tek bir türü tamamen siler. */
+    suspend fun clean(context: Context, kind: Kind): CleanResult = withContext(Dispatchers.IO) {
+        val appContext = context.applicationContext
+        try {
+            when (kind) {
+                Kind.VIDEOS -> cleanVideos(appContext)
+                Kind.SUBTITLES -> cleanSubtitles(appContext)
+                Kind.IMAGES -> {
+                    val summary = KitsugiImageDownloadHelper.deleteAllDownloadedImages(appContext)
+                    CleanResult(summary.freedBytes, summary.deletedFiles, summary.failed)
+                }
+            }
+        } catch (t: Throwable) {
+            Log.w(TAG, "İndirme silme hatası (${kind.name}): ${t.message}")
+            CleanResult(0L, 0, 0, t.message)
+        }
+    }
+
+    /** Videoları, görselleri ve altyazıları birlikte siler. */
+    suspend fun cleanAll(context: Context): CleanResult = withContext(Dispatchers.IO) {
+        val appContext = context.applicationContext
+        var freed = 0L
+        var removed = 0
+        var failures = 0
+        var message: String? = null
+        Kind.entries.forEach { kind ->
+            val result = clean(appContext, kind)
+            freed += result.freedBytes
+            removed += result.removedFiles
+            failures += result.failures
+            if (message == null) message = result.message
+        }
+        CleanResult(freed, removed, failures, message)
+    }
+
+    // ─── Video silme ───────────────────────────────────────────────────────────
+
+    /**
+     * İndirilen tüm videoları siler.
+     *
+     * `<mediaId>/` klasörleri (video + subs + metadata) bütün olarak, kök dizinde düz duran
+     * dışa aktarılmış kopyalar dosya olarak silinir. Ardından indirme kayıtları temizlenir —
+     * böylece İndirilenler ekranı boşalır ve servis çalışan indirmeyi iptal eder.
+     */
+    private fun cleanVideos(context: Context): CleanResult {
+        // Devam eden indirme varsa önce durdur: dosyalar silinirken yazma sürmesin.
+        stopDownloaderIfActive(context)
+
+        var removed = 0
+        var freed = 0L
+        var failures = 0
+        val deletedPaths = ArrayList<String>()
+
+        videoRoots(context).forEach { root ->
+            val children = runCatching { root.listFiles() }.getOrNull() ?: return@forEach
+            for (child in children) {
+                if (child.isDirectory) {
+                    // Yalnızca içinde video bulunan klasörler indirme klasörüdür; boş/yabancı
+                    // klasörlere dokunulmaz.
+                    if (!containsVideo(child)) continue
+                    val stats = StorageJanitor.dirStats(child)
+                    val ok = runCatching { child.deleteRecursively() }.getOrDefault(false)
+                    if (ok && !child.exists()) {
+                        removed += stats.second
+                        freed += stats.first
+                    } else {
+                        failures++
+                    }
+                } else if (child.isFile && child.extension.lowercase() in VIDEO_EXTENSIONS) {
+                    val size = child.length()
+                    if (deleteFile(child)) {
+                        removed++
+                        freed += size
+                        deletedPaths += child.absolutePath
+                    } else {
+                        failures++
+                    }
+                }
+            }
+        }
+
+        if (deletedPaths.isNotEmpty()) notifyMediaRemoved(context, deletedPaths)
+        // Kayıtlar (SharedPreferences + StateFlow) temizlenir; servis de durdurulur.
+        runCatching { AnimeDownloadManager.clearAllDownloads(context) }
+
+        Log.i(TAG, "İndirilen videolar silindi: $removed dosya, ${freed / 1024} KB (hatalı: $failures)")
+        return CleanResult(freed, removed, failures)
+    }
+
+    // ─── Altyazı silme ─────────────────────────────────────────────────────────
+
+    /**
+     * İndirilen altyazı dosyalarını siler; video dosyalarına **dokunmaz**.
+     * Ardından boşalan `subs/` klasörleri kaldırılır.
+     */
+    private fun cleanSubtitles(context: Context): CleanResult {
+        var removed = 0
+        var freed = 0L
+        var failures = 0
+
+        filesIn(subtitleRoots(context), SUBTITLE_EXTENSIONS).forEach { file ->
+            val size = file.length()
+            if (deleteFile(file)) {
+                removed++
+                freed += size
+            } else {
+                failures++
+            }
+        }
+
+        // Boşalan "subs" klasörlerini temizle (video klasörleri kalsın).
+        videoRoots(context).forEach { root ->
+            val children = runCatching { root.listFiles() }.getOrNull() ?: return@forEach
+            children.filter { it.isDirectory }.forEach { mediaDir ->
+                val subsDir = File(mediaDir, "subs")
+                if (subsDir.isDirectory && (runCatching { subsDir.listFiles() }?.getOrNull()?.isEmpty() != false)) {
+                    runCatching { subsDir.delete() }
+                }
+            }
+        }
+
+        Log.i(TAG, "İndirilen altyazılar silindi: $removed dosya, ${freed / 1024} KB (hatalı: $failures)")
+        return CleanResult(freed, removed, failures)
+    }
+
+    // ─── Konum çözümlemesi ─────────────────────────────────────────────────────
+
+    /** `Download/Kitsugi` — görsel/altyazı/video dışa aktarımlarının ortak üst klasörü. */
+    private fun publicKitsugiDir(): File = File(
+        Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS),
+        PUBLIC_KITSUGI_DIR
+    )
+
+    /**
+     * Video indirmelerinin tutulduğu tüm konumlar.
+     * `OfflinePlaybackHelper.getDownloadsDir` sırasıyla birincil (public), uygulama dış
+     * klasörü ve `filesDir` yedeğini kullanır; burada üçü birlikte taranır ki kullanıcının
+     * diskinde kalan eski kopyalar da görünür ve silinebilir olsun.
+     * (Not: `getDownloadsDir` klasörü gerektiğinde oluşturur; yalnızca tarama yapan bu ekran
+     * için aynı yollar **oluşturmadan** hesaplanır.)
+     */
+    private fun videoRoots(context: Context): List<File> = buildList {
+        add(File(publicKitsugiDir(), "Video"))
+        context.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS)?.let {
+            add(File(it, "$PUBLIC_KITSUGI_DIR/Video"))
+        }
+        add(File(context.filesDir, LEGACY_DOWNLOADS_DIR))
+        add(File(context.cacheDir, LEGACY_DOWNLOADS_DIR)) // eski sürümlerin konumu
+    }.distinctBy { it.absolutePath }.filter { it.exists() }
+
+    /** Altyazı konumları: video kökleri (yanında dışa aktarılanlar dahil) + ortak altyazı klasörü. */
+    private fun subtitleRoots(context: Context): List<File> = buildList {
+        addAll(videoRoots(context))
+        add(File(publicKitsugiDir(), "Subtitles"))
+        context.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS)?.let {
+            add(File(it, "$PUBLIC_KITSUGI_DIR/Subtitles"))
+        }
+    }.distinctBy { it.absolutePath }.filter { it.exists() }
+
+    // ─── Yardımcılar ───────────────────────────────────────────────────────────
+
+    private fun usageOf(kind: Kind, files: List<File>): Usage =
+        Usage(kind, files.sumOf { runCatching { it.length() }.getOrDefault(0L) }, files.size)
+
+    /** Verilen köklerde (özyinelemeli) [extensions] uzantılı dosyaları toplar. */
+    private fun filesIn(roots: List<File>, extensions: Set<String>): List<File> =
+        roots.flatMap { walkFiles(it) }.filter { it.isFile && it.extension.lowercase() in extensions }
+
+    /** Dizin ağacındaki tüm dosyaları (özyinelemeli) döner; okunamayan klasörler atlanır. */
+    private fun walkFiles(root: File): List<File> {
+        if (!root.exists()) return emptyList()
+        val files = ArrayList<File>()
+        val stack = ArrayDeque<File>()
+        stack.addLast(root)
+        while (stack.isNotEmpty()) {
+            val current = stack.removeLast()
+            val children = runCatching { current.listFiles() }.getOrNull() ?: continue
+            for (child in children) {
+                if (child.isDirectory) stack.addLast(child) else files += child
+            }
+        }
+        return files
+    }
+
+    private fun containsVideo(dir: File): Boolean =
+        walkFiles(dir).any { it.extension.lowercase() in VIDEO_EXTENSIONS }
+
+    private fun deleteFile(file: File): Boolean =
+        runCatching { file.delete() && !file.exists() }.getOrDefault(false)
+
+    /** Silinen medya dosyalarını sistem kayıtlarından düşürür (hayalet giriş kalmasın). */
+    private fun notifyMediaRemoved(context: Context, paths: List<String>) {
+        runCatching {
+            MediaScannerConnection.scanFile(context, paths.toTypedArray(), null) { _, _ -> }
+        }.onFailure { Log.w(TAG, "MediaScanner temizliği başarısız: ${it.message}") }
+    }
+
+    /** Devam eden (sırada bekleyen dahil) indirme var mı? */
+    private fun hasActiveDownloads(): Boolean =
+        AnimeDownloadManager.downloads.value.any {
+            it.status == AnimeDownload.Status.DOWNLOADING || it.status == AnimeDownload.Status.QUEUE
+        }
+
+    /**
+     * Devam eden indirme varsa servisi durdurur. Kayıtlar [AnimeDownloadManager.clearAllDownloads]
+     * ile temizlendiği için servis içindeki izleyici aktif işi de iptal eder.
+     */
+    private fun stopDownloaderIfActive(context: Context) {
+        if (!hasActiveDownloads()) return
+        runCatching { context.stopService(Intent(context, AnimeDownloadService::class.java)) }
+    }
+}

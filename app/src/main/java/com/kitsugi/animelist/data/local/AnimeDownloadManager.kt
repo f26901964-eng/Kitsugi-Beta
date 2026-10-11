@@ -113,6 +113,8 @@ object AnimeDownloadManager {
     }
 
     fun deleteDownload(context: Context, animeId: String, episode: Int) {
+        // Silmeden önce kaydı al: dışa aktarılan (public) kopyaların adı başlıktan üretilir.
+        val record = _downloads.value.firstOrNull { it.animeId == animeId && it.episode == episode }
         val current = _downloads.value.filterNot { it.animeId == animeId && it.episode == episode }
         saveAndEmit(current)
 
@@ -121,6 +123,38 @@ object AnimeDownloadManager {
             com.kitsugi.animelist.core.player.OfflinePlaybackHelper.deleteDownload(context, mediaId)
         } catch (e: Exception) {
             e.printStackTrace()
+        }
+
+        // Uygulama içi kopyanın yanı sıra `Download/Kitsugi/Video|Subtitles` altındaki
+        // dışa aktarılmış kopyaları da temizle; aksi hâlde bölüm "silinmiş" görünürken
+        // dosya diskte kalıp yer kaplamaya devam ediyordu.
+        if (record != null) {
+            try {
+                com.kitsugi.animelist.core.download.DownloadExportNaming.deleteExports(
+                    context = context,
+                    animeTitle = record.animeTitle,
+                    episode = episode
+                )
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+    }
+
+    /**
+     * Tüm indirme kayıtlarını (diskteki dosyalara dokunmadan) temizler.
+     * Ayarlar > Depolama ekranındaki toplu silme sonrası çağrılır: dosyalar gittiği için
+     * indirme listesi ve kuyruk da boşalır, devam eden iş varsa servis kendini durdurur.
+     */
+    fun clearAllDownloads(context: Context) {
+        // Disk okuması hâlâ sürüyorsa eski liste geri yazmasın.
+        localWriteBeforeLoad = true
+        _downloads.value = emptyList()
+        runCatching { store.saveDownloads(emptyList()) }
+        runCatching {
+            context.stopService(
+                Intent(context, com.kitsugi.animelist.core.download.AnimeDownloadService::class.java)
+            )
         }
     }
 

@@ -4775,7 +4775,7 @@
     <!-- ─── Storage Management (StorageJanitor) ─────────────────────────────── -->
     <string name="storage_title">Storage</string>
     <string name="storage_section_buckets">Caches and Data</string>
-    <string name="storage_menu_desc">View cache sizes and free up space</string>
+    <string name="storage_menu_desc">View cache and download sizes, free up space</string>
     <string name="storage_total">Total usage</string>
     <string name="storage_calculating">Calculating…</string>
     <string name="storage_clear_all">Clear safe caches</string>
@@ -4788,9 +4788,31 @@
     <string name="storage_clear_webview_confirm_title">Clear web data?</string>
     <string name="storage_clear_webview_confirm_message">Cloud stream plugin session cookies and local storage are deleted. You may need to sign in to plugins again.</string>
     <string name="storage_confirm_clear">Clear</string>
-    <string name="storage_protected_note">Your account info, lists and downloaded videos are never deleted from this screen.</string>
+    <string name="storage_protected_note">Your account info, lists and watch history are never deleted from this screen. Your downloaded videos, images and subtitles are managed in the Downloads section below.</string>
     <string name="storage_files_count">%1$d files</string>
     <string name="storage_info_only">Info</string>
+
+    <!-- ─── Storage > Downloads (user files) ────────────────────────────────── -->
+    <string name="storage_section_downloads">Downloads</string>
+    <string name="storage_downloads_total">Downloaded files: %1$s</string>
+    <string name="storage_downloads_hint">These are real files saved to your device; delete them individually or all at once from here.</string>
+    <string name="storage_downloads_videos">Downloaded videos</string>
+    <string name="storage_downloads_videos_desc">Episodes downloaded for offline watching (Kitsugi/Video). Deleting is permanent.</string>
+    <string name="storage_downloads_images">Downloaded images</string>
+    <string name="storage_downloads_images_desc">Image files you saved from the gallery (Kitsugi/Images)</string>
+    <string name="storage_downloads_subtitles">Downloaded subtitles</string>
+    <string name="storage_downloads_subtitles_desc">Subtitle files that came with video downloads (subs folders)</string>
+    <string name="storage_downloads_delete_all">Delete all</string>
+    <string name="storage_downloads_delete_all_short">Delete all downloads</string>
+    <string name="storage_downloads_delete_all_desc">Videos, images and subtitles are removed together</string>
+    <string name="storage_deleted_amount">%1$s deleted</string>
+    <string name="storage_deleted_nothing">No downloaded files to delete</string>
+    <string name="storage_downloads_delete_confirm_title">Delete %1$s?</string>
+    <string name="storage_downloads_videos_confirm_message">All downloaded video files and their companion subtitle/metadata files are deleted and the Downloads screen is emptied. This cannot be undone — you will need to download episodes again to watch offline. Running downloads are stopped.\n\nNote: files copied to a custom folder (Settings &gt; Download folder) must be deleted there. Your account info and lists are kept.</string>
+    <string name="storage_downloads_images_confirm_message">All image files you downloaded to your device are deleted (including copies in a custom folder). The \"downloaded\" badges in the gallery are cleared and you can download them again later.</string>
+    <string name="storage_downloads_subtitles_confirm_message">Downloaded subtitle files are deleted (including the subs folders next to video downloads). Videos are kept; subtitles can be fetched again from the player.</string>
+    <string name="storage_downloads_all_confirm_title">Delete all downloads?</string>
+    <string name="storage_downloads_all_confirm_message">Downloaded videos, images and subtitles are permanently removed from your device and the Downloads screen is emptied. This cannot be undone. Running downloads are stopped; your account info, lists and watch history are kept.</string>
     <string name="storage_bucket_images">Image cache</string>
     <string name="storage_bucket_images_desc">Poster and cover images (Coil disk cache)</string>
     <string name="storage_bucket_p2p">P2P torrent cache</string>
