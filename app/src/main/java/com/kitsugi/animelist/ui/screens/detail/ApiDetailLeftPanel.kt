@@ -88,6 +88,9 @@ fun ApiDetailLeftPanel(
         title = displayResult.getDisplayTitle(titleLanguage),
         subtitle = displayResult.subtitle,
         imageUrl = displayResult.imageUrl,
+        backdropUrl = displayResult.backdropUrl,
+        mediaType = displayResult.type,
+        artworkItem = displayResult,
         logoUrl = if (showAnimeLogos) logoUrl else null,
         source = displayResult.source,
         typeLabel = when (displayResult.type) {

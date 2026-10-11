@@ -1,6 +1,16 @@
 package com.kitsugi.animelist.ui.screens.detail
 
 import com.kitsugi.animelist.ui.components.KitsugiGalleryIconButton
+import com.kitsugi.animelist.ui.components.heroImageAlignment
+import com.kitsugi.animelist.ui.components.heroImageCandidates
+import com.kitsugi.animelist.data.remote.JikanSearchResult
+import com.kitsugi.animelist.data.remote.KitsugiHeroArtworkResolver
+import com.kitsugi.animelist.model.MediaType
+import android.content.res.Configuration
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.produceState
+import androidx.compose.ui.BiasAlignment
+import androidx.compose.ui.platform.LocalConfiguration
 
 import com.kitsugi.animelist.ui.theme.gradient.background
 import com.kitsugi.animelist.ui.theme.gradient.border
@@ -43,6 +53,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
@@ -85,32 +96,127 @@ fun KitsugiDetailHero(
     totalEpisodes: Int? = null,
     nextAiring: String? = null,
     showFavoriteButton: Boolean = false,
-    onToggleFavoriteClick: (() -> Unit)? = null
+    onToggleFavoriteClick: (() -> Unit)? = null,
+    /** Yatay arka plan (TMDB/Fanart/kaynak backdrop). Ekran yönü/boyutuna göre poster ile yarışır. */
+    backdropUrl: String? = null,
+    mediaType: MediaType = MediaType.Anime,
+    /** Görsel çözümleyici için kaynak öğe (TMDB + Fanart.tv en kaliteli poster/arka plan). */
+    artworkItem: JikanSearchResult? = null
 ) {
     val accentColor = LocalKitsugiAccent.current
     val fallbackPlaceholderColor = statusColor ?: accentColor
     val context = LocalContext.current
 
+    // Vitrin ile aynı mantık: ekran genişliği + yön → dikey poster mi yatay arka plan mı.
+    val configuration = LocalConfiguration.current
+    val heroWidthDp = configuration.screenWidthDp.toFloat()
+    val isLandscapeScreen = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
+    val heroBoxAspect = heroWidthDp / DETAIL_HERO_HEIGHT_DP
+
+    val artworkKey = artworkItem?.let { KitsugiHeroArtworkResolver.cacheKey(it) }
+    val artwork by produceState<KitsugiHeroArtworkResolver.HeroArtwork?>(
+        initialValue = artworkItem?.let { KitsugiHeroArtworkResolver.getCached(it) },
+        key1 = artworkKey
+    ) {
+        val item = artworkItem ?: return@produceState
+        value = runCatching { KitsugiHeroArtworkResolver.resolveArtwork(item) }.getOrNull() ?: value
+    }
+
+    val imagePlan = remember(imageUrl, backdropUrl, artwork, heroWidthDp, isLandscapeScreen, mediaType) {
+        val primary = heroImageCandidates(
+            posterUrl = imageUrl,
+            backdropUrl = backdropUrl,
+            heroWidthDp = heroWidthDp,
+            heroHeightDp = DETAIL_HERO_HEIGHT_DP,
+            isLandscape = isLandscapeScreen,
+            mediaType = mediaType
+        )
+        val art = artwork
+        if (art == null) {
+            primary
+        } else {
+            val preferBackdrop = mediaType != MediaType.Manga &&
+                (heroBoxAspect >= 1.10f || (isLandscapeScreen && heroBoxAspect >= 0.95f))
+            val extras = if (preferBackdrop) {
+                art.backdropCandidates + art.posterCandidates
+            } else {
+                art.posterCandidates + art.backdropCandidates
+            }
+            (primary + extras).distinct()
+        }
+    }
+    var imageIndex by remember(imagePlan) { mutableIntStateOf(0) }
+    val heroImageModel = imagePlan.getOrNull(imageIndex)
+
+    val chosenIsPoster = remember(heroImageModel, imageUrl, backdropUrl, artwork) {
+        val art = artwork
+        when {
+            heroImageModel == null -> false
+            art != null && heroImageModel in art.backdropCandidates -> false
+            art != null && heroImageModel in art.posterCandidates -> true
+            else -> KitsugiHeroArtworkResolver.isLikelyVerticalUrl(
+                url = heroImageModel,
+                posterUrl = imageUrl,
+                backdropUrl = backdropUrl
+            )
+        }
+    }
+    var loadedImageAspect by remember(heroImageModel) { mutableStateOf<Float?>(null) }
+    val isVerticalArtwork = loadedImageAspect?.let { it < 1.05f } ?: chosenIsPoster
+    // Geniş alanda dikey görsel: kesmek yerine tam görünür tutulur + yumuşak arka plan dolgusu.
+    val useDualLayerContain = isVerticalArtwork && heroBoxAspect >= 1.18f
+    val heroAlignment = heroImageAlignment(chosenIsPoster = isVerticalArtwork, heroAspect = heroBoxAspect)
+
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .height(470.dp)
+            .height(DETAIL_HERO_HEIGHT_DP.dp)
     ) {
-        if (!imageUrl.isNullOrBlank()) {
+        if (!heroImageModel.isNullOrBlank()) {
             val baseModifier = Modifier.fillMaxSize()
             val imageModifier = if (onPosterClick != null) {
                 baseModifier.tvClickable { onPosterClick() }
             } else {
                 baseModifier
             }
-            KitsugiNsfwImage(
-                model = imageUrl,
-                contentDescription = title,
-                isAdult = isAdult,
-                blurAdultMedia = blurAdultMedia,
-                modifier = imageModifier,
-                contentScale = ContentScale.Crop
-            )
+            val onFailed: () -> Unit = {
+                if (imageIndex < imagePlan.lastIndex) imageIndex += 1
+            }
+            val onAspect: (Float) -> Unit = { ratio -> loadedImageAspect = ratio }
+            if (useDualLayerContain) {
+                KitsugiNsfwImage(
+                    model = heroImageModel,
+                    contentDescription = null,
+                    isAdult = isAdult,
+                    blurAdultMedia = blurAdultMedia,
+                    modifier = Modifier.fillMaxSize().alpha(0.30f),
+                    contentScale = ContentScale.Crop,
+                    alignment = BiasAlignment(0f, -0.25f)
+                )
+                KitsugiNsfwImage(
+                    model = heroImageModel,
+                    contentDescription = title,
+                    isAdult = isAdult,
+                    blurAdultMedia = blurAdultMedia,
+                    modifier = imageModifier,
+                    contentScale = ContentScale.Fit,
+                    alignment = Alignment.Center,
+                    onLoadingFailed = onFailed,
+                    onImageAspectResolved = onAspect
+                )
+            } else {
+                KitsugiNsfwImage(
+                    model = heroImageModel,
+                    contentDescription = title,
+                    isAdult = isAdult,
+                    blurAdultMedia = blurAdultMedia,
+                    modifier = imageModifier,
+                    contentScale = ContentScale.Crop,
+                    alignment = heroAlignment,
+                    onLoadingFailed = onFailed,
+                    onImageAspectResolved = onAspect
+                )
+            }
         } else {
             Box(
                 modifier = Modifier
@@ -437,3 +543,5 @@ private fun MetadataIconText(
         )
     }
 }
+
+private const val DETAIL_HERO_HEIGHT_DP = 470f
