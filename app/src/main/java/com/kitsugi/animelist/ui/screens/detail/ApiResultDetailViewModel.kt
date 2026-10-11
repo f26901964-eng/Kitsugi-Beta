@@ -613,9 +613,15 @@ class ApiResultDetailViewModel(application: Application) : AndroidViewModel(appl
             _detailState.value?.titleRomaji, _detailState.value?.titleJapanese
         ).filter { it.isNotBlank() }.distinct()
         val explicitTmdb = (result.tmdbId ?: _detailState.value?.tmdbId)?.takeIf { it > 0 }
+        // Simkl kayıtları liste/detayda yalnızca romaji başlık taşır; TMDB kayıtları ise
+        // İngilizce/Japonca adlandırılır. Bu yüzden Simkl için `expectedTitles` başlık
+        // doğrulaması yanlış negatif üretiyor ve logoyu tamamen engelliyordu. Simkl'ın
+        // çözdüğü KENDİ kimlikleri (tmdb/mal) otorite kabul edilir — vitrin dalındaki
+        // (`KitsugiHeroSection.fetchHeroLogo`) kuralla aynı.
+        val verifiedLogoTitles = if (result.source.equals("simkl", ignoreCase = true)) emptyList() else logoTitles
         val logo = withContext(Dispatchers.IO) {
             if (explicitTmdb != null) {
-                KitsugiEpisodeRatingsRepository.getLogoUrl(explicitTmdb, seasonNumber = season, isMovie = isMovie, expectedTitles = logoTitles)
+                KitsugiEpisodeRatingsRepository.getLogoUrl(explicitTmdb, seasonNumber = season, isMovie = isMovie, expectedTitles = verifiedLogoTitles)
             } else when {
                 result.source.equals("tmdb", ignoreCase = true) -> {
                     val tmdbId = result.tmdbId ?: if (stableId > 0) stableId else null
@@ -641,8 +647,8 @@ class ApiResultDetailViewModel(application: Application) : AndroidViewModel(appl
                     val realMal = result.realMalId ?: _detailState.value?.realMalId
                     val tmdb = result.tmdbId ?: _detailState.value?.tmdbId
                     when {
-                        realMal != null && realMal > 0 -> KitsugiEpisodeRatingsRepository.getLogoUrlByMalId(realMal, seasonNumber = season, isMovie = isMovie, expectedTitles = logoTitles)
-                        tmdb != null && tmdb > 0 -> KitsugiEpisodeRatingsRepository.getLogoUrl(tmdb, seasonNumber = season, isMovie = isMovie, expectedTitles = logoTitles)
+                        realMal != null && realMal > 0 -> KitsugiEpisodeRatingsRepository.getLogoUrlByMalId(realMal, seasonNumber = season, isMovie = isMovie, expectedTitles = verifiedLogoTitles)
+                        tmdb != null && tmdb > 0 -> KitsugiEpisodeRatingsRepository.getLogoUrl(tmdb, seasonNumber = season, isMovie = isMovie, expectedTitles = verifiedLogoTitles)
                         else -> null
                     }
                 }

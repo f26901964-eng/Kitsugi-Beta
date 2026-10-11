@@ -1,5 +1,29 @@
 # Kitsugi-Beta — Sürüm Notları / Release Notes
 
+## 🇹🇷 Türkçe (v2.4.248)
+
+### 🖼️ 1. Simkl Vitrin (Hero) Logoları Artık Görünüyor
+- **Kök neden:** Simkl liste/şerit kayıtları anime için yalnızca **romaji başlık** taşır (`Sousou no Frieren`, `Re:Zero kara Hajimeru Isekai Seikatsu`); TMDB kayıtları ise İngilizce/Japonca adlandırılır. `KitsugiEpisodeRatingsRepository.getLogoUrl`, `expectedTitles` ile TMDB kaydını başlık üzerinden doğruluyor ve iki türden (film + dizi) hiçbiri eşleşmezse logoyu vermiyordu. Romaji başlıklar TMDB başlıklarıyla eşleşmediği için Simkl öğeleri bu doğrulamaya takılıp vitrinde düz metin başlık gösteriyordu (logo ayarı açık olsa bile).
+- **Düzeltme (vitrin):** `KitsugiHeroSection.fetchHeroLogo` Simkl dalında Simkl'ın kendi çözdüğü kimlikler (`ids.tmdb` / `ids.mal`) otorite kabul edilir ve başlık doğrulaması uygulanmaz — `KitsugiHeroArtworkResolver`'daki `canonicalSource == "tmdb"` kuralıyla aynı yaklaşım.
+- **Çapraz kimlik yedeği:** Simkl liste yanıtı kimlik taşımıyorsa vitrin artık Simkl `extended=full` kaydından MAL/TMDB/AniList/Kitsu kimliklerini çözer (Bangumi `resolveCrossIds` deseninin Simkl karşılığı). Çözülen kaydın kendi başlık alanları öğe başlıklarıyla kesişmiyorsa logo istenmez (uydurma/yanlış kimlik koruması).
+- **Kimlik okuma düzeltmesi (`SimklApiClient`):** Keşfet raflarını besleyen `getBestMedia` yanıtlarında Simkl kimliği `ids.simkl_id` veya `ids.simkl`, TMDB kimliği `ids.tmdb` veya `ids.tmdb_id`, MAL kimliği sayı veya metin (`"mal": "52991"`) olabilir. Ayrıştırma tek bir test edilebilir işleve taşındı (`parseBestMediaArray`) ve tüm varyantlar okunuyor.
+- **Detay sayfaları:** Aynı yanlış negatif Simkl detay sayfası logo aramasını da engelliyordu; `ApiResultDetailViewModel` ve `MediaEntryDetailViewModel` Simkl dalı vitrindeki kuralla hizalandı. Diğer kaynakların (MAL/AniList/Kitsu/Bangumi/TMDB) davranışı değişmedi.
+- **Testler:** `SimklExploreParsingTest` — `simkl_id`/`simkl`, `tmdb`/`tmdb_id`, metin `mal`, CJK başlığın Latin alternatife çevrilmesi, anime film "Film" ipucu, poster/fanart CDN adresleri ve kimliksiz kayıtta geçici kimliğin MAL/TMDB sanılmaması.
+
+---
+
+## 🇬🇧 English (v2.4.248)
+
+### 🖼️ 1. Simkl Hero Logos Now Render
+- **Root cause:** Simkl list/shelf records carry **romaji-only** anime titles (`Sousou no Frieren`, `Re:Zero kara Hajimeru Isekai Seikatsu`) while TMDB records are named in English/Japanese. `KitsugiEpisodeRatingsRepository.getLogoUrl` verifies the TMDB record through `expectedTitles` and refuses to return a logo when neither the movie nor the TV record matches. Romaji titles never matched, so Simkl entries always fell back to plain text titles in the hero (even with the logo setting enabled).
+- **Fix (hero):** In the Simkl branch of `KitsugiHeroSection.fetchHeroLogo`, identities resolved by Simkl itself (`ids.tmdb` / `ids.mal`) are treated as authoritative and skip the title verification — the same approach as the existing `canonicalSource == "tmdb"` rule in `KitsugiHeroArtworkResolver`.
+- **Cross-ID fallback:** When a Simkl shelf record carries no IDs, the hero resolves MAL/TMDB/AniList/Kitsu identities from the Simkl `extended=full` record (the Simkl counterpart of Bangumi's `resolveCrossIds`). A synthetic/wrong-ID guard rejects the record unless its own title fields intersect the item titles.
+- **ID parsing fix (`SimklApiClient`):** In `getBestMedia` responses the Simkl ID may be `ids.simkl_id` or `ids.simkl`, the TMDB ID `ids.tmdb` or `ids.tmdb_id`, and the MAL ID a number or a string (`"mal": "52991"`). Parsing now lives in one testable function (`parseBestMediaArray`) that reads every variant.
+- **Detail pages:** The same false negative also blocked the Simkl detail-page title logo; the Simkl branch of `ApiResultDetailViewModel` and `MediaEntryDetailViewModel` now follows the hero rule. Every other source (MAL/AniList/Kitsu/Bangumi/TMDB) keeps its current behaviour.
+- **Tests:** `SimklExploreParsingTest` covers `simkl_id`/`simkl`, `tmdb`/`tmdb_id`, string `mal`, CJK-to-Latin title resolution, the anime-movie "Film" hint, Simkl CDN poster/fanart URLs, and that placeholder IDs never become MAL/TMDB identities.
+
+---
+
 ## 🇹🇷 Türkçe (v2.4.247)
 
 ### 🌐 1. Kapsamlı İngilizce Dil Desteği & Arayüz Metinlerinin Yerelleştirilmesi
