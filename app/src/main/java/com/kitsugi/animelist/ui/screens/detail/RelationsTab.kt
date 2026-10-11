@@ -28,6 +28,8 @@ import com.kitsugi.animelist.utils.PreferenceHelpers.getDisplayTitle
 import androidx.compose.runtime.remember
 import coil3.request.ImageRequest
 import coil3.request.crossfade
+import androidx.compose.ui.res.stringResource
+import com.kitsugi.animelist.R
 
 @Composable
 fun RelationsTabContent(
@@ -42,7 +44,7 @@ fun RelationsTabContent(
         }
         is DetailTabState.Error -> {
             Text(
-                text = "İlişkili yapımlar yüklenirken hata oluştu.",
+                text = stringResource(R.string.inline_an_error_occurred_while_loading_2c6d77b),
                 color = KitsugiColors.AccentRed,
                 style = MaterialTheme.typography.bodyMedium,
                 modifier = Modifier.padding(vertical = 16.dp)
@@ -52,7 +54,7 @@ fun RelationsTabContent(
             val list = state.data
             if (list.isEmpty()) {
                 Text(
-                    text = "İlişkili yapım bulunamadı.",
+                    text = stringResource(R.string.inline_no_related_titles_found_736beb1),
                     color = KitsugiColors.TextSecondary,
                     style = MaterialTheme.typography.bodyMedium,
                     modifier = Modifier.padding(vertical = 16.dp)

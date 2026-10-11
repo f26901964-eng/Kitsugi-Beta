@@ -258,7 +258,7 @@ fun SearchResultRow(
             ) {
                 Icon(
                     imageVector = if (alreadyInList) Icons.Rounded.Check else Icons.Rounded.Add,
-                    contentDescription = if (alreadyInList) "Listede" else "Listeye ekle",
+                    contentDescription = if (alreadyInList) "Listede" else stringResource(R.string.listeye_ekle_b366ba1),
                     tint = if (alreadyInList) KitsugiColors.AccentGreen else accentColor,
                     modifier = Modifier.size(20.dp)
                 )

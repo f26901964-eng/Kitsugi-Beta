@@ -6,6 +6,8 @@ import android.content.Intent
 import android.net.Uri
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContract
+import com.kitsugi.animelist.utils.KitsugiStrings
+import com.kitsugi.animelist.R
 
 // ─────────────────────────────────────────────────────────────
 // Data models
@@ -90,7 +92,7 @@ object ExternalPlayerLauncher {
             context.startActivity(intent)
             true
         } catch (e: Exception) {
-            Toast.makeText(context, "Harici oynatıcı başlatılamadı veya bulunamadı.", Toast.LENGTH_LONG).show()
+            Toast.makeText(context, KitsugiStrings.get(R.string.harici_oynatici_baslatilamadi_veya_bulunamadi), Toast.LENGTH_LONG).show()
             false
         }
     }

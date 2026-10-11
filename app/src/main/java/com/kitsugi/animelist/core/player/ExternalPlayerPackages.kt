@@ -2,6 +2,8 @@ package com.kitsugi.animelist.core.player
 
 import android.content.Context
 import android.content.pm.PackageManager
+import com.kitsugi.animelist.utils.KitsugiStrings
+import com.kitsugi.animelist.R
 
 /**
  * T2.5 - Model for representing supported external players with package name, name, and store link.
@@ -26,7 +28,7 @@ data class ExternalPlayerDef(
 object ExternalPlayerPackages {
     val players = listOf(
         ExternalPlayerDef(
-            name = "Sistem Varsayılanı",
+            name = KitsugiStrings.get(R.string.player_system_default),
             packageName = "",
             storeUrl = "",
             supportsSubs = false,

@@ -70,16 +70,16 @@ val KITSUGI_MEDIA_GENRES = listOf(
     KitsugiGenreItem("SCIFI", "🚀", R.string.genre_scifi, listOf("sci-fi", "scifi", "science fiction", "bilim kurgu")),
     KitsugiGenreItem("MYSTERY", "🔍", R.string.genre_mystery, listOf("mystery", "gizem")),
     KitsugiGenreItem("HORROR", "👻", R.string.genre_horror, listOf("horror", "korku")),
-    KitsugiGenreItem("SLICEOFLIFE", "☕", R.string.genre_slice_of_life, listOf("slice of life", "günlük yaşam", "iyileştirici", "iyilestirici")),
+    KitsugiGenreItem("SLICEOFLIFE", "☕", R.string.genre_slice_of_life, listOf("slice of life", stringResource(R.string.gunluk_yasam), stringResource(R.string.iyilestirici), "iyilestirici")),
     KitsugiGenreItem("ADVENTURE", "🧭", R.string.genre_adventure, listOf("adventure", "macera")),
-    KitsugiGenreItem("SUPERNATURAL", "🔮", R.string.genre_supernatural, listOf("supernatural", "doğaüstü", "dogaustu")),
+    KitsugiGenreItem("SUPERNATURAL", "🔮", R.string.genre_supernatural, listOf("supernatural", stringResource(R.string.dogaustu), "dogaustu")),
     KitsugiGenreItem("PSYCHOLOGICAL", "🧠", R.string.genre_psychological, listOf("psychological", "psikolojik")),
     KitsugiGenreItem("SPORTS", "⚽", R.string.genre_sports, listOf("sports", "spor")),
     KitsugiGenreItem("THRILLER", "🕵️‍♂️", R.string.genre_thriller, listOf("thriller", "suspense", "gerilim")),
     KitsugiGenreItem("MECHA", "🤖", R.string.genre_mecha, listOf("mecha", "robot")),
-    KitsugiGenreItem("MUSIC", "🎵", R.string.genre_music, listOf("music", "müzik", "muzik")),
+    KitsugiGenreItem("MUSIC", "🎵", R.string.genre_music, listOf("music", stringResource(R.string.muzik), "muzik")),
     KitsugiGenreItem("HISTORICAL", "📜", R.string.genre_historical, listOf("historical", "tarihi", "tarih")),
-    KitsugiGenreItem("MILITARY", "⚔️", R.string.genre_military, listOf("military", "askeri", "savaş", "savas")),
+    KitsugiGenreItem("MILITARY", "⚔️", R.string.genre_military, listOf("military", "askeri", stringResource(R.string.savas), "savas")),
     KitsugiGenreItem("SCHOOL", "🎒", R.string.genre_school, listOf("school", "okul"))
 )
 
@@ -182,7 +182,7 @@ fun KitsugiMediaFilterBottomSheet(
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
-                        text = "Sıralama ve Ayırma",
+                        text = stringResource(R.string.inline_sort_group_f713972),
                         color = KitsugiColors.TextPrimary,
                         style = MaterialTheme.typography.titleSmall,
                         fontWeight = FontWeight.Bold
@@ -247,7 +247,7 @@ fun KitsugiMediaFilterBottomSheet(
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
-                        text = "Tür Filtresi",
+                        text = stringResource(R.string.inline_genre_filter_ca7a745),
                         color = KitsugiColors.TextPrimary,
                         style = MaterialTheme.typography.titleSmall,
                         fontWeight = FontWeight.Bold

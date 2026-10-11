@@ -5,6 +5,8 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.kitsugi.animelist.data.settings.SettingsDataStore
 import kotlinx.coroutines.launch
+import com.kitsugi.animelist.utils.KitsugiStrings
+import com.kitsugi.animelist.R
 
 class PlayerSettingsViewModel(application: Application) : AndroidViewModel(application) {
 
@@ -17,63 +19,63 @@ class PlayerSettingsViewModel(application: Application) : AndroidViewModel(appli
     fun updatePlayerPreference(pref: String) {
         viewModelScope.launch {
             settingsDataStore.setPlayerPreference(pref)
-            onShowMessage?.invoke("Varsayılan oynatıcı güncellendi")
+            onShowMessage?.invoke(KitsugiStrings.get(R.string.varsayilan_oynatici_guncellendi))
         }
     }
 
     fun updateAutoplayEnabled(enabled: Boolean) {
         viewModelScope.launch {
             settingsDataStore.setAutoplayEnabled(enabled)
-            onShowMessage?.invoke(if (enabled) "Otomatik oynatma etkin" else "Otomatik oynatma devre dışı")
+            onShowMessage?.invoke(if (enabled) "Otomatik oynatma etkin" else KitsugiStrings.get(R.string.otomatik_oynatma_devre_disi))
         }
     }
 
     fun updateSkipIntroDurationSec(sec: Int) {
         viewModelScope.launch {
             settingsDataStore.setSkipIntroDurationSec(sec)
-            onShowMessage?.invoke("İntro atlama süresi güncellendi")
+            onShowMessage?.invoke(KitsugiStrings.get(R.string.intro_atlama_suresi_guncellendi))
         }
     }
 
     fun updateDefaultSubtitleSize(size: Int) {
         viewModelScope.launch {
             settingsDataStore.setDefaultSubtitleSize(size)
-            onShowMessage?.invoke("Varsayılan altyazı boyutu güncellendi")
+            onShowMessage?.invoke(KitsugiStrings.get(R.string.varsayilan_altyazi_boyutu_guncellendi))
         }
     }
 
     fun updateDefaultSubtitleColor(color: Int) {
         viewModelScope.launch {
             settingsDataStore.setDefaultSubtitleColor(color)
-            onShowMessage?.invoke("Varsayılan altyazı rengi güncellendi")
+            onShowMessage?.invoke(KitsugiStrings.get(R.string.varsayilan_altyazi_rengi_guncellendi))
         }
     }
 
     fun updateSubtitleBold(bold: Boolean) {
         viewModelScope.launch {
             settingsDataStore.setSubtitleBold(bold)
-            onShowMessage?.invoke(if (bold) "Kalın altyazı etkin" else "Kalın altyazı devre dışı")
+            onShowMessage?.invoke(if (bold) KitsugiStrings.get(R.string.kalin_altyazi_etkin) else KitsugiStrings.get(R.string.kalin_altyazi_devre_disi))
         }
     }
 
     fun updateSubtitleOutline(enabled: Boolean) {
         viewModelScope.launch {
             settingsDataStore.setSubtitleOutlineEnabled(enabled)
-            onShowMessage?.invoke(if (enabled) "Altyazı kenarlığı etkin" else "Altyazı kenarlığı devre dışı")
+            onShowMessage?.invoke(if (enabled) KitsugiStrings.get(R.string.altyazi_kenarligi_etkin) else KitsugiStrings.get(R.string.altyazi_kenarligi_devre_disi))
         }
     }
 
     fun updateDefaultAudioBoost(boost: Float) {
         viewModelScope.launch {
             settingsDataStore.setDefaultAudioBoost(boost)
-            onShowMessage?.invoke("Varsayılan ses güçlendirmesi güncellendi")
+            onShowMessage?.invoke(KitsugiStrings.get(R.string.varsayilan_ses_guclendirmesi_guncellendi))
         }
     }
 
     fun updateDefaultAudioDelayMs(delayMs: Long) {
         viewModelScope.launch {
             settingsDataStore.setDefaultAudioDelayMs(delayMs)
-            onShowMessage?.invoke("Varsayılan ses gecikmesi güncellendi")
+            onShowMessage?.invoke(KitsugiStrings.get(R.string.varsayilan_ses_gecikmesi_guncellendi))
         }
     }
 
@@ -92,42 +94,42 @@ class PlayerSettingsViewModel(application: Application) : AndroidViewModel(appli
         val clampedBack = back.coerceAtLeast(0)
         viewModelScope.launch {
             settingsDataStore.setBufferSettings(clampedMin, clampedMax, clampedPlayback, clampedRebuffer, clampedBack)
-            onShowMessage?.invoke("Arabellek (Buffer) ayarları güncellendi")
+            onShowMessage?.invoke(KitsugiStrings.get(R.string.arabellek_buffer_ayarlari_guncellendi))
         }
     }
 
     fun updateDv7HandlingMode(mode: com.kitsugi.animelist.data.settings.Dv7HandlingMode) {
         viewModelScope.launch {
             settingsDataStore.setDv7HandlingMode(mode)
-            onShowMessage?.invoke("Dolby Vision işleme modu güncellendi")
+            onShowMessage?.invoke(KitsugiStrings.get(R.string.dolby_vision_isleme_modu_guncellendi))
         }
     }
 
     fun updateStripHdr10PlusSei(enabled: Boolean) {
         viewModelScope.launch {
             settingsDataStore.setStripHdr10PlusSei(enabled)
-            onShowMessage?.invoke(if (enabled) "HDR10+ SEI çıkarma etkin" else "HDR10+ SEI çıkarma devre dışı")
+            onShowMessage?.invoke(if (enabled) KitsugiStrings.get(R.string.hdr10_sei_cikarma_etkin) else KitsugiStrings.get(R.string.hdr10_sei_cikarma_devre_disi))
         }
     }
 
     fun updatePreferredSubtitleLanguages(langs: String) {
         viewModelScope.launch {
             settingsDataStore.setPreferredSubtitleLanguages(langs)
-            onShowMessage?.invoke("Tercih edilen altyazı dilleri güncellendi")
+            onShowMessage?.invoke(KitsugiStrings.get(R.string.tercih_edilen_altyazi_dilleri_guncellendi))
         }
     }
 
     fun updateAddonSubtitleStartupMode(mode: String) {
         viewModelScope.launch {
             settingsDataStore.setAddonSubtitleStartupMode(mode)
-            onShowMessage?.invoke("Altyazı yükleme modu güncellendi")
+            onShowMessage?.invoke(KitsugiStrings.get(R.string.altyazi_yukleme_modu_guncellendi))
         }
     }
 
     fun updateQualityProfileJson(json: String) {
         viewModelScope.launch {
             settingsDataStore.setQualityProfileJson(json)
-            onShowMessage?.invoke("Kalite profili güncellendi")
+            onShowMessage?.invoke(KitsugiStrings.get(R.string.kalite_profili_guncellendi))
         }
     }
 
@@ -136,7 +138,7 @@ class PlayerSettingsViewModel(application: Application) : AndroidViewModel(appli
         viewModelScope.launch {
             settingsDataStore.setParallelRangeEnabled(enabled)
             onShowMessage?.invoke(
-                if (enabled) "Paralel indirme etkin (MKV/MP4)" else "Paralel indirme devre dışı"
+                if (enabled) "Paralel indirme etkin (MKV/MP4)" else KitsugiStrings.get(R.string.paralel_indirme_devre_disi)
             )
         }
     }
@@ -145,7 +147,7 @@ class PlayerSettingsViewModel(application: Application) : AndroidViewModel(appli
     fun updateFrameRateMatchingMode(mode: com.kitsugi.animelist.data.settings.FrameRateMatchingMode) {
         viewModelScope.launch {
             settingsDataStore.setFrameRateMatchingMode(mode)
-            onShowMessage?.invoke("Kare hızı eşleme modu güncellendi: ${mode.name}")
+            onShowMessage?.invoke(KitsugiStrings.get(R.string.kare_hizi_esleme_modu_guncellendi_x, mode.name))
         }
     }
 
@@ -153,7 +155,7 @@ class PlayerSettingsViewModel(application: Application) : AndroidViewModel(appli
         viewModelScope.launch {
             settingsDataStore.setResolutionMatchingEnabled(enabled)
             onShowMessage?.invoke(
-                if (enabled) "Çözünürlük eşleme etkin" else "Çözünürlük eşleme devre dışı"
+                if (enabled) KitsugiStrings.get(R.string.cozunurluk_esleme_etkin) else KitsugiStrings.get(R.string.cozunurluk_esleme_devre_disi)
             )
         }
     }
@@ -162,35 +164,35 @@ class PlayerSettingsViewModel(application: Application) : AndroidViewModel(appli
     fun updateGestureVolumeEnabled(enabled: Boolean) {
         viewModelScope.launch {
             settingsDataStore.setGestureVolumeEnabled(enabled)
-            onShowMessage?.invoke(if (enabled) "Ses jesti etkin" else "Ses jesti devre dışı")
+            onShowMessage?.invoke(if (enabled) "Ses jesti etkin" else KitsugiStrings.get(R.string.ses_jesti_devre_disi))
         }
     }
 
     fun updateGestureBrightnessEnabled(enabled: Boolean) {
         viewModelScope.launch {
             settingsDataStore.setGestureBrightnessEnabled(enabled)
-            onShowMessage?.invoke(if (enabled) "Parlaklık jesti etkin" else "Parlaklık jesti devre dışı")
+            onShowMessage?.invoke(if (enabled) KitsugiStrings.get(R.string.parlaklik_jesti_etkin) else KitsugiStrings.get(R.string.parlaklik_jesti_devre_disi))
         }
     }
 
     fun updateGestureZoomEnabled(enabled: Boolean) {
         viewModelScope.launch {
             settingsDataStore.setGestureZoomEnabled(enabled)
-            onShowMessage?.invoke(if (enabled) "Zoom jesti etkin" else "Zoom jesti devre dışı")
+            onShowMessage?.invoke(if (enabled) "Zoom jesti etkin" else KitsugiStrings.get(R.string.zoom_jesti_devre_disi))
         }
     }
 
     fun updateDoubleTapSeekSeconds(seconds: Int) {
         viewModelScope.launch {
             settingsDataStore.setDoubleTapSeekSeconds(seconds)
-            onShowMessage?.invoke("Çift dokunuş ileri/geri süresi: ${seconds}s")
+            onShowMessage?.invoke(KitsugiStrings.get(R.string.cift_dokunus_ileri_geri_suresi_xs, seconds))
         }
     }
 
     fun updateHoldSpeedMultiplier(multiplier: Float) {
         viewModelScope.launch {
             settingsDataStore.setHoldSpeedMultiplier(multiplier)
-            onShowMessage?.invoke("Basılı tutma hız çarpanı: ${multiplier}x")
+            onShowMessage?.invoke(KitsugiStrings.get(R.string.basili_tutma_hiz_carpani_xx, multiplier))
         }
     }
 
@@ -199,11 +201,11 @@ class PlayerSettingsViewModel(application: Application) : AndroidViewModel(appli
         viewModelScope.launch {
             settingsDataStore.setGestureScrollSensitivity(sensitivity)
             val label = when {
-                sensitivity <= 0.6f -> "Yavaş (%.1fx)".format(sensitivity)
+                sensitivity <= 0.6f -> KitsugiStrings.get(R.string.player_scroll_slow).format(sensitivity)
                 sensitivity >= 1.6f -> "Hızlı (%.1fx)".format(sensitivity)
                 else                -> "Normal (%.1fx)".format(sensitivity)
             }
-            onShowMessage?.invoke("Kaydırma hassasiyeti: $label")
+            onShowMessage?.invoke(KitsugiStrings.get(R.string.kaydirma_hassasiyeti_x, label))
         }
     }
 
@@ -212,7 +214,7 @@ class PlayerSettingsViewModel(application: Application) : AndroidViewModel(appli
         viewModelScope.launch {
             settingsDataStore.setPreviewSeekbarEnabled(enabled)
             onShowMessage?.invoke(
-                if (enabled) "Önizleme seekbarı etkin" else "Önizleme seekbarı devre dışı"
+                if (enabled) KitsugiStrings.get(R.string.onizleme_seekbari_etkin) else KitsugiStrings.get(R.string.onizleme_seekbari_devre_disi)
             )
         }
     }
@@ -221,7 +223,7 @@ class PlayerSettingsViewModel(application: Application) : AndroidViewModel(appli
     fun updatePreferredExternalPlayerPackage(packageName: String) {
         viewModelScope.launch {
             settingsDataStore.setPreferredExternalPlayerPackage(packageName)
-            onShowMessage?.invoke("Tercih edilen harici oynatıcı güncellendi")
+            onShowMessage?.invoke(KitsugiStrings.get(R.string.tercih_edilen_harici_oynatici_guncellendi))
         }
     }
 
@@ -254,21 +256,21 @@ class PlayerSettingsViewModel(application: Application) : AndroidViewModel(appli
     fun updateAspectMode(mode: com.kitsugi.animelist.core.player.PlayerAspectMode) {
         viewModelScope.launch {
             settingsDataStore.setAspectMode(mode.name)
-            onShowMessage?.invoke("Görüntü oranı güncellendi: ${mode.name}")
+            onShowMessage?.invoke(KitsugiStrings.get(R.string.goruntu_orani_guncellendi_x, mode.name))
         }
     }
 
     fun updateLiveHelperEnabled(enabled: Boolean) {
         viewModelScope.launch {
             settingsDataStore.setLiveHelperEnabled(enabled)
-            onShowMessage?.invoke(if (enabled) "Canlı Yardımcı etkin" else "Canlı Yardımcı devre dışı")
+            onShowMessage?.invoke(if (enabled) KitsugiStrings.get(R.string.canli_yardimci_etkin) else KitsugiStrings.get(R.string.canli_yardimci_devre_disi))
         }
     }
 
     fun updateEnableAssExtractor(enabled: Boolean) {
         viewModelScope.launch {
             settingsDataStore.setEnableAssExtractor(enabled)
-            onShowMessage?.invoke(if (enabled) "ASS Altyazı Ayıklayıcı etkin" else "ASS Altyazı Ayıklayıcı devre dışı")
+            onShowMessage?.invoke(if (enabled) KitsugiStrings.get(R.string.ass_altyazi_ayiklayici_etkin) else KitsugiStrings.get(R.string.ass_altyazi_ayiklayici_devre_disi))
         }
     }
 
@@ -276,28 +278,28 @@ class PlayerSettingsViewModel(application: Application) : AndroidViewModel(appli
     fun updateStillWatchingEnabled(enabled: Boolean) {
         viewModelScope.launch {
             settingsDataStore.setStillWatchingEnabled(enabled)
-            onShowMessage?.invoke(if (enabled) "Hâlâ izliyor musun? sorusu etkin" else "Hâlâ izliyor musun? sorusu devre dışı")
+            onShowMessage?.invoke(if (enabled) "Hâlâ izliyor musun? sorusu etkin" else KitsugiStrings.get(R.string.hala_izliyor_musun_sorusu_devre_disi))
         }
     }
 
     fun updateStillWatchingThresholdMinutes(minutes: Int) {
         viewModelScope.launch {
             settingsDataStore.setStillWatchingThresholdMinutes(minutes)
-            onShowMessage?.invoke("Hareketsizlik eşiği: ${minutes} dakika")
+            onShowMessage?.invoke(KitsugiStrings.get(R.string.hareketsizlik_esigi_x_dakika, minutes))
         }
     }
 
     fun updatePostPlayMode(mode: String) {
         viewModelScope.launch {
             settingsDataStore.setPostPlayMode(mode)
-            onShowMessage?.invoke("Sonraki bölüm modu güncellendi")
+            onShowMessage?.invoke(KitsugiStrings.get(R.string.sonraki_bolum_modu_guncellendi))
         }
     }
 
     fun updateAutoplaySessionLimit(limit: Int) {
         viewModelScope.launch {
             settingsDataStore.setAutoplaySessionLimit(limit)
-            onShowMessage?.invoke(if (limit == 0) "Otomatik oynatma limiti: Sınırsız" else "Otomatik oynatma limiti: $limit bölüm")
+            onShowMessage?.invoke(if (limit == 0) KitsugiStrings.get(R.string.otomatik_oynatma_limiti_sinirsiz) else KitsugiStrings.get(R.string.otomatik_oynatma_limiti_x_bolum, limit))
         }
     }
 
@@ -305,14 +307,14 @@ class PlayerSettingsViewModel(application: Application) : AndroidViewModel(appli
     fun updateGainBoostDb(db: Float) {
         viewModelScope.launch {
             settingsDataStore.setGainBoostDb(db)
-            onShowMessage?.invoke("Ses güçlendirme: ${db}dB")
+            onShowMessage?.invoke(KitsugiStrings.get(R.string.ses_guclendirme_xdb, db))
         }
     }
 
     fun updateSubtitleDelayMs(delayMs: Long) {
         viewModelScope.launch {
             settingsDataStore.setSubtitleDelayMs(delayMs)
-            onShowMessage?.invoke("Altyazı gecikmesi: ${delayMs}ms")
+            onShowMessage?.invoke(KitsugiStrings.get(R.string.altyazi_gecikmesi_xms, delayMs))
         }
     }
 
@@ -321,11 +323,11 @@ class PlayerSettingsViewModel(application: Application) : AndroidViewModel(appli
         viewModelScope.launch {
             settingsDataStore.setDecoderPriority(priority)
             val label = when (priority) {
-                1 -> "Yazılım Fallback"
+                1 -> KitsugiStrings.get(R.string.yazilim_fallback)
                 2 -> "Yazılım Öncelikli"
                 else -> "Donanım Öncelikli"
             }
-            onShowMessage?.invoke("Dekoder önceliği: $label")
+            onShowMessage?.invoke(KitsugiStrings.get(R.string.dekoder_onceligi_x, label))
         }
     }
 }

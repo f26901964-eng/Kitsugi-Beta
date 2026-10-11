@@ -224,7 +224,7 @@ fun ApiDetailLeftPanel(
             // ── Düzenle / Listeye Ekle ──
             if (existingEntry != null) {
                 ApiActionButton(
-                    text = "✎ Düzenle",
+                    text = stringResource(R.string.duzenle_eb13ca5),
                     primary = true,
                     enabled = true,
                     modifier = fallbackFocusMod.focusProperties { right = tabBarFocusRequester },

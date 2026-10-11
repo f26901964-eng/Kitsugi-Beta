@@ -48,6 +48,8 @@ import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
 import java.security.SecureRandom
+import com.kitsugi.animelist.utils.KitsugiStrings
+import com.kitsugi.animelist.R
 
 /**
  * Bağlı servis hesaplarının (AniList, MAL, Kitsu, Shikimori, Bangumi, Simkl) token'larını
@@ -232,7 +234,7 @@ object LinkedAccountVault {
             LocalVaultKeyStore.clear(context)
             _conflicts.value = emptySet()
             conflictRemote = null
-            _status.value = "Kasa kilitli. Giriş yaparak açabilirsin."
+            _status.value = KitsugiStrings.get(R.string.kasa_kilitli_giris_yaparak_acabilirsin)
         }
     }
 
@@ -303,7 +305,7 @@ object LinkedAccountVault {
                     val hashes = VaultMerge.hashes(VaultMerge.groups(remote))
                     LocalVaultKeyStore.saveBaseline(context, uid, hashes, hashes)
                     if (remoteJson == null) backupUnlocked(context, uid)
-                    else _status.value = "Bağlı hesapların şifreli yedeği geri yüklendi."
+                    else _status.value = KitsugiStrings.get(R.string.bagli_hesaplarin_sifreli_yedegi_geri_yuklendi)
                 }
                 // Only a successfully authenticated NEW password may finalize a pending transition.
                 // An old-password login must not discard a staged new wrap while Auth update is in flight.
@@ -330,7 +332,7 @@ object LinkedAccountVault {
             val remoteJson = fetchRow(uid, ROW_PAYLOAD)
             if (preferLocal != null && remoteJson != conflictRemote) {
                 _conflicts.value = emptySet()
-                error("Bulut yedeği seçim ekranı açıldıktan sonra değişti. Şimdi eşitle ile yeniden kontrol et.")
+                error(KitsugiStrings.get(R.string.bulut_yedegi_secim_ekrani_acildiktan_sonra_degisti_simdi_esitle))
             }
             val remote = VaultMerge.groups(payload(remoteJson, key))
             val merged = VaultMerge.merge(local, remote, base.local, base.remote, preferLocal)
@@ -352,7 +354,7 @@ object LinkedAccountVault {
                     VaultMerge.remoteBaselineAfterUpload(local, mergedGroups, base.remote))
                 _conflicts.value = emptySet()
                 conflictRemote = null
-                _status.value = "Şifreli hesap yedeği güncel. Son başarı: " +
+                _status.value = KitsugiStrings.get(R.string.sifreli_hesap_yedegi_guncel_son_basari) +
                     java.text.DateFormat.getDateTimeInstance().format(java.util.Date(LocalVaultKeyStore.lastSuccess(context)))
                 return
             }
@@ -364,7 +366,7 @@ object LinkedAccountVault {
     suspend fun resolveConflict(context: Context, keepThisDevice: Boolean): Result<Unit> = operation {
         check(_conflicts.value.isNotEmpty()) { "Çözülecek çakışma yok" }
         backupUnlocked(context, userId() ?: throw VaultLockedException(), keepThisDevice)
-        if (!keepThisDevice) _status.value = "Çakışan servislerin bulut kopyası korundu. Bu cihazda da kullanmak için çıkış yapıp tekrar giriş yap."
+        if (!keepThisDevice) _status.value = KitsugiStrings.get(R.string.cakisan_servislerin_bulut_kopyasi_korundu_bu_cihazda_da_kullanma)
     }
 
     /**
@@ -383,13 +385,13 @@ object LinkedAccountVault {
                     VaultBackupWorker.enqueue(app, it, startup = true)
                 }
             } catch (e: CancellationException) { throw e }
-            catch (e: Exception) { _status.value = "Oturum başlatılamadı; tekrar giriş yap." }
+            catch (e: Exception) { _status.value = KitsugiStrings.get(R.string.oturum_baslatilamadi_tekrar_giris_yap) }
         }
         if (settingsObserver == null) settingsObserver = scope.launch {
             try {
                 SettingsDataStore(app).cloudSettingsFlow.distinctUntilChanged().drop(1).collect { scheduleBackup() }
             } catch (e: CancellationException) { throw e }
-            catch (e: Exception) { _status.value = "Ayar değişiklikleri izlenemedi; periyodik yedek tekrar deneyecek." }
+            catch (e: Exception) { _status.value = KitsugiStrings.get(R.string.ayar_degisiklikleri_izlenemedi_periyodik_yedek_tekrar_deneyecek) }
         }
     }
 
@@ -427,6 +429,6 @@ object LinkedAccountVault {
         check(compareAndSwap(ROW_META, stagedJson, blobJson(newWrap))) {
             "Şifre güncellendi; kasa geçişini tamamlamak için yeni şifrenle tekrar giriş yap."
         }
-        _status.value = "Şifre değiştirildi; bağlı hesap yedeğinin anahtarı korundu."
+        _status.value = KitsugiStrings.get(R.string.sifre_degistirildi_bagli_hesap_yedeginin_anahtari_korundu)
     }
 }

@@ -33,6 +33,7 @@ import com.kitsugi.animelist.ui.theme.KitsugiColors
 import com.kitsugi.animelist.ui.theme.LocalKitsugiAccent
 import androidx.compose.ui.res.stringResource
 import com.kitsugi.animelist.R
+import com.kitsugi.animelist.utils.KitsugiStrings
 
 @Composable
 fun KitsugiKitsuLoginDialog(
@@ -82,7 +83,7 @@ fun KitsugiKitsuLoginDialog(
                 Spacer(modifier = Modifier.height(14.dp))
 
                 Text(
-                    text = "Kitsu ile Bağlan",
+                    text = stringResource(R.string.inline_connect_to_kitsu_8ef915f),
                     style = MaterialTheme.typography.titleLarge.copy(
                         fontWeight = FontWeight.Bold,
                         color = KitsugiColors.TextPrimary
@@ -90,7 +91,7 @@ fun KitsugiKitsuLoginDialog(
                 )
 
                 Text(
-                    text = "Kitsu kullanıcı adı veya e-postanız ile şifrenizi girerek kütüphanenizi Kitsugi ile senkronize edin.",
+                    text = stringResource(R.string.inline_sign_in_with_your_kitsu_dfe4b7e),
                     style = MaterialTheme.typography.bodySmall.copy(
                         color = KitsugiColors.TextSecondary,
                         textAlign = TextAlign.Center
@@ -134,7 +135,7 @@ fun KitsugiKitsuLoginDialog(
                         username = it
                         errorMessage = null
                     },
-                    label = { Text("E-posta veya Kullanıcı Adı") },
+                    label = { Text(stringResource(R.string.inline_email_or_username_9afd3f0)) },
                     leadingIcon = {
                         Icon(Icons.Rounded.Person, contentDescription = null, tint = kitsuBrandColor)
                     },
@@ -171,7 +172,7 @@ fun KitsugiKitsuLoginDialog(
                         IconButton(onClick = { passwordVisible = !passwordVisible }) {
                             Icon(
                                 if (passwordVisible) Icons.Rounded.VisibilityOff else Icons.Rounded.Visibility,
-                                contentDescription = "Şifreyi Göster",
+                                contentDescription = stringResource(R.string.sifreyi_goster),
                                 tint = KitsugiColors.TextSecondary
                             )
                         }
@@ -216,7 +217,7 @@ fun KitsugiKitsuLoginDialog(
                     KitsugiButton(
                         onClick = {
                             if (username.isBlank() || password.isBlank()) {
-                                errorMessage = "Lütfen tüm alanları doldurun."
+                                errorMessage = KitsugiStrings.get(R.string.lutfen_tum_alanlari_doldurun)
                             } else {
                                 isLoading = true
                                 errorMessage = null
@@ -225,7 +226,7 @@ fun KitsugiKitsuLoginDialog(
                                     if (success) {
                                         onDismiss()
                                     } else {
-                                        errorMessage = error ?: "Giriş yapılamadı"
+                                        errorMessage = error ?: KitsugiStrings.get(R.string.giris_yapilamadi)
                                     }
                                 }
                             }

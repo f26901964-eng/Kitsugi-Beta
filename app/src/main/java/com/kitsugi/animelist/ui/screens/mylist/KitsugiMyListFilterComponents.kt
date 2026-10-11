@@ -39,6 +39,7 @@ import com.kitsugi.animelist.ui.theme.LocalKitsugiAccent
 import com.kitsugi.animelist.ui.theme.KitsugiColors
 import androidx.compose.ui.res.stringResource
 import com.kitsugi.animelist.R
+import com.kitsugi.animelist.utils.KitsugiStrings
 
 internal data class StatusFilter(
     val id: String,
@@ -78,7 +79,7 @@ internal data class ExtraFilter(
 )
 
 internal val statusFilters = listOf(
-    StatusFilter("all", "Tümü", null),
+    StatusFilter("all", KitsugiStrings.get(R.string.notif_filter_all), null),
     StatusFilter("watching", "İzleniyor", WatchStatus.Watching),
     StatusFilter("completed", "Tamamlandı", WatchStatus.Completed),
     StatusFilter("planned", "Planlandı", WatchStatus.Planned),
@@ -87,7 +88,7 @@ internal val statusFilters = listOf(
 )
 
 internal val typeFilters = listOf(
-    TypeFilter("all", "Tümü", null),
+    TypeFilter("all", KitsugiStrings.get(R.string.notif_filter_all), null),
     TypeFilter("anime", "Anime", MediaType.Anime),
     TypeFilter("manga", "Manga", MediaType.Manga),
     TypeFilter("movie", "Film", MediaType.Movie),
@@ -95,12 +96,12 @@ internal val typeFilters = listOf(
 )
 
 internal val favoriteFilters = listOf(
-    FavoriteFilter("all", "Tümü"),
+    FavoriteFilter("all", KitsugiStrings.get(R.string.notif_filter_all)),
     FavoriteFilter("favorites", "Favoriler")
 )
 
 internal val scoreFilters = listOf(
-    ScoreFilter("all", "Tümü"),
+    ScoreFilter("all", KitsugiStrings.get(R.string.notif_filter_all)),
     ScoreFilter("high", "Çok İyi (8-10)"),
     ScoreFilter("mid", "İyi (5-7)"),
     ScoreFilter("low", "Düşük (1-4)"),
@@ -108,7 +109,7 @@ internal val scoreFilters = listOf(
 )
 
 internal val yearFilters = listOf(
-    YearFilter("all", "Tümü"),
+    YearFilter("all", KitsugiStrings.get(R.string.notif_filter_all)),
     YearFilter("new", "2025 ve Sonrası"),
     YearFilter("2020s", "2020 - 2024"),
     YearFilter("2010s", "2010'lar"),
@@ -117,7 +118,7 @@ internal val yearFilters = listOf(
 )
 
 internal val extraFilters = listOf(
-    ExtraFilter("all", "Tümü"),
+    ExtraFilter("all", KitsugiStrings.get(R.string.notif_filter_all)),
     ExtraFilter("repeating", "Tekrar İzlenenler"),
     ExtraFilter("private", "Özel / Gizli"),
     ExtraFilter("ongoing", "Tamamlanmamış")
@@ -340,7 +341,7 @@ internal fun RichMyListFilterPanel(
 
         // Section: Status Filters
         Column {
-            FilterLabel(text = "Durum")
+            FilterLabel(text = stringResource(R.string.detail_info_status))
             Spacer(modifier = Modifier.height(6.dp))
             StatusFilterRow(
                 selectedStatusFilterId = selectedStatusFilterId,
@@ -350,7 +351,7 @@ internal fun RichMyListFilterPanel(
 
         // Section: Media Type
         Column {
-            FilterLabel(text = "Medya Türü")
+            FilterLabel(text = stringResource(R.string.medya_turu))
             Spacer(modifier = Modifier.height(6.dp))
             TypeFilterRow(
                 selectedTypeFilterId = selectedTypeFilterId,
@@ -360,7 +361,7 @@ internal fun RichMyListFilterPanel(
 
         // Section: Score Range
         Column {
-            FilterLabel(text = "Puan Aralığı")
+            FilterLabel(text = stringResource(R.string.puan_araligi))
             Spacer(modifier = Modifier.height(6.dp))
             ScoreFilterRow(
                 selectedScoreFilterId = selectedScoreFilterId,
@@ -380,7 +381,7 @@ internal fun RichMyListFilterPanel(
 
         // Section: Extra Options
         Column {
-            FilterLabel(text = "Ekstra / Özel")
+            FilterLabel(text = stringResource(R.string.ekstra_ozel))
             Spacer(modifier = Modifier.height(6.dp))
             ExtraFilterRow(
                 selectedExtraFilterId = selectedExtraFilterId,
@@ -455,7 +456,7 @@ internal fun RichMyListFilterPanel(
                     .padding(horizontal = 12.dp, vertical = 8.dp)
             ) {
                 Text(
-                    text = "Filtreleri gizle",
+                    text = stringResource(R.string.filtreleri_gizle),
                     color = KitsugiColors.TextMuted,
                     style = MaterialTheme.typography.labelMedium,
                     fontWeight = FontWeight.Bold
@@ -561,7 +562,7 @@ internal fun EmptyListResultCard(
     KitsugiEmptyState(
         title = stringResource(R.string.sonuc_bulunamadi),
         subtitle = if (searchQuery.isBlank()) {
-            "Seçili filtrelerle içerik bulunamadı."
+            stringResource(R.string.secili_filtrelerle_icerik_bulunamadi)
         } else {
             "\"$searchQuery\" için içerik bulunamadı."
         },

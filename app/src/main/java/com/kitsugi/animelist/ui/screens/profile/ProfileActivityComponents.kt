@@ -170,7 +170,7 @@ fun ActivityCard(
                         ) {
                             Icon(
                                 imageVector = Icons.Rounded.MoreVert,
-                                contentDescription = "Seçenekler",
+                                contentDescription = stringResource(R.string.secenekler),
                                 tint = KitsugiColors.TextMuted,
                                 modifier = Modifier.size(18.dp)
                             )
@@ -245,7 +245,7 @@ fun ActivityCard(
                         Spacer(modifier = Modifier.width(12.dp))
                         Column {
                             val actionText = when (activity.status) {
-                                "completed" -> "tamamladı"
+                                "completed" -> stringResource(R.string.tamamladi)
                                 "watching" -> "izliyor"
                                 "reading" -> "okuyor"
                                 "plan_to_watch" -> "izlemeyi planlıyor"
@@ -269,7 +269,7 @@ fun ActivityCard(
                             )
                             if (!activity.progress.isNullOrBlank()) {
                                 Text(
-                                    text = "Bölüm/Bölümler: ${activity.progress}",
+                                    text = stringResource(R.string.inline_episodes_1_s_4fd2811, activity.progress),
                                     color = KitsugiColors.TextMuted,
                                     style = MaterialTheme.typography.labelSmall
                                 )
@@ -376,7 +376,7 @@ fun FavoritesHorizontalSection(
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(
-                            text = "Tümünü Gör (${items.size})",
+                            text = stringResource(R.string.inline_see_all_1_s_1f125a7, items.size),
                             color = LocalKitsugiAccent.current,
                             style = MaterialTheme.typography.labelMedium,
                             fontWeight = FontWeight.Bold
@@ -701,7 +701,7 @@ fun PositionalStatItemCard(
                         fontWeight = FontWeight.Bold
                     )
                     Text(
-                        text = "Ortalama Puan",
+                        text = stringResource(R.string.ortalama_puan),
                         color = KitsugiColors.TextMuted,
                         style = MaterialTheme.typography.labelSmall
                     )
@@ -738,7 +738,7 @@ fun PositionalStatItemCard(
                             fontWeight = FontWeight.Bold
                         )
                         Text(
-                            text = "Okunan Cilt/Bölüm",
+                            text = stringResource(R.string.inline_volumes_chapters_read_cf15a04),
                             color = KitsugiColors.TextMuted,
                             style = MaterialTheme.typography.labelSmall
                         )

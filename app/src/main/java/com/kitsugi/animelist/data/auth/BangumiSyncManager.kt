@@ -8,6 +8,8 @@ import com.kitsugi.animelist.model.MediaType
 import com.kitsugi.animelist.model.WatchStatus
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import com.kitsugi.animelist.utils.KitsugiStrings
+import com.kitsugi.animelist.R
 
 /**
  * Bangumi (bgm.tv) kütüphane senkronizasyon yöneticisi.
@@ -75,12 +77,12 @@ object BangumiSyncManager {
         entry: MediaEntry
     ): SyncResult = withContext(Dispatchers.IO) {
         if (entry.type != MediaType.Anime && entry.type != MediaType.Manga) {
-            return@withContext SyncResult(emptyList(), listOf("Bangumi senkronu yalnızca anime/manga destekler"))
+            return@withContext SyncResult(emptyList(), listOf(KitsugiStrings.get(R.string.bangumi_senkronu_yalnizca_anime_manga_destekler)))
         }
 
         val token = BangumiAuthStore.getValidToken(context)
         if (token.isNullOrBlank()) {
-            return@withContext SyncResult(emptyList(), listOf("Bangumi hesabı bağlı değil"))
+            return@withContext SyncResult(emptyList(), listOf(KitsugiStrings.get(R.string.bangumi_hesabi_bagli_degil)))
         }
 
         val isAnime = entry.type == MediaType.Anime
@@ -88,7 +90,7 @@ object BangumiSyncManager {
         if (subjectId == null) {
             return@withContext SyncResult(
                 emptyList(),
-                listOf("Bangumi条目 eşleşmesi bulunamadı: ${entry.title}")
+                listOf(KitsugiStrings.get(R.string.bangumi_eslesmesi_bulunamadi_x, entry.title))
             )
         }
 
@@ -150,10 +152,10 @@ object BangumiSyncManager {
     ): SyncResult = withContext(Dispatchers.IO) {
         val token = BangumiAuthStore.getValidToken(context)
         if (token.isNullOrBlank()) {
-            return@withContext SyncResult(emptyList(), listOf("Bangumi hesabı bağlı değil"))
+            return@withContext SyncResult(emptyList(), listOf(KitsugiStrings.get(R.string.bangumi_hesabi_bagli_degil)))
         }
         val subjectId = resolveSubjectId(context, entry, entry.type == MediaType.Anime)
-            ?: return@withContext SyncResult(emptyList(), listOf("Bangumi条目 eşleşmesi bulunamadı: ${entry.title}"))
+            ?: return@withContext SyncResult(emptyList(), listOf(KitsugiStrings.get(R.string.bangumi_eslesmesi_bulunamadi_x, entry.title)))
 
         val ok = BangumiApiClient.upsertCollection(
             token = token,
@@ -164,11 +166,11 @@ object BangumiSyncManager {
         if (ok) {
             SyncResult(
                 messages = listOf(
-                    "Bangumi API'si koleksiyon silmeyi desteklemiyor; kayıt '抛弃 (Bırakıldı)' olarak işaretlendi (${entry.title})"
+                    KitsugiStrings.get(R.string.bangumi_api_si_koleksiyon_silmeyi_desteklemiyor_kayit_birakildi, entry.title)
                 )
             )
         } else {
-            SyncResult(emptyList(), listOf("Bangumi kaydı güncellenemedi (${entry.title})"))
+            SyncResult(emptyList(), listOf(KitsugiStrings.get(R.string.bangumi_kaydi_guncellenemedi_x, entry.title)))
         }
     }
 

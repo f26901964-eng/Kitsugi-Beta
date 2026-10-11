@@ -14,6 +14,8 @@ import java.util.Date
 import java.util.Locale
 import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicBoolean
+import com.kitsugi.animelist.utils.KitsugiStrings
+import com.kitsugi.animelist.R
 
 /**
  * KitsugiSessionSupervisor — "sessiz ölüm" dedektörü.
@@ -211,7 +213,7 @@ object KitsugiSessionSupervisor {
     fun breadcrumbText(context: Context): String {
         return try {
             val f = File(context.filesDir, BREADCRUMB_FILE)
-            if (f.exists() && f.length() > 0) f.readText() else "(eylem izi yok)"
+            if (f.exists() && f.length() > 0) f.readText() else KitsugiStrings.get(R.string.diag_session_breadcrumb_empty)
         } catch (_: Throwable) {
             "(eylem izi okunamadı)"
         }
@@ -245,7 +247,7 @@ object KitsugiSessionSupervisor {
     fun readUncleanExitReport(context: Context): String {
         return try {
             val f = uncleanExitReportFile(context)
-            if (f.exists()) f.readText() else "Temiz olmayan kapanma kaydı yok."
+            if (f.exists()) f.readText() else KitsugiStrings.get(R.string.diag_session_unclean_record_none)
         } catch (_: Throwable) {
             "Temiz olmayan kapanma kaydı okunamadı."
         }
@@ -362,7 +364,7 @@ object KitsugiSessionSupervisor {
             appendLine("║   KİTSUGİ — TEMİZ OLMAYAN KAPANMA (SESSİZ ÇÖKME) RAPORU")
             appendLine("╚══════════════════════════════════════════════════════════════╝")
             appendLine()
-            appendLine("▶ TESPİT ZAMANI : ${nowText()}")
+            appendLine(KitsugiStrings.get(R.string.diag_session_detected_at, nowText()))
             appendLine("▶ ÖNCEKİ SÜREÇ  : pid=$prevPid (sürüm=$build)")
             appendLine("▶ OTURUM BAŞI   : ${if (started > 0) synchronized(dateFmtLock) { dateFmt.format(Date(started)) } else "?"}")
             appendLine("▶ SON CANLI ANI : ${if (lastAlive > 0) synchronized(dateFmtLock) { dateFmt.format(Date(lastAlive)) } else "?"}")

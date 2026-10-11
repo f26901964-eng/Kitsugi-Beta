@@ -103,7 +103,7 @@ fun VideoFiltersPanel(
                     ) {
                         Icon(Icons.Outlined.Info, null)
                         Text(
-                            "GPU-Next renderer aktifken renk filtreleri tam doğrulukla çalışır.",
+                            stringResource(R.string.inline_color_filters_work_accurately_when_085d36c),
                             style = MaterialTheme.typography.bodySmall,
                         )
                     }

@@ -162,13 +162,13 @@ fun TvSearchScreen(
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         Text(
-                            text = "\"${state.query}\" için sonuç bulunamadı",
+                            text = stringResource(R.string.inline_no_results_found_for_1_681c88b, state.query),
                             style = MaterialTheme.typography.bodyLarge,
                             color = Color.White.copy(alpha = 0.6f)
                         )
                         Spacer(modifier = Modifier.height(8.dp))
                         Text(
-                            text = "Farklı kelimeler veya filtreler deneyin",
+                            text = stringResource(R.string.inline_try_different_words_or_filters_0c36562),
                             style = MaterialTheme.typography.bodySmall,
                             color = Color.White.copy(alpha = 0.4f)
                         )
@@ -211,7 +211,7 @@ fun TvSearchScreen(
             else -> {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     Text(
-                        text = "Anime, dizi veya film arayın",
+                        text = stringResource(R.string.inline_search_for_anime_series_or_5990718),
                         style = MaterialTheme.typography.bodyLarge,
                         color = Color.White.copy(alpha = 0.4f)
                     )
@@ -277,7 +277,7 @@ private fun TvSearchBar(
             decorationBox = { innerTextField ->
                 if (query.isEmpty()) {
                     Text(
-                        text = "Anime, film veya dizi ara...",
+                        text = stringResource(R.string.anime_film_veya_dizi_ara),
                         style = MaterialTheme.typography.bodyMedium,
                         color = Color.White.copy(alpha = 0.4f)
                     )
@@ -628,7 +628,7 @@ private fun TvSearchHistory(
                 ) {
                     Icon(
                         imageVector = Icons.Default.Close,
-                        contentDescription = "Sil",
+                        contentDescription = stringResource(R.string.action_delete),
                         tint = Color.White,
                         modifier = Modifier.size(14.dp)
                     )

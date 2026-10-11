@@ -12,6 +12,8 @@ import okhttp3.Request
 import org.json.JSONObject
 import com.kitsugi.animelist.utils.*
 import java.util.concurrent.TimeUnit
+import com.kitsugi.animelist.utils.KitsugiStrings
+import com.kitsugi.animelist.R
 
 /**
  * TMDB API ana giriş noktası (Orkestrasyon katmanı).
@@ -594,7 +596,7 @@ class TmdbApiClient(
                 list.add(
                     JikanSearchResult(
                         malId = id, title = name,
-                        subtitle = if (originCountry.isNotBlank()) "Yapım Şirketi ($originCountry)" else "Yapım Şirketi",
+                        subtitle = if (originCountry.isNotBlank()) KitsugiStrings.get(R.string.yapim_sirketi_x, originCountry) else KitsugiStrings.get(R.string.yapim_sirketi),
                         type = MediaType.Movie, total = null, score = null,
                         isAdult = false,
                         imageUrl = imageUrl, year = null, source = "tmdb"

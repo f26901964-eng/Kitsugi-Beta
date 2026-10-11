@@ -39,6 +39,7 @@ import java.util.Date
 import java.util.Locale
 import androidx.compose.ui.res.stringResource
 import com.kitsugi.animelist.R
+import com.kitsugi.animelist.utils.KitsugiStrings
 
 @Composable
 fun MangaSourceHealthScreen(
@@ -126,8 +127,8 @@ fun MangaSourceHealthScreen(
                     Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = stringResource(R.string.geri), tint = KitsugiColors.TextPrimary)
                 }
                 Column(modifier = Modifier.weight(1f)) {
-                    Text("Kaynakları yönet", color = KitsugiColors.TextPrimary, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
-                    Text("${installedSources.size} öge", color = KitsugiColors.TextSecondary, fontSize = 12.sp)
+                    Text(stringResource(R.string.inline_manage_sources_5833fb6), color = KitsugiColors.TextPrimary, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
+                    Text(stringResource(R.string.inline_1_s_items_60ab3ed, installedSources.size), color = KitsugiColors.TextSecondary, fontSize = 12.sp)
                 }
                 if (selectedTab == 0) {
                     // TR filtresi butonu
@@ -139,7 +140,7 @@ fun MangaSourceHealthScreen(
                             .padding(horizontal = 10.dp, vertical = 6.dp)
                     ) {
                         Text(
-                            text = if (trFilterActive) "🇹🇷 Türkçe" else "🌐 Tümü",
+                            text = if (trFilterActive) stringResource(R.string.sub_lang_tr) else stringResource(R.string.ui_all_languages_label),
                             color = if (trFilterActive) accent else KitsugiColors.TextSecondary,
                             fontSize = 12.sp,
                             fontWeight = FontWeight.Bold
@@ -246,7 +247,7 @@ private fun ReposTab(
     ) {
         // ── Manga Repo Ekle header ──
         item {
-            Text("Manga Repo Ekle", color = KitsugiColors.TextMuted, fontSize = 11.sp,
+            Text(stringResource(R.string.manga_repo_ekle), color = KitsugiColors.TextMuted, fontSize = 11.sp,
                 fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(bottom = 4.dp))
         }
 
@@ -274,7 +275,7 @@ private fun ReposTab(
                     Column(modifier = Modifier.weight(1f)) {
                         Text("⚡ Keiyoushi Resmi Reposu", color = KitsugiColors.TextPrimary,
                             fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                        Text("${if (keiyoushiTotal > 0) keiyoushiTotal else "5000"}+ Mihon eklentisi (Türkçe dahil)",
+                        Text(stringResource(R.string.inline_1_s_mihon_extensions_including_dd28005, if (keiyoushiTotal > 0) keiyoushiTotal else "5000"),
                             color = KitsugiColors.TextSecondary, fontSize = 11.sp)
                     }
                     Text("✓ Eklendi", color = Color(0xFF4CAF50), fontSize = 11.sp, fontWeight = FontWeight.Bold)
@@ -350,7 +351,7 @@ private fun ReposTab(
             ) {
                 Icon(Icons.Rounded.FolderOpen, null, modifier = Modifier.size(16.dp))
                 Spacer(Modifier.width(8.dp))
-                Text("Dosyadan Yükleme (.mex / .apk)")
+                Text(stringResource(R.string.inline_install_from_file_mex_apk_5276a9d))
             }
         }
 
@@ -362,7 +363,7 @@ private fun ReposTab(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        "Keiyoushi  ·  ${trExts.size}/${repoExtensions.size} gösteriliyor",
+                        stringResource(R.string.inline_keiyoushi_showing_1_s_2_506cb39, trExts.size, repoExtensions.size),
                         color = KitsugiColors.TextMuted, fontSize = 11.sp,
                         fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f)
                     )
@@ -377,7 +378,7 @@ private fun ReposTab(
                         ) {
                             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                                 Icon(Icons.Rounded.Download, null, tint = accent, modifier = Modifier.size(14.dp))
-                                Text("Tümünü İndir (${trExts.size})", color = accent,
+                                Text(stringResource(R.string.inline_download_all_1_s_e46ccb3, trExts.size), color = accent,
                                     fontSize = 11.sp, fontWeight = FontWeight.Bold)
                             }
                         }
@@ -411,7 +412,7 @@ private fun ReposTab(
                         Column(modifier = Modifier.weight(1f)) {
                             Text("Keiyoushi", color = KitsugiColors.TextPrimary,
                                 fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
-                            Text("0/${repoExtensions.size} Yüklendi",
+                            Text(stringResource(R.string.inline_0_1_s_installed_3f8fae1, repoExtensions.size),
                                 color = KitsugiColors.TextMuted, fontSize = 11.sp)
                         }
                         Text("🇹🇷", fontSize = 16.sp)
@@ -496,8 +497,8 @@ private fun HealthReportTab(
         modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        item { FilterChip(selected = false, onClick = { clipboardManager.setText(AnnotatedString(buildReportExport(filtered))) }, label = { Text("Raporu kopyala") }) }
-        item { FilterChip(selected = false, onClick = { onExportReportFile(buildReportExport(filtered)) }, label = { Text("Dosyaya kaydet") }) }
+        item { FilterChip(selected = false, onClick = { clipboardManager.setText(AnnotatedString(buildReportExport(filtered))) }, label = { Text(KitsugiStrings.get(R.string.raporu_kopyala)) }) }
+        item { FilterChip(selected = false, onClick = { onExportReportFile(buildReportExport(filtered)) }, label = { Text(KitsugiStrings.get(R.string.dosyaya_kaydet_934a2b4)) }) }
         item { FilterChip(selected = false, onClick = {
             val i = Intent(Intent.ACTION_SEND).apply { type = "text/plain"; putExtra(Intent.EXTRA_TEXT, buildReportExport(filtered)) }
             context.startActivity(Intent.createChooser(i, "Paylaş"))
@@ -523,13 +524,13 @@ private fun HealthReportTab(
         }
         item {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                FilterRow(listOf("ALL" to "Tümü","Healthy" to "Healthy","Degraded" to "Degraded","Broken" to "Broken","CaptchaRequired" to "Captcha","RateLimited" to "429"), statusFilter, accent, onStatusFilter)
-                FilterRow(listOf("UPDATED" to "Güncel","FAILURES" to "Hata","LATENCY" to "Gecikme","SUCCESS" to "Başarı"), sortMode, accent, onSortMode)
-                FilterRow(listOf("ALL" to "Tüm zaman","24H" to "24s","7D" to "7g"), rangeMode, accent, onRangeMode)
+                FilterRow(listOf("ALL" to stringResource(R.string.notif_filter_all),"Healthy" to "Healthy","Degraded" to "Degraded","Broken" to "Broken","CaptchaRequired" to "Captcha","RateLimited" to "429"), statusFilter, accent, onStatusFilter)
+                FilterRow(listOf("UPDATED" to stringResource(R.string.guncel),"FAILURES" to stringResource(R.string.hata),"LATENCY" to "Gecikme","SUCCESS" to stringResource(R.string.basari)), sortMode, accent, onSortMode)
+                FilterRow(listOf("ALL" to stringResource(R.string.tum_zaman),"24H" to "24s","7D" to "7g"), rangeMode, accent, onRangeMode)
             }
         }
         if (filtered.isEmpty()) {
-            item { Box(Modifier.fillMaxWidth().padding(vertical = 40.dp), Alignment.Center) { Text("Bu filtre için rapor verisi yok.", color = KitsugiColors.TextSecondary) } }
+            item { Box(Modifier.fillMaxWidth().padding(vertical = 40.dp), Alignment.Center) { Text(stringResource(R.string.inline_no_report_data_is_available_e832db8), color = KitsugiColors.TextSecondary) } }
         } else {
             items(filtered, key = { it.sourceKey }) { item ->
                 val source = sourceMap[item.sourceKey]
@@ -556,11 +557,11 @@ private fun HealthReportTab(
                         if (!item.lastReason.isNullOrBlank()) StatLine("Son hata", item.lastReason)
                         if (source != null) {
                             LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-                                item { FilterChip(selected = false, enabled = !isBusy, onClick = { onQuickCheckSource(source) }, label = { Text(if (isBusy) "Çalışıyor" else "Sağlık testi") }) }
+                                item { FilterChip(selected = false, enabled = !isBusy, onClick = { onQuickCheckSource(source) }, label = { Text(if (isBusy) KitsugiStrings.get(R.string.cs_diag_summary_working) else KitsugiStrings.get(R.string.inline_health_check_0ceca65)) }) }
                                 item { FilterChip(selected = false, enabled = !isBusy, onClick = { onRefreshSourceMirror(source) }, label = { Text("Mirror bul") }) }
                                 item { FilterChip(selected = false, enabled = !isBusy, onClick = { onEditDomainSource(source) }, label = { Text("Domain Ayarla") }) }
                                 item { FilterChip(selected = false, enabled = !isBusy, onClick = { onClearSourceMirror(source) }, label = { Text(stringResource(R.string.domain_temizle)) }) }
-                                item { FilterChip(selected = false, enabled = !isBusy, onClick = { onResetSourceDiagnostics(source) }, label = { Text("İstatistik sıfırla") }) }
+                                item { FilterChip(selected = false, enabled = !isBusy, onClick = { onResetSourceDiagnostics(source) }, label = { Text(KitsugiStrings.get(R.string.inline_reset_statistics_1d54c87)) }) }
                             }
                         }
                     }
@@ -576,9 +577,9 @@ private fun HealthReportTab(
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     val currentBaseUrl = onGetMangaConfiguredBaseUrl(source)
-                    if (currentBaseUrl.isNotEmpty()) Text("Varsayılan: $currentBaseUrl", color = KitsugiColors.TextSecondary, fontSize = 12.sp)
+                    if (currentBaseUrl.isNotEmpty()) Text(stringResource(R.string.inline_default_1_s_89f79d8, currentBaseUrl), color = KitsugiColors.TextSecondary, fontSize = 12.sp)
                     OutlinedTextField(value = domainInputText, onValueChange = onDomainTextChange,
-                        placeholder = { Text("örn. mangagezgini.online") }, label = { Text("Yeni Domain") },
+                        placeholder = { Text(stringResource(R.string.inline_e_g_mangagezgini_online_fa8efdd)) }, label = { Text(stringResource(R.string.yeni_domain)) },
                         singleLine = true, modifier = Modifier.fillMaxWidth())
                 }
             },

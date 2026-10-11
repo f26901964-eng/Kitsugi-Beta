@@ -48,6 +48,7 @@ import com.kitsugi.animelist.ui.screens.profile.tabs.*
 import kotlinx.coroutines.launch
 import androidx.compose.ui.res.stringResource
 import com.kitsugi.animelist.R
+import com.kitsugi.animelist.utils.KitsugiStrings
 
 @Composable
 fun AniListProfileContent(
@@ -162,7 +163,7 @@ fun AniListProfileContent(
             val avatarUrl = state.avatarUrl?.takeIf { it.isNotBlank() }
             val bannerUrl = state.bannerUrl?.takeIf { it.isNotBlank() }
             val imageList = listOfNotNull(avatarUrl, bannerUrl)
-            val username = state.name.ifBlank { "Kullanıcı" }
+            val username = state.name.ifBlank { stringResource(R.string.kullanici) }
 
             Box(
                 modifier = Modifier
@@ -231,7 +232,7 @@ fun AniListProfileContent(
             Surface(modifier = Modifier.fillMaxWidth(), color = KitsugiColors.Background) {
                 Column(modifier = Modifier.padding(vertical = 6.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     val tabs = listOf(
-                        Icons.Rounded.Info to "Hakkında",
+                        Icons.Rounded.Info to stringResource(R.string.character_tab_about),
                         Icons.Rounded.ChatBubble to "Aktivite",
                         Icons.Rounded.BarChart to "İstatistikler",
                         Icons.Rounded.Star to "Favoriler",
@@ -254,7 +255,7 @@ fun AniListProfileContent(
                                 horizontalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
                                 items(6) { idx ->
-                                    val label = listOf("Genel Bakış", "Türler", "Etiketler", "Ekip", "Seslendirenler", "Stüdyolar")[idx]
+                                    val label = listOf(stringResource(R.string.genel_bakis), stringResource(R.string.inline_genres_2ac9898), "Etiketler", "Ekip", "Seslendirenler", stringResource(R.string.detail_section_studios))[idx]
                                     ProfileFilterChip(text = label, isSelected = statsSubTab == idx, accentColor = accentColor, onClick = { statsSubTab = idx })
                                 }
                             }
@@ -268,7 +269,7 @@ fun AniListProfileContent(
                                 horizontalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
                                 items(5) { idx ->
-                                    val label = listOf("Anime", "Manga", "Karakterler", "Ekip", "Stüdyolar")[idx]
+                                    val label = listOf("Anime", "Manga", "Karakterler", "Ekip", stringResource(R.string.detail_section_studios))[idx]
                                     ProfileFilterChip(text = label, isSelected = favoritesFilter == idx, accentColor = accentColor, onClick = { favoritesFilter = idx })
                                 }
                             }
@@ -281,7 +282,7 @@ fun AniListProfileContent(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
-                                item { ProfileFilterChip(text = "Takipçiler (${state.socialState.followers.size})", isSelected = socialFilter == 0, accentColor = accentColor, onClick = { socialFilter = 0 }) }
+                                item { ProfileFilterChip(text = KitsugiStrings.get(R.string.takipciler_x, state.socialState.followers.size), isSelected = socialFilter == 0, accentColor = accentColor, onClick = { socialFilter = 0 }) }
                                 item { ProfileFilterChip(text = "Takip Edilen (${state.socialState.following.size})", isSelected = socialFilter == 1, accentColor = accentColor, onClick = { socialFilter = 1 }) }
                             }
                         }
@@ -403,8 +404,8 @@ fun AniListProfileContent(
             else -> emptyList()
         },
         categoryLabels = when (activeTab) {
-            2 -> listOf("Genel Bakış", "Türler", "Etiketler", "Ekip", "Seslendirenler", "Stüdyolar")
-            4 -> listOf("Takipçiler", "Takip Edilen")
+            2 -> listOf(stringResource(R.string.genel_bakis), stringResource(R.string.inline_genres_2ac9898), "Etiketler", "Ekip", "Seslendirenler", stringResource(R.string.detail_section_studios))
+            4 -> listOf(stringResource(R.string.takipciler), "Takip Edilen")
             else -> ProfileFavoriteCategoryLabels
         },
         showCounts = activeTab != 2,

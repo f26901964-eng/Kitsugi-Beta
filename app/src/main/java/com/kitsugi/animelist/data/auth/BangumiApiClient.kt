@@ -12,6 +12,8 @@ import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONArray
 import org.json.JSONObject
 import java.net.URLEncoder
+import com.kitsugi.animelist.utils.KitsugiStrings
+import com.kitsugi.animelist.R
 
 /**
  * Bangumi 番组计划 (bgm.tv) REST API istemcisi.
@@ -588,7 +590,7 @@ object BangumiApiClient {
                 code = 0,
                 title = json.optString("error").ifBlank { null },
                 description = json.optString("error_description").ifBlank { null },
-                message = "Bangumi token yanıtında access_token yok: ${json.optString("error")}"
+                message = KitsugiStrings.get(R.string.bangumi_token_yanitinda_access_token_yok_x, json.optString("error"))
             )
         }
         return BangumiToken(

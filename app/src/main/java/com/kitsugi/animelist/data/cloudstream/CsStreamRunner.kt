@@ -29,6 +29,8 @@ import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import java.util.Locale
+import com.kitsugi.animelist.utils.KitsugiStrings
+import com.kitsugi.animelist.R
 
 /**
  * Cloudflare veya ağ koruması nedeniyle içerik alınamadığında fırlatılır.
@@ -2480,7 +2482,7 @@ object CsStreamRunner {
                 StreamSource(
                     addonName    = providerName,
                     name         = "$providerName • $rawLinkName [ÖLÜ KANAL / İLETİŞİM HATASI]",
-                    title        = "$rawLinkName [ÖLÜ KANAL / İLETİŞİM HATASI]",
+                    title        = KitsugiStrings.get(R.string.rawlinkname_olu_kanal_iletisim_hatasi, rawLinkName),
                     url          = rawUrl,
                     infoHash     = null,
                     fileIndex    = null,

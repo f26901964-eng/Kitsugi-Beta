@@ -86,7 +86,7 @@ fun KitsugiHeroPreviewDialog(
         shape = RoundedCornerShape(28.dp),
         title = {
             Text(
-                text = "Öne Çıkan Detay",
+                text = stringResource(R.string.inline_featured_detail_01b48e2),
                 color = KitsugiColors.TextPrimary,
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Bold
@@ -191,7 +191,7 @@ fun KitsugiHeroPreviewDialog(
                 )
 
                 HeroInfoRow(
-                    label = "Toplam",
+                    label = stringResource(R.string.toplam),
                     value = result.total?.toString() ?: stringResource(R.string.label_unknown)
                 )
 
@@ -210,7 +210,7 @@ fun KitsugiHeroPreviewDialog(
                 }
             ) {
                 Text(
-                    text = if (alreadyInList) "Listede" else "Listeye Ekle",
+                    text = if (alreadyInList) "Listede" else stringResource(R.string.listeye_ekle),
                     color = if (alreadyInList) {
                         KitsugiColors.AccentGreen
                     } else {
@@ -314,7 +314,7 @@ private fun SynopsisBox(
         Spacer(modifier = Modifier.height(8.dp))
 
         val text = when (synopsisState) {
-            HeroSynopsisState.Loading -> "Açıklama yükleniyor..."
+            HeroSynopsisState.Loading -> stringResource(R.string.detail_synopsis_loading)
             HeroSynopsisState.Error -> "Açıklama alınamadı."
             is HeroSynopsisState.Success -> synopsisState.text
         }

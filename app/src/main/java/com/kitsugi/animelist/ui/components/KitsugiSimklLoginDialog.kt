@@ -44,6 +44,7 @@ import androidx.compose.ui.window.DialogProperties
 import com.kitsugi.animelist.R
 import com.kitsugi.animelist.ui.theme.KitsugiColors
 import androidx.compose.ui.res.stringResource
+import com.kitsugi.animelist.utils.KitsugiStrings
 
 @Composable
 fun KitsugiSimklLoginDialog(
@@ -72,7 +73,7 @@ fun KitsugiSimklLoginDialog(
             ) {
                 // Header
                 Text(
-                    text = "Simkl ile Bağlan",
+                    text = stringResource(R.string.inline_connect_to_simkl_c53a125),
                     style = MaterialTheme.typography.headlineSmall,
                     fontWeight = FontWeight.Bold,
                     color = KitsugiColors.TextPrimary
@@ -81,7 +82,7 @@ fun KitsugiSimklLoginDialog(
                 Spacer(modifier = Modifier.height(8.dp))
 
                 Text(
-                    text = "Aşağıdaki kodu kopyalayıp Simkl doğrulama sayfasına girin.",
+                    text = stringResource(R.string.inline_copy_the_code_below_and_d83b887),
                     style = MaterialTheme.typography.bodyMedium,
                     color = KitsugiColors.TextSecondary,
                     textAlign = TextAlign.Center
@@ -97,7 +98,7 @@ fun KitsugiSimklLoginDialog(
                         .background(KitsugiColors.SurfaceSoft)
                         .tvClickable(shape = RoundedCornerShape(16.dp)) {
                             clipboard.setText(AnnotatedString(pinCode))
-                            Toast.makeText(context, "Kod kopyalandı", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(context, KitsugiStrings.get(R.string.kod_kopyalandi), Toast.LENGTH_SHORT).show()
                         }
                         .padding(vertical = 20.dp),
                     contentAlignment = Alignment.Center
@@ -112,7 +113,7 @@ fun KitsugiSimklLoginDialog(
                         )
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(
-                            text = "Kopyalamak için dokun",
+                            text = stringResource(R.string.inline_tap_to_copy_b8cf528),
                             style = MaterialTheme.typography.labelSmall,
                             color = KitsugiColors.TextSecondary
                         )
@@ -130,7 +131,7 @@ fun KitsugiSimklLoginDialog(
                         KitsugiPlasmaLoader(size = 18.dp)
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
-                            text = "Doğrulama bekleniyor...",
+                            text = stringResource(R.string.inline_waiting_for_verification_a0ef82a),
                             style = MaterialTheme.typography.bodySmall,
                             color = KitsugiColors.TextSecondary
                         )
@@ -149,7 +150,7 @@ fun KitsugiSimklLoginDialog(
                     shape = RoundedCornerShape(12.dp)
                 ) {
                     Text(
-                        text = "Kodu Kopyala & Tarayıcıyı Aç",
+                        text = stringResource(R.string.inline_copy_code_open_browser_b49a9b4),
                         fontWeight = FontWeight.SemiBold,
                         color = Color.White
                     )

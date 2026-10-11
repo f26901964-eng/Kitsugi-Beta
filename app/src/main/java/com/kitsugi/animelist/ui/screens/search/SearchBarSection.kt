@@ -117,7 +117,7 @@ fun SearchBarSection(
                 decorationBox = { innerTextField ->
                     if (query.isEmpty()) {
                         Text(
-                            text = "Anime, dizi veya film ara...",
+                            text = stringResource(R.string.anime_dizi_veya_film_ara),
                             color = KitsugiColors.TextMuted,
                             style = MaterialTheme.typography.bodyMedium
                         )

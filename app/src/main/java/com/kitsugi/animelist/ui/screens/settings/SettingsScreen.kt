@@ -1129,7 +1129,7 @@ private fun SettingsIntegrationsContent(integrations: IntegrationsSettings) {
 // ─── Tema seçenekleri (statik) ────────────────────────────────────────────────
 
 private val themeOptions = listOf(
-    KitsugiChoiceOption("mint", "Mint", "Mevcut Kitsugi açık mint teması", Color(0xFFC8F4EF)),
+    KitsugiChoiceOption("mint", "Mint", stringResource(R.string.mevcut_kitsugi_acik_mint_temasi), Color(0xFFC8F4EF)),
     KitsugiChoiceOption("pink", "Pembe", "Canlı pembe vurgu rengi", KitsugiColors.AccentPink),
     KitsugiChoiceOption("purple", "Mor", "Neon ve modern mor görünüm", KitsugiColors.AccentPurple),
     KitsugiChoiceOption("blue", "Mavi", "Sade ve temiz mavi vurgu", KitsugiColors.AccentBlue),

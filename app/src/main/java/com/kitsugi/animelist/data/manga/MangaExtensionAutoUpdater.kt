@@ -7,6 +7,8 @@ import com.kitsugi.animelist.data.remote.MangaExtensionInfo
 import com.kitsugi.animelist.data.remote.MangaRepoClient
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import com.kitsugi.animelist.utils.KitsugiStrings
+import com.kitsugi.animelist.R
 
 /**
  * MangaExtensionAutoUpdater
@@ -109,7 +111,7 @@ object MangaExtensionAutoUpdater {
         }
 
         val summary = if (updatedCount > 0)
-            "✅ $updatedCount eklenti güncellendi: ${updatedNames.joinToString(", ")}"
+            KitsugiStrings.get(R.string.x_eklenti_guncellendi_x, updatedCount, updatedNames.joinToString(", "))
         else
             "✅ Tüm eklentiler güncel ($checkedCount kontrol edildi)"
 

@@ -14,6 +14,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.res.stringResource
+import com.kitsugi.animelist.R
 
 /**
  * V2-D01 – EpisodeRatingsSection
@@ -42,7 +44,7 @@ fun EpisodeRatingsSection(
             .padding(vertical = 8.dp)
     ) {
         Text(
-            text = "Bölüm Değerlendirmeleri",
+            text = stringResource(R.string.inline_episode_ratings_71de800),
             style = MaterialTheme.typography.titleMedium,
             fontWeight = FontWeight.Bold,
             modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
@@ -73,7 +75,7 @@ private fun EpisodeRatingRow(ep: EpisodeRating) {
     ) {
         Column(modifier = Modifier.weight(1f)) {
             Text(
-                text = "Bölüm ${ep.episodeNumber}" + if (ep.title != null) " – ${ep.title}" else "",
+                text = stringResource(R.string.inline_episode_1_s_dc662be, ep.episodeNumber) + if (ep.title != null) " – ${ep.title}" else "",
                 style = MaterialTheme.typography.bodyMedium,
                 fontWeight = FontWeight.Medium
             )

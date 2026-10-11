@@ -386,7 +386,7 @@ fun InteractiveSpoilerSheet(
                         modifier = Modifier.size(20.dp)
                     )
                     Text(
-                        text = "Spoiler İçerik",
+                        text = stringResource(R.string.inline_spoiler_content_2b44cd7),
                         color = accent,
                         style = MaterialTheme.typography.titleSmall,
                         fontWeight = FontWeight.Bold,
@@ -456,8 +456,8 @@ fun InteractiveSpoilerBox(
                     modifier = Modifier.size(18.dp)
                 )
                 Text(
-                    text = if (isRevealed) "Spoiler (Gizlemek için dokunun)"
-                           else "⚠️ Spoiler İçerik (Görmek için dokunun)",
+                    text = if (isRevealed) stringResource(R.string.ui_spoiler_tap_to_hide)
+                           else stringResource(R.string.ui_spoiler_content_tap_to_reveal),
                     color = if (isRevealed) accentColor else KitsugiColors.AccentOrange,
                     style = MaterialTheme.typography.labelMedium,
                     fontWeight = FontWeight.Bold,

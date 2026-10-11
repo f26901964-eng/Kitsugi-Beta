@@ -303,7 +303,7 @@ internal fun ApiStatsGrid(
         )
 
         ApiMiniStatCard(
-            label = "Toplam",
+            label = stringResource(R.string.toplam),
             value = result.total?.toString() ?: stringResource(R.string.label_unknown),
             modifier = Modifier.weight(1f)
         )
@@ -397,7 +397,7 @@ internal fun ApiSynopsisCard(
                 IconButton(onClick = onCopyClick) {
                     Icon(
                         imageVector = Icons.Rounded.ContentCopy,
-                        contentDescription = "Kopyala",
+                        contentDescription = stringResource(R.string.action_copy),
                         tint = KitsugiColors.TextSecondary
                     )
                 }
@@ -467,7 +467,7 @@ internal fun ApiSynopsisCard(
                     )
                     Spacer(modifier = Modifier.width(6.dp))
                     Text(
-                        text = if (isExpanded) "Daha az" else "Daha fazla",
+                        text = if (isExpanded) stringResource(R.string.action_see_less) else stringResource(R.string.action_see_more),
                         color = LocalKitsugiAccent.current,
                         style = MaterialTheme.typography.labelMedium,
                         fontWeight = FontWeight.Bold
@@ -703,7 +703,7 @@ internal fun ApiThemesList(
                         horizontalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
                         Text(
-                            text = if (openingsExpanded) "Daha Az" else "+${openings.size - INITIAL_COUNT} Daha",
+                            text = if (openingsExpanded) stringResource(R.string.daha_az) else stringResource(R.string.x_daha, openings.size - INITIAL_COUNT),
                             color = accentColor,
                             style = MaterialTheme.typography.labelMedium,
                             fontWeight = FontWeight.Bold
@@ -777,7 +777,7 @@ internal fun ApiThemesList(
                         horizontalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
                         Text(
-                            text = if (endingsExpanded) "Daha Az" else "+${endings.size - INITIAL_COUNT} Daha",
+                            text = if (endingsExpanded) stringResource(R.string.daha_az) else stringResource(R.string.x_daha, endings.size - INITIAL_COUNT),
                             color = accentColor,
                             style = MaterialTheme.typography.labelMedium,
                             fontWeight = FontWeight.Bold

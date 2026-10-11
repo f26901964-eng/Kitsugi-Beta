@@ -75,7 +75,7 @@ fun PostPlayBingeCard(
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Text(
-                        text = "Sonraki Bölüm Başlıyor",
+                        text = stringResource(R.string.inline_next_episode_starts_c3d90b8),
                         color = Color.White.copy(alpha = 0.7f),
                         fontSize = 12.sp,
                         fontWeight = FontWeight.Bold
@@ -121,13 +121,13 @@ fun PostPlayBingeCard(
                     }
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
-                            text = "Bölüm $nextEpisodeNumber",
+                            text = stringResource(R.string.inline_episode_1_s_dc662be, nextEpisodeNumber),
                             color = Color.White,
                             fontSize = 13.sp,
                             fontWeight = FontWeight.Bold
                         )
                         Text(
-                            text = nextEpisodeTitle.ifBlank { "Bölüm $nextEpisodeNumber" },
+                            text = nextEpisodeTitle.ifBlank { stringResource(R.string.inline_episode_1_s_dc662be, nextEpisodeNumber) },
                             color = Color.White.copy(alpha = 0.65f),
                             fontSize = 11.sp,
                             maxLines = 1,

@@ -60,6 +60,7 @@ import com.kitsugi.animelist.ui.theme.KitsugiColors
 import com.kitsugi.animelist.ui.theme.LocalKitsugiAccent
 import com.kitsugi.animelist.ui.utils.tvClickable
 import kotlinx.coroutines.launch
+import com.kitsugi.animelist.utils.KitsugiStrings
 
 // ─── Platform seçimi ──────────────────────────────────────────────────────────
 
@@ -71,32 +72,32 @@ private enum class NotifPlatform(
     ANILIST(
         label = "AniList",
         logoId = "anilist",
-        description = "Yayın takvimi, aktivite beğenileri, yorumlar ve forum bildirimleri"
+        description = KitsugiStrings.get(R.string.yayin_takvimi_aktivite_begenileri_yorumlar_ve_forum_bildirimleri)
     ),
     MAL(
         label = "MyAnimeList",
         logoId = "mal",
-        description = "Kulüp mesajları, arkadaşlık istekleri ve liste bildirimleri"
+        description = KitsugiStrings.get(R.string.kulup_mesajlari_arkadaslik_istekleri_ve_liste_bildirimleri)
     ),
     TMDB_SIMKL(
         label = "TMDB & Simkl",
         logoId = "simkl",
-        description = "Dizi, film ve anime yeni bölüm yayın bildirimleri"
+        description = KitsugiStrings.get(R.string.dizi_film_ve_anime_yeni_bolum_yayin_bildirimleri)
     ),
     KITSU(
         label = "Kitsu",
         logoId = "kitsu",
-        description = "Topluluk etkileşimleri, yorumlar ve takipçi bildirimleri"
+        description = KitsugiStrings.get(R.string.topluluk_etkilesimleri_yorumlar_ve_takipci_bildirimleri)
     ),
     SHIKIMORI(
         label = "Shikimori",
         logoId = "shikimori",
-        description = "Kullanıcı mesajları, kulüp ve yayın güncellemeleri"
+        description = KitsugiStrings.get(R.string.kullanici_mesajlari_kulup_ve_yayin_guncellemeleri)
     ),
     BANGUMI(
         label = "Bangumi",
         logoId = "bangumi",
-        description = "İzleme listesi (在看) + yayın takvimi bildirimleri"
+        description = KitsugiStrings.get(R.string.izleme_listesi_yayin_takvimi_bildirimleri)
     )
 }
 
@@ -1145,7 +1146,7 @@ private fun NotificationSourcePickerSheet(
                 )
             )
             Text(
-                text = "Görüntülemek ve yönetmek istediğin platform bildirimlerini seç",
+                text = stringResource(R.string.inline_choose_the_platform_notifications__87df9fe),
                 style = MaterialTheme.typography.bodySmall.copy(
                     color = KitsugiColors.TextMuted
                 ),
@@ -1218,7 +1219,7 @@ private fun NotificationSourcePickerSheet(
                                         .padding(horizontal = 6.dp, vertical = 2.dp)
                                 ) {
                                     Text(
-                                        text = if (username.isNotBlank()) "@$username" else "Bağlı",
+                                        text = if (username.isNotBlank()) "@$username" else stringResource(R.string.notif_diag_connected),
                                         color = Color(0xFF27AE60),
                                         style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
                                         fontWeight = FontWeight.Bold
@@ -1248,7 +1249,7 @@ private fun NotificationSourcePickerSheet(
                                         .padding(horizontal = 6.dp, vertical = 2.dp)
                                 ) {
                                     Text(
-                                        text = "$aniListUnread yeni",
+                                        text = stringResource(R.string.x_yeni, aniListUnread),
                                         color = accentColor,
                                         style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
                                         fontWeight = FontWeight.Bold

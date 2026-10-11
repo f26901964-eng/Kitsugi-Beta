@@ -11,6 +11,8 @@ import java.net.URL
 import java.net.URLEncoder
 import okhttp3.Request
 import com.kitsugi.animelist.utils.*
+import com.kitsugi.animelist.utils.KitsugiStrings
+import com.kitsugi.animelist.R
 
 class JikanSearchClient {
     private val aniListSearchClient = AniListSearchClient()
@@ -404,7 +406,7 @@ class JikanSearchClient {
                             JikanSearchResult(
                                 malId = id,
                                 title = name,
-                                subtitle = if (!birthday.isNullOrBlank()) "Doğum: ${birthday.take(10)}" else "Kişi / Seiyuu (MAL)",
+                                subtitle = if (!birthday.isNullOrBlank()) KitsugiStrings.get(R.string.dogum_x, birthday.take(10)) else KitsugiStrings.get(R.string.kisi_seiyuu_mal),
                                 type = MediaType.Anime,
                                 total = null,
                                 score = null,
@@ -447,7 +449,7 @@ class JikanSearchClient {
                         val id = item.getInt("mal_id")
                         val titles = item.optJSONArray("titles")
                         val name = if (titles != null && titles.length() > 0) {
-                            titles.getJSONObject(0).optString("title", item.optString("name", "Stüdyo"))
+                            titles.getJSONObject(0).optString("title", item.optString("name", KitsugiStrings.get(R.string.detail_info_studio)))
                         } else item.optString("name", "Stüdyo")
                         val favs = item.optInt("favorites", 0)
                         val count = item.optInt("count", 0)
@@ -459,7 +461,7 @@ class JikanSearchClient {
                             JikanSearchResult(
                                 malId = id,
                                 title = name,
-                                subtitle = "Stüdyo • $count yapım",
+                                subtitle = KitsugiStrings.get(R.string.studyo_count_yapim, count),
                                 type = MediaType.Anime,
                                 total = count,
                                 score = null,
@@ -1050,7 +1052,7 @@ class JikanSearchClient {
             val node = itemObj.optJSONObject("node") ?: continue
 
             val malId = node.optInt("id", 0)
-            val title = node.optString("title", "Başlıksız")
+            val title = node.optString("title", KitsugiStrings.get(R.string.basliksiz))
 
             val altTitles = node.optJSONObject("alternative_titles")
             val titleEnglish = altTitles?.optNullableString("en")

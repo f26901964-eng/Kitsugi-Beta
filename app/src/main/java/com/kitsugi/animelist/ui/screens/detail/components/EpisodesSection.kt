@@ -6,6 +6,8 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.res.stringResource
+import com.kitsugi.animelist.R
 
 /**
  * FP-18 – Component representing the episodes list section of detail pages.
@@ -22,13 +24,13 @@ fun EpisodesSection(
             .padding(vertical = 8.dp)
     ) {
         Text(
-            text = "Bölümler ($episodeCount)",
+            text = stringResource(R.string.inline_episodes_1_s_b40a1e6, episodeCount),
             style = MaterialTheme.typography.titleMedium,
             modifier = Modifier.padding(bottom = 8.dp)
         )
         if (episodeCount == 0) {
             Text(
-                text = "Bölüm bilgisi mevcut değil.",
+                text = stringResource(R.string.inline_episode_information_is_unavailable_452c7f0),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -39,7 +41,7 @@ fun EpisodesSection(
             ) {
                 for (i in 1..minOf(episodeCount, 4)) {
                     KitsugiButton(onClick = { onEpisodeClick(i) }) {
-                        Text("Bölüm $i")
+                        Text(stringResource(R.string.inline_episode_1_s_dc662be, i))
                     }
                 }
             }

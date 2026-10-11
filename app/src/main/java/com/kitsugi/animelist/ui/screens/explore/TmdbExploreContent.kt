@@ -10,6 +10,7 @@ import com.kitsugi.animelist.R
 import com.kitsugi.animelist.data.remote.JikanSearchResult
 import com.kitsugi.animelist.model.MediaEntry
 import com.kitsugi.animelist.ui.components.KitsugiHorizontalMediaSection
+import com.kitsugi.animelist.utils.KitsugiStrings
 
 fun LazyListScope.tmdbExploreSections(
     viewModel: ExploreViewModel,
@@ -60,7 +61,7 @@ fun LazyListScope.tmdbExploreSections(
     if (filteredNewlyAddedAnime.isNotEmpty()) {
         item {
             KitsugiHorizontalMediaSection(
-                title = "Popüler Animeler",
+                title = KitsugiStrings.get(R.string.populer_animeler),
                 results = filteredNewlyAddedAnime,
                 isLoading = viewModel.isLoading,
                 alreadyInList = isAlreadyInList,
@@ -81,7 +82,7 @@ fun LazyListScope.tmdbExploreSections(
     if (filteredTrendingManga.isNotEmpty()) {
         item {
             KitsugiHorizontalMediaSection(
-                title = "En Yüksek Puanlı Animeler",
+                title = KitsugiStrings.get(R.string.explore_top_rated_anime),
                 results = filteredTrendingManga,
                 isLoading = viewModel.isLoading,
                 alreadyInList = isAlreadyInList,

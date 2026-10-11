@@ -433,7 +433,7 @@ private fun MalFullFiltersContent(uiState: SearchUiState, viewModel: SearchViewM
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
         Text("🎬 Format:", style = MaterialTheme.typography.labelMedium.copy(color = KitsugiColors.TextPrimary))
         val types = listOf(
-            null to "Tümü",
+            null to stringResource(R.string.notif_filter_all),
             "tv" to "TV Dizisi",
             "movie" to "Film",
             "ova" to "OVA",
@@ -464,9 +464,9 @@ private fun MalFullFiltersContent(uiState: SearchUiState, viewModel: SearchViewM
 
     // 2. Yayın Durumu (Status)
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        Text("📡 Durum:", style = MaterialTheme.typography.labelMedium.copy(color = KitsugiColors.TextPrimary))
+        Text(stringResource(R.string.durum), style = MaterialTheme.typography.labelMedium.copy(color = KitsugiColors.TextPrimary))
         val statuses = listOf(
-            null to "Tümü",
+            null to stringResource(R.string.notif_filter_all),
             "airing" to "Yayınlanıyor",
             "complete" to "Tamamlandı",
             "upcoming" to "Yakında"
@@ -496,7 +496,7 @@ private fun MalFullFiltersContent(uiState: SearchUiState, viewModel: SearchViewM
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
         Text(stringResource(R.string.inline_sort_7d09458), style = MaterialTheme.typography.labelMedium.copy(color = KitsugiColors.TextPrimary))
         val orderOptions = listOf(
-            "popularity" to "🔥 Popülerlik",
+            "popularity" to stringResource(R.string.populerlik_e5d41d0),
             "score" to "⭐ Puan",
             "rank" to "🏆 Sıralama",
             "favorites" to "❤️ Favoriler",
@@ -527,7 +527,7 @@ private fun MalFullFiltersContent(uiState: SearchUiState, viewModel: SearchViewM
     // 4. Sıralama Yönü (Sort Direction)
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
         Text(stringResource(R.string.inline_sort_direction_cb3eb46), style = MaterialTheme.typography.labelMedium.copy(color = KitsugiColors.TextPrimary))
-        val sortDirs = listOf("desc" to "⬇️ Azalan (Yüksekten Düşüğe)", "asc" to "⬆️ Artan (Düşükten Yükseğe)")
+        val sortDirs = listOf("desc" to stringResource(R.string.azalan_yuksekten_dusuge), "asc" to stringResource(R.string.artan_dusukten_yuksege))
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             sortDirs.forEach { (dir, label) ->
                 val isSelected = filters.sortDirection == dir
@@ -549,7 +549,7 @@ private fun MalFullFiltersContent(uiState: SearchUiState, viewModel: SearchViewM
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
         Text(stringResource(R.string.inline_age_rating_b66743f), style = MaterialTheme.typography.labelMedium.copy(color = KitsugiColors.TextPrimary))
         val ratings = listOf(
-            null to "Tümü",
+            null to stringResource(R.string.notif_filter_all),
             "g" to "Genel (G)",
             "pg" to "Çocuk (PG)",
             "pg13" to "Genç (PG-13)",
@@ -671,7 +671,7 @@ private fun TmdbFullFiltersContent(uiState: SearchUiState, viewModel: SearchView
     // Min Oy Sayısı
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
         Text(stringResource(R.string.inline_trustworthiness_minimum_vote_count_587f07e), style = MaterialTheme.typography.labelMedium.copy(color = KitsugiColors.TextPrimary))
-        val counts = listOf(null to "Tümü", 50 to "50+ Oy", 200 to "200+ Oy", 1000 to "1.000+ Oy")
+        val counts = listOf(null to stringResource(R.string.notif_filter_all), 50 to "50+ Oy", 200 to "200+ Oy", 1000 to "1.000+ Oy")
         Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
             counts.forEach { (count, label) ->
                 val isSelected = filters.minVoteCount == count
@@ -750,7 +750,7 @@ private fun ShikimoriFullFiltersContent(uiState: SearchUiState, viewModel: Searc
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
         Text(stringResource(R.string.inline_airing_status_a87b048), style = MaterialTheme.typography.labelMedium.copy(color = KitsugiColors.TextPrimary))
         val statuses = listOf(
-            null to "Tümü",
+            null to stringResource(R.string.notif_filter_all),
             "ongoing" to "Yayında (Ongoing)",
             "released" to "Tamamlandı (Released)",
             "anons" to "Yakında (Anons)"
@@ -783,7 +783,7 @@ private fun ShikimoriFullFiltersContent(uiState: SearchUiState, viewModel: Searc
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
         Text(stringResource(R.string.inline_ranking_metric_a98c96c), style = MaterialTheme.typography.labelMedium.copy(color = KitsugiColors.TextPrimary))
         val orders = listOf(
-            "popularity" to "🔥 Popülerlik",
+            "popularity" to stringResource(R.string.populerlik_e5d41d0),
             "ranked" to "⭐ Puan/Sıralama",
             "name" to "🔤 İsim",
             "aired_on" to "📅 Yayın Tarihi",
@@ -815,7 +815,7 @@ private fun ShikimoriFullFiltersContent(uiState: SearchUiState, viewModel: Searc
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
         Text(stringResource(R.string.inline_age_rating_b66743f), style = MaterialTheme.typography.labelMedium.copy(color = KitsugiColors.TextPrimary))
         val ratings = listOf(
-            null to "Tümü",
+            null to stringResource(R.string.notif_filter_all),
             "g" to "Genel (G)",
             "pg" to "Çocuk (PG)",
             "pg_13" to "Genç (PG-13)",
@@ -848,7 +848,7 @@ private fun ShikimoriFullFiltersContent(uiState: SearchUiState, viewModel: Searc
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
         Text(stringResource(R.string.inline_duration_e695f24), style = MaterialTheme.typography.labelMedium.copy(color = KitsugiColors.TextPrimary))
         val durations = listOf(
-            null to "Tümü",
+            null to stringResource(R.string.notif_filter_all),
             "S" to "Kısa (< 10 dk)",
             "D" to "Standart (10-30 dk)",
             "F" to "Uzun (> 30 dk / Film)"
@@ -953,7 +953,7 @@ private fun KitsuFullFiltersContent(uiState: SearchUiState, viewModel: SearchVie
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
         Text(stringResource(R.string.inline_airing_status_a87b048), style = MaterialTheme.typography.labelMedium.copy(color = KitsugiColors.TextPrimary))
         val statuses = listOf(
-            null to "Tümü",
+            null to stringResource(R.string.notif_filter_all),
             "current" to "Devam Eden",
             "finished" to "Tamamlandı",
             "upcoming" to "Yakında",
@@ -1019,7 +1019,7 @@ private fun KitsuFullFiltersContent(uiState: SearchUiState, viewModel: SearchVie
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
         Text(stringResource(R.string.inline_age_rating_2e2c113), style = MaterialTheme.typography.labelMedium.copy(color = KitsugiColors.TextPrimary))
         val ratings = listOf(
-            null to "Tümü",
+            null to stringResource(R.string.notif_filter_all),
             "G" to "Genel (G)",
             "PG" to "Rehberlik (PG)",
             "R" to "17+ (R)",
@@ -1076,8 +1076,8 @@ private fun KitsuFullFiltersContent(uiState: SearchUiState, viewModel: SearchVie
 
     // 6. Minimum Ortalama Puan (minRating 0..100)
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        Text("⭐ Minimum Ortalama Puan:", style = MaterialTheme.typography.labelMedium.copy(color = KitsugiColors.TextPrimary))
-        val scoreSteps = listOf(null to "Tümü", 50 to "%50+", 60 to "%60+", 70 to "%70+", 80 to "%80+", 90 to "%90+")
+        Text(stringResource(R.string.minimum_ortalama_puan), style = MaterialTheme.typography.labelMedium.copy(color = KitsugiColors.TextPrimary))
+        val scoreSteps = listOf(null to stringResource(R.string.notif_filter_all), 50 to "%50+", 60 to "%60+", 70 to "%70+", 80 to "%80+", 90 to "%90+")
         FlowRow(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(6.dp),
@@ -1108,7 +1108,7 @@ private fun SimklFullFiltersContent(uiState: SearchUiState, viewModel: SearchVie
     // 1. Trend Dönemi
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
         Text(stringResource(R.string.inline_trend_period_7d293a0), style = MaterialTheme.typography.labelMedium.copy(color = KitsugiColors.TextPrimary))
-        val periods = listOf("today" to "🔥 Bugün", "week" to "📅 Bu Hafta", "month" to "🗓️ Bu Ay")
+        val periods = listOf("today" to stringResource(R.string.bugun), "week" to stringResource(R.string.bu_hafta), "month" to stringResource(R.string.bu_ay))
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             periods.forEach { (p, label) ->
                 val isSelected = filters.trendingPeriod == p
@@ -1130,7 +1130,7 @@ private fun SimklFullFiltersContent(uiState: SearchUiState, viewModel: SearchVie
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
         Text(stringResource(R.string.inline_format_genre_0cdd587), style = MaterialTheme.typography.labelMedium.copy(color = KitsugiColors.TextPrimary))
         val subtypes = listOf(
-            null to "Tümü",
+            null to stringResource(R.string.notif_filter_all),
             "tv" to "TV / Dizi",
             "movies" to "Film",
             "ovas" to "OVA",
@@ -1162,7 +1162,7 @@ private fun SimklFullFiltersContent(uiState: SearchUiState, viewModel: SearchVie
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
         Text(stringResource(R.string.inline_sort_7d09458), style = MaterialTheme.typography.labelMedium.copy(color = KitsugiColors.TextPrimary))
         val sorts = listOf(
-            "rank" to "🏆 Sıralama",
+            "rank" to stringResource(R.string.siralama_c58f319),
             "popular-today" to "🔥 Bugünün Popüleri",
             "popular-this-week" to "📅 Haftanın Popüleri",
             "votes" to "🗳️ Oy Sayısı",
@@ -1194,7 +1194,7 @@ private fun SimklFullFiltersContent(uiState: SearchUiState, viewModel: SearchVie
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
         Text(stringResource(R.string.inline_category_genre_73db81d), style = MaterialTheme.typography.labelMedium.copy(color = KitsugiColors.TextPrimary))
         val genres = listOf(
-            null to "Tümü",
+            null to stringResource(R.string.notif_filter_all),
             "action" to "Aksiyon",
             "comedy" to "Komedi",
             "drama" to "Dram",
@@ -1233,7 +1233,7 @@ private fun SimklFullFiltersContent(uiState: SearchUiState, viewModel: SearchVie
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
         Text(stringResource(R.string.inline_release_year_c60cec7), style = MaterialTheme.typography.labelMedium.copy(color = KitsugiColors.TextPrimary))
         val years = listOf(
-            null to "Tümü",
+            null to stringResource(R.string.notif_filter_all),
             "2026" to "2026",
             "2025" to "2025",
             "2024" to "2024",
@@ -1269,7 +1269,7 @@ private fun SimklFullFiltersContent(uiState: SearchUiState, viewModel: SearchVie
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
         Text(stringResource(R.string.inline_country_of_origin_91a5f10), style = MaterialTheme.typography.labelMedium.copy(color = KitsugiColors.TextPrimary))
         val countries = listOf(
-            null to "Tümü",
+            null to stringResource(R.string.notif_filter_all),
             "jp" to "🇯🇵 Japonya",
             "kr" to "🇰🇷 Güney Kore",
             "cn" to "🇨🇳 Çin",
@@ -1407,9 +1407,9 @@ private fun BangumiFullFiltersContent(uiState: SearchUiState, viewModel: SearchV
 
     // 1. Sıralama ölçütü
     BangumiChipRow(
-        title = "📊 Sıralama Ölçütü:",
+        title = stringResource(R.string.inline_ranking_metric_a98c96c),
         options = listOf(
-            "match" to "🎯 En İyi Eşleşme",
+            "match" to stringResource(R.string.en_iyi_eslesme),
             "heat" to "🔥 İlgi (收藏热度)",
             "rank" to "🏆 Sıra (Rank)",
             "score" to "⭐ Puan"
@@ -1498,7 +1498,7 @@ private fun BangumiFullFiltersContent(uiState: SearchUiState, viewModel: SearchV
     // 3. Yayın yılı
     val currentYear = java.util.Calendar.getInstance().get(java.util.Calendar.YEAR)
     BangumiChipRow(
-        title = "📅 Yayın Yılı (air_date):",
+        title = stringResource(R.string.yayin_yili_air_date),
         options = buildList {
             add(null to "Tümü")
             (0 until 6).forEach { add((currentYear - it).toString() to (currentYear - it).toString()) }
@@ -1529,9 +1529,9 @@ private fun BangumiFullFiltersContent(uiState: SearchUiState, viewModel: SearchV
 
     // 4. Puan alt sınırı
     BangumiChipRow(
-        title = "⭐ Minimum Puan (rating):",
+        title = stringResource(R.string.minimum_puan_rating),
         options = listOf(
-            null to "Tümü", "6" to "6+", "7" to "7+", "8" to "8+", "9" to "9+"
+            null to stringResource(R.string.notif_filter_all), "6" to "6+", "7" to "7+", "8" to "8+", "9" to "9+"
         ),
         isSelected = { code -> filters.minScore == code?.toIntOrNull() },
         onSelect = { code -> viewModel.updateBangumiFilters(filters.copy(minScore = code?.toIntOrNull())) }
@@ -1542,7 +1542,7 @@ private fun BangumiFullFiltersContent(uiState: SearchUiState, viewModel: SearchV
         BangumiChipRow(
             title = "🎙️ Meslek (career):",
             options = listOf(
-                null to "Tümü",
+                null to stringResource(R.string.notif_filter_all),
                 "seiyu" to "Seslendirmen",
                 "mangaka" to "Mangaka",
                 "artist" to "Sanatçı",
@@ -1565,14 +1565,14 @@ private fun BangumiFullFiltersContent(uiState: SearchUiState, viewModel: SearchV
     // 6. İçerik anahtarları
     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
         BangumiSwitchRow(
-            label = "🔞 +18 (NSFW)条目'ları dahil et",
-            hint = "Kapalıyken Bangumi R18 sonuçları hiç döndürmez.",
+            label = stringResource(R.string.18_nsfw_lari_dahil_et),
+            hint = stringResource(R.string.kapaliyken_bangumi_r18_sonuclari_hic_dondurmez),
             checked = filters.nsfw,
             onCheckedChange = { viewModel.updateBangumiFilters(filters.copy(nsfw = it)) }
         )
         BangumiSwitchRow(
-            label = "📖 Manga kapsamında yalnız 漫画",
-            hint = "Kapatınca roman (小说) ve çizim kitabı (画集)条目'ları da listelenir.",
+            label = stringResource(R.string.manga_kapsaminda_yalniz),
+            hint = stringResource(R.string.kapatinca_roman_ve_cizim_kitabi_lari_da_listelenir),
             checked = filters.comicsOnly,
             onCheckedChange = { viewModel.updateBangumiFilters(filters.copy(comicsOnly = it)) }
         )

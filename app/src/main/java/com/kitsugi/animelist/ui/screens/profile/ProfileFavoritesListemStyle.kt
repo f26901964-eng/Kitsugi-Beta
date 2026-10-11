@@ -66,6 +66,7 @@ import com.kitsugi.animelist.ui.utils.tvClickable
 import kotlinx.coroutines.launch
 import androidx.compose.ui.res.stringResource
 import com.kitsugi.animelist.R
+import com.kitsugi.animelist.utils.KitsugiStrings
 
 /**
  * Profil favorileri için Listem (MyListScreen) ile birebir aynı kart düzenleri,
@@ -74,7 +75,7 @@ import com.kitsugi.animelist.R
  */
 
 /** Favori kategorileri — sekme indexi ile aynı sırada. */
-val ProfileFavoriteCategoryLabels = listOf("Anime", "Manga", "Karakterler", "Ekip", "Stüdyolar")
+val ProfileFavoriteCategoryLabels = listOf("Anime", "Manga", "Karakterler", "Ekip", KitsugiStrings.get(R.string.detail_section_studios))
 val ProfileFavoriteCategoryKeys = listOf("anime", "manga", "characters", "staff", "studios")
 
 // ─────────────────────────────────────────────────────────────────────────────

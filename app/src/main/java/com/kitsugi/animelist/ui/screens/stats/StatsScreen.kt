@@ -130,21 +130,21 @@ fun StatsScreen(
                             modifier = Modifier.weight(1f),
                             icon = Icons.Rounded.Slideshow,
                             iconColor = StatsChartColors.Paused,
-                            label = "Bölüm",
+                            label = stringResource(R.string.bolum),
                             value = uiState.totalEpisodesWatched.toString()
                         )
                         StatsSummaryCard(
                             modifier = Modifier.weight(1f),
                             icon = Icons.Rounded.AccessTime,
                             iconColor = Color(0xFF00BCD4),
-                            label = "Gün",
+                            label = stringResource(R.string.gun),
                             value = "%.1f".format(uiState.daysWatched)
                         )
                         StatsSummaryCard(
                             modifier = Modifier.weight(1f),
                             icon = Icons.Rounded.Star,
                             iconColor = Color(0xFFFFC107),
-                            label = "Ort. Puan",
+                            label = stringResource(R.string.ort_puan),
                             value = if (uiState.meanScore > 0) "%.1f".format(uiState.meanScore) else "-"
                         )
                     }
@@ -187,7 +187,7 @@ fun StatsScreen(
 
                     // ─── Anime Puan Dağılımı ─────────────────────────────────────────
                     if (uiState.animeScoreStats.isNotEmpty()) {
-                        StatsSection(title = "Anime Puan Dağılımı") {
+                        StatsSection(title = stringResource(R.string.anime_puan_dagilimi)) {
                             Column(
                                 modifier = Modifier
                                     .fillMaxWidth()
@@ -196,7 +196,7 @@ fun StatsScreen(
                                 val maxCount = uiState.animeScoreStats.maxOfOrNull { it.count } ?: 1
                                 uiState.animeScoreStats.sortedByDescending { it.score }.forEach { stat ->
                                     KitsugiHorizontalStatsBar(
-                                        label = "${stat.score} Puan",
+                                        label = stringResource(R.string.x_puan, stat.score),
                                         count = stat.count,
                                         maxCount = maxCount,
                                         barColor = StatsChartColors.ScoreColors.getOrElse(stat.score - 1) {
@@ -247,8 +247,8 @@ fun StatsScreen(
                     // T2-05: Standart boş durum bileşeni
                     if (uiState.totalAnime == 0 && uiState.totalManga == 0) {
                         KitsugiEmptyState(
-                            title = "İstatistik için liste gerekli",
-                            subtitle = "Anime veya manga ekledikten sonra istatistikler burada görünür.",
+                            title = stringResource(R.string.istatistik_icin_liste_gerekli),
+                            subtitle = stringResource(R.string.anime_veya_manga_ekledikten_sonra_istatistikler_burada_gorunur),
                             icon = Icons.Rounded.BarChart
                         )
                     }

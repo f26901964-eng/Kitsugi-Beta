@@ -39,6 +39,7 @@ import java.util.Date
 import java.util.Locale
 import androidx.compose.ui.res.stringResource
 import com.kitsugi.animelist.R
+import com.kitsugi.animelist.utils.KitsugiStrings
 
 @Composable
 fun WatchHistoryScreen(
@@ -69,7 +70,7 @@ fun WatchHistoryScreen(
                 )
             }
             Text(
-                text = "İzleme Geçmişi",
+                text = stringResource(R.string.settings_watch_history),
                 color = KitsugiColors.TextPrimary,
                 fontSize = 20.sp,
                 fontWeight = FontWeight.Bold,
@@ -101,13 +102,13 @@ fun WatchHistoryScreen(
                         modifier = Modifier.size(72.dp)
                     )
                     Text(
-                        text = "Henüz izleme geçmişin yok.",
+                        text = stringResource(R.string.inline_you_have_no_watch_history_28cb4be),
                         color = KitsugiColors.TextMuted,
                         fontSize = 15.sp,
                         fontWeight = FontWeight.Medium
                     )
                     Text(
-                        text = "Bir video izlemeye başladığında burada görünecek.",
+                        text = stringResource(R.string.inline_videos_you_start_watching_will_11087ce),
                         color = KitsugiColors.TextMuted.copy(alpha = 0.7f),
                         fontSize = 13.sp
                     )
@@ -135,7 +136,7 @@ fun WatchHistoryScreen(
                                 KitsugiFullscreenPlayerActivity.startWithStreamUrls(
                                     context = context,
                                     videoUrl = savedUrl,
-                                    title = "${entry.animeTitle} - Bölüm ${entry.episode}",
+                                    title = KitsugiStrings.get(R.string.title_bolum_episode, entry.animeTitle, entry.episode),
                                     headers = entry.streamHeaders,
                                     subtitles = emptyList(),
                                     malId = entry.malId,
@@ -192,7 +193,7 @@ fun WatchHistoryScreen(
             title = { Text(stringResource(R.string.gecmisi_temizle), fontWeight = FontWeight.Bold) },
             text = {
                 Text(
-                    "Tüm izleme geçmişin silinecek. Bu işlem geri alınamaz.",
+                    stringResource(R.string.inline_your_entire_watch_history_will_fd81ca4),
                     color = KitsugiColors.TextSecondary
                 )
             },
@@ -301,7 +302,7 @@ private fun WatchHistoryItem(
 
             if (!entry.streamName.isNullOrBlank()) {
                 Text(
-                    text = "Yayın: ${entry.streamName}",
+                    text = stringResource(R.string.inline_stream_1_s_038cf7a, entry.streamName),
                     color = LocalKitsugiAccent.current,
                     fontSize = 13.sp,
                     fontWeight = FontWeight.Bold,
@@ -349,7 +350,7 @@ private fun WatchHistoryItem(
                 }
                 if (!entry.streamUrl.isNullOrBlank() && !isExpired) {
                     HistoryBadge(
-                        text = "⚡ Anında",
+                        text = stringResource(R.string.aninda),
                         color = KitsugiColors.AccentGreen,
                         bgColor = KitsugiColors.AccentGreen,
                         bgAlpha = 0.13f
@@ -398,7 +399,7 @@ private fun WatchHistoryItem(
         IconButton(onClick = onDelete, modifier = Modifier.size(36.dp)) {
             Icon(
                 imageVector = Icons.Rounded.Delete,
-                contentDescription = "Sil",
+                contentDescription = stringResource(R.string.action_delete),
                 tint = KitsugiColors.TextMuted,
                 modifier = Modifier.size(18.dp)
             )

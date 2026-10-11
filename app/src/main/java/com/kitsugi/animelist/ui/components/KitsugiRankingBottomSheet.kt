@@ -52,6 +52,7 @@ import com.kitsugi.animelist.ui.theme.LocalKitsugiAccent
 import kotlinx.coroutines.launch
 import androidx.compose.ui.res.stringResource
 import com.kitsugi.animelist.R
+import com.kitsugi.animelist.utils.KitsugiStrings
 
 @Composable
 fun KitsugiRankingBottomSheet(
@@ -207,8 +208,8 @@ fun KitsugiRankingBottomSheet(
                     contentAlignment = Alignment.Center
                 ) {
                     KitsugiEmptyState(
-                        title = "Sonuç Bulunamadı",
-                        subtitle = "Seçilen kategori için sıralama verisi mevcut değil.",
+                        title = KitsugiStrings.get(R.string.sonuc_bulunamadi_b51f9f8),
+                        subtitle = KitsugiStrings.get(R.string.secilen_kategori_icin_siralama_verisi_mevcut_degil),
                         icon = Icons.Rounded.SearchOff
                     )
                 }
@@ -252,9 +253,9 @@ private fun KitsugiRankingTabs(
     val accentColor = LocalKitsugiAccent.current
     val tabs = remember(isManga) {
         if (isManga) {
-            listOf("SCORE" to "Puan", "POPULARITY" to "Popülerlik", "FAVORITE" to "Favori")
+            listOf("SCORE" to KitsugiStrings.get(R.string.detail_stat_score), "POPULARITY" to KitsugiStrings.get(R.string.populerlik), "FAVORITE" to "Favori")
         } else {
-            listOf("SCORE" to "Puan", "POPULARITY" to "Popülerlik", "FAVORITE" to "Favori", "UPCOMING" to "Yakında")
+            listOf("SCORE" to KitsugiStrings.get(R.string.detail_stat_score), "POPULARITY" to KitsugiStrings.get(R.string.populerlik), "FAVORITE" to "Favori", "UPCOMING" to KitsugiStrings.get(R.string.yakinda))
         }
     }
 

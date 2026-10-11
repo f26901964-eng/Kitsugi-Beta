@@ -13,6 +13,8 @@ import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONArray
 import org.json.JSONObject
+import com.kitsugi.animelist.utils.KitsugiStrings
+import com.kitsugi.animelist.R
 
 /**
  * Kitsu.io JSON-API İstemcisi.
@@ -210,7 +212,7 @@ object KitsuApiClient {
             val userObj = data.getJSONObject(0)
             val userId = userObj.getString("id")
             val attrs = userObj.optJSONObject("attributes")
-            val name = attrs?.optString("name", "Kitsu Kullanıcısı") ?: "Kitsu Kullanıcısı"
+            val name = attrs?.optString("name", KitsugiStrings.get(R.string.kitsu_kullanicisi)) ?: KitsugiStrings.get(R.string.kitsu_kullanicisi)
             val avatarObj = attrs?.optJSONObject("avatar")
             val avatarUrl = avatarObj?.optString("original")
                 ?: avatarObj?.optString("large")
@@ -559,7 +561,7 @@ object KitsuApiClient {
         }
 
         var attempt = 0
-        var lastResult = KitsuWriteResult(success = false, errorMessage = "Kitsu isteği gönderilemedi")
+        var lastResult = KitsuWriteResult(success = false, errorMessage = KitsugiStrings.get(R.string.kitsu_istegi_gonderilemedi))
         while (attempt < 3) {
             attempt++
             PlatformRateLimiter.acquire("kitsu")
@@ -578,12 +580,12 @@ object KitsuApiClient {
                     response.code == 429 -> {
                         PlatformRateLimiter.notifyRateLimited("kitsu")
                         Log.w(TAG, "Kitsu createLibraryEntry rate limited (429), retrying (deneme $attempt/3)...")
-                        KitsuWriteResult(success = false, errorMessage = "HTTP 429 (hız sınırı)", rateLimited = true, httpCode = 429)
+                        KitsuWriteResult(success = false, errorMessage = KitsugiStrings.get(R.string.http_429_hiz_siniri), rateLimited = true, httpCode = 429)
                     }
                     response.isSuccessful -> {
                         val id = JSONObject(body).optJSONObject("data")?.optString("id")?.takeIf { it.isNotBlank() }
                         if (id != null) KitsuWriteResult(success = true, entryId = id, httpCode = response.code)
-                        else KitsuWriteResult(success = false, errorMessage = "HTTP ${response.code}: yanıtta kayıt kimliği yok", httpCode = response.code)
+                        else KitsuWriteResult(success = false, errorMessage = KitsugiStrings.get(R.string.http_x_yanitta_kayit_kimligi_yok, response.code), httpCode = response.code)
                     }
                     else -> {
                         Log.e(TAG, "createLibraryEntry failed: ${response.code} $body")
@@ -674,7 +676,7 @@ object KitsuApiClient {
         }
 
         var attempt = 0
-        var lastResult = KitsuWriteResult(success = false, errorMessage = "Kitsu isteği gönderilemedi")
+        var lastResult = KitsuWriteResult(success = false, errorMessage = KitsugiStrings.get(R.string.kitsu_istegi_gonderilemedi))
         while (attempt < 3) {
             attempt++
             PlatformRateLimiter.acquire("kitsu")
@@ -693,7 +695,7 @@ object KitsuApiClient {
                     response.code == 429 -> {
                         PlatformRateLimiter.notifyRateLimited("kitsu")
                         Log.w(TAG, "Kitsu updateLibraryEntry rate limited (429), retrying (deneme $attempt/3)...")
-                        KitsuWriteResult(success = false, errorMessage = "HTTP 429 (hız sınırı)", rateLimited = true, httpCode = 429)
+                        KitsuWriteResult(success = false, errorMessage = KitsugiStrings.get(R.string.http_429_hiz_siniri), rateLimited = true, httpCode = 429)
                     }
                     response.isSuccessful -> KitsuWriteResult(success = true, entryId = entryId, httpCode = response.code)
                     else -> {

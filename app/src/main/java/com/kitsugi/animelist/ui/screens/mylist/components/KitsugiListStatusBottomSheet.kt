@@ -36,6 +36,8 @@ import com.kitsugi.animelist.ui.components.KitsugiSheetOrDialog
 import com.kitsugi.animelist.ui.theme.KitsugiColors
 import com.kitsugi.animelist.ui.theme.LocalKitsugiAccent
 import com.kitsugi.animelist.ui.utils.tvClickable
+import androidx.compose.ui.res.stringResource
+import com.kitsugi.animelist.R
 
 data class StatusItemData(
     val id: String,
@@ -65,7 +67,7 @@ fun KitsugiListStatusBottomSheet(
     val favoritesCount = entries.count { it.isFavorite }
 
     val statusItems = mutableListOf(
-        StatusItemData("all", "Tümü", Icons.Rounded.FormatListBulleted, totalCount),
+        StatusItemData("all", stringResource(R.string.notif_filter_all), Icons.Rounded.FormatListBulleted, totalCount),
         StatusItemData("watching", "İzleniyor", Icons.Rounded.PlayCircle, watchingCount),
         StatusItemData("completed", "Tamamlandı", Icons.Rounded.CheckCircle, completedCount),
         StatusItemData("planned", "Planlanan", Icons.Rounded.Schedule, plannedCount),

@@ -73,6 +73,7 @@ import com.kitsugi.animelist.core.player.QualityProfile
 import com.kitsugi.animelist.core.player.QualityDataHelper
 import androidx.compose.ui.res.stringResource
 import com.kitsugi.animelist.R
+import com.kitsugi.animelist.utils.KitsugiStrings
 
 /**
  * Stream picker screen.
@@ -280,7 +281,7 @@ fun KitsugiStreamScreen(
                 }
             } catch (e: Exception) {
                 Log.e("KitsugiStreamScreen", "Oynatıcı başlatılamadı: ${e.message}", e)
-                android.widget.Toast.makeText(context, "Oynatıcı başlatılamadı: ${e.message}", android.widget.Toast.LENGTH_LONG).show()
+                android.widget.Toast.makeText(context, KitsugiStrings.get(R.string.oynatici_baslatilamadi_x, e.message), android.widget.Toast.LENGTH_LONG).show()
             }
         }
     }
@@ -382,7 +383,7 @@ fun KitsugiStreamScreen(
                         streamTitle = source.title,
                         streamName = source.name
                     )
-                    android.widget.Toast.makeText(context, "İndirme kuyruğa eklendi", android.widget.Toast.LENGTH_SHORT).show()
+                    android.widget.Toast.makeText(context, KitsugiStrings.get(R.string.indirme_kuyruga_eklendi), android.widget.Toast.LENGTH_SHORT).show()
                     context.startActivity(
                         android.content.Intent(context, com.kitsugi.animelist.ui.screens.offline.DownloadsActivity::class.java)
                     )
@@ -500,7 +501,7 @@ fun KitsugiStreamScreen(
                     OutlinedTextField(
                         value = queryText,
                         onValueChange = { queryText = it },
-                        placeholder = { Text("Anime/Dizi/Film adı yazın...", color = KitsugiColors.TextMuted) },
+                        placeholder = { Text(stringResource(R.string.inline_enter_an_anime_series_or_1d8d8bb), color = KitsugiColors.TextMuted) },
                         singleLine = true,
                         trailingIcon = {
                             IconButton(
@@ -551,7 +552,7 @@ fun KitsugiStreamScreen(
                         }
                     } else if (searchResults.isEmpty()) {
                         Box(modifier = Modifier.fillMaxWidth().height(100.dp), contentAlignment = Alignment.Center) {
-                            Text("Sonuç yok. Arama yapın veya farklı terim deneyin.", color = KitsugiColors.TextMuted)
+                            Text(stringResource(R.string.inline_no_results_search_or_try_7468bcc), color = KitsugiColors.TextMuted)
                         }
                     } else {
                         LazyColumn(
@@ -734,7 +735,7 @@ private fun TvStreamSettingsDialog(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 androidx.tv.material3.Text(
-                    text = "Akış & Eklenti Ayarları",
+                    text = stringResource(R.string.akis_eklenti_ayarlari),
                     style = androidx.tv.material3.MaterialTheme.typography.titleLarge,
                     color = Color.White,
                     fontWeight = FontWeight.Bold
@@ -767,8 +768,8 @@ private fun TvStreamSettingsDialog(
                         val isConnected = addonViewModel.debridToken.isNotBlank()
                         TvSettingsActionRow(
                             title = "RealDebrid / Alldebrid Token",
-                            description = if (isConnected) "Token tanımlı: ${addonViewModel.debridToken.take(8)}..." else "Hesap bağlı değil. Debrid tokeninizi girmek için tıklayın.",
-                            actionText = if (isConnected) "Güncelle" else "Bağla",
+                            description = if (isConnected) stringResource(R.string.token_tanimli_x, addonViewModel.debridToken.take(8)) else stringResource(R.string.hesap_bagli_degil_debrid_tokeninizi_girmek_icin_tiklayin),
+                            actionText = if (isConnected) stringResource(R.string.inline_update_e9a7033) else stringResource(R.string.tv_connect),
                             onClick = { showDebridDialog = true }
                         )
                     }
@@ -777,7 +778,7 @@ private fun TvStreamSettingsDialog(
                     item {
                         Spacer(modifier = Modifier.height(8.dp))
                         androidx.tv.material3.Text(
-                            text = "Eklenti Havuzları (Repos)",
+                            text = stringResource(R.string.eklenti_havuzlari_repos),
                             style = androidx.tv.material3.MaterialTheme.typography.titleMedium,
                             color = androidx.tv.material3.MaterialTheme.colorScheme.primary,
                             fontWeight = FontWeight.Bold,
@@ -809,8 +810,8 @@ private fun TvStreamSettingsDialog(
 
                     item {
                         TvSettingsActionRow(
-                            title = "+ Yeni Repo Ekle",
-                            description = "Yeni bir eklenti havuzu URL'si ekleyin.",
+                            title = stringResource(R.string.yeni_repo_ekle),
+                            description = stringResource(R.string.yeni_bir_eklenti_havuzu_url_si_ekleyin),
                             actionText = stringResource(R.string.ekle),
                             onClick = { showAddRepoDialog = true }
                         )
@@ -866,7 +867,7 @@ private fun TvStreamSettingsDialog(
         var repoUrlInput by remember { mutableStateOf("") }
         androidx.compose.material3.AlertDialog(
             onDismissRequest = { showAddRepoDialog = false },
-            title = { com.kitsugi.animelist.ui.theme.gradient.Text("Yeni Repo Ekle", color = Color.White) },
+            title = { com.kitsugi.animelist.ui.theme.gradient.Text(stringResource(R.string.yeni_repo_ekle_3154d60), color = Color.White) },
             text = {
                 androidx.compose.material3.OutlinedTextField(
                     value = repoUrlInput,

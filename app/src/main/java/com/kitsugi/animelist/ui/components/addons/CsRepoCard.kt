@@ -144,7 +144,7 @@ internal fun CsRepoCard(
 
             if (plugins == null) {
                 Text(
-                    text = if (isLoading) "Eklentiler alınıyor..." else "Eklentiler yüklenemedi",
+                    text = if (isLoading) stringResource(R.string.ui_plugins_loading) else stringResource(R.string.ui_plugins_load_failed),
                     color = KitsugiColors.TextMuted,
                     style = MaterialTheme.typography.labelSmall
                 )
@@ -157,7 +157,7 @@ internal fun CsRepoCard(
                         .tvClickable(shape = RoundedCornerShape(8.dp)) { onDeleteRepo() },
                     contentAlignment = Alignment.Center
                 ) {
-                    Icon(Icons.Rounded.Delete, contentDescription = "Sil", tint = KitsugiColors.AccentRed, modifier = Modifier.size(16.dp))
+                    Icon(Icons.Rounded.Delete, contentDescription = stringResource(R.string.action_delete), tint = KitsugiColors.AccentRed, modifier = Modifier.size(16.dp))
                 }
             } else {
                 val allInstalled = totalCount > 0 && installedCount == totalCount
@@ -184,7 +184,7 @@ internal fun CsRepoCard(
                         .padding(horizontal = 8.dp, vertical = 4.dp)
                 ) {
                     Text(
-                        text = if (allInstalled) "✓ $installedCount/$totalCount" else "$installedCount/$totalCount Yüklü",
+                        text = if (allInstalled) "✓ $installedCount/$totalCount" else stringResource(R.string.x_x_yuklu, installedCount, totalCount),
                         color = when {
                             allInstalled -> KitsugiColors.AccentGreen
                             hasUpdates -> KitsugiColors.AccentOrange
@@ -232,7 +232,7 @@ internal fun CsRepoCard(
                                 },
                             contentAlignment = Alignment.Center
                         ) {
-                            Icon(Icons.Rounded.DownloadForOffline, contentDescription = "Tümünü İndir", tint = accentColor, modifier = Modifier.size(16.dp))
+                            Icon(Icons.Rounded.DownloadForOffline, contentDescription = stringResource(R.string.tumunu_indir), tint = accentColor, modifier = Modifier.size(16.dp))
                         }
                         Spacer(Modifier.width(6.dp))
                     }
@@ -257,7 +257,7 @@ internal fun CsRepoCard(
                             .tvClickable(shape = RoundedCornerShape(8.dp)) { onDeleteRepo() },
                         contentAlignment = Alignment.Center
                     ) {
-                        Icon(Icons.Rounded.Delete, contentDescription = "Sil", tint = KitsugiColors.AccentRed, modifier = Modifier.size(16.dp))
+                        Icon(Icons.Rounded.Delete, contentDescription = stringResource(R.string.action_delete), tint = KitsugiColors.AccentRed, modifier = Modifier.size(16.dp))
                     }
                 }
             }
@@ -302,7 +302,7 @@ internal fun CsRepoCard(
             } else if (plugins == null) {
                 Box(modifier = Modifier.fillMaxWidth().padding(16.dp), contentAlignment = Alignment.Center) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text("Eklentiler yüklenemedi. (Bağlantı veya URL hatası)", color = KitsugiColors.AccentRed, style = MaterialTheme.typography.bodySmall)
+                        Text(stringResource(R.string.inline_extensions_couldn_t_be_loaded_4e74551), color = KitsugiColors.AccentRed, style = MaterialTheme.typography.bodySmall)
                         Spacer(Modifier.height(8.dp))
                         Text(
                             text = stringResource(R.string.yeniden_dene),
@@ -319,7 +319,7 @@ internal fun CsRepoCard(
                 }
             } else if (plugins.isEmpty()) {
                 Box(modifier = Modifier.fillMaxWidth().padding(16.dp), contentAlignment = Alignment.Center) {
-                    Text("Bu repoda eklenti bulunamadı.", color = KitsugiColors.TextMuted, style = MaterialTheme.typography.bodySmall)
+                    Text(stringResource(R.string.inline_no_extensions_found_in_this_cf9865d), color = KitsugiColors.TextMuted, style = MaterialTheme.typography.bodySmall)
                 }
             } else {
                 val languages = plugins.mapNotNull { it.language?.uppercase() }.distinct().sorted()
@@ -382,7 +382,7 @@ internal fun CsRepoCard(
 
                 if (filteredPlugins.isEmpty()) {
                     Box(modifier = Modifier.fillMaxWidth().padding(16.dp), contentAlignment = Alignment.Center) {
-                        Text("Filtrelere uygun eklenti bulunamadı.", color = KitsugiColors.TextMuted, style = MaterialTheme.typography.bodySmall)
+                        Text(stringResource(R.string.inline_no_extensions_match_the_filters_495c61d), color = KitsugiColors.TextMuted, style = MaterialTheme.typography.bodySmall)
                     }
                 } else {
                     Column(

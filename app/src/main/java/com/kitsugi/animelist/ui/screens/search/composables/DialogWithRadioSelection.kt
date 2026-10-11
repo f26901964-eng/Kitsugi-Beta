@@ -20,6 +20,8 @@ import androidx.compose.runtime.toMutableStateList
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.res.stringResource
+import com.kitsugi.animelist.R
 
 /**
  * Ported from AniHyou's CommonAlertDialog.kt.
@@ -48,12 +50,12 @@ fun <T : KitsugiLocalizable> DialogWithRadioSelection(
         onDismissRequest = onDismiss,
         confirmButton = {
             TextButton(onClick = { onConfirm(selectedValue) }) {
-                Text(text = "Tamam")
+                Text(text = stringResource(R.string.settings_ok))
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text(text = "İptal")
+                Text(text = stringResource(R.string.settings_cancel))
             }
         },
         title = { if (title != null) Text(text = title) },
@@ -70,7 +72,7 @@ fun <T : KitsugiLocalizable> DialogWithRadioSelection(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             RadioButton(selected = selectedValue == null, onClick = { selectedValue = null })
-                            Text(text = "Tümü")
+                            Text(text = stringResource(R.string.notif_filter_all))
                         }
                     }
                 }
@@ -115,12 +117,12 @@ fun <T : KitsugiLocalizable> DialogWithCheckboxSelection(
         onDismissRequest = onDismiss,
         confirmButton = {
             TextButton(onClick = { onConfirm(selectedValues.toList()) }) {
-                Text(text = "Tamam")
+                Text(text = stringResource(R.string.settings_ok))
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text(text = "İptal")
+                Text(text = stringResource(R.string.settings_cancel))
             }
         },
         title = { if (title != null) Text(text = title) },

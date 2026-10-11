@@ -16,6 +16,8 @@ import org.json.JSONArray
 import org.json.JSONObject
 import java.net.URLEncoder
 import com.kitsugi.animelist.utils.*
+import com.kitsugi.animelist.utils.KitsugiStrings
+import com.kitsugi.animelist.R
 
 object KitsuClient {
     private const val TAG = "KitsuClient"
@@ -376,7 +378,7 @@ object KitsuClient {
                         ?: attrs.optString("canonicalTitle", "").takeIf { it.isNotBlank() }
                     val thumbnail = attrs.optJSONObject("thumbnail")
                         ?.optString("original")?.takeIf { it.isNotBlank() }
-                    val title = if (!titleEn.isNullOrBlank()) "#$epNum – $titleEn" else "Bölüm $epNum"
+                    val title = if (!titleEn.isNullOrBlank()) "#$epNum – $titleEn" else KitsugiStrings.get(R.string.inline_episode_1_s_dc662be, epNum)
 
                     results.add(
                         KitsugiStreamingEpisode(

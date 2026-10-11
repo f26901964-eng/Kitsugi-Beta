@@ -39,6 +39,7 @@ import androidx.compose.material.icons.rounded.Download
 import com.kitsugi.animelist.ui.screens.stream.KitsugiStreamActivity
 import androidx.compose.ui.res.stringResource
 import com.kitsugi.animelist.R
+import com.kitsugi.animelist.utils.KitsugiStrings
 
 @Composable
 fun KitsugiEpisodeOptionsDialog(
@@ -61,7 +62,7 @@ fun KitsugiEpisodeOptionsDialog(
     onDismiss: () -> Unit
 ) {
     val context = LocalContext.current
-    val epNumText = if (episodeNumber != null) "$episodeNumber. Bölüm" else "Bölüm"
+    val epNumText = if (episodeNumber != null) stringResource(R.string.inline_1_s_episode_6f7288b, episodeNumber) else stringResource(R.string.bolum)
     val fullTitle = buildString {
         append(animeTitle)
         if (episodeNumber != null) append(" $episodeNumber. Bölüm")
@@ -122,8 +123,8 @@ fun KitsugiEpisodeOptionsDialog(
                 if (episodeNumber != null) {
                     EpisodeOptionRow(
                         icon = Icons.Rounded.PlayArrow,
-                        title = "Akış Eklentileri ile İzle",
-                        description = "Torrent ve RealDebrid akışlarını çözümler",
+                        title = KitsugiStrings.get(R.string.akis_eklentileri_ile_izle),
+                        description = KitsugiStrings.get(R.string.torrent_ve_realdebrid_akislarini_cozumler),
                         onClick = {
                         KitsugiStreamActivity.start(
                                 context = context,
@@ -150,8 +151,8 @@ fun KitsugiEpisodeOptionsDialog(
                 if (episodeNumber != null) {
                     EpisodeOptionRow(
                         icon = Icons.Rounded.Download,
-                        title = "Bölümü İndir",
-                        description = "Akış eklentileri aracılığıyla bölümü indirir",
+                        title = KitsugiStrings.get(R.string.bolumu_indir),
+                        description = KitsugiStrings.get(R.string.akis_eklentileri_araciligiyla_bolumu_indirir),
                         onClick = {
                             KitsugiStreamActivity.start(
                                 context = context,
@@ -177,11 +178,11 @@ fun KitsugiEpisodeOptionsDialog(
 
                 // 1. Resmi Linke Git (eğer varsa)
                 if (!originalUrl.isNullOrBlank()) {
-                    val label = if (!siteName.isNullOrBlank()) "Resmi İzleme Adresi ($siteName)" else "Resmi Sayfaya Git"
+                    val label = if (!siteName.isNullOrBlank()) KitsugiStrings.get(R.string.resmi_izleme_adresi_x, siteName) else "Resmi Sayfaya Git"
                     EpisodeOptionRow(
                         icon = Icons.Rounded.PlayCircle,
                         title = label,
-                        description = "Lisans sahibi platformda izle",
+                        description = KitsugiStrings.get(R.string.lisans_sahibi_platformda_izle),
                         onClick = { openUrl(originalUrl) }
                     )
                 }
@@ -191,8 +192,8 @@ fun KitsugiEpisodeOptionsDialog(
                 val ytUrl = "https://www.youtube.com/results?search_query=$ytQuery"
                 EpisodeOptionRow(
                     icon = Icons.Rounded.Search,
-                    title = "YouTube'da Ara",
-                    description = "Klipler, incelemeler veya fragmanlar için arat",
+                    title = KitsugiStrings.get(R.string.youtube_da_ara),
+                    description = KitsugiStrings.get(R.string.klipler_incelemeler_veya_fragmanlar_icin_arat),
                     onClick = { openUrl(ytUrl) }
                 )
 
@@ -201,8 +202,8 @@ fun KitsugiEpisodeOptionsDialog(
                 val googleUrl = "https://www.google.com/search?q=$googleQuery"
                 EpisodeOptionRow(
                     icon = Icons.Rounded.Language,
-                    title = "Google'da Ara (İngilizce)",
-                    description = "Yabancı dizi/anime sitelerinde arat",
+                    title = KitsugiStrings.get(R.string.google_da_ara_ingilizce),
+                    description = KitsugiStrings.get(R.string.yabanci_dizi_anime_sitelerinde_arat),
                     onClick = { openUrl(googleUrl) }
                 )
 
@@ -211,8 +212,8 @@ fun KitsugiEpisodeOptionsDialog(
                 val trUrl = "https://www.google.com/search?q=$trQuery"
                 EpisodeOptionRow(
                     icon = Icons.Rounded.Language,
-                    title = "Türkçe Altyazılı Ara",
-                    description = "Türkçe anime izleme sitelerinde arat",
+                    title = KitsugiStrings.get(R.string.turkce_altyazili_ara),
+                    description = KitsugiStrings.get(R.string.turkce_anime_izleme_sitelerinde_arat),
                     onClick = { openUrl(trUrl) }
                 )
             }

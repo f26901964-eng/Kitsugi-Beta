@@ -12,6 +12,8 @@ import org.json.JSONArray
 import org.json.JSONObject
 import java.net.URL
 import com.kitsugi.animelist.utils.*
+import com.kitsugi.animelist.utils.KitsugiStrings
+import com.kitsugi.animelist.R
 
 object KitsugiShikimoriClient {
     private const val TAG = "KitsugiShikimoriClient"
@@ -341,7 +343,7 @@ object KitsugiShikimoriClient {
                 val item = array.optJSONObject(i) ?: continue
                 val id = item.optInt("id")
                 if (id <= 0) continue
-                val name = item.optString("name", "").ifBlank { item.optString("russian", "Kişi") }
+                val name = item.optString("name", "").ifBlank { item.optString("russian", KitsugiStrings.get(R.string.gallery_cat_person)) }
                 val relativeImg = item.optJSONObject("image")?.optString("original")
                 val imageUrl = ShikimoriPosterResolver.absoluteUrl(relativeImg)
                 val role = when (kind) {
@@ -393,7 +395,7 @@ object KitsugiShikimoriClient {
                         url = fullUrl,
                         source = "Shikimori",
                         category = GalleryCategory.BACKDROP,
-                        description = "Shikimori Ekran Görüntüsü",
+                        description = KitsugiStrings.get(R.string.shikimori_ekran_goruntusu),
                         language = "ru"
                     )
                 )

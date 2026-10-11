@@ -33,6 +33,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import kotlin.math.pow
 import kotlin.math.roundToInt
+import androidx.compose.ui.res.stringResource
+import com.kitsugi.animelist.R
 
 private val DEFAULT_SPEED_PRESETS = listOf(0.25f, 0.5f, 0.75f, 1f, 1.25f, 1.5f, 1.75f, 2f)
 
@@ -58,7 +60,7 @@ fun PlaybackSpeedSheet(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
                 ) {
-                    Text("Oynatma Hızı", style = MaterialTheme.typography.titleMedium)
+                    Text(stringResource(R.string.inline_playback_speed_afada5b), style = MaterialTheme.typography.titleMedium)
                     Text("%.2fx".format(speed), style = MaterialTheme.typography.titleMedium)
                 }
                 Slider(
@@ -117,7 +119,7 @@ fun PlaybackSpeedSheet(
                 KitsugiButton(
                     modifier = Modifier.weight(1f),
                     onClick = { onSetAsDefault(speed) },
-                ) { Text("Varsayılan Yap") }
+                ) { Text(stringResource(R.string.inline_make_default_59f76d5)) }
                 FilledIconButton(onClick = { onSpeedChange(1f) }) {
                     Icon(Icons.Default.RestartAlt, null)
                 }

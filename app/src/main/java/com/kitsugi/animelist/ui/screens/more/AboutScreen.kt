@@ -46,6 +46,7 @@ import java.io.File
 import java.io.InputStreamReader
 import androidx.compose.ui.res.stringResource
 import com.kitsugi.animelist.R
+import com.kitsugi.animelist.utils.KitsugiStrings
 
 @Composable
 fun AboutScreen(
@@ -126,7 +127,7 @@ fun AboutScreen(
                 }
 
                 Text(
-                    text = "Uygulama Hakkında",
+                    text = KitsugiStrings.get(R.string.inline_about_the_app_3a16868),
                     color = KitsugiColors.textPrimary,
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold,
@@ -173,7 +174,7 @@ fun AboutScreen(
                 )
 
                 Text(
-                    text = "Sürüm $version",
+                    text = KitsugiStrings.get(R.string.inline_version_1_s_2e56b1d, version),
                     color = KitsugiColors.textMuted,
                     style = MaterialTheme.typography.bodyMedium,
                     fontWeight = FontWeight.Bold
@@ -200,7 +201,7 @@ fun AboutScreen(
                         )
                         Spacer(modifier = Modifier.height(8.dp))
                         Text(
-                            text = "Kitsugi, anime ve manga listelerinizi en popüler platformlar (AniList, MAL, Simkl, Kitsu, Shikimori) ile gerçek zamanlı eşitleyen, entegre medya oynatıcı ve manga okuyucusu barındıran üst düzey bir takip uygulamasıdır.",
+                            text = KitsugiStrings.get(R.string.inline_kitsugi_is_an_all_in_dd47c3b),
                             color = KitsugiColors.textSecondary,
                             style = MaterialTheme.typography.bodyMedium,
                             lineHeight = androidx.compose.ui.unit.TextUnit.Unspecified
@@ -291,13 +292,13 @@ fun AboutScreen(
                         verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
                         Text(
-                            text = "Uygulama Güncellemeleri",
+                            text = KitsugiStrings.get(R.string.inline_app_updates_72b007e),
                             color = KitsugiColors.textPrimary,
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold
                         )
                         Text(
-                            text = "Yeni sürümleri otomatik veya manuel olarak kontrol edin.",
+                            text = KitsugiStrings.get(R.string.inline_check_for_new_versions_automatical_1803304),
                             color = KitsugiColors.textSecondary,
                             style = MaterialTheme.typography.bodyMedium
                         )
@@ -325,7 +326,7 @@ fun AboutScreen(
                                         fontWeight = FontWeight.Bold
                                     )
                                     Text(
-                                        text = if (autoUpdateCheckEnabled) "Açık" else "Kapalı",
+                                        text = if (autoUpdateCheckEnabled) KitsugiStrings.get(R.string.option_light) else KitsugiStrings.get(R.string.player_afr_off),
                                         color = KitsugiColors.textMuted,
                                         style = MaterialTheme.typography.labelSmall
                                     )
@@ -348,7 +349,7 @@ fun AboutScreen(
                                 modifier = Modifier.weight(0.9f)
                             ) {
                                 Text(
-                                    text = "Şimdi Denetle",
+                                    text = KitsugiStrings.get(R.string.inline_check_now_c288ab8),
                                     color = KitsugiColors.background,
                                     fontWeight = FontWeight.Bold,
                                     fontSize = 12.sp
@@ -366,13 +367,13 @@ fun AboutScreen(
                             ) {
                                 Column(modifier = Modifier.weight(1.1f)) {
                                     Text(
-                                        text = "Eklenti Güncellemeleri",
+                                        text = KitsugiStrings.get(R.string.inline_extension_updates_15cbd1c),
                                         color = KitsugiColors.textPrimary,
                                         style = MaterialTheme.typography.bodySmall,
                                         fontWeight = FontWeight.Bold
                                     )
                                     Text(
-                                        text = "Depolardaki video sağlayıcı eklenti sürümlerini denetle",
+                                        text = KitsugiStrings.get(R.string.inline_check_the_versions_of_video_4536a47),
                                         color = KitsugiColors.textMuted,
                                         style = MaterialTheme.typography.labelSmall
                                     )
@@ -413,7 +414,7 @@ fun AboutScreen(
                         verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
                         Text(
-                            text = "Geliştirici & Hata Logları",
+                            text = KitsugiStrings.get(R.string.inline_developer_error_logs_fb50437),
                             color = KitsugiColors.textPrimary,
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold
@@ -424,7 +425,7 @@ fun AboutScreen(
                             colors = ButtonDefaults.buttonColors(containerColor = accentColor),
                             modifier = Modifier.fillMaxWidth()
                         ) {
-                            Text("Geliştirici Günlüklerini Gör", color = KitsugiColors.background, fontWeight = FontWeight.Bold)
+                            Text(KitsugiStrings.get(R.string.inline_view_developer_logs_bebf6dc), color = KitsugiColors.background, fontWeight = FontWeight.Bold)
                         }
 
                         val errorColor = Color(0xFFEF5350)
@@ -441,7 +442,7 @@ fun AboutScreen(
                         ) {
                             Icon(Icons.Rounded.Warning, contentDescription = null, tint = errorColor, modifier = Modifier.size(18.dp))
                             Spacer(Modifier.width(8.dp))
-                            Text("Çökme & Hata Teşhis Raporu", color = errorColor, fontWeight = FontWeight.Bold)
+                            Text(KitsugiStrings.get(R.string.inline_crash_error_diagnostic_report_53375ae), color = errorColor, fontWeight = FontWeight.Bold)
                         }
 
                         OutlinedButton(
@@ -524,7 +525,7 @@ fun AboutScreen(
                                                 writer.close()
                                                 reader.close()
                                             } catch (e: Exception) {
-                                                currentLogcatFile.writeText("Anlık log alınamadı: ${e.localizedMessage}")
+                                                currentLogcatFile.writeText(KitsugiStrings.get(R.string.anlik_log_alinamadi_x, e.localizedMessage))
                                             }
                                         }
                                         if (currentLogcatFile.exists() && currentLogcatFile.length() > 0) {
@@ -545,10 +546,10 @@ fun AboutScreen(
                                             }
                                             context.startActivity(Intent.createChooser(intent, "Hata Raporunu Paylaş"))
                                         } else {
-                                            Toast.makeText(context, "Paylaşılacak log dosyası bulunamadı", Toast.LENGTH_SHORT).show()
+                                            Toast.makeText(context, KitsugiStrings.get(R.string.paylasilacak_log_dosyasi_bulunamadi), Toast.LENGTH_SHORT).show()
                                         }
                                     } catch (e: Exception) {
-                                        Toast.makeText(context, "Paylaşım Hatası: ${e.localizedMessage}", Toast.LENGTH_SHORT).show()
+                                        Toast.makeText(context, KitsugiStrings.get(R.string.paylasim_hatasi_x, e.localizedMessage), Toast.LENGTH_SHORT).show()
                                     }
                                 }
                             },
@@ -556,7 +557,7 @@ fun AboutScreen(
                             colors = ButtonDefaults.outlinedButtonColors(contentColor = accentColor),
                             modifier = Modifier.fillMaxWidth()
                         ) {
-                            Text("Hata Raporunu Geliştiriciye Gönder", fontWeight = FontWeight.Bold)
+                            Text(KitsugiStrings.get(R.string.inline_send_error_report_to_developer_bc60edd), fontWeight = FontWeight.Bold)
                         }
                     }
                 }
@@ -576,7 +577,7 @@ fun AboutScreen(
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
-                        text = "Açık Kaynak Kütüphaneler",
+                        text = KitsugiStrings.get(R.string.inline_open_source_libraries_b703dea),
                         color = KitsugiColors.textPrimary,
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Black

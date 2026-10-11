@@ -1,5 +1,8 @@
 package com.kitsugi.animelist.data.settings
 
+import com.kitsugi.animelist.utils.KitsugiStrings
+import com.kitsugi.animelist.R
+
 /**
  * V2-F02 – AniListUserOptions
  *
@@ -51,17 +54,17 @@ enum class AniListNotificationCategory(
 ) {
     AIRING(
         apiValue = "AIRING",
-        label = "Yayın Bildirimleri",
+        label = KitsugiStrings.get(R.string.settings_airing_notifications),
         defaultEnabled = true
     ),
     ACTIVITY(
         apiValue = "ACTIVITY_MESSAGE",
-        label = "Aktivite Mesajları",
+        label = KitsugiStrings.get(R.string.aktivite_mesajlari),
         defaultEnabled = true
     ),
     ACTIVITY_REPLY(
         apiValue = "ACTIVITY_REPLY",
-        label = "Aktivite Yanıtları",
+        label = KitsugiStrings.get(R.string.aktivite_yanitlari),
         defaultEnabled = true
     ),
     ACTIVITY_MENTION(
@@ -71,22 +74,22 @@ enum class AniListNotificationCategory(
     ),
     FOLLOWING(
         apiValue = "FOLLOWING",
-        label = "Yeni Takipçiler",
+        label = KitsugiStrings.get(R.string.yeni_takipciler),
         defaultEnabled = true
     ),
     FORUM_COMMENT(
         apiValue = "THREAD_COMMENT_MENTION",
-        label = "Forum Yorumları",
+        label = KitsugiStrings.get(R.string.forum_yorumlari),
         defaultEnabled = false
     ),
     FORUM_SUBSCRIBED(
         apiValue = "THREAD_SUBSCRIBED",
-        label = "Abone Forum Güncellemeleri",
+        label = KitsugiStrings.get(R.string.abone_forum_guncellemeleri),
         defaultEnabled = false
     ),
     MEDIA_CHANGE(
         apiValue = "MEDIA_DATA_CHANGE",
-        label = "Medya Verisi Değişiklikleri",
+        label = KitsugiStrings.get(R.string.medya_verisi_degisiklikleri),
         defaultEnabled = false
     );
 

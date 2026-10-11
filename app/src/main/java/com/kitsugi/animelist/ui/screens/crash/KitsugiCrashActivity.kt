@@ -59,6 +59,7 @@ import java.io.File
 import java.io.InputStreamReader
 import androidx.compose.ui.res.stringResource
 import com.kitsugi.animelist.R
+import com.kitsugi.animelist.utils.KitsugiStrings
 
 class KitsugiCrashActivity : ComponentActivity() {
 
@@ -139,14 +140,14 @@ class KitsugiCrashActivity : ComponentActivity() {
                         Spacer(Modifier.height(12.dp))
 
                         Text(
-                            "Eyvah! Bir Şeyler Patladı 💥",
+                            KitsugiStrings.get(R.string.inline_oops_something_broke_53c30c0),
                             color = KitsugiColors.TextPrimary,
                             fontSize = 22.sp,
                             fontWeight = FontWeight.Bold,
                             textAlign = TextAlign.Center
                         )
                         Text(
-                            "Kitsugi beklenmedik şekilde durdu. Aşağıdaki hata detaylarını kopyalayabilir, paylaşabilir veya bana gönderebilirsin.",
+                            KitsugiStrings.get(R.string.inline_kitsugi_stopped_unexpectedly_you_c_028a4d1),
                             color = KitsugiColors.TextSecondary,
                             fontSize = 13.sp,
                             textAlign = TextAlign.Center,
@@ -177,7 +178,7 @@ class KitsugiCrashActivity : ComponentActivity() {
                                         .background(KitsugiColors.AccentRed)
                                 )
                                 Text(
-                                    "Geçmiş: ${historySizeKb}KB",
+                                    KitsugiStrings.get(R.string.inline_history_1_s_kb_467259e, historySizeKb),
                                     color = KitsugiColors.AccentRed,
                                     fontSize = 11.sp,
                                     fontWeight = FontWeight.Bold
@@ -196,7 +197,7 @@ class KitsugiCrashActivity : ComponentActivity() {
                                 .padding(3.dp),
                             horizontalArrangement = Arrangement.spacedBy(4.dp)
                         ) {
-                            listOf("Son Çökme", "Çökme Geçmişi").forEachIndexed { idx, label ->
+                            listOf(KitsugiStrings.get(R.string.son_cokme), KitsugiStrings.get(R.string.cokme_gecmisi)).forEachIndexed { idx, label ->
                                 val active = selectedTab == idx
                                 Box(
                                     modifier = Modifier
@@ -287,14 +288,14 @@ class KitsugiCrashActivity : ComponentActivity() {
                                     onClick = {
                                         val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
                                         clipboard.setPrimaryClip(ClipData.newPlainText("Kitsugi Crash", displayText))
-                                        Toast.makeText(context, "Rapor kopyalandı ✓", Toast.LENGTH_SHORT).show()
+                                        Toast.makeText(context, KitsugiStrings.get(R.string.rapor_kopyalandi), Toast.LENGTH_SHORT).show()
                                     },
                                     shape = RoundedCornerShape(12.dp),
                                     modifier = Modifier.weight(1f)
                                 ) {
                                     Icon(Icons.Rounded.ContentCopy, null, modifier = Modifier.size(15.dp))
                                     Spacer(Modifier.width(5.dp))
-                                    Text("Kopyala", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                                    Text(KitsugiStrings.get(R.string.action_copy), fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
                                 }
 
                                 KitsugiTonalButton(
@@ -322,7 +323,7 @@ class KitsugiCrashActivity : ComponentActivity() {
                                     if (exported != null) {
                                         Toast.makeText(context, "Rapor kaydedildi:\n$exported ✓", Toast.LENGTH_LONG).show()
                                     } else {
-                                        Toast.makeText(context, "İndirilenler klasörüne yazılamadı", Toast.LENGTH_SHORT).show()
+                                        Toast.makeText(context, KitsugiStrings.get(R.string.indirilenler_klasorune_yazilamadi), Toast.LENGTH_SHORT).show()
                                     }
                                 },
                                 shape = RoundedCornerShape(12.dp),
@@ -330,7 +331,7 @@ class KitsugiCrashActivity : ComponentActivity() {
                             ) {
                                 Icon(Icons.Rounded.Download, null, modifier = Modifier.size(15.dp))
                                 Spacer(Modifier.width(6.dp))
-                                Text("Dosyayı İndirilenler Klasörüne Kaydet (.txt)", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                                Text(KitsugiStrings.get(R.string.inline_save_file_to_downloads_txt_d3606fb), fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
                             }
 
                             // Satır 2: Geliştiriciye Gönder (tüm dosyalar)
@@ -403,10 +404,10 @@ class KitsugiCrashActivity : ComponentActivity() {
                                                 }
                                                 context.startActivity(Intent.createChooser(shareIntent, "Geliştiriciye Gönder — ${filesToShare.size} Dosya"))
                                             } else {
-                                                Toast.makeText(context, "Paylaşılacak dosya bulunamadı", Toast.LENGTH_SHORT).show()
+                                                Toast.makeText(context, KitsugiStrings.get(R.string.paylasilacak_dosya_bulunamadi), Toast.LENGTH_SHORT).show()
                                             }
                                         } catch (e: Exception) {
-                                            Toast.makeText(context, "Hata: ${e.message}", Toast.LENGTH_LONG).show()
+                                            Toast.makeText(context, KitsugiStrings.get(R.string.hata_x, e.message), Toast.LENGTH_LONG).show()
                                         }
                                     }
                                 },
@@ -415,7 +416,7 @@ class KitsugiCrashActivity : ComponentActivity() {
                             ) {
                                 Icon(Icons.AutoMirrored.Rounded.Send, null, modifier = Modifier.size(15.dp))
                                 Spacer(Modifier.width(6.dp))
-                                Text("Geliştiriciye Gönder (Tüm Dosyalar)", fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                                Text(KitsugiStrings.get(R.string.inline_send_to_developer_all_files_0f054f6), fontSize = 13.sp, fontWeight = FontWeight.Bold)
                             }
 
                             // Satır 3: Geçmişi Temizle + Yeniden Başlat
@@ -428,7 +429,7 @@ class KitsugiCrashActivity : ComponentActivity() {
                                         onClick = {
                                             KitsugiCrashLogger.clearHistory(context)
                                             historyText = "Geçmiş temizlendi."
-                                            Toast.makeText(context, "Çökme geçmişi temizlendi", Toast.LENGTH_SHORT).show()
+                                            Toast.makeText(context, KitsugiStrings.get(R.string.cokme_gecmisi_temizlendi), Toast.LENGTH_SHORT).show()
                                         },
                                         shape = RoundedCornerShape(12.dp),
                                         modifier = Modifier.weight(1f)
@@ -458,7 +459,7 @@ class KitsugiCrashActivity : ComponentActivity() {
                                 ) {
                                     Icon(Icons.Rounded.RestartAlt, null, modifier = Modifier.size(15.dp))
                                     Spacer(Modifier.width(5.dp))
-                                    Text("Yeniden Başlat", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                    Text(KitsugiStrings.get(R.string.inline_restart_836b2de), fontSize = 12.sp, fontWeight = FontWeight.Bold)
                                 }
                             }
                         }
@@ -483,7 +484,7 @@ class KitsugiCrashActivity : ComponentActivity() {
             val report = try { KitsugiCrashLogger.readCrashLog(this) } catch (_: Throwable) { "(rapor okunamadı)" }
             val textView = android.widget.TextView(this).apply {
                 text = buildString {
-                    appendLine("Kitsugi çökme ekranı açılamadı")
+                    appendLine(KitsugiStrings.get(R.string.kitsugi_cokme_ekrani_acilamadi))
                     appendLine("${t.javaClass.name}: ${t.message}")
                     appendLine()
                     appendLine("─── KAYITLI ÇÖKME RAPORU ───")

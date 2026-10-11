@@ -182,7 +182,7 @@ fun KitsugiProfileScreen(
                     ) {
                         Icon(
                             imageVector = Icons.Rounded.BarChart,
-                            contentDescription = "Kütüphane İstatistikleri",
+                            contentDescription = stringResource(R.string.kutuphane_istatistikleri),
                             tint = accentColor
                         )
                     }
@@ -423,8 +423,8 @@ fun KitsugiProfileScreen(
         val actIdStr = showDeleteConfirmDialog!!
         AlertDialog(
             onDismissRequest = { showDeleteConfirmDialog = null },
-            title = { Text("Aktiviteyi Sil", color = KitsugiColors.TextPrimary, fontWeight = FontWeight.Bold) },
-            text = { Text("Bu aktiviteyi silmek istediğinize emin misiniz?", color = KitsugiColors.TextSecondary) },
+            title = { Text(stringResource(R.string.aktiviteyi_sil), color = KitsugiColors.TextPrimary, fontWeight = FontWeight.Bold) },
+            text = { Text(stringResource(R.string.inline_are_you_sure_you_want_d2a0328), color = KitsugiColors.TextSecondary) },
             confirmButton = {
                 TextButton(onClick = {
                     coroutineScope.launch {
@@ -434,7 +434,7 @@ fun KitsugiProfileScreen(
                     }
                     showDeleteConfirmDialog = null
                 }) {
-                    Text("Sil", color = KitsugiColors.AccentRed, fontWeight = FontWeight.Bold)
+                    Text(stringResource(R.string.action_delete), color = KitsugiColors.AccentRed, fontWeight = FontWeight.Bold)
                 }
             },
             dismissButton = {

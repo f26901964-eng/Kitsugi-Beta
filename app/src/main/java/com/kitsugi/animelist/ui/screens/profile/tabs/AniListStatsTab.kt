@@ -24,6 +24,7 @@ import com.kitsugi.animelist.utils.toEnglishGenreForSearch
 import com.kitsugi.animelist.utils.toTurkishGenre
 import androidx.compose.ui.res.stringResource
 import com.kitsugi.animelist.R
+import com.kitsugi.animelist.utils.KitsugiStrings
 
 @Composable
 fun AniListStatsTab(
@@ -107,7 +108,7 @@ fun AniListStatsTab(
                 // 2. Score Distribution
                 if (overview.scoreList.isNotEmpty()) {
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text("Puan", color = KitsugiColors.TextPrimary, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                        Text(stringResource(R.string.detail_stat_score), color = KitsugiColors.TextPrimary, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.horizontalScroll(rememberScrollState())) {
                             FilterChipItem(selected = scoreDistType == 0, text = stringResource(R.string.baslik_sayisi), onClick = { onScoreDistTypeChange(0) }, accentColor = accentColor)
                             FilterChipItem(selected = scoreDistType == 1, text = stringResource(R.string.harcanan_sure), onClick = { onScoreDistTypeChange(1) }, accentColor = accentColor)
@@ -138,11 +139,11 @@ fun AniListStatsTab(
                 if (overview.lengthList.isNotEmpty()) {
                     HorizontalDivider(color = KitsugiColors.SurfaceStrong)
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text(if (statsMediaType == 0) "Bölüm Sayısı" else "Cilt/Bölüm Sayısı", color = KitsugiColors.TextPrimary, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                        Text(if (statsMediaType == 0) stringResource(R.string.ui_stats_episode_count) else stringResource(R.string.ui_stats_volume_episode_count), color = KitsugiColors.TextPrimary, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.horizontalScroll(rememberScrollState())) {
                             FilterChipItem(selected = lengthDistType == 0, text = stringResource(R.string.baslik_sayisi), onClick = { onLengthDistTypeChange(0) }, accentColor = accentColor)
                             FilterChipItem(selected = lengthDistType == 1, text = stringResource(R.string.harcanan_sure), onClick = { onLengthDistTypeChange(1) }, accentColor = accentColor)
-                            FilterChipItem(selected = lengthDistType == 2, text = "Ortalama Puan", onClick = { onLengthDistTypeChange(2) }, accentColor = accentColor)
+                            FilterChipItem(selected = lengthDistType == 2, text = KitsugiStrings.get(R.string.ortalama_puan), onClick = { onLengthDistTypeChange(2) }, accentColor = accentColor)
                         }
                         val mappedLength = overview.lengthList.map { item ->
                             val valFloat = when (lengthDistType) { 0 -> item.count.toFloat(); 1 -> (item.minutesWatched / 60.0f); else -> item.meanScore.toFloat() }
@@ -225,7 +226,7 @@ fun AniListStatsTab(
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.horizontalScroll(rememberScrollState())) {
                             FilterChipItem(selected = releaseYearDistType == 0, text = stringResource(R.string.baslik_sayisi), onClick = { onReleaseYearDistTypeChange(0) }, accentColor = accentColor)
                             FilterChipItem(selected = releaseYearDistType == 1, text = stringResource(R.string.harcanan_sure), onClick = { onReleaseYearDistTypeChange(1) }, accentColor = accentColor)
-                            FilterChipItem(selected = releaseYearDistType == 2, text = "Ortalama Puan", onClick = { onReleaseYearDistTypeChange(2) }, accentColor = accentColor)
+                            FilterChipItem(selected = releaseYearDistType == 2, text = KitsugiStrings.get(R.string.ortalama_puan), onClick = { onReleaseYearDistTypeChange(2) }, accentColor = accentColor)
                         }
                         val mappedYears = overview.releaseYearList
                             .filter { it.releaseYear > 0 }
@@ -242,11 +243,11 @@ fun AniListStatsTab(
                 if (overview.startYearList.isNotEmpty()) {
                     HorizontalDivider(color = KitsugiColors.SurfaceStrong)
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text(if (statsMediaType == 0) "İzleme Yılı" else "Okuma Yılı", color = KitsugiColors.TextPrimary, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                        Text(if (statsMediaType == 0) stringResource(R.string.ui_stats_watch_year) else stringResource(R.string.ui_stats_read_year), color = KitsugiColors.TextPrimary, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.horizontalScroll(rememberScrollState())) {
                             FilterChipItem(selected = startYearDistType == 0, text = stringResource(R.string.baslik_sayisi), onClick = { onStartYearDistTypeChange(0) }, accentColor = accentColor)
                             FilterChipItem(selected = startYearDistType == 1, text = stringResource(R.string.harcanan_sure), onClick = { onStartYearDistTypeChange(1) }, accentColor = accentColor)
-                            FilterChipItem(selected = startYearDistType == 2, text = "Ortalama Puan", onClick = { onStartYearDistTypeChange(2) }, accentColor = accentColor)
+                            FilterChipItem(selected = startYearDistType == 2, text = KitsugiStrings.get(R.string.ortalama_puan), onClick = { onStartYearDistTypeChange(2) }, accentColor = accentColor)
                         }
                         val mappedStartYears = overview.startYearList
                             .filter { it.startYear > 0 }
@@ -318,7 +319,7 @@ fun AniListStatsTab(
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.horizontalScroll(rememberScrollState())) {
                 ProfileFilterChip(isSelected = statSortType == 0, text = stringResource(R.string.baslik_sayisi), onClick = { onStatSortTypeChange(0) }, accentColor = accentColor)
                 ProfileFilterChip(isSelected = statSortType == 1, text = stringResource(R.string.harcanan_sure), onClick = { onStatSortTypeChange(1) }, accentColor = accentColor)
-                ProfileFilterChip(isSelected = statSortType == 2, text = "Ortalama Puan", onClick = { onStatSortTypeChange(2) }, accentColor = accentColor)
+                ProfileFilterChip(isSelected = statSortType == 2, text = KitsugiStrings.get(R.string.ortalama_puan), onClick = { onStatSortTypeChange(2) }, accentColor = accentColor)
             }
         }
 

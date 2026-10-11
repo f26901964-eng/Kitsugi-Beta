@@ -73,11 +73,11 @@ fun SearchFilterSheet(
     val mangaFormats = listOf("MANGA", "NOVEL", "ONE_SHOT", "DOUJIN", "MANHWA", "MANHUA")
     val formats = if (mediaType == MediaType.Manga) mangaFormats else animeFormats
 
-    val animeStatuses = listOf("AIRING" to "Yayında", "FINISHED" to "Tamamlandı", "UPCOMING" to "Yakında")
-    val mangaStatuses = listOf("PUBLISHING" to "Yayınlanıyor", "FINISHED" to "Tamamlandı", "HIATUS" to "Ara Verildi", "DISCONTINUED" to "Durduruldu")
+    val animeStatuses = listOf("AIRING" to stringResource(R.string.yayinda), "FINISHED" to stringResource(R.string.cs_diag_completed), "UPCOMING" to stringResource(R.string.yakinda))
+    val mangaStatuses = listOf("PUBLISHING" to stringResource(R.string.yayinlaniyor), "FINISHED" to stringResource(R.string.cs_diag_completed), "HIATUS" to stringResource(R.string.bangumi_tag_hiatus), "DISCONTINUED" to "Durduruldu")
     val statuses = if (mediaType == MediaType.Manga) mangaStatuses else animeStatuses
 
-    val seasons = listOf("WINTER" to "❄️ Kış", "SPRING" to "🌱 İlkbahar", "SUMMER" to "☀️ Yaz", "FALL" to "🍂 Sonbahar")
+    val seasons = listOf("WINTER" to stringResource(R.string.kis), "SPRING" to stringResource(R.string.ilkbahar), "SUMMER" to "☀️ Yaz", "FALL" to "🍂 Sonbahar")
 
     val genres = listOf(
         "Aksiyon", "Macera", "Komedi", "Dram", "Fantastik",
@@ -91,7 +91,7 @@ fun SearchFilterSheet(
     )
 
     val sortOptions = listOf(
-        "POPULARITY_DESC" to "🔥 Popülerlik",
+        "POPULARITY_DESC" to stringResource(R.string.populerlik_e5d41d0),
         "SCORE_DESC" to "⭐ Puan",
         "TITLE_ROMAJI_ASC" to "🔤 İsim (A-Z)",
         "TITLE_ROMAJI_DESC" to "🔤 İsim (Z-A)"
@@ -126,7 +126,7 @@ fun SearchFilterSheet(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "Gelişmiş Filtreler",
+                    text = stringResource(R.string.inline_advanced_filters_1877905),
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold,
                     color = KitsugiColors.TextPrimary

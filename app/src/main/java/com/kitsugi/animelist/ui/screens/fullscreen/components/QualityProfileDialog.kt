@@ -125,7 +125,7 @@ fun QualityProfileDialog(
                             fontWeight = FontWeight.Bold
                         )
                         Text(
-                            text = "Tercih ettiğiniz çözünürlük bandını seçin",
+                            text = stringResource(R.string.inline_choose_your_preferred_resolution_r_3c89a6d),
                             color = KitsugiColors.TextSecondary,
                             style = MaterialTheme.typography.bodySmall
                         )
@@ -136,7 +136,7 @@ fun QualityProfileDialog(
 
                 // ── Kalite Seçenekleri ─────────────────────────────────────────
                 Text(
-                    text = "Çözünürlük Tercihi",
+                    text = stringResource(R.string.inline_resolution_preference_f001812),
                     color = KitsugiColors.TextSecondary,
                     style = MaterialTheme.typography.labelMedium,
                     fontWeight = FontWeight.SemiBold
@@ -163,13 +163,13 @@ fun QualityProfileDialog(
                 ) {
                     Column {
                         Text(
-                            text = "Maksimum Bit Hızı",
+                            text = stringResource(R.string.inline_maximum_bitrate_82c5852),
                             color = KitsugiColors.TextPrimary,
                             style = MaterialTheme.typography.bodyMedium,
                             fontWeight = FontWeight.Medium
                         )
                         Text(
-                            text = "Hücresel ağda veri tasarrufu için sınır koy",
+                            text = stringResource(R.string.inline_set_a_limit_to_save_6f24cbf),
                             color = KitsugiColors.TextMuted,
                             style = MaterialTheme.typography.bodySmall
                         )

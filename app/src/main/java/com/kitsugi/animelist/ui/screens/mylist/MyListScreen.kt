@@ -83,6 +83,7 @@ import com.kitsugi.animelist.ui.utils.KitsugiScrollDefaults
 import kotlinx.coroutines.launch
 import androidx.compose.ui.res.stringResource
 import com.kitsugi.animelist.R
+import com.kitsugi.animelist.utils.KitsugiStrings
 
 @Composable
 fun MyListScreen(
@@ -689,7 +690,7 @@ fun MyListScreen(
                     id = 0,
                     title = title,
                     subtitle = if (subtitle.isBlank()) {
-                        "Manuel ${myListSourceDisplayName(manualAddSource)} Kaydı"
+                        KitsugiStrings.get(R.string.manuel_x_kaydi, myListSourceDisplayName(manualAddSource))
                     } else {
                         subtitle
                     },
@@ -779,7 +780,7 @@ fun MyListScreen(
 
     duplicateMessage?.let { message ->
         KitsugiInfoDialog(
-            title = "Zaten listede",
+            title = KitsugiStrings.get(R.string.zaten_listede),
             message = message,
             onDismiss = {
                 duplicateMessage = null
@@ -814,7 +815,7 @@ fun MyListScreen(
                 val updatedEntry = entry.copy(
                     title = title,
                     subtitle = if (subtitle.isBlank()) {
-                        "Manuel eklenen içerik"
+                        KitsugiStrings.get(R.string.manuel_eklenen_icerik)
                     } else {
                         subtitle
                     },
@@ -849,7 +850,7 @@ fun MyListScreen(
         KitsugiConfirmDialog(
             title = stringResource(R.string.kaydi_sil),
             message = stringResource(R.string.entry_title_listenizden_kalici_olarak_kaldir, entry.title),
-            confirmText = "Sil",
+            confirmText = KitsugiStrings.get(R.string.action_delete),
             isDestructive = true,
             onConfirm = {
                 viewModel.deleteEntryById(entry.id)

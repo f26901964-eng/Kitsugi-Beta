@@ -54,6 +54,7 @@ import com.kitsugi.animelist.ui.utils.dpadVerticalFastScroll
 import kotlinx.coroutines.delay
 import androidx.compose.ui.res.stringResource
 import com.kitsugi.animelist.R
+import com.kitsugi.animelist.utils.KitsugiStrings
 
 @OptIn(ExperimentalTvMaterial3Api::class, ExperimentalFoundationApi::class, ExperimentalComposeUiApi::class)
 @Composable
@@ -254,7 +255,7 @@ fun TvClassicHomeContent(
                     if (heroItems.isNotEmpty()) {
                         item(key = "row_featured", contentType = "content_row") {
                             TvCatalogRow(
-                                title = "Öne Çıkanlar",
+                                title = KitsugiStrings.get(R.string.one_cikanlar),
                                 items = heroItems.asStable(),
                                 listState = rowStates.getOrPut("featured") {
                                     androidx.compose.foundation.lazy.LazyListState(

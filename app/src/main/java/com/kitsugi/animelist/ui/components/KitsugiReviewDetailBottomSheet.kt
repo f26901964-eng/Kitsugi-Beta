@@ -48,6 +48,7 @@ import kotlinx.coroutines.launch
 import androidx.compose.foundation.clickable
 import androidx.compose.ui.res.stringResource
 import com.kitsugi.animelist.R
+import com.kitsugi.animelist.utils.KitsugiStrings
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -73,7 +74,7 @@ fun KitsugiReviewDetailBottomSheet(
 
     val onRateClick: (String) -> Unit = { newRating ->
         if (review.id == null) {
-            Toast.makeText(context, "Beğeni özelliği MAL kaynağı için desteklenmemektedir.", Toast.LENGTH_SHORT).show()
+            Toast.makeText(context, KitsugiStrings.get(R.string.begeni_ozelligi_mal_kaynagi_icin_desteklenmemektedir), Toast.LENGTH_SHORT).show()
         } else {
             coroutineScope.launch {
                 val success = apiClient.rateReview(review.id, newRating)
@@ -105,7 +106,7 @@ fun KitsugiReviewDetailBottomSheet(
                         }
                     }
                 } else {
-                    Toast.makeText(context, "Lütfen önce giriş yapın", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(context, KitsugiStrings.get(R.string.lutfen_once_giris_yapin), Toast.LENGTH_SHORT).show()
                 }
             }
         }
@@ -216,13 +217,13 @@ fun KitsugiReviewDetailBottomSheet(
                         onClick = {
                             val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
                             clipboard.setPrimaryClip(android.content.ClipData.newPlainText("review_text", review.fullText))
-                            Toast.makeText(context, "Panoya kopyalandı", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(context, KitsugiStrings.get(R.string.toast_copied_clipboard), Toast.LENGTH_SHORT).show()
                         },
                         modifier = Modifier.size(36.dp)
                     ) {
                         Icon(
                             imageVector = Icons.Rounded.ContentCopy,
-                            contentDescription = "Kopyala",
+                            contentDescription = stringResource(R.string.action_copy),
                             tint = KitsugiColors.TextSecondary
                         )
                     }
@@ -367,7 +368,7 @@ fun KitsugiReviewDetailBottomSheet(
 
                     TextSubtitleVertical(
                         text = ratingsStr,
-                        subtitle = "Kullanıcı Beğenileri"
+                        subtitle = stringResource(R.string.kullanici_begenileri)
                     )
 
                     Row(
@@ -420,19 +421,19 @@ fun KitsugiReviewDetailBottomSheet(
                     onClick = {
                         val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
                         clipboard.setPrimaryClip(android.content.ClipData.newPlainText("review", displayText))
-                        Toast.makeText(context, "Yorum kopyalandı", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(context, KitsugiStrings.get(R.string.yorum_kopyalandi), Toast.LENGTH_SHORT).show()
                     },
                     shape = RoundedCornerShape(14.dp),
                     modifier = Modifier.weight(1f)
                 ) {
                     Icon(
                         imageVector = Icons.Rounded.ContentCopy,
-                        contentDescription = "Kopyala",
+                        contentDescription = stringResource(R.string.action_copy),
                         tint = KitsugiColors.TextPrimary,
                         modifier = Modifier.size(18.dp)
                     )
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text("Kopyala", color = KitsugiColors.TextPrimary, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                    Text(stringResource(R.string.action_copy), color = KitsugiColors.TextPrimary, fontWeight = FontWeight.Bold, fontSize = 14.sp)
                 }
 
                 KitsugiButton(
@@ -464,7 +465,7 @@ fun KitsugiReviewDetailBottomSheet(
         KitsugiImageGalleryDialog(
             imageUrls = urls,
             initialIndex = idx,
-            title = "${review.username} Yorum Görseli",
+            title = stringResource(R.string.x_yorum_gorseli, review.username),
             onDismiss = { activeGalleryImages = null }
         )
     }

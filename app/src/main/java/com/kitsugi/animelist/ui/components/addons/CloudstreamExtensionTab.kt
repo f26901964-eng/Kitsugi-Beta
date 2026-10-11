@@ -107,7 +107,7 @@ internal fun CloudstreamExtensionsTab(
         item {
             AddonInfoBanner(
                 accentColor = accentColor,
-                text = "Video kaynakları Cloudstream depolarından gelir; depo ekleyip eklentileri buradan kurun ve güncelleyin."
+                text = stringResource(R.string.video_kaynaklari_cloudstream_depolarindan_gelir_depo_ekleyip_ekl)
             )
         }
 
@@ -121,7 +121,7 @@ internal fun CloudstreamExtensionsTab(
             ) {
                 com.kitsugi.animelist.ui.components.KitsugiSwitchSettingItem(
                     title = "🌐 GitHub Vekil Sunucu (jsDelivr)",
-                    description = "raw.githubusercontent.com URL'lerini jsDelivr CDN'e yönlendirir. Ağ kısıtlamalarında eklenti/repo güncellemelerini güvenilir kılar.",
+                    description = stringResource(R.string.raw_githubusercontent_com_url_lerini_jsdelivr_cdn_e_yonlendirir),
                     checked = useGithubProxy,
                     onCheckedChange = onUseGithubProxyChanged
                 )
@@ -151,7 +151,7 @@ internal fun CloudstreamExtensionsTab(
                     Text("🔬", fontSize = 20.sp)
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
-                            "Plugin Tanı Modu",
+                            stringResource(R.string.inline_plugin_diagnostics_mode_bea2832),
                             color = accentColor,
                             fontWeight = FontWeight.Bold,
                             fontSize = 13.sp
@@ -254,13 +254,13 @@ internal fun CloudstreamExtensionsTab(
                         Icon(Icons.Rounded.ArrowCircleUp, contentDescription = null, tint = KitsugiColors.AccentOrange, modifier = Modifier.size(22.dp))
                         Column {
                             Text(
-                                "🎉 $availableUpdatesCount eklenti güncellemesi mevcut!",
+                                stringResource(R.string.inline_1_s_extension_updates_available_1f54c44, availableUpdatesCount),
                                 color = KitsugiColors.TextPrimary,
                                 fontSize = 12.sp,
                                 fontWeight = FontWeight.Bold
                             )
                             Text(
-                                "Tümünü tek dokunuşla güncelleyebilirsiniz.",
+                                stringResource(R.string.inline_you_can_update_everything_with_cce121c),
                                 color = KitsugiColors.TextSecondary,
                                 fontSize = 10.sp
                             )
@@ -289,13 +289,13 @@ internal fun CloudstreamExtensionsTab(
                     verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
                     Text(
-                        "Video Sağlayıcı Deposu (CS) Ekle",
+                        stringResource(R.string.inline_add_video_provider_repository_cs_1231a08),
                         color = KitsugiColors.TextPrimary,
                         fontWeight = FontWeight.Bold,
                         fontSize = 13.sp
                     )
                     Text(
-                        "Kitsugi video motoru için eklenti deposu (repo) veya kısa kod (örn. kekikdevam) girin.",
+                        stringResource(R.string.inline_enter_an_extension_repository_repo_68adbb5),
                         color = KitsugiColors.TextSecondary,
                         style = MaterialTheme.typography.bodySmall
                     )
@@ -305,15 +305,15 @@ internal fun CloudstreamExtensionsTab(
                         verticalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
                         val predefinedRepos = listOf(
-                            Triple("⚡ Kitsugi Eklentileri (Önerilen)", "DiziPal, RecTV, DDizi, Dizilla vb. 160+ derlenmiş ve güncel Türkçe eklenti deposu (+18 hariç).", "https://raw.githubusercontent.com/f26901964-eng/Kitsugi-Plugins/builds/repo.json"),
-                            Triple("⚡ Kraptor (Kraptor123)", "AnimeciX, Animeler, AnimeElysium eklentilerini içeren dizi/film ve anime deposu.", "https://raw.githubusercontent.com/Kraptor123/cs-kraptor/builds/plugins.json"),
-                            Triple("⚡ Kekik (feroxx)", "Aktif Kekik eklenti deposu derlemeleri (builds) ve Türkçe topluluk havuzu.", "https://raw.githubusercontent.com/feroxx/Kekik-cloudstream/refs/heads/builds/repo.json"),
-                            Triple("⚡ CS-Karma (Kraptor123)", "Kraptor'un alternatif Karma Türkçe eklenti deposu.", "https://raw.githubusercontent.com/Kraptor123/Cs-Karma/builds/plugins.json"),
-                            Triple("⚡ KerimmKirac (cs-kekikanime)", "TurkAnime eklentisi ve Kraptor ortaklığındaki Türkçe anime/dizi deposu.", "https://raw.githubusercontent.com/Kraptor123/cs-kekikanime/builds/plugins.json"),
-                            Triple("⚡ Nikyokki (nik-cloudstream)", "AnimPow, AsyaAnimeleri eklentilerini içeren Türkçe eklenti deposu.", "https://raw.githubusercontent.com/nikyokki/nik-cloudstream/master/repo.json"),
-                            Triple("⚡ Makoto2 (Sertel392)", "Makoto2 geçici Türkçe dizi/film eklenti deposu.", "https://raw.githubusercontent.com/Sertel392/Makotogecici/main/repo.json"),
-                            Triple("🔗 CS3 Hexated (Stremio Bridge)", "Stremio köprüsü ve uluslararası sağlayıcıları içeren Hexated deposu.", "https://raw.githubusercontent.com/hexated/cloudstream-extensions-hexated/builds/plugins.json"),
-                            Triple("🌍 ReCloudStream Eklentileri", "Uluslararası içerikler için resmi CloudStream eklentileri deposu.", "https://raw.githubusercontent.com/recloudstream/extensions/master/repo.json")
+                            Triple(stringResource(R.string.kitsugi_eklentileri_onerilen), stringResource(R.string.dizipal_rectv_ddizi_dizilla_vb_160_derlenmis_ve_guncel_turkce_ek), "https://raw.githubusercontent.com/f26901964-eng/Kitsugi-Plugins/builds/repo.json"),
+                            Triple("⚡ Kraptor (Kraptor123)", stringResource(R.string.animecix_animeler_animeelysium_eklentilerini_iceren_dizi_film_ve), "https://raw.githubusercontent.com/Kraptor123/cs-kraptor/builds/plugins.json"),
+                            Triple("⚡ Kekik (feroxx)", stringResource(R.string.aktif_kekik_eklenti_deposu_derlemeleri_builds_ve_turkce_topluluk), "https://raw.githubusercontent.com/feroxx/Kekik-cloudstream/refs/heads/builds/repo.json"),
+                            Triple("⚡ CS-Karma (Kraptor123)", stringResource(R.string.kraptor_un_alternatif_karma_turkce_eklenti_deposu), "https://raw.githubusercontent.com/Kraptor123/Cs-Karma/builds/plugins.json"),
+                            Triple("⚡ KerimmKirac (cs-kekikanime)", stringResource(R.string.turkanime_eklentisi_ve_kraptor_ortakligindaki_turkce_anime_dizi), "https://raw.githubusercontent.com/Kraptor123/cs-kekikanime/builds/plugins.json"),
+                            Triple("⚡ Nikyokki (nik-cloudstream)", stringResource(R.string.animpow_asyaanimeleri_eklentilerini_iceren_turkce_eklenti_deposu), "https://raw.githubusercontent.com/nikyokki/nik-cloudstream/master/repo.json"),
+                            Triple("⚡ Makoto2 (Sertel392)", stringResource(R.string.makoto2_gecici_turkce_dizi_film_eklenti_deposu), "https://raw.githubusercontent.com/Sertel392/Makotogecici/main/repo.json"),
+                            Triple("🔗 CS3 Hexated (Stremio Bridge)", stringResource(R.string.stremio_koprusu_ve_uluslararasi_saglayicilari_iceren_hexated_dep), "https://raw.githubusercontent.com/hexated/cloudstream-extensions-hexated/builds/plugins.json"),
+                            Triple("🌍 ReCloudStream Eklentileri", stringResource(R.string.uluslararasi_icerikler_icin_resmi_cloudstream_eklentileri_deposu), "https://raw.githubusercontent.com/recloudstream/extensions/master/repo.json")
                         )
                         predefinedRepos.forEach { (name, desc, url) ->
                             val isAdded = repos.any { it.repoUrl.trim().lowercase() == url.trim().lowercase() }
@@ -340,7 +340,7 @@ internal fun CloudstreamExtensionsTab(
                                     Text(desc, color = KitsugiColors.TextMuted, fontSize = 10.sp)
                                 }
                                 Text(
-                                    if (isAdded) "✓ Eklendi" else "+ Ekle",
+                                    if (isAdded) "✓ Eklendi" else stringResource(R.string.ekle_64b2d35),
                                     color = if (isAdded) KitsugiColors.TextMuted else accentColor,
                                     fontSize = 11.sp, fontWeight = FontWeight.Bold
                                 )
@@ -358,7 +358,7 @@ internal fun CloudstreamExtensionsTab(
                         minLines = 2,
                         maxLines = 6,
                         shape = RoundedCornerShape(18.dp),
-                        label = { Text("Repo URL veya kısa kod (her satıra bir tane)") },
+                        label = { Text(stringResource(R.string.inline_repository_url_or_short_code_b3aa7d2)) },
                         placeholder = { Text("https://raw.githubusercontent.com/...\nkekikdevam") },
                         colors = TextFieldDefaults.colors(
                             focusedTextColor = KitsugiColors.TextPrimary, unfocusedTextColor = KitsugiColors.TextPrimary,
@@ -390,7 +390,7 @@ internal fun CloudstreamExtensionsTab(
             item {
                 Spacer(Modifier.height(4.dp))
                 AddonListHeader(
-                    title = "Eklenti Depoları",
+                    title = stringResource(R.string.eklenti_depolari),
                     count = repos.size,
                     accentColor = accentColor
                 )
@@ -398,7 +398,7 @@ internal fun CloudstreamExtensionsTab(
 
             if (repos.isEmpty()) {
                 item {
-                    AddonEmptyCard(text = "Henüz eklenti deposu eklenmemiş. Yukarıdaki alandan bir depo adresi ekleyin.")
+                    AddonEmptyCard(text = stringResource(R.string.henuz_eklenti_deposu_eklenmemis_yukaridaki_alandan_bir_depo_adre))
                 }
             } else {
                 items(repos, key = { it.repoUrl }) { repo ->
@@ -458,7 +458,7 @@ internal fun CloudstreamExtensionsTab(
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
-                            Text("Yüklü Video Sağlayıcıları", color = KitsugiColors.TextPrimary, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+                            Text(stringResource(R.string.inline_installed_video_providers_d43a80f), color = KitsugiColors.TextPrimary, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
                             Box(
                                 modifier = Modifier
                                     .clip(RoundedCornerShape(999.dp))
@@ -475,7 +475,7 @@ internal fun CloudstreamExtensionsTab(
                         }
                         Spacer(Modifier.height(2.dp))
                         Text(
-                            "Kitsugi video motoru tarafından kullanılan video sağlayıcı (.cs3) eklentileri.",
+                            stringResource(R.string.inline_video_provider_cs3_extensions_used_8c0e4e8),
                             color = KitsugiColors.TextSecondary,
                             style = MaterialTheme.typography.bodySmall
                         )
@@ -490,7 +490,7 @@ internal fun CloudstreamExtensionsTab(
                             ) {
                                 Icon(Icons.Rounded.ArrowCircleUp, contentDescription = null, tint = Color.White, modifier = Modifier.size(16.dp))
                                 Spacer(Modifier.width(6.dp))
-                                Text("Tümünü Güncelle ($availableUpdatesCount)", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                Text(stringResource(R.string.inline_update_all_1_s_1a95494, availableUpdatesCount), color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
                             }
                         }
                         if (onOpenPluginPicker != null) {
@@ -513,7 +513,7 @@ internal fun CloudstreamExtensionsTab(
                 item {
                     AddonEmptyCard(
                         icon = Icons.Rounded.ExtensionOff,
-                        text = "Henüz eklenti kurulmamış. Depolar sekmesinden eklenti kurabilirsiniz."
+                        text = stringResource(R.string.henuz_eklenti_kurulmamis_depolar_sekmesinden_eklenti_kurabilirsi)
                     )
                 }
             } else {

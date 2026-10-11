@@ -38,7 +38,7 @@ fun FeedbackDialog(
     var feedbackTitle by remember { mutableStateOf("") }
     var feedbackDescription by remember { mutableStateOf("") }
     var selectedTypeIndex by remember { mutableStateOf(0) }
-    val feedbackTypes = listOf("Hata Bildirimi", "Özellik Önerisi", "Genel")
+    val feedbackTypes = listOf(stringResource(R.string.hata_bildirimi), stringResource(R.string.ozellik_onerisi), "Genel")
 
     val scrollState = rememberScrollState()
 

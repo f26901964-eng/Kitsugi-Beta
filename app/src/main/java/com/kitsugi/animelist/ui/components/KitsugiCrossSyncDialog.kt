@@ -99,6 +99,7 @@ import java.util.Date
 import java.util.Locale
 import androidx.compose.ui.res.stringResource
 import com.kitsugi.animelist.R
+import com.kitsugi.animelist.utils.KitsugiStrings
 
 private enum class CrossSyncLogFilter { All, Issues, Errors, Warnings }
 
@@ -155,7 +156,7 @@ fun KitsugiCrossSyncDialog(
                             ?: error("Seçilen dosya açılamadı")
                         output.bufferedWriter(Charsets.UTF_8).use { it.write(report) }
                     }
-                    Toast.makeText(context, "Eşitleme raporu dosyaya kaydedildi", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(context, KitsugiStrings.get(R.string.esitleme_raporu_dosyaya_kaydedildi), Toast.LENGTH_SHORT).show()
                 } catch (error: Exception) {
                     Toast.makeText(context, "Rapor kaydedilemedi: ${error.localizedMessage}", Toast.LENGTH_LONG).show()
                 }
@@ -218,7 +219,7 @@ fun KitsugiCrossSyncDialog(
                 }
                 context.startActivity(Intent.createChooser(shareIntent, "Eşitleme raporunu paylaş"))
             } catch (error: Exception) {
-                Toast.makeText(context, "Rapor paylaşılamadı: ${error.localizedMessage}", Toast.LENGTH_LONG).show()
+                Toast.makeText(context, KitsugiStrings.get(R.string.cs_diag_report_share_failed, error.localizedMessage), Toast.LENGTH_LONG).show()
             }
         }
     }
@@ -234,7 +235,7 @@ fun KitsugiCrossSyncDialog(
                 }
                 saveReportLauncher.launch(filename)
             } catch (error: Exception) {
-                Toast.makeText(context, "Rapor hazırlanamadı: ${error.localizedMessage}", Toast.LENGTH_LONG).show()
+                Toast.makeText(context, KitsugiStrings.get(R.string.rapor_hazirlanamadi_x, error.localizedMessage), Toast.LENGTH_LONG).show()
             }
         }
     }
@@ -247,7 +248,7 @@ fun KitsugiCrossSyncDialog(
         else -> MaterialTheme.colorScheme.onSurfaceVariant
     }
     val statusSubtitle = when {
-        state.isCompleted -> "Tamamlandı · ${formatDuration(elapsedMs)}" +
+        state.isCompleted -> KitsugiStrings.get(R.string.tamamlandi_x, formatDuration(elapsedMs)) +
             (if (state.issueCount > 0) " · ${state.issueCount} sorun" else " · sorun yok")
         state.isRunning -> "${formatDuration(elapsedMs)} geçti · ${state.currentStep.ifBlank { "Hazırlanıyor" }}"
         state.errorMessage != null -> "Hata oluştu · rapor hazır"
@@ -393,10 +394,10 @@ fun KitsugiCrossSyncDialog(
     if (showCancelConfirmation) {
         AlertDialog(
             onDismissRequest = { showCancelConfirmation = false },
-            title = { Text("Eşitleme durdurulsun mu?") },
+            title = { Text(KitsugiStrings.get(R.string.inline_stop_sync_2ac4d77)) },
             text = {
                 Text(
-                    "Tamamlanmış uzak sunucu güncellemeleri geri alınamaz. İşlem durdurulur ve şimdiye kadarki günlükle kısmi rapor saklanır."
+                    KitsugiStrings.get(R.string.inline_completed_remote_server_updates_ca_81e732b)
                 )
             },
             confirmButton = {
@@ -486,7 +487,7 @@ private fun CrossSyncHeader(
         }
         if (state.platformStats.isNotEmpty()) {
             Text(
-                text = "${state.platformStats.size} hesap · ${state.totalEventCount} olay",
+                text = stringResource(R.string.x_hesap_x_olay, state.platformStats.size, state.totalEventCount),
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 maxLines = 1
@@ -518,7 +519,7 @@ private fun ProgressCard(
     ) {
         Column(modifier = Modifier.padding(horizontal = 12.dp, vertical = if (compact) 8.dp else 10.dp)) {
             Text(
-                text = state.currentStep.ifBlank { "İşlem hazırlanıyor..." },
+                text = state.currentStep.ifBlank { stringResource(R.string.cross_sync_step_preparing) },
                 style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
                 color = MaterialTheme.colorScheme.onSurface,
                 maxLines = if (compact) 1 else 2,
@@ -565,7 +566,7 @@ private fun ProgressCard(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = if (state.totalItems > 0 || state.isCompleted) "%${(state.progressPercent * 100).toInt()}" else "İşlem sürüyor",
+                    text = if (state.totalItems > 0 || state.isCompleted) "%${(state.progressPercent * 100).toInt()}" else stringResource(R.string.cross_sync_in_progress),
                     style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
                     color = accentColor
                 )
@@ -588,7 +589,7 @@ private fun ProgressCard(
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
                     Text(
-                        text = "Geçen: ${formatDuration(elapsedMs)}",
+                        text = stringResource(R.string.inline_elapsed_1_s_08b667a, formatDuration(elapsedMs)),
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -620,7 +621,7 @@ private fun StalledBanner() {
         ) {
             Icon(Icons.Rounded.WarningAmber, contentDescription = null, tint = WARNING_COLOR, modifier = Modifier.size(18.dp))
             Text(
-                "İlerleme 90 saniyedir güncellenmedi. Kısmi raporu paylaşabilir veya eşitlemeyi durdurabilirsiniz.",
+                stringResource(R.string.inline_progress_hasn_t_updated_for_e587968),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurface
             )
@@ -637,7 +638,7 @@ private fun ErrorBanner(message: String) {
         border = BorderStroke(1.dp, ERROR_COLOR.copy(alpha = 0.3f))
     ) {
         Text(
-            text = "Hata: $message",
+            text = stringResource(R.string.hata_x, message),
             modifier = Modifier.padding(10.dp),
             style = MaterialTheme.typography.bodySmall,
             color = ERROR_COLOR,
@@ -659,7 +660,7 @@ private fun PlatformStatsSection(
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
             Text(
-                text = "Bağlı Hesaplar",
+                text = stringResource(R.string.inline_connected_accounts_3be75da),
                 style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -667,7 +668,7 @@ private fun PlatformStatsSection(
             val totalSkipped = state.platformStats.values.sumOf { it.skippedCount }
             if (state.platformStats.isNotEmpty()) {
                 Text(
-                    text = "$totalSkipped atlandı · $totalErrors hata",
+                    text = stringResource(R.string.inline_1_s_skipped_2_s_3e7c5e0, totalSkipped, totalErrors),
                     style = MaterialTheme.typography.labelSmall,
                     color = when {
                         totalErrors > 0 -> ERROR_COLOR
@@ -685,7 +686,7 @@ private fun PlatformStatsSection(
                 color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.25f)
             ) {
                 Text(
-                    "Bağlı ve eşitlemesi açık hesaplar belirleniyor...",
+                    stringResource(R.string.inline_checking_for_connected_accounts_wi_5b0a52f),
                     modifier = Modifier.padding(10.dp),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -752,7 +753,7 @@ private fun PlatformStatChip(
                 )
             }
             Text(
-                text = "${stats.initialCount} kayıt · +${stats.addedCount} · ~${stats.updatedCount}",
+                text = stringResource(R.string.inline_1_s_entries_2_s_54c9b10, stats.initialCount, stats.addedCount, stats.updatedCount),
                 style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.5.sp),
                 color = if (stats.addedCount > 0 || stats.updatedCount > 0) Color(0xFF42A5F5) else MaterialTheme.colorScheme.onSurfaceVariant,
                 maxLines = 1,
@@ -760,7 +761,7 @@ private fun PlatformStatChip(
             )
             Text(
                 text = when {
-                    stats.skippedCount > 0 || stats.errorCount > 0 -> "${stats.skippedCount} atlandı · ${stats.errorCount} hata"
+                    stats.skippedCount > 0 || stats.errorCount > 0 -> stringResource(R.string.inline_1_s_skipped_2_s_3e7c5e0, stats.skippedCount, stats.errorCount)
                     stats.initialCount > 0 -> "Sorun yok"
                     else -> "Kayıt yok"
                 },
@@ -793,7 +794,7 @@ private fun LogHeader(
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
             Text(
-                text = if (state.isRunning) "Canlı İşlem Günlüğü" else "İşlem Günlüğü",
+                text = if (state.isRunning) stringResource(R.string.cross_sync_live_log_title) else stringResource(R.string.cross_sync_log_title),
                 style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -811,7 +812,7 @@ private fun LogHeader(
         ) {
             CrossSyncLogFilter.entries.forEach { filter ->
                 val label = when (filter) {
-                    CrossSyncLogFilter.All -> "Tümü"
+                    CrossSyncLogFilter.All -> stringResource(R.string.notif_filter_all)
                     CrossSyncLogFilter.Issues -> "Sorunlar${if (errorCount + warningCount > 0) " (${errorCount + warningCount})" else ""}"
                     CrossSyncLogFilter.Errors -> "Hatalar${if (errorCount > 0) " ($errorCount)" else ""}"
                     CrossSyncLogFilter.Warnings -> "Uyarılar${if (warningCount > 0) " ($warningCount)" else ""}"
@@ -848,7 +849,7 @@ private fun LogList(
                 contentAlignment = Alignment.Center
             ) {
                 Text(
-                    text = if (!hasAnyLogs) "Henüz kayıt yok. Eşitleme adımları burada görünecek." else "Bu filtrede gösterilecek olay yok.",
+                    text = if (!hasAnyLogs) stringResource(R.string.cross_sync_empty_log) else stringResource(R.string.cross_sync_empty_filter),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -918,14 +919,14 @@ private fun SafetyNote() {
                     modifier = Modifier.size(14.dp)
                 )
                 Text(
-                    text = "Veri silinmez; yalnızca güvenli eşleşmeler eklenir/güncellenir. " +
-                        "Raporda erişim anahtarları gizlenir.",
+                    text = stringResource(R.string.veri_silinmez_yalnizca_guvenli_eslesmeler_eklenir_guncellenir) +
+                        stringResource(R.string.raporda_erisim_anahtarlari_gizlenir),
                     style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp, lineHeight = 15.sp),
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.weight(1f)
                 )
                 Text(
-                    text = if (expanded) "Kapat" else "Uyarı",
+                    text = if (expanded) stringResource(R.string.settings_close) else stringResource(R.string.uyari),
                     style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp),
                     fontWeight = FontWeight.Bold,
                     color = LocalKitsugiAccent.current
@@ -976,7 +977,7 @@ private fun ColumnScope.ActionButtons(
             ) {
                 Icon(Icons.AutoMirrored.Rounded.Send, contentDescription = null, modifier = Modifier.size(16.dp))
                 Spacer(modifier = Modifier.width(5.dp))
-                Text("Kısmi Rapor", maxLines = 1, overflow = TextOverflow.Ellipsis, fontSize = 12.sp)
+                Text(stringResource(R.string.inline_partial_report_b0be79e), maxLines = 1, overflow = TextOverflow.Ellipsis, fontSize = 12.sp)
             }
             OutlinedButton(
                 onClick = onCancelRequest,
@@ -994,7 +995,7 @@ private fun ColumnScope.ActionButtons(
             onClick = onDismiss,
             modifier = Modifier.fillMaxWidth()
         ) {
-            Text("Arka Planda Devam Et", fontSize = 12.sp)
+            Text(stringResource(R.string.arka_planda_devam_et), fontSize = 12.sp)
         }
     } else {
         if (stacked) {
@@ -1008,7 +1009,7 @@ private fun ColumnScope.ActionButtons(
             ) {
                 Icon(Icons.Rounded.Download, contentDescription = null, modifier = Modifier.size(16.dp))
                 Spacer(modifier = Modifier.width(5.dp))
-                Text("Dosyaya Kaydet", maxLines = 1, overflow = TextOverflow.Ellipsis, fontSize = 12.sp)
+                Text(stringResource(R.string.dosyaya_kaydet), maxLines = 1, overflow = TextOverflow.Ellipsis, fontSize = 12.sp)
             }
             Spacer(modifier = Modifier.height(6.dp))
             OutlinedButton(
@@ -1021,7 +1022,7 @@ private fun ColumnScope.ActionButtons(
             ) {
                 Icon(Icons.AutoMirrored.Rounded.Send, contentDescription = null, modifier = Modifier.size(16.dp))
                 Spacer(modifier = Modifier.width(5.dp))
-                Text("Raporu Paylaş", maxLines = 1, overflow = TextOverflow.Ellipsis, fontSize = 12.sp)
+                Text(stringResource(R.string.inline_share_report_a47e5b0), maxLines = 1, overflow = TextOverflow.Ellipsis, fontSize = 12.sp)
             }
         } else {
             Row(
@@ -1070,7 +1071,7 @@ private fun ColumnScope.ActionButtons(
             ) {
                 Icon(Icons.Rounded.Sync, contentDescription = null, modifier = Modifier.size(15.dp))
                 Spacer(modifier = Modifier.width(5.dp))
-                Text("Yeni Eşitleme Başlat", fontSize = 12.sp)
+                Text(stringResource(R.string.inline_start_new_sync_22f8bdc), fontSize = 12.sp)
             }
         } else if (stacked) {
             TextButton(
@@ -1156,7 +1157,7 @@ private fun LogItemRow(log: CrossSyncLogEntry) {
             }
             if (expanded && log.details.isNullOrBlank()) {
                 Text(
-                    text = "Bu olay için ek teknik ayrıntı yok.",
+                    text = stringResource(R.string.inline_no_additional_technical_details_ar_fa4739f),
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )

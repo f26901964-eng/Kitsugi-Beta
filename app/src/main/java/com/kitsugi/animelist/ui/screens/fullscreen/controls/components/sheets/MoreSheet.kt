@@ -90,7 +90,7 @@ fun MoreSheet(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(
-                    text = "Daha Fazla",
+                    text = stringResource(R.string.daha_fazla),
                     style = MaterialTheme.typography.headlineMedium,
                 )
                 Row(
@@ -106,7 +106,7 @@ fun MoreSheet(
                             Icon(imageVector = Icons.Outlined.Timer, contentDescription = null)
                             Text(
                                 text = if (remainingTime == 0) {
-                                    "Zamanlayıcı"
+                                    stringResource(R.string.ui_timer_label)
                                 } else {
                                     DateUtils.formatElapsedTime(remainingTime.toLong())
                                 },
@@ -132,7 +132,7 @@ fun MoreSheet(
                 }
             }
 
-            Text("Donanım Kod Çözücü Modu", style = MaterialTheme.typography.titleMedium)
+            Text(stringResource(R.string.inline_hardware_decoder_mode_335c79b), style = MaterialTheme.typography.titleMedium)
             LazyRow(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
@@ -145,7 +145,7 @@ fun MoreSheet(
                 }
             }
 
-            Text("İstatistik Sayfası", style = MaterialTheme.typography.titleMedium)
+            Text(stringResource(R.string.inline_statistics_page_403a430), style = MaterialTheme.typography.titleMedium)
             LazyRow(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
@@ -158,7 +158,7 @@ fun MoreSheet(
                         },
                         label = {
                             Text(
-                                text = if (page == 0) "Kapalı" else "Sayfa $page"
+                                text = if (page == 0) stringResource(R.string.player_afr_off) else "Sayfa $page"
                             )
                         },
                     )
@@ -166,7 +166,7 @@ fun MoreSheet(
             }
 
             if (customButtons.isNotEmpty()) {
-                Text("Özel Butonlar", style = MaterialTheme.typography.titleMedium)
+                Text(stringResource(R.string.inline_custom_buttons_7a0fd0e), style = MaterialTheme.typography.titleMedium)
                 FlowRow(
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -196,7 +196,7 @@ fun MoreSheet(
                 }
             }
 
-            Text("Ses Kanalları", style = MaterialTheme.typography.titleMedium)
+            Text(stringResource(R.string.inline_audio_channels_d078a64), style = MaterialTheme.typography.titleMedium)
             LazyRow(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
@@ -239,7 +239,7 @@ fun TimePickerDialog(
                 var currentLayoutType by rememberSaveable { mutableIntStateOf(0) }
                 Text(
                     text = if (currentLayoutType == 1) {
-                        "Zamanlayıcı Seç"
+                        stringResource(R.string.ui_timer_select)
                     } else {
                         "Zamanlayıcı Gir"
                     },
@@ -292,7 +292,7 @@ fun TimePickerDialog(
                                 onDismissRequest()
                             },
                         ) {
-                            Text("Tamam")
+                            Text(stringResource(R.string.settings_ok))
                         }
                     }
                 }

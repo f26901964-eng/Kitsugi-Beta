@@ -29,6 +29,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import androidx.compose.ui.res.stringResource
 import com.kitsugi.animelist.R
+import com.kitsugi.animelist.utils.KitsugiStrings
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -158,7 +159,7 @@ internal fun CsPluginRow(
             }
             if (plugin.status == 2) {
                 Text(
-                    text = "⚠️ Bu eklenti test aşamasındadır (Beta/Yavaş). Hatalar barındırabilir.",
+                    text = stringResource(R.string.inline_this_extension_is_in_beta_1b5de5b),
                     color = KitsugiColors.AccentOrange,
                     style = MaterialTheme.typography.labelSmall,
                     modifier = Modifier.padding(top = 2.dp)
@@ -193,7 +194,7 @@ internal fun CsPluginRow(
             PluginInstallState.FAILURE -> {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                     Text(
-                        text = "✗ Hata",
+                        text = stringResource(R.string.hata_37fcfb3),
                         color = KitsugiColors.AccentRed,
                         fontWeight = FontWeight.Bold,
                         fontSize = 11.sp,
@@ -224,7 +225,7 @@ internal fun CsPluginRow(
                 val hasUpdate = !isStremio && isInstalled && installedVersion != null && installedVersion < plugin.version
                 if (hasUpdate) {
                     Text(
-                        text = "⬆️ Güncelle",
+                        text = stringResource(R.string.inline_update_27ef47d),
                         color = accentColor,
                         fontWeight = FontWeight.Bold,
                         fontSize = 12.sp,
@@ -262,7 +263,7 @@ internal fun CsPluginRow(
                         if (pluginHasSettings) {
                             Icon(
                                 imageVector = Icons.Rounded.Settings,
-                                contentDescription = "Eklenti Ayarları",
+                                contentDescription = stringResource(R.string.eklenti_ayarlari),
                                 tint = accentColor,
                                 modifier = Modifier
                                     .size(18.dp)
@@ -287,7 +288,7 @@ internal fun CsPluginRow(
                                                     )
                                                     loadedPlugin.openSettings?.invoke(themedCtx)
                                                 } else {
-                                                    android.widget.Toast.makeText(localContext, "Eklenti veya ekran hazır değil.", android.widget.Toast.LENGTH_SHORT).show()
+                                                    android.widget.Toast.makeText(localContext, KitsugiStrings.get(R.string.eklenti_veya_ekran_hazir_degil), android.widget.Toast.LENGTH_SHORT).show()
                                                 }
                                             } catch (e: Throwable) {
                                                 android.util.Log.e("KitsugiAddons", "Ayarlar açılamadı: ${e.message}", e)

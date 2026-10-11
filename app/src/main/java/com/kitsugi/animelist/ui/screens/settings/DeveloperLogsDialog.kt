@@ -44,6 +44,7 @@ import kotlinx.coroutines.withContext
 import java.io.BufferedReader
 import java.io.File
 import java.io.InputStreamReader
+import com.kitsugi.animelist.utils.KitsugiStrings
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -81,9 +82,9 @@ fun DeveloperLogsDialog(
                             writer.write(snap_lines.joinToString("\n"))
                         }
                     }
-                    Toast.makeText(context, "Loglar başarıyla kaydedildi", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(context, KitsugiStrings.get(R.string.loglar_basariyla_kaydedildi), Toast.LENGTH_SHORT).show()
                 } catch (e: Exception) {
-                    Toast.makeText(context, "Kaydetme başarısız: ${e.localizedMessage}", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(context, KitsugiStrings.get(R.string.kaydetme_basarisiz_x, e.localizedMessage), Toast.LENGTH_SHORT).show()
                 }
             }
         }
@@ -108,7 +109,7 @@ fun DeveloperLogsDialog(
                 reader.close()
                 logLines = lines.takeLast(1500).reversed()
             } catch (e: Exception) {
-                logLines = listOf("Loglar okunamadı: ${e.localizedMessage}")
+                logLines = listOf(KitsugiStrings.get(R.string.loglar_okunamadi_x, e.localizedMessage))
             } finally {
                 isLoading = false
             }
@@ -125,7 +126,7 @@ fun DeveloperLogsDialog(
                 crashReport = null
                 logLines = emptyList()
             } catch (e: Exception) {
-                logLines = listOf("Temizleme başarısız: ${e.localizedMessage}")
+                logLines = listOf(KitsugiStrings.get(R.string.temizleme_basarisiz_x, e.localizedMessage))
             } finally {
                 isLoading = false
             }
@@ -203,7 +204,7 @@ fun DeveloperLogsDialog(
                                     append(filteredLines.joinToString("\n"))
                                 }
                                 clipboardManager.setText(AnnotatedString(textToCopy))
-                                Toast.makeText(context, "Loglar panoya kopyalandı", Toast.LENGTH_SHORT).show()
+                                Toast.makeText(context, KitsugiStrings.get(R.string.loglar_panoya_kopyalandi), Toast.LENGTH_SHORT).show()
                             },
                             colors = IconButtonDefaults.iconButtonColors(containerColor = KitsugiColors.SurfaceStrong)
                         ) {
@@ -290,7 +291,7 @@ fun DeveloperLogsDialog(
                                                 writer.close()
                                                 reader.close()
                                             } catch (e: Exception) {
-                                                currentLogcatFile.writeText("Anlık log alınamadı: ${e.localizedMessage}")
+                                                currentLogcatFile.writeText(KitsugiStrings.get(R.string.anlik_log_alinamadi_x, e.localizedMessage))
                                             }
                                         }
                                         if (currentLogcatFile.exists() && currentLogcatFile.length() > 0) {
@@ -311,10 +312,10 @@ fun DeveloperLogsDialog(
                                             }
                                             context.startActivity(android.content.Intent.createChooser(intent, "Logları Paylaş"))
                                         } else {
-                                            Toast.makeText(context, "Paylaşılacak log dosyası bulunamadı", Toast.LENGTH_SHORT).show()
+                                            Toast.makeText(context, KitsugiStrings.get(R.string.paylasilacak_log_dosyasi_bulunamadi), Toast.LENGTH_SHORT).show()
                                         }
                                     } catch (e: Exception) {
-                                        Toast.makeText(context, "Paylaşım Hatası: ${e.localizedMessage}", Toast.LENGTH_SHORT).show()
+                                        Toast.makeText(context, KitsugiStrings.get(R.string.paylasim_hatasi_x, e.localizedMessage), Toast.LENGTH_SHORT).show()
                                     }
                                 }
                             },

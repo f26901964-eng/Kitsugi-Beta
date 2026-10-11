@@ -9,6 +9,8 @@ import org.json.JSONObject
 import org.json.JSONArray
 import okhttp3.Request
 import com.kitsugi.animelist.data.remote.optNullableString
+import com.kitsugi.animelist.utils.KitsugiStrings
+import com.kitsugi.animelist.R
 
 object SimklImportManager {
 
@@ -48,7 +50,7 @@ object SimklImportManager {
                 val responseText = response.body?.string().orEmpty()
                 val root = JSONObject(responseText)
                 val user = root.optJSONObject("user")
-                val name = user?.optNullableString("name") ?: "Simkl Kullanıcısı"
+                val name = user?.optNullableString("name") ?: KitsugiStrings.get(R.string.simkl_kullanicisi)
                 val avatar = user?.optNullableString("avatar")
                 val avatarUrl = if (!avatar.isNullOrBlank()) "https://simkl.in/avatars/${avatar}_m.jpg" else null
 
@@ -133,7 +135,7 @@ object SimklImportManager {
                         val mediaObjKey = com.kitsugi.animelist.data.remote.SimklSyncContract.readMediaKey(type)
                         val mediaObj = item.optJSONObject(mediaObjKey)
                             ?: throw IllegalStateException("Simkl [$type]: $mediaObjKey nesnesi eksik")
-                        val title = mediaObj.optNullableString("title") ?: "Başlıksız"
+                        val title = mediaObj.optNullableString("title") ?: KitsugiStrings.get(R.string.basliksiz)
                         val year = mediaObj.optInt("year", 0).takeIf { it > 0 }
                         val poster = mediaObj.optNullableString("poster")
                         val imageUrl = if (!poster.isNullOrBlank()) "https://simkl.in/posters/${poster}_m.jpg" else null

@@ -134,7 +134,7 @@ fun TvMangaSourceHealthScreen(
                                 modifier = Modifier.size(22.dp)
                             )
                             Text(
-                                "Kaynak Sağlığı",
+                                stringResource(R.string.inline_source_health_1595253),
                                 color = KitsugiColors.TextPrimary,
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 16.sp
@@ -151,7 +151,7 @@ fun TvMangaSourceHealthScreen(
                         // Tümünü Temizle
                         TvHealthActionRow(
                             icon = Icons.Rounded.ClearAll,
-                            label = "Tüm Tanıları Sıfırla",
+                            label = stringResource(R.string.tum_tanilari_sifirla),
                             color = KitsugiColors.TextMuted,
                             onClick = onClearAllDiagnostics
                         )
@@ -186,7 +186,7 @@ fun TvMangaSourceHealthScreen(
                                     tint = KitsugiColors.TextMuted,
                                     modifier = Modifier.size(40.dp)
                                 )
-                                Text("Kurulu kaynak bulunamadı", color = KitsugiColors.TextMuted)
+                                Text(stringResource(R.string.inline_no_installed_sources_found_f8a8970), color = KitsugiColors.TextMuted)
                             }
                         }
                     }
@@ -247,7 +247,7 @@ fun TvMangaSourceHealthScreen(
                                 modifier = Modifier.size(64.dp)
                             )
                             Text(
-                                "Detayları görmek için\nbir kaynak seçin",
+                                stringResource(R.string.detaylari_gormek_icin_bir_kaynak_secin),
                                 color = KitsugiColors.TextMuted,
                                 fontSize = 14.sp,
                                 lineHeight = 22.sp
@@ -489,7 +489,7 @@ private fun TvHealthDetailPanel(
         // Aksiyon butonları
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             TvHealthDetailButton(
-                label = "Hızlı Kontrol",
+                label = stringResource(R.string.hizli_kontrol),
                 icon = Icons.Rounded.PlayArrow,
                 color = KitsugiColors.AccentBlue,
                 onClick = onQuickCheck
@@ -501,7 +501,7 @@ private fun TvHealthDetailPanel(
                 onClick = onRefreshMirror
             )
             TvHealthDetailButton(
-                label = "Tanıları Sıfırla",
+                label = stringResource(R.string.tanilari_sifirla),
                 icon = Icons.Rounded.ClearAll,
                 color = KitsugiColors.TextMuted,
                 onClick = onClearDiagnostics
@@ -510,7 +510,7 @@ private fun TvHealthDetailPanel(
 
         // İstatistik kartları
         Text(
-            "Runtime İstatistikleri",
+            stringResource(R.string.inline_runtime_statistics_1e934c0),
             color = KitsugiColors.TextSecondary,
             fontWeight = FontWeight.SemiBold,
             fontSize = 13.sp
@@ -526,13 +526,13 @@ private fun TvHealthDetailPanel(
             // Başarı / Başarısız
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                 TvHealthStatBox(
-                    label = "Başarılı",
+                    label = stringResource(R.string.basarili_e19afb3),
                     value = "${stats.successCount}",
                     color = KitsugiColors.AccentGreen,
                     modifier = Modifier.weight(1f)
                 )
                 TvHealthStatBox(
-                    label = "Başarısız",
+                    label = stringResource(R.string.basarisiz),
                     value = "${stats.failureCount}",
                     color = KitsugiColors.AccentRed,
                     modifier = Modifier.weight(1f)
@@ -547,7 +547,7 @@ private fun TvHealthDetailPanel(
                 TvHealthStatRow("Ortalama Görsel", "${stats.avgImageMs} ms")
             } else {
                 Text(
-                    "Henüz istatistik yok. Hızlı kontrol yapın.",
+                    stringResource(R.string.inline_no_statistics_yet_run_a_5ba60f7),
                     color = KitsugiColors.TextMuted,
                     fontSize = 12.sp
                 )

@@ -91,7 +91,7 @@ fun ModernHomeRows(
             }
             results.isEmpty() -> {
                 Text(
-                    text = "İçerik bulunamadı.",
+                    text = stringResource(R.string.inline_no_content_found_b1f7076),
                     style = MaterialTheme.typography.bodySmall,
                     color = KitsugiColors.TextMuted,
                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)

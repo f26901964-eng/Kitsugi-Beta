@@ -45,6 +45,7 @@ import kotlinx.coroutines.launch
 import androidx.compose.foundation.clickable
 import androidx.compose.ui.res.stringResource
 import com.kitsugi.animelist.R
+import com.kitsugi.animelist.utils.KitsugiStrings
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -254,7 +255,7 @@ fun KitsugiAllReviewsBottomSheet(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     val allOptions = listOf(
-                        "all" to "Tümü",
+                        "all" to KitsugiStrings.get(R.string.notif_filter_all),
                         "anilist" to "AniList",
                         "jikan" to "MAL",
                         "kitsu" to "Kitsu",
@@ -318,7 +319,7 @@ fun KitsugiAllReviewsBottomSheet(
                                 .clip(RoundedCornerShape(16.dp))
                                 .background(KitsugiColors.SurfaceStrong)
                                 .tvClickable(shape = RoundedCornerShape(16.dp)) {
-                                    Toast.makeText(context, "Yükleniyor...", Toast.LENGTH_SHORT).show()
+                                    Toast.makeText(context, KitsugiStrings.get(R.string.loading), Toast.LENGTH_SHORT).show()
                                     activeReviewForDetail = rev
                                 }
                                 .padding(14.dp)
@@ -431,13 +432,13 @@ fun KitsugiAllReviewsBottomSheet(
                                             onClick = {
                                                 val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
                                                 clipboard.setPrimaryClip(android.content.ClipData.newPlainText("review_summary", rev.summary))
-                                                Toast.makeText(context, "Panoya kopyalandı", Toast.LENGTH_SHORT).show()
+                                                Toast.makeText(context, KitsugiStrings.get(R.string.toast_copied_clipboard), Toast.LENGTH_SHORT).show()
                                             },
                                             modifier = Modifier.size(28.dp)
                                         ) {
                                             Icon(
                                                 imageVector = Icons.Rounded.ContentCopy,
-                                                contentDescription = "Kopyala",
+                                                contentDescription = KitsugiStrings.get(R.string.action_copy),
                                                 tint = KitsugiColors.TextSecondary,
                                                 modifier = Modifier.size(14.dp)
                                             )
@@ -448,7 +449,7 @@ fun KitsugiAllReviewsBottomSheet(
                                         verticalAlignment = Alignment.CenterVertically,
                                         modifier = Modifier.tvClickable(shape = RoundedCornerShape(8.dp)) {
                                             if (rev.source != "anilist" || rev.id == null) {
-                                                Toast.makeText(context, "Beğeni sadece AniList incelemelerinde desteklenir.", Toast.LENGTH_SHORT).show()
+                                                Toast.makeText(context, KitsugiStrings.get(R.string.begeni_sadece_anilist_incelemelerinde_desteklenir), Toast.LENGTH_SHORT).show()
                                                 return@tvClickable
                                             }
                                             coroutineScope.launch {
@@ -469,7 +470,7 @@ fun KitsugiAllReviewsBottomSheet(
                                                         }
                                                     }
                                                 } else {
-                                                    Toast.makeText(context, "Lütfen önce giriş yapın", Toast.LENGTH_SHORT).show()
+                                                    Toast.makeText(context, KitsugiStrings.get(R.string.lutfen_once_giris_yapin), Toast.LENGTH_SHORT).show()
                                                 }
                                             }
                                         }

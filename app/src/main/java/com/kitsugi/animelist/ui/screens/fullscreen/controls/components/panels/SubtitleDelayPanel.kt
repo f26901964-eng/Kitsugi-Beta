@@ -33,6 +33,8 @@ import androidx.constraintlayout.compose.ConstraintLayout
 import com.kitsugi.animelist.ui.screens.fullscreen.controls.components.OutlinedNumericChooser
 import kotlin.math.round
 import kotlin.math.roundToInt
+import androidx.compose.ui.res.stringResource
+import com.kitsugi.animelist.R
 
 enum class SubtitleDelayType(val label: String) {
     Primary("Birincil"),
@@ -99,7 +101,7 @@ fun SubtitleDelayPanel(
             extraSettings = {
                 if (affectedSubtitle == SubtitleDelayType.Primary) {
                     OutlinedNumericChooser(
-                        label = { Text("Hız", color = Color.White) },
+                        label = { Text(stringResource(R.string.inline_speed_425657d), color = Color.White) },
                         value = speed,
                         onChange = { speed = round(it * 1000) / 1000f },
                         max = 10f,
@@ -129,7 +131,7 @@ private fun SubtitleDelayTitle(
         horizontalArrangement = Arrangement.spacedBy(4.dp),
         modifier = modifier.fillMaxWidth(),
     ) {
-        Text("Alt yazı gecikmesi", style = MaterialTheme.typography.headlineMedium, color = Color.White)
+        Text(stringResource(R.string.inline_subtitle_delay_9b49ab2), style = MaterialTheme.typography.headlineMedium, color = Color.White)
         var showDropDown by remember { mutableStateOf(false) }
         Row(
             verticalAlignment = Alignment.CenterVertically,

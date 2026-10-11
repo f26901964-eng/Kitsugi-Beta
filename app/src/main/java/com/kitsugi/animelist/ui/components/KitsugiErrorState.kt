@@ -22,6 +22,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.kitsugi.animelist.ui.theme.KitsugiColors
 import com.kitsugi.animelist.ui.theme.LocalKitsugiAccent
+import androidx.compose.ui.res.stringResource
+import com.kitsugi.animelist.R
 
 @Composable
 fun KitsugiErrorState(
@@ -50,7 +52,7 @@ fun KitsugiErrorState(
         Spacer(modifier = Modifier.height(16.dp))
 
         Text(
-            text = "Bir Hata Oluştu",
+            text = stringResource(R.string.inline_an_error_occurred_8c9a190),
             color = KitsugiColors.TextPrimary,
             style = MaterialTheme.typography.titleMedium,
             fontWeight = FontWeight.Bold,

@@ -137,7 +137,7 @@ fun KitsugiMediaGridDialog(
                     KitsugiEmptyState(
                                 title = stringResource(R.string.sonuc_bulunamadi),
                                 subtitle = if (searchQuery.isBlank()) {
-                                    "Bu rafta gösterilecek içerik yok."
+                                    stringResource(R.string.bu_rafta_gosterilecek_icerik_yok)
                                 } else {
                                     "\"$searchQuery\" araması için sonuç bulunamadı."
                                 },
@@ -237,7 +237,7 @@ fun KitsugiMediaGridDialog(
                         KitsugiEmptyState(
                             title = stringResource(R.string.sonuc_bulunamadi),
                             subtitle = if (searchQuery.isBlank()) {
-                                "Bu rafta gösterilecek içerik yok."
+                                stringResource(R.string.bu_rafta_gosterilecek_icerik_yok)
                             } else {
                                 "\"$searchQuery\" araması için sonuç bulunamadı."
                             },

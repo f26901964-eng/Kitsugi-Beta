@@ -29,6 +29,8 @@ import coil3.compose.AsyncImage
 import com.kitsugi.animelist.ui.screens.profile.KitsugiUserProfileViewModel
 import com.kitsugi.animelist.ui.screens.profile.OtherUserProfileState
 import com.kitsugi.animelist.ui.theme.KitsugiColors
+import androidx.compose.ui.res.stringResource
+import com.kitsugi.animelist.R
 
 @Composable
 fun UserProfileSocialTab(
@@ -48,7 +50,7 @@ fun UserProfileSocialTab(
             contentAlignment = Alignment.Center
         ) {
             Text(
-                text = if (socialFilter == 0) "Takipçi bulunamadı." else "Takip edilen kullanıcı bulunamadı.",
+                text = if (socialFilter == 0) stringResource(R.string.ui_social_no_followers) else stringResource(R.string.ui_social_no_followed_users),
                 color = KitsugiColors.TextMuted,
                 textAlign = TextAlign.Center
             )

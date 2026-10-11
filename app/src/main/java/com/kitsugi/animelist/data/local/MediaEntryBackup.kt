@@ -5,6 +5,8 @@ import com.kitsugi.animelist.model.MediaType
 import com.kitsugi.animelist.model.WatchStatus
 import org.json.JSONArray
 import org.json.JSONObject
+import com.kitsugi.animelist.utils.KitsugiStrings
+import com.kitsugi.animelist.R
 
 data class BackupPreview(
     val totalCount: Int,
@@ -90,7 +92,7 @@ object MediaEntryBackup {
             val item = array.optJSONObject(index) ?: error("Yedek kaydı bozuk: $index")
 
             val title = item.getString("title")
-            require(title.isNotBlank()) { "Yedek başlığı eksik: $index" }
+            require(title.isNotBlank()) { KitsugiStrings.get(R.string.yedek_basligi_eksik_x, index) }
 
             val type = MediaType.valueOf(item.getString("type"))
 
@@ -99,7 +101,7 @@ object MediaEntryBackup {
             val entry = MediaEntry(
                 id = 0,
                 title = title,
-                subtitle = item.optString("subtitle", "İçe aktarılan içerik"),
+                subtitle = item.optString("subtitle", KitsugiStrings.get(R.string.ice_aktarilan_icerik)),
                 type = type,
                 status = status,
                 score = item.optionalInt("score"),
@@ -195,7 +197,13 @@ object MediaEntryBackup {
                 // Enrich existing local entry with remote sync status
                 val updated = existing.copy(
                     title = if (imported.title.isNotBlank()) imported.title else existing.title,
-                    subtitle = if (imported.subtitle.isNotBlank() && imported.subtitle != "MyAnimeList'ten içe aktarıldı" && imported.subtitle != "AniList'ten içe aktarıldı") imported.subtitle else existing.subtitle,
+                    // NOT: Bu iki metin içe aktarma sırasında `subtitle` alanına yazılan
+                    // yerelleştirilmiş etiketlerdir; karşılaştırma da aynı kaynaktan yapılmalı.
+                    subtitle = if (
+                        imported.subtitle.isNotBlank() &&
+                        imported.subtitle != KitsugiStrings.get(R.string.myanimelist_ten_ice_aktarildi) &&
+                        imported.subtitle != KitsugiStrings.get(R.string.anilist_ten_ice_aktarildi)
+                    ) imported.subtitle else existing.subtitle,
                     status = imported.status,
                     score = imported.score ?: existing.score,
                     progress = imported.progress,

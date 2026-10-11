@@ -265,7 +265,7 @@ fun StreamScreenContent(
                         }
 
                         val isDebrid = resolvingSource.infoHash != null || resolvingSource.url?.contains("magnet") == true
-                        val message = if (isDebrid) "Debrid Üzerinden Çözümleniyor..." else "Akış Bağlantısı Çözülüyor..."
+                        val message = if (isDebrid) stringResource(R.string.debrid_uzerinden_cozumleniyor) else stringResource(R.string.akis_baglantisi_cozuluyor)
                         Text(
                             text = message,
                             color = KitsugiColors.TextPrimary,
@@ -341,7 +341,7 @@ fun StreamScreenContent(
                         Spacer(Modifier.height(4.dp))
                         PlayerPickerCard(
                             icon = { Icon(Icons.Rounded.PlayCircle, null, tint = accentColor) },
-                            label = "Dahili Oynatıcı (ExoPlayer)", sub = "Uygulama içi kesintisiz oynatma",
+                            label = stringResource(R.string.player_engine_internal_exo), sub = stringResource(R.string.uygulama_ici_kesintisiz_oynatma),
                             accentColor = accentColor,
                             onClick = {
                                 if (rememberChoice) onRememberChoice("exoplayer")
@@ -351,7 +351,7 @@ fun StreamScreenContent(
                         )
                         PlayerPickerCard(
                             icon = { Icon(Icons.AutoMirrored.Rounded.Launch, null, tint = accentColor) },
-                            label = "Harici Oynatıcı (Chooser)", sub = "MX Player, Mi Video veya diğerleri",
+                            label = stringResource(R.string.harici_oynatici_chooser), sub = stringResource(R.string.mx_player_mi_video_veya_digerleri),
                             accentColor = accentColor,
                             onClick = {
                                 if (rememberChoice) onRememberChoice("mpv")
@@ -399,7 +399,7 @@ private fun StreamSearchBar(
             onValueChange = onQueryChange,
             placeholder = {
                 Text(
-                    "Kaynak, eklenti veya video ara... (Dizilla, Sibnet, Dublaj)",
+                    stringResource(R.string.kaynak_eklenti_veya_video_ara_dizilla_sibnet_dublaj),
                     color = KitsugiColors.TextMuted,
                     fontSize = 12.sp
                 )
@@ -442,7 +442,7 @@ private fun StreamSearchBar(
             contentPadding = PaddingValues(horizontal = 2.dp)
         ) {
             val tags = listOf(
-                "Altyazı" to "💬 Altyazı",
+                stringResource(R.string.bangumi_tag_subtitles) to stringResource(R.string.altyazi),
                 "Dublaj" to "🎙️ Dublaj",
                 "1080p" to "✨ 1080p",
                 "720p" to "🎬 720p",

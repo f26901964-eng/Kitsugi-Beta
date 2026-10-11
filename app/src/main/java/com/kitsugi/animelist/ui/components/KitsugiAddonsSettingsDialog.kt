@@ -44,6 +44,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import androidx.compose.ui.res.stringResource
 import com.kitsugi.animelist.R
+import com.kitsugi.animelist.utils.KitsugiStrings
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -177,7 +178,7 @@ fun KitsugiAddonsSettingsDialog(
                                 fontWeight = FontWeight.Bold
                             )
                             Text(
-                                text = "Kaynakları ekleyin, güncelleyin ve yönetin",
+                                text = stringResource(R.string.kaynaklari_ekleyin_guncelleyin_ve_yonetin),
                                 color = KitsugiColors.TextMuted,
                                 style = MaterialTheme.typography.bodySmall
                             )
@@ -301,7 +302,7 @@ fun KitsugiAddonsSettingsDialog(
                                             webViewDialogUrl = url
                                             webViewDialogTitle = pluginName
                                         } else {
-                                            android.widget.Toast.makeText(context, "Eklenti adresi bulunamadı.", android.widget.Toast.LENGTH_SHORT).show()
+                                            android.widget.Toast.makeText(context, KitsugiStrings.get(R.string.eklenti_adresi_bulunamadi), android.widget.Toast.LENGTH_SHORT).show()
                                         }
                                     }
                                 }
@@ -393,7 +394,7 @@ fun KitsugiAddonsSettingsDialog(
             title = { Text(stringResource(R.string.guvenli_olmayan_kaynak), color = KitsugiColors.TextPrimary) },
             text = {
                 Text(
-                    "Eklemek istediğiniz kaynak güvenilir eklenti havuzları listesinde yer almıyor:\n\n$untrustedRepoToConfirm\n\nBu kaynağı eklemek cihazınızda güvenlik riski oluşturabilir. Devam etmek istiyor musunuz?",
+                    stringResource(R.string.eklemek_istediginiz_kaynak_guvenilir_eklenti_havuzlari_listesind, untrustedRepoToConfirm),
                     color = KitsugiColors.TextSecondary
                 )
             },
@@ -418,7 +419,7 @@ fun KitsugiAddonsSettingsDialog(
             title = { Text(stringResource(R.string.guvenli_olmayan_eklenti_imzasi), color = KitsugiColors.TextPrimary) },
             text = {
                 Text(
-                    "Yüklemek istediğiniz eklentinin imzası güvenilir imzalar listesinde yer almıyor:\n\nEklenti: ${ext.name}\nPaket: ${ext.pkg}\nİmza: $hash\n\nBu eklentiyi yüklemek cihazınızda güvenlik riski oluşturabilir. İmzayı güvenilir kabul edip yüklemek istiyor musunuz?",
+                    stringResource(R.string.yuklemek_istediginiz_eklentinin_imzasi_guvenilir_imzalar_listesi, ext.name, ext.pkg, hash),
                     color = KitsugiColors.TextSecondary
                 )
             },
@@ -453,7 +454,7 @@ private fun AddonsSegmentedTabs(
     // Sekme başlıkları kısa/madde madde tutulur: "Video Kaynakları" (Cloudstream) ve
     // "Manga Kaynakları" (Mihon/Tachiyomi) ayrımı ilk bakışta anlaşılır olsun.
     val tabs = listOf(
-        "Torrent & Akış" to Icons.Rounded.Bolt,
+        stringResource(R.string.inline_torrent_streaming_89e2cac) to Icons.Rounded.Bolt,
         "Video Kaynakları" to Icons.Rounded.PlayCircle,
         "Manga Kaynakları" to Icons.Rounded.AutoStories
     )

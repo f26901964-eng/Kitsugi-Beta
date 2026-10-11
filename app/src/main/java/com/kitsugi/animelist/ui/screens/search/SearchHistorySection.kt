@@ -117,7 +117,7 @@ fun SearchHistorySection(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
-                            text = if (expanded) "Daha az" else "+$hiddenCount",
+                            text = if (expanded) stringResource(R.string.action_see_less) else "+$hiddenCount",
                             color = accentColor,
                             style = MaterialTheme.typography.labelSmall,
                             fontWeight = FontWeight.Medium
@@ -136,7 +136,7 @@ fun SearchHistorySection(
                 ) {
                     Icon(
                         imageVector = Icons.Rounded.Delete,
-                        contentDescription = "Tümünü temizle",
+                        contentDescription = stringResource(R.string.tumunu_temizle_d2932f1),
                         tint = KitsugiColors.TextMuted,
                         modifier = Modifier.size(14.dp)
                     )

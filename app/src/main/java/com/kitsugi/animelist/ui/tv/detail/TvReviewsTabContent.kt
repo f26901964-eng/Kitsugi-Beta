@@ -44,6 +44,7 @@ import com.kitsugi.animelist.ui.utils.tvClickable
 import kotlinx.coroutines.launch
 import androidx.compose.ui.res.stringResource
 import com.kitsugi.animelist.R
+import com.kitsugi.animelist.utils.KitsugiStrings
 
 // ---------------------------------------------------------------------------
 //  TvReviewsTabContent — Main Entry Point
@@ -153,7 +154,7 @@ fun TvReviewsTabContent(
                                                     } else it
                                                 }
                                             } else {
-                                                Toast.makeText(context, "Lütfen önce giriş yapın", Toast.LENGTH_SHORT).show()
+                                                Toast.makeText(context, KitsugiStrings.get(R.string.lutfen_once_giris_yapin), Toast.LENGTH_SHORT).show()
                                             }
                                         }
                                     }
@@ -191,7 +192,7 @@ fun TvReviewsTabContent(
                                 onClick = { activeActivityIdForDetail = activity.id },
                                 onLikeClick = {
                                     if (source.lowercase() == "jikan" || source.lowercase() == "mal") {
-                                        Toast.makeText(context, "Beğeni özelliği MAL kaynağı için desteklenmemektedir.", Toast.LENGTH_SHORT).show()
+                                        Toast.makeText(context, KitsugiStrings.get(R.string.begeni_ozelligi_mal_kaynagi_icin_desteklenmemektedir), Toast.LENGTH_SHORT).show()
                                     } else {
                                         coroutineScope.launch {
                                             val success = apiClient.toggleLike(activity.id, "ACTIVITY")
@@ -204,7 +205,7 @@ fun TvReviewsTabContent(
                                                     } else it
                                                 }
                                             } else {
-                                                Toast.makeText(context, "Lütfen önce giriş yapın", Toast.LENGTH_SHORT).show()
+                                                Toast.makeText(context, KitsugiStrings.get(R.string.lutfen_once_giris_yapin), Toast.LENGTH_SHORT).show()
                                             }
                                         }
                                     }

@@ -5,6 +5,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
 import com.kitsugi.animelist.utils.toTurkishRelationType
+import com.kitsugi.animelist.utils.KitsugiStrings
+import com.kitsugi.animelist.R
 
 /**
  * İki medya kimliği çözümleme ve ilişki çekme işlemlerini yürüten istemci.
@@ -714,7 +716,7 @@ class KitsugiMediaRelationsClient {
                     list.add(KitsugiRelation(
                         malId = relMalId,
                         title = title,
-                        relationType = "Öneri",
+                        relationType = KitsugiStrings.get(R.string.oneri),
                         imageUrl = imageUrl,
                         mediaType = mediaType,
                         source = "jikan"
@@ -787,7 +789,7 @@ class KitsugiMediaRelationsClient {
                 list.add(KitsugiRelation(
                     malId = stableId,
                     title = title,
-                    relationType = "Öneri",
+                    relationType = KitsugiStrings.get(R.string.oneri),
                     imageUrl = imageUrl,
                     mediaType = nodeType,
                     source = "anilist",
@@ -927,7 +929,7 @@ class KitsugiMediaRelationsClient {
                     KitsugiRelation(
                         malId = stableId,
                         title = title,
-                        relationType = "Öneri",
+                        relationType = KitsugiStrings.get(R.string.oneri),
                         imageUrl = imageUrl,
                         mediaType = nodeType,
                         source = "anilist",

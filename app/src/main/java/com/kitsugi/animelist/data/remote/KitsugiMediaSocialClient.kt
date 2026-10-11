@@ -11,6 +11,8 @@ import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import org.json.JSONObject
 import com.kitsugi.animelist.utils.*
+import com.kitsugi.animelist.utils.KitsugiStrings
+import com.kitsugi.animelist.R
 
 /**
  * İstatistik, inceleme, forum konuları ve aktivite verilerini çeken istemci.
@@ -809,7 +811,7 @@ class KitsugiMediaSocialClient {
                 val rawBody = item.optString("body", "").cleanShikimoriBbCode().cleanApiText().trim()
                 if (rawBody.length < 25) continue
                 val userObj = item.optJSONObject("user")
-                val username = userObj?.optNullableString("nickname") ?: "Shikimori Kullanıcısı"
+                val username = userObj?.optNullableString("nickname") ?: KitsugiStrings.get(R.string.shikimori_kullanicisi)
                 val avatarUrl = userObj?.optJSONObject("image")?.optNullableString("x160")
                     ?: userObj?.optNullableString("avatar")
                 val dateText = item.optNullableString("created_at")?.take(10)
@@ -859,7 +861,7 @@ class KitsugiMediaSocialClient {
                     val reactions = item.optJSONObject("reactions")
                     val helpfulCount = reactions?.optInt("overall") ?: item.optInt("votes")
                     val userObj  = item.optJSONObject("user")
-                    val username = userObj?.optNullableString("username") ?: "Kullanıcı"
+                    val username = userObj?.optNullableString("username") ?: KitsugiStrings.get(R.string.kullanici)
                     val avatarUrl = userObj?.optJSONObject("images")?.optJSONObject("jpg")?.optNullableString("image_url")
                     list.add(KitsugiReview(
                         id = null, username = username, avatarUrl = avatarUrl,
@@ -919,7 +921,7 @@ class KitsugiMediaSocialClient {
                 list.add(KitsugiReview(
                     id = node.optInt("id"),
                     userId = userObj?.optInt("id"),
-                    username = userObj?.optNullableString("name") ?: "Kullanıcı",
+                    username = userObj?.optNullableString("name") ?: KitsugiStrings.get(R.string.kullanici),
                     avatarUrl = userObj?.optJSONObject("avatar")?.optNullableString("medium"),
                     score = node.optionalPositiveInt("score"),
                     summary = summary,
@@ -1198,7 +1200,7 @@ class KitsugiMediaSocialClient {
                 list.add(KitsugiForumTopic(
                     id = item.optInt("id"), title = item.optString("title"),
                     commentCount = item.optInt("replyCount"), viewCount = item.optInt("viewCount"),
-                    username = userObj?.optNullableString("name") ?: "Kullanıcı",
+                    username = userObj?.optNullableString("name") ?: KitsugiStrings.get(R.string.kullanici),
                     avatarUrl = userObj?.optJSONObject("avatar")?.optNullableString("medium"),
                     dateText = dateText, likeCount = item.optInt("likeCount", 0),
                     isLiked = item.optBoolean("isLiked", false),
@@ -1295,7 +1297,7 @@ class KitsugiMediaSocialClient {
                         repliesList.add(KitsugiActivityReply(
                             id = rep.optInt("id"), text = rep.optString("text").cleanApiText(),
                             dateText = rDateText,
-                            username = rUser?.optNullableString("name") ?: "Kullanıcı",
+                            username = rUser?.optNullableString("name") ?: KitsugiStrings.get(R.string.kullanici),
                             avatarUrl = rUser?.optJSONObject("avatar")?.optNullableString("medium"),
                             likeCount = rep.optInt("likeCount", 0), isLiked = rep.optBoolean("isLiked", false),
                             userId = rUser?.optInt("id")
@@ -1346,7 +1348,7 @@ class KitsugiMediaSocialClient {
                     list.add(KitsugiForumReply(
                         id = item.optInt("id"), comment = item.optString("comment").cleanApiText(),
                         dateText = dateText,
-                        username = userObj?.optNullableString("name") ?: "Kullanıcı",
+                        username = userObj?.optNullableString("name") ?: KitsugiStrings.get(R.string.kullanici),
                         avatarUrl = userObj?.optJSONObject("avatar")?.optNullableString("medium"),
                         likeCount = item.optInt("likeCount", 0), isLiked = item.optBoolean("isLiked", false),
                         userId = userObj?.optInt("id"),
@@ -1384,7 +1386,7 @@ class KitsugiMediaSocialClient {
                     val rawBody = post.optNullableString("body")?.cleanApiText()?.trim().orEmpty()
                     if (rawBody.isBlank()) continue
                     val createdBy = post.optJSONObject("created_by")
-                    val username = createdBy?.optNullableString("name") ?: "MAL Kullanıcısı"
+                    val username = createdBy?.optNullableString("name") ?: KitsugiStrings.get(R.string.mal_kullanicisi)
                     val userId = createdBy?.optInt("id", 0)?.takeIf { it > 0 }
                     val avatarUrl = extractMalForumAvatar(createdBy)
                     val dateText = formatIsoDateTime(post.optNullableString("created_at"))
@@ -1422,7 +1424,7 @@ class KitsugiMediaSocialClient {
             list.add(KitsugiForumReply(
                 id = item.optInt("id"), comment = item.optString("comment").cleanApiText(),
                 dateText = dateText,
-                username = userObj?.optNullableString("name") ?: "Kullanıcı",
+                username = userObj?.optNullableString("name") ?: KitsugiStrings.get(R.string.kullanici),
                 avatarUrl = userObj?.optJSONObject("avatar")?.optNullableString("medium"),
                 likeCount = item.optInt("likeCount", 0), isLiked = item.optBoolean("isLiked", false),
                 userId = userObj?.optInt("id"),
@@ -1464,7 +1466,7 @@ class KitsugiMediaSocialClient {
                    else formatActivityText(item.optNullableString("status"), item.optNullableString("progress"), mediaTitle)
         return KitsugiActivity(
             id = item.optInt("id"), text = text.cleanApiText(), dateText = dateText,
-            username = userObj?.optNullableString("name") ?: "Kullanıcı",
+            username = userObj?.optNullableString("name") ?: KitsugiStrings.get(R.string.kullanici),
             avatarUrl = userObj?.optJSONObject("avatar")?.optNullableString("medium"),
             mediaTitle = mediaTitle, mediaTitleRomaji = mediaTitleRomaji,
             mediaTitleEnglish = mediaTitleEnglish, mediaTitleNative = mediaTitleNative,

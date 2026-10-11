@@ -61,6 +61,7 @@ import androidx.core.content.ContextCompat
 import androidx.compose.ui.platform.LocalContext
 import com.kitsugi.animelist.ui.components.KitsugiDropdownMenu
 import com.kitsugi.animelist.ui.components.KitsugiDropdownItem
+import com.kitsugi.animelist.utils.KitsugiStrings
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -446,8 +447,8 @@ private fun AppearanceTab(
 
             // Tüm kartların neon degrade çerçevesini tek tuşla açar/kapatır (keşfet, liste, arama, profil…)
             KitsugiSettingsSwitchItem(
-                title = "Kart Çerçeveleri",
-                description = if (cardFramesEnabled) "Kartların renkli çerçevesi görünür" else "Kartların çerçevesi gizli",
+                title = stringResource(R.string.kart_cerceveleri),
+                description = if (cardFramesEnabled) stringResource(R.string.kartlarin_renkli_cercevesi_gorunur) else stringResource(R.string.kartlarin_cercevesi_gizli),
                 icon = Icons.Rounded.Palette,
                 iconColor = accentColor,
                 checked = cardFramesEnabled,
@@ -738,13 +739,13 @@ private fun ListScoreTab(
 
     val staffNameLanguageOptions = listOf(
         KitsugiChoiceOption(id = "ROMAJI", title = "Romaji", description = ""),
-        KitsugiChoiceOption(id = "ENGLISH", title = "İngilizce", description = ""),
+        KitsugiChoiceOption(id = "ENGLISH", title = stringResource(R.string.option_title_lang_english), description = ""),
         KitsugiChoiceOption(id = "NATIVE", title = "Ana Dilde", description = "")
     )
 
     val scoreStepOptions = listOf(
-        KitsugiChoiceOption(id = "1", title = "1", description = "Tam sayı adımlar (1, 2, 3…)"),
-        KitsugiChoiceOption(id = "0.5", title = "0,5", description = "Yarım puan adımlar (7,5, 8, 8,5…)")
+        KitsugiChoiceOption(id = "1", title = "1", description = stringResource(R.string.tam_sayi_adimlar_1_2_3)),
+        KitsugiChoiceOption(id = "0.5", title = "0,5", description = stringResource(R.string.yarim_puan_adimlar_7_5_8_8_5))
     )
 
     val listLayoutOptions = listOf(
@@ -981,8 +982,8 @@ private fun ListScoreTab(
             // (AniList, Kitsu, Shikimori, Bangumi, MAL/Jikan) bu tercihe uyar.
             Box {
                 KitsugiSettingsListItem(
-                    title = "Ekip & Karakter adı dili",
-                    description = "Seiyuu, yönetmen ve karakter adlarının gösterim dili",
+                    title = KitsugiStrings.get(R.string.ekip_karakter_adi_dili),
+                    description = KitsugiStrings.get(R.string.seiyuu_yonetmen_ve_karakter_adlarinin_gosterim_dili),
                     value = staffNameLanguageOptions.find { it.id == staffNameLanguage }?.title ?: "",
                     icon = Icons.Rounded.People,
                     iconColor = accentColor,
@@ -1086,8 +1087,8 @@ private fun ListScoreTab(
             // Puanlama Adımları (AniHyou paritesi) — puan girişi hassasiyeti
             Box {
                 KitsugiSettingsListItem(
-                    title = "Puanlama adımları",
-                    description = "Puan girerken kullanılacak adım hassasiyeti",
+                    title = KitsugiStrings.get(R.string.puanlama_adimlari),
+                    description = KitsugiStrings.get(R.string.puan_girerken_kullanilacak_adim_hassasiyeti),
                     value = scoreStepOptions.find { it.id == scoreStep }?.title ?: "1",
                     icon = Icons.Rounded.Star,
                     iconColor = accentColor,
@@ -1308,7 +1309,7 @@ private fun ListScoreTab(
             KitsugiSettingsListItem(
                 title = stringResource(R.string.settings_translate_target),
                 description = stringResource(R.string.settings_translate_target_desc),
-                value = translateTargetLanguages.find { it.id == appSettings.translateTargetLanguage }?.title ?: "Türkçe",
+                value = translateTargetLanguages.find { it.id == appSettings.translateTargetLanguage }?.title ?: KitsugiStrings.get(R.string.pd_lang_tr),
                 icon = Icons.Rounded.Translate,
                 iconColor = accentColor,
                 onClick = { showTargetLangDialog = true }
@@ -1563,7 +1564,7 @@ private fun ListScoreTab(
         }
 
         // LİSTE DAVRANIŞI (AniHyou paritesi) — tüm kaynaklara uygulanan liste ayarları
-        KitsugiSettingsSection(title = "Liste") {
+        KitsugiSettingsSection(title = KitsugiStrings.get(R.string.liste)) {
             var showPriorityColorsDialog by remember { mutableStateOf(false) }
             var priorityEditLevel by remember { mutableStateOf<Int?>(null) }
             var priorityColorInput by remember { mutableStateOf("") }
@@ -1577,9 +1578,9 @@ private fun ListScoreTab(
             }.getOrNull()
 
             KitsugiSettingsSwitchItem(
-                title = "Ayrılmış liste tarzını kullan",
+                title = KitsugiStrings.get(R.string.ayrilmis_liste_tarzini_kullan),
                 description = if (separatedListStyle)
-                    "Listem durum başlıklı gruplar halinde gösterilir"
+                    KitsugiStrings.get(R.string.listem_durum_baslikli_gruplar_halinde_gosterilir)
                 else
                     "Listem tek düz akış halinde gösterilir",
                 icon = Icons.Rounded.ViewList,
@@ -1592,7 +1593,7 @@ private fun ListScoreTab(
 
             KitsugiSettingsListItem(
                 title = stringResource(R.string.ozel_listeler),
-                description = "AniList özel listelerini oluştur, yeniden adlandır veya sil",
+                description = KitsugiStrings.get(R.string.anilist_ozel_listelerini_olustur_yeniden_adlandir_veya_sil),
                 value = "",
                 icon = Icons.Rounded.PlaylistAdd,
                 iconColor = accentColor,
@@ -1602,9 +1603,9 @@ private fun ListScoreTab(
             KitsugiSettingsDivider()
 
             KitsugiSettingsSwitchItem(
-                title = "Düşük önceliği göster",
+                title = KitsugiStrings.get(R.string.dusuk_onceligi_goster),
                 description = if (showLowPriority)
-                    "Düşük öncelikli (0) girişlerde de öncelik rozeti görünür"
+                    KitsugiStrings.get(R.string.dusuk_oncelikli_0_girislerde_de_oncelik_rozeti_gorunur)
                 else
                     "Öncelik rozeti yalnızca orta/yüksek öncelikte görünür",
                 icon = Icons.Rounded.PriorityHigh,
@@ -1616,9 +1617,9 @@ private fun ListScoreTab(
             KitsugiSettingsDivider()
 
             KitsugiSettingsListItem(
-                title = "Öncelik renklerini değiştir",
-                description = "Düşük/orta/yüksek öncelik rozetlerinin rengini özelleştir",
-                value = if (priorityColorsJson.isBlank()) "Varsayılan" else "Özel",
+                title = KitsugiStrings.get(R.string.oncelik_renklerini_degistir),
+                description = KitsugiStrings.get(R.string.dusuk_orta_yuksek_oncelik_rozetlerinin_rengini_ozellestir),
+                value = if (priorityColorsJson.isBlank()) KitsugiStrings.get(R.string.translator_option_default) else KitsugiStrings.get(R.string.pd_custom),
                 icon = Icons.Rounded.Palette,
                 iconColor = accentColor,
                 onClick = { showPriorityColorsDialog = true }
@@ -1630,7 +1631,7 @@ private fun ListScoreTab(
                     containerColor = KitsugiColors.surface,
                     title = {
                         Text(
-                            text = "Öncelik Renkleri",
+                            text = KitsugiStrings.get(R.string.oncelik_renkleri),
                             color = KitsugiColors.textPrimary,
                             style = MaterialTheme.typography.titleLarge,
                             fontWeight = FontWeight.Bold
@@ -1638,7 +1639,7 @@ private fun ListScoreTab(
                     },
                     text = {
                         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                            listOf(0 to "Düşük", 1 to "Orta", 2 to "Yüksek").forEach { (level, label) ->
+                            listOf(0 to KitsugiStrings.get(R.string.dusuk), 1 to "Orta", 2 to KitsugiStrings.get(R.string.yuksek)).forEach { (level, label) ->
                                 val seed = currentPrioritySeed(level)
                                 Row(
                                     modifier = Modifier
@@ -1666,7 +1667,7 @@ private fun ListScoreTab(
                                     )
                                     Spacer(modifier = Modifier.weight(1f))
                                     Text(
-                                        text = seed?.let { String.format("#%06X", 0xFFFFFF and it) } ?: "Varsayılan",
+                                        text = seed?.let { String.format("#%06X", 0xFFFFFF and it) } ?: KitsugiStrings.get(R.string.translator_option_default),
                                         color = KitsugiColors.textSecondary,
                                         style = MaterialTheme.typography.bodySmall
                                     )
@@ -1708,8 +1709,8 @@ private fun ListScoreTab(
 
             KitsugiSettingsSwitchItem(
                 title = "Fuzzy arama kullan",
-                description = "Yazım hatalarını, kelime sıralamasının bozuk olmasını ve kısaltmaları " +
-                    "(örneğin, \"aot\") eşleştirir. Eski cihazlarda performansı etkileyebilir.",
+                description = KitsugiStrings.get(R.string.yazim_hatalarini_kelime_siralamasinin_bozuk_olmasini_ve_kisaltma) +
+                    KitsugiStrings.get(R.string.ornegin_aot_eslestirir_eski_cihazlarda_performansi_etkileyebilir),
                 icon = Icons.Rounded.ManageSearch,
                 iconColor = accentColor,
                 checked = fuzzySearchEnabled,
@@ -1719,9 +1720,9 @@ private fun ListScoreTab(
             KitsugiSettingsDivider()
 
             KitsugiSettingsSwitchItem(
-                title = "Roman ve mangaları ayır",
+                title = KitsugiStrings.get(R.string.roman_ve_mangalari_ayir),
                 description = if (separateNovelsManga)
-                    "Roman (novel) sonuçları mangalardan ayrı bölümde listelenir"
+                    KitsugiStrings.get(R.string.roman_novel_sonuclari_mangalardan_ayri_bolumde_listelenir)
                 else
                     "Romanlar manga sonuçlarıyla birlikte listelenir",
                 icon = Icons.Rounded.MenuBook,

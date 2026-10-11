@@ -46,6 +46,7 @@ import com.kitsugi.animelist.utils.KitsugiTranslateUtils.openTranslator
 import androidx.compose.foundation.clickable
 import androidx.compose.ui.res.stringResource
 import com.kitsugi.animelist.R
+import com.kitsugi.animelist.utils.KitsugiStrings
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -210,7 +211,7 @@ fun KitsugiTopicDetailBottomSheet(
                 }
 
                 Text(
-                    text = "Konu Detayı",
+                    text = KitsugiStrings.get(R.string.inline_topic_details_3d9f851),
                     color = KitsugiColors.TextPrimary,
                     fontSize = 18.sp,
                     fontWeight = FontWeight.Bold,
@@ -229,7 +230,7 @@ fun KitsugiTopicDetailBottomSheet(
                                     val msg = if (isSubscribed) "Abone olundu" else "Abonelik iptal edildi"
                                     Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
                                 } else {
-                                    Toast.makeText(context, "İşlem başarısız, lütfen giriş durumunuzu kontrol edin", Toast.LENGTH_LONG).show()
+                                    Toast.makeText(context, KitsugiStrings.get(R.string.islem_basarisiz_lutfen_giris_durumunuzu_kontrol_edin), Toast.LENGTH_LONG).show()
                                 }
                             }
                         },
@@ -325,13 +326,13 @@ fun KitsugiTopicDetailBottomSheet(
                                 activeTopic.title
                             }
                             clipboard.setPrimaryClip(android.content.ClipData.newPlainText("topic_title", clipText))
-                            Toast.makeText(context, "Panoya kopyalandı", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(context, KitsugiStrings.get(R.string.toast_copied_clipboard), Toast.LENGTH_SHORT).show()
                         },
                         modifier = Modifier.size(36.dp)
                     ) {
                         Icon(
                             imageVector = Icons.Rounded.ContentCopy,
-                            contentDescription = "Kopyala",
+                            contentDescription = KitsugiStrings.get(R.string.action_copy),
                             tint = KitsugiColors.TextSecondary
                         )
                     }
@@ -448,7 +449,7 @@ fun KitsugiTopicDetailBottomSheet(
                                                         isTopicLikedState = !isTopicLikedState
                                                         topicLikeCountState = if (isTopicLikedState) topicLikeCountState + 1 else topicLikeCountState - 1
                                                     } else {
-                                                        Toast.makeText(context, "Lütfen önce giriş yapın", Toast.LENGTH_SHORT).show()
+                                                        Toast.makeText(context, KitsugiStrings.get(R.string.lutfen_once_giris_yapin), Toast.LENGTH_SHORT).show()
                                                     }
                                                 }
                                             }
@@ -514,7 +515,7 @@ fun KitsugiTopicDetailBottomSheet(
                 item {
                     val replyTotal = maxOf(activeTopic.commentCount, commentsList.size)
                     Text(
-                        text = if (replyTotal > 0) "Yanıtlar ($replyTotal)" else "Yorumlar",
+                        text = if (replyTotal > 0) KitsugiStrings.get(R.string.inline_replies_1_s_a790592, replyTotal) else "Yorumlar",
                         color = KitsugiColors.TextPrimary,
                         fontSize = 14.sp,
                         fontWeight = FontWeight.Bold,
@@ -533,7 +534,7 @@ fun KitsugiTopicDetailBottomSheet(
                     item {
                         Box(modifier = Modifier.fillMaxWidth().padding(vertical = 40.dp), contentAlignment = Alignment.Center) {
                             Text(
-                                text = "Henüz yanıt bulunmuyor veya bu kaynak çevrimdışı görüntülüyor.",
+                                text = KitsugiStrings.get(R.string.inline_no_replies_have_been_posted_7e71b62),
                                 color = KitsugiColors.TextMuted,
                                 fontSize = 14.sp,
                                 modifier = Modifier.padding(horizontal = 24.dp)

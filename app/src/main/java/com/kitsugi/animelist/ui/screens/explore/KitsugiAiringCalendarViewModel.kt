@@ -13,6 +13,8 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import java.util.Calendar
+import com.kitsugi.animelist.utils.KitsugiStrings
+import com.kitsugi.animelist.R
 
 class KitsugiAiringCalendarViewModel : ViewModel() {
 
@@ -61,7 +63,7 @@ class KitsugiAiringCalendarViewModel : ViewModel() {
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                errorMessage = "Takvim yüklenemedi: ${e.message}"
+                errorMessage = KitsugiStrings.get(R.string.takvim_yuklenemedi_x, e.message)
             } finally {
                 isLoading = false
             }

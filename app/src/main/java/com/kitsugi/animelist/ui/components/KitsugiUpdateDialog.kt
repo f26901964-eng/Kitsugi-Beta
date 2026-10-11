@@ -219,7 +219,7 @@ private fun ColumnScope.UpdateAvailableBottomSheetContent(
 
         Column(modifier = Modifier.weight(1f)) {
             Text(
-                text = "Yeni Sürüm Mevcut! 🚀",
+                text = stringResource(R.string.inline_new_version_available_a606d87),
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Bold,
                 color = KitsugiColors.TextPrimary
@@ -261,7 +261,7 @@ private fun ColumnScope.UpdateAvailableBottomSheetContent(
                 modifier = Modifier.size(13.dp)
             )
             Text(
-                text = "Yayınlanma: ${release.publishedAt}",
+                text = stringResource(R.string.inline_published_1_s_d42803c, release.publishedAt),
                 style = MaterialTheme.typography.labelSmall,
                 color = KitsugiColors.TextMuted
             )
@@ -284,7 +284,7 @@ private fun ColumnScope.UpdateAvailableBottomSheetContent(
     ) {
         Column {
             Text(
-                text = "Değişiklikler ve Yenilikler",
+                text = stringResource(R.string.inline_what_s_new_a1b1dd9),
                 style = MaterialTheme.typography.labelLarge,
                 fontWeight = FontWeight.Bold,
                 color = accentColor
@@ -312,7 +312,7 @@ private fun ColumnScope.UpdateAvailableBottomSheetContent(
             ),
             border = androidx.compose.foundation.BorderStroke(1.dp, KitsugiColors.Border)
         ) {
-            Text("Daha Sonra", fontWeight = FontWeight.SemiBold)
+            Text(stringResource(R.string.daha_sonra), fontWeight = FontWeight.SemiBold)
         }
 
         KitsugiUiverseGlowButton(
@@ -329,7 +329,7 @@ private fun ColumnScope.UpdateAvailableBottomSheetContent(
                 tint = Color.White,
                 modifier = Modifier.size(20.dp)
             )
-            Text("Şimdi Güncelle", color = Color.White, fontWeight = FontWeight.Bold)
+            Text(stringResource(R.string.inline_update_now_f5b0013), color = Color.White, fontWeight = FontWeight.Bold)
         }
     }
 }
@@ -367,7 +367,7 @@ private fun DownloadingBottomSheetContent(
         Spacer(modifier = Modifier.height(16.dp))
 
         Text(
-            text = "Güncelleme İndiriliyor...",
+            text = stringResource(R.string.inline_downloading_update_0c5c615),
             style = MaterialTheme.typography.titleLarge,
             fontWeight = FontWeight.Bold,
             color = KitsugiColors.TextPrimary
@@ -397,7 +397,7 @@ private fun DownloadingBottomSheetContent(
         Spacer(modifier = Modifier.height(12.dp))
 
         Text(
-            text = "Lütfen indirme tamamlanana kadar bekleyin.",
+            text = stringResource(R.string.inline_please_wait_for_the_download_21a69f6),
             style = MaterialTheme.typography.bodySmall,
             color = KitsugiColors.TextMuted
         )
@@ -433,7 +433,7 @@ private fun ReadyToInstallBottomSheetContent(
         Spacer(modifier = Modifier.height(16.dp))
 
         Text(
-            text = "İndirme Tamamlandı! 🎉",
+            text = stringResource(R.string.inline_download_complete_98ebdb3),
             style = MaterialTheme.typography.titleLarge,
             fontWeight = FontWeight.Bold,
             color = KitsugiColors.TextPrimary
@@ -442,7 +442,7 @@ private fun ReadyToInstallBottomSheetContent(
         Spacer(modifier = Modifier.height(6.dp))
 
         Text(
-            text = "Kurulum başlatıldı. Kurulum ekranı otomatik açılmazsa aşağıdaki butona tıklayın.",
+            text = stringResource(R.string.inline_installation_has_started_if_the_69e7de1),
             style = MaterialTheme.typography.bodyMedium,
             color = KitsugiColors.TextSecondary
         )
@@ -458,7 +458,7 @@ private fun ReadyToInstallBottomSheetContent(
             contentPadding = 0.dp
         ) {
             Icon(Icons.Rounded.SystemUpdate, contentDescription = null, tint = Color.White, modifier = Modifier.size(20.dp))
-            Text("Kurulumu Başlat", color = Color.White, fontWeight = FontWeight.Bold)
+            Text(stringResource(R.string.inline_start_installation_ba7e65d), color = Color.White, fontWeight = FontWeight.Bold)
         }
     }
 }
@@ -494,7 +494,7 @@ private fun FailedBottomSheetContent(
         Spacer(modifier = Modifier.height(16.dp))
 
         Text(
-            text = "Güncelleme İndirilemedi",
+            text = stringResource(R.string.inline_update_download_failed_12173c1),
             style = MaterialTheme.typography.titleLarge,
             fontWeight = FontWeight.Bold,
             color = KitsugiColors.TextPrimary

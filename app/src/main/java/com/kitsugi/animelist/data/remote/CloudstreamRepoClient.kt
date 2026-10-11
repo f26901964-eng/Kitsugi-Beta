@@ -8,6 +8,8 @@ import okhttp3.Request
 import org.json.JSONArray
 import org.json.JSONObject
 import java.util.concurrent.TimeUnit
+import com.kitsugi.animelist.utils.KitsugiStrings
+import com.kitsugi.animelist.R
 
 /**
  * Data classes mirroring the Cloudstream repository JSON format.
@@ -90,7 +92,7 @@ class CloudstreamRepoClient(private val context: android.content.Context? = null
         return runCatching {
             val jsonStr = ctx.assets.open(assetPath).bufferedReader().use { it.readText() }
             val json = JSONObject(jsonStr)
-            val name = json.optString("name", "⚡ Kitsugi Eklentileri (Önerilen)")
+            val name = json.optString("name", KitsugiStrings.get(R.string.kitsugi_eklentileri_onerilen))
             val description = json.optString("description").takeIf { it.isNotBlank() }
             val pluginLists = mutableListOf<String>()
             val arr = json.optJSONArray("pluginLists")

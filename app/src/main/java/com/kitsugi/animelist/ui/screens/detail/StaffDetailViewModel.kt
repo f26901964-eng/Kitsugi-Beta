@@ -26,6 +26,8 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import com.kitsugi.animelist.utils.KitsugiStrings
+import com.kitsugi.animelist.R
 
 class StaffDetailViewModel(application: Application) : AndroidViewModel(application) {
 
@@ -201,7 +203,7 @@ class StaffDetailViewModel(application: Application) : AndroidViewModel(applicat
                 }
             }
         } else if (_state.value !is StaffDetailState.Success) {
-            _state.value = StaffDetailState.Error("Ekip üyesi detayları yüklenemedi.")
+            _state.value = StaffDetailState.Error(KitsugiStrings.get(R.string.ekip_uyesi_detaylari_yuklenemedi))
         }
     }
 

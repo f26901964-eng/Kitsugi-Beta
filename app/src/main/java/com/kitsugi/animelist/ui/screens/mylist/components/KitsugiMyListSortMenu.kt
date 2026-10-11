@@ -25,6 +25,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.kitsugi.animelist.ui.theme.KitsugiColors
 import com.kitsugi.animelist.ui.theme.LocalKitsugiAccent
+import com.kitsugi.animelist.utils.KitsugiStrings
+import com.kitsugi.animelist.R
 
 data class SortMenuItem(
     val descId: String,
@@ -33,7 +35,7 @@ data class SortMenuItem(
 )
 
 val myListSortMenuItems = listOf(
-    SortMenuItem("title", "title_desc", "Başlık"),
+    SortMenuItem("title", "title_desc", KitsugiStrings.get(R.string.ui_account_title)),
     SortMenuItem("score", "score_asc", "Puan"),
     SortMenuItem("progress", "progress_asc", "İlerleme"),
     SortMenuItem("updated_desc", "updated_asc", "Güncelleme tarihi"),

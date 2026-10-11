@@ -11,6 +11,8 @@ import com.kitsugi.animelist.data.auth.ExternalAuthManager
 import com.kitsugi.animelist.data.auth.SimklSyncManager
 import com.kitsugi.animelist.data.remote.JikanApiClient
 import com.kitsugi.animelist.data.remote.JikanSearchResult
+import com.kitsugi.animelist.utils.KitsugiStrings
+import com.kitsugi.animelist.R
 // SimklApiClient: discovery için artık kullanılmıyor; sadece SimklSyncManager üzerinden watchlist sync'te kullanılır
 import com.kitsugi.animelist.data.remote.TmdbApiClient
 import com.kitsugi.animelist.data.settings.SettingsDataStore
@@ -423,7 +425,7 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
                         }
                     }
 
-                    errorMessage = e.message ?: "Keşfet verileri alınamadı."
+                    errorMessage = e.message ?: KitsugiStrings.get(R.string.kesfet_verileri_alinamadi)
                     if (!isFallbackInProgress) {
                         isFallbackInProgress = true
                         val nextPlatform = if (platformSnapshot == ExplorePlatform.AniList) {
@@ -645,7 +647,7 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
                 JikanSearchResult(
                     malId = e.malId ?: e.aniListId,
                     title = e.getDisplayTitle(),
-                    subtitle = "${e.episode}. Bölüm",
+                    subtitle = KitsugiStrings.get(R.string.inline_1_s_episode_6f7288b, e.episode),
                     type = MediaType.Anime,
                     total = null,
                     score = e.averageScore,
@@ -1099,7 +1101,7 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
                     JikanSearchResult(
                         malId = entry.malId!!,
                         title = entry.getDisplayTitle(),
-                        subtitle = "${entry.episode}. Bölüm",
+                        subtitle = KitsugiStrings.get(R.string.inline_1_s_episode_6f7288b, entry.episode),
                         type = MediaType.Anime,
                         total = null,
                         score = entry.averageScore,
@@ -1214,7 +1216,7 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
                 .map { e ->
                     JikanSearchResult(
                         malId = e.malId ?: e.aniListId, title = e.getDisplayTitle(),
-                        subtitle = "${e.episode}. Bölüm", type = MediaType.Anime,
+                        subtitle = KitsugiStrings.get(R.string.inline_1_s_episode_6f7288b, e.episode), type = MediaType.Anime,
                         total = null, score = e.averageScore, isAdult = e.isAdult,
                         imageUrl = e.coverUrl, year = null, source = "anilist",
                         realMalId = e.malId, titleEnglish = e.titleEnglish,
@@ -1401,7 +1403,7 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
                                         JikanSearchResult(
                                             malId = entry.aniListId,
                                             title = entry.title,
-                                            subtitle = if (entry.episode == 0) "Film" else "${entry.episode}. Bölüm",
+                                            subtitle = if (entry.episode == 0) "Film" else KitsugiStrings.get(R.string.inline_1_s_episode_6f7288b, entry.episode),
                                             type = finalType,
                                             total = null,
                                             score = entry.averageScore,

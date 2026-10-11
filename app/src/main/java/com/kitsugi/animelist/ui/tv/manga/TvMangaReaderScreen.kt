@@ -234,7 +234,7 @@ fun TvMangaReaderScreen(
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     KitsugiPlasmaLoader(size = 52.dp)
                     Spacer(Modifier.height(18.dp))
-                    Text("Bölüm sayfaları yükleniyor...", color = Color.White.copy(0.7f), fontSize = 13.sp)
+                    Text(stringResource(R.string.inline_loading_chapter_pages_043ccff), color = Color.White.copy(0.7f), fontSize = 13.sp)
                 }
             }
         } else if (uiState.pagesError != null) {
@@ -251,7 +251,7 @@ fun TvMangaReaderScreen(
                     )
                     Spacer(Modifier.height(16.dp))
                     Text(
-                        text = uiState.pagesError ?: "Bir hata oluştu",
+                        text = uiState.pagesError ?: stringResource(R.string.ui_error_generic),
                         color = Color.White.copy(0.7f),
                         fontSize = 14.sp
                     )
@@ -266,7 +266,7 @@ fun TvMangaReaderScreen(
             }
         } else if (pages.isEmpty()) {
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Text("Okunacak sayfa bulunamadı.", color = Color.White.copy(0.5f))
+                Text(stringResource(R.string.inline_no_readable_pages_found_1c8f2d6), color = Color.White.copy(0.5f))
             }
         } else {
             when (readingMode) {

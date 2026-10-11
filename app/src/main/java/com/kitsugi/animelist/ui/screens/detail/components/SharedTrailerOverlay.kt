@@ -42,6 +42,7 @@ import com.kitsugi.animelist.ui.theme.KitsugiColors
 import kotlinx.coroutines.delay
 import androidx.compose.ui.res.stringResource
 import com.kitsugi.animelist.R
+import com.kitsugi.animelist.utils.KitsugiStrings
 
 /**
  * FP-20 – Full-screen fragman (trailer) overlay for Mobile (TASK-405).
@@ -87,10 +88,10 @@ fun SharedTrailerOverlay(
             if (source != null) {
                 playbackSource = source
             } else {
-                errorMessage = "Fragman yüklenemedi"
+                errorMessage = KitsugiStrings.get(R.string.inline_failed_to_load_trailer_cc304f6)
             }
         } catch (e: Exception) {
-            errorMessage = "Bağlantı hatası"
+            errorMessage = KitsugiStrings.get(R.string.baglanti_hatasi)
         } finally {
             isLoading = false
         }
@@ -263,7 +264,7 @@ fun SharedTrailerOverlay(
                         modifier = Modifier.size(48.dp)
                     )
                     Text(
-                        text = errorMessage ?: "Hata",
+                        text = errorMessage ?: KitsugiStrings.get(R.string.hata),
                         style = MaterialTheme.typography.bodyMedium,
                         color = Color.White,
                         fontWeight = FontWeight.Medium

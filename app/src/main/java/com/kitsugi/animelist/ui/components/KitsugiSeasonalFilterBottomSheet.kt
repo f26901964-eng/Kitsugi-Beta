@@ -229,7 +229,7 @@ fun KitsugiSeasonalFilterBottomSheet(
                             Spacer(modifier = Modifier.width(4.dp))
                         }
                         Text(
-                            text = "Şimdiki",
+                            text = stringResource(R.string.inline_current_441930d),
                             color = if (isCurrentActive) accentColor else KitsugiColors.TextPrimary,
                             style = MaterialTheme.typography.bodyMedium,
                             fontWeight = FontWeight.Bold

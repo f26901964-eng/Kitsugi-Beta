@@ -148,6 +148,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import android.content.res.Configuration
 import androidx.compose.ui.platform.LocalConfiguration
 import com.kitsugi.animelist.ui.theme.LocalIsTv
+import com.kitsugi.animelist.utils.KitsugiStrings
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -246,7 +247,7 @@ fun ApiResultDetailPage(
             val effTitleEnglish = detail.titleEnglish?.takeIf { it.isNotBlank() } ?: result.titleEnglish
             val effTitleJapanese = (detail.titleJapanese ?: detail.titleNative)?.takeIf { it.isNotBlank() } ?: result.titleJapanese
             val effTitleRomaji = detail.titleRomaji?.takeIf { it.isNotBlank() }
-            val rawTitle = if (result.title.isBlank() || result.title == "Yükleniyor...") (detail.title ?: result.title) else result.title
+            val rawTitle = if (result.title.isBlank() || result.title == KitsugiStrings.get(R.string.loading)) (detail.title ?: result.title) else result.title
             val chosenTitle = if (MediaTitleResolver.isLatinPreferredSource(result.source)) {
                 // TMDB/Simkl: yerelleştirilmiş (Türkçe) → İngilizce → Romaji. CJK başlık ekrana düşmez;
                 // yalnızca kullanıcı açıkça "NATIVE" seçtiyse orijinal başlık gösterilir.
@@ -529,7 +530,7 @@ fun ApiResultDetailPage(
                     }) {
                         Icon(
                             imageVector = if (isFavorite) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder,
-                            contentDescription = if (isFavorite) "Favoriden Çıkar" else "Favori Yap",
+                            contentDescription = if (isFavorite) stringResource(R.string.action_favourite_remove) else "Favori Yap",
                             tint = if (isFavorite) accentColor else KitsugiColors.TextSecondary
                         )
                     }
@@ -593,7 +594,7 @@ fun ApiResultDetailPage(
                                 if (!text.isNullOrBlank()) {
                                     val clipboard = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
                                     clipboard.setPrimaryClip(android.content.ClipData.newPlainText("synopsis", text))
-                                    android.widget.Toast.makeText(context, "Panoya kopyalandı", android.widget.Toast.LENGTH_SHORT).show()
+                                    android.widget.Toast.makeText(context, KitsugiStrings.get(R.string.toast_copied_clipboard), android.widget.Toast.LENGTH_SHORT).show()
                                 }
                             },
                             mdbListRatings = mdbListRatings,
@@ -813,15 +814,15 @@ fun ApiResultDetailPage(
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     com.kitsugi.animelist.ui.theme.gradient.Text(
-                        text = "Hangi bölümü izlemek istiyorsunuz?",
+                        text = stringResource(R.string.hangi_bolumu_izlemek_istiyorsunuz),
                         color = KitsugiColors.TextSecondary,
                         style = MaterialTheme.typography.bodyMedium
                     )
                     OutlinedTextField(
                         value = watchEpisodeInput,
                         onValueChange = { watchEpisodeInput = it.filter { c -> c.isDigit() } },
-                        label = { com.kitsugi.animelist.ui.theme.gradient.Text("Bölüm Numarası") },
-                        placeholder = { com.kitsugi.animelist.ui.theme.gradient.Text("Örn: 1") },
+                        label = { com.kitsugi.animelist.ui.theme.gradient.Text(stringResource(R.string.bolum_numarasi)) },
+                        placeholder = { com.kitsugi.animelist.ui.theme.gradient.Text(stringResource(R.string.orn_1)) },
                         singleLine = true,
                         colors = OutlinedTextFieldDefaults.colors(
                             focusedBorderColor = accentColor,
@@ -888,14 +889,14 @@ fun ApiResultDetailPage(
             onDismissRequest = { showAuthWarningDialog = false },
             title = {
                 Text(
-                    text = "Hesap Bağlantısı Gerekli",
+                    text = stringResource(R.string.inline_account_link_required_cc67382),
                     color = KitsugiColors.TextPrimary,
                     fontWeight = FontWeight.Bold
                 )
             },
             text = {
                 Text(
-                    text = "Bu içeriği listenize eklemek için aktif bir $platformName hesabınızın bağlı olması gerekmektedir. Yerel (çevrimdışı) liste kaydı oluşturma devre dışı bırakılmıştır. Şimdi hesabınızı bağlamak ister misiniz?",
+                    text = stringResource(R.string.inline_an_active_1_s_account_d64f2c7, platformName),
                     color = KitsugiColors.TextSecondary
                 )
             },

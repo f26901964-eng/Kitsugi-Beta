@@ -72,6 +72,7 @@ import kotlinx.coroutines.launch
 import kotlin.math.abs
 import androidx.compose.ui.res.stringResource
 import com.kitsugi.animelist.R
+import com.kitsugi.animelist.utils.KitsugiStrings
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -227,10 +228,10 @@ fun KitsugiImageGalleryDialog(
             val url = currentItem.url
             when {
                 url.startsWith("file://") || url.startsWith("content://") -> {
-                    android.widget.Toast.makeText(context, "Bu resim zaten cihazda kayıtlı.", android.widget.Toast.LENGTH_SHORT).show()
+                    android.widget.Toast.makeText(context, KitsugiStrings.get(R.string.bu_resim_zaten_cihazda_kayitli), android.widget.Toast.LENGTH_SHORT).show()
                 }
                 downloadedUrls.contains(url) -> {
-                    android.widget.Toast.makeText(context, "Bu resim zaten indirilmiş.", android.widget.Toast.LENGTH_SHORT).show()
+                    android.widget.Toast.makeText(context, KitsugiStrings.get(R.string.bu_resim_zaten_indirilmis), android.widget.Toast.LENGTH_SHORT).show()
                 }
                 KitsugiImageDownloadHelper.hasWritePermission(context) -> {
                     KitsugiImageDownloadHelper.downloadImage(context, url, title)
@@ -442,12 +443,12 @@ fun KitsugiImageGalleryDialog(
             KitsugiImageDownloadHelper.describeDeleteTarget(context, pendingDelete.first())
         }
         KitsugiConfirmDialog(
-            title = "Resmi Sil",
-            message = "Bu görselin cihazdaki kopyası silinecektir.\n\n" +
+            title = stringResource(R.string.resmi_sil),
+            message = stringResource(R.string.bu_gorselin_cihazdaki_kopyasi_silinecektir) +
                 "• Konum: $targetLabel\n" +
                 "• Uygulama içi önbellek ve İndirilenler klasöründeki dosya kaldırılır.\n" +
                 "• Uzak kaynaktaki içerik silinmez — daha sonra tekrar indirebilirsiniz.",
-            confirmText = "Sil",
+            confirmText = stringResource(R.string.action_delete),
             dismissText = stringResource(R.string.vazgec),
             isDestructive = true,
             onConfirm = { confirmDelete(pendingDelete) },
@@ -545,7 +546,7 @@ private fun GalleryLandscapeLayout(
                     ) {
                         KitsugiNsfwImage(
                             model = item.url,
-                            contentDescription = "Küçük resim $index",
+                            contentDescription = stringResource(R.string.kucuk_resim_x, index),
                             isAdult = isAdult,
                             modifier = Modifier
                                 .size(width = 62.dp, height = 80.dp)
@@ -760,7 +761,7 @@ private fun GalleryLandscapeLayout(
                         ) {
                             Icon(
                                 imageVector = if (isAlreadyDownloaded) Icons.Rounded.CheckCircle else Icons.Rounded.Download,
-                                contentDescription = if (isAlreadyDownloaded) "İndirildi" else "İndir",
+                                contentDescription = if (isAlreadyDownloaded) stringResource(R.string.indirildi) else stringResource(R.string.indir),
                                 tint = downloadBtnColor,
                                 modifier = Modifier.size(18.dp)
                             )
@@ -856,7 +857,7 @@ private fun GalleryLandscapeLayout(
                         .padding(horizontal = 12.dp),
                     horizontalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
-                    listOf("Detaylar", "Diğer Resimler").forEachIndexed { idx, tabLabel ->
+                    listOf("Detaylar", stringResource(R.string.diger_resimler)).forEachIndexed { idx, tabLabel ->
                         val sel = detailTab == idx
                         Box(
                             modifier = Modifier
@@ -1035,7 +1036,7 @@ private fun GalleryLandscapeLayout(
                             contentAlignment = Alignment.Center
                         ) {
                             Text(
-                                text = "Bu kategoride başka resim yok",
+                                text = stringResource(R.string.inline_no_more_images_in_this_adf5fe1),
                                 color = KitsugiColors.TextMuted,
                                 fontSize = 12.sp,
                                 fontWeight = FontWeight.Medium,
@@ -1052,7 +1053,7 @@ private fun GalleryLandscapeLayout(
                                 val relIdx = filteredItems.indexOf(relatedItem)
                                 KitsugiNsfwImage(
                                     model = relatedItem.url,
-                                    contentDescription = "İlgili resim",
+                                    contentDescription = stringResource(R.string.ilgili_resim),
                                     isAdult = isAdult,
                                     modifier = Modifier
                                         .fillMaxWidth()
@@ -1527,7 +1528,7 @@ private fun GalleryDetailsSheet(
                 .padding(bottom = 32.dp)
         ) {
             Text(
-                text = "Resim Detayları",
+                text = stringResource(R.string.inline_image_details_a78dc36),
                 color = KitsugiColors.TextPrimary,
                 fontSize = 18.sp,
                 fontWeight = FontWeight.Bold
@@ -1969,7 +1970,7 @@ private fun KitsugiGalleryHeader(
                         ) {
                             Icon(
                                 imageVector = if (isAlreadyDownloaded) Icons.Rounded.CheckCircle else Icons.Rounded.Download,
-                                contentDescription = if (isAlreadyDownloaded) "İndirildi" else "İndir",
+                                contentDescription = if (isAlreadyDownloaded) stringResource(R.string.indirildi) else stringResource(R.string.indir),
                                 tint = downloadBtnColor,
                                 modifier = Modifier.size(20.dp)
                             )
@@ -2035,16 +2036,16 @@ private fun formatLanguage(code: String?): Pair<String, String>? {
     if (code.isNullOrBlank() || code == "00") return null
     val normalized = code.trim().lowercase().substringBefore('-').substringBefore('_')
     return when (normalized) {
-        "tr" -> Pair("🇹🇷", "Türkçe")
-        "en", "eng", "ing" -> Pair("🇬🇧", "İngilizce")
+        "tr" -> Pair("🇹🇷", KitsugiStrings.get(R.string.pd_lang_tr))
+        "en", "eng", "ing" -> Pair("🇬🇧", KitsugiStrings.get(R.string.option_title_lang_english))
         "ja" -> Pair("🇯🇵", "Japonca")
         "de" -> Pair("🇩🇪", "Almanca")
-        "fr" -> Pair("🇫🇷", "Fransızca")
-        "es" -> Pair("🇪🇸", "İspanyolca")
-        "it" -> Pair("🇮🇹", "İtalyanca")
+        "fr" -> Pair("🇫🇷", KitsugiStrings.get(R.string.pd_lang_fr))
+        "es" -> Pair("🇪🇸", KitsugiStrings.get(R.string.pd_lang_es))
+        "it" -> Pair("🇮🇹", KitsugiStrings.get(R.string.pd_lang_it))
         "ko" -> Pair("🇰🇷", "Korece")
-        "zh" -> Pair("🇨🇳", "Çince")
-        "ru" -> Pair("🇷🇺", "Rusça")
+        "zh" -> Pair("🇨🇳", KitsugiStrings.get(R.string.pd_lang_zh))
+        "ru" -> Pair("🇷🇺", KitsugiStrings.get(R.string.pd_lang_ru))
         "pt" -> Pair("🇵🇹", "Portekizce")
         else -> Pair("🌐", code.uppercase())
     }

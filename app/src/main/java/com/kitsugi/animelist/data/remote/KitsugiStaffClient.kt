@@ -10,6 +10,8 @@ import kotlinx.coroutines.withTimeoutOrNull
 import org.json.JSONObject
 import java.net.URL
 import com.kitsugi.animelist.utils.*
+import com.kitsugi.animelist.utils.KitsugiStrings
+import com.kitsugi.animelist.R
 
 class KitsugiStaffClient {
 
@@ -1054,7 +1056,7 @@ class KitsugiStaffClient {
                     .map { it.trim() }
                     .filter { it.isNotBlank() && !it.equals("Ekip Üyesi", ignoreCase = true) }
                     .distinctBy { it.lowercase() }
-                    .ifEmpty { listOf(cur.role.ifBlank { "Ekip Üyesi" }) }
+                    .ifEmpty { listOf(cur.role.ifBlank { KitsugiStrings.get(R.string.ekip_uyesi) }) }
                     .take(3)
                     .joinToString(", ")
 

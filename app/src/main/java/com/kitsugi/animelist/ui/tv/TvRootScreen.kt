@@ -888,7 +888,7 @@ fun TvRootScreen(
                 entry.endDate.isNullOrBlank()) today else endDate
             val updatedEntry = entry.copy(
                 title = title,
-                subtitle = if (subtitle.isBlank()) "Manuel eklenen içerik" else subtitle,
+                subtitle = if (subtitle.isBlank()) stringResource(R.string.manuel_eklenen_icerik) else subtitle,
                 type = type,
                 status = status,
                 isAdult = isAdult,

@@ -61,6 +61,9 @@ class KitsugiApplication : Application(), SingletonImageLoader.Factory {
         // çökmeler daha önce hiçbir rapora girmiyordu.
         try { com.kitsugi.animelist.core.diagnostics.KitsugiCrashHandler.install(base) } catch (_: Throwable) {}
         try { com.kitsugi.animelist.core.diagnostics.KitsugiSessionSupervisor.install(base) } catch (_: Throwable) {}
+        // Dil dosyası metinlerinin Composable olmayan bağlamlardan (ViewModel,
+        // servis, Worker, veri katmanı) çözülebilmesi için bağlamı burada sakla.
+        try { com.kitsugi.animelist.utils.KitsugiStrings.install(base) } catch (_: Throwable) {}
     }
 
     override fun onCreate() {

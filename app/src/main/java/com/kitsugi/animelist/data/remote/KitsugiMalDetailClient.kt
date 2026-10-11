@@ -15,6 +15,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
+import com.kitsugi.animelist.utils.KitsugiStrings
+import com.kitsugi.animelist.R
 
 /**
  * MyAnimeList / Jikan API'sinden anime/manga detay bilgisi çeker.
@@ -547,7 +549,7 @@ internal object KitsugiMalDetailClient {
         return try {
             val d = JSONObject(text)
 
-            val title = d.optNullableString("title") ?: "Başlıksız"
+            val title = d.optNullableString("title") ?: KitsugiStrings.get(R.string.basliksiz)
             val altTitles = d.optJSONObject("alternative_titles")
             val titleEnglish = altTitles?.optNullableString("en")
             val titleJapanese = altTitles?.optNullableString("ja")

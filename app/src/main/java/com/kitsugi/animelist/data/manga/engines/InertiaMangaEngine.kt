@@ -12,6 +12,8 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 import org.json.JSONArray
 import org.json.JSONObject
+import com.kitsugi.animelist.utils.KitsugiStrings
+import com.kitsugi.animelist.R
 
 /**
  * InertiaMangaEngine
@@ -258,7 +260,7 @@ class InertiaMangaEngine(
         val chapters = (0 until chapterArr.length()).mapNotNull { i ->
             val ch    = chapterArr.optJSONObject(i) ?: return@mapNotNull null
             val slug  = ch.optString("slug").ifEmpty { return@mapNotNull null }
-            val title = ch.optString("title").ifEmpty { ch.optString("name").ifEmpty { "Bölüm $i" } }
+            val title = ch.optString("title").ifEmpty { ch.optString("name").ifEmpty { KitsugiStrings.get(R.string.inline_episode_1_s_dc662be, i) } }
             val num   = ch.optString("chapter_number").toFloatOrNull()
                 ?: extractChapterNumber(title)
             val date  = ch.optString("created_at").parseTimestamp()

@@ -53,6 +53,8 @@ import com.kitsugi.animelist.ui.components.KitsugiNsfwImage
 import com.kitsugi.animelist.utils.PreferenceHelpers.getDisplayTitle
 import com.kitsugi.animelist.utils.PreferenceHelpers.getDisplayScore
 import com.kitsugi.animelist.utils.toFriendlySourceLabel
+import androidx.compose.ui.res.stringResource
+import com.kitsugi.animelist.R
 
 @OptIn(
     ExperimentalFoundationApi::class,
@@ -807,7 +809,7 @@ private fun QuickIncrementButton(
     ) {
         Icon(
             imageVector = Icons.Rounded.Add,
-            contentDescription = "+1 Ekle",
+            contentDescription = stringResource(R.string.1_ekle),
             tint = accentColor,
             modifier = Modifier.size(20.dp)
         )

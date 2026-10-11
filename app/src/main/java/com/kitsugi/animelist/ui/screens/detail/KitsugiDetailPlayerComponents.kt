@@ -61,6 +61,8 @@ import com.kitsugi.animelist.core.player.engine.MpvPlayerEngine
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.rememberCoroutineScope
 import kotlinx.coroutines.delay
+import androidx.compose.ui.res.stringResource
+import com.kitsugi.animelist.R
 
 
 // ---------------------------------------------------------------------------
@@ -132,7 +134,7 @@ fun KitsugiYouTubePlayer(
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 Text(
-                    text = "Fragman yüklenemedi",
+                    text = stringResource(R.string.inline_failed_to_load_trailer_cc304f6),
                     color = Color.White,
                     style = MaterialTheme.typography.bodyMedium,
                     fontWeight = FontWeight.Bold
@@ -144,7 +146,7 @@ fun KitsugiYouTubePlayer(
                         }
                     }
                 ) {
-                    Text("Tarayıcıda Aç", color = KitsugiColors.Background)
+                    Text(stringResource(R.string.inline_open_in_browser_eed20ab), color = KitsugiColors.Background)
                 }
             }
         }

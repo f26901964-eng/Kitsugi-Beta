@@ -192,7 +192,7 @@ internal fun KitsugiMiniCopyButton(
     ) {
         Icon(
             imageVector = Icons.Rounded.ContentCopy,
-            contentDescription = "Kopyala",
+            contentDescription = stringResource(R.string.action_copy),
             tint = accentColor.copy(alpha = 0.85f),
             modifier = Modifier.size(13.dp)
         )
@@ -381,7 +381,7 @@ internal fun DataUnavailableScreen(
             )
 
             Text(
-                text = "Medya detay bilgisi şu anda yüklenemedi. Lütfen internet bağlantınızı kontrol edip tekrar deneyin veya daha sonra tekrar deneyin.",
+                text = stringResource(R.string.inline_media_details_are_unavailable_righ_c0921d2),
                 style = MaterialTheme.typography.bodyMedium,
                 color = KitsugiColors.TextSecondary,
                 textAlign = androidx.compose.ui.text.style.TextAlign.Center,

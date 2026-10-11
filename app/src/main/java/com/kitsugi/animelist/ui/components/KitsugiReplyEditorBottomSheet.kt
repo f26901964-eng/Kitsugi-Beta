@@ -32,6 +32,7 @@ import com.kitsugi.animelist.ui.theme.KitsugiColors
 import kotlinx.coroutines.launch
 import androidx.compose.ui.res.stringResource
 import com.kitsugi.animelist.R
+import com.kitsugi.animelist.utils.KitsugiStrings
 
 enum class MarkdownTag(val syntax: String, val offset: Int, val label: String, val icon: ImageVector) {
     BOLD("**text**", 2, "Kalın", Icons.Rounded.FormatBold),
@@ -103,7 +104,7 @@ fun KitsugiReplyEditorBottomSheet(
                 KitsugiFlySendButton(
                     onClick = {
                         if (textValue.text.isBlank()) {
-                            Toast.makeText(context, "Metin boş olamaz", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(context, KitsugiStrings.get(R.string.metin_bos_olamaz), Toast.LENGTH_SHORT).show()
                             return@KitsugiFlySendButton
                         }
                         isPublishing = true
@@ -111,14 +112,14 @@ fun KitsugiReplyEditorBottomSheet(
                             val success = onPublish(textValue.text)
                             isPublishing = false
                             if (success) {
-                                Toast.makeText(context, "Başarıyla gönderildi", Toast.LENGTH_SHORT).show()
+                                Toast.makeText(context, KitsugiStrings.get(R.string.basariyla_gonderildi), Toast.LENGTH_SHORT).show()
                                 onDismiss()
                             } else {
-                                Toast.makeText(context, "Gönderilemedi, lütfen giriş durumunuzu kontrol edin", Toast.LENGTH_LONG).show()
+                                Toast.makeText(context, KitsugiStrings.get(R.string.gonderilemedi_lutfen_giris_durumunuzu_kontrol_edin), Toast.LENGTH_LONG).show()
                             }
                         }
                     },
-                    text = "Yayınla",
+                    text = stringResource(R.string.yayinla),
                     isLoading = isPublishing,
                     enabled = !isPublishing,
                     height = 38.dp,

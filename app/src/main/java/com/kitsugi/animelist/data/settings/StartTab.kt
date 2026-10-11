@@ -1,5 +1,8 @@
 package com.kitsugi.animelist.data.settings
 
+import com.kitsugi.animelist.utils.KitsugiStrings
+import com.kitsugi.animelist.R
+
 /**
  * V2-F05 – StartTab
  *
@@ -19,7 +22,7 @@ enum class StartTab(
 ) {
     LAST_USED(
         id = "LAST_USED",
-        label = "Son Kullanılan",
+        label = KitsugiStrings.get(R.string.option_last_used),
         emoji = "🕐"
     ),
     HOME(
@@ -34,7 +37,7 @@ enum class StartTab(
     ),
     EXPLORE(
         id = "EXPLORE",
-        label = "Keşfet",
+        label = KitsugiStrings.get(R.string.tab_explore),
         emoji = "🔍"
     ),
     PROFILE(

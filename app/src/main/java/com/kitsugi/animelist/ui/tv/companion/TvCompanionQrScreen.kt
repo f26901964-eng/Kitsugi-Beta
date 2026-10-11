@@ -184,7 +184,7 @@ fun TvCompanionQrScreen(
                 // URL card
                 CompanionInfoCard(
                     icon = Icons.Filled.Wifi,
-                    label = "Bağlantı Adresi",
+                    label = stringResource(R.string.baglanti_adresi),
                     value = companionUrl
                 )
 
@@ -207,7 +207,7 @@ fun TvCompanionQrScreen(
                     ) {
                         Icon(Icons.Filled.Refresh, contentDescription = null)
                         Spacer(Modifier.width(8.dp))
-                        Text("Yeni QR")
+                        Text(stringResource(R.string.yeni_qr))
                     }
                     Button(
                         onClick = onBack,
@@ -304,13 +304,13 @@ private fun CompanionInfoCard(
 private fun CompanionStatusBadge(state: TvCompanionSessionManager.ConnectionState) {
     val (color, label, icon) = when (state) {
         TvCompanionSessionManager.ConnectionState.IDLE ->
-            Triple(CompanionSubtext, "Bağlantı bekleniyor…", Icons.Filled.Wifi)
+            Triple(CompanionSubtext, stringResource(R.string.baglanti_bekleniyor), Icons.Filled.Wifi)
         TvCompanionSessionManager.ConnectionState.PENDING_APPROVAL ->
-            Triple(CompanionOrange, "Onay bekliyor — TV'den onaylayın", Icons.Filled.Link)
+            Triple(CompanionOrange, stringResource(R.string.onay_bekliyor_tv_den_onaylayin), Icons.Filled.Link)
         TvCompanionSessionManager.ConnectionState.CONNECTED ->
-            Triple(CompanionGreen, "Bağlı", Icons.Filled.PhoneAndroid)
+            Triple(CompanionGreen, stringResource(R.string.notif_diag_connected), Icons.Filled.PhoneAndroid)
         TvCompanionSessionManager.ConnectionState.EXPIRED ->
-            Triple(CompanionRed, "Oturum süresi doldu — Yeni QR oluşturun", Icons.Filled.Refresh)
+            Triple(CompanionRed, stringResource(R.string.oturum_suresi_doldu_yeni_qr_olusturun), Icons.Filled.Refresh)
     }
 
     Row(

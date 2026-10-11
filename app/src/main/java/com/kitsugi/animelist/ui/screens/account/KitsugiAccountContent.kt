@@ -50,6 +50,7 @@ import com.kitsugi.animelist.ui.theme.LocalKitsugiAccent
 import kotlinx.coroutines.launch
 import androidx.compose.ui.res.stringResource
 import com.kitsugi.animelist.R
+import com.kitsugi.animelist.utils.KitsugiStrings
 
 /**
  * Kitsugi hesabı ekranı: e-posta/şifre ile kayıt ve giriş, oturum bilgisi, eşitleme ve çıkış.
@@ -84,7 +85,7 @@ fun KitsugiAccountContent() {
                 loggedInEmail = confirmedEmail
                 if (message?.startsWith("Doğrulama e-postası") == true) {
                     isError = false
-                    message = "E-posta doğrulandı. Şifreni tekrar girerek güvenli kasayı aç."
+                    message = KitsugiStrings.get(R.string.e_posta_dogrulandi_sifreni_tekrar_girerek_guvenli_kasayi_ac)
                 }
             }
             is SessionStatus.NotAuthenticated -> loggedInEmail = null
@@ -101,7 +102,7 @@ fun KitsugiAccountContent() {
         val trimmed = email.trim()
         if (!trimmed.contains("@") || password.length < 6) {
             isError = true
-            message = "Geçerli bir e-posta ve en az 6 karakterli şifre gir."
+            message = KitsugiStrings.get(R.string.gecerli_bir_e_posta_ve_en_az_6_karakterli_sifre_gir)
             return
         }
         busy = true
@@ -117,11 +118,11 @@ fun KitsugiAccountContent() {
                                 .onFailure { showError("Arama geçmişi eşitlenemedi", it) }
                             // Bildirim arşivi de eşitlenir (arka planda)
                             KitsugiAccountRepository.pullAndMergeNotificationArchive(context)
-                            if (!isError) message = "Hesap oluşturuldu. Yedek durumunu aşağıdan kontrol edebilirsin."
+                            if (!isError) message = KitsugiStrings.get(R.string.hesap_olusturuldu_yedek_durumunu_asagidan_kontrol_edebilirsin)
                         } else {
                             isError = false
                             isRegister = false
-                            message = "Doğrulama e-postası gönderildi. Onayladıktan sonra giriş yap."
+                            message = KitsugiStrings.get(R.string.dogrulama_e_postasi_gonderildi_onayladiktan_sonra_giris_yap)
                         }
                     }
                     .onFailure { showError("Kayıt başarısız", it) }
@@ -135,7 +136,7 @@ fun KitsugiAccountContent() {
                         KitsugiAccountRepository.pullAndMergeNotificationArchive(context)
                         if (!isError) {
                             isError = false
-                            message = "Giriş yapıldı, arama geçmişi eşitlendi. Kasa durumu aşağıda."
+                            message = KitsugiStrings.get(R.string.giris_yapildi_arama_gecmisi_esitlendi_kasa_durumu_asagida)
                         }
                     }
                     .onFailure { showError("Giriş başarısız", it) }
@@ -151,13 +152,13 @@ fun KitsugiAccountContent() {
         isError = false
         scope.launch {
             KitsugiAccountRepository.pullAndMergeSearchHistory(dao)
-                .onSuccess { isError = false; message = "Eşitlendi." }
-                .onFailure { showError("Eşitleme başarısız", it) }
+                .onSuccess { isError = false; message = KitsugiStrings.get(R.string.esitlendi) }
+                .onFailure { showError(KitsugiStrings.get(R.string.esitleme_basarisiz), it) }
             // Bildirim arşivi de eşitlenir (başarısızlık UI'ı bozmaz)
             KitsugiAccountRepository.pullAndMergeNotificationArchive(context)
             LinkedAccountVault.backupNow(context)
                 .onFailure { showError("Şifreli yedek alınamadı", it) }
-            if (!isError) message = "Arama geçmişi eşitlendi; bildirim arşivi ve bağlı hesaplar yedeklendi."
+            if (!isError) message = KitsugiStrings.get(R.string.arama_gecmisi_esitlendi_bildirim_arsivi_ve_bagli_hesaplar_yedekl)
             busy = false
         }
     }
@@ -169,7 +170,7 @@ fun KitsugiAccountContent() {
                 .onSuccess {
                     loggedInEmail = null
                     isError = false
-                    message = "Çıkış yapıldı. Yerel veriler cihazda kalır."
+                    message = KitsugiStrings.get(R.string.cikis_yapildi_yerel_veriler_cihazda_kalir)
                 }
                 .onFailure { showError("Çıkış başarısız", it) }
             busy = false
@@ -183,20 +184,20 @@ fun KitsugiAccountContent() {
         }
         AlertDialog(
             onDismissRequest = { if (!busy) closePasswordDialog() },
-            title = { Text("Kitsugi şifreni değiştir") },
+            title = { Text(KitsugiStrings.get(R.string.inline_change_your_kitsugi_password_d2623b3)) },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text("Bağlı hesapların korunur. İşlem kesilirse aynı yeni şifreyle tekrar dene. Şifre sıfırlama bu işlemden farklıdır.")
+                    Text(KitsugiStrings.get(R.string.inline_linked_accounts_are_preserved_if_9ef2bcf))
                     OutlinedTextField(currentPassword, { currentPassword = it }, enabled = !busy,
-                        label = { Text("Mevcut şifre") }, singleLine = true,
+                        label = { Text(KitsugiStrings.get(R.string.inline_current_password_52929cf)) }, singleLine = true,
                         visualTransformation = PasswordVisualTransformation(),
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password))
                     OutlinedTextField(newPassword, { newPassword = it }, enabled = !busy,
-                        label = { Text("Yeni şifre (en az 8 karakter)") }, singleLine = true,
+                        label = { Text(KitsugiStrings.get(R.string.inline_new_password_at_least_8_f9a9801)) }, singleLine = true,
                         visualTransformation = PasswordVisualTransformation(),
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password))
                     OutlinedTextField(confirmPassword, { confirmPassword = it }, enabled = !busy,
-                        label = { Text("Yeni şifreyi tekrar yaz") }, singleLine = true,
+                        label = { Text(KitsugiStrings.get(R.string.inline_re_enter_new_password_5319ba5)) }, singleLine = true,
                         visualTransformation = PasswordVisualTransformation(),
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password))
                 }
@@ -208,7 +209,7 @@ fun KitsugiAccountContent() {
                         scope.launch {
                             try {
                                 LinkedAccountVault.changePassword(context, currentPassword, newPassword)
-                                    .onSuccess { message = "Şifre değiştirildi. Bağlı hesap yedeğin korundu." }
+                                    .onSuccess { message = KitsugiStrings.get(R.string.sifre_degistirildi_bagli_hesap_yedegin_korundu) }
                                     .onFailure {
                                         showError("Şifre işlemi tamamlanamadı", it)
                                         message += " Ağ kesildiyse yeni şifreyle giriş yapmayı dene; eski şifre hâlâ geçerliyse aynı yeni şifreyle işlemi tekrar et."
@@ -223,20 +224,20 @@ fun KitsugiAccountContent() {
 
     conflictChoice?.let { keepLocal ->
         AlertDialog(onDismissRequest = { if (!busy) conflictChoice = null },
-            title = { Text("Hesap yedeği çakışması") },
-            text = { Text("${vaultConflicts.joinToString()} için " +
-                (if (keepLocal) "bu cihazdaki" else "buluttaki") +
+            title = { Text(KitsugiStrings.get(R.string.inline_account_backup_conflict_d3c74ac)) },
+            text = { Text(KitsugiStrings.get(R.string.inline_1_s_for_d58aa9f, vaultConflicts.joinToString()) +
+                (if (keepLocal) KitsugiStrings.get(R.string.bu_cihazdaki) else "buluttaki") +
                 " hesap bilgileri korunacak. Diğer servislerin değişiklikleri birleştirilir. Bulut değiştiyse işlem durdurulur.") },
             confirmButton = { TextButton(enabled = !busy, onClick = {
                 busy = true; isError = false
                 scope.launch {
                     try {
                         LinkedAccountVault.resolveConflict(context, keepLocal)
-                            .onSuccess { message = "Seçimin uygulandı. Kasa durumunu kontrol et." }
-                            .onFailure { showError("Çakışma çözülemedi", it) }
+                            .onSuccess { message = KitsugiStrings.get(R.string.secimin_uygulandi_kasa_durumunu_kontrol_et) }
+                            .onFailure { showError(KitsugiStrings.get(R.string.cakisma_cozulemedi), it) }
                     } finally { conflictChoice = null; busy = false }
                 }
-            }) { Text("Onayla") } },
+            }) { Text(KitsugiStrings.get(R.string.onayla)) } },
             dismissButton = { TextButton(enabled = !busy, onClick = { conflictChoice = null }) { Text(stringResource(R.string.vazgec)) } })
     }
 
@@ -254,14 +255,14 @@ fun KitsugiAccountContent() {
             )
             Column {
                 Text(
-                    text = loggedInEmail ?: "Giriş yapılmadı",
+                    text = loggedInEmail ?: KitsugiStrings.get(R.string.ui_account_signed_out),
                     color = KitsugiColors.TextPrimary,
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.SemiBold
                 )
                 Text(
                     text = if (loggedInEmail != null)
-                        "Arama geçmişi, bağlı hesaplar ve taşınabilir ayarlar."
+                        KitsugiStrings.get(R.string.ui_account_subtitle_signed_in)
                     else
                         "Giriş yaparak verilerini cihazlar arasında eşitle.",
                     color = KitsugiColors.TextSecondary,
@@ -274,7 +275,7 @@ fun KitsugiAccountContent() {
             Text(vaultStatus, style = MaterialTheme.typography.bodySmall, color = KitsugiColors.TextSecondary)
             if (!LinkedAccountVault.hasLocalVault(context)) {
                 Text(
-                    "E-posta doğrulaması hesabı açtı. Şifreli yedeğini kullanmak için Kitsugi şifreni tekrar doğrula.",
+                    KitsugiStrings.get(R.string.e_posta_dogrulamasi_hesabi_acti_sifreli_yedegini_kullanmak_icin),
                     style = MaterialTheme.typography.bodySmall,
                     color = KitsugiColors.TextSecondary
                 )
@@ -282,7 +283,7 @@ fun KitsugiAccountContent() {
                     value = password,
                     onValueChange = { password = it },
                     enabled = !busy,
-                    label = { Text("Kitsugi şifresi") },
+                    label = { Text(KitsugiStrings.get(R.string.kitsugi_sifresi)) },
                     singleLine = true,
                     visualTransformation = PasswordVisualTransformation(),
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
@@ -300,10 +301,10 @@ fun KitsugiAccountContent() {
                                     password = ""
                                     if (LinkedAccountVault.hasLocalVault(context)) {
                                         isError = false
-                                        message = "Şifre doğrulandı; güvenli hesap yedeğin açıldı."
+                                        message = KitsugiStrings.get(R.string.sifre_dogrulandi_guvenli_hesap_yedegin_acildi)
                                     } else {
                                         isError = true
-                                        message = "Giriş doğrulandı ancak kasa açılamadı: ${LinkedAccountVault.status.value}"
+                                        message = KitsugiStrings.get(R.string.giris_dogrulandi_ancak_kasa_acilamadi_x, LinkedAccountVault.status.value)
                                     }
                                 }
                                 .onFailure { showError("Şifre doğrulanamadı", it) }
@@ -312,19 +313,19 @@ fun KitsugiAccountContent() {
                     },
                     enabled = !busy && password.length >= 6,
                     modifier = Modifier.fillMaxWidth()
-                ) { Text("Şifreyi doğrula ve kasayı aç") }
+                ) { Text(KitsugiStrings.get(R.string.sifreyi_dogrula_ve_kasayi_ac)) }
             }
-            Text("Şifre sıfırlanırsa eski şifreli kasa açılamaz. Yerel veriler çıkışta silinmez; farklı hesaba girişte bu cihazdaki veriler o hesaba yedeklenebilir.",
+            Text(KitsugiStrings.get(R.string.inline_if_your_password_is_reset_a9614b3),
                 style = MaterialTheme.typography.bodySmall, color = KitsugiColors.TextSecondary)
             Button(
                 onClick = { syncNow() },
                 enabled = !busy && LinkedAccountVault.hasLocalVault(context),
                 modifier = Modifier.fillMaxWidth()
-            ) { Text("Şimdi eşitle") }
+            ) { Text(KitsugiStrings.get(R.string.inline_sync_now_2f993db)) }
             if (vaultConflicts.isNotEmpty()) {
-                Text("Çakışan hesaplar: ${vaultConflicts.joinToString()}", color = KitsugiColors.AccentRed)
-                OutlinedButton(enabled = !busy, onClick = { conflictChoice = true }) { Text("Bu cihazdaki hesapları koru") }
-                OutlinedButton(enabled = !busy, onClick = { conflictChoice = false }) { Text("Buluttaki hesapları koru") }
+                Text(KitsugiStrings.get(R.string.inline_conflicting_accounts_1_s_0c4c670, vaultConflicts.joinToString()), color = KitsugiColors.AccentRed)
+                OutlinedButton(enabled = !busy, onClick = { conflictChoice = true }) { Text(KitsugiStrings.get(R.string.inline_keep_accounts_on_this_device_fd2ebcf)) }
+                OutlinedButton(enabled = !busy, onClick = { conflictChoice = false }) { Text(KitsugiStrings.get(R.string.inline_keep_cloud_accounts_47e2ee5)) }
             }
             OutlinedButton(enabled = !busy, onClick = { passwordDialog = true }, modifier = Modifier.fillMaxWidth()) {
                 Text(stringResource(R.string.sifreyi_degistir))
@@ -333,7 +334,7 @@ fun KitsugiAccountContent() {
                 onClick = { signOut() },
                 enabled = !busy,
                 modifier = Modifier.fillMaxWidth()
-            ) { Text("Çıkış yap") }
+            ) { Text(KitsugiStrings.get(R.string.inline_sign_out_8d1ab12)) }
         } else {
             OutlinedTextField(
                 value = email,
@@ -357,11 +358,11 @@ fun KitsugiAccountContent() {
                 enabled = !busy,
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Text(if (isRegister) "Kayıt ol" else "Giriş yap")
+                Text(if (isRegister) KitsugiStrings.get(R.string.ui_account_sign_up) else KitsugiStrings.get(R.string.ui_action_sign_in))
             }
             TextButton(enabled = !busy, onClick = { isRegister = !isRegister; message = null; isError = false }) {
                 Text(
-                    if (isRegister) "Zaten hesabın var mı? Giriş yap"
+                    if (isRegister) KitsugiStrings.get(R.string.ui_account_prompt_sign_in)
                     else "Hesabın yok mu? Kayıt ol"
                 )
             }

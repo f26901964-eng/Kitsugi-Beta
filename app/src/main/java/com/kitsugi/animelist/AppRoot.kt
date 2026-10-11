@@ -155,6 +155,8 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import androidx.compose.ui.res.stringResource
+import com.kitsugi.animelist.utils.KitsugiStrings
+import com.kitsugi.animelist.R
 
 
 @OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
@@ -425,7 +427,7 @@ fun AppRoot(
         contract = ActivityResultContracts.CreateDocument("application/json")
     ) { uri: Uri? ->
         if (uri == null) {
-            appViewModel.showSnackbarMessage("Yedek dışa aktarma iptal edildi")
+            appViewModel.showSnackbarMessage(KitsugiStrings.get(R.string.yedek_disa_aktarma_iptal_edildi))
             return@rememberLauncherForActivityResult
         }
 
@@ -436,11 +438,11 @@ fun AppRoot(
                 }
             } ?: error("Dosya yazılamadı")
         }.onSuccess {
-            appViewModel.showSnackbarMessage("Yedek dosyası oluşturuldu")
+            appViewModel.showSnackbarMessage(KitsugiStrings.get(R.string.yedek_dosyasi_olusturuldu))
             pendingExportText = ""
         }.onFailure { error ->
             appViewModel.showSnackbarMessage(
-                error.message ?: "Yedek dosyası oluşturulamadı"
+                error.message ?: KitsugiStrings.get(R.string.yedek_dosyasi_olusturulamadi)
             )
             pendingExportText = ""
         }
@@ -450,7 +452,7 @@ fun AppRoot(
         contract = ActivityResultContracts.OpenDocument()
     ) { uri: Uri? ->
         if (uri == null) {
-            appViewModel.showSnackbarMessage("Yedek içe aktarma iptal edildi")
+            appViewModel.showSnackbarMessage(KitsugiStrings.get(R.string.yedek_ice_aktarma_iptal_edildi))
             return@rememberLauncherForActivityResult
         }
 
@@ -468,7 +470,7 @@ fun AppRoot(
             )
         }.onFailure { error ->
             appViewModel.showSnackbarMessage(
-                error.message ?: "Yedek dosyası okunamadı"
+                error.message ?: KitsugiStrings.get(R.string.yedek_dosyasi_okunamadi)
             )
         }
     }
@@ -477,7 +479,7 @@ fun AppRoot(
         contract = ActivityResultContracts.CreateDocument("text/plain")
     ) { uri: Uri? ->
         if (uri == null) {
-            appViewModel.showSnackbarMessage("Source raporu dışa aktarma iptal edildi")
+            appViewModel.showSnackbarMessage(KitsugiStrings.get(R.string.source_raporu_disa_aktarma_iptal_edildi))
             return@rememberLauncherForActivityResult
         }
 
@@ -514,7 +516,7 @@ fun AppRoot(
                 if (isOnline) {
                     val count = mediaRepository.drainPendingQueue()
                     if (count > 0) {
-                        appViewModel.showSnackbarMessage("🔄 Çevrimdışı kaydedilen $count işlem senkronize edildi!")
+                        appViewModel.showSnackbarMessage(KitsugiStrings.get(R.string.cevrimdisi_kaydedilen_x_islem_senkronize_edildi, count))
                     }
                 }
             }
@@ -548,7 +550,7 @@ fun AppRoot(
                     launch {
                         val count = mediaRepository.drainPendingQueue()
                         if (count > 0) {
-                            appViewModel.showSnackbarMessage("🔄 Çevrimdışı kaydedilen $count işlem senkronize edildi!")
+                            appViewModel.showSnackbarMessage(KitsugiStrings.get(R.string.cevrimdisi_kaydedilen_x_islem_senkronize_edildi, count))
                         }
                     }
                 }
@@ -945,7 +947,7 @@ fun AppRoot(
                     entry.endDate.isNullOrBlank()) today else endDate
                 val updatedEntry = entry.copy(
                     title = title,
-                    subtitle = if (subtitle.isBlank()) "Manuel eklenen içerik" else subtitle,
+                    subtitle = if (subtitle.isBlank()) KitsugiStrings.get(R.string.manuel_eklenen_icerik) else subtitle,
                     type = type,
                     status = status,
                     isAdult = isAdult,

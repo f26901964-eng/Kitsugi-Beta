@@ -122,7 +122,7 @@ fun GridHomeContent(
             .padding(16.dp)
     ) {
         Text(
-            text = "Popüler Keşifler",
+            text = stringResource(R.string.inline_popular_discoveries_8e51823),
             style = MaterialTheme.typography.titleMedium,
             fontWeight = FontWeight.Bold,
             color = KitsugiColors.TextPrimary,

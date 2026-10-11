@@ -32,6 +32,8 @@ import androidx.compose.material.icons.rounded.ChevronRight
 import androidx.compose.material.icons.rounded.Extension
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.res.stringResource
+import com.kitsugi.animelist.R
 
 /**
  * Renders stream result items directly into an existing [LazyListScope] (e.g. for sticky header integration).
@@ -150,7 +152,7 @@ private fun StreamErrorCard(
                 )
             }
             Text(
-                text = addonState.error ?: "Bilinmeyen hata oluştu",
+                text = addonState.error ?: stringResource(R.string.ui_error_unknown),
                 color = KitsugiColors.TextSecondary,
                 style = MaterialTheme.typography.bodySmall
             )
@@ -173,7 +175,7 @@ private fun StreamErrorCard(
                     )
                     Spacer(Modifier.width(6.dp))
                     Text(
-                        text = "Eklentiyi / Captcha Doğrula",
+                        text = stringResource(R.string.inline_verify_extension_captcha_02452f6),
                         style = MaterialTheme.typography.labelMedium,
                         fontWeight = FontWeight.Bold
                     )
@@ -206,13 +208,13 @@ fun SettingsShortcutCard(
         ) {
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = "Daha Fazla Kaynak Ekleyin",
+                    text = stringResource(R.string.daha_fazla_kaynak_ekleyin),
                     color = KitsugiColors.TextPrimary,
                     style = MaterialTheme.typography.titleSmall,
                     fontWeight = FontWeight.Bold
                 )
                 Text(
-                    text = "Stremio ve Cloudstream eklentilerini yönetmek için Ayarlar'a gidin.",
+                    text = stringResource(R.string.inline_go_to_settings_to_manage_b9d82ba),
                     color = KitsugiColors.TextSecondary,
                     style = MaterialTheme.typography.bodySmall
                 )

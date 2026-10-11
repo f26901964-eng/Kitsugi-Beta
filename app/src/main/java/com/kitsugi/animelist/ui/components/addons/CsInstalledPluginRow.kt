@@ -29,6 +29,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import androidx.compose.ui.res.stringResource
 import com.kitsugi.animelist.R
+import com.kitsugi.animelist.utils.KitsugiStrings
 
 @Composable
 internal fun CsInstalledPluginRow(
@@ -121,7 +122,7 @@ internal fun CsInstalledPluginRow(
                     overflow = TextOverflow.Ellipsis
                 )
                 Text(
-                    "Doğrulama Hatası (Bozuk Dosya)",
+                    stringResource(R.string.inline_verification_error_corrupted_file_0e3c632),
                     color = KitsugiColors.AccentRed.copy(alpha = 0.8f),
                     style = MaterialTheme.typography.bodySmall,
                     maxLines = 1,
@@ -280,7 +281,7 @@ internal fun CsInstalledPluginRow(
                                     .padding(horizontal = 6.dp, vertical = 2.dp)
                             ) {
                                 Text(
-                                    "⛔ Devre Dışı",
+                                    stringResource(R.string.inline_disabled_2299e09),
                                     color = KitsugiColors.AccentRed,
                                     fontSize = 9.sp,
                                     fontWeight = FontWeight.SemiBold
@@ -369,7 +370,7 @@ internal fun CsInstalledPluginRow(
                             Icon(Icons.Rounded.ArrowCircleUp, contentDescription = null, tint = Color.White, modifier = Modifier.size(15.dp))
                         }
                         Spacer(Modifier.width(4.dp))
-                        Text("Güncelle (v${latestPlugin.version})", color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                        Text(stringResource(R.string.inline_update_v_1_s_2e5501a, latestPlugin.version), color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Bold)
                     }
                     Spacer(Modifier.width(6.dp))
                 }
@@ -421,13 +422,13 @@ internal fun CsInstalledPluginRow(
                                             com.kitsugi.animelist.R.style.Theme_KitsugiAnimeList
                                         )
                                         loadedPlugin.openSettings?.invoke(themedCtx)
-                                            ?: android.widget.Toast.makeText(context, "Eklentinin ayar sayfası yok.", android.widget.Toast.LENGTH_SHORT).show()
+                                            ?: android.widget.Toast.makeText(context, KitsugiStrings.get(R.string.eklentinin_ayar_sayfasi_yok), android.widget.Toast.LENGTH_SHORT).show()
                                     } else {
-                                        android.widget.Toast.makeText(context, "Eklenti yüklenemedi veya ekran hazır değil.", android.widget.Toast.LENGTH_SHORT).show()
+                                        android.widget.Toast.makeText(context, KitsugiStrings.get(R.string.eklenti_yuklenemedi_veya_ekran_hazir_degil), android.widget.Toast.LENGTH_SHORT).show()
                                     }
                                 } catch (e: Throwable) {
                                     android.util.Log.e("KitsugiAddons", "Ayarlar açılamadı: ${e.message}", e)
-                                    android.widget.Toast.makeText(context, "Hata: ${e.message}", android.widget.Toast.LENGTH_LONG).show()
+                                    android.widget.Toast.makeText(context, KitsugiStrings.get(R.string.hata_x, e.message), android.widget.Toast.LENGTH_LONG).show()
                                 } finally {
                                     kotlinx.coroutines.delay(1000)
                                     isSettingsOpening = false
@@ -460,7 +461,7 @@ internal fun CsInstalledPluginRow(
                 ) {
                     Icon(Icons.Rounded.OpenInBrowser, contentDescription = null, tint = KitsugiColors.TextSecondary, modifier = Modifier.size(16.dp))
                     Spacer(Modifier.width(4.dp))
-                    Text("Doğrula", color = KitsugiColors.TextSecondary, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                    Text(stringResource(R.string.inline_verify_56ac91e), color = KitsugiColors.TextSecondary, fontSize = 11.sp, fontWeight = FontWeight.Bold)
                 }
             }
         }

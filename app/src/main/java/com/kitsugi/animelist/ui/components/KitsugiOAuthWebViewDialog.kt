@@ -30,6 +30,7 @@ import com.kitsugi.animelist.ui.theme.KitsugiColors
 import com.kitsugi.animelist.ui.theme.LocalKitsugiAccent
 import androidx.compose.ui.res.stringResource
 import com.kitsugi.animelist.R
+import com.kitsugi.animelist.utils.KitsugiStrings
 
 /**
  * Uygulama içi OAuth WebView dialog'u — MAL, AniList, Simkl için.
@@ -68,13 +69,13 @@ fun KitsugiOAuthWebViewDialog(
         try {
             authUrl = ExternalAuthManager.getAuthUrlAndPrepare(context, serviceName)
         } catch (e: Exception) {
-            errorMessage = e.message ?: "Auth URL oluşturulamadı"
-            onError(errorMessage ?: "Hata")
+            errorMessage = e.message ?: KitsugiStrings.get(R.string.auth_url_olusturulamadi)
+            onError(errorMessage ?: KitsugiStrings.get(R.string.hata))
         }
     }
 
     val title = when (serviceName.lowercase()) {
-        "mal", "myanimelist" -> "MyAnimeList Girişi"
+        "mal", "myanimelist" -> stringResource(R.string.myanimelist_girisi)
         "anilist" -> "AniList Girişi"
         "simkl" -> "Simkl Girişi"
         else -> "Hesap Girişi"
@@ -114,7 +115,7 @@ fun KitsugiOAuthWebViewDialog(
                         )
                         Text(
                             text = when (serviceName.lowercase()) {
-                                "mal" -> "MAL hesabınızla giriş yapın ve izin verin"
+                                "mal" -> stringResource(R.string.mal_hesabinizla_giris_yapin_ve_izin_verin)
                                 "anilist" -> "AniList hesabınızla giriş yapın"
                                 else -> "Hesabınızla giriş yapın"
                             },
@@ -284,7 +285,7 @@ fun KitsugiOAuthWebViewDialog(
                                         ) {
                                             // Basic Auth popup'ını gösterme, iptal et ve kullanıcıya bilgi ver
                                             handler?.cancel()
-                                            errorMessage = "MAL temel kimlik doğrulama istedi (beklenmeyen). Lütfen sayfayı yenileyin veya tarayıcı çerezlerini temizleyin. Host: $host"
+                                            errorMessage = KitsugiStrings.get(R.string.mal_temel_kimlik_dogrulama_istedi_beklenmeyen_lutfen_sayfayi_yen, host)
                                         }
 
                                         override fun onReceivedError(
@@ -293,7 +294,7 @@ fun KitsugiOAuthWebViewDialog(
                                             error: android.webkit.WebResourceError?
                                         ) {
                                             if (request?.isForMainFrame == true) {
-                                                errorMessage = "Sayfa yüklenemedi: ${error?.description}"
+                                                errorMessage = KitsugiStrings.get(R.string.sayfa_yuklenemedi_x, error?.description)
                                             }
                                         }
                                     }
@@ -342,13 +343,13 @@ fun KitsugiOAuthWebViewDialog(
                 ) {
                     Column {
                         Text(
-                            text = "Güvenli bağlantı • ${when(serviceName.lowercase()){ "mal"->"myanimelist.net"; "anilist"->"anilist.co"; else->"simkl.com" }}",
+                            text = KitsugiStrings.get(R.string.guvenli_baglanti_x, when(serviceName.lowercase()){ "mal"->"myanimelist.net"; "anilist"->"anilist.co"; else->"simkl.com" }),
                             color = KitsugiColors.TextMuted,
                             style = MaterialTheme.typography.labelSmall
                         )
                         if (errorMessage != null) {
                             Text(
-                                text = "Sorun mu var? Tarayıcıda açmayı deneyin",
+                                text = KitsugiStrings.get(R.string.sorun_mu_var_tarayicida_acmayi_deneyin),
                                 color = KitsugiColors.TextMuted,
                                 style = MaterialTheme.typography.labelSmall
                             )
@@ -368,7 +369,7 @@ fun KitsugiOAuthWebViewDialog(
                                 },
                                 shape = RoundedCornerShape(16.dp)
                             ) {
-                                Text("Tarayıcıda Aç", color = accentColor, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelSmall)
+                                Text(KitsugiStrings.get(R.string.inline_open_in_browser_eed20ab), color = accentColor, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelSmall)
                             }
                         }
                         Button(

@@ -92,6 +92,7 @@ import com.kitsugi.animelist.core.player.engine.PlayerEngineType
 import com.kitsugi.animelist.core.player.engine.PlayerEngineSelector
 import com.kitsugi.animelist.core.player.engine.Media3PlayerEngine
 import com.kitsugi.animelist.core.player.engine.MpvPlayerEngine
+import com.kitsugi.animelist.utils.KitsugiStrings
 // Legacy gesture imports removed
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -401,11 +402,11 @@ fun KitsugiFullscreenPlayerScreen(
             activity = activity,
             onAlternativeRequired = {
                 viewModel.showSheet(KitsugiSheets.QualityTracks)
-                Toast.makeText(context, "Aynı kaynak bulunamadı. Diğer kaynaklar listeleniyor.", Toast.LENGTH_LONG).show()
+                Toast.makeText(context, KitsugiStrings.get(R.string.ayni_kaynak_bulunamadi_diger_kaynaklar_listeleniyor), Toast.LENGTH_LONG).show()
             },
             onResolutionFailed = {
                 viewModel.showSheet(KitsugiSheets.QualityTracks)
-                Toast.makeText(context, "Seçilen kaynak çözümlenemedi. Lütfen listeden başka bir kaynak seçin.", Toast.LENGTH_LONG).show()
+                Toast.makeText(context, KitsugiStrings.get(R.string.secilen_kaynak_cozumlenemedi_lutfen_listeden_baska_bir_kaynak_se), Toast.LENGTH_LONG).show()
             }
         )
     }
@@ -415,11 +416,11 @@ fun KitsugiFullscreenPlayerScreen(
             activity = activity,
             onAlternativeRequired = {
                 viewModel.showSheet(KitsugiSheets.QualityTracks)
-                Toast.makeText(context, "Aynı kaynak bulunamadı. Diğer kaynaklar listeleniyor.", Toast.LENGTH_LONG).show()
+                Toast.makeText(context, KitsugiStrings.get(R.string.ayni_kaynak_bulunamadi_diger_kaynaklar_listeleniyor), Toast.LENGTH_LONG).show()
             },
             onResolutionFailed = {
                 viewModel.showSheet(KitsugiSheets.QualityTracks)
-                Toast.makeText(context, "Seçilen kaynak çözümlenemedi. Lütfen listeden başka bir kaynak seçin.", Toast.LENGTH_LONG).show()
+                Toast.makeText(context, KitsugiStrings.get(R.string.secilen_kaynak_cozumlenemedi_lutfen_listeden_baska_bir_kaynak_se), Toast.LENGTH_LONG).show()
             }
         )
     }
@@ -1006,7 +1007,7 @@ fun KitsugiFullscreenPlayerScreen(
                                 screenOrientationState = nextOrientation
                                 activity?.requestedOrientation = nextOrientation
                                 val text = when (nextOrientation) {
-                                    ActivityInfo.SCREEN_ORIENTATION_FULL_SENSOR -> "Yönlendirme: Otomatik"
+                                    ActivityInfo.SCREEN_ORIENTATION_FULL_SENSOR -> KitsugiStrings.get(R.string.yonlendirme_otomatik)
                                     ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE -> "Yönlendirme: Yatay (Kilitli)"
                                     ActivityInfo.SCREEN_ORIENTATION_SENSOR_PORTRAIT -> "Yönlendirme: Dikey (Kilitli)"
                                     else -> ""
@@ -1100,12 +1101,12 @@ fun KitsugiFullscreenPlayerScreen(
 
                     // Search/Fetch loading overlay for next episode
                     if (nextEpisodeLoading && !isInPipMode) {
-                        PlayerInlineLoadingOverlay(message = "Sonraki Bölüm Kaynakları Aranıyor...")
+                        PlayerInlineLoadingOverlay(message = KitsugiStrings.get(R.string.sonraki_bolum_kaynaklari_araniyor))
                     }
 
                     // Stream URL resolution loading overlay
                     if (isResolvingStream && !isInPipMode) {
-                        PlayerInlineLoadingOverlay(message = "Kaynak Bağlantısı Çözümleniyor...")
+                        PlayerInlineLoadingOverlay(message = KitsugiStrings.get(R.string.kaynak_baglantisi_cozumleniyor))
                     }
 
                     // Buffering is handled reactively by MiddlePlayerControls (single unified spinner)
@@ -1177,7 +1178,7 @@ fun KitsugiFullscreenPlayerScreen(
                                 if (resolvedUrl != null) {
                                     viewModel.changeStreamSource(idx, src, resolvedUrl)
                                 } else {
-                                    android.widget.Toast.makeText(context, "Kaynak çözümlenemedi.", android.widget.Toast.LENGTH_SHORT).show()
+                                    android.widget.Toast.makeText(context, KitsugiStrings.get(R.string.kaynak_cozumlenemedi), android.widget.Toast.LENGTH_SHORT).show()
                                 }
                             }
                         },
@@ -1255,14 +1256,14 @@ fun KitsugiFullscreenPlayerScreen(
                     shape = RoundedCornerShape(26.dp),
                     title = {
                     Text(
-                    text = "Kaldığınız Yerden Devam Edilsin mi?",
+                    text = KitsugiStrings.get(R.string.inline_resume_where_you_left_off_e18b1b2),
                     fontWeight = FontWeight.Bold,
                     style = MaterialTheme.typography.titleLarge
                     )
                     },
                     text = {
                     Text(
-                    text = "Video en son ${formatMs(pendingResumePos)} konumunda kalmış. Kaldığınız yerden devam etmek ister misiniz?",
+                    text = KitsugiStrings.get(R.string.inline_the_video_was_last_paused_f2c687e, formatMs(pendingResumePos)),
                     style = MaterialTheme.typography.bodyMedium
                     )
                     },
@@ -1274,7 +1275,7 @@ fun KitsugiFullscreenPlayerScreen(
                     playerEngine.play()
                     }
                     ) {
-                    Text("Evet", color = LocalKitsugiAccent.current, fontWeight = FontWeight.Bold)
+                    Text(KitsugiStrings.get(R.string.action_yes), color = LocalKitsugiAccent.current, fontWeight = FontWeight.Bold)
                     }
                     },
                     dismissButton = {

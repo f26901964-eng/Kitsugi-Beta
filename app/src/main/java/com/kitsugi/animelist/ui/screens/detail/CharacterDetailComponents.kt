@@ -461,7 +461,7 @@ internal fun CharacterAboutTabContent(
                             },
                             modifier = Modifier.size(36.dp)
                         ) {
-                            Icon(Icons.Rounded.ContentCopy, contentDescription = "Kopyala", tint = KitsugiColors.TextSecondary)
+                            Icon(Icons.Rounded.ContentCopy, contentDescription = stringResource(R.string.action_copy), tint = KitsugiColors.TextSecondary)
                         }
                     }
                 }

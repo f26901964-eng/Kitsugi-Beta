@@ -78,7 +78,7 @@ fun TvMangaReaderControls(
 
             // 1. Okuma Yönü
             val readingModes = listOf(
-                ReadingMode.RightToLeft to "Sağdan Sola (Manga)",
+                ReadingMode.RightToLeft to stringResource(R.string.sagdan_sola_manga),
                 ReadingMode.LeftToRight to "Soldan Sağa",
                 ReadingMode.Vertical to "Dikey",
                 ReadingMode.Webtoon to "Webtoon"
@@ -86,7 +86,7 @@ fun TvMangaReaderControls(
             val currentModeIdx = readingModes.indexOfFirst { it.first == uiState.readingMode }.coerceAtLeast(0)
             TvControlCycleRow(
                 title = stringResource(R.string.okuma_yonu),
-                description = "Manga veya Webtoon okuma akışını değiştirin.",
+                description = stringResource(R.string.manga_veya_webtoon_okuma_akisini_degistirin),
                 currentValueText = readingModes[currentModeIdx].second,
                 onPrevious = {
                     val prevIdx = (currentModeIdx - 1 + readingModes.size) % readingModes.size
@@ -102,14 +102,14 @@ fun TvMangaReaderControls(
 
             // 2. Görsel Sığdırma Modu
             val fitModes = listOf(
-                MangaFitMode.FitScreen to "Ekrana Sığdır",
+                MangaFitMode.FitScreen to stringResource(R.string.manga_fit_screen),
                 MangaFitMode.FitWidth to "Genişliğe Sığdır",
                 MangaFitMode.FitHeight to "Yükseğe Sığdır"
             )
             val currentFitIdx = fitModes.indexOfFirst { it.first == uiState.fitMode }.coerceAtLeast(0)
             TvControlCycleRow(
-                title = "Görsel Sığdırma",
-                description = "Sayfaların ekrana sığdırılma kuralını belirleyin.",
+                title = stringResource(R.string.gorsel_sigdirma),
+                description = stringResource(R.string.sayfalarin_ekrana_sigdirilma_kuralini_belirleyin),
                 currentValueText = fitModes[currentFitIdx].second,
                 onPrevious = {
                     val prevIdx = (currentFitIdx - 1 + fitModes.size) % fitModes.size
@@ -133,7 +133,7 @@ fun TvMangaReaderControls(
             val currentFilterIdx = colorFilters.indexOfFirst { it.first == uiState.colorFilterType }.coerceAtLeast(0)
             TvControlCycleRow(
                 title = "Renk Filtresi",
-                description = "Sayfa renklerini göz sağlığına göre filtreleyin.",
+                description = stringResource(R.string.sayfa_renklerini_goz_sagligina_gore_filtreleyin),
                 currentValueText = colorFilters[currentFilterIdx].second,
                 onPrevious = {
                     val prevIdx = (currentFilterIdx - 1 + colorFilters.size) % colorFilters.size
@@ -152,8 +152,8 @@ fun TvMangaReaderControls(
             val currentBrightnessIdx = brightnessValues.indexOfFirst { it >= uiState.customBrightness }.coerceAtLeast(0)
             val brightnessPercent = "${(uiState.customBrightness * 100).toInt()}%"
             TvControlCycleRow(
-                title = "Okuyucu Parlaklığı",
-                description = "TV ekranı üzerinde yapay karartma uygulayın.",
+                title = stringResource(R.string.inline_reader_brightness_e5e9f7a),
+                description = stringResource(R.string.tv_ekrani_uzerinde_yapay_karartma_uygulayin),
                 currentValueText = brightnessPercent,
                 onPrevious = {
                     if (currentBrightnessIdx > 0) {

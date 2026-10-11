@@ -215,7 +215,7 @@ fun AddonExplorePage(
                                     Modifier.fillMaxSize().padding(top = 88.dp),
                                     contentAlignment = Alignment.Center
                                 ) {
-                                    Text("\"$searchQuery\" için sonuç bulunamadı.", color = KitsugiColors.TextMuted)
+                                    Text(stringResource(R.string.inline_no_results_found_for_1_3ed9f56, searchQuery), color = KitsugiColors.TextMuted)
                                 }
                             }
                             else -> {
@@ -226,7 +226,7 @@ fun AddonExplorePage(
                                 ) {
                                     item {
                                         Text(
-                                            "\"$searchQuery\" — ${searchResults.size} sonuç",
+                                            stringResource(R.string.inline_1_s_2_s_results_1656e6f, searchQuery, searchResults.size),
                                             color = KitsugiColors.TextPrimary,
                                             fontSize = 15.sp,
                                             fontWeight = FontWeight.Bold,
@@ -466,7 +466,7 @@ private fun AddonFloatingSearchBar(
                     keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
                     keyboardActions = KeyboardActions(onSearch = { onSearch() }),
                     decorationBox = { inner ->
-                        if (searchQuery.isEmpty()) Text("Ara...", color = Color.White.copy(0.45f), style = MaterialTheme.typography.bodyMedium)
+                        if (searchQuery.isEmpty()) Text(stringResource(R.string.ara), color = Color.White.copy(0.45f), style = MaterialTheme.typography.bodyMedium)
                         inner()
                     }
                 )

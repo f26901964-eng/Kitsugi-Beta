@@ -231,7 +231,7 @@ fun AddonSearchDialog(
                             decorationBox = { innerTextField ->
                                 if (query.isEmpty()) {
                                     Text(
-                                        text = "Tüm yüklü eklentilerde ara...",
+                                        text = stringResource(R.string.inline_search_all_installed_extensions_590b4c9),
                                         color = KitsugiColors.TextMuted,
                                         style = MaterialTheme.typography.bodyMedium
                                     )
@@ -331,7 +331,7 @@ fun AddonSearchDialog(
                             contentAlignment = Alignment.Center
                         ) {
                             Text(
-                                text = "Hiçbir sonuç bulunamadı.",
+                                text = stringResource(R.string.inline_no_results_found_03b621d),
                                 color = KitsugiColors.TextMuted,
                                 fontSize = 16.sp
                             )
@@ -344,7 +344,7 @@ fun AddonSearchDialog(
                                 .weight(1f)
                         ) {
                             Text(
-                                text = "Yüklü Eklentiler (Özel aramak için seçin)",
+                                text = stringResource(R.string.inline_installed_extensions_select_one_to_9595e4d),
                                 color = KitsugiColors.TextSecondary,
                                 fontSize = 14.sp,
                                 fontWeight = FontWeight.Medium,
@@ -359,7 +359,7 @@ fun AddonSearchDialog(
                                     contentAlignment = Alignment.Center
                                 ) {
                                     Text(
-                                        text = "Yüklü eklenti bulunamadı.",
+                                        text = stringResource(R.string.inline_no_installed_extensions_found_bd1713b),
                                         color = KitsugiColors.TextMuted
                                     )
                                 }
@@ -413,7 +413,7 @@ fun AddonSearchDialog(
                                                 }
 
                                                 Text(
-                                                    text = "Keşfet >",
+                                                    text = stringResource(R.string.inline_explore_2aeb544),
                                                     color = accentColor,
                                                     fontSize = 12.sp,
                                                     fontWeight = FontWeight.Bold

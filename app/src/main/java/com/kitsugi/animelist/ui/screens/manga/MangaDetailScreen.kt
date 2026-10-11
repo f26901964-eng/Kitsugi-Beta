@@ -102,7 +102,7 @@ fun MangaDetailScreen(
                 val canRead = uiState.chapters.isNotEmpty()
                 KitsugiDetailActionButton(
                     text = when {
-                        resume != null -> "Devam Et: ${resume.name}"
+                        resume != null -> stringResource(R.string.devam_et_x, resume.name)
                         else -> "Baştan Oku"
                     },
                     icon = if (resume != null) Icons.Rounded.PlayArrow else Icons.AutoMirrored.Rounded.MenuBook,

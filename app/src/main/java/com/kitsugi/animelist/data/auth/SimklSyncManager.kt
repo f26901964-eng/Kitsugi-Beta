@@ -11,6 +11,8 @@ import com.kitsugi.animelist.model.WatchStatus
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import com.kitsugi.animelist.data.local.toEntity
+import com.kitsugi.animelist.utils.KitsugiStrings
+import com.kitsugi.animelist.R
 
 /**
  * Simkl ↔ Kitsugi uygulaması arasında çift yönlü senkronizasyon yöneticisi.
@@ -86,7 +88,7 @@ object SimklSyncManager {
         if (token.isNullOrBlank()) {
             return@withContext SyncResult(
                 messages = emptyList(),
-                errors = listOf("Simkl hesabı bağlı değil"),
+                errors = listOf(KitsugiStrings.get(R.string.simkl_hesabi_bagli_degil)),
                 failedCount = entries.size
             )
         }
@@ -304,7 +306,7 @@ object SimklSyncManager {
     ): SyncResult = withContext(Dispatchers.IO) {
         val token = ExternalAuthManager.getSimklToken(context)
         if (token.isNullOrBlank()) {
-            return@withContext SyncResult(messages = emptyList(), errors = listOf("Simkl hesabı bağlı değil"))
+            return@withContext SyncResult(messages = emptyList(), errors = listOf(KitsugiStrings.get(R.string.simkl_hesabi_bagli_degil)))
         }
 
         var simklId = entry.simklId
@@ -337,7 +339,7 @@ object SimklSyncManager {
 
         // Eğer simklId, malId ve tmdbId'nin hiçbiri yoksa senkronize edilemez
         if ((simklId == null || simklId <= 0) && realMalId == null && (entry.tmdbId == null || entry.tmdbId <= 0)) {
-            return@withContext SyncResult(messages = emptyList(), errors = listOf("Simkl/MAL/TMDB ID bulunamadı: ${entry.title}"))
+            return@withContext SyncResult(messages = emptyList(), errors = listOf(KitsugiStrings.get(R.string.simkl_mal_tmdb_id_bulunamadi_x, entry.title)))
         }
 
         val effectiveSimklId = simklId ?: 0
@@ -422,7 +424,7 @@ object SimklSyncManager {
     ): SyncResult = withContext(Dispatchers.IO) {
         val token = ExternalAuthManager.getSimklToken(context)
         if (token.isNullOrBlank()) {
-            return@withContext SyncResult(messages = emptyList(), errors = listOf("Simkl hesabı bağlı değil"))
+            return@withContext SyncResult(messages = emptyList(), errors = listOf(KitsugiStrings.get(R.string.simkl_hesabi_bagli_degil)))
         }
 
         var simklId = entry.simklId
@@ -446,7 +448,7 @@ object SimklSyncManager {
         }
 
         if (simklId == null || simklId <= 0) {
-            return@withContext SyncResult(messages = emptyList(), errors = listOf("Simkl ID bulunamadı"))
+            return@withContext SyncResult(messages = emptyList(), errors = listOf(KitsugiStrings.get(R.string.simkl_id_bulunamadi)))
         }
 
         val type = mediaTypeToSimklType(entry.type)

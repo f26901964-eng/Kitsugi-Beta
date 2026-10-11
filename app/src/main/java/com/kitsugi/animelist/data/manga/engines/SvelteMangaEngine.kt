@@ -13,6 +13,8 @@ import okhttp3.Request
 import org.json.JSONArray
 import org.json.JSONException
 import org.json.JSONObject
+import com.kitsugi.animelist.utils.KitsugiStrings
+import com.kitsugi.animelist.R
 
 /**
  * SvelteMangaEngine
@@ -306,7 +308,7 @@ class SvelteMangaEngine(
             val chapters = (0 until chapterArr.length()).mapNotNull { i ->
                 val ch = chapterArr.optJSONObject(i) ?: return@mapNotNull null
                 val slug   = ch.resolveStr(data, "slug") ?: ch.resolveStr(data, "chapter_slug") ?: return@mapNotNull null
-                val name   = ch.resolveStr(data, "title") ?: ch.resolveStr(data, "name") ?: "Bölüm $i"
+                val name   = ch.resolveStr(data, "title") ?: ch.resolveStr(data, "name") ?: KitsugiStrings.get(R.string.inline_episode_1_s_dc662be, i)
                 val mangaSlug = mangaUrl.trimEnd('/').substringAfterLast('/')
                 val chUrl  = "$baseUrl/manga/$mangaSlug/$slug"
                 val numStr = ch.resolveStr(data, "chapter_number") ?: ch.resolveStr(data, "number") ?: name

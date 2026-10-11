@@ -132,6 +132,7 @@ import androidx.compose.runtime.remember
 import com.kitsugi.animelist.utils.parseToMediaType
 import com.kitsugi.animelist.data.remote.GalleryItem
 import com.kitsugi.animelist.data.remote.GalleryCategory
+import com.kitsugi.animelist.utils.KitsugiStrings
 
 @Composable
 fun MediaEntryDetailPage(
@@ -223,7 +224,7 @@ fun MediaEntryDetailPage(
         val detail = detailState
         if (detail != null) {
             entry.copy(
-                title = detail.titleRomaji ?: (if (entry.title.isBlank() || entry.title == "Yükleniyor...") (detail.title ?: entry.title) else entry.title),
+                title = detail.titleRomaji ?: (if (entry.title.isBlank() || entry.title == KitsugiStrings.get(R.string.loading)) (detail.title ?: entry.title) else entry.title),
                 titleEnglish = detail.titleEnglish ?: entry.titleEnglish,
                 titleJapanese = (detail.titleJapanese ?: detail.titleNative) ?: entry.titleJapanese,
                 imageUrl = if (!detail.imageUrl.isNullOrBlank()) detail.imageUrl else entry.imageUrl,
@@ -416,7 +417,7 @@ fun MediaEntryDetailPage(
                     IconButton(onClick = onToggleFavoriteClick) {
                         Icon(
                             imageVector = if (displayEntry.isFavorite) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder,
-                            contentDescription = if (displayEntry.isFavorite) "Favoriden Çıkar" else "Favori Yap",
+                            contentDescription = if (displayEntry.isFavorite) stringResource(R.string.action_favourite_remove) else "Favori Yap",
                             tint = if (displayEntry.isFavorite) accentColor else KitsugiColors.TextSecondary
                         )
                     }

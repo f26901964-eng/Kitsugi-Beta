@@ -215,7 +215,7 @@ internal fun DetailHero(
                         IconButton(onClick = onToggleFavoriteClick) {
                             Icon(
                                 imageVector = if (entry.isFavorite) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder,
-                                contentDescription = if (entry.isFavorite) "Favoriden Çıkar" else "Favori Yap",
+                                contentDescription = if (entry.isFavorite) stringResource(R.string.action_favourite_remove) else "Favori Yap",
                                 tint = if (entry.isFavorite) accentColor else KitsugiColors.TextPrimary
                             )
                         }

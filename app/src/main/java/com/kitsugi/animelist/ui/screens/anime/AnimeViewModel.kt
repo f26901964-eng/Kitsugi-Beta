@@ -9,6 +9,8 @@ import com.kitsugi.animelist.data.remote.JikanApiClient
 import com.kitsugi.animelist.data.remote.JikanSearchResult
 import kotlinx.coroutines.async
 import kotlinx.coroutines.launch
+import com.kitsugi.animelist.utils.KitsugiStrings
+import com.kitsugi.animelist.R
 
 class AnimeViewModel : ViewModel() {
 
@@ -59,7 +61,7 @@ class AnimeViewModel : ViewModel() {
                 airingAnime = result.second
                 upcomingAnime = result.third
             }.onFailure { error ->
-                errorMessage = error.message ?: "Anime listeleri alınamadı."
+                errorMessage = error.message ?: KitsugiStrings.get(R.string.anime_listeleri_alinamadi)
             }
 
             isLoading = false

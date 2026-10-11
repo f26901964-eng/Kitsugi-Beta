@@ -11,6 +11,8 @@ import android.os.Build
 import android.os.IBinder
 import android.util.Log
 import androidx.core.app.NotificationCompat
+import com.kitsugi.animelist.utils.KitsugiStrings
+import com.kitsugi.animelist.R
 
 /**
  * T1.8 – KeepAliveService
@@ -58,7 +60,7 @@ class KeepAliveService : Service() {
         val iconRes = android.R.drawable.ic_media_play
         return NotificationCompat.Builder(this, CHANNEL_ID)
             .setContentTitle("Kitsugi Player")
-            .setContentText("Oynatıcı arka planda aktif tutuluyor...")
+            .setContentText(KitsugiStrings.get(R.string.oynatici_arka_planda_aktif_tutuluyor))
             .setSmallIcon(iconRes)
             .setPriority(NotificationCompat.PRIORITY_LOW)
             .setOngoing(true)
@@ -72,7 +74,7 @@ class KeepAliveService : Service() {
                 "Kitsugi Playback Keep-Alive",
                 NotificationManager.IMPORTANCE_LOW
             ).apply {
-                description = "Oynatma sırasında uygulamanın arka planda kapanmasını engeller."
+                description = KitsugiStrings.get(R.string.oynatma_sirasinda_uygulamanin_arka_planda_ka)
             }
             val manager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
             manager.createNotificationChannel(channel)

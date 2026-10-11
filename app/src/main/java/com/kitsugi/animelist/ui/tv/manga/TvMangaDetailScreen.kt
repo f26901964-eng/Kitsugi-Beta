@@ -180,7 +180,7 @@ fun TvMangaDetailScreen(
                     }
                     Spacer(Modifier.width(16.dp))
                     Text(
-                        text = "Manga Detayı",
+                        text = stringResource(R.string.inline_manga_details_e11e2d8),
                         style = MaterialTheme.typography.titleMedium,
                         color = KitsugiColors.TextSecondary
                     )
@@ -300,7 +300,7 @@ fun TvMangaDetailScreen(
                     Spacer(Modifier.width(8.dp))
                     Text(
                         text = when {
-                            resume != null -> "Devam Et: ${resume.name}"
+                            resume != null -> stringResource(R.string.devam_et_x, resume.name)
                             else -> "Baştan Oku"
                         },
                         style = MaterialTheme.typography.bodyMedium,

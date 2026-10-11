@@ -51,6 +51,7 @@ import com.kitsugi.animelist.utils.KitsugiTranslateUtils.openTranslator
 import kotlinx.coroutines.launch
 import androidx.compose.ui.res.stringResource
 import com.kitsugi.animelist.R
+import com.kitsugi.animelist.utils.KitsugiStrings
 
 
 @Composable
@@ -84,7 +85,7 @@ fun ReviewsTabContent(
                 val intent = android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(url))
                 context.startActivity(intent)
             } catch (e: Exception) {
-                Toast.makeText(context, "Profil linki açılamadı", Toast.LENGTH_SHORT).show()
+                Toast.makeText(context, KitsugiStrings.get(R.string.profil_linki_acilamadi), Toast.LENGTH_SHORT).show()
             }
         }
     }
@@ -179,7 +180,7 @@ fun ReviewsTabContent(
                             topic = topic,
                             onUserProfileClick = handleUserProfileClick,
                             onClick = {
-                                Toast.makeText(context, "Yükleniyor...", Toast.LENGTH_SHORT).show()
+                                Toast.makeText(context, KitsugiStrings.get(R.string.loading), Toast.LENGTH_SHORT).show()
                                 activeTopicForDetail = topic
                             },
                             backgroundColor = KitsugiColors.SurfaceSoft,
@@ -198,7 +199,7 @@ fun ReviewsTabContent(
                                                 }
                                             }
                                         } else {
-                                            Toast.makeText(context, "Lütfen önce giriş yapın", Toast.LENGTH_SHORT).show()
+                                            Toast.makeText(context, KitsugiStrings.get(R.string.lutfen_once_giris_yapin), Toast.LENGTH_SHORT).show()
                                         }
                                     }
                                 }
@@ -261,7 +262,7 @@ fun ReviewsTabContent(
                             titleLanguage = titleLanguage,
                             onUserProfileClick = handleUserProfileClick,
                             onClick = {
-                                Toast.makeText(context, "Yükleniyor...", Toast.LENGTH_SHORT).show()
+                                Toast.makeText(context, KitsugiStrings.get(R.string.loading), Toast.LENGTH_SHORT).show()
                                 activeActivityIdForDetail = activity.id
                             },
                             backgroundColor = KitsugiColors.SurfaceSoft,
@@ -280,7 +281,7 @@ fun ReviewsTabContent(
                                             }
                                         }
                                     } else {
-                                        Toast.makeText(context, "Lütfen önce giriş yapın", Toast.LENGTH_SHORT).show()
+                                        Toast.makeText(context, KitsugiStrings.get(R.string.lutfen_once_giris_yapin), Toast.LENGTH_SHORT).show()
                                     }
                                 }
                             }
@@ -336,7 +337,7 @@ fun ReviewsTabContent(
                 }
                 is DetailTabState.Error -> {
                     Text(
-                        text = "İncelemeler yüklenirken hata oluştu.",
+                        text = stringResource(R.string.inline_an_error_occurred_while_loading_4764095),
                         color = KitsugiColors.AccentRed,
                         style = MaterialTheme.typography.bodyMedium,
                         modifier = Modifier.padding(vertical = 16.dp, horizontal = 14.dp)
@@ -345,7 +346,7 @@ fun ReviewsTabContent(
                 is DetailTabState.Success -> {
                     if (reviewsList.isEmpty()) {
                         Text(
-                            text = "Henüz inceleme yazılmamış.",
+                            text = stringResource(R.string.inline_no_reviews_have_been_written_d0351d2),
                             color = KitsugiColors.TextSecondary,
                             style = MaterialTheme.typography.bodyMedium,
                             modifier = Modifier.padding(vertical = 16.dp, horizontal = 14.dp)
@@ -368,7 +369,7 @@ fun ReviewsTabContent(
                                     onClick = { activeReviewForDetail = rev },
                                     onHelpfulClick = {
                                         if (rev.id == null || rev.source != "anilist") {
-                                            Toast.makeText(context, "Beğeni sadece AniList incelemelerinde desteklenir.", Toast.LENGTH_SHORT).show()
+                                            Toast.makeText(context, KitsugiStrings.get(R.string.begeni_sadece_anilist_incelemelerinde_desteklenir), Toast.LENGTH_SHORT).show()
                                             return@KitsugiReviewCard
                                         }
                                         coroutineScope.launch {
@@ -389,7 +390,7 @@ fun ReviewsTabContent(
                                                     }
                                                 }
                                             } else {
-                                                Toast.makeText(context, "Lütfen önce giriş yapın", Toast.LENGTH_SHORT).show()
+                                                Toast.makeText(context, KitsugiStrings.get(R.string.lutfen_once_giris_yapin), Toast.LENGTH_SHORT).show()
                                             }
                                         }
                                     },

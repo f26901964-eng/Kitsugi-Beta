@@ -14,6 +14,8 @@ import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import com.kitsugi.animelist.utils.KitsugiStrings
+import com.kitsugi.animelist.R
 
 /**
  * Business logic layer for Cloudstream-style repository management.
@@ -65,7 +67,7 @@ class CloudstreamRepoRepository(private val context: Context) {
                         repoDao.insertRepo(
                             CloudstreamRepoEntity(
                                 repoUrl = normalized,
-                                name = if (repo.name.contains("gameras", ignoreCase = true) || repo.name.contains("keyifler", ignoreCase = true) || repo.name.contains("kekik", ignoreCase = true) || repo.name.contains("bilinmeyen", ignoreCase = true)) "Kitsugi Plugins (Önerilen)" else repo.name,
+                                name = if (repo.name.contains("gameras", ignoreCase = true) || repo.name.contains("keyifler", ignoreCase = true) || repo.name.contains("kekik", ignoreCase = true) || repo.name.contains("bilinmeyen", ignoreCase = true)) KitsugiStrings.get(R.string.kitsugi_plugins_onerilen) else repo.name,
                                 description = repo.description,
                                 addedAt = repo.addedAt
                             )
@@ -94,8 +96,8 @@ class CloudstreamRepoRepository(private val context: Context) {
                 } else {
                     CloudstreamRepoEntity(
                         repoUrl = defaultUrl,
-                        name = "Kitsugi Plugins (Önerilen)",
-                        description = "DiziPal, RecTV, DDizi, Dizilla vb. derlenmiş ve güncel Türkçe eklenti deposu."
+                        name = KitsugiStrings.get(R.string.kitsugi_plugins_onerilen),
+                        description = KitsugiStrings.get(R.string.dizipal_rectv_ddizi_dizilla_vb_derlenmis_ve)
                     )
                 }
                 repoDao.insertRepo(entity)
@@ -383,7 +385,7 @@ class CloudstreamRepoRepository(private val context: Context) {
                         CloudstreamRepoEntity(
                             repoUrl = normalized,
                             name = if (repo.name.contains("keyiflerolsun", ignoreCase = true) || repo.name.contains("KekikAkademi", ignoreCase = true) || repo.name.contains("maarrem", ignoreCase = true) || repo.name.contains("gameras", ignoreCase = true)) {
-                                "Kitsugi Plugins (Önerilen)"
+                                KitsugiStrings.get(R.string.kitsugi_plugins_onerilen)
                             } else {
                                 repo.name
                             },

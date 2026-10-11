@@ -47,6 +47,7 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import androidx.compose.ui.res.stringResource
 import com.kitsugi.animelist.R
+import com.kitsugi.animelist.utils.KitsugiStrings
 
 @Composable
 fun TvTopicDetailDialog(
@@ -248,7 +249,7 @@ fun TvTopicDetailDialog(
                                             isTopicLikedState = !isTopicLikedState
                                             topicLikeCountState = if (isTopicLikedState) topicLikeCountState + 1 else topicLikeCountState - 1
                                         } else {
-                                            Toast.makeText(context, "Lütfen önce giriş yapın", Toast.LENGTH_SHORT).show()
+                                            Toast.makeText(context, KitsugiStrings.get(R.string.lutfen_once_giris_yapin), Toast.LENGTH_SHORT).show()
                                         }
                                     }
                                 }
@@ -267,7 +268,7 @@ fun TvTopicDetailDialog(
                                 )
                                 Spacer(modifier = Modifier.width(8.dp))
                                 Text(
-                                    text = "$topicLikeCountState Beğeni",
+                                    text = KitsugiStrings.get(R.string.inline_1_s_likes_e6e6053, topicLikeCountState),
                                     color = KitsugiColors.TextPrimary,
                                     style = MaterialTheme.typography.bodyMedium,
                                     fontWeight = FontWeight.Bold
@@ -296,7 +297,7 @@ fun TvTopicDetailDialog(
                                             val msg = if (isSubscribed) "Abone olundu" else "Abonelik iptal edildi"
                                             Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
                                         } else {
-                                            Toast.makeText(context, "İşlem başarısız, lütfen giriş yapın", Toast.LENGTH_LONG).show()
+                                            Toast.makeText(context, KitsugiStrings.get(R.string.islem_basarisiz_lutfen_giris_yapin), Toast.LENGTH_LONG).show()
                                         }
                                     }
                                 }
@@ -422,7 +423,7 @@ fun TvTopicDetailDialog(
                     } else if (commentsList.isEmpty() && displayBody.isBlank()) {
                         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                             Text(
-                                text = "Yorum bulunmuyor veya bu kaynak çevrimdışı.",
+                                text = KitsugiStrings.get(R.string.inline_no_comments_found_or_this_bf2d9d6),
                                 color = KitsugiColors.TextMuted,
                                 style = MaterialTheme.typography.bodyMedium
                             )
@@ -620,7 +621,7 @@ private fun TvForumCommentCard(
                                 likedState = !likedState
                                 likeCountState = if (likedState) likeCountState + 1 else likeCountState - 1
                             } else {
-                                Toast.makeText(context, "Lütfen önce giriş yapın", Toast.LENGTH_SHORT).show()
+                                Toast.makeText(context, KitsugiStrings.get(R.string.lutfen_once_giris_yapin), Toast.LENGTH_SHORT).show()
                             }
                         }
                     }

@@ -39,6 +39,8 @@ import com.kitsugi.animelist.ui.theme.LocalKitsugiAccent
 import com.kitsugi.animelist.model.MediaType
 import com.kitsugi.animelist.model.WatchStatus
 import com.kitsugi.animelist.ui.utils.tvClickable
+import androidx.compose.ui.res.stringResource
+import com.kitsugi.animelist.R
 
 
 @Composable
@@ -210,7 +212,7 @@ internal fun UserMediaRowCard(
                 Spacer(modifier = Modifier.width(8.dp))
 
                 Text(
-                    text = "İlerleme: ${item.progress} / ${item.total ?: "?"}",
+                    text = stringResource(R.string.inline_progress_1_s_2_s_7c471e4, item.progress, item.total ?: "?"),
                     color = KitsugiColors.TextMuted,
                     fontSize = 11.sp
                 )
@@ -262,12 +264,12 @@ internal fun UserMediaListStatusBottomSheet(
     val droppedCount = items.count { it.status == WatchStatus.Dropped }
 
     val statusItems = listOf(
-        Triple(null, "Tümü", Icons.Rounded.FormatListBulleted to totalCount),
-        Triple(WatchStatus.Watching, if (mediaType == MediaType.Anime) "İzliyor" else "Okuyor", Icons.Rounded.PlayCircle to watchingCount),
-        Triple(WatchStatus.Completed, "Tamamlandı", Icons.Rounded.CheckCircle to completedCount),
+        Triple(null, stringResource(R.string.notif_filter_all), Icons.Rounded.FormatListBulleted to totalCount),
+        Triple(WatchStatus.Watching, if (mediaType == MediaType.Anime) stringResource(R.string.izliyor) else "Okuyor", Icons.Rounded.PlayCircle to watchingCount),
+        Triple(WatchStatus.Completed, stringResource(R.string.cs_diag_completed), Icons.Rounded.CheckCircle to completedCount),
         Triple(WatchStatus.Planned, "Planlanan", Icons.Rounded.Schedule to plannedCount),
         Triple(WatchStatus.Paused, "Durduruldu", Icons.Rounded.PauseCircle to pausedCount),
-        Triple(WatchStatus.Dropped, "Bırakıldı", Icons.Rounded.StopCircle to droppedCount)
+        Triple(WatchStatus.Dropped, stringResource(R.string.system_status_dropped), Icons.Rounded.StopCircle to droppedCount)
     )
 
     KitsugiSheetOrDialog(onDismiss = onDismissRequest) {

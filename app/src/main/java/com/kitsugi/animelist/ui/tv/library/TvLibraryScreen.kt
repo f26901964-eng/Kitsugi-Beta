@@ -61,6 +61,7 @@ import androidx.compose.ui.focus.focusRequester
 import com.kitsugi.animelist.ui.utils.requestFocusAfterFrames
 import androidx.compose.ui.res.stringResource
 import com.kitsugi.animelist.R
+import com.kitsugi.animelist.utils.KitsugiStrings
 
 private val ChipShape = RoundedCornerShape(20.dp)
 
@@ -143,7 +144,7 @@ fun TvLibraryScreen(
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
             Text(
-                text = "Kütüphane",
+                text = stringResource(R.string.bangumi_tag_library),
                 style = MaterialTheme.typography.headlineMedium,
                 color = Color.White,
                 fontWeight = FontWeight.Bold
@@ -151,7 +152,7 @@ fun TvLibraryScreen(
 
             // İstatistik rozetleri
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                TvStatBadge(label = "Toplam", value = totalCount)
+                TvStatBadge(label = stringResource(R.string.toplam), value = totalCount)
                 TvStatBadge(label = "Aktif", value = watchingCount)
                 TvStatBadge(label = stringResource(R.string.tamamlandi), value = completedCount)
             }
@@ -197,7 +198,7 @@ fun TvLibraryScreen(
         // ── Sıralama Satırı ─────────────────────────────────────────────────
         val sortOptions = remember {
             listOf(
-                "updated_desc" to "Son Güncellenen",
+                "updated_desc" to KitsugiStrings.get(R.string.son_guncellenen),
                 "title" to "Başlık",
                 "score" to "Puan",
                 "progress" to "İlerleme",
@@ -350,14 +351,14 @@ fun TvLibraryScreen(
                     )
                     Spacer(modifier = Modifier.height(16.dp))
                     Text(
-                        text = "${selectedTab.displayName} listesinde içerik bulunmuyor",
+                        text = stringResource(R.string.inline_no_content_in_the_1_12f6ac6, selectedTab.displayName),
                         style = MaterialTheme.typography.bodyLarge,
                         color = Color.White.copy(alpha = 0.4f),
                         textAlign = TextAlign.Center
                     )
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
-                        text = "Arama yaparak içerik ekleyebilirsiniz",
+                        text = stringResource(R.string.inline_search_to_add_titles_55c868d),
                         style = MaterialTheme.typography.bodySmall,
                         color = Color.White.copy(alpha = 0.25f),
                         textAlign = TextAlign.Center
@@ -655,13 +656,13 @@ private fun TvPosterOptionsDialog(
             verticalArrangement = Arrangement.spacedBy(8.dp),
             modifier = Modifier.fillMaxWidth()
         ) {
-            TvDialogButton(label = "Detayları Göster", onClick = onDetail)
+            TvDialogButton(label = KitsugiStrings.get(R.string.ui2_details_show), onClick = onDetail)
             TvDialogButton(
-                label = "İlerlemeyi Artır (${entry.progress + 1})",
+                label = stringResource(R.string.ilerlemeyi_artir_x, entry.progress + 1),
                 onClick = onProgressIncrement
             )
             TvDialogButton(
-                label = "Listeden Kaldır",
+                label = stringResource(R.string.listeden_kaldir),
                 onClick = onDelete,
                 isDestructive = true
             )

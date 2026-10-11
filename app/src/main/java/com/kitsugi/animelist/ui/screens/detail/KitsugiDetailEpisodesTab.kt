@@ -139,7 +139,7 @@ fun EpisodesTabContent(
                 contentAlignment = Alignment.Center
             ) {
                 Text(
-                    text = "Bölümler yüklenirken bir hata oluştu.",
+                    text = stringResource(R.string.inline_an_error_occurred_while_loading_6facab0),
                     color = KitsugiColors.TextSecondary,
                     style = MaterialTheme.typography.bodyMedium
                 )
@@ -277,7 +277,7 @@ private fun SeasonAccordionItem(
                     )
                     if (episodes.isNotEmpty()) {
                         Text(
-                            text = "${episodes.size} bölüm",
+                            text = stringResource(R.string.inline_1_s_episodes_d91c30c, episodes.size),
                             color = KitsugiColors.TextMuted,
                             style = MaterialTheme.typography.labelSmall,
                             fontWeight = FontWeight.Medium
@@ -288,7 +288,7 @@ private fun SeasonAccordionItem(
 
             Icon(
                 imageVector = Icons.Rounded.KeyboardArrowDown,
-                contentDescription = if (isExpanded) "Kapat" else "Aç",
+                contentDescription = if (isExpanded) stringResource(R.string.settings_close) else stringResource(R.string.ac),
                 tint = if (isExpanded) accentColor else KitsugiColors.TextSecondary,
                 modifier = Modifier
                     .size(24.dp)
@@ -431,13 +431,13 @@ private fun EmptyEpisodesMessage() {
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         Text(
-            text = "Bölüm bilgisi bulunamadı",
+            text = stringResource(R.string.inline_episode_information_not_found_85e5b4d),
             color = KitsugiColors.TextSecondary,
             style = MaterialTheme.typography.bodyMedium,
             fontWeight = FontWeight.Medium
         )
         Text(
-            text = "Bu kaynak bölüm listesi sağlamıyor olabilir",
+            text = stringResource(R.string.inline_this_source_may_not_provide_d109347),
             color = KitsugiColors.TextMuted,
             style = MaterialTheme.typography.bodySmall
         )
@@ -647,7 +647,7 @@ private fun EpisodeRow(
                     com.kitsugi.animelist.data.model.AnimeDownload.Status.COMPLETED -> {
                         Icon(
                             imageVector = Icons.Rounded.DownloadDone,
-                            contentDescription = "İndirildi",
+                            contentDescription = stringResource(R.string.indirildi),
                             tint = KitsugiColors.AccentGreen,
                             modifier = Modifier.size(22.dp)
                         )

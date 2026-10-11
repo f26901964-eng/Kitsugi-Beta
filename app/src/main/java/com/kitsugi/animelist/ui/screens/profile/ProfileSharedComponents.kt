@@ -75,14 +75,14 @@ fun ExternalProfileWrapper(
                     )
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
-                        text = "$platformName Hesabı Bağlı Değil",
+                        text = stringResource(R.string.inline_1_s_account_not_connected_086498f, platformName),
                         color = KitsugiColors.TextPrimary,
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold
                     )
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
-                        text = "Profil istatistiklerinizi, favorilerinizi ve sosyal aktivitelerinizi Kitsugi'de görmek için hesabınızı bağlayın.",
+                        text = stringResource(R.string.profil_istatistiklerinizi_favorilerinizi_ve_sosyal_aktivitelerin),
                         color = KitsugiColors.TextMuted,
                         style = MaterialTheme.typography.bodySmall,
                         textAlign = androidx.compose.ui.text.style.TextAlign.Center,

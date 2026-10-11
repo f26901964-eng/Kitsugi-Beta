@@ -20,6 +20,8 @@ import org.json.JSONObject
 import java.io.File
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
+import com.kitsugi.animelist.utils.KitsugiStrings
+import com.kitsugi.animelist.R
 
 /**
  * In-app CS eklenti tanı motoru.
@@ -316,7 +318,7 @@ object CsPluginDiagnosticRunner {
         _isRunning.value = true
         _results.value = emptyList()
         _reportPath.value = null
-        _progress.value = DiagnosticProgress(0, 0, "Eklentiler yükleniyor...", "Hazırlanıyor")
+        _progress.value = DiagnosticProgress(0, 0, KitsugiStrings.get(R.string.cs_diag_loading_plugins), KitsugiStrings.get(R.string.cs_diag_preparing))
 
         diagnosticEmbedResults.clear()
         CsStreamRunner.embedResolveListener = object : CsStreamRunner.EmbedResolveListener {
@@ -466,7 +468,7 @@ object CsPluginDiagnosticRunner {
             if (!cancelled) {
                 val sorted = allResults.sortedWith(compareBy({ it.repoSlug }, { it.pluginId }))
                 _results.value = sorted
-                _progress.value = DiagnosticProgress(uniquePlugins.size, uniquePlugins.size, "Tüm testler tamamlandı!", "Tamamlandı")
+                _progress.value = DiagnosticProgress(uniquePlugins.size, uniquePlugins.size, KitsugiStrings.get(R.string.cs_diag_tests_complete), KitsugiStrings.get(R.string.cs_diag_completed))
 
                 // Tanı salt-okunurdur: geçici DNS/HTTP/provider hatalarına bakarak
                 // Room'daki kullanıcı tarafından etkinleştirilmiş eklentileri kapatma.

@@ -33,6 +33,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.platform.LocalContext
+import com.kitsugi.animelist.R
 
 @Composable
 fun AppRootDetailPages(
@@ -513,7 +514,7 @@ fun AppRootDetailPages(
                         }?.isAdult ?: false
                         val searchResult = com.kitsugi.animelist.data.remote.JikanSearchResult(
                             malId = stableId,
-                            title = title.ifBlank { "Yükleniyor..." },
+                            title = title.ifBlank { stringResource(R.string.loading) },
                             subtitle = "",
                             type = mediaType,
                             total = null,
@@ -608,7 +609,7 @@ fun AppRootDetailPages(
                             }
                             val searchResult = JikanSearchResult(
                                 malId = stableId,
-                                title = title?.takeIf { it.isNotBlank() } ?: "Yükleniyor...",
+                                title = title?.takeIf { it.isNotBlank() } ?: stringResource(R.string.loading),
                                 subtitle = "",
                                 type = mediaType,
                                 total = null,

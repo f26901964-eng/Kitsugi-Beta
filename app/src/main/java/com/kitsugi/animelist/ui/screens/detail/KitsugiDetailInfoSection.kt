@@ -261,7 +261,7 @@ internal fun QuickActions(
         }
 
         ActionButton(
-            text = "Sil",
+            text = stringResource(R.string.action_delete),
             primary = false,
             danger = true,
             modifier = btnModifier,
@@ -323,7 +323,7 @@ internal fun MainStatsGrid(
         maxItemsInEachRow = 3
     ) {
         MiniStatCard(
-            label = "Puan",
+            label = stringResource(R.string.detail_stat_score),
             value = entry.getDisplayScore(scoreFormat, hideScores),
             modifier = Modifier.weight(1f)
         )
@@ -595,7 +595,7 @@ internal fun DetailSynopsisCard(
                 IconButton(onClick = { onCopyClick(displayedText) }) {
                     Icon(
                         imageVector = Icons.Rounded.ContentCopy,
-                        contentDescription = "Kopyala",
+                        contentDescription = stringResource(R.string.action_copy),
                         tint = KitsugiColors.TextSecondary
                     )
                 }
@@ -656,7 +656,7 @@ internal fun DetailSynopsisCard(
                     )
                     Spacer(modifier = Modifier.width(6.dp))
                     Text(
-                        text = if (isExpanded) "Daha az" else "Daha fazla",
+                        text = if (isExpanded) stringResource(R.string.action_see_less) else stringResource(R.string.action_see_more),
                         color = LocalKitsugiAccent.current,
                         style = MaterialTheme.typography.labelMedium,
                         fontWeight = FontWeight.Bold

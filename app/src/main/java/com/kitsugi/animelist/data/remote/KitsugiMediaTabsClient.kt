@@ -10,6 +10,8 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
 import java.net.URL
+import com.kitsugi.animelist.utils.KitsugiStrings
+import com.kitsugi.animelist.R
 
 /**
  * Bölüm listesi çekme işlevlerini barındıran istemci.
@@ -102,7 +104,7 @@ class KitsugiMediaTabsClient {
                         } else {
                             paddedList.add(
                                 KitsugiStreamingEpisode(
-                                    title = "Bölüm $epNum",
+                                    title = KitsugiStrings.get(R.string.inline_episode_1_s_dc662be, epNum),
                                     thumbnail = null,
                                     url = null,
                                     site = if (effectiveSource == "anilist") "AniList" else "MyAnimeList",
@@ -431,7 +433,7 @@ class KitsugiMediaTabsClient {
             val list = mutableListOf<KitsugiStreamingEpisode>()
             for (i in 0 until eps.length()) {
                 val ep = eps.optJSONObject(i) ?: continue
-                val title = ep.optNullableString("title") ?: "Bölüm ${i + 1}"
+                val title = ep.optNullableString("title") ?: KitsugiStrings.get(R.string.inline_episode_1_s_dc662be, i + 1)
                 val thumb = ep.optNullableString("thumbnail")
                 val url = ep.optNullableString("url")
                 val site = ep.optNullableString("site")

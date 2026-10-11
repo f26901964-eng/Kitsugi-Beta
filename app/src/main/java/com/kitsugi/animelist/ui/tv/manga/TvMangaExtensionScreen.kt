@@ -216,7 +216,7 @@ fun TvMangaExtensionScreen(
                 // Source Health butonu
                 TvExtActionButton(
                     icon = Icons.Rounded.HealthAndSafety,
-                    label = "Kaynak Sağlığı",
+                    label = stringResource(R.string.inline_source_health_1595253),
                     color = KitsugiColors.AccentGreen,
                     onClick = onNavigateToHealth
                 )
@@ -599,7 +599,7 @@ private fun TvExtInstalledTab(
                             tint = KitsugiColors.TextMuted,
                             modifier = Modifier.size(48.dp)
                         )
-                        Text("Kurulu kaynak yok", color = KitsugiColors.TextMuted, fontWeight = FontWeight.SemiBold)
+                        Text(stringResource(R.string.kurulu_kaynak_yok), color = KitsugiColors.TextMuted, fontWeight = FontWeight.SemiBold)
                         Text(
                             "Repolar sekmesinden eklenti kurun.",
                             color = KitsugiColors.TextMuted.copy(alpha = 0.7f),
@@ -719,7 +719,7 @@ private fun TvExtQuickAddCard(
                     .padding(horizontal = 10.dp, vertical = 5.dp)
             ) {
                 Text(
-                    if (alreadyAdded) "✓ Eklendi" else "Ekle",
+                    if (alreadyAdded) "✓ Eklendi" else stringResource(R.string.ekle),
                     color = if (alreadyAdded) KitsugiColors.AccentGreen else KitsugiColors.AccentBlue,
                     fontSize = 11.sp,
                     fontWeight = FontWeight.Bold

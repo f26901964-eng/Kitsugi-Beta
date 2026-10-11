@@ -30,6 +30,8 @@ import androidx.compose.runtime.collectAsState
 import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
+import com.kitsugi.animelist.utils.KitsugiStrings
+import com.kitsugi.animelist.R
 
 class KitsugiFullscreenPlayerActivity : ComponentActivity() {
 
@@ -251,7 +253,7 @@ class KitsugiFullscreenPlayerActivity : ComponentActivity() {
                 )
             } catch (e: Exception) {
                 android.util.Log.e("KitsugiPlayer", "Oynatıcı başlatılırken hata oluştu: ${e.message}", e)
-                android.widget.Toast.makeText(context, "Oynatıcı başlatılamadı: ${e.message}", android.widget.Toast.LENGTH_LONG).show()
+                android.widget.Toast.makeText(context, KitsugiStrings.get(R.string.oynatici_baslatilamadi_x, e.message), android.widget.Toast.LENGTH_LONG).show()
             }
         }
 
@@ -279,7 +281,7 @@ class KitsugiFullscreenPlayerActivity : ComponentActivity() {
                         }
                     )
                 } catch (_: Exception) {
-                    Toast.makeText(context, "Harici oynatıcı başlatılamadı.", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(context, KitsugiStrings.get(R.string.harici_oynatici_baslatilamadi), Toast.LENGTH_SHORT).show()
                 }
             }
             // Harici oynatıcıya devredildi: bu Activity artık "mini pencere kapatıldı" diye
@@ -410,7 +412,7 @@ class KitsugiFullscreenPlayerActivity : ComponentActivity() {
         ).also { helper ->
             helper.setMetadata(
                 title = animeTitle.ifBlank { title },
-                subtitle = if (episode > 0) "Bölüm $episode" else "",
+                subtitle = if (episode > 0) KitsugiStrings.get(R.string.inline_episode_1_s_dc662be, episode) else "",
                 durationMs = 0L
             )
             helper.updatePlaybackState(isPlaying = true, positionMs = 0L, hasNext = false)
@@ -583,7 +585,7 @@ class KitsugiFullscreenPlayerActivity : ComponentActivity() {
         lastKnownIsPlaying = isPlaying
         lastKnownHasNext = hasNext
         val helper = mediaSessionHelper ?: return
-        helper.setMetadata(title = title, subtitle = "Bölüm $episode", durationMs = durationMs)
+        helper.setMetadata(title = title, subtitle = KitsugiStrings.get(R.string.inline_episode_1_s_dc662be, episode), durationMs = durationMs)
         helper.updatePlaybackState(isPlaying = isPlaying, positionMs = positionMs, hasNext = hasNext)
         if (isPipEnabled && Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             PlayerPipHelper.updatePipActions(this, null, isPlaying, hasNext)

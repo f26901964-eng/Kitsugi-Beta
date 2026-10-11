@@ -90,7 +90,7 @@ internal fun KitsugiReviewCard(
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Icon(
                             imageVector = Icons.Rounded.Star,
-                            contentDescription = "Puan",
+                            contentDescription = stringResource(R.string.detail_stat_score),
                             tint = accentColor,
                             modifier = Modifier.size(14.dp)
                         )

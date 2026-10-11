@@ -10,6 +10,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.kitsugi.animelist.ui.components.KitsugiEmptyState
+import androidx.compose.ui.res.stringResource
+import com.kitsugi.animelist.R
 
 /**
  * Empty state shown when the user hasn't connected their account.
@@ -21,7 +23,7 @@ internal fun MyListNotConnectedState(
     onLogin: () -> Unit
 ) {
     val title = when (selectedTabIndex) {
-        MY_LIST_ANILIST_TAB_INDEX -> "AniList Bağlı Değil"
+        MY_LIST_ANILIST_TAB_INDEX -> stringResource(R.string.anilist_bagli_degil)
         MY_LIST_MAL_TAB_INDEX -> "MyAnimeList Bağlı Değil"
         MY_LIST_SIMKL_TAB_INDEX -> {
             if (isSimklSessionExpired) "Simkl Oturum Süresi Doldu"
@@ -34,7 +36,7 @@ internal fun MyListNotConnectedState(
     }
 
     val subtitle = when (selectedTabIndex) {
-        MY_LIST_ANILIST_TAB_INDEX -> "AniList kütüphanenizi görüntülemek için hesabınızı bağlayın."
+        MY_LIST_ANILIST_TAB_INDEX -> stringResource(R.string.anilist_kutuphanenizi_goruntulemek_icin_hesabinizi_baglayin)
         MY_LIST_MAL_TAB_INDEX -> "MyAnimeList kütüphanenizi görüntülemek için hesabınızı bağlayın."
         MY_LIST_SIMKL_TAB_INDEX -> {
             if (isSimklSessionExpired)
@@ -49,7 +51,7 @@ internal fun MyListNotConnectedState(
     }
 
     val isSimklTab = selectedTabIndex == MY_LIST_SIMKL_TAB_INDEX
-    val actionText = if (isSimklSessionExpired && isSimklTab) "Yeniden Bağlan" else "Hesabı Bağla"
+    val actionText = if (isSimklSessionExpired && isSimklTab) stringResource(R.string.yeniden_baglan) else stringResource(R.string.inline_link_account_0a90b8c)
 
     KitsugiEmptyState(
         title = title,
@@ -67,8 +69,8 @@ internal fun MyListNotConnectedState(
 @Composable
 internal fun MyListSyncPromptState() {
     KitsugiEmptyState(
-        title = "Listeniz boş",
-        subtitle = "Hesabınızdaki verileri çekmek için \"Senkronize Et\" butonunu kullanın.",
+        title = stringResource(R.string.listeniz_bos),
+        subtitle = stringResource(R.string.hesabinizdaki_verileri_cekmek_icin_senkronize_et_butonunu_kullan),
         icon = Icons.Rounded.FormatListBulleted
     )
     Spacer(modifier = Modifier.height(90.dp))

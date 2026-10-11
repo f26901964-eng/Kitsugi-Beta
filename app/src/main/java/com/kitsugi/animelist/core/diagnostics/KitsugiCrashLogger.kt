@@ -12,6 +12,8 @@ import java.io.InputStreamReader
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import com.kitsugi.animelist.utils.KitsugiStrings
+import com.kitsugi.animelist.R
 
 /**
  * KitsugiCrashLogger — Merkezi çökme günlükleme sistemi.
@@ -332,7 +334,7 @@ object KitsugiCrashLogger {
     fun readCrashHistory(context: Context): String {
         return try {
             File(context.filesDir, CRASH_HISTORY_FILE).let {
-                if (it.exists()) it.readText() else "Henüz geçmiş çökme kaydı yok."
+                if (it.exists()) it.readText() else KitsugiStrings.get(R.string.diag_crash_history_not_found)
             }
         } catch (_: Throwable) { "Crash geçmişi okunamadı." }
     }

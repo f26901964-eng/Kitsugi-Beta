@@ -87,7 +87,7 @@ fun ExploreSourceEngineSelectorPill(
         }
         Icon(
             imageVector = Icons.Rounded.ArrowDropDown,
-            contentDescription = "Platform Seç",
+            contentDescription = stringResource(R.string.platform_sec),
             tint = accentColor,
             modifier = Modifier.size(18.dp)
         )
@@ -132,14 +132,14 @@ fun ExploreSourcePickerSheet(
                 .padding(bottom = 32.dp)
         ) {
             Text(
-                text = "Keşfet Kaynağı Seç",
+                text = stringResource(R.string.inline_choose_explore_source_3255ea9),
                 style = MaterialTheme.typography.titleLarge.copy(
                     fontWeight = FontWeight.Bold,
                     color = KitsugiColors.TextPrimary
                 )
             )
             Text(
-                text = "Tek bir kaynak seç veya Tümü ile 7 kaynağı birlikte keşfet.",
+                text = stringResource(R.string.inline_choose_one_source_or_select_7f43953),
                 style = MaterialTheme.typography.bodySmall.copy(
                     color = KitsugiColors.TextMuted
                 ),

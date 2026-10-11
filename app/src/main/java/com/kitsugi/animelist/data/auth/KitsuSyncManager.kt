@@ -8,6 +8,8 @@ import com.kitsugi.animelist.model.MediaType
 import com.kitsugi.animelist.model.WatchStatus
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import com.kitsugi.animelist.utils.KitsugiStrings
+import com.kitsugi.animelist.R
 
 /**
  * Kitsu kütüphane senkronizasyon yöneticisi.
@@ -134,14 +136,14 @@ object KitsuSyncManager {
         knownKitsuMediaId: Int? = null
     ): SyncResult = withContext(Dispatchers.IO) {
         if (entry.type != MediaType.Anime && entry.type != MediaType.Manga) {
-            return@withContext SyncResult(emptyList(), listOf("Bu servis yalnızca anime/manga destekler"))
+            return@withContext SyncResult(emptyList(), listOf(KitsugiStrings.get(R.string.bu_servis_yalnizca_anime_manga_destekler)))
         }
 
         val token = ExternalAuthManager.getKitsuToken(context)
         val userId = ExternalAuthManager.getKitsuUserId(context)
 
         if (token.isNullOrBlank() || userId.isNullOrBlank()) {
-            return@withContext SyncResult(messages = emptyList(), errors = listOf("Kitsu hesabı bağlı değil"))
+            return@withContext SyncResult(messages = emptyList(), errors = listOf(KitsugiStrings.get(R.string.kitsu_hesabi_bagli_degil)))
         }
 
         // Kitsu sadece Anime ve Manga destekler
@@ -152,7 +154,7 @@ object KitsuSyncManager {
         if (resolved == null) {
             return@withContext SyncResult(
                 messages = emptyList(),
-                errors = listOf("Kitsu'da eşleşen kayıt bulunamadı: ${entry.title}"),
+                errors = listOf(KitsugiStrings.get(R.string.kitsu_da_eslesen_kayit_bulunamadi_x, entry.title)),
                 unresolvedMedia = true
             )
         }
@@ -262,12 +264,12 @@ object KitsuSyncManager {
         entry: MediaEntry
     ): SyncResult = withContext(Dispatchers.IO) {
         if (entry.type != MediaType.Anime && entry.type != MediaType.Manga) {
-            return@withContext SyncResult(emptyList(), listOf("Bu servis yalnızca anime/manga destekler"))
+            return@withContext SyncResult(emptyList(), listOf(KitsugiStrings.get(R.string.bu_servis_yalnizca_anime_manga_destekler)))
         }
 
         val token = ExternalAuthManager.getKitsuToken(context)
         if (token.isNullOrBlank()) {
-            return@withContext SyncResult(messages = emptyList(), errors = listOf("Kitsu hesabı bağlı değil"))
+            return@withContext SyncResult(messages = emptyList(), errors = listOf(KitsugiStrings.get(R.string.kitsu_hesabi_bagli_degil)))
         }
 
         val isAnime = entry.type != MediaType.Manga
@@ -286,11 +288,11 @@ object KitsuSyncManager {
         if (existingEntryId != null) {
             val success = KitsuApiClient.deleteLibraryEntry(token, existingEntryId)
             if (success) ExternalAuthManager.removeKitsuLibraryEntryId(context, kitsuMediaId!!, isAnime)
-            if (success) SyncResult(messages = listOf("Kitsu kütüphanesinden silindi (${entry.title})"))
+            if (success) SyncResult(messages = listOf(KitsugiStrings.get(R.string.kitsu_kutuphanesinden_silindi_x, entry.title)))
             else SyncResult(messages = emptyList(), errors = listOf("Kitsu'dan silinemedi"))
         } else {
-            if (kitsuMediaId != null) SyncResult(messages = listOf("Kitsu kaydı zaten yok (${entry.title})"))
-            else SyncResult(messages = emptyList(), errors = listOf("Kitsu medya kimliği bulunamadı"))
+            if (kitsuMediaId != null) SyncResult(messages = listOf(KitsugiStrings.get(R.string.kitsu_kaydi_zaten_yok_x, entry.title)))
+            else SyncResult(messages = emptyList(), errors = listOf(KitsugiStrings.get(R.string.kitsu_medya_kimligi_bulunamadi)))
         }
     }
 }

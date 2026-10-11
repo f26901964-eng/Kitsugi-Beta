@@ -47,6 +47,7 @@ import com.kitsugi.animelist.ui.theme.KitsugiColors
 import com.kitsugi.animelist.utils.KitsugiTranslateUtils.openTranslator
 import androidx.compose.ui.res.stringResource
 import com.kitsugi.animelist.R
+import com.kitsugi.animelist.utils.KitsugiStrings
 
 @Composable
 fun SimklProfileContent(
@@ -97,7 +98,7 @@ fun SimklProfileContent(
         // Banner and Avatar
         item {
             val avatarUrl = state.avatarUrl?.takeIf { it.isNotBlank() }
-            val username = state.name.ifBlank { "Simkl Kullanıcısı" }
+            val username = state.name.ifBlank { stringResource(R.string.simkl_kullanicisi) }
 
             Box(
                 modifier = Modifier
@@ -178,7 +179,7 @@ fun SimklProfileContent(
                         )
                         if (!state.accountType.isNullOrBlank()) {
                             Text(
-                                text = "Hesap Türü: ${state.accountType}",
+                                text = stringResource(R.string.inline_account_type_1_s_eb9dd8f, state.accountType),
                                 color = KitsugiColors.AccentOrange,
                                 style = MaterialTheme.typography.labelSmall,
                                 fontWeight = FontWeight.Bold
@@ -200,7 +201,7 @@ fun SimklProfileContent(
                     verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
                     val tabs = listOf(
-                        Icons.Rounded.Info to "Hakkında",
+                        Icons.Rounded.Info to stringResource(R.string.character_tab_about),
                         Icons.Rounded.ChatBubble to "Aktivite",
                         Icons.Rounded.BarChart to "İstatistikler"
                     )
@@ -319,13 +320,13 @@ fun SimklProfileContent(
                                                     onClick = {
                                                         val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
                                                         clipboard.setPrimaryClip(android.content.ClipData.newPlainText("about", state.bio))
-                                                        Toast.makeText(context, "Panoya kopyalandı", Toast.LENGTH_SHORT).show()
+                                                        Toast.makeText(context, KitsugiStrings.get(R.string.toast_copied_clipboard), Toast.LENGTH_SHORT).show()
                                                     },
                                                     modifier = Modifier.size(28.dp)
                                                 ) {
                                                     Icon(
                                                         imageVector = Icons.Rounded.ContentCopy,
-                                                        contentDescription = "Kopyala",
+                                                        contentDescription = stringResource(R.string.action_copy),
                                                         tint = KitsugiColors.TextSecondary,
                                                         modifier = Modifier.size(16.dp)
                                                     )
@@ -351,7 +352,7 @@ fun SimklProfileContent(
                                         .padding(18.dp)
                                 ) {
                                     Text(
-                                        text = "Simkl Profil Özeti",
+                                        text = stringResource(R.string.inline_simkl_profile_overview_5d1a6c1),
                                         color = KitsugiColors.TextPrimary,
                                         style = MaterialTheme.typography.titleMedium,
                                         fontWeight = FontWeight.Bold

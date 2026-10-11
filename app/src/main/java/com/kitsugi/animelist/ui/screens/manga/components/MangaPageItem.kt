@@ -45,6 +45,8 @@ import coil3.request.CachePolicy
 import coil3.request.crossfade
 import com.kitsugi.animelist.data.manga.ColorFilterType
 import com.kitsugi.animelist.data.manga.MangaFitMode
+import androidx.compose.ui.res.stringResource
+import com.kitsugi.animelist.R
 
 /**
  * Yatay (LTR/RTL) ve dikey pager okuma modları için tek sayfa bileşeni.
@@ -170,7 +172,7 @@ fun MangaPageItem(
 
                 ZoomableAsyncImage(
                     model       = imageRequest,
-                    contentDescription = "Manga sayfası ${page.index + 1}",
+                    contentDescription = stringResource(R.string.manga_sayfasi_x, page.index + 1),
                     state       = imageState,
                     contentScale = contentScale,
                     colorFilter = composeColorFilter,
@@ -248,7 +250,7 @@ private fun ErrorPageContent(pageIndex: Int, onRetry: () -> Unit) {
                 modifier           = Modifier.size(52.dp)
             )
             Text(
-                text      = "Sayfa ${pageIndex + 1} yüklenemedi",
+                text      = stringResource(R.string.inline_page_1_s_couldn_t_11d924a, pageIndex + 1),
                 color     = Color.White.copy(alpha = 0.7f),
                 fontSize  = 13.sp,
                 textAlign = TextAlign.Center,

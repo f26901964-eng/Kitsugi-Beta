@@ -5,6 +5,8 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.kitsugi.animelist.data.settings.SettingsDataStore
 import kotlinx.coroutines.launch
+import com.kitsugi.animelist.utils.KitsugiStrings
+import com.kitsugi.animelist.R
 
 class ProfileViewModel(application: Application) : AndroidViewModel(application) {
 
@@ -25,35 +27,35 @@ class ProfileViewModel(application: Application) : AndroidViewModel(application)
                 listTitle = listTitle,
                 anilistUsername = anilistUsername
             )
-            onShowMessage?.invoke("Profil bilgileri güncellendi")
+            onShowMessage?.invoke(KitsugiStrings.get(R.string.profil_bilgileri_guncellendi))
         }
     }
 
     fun updateProfileImageUri(uri: String) {
         viewModelScope.launch {
             settingsDataStore.setProfileImageUri(uri)
-            onShowMessage?.invoke("Profil resmi güncellendi")
+            onShowMessage?.invoke(KitsugiStrings.get(R.string.profil_resmi_guncellendi))
         }
     }
 
     fun updateBannerImageUri(uri: String) {
         viewModelScope.launch {
             settingsDataStore.setBannerImageUri(uri)
-            onShowMessage?.invoke("Banner resmi güncellendi")
+            onShowMessage?.invoke(KitsugiStrings.get(R.string.banner_resmi_guncellendi))
         }
     }
 
     fun clearProfileImage() {
         viewModelScope.launch {
             settingsDataStore.clearProfileImageUri()
-            onShowMessage?.invoke("Profil resmi kaldırıldı")
+            onShowMessage?.invoke(KitsugiStrings.get(R.string.profil_resmi_kaldirildi))
         }
     }
 
     fun clearBannerImage() {
         viewModelScope.launch {
             settingsDataStore.clearBannerImageUri()
-            onShowMessage?.invoke("Banner resmi kaldırıldı")
+            onShowMessage?.invoke(KitsugiStrings.get(R.string.banner_resmi_kaldirildi))
         }
     }
 }

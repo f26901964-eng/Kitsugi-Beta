@@ -171,7 +171,7 @@ fun KitsugiAccountConnectionsDialog(
                 horizontalArrangement = Arrangement.End
             ) {
                 TextButton(onClick = onDismiss) {
-                    Text("Tamam", color = accentColor, fontWeight = FontWeight.SemiBold)
+                    Text(stringResource(R.string.settings_ok), color = accentColor, fontWeight = FontWeight.SemiBold)
                 }
             }
         }
@@ -248,7 +248,7 @@ private fun AccountConnectionsTab(
                 if (isAniListConnected) {
                     KitsugiSettingsItem(
                         title = stringResource(R.string.anilist_hesabi_anilistusername, anilistUsername),
-                        description = if (isAniListImportRunning) "Senkronize ediliyor..." else "Listenizi AniList'ten içe aktarın",
+                        description = if (isAniListImportRunning) "Senkronize ediliyor..." else stringResource(R.string.listenizi_anilist_ten_ice_aktarin),
                         icon = Icons.Rounded.Sync,
                         iconColor = KitsugiColors.AccentGreen,
                         onClick = { if (!isAniListImportRunning) onAniListImportClick() }
@@ -273,7 +273,7 @@ private fun AccountConnectionsTab(
                 } else {
                     KitsugiSettingsItem(
                         title = stringResource(R.string.anilist_hesabini_bagla),
-                        description = if (isTv) "TV'de QR kod ile giriş yap" else "Giriş yap ve listenizi eşitle",
+                        description = if (isTv) stringResource(R.string.tv_de_qr_kod_ile_giris_yap) else stringResource(R.string.giris_yap_ve_listenizi_esitle),
                         icon = Icons.Rounded.Link,
                         iconColor = KitsugiColors.AccentBlue,
                         onClick = {
@@ -295,7 +295,7 @@ private fun AccountConnectionsTab(
                 if (isMalConnected) {
                     KitsugiSettingsItem(
                         title = stringResource(R.string.myanimelist_hesabi_malusername, malUsername),
-                        description = if (isMalImportRunning) "Senkronize ediliyor..." else "Listenizi MyAnimeList'ten içe aktarın",
+                        description = if (isMalImportRunning) "Senkronize ediliyor..." else stringResource(R.string.listenizi_myanimelist_ten_ice_aktarin),
                         icon = Icons.Rounded.Sync,
                         iconColor = KitsugiColors.AccentGreen,
                         onClick = { if (!isMalImportRunning) onMalImportClick() }
@@ -320,7 +320,7 @@ private fun AccountConnectionsTab(
                 } else {
                     KitsugiSettingsItem(
                         title = stringResource(R.string.myanimelist_hesabini_bagla),
-                        description = if (isTv) "TV'de QR kod ile giriş yap" else "Giriş yap ve listenizi eşitle",
+                        description = if (isTv) stringResource(R.string.tv_de_qr_kod_ile_giris_yap) else stringResource(R.string.giris_yap_ve_listenizi_esitle),
                         icon = Icons.Rounded.Link,
                         iconColor = KitsugiColors.AccentBlue,
                         onClick = {
@@ -342,7 +342,7 @@ private fun AccountConnectionsTab(
                 if (isSimklConnected) {
                     KitsugiSettingsItem(
                         title = stringResource(R.string.simkl_hesabi_simklusername, simklUsername),
-                        description = if (isSimklImportRunning) "Senkronize ediliyor..." else "Listenizi Simkl'dan içe aktarın",
+                        description = if (isSimklImportRunning) "Senkronize ediliyor..." else stringResource(R.string.listenizi_simkl_dan_ice_aktarin),
                         icon = Icons.Rounded.Sync,
                         iconColor = KitsugiColors.AccentGreen,
                         onClick = { if (!isSimklImportRunning) onSimklImportClick() }
@@ -378,7 +378,7 @@ private fun AccountConnectionsTab(
                 } else {
                     KitsugiSettingsItem(
                         title = stringResource(R.string.simkl_hesabini_bagla),
-                        description = if (isTv) "TV'de QR kod ile giriş yap" else "Giriş yap, film, dizi ve animelerini eşitle",
+                        description = if (isTv) stringResource(R.string.tv_de_qr_kod_ile_giris_yap) else stringResource(R.string.giris_yap_film_dizi_ve_animelerini_esitle),
                         icon = Icons.Rounded.Link,
                         iconColor = KitsugiColors.AccentBlue,
                         onClick = {
@@ -401,7 +401,7 @@ private fun AccountConnectionsTab(
                 if (isKitsuConnected) {
                     KitsugiSettingsItem(
                         title = stringResource(R.string.kitsu_hesabi_kitsuusername, kitsuUsername),
-                        description = if (isKitsuImportRunning) "Senkronize ediliyor..." else "Listenizi Kitsu'dan içe aktarın",
+                        description = if (isKitsuImportRunning) "Senkronize ediliyor..." else stringResource(R.string.listenizi_kitsu_dan_ice_aktarin),
                         icon = Icons.Rounded.Sync,
                         iconColor = KitsugiColors.AccentGreen,
                         onClick = { if (!isKitsuImportRunning) onKitsuImportClick() }
@@ -446,7 +446,7 @@ private fun AccountConnectionsTab(
                 if (isShikimoriConnected) {
                     KitsugiSettingsItem(
                         title = stringResource(R.string.shikimori_hesabi_shikimoriusername, shikimoriUsername),
-                        description = if (isShikimoriImportRunning) "Senkronize ediliyor..." else "Listenizi Shikimori'den içe aktarın",
+                        description = if (isShikimoriImportRunning) "Senkronize ediliyor..." else stringResource(R.string.listenizi_shikimori_den_ice_aktarin),
                         icon = Icons.Rounded.Sync,
                         iconColor = KitsugiColors.AccentGreen,
                         onClick = { if (!isShikimoriImportRunning) onShikimoriImportClick() }
@@ -515,7 +515,7 @@ private fun AccountConnectionsTab(
 
                     KitsugiSettingsItem(
                         title = when {
-                            crossSyncState.isRunning -> "Eşitleme Ayrıntılarını Aç ($connectedCount/6)"
+                            crossSyncState.isRunning -> stringResource(R.string.esitleme_ayrintilarini_ac_x_6, connectedCount)
                             crossSyncState.startedAt != null -> "Son Eşitleme Raporu ($connectedCount/6)"
                             else -> "Tüm Hesapları Birbiriyle Eşitle ($connectedCount/6)"
                         },

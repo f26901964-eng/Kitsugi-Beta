@@ -36,6 +36,8 @@ import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import com.kitsugi.animelist.model.MediaType
 import com.kitsugi.animelist.ui.theme.KitsugiColors
+import androidx.compose.ui.res.stringResource
+import com.kitsugi.animelist.R
 
 @Composable
 fun UserProfileHeaderCard(
@@ -48,7 +50,7 @@ fun UserProfileHeaderCard(
     val avatarUrl = (state.avatarUrl ?: fallbackAvatar)?.takeIf { it.isNotBlank() }
     val bannerUrl = state.bannerUrl?.takeIf { it.isNotBlank() }
     val imageList = listOfNotNull(avatarUrl, bannerUrl)
-    val username = state.name.ifBlank { fallbackUsername ?: "Kullanıcı" }
+    val username = state.name.ifBlank { fallbackUsername ?: stringResource(R.string.kullanici) }
 
     Box(
         modifier = Modifier
@@ -88,7 +90,7 @@ fun UserProfileHeaderCard(
             Spacer(modifier = Modifier.width(12.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(text = state.name.ifBlank { fallbackUsername ?: "AniList Kullanıcısı" },
+                    Text(text = state.name.ifBlank { fallbackUsername ?: stringResource(R.string.ui_profile_anilist_fallback) },
                         color = KitsugiColors.TextPrimary, style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
                     val badge = state.donatorBadge

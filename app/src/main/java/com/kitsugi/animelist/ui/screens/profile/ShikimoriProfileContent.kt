@@ -51,6 +51,7 @@ import com.kitsugi.animelist.utils.KitsugiTranslateUtils.openTranslator
 import kotlinx.coroutines.launch
 import androidx.compose.ui.res.stringResource
 import com.kitsugi.animelist.R
+import com.kitsugi.animelist.utils.KitsugiStrings
 
 @Composable
 fun ShikimoriProfileContent(
@@ -101,7 +102,7 @@ fun ShikimoriProfileContent(
         // ── Banner and Avatar ───────────────────────────────────────────────
         item {
             val avatarUrl = state.avatarUrl?.takeIf { it.isNotBlank() }
-            val username = state.name.ifBlank { "Shikimori Kullanıcısı" }
+            val username = state.name.ifBlank { stringResource(R.string.shikimori_kullanicisi) }
 
             Box(
                 modifier = Modifier
@@ -208,7 +209,7 @@ fun ShikimoriProfileContent(
                         } else if (!state.lastOnline.isNullOrBlank()) {
                             Spacer(modifier = Modifier.height(3.dp))
                             Text(
-                                text = "Son çevrimiçi: ${state.lastOnline.take(10)}",
+                                text = stringResource(R.string.inline_last_online_1_s_ce2d27e, state.lastOnline.take(10)),
                                 color = KitsugiColors.TextMuted,
                                 style = MaterialTheme.typography.labelSmall
                             )
@@ -229,7 +230,7 @@ fun ShikimoriProfileContent(
                     verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
                     val tabs = listOf(
-                        Icons.Rounded.Info to "Hakkında",
+                        Icons.Rounded.Info to stringResource(R.string.character_tab_about),
                         Icons.Rounded.BarChart to "İstatistikler",
                         Icons.Rounded.Bookmarks to "Kayıtlar"
                     )
@@ -338,11 +339,11 @@ private fun ShikimoriAboutTab(
                                 onClick = {
                                     val cm = context.getSystemService(Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
                                     cm.setPrimaryClip(android.content.ClipData.newPlainText("Shikimori Bio", state.bio))
-                                    Toast.makeText(context, "Metin kopyalandı", Toast.LENGTH_SHORT).show()
+                                    Toast.makeText(context, KitsugiStrings.get(R.string.metin_kopyalandi), Toast.LENGTH_SHORT).show()
                                 },
                                 modifier = Modifier.size(32.dp)
                             ) {
-                                Icon(Icons.Rounded.ContentCopy, contentDescription = "Kopyala", tint = KitsugiColors.TextMuted, modifier = Modifier.size(16.dp))
+                                Icon(Icons.Rounded.ContentCopy, contentDescription = stringResource(R.string.action_copy), tint = KitsugiColors.TextMuted, modifier = Modifier.size(16.dp))
                             }
                             IconButton(
                                 onClick = { context.openTranslator(state.bio) },
@@ -386,7 +387,7 @@ private fun ShikimoriAboutTab(
                 accentColor = Color(0xFF2E7D32)
             )
             ShikimoriStatCard(
-                title = "Puan",
+                title = stringResource(R.string.detail_stat_score),
                 value = if (state.avgScore > 0) String.format("%.1f", state.avgScore) else "-",
                 icon = Icons.Rounded.Star,
                 modifier = Modifier.weight(1f),
@@ -423,7 +424,7 @@ private fun ShikimoriAboutTab(
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 Text(
-                    text = "Profil Detayları",
+                    text = stringResource(R.string.inline_profile_details_645945c),
                     color = KitsugiColors.TextPrimary,
                     fontWeight = FontWeight.Bold,
                     fontSize = 15.sp
@@ -439,10 +440,10 @@ private fun ShikimoriAboutTab(
                     val sexStr = when (state.sex) { "male" -> "Erkek"; "female" -> "Kadın"; else -> state.sex ?: "" }
                     val ageStr = if (state.fullYears != null) "${state.fullYears} Yaşında" else ""
                     val combo = listOf(sexStr, ageStr).filter { it.isNotBlank() }.joinToString(" • ")
-                    ShikiAttributeRow(icon = Icons.Rounded.Person, label = "Cinsiyet / Yaş", value = combo)
+                    ShikiAttributeRow(icon = Icons.Rounded.Person, label = stringResource(R.string.cinsiyet_yas), value = combo)
                 }
                 if (!state.lastOnline.isNullOrBlank()) {
-                    ShikiAttributeRow(icon = Icons.Rounded.Schedule, label = "Son Giriş", value = state.lastOnline.take(16).replace("T", " "))
+                    ShikiAttributeRow(icon = Icons.Rounded.Schedule, label = stringResource(R.string.son_giris), value = state.lastOnline.take(16).replace("T", " "))
                 }
                 ShikiAttributeRow(icon = Icons.Rounded.CheckCircle, label = "Tamamlanan Anime", value = state.completedAnime.toString())
                 ShikiAttributeRow(icon = Icons.Rounded.CheckCircle, label = "Tamamlanan Manga", value = state.completedManga.toString())
@@ -556,7 +557,7 @@ private fun ShikimoriStatsTab(
                     if (state.droppedAnime > 0) Box(modifier = Modifier.weight(state.droppedAnime.toFloat() / totalAnime).fillMaxHeight().background(KitsugiColors.AccentRed))
                 }
 
-                ShikiStatusRow(label = "İzleniyor", count = state.watchingAnime, color = KitsugiColors.AccentGreen)
+                ShikiStatusRow(label = stringResource(R.string.watch_watching), count = state.watchingAnime, color = KitsugiColors.AccentGreen)
                 ShikiStatusRow(label = stringResource(R.string.tamamlandi), count = state.completedAnime, color = accentColor)
                 ShikiStatusRow(label = stringResource(R.string.planlandi), count = state.plannedAnime, color = KitsugiColors.AccentYellow)
                 ShikiStatusRow(label = stringResource(R.string.beklemede), count = state.onHoldAnime, color = KitsugiColors.AccentOrange)
@@ -595,7 +596,7 @@ private fun ShikimoriStatsTab(
                     if (state.droppedManga > 0) Box(modifier = Modifier.weight(state.droppedManga.toFloat() / totalManga).fillMaxHeight().background(KitsugiColors.AccentRed))
                 }
 
-                ShikiStatusRow(label = "Okunuyor", count = state.readingManga, color = KitsugiColors.AccentGreen)
+                ShikiStatusRow(label = stringResource(R.string.okunuyor), count = state.readingManga, color = KitsugiColors.AccentGreen)
                 ShikiStatusRow(label = stringResource(R.string.tamamlandi), count = state.completedManga, color = accentColor)
                 ShikiStatusRow(label = stringResource(R.string.planlandi), count = state.plannedManga, color = KitsugiColors.AccentYellow)
                 ShikiStatusRow(label = stringResource(R.string.beklemede), count = state.onHoldManga, color = KitsugiColors.AccentOrange)
@@ -627,12 +628,12 @@ private fun ShikimoriRatesTab(
                 FilterChip(
                     selected = selectedSubTab == 0,
                     onClick = { selectedSubTab = 0 },
-                    label = { Text("Aktivite Geçmişi (${history.size})", fontSize = 12.sp) }
+                    label = { Text(stringResource(R.string.inline_activity_history_1_s_d4e081c, history.size), fontSize = 12.sp) }
                 )
                 FilterChip(
                     selected = selectedSubTab == 1,
                     onClick = { selectedSubTab = 1 },
-                    label = { Text("Kayıtlar (${entries.size})", fontSize = 12.sp) }
+                    label = { Text(stringResource(R.string.inline_entries_1_s_d1f2007, entries.size), fontSize = 12.sp) }
                 )
             }
         }
@@ -679,7 +680,7 @@ private fun ShikimoriRatesTab(
                             Spacer(modifier = Modifier.width(12.dp))
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(
-                                    text = item.targetTitle ?: "Başlık",
+                                    text = item.targetTitle ?: stringResource(R.string.ui_account_title),
                                     color = KitsugiColors.TextPrimary,
                                     fontSize = 14.sp,
                                     fontWeight = FontWeight.SemiBold,
@@ -780,7 +781,7 @@ private fun ShikimoriRatesTab(
                     )
                     Spacer(modifier = Modifier.height(12.dp))
                     Text(
-                        text = "Shikimori listesinde kayıt veya aktivite bulunamadı.",
+                        text = stringResource(R.string.inline_no_records_or_activity_were_e950767),
                         color = KitsugiColors.TextMuted,
                         fontSize = 14.sp
                     )

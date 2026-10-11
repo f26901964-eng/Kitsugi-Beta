@@ -9,6 +9,8 @@ import java.net.HttpURLConnection
 import java.net.URL
 import java.net.URLEncoder
 import com.kitsugi.animelist.utils.*
+import com.kitsugi.animelist.utils.KitsugiStrings
+import com.kitsugi.animelist.R
 
 class KitsugiStudioClient {
 
@@ -315,7 +317,7 @@ class KitsugiStudioClient {
             val romajiTitle = item.optNullableString("name")
             val englishTitle = item.optJSONArray("english")?.optString(0)?.takeIf { it.isNotBlank() && it != "null" }
             val russianTitle = item.optNullableString("russian")
-            val title = russianTitle ?: englishTitle ?: romajiTitle ?: if (isTurkish()) "Başlıksız" else "Untitled"
+            val title = russianTitle ?: englishTitle ?: romajiTitle ?: if (isTurkish()) KitsugiStrings.get(R.string.basliksiz) else "Untitled"
             val kind = item.optNullableString("kind").orEmpty().lowercase()
             // Not: `/api/animes` kayıtlarında `image` normalde {original, preview, …} NESNESİDİR;
             // ancak `studios[]` gibi bazı alanlarda düz DİZGE olarak da dönebilir. İki biçim de
@@ -756,7 +758,7 @@ class KitsugiStudioClient {
             val id = node.optInt("id")
             val idMal = node.optionalPositiveInt("idMal")
             val titleObj = node.optJSONObject("title")
-            val title = titleObj?.optNullableString("userPreferred") ?: if (isTurkish()) "Başlıksız" else "Untitled"
+            val title = titleObj?.optNullableString("userPreferred") ?: if (isTurkish()) KitsugiStrings.get(R.string.basliksiz) else "Untitled"
             val imgUrl = node.optJSONObject("coverImage")?.optNullableString("large")
             val type = node.optNullableString("type").orEmpty().lowercase()
             out.add(

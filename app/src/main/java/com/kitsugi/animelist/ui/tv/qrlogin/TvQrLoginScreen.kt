@@ -59,6 +59,7 @@ import com.kitsugi.animelist.ui.theme.KitsugiTvTokens
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.net.URLEncoder
+import com.kitsugi.animelist.utils.KitsugiStrings
 
 // ── QR kod üretme yardımcısı (ZXing) ─────────────────────────────────────────
 private fun generateQrBitmap(url: String, sizePx: Int = 400): Bitmap? {
@@ -157,7 +158,7 @@ fun TvQrLoginScreen(
                 }.getOrDefault(false)
 
                 if (success) {
-                    android.widget.Toast.makeText(context, "Simkl bağlantısı başarılı.", android.widget.Toast.LENGTH_SHORT).show()
+                    android.widget.Toast.makeText(context, KitsugiStrings.get(R.string.simkl_baglantisi_basarili), android.widget.Toast.LENGTH_SHORT).show()
                     authViewModel.refreshAuthState()
                     // Profil bilgisini çekip settings'e yaz
                     runCatching {
@@ -181,7 +182,7 @@ fun TvQrLoginScreen(
 
     if (showWebViewUrl != null) {
         val title = when (activeAuthService) {
-            "anilist" -> "AniList Girişi"
+            "anilist" -> stringResource(R.string.anilist_girisi)
             "mal" -> "MyAnimeList Girişi"
             else -> "Web Girişi"
         }
@@ -198,11 +199,11 @@ fun TvQrLoginScreen(
                     val intent = Intent(Intent.ACTION_VIEW, Uri.parse(redirectUrl))
                     ExternalAuthManager.handleAuthIntent(context, intent,
                         onSuccess = { serviceName ->
-                            android.widget.Toast.makeText(context, "${if (serviceName == "anilist") "AniList" else "MyAnimeList"} bağlantısı başarılı.", android.widget.Toast.LENGTH_SHORT).show()
+                            android.widget.Toast.makeText(context, KitsugiStrings.get(R.string.x_baglantisi_basarili, if (serviceName == "anilist") "AniList" else "MyAnimeList"), android.widget.Toast.LENGTH_SHORT).show()
                             authViewModel.refreshAuthState()
                         },
                         onError = { error ->
-                            android.widget.Toast.makeText(context, "Hata: $error", android.widget.Toast.LENGTH_LONG).show()
+                            android.widget.Toast.makeText(context, KitsugiStrings.get(R.string.hata_x, error), android.widget.Toast.LENGTH_LONG).show()
                         }
                     )
                     showWebViewUrl = null
@@ -337,7 +338,7 @@ fun TvQrLoginScreen(
                                             activeAuthService = svcName
                                             showWebViewUrl = url
                                         }.onFailure { e ->
-                                            android.widget.Toast.makeText(context, "Hata: ${e.message}", android.widget.Toast.LENGTH_LONG).show()
+                                            android.widget.Toast.makeText(context, KitsugiStrings.get(R.string.hata_x, e.message), android.widget.Toast.LENGTH_LONG).show()
                                         }
                                     }
                                 },

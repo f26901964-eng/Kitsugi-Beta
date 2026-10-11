@@ -32,6 +32,9 @@ import com.kitsugi.animelist.BuildConfig
 import com.kitsugi.animelist.core.diagnostics.KitsugiCrashLogger
 import com.kitsugi.animelist.ui.screens.crash.KitsugiCrashActivity
 import com.kitsugi.animelist.ui.theme.KitsugiColors
+import androidx.compose.ui.res.stringResource
+import com.kitsugi.animelist.R
+import com.kitsugi.animelist.utils.KitsugiStrings
 
 @Composable
 fun KitsugiCrashRecoveryDialog(
@@ -74,7 +77,7 @@ fun KitsugiCrashRecoveryDialog(
                 Spacer(Modifier.height(4.dp))
 
                 Text(
-                    text = "Kitsugi son oturumda kapandı veya çöktü. Hata raporu cihazınıza kaydedildi. Rapor dosyasını (.txt) paylaşarak sorunun hızlıca çözülmesini sağlayabilirsiniz.",
+                    text = stringResource(R.string.inline_kitsugi_closed_or_crashed_during_7f646e0),
                     color = KitsugiColors.TextSecondary,
                     fontSize = 12.sp,
                     lineHeight = 17.sp
@@ -119,7 +122,7 @@ fun KitsugiCrashRecoveryDialog(
                             onClick = {
                                 val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
                                 clipboard.setPrimaryClip(ClipData.newPlainText("Kitsugi Crash", crashLog))
-                                Toast.makeText(context, "Hata raporu panoya kopyalandı ✓", Toast.LENGTH_SHORT).show()
+                                Toast.makeText(context, KitsugiStrings.get(R.string.hata_raporu_panoya_kopyalandi), Toast.LENGTH_SHORT).show()
                             },
                             shape = RoundedCornerShape(12.dp),
                             border = BorderStroke(1.dp, KitsugiColors.Border),
@@ -128,7 +131,7 @@ fun KitsugiCrashRecoveryDialog(
                         ) {
                             Icon(Icons.Rounded.ContentCopy, null, modifier = Modifier.size(15.dp))
                             Spacer(Modifier.width(6.dp))
-                            Text("Kopyala", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                            Text(stringResource(R.string.action_copy), fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
                         }
 
                         KitsugiButton(
@@ -136,7 +139,7 @@ fun KitsugiCrashRecoveryDialog(
                                 // Hata raporu metin olarak değil, DOSYA (.txt) olarak paylaşılır.
                                 val file = KitsugiCrashLogger.ensureCrashLogFile(context)
                                 if (file == null) {
-                                    Toast.makeText(context, "Hata raporu dosyası oluşturulamadı", Toast.LENGTH_SHORT).show()
+                                    Toast.makeText(context, KitsugiStrings.get(R.string.hata_raporu_dosyasi_olusturulamadi), Toast.LENGTH_SHORT).show()
                                     return@KitsugiButton
                                 }
                                 val uri = androidx.core.content.FileProvider.getUriForFile(
@@ -159,7 +162,7 @@ fun KitsugiCrashRecoveryDialog(
                         ) {
                             Icon(Icons.Rounded.Share, null, modifier = Modifier.size(15.dp))
                             Spacer(Modifier.width(6.dp))
-                            Text("Dosyayı Paylaş", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                            Text(stringResource(R.string.inline_share_file_6e19b1d), fontSize = 12.sp, fontWeight = FontWeight.Bold)
                         }
                     }
 
@@ -182,7 +185,7 @@ fun KitsugiCrashRecoveryDialog(
                     ) {
                         Icon(Icons.Rounded.OpenInNew, null, modifier = Modifier.size(15.dp))
                         Spacer(Modifier.width(6.dp))
-                        Text("Detaylı Çökme Ekranını Aç", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                        Text(stringResource(R.string.inline_open_detailed_crash_screen_ee67637), fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
                     }
 
                     // Satır 3: İndirilenlere Kaydet
@@ -202,7 +205,7 @@ fun KitsugiCrashRecoveryDialog(
                     ) {
                         Icon(Icons.Rounded.Download, null, modifier = Modifier.size(15.dp))
                         Spacer(Modifier.width(6.dp))
-                        Text("İndirilenler Klasörüne Kaydet (.txt)", fontSize = 11.5.sp)
+                        Text(stringResource(R.string.inline_save_to_downloads_txt_0bd21ef), fontSize = 11.5.sp)
                     }
 
                     // Kapat
@@ -213,7 +216,7 @@ fun KitsugiCrashRecoveryDialog(
                         },
                         modifier = Modifier.fillMaxWidth()
                     ) {
-                        Text("Kapat ve Bir Daha Gösterme", color = KitsugiColors.TextMuted, fontSize = 12.sp)
+                        Text(stringResource(R.string.inline_close_and_don_t_show_38bb57d), color = KitsugiColors.TextMuted, fontSize = 12.sp)
                     }
                 }
             }

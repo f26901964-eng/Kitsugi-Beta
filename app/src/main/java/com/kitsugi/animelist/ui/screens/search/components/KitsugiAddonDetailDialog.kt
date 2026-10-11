@@ -477,7 +477,7 @@ private fun DetailContent(
                 // Episodes header
                 item {
                     Text(
-                        text = "Bölümler (${displayEpisodes.size})",
+                        text = stringResource(R.string.inline_episodes_1_s_b40a1e6, displayEpisodes.size),
                         color = KitsugiColors.TextPrimary,
                         fontSize = 16.sp,
                         fontWeight = FontWeight.Bold,
@@ -494,7 +494,7 @@ private fun DetailContent(
                                 .padding(vertical = 32.dp),
                             contentAlignment = Alignment.Center
                         ) {
-                            Text("Bu sezonda bölüm bulunamadı.", color = KitsugiColors.TextMuted)
+                            Text(stringResource(R.string.inline_no_episodes_found_this_season_4862fcf), color = KitsugiColors.TextMuted)
                         }
                     }
                 } else {
@@ -537,7 +537,7 @@ private fun DetailContent(
                                 ) {
                                     Column(modifier = Modifier.weight(1f)) {
                                         Text(
-                                            text = "${epNum}. Bölüm",
+                                            text = stringResource(R.string.inline_1_s_episode_6f7288b, epNum),
                                             color = KitsugiColors.TextPrimary,
                                             fontWeight = FontWeight.Bold,
                                             fontSize = 14.sp

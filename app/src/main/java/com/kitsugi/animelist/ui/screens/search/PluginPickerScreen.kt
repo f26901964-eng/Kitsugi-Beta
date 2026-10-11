@@ -63,6 +63,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import androidx.compose.ui.res.stringResource
 import com.kitsugi.animelist.R
+import com.kitsugi.animelist.utils.KitsugiStrings
 
 private data class PluginTypeGroup(
     val label: String,
@@ -76,8 +77,8 @@ private val pluginTypeGroups = listOf(
     PluginTypeGroup("Animasyon", "🎌", listOf(TvType.Anime, TvType.OVA)),
     PluginTypeGroup("+18", "🔞", listOf(TvType.NSFW)),
     PluginTypeGroup("Belgeseller", "📰", listOf(TvType.Documentary)),
-    PluginTypeGroup("Canlı", "📡", listOf(TvType.Live)),
-    PluginTypeGroup("Diğer", "🔖", listOf(TvType.Others))
+    PluginTypeGroup(KitsugiStrings.get(R.string.canli), "📡", listOf(TvType.Live)),
+    PluginTypeGroup(KitsugiStrings.get(R.string.bangumi_tag_other), "🔖", listOf(TvType.Others))
 )
 
 // Kalıcı önbellek — sayfa geçişlerinde 0 elemana düşmeyi ve scroll sıfırlanmasını önler
@@ -335,7 +336,7 @@ fun PluginPickerScreen(
                                     Box(contentAlignment = Alignment.CenterStart) {
                                         if (pluginQueryState.text.isEmpty()) {
                                             Text(
-                                                text = "Eklentilerde ara... (${activeApis.size} eklenti)",
+                                                text = KitsugiStrings.get(R.string.eklentilerde_ara_x_eklenti, activeApis.size),
                                                 color = KitsugiColors.TextMuted,
                                                 fontSize = 14.sp
                                             )
@@ -431,7 +432,7 @@ fun PluginPickerScreen(
                     ) {
                         Text(
                             text = if (queryText.isNotEmpty())
-                                "\"$queryText\" ile eşleşen eklenti bulunamadı."
+                                KitsugiStrings.get(R.string.ui2_plugin_query_no_match, queryText)
                             else if (selectedGroupLabel != null)
                                 "Bu kategoride aktif eklenti yok."
                             else
@@ -702,7 +703,7 @@ private fun AllPluginsListItem(
         }
 
         Text(
-            text = "Hepsi",
+            text = stringResource(R.string.hepsi),
             color = accentColor,
             fontSize = 11.sp,
             fontWeight = FontWeight.Medium

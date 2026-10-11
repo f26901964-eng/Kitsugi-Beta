@@ -28,6 +28,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import com.kitsugi.animelist.utils.KitsugiStrings
+import com.kitsugi.animelist.R
 
 class MangaViewModel(application: Application) : AndroidViewModel(application) {
 
@@ -225,9 +227,9 @@ class MangaViewModel(application: Application) : AndroidViewModel(application) {
             withContext(Dispatchers.Main) {
                 mangaSources = mangaRepository.getAvailableSources()
                 if (result.isSuccess) {
-                    onShowMessage?.invoke("✅ Manga eklentisi yüklendi: ${result.getOrNull()?.name}")
+                    onShowMessage?.invoke(KitsugiStrings.get(R.string.manga_eklentisi_yuklendi_x, result.getOrNull()?.name))
                 } else {
-                    onShowMessage?.invoke("❌ Eklenti yüklenemedi: ${result.exceptionOrNull()?.message}")
+                    onShowMessage?.invoke(KitsugiStrings.get(R.string.eklenti_yuklenemedi_x, result.exceptionOrNull()?.message))
                 }
             }
         }
@@ -238,7 +240,7 @@ class MangaViewModel(application: Application) : AndroidViewModel(application) {
             mangaRepository.deleteExtension(source)
             withContext(Dispatchers.Main) {
                 mangaSources = mangaRepository.getAvailableSources()
-                onShowMessage?.invoke("🗑️ Eklenti kaldırıldı: ${source.name}")
+                onShowMessage?.invoke(KitsugiStrings.get(R.string.eklenti_kaldirildi_x_5014f43, source.name))
             }
         }
     }
@@ -254,7 +256,7 @@ class MangaViewModel(application: Application) : AndroidViewModel(application) {
             withContext(Dispatchers.Main) {
                 mangaSources = mangaRepository.getAvailableSources()
                 onShowMessage?.invoke(
-                    if (enabled) "✅ Eklenti etkinleştirildi: ${source.name}"
+                    if (enabled) KitsugiStrings.get(R.string.eklenti_etkinlestirildi_x, source.name)
                     else "⏸️ Eklenti devre dışı bırakıldı: ${source.name}"
                 )
             }
@@ -301,7 +303,7 @@ class MangaViewModel(application: Application) : AndroidViewModel(application) {
                 mangaSources = mangaRepository.getAvailableSources()
                 onResult?.invoke(success)
                 onShowMessage?.invoke(
-                    if (success) "✅ Yüklendi: ${ext.name}" else "❌ İndirilemedi: ${ext.name}"
+                    if (success) KitsugiStrings.get(R.string.yuklendi_x, ext.name) else KitsugiStrings.get(R.string.indirilemedi_x, ext.name)
                 )
                 if (success) checkAllUpdates()
             }
@@ -314,7 +316,7 @@ class MangaViewModel(application: Application) : AndroidViewModel(application) {
                 mangaSources.none { (it.pkgName.isNotEmpty() && it.pkgName == ext.pkg) || it.name == ext.name }
             }
             if (toInstall.isEmpty()) {
-                onShowMessage?.invoke("ℹ️ Bu repodaki tüm eklentiler zaten kurulu")
+                onShowMessage?.invoke(KitsugiStrings.get(R.string.bu_repodaki_tum_eklentiler_zaten_kurulu))
                 return@launch
             }
 
@@ -372,7 +374,7 @@ class MangaViewModel(application: Application) : AndroidViewModel(application) {
                 mangaSources.any { (it.pkgName.isNotEmpty() && it.pkgName == ext.pkg) || it.name == ext.name }
             }
             if (toUpdate.isEmpty()) {
-                onShowMessage?.invoke("ℹ️ Güncellenecek eklenti bulunamadı")
+                onShowMessage?.invoke(KitsugiStrings.get(R.string.guncellenecek_eklenti_bulunamadi))
                 return@launch
             }
 
@@ -495,25 +497,25 @@ class MangaViewModel(application: Application) : AndroidViewModel(application) {
         mangaRepository.setSourceSlowdownEnabled(source, enabled)
         mangaSources = mangaRepository.getAvailableSources()
         onShowMessage?.invoke(
-            if (enabled) "🐢 Slowdown açıldı: ${source.name}" else "⚡ Slowdown kapatıldı: ${source.name}"
+            if (enabled) KitsugiStrings.get(R.string.slowdown_acildi_x, source.name) else KitsugiStrings.get(R.string.slowdown_kapatildi_x, source.name)
         )
     }
 
     fun resetSourceDiagnostics(source: MangaSource) {
         mangaRepository.resetSourceDiagnostics(source)
         mangaSources = mangaRepository.getAvailableSources()
-        onShowMessage?.invoke("♻️ Source istatistikleri sıfırlandı: ${source.name}")
+        onShowMessage?.invoke(KitsugiStrings.get(R.string.source_istatistikleri_sifirlandi_x, source.name))
     }
 
     fun clearAllSourceDiagnostics() {
         mangaRepository.clearAllSourceDiagnostics()
-        onShowMessage?.invoke("🧼 Tüm source rapor verileri temizlendi")
+        onShowMessage?.invoke(KitsugiStrings.get(R.string.tum_source_rapor_verileri_temizlendi))
     }
 
     fun clearAllSourceConfigs() {
         mangaRepository.clearAllSourceConfigs()
         mangaSources = mangaRepository.getAvailableSources()
-        onShowMessage?.invoke("🧹 Tüm source config ayarları temizlendi")
+        onShowMessage?.invoke(KitsugiStrings.get(R.string.tum_source_config_ayarlari_temizlendi))
     }
 
     fun isSourceBusy(source: MangaSource): Boolean =
@@ -553,7 +555,7 @@ class MangaViewModel(application: Application) : AndroidViewModel(application) {
             mangaSourceBusyKeys = mangaSourceBusyKeys - key
             result.onSuccess { success ->
                 onShowMessage?.invoke(
-                    if (success) "🔁 Mirror güncellendi: ${source.name}"
+                    if (success) KitsugiStrings.get(R.string.mirror_guncellendi_x, source.name)
                     else "⚠️ Mirror bulunamadı: ${source.name}"
                 )
             }.onFailure { error ->
@@ -565,7 +567,7 @@ class MangaViewModel(application: Application) : AndroidViewModel(application) {
     fun clearSourceMirror(source: MangaSource) {
         mangaRepository.clearConfiguredDomain(source)
         mangaSources = mangaRepository.getAvailableSources()
-        onShowMessage?.invoke("🧹 Domain temizlendi: ${source.name}")
+        onShowMessage?.invoke(KitsugiStrings.get(R.string.domain_temizlendi_x, source.name))
     }
 
     fun forceCheckMangaUpdates(onResult: (String) -> Unit) {

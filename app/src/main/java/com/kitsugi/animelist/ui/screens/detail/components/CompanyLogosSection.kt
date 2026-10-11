@@ -12,6 +12,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.res.stringResource
+import com.kitsugi.animelist.R
 
 /**
  * V2-D01 – CompanyLogosSection
@@ -40,7 +42,7 @@ fun CompanyLogosSection(
             .padding(vertical = 8.dp)
     ) {
         Text(
-            text = "Yapım Şirketleri",
+            text = stringResource(R.string.tmdb_block_productions),
             style = MaterialTheme.typography.titleMedium,
             fontWeight = FontWeight.Bold,
             modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)

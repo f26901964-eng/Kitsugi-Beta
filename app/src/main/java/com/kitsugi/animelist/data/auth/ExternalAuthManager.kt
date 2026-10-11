@@ -25,6 +25,8 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.CoroutineScope
 import org.json.JSONObject
 import com.kitsugi.animelist.data.settings.SettingsDataStore
+import com.kitsugi.animelist.utils.KitsugiStrings
+import com.kitsugi.animelist.R
 
 object ExternalAuthManager {
     private const val PREFS_NAME = "MyWebViewPrefs"
@@ -599,7 +601,7 @@ object ExternalAuthManager {
                 }
             )
             else -> {
-                val message = "Kod alındı ancak servis için code_verifier bulunamadı."
+                val message = KitsugiStrings.get(R.string.kod_alindi_ancak_servis_icin_code_verifier_b)
                 onError(message)
                 _authEvents.tryEmit(AuthEvent.Error(message))
             }
