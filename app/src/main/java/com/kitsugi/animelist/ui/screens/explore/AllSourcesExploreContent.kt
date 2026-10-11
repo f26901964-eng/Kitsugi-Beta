@@ -35,6 +35,7 @@ import com.kitsugi.animelist.ui.theme.KitsugiColors
 import com.kitsugi.animelist.ui.utils.tvClickable
 import androidx.compose.ui.res.stringResource
 import com.kitsugi.animelist.R
+import com.kitsugi.animelist.utils.KitsugiStrings
 
 /** One source = one distinct destination, with all its own categories underneath it. */
 @OptIn(ExperimentalFoundationApi::class)
@@ -76,10 +77,10 @@ fun LazyListScope.allSourcesExploreSections(
     )
     item(key = "all_sources_intro") {
         Column(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 20.dp)) {
-            Text("Altı kaynak. Tek keşif.", style = MaterialTheme.typography.headlineSmall,
+            Text(KitsugiStrings.get(R.string.inline_six_sources_one_discovery_20b7124), style = MaterialTheme.typography.headlineSmall,
                 color = KitsugiColors.TextPrimary, fontWeight = FontWeight.Black)
             Spacer(Modifier.height(6.dp))
-            Text("Her platformun trendleri, en iyileri ve yeni keşifleri kendi alanında. Bir kaynağa atla veya aşağı kaydırarak hepsini gez.",
+            Text(KitsugiStrings.get(R.string.inline_each_platform_s_trending_top_231becd),
                 style = MaterialTheme.typography.bodyMedium, color = KitsugiColors.TextSecondary)
         }
     }
@@ -189,11 +190,11 @@ fun LazyListScope.allSourcesExploreSections(
                 Row(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 12.dp),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically) {
-                    TextButton(onClick = { onToggleSource(platform) }) { Text("${platform.shortName} alanını daralt") }
+                    TextButton(onClick = { onToggleSource(platform) }) { Text(KitsugiStrings.get(R.string.inline_narrow_1_s_5c7a9bb, platform.shortName)) }
                     val next = ExplorePlatform.sources.getOrNull(ExplorePlatform.sources.indexOf(platform) + 1)
                     if (next != null) {
                         TextButton(onClick = { onJumpToIndex(headerIndices.getValue(next)) }) {
-                            Text("Sırada: ${next.shortName} →")
+                            Text(KitsugiStrings.get(R.string.inline_up_next_1_s_a730b4c, next.shortName))
                         }
                     }
                 }
@@ -301,12 +302,12 @@ private fun SourceHeader(
             Column(Modifier.weight(1f)) {
                 Text(platform.label, color = KitsugiColors.TextPrimary,
                     style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Black)
-                Text("${sections.size} kategori · $distinctItemCount içerik",
+                Text(stringResource(R.string.inline_1_s_categories_2_s_bcaabf2, sections.size, distinctItemCount),
                     color = color, style = MaterialTheme.typography.labelMedium)
             }
             IconButton(onClick = onToggle) {
                 Icon(if (expanded) Icons.Rounded.ExpandLess else Icons.Rounded.ExpandMore,
-                    contentDescription = "${platform.label} alanını ${if (expanded) "daralt" else "genişlet"}", tint = color)
+                    contentDescription = stringResource(R.string.x_alanini_x, platform.label, if (expanded) "daralt" else stringResource(R.string.genislet)), tint = color)
             }
         }
         Spacer(Modifier.height(10.dp))
@@ -314,13 +315,13 @@ private fun SourceHeader(
         if (state.isLoading) {
             Spacer(Modifier.height(12.dp))
             LinearProgressIndicator(modifier = Modifier.fillMaxWidth(), color = color)
-            Text(if (state.payload != null) "İçerikler güncelleniyor…" else "Bu kaynağın keşif alanı hazırlanıyor…",
+            Text(if (state.payload != null) stringResource(R.string.ui_explore_updating) else stringResource(R.string.ui_source_discovery_loading),
                 modifier = Modifier.padding(top = 6.dp), color = KitsugiColors.TextSecondary, style = MaterialTheme.typography.bodySmall)
         } else if (state.error != null) {
             Text(state.error, Modifier.padding(top = 10.dp), color = KitsugiColors.TextSecondary, style = MaterialTheme.typography.bodySmall)
-            TextButton(onClick = onRetry) { Text("${platform.shortName} için yeniden dene", color = color) }
+            TextButton(onClick = onRetry) { Text(KitsugiStrings.get(R.string.inline_retry_for_1_s_0db943e, platform.shortName), color = color) }
         } else if (sections.isEmpty()) {
-            Text("İçerik filtrelerine uygun sonuç yok.", Modifier.padding(top = 10.dp),
+            Text(stringResource(R.string.inline_no_results_match_the_content_1026716), Modifier.padding(top = 10.dp),
                 color = KitsugiColors.TextSecondary, style = MaterialTheme.typography.bodySmall)
         }
         if (expanded && sections.isNotEmpty()) {

@@ -46,7 +46,7 @@ fun CollectionManagementScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Koleksiyonlarım", fontWeight = FontWeight.Bold) },
+                title = { Text(stringResource(R.string.inline_my_collections_ff95e62), fontWeight = FontWeight.Bold) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
                         Icon(Icons.Rounded.ArrowBack, contentDescription = stringResource(R.string.geri))
@@ -75,10 +75,10 @@ fun CollectionManagementScreen(
                 contentAlignment = Alignment.Center
             ) {
                 KitsugiEmptyState(
-                    title = "Henüz koleksiyon yok",
-                    subtitle = "Favori içeriklerini düzenlemek için koleksiyon oluştur",
+                    title = stringResource(R.string.henuz_koleksiyon_yok),
+                    subtitle = stringResource(R.string.favori_iceriklerini_duzenlemek_icin_koleksiyon_olustur),
                     icon = Icons.Rounded.FolderOpen,
-                    actionText = "Koleksiyon Oluştur",
+                    actionText = stringResource(R.string.koleksiyon_olustur),
                     onActionClick = onCreateCollection
                 )
             }
@@ -113,12 +113,12 @@ fun CollectionManagementScreen(
         AlertDialog(
             onDismissRequest = { showDeleteDialog = null },
             icon = { Icon(Icons.Rounded.Delete, contentDescription = null, tint = MaterialTheme.colorScheme.error) },
-            title = { Text("Koleksiyonu Sil") },
-            text = { Text("\"${folder.emoji} ${folder.name}\" koleksiyonu kalıcı olarak silinecek. İçindeki ${folder.itemCount} öğe listeden çıkarılacak.") },
+            title = { Text(stringResource(R.string.koleksiyonu_sil)) },
+            text = { Text(stringResource(R.string.x_x_koleksiyonu_kalici_olarak_silinecek_icindeki_x_oge_listeden, folder.emoji, folder.name, folder.itemCount)) },
             confirmButton = {
                 KitsugiButton(
                     onClick = { onDeleteFolder(folder); showDeleteDialog = null }
-                ) { Text("Sil") }
+                ) { Text(stringResource(R.string.action_delete)) }
             },
             dismissButton = {
                 OutlinedButton(onClick = { showDeleteDialog = null }) { Text(stringResource(R.string.iptal)) }
@@ -153,12 +153,12 @@ private fun CollectionFolderRow(
                             Icon(Icons.Rounded.Lock, contentDescription = "Gizli", modifier = Modifier.size(14.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                     }
-                    Text("${folder.itemCount} öğe", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(stringResource(R.string.inline_1_s_items_2d83e8a, folder.itemCount), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
             Row {
                 IconButton(onClick = onDelete) {
-                    Icon(Icons.Rounded.DeleteOutline, contentDescription = "Sil", tint = MaterialTheme.colorScheme.error)
+                    Icon(Icons.Rounded.DeleteOutline, contentDescription = stringResource(R.string.action_delete), tint = MaterialTheme.colorScheme.error)
                 }
                 Icon(Icons.Rounded.ChevronRight, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
             }

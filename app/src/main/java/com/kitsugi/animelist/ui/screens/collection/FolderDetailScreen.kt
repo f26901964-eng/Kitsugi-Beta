@@ -16,6 +16,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.res.stringResource
 import com.kitsugi.animelist.R
+import com.kitsugi.animelist.utils.KitsugiStrings
 
 /**
  * V2-D04 – FolderDetailScreen
@@ -53,7 +54,7 @@ fun FolderDetailScreen(
                         Text(folder.emoji, style = MaterialTheme.typography.titleLarge)
                         Column {
                             Text(folder.name, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                            Text("${items.size} öğe", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text(stringResource(R.string.inline_1_s_items_2d83e8a, items.size), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                     }
                 },
@@ -67,10 +68,10 @@ fun FolderDetailScreen(
                         TextButton(onClick = { reorderMode = false }) { Text("Bitti") }
                     } else {
                         IconButton(onClick = { reorderMode = true }) {
-                            Icon(Icons.Rounded.DragHandle, contentDescription = "Sırayı Düzenle")
+                            Icon(Icons.Rounded.DragHandle, contentDescription = stringResource(R.string.sirayi_duzenle))
                         }
                         IconButton(onClick = onEditFolder) {
-                            Icon(Icons.Rounded.Edit, contentDescription = "Klasörü Düzenle")
+                            Icon(Icons.Rounded.Edit, contentDescription = stringResource(R.string.klasoru_duzenle))
                         }
                     }
                 }
@@ -85,8 +86,8 @@ fun FolderDetailScreen(
             ) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Icon(Icons.Rounded.FolderOpen, contentDescription = null, modifier = Modifier.size(56.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
-                    Text("Bu koleksiyon boş", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    Text("Detay sayfasından içerikleri ekleyebilirsin", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(stringResource(R.string.inline_this_collection_is_empty_852ab9f), style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(stringResource(R.string.inline_you_can_add_titles_from_a587f29), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
         } else {
@@ -111,10 +112,10 @@ fun FolderDetailScreen(
     itemToRemove?.let { item ->
         AlertDialog(
             onDismissRequest = { itemToRemove = null },
-            title = { Text("Koleksiyondan Çıkar") },
-            text = { Text("\"${item.title}\" bu koleksiyondan kaldırılsın mı?") },
+            title = { Text(stringResource(R.string.inline_remove_from_collection_7ac9883)) },
+            text = { Text(stringResource(R.string.inline_remove_1_s_from_this_28bfbf1, item.title)) },
             confirmButton = {
-                KitsugiButton(onClick = { onRemoveItem(item); itemToRemove = null }) { Text("Çıkar") }
+                KitsugiButton(onClick = { onRemoveItem(item); itemToRemove = null }) { Text(KitsugiStrings.get(R.string.inline_remove_2b5bd53)) }
             },
             dismissButton = {
                 OutlinedButton(onClick = { itemToRemove = null }) { Text(stringResource(R.string.iptal)) }

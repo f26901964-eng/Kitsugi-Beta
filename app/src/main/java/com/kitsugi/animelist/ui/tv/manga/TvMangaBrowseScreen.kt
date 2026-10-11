@@ -190,7 +190,7 @@ fun TvMangaBrowseScreen(
                 }
                 Spacer(Modifier.width(16.dp))
                 Text(
-                    "Manga Keşfet",
+                    stringResource(R.string.inline_discover_manga_eb24f62),
                     style = MaterialTheme.typography.titleLarge,
                     color = KitsugiColors.TextPrimary,
                     fontWeight = FontWeight.Bold
@@ -322,12 +322,12 @@ fun TvMangaBrowseScreen(
                                 )
                                 Spacer(Modifier.height(12.dp))
                                 Text(
-                                    "Manga bulunamadı",
+                                    stringResource(R.string.inline_no_manga_found_1c8e980),
                                     color = KitsugiColors.TextSecondary,
                                     style = MaterialTheme.typography.bodyLarge
                                 )
                                 Text(
-                                    "Ayarlardan manga eklentisi ekle",
+                                    stringResource(R.string.ayarlardan_manga_eklentisi_ekle),
                                     color = KitsugiColors.TextMuted,
                                     style = MaterialTheme.typography.bodyMedium
                                 )

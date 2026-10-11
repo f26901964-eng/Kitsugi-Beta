@@ -66,6 +66,7 @@ import kotlinx.collections.immutable.toImmutableList
 import kotlinx.coroutines.delay
 import androidx.compose.ui.res.stringResource
 import com.kitsugi.animelist.R
+import com.kitsugi.animelist.utils.KitsugiStrings
 
 // How long (ms) controls stay visible when playing
 private const val CONTROLS_HIDE_DELAY_MS = 5_000L
@@ -318,7 +319,7 @@ fun PlayerControls(
                 ) {
                     Icon(
                         imageVector        = Icons.Default.Lock,
-                        contentDescription = "Kilidi Aç",
+                        contentDescription = KitsugiStrings.get(R.string.kilidi_ac),
                         tint               = Color.White,
                         modifier           = Modifier.size(36.dp)
                     )
@@ -570,7 +571,7 @@ fun PlayerControls(
                     }
 
                     Text(
-                        text  = "Sonraki bölüm $bingeCountdown saniye içinde başlayacak…",
+                        text  = KitsugiStrings.get(R.string.inline_next_episode_starts_in_1_5ec8d9e, bingeCountdown),
                         style = MaterialTheme.typography.bodyMedium,
                         color = Color.White.copy(alpha = 0.8f)
                     )

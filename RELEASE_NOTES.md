@@ -50,6 +50,10 @@
 ### 🎬 10. Bangumi REAL İçeriklerde Film / Dizi Ayrımı ve Tür Güvenliği
 - **Platform Tabanlı Eşleme:** Bangumi REAL kategorisindeki canlı çekim (live-action) yapımlar platform bilgisine göre doğru bir şekilde Film (Movie) ve Dizi (TV) türlerine dönüştürülür.
 - **Anime Varsayılanı Kaldırıldı:** Desteklenmeyen (müzik, oyun vb.) veya belirsiz türdeki Bangumi kayıtlarının otomatik olarak Anime şeklinde içe aktarılması engellendi.
+### 🌍 11. Kapsamlı İngilizce Dil Tamamlama (Batch 2)
+- **825 Yeni Dil Kaynağı:** `values/strings.xml` ve `values-en/strings.xml` 4.234'ten 5.052 anahtara çıkarıldı; TR/EN tam parite sağlandı.
+- **1.685 Kod Noktası Kaynağa Bağlandı:** Kod içine gömülü sabit metinler temizlenerek 891 `stringResource` ve Composable olmayan katmanlar için 794 `KitsugiStrings.get` çağrısına bağlandı (288 dosya).
+- **Yeni KitsugiStrings Altyapısı:** ViewModel, servis ve veri katmanlarında güvenli ve erken aşamada başlatılan metin çözücü mimarisi devreye alındı.
 
 ---
 
@@ -103,6 +107,10 @@
 ### 🎬 10. REAL Media Type Classification & Safety
 - **Platform-Aware Mapping:** Bangumi REAL entries are accurately mapped to Movie or TV based on platform metadata.
 - **No False Anime Defaults:** Unsupported categories (music, games) or unknown types are rejected rather than incorrectly defaulting to Anime.
+### 🌍 11. Comprehensive English Localization (Batch 2)
+- **825 New Localization Keys:** Resource files expanded to 5,052 strings with 100% TR/EN parity across all screens.
+- **1,685 Hardcoded Call Sites Cleaned:** Migrated 891 `stringResource` and 794 `KitsugiStrings.get` points across 288 files.
+- **KitsugiStrings Architecture:** Non-Composable string resolver providing robust localization across ViewModels and background services.
 
 ---
 

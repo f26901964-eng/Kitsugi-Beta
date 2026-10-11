@@ -32,6 +32,7 @@ import com.kitsugi.animelist.ui.theme.KitsugiColors
 import com.kitsugi.animelist.ui.theme.LocalKitsugiAccent
 import androidx.compose.ui.res.stringResource
 import com.kitsugi.animelist.R
+import com.kitsugi.animelist.utils.KitsugiStrings
 
 // ─────────────────────────────────────────────────────────────────────────────
 // MOTOR HIZLI ÇİP BİLEŞENLERİ
@@ -82,7 +83,7 @@ fun AniListQuickChips(uiState: SearchUiState, viewModel: SearchViewModel) {
             horizontalArrangement = Arrangement.spacedBy(6.dp)
         ) {
             val statuses = listOf(
-                "RELEASING" to "🟢 Devam Ediyor",
+                "RELEASING" to stringResource(R.string.devam_ediyor),
                 "FINISHED" to "🏁 Tamamlandı",
                 "NOT_YET_RELEASED" to "⏳ Yakında",
                 "CANCELLED" to "🚫 İptal"
@@ -154,7 +155,7 @@ fun MalQuickChips(uiState: SearchUiState, viewModel: SearchViewModel) {
             horizontalArrangement = Arrangement.spacedBy(6.dp)
         ) {
             val statuses = listOf(
-                "airing" to "🟢 Devam Ediyor", "complete" to "🏁 Tamamlandı", "upcoming" to "⏳ Yakında"
+                "airing" to stringResource(R.string.devam_ediyor), "complete" to stringResource(R.string.tamamlandi_0999d40), "upcoming" to stringResource(R.string.yakinda_f079b97)
             )
             statuses.forEach { (key, label) ->
                 val isSelected = filters.status == key
@@ -168,7 +169,7 @@ fun MalQuickChips(uiState: SearchUiState, viewModel: SearchViewModel) {
             }
 
             val ratings = listOf(
-                "g" to "👶 Tüm Yaşlar (G)",
+                "g" to stringResource(R.string.tum_yaslar_g),
                 "pg" to "🧒 Çocuklar (PG)",
                 "pg13" to "🧑 13+ (PG-13)",
                 "r17" to "🔞 17+ (R)"
@@ -214,7 +215,7 @@ fun TmdbQuickChips(uiState: SearchUiState, viewModel: SearchViewModel) {
             }
 
             val countries = listOf(
-                "TR" to "🇹🇷 Türkiye", "US" to "🇺🇸 ABD", "KR" to "🇰🇷 G. Kore",
+                "TR" to stringResource(R.string.turkiye), "US" to "🇺🇸 ABD", "KR" to "🇰🇷 G. Kore",
                 "JP" to "🇯🇵 Japonya", "GB" to "🇬🇧 Birleşik Krallık", "FR" to "🇫🇷 Fransa"
             )
             countries.forEach { (code, label) ->
@@ -302,7 +303,7 @@ fun ShikimoriQuickChips(uiState: SearchUiState, viewModel: SearchViewModel) {
             horizontalArrangement = Arrangement.spacedBy(6.dp)
         ) {
             val statuses = listOf(
-                "ongoing" to "🟢 Devam Ediyor", "released" to "🏁 Tamamlandı", "anons" to "⏳ Yakında"
+                "ongoing" to stringResource(R.string.devam_ediyor), "released" to stringResource(R.string.tamamlandi_0999d40), "anons" to stringResource(R.string.yakinda_f079b97)
             )
             statuses.forEach { (key, label) ->
                 val isSelected = filters.statuses.contains(key)
@@ -354,7 +355,7 @@ fun KitsuQuickChips(uiState: SearchUiState, viewModel: SearchViewModel) {
             horizontalArrangement = Arrangement.spacedBy(6.dp)
         ) {
             val statuses = listOf(
-                "current" to "🟢 Devam Ediyor", "finished" to "🏁 Tamamlandı", "upcoming" to "⏳ Yakında"
+                "current" to stringResource(R.string.devam_ediyor), "finished" to stringResource(R.string.tamamlandi_0999d40), "upcoming" to stringResource(R.string.yakinda_f079b97)
             )
             statuses.forEach { (key, label) ->
                 val isSelected = filters.statuses.contains(key)
@@ -382,7 +383,7 @@ fun SimklQuickChips(uiState: SearchUiState, viewModel: SearchViewModel) {
         horizontalArrangement = Arrangement.spacedBy(6.dp)
     ) {
         val periods = listOf(
-            "today" to "🔥 Bugün",
+            "today" to stringResource(R.string.bugun),
             "week" to "📅 Bu Hafta",
             "month" to "🗓️ Bu Ay"
         )
@@ -424,7 +425,7 @@ private fun AllEnginesQuickChips(uiState: SearchUiState, viewModel: SearchViewMo
         horizontalArrangement = Arrangement.spacedBy(6.dp)
     ) {
         Text(
-            text = "🌐 6 platformun (AniList, MAL, TMDB, Shikimori, Kitsu, Simkl) tüm kaynakları eşzamanlı taranıyor.",
+            text = stringResource(R.string.inline_searching_all_sources_across_6_817f37d),
             style = MaterialTheme.typography.bodySmall.copy(color = KitsugiColors.TextMuted),
             modifier = Modifier.padding(horizontal = 4.dp, vertical = 6.dp)
         )
@@ -597,7 +598,7 @@ fun applyEngineSort(engine: SearchSourceEngine, sortKey: String, viewModel: Sear
  */
 fun sortOptionsForEngine(engine: SearchSourceEngine): List<Pair<String, String>> = when (engine) {
         SearchSourceEngine.ANILIST, SearchSourceEngine.ALL -> listOf(
-            "POPULARITY_DESC" to "👥 En Popüler",
+            "POPULARITY_DESC" to KitsugiStrings.get(R.string.en_populer),
             "SCORE_DESC" to "⭐ En Yüksek Puanlı",
             "TRENDING_DESC" to "🔥 Şimdi Trend Olanlar",
             "FAVOURITES_DESC" to "💖 En Çok Favorilenenler",
@@ -606,20 +607,20 @@ fun sortOptionsForEngine(engine: SearchSourceEngine): List<Pair<String, String>>
             "TITLE_ROMAJI" to "🔤 İsim: A-Z"
         )
         SearchSourceEngine.MAL -> listOf(
-            "members" to "👥 Popülerlik (Üye Sayısı)",
+            "members" to KitsugiStrings.get(R.string.populerlik_uye_sayisi),
             "score" to "⭐ Puan: Yüksekten Düşüğe",
             "favorites" to "💖 En Çok Favorilenenler",
             "start_date" to "📅 Yayın Tarihi: Yeniden Eskiye",
             "title" to "🔤 İsim: A-Z"
         )
         SearchSourceEngine.TMDB -> listOf(
-            "popularity.desc" to "👥 Popülerlik",
+            "popularity.desc" to KitsugiStrings.get(R.string.populerlik_848cd60),
             "vote_average.desc" to "⭐ Puan: Yüksekten Düşüğe",
             "primary_release_date.desc" to "📅 Çıkış Tarihi: En Yeniler",
             "revenue.desc" to "💰 Gişe / Hasılat"
         )
         SearchSourceEngine.SHIKIMORI -> listOf(
-            "popularity" to "👥 Popülerlik",
+            "popularity" to KitsugiStrings.get(R.string.populerlik_848cd60),
             "ranked" to "⭐ Puan Sıralaması",
             "aired_on" to "📅 Yayın Tarihi",
             "name" to "🔤 İsim: A-Z"
@@ -631,12 +632,12 @@ fun sortOptionsForEngine(engine: SearchSourceEngine): List<Pair<String, String>>
             "-createdAt" to "📅 En Yeni Eklenenler"
         )
         SearchSourceEngine.SIMKL -> listOf(
-            "rank" to "🏆 Genel Sıralama",
+            "rank" to KitsugiStrings.get(R.string.genel_siralama),
             "votes" to "👥 Oy Sayısı",
             "rating" to "⭐ Puan"
         )
         SearchSourceEngine.BANGUMI -> listOf(
-            "match" to "🎯 En İyi Eşleşme",
+            "match" to KitsugiStrings.get(R.string.en_iyi_eslesme),
             "heat" to "🔥 İlgi (收藏热度)",
             "rank" to "🏆 Sıra (Rank)",
             "score" to "⭐ Puan: Yüksekten Düşüğe"
@@ -740,7 +741,7 @@ fun BangumiQuickChips(uiState: SearchUiState, viewModel: SearchViewModel) {
             horizontalArrangement = Arrangement.spacedBy(6.dp)
         ) {
             val sorts = listOf(
-                "match" to "🎯 Eşleşme", "heat" to "🔥 İlgi", "rank" to "🏆 Sıra", "score" to "⭐ Puan"
+                "match" to stringResource(R.string.eslesme), "heat" to stringResource(R.string.ilgi), "rank" to stringResource(R.string.sira), "score" to stringResource(R.string.puan)
             )
             sorts.forEach { (key, label) ->
                 QuickFilterToggleChip(
@@ -767,7 +768,7 @@ fun BangumiQuickChips(uiState: SearchUiState, viewModel: SearchViewModel) {
                 add((currentYear - 26) to null)
             }
             val yearLabels = listOf(
-                "📅 Tüm Yıllar",
+                stringResource(R.string.tum_yillar),
                 currentYear.toString(), (currentYear - 1).toString(), (currentYear - 2).toString(),
                 (currentYear - 3).toString(), "${currentYear - 6}+", "${currentYear - 16}+", "${currentYear - 26}+"
             )
@@ -786,7 +787,7 @@ fun BangumiQuickChips(uiState: SearchUiState, viewModel: SearchViewModel) {
                 .horizontalScroll(rememberScrollState()),
             horizontalArrangement = Arrangement.spacedBy(6.dp)
         ) {
-            val scores = listOf(null to "⭐ Tüm Puanlar", 6 to "6+", 7 to "7+", 8 to "8+", 9 to "9+")
+            val scores = listOf(null to stringResource(R.string.tum_puanlar), 6 to "6+", 7 to "7+", 8 to "8+", 9 to "9+")
             scores.forEach { (score, label) ->
                 QuickFilterToggleChip(
                     label = label,

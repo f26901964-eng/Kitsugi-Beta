@@ -85,7 +85,7 @@ internal fun PlayerBufferTab(
     )
 
     val backOptions = listOf(
-        0 to "Devre Dışı",
+        0 to stringResource(R.string.player_intro_off),
         5000 to "5 Saniye",
         10000 to "10 Saniye",
         15000 to "15 Saniye",
@@ -107,14 +107,14 @@ internal fun PlayerBufferTab(
     ) {
         item {
             KitsugiSettingsSection(
-                title = "Gelişmiş Arabellek Yönetimi",
-                subtitle = "Yavaş bağlantılarda takılmaları önlemek veya bellek kullanımını azaltmak için ExoPlayer arabelleğini özelleştirin."
+                title = stringResource(R.string.gelismis_arabellek_yonetimi),
+                subtitle = stringResource(R.string.yavas_baglantilarda_takilmalari_onlemek_veya_bellek_kullanimini)
             ) {
                 // Minimum Arabellek
                 Box {
                     KitsugiSettingsListItem(
                         title = "Minimum Arabellek (Min Buffer)",
-                        description = "Gerekli minimum arabellek süresi",
+                        description = stringResource(R.string.gerekli_minimum_arabellek_suresi),
                         value = currentMinStr,
                         icon = Icons.Rounded.NetworkCheck,
                         iconColor = accentColor,
@@ -140,7 +140,7 @@ internal fun PlayerBufferTab(
                 Box {
                     KitsugiSettingsListItem(
                         title = "Maksimum Arabellek (Max Buffer)",
-                        description = "İzin verilen maksimum arabellek süresi",
+                        description = stringResource(R.string.izin_verilen_maksimum_arabellek_suresi),
                         value = currentMaxStr,
                         icon = Icons.Rounded.NetworkCheck,
                         iconColor = accentColor,
@@ -165,8 +165,8 @@ internal fun PlayerBufferTab(
                 // Oynatmayı Başlatma Süresi
                 Box {
                     KitsugiSettingsListItem(
-                        title = "Oynatmayı Başlatma Süresi",
-                        description = "Oynatmayı başlatmadan önce gereken arabellek süresi",
+                        title = stringResource(R.string.oynatmayi_baslatma_suresi),
+                        description = stringResource(R.string.oynatmayi_baslatmadan_once_gereken_arabellek_suresi),
                         value = currentPlayStr,
                         icon = Icons.Rounded.NetworkCheck,
                         iconColor = accentColor,
@@ -191,8 +191,8 @@ internal fun PlayerBufferTab(
                 // Takılma Sonrası Başlatma Süresi
                 Box {
                     KitsugiSettingsListItem(
-                        title = "Takılma Sonrası Başlatma Süresi",
-                        description = "Arabellek boşaldığında oynatmanın devam etmesi için gereken süre",
+                        title = stringResource(R.string.takilma_sonrasi_baslatma_suresi),
+                        description = stringResource(R.string.arabellek_bosaldiginda_oynatmanin_devam_etmesi_icin_gereken_sure),
                         value = currentRebStr,
                         icon = Icons.Rounded.NetworkCheck,
                         iconColor = accentColor,
@@ -217,8 +217,8 @@ internal fun PlayerBufferTab(
                 // Geriye Dönük Arabellek
                 Box {
                     KitsugiSettingsListItem(
-                        title = "Geriye Dönük Arabellek (Back Buffer)",
-                        description = "Geri sarıldığında anında oynatma için saklanan arabellek süresi",
+                        title = stringResource(R.string.geriye_donuk_arabellek_back_buffer),
+                        description = stringResource(R.string.geri_sarildiginda_aninda_oynatma_icin_saklanan_arabellek_suresi),
                         value = currentBackStr,
                         icon = Icons.Rounded.NetworkCheck,
                         iconColor = accentColor,
@@ -243,11 +243,11 @@ internal fun PlayerBufferTab(
         item {
             KitsugiSettingsSection(
                 title = stringResource(R.string.paralel_indirme),
-                subtitle = "MKV ve MP4 gibi progressive içerikler için çok bağlantılı chunk indirme. HLS/DASH çökenez; uyumlu olmayan sunucularda otomatik olarak tek bağlantı moduna geçer."
+                subtitle = stringResource(R.string.mkv_ve_mp4_gibi_progressive_icerikler_icin_cok_baglantili_chunk)
             ) {
                 KitsugiSettingsSwitchItem(
                     title = stringResource(R.string.paralel_indirme),
-                    description = if (parallelRangeEnabled) "Etkin — 3 eşzamanlı bağlantı, 512 KB chunk" else "Devre Dışı — Tek bağlantı modu",
+                    description = if (parallelRangeEnabled) stringResource(R.string.etkin_3_eszamanli_baglanti_512_kb_chunk) else stringResource(R.string.devre_disi_tek_baglanti_modu),
                     icon = Icons.Rounded.SystemUpdateAlt,
                     iconColor = accentColor,
                     checked = parallelRangeEnabled,

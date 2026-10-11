@@ -55,6 +55,7 @@ import com.kitsugi.animelist.ui.components.KitsugiAccountConnectionsDialog
 import com.kitsugi.animelist.ui.screens.account.KitsugiAccountContent
 import com.kitsugi.animelist.ui.components.KitsugiAddonsSettingsDialog
 import com.kitsugi.animelist.ui.components.KitsugiChoiceOption
+import com.kitsugi.animelist.utils.KitsugiStrings
 import com.kitsugi.animelist.ui.components.KitsugiConfirmDialog
 import com.kitsugi.animelist.ui.components.KitsugiIntegrationsSettingsDialog
 import com.kitsugi.animelist.ui.components.KitsugiPlayerSettingsDialog
@@ -1128,15 +1129,16 @@ private fun SettingsIntegrationsContent(integrations: IntegrationsSettings) {
 
 // ─── Tema seçenekleri (statik) ────────────────────────────────────────────────
 
-private val themeOptions = listOf(
-    KitsugiChoiceOption("mint", "Mint", "Mevcut Kitsugi açık mint teması", Color(0xFFC8F4EF)),
-    KitsugiChoiceOption("pink", "Pembe", "Canlı pembe vurgu rengi", KitsugiColors.AccentPink),
-    KitsugiChoiceOption("purple", "Mor", "Neon ve modern mor görünüm", KitsugiColors.AccentPurple),
-    KitsugiChoiceOption("blue", "Mavi", "Sade ve temiz mavi vurgu", KitsugiColors.AccentBlue),
-    KitsugiChoiceOption("green", "Yeşil", "Doğal ve dengeli yeşil vurgu", KitsugiColors.AccentGreen),
-    KitsugiChoiceOption("red", "Kırmızı", "Tutkulu ve enerjik kırmızı vurgu", KitsugiColors.AccentRed),
-    KitsugiChoiceOption("orange", "Turuncu", "Dinamik ve sıcak turuncu vurgu", KitsugiColors.AccentOrange),
-    KitsugiChoiceOption("yellow", "Sarı", "Parlak ve neşeli sarı vurgu", KitsugiColors.AccentYellow),
-    KitsugiChoiceOption("teal", "Turkuaz", "Ferah ve sakin turkuaz vurgu", KitsugiColors.AccentTeal),
-    KitsugiChoiceOption("indigo", "İndigo", "Zengin ve derin indigo vurgu", KitsugiColors.AccentIndigo)
-)
+private val themeOptions: List<KitsugiChoiceOption>
+    get() = listOf(
+        KitsugiChoiceOption("mint", "Mint", KitsugiStrings.get(R.string.mevcut_kitsugi_acik_mint_temasi), Color(0xFFC8F4EF)),
+        KitsugiChoiceOption("pink", "Pembe", "Canlı pembe vurgu rengi", KitsugiColors.AccentPink),
+        KitsugiChoiceOption("purple", "Mor", "Neon ve modern mor görünüm", KitsugiColors.AccentPurple),
+        KitsugiChoiceOption("blue", "Mavi", "Sade ve temiz mavi vurgu", KitsugiColors.AccentBlue),
+        KitsugiChoiceOption("green", "Yeşil", "Doğal ve dengeli yeşil vurgu", KitsugiColors.AccentGreen),
+        KitsugiChoiceOption("red", "Kırmızı", "Tutkulu ve enerjik kırmızı vurgu", KitsugiColors.AccentRed),
+        KitsugiChoiceOption("orange", "Turuncu", "Dinamik ve sıcak turuncu vurgu", KitsugiColors.AccentOrange),
+        KitsugiChoiceOption("yellow", "Sarı", "Parlak ve neşeli sarı vurgu", KitsugiColors.AccentYellow),
+        KitsugiChoiceOption("teal", "Turkuaz", "Ferah ve sakin turkuaz vurgu", KitsugiColors.AccentTeal),
+        KitsugiChoiceOption("indigo", "İndigo", "Zengin ve derin indigo vurgu", KitsugiColors.AccentIndigo)
+    )

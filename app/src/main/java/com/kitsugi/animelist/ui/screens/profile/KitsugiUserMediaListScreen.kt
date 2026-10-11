@@ -87,6 +87,7 @@ import com.kitsugi.animelist.ui.utils.tvClickable
 import kotlinx.coroutines.launch
 import androidx.compose.ui.res.stringResource
 import com.kitsugi.animelist.R
+import com.kitsugi.animelist.utils.KitsugiStrings
 
 /**
  * Başka bir kullanıcının AniList kütüphanesi.
@@ -396,7 +397,7 @@ fun KitsugiUserMediaListScreen(
                         item {
                             Spacer(modifier = Modifier.height(8.dp))
                             Text(
-                                text = "${visibleEntries.size} sonuç",
+                                text = KitsugiStrings.get(R.string.inline_1_s_results_b4b4d39, visibleEntries.size),
                                 color = colors.textMuted,
                                 style = MaterialTheme.typography.labelMedium,
                                 fontWeight = FontWeight.Bold,
@@ -577,7 +578,7 @@ fun KitsugiUserMediaListScreen(
 
     infoMessage?.let { message ->
         KitsugiInfoDialog(
-            title = "Kullanıcı Listesi",
+            title = KitsugiStrings.get(R.string.kullanici_listesi),
             message = message,
             onDismiss = { infoMessage = null }
         )

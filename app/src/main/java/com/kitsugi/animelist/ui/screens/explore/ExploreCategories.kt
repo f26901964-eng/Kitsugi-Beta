@@ -28,6 +28,7 @@ import androidx.compose.ui.unit.dp
 import com.kitsugi.animelist.R
 import com.kitsugi.animelist.data.remote.JikanSearchResult
 import com.kitsugi.animelist.ui.theme.KitsugiColors
+import com.kitsugi.animelist.utils.KitsugiStrings
 
 @Composable
 fun TmdbCategoriesSection(
@@ -97,7 +98,7 @@ fun TmdbCategoriesSection(
                     .padding(top = 16.dp, start = 4.dp, end = 4.dp)
             ) {
                 Text(
-                    text = "Dizi ve Film",
+                    text = stringResource(R.string.dizi_ve_film),
                     style = MaterialTheme.typography.titleSmall,
                     fontWeight = FontWeight.Bold,
                     color = KitsugiColors.TextSecondary
@@ -110,7 +111,7 @@ fun TmdbCategoriesSection(
                     item {
                         ExploreCategoryChip(
                             label = stringResource(R.string.trend_her_sey),
-                            onClick = { onSeeAllSection("Trend Her Şey", ExploreCategoryType.TOP_ANIME, filteredTopAnime) }
+                            onClick = { onSeeAllSection(KitsugiStrings.get(R.string.explore_tmdb_trending_all), ExploreCategoryType.TOP_ANIME, filteredTopAnime) }
                         )
                     }
                     item {
@@ -128,31 +129,31 @@ fun TmdbCategoriesSection(
                     item {
                         ExploreCategoryChip(
                             label = stringResource(R.string.populer_diziler),
-                            onClick = { onSeeAllSection("Popüler Diziler", ExploreCategoryType.TOP_MANGA, filteredTopManga) }
+                            onClick = { onSeeAllSection(KitsugiStrings.get(R.string.explore_tmdb_popular_shows), ExploreCategoryType.TOP_MANGA, filteredTopManga) }
                         )
                     }
                     item {
                         ExploreCategoryChip(
                             label = stringResource(R.string.populer_filmler),
-                            onClick = { onSeeAllSection("Popüler Filmler", ExploreCategoryType.UPCOMING_ANIME, filteredUpcomingAnime) }
+                            onClick = { onSeeAllSection(KitsugiStrings.get(R.string.explore_tmdb_popular_movies), ExploreCategoryType.UPCOMING_ANIME, filteredUpcomingAnime) }
                         )
                     }
                     item {
                         ExploreCategoryChip(
                             label = stringResource(R.string.yakinda_yayinda),
-                            onClick = { onSeeAllSection("Yakında Yayında", ExploreCategoryType.UPCOMING_MEDIA_TMDB, filteredUpcomingMediaTmdb) }
+                            onClick = { onSeeAllSection(KitsugiStrings.get(R.string.explore_airing_soon), ExploreCategoryType.UPCOMING_MEDIA_TMDB, filteredUpcomingMediaTmdb) }
                         )
                     }
                     item {
                         ExploreCategoryChip(
                             label = stringResource(R.string.en_yuksek_puanli_diziler),
-                            onClick = { onSeeAllSection("En Yüksek Puanlı Diziler", ExploreCategoryType.SEASONAL_ANIME, filteredSeasonalAnime) }
+                            onClick = { onSeeAllSection(KitsugiStrings.get(R.string.en_yuksek_puanli_diziler), ExploreCategoryType.SEASONAL_ANIME, filteredSeasonalAnime) }
                         )
                     }
                     item {
                         ExploreCategoryChip(
                             label = stringResource(R.string.en_yuksek_puanli_filmler),
-                            onClick = { onSeeAllSection("En Yüksek Puanlı Filmler", ExploreCategoryType.PUBLISHING_MANGA, filteredPublishingManga) }
+                            onClick = { onSeeAllSection(KitsugiStrings.get(R.string.en_yuksek_puanli_filmler), ExploreCategoryType.PUBLISHING_MANGA, filteredPublishingManga) }
                         )
                     }
                 }
@@ -179,19 +180,19 @@ fun TmdbCategoriesSection(
                     item {
                         ExploreCategoryChip(
                             label = stringResource(R.string.populer_animeler),
-                            onClick = { onSeeAllSection("Popüler Animeler", ExploreCategoryType.NEWLY_ADDED_ANIME, filteredNewlyAddedAnime) }
+                            onClick = { onSeeAllSection(KitsugiStrings.get(R.string.populer_animeler), ExploreCategoryType.NEWLY_ADDED_ANIME, filteredNewlyAddedAnime) }
                         )
                     }
                     item {
                         ExploreCategoryChip(
                             label = stringResource(R.string.en_yuksek_puanli_animeler),
-                            onClick = { onSeeAllSection("En Yüksek Puanlı Animeler", ExploreCategoryType.TRENDING_MANGA, filteredTrendingManga) }
+                            onClick = { onSeeAllSection(KitsugiStrings.get(R.string.explore_top_rated_anime), ExploreCategoryType.TRENDING_MANGA, filteredTrendingManga) }
                         )
                     }
                     item {
                         ExploreCategoryChip(
                             label = stringResource(R.string.yakinda_yayinda),
-                            onClick = { onSeeAllSection("Yakında Yayında", ExploreCategoryType.UPCOMING_MEDIA_TMDB, filteredUpcomingMediaTmdb) }
+                            onClick = { onSeeAllSection(KitsugiStrings.get(R.string.explore_airing_soon), ExploreCategoryType.UPCOMING_MEDIA_TMDB, filteredUpcomingMediaTmdb) }
                         )
                     }
                     item {

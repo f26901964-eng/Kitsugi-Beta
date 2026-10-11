@@ -7,6 +7,8 @@ import android.util.Log
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import com.kitsugi.animelist.ui.screens.fullscreen.KitsugiFullscreenPlayerActivity
+import com.kitsugi.animelist.utils.KitsugiStrings
+import com.kitsugi.animelist.R
 
 /**
  * T1.14 – DownloadedPlayerActivity
@@ -47,7 +49,7 @@ class DownloadedPlayerActivity : ComponentActivity() {
                     subtitles = emptyList()
                 )
             } else {
-                Toast.makeText(this, "Geçersiz veya güvenli olmayan dosya adresi.", Toast.LENGTH_LONG).show()
+                Toast.makeText(this, KitsugiStrings.get(R.string.gecersiz_veya_guvenli_olmayan_dosya_adresi), Toast.LENGTH_LONG).show()
             }
         }
         finish()

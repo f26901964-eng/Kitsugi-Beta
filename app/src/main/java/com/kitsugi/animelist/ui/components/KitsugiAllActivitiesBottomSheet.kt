@@ -41,6 +41,7 @@ import kotlinx.coroutines.launch
 import androidx.compose.foundation.clickable
 import androidx.compose.ui.res.stringResource
 import com.kitsugi.animelist.R
+import com.kitsugi.animelist.utils.KitsugiStrings
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -208,7 +209,7 @@ fun KitsugiAllActivitiesBottomSheet(
                                 .clip(RoundedCornerShape(16.dp))
                                 .background(KitsugiColors.SurfaceStrong)
                                 .tvClickable(shape = RoundedCornerShape(16.dp)) {
-                                    Toast.makeText(context, "Yükleniyor...", Toast.LENGTH_SHORT).show()
+                                    Toast.makeText(context, KitsugiStrings.get(R.string.loading), Toast.LENGTH_SHORT).show()
                                     activeActivityIdForDetail = act.id
                                 }
                                 .padding(14.dp)
@@ -340,13 +341,13 @@ fun KitsugiAllActivitiesBottomSheet(
                                         onClick = {
                                             val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
                                             clipboard.setPrimaryClip(android.content.ClipData.newPlainText("activity_text", act.text))
-                                            Toast.makeText(context, "Panoya kopyalandı", Toast.LENGTH_SHORT).show()
+                                            Toast.makeText(context, KitsugiStrings.get(R.string.toast_copied_clipboard), Toast.LENGTH_SHORT).show()
                                         },
                                         modifier = Modifier.size(28.dp)
                                     ) {
                                         Icon(
                                             imageVector = Icons.Rounded.ContentCopy,
-                                            contentDescription = "Kopyala",
+                                            contentDescription = KitsugiStrings.get(R.string.action_copy),
                                             tint = KitsugiColors.TextSecondary,
                                             modifier = Modifier.size(14.dp)
                                         )
@@ -369,7 +370,7 @@ fun KitsugiAllActivitiesBottomSheet(
                                                     }
                                                 }
                                             } else {
-                                                Toast.makeText(context, "Lütfen önce giriş yapın", Toast.LENGTH_SHORT).show()
+                                                Toast.makeText(context, KitsugiStrings.get(R.string.lutfen_once_giris_yapin), Toast.LENGTH_SHORT).show()
                                             }
                                         }
                                     }

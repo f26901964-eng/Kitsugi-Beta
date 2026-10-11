@@ -112,7 +112,7 @@ fun MalProfileContent(
         item {
             val context = LocalContext.current
             val avatarUrl = state.avatarUrl?.takeIf { it.isNotBlank() }
-            val username = state.name.ifBlank { "MyAnimeList Kullanıcısı" }
+            val username = state.name.ifBlank { stringResource(R.string.myanimelist_kullanicisi) }
 
             Box(
                 modifier = Modifier
@@ -221,7 +221,7 @@ fun MalProfileContent(
                     verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
                     val tabs = listOf(
-                        Icons.Rounded.Info to "Hakkında",
+                        Icons.Rounded.Info to stringResource(R.string.character_tab_about),
                         Icons.Rounded.ChatBubble to "Aktivite",
                         Icons.Rounded.BarChart to "İstatistikler",
                         Icons.Rounded.Star to "Favoriler",
@@ -267,7 +267,7 @@ fun MalProfileContent(
                         ) {
                             item {
                                 ProfileFilterChip(
-                                    text = "Arkadaşlar (${userList.size})",
+                                    text = stringResource(R.string.arkadaslar_x, userList.size),
                                     isSelected = true,
                                     accentColor = accentColor,
                                     onClick = {}
@@ -350,7 +350,7 @@ fun MalProfileContent(
                                         .padding(18.dp)
                                 ) {
                                     Text(
-                                        text = "MyAnimeList Profil Özeti",
+                                        text = stringResource(R.string.inline_myanimelist_profile_overview_6996234),
                                         color = KitsugiColors.TextPrimary,
                                         style = MaterialTheme.typography.titleMedium,
                                         fontWeight = FontWeight.Bold

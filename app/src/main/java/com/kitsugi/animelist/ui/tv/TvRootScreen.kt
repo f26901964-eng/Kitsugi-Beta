@@ -49,6 +49,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.kitsugi.animelist.data.remote.ApiSearchSelection
+import com.kitsugi.animelist.utils.KitsugiStrings
 import com.kitsugi.animelist.utils.parseToMediaType
 import com.kitsugi.animelist.ui.tv.detail.TvDetailScreen
 import androidx.tv.material3.ExperimentalTvMaterial3Api
@@ -889,7 +890,7 @@ fun TvRootScreen(
                 entry.endDate.isNullOrBlank()) today else endDate
             val updatedEntry = entry.copy(
                 title = title,
-                subtitle = if (subtitle.isBlank()) "Manuel eklenen içerik" else subtitle,
+                subtitle = if (subtitle.isBlank()) KitsugiStrings.get(R.string.manuel_eklenen_icerik) else subtitle,
                 type = type,
                 status = status,
                 isAdult = isAdult,

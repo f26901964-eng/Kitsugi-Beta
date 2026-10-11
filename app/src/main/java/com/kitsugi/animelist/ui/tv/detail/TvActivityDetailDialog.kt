@@ -44,6 +44,7 @@ import com.kitsugi.animelist.ui.theme.KitsugiColors
 import com.kitsugi.animelist.ui.theme.LocalKitsugiAccent
 import com.kitsugi.animelist.ui.utils.tvClickable
 import kotlinx.coroutines.launch
+import com.kitsugi.animelist.utils.KitsugiStrings
 
 @Composable
 fun TvActivityDetailDialog(
@@ -189,7 +190,7 @@ fun TvActivityDetailDialog(
                                             isActLikedState = !isActLikedState
                                             actLikesState = if (isActLikedState) actLikesState + 1 else actLikesState - 1
                                         } else {
-                                            Toast.makeText(context, "Lütfen önce giriş yapın", Toast.LENGTH_SHORT).show()
+                                            Toast.makeText(context, KitsugiStrings.get(R.string.lutfen_once_giris_yapin), Toast.LENGTH_SHORT).show()
                                         }
                                     }
                                 }
@@ -544,7 +545,7 @@ private fun TvActivityReplyCard(
                                 likedState = !likedState
                                 likeCountState = if (likedState) likeCountState + 1 else likeCountState - 1
                             } else {
-                                Toast.makeText(context, "Lütfen önce giriş yapın", Toast.LENGTH_SHORT).show()
+                                Toast.makeText(context, KitsugiStrings.get(R.string.lutfen_once_giris_yapin), Toast.LENGTH_SHORT).show()
                             }
                         }
                     }

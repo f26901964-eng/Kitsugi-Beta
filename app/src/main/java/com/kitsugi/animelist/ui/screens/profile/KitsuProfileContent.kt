@@ -50,6 +50,7 @@ import com.kitsugi.animelist.utils.KitsugiTranslateUtils.openTranslator
 import kotlinx.coroutines.launch
 import androidx.compose.ui.res.stringResource
 import com.kitsugi.animelist.R
+import com.kitsugi.animelist.utils.KitsugiStrings
 
 @Composable
 fun KitsuProfileContent(
@@ -101,7 +102,7 @@ fun KitsuProfileContent(
         item {
             val avatarUrl = state.avatarUrl?.takeIf { it.isNotBlank() }
             val bannerUrl = state.bannerUrl?.takeIf { it.isNotBlank() }
-            val username = state.name.ifBlank { "Kitsu Kullanıcısı" }
+            val username = state.name.ifBlank { stringResource(R.string.kitsu_kullanicisi) }
 
             Box(
                 modifier = Modifier
@@ -239,7 +240,7 @@ fun KitsuProfileContent(
                     verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
                     val tabs = listOf(
-                        Icons.Rounded.Info to "Hakkında",
+                        Icons.Rounded.Info to stringResource(R.string.character_tab_about),
                         Icons.Rounded.BarChart to "İstatistikler",
                         Icons.Rounded.Bookmarks to "Kütüphane"
                     )
@@ -342,11 +343,11 @@ private fun KitsuAboutTab(
                                 onClick = {
                                     val cm = context.getSystemService(Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
                                     cm.setPrimaryClip(android.content.ClipData.newPlainText("Kitsu Bio", state.about))
-                                    Toast.makeText(context, "Biyografi kopyalandı", Toast.LENGTH_SHORT).show()
+                                    Toast.makeText(context, KitsugiStrings.get(R.string.biyografi_kopyalandi), Toast.LENGTH_SHORT).show()
                                 },
                                 modifier = Modifier.size(32.dp)
                             ) {
-                                Icon(Icons.Rounded.ContentCopy, contentDescription = "Kopyala", tint = KitsugiColors.TextMuted, modifier = Modifier.size(16.dp))
+                                Icon(Icons.Rounded.ContentCopy, contentDescription = stringResource(R.string.action_copy), tint = KitsugiColors.TextMuted, modifier = Modifier.size(16.dp))
                             }
                             IconButton(
                                 onClick = { context.openTranslator(state.about) },
@@ -387,7 +388,7 @@ private fun KitsuAboutTab(
                 accentColor = Color(0xFFFD755C)
             )
             KitsuStatCard(
-                title = "Puan",
+                title = stringResource(R.string.detail_stat_score),
                 value = if (state.avgScore > 0) String.format("%.1f", state.avgScore) else "-",
                 icon = Icons.Rounded.Star,
                 modifier = Modifier.weight(1f),
@@ -494,7 +495,7 @@ private fun KitsuAboutTab(
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 Text(
-                    text = "Hesap Bilgileri",
+                    text = stringResource(R.string.hesap_bilgileri),
                     color = KitsugiColors.TextPrimary,
                     fontWeight = FontWeight.Bold,
                     fontSize = 15.sp
@@ -510,13 +511,13 @@ private fun KitsuAboutTab(
                     AttributeRow(icon = Icons.Rounded.Person, label = "Cinsiyet", value = state.gender)
                 }
                 if (!state.birthday.isNullOrBlank()) {
-                    AttributeRow(icon = Icons.Rounded.Cake, label = "Doğum Günü", value = state.birthday)
+                    AttributeRow(icon = Icons.Rounded.Cake, label = stringResource(R.string.info_label_birthday), value = state.birthday)
                 }
                 if (!state.joinedAt.isNullOrBlank()) {
                     val formattedDate = state.joinedAt.take(10)
-                    AttributeRow(icon = Icons.Rounded.CalendarToday, label = "Katılım Tarihi", value = formattedDate)
+                    AttributeRow(icon = Icons.Rounded.CalendarToday, label = stringResource(R.string.katilim_tarihi), value = formattedDate)
                 }
-                AttributeRow(icon = Icons.Rounded.People, label = "Takipçi / Takip", value = "${state.followersCount} / ${state.followingCount}")
+                AttributeRow(icon = Icons.Rounded.People, label = stringResource(R.string.takipci_takip), value = "${state.followersCount} / ${state.followingCount}")
                 AttributeRow(icon = Icons.Rounded.Comment, label = "Yorumlar", value = state.commentsCount.toString())
             }
         }
@@ -613,7 +614,7 @@ private fun KitsuStatsTab(
                 verticalArrangement = Arrangement.spacedBy(14.dp)
             ) {
                 Text(
-                    text = "Kütüphane Durumu",
+                    text = stringResource(R.string.inline_library_status_6c45df9),
                     color = KitsugiColors.TextPrimary,
                     fontWeight = FontWeight.Bold,
                     fontSize = 15.sp
@@ -634,7 +635,7 @@ private fun KitsuStatsTab(
                     if (state.dropped > 0) Box(modifier = Modifier.weight(state.dropped.toFloat() / total).fillMaxHeight().background(KitsugiColors.AccentRed))
                 }
 
-                StatusRow(label = "İzleniyor / Okunuyor", count = state.watching, color = KitsugiColors.AccentGreen)
+                StatusRow(label = stringResource(R.string.system_status_current), count = state.watching, color = KitsugiColors.AccentGreen)
                 StatusRow(label = stringResource(R.string.tamamlandi), count = state.completed, color = accentColor)
                 StatusRow(label = stringResource(R.string.planlandi), count = state.planned, color = KitsugiColors.AccentYellow)
                 StatusRow(label = stringResource(R.string.beklemede), count = state.paused, color = KitsugiColors.AccentOrange)
@@ -657,13 +658,13 @@ private fun KitsuStatsTab(
             ) {
                 Column {
                     Text(
-                        text = "Ortalama Puan",
+                        text = stringResource(R.string.ortalama_puan),
                         color = KitsugiColors.TextMuted,
                         fontSize = 13.sp
                     )
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
-                        text = if (state.avgScore > 0) String.format("%.2f / 10", state.avgScore) else "Puanlanmadı",
+                        text = if (state.avgScore > 0) String.format("%.2f / 10", state.avgScore) else stringResource(R.string.ui_rating_unrated),
                         color = KitsugiColors.TextPrimary,
                         fontSize = 22.sp,
                         fontWeight = FontWeight.Bold
@@ -703,7 +704,7 @@ private fun KitsuLibraryTab(
                 )
                 Spacer(modifier = Modifier.height(12.dp))
                 Text(
-                    text = "Kütüphane kaydı bulunamadı.",
+                    text = stringResource(R.string.inline_no_library_entry_found_8619075),
                     color = KitsugiColors.TextMuted,
                     fontSize = 14.sp
                 )

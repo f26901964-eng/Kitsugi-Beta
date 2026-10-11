@@ -28,6 +28,8 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import com.kitsugi.animelist.data.cloudstream.diag.CsTrace
+import com.kitsugi.animelist.utils.KitsugiStrings
+import com.kitsugi.animelist.R
 
 /**
  * ViewModel for the stream picker screen.
@@ -473,7 +475,7 @@ class StreamViewModel(application: Application) : AndroidViewModel(application) 
                 CsTrace.warn("CloudStream", "inventory", message)
                 stateUpdateMutex.withLock {
                     _addonStates.value = _addonStates.value + AddonFetchState(
-                        addonName = "CloudStream video sağlayıcıları",
+                        addonName = KitsugiStrings.get(R.string.cloudstream_video_saglayicilari),
                         isLoading = false,
                         error = message
                     )

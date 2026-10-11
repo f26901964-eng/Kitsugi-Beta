@@ -89,7 +89,7 @@ fun SourceEngineSelectorPill(
         }
         Icon(
             imageVector = Icons.Rounded.ArrowDropDown,
-            contentDescription = "Motor Seç",
+            contentDescription = stringResource(R.string.motor_sec),
             tint = accentColor,
             modifier = Modifier.size(16.dp)
         )
@@ -132,14 +132,14 @@ fun SourceEnginePickerSheet(
                 .padding(bottom = 32.dp)
         ) {
             Text(
-                text = "Arama Kaynağı Seç",
+                text = stringResource(R.string.inline_choose_search_source_20e924f),
                 style = MaterialTheme.typography.titleLarge.copy(
                     fontWeight = FontWeight.Bold,
                     color = KitsugiColors.TextPrimary
                 )
             )
             Text(
-                text = "Hangi veritabanında arama yapmak istiyorsun?",
+                text = stringResource(R.string.inline_which_database_would_you_like_679fdaf),
                 style = MaterialTheme.typography.bodySmall.copy(
                     color = KitsugiColors.TextMuted
                 ),
@@ -149,7 +149,7 @@ fun SourceEnginePickerSheet(
             SearchSourceEngine.entries.forEach { engine ->
                 val isSelected = engine == selectedEngine
                 val description = when (engine) {
-                    SearchSourceEngine.ALL -> "7 platformda eşzamanlı birleşik arama"
+                    SearchSourceEngine.ALL -> stringResource(R.string.platformda_7_eszamanli_birlesik_arama)
                     SearchSourceEngine.ANILIST -> "En zengin anime, manga, manhwa ve stüdyo veritabanı"
                     SearchSourceEngine.MAL -> "Klasik MyAnimeList kataloğu, dergiler ve yapımcılar"
                     SearchSourceEngine.TMDB -> "Film, dizi, oyuncu ve yapım şirketleri"

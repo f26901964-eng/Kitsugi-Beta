@@ -62,7 +62,7 @@ fun KitsugiSearchStatusChip(
         DialogWithCheckboxSelection(
             values = KitsugiMediaStatus.entries,
             defaultValues = selectedStatuses,
-            title = "Durum",
+            title = stringResource(R.string.detail_info_status),
             onConfirm = { openDialog = false; onStatusesChanged(it) },
             onDismiss = { openDialog = false }
         )
@@ -71,7 +71,7 @@ fun KitsugiSearchStatusChip(
     FilterChip(
         selected = selectedStatuses.isNotEmpty(),
         onClick = { openDialog = true },
-        label = { Text(text = "Durum") }
+        label = { Text(text = stringResource(R.string.detail_info_status)) }
     )
 }
 
@@ -83,7 +83,7 @@ fun KitsugiSearchCountryChip(
     onCountryChanged: (KitsugiCountryOfOrigin?) -> Unit,
 ) {
     KitsugiChipWithMenu(
-        title = "Ülke",
+        title = stringResource(R.string.ulke),
         values = KitsugiCountryOfOrigin.entries,
         selectedValue = selectedCountry,
         onValueSelected = onCountryChanged,
@@ -219,7 +219,7 @@ fun KitsugiSearchEpChDurationChip(
                 onValueChanged = onEpChChanged
             )
             KitsugiChipWithRange(
-                title = "Süre (dk)",
+                title = stringResource(R.string.sure_dk),
                 startValue = minDuration?.toFloat(),
                 endValue = maxDuration?.toFloat(),
                 minValue = 0f,
@@ -259,7 +259,7 @@ fun KitsugiTriFilterChip(
             if (value == true) {
                 Icon(
                     imageVector = Icons.Rounded.Check,
-                    contentDescription = "Evet"
+                    contentDescription = stringResource(R.string.action_yes)
                 )
             } else if (value == false) {
                 Icon(

@@ -537,13 +537,13 @@ fun ExploreScreen(
                                             )
                                             Column {
                                                 Text(
-                                                    text = "Çevrimdışı / Önbellek Modu",
+                                                    text = stringResource(R.string.inline_offline_cache_mode_63b3c6b),
                                                     style = MaterialTheme.typography.labelLarge,
                                                     fontWeight = FontWeight.Bold,
                                                     color = KitsugiColors.TextPrimary
                                                 )
                                                 Text(
-                                                    text = "İnternet bağlantısı kesildi veya sunucu yanıt vermiyor. Son başarılı önbelleğe alınan veriler gösteriliyor.",
+                                                    text = stringResource(R.string.inline_the_internet_connection_is_down_56227de),
                                                     style = MaterialTheme.typography.bodySmall,
                                                     color = KitsugiColors.TextSecondary
                                                 )
@@ -581,7 +581,7 @@ fun ExploreScreen(
                                                         )
                                                         Spacer(Modifier.width(6.dp))
                                                         Text(
-                                                            text = "TMDB API Anahtarı Ayarla",
+                                                            text = stringResource(R.string.inline_set_tmdb_api_key_d93a3ee),
                                                             fontWeight = FontWeight.SemiBold
                                                         )
                                                     }
@@ -649,8 +649,8 @@ fun ExploreScreen(
                             } else if (isCatalogEmpty) {
                                 item {
                                     KitsugiEmptyState(
-                                        title = "Gösterilecek İçerik Yok",
-                                        subtitle = "Seçilen platformda görüntülenebilecek medya bulunamadı."
+                                        title = stringResource(R.string.gosterilecek_icerik_yok_bce80b2),
+                                        subtitle = stringResource(R.string.secilen_platformda_goruntulenebilecek_medya_bulunamadi)
                                     )
                                 }
                             } else {

@@ -141,14 +141,14 @@ internal fun AiringCalendarHeader(
         Spacer(modifier = Modifier.width(10.dp))
         Column(modifier = Modifier.weight(1f)) {
             Text(
-                text = "Bu Hafta Yayında",
+                text = stringResource(R.string.inline_airing_this_week_88ac172),
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold,
                 color = KitsugiColors.TextPrimary
             )
             if (totalCount > 0) {
                 Text(
-                    text = if (isTmdb) "$totalCount içerik" else "$totalCount bölüm",
+                    text = if (isTmdb) stringResource(R.string.x_icerik, totalCount) else stringResource(R.string.inline_1_s_episodes_d91c30c, totalCount),
                     style = MaterialTheme.typography.labelSmall,
                     color = KitsugiColors.TextSecondary
                 )
@@ -831,7 +831,7 @@ internal fun AiringErrorState(
         )
         Spacer(modifier = Modifier.height(12.dp))
         Text(
-            text = "Takvim yüklenemedi",
+            text = stringResource(R.string.inline_failed_to_load_calendar_93e29bb),
             style = MaterialTheme.typography.titleSmall,
             color = KitsugiColors.TextPrimary,
             fontWeight = FontWeight.SemiBold

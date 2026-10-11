@@ -122,7 +122,7 @@ fun UserProfileStatsTab(
                     if (ov.scoreList.isNotEmpty()) {
                         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                             Text(
-                                text = "Puan",
+                                text = stringResource(R.string.detail_stat_score),
                                 color = KitsugiColors.TextPrimary,
                                 style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.Bold
@@ -178,7 +178,7 @@ fun UserProfileStatsTab(
                         HorizontalDivider(color = KitsugiColors.SurfaceStrong)
                         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                             Text(
-                                text = if (statsMediaType == 0) "Bölüm Sayısı" else "Cilt/Bölüm Sayısı",
+                                text = if (statsMediaType == 0) stringResource(R.string.ui_stats_episode_count) else stringResource(R.string.ui_stats_volume_episode_count),
                                 color = KitsugiColors.TextPrimary,
                                 style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.Bold
@@ -209,7 +209,7 @@ fun UserProfileStatsTab(
                                 item {
                                     FilterChipItem(
                                         selected = lengthDistType == 2,
-                                        text = "Ortalama Puan",
+                                        text = stringResource(R.string.ortalama_puan),
                                         onClick = { lengthDistType = 2 },
                                         accentColor = accentColor
                                     )
@@ -346,7 +346,7 @@ fun UserProfileStatsTab(
                                 item {
                                     FilterChipItem(
                                         selected = releaseYearDistType == 2,
-                                        text = "Ortalama Puan",
+                                        text = stringResource(R.string.ortalama_puan),
                                         onClick = { releaseYearDistType = 2 },
                                         accentColor = accentColor
                                     )
@@ -375,7 +375,7 @@ fun UserProfileStatsTab(
                         HorizontalDivider(color = KitsugiColors.SurfaceStrong)
                         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                             Text(
-                                text = if (statsMediaType == 0) "İzleme Yılı" else "Okuma Yılı",
+                                text = if (statsMediaType == 0) stringResource(R.string.ui_stats_watch_year) else stringResource(R.string.ui_stats_read_year),
                                 color = KitsugiColors.TextPrimary,
                                 style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.Bold
@@ -406,7 +406,7 @@ fun UserProfileStatsTab(
                                 item {
                                     FilterChipItem(
                                         selected = startYearDistType == 2,
-                                        text = "Ortalama Puan",
+                                        text = stringResource(R.string.ortalama_puan),
                                         onClick = { startYearDistType = 2 },
                                         accentColor = accentColor
                                     )
@@ -519,7 +519,7 @@ fun UserProfileStatsTab(
                     item {
                         ProfileFilterChip(
                             isSelected = viewModel.statsSortType == 2,
-                            text = "Ortalama Puan",
+                            text = stringResource(R.string.ortalama_puan),
                             onClick = { viewModel.statsSortType = 2 },
                             accentColor = accentColor
                         )

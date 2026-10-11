@@ -29,6 +29,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.kitsugi.animelist.ui.theme.KitsugiColors
+import androidx.compose.ui.res.stringResource
+import com.kitsugi.animelist.R
 
 @Composable
 fun TorrentOverlay(
@@ -89,7 +91,7 @@ fun TorrentOverlay(
                             modifier = Modifier.size(16.dp)
                         )
                         Text(
-                            text = "Torrent Bağlantısı",
+                            text = stringResource(R.string.inline_torrent_link_86073aa),
                             color = Color.White,
                             fontSize = 12.sp,
                             fontWeight = FontWeight.Bold
@@ -102,7 +104,7 @@ fun TorrentOverlay(
                         ) {
                             Icon(
                                 imageVector = Icons.Rounded.Close,
-                                contentDescription = "Gizle",
+                                contentDescription = stringResource(R.string.gizle),
                                 tint = Color.White.copy(alpha = 0.6f),
                                 modifier = Modifier.size(14.dp)
                             )
@@ -114,13 +116,13 @@ fun TorrentOverlay(
                 val us = android.text.format.Formatter.formatFileSize(LocalContext.current, uploadSpeedBytes) + "/s"
 
                 Text(
-                    text = "İndirme: $ds",
+                    text = stringResource(R.string.inline_download_1_s_4c6ff04, ds),
                     color = KitsugiColors.Accent,
                     fontSize = 11.sp,
                     fontWeight = FontWeight.SemiBold
                 )
                 Text(
-                    text = "Yükleme: $us",
+                    text = stringResource(R.string.inline_upload_1_s_943af78, us),
                     color = KitsugiColors.TextSecondary,
                     fontSize = 11.sp
                 )

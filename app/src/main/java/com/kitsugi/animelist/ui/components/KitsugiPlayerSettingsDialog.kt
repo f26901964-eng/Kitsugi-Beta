@@ -1742,7 +1742,7 @@ fun KitsugiPlayerSettingsDialog(
                                             contentAlignment = Alignment.Center
                                         ) {
                                             Text(
-                                                "Bu dizinde dosya bulunmuyor.",
+                                                stringResource(R.string.bu_dizinde_dosya_bulunmuyor),
                                                 color = KitsugiColors.TextSecondary
                                             )
                                         }

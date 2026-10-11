@@ -60,6 +60,7 @@ import java.util.Date
 import java.util.Locale
 import androidx.compose.ui.res.stringResource
 import com.kitsugi.animelist.R
+import com.kitsugi.animelist.utils.KitsugiStrings
 
 /**
  * Model representing any downloaded subtitle on disk (standalone or episode-bound).
@@ -145,7 +146,7 @@ fun DownloadsScreen(
                 )
             }
             Text(
-                text = "İndirmeler",
+                text = stringResource(R.string.settings_downloads),
                 color = KitsugiColors.TextPrimary,
                 fontSize = 20.sp,
                 fontWeight = FontWeight.Bold,
@@ -176,7 +177,7 @@ fun DownloadsScreen(
             ) {
                 Icon(
                     imageVector = Icons.Rounded.FolderOpen,
-                    contentDescription = "İndirme Klasörünü Aç",
+                    contentDescription = stringResource(R.string.indirme_klasorunu_ac),
                     tint = accentColor
                 )
             }
@@ -235,7 +236,7 @@ fun DownloadsScreen(
                             tint = if (pagerState.currentPage == 1) accentColor else KitsugiColors.TextMuted
                         )
                         Text(
-                            text = "Altyazılar (${allSubtitles.size})",
+                            text = stringResource(R.string.inline_subtitles_1_s_b81ee5c, allSubtitles.size),
                             fontWeight = if (pagerState.currentPage == 1) FontWeight.Bold else FontWeight.Normal,
                             color = if (pagerState.currentPage == 1) KitsugiColors.TextPrimary else KitsugiColors.TextMuted
                         )
@@ -290,7 +291,7 @@ fun DownloadsScreen(
                         )
                         Spacer(modifier = Modifier.height(16.dp))
                         Text(
-                            text = "Henüz indirilmiş veya sıraya alınmış video yok.",
+                            text = stringResource(R.string.inline_no_videos_have_been_downloaded_89e49a0),
                             color = KitsugiColors.TextMuted,
                             fontSize = 14.sp
                         )
@@ -333,7 +334,7 @@ fun DownloadsScreen(
                                                 val lang = subFile.nameWithoutExtension.removePrefix(baseName).trim('.', '_')
                                                 com.kitsugi.animelist.core.player.SubtitleInput(
                                                     url = "file://${subFile.absolutePath}",
-                                                    name = lang.ifBlank { "Altyazı" },
+                                                    name = lang.ifBlank { KitsugiStrings.get(R.string.bangumi_tag_subtitles) },
                                                     lang = lang.ifBlank { "tr" }
                                                 )
                                             } ?: emptyList()
@@ -342,7 +343,7 @@ fun DownloadsScreen(
                                         KitsugiFullscreenPlayerActivity.startWithStreamUrls(
                                             context = context,
                                             videoUrl = "file://$path",
-                                            title = "${download.animeTitle} - Bölüm ${download.episode}",
+                                            title = KitsugiStrings.get(R.string.title_bolum_episode, download.animeTitle, download.episode),
                                             headers = emptyMap(),
                                             subtitles = companionSubs
                                         )
@@ -394,14 +395,14 @@ fun DownloadsScreen(
                             )
                             Spacer(modifier = Modifier.height(16.dp))
                             Text(
-                                text = "Henüz indirilmiş altyazı bulunamadı.",
+                                text = stringResource(R.string.inline_no_downloaded_subtitles_found_yet_160c9c9),
                                 color = KitsugiColors.TextMuted,
                                 fontSize = 14.sp,
                                 fontWeight = FontWeight.Medium
                             )
                             Spacer(modifier = Modifier.height(4.dp))
                             Text(
-                                text = "Oynatıcıdaki altyazı listesinden indirdiğiniz altyazılar burada görünür.",
+                                text = stringResource(R.string.inline_subtitles_downloaded_from_the_play_3fcd255),
                                 color = KitsugiColors.TextMuted.copy(alpha = 0.7f),
                                 fontSize = 12.sp
                             )
@@ -423,7 +424,7 @@ fun DownloadsScreen(
                                 onDelete = {
                                     if (subItem.file.exists()) {
                                         subItem.file.delete()
-                                        Toast.makeText(context, "Altyazı silindi: ${subItem.title}", Toast.LENGTH_SHORT).show()
+                                        Toast.makeText(context, KitsugiStrings.get(R.string.altyazi_silindi_x, subItem.title), Toast.LENGTH_SHORT).show()
                                         refreshSubsTrigger++
                                     }
                                 }
@@ -537,14 +538,14 @@ fun DownloadedImagesTab(
                 )
                 Spacer(modifier = Modifier.height(16.dp))
                 Text(
-                    text = "Henüz indirilmiş resim bulunamadı.",
+                    text = stringResource(R.string.inline_no_downloaded_images_found_yet_02e4efb),
                     color = KitsugiColors.TextMuted,
                     fontSize = 14.sp,
                     fontWeight = FontWeight.Medium
                 )
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
-                    text = "Galeri ekranından resimleri indirdiğinizde burada görünür.",
+                    text = stringResource(R.string.inline_images_downloaded_from_the_gallery_af98e85),
                     color = KitsugiColors.TextMuted.copy(alpha = 0.7f),
                     fontSize = 12.sp
                 )
@@ -632,7 +633,7 @@ fun DownloadedImagesTab(
                             },
                             size = 26.dp,
                             expandedWidth = 78.dp,
-                            contentDescription = "Bu içeriğin tüm indirilen resimlerini sil"
+                            contentDescription = stringResource(R.string.bu_icerigin_tum_indirilen_resimlerini_sil)
                         )
                     }
                 }
@@ -872,7 +873,7 @@ fun DownloadItemRow(
                 if (!download.streamName.isNullOrBlank()) {
                     Spacer(modifier = Modifier.height(2.dp))
                     Text(
-                        text = "Yayın: ${download.streamName}",
+                        text = stringResource(R.string.inline_stream_1_s_038cf7a, download.streamName),
                         color = accentColor,
                         fontSize = 13.sp,
                         fontWeight = FontWeight.Bold,
@@ -896,7 +897,7 @@ fun DownloadItemRow(
                     horizontalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
                     Text(
-                        text = "Bölüm ${download.episode} • ${download.quality}",
+                        text = stringResource(R.string.inline_episode_1_s_2_s_32608a4, download.episode, download.quality),
                         color = KitsugiColors.TextSecondary,
                         fontSize = 13.sp
                     )
@@ -935,7 +936,7 @@ fun DownloadItemRow(
                             formatBytes(download.downloadedBytes)
                         }
                         Text(
-                            text = "İndiriliyor... $sizeText (%${download.progress})",
+                            text = stringResource(R.string.inline_downloading_1_s_2_s_40c4645, sizeText, download.progress),
                             color = accentColor,
                             fontSize = 11.sp,
                             fontWeight = FontWeight.Bold
@@ -943,7 +944,7 @@ fun DownloadItemRow(
                     }
                     AnimeDownload.Status.QUEUE -> {
                         Text(
-                            text = "Sırada bekliyor...",
+                            text = stringResource(R.string.inline_queued_195de15),
                             color = KitsugiColors.TextMuted,
                             fontSize = 12.sp
                         )
@@ -966,7 +967,7 @@ fun DownloadItemRow(
                     }
                     AnimeDownload.Status.ERROR -> {
                         Text(
-                            text = "Hata oluştu!",
+                            text = stringResource(R.string.inline_an_error_occurred_2cd4106),
                             color = KitsugiColors.AccentRed,
                             fontSize = 12.sp,
                             fontWeight = FontWeight.Bold
@@ -1003,7 +1004,7 @@ fun DownloadItemRow(
                     }
                     AnimeDownload.Status.PAUSED, AnimeDownload.Status.ERROR, AnimeDownload.Status.QUEUE -> {
                         IconButton(onClick = onResume, modifier = Modifier.size(36.dp)) {
-                            Icon(Icons.Rounded.PlayArrow, contentDescription = "Başlat", tint = accentColor, modifier = Modifier.size(20.dp))
+                            Icon(Icons.Rounded.PlayArrow, contentDescription = stringResource(R.string.tv_start), tint = accentColor, modifier = Modifier.size(20.dp))
                         }
                     }
                     AnimeDownload.Status.COMPLETED -> {
@@ -1044,7 +1045,7 @@ fun DownloadItemRow(
                         modifier = Modifier.size(15.dp)
                     )
                     Text(
-                        text = "İndirilen Altyazılar (${localSubs.size})",
+                        text = stringResource(R.string.inline_downloaded_subtitles_1_s_2e9132a, localSubs.size),
                         color = KitsugiColors.TextSecondary,
                         fontSize = 12.sp,
                         fontWeight = FontWeight.Bold
@@ -1103,7 +1104,7 @@ fun DownloadItemRow(
                         ) {
                             Icon(
                                 imageVector = Icons.Rounded.FolderOpen,
-                                contentDescription = "Altyazı Klasörünü Aç",
+                                contentDescription = stringResource(R.string.altyazi_klasorunu_ac),
                                 tint = KitsugiColors.AccentOrange,
                                 modifier = Modifier.size(17.dp)
                             )
@@ -1242,7 +1243,7 @@ fun SubtitleCardItem(
                 KitsugiAnimatedDeleteButton(
                     onDelete = onDelete,
                     size = 34.dp,
-                    contentDescription = "Altyazıyı Sil"
+                    contentDescription = stringResource(R.string.altyaziyi_sil)
                 )
             }
         }
@@ -1428,7 +1429,7 @@ fun openFolderInFileManager(context: Context, targetFileOrDir: File) {
     // Copy absolute path to clipboard for quick paste in any file explorer
     runCatching {
         val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager
-        val clip = ClipData.newPlainText("Klasör Konumu", folder.absolutePath)
+        val clip = ClipData.newPlainText(KitsugiStrings.get(R.string.klasor_konumu), folder.absolutePath)
         clipboard?.setPrimaryClip(clip)
     }
 
@@ -1527,14 +1528,14 @@ fun openFolderInFileManager(context: Context, targetFileOrDir: File) {
             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         }
         context.startActivity(chooser)
-        Toast.makeText(context, "Klasör açılıyor: ${folder.name}", Toast.LENGTH_SHORT).show()
+        Toast.makeText(context, KitsugiStrings.get(R.string.klasor_aciliyor_x, folder.name), Toast.LENGTH_SHORT).show()
         return
     } catch (_: Exception) {}
     finally {
         StrictMode.setVmPolicy(oldPolicy)
     }
 
-    Toast.makeText(context, "Klasör konumu: ${folder.absolutePath}", Toast.LENGTH_LONG).show()
+    Toast.makeText(context, KitsugiStrings.get(R.string.klasor_konumu_x, folder.absolutePath), Toast.LENGTH_LONG).show()
 }
 
 private fun formatBytes(bytes: Long): String {

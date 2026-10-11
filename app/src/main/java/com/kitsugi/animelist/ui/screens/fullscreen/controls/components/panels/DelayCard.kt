@@ -39,6 +39,8 @@ import androidx.compose.ui.unit.dp
 import com.kitsugi.animelist.ui.screens.fullscreen.controls.components.OutlinedNumericChooser
 import com.kitsugi.animelist.ui.theme.KitsugiColors
 import kotlinx.coroutines.delay
+import androidx.compose.ui.res.stringResource
+import com.kitsugi.animelist.R
 
 enum class DelayType { Audio, Subtitle }
 
@@ -160,7 +162,7 @@ fun DelayCard(
                             contentColor = com.kitsugi.animelist.ui.theme.onAccentColor(KitsugiColors.Accent)
                         ),
                     ) {
-                        Text("Varsayılan olarak ayarla", fontWeight = FontWeight.Bold, color = com.kitsugi.animelist.ui.theme.onAccentColor(KitsugiColors.Accent))
+                        Text(stringResource(R.string.inline_set_as_default_03a9077), fontWeight = FontWeight.Bold, color = com.kitsugi.animelist.ui.theme.onAccentColor(KitsugiColors.Accent))
                     }
                     FilledIconButton(
                         onClick = onReset,

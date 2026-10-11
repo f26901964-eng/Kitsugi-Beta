@@ -36,6 +36,8 @@ import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.unit.dp
 import com.kitsugi.animelist.ui.screens.fullscreen.components.SubtitleStyleSettings
+import androidx.compose.ui.res.stringResource
+import com.kitsugi.animelist.R
 
 /**
  * Altyazı stil penceresi.
@@ -85,7 +87,7 @@ fun SubtitleSettingsPanel(
                     )
                 }
                 Text(
-                    text = "Altyazı Ayarları",
+                    text = stringResource(R.string.inline_subtitle_settings_60fdbff),
                     color = Color.White,
                     style = MaterialTheme.typography.headlineSmall.copy(shadow = Shadow(blurRadius = 20f)),
                 )
@@ -111,7 +113,7 @@ private fun SubtitleTypographyCard(
 ) {
     Card(colors = panelCardsColors(), modifier = modifier.widthIn(max = CARDS_MAX_WIDTH)) {
         Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            Text("Yazı Tipi", style = MaterialTheme.typography.titleMedium)
+            Text(stringResource(R.string.inline_font_0d43149), style = MaterialTheme.typography.titleMedium)
 
             Text("Boyut: ${style.size}sp", style = MaterialTheme.typography.bodySmall)
             Slider(
@@ -126,7 +128,7 @@ private fun SubtitleTypographyCard(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Text("Kalın (Bold)")
+                Text(stringResource(R.string.inline_bold_b58b92c))
                 Switch(
                     checked = style.bold,
                     onCheckedChange = { onStyleChange(style.copy(bold = it)) },
@@ -138,7 +140,7 @@ private fun SubtitleTypographyCard(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Text("Kenarlık")
+                Text(stringResource(R.string.inline_outline_c7e0ca8))
                 Switch(
                     checked = style.outlineEnabled,
                     onCheckedChange = { onStyleChange(style.copy(outlineEnabled = it)) },
@@ -156,7 +158,7 @@ private fun SubtitleMiscCard(
 ) {
     Card(colors = panelCardsColors(), modifier = modifier.widthIn(max = CARDS_MAX_WIDTH)) {
         Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            Text("Çeşitli", style = MaterialTheme.typography.titleMedium)
+            Text(stringResource(R.string.inline_miscellaneous_6d89806), style = MaterialTheme.typography.titleMedium)
 
             Text("Dikey Konum: ${style.verticalOffset}", style = MaterialTheme.typography.bodySmall)
             Slider(
@@ -171,7 +173,7 @@ private fun SubtitleMiscCard(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Text("Sadece tercih edilen dil")
+                Text(stringResource(R.string.sadece_tercih_edilen_dil))
                 Switch(
                     checked = style.showOnlyPreferredLanguages,
                     onCheckedChange = { onStyleChange(style.copy(showOnlyPreferredLanguages = it)) },

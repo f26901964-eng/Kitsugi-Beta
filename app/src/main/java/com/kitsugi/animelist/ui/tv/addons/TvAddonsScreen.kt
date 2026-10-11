@@ -192,9 +192,9 @@ fun TvAddonsScreen(
                     TvAddonsTab.STREMIO -> {
                         item {
                             TvAddonsPanelHeader(
-                                title   = "Stremio Addon Yönetimi",
+                                title   = stringResource(R.string.stremio_addon_yonetimi),
                                 subtitle = "${addons.size} addon kurulu",
-                                actionLabel = "Addon Ekle",
+                                actionLabel = stringResource(R.string.addon_ekle),
                                 actionIcon  = Icons.Default.Add,
                                 onAction    = { showAddAddonDialog = true }
                             )
@@ -208,7 +208,7 @@ fun TvAddonsScreen(
                         if (addons.isEmpty()) {
                             item {
                                 TvAddonsEmptyState(
-                                    message = "Henüz Stremio addon kurulmamış.\nEklenti eklemek için \"Addon Ekle\" butonuna basın."
+                                    message = stringResource(R.string.henuz_stremio_addon_kurulmamis_eklenti_eklemek_icin_addon_ekle_b)
                                 )
                             }
                         } else {
@@ -228,8 +228,8 @@ fun TvAddonsScreen(
                         item {
                             TvAddonsPanelHeader(
                                 title   = stringResource(R.string.repo_eklenti_havuzlari),
-                                subtitle = "${repos.size} repo tanımlı",
-                                actionLabel = "Repo Ekle",
+                                subtitle = stringResource(R.string.x_repo_tanimli, repos.size),
+                                actionLabel = stringResource(R.string.repo_ekle),
                                 actionIcon  = Icons.Default.Add,
                                 onAction    = { showAddRepoDialog = true }
                             )
@@ -237,7 +237,7 @@ fun TvAddonsScreen(
                         if (repos.isEmpty()) {
                             item {
                                 TvAddonsEmptyState(
-                                    message = "Henüz repo eklenmemiş.\n\"Repo Ekle\" ile bir eklenti havuzu tanımlayın."
+                                    message = stringResource(R.string.henuz_repo_eklenmemis_repo_ekle_ile_bir_eklenti_havuzu_tanimlayi)
                                 )
                             }
                         } else {
@@ -281,7 +281,7 @@ fun TvAddonsScreen(
         TvAddonsInputDialog(
             title       = "Addon URL Gir",
             placeholder = "https://... /manifest.json",
-            confirmLabel = "Ekle",
+            confirmLabel = stringResource(R.string.ekle),
             onConfirm   = { url ->
                 addonViewModel.addAddon(url)
                 showAddAddonDialog = false
@@ -294,7 +294,7 @@ fun TvAddonsScreen(
         TvAddonsInputDialog(
             title       = "Repo URL Gir",
             placeholder = "https://repo.example.com",
-            confirmLabel = "Ekle",
+            confirmLabel = stringResource(R.string.ekle),
             onConfirm   = { url ->
                 addonViewModel.addRepo(url)
                 showAddRepoDialog = false
@@ -500,7 +500,7 @@ private fun TvAddonCard(
                 )
             )
         ) {
-            Icon(Icons.Default.Delete, contentDescription = "Sil", tint = Color(0xFFEF5350), modifier = Modifier.padding(8.dp).size(18.dp))
+            Icon(Icons.Default.Delete, contentDescription = stringResource(R.string.action_delete), tint = Color(0xFFEF5350), modifier = Modifier.padding(8.dp).size(18.dp))
         }
     }
 
@@ -593,7 +593,7 @@ private fun TvRepoCard(
             shape   = ClickableSurfaceDefaults.shape(RoundedCornerShape(8.dp)),
             border  = ClickableSurfaceDefaults.border(focusedBorder = Border(border = androidx.compose.foundation.BorderStroke(2.dp, Color(0xFFC62828)), shape = RoundedCornerShape(8.dp)))
         ) {
-            Icon(Icons.Default.Delete, contentDescription = "Sil", tint = Color(0xFFEF5350), modifier = Modifier.padding(8.dp).size(16.dp))
+            Icon(Icons.Default.Delete, contentDescription = stringResource(R.string.action_delete), tint = Color(0xFFEF5350), modifier = Modifier.padding(8.dp).size(16.dp))
         }
     }
 

@@ -3,11 +3,13 @@ package com.kitsugi.animelist.utils
 import org.json.JSONObject
 import java.time.LocalDate
 import java.time.Period
+import com.kitsugi.animelist.utils.KitsugiStrings
+import com.kitsugi.animelist.R
 
 object KitsugiDateUtils {
 
     private val TURKISH_MONTHS = arrayOf(
-        "", "Ocak", "Şubat", "Mart", "Nisan", "Mayıs", "Haziran",
+        "", "Ocak", KitsugiStrings.get(R.string.subat), "Mart", "Nisan", KitsugiStrings.get(R.string.mayis), "Haziran",
         "Temmuz", "Ağustos", "Eylül", "Ekim", "Kasım", "Aralık"
     )
 

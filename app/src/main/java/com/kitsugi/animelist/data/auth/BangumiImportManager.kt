@@ -11,6 +11,8 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.withContext
+import com.kitsugi.animelist.utils.KitsugiStrings
+import com.kitsugi.animelist.R
 
 /**
  * Bangumi (bgm.tv) kütüphanesini içe aktarma yöneticisi.
@@ -76,7 +78,7 @@ object BangumiImportManager {
                 code = 401,
                 title = "Unauthorized",
                 description = null,
-                message = "Bangumi kullanıcı adı çözülemedi. Lütfen Bangumi hesabıyla tekrar giriş yapın."
+                message = KitsugiStrings.get(R.string.bangumi_kullanici_adi_cozulemedi_lutfen_bang)
             )
         val collections = fetchCollectionsWithRetry(context, token, effectiveUsername, subjectType)
         Log.i(TAG, "Bangumi içe aktarma: ${collections.size} koleksiyon kaydı çekildi")
@@ -195,7 +197,7 @@ object BangumiImportManager {
                     code = 401,
                     title = "Unauthorized",
                     description = null,
-                    message = "Bangumi oturumu sona erdi (HTTP 401). Lütfen Bangumi hesabıyla tekrar giriş yapın."
+                    message = KitsugiStrings.get(R.string.bangumi_oturumu_sona_erdi_http_401_lutfen_ba)
                 )
             }
             BangumiApiClient.getAllUserCollections(newToken, username, subjectType)

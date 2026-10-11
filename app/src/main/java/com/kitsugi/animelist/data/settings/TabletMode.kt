@@ -1,5 +1,8 @@
 package com.kitsugi.animelist.data.settings
 
+import com.kitsugi.animelist.utils.KitsugiStrings
+import com.kitsugi.animelist.R
+
 /**
  * V2-F05 – TabletMode
  *
@@ -18,17 +21,17 @@ enum class TabletMode(
     AUTO(
         id = "AUTO",
         label = "Otomatik",
-        description = "Ekran genişliğine göre karar verilir (≥600dp = tablet)"
+        description = KitsugiStrings.get(R.string.ekran_genisligine_gore_karar_verilir_600dp_t)
     ),
     ENABLED(
         id = "ENABLED",
         label = "Her Zaman Tablet",
-        description = "İki sütunlu bölünmüş panel düzeni zorunlu kılınır"
+        description = KitsugiStrings.get(R.string.iki_sutunlu_bolunmus_panel_duzeni_zorunlu_ki)
     ),
     DISABLED(
         id = "DISABLED",
         label = "Her Zaman Telefon",
-        description = "Tek sütunlu telefon düzeni zorunlu kılınır"
+        description = KitsugiStrings.get(R.string.tek_sutunlu_telefon_duzeni_zorunlu_kilinir)
     );
 
     companion object {

@@ -39,6 +39,7 @@ import com.kitsugi.animelist.ui.theme.LocalKitsugiAccent
 import com.kitsugi.animelist.ui.theme.KitsugiColors
 import androidx.compose.ui.res.stringResource
 import com.kitsugi.animelist.R
+import com.kitsugi.animelist.utils.KitsugiStrings
 
 @Composable
 fun KitsugiExportBackupDialog(
@@ -91,7 +92,7 @@ fun KitsugiExportBackupDialog(
 
                 Text(
                     text = if (copied) {
-                        "Yedek metni panoya kopyalandı."
+                        stringResource(R.string.ui_backup_copied_notice)
                     } else {
                         "İpucu: Kopyala butonuna basıp metni notlara veya dosyaya kaydedebilirsin."
                     },
@@ -131,7 +132,7 @@ fun KitsugiExportBackupDialog(
                         }
                     ) {
                         Text(
-                            text = if (copied) "Kopyalandı" else "Kopyala",
+                            text = if (copied) stringResource(R.string.ui_action_copied) else stringResource(R.string.action_copy),
                             color = if (backupText.isNotBlank()) {
                                 accentColor
                             } else {
@@ -193,7 +194,7 @@ fun KitsugiExportBackupDialog(
 
                     Text(
                         text = if (copied) {
-                            "Yedek metni panoya kopyalandı."
+                            stringResource(R.string.ui_backup_copied_notice)
                         } else {
                             "İpucu: Kopyala butonuna basıp metni notlara, buluta veya dosyaya kaydedebilirsin."
                         },
@@ -218,7 +219,7 @@ fun KitsugiExportBackupDialog(
                     }
                 ) {
                     Text(
-                        text = if (copied) "Kopyalandı" else "Kopyala",
+                        text = if (copied) stringResource(R.string.ui_action_copied) else stringResource(R.string.action_copy),
                         color = if (backupText.isNotBlank()) {
                             accentColor
                         } else {
@@ -272,7 +273,7 @@ fun KitsugiImportBackupDialog(
                 },
                 onFailure = { error ->
                     BackupValidationResult.Invalid(
-                        message = error.message ?: "Yedek metni okunamadı."
+                        message = error.message ?: KitsugiStrings.get(R.string.yedek_metni_okunamadi)
                     )
                 }
             )
@@ -530,7 +531,7 @@ private fun BackupValidationInfo(
                 Spacer(modifier = Modifier.height(6.dp))
 
                 Text(
-                    text = "Toplam: ${validationResult.totalCount} • Anime: ${validationResult.animeCount} • Manga: ${validationResult.mangaCount}",
+                    text = stringResource(R.string.toplam_x_anime_x_manga_x, validationResult.totalCount, validationResult.animeCount, validationResult.mangaCount),
                     color = KitsugiColors.TextSecondary,
                     style = MaterialTheme.typography.bodySmall
                 )
@@ -538,7 +539,7 @@ private fun BackupValidationInfo(
                 Spacer(modifier = Modifier.height(3.dp))
 
                 Text(
-                    text = "API kaynaklı: ${validationResult.apiCount} • Favori: ${validationResult.favoriteCount}",
+                    text = stringResource(R.string.inline_api_sourced_1_s_favorites_5fcda8b, validationResult.apiCount, validationResult.favoriteCount),
                     color = KitsugiColors.TextSecondary,
                     style = MaterialTheme.typography.bodySmall
                 )

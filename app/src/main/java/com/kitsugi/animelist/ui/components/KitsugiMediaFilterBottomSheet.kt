@@ -1,4 +1,4 @@
-﻿@file:OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
+@file:OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
 
 package com.kitsugi.animelist.ui.components
 import com.kitsugi.animelist.R
@@ -182,7 +182,7 @@ fun KitsugiMediaFilterBottomSheet(
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
-                        text = "Sıralama ve Ayırma",
+                        text = stringResource(R.string.inline_sort_group_f713972),
                         color = KitsugiColors.TextPrimary,
                         style = MaterialTheme.typography.titleSmall,
                         fontWeight = FontWeight.Bold
@@ -247,7 +247,7 @@ fun KitsugiMediaFilterBottomSheet(
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
-                        text = "Tür Filtresi",
+                        text = stringResource(R.string.inline_genre_filter_ca7a745),
                         color = KitsugiColors.TextPrimary,
                         style = MaterialTheme.typography.titleSmall,
                         fontWeight = FontWeight.Bold

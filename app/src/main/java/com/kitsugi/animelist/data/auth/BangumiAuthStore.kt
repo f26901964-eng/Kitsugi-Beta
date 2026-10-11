@@ -6,6 +6,8 @@ import android.util.Log
 import com.kitsugi.animelist.BuildConfig
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import com.kitsugi.animelist.utils.KitsugiStrings
+import com.kitsugi.animelist.R
 
 /**
  * Bangumi (bgm.tv) oturum ve uygulama kimlik bilgisi deposu.
@@ -267,7 +269,7 @@ object BangumiAuthStore {
                 code = 401,
                 title = "Unauthorized",
                 description = null,
-                message = "Bangumi oturumu sona erdi. Lütfen Bangumi hesabıyla tekrar giriş yapın."
+                message = KitsugiStrings.get(R.string.bangumi_oturumu_sona_erdi_lutfen_bangumi_hes)
             )
         }
         block(refreshed)

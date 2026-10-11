@@ -3,6 +3,8 @@ package com.kitsugi.animelist.core.player
 import android.content.Context
 import android.util.Log
 import java.io.File
+import com.kitsugi.animelist.utils.KitsugiStrings
+import com.kitsugi.animelist.R
 
 /**
  * T1.14 – OfflinePlaybackHelper
@@ -215,7 +217,7 @@ object OfflinePlaybackHelper {
                 val lang = name.substringBefore("_", "en")
                 val rest = name.substringAfter("_", "").replace("_", " ").trim().replace(Regex("\\s+"), " ")
                 val label = if (rest.isNotEmpty()) rest else when (lang) {
-                    "tr" -> "Türkçe"
+                    "tr" -> KitsugiStrings.get(R.string.pd_lang_tr)
                     "en" -> "İngilizce"
                     "ja" -> "Japonca"
                     else -> lang.uppercase()

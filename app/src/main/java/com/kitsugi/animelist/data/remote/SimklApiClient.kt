@@ -16,6 +16,8 @@ import org.json.JSONArray
 import org.json.JSONObject
 import java.net.URLEncoder
 import java.util.concurrent.ConcurrentHashMap
+import com.kitsugi.animelist.utils.KitsugiStrings
+import com.kitsugi.animelist.R
 
 private data class SimklTrendingCacheEntry(
     val fetchedAtMillis: Long,
@@ -975,7 +977,7 @@ class SimklApiClient(
         if (payloadObj.length() == 0) {
             return@withContext SimklBatchResponse(
                 isSuccess = false,
-                errorMessage = "Gönderilebilir Simkl kimliği/başlığı yok",
+                errorMessage = KitsugiStrings.get(R.string.gonderilebilir_simkl_kimligi_basligi_yok),
                 transportFailed = true
             )
         }
@@ -1051,7 +1053,7 @@ class SimklApiClient(
                             notFoundCount = receipt.notFound,
                             notFoundItems = receipt.unmatched,
                             errorMessage = if (complete) null else
-                                "Simkl $expectedCount öğeden ${receipt.added} tanesini onayladı; ${receipt.notFound} eşleşmedi"
+                                KitsugiStrings.get(R.string.simkl_x_ogeden_x_tanesini_onayladi_x_eslesmedi, expectedCount, receipt.added, receipt.notFound)
                         )
                     )
                 }
@@ -1072,7 +1074,7 @@ class SimklApiClient(
                 return SimklBatchResponse(isSuccess = false, errorMessage = e.message, transportFailed = true)
             } catch (e: org.json.JSONException) {
                 android.util.Log.w("SimklApiClient", "$logTag malformed receipt: ${e.message}")
-                return SimklBatchResponse(isSuccess = false, errorMessage = "Simkl yanıtı çözümlenemedi: ${e.message}", transportFailed = true)
+                return SimklBatchResponse(isSuccess = false, errorMessage = KitsugiStrings.get(R.string.simkl_yaniti_cozumlenemedi_x, e.message), transportFailed = true)
             } catch (e: Exception) {
                 android.util.Log.e("SimklApiClient", "$logTag exception", e)
                 lastError = e.message ?: e.javaClass.simpleName
@@ -1084,7 +1086,7 @@ class SimklApiClient(
         }
         return SimklBatchResponse(
             isSuccess = false,
-            errorMessage = "Simkl isteği başarısız oldu (deneme sınırı aşıldı${if (lastError != null) ": $lastError" else ""})",
+            errorMessage = KitsugiStrings.get(R.string.simkl_istegi_basarisiz_oldu_deneme_siniri_asildix, if (lastError != null) ": $lastError" else ""),
             transportFailed = true
         )
     }
@@ -1104,7 +1106,7 @@ class SimklApiClient(
         if (filtered.any { it.type == "shows" || it.type == "tv" }) {
             return@withContext SimklBatchResponse(
                 isSuccess = false,
-                errorMessage = "Dizi bölüm ilerlemesi sezon/bölüm eşlemesi olmadan gönderilemez",
+                errorMessage = KitsugiStrings.get(R.string.dizi_bolum_ilerlemesi_sezon_bolum_eslemesi_olmadan_gonderilemez),
                 transportFailed = true
             )
         }
@@ -1139,7 +1141,7 @@ class SimklApiClient(
         if (result.transportFailed) result else result.copy(
             isSuccess = result.notFoundCount == 0 && result.addedCount > 0,
             errorMessage = if (result.notFoundCount == 0 && result.addedCount > 0) null else
-                "Simkl izleme geçmişinde ${result.notFoundCount} kayıt eşleşmedi"
+                KitsugiStrings.get(R.string.simkl_izleme_gecmisinde_x_kayit_eslesmedi, result.notFoundCount)
         )
     }
 

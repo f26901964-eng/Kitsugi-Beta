@@ -92,6 +92,7 @@ import kotlinx.coroutines.launch
 import java.util.Calendar
 import androidx.compose.ui.res.stringResource
 import com.kitsugi.animelist.R
+import com.kitsugi.animelist.utils.KitsugiStrings
 
 /** Simkl uses 20-item API pages; its static trending chart files are sliced locally. */
 private const val SIMKL_EXPLORE_PAGE_SIZE = 20
@@ -711,7 +712,7 @@ fun FullScreenMediaGridPage(
                                 },
                                 modifier = Modifier.clip(RoundedCornerShape(12.dp)).background(KitsugiColors.Surface)
                             ) {
-                                Icon(Icons.AutoMirrored.Rounded.ListAlt, contentDescription = "Liste Görünümü", tint = accentColor)
+                                Icon(Icons.AutoMirrored.Rounded.ListAlt, contentDescription = KitsugiStrings.get(R.string.settings_list_layout), tint = accentColor)
                             }
                         }
 
@@ -813,7 +814,7 @@ fun FullScreenMediaGridPage(
                             modifier = Modifier.fillMaxWidth().padding(vertical = 16.dp),
                             horizontalAlignment = Alignment.CenterHorizontally
                         ) {
-                            Text(loadError ?: "Bir hata oluştu.", color = KitsugiColors.TextMuted, style = MaterialTheme.typography.bodyMedium)
+                            Text(loadError ?: KitsugiStrings.get(R.string.ui_error_generic_period), color = KitsugiColors.TextMuted, style = MaterialTheme.typography.bodyMedium)
                             Spacer(modifier = Modifier.height(8.dp))
                             TextButton(onClick = { loadNextPage() }) {
                                 Text("Tekrar Dene", color = accentColor, fontWeight = FontWeight.Bold)
@@ -888,7 +889,7 @@ fun FullScreenMediaGridPage(
                                 },
                                 modifier = Modifier.clip(RoundedCornerShape(12.dp)).background(KitsugiColors.Surface)
                             ) {
-                                Icon(Icons.Rounded.GridView, contentDescription = "Grid Görünümü", tint = accentColor)
+                                Icon(Icons.Rounded.GridView, contentDescription = KitsugiStrings.get(R.string.cd_grid_view), tint = accentColor)
                             }
                         }
 
@@ -999,7 +1000,7 @@ fun FullScreenMediaGridPage(
                             modifier = Modifier.fillMaxWidth().padding(vertical = 16.dp),
                             horizontalAlignment = Alignment.CenterHorizontally
                         ) {
-                            Text(loadError ?: "Bir hata oluştu.", color = KitsugiColors.TextMuted, style = MaterialTheme.typography.bodyMedium)
+                            Text(loadError ?: KitsugiStrings.get(R.string.ui_error_generic_period), color = KitsugiColors.TextMuted, style = MaterialTheme.typography.bodyMedium)
                             Spacer(modifier = Modifier.height(8.dp))
                             TextButton(onClick = { loadNextPage() }) {
                                 Text("Tekrar Dene", color = accentColor, fontWeight = FontWeight.Bold)
@@ -1082,7 +1083,7 @@ fun FullScreenMediaGridPage(
                 }) {
                     Icon(
                         imageVector = if (isGridView) Icons.AutoMirrored.Rounded.ListAlt else Icons.Rounded.GridView,
-                        contentDescription = if (isGridView) "Liste" else "Grid",
+                        contentDescription = if (isGridView) KitsugiStrings.get(R.string.liste) else "Grid",
                         tint = accentColor
                     )
                 }

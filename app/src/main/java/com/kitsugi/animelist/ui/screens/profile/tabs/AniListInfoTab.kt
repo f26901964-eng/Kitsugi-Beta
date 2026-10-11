@@ -26,6 +26,7 @@ import com.kitsugi.animelist.utils.KitsugiTranslateUtils.openTranslator
 import com.kitsugi.animelist.ui.screens.profile.StatCard
 import androidx.compose.ui.res.stringResource
 import com.kitsugi.animelist.R
+import com.kitsugi.animelist.utils.KitsugiStrings
 
 @Composable
 fun AniListInfoTab(
@@ -75,13 +76,13 @@ fun AniListInfoTab(
                             onClick = {
                                 val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
                                 clipboard.setPrimaryClip(android.content.ClipData.newPlainText("about", displayAbout))
-                                Toast.makeText(context, "Panoya kopyalandı", Toast.LENGTH_SHORT).show()
+                                Toast.makeText(context, KitsugiStrings.get(R.string.toast_copied_clipboard), Toast.LENGTH_SHORT).show()
                             },
                             modifier = Modifier.size(28.dp)
                         ) {
                             Icon(
                                 imageVector = Icons.Rounded.ContentCopy,
-                                contentDescription = "Kopyala",
+                                contentDescription = stringResource(R.string.action_copy),
                                 tint = KitsugiColors.TextSecondary,
                                 modifier = Modifier.size(16.dp)
                             )
@@ -107,7 +108,7 @@ fun AniListInfoTab(
                 .padding(18.dp)
         ) {
             Text(
-                text = "Profil Özeti",
+                text = stringResource(R.string.inline_profile_overview_9458157),
                 color = KitsugiColors.TextPrimary,
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold

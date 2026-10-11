@@ -29,6 +29,7 @@ import com.kitsugi.animelist.ui.theme.LocalKitsugiAccent
 import com.kitsugi.animelist.ui.theme.KitsugiColors
 import androidx.compose.ui.res.stringResource
 import com.kitsugi.animelist.R
+import com.kitsugi.animelist.utils.KitsugiStrings
 
 @Composable
 fun MangaScreen(
@@ -75,7 +76,7 @@ fun MangaScreen(
                 contentDescription = null,
                 modifier = Modifier.padding(end = 8.dp)
             )
-            Text("Manga Oku (Eklenti Kaynakları)")
+            Text(KitsugiStrings.get(R.string.inline_read_manga_extension_sources_cf7a30a))
         }
 
         Spacer(modifier = Modifier.height(8.dp))
@@ -85,7 +86,7 @@ fun MangaScreen(
             onClick = { viewModel.loadData(forceRefresh = true) }
         ) {
             Text(
-                text = if (viewModel.isLoading) "Yükleniyor..." else "Yenile",
+                text = if (viewModel.isLoading) KitsugiStrings.get(R.string.loading) else "Yenile",
                 color = if (viewModel.isLoading) KitsugiColors.TextMuted else accentColor,
                 fontWeight = FontWeight.Bold
             )

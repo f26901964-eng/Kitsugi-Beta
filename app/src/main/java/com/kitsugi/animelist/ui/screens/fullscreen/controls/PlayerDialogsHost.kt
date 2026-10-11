@@ -110,7 +110,7 @@ fun EpisodeListDialog(
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
                     Text(
-                        text = "Bölüm Listesi",
+                        text = stringResource(R.string.inline_episode_list_a73f6b7),
                         style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.Bold,
                         modifier = Modifier.padding(bottom = 12.dp)
@@ -164,7 +164,7 @@ fun EpisodeListDialog(
                             }
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(
-                                    text = "Bölüm ${episode.episodeNumber ?: "?"}",
+                                    text = stringResource(R.string.inline_episode_1_s_dc662be, episode.episodeNumber ?: "?"),
                                     style = MaterialTheme.typography.bodyMedium,
                                     fontWeight = FontWeight.Bold,
                                     color = if (isCurrent) MaterialTheme.colorScheme.primary else Color.White

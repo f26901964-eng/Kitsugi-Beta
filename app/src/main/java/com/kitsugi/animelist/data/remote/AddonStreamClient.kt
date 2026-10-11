@@ -11,6 +11,8 @@ import okhttp3.Request
 import java.io.IOException
 import java.net.URLEncoder
 import java.util.concurrent.TimeUnit
+import com.kitsugi.animelist.utils.KitsugiStrings
+import com.kitsugi.animelist.R
 
 class AddonStreamClient {
     private val gson = Gson()
@@ -60,7 +62,7 @@ class AddonStreamClient {
             return@withContext ManagedAddonEntity(
                 manifestUrl = normalizedUrl,
                 name = "AniSub.co",
-                description = "AniSub.co Türkçe Altyazı Eklentisi",
+                description = KitsugiStrings.get(R.string.anisub_co_turkce_altyazi_eklentisi),
                 icon = "https://anisub.co/favicon.ico",
                 isEnabled = true,
                 orderIndex = 99,

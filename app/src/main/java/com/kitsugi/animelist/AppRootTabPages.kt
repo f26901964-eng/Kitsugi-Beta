@@ -1,5 +1,6 @@
 package com.kitsugi.animelist
 
+import com.kitsugi.animelist.utils.KitsugiStrings
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -37,6 +38,8 @@ import androidx.compose.runtime.rememberCoroutineScope
 import kotlinx.coroutines.launch
 
 import com.kitsugi.animelist.ui.app.KitsugiProfileViewModel
+import androidx.compose.ui.res.stringResource
+import com.kitsugi.animelist.R
 
 data class TabPagesContext(
     val mediaEntries: List<MediaEntry>,
@@ -192,7 +195,7 @@ fun AppRootTabPages(
                         }?.isAdult ?: false
                         val result = com.kitsugi.animelist.data.remote.JikanSearchResult(
                             malId = stableId,
-                            title = title.ifBlank { "Yükleniyor..." },
+                            title = title.ifBlank { KitsugiStrings.get(R.string.loading) },
                             subtitle = "",
                             type = mediaType,
                             total = null,

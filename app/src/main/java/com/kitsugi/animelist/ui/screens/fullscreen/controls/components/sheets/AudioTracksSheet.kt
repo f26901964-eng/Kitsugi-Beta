@@ -17,6 +17,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.res.stringResource
+import com.kitsugi.animelist.utils.KitsugiStrings
+import com.kitsugi.animelist.R
 
 data class AudioTrackInfo(
     val id: Int,
@@ -39,7 +42,7 @@ fun AudioTracksSheet(
         onDismissRequest = onDismissRequest,
         header = {
             TrackSheetTitle(
-                title = "Ses Parçaları",
+                title = stringResource(R.string.ses_parcalari),
                 actions = {
                     TextButton(onClick = onOpenDelayPanel) {
                         Row(
@@ -52,7 +55,7 @@ fun AudioTracksSheet(
                     }
                 },
             )
-            AddTrackRow(title = "Harici Ses Dosyası Ekle", onClick = onAddAudioFile)
+            AddTrackRow(title = KitsugiStrings.get(R.string.harici_ses_dosyasi_ekle), onClick = onAddAudioFile)
         },
         track = { track ->
             AudioTrackRow(

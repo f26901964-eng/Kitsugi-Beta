@@ -211,7 +211,7 @@ fun KitsugiProfileHeaderCard(
                     .offset(y = (-14).dp)
             ) {
                 Text(
-                    text = "${totalCount} kayıt • ${favoriteCount} favori • Ort. ${averageScoreText}",
+                    text = stringResource(R.string.inline_1_s_entries_2_s_6eace42, totalCount, favoriteCount, averageScoreText),
                     color = KitsugiColors.TextSecondary,
                     style = MaterialTheme.typography.bodySmall,
                     maxLines = 1,

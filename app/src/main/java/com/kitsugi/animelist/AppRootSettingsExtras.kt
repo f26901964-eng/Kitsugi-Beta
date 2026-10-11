@@ -3,6 +3,8 @@ package com.kitsugi.animelist
 import androidx.compose.runtime.Composable
 import com.kitsugi.animelist.ui.screens.settings.SettingsScreen
 import kotlinx.coroutines.launch
+import com.kitsugi.animelist.utils.KitsugiStrings
+import com.kitsugi.animelist.R
 
 /**
  * Holds the full SettingsScreen(...) call. Split from SettingsScreenContent to keep
@@ -527,28 +529,28 @@ internal fun SettingsContext.buildSettingsParams() =
 internal fun SettingsContext.onHomeLayoutSelected(homeLayout: String) {
     coroutineScope.launch {
         settingsDataStore.setSelectedHomeLayoutId(homeLayout)
-        appViewModel.showSnackbarMessage("Ana sayfa düzeni güncellendi")
+        appViewModel.showSnackbarMessage(KitsugiStrings.get(R.string.ana_sayfa_duzeni_guncellendi))
     }
 }
 
 internal fun SettingsContext.onProfileInfoSave(name: String, title: String) {
     coroutineScope.launch {
         settingsDataStore.setProfileInfo(name, title, appSettings.anilistUsername)
-        appViewModel.showSnackbarMessage("Profil güncellendi")
+        appViewModel.showSnackbarMessage(KitsugiStrings.get(R.string.profil_guncellendi))
     }
 }
 
 internal fun SettingsContext.onClearProfileImageClick() {
     coroutineScope.launch {
         settingsDataStore.setProfileImageUri("")
-        appViewModel.showSnackbarMessage("Profil resmi kaldırıldı")
+        appViewModel.showSnackbarMessage(KitsugiStrings.get(R.string.profil_resmi_kaldirildi))
     }
 }
 
 internal fun SettingsContext.onClearBannerImageClick() {
     coroutineScope.launch {
         settingsDataStore.setBannerImageUri("")
-        appViewModel.showSnackbarMessage("Afiş resmi kaldırıldı")
+        appViewModel.showSnackbarMessage(KitsugiStrings.get(R.string.afis_resmi_kaldirildi))
     }
 }
 
@@ -571,28 +573,28 @@ internal fun SettingsContext.onAdultContentChanged(show: Boolean) {
     coroutineScope.launch {
         settingsDataStore.setShowAdultContent(show)
         com.kitsugi.animelist.data.cloudstream.CsStreamRunner.setShowAdultContent(show)
-        appViewModel.showSnackbarMessage(if (show) "+18 içerikler gösteriliyor" else "+18 içerikler gizlendi")
+        appViewModel.showSnackbarMessage(if (show) KitsugiStrings.get(R.string.r18_icerikler_gosteriliyor) else KitsugiStrings.get(R.string.r18_icerikler_gizlendi))
     }
 }
 
 internal fun SettingsContext.onBlurAdultMediaChanged(enabled: Boolean) {
     coroutineScope.launch {
         settingsDataStore.setBlurAdultMedia(enabled)
-        appViewModel.showSnackbarMessage(if (enabled) "+18 görseller blurlanacak" else "+18 görseller blurlanmayacak")
+        appViewModel.showSnackbarMessage(if (enabled) KitsugiStrings.get(R.string.r18_gorseller_blurlanacak) else KitsugiStrings.get(R.string.r18_gorseller_blurlanmayacak))
     }
 }
 
 internal fun SettingsContext.onFixedNavBarChanged(enabled: Boolean) {
     coroutineScope.launch {
         settingsDataStore.setFixedNavBar(enabled)
-        appViewModel.showSnackbarMessage(if (enabled) "Sabit alt bar etkin" else "Sabit alt bar devre dışı")
+        appViewModel.showSnackbarMessage(if (enabled) "Sabit alt bar etkin" else KitsugiStrings.get(R.string.sabit_alt_bar_devre_disi))
     }
 }
 
 internal fun SettingsContext.onAiringNotificationsChanged(enabled: Boolean) {
     coroutineScope.launch {
         settingsDataStore.setAiringNotificationsEnabled(enabled)
-        appViewModel.showSnackbarMessage(if (enabled) "Yayın bildirimleri etkinleştirildi" else "Yayın bildirimleri devre dışı bırakıldı")
+        appViewModel.showSnackbarMessage(if (enabled) KitsugiStrings.get(R.string.yayin_bildirimleri_etkinlestirildi) else KitsugiStrings.get(R.string.yayin_bildirimleri_devre_disi_birakildi))
         if (enabled) {
             com.kitsugi.animelist.core.notifications.NotificationScheduler.schedule(context, appSettings.notificationInterval)
         } else if (!appSettings.hasAnyNotificationSource()) {
@@ -604,7 +606,7 @@ internal fun SettingsContext.onAiringNotificationsChanged(enabled: Boolean) {
 internal fun SettingsContext.onAniListNotificationsChanged(enabled: Boolean) {
     coroutineScope.launch {
         settingsDataStore.setAniListNotificationsEnabled(enabled)
-        appViewModel.showSnackbarMessage(if (enabled) "AniList bildirimleri etkinleştirildi" else "AniList bildirimleri devre dışı bırakıldı")
+        appViewModel.showSnackbarMessage(if (enabled) KitsugiStrings.get(R.string.anilist_bildirimleri_etkinlestirildi) else KitsugiStrings.get(R.string.anilist_bildirimleri_devre_disi_birakildi))
         if (enabled) {
             com.kitsugi.animelist.core.notifications.NotificationScheduler.schedule(context, appSettings.notificationInterval)
         } else if (!appSettings.hasAnyNotificationSource()) {
@@ -616,7 +618,7 @@ internal fun SettingsContext.onAniListNotificationsChanged(enabled: Boolean) {
 internal fun SettingsContext.onMalNotificationsChanged(enabled: Boolean) {
     coroutineScope.launch {
         settingsDataStore.setMalNotificationsEnabled(enabled)
-        appViewModel.showSnackbarMessage(if (enabled) "MyAnimeList bildirimleri etkinleştirildi" else "MyAnimeList bildirimleri devre dışı bırakıldı")
+        appViewModel.showSnackbarMessage(if (enabled) KitsugiStrings.get(R.string.myanimelist_bildirimleri_etkinlestirildi) else KitsugiStrings.get(R.string.myanimelist_bildirimleri_devre_disi_birakildi))
         if (enabled) {
             com.kitsugi.animelist.core.notifications.NotificationScheduler.schedule(context, appSettings.notificationInterval)
         } else if (!appSettings.hasAnyNotificationSource()) {
@@ -628,7 +630,7 @@ internal fun SettingsContext.onMalNotificationsChanged(enabled: Boolean) {
 internal fun SettingsContext.onSimklNotificationsChanged(enabled: Boolean) {
     coroutineScope.launch {
         settingsDataStore.setSimklNotificationsEnabled(enabled)
-        appViewModel.showSnackbarMessage(if (enabled) "Simkl bildirimleri etkinleştirildi" else "Simkl bildirimleri devre dışı bırakıldı")
+        appViewModel.showSnackbarMessage(if (enabled) KitsugiStrings.get(R.string.simkl_bildirimleri_etkinlestirildi) else KitsugiStrings.get(R.string.simkl_bildirimleri_devre_disi_birakildi))
         if (enabled) {
             com.kitsugi.animelist.core.notifications.NotificationScheduler.schedule(context, appSettings.notificationInterval)
         } else if (!appSettings.hasAnyNotificationSource()) {
@@ -640,7 +642,7 @@ internal fun SettingsContext.onSimklNotificationsChanged(enabled: Boolean) {
 internal fun SettingsContext.onKitsuNotificationsChanged(enabled: Boolean) {
     coroutineScope.launch {
         settingsDataStore.setKitsuNotificationsEnabled(enabled)
-        appViewModel.showSnackbarMessage(if (enabled) "Kitsu bildirimleri etkinleştirildi" else "Kitsu bildirimleri devre dışı bırakıldı")
+        appViewModel.showSnackbarMessage(if (enabled) KitsugiStrings.get(R.string.kitsu_bildirimleri_etkinlestirildi) else KitsugiStrings.get(R.string.kitsu_bildirimleri_devre_disi_birakildi))
         if (enabled) {
             com.kitsugi.animelist.core.notifications.NotificationScheduler.schedule(context, appSettings.notificationInterval)
         } else if (!appSettings.hasAnyNotificationSource()) {
@@ -652,7 +654,7 @@ internal fun SettingsContext.onKitsuNotificationsChanged(enabled: Boolean) {
 internal fun SettingsContext.onShikimoriNotificationsChanged(enabled: Boolean) {
     coroutineScope.launch {
         settingsDataStore.setShikimoriNotificationsEnabled(enabled)
-        appViewModel.showSnackbarMessage(if (enabled) "Shikimori bildirimleri etkinleştirildi" else "Shikimori bildirimleri devre dışı bırakıldı")
+        appViewModel.showSnackbarMessage(if (enabled) KitsugiStrings.get(R.string.shikimori_bildirimleri_etkinlestirildi) else KitsugiStrings.get(R.string.shikimori_bildirimleri_devre_disi_birakildi))
         if (enabled) {
             com.kitsugi.animelist.core.notifications.NotificationScheduler.schedule(context, appSettings.notificationInterval)
         } else if (!appSettings.hasAnyNotificationSource()) {
@@ -672,7 +674,7 @@ internal fun com.kitsugi.animelist.data.settings.AppSettings.hasAnyNotificationS
 internal fun SettingsContext.onNotificationIntervalChanged(minutes: Int) {
     coroutineScope.launch {
         settingsDataStore.setNotificationInterval(minutes)
-        appViewModel.showSnackbarMessage("Bildirim sıklığı $minutes dakika olarak ayarlandı")
+        appViewModel.showSnackbarMessage(KitsugiStrings.get(R.string.bildirim_sikligi_x_dakika_olarak_ayarlandi, minutes))
         if (appSettings.airingNotificationsEnabled || appSettings.aniListNotificationsEnabled || appSettings.malNotificationsEnabled || appSettings.simklNotificationsEnabled) {
             com.kitsugi.animelist.core.notifications.NotificationScheduler.schedule(context, minutes)
         }
@@ -683,14 +685,14 @@ internal fun SettingsContext.onNotificationIntervalChanged(minutes: Int) {
 internal fun SettingsContext.onSplashAnimationEnabledChanged(enabled: Boolean) {
     coroutineScope.launch {
         settingsDataStore.setSplashAnimationEnabled(enabled)
-        appViewModel.showSnackbarMessage(if (enabled) "Açılış animasyonu etkin" else "Açılış animasyonu devre dışı")
+        appViewModel.showSnackbarMessage(if (enabled) KitsugiStrings.get(R.string.acilis_animasyonu_etkin) else KitsugiStrings.get(R.string.acilis_animasyonu_devre_disi))
     }
 }
 
 internal fun SettingsContext.onSplashSoundEnabledChanged(enabled: Boolean) {
     coroutineScope.launch {
         settingsDataStore.setSplashSoundEnabled(enabled)
-        appViewModel.showSnackbarMessage(if (enabled) "Açılış sesi etkin" else "Açılış sesi devre dışı")
+        appViewModel.showSnackbarMessage(if (enabled) KitsugiStrings.get(R.string.acilis_sesi_etkin) else KitsugiStrings.get(R.string.acilis_sesi_devre_disi))
     }
 }
 
@@ -771,49 +773,49 @@ internal fun SettingsContext.onTitleLanguageSelected(lang: String) {
 internal fun SettingsContext.onStaffNameLanguageSelected(lang: String) {
     coroutineScope.launch {
         settingsDataStore.setStaffNameLanguage(lang)
-        appViewModel.showSnackbarMessage("Ekip & karakter adı dili güncellendi")
+        appViewModel.showSnackbarMessage(KitsugiStrings.get(R.string.ekip_karakter_adi_dili_guncellendi))
     }
 }
 
 internal fun SettingsContext.onScoreStepSelected(step: String) {
     coroutineScope.launch {
         settingsDataStore.setScoreStep(step)
-        appViewModel.showSnackbarMessage("Puanlama adımları: $step")
+        appViewModel.showSnackbarMessage(KitsugiStrings.get(R.string.puanlama_adimlari_x, step))
     }
 }
 
 internal fun SettingsContext.onSeparatedListStyleChanged(separated: Boolean) {
     coroutineScope.launch {
         settingsDataStore.setSeparatedListStyle(separated)
-        appViewModel.showSnackbarMessage(if (separated) "Ayrılmış liste tarzı etkin" else "Düz liste tarzı etkin")
+        appViewModel.showSnackbarMessage(if (separated) KitsugiStrings.get(R.string.ayrilmis_liste_tarzi_etkin) else KitsugiStrings.get(R.string.duz_liste_tarzi_etkin))
     }
 }
 
 internal fun SettingsContext.onShowLowPriorityChanged(show: Boolean) {
     coroutineScope.launch {
         settingsDataStore.setShowLowPriority(show)
-        appViewModel.showSnackbarMessage(if (show) "Düşük öncelik rozetleri gösteriliyor" else "Düşük öncelik rozetleri gizlendi")
+        appViewModel.showSnackbarMessage(if (show) KitsugiStrings.get(R.string.dusuk_oncelik_rozetleri_gosteriliyor) else KitsugiStrings.get(R.string.dusuk_oncelik_rozetleri_gizlendi))
     }
 }
 
 internal fun SettingsContext.onPriorityColorsChanged(json: String) {
     coroutineScope.launch {
         settingsDataStore.setPriorityColorsJson(json)
-        appViewModel.showSnackbarMessage(if (json.isBlank()) "Öncelik renkleri varsayılana döndü" else "Öncelik renkleri güncellendi")
+        appViewModel.showSnackbarMessage(if (json.isBlank()) KitsugiStrings.get(R.string.oncelik_renkleri_varsayilana_dondu) else KitsugiStrings.get(R.string.oncelik_renkleri_guncellendi))
     }
 }
 
 internal fun SettingsContext.onFuzzySearchEnabledChanged(enabled: Boolean) {
     coroutineScope.launch {
         settingsDataStore.setFuzzySearchEnabled(enabled)
-        appViewModel.showSnackbarMessage(if (enabled) "Fuzzy arama etkin" else "Fuzzy arama devre dışı")
+        appViewModel.showSnackbarMessage(if (enabled) "Fuzzy arama etkin" else KitsugiStrings.get(R.string.fuzzy_arama_devre_disi))
     }
 }
 
 internal fun SettingsContext.onSeparateNovelsMangaChanged(separate: Boolean) {
     coroutineScope.launch {
         settingsDataStore.setSeparateNovelsManga(separate)
-        appViewModel.showSnackbarMessage(if (separate) "Romanlar mangalardan ayrıldı" else "Romanlar mangalarla birlikte")
+        appViewModel.showSnackbarMessage(if (separate) KitsugiStrings.get(R.string.romanlar_mangalardan_ayrildi) else "Romanlar mangalarla birlikte")
     }
 }
 
@@ -1059,7 +1061,7 @@ internal fun SettingsContext.onMangaColorFilterSelected(filter: String) {
 internal fun SettingsContext.onMangaFitModeSelected(fitMode: String) {
     coroutineScope.launch {
         settingsDataStore.setMangaFitMode(fitMode)
-        appViewModel.showSnackbarMessage("Sığdırma modu: $fitMode")
+        appViewModel.showSnackbarMessage(KitsugiStrings.get(R.string.sigdirma_modu_x, fitMode))
     }
 }
 
@@ -1072,7 +1074,7 @@ internal fun SettingsContext.onMangaBrightnessChanged(brightness: Float) {
 internal fun SettingsContext.onAutoUpdateCheckEnabledChanged(enabled: Boolean) {
     coroutineScope.launch {
         settingsDataStore.setAutoUpdateCheckEnabled(enabled)
-        appViewModel.showSnackbarMessage(if (enabled) "Otomatik güncelleme kontrolü açıldı" else "Otomatik güncelleme kontrolü kapatıldı")
+        appViewModel.showSnackbarMessage(if (enabled) KitsugiStrings.get(R.string.otomatik_guncelleme_kontrolu_acildi) else KitsugiStrings.get(R.string.otomatik_guncelleme_kontrolu_kapatildi))
     }
 }
 
@@ -1083,56 +1085,56 @@ internal fun SettingsContext.onCheckForUpdatesClick() {
 internal fun SettingsContext.onCustomImageDownloadUriChanged(uri: String) {
     coroutineScope.launch {
         settingsDataStore.setCustomImageDownloadUri(uri)
-        appViewModel.showSnackbarMessage(if (uri.isNotBlank()) "İndirme klasörü güncellendi" else "İndirme klasörü varsayılana sıfırlandı")
+        appViewModel.showSnackbarMessage(if (uri.isNotBlank()) KitsugiStrings.get(R.string.indirme_klasoru_guncellendi) else KitsugiStrings.get(R.string.indirme_klasoru_varsayilana_sifirlandi))
     }
 }
 
 internal fun SettingsContext.onSyncEnabledAnilistChanged(enabled: Boolean) {
     coroutineScope.launch {
         settingsDataStore.setSyncEnabledAnilist(enabled)
-        appViewModel.showSnackbarMessage(if (enabled) "AniList eşitlemesi açıldı" else "AniList eşitlemesi kapatıldı")
+        appViewModel.showSnackbarMessage(if (enabled) KitsugiStrings.get(R.string.anilist_esitlemesi_acildi) else KitsugiStrings.get(R.string.anilist_esitlemesi_kapatildi))
     }
 }
 
 internal fun SettingsContext.onSyncEnabledMalChanged(enabled: Boolean) {
     coroutineScope.launch {
         settingsDataStore.setSyncEnabledMal(enabled)
-        appViewModel.showSnackbarMessage(if (enabled) "MyAnimeList eşitlemesi açıldı" else "MyAnimeList eşitlemesi kapatıldı")
+        appViewModel.showSnackbarMessage(if (enabled) KitsugiStrings.get(R.string.myanimelist_esitlemesi_acildi) else KitsugiStrings.get(R.string.myanimelist_esitlemesi_kapatildi))
     }
 }
 
 internal fun SettingsContext.onSyncEnabledSimklChanged(enabled: Boolean) {
     coroutineScope.launch {
         settingsDataStore.setSyncEnabledSimkl(enabled)
-        appViewModel.showSnackbarMessage(if (enabled) "Simkl eşitlemesi açıldı" else "Simkl eşitlemesi kapatıldı")
+        appViewModel.showSnackbarMessage(if (enabled) KitsugiStrings.get(R.string.simkl_esitlemesi_acildi) else KitsugiStrings.get(R.string.simkl_esitlemesi_kapatildi))
     }
 }
 
 internal fun SettingsContext.onSyncEnabledKitsuChanged(enabled: Boolean) {
     coroutineScope.launch {
         settingsDataStore.setSyncEnabledKitsu(enabled)
-        appViewModel.showSnackbarMessage(if (enabled) "Kitsu eşitlemesi açıldı" else "Kitsu eşitlemesi kapatıldı")
+        appViewModel.showSnackbarMessage(if (enabled) KitsugiStrings.get(R.string.kitsu_esitlemesi_acildi) else KitsugiStrings.get(R.string.kitsu_esitlemesi_kapatildi))
     }
 }
 
 internal fun SettingsContext.onSyncEnabledShikimoriChanged(enabled: Boolean) {
     coroutineScope.launch {
         settingsDataStore.setSyncEnabledShikimori(enabled)
-        appViewModel.showSnackbarMessage(if (enabled) "Shikimori eşitlemesi açıldı" else "Shikimori eşitlemesi kapatıldı")
+        appViewModel.showSnackbarMessage(if (enabled) KitsugiStrings.get(R.string.shikimori_esitlemesi_acildi) else KitsugiStrings.get(R.string.shikimori_esitlemesi_kapatildi))
     }
 }
 
 internal fun SettingsContext.onSyncEnabledBangumiChanged(enabled: Boolean) {
     coroutineScope.launch {
         settingsDataStore.setSyncEnabledBangumi(enabled)
-        appViewModel.showSnackbarMessage(if (enabled) "Bangumi eşitlemesi açıldı" else "Bangumi eşitlemesi kapatıldı")
+        appViewModel.showSnackbarMessage(if (enabled) KitsugiStrings.get(R.string.bangumi_esitlemesi_acildi) else KitsugiStrings.get(R.string.bangumi_esitlemesi_kapatildi))
     }
 }
 
 internal fun SettingsContext.onFanartTvEnabledChanged(enabled: Boolean) {
     coroutineScope.launch {
         settingsDataStore.setFanartTvEnabled(enabled)
-        appViewModel.showSnackbarMessage(if (enabled) "Fanart.tv entegrasyonu etkin" else "Fanart.tv entegrasyonu devre dışı")
+        appViewModel.showSnackbarMessage(if (enabled) "Fanart.tv entegrasyonu etkin" else KitsugiStrings.get(R.string.fanart_tv_entegrasyonu_devre_disi))
     }
 }
 
@@ -1143,14 +1145,14 @@ internal fun SettingsContext.onFanartTvApiKeyChanged(key: String) {
 internal fun SettingsContext.onVideoDownloadUriChanged(uri: String) {
     coroutineScope.launch {
         settingsDataStore.setVideoDownloadUri(uri)
-        appViewModel.showSnackbarMessage(if (uri.isNotBlank()) "Video indirme klasörü güncellendi" else "Video indirme klasörü varsayılana sıfırlandı")
+        appViewModel.showSnackbarMessage(if (uri.isNotBlank()) KitsugiStrings.get(R.string.video_indirme_klasoru_guncellendi) else KitsugiStrings.get(R.string.video_indirme_klasoru_varsayilana_sifirlandi))
     }
 }
 
 internal fun SettingsContext.onDownloaderPreferenceSelected(preference: String) {
     coroutineScope.launch {
         settingsDataStore.setDownloaderPreference(preference)
-        appViewModel.showSnackbarMessage("İndirici tercihi güncellendi")
+        appViewModel.showSnackbarMessage(KitsugiStrings.get(R.string.indirici_tercihi_guncellendi))
     }
 }
 
@@ -1231,7 +1233,7 @@ internal fun SettingsContext.onUseGithubProxyChanged(enabled: Boolean) {
     coroutineScope.launch {
         settingsDataStore.setUseGithubProxy(enabled)
         appViewModel.showSnackbarMessage(
-            if (enabled) "GitHub vekil sunucu etkin (jsDelivr)" else "GitHub vekil sunucu devre dışı"
+            if (enabled) "GitHub vekil sunucu etkin (jsDelivr)" else KitsugiStrings.get(R.string.github_vekil_sunucu_devre_disi)
         )
     }
 }

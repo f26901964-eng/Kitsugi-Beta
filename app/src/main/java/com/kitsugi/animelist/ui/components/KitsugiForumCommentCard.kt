@@ -33,6 +33,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 import androidx.compose.ui.res.stringResource
 import com.kitsugi.animelist.R
+import com.kitsugi.animelist.utils.KitsugiStrings
 
 /**
  * A single forum comment/reply card used inside topic detail sheets,
@@ -163,13 +164,13 @@ internal fun KitsugiForumCommentCard(
                     onClick = {
                         val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
                         clipboard.setPrimaryClip(android.content.ClipData.newPlainText("comment_text", comment.comment))
-                        Toast.makeText(context, "Panoya kopyalandı", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(context, KitsugiStrings.get(R.string.toast_copied_clipboard), Toast.LENGTH_SHORT).show()
                     },
                     modifier = Modifier.size(28.dp)
                 ) {
                     Icon(
                         imageVector = Icons.Rounded.ContentCopy,
-                        contentDescription = "Kopyala",
+                        contentDescription = stringResource(R.string.action_copy),
                         tint = KitsugiColors.TextSecondary,
                         modifier = Modifier.size(15.dp)
                     )
@@ -217,7 +218,7 @@ internal fun KitsugiForumCommentCard(
                                     isLikedState = !isLikedState
                                     likeCountState = if (isLikedState) likeCountState + 1 else likeCountState - 1
                                 } else {
-                                    Toast.makeText(context, "Lütfen önce giriş yapın", Toast.LENGTH_SHORT).show()
+                                    Toast.makeText(context, KitsugiStrings.get(R.string.lutfen_once_giris_yapin), Toast.LENGTH_SHORT).show()
                                 }
                             }
                         }
@@ -419,13 +420,13 @@ private fun KitsugiForumChildCommentRow(
                         onClick = {
                             val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
                             clipboard.setPrimaryClip(android.content.ClipData.newPlainText("comment_text", comment.comment))
-                            Toast.makeText(context, "Panoya kopyalandı", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(context, KitsugiStrings.get(R.string.toast_copied_clipboard), Toast.LENGTH_SHORT).show()
                         },
                         modifier = Modifier.size(24.dp)
                     ) {
                         Icon(
                             imageVector = Icons.Rounded.ContentCopy,
-                            contentDescription = "Kopyala",
+                            contentDescription = stringResource(R.string.action_copy),
                             tint = KitsugiColors.TextSecondary,
                             modifier = Modifier.size(14.dp)
                         )
@@ -471,7 +472,7 @@ private fun KitsugiForumChildCommentRow(
                                         isLikedState = !isLikedState
                                         likeCountState = if (isLikedState) likeCountState + 1 else likeCountState - 1
                                     } else {
-                                        Toast.makeText(context, "Lütfen önce giriş yapın", Toast.LENGTH_SHORT).show()
+                                        Toast.makeText(context, KitsugiStrings.get(R.string.lutfen_once_giris_yapin), Toast.LENGTH_SHORT).show()
                                     }
                                 }
                             }

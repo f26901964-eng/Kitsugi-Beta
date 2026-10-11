@@ -28,6 +28,8 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import java.io.File
 import java.util.concurrent.atomic.AtomicReference
+import com.kitsugi.animelist.utils.KitsugiStrings
+import com.kitsugi.animelist.R
 
 private const val TAG = "KitsugiP2pEngine"
 private const val DIAGNOSTIC_TAG = "KitsugiP2PDiag"
@@ -420,7 +422,7 @@ object P2pStreamingEngine {
                                 statsJob?.cancel()
                                 statsJob = null
                                 _state.value = P2pStreamingState.Error(
-                                    event.message?.trim()?.takeIf { it.isNotEmpty() } ?: "Torrent bağlantı hatası"
+                                    event.message?.trim()?.takeIf { it.isNotEmpty() } ?: KitsugiStrings.get(R.string.torrent_baglanti_hatasi)
                                 )
                             }
                         }
@@ -436,7 +438,7 @@ object P2pStreamingEngine {
                                 statsJob?.cancel()
                                 statsJob = null
                                 _state.value = P2pStreamingState.Error(
-                                    event.message?.trim()?.takeIf { it.isNotEmpty() } ?: "Akış durduruldu"
+                                    event.message?.trim()?.takeIf { it.isNotEmpty() } ?: KitsugiStrings.get(R.string.akis_durduruldu)
                                 )
                             }
                         }

@@ -29,6 +29,8 @@ import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONArray
 import org.json.JSONObject
+import com.kitsugi.animelist.utils.KitsugiStrings
+import com.kitsugi.animelist.R
 
 class KitsugiProfileViewModel(application: Application) : AndroidViewModel(application) {
 
@@ -394,7 +396,7 @@ class KitsugiProfileViewModel(application: Application) : AndroidViewModel(appli
                     .getJSONObject("Viewer")
 
                 val id = viewerJson.getInt("id")
-                val name = viewerJson.optNullableString("name") ?: "AniList Kullanıcısı"
+                val name = viewerJson.optNullableString("name") ?: KitsugiStrings.get(R.string.ui_profile_anilist_fallback)
                 val avatar = viewerJson.optJSONObject("avatar")?.optNullableString("large")
                 val banner = viewerJson.optNullableString("bannerImage")
                 val about = viewerJson.optNullableString("about") ?: ""
@@ -694,7 +696,7 @@ class KitsugiProfileViewModel(application: Application) : AndroidViewModel(appli
                             followersList.add(
                                 UserFollowItem(
                                     id = obj.getInt("id"),
-                                    name = obj.optNullableString("name") ?: "Kullanıcı",
+                                    name = obj.optNullableString("name") ?: KitsugiStrings.get(R.string.kullanici),
                                     avatarUrl = obj.optJSONObject("avatar")?.optNullableString("large")
                                 )
                             )
@@ -714,7 +716,7 @@ class KitsugiProfileViewModel(application: Application) : AndroidViewModel(appli
                             followingList.add(
                                 UserFollowItem(
                                     id = obj.getInt("id"),
-                                    name = obj.optNullableString("name") ?: "Kullanıcı",
+                                    name = obj.optNullableString("name") ?: KitsugiStrings.get(R.string.kullanici),
                                     avatarUrl = obj.optJSONObject("avatar")?.optNullableString("large")
                                 )
                             )
@@ -797,12 +799,12 @@ class KitsugiProfileViewModel(application: Application) : AndroidViewModel(appli
                             )
                             "characters", "staff" -> ProfileFavoriteItem(
                                 id = node.getInt("id").toString(),
-                                title = node.optJSONObject("name")?.optNullableString("full") ?: "İsimsiz",
+                                title = node.optJSONObject("name")?.optNullableString("full") ?: KitsugiStrings.get(R.string.isimsiz),
                                 imageUrl = node.optJSONObject("image")?.optNullableString("large") ?: ""
                             )
                             "studios" -> ProfileFavoriteItem(
                                 id = node.getInt("id").toString(),
-                                title = node.optString("name", "İsimsiz"),
+                                title = node.optString("name", KitsugiStrings.get(R.string.isimsiz)),
                                 imageUrl = ""
                             )
                             else -> null
@@ -1049,7 +1051,7 @@ class KitsugiProfileViewModel(application: Application) : AndroidViewModel(appli
                 studioList.add(
                     RankedStatItem(
                         id = studioObj?.optInt("id"),
-                        name = studioObj?.optString("name") ?: item.optString("studio", "Bilinmeyen Stüdyo"),
+                        name = studioObj?.optString("name") ?: item.optString("studio", KitsugiStrings.get(R.string.bilinmeyen_studyo)),
                         count = item.optInt("count", 0),
                         meanScore = item.optDouble("meanScore", 0.0),
                         timeSpentMinutes = if (isAnime) item.optInt("minutesWatched", 0) else null,
@@ -1229,7 +1231,7 @@ class KitsugiProfileViewModel(application: Application) : AndroidViewModel(appli
                 }
 
                 val userObj = JSONObject(responseJson)
-                val username = userObj.optNullableString("name") ?: "MAL Kullanıcısı"
+                val username = userObj.optNullableString("name") ?: KitsugiStrings.get(R.string.mal_kullanicisi)
                 val avatar = userObj.optNullableString("picture")
                 val location = userObj.optNullableString("location") ?: ""
                 val joinedAt = userObj.optNullableString("joined_at") ?: ""
@@ -1393,7 +1395,7 @@ class KitsugiProfileViewModel(application: Application) : AndroidViewModel(appli
                                     val item = arr.getJSONObject(i)
                                     favAnime.add(ProfileFavoriteItem(
                                         id = item.optInt("mal_id").toString(),
-                                        title = item.optString("title", "İsimsiz"),
+                                        title = item.optString("title", KitsugiStrings.get(R.string.isimsiz)),
                                         imageUrl = extractImageUrl(item)
                                     ))
                                 }
@@ -1404,7 +1406,7 @@ class KitsugiProfileViewModel(application: Application) : AndroidViewModel(appli
                                     val item = arr.getJSONObject(i)
                                     favManga.add(ProfileFavoriteItem(
                                         id = item.optInt("mal_id").toString(),
-                                        title = item.optString("title", "İsimsiz"),
+                                        title = item.optString("title", KitsugiStrings.get(R.string.isimsiz)),
                                         imageUrl = extractImageUrl(item)
                                     ))
                                 }
@@ -1415,7 +1417,7 @@ class KitsugiProfileViewModel(application: Application) : AndroidViewModel(appli
                                     val item = arr.getJSONObject(i)
                                     favChar.add(ProfileFavoriteItem(
                                         id = item.optInt("mal_id").toString(),
-                                        title = item.optString("name", "İsimsiz"),
+                                        title = item.optString("name", KitsugiStrings.get(R.string.isimsiz)),
                                         imageUrl = extractImageUrl(item)
                                     ))
                                 }
@@ -1426,7 +1428,7 @@ class KitsugiProfileViewModel(application: Application) : AndroidViewModel(appli
                                     val item = arr.getJSONObject(i)
                                     favStaff.add(ProfileFavoriteItem(
                                         id = item.optInt("mal_id").toString(),
-                                        title = item.optString("name", "İsimsiz"),
+                                        title = item.optString("name", KitsugiStrings.get(R.string.isimsiz)),
                                         imageUrl = extractImageUrl(item)
                                     ))
                                 }

@@ -54,6 +54,8 @@ import kotlinx.coroutines.async as asyncSkip
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.awaitAll
 import com.kitsugi.animelist.ui.screens.fullscreen.AudioChannels
+import com.kitsugi.animelist.utils.KitsugiStrings
+import com.kitsugi.animelist.R
 
 
 class KitsugiPlayerViewModel(application: Application) : AndroidViewModel(application) {
@@ -1031,7 +1033,7 @@ class KitsugiPlayerViewModel(application: Application) : AndroidViewModel(applic
                     _currentAudioUrl.value = null
                     _currentHeaders.value = targetStream.requestHeaders ?: emptyMap()
                     _currentSubtitles.value = targetStream.subtitles ?: emptyList()
-                    _currentTitle.value = "${animeTitle} - Bölüm ${targetEp}"
+                    _currentTitle.value = KitsugiStrings.get(R.string.title_bolum_episode, animeTitle, targetEp)
                     _currentSourceIndex.value = streams.indexOf(targetStream)
                     _currentAddonName.value = targetStream.addonName
                     // AniSkip: yeni bölüm için zaman damgalarını yeniden yükle
@@ -1301,7 +1303,7 @@ class KitsugiPlayerViewModel(application: Application) : AndroidViewModel(applic
         onFatal = { errorCode, errorMsg ->
             _hasError.value = true
             _errorDetails.value = buildString {
-                append("⚠️ Oynatma hatası")
+                append(KitsugiStrings.get(R.string.oynatma_hatasi))
                 append(": $errorMsg")
                 append("\n\nKaynak: ${_currentAddonName.value ?: "bilinmeyen"}")
                 append("\nHata kodu: $errorCode")
@@ -1785,13 +1787,13 @@ class KitsugiPlayerViewModel(application: Application) : AndroidViewModel(applic
                             input.copyTo(out)
                         }
                     }
-                    Toast.makeText(context, "Ekran görüntüsü kaydedildi: $filename", Toast.LENGTH_LONG).show()
+                    Toast.makeText(context, KitsugiStrings.get(R.string.ekran_goruntusu_kaydedildi_x, filename), Toast.LENGTH_LONG).show()
                 } else {
-                    Toast.makeText(context, "Ekran görüntüsü kaydedilemedi", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(context, KitsugiStrings.get(R.string.ekran_goruntusu_kaydedilemedi), Toast.LENGTH_SHORT).show()
                 }
             } catch (e: Exception) {
                 Log.e("PlayerViewModel", "saveImage failed", e)
-                Toast.makeText(context, "Kaydetme başarısız: ${e.localizedMessage}", Toast.LENGTH_SHORT).show()
+                Toast.makeText(context, KitsugiStrings.get(R.string.kaydetme_basarisiz_x, e.localizedMessage), Toast.LENGTH_SHORT).show()
             }
         }
     }
@@ -1825,7 +1827,7 @@ class KitsugiPlayerViewModel(application: Application) : AndroidViewModel(applic
                 context.startActivity(chooser)
             } catch (e: Exception) {
                 Log.e("PlayerViewModel", "shareImage failed", e)
-                Toast.makeText(context, "Paylaşım başarısız: ${e.localizedMessage}", Toast.LENGTH_SHORT).show()
+                Toast.makeText(context, KitsugiStrings.get(R.string.paylasim_basarisiz_x, e.localizedMessage), Toast.LENGTH_SHORT).show()
             }
         }
     }
@@ -1839,7 +1841,7 @@ class KitsugiPlayerViewModel(application: Application) : AndroidViewModel(applic
 
             if (entryEntity == null) {
                 withContext(kotlinx.coroutines.Dispatchers.Main) {
-                    Toast.makeText(context, "Resmi ayarlamak için önce bu animeyi kütüphanenize eklemelisiniz.", Toast.LENGTH_LONG).show()
+                    Toast.makeText(context, KitsugiStrings.get(R.string.resmi_ayarlamak_icin_once_bu_animeyi_kutuphanenize_eklemelisiniz), Toast.LENGTH_LONG).show()
                 }
                 return@launch
             }
@@ -1856,7 +1858,7 @@ class KitsugiPlayerViewModel(application: Application) : AndroidViewModel(applic
                         val updated = entryEntity.copy(imageUrl = "file://${file.absolutePath}")
                         db.mediaEntryDao().update(updated)
                         withContext(kotlinx.coroutines.Dispatchers.Main) {
-                            Toast.makeText(context, "Kapak resmi güncellendi.", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(context, KitsugiStrings.get(R.string.kapak_resmi_guncellendi), Toast.LENGTH_SHORT).show()
                         }
                     }
                     ArtType.Background -> {
@@ -1866,7 +1868,7 @@ class KitsugiPlayerViewModel(application: Application) : AndroidViewModel(applic
                             wallpaperManager.setStream(input)
                         }
                         withContext(kotlinx.coroutines.Dispatchers.Main) {
-                            Toast.makeText(context, "Duvar kağıdı güncellendi.", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(context, KitsugiStrings.get(R.string.duvar_kagidi_guncellendi), Toast.LENGTH_SHORT).show()
                         }
                     }
                     ArtType.Thumbnail -> {
@@ -1876,14 +1878,14 @@ class KitsugiPlayerViewModel(application: Application) : AndroidViewModel(applic
                             imageStream().use { input -> input.copyTo(out) }
                         }
                         withContext(kotlinx.coroutines.Dispatchers.Main) {
-                            Toast.makeText(context, "Küçük resim güncellendi.", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(context, KitsugiStrings.get(R.string.kucuk_resim_guncellendi), Toast.LENGTH_SHORT).show()
                         }
                     }
                 }
             } catch (e: Exception) {
                 Log.e("KitsugiPlayerViewModel", "setAsArt failed", e)
                 withContext(kotlinx.coroutines.Dispatchers.Main) {
-                    Toast.makeText(context, "Resim ayarlanırken hata oluştu: ${e.localizedMessage}", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(context, KitsugiStrings.get(R.string.resim_ayarlanirken_hata_olustu_x, e.localizedMessage), Toast.LENGTH_SHORT).show()
                 }
             }
         }
@@ -2141,7 +2143,7 @@ class KitsugiPlayerViewModel(application: Application) : AndroidViewModel(applic
                 }
                 if (cachedFile == null || !cachedFile.exists()) {
                     withContext(kotlinx.coroutines.Dispatchers.Main) {
-                        Toast.makeText(context, "⚠️ Altyazı indirilemedi", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(context, KitsugiStrings.get(R.string.altyazi_indirilemedi), Toast.LENGTH_SHORT).show()
                     }
                     return@launch
                 }
@@ -2248,13 +2250,13 @@ class KitsugiPlayerViewModel(application: Application) : AndroidViewModel(applic
                             Toast.LENGTH_LONG
                         ).show()
                     } else {
-                        Toast.makeText(context, "⚠️ Altyazı kaydedilemedi", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(context, KitsugiStrings.get(R.string.altyazi_kaydedilemedi), Toast.LENGTH_SHORT).show()
                     }
                 }
             } catch (e: Exception) {
                 Log.e("KitsugiPlayer", "Altyazı indirme hatası: ${subtitle.url}", e)
                 withContext(kotlinx.coroutines.Dispatchers.Main) {
-                    Toast.makeText(context, "⚠️ Hata: ${e.localizedMessage}", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(context, KitsugiStrings.get(R.string.hata_x_f2ebae5, e.localizedMessage), Toast.LENGTH_SHORT).show()
                 }
             }
         }

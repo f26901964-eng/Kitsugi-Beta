@@ -95,6 +95,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import androidx.compose.ui.res.stringResource
 import com.kitsugi.animelist.R
+import com.kitsugi.animelist.utils.KitsugiStrings
 
 /**
  * Full-screen grid page for a single Cloudstream addon category.
@@ -633,7 +634,7 @@ fun AddonFullScreenGridPage(
                 IconButton(onClick = toggleView) {
                     Icon(
                         imageVector = if (isGridView) Icons.AutoMirrored.Rounded.ListAlt else Icons.Rounded.GridView,
-                        contentDescription = if (isGridView) "Liste" else "Grid",
+                        contentDescription = if (isGridView) KitsugiStrings.get(R.string.liste) else "Grid",
                         tint = accentColor
                     )
                 }

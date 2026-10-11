@@ -81,7 +81,7 @@ fun CustomListEditorDialog(
                     value = newListName,
                     onValueChange = { newListName = it },
                     modifier = Modifier.weight(1f),
-                    label = { Text("Yeni Liste Adı") },
+                    label = { Text(stringResource(R.string.inline_new_list_name_34ce687)) },
                     singleLine = true,
                     keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
                     keyboardActions = KeyboardActions(
@@ -109,7 +109,7 @@ fun CustomListEditorDialog(
 
             if (customLists.isEmpty()) {
                 Text(
-                    text = "Henüz özel liste yok. Yukarıdan bir tane oluşturun.",
+                    text = stringResource(R.string.inline_no_custom_lists_yet_create_e9762f7),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(vertical = 32.dp)
@@ -150,7 +150,7 @@ fun CustomListEditorDialog(
                 horizontalArrangement = Arrangement.End
             ) {
                 TextButton(onClick = onDismiss) {
-                    Text("Tamam", fontWeight = FontWeight.SemiBold)
+                    Text(stringResource(R.string.settings_ok), fontWeight = FontWeight.SemiBold)
                 }
             }
 
@@ -209,7 +209,7 @@ private fun CustomListRow(
                 IconButton(onClick = onDeleteClick) {
                     Icon(
                         Icons.Rounded.Delete,
-                        contentDescription = "Sil",
+                        contentDescription = stringResource(R.string.action_delete),
                         tint = MaterialTheme.colorScheme.error,
                         modifier = Modifier.size(18.dp)
                     )

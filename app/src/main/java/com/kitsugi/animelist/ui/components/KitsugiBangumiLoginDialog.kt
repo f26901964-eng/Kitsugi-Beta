@@ -69,6 +69,7 @@ import com.kitsugi.animelist.data.auth.ExternalAuthManager
 import com.kitsugi.animelist.ui.theme.KitsugiColors
 import androidx.compose.ui.res.stringResource
 import com.kitsugi.animelist.R
+import com.kitsugi.animelist.utils.KitsugiStrings
 
 /**
  * Bangumi (bgm.tv) hesap bağlama diyaloğu.
@@ -136,7 +137,7 @@ fun KitsugiBangumiLoginDialog(
     fun openInBrowser(redirectUri: String) {
         errorMessage = null
         if (clientId.isBlank() || clientSecret.isBlank()) {
-            errorMessage = "Önce App ID ve App Secret alanlarını doldurun (bkz. Özel API Anahtarları)."
+            errorMessage = KitsugiStrings.get(R.string.once_app_id_ve_app_secret_alanlarini_doldurun_bkz_ozel_api_anaht)
             showAdvanced = true
             return
         }
@@ -150,7 +151,7 @@ fun KitsugiBangumiLoginDialog(
         runCatching {
             context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(authUrl)))
         }.onFailure {
-            errorMessage = "Tarayıcı açılamadı: ${it.message}"
+            errorMessage = KitsugiStrings.get(R.string.tarayici_acilamadi_x, it.message)
         }
     }
 
@@ -188,7 +189,7 @@ fun KitsugiBangumiLoginDialog(
                 Spacer(modifier = Modifier.height(10.dp))
 
                 Text(
-                    text = "Bangumi ile Bağlan",
+                    text = KitsugiStrings.get(R.string.inline_connect_to_bangumi_a32d363),
                     style = MaterialTheme.typography.titleLarge.copy(
                         fontWeight = FontWeight.Bold,
                         color = KitsugiColors.TextPrimary
@@ -196,7 +197,7 @@ fun KitsugiBangumiLoginDialog(
                 )
 
                 Text(
-                    text = "bgm.tv koleksiyonunuzu (想看 / 在看 / 看过) Kitsugi ile eşitleyin.",
+                    text = KitsugiStrings.get(R.string.inline_sync_your_bgm_tv_collection_10a1831),
                     style = MaterialTheme.typography.bodySmall.copy(
                         color = KitsugiColors.TextSecondary,
                         textAlign = TextAlign.Center
@@ -257,7 +258,7 @@ fun KitsugiBangumiLoginDialog(
                                 )
                                 Spacer(modifier = Modifier.width(8.dp))
                                 Text(
-                                    text = "1. Adım: Bangumi Uygulama Anahtarları",
+                                    text = KitsugiStrings.get(R.string.inline_step_1_bangumi_app_keys_6ba8d2a),
                                     style = MaterialTheme.typography.labelMedium.copy(
                                         fontWeight = FontWeight.Bold,
                                         color = bangumiBrandColor
@@ -266,8 +267,8 @@ fun KitsugiBangumiLoginDialog(
                             }
                             Spacer(modifier = Modifier.height(6.dp))
                             Text(
-                                text = "Bangumi, her uygulamanın kendi kaydını yapmasını ister; " +
-                                    "paylaşılan bir varsayılan anahtar yoktur. " +
+                                text = KitsugiStrings.get(R.string.bangumi_her_uygulamanin_kendi_kaydini_yapmasini_ister) +
+                                    KitsugiStrings.get(R.string.paylasilan_bir_varsayilan_anahtar_yoktur) +
                                     "bgm.tv hesabınızla oturum açıp 开发者平台 → 我的应用 → 创建应用 adımlarını izleyin. " +
                                     "\"回调地址\" (Redirect URI) alanını boş bırakın ya da birebir " +
                                     "${BangumiApiClient.DEEP_LINK_REDIRECT_URI} yazın. " +
@@ -293,11 +294,11 @@ fun KitsugiBangumiLoginDialog(
                                 }) {
                                     Icon(Icons.Rounded.OpenInNew, contentDescription = null, modifier = Modifier.size(14.dp))
                                     Spacer(modifier = Modifier.width(4.dp))
-                                    Text("bgm.tv/dev/app — Uygulama Kaydı", fontSize = 11.sp)
+                                    Text(KitsugiStrings.get(R.string.inline_bgm_tv_dev_app_app_2a4f7d4), fontSize = 11.sp)
                                 }
                                 if (credentialsReady) {
                                     Text(
-                                        text = "✓ Anahtarlar hazır",
+                                        text = KitsugiStrings.get(R.string.inline_keys_are_ready_e64daca),
                                         fontSize = 11.sp,
                                         color = KitsugiColors.AccentGreen,
                                         fontWeight = FontWeight.SemiBold
@@ -324,7 +325,7 @@ fun KitsugiBangumiLoginDialog(
                                 )
                                 Spacer(modifier = Modifier.width(8.dp))
                                 Text(
-                                    text = "2. Adım: Bangumi Hesabınızla Yetki Verin",
+                                    text = KitsugiStrings.get(R.string.inline_step_2_authorize_with_your_a9c58f1),
                                     style = MaterialTheme.typography.labelMedium.copy(
                                         fontWeight = FontWeight.Bold,
                                         color = bangumiBrandColor
@@ -333,8 +334,8 @@ fun KitsugiBangumiLoginDialog(
                             }
                             Spacer(modifier = Modifier.height(6.dp))
                             Text(
-                                text = "Tarayıcıda Bangumi oturumunuzla \"允许\" (İzin Ver) düğmesine bastığınızda " +
-                                    "uygulama otomatik olarak bağlanır. Yetki kodu 60 saniye geçerlidir ve tek kullanımlıktır.",
+                                text = KitsugiStrings.get(R.string.tarayicida_bangumi_oturumunuzla_izin_ver_dugmesine_bastiginizda) +
+                                    KitsugiStrings.get(R.string.uygulama_otomatik_olarak_baglanir_yetki_kodu_60_saniye_gecerlidi),
                                 style = MaterialTheme.typography.bodySmall.copy(
                                     color = KitsugiColors.TextSecondary,
                                     fontSize = 12.sp,
@@ -373,7 +374,7 @@ fun KitsugiBangumiLoginDialog(
                                 Icon(Icons.Rounded.OpenInNew, contentDescription = null, modifier = Modifier.size(16.dp))
                                 Spacer(modifier = Modifier.width(6.dp))
                                 Text(
-                                    text = "Alternatif Şema (aniyomi://)",
+                                    text = KitsugiStrings.get(R.string.inline_alternative_scheme_aniyomi_889ac71),
                                     style = MaterialTheme.typography.labelMedium,
                                     fontWeight = FontWeight.SemiBold
                                 )
@@ -382,8 +383,8 @@ fun KitsugiBangumiLoginDialog(
                             Spacer(modifier = Modifier.height(10.dp))
 
                             Text(
-                                text = "Tarayıcı \"sayfa açılamıyor\" derse endişelenmeyin: adres çubuğundaki tam URL'yi " +
-                                    "(kitsugi://bangumi-auth?code=...) kopyalayıp 3. adıma yapıştırmanız yeterlidir.",
+                                text = KitsugiStrings.get(R.string.tarayici_sayfa_acilamiyor_derse_endiselenmeyin_adres_cubugundaki) +
+                                    KitsugiStrings.get(R.string.kitsugi_bangumi_auth_code_kopyalayip_3_adima_yapistirmaniz_yeter),
                                 style = MaterialTheme.typography.bodySmall.copy(
                                     color = KitsugiColors.TextSecondary,
                                     fontSize = 11.sp,
@@ -410,7 +411,7 @@ fun KitsugiBangumiLoginDialog(
                                 )
                                 Spacer(modifier = Modifier.width(8.dp))
                                 Text(
-                                    text = "3. Adım: Yetkilendirme Kodunu Yapıştırın",
+                                    text = KitsugiStrings.get(R.string.inline_step_3_paste_the_authorization_4edf1e8),
                                     style = MaterialTheme.typography.labelMedium.copy(
                                         fontWeight = FontWeight.Bold,
                                         color = KitsugiColors.TextPrimary
@@ -419,8 +420,8 @@ fun KitsugiBangumiLoginDialog(
                             }
                             Spacer(modifier = Modifier.height(6.dp))
                             Text(
-                                text = "Deep link çalışmadıysa izin verdikten sonra ekranda/adres çubuğunda görünen " +
-                                    "kodu (veya tam adresi) buraya yapıştırın:",
+                                text = KitsugiStrings.get(R.string.deep_link_calismadiysa_izin_verdikten_sonra_ekranda_adres_cubugu) +
+                                    KitsugiStrings.get(R.string.kodu_veya_tam_adresi_buraya_yapistirin),
                                 style = MaterialTheme.typography.bodySmall.copy(
                                     color = KitsugiColors.TextSecondary,
                                     fontSize = 12.sp,
@@ -489,7 +490,7 @@ fun KitsugiBangumiLoginDialog(
                                 )
                                 Spacer(modifier = Modifier.width(8.dp))
                                 Text(
-                                    text = "Özel API Anahtarları (App ID / App Secret)",
+                                    text = KitsugiStrings.get(R.string.inline_custom_api_keys_app_id_c00c55e),
                                     style = MaterialTheme.typography.bodySmall.copy(
                                         fontWeight = FontWeight.Medium,
                                         color = KitsugiColors.TextSecondary
@@ -542,8 +543,8 @@ fun KitsugiBangumiLoginDialog(
                                 )
 
                                 Text(
-                                    text = "Anahtarlar yalnızca bu cihazda saklanır ve doğrudan bgm.tv ile paylaşılır; " +
-                                        "Kitsugi sunucusuna gönderilmez. Bir APK'yı dağıtacaksanız anahtarları " +
+                                    text = KitsugiStrings.get(R.string.anahtarlar_yalnizca_bu_cihazda_saklanir_ve_dogrudan_bgm_tv_ile_p) +
+                                        KitsugiStrings.get(R.string.kitsugi_sunucusuna_gonderilmez_bir_apk_yi_dagitacaksaniz_anahtar) +
                                         "local.properties üzerinden derlemeye gömmek yerine kullanıcıdan istemek " +
                                         "daha güvenlidir (Bangumi PKCE desteklemediği için gömülen secret çıkarılabilir).",
                                     style = MaterialTheme.typography.bodySmall.copy(
@@ -562,7 +563,7 @@ fun KitsugiBangumiLoginDialog(
                                     },
                                     modifier = Modifier.align(Alignment.End)
                                 ) {
-                                    Text("Kayıtlı Anahtarları Temizle", fontSize = 11.sp)
+                                    Text(KitsugiStrings.get(R.string.inline_clear_saved_keys_2e9198b), fontSize = 11.sp)
                                 }
                             }
                         }
@@ -594,10 +595,10 @@ fun KitsugiBangumiLoginDialog(
                             when {
                                 clientId.isBlank() || clientSecret.isBlank() -> {
                                     showAdvanced = true
-                                    errorMessage = "App ID ve App Secret gereklidir (bgm.tv/dev/app)."
+                                    errorMessage = KitsugiStrings.get(R.string.app_id_ve_app_secret_gereklidir_bgm_tv_dev_app)
                                 }
                                 cleanCode.isBlank() -> {
-                                    errorMessage = "Lütfen tarayıcıdan aldığınız yetkilendirme kodunu girin."
+                                    errorMessage = KitsugiStrings.get(R.string.lutfen_tarayicidan_aldiginiz_yetkilendirme_kodunu_girin)
                                 }
                                 else -> {
                                     isLoading = true
@@ -606,7 +607,7 @@ fun KitsugiBangumiLoginDialog(
                                     onLogin(clientId.trim(), clientSecret.trim(), cleanCode) { success, error ->
                                         isLoading = false
                                         if (success) onDismiss()
-                                        else errorMessage = error ?: "Bangumi bağlantısı başarısız oldu."
+                                        else errorMessage = error ?: KitsugiStrings.get(R.string.bangumi_baglantisi_basarisiz_oldu)
                                     }
                                 }
                             }

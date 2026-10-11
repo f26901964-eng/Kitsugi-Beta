@@ -38,7 +38,7 @@ fun MetaDetails(
             Column(modifier = Modifier.padding(12.dp)) {
                 Text(text = "Format: $format", style = MaterialTheme.typography.bodyMedium)
                 Spacer(modifier = Modifier.height(4.dp))
-                Text(text = "Durum: $status", style = MaterialTheme.typography.bodyMedium)
+                Text(text = stringResource(R.string.durum_x, status), style = MaterialTheme.typography.bodyMedium)
                 if (season != null && year != null) {
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(text = "Sezon: $season $year", style = MaterialTheme.typography.bodyMedium)

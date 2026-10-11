@@ -85,7 +85,7 @@ fun PauseOverlay(
                     verticalArrangement = Arrangement.Top
                 ) {
                     Text(
-                        text = "Şu Anda İzliyorsunuz",
+                        text = stringResource(R.string.inline_now_watching_74838a6),
                         color = KitsugiColors.TextMuted,
                         fontSize = 12.sp,
                         fontWeight = FontWeight.Bold

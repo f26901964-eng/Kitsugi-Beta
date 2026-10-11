@@ -14,6 +14,8 @@ import okhttp3.RequestBody
 import okhttp3.RequestBody.Companion.toRequestBody
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import com.kitsugi.animelist.data.remote.optNullableString
+import com.kitsugi.animelist.utils.KitsugiStrings
+import com.kitsugi.animelist.R
 
 object AniListImportManager {
     suspend fun fetchAnimeList(
@@ -189,7 +191,7 @@ object AniListImportManager {
                 val romaji = titleObject.optNullableString("romaji")
                 val english = titleObject.optNullableString("english")
                 val native = titleObject.optNullableString("native")
-                val title = romaji ?: english ?: native ?: "Başlıksız"
+                val title = romaji ?: english ?: native ?: KitsugiStrings.get(R.string.basliksiz)
 
                 val format = media.optNullableString("format").orEmpty()
                     .replace("_", " ")
@@ -261,7 +263,7 @@ object AniListImportManager {
                     id = 0,
                     title = title,
                     subtitle = if (genreText.isBlank()) {
-                        "AniList'ten içe aktarıldı"
+                        KitsugiStrings.get(R.string.anilist_ten_ice_aktarildi)
                     } else {
                         genreText
                     },
@@ -418,7 +420,7 @@ object AniListImportManager {
                 .getJSONObject("Viewer")
 
             AniListUserProfile(
-                name = viewer.optNullableString("name") ?: "AniList Kullanıcısı",
+                name = viewer.optNullableString("name") ?: KitsugiStrings.get(R.string.ui_profile_anilist_fallback),
                 avatarUrl = viewer.optJSONObject("avatar")?.optNullableString("large"),
                 bannerUrl = viewer.optNullableString("bannerImage")
             )

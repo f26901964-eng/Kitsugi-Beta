@@ -60,6 +60,8 @@ import androidx.media3.ui.PlayerView
 import com.kitsugi.animelist.core.player.TvTrailerPlayerPoolHolder
 import com.kitsugi.animelist.data.trailer.TrailerPlaybackSource
 import kotlinx.coroutines.delay
+import androidx.compose.ui.res.stringResource
+import com.kitsugi.animelist.R
 
 // ─── State ────────────────────────────────────────────────────────────────────
 
@@ -197,7 +199,7 @@ fun TvSharedTrailerOverlay(
                     color = Color.White
                 )
                 Text(
-                    text = "Geri dönmek için Geri tuşuna basın",
+                    text = stringResource(R.string.inline_press_back_to_return_b1d0f34),
                     style = MaterialTheme.typography.bodySmall,
                     color = Color.White.copy(alpha = 0.80f)
                 )

@@ -42,6 +42,7 @@ import com.kitsugi.animelist.utils.KitsugiTranslateUtils.openTranslator
 import kotlinx.coroutines.launch
 import androidx.compose.ui.res.stringResource
 import com.kitsugi.animelist.R
+import com.kitsugi.animelist.utils.KitsugiStrings
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -214,13 +215,13 @@ fun KitsugiActivityDetailBottomSheet(
                             onClick = {
                                 val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
                                 clipboard.setPrimaryClip(android.content.ClipData.newPlainText("activity_text", activityDetails!!.text))
-                                Toast.makeText(context, "Panoya kopyalandı", Toast.LENGTH_SHORT).show()
+                                Toast.makeText(context, KitsugiStrings.get(R.string.toast_copied_clipboard), Toast.LENGTH_SHORT).show()
                             },
                             modifier = Modifier.size(36.dp)
                         ) {
                             Icon(
                                 imageVector = Icons.Rounded.ContentCopy,
-                                contentDescription = "Kopyala",
+                                contentDescription = stringResource(R.string.action_copy),
                                 tint = KitsugiColors.TextSecondary
                             )
                         }
@@ -532,13 +533,13 @@ fun KitsugiActivityDetailBottomSheet(
                                             onClick = {
                                                 val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
                                                 clipboard.setPrimaryClip(android.content.ClipData.newPlainText("reply_text", reply.text))
-                                                Toast.makeText(context, "Panoya kopyalandı", Toast.LENGTH_SHORT).show()
+                                                Toast.makeText(context, KitsugiStrings.get(R.string.toast_copied_clipboard), Toast.LENGTH_SHORT).show()
                                             },
                                             modifier = Modifier.size(28.dp)
                                         ) {
                                             Icon(
                                                 imageVector = Icons.Rounded.ContentCopy,
-                                                contentDescription = "Kopyala",
+                                                contentDescription = stringResource(R.string.action_copy),
                                                 tint = KitsugiColors.TextSecondary,
                                                 modifier = Modifier.size(16.dp)
                                             )
@@ -559,7 +560,7 @@ fun KitsugiActivityDetailBottomSheet(
                                                         repLikedState = !repLikedState
                                                         repLikesState = if (repLikedState) repLikesState + 1 else repLikesState - 1
                                                     } else {
-                                                        Toast.makeText(context, "Lütfen önce giriş yapın", Toast.LENGTH_SHORT).show()
+                                                        Toast.makeText(context, KitsugiStrings.get(R.string.lutfen_once_giris_yapin), Toast.LENGTH_SHORT).show()
                                                     }
                                                 }
                                             }
@@ -607,7 +608,7 @@ fun KitsugiActivityDetailBottomSheet(
                                     isActLikedState = !isActLikedState
                                     actLikesState = if (isActLikedState) actLikesState + 1 else actLikesState - 1
                                 } else {
-                                    Toast.makeText(context, "Lütfen önce giriş yapın", Toast.LENGTH_SHORT).show()
+                                    Toast.makeText(context, KitsugiStrings.get(R.string.lutfen_once_giris_yapin), Toast.LENGTH_SHORT).show()
                                 }
                             }
                         },

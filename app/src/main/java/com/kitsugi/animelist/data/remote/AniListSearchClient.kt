@@ -6,6 +6,8 @@ import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
 import com.kitsugi.animelist.utils.*
+import com.kitsugi.animelist.utils.KitsugiStrings
+import com.kitsugi.animelist.R
 
 data class AniListPagedResult(
     val results: List<JikanSearchResult>,
@@ -367,7 +369,7 @@ class AniListSearchClient(
                         JikanSearchResult(
                             malId = id,
                             title = name,
-                            subtitle = if (isAnim) "Animasyon Stüdyosu" else "Yapımcı / Stüdyo",
+                            subtitle = if (isAnim) KitsugiStrings.get(R.string.animasyon_studyosu) else KitsugiStrings.get(R.string.yapimci_studyo),
                             type = MediaType.Anime,
                             total = null,
                             score = null,

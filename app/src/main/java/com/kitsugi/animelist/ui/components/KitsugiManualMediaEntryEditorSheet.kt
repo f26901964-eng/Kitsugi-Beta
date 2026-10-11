@@ -59,6 +59,7 @@ import com.kitsugi.animelist.ui.theme.LocalKitsugiAccent
 import com.kitsugi.animelist.ui.theme.KitsugiColors
 import androidx.compose.ui.res.stringResource
 import com.kitsugi.animelist.R
+import com.kitsugi.animelist.utils.KitsugiStrings
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -203,7 +204,7 @@ internal fun KitsugiManualMediaEntryEditorSheet(
                 }
 
                 Text(
-                    text = title.ifBlank { "Yeni Kayıt" },
+                    text = title.ifBlank { stringResource(R.string.ui_new_entry) },
                     color = KitsugiColors.TextPrimary,
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
@@ -307,7 +308,7 @@ internal fun KitsugiManualMediaEntryEditorSheet(
                         value = subtitle,
                         onValueChange = { subtitle = it },
                         label = stringResource(R.string.aciklama_turler),
-                        placeholder = "Örn: Tv, Action"
+                        placeholder = stringResource(R.string.orn_tv_action_3aad174)
                     )
                 }
 
@@ -427,7 +428,7 @@ internal fun KitsugiManualMediaEntryEditorSheet(
 
                 SheetRow(
                     icon = Icons.Rounded.Star,
-                    label = "Puan",
+                    label = stringResource(R.string.detail_stat_score),
                     value = scoreText,
                     onValueChange = null,
                     valuePlaceholder = if (scoreFormat == "POINT_3") "-" else "0",
@@ -484,7 +485,7 @@ internal fun KitsugiManualMediaEntryEditorSheet(
                 SheetRow(
                     icon = Icons.Rounded.CalendarToday,
                     label = stringResource(R.string.baslangic_tarihi),
-                    value = startDateText.ifBlank { "Tarih Seçilmemiş" },
+                    value = startDateText.ifBlank { KitsugiStrings.get(R.string.tarih_secilmemis) },
                     onClick = {
                         selectDate(startDateText) { startDateText = it }
                     },
@@ -496,7 +497,7 @@ internal fun KitsugiManualMediaEntryEditorSheet(
                 SheetRow(
                     icon = Icons.Rounded.EventAvailable,
                     label = stringResource(R.string.bitis_tarihi),
-                    value = endDateText.ifBlank { "Tarih Seçilmemiş" },
+                    value = endDateText.ifBlank { KitsugiStrings.get(R.string.tarih_secilmemis) },
                     onClick = {
                         selectDate(endDateText) { endDateText = it }
                     },
@@ -562,7 +563,7 @@ internal fun KitsugiManualMediaEntryEditorSheet(
                     HorizontalDivider(color = KitsugiColors.Border, modifier = Modifier.padding(horizontal = 16.dp))
                     SheetRow(
                         icon = Icons.Rounded.Delete,
-                        label = "Sil",
+                        label = KitsugiStrings.get(R.string.action_delete),
                         onClick = onDeleteClick,
                         modifier = Modifier.padding(vertical = 4.dp)
                     )

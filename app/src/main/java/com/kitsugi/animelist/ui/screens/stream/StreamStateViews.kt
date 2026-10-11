@@ -19,6 +19,8 @@ import com.kitsugi.animelist.ui.theme.LocalKitsugiAccent
 import com.kitsugi.animelist.ui.theme.KitsugiColors
 
 import com.kitsugi.animelist.ui.components.KitsugiPlasmaLoader
+import androidx.compose.ui.res.stringResource
+import com.kitsugi.animelist.R
 
 /** Shows a pulsing spinner while the IMDb ID is being resolved. */
 @Composable
@@ -29,7 +31,7 @@ fun ResolvingIdState() {
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         KitsugiPlasmaLoader(size = 46.dp)
-        Text("IMDb ID çözümleniyor...", color = KitsugiColors.TextSecondary)
+        Text(stringResource(R.string.inline_resolving_imdb_id_bb96c5b), color = KitsugiColors.TextSecondary)
     }
 }
 
@@ -51,8 +53,8 @@ fun NoAddonsState(onOpenSettings: (() -> Unit)? = null) {
         modifier = Modifier.fillMaxWidth()
     ) {
         KitsugiEmptyState(
-            title = "Uyumlu eklenti bulunamadı",
-            subtitle = "Ayarlar > Eklentiler bölümünden Torrentio, Dizilla veya başka bir eklenti ekleyin.",
+            title = stringResource(R.string.uyumlu_eklenti_bulunamadi),
+            subtitle = stringResource(R.string.ayarlar_eklentiler_bolumunden_torrentio_dizilla_veya_baska_bir_e),
             icon = Icons.Rounded.Extension,
             modifier = Modifier.padding(top = 30.dp)
         )
@@ -64,7 +66,7 @@ fun NoAddonsState(onOpenSettings: (() -> Unit)? = null) {
             ) {
                 Icon(Icons.Rounded.Settings, contentDescription = null, modifier = Modifier.size(18.dp))
                 Spacer(Modifier.width(8.dp))
-                Text("Eklentileri Yönet (Ayarlar)", fontWeight = FontWeight.Bold)
+                Text(stringResource(R.string.inline_manage_extensions_settings_3530be1), fontWeight = FontWeight.Bold)
             }
         }
     }
@@ -78,8 +80,8 @@ fun EmptyStreamsState(onOpenSettings: (() -> Unit)? = null) {
         modifier = Modifier.fillMaxWidth()
     ) {
         KitsugiEmptyState(
-            title = "Akış bulunamadı",
-            subtitle = "Tüm eklentiler denendi. Farklı bir bölüm veya daha fazla eklenti eklemeyi deneyin.",
+            title = stringResource(R.string.inline_no_streams_found_d834d54),
+            subtitle = stringResource(R.string.tum_eklentiler_denendi_farkli_bir_bolum_veya_daha_fazla_eklenti),
             icon = Icons.Rounded.SearchOff,
             modifier = Modifier.padding(top = 30.dp)
         )
@@ -91,7 +93,7 @@ fun EmptyStreamsState(onOpenSettings: (() -> Unit)? = null) {
             ) {
                 Icon(Icons.Rounded.Extension, contentDescription = null, modifier = Modifier.size(18.dp))
                 Spacer(Modifier.width(8.dp))
-                Text("Daha Fazla Eklenti Ekle", fontWeight = FontWeight.Bold)
+                Text(stringResource(R.string.daha_fazla_eklenti_ekle), fontWeight = FontWeight.Bold)
             }
         }
     }

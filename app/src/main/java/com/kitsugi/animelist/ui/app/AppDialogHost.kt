@@ -160,7 +160,7 @@ fun AppDialogHost(
         KitsugiConfirmDialog(
             title = stringResource(R.string.kaydi_sil),
             message = stringResource(R.string.entry_title_listenizden_kalici_olarak_kaldir, entry.title),
-            confirmText = "Sil",
+            confirmText = stringResource(R.string.action_delete),
             isDestructive = true,
             onConfirm = { onConfirmDelete(entry) },
             onDismiss = onDismissDelete

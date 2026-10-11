@@ -4,6 +4,8 @@ import com.kitsugi.animelist.model.MediaType
 import org.json.JSONObject
 import okhttp3.Request
 import com.kitsugi.animelist.utils.*
+import com.kitsugi.animelist.utils.KitsugiStrings
+import com.kitsugi.animelist.R
 
 internal data class SimklCrossIds(
     val simklId: Int,
@@ -232,7 +234,7 @@ internal object KitsugiSimklDetailClient {
                 KitsugiRelation(
                     malId = recSimklId,
                     title = recTitle,
-                    relationType = animeType ?: year?.toString() ?: "Öneri",
+                    relationType = animeType ?: year?.toString() ?: KitsugiStrings.get(R.string.oneri),
                     mediaType = mediaType,
                     imageUrl = imgUrl,
                     source = "simkl",
@@ -290,7 +292,7 @@ internal object KitsugiSimklDetailClient {
                 KitsugiRanking(
                     rank = rank,
                     type = "RATED",
-                    context = "Simkl / MAL Genel Sıralama",
+                    context = KitsugiStrings.get(R.string.simkl_mal_genel_siralama),
                     allTime = true
                 )
             )

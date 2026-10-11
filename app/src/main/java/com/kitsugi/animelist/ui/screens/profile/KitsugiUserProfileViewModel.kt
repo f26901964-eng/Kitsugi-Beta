@@ -27,6 +27,8 @@ import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONObject
+import com.kitsugi.animelist.utils.KitsugiStrings
+import com.kitsugi.animelist.R
 
 data class OtherUserProfileState(
     val isLoading: Boolean = true,
@@ -194,7 +196,7 @@ class KitsugiUserProfileViewModel(application: Application) : AndroidViewModel(a
                     .getJSONObject("User")
 
                 val id = userJson.getInt("id")
-                val name = userJson.optNullableString("name") ?: "Kullanıcı"
+                val name = userJson.optNullableString("name") ?: KitsugiStrings.get(R.string.kullanici)
                 val avatar = userJson.optJSONObject("avatar")?.optNullableString("large")
                 val banner = userJson.optNullableString("bannerImage")
                 val about = userJson.optNullableString("about") ?: ""
@@ -485,7 +487,7 @@ class KitsugiUserProfileViewModel(application: Application) : AndroidViewModel(a
                         followersList.add(
                             UserFollowItem(
                                 id = obj.getInt("id"),
-                                name = obj.optNullableString("name") ?: "Kullanıcı",
+                                name = obj.optNullableString("name") ?: KitsugiStrings.get(R.string.kullanici),
                                 avatarUrl = obj.optJSONObject("avatar")?.optNullableString("large")
                             )
                         )
@@ -505,7 +507,7 @@ class KitsugiUserProfileViewModel(application: Application) : AndroidViewModel(a
                         followingList.add(
                             UserFollowItem(
                                 id = obj.getInt("id"),
-                                name = obj.optNullableString("name") ?: "Kullanıcı",
+                                name = obj.optNullableString("name") ?: KitsugiStrings.get(R.string.kullanici),
                                 avatarUrl = obj.optJSONObject("avatar")?.optNullableString("large")
                             )
                         )
@@ -582,12 +584,12 @@ class KitsugiUserProfileViewModel(application: Application) : AndroidViewModel(a
                             )
                             "characters", "staff" -> ProfileFavoriteItem(
                                 id = node.getInt("id").toString(),
-                                title = node.optJSONObject("name")?.optNullableString("full") ?: "İsimsiz",
+                                title = node.optJSONObject("name")?.optNullableString("full") ?: KitsugiStrings.get(R.string.isimsiz),
                                 imageUrl = node.optJSONObject("image")?.optNullableString("large") ?: ""
                             )
                             "studios" -> ProfileFavoriteItem(
                                 id = node.getInt("id").toString(),
-                                title = node.optString("name", "İsimsiz"),
+                                title = node.optString("name", KitsugiStrings.get(R.string.isimsiz)),
                                 imageUrl = ""
                             )
                             else -> null

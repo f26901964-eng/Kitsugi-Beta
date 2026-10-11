@@ -42,6 +42,8 @@ import java.util.Date
 import java.util.Locale
 import java.util.TimeZone
 import java.util.concurrent.ConcurrentHashMap
+import com.kitsugi.animelist.utils.KitsugiStrings
+import com.kitsugi.animelist.R
 
 /**
  * Bangumi (bgm.tv) **detay sayfası** veri katmanı.
@@ -1506,7 +1508,7 @@ object KitsugiBangumiDetailClient {
             }
             val name = latinName ?: rawName ?: rawNameCn
             KitsugiStreamingEpisode(
-                title = if (name != null) "#$number – $name" else "Bölüm $number",
+                title = if (name != null) "#$number – $name" else KitsugiStrings.get(R.string.inline_episode_1_s_dc662be, number),
                 thumbnail = null,
                 url = if (id > 0) "${BangumiApiClient.SITE_BASE}/ep/$id" else null,
                 site = "Bangumi",
@@ -1774,7 +1776,7 @@ object KitsugiBangumiDetailClient {
     }
 
     private fun genderText(raw: String): String = when {
-        raw.contains("女") || raw.equals("female", true) -> if (isTurkish()) "Kadın" else "Female"
+        raw.contains("女") || raw.equals("female", true) -> if (isTurkish()) KitsugiStrings.get(R.string.kadin) else "Female"
         raw.contains("男") || raw.equals("male", true) -> if (isTurkish()) "Erkek" else "Male"
         else -> raw
     }

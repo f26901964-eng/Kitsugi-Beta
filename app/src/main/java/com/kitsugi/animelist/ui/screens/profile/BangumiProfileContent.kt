@@ -54,6 +54,9 @@ import com.kitsugi.animelist.model.MediaType
 import com.kitsugi.animelist.ui.app.BangumiProfileState
 import com.kitsugi.animelist.ui.components.KitsugiWebViewDialog
 import com.kitsugi.animelist.ui.theme.KitsugiColors
+import androidx.compose.ui.res.stringResource
+import com.kitsugi.animelist.utils.KitsugiStrings
+import com.kitsugi.animelist.R
 
 /**
  * Bangumi profil sekmesi (koleksiyon özeti, tür/durum filtreleri, liste, favori karakter ve kişiler).
@@ -75,7 +78,7 @@ private val BANGUMI_TYPE_FILTERS: List<Int> = listOf(
 
 /** Durum filtresi: 0 = tümü, diğerleri Bangumi `CollectionType` değerleri. */
 private val BANGUMI_STATUS_FILTERS: List<Pair<Int, String>> = listOf(
-    0 to "Tümü",
+    0 to KitsugiStrings.get(R.string.notif_filter_all),
     BangumiApiClient.CollectionType.WISH to "Planlandı",
     BangumiApiClient.CollectionType.DOING to "Devam ediyor",
     BangumiApiClient.CollectionType.DONE to "Tamamlandı",
@@ -210,7 +213,7 @@ fun BangumiProfileContent(
             item {
                 Text(
                     text = if (state.collections.isEmpty()) {
-                        "Bangumi'de henüz koleksiyonunuz yok."
+                        stringResource(R.string.bangumi_de_henuz_koleksiyonunuz_yok)
                     } else {
                         "Bu filtrede kayıt yok."
                     },
@@ -371,7 +374,7 @@ private fun BangumiHeaderCard(
         }
 
         Text(
-            text = "Bildirimler bgm.tv web oturumunu kullanır. İlk açılışta bu pencerede bgm.tv hesabınızla giriş yapmanız gerekebilir.",
+            text = stringResource(R.string.inline_notifications_use_the_bgm_tv_582ff93),
             style = MaterialTheme.typography.labelSmall.copy(color = KitsugiColors.TextMuted)
         )
     }
@@ -400,7 +403,7 @@ private fun BangumiSummaryCard(
         verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
         Text(
-            text = "$typeLabel · $total kayıt",
+            text = stringResource(R.string.inline_1_s_2_s_entries_4308608, typeLabel, total),
             style = MaterialTheme.typography.titleSmall.copy(
                 fontWeight = FontWeight.SemiBold,
                 color = KitsugiColors.TextPrimary

@@ -27,6 +27,8 @@ import com.kitsugi.animelist.model.WatchStatus
 import kotlinx.coroutines.flow.first
 import java.time.Instant
 import java.time.OffsetDateTime
+import com.kitsugi.animelist.utils.KitsugiStrings
+import com.kitsugi.animelist.R
 
 class AiringNotificationWorker(
     private val context: Context,
@@ -147,7 +149,7 @@ class AiringNotificationWorker(
                         val malKey = "${entry.malId}_${entry.episode}"
                         if (!notifiedMalKeys.contains(malKey)) {
                             val title = entry.title
-                            val body = "Bölüm ${entry.episode} artık yayında! 🎬"
+                            val body = KitsugiStrings.get(R.string.bolum_x_artik_yayinda, entry.episode)
                             val malId = entry.malId ?: 0
                             val notifId = (malId * 1000 + entry.episode) and Int.MAX_VALUE
 
@@ -210,7 +212,7 @@ class AiringNotificationWorker(
                         showNotification(
                             id = key.hashCode() and 0x7fffffff,
                             title = entry.title,
-                            bodyText = if (label != null) "$label yayınlandı! 🎬" else "Yeni film gösterimi! 🎬",
+                            bodyText = if (label != null) KitsugiStrings.get(R.string.notification_episode_released, label) else KitsugiStrings.get(R.string.notification_new_movie_release),
                             source = "Simkl",
                             imageUrl = entry.posterUrl,
                             isMedia = true,
@@ -252,7 +254,7 @@ class AiringNotificationWorker(
                         showNotification(
                             id = key.hashCode() and 0x7fffffff,
                             title = entry.title,
-                            bodyText = "Bölüm ${entry.progress + 1} yayınlandı! 🎬",
+                            bodyText = KitsugiStrings.get(R.string.bolum_entry_progress_1_yayinlandi, entry.progress + 1),
                             source = "Kitsu",
                             imageUrl = entry.imageUrl,
                             isMedia = true,
@@ -455,7 +457,7 @@ class AiringNotificationWorker(
                 "Kitsugi Bildirimleri",
                 NotificationManager.IMPORTANCE_DEFAULT
             ).apply {
-                description = "Takip ettiğiniz anime, manga, dizi ve hesap bildirimleri."
+                description = KitsugiStrings.get(R.string.notification_channel_description)
             }
             val nm = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
             nm.createNotificationChannel(channel)

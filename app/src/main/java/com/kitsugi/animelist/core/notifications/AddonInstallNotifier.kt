@@ -14,6 +14,7 @@ import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
 import com.kitsugi.animelist.MainActivity
 import com.kitsugi.animelist.R
+import com.kitsugi.animelist.utils.KitsugiStrings
 
 /**
  * Toplu eklenti kurulum / güncelleme ilerlemesini ve sonucunu Android sistem
@@ -104,7 +105,7 @@ object AddonInstallNotifier {
             "Eklenti kurulumu",
             NotificationManager.IMPORTANCE_LOW
         ).apply {
-            description = "Eklenti kurulum ve güncelleme ilerlemesi"
+            description = KitsugiStrings.get(R.string.eklenti_kurulum_ve_guncelleme_ilerlemesi)
             setShowBadge(false)
         }
         nm.createNotificationChannel(channel)

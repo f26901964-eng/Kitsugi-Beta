@@ -17,6 +17,8 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.supervisorScope
+import com.kitsugi.animelist.utils.KitsugiStrings
+import com.kitsugi.animelist.R
 
 data class TvHomeState(
     val isLoading: Boolean = true,
@@ -71,7 +73,7 @@ class TvViewModel(application: Application) : AndroidViewModel(application) {
             } catch (e: Exception) {
                 _homeState.value = _homeState.value.copy(
                     isLoading = false,
-                    errorMessage = e.message ?: "Veriler yüklenemedi"
+                    errorMessage = e.message ?: KitsugiStrings.get(R.string.veriler_yuklenemedi)
                 )
             }
         }

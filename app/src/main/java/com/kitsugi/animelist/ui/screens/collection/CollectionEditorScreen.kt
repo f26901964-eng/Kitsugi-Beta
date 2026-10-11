@@ -46,7 +46,7 @@ fun CollectionEditorScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(if (isEditing) "Koleksiyonu Düzenle" else "Yeni Koleksiyon", fontWeight = FontWeight.Bold) },
+                title = { Text(if (isEditing) stringResource(R.string.ui_collection_edit) else stringResource(R.string.ui_collection_new), fontWeight = FontWeight.Bold) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
                         Icon(Icons.Rounded.Close, contentDescription = stringResource(R.string.kapat))
@@ -57,7 +57,7 @@ fun CollectionEditorScreen(
                         onClick = { if (isValid) onSave(name.trim(), emoji, description.trim(), isPrivate) },
                         enabled = isValid
                     ) {
-                        Text(if (isEditing) "Kaydet" else "Oluştur", fontWeight = FontWeight.Bold)
+                        Text(if (isEditing) stringResource(R.string.action_save) else stringResource(R.string.pd_create), fontWeight = FontWeight.Bold)
                     }
                 }
             )
@@ -91,8 +91,8 @@ fun CollectionEditorScreen(
                     value = name,
                     onValueChange = { if (it.length <= 50) name = it },
                     modifier = Modifier.weight(1f),
-                    label = { Text("Koleksiyon Adı *") },
-                    placeholder = { Text("ör. Favori Animeler") },
+                    label = { Text(stringResource(R.string.inline_collection_name_765515f)) },
+                    placeholder = { Text(stringResource(R.string.inline_e_g_favorite_anime_051af68)) },
                     supportingText = { Text("${name.length}/50") },
                     isError = name.isBlank() && name.isNotEmpty(),
                     keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
@@ -105,8 +105,8 @@ fun CollectionEditorScreen(
                 value = description,
                 onValueChange = { if (it.length <= 200) description = it },
                 modifier = Modifier.fillMaxWidth(),
-                label = { Text("Açıklama (İsteğe bağlı)") },
-                placeholder = { Text("Bu koleksiyon hakkında kısa bir açıklama...") },
+                label = { Text(stringResource(R.string.inline_description_optional_29350f6)) },
+                placeholder = { Text(stringResource(R.string.inline_a_short_description_of_this_597ab17)) },
                 supportingText = { Text("${description.length}/200") },
                 maxLines = 3
             )
@@ -126,7 +126,7 @@ fun CollectionEditorScreen(
                         )
                         Column {
                             Text("Gizli Koleksiyon", style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Medium)
-                            Text("Sadece sen görebilirsin", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text(stringResource(R.string.inline_only_you_can_see_this_c337f96), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                     }
                     Switch(checked = isPrivate, onCheckedChange = { isPrivate = it })
@@ -137,7 +137,7 @@ fun CollectionEditorScreen(
             if (showEmojiPicker) {
                 Card(modifier = Modifier.fillMaxWidth()) {
                     Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text("Emoji Seç", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+                        Text(stringResource(R.string.inline_choose_emoji_85437bf), style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
                         val quickEmojis = listOf("📁", "⭐", "❤️", "🔥", "🎬", "🎌", "🏆", "🎭", "👾", "🌸", "⚔️", "🤖", "🌙", "🎵", "📺", "🎮")
                         @Suppress("UNUSED_VARIABLE")
                         val rows = quickEmojis.chunked(8)

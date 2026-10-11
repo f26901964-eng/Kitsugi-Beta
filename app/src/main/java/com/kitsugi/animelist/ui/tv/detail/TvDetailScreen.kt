@@ -87,6 +87,7 @@ import com.kitsugi.animelist.utils.toTurkishStaffRole
 import com.kitsugi.animelist.utils.toTurkishRelationType
 import com.kitsugi.animelist.utils.toTurkishCharacterRole
 import com.kitsugi.animelist.ui.components.safeBlur
+import com.kitsugi.animelist.utils.KitsugiStrings
 
 @OptIn(ExperimentalTvMaterial3Api::class, ExperimentalFoundationApi::class, ExperimentalComposeUiApi::class)
 @Composable
@@ -137,7 +138,7 @@ fun TvDetailScreen(
         val detail = detailState
         if (detail != null) {
             result.copy(
-                title = detail.titleRomaji ?: (if (result.title == "Yükleniyor..." || result.title == "Loading...") (detail.title ?: result.title) else result.title),
+                title = detail.titleRomaji ?: (if (result.title == KitsugiStrings.get(R.string.loading) || result.title == "Loading...") (detail.title ?: result.title) else result.title),
                 titleEnglish = detail.titleEnglish ?: result.titleEnglish,
                 titleJapanese = (detail.titleJapanese ?: detail.titleNative) ?: result.titleJapanese,
                 titleRomaji = detail.titleRomaji ?: result.titleRomaji,
@@ -682,7 +683,7 @@ fun TvDetailScreen(
                     item {
                         Column(verticalArrangement = Arrangement.spacedBy(KitsugiTvTokens.Spacing.sm)) {
                             Text(
-                                text = "Yapım Ekibi",
+                                text = stringResource(R.string.tv_detail_staff),
                                 style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
                                 color = KitsugiColors.TextPrimary
                             )
@@ -738,7 +739,7 @@ fun TvDetailScreen(
                     item {
                         Column(verticalArrangement = Arrangement.spacedBy(KitsugiTvTokens.Spacing.sm)) {
                             Text(
-                                text = "İlişkili İçerikler",
+                                text = stringResource(R.string.tv_detail_relations),
                                 style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
                                 color = KitsugiColors.TextPrimary
                             )
@@ -822,7 +823,7 @@ fun TvDetailScreen(
                         item {
                             Column(verticalArrangement = Arrangement.spacedBy(KitsugiTvTokens.Spacing.sm)) {
                                 Text(
-                                    text = "Açılış ve Kapanış Videoları",
+                                    text = stringResource(R.string.inline_opening_and_ending_videos_856c41d),
                                     style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
                                     color = KitsugiColors.TextPrimary
                                 )
@@ -1397,7 +1398,7 @@ private fun TvStatsSection(
             ) {
                 if (hasWatching) {
                     TvStatChip(
-                        label = if (isTmdb) "Popülerlik" else "İzleniyor",
+                        label = if (isTmdb) stringResource(R.string.populerlik) else stringResource(R.string.watch_watching),
                         count = stats.watching ?: 0,
                         total = total,
                         color = KitsugiColors.AccentBlue,
@@ -1406,7 +1407,7 @@ private fun TvStatsSection(
                 }
                 if (hasCompleted) {
                     TvStatChip(
-                        label = if (isTmdb) "Oylar" else "Tamamlandı",
+                        label = if (isTmdb) "Oylar" else stringResource(R.string.cs_diag_completed),
                         count = stats.completed ?: 0,
                         total = total,
                         color = KitsugiColors.AccentGreen,
@@ -1694,7 +1695,7 @@ private fun TvThemeCard(
             }
             Column {
                 Text(
-                    text = if (isOpening) "Açılış Teması ${index + 1}" else "Kapanış Teması ${index + 1}",
+                    text = if (isOpening) stringResource(R.string.acilis_temasi_x, index + 1) else stringResource(R.string.kapanis_temasi_x, index + 1),
                     style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
                     color = accentColor
                 )

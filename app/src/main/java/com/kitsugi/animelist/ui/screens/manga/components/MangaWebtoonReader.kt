@@ -29,6 +29,8 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 
 import com.kitsugi.animelist.data.manga.ColorFilterType
 import com.kitsugi.animelist.data.manga.MangaFitMode
+import androidx.compose.ui.res.stringResource
+import com.kitsugi.animelist.R
 
 /**
  * Sürekli dikey kaydırmalı Webtoon / Manhwa okuma modu.
@@ -132,7 +134,7 @@ private fun ChapterTransitionFooter(
         ) {
             if (hasNextChapter) {
                 Text(
-                    text = "Bölüm sonu",
+                    text = stringResource(R.string.inline_end_of_episode_928d999),
                     color = Color.White.copy(0.5f),
                     fontSize = 13.sp
                 )
@@ -144,11 +146,11 @@ private fun ChapterTransitionFooter(
                         contentColor = Color.White
                     )
                 ) {
-                    Text(text = nextChapterName?.let { "Sonraki: $it" } ?: "Sonraki Bölüm")
+                    Text(text = nextChapterName?.let { "Sonraki: $it" } ?: stringResource(R.string.inline_next_episode_ab03b91))
                 }
             } else {
                 Text(
-                    text = "Son bölümdesin 🎉",
+                    text = stringResource(R.string.inline_you_re_on_the_last_4e9fc31),
                     color = Color.White.copy(0.5f),
                     fontSize = 14.sp
                 )

@@ -62,6 +62,7 @@ import androidx.compose.runtime.collectAsState
 import kotlinx.coroutines.delay
 import androidx.compose.ui.res.stringResource
 import com.kitsugi.animelist.R
+import com.kitsugi.animelist.utils.KitsugiStrings
 
 
 // ---------------------------------------------------------------------------
@@ -92,7 +93,7 @@ fun KitsugiTrailerCard(trailerUrl: String, mediaTitle: String = "") {
             .padding(16.dp)
     ) {
         Text(
-            text = "Ön izleme",
+            text = stringResource(R.string.inline_preview_c9d9dd2),
             color = KitsugiColors.TextPrimary,
             style = MaterialTheme.typography.titleMedium,
             fontWeight = FontWeight.Bold
@@ -132,20 +133,20 @@ fun KitsugiTrailerCard(trailerUrl: String, mediaTitle: String = "") {
             ) {
                 Icon(
                     imageVector = if (isPlayerOpen) Icons.Rounded.KeyboardArrowUp else Icons.Rounded.PlayArrow,
-                    contentDescription = if (isPlayerOpen) "Kapat" else "Oynat",
+                    contentDescription = if (isPlayerOpen) stringResource(R.string.settings_close) else "Oynat",
                     tint = com.kitsugi.animelist.ui.theme.onAccentColor(accentColor),
                     modifier = Modifier.size(24.dp)
                 )
             }
             Column {
                 Text(
-                    text = "Fragmanı İzle",
+                    text = stringResource(R.string.inline_watch_trailer_8b06108),
                     color = if (isPlayerOpen) accentColor else KitsugiColors.TextPrimary,
                     style = MaterialTheme.typography.titleSmall,
                     fontWeight = FontWeight.Bold
                 )
                 Text(
-                    text = if (videoId != null) "Uygulama içinde oynat" else "YouTube'da aç",
+                    text = if (videoId != null) stringResource(R.string.ui_play_in_app) else stringResource(R.string.youtube_da_ac),
                     color = KitsugiColors.TextSecondary,
                     style = MaterialTheme.typography.bodySmall
                 )
@@ -317,13 +318,13 @@ fun ThemePlayerContainer(
                     modifier = Modifier.padding(16.dp)
                 ) {
                     Text(
-                        text = "Video oynatılamadı",
+                        text = KitsugiStrings.get(R.string.inline_video_couldn_t_be_played_8d8f91f),
                         color = Color.White,
                         style = MaterialTheme.typography.bodyMedium,
                         fontWeight = FontWeight.Bold
                     )
                     Text(
-                        text = "Tekrar denemek için ▶ düğmesine basın.",
+                        text = KitsugiStrings.get(R.string.inline_press_to_try_again_45075c9),
                         color = Color.White.copy(alpha = 0.65f),
                         style = MaterialTheme.typography.bodySmall
                     )
@@ -421,7 +422,7 @@ fun KitsugiThemesList(
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Text(
-                    text = "Açılış Müzikleri / Videolar",
+                    text = stringResource(R.string.inline_opening_ending_music_videos_6b5701d),
                     color = KitsugiColors.TextPrimary,
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
@@ -437,7 +438,7 @@ fun KitsugiThemesList(
                         horizontalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
                         Text(
-                            text = if (openingsExpanded) "Daha Az" else "+${openings.size - INITIAL_COUNT} Daha",
+                            text = if (openingsExpanded) stringResource(R.string.daha_az) else stringResource(R.string.x_daha, openings.size - INITIAL_COUNT),
                             color = accentColor,
                             style = MaterialTheme.typography.labelMedium,
                             fontWeight = FontWeight.Bold
@@ -544,7 +545,7 @@ fun KitsugiThemesList(
                         horizontalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
                         Text(
-                            text = if (endingsExpanded) "Daha Az" else "+${endings.size - INITIAL_COUNT} Daha",
+                            text = if (endingsExpanded) stringResource(R.string.daha_az) else stringResource(R.string.x_daha, endings.size - INITIAL_COUNT),
                             color = accentColor,
                             style = MaterialTheme.typography.labelMedium,
                             fontWeight = FontWeight.Bold
@@ -657,7 +658,7 @@ private fun ThemeRow(
                 fontWeight = if (isActive) FontWeight.Bold else FontWeight.Normal
             )
             Text(
-                text = if (theme.videoUrl != null) "Uygulama içinde oynat" else "YouTube'da ara",
+                text = if (theme.videoUrl != null) stringResource(R.string.ui_play_in_app) else stringResource(R.string.ui_open_youtube_search),
                 color = KitsugiColors.TextMuted,
                 style = MaterialTheme.typography.labelSmall
             )

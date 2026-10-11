@@ -71,7 +71,7 @@ internal fun StremioTab(
         item {
             AddonInfoBanner(
                 accentColor = accentColor,
-                text = "Torrent akışı ve Stremio uyumlu akış eklentilerini bu sekmeden yönetirsiniz."
+                text = stringResource(R.string.torrent_akisi_ve_stremio_uyumlu_akis_eklentilerini_bu_sekmeden_y)
             )
         }
 
@@ -85,8 +85,8 @@ internal fun StremioTab(
         // ── Oynatma ayarları ───────────────────────────────────────────────
         item {
             AddonSectionCard(
-                title = "Oynatma Ayarları",
-                subtitle = "Otomatik oynatma ve oynatıcı motoru",
+                title = stringResource(R.string.inline_playback_settings_ca13228),
+                subtitle = stringResource(R.string.otomatik_oynatma_ve_oynatici_motoru),
                 icon = Icons.Rounded.PlayCircle,
                 accentColor = accentColor,
                 iconTint = KitsugiColors.AccentBlue
@@ -103,7 +103,7 @@ internal fun StremioTab(
                 ) {
                     Column(modifier = Modifier.weight(1f).padding(end = 12.dp)) {
                         Text("Otomatik Oynat (Auto-Play)", color = KitsugiColors.TextPrimary, fontSize = 14.sp, fontWeight = FontWeight.Bold)
-                        Text("İlk önbellekli akışı otomatik başlatır.", color = KitsugiColors.TextSecondary, fontSize = 12.sp)
+                        Text(stringResource(R.string.inline_automatically_start_the_first_cach_6bd3939), color = KitsugiColors.TextSecondary, fontSize = 12.sp)
                     }
                     Switch(
                         checked = autoplayEnabled,
@@ -114,11 +114,11 @@ internal fun StremioTab(
 
                 HorizontalDivider(color = KitsugiColors.Border.copy(alpha = 0.5f))
 
-                Text("Varsayılan Oynatıcı Motoru", color = KitsugiColors.TextPrimary, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                Text(stringResource(R.string.inline_default_player_engine_9ae31a7), color = KitsugiColors.TextPrimary, fontSize = 14.sp, fontWeight = FontWeight.Bold)
                 Spacer(Modifier.height(8.dp))
                 var dropdownExpanded by remember { mutableStateOf(false) }
-                val playerOptions = listOf("exoplayer" to "Dahili Oynatıcı (ExoPlayer)", "mpv" to "Harici Oynatıcı (MPV)", "ask" to "Her Zaman Sor")
-                val currentPlayerName = playerOptions.find { it.first == defaultPlayer }?.second ?: "Dahili Oynatıcı (ExoPlayer)"
+                val playerOptions = listOf("exoplayer" to stringResource(R.string.player_engine_internal_exo), "mpv" to stringResource(R.string.harici_oynatici_mpv), "ask" to "Her Zaman Sor")
+                val currentPlayerName = playerOptions.find { it.first == defaultPlayer }?.second ?: stringResource(R.string.player_engine_internal_exo)
                 Box(modifier = Modifier.fillMaxWidth()) {
                     Row(
                         // Kart zemini zaten SurfaceSoft; bu satır bir ton koyu/açık yüzeyle
@@ -130,7 +130,7 @@ internal fun StremioTab(
                         horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(text = currentPlayerName, color = KitsugiColors.TextPrimary, fontSize = 14.sp)
-                        Icon(Icons.Rounded.ArrowDropDown, contentDescription = "Seç", tint = KitsugiColors.TextSecondary)
+                        Icon(Icons.Rounded.ArrowDropDown, contentDescription = stringResource(R.string.ui_tv_select), tint = KitsugiColors.TextSecondary)
                     }
                     KitsugiDropdownMenu(expanded = dropdownExpanded, onDismissRequest = { dropdownExpanded = false }) {
                         playerOptions.forEach { option ->
@@ -148,8 +148,8 @@ internal fun StremioTab(
         // ── Hazır akış eklentileri ─────────────────────────────────────────
         item {
             AddonSectionCard(
-                title = "Hazır Akış Eklentileri",
-                subtitle = "Tek tıkla kurabileceğiniz güvenilir kaynaklar",
+                title = stringResource(R.string.hazir_akis_eklentileri),
+                subtitle = stringResource(R.string.tek_tikla_kurabileceginiz_guvenilir_kaynaklar),
                 icon = Icons.Rounded.AutoAwesome,
                 accentColor = accentColor,
                 iconTint = KitsugiColors.AccentPurple
@@ -173,8 +173,8 @@ internal fun StremioTab(
         // ── Özel eklenti ekle ──────────────────────────────────────────────
         item {
             AddonSectionCard(
-                title = "Özel Akış Eklentisi Ekle",
-                subtitle = "Manifest adresini yapıştırın",
+                title = stringResource(R.string.inline_add_custom_streaming_extension_c10d9ca),
+                subtitle = stringResource(R.string.manifest_adresini_yapistirin),
                 icon = Icons.Rounded.AddLink,
                 accentColor = accentColor,
                 iconTint = KitsugiColors.AccentOrange
@@ -205,7 +205,7 @@ internal fun StremioTab(
         // ── Yüklü eklentiler ───────────────────────────────────────────────
         item {
             AddonListHeader(
-                title = "Yüklü Akış Eklentileri",
+                title = stringResource(R.string.yuklu_akis_eklentileri),
                 count = addons.size,
                 accentColor = accentColor
             )
@@ -215,7 +215,7 @@ internal fun StremioTab(
             item {
                 AddonEmptyCard(
                     icon = Icons.Rounded.ExtensionOff,
-                    text = "Henüz akış eklentisi yüklenmemiş. Yukarıdaki hazır eklentilerden biriyle başlayabilirsiniz."
+                    text = stringResource(R.string.henuz_akis_eklentisi_yuklenmemis_yukaridaki_hazir_eklentilerden)
                 )
             }
         } else {
@@ -230,7 +230,7 @@ internal fun StremioTab(
                     Spacer(Modifier.width(12.dp))
                     Column(modifier = Modifier.weight(1f)) {
                         Text(addon.name, color = KitsugiColors.TextPrimary, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold)
-                        Text(addon.description ?: "Açıklama yok", color = KitsugiColors.TextSecondary, style = MaterialTheme.typography.bodySmall, maxLines = 1)
+                        Text(addon.description ?: stringResource(R.string.ui_no_description), color = KitsugiColors.TextSecondary, style = MaterialTheme.typography.bodySmall, maxLines = 1)
                     }
                     Spacer(Modifier.width(8.dp))
                     Switch(
@@ -240,7 +240,7 @@ internal fun StremioTab(
                     )
                     Spacer(Modifier.width(4.dp))
                     IconButton(onClick = { onDeleteAddon(addon) }) {
-                        Icon(Icons.Rounded.Delete, contentDescription = "Sil", tint = KitsugiColors.AccentRed)
+                        Icon(Icons.Rounded.Delete, contentDescription = stringResource(R.string.action_delete), tint = KitsugiColors.AccentRed)
                     }
                 }
             }

@@ -45,6 +45,7 @@ import kotlinx.coroutines.launch
 import java.util.Locale
 import androidx.compose.ui.res.stringResource
 import com.kitsugi.animelist.R
+import com.kitsugi.animelist.utils.KitsugiStrings
 
 enum class DebridCacheState {
     CACHED,
@@ -137,7 +138,7 @@ fun KitsugiStreamSelectorBottomSheet(
                 if (resolvedUrl != null && !resolvedUrl.startsWith("magnet:", ignoreCase = true) && !resolvedUrl.startsWith("torrent://", ignoreCase = true)) {
                     onStreamSelected(resolvedUrl, stream.title, stream)
                 } else {
-                    errorMessage = if (isTorrent) "P2P akış motoru başlatılamadı veya torrent çözümlenemedi." else "Akış linki çözümlenemedi."
+                    errorMessage = if (isTorrent) KitsugiStrings.get(R.string.p2p_akis_motoru_baslatilamadi_veya_torrent_cozumlenemedi) else KitsugiStrings.get(R.string.akis_linki_cozumlenemedi)
                 }
             }
         }
@@ -174,10 +175,10 @@ fun KitsugiStreamSelectorBottomSheet(
             )
             streams = fetched
             if (fetched.isEmpty()) {
-                errorMessage = "Herhangi bir akış kaynağı bulunamadı. Eklentilerinizi veya RealDebrid ayarlarınızı kontrol edin."
+                errorMessage = KitsugiStrings.get(R.string.herhangi_bir_akis_kaynagi_bulunamadi_eklentilerinizi_veya_realde)
             }
         } catch (e: Exception) {
-            errorMessage = "Akışlar yüklenirken bir hata oluştu: ${e.localizedMessage}"
+            errorMessage = KitsugiStrings.get(R.string.akislar_yuklenirken_bir_hata_olustu_x, e.localizedMessage)
         } finally {
             isLoading = false
         }
@@ -245,7 +246,7 @@ fun KitsugiStreamSelectorBottomSheet(
 
                     if (!isLoading && errorMessage == null && resolvingSource == null) {
                         val addonNames = remember(streams) {
-                            listOf("Tümü") + streams.map { it.addonName }.distinct()
+                            listOf(KitsugiStrings.get(R.string.notif_filter_all)) + streams.map { it.addonName }.distinct()
                         }
                         var selectedAddonLandscape by remember { mutableStateOf("Tümü") }
 
@@ -322,7 +323,7 @@ fun KitsugiStreamSelectorBottomSheet(
                                 KitsugiPlasmaLoader(size = 44.dp)
                                 Spacer(modifier = Modifier.height(16.dp))
                                 Text(
-                                    text = "Eklentiler taranıyor...",
+                                    text = stringResource(R.string.inline_scanning_extensions_959d892),
                                     color = KitsugiColors.TextSecondary,
                                     fontSize = 13.sp,
                                     fontWeight = FontWeight.Medium
@@ -363,7 +364,7 @@ fun KitsugiStreamSelectorBottomSheet(
                                     fontWeight = FontWeight.Bold
                                 )
                                 Text(
-                                    text = "RealDebrid üzerinden bağlantı alınıyor.",
+                                    text = stringResource(R.string.inline_connecting_through_realdebrid_d1107e6),
                                     color = KitsugiColors.TextSecondary,
                                     fontSize = 12.sp,
                                     modifier = Modifier.padding(top = 4.dp)
@@ -372,7 +373,7 @@ fun KitsugiStreamSelectorBottomSheet(
                         }
                         else -> {
                             val addonNamesR = remember(streams) {
-                                listOf("Tümü") + streams.map { it.addonName }.distinct()
+                                listOf(KitsugiStrings.get(R.string.notif_filter_all)) + streams.map { it.addonName }.distinct()
                             }
                             var selectedAddonR by remember { mutableStateOf("Tümü") }
                             val filteredStreamsR = remember(streams, selectedAddonR) {
@@ -451,7 +452,7 @@ fun KitsugiStreamSelectorBottomSheet(
                         KitsugiPlasmaLoader(size = 50.dp)
                         Spacer(modifier = Modifier.height(18.dp))
                         Text(
-                            text = "Eklentiler taranıyor, akışlar aranıyor...",
+                            text = stringResource(R.string.inline_scanning_extensions_and_searching__a6ec7db),
                             color = KitsugiColors.TextSecondary,
                             fontSize = 14.sp,
                             fontWeight = FontWeight.Medium
@@ -489,7 +490,7 @@ fun KitsugiStreamSelectorBottomSheet(
                             fontWeight = FontWeight.Bold
                         )
                         Text(
-                            text = "RealDebrid üzerinden indirme bağlantısı alınıyor.",
+                            text = stringResource(R.string.inline_getting_a_download_link_through_4599c4e),
                             color = KitsugiColors.TextSecondary,
                             fontSize = 13.sp,
                             modifier = Modifier.padding(top = 4.dp)
@@ -510,7 +511,7 @@ fun KitsugiStreamSelectorBottomSheet(
                     }
                 } else {
                     val addonNames = remember(streams) {
-                        listOf("Tümü") + streams.map { it.addonName }.distinct()
+                        listOf(KitsugiStrings.get(R.string.notif_filter_all)) + streams.map { it.addonName }.distinct()
                     }
                     var selectedAddon by remember { mutableStateOf("Tümü") }
                     val filteredStreams = remember(streams, selectedAddon) {

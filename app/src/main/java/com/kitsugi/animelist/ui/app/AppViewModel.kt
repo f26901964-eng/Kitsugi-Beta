@@ -32,6 +32,8 @@ import dagger.hilt.EntryPoint
 import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
 import dagger.hilt.android.EntryPointAccessors
+import com.kitsugi.animelist.utils.KitsugiStrings
+import com.kitsugi.animelist.R
 
 @EntryPoint
 @InstallIn(SingletonComponent::class)
@@ -337,13 +339,13 @@ class AppViewModel : ViewModel() {
                 }
 
                 val message = when (importMode) {
-                    BackupImportMode.Replace -> "${entriesToSave.size} kayıt dosyadan içe aktarıldı"
+                    BackupImportMode.Replace -> KitsugiStrings.get(R.string.x_kayit_dosyadan_ice_aktarildi, entriesToSave.size)
                     BackupImportMode.Append -> "${entriesToSave.size} yeni kayıt dosyadan eklendi"
                 }
                 showSnackbarMessage(message)
             }
         }.onFailure { error ->
-            showSnackbarMessage(error.message ?: "Yedek dosyası içe aktarılamadı")
+            showSnackbarMessage(error.message ?: KitsugiStrings.get(R.string.yedek_dosyasi_ice_aktarilamadi))
         }
     }
 
@@ -402,17 +404,17 @@ class AppViewModel : ViewModel() {
 
         // En az bir servis bağlı olmalı
         if (!isAniListConnected && !isMalConnected && !isSimklConnected) {
-            showSnackbarMessage("Listeye eklemek için en az bir hesap bağlamalısın (AniList, MAL veya Simkl).")
+            showSnackbarMessage(KitsugiStrings.get(R.string.listeye_eklemek_icin_en_az_bir_hesap_baglamalisin_anilist_mal_ve))
             return
         }
 
         // Film/dizi için Simkl zorunlu değil, anime için MAL/AniList biri yeterli
         if ((result.type == MediaType.TvShow || result.type == MediaType.Movie) && !isSimklConnected) {
-            showSnackbarMessage("Film ve dizileri eklemek için önce Simkl hesabını bağlamalısın!")
+            showSnackbarMessage(KitsugiStrings.get(R.string.film_ve_dizileri_eklemek_icin_once_simkl_hesabini_baglamalisin))
             return
         }
         if (result.type == MediaType.Anime && !isAniListConnected && !isMalConnected) {
-            showSnackbarMessage("Anime eklemek için AniList veya MyAnimeList hesabını bağlamalısın!")
+            showSnackbarMessage(KitsugiStrings.get(R.string.anime_eklemek_icin_anilist_veya_myanimelist_hesabini_baglamalisi))
             return
         }
 
@@ -522,7 +524,7 @@ class AppViewModel : ViewModel() {
     ) {
         viewModelScope.launch {
             settingsDataStore.setSelectedThemeId(themeId)
-            showSnackbarMessage("Tema güncellendi")
+            showSnackbarMessage(KitsugiStrings.get(R.string.tema_guncellendi))
         }
     }
 
@@ -532,7 +534,7 @@ class AppViewModel : ViewModel() {
     ) {
         viewModelScope.launch {
             settingsDataStore.setSelectedListLayoutId(layoutId)
-            showSnackbarMessage("Liste görünümü güncellendi")
+            showSnackbarMessage(KitsugiStrings.get(R.string.liste_gorunumu_guncellendi))
         }
     }
 
@@ -542,7 +544,7 @@ class AppViewModel : ViewModel() {
     ) {
         viewModelScope.launch {
             settingsDataStore.setTitleLanguage(titleLanguage)
-            showSnackbarMessage("Başlık dili güncellendi")
+            showSnackbarMessage(KitsugiStrings.get(R.string.baslik_dili_guncellendi))
         }
     }
 
@@ -552,7 +554,7 @@ class AppViewModel : ViewModel() {
     ) {
         viewModelScope.launch {
             settingsDataStore.setScoreFormat(scoreFormat)
-            showSnackbarMessage("Puan formatı güncellendi")
+            showSnackbarMessage(KitsugiStrings.get(R.string.puan_formati_guncellendi))
         }
     }
 
@@ -562,7 +564,7 @@ class AppViewModel : ViewModel() {
     ) {
         viewModelScope.launch {
             settingsDataStore.setHideScores(hide)
-            showSnackbarMessage(if (hide) "Puanlar gizlendi" else "Puanlar gösteriliyor")
+            showSnackbarMessage(if (hide) "Puanlar gizlendi" else KitsugiStrings.get(R.string.puanlar_gosteriliyor))
         }
     }
 
@@ -573,7 +575,7 @@ class AppViewModel : ViewModel() {
         viewModelScope.launch {
             settingsDataStore.setShowAnimeLogos(show)
             showSnackbarMessage(
-                if (show) "Anime logoları etkinleştirildi" else "Anime logoları devre dışı bırakıldı"
+                if (show) KitsugiStrings.get(R.string.anime_logolari_etkinlestirildi) else KitsugiStrings.get(R.string.anime_logolari_devre_disi_birakildi)
             )
         }
     }
@@ -585,7 +587,7 @@ class AppViewModel : ViewModel() {
         viewModelScope.launch {
             settingsDataStore.setDnsChoice(choice)
             com.kitsugi.animelist.core.network.DnsManager.dnsChoice = choice
-            showSnackbarMessage("DNS Ayarı Güncellendi")
+            showSnackbarMessage(KitsugiStrings.get(R.string.dns_ayari_guncellendi))
         }
     }
 
@@ -594,7 +596,7 @@ class AppViewModel : ViewModel() {
     fun deleteAllEntries(repository: MediaEntryRepository) {
         viewModelScope.launch {
             repository.deleteAll()
-            showSnackbarMessage("Liste temizlendi")
+            showSnackbarMessage(KitsugiStrings.get(R.string.liste_temizlendi))
 
             // B1.12: Clear TV launcher channels/recommendations
             val ctx = repository.context

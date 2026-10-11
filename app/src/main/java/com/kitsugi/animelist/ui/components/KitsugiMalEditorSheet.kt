@@ -61,6 +61,7 @@ import com.kitsugi.animelist.ui.theme.LocalKitsugiAccent
 import com.kitsugi.animelist.ui.theme.KitsugiColors
 import androidx.compose.ui.res.stringResource
 import com.kitsugi.animelist.R
+import com.kitsugi.animelist.utils.KitsugiStrings
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -167,7 +168,7 @@ internal fun KitsugiMalMediaEntryEditorSheet(
                     Text(text = stringResource(R.string.iptal), color = KitsugiColors.TextSecondary, fontWeight = FontWeight.Medium)
                 }
                 Text(
-                    text = initialEntry?.title ?: "MyAnimeList Kaydı",
+                    text = initialEntry?.title ?: stringResource(R.string.ui_mal_entry_fallback),
                     color = KitsugiColors.TextPrimary,
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
@@ -236,7 +237,7 @@ internal fun KitsugiMalMediaEntryEditorSheet(
                 val progressSuffix = if (parsedTotal != null) " / $parsedTotal" else ""
                 SheetRow(
                     icon = if (selectedType == MediaType.Anime) Icons.Rounded.PlayArrow else Icons.Rounded.Book,
-                    label = if (selectedType == MediaType.Anime) "Bölümler" else "Bölümler (Chapter)",
+                    label = if (selectedType == MediaType.Anime) stringResource(R.string.tv_detail_episodes) else stringResource(R.string.bolumler_chapter),
                     value = progressText,
                     onValueChange = { newValue ->
                         if (newValue.isEmpty()) {
@@ -310,7 +311,7 @@ internal fun KitsugiMalMediaEntryEditorSheet(
 
                 SheetRow(
                     icon = Icons.Rounded.Star,
-                    label = "Puan",
+                    label = stringResource(R.string.detail_stat_score),
                     value = scoreText,
                     onValueChange = null,
                     valuePlaceholder = if (scoreFormat == "POINT_3") "-" else "0",
@@ -355,11 +356,11 @@ internal fun KitsugiMalMediaEntryEditorSheet(
                 }
 
                 SheetRow(icon = Icons.Rounded.CalendarToday, label = stringResource(R.string.baslangic_tarihi),
-                    value = startDateText.ifBlank { "Tarih Seçilmemiş" },
+                    value = startDateText.ifBlank { KitsugiStrings.get(R.string.tarih_secilmemis) },
                     onClick = { selectDate(startDateText) { startDateText = it } },
                     onClearClick = if (startDateText.isNotBlank()) { { startDateText = "" } } else null)
                 SheetRow(icon = Icons.Rounded.EventAvailable, label = stringResource(R.string.bitis_tarihi),
-                    value = endDateText.ifBlank { "Tarih Seçilmemiş" },
+                    value = endDateText.ifBlank { KitsugiStrings.get(R.string.tarih_secilmemis) },
                     onClick = { selectDate(endDateText) { endDateText = it } },
                     onClearClick = if (endDateText.isNotBlank()) { { endDateText = "" } } else null)
 
@@ -372,12 +373,12 @@ internal fun KitsugiMalMediaEntryEditorSheet(
 
                 SheetRow(
                     icon = Icons.Rounded.Repeat,
-                    label = if (selectedType == MediaType.Manga) "Yeniden Okunuyor" else "Yeniden İzleniyor",
+                    label = if (selectedType == MediaType.Manga) KitsugiStrings.get(R.string.yeniden_okunuyor) else KitsugiStrings.get(R.string.watch_repeating),
                     switchChecked = isRepeating, onSwitchCheckedChange = { isRepeating = it }
                 )
                 SheetRow(
                     icon = Icons.Rounded.RepeatOne,
-                    label = if (selectedType == MediaType.Manga) "Toplam Tekrar Okuma" else "Toplam Tekrar İzleme",
+                    label = if (selectedType == MediaType.Manga) KitsugiStrings.get(R.string.toplam_tekrar_okuma) else KitsugiStrings.get(R.string.toplam_tekrar_izleme),
                     value = repeatCount.toString(),
                     onDecrement = { repeatCount = (repeatCount - 1).coerceAtLeast(0) },
                     onIncrement = { repeatCount = repeatCount + 1 }
@@ -386,7 +387,7 @@ internal fun KitsugiMalMediaEntryEditorSheet(
                 val repeatValueText = when (repeatValue) { 1 -> "Çok Düşük"; 2 -> "Düşük"; 3 -> "Orta"; 4 -> "Yüksek"; 5 -> "Çok Yüksek"; else -> "─" }
                 SheetRow(
                     icon = Icons.Rounded.DateRange,
-                    label = if (selectedType == MediaType.Manga) "Tekrar Okuma Değeri" else "Tekrar İzleme Değeri",
+                    label = if (selectedType == MediaType.Manga) KitsugiStrings.get(R.string.tekrar_okuma_degeri) else KitsugiStrings.get(R.string.tekrar_izleme_degeri),
                     value = repeatValueText,
                     onDecrement = { repeatValue = (repeatValue - 1).coerceAtLeast(0) },
                     onIncrement = { repeatValue = (repeatValue + 1).coerceAtMost(5) }
@@ -427,7 +428,7 @@ internal fun KitsugiMalMediaEntryEditorSheet(
                 if (isEditing && onDeleteClick != null) {
                     Spacer(modifier = Modifier.height(16.dp))
                     HorizontalDivider(color = KitsugiColors.Border, modifier = Modifier.padding(horizontal = 16.dp))
-                    SheetRow(icon = Icons.Rounded.Delete, label = "Sil",
+                    SheetRow(icon = Icons.Rounded.Delete, label = KitsugiStrings.get(R.string.action_delete),
                         onClick = onDeleteClick, modifier = Modifier.padding(vertical = 4.dp))
                 }
 
@@ -439,7 +440,7 @@ internal fun KitsugiMalMediaEntryEditorSheet(
                     else -> "Yerel Kitaplık"
                 }
                 Text(
-                    text = "Not: Yaptığınız değişiklikler otomatik olarak $platformName hesabınızla senkronize edilecektir.",
+                    text = KitsugiStrings.get(R.string.inline_note_your_changes_will_automatical_9cfe969, platformName),
                     color = KitsugiColors.TextMuted, style = MaterialTheme.typography.bodySmall,
                     fontWeight = FontWeight.Medium, modifier = Modifier.padding(horizontal = 16.dp)
                 )

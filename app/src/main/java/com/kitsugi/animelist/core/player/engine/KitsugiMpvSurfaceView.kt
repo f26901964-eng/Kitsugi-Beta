@@ -10,6 +10,8 @@ import java.util.Locale
 import kotlin.math.pow
 import kotlin.math.roundToLong
 import com.kitsugi.animelist.ui.screens.fullscreen.components.SubtitleStyleSettings
+import com.kitsugi.animelist.utils.KitsugiStrings
+import com.kitsugi.animelist.R
 
 enum class MpvHardwareDecodeMode {
     LEGACY_DIRECT_COPY, AUTO_SAFE, HARDWARE_COPY, HARDWARE_DIRECT, DISABLED
@@ -515,7 +517,7 @@ class KitsugiMpvSurfaceView @JvmOverloads constructor(
                     subtitleTracks += MpvTrack(
                         id = id,
                         type = type,
-                        name = title ?: language ?: "Altyazı #$id",
+                        name = title ?: language ?: KitsugiStrings.get(R.string.altyazi_x, id),
                         language = language,
                         codec = codec,
                         channelCount = null,

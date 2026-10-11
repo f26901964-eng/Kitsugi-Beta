@@ -161,7 +161,7 @@ fun MangaReaderScreen(
                         strokeWidth = 3.dp
                     )
                     Spacer(Modifier.height(16.dp))
-                    Text("Sayfa listesi yükleniyor...", color = Color.White.copy(0.6f), fontSize = 13.sp)
+                    Text(stringResource(R.string.inline_loading_page_list_31ccd61), color = Color.White.copy(0.6f), fontSize = 13.sp)
                 }
             }
         } else if (uiState.pagesError != null) {
@@ -178,7 +178,7 @@ fun MangaReaderScreen(
                     )
                     Spacer(Modifier.height(16.dp))
                     Text(
-                        text = uiState.pagesError ?: "Bir hata oluştu",
+                        text = uiState.pagesError ?: stringResource(R.string.ui_error_generic),
                         color = Color.White.copy(0.7f),
                         fontSize = 14.sp,
                         textAlign = androidx.compose.ui.text.style.TextAlign.Center
@@ -194,7 +194,7 @@ fun MangaReaderScreen(
             }
         } else if (pages.isEmpty()) {
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Text("Herhangi bir sayfa bulunamadı.", color = Color.White.copy(0.5f))
+                Text(stringResource(R.string.inline_no_pages_found_d05c840), color = Color.White.copy(0.5f))
             }
         } else {
             when (readingMode) {
@@ -468,7 +468,7 @@ fun MangaReaderScreen(
                     }) {
                         Icon(
                             imageVector = Icons.Default.ScreenRotation,
-                            contentDescription = "Ekran Döndürme",
+                            contentDescription = stringResource(R.string.ekran_dondurme),
                             tint = Color.White
                         )
                     }
@@ -484,7 +484,7 @@ fun MangaReaderScreen(
                     }) {
                         Icon(
                             imageVector = Icons.Default.CropFree,
-                            contentDescription = "Sığdırma Modu",
+                            contentDescription = stringResource(R.string.sigdirma_modu),
                             tint = Color.White
                         )
                     }
@@ -513,7 +513,7 @@ fun MangaReaderScreen(
                     .padding(horizontal = 16.dp, vertical = 8.dp)
             ) {
                 Text(
-                    "Okuyucu Ayarları",
+                    stringResource(R.string.inline_reader_settings_82b7841),
                     color     = Color.White,
                     fontSize  = 18.sp,
                     fontWeight = FontWeight.Bold,
@@ -522,7 +522,7 @@ fun MangaReaderScreen(
 
                 // Okuma Yönü
                 Text(
-                    "Okuma Yönü",
+                    stringResource(R.string.manga_reading_direction),
                     color = Color.White.copy(0.7f),
                     fontSize = 12.sp,
                     fontWeight = FontWeight.SemiBold,
@@ -556,7 +556,7 @@ fun MangaReaderScreen(
 
                 // Görsel Sığdırma Modu
                 Text(
-                    "Görsel Sığdırma Modu",
+                    stringResource(R.string.inline_image_fit_mode_3eed46c),
                     color = Color.White.copy(0.7f),
                     fontSize = 12.sp,
                     fontWeight = FontWeight.SemiBold,
@@ -567,7 +567,7 @@ fun MangaReaderScreen(
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     val fits = listOf(
-                        MangaFitMode.FitScreen to "Ekrana Sığdır",
+                        MangaFitMode.FitScreen to stringResource(R.string.manga_fit_screen),
                         MangaFitMode.FitWidth  to "Genişlik",
                         MangaFitMode.FitHeight to "Yükseklik"
                     )
@@ -623,7 +623,7 @@ fun MangaReaderScreen(
 
                 // Özel Parlaklık Sürgüsü
                 Text(
-                    "Okuyucu Parlaklığı",
+                    stringResource(R.string.inline_reader_brightness_e5e9f7a),
                     color = Color.White.copy(0.7f),
                     fontSize = 12.sp,
                     fontWeight = FontWeight.SemiBold,

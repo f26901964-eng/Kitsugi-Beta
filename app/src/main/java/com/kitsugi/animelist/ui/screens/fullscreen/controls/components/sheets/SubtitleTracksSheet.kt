@@ -26,6 +26,9 @@ import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.kitsugi.animelist.core.player.SubtitleInput
+import androidx.compose.ui.res.stringResource
+import com.kitsugi.animelist.R
+import com.kitsugi.animelist.utils.KitsugiStrings
 
 data class SubtitleTrackInfo(
     val id: Int,
@@ -49,7 +52,7 @@ fun SubtitleTracksSheet(
     modifier: Modifier = Modifier,
 ) {
     val allTracks = androidx.compose.runtime.remember(tracks) {
-        listOf(SubtitleTrackInfo(id = -99, label = "Altyazıyı Kapat")) + tracks
+        listOf(SubtitleTrackInfo(id = -99, label = KitsugiStrings.get(R.string.altyaziyi_kapat))) + tracks
     }
     val allSelected = androidx.compose.runtime.remember(selectedIndices) {
         if (selectedIndices.isEmpty()) listOf(-99) else selectedIndices
@@ -60,7 +63,7 @@ fun SubtitleTracksSheet(
         onDismissRequest = onDismissRequest,
         header = {
             TrackSheetTitle(
-                title = "Altyazılar",
+                title = stringResource(R.string.altyazilar),
                 actions = {
                     TextButton(onClick = onOpenSubtitleSettings) {
                         Row(
@@ -82,7 +85,7 @@ fun SubtitleTracksSheet(
                     }
                 },
             )
-            AddTrackRow(title = "Harici Altyazı Ekle", onClick = onAddSubtitleFile)
+            AddTrackRow(title = KitsugiStrings.get(R.string.harici_altyazi_ekle), onClick = onAddSubtitleFile)
         },
         track = { track ->
             // "Altyazıyı Kapat" (-99) veya negatif track için indirme yok
@@ -134,7 +137,7 @@ fun SubtitleTracksSheet(
             ) {
                 Icon(Icons.Outlined.Info, null)
                 Text(
-                    "İkincil altyazı için yalnızca ASS/SSA formatı desteklenmektedir.",
+                    stringResource(R.string.inline_only_ass_ssa_format_is_8635db9),
                     style = MaterialTheme.typography.bodySmall,
                 )
             }
@@ -184,7 +187,7 @@ fun SubtitleTrackRow(
             ) {
                 Icon(
                     imageVector = Icons.Rounded.Download,
-                    contentDescription = "Altyazıyı İndir",
+                    contentDescription = stringResource(R.string.altyaziyi_indir),
                     modifier = Modifier.size(20.dp),
                 )
             }

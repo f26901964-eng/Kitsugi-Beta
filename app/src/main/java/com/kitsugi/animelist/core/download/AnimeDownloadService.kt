@@ -23,6 +23,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import java.net.URL
+import com.kitsugi.animelist.utils.KitsugiStrings
 
 class AnimeDownloadService : Service() {
 
@@ -239,7 +240,7 @@ class AnimeDownloadService : Service() {
         val builder = NotificationCompat.Builder(this, CHANNEL_ID)
             .setContentTitle("$emoji ${download.animeTitle}")
             .setContentText("$epInfo$quality $verb")
-            .setSubText("Video İndirme")
+            .setSubText(KitsugiStrings.get(R.string.video_indirme))
             .setSmallIcon(if (success) android.R.drawable.stat_sys_download_done else android.R.drawable.stat_notify_error)
             .setAutoCancel(true)
             .setPriority(NotificationCompat.PRIORITY_DEFAULT)
@@ -273,7 +274,7 @@ class AnimeDownloadService : Service() {
                 "Anime İndirmeleri",
                 NotificationManager.IMPORTANCE_LOW
             ).apply {
-                description = "Anime indirme ilerlemesini gösterir."
+                description = KitsugiStrings.get(R.string.anime_indirme_ilerlemesini_gosterir)
             }
             notificationManager.createNotificationChannel(channel)
         }

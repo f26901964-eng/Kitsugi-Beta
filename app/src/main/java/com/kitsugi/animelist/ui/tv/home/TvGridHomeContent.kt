@@ -293,7 +293,7 @@ fun TvGridHomeContent(
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
-                            text = "Bu kategoride içerik bulunamadı",
+                            text = stringResource(R.string.inline_no_content_found_in_this_85d8401),
                             style = MaterialTheme.typography.bodyLarge,
                             color = Color.White.copy(alpha = 0.4f),
                             textAlign = TextAlign.Center

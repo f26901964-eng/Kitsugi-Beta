@@ -4,6 +4,8 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 import java.util.TimeZone
+import com.kitsugi.animelist.utils.KitsugiStrings
+import com.kitsugi.animelist.R
 
 /**
  * "nextAiringEpisode" alanının TEK biçim/sözlük katmanı.
@@ -77,7 +79,7 @@ object NextAiringFormat {
      * `"12 dakika sonra"`, `"az sonra"`.
      */
     fun countdownText(remainingSec: Long): String {
-        if (remainingSec <= 0) return "yayında"
+        if (remainingSec <= 0) return KitsugiStrings.get(R.string.yayinda_5231d5c)
         if (remainingSec < 60L) return "az sonra"
         if (remainingSec < 3600L) {
             val mins = (remainingSec / 60).toInt()
@@ -153,7 +155,7 @@ object NextAiringFormat {
             val remaining = epoch - nowEpoch
             if (remaining <= 0) return airedShortText(ep)
             val label = episodeLabel(ep)
-            val verb = if (ep == MOVIE_EPISODE) "vizyonda" else "yayında"
+            val verb = if (ep == MOVIE_EPISODE) "vizyonda" else KitsugiStrings.get(R.string.yayinda_5231d5c)
             return "$label · ${formatDate(epoch)} · ${countdownText(remaining)} $verb"
         }
         return parsed.legacyText.orEmpty()

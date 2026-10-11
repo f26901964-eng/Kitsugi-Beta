@@ -117,7 +117,7 @@ fun KitsugiMediaEntryDetailDialog(
         shape = RoundedCornerShape(28.dp),
         title = {
             Text(
-                text = "Kayıt Detayı",
+                text = stringResource(R.string.inline_entry_details_af79682),
                 color = KitsugiColors.TextPrimary,
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Bold
@@ -175,7 +175,7 @@ fun KitsugiMediaEntryDetailDialog(
                                     modifier = Modifier.weight(1f)
                                 ) {
                                     Text(
-                                        text = if (entry.isFavorite) "Favoriden Çıkar" else "Favori Yap",
+                                        text = if (entry.isFavorite) stringResource(R.string.action_favourite_remove) else "Favori Yap",
                                         color = accentColor,
                                         fontWeight = FontWeight.Bold,
                                         style = MaterialTheme.typography.labelSmall
@@ -341,7 +341,7 @@ fun KitsugiMediaEntryDetailDialog(
                         ) {
                             Text(
                                 text = if (entry.isFavorite) {
-                                    "Favoriden Çıkar"
+                                    stringResource(R.string.action_favourite_remove)
                                 } else {
                                     "Favori Yap"
                                 },
@@ -397,7 +397,7 @@ fun KitsugiMediaEntryDetailDialog(
                     onClick = onDeleteClick
                 ) {
                     Text(
-                        text = "Sil",
+                        text = stringResource(R.string.action_delete),
                         color = KitsugiColors.AccentRed,
                         fontWeight = FontWeight.SemiBold
                     )
@@ -438,7 +438,7 @@ private fun SynopsisSection(
         Spacer(modifier = Modifier.height(8.dp))
 
         val text = when (synopsisState) {
-            SynopsisState.Loading -> "Açıklama yükleniyor..."
+            SynopsisState.Loading -> stringResource(R.string.detail_synopsis_loading)
             SynopsisState.Error -> "Açıklama alınamadı."
             is SynopsisState.Success -> synopsisState.text
         }
@@ -506,7 +506,7 @@ private fun DetailInfoGrid(
         }
 
         DetailInfoRow(
-            label = "Puan",
+            label = stringResource(R.string.detail_stat_score),
             value = scoreText(entry)
         )
 
@@ -559,17 +559,17 @@ private fun DetailInfoGrid(
 
         DetailInfoRow(
             label = "Favori",
-            value = if (entry.isFavorite) "Evet" else "Hayır"
+            value = if (entry.isFavorite) stringResource(R.string.action_yes) else stringResource(R.string.action_no)
         )
 
         DetailInfoRow(
             label = "+18",
-            value = if (entry.isAdult) "Evet" else "Hayır"
+            value = if (entry.isAdult) stringResource(R.string.action_yes) else stringResource(R.string.action_no)
         )
 
         if (externalUrl != null) {
             DetailInfoRow(
-                label = "Dış bağlantı",
+                label = stringResource(R.string.dis_baglanti_947b222),
                 value = externalUrl
             )
         }

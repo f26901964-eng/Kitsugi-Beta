@@ -28,6 +28,7 @@ import com.kitsugi.animelist.ui.utils.tvClickable
 import kotlin.math.roundToInt
 import androidx.compose.ui.res.stringResource
 import com.kitsugi.animelist.R
+import com.kitsugi.animelist.utils.KitsugiStrings
 
 // ─── Generic Radio-Selection Dialog ──────────────────────────────────────────
 
@@ -118,7 +119,7 @@ fun <T> DialogWithRadioSelection(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         TextButton(onClick = onDismiss) {
-                            Text(text = "İptal", color = KitsugiColors.TextMuted)
+                            Text(text = KitsugiStrings.get(R.string.settings_cancel), color = KitsugiColors.TextMuted)
                         }
                         Spacer(modifier = Modifier.width(8.dp))
                         KitsugiButton(
@@ -159,7 +160,7 @@ fun DialogWithYearSeasonSelection(
 
     val years = remember { (1970..2026).toList().reversed() }
     val seasons = listOf(
-        "WINTER" to "❄️ Kış",
+        "WINTER" to stringResource(R.string.kis),
         "SPRING" to "🌱 İlkbahar",
         "SUMMER" to "☀️ Yaz",
         "FALL" to "🍂 Sonbahar"
@@ -203,7 +204,7 @@ fun DialogWithYearSeasonSelection(
                     // Start Year
                     Column(modifier = Modifier.fillMaxWidth()) {
                         Text(
-                            text = "Başlangıç Yılı",
+                            text = stringResource(R.string.inline_start_year_24cfc50),
                             color = KitsugiColors.TextSecondary,
                             fontSize = 12.sp,
                             fontWeight = FontWeight.Bold,
@@ -217,7 +218,7 @@ fun DialogWithYearSeasonSelection(
                                 colors = ButtonDefaults.outlinedButtonColors(contentColor = KitsugiColors.TextPrimary),
                                 border = BorderStroke(1.dp, KitsugiColors.Border)
                             ) {
-                                Text(text = tempStartYear?.toString() ?: "Seçilmedi", fontSize = 14.sp)
+                                Text(text = tempStartYear?.toString() ?: stringResource(R.string.inline_not_selected_16a19c8), fontSize = 14.sp)
                             }
                             KitsugiDropdownMenu(
                                 expanded = startYearExpanded,
@@ -243,7 +244,7 @@ fun DialogWithYearSeasonSelection(
                     // End Year
                     Column(modifier = Modifier.fillMaxWidth()) {
                         Text(
-                            text = "Bitiş Yılı",
+                            text = stringResource(R.string.inline_end_year_667d282),
                             color = KitsugiColors.TextSecondary,
                             fontSize = 12.sp,
                             fontWeight = FontWeight.Bold,
@@ -257,7 +258,7 @@ fun DialogWithYearSeasonSelection(
                                 colors = ButtonDefaults.outlinedButtonColors(contentColor = KitsugiColors.TextPrimary),
                                 border = BorderStroke(1.dp, KitsugiColors.Border)
                             ) {
-                                Text(text = tempEndYear?.toString() ?: "Seçilmedi", fontSize = 14.sp)
+                                Text(text = tempEndYear?.toString() ?: stringResource(R.string.inline_not_selected_16a19c8), fontSize = 14.sp)
                             }
                             KitsugiDropdownMenu(
                                 expanded = endYearExpanded,

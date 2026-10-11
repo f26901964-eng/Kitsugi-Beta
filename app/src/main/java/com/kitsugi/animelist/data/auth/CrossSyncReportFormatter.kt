@@ -6,6 +6,8 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 import java.util.TimeZone
+import com.kitsugi.animelist.utils.KitsugiStrings
+import com.kitsugi.animelist.R
 
 /** Builds a readable, credential-free report for one cross-platform sync run. */
 object CrossSyncReportFormatter {
@@ -37,13 +39,13 @@ object CrossSyncReportFormatter {
             state.isCompleted -> "Tamamlandı"
             else -> "Tamamlanmadı / durduruldu"
         }}")
-        if (state.currentStep.isNotBlank()) appendLine("Son adım: ${safeText(state.currentStep)}")
-        if (state.currentDetail.isNotBlank()) appendLine("Ayrıntı: ${safeText(state.currentDetail)}")
-        state.errorMessage?.takeIf { it.isNotBlank() }?.let { appendLine("Genel hata: ${safeText(it)}") }
+        if (state.currentStep.isNotBlank()) appendLine(KitsugiStrings.get(R.string.son_adim_x, safeText(state.currentStep)))
+        if (state.currentDetail.isNotBlank()) appendLine(KitsugiStrings.get(R.string.ayrinti_x, safeText(state.currentDetail)))
+        state.errorMessage?.takeIf { it.isNotBlank() }?.let { appendLine(KitsugiStrings.get(R.string.genel_hata_x, safeText(it))) }
         val elapsedMs = state.startedAt?.let { start -> (state.finishedAt ?: generatedAt) - start }
         elapsedMs?.takeIf { it >= 0 }?.let { appendLine("Geçen süre: ${it / 1000} sn") }
-        appendLine("İlerleme: ${state.processedItems} / ${state.totalItems} ${safeText(state.progressUnit)}")
-        appendLine("Oluşturulan işlem kaydı: ${state.totalEventCount}")
+        appendLine(KitsugiStrings.get(R.string.ilerleme_x_x_x, state.processedItems, state.totalItems, safeText(state.progressUnit)))
+        appendLine(KitsugiStrings.get(R.string.olusturulan_islem_kaydi_x, state.totalEventCount))
         appendLine("Hata/uyarı sayısı: ${state.issueCount}")
 
         appendLine()
@@ -53,8 +55,8 @@ object CrossSyncReportFormatter {
         } else {
             state.platformStats.values.forEach { stats ->
                 appendLine(
-                    "${safeText(stats.platformName)}: başlangıç=${stats.initialCount}, " +
-                        "eklenen=${stats.addedCount}, güncellenen=${stats.updatedCount}, " +
+                    KitsugiStrings.get(R.string.x_baslangic_x, safeText(stats.platformName), stats.initialCount) +
+                        KitsugiStrings.get(R.string.eklenen_x_guncellenen_x, stats.addedCount, stats.updatedCount) +
                         "atlanan=${stats.skippedCount}, hata=${stats.errorCount}"
                 )
             }

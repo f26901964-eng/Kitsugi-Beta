@@ -1,5 +1,6 @@
 package com.kitsugi.animelist
 
+import com.kitsugi.animelist.utils.KitsugiStrings
 import com.kitsugi.animelist.utils.parseToMediaType
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -37,6 +38,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.platform.LocalContext
+import com.kitsugi.animelist.R
 
 @Composable
 fun AppRootDetailPages(
@@ -524,7 +526,7 @@ fun AppRootDetailPages(
                         }?.isAdult ?: false
                         val searchResult = com.kitsugi.animelist.data.remote.JikanSearchResult(
                             malId = stableId,
-                            title = title.ifBlank { "Yükleniyor..." },
+                            title = title.ifBlank { KitsugiStrings.get(R.string.loading) },
                             subtitle = "",
                             type = mediaType,
                             total = null,
@@ -619,7 +621,7 @@ fun AppRootDetailPages(
                             }
                             val searchResult = JikanSearchResult(
                                 malId = stableId,
-                                title = title?.takeIf { it.isNotBlank() } ?: "Yükleniyor...",
+                                title = title?.takeIf { it.isNotBlank() } ?: KitsugiStrings.get(R.string.loading),
                                 subtitle = "",
                                 type = mediaType,
                                 total = null,

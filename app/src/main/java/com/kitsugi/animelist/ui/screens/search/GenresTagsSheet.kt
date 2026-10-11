@@ -134,7 +134,7 @@ fun GenresTagsSheet(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "Türler ve Etiketler",
+                    text = stringResource(R.string.inline_genres_tags_c957e42),
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold,
                     color = KitsugiColors.TextPrimary
@@ -155,7 +155,7 @@ fun GenresTagsSheet(
                 value = searchGenreQuery,
                 onValueChange = { searchGenreQuery = it },
                 modifier = Modifier.fillMaxWidth(),
-                placeholder = { Text("Tür veya etiket ara...", color = KitsugiColors.TextMuted) },
+                placeholder = { Text(stringResource(R.string.inline_search_genres_or_tags_772cd17), color = KitsugiColors.TextMuted) },
                 leadingIcon = {
                     Icon(
                         imageVector = Icons.Rounded.Search,
@@ -189,7 +189,7 @@ fun GenresTagsSheet(
                 if (filteredGenres.isNotEmpty()) {
                     item {
                         Text(
-                            text = "Türler  •  Tek tıkla ekle, çift tıkla engelle",
+                            text = stringResource(R.string.inline_genres_tap_to_add_double_7321dc6),
                             color = KitsugiColors.TextSecondary,
                             fontSize = 12.sp,
                             fontWeight = FontWeight.SemiBold,

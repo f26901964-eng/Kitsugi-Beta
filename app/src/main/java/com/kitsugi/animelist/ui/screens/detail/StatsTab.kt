@@ -35,6 +35,8 @@ import com.kitsugi.animelist.data.remote.KitsugiRanking
 import com.kitsugi.animelist.data.remote.KitsugiStats
 import com.kitsugi.animelist.ui.theme.KitsugiColors
 import com.kitsugi.animelist.ui.theme.LocalKitsugiAccent
+import androidx.compose.ui.res.stringResource
+import com.kitsugi.animelist.R
 
 @Composable
 fun StatsTabContent(
@@ -46,7 +48,7 @@ fun StatsTabContent(
     when (state) {
         is DetailTabState.Loading -> {
             Text(
-                text = if (isTurkish) "İstatistikler yükleniyor..." else "Loading statistics...",
+                text = if (isTurkish) stringResource(R.string.ui_statistics_loading) else "Loading statistics...",
                 color = KitsugiColors.TextSecondary,
                 style = MaterialTheme.typography.bodyMedium,
                 modifier = Modifier.padding(vertical = 16.dp)
@@ -54,7 +56,7 @@ fun StatsTabContent(
         }
         is DetailTabState.Error -> {
             Text(
-                text = if (isTurkish) "İstatistikler yüklenirken hata oluştu." else "Failed to load statistics.",
+                text = if (isTurkish) stringResource(R.string.ui_statistics_load_failed) else "Failed to load statistics.",
                 color = KitsugiColors.AccentRed,
                 style = MaterialTheme.typography.bodyMedium,
                 modifier = Modifier.padding(vertical = 16.dp)
@@ -64,7 +66,7 @@ fun StatsTabContent(
             val stats = state.data
             if (stats == null) {
                 Text(
-                    text = if (isTurkish) "İstatistik verisi bulunamadı." else "No statistics available.",
+                    text = if (isTurkish) stringResource(R.string.inline_no_statistics_data_found_6c1750a) else "No statistics available.",
                     color = KitsugiColors.TextSecondary,
                     style = MaterialTheme.typography.bodyMedium,
                     modifier = Modifier.padding(vertical = 16.dp)
@@ -78,7 +80,7 @@ fun StatsTabContent(
                     if (stats.rankings.isNotEmpty()) {
                         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                             Text(
-                                text = if (isTurkish) "Sıralama" else "Rankings",
+                                text = if (isTurkish) stringResource(R.string.inline_sort_ad5c074) else "Rankings",
                                 color = KitsugiColors.TextPrimary,
                                 style = MaterialTheme.typography.titleLarge,
                                 fontWeight = FontWeight.Bold
@@ -110,7 +112,7 @@ fun StatsTabContent(
                                 .padding(16.dp)
                         ) {
                             Text(
-                                text = if (isTurkish) "Durum Dağılımı" else "Status Distribution",
+                                text = if (isTurkish) stringResource(R.string.inline_status_distribution_de8fcab) else "Status Distribution",
                                 color = KitsugiColors.TextPrimary,
                                 style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.Bold
@@ -125,7 +127,7 @@ fun StatsTabContent(
                                 horizontalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
                                 if (watching > 0) {
-                                    StatusBadge(amount = watching, label = if (isTurkish) "Şimdiki" else "Current", color = Color(0xFF8CE637))
+                                    StatusBadge(amount = watching, label = if (isTurkish) stringResource(R.string.inline_current_441930d) else "Current", color = Color(0xFF8CE637))
                                 }
                                 if (planned > 0) {
                                     StatusBadge(amount = planned, label = if (isTurkish) "Planlanan" else "Planning", color = Color(0xFFC08A6E))
@@ -134,10 +136,10 @@ fun StatsTabContent(
                                     StatusBadge(amount = completed, label = if (isTurkish) "Tamamlanan" else "Completed", color = Color(0xFF5B8EFF))
                                 }
                                 if (dropped > 0) {
-                                    StatusBadge(amount = dropped, label = if (isTurkish) "Bırakıldı" else "Dropped", color = Color(0xFFFF5252))
+                                    StatusBadge(amount = dropped, label = if (isTurkish) stringResource(R.string.system_status_dropped) else "Dropped", color = Color(0xFFFF5252))
                                 }
                                 if (paused > 0) {
-                                    StatusBadge(amount = paused, label = if (isTurkish) "Ara Verildi" else "Paused", color = Color(0xFF909399))
+                                    StatusBadge(amount = paused, label = if (isTurkish) stringResource(R.string.bangumi_tag_hiatus) else "Paused", color = Color(0xFF909399))
                                 }
                             }
 
@@ -212,7 +214,7 @@ fun StatsTabContent(
                                 .padding(16.dp)
                         ) {
                             Text(
-                                text = if (isTurkish) "Puan Dağılımı" else "Score Distribution",
+                                text = if (isTurkish) stringResource(R.string.inline_score_distribution_173b7b1) else "Score Distribution",
                                 color = KitsugiColors.TextPrimary,
                                 style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.Bold
@@ -246,7 +248,7 @@ fun StatsTabContent(
 
                     if (stats.rankings.isEmpty() && totalStatus <= 0 && stats.scoreDistribution.isEmpty()) {
                         Text(
-                            text = if (isTurkish) "İstatistik verisi bulunamadı." else "No statistics available.",
+                            text = if (isTurkish) stringResource(R.string.inline_no_statistics_data_found_6c1750a) else "No statistics available.",
                             color = KitsugiColors.TextSecondary,
                             style = MaterialTheme.typography.bodyMedium,
                             modifier = Modifier.padding(vertical = 16.dp)

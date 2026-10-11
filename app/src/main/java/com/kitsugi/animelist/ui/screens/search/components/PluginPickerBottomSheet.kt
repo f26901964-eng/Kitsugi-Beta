@@ -59,6 +59,7 @@ import kotlinx.coroutines.supervisorScope
 import kotlinx.coroutines.withContext
 import androidx.compose.ui.res.stringResource
 import com.kitsugi.animelist.R
+import com.kitsugi.animelist.utils.KitsugiStrings
 
 // ─────────────────────────────────────────────────────────────────────────────
 // TvType → Türkçe etiket grupları
@@ -75,8 +76,8 @@ private val pluginTypeGroups = listOf(
     PluginTypeGroup("Diziler", "📺", listOf(TvType.TvSeries, TvType.AsianDrama)),
     PluginTypeGroup("Animasyon", "🎌", listOf(TvType.Anime, TvType.OVA)),
     PluginTypeGroup("Belgeseller", "📰", listOf(TvType.Documentary)),
-    PluginTypeGroup("Canlı", "📡", listOf(TvType.Live)),
-    PluginTypeGroup("Diğer", "🔖", listOf(TvType.Others))
+    PluginTypeGroup(KitsugiStrings.get(R.string.canli), "📡", listOf(TvType.Live)),
+    PluginTypeGroup(KitsugiStrings.get(R.string.bangumi_tag_other), "🔖", listOf(TvType.Others))
 )
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -353,7 +354,7 @@ fun PluginPickerBottomSheet(
                         ) {
                             Text(
                                 text = if (selectedGroupLabel != null)
-                                    "Bu kategoride aktif eklenti yok."
+                                    stringResource(R.string.ui_plugin_category_empty)
                                 else
                                     "Aktif eklenti bulunamadı.\nEklentiler ekranından eklenti etkinleştirin.",
                                 color = KitsugiColors.TextMuted,
@@ -416,7 +417,7 @@ fun PluginPickerBottomSheet(
                             contentAlignment = Alignment.Center
                         ) {
                             Text(
-                                text = "Sonuç bulunamadı.",
+                                text = stringResource(R.string.inline_no_results_found_5d2ab77),
                                 color = KitsugiColors.TextMuted,
                                 fontSize = 14.sp
                             )
@@ -459,7 +460,7 @@ fun PluginPickerBottomSheet(
                                             )
                                             Spacer(modifier = Modifier.weight(1f))
                                             Text(
-                                                text = "${items.size} sonuç",
+                                                text = stringResource(R.string.inline_1_s_results_b4b4d39, items.size),
                                                 color = KitsugiColors.TextMuted,
                                                 fontSize = 12.sp
                                             )
@@ -648,7 +649,7 @@ private fun AllPluginsListItem(
         }
 
         Text(
-            text = "Hepsi",
+            text = stringResource(R.string.hepsi),
             color = accentColor,
             fontSize = 11.sp,
             fontWeight = FontWeight.Medium

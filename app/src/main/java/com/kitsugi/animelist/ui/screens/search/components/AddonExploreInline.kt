@@ -47,6 +47,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import androidx.compose.ui.res.stringResource
 import com.kitsugi.animelist.R
+import com.kitsugi.animelist.utils.KitsugiStrings
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Inline Plugin Explore — LazyListScope extension
@@ -185,7 +186,7 @@ fun LazyListScope.addonExploreInlineSections(
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     KitsugiPlasmaLoader(size = 48.dp)
                     Spacer(Modifier.height(16.dp))
-                    Text("${api.name} yükleniyor...", color = KitsugiColors.TextMuted, fontSize = 14.sp)
+                    Text(KitsugiStrings.get(R.string.inline_loading_1_s_79690b1, api.name), color = KitsugiColors.TextMuted, fontSize = 14.sp)
                 }
             }
         }
@@ -200,7 +201,7 @@ fun LazyListScope.addonExploreInlineSections(
                     .padding(vertical = 48.dp),
                 contentAlignment = Alignment.Center
             ) {
-                Text("Keşfet içeriği yüklenemedi.", color = KitsugiColors.TextMuted)
+                Text(KitsugiStrings.get(R.string.inline_explore_content_couldn_t_be_61c6694), color = KitsugiColors.TextMuted)
             }
         }
     }

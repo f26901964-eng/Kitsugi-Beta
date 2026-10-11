@@ -319,7 +319,7 @@ fun TvStreamScreen(
                     ) {
                         item {
                             FilterChipTv(
-                                text = "Hepsi",
+                                text = stringResource(R.string.hepsi),
                                 isSelected = selectedAddonFilter == null,
                                 onClick = { selectedAddonFilter = null }
                             )
@@ -507,7 +507,7 @@ fun TvStreamScreen(
         resolvingError?.let { err ->
             com.kitsugi.animelist.ui.tv.components.TvDialog(
                 onDismiss = { resolvingError = null },
-                title = "Akış Hatası",
+                title = stringResource(R.string.akis_hatasi),
                 width = 420.dp
             ) {
                 Column(

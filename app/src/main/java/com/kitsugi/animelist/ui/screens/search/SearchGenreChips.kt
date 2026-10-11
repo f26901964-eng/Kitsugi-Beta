@@ -27,6 +27,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.kitsugi.animelist.ui.theme.LocalKitsugiAccent
 import com.kitsugi.animelist.ui.theme.KitsugiColors
+import androidx.compose.ui.res.stringResource
+import com.kitsugi.animelist.R
 
 /**
  * Popüler tür çipleri bölümü.
@@ -79,7 +81,7 @@ fun SearchGenreChips(
                 style = MaterialTheme.typography.bodyMedium
             )
             Text(
-                text = "Popüler Türler",
+                text = stringResource(R.string.inline_popular_genres_679db58),
                 color = KitsugiColors.TextSecondary,
                 style = MaterialTheme.typography.labelLarge,
                 fontWeight = FontWeight.SemiBold

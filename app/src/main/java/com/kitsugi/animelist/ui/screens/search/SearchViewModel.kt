@@ -34,6 +34,8 @@ import com.kitsugi.animelist.data.remote.KitsugiBangumiClient
 import com.kitsugi.animelist.data.remote.KitsugiShikimoriClient
 import com.kitsugi.animelist.data.remote.KitsuExploreClient
 import com.kitsugi.animelist.data.remote.SimklApiClient
+import com.kitsugi.animelist.utils.KitsugiStrings
+import com.kitsugi.animelist.R
 
 /**
  * Search ViewModel.
@@ -1219,7 +1221,7 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
                         hasSearched = true,
                         page = 1,
                         hasNextPage = hasNext,
-                        errorMessage = if (visible.isEmpty()) "Sonuç bulunamadı." else null
+                        errorMessage = if (visible.isEmpty()) KitsugiStrings.get(R.string.inline_no_results_found_5d2ab77) else null
                     )
                 }
                 if (searchGeneration.get() == generation) saveCurrentStateToCache()
@@ -1230,7 +1232,7 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
                     if (searchGeneration.get() != generation) return@update it
                     it.copy(
                         isLoading = false,
-                        errorMessage = if (it.results.isEmpty()) e.message ?: "Arama sırasında bir hata oluştu." else null,
+                        errorMessage = if (it.results.isEmpty()) e.message ?: KitsugiStrings.get(R.string.arama_sirasinda_bir_hata_olustu) else null,
                         hasNextPage = false
                     )
                 }

@@ -225,7 +225,7 @@ fun KitsugiDetailHero(
                         IconButton(onClick = onToggleFavoriteClick) {
                             Icon(
                                 imageVector = if (isFavorite) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder,
-                                contentDescription = if (isFavorite) "Favoriden Çıkar" else "Favori Yap",
+                                contentDescription = if (isFavorite) stringResource(R.string.action_favourite_remove) else "Favori Yap",
                                 tint = if (isFavorite) accentColor else KitsugiColors.TextPrimary
                             )
                         }

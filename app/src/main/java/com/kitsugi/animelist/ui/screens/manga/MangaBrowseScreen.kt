@@ -166,7 +166,7 @@ fun MangaBrowseScreen(
                     Icon(Icons.AutoMirrored.Rounded.ArrowBack, "Geri", tint = KitsugiColors.TextPrimary, modifier = Modifier.size(18.dp))
                 }
                 Spacer(Modifier.width(12.dp))
-                Text("Manga Keşfet", color = KitsugiColors.TextPrimary, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                Text(stringResource(R.string.inline_discover_manga_eb24f62), color = KitsugiColors.TextPrimary, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                 Spacer(Modifier.weight(1f))
                 Icon(Icons.Rounded.TravelExplore, null, tint = accentColor, modifier = Modifier.padding(end = 8.dp).size(22.dp))
             }
@@ -197,7 +197,7 @@ fun MangaBrowseScreen(
                 Spacer(Modifier.width(14.dp))
                 Column(Modifier.weight(1f)) {
                     Text(
-                        if (query.isNotBlank()) "Arama: \"$query\"" else selFilter?.name ?: "Manga Keşfet",
+                        if (query.isNotBlank()) "Arama: \"$query\"" else selFilter?.name ?: stringResource(R.string.inline_discover_manga_eb24f62),
                         color = KitsugiColors.TextPrimary,
                         style = MaterialTheme.typography.bodyLarge,
                         fontWeight = FontWeight.Bold,
@@ -558,12 +558,12 @@ private fun EmptySourcesHint(onOpenSettings: () -> Unit) {
     Box(Modifier.fillMaxWidth().padding(32.dp), contentAlignment = Alignment.Center) {
         Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Icon(Icons.Rounded.Extension, null, tint = KitsugiColors.TextMuted, modifier = Modifier.size(56.dp))
-            Text("Henüz manga eklentisi yüklü değil.", color = KitsugiColors.TextSecondary, fontWeight = FontWeight.Medium)
+            Text(stringResource(R.string.inline_no_manga_extensions_have_been_e92d6be), color = KitsugiColors.TextSecondary, fontWeight = FontWeight.Medium)
             KitsugiButton(
                 onClick = onOpenSettings,
                 shape = RoundedCornerShape(10.dp)
             ) {
-                Text("Eklentileri Düzenle", fontWeight = FontWeight.Bold)
+                Text(stringResource(R.string.inline_edit_extensions_134b588), fontWeight = FontWeight.Bold)
             }
         }
     }

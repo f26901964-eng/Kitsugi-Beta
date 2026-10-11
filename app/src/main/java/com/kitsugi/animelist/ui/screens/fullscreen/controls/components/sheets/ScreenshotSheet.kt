@@ -71,7 +71,7 @@ fun ScreenshotSheet(
                     )
                     ActionButton(
                         modifier = Modifier.weight(1f),
-                        title = "Küçük Resim",
+                        title = stringResource(R.string.gallery_cat_thumbnail),
                         icon = Icons.Outlined.Photo,
                         onClick = { setArtTypeAs = ArtType.Thumbnail },
                     )
@@ -109,7 +109,7 @@ fun ScreenshotSheet(
                     modifier = Modifier.padding(bottom = 16.dp),
                     content = {
                         Text(
-                            text = "Altyazıları Dahil Et",
+                            text = stringResource(R.string.inline_include_subtitles_5a6ab17),
                             style = MaterialTheme.typography.labelLarge,
                             color = MaterialTheme.colorScheme.primary,
                         )
@@ -128,7 +128,7 @@ fun ScreenshotSheet(
         AlertDialog(
             onDismissRequest = { setArtTypeAs = null },
             title = { Text("Resmi Ayarla") },
-            text = { Text("Bu ekran görüntüsünü $artName olarak ayarlamak istediğinize emin misiniz?") },
+            text = { Text(stringResource(R.string.inline_are_you_sure_you_want_0ccf9e8, artName)) },
             confirmButton = {
                 TextButton(onClick = {
                     val artType = setArtTypeAs!!
@@ -139,7 +139,7 @@ fun ScreenshotSheet(
                     setArtTypeAs = null
                     onDismissRequest()
                 }) {
-                    Text("Evet")
+                    Text(stringResource(R.string.action_yes))
                 }
             },
             dismissButton = {

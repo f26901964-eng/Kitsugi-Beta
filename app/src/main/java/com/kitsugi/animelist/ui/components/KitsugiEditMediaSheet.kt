@@ -86,6 +86,7 @@ import com.kitsugi.animelist.ui.theme.KitsugiColors
 import com.kitsugi.animelist.ui.utils.tvClickable
 import androidx.compose.ui.res.stringResource
 import com.kitsugi.animelist.R
+import com.kitsugi.animelist.utils.KitsugiStrings
 
 // ---------------------------------------------------------------------------
 //  Renk yardımcısı — puan 0-4 kırmızı, 5-6 sarı, 7-10 yeşil
@@ -390,7 +391,7 @@ fun KitsugiEditMediaSheet(
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     Text(
-                        text = if (isManual) title.ifBlank { "Yeni Kayıt" } else initialEntry?.title ?: platformName,
+                        text = if (isManual) title.ifBlank { KitsugiStrings.get(R.string.ui_new_entry) } else initialEntry?.title ?: platformName,
                         color = KitsugiColors.TextPrimary,
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
@@ -439,7 +440,7 @@ fun KitsugiEditMediaSheet(
                     }
                 ) {
                     Text(
-                        text = if (isAniList) "Kaydet" else "Uygula",
+                        text = if (isAniList) KitsugiStrings.get(R.string.action_save) else "Uygula",
                         color = if (canSave) accentColor else KitsugiColors.TextMuted,
                         fontWeight = FontWeight.Bold
                     )
@@ -467,7 +468,7 @@ fun KitsugiEditMediaSheet(
                         Spacer(modifier = Modifier.height(10.dp))
                         DialogTextField(
                             value = subtitle, onValueChange = { subtitle = it },
-                            label = stringResource(R.string.aciklama_turler), placeholder = "Örn: TV, Action"
+                            label = stringResource(R.string.aciklama_turler), placeholder = KitsugiStrings.get(R.string.orn_tv_action)
                         )
                     }
                     Spacer(modifier = Modifier.height(8.dp))
@@ -585,7 +586,7 @@ fun KitsugiEditMediaSheet(
                     )
                     Text(
                         text = if (halfStepMode) {
-                            if (scoreHalf <= 0f) "Puanlanmadı" else String.format(java.util.Locale.US, "%.1f / 10", scoreHalf)
+                            if (scoreHalf <= 0f) stringResource(R.string.ui_rating_unrated) else String.format(java.util.Locale.US, "%.1f / 10", scoreHalf)
                         } else if (effectiveScoreRaw <= 0) {
                             "Puanlanmadı"
                         } else {
@@ -600,7 +601,7 @@ fun KitsugiEditMediaSheet(
                         // AniHyou paritesi: 0,5 adımlı puan girişi (kaynaklara tam sayı yuvarlanarak yazılır)
                         SheetRow(
                             icon = Icons.Rounded.Star,
-                            label = "Puan (0,5 adım)",
+                            label = stringResource(R.string.puan_0_5_adim),
                             value = String.format(java.util.Locale.US, "%.1f", scoreHalf),
                             onDecrement = { scoreHalf = (scoreHalf - 0.5f).coerceAtLeast(0f) },
                             onIncrement = { scoreHalf = (scoreHalf + 0.5f).coerceAtMost(10f) }
@@ -630,7 +631,7 @@ fun KitsugiEditMediaSheet(
                             
                             Icon(
                                 imageVector = if (filled) Icons.Rounded.Star else Icons.Rounded.StarBorder,
-                                contentDescription = "Puan $i",
+                                contentDescription = stringResource(R.string.puan_x, i),
                                 tint = if (filled) scoreColor else KitsugiColors.TextMuted,
                                 modifier = clickableModifier
                             )
@@ -642,7 +643,7 @@ fun KitsugiEditMediaSheet(
                 if (advancedScoresEnabled && advancedScoresCategories.isNotEmpty()) {
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
-                        text = "Detaylı Puanlama",
+                        text = stringResource(R.string.inline_detailed_scoring_7c09963),
                         color = KitsugiColors.TextSecondary,
                         style = MaterialTheme.typography.labelMedium,
                         fontWeight = FontWeight.Bold,
@@ -748,13 +749,13 @@ fun KitsugiEditMediaSheet(
                 // ── Dates ──────────────────────────────────────────────────
                 SheetRow(
                     icon = Icons.Rounded.CalendarToday, label = stringResource(R.string.baslangic_tarihi),
-                    value = startDateText.ifBlank { "Tarih Seçilmemiş" },
+                    value = startDateText.ifBlank { stringResource(R.string.tarih_secilmemis) },
                     onClick = { selectDate(startDateText) { startDateText = it } },
                     onClearClick = if (startDateText.isNotBlank()) { { startDateText = "" } } else null
                 )
                 SheetRow(
                     icon = Icons.Rounded.EventAvailable, label = stringResource(R.string.bitis_tarihi),
-                    value = endDateText.ifBlank { "Tarih Seçilmemiş" },
+                    value = endDateText.ifBlank { stringResource(R.string.tarih_secilmemis) },
                     onClick = { selectDate(endDateText) { endDateText = it } },
                     onClearClick = if (endDateText.isNotBlank()) { { endDateText = "" } } else null
                 )
@@ -783,7 +784,7 @@ fun KitsugiEditMediaSheet(
                     if (selectedStatus == WatchStatus.Repeating) {
                         SheetRow(
                             icon = Icons.Rounded.RepeatOne,
-                            label = if (selectedType == MediaType.Manga) "Toplam Tekrar Okuma" else "Toplam Tekrar İzleme",
+                            label = if (selectedType == MediaType.Manga) stringResource(R.string.toplam_tekrar_okuma) else stringResource(R.string.toplam_tekrar_izleme),
                             value = repeatCount.toString(),
                             onDecrement = { repeatCount = (repeatCount - 1).coerceAtLeast(0) },
                             onIncrement = { repeatCount++ }
@@ -812,7 +813,7 @@ fun KitsugiEditMediaSheet(
                 if (isShikimori && selectedStatus == WatchStatus.Repeating) {
                     SheetRow(
                         icon = Icons.Rounded.RepeatOne,
-                        label = if (selectedType == MediaType.Manga) "Toplam Tekrar Okuma" else "Toplam Tekrar İzleme",
+                        label = if (selectedType == MediaType.Manga) stringResource(R.string.toplam_tekrar_okuma) else stringResource(R.string.toplam_tekrar_izleme),
                         value = repeatCount.toString(),
                         onDecrement = { repeatCount = (repeatCount - 1).coerceAtLeast(0) },
                         onIncrement = { repeatCount++ }
@@ -831,7 +832,7 @@ fun KitsugiEditMediaSheet(
                     SheetRow(
                         icon = Icons.Rounded.Tag,
                         label = "Bangumi Koleksiyonu",
-                        value = bangumiSubjectId?.let { "#$it" } ?: "Başlıkla eşleştirilir"
+                        value = bangumiSubjectId?.let { "#$it" } ?: stringResource(R.string.baslikla_eslestirilir)
                     )
                     SheetRow(
                         icon = Icons.Rounded.Lock, label = "Gizli",
@@ -871,12 +872,12 @@ fun KitsugiEditMediaSheet(
                     )
                     SheetRow(
                         icon = Icons.Rounded.Repeat,
-                        label = if (selectedType == MediaType.Manga) "Yeniden Okunuyor" else "Yeniden İzleniyor",
+                        label = if (selectedType == MediaType.Manga) stringResource(R.string.yeniden_okunuyor) else stringResource(R.string.watch_repeating),
                         switchChecked = isRepeating, onSwitchCheckedChange = { isRepeating = it }
                     )
                     SheetRow(
                         icon = Icons.Rounded.RepeatOne,
-                        label = if (selectedType == MediaType.Manga) "Toplam Tekrar Okuma" else "Toplam Tekrar İzleme",
+                        label = if (selectedType == MediaType.Manga) stringResource(R.string.toplam_tekrar_okuma) else stringResource(R.string.toplam_tekrar_izleme),
                         value = repeatCount.toString(),
                         onDecrement = { repeatCount = (repeatCount - 1).coerceAtLeast(0) },
                         onIncrement = { repeatCount++ }
@@ -886,7 +887,7 @@ fun KitsugiEditMediaSheet(
                     }
                     SheetRow(
                         icon = Icons.Rounded.DateRange,
-                        label = if (selectedType == MediaType.Manga) "Tekrar Okuma Değeri" else "Tekrar İzleme Değeri",
+                        label = if (selectedType == MediaType.Manga) stringResource(R.string.tekrar_okuma_degeri) else stringResource(R.string.tekrar_izleme_degeri),
                         value = repeatValueText,
                         onDecrement = { repeatValue = (repeatValue - 1).coerceAtLeast(0) },
                         onIncrement = { repeatValue = (repeatValue + 1).coerceAtMost(5) }
@@ -920,13 +921,13 @@ fun KitsugiEditMediaSheet(
                     )
                     SheetRow(
                         icon = Icons.Rounded.Repeat,
-                        label = if (selectedType == MediaType.Manga) "Yeniden Okunuyor" else "Yeniden İzleniyor",
+                        label = if (selectedType == MediaType.Manga) stringResource(R.string.yeniden_okunuyor) else stringResource(R.string.watch_repeating),
                         switchChecked = isRepeating, onSwitchCheckedChange = { isRepeating = it }
                     )
                     if (isRepeating) {
                         SheetRow(
                             icon = Icons.Rounded.RepeatOne,
-                            label = if (selectedType == MediaType.Manga) "Toplam Tekrar Okuma" else "Toplam Tekrar İzleme",
+                            label = if (selectedType == MediaType.Manga) stringResource(R.string.toplam_tekrar_okuma) else stringResource(R.string.toplam_tekrar_izleme),
                             value = repeatCount.toString(),
                             onDecrement = { repeatCount = (repeatCount - 1).coerceAtLeast(0) },
                             onIncrement = { repeatCount++ }
@@ -1001,7 +1002,7 @@ fun KitsugiEditMediaSheet(
                     Spacer(modifier = Modifier.height(16.dp))
                     HorizontalDivider(color = KitsugiColors.Border, modifier = Modifier.padding(horizontal = 16.dp))
                     SheetRow(
-                        icon = Icons.Rounded.Delete, label = "Sil",
+                        icon = Icons.Rounded.Delete, label = stringResource(R.string.action_delete),
                         onClick = onDeleteClick,
                         modifier = Modifier.padding(vertical = 4.dp)
                     )

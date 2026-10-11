@@ -32,6 +32,7 @@ import com.kitsugi.animelist.ui.theme.KitsugiColors
 import com.kitsugi.animelist.utils.KitsugiTranslateUtils.openTranslator
 import androidx.compose.ui.res.stringResource
 import com.kitsugi.animelist.R
+import com.kitsugi.animelist.utils.KitsugiStrings
 
 @Composable
 fun UserProfileInfoTab(
@@ -56,7 +57,7 @@ fun UserProfileInfoTab(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
-                text = "Kullanıcı Biyografisi",
+                text = stringResource(R.string.inline_user_bio_46ed806),
                 color = KitsugiColors.TextPrimary,
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold
@@ -81,13 +82,13 @@ fun UserProfileInfoTab(
                         onClick = {
                             val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
                             clipboard.setPrimaryClip(android.content.ClipData.newPlainText("about", displayAbout))
-                            Toast.makeText(context, "Panoya kopyalandı", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(context, KitsugiStrings.get(R.string.toast_copied_clipboard), Toast.LENGTH_SHORT).show()
                         },
                         modifier = Modifier.size(28.dp)
                     ) {
                         Icon(
                             imageVector = Icons.Rounded.ContentCopy,
-                            contentDescription = "Kopyala",
+                            contentDescription = stringResource(R.string.action_copy),
                             tint = KitsugiColors.TextSecondary,
                             modifier = Modifier.size(16.dp)
                         )
@@ -105,7 +106,7 @@ fun UserProfileInfoTab(
             )
         } else {
             Text(
-                text = "Bu kullanıcı henüz bir biyografi eklemedi.",
+                text = stringResource(R.string.inline_this_user_hasn_t_added_3eb83d5),
                 color = KitsugiColors.TextMuted,
                 style = MaterialTheme.typography.bodyMedium
             )

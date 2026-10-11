@@ -65,6 +65,7 @@ import com.kitsugi.animelist.ui.theme.KitsugiColors
 import java.net.URLEncoder
 import androidx.compose.ui.res.stringResource
 import com.kitsugi.animelist.R
+import com.kitsugi.animelist.utils.KitsugiStrings
 
 /**
  * TV-optimized QR Login Dialog.
@@ -176,7 +177,7 @@ fun KitsugiTvQrLoginDialog(
                 }.getOrDefault(false)
 
                 if (success) {
-                    android.widget.Toast.makeText(context, "Simkl bağlantısı başarılı.", android.widget.Toast.LENGTH_SHORT).show()
+                    android.widget.Toast.makeText(context, KitsugiStrings.get(R.string.simkl_baglantisi_basarili), android.widget.Toast.LENGTH_SHORT).show()
                     authViewModel.refreshAuthState()
                     // Profil bilgisini çekip settings'e yaz
                     runCatching {
@@ -200,7 +201,7 @@ fun KitsugiTvQrLoginDialog(
 
     if (showWebViewUrl != null) {
         val title = when (activeAuthService) {
-            "anilist" -> "AniList Girişi"
+            "anilist" -> stringResource(R.string.anilist_girisi)
             "mal" -> "MyAnimeList Girişi"
             else -> "Web Girişi"
         }
@@ -217,11 +218,11 @@ fun KitsugiTvQrLoginDialog(
                     val intent = Intent(Intent.ACTION_VIEW, Uri.parse(redirectUrl))
                     ExternalAuthManager.handleAuthIntent(context, intent,
                         onSuccess = { serviceName ->
-                            android.widget.Toast.makeText(context, "${if (serviceName == "anilist") "AniList" else "MyAnimeList"} bağlantısı başarılı.", android.widget.Toast.LENGTH_SHORT).show()
+                            android.widget.Toast.makeText(context, KitsugiStrings.get(R.string.x_baglantisi_basarili, if (serviceName == "anilist") "AniList" else "MyAnimeList"), android.widget.Toast.LENGTH_SHORT).show()
                             authViewModel.refreshAuthState()
                         },
                         onError = { error ->
-                            android.widget.Toast.makeText(context, "Hata: $error", android.widget.Toast.LENGTH_LONG).show()
+                            android.widget.Toast.makeText(context, KitsugiStrings.get(R.string.hata_x, error), android.widget.Toast.LENGTH_LONG).show()
                         }
                     )
                     showWebViewUrl = null
@@ -263,13 +264,13 @@ fun KitsugiTvQrLoginDialog(
                 ) {
                     Column {
                         Text(
-                            text = "Hesap Bağla",
+                            text = stringResource(R.string.inline_link_account_13c91f4),
                             color = KitsugiColors.TextPrimary,
                             style = MaterialTheme.typography.headlineSmall,
                             fontWeight = FontWeight.Bold
                         )
                         Text(
-                            text = "Doğrudan TV üzerinden veya QR kod ile",
+                            text = stringResource(R.string.inline_directly_via_tv_or_with_76b7ec6),
                             color = KitsugiColors.TextSecondary,
                             style = MaterialTheme.typography.bodySmall,
                             modifier = Modifier.padding(top = 4.dp)
@@ -330,7 +331,7 @@ fun KitsugiTvQrLoginDialog(
                         KitsugiPlasmaLoader(size = 48.dp)
                         Spacer(Modifier.height(16.dp))
                         Text(
-                            text = "Hazırlanıyor...",
+                            text = stringResource(R.string.inline_preparing_103a0f6),
                             color = KitsugiColors.TextSecondary,
                             style = MaterialTheme.typography.bodySmall
                         )
@@ -342,7 +343,7 @@ fun KitsugiTvQrLoginDialog(
                         AnimatedVisibility(visible = true, enter = fadeIn(), exit = fadeOut()) {
                             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                                 Text(
-                                    text = "${service?.displayName} ile Giriş",
+                                    text = stringResource(R.string.inline_sign_in_with_1_s_f9d2e40, service?.displayName.orEmpty()),
                                     color = serviceColor,
                                     fontWeight = FontWeight.Bold,
                                     fontSize = 16.sp
@@ -364,7 +365,7 @@ fun KitsugiTvQrLoginDialog(
                                     }
                                     Spacer(Modifier.height(14.dp))
                                     Text(
-                                        text = "Kamera veya tarayıcı ile okutun",
+                                        text = stringResource(R.string.inline_scan_with_a_camera_or_30960ab),
                                         color = KitsugiColors.TextSecondary,
                                         style = MaterialTheme.typography.bodySmall,
                                         textAlign = TextAlign.Center
@@ -383,14 +384,14 @@ fun KitsugiTvQrLoginDialog(
                                                     activeAuthService = svcName
                                                     showWebViewUrl = url
                                                 }.onFailure { e ->
-                                                    android.widget.Toast.makeText(context, "Hata: ${e.message}", android.widget.Toast.LENGTH_LONG).show()
+                                                    android.widget.Toast.makeText(context, KitsugiStrings.get(R.string.hata_x, e.message), android.widget.Toast.LENGTH_LONG).show()
                                                 }
                                             }
                                         },
                                         modifier = Modifier.padding(bottom = 12.dp)
                                     ) {
                                         Text(
-                                            text = "TV Tarayıcısı ile Giriş Yap",
+                                            text = stringResource(R.string.inline_sign_in_with_tv_browser_8345c87),
                                             fontWeight = FontWeight.Bold,
                                             style = MaterialTheme.typography.bodyMedium
                                         )
@@ -399,7 +400,7 @@ fun KitsugiTvQrLoginDialog(
                                     Spacer(Modifier.height(8.dp))
 
                                     Text(
-                                        text = "TV üzerinde açılacak güvenli pencere ile giriş yapın.\nAlternatif olarak QR kodu okutabilirsiniz.",
+                                        text = stringResource(R.string.tv_uzerinde_acilacak_guvenli_pencere_ile_giris_yapin_alternatif),
                                         style = MaterialTheme.typography.bodySmall,
                                         color = KitsugiColors.TextSecondary,
                                         textAlign = TextAlign.Center,
@@ -430,7 +431,7 @@ fun KitsugiTvQrLoginDialog(
                             )
                             Spacer(Modifier.height(12.dp))
                             Text(
-                                text = "Soldan bir servis seçin",
+                                text = stringResource(R.string.inline_select_a_service_on_the_12d68ed),
                                 color = KitsugiColors.TextMuted,
                                 style = MaterialTheme.typography.bodyMedium,
                                 textAlign = TextAlign.Center
@@ -502,7 +503,7 @@ private fun QrServiceRow(
                     fontWeight = if (isSelected) FontWeight.Bold else FontWeight.SemiBold
                 )
                 Text(
-                    text = if (isConnected) "✓ Bağlı" else "QR ile bağlan",
+                    text = if (isConnected) stringResource(R.string.ui2_tv_connected_short) else stringResource(R.string.ui_tv_connect_qr),
                     style = MaterialTheme.typography.labelSmall,
                     color = if (isConnected) Color(0xFF4CAF50) else KitsugiColors.TextSecondary
                 )
@@ -516,7 +517,7 @@ private fun QrServiceRow(
                 .padding(horizontal = 10.dp, vertical = 5.dp)
         ) {
             Text(
-                text = if (isConnected) "Çıkış" else "Seç",
+                text = if (isConnected) stringResource(R.string.ui_tv_exit) else stringResource(R.string.ui_tv_select),
                 style = MaterialTheme.typography.labelSmall,
                 color = if (isConnected) Color.White else com.kitsugi.animelist.ui.theme.onAccentColor(accentColor),
                 fontWeight = FontWeight.Bold

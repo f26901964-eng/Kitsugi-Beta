@@ -51,7 +51,7 @@ fun RecommendationsTabContent(
                 contentAlignment = Alignment.Center
             ) {
                 Text(
-                    text = "Öneriler yüklenirken hata oluştu.",
+                    text = stringResource(R.string.inline_an_error_occurred_while_loading_76418da),
                     color = KitsugiColors.AccentRed,
                     style = MaterialTheme.typography.bodyMedium
                 )
@@ -67,7 +67,7 @@ fun RecommendationsTabContent(
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
-                        text = "Benzer yapım önerisi bulunamadı.",
+                        text = stringResource(R.string.inline_no_similar_titles_found_41130a8),
                         color = KitsugiColors.TextSecondary,
                         style = MaterialTheme.typography.bodyMedium
                     )

@@ -42,12 +42,14 @@ import dagger.hilt.EntryPoint
 import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
 import dagger.hilt.android.EntryPointAccessors
+import com.kitsugi.animelist.utils.KitsugiStrings
+import com.kitsugi.animelist.R
 
 private fun Throwable.crossSyncDiagnostic(): String = buildString {
     var current: Throwable? = this@crossSyncDiagnostic
     var depth = 0
     while (current != null && depth < 8) {
-        val label = if (depth == 0) "Hata" else "Neden $depth"
+        val label = if (depth == 0) KitsugiStrings.get(R.string.hata) else "Neden $depth"
         appendLine("$label: ${current.javaClass.name}: ${current.message ?: "(mesaj yok)"}")
         current.stackTrace.take(6).forEach { frame ->
             appendLine("  at ${frame.className}.${frame.methodName}(${frame.fileName ?: "?"}:${frame.lineNumber})")
@@ -267,12 +269,12 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
         val token = ExternalAuthManager.getAniListToken(context)
 
         if (token.isNullOrBlank()) {
-            onShowMessage?.invoke("AniList token bulunamadı")
+            onShowMessage?.invoke(KitsugiStrings.get(R.string.anilist_token_bulunamadi))
             return
         }
 
         if (isAniListImportRunning) {
-            onShowMessage?.invoke("AniList import zaten çalışıyor")
+            onShowMessage?.invoke(KitsugiStrings.get(R.string.anilist_import_zaten_calisiyor))
             return
         }
 
@@ -297,13 +299,13 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                     repository.smartImport("anilist", importedEntries, allowDelete = false)
                 }
                 if (importResult.isSuccess) {
-                    onShowMessage?.invoke("${importedEntries.size} AniList kaydı başarıyla aktarıldı")
+                    onShowMessage?.invoke(KitsugiStrings.get(R.string.x_anilist_kaydi_basariyla_aktarildi, importedEntries.size))
                 } else {
-                    onShowMessage?.invoke("AniList kaydedilirken sorun oluştu: ${importResult.exceptionOrNull()?.message}")
+                    onShowMessage?.invoke(KitsugiStrings.get(R.string.anilist_kaydedilirken_sorun_olustu_x, importResult.exceptionOrNull()?.message))
                 }
             }.onFailure { error ->
                 onShowMessage?.invoke(
-                    error.message ?: "AniList içe aktarma başarısız"
+                    error.message ?: KitsugiStrings.get(R.string.anilist_ice_aktarma_basarisiz)
                 )
             }
 
@@ -316,7 +318,7 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
         repository: MediaEntryRepository
     ) {
         if (isMalImportRunning) {
-            onShowMessage?.invoke("MyAnimeList import zaten çalışıyor")
+            onShowMessage?.invoke(KitsugiStrings.get(R.string.myanimelist_import_zaten_calisiyor))
             return
         }
 
@@ -327,7 +329,7 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
             val token = ExternalAuthManager.getOrRefreshMalToken(context)
 
             if (token.isNullOrBlank()) {
-                onShowMessage?.invoke("MyAnimeList token bulunamadı")
+                onShowMessage?.invoke(KitsugiStrings.get(R.string.myanimelist_token_bulunamadi))
                 isMalImportRunning = false
                 return@launch
             }
@@ -350,13 +352,13 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                     repository.smartImport("mal", importedEntries, allowDelete = false)
                 }
                 if (importResult.isSuccess) {
-                    onShowMessage?.invoke("${importedEntries.size} MyAnimeList kaydı başarıyla aktarıldı")
+                    onShowMessage?.invoke(KitsugiStrings.get(R.string.x_myanimelist_kaydi_basariyla_aktarildi, importedEntries.size))
                 } else {
-                    onShowMessage?.invoke("MyAnimeList kaydedilirken sorun oluştu: ${importResult.exceptionOrNull()?.message}")
+                    onShowMessage?.invoke(KitsugiStrings.get(R.string.myanimelist_kaydedilirken_sorun_olustu_x, importResult.exceptionOrNull()?.message))
                 }
             }.onFailure { error ->
                 onShowMessage?.invoke(
-                    error.message ?: "MyAnimeList içe aktarma başarısız"
+                    error.message ?: KitsugiStrings.get(R.string.myanimelist_ice_aktarma_basarisiz)
                 )
             }
 
@@ -453,7 +455,7 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
         repository: MediaEntryRepository
     ) {
         if (isCrossSyncRunning) {
-            onShowMessage?.invoke("Eşitleme zaten devam ediyor...")
+            onShowMessage?.invoke(KitsugiStrings.get(R.string.esitleme_zaten_devam_ediyor))
             return
         }
 
@@ -565,14 +567,14 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
             if (isBangumi) connectedPlatforms.add("Bangumi")
 
             if (connectedPlatforms.size < 2) {
-                val message = "Eşitleme için en az iki hesap bağlı ve eşitlemesi açık olmalıdır."
-                logEvent("Eşitleme", message, isError = true)
+                val message = KitsugiStrings.get(R.string.esitleme_icin_en_az_iki_hesap_bagli_ve_esitl)
+                logEvent(KitsugiStrings.get(R.string.esitleme), message, isError = true)
                 onShowMessage?.invoke(message)
                 crossSyncState = com.kitsugi.animelist.model.CrossSyncProgressState(
                     isRunning = false,
                     currentStep = "Eşitleme başlatılamadı",
                     currentDetail = message,
-                    errorMessage = "En az iki hesap bağlı ve eşitlemesi açık olmalıdır.",
+                    errorMessage = KitsugiStrings.get(R.string.en_az_iki_hesap_bagli_ve_esitlemesi_acik_olmalidir),
                     logs = recentLogs.toList(),
                     startedAt = syncStartedAt
                 )
@@ -908,7 +910,7 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                         )
                     }
                     if (item.identityReviewRequired) {
-                        val title = candidates.firstOrNull()?.title ?: "Bilinmeyen içerik"
+                        val title = candidates.firstOrNull()?.title ?: KitsugiStrings.get(R.string.bilinmeyen_icerik)
                         logEvent(
                             "Eşleştirme",
                             "Kimlik doğrulaması gerektiği için dış hesaplara aktarılmadı: $title",
@@ -1024,8 +1026,8 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                             platform = platform,
                             reasonKey = identitySkipReason,
                             title = title,
-                            message = "[$platform] - Atlandı (kimlik doğrulanamadı): $title",
-                            details = "Kimlik güvencesi: ${identityVerdict?.describe() ?: "-"}\nYeni kayıt eklenmedi; mevcut kayıtlar etkilenmez."
+                            message = KitsugiStrings.get(R.string.platform_atlandi_kimlik_dogrulanamadi_title, platform, title),
+                            details = KitsugiStrings.get(R.string.kimlik_guvencesi_x_yeni_kayit_eklenmedi_mevcut_kayitlar_etkilenm, identityVerdict?.describe() ?: "-")
                         )
                     }
                     if (identityVerdict is com.kitsugi.animelist.data.auth.CrossSyncIdentityGuard.Verdict.Rejected) {
@@ -1118,7 +1120,7 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                                     platform = "AniList",
                                     reasonKey = "AniList medya kimliği çözülemedi (MAL ID veya ARM eşlemesi yok)",
                                     title = mergedEntry.title,
-                                    message = "[AniList] - Atlandı (medya kimliği çözülemedi): ${mergedEntry.title}",
+                                    message = KitsugiStrings.get(R.string.anilist_atlandi_medya_kimligi_cozulemedi_mer, mergedEntry.title),
                                     details = mappingDetails
                                 )
                             } else {
@@ -1197,8 +1199,8 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                                 platform = "MyAnimeList",
                                 reasonKey = "doğrulanmış MAL ID yok (AniList/Kitsu/Simkl kaydı MAL'a eşlenemedi)",
                                 title = mergedEntry.title,
-                                message = "[MAL] - Atlandı (doğrulanmış MAL ID yok): ${mergedEntry.title}",
-                                details = "MAL ID çözümlemesi başarısız oldu veya güvenli bir kimlik bulunamadı.\n$mappingDetails"
+                                message = KitsugiStrings.get(R.string.mal_atlandi_dogrulanmis_mal_id_yok_mergedent, mergedEntry.title),
+                                details = KitsugiStrings.get(R.string.mal_id_cozumlemesi_basarisiz_oldu_veya_guvenli_bir_kimlik_buluna, mappingDetails)
                             )
                         }
                     }
@@ -1243,7 +1245,7 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                                     platform = "Kitsu",
                                     reasonKey = "Kitsu kataloğunda güvenilir eşleşme bulunamadı (mappings/ARM/başlık)",
                                     title = mergedEntry.title,
-                                    message = "[Kitsu] - Atlandı (Kitsu kimliği çözülemedi): ${mergedEntry.title}",
+                                    message = KitsugiStrings.get(R.string.kitsu_atlandi_kitsu_kimligi_cozulemedi_merge, mergedEntry.title),
                                     details = mappingDetails
                                 )
                             } else {
@@ -1270,7 +1272,7 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                                         platform = "Kitsu",
                                         reasonKey = "Kitsu kataloğunda güvenilir eşleşme bulunamadı (mappings/ARM/başlık)",
                                         title = mergedEntry.title,
-                                        message = "[Kitsu] - Atlandı (Kitsu kimliği çözülemedi): ${mergedEntry.title}",
+                                        message = KitsugiStrings.get(R.string.kitsu_atlandi_kitsu_kimligi_cozulemedi_merge, mergedEntry.title),
                                         details = mappingDetails
                                     )
                                 } else {
@@ -1333,8 +1335,8 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                                 platform = "Shikimori",
                                 reasonKey = "doğrulanmış MAL ID yok (Shikimori kimlikleri MAL ID ile aynıdır)",
                                 title = mergedEntry.title,
-                                message = "[Shikimori] - Atlandı (doğrulanmış MAL ID yok): ${mergedEntry.title}",
-                                details = "Shikimori senkronizasyonu için doğrulanmış MAL ID gerekiyor.\n$mappingDetails"
+                                message = KitsugiStrings.get(R.string.shikimori_atlandi_dogrulanmis_mal_id_yok_mer, mergedEntry.title),
+                                details = KitsugiStrings.get(R.string.shikimori_senkronizasyonu_icin_dogrulanmis_mal_id_gerekiyor_x, mappingDetails)
                             )
                         }
                     }
@@ -1359,7 +1361,7 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                                     platform = "Bangumi",
                                     reasonKey = "Bangumi条目 eşleşmesi bulunamadı",
                                     title = mergedEntry.title,
-                                    message = "[Bangumi] - Atlandı (Bangumi eşleşmesi bulunamadı): ${mergedEntry.title}",
+                                    message = KitsugiStrings.get(R.string.bangumi_atlandi_bangumi_eslesmesi_bulunamadi, mergedEntry.title),
                                     details = "$mappingDetails\n${res.errors.joinToString("; ")}"
                                 )
                             } else {
@@ -1588,7 +1590,7 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                 val totalErrors = statsMap.values.sumOf { it.errorCount }
                 val totalSkipped = statsMap.values.sumOf { it.skippedCount }
                 val summary = when {
-                    hasSyncErrors -> "Eşitleme kısmen tamamlandı: $totalErrors işlem yazılamadı, $totalSkipped kayıt atlandı. Ayrıntılar için hata ve uyarı kayıtlarını inceleyin."
+                    hasSyncErrors -> KitsugiStrings.get(R.string.esitleme_kismen_tamamlandi_x_islem_yazilamadi_x_kayit_atlandi_ay, totalErrors, totalSkipped)
                     hasWarnings -> "Eşitleme tamamlandı. $totalSkipped kayıt güvenlik nedeniyle atlandı; uyarı özetlerini inceleyin."
                     else -> "Eşitleme tamamlandı."
                 }
@@ -1632,7 +1634,7 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                     lastUpdatedAt = System.currentTimeMillis(),
                     startedAt = syncStartedAt
                 )
-                onShowMessage?.invoke("Eşitleme sırasında hata oluştu: ${error.message}")
+                onShowMessage?.invoke(KitsugiStrings.get(R.string.esitleme_sirasinda_hata_olustu_x, error.message))
             }
             } catch (cancelled: kotlinx.coroutines.CancellationException) {
                 logEvent("Eşitleme", "Eşitleme işlemi iptal edildi; tamamlanan kayıtlar rapora eklendi.", isWarning = true)
@@ -1649,14 +1651,14 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                     isCompleted = false,
                     currentStep = "Eşitleme Hatası",
                     errorMessage = error.message,
-                    currentDetail = error.message ?: "Hesaplar okunamadı",
+                    currentDetail = error.message ?: KitsugiStrings.get(R.string.hesaplar_okunamadi),
                     logs = recentLogs.toList(),
                     totalEventCount = reportLogs.size,
                     issueCount = issueCount,
                     lastUpdatedAt = System.currentTimeMillis(),
                     startedAt = syncStartedAt
                 )
-                onShowMessage?.invoke("Eşitleme başlatılamadı: ${error.message}")
+                onShowMessage?.invoke(KitsugiStrings.get(R.string.esitleme_baslatilamadi_x, error.message))
             } finally {
                 if (crossSyncState.isRunning) {
                     logEvent("Eşitleme", "Eşitleme durduruldu; tamamlanan kayıtlar rapora eklendi.", isWarning = true)
@@ -1713,7 +1715,7 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
             }.onSuccess { userName ->
                 refreshAuthState()
                 launch(Dispatchers.Main) {
-                    onShowMessage?.invoke("Kitsu hesabı bağlandı: $userName")
+                    onShowMessage?.invoke(KitsugiStrings.get(R.string.kitsu_hesabi_baglandi_x, userName))
                     onSuccess()
                 }
             }.onFailure { err ->
@@ -1791,7 +1793,7 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                 refreshAuthState()
                 launch(Dispatchers.Main) {
                     onShowMessage?.invoke(
-                        if (user != null) "Shikimori hesabı bağlandı: ${user.nickname}"
+                        if (user != null) KitsugiStrings.get(R.string.shikimori_hesabi_baglandi_x, user.nickname)
                         else "Shikimori hesabı bağlandı. Profil bilgisi alınamadı; ilk kullanımda tekrar denenecek."
                     )
                     onSuccess()
@@ -1811,14 +1813,14 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
     fun importKitsuList(repository: MediaEntryRepository) {
         if (isKitsuImportRunning) return
         isKitsuImportRunning = true
-        onShowMessage?.invoke("Kitsu listesi içe aktarılıyor...")
+        onShowMessage?.invoke(KitsugiStrings.get(R.string.kitsu_listesi_ice_aktariliyor))
 
         viewModelScope.launch(Dispatchers.IO) {
             val token = ExternalAuthManager.getKitsuToken(context)
             val userId = ExternalAuthManager.getKitsuUserId(context)
 
             if (token.isNullOrBlank() || userId.isNullOrBlank()) {
-                onShowMessage?.invoke("Kitsu token veya kullanıcı ID bulunamadı")
+                onShowMessage?.invoke(KitsugiStrings.get(R.string.kitsu_token_veya_kullanici_id_bulunamadi))
                 isKitsuImportRunning = false
                 return@launch
             }
@@ -1834,12 +1836,12 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                     repository.smartImport("kitsu", importedEntries, allowDelete = false)
                 }
                 if (importResult.isSuccess) {
-                    onShowMessage?.invoke("${importedEntries.size} Kitsu kaydı başarıyla aktarıldı")
+                    onShowMessage?.invoke(KitsugiStrings.get(R.string.x_kitsu_kaydi_basariyla_aktarildi, importedEntries.size))
                 } else {
-                    onShowMessage?.invoke("Kitsu kaydedilirken sorun oluştu: ${importResult.exceptionOrNull()?.message}")
+                    onShowMessage?.invoke(KitsugiStrings.get(R.string.kitsu_kaydedilirken_sorun_olustu_x, importResult.exceptionOrNull()?.message))
                 }
             }.onFailure { error ->
-                onShowMessage?.invoke(error.message ?: "Kitsu içe aktarma başarısız")
+                onShowMessage?.invoke(error.message ?: KitsugiStrings.get(R.string.kitsu_ice_aktarma_basarisiz))
             }
 
             isKitsuImportRunning = false
@@ -1849,7 +1851,7 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
     fun importShikimoriList(repository: MediaEntryRepository) {
         if (isShikimoriImportRunning) return
         isShikimoriImportRunning = true
-        onShowMessage?.invoke("Shikimori listesi içe aktarılıyor...")
+        onShowMessage?.invoke(KitsugiStrings.get(R.string.shikimori_listesi_ice_aktariliyor))
 
         viewModelScope.launch(Dispatchers.IO) {
             val token = ExternalAuthManager.getOrRefreshShikimoriToken(context)
@@ -1861,7 +1863,7 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
             }
 
             if (token.isNullOrBlank() || userId == null) {
-                onShowMessage?.invoke("Shikimori token veya kullanıcı ID bulunamadı")
+                onShowMessage?.invoke(KitsugiStrings.get(R.string.shikimori_token_veya_kullanici_id_bulunamadi))
                 isShikimoriImportRunning = false
                 return@launch
             }
@@ -1877,12 +1879,12 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                     repository.smartImport("shikimori", importedEntries, allowDelete = false)
                 }
                 if (importResult.isSuccess) {
-                    onShowMessage?.invoke("${importedEntries.size} Shikimori kaydı başarıyla aktarıldı")
+                    onShowMessage?.invoke(KitsugiStrings.get(R.string.x_shikimori_kaydi_basariyla_aktarildi, importedEntries.size))
                 } else {
-                    onShowMessage?.invoke("Shikimori kaydedilirken sorun oluştu: ${importResult.exceptionOrNull()?.message}")
+                    onShowMessage?.invoke(KitsugiStrings.get(R.string.shikimori_kaydedilirken_sorun_olustu_x, importResult.exceptionOrNull()?.message))
                 }
             }.onFailure { error ->
-                onShowMessage?.invoke(error.message ?: "Shikimori içe aktarma başarısız")
+                onShowMessage?.invoke(error.message ?: KitsugiStrings.get(R.string.shikimori_ice_aktarma_basarisiz))
             }
 
             isShikimoriImportRunning = false
@@ -1937,12 +1939,12 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
     fun importBangumiList(repository: MediaEntryRepository) {
         if (isBangumiImportRunning) return
         isBangumiImportRunning = true
-        onShowMessage?.invoke("Bangumi listesi içe aktarılıyor...")
+        onShowMessage?.invoke(KitsugiStrings.get(R.string.bangumi_listesi_ice_aktariliyor))
 
         viewModelScope.launch(Dispatchers.IO) {
             val token = BangumiAuthStore.getValidToken(context)
             if (token.isNullOrBlank()) {
-                onShowMessage?.invoke("Bangumi token bulunamadı; lütfen tekrar giriş yapın")
+                onShowMessage?.invoke(KitsugiStrings.get(R.string.bangumi_token_bulunamadi_lutfen_tekrar_giris_yapin))
                 isBangumiImportRunning = false
                 return@launch
             }
@@ -1955,14 +1957,14 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                     repository.smartImport("bangumi", importedEntries, allowDelete = false)
                 }
                 if (importResult.isSuccess) {
-                    onShowMessage?.invoke("${importedEntries.size} Bangumi kaydı başarıyla aktarıldı")
+                    onShowMessage?.invoke(KitsugiStrings.get(R.string.x_bangumi_kaydi_basariyla_aktarildi, importedEntries.size))
                 } else {
                     onShowMessage?.invoke(
-                        "Bangumi kaydedilirken sorun oluştu: ${importResult.exceptionOrNull()?.message}"
+                        KitsugiStrings.get(R.string.bangumi_kaydedilirken_sorun_olustu_x, importResult.exceptionOrNull()?.message)
                     )
                 }
             }.onFailure { error ->
-                onShowMessage?.invoke(error.message ?: "Bangumi içe aktarma başarısız")
+                onShowMessage?.invoke(error.message ?: KitsugiStrings.get(R.string.bangumi_ice_aktarma_basarisiz))
             }
 
             isBangumiImportRunning = false
@@ -1987,12 +1989,12 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
         val token = ExternalAuthManager.getSimklToken(context)
 
         if (token.isNullOrBlank()) {
-            onShowMessage?.invoke("Simkl token bulunamadı")
+            onShowMessage?.invoke(KitsugiStrings.get(R.string.simkl_token_bulunamadi))
             return
         }
 
         if (isSimklImportRunning) {
-            onShowMessage?.invoke("Simkl import zaten çalışıyor")
+            onShowMessage?.invoke(KitsugiStrings.get(R.string.simkl_import_zaten_calisiyor))
             return
         }
 
@@ -2017,13 +2019,13 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                     repository.smartImport("simkl", importedEntries, allowDelete = false)
                 }
                 if (importResult.isSuccess) {
-                    onShowMessage?.invoke("${importedEntries.size} Simkl kaydı başarıyla aktarıldı")
+                    onShowMessage?.invoke(KitsugiStrings.get(R.string.x_simkl_kaydi_basariyla_aktarildi, importedEntries.size))
                 } else {
-                    onShowMessage?.invoke("Simkl kaydedilirken sorun oluştu: ${importResult.exceptionOrNull()?.message}")
+                    onShowMessage?.invoke(KitsugiStrings.get(R.string.simkl_kaydedilirken_sorun_olustu_x, importResult.exceptionOrNull()?.message))
                 }
             }.onFailure { error ->
                 onShowMessage?.invoke(
-                    error.message ?: "Simkl içe aktarma başarısız"
+                    error.message ?: KitsugiStrings.get(R.string.simkl_ice_aktarma_basarisiz)
                 )
             }
 

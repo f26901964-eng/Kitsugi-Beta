@@ -43,6 +43,7 @@ import com.kitsugi.animelist.data.auth.ShikimoriApiClient
 import com.kitsugi.animelist.ui.theme.KitsugiColors
 import androidx.compose.ui.res.stringResource
 import com.kitsugi.animelist.R
+import com.kitsugi.animelist.utils.KitsugiStrings
 
 @Composable
 fun KitsugiShikimoriLoginDialog(
@@ -118,7 +119,7 @@ fun KitsugiShikimoriLoginDialog(
                 Spacer(modifier = Modifier.height(10.dp))
 
                 Text(
-                    text = "Shikimori ile Bağlan",
+                    text = stringResource(R.string.inline_connect_to_shikimori_dee71dc),
                     style = MaterialTheme.typography.titleLarge.copy(
                         fontWeight = FontWeight.Bold,
                         color = KitsugiColors.TextPrimary
@@ -126,7 +127,7 @@ fun KitsugiShikimoriLoginDialog(
                 )
 
                 Text(
-                    text = "Shikimori hesabınızdaki izleme listelerini Kitsugi ile doğrudan eşitleyin.",
+                    text = stringResource(R.string.inline_sync_your_shikimori_watchlists_dir_989517b),
                     style = MaterialTheme.typography.bodySmall.copy(
                         color = KitsugiColors.TextSecondary,
                         textAlign = TextAlign.Center
@@ -187,7 +188,7 @@ fun KitsugiShikimoriLoginDialog(
                                 )
                                 Spacer(modifier = Modifier.width(8.dp))
                                 Text(
-                                    text = "1. Adım: Shikimori Hesabınızla Yetki Verin",
+                                    text = stringResource(R.string.inline_step_1_authorize_with_your_027ff6e),
                                     style = MaterialTheme.typography.labelMedium.copy(
                                         fontWeight = FontWeight.Bold,
                                         color = shikimoriBrandColor
@@ -196,7 +197,7 @@ fun KitsugiShikimoriLoginDialog(
                             }
                             Spacer(modifier = Modifier.height(6.dp))
                             Text(
-                                text = "Aşağıdaki '1-Tık Otomatik Giriş' butonuna dokunun. Tarayıcıda Shikimori hesabınızla oturum açıp 'Разрешить (İzin Ver)' butonuna bastığınızda uygulama otomatik olarak bağlanır.",
+                                text = stringResource(R.string.asagidaki_1_tik_otomatik_giris_butonuna_dokunun_tarayicida_shiki),
                                 style = MaterialTheme.typography.bodySmall.copy(
                                     color = KitsugiColors.TextSecondary,
                                     fontSize = 12.sp,
@@ -258,7 +259,7 @@ fun KitsugiShikimoriLoginDialog(
                                 Icon(Icons.Rounded.OpenInNew, contentDescription = null, modifier = Modifier.size(16.dp))
                                 Spacer(modifier = Modifier.width(6.dp))
                                 Text(
-                                    text = "Tarayıcıda Aç (Kodu Manuel Al)",
+                                    text = stringResource(R.string.inline_open_in_browser_get_code_be59fc3),
                                     style = MaterialTheme.typography.labelMedium,
                                     fontWeight = FontWeight.SemiBold
                                 )
@@ -268,8 +269,8 @@ fun KitsugiShikimoriLoginDialog(
 
                             // Redirect URI uyuşmazlığında ne yapılacağını açıkla
                             Text(
-                                text = "Tarayıcıda \"The requested redirect uri is malformed or doesn't match client redirect URI\" hatası görürseniz: " +
-                                    "Shikimori'deki OAuth uygulamanızın Redirect URI listesinde ${ShikimoriApiClient.DEEP_LINK_REDIRECT_URI} birebir kayıtlı olmalıdır. " +
+                                text = stringResource(R.string.tarayicida_the_requested_redirect_uri_is_malformed_or_doesn_t_ma) +
+                                    stringResource(R.string.shikimori_deki_oauth_uygulamanizin_redirect_uri_listesinde_x_bir, ShikimoriApiClient.DEEP_LINK_REDIRECT_URI) +
                                     "Kendi uygulamanızda bu URI'yi ekleyin; farklı bir callback kayıtlıysa aşağıdaki alternatif düğmesini ya da manuel kod akışını kullanın.",
                                 style = MaterialTheme.typography.bodySmall.copy(
                                     color = KitsugiColors.TextSecondary,
@@ -292,7 +293,7 @@ fun KitsugiShikimoriLoginDialog(
                                         }
                                     }
                                 ) {
-                                    Text("Shikimori OAuth Uygulamalarım", fontSize = 11.sp)
+                                    Text(stringResource(R.string.inline_my_shikimori_oauth_apps_05c1e76), fontSize = 11.sp)
                                 }
                                 TextButton(
                                     onClick = {
@@ -307,7 +308,7 @@ fun KitsugiShikimoriLoginDialog(
                                         runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(authUrl))) }
                                     }
                                 ) {
-                                    Text("Alternatif Tek Tık (kitsugi://)", fontSize = 11.sp)
+                                    Text(stringResource(R.string.inline_alternative_one_tap_kitsugi_e45c65e), fontSize = 11.sp)
                                 }
                             }
                         }
@@ -330,7 +331,7 @@ fun KitsugiShikimoriLoginDialog(
                                 )
                                 Spacer(modifier = Modifier.width(8.dp))
                                 Text(
-                                    text = "2. Adım: Yetkilendirme Kodunu Yapıştırın",
+                                    text = stringResource(R.string.inline_step_2_paste_the_authorization_776dc2e),
                                     style = MaterialTheme.typography.labelMedium.copy(
                                         fontWeight = FontWeight.Bold,
                                         color = KitsugiColors.TextPrimary
@@ -339,7 +340,7 @@ fun KitsugiShikimoriLoginDialog(
                             }
                             Spacer(modifier = Modifier.height(6.dp))
                             Text(
-                                text = "İzin verdikten sonra ekranda görünen kodu (veya tarayıcıdaki tam adresi) buraya yapıştırın:",
+                                text = stringResource(R.string.inline_after_granting_access_paste_the_70384e6),
                                 style = MaterialTheme.typography.bodySmall.copy(
                                     color = KitsugiColors.TextSecondary,
                                     fontSize = 12.sp,
@@ -408,7 +409,7 @@ fun KitsugiShikimoriLoginDialog(
                                 )
                                 Spacer(modifier = Modifier.width(8.dp))
                                 Text(
-                                    text = "Özel API Anahtarları (İsteğe Bağlı)",
+                                    text = stringResource(R.string.inline_custom_api_keys_optional_87a5a8a),
                                     style = MaterialTheme.typography.bodySmall.copy(
                                         fontWeight = FontWeight.Medium,
                                         color = KitsugiColors.TextSecondary
@@ -433,7 +434,7 @@ fun KitsugiShikimoriLoginDialog(
                                 verticalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
                                 Text(
-                                    text = "Varsayılan olarak hazır API anahtarı kullanılır. Sadece kendi Shikimori OAuth uygulamanız varsa doldurun.",
+                                    text = stringResource(R.string.inline_a_ready_to_use_api_7a9b6f9),
                                     style = MaterialTheme.typography.bodySmall.copy(
                                         color = KitsugiColors.TextSecondary,
                                         fontSize = 11.sp
@@ -443,7 +444,7 @@ fun KitsugiShikimoriLoginDialog(
                                 OutlinedTextField(
                                     value = clientId,
                                     onValueChange = { clientId = it.trim() },
-                                    label = { Text("Özel Client ID") },
+                                    label = { Text(stringResource(R.string.inline_custom_client_id_89f0f76)) },
                                     placeholder = { Text(ShikimoriApiClient.DEFAULT_CLIENT_ID) },
                                     singleLine = true,
                                     enabled = !isLoading,
@@ -454,7 +455,7 @@ fun KitsugiShikimoriLoginDialog(
                                 OutlinedTextField(
                                     value = clientSecret,
                                     onValueChange = { clientSecret = it.trim() },
-                                    label = { Text("Özel Client Secret") },
+                                    label = { Text(stringResource(R.string.inline_custom_client_secret_1f286e9)) },
                                     placeholder = { Text(ShikimoriApiClient.DEFAULT_CLIENT_SECRET) },
                                     singleLine = true,
                                     enabled = !isLoading,
@@ -472,7 +473,7 @@ fun KitsugiShikimoriLoginDialog(
                                 ) {
                                     Icon(Icons.Rounded.RestartAlt, contentDescription = null, modifier = Modifier.size(16.dp))
                                     Spacer(modifier = Modifier.width(4.dp))
-                                    Text("Varsayılan Anahtarları Geri Yükle", fontSize = 11.sp)
+                                    Text(stringResource(R.string.inline_restore_default_keys_ada2a26), fontSize = 11.sp)
                                 }
                             }
                         }
@@ -502,7 +503,7 @@ fun KitsugiShikimoriLoginDialog(
                         onClick = {
                             val cleanCode = ShikimoriApiClient.sanitizeAuthCode(authCode)
                             if (cleanCode.isBlank()) {
-                                errorMessage = "Lütfen tarayıcıdan aldığınız yetkilendirme kodunu girin."
+                                errorMessage = KitsugiStrings.get(R.string.lutfen_tarayicidan_aldiginiz_yetkilendirme_kodunu_girin)
                             } else {
                                 isLoading = true
                                 errorMessage = null
@@ -514,7 +515,7 @@ fun KitsugiShikimoriLoginDialog(
                                     if (success) {
                                         onDismiss()
                                     } else {
-                                        errorMessage = error ?: "Shikimori bağlantısı başarısız oldu."
+                                        errorMessage = error ?: KitsugiStrings.get(R.string.shikimori_baglantisi_basarisiz_oldu)
                                     }
                                 }
                             }

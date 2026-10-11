@@ -42,6 +42,8 @@ import com.kitsugi.animelist.ui.theme.KitsugiColors
 import com.kitsugi.animelist.ui.theme.LocalKitsugiAccent
 import com.kitsugi.animelist.ui.utils.tvClickable
 import com.kitsugi.animelist.utils.PreferenceHelpers.getDisplayTitle
+import androidx.compose.ui.res.stringResource
+import com.kitsugi.animelist.R
 
 @Composable
 fun DetailedSeasonalMediaCard(
@@ -196,7 +198,7 @@ fun DetailedSeasonalMediaCard(
                     ) {
                         Icon(
                             imageVector = Icons.Rounded.Star,
-                            contentDescription = "Puan",
+                            contentDescription = stringResource(R.string.detail_stat_score),
                             tint = Color(0xFFFFB800),
                             modifier = Modifier.size(16.dp)
                         )

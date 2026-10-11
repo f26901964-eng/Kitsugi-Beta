@@ -290,7 +290,7 @@ internal fun KitsugiNumericInputDialog(
         text = {
             Column {
                 Text(
-                    text = "Lütfen yeni değeri girin:",
+                    text = stringResource(R.string.inline_enter_the_new_value_e7185a9),
                     color = KitsugiColors.TextSecondary,
                     style = MaterialTheme.typography.bodySmall,
                     modifier = Modifier.padding(bottom = 8.dp)

@@ -21,6 +21,8 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import com.kitsugi.animelist.utils.KitsugiStrings
+import com.kitsugi.animelist.R
 
 private data class BulkInstallSnapshot(
     val repoUrl: String?,
@@ -131,7 +133,7 @@ class AddonViewModel(application: Application) : AndroidViewModel(application) {
                                 url.contains("anisub.co") -> "AniSub.co"
                                 else -> "Subtitle Addon"
                             },
-                            description = "Sistem Altyazı Eklentisi",
+                            description = KitsugiStrings.get(R.string.sistem_altyazi_eklentisi),
                             icon = null,
                             isEnabled = true,
                             orderIndex = 99,
@@ -236,7 +238,7 @@ class AddonViewModel(application: Application) : AndroidViewModel(application) {
                 .map { it.trim() }
                 .filter { it.isNotBlank() }
             if (urls.isEmpty()) {
-                onShowMessage?.invoke("Geçersiz URL veya boş girdi")
+                onShowMessage?.invoke(KitsugiStrings.get(R.string.gecersiz_url_veya_bos_girdi))
                 return@launch
             }
             var successCount = 0
@@ -251,7 +253,7 @@ class AddonViewModel(application: Application) : AndroidViewModel(application) {
                             ManagedAddonEntity(
                                 manifestUrl = normalized,
                                 name = "Torrentio",
-                                description = "Ana torrent kaynağı (YTS, EZTV, RARBG, 1337x, TPB vb.). RealDebrid desteği sunar.",
+                                description = KitsugiStrings.get(R.string.ana_torrent_kaynagi_yts_eztv_rarbg_1337x_tpb),
                                 icon = "https://torrentio.strem.fun/images/logo.png",
                                 isEnabled = true,
                                 orderIndex = 0,
@@ -265,7 +267,7 @@ class AddonViewModel(application: Application) : AndroidViewModel(application) {
                             ManagedAddonEntity(
                                 manifestUrl = normalized,
                                 name = "Anime Kitsu",
-                                description = "Kitsu üzerinden anime listelerini ve verileri yükler.",
+                                description = KitsugiStrings.get(R.string.kitsu_uzerinden_anime_listelerini_ve_veriler),
                                 icon = null,
                                 isEnabled = true,
                                 orderIndex = 1,
@@ -305,7 +307,7 @@ class AddonViewModel(application: Application) : AndroidViewModel(application) {
             }
             if (isPreset) {
                 addonDao.updateAddon(addon.copy(isEnabled = true))
-                onShowMessage?.invoke("Sistem altyazı eklentileri devre dışı bırakılamaz.")
+                onShowMessage?.invoke(KitsugiStrings.get(R.string.sistem_altyazi_eklentileri_devre_disi_birakilamaz))
             } else {
                 addonDao.updateAddon(addon.copy(isEnabled = isEnabled))
             }
@@ -319,7 +321,7 @@ class AddonViewModel(application: Application) : AndroidViewModel(application) {
                 normalizedPreset.trim().equals(addon.manifestUrl.trim(), ignoreCase = true)
             }
             if (isPreset) {
-                onShowMessage?.invoke("Sistem altyazı eklentileri silinemez.")
+                onShowMessage?.invoke(KitsugiStrings.get(R.string.sistem_altyazi_eklentileri_silinemez))
             } else {
                 addonDao.deleteAddon(addon)
                 onShowMessage?.invoke("Eklenti silindi: ${addon.name}")
@@ -338,7 +340,7 @@ class AddonViewModel(application: Application) : AndroidViewModel(application) {
                 .map { it.trim() }
                 .filter { it.isNotBlank() }
             if (urls.isEmpty()) {
-                onShowMessage?.invoke("Geçersiz URL veya boş girdi")
+                onShowMessage?.invoke(KitsugiStrings.get(R.string.gecersiz_url_veya_bos_girdi))
                 return@launch
             }
             if (!force) {
@@ -469,7 +471,7 @@ class AddonViewModel(application: Application) : AndroidViewModel(application) {
             }.distinctBy { it.internalName }
 
             if (toUpdate.isEmpty()) {
-                onShowMessage?.invoke("ℹ️ Güncellenecek eklenti bulunamadı")
+                onShowMessage?.invoke(KitsugiStrings.get(R.string.guncellenecek_eklenti_bulunamadi))
                 return@launch
             }
 
@@ -505,7 +507,7 @@ class AddonViewModel(application: Application) : AndroidViewModel(application) {
             }
 
             bulkInstallResultMessage = "✅ $successCount/${toUpdate.size} eklenti güncellendi!"
-            onShowMessage?.invoke("✅ $successCount eklenti başarıyla güncellendi!")
+            onShowMessage?.invoke(KitsugiStrings.get(R.string.x_eklenti_basariyla_guncellendi, successCount))
             availableUpdatesCount = 0
             bulkInstallRepoUrl = null
             bulkInstallRepoName = null
@@ -724,7 +726,7 @@ class AddonViewModel(application: Application) : AndroidViewModel(application) {
                 repositoryUrl = plugin.repositoryUrl
             )
             csRepoRepository.uninstallCsPlugin(csPlugin)
-            onShowMessage?.invoke("Eklenti kaldırıldı: ${plugin.name}")
+            onShowMessage?.invoke(KitsugiStrings.get(R.string.eklenti_kaldirildi_x, plugin.name))
         }
     }
 

@@ -38,6 +38,7 @@ import com.kitsugi.animelist.ui.theme.KitsugiColors
 import com.kitsugi.animelist.ui.theme.LocalKitsugiAccent
 import androidx.compose.ui.res.stringResource
 import com.kitsugi.animelist.R
+import com.kitsugi.animelist.utils.KitsugiStrings
 
 /**
  * Desteklenen 6 Profil Kaynak Platformu.
@@ -50,32 +51,32 @@ enum class ProfilePlatform(
     ANILIST(
         id = "anilist",
         label = "AniList",
-        description = "Aktiviteler, takipçiler, anime/manga istatistikleri, favoriler ve detaylı grafikler"
+        description = KitsugiStrings.get(R.string.aktiviteler_takipciler_anime_manga_istatistikleri_favoriler_ve_d)
     ),
     MAL(
         id = "mal",
         label = "MyAnimeList",
-        description = "Klasik MAL profil görünümü, anime/manga durumları, puanlama ve kulüpler"
+        description = KitsugiStrings.get(R.string.klasik_mal_profil_gorunumu_anime_manga_durumlari_puanlama_ve_kul)
     ),
     SIMKL(
         id = "simkl",
         label = "Simkl",
-        description = "TV dizileri, filmler, anime takibi, izleme geçmişi ve hesap detayları"
+        description = KitsugiStrings.get(R.string.tv_dizileri_filmler_anime_takibi_izleme_gecmisi_ve_hesap_detayla)
     ),
     KITSU(
         id = "kitsu",
         label = "Kitsu",
-        description = "Kütüphane kayıtları, biyografi, takipçi istatistikleri ve favori karakterler"
+        description = KitsugiStrings.get(R.string.kutuphane_kayitlari_biyografi_takipci_istatistikleri_ve_favori_k)
     ),
     SHIKIMORI(
         id = "shikimori",
         label = "Shikimori",
-        description = "Anime ve manga listeleri, bölüm sayıları, puan istatistikleri ve kullanıcı oranları"
+        description = KitsugiStrings.get(R.string.anime_ve_manga_listeleri_bolum_sayilari_puan_istatistikleri_ve_k)
     ),
     BANGUMI(
         id = "bangumi",
         label = "Bangumi",
-        description = "Anime, manga, oyun ve müzik koleksiyonları, ilerleme ve puanlar, favori karakter ve kişiler"
+        description = KitsugiStrings.get(R.string.anime_manga_oyun_ve_muzik_koleksiyonlari_ilerleme_ve_puanlar_fav)
     )
 }
 
@@ -193,7 +194,7 @@ fun ProfileSourcePickerSheet(
                 )
             )
             Text(
-                text = "Görüntülemek ve yönetmek istediğiniz profil kaynağını seçin",
+                text = stringResource(R.string.inline_choose_the_profile_source_you_9de9c06),
                 style = MaterialTheme.typography.bodySmall.copy(
                     color = KitsugiColors.TextMuted
                 ),
@@ -274,7 +275,7 @@ fun ProfileSourcePickerSheet(
                                             .background(KitsugiColors.AccentGreen)
                                     )
                                     Text(
-                                        text = if (!username.isNullOrBlank()) "@$username" else "Bağlı",
+                                        text = if (!username.isNullOrBlank()) "@$username" else stringResource(R.string.notif_diag_connected),
                                         color = KitsugiColors.AccentGreen,
                                         fontSize = 11.sp,
                                         fontWeight = FontWeight.Medium

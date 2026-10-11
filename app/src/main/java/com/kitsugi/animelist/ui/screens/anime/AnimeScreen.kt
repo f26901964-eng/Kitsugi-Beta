@@ -23,6 +23,7 @@ import com.kitsugi.animelist.ui.theme.LocalKitsugiAccent
 import com.kitsugi.animelist.ui.theme.KitsugiColors
 import androidx.compose.ui.res.stringResource
 import com.kitsugi.animelist.R
+import com.kitsugi.animelist.utils.KitsugiStrings
 
 /**
  * @deprecated T4-04: Bu ekran AppNavigation/AppRoot'a bağlı değildir — ölü kod.
@@ -66,7 +67,7 @@ fun AnimeScreen(
             onClick = { viewModel.loadData(forceRefresh = true) }
         ) {
             Text(
-                text = if (viewModel.isLoading) "Yükleniyor..." else "Yenile",
+                text = if (viewModel.isLoading) KitsugiStrings.get(R.string.loading) else "Yenile",
                 color = if (viewModel.isLoading) KitsugiColors.TextMuted else accentColor,
                 fontWeight = FontWeight.Bold
             )

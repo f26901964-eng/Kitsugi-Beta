@@ -70,7 +70,7 @@ fun P2pSettingsSection(
                     fontWeight = FontWeight.Bold
                 )
                 Text(
-                    text = "Debrid hesabı olmadan ücretsiz torrent akışı (Torrentio vb.)",
+                    text = stringResource(R.string.inline_free_torrent_streaming_without_a_ac6e8f8),
                     color = KitsugiColors.TextSecondary,
                     style = MaterialTheme.typography.bodySmall
                 )
@@ -94,13 +94,13 @@ fun P2pSettingsSection(
             ) {
                 Column(modifier = Modifier.weight(1f).padding(end = 12.dp)) {
                     Text(
-                        text = "P2P Akışını Etkinleştir",
+                        text = stringResource(R.string.inline_enable_p2p_streaming_4236ac6),
                         color = KitsugiColors.TextPrimary,
                         fontSize = 14.sp,
                         fontWeight = FontWeight.Bold
                     )
                     Text(
-                        text = "Torrent bağlantılarını doğrudan cihazda çözer ve oynatır",
+                        text = stringResource(R.string.inline_resolves_and_plays_torrent_links_646789d),
                         color = KitsugiColors.TextSecondary,
                         fontSize = 12.sp
                     )
@@ -136,13 +136,13 @@ fun P2pSettingsSection(
                 ) {
                     Column(modifier = Modifier.weight(1f).padding(end = 12.dp)) {
                         Text(
-                            text = "Torrent İstatistiklerini Gizle",
+                            text = stringResource(R.string.inline_hide_torrent_statistics_9d04d4b),
                             color = KitsugiColors.TextPrimary,
                             fontSize = 14.sp,
                             fontWeight = FontWeight.Medium
                         )
                         Text(
-                            text = "Oynatıcı ekranında hız, seed ve peer bilgilerini gizler",
+                            text = stringResource(R.string.inline_hide_speed_seed_and_peer_5dcadeb),
                             color = KitsugiColors.TextSecondary,
                             fontSize = 12.sp
                         )
@@ -167,13 +167,13 @@ fun P2pSettingsSection(
                 ) {
                     Column(modifier = Modifier.weight(1f).padding(end = 12.dp)) {
                         Text(
-                            text = "Yükleme (Seed / Upload) İzni",
+                            text = stringResource(R.string.inline_allow_uploading_seeding_f95c4ae),
                             color = KitsugiColors.TextPrimary,
                             fontSize = 14.sp,
                             fontWeight = FontWeight.Medium
                         )
                         Text(
-                            text = if (p2pState.enableUpload) "Torrent ağında veri paylaşımı aktif (hızlı bağlantı)" else "Sadece indirme yapılır, yükleme kapalı",
+                            text = if (p2pState.enableUpload) stringResource(R.string.ui_p2p_upload_enabled) else stringResource(R.string.ui_p2p_download_only),
                             color = if (p2pState.enableUpload) KitsugiColors.AccentGreen else KitsugiColors.TextSecondary,
                             fontSize = 12.sp
                         )
@@ -192,7 +192,7 @@ fun P2pSettingsSection(
                 if (p2pState.enableUpload) {
                     var uploadDropdownExpanded by remember { mutableStateOf(false) }
                     val uploadLimitOptions = listOf(
-                        0L to "Sınırsız Yükleme",
+                        0L to stringResource(R.string.sinirsiz_yukleme),
                         500L to "500 KB/s",
                         1000L to "1 MB/s",
                         2000L to "2 MB/s",
@@ -202,7 +202,7 @@ fun P2pSettingsSection(
 
                     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                         Text(
-                            text = "Yükleme Hız Limiti",
+                            text = stringResource(R.string.inline_upload_speed_limit_332ad8b),
                             color = KitsugiColors.TextSecondary,
                             fontSize = 12.sp,
                             fontWeight = FontWeight.Medium
@@ -245,7 +245,7 @@ fun P2pSettingsSection(
                 // 5. Torrent Profili
                 var profileDropdownExpanded by remember { mutableStateOf(false) }
                 val profileOptions = listOf(
-                    P2pTorrentProfile.BALANCED to ("Dengeli (Önerilen)" to "Hızlı başlangıç ve kararlı bağlantı dengesi"),
+                    P2pTorrentProfile.BALANCED to (stringResource(R.string.dengeli_onerilen) to stringResource(R.string.hizli_baslangic_ve_kararli_baglanti_dengesi)),
                     P2pTorrentProfile.SOFT to ("Hafif (Soft)" to "Düşük pil ve arka plan veri tüketimi"),
                     P2pTorrentProfile.FAST to ("Hızlı (Fast)" to "Yüksek eş sayısı ve agresif indirme")
                 )
@@ -295,7 +295,7 @@ fun P2pSettingsSection(
                 // 6. Önbellek Boyutu
                 var cacheDropdownExpanded by remember { mutableStateOf(false) }
                 val cacheOptions = listOf(
-                    P2pCacheSize.GB_2 to "2 GB (Önerilen)",
+                    P2pCacheSize.GB_2 to stringResource(R.string.onerilen_2_gb),
                     P2pCacheSize.GB_5 to "5 GB",
                     P2pCacheSize.GB_10 to "10 GB",
                     P2pCacheSize.NONE to "Kalıcı Önbellek Yok"
@@ -304,7 +304,7 @@ fun P2pSettingsSection(
 
                 Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     Text(
-                        text = "Torrent Disk Önbellek Boyutu",
+                        text = stringResource(R.string.inline_torrent_disk_cache_size_a8b3881),
                         color = KitsugiColors.TextSecondary,
                         fontSize = 12.sp,
                         fontWeight = FontWeight.Medium
@@ -351,7 +351,7 @@ fun P2pSettingsSection(
                 ) {
                     Column(modifier = Modifier.weight(1f).padding(end = 12.dp)) {
                         Text(
-                            text = "Torrent Önbelleğini Temizle",
+                            text = stringResource(R.string.inline_clear_torrent_cache_7e9e815),
                             color = KitsugiColors.TextPrimary,
                             fontSize = 14.sp,
                             fontWeight = FontWeight.Medium

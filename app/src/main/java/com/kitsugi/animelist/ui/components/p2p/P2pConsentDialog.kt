@@ -72,7 +72,7 @@ fun P2pConsentDialog(
                     ) {
                         Icon(
                             imageVector = Icons.Rounded.Security,
-                            contentDescription = "P2P Güvenlik",
+                            contentDescription = stringResource(R.string.p2p_guvenlik),
                             tint = KitsugiColors.AccentOrange,
                             modifier = Modifier.size(24.dp)
                         )
@@ -85,7 +85,7 @@ fun P2pConsentDialog(
                             color = KitsugiColors.TextPrimary
                         )
                         Text(
-                            text = "Kullanıcı Sözleşmesi ve Güvenlik Bilgisi",
+                            text = stringResource(R.string.inline_user_agreement_safety_information_5517a5b),
                             style = MaterialTheme.typography.bodySmall,
                             color = KitsugiColors.TextSecondary
                         )
@@ -104,26 +104,26 @@ fun P2pConsentDialog(
                 ) {
                     P2pDisclaimerItem(
                         icon = Icons.Rounded.Share,
-                        title = "Eşler Arası (P2P) Bağlantı",
-                        description = "Bu özellik, harici Debrid servislerine gerek kalmadan video akışını doğrudan BitTorrent ağı üzerinden indirerek oynatır."
+                        title = stringResource(R.string.esler_arasi_p2p_baglanti),
+                        description = stringResource(R.string.bu_ozellik_harici_debrid_servislerine_gerek_kalmadan_video_akisi)
                     )
 
                     P2pDisclaimerItem(
                         icon = Icons.Rounded.VpnKey,
-                        title = "IP Adresi Görünürlüğü",
-                        description = "BitTorrent protokolünün çalışma prensibi gereği IP adresiniz swarm havuzundaki diğer eşler tarafından görülebilir. Tam gizlilik için cihazınızda VPN kullanmanız önerilir."
+                        title = stringResource(R.string.ip_adresi_gorunurlugu),
+                        description = stringResource(R.string.bittorrent_protokolunun_calisma_prensibi_geregi_ip_adresiniz_swa)
                     )
 
                     P2pDisclaimerItem(
                         icon = Icons.Rounded.Security,
                         title = "Yasal Uygunluk & Sorumluluk",
-                        description = "Kitsugi hiçbir torrent veya medya içeriği barındırmaz ve kontrol etmez. Eriştiğiniz içeriklerin bulunduğunuz bölgedeki yasal uygunluğu tamamen sizin sorumluluğunuzdadır."
+                        description = stringResource(R.string.kitsugi_hicbir_torrent_veya_medya_icerigi_barindirmaz_ve_kontrol)
                     )
 
                     P2pDisclaimerItem(
                         icon = Icons.Rounded.Info,
-                        title = "Yükleme (Seed) & Ayarlar",
-                        description = "Torrent ağında veri paylaşımını (upload) ve hız limitlerini Ayarlar bölümünden dilediğiniz zaman kapatabilir veya değiştirebilirsiniz."
+                        title = stringResource(R.string.yukleme_seed_ayarlar),
+                        description = stringResource(R.string.torrent_aginda_veri_paylasimini_upload_ve_hiz_limitlerini_ayarla)
                     )
                 }
 
@@ -155,7 +155,7 @@ fun P2pConsentDialog(
                         modifier = Modifier.weight(1.3f),
                         shape = RoundedCornerShape(14.dp)
                     ) {
-                        Text("Onayla ve Etkinleştir", fontWeight = FontWeight.Bold)
+                        Text(stringResource(R.string.inline_accept_and_enable_03bffee), fontWeight = FontWeight.Bold)
                     }
                 }
             }

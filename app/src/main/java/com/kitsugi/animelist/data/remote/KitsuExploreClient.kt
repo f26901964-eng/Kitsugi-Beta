@@ -8,6 +8,8 @@ import kotlinx.coroutines.withContext
 import okhttp3.Request
 import org.json.JSONObject
 import java.net.URLEncoder
+import com.kitsugi.animelist.utils.KitsugiStrings
+import com.kitsugi.animelist.R
 
 /**
  * Kitsu.io REST API — AniList keşfet sayfası için ücretsiz fallback.
@@ -372,7 +374,7 @@ object KitsuExploreClient {
                 if (statusTr.isNotBlank()) add(statusTr)
             }
             val subtitle = if (subtitleParts.isNotEmpty()) subtitleParts.joinToString(" • ")
-                           else "Kitsu ile eklenen anime"
+                           else KitsugiStrings.get(R.string.kitsu_ile_eklenen_anime)
 
             JikanSearchResult(
                 malId         = stableId,
@@ -462,7 +464,7 @@ object KitsuExploreClient {
             val titlesObj = attrs.optJSONObject("titles")
             val titleEn = titlesObj?.optString("en", "")?.takeIf { it.isNotBlank() }
             val titleJa = titlesObj?.optString("ja_jp", "")?.takeIf { it.isNotBlank() }
-            val title = canonicalTitle.takeIf { it.isNotBlank() } ?: titleEn ?: titleJa ?: "Başlıksız"
+            val title = canonicalTitle.takeIf { it.isNotBlank() } ?: titleEn ?: titleJa ?: KitsugiStrings.get(R.string.basliksiz)
 
             val synopsis = attrs.optString("synopsis", "").takeIf { it.isNotBlank() }
             val startDate = attrs.optString("startDate", "")

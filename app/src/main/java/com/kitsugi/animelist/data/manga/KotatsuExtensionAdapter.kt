@@ -20,6 +20,8 @@ import org.koitharu.kotatsu.parsers.webview.InterceptionConfig as ParsersInterce
 import org.koitharu.kotatsu.parsers.model.Manga as KotatsuManga
 import org.koitharu.kotatsu.parsers.model.MangaChapter as KotatsuChapter
 import org.koitharu.kotatsu.parsers.model.MangaPage as KotatsuPage
+import com.kitsugi.animelist.utils.KitsugiStrings
+import com.kitsugi.animelist.R
 
 /**
  * KotatsuExtensionAdapter
@@ -425,7 +427,7 @@ class KotatsuMangaSource(
                 chapterCache[chapter.url] = chapter
                 MangaChapter(
                     url = chapter.url,
-                    name = chapter.title?.takeIf { it.isNotBlank() } ?: "Bölüm ${chapter.number}",
+                    name = chapter.title?.takeIf { it.isNotBlank() } ?: KitsugiStrings.get(R.string.inline_episode_1_s_dc662be, chapter.number),
                     scanlator = chapter.scanlator,
                     chapterNumber = chapter.number,
                     uploadDate = chapter.uploadDate,

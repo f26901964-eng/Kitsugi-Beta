@@ -163,14 +163,14 @@ fun FavouritesScreen(
                             )
                             Spacer(modifier = Modifier.height(16.dp))
                             Text(
-                                text = "Henüz Favori Eklenmedi",
+                                text = stringResource(R.string.inline_no_favorites_added_yet_f1d0ab6),
                                 color = KitsugiColors.textPrimary,
                                 style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.Bold
                             )
                             Spacer(modifier = Modifier.height(8.dp))
                             Text(
-                                text = "Listenden dilediğin yapımı favorilere ekleyerek burada hızlıca erişebilirsin.",
+                                text = stringResource(R.string.inline_add_titles_from_your_list_17f24af),
                                 color = KitsugiColors.textMuted,
                                 style = MaterialTheme.typography.bodySmall,
                                 fontWeight = FontWeight.Medium,

@@ -8,6 +8,8 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import com.kitsugi.animelist.utils.KitsugiStrings
+import com.kitsugi.animelist.R
 
 /**
  * Bangumi (bgm.tv) OAuth 2.0 giriş akışı yöneticisi.
@@ -86,13 +88,13 @@ object BangumiAuthManager {
     ) {
         val cleanCode = BangumiApiClient.sanitizeAuthCode(code)
         if (cleanCode.isBlank()) {
-            val message = "Bangumi yetkilendirme kodu boş"
+            val message = KitsugiStrings.get(R.string.bangumi_yetkilendirme_kodu_bos)
             onError(message)
             ExternalAuthManager.emitBangumiError(message)
             return
         }
         if (!BangumiAuthStore.hasCredentials(context)) {
-            val message = "Bangumi App ID / App Secret girilmeden kod değiştirilemez"
+            val message = KitsugiStrings.get(R.string.bangumi_app_id_app_secret_girilmeden_kod_deg)
             onError(message)
             ExternalAuthManager.emitBangumiError(message)
             return

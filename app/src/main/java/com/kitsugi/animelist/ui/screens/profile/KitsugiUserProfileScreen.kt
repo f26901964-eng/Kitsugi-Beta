@@ -131,7 +131,7 @@ fun KitsugiUserProfileScreen(
                     }
                     Spacer(modifier = Modifier.width(4.dp))
                     Text(
-                        text = state.name.ifBlank { fallbackUsername ?: "Kullanıcı Profili" },
+                        text = state.name.ifBlank { fallbackUsername ?: stringResource(R.string.ui_profile_user_fallback) },
                         color = KitsugiColors.TextPrimary,
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
@@ -179,7 +179,7 @@ fun KitsugiUserProfileScreen(
                     KitsugiPlasmaLoader(size = 50.dp)
                 }
             } else {
-                val username = state.name.ifBlank { fallbackUsername ?: "Kullanıcı" }
+                val username = state.name.ifBlank { fallbackUsername ?: stringResource(R.string.kullanici) }
                 Box(modifier = Modifier.fillMaxSize()) {
                 LazyColumn(
                     state = listState,
@@ -214,7 +214,7 @@ fun KitsugiUserProfileScreen(
                         Surface(modifier = Modifier.fillMaxWidth(), color = KitsugiColors.Background) {
                             Column(modifier = Modifier.padding(vertical = 6.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                                 val tabs = listOf(
-                                    Icons.Rounded.Info to "Hakkında",
+                                    Icons.Rounded.Info to stringResource(R.string.character_tab_about),
                                     Icons.Rounded.ChatBubble to "Aktivite",
                                     Icons.Rounded.BarChart to "İstatistikler",
                                     Icons.Rounded.Star to "Favoriler",
@@ -229,7 +229,7 @@ fun KitsugiUserProfileScreen(
                                 // Sub-filter chips
                                 when (activeTab) {
                                     2 -> {
-                                        val subTabs = listOf("Genel", "Türler", "Etiketler", "Ekip", "Seslendirenler", "Stüdyolar")
+                                        val subTabs = listOf("Genel", stringResource(R.string.inline_genres_2ac9898), "Etiketler", "Ekip", "Seslendirenler", stringResource(R.string.detail_section_studios))
                                         val s = rememberLazyListState()
                                         LazyRow(state = s,
                                             flingBehavior = com.kitsugi.animelist.ui.utils.KitsugiScrollDefaults.rememberRowSnapFling(s),
@@ -241,7 +241,7 @@ fun KitsugiUserProfileScreen(
                                     }
                                     3 -> {
                                         val s = rememberLazyListState()
-                                        val labels = listOf("Anime", "Manga", "Karakterler", "Ekip", "Stüdyolar")
+                                        val labels = listOf("Anime", "Manga", "Karakterler", "Ekip", stringResource(R.string.detail_section_studios))
                                         LazyRow(state = s,
                                             flingBehavior = com.kitsugi.animelist.ui.utils.KitsugiScrollDefaults.rememberRowSnapFling(s),
                                             modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -324,8 +324,8 @@ fun KitsugiUserProfileScreen(
                         else -> emptyList()
                     },
                     categoryLabels = when (activeTab) {
-                        2 -> listOf("Genel", "Türler", "Etiketler", "Ekip", "Seslendirenler", "Stüdyolar")
-                        4 -> listOf("Takipçiler", "Takip Edilen")
+                        2 -> listOf("Genel", stringResource(R.string.inline_genres_2ac9898), "Etiketler", "Ekip", "Seslendirenler", stringResource(R.string.detail_section_studios))
+                        4 -> listOf(stringResource(R.string.takipciler), "Takip Edilen")
                         else -> ProfileFavoriteCategoryLabels
                     },
                     showCounts = activeTab != 2,

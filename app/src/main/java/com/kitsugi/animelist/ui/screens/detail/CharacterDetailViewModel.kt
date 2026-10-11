@@ -28,6 +28,8 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import com.kitsugi.animelist.utils.KitsugiStrings
+import com.kitsugi.animelist.R
 
 class CharacterDetailViewModel(application: Application) : AndroidViewModel(application) {
 
@@ -312,7 +314,7 @@ class CharacterDetailViewModel(application: Application) : AndroidViewModel(appl
                 }
             }
         } else if (currentFetchKey == expectedFetchKey && _state.value !is CharacterDetailState.Success) {
-            _state.value = CharacterDetailState.Error("Karakter detayları yüklenemedi.")
+            _state.value = CharacterDetailState.Error(KitsugiStrings.get(R.string.karakter_detaylari_yuklenemedi))
         }
     }
 

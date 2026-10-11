@@ -2,6 +2,7 @@
 
 package com.kitsugi.animelist.ui.screens.search
 
+import com.kitsugi.animelist.utils.KitsugiStrings
 import com.kitsugi.animelist.ui.theme.gradient.FloatingActionButton
 import com.kitsugi.animelist.ui.theme.gradient.Icon
 import com.kitsugi.animelist.ui.theme.gradient.Text
@@ -258,19 +259,19 @@ fun SearchScreen(
     val mangaFormats = listOf("MANGA", "NOVEL", "ONE_SHOT", "DOUJIN", "MANHWA", "MANHUA")
     val formats = if (currentMediaType == MediaType.Manga) mangaFormats else animeFormats
 
-    val animeStatuses = listOf("AIRING" to "Yayında", "FINISHED" to "Tamamlandı", "UPCOMING" to "Yakında")
-    val mangaStatuses = listOf("PUBLISHING" to "Yayınlanıyor", "FINISHED" to "Tamamlandı", "HIATUS" to "Ara Verildi", "DISCONTINUED" to "Durduruldu")
+    val animeStatuses = listOf("AIRING" to stringResource(R.string.yayinda), "FINISHED" to stringResource(R.string.cs_diag_completed), "UPCOMING" to stringResource(R.string.yakinda))
+    val mangaStatuses = listOf("PUBLISHING" to stringResource(R.string.yayinlaniyor), "FINISHED" to stringResource(R.string.cs_diag_completed), "HIATUS" to stringResource(R.string.bangumi_tag_hiatus), "DISCONTINUED" to "Durduruldu")
     val statuses = if (currentMediaType == MediaType.Manga) mangaStatuses else animeStatuses
 
     val sortOptions = listOf(
-        "POPULARITY_DESC" to "🔥 Popülerlik",
+        "POPULARITY_DESC" to stringResource(R.string.populerlik_e5d41d0),
         "SCORE_DESC" to "⭐ Puan",
         "TITLE_ROMAJI_ASC" to "🔤 İsim (A-Z)",
         "TITLE_ROMAJI_DESC" to "🔤 İsim (Z-A)"
     )
 
     val tmdbGenres = listOf(
-        "Tümü", "Aksiyon", "Macera", "Komedi", "Dram", "Fantastik",
+        stringResource(R.string.notif_filter_all), "Aksiyon", "Macera", "Komedi", "Dram", "Fantastik",
         "Korku", "Gizem", "Romantizm", "Sci-Fi", "Gerilim", "Müzik", "Tarihi", "Animasyon"
     )
 
@@ -308,7 +309,7 @@ fun SearchScreen(
                 }
 
                 val placeholder = when (uiState.selectedEngine) {
-                    SearchSourceEngine.ALL -> "Tüm platformlarda ara (7 motor eşzamanlı)..."
+                    SearchSourceEngine.ALL -> stringResource(R.string.tum_platformlarda_ara_7_motor_eszamanli)
                     SearchSourceEngine.ANILIST -> "AniList'te ${uiState.selectedScope.label.lowercase()} ara..."
                     SearchSourceEngine.MAL -> "MyAnimeList'te ${uiState.selectedScope.label.lowercase()} ara..."
                     SearchSourceEngine.TMDB -> "TMDB'de ${uiState.selectedScope.label.lowercase()} ara..."
@@ -484,7 +485,7 @@ fun SearchScreen(
 
                 item {
                     MultiSearchSection(
-                        title = "Shikimori (Rusça Kaynak / Anime & Manga)",
+                        title = stringResource(R.string.shikimori_rusca_kaynak_anime_manga),
                         platformId = "shikimori",
                         results = uiState.multiResults.shikimoriResults,
                         isLoading = uiState.multiResults.isLoadingShikimori,
@@ -532,7 +533,7 @@ fun SearchScreen(
 
                 item {
                     MultiSearchSection(
-                        title = "Bangumi (Çin Kaynağı / Anime & Kitap)",
+                        title = stringResource(R.string.bangumi_cin_kaynagi_anime_kitap),
                         platformId = "bangumi",
                         results = uiState.multiResults.bangumiResults,
                         isLoading = uiState.multiResults.isLoadingBangumi,
@@ -695,7 +696,7 @@ fun SearchScreen(
             SearchPlatform.Bangumi
         )
         DialogWithRadioSelection(
-            title = "Kaynak Platform Seç",
+            title = stringResource(R.string.kaynak_platform_sec),
             options = platforms,
             selectedOption = uiState.selectedPlatform,
             onOptionSelected = { plat ->
@@ -712,7 +713,7 @@ fun SearchScreen(
     if (openTmdbFormatDialog) {
         val tmdbTypes = listOf(MediaType.Movie, MediaType.TvShow)
         DialogWithRadioSelection(
-            title = "Tip Seç",
+            title = stringResource(R.string.tip_sec),
             options = tmdbTypes,
             selectedOption = currentMediaType,
             onOptionSelected = { mt ->
@@ -727,12 +728,12 @@ fun SearchScreen(
     if (openTmdbGenreDialog) {
         val currentGenre = uiState.genres.firstOrNull() ?: "Tümü"
         DialogWithRadioSelection(
-            title = "Tür Seç",
+            title = stringResource(R.string.tur_sec),
             options = tmdbGenres,
             selectedOption = currentGenre,
             onOptionSelected = { g ->
                 val updated = SearchFilters(
-                    genres = if (g == null || g == "Tümü") emptyList() else listOf(g)
+                    genres = if (g == null || g == KitsugiStrings.get(R.string.notif_filter_all)) emptyList() else listOf(g)
                 )
                 viewModel.updateFilters(updated)
             },
@@ -924,7 +925,7 @@ fun ActiveFiltersChipsRow(
                 "PUBLISHING" -> "Yayınlanıyor"; "HIATUS" -> "Ara"; "DISCONTINUED" -> "Durduruldu"
                 else -> filters.status
             }
-            ActiveFilterChip(label = "Durum: $lbl", onCloseClick = { onRemoveFilter("status", "") })
+            ActiveFilterChip(label = stringResource(R.string.durum_x, lbl), onCloseClick = { onRemoveFilter("status", "") })
         }
         if (filters.season != null) {
             val lbl = when (filters.season) {
@@ -946,16 +947,16 @@ fun ActiveFiltersChipsRow(
             ActiveFilterChip(label = "# $tr", onCloseClick = { onRemoveFilter("tag", t) })
         }
         if (filters.minYear != null || filters.maxYear != null) {
-            ActiveFilterChip(label = "Yıl: ${filters.minYear ?: 1970}-${filters.maxYear ?: 2026}", onCloseClick = { onRemoveFilter("year", "") })
+            ActiveFilterChip(label = stringResource(R.string.yil_x_x, filters.minYear ?: 1970, filters.maxYear ?: 2026), onCloseClick = { onRemoveFilter("year", "") })
         }
         if (filters.minScore != null || filters.maxScore != null) {
-            ActiveFilterChip(label = "Puan: %${filters.minScore ?: 0}-%${filters.maxScore ?: 100}", onCloseClick = { onRemoveFilter("score", "") })
+            ActiveFilterChip(label = stringResource(R.string.puan_x_x, filters.minScore ?: 0, filters.maxScore ?: 100), onCloseClick = { onRemoveFilter("score", "") })
         }
         if (filters.sort != null && filters.sort != "POPULARITY_DESC") {
             val lbl = when (filters.sort) {
                 "SCORE_DESC" -> "Puan"; "TITLE_ROMAJI_ASC" -> "A-Z"; "TITLE_ROMAJI_DESC" -> "Z-A"; else -> filters.sort
             }
-            ActiveFilterChip(label = "Sıra: $lbl", onCloseClick = { onRemoveFilter("sort", "") })
+            ActiveFilterChip(label = stringResource(R.string.sira_x, lbl), onCloseClick = { onRemoveFilter("sort", "") })
         }
     }
 }

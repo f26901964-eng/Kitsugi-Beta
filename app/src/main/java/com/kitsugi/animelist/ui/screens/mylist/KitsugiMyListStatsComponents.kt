@@ -25,6 +25,8 @@ import com.kitsugi.animelist.model.WatchStatus
 import com.kitsugi.animelist.ui.theme.LocalKitsugiAccent
 import com.kitsugi.animelist.ui.theme.KitsugiColors
 import java.util.Locale
+import androidx.compose.ui.res.stringResource
+import com.kitsugi.animelist.R
 
 internal data class ListStats(
     val totalCount: Int,
@@ -101,7 +103,7 @@ internal fun ListStatsHeader(
             contentAlignment = Alignment.Center
         ) {
             Text(
-                text = if (expanded) "Detayları Gizle" else "Detayları Göster",
+                text = if (expanded) stringResource(R.string.ui2_details_hide) else stringResource(R.string.ui2_details_show),
                 color = LocalKitsugiAccent.current,
                 style = MaterialTheme.typography.labelMedium,
                 fontWeight = FontWeight.Bold

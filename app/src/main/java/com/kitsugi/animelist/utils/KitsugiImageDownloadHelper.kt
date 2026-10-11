@@ -35,6 +35,7 @@ import kotlinx.coroutines.withContext
 import org.json.JSONObject
 import java.io.File
 import java.net.URL
+import com.kitsugi.animelist.utils.KitsugiStrings
 
 /**
  * İndirilen/paylaşılan görselin gerçek formatı.
@@ -441,7 +442,7 @@ object KitsugiImageDownloadHelper {
     fun shareImage(context: Context, url: String, title: String) {
         CoroutineScope(Dispatchers.IO).launch {
             withContext(Dispatchers.Main) {
-                Toast.makeText(context, "Resim hazırlanıyor…", Toast.LENGTH_SHORT).show()
+                Toast.makeText(context, KitsugiStrings.get(R.string.resim_hazirlaniyor), Toast.LENGTH_SHORT).show()
             }
             val appContext = context.applicationContext
             var shareUri: Uri? = null
@@ -668,7 +669,7 @@ object KitsugiImageDownloadHelper {
             // Yerel dosya (örn. İndirilenler galerisinden açılan) tekrar indirilmez
             if (url.startsWith("file://") || url.startsWith("content://")) {
                 withContext(Dispatchers.Main) {
-                    Toast.makeText(context, "Bu resim zaten cihazda kayıtlı.", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(context, KitsugiStrings.get(R.string.bu_resim_zaten_cihazda_kayitli), Toast.LENGTH_SHORT).show()
                 }
                 return@launch
             }
@@ -676,7 +677,7 @@ object KitsugiImageDownloadHelper {
             // Daha önce indirilmiş içerik tekrar indirilmez
             if (isImageDownloaded(context, url)) {
                 withContext(Dispatchers.Main) {
-                    Toast.makeText(context, "Bu resim zaten indirilmiş.", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(context, KitsugiStrings.get(R.string.bu_resim_zaten_indirilmis), Toast.LENGTH_SHORT).show()
                 }
                 return@launch
             }
@@ -691,7 +692,7 @@ object KitsugiImageDownloadHelper {
             val alreadyInFlight = synchronized(inFlightLock) { !inFlightDownloads.add(url) }
             if (alreadyInFlight) {
                 withContext(Dispatchers.Main) {
-                    Toast.makeText(context, "Bu resim zaten indiriliyor.", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(context, KitsugiStrings.get(R.string.bu_resim_zaten_indiriliyor), Toast.LENGTH_SHORT).show()
                 }
                 return@launch
             }
@@ -718,7 +719,7 @@ object KitsugiImageDownloadHelper {
 
                 if (fetched == null) {
                     withContext(Dispatchers.Main) {
-                        Toast.makeText(context, "İndirme başarısız oldu.", Toast.LENGTH_LONG).show()
+                        Toast.makeText(context, KitsugiStrings.get(R.string.indirme_basarisiz_oldu), Toast.LENGTH_LONG).show()
                     }
                     cancelNotification(context, notifId)
                     return@launch
@@ -799,7 +800,7 @@ object KitsugiImageDownloadHelper {
                     }
                 } else {
                     withContext(Dispatchers.Main) {
-                        Toast.makeText(context, "Dosya kaydedilemedi: Depolama alanına erişilemiyor.", Toast.LENGTH_LONG).show()
+                        Toast.makeText(context, KitsugiStrings.get(R.string.dosya_kaydedilemedi_depolama_alanina_erisilemiyor), Toast.LENGTH_LONG).show()
                     }
                 }
             } finally {
@@ -1332,7 +1333,7 @@ object KitsugiImageDownloadHelper {
         // Small icon: use app icon or a system download icon
         val notif = NotificationCompat.Builder(context, CHANNEL_ID)
             .setContentTitle("📥 $title")
-            .setContentText("İndiriliyor: $filename")
+            .setContentText(KitsugiStrings.get(R.string.inline_downloading_1_s_0e62615, filename))
             .setSmallIcon(android.R.drawable.stat_sys_download)
             .setProgress(0, 0, true)       // indeterminate
             .setOngoing(true)
@@ -1368,7 +1369,7 @@ object KitsugiImageDownloadHelper {
         val builder = NotificationCompat.Builder(context, CHANNEL_ID)
             .setContentTitle("✅ $title")
             .setContentText("Kaydedildi • $sizeStr")
-            .setSubText("Resim İndirildi")
+            .setSubText(KitsugiStrings.get(R.string.resim_indirildi))
             .setSmallIcon(android.R.drawable.stat_sys_download_done)
             .setAutoCancel(true)
             .setPriority(NotificationCompat.PRIORITY_DEFAULT)

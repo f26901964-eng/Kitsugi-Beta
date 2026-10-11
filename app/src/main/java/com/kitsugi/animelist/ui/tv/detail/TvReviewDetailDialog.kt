@@ -41,6 +41,7 @@ import com.kitsugi.animelist.ui.theme.KitsugiColors
 import com.kitsugi.animelist.ui.theme.LocalKitsugiAccent
 import com.kitsugi.animelist.ui.utils.tvClickable
 import kotlinx.coroutines.launch
+import com.kitsugi.animelist.utils.KitsugiStrings
 
 @Composable
 fun TvReviewDetailDialog(
@@ -174,7 +175,7 @@ fun TvReviewDetailDialog(
                                         userRatingState = newRating
                                         helpfulCountState = (helpfulCountState + diff).coerceAtLeast(0)
                                     } else {
-                                        Toast.makeText(context, "Lütfen önce giriş yapın", Toast.LENGTH_SHORT).show()
+                                        Toast.makeText(context, KitsugiStrings.get(R.string.lutfen_once_giris_yapin), Toast.LENGTH_SHORT).show()
                                     }
                                 }
                             }

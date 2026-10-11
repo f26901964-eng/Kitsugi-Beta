@@ -23,6 +23,8 @@ import android.provider.MediaStore
 import okhttp3.Request
 import java.io.File
 import kotlin.coroutines.coroutineContext
+import com.kitsugi.animelist.utils.KitsugiStrings
+import com.kitsugi.animelist.R
 
 class AnimeDownloader(private val context: Context) {
 
@@ -652,7 +654,7 @@ class AnimeDownloader(private val context: Context) {
     ) {
         val pm = context.packageManager
         val cleanTitle = download.animeTitle.replace(Regex("[\\\\/:*?\"<>|]"), "_")
-        val filename = "${cleanTitle}_Bölüm_${download.episode}.mp4"
+        val filename = KitsugiStrings.get(R.string.x_bolum_x_mp4, cleanTitle, download.episode)
 
         try {
             val intent: Intent

@@ -249,7 +249,7 @@ private fun ApprovalCard(
             ) {
                 Icon(Icons.Filled.CheckCircle, contentDescription = null, modifier = Modifier.size(18.dp))
                 Spacer(Modifier.width(8.dp))
-                Text("Onayla", fontWeight = FontWeight.SemiBold)
+                Text(stringResource(R.string.onayla), fontWeight = FontWeight.SemiBold)
             }
         }
     }

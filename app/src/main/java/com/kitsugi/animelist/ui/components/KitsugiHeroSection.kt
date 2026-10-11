@@ -80,6 +80,8 @@ import kotlinx.coroutines.withContext
 import kotlin.math.abs
 import kotlin.math.round
 import androidx.compose.runtime.derivedStateOf
+import androidx.compose.ui.res.stringResource
+import com.kitsugi.animelist.R
 
 private const val HERO_BACKGROUND_PARALLAX = 0.055f
 private const val HERO_BACKGROUND_SCALE = 1.0f
@@ -733,7 +735,7 @@ fun KitsugiHeroSection(
                             horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.Start)
                         ) {
                             Text(
-                                text = "ÖNE ÇIKAN",
+                                text = stringResource(R.string.inline_featured_20f57e4),
                                 color = accentColor,
                                 style = MaterialTheme.typography.labelMedium,
                                 fontWeight = FontWeight.Black
@@ -749,7 +751,7 @@ fun KitsugiHeroSection(
                                         .padding(horizontal = 8.dp, vertical = 3.dp)
                                 ) {
                                     Text(
-                                        text = "LİSTEDE",
+                                        text = stringResource(R.string.inline_in_list_85c8d82),
                                         color = KitsugiColors.AccentGreen,
                                         style = MaterialTheme.typography.labelSmall,
                                         fontWeight = FontWeight.Black

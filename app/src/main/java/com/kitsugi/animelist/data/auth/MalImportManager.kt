@@ -11,6 +11,8 @@ import java.net.URL
 import java.nio.charset.StandardCharsets
 import okhttp3.Request
 import com.kitsugi.animelist.data.remote.optNullableString
+import com.kitsugi.animelist.utils.KitsugiStrings
+import com.kitsugi.animelist.R
 
 object MalImportManager {
     // MAL's nested field selector uses braces, but raw braces are invalid in a URI query
@@ -102,7 +104,7 @@ object MalImportManager {
     ): MediaEntry {
         val malId = node.optInt("id", 0)
 
-        val title = node.optNullableString("title") ?: "Başlıksız"
+        val title = node.optNullableString("title") ?: KitsugiStrings.get(R.string.basliksiz)
 
         val rawMediaType = node.optNullableString("media_type").orEmpty()
         val mediaType = if (rawMediaType == "manga" || rawMediaType == "novel" || rawMediaType == "one_shot" || rawMediaType == "manhwa" || rawMediaType == "manhua") {
@@ -230,7 +232,7 @@ object MalImportManager {
             id = 0,
             title = title,
             subtitle = if (subtitleParts.isEmpty()) {
-                "MyAnimeList'ten içe aktarıldı"
+                KitsugiStrings.get(R.string.myanimelist_ten_ice_aktarildi)
             } else {
                 subtitleParts.joinToString(", ")
             },
@@ -339,7 +341,7 @@ object MalImportManager {
             val response = getJson(accessToken, "https://api.myanimelist.net/v2/users/@me")
             val json = JSONObject(response)
             MalUserProfile(
-                name = json.optNullableString("name") ?: "MAL Kullanıcısı",
+                name = json.optNullableString("name") ?: KitsugiStrings.get(R.string.mal_kullanicisi),
                 pictureUrl = json.optNullableString("picture")
             )
         }

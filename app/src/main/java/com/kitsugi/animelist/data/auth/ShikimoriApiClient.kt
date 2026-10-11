@@ -15,6 +15,8 @@ import okhttp3.RequestBody.Companion.toRequestBody
 import okhttp3.Response
 import org.json.JSONArray
 import org.json.JSONObject
+import com.kitsugi.animelist.utils.KitsugiStrings
+import com.kitsugi.animelist.R
 
 /**
  * Shikimori.one REST API istemcisi.
@@ -495,7 +497,7 @@ object ShikimoriApiClient {
             }
             val json = JSONObject(body)
             val id = json.getInt("id")
-            val nickname = json.optString("nickname", "Shikimori Kullanıcısı")
+            val nickname = json.optString("nickname", KitsugiStrings.get(R.string.shikimori_kullanicisi))
             val avatar = ShikimoriPosterResolver.absoluteUrl(json.optString("avatar"))
                 ?: ShikimoriPosterResolver.absoluteUrl(json.optJSONObject("image")?.optString("x160"))
                 ?: ShikimoriPosterResolver.absoluteUrl(json.optJSONObject("image")?.optString("original"))

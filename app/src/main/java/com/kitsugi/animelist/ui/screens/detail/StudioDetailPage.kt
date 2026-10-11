@@ -354,7 +354,7 @@ private fun StudioDetailSuccessContent(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "Yapımlar (${detail.mediaWorks.size})",
+                    text = stringResource(R.string.inline_titles_1_s_1351b33, detail.mediaWorks.size),
                     color = KitsugiColors.TextPrimary,
                     style = MaterialTheme.typography.headlineSmall,
                     fontWeight = FontWeight.Black,
@@ -401,7 +401,7 @@ private fun StudioDetailSuccessContent(
                 ) {
                     Icon(
                         imageVector = if (isGridView) Icons.AutoMirrored.Rounded.ListAlt else Icons.Rounded.GridView,
-                        contentDescription = if (isGridView) "Liste Görünümü" else "Grid Görünümü",
+                        contentDescription = if (isGridView) stringResource(R.string.settings_list_layout) else stringResource(R.string.cd_grid_view),
                         tint = accentColor
                     )
                 }
@@ -461,7 +461,7 @@ private fun StudioDetailSuccessContent(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "${displayedWorks.size} içerik$activeFilterDesc",
+                    text = stringResource(R.string.inline_1_s_items_2_s_8700704, displayedWorks.size, activeFilterDesc),
                     color = KitsugiColors.TextMuted,
                     style = MaterialTheme.typography.labelMedium,
                     fontWeight = FontWeight.Bold,
@@ -662,7 +662,7 @@ private fun StudioDetailSuccessContent(
                         IconButton(onClick = onToggleFavourite) {
                             Icon(
                                 imageVector = if (isFavourite) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder,
-                                contentDescription = if (isFavourite) "Favoriden Çıkar" else "Favori Yap",
+                                contentDescription = if (isFavourite) stringResource(R.string.action_favourite_remove) else "Favori Yap",
                                 tint = if (isFavourite) accentColor else KitsugiColors.TextSecondary
                             )
                         }

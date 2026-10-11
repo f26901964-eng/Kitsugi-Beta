@@ -534,7 +534,7 @@ private fun GradientSettingsPanel(
                     fontWeight = FontWeight.SemiBold
                 )
                 Text(
-                    "Vurgu arka planları seçilen iki renk arasında akar.",
+                    stringResource(R.string.vurgu_arka_planlari_secilen_iki_renk_arasinda_akar),
                     color = KitsugiColors.textSecondary,
                     style = MaterialTheme.typography.bodySmall
                 )
@@ -563,7 +563,7 @@ private fun GradientSettingsPanel(
             Spacer(modifier = Modifier.height(14.dp))
 
             Text(
-                "Yön & Açı",
+                stringResource(R.string.yon_aci),
                 color = KitsugiColors.textPrimary,
                 style = MaterialTheme.typography.bodyMedium,
                 fontWeight = FontWeight.SemiBold
@@ -635,14 +635,14 @@ private fun GradientSettingsPanel(
 
             Spacer(modifier = Modifier.height(6.dp))
             Text(
-                "İpucu: 'Başlangıç' ve 'Bitiş' renklerini düzenlemek için Palet veya Özel sekmelerini kullanın.",
+                stringResource(R.string.ipucu_baslangic_ve_bitis_renklerini_duzenlemek_icin_palet_veya_o),
                 color = KitsugiColors.textMuted,
                 style = MaterialTheme.typography.bodySmall
             )
         } else {
             Spacer(modifier = Modifier.height(12.dp))
             Text(
-                "Gradyanı açtığınızda iki renkli, açılı bir vurgu arka planı oluşturabilirsiniz.",
+                stringResource(R.string.gradyani_actiginizda_iki_renkli_acili_bir_vurgu_arka_plani_olust),
                 color = KitsugiColors.textMuted,
                 style = MaterialTheme.typography.bodySmall
             )
