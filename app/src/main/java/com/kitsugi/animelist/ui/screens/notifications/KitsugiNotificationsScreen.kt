@@ -53,9 +53,11 @@ import com.kitsugi.animelist.data.notifications.NotificationDiagnostics
 import com.kitsugi.animelist.data.remote.KitsugiAniListNotificationClient
 import com.kitsugi.animelist.data.settings.AppSettings
 import com.kitsugi.animelist.data.settings.SettingsDataStore
+import com.kitsugi.animelist.data.platform.PlatformErrorCode
 import com.kitsugi.animelist.model.MediaEntry
 import com.kitsugi.animelist.ui.components.KitsugiPlatformLogo
 import com.kitsugi.animelist.ui.components.KitsugiPlasmaLoader
+import com.kitsugi.animelist.ui.components.PlatformErrorExplanationBlock
 import com.kitsugi.animelist.ui.theme.KitsugiColors
 import com.kitsugi.animelist.ui.theme.LocalKitsugiAccent
 import com.kitsugi.animelist.ui.utils.tvClickable
@@ -786,6 +788,12 @@ private fun DiagnosticRow(row: NotificationDiagnostics.Row) {
         row.hint?.let { hint ->
             Spacer(Modifier.height(3.dp))
             Text(text = hint, color = KitsugiColors.TextMuted, fontSize = 11.sp, lineHeight = 15.sp)
+        }
+        // Kaynağa özgü hata kodu + "neden çıktı / ne yapmalı" açıklaması.
+        // Kod olmadan kullanıcı hatanın nedenini tahmin etmek zorunda kalıyordu.
+        PlatformErrorCode.fromCode(row.errorCode)?.let { code ->
+            Spacer(Modifier.height(6.dp))
+            PlatformErrorExplanationBlock(code = code, tint = statusColor)
         }
     }
 }

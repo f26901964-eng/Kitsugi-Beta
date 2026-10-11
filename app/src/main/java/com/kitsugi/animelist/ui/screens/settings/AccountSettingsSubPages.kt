@@ -696,6 +696,7 @@ internal fun BangumiSettingsContent(profile: ProfileSettings) {
 @Composable
 internal fun CrossSyncSettingsContent(profile: ProfileSettings) {
     var showCrossSyncDialog by remember { mutableStateOf(false) }
+    var showErrorCodeReference by remember { mutableStateOf(false) }
     val scrollState = rememberScrollState()
 
     val connectedCount = (if (profile.isAniListConnected) 1 else 0) +
@@ -910,6 +911,18 @@ internal fun CrossSyncSettingsContent(profile: ProfileSettings) {
                 }
             }
         }
+
+        // Hata kodu rehberi — bağlı hesap sayısından bağımsız olarak her zaman erişilebilir.
+        SectionHeader(stringResource(R.string.pf_err_ref_title))
+        SettingsNavCard {
+            KitsugiSettingsItem(
+                title = stringResource(R.string.pf_err_ref_open),
+                description = stringResource(R.string.pf_err_ref_open_desc),
+                icon = Icons.Rounded.BugReport,
+                iconColor = KitsugiColors.AccentBlue,
+                onClick = { showErrorCodeReference = true }
+            )
+        }
     }
 
     if (showCrossSyncDialog) {
@@ -918,6 +931,12 @@ internal fun CrossSyncSettingsContent(profile: ProfileSettings) {
             onDismiss = { showCrossSyncDialog = false },
             onCancel = profile.onCrossSyncCancel,
             onStart = profile.onCrossSyncClick
+        )
+    }
+
+    if (showErrorCodeReference) {
+        PlatformErrorCodeReferenceDialog(
+            onDismiss = { showErrorCodeReference = false }
         )
     }
 }

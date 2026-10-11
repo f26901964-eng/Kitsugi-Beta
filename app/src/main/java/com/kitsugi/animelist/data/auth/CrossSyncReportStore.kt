@@ -7,6 +7,8 @@ import android.os.Build
 import android.os.Environment
 import android.provider.MediaStore
 import com.kitsugi.animelist.BuildConfig
+import com.kitsugi.animelist.data.platform.PlatformErrorCatalog
+import com.kitsugi.animelist.data.platform.PlatformErrorCode
 import com.kitsugi.animelist.model.CrossSyncProgressState
 import java.io.File
 import java.io.IOException
@@ -18,7 +20,16 @@ object CrossSyncReportStore {
 
     /** Shared formatter adds app/device context to the credential-redacted sync details. */
     fun format(context: Context, state: CrossSyncProgressState): String = buildString {
-        append(CrossSyncReportFormatter.format(state))
+        append(
+            CrossSyncReportFormatter.format(
+                state = state,
+                // Her hata kodu rapora TR + EN açıklamasıyla girsin (PlatformErrorCatalog).
+                errorCodeProvider = { codeText ->
+                    PlatformErrorCode.fromCode(codeText)
+                        ?.let { PlatformErrorCatalog.bilingual(context, it) }
+                }
+            )
+        )
         appendLine()
         appendLine("=== ORTAM BİLGİSİ ===")
         appendLine("Uygulama: ${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE}) [${BuildConfig.BUILD_TYPE}]")

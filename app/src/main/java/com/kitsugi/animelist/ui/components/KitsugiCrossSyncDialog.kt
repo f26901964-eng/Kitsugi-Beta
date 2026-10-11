@@ -85,6 +85,7 @@ import androidx.compose.ui.unit.sp
 import androidx.core.content.FileProvider
 import com.kitsugi.animelist.data.auth.CrossSyncReportFormatter
 import com.kitsugi.animelist.data.auth.CrossSyncReportStore
+import com.kitsugi.animelist.data.platform.PlatformErrorCode
 import com.kitsugi.animelist.model.CrossPlatformStats
 import com.kitsugi.animelist.model.CrossSyncLogEntry
 import com.kitsugi.animelist.model.CrossSyncProgressState
@@ -1087,6 +1088,8 @@ private fun ColumnScope.ActionButtons(
 @Composable
 private fun LogItemRow(log: CrossSyncLogEntry) {
     var expanded by remember(log.id) { mutableStateOf(false) }
+    // Kaynağa özgü hata kodu (varsa) — açıklaması dil dosyasından okunur.
+    val errorCode = remember(log.errorCode) { PlatformErrorCode.fromCode(log.errorCode) }
     val tagColor = when {
         log.isError -> ERROR_COLOR
         log.isWarning -> WARNING_COLOR
@@ -1131,19 +1134,40 @@ private fun LogItemRow(log: CrossSyncLogEntry) {
                     modifier = Modifier.width(70.dp),
                     overflow = TextOverflow.Ellipsis
                 )
-                Text(
-                    text = log.message,
-                    style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp),
-                    color = if (log.isError || log.isWarning) tagColor else MaterialTheme.colorScheme.onSurface,
-                    maxLines = if (expanded) 8 else 2,
-                    modifier = Modifier.weight(1f),
-                    overflow = TextOverflow.Ellipsis
-                )
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = log.message,
+                        style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp),
+                        color = if (log.isError || log.isWarning) tagColor else MaterialTheme.colorScheme.onSurface,
+                        maxLines = if (expanded) 8 else 2,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    if (errorCode != null) {
+                        Spacer(Modifier.height(2.dp))
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(4.dp))
+                                .background(tagColor.copy(alpha = 0.14f))
+                                .padding(horizontal = 5.dp, vertical = 1.dp)
+                        ) {
+                            Text(
+                                text = errorCode.code,
+                                style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp, fontWeight = FontWeight.Bold),
+                                color = tagColor,
+                                maxLines = 1
+                            )
+                        }
+                    }
+                }
                 Text(
                     text = timeOfDay(log.timestamp),
                     style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp),
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
+            }
+            if (expanded && errorCode != null) {
+                Spacer(Modifier.height(6.dp))
+                PlatformErrorExplanationBlock(code = errorCode, tint = tagColor)
             }
             if (expanded && !log.details.isNullOrBlank()) {
                 Spacer(modifier = Modifier.height(4.dp))
@@ -1163,6 +1187,81 @@ private fun LogItemRow(log: CrossSyncLogEntry) {
                 )
             }
         }
+    }
+}
+
+/**
+ * Bir liste kaynağı hatasının "neden çıktı / ne yapmalı" açıklamasını gösterir.
+ *
+ * Metinler `values/strings.xml` (TR) ve `values-en/strings.xml` (EN) içinden,
+ * cihazın aktif diline göre okunur — bu yüzden ek çeviri katmanı gerekmez.
+ */
+@Composable
+internal fun PlatformErrorExplanationBlock(code: PlatformErrorCode, tint: Color) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(6.dp))
+            .background(tint.copy(alpha = 0.08f))
+            .padding(horizontal = 8.dp, vertical = 7.dp),
+        verticalArrangement = Arrangement.spacedBy(4.dp)
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            Text(
+                text = code.code,
+                style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp, fontWeight = FontWeight.Bold),
+                color = tint
+            )
+            Text(
+                text = stringResource(code.platform.labelRes),
+                style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp),
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Text(
+                text = stringResource(code.severity.labelRes),
+                style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp),
+                color = tint
+            )
+        }
+        Text(
+            text = stringResource(code.titleRes),
+            style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp, fontWeight = FontWeight.SemiBold),
+            color = MaterialTheme.colorScheme.onSurface
+        )
+        PlatformErrorExplanationLine(
+            label = stringResource(R.string.pf_err_why_label),
+            value = stringResource(code.whyRes)
+        )
+        PlatformErrorExplanationLine(
+            label = stringResource(R.string.pf_err_fix_label),
+            value = stringResource(code.fixRes)
+        )
+        Text(
+            text = stringResource(
+                if (code.retryable) R.string.pf_err_retryable_yes else R.string.pf_err_retryable_no
+            ),
+            style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp),
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+    }
+}
+
+@Composable
+private fun PlatformErrorExplanationLine(label: String, value: String) {
+    Column(verticalArrangement = Arrangement.spacedBy(1.dp)) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp, fontWeight = FontWeight.Bold),
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        Text(
+            text = value,
+            style = MaterialTheme.typography.bodySmall.copy(fontSize = 10.sp),
+            color = MaterialTheme.colorScheme.onSurface
+        )
     }
 }
 

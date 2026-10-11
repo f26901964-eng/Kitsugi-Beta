@@ -18,7 +18,15 @@ data class CrossSyncLogEntry(
     val isAddition: Boolean = false,
     val isUpdate: Boolean = false,
     val isWarning: Boolean = false,
-    val details: String? = null
+    val details: String? = null,
+    /**
+     * `KTS-<PLATFORM>-<NNNN>` biçiminde liste kaynağı hata kodu (bkz. `PlatformErrorCode`).
+     *
+     * Neden burada tutuluyor: kullanıcı hangi kaynağın neden hata verdiğini
+     * kodun dil dosyasındaki açıklamasından okuyabilsin; rapor paylaşıldığında da
+     * geliştirici aynı kodu görebilsin. Boşsa hata sınıflandırılamamıştır.
+     */
+    val errorCode: String? = null
 )
 
 data class CrossSyncProgressState(

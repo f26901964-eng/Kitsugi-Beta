@@ -69,6 +69,7 @@ import com.kitsugi.animelist.data.auth.ExternalAuthManager
 import com.kitsugi.animelist.ui.theme.KitsugiColors
 import androidx.compose.ui.res.stringResource
 import com.kitsugi.animelist.R
+import com.kitsugi.animelist.data.platform.ListPlatform
 import com.kitsugi.animelist.utils.KitsugiStrings
 
 /**
@@ -232,11 +233,15 @@ fun KitsugiBangumiLoginDialog(
                                     modifier = Modifier.size(18.dp)
                                 )
                                 Spacer(modifier = Modifier.width(8.dp))
-                                Text(
-                                    text = errorMessage ?: "",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = KitsugiColors.AccentRed
-                                )
+                                Column(modifier = Modifier.weight(1f, fill = false)) {
+                                    Text(
+                                        text = errorMessage ?: "",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = KitsugiColors.AccentRed
+                                    )
+                                    // Kaynağa özgü hata kodu + neden/çözüm (dil dosyasından).
+                                    PlatformErrorCodeHint(message = errorMessage, platform = ListPlatform.BANGUMI)
+                                }
                             }
                         }
                     }
