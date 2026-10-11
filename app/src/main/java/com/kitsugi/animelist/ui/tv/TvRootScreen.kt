@@ -49,6 +49,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.kitsugi.animelist.data.remote.ApiSearchSelection
+import com.kitsugi.animelist.data.remote.toStreamMediaIds
 import com.kitsugi.animelist.utils.KitsugiStrings
 import com.kitsugi.animelist.utils.parseToMediaType
 import com.kitsugi.animelist.ui.tv.detail.TvDetailScreen
@@ -453,20 +454,17 @@ fun TvRootScreen(
                             titleLanguage = settingsState.titleLanguage,
                             onBackClick = { navigationState.pop() },
                             onPlayEpisodeClick = { episode, season, synonyms, tmdbId ->
-                                val streamMalId = if (mediaResult.source.lowercase() == "anilist") {
-                                    mediaResult.realMalId
-                                } else {
-                                    mediaResult.malId
-                                }
-                                val rawStableId = if (mediaResult.source.lowercase() == "anilist") mediaResult.malId else null
-                                val streamAniListId = rawStableId?.let {
-                                    if (it >= 100_000_000) it - 100_000_000 else it
-                                }
+                                val streamIds = mediaResult.toStreamMediaIds(
+                                    resolvedRealMalId = mediaResult.realMalId,
+                                    resolvedTmdbId = tmdbId ?: mediaResult.tmdbId
+                                )
                                 navigationState.navigateToStream(
                                     TvStreamArgs(
-                                        malId = streamMalId,
-                                        aniListId = streamAniListId,
-                                        tmdbId = tmdbId ?: mediaResult.tmdbId,
+                                        malId = streamIds.malId,
+                                        aniListId = streamIds.aniListId,
+                                        tmdbId = streamIds.tmdbId,
+                                        bangumiId = streamIds.bangumiId,
+                                        mediaType = mediaResult.type,
                                         episode = episode.episodeNumber ?: 1,
                                         season = season,
                                         isMovie = false,
@@ -482,20 +480,17 @@ fun TvRootScreen(
                                 )
                             },
                             onPlayMovieClick = { synonyms, tmdbId ->
-                                val streamMalId = if (mediaResult.source.lowercase() == "anilist") {
-                                    mediaResult.realMalId
-                                } else {
-                                    mediaResult.malId
-                                }
-                                val rawStableId = if (mediaResult.source.lowercase() == "anilist") mediaResult.malId else null
-                                val streamAniListId = rawStableId?.let {
-                                    if (it >= 100_000_000) it - 100_000_000 else it
-                                }
+                                val streamIds = mediaResult.toStreamMediaIds(
+                                    resolvedRealMalId = mediaResult.realMalId,
+                                    resolvedTmdbId = tmdbId ?: mediaResult.tmdbId
+                                )
                                 navigationState.navigateToStream(
                                     TvStreamArgs(
-                                        malId = streamMalId,
-                                        aniListId = streamAniListId,
-                                        tmdbId = tmdbId ?: mediaResult.tmdbId,
+                                        malId = streamIds.malId,
+                                        aniListId = streamIds.aniListId,
+                                        tmdbId = streamIds.tmdbId,
+                                        bangumiId = streamIds.bangumiId,
+                                        mediaType = mediaResult.type,
                                         episode = 1,
                                         season = 1,
                                         isMovie = true,

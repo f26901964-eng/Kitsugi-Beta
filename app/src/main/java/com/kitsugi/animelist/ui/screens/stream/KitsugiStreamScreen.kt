@@ -23,6 +23,7 @@ import com.kitsugi.animelist.ui.components.KitsugiWebViewDialog
 import kotlinx.coroutines.launch
 import com.kitsugi.animelist.ui.app.AddonViewModel
 import com.kitsugi.animelist.ui.components.KitsugiAddonsSettingsDialog
+import com.kitsugi.animelist.model.MediaType
 import com.kitsugi.animelist.ui.components.KitsugiPlasmaLoader
 import com.kitsugi.animelist.data.remote.DebridResolver
 import kotlinx.coroutines.async
@@ -91,6 +92,8 @@ fun KitsugiStreamScreen(
     malId: Int?,
     aniListId: Int?,
     tmdbId: Int? = null,
+    mediaType: MediaType? = null,
+    bangumiId: Int? = null,
     episode: Int,
     season: Int,
     isMovie: Boolean = false,
@@ -183,11 +186,12 @@ fun KitsugiStreamScreen(
     }
 
     // ── Trigger fetch — ViewModel guards against duplicate/redundant calls ────
-    LaunchedEffect(malId, aniListId, tmdbId, episode, season, cs3Url, cs3ApiName, isMovie, title, startYear, alternativeTitles) {
+    LaunchedEffect(malId, aniListId, tmdbId, bangumiId, episode, season, cs3Url, cs3ApiName, isMovie, mediaType, title, startYear, alternativeTitles) {
         viewModel.startFetch(
             malId             = malId,
             aniListId         = aniListId,
             tmdbId            = tmdbId,
+            bangumiId         = bangumiId,
             episode           = episode,
             season            = season,
             title             = title,
@@ -195,7 +199,8 @@ fun KitsugiStreamScreen(
             startYear         = startYear,
             cs3Url            = cs3Url,
             cs3ApiName        = cs3ApiName,
-            isMovie           = isMovie
+            isMovie           = isMovie,
+            mediaType         = mediaType
         )
     }
 
@@ -367,6 +372,7 @@ fun KitsugiStreamScreen(
                         animeId = if (aniListId != null) aniListId.toString()
                         else if (malId != null) malId.toString()
                         else if (tmdbId != null) tmdbId.toString()
+                        else if (bangumiId != null) "bgm_$bangumiId"
                         else title.lowercase().replace(Regex("[^a-z0-9]"), "_").trim('_').take(30).ifBlank { "media" },
                         animeTitle = title,
                         posterUrl = source.thumbnailUrl.takeIf { !it.isNullOrBlank() } ?: posterUrl,
@@ -572,6 +578,7 @@ fun KitsugiStreamScreen(
                                                 malId = malId,
                                                 aniListId = aniListId,
                                                 tmdbId = tmdbId,
+                                                bangumiId = bangumiId,
                                                 episode = episode,
                                                 season = season,
                                                 title = title,
@@ -579,7 +586,8 @@ fun KitsugiStreamScreen(
                                                 startYear = startYear,
                                                 cs3Url = res.cs3Url,
                                                 cs3ApiName = res.cs3ApiName,
-                                                isMovie = isMovie
+                                                isMovie = isMovie,
+                                                mediaType = mediaType
                                             )
                                         }
                                         .padding(8.dp),
@@ -695,7 +703,9 @@ fun KitsugiStreamScreen(
                     malId               = malId,
                     aniListId           = aniListId,
                     tmdbId              = tmdbId,
-                    isMovie             = isMovie
+                    bangumiId           = bangumiId,
+                    isMovie             = isMovie,
+                    mediaType           = mediaType
                 )
             }
         )

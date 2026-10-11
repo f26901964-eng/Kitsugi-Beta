@@ -12,6 +12,7 @@ import com.kitsugi.animelist.data.remote.GalleryCategory
 import com.kitsugi.animelist.data.remote.GalleryItem
 import com.kitsugi.animelist.data.remote.KitsugiMediaDetail
 import com.kitsugi.animelist.model.MediaEntry
+import com.kitsugi.animelist.data.remote.toStreamMediaIds
 import com.kitsugi.animelist.ui.screens.stream.KitsugiStreamActivity
 
 /**
@@ -119,20 +120,17 @@ fun EntryDetailLeftPanel(
             },
             onWatchClick = if (entry.type == com.kitsugi.animelist.model.MediaType.Anime || entry.type == com.kitsugi.animelist.model.MediaType.TvShow || entry.type == com.kitsugi.animelist.model.MediaType.Movie) {
                 {
-                    val streamMalId = if (entry.source.lowercase() == "anilist") {
-                        detailState?.realMalId ?: entry.malId
-                    } else {
-                        entry.id
-                    }
-                    val rawAniListId = if (entry.source.lowercase() == "anilist") entry.id else null
-                    val streamAniListId = rawAniListId?.let {
-                        if (it >= 100_000_000) it - 100_000_000 else it
-                    }
+                    val streamIds = entry.toStreamMediaIds(
+                        resolvedRealMalId = detailState?.realMalId,
+                        resolvedTmdbId = entry.tmdbId ?: detailState?.tmdbId ?: resolvedTmdbId
+                    )
                     KitsugiStreamActivity.start(
                         context = context,
-                        malId = streamMalId,
-                        aniListId = streamAniListId,
-                        tmdbId = entry.tmdbId ?: detailState?.tmdbId ?: resolvedTmdbId,
+                        malId = streamIds.malId,
+                        aniListId = streamIds.aniListId,
+                        tmdbId = streamIds.tmdbId,
+                        bangumiId = streamIds.bangumiId,
+                        mediaType = entry.type,
                         episode = 1,
                         season = targetSeason,
                         isMovie = entry.type == com.kitsugi.animelist.model.MediaType.Movie,

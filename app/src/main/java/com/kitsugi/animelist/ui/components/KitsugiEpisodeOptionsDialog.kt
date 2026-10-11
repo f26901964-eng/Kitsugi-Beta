@@ -37,6 +37,7 @@ import java.net.URLEncoder
 import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.Download
 import com.kitsugi.animelist.ui.screens.stream.KitsugiStreamActivity
+import com.kitsugi.animelist.model.MediaType
 import androidx.compose.ui.res.stringResource
 import com.kitsugi.animelist.R
 import com.kitsugi.animelist.utils.KitsugiStrings
@@ -51,6 +52,7 @@ fun KitsugiEpisodeOptionsDialog(
     malId: Int? = null,
     aniListId: Int? = null,
     tmdbId: Int? = null,
+    bangumiId: Int? = null,
     posterUrl: String? = null,
     titleEnglish: String? = null,
     titleRomaji: String? = null,
@@ -58,6 +60,7 @@ fun KitsugiEpisodeOptionsDialog(
     synonyms: List<String> = emptyList(),
     startYear: Int? = null,
     isMovie: Boolean = false,
+    mediaType: MediaType? = null,
     seasonNumber: Int = 1,
     onDismiss: () -> Unit
 ) {
@@ -131,9 +134,11 @@ fun KitsugiEpisodeOptionsDialog(
                                 malId = malId,
                                 aniListId = aniListId,
                                 tmdbId = tmdbId,
+                                bangumiId = bangumiId,
                                 episode = episodeNumber,
                                 season = seasonNumber,
                                 isMovie = isMovie,
+                                mediaType = mediaType,
                                 title = animeTitle,
                                 posterUrl = posterUrl,
                                 titleEnglish = titleEnglish,
@@ -159,9 +164,11 @@ fun KitsugiEpisodeOptionsDialog(
                                 malId = malId,
                                 aniListId = aniListId,
                                 tmdbId = tmdbId,
+                                bangumiId = bangumiId,
                                 episode = episodeNumber,
                                 season = seasonNumber,
                                 isMovie = isMovie,
+                                mediaType = mediaType,
                                 title = animeTitle,
                                 posterUrl = posterUrl,
                                 titleEnglish = titleEnglish,

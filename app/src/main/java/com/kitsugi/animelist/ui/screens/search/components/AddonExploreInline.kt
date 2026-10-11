@@ -37,10 +37,12 @@ import com.kitsugi.animelist.data.cloudstream.CsStreamRunner
 import com.kitsugi.animelist.ui.theme.KitsugiColors
 import com.kitsugi.animelist.ui.theme.LocalKitsugiAccent
 import com.kitsugi.animelist.ui.components.KitsugiPlasmaLoader
+import com.kitsugi.animelist.model.MediaType
 import com.lagradost.cloudstream3.HomePageList
 import com.lagradost.cloudstream3.MainAPI
 import com.lagradost.cloudstream3.MainPageRequest
 import com.lagradost.cloudstream3.SearchResponse
+import com.lagradost.cloudstream3.TvType
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -48,6 +50,13 @@ import kotlinx.coroutines.withContext
 import androidx.compose.ui.res.stringResource
 import com.kitsugi.animelist.R
 import com.kitsugi.animelist.utils.KitsugiStrings
+
+private fun TvType?.toKitsugiStreamMediaType(): MediaType? = when (this) {
+    TvType.Movie, TvType.AnimeMovie -> MediaType.Movie
+    TvType.TvSeries, TvType.AsianDrama, TvType.Documentary -> MediaType.TvShow
+    TvType.Anime, TvType.OVA, TvType.Cartoon -> MediaType.Anime
+    else -> null
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Inline Plugin Explore — LazyListScope extension
@@ -139,6 +148,8 @@ fun LazyListScope.addonExploreInlineSections(
                             context = context,
                             malId = null, aniListId = null,
                             episode = 1, season = 1,
+                            isMovie = item.type == TvType.Movie || item.type == TvType.AnimeMovie,
+                            mediaType = item.type.toKitsugiStreamMediaType(),
                             title = item.name,
                             posterUrl = item.posterUrl,
                             cs3Url = item.url,
@@ -437,6 +448,8 @@ private fun InlineCategoryRow(
                                 context = context,
                                 malId = null, aniListId = null,
                                 episode = 1, season = 1,
+                                isMovie = item.type == TvType.Movie || item.type == TvType.AnimeMovie,
+                                mediaType = item.type.toKitsugiStreamMediaType(),
                                 title = item.name,
                                 posterUrl = item.posterUrl,
                                 cs3Url = item.url,

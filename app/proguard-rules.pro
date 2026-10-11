@@ -137,6 +137,9 @@
 -keepclassmembers class com.lagradost.nicehttp.** { *; }
 -keep class com.lagradost.api.** { *; }
 -keepclassmembers class com.lagradost.api.** { *; }
+# CloudStream plugins are loaded through DexClassLoader; the host has no static reference
+# to this transitive library, but plugin bytecode may call it by its public FuzzySearch API.
+-keep class me.xdrop.fuzzywuzzy.** { *; }
 # Jsoup (eklentilerin kullandığı)
 -keep class org.jsoup.** { *; }
 -keepclassmembers class org.jsoup.** { *; }

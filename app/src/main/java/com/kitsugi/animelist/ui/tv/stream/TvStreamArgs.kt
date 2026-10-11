@@ -16,5 +16,7 @@ data class TvStreamArgs(
     val titleNative: String?,
     val startYear: Int?,
     val description: String? = null,
-    val synonyms: List<String> = emptyList()
+    val synonyms: List<String> = emptyList(),
+    val mediaType: com.kitsugi.animelist.model.MediaType? = null,
+    val bangumiId: Int? = null
 ) : Serializable

@@ -18,6 +18,8 @@ import android.util.Log
 import com.kitsugi.animelist.DeviceProfile
 import com.kitsugi.animelist.DeviceFormFactor
 import com.kitsugi.animelist.ui.screens.offline.DownloadsActivity
+import com.kitsugi.animelist.data.remote.inferStreamMediaType
+import com.kitsugi.animelist.model.MediaType
 
 class KitsugiStreamActivity : ComponentActivity() {
 
@@ -28,6 +30,8 @@ class KitsugiStreamActivity : ComponentActivity() {
         private const val EXTRA_EPISODE        = "extra_episode"
         private const val EXTRA_SEASON         = "extra_season"
         private const val EXTRA_IS_MOVIE       = "extra_is_movie"
+        private const val EXTRA_MEDIA_TYPE     = "extra_media_type"
+        private const val EXTRA_BANGUMI_ID     = "extra_bangumi_id"
         private const val EXTRA_TITLE          = "extra_title"
         private const val EXTRA_POSTER_URL     = "extra_poster_url"
         private const val EXTRA_TITLE_ENGLISH  = "extra_title_english"
@@ -57,6 +61,8 @@ class KitsugiStreamActivity : ComponentActivity() {
             episode: Int,
             season: Int = 1,
             isMovie: Boolean = false,
+            mediaType: MediaType? = null,
+            bangumiId: Int? = null,
             title: String,
             posterUrl: String? = null,
             titleEnglish: String? = null,
@@ -71,6 +77,14 @@ class KitsugiStreamActivity : ComponentActivity() {
             cs3Url: String? = null,
             cs3ApiName: String? = null
         ) {
+            val effectiveMediaType = inferStreamMediaType(
+                mediaType = mediaType,
+                isMovie = isMovie,
+                malId = malId,
+                aniListId = aniListId,
+                tmdbId = tmdbId
+            )
+            val effectiveIsMovie = effectiveMediaType?.let { it == MediaType.Movie } ?: isMovie
             tempCast = cast
             context.startActivity(
                 Intent(context, KitsugiStreamActivity::class.java).apply {
@@ -79,7 +93,9 @@ class KitsugiStreamActivity : ComponentActivity() {
                     tmdbId?.let         { putExtra(EXTRA_TMDB_ID, it) }
                     putExtra(EXTRA_EPISODE, episode)
                     putExtra(EXTRA_SEASON, season)
-                    putExtra(EXTRA_IS_MOVIE, isMovie)
+                    putExtra(EXTRA_IS_MOVIE, effectiveIsMovie)
+                    effectiveMediaType?.let { putExtra(EXTRA_MEDIA_TYPE, it.name) }
+                    bangumiId?.let { putExtra(EXTRA_BANGUMI_ID, it) }
                     putExtra(EXTRA_TITLE, title)
                     posterUrl?.let      { putExtra(EXTRA_POSTER_URL, it) }
                     titleEnglish?.let   { putExtra(EXTRA_TITLE_ENGLISH, it) }
@@ -112,7 +128,7 @@ class KitsugiStreamActivity : ComponentActivity() {
                 .also { editor -> result.durationMs?.let { editor.putLong("${KEY_POS_PFX}dur_$key", it) } }
                 .apply()
 
-            val mediaIdForHistory = currentMalId ?: currentAniList ?: currentTitle.hashCode()
+            val mediaIdForHistory = currentMalId ?: currentAniList ?: currentTmdbId ?: currentBangumiId ?: currentTitle.hashCode()
             com.kitsugi.animelist.data.local.WatchHistoryManager.updateProgress(
                 animeId = mediaIdForHistory.toString(),
                 episode = currentEpisode,
@@ -141,6 +157,8 @@ class KitsugiStreamActivity : ComponentActivity() {
                 episode = nextEp,
                 season = currentSeason,
                 isMovie = currentIsMovie,
+                mediaType = currentMediaType,
+                bangumiId = currentBangumiId,
                 title = currentTitle,
                 posterUrl = currentPosterUrl,
                 titleEnglish = currentTitleEnglish,
@@ -164,6 +182,8 @@ class KitsugiStreamActivity : ComponentActivity() {
     private var currentEpisode: Int = 1
     private var currentSeason: Int = 1
     private var currentIsMovie: Boolean = false
+    private var currentMediaType: MediaType? = null
+    private var currentBangumiId: Int? = null
     private var currentTitle: String = ""
     private var currentPosterUrl: String? = null
     private var currentTitleEnglish: String? = null
@@ -185,9 +205,19 @@ class KitsugiStreamActivity : ComponentActivity() {
         currentMalId        = if (intent.hasExtra(EXTRA_MAL_ID)) intent.getIntExtra(EXTRA_MAL_ID, 0).takeIf { it > 0 } else null
         currentAniList    = if (intent.hasExtra(EXTRA_ANILIST_ID)) intent.getIntExtra(EXTRA_ANILIST_ID, 0).takeIf { it > 0 } else null
         currentTmdbId       = if (intent.hasExtra(EXTRA_TMDB_ID)) intent.getIntExtra(EXTRA_TMDB_ID, 0).takeIf { it > 0 } else null
+        currentBangumiId    = if (intent.hasExtra(EXTRA_BANGUMI_ID)) intent.getIntExtra(EXTRA_BANGUMI_ID, 0).takeIf { it > 0 } else null
         currentEpisode      = intent.getIntExtra(EXTRA_EPISODE, 1)
         currentSeason       = intent.getIntExtra(EXTRA_SEASON, 1)
         currentIsMovie      = intent.getBooleanExtra(EXTRA_IS_MOVIE, false)
+        currentMediaType = intent.getStringExtra(EXTRA_MEDIA_TYPE)
+            ?.let { runCatching { MediaType.valueOf(it) }.getOrNull() }
+            ?: inferStreamMediaType(
+                isMovie = currentIsMovie,
+                malId = currentMalId,
+                aniListId = currentAniList,
+                tmdbId = currentTmdbId
+            )
+        currentIsMovie = currentMediaType?.let { it == MediaType.Movie } ?: currentIsMovie
         currentTitle        = intent.getStringExtra(EXTRA_TITLE) ?: ""
         currentPosterUrl    = intent.getStringExtra(EXTRA_POSTER_URL)
         currentTitleEnglish = intent.getStringExtra(EXTRA_TITLE_ENGLISH)
@@ -233,6 +263,7 @@ class KitsugiStreamActivity : ComponentActivity() {
                 KitsugiStreamScreen(
                     malId = currentMalId, aniListId = currentAniList, tmdbId = currentTmdbId,
                     episode = currentEpisode, season = currentSeason, isMovie = currentIsMovie,
+                    mediaType = currentMediaType, bangumiId = currentBangumiId,
                     title = currentTitle, posterUrl = currentPosterUrl, titleEnglish = currentTitleEnglish,
                     titleRomaji = currentTitleRomaji, titleNative = currentTitleNative, synonyms = currentSynonyms, startYear = currentStartYear,
                     description = currentDescription, castList = castList,

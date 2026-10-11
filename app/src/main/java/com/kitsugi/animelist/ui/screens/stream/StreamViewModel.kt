@@ -9,10 +9,12 @@ import com.google.gson.Gson
 import com.kitsugi.animelist.data.cloudstream.CsPluginLoader
 import com.kitsugi.animelist.data.cloudstream.CsStreamRunner
 import com.kitsugi.animelist.data.cloudstream.CsPluginStatusTracker
+import com.kitsugi.animelist.data.cloudstream.CsPluginTypeCompatibility
 import com.kitsugi.animelist.data.cloudstream.CloudflareBlockException
 import com.kitsugi.animelist.data.local.KitsugiDatabase
 import com.kitsugi.animelist.data.remote.AddonStreamClient
 import com.kitsugi.animelist.data.remote.KitsugiIdResolver
+import com.kitsugi.animelist.model.MediaType
 import com.kitsugi.animelist.data.repository.EpisodeStreamFilter
 import com.kitsugi.animelist.data.repository.StreamSorter
 import com.kitsugi.animelist.data.repository.StreamSource
@@ -92,6 +94,7 @@ class StreamViewModel(application: Application) : AndroidViewModel(application) 
         malId: Int?,
         aniListId: Int?,
         tmdbId: Int? = null,
+        bangumiId: Int? = null,
         episode: Int,
         season: Int,
         title: String,
@@ -99,9 +102,10 @@ class StreamViewModel(application: Application) : AndroidViewModel(application) 
         startYear: Int?,
         cs3Url: String? = null,
         cs3ApiName: String? = null,
-        isMovie: Boolean = false
+        isMovie: Boolean = false,
+        mediaType: MediaType? = null
     ) {
-        val newKey = "$malId:$aniListId:$tmdbId:$isMovie:$season:$episode:$startYear:$cs3ApiName:$cs3Url:${title.hashCode()}:${alternativeTitles.hashCode()}"
+        val newKey = "$malId:$aniListId:$tmdbId:$bangumiId:$isMovie:${mediaType?.name}:$season:$episode:$startYear:$cs3ApiName:$cs3Url:${title.hashCode()}:${alternativeTitles.hashCode()}"
 
         // ── Cache hit: same combination, data already present ─────────────────
         if (newKey == currentFetchKey) {
@@ -130,6 +134,7 @@ class StreamViewModel(application: Application) : AndroidViewModel(application) 
                 malId = malId,
                 aniListId = aniListId,
                 tmdbId = tmdbId,
+                bangumiId = bangumiId,
                 episode = episode,
                 season = season,
                 title = title,
@@ -137,7 +142,8 @@ class StreamViewModel(application: Application) : AndroidViewModel(application) 
                 startYear = startYear,
                 cs3Url = cs3Url,
                 cs3ApiName = cs3ApiName,
-                isMovie = isMovie
+                isMovie = isMovie,
+                mediaType = mediaType
             )
             isFetchInProgress = false
         }
@@ -157,7 +163,9 @@ class StreamViewModel(application: Application) : AndroidViewModel(application) 
         malId: Int? = null,
         aniListId: Int? = null,
         tmdbId: Int? = null,
-        isMovie: Boolean = false
+        bangumiId: Int? = null,
+        isMovie: Boolean = false,
+        mediaType: MediaType? = null
     ) {
         CookieManager.getInstance().flush()
         _webViewDialogState.value = null
@@ -182,13 +190,23 @@ class StreamViewModel(application: Application) : AndroidViewModel(application) 
                 CsPluginStatusTracker.clearPluginStatus(csPlugin.id)
                 CsPluginStatusTracker.clearPluginStatus(csPlugin.name)
                 apis.forEach { CsPluginStatusTracker.clearPluginStatus(it.name) }
+                val compatibleApis = apis.filter { api ->
+                    CsPluginTypeCompatibility.supports(mediaType, api.supportedTypes.map { it.name })
+                }
+                if (compatibleApis.isEmpty()) {
+                    val message = mediaType?.let {
+                        "Bu eklenti ${CsPluginTypeCompatibility.description(it)} içeriklerini desteklemiyor."
+                    } ?: "Bu eklenti bu içerik türünü desteklemiyor."
+                    updateAddonStateSync(dismissedDisplayName, isLoading = false, error = message)
+                    return@launch
+                }
                 val csStreams = mutableListOf<StreamSource>()
-                for (api in apis) {
+                for (api in compatibleApis) {
                     val streams = CsStreamRunner.getStreams(
                         api = api, title = title, alternativeTitles = alternativeTitles,
                         year = startYear, season = season, episode = episode,
                         malId = malId, aniListId = aniListId, tmdbId = tmdbId,
-                        isMovie = isMovie
+                        bangumiId = bangumiId, isMovie = isMovie, mediaType = mediaType
                     )
                     csStreams.addAll(streams)
                 }
@@ -200,7 +218,7 @@ class StreamViewModel(application: Application) : AndroidViewModel(application) 
                     dismissedDisplayName,
                     isLoading = false,
                     streams = csStreams,
-                    error = if (csStreams.isEmpty()) (diagMsg?.let { "⚠️ $it" } ?: "Bu anime için akış bulunamadı") else null
+                    error = if (csStreams.isEmpty()) (diagMsg?.let { "⚠️ $it" } ?: "Bu içerik için akış bulunamadı") else null
                 )
             } catch (e: Throwable) {
                 if (e is kotlinx.coroutines.CancellationException) throw e
@@ -253,6 +271,7 @@ class StreamViewModel(application: Application) : AndroidViewModel(application) 
         malId: Int?,
         aniListId: Int?,
         tmdbId: Int? = null,
+        bangumiId: Int? = null,
         episode: Int,
         season: Int,
         title: String,
@@ -260,7 +279,8 @@ class StreamViewModel(application: Application) : AndroidViewModel(application) 
         startYear: Int?,
         cs3Url: String? = null,
         cs3ApiName: String? = null,
-        isMovie: Boolean = false
+        isMovie: Boolean = false,
+        mediaType: MediaType? = null
     ) {
         val directUrl = cs3Url?.trim()?.takeIf { it.isNotBlank() }
         val directApiName = cs3ApiName?.trim()?.takeIf { it.isNotBlank() }
@@ -288,7 +308,8 @@ class StreamViewModel(application: Application) : AndroidViewModel(application) 
                         url = directUrl,
                         season = season,
                         episode = episode,
-                        isMovie = isMovie
+                        isMovie = isMovie,
+                        mediaType = mediaType
                     )
                     if (resolved.isNotEmpty()) {
                         _isResolvingId.value = false
@@ -333,7 +354,14 @@ class StreamViewModel(application: Application) : AndroidViewModel(application) 
             else -> null
         }
 
-        val resolvedIds = KitsugiIdResolver.resolveIds(realMalId, realAniListId, tmdbId, kitsuId = kitsuNumericId)
+        val resolvedIds = KitsugiIdResolver.resolveIds(
+            malId = realMalId,
+            aniListId = realAniListId,
+            tmdbId = tmdbId,
+            mediaType = mediaType,
+            kitsuId = kitsuNumericId,
+            bangumiId = bangumiId
+        )
         _isResolvingId.value = false
 
         val resolvedImdbId = resolvedIds.imdbId
@@ -521,8 +549,20 @@ class StreamViewModel(application: Application) : AndroidViewModel(application) 
                                 return@launch
                             }
 
+                            val compatibleApis = apis.filter { api ->
+                                CsPluginTypeCompatibility.supports(mediaType, api.supportedTypes.map { it.name })
+                            }
+                            if (compatibleApis.isEmpty()) {
+                                val message = mediaType?.let {
+                                    "Bu eklenti ${CsPluginTypeCompatibility.description(it)} içeriklerini desteklemiyor."
+                                } ?: "Bu eklenti bu içerik türünü desteklemiyor."
+                                CsTrace.info(plugin.name, "type-filter", message)
+                                updateAddonState(csDisplayName, isLoading = false, error = message)
+                                return@launch
+                            }
+
                             val csStreams = mutableListOf<StreamSource>()
-                            for (api in apis) {
+                            for (api in compatibleApis) {
                                 val streams = CsStreamRunner.getStreams(
                                     api              = api,
                                     title            = title,
@@ -533,7 +573,9 @@ class StreamViewModel(application: Application) : AndroidViewModel(application) 
                                     malId            = realMalId ?: resolvedIds.malId,
                                     aniListId        = realAniListId ?: resolvedIds.aniListId,
                                     tmdbId           = tmdbId ?: resolvedIds.tmdbId,
-                                    isMovie          = isMovie
+                                    bangumiId        = bangumiId,
+                                    isMovie          = isMovie,
+                                    mediaType        = mediaType
                                 )
                                 csStreams.addAll(streams)
                             }
@@ -622,7 +664,7 @@ class StreamViewModel(application: Application) : AndroidViewModel(application) 
                         list[i] = list[i].copy(
                             isLoading = isLoading,
                             streams   = streams,
-                            error     = if (error == null && streams.isEmpty()) "Bu anime için akış bulunamadı" else error,
+                            error     = if (error == null && streams.isEmpty()) "Bu içerik için akış bulunamadı" else error,
                             requiresVerification = requiresVerification
                         )
                     }

@@ -21,6 +21,7 @@ import com.kitsugi.animelist.data.remote.KitsugiTag
 import com.kitsugi.animelist.ui.screens.search.DetailSeasonMetadata
 import com.kitsugi.animelist.data.remote.StudioSourceSupport
 import com.kitsugi.animelist.model.MediaType
+import com.kitsugi.animelist.data.remote.StreamMediaIds
 import com.kitsugi.animelist.ui.screens.stream.KitsugiStreamActivity
 import com.kitsugi.animelist.utils.KitsugiTranslateUtils.openTranslator
 import androidx.compose.runtime.collectAsState
@@ -199,11 +200,10 @@ internal fun ApiDetailEpisodesTab(
     episodeRatings: Map<Pair<Int, Int>, Double>,
     targetSeason: Int?,
     totalSeasons: Int?,
-    resolvedTmdbId: Int?,
+    streamIds: StreamMediaIds,
+    mediaType: MediaType,
     displayTitle: String,
     displaySource: String,
-    displayMalId: Int,
-    displayRealMalId: Int?,
     displayImageUrl: String?,
     displayTitleEnglish: String?,
     displayTitleRomaji: String?,
@@ -219,16 +219,10 @@ internal fun ApiDetailEpisodesTab(
     val uriHandler = LocalUriHandler.current
     val downloads by com.kitsugi.animelist.data.local.AnimeDownloadManager.downloads.collectAsState()
 
-    val streamMalId = if (displaySource.lowercase() == "anilist") {
-        displayRealMalId
-    } else {
-        displayMalId
-    }
-    val rawStableId = if (displaySource.lowercase() == "anilist") displayMalId else null
-    val streamAniListId = rawStableId?.let {
-        if (it >= 100_000_000) it - 100_000_000 else it
-    }
-    val currentAnimeId = if (streamAniListId != null) streamAniListId.toString() else streamMalId?.toString() ?: ""
+    val streamMalId = streamIds.malId
+    val streamAniListId = streamIds.aniListId
+    val currentAnimeId = (streamAniListId ?: streamMalId ?: streamIds.tmdbId ?: streamIds.bangumiId)
+        ?.toString().orEmpty()
 
     EpisodesTabContent(
         state = state,
@@ -261,7 +255,9 @@ internal fun ApiDetailEpisodesTab(
                         context = context,
                         malId = streamMalId,
                         aniListId = streamAniListId,
-                        tmdbId = resolvedTmdbId,
+                        tmdbId = streamIds.tmdbId,
+                        bangumiId = streamIds.bangumiId,
+                        mediaType = mediaType,
                         episode = epNum,
                         season = targetSeason ?: 1,
                         isMovie = isMovie,
@@ -285,7 +281,9 @@ internal fun ApiDetailEpisodesTab(
                     context = context,
                     malId = streamMalId,
                     aniListId = streamAniListId,
-                    tmdbId = resolvedTmdbId,
+                    tmdbId = streamIds.tmdbId,
+                    bangumiId = streamIds.bangumiId,
+                    mediaType = mediaType,
                     episode = epNum,
                     season = targetSeason ?: 1,
                     isMovie = isMovie,
@@ -301,7 +299,7 @@ internal fun ApiDetailEpisodesTab(
             }
         },
         onRatingClick = { season, episode ->
-            val tmdbId = resolvedTmdbId
+            val tmdbId = streamIds.tmdbId
             if (tmdbId != null && tmdbId > 0) {
                 val url = "https://www.themoviedb.org/tv/$tmdbId/season/$season/episode/$episode"
                 runCatching {

@@ -19,6 +19,7 @@ import com.lagradost.cloudstream3.extractors.helper.AesHelper
 import com.lagradost.cloudstream3.Prerelease
 import com.kitsugi.animelist.data.repository.StreamSource
 import com.kitsugi.animelist.data.remote.KitsugiIdResolver
+import com.kitsugi.animelist.model.MediaType
 import com.kitsugi.animelist.core.player.SubtitleInput
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.awaitAll
@@ -972,11 +973,22 @@ object CsStreamRunner {
         malId: Int? = null,
         aniListId: Int? = null,
         tmdbId: Int? = null,
-        isMovie: Boolean? = null
+        isMovie: Boolean? = null,
+        mediaType: MediaType? = null,
+        bangumiId: Int? = null
     ): List<StreamSource> = withContext(Dispatchers.IO) {
         Log.d(TAG, "━━━ getStreams: provider=${api.name} ━━━")
         Log.d(TAG, "  title='$title' season=$season ep=$episode year=$year")
         Log.d(TAG, "  alternativeTitles=${alternativeTitles.take(3)} mal=$malId aniList=$aniListId")
+        val declaredTypes = api.supportedTypes.map { it.name }
+        val effectiveMediaType = CsPluginTypeCompatibility.infer(mediaType, isMovie == true, declaredTypes)
+        if (!CsPluginTypeCompatibility.supports(effectiveMediaType, declaredTypes)) {
+            val reason = "Bu eklenti ${declaredTypes.joinToString()} türlerini destekliyor; ${effectiveMediaType?.let(CsPluginTypeCompatibility::description)} araması atlandı."
+            Log.i(TAG, "[${api.name}] $reason")
+            CsTrace.info(api.name, "type-filter", reason)
+            return@withContext emptyList()
+        }
+        val effectiveIsMovie = effectiveMediaType?.let { it == MediaType.Movie } ?: (isMovie == true)
 
         // Fetch remote domains dynamically in background if not fetched yet
         if (!isDomainListFetched.get()) {
@@ -1051,7 +1063,21 @@ object CsStreamRunner {
         // zaman aşımında kurtarılıp döndürülür; gerçek sebep tracker'a yazılır ki UI göstersin.
         val partialSink = java.util.concurrent.CopyOnWriteArrayList<StreamSource>()
         val result = withTimeoutOrNull(effectiveTimeout) {
-            runGetStreams(api, title, alternativeTitles, year, season, episode, malId, aniListId, tmdbId, isMovie, partialSink)
+            runGetStreams(
+                api = api,
+                title = title,
+                alternativeTitles = alternativeTitles,
+                year = year,
+                season = season,
+                episode = episode,
+                malId = malId,
+                aniListId = aniListId,
+                tmdbId = tmdbId,
+                isMovie = effectiveIsMovie,
+                mediaType = effectiveMediaType,
+                bangumiId = bangumiId,
+                partialSink = partialSink
+            )
         }
         if (result == null) {
             val rescued = partialSink.toList()
@@ -1079,20 +1105,32 @@ object CsStreamRunner {
         aniListId: Int? = null,
         tmdbId: Int? = null,
         isMovie: Boolean? = null,
+        mediaType: MediaType? = null,
+        bangumiId: Int? = null,
         partialSink: MutableList<StreamSource>? = null
     ): List<StreamSource> {
         // Resolve external IDs for validation
-        val resolvedIds = if (malId != null || aniListId != null || tmdbId != null) {
+        val resolvedIds = if (malId != null || aniListId != null || tmdbId != null || bangumiId != null) {
             try {
-                KitsugiIdResolver.resolveIds(malId, aniListId, tmdbId)
+                KitsugiIdResolver.resolveIds(
+                    malId = malId,
+                    aniListId = aniListId,
+                    tmdbId = tmdbId,
+                    mediaType = mediaType,
+                    bangumiId = bangumiId
+                )
+            } catch (cancel: kotlinx.coroutines.CancellationException) {
+                throw cancel
             } catch (e: Exception) {
                 null
             }
         } else null
         
         val targetImdb = resolvedIds?.imdbId
-        val targetTmdb = resolvedIds?.tmdbId
+        val targetTmdb = resolvedIds?.tmdbId ?: tmdbId
         val targetKitsu = resolvedIds?.kitsuId
+        val targetMal = resolvedIds?.malId ?: malId
+        val targetAniList = resolvedIds?.aniListId ?: aniListId
         val isWebViewPlugin = api.usesWebView ||
             api.name in CF_PROTECTED_PLUGINS ||
             api.name.contains("TrAnimeIzle", ignoreCase = true)
@@ -1102,7 +1140,7 @@ object CsStreamRunner {
         // This completely bypasses fuzzy title-matching and is far more reliable.
         val nativeResult = tryNativeIdResolution(
             api       = api,
-            malId     = malId,
+            malId     = resolvedIds?.malId ?: malId,
             aniListId = resolvedIds?.aniListId ?: aniListId,
             tmdbId    = resolvedIds?.tmdbId    ?: tmdbId,
             imdbId    = targetImdb,
@@ -1110,6 +1148,7 @@ object CsStreamRunner {
             season    = season,
             episode   = episode,
             isMovie   = isMovie == true,
+            mediaType = mediaType,
             partialSink = partialSink
         )
         // v2.4.226: BOŞ native sonuç artık aramayı KİLİTLEMEZ. getLoadUrl() URL döndürüp
@@ -1303,8 +1342,8 @@ object CsStreamRunner {
         var validatedMatch: SearchResponse? = null
         var bestLoadResponse: LoadResponse? = null
 
-        if (!skipIdValidation && resolvedIds != null && (targetImdb != null || targetTmdb != null || malId != null || aniListId != null || targetKitsu != null)) {
-            Log.d(TAG, "[ID-Mapping] Validating candidates using resolved IDs: IMDb=$targetImdb TMDB=$targetTmdb MAL=$malId AniList=$aniListId Kitsu=$targetKitsu")
+        if (!skipIdValidation && resolvedIds != null && (targetImdb != null || targetTmdb != null || targetMal != null || targetAniList != null || targetKitsu != null)) {
+            Log.d(TAG, "[ID-Mapping] Validating candidates using resolved IDs: IMDb=$targetImdb TMDB=$targetTmdb MAL=$targetMal AniList=$targetAniList Kitsu=$targetKitsu")
             
             var isSyncDataSupported = true
 
@@ -1314,7 +1353,7 @@ object CsStreamRunner {
                 if (resp != null) {
                     isSyncDataSupported = hasSyncDataSupport(resp)
                     if (isSyncDataSupported) {
-                        if (loadResponseMatches(resp, targetImdb, malId, aniListId, targetTmdb, targetKitsu)) {
+                        if (loadResponseMatches(resp, targetImdb, targetMal, targetAniList, targetTmdb, targetKitsu)) {
                             Log.d(TAG, "[ID-Mapping] ✓ Best match '${bestMatch.name}' validated successfully via ID syncData.")
                             validatedMatch = bestMatch
                             bestLoadResponse = resp
@@ -1356,7 +1395,7 @@ object CsStreamRunner {
                             bestLoadResponse = resp
                             break
                         }
-                        if (loadResponseMatches(resp, targetImdb, malId, aniListId, targetTmdb, targetKitsu)) {
+                        if (loadResponseMatches(resp, targetImdb, targetMal, targetAniList, targetTmdb, targetKitsu)) {
                             Log.d(TAG, "[ID-Mapping] ✓ Candidate '${candidate.name}' matches target IDs! Using it.")
                             validatedMatch = candidate
                             bestLoadResponse = resp
@@ -1614,6 +1653,7 @@ object CsStreamRunner {
         season: Int,
         episode: Int,
         isMovie: Boolean = false,
+        mediaType: MediaType? = null,
         partialSink: MutableList<StreamSource>? = null
     ): List<StreamSource>? {
         if (api.supportedSyncNames.isEmpty()) return null
@@ -1645,13 +1685,20 @@ object CsStreamRunner {
                 }
                 if (!loadUrl.isNullOrBlank()) {
                     Log.d(TAG, "[${api.name}] ✓ getLoadUrl başarılı: $loadUrl")
+                    val effectiveType = mediaType ?: if (isMovie) MediaType.Movie else MediaType.Anime
+                    val providerType = when (effectiveType) {
+                        MediaType.Movie -> com.lagradost.cloudstream3.TvType.Movie
+                        MediaType.TvShow -> com.lagradost.cloudstream3.TvType.TvSeries
+                        MediaType.Anime, MediaType.Manga -> com.lagradost.cloudstream3.TvType.Anime
+                    }
+                    val resolvedIsMovie = effectiveType == MediaType.Movie
                     val fakeSearchResponse = api.newAnimeSearchResponse(
                         name = api.name,
                         url  = loadUrl,
-                        type = if (isMovie) com.lagradost.cloudstream3.TvType.Movie else com.lagradost.cloudstream3.TvType.Anime,
+                        type = providerType,
                         fix  = false
                     )
-                    return loadAndExtractStreams(api, fakeSearchResponse, season, episode, isMovie, partialSink)
+                    return loadAndExtractStreams(api, fakeSearchResponse, season, episode, resolvedIsMovie, partialSink)
                 } else {
                     Log.d(TAG, "[${api.name}] getLoadUrl($syncName, $syncId) → null (desteklenmiyor veya bulunamadı)")
                 }
@@ -3633,17 +3680,30 @@ object CsStreamRunner {
         url: String,
         season: Int,
         episode: Int,
-        isMovie: Boolean = false
+        isMovie: Boolean = false,
+        mediaType: MediaType? = null
     ): List<StreamSource> = withContext(Dispatchers.IO) {
         ensurePluginReady(api)
         if (api.name in KNOWN_BROKEN_PLUGINS) return@withContext emptyList()
+        val resolvedMediaType = CsPluginTypeCompatibility.infer(
+            mediaType = mediaType,
+            isMovie = isMovie,
+            supportedTypes = api.supportedTypes.map { it.name }
+        )
+        val providerType = when (resolvedMediaType) {
+            MediaType.Movie -> com.lagradost.cloudstream3.TvType.Movie
+            MediaType.TvShow -> com.lagradost.cloudstream3.TvType.TvSeries
+            MediaType.Anime -> com.lagradost.cloudstream3.TvType.Anime
+            MediaType.Manga, null -> com.lagradost.cloudstream3.TvType.Anime
+        }
+        val isResolvedMovie = resolvedMediaType?.let { it == MediaType.Movie } ?: isMovie
         val searchResponse = api.newAnimeSearchResponse(
             name = api.name,
             url = url,
-            type = if (isMovie) com.lagradost.cloudstream3.TvType.Movie else com.lagradost.cloudstream3.TvType.Anime,
+            type = providerType,
             fix = false
         )
-        loadAndExtractStreams(api, searchResponse, season, episode, isMovie)
+        loadAndExtractStreams(api, searchResponse, season, episode, isResolvedMovie)
     }
 }
 

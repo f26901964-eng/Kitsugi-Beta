@@ -96,6 +96,7 @@ import com.kitsugi.animelist.data.remote.DetailCache
 import com.kitsugi.animelist.data.remote.ApiSearchSelection
 import com.kitsugi.animelist.data.remote.JikanApiClient
 import com.kitsugi.animelist.data.remote.JikanSearchResult
+import com.kitsugi.animelist.data.remote.toStreamMediaIds
 import com.kitsugi.animelist.data.remote.canonicalMediaSourceId
 import com.kitsugi.animelist.data.remote.matchesInSource
 import com.kitsugi.animelist.utils.PreferenceHelpers.getDisplayTitle
@@ -737,16 +738,19 @@ fun ApiResultDetailPage(
                         preferredTranslator = settingsState?.preferredTranslator ?: "DEFAULT"
                     )
                     8 -> {
+                        val streamIds = displayResult.toStreamMediaIds(
+                            resolvedRealMalId = detailState?.realMalId ?: displayResult.realMalId,
+                            resolvedTmdbId = detailState?.tmdbId ?: resolvedTmdbId ?: displayResult.tmdbId
+                        )
                         ApiDetailEpisodesTab(
                             state = episodesState,
                             episodeRatings = episodeRatings,
                             targetSeason = targetSeason,
                             totalSeasons = detailState?.totalSeasons,
-                            resolvedTmdbId = detailState?.tmdbId,
+                            streamIds = streamIds,
+                            mediaType = displayResult.type,
                             displayTitle = displayResult.getDisplayTitle(titleLanguage),
                             displaySource = displayResult.source,
-                            displayMalId = displayResult.malId,
-                            displayRealMalId = displayResult.realMalId,
                             displayImageUrl = displayResult.imageUrl,
                             displayTitleEnglish = displayResult.titleEnglish ?: detailState?.titleEnglish,
                             displayTitleRomaji = detailState?.titleRomaji ?: displayResult.title,
@@ -769,18 +773,21 @@ fun ApiResultDetailPage(
     }
 
     activeEpisodeForOptions?.let { ep ->
-        val resultMalId = if (displayResult.source.lowercase() == "anilist") displayResult.realMalId else displayResult.malId
-        val resultAniListId = if (displayResult.source.lowercase() == "anilist") displayResult.malId else null
-        val resultTmdbId = detailState?.tmdbId ?: resolvedTmdbId
+        val streamIds = displayResult.toStreamMediaIds(
+            resolvedRealMalId = detailState?.realMalId ?: displayResult.realMalId,
+            resolvedTmdbId = detailState?.tmdbId ?: resolvedTmdbId ?: displayResult.tmdbId
+        )
         KitsugiEpisodeOptionsDialog(
             animeTitle = displayResult.getDisplayTitle(titleLanguage),
             episodeNumber = ep.episodeNumber,
             episodeTitle = ep.title,
             originalUrl = ep.url,
             siteName = ep.site,
-            malId = resultMalId,
-            aniListId = resultAniListId,
-            tmdbId = resultTmdbId,
+            malId = streamIds.malId,
+            aniListId = streamIds.aniListId,
+            tmdbId = streamIds.tmdbId,
+            bangumiId = streamIds.bangumiId,
+            mediaType = displayResult.type,
             posterUrl = displayResult.imageUrl,
             titleEnglish = displayResult.titleEnglish,
             titleRomaji = detailState?.titleRomaji,
@@ -852,21 +859,17 @@ fun ApiResultDetailPage(
                     onClick = {
                         if (epNum != null && epNum > 0) {
                             showWatchDialog = false
-                            // AniList: malId = realMalId (from detailState), aniListId = decoded from stableId
-                            val streamMalId = if (displayResult.source.lowercase() == "anilist") {
-                                displayResult.realMalId
-                            } else {
-                                displayResult.malId
-                            }
-                            val rawStableId = if (displayResult.source.lowercase() == "anilist") displayResult.malId else null
-                            val streamAniListId = rawStableId?.let {
-                                if (it >= 100_000_000) it - 100_000_000 else it
-                            }
+                            val streamIds = displayResult.toStreamMediaIds(
+                                resolvedRealMalId = detailState?.realMalId ?: displayResult.realMalId,
+                                resolvedTmdbId = detailState?.tmdbId ?: resolvedTmdbId ?: displayResult.tmdbId
+                            )
                             KitsugiStreamActivity.start(
                                 context = context,
-                                malId = streamMalId,
-                                aniListId = streamAniListId,
-                                tmdbId = detailState?.tmdbId ?: resolvedTmdbId,
+                                malId = streamIds.malId,
+                                aniListId = streamIds.aniListId,
+                                tmdbId = streamIds.tmdbId,
+                                bangumiId = streamIds.bangumiId,
+                                mediaType = displayResult.type,
                                 episode = epNum,
                                 season = targetSeason,
                                 isMovie = displayResult.type == MediaType.Movie,

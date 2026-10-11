@@ -40,6 +40,7 @@ import com.kitsugi.animelist.data.cloudstream.CsStreamRunner
 import com.kitsugi.animelist.ui.theme.KitsugiColors
 import com.kitsugi.animelist.ui.theme.LocalKitsugiAccent
 import com.kitsugi.animelist.ui.components.KitsugiPlasmaLoader
+import com.kitsugi.animelist.model.MediaType
 import com.lagradost.cloudstream3.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -210,6 +211,13 @@ private fun DetailContent(
     }
 
     val isEpisodeBased = loadResponse is AnimeLoadResponse || loadResponse is TvSeriesLoadResponse
+
+    val streamMediaType = when (loadResponse) {
+        is AnimeLoadResponse -> MediaType.Anime
+        is TvSeriesLoadResponse -> MediaType.TvShow
+        is MovieLoadResponse -> MediaType.Movie
+        else -> null
+    }
 
     Box(modifier = Modifier.fillMaxSize()) {
         // Blurred background backdrop for premium look
@@ -453,6 +461,7 @@ private fun DetailContent(
                                     episode = 1,
                                     season = 1,
                                     isMovie = true,
+                                    mediaType = streamMediaType,
                                     title = loadResponse.name,
                                     posterUrl = loadResponse.posterUrl,
                                     cs3Url = loadResponse.url,
@@ -518,6 +527,7 @@ private fun DetailContent(
                                         episode = epNum,
                                         season = epSeason,
                                         isMovie = false,
+                                        mediaType = streamMediaType,
                                         title = loadResponse.name,
                                         posterUrl = loadResponse.posterUrl,
                                         cs3Url = loadResponse.url,

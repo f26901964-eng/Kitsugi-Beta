@@ -29,6 +29,7 @@ import com.kitsugi.animelist.data.remote.JikanSearchResult
 import com.kitsugi.animelist.data.remote.KitsugiMediaDetail
 import com.kitsugi.animelist.model.MediaEntry
 import com.kitsugi.animelist.model.MediaType
+import com.kitsugi.animelist.data.remote.toStreamMediaIds
 import com.kitsugi.animelist.ui.screens.stream.KitsugiStreamActivity
 import com.kitsugi.animelist.ui.theme.KitsugiColors
 import com.kitsugi.animelist.ui.theme.LocalKitsugiAccent
@@ -170,16 +171,19 @@ fun ApiDetailLeftPanel(
                     text = stringResource(R.string.izle),
                     icon = Icons.Rounded.PlayArrow,
                     onClick = {
-                        val streamMalId = if (displayResult.source.lowercase() == "anilist") displayResult.realMalId else displayResult.malId
-                        val rawStableId = if (displayResult.source.lowercase() == "anilist") displayResult.malId else null
-                        val streamAniListId = rawStableId?.let { if (it >= 100_000_000) it - 100_000_000 else it }
+                        val streamIds = displayResult.toStreamMediaIds(
+                            resolvedRealMalId = detailState?.realMalId ?: displayResult.realMalId,
+                            resolvedTmdbId = detailState?.tmdbId ?: resolvedTmdbId ?: displayResult.tmdbId
+                        )
                         KitsugiStreamActivity.start(
                             context = context,
-                            malId = streamMalId,
-                            aniListId = streamAniListId,
-                            tmdbId = detailState?.tmdbId ?: resolvedTmdbId,
+                            malId = streamIds.malId,
+                            aniListId = streamIds.aniListId,
+                            tmdbId = streamIds.tmdbId,
+                            bangumiId = streamIds.bangumiId,
                             episode = 1,
                             isMovie = displayResult.type == MediaType.Movie,
+                            mediaType = displayResult.type,
                             season = targetSeason,
                             title = displayResult.title,
                             posterUrl = displayResult.imageUrl,

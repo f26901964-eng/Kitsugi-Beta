@@ -150,19 +150,21 @@ fun TvStreamScreen(
     }
 
     LaunchedEffect(
-        args.malId, args.aniListId, args.tmdbId, args.episode, args.season, args.isMovie,
-        args.title, args.startYear, alternativeTitles
+        args.malId, args.aniListId, args.tmdbId, args.bangumiId, args.episode, args.season,
+        args.isMovie, args.mediaType, args.title, args.startYear, alternativeTitles
     ) {
         viewModel.startFetch(
             malId = args.malId,
             aniListId = args.aniListId,
             tmdbId = args.tmdbId,
+            bangumiId = args.bangumiId,
             episode = args.episode,
             season = args.season,
             title = args.title,
             alternativeTitles = alternativeTitles,
             startYear = args.startYear,
-            isMovie = args.isMovie
+            isMovie = args.isMovie,
+            mediaType = args.mediaType
         )
     }
 
@@ -550,7 +552,9 @@ fun TvStreamScreen(
                         malId = args.malId,
                         aniListId = args.aniListId,
                         tmdbId = args.tmdbId,
-                        isMovie = args.isMovie
+                        bangumiId = args.bangumiId,
+                        isMovie = args.isMovie,
+                        mediaType = args.mediaType
                     )
                 }
             )

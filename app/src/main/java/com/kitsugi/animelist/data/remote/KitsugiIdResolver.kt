@@ -5,6 +5,7 @@ import com.kitsugi.animelist.core.memory.BoundedCache
 import android.util.Log
 import org.json.JSONObject
 import java.net.URL
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import com.kitsugi.animelist.model.MediaType
@@ -41,57 +42,82 @@ object KitsugiIdResolver {
         aniListId: Int?,
         tmdbId: Int? = null,
         mediaType: MediaType? = null,
-        kitsuId: Int? = null
+        kitsuId: Int? = null,
+        bangumiId: Int? = null
     ): ResolvedIds = withContext(Dispatchers.IO) {
-        Log.d(TAG, "Starting ID resolution: malParam=$malId, aniListParam=$aniListId, tmdbParam=$tmdbId, mediaType=$mediaType, kitsuParam=$kitsuId")
+        Log.d(TAG, "Starting ID resolution: malParam=$malId, aniListParam=$aniListId, tmdbParam=$tmdbId, mediaType=$mediaType, kitsuParam=$kitsuId, bangumiParam=$bangumiId")
 
         if (mediaType == MediaType.Manga) {
             Log.d(TAG, "Manga yapımları ARM API'de yer almaz; alakasız anime eşleştirmelerini önlemek için ARM sorgusu atlanıyor.")
             return@withContext ResolvedIds(malId = malId, aniListId = aniListId, kitsuId = kitsuId)
         }
-        
+
+        // Bangumi's 500M stable IDs are not MAL IDs and ARM has no Bangumi namespace.
+        // Resolve Bangumi through its cached, title/year-aware cross-reference layer first.
+        val bangumiCrossIds = if (
+            bangumiId != null && bangumiId > 0 &&
+            malId == null && aniListId == null && tmdbId == null && kitsuId == null
+        ) {
+            try {
+                KitsugiBangumiDetailClient.resolveCrossIds(
+                    stableOrRawId = bangumiId,
+                    mediaType = mediaType ?: MediaType.Anime
+                )
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                Log.w(TAG, "Bangumi ID cross-resolution failed for $bangumiId: ${e.message}")
+                null
+            }
+        } else null
+
+        val lookupMalId = malId ?: bangumiCrossIds?.malId?.takeIf { it in 1..99_999_999 }
+        val lookupAniListId = aniListId ?: bangumiCrossIds?.aniListId?.takeIf { it > 0 }
+        val lookupTmdbId = tmdbId ?: bangumiCrossIds?.tmdbId?.takeIf { it > 0 }
+        val lookupKitsuId = kitsuId ?: bangumiCrossIds?.kitsuId?.takeIf { it > 0 }
+
         var armJson: JSONObject? = null
         val isNonAnime = mediaType == MediaType.Movie || mediaType == MediaType.TvShow
         
-        if (kitsuId != null && kitsuId > 0) {
-            armJson = fetchArmJson("kitsu", kitsuId)
+        if (lookupKitsuId != null && lookupKitsuId > 0) {
+            armJson = fetchArmJson("kitsu", lookupKitsuId)
             if (armJson != null) {
-                Log.d(TAG, "Kitsu mapping prioritized: Successfully fetched ARM JSON for kitsu: $kitsuId -> $armJson")
+                Log.d(TAG, "Kitsu mapping prioritized: Successfully fetched ARM JSON for kitsu: $lookupKitsuId -> $armJson")
             }
         }
         
         if (armJson == null) {
             if (isNonAnime) {
-                armJson = fetchArmJson("themoviedb", tmdbId)
+                armJson = fetchArmJson("themoviedb", lookupTmdbId)
                 if (armJson != null) {
-                    Log.d(TAG, "Non-anime mapping prioritized: Successfully fetched ARM JSON for themoviedb: $tmdbId -> $armJson")
+                    Log.d(TAG, "Non-anime mapping prioritized: Successfully fetched ARM JSON for themoviedb: $lookupTmdbId -> $armJson")
                 } else {
-                    armJson = fetchArmJson("myanimelist", malId)
+                    armJson = fetchArmJson("myanimelist", lookupMalId)
                     if (armJson != null) {
-                        Log.d(TAG, "Successfully fetched ARM JSON for myanimelist: $malId -> $armJson")
+                        Log.d(TAG, "Successfully fetched ARM JSON for myanimelist: $lookupMalId -> $armJson")
                     } else {
-                        armJson = fetchArmJson("anilist", aniListId)
+                        armJson = fetchArmJson("anilist", lookupAniListId)
                         if (armJson != null) {
-                            Log.d(TAG, "Successfully fetched ARM JSON for anilist: $aniListId -> $armJson")
+                            Log.d(TAG, "Successfully fetched ARM JSON for anilist: $lookupAniListId -> $armJson")
                         } else {
-                            Log.w(TAG, "ARM lookup failed for all sources (tmdbId=$tmdbId, malId=$malId, aniListId=$aniListId)")
+                            Log.w(TAG, "ARM lookup failed for all sources (tmdbId=$lookupTmdbId, malId=$lookupMalId, aniListId=$lookupAniListId)")
                         }
                     }
                 }
             } else {
-                armJson = fetchArmJson("myanimelist", malId)
+                armJson = fetchArmJson("myanimelist", lookupMalId)
                 if (armJson != null) {
-                    Log.d(TAG, "Successfully fetched ARM JSON for myanimelist: $malId -> $armJson")
+                    Log.d(TAG, "Successfully fetched ARM JSON for myanimelist: $lookupMalId -> $armJson")
                 } else {
-                    armJson = fetchArmJson("anilist", aniListId)
+                    armJson = fetchArmJson("anilist", lookupAniListId)
                     if (armJson != null) {
-                        Log.d(TAG, "Successfully fetched ARM JSON for anilist: $aniListId -> $armJson")
+                        Log.d(TAG, "Successfully fetched ARM JSON for anilist: $lookupAniListId -> $armJson")
                     } else {
-                        armJson = fetchArmJson("themoviedb", tmdbId)
+                        armJson = fetchArmJson("themoviedb", lookupTmdbId)
                         if (armJson != null) {
-                            Log.d(TAG, "Successfully fetched ARM JSON for themoviedb: $tmdbId -> $armJson")
+                            Log.d(TAG, "Successfully fetched ARM JSON for themoviedb: $lookupTmdbId -> $armJson")
                         } else {
-                            Log.w(TAG, "ARM lookup failed for all sources (malId=$malId, aniListId=$aniListId, tmdbId=$tmdbId)")
+                            Log.w(TAG, "ARM lookup failed for all sources (malId=$lookupMalId, aniListId=$lookupAniListId, tmdbId=$lookupTmdbId)")
                         }
                     }
                 }
@@ -122,11 +148,11 @@ object KitsugiIdResolver {
         val wikidataFromArm = armJson?.optNullableString("wikidata")
 
         // Use provided tmdbId directly if ARM didn't find one
-        val finalTmdbId = tmdbFromArm ?: tmdbId ?: resolveTmdbId(malId, aniListId, kitsuId)
+        val finalTmdbId = tmdbFromArm ?: lookupTmdbId ?: resolveTmdbId(lookupMalId, lookupAniListId, lookupKitsuId)
 
         // If ARM didn't give us an IMDb ID, fall back through TMDB
-        var finalImdb = if (!imdbFromArm.isNullOrBlank()) imdbFromArm else null
-        var finalTvdb = tvdbFromArm
+        var finalImdb = if (!imdbFromArm.isNullOrBlank()) imdbFromArm else bangumiCrossIds?.imdbId
+        var finalTvdb = tvdbFromArm ?: bangumiCrossIds?.tvdbId
         var finalWikidata = wikidataFromArm
 
         if (finalTmdbId != null && finalTmdbId > 0) {
@@ -147,13 +173,13 @@ object KitsugiIdResolver {
             }
         }
 
-        val finalAniList = aniListFromArm ?: aniListId
-        val finalMal = malFromArm ?: malId
+        val finalAniList = aniListFromArm ?: lookupAniListId
+        val finalMal = malFromArm ?: lookupMalId
 
-        Log.d(TAG, "resolveIds complete → imdb=$finalImdb kitsu=$kitsuFromArm tmdb=$finalTmdbId anilist=$finalAniList mal=$finalMal tvdb=$finalTvdb wikidata=$finalWikidata")
+        Log.d(TAG, "resolveIds complete → imdb=$finalImdb kitsu=${kitsuFromArm ?: lookupKitsuId} tmdb=$finalTmdbId anilist=$finalAniList mal=$finalMal tvdb=$finalTvdb wikidata=$finalWikidata")
         ResolvedIds(
             imdbId = finalImdb,
-            kitsuId = kitsuFromArm ?: kitsuId,
+            kitsuId = kitsuFromArm ?: lookupKitsuId,
             tmdbId = finalTmdbId,
             aniListId = finalAniList,
             malId = finalMal,

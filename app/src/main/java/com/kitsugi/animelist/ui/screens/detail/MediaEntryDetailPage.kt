@@ -95,6 +95,7 @@ import com.kitsugi.animelist.data.remote.KitsugiStaff
 import com.kitsugi.animelist.data.remote.KitsugiStreamingEpisode
 import com.kitsugi.animelist.data.remote.KitsugiStats
 import com.kitsugi.animelist.model.MediaEntry
+import com.kitsugi.animelist.data.remote.toStreamMediaIds
 import com.kitsugi.animelist.model.MediaType
 import com.kitsugi.animelist.model.WatchStatus
 import androidx.compose.foundation.gestures.LocalBringIntoViewSpec
@@ -633,17 +634,20 @@ fun MediaEntryDetailPage(
         }
 
         activeEpisodeForOptions?.let { ep ->
-            val entryMalId = if (displayEntry.source.lowercase() == "anilist") displayEntry.malId else displayEntry.id
-            val entryAniListId = if (displayEntry.source.lowercase() == "anilist") displayEntry.id else null
+            val streamIds = displayEntry.toStreamMediaIds(
+                resolvedRealMalId = detailState?.realMalId,
+                resolvedTmdbId = displayEntry.tmdbId ?: detailState?.tmdbId ?: resolvedTmdbId
+            )
             KitsugiEpisodeOptionsDialog(
                 animeTitle = displayEntry.title,
                 episodeNumber = ep.episodeNumber,
                 episodeTitle = ep.title,
                 originalUrl = ep.url,
                 siteName = ep.site,
-                malId = entryMalId,
-                aniListId = entryAniListId,
-                tmdbId = displayEntry.tmdbId ?: detailState?.tmdbId ?: resolvedTmdbId,
+                malId = streamIds.malId,
+                aniListId = streamIds.aniListId,
+                tmdbId = streamIds.tmdbId,
+                bangumiId = streamIds.bangumiId,
                 posterUrl = displayEntry.imageUrl,
                 titleEnglish = detailState?.titleEnglish,
                 titleRomaji = detailState?.titleRomaji,
@@ -651,6 +655,7 @@ fun MediaEntryDetailPage(
                 synonyms = detailState?.synonyms.orEmpty(),
                 startYear = displayEntry.year,
                 isMovie = displayEntry.type == com.kitsugi.animelist.model.MediaType.Movie,
+                mediaType = displayEntry.type,
                 seasonNumber = ep.seasonNumber ?: targetSeason,
                 onDismiss = { activeEpisodeForOptions = null }
             )

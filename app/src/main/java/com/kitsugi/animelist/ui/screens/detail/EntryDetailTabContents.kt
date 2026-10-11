@@ -58,6 +58,7 @@ import com.kitsugi.animelist.data.remote.KitsugiStreamingEpisode
 import com.kitsugi.animelist.data.remote.KitsugiTag
 import com.kitsugi.animelist.ui.screens.search.DetailSeasonMetadata
 import com.kitsugi.animelist.model.MediaEntry
+import com.kitsugi.animelist.data.remote.toStreamMediaIds
 import com.kitsugi.animelist.model.MediaType
 import com.kitsugi.animelist.ui.screens.stream.KitsugiStreamActivity
 import com.kitsugi.animelist.ui.theme.KitsugiColors
@@ -626,17 +627,13 @@ internal fun EntryDetailEpisodesTab(
     val uriHandler = LocalUriHandler.current
     val downloads by com.kitsugi.animelist.data.local.AnimeDownloadManager.downloads.collectAsState()
 
-    // Decode IDs correctly before launching stream
-    val streamMalId = if (entry.source.lowercase() == "anilist") {
-        detailState?.realMalId ?: entry.malId
-    } else {
-        entry.id
-    }
-    val rawAniListId = if (entry.source.lowercase() == "anilist") entry.id else null
-    val streamAniListId = rawAniListId?.let {
-        if (it >= 100_000_000) it - 100_000_000 else it
-    }
-    val currentAnimeId = if (streamAniListId != null) streamAniListId.toString() else streamMalId?.toString() ?: ""
+    // `MediaEntry.id` is a local Room row ID. Resolve only source-specific external IDs.
+    val streamIds = entry.toStreamMediaIds(
+        resolvedRealMalId = detailState?.realMalId,
+        resolvedTmdbId = entry.tmdbId ?: detailState?.tmdbId
+    )
+    val currentAnimeId = (streamIds.aniListId ?: streamIds.malId ?: streamIds.tmdbId ?: streamIds.bangumiId)
+        ?.toString().orEmpty()
 
     EpisodesTabContent(
         state = state,
@@ -667,9 +664,11 @@ internal fun EntryDetailEpisodesTab(
                 } else {
                     KitsugiStreamActivity.start(
                         context = context,
-                        malId = streamMalId,
-                        aniListId = streamAniListId,
-                        tmdbId = entry.tmdbId ?: detailState?.tmdbId,
+                        malId = streamIds.malId,
+                        aniListId = streamIds.aniListId,
+                        tmdbId = streamIds.tmdbId,
+                        bangumiId = streamIds.bangumiId,
+                        mediaType = entry.type,
                         episode = epNum,
                         season = targetSeason ?: 1,
                         isMovie = entry.type == com.kitsugi.animelist.model.MediaType.Movie,
@@ -691,9 +690,11 @@ internal fun EntryDetailEpisodesTab(
             if (epNum != null && epNum > 0) {
                 KitsugiStreamActivity.start(
                     context = context,
-                    malId = streamMalId,
-                    aniListId = streamAniListId,
-                    tmdbId = entry.tmdbId ?: detailState?.tmdbId,
+                    malId = streamIds.malId,
+                    aniListId = streamIds.aniListId,
+                    tmdbId = streamIds.tmdbId,
+                    bangumiId = streamIds.bangumiId,
+                    mediaType = entry.type,
                     episode = epNum,
                     season = targetSeason ?: 1,
                     isMovie = entry.type == com.kitsugi.animelist.model.MediaType.Movie,
