@@ -455,6 +455,8 @@ private fun SettingsMainPage(
     val context = androidx.compose.ui.platform.LocalContext.current
     val accentColor = LocalKitsugiAccent.current
     val scrollState = rememberLazyListState()
+    var searchQuery by rememberSaveable { mutableStateOf("") }
+    val searchEntries = rememberSettingsSearchEntries(params = params, onNavigate = onNavigate)
 
     val selectedTheme = themeOptions.firstOrNull { it.id == params.general.selectedThemeId }
         ?: themeOptions.first()
@@ -479,6 +481,19 @@ private fun SettingsMainPage(
             )
         )
 
+        // Üstte arama: tüm ayar sayfalarını ve bölümlerini tek yerden bulun.
+        SettingsSearchField(
+            query = searchQuery,
+            onQueryChange = { searchQuery = it }
+        )
+
+        if (searchQuery.isNotBlank()) {
+            SettingsSearchResults(
+                query = searchQuery,
+                entries = searchEntries,
+                modifier = Modifier.navigationBarsPadding()
+            )
+        } else {
         LazyColumn(
             state = scrollState,
             modifier = Modifier
@@ -647,6 +662,7 @@ private fun SettingsMainPage(
                 }
                 Spacer(Modifier.height(80.dp))
             }
+        }
         }
     }
 }

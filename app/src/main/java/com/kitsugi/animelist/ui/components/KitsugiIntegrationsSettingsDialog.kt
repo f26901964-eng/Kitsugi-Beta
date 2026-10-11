@@ -315,8 +315,8 @@ fun KitsugiIntegrationsSettingsDialog(
                 }
             }
 
-            // Footer
-            Row(
+            // Footer — gömülü modda (ayarlar alt sayfası) "Tamam" şeridi gösterilmez.
+            if (!embeddedMode) Row(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 16.dp, vertical = 8.dp),

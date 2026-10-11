@@ -1,4 +1,4 @@
-﻿package com.kitsugi.animelist.ui.components
+package com.kitsugi.animelist.ui.components
 
 import androidx.compose.ui.res.stringResource
 
@@ -159,8 +159,8 @@ fun KitsugiSystemSettingsDialog(
             }
         }
 
-        // Footer
-        Row(
+        // Footer — gömülü modda (ayarlar alt sayfası) "Tamam" şeridi gösterilmez.
+        if (!embeddedMode) Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 16.dp, vertical = 8.dp),
