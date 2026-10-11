@@ -2,25 +2,63 @@
 
 ## 🇹🇷 Türkçe (v2.4.248)
 
-### 🖼️ 1. Simkl Vitrin (Hero) Logoları Artık Görünüyor
+### 🖼️ 1. Simkl Vitrin (Hero) Logoları ve Kimlik Ayrıştırması
 - **Kök neden:** Simkl liste/şerit kayıtları anime için yalnızca **romaji başlık** taşır (`Sousou no Frieren`, `Re:Zero kara Hajimeru Isekai Seikatsu`); TMDB kayıtları ise İngilizce/Japonca adlandırılır. `KitsugiEpisodeRatingsRepository.getLogoUrl`, `expectedTitles` ile TMDB kaydını başlık üzerinden doğruluyor ve iki türden (film + dizi) hiçbiri eşleşmezse logoyu vermiyordu. Romaji başlıklar TMDB başlıklarıyla eşleşmediği için Simkl öğeleri bu doğrulamaya takılıp vitrinde düz metin başlık gösteriyordu (logo ayarı açık olsa bile).
 - **Düzeltme (vitrin):** `KitsugiHeroSection.fetchHeroLogo` Simkl dalında Simkl'ın kendi çözdüğü kimlikler (`ids.tmdb` / `ids.mal`) otorite kabul edilir ve başlık doğrulaması uygulanmaz — `KitsugiHeroArtworkResolver`'daki `canonicalSource == "tmdb"` kuralıyla aynı yaklaşım.
 - **Çapraz kimlik yedeği:** Simkl liste yanıtı kimlik taşımıyorsa vitrin artık Simkl `extended=full` kaydından MAL/TMDB/AniList/Kitsu kimliklerini çözer (Bangumi `resolveCrossIds` deseninin Simkl karşılığı). Çözülen kaydın kendi başlık alanları öğe başlıklarıyla kesişmiyorsa logo istenmez (uydurma/yanlış kimlik koruması).
 - **Kimlik okuma düzeltmesi (`SimklApiClient`):** Keşfet raflarını besleyen `getBestMedia` yanıtlarında Simkl kimliği `ids.simkl_id` veya `ids.simkl`, TMDB kimliği `ids.tmdb` veya `ids.tmdb_id`, MAL kimliği sayı veya metin (`"mal": "52991"`) olabilir. Ayrıştırma tek bir test edilebilir işleve taşındı (`parseBestMediaArray`) ve tüm varyantlar okunuyor.
 - **Detay sayfaları:** Aynı yanlış negatif Simkl detay sayfası logo aramasını da engelliyordu; `ApiResultDetailViewModel` ve `MediaEntryDetailViewModel` Simkl dalı vitrindeki kuralla hizalandı. Diğer kaynakların (MAL/AniList/Kitsu/Bangumi/TMDB) davranışı değişmedi.
-- **Testler:** `SimklExploreParsingTest` — `simkl_id`/`simkl`, `tmdb`/`tmdb_id`, metin `mal`, CJK başlığın Latin alternatife çevrilmesi, anime film "Film" ipucu, poster/fanart CDN adresleri ve kimliksiz kayıtta geçici kimliğin MAL/TMDB sanılmaması.
+- **Testler:** `SimklExploreParsingTest` (6/6 geçti) — `simkl_id`/`simkl`, `tmdb`/`tmdb_id`, metin `mal`, CJK başlığın Latin alternatife çevrilmesi, anime film "Film" ipucu, poster/fanart CDN adresleri ve kimliksiz kayıtta geçici kimliğin MAL/TMDB sanılmaması.
+
+### 🔍 2. Ayarlar Ekranı Canlı Arama ve Hızlı Gezinme (`SettingsSearch.kt`)
+- **Akıllı Arama:** Ayarlar ana sayfasına gerçek zamanlı arama alanı eklendi (`SettingsSearchField`). Türkçe karakterler (`ı`/`i`, `ğ`/`g`, `ş`/`s`) ve aksanlar normalize edilir.
+- **Derin Bağlantı:** Arama sonucu yalnızca ilgili ayar sayfasına değil, doğrudan hedef alt sekmeye (ör. *DoH / DNS*, *Manga Okuyucu*, *Altyazı Ayarları*) yönlendirir.
+- **Mantıksal Kategoriler:** Ayarlar ekranı Hesap, Uygulama, Kaynaklar & Entegrasyonlar, Veri & Depolama ve Destek & Tanılama bölümlerine ayrıldı.
+
+### 🎨 3. Ortak Sekme Kapsülleri (`KitsugiSettingsSegmentedTabs`) ve Alt Sayfa Uyumlaması
+- Görünüm, Eklentiler, Entegrasyonlar ve Sistem sekmeleri modern, ikonlu ve vurgulu `KitsugiSettingsSegmentedTabs` bileşeninde birleştirildi.
+- Eklenti sekme adları İngilizce ve Türkçe kaynaklardan alınacak şekilde yerelleştirildi.
+- Alt sayfalarda sistem gezinme çubuğu (`navigationBarsPadding`) güvenli alanı eklendi; oynatıcı alt sayfalarında başlık seçili ekrana göre dinamikleşti.
+- Depolama ekranındaki iç içe geçmiş kart yapısı sadeleştirildi; İndirilenler (Video, Görsel, Altyazı) yönetimi güvenle korundu.
+
+### 📋 4. Platform Hata Kodları Kataloğu (Ayarlar > Geliştirici & Tanılama)
+- Ayarlar'daki "Platform Hata Kodları" ekranı (`PlatformErrorCatalogScreen`) artık AniList, MyAnimeList, Kitsu, Shikimori, Bangumi, TMDB, Simkl, Manga/CloudStream ve ortak (`KTS-COM`) hata kodlarının tamamını kapsıyor; her platform için filtre çipi ve arama desteği sunuyor.
+
+### 🌐 5. Anında Dil Değişimi ve Kitsugi Hesabı İyileştirmeleri
+- `AndroidManifest.xml`'den `locale|layoutDirection` configChanges girdisi kaldırıldı; dil değiştiğinde Activity yeniden kurularak arayüz anında yeni dile döner. API 33+ için güvenlik recreate tetikleyicisi eklendi.
+- Kitsugi hesabı ekranına 3 bağımsız aç/kapa anahtarı eklendi: "Şifreli hesap yedeği", "Arama geçmişi eşitleme", "Bildirim arşivi eşitleme".
+- Kasa açılamazsa şifre bellekte tutulur, tek tıkla tekrar denenebilir.
 
 ---
 
 ## 🇬🇧 English (v2.4.248)
 
-### 🖼️ 1. Simkl Hero Logos Now Render
+### 🖼️ 1. Simkl Hero Logos and Identity Parsing
 - **Root cause:** Simkl list/shelf records carry **romaji-only** anime titles (`Sousou no Frieren`, `Re:Zero kara Hajimeru Isekai Seikatsu`) while TMDB records are named in English/Japanese. `KitsugiEpisodeRatingsRepository.getLogoUrl` verifies the TMDB record through `expectedTitles` and refuses to return a logo when neither the movie nor the TV record matches. Romaji titles never matched, so Simkl entries always fell back to plain text titles in the hero (even with the logo setting enabled).
 - **Fix (hero):** In the Simkl branch of `KitsugiHeroSection.fetchHeroLogo`, identities resolved by Simkl itself (`ids.tmdb` / `ids.mal`) are treated as authoritative and skip the title verification — the same approach as the existing `canonicalSource == "tmdb"` rule in `KitsugiHeroArtworkResolver`.
-- **Cross-ID fallback:** When a Simkl shelf record carries no IDs, the hero resolves MAL/TMDB/AniList/Kitsu identities from the Simkl `extended=full` record (the Simkl counterpart of Bangumi's `resolveCrossIds`). A synthetic/wrong-ID guard rejects the record unless its own title fields intersect the item titles.
+- **Cross-ID fallback:** When a Simkl shelf record carries no IDs, the hero resolves MAL/TMDB/AniList/Kitsu identities from the Simkl `extended=full` record. A synthetic/wrong-ID guard rejects the record unless its own title fields intersect the item titles.
 - **ID parsing fix (`SimklApiClient`):** In `getBestMedia` responses the Simkl ID may be `ids.simkl_id` or `ids.simkl`, the TMDB ID `ids.tmdb` or `ids.tmdb_id`, and the MAL ID a number or a string (`"mal": "52991"`). Parsing now lives in one testable function (`parseBestMediaArray`) that reads every variant.
 - **Detail pages:** The same false negative also blocked the Simkl detail-page title logo; the Simkl branch of `ApiResultDetailViewModel` and `MediaEntryDetailViewModel` now follows the hero rule. Every other source (MAL/AniList/Kitsu/Bangumi/TMDB) keeps its current behaviour.
-- **Tests:** `SimklExploreParsingTest` covers `simkl_id`/`simkl`, `tmdb`/`tmdb_id`, string `mal`, CJK-to-Latin title resolution, the anime-movie "Film" hint, Simkl CDN poster/fanart URLs, and that placeholder IDs never become MAL/TMDB identities.
+- **Tests:** `SimklExploreParsingTest` (6/6 passing) covers `simkl_id`/`simkl`, `tmdb`/`tmdb_id`, string `mal`, CJK-to-Latin title resolution, anime movie "Film" hint, Simkl CDN poster/fanart URLs, and placeholder ID safety.
+
+### 🔍 2. Real-Time Settings Search and Deep-Linking (`SettingsSearch.kt`)
+- **Smart Search:** Live search bar added to Settings (`SettingsSearchField`) with accent- and case-insensitive normalization across Turkish and English.
+- **Deep Navigation:** Results navigate directly to target tabs or subpages (e.g. *DoH / DNS*, *Manga Reader*, *Subtitle Settings*).
+- **Logical Organization:** Settings categorized cleanly into Account, App, Sources & Integrations, Data & Storage, and Support & Diagnostics.
+
+### 🎨 3. Unified Segmented Tabs (`KitsugiSettingsSegmentedTabs`) & Subpage Polish
+- Preferences, Addons, Integrations, and System tabs unified under the modern, icon-accented `KitsugiSettingsSegmentedTabs` component.
+- Addon tab labels localized in English and Turkish.
+- Subpages respect navigation bar insets (`navigationBarsPadding`), player subscreen headers dynamically update, and redundant embedded "OK" footers removed.
+- Storage card hierarchy simplified while preserving Downloads management.
+
+### 📋 4. Complete Platform Error Codes Catalog
+- The "Platform Error Codes" screen (`PlatformErrorCatalogScreen`) catalogs AniList, MyAnimeList, Kitsu, Shikimori, Bangumi, TMDB, Simkl, Manga/CloudStream, and common (`KTS-COM`) error codes with filter chips and search in TR/EN.
+
+### 🌐 5. Instant Language Switching & Account UX
+- Removed `locale|layoutDirection` from `AndroidManifest.xml` so the activity immediately recreates upon language change. Safety recreate watchdog added for API 33+.
+- Kitsugi account screen adds 3 local toggle switches for Encrypted backup, Search history sync, and Notification archive sync.
+- In-memory vault password retry and locale-agnostic verification tracking.
 
 ---
 
