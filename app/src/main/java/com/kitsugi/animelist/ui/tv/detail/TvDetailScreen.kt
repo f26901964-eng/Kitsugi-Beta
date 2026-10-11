@@ -82,7 +82,7 @@ import com.kitsugi.animelist.ui.utils.requestFocusAfterFrames
 import com.kitsugi.animelist.ui.utils.tvClickable
 import com.kitsugi.animelist.utils.PreferenceHelpers.getDisplayTitle
 import com.kitsugi.animelist.ui.tv.focus.TvFocusRestoration.safeRequestFocus
-import com.kitsugi.animelist.ui.tv.components.TvLoadingScreen
+import com.kitsugi.animelist.ui.components.KitsugiCinematicLoadingScreen
 import com.kitsugi.animelist.utils.toTurkishStaffRole
 import com.kitsugi.animelist.utils.toTurkishRelationType
 import com.kitsugi.animelist.utils.toTurkishCharacterRole
@@ -299,7 +299,14 @@ fun TvDetailScreen(
         }
 
         if (detailLoading) {
-            TvLoadingScreen()
+            KitsugiCinematicLoadingScreen(
+                title = displayTitle,
+                imageUrl = displayResult.imageUrl,
+                logoUrl = logoUrl,
+                isAdult = displayResult.isAdult,
+                source = displayResult.source,
+                onBackClick = onBackClick
+            )
         } else {
             val mainLazyListState = rememberLazyListState()
 

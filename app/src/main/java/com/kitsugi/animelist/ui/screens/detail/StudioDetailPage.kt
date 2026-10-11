@@ -88,6 +88,7 @@ import com.kitsugi.animelist.ui.components.KitsugiEmptyState
 import com.kitsugi.animelist.ui.components.KitsugiExploreMediaCard
 import com.kitsugi.animelist.ui.components.KitsugiImageGalleryDialog
 import com.kitsugi.animelist.ui.components.KitsugiPageEnter
+import com.kitsugi.animelist.ui.components.KitsugiCinematicLoadingScreen
 import com.kitsugi.animelist.ui.components.KitsugiRankingMediaCard
 import com.kitsugi.animelist.ui.theme.LocalIsTv
 import com.kitsugi.animelist.ui.theme.KitsugiColors
@@ -147,7 +148,17 @@ fun StudioDetailPage(
     ) {
         when (val currentState = state) {
             is StudioDetailState.Loading -> {
-                StudioDetailLoadingSkeleton(onBackClick)
+                KitsugiCinematicLoadingScreen(
+                    title = name.orEmpty(),
+                    imageUrl = imageUrl,
+                    source = source,
+                    isLogoArtwork = source.trim().equals("tmdb", ignoreCase = true) ||
+                        source.trim().equals("themoviedb", ignoreCase = true) ||
+                        source.trim().equals("tmdb_network", ignoreCase = true) ||
+                        source.trim().equals("tmdb-network", ignoreCase = true) ||
+                        source.trim().equals("tmdbnetwork", ignoreCase = true),
+                    onBackClick = onBackClick
+                )
             }
             is StudioDetailState.Error -> {
                 Box(modifier = Modifier.fillMaxSize()) {

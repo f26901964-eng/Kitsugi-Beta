@@ -3,12 +3,16 @@ package com.kitsugi.animelist.ui.components
 import com.kitsugi.animelist.ui.theme.gradient.Icon
 import com.kitsugi.animelist.ui.theme.gradient.Text
 
-import androidx.compose.animation.core.*
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import com.kitsugi.animelist.ui.theme.gradient.background
 import com.kitsugi.animelist.ui.theme.gradient.border
 import com.kitsugi.animelist.ui.utils.tvClickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
@@ -20,7 +24,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
@@ -33,7 +36,6 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil3.compose.AsyncImage
-import com.kitsugi.animelist.ui.components.KitsugiNsfwImage
 import com.kitsugi.animelist.ui.theme.LocalKitsugiAccent
 import com.kitsugi.animelist.ui.theme.KitsugiColors
 import androidx.compose.ui.res.stringResource
@@ -48,11 +50,13 @@ fun KitsugiCinematicLoadingScreen(
     logoUrl: String? = null,
     isAdult: Boolean = false,
     blurAdultMedia: Boolean = false,
-    source: String? = null
+    source: String? = null,
+    /** Company marks (for example TMDB studio logos) should be fitted instead of cropped. */
+    isLogoArtwork: Boolean = false
 ) {
     val accentColor = LocalKitsugiAccent.current
 
-    // Subtle scale-up animation for the center cover image to make it feel alive
+    // Keep the existing slow pulse, but size the foreground content for short landscape screens.
     val infiniteTransition = rememberInfiniteTransition(label = "cinematic_loading")
     val scalePulse by infiniteTransition.animateFloat(
         initialValue = 0.98f,
@@ -64,36 +68,50 @@ fun KitsugiCinematicLoadingScreen(
         label = "scale_pulse"
     )
 
-    Box(
+    BoxWithConstraints(
         modifier = modifier
             .fillMaxSize()
             .background(KitsugiColors.Background)
     ) {
-        // 1. Fullscreen blurred background image with subtle pulse
+        val compactLayout = maxHeight < 560.dp
+        val artworkWidth = when {
+            isLogoArtwork -> if (compactLayout) 108.dp else 132.dp
+            compactLayout -> 94.dp
+            else -> 130.dp
+        }
+        val artworkHeight = when {
+            isLogoArtwork -> if (compactLayout) 68.dp else 92.dp
+            compactLayout -> 132.dp
+            else -> 190.dp
+        }
+        val artworkGap = if (compactLayout) 14.dp else 24.dp
+        val titleGap = if (compactLayout) 14.dp else 20.dp
+        val logoHeight = if (compactLayout) 50.dp else 65.dp
+        val loaderSize = if (compactLayout) 44.dp else 52.dp
+        val loaderGap = if (compactLayout) 12.dp else 18.dp
+
+        // Fullscreen image backdrop: use the actual artwork passed from the clicked detail item.
         if (!imageUrl.isNullOrBlank()) {
             KitsugiNsfwImage(
                 model = imageUrl,
-                contentDescription = "",
+                contentDescription = null,
                 isAdult = isAdult,
                 modifier = Modifier
                     .fillMaxSize()
                     .graphicsLayer {
                         scaleX = scalePulse * 1.05f
                         scaleY = scalePulse * 1.05f
-                        alpha = 0.35f
+                        alpha = if (isLogoArtwork) 0.24f else 0.35f
                     },
-                // ÇÖKME ÖNLEMİ (SIGSEGV / RenderThread / libhwui.so):
-                // Burada eskiden `.blur(16.dp)` de vardı; KitsugiNsfwImage zaten
-                // kendi içinde bulanıklık uyguluyor. İkinci bir RenderEffect katmanı
-                // üst üste binen iki GPU layer açıyordu — MIUI libhwui'de RenderThread
-                // bu katmanları yok ederken null pointer (fault_addr=0x20) ile patlıyor.
+                // Avoid adding another unconditional RenderEffect blur layer here. Adult-content
+                // blur still follows the app setting inside KitsugiNsfwImage.
                 contentScale = ContentScale.Crop,
                 blurRadius = 16.dp,
                 blurAdultMedia = blurAdultMedia
             )
         }
 
-        // 2. High-quality dark overlay gradient
+        // Dark gradient keeps source, artwork and title readable over any provider image.
         Box(
             modifier = Modifier
                 .fillMaxSize()
@@ -108,7 +126,7 @@ fun KitsugiCinematicLoadingScreen(
                 )
         )
 
-        // 3. Top-left back button
+        // Back remains available while an API call is in flight, including on TV/D-pad devices.
         Row(
             modifier = Modifier
                 .statusBarsPadding()
@@ -134,7 +152,6 @@ fun KitsugiCinematicLoadingScreen(
             )
         }
 
-        // 4. Center Content: Poster + Title + Fluid Circular Loader
         Column(
             modifier = Modifier
                 .align(Alignment.Center)
@@ -142,7 +159,6 @@ fun KitsugiCinematicLoadingScreen(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
-            // Poster thumbnail card
             if (!imageUrl.isNullOrBlank()) {
                 Box(
                     modifier = Modifier
@@ -154,30 +170,28 @@ fun KitsugiCinematicLoadingScreen(
                         .clip(RoundedCornerShape(20.dp))
                         .border(1.dp, KitsugiColors.Border.copy(alpha = 0.4f), RoundedCornerShape(20.dp))
                         .background(KitsugiColors.Surface)
-                        .size(width = 130.dp, height = 190.dp)
+                        .size(width = artworkWidth, height = artworkHeight)
                 ) {
                     KitsugiNsfwImage(
                         model = imageUrl,
                         contentDescription = title,
                         isAdult = isAdult,
                         modifier = Modifier.fillMaxSize(),
-                        contentScale = ContentScale.Crop,
+                        contentScale = if (isLogoArtwork) ContentScale.Fit else ContentScale.Crop,
                         blurAdultMedia = blurAdultMedia
                     )
                 }
-                Spacer(modifier = Modifier.height(24.dp))
+                Spacer(modifier = Modifier.height(artworkGap))
             }
 
-            // Kaynak adı çipi (logo + isim) — vitrin ve detay sayfalarıyla aynı görsel dil
+            // Provider name + original logo (Bangumi, AniList, TMDB, Jikan/MAL, etc.).
             if (!source.isNullOrBlank()) {
                 KitsugiSourceNamePill(source = source)
-                Spacer(modifier = Modifier.height(12.dp))
+                Spacer(modifier = Modifier.height(if (compactLayout) 8.dp else 12.dp))
             }
 
-            // Title or Logo
             var logoFailed by remember(logoUrl) { mutableStateOf(false) }
             val showLogo = !logoUrl.isNullOrBlank() && !logoFailed
-
             if (showLogo) {
                 AsyncImage(
                     model = logoUrl,
@@ -185,10 +199,10 @@ fun KitsugiCinematicLoadingScreen(
                     contentScale = ContentScale.Fit,
                     modifier = Modifier
                         .fillMaxWidth(0.65f)
-                        .height(65.dp),
+                        .height(logoHeight),
                     onError = { logoFailed = true }
                 )
-                Spacer(modifier = Modifier.height(20.dp))
+                Spacer(modifier = Modifier.height(titleGap))
             } else if (title.isNotBlank()) {
                 Text(
                     text = title,
@@ -200,20 +214,15 @@ fun KitsugiCinematicLoadingScreen(
                     overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.fillMaxWidth(0.85f)
                 )
-                Spacer(modifier = Modifier.height(20.dp))
+                Spacer(modifier = Modifier.height(titleGap))
             }
 
-            // Sleek CircularProgressIndicator + Text
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Center
             ) {
-                KitsugiPlasmaLoader(
-                    size = 52.dp
-                )
-
-                Spacer(modifier = Modifier.height(18.dp))
-
+                KitsugiPlasmaLoader(size = loaderSize)
+                Spacer(modifier = Modifier.height(loaderGap))
                 Text(
                     text = stringResource(R.string.yukleniyor),
                     color = KitsugiColors.TextSecondary,

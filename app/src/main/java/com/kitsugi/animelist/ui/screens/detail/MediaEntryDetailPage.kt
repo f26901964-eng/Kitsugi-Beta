@@ -103,6 +103,7 @@ import androidx.compose.runtime.CompositionLocalProvider
 import com.kitsugi.animelist.ui.utils.KitsugiScrollDefaults
 import com.kitsugi.animelist.ui.utils.dpadVerticalFastScroll
 import com.kitsugi.animelist.ui.components.KitsugiPageEnter
+import com.kitsugi.animelist.ui.components.KitsugiCinematicLoadingScreen
 import com.kitsugi.animelist.ui.components.KitsugiEpisodeOptionsDialog
 import com.kitsugi.animelist.ui.components.KitsugiImageGalleryDialog
 import com.kitsugi.animelist.ui.components.KitsugiStreamSelectorBottomSheet
@@ -325,7 +326,15 @@ fun MediaEntryDetailPage(
             listState = listState,
             tabListState = tabListState,
             loadingScreen = {
-                DetailPageLoadingSkeleton(onBackClick = onBackClick, person = false)
+                KitsugiCinematicLoadingScreen(
+                    title = displayEntry.title,
+                    imageUrl = displayEntry.imageUrl,
+                    logoUrl = logoUrl,
+                    isAdult = displayEntry.isAdult,
+                    blurAdultMedia = blurAdultMedia,
+                    source = displayEntry.source,
+                    onBackClick = onBackClick
+                )
             },
             errorScreen = {
                 DataUnavailableScreen(

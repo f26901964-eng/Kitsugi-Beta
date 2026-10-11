@@ -32,7 +32,7 @@ object KitsugiPlatformLogos {
     fun resFor(platformId: String?): Int? = when (platformId?.trim()?.lowercase()) {
         "anilist", "al" -> R.drawable.ic_logo_anilist
         "mal", "myanimelist", "jikan", "jikan (mal)", "mal (jikan)" -> R.drawable.ic_logo_mal
-        "tmdb", "themoviedb" -> R.drawable.ic_logo_tmdb
+        "tmdb", "themoviedb", "tmdb_network", "tmdb-network", "tmdbnetwork" -> R.drawable.ic_logo_tmdb
         "simkl" -> R.drawable.ic_logo_simkl
         "kitsu" -> R.drawable.ic_logo_kitsu
         "shikimori", "shiki" -> R.drawable.ic_logo_shikimori

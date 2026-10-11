@@ -1306,7 +1306,7 @@ fun String.toFriendlySourceLabel(): String {
     return when (this.lowercase().trim()) {
         "jikan", "mal", "myanimelist", "jikan (mal)", "mal (jikan)" -> "MyAnimeList"
         "anilist", "al" -> "AniList"
-        "tmdb", "themoviedb" -> "TMDB"
+        "tmdb", "themoviedb", "tmdb_network", "tmdb-network", "tmdbnetwork" -> "TMDB"
         "kitsu"        -> "Kitsu"
         "shikimori", "shiki" -> "Shikimori"
         "simkl"        -> "Simkl"
