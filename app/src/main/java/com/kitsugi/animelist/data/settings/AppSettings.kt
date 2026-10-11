@@ -134,6 +134,12 @@ data class AppSettings(
     val defaultTab: String = "LAST_USED",
     val lastUsedTab: String = "Explore",
     val appLanguage: String = "system",
+    // ─── Kitsugi Hesabı: yedek/eşitleme anahtarları ─────────────────────────
+    // Girişte hepsi OTOMATİK açıktır; kullanıcı elle kapatabilir (cihaz yereldir,
+    // cloudKeys içinde olmadıkları için buluta gönderilmezler).
+    val accountBackupEnabled: Boolean = true,
+    val accountSearchSyncEnabled: Boolean = true,
+    val accountNotificationSyncEnabled: Boolean = true,
     val fixedNavBar: Boolean = false,
     val aspectMode: String = "ORIGINAL",
     val gainBoostDb: Float = 0f,

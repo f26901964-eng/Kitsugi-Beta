@@ -1,5 +1,8 @@
 package com.kitsugi.animelist.ui.screens.settings
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -11,6 +14,8 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -24,32 +29,47 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.kitsugi.animelist.R
 import com.kitsugi.animelist.data.diagnostics.PlatformErrorCode
 import com.kitsugi.animelist.data.diagnostics.PlatformErrorPlatform
+import com.kitsugi.animelist.data.platform.ListPlatform
+import com.kitsugi.animelist.data.platform.PlatformErrorCode as ListErrorCode
+import com.kitsugi.animelist.data.platform.PlatformErrorSeverity as ListSeverity
 import com.kitsugi.animelist.ui.components.errors.PlatformErrorExplanationBlock
 import com.kitsugi.animelist.ui.theme.KitsugiColors
 
-/** Searchable, localized reference list for stable Manga Source and CloudStream error codes. */
+/**
+ * Searchable, localized reference list for ALL stable diagnostic codes:
+ * Manga Source + CloudStream plugin codes AND the list-source (AniList,
+ * MyAnimeList, Kitsu, Shikimori, Bangumi, TMDB, Simkl + common) codes that the
+ * Cross-Sync "Error Code Reference" dialog shows. Everything resolves from the
+ * locale resource files (values/ = TR, values-en/ = EN).
+ */
 @Composable
 fun PlatformErrorCatalogScreen() {
     val context = LocalContext.current
     var query by rememberSaveable { mutableStateOf("") }
-    var selectedPlatform by rememberSaveable { mutableStateOf("ALL") }
+    var selectedFilter by rememberSaveable { mutableStateOf("ALL") }
 
-    val platform = when (selectedPlatform) {
+    val diagPlatform = when (selectedFilter) {
         "MANGA" -> PlatformErrorPlatform.Manga
         "CLOUDSTREAM" -> PlatformErrorPlatform.CloudStream
         else -> null
     }
-    val entries = remember(query, selectedPlatform, context) {
-        PlatformErrorCode.all(platform)
+    val listPlatform = ListPlatform.entries.firstOrNull { it.name == selectedFilter }
+    val normalizedQuery = query.trim().lowercase()
+
+    val diagEntries = remember(query, selectedFilter, context) {
+        PlatformErrorCode.all(diagPlatform)
             .filter { definition ->
-                if (query.isBlank()) return@filter true
+                if (normalizedQuery.isBlank()) return@filter true
                 val searchable = listOf(
                     definition.id,
                     definition.category,
@@ -57,15 +77,32 @@ fun PlatformErrorCatalogScreen() {
                     context.getString(definition.causeRes),
                     context.getString(definition.actionRes),
                 ).joinToString(" ").lowercase()
-                searchable.contains(query.trim().lowercase())
+                searchable.contains(normalizedQuery)
             }
             .sortedBy { it.id }
+    }
+
+    val listEntries = remember(query, selectedFilter, context) {
+        ListErrorCode.entries
+            .filter { code -> listPlatform == null || code.platform == listPlatform }
+            .filter { code ->
+                if (normalizedQuery.isBlank()) return@filter true
+                val searchable = listOf(
+                    code.code,
+                    context.getString(code.platform.labelRes),
+                    context.getString(code.titleRes),
+                    context.getString(code.whyRes),
+                    context.getString(code.fixRes),
+                ).joinToString(" ").lowercase()
+                searchable.contains(normalizedQuery)
+            }
+            .sortedBy { it.code }
     }
 
     Surface(modifier = Modifier.fillMaxSize(), color = KitsugiColors.Background) {
         Column(modifier = Modifier.fillMaxSize()) {
             Text(
-                stringResource(R.string.platform_error_catalog_count, entries.size),
+                stringResource(R.string.platform_error_catalog_count, diagEntries.size + listEntries.size),
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp),
                 color = KitsugiColors.TextMuted,
                 style = MaterialTheme.typography.labelSmall,
@@ -84,28 +121,36 @@ fun PlatformErrorCatalogScreen() {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
+                    .horizontalScroll(rememberScrollState())
                     .padding(horizontal = 16.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 FilterChip(
-                    selected = selectedPlatform == "ALL",
-                    onClick = { selectedPlatform = "ALL" },
+                    selected = selectedFilter == "ALL",
+                    onClick = { selectedFilter = "ALL" },
                     label = { Text(stringResource(R.string.platform_error_filter_all)) },
                 )
                 FilterChip(
-                    selected = selectedPlatform == "MANGA",
-                    onClick = { selectedPlatform = "MANGA" },
+                    selected = selectedFilter == "MANGA",
+                    onClick = { selectedFilter = "MANGA" },
                     label = { Text(stringResource(R.string.platform_error_filter_manga)) },
                 )
                 FilterChip(
-                    selected = selectedPlatform == "CLOUDSTREAM",
-                    onClick = { selectedPlatform = "CLOUDSTREAM" },
+                    selected = selectedFilter == "CLOUDSTREAM",
+                    onClick = { selectedFilter = "CLOUDSTREAM" },
                     label = { Text(stringResource(R.string.platform_error_filter_cloudstream)) },
                 )
+                ListPlatform.entries.forEach { platform ->
+                    FilterChip(
+                        selected = selectedFilter == platform.name,
+                        onClick = { selectedFilter = platform.name },
+                        label = { Text(stringResource(platform.labelRes)) },
+                    )
+                }
             }
 
-            if (entries.isEmpty()) {
+            if (diagEntries.isEmpty() && listEntries.isEmpty()) {
                 Text(
                     stringResource(R.string.platform_error_catalog_empty),
                     modifier = Modifier
@@ -121,7 +166,10 @@ fun PlatformErrorCatalogScreen() {
                     contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
                     verticalArrangement = Arrangement.spacedBy(10.dp),
                 ) {
-                    items(entries, key = { it.id }) { definition ->
+                    items(listEntries, key = { it.code }) { code ->
+                        ListSourceErrorBlock(code = code, modifier = Modifier.fillMaxWidth())
+                    }
+                    items(diagEntries, key = { it.id }) { definition ->
                         PlatformErrorExplanationBlock(
                             code = definition.id,
                             modifier = Modifier.fillMaxWidth(),
@@ -131,4 +179,88 @@ fun PlatformErrorCatalogScreen() {
             }
         }
     }
+}
+
+/** Liste kaynağı (AniList, MAL, …) hata kodları için yerelleştirilmiş açıklama kartı. */
+@Composable
+private fun ListSourceErrorBlock(code: ListErrorCode, modifier: Modifier = Modifier) {
+    val tint = code.severity.tint()
+    Column(
+        modifier = modifier
+            .clip(RoundedCornerShape(12.dp))
+            .background(tint.copy(alpha = 0.07f))
+            .border(1.dp, tint.copy(alpha = 0.22f), RoundedCornerShape(12.dp))
+            .padding(12.dp),
+        verticalArrangement = Arrangement.spacedBy(7.dp),
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text(
+                text = code.code,
+                color = tint,
+                fontSize = 10.sp,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier
+                    .clip(RoundedCornerShape(999.dp))
+                    .background(tint.copy(alpha = 0.12f))
+                    .border(1.dp, tint.copy(alpha = 0.35f), RoundedCornerShape(999.dp))
+                    .padding(horizontal = 7.dp, vertical = 3.dp),
+            )
+            Text(
+                text = stringResource(code.platform.labelRes),
+                color = KitsugiColors.TextMuted,
+                fontSize = 10.sp,
+                fontWeight = FontWeight.SemiBold,
+            )
+            Text(
+                text = stringResource(code.severity.labelRes),
+                color = KitsugiColors.TextMuted,
+                fontSize = 10.sp,
+            )
+        }
+        Text(
+            text = stringResource(code.titleRes),
+            color = KitsugiColors.TextPrimary,
+            fontSize = 12.sp,
+            fontWeight = FontWeight.Bold,
+        )
+        ListExplanationLine(
+            label = stringResource(R.string.pf_err_why_label),
+            value = stringResource(code.whyRes),
+        )
+        ListExplanationLine(
+            label = stringResource(R.string.pf_err_fix_label),
+            value = stringResource(code.fixRes),
+        )
+        Text(
+            text = stringResource(
+                if (code.retryable) R.string.pf_err_retryable_yes else R.string.pf_err_retryable_no
+            ),
+            color = KitsugiColors.TextMuted,
+            fontSize = 10.sp,
+        )
+    }
+}
+
+@Composable
+private fun ListExplanationLine(label: String, value: String) {
+    Column(verticalArrangement = Arrangement.spacedBy(1.dp)) {
+        Text(
+            text = label,
+            color = KitsugiColors.TextMuted,
+            fontSize = 9.sp,
+            fontWeight = FontWeight.SemiBold,
+        )
+        Text(
+            text = value,
+            color = KitsugiColors.TextPrimary,
+            fontSize = 11.sp,
+            lineHeight = 15.sp,
+        )
+    }
+}
+
+private fun ListSeverity.tint(): Color = when (this) {
+    ListSeverity.INFO -> Color(0xFF64B5F6)
+    ListSeverity.WARNING -> Color(0xFFFFB74D)
+    ListSeverity.ERROR, ListSeverity.CRITICAL -> KitsugiColors.AccentRed
 }

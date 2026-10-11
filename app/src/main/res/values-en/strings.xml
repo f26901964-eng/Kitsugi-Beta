@@ -6513,4 +6513,12 @@
     <string name="profile_error_http_status">HTTP %1$d</string>
     <string name="profile_error_icon_description">Platform error</string>
     <string name="pf_err_anl_2002_profile_short">AniList temporarily limited requests. Wait a minute, then try again.</string>
+    <string name="vault_operation_incomplete_generic">The operation could not be completed. A pending backup for an open vault will be retried automatically. If the vault did not open, sign in again and check for a server update.</string>
+    <string name="account_backup_sync_section">Backup &amp; sync</string>
+    <string name="account_toggle_backup_title">Encrypted account backup</string>
+    <string name="account_toggle_backup_desc">Back up linked-service tokens to the cloud end-to-end encrypted and restore them on a new device.</string>
+    <string name="account_toggle_search_title">Search history sync</string>
+    <string name="account_toggle_search_desc">Merge search history across devices.</string>
+    <string name="account_toggle_notif_title">Notification archive sync</string>
+    <string name="account_toggle_notif_desc">Back up the notification archive that source services do not store.</string>
 </resources>

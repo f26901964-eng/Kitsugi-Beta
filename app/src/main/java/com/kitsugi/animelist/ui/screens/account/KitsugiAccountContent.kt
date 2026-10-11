@@ -14,6 +14,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.AccountCircle
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Switch
 import com.kitsugi.animelist.ui.theme.gradient.Button
 import com.kitsugi.animelist.ui.theme.gradient.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
@@ -45,6 +46,8 @@ import com.kitsugi.animelist.data.account.LinkedAccountVault
 import io.github.jan.supabase.auth.auth
 import io.github.jan.supabase.auth.status.SessionStatus
 import com.kitsugi.animelist.data.local.KitsugiDatabase
+import com.kitsugi.animelist.data.settings.AppSettings
+import com.kitsugi.animelist.data.settings.SettingsDataStore
 import com.kitsugi.animelist.ui.theme.KitsugiColors
 import com.kitsugi.animelist.ui.theme.LocalKitsugiAccent
 import kotlinx.coroutines.launch
@@ -73,17 +76,21 @@ fun KitsugiAccountContent() {
     var email by rememberSaveable { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var isRegister by rememberSaveable { mutableStateOf(false) }
+    var awaitingConfirmation by remember { mutableStateOf(false) }
     var busy by remember { mutableStateOf(false) }
     var message by remember { mutableStateOf<String?>(null) }
     var isError by remember { mutableStateOf(false) }
     val authSessionStatus by KitsugiAccountClient.client.auth.sessionStatus.collectAsState()
+    val settingsDataStore = remember { SettingsDataStore(context) }
+    val accountSettings by settingsDataStore.settingsFlow.collectAsState(initial = AppSettings())
 
     // E-posta doğrulama deep link'i mevcut Activity'ye döndüğünde bu ekran oturumu da izler.
     LaunchedEffect(authSessionStatus) {
         when (val status = authSessionStatus) {
             is SessionStatus.Authenticated -> status.session.user?.email?.let { confirmedEmail ->
                 loggedInEmail = confirmedEmail
-                if (message?.startsWith("Doğrulama e-postası") == true) {
+                if (awaitingConfirmation) {
+                    awaitingConfirmation = false
                     isError = false
                     message = KitsugiStrings.get(R.string.e_posta_dogrulandi_sifreni_tekrar_girerek_guvenli_kasayi_ac)
                 }
@@ -122,6 +129,7 @@ fun KitsugiAccountContent() {
                         } else {
                             isError = false
                             isRegister = false
+                            awaitingConfirmation = true
                             message = KitsugiStrings.get(R.string.dogrulama_e_postasi_gonderildi_onayladiktan_sonra_giris_yap)
                         }
                     }
@@ -141,7 +149,9 @@ fun KitsugiAccountContent() {
                     }
                     .onFailure { showError("Giriş başarısız", it) }
             }
-            password = ""
+            // Kasa kilitli kaldıysa şifreyi bellekte tut: "Şifreyi doğrula ve
+            // kasayı aç" butonu şifre yeniden yazılmadan tekrar denenebilsin.
+            if (LinkedAccountVault.hasLocalVault(context)) password = ""
             busy = false
         }
     }
@@ -161,6 +171,20 @@ fun KitsugiAccountContent() {
             if (!isError) message = KitsugiStrings.get(R.string.arama_gecmisi_esitlendi_bildirim_arsivi_ve_bagli_hesaplar_yedekl)
             busy = false
         }
+    }
+
+    // ── Elle yönetilen aç/kapa anahtarları (girişte hepsi otomatik açıktır) ──
+    fun setBackupEnabled(enabled: Boolean) {
+        scope.launch { settingsDataStore.setAccountBackupEnabled(enabled) }
+        LinkedAccountVault.setAutoBackupEnabled(context, enabled)
+    }
+
+    fun setSearchSyncEnabled(enabled: Boolean) {
+        scope.launch { settingsDataStore.setAccountSearchSyncEnabled(enabled) }
+    }
+
+    fun setNotifSyncEnabled(enabled: Boolean) {
+        scope.launch { settingsDataStore.setAccountNotificationSyncEnabled(enabled) }
     }
 
     fun signOut() {
@@ -273,6 +297,30 @@ fun KitsugiAccountContent() {
 
         if (loggedInEmail != null) {
             Text(vaultStatus, style = MaterialTheme.typography.bodySmall, color = KitsugiColors.TextSecondary)
+            Text(
+                KitsugiStrings.get(R.string.account_backup_sync_section),
+                style = MaterialTheme.typography.labelMedium,
+                color = KitsugiColors.TextMuted,
+                fontWeight = FontWeight.SemiBold,
+            )
+            AccountSwitchRow(
+                title = KitsugiStrings.get(R.string.account_toggle_backup_title),
+                description = KitsugiStrings.get(R.string.account_toggle_backup_desc),
+                checked = accountSettings.accountBackupEnabled,
+                onCheckedChange = { setBackupEnabled(it) },
+            )
+            AccountSwitchRow(
+                title = KitsugiStrings.get(R.string.account_toggle_search_title),
+                description = KitsugiStrings.get(R.string.account_toggle_search_desc),
+                checked = accountSettings.accountSearchSyncEnabled,
+                onCheckedChange = { setSearchSyncEnabled(it) },
+            )
+            AccountSwitchRow(
+                title = KitsugiStrings.get(R.string.account_toggle_notif_title),
+                description = KitsugiStrings.get(R.string.account_toggle_notif_desc),
+                checked = accountSettings.accountNotificationSyncEnabled,
+                onCheckedChange = { setNotifSyncEnabled(it) },
+            )
             if (!LinkedAccountVault.hasLocalVault(context)) {
                 Text(
                     KitsugiStrings.get(R.string.e_posta_dogrulamasi_hesabi_acti_sifreli_yedegini_kullanmak_icin),
@@ -385,5 +433,35 @@ fun KitsugiAccountContent() {
         }
 
         Spacer(Modifier.height(4.dp))
+    }
+}
+
+/** Hesap ekranı için basit başlık + açıklama + anahtar satırı. */
+@Composable
+private fun AccountSwitchRow(
+    title: String,
+    description: String,
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit,
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Text(
+                text = title,
+                color = KitsugiColors.TextPrimary,
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.SemiBold,
+            )
+            Text(
+                text = description,
+                color = KitsugiColors.TextSecondary,
+                style = MaterialTheme.typography.bodySmall,
+            )
+        }
+        Switch(checked = checked, onCheckedChange = onCheckedChange)
     }
 }

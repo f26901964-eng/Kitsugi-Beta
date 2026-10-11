@@ -114,6 +114,7 @@ class KitsugiApplication : Application(), SingletonImageLoader.Factory {
 
         // Only the main process may register vault listeners and persistent WorkManager jobs.
         runCatching { com.kitsugi.animelist.data.account.LinkedAccountVault.startAutoBackup(this) }
+        runCatching { com.kitsugi.animelist.data.account.KitsugiAccountRepository.startSettingsObserver(this) }
 
         // ── Bellek koruması ───────────────────────────────────────────────────────────
         // Gezindikçe şişen bellek önbellekleri, heap tavanına yaklaşınca sistem uyarısını
@@ -651,6 +652,9 @@ object LocaleCache {
                 }
                 androidx.appcompat.app.AppCompatDelegate.setApplicationLocales(localeList)
             }
+            // Güvenlik ağı: bazı cihazlarda çerçeve Activity'yi yeniden kurmazsa
+            // (örn. manifest configChanges kalıntısı / OEM davranışı) dili biz uygularız.
+            scheduleLocaleSafetyRecreate(context, prefsTag)
             return
         }
 
@@ -679,6 +683,31 @@ object LocaleCache {
                 }
             }
         }
+    }
+
+    /**
+     * Dil değişiminden kısa bir süre sonra Activity'nin gerçekten yeni dili
+     * gösterip göstermediğini doğrular; göstermiyorsa bir kez recreate eder.
+     * Çerçeve Activity'yi zaten yeniden kurduysa eski örnek destroyed durumuna
+     * düşer ve hiçbir şey yapılmaz (çift recreate olmaz).
+     */
+    private fun scheduleLocaleSafetyRecreate(context: Context, expectedTag: String) {
+        val activity = findActivity(context) ?: return
+        android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
+            runCatching {
+                if (activity.isFinishing || activity.isDestroyed) return@runCatching
+                val applied = activity.resources.configuration.locales?.get(0)
+                    ?: return@runCatching
+                val expected = if (expectedTag.isEmpty()) {
+                    androidx.core.os.LocaleListCompat.getDefault().get(0)
+                } else {
+                    java.util.Locale.forLanguageTag(expectedTag)
+                }
+                if (expected != null && applied.language != expected.language) {
+                    activity.recreate()
+                }
+            }
+        }, 700)
     }
 
     private fun findActivity(context: Context): android.app.Activity? {
