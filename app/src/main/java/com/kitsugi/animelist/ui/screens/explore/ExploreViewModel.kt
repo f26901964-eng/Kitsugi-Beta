@@ -604,36 +604,12 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
     }
 
     /**
-     * Vitrin için yatay artwork'u kaynağın kimlik alanını koruyarak çözer.
-     * TMDB movie/TV ID'leri kendi türleriyle tam ID üzerinden kullanılır; Anime
-     * türündeki Simkl/diğer sonuçlarda TMDB movie-vs-TV namespace'i belirsiz
-     * olabileceğinden başlık + tür + yıl eşleşmesi kullanılır. Manga atlanır.
+     * Vitrin için hem en kaliteli dikey posteri hem de en kaliteli yatay arka planı
+     * TMDB + Fanart.tv üzerinden çözer.
      */
     private suspend fun resolveHeroBackdrop(item: JikanSearchResult): String? {
-        item.backdropUrl?.trim()?.takeIf { it.isNotEmpty() }?.let { return it }
         if (item.type == MediaType.Manga) return null
-
-        val source = item.source.trim().lowercase()
-        val tmdbId = item.tmdbId ?: item.malId.takeIf {
-            source == "tmdb" || source == "themoviedb"
-        }
-        if (tmdbId != null && tmdbId > 0) {
-            val isMovie = when (item.type) {
-                MediaType.Movie -> true
-                MediaType.TvShow -> false
-                else -> null
-            }
-            if (isMovie != null) {
-                val exactBackdrop = tmdbApiClient.fetchBackdropByTmdbId(tmdbId, isMovie)
-                if (!exactBackdrop.isNullOrBlank()) return exactBackdrop
-            }
-        }
-
-        return tmdbApiClient.fetchBackdropByTitle(
-            title = item.title,
-            mediaType = item.type,
-            year = item.year
-        )
+        return com.kitsugi.animelist.data.remote.KitsugiHeroArtworkResolver.resolveArtwork(item).bestBackdropUrl
     }
 
     /**
@@ -1291,6 +1267,7 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
     // öğelerinde eksik kalan yatay arka planlar, başlık üzerinden TMDB'den
     // tamamlanır; sonuçlar exploreIdentity anahtarıyla önbelleklenir.
     private val heroBackdropCache = mutableMapOf<String, String>() // "" = arama sonuçsuz
+    private val heroArtworkCache = mutableMapOf<String, com.kitsugi.animelist.data.remote.KitsugiHeroArtworkResolver.HeroArtwork>()
     private val heroBackdropInFlight = mutableSetOf<String>()
     private var heroOverridesFlushJob: Job? = null
 
@@ -1298,47 +1275,52 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
     var heroBackdropOverrides by mutableStateOf<Map<String, String>>(emptyMap())
         private set
 
+    /** identity → tam HeroArtwork (en kaliteli dikey poster + en kaliteli yatay backdrop) eşlemesi. */
+    var heroArtworkOverrides by mutableStateOf<Map<String, com.kitsugi.animelist.data.remote.KitsugiHeroArtworkResolver.HeroArtwork>>(emptyMap())
+        private set
+
     /**
-     * Backdrop sonuçlarını toplu yayınlar. Her çözümde ayrı state yazmak (ve her seferinde
+     * Vitrin görsel sonuçlarını toplu yayınlar. Her çözümde ayrı state yazmak (ve her seferinde
      * tüm haritayı kopyalamak) Keşfet ekranını ~N kez yeniden kompoze edip hero logo
      * aramasını yeniden başlatıyordu; birkaç yüz ms'lik pencerede tek yazım yeterli.
      */
     private fun scheduleHeroOverridesFlush() {
         if (heroOverridesFlushJob?.isActive == true) return
         heroOverridesFlushJob = viewModelScope.launch {
-            kotlinx.coroutines.delay(250L)
+            kotlinx.coroutines.delay(180L)
             heroBackdropOverrides = heroBackdropCache.toMap()
+            heroArtworkOverrides = heroArtworkCache.toMap()
         }
     }
 
     /**
-     * Seçilen vitrin öğelerinde eksik yatay arka planları TMDB'den çözer.
-     * Manga öğeleri bilinçli atlanır (TMDB eşleşmesi uyarlama posterine
-     * kayabilir); başarısız aramalar da önbelleklenir, tekrar tetiklenmez.
+     * Seçilen tüm vitrin öğelerinde (Bangumi, AniList, MAL, Kitsu, Shikimori, Simkl, TMDB)
+     * hem en kaliteli dikey posteri hem de en kaliteli yatay arka planı TMDB ve Fanart.tv
+     * üzerinden çözer.
      */
     fun enrichHeroBackdrops(items: List<JikanSearchResult>) {
-        if (!tmdbEnabledState || items.isEmpty()) return
-        val missing = items.filter { item ->
-            item.backdropUrl.isNullOrBlank() &&
-                item.type != MediaType.Manga &&
-                item.exploreIdentity() !in heroBackdropCache &&
-                heroBackdropInFlight.add(item.exploreIdentity())
+        if (items.isEmpty()) return
+        val pending = items.filter { item ->
+            val identity = item.exploreIdentity()
+            identity !in heroArtworkCache && heroBackdropInFlight.add(identity)
         }
-        if (missing.isEmpty()) return
+        if (pending.isEmpty()) return
         viewModelScope.launch {
             coroutineScope {
-                missing.forEach { item ->
+                pending.forEach { item ->
                     launch {
                         val identity = item.exploreIdentity()
-                        val url = try {
-                            resolveHeroBackdrop(item)
+                        val artwork = try {
+                            com.kitsugi.animelist.data.remote.KitsugiHeroArtworkResolver.resolveArtwork(item)
                         } catch (e: CancellationException) {
+                            heroBackdropInFlight.remove(identity)
                             throw e
                         } catch (e: Exception) {
-                            null
+                            com.kitsugi.animelist.data.remote.KitsugiHeroArtworkResolver.HeroArtwork()
                         }
                         heroBackdropInFlight.remove(identity)
-                        heroBackdropCache[identity] = url ?: ""
+                        heroArtworkCache[identity] = artwork
+                        heroBackdropCache[identity] = artwork.bestBackdropUrl ?: ""
                         scheduleHeroOverridesFlush()
                     }
                 }

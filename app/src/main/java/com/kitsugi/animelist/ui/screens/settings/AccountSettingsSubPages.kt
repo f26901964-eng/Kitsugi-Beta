@@ -56,7 +56,7 @@ internal fun AccountConnectionsHubContent(
             modifier = Modifier.padding(horizontal = 20.dp, vertical = 4.dp)
         )
 
-        SectionHeader("Platformlar")
+        SectionHeader(stringResource(R.string.settings_section_platforms))
         SettingsNavCard {
             // AniList
             AccountHubItem(
@@ -83,8 +83,8 @@ internal fun AccountConnectionsHubContent(
                 title = "Simkl",
                 subtitle = when {
                     profile.isSimklConnected -> stringResource(R.string.bagli_x, profile.simklUsername)
-                    profile.isSimklSessionExpired -> "Oturum Süresi Doldu"
-                    else -> "Bağlı Değil"
+                    profile.isSimklSessionExpired -> stringResource(R.string.oturum_suresi_doldu_tekrar_giris_yapin)
+                    else -> stringResource(R.string.inline_not_connected_2c7d104)
                 },
                 platformId = "simkl",
                 isConnected = profile.isSimklConnected,
@@ -122,7 +122,7 @@ internal fun AccountConnectionsHubContent(
             )
         }
 
-        SectionHeader("Senkronizasyon")
+        SectionHeader(stringResource(R.string.settings_section_sync))
         SettingsNavCard {
             val connectedCount = (if (profile.isAniListConnected) 1 else 0) +
                     (if (profile.isMalConnected) 1 else 0) +
@@ -167,7 +167,7 @@ internal fun AniListSettingsContent(profile: ProfileSettings) {
             isConnected = profile.isAniListConnected
         )
 
-        SectionHeader("İşlemler")
+        SectionHeader(stringResource(R.string.settings_section_actions))
         SettingsNavCard {
             if (profile.isAniListConnected) {
                 KitsugiSettingsItem(
@@ -238,7 +238,7 @@ internal fun MalSettingsContent(profile: ProfileSettings) {
             isConnected = profile.isMalConnected
         )
 
-        SectionHeader("İşlemler")
+        SectionHeader(stringResource(R.string.settings_section_actions))
         SettingsNavCard {
             if (profile.isMalConnected) {
                 KitsugiSettingsItem(
@@ -309,7 +309,7 @@ internal fun SimklSettingsContent(profile: ProfileSettings) {
             isConnected = profile.isSimklConnected
         )
 
-        SectionHeader("İşlemler")
+        SectionHeader(stringResource(R.string.settings_section_actions))
         SettingsNavCard {
             if (profile.isSimklConnected) {
                 KitsugiSettingsItem(
@@ -391,7 +391,7 @@ internal fun KitsuSettingsContent(profile: ProfileSettings) {
             isConnected = profile.isKitsuConnected
         )
 
-        SectionHeader("İşlemler")
+        SectionHeader(stringResource(R.string.settings_section_actions))
         SettingsNavCard {
             if (profile.isKitsuConnected) {
                 KitsugiSettingsItem(
@@ -429,7 +429,7 @@ internal fun KitsuSettingsContent(profile: ProfileSettings) {
             }
         }
 
-        SectionHeader("Kitsu Hakkında")
+        SectionHeader(stringResource(R.string.profile_platform_about, "Kitsu"))
         Card(
             shape = RoundedCornerShape(18.dp),
             colors = CardDefaults.cardColors(containerColor = KitsugiColors.Surface),
@@ -447,7 +447,7 @@ internal fun KitsuSettingsContent(profile: ProfileSettings) {
                 ) {
                     KitsugiPlatformLogo(platformId = "kitsu", size = 20.dp)
                     Text(
-                        text = "Kitsu Entegrasyonu",
+                        text = stringResource(R.string.profile_platform_integration, "Kitsu"),
                         color = KitsugiColors.TextPrimary,
                         fontWeight = FontWeight.Bold,
                         fontSize = 14.sp
@@ -495,7 +495,7 @@ internal fun ShikimoriSettingsContent(profile: ProfileSettings) {
             isConnected = profile.isShikimoriConnected
         )
 
-        SectionHeader("İşlemler")
+        SectionHeader(stringResource(R.string.settings_section_actions))
         SettingsNavCard {
             if (profile.isShikimoriConnected) {
                 KitsugiSettingsItem(
@@ -533,7 +533,7 @@ internal fun ShikimoriSettingsContent(profile: ProfileSettings) {
             }
         }
 
-        SectionHeader("Shikimori Hakkında")
+        SectionHeader(stringResource(R.string.profile_platform_about, "Shikimori"))
         Card(
             shape = RoundedCornerShape(18.dp),
             colors = CardDefaults.cardColors(containerColor = KitsugiColors.Surface),
@@ -551,7 +551,7 @@ internal fun ShikimoriSettingsContent(profile: ProfileSettings) {
                 ) {
                     KitsugiPlatformLogo(platformId = "shikimori", size = 20.dp)
                     Text(
-                        text = "Shikimori Entegrasyonu",
+                        text = stringResource(R.string.profile_platform_integration, "Shikimori"),
                         color = KitsugiColors.TextPrimary,
                         fontWeight = FontWeight.Bold,
                         fontSize = 14.sp
@@ -607,7 +607,7 @@ internal fun BangumiSettingsContent(profile: ProfileSettings) {
             isConnected = profile.isBangumiConnected
         )
 
-        SectionHeader("İşlemler")
+        SectionHeader(stringResource(R.string.settings_section_actions))
         SettingsNavCard {
             if (profile.isBangumiConnected) {
                 KitsugiSettingsItem(
@@ -645,7 +645,7 @@ internal fun BangumiSettingsContent(profile: ProfileSettings) {
             }
         }
 
-        SectionHeader("Bangumi Hakkında")
+        SectionHeader(stringResource(R.string.profile_platform_about, "Bangumi"))
         Card(
             shape = RoundedCornerShape(18.dp),
             colors = CardDefaults.cardColors(containerColor = KitsugiColors.Surface),
@@ -663,7 +663,7 @@ internal fun BangumiSettingsContent(profile: ProfileSettings) {
                 ) {
                     KitsugiPlatformLogo(platformId = "bangumi", size = 20.dp)
                     Text(
-                        text = "Bangumi 番组计划 Entegrasyonu",
+                        text = stringResource(R.string.profile_platform_integration, "Bangumi"),
                         color = KitsugiColors.TextPrimary,
                         fontWeight = FontWeight.Bold,
                         fontSize = 14.sp
@@ -672,8 +672,7 @@ internal fun BangumiSettingsContent(profile: ProfileSettings) {
                 Text(
                     text = stringResource(R.string.bangumi_bgm_tv_v0_api_ile_kayit_arama_sezon_sira_kesfi_bolum_lis) +
                         stringResource(R.string.koleksiyon_durumu_0_10_puan_ve_bolum_bazli) +
-                        "ilerleme (打格子) desteklenir. Giriş için kendi uygulamanızı " +
-                        "bgm.tv/dev/app adresinden kaydetmeniz gerekir.",
+                        stringResource(R.string.bangumi_custom_app_registration),
                     color = KitsugiColors.TextSecondary,
                     fontSize = 12.sp,
                     lineHeight = 18.sp
@@ -770,7 +769,7 @@ internal fun CrossSyncSettingsContent(profile: ProfileSettings) {
                     text = if (connectedCount >= 2)
                         stringResource(R.string.bagli_olan_x_hesaplarinizdaki_kutuphaneler_birbirleriyle_iki_yon, connectedNames)
                     else
-                        "Çapraz senkronizasyonu kullanabilmek için lütfen en az 2 platform bağlayın (AniList, MyAnimeList, Simkl, Kitsu, Shikimori, Bangumi).",
+                        stringResource(R.string.cross_sync_needs_two_accounts),
                     color = KitsugiColors.TextSecondary,
                     fontSize = 13.sp,
                     lineHeight = 19.sp
@@ -780,20 +779,20 @@ internal fun CrossSyncSettingsContent(profile: ProfileSettings) {
         }
 
         if (connectedCount >= 2) {
-            SectionHeader("Hızlı İşlem")
+            SectionHeader(stringResource(R.string.cross_sync_quick_action))
             SettingsNavCard {
                 val syncDesc = when {
                     profile.crossSyncState.isRunning -> profile.crossSyncState.currentStep +
-                        if (profile.crossSyncState.totalItems > 0) " (%${(profile.crossSyncState.progressPercent * 100).toInt()})" else ""
-                    profile.crossSyncState.startedAt != null -> "Son eşitleme raporunu, sorunları ve platform ayrıntılarını görüntüle"
-                    else -> "Tüm bağlı servisleri tek dokunuşla senkronize edin"
+                        if (profile.crossSyncState.totalItems > 0) " (${(profile.crossSyncState.progressPercent * 100).toInt()}%)" else ""
+                    profile.crossSyncState.startedAt != null -> stringResource(R.string.cross_sync_report_details)
+                    else -> stringResource(R.string.cross_sync_sync_all_services)
                 }
 
                 KitsugiSettingsItem(
                     title = when {
                         profile.crossSyncState.isRunning -> stringResource(R.string.esitleme_ayrintilarini_ac)
-                        profile.crossSyncState.startedAt != null -> "Son Eşitleme Raporu"
-                        else -> "Tüm Hesapları Birbiriyle Eşitle"
+                        profile.crossSyncState.startedAt != null -> stringResource(R.string.cross_sync_last_report)
+                        else -> stringResource(R.string.cross_sync_sync_all)
                     },
                     description = syncDesc,
                     icon = Icons.Rounded.Cached,
@@ -836,11 +835,11 @@ internal fun CrossSyncSettingsContent(profile: ProfileSettings) {
                 modifier = Modifier.padding(horizontal = 16.dp)
             )
 
-            SectionHeader("Otomatik Eşitleme Tercihleri")
+            SectionHeader(stringResource(R.string.cross_sync_auto_preferences))
             SettingsNavCard {
                 if (profile.isAniListConnected) {
                     KitsugiSettingsSwitchItem(
-                        title = "AniList Otomatik Senkronizasyon",
+                        title = stringResource(R.string.account_auto_sync_title, "AniList"),
                         description = stringResource(R.string.degisiklikleri_anilist_e_aninda_aktar),
                         icon = Icons.Rounded.CloudSync,
                         iconColor = KitsugiColors.AccentBlue,
@@ -852,7 +851,7 @@ internal fun CrossSyncSettingsContent(profile: ProfileSettings) {
                 }
                 if (profile.isMalConnected) {
                     KitsugiSettingsSwitchItem(
-                        title = "MyAnimeList Otomatik Senkronizasyon",
+                        title = stringResource(R.string.account_auto_sync_title, "MyAnimeList"),
                         description = stringResource(R.string.degisiklikleri_myanimelist_e_aninda_aktar),
                         icon = Icons.Rounded.CloudSync,
                         iconColor = KitsugiColors.AccentBlue,
@@ -864,7 +863,7 @@ internal fun CrossSyncSettingsContent(profile: ProfileSettings) {
                 }
                 if (profile.isSimklConnected) {
                     KitsugiSettingsSwitchItem(
-                        title = "Simkl Otomatik Senkronizasyon",
+                        title = stringResource(R.string.account_auto_sync_title, "Simkl"),
                         description = stringResource(R.string.degisiklikleri_simkl_e_aninda_aktar),
                         icon = Icons.Rounded.CloudSync,
                         iconColor = KitsugiColors.AccentBlue,
@@ -876,7 +875,7 @@ internal fun CrossSyncSettingsContent(profile: ProfileSettings) {
                 }
                 if (profile.isKitsuConnected) {
                     KitsugiSettingsSwitchItem(
-                        title = "Kitsu Otomatik Senkronizasyon",
+                        title = stringResource(R.string.account_auto_sync_title, "Kitsu"),
                         description = stringResource(R.string.degisiklikleri_kitsu_ya_aninda_aktar),
                         icon = Icons.Rounded.CloudSync,
                         iconColor = Color(0xFFFD755C),
@@ -888,7 +887,7 @@ internal fun CrossSyncSettingsContent(profile: ProfileSettings) {
                 }
                 if (profile.isShikimoriConnected) {
                     KitsugiSettingsSwitchItem(
-                        title = "Shikimori Otomatik Senkronizasyon",
+                        title = stringResource(R.string.account_auto_sync_title, "Shikimori"),
                         description = stringResource(R.string.degisiklikleri_shikimori_ye_aninda_aktar),
                         icon = Icons.Rounded.CloudSync,
                         iconColor = Color(0xFF8E44AD),
@@ -900,7 +899,7 @@ internal fun CrossSyncSettingsContent(profile: ProfileSettings) {
                 if (profile.isBangumiConnected) {
                     KitsugiSettingsDivider()
                     KitsugiSettingsSwitchItem(
-                        title = "Bangumi Otomatik Senkronizasyon",
+                        title = stringResource(R.string.account_auto_sync_title, "Bangumi"),
                         description = stringResource(R.string.degisiklikleri_bangumi_ye_aninda_aktar),
                         icon = Icons.Rounded.CloudSync,
                         iconColor = Color(0xFFF09199),

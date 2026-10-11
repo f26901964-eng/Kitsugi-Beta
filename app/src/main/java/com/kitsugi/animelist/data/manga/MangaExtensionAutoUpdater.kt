@@ -55,7 +55,7 @@ object MangaExtensionAutoUpdater {
         if (!forceCheck && (now - lastCheck) < CHECK_INTERVAL_MS) {
             val since = (now - lastCheck) / 1000 / 60
             Log.d(TAG, "Son kontrolden bu yana $since dk geçmiş, atlanıyor (24 saat dolmadı).")
-            return@withContext UpdateResult.Skipped(reason = "Sonraki kontrol ${((CHECK_INTERVAL_MS - (now - lastCheck)) / 1000 / 60)} dk sonra.")
+            return@withContext UpdateResult.Skipped(minutesUntilNextCheck = ((CHECK_INTERVAL_MS - (now - lastCheck)) / 1000 / 60).toInt())
         }
 
         Log.i(TAG, "Keiyoushi repo kontrolü başlıyor...")
@@ -78,7 +78,7 @@ object MangaExtensionAutoUpdater {
         if (repoExtensions == null) {
             Log.e(TAG, "Keiyoushi repo çekilemedi.")
             prefs.edit().putString(KEY_LAST_CHECK_RESULT, "REPO_FETCH_FAILED").apply()
-            return@withContext UpdateResult.Failed(reason = "Repo index çekilemedi")
+            return@withContext UpdateResult.Failed(reasonCode = "REPO_FETCH_FAILED")
         }
 
         Log.i(TAG, "Repo'da ${repoExtensions.size} eklenti var.")
@@ -110,10 +110,13 @@ object MangaExtensionAutoUpdater {
             }
         }
 
-        val summary = if (updatedCount > 0)
-            KitsugiStrings.get(R.string.x_eklenti_guncellendi_x, updatedCount, updatedNames.joinToString(", "))
-        else
-            "✅ Tüm eklentiler güncel ($checkedCount kontrol edildi)"
+        val summary = if (updatedCount > 0) {
+            KitsugiStrings.get(R.string.manga_auto_update_success, updatedCount, updatedNames.joinToString(", "))
+        } else if (checkedCount > 0) {
+            KitsugiStrings.get(R.string.manga_auto_update_all_current, checkedCount)
+        } else {
+            KitsugiStrings.get(R.string.manga_auto_update_no_updates)
+        }
 
         Log.i(TAG, summary)
         prefs.edit()
@@ -209,7 +212,7 @@ object MangaExtensionAutoUpdater {
             val updatedNames: List<String> = emptyList()
         ) : UpdateResult()
 
-        data class Skipped(val reason: String) : UpdateResult()
-        data class Failed(val reason: String) : UpdateResult()
+        data class Skipped(val minutesUntilNextCheck: Int) : UpdateResult()
+        data class Failed(val reasonCode: String) : UpdateResult()
     }
 }

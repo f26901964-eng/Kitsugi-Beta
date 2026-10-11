@@ -43,8 +43,12 @@ fun AniListFavoritesTab(
         3 -> state.favoriteStaff; 4 -> state.favoriteStudios; else -> emptyList()
     }
     val filterTitle = when (favoritesFilter) {
-        0 -> "Favori Animeler"; 1 -> "Favori Mangalar"; 2 -> "Favori Karakterler"
-        3 -> "Favori Ekip"; 4 -> "Favori Stüdyolar"; else -> "Favoriler"
+        0 -> stringResource(R.string.profile_favorite_anime)
+        1 -> stringResource(R.string.profile_favorite_manga)
+        2 -> stringResource(R.string.profile_favorite_characters)
+        3 -> stringResource(R.string.profile_favorite_staff)
+        4 -> stringResource(R.string.profile_favorite_studios)
+        else -> stringResource(R.string.profile_favorites)
     }
 
     // Tıklama: sekmeye göre doğru detay callback'i

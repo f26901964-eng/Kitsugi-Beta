@@ -37,7 +37,7 @@ data class CrossSyncProgressState(
     val processedItems: Int = 0,
     val totalItems: Int = 0,
     /** Unit represented by processedItems/totalItems in the current phase. */
-    val progressUnit: String = "İçerik",
+    val progressUnit: String = "",
     /** Start time of the current determinate phase, so estimates do not include earlier phases. */
     val progressPhaseStartedAt: Long? = null,
     /** Updated on each meaningful phase/progress update; used to warn about stalled runs. */

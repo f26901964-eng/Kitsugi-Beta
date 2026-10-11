@@ -1,6 +1,7 @@
 package com.kitsugi.animelist.ui.app
 
 import com.kitsugi.animelist.R
+import com.kitsugi.animelist.utils.KitsugiStrings
 import com.kitsugi.animelist.ui.utils.plainLabel
 import com.kitsugi.animelist.ui.utils.localizedLabel
 import com.kitsugi.animelist.data.auth.runSyncCatching
@@ -44,12 +45,23 @@ import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
 import dagger.hilt.android.EntryPointAccessors
 
-private fun Throwable.crossSyncDiagnostic(): String = buildString {
+private fun Throwable.crossSyncDiagnostic(context: Context): String = buildString {
     var current: Throwable? = this@crossSyncDiagnostic
     var depth = 0
     while (current != null && depth < 8) {
-        val label = if (depth == 0) "Hata" else "Neden $depth"
-        appendLine("$label: ${current.javaClass.name}: ${current.message ?: "(mesaj yok)"}")
+        val label = if (depth == 0) {
+            KitsugiStrings.get(R.string.cross_sync_diag_error_label)
+        } else {
+            KitsugiStrings.get(R.string.cross_sync_diag_cause_label, depth)
+        }
+        appendLine(
+            KitsugiStrings.get(
+                R.string.cross_sync_diag_exception_line,
+                label,
+                current.javaClass.name,
+                current.message ?: KitsugiStrings.get(R.string.cross_sync_diag_no_message)
+            )
+        )
         current.stackTrace.take(6).forEach { frame ->
             appendLine("  at ${frame.className}.${frame.methodName}(${frame.fileName ?: "?"}:${frame.lineNumber})")
         }
@@ -62,25 +74,77 @@ private fun Throwable.crossSyncDiagnostic(): String = buildString {
  * `malId` alanı yalnızca gerçek MAL kimliği değil; uygulama Kitsu (id + 300M) ve AniList (id + 100M)
  * kayıtlarını da bu alanda iç ad alanıyla taşır. Raporda bunlar MAL kimliği gibi okunmasın diye etiketlenir.
  */
-private fun describeMalIdField(malId: Int?): String = when {
-    malId == null -> "yok"
-    malId in 300_000_001..399_999_999 -> "$malId (iç Kitsu kimliği, MAL değil: Kitsu #${malId - 300_000_000})"
-    malId in 100_000_001..299_999_999 -> "$malId (iç AniList kimliği, MAL değil: AniList #${malId - 100_000_000})"
-    else -> "$malId (MAL)"
+private fun describeMalIdField(context: Context, malId: Int?): String {
+    val noValue = KitsugiStrings.get(R.string.cross_sync_diag_no_value)
+    return when {
+        malId == null -> noValue
+        malId in 300_000_001..399_999_999 -> KitsugiStrings.get(
+            R.string.cross_sync_diag_mal_kitsu,
+            malId,
+            malId - 300_000_000
+        )
+        malId in 100_000_001..299_999_999 -> KitsugiStrings.get(
+            R.string.cross_sync_diag_mal_anilist,
+            malId,
+            malId - 100_000_000
+        )
+        else -> KitsugiStrings.get(R.string.cross_sync_diag_mal, malId)
+    }
 }
 
-private fun MediaEntry.crossSyncIdentityDiagnostic(): String = buildString {
+private fun MediaEntry.crossSyncIdentityDiagnostic(context: Context): String = buildString {
     fun clean(value: String?): String = value.orEmpty().replace('\n', ' ').replace('\r', ' ').trim()
-    appendLine("Başlık: ${clean(title)}")
-    titleEnglish?.takeIf { it.isNotBlank() }?.let { appendLine("İngilizce başlık: ${clean(it)}") }
-    titleJapanese?.takeIf { it.isNotBlank() }?.let { appendLine("Japonca başlık: ${clean(it)}") }
-    appendLine("Tür/yıl: $type / ${year ?: "bilinmiyor"}")
-    appendLine("Kaynak: ${clean(source)}")
+    val noValue = KitsugiStrings.get(R.string.cross_sync_diag_no_value)
+    appendLine(KitsugiStrings.get(R.string.cross_sync_diag_title, clean(title)))
+    titleEnglish?.takeIf { it.isNotBlank() }?.let {
+        appendLine(KitsugiStrings.get(R.string.cross_sync_diag_english_title, clean(it)))
+    }
+    titleJapanese?.takeIf { it.isNotBlank() }?.let {
+        appendLine(KitsugiStrings.get(R.string.cross_sync_diag_japanese_title, clean(it)))
+    }
+    val typeLabel = when (type) {
+        MediaType.Anime -> KitsugiStrings.get(R.string.media_type_anime)
+        MediaType.Manga -> KitsugiStrings.get(R.string.media_type_manga)
+        MediaType.Movie -> KitsugiStrings.get(R.string.media_type_movie)
+        MediaType.TvShow -> KitsugiStrings.get(R.string.media_type_tv)
+    }
+    appendLine(KitsugiStrings.get(R.string.cross_sync_diag_type_year, typeLabel, year?.toString() ?: noValue))
+    appendLine(KitsugiStrings.get(R.string.cross_sync_diag_source, clean(source)))
     val identityKeys = com.kitsugi.animelist.model.MediaIdentity.keys(this@crossSyncIdentityDiagnostic)
-    appendLine("Harici kimlikler: ${identityKeys.takeIf { it.isNotEmpty() }?.joinToString() ?: "yok"}")
-    appendLine("Ham kimlik alanları: malId=${describeMalIdField(malId)}, aniListEntryId=$aniListEntryId, malListId=$malListId, simklId=$simklId, tmdbId=$tmdbId")
-    appendLine("Durum/ilerleme: ${status.plainLabel()}, bölüm=$progress/${total ?: "?"}, cilt=$volumeProgress, puan=${score ?: "yok"}")
-    appendLine("Tarihler: başlangıç=${startDate ?: "yok"}, bitiş=${endDate ?: "yok"}; favori=$isFavorite")
+    appendLine(
+        KitsugiStrings.get(
+            R.string.cross_sync_diag_external_ids,
+            identityKeys.takeIf { it.isNotEmpty() }?.joinToString() ?: noValue
+        )
+    )
+    appendLine(
+        KitsugiStrings.get(
+            R.string.cross_sync_diag_raw_ids,
+            describeMalIdField(context, malId),
+            aniListEntryId?.toString() ?: noValue,
+            malListId?.toString() ?: noValue,
+            simklId?.toString() ?: noValue,
+            tmdbId?.toString() ?: noValue
+        )
+    )
+    appendLine(
+        KitsugiStrings.get(
+            R.string.cross_sync_diag_status_progress,
+            status.plainLabel(),
+            progress,
+            total?.toString() ?: "?",
+            volumeProgress,
+            score?.toString() ?: noValue
+        )
+    )
+    appendLine(
+        KitsugiStrings.get(
+            R.string.cross_sync_diag_dates,
+            startDate ?: noValue,
+            endDate ?: noValue,
+            isFavorite.toString()
+        )
+    )
 }
 
 @EntryPoint
@@ -379,7 +443,7 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
 
         val primaryTitle: String
             get() = candidates.firstOrNull()?.titleEnglish?.takeIf { it.isNotBlank() }
-                ?: candidates.firstOrNull()?.title ?: "Bilinmeyen"
+                ?: candidates.firstOrNull()?.title ?: KitsugiStrings.get(R.string.cross_sync_vm_unknown_media)
 
         val mediaType: MediaType
             get() = candidates.firstOrNull()?.type ?: MediaType.Anime
@@ -580,7 +644,7 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
 
             if (connectedPlatforms.size < 2) {
                 val message = context.getString(R.string.cross_sync_vm_minimum_accounts)
-                logEvent("Eşitleme", message, isError = true)
+                logEvent(context.getString(R.string.cross_sync_log_category_sync), message, isError = true)
                 onShowMessage?.invoke(message)
                 crossSyncState = com.kitsugi.animelist.model.CrossSyncProgressState(
                     isRunning = false,
@@ -607,7 +671,7 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                     updateProgress(context.getString(R.string.cross_sync_vm_fetching_platform_list, "AniList"), context.getString(R.string.cross_sync_vm_reading_library))
                     val list = AniListImportManager.fetchAllLists(aniListToken!!)
                     statsMap["AniList"] = statsMap["AniList"]!!.copy(initialCount = list.size)
-                    logEvent("AniList", "AniList kütüphanesinden ${list.size} kayıt alındı.")
+                    logEvent("AniList", context.getString(R.string.cross_sync_log_imported_entries, "AniList", list.size))
                     list
                 } else emptyList()
 
@@ -615,7 +679,7 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                     updateProgress(context.getString(R.string.cross_sync_vm_fetching_platform_list, "MyAnimeList"), context.getString(R.string.cross_sync_vm_reading_library))
                     val list = MalImportManager.fetchAllLists(malToken!!, showAdult)
                     statsMap["MyAnimeList"] = statsMap["MyAnimeList"]!!.copy(initialCount = list.size)
-                    logEvent("MyAnimeList", "MyAnimeList kütüphanesinden ${list.size} kayıt alındı.")
+                    logEvent("MyAnimeList", context.getString(R.string.cross_sync_log_imported_entries, "MyAnimeList", list.size))
                     list
                 } else emptyList()
 
@@ -623,7 +687,7 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                     updateProgress(context.getString(R.string.cross_sync_vm_fetching_platform_list, "Simkl"), context.getString(R.string.cross_sync_vm_reading_simkl_library))
                     val list = SimklImportManager.fetchAllLists(simklToken!!)
                     statsMap["Simkl"] = statsMap["Simkl"]!!.copy(initialCount = list.size)
-                    logEvent("Simkl", "Simkl kütüphanesinden ${list.size} kayıt alındı.")
+                    logEvent("Simkl", context.getString(R.string.cross_sync_log_imported_entries, "Simkl", list.size))
                     list
                 } else emptyList()
 
@@ -631,7 +695,7 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                     updateProgress(context.getString(R.string.cross_sync_vm_fetching_platform_list, "Kitsu"), context.getString(R.string.cross_sync_vm_reading_library))
                     val list = KitsuImportManager.fetchAllLists(context, kitsuToken!!, kitsuUserId!!)
                     statsMap["Kitsu"] = statsMap["Kitsu"]!!.copy(initialCount = list.size)
-                    logEvent("Kitsu", "Kitsu kütüphanesinden ${list.size} kayıt alındı.")
+                    logEvent("Kitsu", context.getString(R.string.cross_sync_log_imported_entries, "Kitsu", list.size))
                     list
                 } else emptyList()
 
@@ -639,7 +703,7 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                     updateProgress(context.getString(R.string.cross_sync_vm_fetching_platform_list, "Shikimori"), context.getString(R.string.cross_sync_vm_reading_library))
                     val list = ShikimoriImportManager.fetchAllLists(context, shikimoriToken!!, shikimoriUserId!!)
                     statsMap["Shikimori"] = statsMap["Shikimori"]!!.copy(initialCount = list.size)
-                    logEvent("Shikimori", "Shikimori kütüphanesinden ${list.size} kayıt alındı.")
+                    logEvent("Shikimori", context.getString(R.string.cross_sync_log_imported_entries, "Shikimori", list.size))
                     list
                 } else emptyList()
 
@@ -647,7 +711,7 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                     updateProgress(context.getString(R.string.cross_sync_vm_fetching_platform_list, "Bangumi"), context.getString(R.string.cross_sync_vm_reading_library))
                     val list = BangumiImportManager.fetchAllLists(context, bangumiToken!!)
                     statsMap["Bangumi"] = statsMap["Bangumi"]!!.copy(initialCount = list.size)
-                    logEvent("Bangumi", "Bangumi kütüphanesinden ${list.size} kayıt alındı.")
+                    logEvent("Bangumi", context.getString(R.string.cross_sync_log_imported_entries, "Bangumi", list.size))
                     list
                 } else emptyList()
 
@@ -673,7 +737,7 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                     .filter { it.length >= 2 }
                     .toSet()
 
-                fun describeIdentityCandidate(entry: MediaEntry): String = entry.crossSyncIdentityDiagnostic().trimEnd()
+                fun describeIdentityCandidate(entry: MediaEntry): String = entry.crossSyncIdentityDiagnostic(context).trimEnd()
 
                 fun clusterEntry(entry: MediaEntry, assignToPlatform: (UnifiedSyncItem) -> Unit) {
                     val identity = com.kitsugi.animelist.model.MediaIdentity
@@ -701,18 +765,22 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                             group.candidates.flatMap { candidate -> identity.conflictingIdentityKeys(candidate, entry) }
                         }.distinct()
                         logEvent(
-                            "Eşleştirme",
-                            "Aynı başlıklı farklı yapım ayrı grup olarak işlendi: ${entry.title}",
+                            context.getString(R.string.cross_sync_log_category_matching),
+                            context.getString(R.string.cross_sync_log_same_title_conflict, entry.title),
                             details = buildString {
-                                appendLine("Sağlayıcı kimlikleri farklı olduğu için mevcut grupla birleştirilmedi; kayıt kendi kimliğiyle eşitlenecek.")
-                                appendLine("Gelen kayıt:")
+                                appendLine(context.getString(R.string.cross_sync_detail_source_identity_conflict))
+                                appendLine(context.getString(R.string.cross_sync_detail_incoming_record))
                                 appendLine(describeIdentityCandidate(entry))
-                                appendLine("Aynı başlığı taşıyan mevcut kayıtlar:")
+                                appendLine(context.getString(R.string.cross_sync_detail_existing_same_title))
                                 sameTitleIdConflicts.flatMap { it.candidates }.distinct().forEach { candidate ->
                                     appendLine(describeIdentityCandidate(candidate))
                                 }
-                                append("Farklı kimlik alanları: ")
-                                append(conflictKeys.joinToString().ifBlank { "bilinmiyor" })
+                                appendLine(
+                                    context.getString(
+                                        R.string.cross_sync_detail_different_identity_fields,
+                                        conflictKeys.joinToString().ifBlank { KitsugiStrings.get(R.string.cross_sync_diag_no_value) }
+                                    )
+                                )
                             },
                             includeInLiveLog = false
                         )
@@ -743,24 +811,24 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                                 }
                                 if (suspiciousMatches.isNotEmpty()) {
                                     val details = buildString {
-                                        appendLine("Aynı harici kimlik(ler) eşleşti, ancak başlıklar akraba değil ve/veya yayın yılları uyuşmuyor; sağlayıcı eşlemesi hatalı olabilir. Yanlış içerik eklenmesini önlemek için otomatik yazma durduruldu.")
-                                        appendLine("Ortak kimlikler: ${sharedIds.joinToString()}")
-                                        appendLine("Gelen kayıt:")
+                                        appendLine(context.getString(R.string.cross_sync_detail_unrelated_shared_ids))
+                                        appendLine(context.getString(R.string.cross_sync_detail_shared_ids, sharedIds.joinToString()))
+                                        appendLine(context.getString(R.string.cross_sync_detail_incoming_record))
                                         appendLine(describeIdentityCandidate(entry))
-                                        appendLine("Eşleşen kayıt(lar):")
+                                        appendLine(context.getString(R.string.cross_sync_detail_matching_records))
                                         suspiciousMatches.forEach { appendLine(describeIdentityCandidate(it)) }
                                     }
                                     match.identityReviewRequired = true
                                     match.identityReviewDetails = details
                                 } else {
                                     logEvent(
-                                        "Eşleştirme",
-                                        "Ortak kimlikle birleştirildi (başlık alias'ları farklı): ${entry.title}",
+                                        context.getString(R.string.cross_sync_log_category_matching),
+                                        context.getString(R.string.cross_sync_log_shared_identity_merged, entry.title),
                                         details = buildString {
-                                            appendLine("Ortak kimlikler: ${sharedIds.joinToString()}")
-                                            appendLine("Gelen kayıt:")
+                                            appendLine(context.getString(R.string.cross_sync_detail_shared_ids, sharedIds.joinToString()))
+                                            appendLine(context.getString(R.string.cross_sync_detail_incoming_record))
                                             appendLine(describeIdentityCandidate(entry))
-                                            appendLine("Eşleşen kayıt(lar):")
+                                            appendLine(context.getString(R.string.cross_sync_detail_matching_records))
                                             unrelatedTitleIds.forEach { appendLine(describeIdentityCandidate(it)) }
                                         },
                                         includeInLiveLog = false
@@ -796,19 +864,27 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                             }
                             if (resolvedMatch != null && identityConflictedCandidates.isEmpty()) {
                                 val details = buildString {
-                                    appendLine("Birden fazla aday grup bulundu; tekil ${if (keyMatches.size == 1) "ortak kimlik" else "tam başlık"} ile seçim yapıldı.")
-                                    appendLine("Gelen kayıt:")
+                                    appendLine(
+                                        context.getString(
+                                            R.string.cross_sync_detail_multiple_candidates,
+                                            context.getString(if (keyMatches.size == 1) R.string.cross_sync_detail_unique_shared_id else R.string.cross_sync_detail_exact_title)
+                                        )
+                                    )
+                                    appendLine(context.getString(R.string.cross_sync_detail_incoming_record))
                                     appendLine(describeIdentityCandidate(entry))
-                                    appendLine("Seçilen aday grup: ${matches.indexOf(resolvedMatch) + 1}")
-                                    appendLine("Aday gruplar:")
+                                    appendLine(context.getString(R.string.cross_sync_detail_selected_candidate, matches.indexOf(resolvedMatch) + 1))
+                                    appendLine(context.getString(R.string.cross_sync_detail_candidate_groups))
                                     matches.forEachIndexed { index, group ->
-                                        appendLine("Aday ${index + 1}:")
+                                        appendLine(context.getString(R.string.cross_sync_detail_candidate, index + 1))
                                         group.candidates.forEach { appendLine(describeIdentityCandidate(it)) }
                                     }
                                 }
                                 logEvent(
-                                    "Eşleştirme",
-                                    "Birden fazla eşleşme adayı vardı; tekil kanıtla seçim yapıldı: ${entry.title}",
+                                    context.getString(R.string.cross_sync_log_category_matching),
+                                    context.getString(
+                                        R.string.cross_sync_detail_multiple_candidates,
+                                        context.getString(if (keyMatches.size == 1) R.string.cross_sync_detail_unique_shared_id else R.string.cross_sync_detail_exact_title)
+                                    ) + " " + entry.title,
                                     isWarning = true,
                                     details = details
                                 )
@@ -817,15 +893,15 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                                 val details = buildString {
                                     appendLine(
                                         if (resolvedMatch != null)
-                                            "Tekil seçilen grubun başlık/yıl bilgisi gelen kayıtla uyuşmadı; yanlış birleştirmeyi önlemek için seçim reddedildi. Kayıt başka hesaplara yazılmadı."
+                                            context.getString(R.string.cross_sync_detail_rejected_title_year)
                                         else
-                                            "Birden fazla olası grup arasında güvenilir tek bir seçim yapılamadı. Kayıt başka hesaplara yazılmadı."
+                                            context.getString(R.string.cross_sync_detail_ambiguous_candidates)
                                     )
-                                    appendLine("Gelen kayıt:")
+                                    appendLine(context.getString(R.string.cross_sync_detail_incoming_record))
                                     appendLine(describeIdentityCandidate(entry))
-                                    appendLine("Aday gruplar:")
+                                    appendLine(context.getString(R.string.cross_sync_detail_candidate_groups))
                                     matches.forEachIndexed { index, group ->
-                                        appendLine("Aday ${index + 1}:")
+                                        appendLine(context.getString(R.string.cross_sync_detail_candidate, index + 1))
                                         group.candidates.forEach { appendLine(describeIdentityCandidate(it)) }
                                     }
                                 }
@@ -869,7 +945,7 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                 clusterEntries(shikimoriEntries) { item, entry -> item.shikimori = entry }
                 clusterEntries(bangumiEntries) { item, entry -> item.bangumi = entry }
 
-                logEvent("Analiz", "Toplam ${unifiedItems.size} tekil içerik tespit edildi. Eşitleme başlatılıyor...")
+                logEvent(context.getString(R.string.cross_sync_log_category_analysis), context.getString(R.string.cross_sync_log_match_summary, unifiedItems.size))
                 updateProgress(
                     context.getString(R.string.cross_sync_vm_starting),
                     context.getString(R.string.cross_sync_vm_planned_items, unifiedItems.size),
@@ -897,9 +973,13 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                         val reason = key.substringAfter('|')
                         logEvent(
                             platform,
-                            "[$platform] ${titles.size} kayıt atlandı: $reason",
+                            context.getString(R.string.cross_sync_log_skipped_summary, platform, titles.size, reason),
                             isWarning = true,
-                            details = "Atlanan kayıtlar (${titles.size}):\n" + titles.joinToString("\n") { "• $it" }
+                            details = context.getString(
+                                R.string.cross_sync_log_skipped_entries,
+                                titles.size,
+                                titles.joinToString("\n") { "• $it" }
+                            )
                         )
                     }
                     skippedTitlesByReason.clear()
@@ -924,10 +1004,10 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                     if (item.identityReviewRequired) {
                         val title = candidates.firstOrNull()?.title ?: context.getString(R.string.cross_sync_vm_unknown_media)
                         logEvent(
-                            "Eşleştirme",
-                            "Kimlik doğrulaması gerektiği için dış hesaplara aktarılmadı: $title",
+                            context.getString(R.string.cross_sync_log_category_matching),
+                            context.getString(R.string.cross_sync_log_identity_review, title),
                             isWarning = true,
-                            details = item.identityReviewDetails ?: candidates.joinToString("\n\n") { it.crossSyncIdentityDiagnostic() }
+                            details = item.identityReviewDetails ?: candidates.joinToString("\n\n") { it.crossSyncIdentityDiagnostic(context) }
                         )
                         val reviewType = candidates.first().type
                         val reviewIsAnimeOrManga = reviewType == MediaType.Anime || reviewType == MediaType.Manga
@@ -958,7 +1038,7 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
 
                     // 2. En gelişmiş izleme durumu
                     // Simkl'in `total` değeri "yayınlanmış bölüm sayısı"dır (devam eden dizilerde toplam değil);
-                    // bu sayıdan "Tamamlandı" çıkarımı yapmak devam eden yapımları yanlışlıkla bitmiş gösteriyordu.
+                    // bu sayıdan context.getString(R.string.cross_sync_log_category_complete) çıkarımı yapmak devam eden yapımları yanlışlıkla bitmiş gösteriyordu.
                     // Çıkarım için yalnızca MAL/AniList/Kitsu/Shikimori toplamları kullanılır.
                     val totalCount = candidates
                         .filter { com.kitsugi.animelist.model.MediaIdentity.canonicalSource(it.source) != "simkl" }
@@ -1018,9 +1098,9 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                                 .distinct()
                             when {
                                 holderSources.any { it in com.kitsugi.animelist.data.auth.CrossSyncIdentityGuard.NATIVE_MAL_SOURCES } ->
-                                    com.kitsugi.animelist.data.auth.CrossSyncIdentityGuard.Verdict.Trusted("MAL/Shikimori kaydının kendi kimliği")
+                                    com.kitsugi.animelist.data.auth.CrossSyncIdentityGuard.Verdict.Trusted(context.getString(R.string.cross_sync_identity_native_mal))
                                 holderSources.size >= 2 ->
-                                    com.kitsugi.animelist.data.auth.CrossSyncIdentityGuard.Verdict.Trusted("${holderSources.joinToString("+")} aynı MAL ID'yi bağımsız bildirdi")
+                                    com.kitsugi.animelist.data.auth.CrossSyncIdentityGuard.Verdict.Trusted(context.getString(R.string.cross_sync_identity_multiple_platforms, holderSources.joinToString("+")))
                                 else -> com.kitsugi.animelist.data.auth.CrossSyncIdentityGuard.verifyMalId(
                                     malId = realMalId,
                                     mediaType = newest.type,
@@ -1032,27 +1112,30 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                     val additionsAllowed = identityVerdict?.allowsAdditions ?: true
                     // Eklemelerde kullanılacak MAL kimliği: doğrulanmadıysa yok sayılır.
                     val guardedMalId: Int? = realMalId?.takeIf { additionsAllowed }
-                    val identitySkipReason = "kimlik doğrulanamadı (MAL #${realMalId} ↔ yerel başlık/yıl uyuşmuyor; yanlış içerik eklenmesin diye atlandı)"
+                    val identitySkipReason = context.getString(R.string.cross_sync_reason_identity_unverified, realMalId?.toString() ?: "?")
                     fun recordIdentitySkip(platform: String, title: String) {
                         recordSkip(
                             platform = platform,
                             reasonKey = identitySkipReason,
                             title = title,
-                            message = "[$platform] - Atlandı (kimlik doğrulanamadı): $title",
-                            details = "Kimlik güvencesi: ${identityVerdict?.describe() ?: "-"}\nYeni kayıt eklenmedi; mevcut kayıtlar etkilenmez."
+                            message = context.getString(R.string.cross_sync_log_skipped, platform, identitySkipReason, title),
+                            details = context.getString(
+                                R.string.cross_sync_detail_identity_assurance,
+                                identityVerdict?.describe() ?: "-"
+                            ) + "\n" + context.getString(R.string.cross_sync_detail_no_new_entries)
                         )
                     }
                     if (identityVerdict is com.kitsugi.animelist.data.auth.CrossSyncIdentityGuard.Verdict.Rejected) {
                         logEvent(
-                            "Eşleştirme",
-                            "Şüpheli kimlik, ekleme engellendi: ${newest.title} → MAL #$realMalId",
+                            context.getString(R.string.cross_sync_log_category_matching),
+                            context.getString(R.string.cross_sync_log_identity_rejected, newest.title, realMalId ?: 0),
                             isWarning = true,
                             details = buildString {
                                 appendLine(identityVerdict.describe())
-                                appendLine("Bu grubun MAL kimliği tek bir sağlayıcı eşlemesinden/çıkarımdan geliyor ve MAL kataloğundaki içerikle uyuşmuyor.")
-                                appendLine("Hiçbir platforma yeni kayıt eklenmeyecek; mevcut kayıtların güncellenmesi etkilenmez.")
-                                appendLine("Kaynak kayıtlar:")
-                                candidates.forEach { appendLine(it.crossSyncIdentityDiagnostic()) }
+                                appendLine(context.getString(R.string.cross_sync_detail_suspicious_mal_identity))
+                                appendLine(context.getString(R.string.cross_sync_detail_no_additions))
+                                appendLine(context.getString(R.string.cross_sync_detail_source_platform_entries, candidates.size))
+                                candidates.forEach { appendLine(it.crossSyncIdentityDiagnostic(context)) }
                             }
                         )
                     }
@@ -1091,23 +1174,25 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                     }
 
                     val mappingDetails = buildString {
-                        appendLine("Kaynak platform kayıtları (${candidates.size}):")
+                        appendLine(context.getString(R.string.cross_sync_detail_source_platform_entries, candidates.size))
                         candidates.forEachIndexed { candidateIndex, candidate ->
-                            appendLine("Kayıt ${candidateIndex + 1}:")
-                            appendLine(candidate.crossSyncIdentityDiagnostic())
+                            appendLine(context.getString(R.string.cross_sync_detail_record_number, candidateIndex + 1))
+                            appendLine(candidate.crossSyncIdentityDiagnostic(context))
                         }
-                        appendLine("Eşitleme için birleştirilen değerler:")
-                        appendLine(mergedEntry.crossSyncIdentityDiagnostic())
-                        append("Kimlik güvencesi: ")
-                        append(
-                            identityVerdict?.describe()
-                                ?: if (realMalId == null) "MAL kimliği yok (yalnızca platformun kendi kimliğiyle işlem yapılır)"
-                                else "gerek yok (tüm hedef platformlarda kayıt zaten var)"
+                        appendLine(context.getString(R.string.cross_sync_detail_merged_values))
+                        appendLine(mergedEntry.crossSyncIdentityDiagnostic(context))
+                        appendLine(
+                            context.getString(
+                                R.string.cross_sync_detail_identity_assurance,
+                                identityVerdict?.describe()
+                                    ?: if (realMalId == null) context.getString(R.string.cross_sync_detail_no_mal_id)
+                                    else context.getString(R.string.cross_sync_detail_identity_not_needed)
+                            )
                         )
                     }
                     logEvent(
-                        "Eşleştirme",
-                        "İçerik grubu oluşturuldu: ${mergedEntry.title} (${candidates.size} kaynak)",
+                        context.getString(R.string.cross_sync_log_category_matching),
+                        context.getString(R.string.cross_sync_log_group_created, mergedEntry.title, candidates.size),
                         details = mappingDetails,
                         includeInLiveLog = false
                     )
@@ -1124,22 +1209,22 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                             val res = runSyncCatching { AniListSyncManager.updateAniListEntry(aniListToken!!, mergedEntry, context = context) }
                             if (res.isSuccess && res.getOrNull() != null) {
                                 statsMap["AniList"] = statsMap["AniList"]!!.let { it.copy(addedCount = it.addedCount + 1) }
-                                logEvent("AniList", "[AniList] + Eklendi: ${mergedEntry.title} (${bestStatus.label})", isAddition = true, details = mappingDetails)
+                                logEvent("AniList", context.getString(R.string.cross_sync_log_added, "AniList", mergedEntry.title, bestStatus.plainLabel()), isAddition = true, details = mappingDetails)
                             } else if (res.isSuccess) {
                                 // null = AniList'te hangi medya olduğu güvenle çözülemedi (MAL ID/ARM eşlemesi yok).
                                 // Bu bir API hatası değil; kayıt atlanır ve sonda tek bir özet uyarı verilir.
                                 recordSkip(
                                     platform = "AniList",
-                                    reasonKey = "AniList medya kimliği çözülemedi (MAL ID veya ARM eşlemesi yok)",
+                                    reasonKey = context.getString(R.string.cross_sync_reason_anilist_media_id_unresolved),
                                     title = mergedEntry.title,
-                                    message = "[AniList] - Atlandı (medya kimliği çözülemedi): ${mergedEntry.title}",
+                                    message = context.getString(R.string.cross_sync_log_skipped, "AniList", context.getString(R.string.cross_sync_reason_anilist_media_id_unresolved), mergedEntry.title),
                                     details = mappingDetails
                                 )
                             } else {
                                 statsMap["AniList"] = statsMap["AniList"]!!.let { it.copy(errorCount = it.errorCount + 1) }
-                                val failure = res.exceptionOrNull()?.crossSyncDiagnostic()
-                                    ?: "AniList yeni liste kaydını onaylamadı."
-                                logEvent("AniList", "[AniList] ! Eklenemedi: ${mergedEntry.title}", isError = true, details = "$failure\n$mappingDetails")
+                                val failure = res.exceptionOrNull()?.crossSyncDiagnostic(context)
+                                    ?: context.getString(R.string.cross_sync_api_anilist_add_not_confirmed)
+                                logEvent("AniList", context.getString(R.string.cross_sync_log_failed_add, "AniList", mergedEntry.title), isError = true, details = "$failure\n$mappingDetails")
                             }
                         } else {
                             val needsUpdate = !singleSourceGroup && ((current.status != bestStatus) ||
@@ -1153,12 +1238,12 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                                 val res = runSyncCatching { AniListSyncManager.updateAniListEntry(aniListToken!!, target, context = context) }
                                 if (res.isSuccess && res.getOrNull() != null) {
                                     statsMap["AniList"] = statsMap["AniList"]!!.let { it.copy(updatedCount = it.updatedCount + 1) }
-                                    logEvent("AniList", "[AniList] ~ Güncellendi: ${mergedEntry.title}", isUpdate = true, details = mappingDetails)
+                                    logEvent("AniList", context.getString(R.string.cross_sync_log_updated, "AniList", mergedEntry.title), isUpdate = true, details = mappingDetails)
                                 } else {
                                     statsMap["AniList"] = statsMap["AniList"]!!.let { it.copy(errorCount = it.errorCount + 1) }
-                                    val failure = res.exceptionOrNull()?.crossSyncDiagnostic()
-                                        ?: "AniList güncellemeyi onaylamadı veya kayıt kimliği döndürmedi."
-                                    logEvent("AniList", "[AniList] ! Güncellenemedi: ${mergedEntry.title}", isError = true, details = "$failure\n$mappingDetails")
+                                    val failure = res.exceptionOrNull()?.crossSyncDiagnostic(context)
+                                        ?: context.getString(R.string.cross_sync_api_anilist_update_not_confirmed)
+                                    logEvent("AniList", context.getString(R.string.cross_sync_log_failed_update, "AniList", mergedEntry.title), isError = true, details = "$failure\n$mappingDetails")
                                 }
                             }
                         }
@@ -1178,12 +1263,12 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                                 val res = runSyncCatching { MalSyncManager.updateMalEntry(malToken!!, target, context = context) }
                                 if (res.isSuccess) {
                                     statsMap["MyAnimeList"] = statsMap["MyAnimeList"]!!.let { it.copy(addedCount = it.addedCount + 1) }
-                                    logEvent("MyAnimeList", "[MAL] + Eklendi: ${mergedEntry.title} (${bestStatus.label})", isAddition = true, details = mappingDetails)
+                                    logEvent("MyAnimeList", context.getString(R.string.cross_sync_log_added, "MAL", mergedEntry.title, bestStatus.plainLabel()), isAddition = true, details = mappingDetails)
                                 } else {
                                     statsMap["MyAnimeList"] = statsMap["MyAnimeList"]!!.let { it.copy(errorCount = it.errorCount + 1) }
-                                    val failure = res.exceptionOrNull()?.crossSyncDiagnostic()
-                                        ?: "MyAnimeList kayıt ekleme isteği onaylanmadı."
-                                    logEvent("MyAnimeList", "[MAL] ! Eklenemedi: ${mergedEntry.title}", isError = true, details = "$failure\n$mappingDetails")
+                                    val failure = res.exceptionOrNull()?.crossSyncDiagnostic(context)
+                                        ?: context.getString(R.string.cross_sync_api_mal_add_not_confirmed)
+                                    logEvent("MyAnimeList", context.getString(R.string.cross_sync_log_failed_add, "MAL", mergedEntry.title), isError = true, details = "$failure\n$mappingDetails")
                                 }
                             } else {
                                 val needsUpdate = !singleSourceGroup && ((current.status != bestStatus) ||
@@ -1197,22 +1282,22 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                                     val res = runSyncCatching { MalSyncManager.updateMalEntry(malToken!!, target, context = context) }
                                     if (res.isSuccess) {
                                         statsMap["MyAnimeList"] = statsMap["MyAnimeList"]!!.let { it.copy(updatedCount = it.updatedCount + 1) }
-                                        logEvent("MyAnimeList", "[MAL] ~ Güncellendi: ${mergedEntry.title}", isUpdate = true, details = mappingDetails)
+                                        logEvent("MyAnimeList", context.getString(R.string.cross_sync_log_updated, "MAL", mergedEntry.title), isUpdate = true, details = mappingDetails)
                                     } else {
                                     statsMap["MyAnimeList"] = statsMap["MyAnimeList"]!!.let { it.copy(errorCount = it.errorCount + 1) }
-                                    val failure = res.exceptionOrNull()?.crossSyncDiagnostic()
-                                        ?: "MyAnimeList güncelleme isteği onaylanmadı."
-                                    logEvent("MyAnimeList", "[MAL] ! Güncellenemedi: ${mergedEntry.title}", isError = true, details = "$failure\n$mappingDetails")
+                                    val failure = res.exceptionOrNull()?.crossSyncDiagnostic(context)
+                                        ?: context.getString(R.string.cross_sync_api_mal_update_not_confirmed)
+                                    logEvent("MyAnimeList", context.getString(R.string.cross_sync_log_failed_update, "MAL", mergedEntry.title), isError = true, details = "$failure\n$mappingDetails")
                                 }
                                 }
                             }
                         } else {
                             recordSkip(
                                 platform = "MyAnimeList",
-                                reasonKey = "doğrulanmış MAL ID yok (AniList/Kitsu/Simkl kaydı MAL'a eşlenemedi)",
+                                reasonKey = context.getString(R.string.cross_sync_reason_mal_id_unverified),
                                 title = mergedEntry.title,
-                                message = "[MAL] - Atlandı (doğrulanmış MAL ID yok): ${mergedEntry.title}",
-                                details = "MAL ID çözümlemesi başarısız oldu veya güvenli bir kimlik bulunamadı.\n$mappingDetails"
+                                message = context.getString(R.string.cross_sync_log_skipped, "MyAnimeList", context.getString(R.string.cross_sync_reason_mal_id_unverified), mergedEntry.title),
+                                details = context.getString(R.string.cross_sync_detail_mal_id_resolution_failed) + "\n" + mappingDetails
                             )
                         }
                     }
@@ -1251,21 +1336,21 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                             val res = outcome.getOrNull()
                             if (res != null && res.errors.isEmpty()) {
                                 statsMap["Kitsu"] = statsMap["Kitsu"]!!.let { it.copy(addedCount = it.addedCount + 1) }
-                                logEvent("Kitsu", "[Kitsu] + Eklendi: ${mergedEntry.title} (${bestStatus.label})", isAddition = true, details = mappingDetails + (res.resolvedVia?.let { "\nKitsu kimliği kaynağı: $it" } ?: ""))
+                                logEvent("Kitsu", context.getString(R.string.cross_sync_log_added, "Kitsu", mergedEntry.title, bestStatus.plainLabel()), isAddition = true, details = mappingDetails + (res.resolvedVia?.let { "\n" + context.getString(R.string.cross_sync_detail_kitsu_identity_source, it) } ?: ""))
                             } else if (res != null && res.unresolvedMedia) {
                                 recordSkip(
                                     platform = "Kitsu",
-                                    reasonKey = "Kitsu kataloğunda güvenilir eşleşme bulunamadı (mappings/ARM/başlık)",
+                                    reasonKey = context.getString(R.string.cross_sync_reason_kitsu_match_missing),
                                     title = mergedEntry.title,
-                                    message = "[Kitsu] - Atlandı (Kitsu kimliği çözülemedi): ${mergedEntry.title}",
+                                    message = context.getString(R.string.cross_sync_log_skipped, "Kitsu", context.getString(R.string.cross_sync_reason_kitsu_match_missing), mergedEntry.title),
                                     details = mappingDetails
                                 )
                             } else {
-                                val errMsg = outcome.exceptionOrNull()?.crossSyncDiagnostic()
+                                val errMsg = outcome.exceptionOrNull()?.crossSyncDiagnostic(context)
                                     ?: res?.errors?.joinToString("; ")
-                                    ?: "Bilinmeyen hata"
+                                    ?: context.getString(R.string.cross_sync_vm_unknown_error)
                                 statsMap["Kitsu"] = statsMap["Kitsu"]!!.let { it.copy(errorCount = it.errorCount + 1) }
-                                logEvent("Kitsu", "[Kitsu] ! Hata: ${mergedEntry.title} ($errMsg)", isError = true, details = "$mappingDetails\n$errMsg")
+                                logEvent("Kitsu", context.getString(R.string.cross_sync_log_error, "Kitsu", mergedEntry.title, errMsg), isError = true, details = "$mappingDetails\n$errMsg")
                             }
                         } else {
                             val needsUpdate = !singleSourceGroup && ((current.status != bestStatus) ||
@@ -1278,21 +1363,21 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                                 val res = outcome.getOrNull()
                                 if (res != null && res.errors.isEmpty()) {
                                     statsMap["Kitsu"] = statsMap["Kitsu"]!!.let { it.copy(updatedCount = it.updatedCount + 1) }
-                                    logEvent("Kitsu", "[Kitsu] ~ Güncellendi: ${mergedEntry.title}", isUpdate = true, details = mappingDetails)
+                                    logEvent("Kitsu", context.getString(R.string.cross_sync_log_updated, "Kitsu", mergedEntry.title), isUpdate = true, details = mappingDetails)
                                 } else if (res != null && res.unresolvedMedia) {
                                     recordSkip(
                                         platform = "Kitsu",
-                                        reasonKey = "Kitsu kataloğunda güvenilir eşleşme bulunamadı (mappings/ARM/başlık)",
+                                        reasonKey = context.getString(R.string.cross_sync_reason_kitsu_match_missing),
                                         title = mergedEntry.title,
-                                        message = "[Kitsu] - Atlandı (Kitsu kimliği çözülemedi): ${mergedEntry.title}",
+                                        message = context.getString(R.string.cross_sync_log_skipped, "Kitsu", context.getString(R.string.cross_sync_reason_kitsu_match_missing), mergedEntry.title),
                                         details = mappingDetails
                                     )
                                 } else {
-                                    val errMsg = outcome.exceptionOrNull()?.crossSyncDiagnostic()
+                                    val errMsg = outcome.exceptionOrNull()?.crossSyncDiagnostic(context)
                                         ?: res?.errors?.joinToString("; ")
-                                        ?: "Bilinmeyen hata"
+                                        ?: context.getString(R.string.cross_sync_vm_unknown_error)
                                     statsMap["Kitsu"] = statsMap["Kitsu"]!!.let { it.copy(errorCount = it.errorCount + 1) }
-                                    logEvent("Kitsu", "[Kitsu] ! Güncellenemedi: ${mergedEntry.title} ($errMsg)", isError = true, details = "$mappingDetails\n$errMsg")
+                                    logEvent("Kitsu", context.getString(R.string.cross_sync_log_failed_update, "Kitsu", mergedEntry.title) + " ($errMsg)", isError = true, details = "$mappingDetails\n$errMsg")
                                 }
                             }
                         }
@@ -1313,13 +1398,13 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                                 val res = outcome.getOrNull()
                                 if (res != null && res.errors.isEmpty()) {
                                     statsMap["Shikimori"] = statsMap["Shikimori"]!!.let { it.copy(addedCount = it.addedCount + 1) }
-                                    logEvent("Shikimori", "[Shikimori] + Eklendi: ${mergedEntry.title} (${bestStatus.label})", isAddition = true, details = mappingDetails)
+                                    logEvent("Shikimori", context.getString(R.string.cross_sync_log_added, "Shikimori", mergedEntry.title, bestStatus.plainLabel()), isAddition = true, details = mappingDetails)
                                 } else {
-                                    val errMsg = outcome.exceptionOrNull()?.crossSyncDiagnostic()
+                                    val errMsg = outcome.exceptionOrNull()?.crossSyncDiagnostic(context)
                                         ?: res?.errors?.joinToString("; ")
-                                        ?: "Bilinmeyen hata"
+                                        ?: context.getString(R.string.cross_sync_vm_unknown_error)
                                     statsMap["Shikimori"] = statsMap["Shikimori"]!!.let { it.copy(errorCount = it.errorCount + 1) }
-                                    logEvent("Shikimori", "[Shikimori] ! Hata: ${mergedEntry.title} ($errMsg)", isError = true, details = "$mappingDetails\n$errMsg")
+                                    logEvent("Shikimori", context.getString(R.string.cross_sync_log_error, "Shikimori", mergedEntry.title, errMsg), isError = true, details = "$mappingDetails\n$errMsg")
                                 }
                             } else {
                                 val needsUpdate = !singleSourceGroup && ((current.status != bestStatus) ||
@@ -1332,23 +1417,23 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                                     val res = outcome.getOrNull()
                                     if (res != null && res.errors.isEmpty()) {
                                         statsMap["Shikimori"] = statsMap["Shikimori"]!!.let { it.copy(updatedCount = it.updatedCount + 1) }
-                                        logEvent("Shikimori", "[Shikimori] ~ Güncellendi: ${mergedEntry.title}", isUpdate = true, details = mappingDetails)
+                                        logEvent("Shikimori", context.getString(R.string.cross_sync_log_updated, "Shikimori", mergedEntry.title), isUpdate = true, details = mappingDetails)
                                     } else {
-                                        val errMsg = outcome.exceptionOrNull()?.crossSyncDiagnostic()
+                                        val errMsg = outcome.exceptionOrNull()?.crossSyncDiagnostic(context)
                                             ?: res?.errors?.joinToString("; ")
-                                            ?: "Bilinmeyen hata"
+                                            ?: context.getString(R.string.cross_sync_vm_unknown_error)
                                         statsMap["Shikimori"] = statsMap["Shikimori"]!!.let { it.copy(errorCount = it.errorCount + 1) }
-                                        logEvent("Shikimori", "[Shikimori] ! Güncellenemedi: ${mergedEntry.title} ($errMsg)", isError = true, details = "$mappingDetails\n$errMsg")
+                                        logEvent("Shikimori", context.getString(R.string.cross_sync_log_failed_update, "Shikimori", mergedEntry.title) + " ($errMsg)", isError = true, details = "$mappingDetails\n$errMsg")
                                     }
                                 }
                             }
                         } else {
                             recordSkip(
                                 platform = "Shikimori",
-                                reasonKey = "doğrulanmış MAL ID yok (Shikimori kimlikleri MAL ID ile aynıdır)",
+                                reasonKey = context.getString(R.string.cross_sync_reason_shikimori_mal_id),
                                 title = mergedEntry.title,
-                                message = "[Shikimori] - Atlandı (doğrulanmış MAL ID yok): ${mergedEntry.title}",
-                                details = "Shikimori senkronizasyonu için doğrulanmış MAL ID gerekiyor.\n$mappingDetails"
+                                message = context.getString(R.string.cross_sync_log_skipped, "Shikimori", context.getString(R.string.cross_sync_reason_shikimori_mal_id), mergedEntry.title),
+                                details = context.getString(R.string.cross_sync_detail_shikimori_mal_id_required) + "\n" + mappingDetails
                             )
                         }
                     }
@@ -1367,21 +1452,21 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                             val res = outcome.getOrNull()
                             if (res != null && res.errors.isEmpty()) {
                                 statsMap["Bangumi"] = statsMap["Bangumi"]!!.let { it.copy(addedCount = it.addedCount + 1) }
-                                logEvent("Bangumi", "[Bangumi] + Eklendi: ${mergedEntry.title} (${bestStatus.label})", isAddition = true, details = mappingDetails)
+                                logEvent("Bangumi", context.getString(R.string.cross_sync_log_added, "Bangumi", mergedEntry.title, bestStatus.plainLabel()), isAddition = true, details = mappingDetails)
                             } else if (res != null && res.unresolvedSubject) {
                                 recordSkip(
                                     platform = "Bangumi",
-                                    reasonKey = "Bangumi条目 eşleşmesi bulunamadı",
+                                    reasonKey = context.getString(R.string.cross_sync_reason_bangumi_match_missing),
                                     title = mergedEntry.title,
-                                    message = "[Bangumi] - Atlandı (Bangumi eşleşmesi bulunamadı): ${mergedEntry.title}",
+                                    message = context.getString(R.string.cross_sync_log_skipped, "Bangumi", context.getString(R.string.cross_sync_reason_bangumi_match_missing), mergedEntry.title),
                                     details = "$mappingDetails\n${res.errors.joinToString("; ")}"
                                 )
                             } else {
-                                val errMsg = outcome.exceptionOrNull()?.crossSyncDiagnostic()
+                                val errMsg = outcome.exceptionOrNull()?.crossSyncDiagnostic(context)
                                     ?: res?.errors?.joinToString("; ")
-                                    ?: "Bilinmeyen hata"
+                                    ?: context.getString(R.string.cross_sync_vm_unknown_error)
                                 statsMap["Bangumi"] = statsMap["Bangumi"]!!.let { it.copy(errorCount = it.errorCount + 1) }
-                                logEvent("Bangumi", "[Bangumi] ! Hata: ${mergedEntry.title} ($errMsg)", isError = true, details = "$mappingDetails\n$errMsg")
+                                logEvent("Bangumi", context.getString(R.string.cross_sync_log_error, "Bangumi", mergedEntry.title, errMsg), isError = true, details = "$mappingDetails\n$errMsg")
                             }
                         } else {
                             val needsUpdate = !singleSourceGroup && (
@@ -1399,16 +1484,16 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                                     statsMap["Bangumi"] = statsMap["Bangumi"]!!.let { it.copy(updatedCount = it.updatedCount + 1) }
                                     logEvent(
                                         "Bangumi",
-                                        "[Bangumi] ~ Güncellendi: ${mergedEntry.title} (${bestStatus.label}, Bölüm: $maxProgress)",
+                                        context.getString(R.string.cross_sync_log_updated_bangumi, mergedEntry.title, bestStatus.plainLabel(), maxProgress),
                                         isUpdate = true,
                                         details = mappingDetails
                                     )
                                 } else {
-                                    val errMsg = outcome.exceptionOrNull()?.crossSyncDiagnostic()
+                                    val errMsg = outcome.exceptionOrNull()?.crossSyncDiagnostic(context)
                                         ?: res?.errors?.joinToString("; ")
-                                        ?: "Bilinmeyen hata"
+                                        ?: context.getString(R.string.cross_sync_vm_unknown_error)
                                     statsMap["Bangumi"] = statsMap["Bangumi"]!!.let { it.copy(errorCount = it.errorCount + 1) }
-                                    logEvent("Bangumi", "[Bangumi] ! Güncellenemedi: ${mergedEntry.title} ($errMsg)", isError = true, details = "$mappingDetails\n$errMsg")
+                                    logEvent("Bangumi", context.getString(R.string.cross_sync_log_failed_update, "Bangumi", mergedEntry.title) + " ($errMsg)", isError = true, details = "$mappingDetails\n$errMsg")
                                 }
                             }
                         }
@@ -1466,20 +1551,25 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                         simklUnmatchedTitles.addAll(syncRes.unmatchedTitles)
                         simklProgressLimitedTitles.addAll(syncRes.unsupportedProgressTitles)
                         simklWarnings.addAll(syncRes.warnings)
-                        val chunkDetails = chunk.joinToString("\n\n") { it.crossSyncIdentityDiagnostic() }
-                        val groupLabel = "Grup ${idx + 1}/${chunks.size}"
+                        val chunkDetails = chunk.joinToString("\n\n") { it.crossSyncIdentityDiagnostic(context) }
+                        val groupLabel = context.getString(R.string.cross_sync_simkl_group_label, idx + 1, chunks.size)
                         if (syncRes.errors.isEmpty()) {
                             logEvent(
                                 "Simkl",
-                                "[Simkl] $groupLabel eşitlendi ($count eklendi${if (notFound > 0) ", $notFound Simkl'de bulunamadı" else ""})",
+                                context.getString(
+                                    R.string.cross_sync_simkl_group_synced,
+                                    groupLabel,
+                                    count,
+                                    if (notFound > 0) context.getString(R.string.cross_sync_simkl_not_found_suffix, notFound) else ""
+                                ),
                                 isAddition = count > 0,
                                 details = buildString {
                                     if (syncRes.unmatchedTitles.isNotEmpty()) {
-                                        appendLine("Simkl'de karşılığı bulunamayan kayıtlar (${syncRes.unmatchedTitles.size}):")
+                                        appendLine(context.getString(R.string.cross_sync_simkl_unmatched_entries, syncRes.unmatchedTitles.size))
                                         syncRes.unmatchedTitles.forEach { appendLine("• $it") }
                                         appendLine()
                                     }
-                                    append("Grup içindeki kayıtlar:")
+                                    append(context.getString(R.string.cross_sync_simkl_group_entries))
                                     appendLine()
                                     append(chunkDetails)
                                 }
@@ -1488,15 +1578,20 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                             syncRes.errors.forEach { message ->
                                 logEvent(
                                     "Simkl",
-                                    "[Simkl] $groupLabel: $message",
+                                    context.getString(R.string.cross_sync_simkl_group_error, groupLabel, message),
                                     isError = true,
-                                    details = "Grup özeti: $count eklendi, $notFound Simkl'de bulunamadı, ${syncRes.failedCount} yazılamadı. Grup içindeki kayıtlar:\n$chunkDetails"
+                                    details = context.getString(
+                                        R.string.cross_sync_simkl_group_summary,
+                                        count,
+                                        notFound,
+                                        syncRes.failedCount
+                                    ) + "\n" + chunkDetails
                                 )
                             }
                             if (count > 0) {
                                 logEvent(
                                     "Simkl",
-                                    "[Simkl] $groupLabel kısmen eşitlendi ($count eklendi)",
+                                    context.getString(R.string.cross_sync_simkl_partially_synced, groupLabel, count),
                                     isAddition = true,
                                     details = chunkDetails,
                                     includeInLiveLog = false
@@ -1512,9 +1607,9 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                         val distinctUnmatched = simklUnmatchedTitles.distinct()
                         logEvent(
                             "Simkl",
-                            "[Simkl] ${distinctUnmatched.size} kayıt Simkl kataloğunda bulunamadı (atlandı)",
+                            context.getString(R.string.cross_sync_simkl_catalog_not_found, distinctUnmatched.size),
                             isWarning = true,
-                            details = "Simkl bu kayıtları `not_found` olarak geri gönderdi; kimlik eşlemesi (MAL/TMDB/AniList) Simkl tarafında yok veya başlık eşleşmedi. Kayıtlar diğer hesaplarda eşitlenmeye devam eder.\n\n" +
+                            details = context.getString(R.string.cross_sync_simkl_catalog_not_found_detail) + "\n\n" +
                                 distinctUnmatched.joinToString("\n") { "• $it" }
                         )
                     }
@@ -1522,16 +1617,16 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                         val distinctLimited = simklProgressLimitedTitles.distinct()
                         logEvent(
                             "Simkl",
-                            "[Simkl] ${distinctLimited.size} dizinin bölüm ilerlemesi aktarılmadı (liste durumu yazıldı)",
+                            context.getString(R.string.cross_sync_simkl_progress_not_synced, distinctLimited.size),
                             isWarning = true,
-                            details = "Simkl, diziler için toplam bölüm sayısı yerine sezon/bölüm bazlı izleme geçmişi ister; bu eşleme henüz desteklenmiyor. Liste durumu ve puan aktarıldı.\n\n" +
+                            details = context.getString(R.string.cross_sync_simkl_progress_not_supported_detail) + "\n\n" +
                                 distinctLimited.joinToString("\n") { "• $it" }
                         )
                     }
                     if (simklWarnings.isNotEmpty()) {
                         logEvent(
                             "Simkl",
-                            "[Simkl] ${simklWarnings.size} kısmi işlem uyarısı (izleme geçmişi/puan)",
+                            context.getString(R.string.cross_sync_simkl_partial_warnings, simklWarnings.size),
                             isWarning = true,
                             details = simklWarnings.joinToString("\n") { "• $it" }
                         )
@@ -1562,38 +1657,38 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                     kotlinx.coroutines.currentCoroutineContext().ensureActive()
                     updateProgress(context.getString(R.string.cross_sync_vm_verifying_platform_list, "AniList"), context.getString(R.string.cross_sync_vm_latest_server_list), processed = 0, total = 0, unit = "")
                     runSyncCatching { repository.smartImport("anilist", AniListImportManager.fetchAllLists(aniListToken!!), allowDelete = false) }
-                        .onFailure { logEvent("AniList", "Yerel liste güncellenemedi: ${it.message}", isError = true, details = it.crossSyncDiagnostic()) }
+                        .onFailure { logEvent("AniList", context.getString(R.string.cross_sync_log_local_update_failed, it.message ?: context.getString(R.string.cross_sync_vm_unknown_error)), isError = true, details = it.crossSyncDiagnostic(context)) }
                 }
                 if (isMal) {
                     kotlinx.coroutines.currentCoroutineContext().ensureActive()
                     updateProgress(context.getString(R.string.cross_sync_vm_verifying_platform_list, "MyAnimeList"), context.getString(R.string.cross_sync_vm_latest_server_list), processed = 0, total = 0, unit = "")
                     runSyncCatching { repository.smartImport("mal", MalImportManager.fetchAllLists(malToken!!, showAdult), allowDelete = false) }
-                        .onFailure { logEvent("MyAnimeList", "Yerel liste güncellenemedi: ${it.message}", isError = true, details = it.crossSyncDiagnostic()) }
+                        .onFailure { logEvent("MyAnimeList", context.getString(R.string.cross_sync_log_local_update_failed, it.message ?: context.getString(R.string.cross_sync_vm_unknown_error)), isError = true, details = it.crossSyncDiagnostic(context)) }
                 }
                 if (isKitsu) {
                     kotlinx.coroutines.currentCoroutineContext().ensureActive()
                     updateProgress(context.getString(R.string.cross_sync_vm_verifying_platform_list, "Kitsu"), context.getString(R.string.cross_sync_vm_latest_server_list), processed = 0, total = 0, unit = "")
                     runSyncCatching { repository.smartImport("kitsu", KitsuImportManager.fetchAllLists(context, kitsuToken!!, kitsuUserId!!), allowDelete = false) }
-                        .onFailure { logEvent("Kitsu", "Yerel liste güncellenemedi: ${it.message}", isError = true, details = it.crossSyncDiagnostic()) }
+                        .onFailure { logEvent("Kitsu", context.getString(R.string.cross_sync_log_local_update_failed, it.message ?: context.getString(R.string.cross_sync_vm_unknown_error)), isError = true, details = it.crossSyncDiagnostic(context)) }
                 }
                 if (isShikimori) {
                     kotlinx.coroutines.currentCoroutineContext().ensureActive()
                     updateProgress(context.getString(R.string.cross_sync_vm_verifying_platform_list, "Shikimori"), context.getString(R.string.cross_sync_vm_latest_server_list), processed = 0, total = 0, unit = "")
                     runSyncCatching { repository.smartImport("shikimori", ShikimoriImportManager.fetchAllLists(context, shikimoriToken!!, shikimoriUserId!!), allowDelete = false) }
-                        .onFailure { logEvent("Shikimori", "Yerel liste güncellenemedi: ${it.message}", isError = true, details = it.crossSyncDiagnostic()) }
+                        .onFailure { logEvent("Shikimori", context.getString(R.string.cross_sync_log_local_update_failed, it.message ?: context.getString(R.string.cross_sync_vm_unknown_error)), isError = true, details = it.crossSyncDiagnostic(context)) }
                 }
                 if (isSimkl) {
                     kotlinx.coroutines.currentCoroutineContext().ensureActive()
                     updateProgress(context.getString(R.string.cross_sync_vm_verifying_platform_list, "Simkl"), context.getString(R.string.cross_sync_vm_latest_server_list), processed = 0, total = 0, unit = "")
-                    val refreshToken = ExternalAuthManager.getSimklToken(context) ?: error("Simkl bağlantısı kesildi")
+                    val refreshToken = ExternalAuthManager.getSimklToken(context) ?: error(context.getString(R.string.cross_sync_simkl_disconnected))
                     runSyncCatching { repository.smartImport("simkl", SimklImportManager.fetchAllLists(refreshToken), allowDelete = false) }
-                        .onFailure { logEvent("Simkl", "Yerel liste güncellenemedi: ${it.message}", isError = true, details = it.crossSyncDiagnostic()) }
+                        .onFailure { logEvent("Simkl", context.getString(R.string.cross_sync_log_local_update_failed, it.message ?: context.getString(R.string.cross_sync_vm_unknown_error)), isError = true, details = it.crossSyncDiagnostic(context)) }
                 }
                 if (isBangumi) {
                     kotlinx.coroutines.currentCoroutineContext().ensureActive()
                     updateProgress(context.getString(R.string.cross_sync_vm_verifying_platform_list, "Bangumi"), context.getString(R.string.cross_sync_vm_latest_server_list), processed = 0, total = 0, unit = "")
                     runSyncCatching { repository.smartImport("bangumi", BangumiImportManager.fetchAllLists(context, bangumiToken!!), allowDelete = false) }
-                        .onFailure { logEvent("Bangumi", "Yerel liste güncellenemedi: ${it.message}", isError = true, details = it.crossSyncDiagnostic()) }
+                        .onFailure { logEvent("Bangumi", context.getString(R.string.cross_sync_log_local_update_failed, it.message ?: context.getString(R.string.cross_sync_vm_unknown_error)), isError = true, details = it.crossSyncDiagnostic(context)) }
                 }
 
                 kotlinx.coroutines.currentCoroutineContext().ensureActive()
@@ -1608,7 +1703,7 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                 }
                 // Özet satırı kendisi bir sorun değildir; hata/uyarı sayacına eklenmez (eskiden kırmızı
                 // "hata" olarak listelenip issue sayısını şişiriyordu).
-                logEvent("Tamamlandı", summary)
+                logEvent(context.getString(R.string.cross_sync_log_category_complete), summary)
 
                 crossSyncState = com.kitsugi.animelist.model.CrossSyncProgressState(
                     isRunning = false,
@@ -1629,10 +1724,10 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                 onShowMessage?.invoke(summary)
             }.onFailure { error ->
                 logEvent(
-                    "Hata",
-                    "Eşitleme hatası: ${error.message ?: error.javaClass.simpleName}",
+                    context.getString(R.string.cross_sync_log_category_error),
+                    context.getString(R.string.cross_sync_log_sync_error, error.message ?: error.javaClass.simpleName),
                     isError = true,
-                    details = error.crossSyncDiagnostic()
+                    details = error.crossSyncDiagnostic(context)
                 )
                 crossSyncState = crossSyncState.copy(
                     isRunning = false,
@@ -1649,14 +1744,14 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                 onShowMessage?.invoke(context.getString(R.string.cross_sync_vm_error_while_syncing, error.message ?: context.getString(R.string.cross_sync_vm_unknown_error)))
             }
             } catch (cancelled: kotlinx.coroutines.CancellationException) {
-                logEvent("Eşitleme", "Eşitleme işlemi iptal edildi; tamamlanan kayıtlar rapora eklendi.", isWarning = true)
+                logEvent(context.getString(R.string.cross_sync_log_category_sync), context.getString(R.string.cross_sync_log_cancelled), isWarning = true)
                 throw cancelled
             } catch (error: Exception) {
                 logEvent(
-                    "Eşitleme",
-                    "Eşitleme başlatılamadı: ${error.message ?: error.javaClass.simpleName}",
+                    context.getString(R.string.cross_sync_log_category_sync),
+                    context.getString(R.string.cross_sync_log_start_failed, error.message ?: error.javaClass.simpleName),
                     isError = true,
-                    details = error.crossSyncDiagnostic()
+                    details = error.crossSyncDiagnostic(context)
                 )
                 crossSyncState = crossSyncState.copy(
                     isRunning = false,
@@ -1673,7 +1768,7 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                 onShowMessage?.invoke(context.getString(R.string.cross_sync_vm_start_error_prefix, error.message ?: context.getString(R.string.cross_sync_vm_unknown_error)))
             } finally {
                 if (crossSyncState.isRunning) {
-                    logEvent("Eşitleme", "Eşitleme durduruldu; tamamlanan kayıtlar rapora eklendi.", isWarning = true)
+                    logEvent(context.getString(R.string.cross_sync_log_category_sync), context.getString(R.string.cross_sync_log_stopped), isWarning = true)
                     crossSyncState = crossSyncState.copy(
                         isRunning = false,
                         currentStep = context.getString(R.string.cross_sync_vm_stopped),

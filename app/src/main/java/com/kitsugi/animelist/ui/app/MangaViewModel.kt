@@ -584,16 +584,26 @@ class MangaViewModel(application: Application) : AndroidViewModel(application) {
                     mangaSources = mangaRepository.getAvailableSources()
                     checkAllUpdates()
                     if (result.updated > 0) {
-                        "✅ ${result.updated} eklenti güncellendi: ${result.updatedNames.joinToString(", ")}"
+                        KitsugiStrings.get(
+                            R.string.manga_auto_update_success,
+                            result.updated,
+                            result.updatedNames.joinToString(", ")
+                        )
+                    } else if (result.checked > 0) {
+                        KitsugiStrings.get(R.string.manga_auto_update_all_current, result.checked)
                     } else {
-                        "✅ Tüm eklentiler güncel (${result.checked} kontrol edildi)"
+                        KitsugiStrings.get(R.string.manga_auto_update_no_updates)
                     }
                 }
                 is MangaExtensionAutoUpdater.UpdateResult.Skipped -> {
-                    "ℹ️ Atlandı: ${result.reason}"
+                    KitsugiStrings.get(R.string.manga_auto_update_skipped, result.minutesUntilNextCheck)
                 }
                 is MangaExtensionAutoUpdater.UpdateResult.Failed -> {
-                    "❌ Hata: ${result.reason}"
+                    val reason = when (result.reasonCode) {
+                        "REPO_FETCH_FAILED" -> KitsugiStrings.get(R.string.manga_auto_update_repo_fetch_failed)
+                        else -> result.reasonCode
+                    }
+                    KitsugiStrings.get(R.string.manga_auto_update_failed, reason)
                 }
             }
             onResult(msg)

@@ -120,7 +120,9 @@ fun KitsugiNsfwImage(
     initialsColor: Color? = null,
     initialsStyle: androidx.compose.ui.text.TextStyle? = null,
     /** Görsel yüklenemezse çağrılır — çağıran taraf yedek bir kaynaka düşebilir. */
-    onLoadingFailed: (() -> Unit)? = null
+    onLoadingFailed: (() -> Unit)? = null,
+    /** Görsel başarıyla yüklendiğinde gerçek en/boy oranını (width / height) bildirir. */
+    onImageAspectResolved: ((Float) -> Unit)? = null
 ) {
     // Components that already receive the setting pass it through explicitly. Keep the
     // composition-local as a fallback (and OR it in) so nested screens cannot accidentally
@@ -170,12 +172,23 @@ fun KitsugiNsfwImage(
             val errorCallback = remember(onLoadingFailed) {
                 onLoadingFailed?.let { { _: coil3.compose.AsyncImagePainter.State.Error -> it() } }
             }
+            val successCallback = remember(onImageAspectResolved) {
+                onImageAspectResolved?.let { cb ->
+                    { state: coil3.compose.AsyncImagePainter.State.Success ->
+                        val size = state.painter.intrinsicSize
+                        if (size.width > 0f && size.height > 0f && size.width.isFinite() && size.height.isFinite()) {
+                            cb(size.width / size.height)
+                        }
+                    }
+                }
+            }
             AsyncImage(
                 model = imageModel,
                 contentDescription = contentDescription,
                 modifier = Modifier.fillMaxSize(),
                 contentScale = contentScale,
                 alignment = alignment,
+                onSuccess = successCallback,
                 onError = errorCallback
             )
         } else if (initials.isNotEmpty()) {

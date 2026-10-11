@@ -47,6 +47,7 @@ import com.kitsugi.animelist.ui.theme.KitsugiColors
 import com.kitsugi.animelist.ui.theme.LocalKitsugiAccent
 import androidx.compose.ui.res.stringResource
 import com.kitsugi.animelist.R
+import com.kitsugi.animelist.utils.KitsugiStrings
 
 // ─────────────────────────────────────────────────────────────────────────────
 // ProfileActivityRow — aktivite satır bileşeni
@@ -244,16 +245,19 @@ fun ActivityCard(
                         )
                         Spacer(modifier = Modifier.width(12.dp))
                         Column {
-                            val actionText = when (activity.status) {
-                                "completed" -> stringResource(R.string.tamamladi)
-                                "watching" -> "izliyor"
-                                "reading" -> "okuyor"
-                                "plan_to_watch" -> "izlemeyi planlıyor"
-                                "plan_to_read" -> "okumayı planlıyor"
-                                else -> activity.status
+                            val activityHeading = when (activity.status.lowercase()) {
+                                "completed" -> stringResource(R.string.profile_activity_completed, activity.userName)
+                                "watching" -> stringResource(R.string.profile_activity_watching, activity.userName)
+                                "reading" -> stringResource(R.string.profile_activity_reading, activity.userName)
+                                "plan_to_watch" -> stringResource(R.string.profile_activity_plan_watch, activity.userName)
+                                "plan_to_read" -> stringResource(R.string.profile_activity_plan_read, activity.userName)
+                                "on_hold", "paused" -> stringResource(R.string.profile_activity_on_hold, activity.userName)
+                                "dropped" -> stringResource(R.string.profile_activity_dropped, activity.userName)
+                                "updated" -> stringResource(R.string.profile_activity_updated, activity.userName)
+                                else -> stringResource(R.string.profile_activity_updated, activity.userName)
                             }
                             Text(
-                                text = "${activity.userName} bunu $actionText:",
+                                text = activityHeading,
                                 color = accentColor,
                                 style = MaterialTheme.typography.labelSmall,
                                 fontWeight = FontWeight.Bold
@@ -710,11 +714,11 @@ fun PositionalStatItemCard(
                     val hours = timeSpentMinutes / 60
                     val days = hours / 24
                     val timeText = when {
-                        days >= 30 -> "${days / 30} ay"
-                        days >= 7 -> "${days / 7} hafta"
-                        days >= 1 -> "$days gün"
-                        hours >= 1 -> "$hours saat"
-                        else -> "$timeSpentMinutes dak"
+                        days >= 30 -> stringResource(R.string.profile_duration_months, days / 30)
+                        days >= 7 -> stringResource(R.string.profile_duration_weeks, days / 7)
+                        days >= 1 -> stringResource(R.string.profile_duration_days, days)
+                        hours >= 1 -> stringResource(R.string.profile_duration_hours, hours)
+                        else -> stringResource(R.string.profile_duration_minutes, timeSpentMinutes)
                     }
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         Text(
@@ -755,9 +759,9 @@ fun PositionalStatItemCard(
 fun formatActivityTime(timestamp: Long): String {
     val diff = (System.currentTimeMillis() / 1000) - timestamp
     return when {
-        diff < 60 -> "Şimdi"
-        diff < 3600 -> "${diff / 60} dakika önce"
-        diff < 86400 -> "${diff / 3600} saat önce"
-        else -> "${diff / 86400} gün önce"
+        diff < 60 -> KitsugiStrings.get(R.string.profile_time_just_now)
+        diff < 3600 -> KitsugiStrings.get(R.string.profile_time_minutes_ago, diff / 60)
+        diff < 86400 -> KitsugiStrings.get(R.string.profile_time_hours_ago, diff / 3600)
+        else -> KitsugiStrings.get(R.string.profile_time_days_ago, diff / 86400)
     }
 }

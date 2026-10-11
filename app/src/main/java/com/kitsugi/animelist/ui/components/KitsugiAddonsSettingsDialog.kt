@@ -457,8 +457,8 @@ private fun AddonsSegmentedTabs(
     // "Manga Kaynakları" (Mihon/Tachiyomi) ayrımı ilk bakışta anlaşılır olsun.
     val tabs = listOf(
         stringResource(R.string.inline_torrent_streaming_89e2cac) to Icons.Rounded.Bolt,
-        "Video Kaynakları" to Icons.Rounded.PlayCircle,
-        "Manga Kaynakları" to Icons.Rounded.AutoStories
+        stringResource(R.string.addon_video_sources) to Icons.Rounded.PlayCircle,
+        stringResource(R.string.inline_manga_sources_03288ff) to Icons.Rounded.AutoStories
     )
     val selectedSegmentFill = accentBrushWithAlpha(0.14f)
     val selectedSegmentBorder = accentBrushWithAlpha(0.48f)

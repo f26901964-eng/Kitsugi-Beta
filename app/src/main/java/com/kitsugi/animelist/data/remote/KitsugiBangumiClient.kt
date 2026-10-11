@@ -699,8 +699,8 @@ object KitsugiBangumiClient {
             source = SOURCE,
             titleEnglish = localizedTitle.english ?: latinOverride,
             titleJapanese = localizedTitle.native,
-            titleRomaji = localizedTitle.romaji ?: latinOverride,
-            backdropUrl = BangumiApiClient.absoluteImageUrl(images?.backdrop),
+            // Bangumi API yalnızca dikey kapak (poster) döndürür; yatay arka plan TMDB/Fanart'tan çözülür.
+            backdropUrl = null,
             rank = rating?.rank?.takeIf { it > 0 },
             members = rating?.total?.takeIf { it > 0 },
             favorites = collectionTotal.takeIf { it > 0 },

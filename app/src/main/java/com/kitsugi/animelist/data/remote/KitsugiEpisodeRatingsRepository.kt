@@ -63,7 +63,7 @@ object KitsugiEpisodeRatingsRepository {
         }
     }
 
-    private suspend fun isTmdbArtworkEnabled(): Boolean {
+    internal suspend fun isTmdbArtworkEnabled(): Boolean {
         val context = appContext ?: return true
         return try {
             val settings = com.kitsugi.animelist.data.settings.SettingsDataStore(context).settingsFlow.first()
@@ -74,7 +74,7 @@ object KitsugiEpisodeRatingsRepository {
     }
 
     /** Fanart.tv ayarlarını döner (apiKey, enabled). Built-in API anahtarı her zaman fallback olarak kullanılır. */
-    private suspend fun getFanartSettings(): Pair<Boolean, String> {
+    internal suspend fun getFanartSettings(): Pair<Boolean, String> {
         val context = appContext ?: return Pair(true, FanartApiClient.getActiveApiKey())
         return try {
             val settings = com.kitsugi.animelist.data.settings.SettingsDataStore(context).settingsFlow.first()
@@ -219,13 +219,14 @@ object KitsugiEpisodeRatingsRepository {
         if (apiKey.isBlank()) return false
         val type = if (isTv) "tv" else "movie"
         val json = runCatching {
-            val url = URL("https://api.themoviedb.org/3/$type/$tmdbId?api_key=$apiKey")
+            val url = URL("https://api.themoviedb.org/3/$type/$tmdbId?api_key=$apiKey&append_to_response=alternative_titles")
             val resp = KitsugiApiBase.executeGetRequest(url)
             if (resp.isNullOrBlank()) null else JSONObject(resp)
         }.getOrNull() ?: return false
         val title = if (isTv) json.optString("name") else json.optString("title")
         val original = if (isTv) json.optString("original_name") else json.optString("original_title")
-        val matches = TmdbArtworkIdentity.matches(expectedTitles, title, original)
+        val altTitles = TmdbArtworkIdentity.extractAlternativeTitles(json)
+        val matches = TmdbArtworkIdentity.matches(expectedTitles, title, original, altTitles)
         if (matches) {
             DetailCache.tmdbMediaCache[tmdbId] = if (isTv) "tv" else "movie"
         }
@@ -1059,7 +1060,7 @@ object KitsugiEpisodeRatingsRepository {
             val response = runCatching {
                 val url = URL(
                     "https://api.themoviedb.org/3/$type/$tmdbId" +
-                        "?api_key=$apiKey&append_to_response=images&include_image_language=$includeImageLanguages"
+                        "?api_key=$apiKey&append_to_response=images,alternative_titles,external_ids&include_image_language=$includeImageLanguages"
                 )
                 val resp = KitsugiApiBase.executeGetRequest(url)
                 if (resp.isNullOrBlank()) null else JSONObject(resp)
@@ -1071,7 +1072,8 @@ object KitsugiEpisodeRatingsRepository {
             val isMovieType = type == "movie"
             val entryTitle = if (isMovieType) response.optString("title") else response.optString("name")
             val entryOriginal = if (isMovieType) response.optString("original_title") else response.optString("original_name")
-            val verified = TmdbArtworkIdentity.matches(expectedTitles, entryTitle, entryOriginal)
+            val altTitles = TmdbArtworkIdentity.extractAlternativeTitles(response)
+            val verified = TmdbArtworkIdentity.matches(expectedTitles, entryTitle, entryOriginal, altTitles)
             if (!verified) {
                 Log.w(
                     TAG,
@@ -1079,6 +1081,13 @@ object KitsugiEpisodeRatingsRepository {
                         "(${expectedTitles.firstOrNull() ?: "-"}) uyuşmuyor; görseller listeye karışmadı"
                 )
                 continue
+            }
+
+            if (!isMovieType) {
+                val tvdbId = response.optJSONObject("external_ids")?.optInt("tvdb_id", 0)?.takeIf { it > 0 }
+                if (tvdbId != null && !tmdbToTvdbCache.containsKey(tmdbId)) {
+                    tmdbToTvdbCache[tmdbId] = tvdbId
+                }
             }
 
             val images = parseTmdbImages(response.optJSONObject("images") ?: response)

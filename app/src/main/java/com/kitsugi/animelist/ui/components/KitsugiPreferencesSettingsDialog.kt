@@ -1582,7 +1582,7 @@ private fun ListScoreTab(
                 description = if (separatedListStyle)
                     KitsugiStrings.get(R.string.listem_durum_baslikli_gruplar_halinde_gosterilir)
                 else
-                    "Listem tek düz akış halinde gösterilir",
+                    KitsugiStrings.get(R.string.settings_list_flat_description),
                 icon = Icons.Rounded.ViewList,
                 iconColor = accentColor,
                 checked = separatedListStyle,
@@ -1607,7 +1607,7 @@ private fun ListScoreTab(
                 description = if (showLowPriority)
                     KitsugiStrings.get(R.string.dusuk_oncelikli_0_girislerde_de_oncelik_rozeti_gorunur)
                 else
-                    "Öncelik rozeti yalnızca orta/yüksek öncelikte görünür",
+                    KitsugiStrings.get(R.string.settings_priority_badge_medium_high),
                 icon = Icons.Rounded.PriorityHigh,
                 iconColor = accentColor,
                 checked = showLowPriority,
@@ -1708,7 +1708,7 @@ private fun ListScoreTab(
             KitsugiSettingsDivider()
 
             KitsugiSettingsSwitchItem(
-                title = "Fuzzy arama kullan",
+                title = KitsugiStrings.get(R.string.settings_fuzzy_search),
                 description = KitsugiStrings.get(R.string.yazim_hatalarini_kelime_siralamasinin_bozuk_olmasini_ve_kisaltma) +
                     KitsugiStrings.get(R.string.ornegin_aot_eslestirir_eski_cihazlarda_performansi_etkileyebilir),
                 icon = Icons.Rounded.ManageSearch,
@@ -1724,7 +1724,7 @@ private fun ListScoreTab(
                 description = if (separateNovelsManga)
                     KitsugiStrings.get(R.string.roman_novel_sonuclari_mangalardan_ayri_bolumde_listelenir)
                 else
-                    "Romanlar manga sonuçlarıyla birlikte listelenir",
+                    KitsugiStrings.get(R.string.settings_novels_with_manga),
                 icon = Icons.Rounded.MenuBook,
                 iconColor = accentColor,
                 checked = separateNovelsManga,

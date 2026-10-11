@@ -260,9 +260,9 @@ fun KitsugiUserMediaListScreen(
     }
 
     val headerSubtitle = when (selectedTypeFilterId) {
-        "anime" -> "AniList • Anime Listesi"
-        "manga" -> "AniList • Manga Listesi"
-        else -> "AniList • Anime & Manga Listesi"
+        "anime" -> stringResource(R.string.profile_anilist_anime_list)
+        "manga" -> stringResource(R.string.profile_anilist_manga_list)
+        else -> stringResource(R.string.profile_anilist_anime_manga_list)
     }
 
     Column(
@@ -309,7 +309,7 @@ fun KitsugiUserMediaListScreen(
                 headerTitle = username,
                 headerSubtitle = headerSubtitle,
                 onBackClick = onBackClick,
-                searchPlaceholder = "Kullanıcının listesinde ara..."
+                searchPlaceholder = stringResource(R.string.profile_list_search_hint)
             )
         }
 
@@ -318,7 +318,7 @@ fun KitsugiUserMediaListScreen(
             sourceName = "AniList",
             visibleEntries = visibleEntries,
             onEntryClick = ::openEntry,
-            onEmptyMessage = { infoMessage = "Gösterilecek bir öğe yok" },
+            onEmptyMessage = { infoMessage = KitsugiStrings.get(R.string.profile_list_empty) },
             accentColor = Color(0xFF02A9FF),
             horizontalPadding = horizontalPadding
         )
@@ -370,7 +370,7 @@ fun KitsugiUserMediaListScreen(
                                     .padding(horizontal = 16.dp, vertical = 9.dp)
                             ) {
                                 Text(
-                                    text = "Tekrar Dene",
+                                    text = stringResource(R.string.action_retry),
                                     color = colors.background,
                                     fontWeight = FontWeight.Bold
                                 )
@@ -488,14 +488,14 @@ fun KitsugiUserMediaListScreen(
                     .zIndex(10f)
             ) {
                 val activeStatusLabel = when (selectedStatusFilterId) {
-                    "watching" -> "İzleniyor"
-                    "completed" -> "Tamamlandı"
-                    "planned" -> "Planlandı"
-                    "dropped" -> "Bırakıldı"
-                    "paused" -> "Durduruldu"
-                    "adult" -> "Yetişkin"
-                    "favorites" -> "Favoriler"
-                    else -> "Tümü"
+                    "watching" -> stringResource(R.string.mylist_filter_watching)
+                    "completed" -> stringResource(R.string.mylist_filter_completed)
+                    "planned" -> stringResource(R.string.mylist_filter_planned)
+                    "dropped" -> stringResource(R.string.mylist_filter_dropped)
+                    "paused" -> stringResource(R.string.mylist_filter_paused)
+                    "adult" -> stringResource(R.string.filter_adult)
+                    "favorites" -> stringResource(R.string.mylist_filter_favorites)
+                    else -> stringResource(R.string.mylist_filter_all)
                 }
                 Box(
                     modifier = Modifier
@@ -510,7 +510,7 @@ fun KitsugiUserMediaListScreen(
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Icon(
                             imageVector = Icons.Rounded.FormatListBulleted,
-                            contentDescription = "Kategori",
+                            contentDescription = stringResource(R.string.search_filter_category),
                             tint = colors.background,
                             modifier = Modifier.size(20.dp)
                         )

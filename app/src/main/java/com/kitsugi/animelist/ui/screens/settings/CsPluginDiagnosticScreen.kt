@@ -421,6 +421,28 @@ private fun SummaryCards(summary: CsPluginDiagnosticRunner.DiagnosticSummary) {
             SummaryChip("⚠️", summary.loadFailed.toString(), stringResource(R.string.cs_diag_summary_load_failed), KitsugiColors.AccentOrange, Modifier.weight(1f))
             SummaryChip("❌", summary.dead.toString(), stringResource(R.string.cs_diag_summary_broken), KitsugiColors.AccentRed, Modifier.weight(1f))
         }
+        if (summary.runtimeIncompatible > 0 || summary.authRequired > 0) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                SummaryChip(
+                    "🧩",
+                    summary.runtimeIncompatible.toString(),
+                    stringResource(R.string.cs_diag_summary_runtime_incompatible),
+                    KitsugiColors.AccentRed,
+                    Modifier.weight(1f),
+                )
+                SummaryChip(
+                    "🔑",
+                    summary.authRequired.toString(),
+                    stringResource(R.string.cs_diag_summary_auth_required),
+                    KitsugiColors.AccentBlue,
+                    Modifier.weight(1f),
+                )
+                Spacer(Modifier.weight(1f))
+            }
+        }
         if (summary.errorCodeCounts.isNotEmpty()) {
             Column(
                 modifier = Modifier
@@ -522,6 +544,8 @@ private fun ResultRow(
         CsPluginDiagnosticRunner.ResultStatus.CF_BLOCKED   -> "🔐" to KitsugiColors.AccentBlue
         CsPluginDiagnosticRunner.ResultStatus.LOAD_FAILED  -> "⚠️" to KitsugiColors.AccentOrange
         CsPluginDiagnosticRunner.ResultStatus.DEAD         -> "❌" to KitsugiColors.AccentRed
+        CsPluginDiagnosticRunner.ResultStatus.RUNTIME_INCOMPATIBLE -> "🧩" to KitsugiColors.AccentRed
+        CsPluginDiagnosticRunner.ResultStatus.AUTH_REQUIRED -> "🔑" to KitsugiColors.AccentBlue
     }
 
     Row(

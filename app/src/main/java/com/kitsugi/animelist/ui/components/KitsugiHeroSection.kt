@@ -39,9 +39,12 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.derivedStateOf
+import androidx.compose.ui.draw.alpha
 import com.kitsugi.animelist.data.remote.KitsugiEpisodeRatingsRepository
 import com.kitsugi.animelist.data.remote.KitsugiBangumiDetailClient
+import com.kitsugi.animelist.data.remote.KitsugiHeroArtworkResolver
 import com.kitsugi.animelist.data.remote.KitsugiIdResolver
 import com.kitsugi.animelist.utils.copyOnDoubleTap
 import androidx.compose.ui.platform.LocalContext
@@ -179,16 +182,15 @@ private suspend fun fetchHeroLogo(item: JikanSearchResult): String? = try {
 // vitrin çipi `KitsugiSourceNamePill` ile tüm kaynaklarda logo+isim gösterir.
 
 /**
- * Vitrin görsel adayları — ekran boyutu (vitirin kutusunun en-boy oranı) ve
- * dikey/yatay moda göre ÖNCELİK SIRASIyla döndürülür:
+ * Vitrin görseli için birincil ve yedek URL sırasını belirler.
  *
- * - Geniş vitrin bandı (yatay mod, dikey tablet bandı, TV vb. — en/boy ≥ 1.1):
- *   yatay dikdörtgen fanart/backdrop önce gelir; hem dikey hem yatay modda
- *   kutuyu kusursuz kaplar.
- * - Dikey-telefon vitrini (kareye yakın / dar kutu): dikey poster önce gelir.
- * - Her ikisi de mevcutsa diğeri yedek adaydır (yükleme başarısız olursa
- *   [KitsugiNsfwImage.onLoadingFailed] ile zincir devreye girer).
- * - İkisi de boşsa boş liste döner (başlık harfleriyle fallback çizilir).
+ * - **Dikey ekran / dar vitrin (`aspect < 1.10` ve dikey mod — ör. dikey telefon)**:
+ *   en kaliteli **dikey poster** (`posterUrl`) birincildir, `backdropUrl` yedektir.
+ * - **Yatay ekran / geniş vitrin bandı (`aspect >= 1.10` veya yatay mod — ör. yatay telefon,
+ *   dikey tablet geniş vitrin, yatay tablet, TV)**:
+ *   anime, dizi ve filmlerde en kaliteli **yatay arka plan** (`backdropUrl`) birincildir,
+ *   `posterUrl` yedektir.
+ * - **Manga**: her zaman dikey kapak (`posterUrl`) birincildir.
  */
 internal fun heroImageCandidates(
     posterUrl: String?,
@@ -198,8 +200,8 @@ internal fun heroImageCandidates(
     isLandscape: Boolean,
     mediaType: MediaType = MediaType.Anime
 ): List<String> {
-    val poster = posterUrl?.trim()?.takeIf { it.isNotEmpty() }
-    val backdrop = backdropUrl?.trim()?.takeIf { it.isNotEmpty() }
+    val poster = KitsugiHeroArtworkResolver.upgradeNativePosterUrl(posterUrl)
+    val backdrop = KitsugiHeroArtworkResolver.sanitizeNativeBackdropUrl(backdropUrl, poster)
     if (poster == null) return listOfNotNull(backdrop)
     if (backdrop == null) return listOf(poster)
     if (poster == backdrop) return listOf(backdrop)
@@ -211,21 +213,26 @@ internal fun heroImageCandidates(
     } else {
         9f / 16f
     }
-    val preferBackdrop = mediaType != MediaType.Manga ||
-        aspect >= 1.1f || (isLandscape && aspect >= 0.95f)
+    val preferBackdrop = mediaType != MediaType.Manga &&
+        (aspect >= 1.10f || (isLandscape && aspect >= 0.95f))
     return if (preferBackdrop) listOf(backdrop, poster) else listOf(poster, backdrop)
 }
 
 /**
- * Kaplayan (Crop) kırpmanın odak noktası:
- * - Yatay fanart/backdrop → merkez (özne bandı görselin ortasındadır).
- * - Poster geniş bantta kullanılmak zorunda kalırsa hafif yukarı bias
- *   (yüz/başlık bandı korunur, alt boşluklar kırpılır).
- * - Poster dikey/kare vitrinde → merkez.
+ * Vitrin görselinin kırpma hizalaması:
+ * - Dikey poster geniş bir kutuda gösterildiğinde üst-orta (`-0.25f`) odaklanır.
+ * - Dikey poster dikey telefonda gösterildiğinde hafif üst-orta (`-0.20f`) odaklanır ki
+ *   karakterlerin başı/yüzü üstten kesilmesin, kırpma alt metin scrim'inin arkasında kalsın.
+ * - Yatay (16:9) arka plan çok geniş bir şeritte (`heroAspect >= 1.85f`, ör. yatay tablet/telefon)
+ *   gösterildiğinde üst-orta (`-0.32f`) odaklanır ki karakterlerin kafası üstten kesilmesin.
  */
-internal fun heroImageAlignment(chosenIsPoster: Boolean, heroAspect: Float): Alignment = when {
-    !chosenIsPoster -> Alignment.Center
-    heroAspect >= 1.15f -> BiasAlignment(0f, -0.2f)
+internal fun heroImageAlignment(
+    chosenIsPoster: Boolean,
+    heroAspect: Float
+): Alignment = when {
+    chosenIsPoster && heroAspect >= 1.15f -> BiasAlignment(0f, -0.25f)
+    chosenIsPoster -> BiasAlignment(0f, -0.20f)
+    heroAspect >= 1.85f -> BiasAlignment(0f, -0.32f)
     else -> Alignment.Center
 }
 
@@ -302,6 +309,38 @@ fun KitsugiHeroSection(
         }
     }
 
+    val pagerKey = remember(items) {
+        items.joinToString("|") { "${it.source}:${it.type}:${it.malId}:${it.title}" }
+    }
+    // TMDB + Fanart.tv üzerinden her öğe için en kaliteli dikey poster + yatay arka plan çözümü.
+    // Önbellekte varsa ilk karede (0ms) senkron olarak okunur; ekran döndürmede anında hazırdır.
+    var resolvedArtworkMap by remember(pagerKey) {
+        mutableStateOf(KitsugiHeroArtworkResolver.snapshotFor(items))
+    }
+
+    LaunchedEffect(pagerKey, pagerState.currentPage) {
+        val currentIdx = pagerState.currentPage.coerceIn(0, items.lastIndex)
+        val ordered = buildList {
+            add(items[currentIdx])
+            items.forEachIndexed { idx, item ->
+                if (idx != currentIdx) add(item)
+            }
+        }
+        for (item in ordered) {
+            val key = KitsugiHeroArtworkResolver.cacheKey(item)
+            if (resolvedArtworkMap[key] == null) {
+                launch {
+                    val resolved = runCatching {
+                        KitsugiHeroArtworkResolver.resolveArtwork(item)
+                    }.getOrNull()
+                    if (resolved != null) {
+                        resolvedArtworkMap = resolvedArtworkMap + (key to resolved)
+                    }
+                }
+            }
+        }
+    }
+
     val configuration = androidx.compose.ui.platform.LocalConfiguration.current
     val screenWidthDp = configuration.screenWidthDp
     val screenHeightDp = configuration.screenHeightDp
@@ -315,12 +354,12 @@ fun KitsugiHeroSection(
             HomeHeroLayout(
                 isTablet = true,
                 isLandscape = true,
-                heroHeight = (screenHeightDp * 0.68f).coerceIn(380f, 480f).dp,
-                contentMaxWidth = 720.dp,
-                contentWidthFraction = 0.58f,
+                heroHeight = (screenHeightDp * 0.68f).coerceIn(380f, 500f).dp,
+                contentMaxWidth = 640.dp,
+                contentWidthFraction = 0.54f,
                 contentHorizontalPadding = 48.dp,
                 contentVerticalPadding = 28.dp,
-                bottomFadeHeight = 220.dp,
+                bottomFadeHeight = 150.dp,
                 logoWidthFraction = 0.5f,
             )
         } else if (isLandscape) {
@@ -328,12 +367,13 @@ fun KitsugiHeroSection(
                 HomeHeroLayout(
                     isTablet = true,
                     isLandscape = true,
-                    heroHeight = (screenHeightDp * 0.48f).coerceIn(300f, 390f).dp,
-                    contentMaxWidth = 640.dp,
-                    contentWidthFraction = 0.56f,
-                    contentHorizontalPadding = if (screenWidthDp >= 1000f) 52.dp else 36.dp,
+                    // Yatay tablette 16:9 arka plan görselinin sıkıp kırpılmaması için daha dengeli yükseklik
+                    heroHeight = (screenHeightDp * 0.56f).coerceIn(350f, 460f).dp,
+                    contentMaxWidth = 560.dp,
+                    contentWidthFraction = 0.54f,
+                    contentHorizontalPadding = 32.dp,
                     contentVerticalPadding = 18.dp,
-                    bottomFadeHeight = 180.dp,
+                    bottomFadeHeight = 120.dp,
                     logoWidthFraction = 0.52f,
                 )
             } else {
@@ -341,40 +381,40 @@ fun KitsugiHeroSection(
                 HomeHeroLayout(
                     isTablet = false,
                     isLandscape = true,
-                    heroHeight = (screenHeightDp * 0.60f).coerceIn(210f, 265f).dp,
-                    contentMaxWidth = 520.dp,
+                    heroHeight = (screenHeightDp * 0.65f).coerceIn(230f, 295f).dp,
+                    contentMaxWidth = 440.dp,
                     contentWidthFraction = 0.56f,
                     contentHorizontalPadding = 24.dp,
                     contentVerticalPadding = 12.dp,
-                    bottomFadeHeight = 140.dp,
+                    bottomFadeHeight = 96.dp,
                     logoWidthFraction = 0.48f,
                 )
             }
         } else {
             if (isTablet) {
-                // Dikey tablet
+                // Dikey tablette ~16:9 / 3:2 vitrin alanı: görsel çok daha ferah ve net görünür
                 HomeHeroLayout(
                     isTablet = true,
                     isLandscape = false,
-                    heroHeight = (screenHeightDp * 0.42f).coerceIn(400f, 500f).dp,
-                    contentMaxWidth = 560.dp,
-                    contentWidthFraction = 0.85f,
-                    contentHorizontalPadding = 32.dp,
+                    heroHeight = (screenHeightDp * 0.46f).coerceIn(440f, 560f).dp,
+                    contentMaxWidth = 600.dp,
+                    contentWidthFraction = 0.88f,
+                    contentHorizontalPadding = 28.dp,
                     contentVerticalPadding = 20.dp,
-                    bottomFadeHeight = 200.dp,
+                    bottomFadeHeight = 140.dp,
                     logoWidthFraction = 0.56f,
                 )
             } else {
-                // Dikey modda telefon: yukarı aşağı uzun, sağa sola dar, görseli kesmeyen ferah oran
+                // Dikey modda telefon: dikey posterin tam ve belirgin sergilenmesi için optimize edilmiş yükseklik
                 HomeHeroLayout(
                     isTablet = false,
                     isLandscape = false,
-                    heroHeight = (screenHeightDp * 0.50f).coerceIn(390f, 460f).dp,
-                    contentMaxWidth = 480.dp,
+                    heroHeight = (screenHeightDp * 0.55f).coerceIn(430f, 530f).dp,
+                    contentMaxWidth = 520.dp,
                     contentWidthFraction = 1f,
-                    contentHorizontalPadding = 20.dp,
+                    contentHorizontalPadding = 16.dp,
                     contentVerticalPadding = 18.dp,
-                    bottomFadeHeight = 300.dp,
+                    bottomFadeHeight = 130.dp,
                     logoWidthFraction = 0.62f,
                 )
             }
@@ -517,7 +557,15 @@ fun KitsugiHeroSection(
         }
 
         visiblePageIndices.forEach { page ->
-            val item = items[page]
+            val rawItem = items[page]
+            val artwork = resolvedArtworkMap[KitsugiHeroArtworkResolver.cacheKey(rawItem)]
+                ?: KitsugiHeroArtworkResolver.getCached(rawItem)
+            val item = remember(rawItem, artwork) {
+                KitsugiHeroArtworkResolver.applyCachedOrInstant(
+                    rawItem,
+                    if (artwork != null) mapOf(KitsugiHeroArtworkResolver.cacheKey(rawItem) to artwork) else emptyMap()
+                )
+            }
             val displayTitle = item.getDisplayTitle(titleLanguage)
             val isFrontPage = (page == frontPageIndex)
             Box(
@@ -536,11 +584,18 @@ fun KitsugiHeroSection(
                         }
                     )
             ) {
-                // Vitrin görseli: ekran boyutu (kutu en-boy oranı) ve dikey/yatay moda göre
-                // seçilen kaynak — geniş bantta yatay fanart/backdrop önce, dikey vitrinde
-                // poster önce; kalan aday yükleme hatasında yedek olarak kullanılır.
-                val heroImagePlan = remember(item, heroBoxWidthDp, heroBoxHeightDp, layout.isLandscape) {
-                    heroImageCandidates(
+                // Ekranın dikey/yatay boyutuna göre birincil ve yedek görsel zincirini oluştur.
+                val heroBoxAspect = if (heroBoxHeightDp > 0f) heroBoxWidthDp / heroBoxHeightDp else 1f
+                val heroImagePlan = remember(
+                    item.imageUrl,
+                    item.backdropUrl,
+                    artwork,
+                    heroBoxWidthDp,
+                    heroBoxHeightDp,
+                    layout.isLandscape,
+                    item.type
+                ) {
+                    val primaryPair = heroImageCandidates(
                         posterUrl = item.imageUrl,
                         backdropUrl = item.backdropUrl,
                         heroWidthDp = heroBoxWidthDp,
@@ -548,15 +603,52 @@ fun KitsugiHeroSection(
                         isLandscape = layout.isLandscape,
                         mediaType = item.type
                     )
+                    if (artwork == null) {
+                        primaryPair
+                    } else {
+                        val preferBackdrop = item.type != MediaType.Manga &&
+                            (heroBoxAspect >= 1.10f || (layout.isLandscape && heroBoxAspect >= 0.95f))
+                        val orderedExtras = if (preferBackdrop) {
+                            artwork.backdropCandidates + artwork.posterCandidates
+                        } else {
+                            artwork.posterCandidates + artwork.backdropCandidates
+                        }
+                        (primaryPair + orderedExtras).distinct()
+                    }
                 }
-                var heroImageIndex by remember(heroImagePlan) { mutableStateOf(0) }
+                var heroImageIndex by remember(heroImagePlan) { mutableIntStateOf(0) }
                 val heroImageModel = heroImagePlan.getOrNull(heroImageIndex)
+
+                val chosenIsPoster = remember(heroImageModel, item.imageUrl, item.backdropUrl, artwork) {
+                    when {
+                        heroImageModel == null -> false
+                        artwork != null && heroImageModel in artwork.posterCandidates && heroImageModel !in artwork.backdropCandidates -> true
+                        artwork != null && heroImageModel in artwork.backdropCandidates -> false
+                        else -> KitsugiHeroArtworkResolver.isLikelyVerticalUrl(
+                            url = heroImageModel,
+                            posterUrl = item.imageUrl,
+                            backdropUrl = item.backdropUrl
+                        )
+                    }
+                }
+
+                // Yüklü görselin gerçek en-boy oranı (width / height).
+                var loadedImageAspect by remember(heroImageModel) { mutableStateOf<Float?>(null) }
+                val isVerticalArtwork = loadedImageAspect?.let { it < 1.05f } ?: chosenIsPoster
+                val isWideShowcaseBox = heroBoxAspect >= 1.18f
+
+                // Geniş/yatay vitrin alanında (tablet yatay, tablet dikey geniş bant, telefon yatay)
+                // dikey bir görsel gösteriliyorsa:
+                // arkada yumuşak atmosferik katman + ön planda tam boy kesilmemiş dikey görsel gösterilir.
+                val useDualLayerContain = isVerticalArtwork && isWideShowcaseBox
+                val heroAlignment = remember(isVerticalArtwork, heroBoxAspect) {
+                    heroImageAlignment(
+                        chosenIsPoster = isVerticalArtwork,
+                        heroAspect = heroBoxAspect
+                    )
+                }
+
                 if (!heroImageModel.isNullOrBlank()) {
-                    val heroBoxAspect = if (heroBoxHeightDp > 0f) heroBoxWidthDp / heroBoxHeightDp else 1f
-                    val chosenIsPoster =
-                        heroImageModel == item.imageUrl?.trim()?.takeIf { it.isNotEmpty() }
-                    // Kaplayan sunum (Cover): seçilen görsel vitrini BAŞTAN SONA KAPLAR.
-                    // Fit/bulanık dolgu yok — yön ve ekran boyutu artık kırpma oranıyla uyumludur.
                     Box(
                         modifier = Modifier
                             .fillMaxSize()
@@ -569,22 +661,68 @@ fun KitsugiHeroSection(
                                 scaleY = HERO_BACKGROUND_SCALE * heroScrollScale
                             }
                     ) {
-                        KitsugiNsfwImage(
-                            model = heroImageModel,
-                            contentDescription = displayTitle,
-                            isAdult = item.isAdult,
-                            blurAdultMedia = blurAdultMedia,
-                            modifier = Modifier.fillMaxSize(),
-                            contentScale = ContentScale.Crop,
-                            alignment = heroImageAlignment(chosenIsPoster, heroBoxAspect),
-                            onLoadingFailed = {
-                                // Birincil görsel yüklenemezse sıradaki adaya düş
-                                // (ör. backdrop başarısız → poster, poster başarısız → backdrop).
-                                if (heroImageIndex < heroImagePlan.lastIndex) {
-                                    heroImageIndex += 1
+                        if (useDualLayerContain) {
+                            // 1. Atmosferik arka plan dolgusu (Modifier.blur kullanmadan MIUI/HyperOS güvenli)
+                            KitsugiNsfwImage(
+                                model = heroImageModel,
+                                contentDescription = null,
+                                isAdult = item.isAdult,
+                                blurAdultMedia = blurAdultMedia,
+                                contentScale = ContentScale.Crop,
+                                alignment = BiasAlignment(0f, -0.25f),
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .alpha(0.30f)
+                            )
+                            // 2. Kesilmemiş, net dikey görsel katmanı
+                            KitsugiNsfwImage(
+                                model = heroImageModel,
+                                contentDescription = displayTitle,
+                                isAdult = item.isAdult,
+                                blurAdultMedia = blurAdultMedia,
+                                contentScale = ContentScale.Fit,
+                                alignment = if (layout.isLandscape) BiasAlignment(0.42f, -0.04f) else Alignment.TopCenter,
+                                initials = displayTitle,
+                                onLoadingFailed = {
+                                    if (heroImageIndex < heroImagePlan.lastIndex) {
+                                        heroImageIndex += 1
+                                    }
+                                },
+                                onImageAspectResolved = { ratio ->
+                                    if (loadedImageAspect == null || abs((loadedImageAspect ?: ratio) - ratio) > 0.05f) {
+                                        loadedImageAspect = ratio
+                                    }
+                                },
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .padding(
+                                        top = if (layout.isLandscape) 8.dp else 6.dp,
+                                        bottom = if (layout.isLandscape) 18.dp else 32.dp,
+                                        end = if (layout.isLandscape) layout.contentHorizontalPadding else 0.dp
+                                    )
+                            )
+                        } else {
+                            // Tam ekran vitrin görseli (dikey ekranda en kaliteli dikey poster, yatay/geniş ekranda en kaliteli 16:9 backdrop)
+                            KitsugiNsfwImage(
+                                model = heroImageModel,
+                                contentDescription = displayTitle,
+                                isAdult = item.isAdult,
+                                blurAdultMedia = blurAdultMedia,
+                                modifier = Modifier.fillMaxSize(),
+                                contentScale = ContentScale.Crop,
+                                alignment = heroAlignment,
+                                onLoadingFailed = {
+                                    if (heroImageIndex < heroImagePlan.lastIndex) {
+                                        heroImageIndex += 1
+                                    }
+                                },
+                                onImageAspectResolved = { ratio ->
+                                    if (loadedImageAspect == null || abs((loadedImageAspect ?: ratio) - ratio) > 0.05f) {
+                                        loadedImageAspect = ratio
+                                    }
                                 }
-                            }
-                        )
+                            )
+                        }
                     }
                 } else {
                     Box(
@@ -612,62 +750,37 @@ fun KitsugiHeroSection(
             }
         }
 
-        // 1. Yatay modda sol taraf gölgelendirmesi (metinlerin okunurluğu ve sağda görselin parlaması için - NuvioTV tarzı)
-        if (layout.isLandscape || layout.isTablet) {
+        // 1. Yalnızca yatay (landscape) modda sol taraf gölgelendirmesi
+        // (Dikey tablette sol tarafı karartmaz).
+        if (layout.isLandscape) {
             Box(
                 modifier = Modifier
-                    .fillMaxSize()
+                    .fillMaxHeight()
+                    .fillMaxWidth(0.55f)
+                    .align(Alignment.CenterStart)
                     .background(
                         Brush.horizontalGradient(
-                            colorStops = arrayOf(
-                                0.0f to KitsugiColors.Background.copy(alpha = 0.92f),
-                                0.24f to KitsugiColors.Background.copy(alpha = 0.78f),
-                                0.48f to KitsugiColors.Background.copy(alpha = 0.46f),
-                                0.70f to KitsugiColors.Background.copy(alpha = 0.14f),
-                                0.88f to androidx.compose.ui.graphics.Color.Transparent,
-                                1.0f to androidx.compose.ui.graphics.Color.Transparent
-                            ),
-                            startX = 0f,
-                            endX = heroWidthPx * if (layout.isLandscape) 0.65f else 0.50f
+                            0.00f to KitsugiColors.Background.copy(alpha = 0.54f),
+                            0.42f to KitsugiColors.Background.copy(alpha = 0.22f),
+                            1.00f to Color.Transparent
                         )
                     )
             )
         }
 
-        // 2. Üst durum çubuğu ve genel kart ton geçişi — resmin büyük kısmı net kalsın diye
-        //    (yukarıda durum çubuğu için hafif gölge, ortada transparan, aşağıda metin için geçiş)
+        // 2. Berrak dikey scrim: görselin üst %60'lık kısmını tamamen açık ve net bırakır,
+        // yalnızca alt kısımda başlık ve meta verilerin okunurluğu için yumuşak geçiş sağlar.
         Box(
             modifier = Modifier
                 .fillMaxSize()
                 .background(
                     Brush.verticalGradient(
-                        colorStops = arrayOf(
-                            0.0f to KitsugiColors.Background.copy(alpha = 0.36f),
-                            0.16f to KitsugiColors.Background.copy(alpha = 0.08f),
-                            0.38f to androidx.compose.ui.graphics.Color.Transparent,
-                            0.62f to KitsugiColors.Background.copy(alpha = 0.10f),
-                            0.78f to KitsugiColors.Background.copy(alpha = 0.42f),
-                            0.91f to KitsugiColors.Background.copy(alpha = 0.78f),
-                            1.0f to KitsugiColors.Background
-                        )
-                    )
-                )
-        )
-
-        // 3. Alt blokların arkasına doğru uzanan pürüzsüz dip geçiş katmanı (NuvioTV tarzı %100 kusursuz birleşme)
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(layout.bottomFadeHeight)
-                .align(Alignment.BottomCenter)
-                .background(
-                    Brush.verticalGradient(
-                        colorStops = arrayOf(
-                            0.0f to androidx.compose.ui.graphics.Color.Transparent,
-                            0.30f to KitsugiColors.Background.copy(alpha = 0.35f),
-                            0.62f to KitsugiColors.Background.copy(alpha = 0.80f),
-                            1.0f to KitsugiColors.Background
-                        )
+                        0.00f to KitsugiColors.Background.copy(alpha = 0.14f),
+                        0.12f to Color.Transparent,
+                        0.58f to Color.Transparent,
+                        0.76f to KitsugiColors.Background.copy(alpha = 0.38f),
+                        0.90f to KitsugiColors.Background.copy(alpha = 0.78f),
+                        1.00f to KitsugiColors.Background
                     )
                 )
         )

@@ -467,9 +467,9 @@ class KitsugiApplication : Application(), SingletonImageLoader.Factory {
                         android.util.Log.i("KitsugiApplication",
                             "Manga oto-güncelleme: ${result.updated} güncellendi, ${result.checked} kontrol edildi.")
                     is com.kitsugi.animelist.data.manga.MangaExtensionAutoUpdater.UpdateResult.Skipped ->
-                        android.util.Log.d("KitsugiApplication", "Manga oto-güncelleme atlandı: ${result.reason}")
+                        android.util.Log.d("KitsugiApplication", "Manga extension update check skipped; next check in ${result.minutesUntilNextCheck} minutes.")
                     is com.kitsugi.animelist.data.manga.MangaExtensionAutoUpdater.UpdateResult.Failed ->
-                        android.util.Log.w("KitsugiApplication", "Manga oto-güncelleme başarısız: ${result.reason}")
+                        android.util.Log.w("KitsugiApplication", "Manga extension update check failed: ${result.reasonCode}")
                 }
             } catch (e: Exception) {
                 android.util.Log.e("KitsugiApplication", "Manga oto-güncelleme hatası: ${e.message}", e)
@@ -651,6 +651,9 @@ object LocaleCache {
                 }
                 androidx.appcompat.app.AppCompatDelegate.setApplicationLocales(localeList)
             }
+            // Güvenlik ağı: bazı cihazlarda çerçeve Activity'yi yeniden kurmazsa
+            // (örn. manifest configChanges kalıntısı / OEM davranışı) dili biz uygularız.
+            scheduleLocaleSafetyRecreate(context, prefsTag)
             return
         }
 
@@ -679,6 +682,31 @@ object LocaleCache {
                 }
             }
         }
+    }
+
+    /**
+     * Dil değişiminden kısa bir süre sonra Activity'nin gerçekten yeni dili
+     * gösterip göstermediğini doğrular; göstermiyorsa bir kez recreate eder.
+     * Çerçeve Activity'yi zaten yeniden kurduysa eski örnek destroyed durumuna
+     * düşer ve hiçbir şey yapılmaz (çift recreate olmaz).
+     */
+    private fun scheduleLocaleSafetyRecreate(context: Context, expectedTag: String) {
+        val activity = findActivity(context) ?: return
+        android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
+            runCatching {
+                if (activity.isFinishing || activity.isDestroyed) return@runCatching
+                val applied = activity.resources.configuration.locales?.get(0)
+                    ?: return@runCatching
+                val expected = if (expectedTag.isEmpty()) {
+                    androidx.core.os.LocaleListCompat.getDefault().get(0)
+                } else {
+                    java.util.Locale.forLanguageTag(expectedTag)
+                }
+                if (expected != null && applied.language != expected.language) {
+                    activity.recreate()
+                }
+            }
+        }, 700)
     }
 
     private fun findActivity(context: Context): android.app.Activity? {

@@ -77,34 +77,36 @@ private val BANGUMI_TYPE_FILTERS: List<Int> = listOf(
 )
 
 /** Durum filtresi: 0 = tümü, diğerleri Bangumi `CollectionType` değerleri. */
-private val BANGUMI_STATUS_FILTERS: List<Pair<Int, String>> = listOf(
-    0 to KitsugiStrings.get(R.string.notif_filter_all),
-    BangumiApiClient.CollectionType.WISH to "Planlandı",
-    BangumiApiClient.CollectionType.DOING to "Devam ediyor",
-    BangumiApiClient.CollectionType.DONE to "Tamamlandı",
-    BangumiApiClient.CollectionType.ON_HOLD to "Beklemede",
-    BangumiApiClient.CollectionType.DROPPED to "Bırakıldı"
+private val BANGUMI_STATUS_FILTERS: List<Pair<Int, Int>> = listOf(
+    0 to R.string.notif_filter_all,
+    BangumiApiClient.CollectionType.WISH to R.string.profile_status_planned,
+    BangumiApiClient.CollectionType.DOING to R.string.profile_status_in_progress,
+    BangumiApiClient.CollectionType.DONE to R.string.profile_status_completed,
+    BangumiApiClient.CollectionType.ON_HOLD to R.string.profile_status_on_hold,
+    BangumiApiClient.CollectionType.DROPPED to R.string.profile_status_dropped
 )
 
 private fun subjectTypeLabel(subjectType: Int): String = when (subjectType) {
-    BangumiApiClient.SubjectType.ANIME -> "Anime"
-    BangumiApiClient.SubjectType.BOOK -> "Manga / Kitap"
-    BangumiApiClient.SubjectType.GAME -> "Oyun"
-    BangumiApiClient.SubjectType.MUSIC -> "Müzik"
-    BangumiApiClient.SubjectType.REAL -> "Dizi / Film"
-    else -> "Diğer"
+    BangumiApiClient.SubjectType.ANIME -> KitsugiStrings.get(R.string.media_type_anime)
+    BangumiApiClient.SubjectType.BOOK -> KitsugiStrings.get(R.string.bangumi_subject_manga_book)
+    BangumiApiClient.SubjectType.GAME -> KitsugiStrings.get(R.string.bangumi_subject_game)
+    BangumiApiClient.SubjectType.MUSIC -> KitsugiStrings.get(R.string.bangumi_subject_music)
+    BangumiApiClient.SubjectType.REAL -> KitsugiStrings.get(R.string.bangumi_subject_tv_film)
+    else -> KitsugiStrings.get(R.string.bangumi_tag_other)
 }
 
 private fun collectionStatusLabel(collectionType: Int): String =
-    BANGUMI_STATUS_FILTERS.firstOrNull { it.first == collectionType }?.second ?: "Bilinmiyor"
+    BANGUMI_STATUS_FILTERS.firstOrNull { it.first == collectionType }
+        ?.let { KitsugiStrings.get(it.second) }
+        ?: KitsugiStrings.get(R.string.profile_status_unknown)
 
-/** Özet kartında sığması için kısa etiketler. */
+/** Short labels for the summary cards. */
 private fun shortStatusLabel(collectionType: Int): String = when (collectionType) {
-    BangumiApiClient.CollectionType.WISH -> "Planlı"
-    BangumiApiClient.CollectionType.DOING -> "Devam"
-    BangumiApiClient.CollectionType.DONE -> "Bitti"
-    BangumiApiClient.CollectionType.ON_HOLD -> "Beklemede"
-    BangumiApiClient.CollectionType.DROPPED -> "Bırakıldı"
+    BangumiApiClient.CollectionType.WISH -> KitsugiStrings.get(R.string.profile_status_planned)
+    BangumiApiClient.CollectionType.DOING -> KitsugiStrings.get(R.string.profile_status_in_progress)
+    BangumiApiClient.CollectionType.DONE -> KitsugiStrings.get(R.string.profile_status_completed)
+    BangumiApiClient.CollectionType.ON_HOLD -> KitsugiStrings.get(R.string.profile_status_on_hold)
+    BangumiApiClient.CollectionType.DROPPED -> KitsugiStrings.get(R.string.profile_status_dropped)
     else -> "-"
 }
 
@@ -114,16 +116,16 @@ private fun progressLabel(item: BangumiUserCollection): String? {
         BangumiApiClient.SubjectType.BOOK -> {
             val total = subject?.volumes ?: 0
             when {
-                item.volStatus > 0 && total > 0 -> "Cilt ${item.volStatus}/$total"
-                item.volStatus > 0 -> "Cilt ${item.volStatus}"
+                item.volStatus > 0 && total > 0 -> KitsugiStrings.get(R.string.profile_volume_progress, item.volStatus, total)
+                item.volStatus > 0 -> KitsugiStrings.get(R.string.profile_volume_progress_single, item.volStatus)
                 else -> null
             }
         }
         BangumiApiClient.SubjectType.ANIME, BangumiApiClient.SubjectType.REAL -> {
             val total = subject?.eps ?: 0
             when {
-                item.epStatus > 0 && total > 0 -> "Bölüm ${item.epStatus}/$total"
-                item.epStatus > 0 -> "Bölüm ${item.epStatus}"
+                item.epStatus > 0 && total > 0 -> KitsugiStrings.get(R.string.profile_episodes_progress, item.epStatus, total)
+                item.epStatus > 0 -> KitsugiStrings.get(R.string.profile_episode_progress_single, item.epStatus)
                 else -> null
             }
         }
@@ -162,9 +164,9 @@ fun BangumiProfileContent(
     val typeOptions = BANGUMI_TYPE_FILTERS.map { type ->
         type to "${subjectTypeLabel(type)} (${typeCounts[type] ?: 0})"
     }
-    val statusOptions = BANGUMI_STATUS_FILTERS.map { (value, label) ->
+    val statusOptions = BANGUMI_STATUS_FILTERS.map { (value, labelRes) ->
         val count = if (value == 0) itemsOfType.size else (statusCounts[value] ?: 0)
-        value to "$label ($count)"
+        value to "${KitsugiStrings.get(labelRes)} ($count)"
     }
 
     LazyColumn(
@@ -215,7 +217,7 @@ fun BangumiProfileContent(
                     text = if (state.collections.isEmpty()) {
                         stringResource(R.string.bangumi_de_henuz_koleksiyonunuz_yok)
                     } else {
-                        "Bu filtrede kayıt yok."
+                        stringResource(R.string.profile_filter_empty)
                     },
                     style = MaterialTheme.typography.bodyMedium.copy(color = KitsugiColors.TextMuted),
                     modifier = Modifier
@@ -252,7 +254,7 @@ fun BangumiProfileContent(
 
         if (state.characterFavorites.isNotEmpty()) {
             item {
-                BangumiSectionTitle("Favori karakterler (${state.characterFavorites.size})")
+                BangumiSectionTitle(stringResource(R.string.profile_favorite_characters_count, state.characterFavorites.size))
             }
             item {
                 BangumiFavoriteRow(
@@ -267,7 +269,7 @@ fun BangumiProfileContent(
 
         if (state.personFavorites.isNotEmpty()) {
             item {
-                BangumiSectionTitle("Favori kişiler (${state.personFavorites.size})")
+                BangumiSectionTitle(stringResource(R.string.profile_favorite_people_count, state.personFavorites.size))
             }
             item {
                 BangumiFavoriteRow(
@@ -283,7 +285,7 @@ fun BangumiProfileContent(
 
     if (showNotifications) {
         KitsugiWebViewDialog(
-            title = "Bangumi Bildirimleri",
+            title = stringResource(R.string.profile_platform_notifications, "Bangumi"),
             url = "https://bgm.tv/notify/all",
             onDismiss = { showNotifications = false }
         )
@@ -360,7 +362,7 @@ private fun BangumiHeaderCard(
                     modifier = Modifier.size(16.dp)
                 )
                 Spacer(modifier = Modifier.width(6.dp))
-                Text(text = "bgm.tv profili", fontSize = 13.sp)
+                Text(text = stringResource(R.string.profile_platform_profile, "bgm.tv"), fontSize = 13.sp)
             }
             FilledTonalButton(onClick = onOpenNotifications) {
                 Icon(
@@ -369,7 +371,7 @@ private fun BangumiHeaderCard(
                     modifier = Modifier.size(16.dp)
                 )
                 Spacer(modifier = Modifier.width(6.dp))
-                Text(text = "Bildirimler", fontSize = 13.sp)
+                Text(text = stringResource(R.string.notif_title), fontSize = 13.sp)
             }
         }
 

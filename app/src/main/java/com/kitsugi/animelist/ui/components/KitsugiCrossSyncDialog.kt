@@ -154,7 +154,7 @@ fun KitsugiCrossSyncDialog(
                 try {
                     withContext(Dispatchers.IO) {
                         val output = context.contentResolver.openOutputStream(uri)
-                            ?: error("Seçilen dosya açılamadı")
+                            ?: error(context.getString(R.string.cross_sync_selected_file_error))
                         output.bufferedWriter(Charsets.UTF_8).use { it.write(report) }
                     }
                     Toast.makeText(context, KitsugiStrings.get(R.string.esitleme_raporu_dosyaya_kaydedildi), Toast.LENGTH_SHORT).show()
@@ -208,17 +208,22 @@ fun KitsugiCrossSyncDialog(
                     putExtra(Intent.EXTRA_STREAM, uri)
                     putExtra(
                         Intent.EXTRA_SUBJECT,
-                        "Kitsugi Çapraz Eşitleme Raporu${if (reportState.isRunning) " (Devam ediyor)" else ""}"
+                        context.getString(
+                            R.string.cross_sync_share_subject,
+                            if (reportState.isRunning) context.getString(R.string.cross_sync_share_partial_suffix) else ""
+                        )
                     )
                     putExtra(
                         Intent.EXTRA_TEXT,
-                        "Kitsugi çapraz platform eşitleme tanılama raporu. " +
-                            "${if (reportState.isRunning) "Bu, devam eden eşitlemenin kısmi raporudur." else ""}"
+                        context.getString(R.string.cross_sync_share_description) +
+                            if (reportState.isRunning) context.getString(R.string.cross_sync_share_partial_note) else ""
                     )
                     clipData = ClipData.newUri(context.contentResolver, file.name, uri)
                     addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
                 }
-                context.startActivity(Intent.createChooser(shareIntent, "Eşitleme raporunu paylaş"))
+                context.startActivity(
+                    Intent.createChooser(shareIntent, context.getString(R.string.cross_sync_share_chooser))
+                )
             } catch (error: Exception) {
                 Toast.makeText(context, KitsugiStrings.get(R.string.cs_diag_report_share_failed, error.localizedMessage), Toast.LENGTH_LONG).show()
             }
@@ -249,12 +254,19 @@ fun KitsugiCrossSyncDialog(
         else -> MaterialTheme.colorScheme.onSurfaceVariant
     }
     val statusSubtitle = when {
-        state.isCompleted -> KitsugiStrings.get(R.string.tamamlandi_x, formatDuration(elapsedMs)) +
-            (if (state.issueCount > 0) " · ${state.issueCount} sorun" else " · sorun yok")
-        state.isRunning -> "${formatDuration(elapsedMs)} geçti · ${state.currentStep.ifBlank { "Hazırlanıyor" }}"
-        state.errorMessage != null -> "Hata oluştu · rapor hazır"
-        state.currentStep == "Eşitleme durduruldu" -> "Durduruldu · kısmi rapor hazır"
-        else -> "Son eşitleme durumu"
+        state.isCompleted -> if (state.issueCount > 0) {
+            stringResource(R.string.cross_sync_status_completed_issues, formatDuration(elapsedMs), state.issueCount)
+        } else {
+            stringResource(R.string.cross_sync_status_completed_clean, formatDuration(elapsedMs))
+        }
+        state.isRunning -> stringResource(
+            R.string.cross_sync_status_running,
+            formatDuration(elapsedMs),
+            state.currentStep.ifBlank { stringResource(R.string.cross_sync_step_preparing) }
+        )
+        state.errorMessage != null -> stringResource(R.string.cross_sync_status_error_ready)
+        state.startedAt != null && state.finishedAt != null -> stringResource(R.string.cross_sync_status_stopped_ready)
+        else -> stringResource(R.string.cross_sync_status_last)
     }
 
     KitsugiSheetOrDialog(
@@ -408,7 +420,7 @@ fun KitsugiCrossSyncDialog(
                         onCancel()
                     }
                 ) {
-                    Text("Durdur", color = ERROR_COLOR)
+                    Text(stringResource(R.string.cross_sync_action_stop), color = ERROR_COLOR)
                 }
             },
             dismissButton = {
@@ -567,15 +579,15 @@ private fun ProgressCard(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = if (state.totalItems > 0 || state.isCompleted) "%${(state.progressPercent * 100).toInt()}" else stringResource(R.string.cross_sync_in_progress),
+                    text = if (state.totalItems > 0 || state.isCompleted) "${(state.progressPercent * 100).toInt()}%" else stringResource(R.string.cross_sync_in_progress),
                     style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
                     color = accentColor
                 )
                 Text(
                     text = if (state.totalItems > 0) {
-                        "${state.processedItems} / ${state.totalItems} ${state.progressUnit}"
+                        "${state.processedItems} / ${state.totalItems} ${if (state.progressUnit.isBlank()) stringResource(R.string.cross_sync_vm_item_unit) else state.progressUnit}"
                     } else {
-                        "Ağ / hazırlık aşaması"
+                        stringResource(R.string.cross_sync_network_preparation)
                     },
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -596,7 +608,7 @@ private fun ProgressCard(
                     )
                     if (estimatedRemainingMs != null) {
                         Text(
-                            text = "Tahmini kalan: ${formatDuration(estimatedRemainingMs)}",
+                            text = stringResource(R.string.cross_sync_estimated_remaining, formatDuration(estimatedRemainingMs)),
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -763,8 +775,8 @@ private fun PlatformStatChip(
             Text(
                 text = when {
                     stats.skippedCount > 0 || stats.errorCount > 0 -> stringResource(R.string.inline_1_s_skipped_2_s_3e7c5e0, stats.skippedCount, stats.errorCount)
-                    stats.initialCount > 0 -> "Sorun yok"
-                    else -> "Kayıt yok"
+                    stats.initialCount > 0 -> stringResource(R.string.cross_sync_no_issues)
+                    else -> stringResource(R.string.cross_sync_no_records)
                 },
                 style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.5.sp, fontWeight = FontWeight.Bold),
                 color = when {
@@ -814,9 +826,15 @@ private fun LogHeader(
             CrossSyncLogFilter.entries.forEach { filter ->
                 val label = when (filter) {
                     CrossSyncLogFilter.All -> stringResource(R.string.notif_filter_all)
-                    CrossSyncLogFilter.Issues -> "Sorunlar${if (errorCount + warningCount > 0) " (${errorCount + warningCount})" else ""}"
-                    CrossSyncLogFilter.Errors -> "Hatalar${if (errorCount > 0) " ($errorCount)" else ""}"
-                    CrossSyncLogFilter.Warnings -> "Uyarılar${if (warningCount > 0) " ($warningCount)" else ""}"
+                    CrossSyncLogFilter.Issues -> if (errorCount + warningCount > 0) {
+                        stringResource(R.string.cross_sync_filter_issues_count, errorCount + warningCount)
+                    } else stringResource(R.string.cross_sync_filter_issues)
+                    CrossSyncLogFilter.Errors -> if (errorCount > 0) {
+                        stringResource(R.string.cross_sync_filter_errors_count, errorCount)
+                    } else stringResource(R.string.cross_sync_filter_errors)
+                    CrossSyncLogFilter.Warnings -> if (warningCount > 0) {
+                        stringResource(R.string.cross_sync_filter_warnings_count, warningCount)
+                    } else stringResource(R.string.cross_sync_filter_warnings)
                 }
                 FilterChip(
                     selected = selected == filter,
@@ -989,7 +1007,7 @@ private fun ColumnScope.ActionButtons(
             ) {
                 Icon(Icons.Rounded.Close, contentDescription = null, modifier = Modifier.size(16.dp))
                 Spacer(modifier = Modifier.width(5.dp))
-                Text("Durdur", maxLines = 1, overflow = TextOverflow.Ellipsis, fontSize = 12.sp)
+                Text(stringResource(R.string.cross_sync_action_stop), maxLines = 1, overflow = TextOverflow.Ellipsis, fontSize = 12.sp)
             }
         }
         TextButton(

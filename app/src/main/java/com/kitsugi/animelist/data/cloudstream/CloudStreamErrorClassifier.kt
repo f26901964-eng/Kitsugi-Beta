@@ -65,6 +65,18 @@ object CloudStreamErrorClassifier {
                 containsAny(classes, "cloudflareblockexception") ->
                 PlatformErrorCode.CloudStreamProtection
 
+            containsAny(
+                classes,
+                "noclassdeffounderror", "classnotfoundexception", "nosuchmethoderror",
+                "nosuchfielderror", "incompatibleclasschangeerror", "abstractmethoderror",
+                "exceptionininitializererror", "classformaterror", "verifyerror",
+                "unsupportedclassversionerror", "linkageerror",
+            ) || containsAny(
+                normalized,
+                "failed resolution of:", "noclassdeffounderror", "classnotfoundexception",
+                "nosuchmethoderror", "nosuchfielderror", "incompatibleclasschangeerror",
+            ) -> PlatformErrorCode.CloudStreamRuntimeIncompatible
+
             Regex("\\b(?:http\\s*)?429\\b").containsMatchIn(normalized) ||
                 containsAny(
                     normalized,
@@ -72,6 +84,15 @@ object CloudStreamErrorClassifier {
                     "çok fazla istek", "cok fazla istek", "istek limiti", "istek sınırı", "istek siniri",
                 ) ->
                 PlatformErrorCode.CloudStreamRateLimited
+
+            Regex("\\b(?:http\\s*)?401\\b").containsMatchIn(normalized) || containsAny(
+                normalized,
+                "credentials required", "missing credentials", "account required", "login required",
+                "authentication required", "sign in required", "please sign in", "unauthorized",
+                "unauthorised", "giriş bilgileri", "giris bilgileri", "giriş bilgisi", "giris bilgisi",
+                "hesap bilgilerinizi", "hesap bilgisi gerekli", "giriş yapmanız", "giris yapmaniz", "oturum açmanız",
+                "oturum acmaniz", "kimlik doğrulaması gerekli", "kimlik dogrulamasi gerekli",
+            ) -> PlatformErrorCode.CloudStreamAuthRequired
 
             Regex("\\b(?:http\\s*)?403\\b").containsMatchIn(normalized) ->
                 PlatformErrorCode.CloudStreamPluginUnsupported
@@ -83,9 +104,6 @@ object CloudStreamErrorClassifier {
                     "zaman aşımı", "zaman asimi", "süre doldu", "sure doldu",
                 ) ||
                 classes.contains("timeout") -> PlatformErrorCode.CloudStreamTimeout
-
-            Regex("\\b(?:http\\s*)?401\\b").containsMatchIn(normalized) ->
-                PlatformErrorCode.CloudStreamPluginUnsupported
 
             Regex("\\b(?:http\\s*)?(?:500|502|503)\\b").containsMatchIn(normalized) ->
                 PlatformErrorCode.CloudStreamNetwork
@@ -128,6 +146,11 @@ object CloudStreamErrorClassifier {
                 "malformed html",
                 "malformed json",
                 "unexpected token",
+                "unexpected character",
+                "unrecognized token",
+                "invalid file header",
+                "doesn't start with #extm3u",
+                "does not start with #extm3u",
                 "selector not found",
                 "unable to extract",
                 "failed to extract",

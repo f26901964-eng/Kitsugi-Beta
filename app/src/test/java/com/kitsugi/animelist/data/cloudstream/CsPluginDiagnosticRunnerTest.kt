@@ -29,6 +29,34 @@ class CsPluginDiagnosticRunnerTest {
     }
 
     @Test
+    fun missingSerializationRuntimeIsReportedAsPluginRuntimeIncompatibility() {
+        val result = diagnosticResult(
+            phaseErrors = listOf(
+                phaseError(
+                    phase = "search",
+                    errorClass = "NoClassDefFoundError",
+                    message = "Failed resolution of: Lkotlinx/serialization/KSerializer;",
+                )
+            )
+        )
+
+        assertEquals(CsPluginDiagnosticRunner.ResultStatus.RUNTIME_INCOMPATIBLE, result.status)
+        assertEquals("KTS-CSP-9110", result.errorCode)
+    }
+
+    @Test
+    fun credentialPromptIsNotReportedAsAnEmptySearch() {
+        val result = diagnosticResult(
+            phaseErrors = listOf(
+                phaseError(message = "Tabii için hesap bilgilerinizi girmeniz gerekmektedir")
+            )
+        )
+
+        assertEquals(CsPluginDiagnosticRunner.ResultStatus.AUTH_REQUIRED, result.status)
+        assertEquals("KTS-CSP-9109", result.errorCode)
+    }
+
+    @Test
     fun explicitCfSignatureIsClassifiedAsCfBlocked() {
         val result = diagnosticResult(
             searchCount = 0,
@@ -81,10 +109,16 @@ class CsPluginDiagnosticRunnerTest {
         val noStreams = diagnosticResult(searchCount = 1, loadOk = true)
         val loadFailed = diagnosticResult(searchCount = 1, loadOk = false)
         val dead = diagnosticResult(loaded = false)
+        val runtimeIncompatible = diagnosticResult(
+            phaseErrors = listOf(phaseError(errorClass = "NoClassDefFoundError", message = "Failed resolution of: KSerializer"))
+        )
+        val authRequired = diagnosticResult(
+            phaseErrors = listOf(phaseError(message = "Login required"))
+        )
         val working = diagnosticResult(searchCount = 1, streamCount = 1)
 
         val summary = CsPluginDiagnosticRunner.summarize(
-            listOf(searchEmpty, confirmedCf, noStreams, loadFailed, dead, working)
+            listOf(searchEmpty, confirmedCf, noStreams, loadFailed, dead, runtimeIncompatible, authRequired, working)
         )
 
         assertEquals(1, summary.searchEmpty)
@@ -92,10 +126,14 @@ class CsPluginDiagnosticRunnerTest {
         assertEquals(1, summary.noStreams)
         assertEquals(1, summary.loadFailed)
         assertEquals(1, summary.dead)
+        assertEquals(1, summary.runtimeIncompatible)
+        assertEquals(1, summary.authRequired)
         assertEquals(1, summary.working)
         assertEquals(2, summary.errorCodeCounts["KTS-CSP-9103"])
         assertEquals(1, summary.errorCodeCounts["KTS-CSP-9101"])
         assertEquals(1, summary.errorCodeCounts["KTS-CSP-9102"])
+        assertEquals(1, summary.errorCodeCounts["KTS-CSP-9109"])
+        assertEquals(1, summary.errorCodeCounts["KTS-CSP-9110"])
     }
 
     private fun diagnosticResult(
@@ -128,12 +166,13 @@ class CsPluginDiagnosticRunnerTest {
 
     private fun phaseError(
         phase: String = "search",
+        errorClass: String = "IOException",
         isCfPattern: Boolean = false,
         isDdosGuard: Boolean = false,
         message: String? = null
     ) = CsPluginDiagnosticRunner.PhaseError(
         phase = phase,
-        errorClass = "IOException",
+        errorClass = errorClass,
         message = message ?: if (isCfPattern) "Cloudflare challenge" else "network error",
         httpCode = null,
         isCfPattern = isCfPattern,

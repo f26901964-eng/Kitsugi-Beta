@@ -19,12 +19,16 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.BugReport
 import androidx.compose.material.icons.rounded.CleaningServices
 import androidx.compose.material.icons.rounded.CloudDownload
+import androidx.compose.material.icons.rounded.DeleteSweep
 import androidx.compose.material.icons.rounded.Extension
 import androidx.compose.material.icons.rounded.Image
 import androidx.compose.material.icons.rounded.MenuBook
 import androidx.compose.material.icons.rounded.Movie
+import androidx.compose.material.icons.rounded.PhotoLibrary
 import androidx.compose.material.icons.rounded.Public
 import androidx.compose.material.icons.rounded.Storage
+import androidx.compose.material.icons.rounded.Subtitles
+import androidx.compose.material.icons.rounded.VideoLibrary
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -45,6 +49,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.kitsugi.animelist.R
+import com.kitsugi.animelist.core.storage.DownloadStorage
 import com.kitsugi.animelist.core.storage.StorageJanitor
 import com.kitsugi.animelist.ui.components.KitsugiConfirmDialog
 import com.kitsugi.animelist.ui.components.KitsugiSettingsDivider
@@ -81,10 +86,24 @@ fun StorageSettingsContent() {
     var showWebViewConfirm by remember { mutableStateOf(false) }
     var statusMessage by remember { mutableStateOf<String?>(null) }
 
+    // İndirilenler (kullanıcı dosyaları): video / görsel / altyazı
+    var downloadUsages by remember { mutableStateOf<List<DownloadStorage.Usage>?>(null) }
+    var downloadsTotal by remember { mutableStateOf(0L) }
+    var busyDownloadKind by remember { mutableStateOf<DownloadStorage.Kind?>(null) }
+    var busyAllDownloads by remember { mutableStateOf(false) }
+    var confirmDownloadKind by remember { mutableStateOf<DownloadStorage.Kind?>(null) }
+    var showDeleteAllDownloadsConfirm by remember { mutableStateOf(false) }
+
     suspend fun refresh() {
         val list = StorageJanitor.scan(context)
         usages = list
         totalBytes = list.sumOf { it.bytes }
+
+        // Kullanıcı dosyaları ayrı ölçülür: üstteki "Toplam kullanım" bilinçli olarak
+        // yalnızca yeniden üretilebilir önbellekleri kapsar (bkz. storage_protected_note).
+        downloadUsages = runCatching { DownloadStorage.scan(context) }.getOrNull()
+            ?: DownloadStorage.Kind.entries.map { DownloadStorage.Usage(it, 0L, 0) }
+        downloadsTotal = runCatching { DownloadStorage.totalBytes(context) }.getOrDefault(0L)
     }
 
     LaunchedEffect(Unit) { refresh() }
@@ -193,6 +212,62 @@ fun StorageSettingsContent() {
 
         Spacer(Modifier.height(12.dp))
 
+        // ── İndirilenler (kullanıcı dosyaları) ─────────────────────────────────
+        // Önbelleklerden ayrı tutulur: buradaki dosyalar kullanıcının kendi içeriğidir,
+        // yalnızca açık onayla silinir ve "Güvenli önbellekleri temizle" bunlara dokunmaz.
+        KitsugiSettingsSection(
+            title = stringResource(R.string.storage_section_downloads),
+            subtitle = stringResource(R.string.storage_downloads_hint)
+        ) {
+            SettingsNavCard {
+                Column(Modifier.padding(horizontal = 16.dp, vertical = 14.dp)) {
+                    Text(
+                        text = stringResource(R.string.storage_downloads_total, formatBytes(downloadsTotal)),
+                        color = accentColor,
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            }
+
+            Spacer(Modifier.height(8.dp))
+
+            SettingsNavCard {
+                val downloads = downloadUsages
+                if (downloads == null) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 24.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        CircularProgressIndicator(color = accentColor, strokeWidth = 2.dp)
+                    }
+                } else {
+                    downloads.forEachIndexed { index, usage ->
+                        if (index > 0) KitsugiSettingsDivider()
+                        DownloadRow(
+                            usage = usage,
+                            busy = busyDownloadKind == usage.kind || busyAllDownloads,
+                            enabled = !busyAll && !busyAllDownloads && busyDownloadKind == null,
+                            accentColor = KitsugiColors.AccentRed,
+                            onClear = { confirmDownloadKind = usage.kind }
+                        )
+                    }
+
+                    KitsugiSettingsDivider()
+
+                    DeleteAllDownloadsRow(
+                        busy = busyAllDownloads,
+                        enabled = !busyAll && busyDownloadKind == null && !busyAllDownloads,
+                        onClear = { showDeleteAllDownloadsConfirm = true }
+                    )
+                }
+            }
+        }
+
+        Spacer(Modifier.height(12.dp))
+
         // ── Toplu temizleme ────────────────────────────────────────────────────
         SettingsNavCard {
             Row(
@@ -276,6 +351,60 @@ fun StorageSettingsContent() {
                 }
             },
             onDismiss = { showWebViewConfirm = false }
+        )
+    }
+
+    // ── İndirilenler: onay diyalogları ─────────────────────────────────────────
+    // İndirilen dosyalar yeniden üretilemez (tekrar indirilmesi gerekir), bu yüzden
+    // önbelleklerden farklı olarak her silme işlemi ayrıca onay ister.
+    confirmDownloadKind?.let { kind ->
+        KitsugiConfirmDialog(
+            title = stringResource(
+                R.string.storage_downloads_delete_confirm_title,
+                stringResource(kind.labelRes)
+            ),
+            message = stringResource(downloadConfirmMessageRes(kind)),
+            confirmText = stringResource(R.string.storage_downloads_delete_all),
+            isDestructive = true,
+            onConfirm = {
+                confirmDownloadKind = null
+                busyDownloadKind = kind
+                scope.launch {
+                    val result = DownloadStorage.clean(context, kind)
+                    refresh()
+                    busyDownloadKind = null
+                    statusMessage = if (result.freedBytes > 0L) {
+                        context.getString(R.string.storage_deleted_amount, formatBytes(result.freedBytes))
+                    } else {
+                        context.getString(R.string.storage_deleted_nothing)
+                    }
+                }
+            },
+            onDismiss = { confirmDownloadKind = null }
+        )
+    }
+
+    if (showDeleteAllDownloadsConfirm) {
+        KitsugiConfirmDialog(
+            title = stringResource(R.string.storage_downloads_all_confirm_title),
+            message = stringResource(R.string.storage_downloads_all_confirm_message),
+            confirmText = stringResource(R.string.storage_downloads_delete_all_short),
+            isDestructive = true,
+            onConfirm = {
+                showDeleteAllDownloadsConfirm = false
+                busyAllDownloads = true
+                scope.launch {
+                    val result = DownloadStorage.cleanAll(context)
+                    refresh()
+                    busyAllDownloads = false
+                    statusMessage = if (result.freedBytes > 0L) {
+                        context.getString(R.string.storage_deleted_amount, formatBytes(result.freedBytes))
+                    } else {
+                        context.getString(R.string.storage_deleted_nothing)
+                    }
+                }
+            },
+            onDismiss = { showDeleteAllDownloadsConfirm = false }
         )
     }
 }
@@ -374,6 +503,181 @@ private fun StorageBucketRow(
             )
         }
     }
+}
+
+// ─── İndirilenler satırları ────────────────────────────────────────────────────
+
+/**
+ * Kullanıcının indirdiği dosyalar için satır. Önbellek satırlarından farkı: her dokunuş
+ * yıkıcı bir onay penceresi açar ve eylem metni "Tümünü sil"dir.
+ */
+@Composable
+private fun DownloadRow(
+    usage: DownloadStorage.Usage,
+    busy: Boolean,
+    enabled: Boolean,
+    accentColor: Color,
+    onClear: () -> Unit
+) {
+    val kind = usage.kind
+    val clickable = enabled && !busy
+
+    val rowModifier = if (clickable) {
+        Modifier
+            .fillMaxWidth()
+            .tvClickable(shape = RoundedCornerShape(12.dp), onClick = onClear)
+    } else {
+        Modifier.fillMaxWidth()
+    }
+
+    Row(
+        modifier = rowModifier.padding(horizontal = 16.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Box(
+            modifier = Modifier
+                .size(36.dp)
+                .clip(RoundedCornerShape(12.dp))
+                .background(accentColor.copy(alpha = 0.15f)),
+            contentAlignment = Alignment.Center
+        ) {
+            androidx.compose.material3.Icon(
+                imageVector = downloadIconFor(kind),
+                contentDescription = null,
+                tint = accentColor,
+                modifier = Modifier.size(20.dp)
+            )
+        }
+
+        Spacer(Modifier.width(14.dp))
+
+        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.Center) {
+            Text(
+                text = stringResource(kind.labelRes),
+                color = KitsugiColors.TextPrimary,
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.SemiBold,
+                maxLines = 1
+            )
+            Spacer(Modifier.height(2.dp))
+            Text(
+                text = stringResource(kind.descriptionRes),
+                color = KitsugiColors.TextMuted,
+                style = MaterialTheme.typography.bodySmall,
+                maxLines = 2
+            )
+        }
+
+        Spacer(Modifier.width(10.dp))
+
+        Column(horizontalAlignment = Alignment.End) {
+            if (busy) {
+                CircularProgressIndicator(
+                    color = accentColor,
+                    strokeWidth = 2.dp,
+                    modifier = Modifier.size(18.dp)
+                )
+            } else {
+                Text(
+                    text = formatBytes(usage.bytes),
+                    color = KitsugiColors.TextPrimary,
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.Bold
+                )
+                if (usage.fileCount > 0) {
+                    Text(
+                        text = stringResource(R.string.storage_files_count, usage.fileCount),
+                        color = KitsugiColors.TextMuted,
+                        style = MaterialTheme.typography.labelSmall
+                    )
+                }
+            }
+            Spacer(Modifier.height(4.dp))
+            Text(
+                text = stringResource(R.string.storage_downloads_delete_all),
+                color = if (usage.bytes > 0L || usage.fileCount > 0) accentColor else KitsugiColors.TextMuted,
+                style = MaterialTheme.typography.labelSmall,
+                fontWeight = FontWeight.SemiBold
+            )
+        }
+    }
+}
+
+/** "Tüm indirilenleri sil" satırı — videolar, görseller ve altyazılar birlikte. */
+@Composable
+private fun DeleteAllDownloadsRow(
+    busy: Boolean,
+    enabled: Boolean,
+    onClear: () -> Unit
+) {
+    val accentColor = KitsugiColors.AccentRed
+    val clickable = enabled && !busy
+
+    val rowModifier = if (clickable) {
+        Modifier
+            .fillMaxWidth()
+            .tvClickable(shape = RoundedCornerShape(12.dp), onClick = onClear)
+    } else {
+        Modifier.fillMaxWidth()
+    }
+
+    Row(
+        modifier = rowModifier.padding(horizontal = 16.dp, vertical = 14.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Box(
+            modifier = Modifier
+                .size(36.dp)
+                .clip(RoundedCornerShape(12.dp))
+                .background(accentColor.copy(alpha = 0.15f)),
+            contentAlignment = Alignment.Center
+        ) {
+            androidx.compose.material3.Icon(
+                imageVector = Icons.Rounded.DeleteSweep,
+                contentDescription = null,
+                tint = accentColor,
+                modifier = Modifier.size(20.dp)
+            )
+        }
+
+        Spacer(Modifier.width(14.dp))
+
+        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.Center) {
+            Text(
+                text = stringResource(R.string.storage_downloads_delete_all_short),
+                color = KitsugiColors.TextPrimary,
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.SemiBold
+            )
+            Spacer(Modifier.height(2.dp))
+            Text(
+                text = stringResource(R.string.storage_downloads_delete_all_desc),
+                color = KitsugiColors.TextMuted,
+                style = MaterialTheme.typography.bodySmall
+            )
+        }
+
+        if (busy) {
+            Spacer(Modifier.width(10.dp))
+            CircularProgressIndicator(
+                color = accentColor,
+                strokeWidth = 2.dp,
+                modifier = Modifier.size(18.dp)
+            )
+        }
+    }
+}
+
+private fun downloadIconFor(kind: DownloadStorage.Kind): ImageVector = when (kind) {
+    DownloadStorage.Kind.VIDEOS -> Icons.Rounded.VideoLibrary
+    DownloadStorage.Kind.IMAGES -> Icons.Rounded.PhotoLibrary
+    DownloadStorage.Kind.SUBTITLES -> Icons.Rounded.Subtitles
+}
+
+private fun downloadConfirmMessageRes(kind: DownloadStorage.Kind): Int = when (kind) {
+    DownloadStorage.Kind.VIDEOS -> R.string.storage_downloads_videos_confirm_message
+    DownloadStorage.Kind.IMAGES -> R.string.storage_downloads_images_confirm_message
+    DownloadStorage.Kind.SUBTITLES -> R.string.storage_downloads_subtitles_confirm_message
 }
 
 private fun iconFor(bucket: StorageJanitor.Bucket): ImageVector = when (bucket) {

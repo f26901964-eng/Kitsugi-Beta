@@ -49,6 +49,48 @@ object CsPluginLoader {
     val loadedPlugins = java.util.concurrent.ConcurrentHashMap<String, BasePlugin>()
     val loadedPluginIds = kotlinx.coroutines.flow.MutableStateFlow<Set<String>>(emptySet())
     private val loadMutex = Mutex()
+    private val loadErrors = java.util.concurrent.ConcurrentHashMap<String, String>()
+
+    /** Consume the most recent loader failure so the in-app diagnostic report can classify it. */
+    fun takeLastLoadError(scraperId: String): String? = loadErrors.remove(scraperId)
+
+    private fun recordLoadError(scraperId: String, message: String) {
+        loadErrors[scraperId] = message.take(500)
+    }
+
+    private fun recordLoadErrorIfAbsent(scraperId: String, message: String) {
+        loadErrors.putIfAbsent(scraperId, message.take(500))
+    }
+
+    /**
+     * CS3 bytecode links against the host CloudStream/Kotlinx APIs by their original package names.
+     * Keep the loader parent tied to the classloader that defined MainAPI rather than an arbitrary
+     * Context wrapper's loader, then verify the shared runtime surface before plugin code runs.
+     */
+    private fun createPluginClassLoader(context: Context, cs3File: File): PathClassLoader {
+        val hostLoader = MainAPI::class.java.classLoader
+            ?: context.applicationContext.classLoader
+            ?: context.classLoader
+        return PathClassLoader(cs3File.absolutePath, hostLoader)
+    }
+
+    private fun verifySharedPluginRuntime(scraperId: String, loader: ClassLoader) {
+        val requiredClasses = listOf(
+            "com.lagradost.cloudstream3.MainAPI",
+            "kotlinx.serialization.KSerializer",
+            "kotlinx.serialization.json.Json",
+        )
+        requiredClasses.forEach { className ->
+            try {
+                loader.loadClass(className)
+            } catch (t: Throwable) {
+                val message = "CS3 host runtime class is not visible: $className (${t.javaClass.simpleName})"
+                recordLoadErrorIfAbsent(scraperId, message)
+                Log.e(PLUGIN_DIAG, "❌ CS3 ABI EKSİK: $scraperId — $message", t)
+                CsTrace.error(scraperId, "runtime", message, t)
+            }
+        }
+    }
 
     // ─── Public settings helpers ──────────────────────────────────────────────
 
@@ -277,17 +319,19 @@ object CsPluginLoader {
 
     /**
      * Mirrors the exact approach used in Cloudstream's PluginManager.loadPlugin():
-     *  1. Use PathClassLoader (not DexClassLoader) with context.classLoader as parent
-     *     so that host-app classes (Plugin, BasePlugin, MainAPI, etc.) are resolvable.
+     *  1. Use PathClassLoader (not DexClassLoader) with the MainAPI-defining host loader as parent
+     *     so CloudStream APIs and shared runtime dependencies remain visible to plugin DEX files.
      *  2. Read manifest.json via loader.getResourceAsStream() — same as original.
      *  3. Instantiate the plugin class and call load(context) or load().
      */
     suspend fun loadExtension(context: Context, scraperId: String, forceReload: Boolean = false): List<MainAPI> = withContext(Dispatchers.IO) {
         loadMutex.withLock {
+            loadErrors.remove(scraperId)
             val cs3File = File(context.filesDir, "cs_extensions/$scraperId.cs3")
         val absolutePath = cs3File.absolutePath
 
         if (!cs3File.exists()) {
+            recordLoadError(scraperId, "FileNotFoundException: CS3 file not found: ${cs3File.absolutePath}")
             Log.e(TAG, "Plugin file not found: ${cs3File.absolutePath}")
             Log.e(PLUGIN_DIAG, "❌ CS3 DOSYA YOK: $scraperId → ${cs3File.absolutePath}")
             CsTrace.error(scraperId, "load", "CS3 dosyası yok: ${cs3File.absolutePath}")
@@ -331,6 +375,7 @@ object CsPluginLoader {
             false
         }
         if (!isValidZip) {
+            recordLoadError(scraperId, "ZipException: CS3 file is corrupt or not a plugin archive")
             Log.e(TAG, "CS3 file for $scraperId is not a valid ZIP — corrupt or not a DEX plugin. Re-install it.")
             Log.e(PLUGIN_DIAG, "❌ CS3 GEÇERSİZ ZIP: $scraperId — Yeniden yükleyin!")
             CsTrace.error(scraperId, "load", "CS3 geçersiz ZIP — yeniden yükleyin")
@@ -343,11 +388,11 @@ object CsPluginLoader {
         }
 
         try {
-            // ── Step 1: PathClassLoader with host classLoader as parent ──────
-            // This is the key: plugin's DEX can reference any class that lives in
-            // our app (Plugin, BasePlugin, MainAPI…) because the parent loader
-            // has them all.
-            val loader = PathClassLoader(cs3File.absolutePath, context.classLoader)
+            // ── Step 1: PathClassLoader with the MainAPI-defining host loader ──
+            // The parent must expose both CloudStream interfaces and shared runtime libraries
+            // (including kotlinx.serialization) to dynamically loaded plugin DEX files.
+            val loader = createPluginClassLoader(context, cs3File)
+            verifySharedPluginRuntime(scraperId, loader)
 
             // ── Step 2: Full cleanup — clear previously registered APIs, extractors, and actions ──
             // Note: unloadExtension already handles extractorApis cleanup internally
@@ -355,10 +400,14 @@ object CsPluginLoader {
 
             // ── Step 3: Read manifest.json from the ZIP ──────────────────────
             val manifest = readManifest(loader, cs3File, scraperId)
-                ?: return@withLock emptyList()
+            if (manifest == null) {
+                recordLoadError(scraperId, "IllegalStateException: manifest.json is missing or invalid")
+                return@withLock emptyList()
+            }
 
             val pluginClassName = manifest.pluginClassName ?: manifest.pluginClass
             if (pluginClassName.isNullOrBlank()) {
+                recordLoadError(scraperId, "IllegalStateException: manifest has no pluginClassName/pluginClass")
                 Log.e(TAG, "manifest.json for $scraperId has no pluginClassName or pluginClass field")
                 Log.e(PLUGIN_DIAG, "❌ MANIFEST HATASI: $scraperId — pluginClassName/pluginClass alanı eksik!")
                 CsTrace.error(scraperId, "load", "manifest.json pluginClassName/pluginClass alanı eksik")
@@ -437,6 +486,7 @@ object CsPluginLoader {
                 val loadErr = loadResult.exceptionOrNull()
                 val errType = loadErr?.javaClass?.simpleName ?: "UnknownError"
                 val errMsg  = loadErr?.message ?: "(mesaj yok)"
+                recordLoadError(scraperId, "$errType: $errMsg")
                 if (loadErr is kotlinx.coroutines.TimeoutCancellationException) {
                     Log.e(TAG, "Plugin $scraperId load() TIMEOUT (30s) — eklenti çok uzun süre engelledi. Kaldırılıyor.")
                     Log.e(PLUGIN_DIAG, "⏱️ CS3 TIMEOUT: $scraperId — load() 30 saniyede tamamlanamadı (runBlocking deadlock?)")
@@ -627,6 +677,7 @@ object CsPluginLoader {
             }
 
             if (allRegisteredApis.isEmpty()) {
+                recordLoadErrorIfAbsent(scraperId, "IllegalStateException: plugin registered no API providers")
                 Log.w(TAG, "Plugin loaded OK but registered 0 providers. allProviders size=${APIHolder.allProviders.size}")
                 Log.e(PLUGIN_DIAG, "⚠️ CS3 SIFIR PROVIDER: $scraperId yüklendi ama 0 API kaydetti! manifest.pluginClass=$pluginClassName")
                 CsTrace.error(scraperId, "load", "Eklenti yüklendi ama 0 provider kaydetti (pluginClass=$pluginClassName)")
@@ -640,6 +691,7 @@ object CsPluginLoader {
         } catch (t: Throwable) {
             // Catch Throwable (not just Exception) to also handle Error subclasses like
             // NoClassDefFoundError that plugins may throw if they depend on missing libs.
+            recordLoadError(scraperId, "${t.javaClass.simpleName}: ${t.message.orEmpty()}")
             Log.e(TAG, "Failed to load extension $scraperId: ${t.javaClass.simpleName}: ${t.message}", t)
             Log.e(PLUGIN_DIAG, "❌ CS3 YÜKLEME HATASI: $scraperId — ${t.javaClass.simpleName}: ${t.message}\n${android.util.Log.getStackTraceString(t)}")
             CsTrace.error(scraperId, "load", "Yükleme istisnası: ${t.javaClass.simpleName}: ${t.message}", t)

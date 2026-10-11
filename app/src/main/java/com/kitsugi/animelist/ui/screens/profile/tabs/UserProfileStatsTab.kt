@@ -39,7 +39,6 @@ import com.kitsugi.animelist.ui.screens.profile.StatCard
 import com.kitsugi.animelist.ui.screens.profile.VerticalStatsBar
 import com.kitsugi.animelist.ui.theme.KitsugiColors
 import com.kitsugi.animelist.utils.toEnglishGenreForSearch
-import com.kitsugi.animelist.utils.toTurkishGenre
 import androidx.compose.ui.res.stringResource
 import com.kitsugi.animelist.R
 
@@ -105,14 +104,14 @@ fun UserProfileStatsTab(
                     // 1. Key Stats Grid (3x2)
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         Row(modifier = Modifier.fillMaxWidth()) {
-                            StatCard("Toplam", ov.count.toString())
-                            StatCard(if (statsMediaType == 0) "İzlenen bölüm" else "Okunan bölüm", ov.episodesWatched.toString())
-                            StatCard(if (statsMediaType == 0) "İzlenen gün" else "Okunan cilt", "%.1f".format(ov.daysWatched))
+                            StatCard(stringResource(R.string.profile_stat_total_entries), ov.count.toString())
+                            StatCard(if (statsMediaType == 0) stringResource(R.string.profile_stat_episodes_watched) else stringResource(R.string.profile_stat_chapters_read), ov.episodesWatched.toString())
+                            StatCard(if (statsMediaType == 0) stringResource(R.string.profile_stat_days_watched_short) else stringResource(R.string.profile_stat_volumes_read), "%.1f".format(ov.daysWatched))
                         }
                         Row(modifier = Modifier.fillMaxWidth()) {
-                            StatCard(if (statsMediaType == 0) "Planlanan gün" else "Planlanan bölüm", "%.1f".format(ov.plannedDaysOrCount))
-                            StatCard("Ortalama Puan", "%.2f".format(ov.meanScore))
-                            StatCard("Standart sapma", "%.1f".format(ov.standardDeviation))
+                            StatCard(if (statsMediaType == 0) stringResource(R.string.profile_stat_days_planned) else stringResource(R.string.profile_stat_episodes_planned), "%.1f".format(ov.plannedDaysOrCount))
+                            StatCard(stringResource(R.string.profile_stat_average_score), "%.2f".format(ov.meanScore))
+                            StatCard(stringResource(R.string.profile_stat_standard_deviation), "%.1f".format(ov.standardDeviation))
                         }
                     }
 
@@ -242,13 +241,13 @@ fun UserProfileStatsTab(
                             )
                             val statusItems = ov.statusList.map { item ->
                                 val (label, color) = when (item.status.uppercase()) {
-                                    "CURRENT" -> (if (statsMediaType == 0) "Şimdiki" else "Okunuyor") to Color(0xFF81C784)
-                                    "COMPLETED" -> "Tamamlandı" to Color(0xFF64B5F6)
-                                    "PLANNING" -> "Planlanan" to Color(0xFFA1887F)
-                                    "PAUSED" -> "Durduruldu" to Color(0xFFFFB74D)
-                                    "DROPPED" -> "Bırakıldı" to Color(0xFFE57373)
-                                    "REPEATING" -> (if (statsMediaType == 0) "Tekrar İzleniyor" else "Tekrar Okunuyor") to Color(0xFFBA68C8)
-                                    else -> item.status to accentColor
+                                    "CURRENT" -> (if (statsMediaType == 0) stringResource(R.string.profile_status_watching) else stringResource(R.string.profile_status_reading)) to Color(0xFF81C784)
+                                    "COMPLETED" -> stringResource(R.string.profile_status_completed) to Color(0xFF64B5F6)
+                                    "PLANNING" -> (if (statsMediaType == 0) stringResource(R.string.profile_status_plan_to_watch_short) else stringResource(R.string.profile_status_plan_to_read_short)) to Color(0xFFA1887F)
+                                    "PAUSED" -> stringResource(R.string.profile_status_on_hold) to Color(0xFFFFB74D)
+                                    "DROPPED" -> stringResource(R.string.profile_status_dropped) to Color(0xFFE57373)
+                                    "REPEATING" -> (if (statsMediaType == 0) stringResource(R.string.profile_status_rewatching) else stringResource(R.string.profile_status_rereading)) to Color(0xFFBA68C8)
+                                    else -> stringResource(R.string.profile_status_unknown) to accentColor
                                 }
                                 Triple(label, item.count, color)
                             }
@@ -269,14 +268,14 @@ fun UserProfileStatsTab(
                             val formatItems = ov.formatList.map { item ->
                                 val (label, color) = when (item.format.uppercase()) {
                                     "TV" -> "TV" to Color(0xFF5C6BC0)
-                                    "TV_SHORT" -> "TV Kısa" to Color(0xFF7E57C2)
-                                    "MOVIE" -> "Film" to Color(0xFF26A69A)
-                                    "SPECIAL" -> "Özel" to Color(0xFFFFA726)
+                                    "TV_SHORT" -> stringResource(R.string.search_format_tv_short) to Color(0xFF7E57C2)
+                                    "MOVIE" -> stringResource(R.string.search_format_movie) to Color(0xFF26A69A)
+                                    "SPECIAL" -> stringResource(R.string.search_format_special) to Color(0xFFFFA726)
                                     "OVA" -> "OVA" to Color(0xFFFF7043)
                                     "ONA" -> "ONA" to Color(0xFFEC407A)
-                                    "MUSIC" -> "Müzik Klip" to Color(0xFFAB47BC)
-                                    "MANGA" -> "Manga" to Color(0xFF42A5F5)
-                                    "NOVEL" -> "LN" to Color(0xFF8D6E63)
+                                    "MUSIC" -> stringResource(R.string.search_filter_music_video) to Color(0xFFAB47BC)
+                                    "MANGA" -> stringResource(R.string.profile_manga_list) to Color(0xFF42A5F5)
+                                    "NOVEL" -> stringResource(R.string.search_format_novel) to Color(0xFF8D6E63)
                                     "ONE_SHOT" -> "One-Shot" to Color(0xFF78909C)
                                     else -> item.format to accentColor
                                 }
@@ -298,10 +297,10 @@ fun UserProfileStatsTab(
                             )
                             val countryItems = ov.countryList.map { item ->
                                 val (label, color) = when (item.country.uppercase()) {
-                                    "JP" -> "Japonya" to Color(0xFF5C6BC0)
-                                    "KR" -> "Güney Kore" to Color(0xFF26A69A)
-                                    "CN" -> "Çin" to Color(0xFFFF7043)
-                                    "TW" -> "Tayvan" to Color(0xFFAB47BC)
+                                    "JP" -> stringResource(R.string.search_country_japan) to Color(0xFF5C6BC0)
+                                    "KR" -> stringResource(R.string.search_country_south_korea) to Color(0xFF26A69A)
+                                    "CN" -> stringResource(R.string.search_country_china) to Color(0xFFFF7043)
+                                    "TW" -> stringResource(R.string.search_country_taiwan) to Color(0xFFAB47BC)
                                     else -> item.country to accentColor
                                 }
                                 Triple(label, item.count, color)
@@ -547,7 +546,7 @@ fun UserProfileStatsTab(
                     sortedList.forEachIndexed { idx, item ->
                         PositionalStatItemCard(
                             rank = idx + 1,
-                            title = if (statsSubTab == 1) item.name.toTurkishGenre() else item.name,
+                            title = if (statsSubTab == 1) item.name else item.name,
                             count = item.count,
                             meanScore = item.meanScore,
                             timeSpentMinutes = item.timeSpentMinutes,

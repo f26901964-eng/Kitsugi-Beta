@@ -1,4 +1,4 @@
-﻿package com.kitsugi.animelist.ui.components.p2p
+package com.kitsugi.animelist.ui.components.p2p
 import com.kitsugi.animelist.ui.components.KitsugiButton
 
 import com.kitsugi.animelist.ui.theme.gradient.background
@@ -116,7 +116,7 @@ fun P2pConsentDialog(
 
                     P2pDisclaimerItem(
                         icon = Icons.Rounded.Security,
-                        title = "Yasal Uygunluk & Sorumluluk",
+                        title = stringResource(R.string.p2p_legal_compliance_title),
                         description = stringResource(R.string.kitsugi_hicbir_torrent_veya_medya_icerigi_barindirmaz_ve_kontrol)
                     )
 

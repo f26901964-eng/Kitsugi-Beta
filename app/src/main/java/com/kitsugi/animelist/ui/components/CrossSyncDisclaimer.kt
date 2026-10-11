@@ -18,6 +18,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.kitsugi.animelist.ui.theme.KitsugiColors
+import androidx.compose.ui.res.stringResource
+import com.kitsugi.animelist.R
 
 /**
  * Çapraz eşitleme yüzeylerinde gösterilen yasal uyarılar.
@@ -25,23 +27,6 @@ import com.kitsugi.animelist.ui.theme.KitsugiColors
  * Metinler tek kaynak olarak burada tutulur; ekranlar bu sabitleri kullanır.
  * Not: Bu metinler hukuki danışmanlık yerine geçmez; yayın öncesi bir hukukçu tarafından gözden geçirilmelidir.
  */
-object CrossSyncDisclaimer {
-
-    /** Tek satırlık kısa uyarı (hesap bağlantıları satırı gibi dar alanlar için). */
-    const val SHORT =
-        "Deneysel özellik. Yanlış eşleşme, liste karışması veya platform yaptırımlarından (ban vb.) sorumluluk kabul edilmez."
-
-    /** Ayrıntılı uyarı (eşitleme sayfası ve eşitleme penceresi için). */
-    const val FULL =
-        "Çapraz eşitleme DENEYSEL bir özelliktir ve beta aşamasındadır. Eşleştirmeler otomatik yapılır; " +
-            "hiçbir eşleştirme %100 doğruluk garantisi taşımaz. Yanlış eşleşme, liste karışması, yanlış " +
-            "ilerleme/puan/durum bilgisi veya AniList, MyAnimeList, Simkl, Kitsu, Shikimori ve Bangumi tarafından uygulanan " +
-            "kısıtlama, askıya alma ya da hesap yasağı gibi sonuçlardan Kitsugi ve geliştiricileri sorumlu tutulamaz. " +
-            "Özellik kendi sorumluluğunuzda kullanılır; önemli listelerinizi eşitlemeden önce yedekleyin. " +
-            "Kanunen sınırlandırılamayan haller (ağır kusur gibi) saklıdır. Kullanım, ilgili platformların " +
-            "kullanım koşullarına tabidir."
-}
-
 /**
  * Uyarı metnini turuncu bir ikonla birlikte gösterir.
  *
@@ -67,7 +52,7 @@ fun CrossSyncDisclaimerText(
         Spacer(modifier = Modifier.width(6.dp))
         Column {
             Text(
-                text = if (full) CrossSyncDisclaimer.FULL else CrossSyncDisclaimer.SHORT,
+                text = stringResource(if (full) R.string.cross_sync_disclaimer_full else R.string.cross_sync_disclaimer_short),
                 style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp, lineHeight = 15.sp),
                 color = KitsugiColors.TextMuted
             )

@@ -122,7 +122,7 @@ internal fun CloudstreamExtensionsTab(
                     .border(1.dp, KitsugiColors.Border.copy(alpha = 0.55f), RoundedCornerShape(14.dp))
             ) {
                 com.kitsugi.animelist.ui.components.KitsugiSwitchSettingItem(
-                    title = "🌐 GitHub Vekil Sunucu (jsDelivr)",
+                    title = stringResource(R.string.addon_github_proxy_title),
                     description = stringResource(R.string.raw_githubusercontent_com_url_lerini_jsdelivr_cdn_e_yonlendirir),
                     checked = useGithubProxy,
                     onCheckedChange = onUseGithubProxyChanged
@@ -183,8 +183,8 @@ internal fun CloudstreamExtensionsTab(
             ) {
                 AddonSubsectionTabs(
                     tabs = listOf(
-                        AddonSubsectionTab("Repolar (${repos.size})", Icons.Rounded.Language),
-                        AddonSubsectionTab("Kurulu (${csPlugins.size})", Icons.Rounded.Extension)
+                        AddonSubsectionTab(stringResource(R.string.addon_repositories_count, repos.size), Icons.Rounded.Language),
+                        AddonSubsectionTab(stringResource(R.string.addon_installed_count, csPlugins.size), Icons.Rounded.Extension)
                     ),
                     selectedIndex = if (activeSection == CsTabSection.REPOS) 0 else 1,
                     accentColor = accentColor,
@@ -319,7 +319,7 @@ internal fun CloudstreamExtensionsTab(
                                     Text(desc, color = KitsugiColors.TextMuted, fontSize = 10.sp)
                                 }
                                 Text(
-                                    if (isAdded) "✓ Eklendi" else stringResource(R.string.ekle_64b2d35),
+                                    if (isAdded) stringResource(R.string.addon_status_added) else stringResource(R.string.ekle_64b2d35),
                                     color = if (isAdded) KitsugiColors.TextMuted else accentColor,
                                     fontSize = 11.sp, fontWeight = FontWeight.Bold
                                 )

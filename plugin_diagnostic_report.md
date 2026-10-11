@@ -1,17 +1,17 @@
 # Kitsugi CS Plugin Live Diagnostics — Tam Rapor
 
-**Oluşturulma:** 2026-10-11T06:49:38.777278800
-**Toplam probe edilen eklenti:** 539
+**Oluşturulma:** 2026-10-11T19:43:37.333388600
+**Toplam probe edilen eklenti:** 540
 
 ## Özet
 | Metrik | Sayı |
 |---|---|
-| ✅ CS3 İndirilebilir | 505 |
+| ✅ CS3 İndirilebilir | 506 |
 | ❌ CS3 Erişilemiyor | 34 |
 | 🟢 Site 200 OK | 56 |
-| ⚠️ Cloudflare Korumalı | 91 |
+| ⚠️ Cloudflare Korumalı | 88 |
 | 🚨 WAF Engeli | 4 |
-| ❓ Domain Bilinmiyor | 426 |
+| ❓ Domain Bilinmiyor | 427 |
 
 ---
 
@@ -123,7 +123,7 @@
 | **FreePornVideos** | NSFW | ✅200 | _bilinmiyor_ | N/A | - | - |  |
 | **FreeUsePorn** | NSFW | ✅200 | _bilinmiyor_ | N/A | - | - |  |
 | **Full4kizle** | Movie, AsianDrama | ✅200 | _bilinmiyor_ | N/A | - | - |  |
-| **FullHDFilm** | Movie, TvSeries | ✅200 | `https://fullhdfilm.pro` | 429 | - | - |  |
+| **FullHDFilm** | Movie, TvSeries | ✅200 | `https://fullhdfilm.pro` | 200 | - | - |  |
 | **FullHDFilmizlesene** | Movie | ❌404 | `https://www.fullhdfilmizlesene.mx` | 301 | ⚠️ | - | [CS3:404] [CF] [→https://www.fullhdfilmizlesene.now/] |
 | **FullHDFilmİzlede** | Movie | ✅200 | _bilinmiyor_ | N/A | - | - |  |
 | **FullPorner** | NSFW | ✅200 | _bilinmiyor_ | N/A | - | - |  |
@@ -174,7 +174,7 @@
 | **Koredizi** | AsianDrama | ✅200 | _bilinmiyor_ | N/A | - | - |  |
 | **KraptorPlus** | TvSeries, Movie, Anime, Cartoon, AsianDrama, AnimeMovie | ✅200 | _bilinmiyor_ | N/A | - | - |  |
 | **Krmzy** | TvSeries | ✅200 | _bilinmiyor_ | N/A | - | - |  |
-| **KultFilmler** | Movie, TvSeries | ❌404 | `https://kultfilmler.net` | 200 | ⚠️ | - | [CS3:404] [CF] |
+| **KultFilmler** | Movie, TvSeries | ❌404 | `https://kultfilmler.net` | -1 | - | - | [CS3:404] Conn error: timeout |
 | **Latanime** | Movie | ✅200 | _bilinmiyor_ | N/A | - | - |  |
 | **LayarKaca** | Movie, TvSeries | ✅200 | _bilinmiyor_ | N/A | - | - |  |
 | **LiveCamRips** | NSFW | ✅200 | _bilinmiyor_ | N/A | - | - |  |
@@ -332,13 +332,13 @@
 | **Dizilla** | TvSeries | ✅200 | `https://dizillahd.com` | 301 | ⚠️ | - | [CF] [→https://dizilla.one/] |
 | **FilmMakinesi** | Movie | ✅200 | `https://filmmakinesi.to` | 200 | ⚠️ | - | [CF] |
 | **FilmModu** | Movie | ✅200 | `https://www.filmmodu.one` | 200 | ⚠️ | - | [CF] |
-| **FullHDFilm** | Movie, TvSeries | ✅200 | `https://fullhdfilm.pro` | 429 | - | - |  |
+| **FullHDFilm** | Movie, TvSeries | ✅200 | `https://fullhdfilm.pro` | 200 | - | - |  |
 | **FullHDFilmizlesene** | Movie | ✅200 | `https://www.fullhdfilmizlesene.mx` | 301 | ⚠️ | - | [CF] [→https://www.fullhdfilmizlesene.now/] |
 | **HDFilmCehennemi** | Movie, TvSeries | ✅200 | `https://www.hdfilmcehennemi.nl` | 200 | ⚠️ | - | [CF] |
 | **HDFilmDelisi** | Movie, TvSeries | ✅200 | `https://hdfilmdelisi.one` | 200 | ⚠️ | - | [CF] |
 | **InatBox** | Movie, TvSeries, Live | ✅200 | _bilinmiyor_ | N/A | - | - |  |
 | **JetFilmizle** | Movie | ✅200 | `https://jetfilmizle.now` | 200 | ⚠️ | - | [CF] |
-| **KultFilmler** | Movie, TvSeries | ✅200 | `https://kultfilmler.net` | 200 | ⚠️ | - | [CF] |
+| **KultFilmler** | Movie, TvSeries | ✅200 | `https://kultfilmler.net` | -1 | - | - | Conn error: timeout |
 | **RareFilmm** | Movie | ✅200 | _bilinmiyor_ | N/A | - | - |  |
 | **RecTV** | Movie, Live, TvSeries | ✅200 | `https://b.prectv38.sbs` | -1 | - | - | DNS failed |
 | **SelcukFlix** | Movie, TvSeries | ✅200 | `https://selcukflix.co` | 301 | ⚠️ | - | [CF] [→https://selcukflix.com/] |
@@ -356,7 +356,7 @@
 
 ---
 
-## 📦 Kraptor123 / Cs-Karma (33 eklenti)
+## 📦 Kraptor123 / Cs-Karma (34 eklenti)
 
 | Eklenti | TV Türleri | CS3 | Site URL | Site Kodu | CF | WAF | Açıklama |
 |---|---|---|---|---|---|---|---|
@@ -374,6 +374,7 @@
 | **Footballia** | Live | ✅200 | _bilinmiyor_ | N/A | - | - |  |
 | **FullRaces** | Live, Others | ✅200 | _bilinmiyor_ | N/A | - | - |  |
 | **Gnulahd** | Movie, Anime, TvSeries | ✅200 | _bilinmiyor_ | N/A | - | - |  |
+| **Hackstore** | Movie, TvSeries, Anime | ✅200 | _bilinmiyor_ | N/A | - | - |  |
 | **Iwatchtheoffice** | Movie | ✅200 | _bilinmiyor_ | N/A | - | - |  |
 | **JPFilms** | AsianDrama | ✅200 | _bilinmiyor_ | N/A | - | - |  |
 | **KissKH** | AsianDrama | ✅200 | _bilinmiyor_ | N/A | - | - |  |
@@ -421,7 +422,7 @@
 | **FilmMakinesi** | Movie | ✅200 | `https://filmmakinesi.to` | 200 | ⚠️ | - | [CF] |
 | **FilmModu** | Movie | ✅200 | `https://www.filmmodu.one` | 200 | ⚠️ | - | [CF] |
 | **Filmİzlesene** | Movie | ✅200 | _bilinmiyor_ | N/A | - | - |  |
-| **FullHDFilm** | Movie, TvSeries | ✅200 | `https://fullhdfilm.pro` | 429 | - | - |  |
+| **FullHDFilm** | Movie, TvSeries | ✅200 | `https://fullhdfilm.pro` | 200 | - | - |  |
 | **FullHDFilmizlesene** | Movie | ✅200 | `https://www.fullhdfilmizlesene.mx` | 301 | ⚠️ | - | [CF] [→https://www.fullhdfilmizlesene.now/] |
 | **FullHDFilmİzlede** | Movie | ✅200 | _bilinmiyor_ | N/A | - | - |  |
 | **HDFilmCehennemi** | Movie, TvSeries | ✅200 | `https://www.hdfilmcehennemi.nl` | 200 | ⚠️ | - | [CF] |
@@ -430,7 +431,7 @@
 | **HDFilmSitesi** | Movie | ✅200 | _bilinmiyor_ | N/A | - | - |  |
 | **JetFilmizle** | Movie | ✅200 | `https://jetfilmizle.now` | 200 | ⚠️ | - | [CF] |
 | **KoreanTurk** | AsianDrama | ✅200 | `https://www.koreanturk.net` | 522 | ⚠️ | - | [CF] |
-| **KultFilmler** | Movie, TvSeries | ✅200 | `https://kultfilmler.net` | 200 | ⚠️ | - | [CF] |
+| **KultFilmler** | Movie, TvSeries | ✅200 | `https://kultfilmler.net` | -1 | - | - | Conn error: timeout |
 | **RecTV** | Movie, Live, TvSeries | ✅200 | `https://b.prectv38.sbs` | -1 | - | - | DNS failed |
 | **RoketDizi** | TvSeries | ✅200 | _bilinmiyor_ | N/A | - | - |  |
 | **SelcukFlix** | Movie, TvSeries | ✅200 | `https://selcukflix.co` | 301 | ⚠️ | - | [CF] [→https://selcukflix.com/] |
@@ -519,6 +520,7 @@
 | **Koreaye** | NSFW | ✅200 | _bilinmiyor_ | N/A | - | - |  |
 | **LiveCamRips** | NSFW | ✅200 | _bilinmiyor_ | N/A | - | - |  |
 | **Maheir** | NSFW | ✅200 | _bilinmiyor_ | N/A | - | - |  |
+| **Mangoporn** | NSFW | ✅200 | _bilinmiyor_ | N/A | - | - |  |
 | **Max** | NSFW | ✅200 | _bilinmiyor_ | N/A | - | - |  |
 | **MilfNut** | NSFW | ✅200 | _bilinmiyor_ | N/A | - | - |  |
 | **MissAV** | NSFW | ✅200 | _bilinmiyor_ | N/A | - | - |  |
@@ -549,7 +551,6 @@
 | **Sexfilm** | NSFW | ✅200 | _bilinmiyor_ | N/A | - | - |  |
 | **SimpCity** | NSFW | ✅200 | _bilinmiyor_ | N/A | - | - |  |
 | **SpankBang** | NSFW | ✅200 | _bilinmiyor_ | N/A | - | - |  |
-| **Speedporn** | NSFW | ✅200 | _bilinmiyor_ | N/A | - | - |  |
 | **Sxyprn** | NSFW | ✅200 | _bilinmiyor_ | N/A | - | - |  |
 | **ThaiPorn** | NSFW | ✅200 | _bilinmiyor_ | N/A | - | - |  |
 | **Tubepornclassic** | NSFW | ✅200 | _bilinmiyor_ | N/A | - | - |  |

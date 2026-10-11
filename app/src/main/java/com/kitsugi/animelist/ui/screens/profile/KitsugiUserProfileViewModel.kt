@@ -295,7 +295,7 @@ class KitsugiUserProfileViewModel(application: Application) : AndroidViewModel(a
                 fetchSocial(token, id)
 
             } catch (e: Exception) {
-                _uiState.update { it.copy(isLoading = false, error = e.message ?: "Kullanıcı profili yüklenirken hata oluştu.") }
+                _uiState.update { it.copy(isLoading = false, error = KitsugiStrings.get(R.string.profile_user_load_failed)) }
             }
         }
     }
@@ -303,7 +303,7 @@ class KitsugiUserProfileViewModel(application: Application) : AndroidViewModel(a
     fun toggleFollow() {
         val token = ExternalAuthManager.getAniListToken(context)
         if (token.isNullOrBlank()) {
-            _uiState.update { it.copy(error = "Takip etmek için AniList ile giriş yapmalısınız.") }
+            _uiState.update { it.copy(error = KitsugiStrings.get(R.string.profile_follow_login_required)) }
             return
         }
         val current = _uiState.value
@@ -340,7 +340,7 @@ class KitsugiUserProfileViewModel(application: Application) : AndroidViewModel(a
                 _uiState.update {
                     it.copy(
                         isFollowLoading = false,
-                        error = "Takip durumu değiştirilemedi: ${e.message}"
+                        error = KitsugiStrings.get(R.string.profile_follow_failed)
                     )
                 }
             }
@@ -382,7 +382,7 @@ class KitsugiUserProfileViewModel(application: Application) : AndroidViewModel(a
                     val typename = act.optString("__typename")
                     val user = act.optJSONObject("user")
                     val actUserId = user?.optInt("id")
-                    val userName = user?.optNullableString("name") ?: "Kullanıcı"
+                    val userName = user?.optNullableString("name") ?: KitsugiStrings.get(R.string.notification_unknown_user)
                     val userAvatar = user?.optJSONObject("avatar")?.optNullableString("large")
                     val createdAt = act.optLong("createdAt", 0L)
                     val likeCount = act.optInt("likeCount", 0)
@@ -408,9 +408,9 @@ class KitsugiUserProfileViewModel(application: Application) : AndroidViewModel(a
                         val mediaId = media?.optInt("id")
                         val mediaType = media?.optNullableString("type")
                         val isAdult = media?.optBoolean("isAdult", false) ?: false
-                        val mediaTitle = media?.optJSONObject("title")?.optNullableString("romaji") ?: media?.optJSONObject("title")?.optNullableString("english") ?: "Medya"
+                        val mediaTitle = media?.optJSONObject("title")?.optNullableString("romaji") ?: media?.optJSONObject("title")?.optNullableString("english") ?: KitsugiStrings.get(R.string.profile_unknown_media)
                         val mediaImage = media?.optJSONObject("coverImage")?.optNullableString("large")
-                        val status = act.optNullableString("status") ?: "güncelledi"
+                        val status = act.optNullableString("status") ?: "updated"
                         val progress = act.optNullableString("progress")
 
                         list.add(
@@ -578,7 +578,7 @@ class KitsugiUserProfileViewModel(application: Application) : AndroidViewModel(a
                                 id = node.getInt("id").toString(),
                                 title = node.optJSONObject("title")?.let {
                                     it.optNullableString("romaji") ?: it.optNullableString("english")
-                                } ?: "İsimsiz",
+                                } ?: KitsugiStrings.get(R.string.isimsiz),
                                 imageUrl = node.optJSONObject("coverImage")?.optNullableString("large") ?: "",
                                 isAdult = node.optBoolean("isAdult", false)
                             )
@@ -662,7 +662,7 @@ class KitsugiUserProfileViewModel(application: Application) : AndroidViewModel(a
             if (!response.isSuccessful) {
                 throw Exception("HTTP ${response.code}: ${response.message}")
             }
-            response.body?.string() ?: throw Exception("Boş yanıt alındı")
+            response.body?.string() ?: throw Exception(KitsugiStrings.get(R.string.profile_empty_response))
         }
     }
 }

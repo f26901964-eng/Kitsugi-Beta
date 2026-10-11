@@ -18,6 +18,13 @@
 -keep class kotlinx.coroutines.internal.MainDispatcherFactory
 -keep class kotlin.coroutines.Continuation
 
+# Kotlinx Serialization runtime is a public ABI for dynamically loaded CloudStream .cs3 DEX files.
+# R8 cannot see references from downloaded plugin DEX files; without these rules it may rename or
+# remove host-side symbols such as kotlinx.serialization.KSerializer, causing NoClassDefFoundError
+# in otherwise valid plugins at search/loadLinks time.
+-keep class kotlinx.serialization.** { *; }
+-keep interface kotlinx.serialization.** { *; }
+
 # Kotlinx Serialization generated serializers
 -keepclassmembers class * {
     kotlinx.serialization.KSerializer serializer(...);

@@ -436,10 +436,20 @@ fun String.toTurkishCharacterRole(): String = if (!isTurkish()) this else charac
  * diline çevirir. Sözlükte yoksa mevcut [toTurkishCharacterRole] davranışı korunur
  * (İngilizce kaynak değerler İngilizce arayüzde aynen kalır).
  */
+private fun localizedBangumiRoleOrNull(label: String): String? {
+    val entry = BangumiRoleDictionary.entryFor(label) ?: return null
+    if (isTurkish() || isEnglish()) {
+        getStringResourceByName("bangumi_role_${entry.key}")
+            ?.takeIf { it.isNotBlank() }
+            ?.let { return it }
+    }
+    return if (isTurkish()) entry.turkish else entry.english
+}
+
 fun String.toLocalizedCharacterRole(): String {
     val cleaned = this.trim()
     if (cleaned.isEmpty()) return cleaned
-    BangumiRoleDictionary.entryFor(cleaned)?.let { return if (isTurkish()) it.turkish else it.english }
+    localizedBangumiRoleOrNull(cleaned)?.let { return it }
     return toTurkishCharacterRole()
 }
 
@@ -458,7 +468,7 @@ fun String.toLocalizedStaffRole(): String {
             .filter { it.isNotEmpty() }
             .joinToString(", ")
     }
-    BangumiRoleDictionary.entryFor(cleaned)?.let { return if (isTurkish()) it.turkish else it.english }
+    localizedBangumiRoleOrNull(cleaned)?.let { return it }
     return toTurkishStaffRole()
 }
 
@@ -1506,4 +1516,7 @@ fun String.toLatinStudioName(): String {
         entry.key.equals(cleaned, ignoreCase = true) || entry.key.equals(normalized, ignoreCase = true)
     }?.value ?: this
 }
+
+/** Kurum adının yerelleştirilmiş hâlinden üretilen iki harfli avatar kısaltması. */
+fun String.toOrgMonogram(): String = toLocalizedOrgName().take(2).uppercase()
 

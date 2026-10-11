@@ -37,7 +37,7 @@ android {
     val bangumiClientId     = localProperties.getProperty("bangumi_client_id")     ?: "YOUR_BANGUMI_CLIENT_ID"
     val bangumiClientSecret = localProperties.getProperty("bangumi_client_secret") ?: "YOUR_BANGUMI_CLIENT_SECRET"
 
-    val appVersionName = "2.4.246"
+    val appVersionName = "2.4.247"
 
     compileSdk = 36
 
@@ -356,7 +356,9 @@ dependencies {
     // Subsampling and zoomable image support for manga pages
     implementation("me.saket.telephoto:zoomable-image-coil:0.8.0")
 
-    // Kotlinx Serialization JSON for Manga Extension compatibility
+    // Kotlinx Serialization is part of the runtime ABI for dynamically loaded CS3 plugins too:
+    // their DEX references KSerializer by its original FQCN through the host classloader.
+    implementation("org.jetbrains.kotlinx:kotlinx-serialization-core:1.7.3")
     implementation(libs.kotlinx.serialization.json)
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json-okio:1.7.3")
 

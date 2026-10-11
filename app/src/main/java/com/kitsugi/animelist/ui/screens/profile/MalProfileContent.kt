@@ -51,6 +51,7 @@ import com.kitsugi.animelist.ui.theme.KitsugiColors
 import kotlinx.coroutines.launch
 import androidx.compose.ui.res.stringResource
 import com.kitsugi.animelist.R
+import com.kitsugi.animelist.utils.KitsugiStrings
 
 @Composable
 fun MalProfileContent(
@@ -113,6 +114,7 @@ fun MalProfileContent(
             val context = LocalContext.current
             val avatarUrl = state.avatarUrl?.takeIf { it.isNotBlank() }
             val username = state.name.ifBlank { stringResource(R.string.myanimelist_kullanicisi) }
+            val avatarTitle = stringResource(R.string.profile_avatar_title, username)
 
             Box(
                 modifier = Modifier
@@ -168,7 +170,7 @@ fun MalProfileContent(
                 ) {
                     AsyncImage(
                         model = state.avatarUrl ?: "",
-                        contentDescription = "Avatar",
+                        contentDescription = avatarTitle,
                         modifier = Modifier
                             .size(64.dp)
                             .clip(CircleShape)
@@ -176,7 +178,7 @@ fun MalProfileContent(
                             .then(
                                 if (!avatarUrl.isNullOrBlank()) {
                                     Modifier.clickable {
-                                        onImageClick?.invoke(listOf(avatarUrl), 0, "$username Profil Resmi")
+                                        onImageClick?.invoke(listOf(avatarUrl), 0, avatarTitle)
                                     }
                                 } else Modifier
                             ),
@@ -194,7 +196,7 @@ fun MalProfileContent(
                             if (state.location.isNotBlank()) add(state.location)
                             if (state.joinedAt.isNotBlank()) {
                                 val dateStr = state.joinedAt.substringBefore("T")
-                                add("Katılım: $dateStr")
+                                add(KitsugiStrings.get(R.string.profile_joined_at, dateStr))
                             }
                         }.joinToString(" • ")
 
@@ -222,10 +224,10 @@ fun MalProfileContent(
                 ) {
                     val tabs = listOf(
                         Icons.Rounded.Info to stringResource(R.string.character_tab_about),
-                        Icons.Rounded.ChatBubble to "Aktivite",
-                        Icons.Rounded.BarChart to "İstatistikler",
-                        Icons.Rounded.Star to "Favoriler",
-                        Icons.Rounded.People to "Sosyal"
+                        Icons.Rounded.ChatBubble to stringResource(R.string.profile_tab_activity),
+                        Icons.Rounded.BarChart to stringResource(R.string.profile_tab_statistics),
+                        Icons.Rounded.Star to stringResource(R.string.profile_tab_favorites),
+                        Icons.Rounded.People to stringResource(R.string.profile_tab_social)
                     )
                     ProfileHeaderIconTabs(
                         tabs = tabs,
@@ -247,7 +249,12 @@ fun MalProfileContent(
                             horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
                             items(4) { idx ->
-                                val label = listOf("Anime", "Manga", "Karakterler", "Ekip")[idx]
+                                val label = listOf(
+                                    stringResource(R.string.profile_anime_list),
+                                    stringResource(R.string.profile_manga_list),
+                                    stringResource(R.string.profile_favorite_characters),
+                                    stringResource(R.string.profile_section_staff)
+                                )[idx]
                                 ProfileFilterChip(
                                     text = label,
                                     isSelected = favoritesFilter == idx,
@@ -397,7 +404,7 @@ fun MalProfileContent(
                                                 title = entry.title,
                                                 imageUrl = entry.imageUrl,
                                                 statusStr = entry.status.localizedLabel(),
-                                                progressStr = "Bölüm: ${entry.progress}",
+                                                progressStr = stringResource(R.string.profile_episode_progress, entry.progress.toString()),
                                                 onClick = { onEntryClick(entry) }
                                             )
                                         }
@@ -452,15 +459,15 @@ fun MalProfileContent(
                                             total = s.count,
                                             accentColor = accentColor
                                         )
-                                        StatItemRow("İzliyor/Okuyor", s.watching, s.count, accentColor)
-                                        StatItemRow("Tamamlandı", s.completed, s.count, KitsugiColors.AccentGreen)
-                                        StatItemRow("Planlanıyor", s.planned, s.count, KitsugiColors.TextMuted)
-                                        StatItemRow("Durduruldu", s.paused, s.count, KitsugiColors.AccentOrange)
-                                        StatItemRow("Bırakıldı", s.dropped, s.count, KitsugiColors.AccentPink)
+                                        StatItemRow(if (statsMediaType == 0) stringResource(R.string.profile_status_watching) else stringResource(R.string.profile_status_reading), s.watching, s.count, accentColor)
+                                        StatItemRow(stringResource(R.string.profile_status_completed), s.completed, s.count, KitsugiColors.AccentGreen)
+                                        StatItemRow(if (statsMediaType == 0) stringResource(R.string.profile_status_plan_to_watch_short) else stringResource(R.string.profile_status_plan_to_read_short), s.planned, s.count, KitsugiColors.TextMuted)
+                                        StatItemRow(stringResource(R.string.profile_status_on_hold), s.paused, s.count, KitsugiColors.AccentOrange)
+                                        StatItemRow(stringResource(R.string.profile_status_dropped), s.dropped, s.count, KitsugiColors.AccentPink)
 
                                         Row(modifier = Modifier.fillMaxWidth()) {
-                                            StatCard("Toplam Kayıt", s.count.toString())
-                                            StatCard("Ortalama Skor", "%.1f".format(s.meanScore))
+                                            StatCard(stringResource(R.string.profile_total_records), s.count.toString())
+                                            StatCard(stringResource(R.string.profile_average_score), "%.1f".format(s.meanScore))
                                         }
                                     }
                                 }
@@ -475,11 +482,11 @@ fun MalProfileContent(
                                 }
 
                                 val filterTitle = when (favoritesFilter) {
-                                    0 -> "Favori Animeler"
-                                    1 -> "Favori Mangalar"
-                                    2 -> "Favori Karakterler"
-                                    3 -> "Favori Ekip"
-                                    else -> "Favoriler"
+                                    0 -> stringResource(R.string.profile_favorite_anime)
+                                    1 -> stringResource(R.string.profile_favorite_manga)
+                                    2 -> stringResource(R.string.profile_favorite_characters)
+                                    3 -> stringResource(R.string.profile_favorite_staff)
+                                    else -> stringResource(R.string.profile_favorites)
                                 }
 
                                 if (currentFavList.isEmpty()) {

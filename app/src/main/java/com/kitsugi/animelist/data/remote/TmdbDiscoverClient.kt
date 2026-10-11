@@ -479,7 +479,7 @@ internal object TmdbDiscoverClient {
             .replace(Regex("[^\\p{L}\\p{N}]+"), " ")
             .trim()
 
-    private fun backdropTitleMatchScore(query: String, candidate: String): Int {
+    internal fun backdropTitleMatchScore(query: String, candidate: String): Int {
         val queryNormalized = normalizeBackdropTitle(query)
         val candidateNormalized = normalizeBackdropTitle(candidate)
         if (queryNormalized.isBlank() || candidateNormalized.isBlank()) return 0

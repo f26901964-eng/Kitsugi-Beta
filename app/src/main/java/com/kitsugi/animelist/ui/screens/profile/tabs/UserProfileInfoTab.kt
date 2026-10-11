@@ -101,7 +101,7 @@ fun UserProfileInfoTab(
                 html = displayAbout,
                 modifier = Modifier.fillMaxWidth(),
                 onImageClick = { urls, idx ->
-                    onImageClick(urls, idx, "$username Biyografisi")
+                    onImageClick(urls, idx, KitsugiStrings.get(R.string.profile_bio_title, username))
                 }
             )
         } else {
@@ -115,8 +115,8 @@ fun UserProfileInfoTab(
         HorizontalDivider(color = KitsugiColors.SurfaceStrong)
 
         Row(modifier = Modifier.fillMaxWidth()) {
-            StatCard("Anime Kayıt", state.animeStats?.count?.toString() ?: "0")
-            StatCard("Manga Kayıt", state.mangaStats?.count?.toString() ?: "0")
+            StatCard(stringResource(R.string.profile_anime_entries), state.animeStats?.count?.toString() ?: "0")
+            StatCard(stringResource(R.string.profile_manga_entries), state.mangaStats?.count?.toString() ?: "0")
         }
     }
 }

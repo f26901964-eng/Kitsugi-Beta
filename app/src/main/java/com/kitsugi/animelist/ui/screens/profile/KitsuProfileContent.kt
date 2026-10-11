@@ -103,6 +103,8 @@ fun KitsuProfileContent(
             val avatarUrl = state.avatarUrl?.takeIf { it.isNotBlank() }
             val bannerUrl = state.bannerUrl?.takeIf { it.isNotBlank() }
             val username = state.name.ifBlank { stringResource(R.string.kitsu_kullanicisi) }
+            val bannerTitle = stringResource(R.string.profile_banner_title, username)
+            val avatarTitle = stringResource(R.string.profile_avatar_title, username)
 
             Box(
                 modifier = Modifier
@@ -113,7 +115,7 @@ fun KitsuProfileContent(
                 if (!bannerUrl.isNullOrBlank()) {
                     AsyncImage(
                         model = bannerUrl,
-                        contentDescription = "Kitsu Banner",
+                        contentDescription = bannerTitle,
                         modifier = Modifier.fillMaxSize(),
                         contentScale = ContentScale.Crop
                     )
@@ -155,7 +157,7 @@ fun KitsuProfileContent(
                                     putExtra(android.content.Intent.EXTRA_TEXT, url)
                                     type = "text/plain"
                                 }
-                                val shareIntent = android.content.Intent.createChooser(sendIntent, "Profili Paylaş")
+                                val shareIntent = android.content.Intent.createChooser(sendIntent, KitsugiStrings.get(R.string.profili_paylas))
                                 shareIntent.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
                                 context.startActivity(shareIntent)
                             },
@@ -179,7 +181,7 @@ fun KitsuProfileContent(
                 ) {
                     AsyncImage(
                         model = avatarUrl ?: com.kitsugi.animelist.R.drawable.ic_logo_kitsu,
-                        contentDescription = "Kitsu Avatar",
+                        contentDescription = avatarTitle,
                         modifier = Modifier
                             .size(68.dp)
                             .clip(CircleShape)
@@ -187,7 +189,7 @@ fun KitsuProfileContent(
                             .then(
                                 if (!avatarUrl.isNullOrBlank()) {
                                     Modifier.clickable {
-                                        onImageClick?.invoke(listOf(avatarUrl), 0, "$username Profil Resmi")
+                                        onImageClick?.invoke(listOf(avatarUrl), 0, avatarTitle)
                                     }
                                 } else Modifier
                             ),
@@ -211,7 +213,7 @@ fun KitsuProfileContent(
                         if (!state.waifuOrHusbando.isNullOrBlank()) {
                             Spacer(modifier = Modifier.height(3.dp))
                             Text(
-                                text = "Favori: ${state.waifuOrHusbando}",
+                                text = stringResource(R.string.profile_favorite_label, state.waifuOrHusbando),
                                 color = Color(0xFFFD755C),
                                 style = MaterialTheme.typography.labelMedium,
                                 fontWeight = FontWeight.SemiBold
@@ -241,8 +243,8 @@ fun KitsuProfileContent(
                 ) {
                     val tabs = listOf(
                         Icons.Rounded.Info to stringResource(R.string.character_tab_about),
-                        Icons.Rounded.BarChart to "İstatistikler",
-                        Icons.Rounded.Bookmarks to "Kütüphane"
+                        Icons.Rounded.BarChart to stringResource(R.string.profile_tab_statistics),
+                        Icons.Rounded.Bookmarks to stringResource(R.string.profile_library)
                     )
                     ProfileHeaderIconTabs(
                         tabs = tabs,
@@ -333,7 +335,7 @@ private fun KitsuAboutTab(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
-                            text = "Biyografi",
+                            text = stringResource(R.string.section_biography),
                             color = KitsugiColors.TextPrimary,
                             fontWeight = FontWeight.Bold,
                             fontSize = 15.sp
@@ -469,10 +471,10 @@ private fun KitsuAboutTab(
         // Favorites Horizontal Section
         if (state.favorites.isNotEmpty()) {
             FavoritesHorizontalSection(
-                title = "Favoriler",
+                title = stringResource(R.string.profile_favorites),
                 items = state.favorites,
                 onSeeAllClick = {
-                    onOpenFavoriteSheet("Kitsu Favoriler", state.favorites) { item ->
+                    onOpenFavoriteSheet(KitsugiStrings.get(R.string.profile_platform_favorites, "Kitsu"), state.favorites) { item ->
                         val idInt = item.id.toIntOrNull() ?: 0
                         onFavoriteMediaClick(idInt, MediaType.Anime, "kitsu", item.title, item.imageUrl)
                     }
@@ -502,13 +504,13 @@ private fun KitsuAboutTab(
                 )
 
                 if (!state.waifuOrHusbando.isNullOrBlank()) {
-                    AttributeRow(icon = Icons.Rounded.Favorite, label = "Favori Karakter", value = state.waifuOrHusbando)
+                    AttributeRow(icon = Icons.Rounded.Favorite, label = stringResource(R.string.profile_label_favorite_character), value = state.waifuOrHusbando)
                 }
                 if (!state.location.isNullOrBlank()) {
-                    AttributeRow(icon = Icons.Rounded.LocationOn, label = "Konum", value = state.location)
+                    AttributeRow(icon = Icons.Rounded.LocationOn, label = stringResource(R.string.profile_label_location), value = state.location)
                 }
                 if (!state.gender.isNullOrBlank()) {
-                    AttributeRow(icon = Icons.Rounded.Person, label = "Cinsiyet", value = state.gender)
+                    AttributeRow(icon = Icons.Rounded.Person, label = stringResource(R.string.profile_label_gender), value = state.gender)
                 }
                 if (!state.birthday.isNullOrBlank()) {
                     AttributeRow(icon = Icons.Rounded.Cake, label = stringResource(R.string.info_label_birthday), value = state.birthday)
@@ -518,7 +520,7 @@ private fun KitsuAboutTab(
                     AttributeRow(icon = Icons.Rounded.CalendarToday, label = stringResource(R.string.katilim_tarihi), value = formattedDate)
                 }
                 AttributeRow(icon = Icons.Rounded.People, label = stringResource(R.string.takipci_takip), value = "${state.followersCount} / ${state.followingCount}")
-                AttributeRow(icon = Icons.Rounded.Comment, label = "Yorumlar", value = state.commentsCount.toString())
+                AttributeRow(icon = Icons.Rounded.Comment, label = stringResource(R.string.profile_comments), value = state.commentsCount.toString())
             }
         }
     }

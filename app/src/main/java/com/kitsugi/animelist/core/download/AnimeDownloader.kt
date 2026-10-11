@@ -300,13 +300,8 @@ class AnimeDownloader(private val context: Context) {
             """.trimIndent()
             metaFile.writeText(metaJson)
 
-            val cleanTitle = download.animeTitle.replace(Regex("[\\\\/:*?\"<>|]"), "_").trim().ifBlank { "Video" }
-            val isMovie = download.episode <= 1 && (download.animeTitle.contains("Film", ignoreCase = true) || download.animeTitle.contains("Movie", ignoreCase = true))
-            val outFilename = if (isMovie && !cleanTitle.contains("Bölüm", ignoreCase = true)) {
-                "${cleanTitle}.mp4"
-            } else {
-                "${cleanTitle}_Bölüm_${download.episode}.mp4"
-            }
+            // Dosya adı üretimi tek kaynaktan (silme akışları da aynı adı hesaplar).
+            val outFilename = DownloadExportNaming.exportFileName(download.animeTitle, download.episode)
             val baseName = outFilename.removeSuffix(".mp4")
             val subsDir = File(destDir, "subs")
             val downloadedSubs = if (subsDir.exists()) subsDir.listFiles()?.filter { it.isFile } ?: emptyList() else emptyList()

@@ -215,10 +215,10 @@ fun KitsugiUserProfileScreen(
                             Column(modifier = Modifier.padding(vertical = 6.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                                 val tabs = listOf(
                                     Icons.Rounded.Info to stringResource(R.string.character_tab_about),
-                                    Icons.Rounded.ChatBubble to "Aktivite",
-                                    Icons.Rounded.BarChart to "İstatistikler",
-                                    Icons.Rounded.Star to "Favoriler",
-                                    Icons.Rounded.People to "Sosyal"
+                                    Icons.Rounded.ChatBubble to stringResource(R.string.profile_tab_activity),
+                                    Icons.Rounded.BarChart to stringResource(R.string.profile_tab_statistics),
+                                    Icons.Rounded.Star to stringResource(R.string.profile_tab_favorites),
+                                    Icons.Rounded.People to stringResource(R.string.profile_tab_social)
                                 )
                                 ProfileHeaderIconTabs(
                                     tabs = tabs,
@@ -229,7 +229,14 @@ fun KitsugiUserProfileScreen(
                                 // Sub-filter chips
                                 when (activeTab) {
                                     2 -> {
-                                        val subTabs = listOf("Genel", stringResource(R.string.inline_genres_2ac9898), "Etiketler", "Ekip", "Seslendirenler", stringResource(R.string.detail_section_studios))
+                                        val subTabs = listOf(
+                                            stringResource(R.string.profile_stats_general),
+                                            stringResource(R.string.detail_section_genres),
+                                            stringResource(R.string.profile_section_tags),
+                                            stringResource(R.string.profile_section_staff),
+                                            stringResource(R.string.character_tab_voice_actors),
+                                            stringResource(R.string.detail_section_studios)
+                                        )
                                         val s = rememberLazyListState()
                                         LazyRow(state = s,
                                             flingBehavior = com.kitsugi.animelist.ui.utils.KitsugiScrollDefaults.rememberRowSnapFling(s),
@@ -241,7 +248,13 @@ fun KitsugiUserProfileScreen(
                                     }
                                     3 -> {
                                         val s = rememberLazyListState()
-                                        val labels = listOf("Anime", "Manga", "Karakterler", "Ekip", stringResource(R.string.detail_section_studios))
+                                        val labels = listOf(
+                                            stringResource(R.string.profile_anime_list),
+                                            stringResource(R.string.profile_manga_list),
+                                            stringResource(R.string.profile_favorite_characters),
+                                            stringResource(R.string.profile_section_staff),
+                                            stringResource(R.string.detail_section_studios)
+                                        )
                                         LazyRow(state = s,
                                             flingBehavior = com.kitsugi.animelist.ui.utils.KitsugiScrollDefaults.rememberRowSnapFling(s),
                                             modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -255,8 +268,20 @@ fun KitsugiUserProfileScreen(
                                         LazyRow(state = s,
                                             flingBehavior = com.kitsugi.animelist.ui.utils.KitsugiScrollDefaults.rememberRowSnapFling(s),
                                             modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                            item { ProfileFilterChip("Takipçiler (${state.socialState.followers.size})", viewModel.socialFilter == 0, resolvedAccent) { viewModel.socialFilter = 0 } }
-                                            item { ProfileFilterChip("Takip Edilen (${state.socialState.following.size})", viewModel.socialFilter == 1, resolvedAccent) { viewModel.socialFilter = 1 } }
+                                            item {
+                                                ProfileFilterChip(
+                                                    stringResource(R.string.profile_followers_count, state.socialState.followers.size),
+                                                    viewModel.socialFilter == 0,
+                                                    resolvedAccent
+                                                ) { viewModel.socialFilter = 0 }
+                                            }
+                                            item {
+                                                ProfileFilterChip(
+                                                    stringResource(R.string.profile_following_count, state.socialState.following.size),
+                                                    viewModel.socialFilter == 1,
+                                                    resolvedAccent
+                                                ) { viewModel.socialFilter = 1 }
+                                            }
                                         }
                                     }
                                 }
@@ -324,9 +349,16 @@ fun KitsugiUserProfileScreen(
                         else -> emptyList()
                     },
                     categoryLabels = when (activeTab) {
-                        2 -> listOf("Genel", stringResource(R.string.inline_genres_2ac9898), "Etiketler", "Ekip", "Seslendirenler", stringResource(R.string.detail_section_studios))
-                        4 -> listOf(stringResource(R.string.takipciler), "Takip Edilen")
-                        else -> ProfileFavoriteCategoryLabels
+                        2 -> listOf(
+                            stringResource(R.string.profile_stats_general),
+                            stringResource(R.string.detail_section_genres),
+                            stringResource(R.string.profile_section_tags),
+                            stringResource(R.string.profile_section_staff),
+                            stringResource(R.string.character_tab_voice_actors),
+                            stringResource(R.string.detail_section_studios)
+                        )
+                        4 -> listOf(stringResource(R.string.profile_followers), stringResource(R.string.profile_following))
+                        else -> profileFavoriteCategoryLabels()
                     },
                     showCounts = activeTab != 2,
                     onCategorySelected = { when (activeTab) {

@@ -51,6 +51,8 @@ fun UserProfileHeaderCard(
     val bannerUrl = state.bannerUrl?.takeIf { it.isNotBlank() }
     val imageList = listOfNotNull(avatarUrl, bannerUrl)
     val username = state.name.ifBlank { fallbackUsername ?: stringResource(R.string.kullanici) }
+    val bannerTitle = stringResource(R.string.profile_banner_title, username)
+    val avatarTitle = stringResource(R.string.profile_avatar_title, username)
 
     Box(
         modifier = Modifier
@@ -58,11 +60,11 @@ fun UserProfileHeaderCard(
             .height(180.dp)
             .clip(RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp))
             .then(if (!bannerUrl.isNullOrBlank()) Modifier.clickable {
-                onImageClick(imageList, imageList.indexOf(bannerUrl).coerceAtLeast(0), "$username Banner")
+                onImageClick(imageList, imageList.indexOf(bannerUrl).coerceAtLeast(0), bannerTitle)
             } else Modifier)
     ) {
         if (!bannerUrl.isNullOrBlank()) {
-            AsyncImage(model = bannerUrl, contentDescription = "Banner",
+            AsyncImage(model = bannerUrl, contentDescription = bannerTitle,
                 modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
         } else {
             Box(modifier = Modifier.fillMaxSize()
@@ -79,11 +81,11 @@ fun UserProfileHeaderCard(
             verticalAlignment = Alignment.CenterVertically) {
             AsyncImage(
                 model = avatarUrl ?: "",
-                contentDescription = "Avatar",
+                contentDescription = avatarTitle,
                 modifier = Modifier.size(68.dp).clip(CircleShape)
                     .border(3.dp, KitsugiColors.Background, CircleShape)
                     .then(if (!avatarUrl.isNullOrBlank()) Modifier.clickable {
-                        onImageClick(imageList, imageList.indexOf(avatarUrl).coerceAtLeast(0), "$username Profil Resmi")
+                        onImageClick(imageList, imageList.indexOf(avatarUrl).coerceAtLeast(0), avatarTitle)
                     } else Modifier),
                 contentScale = ContentScale.Crop
             )
@@ -104,7 +106,7 @@ fun UserProfileHeaderCard(
                 }
                 if (state.isFollower) {
                     Spacer(modifier = Modifier.height(2.dp))
-                    Text(text = "Sizi takip ediyor", color = KitsugiColors.AccentGreen,
+                    Text(text = stringResource(R.string.profile_follows_you), color = KitsugiColors.AccentGreen,
                         style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Medium)
                 }
             }
@@ -139,14 +141,17 @@ fun UserProfileActionButtons(
                         tint = if (state.isFollowing) KitsugiColors.TextPrimary else KitsugiColors.Background,
                         modifier = Modifier.size(16.dp))
                     Spacer(modifier = Modifier.width(6.dp))
-                    Text(text = if (state.isFollowing) "Takip Ediliyorsun" else "Takip Et",
+                    Text(text = if (state.isFollowing) stringResource(R.string.profile_following_button) else stringResource(R.string.profile_follow),
                         color = if (state.isFollowing) KitsugiColors.TextPrimary else KitsugiColors.Background,
                         fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelMedium)
                 }
             }
         }
 
-        listOf("Anime Listesi" to MediaType.Anime, "Manga Listesi" to MediaType.Manga).forEach { (label, type) ->
+        listOf(
+            stringResource(R.string.profile_anime_list) to MediaType.Anime,
+            stringResource(R.string.profile_manga_list) to MediaType.Manga
+        ).forEach { (label, type) ->
             val tint = if (type == MediaType.Anime) accentColor else KitsugiColors.AccentOrange
             Box(modifier = Modifier.weight(1f).clip(RoundedCornerShape(14.dp))
                 .background(KitsugiColors.Surface)

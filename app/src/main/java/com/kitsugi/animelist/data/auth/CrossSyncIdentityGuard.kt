@@ -1,5 +1,8 @@
 package com.kitsugi.animelist.data.auth
 
+import com.kitsugi.animelist.R
+import com.kitsugi.animelist.utils.KitsugiStrings
+
 import com.kitsugi.animelist.core.memory.BoundedCache
 
 import com.kitsugi.animelist.data.remote.JikanGateway
@@ -55,10 +58,14 @@ object CrossSyncIdentityGuard {
         val allowsAdditions: Boolean get() = this is Trusted || this is Verified
 
         fun describe(): String = when (this) {
-            is Trusted -> "güvenilir ($reason)"
-            is Verified -> "doğrulandı (MAL: \"$remoteTitle\"${remoteYear?.let { ", $it" } ?: ""})"
-            is Rejected -> "REDDEDİLDİ ($reason)"
-            is Unverifiable -> "doğrulanamadı ($reason)"
+            is Trusted -> KitsugiStrings.get(R.string.cross_sync_identity_trusted, reason)
+            is Verified -> KitsugiStrings.get(
+                R.string.cross_sync_identity_verified,
+                remoteTitle,
+                remoteYear?.let { KitsugiStrings.get(R.string.cross_sync_identity_year_suffix, it) }.orEmpty()
+            )
+            is Rejected -> KitsugiStrings.get(R.string.cross_sync_identity_rejected, reason)
+            is Unverifiable -> KitsugiStrings.get(R.string.cross_sync_identity_unverifiable, reason)
         }
     }
 
@@ -248,11 +255,11 @@ object CrossSyncIdentityGuard {
         localYear: Int?
     ): Verdict {
         val titles = localTitles.filter { it.isNotBlank() }.distinct()
-        if (titles.isEmpty()) return Verdict.Unverifiable("yerel kayıtta karşılaştırılacak başlık yok")
+        if (titles.isEmpty()) return Verdict.Unverifiable(KitsugiStrings.get(R.string.cross_sync_identity_no_local_title))
 
         val remote = fetchRemoteIdentity(malId, mediaType)
-            ?: return Verdict.Unverifiable("MAL #$malId kataloğundan başlık alınamadı")
-        if (remote.titles.isEmpty()) return Verdict.Unverifiable("MAL #$malId için başlık bilgisi boş")
+            ?: return Verdict.Unverifiable(KitsugiStrings.get(R.string.cross_sync_identity_remote_title_unavailable, malId))
+        if (remote.titles.isEmpty()) return Verdict.Unverifiable(KitsugiStrings.get(R.string.cross_sync_identity_remote_empty_title, malId))
 
         val yearOk = yearsCompatible(localYear, remote.year)
         val strict = localYear == null || remote.year == null
@@ -261,13 +268,24 @@ object CrossSyncIdentityGuard {
         return when {
             related && yearOk -> Verdict.Verified(remote.primaryTitle, remote.year)
             !related -> Verdict.Rejected(
-                reason = "MAL #$malId = \"${remote.primaryTitle}\"${remote.year?.let { " ($it)" } ?: ""}; " +
-                    "yerel başlık \"${titles.first()}\" ile akraba değil",
+                reason = KitsugiStrings.get(
+                    R.string.cross_sync_identity_title_mismatch,
+                    malId,
+                    remote.primaryTitle,
+                    remote.year?.let { KitsugiStrings.get(R.string.cross_sync_identity_year_suffix, it) }.orEmpty(),
+                    titles.first()
+                ),
                 remoteTitle = remote.primaryTitle,
                 remoteYear = remote.year
             )
             else -> Verdict.Rejected(
-                reason = "MAL #$malId = \"${remote.primaryTitle}\" yılı ${remote.year} ↔ yerel yıl $localYear uyuşmuyor",
+                reason = KitsugiStrings.get(
+                    R.string.cross_sync_identity_year_mismatch,
+                    malId,
+                    remote.primaryTitle,
+                    remote.year ?: 0,
+                    localYear ?: 0
+                ),
                 remoteTitle = remote.primaryTitle,
                 remoteYear = remote.year
             )

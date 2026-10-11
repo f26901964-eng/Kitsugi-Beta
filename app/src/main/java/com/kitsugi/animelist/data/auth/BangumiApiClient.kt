@@ -209,8 +209,8 @@ object BangumiApiClient {
         val small: String? = null,
         val grid: String? = null
     ) {
-        /** Kart/poster için tercih edilen boyut; yoksa bir alttakine düşer. */
-        val poster: String? get() = common ?: medium ?: grid ?: large ?: small
+        /** Kart/poster için en yüksek kaliteli dikey kapak tercih edilir; yoksa bir alttakine düşer. */
+        val poster: String? get() = large ?: common ?: medium ?: grid ?: small
         val thumb: String? get() = grid ?: small ?: medium ?: common ?: large
         val backdrop: String? get() = large ?: common ?: medium
     }
@@ -867,17 +867,26 @@ object BangumiApiClient {
      * `POST /v0/search/persons` — kişi/seslendirmen (人物) araması. **Deneysel uçtur.**
      *
      * @param career meslek filtresi (`artist`, `director`, `seiyu`...); çoklu değerler `VE` ilişkili.
+     * @param type kayıt türü filtresi: `1` = 个人 (kişi), `2` = 公司 (şirket), `3` = 组合 (grup).
+     *   Bangumi'de stüdyo/yapımcı/yayıncı ağlar ayrı bir kayıt türü değil, 人物 kayıtlarının
+     *   `type = 2` alt kümesidir (bkz. `KitsugiStudioClient.fetchBangumiStudioDetail`). Bu
+     *   yüzden kurum adı çözümleme bu uç üzerinden `type = 2` ile yapılır.
      */
     suspend fun searchPersons(
         keyword: String,
         token: String? = null,
         career: List<String> = emptyList(),
+        type: Int? = null,
         limit: Int = 25,
         offset: Int = 0
     ): BangumiPage<BangumiEntity> = withContext(Dispatchers.IO) {
         val payload = JSONObject().apply {
             put("keyword", keyword)
-            if (career.isNotEmpty()) put("filter", JSONObject().put("career", JSONArray(career)))
+            val filter = JSONObject().apply {
+                if (career.isNotEmpty()) put("career", JSONArray(career))
+                if (type != null) put("type", JSONArray(listOf(type)))
+            }
+            if (filter.length() > 0) put("filter", filter)
         }
         val body = send(
             method = "POST",

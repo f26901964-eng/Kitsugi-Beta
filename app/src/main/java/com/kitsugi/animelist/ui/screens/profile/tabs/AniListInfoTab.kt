@@ -94,7 +94,7 @@ fun AniListInfoTab(
                     html = displayAbout,
                     modifier = Modifier.fillMaxWidth(),
                     onImageClick = { urls, idx ->
-                        onImageClick?.invoke(urls, idx, "${state.name} Biyografisi")
+                        onImageClick?.invoke(urls, idx, KitsugiStrings.get(R.string.profile_bio_title, state.name))
                     }
                 )
             }
@@ -120,8 +120,8 @@ fun AniListInfoTab(
             }
             Spacer(modifier = Modifier.height(8.dp))
             Row(modifier = Modifier.fillMaxWidth()) {
-                StatCard("Takipçi", state.socialState.followers.size.toString())
-                StatCard("Takip Edilen", state.socialState.following.size.toString())
+                StatCard(stringResource(R.string.profile_followers), state.socialState.followers.size.toString())
+                StatCard(stringResource(R.string.profile_following), state.socialState.following.size.toString())
             }
         }
     }

@@ -2,195 +2,235 @@ package com.kitsugi.animelist.ui.components
 
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.BiasAlignment
+import com.kitsugi.animelist.data.remote.KitsugiHeroArtworkResolver
 import com.kitsugi.animelist.model.MediaType
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertNotEquals
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * Vitrin görsel seçimi: dizi/film/anime için yatay backdrop önceliği,
- * manga için ekran oranına uygun kapak önceliği ve kaplayan kırpma odağı.
+ * Vitrin (Hero) görsel seçimi ve TMDB + Fanart.tv kalite sıralaması testleri:
+ * - Dikey telefon vitrininde (`aspect < 1.10`, dikey mod) en kaliteli dikey poster (`posterUrl`) birincildir.
+ * - Geniş / yatay vitrin alanlarında (yatay telefon, dikey tablet, yatay tablet, TV) en kaliteli
+ *   yatay arka plan (`backdropUrl`) birincildir.
+ * - Bangumi dikey kapakları (`/pic/cover/`) asla yatay arka plan olarak kabul edilmez.
+ * - TMDB ve Fanart.tv adayları arasından en yüksek çözünürlüklü ve en yüksek puanlı
+ *   dikey poster ile yatay arka plan otomatik seçilir.
  */
 class HeroImageSelectionTest {
 
-    private val poster = "https://img.test/poster.jpg"
-    private val backdrop = "https://img.test/backdrop.jpg"
-
-    // ── Geniş vitrin bandı → yatay fanart/backdrop önce ────────────────────────
+    private val poster = "https://image.tmdb.org/t/p/original/poster.jpg"
+    private val backdrop = "https://image.tmdb.org/t/p/original/backdrop.jpg"
 
     @Test
     fun `wide landscape band prefers backdrop then poster`() {
-        // Yatay tablet: 1200dp x 320dp → en-boy ~3.75
+        // Yatay tablet: 1200dp x 420dp → en-boy ~2.85
         val candidates = heroImageCandidates(
             posterUrl = poster,
             backdropUrl = backdrop,
             heroWidthDp = 1200f,
-            heroHeightDp = 320f,
+            heroHeightDp = 420f,
             isLandscape = true
         )
         assertEquals(listOf(backdrop, poster), candidates)
     }
 
     @Test
-    fun `portrait tablet band still prefers backdrop when band is wide`() {
-        // Dikey tablet: 800dp x 450dp → en-boy ~1.78 (yatay dikdörtgen hem dikey
-        // hem yatay moda uyumlu olduğundan geniş bantta yine o tercih edilir)
+    fun `portrait tablet band prefers backdrop when band is wide`() {
+        // Dikey tablet: 800dp x 500dp → en-boy 1.60 (>= 1.10)
         val candidates = heroImageCandidates(
             posterUrl = poster,
             backdropUrl = backdrop,
             heroWidthDp = 800f,
-            heroHeightDp = 450f,
+            heroHeightDp = 500f,
             isLandscape = false
         )
         assertEquals(listOf(backdrop, poster), candidates)
     }
 
-    // ── Anime / film / dizi: backdrop her telefon oranında önce ────────────────
-
     @Test
-    fun `portrait phone hero prefers backdrop then poster`() {
-        // Dikey telefon: poster mevcut olsa da geniş hero'da yatay artwork önceliklidir.
+    fun `portrait phone hero prefers vertical poster then backdrop`() {
+        // Dikey telefon: 400dp x 480dp → en-boy ~0.83 (< 1.10) → dikey poster birincil!
         val candidates = heroImageCandidates(
             posterUrl = poster,
             backdropUrl = backdrop,
             heroWidthDp = 400f,
-            heroHeightDp = 430f,
+            heroHeightDp = 480f,
             isLandscape = false,
-            mediaType = MediaType.TvShow
+            mediaType = MediaType.Anime
         )
-        assertEquals(listOf(backdrop, poster), candidates)
+        assertEquals(listOf(poster, backdrop), candidates)
     }
 
     @Test
-    fun `square-ish portrait anime hero prefers backdrop`() {
+    fun `landscape phone hero prefers horizontal backdrop then poster`() {
+        // Yatay telefon: 840dp x 270dp → yatay arka plan birincil!
         val candidates = heroImageCandidates(
             posterUrl = poster,
             backdropUrl = backdrop,
-            heroWidthDp = 411f,
-            heroHeightDp = 411f,
-            isLandscape = false,
+            heroWidthDp = 840f,
+            heroHeightDp = 270f,
+            isLandscape = true,
             mediaType = MediaType.Anime
         )
         assertEquals(listOf(backdrop, poster), candidates)
     }
 
     @Test
-    fun `portrait manga keeps its poster first`() {
+    fun `manga always prefers vertical poster first`() {
         val candidates = heroImageCandidates(
             posterUrl = poster,
             backdropUrl = backdrop,
-            heroWidthDp = 400f,
-            heroHeightDp = 430f,
-            isLandscape = false,
+            heroWidthDp = 1200f,
+            heroHeightDp = 440f,
+            isLandscape = true,
             mediaType = MediaType.Manga
         )
         assertEquals(listOf(poster, backdrop), candidates)
     }
 
     @Test
-    fun `landscape flag breaks near-square tie toward backdrop`() {
-        // En-boy ~0.96 ölçülmüş ama yön bilgisi yatay → backdrop yine de önde
+    fun `identical poster and backdrop deduplicate to single entry`() {
         val candidates = heroImageCandidates(
             posterUrl = poster,
-            backdropUrl = backdrop,
-            heroWidthDp = 640f,
-            heroHeightDp = 666f,
-            isLandscape = true
-        )
-        assertEquals(listOf(backdrop, poster), candidates)
-    }
-
-    // ── Eksik kaynaklar ve yedek zinciri ───────────────────────────────────────
-
-    @Test
-    fun `missing backdrop falls back to poster only`() {
-        val candidates = heroImageCandidates(
-            posterUrl = poster,
-            backdropUrl = null,
+            backdropUrl = poster,
             heroWidthDp = 1200f,
-            heroHeightDp = 320f,
+            heroHeightDp = 420f,
             isLandscape = true
         )
         assertEquals(listOf(poster), candidates)
     }
 
     @Test
-    fun `missing poster falls back to backdrop only`() {
-        val candidates = heroImageCandidates(
-            posterUrl = "   ",
-            backdropUrl = backdrop,
-            heroWidthDp = 400f,
-            heroHeightDp = 430f,
-            isLandscape = false
-        )
-        assertEquals(listOf(backdrop), candidates)
-    }
+    fun `bangumi cover in backdropUrl is rejected so it is never treated as horizontal backdrop`() {
+        val bgmCommon = "https://lain.bgm.tv/r/400/pic/cover/l/c1/34/12345_abc.jpg"
+        val bgmLarge = "https://lain.bgm.tv/pic/cover/l/c1/34/12345_abc.jpg"
 
-    @Test
-    fun `both missing yields empty candidates`() {
+        assertNull(KitsugiHeroArtworkResolver.sanitizeNativeBackdropUrl(bgmLarge, bgmCommon, "bangumi"))
+        assertEquals(bgmLarge, KitsugiHeroArtworkResolver.upgradeNativePosterUrl(bgmCommon, "bangumi"))
+
         val candidates = heroImageCandidates(
-            posterUrl = null,
-            backdropUrl = "  ",
+            posterUrl = bgmCommon,
+            backdropUrl = bgmLarge,
             heroWidthDp = 1200f,
-            heroHeightDp = 320f,
+            heroHeightDp = 420f,
             isLandscape = true
         )
-        assertTrue(candidates.isEmpty())
+        assertEquals(listOf(bgmLarge), candidates)
     }
 
     @Test
-    fun `blank urls are trimmed and normalized`() {
-        val candidates = heroImageCandidates(
-            posterUrl = "  $poster  ",
-            backdropUrl = "  $backdrop  ",
-            heroWidthDp = 400f,
-            heroHeightDp = 430f,
-            isLandscape = false
+    fun `tmdb w500 poster and w1280 backdrop are automatically upgraded to original`() {
+        val w500Poster = "https://image.tmdb.org/t/p/w500/p1.jpg"
+        val w1280Backdrop = "https://image.tmdb.org/t/p/w1280/b1.jpg"
+
+        assertEquals(
+            "https://image.tmdb.org/t/p/original/p1.jpg",
+            KitsugiHeroArtworkResolver.upgradeNativePosterUrl(w500Poster, "tmdb")
         )
-        assertEquals(listOf(backdrop, poster), candidates)
-    }
-
-    // ── Ölçüm yoksa yön bilgisinden oran türetilir ─────────────────────────────
-
-    @Test
-    fun `zero dimensions keep landscape artwork first for anime in both orientations`() {
-        val landscape = heroImageCandidates(
-            posterUrl = poster,
-            backdropUrl = backdrop,
-            heroWidthDp = 0f,
-            heroHeightDp = 0f,
-            isLandscape = true
+        assertEquals(
+            "https://image.tmdb.org/t/p/original/b1.jpg",
+            KitsugiHeroArtworkResolver.sanitizeNativeBackdropUrl(w1280Backdrop, w500Poster, "tmdb")
         )
-        assertEquals(listOf(backdrop, poster), landscape)
+    }
 
-        val portrait = heroImageCandidates(
-            posterUrl = poster,
-            backdropUrl = backdrop,
-            heroWidthDp = 0f,
-            heroHeightDp = 0f,
-            isLandscape = false
+    @Test
+    fun `poster fallback in wide band uses upper bias and wide backdrop uses upper bias to protect character heads`() {
+        assertEquals(
+            BiasAlignment(0f, -0.25f),
+            heroImageAlignment(chosenIsPoster = true, heroAspect = 1.78f)
         )
-        assertEquals(listOf(backdrop, poster), portrait)
-    }
-
-    // ── Kaplayan kırpma odağı ──────────────────────────────────────────────────
-
-    @Test
-    fun `backdrop crop stays centered in every band`() {
-        assertEquals(Alignment.Center, heroImageAlignment(chosenIsPoster = false, heroAspect = 3.75f))
-        assertEquals(Alignment.Center, heroImageAlignment(chosenIsPoster = false, heroAspect = 0.93f))
-    }
-
-    @Test
-    fun `poster crop in wide band biases slightly to top`() {
-        // Geniş bantta poster kırpılırken yüz/başlık bandı korunmalı
-        assertEquals(BiasAlignment(0f, -0.2f), heroImageAlignment(chosenIsPoster = true, heroAspect = 1.2f))
-        assertNotEquals(Alignment.Center, heroImageAlignment(chosenIsPoster = true, heroAspect = 4f))
+        assertEquals(
+            BiasAlignment(0f, -0.20f),
+            heroImageAlignment(chosenIsPoster = true, heroAspect = 0.80f)
+        )
+        assertEquals(
+            BiasAlignment(0f, -0.32f),
+            heroImageAlignment(chosenIsPoster = false, heroAspect = 2.40f)
+        )
+        assertEquals(
+            Alignment.Center,
+            heroImageAlignment(chosenIsPoster = false, heroAspect = 1.55f)
+        )
     }
 
     @Test
-    fun `poster crop in portrait hero stays centered`() {
-        assertEquals(Alignment.Center, heroImageAlignment(chosenIsPoster = true, heroAspect = 0.93f))
+    fun `artwork resolver selects highest quality vertical poster and horizontal backdrop from TMDB and Fanart`() {
+        val lowResTmdbPoster = KitsugiHeroArtworkResolver.ArtworkCandidate(
+            url = "https://image.tmdb.org/t/p/original/low_poster.jpg",
+            provider = "TMDB",
+            isBackdrop = false,
+            width = 680,
+            height = 1000,
+            language = "ja",
+            voteAverage = 5.0,
+            voteCount = 1
+        )
+        val highResTmdbPoster = KitsugiHeroArtworkResolver.ArtworkCandidate(
+            url = "https://image.tmdb.org/t/p/original/uhd_poster.jpg",
+            provider = "TMDB",
+            isBackdrop = false,
+            width = 2000,
+            height = 3000,
+            language = "en",
+            voteAverage = 8.8,
+            voteCount = 24
+        )
+        val fanartPoster = KitsugiHeroArtworkResolver.ArtworkCandidate(
+            url = "https://assets.fanart.tv/fanart/tv/1/tvposter/fanart_poster.jpg",
+            provider = "Fanart.tv",
+            isBackdrop = false,
+            width = 1000,
+            height = 1426,
+            language = "en",
+            likes = 12
+        )
+
+        val rankedPosters = KitsugiHeroArtworkResolver.selectBestPosterCandidates(
+            candidates = listOf(lowResTmdbPoster, fanartPoster, highResTmdbPoster),
+            preferredLanguage = "tr",
+            fallbackPosterUrl = "https://cdn.myanimelist.net/images/anime/1/1.jpg"
+        )
+        assertEquals("https://image.tmdb.org/t/p/original/uhd_poster.jpg", rankedPosters.first())
+        assertTrue(rankedPosters.contains("https://assets.fanart.tv/fanart/tv/1/tvposter/fanart_poster.jpg"))
+
+        val hd720Backdrop = KitsugiHeroArtworkResolver.ArtworkCandidate(
+            url = "https://image.tmdb.org/t/p/original/720p_bg.jpg",
+            provider = "TMDB",
+            isBackdrop = true,
+            width = 1280,
+            height = 720,
+            language = "ja",
+            voteAverage = 5.2,
+            voteCount = 2
+        )
+        val uhd4kBackdrop = KitsugiHeroArtworkResolver.ArtworkCandidate(
+            url = "https://image.tmdb.org/t/p/original/4k_textless_bg.jpg",
+            provider = "TMDB",
+            isBackdrop = true,
+            width = 3840,
+            height = 2160,
+            language = null,
+            voteAverage = 9.1,
+            voteCount = 30
+        )
+        val fanartBackdrop = KitsugiHeroArtworkResolver.ArtworkCandidate(
+            url = "https://assets.fanart.tv/fanart/tv/1/showbackground/fanart_bg.jpg",
+            provider = "Fanart.tv",
+            isBackdrop = true,
+            width = 1920,
+            height = 1080,
+            language = null,
+            likes = 18
+        )
+
+        val rankedBackdrops = KitsugiHeroArtworkResolver.selectBestBackdropCandidates(
+            candidates = listOf(hd720Backdrop, fanartBackdrop, uhd4kBackdrop),
+            preferredLanguage = "tr",
+            fallbackBackdropUrl = "https://s4.anilist.co/file/anilistcdn/media/anime/banner/1.jpg"
+        )
+        assertEquals("https://image.tmdb.org/t/p/original/4k_textless_bg.jpg", rankedBackdrops.first())
+        assertEquals("https://assets.fanart.tv/fanart/tv/1/showbackground/fanart_bg.jpg", rankedBackdrops[1])
     }
 }

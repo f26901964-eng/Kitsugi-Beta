@@ -17,6 +17,8 @@ import kotlinx.coroutines.supervisorScope
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
 import java.math.RoundingMode
+import com.kitsugi.animelist.R
+import com.kitsugi.animelist.utils.KitsugiStrings
 
 data class UserMediaListItem(
     val mediaId: Int,
@@ -96,7 +98,7 @@ class KitsugiUserMediaListViewModel : ViewModel() {
                     _uiState.value = UserMediaListUiState(
                         isLoading = false,
                         items = emptyList(),
-                        error = "Kullanıcının listesi yüklenemedi"
+                        error = KitsugiStrings.get(R.string.profile_user_load_failed)
                     )
                     return@supervisorScope
                 }
@@ -104,8 +106,8 @@ class KitsugiUserMediaListViewModel : ViewModel() {
                 val baseItems = (animeItems.orEmpty() + mangaItems.orEmpty())
                     .distinctBy { it.mediaType to it.mediaId }
                 val partialError = when {
-                    animeItems == null -> "Anime listesi yüklenemedi; Manga listesi gösteriliyor"
-                    mangaItems == null -> "Manga listesi yüklenemedi; Anime listesi gösteriliyor"
+                    animeItems == null -> KitsugiStrings.get(R.string.profile_anime_list_partial_error)
+                    mangaItems == null -> KitsugiStrings.get(R.string.profile_manga_list_partial_error)
                     else -> null
                 }
 

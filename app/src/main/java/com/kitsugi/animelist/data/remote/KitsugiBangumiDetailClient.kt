@@ -265,8 +265,12 @@ object KitsugiBangumiDetailClient {
             val rawId = rawIdOf(stableOrRawId) ?: return@withContext null
             val subject = loadSubject(rawId) ?: return@withContext null
             val detail = buildNativeDetail(subject, mediaType)
-            rememberLatinTitle(rawId, detail)
-            detail
+            // İnfobox'tan gelen serbest metin kurum adlarını Bangumi'nin kendi şirket
+            // kaydındaki küresel ada çevir (sözlükte olmayanlar dahil). Süre tavanlı ve
+            // ek katmandır: çözülemezse ad olduğu gibi kalır, sayfa açılışı beklemeye takılmaz.
+            val resolved = BangumiOrgResolver.resolveDetailOrgNames(detail)
+            rememberLatinTitle(rawId, resolved)
+            resolved
         }
 
     /**

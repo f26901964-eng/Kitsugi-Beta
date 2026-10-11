@@ -192,7 +192,7 @@ class KitsugiProfileViewModel(application: Application) : AndroidViewModel(appli
 
         val token = ExternalAuthManager.getAniListToken(context)
         if (token.isNullOrBlank()) {
-            _aniListState.update { it.copy(isConnected = false, isLoading = false, error = "Bağlantı bulunamadı") }
+            _aniListState.update { it.copy(isConnected = false, isLoading = false, error = KitsugiStrings.get(R.string.profile_connection_not_found, "AniList")) }
             return
         }
 
@@ -585,7 +585,7 @@ class KitsugiProfileViewModel(application: Application) : AndroidViewModel(appli
                     val typename = act.optString("__typename")
                     val user = act.optJSONObject("user")
                     val actUserId = user?.optInt("id")
-                    val userName = user?.optNullableString("name") ?: "Bilinmeyen"
+                    val userName = user?.optNullableString("name") ?: KitsugiStrings.get(R.string.notification_unknown_user)
                     val userAvatar = user?.optJSONObject("avatar")?.optNullableString("large")
                     val createdAt = act.optLong("createdAt", 0L)
                     val likeCount = act.optInt("likeCount", 0)
@@ -611,9 +611,9 @@ class KitsugiProfileViewModel(application: Application) : AndroidViewModel(appli
                         val mediaId = media?.optInt("id")
                         val mediaType = media?.optNullableString("type")
                         val isAdult = media?.optBoolean("isAdult", false) ?: false
-                        val mediaTitle = media?.optJSONObject("title")?.optNullableString("romaji") ?: media?.optJSONObject("title")?.optNullableString("english") ?: "Medya"
+                        val mediaTitle = media?.optJSONObject("title")?.optNullableString("romaji") ?: media?.optJSONObject("title")?.optNullableString("english") ?: KitsugiStrings.get(R.string.profile_unknown_media)
                         val mediaImage = media?.optJSONObject("coverImage")?.optNullableString("large")
-                        val status = act.optNullableString("status") ?: "güncelledi"
+                        val status = act.optNullableString("status") ?: "updated"
                         val progress = act.optNullableString("progress")
 
                         list.add(
@@ -802,7 +802,7 @@ class KitsugiProfileViewModel(application: Application) : AndroidViewModel(appli
                                 id = node.getInt("id").toString(),
                                 title = node.optJSONObject("title")?.let {
                                     it.optNullableString("romaji") ?: it.optNullableString("english")
-                                } ?: "İsimsiz",
+                                } ?: KitsugiStrings.get(R.string.isimsiz),
                                 imageUrl = node.optJSONObject("coverImage")?.optNullableString("large") ?: "",
                                 isAdult = node.optBoolean("isAdult", false)
                             )
@@ -897,7 +897,7 @@ class KitsugiProfileViewModel(application: Application) : AndroidViewModel(appli
                 val item = arr.getJSONObject(i)
                 lengthList.add(
                     LengthStatItem(
-                        length = item.optString("length", "Bilinmiyor"),
+                        length = item.optString("length", KitsugiStrings.get(R.string.profile_status_unknown)),
                         count = item.optInt("count", 0),
                         minutesWatched = item.optInt(if (isAnime) "minutesWatched" else "chaptersRead", 0),
                         meanScore = item.optDouble("meanScore", 0.0)
@@ -912,7 +912,7 @@ class KitsugiProfileViewModel(application: Application) : AndroidViewModel(appli
                 val item = arr.getJSONObject(i)
                 formatList.add(
                     FormatStatItem(
-                        format = item.optString("format", "Diğer"),
+                        format = item.optString("format", KitsugiStrings.get(R.string.bangumi_tag_other)),
                         count = item.optInt("count", 0),
                         minutesWatched = item.optInt(if (isAnime) "minutesWatched" else "chaptersRead", 0),
                         meanScore = item.optDouble("meanScore", 0.0)
@@ -927,7 +927,7 @@ class KitsugiProfileViewModel(application: Application) : AndroidViewModel(appli
                 val item = arr.getJSONObject(i)
                 statusList.add(
                     StatusStatItem(
-                        status = item.optString("status", "Bilinmeyen"),
+                        status = item.optString("status", KitsugiStrings.get(R.string.profile_status_unknown)),
                         count = item.optInt("count", 0),
                         minutesWatched = item.optInt(if (isAnime) "minutesWatched" else "chaptersRead", 0),
                         meanScore = item.optDouble("meanScore", 0.0)
@@ -942,7 +942,7 @@ class KitsugiProfileViewModel(application: Application) : AndroidViewModel(appli
                 val item = arr.getJSONObject(i)
                 countryList.add(
                     CountryStatItem(
-                        country = item.optString("country", "Diğer"),
+                        country = item.optString("country", KitsugiStrings.get(R.string.bangumi_tag_other)),
                         count = item.optInt("count", 0),
                         minutesWatched = item.optInt(if (isAnime) "minutesWatched" else "chaptersRead", 0),
                         meanScore = item.optDouble("meanScore", 0.0)
@@ -987,7 +987,7 @@ class KitsugiProfileViewModel(application: Application) : AndroidViewModel(appli
                 val item = arr.getJSONObject(i)
                 genreList.add(
                     RankedStatItem(
-                        name = item.optString("genre", "Bilinmiyor"),
+                        name = item.optString("genre", KitsugiStrings.get(R.string.profile_status_unknown)),
                         count = item.optInt("count", 0),
                         meanScore = item.optDouble("meanScore", 0.0),
                         timeSpentMinutes = if (isAnime) item.optInt("minutesWatched", 0) else null,
@@ -1004,7 +1004,7 @@ class KitsugiProfileViewModel(application: Application) : AndroidViewModel(appli
                 val tagObj = item.optJSONObject("tag")
                 tagList.add(
                     RankedStatItem(
-                        name = tagObj?.optString("name") ?: item.optString("tag", "Bilinmiyor"),
+                        name = tagObj?.optString("name") ?: item.optString("tag", KitsugiStrings.get(R.string.profile_status_unknown)),
                         count = item.optInt("count", 0),
                         meanScore = item.optDouble("meanScore", 0.0),
                         timeSpentMinutes = if (isAnime) item.optInt("minutesWatched", 0) else null,
@@ -1022,7 +1022,7 @@ class KitsugiProfileViewModel(application: Application) : AndroidViewModel(appli
                 staffList.add(
                     RankedStatItem(
                         id = staffObj?.optInt("id"),
-                        name = staffObj?.optJSONObject("name")?.optString("full") ?: "Bilinmeyen Ekip",
+                        name = staffObj?.optJSONObject("name")?.optString("full") ?: KitsugiStrings.get(R.string.label_unknown),
                         count = item.optInt("count", 0),
                         meanScore = item.optDouble("meanScore", 0.0),
                         timeSpentMinutes = if (isAnime) item.optInt("minutesWatched", 0) else null,
@@ -1041,7 +1041,7 @@ class KitsugiProfileViewModel(application: Application) : AndroidViewModel(appli
                 voiceActorList.add(
                     RankedStatItem(
                         id = vaObj?.optInt("id"),
-                        name = vaObj?.optJSONObject("name")?.optString("full") ?: "Bilinmeyen Seslendirici",
+                        name = vaObj?.optJSONObject("name")?.optString("full") ?: KitsugiStrings.get(R.string.label_unknown),
                         count = item.optInt("count", 0),
                         meanScore = item.optDouble("meanScore", 0.0),
                         timeSpentMinutes = if (isAnime) item.optInt("minutesWatched", 0) else null,
@@ -1071,7 +1071,7 @@ class KitsugiProfileViewModel(application: Application) : AndroidViewModel(appli
         }
 
         var plannedDays = 0.0
-        statusList.find { it.status == "PLANNING" || it.status == "Planlandı" }?.let {
+        statusList.find { it.status.equals("PLANNING", ignoreCase = true) }?.let {
             plannedDays = if (isAnime) (it.count * 12.0 * 24.0 / 60.0 / 24.0) else it.count.toDouble()
         }
 
@@ -1217,7 +1217,7 @@ class KitsugiProfileViewModel(application: Application) : AndroidViewModel(appli
         viewModelScope.launch {
             val token = ExternalAuthManager.getOrRefreshMalToken(context)
             if (token.isNullOrBlank()) {
-                _malState.update { it.copy(isConnected = false, isLoading = false, error = "Bağlantı bulunamadı") }
+                _malState.update { it.copy(isConnected = false, isLoading = false, error = KitsugiStrings.get(R.string.profile_connection_not_found, "MyAnimeList")) }
                 return@launch
             }
 
@@ -1318,7 +1318,7 @@ class KitsugiProfileViewModel(application: Application) : AndroidViewModel(appli
                 }
 
             } catch (e: Exception) {
-                _malState.update { it.copy(isLoading = false, error = e.message ?: "MAL verisi yüklenirken hata oluştu.") }
+                _malState.update { it.copy(isLoading = false, error = KitsugiStrings.get(R.string.profile_mal_load_failed)) }
             }
         }
     }
@@ -1511,7 +1511,7 @@ class KitsugiProfileViewModel(application: Application) : AndroidViewModel(appli
 
         val token = ExternalAuthManager.getSimklToken(context)
         if (token.isNullOrBlank()) {
-            _simklState.update { it.copy(isConnected = false, isLoading = false, error = "Bağlantı bulunamadı") }
+            _simklState.update { it.copy(isConnected = false, isLoading = false, error = KitsugiStrings.get(R.string.profile_connection_not_found, "Simkl")) }
             return
         }
 
@@ -1628,7 +1628,7 @@ class KitsugiProfileViewModel(application: Application) : AndroidViewModel(appli
                     )
                 }
             } catch (e: Exception) {
-                _simklState.update { it.copy(isLoading = false, error = e.message ?: "Simkl verisi yüklenirken hata oluştu.") }
+                _simklState.update { it.copy(isLoading = false, error = KitsugiStrings.get(R.string.profile_simkl_load_failed)) }
             }
         }
     }
@@ -1642,7 +1642,7 @@ class KitsugiProfileViewModel(application: Application) : AndroidViewModel(appli
         val token = ExternalAuthManager.getKitsuToken(context)
         val userId = ExternalAuthManager.getKitsuUserId(context)
         if (token.isNullOrBlank()) {
-            _kitsuState.update { it.copy(isConnected = false, isLoading = false, error = "Kitsu bağlantısı bulunamadı") }
+            _kitsuState.update { it.copy(isConnected = false, isLoading = false, error = KitsugiStrings.get(R.string.profile_connection_not_found, "Kitsu")) }
             return
         }
 
@@ -1705,7 +1705,8 @@ class KitsugiProfileViewModel(application: Application) : AndroidViewModel(appli
                 val timeSpentStr = if (timeConsumedSeconds > 0) {
                     val days = timeConsumedSeconds / 86400
                     val hours = (timeConsumedSeconds % 86400) / 3600
-                    if (days > 0) "$days gün, $hours saat" else "$hours saat"
+                    if (days > 0) KitsugiStrings.get(R.string.profile_duration_days_hours, days, hours)
+                    else KitsugiStrings.get(R.string.profile_duration_hours, hours)
                 } else null
                 val episodesCount = userStats?.episodesWatched?.takeIf { it > 0 }
 
@@ -1748,7 +1749,7 @@ class KitsugiProfileViewModel(application: Application) : AndroidViewModel(appli
                     it.copy(
                         isConnected = true,
                         isLoading = false,
-                        error = "Profil bilgileri yüklenemedi: ${e.message}"
+                        error = KitsugiStrings.get(R.string.profile_load_failed)
                     )
                 }
             }
@@ -1762,7 +1763,7 @@ class KitsugiProfileViewModel(application: Application) : AndroidViewModel(appli
         if (!com.kitsugi.animelist.data.auth.BangumiAuthStore.isConnected(context)) {
             // Oturum kapatıldıysa önceki hesabın verisi ekranda kalmasın.
             _bangumiState.update {
-                BangumiProfileState(isConnected = false, isLoading = false, error = "Bangumi bağlantısı bulunamadı")
+                BangumiProfileState(isConnected = false, isLoading = false, error = KitsugiStrings.get(R.string.profile_connection_not_found, "Bangumi"))
             }
             return
         }
@@ -1774,7 +1775,7 @@ class KitsugiProfileViewModel(application: Application) : AndroidViewModel(appli
                 val snapshot = com.kitsugi.animelist.data.auth.BangumiProfileManager.fetch(context)
                 if (snapshot == null) {
                     _bangumiState.update {
-                        BangumiProfileState(isConnected = false, isLoading = false, error = "Bangumi bağlantısı bulunamadı")
+                        BangumiProfileState(isConnected = false, isLoading = false, error = KitsugiStrings.get(R.string.profile_connection_not_found, "Bangumi"))
                     }
                     return@launch
                 }
@@ -1800,7 +1801,7 @@ class KitsugiProfileViewModel(application: Application) : AndroidViewModel(appli
                 throw e
             } catch (e: Exception) {
                 _bangumiState.update {
-                    it.copy(isLoading = false, error = e.message ?: "Bangumi profili yüklenemedi")
+                    it.copy(isLoading = false, error = KitsugiStrings.get(R.string.profile_bangumi_load_failed))
                 }
             }
         }
@@ -1822,14 +1823,14 @@ class KitsugiProfileViewModel(application: Application) : AndroidViewModel(appli
                 if (ExternalAuthManager.ensureShikimoriUserResolved(context)) {
                     fetchShikimoriProfile(forceRefresh = true)
                 } else {
-                    _shikimoriState.update { it.copy(isConnected = false, isLoading = false, error = "Shikimori bağlantısı bulunamadı") }
+                    _shikimoriState.update { it.copy(isConnected = false, isLoading = false, error = KitsugiStrings.get(R.string.profile_connection_not_found, "Shikimori")) }
                 }
             }
             return
         }
 
         if (token.isNullOrBlank() || userId == null || userId <= 0) {
-            _shikimoriState.update { it.copy(isConnected = false, isLoading = false, error = "Shikimori bağlantısı bulunamadı") }
+            _shikimoriState.update { it.copy(isConnected = false, isLoading = false, error = KitsugiStrings.get(R.string.profile_connection_not_found, "Shikimori")) }
             return
         }
 
@@ -1905,7 +1906,7 @@ class KitsugiProfileViewModel(application: Application) : AndroidViewModel(appli
                     it.copy(
                         isConnected = true,
                         isLoading = false,
-                        error = "Profil bilgileri yüklenemedi: ${e.message}"
+                        error = KitsugiStrings.get(R.string.profile_load_failed)
                     )
                 }
             }

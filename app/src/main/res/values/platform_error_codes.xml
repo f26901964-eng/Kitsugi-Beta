@@ -51,6 +51,12 @@
     <string name="platform_error_csp_parser_title">Eklenti ayrıştırma hatası</string>
     <string name="platform_error_csp_parser_cause">Sağlayıcının sayfa/API biçimi değiştiği için eklenti yanıtı okuyamadı.</string>
     <string name="platform_error_csp_parser_action">Eklentiyi güncelle. Güncel sürümde sürerse eklenti deposuna bildir.</string>
+    <string name="platform_error_csp_auth_required_title">Eklenti hesabı gerekli</string>
+    <string name="platform_error_csp_auth_required_cause">Kaynak arama yapmadan önce hesap veya giriş bilgisi istiyor.</string>
+    <string name="platform_error_csp_auth_required_action">Eklentinin ayarlarını açıp gereken hesabı yapılandır. Hesabın yoksa bu kaynak kullanılamaz.</string>
+    <string name="platform_error_csp_runtime_title">Eklenti çalışma zamanı uyumsuzluğu</string>
+    <string name="platform_error_csp_runtime_cause">CS3, uygulamanın dinamik eklenti yükleyicisinde bulunmayan veya uyumsuz bir çalışma zamanı sınıfına başvurdu.</string>
+    <string name="platform_error_csp_runtime_action">Uygulamayı güncelle. Hata sürerse canlı izleme raporunu paylaş; bu uygulama/eklenti uyumluluk sorunudur.</string>
     <string name="platform_error_csp_unknown_title">Tanımlanamayan eklenti hatası</string>
     <string name="platform_error_csp_unknown_cause">Hata mevcut CloudStream tanı imzalarıyla eşleşmedi.</string>
     <string name="platform_error_csp_unknown_action">Tekrar dene ve tanı raporuyla birlikte bu kodu paylaş.</string>

@@ -75,7 +75,15 @@ import com.kitsugi.animelist.utils.KitsugiStrings
  */
 
 /** Favori kategorileri — sekme indexi ile aynı sırada. */
-val ProfileFavoriteCategoryLabels = listOf("Anime", "Manga", "Karakterler", "Ekip", KitsugiStrings.get(R.string.detail_section_studios))
+@Composable
+fun profileFavoriteCategoryLabels(): List<String> = listOf(
+    stringResource(R.string.profile_anime_list),
+    stringResource(R.string.profile_manga_list),
+    stringResource(R.string.profile_favorite_characters),
+    stringResource(R.string.profile_section_staff),
+    stringResource(R.string.detail_section_studios)
+)
+
 val ProfileFavoriteCategoryKeys = listOf("anime", "manga", "characters", "staff", "studios")
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -412,13 +420,14 @@ fun BoxScope.ProfileFavoritesFloatingControls(
     onCategorySelected: (Int) -> Unit,
     bottomOffset: Dp,
     onScrollReset: () -> Unit = {},
-    categoryLabels: List<String> = ProfileFavoriteCategoryLabels,
+    categoryLabels: List<String>? = null,
     showCounts: Boolean = true
 ) {
     val accent = LocalKitsugiAccent.current
     val scope = rememberCoroutineScope()
     val navBottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
     val bottomPadding = bottomOffset + navBottom
+    val resolvedCategoryLabels = categoryLabels ?: profileFavoriteCategoryLabels()
 
     // Aşağı kaydırınca kategori butonu gizlenir, yukarı çıkınca geri gelir (Listem ile aynı)
     var isFabVisible by remember { mutableStateOf(true) }
@@ -469,13 +478,13 @@ fun BoxScope.ProfileFavoritesFloatingControls(
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(
                     imageVector = Icons.Rounded.FormatListBulleted,
-                    contentDescription = "Kategori",
+                    contentDescription = stringResource(R.string.search_filter_category),
                     tint = KitsugiColors.Background,
                     modifier = Modifier.size(20.dp)
                 )
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
-                    text = categoryLabels.getOrElse(selectedCategory) { categoryLabels.firstOrNull().orEmpty() },
+                    text = resolvedCategoryLabels.getOrElse(selectedCategory) { resolvedCategoryLabels.firstOrNull().orEmpty() },
                     color = KitsugiColors.Background,
                     style = MaterialTheme.typography.bodyMedium,
                     fontWeight = FontWeight.Black
@@ -529,7 +538,7 @@ fun BoxScope.ProfileFavoritesFloatingControls(
                     .padding(bottom = 24.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                categoryLabels.forEachIndexed { idx, label ->
+                resolvedCategoryLabels.forEachIndexed { idx, label ->
                     val isSelected = idx == selectedCategory
                     val shape = RoundedCornerShape(16.dp)
                     Row(

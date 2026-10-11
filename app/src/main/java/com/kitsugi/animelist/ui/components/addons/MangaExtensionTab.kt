@@ -49,6 +49,7 @@ import androidx.compose.ui.res.stringResource
 import com.kitsugi.animelist.R
 import com.kitsugi.animelist.utils.KitsugiStrings
 
+private const val ALL_LANG_FILTER = "__all__"
 private enum class MangaTabSection { REPOS, INSTALLED }
 private enum class MangaInstallState { IDLE, LOADING, SUCCESS, FAILURE }
 
@@ -108,17 +109,18 @@ internal fun MangaExtensionsTab(
     var reportSort by rememberSaveable { mutableStateOf("UPDATED") }
     var newRepoUrl by rememberSaveable { mutableStateOf("") }
     var expandedRepo by rememberSaveable { mutableStateOf<String?>(null) }
-    var langFilter by rememberSaveable { mutableStateOf("Tümü") }
+    var langFilter by rememberSaveable { mutableStateOf(ALL_LANG_FILTER) }
     val installStates = remember { mutableStateMapOf<String, MangaInstallState>() }
     val installedSourceByKey = remember(sources) { sources.associateBy { it.stableSourceKey() } }
     val sourceStateByKey = remember(sourceStateReport) { sourceStateReport.associateBy { it.sourceKey } }
     // Oto-güncelleme durumu
     var autoUpdateRunning by remember { mutableStateOf(false) }
     var autoUpdateResult by remember { mutableStateOf<String?>(null) }
+    val autoUpdateChecking = stringResource(R.string.manga_auto_update_checking)
 
     // Seçili dil filtresine göre repo'nun extensionlarını filtreler
     fun filteredExtensionsForBulk(plugins: List<com.kitsugi.animelist.data.remote.MangaExtensionInfo>): List<com.kitsugi.animelist.data.remote.MangaExtensionInfo> {
-        return if (langFilter == "Tümü") plugins
+        return if (langFilter == ALL_LANG_FILTER) plugins
         else plugins.filter { it.lang == langFilter }
     }
 
@@ -154,8 +156,8 @@ internal fun MangaExtensionsTab(
         item {
             AddonSubsectionTabs(
                 tabs = listOf(
-                    AddonSubsectionTab("Repolar", Icons.Rounded.Language),
-                    AddonSubsectionTab("Kurulu (${sources.size})", Icons.Rounded.Extension)
+                    AddonSubsectionTab(stringResource(R.string.addon_repositories_count, repos.size), Icons.Rounded.Language),
+                    AddonSubsectionTab(stringResource(R.string.addon_installed_count, sources.size), Icons.Rounded.Extension)
                 ),
                 selectedIndex = if (activeSection == MangaTabSection.REPOS) 0 else 1,
                 accentColor = accentColor,
@@ -202,11 +204,11 @@ internal fun MangaExtensionsTab(
                             modifier = Modifier.size(20.dp)
                         )
                         Column(modifier = Modifier.weight(1f)) {
-                            Text("⚡ Keiyoushi Resmi Reposu", color = accentColor, fontWeight = FontWeight.SemiBold, fontSize = 12.sp)
+                            Text(stringResource(R.string.manga_keiyoushi_official_repo), color = accentColor, fontWeight = FontWeight.SemiBold, fontSize = 12.sp)
                             Text(KitsugiStrings.get(R.string.inline_1_354_mihon_extensions_78_72ff2f1), color = KitsugiColors.TextMuted, fontSize = 10.sp)
                         }
                         Text(
-                            if (repos.contains(com.kitsugi.animelist.data.remote.MangaRepoClient.KEIYOUSHI_INDEX_URL)) "✓ Eklendi" else KitsugiStrings.get(R.string.ekle_64b2d35),
+                            if (repos.contains(com.kitsugi.animelist.data.remote.MangaRepoClient.KEIYOUSHI_INDEX_URL)) stringResource(R.string.addon_status_added) else KitsugiStrings.get(R.string.ekle_64b2d35),
                             color = if (repos.contains(com.kitsugi.animelist.data.remote.MangaRepoClient.KEIYOUSHI_INDEX_URL)) KitsugiColors.TextMuted else accentColor,
                             fontSize = 11.sp, fontWeight = FontWeight.Bold
                         )
@@ -273,7 +275,7 @@ internal fun MangaExtensionsTab(
                                     .padding(horizontal = 8.dp, vertical = 4.dp)
                             ) {
                                 Text(
-                                    "Otomatik",
+                                    stringResource(R.string.manga_status_automatic),
                                     color = kotatsuColor,
                                     fontSize = 10.sp,
                                     fontWeight = FontWeight.Bold
@@ -395,7 +397,7 @@ internal fun MangaExtensionsTab(
                         onValueChange = { newRepoUrl = it },
                         modifier = Modifier.fillMaxWidth(),
                         placeholder = { Text("https://raw.githubusercontent.com/.../index.min.json", color = KitsugiColors.TextMuted, fontSize = 11.sp) },
-                        label = { Text("Repo URL'si", color = KitsugiColors.TextSecondary, fontSize = 11.sp) },
+                        label = { Text(stringResource(R.string.manga_repo_url), color = KitsugiColors.TextSecondary, fontSize = 11.sp) },
                         colors = OutlinedTextFieldDefaults.colors(
                             focusedBorderColor = accentColor,
                             unfocusedBorderColor = KitsugiColors.Border,
@@ -475,9 +477,9 @@ internal fun MangaExtensionsTab(
                                 FlatName(repoName)
                                 Text(
                                     if (repoPlugins != null) {
-                                        if (installedCount == totalCount && totalCount > 0) "✓ $installedCount/$totalCount Yüklü"
-                                        else "$installedCount/$totalCount Yüklü"
-                                    } else "Yüklenmedi",
+                                        if (installedCount == totalCount && totalCount > 0) "✓ $installedCount/$totalCount ${stringResource(R.string.addon_status_installed)}"
+                                        else "$installedCount/$totalCount ${stringResource(R.string.addon_status_installed)}"
+                                    } else stringResource(R.string.addon_status_not_loaded),
                                     color = if (installedCount == totalCount && totalCount > 0) Color(0xFF4CAF50) else KitsugiColors.TextMuted,
                                     fontSize = 11.sp,
                                     fontWeight = if (installedCount == totalCount && totalCount > 0) FontWeight.Bold else FontWeight.Normal
@@ -493,7 +495,7 @@ internal fun MangaExtensionsTab(
                                         onClick = { onUpdateAllExtensions(repoUrl, repoPlugins) },
                                         modifier = Modifier.size(28.dp)
                                     ) {
-                                        Icon(Icons.Rounded.ArrowCircleUp, "Güncelle", tint = accentColor, modifier = Modifier.size(18.dp))
+                                        Icon(Icons.Rounded.ArrowCircleUp, stringResource(R.string.inline_update_e9a7033), tint = accentColor, modifier = Modifier.size(18.dp))
                                     }
                                 }
                                 if (!isBulkInstalling && installedCount < totalCount) {
@@ -523,7 +525,11 @@ internal fun MangaExtensionsTab(
                                     }
                                     // Aktif dil filtresine göre toplu indirme
                                     val bulkList = filteredExtensionsForBulk(repoPlugins)
-                                    val bulkLabel = if (langFilter == "Tümü") "Hepsini İndir" else "${langFilter.uppercase()} İndir"
+                                    val bulkLabel = if (langFilter == ALL_LANG_FILTER) {
+                stringResource(R.string.manga_bulk_download_all)
+            } else {
+                stringResource(R.string.manga_bulk_download_language, langFilter.uppercase())
+            }
                                     IconButton(
                                         onClick = { onInstallAllExtensions(repoUrl, bulkList) },
                                         modifier = Modifier.size(28.dp)
@@ -555,7 +561,7 @@ internal fun MangaExtensionsTab(
                                     verticalAlignment = Alignment.CenterVertically,
                                     horizontalArrangement = Arrangement.SpaceBetween
                                 ) {
-                                    Text("⏳ Kuruluyor...", color = accentColor, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                                    Text(stringResource(R.string.addon_status_installing), color = accentColor, fontSize = 11.sp, fontWeight = FontWeight.Bold)
                                     Text("$bulkInstallDone / $bulkInstallTotal", color = KitsugiColors.TextPrimary, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
                                 }
                                 if (bulkInstallCurrentName.isNotBlank()) {
@@ -578,7 +584,7 @@ internal fun MangaExtensionsTab(
                             val allLangs = remember(repoPlugins) {
                                 val langs = repoPlugins.map { it.lang }.distinct().sorted()
                                 // TR'yi her zaman öne al
-                                val prioritized = mutableListOf(KitsugiStrings.get(R.string.notif_filter_all))
+                                val prioritized = mutableListOf(ALL_LANG_FILTER)
                                 if (langs.contains("tr")) prioritized.add("tr")
                                 prioritized.addAll(langs.filter { it != "tr" })
                                 prioritized
@@ -593,7 +599,11 @@ internal fun MangaExtensionsTab(
                             ) {
                                 allLangs.forEach { l ->
                                     FilterChip(
-                                        text = if (l == "all") "Global" else if (l == KitsugiStrings.get(R.string.notif_filter_all)) KitsugiStrings.get(R.string.notif_filter_all) else l.uppercase(),
+                                        text = when {
+                                            l == ALL_LANG_FILTER -> stringResource(R.string.notif_filter_all)
+                                            l == "all" -> "Global"
+                                            else -> l.uppercase()
+                                        },
                                         selected = langFilter == l,
                                         onClick = { langFilter = l },
                                         accentColor = if (l == "tr") Color(0xFFE53935) else accentColor
@@ -603,7 +613,7 @@ internal fun MangaExtensionsTab(
 
                             // Seçilen dile göre filtrele + kurulmamış olanları öne al
                             val filtered = remember(repoPlugins, langFilter) {
-                                val base = if (langFilter == "Tümü") repoPlugins
+                                val base = if (langFilter == ALL_LANG_FILTER) repoPlugins
                                 else repoPlugins.filter { it.lang == langFilter }
                                 // Kurulmamışları üste al
                                 val notInstalled = base.filter { ext -> sources.none { (it.pkgName.isNotEmpty() && it.pkgName == ext.pkg) || it.name == ext.name } }
@@ -674,7 +684,7 @@ internal fun MangaExtensionsTab(
                                                 } else {
                                                     Box(
                                                         modifier = Modifier.clip(RoundedCornerShape(8.dp)).background(KitsugiColors.SurfaceStrong).padding(horizontal = 8.dp, vertical = 4.dp)
-                                                    ) { Text("Kurulu", color = KitsugiColors.TextMuted, fontSize = 10.sp, fontWeight = FontWeight.SemiBold) }
+                                                    ) { Text(stringResource(R.string.addon_status_installed), color = KitsugiColors.TextMuted, fontSize = 10.sp, fontWeight = FontWeight.SemiBold) }
                                                 }
                                             } else {
                                                 Box(
@@ -688,7 +698,7 @@ internal fun MangaExtensionsTab(
                                                             }
                                                         }
                                                         .padding(horizontal = 8.dp, vertical = 4.dp)
-                                                ) { Text("Kur", color = accentColor, fontSize = 10.sp, fontWeight = FontWeight.Bold) }
+                                                ) { Text(stringResource(R.string.addon_action_install), color = accentColor, fontSize = 10.sp, fontWeight = FontWeight.Bold) }
                                             }
                                         }
                                     }
@@ -774,7 +784,7 @@ internal fun MangaExtensionsTab(
                             onClick = {
                                 if (!autoUpdateRunning) {
                                     autoUpdateRunning = true
-                                    autoUpdateResult = "🔄 Kontrol ediliyor..."
+                                    autoUpdateResult = autoUpdateChecking
                                     onForceCheckUpdates { result ->
                                         autoUpdateRunning = false
                                         autoUpdateResult = result
@@ -784,7 +794,7 @@ internal fun MangaExtensionsTab(
                             enabled = !autoUpdateRunning
                         ) {
                             Text(
-                                if (autoUpdateRunning) "Kontrol..." else KitsugiStrings.get(R.string.inline_update_now_f5b0013),
+                                if (autoUpdateRunning) stringResource(R.string.manga_auto_update_check_button) else KitsugiStrings.get(R.string.inline_update_now_f5b0013),
                                 fontSize = 11.sp,
                                 fontWeight = FontWeight.Bold
                             )
@@ -871,10 +881,10 @@ internal fun MangaExtensionsTab(
                         },
                         modifier = Modifier.size(32.dp)
                     ) {
-                        Icon(Icons.Rounded.Language, "Doğrula", tint = accentColor, modifier = Modifier.size(18.dp))
+                        Icon(Icons.Rounded.Language, stringResource(R.string.manga_source_verify), tint = accentColor, modifier = Modifier.size(18.dp))
                     }
                     IconButton(onClick = { manageTarget = source }, modifier = Modifier.size(32.dp)) {
-                        Icon(Icons.Rounded.Tune, "Yönet", tint = accentColor, modifier = Modifier.size(18.dp))
+                        Icon(Icons.Rounded.Tune, stringResource(R.string.manga_source_manage), tint = accentColor, modifier = Modifier.size(18.dp))
                     }
                     IconButton(onClick = { deleteTarget = source }, modifier = Modifier.size(32.dp)) {
                         Icon(Icons.Rounded.DeleteForever, "Sil", tint = KitsugiColors.AccentRed.copy(alpha = 0.7f), modifier = Modifier.size(18.dp))
@@ -919,7 +929,7 @@ internal fun MangaExtensionsTab(
             shape = RoundedCornerShape(20.dp),
             title = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text("Manga Source Raporu", color = KitsugiColors.TextPrimary, fontWeight = FontWeight.Bold)
+                    Text(stringResource(R.string.manga_report_title), color = KitsugiColors.TextPrimary, fontWeight = FontWeight.Bold)
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
                         FilterChip(text = stringResource(R.string.tumu), selected = reportFilter == "ALL", onClick = { reportFilter = "ALL" }, accentColor = accentColor)
                         FilterChip(text = "Healthy", selected = reportFilter == "Healthy", onClick = { reportFilter = "Healthy" }, accentColor = accentColor)
@@ -934,7 +944,7 @@ internal fun MangaExtensionsTab(
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
                         FilterChip(text = KitsugiStrings.get(R.string.guncel), selected = reportSort == "UPDATED", onClick = { reportSort = "UPDATED" }, accentColor = accentColor)
                         FilterChip(text = stringResource(R.string.hata), selected = reportSort == "FAILURES", onClick = { reportSort = "FAILURES" }, accentColor = accentColor)
-                        FilterChip(text = "Gecikme", selected = reportSort == "LATENCY", onClick = { reportSort = "LATENCY" }, accentColor = accentColor)
+                        FilterChip(text = stringResource(R.string.manga_health_latency), selected = reportSort == "LATENCY", onClick = { reportSort = "LATENCY" }, accentColor = accentColor)
                     }
                 }
             },
@@ -970,9 +980,9 @@ internal fun MangaExtensionsTab(
                                     }
                                     SourceStatLine("Active domain", item.activeDomain ?: "—")
                                     SourceStatLine("Success / Failure", "${item.successCount} / ${item.failureCount}")
-                                    SourceStatLine("Başarı oranı", formatSuccessRate(item.successCount, item.failureCount))
+                                    SourceStatLine(stringResource(R.string.manga_success_rate), formatSuccessRate(item.successCount, item.failureCount))
                                     TinyInfoChip(text = "Trend", tint = trendTint(item.successCount, item.failureCount))
-                                    SourceStatLine("Son kontrol", formatTimestamp(item.lastCheckedAt))
+                                    SourceStatLine(stringResource(R.string.manga_last_checked), formatTimestamp(item.lastCheckedAt))
                                     SourceStatLine("Search / Image", "${formatMs(item.avgSearchMs)} / ${formatMs(item.avgImageMs)}")
                                     val errorCode = PlatformErrorCode.fromMangaState(item.lastErrorCode, item.lastErrorType)?.id
                                     if (errorCode != null) {
@@ -982,7 +992,7 @@ internal fun MangaExtensionsTab(
                                             cooldownUntil = item.cooldownUntil,
                                         )
                                     } else if (!item.lastReason.isNullOrBlank()) {
-                                        SourceStatLine("Son neden", item.lastReason)
+                                        SourceStatLine(stringResource(R.string.manga_last_reason), item.lastReason)
                                     }
                                 }
                             }
@@ -1021,7 +1031,7 @@ internal fun MangaExtensionsTab(
             TvDialog(
                 onDismiss = { manageTarget = null },
                 title = src.name,
-                subtitle = "Motor: ${src.engineType.name} · Dil: ${src.lang.uppercase()}",
+                subtitle = stringResource(R.string.manga_engine_language, src.engineType.name, src.lang.uppercase()),
                 width = 520.dp
             ) {
                 Column(
@@ -1035,7 +1045,7 @@ internal fun MangaExtensionsTab(
                     SourceStatLine("Chapters avg", formatMs(stats.avgChapterMs))
                     SourceStatLine("Pages avg", formatMs(stats.avgPageMs))
                     SourceStatLine("Image avg", formatMs(stats.avgImageMs))
-                    SourceStatLine("Başarı / Hata", "${stats.successCount} / ${stats.failureCount}")
+                    SourceStatLine(stringResource(R.string.manga_success_failure), "${stats.successCount} / ${stats.failureCount}")
 
                     OutlinedTextField(
                         value = editedDomain,
@@ -1087,7 +1097,7 @@ internal fun MangaExtensionsTab(
 
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         KitsugiTonalButton(onClick = { onQuickCheckSource(src) }, enabled = !isBusy) { Text(stringResource(R.string.saglik_testi)) }
-                        KitsugiTonalButton(onClick = { onRefreshSourceMirror(src) }, enabled = !isBusy) { Text("Mirror bul") }
+                        KitsugiTonalButton(onClick = { onRefreshSourceMirror(src) }, enabled = !isBusy) { Text(stringResource(R.string.manga_find_mirror)) }
                         TextButton(onClick = {
                             editedDomain = ""
                             onClearSourceMirror(src)
@@ -1147,7 +1157,7 @@ internal fun MangaExtensionsTab(
                         SourceStatLine("Chapters avg", formatMs(stats.avgChapterMs))
                         SourceStatLine("Pages avg", formatMs(stats.avgPageMs))
                         SourceStatLine("Image avg", formatMs(stats.avgImageMs))
-                        SourceStatLine("Başarı / Hata", "${stats.successCount} / ${stats.failureCount}")
+                        SourceStatLine(stringResource(R.string.manga_success_failure), "${stats.successCount} / ${stats.failureCount}")
 
                         OutlinedTextField(
                             value = editedDomain,
@@ -1199,7 +1209,7 @@ internal fun MangaExtensionsTab(
 
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             KitsugiTonalButton(onClick = { onQuickCheckSource(src) }, enabled = !isBusy) { Text(stringResource(R.string.saglik_testi)) }
-                            KitsugiTonalButton(onClick = { onRefreshSourceMirror(src) }, enabled = !isBusy) { Text("Mirror bul") }
+                            KitsugiTonalButton(onClick = { onRefreshSourceMirror(src) }, enabled = !isBusy) { Text(stringResource(R.string.manga_find_mirror)) }
                             TextButton(onClick = {
                                 editedDomain = ""
                                 onClearSourceMirror(src)

@@ -90,10 +90,19 @@ internal object TmdbArtworkIdentity {
         .trim()
 
     /** Eşleşme yoksa galeriye hiçbir şey karışmaz; şüphede kalınırsa (veri eksik) izin verilir. */
-    fun matches(expectedTitles: List<String>, tmdbTitle: String?, tmdbOriginalTitle: String?): Boolean {
-        val candidates = listOfNotNull(tmdbTitle?.takeIf { it.isNotBlank() }, tmdbOriginalTitle?.takeIf { it.isNotBlank() })
+    fun matches(
+        expectedTitles: List<String>,
+        tmdbTitle: String?,
+        tmdbOriginalTitle: String?,
+        alternativeTitles: List<String> = emptyList()
+    ): Boolean {
+        val candidates = (listOfNotNull(
+            tmdbTitle?.takeIf { it.isNotBlank() },
+            tmdbOriginalTitle?.takeIf { it.isNotBlank() }
+        ) + alternativeTitles.filter { it.isNotBlank() })
             .map { normalize(it) }
             .filter { it.isNotEmpty() }
+            .distinct()
         val expected = expectedTitles.map { normalize(it) }.filter { it.length >= 3 }
         // Beklenen başlık yoksa doğrulama yapılamaz.
         if (expected.isEmpty()) return true
@@ -103,6 +112,18 @@ internal object TmdbArtworkIdentity {
             candidates.any { tmdb ->
                 tmdb == exp ||
                     (tmdb.length >= 5 && (tmdb.contains(exp) || exp.contains(tmdb)))
+            }
+        }
+    }
+
+    fun extractAlternativeTitles(json: org.json.JSONObject): List<String> {
+        val altObj = json.optJSONObject("alternative_titles") ?: return emptyList()
+        val arr = altObj.optJSONArray("results") ?: altObj.optJSONArray("titles") ?: return emptyList()
+        return buildList {
+            for (i in 0 until arr.length()) {
+                val item = arr.optJSONObject(i) ?: continue
+                val t = item.optString("title").trim()
+                if (t.isNotBlank()) add(t)
             }
         }
     }

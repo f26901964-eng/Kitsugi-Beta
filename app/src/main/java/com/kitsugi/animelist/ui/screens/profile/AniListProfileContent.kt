@@ -164,6 +164,8 @@ fun AniListProfileContent(
             val bannerUrl = state.bannerUrl?.takeIf { it.isNotBlank() }
             val imageList = listOfNotNull(avatarUrl, bannerUrl)
             val username = state.name.ifBlank { stringResource(R.string.kullanici) }
+            val bannerTitle = stringResource(R.string.profile_banner_title, username)
+            val avatarTitle = stringResource(R.string.profile_avatar_title, username)
 
             Box(
                 modifier = Modifier
@@ -173,12 +175,12 @@ fun AniListProfileContent(
                     .then(
                         if (!bannerUrl.isNullOrBlank()) Modifier.clickable {
                             val idx = imageList.indexOf(bannerUrl).coerceAtLeast(0)
-                            onImageClick?.invoke(imageList, idx, "$username Banner")
+                            onImageClick?.invoke(imageList, idx, bannerTitle)
                         } else Modifier
                     )
             ) {
                 if (!state.bannerUrl.isNullOrBlank()) {
-                    AsyncImage(model = state.bannerUrl, contentDescription = "Banner", modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
+                    AsyncImage(model = state.bannerUrl, contentDescription = bannerTitle, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
                 } else {
                     Box(modifier = Modifier.fillMaxSize().background(Brush.horizontalGradient(listOf(accentColor, KitsugiColors.AccentPink))))
                 }
@@ -203,7 +205,7 @@ fun AniListProfileContent(
                 Row(modifier = Modifier.align(Alignment.BottomStart).padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
                     AsyncImage(
                         model = state.avatarUrl ?: "",
-                        contentDescription = "Avatar",
+                        contentDescription = avatarTitle,
                         modifier = Modifier
                             .size(64.dp)
                             .clip(CircleShape)
@@ -211,7 +213,7 @@ fun AniListProfileContent(
                             .then(
                                 if (!avatarUrl.isNullOrBlank()) Modifier.clickable {
                                     val idx = imageList.indexOf(avatarUrl).coerceAtLeast(0)
-                                    onImageClick?.invoke(imageList, idx, "$username Profil Resmi")
+                                    onImageClick?.invoke(imageList, idx, avatarTitle)
                                 } else Modifier
                             ),
                         contentScale = ContentScale.Crop
@@ -233,10 +235,10 @@ fun AniListProfileContent(
                 Column(modifier = Modifier.padding(vertical = 6.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     val tabs = listOf(
                         Icons.Rounded.Info to stringResource(R.string.character_tab_about),
-                        Icons.Rounded.ChatBubble to "Aktivite",
-                        Icons.Rounded.BarChart to "İstatistikler",
-                        Icons.Rounded.Star to "Favoriler",
-                        Icons.Rounded.People to "Sosyal"
+                        Icons.Rounded.ChatBubble to stringResource(R.string.profile_tab_activity),
+                        Icons.Rounded.BarChart to stringResource(R.string.profile_tab_statistics),
+                        Icons.Rounded.Star to stringResource(R.string.profile_tab_favorites),
+                        Icons.Rounded.People to stringResource(R.string.profile_tab_social)
                     )
                     ProfileHeaderIconTabs(
                         tabs = tabs,
@@ -255,7 +257,14 @@ fun AniListProfileContent(
                                 horizontalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
                                 items(6) { idx ->
-                                    val label = listOf(stringResource(R.string.genel_bakis), stringResource(R.string.inline_genres_2ac9898), "Etiketler", "Ekip", "Seslendirenler", stringResource(R.string.detail_section_studios))[idx]
+                                    val label = listOf(
+                                        stringResource(R.string.profile_stats_general),
+                                        stringResource(R.string.detail_section_genres),
+                                        stringResource(R.string.profile_section_tags),
+                                        stringResource(R.string.profile_section_staff),
+                                        stringResource(R.string.character_tab_voice_actors),
+                                        stringResource(R.string.detail_section_studios)
+                                    )[idx]
                                     ProfileFilterChip(text = label, isSelected = statsSubTab == idx, accentColor = accentColor, onClick = { statsSubTab = idx })
                                 }
                             }
@@ -269,7 +278,7 @@ fun AniListProfileContent(
                                 horizontalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
                                 items(5) { idx ->
-                                    val label = listOf("Anime", "Manga", "Karakterler", "Ekip", stringResource(R.string.detail_section_studios))[idx]
+                                    val label = profileFavoriteCategoryLabels()[idx]
                                     ProfileFilterChip(text = label, isSelected = favoritesFilter == idx, accentColor = accentColor, onClick = { favoritesFilter = idx })
                                 }
                             }
@@ -282,8 +291,8 @@ fun AniListProfileContent(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
-                                item { ProfileFilterChip(text = KitsugiStrings.get(R.string.takipciler_x, state.socialState.followers.size), isSelected = socialFilter == 0, accentColor = accentColor, onClick = { socialFilter = 0 }) }
-                                item { ProfileFilterChip(text = "Takip Edilen (${state.socialState.following.size})", isSelected = socialFilter == 1, accentColor = accentColor, onClick = { socialFilter = 1 }) }
+                                item { ProfileFilterChip(text = stringResource(R.string.profile_followers_count, state.socialState.followers.size), isSelected = socialFilter == 0, accentColor = accentColor, onClick = { socialFilter = 0 }) }
+                                item { ProfileFilterChip(text = stringResource(R.string.profile_following_count, state.socialState.following.size), isSelected = socialFilter == 1, accentColor = accentColor, onClick = { socialFilter = 1 }) }
                             }
                         }
                     }
@@ -404,9 +413,16 @@ fun AniListProfileContent(
             else -> emptyList()
         },
         categoryLabels = when (activeTab) {
-            2 -> listOf(stringResource(R.string.genel_bakis), stringResource(R.string.inline_genres_2ac9898), "Etiketler", "Ekip", "Seslendirenler", stringResource(R.string.detail_section_studios))
-            4 -> listOf(stringResource(R.string.takipciler), "Takip Edilen")
-            else -> ProfileFavoriteCategoryLabels
+            2 -> listOf(
+                                        stringResource(R.string.profile_stats_general),
+                                        stringResource(R.string.detail_section_genres),
+                                        stringResource(R.string.profile_section_tags),
+                                        stringResource(R.string.profile_section_staff),
+                                        stringResource(R.string.character_tab_voice_actors),
+                                        stringResource(R.string.detail_section_studios)
+                                    )
+            4 -> listOf(stringResource(R.string.profile_followers), stringResource(R.string.profile_following))
+            else -> profileFavoriteCategoryLabels()
         },
         showCounts = activeTab != 2,
         onCategorySelected = { when (activeTab) {

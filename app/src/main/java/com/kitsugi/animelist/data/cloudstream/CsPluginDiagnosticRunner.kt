@@ -139,9 +139,24 @@ object CsPluginDiagnosticRunner {
         val phaseErrors:   List<PhaseError>,  // fazlar bazında tüm hatalar
         val error:         String?           // genel/son hata özeti
     ) {
+        private val phaseEvidence: List<String>
+            get() = phaseErrors.map { phaseError ->
+                listOfNotNull(phaseError.errorClass, phaseError.message, phaseError.httpCode?.toString())
+                    .joinToString(" ")
+            }
+
+        private val classifiedCause: PlatformErrorCode
+            get() = CloudStreamErrorClassifier.classifyDiagnostic(
+                phaseEvidence = phaseEvidence,
+                error = error,
+                noStreams = false,
+            )
+
         val status: ResultStatus get() = when {
             streamCount > 0 -> ResultStatus.WORKING
             hasCfBlock || hasDdosGuard -> ResultStatus.CF_BLOCKED
+            classifiedCause == PlatformErrorCode.CloudStreamRuntimeIncompatible -> ResultStatus.RUNTIME_INCOMPATIBLE
+            classifiedCause == PlatformErrorCode.CloudStreamAuthRequired -> ResultStatus.AUTH_REQUIRED
             !downloaded || !loaded -> ResultStatus.DEAD
             searchCount == 0       -> {
                 if (hasNetworkFail || hasTimeout) {
@@ -163,12 +178,8 @@ object CsPluginDiagnosticRunner {
         /** Stable user-facing code for the latest diagnostic outcome; successful plugins have none. */
         val errorCode: String? get() {
             if (streamCount > 0) return null
-            val evidence = phaseErrors.map { phaseError ->
-                listOfNotNull(phaseError.errorClass, phaseError.message, phaseError.httpCode?.toString())
-                    .joinToString(" ")
-            }
             val classified = CloudStreamErrorClassifier.classifyDiagnostic(
-                phaseEvidence = evidence,
+                phaseEvidence = phaseEvidence,
                 error = error,
                 noStreams = status == ResultStatus.NO_STREAMS || status == ResultStatus.SEARCH_EMPTY,
             )
@@ -179,7 +190,7 @@ object CsPluginDiagnosticRunner {
     }
 
     enum class ResultStatus {
-        WORKING, NO_STREAMS, SEARCH_EMPTY, CF_BLOCKED, LOAD_FAILED, DEAD
+        WORKING, NO_STREAMS, SEARCH_EMPTY, CF_BLOCKED, LOAD_FAILED, DEAD, RUNTIME_INCOMPATIBLE, AUTH_REQUIRED
     }
 
     /** Consistent counters shared by the in-app summary and exported report. */
@@ -190,6 +201,8 @@ object CsPluginDiagnosticRunner {
         val cfBlocked: Int,
         val loadFailed: Int,
         val dead: Int,
+        val runtimeIncompatible: Int,
+        val authRequired: Int,
         val errorCodeCounts: Map<String, Int> = emptyMap(),
     )
 
@@ -202,6 +215,8 @@ object CsPluginDiagnosticRunner {
             cfBlocked = counts[ResultStatus.CF_BLOCKED] ?: 0,
             loadFailed = counts[ResultStatus.LOAD_FAILED] ?: 0,
             dead = counts[ResultStatus.DEAD] ?: 0,
+            runtimeIncompatible = counts[ResultStatus.RUNTIME_INCOMPATIBLE] ?: 0,
+            authRequired = counts[ResultStatus.AUTH_REQUIRED] ?: 0,
             errorCodeCounts = results.mapNotNull { it.errorCode }
                 .groupingBy { it }
                 .eachCount()
@@ -599,7 +614,9 @@ object CsPluginDiagnosticRunner {
             } catch (t: Throwable) { err("load", t); emptyList() }
             loaded   = apis.isNotEmpty()
             apiCount = apis.size
+            val loaderError = if (!loaded) CsPluginLoader.takeLastLoadError(plugin.internalName) else null
             if (!loaded) {
+                loaderError?.let { errMsg("load", it) }
                 return DiagnosticResult(
                     pluginId = plugin.internalName, repoSlug = plugin.repoSlug,
                     displayName = plugin.displayName, mainUrl = mainUrl,
@@ -608,7 +625,7 @@ object CsPluginDiagnosticRunner {
                     loadOk = false, loadedTitle = null, episodeFound = false,
                     streamCount = 0, streamUrls = emptyList(),
                     embedResults = emptyList(), phaseErrors = phaseErrors.toList(),
-                    error = phaseErrors.lastOrNull()?.message ?: "No APIs registered"
+                    error = loaderError ?: phaseErrors.lastOrNull()?.message ?: "No APIs registered"
                 )
             }
 
@@ -836,6 +853,8 @@ object CsPluginDiagnosticRunner {
             sb.appendLine("| 🔎 Arama sonucu boş (CF/WAF imzası yok) | ${summary.searchEmpty} |")
             sb.appendLine("| ⚠️ Detay yükleme başarısız | ${summary.loadFailed} |")
             sb.appendLine("| ❌ Eklenti/ağ hatası veya timeout | ${summary.dead} |")
+            sb.appendLine("| 🧩 Çalışma zamanı uyumsuzluğu | ${summary.runtimeIncompatible} |")
+            sb.appendLine("| 🔑 Hesap/giriş gerekli | ${summary.authRequired} |")
             if (summary.errorCodeCounts.isNotEmpty()) {
                 sb.appendLine()
                 sb.appendLine("## Hata Kodu Özeti")
@@ -857,6 +876,8 @@ object CsPluginDiagnosticRunner {
                     ResultStatus.CF_BLOCKED   -> "🔐 Confirmed CF/WAF/DDoS"
                     ResultStatus.LOAD_FAILED  -> "⚠️ Load Fail"
                     ResultStatus.DEAD         -> "❌ ${r.error?.take(35) ?: "Bozuk"}"
+                    ResultStatus.RUNTIME_INCOMPATIBLE -> "🧩 Runtime incompatible"
+                    ResultStatus.AUTH_REQUIRED -> "🔑 Account/login required"
                 }
                 val protection = when {
                     r.hasCfBlock -> "CF/WAF"

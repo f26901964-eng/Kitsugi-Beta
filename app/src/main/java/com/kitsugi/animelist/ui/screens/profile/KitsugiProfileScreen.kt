@@ -168,7 +168,7 @@ fun KitsugiProfileScreen(
                     ) {
                         Icon(
                             imageVector = Icons.Rounded.Notifications,
-                            contentDescription = "Bildirimler",
+                            contentDescription = stringResource(R.string.notif_title),
                             tint = accentColor
                         )
                     }

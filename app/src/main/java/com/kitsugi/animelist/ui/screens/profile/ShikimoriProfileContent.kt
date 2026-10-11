@@ -103,6 +103,7 @@ fun ShikimoriProfileContent(
         item {
             val avatarUrl = state.avatarUrl?.takeIf { it.isNotBlank() }
             val username = state.name.ifBlank { stringResource(R.string.shikimori_kullanicisi) }
+            val avatarTitle = stringResource(R.string.profile_avatar_title, username)
 
             Box(
                 modifier = Modifier
@@ -146,7 +147,7 @@ fun ShikimoriProfileContent(
                                     putExtra(android.content.Intent.EXTRA_TEXT, url)
                                     type = "text/plain"
                                 }
-                                val shareIntent = android.content.Intent.createChooser(sendIntent, "Profili Paylaş")
+                                val shareIntent = android.content.Intent.createChooser(sendIntent, KitsugiStrings.get(R.string.profili_paylas))
                                 shareIntent.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
                                 context.startActivity(shareIntent)
                             },
@@ -170,7 +171,7 @@ fun ShikimoriProfileContent(
                 ) {
                     AsyncImage(
                         model = avatarUrl ?: com.kitsugi.animelist.R.drawable.ic_logo_shikimori,
-                        contentDescription = "Shikimori Avatar",
+                        contentDescription = avatarTitle,
                         modifier = Modifier
                             .size(68.dp)
                             .clip(CircleShape)
@@ -178,7 +179,7 @@ fun ShikimoriProfileContent(
                             .then(
                                 if (!avatarUrl.isNullOrBlank()) {
                                     Modifier.clickable {
-                                        onImageClick?.invoke(listOf(avatarUrl), 0, "$username Profil Resmi")
+                                        onImageClick?.invoke(listOf(avatarUrl), 0, avatarTitle)
                                     }
                                 } else Modifier
                             ),
@@ -231,8 +232,8 @@ fun ShikimoriProfileContent(
                 ) {
                     val tabs = listOf(
                         Icons.Rounded.Info to stringResource(R.string.character_tab_about),
-                        Icons.Rounded.BarChart to "İstatistikler",
-                        Icons.Rounded.Bookmarks to "Kayıtlar"
+                        Icons.Rounded.BarChart to stringResource(R.string.profile_tab_statistics),
+                        Icons.Rounded.Bookmarks to stringResource(R.string.profile_records)
                     )
                     ProfileHeaderIconTabs(
                         tabs = tabs,
@@ -398,10 +399,10 @@ private fun ShikimoriAboutTab(
         // Favorites Horizontal Section
         if (state.favorites.isNotEmpty()) {
             FavoritesHorizontalSection(
-                title = "Favoriler",
+                title = stringResource(R.string.profile_favorites),
                 items = state.favorites,
                 onSeeAllClick = {
-                    onOpenFavoriteSheet("Shikimori Favoriler", state.favorites) { item ->
+                    onOpenFavoriteSheet(KitsugiStrings.get(R.string.profile_platform_favorites, "Shikimori"), state.favorites) { item ->
                         val idInt = item.id.toIntOrNull() ?: 0
                         onFavoriteMediaClick(idInt, MediaType.Anime, "mal", item.title, item.imageUrl)
                     }
@@ -431,22 +432,26 @@ private fun ShikimoriAboutTab(
                 )
 
                 if (!state.location.isNullOrBlank()) {
-                    ShikiAttributeRow(icon = Icons.Rounded.LocationOn, label = "Konum", value = state.location)
+                    ShikiAttributeRow(icon = Icons.Rounded.LocationOn, label = stringResource(R.string.profile_label_location), value = state.location)
                 }
                 if (!state.website.isNullOrBlank()) {
-                    ShikiAttributeRow(icon = Icons.Rounded.Language, label = "Web Sitesi", value = state.website)
+                    ShikiAttributeRow(icon = Icons.Rounded.Language, label = stringResource(R.string.profile_label_website), value = state.website)
                 }
                 if (!state.sex.isNullOrBlank() || state.fullYears != null) {
-                    val sexStr = when (state.sex) { "male" -> "Erkek"; "female" -> "Kadın"; else -> state.sex ?: "" }
-                    val ageStr = if (state.fullYears != null) "${state.fullYears} Yaşında" else ""
+                    val sexStr = when (state.sex?.lowercase()) {
+                        "male" -> stringResource(R.string.profile_gender_male)
+                        "female" -> stringResource(R.string.profile_gender_female)
+                        else -> state.sex ?: ""
+                    }
+                    val ageStr = state.fullYears?.let { stringResource(R.string.profile_age_years, it) }.orEmpty()
                     val combo = listOf(sexStr, ageStr).filter { it.isNotBlank() }.joinToString(" • ")
                     ShikiAttributeRow(icon = Icons.Rounded.Person, label = stringResource(R.string.cinsiyet_yas), value = combo)
                 }
                 if (!state.lastOnline.isNullOrBlank()) {
                     ShikiAttributeRow(icon = Icons.Rounded.Schedule, label = stringResource(R.string.son_giris), value = state.lastOnline.take(16).replace("T", " "))
                 }
-                ShikiAttributeRow(icon = Icons.Rounded.CheckCircle, label = "Tamamlanan Anime", value = state.completedAnime.toString())
-                ShikiAttributeRow(icon = Icons.Rounded.CheckCircle, label = "Tamamlanan Manga", value = state.completedManga.toString())
+                ShikiAttributeRow(icon = Icons.Rounded.CheckCircle, label = stringResource(R.string.profile_completed_anime), value = state.completedAnime.toString())
+                ShikiAttributeRow(icon = Icons.Rounded.CheckCircle, label = stringResource(R.string.profile_completed_manga), value = state.completedManga.toString())
             }
         }
     }

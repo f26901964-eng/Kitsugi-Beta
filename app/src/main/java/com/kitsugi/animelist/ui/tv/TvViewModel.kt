@@ -109,13 +109,12 @@ class TvViewModel(application: Application) : AndroidViewModel(application) {
             throw IllegalStateException("Sunucu bağlantısı kurulamadı. Lütfen internet bağlantınızı kontrol edip tekrar deneyin.")
         }
 
-        // Hero listesi için backdrop zenginleştirmesi (ilk 8 öğe)
+        // Hero listesi için TMDB + Fanart.tv poster & backdrop zenginleştirmesi (ilk 8 öğe)
         val heroRaw = (trending + top).distinctBy { it.malId }.take(8)
         val heroEnriched = heroRaw.map { item ->
             async {
                 runCatching {
-                    val backdrop = tmdbClient.fetchBackdropByTitle(item.title)
-                    if (backdrop != null) item.copy(backdropUrl = backdrop) else item
+                    com.kitsugi.animelist.data.remote.KitsugiHeroArtworkResolver.enrichItem(item)
                 }.getOrDefault(item)
             }
         }.map { it.await() }
@@ -157,11 +156,13 @@ class TvViewModel(application: Application) : AndroidViewModel(application) {
 
         enrichmentJob?.cancel()
         enrichmentJob = viewModelScope.launch {
-            // 1. TMDB'den yüksek kaliteli backdropUrl çekip zenginleştir
-            if (!_enrichedItems.value.containsKey(malId) && item.backdropUrl.isNullOrBlank()) {
-                val backdrop = runCatching { tmdbClient.fetchBackdropByTitle(item.title) }.getOrNull()
-                if (backdrop != null) {
-                    _enrichedItems.value = _enrichedItems.value + (malId to item.copy(backdropUrl = backdrop))
+            // 1. TMDB + Fanart.tv'den yüksek kaliteli posterUrl ve backdropUrl çekip zenginleştir
+            if (!_enrichedItems.value.containsKey(malId)) {
+                val enriched = runCatching {
+                    com.kitsugi.animelist.data.remote.KitsugiHeroArtworkResolver.enrichItem(item)
+                }.getOrNull()
+                if (enriched != null && (enriched.backdropUrl != item.backdropUrl || enriched.imageUrl != item.imageUrl)) {
+                    _enrichedItems.value = _enrichedItems.value + (malId to enriched)
                 }
             }
 

@@ -30,6 +30,7 @@ import com.kitsugi.animelist.ui.theme.LocalKitsugiAccent
 import kotlinx.coroutines.launch
 import androidx.compose.ui.res.stringResource
 import com.kitsugi.animelist.R
+import com.kitsugi.animelist.utils.KitsugiStrings
 
 @Composable
 fun P2pSettingsSection(
@@ -191,7 +192,7 @@ fun P2pSettingsSection(
                         2000L to "2 MB/s",
                         5000L to "5 MB/s",
                     )
-                    val currentUploadLabel = uploadLimitOptions.firstOrNull { it.first == p2pState.uploadLimitKbps }?.second ?: "Sınırsız Yükleme"
+                    val currentUploadLabel = uploadLimitOptions.firstOrNull { it.first == p2pState.uploadLimitKbps }?.second ?: stringResource(R.string.sinirsiz_yukleme)
 
                     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                         Text(
@@ -240,14 +241,14 @@ fun P2pSettingsSection(
                 var profileDropdownExpanded by remember { mutableStateOf(false) }
                 val profileOptions = listOf(
                     P2pTorrentProfile.BALANCED to (stringResource(R.string.dengeli_onerilen) to stringResource(R.string.hizli_baslangic_ve_kararli_baglanti_dengesi)),
-                    P2pTorrentProfile.SOFT to ("Hafif (Soft)" to "Düşük pil ve arka plan veri tüketimi"),
-                    P2pTorrentProfile.FAST to ("Hızlı (Fast)" to "Yüksek eş sayısı ve agresif indirme")
+                    P2pTorrentProfile.SOFT to (stringResource(R.string.p2p_profile_soft) to stringResource(R.string.p2p_profile_soft_desc)),
+                    P2pTorrentProfile.FAST to (stringResource(R.string.p2p_profile_fast) to stringResource(R.string.p2p_profile_fast_desc))
                 )
-                val currentProfileLabel = profileOptions.firstOrNull { it.first == p2pState.torrentProfile }?.second?.first ?: "Dengeli"
+                val currentProfileLabel = profileOptions.firstOrNull { it.first == p2pState.torrentProfile }?.second?.first ?: stringResource(R.string.dengeli_onerilen)
 
                 Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     Text(
-                        text = "Torrent Profili",
+                        text = stringResource(R.string.p2p_profile_label),
                         color = KitsugiColors.TextSecondary,
                         fontSize = 12.sp,
                         fontWeight = FontWeight.Medium
@@ -293,7 +294,7 @@ fun P2pSettingsSection(
                     P2pCacheSize.GB_2 to stringResource(R.string.onerilen_2_gb),
                     P2pCacheSize.GB_5 to "5 GB",
                     P2pCacheSize.GB_10 to "10 GB",
-                    P2pCacheSize.NONE to "Kalıcı Önbellek Yok"
+                    P2pCacheSize.NONE to stringResource(R.string.p2p_cache_no_persistent)
                 )
                 val currentCacheLabel = cacheOptions.firstOrNull { it.first == p2pState.cacheSize }?.second ?: "2 GB"
 
@@ -347,16 +348,16 @@ fun P2pSettingsSection(
                 ) {
                     Column(modifier = Modifier.weight(1f).padding(end = 12.dp)) {
                         Text(
-                            text = "Video kapanınca önbelleği temizle",
+                            text = stringResource(R.string.p2p_clear_cache_on_close),
                             color = KitsugiColors.TextPrimary,
                             fontSize = 14.sp,
                             fontWeight = FontWeight.Medium
                         )
                         Text(
                             text = if (p2pState.clearCacheOnClose) {
-                                "Torrent verisi yalnızca izlerken tutulur; oynatıcı kapanınca silinir."
+                                stringResource(R.string.p2p_cache_cleared_on_close_desc)
                             } else {
-                                "Kapalı: torrent verisi cihazda birikir. Manuel olarak 'Temizle' ile silebilirsiniz."
+                                stringResource(R.string.p2p_cache_accumulates_desc)
                             },
                             color = if (p2pState.clearCacheOnClose) accentColor else KitsugiColors.TextSecondary,
                             fontSize = 12.sp
@@ -384,9 +385,9 @@ fun P2pSettingsSection(
                             fontWeight = FontWeight.Medium
                         )
                         val usageText = if (cacheState.hasMeasurement) {
-                            "${formatP2pBytes(cacheState.usedBytes)} önbellek kullanılıyor"
+                            stringResource(R.string.p2p_cache_usage, formatP2pBytes(cacheState.usedBytes))
                         } else {
-                            "P2P başlatıldıktan sonra kullanım ölçülür"
+                            stringResource(R.string.p2p_cache_measure_after_start)
                         }
                         Text(
                             text = usageText,
@@ -402,13 +403,13 @@ fun P2pSettingsSection(
                                     val res = P2pStreamingEngine.clearCache()
                                     Toast.makeText(
                                         context,
-                                        "${formatP2pBytes(res.reclaimedBytes)} torrent önbelleği temizlendi",
+                                        KitsugiStrings.get(R.string.p2p_cache_cleared, formatP2pBytes(res.reclaimedBytes)),
                                         Toast.LENGTH_SHORT
                                     ).show()
                                 } catch (e: Exception) {
                                     Toast.makeText(
                                         context,
-                                        "Önbellek temizlenemedi: ${e.message}",
+                                        KitsugiStrings.get(R.string.p2p_cache_clear_failed, e.message ?: ""),
                                         Toast.LENGTH_SHORT
                                     ).show()
                                 }

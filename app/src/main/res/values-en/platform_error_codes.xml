@@ -51,6 +51,12 @@
     <string name="platform_error_csp_parser_title">Plugin parsing error</string>
     <string name="platform_error_csp_parser_cause">A change to the provider\'s page/API format prevented the plugin from reading its response.</string>
     <string name="platform_error_csp_parser_action">Update the plugin. If it continues on the latest version, report it to the plugin repository.</string>
+    <string name="platform_error_csp_auth_required_title">Plugin account required</string>
+    <string name="platform_error_csp_auth_required_cause">The source requires an account or login credentials before it can search.</string>
+    <string name="platform_error_csp_auth_required_action">Open the plugin settings and configure the required account. This source cannot work without it.</string>
+    <string name="platform_error_csp_runtime_title">Plugin runtime incompatibility</string>
+    <string name="platform_error_csp_runtime_cause">The CS3 plugin referenced a runtime class that is missing or incompatible in the app\'s dynamic plugin loader.</string>
+    <string name="platform_error_csp_runtime_action">Update the app. If it continues, share the live trace report; this is an app/plugin compatibility issue.</string>
     <string name="platform_error_csp_unknown_title">Unclassified plugin error</string>
     <string name="platform_error_csp_unknown_cause">The error did not match any known CloudStream diagnostic signature.</string>
     <string name="platform_error_csp_unknown_action">Try again and share this code with the diagnostic report.</string>

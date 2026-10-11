@@ -350,13 +350,13 @@ object KitsuExploreClient {
             val favCount  = attrs.optInt("favoritesCount", 0).takeIf { it > 0 }
 
             val posterObj = attrs.optJSONObject("posterImage")
-            val imageUrl  = posterObj?.optString("medium")?.takeIf { it.isNotBlank() }
-                ?: posterObj?.optString("large")?.takeIf { it.isNotBlank() }
+            val imageUrl  = posterObj?.optString("large")?.takeIf { it.isNotBlank() }
                 ?: posterObj?.optString("original")?.takeIf { it.isNotBlank() }
+                ?: posterObj?.optString("medium")?.takeIf { it.isNotBlank() }
 
             val coverObj    = attrs.optJSONObject("coverImage")
-            val backdropUrl = coverObj?.optString("large")?.takeIf { it.isNotBlank() }
-                ?: coverObj?.optString("original")?.takeIf { it.isNotBlank() }
+            val backdropUrl = coverObj?.optString("original")?.takeIf { it.isNotBlank() }
+                ?: coverObj?.optString("large")?.takeIf { it.isNotBlank() }
 
             val total = when (mediaType) {
                 MediaType.Anime, MediaType.Movie, MediaType.TvShow ->
@@ -390,6 +390,7 @@ object KitsuExploreClient {
                 realMalId     = null,       // Kitsu ek API çağrısı olmadan MAL ID'sini bilmiyor
                 titleEnglish  = titleEn,
                 titleJapanese = titleJa,
+                titleRomaji   = titleEnJp,
                 backdropUrl   = backdropUrl,
                 members       = userCount,
                 favorites     = favCount

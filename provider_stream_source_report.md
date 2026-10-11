@@ -1,14 +1,14 @@
 # Kitsugi Provider Stream Source Discovery — L4/L5/L6 Raporu
 
-**Oluşturulma:** 2026-10-11T06:46:28.673420400
+**Oluşturulma:** 2026-10-11T19:38:45.994776300
 **Taranan provider:** 59
 
 ## Özet
 | Metrik | Sayı |
 |---|---|
 | 🔍 Arama başarılı (200 OK + embed bulundu) | 2 |
-| ✅ Arama sayfası 200 OK | 39 |
-| ❌ Arama başarısız (timeout/CF/404) | 20 |
+| ✅ Arama sayfası 200 OK | 40 |
+| ❌ Arama başarısız (timeout/CF/404) | 19 |
 | 🔐 Cloudflare challenge (JS bypass gerekli) | 0 |
 
 ## CDN Kullanım Haritası (hangi CDN kaç provider tarafından kullanılıyor)
@@ -57,7 +57,7 @@
 | **FilmMakinesi** | `https://filmmakinesi.to` | — | 0 | — | ❌ Erişilemiyor |
 | **FilmModu** | `https://www.filmmodu.one` | naruto | 0 | — | ⚠️ Sayfa OK, embed yok |
 | **FilmZal** | `https://filmzal.me` | — | 0 | — | ❌ Erişilemiyor |
-| **FullHDFilm** | `https://fullhdfilm.pro` | — | 0 | — | ❌ Erişilemiyor |
+| **FullHDFilm** | `https://fullhdfilm.pro` | naruto | 0 | — | ⚠️ Sayfa OK, embed yok |
 | **FullHDFilmizlesene** | `https://www.fullhdfilmizlesene.mx` | — | 0 | — | ❌ Erişilemiyor |
 | **HDFilmCehennemi** | `https://www.hdfilmcehennemi.nl` | — | 0 | — | ❌ Erişilemiyor |
 | **HDFilmDelisi** | `https://hdfilmdelisi.one` | naruto | 0 | — | ⚠️ Sayfa OK, embed yok |
@@ -65,7 +65,7 @@
 | **IzleAI** | `https://720pizle.ai` | — | 0 | — | ❌ Erişilemiyor |
 | **JetFilmizle** | `https://jetfilmizle.now` | naruto | 0 | — | ⚠️ Sayfa OK, embed yok |
 | **KoreanTurk** | `https://www.koreanturk.net` | — | 0 | — | ❌ Erişilemiyor |
-| **KultFilmler** | `https://kultfilmler.net` | naruto | 0 | — | ⚠️ Sayfa OK, embed yok |
+| **KultFilmler** | `https://kultfilmler.net` | — | 0 | — | ❌ Erişilemiyor |
 | **RecTV** | `https://b.prectv38.sbs` | — | 0 | — | ❌ Erişilemiyor |
 | **SeiCode** | `https://seiwatch.net` | naruto | 0 | — | ⚠️ Sayfa OK, embed yok |
 | **SelcukFlix** | `https://selcukflix.co` | naruto | 0 | — | ⚠️ Sayfa OK, embed yok |
@@ -74,7 +74,7 @@
 | **SinemaCX** | `https://www.sinema.gg` | naruto | 0 | — | ⚠️ Sayfa OK, embed yok |
 | **Sinezy** | `https://sinezy.to` | naruto | 0 | — | ⚠️ Sayfa OK, embed yok |
 | **TrAnimeIzle** | `https://www.tranimeizle.io` | naruto | 0 | — | ⚠️ Sayfa OK, embed yok |
-| **TrAnimeci** | `https://tranimaci.com` | — | 0 | — | ❌ Erişilemiyor |
+| **TrAnimeci** | `https://tranimaci.com` | naruto | 0 | — | ⚠️ Sayfa OK, embed yok |
 | **TrDiziIzle** | `https://www.trdiziizle.tv` | naruto | 0 | — | ⚠️ Sayfa OK, embed yok |
 | **TurkAnime** | `https://www.turkanime.co` | — | 0 | — | ❌ Erişilemiyor |
 | **WFilmizle** | `https://www.wfilmizle.pw` | — | 0 | — | ❌ Erişilemiyor |

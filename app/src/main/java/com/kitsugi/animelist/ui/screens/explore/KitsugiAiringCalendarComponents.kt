@@ -607,19 +607,29 @@ internal fun AiringEntryGridCard(
 
         Spacer(modifier = Modifier.height(4.dp))
 
-        // Episode & Time info
+        // Episode & Time info — kart çerçevesine sığması için iki satıra kadar sarılır,
+        // sabit yükseklik sayesinde tüm kartlar aynı boyda kalır.
         Row(
-            verticalAlignment = Alignment.CenterVertically,
+            verticalAlignment = Alignment.Top,
             horizontalArrangement = Arrangement.spacedBy(3.dp),
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(34.dp)
         ) {
             Icon(
                 imageVector = Icons.Rounded.Schedule,
                 contentDescription = null,
                 tint = KitsugiColors.TextSecondary,
-                modifier = Modifier.size(11.dp)
+                modifier = Modifier
+                    .padding(top = 2.dp)
+                    .size(11.dp)
             )
-            AiringTimeText(entry = entry, episode = entry.episode)
+            AiringTimeText(
+                entry = entry,
+                episode = entry.episode,
+                maxLines = 2,
+                modifier = Modifier.weight(1f)
+            )
         }
     }
 }
@@ -804,7 +814,12 @@ private fun Long.secondsToLegibleText(context: android.content.Context): String 
 }
 
 @Composable
-private fun AiringTimeText(entry: AiringEntry, episode: Int? = null) {
+private fun AiringTimeText(
+    entry: AiringEntry,
+    episode: Int? = null,
+    maxLines: Int = 1,
+    modifier: Modifier = Modifier
+) {
     val context = LocalContext.current
     // Yayın tarihi + saat + geri sayım — "2026-10-15 14:30 • 19 gün sonra yayında"
     val datePrefix = remember(entry) {
@@ -840,8 +855,9 @@ private fun AiringTimeText(entry: AiringEntry, episode: Int? = null) {
         text = displayText,
         style = MaterialTheme.typography.labelSmall,
         color = KitsugiColors.TextSecondary,
-        maxLines = 1,
-        overflow = TextOverflow.Ellipsis
+        maxLines = maxLines,
+        overflow = TextOverflow.Ellipsis,
+        modifier = modifier
     )
 }
 

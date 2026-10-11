@@ -3,6 +3,7 @@ package com.kitsugi.animelist.utils
 import android.content.Context
 import androidx.annotation.StringRes
 import com.kitsugi.animelist.KitsugiApplication
+import java.util.Locale
 
 /**
  * Composable olmayan bağlamlarda (ViewModel, servis, Worker, veri katmanı,
@@ -48,6 +49,13 @@ object KitsugiStrings {
         KitsugiApplication.activeActivity?.resources
             ?: KitsugiApplication.getInstance()?.resources
             ?: fallbackContext?.applicationContext?.resources
+
+    /** Returns the locale configured for the app's currently active resources. */
+    @JvmStatic
+    fun locale(): Locale {
+        val locales = resources()?.configuration?.locales
+        return if (locales != null && locales.size() > 0) locales[0] else Locale.getDefault()
+    }
 
     /** Kaynak metni, isteğe bağlı biçimlendirme argümanlarıyla döner. */
     @JvmStatic

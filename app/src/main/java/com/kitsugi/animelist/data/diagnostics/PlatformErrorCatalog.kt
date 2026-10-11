@@ -160,6 +160,20 @@ enum class PlatformErrorCode(
         R.string.platform_error_csp_unknown_cause,
         R.string.platform_error_csp_unknown_action,
         PlatformErrorSeverity.Warning,
+    ),
+    CloudStreamAuthRequired(
+        PlatformErrorPlatform.CloudStream, PlatformErrorCodeGenerator.generate(PlatformErrorPlatform.CloudStream, 9109), "AuthenticationRequired",
+        R.string.platform_error_csp_auth_required_title,
+        R.string.platform_error_csp_auth_required_cause,
+        R.string.platform_error_csp_auth_required_action,
+        PlatformErrorSeverity.Warning,
+    ),
+    CloudStreamRuntimeIncompatible(
+        PlatformErrorPlatform.CloudStream, PlatformErrorCodeGenerator.generate(PlatformErrorPlatform.CloudStream, 9110), "RuntimeIncompatible",
+        R.string.platform_error_csp_runtime_title,
+        R.string.platform_error_csp_runtime_cause,
+        R.string.platform_error_csp_runtime_action,
+        PlatformErrorSeverity.Error,
     );
 
     companion object {

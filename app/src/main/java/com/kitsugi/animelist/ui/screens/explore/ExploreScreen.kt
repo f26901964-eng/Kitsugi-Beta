@@ -238,18 +238,38 @@ fun ExploreScreen(
         generateExploreEntryMap(currentEntries)
     }
 
-    // TMDB'den sonradan gelen vitrin arka planlarını (geniş vitrin bandında
-    // kaplayan görsel olarak kullanılır) birleştir.
-    val displayHeroItems = remember(heroItems, viewModel.heroBackdropOverrides) {
-        val overrides = viewModel.heroBackdropOverrides
-        if (overrides.isEmpty()) {
-            heroItems
-        } else {
-            heroItems.map { item ->
-                overrides[item.exploreIdentity()]
-                    ?.takeIf { it.isNotBlank() }
-                    ?.let { url -> item.copy(backdropUrl = url) }
-                    ?: item
+    // TMDB ve Fanart.tv'den çözülen en kaliteli dikey poster + yatay arka planları birleştir.
+    val displayHeroItems = remember(heroItems, viewModel.heroArtworkOverrides, viewModel.heroBackdropOverrides) {
+        val artworkOverrides = viewModel.heroArtworkOverrides
+        val backdropOverrides = viewModel.heroBackdropOverrides
+        heroItems.map { item ->
+            val identity = item.exploreIdentity()
+            val artwork = artworkOverrides[identity]
+                ?: com.kitsugi.animelist.data.remote.KitsugiHeroArtworkResolver.getCached(item)
+            val upgradedPoster = com.kitsugi.animelist.data.remote.KitsugiHeroArtworkResolver.upgradeNativePosterUrl(
+                item.imageUrl,
+                item.source
+            )
+            val sanitizedBackdrop = com.kitsugi.animelist.data.remote.KitsugiHeroArtworkResolver.sanitizeNativeBackdropUrl(
+                item.backdropUrl,
+                upgradedPoster,
+                item.source
+            )
+            val finalPoster = artwork?.bestPosterUrl?.takeIf { it.isNotBlank() } ?: upgradedPoster ?: item.imageUrl
+            val finalBackdrop = if (item.type == com.kitsugi.animelist.model.MediaType.Manga) {
+                sanitizedBackdrop
+            } else {
+                artwork?.bestBackdropUrl?.takeIf { it.isNotBlank() }
+                    ?: backdropOverrides[identity]?.takeIf { it.isNotBlank() }
+                    ?: sanitizedBackdrop
+            }
+            if (finalPoster == item.imageUrl && finalBackdrop == item.backdropUrl) {
+                item
+            } else {
+                item.copy(
+                    imageUrl = finalPoster,
+                    backdropUrl = finalBackdrop
+                )
             }
         }
     }

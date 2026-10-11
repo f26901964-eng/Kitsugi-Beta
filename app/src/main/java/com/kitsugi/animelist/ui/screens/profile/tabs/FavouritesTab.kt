@@ -48,7 +48,10 @@ fun FavouritesScreen(
     val isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
 
     var selectedTabIndex by remember { mutableStateOf(0) }
-    val tabs = listOf("Anime & Dizi", "Manga")
+    val tabs = listOf(
+        stringResource(R.string.profile_anime_and_tv),
+        stringResource(R.string.media_type_manga)
+    )
 
     val favoritedEntries = remember(mediaEntries) {
         mediaEntries.filter { it.isFavorite }
@@ -83,7 +86,7 @@ fun FavouritesScreen(
                 }
 
                 Text(
-                    text = "Favorilerim",
+                    text = stringResource(R.string.profile_my_favorites),
                     color = KitsugiColors.textPrimary,
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold,

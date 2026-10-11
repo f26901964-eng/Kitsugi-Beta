@@ -214,7 +214,7 @@ fun DownloadsScreen(
                             tint = if (pagerState.currentPage == 0) accentColor else KitsugiColors.TextMuted
                         )
                         Text(
-                            text = "Videolar (${downloads.size})",
+                            text = stringResource(R.string.downloads_videos_count, downloads.size),
                             fontWeight = if (pagerState.currentPage == 0) FontWeight.Bold else FontWeight.Normal,
                             color = if (pagerState.currentPage == 0) KitsugiColors.TextPrimary else KitsugiColors.TextMuted
                         )
@@ -258,7 +258,7 @@ fun DownloadsScreen(
                             tint = if (pagerState.currentPage == 2) accentColor else KitsugiColors.TextMuted
                         )
                         Text(
-                            text = "Resimler (${allImages.size})",
+                            text = stringResource(R.string.downloads_images_count, allImages.size),
                             fontWeight = if (pagerState.currentPage == 2) FontWeight.Bold else FontWeight.Normal,
                             color = if (pagerState.currentPage == 2) KitsugiColors.TextPrimary else KitsugiColors.TextMuted
                         )
@@ -469,7 +469,7 @@ fun DownloadedImagesTab(
             .map { (_, list) ->
                 DownloadedImageGroup(
                     displayName = list.maxByOrNull { it.lastModified }?.title?.trim()
-                        ?.ifBlank { "Bilinmeyen İçerik" } ?: "Bilinmeyen İçerik",
+                        ?.ifBlank { KitsugiStrings.get(R.string.downloads_unknown_content) } ?: KitsugiStrings.get(R.string.downloads_unknown_content),
                     items = list.sortedByDescending { it.lastModified }
                 )
             }
@@ -598,7 +598,7 @@ fun DownloadedImagesTab(
                                 .padding(horizontal = 8.dp, vertical = 3.dp)
                         ) {
                             Text(
-                                text = "${group.items.size} resim",
+                                text = KitsugiStrings.get(R.string.downloads_image_items_count, group.items.size),
                                 color = KitsugiColors.TextSecondary,
                                 fontSize = 10.sp,
                                 fontWeight = FontWeight.Bold
@@ -625,7 +625,8 @@ fun DownloadedImagesTab(
                                     }
                                     Toast.makeText(
                                         context,
-                                        if (deleted > 0) "$deleted resim silindi." else "Resimler silinemedi.",
+                                        if (deleted > 0) KitsugiStrings.get(R.string.downloads_images_deleted, deleted)
+                                        else KitsugiStrings.get(R.string.downloads_images_delete_failed),
                                         Toast.LENGTH_SHORT
                                     ).show()
                                     onRefresh()
@@ -661,7 +662,7 @@ fun DownloadedImagesTab(
                                         img.file.delete()
                                         // Index'ten de düş — istenirse resim tekrar indirilebilir
                                         KitsugiImageDownloadHelper.unmarkImageDownloadedByFileName(context, img.file.name)
-                                        Toast.makeText(context, "Resim silindi: ${img.title}", Toast.LENGTH_SHORT).show()
+                                        Toast.makeText(context, KitsugiStrings.get(R.string.downloads_image_deleted, img.title), Toast.LENGTH_SHORT).show()
                                         onRefresh()
                                     }
                                 }
@@ -999,7 +1000,7 @@ fun DownloadItemRow(
                 when (download.status) {
                     AnimeDownload.Status.DOWNLOADING -> {
                         IconButton(onClick = onPause, modifier = Modifier.size(36.dp)) {
-                            Icon(Icons.Rounded.Pause, contentDescription = "Duraklat", tint = KitsugiColors.TextPrimary, modifier = Modifier.size(20.dp))
+                            Icon(Icons.Rounded.Pause, contentDescription = stringResource(R.string.downloads_pause_action), tint = KitsugiColors.TextPrimary, modifier = Modifier.size(20.dp))
                         }
                     }
                     AnimeDownload.Status.PAUSED, AnimeDownload.Status.ERROR, AnimeDownload.Status.QUEUE -> {
@@ -1172,7 +1173,7 @@ fun SubtitleCardItem(
                     val badgeText = if (item.animeTitle != null) {
                         "${item.animeTitle} • Ep ${item.episode ?: 1}"
                     } else {
-                        "Harici Altyazı"
+                        stringResource(R.string.downloads_external_subtitle)
                     }
                     Text(
                         text = badgeText,
@@ -1521,7 +1522,7 @@ fun openFolderInFileManager(context: Context, targetFileOrDir: File) {
             extraIntents.add(dlIntent)
         }
 
-        val chooser = Intent.createChooser(genericFolderIntent, "Klasörü Dosya Yöneticisi ile Aç").apply {
+        val chooser = Intent.createChooser(genericFolderIntent, KitsugiStrings.get(R.string.downloads_open_folder_chooser)).apply {
             if (extraIntents.isNotEmpty()) {
                 putExtra(Intent.EXTRA_INITIAL_INTENTS, extraIntents.toTypedArray())
             }

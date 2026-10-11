@@ -28,6 +28,18 @@ class CloudStreamErrorClassifierTest {
             CloudStreamErrorClassifier.classify(IOException("HTTP 403 Forbidden")),
         )
         assertEquals(
+            PlatformErrorCode.CloudStreamAuthRequired,
+            CloudStreamErrorClassifier.classify(IOException("HTTP 401 Unauthorized")),
+        )
+        assertEquals(
+            PlatformErrorCode.CloudStreamAuthRequired,
+            CloudStreamErrorClassifier.classifyText("Tabii için hesap bilgilerinizi girmeniz gerekmektedir"),
+        )
+        assertEquals(
+            PlatformErrorCode.CloudStreamRuntimeIncompatible,
+            CloudStreamErrorClassifier.classify(NoClassDefFoundError("Failed resolution of: Lkotlinx/serialization/KSerializer;")),
+        )
+        assertEquals(
             PlatformErrorCode.CloudStreamNetwork,
             CloudStreamErrorClassifier.classifyText("HTTP 503 Service Unavailable"),
         )
@@ -46,6 +58,10 @@ class CloudStreamErrorClassifierTest {
         assertEquals(
             PlatformErrorCode.CloudStreamParser,
             CloudStreamErrorClassifier.classifyText("failed to parse provider HTML"),
+        )
+        assertEquals(
+            PlatformErrorCode.CloudStreamParser,
+            CloudStreamErrorClassifier.classifyText("line doesn't start with #EXTM3U"),
         )
     }
 

@@ -634,6 +634,140 @@ object KitsugiImageDownloadHelper {
             }
         }
 
+    // ─────────────────────────────────────────────────────────────────────────
+    // Public API — depolama yönetimi (Ayarlar > Depolama)
+    // ─────────────────────────────────────────────────────────────────────────
+
+    /** İndirilen görsellerin yazılabildiği tüm klasörler (varsayılan, eski, Resimler ve uygulama dışı). */
+    fun imageDirectories(context: Context): List<File> = buildList {
+        add(defaultImagesDir())
+        add(legacyImagesDir())
+        add(picturesImagesDir())
+        context.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS)?.let { add(File(it, "Kitsugi/Images")) }
+    }.distinctBy { it.absolutePath }
+
+    /** Ayarlar > Depolama ekranı için indirilen görsel özeti. */
+    data class DownloadedImagesStats(val fileCount: Int, val bytes: Long)
+
+    /** Toplu silme sonucu. */
+    data class BulkDeleteSummary(val deletedFiles: Int, val freedBytes: Long, val failed: Int)
+
+    private val IMAGE_FILE_EXTENSIONS = setOf(
+        "jpg", "jpeg", "png", "webp", "gif", "bmp", "heic", "heif", "avif"
+    )
+
+    /** Diskte duran indirilmiş görsel dosyaları (ölçüm ve toplu silme aynı listeyi kullanır). */
+    fun downloadedImageFiles(context: Context): List<File> {
+        val appContext = context.applicationContext
+        val files = ArrayList<File>()
+        for (dir in imageDirectories(appContext)) {
+            val children = runCatching { dir.listFiles() }.getOrNull() ?: continue
+            for (file in children) {
+                if (file.isFile && file.extension.lowercase() in IMAGE_FILE_EXTENSIONS) files += file
+            }
+        }
+        return files
+    }
+
+    /** İndirilen görsellerin dosya sayısı + toplam boyutu (diskte gerçekten duran dosyalar). */
+    suspend fun downloadedImagesStats(context: Context): DownloadedImagesStats =
+        withContext(Dispatchers.IO) {
+            val files = downloadedImageFiles(context)
+            DownloadedImagesStats(
+                fileCount = files.size,
+                bytes = files.sumOf { runCatching { it.length() }.getOrDefault(0L) }
+            )
+        }
+
+    /**
+     * Kullanıcının indirdiği **tüm** görselleri siler (tek tek onay akışına gerek kalmadan
+     * toplu silme): index kayıtları (varsayılan klasör, MediaStore kaydı, SAF klasörü) ve
+     * klasörlerde kalmış artıklar. Ardından index boşaltılır, böylece galerideki "indirildi"
+     * rozetleri de kalkar ve resimler yeniden indirilebilir.
+     *
+     * Silinemeyen dosyalar (ör. başka uygulamanın oluşturduğu MediaStore kaydı) sayılır ama
+     * işlemi durdurmaz.
+     */
+    suspend fun deleteAllDownloadedImages(context: Context): BulkDeleteSummary =
+        withContext(Dispatchers.IO) {
+            val appContext = context.applicationContext
+            var deleted = 0
+            var freed = 0L
+            var failed = 0
+
+            // 1) Index kayıtları — her hedef türü kendi silme yolundan geçer.
+            val records = synchronized(indexLock) { loadIndex(appContext).values.toList() }
+            for (record in records) {
+                val size = measureRecordSize(appContext, record)
+                val outcome = when {
+                    record.customUri.startsWith("mediastore:") ->
+                        deleteContentUri(appContext, Uri.parse(record.customUri.removePrefix("mediastore:")))
+                    record.customUri.isNotBlank() -> deleteSafFile(appContext, record)
+                    else -> deleteKnownImageFile(appContext, record.fileName)
+                }
+                when (outcome) {
+                    GalleryDeleteOutcome.Success -> { deleted++; freed += size }
+                    GalleryDeleteOutcome.NothingToDelete -> Unit
+                    else -> failed++
+                }
+            }
+
+            // 2) Index dışında kalan dosyalar (elle kopyalanmış veya eski sürümden kalmış).
+            for (file in downloadedImageFiles(appContext)) {
+                val size = runCatching { file.length() }.getOrDefault(0L)
+                when (deleteLocalFile(appContext, file)) {
+                    GalleryDeleteOutcome.Success -> { deleted++; freed += size }
+                    GalleryDeleteOutcome.NothingToDelete -> Unit
+                    else -> failed++
+                }
+            }
+
+            // 3) Index'i boşalt — hem dosya hem "indirildi" durumu temizlenir.
+            synchronized(indexLock) { saveIndex(appContext, emptyMap()) }
+            _downloadedUrls.value = emptySet()
+
+            BulkDeleteSummary(deleted, freed, failed)
+        }
+
+    /** Silinmeden önce kaydın kapladığı alanı ölçer (SAF ve MediaStore kayıtları dahil). */
+    private fun measureRecordSize(context: Context, record: DownloadRecord): Long {
+        return try {
+            when {
+                record.customUri.startsWith("mediastore:") -> {
+                    val uri = Uri.parse(record.customUri.removePrefix("mediastore:"))
+                    context.contentResolver
+                        .query(uri, arrayOf(MediaStore.MediaColumns.SIZE), null, null, null)
+                        ?.use { cursor -> if (cursor.moveToFirst()) cursor.getLong(0) else 0L }
+                        ?: 0L
+                }
+                record.customUri.isNotBlank() -> {
+                    DocumentFile.fromTreeUri(context, Uri.parse(record.customUri))
+                        ?.findFile(record.fileName)
+                        ?.length()
+                        ?: 0L
+                }
+                else -> {
+                    val appExtDir = context.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS)
+                        ?.let { File(it, "Kitsugi/Images") }
+                    val candidates = buildList {
+                        add(File(defaultImagesDir(), record.fileName))
+                        add(File(legacyImagesDir(), record.fileName))
+                        add(File(picturesImagesDir(), record.fileName))
+                        appExtDir?.let { add(File(it, record.fileName)) }
+                    }
+                    candidates.filter { it.exists() }.sumOf { it.length() }
+                }
+            }
+        } catch (_: Throwable) {
+            0L
+        }
+    }
+
+    private fun picturesImagesDir(): File = File(
+        Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES),
+        "Kitsugi/Images"
+    )
+
     fun hasWritePermission(context: Context): Boolean {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) return true
         return ContextCompat.checkSelfPermission(

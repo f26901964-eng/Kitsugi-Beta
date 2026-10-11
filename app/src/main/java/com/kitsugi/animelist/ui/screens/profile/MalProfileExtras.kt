@@ -39,6 +39,9 @@ import java.time.OffsetDateTime
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.util.Locale
+import androidx.compose.ui.res.stringResource
+import com.kitsugi.animelist.R
+import com.kitsugi.animelist.utils.KitsugiStrings
 
 /*
  * MAL profilinin cihaz üzeri HTML ayrıştırma / miribyou ile gelen ek bölümleri:
@@ -46,33 +49,32 @@ import java.util.Locale
  * AniList tarzı "Aktivite" akışı (son güncellemeler + bölüm bölüm geçmiş).
  */
 
-private val TR = Locale("tr", "TR")
-private val DAY_MONTH: DateTimeFormatter = DateTimeFormatter.ofPattern("d MMM", TR)
-private val DAY_MONTH_YEAR: DateTimeFormatter = DateTimeFormatter.ofPattern("d MMM yyyy", TR)
-private val DAY_MONTH_YEAR_LONG: DateTimeFormatter = DateTimeFormatter.ofPattern("d MMMM yyyy", TR)
+private fun formatLocalizedDate(value: OffsetDateTime, pattern: String): String =
+    value.atZoneSameInstant(ZoneId.systemDefault())
+        .format(DateTimeFormatter.ofPattern(pattern, KitsugiStrings.locale()))
 
 private fun parseIso(iso: String?): OffsetDateTime? =
     iso?.takeIf { it.isNotBlank() }?.let { runCatching { OffsetDateTime.parse(it) }.getOrNull() }
 
-/** "az önce", "5 dk önce", "3 saat önce", "Dün", "12 Eki", "12 Eki 2024". */
+/** Localized relative timestamp or localized calendar date. */
 internal fun malRelativeTime(iso: String?): String? {
     val t = parseIso(iso) ?: return null
     val now = OffsetDateTime.now()
     val d = Duration.between(t, now)
     return when {
-        d.isNegative || d.toMinutes() < 1 -> "az önce"
-        d.toMinutes() < 60 -> "${d.toMinutes()} dk önce"
-        d.toHours() < 24 -> "${d.toHours()} saat önce"
-        d.toDays() < 2 -> "Dün"
-        d.toDays() < 7 -> "${d.toDays()} gün önce"
-        t.year == now.year -> t.atZoneSameInstant(ZoneId.systemDefault()).format(DAY_MONTH)
-        else -> t.atZoneSameInstant(ZoneId.systemDefault()).format(DAY_MONTH_YEAR)
+        d.isNegative || d.toMinutes() < 1 -> KitsugiStrings.get(R.string.profile_time_just_now)
+        d.toMinutes() < 60 -> KitsugiStrings.get(R.string.profile_time_minutes_ago, d.toMinutes())
+        d.toHours() < 24 -> KitsugiStrings.get(R.string.profile_time_hours_ago, d.toHours())
+        d.toDays() < 2 -> KitsugiStrings.get(R.string.profile_time_yesterday)
+        d.toDays() < 7 -> KitsugiStrings.get(R.string.profile_time_days_ago, d.toDays())
+        t.year == now.year -> formatLocalizedDate(t, "d MMM")
+        else -> formatLocalizedDate(t, "d MMM yyyy")
     }
 }
 
 private fun malDate(iso: String?): String? {
     val t = parseIso(iso) ?: return null
-    return t.toLocalDate().format(DAY_MONTH_YEAR_LONG)
+    return formatLocalizedDate(t, "d MMMM yyyy")
 }
 
 private fun malAge(iso: String?): Int? {
@@ -85,25 +87,29 @@ private fun malAge(iso: String?): Int? {
     return age.takeIf { it in 1..120 }
 }
 
-/** MAL durum metnini Türkçeleştirir. */
+/** Localized MAL list status. */
 internal fun malStatusLabel(status: String, isManga: Boolean): String = when (status.lowercase(Locale.US)) {
-    "watching" -> "İzliyor"
-    "reading" -> "Okuyor"
-    "completed" -> "Tamamladı"
-    "on-hold" -> "Durdurdu"
-    "dropped" -> "Bıraktı"
-    "plan to watch" -> "İzleyecek"
-    "plan to read" -> "Okuyacak"
-    "rewatching" -> "Tekrar izliyor"
-    "rereading" -> "Tekrar okuyor"
-    else -> if (isManga) "Okuyor" else "İzliyor"
+    "watching" -> KitsugiStrings.get(R.string.profile_status_watching)
+    "reading" -> KitsugiStrings.get(R.string.profile_status_reading)
+    "completed" -> KitsugiStrings.get(R.string.profile_status_completed)
+    "on-hold" -> KitsugiStrings.get(R.string.profile_status_on_hold)
+    "dropped" -> KitsugiStrings.get(R.string.profile_status_dropped)
+    "plan to watch" -> KitsugiStrings.get(R.string.profile_status_plan_to_watch)
+    "plan to read" -> KitsugiStrings.get(R.string.profile_status_plan_to_read)
+    "rewatching" -> KitsugiStrings.get(R.string.profile_status_rewatching)
+    "rereading" -> KitsugiStrings.get(R.string.profile_status_rereading)
+    else -> KitsugiStrings.get(if (isManga) R.string.profile_status_reading else R.string.profile_status_watching)
 }
 
 private fun genderLabel(raw: String): String = when (raw.lowercase(Locale.US)) {
-    "male" -> "Erkek"
-    "female" -> "Kadın"
+    "male" -> KitsugiStrings.get(R.string.profile_gender_male)
+    "female" -> KitsugiStrings.get(R.string.profile_gender_female)
     "non-binary" -> "Non-binary"
-    else -> raw
+    else -> when {
+        raw.equals(KitsugiStrings.get(R.string.profile_gender_male), ignoreCase = true) -> KitsugiStrings.get(R.string.profile_gender_male)
+        raw.equals(KitsugiStrings.get(R.string.profile_gender_female), ignoreCase = true) -> KitsugiStrings.get(R.string.profile_gender_female)
+        else -> raw
+    }
 }
 
 @Composable
@@ -133,20 +139,20 @@ private fun InfoRow(label: String, value: String) {
 @Composable
 fun MalAboutExtras(state: MalProfileState, accentColor: Color) {
     val rows = buildList {
-        if (state.gender.isNotBlank()) add("Cinsiyet" to genderLabel(state.gender))
+        if (state.gender.isNotBlank()) add(KitsugiStrings.get(R.string.profile_label_gender) to genderLabel(state.gender))
         malDate(state.birthday)?.let { date ->
             val age = malAge(state.birthday)
-            add("Doğum günü" to if (age != null) "$date ($age)" else date.substringBeforeLast(" "))
+            add(KitsugiStrings.get(R.string.profile_label_birthday) to if (age != null) "$date ($age)" else date.substringBeforeLast(" "))
         }
-        if (state.location.isNotBlank()) add("Konum" to state.location)
-        malDate(state.joinedAt)?.let { add("Katılım" to it) }
-        malRelativeTime(state.lastOnline)?.let { add("Son görülme" to it) }
+        if (state.location.isNotBlank()) add(KitsugiStrings.get(R.string.profile_label_location) to state.location)
+        malDate(state.joinedAt)?.let { add(KitsugiStrings.get(R.string.profile_label_joined) to it) }
+        malRelativeTime(state.lastOnline)?.let { add(KitsugiStrings.get(R.string.profile_label_last_seen) to it) }
         state.animeStats?.let { s ->
-            if (s.minutesWatched > 0) add("İzleme süresi" to "%.1f gün".format(s.minutesWatched / 60.0 / 24.0))
-            if (s.episodesWatched > 0) add("İzlenen bölüm" to s.episodesWatched.toString())
+            if (s.minutesWatched > 0) add(KitsugiStrings.get(R.string.profile_label_watch_time) to KitsugiStrings.get(R.string.profile_stat_days_watched_decimal, s.minutesWatched / 60.0 / 24.0))
+            if (s.episodesWatched > 0) add(KitsugiStrings.get(R.string.profile_label_episodes_watched) to s.episodesWatched.toString())
         }
         state.mangaStats?.let { s ->
-            if (s.episodesWatched > 0) add("Okunan bölüm" to s.episodesWatched.toString())
+            if (s.episodesWatched > 0) add(KitsugiStrings.get(R.string.profile_label_chapters_read) to s.episodesWatched.toString())
         }
     }
 
@@ -164,7 +170,7 @@ fun MalAboutExtras(state: MalProfileState, accentColor: Color) {
     ) {
         if (rows.isNotEmpty()) {
             Text(
-                text = "Bilgiler",
+                text = stringResource(R.string.profile_label_information),
                 color = KitsugiColors.TextPrimary,
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold
@@ -175,7 +181,7 @@ fun MalAboutExtras(state: MalProfileState, accentColor: Color) {
         if (state.about.isNotBlank()) {
             if (rows.isNotEmpty()) Spacer(Modifier.height(14.dp))
             Text(
-                text = "Hakkında",
+                text = stringResource(R.string.profile_label_about),
                 color = KitsugiColors.TextPrimary,
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold
@@ -192,7 +198,7 @@ fun MalAboutExtras(state: MalProfileState, accentColor: Color) {
             if (state.about.length > 400 || state.about.count { it == '\n' } > 7) {
                 Spacer(Modifier.height(6.dp))
                 Text(
-                    text = if (expanded) "Daha az göster" else "Devamını göster",
+                    text = if (expanded) stringResource(R.string.profile_show_less) else stringResource(R.string.profile_show_more),
                     color = accentColor,
                     style = MaterialTheme.typography.labelMedium,
                     fontWeight = FontWeight.Bold,
@@ -214,7 +220,7 @@ private fun LoadingHint() {
     ) {
         CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp, color = KitsugiColors.TextMuted)
         Spacer(Modifier.width(10.dp))
-        Text(text = "MAL profili yükleniyor…", color = KitsugiColors.TextMuted, style = MaterialTheme.typography.bodySmall)
+        Text(text = stringResource(R.string.profile_mal_loading), color = KitsugiColors.TextMuted, style = MaterialTheme.typography.bodySmall)
     }
 }
 
@@ -292,23 +298,27 @@ private fun MalActivityCard(
 
 private fun updateText(e: MalActivityEntry): String {
     val label = malStatusLabel(e.status, e.isManga)
-    val unit = "bölüm"
     val progress = when {
-        e.progress != null && e.total != null && e.total > 0 -> "${e.progress}/${e.total} $unit"
-        e.progress != null && e.progress > 0 -> "${e.progress}. $unit"
+        e.progress != null && e.total != null && e.total > 0 -> {
+            val count = "${e.progress}/${e.total}"
+            KitsugiStrings.get(if (e.isManga) R.string.profile_chapter_progress else R.string.profile_episode_progress, count)
+        }
+        e.progress != null && e.progress > 0 -> {
+            KitsugiStrings.get(if (e.isManga) R.string.profile_chapter_progress else R.string.profile_episode_progress, e.progress.toString())
+        }
         else -> null
     }
-    val score = if (e.score > 0) "Puan ${e.score}" else null
+    val score = if (e.score > 0) KitsugiStrings.get(R.string.profile_score_label, e.score.toString()) else null
     return listOfNotNull(label, progress, score).joinToString(" • ")
 }
 
 private fun historyText(e: MalActivityEntry): String {
     val n = e.progress
     return when {
-        e.isManga && n != null -> "$n. bölümü okudu"
-        n != null -> "$n. bölümü izledi"
-        e.isManga -> "Okudu"
-        else -> "İzledi"
+        e.isManga && n != null -> KitsugiStrings.get(R.string.profile_chapter_read_history, n)
+        n != null -> KitsugiStrings.get(R.string.profile_episode_watched_history, n)
+        e.isManga -> KitsugiStrings.get(R.string.profile_status_read)
+        else -> KitsugiStrings.get(R.string.profile_status_watched_past)
     }
 }
 
@@ -329,14 +339,14 @@ fun MalActivitySection(
     }
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
         if (state.recentUpdates.isNotEmpty()) {
-            SectionTitle("Son güncellemeler")
+            SectionTitle(stringResource(R.string.profile_last_updates))
             state.recentUpdates.forEach { e ->
                 MalActivityCard(e, updateText(e), accentColor) { onOpenMedia(e) }
             }
         }
         if (state.history.isNotEmpty()) {
             Spacer(Modifier.height(4.dp))
-            SectionTitle("Geçmiş")
+            SectionTitle(stringResource(R.string.profile_history))
             state.history.take(40).forEach { e ->
                 MalActivityCard(e, historyText(e), accentColor) { onOpenMedia(e) }
             }

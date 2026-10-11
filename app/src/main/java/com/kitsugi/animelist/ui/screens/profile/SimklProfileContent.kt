@@ -99,6 +99,7 @@ fun SimklProfileContent(
         item {
             val avatarUrl = state.avatarUrl?.takeIf { it.isNotBlank() }
             val username = state.name.ifBlank { stringResource(R.string.simkl_kullanicisi) }
+            val avatarTitle = stringResource(R.string.profile_avatar_title, username)
 
             Box(
                 modifier = Modifier
@@ -155,7 +156,7 @@ fun SimklProfileContent(
                 ) {
                     AsyncImage(
                         model = state.avatarUrl ?: "",
-                        contentDescription = "Avatar",
+                        contentDescription = avatarTitle,
                         modifier = Modifier
                             .size(64.dp)
                             .clip(CircleShape)
@@ -163,7 +164,7 @@ fun SimklProfileContent(
                             .then(
                                 if (!avatarUrl.isNullOrBlank()) {
                                     Modifier.clickable {
-                                        onImageClick?.invoke(listOf(avatarUrl), 0, "$username Profil Resmi")
+                                        onImageClick?.invoke(listOf(avatarUrl), 0, avatarTitle)
                                     }
                                 } else Modifier
                             ),
@@ -202,8 +203,8 @@ fun SimklProfileContent(
                 ) {
                     val tabs = listOf(
                         Icons.Rounded.Info to stringResource(R.string.character_tab_about),
-                        Icons.Rounded.ChatBubble to "Aktivite",
-                        Icons.Rounded.BarChart to "İstatistikler"
+                        Icons.Rounded.ChatBubble to stringResource(R.string.profile_tab_activity),
+                        Icons.Rounded.BarChart to stringResource(R.string.profile_tab_statistics)
                     )
                     ProfileHeaderIconTabs(
                         tabs = tabs,
@@ -359,9 +360,9 @@ fun SimklProfileContent(
                                     )
                                     Spacer(modifier = Modifier.height(12.dp))
                                     Row(modifier = Modifier.fillMaxWidth()) {
-                                        StatCard("Anime Sayısı", state.totalAnime.toString())
-                                        StatCard("Dizi/TV Sayısı", state.totalShows.toString())
-                                        StatCard("Film Sayısı", state.totalMovies.toString())
+                                        StatCard(stringResource(R.string.profile_anime_entries), state.totalAnime.toString())
+                                        StatCard(stringResource(R.string.profile_tv_show_entries), state.totalShows.toString())
+                                        StatCard(stringResource(R.string.profile_movie_entries), state.totalMovies.toString())
                                     }
                                 }
                             }
@@ -372,7 +373,7 @@ fun SimklProfileContent(
                                             ProfileActivityRow(
                                                 title = item.title,
                                                 imageUrl = item.imageUrl,
-                                                statusStr = "İzlendi",
+                                                statusStr = stringResource(R.string.profile_status_watched),
                                                 progressStr = null,
                                                 onClick = {
                                                     item.id.toIntOrNull()?.let { id ->
@@ -409,9 +410,9 @@ fun SimklProfileContent(
                                     )
                                     Spacer(modifier = Modifier.height(12.dp))
                                     Row(modifier = Modifier.fillMaxWidth()) {
-                                        StatCard("Toplam Anime", state.totalAnime.toString())
-                                        StatCard("Diziler", state.totalShows.toString())
-                                        StatCard("Filmler", state.totalMovies.toString())
+                                        StatCard(stringResource(R.string.profile_total_anime), state.totalAnime.toString())
+                                        StatCard(stringResource(R.string.profile_total_tv_shows), state.totalShows.toString())
+                                        StatCard(stringResource(R.string.profile_total_movies), state.totalMovies.toString())
                                     }
                                 }
                             }
