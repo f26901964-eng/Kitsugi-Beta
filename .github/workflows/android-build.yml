@@ -1,0 +1,84 @@
+name: 🏗️ Android Derleme Doğrulama (geçici)
+
+# Geçici doğrulama: Kotlin derleme hatalarını ve MAL cihaz ayrıştırıcı testlerini
+# cihaza gerek kalmadan GitHub'da yakalar; foss debug APK'sını artifact olarak yükler.
+
+on:
+  push:
+    branches: ['arena/**']
+    paths:
+      - 'app/**'
+      - '.github/workflows/android-build.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: android-build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-debug:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    permissions:
+      contents: write
+
+    steps:
+      - name: 📥 Repo klonla
+        uses: actions/checkout@v4
+
+      - name: ☕ JDK 17 kur
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: 🤖 Gradle kur + önbellek
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: 📦 Eksik SDK paketlerini yükle
+        run: |
+          yes | sdkmanager --licenses > /dev/null 2>&1 || true
+          sdkmanager --install "cmake;3.22.1" "platforms;android-36" "build-tools;36.0.0" 2>&1 | tail -n 5 || true
+
+      - name: ⚙️ CI bellek ayarları
+        run: |
+          if [ ! -f /swapfile ]; then
+            sudo dd if=/dev/zero of=/swapfile bs=1M count=6144 status=none
+            sudo chmod 600 /swapfile
+            sudo mkswap /swapfile
+          fi
+          sudo swapon /swapfile || echo "swapon atlandı"
+          mkdir -p ~/.gradle
+          cat > ~/.gradle/gradle.properties << 'EOP'
+          org.gradle.jvmargs=-Xmx2g -Xms512m -XX:+UseG1GC -Dfile.encoding=UTF-8
+          org.gradle.workers.max=1
+          org.gradle.parallel=true
+          org.gradle.daemon=true
+          org.gradle.caching=true
+          kotlin.daemon.jvmargs=-Xmx4g -Xms1g -XX:+UseG1GC
+          kotlin.compiler.execution.strategy=daemon
+          EOP
+
+      - name: 🧪 MAL cihaz ayrıştırıcı testleri + 🔨 foss debug APK
+        run: |
+          chmod +x gradlew
+          set -o pipefail
+          ./gradlew :app:testFossDebugUnitTest --tests 'com.kitsugi.animelist.data.remote.malweb.*' :app:assembleFossDebug --stacktrace --console=plain 2>&1 | tee build.log
+        env:
+          GRADLE_OPTS: -Dfile.encoding=UTF-8
+
+      - name: 📲 APK'yı yükle
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: kitsugi-foss-debug-apk
+          path: app/build/outputs/apk/foss/debug/*.apk
+          retention-days: 7
+
+      - name: 🩺 Derleme günlüğünü yükle
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-log
+          path: build.log
+          retention-days: 7

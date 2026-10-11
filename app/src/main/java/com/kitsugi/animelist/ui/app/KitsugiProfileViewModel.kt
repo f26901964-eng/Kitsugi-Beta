@@ -17,6 +17,7 @@ import com.kitsugi.animelist.model.MediaType
 import com.kitsugi.animelist.model.WatchStatus
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -31,6 +32,9 @@ import org.json.JSONArray
 import org.json.JSONObject
 import com.kitsugi.animelist.utils.KitsugiStrings
 import com.kitsugi.animelist.R
+
+/** Cihaz üzeri MAL sayfaları sırayla (1.5 sn arayla) indirildiği için profil ek verilerine tanınan süre. */
+private const val MAL_EXTRA_TIMEOUT_MS = 25_000L
 
 class KitsugiProfileViewModel(application: Application) : AndroidViewModel(application) {
 
@@ -1313,185 +1317,183 @@ class KitsugiProfileViewModel(application: Application) : AndroidViewModel(appli
         }
     }
 
+    /**
+     * MAL profilini zenginleştirir: istatistik, favoriler, son güncellemeler, hakkında, arkadaşlar,
+     * geçmiş. Tüm istekler JikanGateway üzerinden gider → sıra: CİHAZ (MAL HTML, kullanıcının kendi
+     * IP'si) → miribyou (Vercel) → Tenrai. Resmi MAL API'si bu verileri vermez.
+     * Resmi API'den gelen değerler asla silinmez; yalnızca eksikler doldurulur.
+     */
     private suspend fun fetchMalJikanData(username: String) {
-        withContext(Dispatchers.IO) {
-            var animeStats: AniListStats? = null
-            var mangaStats: AniListStats? = null
-            val favAnime = mutableListOf<ProfileFavoriteItem>()
-            val favManga = mutableListOf<ProfileFavoriteItem>()
-            val favChar = mutableListOf<ProfileFavoriteItem>()
-            val favStaff = mutableListOf<ProfileFavoriteItem>()
+        val encoded = java.net.URLEncoder.encode(username, "UTF-8")
+        val base = "https://api.jikan.moe/v4/users/$encoded"
+        _malState.update { it.copy(isExtraLoading = true) }
 
-            // 1. Fetch Jikan User Stats (hızlı timeout ile)
-            try {
-                withTimeoutOrNull(3000L) {
-                    val statsRequest = Request.Builder()
-                        .url("https://api.jikan.moe/v4/users/$username/statistics")
-                        .build()
+        suspend fun fetchData(url: String): String? = withTimeoutOrNull(MAL_EXTRA_TIMEOUT_MS) {
+            when (val r = JikanGateway.fetch(url, JikanGateway.Priority.BACKGROUND, maxRetries = 1)) {
+                is com.kitsugi.animelist.data.remote.JikanResult.Ok -> r.body
+                else -> null
+            }
+        }
 
-                    JikanGateway.admit(JikanGateway.Priority.BACKGROUND)
-                    client.newCall(statsRequest).execute().use { response ->
-                        if (response.code == 429) JikanGateway.reportRateLimited(
-                            response.header("Retry-After")?.toLongOrNull()?.times(1_000L)
-                        )
-                        if (response.isSuccessful) {
-                            val dataObj = JSONObject(response.body?.string().orEmpty()).optJSONObject("data")
+        coroutineScope {
+            val fullJob = async(Dispatchers.IO) { runCatching { fetchData("$base/full") }.getOrNull() }
+            val friendsJob = async(Dispatchers.IO) { runCatching { fetchData("$base/friends") }.getOrNull() }
+            val historyJob = async(Dispatchers.IO) { runCatching { fetchData("$base/history") }.getOrNull() }
 
-                            dataObj?.optJSONObject("anime")?.let { animeObj ->
-                                animeStats = AniListStats(
-                                    count = animeObj.optInt("total_entries", 0),
-                                    episodesWatched = animeObj.optInt("episodes_watched", 0),
-                                    minutesWatched = (animeObj.optDouble("days_watched", 0.0) * 24.0 * 60.0).toInt(),
-                                    meanScore = animeObj.optDouble("mean_score", 0.0),
-                                    watching = animeObj.optInt("watching", 0),
-                                    completed = animeObj.optInt("completed", 0),
-                                    planned = animeObj.optInt("plan_to_watch", 0),
-                                    paused = animeObj.optInt("on_hold", 0),
-                                    dropped = animeObj.optInt("dropped", 0)
-                                )
-                            }
-
-                            dataObj?.optJSONObject("manga")?.let { mangaObj ->
-                                mangaStats = AniListStats(
-                                    count = mangaObj.optInt("total_entries", 0),
-                                    episodesWatched = mangaObj.optInt("chapters_read", 0),
-                                    minutesWatched = mangaObj.optInt("volumes_read", 0),
-                                    meanScore = mangaObj.optDouble("mean_score", 0.0),
-                                    watching = mangaObj.optInt("reading", 0),
-                                    completed = mangaObj.optInt("completed", 0),
-                                    planned = mangaObj.optInt("plan_to_read", 0),
-                                    paused = mangaObj.optInt("on_hold", 0),
-                                    dropped = mangaObj.optInt("dropped", 0)
-                                )
-                            }
-                        }
-                    }
-                }
-            } catch (e: Exception) {
-                android.util.Log.w("ProfileViewModel", "Jikan stats fetch failed (non-fatal): ${e.message}")
+            // 1. Profil (istatistik + favori + son güncellemeler + hakkında) — tek sayfa.
+            fullJob.await()?.let { body ->
+                runCatching { applyMalFullProfile(JSONObject(body).optJSONObject("data")) }
+                    .onFailure { android.util.Log.w("ProfileViewModel", "MAL full profile parse failed: ${it.message}") }
             }
 
-            // 2. Fetch Jikan Favorites (hızlı timeout ile)
-            try {
-                withTimeoutOrNull(3000L) {
-                    val favRequest = Request.Builder()
-                        .url("https://api.jikan.moe/v4/users/$username/favorites")
-                        .build()
-
-                    JikanGateway.admit(JikanGateway.Priority.BACKGROUND)
-                    client.newCall(favRequest).execute().use { response ->
-                        if (response.code == 429) JikanGateway.reportRateLimited(
-                            response.header("Retry-After")?.toLongOrNull()?.times(1_000L)
+            // 2. Arkadaşlar
+            friendsJob.await()?.let { body ->
+                runCatching {
+                    val arr = JSONObject(body).optJSONArray("data") ?: return@runCatching
+                    val friends = (0 until arr.length()).mapNotNull { i ->
+                        val userObj = arr.optJSONObject(i)?.optJSONObject("user") ?: return@mapNotNull null
+                        val friendName = userObj.optNullableString("username") ?: return@mapNotNull null
+                        UserFollowItem(
+                            id = friendName.hashCode(),
+                            name = friendName,
+                            avatarUrl = userObj.optJSONObject("images")?.optJSONObject("jpg")?.optNullableString("image_url")
+                                ?: userObj.optNullableString("image_url")
                         )
-                        if (response.isSuccessful) {
-                            val dataObj = JSONObject(response.body?.string().orEmpty()).optJSONObject("data")
-
-                            fun extractImageUrl(item: JSONObject): String =
-                                item.optJSONObject("images")?.optJSONObject("webp")?.optString("image_url", "")?.takeIf { it.isNotBlank() }
-                                    ?: item.optJSONObject("images")?.optJSONObject("jpg")?.optString("image_url", "") ?: ""
-
-                            dataObj?.optJSONArray("anime")?.let { arr ->
-                                for (i in 0 until minOf(arr.length(), 12)) {
-                                    val item = arr.getJSONObject(i)
-                                    favAnime.add(ProfileFavoriteItem(
-                                        id = item.optInt("mal_id").toString(),
-                                        title = item.optString("title", KitsugiStrings.get(R.string.isimsiz)),
-                                        imageUrl = extractImageUrl(item)
-                                    ))
-                                }
-                            }
-
-                            dataObj?.optJSONArray("manga")?.let { arr ->
-                                for (i in 0 until minOf(arr.length(), 12)) {
-                                    val item = arr.getJSONObject(i)
-                                    favManga.add(ProfileFavoriteItem(
-                                        id = item.optInt("mal_id").toString(),
-                                        title = item.optString("title", KitsugiStrings.get(R.string.isimsiz)),
-                                        imageUrl = extractImageUrl(item)
-                                    ))
-                                }
-                            }
-
-                            dataObj?.optJSONArray("characters")?.let { arr ->
-                                for (i in 0 until minOf(arr.length(), 12)) {
-                                    val item = arr.getJSONObject(i)
-                                    favChar.add(ProfileFavoriteItem(
-                                        id = item.optInt("mal_id").toString(),
-                                        title = item.optString("name", KitsugiStrings.get(R.string.isimsiz)),
-                                        imageUrl = extractImageUrl(item)
-                                    ))
-                                }
-                            }
-
-                            dataObj?.optJSONArray("people")?.let { arr ->
-                                for (i in 0 until minOf(arr.length(), 12)) {
-                                    val item = arr.getJSONObject(i)
-                                    favStaff.add(ProfileFavoriteItem(
-                                        id = item.optInt("mal_id").toString(),
-                                        title = item.optString("name", KitsugiStrings.get(R.string.isimsiz)),
-                                        imageUrl = extractImageUrl(item)
-                                    ))
-                                }
-                            }
-                        }
                     }
-                }
-            } catch (e: Exception) {
-                android.util.Log.e("ProfileViewModel", "Jikan favorites fetch failed: ${e.message}")
+                    if (friends.isNotEmpty()) {
+                        _malState.update { it.copy(socialState = SocialState(followers = friends, following = friends)) }
+                    }
+                }.onFailure { android.util.Log.w("ProfileViewModel", "MAL friends parse failed: ${it.message}") }
             }
 
-            val malFriends = mutableListOf<UserFollowItem>()
-            try {
-                withTimeoutOrNull(3000L) {
-                    val friendsRequest = Request.Builder()
-                        .url("https://api.jikan.moe/v4/users/$username/friends")
-                        .build()
-
-                    JikanGateway.admit(JikanGateway.Priority.BACKGROUND)
-                    client.newCall(friendsRequest).execute().use { response ->
-                        if (response.code == 429) JikanGateway.reportRateLimited(
-                            response.header("Retry-After")?.toLongOrNull()?.times(1_000L)
+            // 3. Geçmiş (bölüm bölüm aktivite)
+            historyJob.await()?.let { body ->
+                runCatching {
+                    val arr = JSONObject(body).optJSONArray("data") ?: return@runCatching
+                    val items = (0 until minOf(arr.length(), 60)).mapNotNull { i ->
+                        val o = arr.optJSONObject(i) ?: return@mapNotNull null
+                        val entry = o.optJSONObject("entry") ?: return@mapNotNull null
+                        val id = entry.optInt("mal_id", 0).takeIf { it > 0 } ?: return@mapNotNull null
+                        val isManga = entry.optString("type", "anime").equals("manga", ignoreCase = true)
+                        MalActivityEntry(
+                            malId = id,
+                            isManga = isManga,
+                            title = entry.optNullableString("name") ?: entry.optNullableString("title") ?: return@mapNotNull null,
+                            imageUrl = null,
+                            status = if (isManga) "Reading" else "Watching",
+                            progress = o.optInt("increment", 0).takeIf { it > 0 },
+                            total = null,
+                            score = 0,
+                            dateIso = o.optNullableString("date")
                         )
-                        if (response.isSuccessful) {
-                            val responseText = response.body?.string().orEmpty()
-                            val dataArr = JSONObject(responseText).optJSONArray("data")
-                            dataArr?.let { arr ->
-                                for (i in 0 until arr.length()) {
-                                    val friendObj = arr.getJSONObject(i)
-                                    val userObj = friendObj.optJSONObject("user")
-                                    if (userObj != null) {
-                                        val friendName = userObj.optNullableString("username") ?: "Kullanıcı"
-                                        val friendAvatar = userObj.optNullableString("image_url")
-                                        malFriends.add(
-                                            UserFollowItem(
-                                                id = friendName.hashCode(),
-                                                name = friendName,
-                                                avatarUrl = friendAvatar
-                                            )
-                                        )
-                                    }
-                                }
-                            }
-                        }
                     }
-                }
-            } catch (e: Exception) {
-                android.util.Log.e("ProfileViewModel", "Jikan friends fetch failed: ${e.message}")
+                    if (items.isNotEmpty()) _malState.update { it.copy(history = items) }
+                }.onFailure { android.util.Log.w("ProfileViewModel", "MAL history parse failed: ${it.message}") }
             }
+        }
 
-            // State güncellemesi — resmi MAL verilerini asla silme, zenginleşen alanları ekle
-            _malState.update {
-                it.copy(
-                    isLoading = false,
-                    animeStats = animeStats ?: it.animeStats,
-                    mangaStats = mangaStats ?: it.mangaStats,
-                    favoriteAnime = favAnime.ifEmpty { it.favoriteAnime },
-                    favoriteManga = favManga.ifEmpty { it.favoriteManga },
-                    favoriteCharacters = favChar.ifEmpty { it.favoriteCharacters },
-                    favoriteStaff = favStaff.ifEmpty { it.favoriteStaff },
-                    socialState = if (malFriends.isNotEmpty()) SocialState(followers = malFriends, following = malFriends) else it.socialState
+        _malState.update { it.copy(isLoading = false, isExtraLoading = false) }
+    }
+
+    private fun applyMalFullProfile(data: JSONObject?) {
+        if (data == null) return
+
+        val statsObj = data.optJSONObject("statistics")
+        val animeStats = statsObj?.optJSONObject("anime")?.let { a ->
+            AniListStats(
+                count = a.optInt("total_entries", 0),
+                episodesWatched = a.optInt("episodes_watched", 0),
+                minutesWatched = (a.optDouble("days_watched", 0.0) * 24.0 * 60.0).toInt(),
+                meanScore = a.optDouble("mean_score", 0.0),
+                watching = a.optInt("watching", 0),
+                completed = a.optInt("completed", 0),
+                planned = a.optInt("plan_to_watch", 0),
+                paused = a.optInt("on_hold", 0),
+                dropped = a.optInt("dropped", 0)
+            )
+        }
+        val mangaStats = statsObj?.optJSONObject("manga")?.let { m ->
+            AniListStats(
+                count = m.optInt("total_entries", 0),
+                episodesWatched = m.optInt("chapters_read", 0),
+                minutesWatched = m.optInt("volumes_read", 0),
+                meanScore = m.optDouble("mean_score", 0.0),
+                watching = m.optInt("reading", 0),
+                completed = m.optInt("completed", 0),
+                planned = m.optInt("plan_to_read", 0),
+                paused = m.optInt("on_hold", 0),
+                dropped = m.optInt("dropped", 0)
+            )
+        }
+
+        fun imageOf(item: JSONObject): String {
+            val images = item.optJSONObject("images")
+            return images?.optJSONObject("jpg")?.optNullableString("large_image_url")
+                ?: images?.optJSONObject("jpg")?.optNullableString("image_url")
+                ?: images?.optJSONObject("webp")?.optNullableString("image_url")
+                ?: ""
+        }
+
+        fun favList(key: String, nameKey: String): List<ProfileFavoriteItem> {
+            val arr = data.optJSONObject("favorites")?.optJSONArray(key) ?: return emptyList()
+            return (0 until arr.length()).mapNotNull { i ->
+                val item = arr.optJSONObject(i) ?: return@mapNotNull null
+                val id = item.optInt("mal_id", 0).takeIf { it > 0 } ?: return@mapNotNull null
+                ProfileFavoriteItem(
+                    id = id.toString(),
+                    title = item.optNullableString(nameKey) ?: KitsugiStrings.get(R.string.isimsiz),
+                    imageUrl = imageOf(item)
                 )
             }
+        }
+
+        fun updates(key: String, isManga: Boolean): List<MalActivityEntry> {
+            val arr = data.optJSONObject("updates")?.optJSONArray(key) ?: return emptyList()
+            return (0 until arr.length()).mapNotNull { i ->
+                val o = arr.optJSONObject(i) ?: return@mapNotNull null
+                val entry = o.optJSONObject("entry") ?: return@mapNotNull null
+                val id = entry.optInt("mal_id", 0).takeIf { it > 0 } ?: return@mapNotNull null
+                val progressKey = if (isManga) "chapters_read" else "episodes_seen"
+                val totalKey = if (isManga) "chapters_total" else "episodes_total"
+                MalActivityEntry(
+                    malId = id,
+                    isManga = isManga,
+                    title = entry.optNullableString("title") ?: return@mapNotNull null,
+                    imageUrl = imageOf(entry).ifBlank { null },
+                    status = o.optNullableString("status") ?: "",
+                    progress = if (o.isNull(progressKey)) null else o.optInt(progressKey),
+                    total = if (o.isNull(totalKey)) null else o.optInt(totalKey),
+                    score = o.optInt("score", 0),
+                    dateIso = o.optNullableString("date")
+                )
+            }
+        }
+
+        val aboutHtml = data.optNullableString("about")
+        val aboutText = aboutHtml?.let {
+            runCatching { org.jsoup.Jsoup.parse(it).wholeText().replace(Regex("\\n{3,}"), "\n\n").trim() }.getOrNull()
+        }.orEmpty()
+
+        val recent = (updates("anime", false) + updates("manga", true))
+            .sortedByDescending { it.dateIso.orEmpty() }
+
+        _malState.update {
+            it.copy(
+                avatarUrl = it.avatarUrl ?: data.optJSONObject("images")?.optJSONObject("jpg")?.optNullableString("image_url"),
+                location = it.location.ifBlank { data.optNullableString("location").orEmpty() },
+                joinedAt = it.joinedAt.ifBlank { data.optNullableString("joined").orEmpty() },
+                gender = data.optNullableString("gender").orEmpty().ifBlank { it.gender },
+                birthday = data.optNullableString("birthday").orEmpty().ifBlank { it.birthday },
+                lastOnline = data.optNullableString("last_online").orEmpty().ifBlank { it.lastOnline },
+                about = aboutText.ifBlank { it.about },
+                animeStats = animeStats?.takeIf { s -> s.count > 0 } ?: it.animeStats ?: animeStats,
+                mangaStats = mangaStats?.takeIf { s -> s.count > 0 } ?: it.mangaStats ?: mangaStats,
+                favoriteAnime = favList("anime", "title").ifEmpty { it.favoriteAnime },
+                favoriteManga = favList("manga", "title").ifEmpty { it.favoriteManga },
+                favoriteCharacters = favList("characters", "name").ifEmpty { it.favoriteCharacters },
+                favoriteStaff = favList("people", "name").ifEmpty { it.favoriteStaff },
+                recentUpdates = recent.ifEmpty { it.recentUpdates }
+            )
         }
     }
 
@@ -2131,7 +2133,31 @@ data class MalProfileState(
     val favoriteCharacters: List<ProfileFavoriteItem> = emptyList(),
     val favoriteStaff: List<ProfileFavoriteItem> = emptyList(),
     val favoriteStudios: List<ProfileFavoriteItem> = emptyList(),
-    val socialState: SocialState = SocialState()
+    val socialState: SocialState = SocialState(),
+    // ── Cihaz üzeri MAL HTML / miribyou ile gelen ek alanlar ──
+    val isExtraLoading: Boolean = false,
+    val about: String = "",
+    val gender: String = "",
+    val birthday: String = "",
+    val lastOnline: String = "",
+    /** Profil sayfasındaki "Last Anime/Manga Updates" (kapak, durum, ilerleme, puan, tarih). */
+    val recentUpdates: List<MalActivityEntry> = emptyList(),
+    /** /history sayfası: bölüm bölüm izleme/okuma geçmişi. */
+    val history: List<MalActivityEntry> = emptyList()
+)
+
+/** MAL aktivite satırı (son güncelleme veya geçmiş kaydı). */
+data class MalActivityEntry(
+    val malId: Int,
+    val isManga: Boolean,
+    val title: String,
+    val imageUrl: String?,
+    /** MAL durum metni: Watching, Completed, On-Hold, Dropped, Plan to Watch, Reading... */
+    val status: String,
+    val progress: Int?,
+    val total: Int?,
+    val score: Int,
+    val dateIso: String?
 )
 
 data class SimklProfileState(
