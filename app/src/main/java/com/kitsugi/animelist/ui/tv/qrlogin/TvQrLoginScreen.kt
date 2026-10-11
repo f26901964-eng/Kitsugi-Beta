@@ -112,26 +112,15 @@ fun TvQrLoginScreen(
     LaunchedEffect(selectedService) {
         val service = selectedService ?: run { qrBitmap = null; return@LaunchedEffect }
 
-        // T3-01: BuildConfig'den alınır
-        val ANILIST_CLIENT_ID = com.kitsugi.animelist.BuildConfig.ANILIST_CLIENT_ID
-        val MAL_CLIENT_ID = com.kitsugi.animelist.BuildConfig.MAL_CLIENT_ID
-        val REDIRECT = "malapp://auth"
-
         var url = ""
         var simklUserCode: String? = null
 
         when (service) {
             TvAuthService.AniList -> {
-                url = "https://anilist.co/api/v2/oauth/authorize" +
-                    "?client_id=$ANILIST_CLIENT_ID" +
-                    "&redirect_uri=${URLEncoder.encode(REDIRECT, "UTF-8")}" +
-                    "&response_type=code"
+                url = runCatching { ExternalAuthManager.getAuthUrlAndPrepare(context, "anilist") }.getOrDefault("")
             }
             TvAuthService.MAL -> {
-                url = "https://myanimelist.net/v1/oauth2/authorize?" +
-                    "response_type=code" +
-                    "&client_id=$MAL_CLIENT_ID" +
-                    "&redirect_uri=${URLEncoder.encode(REDIRECT, "UTF-8")}"
+                url = runCatching { ExternalAuthManager.getAuthUrlAndPrepare(context, "mal") }.getOrDefault("")
             }
             TvAuthService.Simkl -> {
                 // Simkl için PIN flow kullanıyoruz — önce PIN al, URL'yi QR'a bas

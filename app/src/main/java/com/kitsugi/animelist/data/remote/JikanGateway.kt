@@ -23,6 +23,9 @@ sealed class JikanResult {
  * Çağıranlar hâlâ kanonik `https://api.jikan.moe/v4/...` adreslerini kullanır. Gateway bu adresi
  * sırayla şu host'lara çevirip dener (kullanıcı kararı: MAL → miribyou → Tenrai → AniList):
  *
+ *  0. **cihaz** — yalnızca `users/...` uçları için: MAL HTML'i uygulama içinde ayrıştırılır
+ *     ([com.kitsugi.animelist.data.remote.malweb.MalWebSource]). Her kullanıcının kendi IP'si.
+ *
  *  1. **miribyou** — kullanıcının kendi kurduğu, açık kaynak Jikan-uyumlu API. Kök adresi
  *     `miribyou_base_url` (local.properties) → `BuildConfig.MIRIBYOU_BASE_URL`. Boşsa atlanır.
  *  2. **Tenrai** — `https://api.tenrai.org/v1` (Jikan v4 şeması, kimlik doğrulaması yok).
@@ -304,6 +307,36 @@ object JikanGateway {
         val ttl = ttlFor(canonical)
         var lastError: JikanResult = JikanResult.Failed(0, BREAKER_MSG)
         var sawNotFound = false
+
+        // 0. Cihaz üzerinde MAL HTML ayrıştırma (kullanıcı uçları). Her kullanıcı kendi IP'sinden
+        //    gider; merkezi sunucuya yük binmez. Kendi temposu/önbelleği vardır, Jikan kotasını
+        //    tüketmez. Başarısız olursa (ban/captcha/ağ) aşağıdaki miribyou → Tenrai zincirine düşülür.
+        if (com.kitsugi.animelist.data.remote.malweb.MalWebSource.supports(canonical) &&
+            !isHostBreakerOpen(com.kitsugi.animelist.data.remote.malweb.MalWebSource.HOST_ID)
+        ) {
+            val deviceId = com.kitsugi.animelist.data.remote.malweb.MalWebSource.HOST_ID
+            val r = try {
+                com.kitsugi.animelist.data.remote.malweb.MalWebSource.fetch(canonical)
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                JikanResult.Failed(0, e.message ?: "device error")
+            }
+            recordHostOutcome(deviceId, r)
+            when (r) {
+                is JikanResult.Ok -> {
+                    cachePut(canonical, r.body, ttl)
+                    return r
+                }
+                // MAL'in kendisi 404 dediyse kullanıcı gerçekten yoktur; diğer kaynakları yormayız.
+                is JikanResult.NotFound -> return r
+                else -> {
+                    Log.d(TAG, "$deviceId başarısız (${(r as? JikanResult.Failed)?.code}) → sunucu kaynaklarına düşülüyor")
+                    lastError = r
+                }
+            }
+        }
+
         for (host in hostsFor(canonical)) {
             if (isHostBreakerOpen(host.id)) continue
             val r = fetchOnHost(host, priority, maxRetries)

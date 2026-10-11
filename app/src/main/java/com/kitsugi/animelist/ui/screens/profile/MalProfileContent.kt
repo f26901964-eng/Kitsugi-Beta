@@ -361,9 +361,26 @@ fun MalProfileContent(
                                         StatCard("Manga", state.mangaStats?.count?.toString() ?: "0")
                                     }
                                 }
+                                MalAboutExtras(state = state, accentColor = accentColor)
                             }
-                            1 -> {
-                                val malEntries = remember(mediaEntries) { mediaEntries.filter { it.source == "myanimelist" } }
+                            1 -> MalActivitySection(
+                                state = state,
+                                accentColor = accentColor,
+                                onOpenMedia = { e ->
+                                    onFavoriteMediaClick(
+                                        e.malId,
+                                        if (e.isManga) MediaType.Manga else MediaType.Anime,
+                                        "jikan",
+                                        e.title,
+                                        e.imageUrl
+                                    )
+                                }
+                            ) {
+                                val malEntries = remember(mediaEntries) {
+                                    mediaEntries.filter {
+                                        it.source.equals("myanimelist", true) || it.source.equals("mal", true) || it.source.equals("jikan", true)
+                                    }
+                                }
                                 if (malEntries.isEmpty()) {
                                     Box(
                                         modifier = Modifier
