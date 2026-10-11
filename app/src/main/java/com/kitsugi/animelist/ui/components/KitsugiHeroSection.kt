@@ -837,6 +837,9 @@ fun KitsugiHeroSection(
                 // genişliği paylaşır; telefon/tablet, yatay/dikey her ekran ölçüsünde
                 // taşma olmadan ekrana sığar. Geniş ekranlarda ise üst sınır ile
                 // çizgilerin aşırı uzaması engellenir.
+                // KitsugiColors.TextPrimary @Composable getter olduğundan drawBehind
+                // içinde değil, composition kapsamında okunup yakalanır.
+                val indicatorFrameColor = KitsugiColors.TextPrimary
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -872,10 +875,10 @@ fun KitsugiHeroSection(
                                         val w = size.width
                                         val h = size.height
                                         drawRoundRect(
-                                            color = KitsugiColors.TextPrimary.copy(alpha = frameFraction),
+                                            color = indicatorFrameColor.copy(alpha = frameFraction),
                                             topLeft = androidx.compose.ui.geometry.Offset(inset, inset),
                                             size = androidx.compose.ui.geometry.Size(w - strokeW, h - strokeW),
-                                            cornerRadius = androidx.compose.ui.graphics.CornerRadius(h / 2f),
+                                            cornerRadius = androidx.compose.ui.geometry.CornerRadius(h / 2f),
                                             style = androidx.compose.ui.graphics.drawscope.Stroke(strokeW)
                                         )
                                     }
