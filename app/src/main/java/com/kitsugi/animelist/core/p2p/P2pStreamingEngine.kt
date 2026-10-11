@@ -46,6 +46,7 @@ object P2pStreamingEngine {
     private data class DetachedStream(
         val engine: NuvioEngine?,
         val streamId: String?,
+        val torrentId: String?,
     )
 
     private val _state = MutableStateFlow<P2pStreamingState>(P2pStreamingState.Idle)
@@ -154,6 +155,8 @@ object P2pStreamingEngine {
         var payloadDownloadBaseline = 0L
         var preparedStream: NuvioStream? = null
         var attached = false
+        // Bu başlatma sırasında motora eklenen torrent (akış bağlanamazsa da kaldırılmalı).
+        var addedTorrentId: String? = null
         var startupStatsJob: Job? = null
         return try {
             phase.set("build_magnet")
@@ -182,7 +185,10 @@ object P2pStreamingEngine {
             val torrentId = if (reusedTorrent) {
                 canonicalHash
             } else {
-                resolvedEngine.addMagnet(magnetUri).also { knownTorrentIds += it }
+                resolvedEngine.addMagnet(magnetUri).also {
+                    knownTorrentIds += it
+                    addedTorrentId = it
+                }
             }
             ensureCurrentGeneration(generation)
 
@@ -239,6 +245,7 @@ object P2pStreamingEngine {
                     activeEngine = activeEngine,
                     preparedStream = preparedStream,
                     attached = attached,
+                    addedTorrentId = addedTorrentId,
                     terminalState = P2pStreamingState.Idle,
                 )
             }
@@ -254,6 +261,7 @@ object P2pStreamingEngine {
                     activeEngine = activeEngine,
                     preparedStream = preparedStream,
                     attached = attached,
+                    addedTorrentId = addedTorrentId,
                     terminalState = terminalState,
                 )
             }
@@ -289,7 +297,7 @@ object P2pStreamingEngine {
     private fun detachActiveStream(): DetachedStream {
         val detached: Pair<DetachedStream, Job?> = synchronized(lifecycleLock) {
             streamGeneration += 1
-            val value = DetachedStream(engine = engine, streamId = currentStreamId)
+            val value = DetachedStream(engine = engine, streamId = currentStreamId, torrentId = currentTorrentId)
             val job = statsJob
             currentTorrentId = null
             currentStreamId = null
@@ -308,7 +316,7 @@ object P2pStreamingEngine {
         val detached: Pair<DetachedStream, Job?>? = synchronized(lifecycleLock) {
             if (streamGeneration != generation) return@synchronized null
             streamGeneration += 1
-            val value = DetachedStream(engine = engine, streamId = currentStreamId)
+            val value = DetachedStream(engine = engine, streamId = currentStreamId, torrentId = currentTorrentId)
             val job = statsJob
             currentTorrentId = null
             currentStreamId = null
@@ -323,21 +331,30 @@ object P2pStreamingEngine {
     private suspend fun cleanupDetachedStream(detached: DetachedStream, shutdownEngine: Boolean) {
         detached.streamId?.let { streamId ->
             stopPreparedStream(detached.engine, streamId)
-            // Oynatıcı kapandı / akış değişti: bu akışın parçalarını diskten hemen geri al.
-            // Yalnızca akış gerçekten başlamışsa (streamId) ve ayar açıksa çalışır.
-            if (P2pSettingsRepository.isClearCacheOnCloseEnabled()) {
-                reclaimCacheAfterStream(detached.engine)
-            }
+        }
+        // Oynatıcı kapandı / akış değişti: torrent'i motordan kaldır ve parçalarını diskten geri al.
+        // Motor, AKTİF (korunan) torrent verisini tahliye etmez ("reclaim limited by protected
+        // torrent data"); torrent kaldırılmadan önbellek sıfırlanamaz ve sınır hiç uygulanmazdı.
+        if (detached.streamId != null && P2pSettingsRepository.isClearCacheOnCloseEnabled()) {
+            reclaimCacheAfterStream(detached.engine, detached.torrentId)
         }
         if (shutdownEngine) {
             closeEngine(detached.engine)
         }
     }
 
-    /** Motor önbelleğini sıfır hedefe indirir (akış durdurulduktan sonra çağrılır). */
-    private suspend fun reclaimCacheAfterStream(target: NuvioEngine?) {
+    /**
+     * Akış durdurulduktan sonra: torrent'i motordan kaldırır (koruma kalksın), ardından
+     * önbelleği sıfır hedefe indirir. Kaldırılan torrent, bir sonraki açılışta yeniden eklenir.
+     */
+    private suspend fun reclaimCacheAfterStream(target: NuvioEngine?, torrentId: String?) {
         if (target == null) return
         withContext(NonCancellable) {
+            if (torrentId != null) {
+                runCatching { target.removeTorrent(torrentId) }
+                    .onFailure { Log.w(TAG, "P2P torrent kaldırılamadı: ${it.message}") }
+                knownTorrentIds.remove(torrentId)
+            }
             runCatching { target.reclaimDiskCache(0L) }
                 .onFailure { Log.w(TAG, "P2P önbelleği kapanışta boşaltılamadı: ${it.message}") }
         }
@@ -348,6 +365,7 @@ object P2pStreamingEngine {
         activeEngine: NuvioEngine?,
         preparedStream: NuvioStream?,
         attached: Boolean,
+        addedTorrentId: String?,
         terminalState: P2pStreamingState,
     ) {
         if (attached) {
@@ -357,6 +375,10 @@ object P2pStreamingEngine {
         } else {
             preparedStream?.let { stream -> stopPreparedStream(activeEngine, stream.id) }
             detachGenerationIfCurrent(generation, terminalState)
+            // Bağlanamayan torrent motorda korunmaya devam etmesin.
+            if (addedTorrentId != null && P2pSettingsRepository.isClearCacheOnCloseEnabled()) {
+                reclaimCacheAfterStream(activeEngine, addedTorrentId)
+            }
         }
     }
 
