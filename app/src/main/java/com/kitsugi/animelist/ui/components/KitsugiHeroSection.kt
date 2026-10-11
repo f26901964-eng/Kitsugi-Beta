@@ -78,6 +78,8 @@ import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.withContext
 import kotlin.math.abs
+import kotlin.math.round
+import androidx.compose.runtime.derivedStateOf
 
 private const val HERO_BACKGROUND_PARALLAX = 0.055f
 private const val HERO_BACKGROUND_SCALE = 1.0f
@@ -388,6 +390,31 @@ fun KitsugiHeroSection(
             .distinct()
     }
 
+    // Sayaç göstergesi için o an vitrinde görsel olarak baskın olan sayfa indeksi.
+    // derivedStateOf yalnızca değer değiştiğinde (yarısayfa eşiği aşılınca) recompose
+    // tetikler; kare başına tüm vitrini yeniden çizdirmez.
+    val heroCounterIndex by remember(pagerState, items.size) {
+        derivedStateOf {
+            round(pagerState.currentPage + pagerState.currentPageOffsetFraction)
+                .toInt()
+                .coerceIn(0, (items.size - 1).coerceAtLeast(0))
+        }
+    }
+
+    // Vitrin katmanları üst üste biner ve en üstteki katman dokunmayı ilk yakalar;
+    // graphicsLayer alfası yalnızca çizimi etkiler, hit-test'i etkilemez. Bu yüzden
+    // katmanın kendi öğesini açması yerine, tıklama anında GÖRSEL OLARAK ekranda olan
+    // (baskın) öğeyi çözüp açarız — "tıkladığım yerine sıradaki öğe açılıyor" hatası
+    // bu sayede ortadan kalkar.
+    val openVisibleHeroItem: () -> Unit = {
+        if (items.isNotEmpty()) {
+            val dominant = round(pagerState.currentPage + pagerState.currentPageOffsetFraction)
+                .toInt()
+                .coerceIn(items.indices)
+            onInfoClick(items[dominant])
+        }
+    }
+
     var isFocused by remember { mutableStateOf(false) }
 
     LaunchedEffect(isVisible, isFocused, pagerState.currentPage, pagerState.isScrollInProgress, items.size) {
@@ -431,7 +458,7 @@ fun KitsugiHeroSection(
                                     Key.DirectionCenter,
                                     Key.Enter,
                                     Key.NumPadEnter -> {
-                                        onInfoClick(items[pagerState.currentPage])
+                                        openVisibleHeroItem()
                                         true
                                     }
                                     else -> false
@@ -514,7 +541,7 @@ fun KitsugiHeroSection(
                         } else {
                             Modifier.tvClickable(
                                 scaleOnFocus = false
-                            ) { onInfoClick(item) }
+                            ) { openVisibleHeroItem() }
                         }
                     )
             ) {
@@ -696,7 +723,7 @@ fun KitsugiHeroSection(
                                     Modifier.tvClickable(
                                         shape = RoundedCornerShape(12.dp),
                                         scaleOnFocus = false
-                                    ) { onInfoClick(item) }
+                                    ) { openVisibleHeroItem() }
                                 }
                             ),
                         horizontalAlignment = Alignment.Start
@@ -837,14 +864,33 @@ fun KitsugiHeroSection(
                                 .background(accentColor)
                                 .graphicsLayer {
                                     val activeFraction = heroPageVisibility(pagerState, index)
-                                    alpha = 0.35f + (0.57f * activeFraction)
+                                    // Daha belirgin gösterge: etkin sayfa TAM opak ve kalın,
+                                    // pasif sayfalar da net seçilebilir koyulukta.
+                                    alpha = 0.30f + (0.70f * activeFraction)
                                     // Sabit ölçü: her karede width değiştirip tüm Row'u yeniden
                                     // ölçmek yerine GPU katmanını yatay ölçekle.
-                                    scaleX = 0.2857f + (0.7143f * activeFraction)
+                                    scaleX = 0.40f + (0.60f * activeFraction)
                                     transformOrigin = androidx.compose.ui.graphics.TransformOrigin(0f, 0.5f)
                                 }
                                 .width(28.dp)
-                                .height(6.dp)
+                                .height(7.dp)
+                        )
+                    }
+
+                    // Sayısal sayaç: vitrinde o an kaçıncı sıradaki içeriğin
+                    // gösterildiğini açıkça belirtir (örn. "3 / 11").
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(999.dp))
+                            .background(KitsugiColors.SurfaceStrong.copy(alpha = 0.92f))
+                            .padding(horizontal = 10.dp, vertical = 4.dp)
+                    ) {
+                        Text(
+                            text = "${heroCounterIndex + 1} / ${items.size}",
+                            color = KitsugiColors.TextPrimary,
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = FontWeight.Black
                         )
                     }
                 }
