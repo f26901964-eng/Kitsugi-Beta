@@ -1380,6 +1380,14 @@ object CsStreamRunner {
         val targetKitsu = resolvedIds?.kitsuId
         val targetMal = resolvedIds?.malId ?: malId
         val targetAniList = resolvedIds?.aniListId ?: aniListId
+        // v2.4.251: TMDB tr-TR basligi varyantlara ekle — site SADECE Turkce baslik
+        // tasiyorsa onsuz ESLESME YOK kacilinmazdi. Onbellekli: 164 eklenti tek
+        // TMDB istegini paylasir; hata/eksik durumda normal listeyle devam edilir.
+        val effectiveAlts: List<String> = runCatching {
+            val trTitle = TmdbTitleLocalizer.getTurkishTitle(targetTmdb, mediaType, isMovie == true)
+            if (!trTitle.isNullOrBlank() && alternativeTitles.none { it.equals(trTitle, ignoreCase = true) })
+                alternativeTitles + trTitle else alternativeTitles
+        }.getOrDefault(alternativeTitles)
         val isWebViewPlugin = api.usesWebView ||
             api.name in CF_PROTECTED_PLUGINS ||
             api.name.contains("TrAnimeIzle", ignoreCase = true)
@@ -1420,7 +1428,7 @@ object CsStreamRunner {
         // Sezon-kapsamlı sorgular yalnızca iki güvenlik ağı için vardır:
         //  (a) çıplak arama sıfır sonuç döndürürse (sezonları ayrı indeksleyen siteler),
         //  (b) içerik sayfasında hedef sezon yoksa sezon sayfasına gezinme.
-        val titleVariants = buildPlainTitleVariants(title, alternativeTitles, isMovie == true)
+        val titleVariants = buildPlainTitleVariants(title, effectiveAlts, isMovie == true)
         Log.d(TAG, "[${api.name}] Arama varyantları (${titleVariants.size}): ${titleVariants.take(6)}")
         CsTrace.info(api.name, "variants", "${titleVariants.size} varyant: ${titleVariants.take(6)}")
 
@@ -1484,10 +1492,10 @@ object CsStreamRunner {
             }
             if (collectedResults.isNotEmpty()) {
                 val bestSoFar = findBestMatch(
-                    collectedResults.values.toList(), title, alternativeTitles, year, season, episode, isMovie
+                    collectedResults.values.toList(), title, effectiveAlts, year, season, episode, isMovie
                 )
                 if (bestSoFar != null && CsTitleMatcher.isHighConfidenceMatch(
-                        bestSoFar, title, alternativeTitles, year, season, isMovie
+                        bestSoFar, title, effectiveAlts, year, season, isMovie
                     )
                 ) {
                     Log.d(TAG, "[${api.name}] High-confidence match found; remaining queries skipped")
@@ -1525,7 +1533,7 @@ object CsStreamRunner {
         if (results.isEmpty() && isMovie != true && season > 1 &&
             searchElapsedMs() < searchTimeBudgetMs
         ) {
-            val seasonVariants = buildSeasonScopedVariants(title, alternativeTitles, season)
+            val seasonVariants = buildSeasonScopedVariants(title, effectiveAlts, season)
             Log.d(TAG, "[${api.name}] Sezon girdisi araması (${seasonVariants.size} varyant): ${seasonVariants.take(4)}")
             CsTrace.info(api.name, "season-search", "Çıplak arama boş → ${seasonVariants.size} sezon varyantı deneniyor")
             var seasonVariantIndex = 0
@@ -1553,7 +1561,7 @@ object CsStreamRunner {
         // veya tam tersi). Bu fallback, jenerik ama anlamlı kelimelerle arama yapar.
         // Zaman kutusu dolduysa denenmez — kalan bütçe load/extract için saklanır.
         if (results.isEmpty() && searchElapsedMs() < searchTimeBudgetMs) {
-            val broadQueries = buildBroadSearchQueries(title, alternativeTitles)
+            val broadQueries = buildBroadSearchQueries(title, effectiveAlts)
             Log.d(TAG, "[${api.name}] Geniş arama deneniyor (${broadQueries.size} sorgu): $broadQueries")
             for (broadQuery in broadQueries) {
                 val broadResults = safeSearch(api, broadQuery)
@@ -1592,13 +1600,13 @@ object CsStreamRunner {
         results.take(5).forEachIndexed { i, r -> Log.d(TAG, "  [$i] '${r.name}' → ${r.url}") }
 
         // Match title aliases together with requested media kind, year, season, and episode.
-        val bestMatch = findBestMatch(results, title, alternativeTitles, year, season, episode, isMovie)
+        val bestMatch = findBestMatch(results, title, effectiveAlts, year, season, episode, isMovie)
 
         val bestMatchScore = if (bestMatch != null) {
-            getBestTitleSimilarity(bestMatch.name, title, alternativeTitles, isMovie)
+            getBestTitleSimilarity(bestMatch.name, title, effectiveAlts, isMovie)
         } else 0.0
         val skipIdValidation = bestMatch != null && CsTitleMatcher.isHighConfidenceMatch(
-            bestMatch, title, alternativeTitles, year, season, isMovie
+            bestMatch, title, effectiveAlts, year, season, isMovie
         )
         if (skipIdValidation && bestMatch != null) {
             Log.d(TAG, "[ID-Mapping] ⚡ High-confidence title/type/year/season match (${"%.2f".format(bestMatchScore)}); ID validation skipped for '${bestMatch.name}'.")
@@ -1640,11 +1648,11 @@ object CsStreamRunner {
                 // Sort candidates by simple similarity score so we check the most promising ones first
                 val candidates = results.filter {
                     it != bestMatch && CsTitleMatcher.isCandidateMetadataCompatible(
-                        it, title, alternativeTitles, year, season, episode, isMovie
+                        it, title, effectiveAlts, year, season, episode, isMovie
                     )
                 }
                     .map { r ->
-                        val score = getBestTitleSimilarity(r.name, title, alternativeTitles, isMovie)
+                        val score = getBestTitleSimilarity(r.name, title, effectiveAlts, isMovie)
                         Pair(r, score)
                     }
                     .sortedByDescending { it.second }
@@ -1677,7 +1685,7 @@ object CsStreamRunner {
         if (finalMatch == null) {
             Log.w(TAG, "[${api.name}] No title/type/year/season result passed the matching threshold; refusing unrelated fallback results.")
             val topCandidates = results
-                .map { r -> Pair(r.name, getBestTitleSimilarity(r.name, title, alternativeTitles, isMovie)) }
+                .map { r -> Pair(r.name, getBestTitleSimilarity(r.name, title, effectiveAlts, isMovie)) }
                 .sortedByDescending { pair -> pair.second }
                 .take(5)
                 .joinToString(separator = ", ") { pair -> "'" + pair.first + "'=" + String.format("%.2f", pair.second) }
@@ -1686,7 +1694,7 @@ object CsStreamRunner {
         }
 
         Log.d(TAG, "[${api.name}] ✓ Eşleşme: '${finalMatch.name}' → ${finalMatch.url}")
-        CsTrace.info(api.name, "match", "Eşleşme: '${finalMatch.name}' skor=${"%.2f".format(getBestTitleSimilarity(finalMatch.name, title, alternativeTitles, isMovie))}")
+        CsTrace.info(api.name, "match", "Eşleşme: '${finalMatch.name}' skor=${"%.2f".format(getBestTitleSimilarity(finalMatch.name, title, effectiveAlts, isMovie))}")
         
         // If we already loaded the correct LoadResponse, reuse it instead of reloading!
         // Film ve dizi mekanikleri AYRI boru hatlarıdır — dispatcher türüne göre yönlendirir.
@@ -1699,7 +1707,7 @@ object CsStreamRunner {
             partialSink = partialSink,
             preloaded = if (bestLoadResponse != null && finalMatch == validatedMatch) bestLoadResponse else null,
             title = title,
-            alternativeTitles = alternativeTitles,
+            effectiveAlts = effectiveAlts,
             year = year
         )
     }

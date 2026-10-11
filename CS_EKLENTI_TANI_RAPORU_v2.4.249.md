@@ -285,6 +285,16 @@ site yalnızca Türkçe başlık taşıyorsa eşleşme yok (detay sayfası TR ba
 cihazda bizim `getStreams` hattımızdan geçiriliyor; `Flow: ❌` = BİZİM eşleştiricimiz
 suçlu. Ayarlar → Eklenti Tanı ekranından çalıştırılıp rapor paylaşılabilir.
 
+## 8. v2.4.251 — TR-Only Başlık Boşluğu Kapatıldı
+
+v2.4.250'de belgelenen boşluk (site yalnızca Türkçe başlık taşıyorsa eşleşme yok)
+aynı gün kapatıldı: `runGetStreams`, çözülmüş TMDB kimliğiyle `tr-TR` başlığı çekip
+(yeni `TmdbTitleLocalizer`, oturum-önbellekli — 164 eklenti tek isteği paylaşır,
+negatifler de önbelleğe alınır) arama varyantlarına + eşleştirici adaylarına
+`effectiveAlts` olarak ekliyor (13 kullanım noktası). Hata/eksikte normal listeyle
+sessiz devam. **Kanıt:** simülasyon V8 — `Örümcek Adam Eve Dönüş Yok` vakası
+`EŞLEŞME YOK` → `1.25 MATCH`.
+
 ## Ek B. Bu Sürümde Değişen Dosyalar (uygulama deposu)
 
 - `app/src/main/java/com/kitsugi/animelist/data/cloudstream/CsTitleMatcher.kt` — §3.1 koruması
@@ -292,3 +302,5 @@ suçlu. Ayarlar → Eklenti Tanı ekranından çalıştırılıp rapor paylaşı
 - `app/src/main/java/com/kitsugi/animelist/data/cloudstream/CsStreamRunner.kt` — §3.3 domain haritası (7 girdi)
 - `app/build.gradle.kts` — sürüm 2.4.249
 - `release_notes_v2.4.249.md` — sürüm notları (bu raporun özeti)
+- v2.4.250 (§7): `data/remote/KitsugiIdResolver.kt` (sonuç önbelleği), `CsStreamRunner.kt` (`preResolvedIds`), `ui/screens/stream/StreamViewModel.kt` (passthrough), `CsPluginTypeCompatibility.kt` (anime filtresi), `CsPluginDiagnosticRunner.kt` + `ui/screens/settings/CsPluginDiagnosticScreen.kt` (faz 2g), `release_notes_v2.4.250.md`
+- v2.4.251 (§8): `data/cloudstream/TmdbTitleLocalizer.kt` (yeni), `CsStreamRunner.kt` (`effectiveAlts`), `release_notes_v2.4.251.md`, `PLAN_TASKS_v2.4.251.md`
