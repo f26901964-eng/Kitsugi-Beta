@@ -26,7 +26,7 @@ android {
     // Yukarıdaki mal_client_id (Web tipi, miribyou/API için) malapp://auth ile kayıtlı DEĞİL;
     // authorize ucuna verilince MAL 401 + Basic Auth döndürüyor ve tarayıcı "Oturum açın"
     // popup'ı gösteriyordu. Android tipi istemci secret KULLANMAZ (boş bırakılmalı).
-    val malOAuthClientId     = localProperties.getProperty("mal_oauth_client_id")     ?: "9dfa9b926eecef62128b6d464c7e33b9"
+    val malOAuthClientId     = localProperties.getProperty("mal_oauth_client_id")     ?: "989e25d3e32ba1542559bcd9cd398cd3"
     val malOAuthClientSecret = localProperties.getProperty("mal_oauth_client_secret") ?: ""
     // miribyou kök adresi (Jikan uyumlu, açık kaynak). local.properties ile geçersiz kılınabilir; boşsa atlanır.
     val miribyouBaseUrl   = localProperties.getProperty("miribyou_base_url")     ?: "https://miribyou-topaz.vercel.app"
