@@ -471,7 +471,7 @@ private fun SettingsMainPage(
             title = {
                 Text(
                     text = stringResource(R.string.tab_settings),
-                    style = MaterialTheme.typography.headlineSmall,
+                    style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold,
                     color = KitsugiColors.TextPrimary
                 )
