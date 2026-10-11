@@ -1,6 +1,9 @@
 ﻿package com.kitsugi.animelist.ui.components.addons
 import com.kitsugi.animelist.ui.components.KitsugiButton
 
+import com.kitsugi.animelist.ui.theme.gradient.Icon
+import com.kitsugi.animelist.ui.theme.gradient.Switch
+import com.kitsugi.animelist.ui.theme.gradient.Text
 import com.kitsugi.animelist.ui.theme.gradient.background
 import com.kitsugi.animelist.ui.theme.gradient.border
 import com.kitsugi.animelist.ui.utils.tvClickable
@@ -231,9 +234,9 @@ internal fun CsInstalledPluginRow(
                     if (!plugin.enabled)
                         Modifier.border(1.dp, KitsugiColors.AccentRed.copy(alpha = 0.30f), RoundedCornerShape(18.dp))
                     else
-                        Modifier
+                        Modifier.border(1.dp, KitsugiColors.Border.copy(alpha = 0.55f), RoundedCornerShape(18.dp))
                 )
-                .padding(12.dp)
+                .padding(10.dp)
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -256,7 +259,7 @@ internal fun CsInstalledPluginRow(
                             onError = { isError = true }
                         )
                     } else {
-                        Text("⚡", style = MaterialTheme.typography.titleMedium)
+                        Icon(Icons.Rounded.Extension, contentDescription = null, tint = accentColor, modifier = Modifier.size(18.dp))
                     }
                 }
                 Spacer(Modifier.width(12.dp))
@@ -305,13 +308,13 @@ internal fun CsInstalledPluginRow(
                             Box(
                                 modifier = Modifier
                                     .clip(RoundedCornerShape(6.dp))
-                                    .background(KitsugiColors.AccentOrange.copy(alpha = 0.18f))
-                                    .border(1.dp, KitsugiColors.AccentOrange.copy(alpha = 0.45f), RoundedCornerShape(6.dp))
+                                    .background(accentColor.copy(alpha = 0.15f))
+                                    .border(1.dp, accentColor.copy(alpha = 0.38f), RoundedCornerShape(6.dp))
                                     .padding(horizontal = 6.dp, vertical = 2.dp)
                             ) {
                                 Text(
                                     "⬆️ v${latestPlugin!!.version} Mevcut",
-                                    color = KitsugiColors.AccentOrange,
+                                    color = accentColor,
                                     fontSize = 10.sp,
                                     fontWeight = FontWeight.Bold
                                 )
@@ -335,8 +338,7 @@ internal fun CsInstalledPluginRow(
                 Spacer(Modifier.width(8.dp))
                 Switch(
                     checked = plugin.enabled,
-                    onCheckedChange = { onToggleCsPlugin(plugin, it) },
-                    colors = SwitchDefaults.colors(checkedThumbColor = KitsugiColors.Surface, checkedTrackColor = accentColor)
+                    onCheckedChange = { onToggleCsPlugin(plugin, it) }
                 )
                 Spacer(Modifier.width(4.dp))
                 IconButton(onClick = { onUninstallCsPlugin(plugin) }) {

@@ -6,6 +6,7 @@ import com.kitsugi.animelist.ui.theme.gradient.LinearProgressIndicator
 import com.kitsugi.animelist.ui.theme.gradient.Text
 
 import com.kitsugi.animelist.ui.theme.gradient.background
+import com.kitsugi.animelist.ui.theme.gradient.border
 import com.kitsugi.animelist.ui.utils.tvClickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -71,6 +72,7 @@ internal fun CsRepoCard(
             .fillMaxWidth()
             .clip(RoundedCornerShape(18.dp))
             .background(KitsugiColors.SurfaceSoft)
+            .border(1.dp, KitsugiColors.Border.copy(alpha = 0.55f), RoundedCornerShape(18.dp))
     ) {
         Row(
             modifier = Modifier
@@ -83,19 +85,19 @@ internal fun CsRepoCard(
                         if (plugins == null) onFetchRepoPlugins()
                     }
                 }
-                .padding(12.dp),
+                .padding(10.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Box(
                 modifier = Modifier
-                    .size(40.dp)
+                    .size(36.dp)
                     .clip(RoundedCornerShape(10.dp))
                     .background(accentColor.copy(alpha = 0.2f)),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(Icons.Rounded.FolderOpen, contentDescription = null, tint = accentColor)
             }
-            Spacer(Modifier.width(12.dp))
+            Spacer(Modifier.width(10.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     repo.name,
@@ -177,7 +179,7 @@ internal fun CsRepoCard(
                         .background(
                             when {
                                 allInstalled -> KitsugiColors.AccentGreen.copy(alpha = 0.12f)
-                                hasUpdates -> KitsugiColors.AccentOrange.copy(alpha = 0.12f)
+                                hasUpdates -> accentColor.copy(alpha = 0.12f)
                                 else -> KitsugiColors.Border.copy(alpha = 0.3f)
                             }
                         )
@@ -187,7 +189,7 @@ internal fun CsRepoCard(
                         text = if (allInstalled) "✓ $installedCount/$totalCount" else stringResource(R.string.x_x_yuklu, installedCount, totalCount),
                         color = when {
                             allInstalled -> KitsugiColors.AccentGreen
-                            hasUpdates -> KitsugiColors.AccentOrange
+                            hasUpdates -> accentColor
                             else -> KitsugiColors.TextSecondary
                         },
                         style = MaterialTheme.typography.labelSmall,
@@ -207,13 +209,13 @@ internal fun CsRepoCard(
                             modifier = Modifier
                                 .size(30.dp)
                                 .clip(RoundedCornerShape(8.dp))
-                                .background(KitsugiColors.AccentOrange.copy(alpha = 0.15f))
+                                .background(accentColor.copy(alpha = 0.15f))
                                 .tvClickable(shape = RoundedCornerShape(8.dp)) {
                                     onUpdateAllPlugins(plugins)
                                 },
                             contentAlignment = Alignment.Center
                         ) {
-                            Icon(Icons.Rounded.ArrowCircleUp, contentDescription = stringResource(R.string.tumunu_guncelle), tint = KitsugiColors.AccentOrange, modifier = Modifier.size(16.dp))
+                            Icon(Icons.Rounded.ArrowCircleUp, contentDescription = stringResource(R.string.tumunu_guncelle), tint = accentColor, modifier = Modifier.size(16.dp))
                         }
                         Spacer(Modifier.width(6.dp))
                     }

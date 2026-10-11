@@ -5,6 +5,7 @@ import com.kitsugi.animelist.ui.theme.gradient.Icon
 import com.kitsugi.animelist.ui.theme.gradient.Text
 import com.kitsugi.animelist.R
 import com.kitsugi.animelist.ui.components.KitsugiButton
+import com.kitsugi.animelist.ui.components.KitsugiTonalButton
 
 import com.kitsugi.animelist.ui.theme.gradient.background
 import com.kitsugi.animelist.ui.theme.gradient.border
@@ -118,6 +119,7 @@ internal fun CloudstreamExtensionsTab(
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(14.dp))
                     .background(KitsugiColors.SurfaceSoft)
+                    .border(1.dp, KitsugiColors.Border.copy(alpha = 0.55f), RoundedCornerShape(14.dp))
             ) {
                 com.kitsugi.animelist.ui.components.KitsugiSwitchSettingItem(
                     title = "🌐 GitHub Vekil Sunucu (jsDelivr)",
@@ -172,57 +174,34 @@ internal fun CloudstreamExtensionsTab(
             }
         }
 
-        // Bölüm Başlık Sekmesi
+        // Repo / kurulu sekmeleri; aynı kompakt seçici manga sekmesinde de kullanılır.
         item {
             Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(KitsugiColors.SurfaceSoft)
-                    .padding(4.dp),
-                horizontalArrangement = Arrangement.spacedBy(4.dp),
-                verticalAlignment = Alignment.CenterVertically
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                listOf(
-                    CsTabSection.REPOS to "🌐 Repolar (${repos.size})",
-                    CsTabSection.INSTALLED to "✅ Kurulu (${csPlugins.size})"
-                ).forEach { (section, label) ->
-                    Box(
-                        modifier = Modifier
-                            .weight(1f)
-                            .clip(RoundedCornerShape(10.dp))
-                            .background(if (activeSection == section) accentColor.copy(alpha = 0.2f) else Color.Transparent)
-                            .border(
-                                1.dp,
-                                if (activeSection == section) accentColor else Color.Transparent,
-                                RoundedCornerShape(10.dp)
-                            )
-                            .tvClickable(shape = RoundedCornerShape(10.dp)) { activeSection = section }
-                            .padding(vertical = 8.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            label,
-                            color = if (activeSection == section) accentColor else KitsugiColors.TextSecondary,
-                            fontWeight = if (activeSection == section) FontWeight.Bold else FontWeight.Normal,
-                            fontSize = 12.sp
-                        )
-                    }
-                }
+                AddonSubsectionTabs(
+                    tabs = listOf(
+                        AddonSubsectionTab("Repolar (${repos.size})", Icons.Rounded.Language),
+                        AddonSubsectionTab("Kurulu (${csPlugins.size})", Icons.Rounded.Extension)
+                    ),
+                    selectedIndex = if (activeSection == CsTabSection.REPOS) 0 else 1,
+                    accentColor = accentColor,
+                    onSelect = { activeSection = if (it == 0) CsTabSection.REPOS else CsTabSection.INSTALLED },
+                    modifier = Modifier.weight(1f)
+                )
 
-                // Check for updates button
                 Box(
                     modifier = Modifier
-                        .clip(RoundedCornerShape(10.dp))
-                        .background(accentColor.copy(alpha = 0.15f))
-                        .border(1.dp, accentColor.copy(alpha = 0.35f), RoundedCornerShape(10.dp))
-                        .tvClickable(shape = RoundedCornerShape(10.dp)) {
-                            onCheckForUpdates()
-                        }
-                        .padding(horizontal = 10.dp, vertical = 8.dp),
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(accentColor.copy(alpha = 0.12f))
+                        .border(1.dp, accentColor.copy(alpha = 0.32f), RoundedCornerShape(12.dp))
+                        .tvClickable(shape = RoundedCornerShape(12.dp)) { onCheckForUpdates() }
+                        .padding(horizontal = 11.dp, vertical = 9.dp),
                     contentAlignment = Alignment.Center
                 ) {
-                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(5.dp)) {
                         if (isCheckingUpdates) {
                             CircularProgressIndicator(modifier = Modifier.size(14.dp), color = accentColor, strokeWidth = 2.dp)
                         } else {
@@ -240,8 +219,8 @@ internal fun CloudstreamExtensionsTab(
                     modifier = Modifier
                         .fillMaxWidth()
                         .clip(RoundedCornerShape(14.dp))
-                        .background(KitsugiColors.AccentOrange.copy(alpha = 0.15f))
-                        .border(1.dp, KitsugiColors.AccentOrange.copy(alpha = 0.40f), RoundedCornerShape(14.dp))
+                        .background(accentColor.copy(alpha = 0.14f))
+                        .border(1.dp, accentColor.copy(alpha = 0.34f), RoundedCornerShape(14.dp))
                         .padding(horizontal = 14.dp, vertical = 10.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween
@@ -251,7 +230,7 @@ internal fun CloudstreamExtensionsTab(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        Icon(Icons.Rounded.ArrowCircleUp, contentDescription = null, tint = KitsugiColors.AccentOrange, modifier = Modifier.size(22.dp))
+                        Icon(Icons.Rounded.ArrowCircleUp, contentDescription = null, tint = accentColor, modifier = Modifier.size(22.dp))
                         Column {
                             Text(
                                 stringResource(R.string.inline_1_s_extension_updates_available_1f54c44, availableUpdatesCount),
@@ -268,7 +247,6 @@ internal fun CloudstreamExtensionsTab(
                     }
                     KitsugiButton(
                         onClick = onUpdateAllPendingPlugins,
-                        colors = ButtonDefaults.buttonColors(containerColor = KitsugiColors.AccentOrange),
                         shape = RoundedCornerShape(10.dp),
                         contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
                     ) {
@@ -285,8 +263,9 @@ internal fun CloudstreamExtensionsTab(
                         .fillMaxWidth()
                         .clip(RoundedCornerShape(14.dp))
                         .background(KitsugiColors.SurfaceSoft)
-                        .padding(14.dp),
-                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                        .border(1.dp, KitsugiColors.Border.copy(alpha = 0.55f), RoundedCornerShape(14.dp))
+                        .padding(12.dp),
+                    verticalArrangement = Arrangement.spacedBy(9.dp)
                 ) {
                     Text(
                         stringResource(R.string.inline_add_video_provider_repository_cs_1231a08),
@@ -378,11 +357,10 @@ internal fun CloudstreamExtensionsTab(
                         },
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(18.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = accentColor),
                     ) {
-                        Icon(Icons.Rounded.Add, contentDescription = stringResource(R.string.ekle), tint = KitsugiColors.Surface)
+                        Icon(Icons.Rounded.Add, contentDescription = stringResource(R.string.ekle))
                         Spacer(Modifier.width(6.dp))
-                        Text(stringResource(R.string.ekle), color = KitsugiColors.Surface, fontWeight = FontWeight.Bold)
+                        Text(stringResource(R.string.ekle), fontWeight = FontWeight.Bold)
                     }
                 }
             }
@@ -484,7 +462,6 @@ internal fun CloudstreamExtensionsTab(
                         if (availableUpdatesCount > 0) {
                             KitsugiButton(
                                 onClick = onUpdateAllPendingPlugins,
-                                colors = ButtonDefaults.buttonColors(containerColor = KitsugiColors.AccentOrange),
                                 shape = RoundedCornerShape(12.dp),
                                 contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
                             ) {
@@ -494,11 +471,9 @@ internal fun CloudstreamExtensionsTab(
                             }
                         }
                         if (onOpenPluginPicker != null) {
-                            KitsugiButton(
+                            KitsugiTonalButton(
                                 onClick = onOpenPluginPicker,
-                                colors = ButtonDefaults.buttonColors(containerColor = accentColor.copy(alpha = 0.15f)),
-                                shape = RoundedCornerShape(12.dp),
-                                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
+                                shape = RoundedCornerShape(12.dp)
                             ) {
                                 Icon(Icons.Rounded.Extension, contentDescription = null, tint = accentColor, modifier = Modifier.size(16.dp))
                                 Spacer(Modifier.width(6.dp))

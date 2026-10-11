@@ -6,6 +6,9 @@ import com.kitsugi.animelist.ui.components.KitsugiButton
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import com.kitsugi.animelist.ui.theme.gradient.Icon
+import com.kitsugi.animelist.ui.theme.gradient.Switch
+import com.kitsugi.animelist.ui.theme.gradient.Text
 import com.kitsugi.animelist.ui.theme.gradient.background
 import com.kitsugi.animelist.ui.theme.gradient.border
 import com.kitsugi.animelist.ui.utils.tvClickable
@@ -147,43 +150,17 @@ internal fun MangaExtensionsTab(
             )
         }
 
-        // Bölüm Başlık Sekmesi
+        // Repo / kurulu kaynaklar için Cloudstream ile ortak, tema uyumlu seçici.
         item {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(KitsugiColors.SurfaceSoft)
-                    .padding(4.dp),
-                horizontalArrangement = Arrangement.spacedBy(4.dp)
-            ) {
-                listOf(
-                    MangaTabSection.REPOS to "🌐 Repolar",
-                    MangaTabSection.INSTALLED to "✅ Kurulu (${sources.size})"
-                ).forEach { (section, label) ->
-                    Box(
-                        modifier = Modifier
-                            .weight(1f)
-                            .clip(RoundedCornerShape(10.dp))
-                            .background(if (activeSection == section) accentColor.copy(alpha = 0.2f) else Color.Transparent)
-                            .border(
-                                1.dp,
-                                if (activeSection == section) accentColor else Color.Transparent,
-                                RoundedCornerShape(10.dp)
-                            )
-                            .tvClickable(shape = RoundedCornerShape(10.dp)) { activeSection = section }
-                            .padding(vertical = 8.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            label,
-                            color = if (activeSection == section) accentColor else KitsugiColors.TextSecondary,
-                            fontWeight = if (activeSection == section) FontWeight.Bold else FontWeight.Normal,
-                            fontSize = 12.sp
-                        )
-                    }
-                }
-            }
+            AddonSubsectionTabs(
+                tabs = listOf(
+                    AddonSubsectionTab("Repolar", Icons.Rounded.Language),
+                    AddonSubsectionTab("Kurulu (${sources.size})", Icons.Rounded.Extension)
+                ),
+                selectedIndex = if (activeSection == MangaTabSection.REPOS) 0 else 1,
+                accentColor = accentColor,
+                onSelect = { activeSection = if (it == 0) MangaTabSection.REPOS else MangaTabSection.INSTALLED }
+            )
         }
 
         if (activeSection == MangaTabSection.REPOS) {
@@ -194,8 +171,9 @@ internal fun MangaExtensionsTab(
                         .fillMaxWidth()
                         .clip(RoundedCornerShape(14.dp))
                         .background(KitsugiColors.SurfaceSoft)
-                        .padding(14.dp),
-                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                        .border(1.dp, KitsugiColors.Border.copy(alpha = 0.55f), RoundedCornerShape(14.dp))
+                        .padding(12.dp),
+                    verticalArrangement = Arrangement.spacedBy(9.dp)
                 ) {
                     Text(
                         KitsugiStrings.get(R.string.manga_repo_ekle),
@@ -515,7 +493,7 @@ internal fun MangaExtensionsTab(
                                         onClick = { onUpdateAllExtensions(repoUrl, repoPlugins) },
                                         modifier = Modifier.size(28.dp)
                                     ) {
-                                        Icon(Icons.Rounded.ArrowCircleUp, "Güncelle", tint = Color(0xFFFF9800), modifier = Modifier.size(18.dp))
+                                        Icon(Icons.Rounded.ArrowCircleUp, "Güncelle", tint = accentColor, modifier = Modifier.size(18.dp))
                                     }
                                 }
                                 if (!isBulkInstalling && installedCount < totalCount) {
@@ -684,7 +662,7 @@ internal fun MangaExtensionsTab(
                                                     Box(
                                                         modifier = Modifier
                                                             .clip(RoundedCornerShape(8.dp))
-                                                            .background(Color(0xFFFF9800).copy(alpha = 0.15f))
+                                                            .background(accentColor.copy(alpha = 0.14f))
                                                             .tvClickable(shape = RoundedCornerShape(8.dp)) {
                                                                 installStates[ext.pkg] = MangaInstallState.LOADING
                                                                 onInstallApk(ext) { success ->
@@ -692,7 +670,7 @@ internal fun MangaExtensionsTab(
                                                                 }
                                                             }
                                                             .padding(horizontal = 8.dp, vertical = 4.dp)
-                                                    ) { Text(KitsugiStrings.get(R.string.inline_update_e9a7033), color = Color(0xFFFF9800), fontSize = 10.sp, fontWeight = FontWeight.Bold) }
+                                                    ) { Text(KitsugiStrings.get(R.string.inline_update_e9a7033), color = accentColor, fontSize = 10.sp, fontWeight = FontWeight.Bold) }
                                                 } else {
                                                     Box(
                                                         modifier = Modifier.clip(RoundedCornerShape(8.dp)).background(KitsugiColors.SurfaceStrong).padding(horizontal = 8.dp, vertical = 4.dp)
@@ -729,8 +707,9 @@ internal fun MangaExtensionsTab(
                         .fillMaxWidth()
                         .clip(RoundedCornerShape(14.dp))
                         .background(KitsugiColors.SurfaceSoft)
+                        .border(1.dp, KitsugiColors.Border.copy(alpha = 0.55f), RoundedCornerShape(14.dp))
                         .tvClickable(shape = RoundedCornerShape(14.dp)) { filePickerLauncher.launch("*/*") }
-                        .padding(horizontal = 16.dp, vertical = 12.dp),
+                        .padding(horizontal = 14.dp, vertical = 10.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {

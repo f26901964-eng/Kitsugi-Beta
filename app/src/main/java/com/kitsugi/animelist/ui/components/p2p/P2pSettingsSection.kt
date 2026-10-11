@@ -1,8 +1,12 @@
-﻿package com.kitsugi.animelist.ui.components.p2p
+package com.kitsugi.animelist.ui.components.p2p
 import com.kitsugi.animelist.ui.components.KitsugiButton
 
 import android.widget.Toast
+import com.kitsugi.animelist.ui.theme.gradient.Icon
+import com.kitsugi.animelist.ui.theme.gradient.Switch
+import com.kitsugi.animelist.ui.theme.gradient.Text
 import com.kitsugi.animelist.ui.theme.gradient.background
+import com.kitsugi.animelist.ui.theme.gradient.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -41,7 +45,7 @@ fun P2pSettingsSection(
 
     Column(
         modifier = modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
+        verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         // Section Header
         Row(
@@ -52,13 +56,13 @@ fun P2pSettingsSection(
                 modifier = Modifier
                     .size(36.dp)
                     .clip(RoundedCornerShape(10.dp))
-                    .background(KitsugiColors.AccentBlue.copy(alpha = 0.15f)),
+                    .background(accentColor.copy(alpha = 0.14f)),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
                     Icons.Rounded.CloudSync,
                     contentDescription = null,
-                    tint = KitsugiColors.AccentBlue,
+                    tint = accentColor,
                     modifier = Modifier.size(20.dp)
                 )
             }
@@ -83,8 +87,9 @@ fun P2pSettingsSection(
                 .fillMaxWidth()
                 .clip(RoundedCornerShape(18.dp))
                 .background(KitsugiColors.SurfaceSoft)
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp)
+                .border(1.dp, KitsugiColors.Border.copy(alpha = 0.55f), RoundedCornerShape(18.dp))
+                .padding(14.dp),
+            verticalArrangement = Arrangement.spacedBy(11.dp)
         ) {
             // 1. P2P Aç / Kapa
             Row(
@@ -117,11 +122,7 @@ fun P2pSettingsSection(
                         } else {
                             P2pSettingsRepository.setP2pEnabled(false)
                         }
-                    },
-                    colors = SwitchDefaults.colors(
-                        checkedThumbColor = KitsugiColors.Surface,
-                        checkedTrackColor = accentColor
-                    )
+                    }
                 )
             }
 
@@ -149,11 +150,7 @@ fun P2pSettingsSection(
                     }
                     Switch(
                         checked = p2pState.hideTorrentStats,
-                        onCheckedChange = { P2pSettingsRepository.setHideTorrentStats(it) },
-                        colors = SwitchDefaults.colors(
-                            checkedThumbColor = KitsugiColors.Surface,
-                            checkedTrackColor = accentColor
-                        )
+                        onCheckedChange = { P2pSettingsRepository.setHideTorrentStats(it) }
                     )
                 }
 
@@ -174,17 +171,13 @@ fun P2pSettingsSection(
                         )
                         Text(
                             text = if (p2pState.enableUpload) stringResource(R.string.ui_p2p_upload_enabled) else stringResource(R.string.ui_p2p_download_only),
-                            color = if (p2pState.enableUpload) KitsugiColors.AccentGreen else KitsugiColors.TextSecondary,
+                            color = if (p2pState.enableUpload) accentColor else KitsugiColors.TextSecondary,
                             fontSize = 12.sp
                         )
                     }
                     Switch(
                         checked = p2pState.enableUpload,
-                        onCheckedChange = { P2pSettingsRepository.setEnableUpload(it) },
-                        colors = SwitchDefaults.colors(
-                            checkedThumbColor = KitsugiColors.Surface,
-                            checkedTrackColor = accentColor
-                        )
+                        onCheckedChange = { P2pSettingsRepository.setEnableUpload(it) }
                     )
                 }
 
@@ -213,8 +206,9 @@ fun P2pSettingsSection(
                                     .fillMaxWidth()
                                     .clip(RoundedCornerShape(14.dp))
                                     .background(KitsugiColors.Surface)
+                                    .border(1.dp, KitsugiColors.Border.copy(alpha = 0.55f), RoundedCornerShape(14.dp))
                                     .clickable { uploadDropdownExpanded = true }
-                                    .padding(horizontal = 14.dp, vertical = 12.dp),
+                                    .padding(horizontal = 12.dp, vertical = 10.dp),
                                 horizontalArrangement = Arrangement.SpaceBetween,
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
@@ -264,8 +258,9 @@ fun P2pSettingsSection(
                                 .fillMaxWidth()
                                 .clip(RoundedCornerShape(14.dp))
                                 .background(KitsugiColors.Surface)
+                                .border(1.dp, KitsugiColors.Border.copy(alpha = 0.55f), RoundedCornerShape(14.dp))
                                 .clickable { profileDropdownExpanded = true }
-                                .padding(horizontal = 14.dp, vertical = 12.dp),
+                                .padding(horizontal = 12.dp, vertical = 10.dp),
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
@@ -315,8 +310,9 @@ fun P2pSettingsSection(
                                 .fillMaxWidth()
                                 .clip(RoundedCornerShape(14.dp))
                                 .background(KitsugiColors.Surface)
+                                .border(1.dp, KitsugiColors.Border.copy(alpha = 0.55f), RoundedCornerShape(14.dp))
                                 .clickable { cacheDropdownExpanded = true }
-                                .padding(horizontal = 14.dp, vertical = 12.dp),
+                                .padding(horizontal = 12.dp, vertical = 10.dp),
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
@@ -391,7 +387,7 @@ fun P2pSettingsSection(
                         shape = RoundedCornerShape(12.dp)
                     ) {
                         if (cacheState.isClearing) {
-                            CircularProgressIndicator(modifier = Modifier.size(16.dp), color = KitsugiColors.AccentRed, strokeWidth = 2.dp)
+                            CircularProgressIndicator(modifier = Modifier.size(16.dp), color = accentColor, strokeWidth = 2.dp)
                         } else {
                             Icon(Icons.Rounded.DeleteOutline, contentDescription = null, modifier = Modifier.size(16.dp))
                             Spacer(Modifier.width(6.dp))

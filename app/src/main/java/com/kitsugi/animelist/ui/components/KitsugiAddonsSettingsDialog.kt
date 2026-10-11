@@ -39,6 +39,7 @@ import com.kitsugi.animelist.ui.components.addons.MangaExtensionsTab
 import com.kitsugi.animelist.ui.components.addons.StremioTab
 import com.kitsugi.animelist.ui.theme.LocalKitsugiAccent
 import com.kitsugi.animelist.ui.theme.KitsugiColors
+import com.kitsugi.animelist.ui.theme.accentBrushWithAlpha
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -210,21 +211,22 @@ fun KitsugiAddonsSettingsDialog(
                         val isError = bulkInstallResultMessage.startsWith("❌") || bulkInstallResultMessage.startsWith("⚠️")
                         val isInfo = bulkInstallResultMessage.startsWith("ℹ️")
                         val bannerColor = when {
-                            isError -> Color(0xFFB71C1C).copy(alpha = 0.15f)
-                            isInfo  -> Color(0xFF1565C0).copy(alpha = 0.15f)
-                            else    -> Color(0xFF1B5E20).copy(alpha = 0.15f)
+                            isError -> MaterialTheme.colorScheme.error.copy(alpha = 0.10f)
+                            isInfo -> accentColor.copy(alpha = 0.10f)
+                            else -> KitsugiColors.AccentGreen.copy(alpha = 0.10f)
                         }
                         val textColor = when {
-                            isError -> Color(0xFFEF9A9A)
-                            isInfo  -> Color(0xFF90CAF9)
-                            else    -> Color(0xFFA5D6A7)
+                            isError -> MaterialTheme.colorScheme.error
+                            isInfo -> accentColor
+                            else -> KitsugiColors.AccentGreen
                         }
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .clip(RoundedCornerShape(12.dp))
+                                .clip(RoundedCornerShape(13.dp))
                                 .background(bannerColor)
-                                .padding(horizontal = 12.dp, vertical = 10.dp),
+                                .border(1.dp, textColor.copy(alpha = 0.24f), RoundedCornerShape(13.dp))
+                                .padding(horizontal = 11.dp, vertical = 9.dp),
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
@@ -458,6 +460,8 @@ private fun AddonsSegmentedTabs(
         "Video Kaynakları" to Icons.Rounded.PlayCircle,
         "Manga Kaynakları" to Icons.Rounded.AutoStories
     )
+    val selectedSegmentFill = accentBrushWithAlpha(0.14f)
+    val selectedSegmentBorder = accentBrushWithAlpha(0.48f)
 
     Row(
         modifier = Modifier
@@ -474,11 +478,14 @@ private fun AddonsSegmentedTabs(
                 modifier = Modifier
                     .weight(1f)
                     .clip(RoundedCornerShape(13.dp))
-                    .background(if (selected) accentColor.copy(alpha = 0.16f) else Color.Transparent)
-                    .border(
-                        width = 1.dp,
-                        color = if (selected) accentColor.copy(alpha = 0.45f) else Color.Transparent,
-                        shape = RoundedCornerShape(13.dp)
+                    .then(
+                        if (selected) {
+                            Modifier
+                                .background(selectedSegmentFill, RoundedCornerShape(13.dp))
+                                .border(1.dp, selectedSegmentBorder, RoundedCornerShape(13.dp))
+                        } else {
+                            Modifier
+                        }
                     )
                     .tvClickable(shape = RoundedCornerShape(13.dp)) { onSelect(index) }
                     .padding(vertical = 8.dp, horizontal = 4.dp),
@@ -494,7 +501,7 @@ private fun AddonsSegmentedTabs(
                 Spacer(Modifier.height(4.dp))
                 Text(
                     text = label,
-                    color = if (selected) KitsugiColors.TextPrimary else KitsugiColors.TextSecondary,
+                    color = if (selected) accentColor else KitsugiColors.TextSecondary,
                     fontSize = 11.sp,
                     fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
                     maxLines = 1,

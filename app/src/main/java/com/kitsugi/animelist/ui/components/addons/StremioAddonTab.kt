@@ -2,6 +2,9 @@ package com.kitsugi.animelist.ui.components.addons
 import com.kitsugi.animelist.ui.components.KitsugiButton
 
 import android.content.Context
+import com.kitsugi.animelist.ui.theme.gradient.Icon
+import com.kitsugi.animelist.ui.theme.gradient.Switch
+import com.kitsugi.animelist.ui.theme.gradient.Text
 import com.kitsugi.animelist.ui.theme.gradient.background
 import com.kitsugi.animelist.ui.theme.gradient.border
 import com.kitsugi.animelist.ui.utils.tvClickable
@@ -65,7 +68,7 @@ internal fun StremioTab(
         state = listState,
         modifier = Modifier.fillMaxWidth().fillMaxHeight(),
         contentPadding = PaddingValues(top = 4.dp, bottom = 24.dp),
-        verticalArrangement = Arrangement.spacedBy(14.dp)
+        verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
         // ── Bilgilendirme şeridi ───────────────────────────────────────────
         item {
@@ -89,7 +92,7 @@ internal fun StremioTab(
                 subtitle = stringResource(R.string.otomatik_oynatma_ve_oynatici_motoru),
                 icon = Icons.Rounded.PlayCircle,
                 accentColor = accentColor,
-                iconTint = KitsugiColors.AccentBlue
+                iconTint = accentColor
             ) {
                 val context = LocalContext.current
                 val prefs = remember { context.getSharedPreferences("MyWebViewPrefs", Context.MODE_PRIVATE) }
@@ -107,8 +110,7 @@ internal fun StremioTab(
                     }
                     Switch(
                         checked = autoplayEnabled,
-                        onCheckedChange = { autoplayEnabled = it; prefs.edit().putBoolean("autoplay_enabled", it).apply() },
-                        colors = SwitchDefaults.colors(checkedThumbColor = KitsugiColors.Surface, checkedTrackColor = accentColor)
+                        onCheckedChange = { autoplayEnabled = it; prefs.edit().putBoolean("autoplay_enabled", it).apply() }
                     )
                 }
 
@@ -152,7 +154,7 @@ internal fun StremioTab(
                 subtitle = stringResource(R.string.tek_tikla_kurabileceginiz_guvenilir_kaynaklar),
                 icon = Icons.Rounded.AutoAwesome,
                 accentColor = accentColor,
-                iconTint = KitsugiColors.AccentPurple
+                iconTint = accentColor
             ) {
                 val torrentioUrl = if (debridToken.isNotBlank()) {
                     "https://torrentio.strem.fun/realdebrid=$debridToken/providers=yts,eztv,rarbg,1337x,thepiratebay,kickasstorrents,torrentproject,torrent9,yts,horriblesubs/manifest.json"
@@ -162,10 +164,10 @@ internal fun StremioTab(
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
                     // Token bu sayfada girilmez (giriş alanı kaldırıldı); kayıtlı bir debrid
                     // hesabı varsa Torrentio adresine otomatik eklenir.
-                    PresetAddonRow("Torrentio (Tavsiye Edilen)", "Ana torrent kaynağı. Kayıtlı debrid hesabınız varsa otomatik bağlanır.", torrentioUrl, addons.any { it.manifestUrl.contains("torrentio") }, accentColor, KitsugiColors.AccentBlue, Icons.Rounded.Download, onAddAddon)
-                    PresetAddonRow("Anime Kitsu Kataloğu", "Kitsu üzerinden anime listelerini ve verileri yükler.", "https://anime-kitsu.strem.fun/manifest.json", addons.any { it.manifestUrl.contains("kitsu") }, accentColor, KitsugiColors.AccentPurple, Icons.Rounded.AutoAwesome, onAddAddon)
-                    PresetAddonRow("Official Cinemeta", "Film ve dizi meta verilerini çeken resmi katalog eklentisi.", "https://v3-cinemeta.strem.io/manifest.json", addons.any { it.manifestUrl.contains("cinemeta") }, accentColor, KitsugiColors.AccentGreen, Icons.Rounded.Movie, onAddAddon)
-                    PresetAddonRow("YouTube Trailers", "Fragmanları ve YouTube videolarını oynatan resmi eklenti.", "https://youtube.strem.io/manifest.json", addons.any { it.manifestUrl.contains("youtube.strem.io") }, accentColor, KitsugiColors.AccentOrange, Icons.Rounded.PlayCircle, onAddAddon)
+                    PresetAddonRow("Torrentio (Tavsiye Edilen)", "Ana torrent kaynağı. Kayıtlı debrid hesabınız varsa otomatik bağlanır.", torrentioUrl, addons.any { it.manifestUrl.contains("torrentio") }, accentColor, Icons.Rounded.Download, onAddAddon)
+                    PresetAddonRow("Anime Kitsu Kataloğu", "Kitsu üzerinden anime listelerini ve verileri yükler.", "https://anime-kitsu.strem.fun/manifest.json", addons.any { it.manifestUrl.contains("kitsu") }, accentColor, Icons.Rounded.AutoAwesome, onAddAddon)
+                    PresetAddonRow("Official Cinemeta", "Film ve dizi meta verilerini çeken resmi katalog eklentisi.", "https://v3-cinemeta.strem.io/manifest.json", addons.any { it.manifestUrl.contains("cinemeta") }, accentColor, Icons.Rounded.Movie, onAddAddon)
+                    PresetAddonRow("YouTube Trailers", "Fragmanları ve YouTube videolarını oynatan resmi eklenti.", "https://youtube.strem.io/manifest.json", addons.any { it.manifestUrl.contains("youtube.strem.io") }, accentColor, Icons.Rounded.PlayCircle, onAddAddon)
                 }
             }
         }
@@ -177,7 +179,7 @@ internal fun StremioTab(
                 subtitle = stringResource(R.string.manifest_adresini_yapistirin),
                 icon = Icons.Rounded.AddLink,
                 accentColor = accentColor,
-                iconTint = KitsugiColors.AccentOrange
+                iconTint = accentColor
             ) {
                 Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     TextField(
@@ -197,7 +199,7 @@ internal fun StremioTab(
                     KitsugiButton(
                         onClick = { if (newManifestUrl.isNotBlank()) { onAddAddon(newManifestUrl.trim()); newManifestUrl = "" } },
                         shape = RoundedCornerShape(16.dp)
-                    ) { Icon(Icons.Rounded.Add, contentDescription = stringResource(R.string.ekle), tint = KitsugiColors.Surface) }
+                    ) { Icon(Icons.Rounded.Add, contentDescription = stringResource(R.string.ekle)) }
                 }
             }
         }
@@ -221,10 +223,10 @@ internal fun StremioTab(
         } else {
             items(addons) { addon ->
                 Row(
-                    modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(KitsugiColors.SurfaceSoft).padding(12.dp),
+                    modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(KitsugiColors.SurfaceSoft).border(1.dp, KitsugiColors.Border.copy(alpha = 0.55f), RoundedCornerShape(16.dp)).padding(10.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Box(modifier = Modifier.size(40.dp).clip(RoundedCornerShape(10.dp)).background(accentColor.copy(alpha = 0.2f)), contentAlignment = Alignment.Center) {
+                    Box(modifier = Modifier.size(36.dp).clip(RoundedCornerShape(10.dp)).background(accentColor.copy(alpha = 0.16f)), contentAlignment = Alignment.Center) {
                         Icon(Icons.Rounded.Extension, contentDescription = null, tint = accentColor)
                     }
                     Spacer(Modifier.width(12.dp))
@@ -235,8 +237,7 @@ internal fun StremioTab(
                     Spacer(Modifier.width(8.dp))
                     Switch(
                         checked = addon.isEnabled,
-                        onCheckedChange = { onToggleAddon(addon, it) },
-                        colors = SwitchDefaults.colors(checkedThumbColor = KitsugiColors.Surface, checkedTrackColor = accentColor)
+                        onCheckedChange = { onToggleAddon(addon, it) }
                     )
                     Spacer(Modifier.width(4.dp))
                     IconButton(onClick = { onDeleteAddon(addon) }) {
@@ -265,10 +266,10 @@ internal fun AddonInfoBanner(
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(14.dp))
-            .background(accentColor.copy(alpha = 0.10f))
-            .border(1.dp, accentColor.copy(alpha = 0.22f), RoundedCornerShape(14.dp))
-            .padding(horizontal = 12.dp, vertical = 10.dp),
+            .clip(RoundedCornerShape(13.dp))
+            .background(accentColor.copy(alpha = 0.08f))
+            .border(1.dp, accentColor.copy(alpha = 0.20f), RoundedCornerShape(13.dp))
+            .padding(horizontal = 11.dp, vertical = 9.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
@@ -339,8 +340,8 @@ internal fun AddonSectionCard(
                 .clip(RoundedCornerShape(18.dp))
                 .background(KitsugiColors.SurfaceSoft)
                 .border(1.dp, KitsugiColors.Border.copy(alpha = 0.6f), RoundedCornerShape(18.dp))
-                .padding(14.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
+                .padding(12.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
             content = content
         )
     }
@@ -405,7 +406,7 @@ internal fun AddonEmptyCard(
             .clip(RoundedCornerShape(16.dp))
             .background(KitsugiColors.SurfaceSoft)
             .border(1.dp, KitsugiColors.Border.copy(alpha = 0.6f), RoundedCornerShape(16.dp))
-            .padding(horizontal = 14.dp, vertical = 16.dp),
+            .padding(horizontal = 14.dp, vertical = 13.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(10.dp)
     ) {
@@ -431,7 +432,6 @@ private fun PresetAddonRow(
     manifestUrl: String,
     isInstalled: Boolean,
     accentColor: Color,
-    iconColor: Color,
     icon: ImageVector,
     onAddAddon: (String) -> Unit
 ) {
@@ -442,14 +442,14 @@ private fun PresetAddonRow(
             .background(KitsugiColors.Surface)
             .border(1.dp, KitsugiColors.Border.copy(alpha = 0.5f), RoundedCornerShape(14.dp))
             .tvClickable(enabled = !isInstalled, shape = RoundedCornerShape(14.dp)) { onAddAddon(manifestUrl) }
-            .padding(12.dp),
+            .padding(10.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Box(
-            modifier = Modifier.size(34.dp).clip(RoundedCornerShape(9.dp)).background(iconColor.copy(alpha = 0.18f)),
+            modifier = Modifier.size(32.dp).clip(RoundedCornerShape(9.dp)).background(accentColor.copy(alpha = 0.14f)),
             contentAlignment = Alignment.Center
-        ) { Icon(icon, contentDescription = null, tint = iconColor, modifier = Modifier.size(18.dp)) }
-        Spacer(Modifier.width(12.dp))
+        ) { Icon(icon, contentDescription = null, tint = accentColor, modifier = Modifier.size(18.dp)) }
+        Spacer(Modifier.width(10.dp))
         Column(modifier = Modifier.weight(1f)) {
             Text(title, color = KitsugiColors.TextPrimary, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold)
             Text(subtitle, color = KitsugiColors.TextSecondary, style = MaterialTheme.typography.bodySmall)

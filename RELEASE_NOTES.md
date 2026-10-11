@@ -1,5 +1,25 @@
 # Kitsugi-Beta — Sürüm Notları / Release Notes
 
+## 🇹🇷 Türkçe (v2.4.242)
+
+### 🎨 Eklentiler & Kaynaklar Sayfası Tema Uyumu ve Kompakt Arayüz
+- **Üst Eklenti Sekmeleri:** Torrent & Akış, Video Kaynakları ve Manga Kaynakları sekmelerinin seçili durumu, kullanıcının ayarladığı özel tema rengi ve iki renkli degrade fırçası (`accentBrushWithAlpha`) ile entegre edildi.
+- **Tek Tip Alt Sekme Seçicisi (`AddonSegmentedControl`):** Video ve Manga sayfalarındaki "Repolar" ve "Kurulu" geçişleri için ortak, modern ve kompakt bir seçici bileşeni oluşturuldu.
+- **P2P ve Eklenti Anahtarları:** Torrent/P2P ayarları, eklenti açma/kapatma anahtarları, bölüm ikonları ve durum göstergeleri temayla tam uyumlu hale getirildi. Hata ve silme gibi semantik uyarı renkleri Material tema renklerine bağlanarak korundu.
+- **Kompakt Kart Ergonomisi & Temalı İkonlar:** Boşluklar, satır yükseklikleri ve ikon boyutları sadeleştirildi; simgesi bulunamayan eklentiler için temalı modern yedek ikonlar getirildi.
+
+---
+
+## 🇬🇧 English (v2.4.242)
+
+### 🎨 Addons & Sources UI Theme Alignment & Compact Layout
+- **Top Addon Tabs:** The active tab indicator across Torrent & Stream, Video Sources, and Manga Sources now dynamically adapts to the user's selected accent color and gradient brush (`accentBrushWithAlpha`).
+- **Unified Sub-Tab Selector (`AddonSegmentedControl`):** Implemented a shared, compact, and polished segmented selector for switching between "Repositories" and "Installed" across both Video and Manga sources.
+- **P2P & Extension Controls:** Switches, section headers, badges, and update actions now align with the current theme palette while preserving semantic error and delete styling.
+- **Compact Card Ergonomics & Themed Fallbacks:** Streamlined card paddings, row heights, and icon sizes; added elegant theme-accented placeholder icons when extension icons cannot be loaded.
+
+---
+
 ## 🇹🇷 Türkçe (v2.4.241)
 
 ### 👤 1. AniList Standartlarında Detaylı MyAnimeList (MAL) Profili

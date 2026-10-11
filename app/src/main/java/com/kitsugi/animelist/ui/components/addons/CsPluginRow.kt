@@ -1,12 +1,14 @@
 package com.kitsugi.animelist.ui.components.addons
 
 import com.kitsugi.animelist.ui.theme.gradient.background
+import com.kitsugi.animelist.ui.theme.gradient.border
 import com.kitsugi.animelist.ui.utils.tvClickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material.icons.rounded.Settings
+import androidx.compose.material.icons.rounded.Extension
 import com.kitsugi.animelist.ui.theme.gradient.CircularProgressIndicator
 import com.kitsugi.animelist.ui.theme.gradient.Icon
 import androidx.compose.material3.MaterialTheme
@@ -49,8 +51,9 @@ internal fun CsPluginRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(12.dp))
+            .clip(RoundedCornerShape(14.dp))
             .background(KitsugiColors.Surface)
+            .border(1.dp, KitsugiColors.Border.copy(alpha = 0.55f), RoundedCornerShape(14.dp))
             .padding(10.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -71,7 +74,7 @@ internal fun CsPluginRow(
                     onError = { isError = true }
                 )
             } else {
-                Text("⚡", style = MaterialTheme.typography.bodyMedium)
+                Icon(Icons.Rounded.Extension, contentDescription = null, tint = accentColor, modifier = Modifier.size(18.dp))
             }
         }
         Spacer(Modifier.width(10.dp))
