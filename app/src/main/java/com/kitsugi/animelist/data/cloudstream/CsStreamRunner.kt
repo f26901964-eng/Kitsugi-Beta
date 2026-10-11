@@ -17,6 +17,8 @@ import com.lagradost.cloudstream3.utils.ExtractorLinkType
 import com.lagradost.cloudstream3.utils.loadExtractor
 import com.lagradost.cloudstream3.extractors.helper.AesHelper
 import com.lagradost.cloudstream3.Prerelease
+import com.lagradost.cloudstream3.AcraApplication
+import com.lagradost.cloudstream3.network.CloudflareKiller
 import com.kitsugi.animelist.data.repository.StreamSource
 import com.kitsugi.animelist.data.remote.KitsugiIdResolver
 import com.kitsugi.animelist.core.player.SubtitleInput
@@ -515,8 +517,17 @@ object CsStreamRunner {
         "TurkAnime"
     )
 
-    /** CF korumalı eklentiler için uzatılmış timeout (120 saniye — arama 40 sn + loadLinks 90 sn aşamaları) */
-    private const val CF_PROVIDER_TIMEOUT_MS = 120_000L
+    /** CF korumalı eklentiler için uzatılmış timeout (v2.4.239: 240 sn = 90 sn CF gate +
+     *  60 sn arama + 15 sn load + ~75 sn sezon/bölüm/loadLinks zinciri). Eski 120 sn,
+     *  gate'in tek başına tükettiği süre yüzünden zincirin son halkalarını kesiyordu. */
+    private const val CF_PROVIDER_TIMEOUT_MS = 240_000L
+
+    /**
+     * CF şüphesi olan hostlarda safeSearch/safeLoad aşamalarına tanınan sabır.
+     * Eski sabit 15 sn, CloudflareKiller'ın WebView çözümü daha çerez üretemeden
+     * OkHttp çağrısını iptal ediyordu — "arama sıfır" şikâyetinin kökü buydu.
+     */
+    private const val CF_STAGE_TIMEOUT_MS = 120_000L
 
     private val dynamicDomains = java.util.concurrent.ConcurrentHashMap<String, String>()
     private val dynamicBlockedPlugins = java.util.concurrent.ConcurrentHashMap.newKeySet<String>()
@@ -919,6 +930,102 @@ object CsStreamRunner {
         return fixedUrl
     }
 
+    // ─── v2.4.239 CF GATE & CF FARKINDA ZAMAN BÜTÇELERİ ───────────────────────
+    // Kullanıcı akışı (Eklenti Portalı → çıplak isim araması → sonuç kartı →
+    // detay sayfası → üst sezon barı → alt bölüm listesi) tek bir otomatik zincirdir.
+    // Zincirin hiçbir halkası Cloudflare çözümü yarıda kesildiği için kopmamalı:
+    //   1. Gate: çerez yoksa meydan okuma ARAMA ÖNCESİ gizli WebView'da çözülür (≤90 sn),
+    //   2. Aşamalar: safeSearch/safeLoad, host challenge gördüyse 120 sn sabırla çalışır,
+    //   3. Sağlıklı siteler gate'i milisaniyeler içinde geçer (temiz sayfa yoklaması).
+
+    /** Eklentinin (domain fix uygulanmış) host'u; çözülemezse null. */
+    private fun hostOf(api: MainAPI): String? =
+        runCatching { java.net.URI(getFixedUrl(api.mainUrl)).host }.getOrNull()
+
+    /**
+     * Bu eklenti için arama öncesi CF gate'i gerekli mi?
+     * Hızlı yol koşulları (çerez var / site sağlıklı doğrulanmış) false döndürür —
+     * yani sağlıklı kaynaklara gate hiçbir gecikme eklemez.
+     */
+    internal fun cfGateNeeded(api: MainAPI): Boolean {
+        val host = hostOf(api) ?: return false
+        if (CloudflareKiller.getSavedCookiesForHost(host)?.isNotEmpty() == true) return false
+        if (CsCfWarmupManager.isKnownHealthy(host)) return false
+        return api.name in CF_PROTECTED_PLUGINS ||
+            CloudflareKiller.wasChallenged(host) ||
+            CsCfWarmupManager.isWarmupListedHost(host) ||
+            CsProtectionClassifier.isWafChallenge(CsPluginStatusTracker.getErrorMessage(api.name) ?: "")
+    }
+
+    /**
+     * Arama öncesi clearance gate'i. Süresi arama bütçesinden DÜŞÜLMEZ:
+     * çağrı, arama zaman kutusu başlamadan önce yapılır; kullanıcı tarafında
+     * "kaynak zaten kendi çözüyormuş" hissi buradan gelir.
+     */
+    private suspend fun runCfGateIfNeeded(api: MainAPI) {
+        if (!cfGateNeeded(api)) return
+        val ctx = AcraApplication.context ?: run {
+            Log.w(TAG, "[${api.name}] CF gate: context yok — atlanıyor")
+            return
+        }
+        val host = hostOf(api)
+        Log.w(
+            TAG,
+            "[${api.name}] 🔐 CF gate: $host için clearance arama ÖNCESİ çözülüyor " +
+                "(bütçe ${CsCfWarmupManager.CF_GATE_BUDGET_MS}ms; arama bütçesinden düşülmez)"
+        )
+        CsTrace.info(
+            api.name,
+            "cf-gate",
+            "Arama öncesi clearance gate'i (${CsCfWarmupManager.CF_GATE_BUDGET_MS}ms bütçe)"
+        )
+        runCatching {
+            CsCfWarmupManager.ensureClearance(
+                ctx,
+                getFixedUrl(api.mainUrl),
+                CsCfWarmupManager.CF_GATE_BUDGET_MS
+            )
+        }.onFailure { e ->
+            Log.w(TAG, "[${api.name}] CF gate hatası: ${e.message}")
+        }
+    }
+
+    /**
+     * Aşama timeout'ı: host challenge gördüyse / çözüm sürüyorsa CF sabır bütçesi,
+     * değilse mevcut hızlı bütçe. CloudflareKiller WebView'ı 90-120 sn açık
+     * tutabildiği için dış zaman aşımı ondan uzun olmak zorundadır.
+     */
+    private fun stageTimeoutMs(api: MainAPI, baseMs: Long): Long {
+        val host = hostOf(api) ?: return baseMs
+        val cfActive = api.name in CF_PROTECTED_PLUGINS ||
+            CloudflareKiller.isSolvingHost(host) ||
+            CloudflareKiller.wasChallenged(host) ||
+            CloudflareKiller.getSavedCookiesForHost(host) == null &&
+                CsCfWarmupManager.isWarmupListedHost(host)
+        return if (cfActive) CF_STAGE_TIMEOUT_MS else baseMs
+    }
+
+    /**
+     * "Üst sezon barı" doğrudan gezinmesi: detay sayfasının URL'sinde sezon jetonu
+     * (sezon-2 / season-2 / s2 ...) varsa, hedef sezonun sayfasını ARAMA YAPMADAN
+     * yükler — sitedeki sezon sekmesine tıklamanın kaynak-bağımsız karşılığıdır.
+     */
+    internal fun buildSeasonUrlCandidates(url: String?, season: Int): List<String> {
+        if (url.isNullOrBlank() || season < 1) return emptyList()
+        val patterns = listOf(
+            Regex("""sezon[-_]?\d+""", RegexOption.IGNORE_CASE),
+            Regex("""season[-_]?\d+""", RegexOption.IGNORE_CASE),
+            Regex("""(?<=[/-])s\d+(?=[/-])""")
+        )
+        val out = LinkedHashSet<String>()
+        for (pattern in patterns) {
+            if (!pattern.containsMatchIn(url)) continue
+            out += url.replace(pattern) { m -> m.value.replace(Regex("""\d+"""), season.toString()) }
+        }
+        out.remove(url)
+        return out.take(3)
+    }
+
     // Tracks unsupported methods per provider to avoid calling them repeatedly
     // Format of key: "ProviderName:methodName"
     // NOTE: This is cleared on every new fetch (startFetch) to avoid stale state from previous anime searches.
@@ -1037,9 +1144,14 @@ object CsStreamRunner {
         }
 
         val isCfProtected = api.name in CF_PROTECTED_PLUGINS
-        val effectiveTimeout = if (isCfProtected) CF_PROVIDER_TIMEOUT_MS else PROVIDER_TIMEOUT_MS
-        if (isCfProtected) {
-            Log.w(TAG, "[${api.name}] CF korumalı eklenti — timeout ${effectiveTimeout}ms olarak uzatıldı, ID doğrulaması devre dışı.")
+        // v2.4.239: CF şüphesi (gate gerekli / host challenge gördü) varsa da uzun bütçe —
+        // sadece sabit CF_PROTECTED listesi değil, oturum içinde challenge görülen her
+        // host sabır penceresine alınır.
+        val cfSuspect = isCfProtected || cfGateNeeded(api) ||
+            (hostOf(api)?.let { CloudflareKiller.wasChallenged(it) } == true)
+        val effectiveTimeout = if (cfSuspect) CF_PROVIDER_TIMEOUT_MS else PROVIDER_TIMEOUT_MS
+        if (cfSuspect) {
+            Log.w(TAG, "[${api.name}] CF korumalı/şüpheli eklenti — timeout ${effectiveTimeout}ms olarak uzatıldı, ID doğrulaması devre dışı.")
             Log.e(SERR, "🔐 CF_PROTECTED [${api.name}] — ${effectiveTimeout}ms timeout ile çalışıyor. title='$title' S${season}E${episode}")
         }
 
@@ -1079,6 +1191,13 @@ object CsStreamRunner {
         isMovie: Boolean? = null,
         partialSink: MutableList<StreamSource>? = null
     ): List<StreamSource> {
+        // ── v2.4.239 CF GATE (zincirin 0. halkası) ────────────────────────────
+        // Çıplak-isim aramasına başlamadan ÖNCE Cloudflare/WAF clearance'ını çöz.
+        // Gate süresi arama zaman bütçesinden düşülmez (aşağıda searchStartMs gate
+        // SONRASINDA kurulur); sağlıklı sitelerde yoklama 'CLEAN' döner ve gate
+        // milisaniyeler içinde kapanır — gecikme yalnızca gerçekten korumalı hostlarda.
+        runCfGateIfNeeded(api)
+
         // Resolve external IDs for validation
         val resolvedIds = if (malId != null || aniListId != null || tmdbId != null) {
             try {
@@ -1149,7 +1268,10 @@ object CsStreamRunner {
         // often use Turkish-translated titles, ASCII-only transliterations, and different
         // naming conventions than the canonical (English/Romaji/Japanese) titles.
         val maxSearchVariants = minOf(titleVariants.size, 18)
-        val searchTimeBudgetMs = if (api.name in CF_PROTECTED_PLUGINS) 40_000L else 20_000L
+        // v2.4.239: gate arama ÖNCESİNDE koştuğu için bu bütçe yalnızca saf arama
+        // sorgularını kapsar; CF şüpheli hostlarda varyant başına sabır stageTimeoutMs
+        // ile ayrıca genişletilir.
+        val searchTimeBudgetMs = if (api.name in CF_PROTECTED_PLUGINS || cfGateNeeded(api)) 60_000L else 20_000L
         val searchStartMs = System.currentTimeMillis()
         val searchVariants = titleVariants.take(maxSearchVariants)
         var variantIndex = 0
@@ -1513,6 +1635,19 @@ object CsStreamRunner {
         alternativeTitles: List<String>,
         year: Int?
     ): List<StreamSource> {
+        // v2.4.239: yüklenen sayfanın "üst sezon barı" mimarisini logla — tanıda
+        // sitenin hangi sezonları sunduğu ile istenen sezonun karşılaştırılabilmesi için.
+        val seasonBar = when (loadResponse) {
+            is AnimeLoadResponse -> loadResponse.episodes.values.flatten().mapNotNull { it.season }.distinct().sorted()
+            is TvSeriesLoadResponse -> loadResponse.episodes.mapNotNull { it.season }.distinct().sorted()
+            else -> emptyList()
+        }
+        Log.d(
+            TAG,
+            "[${api.name}] 📺 Sezon barı: ${if (seasonBar.isEmpty()) "(tek sayfa/sezon jetonu yok)" else seasonBar.joinToString(",")} " +
+                "| istenen: S${season}E${episode} | bölüm sayısı: ${episodeCountOf(loadResponse)}"
+        )
+
         val episodeData = findEpisodeData(loadResponse, season, episode)
         if (episodeData != null) {
             Log.d(TAG, "[${api.name}] 📺 Dizi mekaniği: S${season}E${episode} bölüm verisi yüklenen sayfada bulundu")
@@ -1569,6 +1704,19 @@ object CsStreamRunner {
         alternativeTitles: List<String>,
         year: Int?
     ): Pair<String, LoadResponse>? {
+        // ── Adım 0 (v2.4.239): "üst sezon barı" doğrudan gezinmesi ─────────────
+        // Detay sayfasındaki sezon sekmelerine (1. Sezon / 2. Sezon / ...) tıklamanın
+        // kaynak-bağımsız karşılığı: URL'deki sezon jetonunu hedef sezonla değiştirip
+        // sayfayı doğrudan yüklemek. Arama sorgusu harcanmaz; site sayfayı kendisi
+        // açmış olur ve alt bölüm listesi hedef sezona göre gelir.
+        for (seasonUrl in buildSeasonUrlCandidates(current.url, season)) {
+            val resp = safeLoad(api, seasonUrl) ?: continue
+            val data = findEpisodeData(resp, season, episode) ?: continue
+            Log.d(TAG, "[${api.name}] ⤷ Sezon barı doğrudan gezinme başarılı: $seasonUrl → S${season}E${episode}")
+            CsTrace.info(api.name, "season-nav", "sezon barı URL: $seasonUrl")
+            return data to resp
+        }
+
         val queries = buildSeasonScopedVariants(title, alternativeTitles, season).take(4)
         if (queries.isEmpty()) return null
         for (query in queries) {
@@ -2557,8 +2705,11 @@ object CsStreamRunner {
                 ensurePluginReady(api)
                 Log.d(TAG, "[${api.name}] loadLinks çağrılıyor...")
                 
-                // Wrap the loadLinks in a timeout — CF korumalı siteler için 90s, diğerleri 25s
-                val loadLinksTimeoutMs = if (api.name in CF_PROTECTED_PLUGINS) CF_PROVIDER_TIMEOUT_MS else 25_000L
+                // Wrap the loadLinks in a timeout — CF korumalı/şüpheli siteler için 120s, diğerleri 25s.
+                // v2.4.239: eski davranış CF_PROTECTED için provider bütçesinin (o zaman 120s)
+                // tamamını loadLinks'e veriyordu; provider bütçesi 240s'ye çıkınca loadLinks'in
+                // zinciri tek başına kilitlememesi için ayrı aşama bütçesi (CF_STAGE_TIMEOUT_MS) kullanılır.
+                val loadLinksTimeoutMs = stageTimeoutMs(api, 25_000L)
                 withTimeoutOrNull(loadLinksTimeoutMs) {
                     api.loadLinks(
                         data = episodeData,
@@ -2983,7 +3134,10 @@ object CsStreamRunner {
             Log.w(TAG, "[${api.name}] safeSearch: Domain (${api.mainUrl}) ölü domain listesinde — yine de deneniyor.")
         }
         return searchSemaphore.withPermit {
-            withTimeoutOrNull(15_000L) {
+            // v2.4.239: CF şüpheli hostlarda arama aşaması 120 sn sabırla çalışır —
+            // eski sabit 15 sn, CloudflareKiller'ın WebView çözümü çerez üretemeden
+            // sorguyu iptal edip "arama sıfır" sonucunu üretiyordu.
+            withTimeoutOrNull(stageTimeoutMs(api, 15_000L)) {
                 try {
                 // Hafif throttle — aggressive rate-limiting'i önler
                 kotlinx.coroutines.delay(300)
@@ -3410,7 +3564,9 @@ object CsStreamRunner {
             Log.w(TAG, "[${api.name}] safeLoad: Domain (${api.mainUrl}) ölü domain listesinde — yine de deneniyor.")
         }
         return loadSemaphore.withPermit {
-            withTimeoutOrNull(15_000L) {
+            // v2.4.239: detay sayfası (sezon barı + bölüm listesi) CF arkasındaysa
+            // load aşaması da tam sabır bütçesiyle çalışır.
+            withTimeoutOrNull(stageTimeoutMs(api, 15_000L)) {
                 try {
                 kotlinx.coroutines.delay(300)
                 Log.d(TAG, "[${api.name}] load('$url') çağrılıyor...")
@@ -3635,6 +3791,9 @@ object CsStreamRunner {
     ): List<StreamSource> = withContext(Dispatchers.IO) {
         ensurePluginReady(api)
         if (api.name in KNOWN_BROKEN_PLUGINS) return@withContext emptyList()
+        // v2.4.239: doğrudan-URL modunda da CF gate'i — detay/sezon/bölüm zinciri
+        // korumalı hostlarda clearance olmadan başlamasın.
+        runCfGateIfNeeded(api)
         val searchResponse = api.newAnimeSearchResponse(
             name = api.name,
             url = url,

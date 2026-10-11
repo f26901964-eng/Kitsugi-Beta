@@ -47,8 +47,66 @@ class CloudflareKiller : Interceptor {
         // Per-host failure cooldown map to prevent continuous WebView solve attempts for broken/dead/blocked sites.
         val hostFailureCooldown: MutableMap<String, Long> = ConcurrentHashMap()
 
+        // ── CF SABIR BÜTÇESİ (v2.4.239) ─────────────────────────────────────────
+        // Cloudflare/WAF çözümü için tanınan AZAMİ sabır. Eski davranış WebView'ı ~10 sn'de
+        // kapatıyordu; Turnstile/PoW meydan okumaları bundan uzun sürdüğünden clearance
+        // çerezi hiç alınamıyor ve host 90 sn'lik ceza beklemesine düşüyordu. Yeni kural:
+        //   • sert kanıt (cf_clearance / __ddg*) gelirse → hemen kabul,
+        //   • kanıt yoksa WebView CF_SOLVE_FALLBACK_MIN_MS (90 sn) boyunca AÇIK kalır,
+        //   • 90 sn'den itibaren herhangi bir oturum çerezi son çare olarak kabul edilir,
+        //   • 120 sn'de (CF_SOLVE_BUDGET_MS) WebView sert biçimde kapatılır.
+        // Yani bir CF çözümü asla 90 sn'den önce "vazgeçilmez", 120 sn'den sonra da sarkmaz.
+        const val CF_SOLVE_BUDGET_MS = 120_000L
+        const val CF_SOLVE_FALLBACK_MIN_MS = 90_000L
+
+        /** Kanıt dışı (jenerik waf/session çerezi) kabul için asgari yerleşme süresi. */
+        private const val GENERIC_COOKIE_MIN_WAIT_MS = 15_000L
+
+        // Host'un meydan okuma (403/503 + challenge imzası) gördüğünü hatırlar; başarılı
+        // istek sonrası temizlenir. CsStreamRunner bu bayrağı aşama timeout'larını
+        // (safeSearch/safeLoad) CF bütçesine genişletmek için kullanır.
+        private val challengedHosts: MutableMap<String, Long> = ConcurrentHashMap()
+
         @Volatile
         var ignoreCooldowns: Boolean = false
+
+        /** Bu host için aktif bir WebView çözümü sürüyor mu? */
+        fun isSolvingHost(host: String): Boolean {
+            val start = solveStartFor(host) ?: return false
+            return System.currentTimeMillis() - start < CF_SOLVE_BUDGET_MS + 5_000L
+        }
+
+        private fun solveStartFor(host: String): Long? =
+            hostBypassStartTime[host]
+                ?: if (host.startsWith("www.")) hostBypassStartTime[host.removePrefix("www.")]
+                   else hostBypassStartTime["www.$host"]
+
+        /** Bu host yakın zamanda challenge gördü mü (ve henüz temiz istek geçmedi mi)? */
+        fun wasChallenged(host: String): Boolean {
+            val t = challengedHosts[host] ?: challengedHosts["www.$host"]
+                ?: if (host.startsWith("www.")) challengedHosts[host.removePrefix("www.")] else null
+            return t != null && System.currentTimeMillis() - t < 10 * 60_000L
+        }
+
+        fun markChallenged(host: String) {
+            challengedHosts[host] = System.currentTimeMillis()
+        }
+
+        fun clearChallenged(host: String) {
+            challengedHosts.remove(host)
+            if (host.startsWith("www.")) challengedHosts.remove(host.removePrefix("www."))
+            else challengedHosts.remove("www.$host")
+        }
+
+        /** Host için kayıtlı ve clearance içeren çerez var mı? (gate/fast-path kararı) */
+        fun hasClearanceFor(host: String): Boolean {
+            val cookies = getSavedCookiesForHost(host) ?: return false
+            if (cookies.isEmpty()) return false
+            return cookies.keys.any { k ->
+                k.equals("cf_clearance", true) || k.startsWith("__ddg", true) ||
+                    k.contains("clearance", true) || k.contains("waf", true)
+            }
+        }
 
         fun parseCookieMap(cookie: String): Map<String, String> {
             return cookie.split(";").associate {
@@ -220,6 +278,9 @@ class CloudflareKiller : Interceptor {
         }
 
         if (isCfChallenge || isWafChallenge) {
+            // v2.4.239: host'un meydan okuma gördüğünü hatırla — CsStreamRunner bu bayrakla
+            // safeSearch/safeLoad timeout'larını CF sabır bütçesine (120 sn) genişletir.
+            markChallenged(host)
             if (chain.call().isCanceled()) throw java.io.IOException("Canceled")
             val cooldownUntil = getFailureCooldownForHost(host)
             if (!ignoreCooldowns && cooldownUntil > System.currentTimeMillis()) {
@@ -258,13 +319,16 @@ class CloudflareKiller : Interceptor {
                         if (chain.call().isCanceled()) return@runBlocking
                         try {
                             if (!trySolveWithSavedCookies(request, host)) {
-                                Log.d(TAG, "Loading webview to solve WAF/Cloudflare for ${request.url}")
-                                WebViewResolver(
-                                    Regex(".^"),
-                                    userAgent = UNIFIED_USER_AGENT,
-                                    useOkhttp = false,
-                                    additionalUrls = listOf(Regex("."))
-                                ).resolveUsingWebView(request.url.toString()) {
+                                    Log.d(TAG, "Loading webview to solve WAF/Cloudflare for ${request.url}")
+                                    WebViewResolver(
+                                        Regex(".^"),
+                                        userAgent = UNIFIED_USER_AGENT,
+                                        useOkhttp = false,
+                                        additionalUrls = listOf(Regex(".")),
+                                        // v2.4.239: AAR'ın varsayılan 60 sn'si PoW/Turnstile için
+                                        // yetmiyordu; WebView artık tam sabır bütçesiyle açık kalır.
+                                        timeout = CF_SOLVE_BUDGET_MS
+                                    ).resolveUsingWebView(request.url.toString()) {
                                     if (chain.call().isCanceled()) false
                                     else trySolveWithSavedCookies(request, host)
                                 }
@@ -277,6 +341,8 @@ class CloudflareKiller : Interceptor {
                     getSavedCookiesForHost(host)
                 }
             }
+            // Çözüm bloğu bitti — "çözülüyor" durumunu bırak (timeout'lar normale döner).
+            hostBypassStartTime.remove(host)
 
             if (solvedCookies != null) {
                 Log.d(TAG, "Succeeded bypassing WAF/Cloudflare for: ${request.url}")
@@ -303,6 +369,8 @@ class CloudflareKiller : Interceptor {
                     setFailureCooldownForHost(host, System.currentTimeMillis() + 90 * 1000L) // 90 seconds
                 } else {
                     removeFailureCooldownForHost(host)
+                    // v2.4.239: temiz istek geçti — challenge bayrağını sıfırla.
+                    clearChallenged(host)
                 }
 
                 // Peek and log the HTML response body for tranimaci search request to inspect Next.js data
@@ -395,10 +463,14 @@ class CloudflareKiller : Interceptor {
             // before considering the challenge solved, otherwise the WebView is closed prematurely.
             cookieMap.containsKey("vDDoS-YG") && cookieMap.containsKey("__waf_session") && timeDiff >= 5500L
         } else {
+            // v2.4.239: jenerik waf/session çerezi tek başına kanıt DEĞİLDİR — meydan okuma
+            // sayfaları çözülmeden önce de oturum çerezi dikebiliyor. Bu yüzden jenerik
+            // kabul için asgari yerleşme süresi (15 sn) aranır; sert kanıt (cf_clearance,
+            // __ddg*) her zaman anında kabul edilir.
             cookieMap.keys.any { k ->
                 k.contains("waf", ignoreCase = true) || k.contains("session", ignoreCase = true) ||
                 k.contains("challenge", ignoreCase = true) || k.contains("clearance", ignoreCase = true)
-            } && cookieMap.values.any { it.isNotBlank() }
+            } && cookieMap.values.any { it.isNotBlank() } && timeDiff >= GENERIC_COOKIE_MIN_WAIT_MS
         }
         
         val solvedImmediately = hasCfClearance || hasDdg || hasDdgId || hasWafSession
@@ -408,9 +480,13 @@ class CloudflareKiller : Interceptor {
             return true
         }
         
-        if (timeDiff >= 10000L) { // Fallback timeout: 10s to allow slow devices + heavy PoW challenges
+        // v2.4.239 SABIR KURALI: eski davranış 10 sn'de "ne bulduysam kabul" diyerek
+        // WebView'ı kapatıyordu; 90-120 sn süren Turnstile/PoW meydan okumaları hiç
+        // çözülemiyordu. Artık kanıt yoksa WebView CF_SOLVE_FALLBACK_MIN_MS (90 sn)
+        // boyunca açık tutulur ve son çare kabul ancak o noktadan sonra yapılır.
+        if (timeDiff >= CF_SOLVE_FALLBACK_MIN_MS) {
             saveCookiesForHost(host, cookieMap)
-            Log.d(TAG, "Cookies accepted via fallback after ${timeDiff}ms for $host: keys=${cookieMap.keys}")
+            Log.w(TAG, "Cookies accepted via PATIENT fallback after ${timeDiff}ms for $host (budget ${CF_SOLVE_BUDGET_MS}ms): keys=${cookieMap.keys}")
             return true
         }
         

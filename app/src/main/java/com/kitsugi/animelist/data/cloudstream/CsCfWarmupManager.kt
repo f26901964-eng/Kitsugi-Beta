@@ -11,6 +11,7 @@ import android.webkit.WebView
 import android.webkit.WebViewClient
 import com.lagradost.cloudstream3.network.CloudflareKiller
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.withContext
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
@@ -34,6 +35,85 @@ import java.util.concurrent.TimeUnit
 object CsCfWarmupManager {
 
     private const val TAG = "CsCfWarmup"
+
+    // ── v2.4.239 CF GATE ──────────────────────────────────────────────────────
+    // Arama öncesi clearance kapısı: host'un çerezi yoksa gizli WebView ile
+    // meydan okumayı ARAMA ÖNCESİNDE çözer. Böylece çıplak-isim araması → sonuç →
+    // detay → sezon barı → bölümler zincirinin hiçbir halkası CF çözümü yüzünden
+    // yarıda kesilmez; kullanıcıya "kaynak bunu zaten kendi yapıyormuş" gibi görünür.
+    /** Gate bütçesi — kullanıcının istediği asgari sabır penceresi (90 sn). */
+    const val CF_GATE_BUDGET_MS = 90_000L
+
+    /** Aynı anda en fazla 2 gate WebView'ı — bellek/CPU baskısını sınırlar. */
+    private val gateSemaphore = kotlinx.coroutines.sync.Semaphore(2)
+
+    /** Meydan okuma içermeyen (sağlıklı) doğrulanan hostlar — 30 dk boyunca gate atlanır. */
+    private val healthyHosts = java.util.concurrent.ConcurrentHashMap<String, Long>()
+    private const val HEALTHY_TTL_MS = 30 * 60_000L
+
+    /** Sayfa meydan okuma mı temiz içerik mi? WebView içinde JS ile yoklanır. */
+    private const val CHALLENGE_PROBE_JS = """
+(function(){
+  try {
+    var t = (document.title || '').toLowerCase();
+    var b = document.body ? (document.body.innerText || '').slice(0, 1500).toLowerCase() : '';
+    var h = t + ' ' + b;
+    var markers = ['just a moment','checking your browser','verify you are human','cf-challenge','challenge-platform','turnstile','__waf_challenge','security verification','bot verification','browser verification','insan oldugunuzu','robot olmadiginizi','tarayici dogrulama','güvenlik doğrulaması','attention required','cloudflare','ddos-guard'];
+    for (var i = 0; i < markers.length; i++) { if (h.indexOf(markers[i]) !== -1) return 'CHALLENGE'; }
+    return 'CLEAN';
+  } catch (e) { return 'CLEAN'; }
+})()
+"""
+
+    fun isKnownHealthy(host: String): Boolean {
+        val ts = healthyHosts[host] ?: healthyHosts["www.$host"]
+            ?: if (host.startsWith("www.")) healthyHosts[host.removePrefix("www.")] else null
+            ?: return false
+        return System.currentTimeMillis() - ts < HEALTHY_TTL_MS
+    }
+
+    /** Host, yerleşik CF/WAF korumalı site listesinde mi? */
+    fun isWarmupListedHost(host: String): Boolean {
+        val bare = if (host.startsWith("www.")) host.removePrefix("www.") else host
+        return WARMUP_SITES.any { site ->
+            val siteHost = runCatching { java.net.URI(site).host }.getOrNull() ?: return@any false
+            val siteBare = if (siteHost.startsWith("www.")) siteHost.removePrefix("www.") else siteHost
+            siteBare == bare
+        }
+    }
+
+    /**
+     * Arama öncesi clearance kapısı.
+     *
+     * Hızlı yol: host'un kayıtlı clearance çerezi veya "sağlıklı site" kaydı varsa
+     * anında (0 ms) döner — sağlıklı kaynaklara hiçbir gecikme eklemez.
+     * Yavaş yol: gizli WebView açar, meydan okumayı en fazla [budgetMs] boyunca
+     * çözmeye çalışır; çerezler CloudflareKiller'a kaydedilir ve sonraki tüm
+     * aşamalar (arama/load/sezon/bölüm/loadLinks) bunları yeniden kullanır.
+     */
+    suspend fun ensureClearance(
+        context: Context,
+        url: String,
+        budgetMs: Long = CF_GATE_BUDGET_MS
+    ): Boolean {
+        val host = runCatching { java.net.URI(url).host }.getOrNull() ?: return false
+        if (CloudflareKiller.getSavedCookiesForHost(host)?.isNotEmpty() == true) return true
+        if (isKnownHealthy(host)) return true
+        val fixedUrl = CsStreamRunner.getFixedUrl(url)
+        val start = System.currentTimeMillis()
+        return gateSemaphore.withPermit {
+            // Permit beklerken başka coroutine çözmüş olabilir — tekrar kontrol et.
+            if (CloudflareKiller.getSavedCookiesForHost(host)?.isNotEmpty() == true) return@withPermit true
+            if (isKnownHealthy(host)) return@withPermit true
+            Log.i(TAG, "[$host] CF gate başlıyor — clearance arama öncesi çözülüyor (bütçe ${budgetMs}ms)")
+            val ok = warmupSite(context, fixedUrl, host, budgetMs)
+            Log.i(
+                TAG,
+                "[$host] CF gate ${if (ok) "BAŞARILI ✅" else "başarısız ❌"} (${System.currentTimeMillis() - start}ms)"
+            )
+            ok
+        }
+    }
 
     /**
      * Yüksek öncelikli siteler — animasyon/film izleme için kritik.
@@ -101,7 +181,7 @@ object CsCfWarmupManager {
     suspend fun runWarmup(
         context: Context,
         maxSites: Int = 14,
-        timeoutMs: Long = 15_000L
+        timeoutMs: Long = CF_GATE_BUDGET_MS
     ) {
         val now = System.currentTimeMillis()
         if (now - lastWarmupMs < WARMUP_MIN_INTERVAL_MS) {
@@ -110,7 +190,7 @@ object CsCfWarmupManager {
         }
         lastWarmupMs = now
 
-        // Zaten cookie'si olan siteleri filtrele
+        // Zaten cookie'si olan veya sağlıklı doğrulanmış siteleri filtrele
         val sitesToWarm = WARMUP_SITES
             .map { CsStreamRunner.getFixedUrl(it) } // Güncel dinamik domaini kullan
             .filter { url ->
@@ -120,7 +200,7 @@ object CsCfWarmupManager {
                 if (hasCookie) {
                     Log.d(TAG, "[$host] Zaten cookie var, warmup atlanıyor.")
                 }
-                !hasCookie
+                !hasCookie && !isKnownHealthy(host)
             }
             .take(maxSites)
 
@@ -134,9 +214,9 @@ object CsCfWarmupManager {
         // Her siteyi sırayla warmup yap (paralel WebView'lar bellek sorununa yol açar)
         for (url in sitesToWarm) {
             val host = runCatching { java.net.URI(url).host }.getOrNull() ?: continue
-            // molystream.org Turnstile çok daha uzun süreli — 25s
-            val siteTimeout = if (host.contains("molystream") || host.contains("dizibox")) 25_000L
-                              else timeoutMs
+            // molystream.org / dizibox Turnstile'ı çok uzun sürer — tam CF sabır bütçesi.
+            val siteTimeout = if (host.contains("molystream") || host.contains("dizibox"))
+                CloudflareKiller.CF_SOLVE_BUDGET_MS else timeoutMs
             try {
                 Log.d(TAG, "[$host] Warmup başlıyor: $url (timeout: ${siteTimeout}ms)")
                 val success = warmupSite(context, url, host, siteTimeout)
@@ -207,12 +287,30 @@ object CsCfWarmupManager {
                             return false
                         }
 
+                        /** Çerezleri kaydet + gate'i başarıyla kapat + WebView'ı ANINDA sök. */
+                        fun acceptAndFinish(view: WebView, cookieMap: Map<String, String>, timeDiff: Long, how: String) {
+                            if (settled.get()) return
+                            if (cookieMap.isNotEmpty()) {
+                                CloudflareKiller.saveCookiesForHost(host, cookieMap)
+                            }
+                            // Failure cooldown'u temizle — artık cookie var
+                            CloudflareKiller.removeFailureCooldownForHost(host)
+                            success = true
+                            Log.d(TAG, "[$host] Cookie alındı [$how] (${timeDiff}ms): ${cookieMap.keys}")
+                            view.stopLoading()
+                            if (latch.count > 0) latch.countDown()
+                            // v2.4.239: başarıda WebView'ı bütçe sonuna kadar bekletme —
+                            // eski davranış çözümden sonra da WebView'ı 90 sn açık tutuyordu.
+                            // Söküm, WebView callback'i içinden destroy etmemek için post edilir.
+                            handler.post { releaseWebView(webViewRef, settled) }
+                        }
+
                         override fun onPageFinished(view: WebView, pageUrl: String) {
                             // Cookie kontrolü — cf_clearance veya WAF session cookie'si var mı?
                             val timeDiff = System.currentTimeMillis() - startMs
-                            val cookieStr = CookieManager.getInstance().getCookie(pageUrl) ?: return
-                            val cookieMap = CloudflareKiller.parseCookieMap(cookieStr)
-                            if (cookieMap.isEmpty()) return
+                            val cookieStr = CookieManager.getInstance().getCookie(pageUrl)
+                            val cookieMap = if (cookieStr.isNullOrBlank()) emptyMap()
+                                            else CloudflareKiller.parseCookieMap(cookieStr)
 
                             val hasCfClearance = cookieMap["cf_clearance"]?.isNotBlank() == true
                             val hasWaf = cookieMap.keys.any { k ->
@@ -220,23 +318,31 @@ object CsCfWarmupManager {
                                 k.contains("clearance", ignoreCase = true) ||
                                 k.contains("ddg", ignoreCase = true)
                             }
-                            val hasFallback = timeDiff >= 9_000L && cookieMap.isNotEmpty()
+                            if (hasCfClearance || hasWaf) {
+                                acceptAndFinish(view, cookieMap, timeDiff, "kanıt")
+                                return
+                            }
 
-                            if (hasCfClearance || hasWaf || hasFallback) {
-                                CloudflareKiller.savedCookies[host] = cookieMap
-                                // www. versiyonunu da kaydet
-                                if (!host.startsWith("www.")) {
-                                    CloudflareKiller.savedCookies["www.$host"] = cookieMap
-                                } else {
-                                    CloudflareKiller.savedCookies[host.removePrefix("www.")] = cookieMap
+                            // Kanıt yok → sayfanın kendisine sor: meydan okuma mı, temiz mi?
+                            // Temiz sayfa = site CF korumalı değil → 90 sn BEKLEME, gate anında kapanır.
+                            // Meydan okuma sayfası = sabır penceresi (90 sn) sonuna kadar bekle.
+                            try {
+                                view.evaluateJavascript(CHALLENGE_PROBE_JS) { probe ->
+                                    if (settled.get()) return@evaluateJavascript
+                                    val verdict = probe?.trim('"') ?: "CLEAN"
+                                    val elapsed = System.currentTimeMillis() - startMs
+                                    if (verdict != "CHALLENGE") {
+                                        healthyHosts[host] = System.currentTimeMillis()
+                                        acceptAndFinish(view, cookieMap, elapsed, "temiz sayfa")
+                                    } else if (elapsed >= CloudflareKiller.CF_SOLVE_FALLBACK_MIN_MS && cookieMap.isNotEmpty()) {
+                                        // 90 sn doldu, kanıt hâlâ yok → oturum çerezini son çare kabul et.
+                                        acceptAndFinish(view, cookieMap, elapsed, "sabırlı son çare")
+                                    } else {
+                                        Log.d(TAG, "[$host] Meydan okuma sayfası aktif (${elapsed}ms) — sabır penceresi işliyor")
+                                    }
                                 }
-                                // Failure cooldown'u temizle — artık cookie var
-                                CloudflareKiller.hostFailureCooldown.remove(host)
-                                CloudflareKiller.hostFailureCooldown.remove("www.$host")
-                                success = true
-                                Log.d(TAG, "[$host] Cookie alındı (${timeDiff}ms): ${cookieMap.keys}")
-                                view.stopLoading()
-                                latch.countDown()
+                            } catch (e: Exception) {
+                                Log.w(TAG, "[$host] Challenge probe hatası: ${e.message}")
                             }
                         }
                     }
@@ -301,6 +407,6 @@ object CsCfWarmupManager {
         CloudflareKiller.hostFailureCooldown.remove(host)
         CloudflareKiller.hostFailureCooldown.remove("www.$host")
         Log.d(TAG, "[$host] Cookie temizlendi, yeniden warmup yapılıyor...")
-        warmupSite(context, fixedUrl, host, 15_000L)
+        warmupSite(context, fixedUrl, host, CF_GATE_BUDGET_MS)
     }
 }
