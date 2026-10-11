@@ -36,3 +36,11 @@ dikey poster geniş alanda kırpılıp karakterler kesiliyordu.
 - Manuel: telefon dikey/yatay, tablet dikey/yatay — poster/backdrop seçimi ve karakter kırpılmaması.
 - Koleksiyon kaydı detayı (`EntryDetailLeftPanel` → `KitsugiDetailHeroSection.kt`) bu değişiklikte
   kapsam dışı; `MediaEntry` arka plan verisi taşımıyor.
+
+## Ek: Galeri Adayları
+
+- `KitsugiDetailHero` artık `galleryItems` alır (`ApiDetailLeftPanel` geçirir).
+- Galeri öğeleri kategoriye (`POSTER`, `BACKDROP`, `BANNER`) ve gerçek `width/height` oranına göre
+  dikey/yatay olarak ayrılır; logo, clearart, karakter, kişi, küçük resim ve kare kategoriler hariç tutulur.
+- Her yön içinde en yüksek çözünürlük önce gelir.
+- Sıralama: önce kaynak/TMDB/Fanart vitrin adayları (resolver), sonra galeri adayları; yükleme hatasında sıradaki adaya geçilir.

@@ -91,6 +91,7 @@ fun ApiDetailLeftPanel(
         backdropUrl = displayResult.backdropUrl,
         mediaType = displayResult.type,
         artworkItem = displayResult,
+        galleryItems = galleryItems,
         logoUrl = if (showAnimeLogos) logoUrl else null,
         source = displayResult.source,
         typeLabel = when (displayResult.type) {

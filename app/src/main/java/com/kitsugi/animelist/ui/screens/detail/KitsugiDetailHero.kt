@@ -4,6 +4,8 @@ import com.kitsugi.animelist.ui.components.KitsugiGalleryIconButton
 import com.kitsugi.animelist.ui.components.heroImageAlignment
 import com.kitsugi.animelist.ui.components.heroImageCandidates
 import com.kitsugi.animelist.data.remote.JikanSearchResult
+import com.kitsugi.animelist.data.remote.GalleryCategory
+import com.kitsugi.animelist.data.remote.GalleryItem
 import com.kitsugi.animelist.data.remote.KitsugiHeroArtworkResolver
 import com.kitsugi.animelist.model.MediaType
 import android.content.res.Configuration
@@ -101,7 +103,9 @@ fun KitsugiDetailHero(
     backdropUrl: String? = null,
     mediaType: MediaType = MediaType.Anime,
     /** Görsel çözümleyici için kaynak öğe (TMDB + Fanart.tv en kaliteli poster/arka plan). */
-    artworkItem: JikanSearchResult? = null
+    artworkItem: JikanSearchResult? = null,
+    /** Galeri görselleri (kaynak + TMDB/Fanart). Dikey/yatay adaylar olarak vitrine eklenir. */
+    galleryItems: List<GalleryItem> = emptyList()
 ) {
     val accentColor = LocalKitsugiAccent.current
     val fallbackPlaceholderColor = statusColor ?: accentColor
@@ -122,7 +126,15 @@ fun KitsugiDetailHero(
         value = runCatching { KitsugiHeroArtworkResolver.resolveArtwork(item) }.getOrNull() ?: value
     }
 
-    val imagePlan = remember(imageUrl, backdropUrl, artwork, heroWidthDp, isLandscapeScreen, mediaType) {
+    // Galeri adaylarını yön ve çözünürlüğe göre sırala (en yüksek çözünürlük önce).
+    val galleryVerticalUrls = remember(galleryItems) {
+        galleryItems.filter { isVerticalGalleryItem(it) }.sortedByDescending { galleryPixels(it) }.map { it.url }
+    }
+    val galleryHorizontalUrls = remember(galleryItems) {
+        galleryItems.filter { isHorizontalGalleryItem(it) }.sortedByDescending { galleryPixels(it) }.map { it.url }
+    }
+
+    val imagePlan = remember(imageUrl, backdropUrl, artwork, heroWidthDp, isLandscapeScreen, mediaType, galleryVerticalUrls, galleryHorizontalUrls) {
         val primary = heroImageCandidates(
             posterUrl = imageUrl,
             backdropUrl = backdropUrl,
@@ -142,16 +154,23 @@ fun KitsugiDetailHero(
             } else {
                 art.posterCandidates + art.backdropCandidates
             }
-            (primary + extras).distinct()
+            val galleryExtras = if (preferBackdrop) {
+                galleryHorizontalUrls + galleryVerticalUrls
+            } else {
+                galleryVerticalUrls + galleryHorizontalUrls
+            }
+            (primary + extras + galleryExtras).distinct()
         }
     }
     var imageIndex by remember(imagePlan) { mutableIntStateOf(0) }
     val heroImageModel = imagePlan.getOrNull(imageIndex)
 
-    val chosenIsPoster = remember(heroImageModel, imageUrl, backdropUrl, artwork) {
+    val chosenIsPoster = remember(heroImageModel, imageUrl, backdropUrl, artwork, galleryVerticalUrls, galleryHorizontalUrls) {
         val art = artwork
         when {
             heroImageModel == null -> false
+            heroImageModel in galleryHorizontalUrls -> false
+            heroImageModel in galleryVerticalUrls -> true
             art != null && heroImageModel in art.backdropCandidates -> false
             art != null && heroImageModel in art.posterCandidates -> true
             else -> KitsugiHeroArtworkResolver.isLikelyVerticalUrl(
@@ -545,3 +564,33 @@ private fun MetadataIconText(
 }
 
 private const val DETAIL_HERO_HEIGHT_DP = 470f
+
+/** Dikey vitrin adayı: poster kategorisi veya belirgin dikey oran. */
+private fun isVerticalGalleryItem(item: GalleryItem): Boolean {
+    if (item.category == GalleryCategory.POSTER) return true
+    if (item.category in galleryNonArtCategories) return false
+    val w = item.width ?: return false
+    val h = item.height ?: return false
+    return h > w * 1.2f
+}
+
+/** Yatay vitrin adayı: arka plan/banner kategorisi veya belirgin yatay oran. */
+private fun isHorizontalGalleryItem(item: GalleryItem): Boolean {
+    if (item.category == GalleryCategory.BACKDROP || item.category == GalleryCategory.BANNER) return true
+    if (item.category in galleryNonArtCategories) return false
+    val w = item.width ?: return false
+    val h = item.height ?: return false
+    return w > h * 1.3f
+}
+
+private val galleryNonArtCategories = setOf(
+    GalleryCategory.LOGO,
+    GalleryCategory.CLEARART,
+    GalleryCategory.CHARACTER,
+    GalleryCategory.PERSON,
+    GalleryCategory.THUMBNAIL,
+    GalleryCategory.SQUARE
+)
+
+private fun galleryPixels(item: GalleryItem): Long =
+    (item.width ?: 0).toLong() * (item.height ?: 0).toLong()
