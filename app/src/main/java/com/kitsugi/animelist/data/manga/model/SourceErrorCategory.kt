@@ -8,5 +8,6 @@ enum class SourceErrorCategory {
     NotFound,
     Network,
     Auth,
+    Parser,
     Unknown,
 }

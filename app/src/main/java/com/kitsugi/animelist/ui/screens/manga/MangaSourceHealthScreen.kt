@@ -30,7 +30,9 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.kitsugi.animelist.data.local.MangaSourceStateEntity
+import com.kitsugi.animelist.data.diagnostics.PlatformErrorCode
 import com.kitsugi.animelist.data.manga.MangaSource
+import com.kitsugi.animelist.ui.components.errors.PlatformErrorExplanationBlock
 import com.kitsugi.animelist.data.manga.stableSourceKey
 import com.kitsugi.animelist.ui.theme.LocalKitsugiAccent
 import com.kitsugi.animelist.ui.theme.KitsugiColors
@@ -553,7 +555,16 @@ private fun HealthReportTab(
                             MiniMetricCard("Popular", formatMs(item.avgPopularMs), Modifier.weight(1f))
                             MiniMetricCard("Image", formatMs(item.avgImageMs), Modifier.weight(1f))
                         }
-                        if (!item.lastReason.isNullOrBlank()) StatLine("Son hata", item.lastReason)
+                        val sourceErrorCode = PlatformErrorCode.fromMangaState(item.lastErrorCode, item.lastErrorType)?.id
+                        if (sourceErrorCode != null) {
+                            PlatformErrorExplanationBlock(
+                                code = sourceErrorCode,
+                                rawReason = item.lastReason,
+                                cooldownUntil = item.cooldownUntil,
+                            )
+                        } else if (!item.lastReason.isNullOrBlank()) {
+                            StatLine("Son hata", item.lastReason)
+                        }
                         if (source != null) {
                             LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
                                 item { FilterChip(selected = false, enabled = !isBusy, onClick = { onQuickCheckSource(source) }, label = { Text(if (isBusy) "Çalışıyor" else "Sağlık testi") }) }
@@ -711,7 +722,10 @@ private fun buildReportExport(items: List<MangaSourceStateEntity>): String {
             appendLine("  last checked: ${formatTimestamp(item.lastCheckedAt)}")
             appendLine("  search/image: ${formatMs(item.avgSearchMs)} / ${formatMs(item.avgImageMs)}")
             if (!item.activeDomain.isNullOrBlank()) appendLine("  domain: ${item.activeDomain}")
-            if (!item.lastErrorType.isNullOrBlank()) appendLine("  error type: ${item.lastErrorType}")
+            PlatformErrorCode.fromMangaState(item.lastErrorCode, item.lastErrorType)?.let {
+                appendLine("  error code: ${it.id} (${it.category})")
+            }
+            if (item.cooldownUntil > System.currentTimeMillis()) appendLine("  cooldown until: ${formatTimestamp(item.cooldownUntil)}")
             if (!item.lastReason.isNullOrBlank()) appendLine("  last reason: ${item.lastReason}")
             appendLine()
         }

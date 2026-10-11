@@ -27,6 +27,8 @@ data class MangaSourceStateEntity(
     val healthStatus: String,
     val lastReason: String? = null,
     val lastErrorType: String? = null,
+    val lastErrorCode: String? = null,
+    @ColumnInfo(defaultValue = "0") val cooldownUntil: Long = 0L,
     @ColumnInfo(defaultValue = "0") val lastCheckedAt: Long = 0L,
     @ColumnInfo(defaultValue = "0") val lastSuccessAt: Long = 0L,
     @ColumnInfo(defaultValue = "0") val lastFailureAt: Long = 0L,

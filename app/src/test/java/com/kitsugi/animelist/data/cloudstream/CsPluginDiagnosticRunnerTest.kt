@@ -25,6 +25,7 @@ class CsPluginDiagnosticRunnerTest {
 
         assertEquals(CsPluginDiagnosticRunner.ResultStatus.SEARCH_EMPTY, result.status)
         assertFalse(result.hasCfBlock)
+        assertEquals("KTS-CSP-9102", result.errorCode)
     }
 
     @Test
@@ -92,6 +93,9 @@ class CsPluginDiagnosticRunnerTest {
         assertEquals(1, summary.loadFailed)
         assertEquals(1, summary.dead)
         assertEquals(1, summary.working)
+        assertEquals(2, summary.errorCodeCounts["KTS-CSP-9103"])
+        assertEquals(1, summary.errorCodeCounts["KTS-CSP-9101"])
+        assertEquals(1, summary.errorCodeCounts["KTS-CSP-9102"])
     }
 
     private fun diagnosticResult(

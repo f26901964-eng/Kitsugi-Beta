@@ -131,6 +131,12 @@ class MangaSourceRepository(private val context: Context) {
     fun getSourceCooldownUntil(source: MangaSource): Long =
         sourceStateStore.getCooldownUntil(source)
 
+    fun getSourceLastErrorCode(source: MangaSource): String? =
+        sourceStateStore.getLastErrorCode(source)
+
+    fun getSourceLastReason(source: MangaSource): String? =
+        sourceStateStore.getLastReason(source)
+
     fun observeSourceStateReport(): Flow<List<MangaSourceStateEntity>> =
         db.mangaSourceStateDao().observeAll()
 

@@ -56,6 +56,8 @@ import com.kitsugi.animelist.data.remote.MangaExtensionInfo
 import com.kitsugi.animelist.data.remote.MangaRepoClient
 import com.kitsugi.animelist.ui.app.AddonViewModel
 import com.kitsugi.animelist.ui.theme.KitsugiColors
+import com.kitsugi.animelist.ui.components.errors.PlatformErrorCodeHint
+import com.kitsugi.animelist.ui.components.errors.PlatformErrorExplanationBlock
 import com.kitsugi.animelist.ui.theme.KitsugiTvTokens
 import com.kitsugi.animelist.ui.utils.requestFocusAfterFrames
 
@@ -102,6 +104,9 @@ fun TvMangaExtensionScreen(
     onDeleteExtension: (MangaSource) -> Unit = {},
     onGetSourceHealth: (MangaSource) -> SourceHealthStatus = { SourceHealthStatus.Unknown },
     onGetRuntimeStats: (MangaSource) -> SourceRuntimeStats = { SourceRuntimeStats() },
+    onGetLastErrorCode: (MangaSource) -> String? = { null },
+    onGetLastReason: (MangaSource) -> String? = { null },
+    onGetCooldownUntil: (MangaSource) -> Long = { 0L },
     onQuickCheckSource: (MangaSource) -> Unit = {},
     onNavigateToHealth: () -> Unit = {},
     onBack: () -> Unit = {}
@@ -265,6 +270,9 @@ fun TvMangaExtensionScreen(
                         sources = sources,
                         onGetSourceHealth = onGetSourceHealth,
                         onGetRuntimeStats = onGetRuntimeStats,
+                        onGetLastErrorCode = onGetLastErrorCode,
+                        onGetLastReason = onGetLastReason,
+                        onGetCooldownUntil = onGetCooldownUntil,
                         onQuickCheckSource = onQuickCheckSource,
                         onDeleteExtension = onDeleteExtension,
                         listState = installedListState,
@@ -544,6 +552,9 @@ private fun TvExtInstalledTab(
     sources: List<MangaSource>,
     onGetSourceHealth: (MangaSource) -> SourceHealthStatus,
     onGetRuntimeStats: (MangaSource) -> SourceRuntimeStats,
+    onGetLastErrorCode: (MangaSource) -> String?,
+    onGetLastReason: (MangaSource) -> String?,
+    onGetCooldownUntil: (MangaSource) -> Long,
     onQuickCheckSource: (MangaSource) -> Unit,
     onDeleteExtension: (MangaSource) -> Unit,
     listState: LazyListState,
@@ -613,11 +624,17 @@ private fun TvExtInstalledTab(
         items(sources, key = { "${it.baseUrl}_${it.name}" }) { source ->
             val health = onGetSourceHealth(source)
             val stats = onGetRuntimeStats(source)
+            val errorCode = onGetLastErrorCode(source)
+            val rawReason = onGetLastReason(source)
+            val cooldownUntil = onGetCooldownUntil(source)
 
             TvExtSourceRow(
                 source = source,
                 health = health,
                 stats = stats,
+                errorCode = errorCode,
+                rawReason = rawReason,
+                cooldownUntil = cooldownUntil,
                 onQuickCheck = { onQuickCheckSource(source) },
                 onDelete = { deleteTarget = source }
             )
@@ -1009,98 +1026,115 @@ private fun TvExtSourceRow(
     source: MangaSource,
     health: SourceHealthStatus,
     stats: SourceRuntimeStats,
+    errorCode: String?,
+    rawReason: String?,
+    cooldownUntil: Long,
     onQuickCheck: () -> Unit,
     onDelete: () -> Unit
 ) {
     var hasFocus by remember { mutableStateOf(false) }
 
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(12.dp))
-            .background(
-                if (hasFocus) KitsugiColors.SurfaceStrong
-                else KitsugiColors.SurfaceSoft
-            )
-            .onFocusChanged { hasFocus = it.hasFocus }
-            .focusable()
-            .onKeyEvent { event ->
-                if (event.nativeKeyEvent.action == KeyEvent.ACTION_DOWN) {
-                    when (event.nativeKeyEvent.keyCode) {
-                        KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER -> { onQuickCheck(); true }
-                        else -> false
-                    }
-                } else false
-            }
-            .padding(horizontal = 16.dp, vertical = 12.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(12.dp)
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        // Kaynak ikonu
-        Box(
+        Row(
             modifier = Modifier
-                .size(40.dp)
-                .clip(RoundedCornerShape(10.dp))
-                .background(KitsugiColors.AccentBlue.copy(alpha = 0.12f)),
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(
-                Icons.Rounded.MenuBook,
-                null,
-                tint = KitsugiColors.AccentBlue,
-                modifier = Modifier.size(20.dp)
-            )
-        }
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                source.name,
-                color = KitsugiColors.TextPrimary,
-                fontWeight = FontWeight.SemiBold,
-                fontSize = 14.sp,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    source.lang.uppercase(),
-                    color = KitsugiColors.TextMuted,
-                    fontSize = 11.sp
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(12.dp))
+                .background(
+                    if (hasFocus) KitsugiColors.SurfaceStrong
+                    else KitsugiColors.SurfaceSoft
                 )
-                if (stats.successCount > 0 || stats.failureCount > 0) {
-                    Text(
-                        "✓${stats.successCount} ✗${stats.failureCount}",
-                        color = KitsugiColors.TextMuted,
-                        fontSize = 10.sp
-                    )
-                }
-            }
-        }
-        // Sağlık badge'i
-        TvExtHealthBadge(health = health)
-        // Sil butonu
-        Box(
-            modifier = Modifier
-                .size(32.dp)
-                .clip(RoundedCornerShape(8.dp))
-                .background(KitsugiColors.AccentRed.copy(alpha = 0.1f))
+                .onFocusChanged { hasFocus = it.hasFocus }
                 .focusable()
                 .onKeyEvent { event ->
-                    if (event.nativeKeyEvent.action == KeyEvent.ACTION_DOWN &&
-                        event.nativeKeyEvent.keyCode in listOf(
-                            KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER
-                        )
-                    ) { onDelete(); true } else false
-                },
-            contentAlignment = Alignment.Center
+                    if (event.nativeKeyEvent.action == KeyEvent.ACTION_DOWN) {
+                        when (event.nativeKeyEvent.keyCode) {
+                            KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER -> { onQuickCheck(); true }
+                            else -> false
+                        }
+                    } else false
+                }
+                .padding(horizontal = 16.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            Icon(
-                Icons.Rounded.Delete,
-                null,
-                tint = KitsugiColors.AccentRed.copy(alpha = 0.7f),
-                modifier = Modifier.size(16.dp)
+            // Kaynak ikonu
+            Box(
+                modifier = Modifier
+                    .size(40.dp)
+                    .clip(RoundedCornerShape(10.dp))
+                    .background(KitsugiColors.AccentBlue.copy(alpha = 0.12f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    Icons.Rounded.MenuBook,
+                    null,
+                    tint = KitsugiColors.AccentBlue,
+                    modifier = Modifier.size(20.dp)
+                )
+            }
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    source.name,
+                    color = KitsugiColors.TextPrimary,
+                    fontWeight = FontWeight.SemiBold,
+                    fontSize = 14.sp,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        source.lang.uppercase(),
+                        color = KitsugiColors.TextMuted,
+                        fontSize = 11.sp
+                    )
+                    if (stats.successCount > 0 || stats.failureCount > 0) {
+                        Text(
+                            "✓${stats.successCount} ✗${stats.failureCount}",
+                            color = KitsugiColors.TextMuted,
+                            fontSize = 10.sp
+                        )
+                    }
+                }
+            }
+            // Sağlık badge'i
+            TvExtHealthBadge(health = health)
+            if (errorCode != null) PlatformErrorCodeHint(code = errorCode)
+            // Sil butonu
+            Box(
+                modifier = Modifier
+                    .size(32.dp)
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(KitsugiColors.AccentRed.copy(alpha = 0.1f))
+                    .focusable()
+                    .onKeyEvent { event ->
+                        if (event.nativeKeyEvent.action == KeyEvent.ACTION_DOWN &&
+                            event.nativeKeyEvent.keyCode in listOf(
+                                KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER
+                            )
+                        ) { onDelete(); true } else false
+                    },
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    Icons.Rounded.Delete,
+                    null,
+                    tint = KitsugiColors.AccentRed.copy(alpha = 0.7f),
+                    modifier = Modifier.size(16.dp)
+                )
+            }
+        }
+        if (errorCode != null) {
+            PlatformErrorExplanationBlock(
+                code = errorCode,
+                rawReason = rawReason,
+                cooldownUntil = cooldownUntil,
+                modifier = Modifier.padding(horizontal = 8.dp),
             )
         }
     }

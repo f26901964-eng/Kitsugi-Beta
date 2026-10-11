@@ -1,5 +1,7 @@
 package com.kitsugi.animelist.data.cloudstream
 
+import com.kitsugi.animelist.data.diagnostics.PlatformErrorCode
+
 import android.content.Context
 import android.util.Log
 import kotlinx.coroutines.Dispatchers
@@ -155,6 +157,23 @@ object CsPluginDiagnosticRunner {
         val hasDdosGuard: Boolean get() = phaseErrors.any { it.isDdosGuard }
         val hasTimeout: Boolean get() = phaseErrors.any { it.isTimeout }
         val hasNetworkFail: Boolean get() = phaseErrors.any { it.isNetworkFail }
+
+        /** Stable user-facing code for the latest diagnostic outcome; successful plugins have none. */
+        val errorCode: String? get() {
+            if (streamCount > 0) return null
+            val evidence = phaseErrors.map { phaseError ->
+                listOfNotNull(phaseError.errorClass, phaseError.message, phaseError.httpCode?.toString())
+                    .joinToString(" ")
+            }
+            val classified = CloudStreamErrorClassifier.classifyDiagnostic(
+                phaseEvidence = evidence,
+                error = error,
+                noStreams = status == ResultStatus.NO_STREAMS || status == ResultStatus.SEARCH_EMPTY,
+            )
+            return if ((!loaded || apiCount == 0) && classified == PlatformErrorCode.CloudStreamUnknown) {
+                PlatformErrorCode.CloudStreamPluginUnsupported.id
+            } else classified.id
+        }
     }
 
     enum class ResultStatus {
@@ -168,7 +187,8 @@ object CsPluginDiagnosticRunner {
         val searchEmpty: Int,
         val cfBlocked: Int,
         val loadFailed: Int,
-        val dead: Int
+        val dead: Int,
+        val errorCodeCounts: Map<String, Int> = emptyMap(),
     )
 
     fun summarize(results: List<DiagnosticResult>): DiagnosticSummary {
@@ -179,7 +199,11 @@ object CsPluginDiagnosticRunner {
             searchEmpty = counts[ResultStatus.SEARCH_EMPTY] ?: 0,
             cfBlocked = counts[ResultStatus.CF_BLOCKED] ?: 0,
             loadFailed = counts[ResultStatus.LOAD_FAILED] ?: 0,
-            dead = counts[ResultStatus.DEAD] ?: 0
+            dead = counts[ResultStatus.DEAD] ?: 0,
+            errorCodeCounts = results.mapNotNull { it.errorCode }
+                .groupingBy { it }
+                .eachCount()
+                .toSortedMap(),
         )
     }
 
@@ -810,11 +834,18 @@ object CsPluginDiagnosticRunner {
             sb.appendLine("| 🔎 Arama sonucu boş (CF/WAF imzası yok) | ${summary.searchEmpty} |")
             sb.appendLine("| ⚠️ Detay yükleme başarısız | ${summary.loadFailed} |")
             sb.appendLine("| ❌ Eklenti/ağ hatası veya timeout | ${summary.dead} |")
+            if (summary.errorCodeCounts.isNotEmpty()) {
+                sb.appendLine()
+                sb.appendLine("## Hata Kodu Özeti")
+                sb.appendLine("| Kod | Tekrar sayısı |")
+                sb.appendLine("|---|---:|")
+                summary.errorCodeCounts.forEach { (code, count) -> sb.appendLine("| `$code` | $count |") }
+            }
             sb.appendLine()
             sb.appendLine("## Detaylı Sonuçlar")
             sb.appendLine()
-            sb.appendLine("| Plugin | Repo | mainUrl | DL | Load | Sorgu | Hits | LoadOK | Ep | Str | Koruma | TO | Durum |")
-            sb.appendLine("|---|---|---|---|---|---|---|---|---|---|---|---|---|")
+            sb.appendLine("| Kod | Plugin | Repo | mainUrl | DL | Load | Sorgu | Hits | LoadOK | Ep | Str | Koruma | TO | Durum |")
+            sb.appendLine("|---|---|---|---|---|---|---|---|---|---|---|---|---|---|")
             for (r in results) {
                 val urlShort = r.mainUrl.removePrefix("https://").removePrefix("http://").trimEnd('/').take(32)
                 val statusStr = when (r.status) {
@@ -830,7 +861,7 @@ object CsPluginDiagnosticRunner {
                     r.hasDdosGuard -> "DDoS"
                     else -> "-"
                 }
-                sb.appendLine("| **${r.pluginId}** | ${r.repoSlug} | `$urlShort` | ${if (r.downloaded) "✅" else "❌"} | ${if (r.loaded) "✅" else "❌"} | `${r.searchQuery}` | ${r.searchCount} | ${if (r.loadOk) "✅" else "❌"} | ${if (r.episodeFound) "✅" else "❌"} | ${r.streamCount} | $protection | ${if (r.hasTimeout) "⏱" else "-"} | $statusStr |")
+                sb.appendLine("| `${r.errorCode ?: "—"}` | **${r.pluginId}** | ${r.repoSlug} | `$urlShort` | ${if (r.downloaded) "✅" else "❌"} | ${if (r.loaded) "✅" else "❌"} | `${r.searchQuery}` | ${r.searchCount} | ${if (r.loadOk) "✅" else "❌"} | ${if (r.episodeFound) "✅" else "❌"} | ${r.streamCount} | $protection | ${if (r.hasTimeout) "⏱" else "-"} | $statusStr |")
             }
             // ── Hata Detayları ─────────────────────────────────────────
             sb.appendLine()

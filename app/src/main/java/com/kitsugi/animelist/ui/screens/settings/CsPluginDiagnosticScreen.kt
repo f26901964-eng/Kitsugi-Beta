@@ -39,6 +39,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.kitsugi.animelist.data.cloudstream.CsPluginDiagnosticRunner
 import com.kitsugi.animelist.data.cloudstream.CsPluginDiagnosticViewModel
 import com.kitsugi.animelist.ui.theme.KitsugiColors
+import com.kitsugi.animelist.ui.components.errors.PlatformErrorCodeHint
 import com.kitsugi.animelist.ui.theme.LocalKitsugiAccent
 import java.io.File
 
@@ -53,6 +54,7 @@ import java.io.File
 fun CsPluginDiagnosticScreen(
     onDismiss: () -> Unit,
     embeddedMode: Boolean = false,
+    onOpenErrorCatalog: (() -> Unit)? = null,
     vm: CsPluginDiagnosticViewModel = viewModel()
 ) {
     val context    = LocalContext.current
@@ -250,6 +252,18 @@ fun CsPluginDiagnosticScreen(
                         Spacer(Modifier.width(6.dp))
                         Text(stringResource(R.string.inline_share_live_monitoring_report_md_ff2cf01), fontWeight = FontWeight.Bold)
                     }
+                    if (onOpenErrorCatalog != null) {
+                        OutlinedButton(
+                            onClick = onOpenErrorCatalog,
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(12.dp),
+                            colors = ButtonDefaults.outlinedButtonColors(contentColor = accent),
+                        ) {
+                            Icon(Icons.Rounded.Info, contentDescription = null, modifier = Modifier.size(18.dp))
+                            Spacer(Modifier.width(6.dp))
+                            Text(stringResource(R.string.platform_error_catalog_open), fontWeight = FontWeight.Bold)
+                        }
+                    }
 
                     // Raporu paylaş butonu
                     if (reportPath != null && !isRunning) {
@@ -407,6 +421,38 @@ private fun SummaryCards(summary: CsPluginDiagnosticRunner.DiagnosticSummary) {
             SummaryChip("⚠️", summary.loadFailed.toString(), stringResource(R.string.cs_diag_summary_load_failed), KitsugiColors.AccentOrange, Modifier.weight(1f))
             SummaryChip("❌", summary.dead.toString(), stringResource(R.string.cs_diag_summary_broken), KitsugiColors.AccentRed, Modifier.weight(1f))
         }
+        if (summary.errorCodeCounts.isNotEmpty()) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(KitsugiColors.SurfaceSoft)
+                    .padding(10.dp),
+                verticalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
+                Text(
+                    stringResource(R.string.platform_error_code_summary),
+                    color = KitsugiColors.TextSecondary,
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.SemiBold,
+                )
+                summary.errorCodeCounts.toList().forEach { (code, count) ->
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        PlatformErrorCodeHint(code = code, compact = false)
+                        Text(
+                            text = "×$count",
+                            color = KitsugiColors.TextSecondary,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                        )
+                    }
+                }
+            }
+        }
     }
 }
 
@@ -503,6 +549,7 @@ private fun ResultRow(
                 color = KitsugiColors.TextMuted,
                 fontSize = 10.sp
             )
+            result.errorCode?.let { code -> PlatformErrorCodeHint(code = code) }
         }
         Column(horizontalAlignment = Alignment.End) {
             if (result.streamCount > 0) {

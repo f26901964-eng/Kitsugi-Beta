@@ -9,6 +9,8 @@ import com.google.gson.Gson
 import com.kitsugi.animelist.data.cloudstream.CsPluginLoader
 import com.kitsugi.animelist.data.cloudstream.CsStreamRunner
 import com.kitsugi.animelist.data.cloudstream.CsPluginStatusTracker
+import com.kitsugi.animelist.data.cloudstream.CloudStreamErrorClassifier
+import com.kitsugi.animelist.data.diagnostics.PlatformErrorCode
 import com.kitsugi.animelist.data.cloudstream.CloudflareBlockException
 import com.kitsugi.animelist.data.local.KitsugiDatabase
 import com.kitsugi.animelist.data.remote.AddonStreamClient
@@ -190,22 +192,32 @@ class StreamViewModel(application: Application) : AndroidViewModel(application) 
                     )
                     csStreams.addAll(streams)
                 }
+                val apiName = apis.firstOrNull()?.name ?: csPlugin.name
                 val diagMsg = if (csStreams.isEmpty()) {
                     CsPluginStatusTracker.getErrorMessage(csPlugin.name)
-                        ?: CsPluginStatusTracker.getErrorMessage(apis.firstOrNull()?.name ?: csPlugin.name)
+                        ?: CsPluginStatusTracker.getErrorMessage(apiName)
+                        ?: if (apis.isEmpty()) "Eklenti yüklenemedi (DEX/manifest hatası)" else null
+                } else null
+                val diagCode = if (csStreams.isEmpty()) {
+                    CsPluginStatusTracker.getErrorCode(csPlugin.name)
+                        ?: CsPluginStatusTracker.getErrorCode(apiName)
+                        ?: if (apis.isEmpty()) PlatformErrorCode.CloudStreamPluginUnsupported.id
+                        else PlatformErrorCode.CloudStreamNoStreams.id
                 } else null
                 updateAddonStateSync(
                     dismissedDisplayName,
                     isLoading = false,
                     streams = csStreams,
-                    error = if (csStreams.isEmpty()) (diagMsg?.let { "⚠️ $it" } ?: "Bu anime için akış bulunamadı") else null
+                    error = if (csStreams.isEmpty()) (diagMsg?.let { "⚠️ $it" } ?: "Bu anime için akış bulunamadı") else null,
+                    errorCode = diagCode,
                 )
             } catch (e: Throwable) {
                 if (e is kotlinx.coroutines.CancellationException) throw e
                 updateAddonStateSync(
                     dismissedDisplayName,
                     isLoading = false,
-                    error = "Hata: ${e.localizedMessage ?: e.javaClass.simpleName}"
+                    error = "Hata: ${e.localizedMessage ?: e.javaClass.simpleName}",
+                    errorCode = CloudStreamErrorClassifier.classify(e).id,
                 )
             }
         }
@@ -503,7 +515,14 @@ class StreamViewModel(application: Application) : AndroidViewModel(application) 
                                     ?: "Tekrarlı hata"
                                 Log.w(TAG, "[$csDisplayName] Engellendi: $reason")
                                 CsTrace.warn(plugin.name, "skip", "Engellendi: $reason")
-                                updateAddonState(csDisplayName, isLoading = false, error = "Engellendi: $reason")
+                                updateAddonState(
+                                    csDisplayName,
+                                    isLoading = false,
+                                    error = "Engellendi: $reason",
+                                    errorCode = CsPluginStatusTracker.getErrorCode(plugin.name)
+                                        ?: CsPluginStatusTracker.getErrorCode(plugin.id)
+                                        ?: PlatformErrorCode.CloudStreamPluginUnsupported.id,
+                                )
                                 return@launch
                             }
 
@@ -515,7 +534,12 @@ class StreamViewModel(application: Application) : AndroidViewModel(application) 
                             if (apis.isEmpty()) {
                                 Log.e(TAG, "[$csDisplayName] 0 API döndü — DEX yüklenemedi")
                                 CsTrace.error(plugin.name, "load", "0 API döndü — DEX/manifest yüklenemedi")
-                                updateAddonState(csDisplayName, isLoading = false, error = "Eklenti yüklenemedi (DEX/manifest hatası)")
+                                updateAddonState(
+                                    csDisplayName,
+                                    isLoading = false,
+                                    error = "Eklenti yüklenemedi (DEX/manifest hatası)",
+                                    errorCode = PlatformErrorCode.CloudStreamPluginUnsupported.id,
+                                )
                                 return@launch
                             }
 
@@ -539,13 +563,22 @@ class StreamViewModel(application: Application) : AndroidViewModel(application) 
                             CsTrace.info(plugin.name, "result", "Toplam ${csStreams.size} stream bulundu")
                             // Akış boşsa SESSİZ "akış bulunamadı" yerine tracker'daki GERÇEK
                             // hatayı göster (DNS/CF/timeout/parse) — kullanıcı nedenini görsün.
+                            val apiName = apis.firstOrNull()?.name ?: plugin.name
                             val diagMsg = if (csStreams.isEmpty()) {
                                 CsPluginStatusTracker.getErrorMessage(plugin.name)
-                                    ?: CsPluginStatusTracker.getErrorMessage(apis.firstOrNull()?.name ?: plugin.name)
+                                    ?: CsPluginStatusTracker.getErrorMessage(apiName)
+                            } else null
+                            val diagCode = if (csStreams.isEmpty()) {
+                                CsPluginStatusTracker.getErrorCode(plugin.name)
+                                    ?: CsPluginStatusTracker.getErrorCode(apiName)
+                                    ?: PlatformErrorCode.CloudStreamNoStreams.id
                             } else null
                             updateAddonState(
-                                csDisplayName, isLoading = false, streams = csStreams,
-                                error = diagMsg?.let { "⚠️ $it" }
+                                csDisplayName,
+                                isLoading = false,
+                                streams = csStreams,
+                                error = diagMsg?.let { "⚠️ $it" },
+                                errorCode = diagCode,
                             )
 
                         } catch (e: Throwable) {
@@ -571,7 +604,8 @@ class StreamViewModel(application: Application) : AndroidViewModel(application) 
                                         csDisplayName,
                                         isLoading = false,
                                         error = "🔐 Bot/WAF doğrulaması gerekiyor (Doğrula butonuna bas)",
-                                        requiresVerification = true
+                                        requiresVerification = true,
+                                        errorCode = PlatformErrorCode.CloudStreamProtection.id
                                     )
                                 }
                                 isTimeout -> {
@@ -579,7 +613,8 @@ class StreamViewModel(application: Application) : AndroidViewModel(application) 
                                     updateAddonState(
                                         csDisplayName,
                                         isLoading = false,
-                                        error = "⏱ İstek zaman aşımına uğradı; ağ veya sağlayıcı yanıt vermedi."
+                                        error = "⏱ İstek zaman aşımına uğradı; ağ veya sağlayıcı yanıt vermedi.",
+                                        errorCode = PlatformErrorCode.CloudStreamTimeout.id,
                                     )
                                 }
                                 isWebViewUiFailure -> {
@@ -587,13 +622,15 @@ class StreamViewModel(application: Application) : AndroidViewModel(application) 
                                     updateAddonState(
                                         csDisplayName,
                                         isLoading = false,
-                                        error = "Doğrulama penceresi açılamadı; ekrandan yeniden deneyin."
+                                        error = "Doğrulama penceresi açılamadı; ekrandan yeniden deneyin.",
+                                        errorCode = CloudStreamErrorClassifier.classify(e).id,
                                     )
                                 }
                                 else -> updateAddonState(
                                     csDisplayName,
                                     isLoading = false,
-                                    error = "Hata: ${e.localizedMessage ?: e.message ?: e.javaClass.simpleName}"
+                                    error = "Hata: ${e.localizedMessage ?: e.message ?: e.javaClass.simpleName}",
+                                    errorCode = CloudStreamErrorClassifier.classify(e).id,
                                 )
                             }
                         }
@@ -610,8 +647,19 @@ class StreamViewModel(application: Application) : AndroidViewModel(application) 
         isLoading: Boolean,
         streams: List<StreamSource> = emptyList(),
         error: String? = null,
-        requiresVerification: Boolean = false
+        requiresVerification: Boolean = false,
+        errorCode: String? = null,
     ) {
+        val resolvedError = if (error == null && streams.isEmpty() && !isLoading) {
+            "Bu anime için akış bulunamadı"
+        } else error
+        val resolvedErrorCode = errorCode ?: resolvedError?.let {
+            CloudStreamErrorClassifier.classifyText(
+                text = it,
+                noStreams = error == null && streams.isEmpty() && !isLoading,
+                pluginUnsupported = requiresVerification.not() && it.contains("engellendi", ignoreCase = true),
+            ).id
+        }
         stateUpdateMutex.withLock {
             withContext(Dispatchers.Main) {
                 _addonStates.value = _addonStates.value.toMutableList().also { list ->
@@ -620,8 +668,9 @@ class StreamViewModel(application: Application) : AndroidViewModel(application) 
                         list[i] = list[i].copy(
                             isLoading = isLoading,
                             streams   = streams,
-                            error     = if (error == null && streams.isEmpty()) "Bu anime için akış bulunamadı" else error,
-                            requiresVerification = requiresVerification
+                            error     = resolvedError,
+                            requiresVerification = requiresVerification,
+                            errorCode = resolvedErrorCode,
                         )
                     }
                 }
@@ -634,16 +683,28 @@ class StreamViewModel(application: Application) : AndroidViewModel(application) 
         isLoading: Boolean,
         streams: List<StreamSource> = emptyList(),
         error: String? = null,
-        requiresVerification: Boolean = false
+        requiresVerification: Boolean = false,
+        errorCode: String? = null,
     ) {
+        val resolvedError = if (error == null && streams.isEmpty() && !isLoading) {
+            "Bu anime için akış bulunamadı"
+        } else error
+        val resolvedErrorCode = errorCode ?: resolvedError?.let {
+            CloudStreamErrorClassifier.classifyText(
+                text = it,
+                noStreams = error == null && streams.isEmpty() && !isLoading,
+                pluginUnsupported = requiresVerification.not() && it.contains("engellendi", ignoreCase = true),
+            ).id
+        }
         val current = _addonStates.value.toMutableList()
         val i = current.indexOfFirst { it.addonName == addonName }
         if (i >= 0) {
             current[i] = current[i].copy(
                 isLoading = isLoading,
                 streams   = streams,
-                error     = error,
-                requiresVerification = requiresVerification
+                error     = resolvedError,
+                requiresVerification = requiresVerification,
+                errorCode = resolvedErrorCode,
             )
             _addonStates.value = current
         }

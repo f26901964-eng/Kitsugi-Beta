@@ -11,7 +11,8 @@ data class AddonFetchState(
     val isLoading: Boolean = true,
     val streams: List<StreamSource> = emptyList(),
     val error: String? = null,
-    val requiresVerification: Boolean = false
+    val requiresVerification: Boolean = false,
+    val errorCode: String? = null
 )
 
 /**

@@ -33,14 +33,21 @@ internal object CsProtectionClassifier {
         "robot olmadığınızı",
         "insan olduğunuzu",
         "tarayıcı doğrulama",
-        "güvenlik doğrulaması"
+        "güvenlik doğrulaması",
+        "güvenlik dogrulamasi",
+        "waf doğrulaması",
+        "waf dogrulamasi",
+        "bot/waf",
     )
 
     fun isWafChallenge(message: String): Boolean {
         val normalized = message.lowercase(Locale.ROOT)
         return webChallengeMarkers.any { marker -> normalized.contains(marker) } ||
             (normalized.contains("challenge") &&
-                (normalized.contains("waf") || normalized.contains("firewall")))
+                (normalized.contains("waf") || normalized.contains("firewall"))) ||
+            (normalized.contains("waf") &&
+                listOf("block", "blocked", "denied", "verification", "protection", "bot")
+                    .any(normalized::contains))
     }
 
     fun isDdosGuard(message: String): Boolean {

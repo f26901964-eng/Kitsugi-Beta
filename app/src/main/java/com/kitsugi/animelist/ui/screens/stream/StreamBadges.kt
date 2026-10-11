@@ -27,6 +27,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.kitsugi.animelist.ui.theme.KitsugiColors
+import com.kitsugi.animelist.ui.components.errors.PlatformErrorCodeHint
 
 /**
  * A pill-shaped chip showing an addon's loading/success/error status,
@@ -108,5 +109,8 @@ fun AddonStatusChip(
             style = MaterialTheme.typography.labelMedium,
             fontWeight = if (isSelected || state.streams.isNotEmpty()) FontWeight.Bold else FontWeight.Normal
         )
+        if (state.error != null && state.errorCode != null) {
+            PlatformErrorCodeHint(code = state.errorCode)
+        }
     }
 }

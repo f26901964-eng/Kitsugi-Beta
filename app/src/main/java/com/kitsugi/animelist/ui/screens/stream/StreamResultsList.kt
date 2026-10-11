@@ -25,6 +25,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import com.kitsugi.animelist.data.repository.StreamSource
 import com.kitsugi.animelist.ui.theme.KitsugiColors
+import com.kitsugi.animelist.ui.components.errors.PlatformErrorExplanationBlock
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.ChevronRight
 import androidx.compose.material.icons.rounded.Extension
@@ -167,6 +168,9 @@ private fun StreamErrorCard(
                 color = KitsugiColors.TextSecondary,
                 style = MaterialTheme.typography.bodySmall
             )
+            addonState.errorCode?.let { code ->
+                PlatformErrorExplanationBlock(code = code)
+            }
 
             if (onVerify != null) {
                 Spacer(modifier = Modifier.height(2.dp))
