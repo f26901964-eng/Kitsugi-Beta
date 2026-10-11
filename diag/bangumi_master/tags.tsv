@@ -1,0 +1,152 @@
+# Bangumi etiket verisi — MASTER 2026-10-11 §7.2 / §7.3 / §7.4
+# Biçim: key <TAB> TR <TAB> EN <TAB> durum <TAB> eşleme etiketleri (; ile ayrık)
+# durum: new = yeni anahtar + dil dosyası kaydı | existing:<mevcut anahtar> = YALNIZCA etiket eklenir (TR/EN değişmez)
+# ── §7.2 Meta etiket eklemeleri ──────────────────────────────────────────────
+bangumi_tag_area_chinese_speaking	Çince Konuşulan Bölge	Chinese-speaking	new	华语;華語
+bangumi_tag_area_canada	Kanada	Canada	new	加拿大
+bangumi_tag_area_czech	Çekya	Czechia	new	捷克
+bangumi_tag_area_malaysia	Malezya	Malaysia	new	马来西亚;馬來西亞
+bangumi_tag_area_new_zealand	Yeni Zelanda	New Zealand	new	新西兰;紐西蘭
+bangumi_tag_theme_budaixi	Budaixi	Budaixi	new	布袋戏;布袋戲
+bangumi_tag_theme_children	Çocuklar İçin	Children	new	少儿;少兒
+bangumi_tag_genre_arpg	ARPG	ARPG	new	ARPG
+bangumi_tag_genre_crpg	CRPG	CRPG	new	CRPG
+bangumi_tag_genre_dbg	DBG	DBG	new	DBG
+bangumi_tag_genre_drpg	DRPG	DRPG	new	DRPG
+bangumi_tag_genre_edu	Eğitim Oyunu	Educational Game	new	EDU
+bangumi_tag_genre_fps	FPS	FPS	new	FPS;第一人称射击
+bangumi_tag_genre_jrpg	JRPG	JRPG	new	JRPG
+bangumi_tag_genre_moba	MOBA	MOBA	new	MOBA
+bangumi_tag_genre_platform	Platform Oyunu	Platform Game	new	Platform
+bangumi_tag_genre_puz	Bulmaca Oyunu	Puzzle Game	new	PUZ
+bangumi_tag_genre_rac	Yarış Oyunu	Racing Game	new	RAC
+bangumi_tag_genre_rtt	RTT	RTT	new	RTT
+bangumi_tag_genre_rhythm	Ritim Oyunu	Rhythm Game	existing:rhythm_game	Rhythm;音游
+bangumi_tag_genre_roguelike	Roguelike	Roguelike	new	Roguelike;肉鸽
+bangumi_tag_genre_sim	Simülasyon	Simulation	new	SIM
+bangumi_tag_genre_srpg	SRPG	SRPG	new	SRPG
+bangumi_tag_genre_sandbox	Sandbox	Sandbox	new	Sandbox;沙盒
+bangumi_tag_genre_tps	TPS	TPS	new	TPS
+bangumi_tag_genre_vn	Görsel Roman Oyunu	Visual Novel Game	new	VN
+bangumi_tag_genre_casual	Casual	Casual	new	休闲;休閒
+bangumi_tag_genre_card_battle	Kart Savaşı	Card Battle	new	卡牌对战;卡牌對戰
+# ── §7.3 Kullanıcı etiketi önerileri ─────────────────────────────────────────
+bangumi_tag_isekai	Isekai	Isekai	existing:isekai	异世界;異世界;异世界转生;異世界轉生;穿越异世界
+bangumi_tag_transmigration	Başka Dünyaya Geçiş	Transmigration	existing:time_travel	穿越;魂穿
+bangumi_tag_system	Sistem Kurgusu	System	new	系统;系統;系统流
+bangumi_tag_infinite_flow	Sonsuz Döngü	Infinite Flow	new	无限流;無限流
+bangumi_tag_cultivation	Cultivation	Cultivation	existing:xianxia	修仙;修真;仙侠;仙俠;玄幻修真
+bangumi_tag_wuxia	Wuxia	Wuxia	existing:martial_arts	武侠;武俠;武侠世界
+bangumi_tag_xianxia	Xianxia	Xianxia	existing:xianxia	仙侠;仙俠
+bangumi_tag_xuanhuan	Xuanhuan	Xuanhuan	existing:fantasy	玄幻
+bangumi_tag_urban	Şehir Yaşamı	Urban	existing:city	都市;都市生活;都市异能
+bangumi_tag_post_apocalyptic	Kıyamet Sonrası	Post-Apocalyptic	existing:post_apocalyptic	末世;末日;废土;廢土
+bangumi_tag_gender_bender	Cinsiyet Değişimi	Gender Bender	existing:gender_bender	变身;變身;性转;性轉;男变女;女变男
+bangumi_tag_time_loop	Zaman Döngüsü	Time Loop	existing:time_loop	时间循环;時間循環;轮回;輪迴
+bangumi_tag_revenge	İntikam	Revenge	existing:revenge	复仇;復仇;报复
+bangumi_tag_face_slapping	Yüz Tokatlama	Face Slapping	new	打脸;打臉;扮猪吃虎;扮豬吃虎
+bangumi_tag_cheat	Hile Gücü	Overpowered	existing:strong_protagonist	金手指;开挂;開掛;无敌流;無敵流
+bangumi_tag_harem_life	Harem Yaşamı	Harem Life	new	后宫向;後宮向;开后宫
+bangumi_tag_polygamy	Çok Eşlilik	Polygamy	new	一夫多妻;多女主;多男主
+bangumi_tag_single_female_lead	Tek Kadın Başrol	Single Female Lead	new	单女主;單女主
+bangumi_tag_single_male_lead	Tek Erkek Başrol	Single Male Lead	new	男主向;單男主
+bangumi_tag_age_gap	Yaş Farkı	Age Gap	new	年龄差;年齡差
+bangumi_tag_office_romance	İşyeri Romantizmi	Office Romance	new	职场恋爱;職場戀愛;办公室恋情
+bangumi_tag_cohabitation	Birlikte Yaşam	Cohabitation	new	同居;同居生活
+bangumi_tag_arranged_marriage	Zorla Evlilik	Arranged Marriage	new	先婚后爱;先婚後愛;契约婚姻;契約婚姻
+bangumi_tag_fake_relationship	Sahte İlişki	Fake Relationship	new	假交往;契约恋爱
+bangumi_tag_childhood_friends	Çocukluk Arkadaşları	Childhood Friends	existing:childhood_friends	青梅竹马;青梅竹馬;幼驯染;幼馴染
+bangumi_tag_love_triangle	Aşk Üçgeni	Love Triangle	existing:love_triangle	三角恋;三角戀
+bangumi_tag_unrequited_love	Karşılıksız Aşk	Unrequited Love	existing:unrequited_love	单恋;單戀;暗恋;暗戀
+bangumi_tag_bromance	Bromance	Bromance	new	兄弟情;基情
+bangumi_tag_found_family	Seçilmiş Aile	Found Family	existing:adoption	捡家人;收养;收養
+bangumi_tag_parenting	Ebeveynlik	Parenting	existing:parenting	育儿;育兒;养娃;帶娃
+bangumi_tag_coming_of_age	Büyümek	Coming of Age	existing:coming_of_age	成长;成長;青春成长
+bangumi_tag_gap_moe	Gap Moe	Gap Moe	new	反差萌
+bangumi_tag_chuunibyou	Chuunibyou	Chuunibyou	existing:chunibyo	中二病;中二
+bangumi_tag_otaku_lead	Otaku Başrol	Otaku Lead	new	宅男;宅女;御宅族
+bangumi_tag_idol_life	Idol Yaşamı	Idol Life	new	偶像生活;偶像活动;偶像活動
+bangumi_tag_band_life	Grup Yaşamı	Band Life	existing:band	乐队;樂隊;乐队番;轻音少女
+bangumi_tag_voice_actor	Seslendirme Sanatçısı	Voice Actor	existing:voice_actor	声优;聲優;声优日常
+bangumi_tag_art_competition	Sanat Yarışması	Art Competition	existing:art	艺术;藝術;绘画;繪畫
+bangumi_tag_food_porn	Yemek Şöleni	Food Porn	existing:food	美食番;美食;料理
+bangumi_tag_alcohol	Alkol	Alcohol	existing:drinking	酒;酒类;居酒屋
+bangumi_tag_cozy	Sıcak/Samimi	Cozy	new	温馨向;溫馨向;轻松日常
+bangumi_tag_noir_detective	Kara Film Dedektif	Noir Detective	new	硬汉;硬漢;黑色侦探
+bangumi_tag_superhero	Süper Kahraman	Superhero	existing:superhero	超级英雄;超級英雄;英雄
+bangumi_tag_tokusatsu	Tokusatsu	Tokusatsu	existing:tokusatsu	特摄;特攝
+bangumi_tag_kaiju	Kaiju	Kaiju	existing:monster	怪兽;怪獸;巨大机器人
+bangumi_tag_vampire_hunter	Vampir Avcısı	Vampire Hunter	new	吸血鬼猎人
+bangumi_tag_zombie	Zombi	Zombie	existing:zombie	丧尸;喪屍;僵尸;殭屍
+bangumi_tag_ghost_story	Hikâye / Korku Hikayesi	Ghost Story	existing:folklore	怪谈;怪談;灵异故事;都市传说;都市傳說
+bangumi_tag_mafia	Mafya	Mafia	existing:mafia	黑手党;黑手黨;黑帮;黑幫;极道;極道
+bangumi_tag_yakuza	Yakuza	Yakuza	existing:mafia	极道;極道;黑道
+bangumi_tag_police	Polis	Police	existing:police	警察;刑警;警视厅;警視廳
+bangumi_tag_military_setting	Askeri Ortam	Military Setting	existing:military	军旅;軍旅;军队;战争番
+bangumi_tag_wandering_ronin	Gezgin Rōnin	Wandering Ronin	new	浪人;剑客;劍客;武士道
+bangumi_tag_samurai_spirit	Samuray Ruhu	Samurai Spirit	existing:samurai	武士;侍
+bangumi_tag_ninja	Ninja	Ninja	existing:ninjas	忍者;忍術
+bangumi_tag_pirate	Korsan	Pirate	new	海盗;海盜;海贼;海賊
+bangumi_tag_detective_conan	Detective Conan	Detective Conan	existing:detective_conan	名侦探柯南;名偵探柯南;柯南
+bangumi_tag_gundam	Gundam	Gundam	existing:gundam	高达;高達;ガンダム;钢弹;鋼彈
+bangumi_tag_fate_series	Fate Serisi	Fate Series	existing:fate_series	Fate;命运冠位指定;FGO
+bangumi_tag_monogatari_series	Monogatari Serisi	Monogatari Series	new	物语系列;物語系列
+bangumi_tag_type_moon_works	Type-Moon Eserleri	Type-Moon Works	new	型月作品;月世界
+bangumi_tag_magical_girl	Sihirli Kız	Magical Girl	existing:magical_girl	魔法少女;马猴烧酒
+bangumi_tag_sentai	Sentai	Sentai	existing:superhero	战队;戰隊
+bangumi_tag_mecha_piloting	Mecha Pilotu	Mecha Piloting	existing:mecha	驾驶;駕駛;萝卜;蘿蔔
+bangumi_tag_ai_companion	YZ Arkadaşı	AI Companion	new	AI女友;人工智能女友
+bangumi_tag_virtual_world	Sanal Dünya	Virtual World	existing:virtual_reality	虚拟现实;虛擬現實;VRMMO;游戏世界
+bangumi_tag_esports	E-Spor	Esports	existing:game	电竞;電競;电竞选手
+bangumi_tag_streamer	Yayıncı	Streamer	new	主播;直播;直播番
+bangumi_tag_vtuber	VTuber	VTuber	new	VTuber;虚拟主播;虛擬主播
+bangumi_tag_vocaloid_work	Vocaloid Yapımı	Vocaloid Work	existing:vocaloid	VOCALOID;ボカロ
+bangumi_tag_utaite	Utaite	Utaite	new	唱见;唱見;翻唱
+bangumi_tag_dance	Dans	Dance	existing:dance	舞蹈;舞踊
+bangumi_tag_figure_skating	Buz Pateni	Figure Skating	existing:skating	花样滑冰;花樣滑冰
+bangumi_tag_boxing	Boks	Boxing	existing:combat_sports	拳击;拳擊
+bangumi_tag_martial_arts_tournament	Dövüş Sanatları Turnuvası	Martial Arts Tournament	new	武道会;天下第一武道会;比武
+bangumi_tag_survival_game	Hayatta Kalma Oyunu	Survival Game	existing:death_game	生存游戏;生存遊戲;大逃杀;大逃殺
+bangumi_tag_death_game	Ölüm Oyunu	Death Game	existing:death_game	死亡游戏;死亡遊戲
+bangumi_tag_gambling	Kumar	Gambling	existing:gambling	赌博;賭博
+bangumi_tag_heist_team	Soygun Ekibi	Heist Team	new	怪盗团;怪盜團
+bangumi_tag_detective_team	Dedektif Ekibi	Detective Team	new	侦探团;偵探團
+bangumi_tag_slice_of_life_comedy	Günlük Komedi	Slice of Life Comedy	new	日常搞笑;搞笑日常
+bangumi_tag_slapstick_comedy	Fiziksel Komedi	Slapstick Comedy	new	沙雕;无厘头;無厘頭
+bangumi_tag_parody_comedy	Parodi Komedi	Parody Comedy	existing:parody	恶搞;惡搞;吐槽
+bangumi_tag_meta_humor	Meta Mizah	Meta Humor	new	官方吐槽;官方玩梗
+bangumi_tag_dark_fantasy	Karanlık Fantezi	Dark Fantasy	new	暗黑奇幻;黑童话;黑童話
+bangumi_tag_grimdark	Grimdark	Grimdark	existing:dark_and_brutal	黑残深;黑深残
+bangumi_tag_feel_trip	Duygu Seli	Feels Trip	new	泪目;淚目;催泪向
+bangumi_tag_healing_work	İyileştirici Yapım	Healing Work	new	治愈向;療癒系;治愈番
+bangumi_tag_iyashikei_work	Iyashikei	Iyashikei	new	治愈系日常;癒し系
+bangumi_tag_catharsis	Katarsis	Catharsis	new	宣泄;解压;解壓
+bangumi_tag_classic	Klasik	Classic	existing:classic	经典;經典;神作
+bangumi_tag_underrated	Hakkı Yenmiş	Underrated	existing:underrated	冷门;冷門;被低估
+bangumi_tag_popular	Popüler	Popular	new	热门;熱門;出圈
+bangumi_tag_cult_classic	Kült Yapım	Cult Classic	existing:cult	邪典;小众神作
+bangumi_tag_guilty_pleasure	Gizli Zevk	Guilty Pleasure	existing:power_fantasy	快餐;爽番;爽文
+bangumi_tag_binge_worthy	Art Arda İzlemelik	Binge Worthy	new	一口气看完;連夜看完
+bangumi_tag_rewatch_value	Tekrar İzleme Değeri	Rewatch Value	new	多刷;二刷;N刷
+bangumi_tag_strong_worldbuilding	Güçlü Dünya Kurgusu	Strong Worldbuilding	new	世界观庞大;設定龐大
+bangumi_tag_plot_driven	Olay Odaklı	Plot Driven	new	剧情流;劇情流
+bangumi_tag_character_driven	Karakter Odaklı	Character Driven	new	角色塑造;人设丰满;人設豐滿
+bangumi_tag_psychological_thriller	Psikolojik Gerilim	Psychological Thriller	new	心理惊悚;心理驚悚
+bangumi_tag_mind_games	Zihin Oyunları	Mind Games	existing:psychological	智斗;智力对决;心理战;心理戰
+bangumi_tag_mystery_of_the_week	Haftanın Gizemi	Mystery of the Week	existing:episodic	单元剧;單元劇;一集一案
+bangumi_tag_episodic	Bölümlük	Episodic	existing:episodic	单元;單元
+bangumi_tag_serialized	Sürekli Hikâye	Serialized	new	连续剧式;連貫劇情
+bangumi_tag_long_running	Uzun Soluklu	Long Running	existing:long_series	长篇;長篇;民工漫;年番
+bangumi_tag_short_story	Kısa Hikâye	Short Story	new	短篇;小品
+bangumi_tag_anthology_work	Antoloji	Anthology Work	existing:anthology	短篇集;小故事集
+bangumi_tag_one_shot_work	Tek Bölüm	One-shot Work	existing:short_film	短篇漫画;短篇动画;ova短篇
+bangumi_tag_experimental_film	Deneysel Film	Experimental Film	existing:avant_garde	实验性;藝術電影;意识流;意識流
+bangumi_tag_arthouse_film	Sanat Filmi	Arthouse Film	new	文艺片;文藝片
+bangumi_tag_oscar_bait	Oscar Adayı	Oscar Bait	new	冲奥;冲獎
+bangumi_tag_award_winning_work	Ödüllü Yapım	Award-winning	existing:award_winning	获奖;獲獎;拿奖
+bangumi_tag_cultural_impact	Kültürel Etki	Cultural Impact	new	现象级;現象級
+# ── §7.4 Mevcut anahtarlara EKLENECEK etiketler (ekran görüntüsüyle doğrulandı) ──
+bangumi_tag_tearjerker	Duygusal	Tearjerker	existing:tearjerker	催淚
+bangumi_tag_kyoto_animation	Kyoto Animation	Kyoto Animation	existing:kyoto_animation	京都
+bangumi_tag_after_story	After Story	After Story	new	AS;After Story;アフターストーリー
+bangumi_tag_sequel	Devam	Sequel	existing:sequel	続編

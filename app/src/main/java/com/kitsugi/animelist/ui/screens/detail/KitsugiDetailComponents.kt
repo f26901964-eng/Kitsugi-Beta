@@ -36,6 +36,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.kitsugi.animelist.R
+import com.kitsugi.animelist.utils.toLocalizedOrgName
 import com.kitsugi.animelist.data.remote.KitsugiExternalLink
 import com.kitsugi.animelist.data.remote.KitsugiStudio
 import com.kitsugi.animelist.data.remote.KitsugiTag
@@ -75,7 +76,9 @@ fun KitsugiStudiosCard(
             ) {
                 studios.forEach { studio ->
                     KitsugiChip(
-                        text = studio.name,
+                        // Ad TR/EN dil dosyasından gelir (bangumi_studio_*); eşleşmeyen
+                        // ad (komite vb.) Latin/orijinal hâliyle kalır — bkz. MASTER 2026-10-11.
+                        text = studio.name.toLocalizedOrgName(),
                         color = accentColor,
                         solid = true,
                         // Kimliği henüz çözülmemiş Bangumi yerel kayıtları da tıklanabilir:
@@ -95,7 +98,7 @@ fun KitsugiStudiosCard(
             ) {
                 producers.forEach { producer ->
                     KitsugiChip(
-                        text = producer.name,
+                        text = producer.name.toLocalizedOrgName(),
                         color = accentColor,
                         solid = false,
                         onClick = if (producer.name.isNotBlank()) {
@@ -113,7 +116,7 @@ fun KitsugiStudiosCard(
             ) {
                 networks.forEach { network ->
                     KitsugiChip(
-                        text = network.name,
+                        text = network.name.toLocalizedOrgName(),
                         color = accentColor,
                         solid = false,
                         // Yayıncı ağlar da Bangumi'de şirket (type=2) kaydıdır; kimlik

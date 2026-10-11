@@ -1434,6 +1434,49 @@ private val studioLatinNameMap = mapOf(
     "CJ ENM" to "CJ ENM"
 )
 
+// ─── Şirket Adları — TR/EN Yerelleştirme (MASTER 2026-10-11) ──────────────────
+
+/**
+ * Stüdyo / yapımcı / yayıncı ağ / yayımcı / dergi adını arayüz diline göre yerelleştirir.
+ *
+ * Zincir: gelen ad (`Kyoto Animation` ya da `京阿尼`) → [BangumiOrgDictionary] eşlemesi →
+ * `bangumi_studio_*` / `bangumi_producer_*` / `bangumi_network_*` / `bangumi_publisher_*` /
+ * `bangumi_magazine_*` dil dosyası kaynağı (tr/en arayüzünde) → küresel Latin ad
+ * ([String.toLatinStudioName]) → orijinal metin.
+ *
+ * Marka adlarında TR = EN olduğu için İngilizce arayüzde de aynı değer okunur; **uydurma
+ * çeviri üretilmez**, eşleşmeyen ad (üretim komiteleri dahil) olduğu gibi kalır.
+ *
+ * Not: Arama/dedup daima Latin adla çalışır (`KitsugiStudio.name`), bu fonksiyon yalnızca
+ * **gösterim** içindir.
+ */
+fun String.toLocalizedOrgName(): String {
+    val cleaned = this.trim()
+    if (cleaned.isEmpty()) return cleaned
+    val key = BangumiOrgDictionary.resourceKeyFor(cleaned)
+        ?: BangumiOrgDictionary.resourceKeyFor(toLatinStudioName())
+    if (key != null && (isTurkish() || isEnglish())) {
+        getStringResourceByName(key)?.takeIf { it.isNotBlank() }?.let { return it }
+    }
+    return BangumiOrgDictionary.latinNameFor(cleaned) ?: toLatinStudioName()
+}
+
+/**
+ * [String.toLocalizedOrgName]'in "eşleşme yoksa null" biçimi — çağıran orijinal metni
+ * göstermek isteyebilir (ör. çip tıklamasında ham adı korumak için).
+ */
+fun String.toLocalizedOrgNameOrNull(): String? {
+    val cleaned = this.trim()
+    if (cleaned.isEmpty()) return null
+    val key = BangumiOrgDictionary.resourceKeyFor(cleaned)
+        ?: BangumiOrgDictionary.resourceKeyFor(toLatinStudioName())
+        ?: return BangumiOrgDictionary.latinNameFor(cleaned)
+    if (isTurkish() || isEnglish()) {
+        getStringResourceByName(key)?.takeIf { it.isNotBlank() }?.let { return it }
+    }
+    return BangumiOrgDictionary.latinNameFor(cleaned)
+}
+
 /**
  * Stüdyo/şirket adını bilinen resmî Latin yazımıyla eşler.
  *
@@ -1445,6 +1488,9 @@ private val studioLatinNameMap = mapOf(
 fun String.toLatinStudioName(): String {
     val cleaned = this.trim()
     if (cleaned.isEmpty()) return cleaned
+    // MASTER 2026-10-11 şirket sözlüğü (1016 eşleme) önce denenir: CJK/Japonca varyantlar
+    // (`京アニ`, `木棉花`, `光坂高校演劇部` hariç komite adları) ve İngilizce küresel adlar.
+    BangumiOrgDictionary.latinNameFor(cleaned)?.let { return it }
     studioLatinNameMap[cleaned]?.let { return it }
     val normalized = cleaned
         .replace(Regex("【[^】]*】"), " ")

@@ -1,0 +1,1122 @@
+package com.kitsugi.animelist.utils
+
+import java.util.Locale
+
+/**
+ * Bangumi şirket adları sözlüğü — **stüdyo / yapımcı / yayıncı ağ / yayımcı / dergi**.
+ *
+ * ⚠ **ÜRETİLMİŞ DOSYA — elle düzenlemeyin.**
+ * Kaynak: `diag/bangumi_master/orgs.tsv` → `python3 diag/bangumi_master/gen_bangumi_master.py`
+ *
+ * Bangumi infobox'ında şirket adları CJK (Japonca/Çince) ya da Latin gelir
+ * (`京都アニメーション`, `BONES`, `木棉花` ...). Bu sözlük, gelen adı bir `bangumi_*` dil
+ * dosyası anahtarına ve **resmî Latin/İngilizce adına** eşler:
+ *
+ *  • [resourceKeyFor] → `bangumi_studio_*` / `bangumi_producer_*` / `bangumi_network_*` /
+ *    `bangumi_publisher_*` / `bangumi_magazine_*` anahtarı (TR/EN değer dil dosyasından gelir),
+ *  • [latinNameFor]   → eşleşen kaydın küresel İngilizce adı (arama/dedup için).
+ *
+ * Eşleşme normalize edilerek yapılır: büyük/küçük harf, boşluk, tam genişlik noktalama ve
+ * `「」（）` sarımları yok sayılır; ikinci turda yalnızca harf/rakam bırakan sıkı anahtar
+ * denenir (`Production.IG` ≡ `Production I.G`). **Uydurma çeviri yoktur**: eşleşmeyen ad
+ * olduğu gibi kalır — komite adları (`PROJECT-XXX`, `光坂高校演劇部`) bilinçli olarak dışarıda.
+ *
+ * Doğrulanmamış (⚠) nadir adlar bu dosyaya, `orgs.tsv`'de `pending` işaretli oldukları için
+ * alınmaz; kaynakta görüldüklerinde işaret kaldırılıp üretici yeniden çalıştırılır.
+ */
+internal object BangumiOrgDictionary {
+
+    private const val RAW = """
+アフタヌーン|bangumi_magazine_afternoon|Afternoon
+月刊アフタヌーン|bangumi_magazine_afternoon|Afternoon
+Afternoon|bangumi_magazine_afternoon|Afternoon
+別冊少年マガジン|bangumi_magazine_bessatsu_shonen_magazine|Bessatsu Shonen Magazine
+Bessatsu Shonen Magazine|bangumi_magazine_bessatsu_shonen_magazine|Bessatsu Shonen Magazine
+月刊コミックアライブ|bangumi_magazine_comic_alive|Comic Alive
+コミックアライブ|bangumi_magazine_comic_alive|Comic Alive
+Comic Alive|bangumi_magazine_comic_alive|Comic Alive
+コミックビーム|bangumi_magazine_comic_beam|Comic Beam
+Comic Beam|bangumi_magazine_comic_beam|Comic Beam
+コミックフラッパー|bangumi_magazine_comic_flapper|Comic Flapper
+Comic Flapper|bangumi_magazine_comic_flapper|Comic Flapper
+月刊コミックZERO-SUM|bangumi_magazine_comic_zero_sum|Monthly Comic Zero-Sum
+コミックZERO-SUM|bangumi_magazine_comic_zero_sum|Monthly Comic Zero-Sum
+Monthly Comic Zero-Sum|bangumi_magazine_comic_zero_sum|Monthly Comic Zero-Sum
+電撃マ王|bangumi_magazine_dengeki_maoh|Dengeki Maoh
+電撃マオウ|bangumi_magazine_dengeki_maoh|Dengeki Maoh
+Dengeki Maoh|bangumi_magazine_dengeki_maoh|Dengeki Maoh
+ガンガン|bangumi_magazine_gangan|Gangan
+月刊少年ガンガン|bangumi_magazine_gangan|Gangan
+Gangan|bangumi_magazine_gangan|Gangan
+花とゆめ|bangumi_magazine_hana_to_yume|Hana to Yume
+花与梦|bangumi_magazine_hana_to_yume|Hana to Yume
+Hana to Yume|bangumi_magazine_hana_to_yume|Hana to Yume
+ジャンプSQ|bangumi_magazine_jump_sq|Jump SQ
+Jump SQ.|bangumi_magazine_jump_sq|Jump SQ
+Jump SQ|bangumi_magazine_jump_sq|Jump SQ
+LaLa|bangumi_magazine_lala|LaLa
+ララ|bangumi_magazine_lala|LaLa
+まんがタイムきらら|bangumi_magazine_manga_time_kirara|Manga Time Kirara
+Manga Time Kirara|bangumi_magazine_manga_time_kirara|Manga Time Kirara
+マーガレット|bangumi_magazine_margaret|Margaret
+Margaret|bangumi_magazine_margaret|Margaret
+月刊少年マガジン|bangumi_magazine_monthly_shonen_magazine|Monthly Shonen Magazine
+Monthly Shonen Magazine|bangumi_magazine_monthly_shonen_magazine|Monthly Shonen Magazine
+週刊少年チャンピオン|bangumi_magazine_shonen_champion|Weekly Shonen Champion
+Weekly Shonen Champion|bangumi_magazine_shonen_champion|Weekly Shonen Champion
+ウルトラジャンプ|bangumi_magazine_ultra_jump|Ultra Jump
+Ultra Jump|bangumi_magazine_ultra_jump|Ultra Jump
+週刊少年ジャンプ|bangumi_magazine_weekly_shonen_jump|Weekly Shonen Jump
+周刊少年JUMP|bangumi_magazine_weekly_shonen_jump|Weekly Shonen Jump
+ジャンプ|bangumi_magazine_weekly_shonen_jump|Weekly Shonen Jump
+Weekly Shonen Jump|bangumi_magazine_weekly_shonen_jump|Weekly Shonen Jump
+週刊少年マガジン|bangumi_magazine_weekly_shonen_magazine|Weekly Shonen Magazine
+周刊少年Magazine|bangumi_magazine_weekly_shonen_magazine|Weekly Shonen Magazine
+Weekly Shonen Magazine|bangumi_magazine_weekly_shonen_magazine|Weekly Shonen Magazine
+週刊少年サンデー|bangumi_magazine_weekly_shonen_sunday|Weekly Shonen Sunday
+周刊少年Sunday|bangumi_magazine_weekly_shonen_sunday|Weekly Shonen Sunday
+Weekly Shonen Sunday|bangumi_magazine_weekly_shonen_sunday|Weekly Shonen Sunday
+ヤングアニマル|bangumi_magazine_young_animal|Young Animal
+Young Animal|bangumi_magazine_young_animal|Young Animal
+ヤングジャンプ|bangumi_magazine_young_jump|Young Jump
+週刊ヤングジャンプ|bangumi_magazine_young_jump|Young Jump
+Young Jump|bangumi_magazine_young_jump|Young Jump
+朝日放送|bangumi_network_abc|ABC
+ABCテレビ|bangumi_network_abc|ABC
+朝日放送テレビ|bangumi_network_abc|ABC
+Asahi Broadcasting|bangumi_network_abc|ABC
+ABC|bangumi_network_abc|ABC
+ABEMA|bangumi_network_abema|ABEMA
+アベマ|bangumi_network_abema|ABEMA
+AbemaTV|bangumi_network_abema|ABEMA
+Adult Swim|bangumi_network_adult_swim|Adult Swim
+アダルトスイム|bangumi_network_adult_swim|Adult Swim
+アニマックス|bangumi_network_animax|Animax
+Animax|bangumi_network_animax|Animax
+ANIPLUS|bangumi_network_aniplus|Aniplus
+애니플러스|bangumi_network_aniplus|Aniplus
+Aniplus|bangumi_network_aniplus|Aniplus
+Apple TV+|bangumi_network_apple_tv|Apple TV+
+Apple TV Plus|bangumi_network_apple_tv|Apple TV+
+AT-X|bangumi_network_at_x|AT-X
+ATX|bangumi_network_at_x|AT-X
+バンダイチャンネル|bangumi_network_bandai_channel|Bandai Channel
+Bandai Ch.|bangumi_network_bandai_channel|Bandai Channel
+Bandai Channel|bangumi_network_bandai_channel|Bandai Channel
+BBC|bangumi_network_bbc|BBC
+英国广播公司|bangumi_network_bbc|BBC
+英國廣播公司|bangumi_network_bbc|BBC
+北京卫视|bangumi_network_beijing_tv|Beijing TV
+北京衛視|bangumi_network_beijing_tv|Beijing TV
+Beijing TV|bangumi_network_beijing_tv|Beijing TV
+哔哩哔哩|bangumi_network_bilibili|bilibili
+嗶哩嗶哩|bangumi_network_bilibili|bilibili
+B站|bangumi_network_bilibili|bilibili
+Bilibili|bangumi_network_bilibili|bilibili
+bilibili|bangumi_network_bilibili|bilibili
+BS11|bangumi_network_bs11|BS11
+日本BS放送|bangumi_network_bs11|BS11
+BS朝日|bangumi_network_bs_asahi|BS Asahi
+BS Asahi|bangumi_network_bs_asahi|BS Asahi
+BSフジ|bangumi_network_bs_fuji|BS Fuji
+BS富士|bangumi_network_bs_fuji|BS Fuji
+BS Fuji|bangumi_network_bs_fuji|BS Fuji
+BS日テレ|bangumi_network_bs_ntv|BS Nittele
+BS日本テレビ|bangumi_network_bs_ntv|BS Nittele
+BS Nittele|bangumi_network_bs_ntv|BS Nittele
+BS-TBS|bangumi_network_bs_tbs|BS-TBS
+BS-i|bangumi_network_bs_tbs|BS-TBS
+BS-i／BS-TBS|bangumi_network_bs_tbs|BS-TBS
+BSテレ東|bangumi_network_bs_tv_tokyo|BS TV Tokyo
+BSジャパン|bangumi_network_bs_tv_tokyo|BS TV Tokyo
+BS TV Tokyo|bangumi_network_bs_tv_tokyo|BS TV Tokyo
+Cartoon Network|bangumi_network_cartoon_network|Cartoon Network
+卡通频道|bangumi_network_cartoon_network|Cartoon Network
+カートゥーンネットワーク|bangumi_network_cartoon_network|Cartoon Network
+中部日本放送|bangumi_network_cbc|CBC
+CBCテレビ|bangumi_network_cbc|CBC
+CBC|bangumi_network_cbc|CBC
+央视|bangumi_network_cctv|CCTV
+央視|bangumi_network_cctv|CCTV
+中国中央电视台|bangumi_network_cctv|CCTV
+中國中央電視台|bangumi_network_cctv|CCTV
+CCTV|bangumi_network_cctv|CCTV
+Channel 4|bangumi_network_channel4|Channel 4
+第4频道|bangumi_network_channel4|Channel 4
+チバテレビ|bangumi_network_chiba_tv|Chiba TV
+千葉テレビ|bangumi_network_chiba_tv|Chiba TV
+Chiba TV|bangumi_network_chiba_tv|Chiba TV
+Crunchyroll|bangumi_network_crunchyroll|Crunchyroll
+CR|bangumi_network_crunchyroll|Crunchyroll
+中京テレビ|bangumi_network_ctv|CTV
+中京テレビ放送|bangumi_network_ctv|CTV
+CTV|bangumi_network_ctv|CTV
+中视|bangumi_network_ctv_tw|CTV
+中視|bangumi_network_ctv_tw|CTV
+中国电视|bangumi_network_ctv_tw|CTV
+中國電視|bangumi_network_ctv_tw|CTV
+CTV|bangumi_network_ctv_tw|CTV
+dアニメストア|bangumi_network_d_anime_store|d Anime Store
+dアニメストア for Prime Video|bangumi_network_d_anime_store|d Anime Store
+d Anime Store|bangumi_network_d_anime_store|d Anime Store
+Disney Channel|bangumi_network_disney_channel|Disney Channel
+迪士尼频道|bangumi_network_disney_channel|Disney Channel
+ディズニーチャンネル|bangumi_network_disney_channel|Disney Channel
+Disney+|bangumi_network_disney_plus|Disney+
+ディズニープラス|bangumi_network_disney_plus|Disney+
+Disney Plus|bangumi_network_disney_plus|Disney+
+东方卫视|bangumi_network_dragon_tv|Dragon TV
+東方衛視|bangumi_network_dragon_tv|Dragon TV
+Dragon TV|bangumi_network_dragon_tv|Dragon TV
+福岡放送|bangumi_network_fbs|FBS
+FBS|bangumi_network_fbs|FBS
+FOD|bangumi_network_fod|FOD
+フジテレビオンデマンド|bangumi_network_fod|FOD
+民视|bangumi_network_ftv|FTV
+民視|bangumi_network_ftv|FTV
+民间全民电视|bangumi_network_ftv|FTV
+民間全民電視|bangumi_network_ftv|FTV
+FTV|bangumi_network_ftv|FTV
+フジテレビ|bangumi_network_fuji_tv|Fuji Television
+フジテレビジョン|bangumi_network_fuji_tv|Fuji Television
+富士电视台|bangumi_network_fuji_tv|Fuji Television
+富士電視台|bangumi_network_fuji_tv|Fuji Television
+Fuji Television|bangumi_network_fuji_tv|Fuji Television
+Fuji TV|bangumi_network_fuji_tv|Fuji Television
+八大电视|bangumi_network_gtv|GTV
+八大電視|bangumi_network_gtv|GTV
+GTV|bangumi_network_gtv|GTV
+广东卫视|bangumi_network_guangdong_tv|Guangdong TV
+廣東衛視|bangumi_network_guangdong_tv|Guangdong TV
+Guangdong TV|bangumi_network_guangdong_tv|Guangdong TV
+GYAO!|bangumi_network_gyao|GYAO!
+GYAO|bangumi_network_gyao|GYAO!
+ギャオ|bangumi_network_gyao|GYAO!
+北海道放送|bangumi_network_hbc|HBC
+HBC|bangumi_network_hbc|HBC
+HBO Max|bangumi_network_hbo_max|Max
+HBO|bangumi_network_hbo_max|Max
+Max|bangumi_network_hbo_max|Max
+Hulu|bangumi_network_hulu|Hulu
+HULU|bangumi_network_hulu|Hulu
+Hulu|bangumi_network_hulu_jp|Hulu
+フール|bangumi_network_hulu_jp|Hulu
+湖南卫视|bangumi_network_hunan_tv|Hunan TV
+湖南衛視|bangumi_network_hunan_tv|Hunan TV
+Hunan TV|bangumi_network_hunan_tv|Hunan TV
+爱奇艺|bangumi_network_iqiyi|iQIYI
+愛奇藝|bangumi_network_iqiyi|iQIYI
+iQIYI|bangumi_network_iqiyi|iQIYI
+ITV|bangumi_network_itv|ITV
+江苏卫视|bangumi_network_jiangsu_tv|Jiangsu TV
+江蘇衛視|bangumi_network_jiangsu_tv|Jiangsu TV
+Jiangsu TV|bangumi_network_jiangsu_tv|Jiangsu TV
+KBS|bangumi_network_kbs|KBS
+韩国广播公司|bangumi_network_kbs|KBS
+韓國廣播公司|bangumi_network_kbs|KBS
+Korean Broadcasting System|bangumi_network_kbs|KBS
+KBS京都|bangumi_network_kbs_kyoto|KBS Kyoto
+KBS京都放送|bangumi_network_kbs_kyoto|KBS Kyoto
+KBS Kyoto|bangumi_network_kbs_kyoto|KBS Kyoto
+キッズステーション|bangumi_network_kids_station|Kids Station
+Kids Station|bangumi_network_kids_station|Kids Station
+関西テレビ|bangumi_network_ktv|Kansai TV
+関西テレビ放送|bangumi_network_ktv|Kansai TV
+Kansai TV|bangumi_network_ktv|Kansai TV
+KTV|bangumi_network_ktv|Kansai TV
+芒果TV|bangumi_network_mango_tv|Mango TV
+芒果tv|bangumi_network_mango_tv|Mango TV
+Mango TV|bangumi_network_mango_tv|Mango TV
+MBC|bangumi_network_mbc_kr|MBC
+文化广播|bangumi_network_mbc_kr|MBC
+文化廣播|bangumi_network_mbc_kr|MBC
+Munhwa Broadcasting|bangumi_network_mbc_kr|MBC
+毎日放送|bangumi_network_mbs|MBS
+MBS毎日放送|bangumi_network_mbs|MBS
+Mainichi Broadcasting|bangumi_network_mbs|MBS
+MBS|bangumi_network_mbs|MBS
+三重テレビ|bangumi_network_mie_tv|Mie TV
+Mie TV|bangumi_network_mie_tv|Mie TV
+北陸放送|bangumi_network_mro|MRO
+MRO|bangumi_network_mro|MRO
+木棉花|bangumi_network_muse|Muse Communication
+Muse木棉花|bangumi_network_muse|Muse Communication
+MUSE|bangumi_network_muse|Muse Communication
+Muse Communication|bangumi_network_muse|Muse Communication
+Netflix|bangumi_network_netflix|Netflix
+网飞|bangumi_network_netflix|Netflix
+網飛|bangumi_network_netflix|Netflix
+奈飞|bangumi_network_netflix|Netflix
+NHK総合|bangumi_network_nhk|NHK
+NHK教育|bangumi_network_nhk|NHK
+NHK-G|bangumi_network_nhk|NHK
+NHK-E|bangumi_network_nhk|NHK
+NHK|bangumi_network_nhk|NHK
+Nickelodeon|bangumi_network_nickelodeon|Nickelodeon
+尼克儿童频道|bangumi_network_nickelodeon|Nickelodeon
+ニコロデオン|bangumi_network_nickelodeon|Nickelodeon
+ニコニコ動画|bangumi_network_niconico|Niconico
+niconico|bangumi_network_niconico|Niconico
+ニコニコ|bangumi_network_niconico|Niconico
+niconico动画|bangumi_network_niconico|Niconico
+Niconico|bangumi_network_niconico|Niconico
+日本テレビ|bangumi_network_ntv|Nippon TV
+日本电视台|bangumi_network_ntv|Nippon TV
+日本電視台|bangumi_network_ntv|Nippon TV
+日テレ|bangumi_network_ntv|Nippon TV
+Nippon TV|bangumi_network_ntv|Nippon TV
+NTV|bangumi_network_ntv|Nippon TV
+Peacock|bangumi_network_peacock|Peacock
+Peacock TV|bangumi_network_peacock|Peacock
+Amazon Prime Video|bangumi_network_prime_video|Prime Video
+亚马逊 Prime|bangumi_network_prime_video|Prime Video
+亞馬遜 Prime|bangumi_network_prime_video|Prime Video
+Amazonプライム・ビデオ|bangumi_network_prime_video|Prime Video
+Amazon Video|bangumi_network_prime_video|Prime Video
+Prime Video|bangumi_network_prime_video|Prime Video
+中国放送|bangumi_network_rcc|RCC
+RCC|bangumi_network_rcc|RCC
+RKB毎日放送|bangumi_network_rkb|RKB
+RKB Mainichi Broadcasting|bangumi_network_rkb|RKB
+RKB|bangumi_network_rkb|RKB
+熊本放送|bangumi_network_rkk|RKK
+RKK|bangumi_network_rkk|RKK
+西日本放送|bangumi_network_rnc|RNC
+RNC|bangumi_network_rnc|RNC
+Roku Channel|bangumi_network_roku|The Roku Channel
+The Roku Channel|bangumi_network_roku|The Roku Channel
+RSK山陽放送|bangumi_network_rsk|RSK
+山陽放送|bangumi_network_rsk|RSK
+RSK|bangumi_network_rsk|RSK
+信越放送|bangumi_network_sbc|SBC
+SBC|bangumi_network_sbc|SBC
+静岡放送|bangumi_network_sbs_jp|SBS
+SBS静岡放送|bangumi_network_sbs_jp|SBS
+SBS|bangumi_network_sbs_jp|SBS
+SBS|bangumi_network_sbs_kr|SBS
+SBS首尔放送|bangumi_network_sbs_kr|SBS
+SBS首爾放送|bangumi_network_sbs_kr|SBS
+Seoul Broadcasting System|bangumi_network_sbs_kr|SBS
+静岡第一テレビ|bangumi_network_sdt|SDT
+SDT|bangumi_network_sdt|SDT
+サンテレビ|bangumi_network_sun_tv|SUN-TV
+サンテレビジョン|bangumi_network_sun_tv|SUN-TV
+SUN-TV|bangumi_network_sun_tv|SUN-TV
+東北放送|bangumi_network_tbc|TBC
+TBC|bangumi_network_tbc|TBC
+TBS|bangumi_network_tbs|TBS
+TBSテレビ|bangumi_network_tbs|TBS
+东京放送|bangumi_network_tbs|TBS
+東京放送|bangumi_network_tbs|TBS
+TBS TV|bangumi_network_tbs|TBS
+テレ玉|bangumi_network_teletama|Teletama
+テレビ埼玉|bangumi_network_teletama|Teletama
+Teletama|bangumi_network_teletama|Teletama
+腾讯视频|bangumi_network_tencent_video|Tencent Video
+騰訊視頻|bangumi_network_tencent_video|Tencent Video
+Tencent Video|bangumi_network_tencent_video|Tencent Video
+東海テレビ|bangumi_network_thk|THK
+東海テレビ放送|bangumi_network_thk|THK
+THK|bangumi_network_thk|THK
+TOKYO MX|bangumi_network_tokyo_mx|TOKYO MX
+东京都会电视台|bangumi_network_tokyo_mx|TOKYO MX
+東京都會電視台|bangumi_network_tokyo_mx|TOKYO MX
+MX|bangumi_network_tokyo_mx|TOKYO MX
+東京MX|bangumi_network_tokyo_mx|TOKYO MX
+Tooniverse|bangumi_network_tooniverse|Tooniverse
+투니버스|bangumi_network_tooniverse|Tooniverse
+台视|bangumi_network_ttv|TTV
+台視|bangumi_network_ttv|TTV
+台湾电视|bangumi_network_ttv|TTV
+台灣電視|bangumi_network_ttv|TTV
+TTV|bangumi_network_ttv|TTV
+Tubi|bangumi_network_tubi|Tubi
+テレビ東京|bangumi_network_tv_tokyo|TV Tokyo
+东京电视台|bangumi_network_tv_tokyo|TV Tokyo
+東京電視台|bangumi_network_tv_tokyo|TV Tokyo
+TX|bangumi_network_tv_tokyo|TV Tokyo
+TV TOKYO|bangumi_network_tv_tokyo|TV Tokyo
+TV Tokyo|bangumi_network_tv_tokyo|TV Tokyo
+テレビ愛知|bangumi_network_tva|TV Aichi
+TV Aichi|bangumi_network_tva|TV Aichi
+テレビ朝日|bangumi_network_tvasahi|TV Asahi
+朝日电视台|bangumi_network_tvasahi|TV Asahi
+朝日電視台|bangumi_network_tvasahi|TV Asahi
+ANB|bangumi_network_tvasahi|TV Asahi
+tv asahi|bangumi_network_tvasahi|TV Asahi
+TV Asahi|bangumi_network_tvasahi|TV Asahi
+无线电视|bangumi_network_tvb|TVB
+無線電視|bangumi_network_tvb|TVB
+翡翠台|bangumi_network_tvb|TVB
+Jade|bangumi_network_tvb|TVB
+TVB|bangumi_network_tvb|TVB
+TVer|bangumi_network_tver|TVer
+ティーバー|bangumi_network_tver|TVer
+テレビ神奈川|bangumi_network_tvk|tvk
+tvk|bangumi_network_tvk|tvk
+テレビ大阪|bangumi_network_tvo|TV Osaka
+TV Osaka|bangumi_network_tvo|TV Osaka
+TVQ九州放送|bangumi_network_tvq|TVQ
+TVQ|bangumi_network_tvq|TVQ
+U-NEXT|bangumi_network_u_next|U-NEXT
+ユーネクスト|bangumi_network_u_next|U-NEXT
+ViuTV|bangumi_network_viutv|ViuTV
+WOWOW|bangumi_network_wowow|WOWOW
+ワウワウ|bangumi_network_wowow|WOWOW
+优酷|bangumi_network_youku|Youku
+優酷|bangumi_network_youku|Youku
+Youku|bangumi_network_youku|Youku
+YouTube|bangumi_network_youtube|YouTube
+ユーチューブ|bangumi_network_youtube|YouTube
+油管|bangumi_network_youtube|YouTube
+読売テレビ|bangumi_network_ytv|Yomiuri TV
+ytv|bangumi_network_ytv|Yomiuri TV
+読売テレビ放送|bangumi_network_ytv|Yomiuri TV
+Yomiuri TV|bangumi_network_ytv|Yomiuri TV
+浙江卫视|bangumi_network_zhejiang_tv|Zhejiang TV
+浙江衛視|bangumi_network_zhejiang_tv|Zhejiang TV
+Zhejiang TV|bangumi_network_zhejiang_tv|Zhejiang TV
+ADKエムズ|bangumi_producer_adk|ADK
+ADK Emotions|bangumi_producer_adk|ADK
+ADK|bangumi_producer_adk|ADK
+秋田書店|bangumi_producer_akita_shoten|Akita Shoten
+Akita Shoten|bangumi_producer_akita_shoten|Akita Shoten
+アニプレックス|bangumi_producer_aniplex|Aniplex
+Aniplex|bangumi_producer_aniplex|Aniplex
+Aniplex of America|bangumi_producer_aniplex_of_america|Aniplex of America
+朝日放送グループホールディングス|bangumi_producer_asahi_broad|Asahi Broadcasting
+Asahi Broadcasting|bangumi_producer_asahi_broad|Asahi Broadcasting
+アスキー・メディアワークス|bangumi_producer_ascii_media_works|ASCII Media Works
+ASCII・MediaWorks|bangumi_producer_ascii_media_works|ASCII Media Works
+ASCII Media Works|bangumi_producer_ascii_media_works|ASCII Media Works
+アスミック・エース|bangumi_producer_asmik_ace|Asmik Ace
+アスミック|bangumi_producer_asmik_ace|Asmik Ace
+Asmik Ace|bangumi_producer_asmik_ace|Asmik Ace
+エイベックス・ピクチャーズ|bangumi_producer_avex_pictures|Avex Pictures
+avex pictures|bangumi_producer_avex_pictures|Avex Pictures
+エイベックス|bangumi_producer_avex_pictures|Avex Pictures
+Avex Pictures|bangumi_producer_avex_pictures|Avex Pictures
+スタジオバンビーノ|bangumi_producer_bambino|Studio Bambino
+Bambino|bangumi_producer_bambino|Studio Bambino
+Studio Bambino|bangumi_producer_bambino|Studio Bambino
+バンダイナムコフィルムワークス|bangumi_producer_bandai_namco_filmworks|Bandai Namco Filmworks
+Bandai Namco Arts|bangumi_producer_bandai_namco_filmworks|Bandai Namco Filmworks
+バンダイナムコアーツ|bangumi_producer_bandai_namco_filmworks|Bandai Namco Filmworks
+Bandai Namco Filmworks|bangumi_producer_bandai_namco_filmworks|Bandai Namco Filmworks
+バンダイナムコピクチャーズ|bangumi_producer_bandai_namco_pictures|Bandai Namco Pictures
+BN Pictures|bangumi_producer_bandai_namco_pictures|Bandai Namco Pictures
+BNP|bangumi_producer_bandai_namco_pictures|Bandai Namco Pictures
+Bandai Namco Pictures|bangumi_producer_bandai_namco_pictures|Bandai Namco Pictures
+バンダイビジュアル|bangumi_producer_bandai_visual|Bandai Visual
+Bandai|bangumi_producer_bandai_visual|Bandai Visual
+Bandai Visual|bangumi_producer_bandai_visual|Bandai Visual
+哔哩哔哩|bangumi_producer_bilibili|bilibili
+嗶哩嗶哩|bangumi_producer_bilibili|bilibili
+B站|bangumi_producer_bilibili|bilibili
+Bilibili|bangumi_producer_bilibili|bilibili
+bilibili|bangumi_producer_bilibili|bilibili
+哔哩哔哩影业|bangumi_producer_bilibili_co|bilibili
+bilibili影业|bangumi_producer_bilibili_co|bilibili
+bilibili|bangumi_producer_bilibili_co|bilibili
+ブシロード|bangumi_producer_bushiroad|Bushiroad
+Bushi Road|bangumi_producer_bushiroad|Bushiroad
+Bushiroad|bangumi_producer_bushiroad|Bushiroad
+中部日本放送|bangumi_producer_cbc|CBC
+CBCテレビ|bangumi_producer_cbc|CBC
+CBC|bangumi_producer_cbc|CBC
+中影年年|bangumi_producer_cmc_media|CMC Media
+CMC Media|bangumi_producer_cmc_media|CMC Media
+サイゲームズ|bangumi_producer_cygames|Cygames
+Cygames|bangumi_producer_cygames|Cygames
+電通|bangumi_producer_dentsu|Dentsu
+Dentsu|bangumi_producer_dentsu|Dentsu
+ディズニープラス|bangumi_producer_disney_plus|Disney+
+Disney Plus|bangumi_producer_disney_plus|Disney+
+Disney+|bangumi_producer_disney_plus|Disney+
+DMMミュージック|bangumi_producer_dmm_music|DMM music
+DMM music|bangumi_producer_dmm_music|DMM music
+DMM pictures|bangumi_producer_dmm_pictures|DMM pictures
+DMMピクチャーズ|bangumi_producer_dmm_pictures|DMM pictures
+エンターブレイン|bangumi_producer_enterbrain|Enterbrain
+Enterbrain|bangumi_producer_enterbrain|Enterbrain
+フライングドッグ|bangumi_producer_flyingdog|FlyingDog
+Flying Dog|bangumi_producer_flyingdog|FlyingDog
+FlyingDog|bangumi_producer_flyingdog|FlyingDog
+フロンティアワークス|bangumi_producer_frontier_works|Frontier Works
+Frontier Works|bangumi_producer_frontier_works|Frontier Works
+双葉社|bangumi_producer_futabasha|Futabasha
+Futabasha|bangumi_producer_futabasha|Futabasha
+ギャガ|bangumi_producer_gaga|GAGA
+GAGA|bangumi_producer_gaga|GAGA
+ジェンコ|bangumi_producer_genco|Genco
+Genco|bangumi_producer_genco|Genco
+幻冬舎|bangumi_producer_gentosha|Gentosha
+Gentosha|bangumi_producer_gentosha|Gentosha
+グロービジョン|bangumi_producer_glovision|Glovision
+Glovision|bangumi_producer_glovision|Glovision
+グッドスマイルカンパニー|bangumi_producer_good_smile_company|Good Smile Company
+GSC|bangumi_producer_good_smile_company|Good Smile Company
+Good Smile Company|bangumi_producer_good_smile_company|Good Smile Company
+白泉社|bangumi_producer_hakusensha|Hakusensha
+Hakusensha|bangumi_producer_hakusensha|Hakusensha
+ハピネット|bangumi_producer_happinet|Happinet
+Happinet|bangumi_producer_happinet|Happinet
+芳文社|bangumi_producer_houbunsha|Houbunsha
+Houbunsha|bangumi_producer_houbunsha|Houbunsha
+一迅社|bangumi_producer_ichijinsha|Ichijinsha
+Ichijinsha|bangumi_producer_ichijinsha|Ichijinsha
+爱奇艺|bangumi_producer_iqiyi|iQIYI
+愛奇藝|bangumi_producer_iqiyi|iQIYI
+iqiyi|bangumi_producer_iqiyi|iQIYI
+iQIYI|bangumi_producer_iqiyi|iQIYI
+角川|bangumi_producer_kadokawa|KADOKAWA
+角川書店|bangumi_producer_kadokawa|KADOKAWA
+Kadokawa|bangumi_producer_kadokawa|KADOKAWA
+カドカワ|bangumi_producer_kadokawa|KADOKAWA
+KADOKAWA CORPORATION|bangumi_producer_kadokawa|KADOKAWA
+KADOKAWA|bangumi_producer_kadokawa|KADOKAWA
+関西テレビ|bangumi_producer_kansai_tv|Kansai TV
+KTV|bangumi_producer_kansai_tv|Kansai TV
+関西テレビ放送|bangumi_producer_kansai_tv|Kansai TV
+Kansai TV|bangumi_producer_kansai_tv|Kansai TV
+キングアミューズメントクリエイティブ|bangumi_producer_king_amusement_creative|King Amusement Creative
+KAC|bangumi_producer_king_amusement_creative|King Amusement Creative
+King Amusement Creative|bangumi_producer_king_amusement_creative|King Amusement Creative
+キングレコード|bangumi_producer_king_records|King Records
+King Records|bangumi_producer_king_records|King Records
+クロックワークス|bangumi_producer_klockworx|Klockworx
+Klockworx|bangumi_producer_klockworx|Klockworx
+講談社|bangumi_producer_kodansha|Kodansha
+KODANSHA|bangumi_producer_kodansha|Kodansha
+Kodansha|bangumi_producer_kodansha|Kodansha
+コナミ|bangumi_producer_konami|Konami
+KONAMI|bangumi_producer_konami|Konami
+Konami|bangumi_producer_konami|Konami
+ランティス|bangumi_producer_lantis|Lantis
+Lantis|bangumi_producer_lantis|Lantis
+レベルファイブ|bangumi_producer_level5|Level-5
+Level5|bangumi_producer_level5|Level-5
+Level-5|bangumi_producer_level5|Level-5
+リブレ|bangumi_producer_libre|Libre
+Libre|bangumi_producer_libre|Libre
+マッグガーデン|bangumi_producer_mag_garden|Mag Garden
+Mag Garden|bangumi_producer_mag_garden|Mag Garden
+MAGES|bangumi_producer_mages|MAGES.
+5pb.|bangumi_producer_mages|MAGES.
+5pb|bangumi_producer_mages|MAGES.
+MAGES.|bangumi_producer_mages|MAGES.
+マーベラス|bangumi_producer_marvelous|Marvelous
+Marvelous|bangumi_producer_marvelous|Marvelous
+毎日放送|bangumi_producer_mbs|MBS
+Mainichi Broadcasting|bangumi_producer_mbs|MBS
+MBS毎日放送|bangumi_producer_mbs|MBS
+MBS|bangumi_producer_mbs|MBS
+メディアファクトリー|bangumi_producer_media_factory|Media Factory
+MF|bangumi_producer_media_factory|Media Factory
+Media Factory|bangumi_producer_media_factory|Media Factory
+ムービック|bangumi_producer_movic|Movic
+Movic|bangumi_producer_movic|Movic
+名古屋テレビ|bangumi_producer_nagoya_tv|Nagoya TV
+メ～テレ|bangumi_producer_nagoya_tv|Nagoya TV
+Nagoya Broadcasting Network|bangumi_producer_nagoya_tv|Nagoya TV
+Nagoya TV|bangumi_producer_nagoya_tv|Nagoya TV
+NBCユニバーサル・エンターテイメント|bangumi_producer_nbcuniversal|NBCUniversal Entertainment Japan
+ジェネオン・ユニバーサル・エンタテイメント|bangumi_producer_nbcuniversal|NBCUniversal Entertainment Japan
+ジェネオン|bangumi_producer_nbcuniversal|NBCUniversal Entertainment Japan
+Geneon|bangumi_producer_nbcuniversal|NBCUniversal Entertainment Japan
+Geneon Entertainment|bangumi_producer_nbcuniversal|NBCUniversal Entertainment Japan
+NBCUniversal Entertainment Japan|bangumi_producer_nbcuniversal|NBCUniversal Entertainment Japan
+Netflix|bangumi_producer_netflix|Netflix
+网飞|bangumi_producer_netflix|Netflix
+網飛|bangumi_producer_netflix|Netflix
+奈飞|bangumi_producer_netflix|Netflix
+NHK|bangumi_producer_nhk|NHK
+日本广播协会|bangumi_producer_nhk|NHK
+日本放送協会|bangumi_producer_nhk|NHK
+NHKエンタープライズ|bangumi_producer_nhk_enterprises|NHK Enterprises
+NEP|bangumi_producer_nhk_enterprises|NHK Enterprises
+NHK Enterprises|bangumi_producer_nhk_enterprises|NHK Enterprises
+日本コロムビア|bangumi_producer_nichion|Nippon Columbia
+コロムビア|bangumi_producer_nichion|Nippon Columbia
+Nippon Columbia|bangumi_producer_nichion|Nippon Columbia
+任天堂|bangumi_producer_nintendo|Nintendo
+Nintendo|bangumi_producer_nintendo|Nintendo
+日本テレビ|bangumi_producer_nippon_tv|Nippon TV
+日本テレビ放送網|bangumi_producer_nippon_tv|Nippon TV
+NTV|bangumi_producer_nippon_tv|Nippon TV
+日テレ|bangumi_producer_nippon_tv|Nippon TV
+Nippon TV|bangumi_producer_nippon_tv|Nippon TV
+ポケモン|bangumi_producer_pokemon|The Pokémon Company
+ポケットモンスター|bangumi_producer_pokemon|The Pokémon Company
+The Pokemon Company|bangumi_producer_pokemon|The Pokémon Company
+The Pokémon Company|bangumi_producer_pokemon|The Pokémon Company
+スタジオポノック|bangumi_producer_ponoc|Studio Ponoc
+Studio Ponoc|bangumi_producer_ponoc|Studio Ponoc
+ポニーキャニオン|bangumi_producer_pony_canyon|Pony Canyon
+PONY CANYON|bangumi_producer_pony_canyon|Pony Canyon
+PonyCanyon|bangumi_producer_pony_canyon|Pony Canyon
+Pony Canyon|bangumi_producer_pony_canyon|Pony Canyon
+プロダクション・アイジー|bangumi_producer_production_ig|Production I.G
+Production I.G|bangumi_producer_production_ig|Production I.G
+セガ|bangumi_producer_sega|SEGA
+SEGA|bangumi_producer_sega|SEGA
+新潮社|bangumi_producer_shinchosha|Shinchosha
+Shinchosha|bangumi_producer_shinchosha|Shinchosha
+松竹|bangumi_producer_shochiku|Shochiku
+SHOCHIKU|bangumi_producer_shochiku|Shochiku
+Shochiku|bangumi_producer_shochiku|Shochiku
+小学館|bangumi_producer_shogakukan|Shogakukan
+SHOGAKUKAN|bangumi_producer_shogakukan|Shogakukan
+Shogakukan|bangumi_producer_shogakukan|Shogakukan
+小学館集英社プロダクション|bangumi_producer_shogakukan_shueisha_productions|Shogakukan-Shueisha Productions
+ShoPro|bangumi_producer_shogakukan_shueisha_productions|Shogakukan-Shueisha Productions
+Shogakukan-Shueisha Productions|bangumi_producer_shogakukan_shueisha_productions|Shogakukan-Shueisha Productions
+ショウゲート|bangumi_producer_showgate|Showgate
+Showgate|bangumi_producer_showgate|Showgate
+集英社|bangumi_producer_shueisha|Shueisha
+SHUEISHA|bangumi_producer_shueisha|Shueisha
+Shueisha|bangumi_producer_shueisha|Shueisha
+ソニー・ミュージックエンタテインメント|bangumi_producer_sony_music|Sony Music Entertainment
+Sony Music|bangumi_producer_sony_music|Sony Music Entertainment
+SME|bangumi_producer_sony_music|Sony Music Entertainment
+Sony Music Entertainment|bangumi_producer_sony_music|Sony Music Entertainment
+創通|bangumi_producer_sotsu|Sotsu
+Sotsu Agency|bangumi_producer_sotsu|Sotsu
+Sotsu|bangumi_producer_sotsu|Sotsu
+スクウェア・エニックス|bangumi_producer_square_enix|Square Enix
+スクエニ|bangumi_producer_square_enix|Square Enix
+SQUARE ENIX|bangumi_producer_square_enix|Square Enix
+Square Enix|bangumi_producer_square_enix|Square Enix
+スターチャイルドレコード|bangumi_producer_starchild|Starchild Records
+スターチャイルド|bangumi_producer_starchild|Starchild Records
+Starchild Records|bangumi_producer_starchild|Starchild Records
+腾讯|bangumi_producer_tencent|Tencent
+騰訊|bangumi_producer_tencent|Tencent
+Tencent|bangumi_producer_tencent|Tencent
+腾讯视频|bangumi_producer_tencent_video|Tencent Video
+騰訊視頻|bangumi_producer_tencent_video|Tencent Video
+TencentVideo|bangumi_producer_tencent_video|Tencent Video
+Tencent Video|bangumi_producer_tencent_video|Tencent Video
+東宝|bangumi_producer_toho|TOHO
+Toho|bangumi_producer_toho|TOHO
+東宝映像事業部|bangumi_producer_toho|TOHO
+TOHO|bangumi_producer_toho|TOHO
+東宝アニメーション|bangumi_producer_toho_animation|TOHO animation
+TOHO animation|bangumi_producer_toho_animation|TOHO animation
+東北新社|bangumi_producer_tohokushinsha|Tohokushinsha
+Tohokushinsha|bangumi_producer_tohokushinsha|Tohokushinsha
+徳間書店|bangumi_producer_tokuma_shoten|Tokuma Shoten
+Tokuma Shoten|bangumi_producer_tokuma_shoten|Tokuma Shoten
+テレビ東京|bangumi_producer_tv_tokyo|TV TOKYO
+TV Tokyo|bangumi_producer_tv_tokyo|TV TOKYO
+TV TOKYO|bangumi_producer_tv_tokyo|TV TOKYO
+テレビ東京メディアネット|bangumi_producer_tv_tokyo_media|TV Tokyo Media Net
+TV Tokyo Media Net|bangumi_producer_tv_tokyo_media|TV Tokyo Media Net
+タイフーン・グラフィックス|bangumi_producer_typhoon_graphics|Typhoon Graphics
+Typhoon Graphics|bangumi_producer_typhoon_graphics|Typhoon Graphics
+WOWOW|bangumi_producer_wowow|WOWOW
+ワウワウ|bangumi_producer_wowow|WOWOW
+ABCアニメーション|bangumi_producer_wowow_abc|ABC Animation
+ABC Animation|bangumi_producer_wowow_abc|ABC Animation
+読売テレビ|bangumi_producer_yomiuri_tv|Yomiuri TV
+ytv|bangumi_producer_yomiuri_tv|Yomiuri TV
+読売テレビ放送|bangumi_producer_yomiuri_tv|Yomiuri TV
+Yomiuri TV|bangumi_producer_yomiuri_tv|Yomiuri TV
+优酷|bangumi_producer_youku|Youku
+優酷|bangumi_producer_youku|Youku
+YOUKU|bangumi_producer_youku|Youku
+Youku|bangumi_producer_youku|Youku
+ヤング・アニメーション|bangumi_producer_young_animation|Young Animation
+Young Animation|bangumi_producer_young_animation|Young Animation
+秋田書店|bangumi_publisher_akita_shoten|Akita Shoten
+Akita Shoten|bangumi_publisher_akita_shoten|Akita Shoten
+アスキー・メディアワークス|bangumi_publisher_ascii_media_works|ASCII Media Works
+ASCII Media Works|bangumi_publisher_ascii_media_works|ASCII Media Works
+コアミックス|bangumi_publisher_coamix|Coamix
+Coamix|bangumi_publisher_coamix|Coamix
+エンターブレイン|bangumi_publisher_enterbrain|Enterbrain
+Enterbrain|bangumi_publisher_enterbrain|Enterbrain
+双葉社|bangumi_publisher_futabasha|Futabasha
+Futabasha|bangumi_publisher_futabasha|Futabasha
+幻冬舎|bangumi_publisher_gentosha|Gentosha
+Gentosha|bangumi_publisher_gentosha|Gentosha
+白泉社|bangumi_publisher_hakusensha|Hakusensha
+Hakusensha|bangumi_publisher_hakusensha|Hakusensha
+ホーム社|bangumi_publisher_home_sha|Home Sha
+Home Sha|bangumi_publisher_home_sha|Home Sha
+芳文社|bangumi_publisher_houbunsha|Houbunsha
+Houbunsha|bangumi_publisher_houbunsha|Houbunsha
+一迅社|bangumi_publisher_ichijinsha|Ichijinsha
+Ichijinsha|bangumi_publisher_ichijinsha|Ichijinsha
+角川書店|bangumi_publisher_kadokawa|KADOKAWA
+角川|bangumi_publisher_kadokawa|KADOKAWA
+Kadokawa Shoten|bangumi_publisher_kadokawa|KADOKAWA
+KADOKAWA|bangumi_publisher_kadokawa|KADOKAWA
+光文社|bangumi_publisher_kobunsha|Kobunsha
+Kobunsha|bangumi_publisher_kobunsha|Kobunsha
+講談社|bangumi_publisher_kodansha|Kodansha
+Kodansha|bangumi_publisher_kodansha|Kodansha
+リブレ|bangumi_publisher_libre|Libre
+リブレ出版|bangumi_publisher_libre|Libre
+Libre|bangumi_publisher_libre|Libre
+マッグガーデン|bangumi_publisher_mag_garden|Mag Garden
+Mag Garden|bangumi_publisher_mag_garden|Mag Garden
+メディアファクトリー|bangumi_publisher_media_factory|Media Factory
+Media Factory|bangumi_publisher_media_factory|Media Factory
+日本文芸社|bangumi_publisher_nihonbungeisha|Nihonbungeisha
+Nihonbungeisha|bangumi_publisher_nihonbungeisha|Nihonbungeisha
+新潮社|bangumi_publisher_shinchosha|Shinchosha
+Shinchosha|bangumi_publisher_shinchosha|Shinchosha
+小学館|bangumi_publisher_shogakukan|Shogakukan
+Shogakukan|bangumi_publisher_shogakukan|Shogakukan
+少年画報社|bangumi_publisher_shonen_gahosha|Shonen Gahosha
+Shonen Gahosha|bangumi_publisher_shonen_gahosha|Shonen Gahosha
+集英社|bangumi_publisher_shueisha|Shueisha
+Shueisha|bangumi_publisher_shueisha|Shueisha
+スクウェア・エニックス|bangumi_publisher_square_enix|Square Enix
+Square Enix|bangumi_publisher_square_enix|Square Enix
+竹書房|bangumi_publisher_takeshobo|Takeshobo
+Takeshobo|bangumi_publisher_takeshobo|Takeshobo
+徳間書店|bangumi_publisher_tokuma_shoten|Tokuma Shoten
+Tokuma Shoten|bangumi_publisher_tokuma_shoten|Tokuma Shoten
+A-1 Pictures|bangumi_studio_a1_pictures|A-1 Pictures
+A-1|bangumi_studio_a1_pictures|A-1 Pictures
+A1社|bangumi_studio_a1_pictures|A-1 Pictures
+エー・ワン・ピクチャーズ|bangumi_studio_a1_pictures|A-1 Pictures
+ACG动漫制作|bangumi_studio_acg|ACG
+ACG動漫製作|bangumi_studio_acg|ACG
+ACG|bangumi_studio_acg|ACG
+AIC|bangumi_studio_aic|Anime International Company
+アニメインターナショナルカンパニー|bangumi_studio_aic|Anime International Company
+アニメインターナショナル|bangumi_studio_aic|Anime International Company
+Anime International Company|bangumi_studio_aic|Anime International Company
+ARMS|bangumi_studio_arms|ARMS
+アームズ|bangumi_studio_arms|ARMS
+Asahi Production|bangumi_studio_asahi_production|Asahi Production
+アスリード|bangumi_studio_asread|Asread
+Asread|bangumi_studio_asread|Asread
+アクシーズ|bangumi_studio_axsiz|AXsiZ
+AXsiZ|bangumi_studio_axsiz|AXsiZ
+BEE TRAIN|bangumi_studio_bee_train|Bee Train
+ビィートレイン|bangumi_studio_bee_train|Bee Train
+Bee Train|bangumi_studio_bee_train|Bee Train
+ビバリーアニメーションスタジオ|bangumi_studio_bibury|Bibury Animation Studios
+Bibury|bangumi_studio_bibury|Bibury Animation Studios
+Bibury Animation Studios|bangumi_studio_bibury|Bibury Animation Studios
+ボンズ|bangumi_studio_bones|BONES
+骨头社|bangumi_studio_bones|BONES
+Bones|bangumi_studio_bones|BONES
+BONES|bangumi_studio_bones|BONES
+ブレインズ・ベース|bangumi_studio_brain_s_base|Brain's Base
+ブレインズベース|bangumi_studio_brain_s_base|Brain's Base
+Brain's Base|bangumi_studio_brain_s_base|Brain's Base
+ブリッジ|bangumi_studio_bridge|Bridge
+Bridge|bangumi_studio_bridge|Bridge
+C2C|bangumi_studio_c2c|C2C
+シーステイション|bangumi_studio_c_station|C-Station
+C-Station|bangumi_studio_c_station|C-Station
+Clover Works|bangumi_studio_cloverworks|CloverWorks
+クローバーワークス|bangumi_studio_cloverworks|CloverWorks
+CLOVERWORKS|bangumi_studio_cloverworks|CloverWorks
+CloverWorks|bangumi_studio_cloverworks|CloverWorks
+スタジオコロリド|bangumi_studio_colorido|Studio Colorido
+Studio Colorido|bangumi_studio_colorido|Studio Colorido
+スタジオコメット|bangumi_studio_comet|Studio Comet
+studio COMET|bangumi_studio_comet|Studio Comet
+Studio Comet|bangumi_studio_comet|Studio Comet
+コネクト|bangumi_studio_connect|Connect
+Connect|bangumi_studio_connect|Connect
+クリエイターズインパック|bangumi_studio_creators_in_pack|Creators in Pack
+Creators in Pack|bangumi_studio_creators_in_pack|Creators in Pack
+サイゲームズピクチャーズ|bangumi_studio_cygamespictures|CygamesPictures
+Cygames Pictures|bangumi_studio_cygamespictures|CygamesPictures
+CygamesPictures|bangumi_studio_cygamespictures|CygamesPictures
+ダビプロ|bangumi_studio_david_production|David Production
+デイヴィッドプロダクション|bangumi_studio_david_production|David Production
+David Production|bangumi_studio_david_production|David Production
+スタジオディーン|bangumi_studio_deen|Studio Deen
+スタジオDEEN|bangumi_studio_deen|Studio Deen
+ディーン|bangumi_studio_deen|Studio Deen
+DEEN|bangumi_studio_deen|Studio Deen
+Studio Deen|bangumi_studio_deen|Studio Deen
+ディオメディア|bangumi_studio_diomedea|Diomedéa
+Diomedea|bangumi_studio_diomedea|Diomedéa
+Diomedéa|bangumi_studio_diomedea|Diomedéa
+迪士尼|bangumi_studio_disney|Walt Disney Animation
+迪斯尼|bangumi_studio_disney|Walt Disney Animation
+ウォルト・ディズニー|bangumi_studio_disney|Walt Disney Animation
+Disney|bangumi_studio_disney|Walt Disney Animation
+Walt Disney Animation|bangumi_studio_disney|Walt Disney Animation
+ディー・エル・イー|bangumi_studio_dle|DLE
+DLE|bangumi_studio_dle|DLE
+動画工房|bangumi_studio_doga_kobo|Doga Kobo
+Doga Kobo|bangumi_studio_doga_kobo|Doga Kobo
+DR MOVIE|bangumi_studio_dr_movie|DR Movie
+DR무비|bangumi_studio_dr_movie|DR Movie
+DR Movie|bangumi_studio_dr_movie|DR Movie
+ドリームフォース|bangumi_studio_dream_force|Dream Force
+ドリーム・フォース|bangumi_studio_dream_force|Dream Force
+Dream Force|bangumi_studio_dream_force|Dream Force
+梦工厂|bangumi_studio_dreamworks|DreamWorks Animation
+梦工厂动画|bangumi_studio_dreamworks|DreamWorks Animation
+夢工廠|bangumi_studio_dreamworks|DreamWorks Animation
+DreamWorks|bangumi_studio_dreamworks|DreamWorks Animation
+DreamWorks Animation|bangumi_studio_dreamworks|DreamWorks Animation
+エッグファーム|bangumi_studio_egg_firm|egg firm
+Egg Firm|bangumi_studio_egg_firm|egg firm
+egg firm|bangumi_studio_egg_firm|egg firm
+スタジオエル|bangumi_studio_elle|Studio Elle
+Studio Elle|bangumi_studio_elle|Studio Elle
+EMTスクエアード|bangumi_studio_emt2|EMT²
+EMT2|bangumi_studio_emt2|EMT²
+EMT²|bangumi_studio_emt2|EMT²
+エンギー|bangumi_studio_engi|ENGI
+ENGI|bangumi_studio_engi|ENGI
+スタジオファンタジア|bangumi_studio_fantasia|Studio Fantasia
+Studio Fantasia|bangumi_studio_fantasia|Studio Fantasia
+ファンワークス|bangumi_studio_fanworks|Fanworks
+Fanworks|bangumi_studio_fanworks|Fanworks
+feel.|bangumi_studio_feel|feel.
+フィール|bangumi_studio_feel|feel.
+FEEL|bangumi_studio_feel|feel.
+フェリックスフィルム|bangumi_studio_felix_film|Felix Film
+Felix Film|bangumi_studio_felix_film|Felix Film
+スタジオフラッド|bangumi_studio_flad|Studio Flad
+Studio Flad|bangumi_studio_flad|Studio Flad
+フラットスタジオ|bangumi_studio_flat|Flat Studio
+FlatStudio|bangumi_studio_flat|Flat Studio
+Flat Studio|bangumi_studio_flat|Flat Studio
+フロントライン|bangumi_studio_frontline|Frontline
+Frontline|bangumi_studio_frontline|Frontline
+ガイナ|bangumi_studio_gaina|Gaina
+GAINA|bangumi_studio_gaina|Gaina
+Gaina|bangumi_studio_gaina|Gaina
+ガイナックス|bangumi_studio_gainax|GAINAX
+ガンックス|bangumi_studio_gainax|GAINAX
+Gainax|bangumi_studio_gainax|GAINAX
+GAINAX|bangumi_studio_gainax|GAINAX
+ぎゃろっぷ|bangumi_studio_gallop|Gallop
+Gallop|bangumi_studio_gallop|Gallop
+ジークトゥイズ|bangumi_studio_geek_toys|GEEK TOYS
+GEEK TOYS|bangumi_studio_geek_toys|GEEK TOYS
+ゲンバ|bangumi_studio_gemba|GEMBA
+GEMBA|bangumi_studio_gemba|GEMBA
+ゴーハンズ|bangumi_studio_gohands|GoHands
+GoHands|bangumi_studio_gohands|GoHands
+スタジオゴクミ|bangumi_studio_gokumi|Studio Gokumi
+Studio Gokumi|bangumi_studio_gokumi|Studio Gokumi
+ゴンゾ|bangumi_studio_gonzo|GONZO
+GONZO|bangumi_studio_gonzo|GONZO
+グラフィニカ|bangumi_studio_graphinica|Graphinica
+Graphinica|bangumi_studio_graphinica|Graphinica
+ハルフィルムメーカー|bangumi_studio_hal_film_maker|Hal Film Maker
+Hal Film Maker|bangumi_studio_hal_film_maker|Hal Film Maker
+绘梦动画|bangumi_studio_haoliners|Haoliners Animation
+繪夢動畫|bangumi_studio_haoliners|Haoliners Animation
+绘梦|bangumi_studio_haoliners|Haoliners Animation
+Haoliners|bangumi_studio_haoliners|Haoliners Animation
+Haoliners Animation|bangumi_studio_haoliners|Haoliners Animation
+フーズエンタテインメント|bangumi_studio_hoods|Hoods Entertainment
+Hoods Entertainment|bangumi_studio_hoods|Hoods Entertainment
+幻维数码|bangumi_studio_huanshi|YHKT Entertainment
+幻維數碼|bangumi_studio_huanshi|YHKT Entertainment
+YHKT Entertainment|bangumi_studio_huanshi|YHKT Entertainment
+プロダクション・アイジー|bangumi_studio_ig|Production I.G
+プロダクションIG|bangumi_studio_ig|Production I.G
+Production.IG|bangumi_studio_ig|Production I.G
+ProductionI.G|bangumi_studio_ig|Production I.G
+IG社|bangumi_studio_ig|Production I.G
+I.G|bangumi_studio_ig|Production I.G
+Production IG|bangumi_studio_ig|Production I.G
+Production I.G|bangumi_studio_ig|Production I.G
+プロダクションアイムス|bangumi_studio_ims|Production IMS
+Production IMS|bangumi_studio_ims|Production IMS
+J.C.STAFF|bangumi_studio_jc_staff|J.C.Staff
+ジェーシースタッフ|bangumi_studio_jc_staff|J.C.Staff
+JC社|bangumi_studio_jc_staff|J.C.Staff
+J.C.Staff|bangumi_studio_jc_staff|J.C.Staff
+スタジオカイ|bangumi_studio_kai|Studio Kai
+Studio Kai|bangumi_studio_kai|Studio Kai
+カラー|bangumi_studio_khara|khara
+スタジオカラー|bangumi_studio_khara|khara
+Khara|bangumi_studio_khara|khara
+studio khara|bangumi_studio_khara|khara
+khara|bangumi_studio_khara|khara
+キネマシトラス|bangumi_studio_kinema_citrus|KINEMA CITRUS
+Kinema Citrus|bangumi_studio_kinema_citrus|KINEMA CITRUS
+KINEMA CITRUS|bangumi_studio_kinema_citrus|KINEMA CITRUS
+京都アニメーション|bangumi_studio_kyoto_animation|Kyoto Animation
+京都动画|bangumi_studio_kyoto_animation|Kyoto Animation
+京都動画|bangumi_studio_kyoto_animation|Kyoto Animation
+京都動畫|bangumi_studio_kyoto_animation|Kyoto Animation
+京阿尼|bangumi_studio_kyoto_animation|Kyoto Animation
+京アニ|bangumi_studio_kyoto_animation|Kyoto Animation
+KyoAni|bangumi_studio_kyoto_animation|Kyoto Animation
+Kyoto Animation|bangumi_studio_kyoto_animation|Kyoto Animation
+京都|bangumi_studio_kyoto_animation|Kyoto Animation
+岚山动画|bangumi_studio_lan|LAN Studio
+嵐山動畫|bangumi_studio_lan|LAN Studio
+LAN Studio|bangumi_studio_lan|LAN Studio
+ランドクォースタジオ|bangumi_studio_landq|LandQ Studios
+LandQ Studios|bangumi_studio_landq|LandQ Studios
+レイデュース|bangumi_studio_layduce|Lay-duce
+Lay-duce|bangumi_studio_layduce|Lay-duce
+ラルケ|bangumi_studio_lerche|Lerche
+Lerche|bangumi_studio_lerche|Lerche
+ライデンフィルム|bangumi_studio_lidenfilms|LIDENFILMS
+Liden Films|bangumi_studio_lidenfilms|LIDENFILMS
+ライデン|bangumi_studio_lidenfilms|LIDENFILMS
+LIDENFILMS|bangumi_studio_lidenfilms|LIDENFILMS
+スタジオ・ライブ|bangumi_studio_live|Studio Live
+Studio Live|bangumi_studio_live|Studio Live
+スタジオM2|bangumi_studio_m2|Studio M2
+StudioM2|bangumi_studio_m2|Studio M2
+Studio M2|bangumi_studio_m2|Studio M2
+マッドハウス|bangumi_studio_madhouse|Madhouse
+疯房子|bangumi_studio_madhouse|Madhouse
+Mad House|bangumi_studio_madhouse|Madhouse
+Madhouse|bangumi_studio_madhouse|Madhouse
+マジックバス|bangumi_studio_magic_bus|Magic Bus
+Magic Bus|bangumi_studio_magic_bus|Magic Bus
+マーホーフィルム|bangumi_studio_maho_film|Maho Film
+Maho Film|bangumi_studio_maho_film|Maho Film
+MAPPA|bangumi_studio_mappa|MAPPA
+マッパ|bangumi_studio_mappa|MAPPA
+ミルパンセ|bangumi_studio_millepensee|Millepensee
+Millepensee|bangumi_studio_millepensee|Millepensee
+스튜디오 미르|bangumi_studio_mir|Studio Mir
+Studio MIR|bangumi_studio_mir|Studio Mir
+Studio Mir|bangumi_studio_mir|Studio Mir
+スタジオマザー|bangumi_studio_mother|Studio MOTHER
+Studio MOTHER|bangumi_studio_mother|Studio MOTHER
+虫プロダクション|bangumi_studio_mushi_production|Mushi Production
+虫プロ|bangumi_studio_mushi_production|Mushi Production
+Mushi Production|bangumi_studio_mushi_production|Mushi Production
+NAZ|bangumi_studio_naz|NAZ
+日本アニメーション|bangumi_studio_nippon_animation|Nippon Animation
+日本动画|bangumi_studio_nippon_animation|Nippon Animation
+Nippon Animation|bangumi_studio_nippon_animation|Nippon Animation
+ノマド|bangumi_studio_nomad|Nomad
+Nomad|bangumi_studio_nomad|Nomad
+ナット|bangumi_studio_nut|Nut
+Nut|bangumi_studio_nut|Nut
+オー・エル・エム|bangumi_studio_olm|OLM
+OLM|bangumi_studio_olm|OLM
+オレンジ|bangumi_studio_orange|Orange
+Orange (CG)|bangumi_studio_orange|Orange
+Orange|bangumi_studio_orange|Orange
+プロジェクトナンバーナイン|bangumi_studio_p9|Project No.9
+Project No9|bangumi_studio_p9|Project No.9
+project No.9|bangumi_studio_p9|Project No.9
+プロジェクトNo.9|bangumi_studio_p9|Project No.9
+Project No.9|bangumi_studio_p9|Project No.9
+P.A.WORKS|bangumi_studio_pa_works|P.A.Works
+PA社|bangumi_studio_pa_works|P.A.Works
+PAワークス|bangumi_studio_pa_works|P.A.Works
+ピーエーワークス|bangumi_studio_pa_works|P.A.Works
+P.A.Works|bangumi_studio_pa_works|P.A.Works
+パッショーネ|bangumi_studio_passione|Passione
+Passione|bangumi_studio_passione|Passione
+ぴえろ|bangumi_studio_pierrot|Studio Pierrot
+小丑社|bangumi_studio_pierrot|Studio Pierrot
+Pierrot|bangumi_studio_pierrot|Studio Pierrot
+Studio Pierrot|bangumi_studio_pierrot|Studio Pierrot
+ぴえろプラス|bangumi_studio_pierrot_plus|Studio Pierrot PLUS
+ぴえろplus|bangumi_studio_pierrot_plus|Studio Pierrot PLUS
+Studio Pierrot PLUS|bangumi_studio_pierrot_plus|Studio Pierrot PLUS
+パインジャム|bangumi_studio_pine_jam|Pine Jam
+Pine Jam|bangumi_studio_pine_jam|Pine Jam
+ピクサー|bangumi_studio_pixar|Pixar
+皮克斯|bangumi_studio_pixar|Pixar
+皮克斯动画工作室|bangumi_studio_pixar|Pixar
+Pixar Animation Studios|bangumi_studio_pixar|Pixar
+Pixar|bangumi_studio_pixar|Pixar
+プラチナビジョン|bangumi_studio_platinum_vision|Platinum Vision
+Platinum Vision|bangumi_studio_platinum_vision|Platinum Vision
+スタジオポノック|bangumi_studio_ponoc|Studio Ponoc
+Studio Ponoc|bangumi_studio_ponoc|Studio Ponoc
+プラネット|bangumi_studio_pra|PRA
+Planet|bangumi_studio_pra|PRA
+PRA|bangumi_studio_pra|PRA
+プロダクション・アイジー|bangumi_studio_production_ig|Production I.G
+IG|bangumi_studio_production_ig|Production I.G
+Production I.G|bangumi_studio_production_ig|Production I.G
+プロダクション+h.|bangumi_studio_production_plus_h|Production +h.
+プロダクション・プラス・エイチ|bangumi_studio_production_plus_h|Production +h.
+Production +h.|bangumi_studio_production_plus_h|Production +h.
+プロダクションリード|bangumi_studio_production_reed|Production Reed
+Production Reed|bangumi_studio_production_reed|Production Reed
+スタジオ六花|bangumi_studio_rikka|Studio Rikka
+Studio Rikka|bangumi_studio_rikka|Studio Rikka
+Rooster Teeth|bangumi_studio_roosterteeth|Rooster Teeth
+サンジゲン|bangumi_studio_sanzigen|SANZIGEN
+SANZIGEN|bangumi_studio_sanzigen|SANZIGEN
+サテライト|bangumi_studio_satelight|Satelight
+Satelight|bangumi_studio_satelight|Satelight
+サイエンスSARU|bangumi_studio_science_saru|Science SARU
+サイエンスサル|bangumi_studio_science_saru|Science SARU
+Science SARU|bangumi_studio_science_saru|Science SARU
+セブンアークス|bangumi_studio_seven_arcs|Seven Arcs
+Seven Arcs|bangumi_studio_seven_arcs|Seven Arcs
+セブンアークスピクチャーズ|bangumi_studio_seven_arcs_pictures|Seven Arcs Pictures
+Seven Arcs Pictures|bangumi_studio_seven_arcs_pictures|Seven Arcs Pictures
+シャフト|bangumi_studio_shaft|SHAFT
+SHAFT|bangumi_studio_shaft|SHAFT
+シンエイ動画|bangumi_studio_shin_ei|Shin-Ei Animation
+Shin-Ei Animation|bangumi_studio_shin_ei|Shin-Ei Animation
+シュカ|bangumi_studio_shuka|Shuka
+Shuka|bangumi_studio_shuka|Shuka
+シルバーリンク|bangumi_studio_silver_link|Silver Link
+SILVER LINK.|bangumi_studio_silver_link|Silver Link
+Silver Link|bangumi_studio_silver_link|Silver Link
+サンライズ|bangumi_studio_sunrise|Sunrise
+日升|bangumi_studio_sunrise|Sunrise
+日昇|bangumi_studio_sunrise|Sunrise
+日升动画|bangumi_studio_sunrise|Sunrise
+日昇動画|bangumi_studio_sunrise|Sunrise
+Sunrise|bangumi_studio_sunrise|Sunrise
+シナジーエスピー|bangumi_studio_synergy_sp|SynergySP
+Synergy SP|bangumi_studio_synergy_sp|SynergySP
+SynergySP|bangumi_studio_synergy_sp|SynergySP
+タツノコプロ|bangumi_studio_tatsunoko|Tatsunoko Production
+タツノコ|bangumi_studio_tatsunoko|Tatsunoko Production
+Tatsunoko Production|bangumi_studio_tatsunoko|Tatsunoko Production
+ティアスタジオ|bangumi_studio_tear|Tear Studio
+Tear Studio|bangumi_studio_tear|Tear Studio
+テレコム・アニメーションフィルム|bangumi_studio_telecom|Telecom Animation Film
+テレコムアニメーション|bangumi_studio_telecom|Telecom Animation Film
+Telecom Animation Film|bangumi_studio_telecom|Telecom Animation Film
+トムス・エンタテインメント|bangumi_studio_tms|TMS Entertainment
+東京ムービー|bangumi_studio_tms|TMS Entertainment
+TMS|bangumi_studio_tms|TMS Entertainment
+東京ムービー新社|bangumi_studio_tms|TMS Entertainment
+TMS Entertainment|bangumi_studio_tms|TMS Entertainment
+ティー・エヌ・ケー|bangumi_studio_tnk|TNK
+TNK|bangumi_studio_tnk|TNK
+東映アニメーション|bangumi_studio_toei_animation|Toei Animation
+东映动画|bangumi_studio_toei_animation|Toei Animation
+東映動畫|bangumi_studio_toei_animation|Toei Animation
+東映|bangumi_studio_toei_animation|Toei Animation
+Toei Animation|bangumi_studio_toei_animation|Toei Animation
+トライアングルスタッフ|bangumi_studio_triangle_staff|Triangle Staff
+Triangle Staff|bangumi_studio_triangle_staff|Triangle Staff
+トリガー|bangumi_studio_trigger|TRIGGER
+扳机社|bangumi_studio_trigger|TRIGGER
+トリガー社|bangumi_studio_trigger|TRIGGER
+Trigger|bangumi_studio_trigger|TRIGGER
+TRIGGER|bangumi_studio_trigger|TRIGGER
+トロイカ|bangumi_studio_troyca|TROYCA
+TROYCA|bangumi_studio_troyca|TROYCA
+TYOアニメーションズ|bangumi_studio_tyo_animations|TYO Animations
+TYO Animations|bangumi_studio_tyo_animations|TYO Animations
+ユーフォテーブル|bangumi_studio_ufotable|ufotable
+幽浮社|bangumi_studio_ufotable|ufotable
+飞碟社|bangumi_studio_ufotable|ufotable
+飛碟社|bangumi_studio_ufotable|ufotable
+ufotable|bangumi_studio_ufotable|ufotable
+ベガエンタテイメント|bangumi_studio_vega|Vega Entertainment
+Vega Entertainment|bangumi_studio_vega|Vega Entertainment
+スタジオヴォルン|bangumi_studio_voln|Studio VOLN
+Studio VOLN|bangumi_studio_voln|Studio VOLN
+ワオワールド|bangumi_studio_wao_world|WAO World
+WAO World|bangumi_studio_wao_world|WAO World
+ワーナー・ブラザース|bangumi_studio_warner_bros|Warner Bros.
+华纳兄弟|bangumi_studio_warner_bros|Warner Bros.
+華納兄弟|bangumi_studio_warner_bros|Warner Bros.
+Warner Bros|bangumi_studio_warner_bros|Warner Bros.
+Warner Bros.|bangumi_studio_warner_bros|Warner Bros.
+WHITE FOX|bangumi_studio_white_fox|WHITE FOX
+白狐社|bangumi_studio_white_fox|WHITE FOX
+WHITEFOX|bangumi_studio_white_fox|WHITE FOX
+ウィットスタジオ|bangumi_studio_wit|WIT STUDIO
+霸权社|bangumi_studio_wit|WIT STUDIO
+Wit Studio|bangumi_studio_wit|WIT STUDIO
+WIT STUDIO|bangumi_studio_wit|WIT STUDIO
+ゼクシズ|bangumi_studio_xebec|XEBEC
+XEBEC|bangumi_studio_xebec|XEBEC
+横浜アニメーションラボ|bangumi_studio_yokohama_animation_lab|Yokohama Animation Lab
+Yokohama Animation Lab|bangumi_studio_yokohama_animation_lab|Yokohama Animation Lab
+ゼロジー|bangumi_studio_zero_g|Zero-G
+Zero-G|bangumi_studio_zero_g|Zero-G
+ゼクシス|bangumi_studio_zexcs|ZEXCS
+ZEXCS|bangumi_studio_zexcs|ZEXCS
+"""
+
+    /** `etiket|anahtar|küresel ad` satırları, tembel olarak ayrıştırılır. */
+    private val rows: List<Triple<String, String, String>> by lazy {
+        RAW.trim().lines().mapNotNull { line ->
+            val parts = line.split('|')
+            if (parts.size != 3) null else Triple(parts[0], parts[1], parts[2])
+        }
+    }
+
+    private val byLabel: Map<String, Triple<String, String, String>> by lazy {
+        val map = HashMap<String, Triple<String, String, String>>(rows.size * 2)
+        for (row in rows) {
+            val key = normalize(row.first)
+            if (key.isNotEmpty() && !map.containsKey(key)) map[key] = row
+        }
+        map
+    }
+
+    private val byCompact: Map<String, Triple<String, String, String>> by lazy {
+        val map = HashMap<String, Triple<String, String, String>>(rows.size * 2)
+        for (row in rows) {
+            val key = compact(row.first)
+            if (key.length >= 3 && !map.containsKey(key)) map[key] = row
+        }
+        map
+    }
+
+    private val byKey: Map<String, String> by lazy {
+        val map = HashMap<String, String>(rows.size * 2)
+        for (row in rows) if (!map.containsKey(row.second)) map[row.second] = row.third
+        map
+    }
+
+    /** Gelen şirket adı için `bangumi_*` dil dosyası anahtarı; bilinmiyorsa `null`. */
+    fun resourceKeyFor(raw: String?): String? = rowFor(raw)?.second
+
+    /** Gelen adın küresel İngilizce yazımı (`京阿尼` → `Kyoto Animation`); bilinmiyorsa `null`. */
+    fun latinNameFor(raw: String?): String? = rowFor(raw)?.third
+
+    /** Anahtarın küresel İngilizce adı; yoksa `null`. */
+    fun canonicalName(key: String): String? = byKey[key]
+
+    /** Eşleşen satır (etiket, anahtar, küresel ad); bilinmiyorsa `null`. */
+    private fun rowFor(raw: String?): Triple<String, String, String>? {
+        val cleaned = raw?.trim().orEmpty()
+        if (cleaned.isEmpty()) return null
+        byLabel[normalize(cleaned)]?.let { return it }
+        val compact = compact(cleaned)
+        if (compact.length >= 3) byCompact[compact]?.let { return it }
+        return null
+    }
+
+    /** Girdi sayısı (test/telemetri için). */
+    val size: Int get() = rows.size
+
+    /** Boşluk, büyük/küçük harf, tam genişlik noktalama ve sarımları yok sayan anahtar. */
+    private fun normalize(value: String): String {
+        if (value.isBlank()) return ""
+        val sb = StringBuilder(value.length)
+        for (ch in value) {
+            when (ch) {
+                '　' -> sb.append(' ')
+                '（', '(', '[', '【', '《', '「', '『' -> Unit
+                '）', ')', ']', '】', '》', '」', '』' -> Unit
+                '：', ':', '・', '·', '。', '、', '，', ',' -> sb.append(' ')
+                else -> sb.append(ch)
+            }
+        }
+        return sb.toString().trim().replace(Regex("\\s+"), " ").lowercase(Locale.ROOT)
+    }
+
+    /** Yalnızca harf/rakam bırakan sıkı anahtar: `Production.IG` → `productionig`. */
+    private fun compact(value: String): String {
+        if (value.isBlank()) return ""
+        val sb = StringBuilder(value.length)
+        for (ch in value) if (ch.isLetterOrDigit()) sb.append(ch)
+        return sb.toString().lowercase(Locale.ROOT)
+    }
+}

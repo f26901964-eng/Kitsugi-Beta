@@ -71,6 +71,7 @@ import com.kitsugi.animelist.utils.PreferenceHelpers.getDisplayTitle
 import com.kitsugi.animelist.utils.PreferenceHelpers.getDisplayScore
 import androidx.compose.ui.res.stringResource
 import com.kitsugi.animelist.R
+import com.kitsugi.animelist.utils.toLocalizedOrgName
 
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
@@ -619,7 +620,7 @@ internal fun ApiInfoSection(
                 if (!detail.endDate.isNullOrBlank()) add(stringResource(R.string.detail_date_end) to detail.endDate)
                 if (!detail.sourceMaterial.isNullOrBlank()) add(stringResource(R.string.detail_info_source) to detail.sourceMaterial)
                 if (mediaType == MediaType.Anime) {
-                    if (detail.studios.isNotEmpty()) add(stringResource(R.string.detail_info_studio) to detail.studios.joinToString(", ") { it.name })
+                    if (detail.studios.isNotEmpty()) add(stringResource(R.string.detail_info_studio) to detail.studios.joinToString(", ") { it.name.toLocalizedOrgName() })
                     if (!detail.episodeDuration.isNullOrBlank()) add(stringResource(R.string.detail_info_duration) to detail.episodeDuration)
                     if (!detail.broadcast.isNullOrBlank()) add(stringResource(R.string.detail_info_broadcast) to detail.broadcast)
                     if (!detail.rating.isNullOrBlank()) add(stringResource(R.string.detail_info_rating) to detail.rating)

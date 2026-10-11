@@ -1,0 +1,3815 @@
+{
+ "meta": {
+  "generated_from": [
+   "orgs.tsv",
+   "tags.tsv"
+  ],
+  "source": "BANGUMI_STUDYO_YAPIMCI_YAYINCI_ETIKET_MASTER_2026-10-11.md (Drive)",
+  "date": "2026-10-11",
+  "producer": "diag/bangumi_master/gen_bangumi_master.py"
+ },
+ "orgs": {
+  "studios": [
+   {
+    "key": "bangumi_studio_a1_pictures",
+    "tr": "A-1 Pictures",
+    "en": "A-1 Pictures",
+    "labels": [
+     "A-1 Pictures",
+     "A-1",
+     "A1社",
+     "エー・ワン・ピクチャーズ"
+    ]
+   },
+   {
+    "key": "bangumi_studio_acg",
+    "tr": "ACG",
+    "en": "ACG",
+    "labels": [
+     "ACG动漫制作",
+     "ACG動漫製作"
+    ]
+   },
+   {
+    "key": "bangumi_studio_aic",
+    "tr": "AIC",
+    "en": "Anime International Company",
+    "labels": [
+     "AIC",
+     "アニメインターナショナルカンパニー",
+     "アニメインターナショナル"
+    ]
+   },
+   {
+    "key": "bangumi_studio_arms",
+    "tr": "ARMS",
+    "en": "ARMS",
+    "labels": [
+     "ARMS",
+     "アームズ"
+    ]
+   },
+   {
+    "key": "bangumi_studio_asahi_production",
+    "tr": "Asahi Production",
+    "en": "Asahi Production",
+    "labels": [
+     "Asahi Production"
+    ]
+   },
+   {
+    "key": "bangumi_studio_asread",
+    "tr": "Asread",
+    "en": "Asread",
+    "labels": [
+     "アスリード"
+    ]
+   },
+   {
+    "key": "bangumi_studio_axsiz",
+    "tr": "AXsiZ",
+    "en": "AXsiZ",
+    "labels": [
+     "アクシーズ"
+    ]
+   },
+   {
+    "key": "bangumi_studio_bee_train",
+    "tr": "Bee Train",
+    "en": "Bee Train",
+    "labels": [
+     "BEE TRAIN",
+     "ビィートレイン"
+    ]
+   },
+   {
+    "key": "bangumi_studio_bibury",
+    "tr": "Bibury Animation Studios",
+    "en": "Bibury Animation Studios",
+    "labels": [
+     "ビバリーアニメーションスタジオ",
+     "Bibury"
+    ]
+   },
+   {
+    "key": "bangumi_studio_bones",
+    "tr": "BONES",
+    "en": "BONES",
+    "labels": [
+     "ボンズ",
+     "骨头社",
+     "Bones"
+    ]
+   },
+   {
+    "key": "bangumi_studio_brain_s_base",
+    "tr": "Brain's Base",
+    "en": "Brain's Base",
+    "labels": [
+     "ブレインズ・ベース",
+     "ブレインズベース"
+    ]
+   },
+   {
+    "key": "bangumi_studio_bridge",
+    "tr": "Bridge",
+    "en": "Bridge",
+    "labels": [
+     "ブリッジ"
+    ]
+   },
+   {
+    "key": "bangumi_studio_c2c",
+    "tr": "C2C",
+    "en": "C2C",
+    "labels": [
+     "C2C"
+    ]
+   },
+   {
+    "key": "bangumi_studio_c_station",
+    "tr": "C-Station",
+    "en": "C-Station",
+    "labels": [
+     "シーステイション"
+    ]
+   },
+   {
+    "key": "bangumi_studio_cloverworks",
+    "tr": "CloverWorks",
+    "en": "CloverWorks",
+    "labels": [
+     "Clover Works",
+     "クローバーワークス",
+     "CLOVERWORKS"
+    ]
+   },
+   {
+    "key": "bangumi_studio_colorido",
+    "tr": "Studio Colorido",
+    "en": "Studio Colorido",
+    "labels": [
+     "スタジオコロリド"
+    ]
+   },
+   {
+    "key": "bangumi_studio_comet",
+    "tr": "Studio Comet",
+    "en": "Studio Comet",
+    "labels": [
+     "スタジオコメット",
+     "studio COMET"
+    ]
+   },
+   {
+    "key": "bangumi_studio_connect",
+    "tr": "Connect",
+    "en": "Connect",
+    "labels": [
+     "コネクト"
+    ]
+   },
+   {
+    "key": "bangumi_studio_creators_in_pack",
+    "tr": "Creators in Pack",
+    "en": "Creators in Pack",
+    "labels": [
+     "クリエイターズインパック"
+    ]
+   },
+   {
+    "key": "bangumi_studio_cygamespictures",
+    "tr": "CygamesPictures",
+    "en": "CygamesPictures",
+    "labels": [
+     "サイゲームズピクチャーズ",
+     "Cygames Pictures"
+    ]
+   },
+   {
+    "key": "bangumi_studio_david_production",
+    "tr": "David Production",
+    "en": "David Production",
+    "labels": [
+     "ダビプロ",
+     "デイヴィッドプロダクション",
+     "David Production"
+    ]
+   },
+   {
+    "key": "bangumi_studio_deen",
+    "tr": "Studio Deen",
+    "en": "Studio Deen",
+    "labels": [
+     "スタジオディーン",
+     "スタジオDEEN",
+     "ディーン",
+     "DEEN"
+    ]
+   },
+   {
+    "key": "bangumi_studio_diomedea",
+    "tr": "Diomedéa",
+    "en": "Diomedéa",
+    "labels": [
+     "ディオメディア",
+     "Diomedea"
+    ]
+   },
+   {
+    "key": "bangumi_studio_disney",
+    "tr": "Walt Disney Animation",
+    "en": "Walt Disney Animation",
+    "labels": [
+     "迪士尼",
+     "迪斯尼",
+     "ウォルト・ディズニー",
+     "Disney"
+    ]
+   },
+   {
+    "key": "bangumi_studio_dle",
+    "tr": "DLE",
+    "en": "DLE",
+    "labels": [
+     "ディー・エル・イー"
+    ]
+   },
+   {
+    "key": "bangumi_studio_doga_kobo",
+    "tr": "Doga Kobo",
+    "en": "Doga Kobo",
+    "labels": [
+     "動画工房",
+     "Doga Kobo"
+    ]
+   },
+   {
+    "key": "bangumi_studio_dr_movie",
+    "tr": "DR Movie",
+    "en": "DR Movie",
+    "labels": [
+     "DR MOVIE",
+     "DR무비"
+    ]
+   },
+   {
+    "key": "bangumi_studio_dream_force",
+    "tr": "Dream Force",
+    "en": "Dream Force",
+    "labels": [
+     "ドリームフォース",
+     "ドリーム・フォース"
+    ]
+   },
+   {
+    "key": "bangumi_studio_dreamworks",
+    "tr": "DreamWorks Animation",
+    "en": "DreamWorks Animation",
+    "labels": [
+     "梦工厂",
+     "梦工厂动画",
+     "夢工廠",
+     "DreamWorks"
+    ]
+   },
+   {
+    "key": "bangumi_studio_egg_firm",
+    "tr": "egg firm",
+    "en": "egg firm",
+    "labels": [
+     "エッグファーム",
+     "Egg Firm"
+    ]
+   },
+   {
+    "key": "bangumi_studio_elle",
+    "tr": "Studio Elle",
+    "en": "Studio Elle",
+    "labels": [
+     "スタジオエル"
+    ]
+   },
+   {
+    "key": "bangumi_studio_emt2",
+    "tr": "EMT²",
+    "en": "EMT²",
+    "labels": [
+     "EMTスクエアード",
+     "EMT2"
+    ]
+   },
+   {
+    "key": "bangumi_studio_engi",
+    "tr": "ENGI",
+    "en": "ENGI",
+    "labels": [
+     "エンギー"
+    ]
+   },
+   {
+    "key": "bangumi_studio_fantasia",
+    "tr": "Studio Fantasia",
+    "en": "Studio Fantasia",
+    "labels": [
+     "スタジオファンタジア"
+    ]
+   },
+   {
+    "key": "bangumi_studio_fanworks",
+    "tr": "Fanworks",
+    "en": "Fanworks",
+    "labels": [
+     "ファンワークス"
+    ]
+   },
+   {
+    "key": "bangumi_studio_feel",
+    "tr": "feel.",
+    "en": "feel.",
+    "labels": [
+     "feel.",
+     "フィール",
+     "FEEL"
+    ]
+   },
+   {
+    "key": "bangumi_studio_felix_film",
+    "tr": "Felix Film",
+    "en": "Felix Film",
+    "labels": [
+     "フェリックスフィルム"
+    ]
+   },
+   {
+    "key": "bangumi_studio_flad",
+    "tr": "Studio Flad",
+    "en": "Studio Flad",
+    "labels": [
+     "スタジオフラッド"
+    ]
+   },
+   {
+    "key": "bangumi_studio_flat",
+    "tr": "Flat Studio",
+    "en": "Flat Studio",
+    "labels": [
+     "フラットスタジオ",
+     "FlatStudio"
+    ]
+   },
+   {
+    "key": "bangumi_studio_frontline",
+    "tr": "Frontline",
+    "en": "Frontline",
+    "labels": [
+     "フロントライン"
+    ]
+   },
+   {
+    "key": "bangumi_studio_gaina",
+    "tr": "Gaina",
+    "en": "Gaina",
+    "labels": [
+     "ガイナ",
+     "GAINA"
+    ]
+   },
+   {
+    "key": "bangumi_studio_gainax",
+    "tr": "GAINAX",
+    "en": "GAINAX",
+    "labels": [
+     "ガイナックス",
+     "ガンックス",
+     "Gainax"
+    ]
+   },
+   {
+    "key": "bangumi_studio_gallop",
+    "tr": "Gallop",
+    "en": "Gallop",
+    "labels": [
+     "ぎゃろっぷ"
+    ]
+   },
+   {
+    "key": "bangumi_studio_geek_toys",
+    "tr": "GEEK TOYS",
+    "en": "GEEK TOYS",
+    "labels": [
+     "ジークトゥイズ"
+    ]
+   },
+   {
+    "key": "bangumi_studio_gemba",
+    "tr": "GEMBA",
+    "en": "GEMBA",
+    "labels": [
+     "ゲンバ"
+    ]
+   },
+   {
+    "key": "bangumi_studio_gohands",
+    "tr": "GoHands",
+    "en": "GoHands",
+    "labels": [
+     "ゴーハンズ"
+    ]
+   },
+   {
+    "key": "bangumi_studio_gokumi",
+    "tr": "Studio Gokumi",
+    "en": "Studio Gokumi",
+    "labels": [
+     "スタジオゴクミ"
+    ]
+   },
+   {
+    "key": "bangumi_studio_gonzo",
+    "tr": "GONZO",
+    "en": "GONZO",
+    "labels": [
+     "ゴンゾ"
+    ]
+   },
+   {
+    "key": "bangumi_studio_graphinica",
+    "tr": "Graphinica",
+    "en": "Graphinica",
+    "labels": [
+     "グラフィニカ"
+    ]
+   },
+   {
+    "key": "bangumi_studio_hal_film_maker",
+    "tr": "Hal Film Maker",
+    "en": "Hal Film Maker",
+    "labels": [
+     "ハルフィルムメーカー"
+    ]
+   },
+   {
+    "key": "bangumi_studio_haoliners",
+    "tr": "Haoliners Animation",
+    "en": "Haoliners Animation",
+    "labels": [
+     "绘梦动画",
+     "繪夢動畫",
+     "绘梦",
+     "Haoliners"
+    ]
+   },
+   {
+    "key": "bangumi_studio_hoods",
+    "tr": "Hoods Entertainment",
+    "en": "Hoods Entertainment",
+    "labels": [
+     "フーズエンタテインメント"
+    ]
+   },
+   {
+    "key": "bangumi_studio_huanshi",
+    "tr": "YHKT Entertainment",
+    "en": "YHKT Entertainment",
+    "labels": [
+     "幻维数码",
+     "幻維數碼"
+    ]
+   },
+   {
+    "key": "bangumi_studio_ig",
+    "tr": "Production I.G",
+    "en": "Production I.G",
+    "labels": [
+     "プロダクション・アイジー",
+     "プロダクションIG",
+     "Production.IG",
+     "ProductionI.G",
+     "IG社",
+     "I.G",
+     "Production IG"
+    ]
+   },
+   {
+    "key": "bangumi_studio_ims",
+    "tr": "Production IMS",
+    "en": "Production IMS",
+    "labels": [
+     "プロダクションアイムス"
+    ]
+   },
+   {
+    "key": "bangumi_studio_jc_staff",
+    "tr": "J.C.Staff",
+    "en": "J.C.Staff",
+    "labels": [
+     "J.C.STAFF",
+     "ジェーシースタッフ",
+     "JC社"
+    ]
+   },
+   {
+    "key": "bangumi_studio_kai",
+    "tr": "Studio Kai",
+    "en": "Studio Kai",
+    "labels": [
+     "スタジオカイ"
+    ]
+   },
+   {
+    "key": "bangumi_studio_khara",
+    "tr": "khara",
+    "en": "khara",
+    "labels": [
+     "カラー",
+     "スタジオカラー",
+     "Khara",
+     "studio khara"
+    ]
+   },
+   {
+    "key": "bangumi_studio_kinema_citrus",
+    "tr": "KINEMA CITRUS",
+    "en": "KINEMA CITRUS",
+    "labels": [
+     "キネマシトラス",
+     "Kinema Citrus"
+    ]
+   },
+   {
+    "key": "bangumi_studio_kyoto_animation",
+    "tr": "Kyoto Animation",
+    "en": "Kyoto Animation",
+    "labels": [
+     "京都アニメーション",
+     "京都动画",
+     "京都動画",
+     "京都動畫",
+     "京阿尼",
+     "京アニ",
+     "KyoAni",
+     "Kyoto Animation",
+     "京都"
+    ]
+   },
+   {
+    "key": "bangumi_studio_lan",
+    "tr": "LAN Studio",
+    "en": "LAN Studio",
+    "labels": [
+     "岚山动画",
+     "嵐山動畫"
+    ]
+   },
+   {
+    "key": "bangumi_studio_landq",
+    "tr": "LandQ Studios",
+    "en": "LandQ Studios",
+    "labels": [
+     "ランドクォースタジオ"
+    ]
+   },
+   {
+    "key": "bangumi_studio_layduce",
+    "tr": "Lay-duce",
+    "en": "Lay-duce",
+    "labels": [
+     "レイデュース"
+    ]
+   },
+   {
+    "key": "bangumi_studio_lerche",
+    "tr": "Lerche",
+    "en": "Lerche",
+    "labels": [
+     "ラルケ",
+     "Lerche"
+    ]
+   },
+   {
+    "key": "bangumi_studio_lidenfilms",
+    "tr": "LIDENFILMS",
+    "en": "LIDENFILMS",
+    "labels": [
+     "ライデンフィルム",
+     "Liden Films",
+     "ライデン"
+    ]
+   },
+   {
+    "key": "bangumi_studio_live",
+    "tr": "Studio Live",
+    "en": "Studio Live",
+    "labels": [
+     "スタジオ・ライブ"
+    ]
+   },
+   {
+    "key": "bangumi_studio_m2",
+    "tr": "Studio M2",
+    "en": "Studio M2",
+    "labels": [
+     "スタジオM2",
+     "StudioM2"
+    ]
+   },
+   {
+    "key": "bangumi_studio_madhouse",
+    "tr": "Madhouse",
+    "en": "Madhouse",
+    "labels": [
+     "マッドハウス",
+     "疯房子",
+     "Mad House"
+    ]
+   },
+   {
+    "key": "bangumi_studio_magic_bus",
+    "tr": "Magic Bus",
+    "en": "Magic Bus",
+    "labels": [
+     "マジックバス"
+    ]
+   },
+   {
+    "key": "bangumi_studio_maho_film",
+    "tr": "Maho Film",
+    "en": "Maho Film",
+    "labels": [
+     "マーホーフィルム"
+    ]
+   },
+   {
+    "key": "bangumi_studio_mappa",
+    "tr": "MAPPA",
+    "en": "MAPPA",
+    "labels": [
+     "MAPPA",
+     "マッパ"
+    ]
+   },
+   {
+    "key": "bangumi_studio_millepensee",
+    "tr": "Millepensee",
+    "en": "Millepensee",
+    "labels": [
+     "ミルパンセ"
+    ]
+   },
+   {
+    "key": "bangumi_studio_mir",
+    "tr": "Studio Mir",
+    "en": "Studio Mir",
+    "labels": [
+     "스튜디오 미르",
+     "Studio MIR"
+    ]
+   },
+   {
+    "key": "bangumi_studio_mother",
+    "tr": "Studio MOTHER",
+    "en": "Studio MOTHER",
+    "labels": [
+     "スタジオマザー"
+    ]
+   },
+   {
+    "key": "bangumi_studio_mushi_production",
+    "tr": "Mushi Production",
+    "en": "Mushi Production",
+    "labels": [
+     "虫プロダクション",
+     "虫プロ"
+    ]
+   },
+   {
+    "key": "bangumi_studio_naz",
+    "tr": "NAZ",
+    "en": "NAZ",
+    "labels": [
+     "NAZ"
+    ]
+   },
+   {
+    "key": "bangumi_studio_nippon_animation",
+    "tr": "Nippon Animation",
+    "en": "Nippon Animation",
+    "labels": [
+     "日本アニメーション",
+     "日本动画"
+    ]
+   },
+   {
+    "key": "bangumi_studio_nomad",
+    "tr": "Nomad",
+    "en": "Nomad",
+    "labels": [
+     "ノマド"
+    ]
+   },
+   {
+    "key": "bangumi_studio_nut",
+    "tr": "Nut",
+    "en": "Nut",
+    "labels": [
+     "ナット"
+    ]
+   },
+   {
+    "key": "bangumi_studio_olm",
+    "tr": "OLM",
+    "en": "OLM",
+    "labels": [
+     "オー・エル・エム",
+     "OLM"
+    ]
+   },
+   {
+    "key": "bangumi_studio_orange",
+    "tr": "Orange",
+    "en": "Orange",
+    "labels": [
+     "オレンジ",
+     "Orange (CG)"
+    ]
+   },
+   {
+    "key": "bangumi_studio_p9",
+    "tr": "Project No.9",
+    "en": "Project No.9",
+    "labels": [
+     "プロジェクトナンバーナイン",
+     "Project No9",
+     "project No.9",
+     "プロジェクトNo.9"
+    ]
+   },
+   {
+    "key": "bangumi_studio_pa_works",
+    "tr": "P.A.Works",
+    "en": "P.A.Works",
+    "labels": [
+     "P.A.WORKS",
+     "PA社",
+     "PAワークス",
+     "ピーエーワークス"
+    ]
+   },
+   {
+    "key": "bangumi_studio_passione",
+    "tr": "Passione",
+    "en": "Passione",
+    "labels": [
+     "パッショーネ"
+    ]
+   },
+   {
+    "key": "bangumi_studio_pierrot",
+    "tr": "Studio Pierrot",
+    "en": "Studio Pierrot",
+    "labels": [
+     "ぴえろ",
+     "小丑社",
+     "Pierrot"
+    ]
+   },
+   {
+    "key": "bangumi_studio_pierrot_plus",
+    "tr": "Studio Pierrot PLUS",
+    "en": "Studio Pierrot PLUS",
+    "labels": [
+     "ぴえろプラス",
+     "ぴえろplus"
+    ]
+   },
+   {
+    "key": "bangumi_studio_pine_jam",
+    "tr": "Pine Jam",
+    "en": "Pine Jam",
+    "labels": [
+     "パインジャム"
+    ]
+   },
+   {
+    "key": "bangumi_studio_pixar",
+    "tr": "Pixar",
+    "en": "Pixar",
+    "labels": [
+     "ピクサー",
+     "皮克斯",
+     "皮克斯动画工作室",
+     "Pixar Animation Studios"
+    ]
+   },
+   {
+    "key": "bangumi_studio_platinum_vision",
+    "tr": "Platinum Vision",
+    "en": "Platinum Vision",
+    "labels": [
+     "プラチナビジョン"
+    ]
+   },
+   {
+    "key": "bangumi_studio_ponoc",
+    "tr": "Studio Ponoc",
+    "en": "Studio Ponoc",
+    "labels": [
+     "スタジオポノック"
+    ]
+   },
+   {
+    "key": "bangumi_studio_pra",
+    "tr": "PRA",
+    "en": "PRA",
+    "labels": [
+     "プラネット",
+     "Planet"
+    ]
+   },
+   {
+    "key": "bangumi_studio_production_ig",
+    "tr": "Production I.G",
+    "en": "Production I.G",
+    "labels": [
+     "プロダクション・アイジー",
+     "IG"
+    ]
+   },
+   {
+    "key": "bangumi_studio_production_plus_h",
+    "tr": "Production +h.",
+    "en": "Production +h.",
+    "labels": [
+     "プロダクション+h.",
+     "プロダクション・プラス・エイチ"
+    ]
+   },
+   {
+    "key": "bangumi_studio_production_reed",
+    "tr": "Production Reed",
+    "en": "Production Reed",
+    "labels": [
+     "プロダクションリード"
+    ]
+   },
+   {
+    "key": "bangumi_studio_rikka",
+    "tr": "Studio Rikka",
+    "en": "Studio Rikka",
+    "labels": [
+     "スタジオ六花"
+    ]
+   },
+   {
+    "key": "bangumi_studio_roosterteeth",
+    "tr": "Rooster Teeth",
+    "en": "Rooster Teeth",
+    "labels": [
+     "Rooster Teeth"
+    ]
+   },
+   {
+    "key": "bangumi_studio_sanzigen",
+    "tr": "SANZIGEN",
+    "en": "SANZIGEN",
+    "labels": [
+     "サンジゲン"
+    ]
+   },
+   {
+    "key": "bangumi_studio_satelight",
+    "tr": "Satelight",
+    "en": "Satelight",
+    "labels": [
+     "サテライト"
+    ]
+   },
+   {
+    "key": "bangumi_studio_science_saru",
+    "tr": "Science SARU",
+    "en": "Science SARU",
+    "labels": [
+     "サイエンスSARU",
+     "サイエンスサル"
+    ]
+   },
+   {
+    "key": "bangumi_studio_seven_arcs",
+    "tr": "Seven Arcs",
+    "en": "Seven Arcs",
+    "labels": [
+     "セブンアークス"
+    ]
+   },
+   {
+    "key": "bangumi_studio_seven_arcs_pictures",
+    "tr": "Seven Arcs Pictures",
+    "en": "Seven Arcs Pictures",
+    "labels": [
+     "セブンアークスピクチャーズ"
+    ]
+   },
+   {
+    "key": "bangumi_studio_shaft",
+    "tr": "SHAFT",
+    "en": "SHAFT",
+    "labels": [
+     "シャフト"
+    ]
+   },
+   {
+    "key": "bangumi_studio_shin_ei",
+    "tr": "Shin-Ei Animation",
+    "en": "Shin-Ei Animation",
+    "labels": [
+     "シンエイ動画"
+    ]
+   },
+   {
+    "key": "bangumi_studio_shuka",
+    "tr": "Shuka",
+    "en": "Shuka",
+    "labels": [
+     "シュカ"
+    ]
+   },
+   {
+    "key": "bangumi_studio_silver_link",
+    "tr": "Silver Link",
+    "en": "Silver Link",
+    "labels": [
+     "シルバーリンク",
+     "SILVER LINK."
+    ]
+   },
+   {
+    "key": "bangumi_studio_sunrise",
+    "tr": "Sunrise",
+    "en": "Sunrise",
+    "labels": [
+     "サンライズ",
+     "日升",
+     "日昇",
+     "日升动画",
+     "日昇動画"
+    ]
+   },
+   {
+    "key": "bangumi_studio_synergy_sp",
+    "tr": "SynergySP",
+    "en": "SynergySP",
+    "labels": [
+     "シナジーエスピー",
+     "Synergy SP"
+    ]
+   },
+   {
+    "key": "bangumi_studio_tatsunoko",
+    "tr": "Tatsunoko Production",
+    "en": "Tatsunoko Production",
+    "labels": [
+     "タツノコプロ",
+     "タツノコ"
+    ]
+   },
+   {
+    "key": "bangumi_studio_tear",
+    "tr": "Tear Studio",
+    "en": "Tear Studio",
+    "labels": [
+     "ティアスタジオ"
+    ]
+   },
+   {
+    "key": "bangumi_studio_telecom",
+    "tr": "Telecom Animation Film",
+    "en": "Telecom Animation Film",
+    "labels": [
+     "テレコム・アニメーションフィルム",
+     "テレコムアニメーション"
+    ]
+   },
+   {
+    "key": "bangumi_studio_tms",
+    "tr": "TMS Entertainment",
+    "en": "TMS Entertainment",
+    "labels": [
+     "トムス・エンタテインメント",
+     "東京ムービー",
+     "TMS",
+     "東京ムービー新社"
+    ]
+   },
+   {
+    "key": "bangumi_studio_tnk",
+    "tr": "TNK",
+    "en": "TNK",
+    "labels": [
+     "ティー・エヌ・ケー"
+    ]
+   },
+   {
+    "key": "bangumi_studio_toei_animation",
+    "tr": "Toei Animation",
+    "en": "Toei Animation",
+    "labels": [
+     "東映アニメーション",
+     "东映动画",
+     "東映動畫",
+     "東映"
+    ]
+   },
+   {
+    "key": "bangumi_studio_triangle_staff",
+    "tr": "Triangle Staff",
+    "en": "Triangle Staff",
+    "labels": [
+     "トライアングルスタッフ"
+    ]
+   },
+   {
+    "key": "bangumi_studio_trigger",
+    "tr": "TRIGGER",
+    "en": "TRIGGER",
+    "labels": [
+     "トリガー",
+     "扳机社",
+     "トリガー社",
+     "Trigger"
+    ]
+   },
+   {
+    "key": "bangumi_studio_troyca",
+    "tr": "TROYCA",
+    "en": "TROYCA",
+    "labels": [
+     "トロイカ"
+    ]
+   },
+   {
+    "key": "bangumi_studio_tyo_animations",
+    "tr": "TYO Animations",
+    "en": "TYO Animations",
+    "labels": [
+     "TYOアニメーションズ"
+    ]
+   },
+   {
+    "key": "bangumi_studio_ufotable",
+    "tr": "ufotable",
+    "en": "ufotable",
+    "labels": [
+     "ユーフォテーブル",
+     "幽浮社",
+     "飞碟社",
+     "飛碟社",
+     "ufotable"
+    ]
+   },
+   {
+    "key": "bangumi_studio_vega",
+    "tr": "Vega Entertainment",
+    "en": "Vega Entertainment",
+    "labels": [
+     "ベガエンタテイメント"
+    ]
+   },
+   {
+    "key": "bangumi_studio_voln",
+    "tr": "Studio VOLN",
+    "en": "Studio VOLN",
+    "labels": [
+     "スタジオヴォルン"
+    ]
+   },
+   {
+    "key": "bangumi_studio_wao_world",
+    "tr": "WAO World",
+    "en": "WAO World",
+    "labels": [
+     "ワオワールド"
+    ]
+   },
+   {
+    "key": "bangumi_studio_warner_bros",
+    "tr": "Warner Bros.",
+    "en": "Warner Bros.",
+    "labels": [
+     "ワーナー・ブラザース",
+     "华纳兄弟",
+     "華納兄弟",
+     "Warner Bros"
+    ]
+   },
+   {
+    "key": "bangumi_studio_white_fox",
+    "tr": "WHITE FOX",
+    "en": "WHITE FOX",
+    "labels": [
+     "WHITE FOX",
+     "白狐社",
+     "WHITEFOX"
+    ]
+   },
+   {
+    "key": "bangumi_studio_wit",
+    "tr": "WIT STUDIO",
+    "en": "WIT STUDIO",
+    "labels": [
+     "ウィットスタジオ",
+     "霸权社",
+     "Wit Studio"
+    ]
+   },
+   {
+    "key": "bangumi_studio_xebec",
+    "tr": "XEBEC",
+    "en": "XEBEC",
+    "labels": [
+     "ゼクシズ",
+     "XEBEC"
+    ]
+   },
+   {
+    "key": "bangumi_studio_yokohama_animation_lab",
+    "tr": "Yokohama Animation Lab",
+    "en": "Yokohama Animation Lab",
+    "labels": [
+     "横浜アニメーションラボ"
+    ]
+   },
+   {
+    "key": "bangumi_studio_zero_g",
+    "tr": "Zero-G",
+    "en": "Zero-G",
+    "labels": [
+     "ゼロジー"
+    ]
+   },
+   {
+    "key": "bangumi_studio_zexcs",
+    "tr": "ZEXCS",
+    "en": "ZEXCS",
+    "labels": [
+     "ゼクシス"
+    ]
+   }
+  ],
+  "producers": [
+   {
+    "key": "bangumi_producer_adk",
+    "tr": "ADK",
+    "en": "ADK",
+    "labels": [
+     "ADKエムズ",
+     "ADK Emotions",
+     "ADK"
+    ]
+   },
+   {
+    "key": "bangumi_producer_akita_shoten",
+    "tr": "Akita Shoten",
+    "en": "Akita Shoten",
+    "labels": [
+     "秋田書店"
+    ]
+   },
+   {
+    "key": "bangumi_producer_aniplex",
+    "tr": "Aniplex",
+    "en": "Aniplex",
+    "labels": [
+     "アニプレックス",
+     "Aniplex"
+    ]
+   },
+   {
+    "key": "bangumi_producer_aniplex_of_america",
+    "tr": "Aniplex of America",
+    "en": "Aniplex of America",
+    "labels": [
+     "Aniplex of America"
+    ]
+   },
+   {
+    "key": "bangumi_producer_asahi_broad",
+    "tr": "Asahi Broadcasting",
+    "en": "Asahi Broadcasting",
+    "labels": [
+     "朝日放送グループホールディングス"
+    ]
+   },
+   {
+    "key": "bangumi_producer_ascii_media_works",
+    "tr": "ASCII Media Works",
+    "en": "ASCII Media Works",
+    "labels": [
+     "アスキー・メディアワークス",
+     "ASCII・MediaWorks"
+    ]
+   },
+   {
+    "key": "bangumi_producer_asmik_ace",
+    "tr": "Asmik Ace",
+    "en": "Asmik Ace",
+    "labels": [
+     "アスミック・エース",
+     "アスミック"
+    ]
+   },
+   {
+    "key": "bangumi_producer_avex_pictures",
+    "tr": "Avex Pictures",
+    "en": "Avex Pictures",
+    "labels": [
+     "エイベックス・ピクチャーズ",
+     "avex pictures",
+     "エイベックス"
+    ]
+   },
+   {
+    "key": "bangumi_producer_bambino",
+    "tr": "Studio Bambino",
+    "en": "Studio Bambino",
+    "labels": [
+     "スタジオバンビーノ",
+     "Bambino"
+    ]
+   },
+   {
+    "key": "bangumi_producer_bandai_namco_filmworks",
+    "tr": "Bandai Namco Filmworks",
+    "en": "Bandai Namco Filmworks",
+    "labels": [
+     "バンダイナムコフィルムワークス",
+     "Bandai Namco Arts",
+     "バンダイナムコアーツ"
+    ]
+   },
+   {
+    "key": "bangumi_producer_bandai_namco_pictures",
+    "tr": "Bandai Namco Pictures",
+    "en": "Bandai Namco Pictures",
+    "labels": [
+     "バンダイナムコピクチャーズ",
+     "BN Pictures",
+     "BNP"
+    ]
+   },
+   {
+    "key": "bangumi_producer_bandai_visual",
+    "tr": "Bandai Visual",
+    "en": "Bandai Visual",
+    "labels": [
+     "バンダイビジュアル",
+     "Bandai"
+    ]
+   },
+   {
+    "key": "bangumi_producer_bilibili",
+    "tr": "bilibili",
+    "en": "bilibili",
+    "labels": [
+     "哔哩哔哩",
+     "嗶哩嗶哩",
+     "B站",
+     "Bilibili"
+    ]
+   },
+   {
+    "key": "bangumi_producer_bilibili_co",
+    "tr": "bilibili",
+    "en": "bilibili",
+    "labels": [
+     "哔哩哔哩影业",
+     "bilibili影业"
+    ]
+   },
+   {
+    "key": "bangumi_producer_bushiroad",
+    "tr": "Bushiroad",
+    "en": "Bushiroad",
+    "labels": [
+     "ブシロード",
+     "Bushi Road"
+    ]
+   },
+   {
+    "key": "bangumi_producer_cbc",
+    "tr": "CBC",
+    "en": "CBC",
+    "labels": [
+     "中部日本放送",
+     "CBCテレビ"
+    ]
+   },
+   {
+    "key": "bangumi_producer_cmc_media",
+    "tr": "CMC Media",
+    "en": "CMC Media",
+    "labels": [
+     "中影年年"
+    ]
+   },
+   {
+    "key": "bangumi_producer_cygames",
+    "tr": "Cygames",
+    "en": "Cygames",
+    "labels": [
+     "サイゲームズ"
+    ]
+   },
+   {
+    "key": "bangumi_producer_dentsu",
+    "tr": "Dentsu",
+    "en": "Dentsu",
+    "labels": [
+     "電通",
+     "Dentsu"
+    ]
+   },
+   {
+    "key": "bangumi_producer_disney_plus",
+    "tr": "Disney+",
+    "en": "Disney+",
+    "labels": [
+     "ディズニープラス",
+     "Disney Plus",
+     "Disney+"
+    ]
+   },
+   {
+    "key": "bangumi_producer_dmm_music",
+    "tr": "DMM music",
+    "en": "DMM music",
+    "labels": [
+     "DMMミュージック"
+    ]
+   },
+   {
+    "key": "bangumi_producer_dmm_pictures",
+    "tr": "DMM pictures",
+    "en": "DMM pictures",
+    "labels": [
+     "DMM pictures",
+     "DMMピクチャーズ"
+    ]
+   },
+   {
+    "key": "bangumi_producer_enterbrain",
+    "tr": "Enterbrain",
+    "en": "Enterbrain",
+    "labels": [
+     "エンターブレイン"
+    ]
+   },
+   {
+    "key": "bangumi_producer_flyingdog",
+    "tr": "FlyingDog",
+    "en": "FlyingDog",
+    "labels": [
+     "フライングドッグ",
+     "Flying Dog"
+    ]
+   },
+   {
+    "key": "bangumi_producer_frontier_works",
+    "tr": "Frontier Works",
+    "en": "Frontier Works",
+    "labels": [
+     "フロンティアワークス"
+    ]
+   },
+   {
+    "key": "bangumi_producer_futabasha",
+    "tr": "Futabasha",
+    "en": "Futabasha",
+    "labels": [
+     "双葉社"
+    ]
+   },
+   {
+    "key": "bangumi_producer_gaga",
+    "tr": "GAGA",
+    "en": "GAGA",
+    "labels": [
+     "ギャガ",
+     "GAGA"
+    ]
+   },
+   {
+    "key": "bangumi_producer_genco",
+    "tr": "Genco",
+    "en": "Genco",
+    "labels": [
+     "ジェンコ"
+    ]
+   },
+   {
+    "key": "bangumi_producer_gentosha",
+    "tr": "Gentosha",
+    "en": "Gentosha",
+    "labels": [
+     "幻冬舎"
+    ]
+   },
+   {
+    "key": "bangumi_producer_glovision",
+    "tr": "Glovision",
+    "en": "Glovision",
+    "labels": [
+     "グロービジョン"
+    ]
+   },
+   {
+    "key": "bangumi_producer_good_smile_company",
+    "tr": "Good Smile Company",
+    "en": "Good Smile Company",
+    "labels": [
+     "グッドスマイルカンパニー",
+     "GSC"
+    ]
+   },
+   {
+    "key": "bangumi_producer_hakusensha",
+    "tr": "Hakusensha",
+    "en": "Hakusensha",
+    "labels": [
+     "白泉社"
+    ]
+   },
+   {
+    "key": "bangumi_producer_happinet",
+    "tr": "Happinet",
+    "en": "Happinet",
+    "labels": [
+     "ハピネット"
+    ]
+   },
+   {
+    "key": "bangumi_producer_houbunsha",
+    "tr": "Houbunsha",
+    "en": "Houbunsha",
+    "labels": [
+     "芳文社"
+    ]
+   },
+   {
+    "key": "bangumi_producer_ichijinsha",
+    "tr": "Ichijinsha",
+    "en": "Ichijinsha",
+    "labels": [
+     "一迅社"
+    ]
+   },
+   {
+    "key": "bangumi_producer_iqiyi",
+    "tr": "iQIYI",
+    "en": "iQIYI",
+    "labels": [
+     "爱奇艺",
+     "愛奇藝",
+     "iqiyi"
+    ]
+   },
+   {
+    "key": "bangumi_producer_kadokawa",
+    "tr": "KADOKAWA",
+    "en": "KADOKAWA",
+    "labels": [
+     "角川",
+     "角川書店",
+     "Kadokawa",
+     "カドカワ",
+     "KADOKAWA CORPORATION"
+    ]
+   },
+   {
+    "key": "bangumi_producer_kansai_tv",
+    "tr": "Kansai TV",
+    "en": "Kansai TV",
+    "labels": [
+     "関西テレビ",
+     "KTV",
+     "関西テレビ放送"
+    ]
+   },
+   {
+    "key": "bangumi_producer_king_amusement_creative",
+    "tr": "King Amusement Creative",
+    "en": "King Amusement Creative",
+    "labels": [
+     "キングアミューズメントクリエイティブ",
+     "KAC"
+    ]
+   },
+   {
+    "key": "bangumi_producer_king_records",
+    "tr": "King Records",
+    "en": "King Records",
+    "labels": [
+     "キングレコード"
+    ]
+   },
+   {
+    "key": "bangumi_producer_klockworx",
+    "tr": "Klockworx",
+    "en": "Klockworx",
+    "labels": [
+     "クロックワークス"
+    ]
+   },
+   {
+    "key": "bangumi_producer_kodansha",
+    "tr": "Kodansha",
+    "en": "Kodansha",
+    "labels": [
+     "講談社",
+     "KODANSHA"
+    ]
+   },
+   {
+    "key": "bangumi_producer_konami",
+    "tr": "Konami",
+    "en": "Konami",
+    "labels": [
+     "コナミ",
+     "KONAMI"
+    ]
+   },
+   {
+    "key": "bangumi_producer_lantis",
+    "tr": "Lantis",
+    "en": "Lantis",
+    "labels": [
+     "ランティス"
+    ]
+   },
+   {
+    "key": "bangumi_producer_level5",
+    "tr": "Level-5",
+    "en": "Level-5",
+    "labels": [
+     "レベルファイブ",
+     "Level5"
+    ]
+   },
+   {
+    "key": "bangumi_producer_libre",
+    "tr": "Libre",
+    "en": "Libre",
+    "labels": [
+     "リブレ"
+    ]
+   },
+   {
+    "key": "bangumi_producer_mag_garden",
+    "tr": "Mag Garden",
+    "en": "Mag Garden",
+    "labels": [
+     "マッグガーデン"
+    ]
+   },
+   {
+    "key": "bangumi_producer_mages",
+    "tr": "MAGES.",
+    "en": "MAGES.",
+    "labels": [
+     "MAGES",
+     "5pb.",
+     "5pb"
+    ]
+   },
+   {
+    "key": "bangumi_producer_marvelous",
+    "tr": "Marvelous",
+    "en": "Marvelous",
+    "labels": [
+     "マーベラス"
+    ]
+   },
+   {
+    "key": "bangumi_producer_mbs",
+    "tr": "MBS",
+    "en": "MBS",
+    "labels": [
+     "毎日放送",
+     "Mainichi Broadcasting",
+     "MBS毎日放送"
+    ]
+   },
+   {
+    "key": "bangumi_producer_media_factory",
+    "tr": "Media Factory",
+    "en": "Media Factory",
+    "labels": [
+     "メディアファクトリー",
+     "MF"
+    ]
+   },
+   {
+    "key": "bangumi_producer_movic",
+    "tr": "Movic",
+    "en": "Movic",
+    "labels": [
+     "ムービック"
+    ]
+   },
+   {
+    "key": "bangumi_producer_nagoya_tv",
+    "tr": "Nagoya TV",
+    "en": "Nagoya TV",
+    "labels": [
+     "名古屋テレビ",
+     "メ～テレ",
+     "Nagoya Broadcasting Network"
+    ]
+   },
+   {
+    "key": "bangumi_producer_nbcuniversal",
+    "tr": "NBCUniversal Entertainment Japan",
+    "en": "NBCUniversal Entertainment Japan",
+    "labels": [
+     "NBCユニバーサル・エンターテイメント",
+     "ジェネオン・ユニバーサル・エンタテイメント",
+     "ジェネオン",
+     "Geneon",
+     "Geneon Entertainment"
+    ]
+   },
+   {
+    "key": "bangumi_producer_netflix",
+    "tr": "Netflix",
+    "en": "Netflix",
+    "labels": [
+     "Netflix",
+     "网飞",
+     "網飛",
+     "奈飞"
+    ]
+   },
+   {
+    "key": "bangumi_producer_nhk",
+    "tr": "NHK",
+    "en": "NHK",
+    "labels": [
+     "NHK",
+     "日本广播协会",
+     "日本放送協会"
+    ]
+   },
+   {
+    "key": "bangumi_producer_nhk_enterprises",
+    "tr": "NEP",
+    "en": "NHK Enterprises",
+    "labels": [
+     "NHKエンタープライズ",
+     "NEP"
+    ]
+   },
+   {
+    "key": "bangumi_producer_nichion",
+    "tr": "Nippon Columbia",
+    "en": "Nippon Columbia",
+    "labels": [
+     "日本コロムビア",
+     "コロムビア"
+    ]
+   },
+   {
+    "key": "bangumi_producer_nintendo",
+    "tr": "Nintendo",
+    "en": "Nintendo",
+    "labels": [
+     "任天堂",
+     "Nintendo"
+    ]
+   },
+   {
+    "key": "bangumi_producer_nippon_tv",
+    "tr": "Nippon TV",
+    "en": "Nippon TV",
+    "labels": [
+     "日本テレビ",
+     "日本テレビ放送網",
+     "NTV",
+     "日テレ"
+    ]
+   },
+   {
+    "key": "bangumi_producer_pokemon",
+    "tr": "The Pokémon Company",
+    "en": "The Pokémon Company",
+    "labels": [
+     "ポケモン",
+     "ポケットモンスター",
+     "The Pokemon Company"
+    ]
+   },
+   {
+    "key": "bangumi_producer_ponoc",
+    "tr": "Studio Ponoc",
+    "en": "Studio Ponoc",
+    "labels": [
+     "スタジオポノック"
+    ]
+   },
+   {
+    "key": "bangumi_producer_pony_canyon",
+    "tr": "Pony Canyon",
+    "en": "Pony Canyon",
+    "labels": [
+     "ポニーキャニオン",
+     "PONY CANYON",
+     "PonyCanyon"
+    ]
+   },
+   {
+    "key": "bangumi_producer_production_ig",
+    "tr": "Production I.G",
+    "en": "Production I.G",
+    "labels": [
+     "プロダクション・アイジー",
+     "Production I.G"
+    ]
+   },
+   {
+    "key": "bangumi_producer_sega",
+    "tr": "SEGA",
+    "en": "SEGA",
+    "labels": [
+     "セガ",
+     "SEGA"
+    ]
+   },
+   {
+    "key": "bangumi_producer_shinchosha",
+    "tr": "Shinchosha",
+    "en": "Shinchosha",
+    "labels": [
+     "新潮社"
+    ]
+   },
+   {
+    "key": "bangumi_producer_shochiku",
+    "tr": "Shochiku",
+    "en": "Shochiku",
+    "labels": [
+     "松竹",
+     "SHOCHIKU"
+    ]
+   },
+   {
+    "key": "bangumi_producer_shogakukan",
+    "tr": "Shogakukan",
+    "en": "Shogakukan",
+    "labels": [
+     "小学館",
+     "SHOGAKUKAN"
+    ]
+   },
+   {
+    "key": "bangumi_producer_shogakukan_shueisha_productions",
+    "tr": "ShoPro",
+    "en": "Shogakukan-Shueisha Productions",
+    "labels": [
+     "小学館集英社プロダクション",
+     "ShoPro"
+    ]
+   },
+   {
+    "key": "bangumi_producer_showgate",
+    "tr": "Showgate",
+    "en": "Showgate",
+    "labels": [
+     "ショウゲート"
+    ]
+   },
+   {
+    "key": "bangumi_producer_shueisha",
+    "tr": "Shueisha",
+    "en": "Shueisha",
+    "labels": [
+     "集英社",
+     "SHUEISHA"
+    ]
+   },
+   {
+    "key": "bangumi_producer_sony_music",
+    "tr": "Sony Music Entertainment",
+    "en": "Sony Music Entertainment",
+    "labels": [
+     "ソニー・ミュージックエンタテインメント",
+     "Sony Music",
+     "SME"
+    ]
+   },
+   {
+    "key": "bangumi_producer_sotsu",
+    "tr": "Sotsu",
+    "en": "Sotsu",
+    "labels": [
+     "創通",
+     "Sotsu Agency"
+    ]
+   },
+   {
+    "key": "bangumi_producer_square_enix",
+    "tr": "Square Enix",
+    "en": "Square Enix",
+    "labels": [
+     "スクウェア・エニックス",
+     "スクエニ",
+     "SQUARE ENIX"
+    ]
+   },
+   {
+    "key": "bangumi_producer_starchild",
+    "tr": "Starchild Records",
+    "en": "Starchild Records",
+    "labels": [
+     "スターチャイルドレコード",
+     "スターチャイルド"
+    ]
+   },
+   {
+    "key": "bangumi_producer_tencent",
+    "tr": "Tencent",
+    "en": "Tencent",
+    "labels": [
+     "腾讯",
+     "騰訊",
+     "Tencent"
+    ]
+   },
+   {
+    "key": "bangumi_producer_tencent_video",
+    "tr": "Tencent Video",
+    "en": "Tencent Video",
+    "labels": [
+     "腾讯视频",
+     "騰訊視頻",
+     "TencentVideo"
+    ]
+   },
+   {
+    "key": "bangumi_producer_toho",
+    "tr": "TOHO",
+    "en": "TOHO",
+    "labels": [
+     "東宝",
+     "Toho",
+     "東宝映像事業部"
+    ]
+   },
+   {
+    "key": "bangumi_producer_toho_animation",
+    "tr": "TOHO animation",
+    "en": "TOHO animation",
+    "labels": [
+     "東宝アニメーション",
+     "TOHO animation"
+    ]
+   },
+   {
+    "key": "bangumi_producer_tohokushinsha",
+    "tr": "Tohokushinsha",
+    "en": "Tohokushinsha",
+    "labels": [
+     "東北新社"
+    ]
+   },
+   {
+    "key": "bangumi_producer_tokuma_shoten",
+    "tr": "Tokuma Shoten",
+    "en": "Tokuma Shoten",
+    "labels": [
+     "徳間書店"
+    ]
+   },
+   {
+    "key": "bangumi_producer_tv_tokyo",
+    "tr": "TV TOKYO",
+    "en": "TV TOKYO",
+    "labels": [
+     "テレビ東京",
+     "TV Tokyo"
+    ]
+   },
+   {
+    "key": "bangumi_producer_tv_tokyo_media",
+    "tr": "TV Tokyo Media Net",
+    "en": "TV Tokyo Media Net",
+    "labels": [
+     "テレビ東京メディアネット"
+    ]
+   },
+   {
+    "key": "bangumi_producer_typhoon_graphics",
+    "tr": "Typhoon Graphics",
+    "en": "Typhoon Graphics",
+    "labels": [
+     "タイフーン・グラフィックス"
+    ]
+   },
+   {
+    "key": "bangumi_producer_wowow",
+    "tr": "WOWOW",
+    "en": "WOWOW",
+    "labels": [
+     "WOWOW",
+     "ワウワウ"
+    ]
+   },
+   {
+    "key": "bangumi_producer_wowow_abc",
+    "tr": "ABC Animation",
+    "en": "ABC Animation",
+    "labels": [
+     "ABCアニメーション"
+    ]
+   },
+   {
+    "key": "bangumi_producer_yomiuri_tv",
+    "tr": "Yomiuri TV",
+    "en": "Yomiuri TV",
+    "labels": [
+     "読売テレビ",
+     "ytv",
+     "読売テレビ放送"
+    ]
+   },
+   {
+    "key": "bangumi_producer_youku",
+    "tr": "Youku",
+    "en": "Youku",
+    "labels": [
+     "优酷",
+     "優酷",
+     "YOUKU"
+    ]
+   },
+   {
+    "key": "bangumi_producer_young_animation",
+    "tr": "Young Animation",
+    "en": "Young Animation",
+    "labels": [
+     "ヤング・アニメーション"
+    ]
+   }
+  ],
+  "networks": [
+   {
+    "key": "bangumi_network_abc",
+    "tr": "ABC",
+    "en": "ABC",
+    "labels": [
+     "朝日放送",
+     "ABCテレビ",
+     "朝日放送テレビ",
+     "Asahi Broadcasting"
+    ]
+   },
+   {
+    "key": "bangumi_network_abema",
+    "tr": "ABEMA",
+    "en": "ABEMA",
+    "labels": [
+     "ABEMA",
+     "アベマ",
+     "AbemaTV"
+    ]
+   },
+   {
+    "key": "bangumi_network_adult_swim",
+    "tr": "Adult Swim",
+    "en": "Adult Swim",
+    "labels": [
+     "Adult Swim",
+     "アダルトスイム"
+    ]
+   },
+   {
+    "key": "bangumi_network_animax",
+    "tr": "Animax",
+    "en": "Animax",
+    "labels": [
+     "アニマックス",
+     "Animax"
+    ]
+   },
+   {
+    "key": "bangumi_network_aniplus",
+    "tr": "Aniplus",
+    "en": "Aniplus",
+    "labels": [
+     "ANIPLUS",
+     "애니플러스"
+    ]
+   },
+   {
+    "key": "bangumi_network_apple_tv",
+    "tr": "Apple TV+",
+    "en": "Apple TV+",
+    "labels": [
+     "Apple TV+",
+     "Apple TV Plus"
+    ]
+   },
+   {
+    "key": "bangumi_network_at_x",
+    "tr": "AT-X",
+    "en": "AT-X",
+    "labels": [
+     "AT-X",
+     "ATX"
+    ]
+   },
+   {
+    "key": "bangumi_network_bandai_channel",
+    "tr": "Bandai Channel",
+    "en": "Bandai Channel",
+    "labels": [
+     "バンダイチャンネル",
+     "Bandai Ch."
+    ]
+   },
+   {
+    "key": "bangumi_network_bbc",
+    "tr": "BBC",
+    "en": "BBC",
+    "labels": [
+     "BBC",
+     "英国广播公司",
+     "英國廣播公司"
+    ]
+   },
+   {
+    "key": "bangumi_network_beijing_tv",
+    "tr": "Beijing TV",
+    "en": "Beijing TV",
+    "labels": [
+     "北京卫视",
+     "北京衛視"
+    ]
+   },
+   {
+    "key": "bangumi_network_bilibili",
+    "tr": "bilibili",
+    "en": "bilibili",
+    "labels": [
+     "哔哩哔哩",
+     "嗶哩嗶哩",
+     "B站",
+     "Bilibili"
+    ]
+   },
+   {
+    "key": "bangumi_network_bs11",
+    "tr": "BS11",
+    "en": "BS11",
+    "labels": [
+     "BS11",
+     "日本BS放送"
+    ]
+   },
+   {
+    "key": "bangumi_network_bs_asahi",
+    "tr": "BS Asahi",
+    "en": "BS Asahi",
+    "labels": [
+     "BS朝日"
+    ]
+   },
+   {
+    "key": "bangumi_network_bs_fuji",
+    "tr": "BS Fuji",
+    "en": "BS Fuji",
+    "labels": [
+     "BSフジ",
+     "BS富士"
+    ]
+   },
+   {
+    "key": "bangumi_network_bs_ntv",
+    "tr": "BS Nittele",
+    "en": "BS Nittele",
+    "labels": [
+     "BS日テレ",
+     "BS日本テレビ"
+    ]
+   },
+   {
+    "key": "bangumi_network_bs_tbs",
+    "tr": "BS-TBS",
+    "en": "BS-TBS",
+    "labels": [
+     "BS-TBS",
+     "BS-i",
+     "BS-i／BS-TBS"
+    ]
+   },
+   {
+    "key": "bangumi_network_bs_tv_tokyo",
+    "tr": "BS TV Tokyo",
+    "en": "BS TV Tokyo",
+    "labels": [
+     "BSテレ東",
+     "BSジャパン"
+    ]
+   },
+   {
+    "key": "bangumi_network_cartoon_network",
+    "tr": "Cartoon Network",
+    "en": "Cartoon Network",
+    "labels": [
+     "Cartoon Network",
+     "卡通频道",
+     "カートゥーンネットワーク"
+    ]
+   },
+   {
+    "key": "bangumi_network_cbc",
+    "tr": "CBC",
+    "en": "CBC",
+    "labels": [
+     "中部日本放送",
+     "CBCテレビ"
+    ]
+   },
+   {
+    "key": "bangumi_network_cctv",
+    "tr": "CCTV",
+    "en": "CCTV",
+    "labels": [
+     "央视",
+     "央視",
+     "中国中央电视台",
+     "中國中央電視台"
+    ]
+   },
+   {
+    "key": "bangumi_network_channel4",
+    "tr": "Channel 4",
+    "en": "Channel 4",
+    "labels": [
+     "Channel 4",
+     "第4频道"
+    ]
+   },
+   {
+    "key": "bangumi_network_chiba_tv",
+    "tr": "Chiba TV",
+    "en": "Chiba TV",
+    "labels": [
+     "チバテレビ",
+     "千葉テレビ"
+    ]
+   },
+   {
+    "key": "bangumi_network_crunchyroll",
+    "tr": "Crunchyroll",
+    "en": "Crunchyroll",
+    "labels": [
+     "Crunchyroll",
+     "CR"
+    ]
+   },
+   {
+    "key": "bangumi_network_ctv",
+    "tr": "CTV",
+    "en": "CTV",
+    "labels": [
+     "中京テレビ",
+     "中京テレビ放送"
+    ]
+   },
+   {
+    "key": "bangumi_network_ctv_tw",
+    "tr": "CTV",
+    "en": "CTV",
+    "labels": [
+     "中视",
+     "中視",
+     "中国电视",
+     "中國電視"
+    ]
+   },
+   {
+    "key": "bangumi_network_d_anime_store",
+    "tr": "dアニメストア",
+    "en": "d Anime Store",
+    "labels": [
+     "dアニメストア",
+     "dアニメストア for Prime Video"
+    ]
+   },
+   {
+    "key": "bangumi_network_disney_channel",
+    "tr": "Disney Channel",
+    "en": "Disney Channel",
+    "labels": [
+     "Disney Channel",
+     "迪士尼频道",
+     "ディズニーチャンネル"
+    ]
+   },
+   {
+    "key": "bangumi_network_disney_plus",
+    "tr": "Disney+",
+    "en": "Disney+",
+    "labels": [
+     "Disney+",
+     "ディズニープラス",
+     "Disney Plus"
+    ]
+   },
+   {
+    "key": "bangumi_network_dragon_tv",
+    "tr": "Dragon TV",
+    "en": "Dragon TV",
+    "labels": [
+     "东方卫视",
+     "東方衛視"
+    ]
+   },
+   {
+    "key": "bangumi_network_fbs",
+    "tr": "FBS",
+    "en": "FBS",
+    "labels": [
+     "福岡放送"
+    ]
+   },
+   {
+    "key": "bangumi_network_fod",
+    "tr": "FOD",
+    "en": "FOD",
+    "labels": [
+     "FOD",
+     "フジテレビオンデマンド"
+    ]
+   },
+   {
+    "key": "bangumi_network_ftv",
+    "tr": "FTV",
+    "en": "FTV",
+    "labels": [
+     "民视",
+     "民視",
+     "民间全民电视",
+     "民間全民電視"
+    ]
+   },
+   {
+    "key": "bangumi_network_fuji_tv",
+    "tr": "Fuji TV",
+    "en": "Fuji Television",
+    "labels": [
+     "フジテレビ",
+     "フジテレビジョン",
+     "富士电视台",
+     "富士電視台",
+     "Fuji Television"
+    ]
+   },
+   {
+    "key": "bangumi_network_gtv",
+    "tr": "GTV",
+    "en": "GTV",
+    "labels": [
+     "八大电视",
+     "八大電視",
+     "GTV"
+    ]
+   },
+   {
+    "key": "bangumi_network_guangdong_tv",
+    "tr": "Guangdong TV",
+    "en": "Guangdong TV",
+    "labels": [
+     "广东卫视",
+     "廣東衛視"
+    ]
+   },
+   {
+    "key": "bangumi_network_gyao",
+    "tr": "GYAO!",
+    "en": "GYAO!",
+    "labels": [
+     "GYAO!",
+     "GYAO",
+     "ギャオ"
+    ]
+   },
+   {
+    "key": "bangumi_network_hbc",
+    "tr": "HBC",
+    "en": "HBC",
+    "labels": [
+     "北海道放送"
+    ]
+   },
+   {
+    "key": "bangumi_network_hbo_max",
+    "tr": "Max",
+    "en": "Max",
+    "labels": [
+     "HBO Max",
+     "HBO",
+     "Max"
+    ]
+   },
+   {
+    "key": "bangumi_network_hulu",
+    "tr": "Hulu",
+    "en": "Hulu",
+    "labels": [
+     "Hulu",
+     "HULU"
+    ]
+   },
+   {
+    "key": "bangumi_network_hulu_jp",
+    "tr": "Hulu",
+    "en": "Hulu",
+    "labels": [
+     "Hulu",
+     "フール"
+    ]
+   },
+   {
+    "key": "bangumi_network_hunan_tv",
+    "tr": "Hunan TV",
+    "en": "Hunan TV",
+    "labels": [
+     "湖南卫视",
+     "湖南衛視"
+    ]
+   },
+   {
+    "key": "bangumi_network_iqiyi",
+    "tr": "iQIYI",
+    "en": "iQIYI",
+    "labels": [
+     "爱奇艺",
+     "愛奇藝"
+    ]
+   },
+   {
+    "key": "bangumi_network_itv",
+    "tr": "ITV",
+    "en": "ITV",
+    "labels": [
+     "ITV"
+    ]
+   },
+   {
+    "key": "bangumi_network_jiangsu_tv",
+    "tr": "Jiangsu TV",
+    "en": "Jiangsu TV",
+    "labels": [
+     "江苏卫视",
+     "江蘇衛視"
+    ]
+   },
+   {
+    "key": "bangumi_network_kbs",
+    "tr": "KBS",
+    "en": "KBS",
+    "labels": [
+     "KBS",
+     "韩国广播公司",
+     "韓國廣播公司",
+     "Korean Broadcasting System"
+    ]
+   },
+   {
+    "key": "bangumi_network_kbs_kyoto",
+    "tr": "KBS Kyoto",
+    "en": "KBS Kyoto",
+    "labels": [
+     "KBS京都",
+     "KBS京都放送"
+    ]
+   },
+   {
+    "key": "bangumi_network_kids_station",
+    "tr": "Kids Station",
+    "en": "Kids Station",
+    "labels": [
+     "キッズステーション"
+    ]
+   },
+   {
+    "key": "bangumi_network_ktv",
+    "tr": "KTV",
+    "en": "Kansai TV",
+    "labels": [
+     "関西テレビ",
+     "関西テレビ放送"
+    ]
+   },
+   {
+    "key": "bangumi_network_mango_tv",
+    "tr": "Mango TV",
+    "en": "Mango TV",
+    "labels": [
+     "芒果TV",
+     "芒果tv"
+    ]
+   },
+   {
+    "key": "bangumi_network_mbc_kr",
+    "tr": "MBC",
+    "en": "MBC",
+    "labels": [
+     "MBC",
+     "文化广播",
+     "文化廣播",
+     "Munhwa Broadcasting"
+    ]
+   },
+   {
+    "key": "bangumi_network_mbs",
+    "tr": "MBS",
+    "en": "MBS",
+    "labels": [
+     "毎日放送",
+     "MBS毎日放送",
+     "Mainichi Broadcasting"
+    ]
+   },
+   {
+    "key": "bangumi_network_mie_tv",
+    "tr": "Mie TV",
+    "en": "Mie TV",
+    "labels": [
+     "三重テレビ"
+    ]
+   },
+   {
+    "key": "bangumi_network_mro",
+    "tr": "MRO",
+    "en": "MRO",
+    "labels": [
+     "北陸放送"
+    ]
+   },
+   {
+    "key": "bangumi_network_muse",
+    "tr": "Muse Communication",
+    "en": "Muse Communication",
+    "labels": [
+     "木棉花",
+     "Muse木棉花",
+     "MUSE"
+    ]
+   },
+   {
+    "key": "bangumi_network_netflix",
+    "tr": "Netflix",
+    "en": "Netflix",
+    "labels": [
+     "Netflix",
+     "网飞",
+     "網飛",
+     "奈飞"
+    ]
+   },
+   {
+    "key": "bangumi_network_nhk",
+    "tr": "NHK",
+    "en": "NHK",
+    "labels": [
+     "NHK総合",
+     "NHK教育",
+     "NHK-G",
+     "NHK-E"
+    ]
+   },
+   {
+    "key": "bangumi_network_nickelodeon",
+    "tr": "Nickelodeon",
+    "en": "Nickelodeon",
+    "labels": [
+     "Nickelodeon",
+     "尼克儿童频道",
+     "ニコロデオン"
+    ]
+   },
+   {
+    "key": "bangumi_network_niconico",
+    "tr": "Niconico",
+    "en": "Niconico",
+    "labels": [
+     "ニコニコ動画",
+     "niconico",
+     "ニコニコ",
+     "niconico动画"
+    ]
+   },
+   {
+    "key": "bangumi_network_ntv",
+    "tr": "NTV",
+    "en": "Nippon TV",
+    "labels": [
+     "日本テレビ",
+     "日本电视台",
+     "日本電視台",
+     "日テレ",
+     "Nippon TV"
+    ]
+   },
+   {
+    "key": "bangumi_network_peacock",
+    "tr": "Peacock",
+    "en": "Peacock",
+    "labels": [
+     "Peacock",
+     "Peacock TV"
+    ]
+   },
+   {
+    "key": "bangumi_network_prime_video",
+    "tr": "Prime Video",
+    "en": "Prime Video",
+    "labels": [
+     "Amazon Prime Video",
+     "亚马逊 Prime",
+     "亞馬遜 Prime",
+     "Amazonプライム・ビデオ",
+     "Amazon Video"
+    ]
+   },
+   {
+    "key": "bangumi_network_rcc",
+    "tr": "RCC",
+    "en": "RCC",
+    "labels": [
+     "中国放送"
+    ]
+   },
+   {
+    "key": "bangumi_network_rkb",
+    "tr": "RKB",
+    "en": "RKB",
+    "labels": [
+     "RKB毎日放送",
+     "RKB Mainichi Broadcasting"
+    ]
+   },
+   {
+    "key": "bangumi_network_rkk",
+    "tr": "RKK",
+    "en": "RKK",
+    "labels": [
+     "熊本放送"
+    ]
+   },
+   {
+    "key": "bangumi_network_rnc",
+    "tr": "RNC",
+    "en": "RNC",
+    "labels": [
+     "西日本放送"
+    ]
+   },
+   {
+    "key": "bangumi_network_roku",
+    "tr": "The Roku Channel",
+    "en": "The Roku Channel",
+    "labels": [
+     "Roku Channel",
+     "The Roku Channel"
+    ]
+   },
+   {
+    "key": "bangumi_network_rsk",
+    "tr": "RSK",
+    "en": "RSK",
+    "labels": [
+     "RSK山陽放送",
+     "山陽放送"
+    ]
+   },
+   {
+    "key": "bangumi_network_sbc",
+    "tr": "SBC",
+    "en": "SBC",
+    "labels": [
+     "信越放送"
+    ]
+   },
+   {
+    "key": "bangumi_network_sbs_jp",
+    "tr": "SBS",
+    "en": "SBS",
+    "labels": [
+     "静岡放送",
+     "SBS静岡放送"
+    ]
+   },
+   {
+    "key": "bangumi_network_sbs_kr",
+    "tr": "SBS",
+    "en": "SBS",
+    "labels": [
+     "SBS",
+     "SBS首尔放送",
+     "SBS首爾放送",
+     "Seoul Broadcasting System"
+    ]
+   },
+   {
+    "key": "bangumi_network_sdt",
+    "tr": "SDT",
+    "en": "SDT",
+    "labels": [
+     "静岡第一テレビ"
+    ]
+   },
+   {
+    "key": "bangumi_network_sun_tv",
+    "tr": "SUN-TV",
+    "en": "SUN-TV",
+    "labels": [
+     "サンテレビ",
+     "サンテレビジョン"
+    ]
+   },
+   {
+    "key": "bangumi_network_tbc",
+    "tr": "TBC",
+    "en": "TBC",
+    "labels": [
+     "東北放送"
+    ]
+   },
+   {
+    "key": "bangumi_network_tbs",
+    "tr": "TBS",
+    "en": "TBS",
+    "labels": [
+     "TBS",
+     "TBSテレビ",
+     "东京放送",
+     "東京放送",
+     "TBS TV"
+    ]
+   },
+   {
+    "key": "bangumi_network_teletama",
+    "tr": "Teletama",
+    "en": "Teletama",
+    "labels": [
+     "テレ玉",
+     "テレビ埼玉"
+    ]
+   },
+   {
+    "key": "bangumi_network_tencent_video",
+    "tr": "Tencent Video",
+    "en": "Tencent Video",
+    "labels": [
+     "腾讯视频",
+     "騰訊視頻"
+    ]
+   },
+   {
+    "key": "bangumi_network_thk",
+    "tr": "THK",
+    "en": "THK",
+    "labels": [
+     "東海テレビ",
+     "東海テレビ放送"
+    ]
+   },
+   {
+    "key": "bangumi_network_tokyo_mx",
+    "tr": "TOKYO MX",
+    "en": "TOKYO MX",
+    "labels": [
+     "TOKYO MX",
+     "东京都会电视台",
+     "東京都會電視台",
+     "MX",
+     "東京MX"
+    ]
+   },
+   {
+    "key": "bangumi_network_tooniverse",
+    "tr": "Tooniverse",
+    "en": "Tooniverse",
+    "labels": [
+     "Tooniverse",
+     "투니버스"
+    ]
+   },
+   {
+    "key": "bangumi_network_ttv",
+    "tr": "TTV",
+    "en": "TTV",
+    "labels": [
+     "台视",
+     "台視",
+     "台湾电视",
+     "台灣電視"
+    ]
+   },
+   {
+    "key": "bangumi_network_tubi",
+    "tr": "Tubi",
+    "en": "Tubi",
+    "labels": [
+     "Tubi"
+    ]
+   },
+   {
+    "key": "bangumi_network_tv_tokyo",
+    "tr": "TV Tokyo",
+    "en": "TV Tokyo",
+    "labels": [
+     "テレビ東京",
+     "东京电视台",
+     "東京電視台",
+     "TX",
+     "TV TOKYO"
+    ]
+   },
+   {
+    "key": "bangumi_network_tva",
+    "tr": "TV Aichi",
+    "en": "TV Aichi",
+    "labels": [
+     "テレビ愛知"
+    ]
+   },
+   {
+    "key": "bangumi_network_tvasahi",
+    "tr": "TV Asahi",
+    "en": "TV Asahi",
+    "labels": [
+     "テレビ朝日",
+     "朝日电视台",
+     "朝日電視台",
+     "ANB",
+     "tv asahi"
+    ]
+   },
+   {
+    "key": "bangumi_network_tvb",
+    "tr": "TVB",
+    "en": "TVB",
+    "labels": [
+     "无线电视",
+     "無線電視",
+     "翡翠台",
+     "Jade"
+    ]
+   },
+   {
+    "key": "bangumi_network_tver",
+    "tr": "TVer",
+    "en": "TVer",
+    "labels": [
+     "TVer",
+     "ティーバー"
+    ]
+   },
+   {
+    "key": "bangumi_network_tvk",
+    "tr": "tvk",
+    "en": "tvk",
+    "labels": [
+     "テレビ神奈川",
+     "tvk"
+    ]
+   },
+   {
+    "key": "bangumi_network_tvo",
+    "tr": "TV Osaka",
+    "en": "TV Osaka",
+    "labels": [
+     "テレビ大阪"
+    ]
+   },
+   {
+    "key": "bangumi_network_tvq",
+    "tr": "TVQ",
+    "en": "TVQ",
+    "labels": [
+     "TVQ九州放送"
+    ]
+   },
+   {
+    "key": "bangumi_network_u_next",
+    "tr": "U-NEXT",
+    "en": "U-NEXT",
+    "labels": [
+     "U-NEXT",
+     "ユーネクスト"
+    ]
+   },
+   {
+    "key": "bangumi_network_viutv",
+    "tr": "ViuTV",
+    "en": "ViuTV",
+    "labels": [
+     "ViuTV"
+    ]
+   },
+   {
+    "key": "bangumi_network_wowow",
+    "tr": "WOWOW",
+    "en": "WOWOW",
+    "labels": [
+     "WOWOW",
+     "ワウワウ"
+    ]
+   },
+   {
+    "key": "bangumi_network_youku",
+    "tr": "Youku",
+    "en": "Youku",
+    "labels": [
+     "优酷",
+     "優酷"
+    ]
+   },
+   {
+    "key": "bangumi_network_youtube",
+    "tr": "YouTube",
+    "en": "YouTube",
+    "labels": [
+     "YouTube",
+     "ユーチューブ",
+     "油管"
+    ]
+   },
+   {
+    "key": "bangumi_network_ytv",
+    "tr": "ytv",
+    "en": "Yomiuri TV",
+    "labels": [
+     "読売テレビ",
+     "ytv",
+     "読売テレビ放送"
+    ]
+   },
+   {
+    "key": "bangumi_network_zhejiang_tv",
+    "tr": "Zhejiang TV",
+    "en": "Zhejiang TV",
+    "labels": [
+     "浙江卫视",
+     "浙江衛視"
+    ]
+   }
+  ],
+  "publishers": [
+   {
+    "key": "bangumi_publisher_akita_shoten",
+    "tr": "Akita Shoten",
+    "en": "Akita Shoten",
+    "labels": [
+     "秋田書店"
+    ]
+   },
+   {
+    "key": "bangumi_publisher_ascii_media_works",
+    "tr": "ASCII Media Works",
+    "en": "ASCII Media Works",
+    "labels": [
+     "アスキー・メディアワークス"
+    ]
+   },
+   {
+    "key": "bangumi_publisher_coamix",
+    "tr": "Coamix",
+    "en": "Coamix",
+    "labels": [
+     "コアミックス"
+    ]
+   },
+   {
+    "key": "bangumi_publisher_enterbrain",
+    "tr": "Enterbrain",
+    "en": "Enterbrain",
+    "labels": [
+     "エンターブレイン"
+    ]
+   },
+   {
+    "key": "bangumi_publisher_futabasha",
+    "tr": "Futabasha",
+    "en": "Futabasha",
+    "labels": [
+     "双葉社"
+    ]
+   },
+   {
+    "key": "bangumi_publisher_gentosha",
+    "tr": "Gentosha",
+    "en": "Gentosha",
+    "labels": [
+     "幻冬舎"
+    ]
+   },
+   {
+    "key": "bangumi_publisher_hakusensha",
+    "tr": "Hakusensha",
+    "en": "Hakusensha",
+    "labels": [
+     "白泉社"
+    ]
+   },
+   {
+    "key": "bangumi_publisher_home_sha",
+    "tr": "Home Sha",
+    "en": "Home Sha",
+    "labels": [
+     "ホーム社"
+    ]
+   },
+   {
+    "key": "bangumi_publisher_houbunsha",
+    "tr": "Houbunsha",
+    "en": "Houbunsha",
+    "labels": [
+     "芳文社"
+    ]
+   },
+   {
+    "key": "bangumi_publisher_ichijinsha",
+    "tr": "Ichijinsha",
+    "en": "Ichijinsha",
+    "labels": [
+     "一迅社"
+    ]
+   },
+   {
+    "key": "bangumi_publisher_kadokawa",
+    "tr": "KADOKAWA",
+    "en": "KADOKAWA",
+    "labels": [
+     "角川書店",
+     "角川",
+     "Kadokawa Shoten"
+    ]
+   },
+   {
+    "key": "bangumi_publisher_kobunsha",
+    "tr": "Kobunsha",
+    "en": "Kobunsha",
+    "labels": [
+     "光文社"
+    ]
+   },
+   {
+    "key": "bangumi_publisher_kodansha",
+    "tr": "Kodansha",
+    "en": "Kodansha",
+    "labels": [
+     "講談社"
+    ]
+   },
+   {
+    "key": "bangumi_publisher_libre",
+    "tr": "Libre",
+    "en": "Libre",
+    "labels": [
+     "リブレ",
+     "リブレ出版"
+    ]
+   },
+   {
+    "key": "bangumi_publisher_mag_garden",
+    "tr": "Mag Garden",
+    "en": "Mag Garden",
+    "labels": [
+     "マッグガーデン"
+    ]
+   },
+   {
+    "key": "bangumi_publisher_media_factory",
+    "tr": "Media Factory",
+    "en": "Media Factory",
+    "labels": [
+     "メディアファクトリー"
+    ]
+   },
+   {
+    "key": "bangumi_publisher_nihonbungeisha",
+    "tr": "Nihonbungeisha",
+    "en": "Nihonbungeisha",
+    "labels": [
+     "日本文芸社"
+    ]
+   },
+   {
+    "key": "bangumi_publisher_shinchosha",
+    "tr": "Shinchosha",
+    "en": "Shinchosha",
+    "labels": [
+     "新潮社"
+    ]
+   },
+   {
+    "key": "bangumi_publisher_shogakukan",
+    "tr": "Shogakukan",
+    "en": "Shogakukan",
+    "labels": [
+     "小学館"
+    ]
+   },
+   {
+    "key": "bangumi_publisher_shonen_gahosha",
+    "tr": "Shonen Gahosha",
+    "en": "Shonen Gahosha",
+    "labels": [
+     "少年画報社"
+    ]
+   },
+   {
+    "key": "bangumi_publisher_shueisha",
+    "tr": "Shueisha",
+    "en": "Shueisha",
+    "labels": [
+     "集英社"
+    ]
+   },
+   {
+    "key": "bangumi_publisher_square_enix",
+    "tr": "Square Enix",
+    "en": "Square Enix",
+    "labels": [
+     "スクウェア・エニックス"
+    ]
+   },
+   {
+    "key": "bangumi_publisher_takeshobo",
+    "tr": "Takeshobo",
+    "en": "Takeshobo",
+    "labels": [
+     "竹書房"
+    ]
+   },
+   {
+    "key": "bangumi_publisher_tokuma_shoten",
+    "tr": "Tokuma Shoten",
+    "en": "Tokuma Shoten",
+    "labels": [
+     "徳間書店"
+    ]
+   }
+  ],
+  "magazines": [
+   {
+    "key": "bangumi_magazine_afternoon",
+    "tr": "Afternoon",
+    "en": "Afternoon",
+    "labels": [
+     "アフタヌーン",
+     "月刊アフタヌーン"
+    ]
+   },
+   {
+    "key": "bangumi_magazine_bessatsu_shonen_magazine",
+    "tr": "Bessatsu Shonen Magazine",
+    "en": "Bessatsu Shonen Magazine",
+    "labels": [
+     "別冊少年マガジン"
+    ]
+   },
+   {
+    "key": "bangumi_magazine_comic_alive",
+    "tr": "Comic Alive",
+    "en": "Comic Alive",
+    "labels": [
+     "月刊コミックアライブ",
+     "コミックアライブ"
+    ]
+   },
+   {
+    "key": "bangumi_magazine_comic_beam",
+    "tr": "Comic Beam",
+    "en": "Comic Beam",
+    "labels": [
+     "コミックビーム"
+    ]
+   },
+   {
+    "key": "bangumi_magazine_comic_flapper",
+    "tr": "Comic Flapper",
+    "en": "Comic Flapper",
+    "labels": [
+     "コミックフラッパー"
+    ]
+   },
+   {
+    "key": "bangumi_magazine_comic_zero_sum",
+    "tr": "Monthly Comic Zero-Sum",
+    "en": "Monthly Comic Zero-Sum",
+    "labels": [
+     "月刊コミックZERO-SUM",
+     "コミックZERO-SUM"
+    ]
+   },
+   {
+    "key": "bangumi_magazine_dengeki_maoh",
+    "tr": "Dengeki Maoh",
+    "en": "Dengeki Maoh",
+    "labels": [
+     "電撃マ王",
+     "電撃マオウ"
+    ]
+   },
+   {
+    "key": "bangumi_magazine_gangan",
+    "tr": "Gangan",
+    "en": "Gangan",
+    "labels": [
+     "ガンガン",
+     "月刊少年ガンガン"
+    ]
+   },
+   {
+    "key": "bangumi_magazine_hana_to_yume",
+    "tr": "Hana to Yume",
+    "en": "Hana to Yume",
+    "labels": [
+     "花とゆめ",
+     "花与梦"
+    ]
+   },
+   {
+    "key": "bangumi_magazine_jump_sq",
+    "tr": "Jump SQ",
+    "en": "Jump SQ",
+    "labels": [
+     "ジャンプSQ",
+     "Jump SQ."
+    ]
+   },
+   {
+    "key": "bangumi_magazine_lala",
+    "tr": "LaLa",
+    "en": "LaLa",
+    "labels": [
+     "LaLa",
+     "ララ"
+    ]
+   },
+   {
+    "key": "bangumi_magazine_manga_time_kirara",
+    "tr": "Manga Time Kirara",
+    "en": "Manga Time Kirara",
+    "labels": [
+     "まんがタイムきらら",
+     "Manga Time Kirara"
+    ]
+   },
+   {
+    "key": "bangumi_magazine_margaret",
+    "tr": "Margaret",
+    "en": "Margaret",
+    "labels": [
+     "マーガレット"
+    ]
+   },
+   {
+    "key": "bangumi_magazine_monthly_shonen_magazine",
+    "tr": "Monthly Shonen Magazine",
+    "en": "Monthly Shonen Magazine",
+    "labels": [
+     "月刊少年マガジン"
+    ]
+   },
+   {
+    "key": "bangumi_magazine_shonen_champion",
+    "tr": "Weekly Shonen Champion",
+    "en": "Weekly Shonen Champion",
+    "labels": [
+     "週刊少年チャンピオン"
+    ]
+   },
+   {
+    "key": "bangumi_magazine_ultra_jump",
+    "tr": "Ultra Jump",
+    "en": "Ultra Jump",
+    "labels": [
+     "ウルトラジャンプ"
+    ]
+   },
+   {
+    "key": "bangumi_magazine_weekly_shonen_jump",
+    "tr": "Weekly Shonen Jump",
+    "en": "Weekly Shonen Jump",
+    "labels": [
+     "週刊少年ジャンプ",
+     "周刊少年JUMP",
+     "ジャンプ"
+    ]
+   },
+   {
+    "key": "bangumi_magazine_weekly_shonen_magazine",
+    "tr": "Weekly Shonen Magazine",
+    "en": "Weekly Shonen Magazine",
+    "labels": [
+     "週刊少年マガジン",
+     "周刊少年Magazine"
+    ]
+   },
+   {
+    "key": "bangumi_magazine_weekly_shonen_sunday",
+    "tr": "Weekly Shonen Sunday",
+    "en": "Weekly Shonen Sunday",
+    "labels": [
+     "週刊少年サンデー",
+     "周刊少年Sunday"
+    ]
+   },
+   {
+    "key": "bangumi_magazine_young_animal",
+    "tr": "Young Animal",
+    "en": "Young Animal",
+    "labels": [
+     "ヤングアニマル"
+    ]
+   },
+   {
+    "key": "bangumi_magazine_young_jump",
+    "tr": "Young Jump",
+    "en": "Young Jump",
+    "labels": [
+     "ヤングジャンプ",
+     "週刊ヤングジャンプ"
+    ]
+   }
+  ]
+ },
+ "orgs_pending": [
+  "bangumi_studio_gohan",
+  "bangumi_studio_mouse",
+  "bangumi_studio_nagomu",
+  "bangumi_studio_revootoot",
+  "bangumi_studio_signpost",
+  "bangumi_studio_staple",
+  "bangumi_producer_nippon_eiga_sha"
+ ],
+ "tags": {
+  "new": [],
+  "label_additions": [
+   {
+    "target": "rhythm_game",
+    "labels": [
+     "Rhythm",
+     "音游"
+    ]
+   },
+   {
+    "target": "isekai",
+    "labels": [
+     "异世界",
+     "異世界",
+     "异世界转生",
+     "異世界轉生",
+     "穿越异世界"
+    ]
+   },
+   {
+    "target": "time_travel",
+    "labels": [
+     "穿越",
+     "魂穿"
+    ]
+   },
+   {
+    "target": "xianxia",
+    "labels": [
+     "修仙",
+     "修真",
+     "仙侠",
+     "仙俠",
+     "玄幻修真"
+    ]
+   },
+   {
+    "target": "martial_arts",
+    "labels": [
+     "武侠",
+     "武俠",
+     "武侠世界"
+    ]
+   },
+   {
+    "target": "xianxia",
+    "labels": [
+     "仙侠",
+     "仙俠"
+    ]
+   },
+   {
+    "target": "fantasy",
+    "labels": [
+     "玄幻"
+    ]
+   },
+   {
+    "target": "city",
+    "labels": [
+     "都市",
+     "都市生活",
+     "都市异能"
+    ]
+   },
+   {
+    "target": "post_apocalyptic",
+    "labels": [
+     "末世",
+     "末日",
+     "废土",
+     "廢土"
+    ]
+   },
+   {
+    "target": "gender_bender",
+    "labels": [
+     "变身",
+     "變身",
+     "性转",
+     "性轉",
+     "男变女",
+     "女变男"
+    ]
+   },
+   {
+    "target": "time_loop",
+    "labels": [
+     "时间循环",
+     "時間循環",
+     "轮回",
+     "輪迴"
+    ]
+   },
+   {
+    "target": "revenge",
+    "labels": [
+     "复仇",
+     "復仇",
+     "报复"
+    ]
+   },
+   {
+    "target": "strong_protagonist",
+    "labels": [
+     "金手指",
+     "开挂",
+     "開掛",
+     "无敌流",
+     "無敵流"
+    ]
+   },
+   {
+    "target": "childhood_friends",
+    "labels": [
+     "青梅竹马",
+     "青梅竹馬",
+     "幼驯染",
+     "幼馴染"
+    ]
+   },
+   {
+    "target": "love_triangle",
+    "labels": [
+     "三角恋",
+     "三角戀"
+    ]
+   },
+   {
+    "target": "unrequited_love",
+    "labels": [
+     "单恋",
+     "單戀",
+     "暗恋",
+     "暗戀"
+    ]
+   },
+   {
+    "target": "adoption",
+    "labels": [
+     "捡家人",
+     "收养",
+     "收養"
+    ]
+   },
+   {
+    "target": "parenting",
+    "labels": [
+     "育儿",
+     "育兒",
+     "养娃",
+     "帶娃"
+    ]
+   },
+   {
+    "target": "coming_of_age",
+    "labels": [
+     "成长",
+     "成長",
+     "青春成长"
+    ]
+   },
+   {
+    "target": "chunibyo",
+    "labels": [
+     "中二病",
+     "中二"
+    ]
+   },
+   {
+    "target": "band",
+    "labels": [
+     "乐队",
+     "樂隊",
+     "乐队番",
+     "轻音少女"
+    ]
+   },
+   {
+    "target": "voice_actor",
+    "labels": [
+     "声优",
+     "聲優",
+     "声优日常"
+    ]
+   },
+   {
+    "target": "art",
+    "labels": [
+     "艺术",
+     "藝術",
+     "绘画",
+     "繪畫"
+    ]
+   },
+   {
+    "target": "food",
+    "labels": [
+     "美食番",
+     "美食",
+     "料理"
+    ]
+   },
+   {
+    "target": "drinking",
+    "labels": [
+     "酒",
+     "酒类",
+     "居酒屋"
+    ]
+   },
+   {
+    "target": "superhero",
+    "labels": [
+     "超级英雄",
+     "超級英雄",
+     "英雄"
+    ]
+   },
+   {
+    "target": "tokusatsu",
+    "labels": [
+     "特摄",
+     "特攝"
+    ]
+   },
+   {
+    "target": "monster",
+    "labels": [
+     "怪兽",
+     "怪獸",
+     "巨大机器人"
+    ]
+   },
+   {
+    "target": "zombie",
+    "labels": [
+     "丧尸",
+     "喪屍",
+     "僵尸",
+     "殭屍"
+    ]
+   },
+   {
+    "target": "folklore",
+    "labels": [
+     "怪谈",
+     "怪談",
+     "灵异故事",
+     "都市传说",
+     "都市傳說"
+    ]
+   },
+   {
+    "target": "mafia",
+    "labels": [
+     "黑手党",
+     "黑手黨",
+     "黑帮",
+     "黑幫",
+     "极道",
+     "極道"
+    ]
+   },
+   {
+    "target": "mafia",
+    "labels": [
+     "极道",
+     "極道",
+     "黑道"
+    ]
+   },
+   {
+    "target": "police",
+    "labels": [
+     "警察",
+     "刑警",
+     "警视厅",
+     "警視廳"
+    ]
+   },
+   {
+    "target": "military",
+    "labels": [
+     "军旅",
+     "軍旅",
+     "军队",
+     "战争番"
+    ]
+   },
+   {
+    "target": "samurai",
+    "labels": [
+     "武士",
+     "侍"
+    ]
+   },
+   {
+    "target": "ninjas",
+    "labels": [
+     "忍者",
+     "忍術"
+    ]
+   },
+   {
+    "target": "detective_conan",
+    "labels": [
+     "名侦探柯南",
+     "名偵探柯南",
+     "柯南"
+    ]
+   },
+   {
+    "target": "gundam",
+    "labels": [
+     "高达",
+     "高達",
+     "ガンダム",
+     "钢弹",
+     "鋼彈"
+    ]
+   },
+   {
+    "target": "fate_series",
+    "labels": [
+     "Fate",
+     "命运冠位指定",
+     "FGO"
+    ]
+   },
+   {
+    "target": "magical_girl",
+    "labels": [
+     "魔法少女",
+     "马猴烧酒"
+    ]
+   },
+   {
+    "target": "superhero",
+    "labels": [
+     "战队",
+     "戰隊"
+    ]
+   },
+   {
+    "target": "mecha",
+    "labels": [
+     "驾驶",
+     "駕駛",
+     "萝卜",
+     "蘿蔔"
+    ]
+   },
+   {
+    "target": "virtual_reality",
+    "labels": [
+     "虚拟现实",
+     "虛擬現實",
+     "VRMMO",
+     "游戏世界"
+    ]
+   },
+   {
+    "target": "game",
+    "labels": [
+     "电竞",
+     "電競",
+     "电竞选手"
+    ]
+   },
+   {
+    "target": "vocaloid",
+    "labels": [
+     "VOCALOID",
+     "ボカロ"
+    ]
+   },
+   {
+    "target": "dance",
+    "labels": [
+     "舞蹈",
+     "舞踊"
+    ]
+   },
+   {
+    "target": "skating",
+    "labels": [
+     "花样滑冰",
+     "花樣滑冰"
+    ]
+   },
+   {
+    "target": "combat_sports",
+    "labels": [
+     "拳击",
+     "拳擊"
+    ]
+   },
+   {
+    "target": "death_game",
+    "labels": [
+     "生存游戏",
+     "生存遊戲",
+     "大逃杀",
+     "大逃殺"
+    ]
+   },
+   {
+    "target": "death_game",
+    "labels": [
+     "死亡游戏",
+     "死亡遊戲"
+    ]
+   },
+   {
+    "target": "gambling",
+    "labels": [
+     "赌博",
+     "賭博"
+    ]
+   },
+   {
+    "target": "parody",
+    "labels": [
+     "恶搞",
+     "惡搞",
+     "吐槽"
+    ]
+   },
+   {
+    "target": "dark_and_brutal",
+    "labels": [
+     "黑残深",
+     "黑深残"
+    ]
+   },
+   {
+    "target": "classic",
+    "labels": [
+     "经典",
+     "經典",
+     "神作"
+    ]
+   },
+   {
+    "target": "underrated",
+    "labels": [
+     "冷门",
+     "冷門",
+     "被低估"
+    ]
+   },
+   {
+    "target": "cult",
+    "labels": [
+     "邪典",
+     "小众神作"
+    ]
+   },
+   {
+    "target": "power_fantasy",
+    "labels": [
+     "快餐",
+     "爽番",
+     "爽文"
+    ]
+   },
+   {
+    "target": "psychological",
+    "labels": [
+     "智斗",
+     "智力对决",
+     "心理战",
+     "心理戰"
+    ]
+   },
+   {
+    "target": "episodic",
+    "labels": [
+     "单元剧",
+     "單元劇",
+     "一集一案"
+    ]
+   },
+   {
+    "target": "episodic",
+    "labels": [
+     "单元",
+     "單元"
+    ]
+   },
+   {
+    "target": "long_series",
+    "labels": [
+     "长篇",
+     "長篇",
+     "民工漫",
+     "年番"
+    ]
+   },
+   {
+    "target": "anthology",
+    "labels": [
+     "短篇集",
+     "小故事集"
+    ]
+   },
+   {
+    "target": "short_film",
+    "labels": [
+     "短篇漫画",
+     "短篇动画",
+     "ova短篇"
+    ]
+   },
+   {
+    "target": "avant_garde",
+    "labels": [
+     "实验性",
+     "藝術電影",
+     "意识流",
+     "意識流"
+    ]
+   },
+   {
+    "target": "award_winning",
+    "labels": [
+     "获奖",
+     "獲獎",
+     "拿奖"
+    ]
+   },
+   {
+    "target": "tearjerker",
+    "labels": [
+     "催淚"
+    ]
+   },
+   {
+    "target": "kyoto_animation",
+    "labels": [
+     "京都"
+    ]
+   },
+   {
+    "target": "sequel",
+    "labels": [
+     "続編"
+    ]
+   }
+  ]
+ }
+}

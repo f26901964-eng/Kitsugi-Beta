@@ -38,6 +38,7 @@ import com.kitsugi.animelist.model.MediaType
 import com.kitsugi.animelist.ui.theme.LocalKitsugiAccent
 import com.kitsugi.animelist.ui.theme.KitsugiColors
 import com.kitsugi.animelist.utils.PreferenceHelpers.getDisplayTitle
+import com.kitsugi.animelist.utils.toLocalizedOrgName
 import com.kitsugi.animelist.utils.toFriendlySourceLabel
 import com.kitsugi.animelist.utils.parseToMediaType
 import com.kitsugi.animelist.ui.components.KitsugiMarkdownText
@@ -93,7 +94,7 @@ internal fun StudioHeroHeader(
         if (!detail.imageUrl.isNullOrBlank()) {
             AsyncImage(
                 model = detail.imageUrl,
-                contentDescription = detail.name,
+                contentDescription = detail.name.toLocalizedOrgName(),
                 modifier = Modifier.fillMaxSize(),
                 contentScale = ContentScale.Fit
             )
@@ -125,7 +126,7 @@ internal fun StudioHeroHeader(
                 contentAlignment = Alignment.Center
             ) {
                 Text(
-                    text = detail.name.take(2).uppercase(),
+                    text = detail.name.toLocalizedOrgName().take(2).uppercase(),
                     color = accentColor,
                     style = MaterialTheme.typography.displayLarge,
                     fontWeight = FontWeight.Black,
@@ -183,7 +184,7 @@ internal fun StudioHeroHeader(
                 ) {
                     IconButton(onClick = {
                         val url = com.kitsugi.animelist.utils.ShareUtils.buildStudioUrl(source, detail.id)
-                        com.kitsugi.animelist.utils.ShareUtils.shareText(context, detail.name, url)
+                        com.kitsugi.animelist.utils.ShareUtils.shareText(context, detail.name.toLocalizedOrgName(), url)
                     }) {
                         Icon(
                             imageVector = Icons.Rounded.Share,
@@ -220,7 +221,9 @@ internal fun StudioHeroHeader(
                 .padding(20.dp)
         ) {
             Text(
-                text = detail.name,
+                // Şirket adı TR/EN dil dosyasından (bangumi_studio_* vb.); bilinmeyen ad
+                // Latin/orijinal hâliyle kalır — bkz. MASTER 2026-10-11.
+                text = detail.name.toLocalizedOrgName(),
                 color = KitsugiColors.TextPrimary,
                 style = MaterialTheme.typography.headlineMedium,
                 fontWeight = FontWeight.Black
@@ -378,7 +381,7 @@ internal fun StudioDetailLeftPanel(
             if (!detail.imageUrl.isNullOrBlank()) {
                 AsyncImage(
                     model = detail.imageUrl,
-                    contentDescription = detail.name,
+                    contentDescription = detail.name.toLocalizedOrgName(),
                     modifier = Modifier.fillMaxSize(),
                     contentScale = ContentScale.Fit
                 )
@@ -394,7 +397,7 @@ internal fun StudioDetailLeftPanel(
                     ),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text(detail.name.take(2).uppercase(), color = accentColor, style = MaterialTheme.typography.displayLarge, fontWeight = FontWeight.Black)
+                    Text(detail.name.toLocalizedOrgName().take(2).uppercase(), color = accentColor, style = MaterialTheme.typography.displayLarge, fontWeight = FontWeight.Black)
                 }
             }
             // Top Action Bar: Back (left) + Share & Favourite (right)
@@ -448,7 +451,7 @@ internal fun StudioDetailLeftPanel(
                     ) {
                         IconButton(onClick = {
                             val url = com.kitsugi.animelist.utils.ShareUtils.buildStudioUrl(source, studioId)
-                            com.kitsugi.animelist.utils.ShareUtils.shareText(context, detail.name, url)
+                            com.kitsugi.animelist.utils.ShareUtils.shareText(context, detail.name.toLocalizedOrgName(), url)
                         }) {
                             Icon(
                                 imageVector = Icons.Rounded.Share,
@@ -479,7 +482,7 @@ internal fun StudioDetailLeftPanel(
             }
         }
         Column(modifier = Modifier.padding(16.dp)) {
-            Text(detail.name, color = KitsugiColors.TextPrimary, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Black)
+            Text(detail.name.toLocalizedOrgName(), color = KitsugiColors.TextPrimary, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Black)
             Spacer(modifier = Modifier.height(12.dp))
             DetailPill(text = if (detail.isMain) stringResource(R.string.studio_hero_main) else stringResource(R.string.studio_hero_producer), color = accentColor)
             Spacer(modifier = Modifier.height(8.dp))
