@@ -23,6 +23,7 @@ import com.kitsugi.animelist.data.remote.KitsugiStreamingEpisode
 import com.kitsugi.animelist.data.remote.GalleryItem
 import com.kitsugi.animelist.data.remote.GalleryCategory
 import com.kitsugi.animelist.data.remote.KitsugiIdResolver
+import com.kitsugi.animelist.data.remote.resolveMediaGalleryIdentity
 import com.kitsugi.animelist.data.settings.SettingsDataStore
 import com.kitsugi.animelist.model.MediaType
 import kotlinx.coroutines.Dispatchers
@@ -1039,7 +1040,17 @@ class ApiResultDetailViewModel(application: Application) : AndroidViewModel(appl
                     }
                 }
             }
-            _galleryItems.value = existingItems.distinctBy { KitsugiBangumiDetailClient.galleryDedupKey(it.url) }
+            // ── MAL (Jikan) /pictures: manga galerisine ek görseller ──────────────
+            // Manga TMDB/Fanart.tv'de yok; en zengin ek görsel kaynağı MAL'dir. Kayıt hangi
+            // platformdan açılmış olursa olsun (AniList/Kitsu/Bangumi/…) MAL kimliği
+            // çözülebiliyorsa görseller galeriye katılır.
+            val mangaMalId = resolveMediaGalleryIdentity(result, currentDetail, null).malId
+                ?: result.realMalId?.takeIf { it in 1..99_999_999 }
+                ?: currentDetail?.realMalId?.takeIf { it in 1..99_999_999 }
+            val malItems = fetchMalGalleryItems(mangaMalId, MediaType.Manga)
+
+            _galleryItems.value = (existingItems + malItems)
+                .distinctBy { KitsugiBangumiDetailClient.galleryDedupKey(it.url) }
             return
         }
 
@@ -1145,7 +1156,13 @@ class ApiResultDetailViewModel(application: Application) : AndroidViewModel(appl
             galleryDetail?.titleJapanese
         ).filter { it.isNotBlank() }.distinct()
 
-        val (fanartItems, tmdbItems, shikimoriItems) = coroutineScope {
+        // MAL (Jikan) kimliği: Jikan/MAL kayıtlarında doğrudan, diğer kaynaklarda çapraz
+        // eşlemeden gelir. Bulunamazsa istek yapılmaz (yanlış eserin görselleri katılmaz).
+        val malGalleryId = resolveMediaGalleryIdentity(result, _detailState.value, bangumiCross).malId
+            ?: fallbackMalId?.takeIf { it in 1..99_999_999 }
+            ?: _detailState.value?.realMalId?.takeIf { it in 1..99_999_999 }
+
+        val (fanartItems, tmdbItems, shikimoriItems, malItems) = coroutineScope {
             val fanartDef = async(Dispatchers.IO) {
                 KitsugiEpisodeRatingsRepository.getFanartGalleryItems(
                     tmdbId = tmdbId ?: 0,
@@ -1178,8 +1195,20 @@ class ApiResultDetailViewModel(application: Application) : AndroidViewModel(appl
                     KitsugiShikimoriClient.fetchScreenshots(shikimoriAnimeId)
                 } else emptyList()
             }
-            Triple(fanartDef.await(), tmdbDef.await(), shikimoriDef.await())
+            val malDef = async(Dispatchers.IO) {
+                fetchMalGalleryItems(
+                    malId = malGalleryId,
+                    mediaType = if (result.type == MediaType.Manga || _detailState.value?.type == MediaType.Manga) {
+                        MediaType.Manga
+                    } else {
+                        MediaType.Anime
+                    }
+                )
+            }
+            // Quadruple: (Fanart, TMDB, Shikimori, MAL) — dördü PARALEL çekilir.
+            listOf(fanartDef.await(), tmdbDef.await(), shikimoriDef.await(), malDef.await())
         }
+        val malGalleryItems = malItems
 
         val currentDetail = _detailState.value
         val coverUrl = currentDetail?.imageUrl ?: result.imageUrl
@@ -1204,12 +1233,12 @@ class ApiResultDetailViewModel(application: Application) : AndroidViewModel(appl
 
         // TMDB, Fanart ve Shikimori öğeleri çözünürlük, dil gibi zengin meta verilere sahiptir.
         // Önceden var olan öğeler zengin listede varsa metadata ile zenginleştirilsin.
-        val richMap = (tmdbItems + fanartItems + shikimoriItems).associateBy { it.url }
+        val richMap = (tmdbItems + fanartItems + shikimoriItems + malGalleryItems).associateBy { it.url }
         val enrichedExisting = existingItems.map { item ->
             richMap[item.url] ?: item
         }
         // `lain.bgm.tv` aynı kapağı farklı boyut yollarıyla verir (kopya görünürdü) → kanonik anahtarla tekilleştir.
-        val allItems = (enrichedExisting + tmdbItems + fanartItems + shikimoriItems)
+        val allItems = (enrichedExisting + tmdbItems + fanartItems + shikimoriItems + malGalleryItems)
             .distinctBy { KitsugiBangumiDetailClient.galleryDedupKey(it.url) }
 
         val preferredLang = runCatching { KitsugiEpisodeRatingsRepository.getPreferredImageLanguage() }.getOrDefault("en")
@@ -1234,6 +1263,35 @@ class ApiResultDetailViewModel(application: Application) : AndroidViewModel(appl
             )
         )
         _galleryItems.value = sortedItems
+    }
+
+    /**
+     * MAL (Jikan) `/pictures` uç noktasından galeri öğeleri.
+     *
+     * MAL'A BAĞLI KAYNAKLAR: Jikan (MAL v4), Shikimori ve MAL kimliği çözülen tüm
+     * platformlar (AniList/Kitsu/Simkl/Bangumi…) aynı galeriyi paylaşır. Görsel
+     * kategorisi URL'den çıkarılır (poster / backdrop / thumbnail…). Kimlik yoksa
+     * veya istek başarısızsa boş liste döner — galeri bu yüzden eksik kalmaz.
+     */
+    private suspend fun fetchMalGalleryItems(malId: Int?, mediaType: MediaType): List<GalleryItem> {
+        if (malId == null || malId !in 1..99_999_999) return emptyList()
+        val urls = runCatching {
+            withTimeoutOrNull(12_000L) {
+                com.kitsugi.animelist.data.remote.KitsugiMalDetailClient
+                    .fetchGalleryPictures(malId, mediaType)
+            }
+        }.getOrNull().orEmpty()
+        if (urls.isEmpty()) return emptyList()
+        return urls.mapNotNull { url ->
+            val clean = url.trim()
+            if (clean.isBlank()) return@mapNotNull null
+            GalleryItem(
+                url = clean,
+                source = determineGallerySource(clean, "jikan"),
+                category = determineGalleryCategory(clean, GalleryCategory.POSTER),
+                description = "MAL / Jikan ek görsel"
+            )
+        }
     }
 
     private fun determineGallerySource(url: String, fallbackSource: String): String {

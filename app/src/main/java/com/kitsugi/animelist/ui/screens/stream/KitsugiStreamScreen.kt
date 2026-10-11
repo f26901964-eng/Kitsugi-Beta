@@ -626,6 +626,10 @@ fun KitsugiStreamScreen(
         if (isTv) {
             TvStreamSettingsDialog(
                 addonViewModel = addonViewModel,
+                useGithubProxy = appSettings.useGithubProxy,
+                onUseGithubProxyChanged = { enabled ->
+                    scope.launch { dataStore.setUseGithubProxy(enabled) }
+                },
                 onDismiss = { showSettingsDialog = false }
             )
         } else {
@@ -660,6 +664,13 @@ fun KitsugiStreamScreen(
                 onClearBulkInstallResult = { addonViewModel.clearBulkInstallResult() },
                 onToggleCsPlugin = { plugin, enabled -> addonViewModel.toggleCsPlugin(plugin, enabled) },
                 onUninstallCsPlugin = { addonViewModel.uninstallCsPlugin(it) },
+                // ── GitHub Vekil Sunucu (jsDelivr) ────────────────────────────────
+                // Bu parametreler eskiden GEÇİLMİYORDU: diyalog varsayılan (false / no-op)
+                // değerlerle açılıyordu ve anahtar hiçbir zaman AÇILAMIYORDU.
+                useGithubProxy = appSettings.useGithubProxy,
+                onUseGithubProxyChanged = { enabled ->
+                    scope.launch { dataStore.setUseGithubProxy(enabled) }
+                },
                 onDismiss = { showSettingsDialog = false }
             )
         }
@@ -694,6 +705,8 @@ fun KitsugiStreamScreen(
 @Composable
 private fun TvStreamSettingsDialog(
     addonViewModel: AddonViewModel,
+    useGithubProxy: Boolean,
+    onUseGithubProxyChanged: (Boolean) -> Unit,
     onDismiss: () -> Unit
 ) {
     val addons by addonViewModel.addonsList.collectAsState(initial = emptyList())
@@ -770,6 +783,20 @@ private fun TvStreamSettingsDialog(
                             description = if (isConnected) "Token tanımlı: ${addonViewModel.debridToken.take(8)}..." else "Hesap bağlı değil. Debrid tokeninizi girmek için tıklayın.",
                             actionText = if (isConnected) "Güncelle" else "Bağla",
                             onClick = { showDebridDialog = true }
+                        )
+                    }
+
+                    // GitHub Vekil Sunucu (jsDelivr) — telefonda diyalog içinde, TV'de bu satırda
+                    item {
+                        TvSettingsActionRow(
+                            title = "🌐 GitHub Vekil Sunucu (jsDelivr)",
+                            description = if (useGithubProxy) {
+                                "Etkin: raw.githubusercontent.com istekleri jsDelivr CDN üzerinden gider."
+                            } else {
+                                "Kapalı: eklenti/repo güncellemeleri doğrudan GitHub'a gider. Ağ engeli varsa açın."
+                            },
+                            actionText = if (useGithubProxy) "Açık" else "Kapalı",
+                            onClick = { onUseGithubProxyChanged(!useGithubProxy) }
                         )
                     }
 

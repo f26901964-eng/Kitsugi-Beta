@@ -1,5 +1,6 @@
 package com.kitsugi.animelist.ui.screens.detail
 
+import com.kitsugi.animelist.ui.utils.rememberKitsugiGridColumns
 import androidx.compose.runtime.CompositionLocalProvider
 import com.kitsugi.animelist.ui.components.LocalKitsugiGalleryLoading
 import com.kitsugi.animelist.ui.components.KitsugiGalleryIconButton
@@ -278,21 +279,7 @@ private fun StudioDetailSuccessContent(
     val isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
 
     // ── Keşfet sayfalarıyla aynı duyarlı kolon hesabı ─────────────────────────
-    val columnCount = remember(isLandscape, screenWidthDp) {
-        if (isLandscape) {
-            when {
-                screenWidthDp >= 1200 -> 5
-                screenWidthDp >= 800 -> 4
-                else -> 3
-            }
-        } else {
-            when {
-                screenWidthDp >= 900 -> 5
-                screenWidthDp >= 600 -> 4
-                else -> 3
-            }
-        }
-    }
+    val columnCount = rememberKitsugiGridColumns()
 
     // Grid/Liste görünümü tercihi kalıcı olarak hatırlanır
     val gridPrefs = remember(context) { context.getSharedPreferences("kitsugi_ui_prefs", android.content.Context.MODE_PRIVATE) }

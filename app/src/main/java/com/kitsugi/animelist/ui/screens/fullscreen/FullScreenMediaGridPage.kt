@@ -2,6 +2,7 @@
 
 package com.kitsugi.animelist.ui.screens.fullscreen
 
+import com.kitsugi.animelist.ui.utils.rememberKitsugiGridColumns
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
@@ -133,21 +134,7 @@ fun FullScreenMediaGridPage(
     val configuration = androidx.compose.ui.platform.LocalConfiguration.current
     val screenWidthDp = configuration.screenWidthDp
     val isLandscape = configuration.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE
-    val columnCount = remember(isLandscape, screenWidthDp) {
-        if (isLandscape) {
-            when {
-                screenWidthDp >= 1200 -> 5
-                screenWidthDp >= 800 -> 4
-                else -> 3
-            }
-        } else {
-            when {
-                screenWidthDp >= 900 -> 5
-                screenWidthDp >= 600 -> 4
-                else -> 3
-            }
-        }
-    }
+    val columnCount = rememberKitsugiGridColumns()
 
     val context = androidx.compose.ui.platform.LocalContext.current
     val gridPrefs = remember(context) { context.getSharedPreferences("kitsugi_ui_prefs", android.content.Context.MODE_PRIVATE) }

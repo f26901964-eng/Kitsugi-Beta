@@ -80,7 +80,10 @@ object KitsugiBangumiClient {
                 includeAdult = includeAdult,
                 limit = limit,
                 offset = offset
-            ).filter { includeAdult || !it.nsfw }.map { it.toSearchResult(MediaType.Anime) }.withLatinBangumiNames(context)
+            ).filter { it.type == BangumiApiClient.SubjectType.ANIME }
+                .filter { includeAdult || !it.nsfw }
+                .map { it.toSearchResult(MediaType.Anime) }
+                .withLatinBangumiNames(context)
         }.getOrElse { error ->
             Log.e(TAG, "Bangumi searchAnime failed: ${error.message}", error)
             emptyList()
@@ -110,6 +113,7 @@ object KitsugiBangumiClient {
                 limit = limit,
                 offset = offset
             )
+                .filter { it.type == BangumiApiClient.SubjectType.BOOK }
                 .filter { includeAdult || !it.nsfw }
                 .filter { !comicsOnly || it.platform == null || it.platform == "漫画" }
                 .map { it.toSearchResult(MediaType.Manga) }.withLatinBangumiNames(context)
@@ -229,6 +233,7 @@ object KitsugiBangumiClient {
                 )
             }
             subjects
+                .filter { BangumiIdNamespace.supportsSubjectType(it.type) }
                 .filter { includeAdult || !it.nsfw }
                 .map { it.toSearchResult(mediaType) }.withLatinBangumiNames(context)
         } catch (error: kotlinx.coroutines.CancellationException) {
@@ -667,12 +672,13 @@ object KitsugiBangumiClient {
      *  - `subtitle`   → platform (TV / 剧场版 / WEB / 漫画 ...)
      */
     fun BangumiSubject.toSearchResult(preferredType: MediaType? = null): JikanSearchResult {
+        val resolvedType = BangumiIdNamespace.mediaTypeFor(type, platform)
         val mediaType = when {
-            preferredType == MediaType.Movie && platform?.contains("剧场版") == true -> MediaType.Movie
             preferredType == MediaType.Movie && type == BangumiApiClient.SubjectType.REAL -> MediaType.Movie
-            else -> BangumiIdNamespace.mediaTypeFor(type).let { resolved ->
-                if (preferredType == MediaType.Movie && resolved == MediaType.TvShow) MediaType.Movie else resolved
-            }
+            preferredType == MediaType.Movie && type == BangumiApiClient.SubjectType.ANIME &&
+                BangumiIdNamespace.isMoviePlatform(platform) -> MediaType.Movie
+            preferredType == MediaType.Movie && resolvedType == MediaType.TvShow -> MediaType.Movie
+            else -> resolvedType
         }
         val ratingScore = rating?.score ?: 0.0
         val collectionTotal = collection?.total ?: 0
@@ -699,7 +705,8 @@ object KitsugiBangumiClient {
             members = rating?.total?.takeIf { it > 0 },
             favorites = collectionTotal.takeIf { it > 0 },
             rawScoreDouble = ratingScore.takeIf { it > 0 },
-            genres = (tags.ifEmpty { metaTags }).take(12)
+            genres = (tags.ifEmpty { metaTags }).take(12),
+            bangumiSubjectType = type
         )
     }
 
@@ -711,7 +718,7 @@ object KitsugiBangumiClient {
             malId = BangumiIdNamespace.stableIdFromRaw(id) ?: id,
             title = latinOverride ?: localizedTitle.display,
             subtitle = subjectTypeLabel(type).uppercase(),
-            type = BangumiIdNamespace.mediaTypeFor(type),
+            type = BangumiIdNamespace.mediaTypeFor(type, platform),
             total = eps.takeIf { it > 0 },
             score = if (score > 0) kotlin.math.round(score).toInt().coerceIn(0, 10) else null,
             isAdult = false,
@@ -724,7 +731,8 @@ object KitsugiBangumiClient {
             rank = rank.takeIf { it > 0 },
             favorites = collectionTotal.takeIf { it > 0 },
             rawScoreDouble = score.takeIf { it > 0 },
-            genres = tags.take(12)
+            genres = tags.take(12),
+            bangumiSubjectType = type
         )
     }
 

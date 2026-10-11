@@ -59,20 +59,33 @@ object BangumiIdNamespace {
     /** `MediaEntry.malId` alanında gerçek bir MAL ID'si mi saklı? */
     fun realMalIdOf(storedId: Int?): Int? = storedId?.takeIf { it in 1..99_999_999 }
 
-    fun isAnimeType(type: MediaType?): Boolean = type != MediaType.Manga
+    fun isAnimeType(type: MediaType?): Boolean = type == MediaType.Anime
 
-    /** Bangumi条目 türü → Kitsugi [MediaType]. */
-    fun mediaTypeFor(subjectType: Int): MediaType = when (subjectType) {
+    /** Bangumi条目 türü/platformu → Kitsugi [MediaType]. */
+    fun mediaTypeFor(subjectType: Int, platform: String? = null): MediaType = when (subjectType) {
         BangumiApiClient.SubjectType.BOOK -> MediaType.Manga
-        BangumiApiClient.SubjectType.ANIME -> MediaType.Anime
-        // 三次元 (real) → dizi/film; Bangumi'de platform alanı "剧场版" ise film sayılır.
-        BangumiApiClient.SubjectType.REAL -> MediaType.TvShow
+        BangumiApiClient.SubjectType.ANIME -> if (isMoviePlatform(platform)) MediaType.Movie else MediaType.Anime
+        BangumiApiClient.SubjectType.REAL -> if (isMoviePlatform(platform)) MediaType.Movie else MediaType.TvShow
         else -> MediaType.Anime
     }
 
-    /** Kitsugi [MediaType] → Bangumi条目 türü (arama filtrelerinde kullanılır). */
+    /** Bangumi'de animasyon ve gerçek çekim filmleri ayrı tür kodları kullanır. */
+    fun isMoviePlatform(platform: String?): Boolean {
+        val normalized = platform?.trim()?.lowercase(java.util.Locale.ROOT).orEmpty()
+        return listOf("剧场版", "劇場版", "电影", "電影", "映画", "movie", "film", "cinema", "theatrical")
+            .any { token -> normalized.contains(token) }
+    }
+
+    fun supportsSubjectType(subjectType: Int): Boolean = subjectType in setOf(
+        BangumiApiClient.SubjectType.ANIME,
+        BangumiApiClient.SubjectType.BOOK,
+        BangumiApiClient.SubjectType.REAL
+    )
+
+    /** Bangumi subject type alanı → Kitsugi [MediaType]. */
     fun subjectTypeFor(mediaType: MediaType?): Int = when (mediaType) {
         MediaType.Manga -> BangumiApiClient.SubjectType.BOOK
+        MediaType.Movie, MediaType.TvShow -> BangumiApiClient.SubjectType.REAL
         else -> BangumiApiClient.SubjectType.ANIME
     }
 
@@ -93,15 +106,22 @@ object BangumiIdNamespace {
         title: String? = null,
         expectedYear: Int? = null,
         isAnime: Boolean = true,
-        allowNetwork: Boolean = true
+        allowNetwork: Boolean = true,
+        subjectType: Int? = null
     ): Int? {
         rawIdFromStable(storedId)?.let { return it }
         if (context == null) return null
 
-        // 2) Yerel eşleme önbelleği
+        val expectedSubjectType = subjectType ?: if (isAnime) {
+            BangumiApiClient.SubjectType.ANIME
+        } else {
+            BangumiApiClient.SubjectType.BOOK
+        }
+
+        // 2) Yerel eşleme önbelleği (anime, kitap ve REAL subject'leri ayrı tutulur).
         val malId = realMalIdOf(storedId)
         if (malId != null) {
-            val cached = runCatching { BangumiLocalMappingCache.get(context, malId, isAnime) }
+            val cached = runCatching { BangumiLocalMappingCache.get(context, malId, expectedSubjectType) }
                 .getOrElse { null }
             cached?.let { return it }
         }
@@ -112,19 +132,23 @@ object BangumiIdNamespace {
         val query = title?.trim().orEmpty()
         if (query.isBlank()) return null
         val token = runCatching { BangumiAuthStore.getValidToken(context) }.getOrNull()
-        val types = listOf(
-            if (isAnime) BangumiApiClient.SubjectType.ANIME else BangumiApiClient.SubjectType.BOOK
-        )
         val page = runCatching {
-            BangumiApiClient.searchSubjects(keyword = query, token = token, types = types, limit = 10)
+            BangumiApiClient.searchSubjects(
+                keyword = query,
+                token = token,
+                types = listOf(expectedSubjectType),
+                limit = 10
+            )
         }.getOrElse { error ->
             if (error is CancellationException) throw error
             Log.w(TAG, "Bangumi title lookup failed for '$query': ${error.message}")
             return null
         }
         val candidates = page.data.filter { subject ->
-            expectedYear == null || subject.date?.take(4)?.toIntOrNull() == expectedYear ||
-                matchesTitle(subject.name, query) || matchesTitle(subject.nameCn, query)
+            subject.type == expectedSubjectType && (
+                expectedYear == null || subject.date?.take(4)?.toIntOrNull() == expectedYear ||
+                    matchesTitle(subject.name, query) || matchesTitle(subject.nameCn, query)
+                )
         }
         val exact = candidates.filter {
             matchesTitle(it.name, query) || matchesTitle(it.nameCn, query)
@@ -136,7 +160,7 @@ object BangumiIdNamespace {
         } ?: return null
 
         if (malId != null) {
-            runCatching { BangumiLocalMappingCache.put(context, malId, isAnime, unique.id) }
+            runCatching { BangumiLocalMappingCache.put(context, malId, expectedSubjectType, unique.id) }
         }
         return unique.id
     }
@@ -170,18 +194,49 @@ object BangumiLocalMappingCache {
     private fun prefs(context: Context): android.content.SharedPreferences =
         context.applicationContext.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
 
-    private fun key(malId: Int, isAnime: Boolean) = "bgm_${if (isAnime) "a" else "m"}_$malId"
-
-    fun get(context: Context, malId: Int, isAnime: Boolean): Int? =
-        prefs(context).getInt(key(malId, isAnime), 0).takeIf { it > 0 }
-
-    fun put(context: Context, malId: Int, isAnime: Boolean, subjectId: Int) {
-        if (subjectId <= 0) return
-        prefs(context).edit().putInt(key(malId, isAnime), subjectId).apply()
+    private fun subjectTypeKey(subjectType: Int): String = when (subjectType) {
+        BangumiApiClient.SubjectType.ANIME -> "a"
+        BangumiApiClient.SubjectType.BOOK -> "m"
+        BangumiApiClient.SubjectType.REAL -> "r"
+        else -> "t$subjectType"
     }
 
+    private fun key(malId: Int, subjectType: Int): String = "bgm_${subjectTypeKey(subjectType)}_$malId"
+
+    private fun legacyKey(malId: Int, isAnime: Boolean) = "bgm_${if (isAnime) "a" else "m"}_$malId"
+
+    fun get(context: Context, malId: Int, subjectType: Int): Int? {
+        val preferences = prefs(context)
+        val current = preferences.getInt(key(malId, subjectType), 0).takeIf { it > 0 }
+        if (current != null) return current
+        // Read values written by older app versions that used a boolean anime/book key.
+        return when (subjectType) {
+            BangumiApiClient.SubjectType.ANIME -> preferences.getInt(legacyKey(malId, true), 0).takeIf { it > 0 }
+            BangumiApiClient.SubjectType.BOOK -> preferences.getInt(legacyKey(malId, false), 0).takeIf { it > 0 }
+            else -> null
+        }
+    }
+
+    fun get(context: Context, malId: Int, isAnime: Boolean): Int? = get(
+        context,
+        malId,
+        if (isAnime) BangumiApiClient.SubjectType.ANIME else BangumiApiClient.SubjectType.BOOK
+    )
+
+    fun put(context: Context, malId: Int, subjectType: Int, subjectId: Int) {
+        if (subjectId <= 0) return
+        prefs(context).edit().putInt(key(malId, subjectType), subjectId).apply()
+    }
+
+    fun put(context: Context, malId: Int, isAnime: Boolean, subjectId: Int) = put(
+        context,
+        malId,
+        if (isAnime) BangumiApiClient.SubjectType.ANIME else BangumiApiClient.SubjectType.BOOK,
+        subjectId
+    )
+
     fun remove(context: Context, malId: Int, isAnime: Boolean) {
-        prefs(context).edit().remove(key(malId, isAnime)).apply()
+        prefs(context).edit().remove(legacyKey(malId, isAnime)).apply()
     }
 
     fun clear(context: Context) {

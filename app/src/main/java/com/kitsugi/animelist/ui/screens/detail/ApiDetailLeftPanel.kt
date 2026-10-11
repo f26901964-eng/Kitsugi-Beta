@@ -63,11 +63,7 @@ fun ApiDetailLeftPanel(
     blurAdultMedia: Boolean,
     onBackClick: () -> Unit,
     onAddClick: (ApiSearchSelection) -> Unit,
-    /**
-     * "Düzenle" — kaydın yanı sıra **bu sayfanın kaynağını** da taşır ([displayResult.source]).
-     * Böylece Bangumi sayfasında eşleşen Simkl/AniList kaydı açılsa bile düzenleyici
-     * sayfada görülen sağlayıcının alanlarıyla açılır.
-     */
+    /** "Düzenle" — aynı sağlayıcıdaki mevcut koleksiyon kaydını açar. */
     onEditClick: (MediaEntry, String) -> Unit,
     onToggleFavoriteClick: ((ApiSearchSelection) -> Unit)?,
     onReadMangaClick: (() -> Unit)?,

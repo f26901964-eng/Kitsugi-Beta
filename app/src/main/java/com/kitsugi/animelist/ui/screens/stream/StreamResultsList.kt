@@ -1,15 +1,12 @@
 ﻿package com.kitsugi.animelist.ui.screens.stream
 import com.kitsugi.animelist.ui.components.KitsugiButton
 
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.slideInVertically
 import com.kitsugi.animelist.ui.theme.gradient.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -18,6 +15,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -42,7 +40,12 @@ fun LazyListScope.renderStreamResultsItems(
     onStreamSelected: (StreamSource) -> Unit,
     onDownloadSelected: (StreamSource) -> Unit,
     onVerifyPlugin: ((addonName: String) -> Unit)? = null,
-    onOpenSettings: (() -> Unit)? = null
+    onOpenSettings: (() -> Unit)? = null,
+    /**
+     * Listenin kendi durumu. Verilirse ölçüm (ağ isteği) YALNIZCA görüş alanındaki kartlar
+     * için başlatılır; null ise tüm kartlar ölçebilir (eski davranış).
+     */
+    listState: androidx.compose.foundation.lazy.LazyListState? = null
 ) {
     addonStates.forEachIndexed { addonIdx, addonState ->
         if (addonState.isLoading) {
@@ -51,21 +54,28 @@ fun LazyListScope.renderStreamResultsItems(
             }
         } else if (addonState.streams.isNotEmpty()) {
             addonState.streams.forEachIndexed { idx, source ->
-                item(key = "${addonIdx}_${addonState.addonName}_$idx") {
-                    AnimatedVisibility(
-                        visible = true,
-                        enter = fadeIn(tween(300)) + slideInVertically(
-                            tween(300),
-                            initialOffsetY = { it / 3 }
-                        )
-                    ) {
-                        StreamCard(
-                            source      = source,
-                            accentColor = accentColor,
-                            onClick     = { onStreamSelected(source) },
-                            onDownloadClick = { onDownloadSelected(source) }
-                        )
+                val itemKey = "${addonIdx}_${addonState.addonName}_$idx"
+                item(key = itemKey) {
+                    // PERF: Eskiden her öğe `AnimatedVisibility(visible = true, enter = fadeIn + slideIn)`
+                    // ile sarılıydı. Görünür değeri sabit olduğu için liste HER kaydırıldığında yeni
+                    // compose edilen öğeler 300 ms'lik giriş animasyonu çalıştırıyordu — LazyColumn'un
+                    // birincil kasma sebebi buydu. Giriş animasyonu kaldırıldı.
+                    //
+                    // Ölçüm izni yalnızca kart görüş alanındayken verilir; derivedStateOf sayesinde
+                    // görünürlük değişmeyen kartlar yeniden compose edilmez.
+                    val shouldProbe by remember(itemKey, listState) {
+                        derivedStateOf {
+                            val state = listState
+                            state == null || state.layoutInfo.visibleItemsInfo.any { it.key == itemKey }
+                        }
                     }
+                    StreamCard(
+                        source      = source,
+                        accentColor = accentColor,
+                        onClick     = { onStreamSelected(source) },
+                        onDownloadClick = { onDownloadSelected(source) },
+                        probeEnabled = shouldProbe
+                    )
                 }
             }
         } else if (addonState.error != null) {
@@ -100,7 +110,9 @@ fun StreamResultsList(
     onVerifyPlugin: ((addonName: String) -> Unit)? = null,
     onOpenSettings: (() -> Unit)? = null
 ) {
+    val listState = androidx.compose.foundation.lazy.rememberLazyListState()
     LazyColumn(
+        state = listState,
         verticalArrangement = Arrangement.spacedBy(10.dp),
         contentPadding = PaddingValues(bottom = 32.dp)
     ) {
@@ -110,7 +122,8 @@ fun StreamResultsList(
             onStreamSelected = onStreamSelected,
             onDownloadSelected = onDownloadSelected,
             onVerifyPlugin = onVerifyPlugin,
-            onOpenSettings = onOpenSettings
+            onOpenSettings = onOpenSettings,
+            listState = listState
         )
     }
 }

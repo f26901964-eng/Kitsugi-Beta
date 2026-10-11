@@ -844,7 +844,8 @@ internal fun CrossSyncSettingsContent(profile: ProfileSettings) {
                         icon = Icons.Rounded.CloudSync,
                         iconColor = KitsugiColors.AccentBlue,
                         checked = profile.syncEnabledAnilist,
-                        onCheckedChange = profile.onSyncEnabledAnilistChanged
+                        onCheckedChange = profile.onSyncEnabledAnilistChanged,
+                        platformId = "anilist",
                     )
                     KitsugiSettingsDivider()
                 }
@@ -855,7 +856,8 @@ internal fun CrossSyncSettingsContent(profile: ProfileSettings) {
                         icon = Icons.Rounded.CloudSync,
                         iconColor = KitsugiColors.AccentBlue,
                         checked = profile.syncEnabledMal,
-                        onCheckedChange = profile.onSyncEnabledMalChanged
+                        onCheckedChange = profile.onSyncEnabledMalChanged,
+                        platformId = "mal",
                     )
                     KitsugiSettingsDivider()
                 }
@@ -866,7 +868,8 @@ internal fun CrossSyncSettingsContent(profile: ProfileSettings) {
                         icon = Icons.Rounded.CloudSync,
                         iconColor = KitsugiColors.AccentBlue,
                         checked = profile.syncEnabledSimkl,
-                        onCheckedChange = profile.onSyncEnabledSimklChanged
+                        onCheckedChange = profile.onSyncEnabledSimklChanged,
+                        platformId = "simkl",
                     )
                     KitsugiSettingsDivider()
                 }
@@ -877,7 +880,8 @@ internal fun CrossSyncSettingsContent(profile: ProfileSettings) {
                         icon = Icons.Rounded.CloudSync,
                         iconColor = Color(0xFFFD755C),
                         checked = profile.syncEnabledKitsu,
-                        onCheckedChange = profile.onSyncEnabledKitsuChanged
+                        onCheckedChange = profile.onSyncEnabledKitsuChanged,
+                        platformId = "kitsu",
                     )
                     KitsugiSettingsDivider()
                 }
@@ -888,7 +892,8 @@ internal fun CrossSyncSettingsContent(profile: ProfileSettings) {
                         icon = Icons.Rounded.CloudSync,
                         iconColor = Color(0xFF8E44AD),
                         checked = profile.syncEnabledShikimori,
-                        onCheckedChange = profile.onSyncEnabledShikimoriChanged
+                        onCheckedChange = profile.onSyncEnabledShikimoriChanged,
+                        platformId = "shikimori",
                     )
                 }
                 if (profile.isBangumiConnected) {
@@ -899,7 +904,8 @@ internal fun CrossSyncSettingsContent(profile: ProfileSettings) {
                         icon = Icons.Rounded.CloudSync,
                         iconColor = Color(0xFFF09199),
                         checked = profile.syncEnabledBangumi,
-                        onCheckedChange = profile.onSyncEnabledBangumiChanged
+                        onCheckedChange = profile.onSyncEnabledBangumiChanged,
+                        platformId = "bangumi",
                     )
                 }
             }

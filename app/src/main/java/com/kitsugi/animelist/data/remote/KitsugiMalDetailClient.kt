@@ -25,6 +25,14 @@ internal object KitsugiMalDetailClient {
     private const val TAG = "KitsugiMalDetail"
     private const val MAX_RETRIES = 3
 
+    /**
+     * MAL/Jikan `/pictures` sonuçları. Galeri, detayla birlikte birden fazla kez
+     * tazelenebildiği için (detay geldikten sonra zenginleştirme) aynı kayıt için
+     * aynı istek tekrar tekrar atılmaz. Boş sonuç ÖNBELLEĞE YAZILMAZ: geçici bir
+     * 429/ağ hatası görsellerin kalıcı olarak eksik kalmasına yol açmasın.
+     */
+    private val pictureCache = com.kitsugi.animelist.core.memory.BoundedCache<String, List<String>>("mal.pictures", 80)
+
     private fun studioImageUrl(item: JSONObject): String? = item.optJSONObject("images")?.let { images ->
         images.optJSONObject("webp")?.optNullableString("large_image_url")
             ?: images.optJSONObject("webp")?.optNullableString("image_url")
@@ -185,8 +193,11 @@ internal object KitsugiMalDetailClient {
     // ─── Private ─────────────────────────────────────────────────────────────
 
     private suspend fun fetchPictures(malId: Int, endpoint: String): List<String> {
+        val cacheKey = "$endpoint:$malId"
+        pictureCache[cacheKey]?.let { return it }
+
         val url = URL("https://api.jikan.moe/v4/$endpoint/$malId/pictures")
-        return runCatching {
+        val result = runCatching {
             // Jikan'a giden tüm istekler hız sınırı slotundan geçer (aksi halde 429 fırtınası çıkar)
             val text = KitsugiApiBase.runWithRateLimit { KitsugiApiBase.executeGetRequestResilient(url) }
                 ?: return@runCatching emptyList()
@@ -206,6 +217,9 @@ internal object KitsugiMalDetailClient {
                 urls
             }.getOrElse { emptyList() }
         }.getOrElse { emptyList() }
+
+        if (result.isNotEmpty()) pictureCache[cacheKey] = result
+        return result
     }
 
     private suspend fun parseFullDetail(url: URL, mediaType: MediaType): KitsugiMediaDetail? {

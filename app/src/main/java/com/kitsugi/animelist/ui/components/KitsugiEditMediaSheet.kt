@@ -53,6 +53,7 @@ import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.getValue
 import kotlinx.coroutines.Dispatchers
@@ -149,7 +150,10 @@ fun KitsugiEditMediaSheet(
         advancedScores: List<Double>?
     ) -> Unit
 ) {
-    val isEditing    = initialEntry != null
+    val isEditing = initialEntry?.id?.let { it > 0 } == true
+    val editorEntryKey = remember(initialEntry?.id, initialEntry?.source, initialEntry?.malId, initialEntry?.title, source) {
+        initialEntry?.let { "${it.source}:${it.id}:${it.malId}:${it.title}" } ?: "new:$source"
+    }
     val accentColor  = LocalKitsugiAccent.current
     val isKitsu = when (source.lowercase()) {
         "kitsu" -> true
@@ -184,15 +188,15 @@ fun KitsugiEditMediaSheet(
     val isManual     = !isAniList && !isMal && !isSimkl && !isKitsu && !isShikimori && !isBangumi
 
     // ── State ──────────────────────────────────────────────────────────────
-    var title      by rememberSaveable(initialEntry?.id) { mutableStateOf(initialEntry?.title.orEmpty()) }
-    var subtitle   by rememberSaveable(initialEntry?.id) { mutableStateOf(initialEntry?.subtitle.orEmpty()) }
-    var selectedType by rememberSaveable(initialEntry?.id) { mutableStateOf(initialEntry?.type ?: MediaType.Anime) }
-    var selectedStatus by rememberSaveable(initialEntry?.id) { mutableStateOf(initialEntry?.status ?: WatchStatus.Planned) }
-    var isAdult    by rememberSaveable(initialEntry?.id) { mutableStateOf(initialEntry?.isAdult ?: false) }
-    var progressText by rememberSaveable(initialEntry?.id) { mutableStateOf(initialEntry?.progress?.toString() ?: "0") }
-    var totalText  by rememberSaveable(initialEntry?.id) { mutableStateOf(initialEntry?.total?.toString().orEmpty()) }
+    var title      by rememberSaveable(editorEntryKey) { mutableStateOf(initialEntry?.title.orEmpty()) }
+    var subtitle   by rememberSaveable(editorEntryKey) { mutableStateOf(initialEntry?.subtitle.orEmpty()) }
+    var selectedType by rememberSaveable(editorEntryKey) { mutableStateOf(initialEntry?.type ?: MediaType.Anime) }
+    var selectedStatus by rememberSaveable(editorEntryKey) { mutableStateOf(initialEntry?.status ?: WatchStatus.Planned) }
+    var isAdult    by rememberSaveable(editorEntryKey) { mutableStateOf(initialEntry?.isAdult ?: false) }
+    var progressText by rememberSaveable(editorEntryKey) { mutableStateOf(initialEntry?.progress?.toString() ?: "0") }
+    var totalText  by rememberSaveable(editorEntryKey) { mutableStateOf(initialEntry?.total?.toString().orEmpty()) }
 
-    var scoreRaw   by rememberSaveable(initialEntry?.id) {
+    var scoreRaw   by rememberSaveable(editorEntryKey) {
         val db = initialEntry?.score
         val ui = if (db != null) when (scoreFormat) {
             "POINT_100"      -> (db * 10)
@@ -204,22 +208,22 @@ fun KitsugiEditMediaSheet(
     }
 
     // AniHyou paritesi: 0,5 puanlama adımı seçiliyken kullanılan kayan puan durumu (0-10)
-    var scoreHalf by rememberSaveable(initialEntry?.id) {
+    var scoreHalf by rememberSaveable(editorEntryKey) {
         mutableFloatStateOf((initialEntry?.score ?: 0).toFloat())
     }
 
-    var isFavorite     by rememberSaveable(initialEntry?.id) { mutableStateOf(initialEntry?.isFavorite ?: false) }
-    var startDateText  by rememberSaveable(initialEntry?.id) { mutableStateOf(initialEntry?.startDate.orEmpty()) }
-    var endDateText    by rememberSaveable(initialEntry?.id) { mutableStateOf(initialEntry?.endDate.orEmpty()) }
-    var notes          by rememberSaveable(initialEntry?.id) { mutableStateOf(initialEntry?.notes.orEmpty()) }
-    var tags           by rememberSaveable(initialEntry?.id) { mutableStateOf(initialEntry?.tags.orEmpty()) }
-    var priority       by rememberSaveable(initialEntry?.id) { mutableIntStateOf(initialEntry?.priority ?: 0) }
-    var isRepeating    by rememberSaveable(initialEntry?.id) { mutableStateOf(initialEntry?.isRepeating ?: false) }
-    var repeatCount    by rememberSaveable(initialEntry?.id) { mutableIntStateOf(initialEntry?.repeatCount ?: 0) }
-    var repeatValue    by rememberSaveable(initialEntry?.id) { mutableIntStateOf(initialEntry?.repeatValue ?: 0) }
-    var volumeProgress by rememberSaveable(initialEntry?.id) { mutableIntStateOf(initialEntry?.volumeProgress ?: 0) }
-    var isPrivate      by rememberSaveable(initialEntry?.id) { mutableStateOf(initialEntry?.isPrivate ?: false) }
-    var isHiddenFromStatusLists by rememberSaveable(initialEntry?.id) { mutableStateOf(initialEntry?.isHiddenFromStatusLists ?: false) }
+    var isFavorite     by rememberSaveable(editorEntryKey) { mutableStateOf(initialEntry?.isFavorite ?: false) }
+    var startDateText  by rememberSaveable(editorEntryKey) { mutableStateOf(initialEntry?.startDate.orEmpty()) }
+    var endDateText    by rememberSaveable(editorEntryKey) { mutableStateOf(initialEntry?.endDate.orEmpty()) }
+    var notes          by rememberSaveable(editorEntryKey) { mutableStateOf(initialEntry?.notes.orEmpty()) }
+    var tags           by rememberSaveable(editorEntryKey) { mutableStateOf(initialEntry?.tags.orEmpty()) }
+    var priority       by rememberSaveable(editorEntryKey) { mutableIntStateOf(initialEntry?.priority ?: 0) }
+    var isRepeating    by rememberSaveable(editorEntryKey) { mutableStateOf(initialEntry?.isRepeating ?: false) }
+    var repeatCount    by rememberSaveable(editorEntryKey) { mutableIntStateOf(initialEntry?.repeatCount ?: 0) }
+    var repeatValue    by rememberSaveable(editorEntryKey) { mutableIntStateOf(initialEntry?.repeatValue ?: 0) }
+    var volumeProgress by rememberSaveable(editorEntryKey) { mutableIntStateOf(initialEntry?.volumeProgress ?: 0) }
+    var isPrivate      by rememberSaveable(editorEntryKey) { mutableStateOf(initialEntry?.isPrivate ?: false) }
+    var isHiddenFromStatusLists by rememberSaveable(editorEntryKey) { mutableStateOf(initialEntry?.isHiddenFromStatusLists ?: false) }
     val scrollState = rememberScrollState()
 
     // AniList Metadata / Advanced Scoring / Custom Lists
@@ -242,7 +246,7 @@ fun KitsugiEditMediaSheet(
     val hasAniListIdentity = initialEntry?.aniListEntryId != null ||
         initialEntry?.source.equals("anilist", ignoreCase = true)
 
-    LaunchedEffect(initialEntry?.id, isAniList, hasAniListIdentity, selectedType) {
+    LaunchedEffect(editorEntryKey, isAniList, hasAniListIdentity, selectedType) {
         if (isAniList && hasAniListIdentity && aniListToken != null) {
             isLoadingMetadata = true
             withContext(Dispatchers.IO) {

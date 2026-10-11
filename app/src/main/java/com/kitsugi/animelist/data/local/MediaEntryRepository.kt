@@ -21,7 +21,7 @@ class MediaEntryRepository(
     }
 
 
-    suspend fun insert(entry: MediaEntry) {
+    suspend fun insert(entry: MediaEntry, syncExternal: Boolean = true) {
         val entryWithTime = if (entry.updatedAt == 0L) {
             entry.copy(updatedAt = System.currentTimeMillis() / 1000L)
         } else {
@@ -30,7 +30,7 @@ class MediaEntryRepository(
         val newId = dao.insert(entryWithTime.copy(id = 0).toEntity())
         // DB'de oluşan gerçek id ile sync yap (AniList entryId geri yazımı doğru entity'yi yakalar)
         val persistedEntry = dao.getById(newId.toInt())?.toDomain() ?: entryWithTime.copy(id = newId.toInt())
-        syncEntryIfPossible(persistedEntry)
+        if (syncExternal) syncEntryIfPossible(persistedEntry)
     }
 
     suspend fun insertAll(entries: List<MediaEntry>) {
@@ -184,12 +184,12 @@ class MediaEntryRepository(
         }
     }
 
-    suspend fun deleteById(id: Int) {
+    suspend fun deleteById(id: Int, syncExternal: Boolean = true) {
         val entry = dao.getById(id)?.toDomain()
 
         dao.deleteById(id)
 
-        if (entry != null) {
+        if (syncExternal && entry != null) {
             syncDeleteIfPossible(entry)
         }
     }

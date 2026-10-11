@@ -59,10 +59,9 @@ import com.kitsugi.animelist.ui.theme.KitsugiColors
  * Bangumi profil sekmesi (koleksiyon özeti, tür/durum filtreleri, liste, favori karakter ve kişiler).
  *
  * Tasarım ve kapsam notları:
- *  - Anime ve manga (kitap) kayıtları, Kitsugi'nin mevcut Bangumi detay akışına
+ *  - Anime, manga/kitap ve REAL film/dizi kayıtları Kitsugi'nin Bangumi detay akışına
  *    (`onOpenAnimeOrManga` → ApiResultDetail, source = "bangumi") yönlendirilir.
- *  - Oyun, müzik, dizi/film ile karakter ve kişi favorileri için Kitsugi'de henüz ayrı detay
- *    ekranı yok; bunlar bgm.tv sayfasında açılır.
+ *  - Oyun, müzik, karakter ve kişi favorileri bgm.tv sayfasında açılır.
  *  - Bildirimler (bgm.tv/notify/all) web oturumu gerektirdiğinden uygulama içi WebView'de açılır.
  */
 
@@ -231,12 +230,10 @@ fun BangumiProfileContent(
                     accentColor = accentColor,
                     titleLanguage = titleLanguage,
                     onClick = {
-                        val isAnimeOrManga = collection.subjectType == BangumiApiClient.SubjectType.ANIME ||
-                            collection.subjectType == BangumiApiClient.SubjectType.BOOK
-                        if (isAnimeOrManga) {
+                        if (BangumiIdNamespace.supportsSubjectType(collection.subjectType)) {
                             onOpenAnimeOrManga(
                                 collection.subjectId,
-                                BangumiIdNamespace.mediaTypeFor(collection.subjectType),
+                                BangumiIdNamespace.mediaTypeFor(collection.subjectType, collection.subject?.platform),
                                 collection.subject?.let {
                                     BangumiNameLocalizer.entity(it.name, it.nameCn).displayFor(titleLanguage)
                                 } ?: "#${collection.subjectId}",

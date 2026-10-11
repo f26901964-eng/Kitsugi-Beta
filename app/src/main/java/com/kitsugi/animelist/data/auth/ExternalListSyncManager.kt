@@ -3,6 +3,8 @@ package com.kitsugi.animelist.data.auth
 import android.content.Context
 import com.kitsugi.animelist.model.MediaEntry
 import com.kitsugi.animelist.model.MediaType
+import com.kitsugi.animelist.data.remote.canonicalMediaSourceId
+import com.kitsugi.animelist.data.remote.BangumiIdNamespace
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.flow.first
@@ -18,6 +20,15 @@ object ExternalListSyncManager {
         advancedScores: List<Double>? = null
     ): SyncResult {
         return withContext(Dispatchers.IO) {
+            // A Bangumi-origin row represents membership in that account's own collection.
+            // Editing it must not fan out to unrelated providers using its subject ID.
+            if (canonicalMediaSourceId(entry.source) == BangumiIdNamespace.SOURCE) {
+                val settings = runSyncCatching { SettingsDataStore(context).settingsFlow.first() }.getOrNull()
+                if (settings?.syncEnabledBangumi == false) return@withContext SyncResult(emptyList())
+                val result = BangumiSyncManager.syncEntryToBangumi(context, entry)
+                return@withContext SyncResult(result.messages, result.errors)
+            }
+
             val messages = mutableListOf<String>()
             val errors = mutableListOf<String>()
             val syncedSources = mutableListOf<String>()
@@ -221,7 +232,7 @@ object ExternalListSyncManager {
             }
 
             // ── Bangumi Senkronizasyonu (Anime & Kitap/Manga) ────────────────────
-            val shouldSyncBangumi = syncEnabledBangumi && !bangumiToken.isNullOrBlank() && isAnimeOrManga
+            val shouldSyncBangumi = syncEnabledBangumi && !bangumiToken.isNullOrBlank() && BangumiSyncManager.supportsMediaType(entry.type)
 
             if (shouldSyncBangumi) {
                 runSyncCatching {
@@ -258,6 +269,13 @@ object ExternalListSyncManager {
         entry: MediaEntry
     ): SyncResult {
         return withContext(Dispatchers.IO) {
+            if (canonicalMediaSourceId(entry.source) == BangumiIdNamespace.SOURCE) {
+                val settings = runSyncCatching { SettingsDataStore(context).settingsFlow.first() }.getOrNull()
+                if (settings?.syncEnabledBangumi == false) return@withContext SyncResult(emptyList())
+                val result = BangumiSyncManager.deleteEntryFromBangumi(context, entry)
+                return@withContext SyncResult(result.messages, result.errors)
+            }
+
             val messages = mutableListOf<String>()
             val errors = mutableListOf<String>()
             val deletedSources = mutableListOf<String>()
@@ -285,7 +303,7 @@ object ExternalListSyncManager {
             val shouldDeleteSimkl = syncEnabledSimkl && !simklToken.isNullOrBlank() && entry.type != MediaType.Manga
             val shouldDeleteKitsu = syncEnabledKitsu && !kitsuToken.isNullOrBlank() && isAnimeOrManga
             val shouldDeleteShikimori = syncEnabledShikimori && !shikimoriToken.isNullOrBlank() && isAnimeOrManga
-            val shouldDeleteBangumi = syncEnabledBangumi && !bangumiToken.isNullOrBlank() && isAnimeOrManga
+            val shouldDeleteBangumi = syncEnabledBangumi && !bangumiToken.isNullOrBlank() && BangumiSyncManager.supportsMediaType(entry.type)
 
             if (shouldDeleteAniList) {
                 runSyncCatching {

@@ -298,7 +298,8 @@ object BangumiApiClient {
         val score: Double,
         val rank: Int,
         val collectionTotal: Int,
-        val tags: List<String>
+        val tags: List<String>,
+        val platform: String? = null
     ) {
         val displayTitle: String get() = name.ifBlank { nameCn }
         val isAnime: Boolean get() = type == SubjectType.ANIME
@@ -1044,7 +1045,7 @@ object BangumiApiClient {
                     val id = o.optInt("id", 0).takeIf { it > 0 } ?: return@mapNotNull null
                     BangumiRelatedSubject(
                         id = id,
-                        type = o.optInt("type", SubjectType.ANIME),
+                        type = o.optInt("type", 0),
                         name = o.optString("name"),
                         nameCn = o.optString("name_cn"),
                         relation = o.optString("relation").ifBlank { null },
@@ -1343,7 +1344,7 @@ object BangumiApiClient {
     /**
      * İlerlemeyi "N. bölüme kadar izlendi" biçiminde yazar.
      *
-     * Bangumi'de动画条目'larında `ep_status` doğrudan kullanılamadığı için:
+     * Bangumi'de kitap dışı video subject'lerinde `ep_status` doğrudan kullanılamadığı için:
      *  1. ana hikâye bölümleri çekilir,
      *  2. `sort <= watchedCount` olanların ID'leri toplanır,
      *  3. [markEpisodes] ile tek istekte işaretlenir,
@@ -1547,7 +1548,7 @@ object BangumiApiClient {
         val rating = json.optJSONObject("rating")
         return BangumiSlimSubject(
             id = id,
-            type = json.optInt("type", SubjectType.ANIME),
+            type = json.optInt("type", 0),
             name = json.optString("name"),
             nameCn = json.optString("name_cn"),
             shortSummary = json.optString("short_summary", json.optString("summary")),
@@ -1558,7 +1559,8 @@ object BangumiApiClient {
             score = rating?.optDouble("score", 0.0) ?: json.optDouble("score", 0.0),
             rank = rating?.optInt("rank", 0) ?: json.optInt("rank", 0),
             collectionTotal = json.optInt("collection_total", 0),
-            tags = parseTagNames(json.optJSONArray("tags"))
+            tags = parseTagNames(json.optJSONArray("tags")),
+            platform = json.cleanString("platform").ifBlank { null }
         )
     }
 
@@ -1573,7 +1575,7 @@ object BangumiApiClient {
         val collectionJson = json.optJSONObject("collection")
         return BangumiSubject(
             id = json.optInt("id", 0),
-            type = json.optInt("type", SubjectType.ANIME),
+            type = json.optInt("type", 0),
             name = json.optString("name"),
             nameCn = json.optString("name_cn"),
             summary = json.optString("summary"),
@@ -1689,9 +1691,15 @@ object BangumiApiClient {
         if (json == null) return null
         val subjectId = json.optInt("subject_id", 0)
         if (subjectId <= 0) return null
+        val subjectJson = json.optJSONObject("subject")
+        val subjectType = when {
+            json.has("subject_type") -> json.optInt("subject_type", 0)
+            subjectJson != null && subjectJson.has("type") -> subjectJson.optInt("type", 0)
+            else -> 0
+        }
         return BangumiUserCollection(
             subjectId = subjectId,
-            subjectType = json.optInt("subject_type", SubjectType.ANIME),
+            subjectType = subjectType,
             type = json.optInt("type", CollectionType.WISH),
             rate = json.optInt("rate", 0),
             comment = json.optString("comment").ifBlank { null },
@@ -1702,7 +1710,7 @@ object BangumiApiClient {
             volStatus = json.optInt("vol_status", 0),
             private = json.optBoolean("private", false),
             updatedAt = json.optString("updated_at").ifBlank { null },
-            subject = parseSlimSubject(json.optJSONObject("subject"))
+            subject = parseSlimSubject(subjectJson)
         )
     }
 

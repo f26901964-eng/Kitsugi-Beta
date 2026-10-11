@@ -117,6 +117,17 @@ fun StreamScreenContent(
         val query = searchQuery.trim().lowercase()
         val tag = selectedTagFilter?.lowercase()
 
+        // PERF: Aktif filtre yokken akış başına kalite/dil çözümlemesi (regex + önbellek
+        // sorgusu) hiç yapılmaz. Kaynaklar çekilirken `addonStates` her eklenti bittiğinde
+        // güncelleniyor; eskiden her güncellemede 60+ akış baştan taranıyor ve liste
+        // "veri çekerken" kilitleniyordu. Filtresiz durumda liste aynen geçirilir.
+        if (query.isEmpty() && tag == null) {
+            return@remember sortedAddonStates.filter { addonState ->
+                (selectedAddonFilter == null || addonState.addonName == selectedAddonFilter) &&
+                    (addonState.isLoading || addonState.error != null || addonState.streams.isNotEmpty())
+            }
+        }
+
         sortedAddonStates.mapNotNull { addonState ->
             if (selectedAddonFilter != null && addonState.addonName != selectedAddonFilter) {
                 return@mapNotNull null
@@ -727,7 +738,9 @@ private fun LandscapeLayout(
                         onStreamSelected = onStreamSelected,
                         onDownloadSelected = onDownloadSelected,
                         onVerifyPlugin = onVerifyPlugin,
-                        onOpenSettings = onOpenSettings
+                        onOpenSettings = onOpenSettings,
+                        // Ölçüm yalnızca görüş alanındaki kartlarda yapılır (kasma önlemi).
+                        listState = listState
                     )
                 }
             }
@@ -958,7 +971,9 @@ private fun PortraitLayout(
                         onStreamSelected = onStreamSelected,
                         onDownloadSelected = onDownloadSelected,
                         onVerifyPlugin = onVerifyPlugin,
-                        onOpenSettings = onOpenSettings
+                        onOpenSettings = onOpenSettings,
+                        // Ölçüm yalnızca görüş alanındaki kartlarda yapılır (kasma önlemi).
+                        listState = listState
                     )
                 }
             }
@@ -1007,8 +1022,9 @@ private fun AddonChipsRow(
                     onClick = { onFilterChange(null) }
                 )
             }
-            items(visibleAddonStates.size) { idx ->
-                val addonState = visibleAddonStates[idx]
+            // Key verilmezse her yeniden compose'da çipler yeniden kuruluyor ve LazyRow
+            // animasyon/yeniden kullanım durumunu kaybediyordu.
+            items(visibleAddonStates, key = { it.addonName }) { addonState ->
                 AddonStatusChip(
                     state = addonState,
                     accentColor = accentColor,

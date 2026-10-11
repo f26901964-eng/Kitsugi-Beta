@@ -9,8 +9,12 @@ import com.kitsugi.animelist.ui.app.AuthViewModel
 import com.kitsugi.animelist.model.MediaEntry
 import com.kitsugi.animelist.model.MediaType
 import com.kitsugi.animelist.data.remote.JikanSearchResult
+import com.kitsugi.animelist.data.remote.BangumiIdNamespace
+import com.kitsugi.animelist.data.remote.canonicalMediaSourceId
+import com.kitsugi.animelist.data.auth.BangumiApiClient
 import com.kitsugi.animelist.data.remote.ApiSearchSelection
 import com.kitsugi.animelist.data.remote.matches
+import com.kitsugi.animelist.data.remote.matchesInSource
 import com.kitsugi.animelist.data.remote.firstMatchingInSource
 import com.kitsugi.animelist.model.WatchStatus
 import com.kitsugi.animelist.data.settings.AppSettings
@@ -48,15 +52,12 @@ fun AppRootDetailPages(
     updateViewModel: com.kitsugi.animelist.core.update.AppUpdateViewModel,
     addonViewModel: com.kitsugi.animelist.ui.app.AddonViewModel = viewModel(),
     onEditEntry: (MediaEntry) -> Unit,
-    /**
-     * Detay sayfasından düzenleme: kaydın kendi kaynağı yerine **sayfanın kaynağı** ile
-     * açılır. Ör. Bangumi detay sayfasında eşleşen kayıt Simkl'den gelmiş olsa bile
-     * düzenleyici Bangumi görünümüyle açılır (kullanıcının gördüğü sayfa Bangumi'dir).
-     */
+    /** Detay sayfasından düzenleme; yalnızca aynı kaynakta bulunan üyelik kaydı açılır. */
     onEditEntryWithSource: (MediaEntry, String) -> Unit = { entry, _ -> onEditEntry(entry) },
     onDeleteEntry: (MediaEntry) -> Unit,
     onIncrementEntryProgress: (MediaEntry) -> Unit,
     onAddApiSelectionToList: (ApiSearchSelection) -> Unit,
+    onLoginBangumi: () -> Unit = {},
     onReadMangaClick: (MediaEntry, MangaMappingEntity?) -> Unit,
     triggerSearch: (String) -> Unit,
     triggerSearchByGenre: (String) -> Unit = {},
@@ -93,7 +94,10 @@ fun AppRootDetailPages(
                                 isAdult = false,
                                 imageUrl = null,
                                 year = null,
-                                source = mediaSource
+                                source = mediaSource,
+                                bangumiSubjectType = if (canonicalMediaSourceId(mediaSource) == "bangumi") {
+                                    BangumiIdNamespace.subjectTypeFor(searchType)
+                                } else null
                             )
                             navState.navigateToDetail(DetailScreen.ApiResultDetail(searchResult))
                         }
@@ -134,7 +138,10 @@ fun AppRootDetailPages(
                                 isAdult = false,
                                 imageUrl = null,
                                 year = null,
-                                source = mediaSource
+                                source = mediaSource,
+                                bangumiSubjectType = if (canonicalMediaSourceId(mediaSource) == "bangumi") {
+                                    BangumiIdNamespace.subjectTypeFor(searchType)
+                                } else null
                             )
                             navState.navigateToDetail(DetailScreen.ApiResultDetail(searchResult))
                         }
@@ -181,7 +188,10 @@ fun AppRootDetailPages(
                                 isAdult = false,
                                 imageUrl = null,
                                 year = null,
-                                source = mediaSource
+                                source = mediaSource,
+                                bangumiSubjectType = if (canonicalMediaSourceId(mediaSource) == "bangumi") {
+                                    BangumiIdNamespace.subjectTypeFor(searchType)
+                                } else null
                             )
                             navState.navigateToDetail(DetailScreen.ApiResultDetail(searchResult))
                         }
@@ -200,9 +210,8 @@ fun AppRootDetailPages(
                 ApiResultDetailPage(
                     result = key.result,
                     existingEntry = existingApiEntry,
-                    // Ekleme akışı "zaten listende var" diyorsa buton da "Düzenle" demeli:
-                    // aynı eşleme (herhangi bir kaynak üzerinden) ile kontrol edilir.
-                    findExistingEntry = { r -> mediaEntries.firstOrNull { entry -> entry.matches(r) } },
+                    // Ekleme butonu ve mevcut üyelik aynı sağlayıcı kapsamını kullanır.
+                    findExistingEntry = { r -> mediaEntries.firstOrNull { entry -> entry.matchesInSource(r) } },
                     onBackClick = { navState.popDetailStack() },
                     onAddClick = { selection ->
                         onAddApiSelectionToList(selection)
@@ -264,6 +273,8 @@ fun AppRootDetailPages(
                     isAniListConnected = authViewModel.isAniListConnected,
                     isMalConnected = authViewModel.isMalConnected,
                     isSimklConnected = authViewModel.isSimklConnected,
+                    isBangumiConnected = authViewModel.isBangumiConnected,
+                    onLoginBangumi = onLoginBangumi,
                     onLoginAniList = {
                         authViewModel.startExternalAuth("anilist")
                     },
@@ -616,7 +627,15 @@ fun AppRootDetailPages(
                                 isAdult = false,
                                 imageUrl = imageUrl,
                                 year = null,
-                                source = source
+                                source = source,
+                                bangumiSubjectType = if (source.equals("bangumi", ignoreCase = true)) {
+                                    when (mediaTypeStr?.lowercase()) {
+                                        "anime" -> BangumiApiClient.SubjectType.ANIME
+                                        "manga" -> BangumiApiClient.SubjectType.BOOK
+                                        "movie", "tv", "real" -> BangumiApiClient.SubjectType.REAL
+                                        else -> null
+                                    }
+                                } else null
                             )
                             navState.navigateToDetail(DetailScreen.ApiResultDetail(searchResult))
                         }

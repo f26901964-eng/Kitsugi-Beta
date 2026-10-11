@@ -39,6 +39,7 @@ object ExternalAuthManager {
     private const val KEY_ANILIST_CODE_VERIFIER = "anilist_code_verifier"
 
     private val MAL_CLIENT_ID get() = com.kitsugi.animelist.BuildConfig.MAL_CLIENT_ID
+    private val MAL_CLIENT_SECRET get() = com.kitsugi.animelist.BuildConfig.MAL_CLIENT_SECRET
     private const val KEY_MAL_TOKEN = "mal_access_token"
     private const val KEY_MAL_REFRESH_TOKEN = "mal_refresh_token"
     private const val KEY_MAL_TOKEN_EXPIRES_AT = "mal_token_expires_at"
@@ -809,8 +810,10 @@ object ExternalAuthManager {
     ) {
         thread {
             try {
+                val secretParam = if (MAL_CLIENT_SECRET.isNotBlank()) "&client_secret=$MAL_CLIENT_SECRET" else ""
                 val postData =
                     "client_id=$MAL_CLIENT_ID" +
+                            secretParam +
                             "&code=$code" +
                             "&code_verifier=$codeVerifier" +
                             "&grant_type=authorization_code" +
@@ -846,7 +849,17 @@ object ExternalAuthManager {
                             .remove(KEY_MAL_CODE_VERIFIER)
                             .apply()
 
-                        onError("MAL token deÄŸiÅŸimi baÅŸarÄ±sÄ±z: ${response.code} - $errorResponse")
+                        if (errorResponse.contains("invalid_client", ignoreCase = true) ||
+                            response.code == 401
+                        ) {
+                            onError(
+                                "MAL istemci kimliği (client_id) reddedildi. Bu sürümde kullanılan MAL " +
+                                    "API anahtarı geçersiz. Geliştirici: myanimelist.net/apiconfig üzerinden " +
+                                    "kendi uygulamanızı oluşturup local.properties içine mal_client_id olarak ekleyin."
+                            )
+                        } else {
+                            onError("MAL token değişimi başarısız: ${response.code} - $errorResponse")
+                        }
                     }
                 }
             } catch (e: Exception) {
@@ -887,8 +900,10 @@ object ExternalAuthManager {
         val refreshToken = prefs.getString(KEY_MAL_REFRESH_TOKEN, null) ?: return null
 
         try {
+            val secretParam = if (MAL_CLIENT_SECRET.isNotBlank()) "&client_secret=$MAL_CLIENT_SECRET" else ""
             val postData =
                 "client_id=$MAL_CLIENT_ID" +
+                secretParam +
                 "&refresh_token=$refreshToken" +
                 "&grant_type=refresh_token"
 

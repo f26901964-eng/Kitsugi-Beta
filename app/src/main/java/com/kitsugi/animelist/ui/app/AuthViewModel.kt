@@ -194,8 +194,15 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
      * Şimdi tekrar in-app WebView'a döndük; harici tarayıcı fallback olarak korunuyor.
      */
     fun startExternalAuth(serviceName: String) {
-        // Mobil ve TV fark etmeksizin önce in-app WebView dene
-        // (TV'de zaten QR dialog var ama WebView de çalışır)
+        // MyAnimeList: kullanıcının istediği akış — doğrudan MAL'ın kendi sitesine
+        // (harici tarayıcı) yönlendirilir, hesap bilgileri orada girilir ve malapp://auth
+        // ile uygulamaya geri dönülür. In-app WebView MAL'de client/basic-auth hatalarını
+        // kullanıcıya daha karmaşık gösterdiği için MAL için kullanılmaz.
+        if (serviceName.equals("mal", ignoreCase = true)) {
+            startExternalAuthExternal(serviceName)
+            return
+        }
+        // AniList / Simkl: uygulama içi WebView
         showOAuthDialog(serviceName)
     }
 
@@ -915,7 +922,7 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                         if (isSimkl && item.simkl == null && reviewType != MediaType.Manga) countSafetySkip("Simkl")
                         if (isKitsu && item.kitsu == null && reviewIsAnimeOrManga) countSafetySkip("Kitsu")
                         if (isShikimori && item.shikimori == null && reviewIsAnimeOrManga) countSafetySkip("Shikimori")
-                        if (isBangumi && item.bangumi == null && reviewIsAnimeOrManga) countSafetySkip("Bangumi")
+                        if (isBangumi && item.bangumi == null && BangumiSyncManager.supportsMediaType(reviewType)) countSafetySkip("Bangumi")
                         if ((index + 1) % 2 == 0 || index == unifiedItems.lastIndex) {
                             updateProgress(
                                 step = "Kimlik kontrolü atlandı: $title",
@@ -987,7 +994,7 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                         (isMal && isAnimeOrManga && item.mal == null) ||
                         (isKitsu && isAnimeOrManga && item.kitsu == null) ||
                         (isShikimori && isAnimeOrManga && item.shikimori == null) ||
-                        (isBangumi && isAnimeOrManga && item.bangumi == null) ||
+                        (isBangumi && BangumiSyncManager.supportsMediaType(newest.type) && item.bangumi == null) ||
                         (isSimkl && item.simkl == null)
                     val identityVerdict: com.kitsugi.animelist.data.auth.CrossSyncIdentityGuard.Verdict? =
                         if (realMalId != null && needsAnyAddition) {
@@ -1063,7 +1070,8 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                     if (realMalId != null && item.bangumi != null) {
                         com.kitsugi.animelist.data.remote.BangumiIdNamespace.rawIdFromStable(item.bangumi?.malId)?.let { subjectId ->
                             runCatching {
-                                com.kitsugi.animelist.data.remote.BangumiLocalMappingCache.put(context, realMalId, isAnimeOrManga, subjectId)
+                                val bangumiSubjectType = com.kitsugi.animelist.data.remote.BangumiIdNamespace.subjectTypeFor(item.bangumi!!.type)
+                                com.kitsugi.animelist.data.remote.BangumiLocalMappingCache.put(context, realMalId, bangumiSubjectType, subjectId)
                             }
                         }
                     }
@@ -1331,8 +1339,8 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                         }
                     }
 
-                    // ── 6. Bangumi Eşitleme (Anime & Manga) ──
-                    if (isBangumi && isAnimeOrManga) {
+                    // ── 6. Bangumi Eşitleme (Anime, manga, film ve dizi) ──
+                    if (isBangumi && BangumiSyncManager.supportsMediaType(mergedEntry.type)) {
                         kotlinx.coroutines.currentCoroutineContext().ensureActive()
                         val current = item.bangumi
                         if (current == null && !additionsAllowed) {

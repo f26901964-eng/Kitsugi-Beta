@@ -3,6 +3,7 @@ package com.kitsugi.animelist.data.auth
 import android.content.Context
 import android.util.Log
 import com.kitsugi.animelist.data.remote.BangumiIdNamespace
+import com.kitsugi.animelist.data.remote.canonicalMediaSourceId
 import com.kitsugi.animelist.model.MediaEntry
 import com.kitsugi.animelist.model.MediaType
 import com.kitsugi.animelist.model.WatchStatus
@@ -24,7 +25,7 @@ import kotlinx.coroutines.withContext
  *
  * İlerleme yazma stratejisi (önemli):
  *  - **书籍 (manga/roman):** `ep_status` / `vol_status` doğrudan PATCH'lenebilir.
- *  - **动画 (anime):** resmî sözleşme `ep_status`'u yalnızca kitap条目'ları için tanımlar.
+ *  - **Video subject'leri (anime ve REAL):** resmî sözleşme `ep_status`'u yalnızca kitap条目'ları için tanımlar.
  *    Doğru yol bölüm bazlı "打格子": `PATCH /v0/users/-/collections/{id}/episodes`
  *    ile bölüm ID'leri işaretlenir; sunucu条目 tamamlanma oranını yeniden hesaplar.
  *    [BangumiApiClient.setProgress] bu iki yolu tek fonksiyonda birleştirir.
@@ -32,9 +33,18 @@ import kotlinx.coroutines.withContext
 object BangumiSyncManager {
     private const val TAG = "BangumiSyncManager"
 
+    fun supportsMediaType(type: MediaType): Boolean = type in setOf(
+        MediaType.Anime,
+        MediaType.Manga,
+        MediaType.Movie,
+        MediaType.TvShow
+    )
+
     data class SyncResult(
         val messages: List<String>,
-        val errors: List<String> = emptyList()
+        val errors: List<String> = emptyList(),
+        val subjectId: Int? = null,
+        val collectionUpdated: Boolean = false
     )
 
     fun watchStatusToBangumi(status: WatchStatus?): Int = when (status) {
@@ -74,8 +84,8 @@ object BangumiSyncManager {
         context: Context,
         entry: MediaEntry
     ): SyncResult = withContext(Dispatchers.IO) {
-        if (entry.type != MediaType.Anime && entry.type != MediaType.Manga) {
-            return@withContext SyncResult(emptyList(), listOf("Bangumi senkronu yalnızca anime/manga destekler"))
+        if (!supportsMediaType(entry.type)) {
+            return@withContext SyncResult(emptyList(), listOf("Bangumi bu medya türünü desteklemiyor"))
         }
 
         val token = BangumiAuthStore.getValidToken(context)
@@ -83,8 +93,8 @@ object BangumiSyncManager {
             return@withContext SyncResult(emptyList(), listOf("Bangumi hesabı bağlı değil"))
         }
 
-        val isAnime = entry.type == MediaType.Anime
-        val subjectId = resolveSubjectId(context, entry, isAnime)
+        val isBook = entry.type == MediaType.Manga
+        val subjectId = resolveSubjectId(context, entry)
         if (subjectId == null) {
             return@withContext SyncResult(
                 emptyList(),
@@ -105,8 +115,8 @@ object BangumiSyncManager {
             subjectId = subjectId,
             type = status,
             rate = rate,
-            epStatus = if (isAnime) null else progress.takeIf { it > 0 },
-            volStatus = if (isAnime) null else entry.volumeProgress.takeIf { it > 0 },
+            epStatus = if (isBook) progress.takeIf { it > 0 } else null,
+            volStatus = if (isBook) entry.volumeProgress.takeIf { it > 0 } else null,
             // Not ve etiketler: yalnızca dolu değerler gönderilir (boş alan uzaktaki notu silmez).
             comment = entry.notes?.takeIf { it.isNotBlank() },
             private = entry.isPrivate,
@@ -118,8 +128,8 @@ object BangumiSyncManager {
             errors += "Bangumi kaydı güncellenemedi (${entry.title})"
         }
 
-        // 2) Anime ilerlemesi: bölüm bazlı işaretleme.
-        if (isAnime && progress > 0 && collectionUpdated) {
+        // 2) Video subject'lerinde ilerleme bölüm bazlı işaretlenir (anime ve REAL dizi/film).
+        if (!isBook && progress > 0 && collectionUpdated) {
             val progressOk = runCatching {
                 val subject = BangumiApiClient.getSubject(subjectId, token)
                 BangumiApiClient.setProgress(token, subject, progress)
@@ -134,7 +144,7 @@ object BangumiSyncManager {
             }
         }
 
-        SyncResult(messages, errors)
+        SyncResult(messages, errors, subjectId, collectionUpdated)
     }
 
     /**
@@ -152,7 +162,7 @@ object BangumiSyncManager {
         if (token.isNullOrBlank()) {
             return@withContext SyncResult(emptyList(), listOf("Bangumi hesabı bağlı değil"))
         }
-        val subjectId = resolveSubjectId(context, entry, entry.type == MediaType.Anime)
+        val subjectId = resolveSubjectId(context, entry)
             ?: return@withContext SyncResult(emptyList(), listOf("Bangumi条目 eşleşmesi bulunamadı: ${entry.title}"))
 
         val ok = BangumiApiClient.upsertCollection(
@@ -181,7 +191,7 @@ object BangumiSyncManager {
         entry: MediaEntry
     ): BangumiApiClient.BangumiUserCollection? = withContext(Dispatchers.IO) {
         val token = BangumiAuthStore.getValidToken(context) ?: return@withContext null
-        val subjectId = resolveSubjectId(context, entry, entry.type == MediaType.Anime)
+        val subjectId = resolveSubjectId(context, entry)
             ?: return@withContext null
         // `GET /v0/users/-/collections/{id}` 404 verir; gerçek kullanıcı adıyla sorulmalı.
         val username = BangumiAuthStore.resolveUsername(context) ?: return@withContext null
@@ -190,15 +200,42 @@ object BangumiSyncManager {
 
     /**
      * Kayıttan Bangumi `subject_id` çözer.
-     * Önce stableId, sonra yerel eşleme önbelleği, en son sıkı başlık araması.
+     * Stable ID doğrudan kullanılır; legacy ham ID ise önce tür, başlık ve yıl ile doğrulanır.
      */
-    private suspend fun resolveSubjectId(context: Context, entry: MediaEntry, isAnime: Boolean): Int? {
+    private suspend fun resolveSubjectId(context: Context, entry: MediaEntry): Int? {
         val stored = entry.malId
         BangumiIdNamespace.rawIdFromStable(stored)?.let { return it }
-        if (entry.source.equals(BangumiIdNamespace.SOURCE, ignoreCase = true) && stored != null && stored > 0) {
-            // Eski/legacy kayıtlarda stableId yerine ham ID yazılmış olabilir.
-            return stored
+        val expectedSubjectType = BangumiIdNamespace.subjectTypeFor(entry.type)
+        val isBangumiEntry = canonicalMediaSourceId(entry.source) == BangumiIdNamespace.SOURCE
+        val isLegacyRawBangumiId = isBangumiEntry && stored != null && stored in 1..99_999_999
+
+        if (isLegacyRawBangumiId) {
+            val token = BangumiAuthStore.getValidToken(context)
+            val legacySubject = runCatching {
+                BangumiApiClient.getSubject(stored!!, token)
+            }.getOrNull()
+            val storedTitles = listOfNotNull(entry.titleJapanese, entry.title, entry.titleEnglish)
+                .filter { it.isNotBlank() }
+                .map { com.kitsugi.animelist.model.MediaIdentity.normalizedTitle(it) }
+                .toSet()
+            val subjectTitles = legacySubject?.let { listOf(it.name, it.nameCn) }
+                .orEmpty()
+                .filter { it.isNotBlank() }
+                .map { com.kitsugi.animelist.model.MediaIdentity.normalizedTitle(it) }
+                .toSet()
+            val storedYear = entry.year
+            val subjectYear = legacySubject?.date?.take(4)?.toIntOrNull()
+            val yearMatches = storedYear == null || subjectYear == null || kotlin.math.abs(storedYear - subjectYear) <= 1
+            if (
+                legacySubject?.type == expectedSubjectType &&
+                storedTitles.any { it in subjectTitles } &&
+                yearMatches
+            ) {
+                return legacySubject.id
+            }
         }
+
+        val resolverStoredId = if (isLegacyRawBangumiId) null else stored
         val candidateTitles = listOfNotNull(entry.titleJapanese, entry.title, entry.titleEnglish)
             .filter { it.isNotBlank() }
             .distinct()
@@ -206,10 +243,11 @@ object BangumiSyncManager {
         for (candidateTitle in candidateTitles) {
             val resolved = BangumiIdNamespace.resolveBangumiId(
                 context = context,
-                storedId = stored,
+                storedId = resolverStoredId,
                 title = candidateTitle,
                 expectedYear = entry.year,
-                isAnime = isAnime
+                isAnime = entry.type == MediaType.Anime,
+                subjectType = expectedSubjectType
             )
             if (resolved != null) return resolved
         }

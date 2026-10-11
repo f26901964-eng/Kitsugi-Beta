@@ -66,6 +66,8 @@ import com.kitsugi.animelist.model.MediaEntry
 import com.kitsugi.animelist.model.MediaType
 import com.kitsugi.animelist.model.WatchStatus
 import com.kitsugi.animelist.data.remote.matchesInSource
+import com.kitsugi.animelist.data.remote.BangumiMediaEntryFactory
+import com.kitsugi.animelist.data.remote.canonicalMediaSourceId
 import com.kitsugi.animelist.ui.components.KitsugiApiSearchDialog
 import com.kitsugi.animelist.ui.components.KitsugiConfirmDialog
 import com.kitsugi.animelist.ui.components.KitsugiInfoDialog
@@ -214,6 +216,7 @@ fun MyListScreen(
     var editingEntry by remember {
         mutableStateOf<MediaEntry?>(null)
     }
+    var isAddingBangumiEntry by rememberSaveable { mutableStateOf(false) }
 
     var deletingEntry by remember {
         mutableStateOf<MediaEntry?>(null)
@@ -247,9 +250,11 @@ fun MyListScreen(
     ) {
         when {
             selectedTabIndex == MY_LIST_ALL_TAB_INDEX -> allLibraryEntries
-            searchQuery.isNotBlank() -> entriesAfterAdultFilter
+            // Preserve the existing cross-provider search behavior everywhere except Bangumi:
+            // Bangumi must never surface an unrelated provider's row, even during search.
+            searchQuery.isNotBlank() && selectedTabIndex != MY_LIST_BANGUMI_TAB_INDEX -> entriesAfterAdultFilter
             else -> entriesAfterAdultFilter.filter { entry ->
-                myListSourceMatchesTab(selectedTabIndex, entry.source)
+                myListSourceMatchesTab(selectedTabIndex, entry.source, entry.malId)
             }
         }
     }
@@ -466,7 +471,7 @@ fun MyListScreen(
                         allLibraryEntries
                     } else {
                         entriesAfterAdultFilter.filter { entry ->
-                            myListSourceMatchesTab(pageTabIndex, entry.source)
+                            myListSourceMatchesTab(pageTabIndex, entry.source, entry.malId)
                         }
                     }
                 }
@@ -677,8 +682,13 @@ fun MyListScreen(
 
 
     if (showAddDialog) {
-        // Manüel kayıt varsayılan kaynağı: Tümü sekmesinde AniList.
-        val manualAddSource = defaultMyListSourceForTab(selectedTabIndex)
+        // Manüel bir başlık Bangumi hesabında varmış gibi gösterilmesin; yalnızca Bangumi
+        // katalog sonucuyla doğrulanmış/aktarılmış stable subject ID'leri Bangumi sekmesine girer.
+        val manualAddSource = if (selectedTabIndex == MY_LIST_BANGUMI_TAB_INDEX) {
+            "manual"
+        } else {
+            defaultMyListSourceForTab(selectedTabIndex)
+        }
         KitsugiMediaEntryEditorDialog(
             source = manualAddSource,
             onDismiss = {
@@ -749,6 +759,24 @@ fun MyListScreen(
                     return@KitsugiApiSearchDialog
                 }
 
+                if (canonicalMediaSourceId(result.source) == "bangumi") {
+                    if (!isBangumiConnected) {
+                        showApiSearchDialog = false
+                        showBangumiLoginDialog = true
+                        return@KitsugiApiSearchDialog
+                    }
+                    val bangumiEntry = BangumiMediaEntryFactory.fromSearchResult(result, selection.synopsis)
+                    if (bangumiEntry == null) {
+                        duplicateMessage = "Bangumi kaydı için geçerli subject kimliği veya başlık bulunamadı."
+                        showApiSearchDialog = false
+                        return@KitsugiApiSearchDialog
+                    }
+                    editingEntry = bangumiEntry
+                    isAddingBangumiEntry = true
+                    showApiSearchDialog = false
+                    return@KitsugiApiSearchDialog
+                }
+
                 val newEntry = MediaEntry(
                     id = 0,
                     title = result.title,
@@ -792,9 +820,11 @@ fun MyListScreen(
             initialEntry = entry,
             onDismiss = {
                 editingEntry = null
+                isAddingBangumiEntry = false
             },
             onDeleteClick = {
                 editingEntry = null
+                isAddingBangumiEntry = false
                 viewModel.deleteEntryById(entry.id)
             },
             onConfirm = { title, subtitle, type, status, isAdult, progress, total, score, isFavorite, startDate, endDate, notes, tags, priority, isRepeating, repeatCount, repeatValue, volumeProgress, isPrivate, isHiddenFromStatusLists, advancedScores ->
@@ -838,9 +868,14 @@ fun MyListScreen(
                     isHiddenFromStatusLists = isHiddenFromStatusLists
                 )
 
-                viewModel.updateEntry(updatedEntry, advancedScores = advancedScores)
+                if (canonicalMediaSourceId(updatedEntry.source) == "bangumi") {
+                    viewModel.saveBangumiEntry(updatedEntry, isNew = isAddingBangumiEntry)
+                } else {
+                    viewModel.updateEntry(updatedEntry, advancedScores = advancedScores)
+                }
 
                 editingEntry = null
+                isAddingBangumiEntry = false
             }
         )
     }

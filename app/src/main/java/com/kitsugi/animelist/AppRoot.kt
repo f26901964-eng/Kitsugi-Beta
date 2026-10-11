@@ -75,6 +75,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.kitsugi.animelist.data.auth.ExternalAuthManager
+import com.kitsugi.animelist.data.auth.BangumiSyncManager
 import com.kitsugi.animelist.data.local.MediaEntryBackup
 import com.kitsugi.animelist.data.local.MediaEntryRepository
 import com.kitsugi.animelist.data.local.NetworkMonitor
@@ -87,6 +88,10 @@ import com.kitsugi.animelist.data.repository.CloudstreamRepoRepository
 import com.kitsugi.animelist.data.remote.ApiSearchSelection
 import com.kitsugi.animelist.data.remote.JikanSearchResult
 import com.kitsugi.animelist.data.remote.matches
+import com.kitsugi.animelist.data.remote.matchesInSource
+import com.kitsugi.animelist.data.remote.firstMatchingInSource
+import com.kitsugi.animelist.data.remote.canonicalMediaSourceId
+import com.kitsugi.animelist.data.remote.BangumiMediaEntryFactory
 import com.kitsugi.animelist.data.settings.AppSettings
 import com.kitsugi.animelist.data.settings.SettingsDataStore
 import com.kitsugi.animelist.model.MediaEntry
@@ -107,6 +112,7 @@ import com.kitsugi.animelist.ui.app.FullScreenMediaGridState
 import com.kitsugi.animelist.ui.components.KitsugiApiSearchDialog
 import com.kitsugi.animelist.ui.components.KitsugiConfirmDialog
 import com.kitsugi.animelist.ui.components.KitsugiMediaEntryEditorDialog
+import com.kitsugi.animelist.ui.components.KitsugiBangumiLoginDialog
 import com.kitsugi.animelist.ui.components.KitsugiMediaGridDialog
 import com.kitsugi.animelist.ui.components.KitsugiUpdateDialog
 import com.kitsugi.animelist.core.update.AppUpdateViewModel
@@ -372,9 +378,9 @@ fun AppRoot(
     var editingEntry by remember {
         mutableStateOf<MediaEntry?>(null)
     }
-    // Düzenleyicinin hangi kaynağın SAYFASINDAN açıldığı (ör. Bangumi detay sayfası).
-    // Eşleşen yerel kayıt başka bir sağlayıcıdan (ör. Simkl) gelmiş olabilir; kullanıcı
-    // ise sayfada gördüğü sağlayıcının düzenleyicisini bekler (bkz. AppDialogHost).
+    var isAddingBangumiEntry by remember { mutableStateOf(false) }
+    var showBangumiLoginDialog by remember { mutableStateOf(false) }
+    // Düzenleyicinin kaynağı, yalnızca o sağlayıcının kendi üyelik kaydı için kullanılır.
     var editingSourceHint by remember {
         mutableStateOf<String?>(null)
     }
@@ -580,13 +586,38 @@ fun AppRoot(
     }
 
     fun addApiSelectionToList(selection: ApiSearchSelection) {
+        if (canonicalMediaSourceId(selection.result.source) == "bangumi") {
+            if (!authViewModel.isBangumiConnected) {
+                showBangumiLoginDialog = true
+                appViewModel.showSnackbarMessage("Bangumi koleksiyonuna eklemek için önce hesabını bağla.")
+                return
+            }
+            val existing = mediaEntries.firstOrNull { it.matchesInSource(selection.result) }
+            if (existing != null) {
+                editingEntry = existing
+                editingSourceHint = "bangumi"
+                isAddingBangumiEntry = false
+                return
+            }
+            val newEntry = BangumiMediaEntryFactory.fromSearchResult(selection.result, selection.synopsis)
+            if (newEntry == null) {
+                appViewModel.showSnackbarMessage("Bangumi kaydı için geçerli subject kimliği veya başlık bulunamadı.")
+                return
+            }
+            editingEntry = newEntry
+            editingSourceHint = "bangumi"
+            isAddingBangumiEntry = true
+            return
+        }
+
         appViewModel.addApiSelectionToList(
             selection = selection,
             currentEntries = mediaEntries,
             repository = mediaRepository,
             isAniListConnected = authViewModel.isAniListConnected,
             isMalConnected = authViewModel.isMalConnected,
-            isSimklConnected = authViewModel.isSimklConnected
+            isSimklConnected = authViewModel.isSimklConnected,
+            isBangumiConnected = authViewModel.isBangumiConnected
         )
     }
 
@@ -894,14 +925,16 @@ fun AppRoot(
                     importMode = importMode,
                     profileImagePickerLauncher = profileImagePickerLauncher,
                     bannerImagePickerLauncher = bannerImagePickerLauncher,
-                    onEditEntry = { editingEntry = it; editingSourceHint = null },
+                    onEditEntry = { editingEntry = it; editingSourceHint = null; isAddingBangumiEntry = false },
                     onEditEntryWithSource = { entry, source ->
                         editingEntry = entry
                         editingSourceHint = source
+                        isAddingBangumiEntry = false
                     },
-                    onDeleteEntry = { editingEntry = null; editingSourceHint = null; deletingEntry = it },
+                    onDeleteEntry = { editingEntry = null; editingSourceHint = null; isAddingBangumiEntry = false; deletingEntry = it },
                     onIncrementEntryProgress = ::incrementEntryProgress,
                     onAddApiSelectionToList = ::addApiSelectionToList,
+                    onLoginBangumi = { showBangumiLoginDialog = true },
                     onExportBackupFileClick = ::createBackupFile,
                     onImportBackupFileClick = ::openBackupFile,
                     onOpenApiDetail = ::openApiDetail,
@@ -930,12 +963,19 @@ fun AppRoot(
             editingEntry = editingEntry,
             editingSourceHint = editingSourceHint,
             scoreFormat = appSettings.scoreFormat,
-            onDismissEditing = { editingEntry = null; editingSourceHint = null },
+            onDismissEditing = {
+                editingEntry = null
+                editingSourceHint = null
+                isAddingBangumiEntry = false
+            },
             onDeleteEditingEntry = { entry ->
                 coroutineScope.launch { mediaRepository.deleteById(entry.id) }
+                isAddingBangumiEntry = false
             },
             onConfirmEdit = { title, subtitle, type, status, isAdult, progress, total, score, isFavorite, startDate, endDate, notes, tags, priority, isRepeating, repeatCount, repeatValue, volumeProgress, isPrivate, isHiddenFromStatusLists, advancedScores ->
                 val entry = editingEntry ?: return@AppDialogHost
+                val addBangumiMembership = isAddingBangumiEntry
+                val isBangumiEntry = canonicalMediaSourceId(entry.source) == "bangumi"
                 val today = SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date())
                 val resolvedStartDate = if (startDate.isNullOrBlank() &&
                     (status == WatchStatus.Watching || status == WatchStatus.Completed) &&
@@ -965,9 +1005,42 @@ fun AppRoot(
                     isPrivate = isPrivate,
                     isHiddenFromStatusLists = isHiddenFromStatusLists
                 )
-                coroutineScope.launch { mediaRepository.update(updatedEntry, advancedScores = advancedScores) }
-                editingEntry = null
-                editingSourceHint = null
+                if (isBangumiEntry) {
+                    coroutineScope.launch {
+                        val remoteResult = BangumiSyncManager.syncEntryToBangumi(
+                            context.applicationContext,
+                            updatedEntry.copy(source = com.kitsugi.animelist.data.remote.BangumiIdNamespace.SOURCE)
+                        )
+                        if (remoteResult.collectionUpdated) {
+                            val stableId = remoteResult.subjectId?.let {
+                                com.kitsugi.animelist.data.remote.BangumiIdNamespace.stableIdFromRaw(it)
+                            }
+                            val persistedEntry = updatedEntry.copy(
+                                source = com.kitsugi.animelist.data.remote.BangumiIdNamespace.SOURCE,
+                                malId = stableId ?: updatedEntry.malId
+                            )
+                            if (addBangumiMembership) {
+                                mediaRepository.insert(persistedEntry.copy(id = 0), syncExternal = false)
+                            } else {
+                                mediaRepository.update(persistedEntry, syncExternal = false)
+                            }
+                            editingEntry = null
+                            editingSourceHint = null
+                            isAddingBangumiEntry = false
+                            val resultMessage = (remoteResult.messages + remoteResult.errors).joinToString(" • ")
+                            if (resultMessage.isNotBlank()) appViewModel.showSnackbarMessage(resultMessage)
+                        } else {
+                            appViewModel.showSnackbarMessage(
+                                remoteResult.errors.joinToString(" • ").ifBlank { "Bangumi koleksiyonu güncellenemedi." }
+                            )
+                        }
+                    }
+                } else {
+                    coroutineScope.launch { mediaRepository.update(updatedEntry, advancedScores = advancedScores) }
+                    editingEntry = null
+                    editingSourceHint = null
+                    isAddingBangumiEntry = false
+                }
             },
 
             deletingEntry = deletingEntry,
@@ -1016,6 +1089,24 @@ fun AppRoot(
                 }
             )
         }
+
+        if (showBangumiLoginDialog) {
+            KitsugiBangumiLoginDialog(
+                onDismiss = { showBangumiLoginDialog = false },
+                onLogin = { clientId, clientSecret, authCode, onComplete ->
+                    authViewModel.loginBangumi(
+                        clientId = clientId,
+                        clientSecret = clientSecret,
+                        authCode = authCode,
+                        onSuccess = {
+                            onComplete(true, null)
+                            showBangumiLoginDialog = false
+                        },
+                        onError = { error -> onComplete(false, error) }
+                    )
+                }
+            )
+        }
     }
 }
 
@@ -1053,6 +1144,7 @@ private fun AppNavigationContent(
     onDeleteEntry: (MediaEntry) -> Unit,
     onIncrementEntryProgress: (MediaEntry) -> Unit,
     onAddApiSelectionToList: (ApiSearchSelection) -> Unit,
+    onLoginBangumi: () -> Unit,
     onExportBackupFileClick: () -> Unit,
     onImportBackupFileClick: () -> Unit,
     onOpenApiDetail: (JikanSearchResult) -> Unit,
@@ -1112,6 +1204,7 @@ private fun AppNavigationContent(
                     onDeleteEntry = onDeleteEntry,
                     onIncrementEntryProgress = onIncrementEntryProgress,
                     onAddApiSelectionToList = onAddApiSelectionToList,
+                    onLoginBangumi = onLoginBangumi,
                     onReadMangaClick = { entry, mapping ->
                         if (mapping != null) {
                             val source = mangaViewModel.mangaRepository.getSourceByName(mapping.mangaSource)

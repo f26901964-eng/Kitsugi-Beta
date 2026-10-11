@@ -21,6 +21,7 @@ android {
     val anilistClientId   = localProperties.getProperty("anilist_client_id")    ?: "32022"
     val anilistSecret     = localProperties.getProperty("anilist_client_secret") ?: "RwKJVnuh1B76AMKaWyEgsig6KwjGQpkpbMwJSi4j"
     val malClientId       = localProperties.getProperty("mal_client_id")         ?: "7b77365a6acb496a4af1c08a375c7a71"
+    val malClientSecret   = localProperties.getProperty("mal_client_secret")     ?: "9eb8fb4ddabf3dd04ced067b08c4b8474f73a746a2a5eb18640f45887b352334"
     // miribyou kök adresi (Jikan uyumlu, açık kaynak). local.properties ile geçersiz kılınabilir; boşsa atlanır.
     val miribyouBaseUrl   = localProperties.getProperty("miribyou_base_url")     ?: "https://miribyou-topaz.vercel.app"
     val simklClientId     = localProperties.getProperty("simkl_client_id")       ?: "650ad7c96b7e1ab1e0056f745708ee0d05558480e8e0c6ae80f1061d2ae31496"
@@ -30,7 +31,7 @@ android {
     val bangumiClientId     = localProperties.getProperty("bangumi_client_id")     ?: "YOUR_BANGUMI_CLIENT_ID"
     val bangumiClientSecret = localProperties.getProperty("bangumi_client_secret") ?: "YOUR_BANGUMI_CLIENT_SECRET"
 
-    val appVersionName = "2.4.237"
+    val appVersionName = "2.4.238"
 
     compileSdk = 36
 
@@ -48,6 +49,7 @@ android {
         buildConfigField("String", "ANILIST_CLIENT_ID",      "\"$anilistClientId\"")
         buildConfigField("String", "ANILIST_CLIENT_SECRET",  "\"$anilistSecret\"")
         buildConfigField("String", "MAL_CLIENT_ID",          "\"$malClientId\"")
+        buildConfigField("String", "MAL_CLIENT_SECRET",      "\"$malClientSecret\"")
         buildConfigField("String", "MIRIBYOU_BASE_URL",      "\"$miribyouBaseUrl\"")
         buildConfigField("String", "SIMKL_CLIENT_ID",        "\"$simklClientId\"")
         buildConfigField("String", "SIMKL_CLIENT_SECRET",    "\"$simklSecret\"")

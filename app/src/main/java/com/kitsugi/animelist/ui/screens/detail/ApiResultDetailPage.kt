@@ -96,6 +96,8 @@ import com.kitsugi.animelist.data.remote.DetailCache
 import com.kitsugi.animelist.data.remote.ApiSearchSelection
 import com.kitsugi.animelist.data.remote.JikanApiClient
 import com.kitsugi.animelist.data.remote.JikanSearchResult
+import com.kitsugi.animelist.data.remote.canonicalMediaSourceId
+import com.kitsugi.animelist.data.remote.matchesInSource
 import com.kitsugi.animelist.utils.PreferenceHelpers.getDisplayTitle
 import com.kitsugi.animelist.utils.PreferenceHelpers.getDisplayScore
 import com.kitsugi.animelist.data.remote.KitsugiCharacter
@@ -179,9 +181,11 @@ fun ApiResultDetailPage(
     isAniListConnected: Boolean = false,
     isMalConnected: Boolean = false,
     isSimklConnected: Boolean = false,
+    isBangumiConnected: Boolean = false,
     onLoginAniList: () -> Unit = {},
     onLoginMal: () -> Unit = {},
     onLoginSimkl: () -> Unit = {},
+    onLoginBangumi: () -> Unit = {},
     onReadMangaClick: (() -> Unit)? = null,
     mdbListShowImdb: Boolean = true,
     mdbListShowTomatoes: Boolean = true,
@@ -292,31 +296,35 @@ fun ApiResultDetailPage(
     val externalUrl = buildExternalUrl(displayResult)
     val malCrossUrl = buildMalCrossUrl(displayResult)
 
-    val isSourceAniList = remember(displayResult) {
-        displayResult.source.equals("anilist", ignoreCase = true)
-    }
-    val isConnected = remember(displayResult, isAniListConnected, isMalConnected, isSimklConnected) {
-        val src = displayResult.source.lowercase()
-        val hasRealMalId = displayResult.realMalId != null || (displayResult.malId != null && displayResult.malId > 0 && displayResult.malId < 100_000_000)
+    val sourceId = remember(displayResult.source) { canonicalMediaSourceId(displayResult.source) }
+    val isSourceAniList = sourceId == "anilist"
+    val isSourceBangumi = sourceId == "bangumi"
+    val isConnected = remember(
+        displayResult,
+        sourceId,
+        isAniListConnected,
+        isMalConnected,
+        isSimklConnected,
+        isBangumiConnected
+    ) {
+        val hasRealMalId = displayResult.realMalId != null ||
+            (displayResult.malId != null && displayResult.malId > 0 && displayResult.malId < 100_000_000)
         when {
+            // Provider membership takes precedence over the media type. A Bangumi film belongs
+            // to the Bangumi list, not to Simkl merely because it is a movie.
+            sourceId == "bangumi" -> isBangumiConnected
+            sourceId == "anilist" -> isAniListConnected || (isMalConnected && hasRealMalId)
+            sourceId == "mal" || sourceId == "jikan" -> isMalConnected || isAniListConnected
+            sourceId == "simkl" || sourceId == "tmdb" -> isSimklConnected
             displayResult.type == MediaType.TvShow || displayResult.type == MediaType.Movie -> isSimklConnected
-            src == "anilist" -> {
-                isAniListConnected || (isMalConnected && hasRealMalId)
-            }
-            src == "mal" || src == "jikan" -> {
-                isMalConnected || isAniListConnected
-            }
-            src == "simkl" -> {
-                isSimklConnected
-            }
             else -> true
         }
     }
 
-    val showFavouriteButton = isSourceAniList || isAniListConnected
-    // Buton durumu ("Düzenle" / "Listeye Ekle") ekleme akışının kullandığı kontrolle AYNI
-    // eşleme sonucundan beslenmeli; aksi halde "ekle" butonu + "zaten listede" hatası çelişir.
-    val effectiveExistingEntry = existingEntry ?: findExistingEntry?.invoke(displayResult)
+    val showFavouriteButton = !isSourceBangumi && (isSourceAniList || isAniListConnected)
+    // Buton durumu ("Düzenle" / "Listeye Ekle") yalnızca aynı sağlayıcının üyeliğini temsil eder.
+    val effectiveExistingEntry = existingEntry?.takeIf { it.matchesInSource(displayResult) }
+        ?: findExistingEntry?.invoke(displayResult)?.takeIf { it.matchesInSource(displayResult) }
     val isFavorite = effectiveExistingEntry?.isFavorite ?: (detailState?.isFavourite ?: false)
 
     // State for tabs
@@ -683,7 +691,8 @@ fun ApiResultDetailPage(
                             source = rel.source,
                             titleEnglish = rel.titleEnglish,
                             titleJapanese = rel.titleJapanese,
-                            titleRomaji = rel.titleRomaji
+                            titleRomaji = rel.titleRomaji,
+                            bangumiSubjectType = rel.bangumiSubjectType
                         )
                         onRelationClick(relResult)
                     })
@@ -702,7 +711,8 @@ fun ApiResultDetailPage(
                             source = rel.source,
                             titleEnglish = rel.titleEnglish,
                             titleJapanese = rel.titleJapanese,
-                            titleRomaji = rel.titleRomaji
+                            titleRomaji = rel.titleRomaji,
+                            bangumiSubjectType = rel.bangumiSubjectType
                         )
                         onRelationClick(relResult)
                     })
@@ -883,7 +893,11 @@ fun ApiResultDetailPage(
     }
 
     if (showAuthWarningDialog) {
-        val platformName = if (isSourceAniList) "AniList" else "MyAnimeList"
+        val platformName = when {
+            isSourceBangumi -> "Bangumi"
+            isSourceAniList -> "AniList"
+            else -> "MyAnimeList"
+        }
         AlertDialog(
             onDismissRequest = { showAuthWarningDialog = false },
             title = {
@@ -903,7 +917,11 @@ fun ApiResultDetailPage(
                 KitsugiButton(
                     onClick = {
                         showAuthWarningDialog = false
-                        if (isSourceAniList) onLoginAniList() else onLoginMal()
+                        when {
+                            isSourceBangumi -> onLoginBangumi()
+                            isSourceAniList -> onLoginAniList()
+                            else -> onLoginMal()
+                        }
                     }
                 ) {
                     Text(stringResource(R.string.baglan), fontWeight = FontWeight.Bold)

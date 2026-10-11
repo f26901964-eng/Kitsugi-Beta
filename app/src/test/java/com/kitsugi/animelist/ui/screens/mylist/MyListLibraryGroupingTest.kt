@@ -73,6 +73,33 @@ class MyListLibraryGroupingTest {
     }
 
     @Test
+    fun bangumiTabOnlyShowsStableBangumiCollectionEntries() {
+        val importedBangumi = entry(
+            id = 3,
+            title = "Bangumi collection item",
+            source = "bgm.tv",
+            malId = 500_000_876
+        )
+        val manualLocal = entry(
+            id = 2,
+            title = "Local-only item",
+            source = "bangumi",
+            malId = null
+        )
+        val simklCopy = entry(
+            id = 1,
+            title = "Same title from another provider",
+            source = "simkl",
+            malId = 500_000_876
+        )
+
+        assertTrue(myListSourceMatchesTab(MY_LIST_BANGUMI_TAB_INDEX, importedBangumi.source, importedBangumi.malId))
+        assertFalse(myListSourceMatchesTab(MY_LIST_BANGUMI_TAB_INDEX, manualLocal.source, manualLocal.malId))
+        assertFalse(myListSourceMatchesTab(MY_LIST_BANGUMI_TAB_INDEX, simklCopy.source, simklCopy.malId))
+        assertEquals(1, listOf(importedBangumi, manualLocal, simklCopy).count { isBangumiListMember(it.source, it.malId) })
+    }
+
+    @Test
     fun normalizesProviderAliasesForBadges() {
         val grouped = groupMyListEntries(
             listOf(

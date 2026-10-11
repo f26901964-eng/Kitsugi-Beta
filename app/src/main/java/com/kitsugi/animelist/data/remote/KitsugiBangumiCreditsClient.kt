@@ -286,7 +286,7 @@ object KitsugiBangumiCreditsClient {
                 mediaId = mediaId,
                 title = title.display.ifBlank { "#$subjectId" },
                 imageUrl = BangumiApiClient.absoluteImageUrl(item.optString("image").trim().ifBlank { null }),
-                mediaType = mediaTypeKey(subjectType),
+                mediaType = mediaTypeKey(subjectType, item.optString("platform")),
                 characterRole = characterRoleLabel(item.optString("staff")),
                 source = SOURCE,
                 titleEnglish = title.english,
@@ -320,7 +320,7 @@ object KitsugiBangumiCreditsClient {
                 mediaId = mediaId,
                 mediaTitle = mediaTitle.display.ifBlank { "#$subjectId" },
                 mediaImageUrl = null,
-                mediaType = mediaTypeKey(subjectType),
+                mediaType = mediaTypeKey(subjectType, item.optString("platform")),
                 characterRole = characterRoleLabel(item.optString("staff")),
                 mediaSource = SOURCE,
                 characterRomanizedName = characterName.romaji,
@@ -348,7 +348,7 @@ object KitsugiBangumiCreditsClient {
                 mediaId = mediaId,
                 mediaTitle = title.display.ifBlank { "#$subjectId" },
                 mediaImageUrl = BangumiApiClient.absoluteImageUrl(item.optString("image").trim().ifBlank { null }),
-                mediaType = mediaTypeKey(subjectType),
+                mediaType = mediaTypeKey(subjectType, item.optString("platform")),
                 staffRole = item.optString("staff").trim()
                     .toLocalizedStaffRole()
                     .ifBlank { if (isTurkish()) "Ekip Üyesi" else "Staff Member" },
@@ -372,10 +372,11 @@ object KitsugiBangumiCreditsClient {
     private fun rawId(idOrStable: Int): Int = BangumiIdNamespace.rawIdFromStable(idOrStable) ?: idOrStable
 
     /** Bangumi konu türü → Kitsugi medya türü anahtarı ([KitsugiCharacterMediaAppearance.mediaType]). */
-    private fun mediaTypeKey(subjectType: Int): String = when (subjectType) {
+    private fun mediaTypeKey(subjectType: Int, platform: String? = null): String = when (subjectType) {
         BangumiApiClient.SubjectType.BOOK -> "manga"
-        BangumiApiClient.SubjectType.REAL -> "tv"
-        else -> "anime"
+        BangumiApiClient.SubjectType.ANIME -> if (BangumiIdNamespace.isMoviePlatform(platform)) "movie" else "anime"
+        BangumiApiClient.SubjectType.REAL -> if (BangumiIdNamespace.isMoviePlatform(platform)) "movie" else "tv"
+        else -> "unsupported"
     }
 
     /**

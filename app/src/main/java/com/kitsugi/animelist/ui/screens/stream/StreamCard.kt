@@ -48,7 +48,15 @@ import com.kitsugi.animelist.ui.theme.gradient.border
 import com.kitsugi.animelist.ui.components.KitsugiImageGalleryDialog
 import com.kitsugi.animelist.ui.components.KitsugiNsfwImage
 import androidx.compose.ui.res.stringResource
+import kotlinx.coroutines.delay
 import com.kitsugi.animelist.R
+
+/**
+ * Kart görüş alanına girdikten sonra ölçüm başlatmadan önce beklenen süre.
+ * Hızlı kaydırma sırasında kartlar bu süre dolmadan görüş alanından çıkar; ölçüm
+ * hiç başlamaz (iptal edilen coroutine = sıfır ağ isteği).
+ */
+private const val PROBE_SETTLE_DELAY_MS = 350L
 
 /**
  * A single stream card showing quality/cache/addon badges and triggering playback on tap.
@@ -62,16 +70,29 @@ fun StreamCard(
     source: StreamSource,
     accentColor: Color,
     onClick: () -> Unit,
-    onDownloadClick: () -> Unit
+    onDownloadClick: () -> Unit,
+    /**
+     * Ölçüm (ağ isteği) izni. Liste, kartı YALNIZCA görüş alanındayken true geçer.
+     *
+     * NEDEN: 60+ akış sonucu olan listelerde her kart compose edilir edilmez ölçüm
+     * başlatıyordu. Hızlı kaydırmada onlarca ölçüm aynı anda kuyruğa girip OkHttp
+     * havuzunu ve eşzamanlılık kapısını dolduruyor, liste kilitleniyordu.
+     */
+    probeEnabled: Boolean = true
 ) {
     // ── Gerçek (ölçülen) akış bilgisi ────────────────────────────────────────
     // Kaynak kalite/dil bildirmediyse tahmin ETMİYORUZ; bunun yerine akışın kendisini
     // ölçüyoruz (HLS master playlist → gerçek çözünürlükler ve ses/altyazı dilleri).
+    // Ölçüm yalnızca (1) kart görünürken ve (2) kaynak meta verisi eksikken yapılır.
     val measured by produceState<MeasuredStreamInfo?>(
         initialValue = StreamProbe.cached(source.url),
-        key1 = source.url
+        key1 = source.url,
+        key2 = probeEnabled
     ) {
-        if (value == null && StreamProbe.isProbeable(source)) {
+        if (value == null && probeEnabled && StreamProbe.isProbeNeeded(source)) {
+            // Yerleşme gecikmesi: hızlı kaydırmada kart görüş alanından çıkar ve coroutine
+            // iptal edilir — hiç ağ isteği başlatılmamış olur (boşa ölçüm = kasma + veri).
+            delay(PROBE_SETTLE_DELAY_MS)
             value = runCatching { StreamProbe.probe(source) }.getOrNull()
         }
     }

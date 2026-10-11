@@ -10,7 +10,11 @@ import androidx.lifecycle.viewModelScope
 import com.kitsugi.animelist.data.local.MediaEntryBackup
 import com.kitsugi.animelist.data.local.MediaEntryRepository
 import com.kitsugi.animelist.data.remote.ApiSearchSelection
+import com.kitsugi.animelist.data.remote.BangumiMediaEntryFactory
+import com.kitsugi.animelist.data.remote.BangumiIdNamespace
+import com.kitsugi.animelist.data.remote.canonicalMediaSourceId
 import com.kitsugi.animelist.data.remote.matchesInSource
+import com.kitsugi.animelist.data.auth.BangumiSyncManager
 import com.kitsugi.animelist.data.settings.SettingsDataStore
 import com.kitsugi.animelist.model.MediaEntry
 import com.kitsugi.animelist.model.MediaType
@@ -351,9 +355,50 @@ class AppViewModel : ViewModel() {
         repository: MediaEntryRepository,
         isAniListConnected: Boolean,
         isMalConnected: Boolean,
-        isSimklConnected: Boolean
+        isSimklConnected: Boolean,
+        isBangumiConnected: Boolean = false
     ) {
         val result = selection.result
+
+        if (canonicalMediaSourceId(result.source) == "bangumi") {
+            if (!isBangumiConnected) {
+                showSnackbarMessage("Bangumi listesine eklemek için önce Bangumi hesabını bağlamalısın.")
+                return
+            }
+            val existingBangumiEntry = currentEntries.firstOrNull { it.matchesInSource(result) }
+            if (existingBangumiEntry != null) {
+                showSnackbarMessage(duplicateListMessage(existingBangumiEntry))
+                return
+            }
+            val newBangumiEntry = BangumiMediaEntryFactory.fromSearchResult(result, selection.synopsis)
+            if (newBangumiEntry == null) {
+                showSnackbarMessage("Bangumi kaydı için geçerli bir subject kimliği ve başlık gerekli.")
+                return
+            }
+            val appContext = repository.context
+            if (appContext == null) {
+                showSnackbarMessage("Bangumi hesabına ulaşılamadı; kayıt eklenemedi.")
+                return
+            }
+            viewModelScope.launch {
+                val remoteResult = BangumiSyncManager.syncEntryToBangumi(appContext, newBangumiEntry)
+                if (remoteResult.collectionUpdated) {
+                    val stableId = remoteResult.subjectId?.let(BangumiIdNamespace::stableIdFromRaw)
+                    repository.insert(
+                        newBangumiEntry.copy(malId = stableId ?: newBangumiEntry.malId),
+                        syncExternal = false
+                    )
+                    showSnackbarMessage(
+                        (remoteResult.messages + remoteResult.errors)
+                            .joinToString(" • ")
+                            .ifBlank { "Bangumi koleksiyonuna eklendi: ${newBangumiEntry.title}" }
+                    )
+                } else {
+                    showSnackbarMessage(remoteResult.errors.joinToString(" • ").ifBlank { "Bangumi koleksiyonu güncellenemedi." })
+                }
+            }
+            return
+        }
 
         // En az bir servis bağlı olmalı
         if (!isAniListConnected && !isMalConnected && !isSimklConnected) {

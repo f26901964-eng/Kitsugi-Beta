@@ -792,6 +792,7 @@ fun TvDetailScreen(
                                                             type = when (rel.mediaType) {
                                                                 MediaType.Manga -> MediaType.Manga
                                                                 MediaType.Movie -> MediaType.Movie
+                                                                MediaType.TvShow -> MediaType.TvShow
                                                                 else -> MediaType.Anime
                                                             },
                                                             total = null,
@@ -801,7 +802,8 @@ fun TvDetailScreen(
                                                             year = null,
                                                             titleEnglish = rel.titleEnglish,
                                                             titleJapanese = rel.titleJapanese,
-                                                            titleRomaji = rel.titleRomaji
+                                                            titleRomaji = rel.titleRomaji,
+                                                            bangumiSubjectType = rel.bangumiSubjectType
                                                         )
                                                         onNavigateToRelationDetail(relResult)
                                                     }

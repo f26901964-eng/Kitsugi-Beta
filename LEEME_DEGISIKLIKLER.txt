@@ -1,0 +1,20 @@
+Kitsugi - değişiklikler ve plan dosyaları
+
+Değişen kod dosyaları (a9bb249..HEAD):
+app/build.gradle.kts
+app/src/main/java/com/kitsugi/animelist/data/auth/ExternalAuthManager.kt
+app/src/main/java/com/kitsugi/animelist/ui/app/AuthViewModel.kt
+app/src/main/java/com/kitsugi/animelist/ui/components/KitsugiHeroSection.kt
+app/src/main/java/com/kitsugi/animelist/ui/components/KitsugiMediaGridDialog.kt
+app/src/main/java/com/kitsugi/animelist/ui/components/KitsugiSettingsComponents.kt
+app/src/main/java/com/kitsugi/animelist/ui/screens/collection/FolderDetailScreen.kt
+app/src/main/java/com/kitsugi/animelist/ui/screens/detail/StudioDetailPage.kt
+app/src/main/java/com/kitsugi/animelist/ui/screens/fullscreen/AddonFullScreenGridPage.kt
+app/src/main/java/com/kitsugi/animelist/ui/screens/fullscreen/FullScreenMediaGridPage.kt
+app/src/main/java/com/kitsugi/animelist/ui/screens/manga/MangaBrowseScreen.kt
+app/src/main/java/com/kitsugi/animelist/ui/screens/profile/tabs/FavouritesTab.kt
+app/src/main/java/com/kitsugi/animelist/ui/screens/settings/AccountSettingsSubPages.kt
+app/src/main/java/com/kitsugi/animelist/ui/screens/settings/DeveloperLogsDialog.kt
+app/src/main/java/com/kitsugi/animelist/ui/utils/KitsugiGridColumns.kt
+
+Plan/görev dosyaları: 92 adet (repo yapısı korunarak).

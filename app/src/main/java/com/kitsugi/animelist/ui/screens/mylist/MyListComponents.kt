@@ -520,7 +520,7 @@ fun MyListTabBar(
     val countSimkl = remember(allEntries) { allEntries.count { it.source.equals("simkl", ignoreCase = true) } }
     val countKitsu = remember(allEntries) { allEntries.count { it.source.equals("kitsu", ignoreCase = true) } }
     val countShikimori = remember(allEntries) { allEntries.count { it.source.equals("shikimori", ignoreCase = true) } }
-    val countBangumi = remember(allEntries) { allEntries.count { it.source.equals("bangumi", ignoreCase = true) || it.source.equals("bgm", ignoreCase = true) } }
+    val countBangumi = remember(allEntries) { allEntries.count { isBangumiListMember(it.source, it.malId) } }
 
     val platforms = listOf(
         MyListPlatformSource(

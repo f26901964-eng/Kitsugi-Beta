@@ -372,7 +372,7 @@ fun KitsugiHeroSection(
                     contentWidthFraction = 1f,
                     contentHorizontalPadding = 20.dp,
                     contentVerticalPadding = 18.dp,
-                    bottomFadeHeight = 220.dp,
+                    bottomFadeHeight = 300.dp,
                     logoWidthFraction = 0.62f,
                 )
             }
@@ -673,8 +673,8 @@ fun KitsugiHeroSection(
                     Brush.verticalGradient(
                         colorStops = arrayOf(
                             0.0f to androidx.compose.ui.graphics.Color.Transparent,
-                            0.40f to KitsugiColors.Background.copy(alpha = 0.22f),
-                            0.72f to KitsugiColors.Background.copy(alpha = 0.58f),
+                            0.30f to KitsugiColors.Background.copy(alpha = 0.35f),
+                            0.62f to KitsugiColors.Background.copy(alpha = 0.80f),
                             1.0f to KitsugiColors.Background
                         )
                     )
@@ -825,7 +825,7 @@ fun KitsugiHeroSection(
                             Spacer(modifier = Modifier.height(if (layout.isLandscape) 4.dp else 8.dp))
                             Text(
                                 text = heroMeta,
-                                color = KitsugiColors.TextMuted,
+                                color = KitsugiColors.TextSecondary,
                                 style = MaterialTheme.typography.bodySmall,
                                 fontWeight = FontWeight.SemiBold,
                                 maxLines = 1,

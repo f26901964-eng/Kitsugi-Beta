@@ -39,9 +39,20 @@ internal fun myListTabIndexForSource(source: String): Int? = when (sourceBadgeId
     else -> null
 }
 
+/**
+ * Bangumi sekmesi yalnızca bir Bangumi subject ID'si taşıyan (Bangumi koleksiyonundan
+ * içe aktarılmış veya Bangumi'ye başarıyla eklenmiş) kayıtları gösterir. Eski manuel
+ * `source = bangumi` kayıtları hesap koleksiyon üyeliği gibi gösterilmemelidir.
+ */
+internal fun isBangumiListMember(source: String, malId: Int?): Boolean =
+    sourceBadgeId(source) == "bangumi" && malId != null && malId in 500_000_001..599_999_999
+
 /** Bir kaydın verilen platform sekmesinde görünüp görünmeyeceğini söyler. */
-internal fun myListSourceMatchesTab(tabIndex: Int, source: String): Boolean =
-    tabIndex != MY_LIST_ALL_TAB_INDEX && myListTabIndexForSource(source) == tabIndex
+internal fun myListSourceMatchesTab(tabIndex: Int, source: String, malId: Int? = null): Boolean = when {
+    tabIndex == MY_LIST_ALL_TAB_INDEX -> false
+    tabIndex == MY_LIST_BANGUMI_TAB_INDEX -> isBangumiListMember(source, malId)
+    else -> myListTabIndexForSource(source) == tabIndex
+}
 
 /**
  * Bir sekmede yeni/manüel kayıt oluşturulurken kullanılacak varsayılan kaynak.
@@ -52,7 +63,8 @@ internal fun defaultMyListSourceForTab(tabIndex: Int): String = when (tabIndex) 
     MY_LIST_SIMKL_TAB_INDEX -> "simkl"
     MY_LIST_KITSU_TAB_INDEX -> "kitsu"
     MY_LIST_SHIKIMORI_TAB_INDEX -> "shikimori"
-    MY_LIST_BANGUMI_TAB_INDEX -> "bangumi"
+    // Manual entries have no verified Bangumi collection membership.
+    MY_LIST_BANGUMI_TAB_INDEX -> "manual"
     else -> "anilist"
 }
 

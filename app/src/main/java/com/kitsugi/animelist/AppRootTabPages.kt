@@ -24,6 +24,8 @@ import com.kitsugi.animelist.data.local.CsPluginEntity
 import com.kitsugi.animelist.model.MediaEntry
 import com.kitsugi.animelist.model.MediaType
 import com.kitsugi.animelist.data.remote.JikanSearchResult
+import com.kitsugi.animelist.data.remote.BangumiIdNamespace
+import com.kitsugi.animelist.data.remote.canonicalMediaSourceId
 import com.kitsugi.animelist.data.remote.ApiSearchSelection
 import com.kitsugi.animelist.ui.navigation.MainTab
 import com.kitsugi.animelist.ui.screens.explore.ExploreScreen
@@ -198,7 +200,10 @@ fun AppRootTabPages(
                             isAdult = resolvedIsAdult,
                             imageUrl = imageUrl,
                             year = null,
-                            source = source
+                            source = source,
+                            bangumiSubjectType = if (canonicalMediaSourceId(source) == "bangumi") {
+                                BangumiIdNamespace.subjectTypeFor(mediaType)
+                            } else null
                         )
                         ctx.navState.navigateToDetail(DetailScreen.ApiResultDetail(result))
                     },

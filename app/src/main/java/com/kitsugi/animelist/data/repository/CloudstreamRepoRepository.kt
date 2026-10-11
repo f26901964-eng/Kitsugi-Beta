@@ -12,6 +12,7 @@ import com.kitsugi.animelist.data.remote.CsPlugin
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
@@ -30,6 +31,21 @@ class CloudstreamRepoRepository(private val context: Context) {
     private val addonDao: ManagedAddonDao = db.managedAddonDao()
     private val csPluginDao = db.csPluginDao()
     private val client = CloudstreamRepoClient(context.applicationContext)
+
+    /**
+     * Kullanıcının "GitHub Vekil Sunucu (jsDelivr)" ayarı.
+     *
+     * AYARIN GERÇEKTEN UYGULANMASI: anahtar Ayarlar > Eklentiler ekranında açılıp
+     * DataStore'a yazılıyordu, ancak repo/eklenti çekme yolları bu değeri hiç okumuyordu —
+     * yalnızca "doğrudan istek başarısız olursa" yedeği vardı. Artık kullanıcı anahtarı
+     * açtığında ilk istek doğrudan vekil (jsDelivr) üzerinden gider.
+     */
+    private val settingsDataStore =
+        com.kitsugi.animelist.data.settings.SettingsDataStore(context.applicationContext)
+
+    private suspend fun useGithubProxySetting(): Boolean = runCatching {
+        settingsDataStore.settingsFlow.first().useGithubProxy
+    }.getOrDefault(false)
 
     companion object {
         private const val TAG = "CloudstreamRepoRepository"
@@ -81,7 +97,7 @@ class CloudstreamRepoRepository(private val context: Context) {
             if (!hasDefault) {
                 Log.d(TAG, "No default repository found, seeding Kitsugi Plugins repository...")
                 val fetched = try {
-                    client.fetchRepo(defaultUrl, forceRefresh = true)
+                    client.fetchRepo(defaultUrl, useGithubProxy = useGithubProxySetting(), forceRefresh = true)
                 } catch (e: Exception) {
                     null
                 }
@@ -135,8 +151,9 @@ class CloudstreamRepoRepository(private val context: Context) {
 
             val normalizedUrl = normalizeRepoUrl(inputUrl)
             com.kitsugi.animelist.core.security.RepoVerifier.trustRepo(context, normalizedUrl)
-            var fetched = client.fetchRepo(normalizedUrl)
-            if (fetched == null && normalizedUrl.contains("raw.githubusercontent.com", ignoreCase = true)) {
+            val preferProxy = useGithubProxySetting()
+            var fetched = client.fetchRepo(normalizedUrl, useGithubProxy = preferProxy)
+            if (fetched == null && !preferProxy && normalizedUrl.contains("raw.githubusercontent.com", ignoreCase = true)) {
                 fetched = client.fetchRepo(normalizedUrl, useGithubProxy = true)
             }
             if (fetched == null && (normalizedUrl.contains("KitsugiPlugins", ignoreCase = true) || normalizedUrl.contains("codeberg.org", ignoreCase = true))) {
@@ -202,8 +219,9 @@ class CloudstreamRepoRepository(private val context: Context) {
 
     suspend fun fetchPluginsForRepo(repoUrl: String, forceRefresh: Boolean = false): List<CsPlugin>? = withContext(Dispatchers.IO) {
         val normalizedUrl = normalizeRepoUrl(repoUrl)
-        var result = client.fetchAllPlugins(normalizedUrl, forceRefresh = forceRefresh)
-        if (result == null && repoUrl.contains("raw.githubusercontent.com", ignoreCase = true)) {
+        val preferProxy = useGithubProxySetting()
+        var result = client.fetchAllPlugins(normalizedUrl, useGithubProxy = preferProxy, forceRefresh = forceRefresh)
+        if (result == null && !preferProxy && repoUrl.contains("raw.githubusercontent.com", ignoreCase = true)) {
             result = client.fetchAllPlugins(normalizedUrl, useGithubProxy = true, forceRefresh = forceRefresh)
         }
         result
@@ -360,6 +378,7 @@ class CloudstreamRepoRepository(private val context: Context) {
             }
             lastSyncAtMs = now
             Log.d(TAG, "Starting syncAndAutoUpdate (force=$force)...")
+            val preferProxy = useGithubProxySetting()
             val currentRepos = repoDao.getAllRepos()
 
             // 1. Automatically migrate legacy repository URLs (e.g. keyiflerolsun/maarrem/gameras -> KitsugiBeta-dev)
@@ -371,7 +390,7 @@ class CloudstreamRepoRepository(private val context: Context) {
                     repoDao.deleteRepo(repo)
                     
                     // Fetch metadata of the new repository
-                    val fetched = client.fetchRepo(normalized, forceRefresh = force)
+                    val fetched = client.fetchRepo(normalized, useGithubProxy = preferProxy, forceRefresh = force)
                     val newEntity = if (fetched != null) {
                         CloudstreamRepoEntity(
                             repoUrl = normalized,

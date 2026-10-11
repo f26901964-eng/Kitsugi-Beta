@@ -1,5 +1,6 @@
 package com.kitsugi.animelist.ui.screens.profile.tabs
 
+import com.kitsugi.animelist.ui.utils.rememberKitsugiGridColumns
 import com.kitsugi.animelist.ui.theme.gradient.Icon
 import com.kitsugi.animelist.ui.theme.gradient.Text
 
@@ -181,7 +182,7 @@ fun FavouritesScreen(
                 }
             } else {
                 LazyVerticalGrid(
-                    columns = GridCells.Fixed(if (isLandscape) 4 else 2),
+                    columns = GridCells.Fixed(rememberKitsugiGridColumns()),
                     horizontalArrangement = Arrangement.spacedBy(10.dp),
                     verticalArrangement = Arrangement.spacedBy(10.dp),
                     modifier = Modifier

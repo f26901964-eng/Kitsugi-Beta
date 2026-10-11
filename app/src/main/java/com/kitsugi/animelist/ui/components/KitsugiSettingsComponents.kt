@@ -199,7 +199,9 @@ fun KitsugiSettingsSwitchItem(
     checked: Boolean,
     onCheckedChange: (Boolean) -> Unit,
     modifier: Modifier = Modifier,
-    enabled: Boolean = true
+    enabled: Boolean = true,
+    /** Verilirse ikon yerine orijinal platform logosu (AniList, MAL, Simkl, ...) gösterilir. */
+    platformId: String? = null
 ) {
     val isTv = LocalIsTv.current
     val accentColor = LocalKitsugiAccent.current
@@ -228,10 +230,18 @@ fun KitsugiSettingsSwitchItem(
         verticalAlignment = Alignment.CenterVertically
     ) {
         val finalIconColor = if (enabled) iconColor else KitsugiColors.TextMuted
-        SettingsIcon(
-            icon = icon,
-            color = finalIconColor
-        )
+        if (platformId != null) {
+            KitsugiPlatformLogo(
+                platformId = platformId,
+                size = 42.dp,
+                modifier = Modifier.alpha(if (enabled) 1f else 0.5f)
+            )
+        } else {
+            SettingsIcon(
+                icon = icon,
+                color = finalIconColor
+            )
+        }
 
         Spacer(modifier = Modifier.width(14.dp))
 

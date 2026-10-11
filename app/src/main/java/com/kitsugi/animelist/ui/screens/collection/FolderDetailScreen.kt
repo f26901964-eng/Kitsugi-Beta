@@ -1,4 +1,5 @@
 ﻿package com.kitsugi.animelist.ui.screens.collection
+import com.kitsugi.animelist.ui.utils.rememberKitsugiGridColumns
 import com.kitsugi.animelist.ui.components.KitsugiButton
 
 import androidx.compose.foundation.layout.*
@@ -90,7 +91,7 @@ fun FolderDetailScreen(
             }
         } else {
             LazyVerticalGrid(
-                columns = GridCells.Fixed(3),
+                columns = GridCells.Fixed(rememberKitsugiGridColumns()),
                 modifier = Modifier.fillMaxSize().padding(paddingValues),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp)

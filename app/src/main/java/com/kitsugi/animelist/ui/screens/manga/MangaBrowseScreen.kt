@@ -1,5 +1,6 @@
 package com.kitsugi.animelist.ui.screens.manga
 
+import com.kitsugi.animelist.ui.utils.rememberKitsugiGridColumns
 import com.kitsugi.animelist.ui.theme.gradient.CircularProgressIndicator
 import com.kitsugi.animelist.ui.theme.gradient.Icon
 import com.kitsugi.animelist.ui.theme.gradient.Text
@@ -39,6 +40,7 @@ import coil3.compose.AsyncImage
 import com.kitsugi.animelist.data.manga.MangaDetails
 import com.kitsugi.animelist.data.manga.MangaSource
 import com.kitsugi.animelist.data.manga.MangaSourceRepository
+import com.kitsugi.animelist.data.settings.SettingsDataStore
 import com.kitsugi.animelist.ui.theme.LocalKitsugiAccent
 import com.kitsugi.animelist.ui.theme.KitsugiColors
 import kotlinx.coroutines.launch
@@ -72,6 +74,15 @@ fun MangaBrowseScreen(
     val context = LocalContext.current
     var showSettingsDialog by remember { mutableStateOf(false) }
 
+    // ── GitHub Vekil Sunucu ayarı (Manga Kaynakları sekmesindeki diyalog için) ──
+    // Diyalog bu iki parametre geçilmediği sürece varsayılan (false / no-op) değerlerle
+    // açılıyordu; anahtar hiçbir zaman açılamıyordu.
+    val settingsDataStore = remember(context) { SettingsDataStore(context.applicationContext) }
+    val appSettings by settingsDataStore.settingsFlow.collectAsState(
+        initial = com.kitsugi.animelist.data.settings.AppSettings()
+    )
+    val settingsScope = rememberCoroutineScope()
+
     LaunchedEffect(reposList) {
         addonViewModel.syncRepos(reposList)
     }
@@ -99,8 +110,7 @@ fun MangaBrowseScreen(
         }
     }
     val accentColor = LocalKitsugiAccent.current
-    val isLandscape = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
-    val cols = if (isLandscape) 4 else 2
+    val cols = rememberKitsugiGridColumns()
 
     // Snapshot delegated props → allow smart cast
     val query          = ui.searchQuery
@@ -389,6 +399,11 @@ fun MangaBrowseScreen(
             onClearBulkInstallResult = { addonViewModel.clearBulkInstallResult() },
             onToggleCsPlugin = { plugin, enabled -> addonViewModel.toggleCsPlugin(plugin, enabled) },
             onUninstallCsPlugin = { addonViewModel.uninstallCsPlugin(it) },
+            // ── GitHub Vekil Sunucu (jsDelivr) — eksik geçilen parametreler ─────
+            useGithubProxy = appSettings.useGithubProxy,
+            onUseGithubProxyChanged = { enabled ->
+                settingsScope.launch { settingsDataStore.setUseGithubProxy(enabled) }
+            },
             mangaSources = mangaViewModel.mangaSources,
             onInstallMangaExtension = { mangaViewModel.installMangaExtension(it) },
             onDeleteMangaExtension = { mangaViewModel.deleteMangaExtension(it) },

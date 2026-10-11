@@ -179,6 +179,30 @@ class MediaEntryMatchesTest {
     }
 
     @Test
+    fun `source scoped lookup rejects cross provider MAL and TMDB identity collisions`() {
+        val bangumiResult = result(
+            title = "A distinct Bangumi title",
+            malId = 500_000_876,
+            year = 2008,
+            source = "bangumi",
+            realMalId = 5681,
+            tmdbId = 321
+        )
+        val simklCopy = entry(
+            title = "Unrelated Simkl title",
+            malId = 5681,
+            year = 1999,
+            source = "simkl",
+            tmdbId = 321
+        )
+
+        assertTrue(simklCopy.matches(bangumiResult))
+        assertFalse(simklCopy.matchesInSource(bangumiResult))
+        assertNull(listOf(simklCopy).firstMatchingInSource(bangumiResult))
+        assertFalse(simklCopy.matchesInSource(5681, "bangumi"))
+    }
+
+    @Test
     fun `source scoped lookup accepts Bangumi aliases and exact source ids`() {
         val storedBangumi = entry(
             title = "Old title",

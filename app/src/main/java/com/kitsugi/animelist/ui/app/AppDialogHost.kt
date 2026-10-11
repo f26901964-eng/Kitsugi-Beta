@@ -32,15 +32,7 @@ fun AppDialogHost(
 
     // Entry editing
     editingEntry: MediaEntry?,
-    /**
-     * Düzenleyicinin açıldığı SAYFANIN kaynağı (ör. Bangumi detay sayfası → "bangumi").
-     *
-     * NEDEN: Kitsugi kayıtları sağlayıcılar arası eşleştirilir; Bangumi sayfasında
-     * "Düzenle"ye basıldığında eşleşen kayıt Simkl/AniList kaynaklı olabilir. Kaydın kendi
-     * kaynağına göre açmak kullanıcıya "Bangumi sayfasında Simkl düzenleyicisi" olarak
-     * görünüyordu. İpucu verildiğinde düzenleyici sayfadaki sağlayıcıyla açılır; kaydın
-     * kimlikleri/senkronizasyonu DEĞİŞMEZ (senkron katmanı bağlı tüm sağlayıcılara yazar).
-     */
+    /** Düzenlenen üyelik kaydının sağlayıcı bağlamı; başka bir sağlayıcının kaydını dönüştürmez. */
     editingSourceHint: String? = null,
     scoreFormat: String,
     onDismissEditing: () -> Unit,

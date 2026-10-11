@@ -49,7 +49,8 @@ object BangumiImportManager {
     }
 
     /**
-     * Kullanıcının tüm koleksiyonunu (动画 + 书籍) çeker ve [MediaEntry] listesine çevirir.
+     * Kullanıcının desteklenen koleksiyon türlerini (动画, 书籍 ve REAL film/dizileri) çeker.
+     * Oyun ve müzik gibi Kitsugi'nin desteklemediği subject türleri atlanır.
      *
      * @param username Boş/`"-"` → token sahibi. Başka bir kullanıcının **herkese açık**
      *                 koleksiyonu da bu uçla okunabilir (özel收藏'lar hariç).
@@ -88,12 +89,15 @@ object BangumiImportManager {
 
         collections.mapNotNull { collection ->
             val slim = collection.subject
+            if (!BangumiIdNamespace.supportsSubjectType(collection.subjectType)) {
+                return@mapNotNull null
+            }
             val stableId = BangumiIdNamespace.stableIdFromRaw(collection.subjectId)
             if (stableId == null) {
                 Log.w(TAG, "Bangumi subject_id ${collection.subjectId} stableId penceresi dışında, atlanıyor")
                 return@mapNotNull null
             }
-            val mediaType = BangumiIdNamespace.mediaTypeFor(collection.subjectType)
+            val mediaType = BangumiIdNamespace.mediaTypeFor(collection.subjectType, slim?.platform)
             val isBookSubject = collection.subjectType == BangumiApiClient.SubjectType.BOOK
             // Koleksiyon yanıtı kısa subject döndürür; eldeki English/romaji/özgün alanları
             // kaybetmeden sakla ki Listem ekranı da Başlık Dili ayarına uyabilsin.

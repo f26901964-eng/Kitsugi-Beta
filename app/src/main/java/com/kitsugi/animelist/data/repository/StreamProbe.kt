@@ -5,13 +5,18 @@ import com.kitsugi.animelist.core.memory.BoundedCache
 import android.util.Log
 import com.kitsugi.animelist.core.network.KitsugiHttpClient
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
+import okhttp3.Call
+import okhttp3.Callback
 import okhttp3.Request
+import okhttp3.Response
+import java.io.IOException
 import java.util.Locale
-import java.util.concurrent.ConcurrentHashMap
+import kotlin.coroutines.resume
 
 /**
  * Akışın GERÇEK bilgilerini kaynağın kendisinden ölçer.
@@ -31,8 +36,15 @@ object StreamProbe {
     private const val MAX_PLAYLIST_BYTES = 128 * 1024L
     private const val PROBE_TIMEOUT_MS = 8_000L
 
+    /**
+     * Eşzamanlı ölçüm sayısı.
+     *
+     * 3 → 2: Listede aynı anda onlarca kart var; ölçümler OkHttp bağlantı havuzunu ve
+     * mobil radyoyu doldurduğunda resim yükleme/kaydırma da yavaşlıyordu.
+     */
+    private val gate = Semaphore(2)
+
     private val cache = BoundedCache<String, MeasuredStreamInfo>("streamProbe", 200)
-    private val gate = Semaphore(3)
 
     /** Daha önce ölçülmüş sonuç (anında arayüze verilebilir). */
     fun cached(url: String?): MeasuredStreamInfo? = url?.let { cache[it] }
@@ -45,6 +57,23 @@ object StreamProbe {
         val url = stream.url?.trim().orEmpty()
         if (!url.startsWith("http", ignoreCase = true)) return false
         return mediaKind(url) != MediaKind.UNSUPPORTED
+    }
+
+    /**
+     * Ölçüm bu akışa YENİ bilgi katıyor mu?
+     *
+     * NEDEN GEREKLİ: Kitsugi rozetleri kanıta dayalı gösterir. Kaynak (CloudStream eklentisi /
+     * Stremio) kalite, ses türü ve altyazı listesini ZATEN bildirdiyse ağ üzerinden ölçüm yapmak
+     * hiçbir yeni rozet üretmez — yalnızca veri harcar ve kaydırmayı kasar. Bilinen eksik bilgi
+     * varsa (ör. yalnızca kalite verilmiş, altyazı verilmemiş) ölçüm yine yapılır.
+     */
+    fun isProbeNeeded(stream: StreamSource): Boolean {
+        if (!isProbeable(stream)) return false
+        val qualityKnown = StreamInfoResolver.csQualityHeightOrNull(stream.qualityValue) != null
+        val audioKnown = !stream.providerAudioKind.isNullOrBlank() ||
+            stream.providerLanguages.isNotEmpty()
+        val subtitlesKnown = stream.subtitles.isNotEmpty()
+        return !(qualityKnown && audioKnown && subtitlesKnown)
     }
 
     private enum class MediaKind { HLS, PROGRESSIVE, UNSUPPORTED }
@@ -96,7 +125,7 @@ object StreamProbe {
     private val LANGUAGE_ATTR = Regex("LANGUAGE=\"([^\"]+)\"", RegexOption.IGNORE_CASE)
     private val TYPE_ATTR = Regex("""TYPE=([A-Z\-]+)""", RegexOption.IGNORE_CASE)
 
-    private fun probeHls(url: String, headers: Map<String, String>?): MeasuredStreamInfo {
+    private suspend fun probeHls(url: String, headers: Map<String, String>?): MeasuredStreamInfo {
         val body = fetchText(url, headers) ?: return MeasuredStreamInfo(failed = true)
         if (!body.contains("#EXTM3U")) return MeasuredStreamInfo(failed = true)
 
@@ -141,15 +170,22 @@ object StreamProbe {
 
     // ── Progressive dosyalar ─────────────────────────────────────────────────
 
-    private fun probeProgressive(url: String, headers: Map<String, String>?): MeasuredStreamInfo {
+    private suspend fun probeProgressive(url: String, headers: Map<String, String>?): MeasuredStreamInfo {
         val request = buildRequest(url, headers).head().build()
-        KitsugiHttpClient.client.newCall(request).execute().use { response ->
-            if (!response.isSuccessful) return MeasuredStreamInfo(failed = true)
-            val length = response.header("Content-Length")?.toLongOrNull()
-            return MeasuredStreamInfo(
-                sizeBytes = length?.takeIf { it > 0 },
-                failed = length == null
-            )
+        // İptal edilebilir async çağrı: kart görüş alanından çıkınca istek GERÇEKTEN iptal edilir
+        // ve eşzamanlılık kapısı (semaphore) hemen serbest kalır.
+        val response = awaitResponse(KitsugiHttpClient.client.newCall(request))
+            ?: return MeasuredStreamInfo(failed = true)
+        return response.use { resp ->
+            if (!resp.isSuccessful) {
+                MeasuredStreamInfo(failed = true)
+            } else {
+                val length = resp.header("Content-Length")?.toLongOrNull()
+                MeasuredStreamInfo(
+                    sizeBytes = length?.takeIf { it > 0 },
+                    failed = length == null
+                )
+            }
         }
     }
 
@@ -165,14 +201,35 @@ object StreamProbe {
         return builder
     }
 
-    private fun fetchText(url: String, headers: Map<String, String>?): String? {
+    private suspend fun fetchText(url: String, headers: Map<String, String>?): String? {
         val request = buildRequest(url, headers)
             .header("Range", "bytes=0-${MAX_PLAYLIST_BYTES - 1}")
             .get()
             .build()
-        KitsugiHttpClient.client.newCall(request).execute().use { response ->
-            if (!response.isSuccessful) return null
-            return response.peekBody(MAX_PLAYLIST_BYTES).string()
+        val response = awaitResponse(KitsugiHttpClient.client.newCall(request)) ?: return null
+        return response.use { resp ->
+            if (!resp.isSuccessful) null else resp.peekBody(MAX_PLAYLIST_BYTES).string()
         }
+    }
+
+    /**
+     * OkHttp çağrısını askıya alınabilir (cancellable) biçimde çalıştırır.
+     *
+     * NEDEN: Eskiden `execute()` (bloklayıcı) kullanılıyordu. Coroutine iptal edilse bile
+     * bloklayıcı çağrı arka planda devam ediyor, `gate` semaforundaki izni 8 sn boyunca
+     * TUTUYORDU. Listeyi hızlı kaydırınca onlarca terk edilmiş ölçüm izinleri tüketiyor ve
+     * yeni görünen kartların rozetleri hiç gelmiyordu (kilitlenme hissi).
+     */
+    private suspend fun awaitResponse(call: Call): Response? = suspendCancellableCoroutine { cont ->
+        cont.invokeOnCancellation { runCatching { call.cancel() } }
+        call.enqueue(object : Callback {
+            override fun onFailure(call: Call, e: IOException) {
+                if (cont.isActive) cont.resume(null)
+            }
+
+            override fun onResponse(call: Call, response: Response) {
+                if (cont.isActive) cont.resume(response) else runCatching { response.close() }
+            }
+        })
     }
 }

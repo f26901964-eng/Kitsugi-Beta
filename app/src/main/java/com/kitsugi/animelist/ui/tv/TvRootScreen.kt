@@ -519,7 +519,8 @@ fun TvRootScreen(
                                     repository = mediaRepository,
                                     isAniListConnected = authViewModel.isAniListConnected,
                                     isMalConnected = authViewModel.isMalConnected,
-                                    isSimklConnected = authViewModel.isSimklConnected
+                                    isSimklConnected = authViewModel.isSimklConnected,
+                                    isBangumiConnected = authViewModel.isBangumiConnected
                                 )
                             },
                             onNavigateToRelationDetail = { rel -> navigationState.navigateToDetail(rel) },

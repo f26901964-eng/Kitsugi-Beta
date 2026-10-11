@@ -1356,12 +1356,9 @@ object KitsugiBangumiDetailClient {
         }.distinctBy { it.malId }
 
     private fun JSONObject.toRelation(relationType: String): KitsugiRelation? {
-        val type = optInt("type", BangumiApiClient.SubjectType.ANIME)
-        // Müzik / oyun kayıtlarını uygulama gösteremez (MediaType karşılığı yok).
-        if (type != BangumiApiClient.SubjectType.ANIME &&
-            type != BangumiApiClient.SubjectType.BOOK &&
-            type != BangumiApiClient.SubjectType.REAL
-        ) return null
+        val type = optInt("type", 0)
+        // Bilinmeyen türler ve oyun/müzik kayıtları hiçbir zaman Anime gibi gösterilmez.
+        if (!BangumiIdNamespace.supportsSubjectType(type)) return null
         val rawId = optInt("id", 0).takeIf { it > 0 } ?: return null
         val stable = stableIdOf(rawId) ?: return null
         val localizedTitle = localizedName()
@@ -1373,12 +1370,13 @@ object KitsugiBangumiDetailClient {
                 ?: localizedTitle.display.ifBlank { "Bangumi #$rawId" },
             relationType = relationType,
             imageUrl = optJSONObject("images").image("common", "medium", "large", "grid", "small"),
-            mediaType = BangumiIdNamespace.mediaTypeFor(type),
+            mediaType = BangumiIdNamespace.mediaTypeFor(type, optString("platform").takeIf { it.isNotBlank() }),
             source = SOURCE,
             titleEnglish = localizedTitle.english ?: cachedLatin,
             titleJapanese = localizedTitle.native,
             titleRomaji = localizedTitle.romaji ?: cachedLatin,
-            isAdult = optBoolean("nsfw", false)
+            isAdult = optBoolean("nsfw", false),
+            bangumiSubjectType = type
         )
     }
 

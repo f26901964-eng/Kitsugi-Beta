@@ -8,6 +8,8 @@ import com.kitsugi.animelist.data.local.KitsugiDatabase
 import com.kitsugi.animelist.model.MediaEntry
 import com.kitsugi.animelist.model.WatchStatus
 import com.kitsugi.animelist.data.auth.ExternalAuthManager
+import com.kitsugi.animelist.data.auth.BangumiSyncManager
+import com.kitsugi.animelist.data.remote.BangumiIdNamespace
 import com.kitsugi.animelist.model.MediaType
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.SharingStarted
@@ -150,6 +152,28 @@ class MyListViewModel(application: Application) : AndroidViewModel(application) 
     fun insertEntry(entry: MediaEntry) {
         viewModelScope.launch {
             repository.insert(entry)
+        }
+    }
+
+    /** Explicit Bangumi-list add/edit always targets the linked Bangumi account only. */
+    fun saveBangumiEntry(entry: MediaEntry, isNew: Boolean) {
+        viewModelScope.launch {
+            val result = BangumiSyncManager.syncEntryToBangumi(
+                context,
+                entry.copy(source = BangumiIdNamespace.SOURCE)
+            )
+            if (result.collectionUpdated) {
+                val stableId = result.subjectId?.let(BangumiIdNamespace::stableIdFromRaw)
+                val persisted = entry.copy(
+                    source = BangumiIdNamespace.SOURCE,
+                    malId = stableId ?: entry.malId
+                )
+                if (isNew) repository.insert(persisted.copy(id = 0), syncExternal = false)
+                else repository.update(persisted, syncExternal = false)
+            }
+            val message = (result.messages + result.errors).joinToString(" • ")
+                .ifBlank { "Bangumi koleksiyonu güncellenemedi." }
+            _syncMessages.send(message)
         }
     }
 

@@ -152,7 +152,7 @@ fun KitsugiMediaGridDialog(
                             LocalBringIntoViewSpec provides tvSpec
                         ) {
                             androidx.compose.foundation.lazy.grid.LazyVerticalGrid(
-                                columns = androidx.compose.foundation.lazy.grid.GridCells.Fixed(5),
+                                columns = androidx.compose.foundation.lazy.grid.GridCells.Fixed(com.kitsugi.animelist.ui.utils.rememberKitsugiGridColumns()),
                                 state = gridState,
                                 modifier = Modifier
                                     .weight(1f)
@@ -245,7 +245,7 @@ fun KitsugiMediaGridDialog(
                         )
                     } else {
                         LazyVerticalGrid(
-                            columns = GridCells.Fixed(2),
+                            columns = GridCells.Fixed(com.kitsugi.animelist.ui.utils.rememberKitsugiGridColumns()),
                             state = gridState,
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.spacedBy(12.dp),
