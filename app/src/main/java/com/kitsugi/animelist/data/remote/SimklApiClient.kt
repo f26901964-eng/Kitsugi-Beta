@@ -24,6 +24,144 @@ private data class SimklTrendingCacheEntry(
     val items: List<JikanSearchResult>
 )
 
+/**
+ * Simkl başlık alanlarını Türkçe → İngilizce → Romaji zinciriyle çözer.
+ *
+ * Simkl `title` alanı bazı kayıtlarda doğrudan Japonca/Çince gelebilir. Bu
+ * durumda sırasıyla `title_en`/`en_title`, `title_romaji` ve Latin orijinal
+ * başlık denenir; ekranlarda CJK başlık görünmesi engellenir.
+ */
+internal fun resolveSimklTitle(obj: JSONObject): String {
+    val raw = obj.optString("title", "")
+    val english = MediaTitleResolver.nonBlank(
+        obj.optString("title_en"),
+        obj.optString("en_title"),
+        obj.optString("title_english")
+    )
+    val romaji = MediaTitleResolver.nonBlank(
+        obj.optString("title_romaji"),
+        obj.optString("romaji")
+    )
+    val native = MediaTitleResolver.nonBlank(
+        obj.optString("title_native"),
+        obj.optString("ja_title"),
+        obj.optString("title_japanese")
+    )
+    return MediaTitleResolver.resolve(
+        localized = MediaTitleResolver.latin(raw),
+        english = english,
+        romaji = romaji,
+        original = native ?: raw
+    )
+}
+
+/** Simkl kaydındaki yerel (Japonca/Çince/Korece) başlık — yoksa null. */
+internal fun simklNativeTitle(obj: JSONObject): String? {
+    val native = MediaTitleResolver.nonBlank(
+        obj.optString("title_native"),
+        obj.optString("ja_title"),
+        obj.optString("title_japanese"),
+        obj.optString("title")
+    )
+    return native?.takeIf { MediaTitleResolver.hasCjk(it) }
+}
+
+/**
+ * Simkl yanıtlarındaki kimlik alanlarını okur. Değerler sayı **ya da metin**
+ * olabildiği için (`"mal": "22297"`) her iki biçim de denenir; hiçbiri geçerli
+ * değilse null döner. `KitsugiSimklDetailClient.parseOptionalId` ile aynı kural.
+ */
+internal fun simklOptionalId(ids: JSONObject?, vararg keys: String): Int? {
+    if (ids == null) return null
+    for (key in keys) {
+        val fromString = ids.optString(key, "").trim().toIntOrNull()
+        if (fromString != null && fromString > 0) return fromString
+    }
+    for (key in keys) {
+        val fromInt = ids.optInt(key, 0)
+        if (fromInt > 0) return fromInt
+    }
+    return null
+}
+
+/**
+ * Simkl `*_best_*` ve `*_trending_*` liste yanıtlarını çözer.
+ *
+ * Kimlik anahtarları uç noktaya göre değişir:
+ *  - Simkl: `ids.simkl_id` veya `ids.simkl`
+ *  - TMDB:  `ids.tmdb` veya `ids.tmdb_id`
+ *  - MAL:   `ids.mal` (sayı ya da metin)
+ * Vitrin logosu ve detay eşlemesi bu kimliklere dayandığı için eksik okunmaları
+ * Simkl içeriklerinin logosuz (düz metin başlıkla) kalmasına yol açıyordu.
+ *
+ * Kimlik hiç yoksa sıra numarası **geçici kimlik** olur; bu değer asla MAL/TMDB
+ * kimliği yerine kullanılmaz (çağıranlar yalnızca `realMalId`/`tmdbId` alanlarını
+ * kaynak kimliği kabul eder).
+ */
+internal fun parseBestMediaArray(
+    responseText: String,
+    defaultType: MediaType,
+    limit: Int
+): List<JikanSearchResult> {
+    val array = JSONArray(responseText)
+    val results = mutableListOf<JikanSearchResult>()
+    for (i in 0 until minOf(array.length(), limit)) {
+        val obj = array.optJSONObject(i) ?: continue
+        val title = resolveSimklTitle(obj)
+        if (title.isBlank()) continue
+        val ids = obj.optJSONObject("ids")
+        val simklId = simklOptionalId(ids, "simkl_id", "simkl") ?: (i + 1)
+        val tmdbId = simklOptionalId(ids, "tmdb", "tmdb_id")
+        val malId = simklOptionalId(ids, "mal") ?: 0
+        val poster = obj.optString("poster", "")
+        val imageUrl = if (poster.isNotBlank()) "https://simkl.in/posters/${poster}_m.webp" else null
+        val fanart = obj.optString("fanart", "")
+        val backdropUrl = if (fanart.isNotBlank()) "https://simkl.in/fanart/${fanart}_medium.webp" else null
+        val year = obj.optInt("year", 0).takeIf { it > 0 }
+        val ratings = obj.optJSONObject("ratings")
+        val ratingDouble = ratings?.optJSONObject("simkl")?.optDouble("rating", 0.0)
+            ?: ratings?.optJSONObject("mal")?.optDouble("rating", 0.0)
+            ?: 0.0
+        val score = if (ratingDouble > 0.0) (ratingDouble * 10).toInt() else null
+
+        val subtitleParts = buildList {
+            when (defaultType) {
+                MediaType.Anime -> {
+                    add("Anime")
+                    val animeType = obj.optString("anime_type", "")
+                    if (animeType.equals("movie", ignoreCase = true)) add("Film") else add("Dizi")
+                }
+                MediaType.TvShow -> add("Dizi")
+                MediaType.Movie -> add("Film")
+                else -> {}
+            }
+            if (year != null && year > 0) add(year.toString())
+        }
+        val subtitle = subtitleParts.joinToString(", ").ifBlank { if (year != null) "$year" else "Simkl" }
+
+        results.add(
+            JikanSearchResult(
+                malId = simklId,
+                title = title,
+                subtitle = subtitle,
+                type = defaultType,
+                total = null,
+                score = score,
+                isAdult = SimklAdultFlags.isAdult(obj),
+                imageUrl = imageUrl,
+                year = year,
+                source = "simkl",
+                realMalId = malId.takeIf { it > 0 },
+                titleEnglish = title,
+                titleJapanese = simklNativeTitle(obj),
+                backdropUrl = backdropUrl,
+                tmdbId = tmdbId
+            )
+        )
+    }
+    return results
+}
+
 class SimklApiClient(
     private val clientMap: Map<String, String>? = null
 ) {
@@ -45,48 +183,6 @@ class SimklApiClient(
         // Simkl trending JSONs are CDN-cached for an hour; share them across page requests.
         private const val TRENDING_CACHE_TTL_MS = 60 * 60 * 1000L
         private val trendingPeriodCache = ConcurrentHashMap<String, SimklTrendingCacheEntry>()
-    }
-
-    /**
-     * Simkl başlık alanlarını Türkçe → İngilizce → Romaji zinciriyle çözer.
-     *
-     * Simkl `title` alanı bazı kayıtlarda doğrudan Japonca/Çince gelebilir. Bu
-     * durumda sırasıyla `title_en`/`en_title`, `title_romaji` ve Latin orijinal
-     * başlık denenir; ekranlarda CJK başlık görünmesi engellenir.
-     */
-    private fun resolveSimklTitle(obj: JSONObject): String {
-        val raw = obj.optString("title", "")
-        val english = MediaTitleResolver.nonBlank(
-            obj.optString("title_en"),
-            obj.optString("en_title"),
-            obj.optString("title_english")
-        )
-        val romaji = MediaTitleResolver.nonBlank(
-            obj.optString("title_romaji"),
-            obj.optString("romaji")
-        )
-        val native = MediaTitleResolver.nonBlank(
-            obj.optString("title_native"),
-            obj.optString("ja_title"),
-            obj.optString("title_japanese")
-        )
-        return MediaTitleResolver.resolve(
-            localized = MediaTitleResolver.latin(raw),
-            english = english,
-            romaji = romaji,
-            original = native ?: raw
-        )
-    }
-
-    /** Simkl kaydındaki yerel (Japonca/Çince/Korece) başlık — yoksa null. */
-    private fun simklNativeTitle(obj: JSONObject): String? {
-        val native = MediaTitleResolver.nonBlank(
-            obj.optString("title_native"),
-            obj.optString("ja_title"),
-            obj.optString("title_japanese"),
-            obj.optString("title")
-        )
-        return native?.takeIf { MediaTitleResolver.hasCjk(it) }
     }
 
     private fun checkResponseAndThrow(response: okhttp3.Response) {
@@ -766,6 +862,10 @@ class SimklApiClient(
 
     /**
      * Simkl Keşfet / En İyiler listesini çeker (Örn. anime/best/all-time, tv/best/all-time).
+     *
+     * Çözümleme [parseBestMediaArray] içindedir: Simkl kimlikleri uç noktaya göre
+     * `simkl_id`/`simkl`, `tmdb`/`tmdb_id` ve sayı ya da metin `mal` olarak
+     * gelebildiği için hepsi okunur — vitrin logosu ve detay eşlemesi bu kimliklere bağlı.
      */
     suspend fun getBestMedia(endpoint: String, defaultType: MediaType, limit: Int = 20): List<JikanSearchResult> = withContext(Dispatchers.IO) {
         val url = "https://api.simkl.com/$endpoint?client_id=$clientId&limit=$limit"
@@ -778,60 +878,7 @@ class SimklApiClient(
                 if (!response.isSuccessful) return@withContext emptyList()
                 val responseText = response.body?.string().orEmpty()
                 if (responseText.isBlank()) return@withContext emptyList()
-                val array = JSONArray(responseText)
-                val results = mutableListOf<JikanSearchResult>()
-                for (i in 0 until minOf(array.length(), limit)) {
-                    val obj = array.optJSONObject(i) ?: continue
-                    val title = resolveSimklTitle(obj)
-                    if (title.isBlank()) continue
-                    val ids = obj.optJSONObject("ids")
-                    val simklId = ids?.optInt("simkl_id", 0)?.takeIf { it > 0 } ?: (i + 1)
-                    val tmdbId = ids?.optInt("tmdb", 0)?.takeIf { it > 0 }
-                    val poster = obj.optString("poster", "")
-                    val imageUrl = if (poster.isNotBlank()) "https://simkl.in/posters/${poster}_m.webp" else null
-                    val fanart = obj.optString("fanart", "")
-                    val backdropUrl = if (fanart.isNotBlank()) "https://simkl.in/fanart/${fanart}_medium.webp" else null
-                    val year = obj.optInt("year", 0).takeIf { it > 0 }
-                    val ratings = obj.optJSONObject("ratings")
-                    val ratingDouble = ratings?.optJSONObject("simkl")?.optDouble("rating", 0.0) ?: ratings?.optJSONObject("mal")?.optDouble("rating", 0.0) ?: 0.0
-                    val score = if (ratingDouble > 0.0) (ratingDouble * 10).toInt() else null
-
-                    val subtitleParts = buildList {
-                        when (defaultType) {
-                            MediaType.Anime -> {
-                                add("Anime")
-                                val animeType = obj.optString("anime_type", "")
-                                if (animeType.equals("movie", ignoreCase = true)) add("Film") else add("Dizi")
-                            }
-                            MediaType.TvShow -> add("Dizi")
-                            MediaType.Movie -> add("Film")
-                            else -> {}
-                        }
-                        if (year != null && year > 0) add(year.toString())
-                    }
-                    val subtitle = subtitleParts.joinToString(", ").ifBlank { if (year != null) "$year" else "Simkl" }
-
-                    results.add(
-                        JikanSearchResult(
-                            malId = simklId,
-                            title = title,
-                            subtitle = subtitle,
-                            type = defaultType,
-                            total = null,
-                            score = score,
-                            isAdult = SimklAdultFlags.isAdult(obj),
-                            imageUrl = imageUrl,
-                            year = year,
-                            source = "simkl",
-                            realMalId = ids?.optInt("mal", 0)?.takeIf { it > 0 },
-                            titleEnglish = title,
-                            titleJapanese = simklNativeTitle(obj),
-                            backdropUrl = backdropUrl,
-                            tmdbId = tmdbId
-                        )
-                    )
-                }
-                results
+                parseBestMediaArray(responseText, defaultType, limit)
             }
         } catch (e: Exception) {
             android.util.Log.e("SimklApiClient", "getBestMedia $endpoint failed", e)
