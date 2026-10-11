@@ -12,7 +12,7 @@
     <string name="platform_error_src_rate_limited_cause">Too many requests were sent to the source in a short time; the server is temporarily delaying requests.</string>
     <string name="platform_error_src_rate_limited_action">Wait for the cooldown to expire before retrying. The app temporarily pauses requests to this source.</string>
     <string name="platform_error_src_captcha_title">Cloudflare / CAPTCHA</string>
-    <string name="platform_error_src_captcha_cause">The site's bot protection redirected the request to a verification page.</string>
+    <string name="platform_error_src_captcha_cause">The site\'s bot protection redirected the request to a verification page.</string>
     <string name="platform_error_src_captcha_action">Open the source in a browser and complete verification; if needed, change your network or VPN settings.</string>
     <string name="platform_error_src_not_found_title">Chapter or page not found</string>
     <string name="platform_error_src_not_found_cause">The requested chapter or page may have been removed, or the source URL structure may have changed.</string>
@@ -24,7 +24,7 @@
     <string name="platform_error_src_auth_cause">The source may require a login, cookies, or valid authentication.</string>
     <string name="platform_error_src_auth_action">Sign in to the source again if needed and review the extension settings.</string>
     <string name="platform_error_src_parser_title">Source format changed</string>
-    <string name="platform_error_src_parser_cause">The site's HTML or API may have changed, so the extension cannot parse the expected content.</string>
+    <string name="platform_error_src_parser_cause">The site\'s HTML or API may have changed, so the extension cannot parse the expected content.</string>
     <string name="platform_error_src_parser_action">Update the extension. If the issue persists, report it to the extension repository.</string>
     <string name="platform_error_src_unknown_title">Unclassified error</string>
     <string name="platform_error_src_unknown_cause">The error did not match any known source diagnostic signature.</string>
@@ -46,10 +46,10 @@
     <string name="platform_error_csp_rate_limited_cause">The provider temporarily limited requests (HTTP 429).</string>
     <string name="platform_error_csp_rate_limited_action">Wait a while before retrying; avoid repeated refreshes.</string>
     <string name="platform_error_csp_network_title">Network / DNS error</string>
-    <string name="platform_error_csp_network_cause">The device or plugin could not connect to the provider's server.</string>
+    <string name="platform_error_csp_network_cause">The device or plugin could not connect to the provider\'s server.</string>
     <string name="platform_error_csp_network_action">Check your connection and DNS settings. Try again on another network.</string>
     <string name="platform_error_csp_parser_title">Plugin parsing error</string>
-    <string name="platform_error_csp_parser_cause">A change to the provider's page/API format prevented the plugin from reading its response.</string>
+    <string name="platform_error_csp_parser_cause">A change to the provider\'s page/API format prevented the plugin from reading its response.</string>
     <string name="platform_error_csp_parser_action">Update the plugin. If it continues on the latest version, report it to the plugin repository.</string>
     <string name="platform_error_csp_unknown_title">Unclassified plugin error</string>
     <string name="platform_error_csp_unknown_cause">The error did not match any known CloudStream diagnostic signature.</string>

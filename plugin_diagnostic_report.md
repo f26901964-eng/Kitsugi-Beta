@@ -1,6 +1,6 @@
 # Kitsugi CS Plugin Live Diagnostics — Tam Rapor
 
-**Oluşturulma:** 2026-10-10T00:15:39.480722300
+**Oluşturulma:** 2026-10-11T06:49:38.777278800
 **Toplam probe edilen eklenti:** 539
 
 ## Özet
@@ -8,7 +8,7 @@
 |---|---|
 | ✅ CS3 İndirilebilir | 505 |
 | ❌ CS3 Erişilemiyor | 34 |
-| 🟢 Site 200 OK | 59 |
+| 🟢 Site 200 OK | 56 |
 | ⚠️ Cloudflare Korumalı | 91 |
 | 🚨 WAF Engeli | 4 |
 | ❓ Domain Bilinmiyor | 426 |
@@ -74,7 +74,7 @@
 | **DiziFilmSiteleri** | Movie, TvSeries, Anime, AsianDrama, Cartoon | ✅200 | _bilinmiyor_ | N/A | - | - |  |
 | **DiziGom** | Movie | ✅200 | _bilinmiyor_ | N/A | - | - |  |
 | **DiziKorea** | AsianDrama | ❌404 | `https://dizikorea3.com` | 200 | ⚠️ | - | [CS3:404] [CF] |
-| **DiziLife** | Movie, TvSeries | ✅200 | `https://dizi73.life` | 301 | ⚠️ | - | [CF] [→https://dizi76.life/] |
+| **DiziLife** | Movie, TvSeries | ✅200 | `https://dizi73.life` | 301 | ⚠️ | - | [CF] [→https://dizi77.life/] |
 | **DiziMag** | TvSeries | ✅200 | _bilinmiyor_ | N/A | - | - |  |
 | **DiziMom** | TvSeries | ❌404 | `https://www.dizimom.rest` | 301 | ⚠️ | - | [CS3:404] [CF] [→https://www.dizimom.cafe/] |
 | **DiziPal** | TvSeries, Movie | ✅200 | `https://dizipal.bid` | 301 | ⚠️ | - | [CF] [→https://dizipal3008.com/] |
@@ -123,7 +123,7 @@
 | **FreePornVideos** | NSFW | ✅200 | _bilinmiyor_ | N/A | - | - |  |
 | **FreeUsePorn** | NSFW | ✅200 | _bilinmiyor_ | N/A | - | - |  |
 | **Full4kizle** | Movie, AsianDrama | ✅200 | _bilinmiyor_ | N/A | - | - |  |
-| **FullHDFilm** | Movie, TvSeries | ✅200 | `https://fullhdfilm.pro` | 200 | - | - |  |
+| **FullHDFilm** | Movie, TvSeries | ✅200 | `https://fullhdfilm.pro` | 429 | - | - |  |
 | **FullHDFilmizlesene** | Movie | ❌404 | `https://www.fullhdfilmizlesene.mx` | 301 | ⚠️ | - | [CS3:404] [CF] [→https://www.fullhdfilmizlesene.now/] |
 | **FullHDFilmİzlede** | Movie | ✅200 | _bilinmiyor_ | N/A | - | - |  |
 | **FullPorner** | NSFW | ✅200 | _bilinmiyor_ | N/A | - | - |  |
@@ -332,7 +332,7 @@
 | **Dizilla** | TvSeries | ✅200 | `https://dizillahd.com` | 301 | ⚠️ | - | [CF] [→https://dizilla.one/] |
 | **FilmMakinesi** | Movie | ✅200 | `https://filmmakinesi.to` | 200 | ⚠️ | - | [CF] |
 | **FilmModu** | Movie | ✅200 | `https://www.filmmodu.one` | 200 | ⚠️ | - | [CF] |
-| **FullHDFilm** | Movie, TvSeries | ✅200 | `https://fullhdfilm.pro` | 200 | - | - |  |
+| **FullHDFilm** | Movie, TvSeries | ✅200 | `https://fullhdfilm.pro` | 429 | - | - |  |
 | **FullHDFilmizlesene** | Movie | ✅200 | `https://www.fullhdfilmizlesene.mx` | 301 | ⚠️ | - | [CF] [→https://www.fullhdfilmizlesene.now/] |
 | **HDFilmCehennemi** | Movie, TvSeries | ✅200 | `https://www.hdfilmcehennemi.nl` | 200 | ⚠️ | - | [CF] |
 | **HDFilmDelisi** | Movie, TvSeries | ✅200 | `https://hdfilmdelisi.one` | 200 | ⚠️ | - | [CF] |
@@ -421,7 +421,7 @@
 | **FilmMakinesi** | Movie | ✅200 | `https://filmmakinesi.to` | 200 | ⚠️ | - | [CF] |
 | **FilmModu** | Movie | ✅200 | `https://www.filmmodu.one` | 200 | ⚠️ | - | [CF] |
 | **Filmİzlesene** | Movie | ✅200 | _bilinmiyor_ | N/A | - | - |  |
-| **FullHDFilm** | Movie, TvSeries | ✅200 | `https://fullhdfilm.pro` | 200 | - | - |  |
+| **FullHDFilm** | Movie, TvSeries | ✅200 | `https://fullhdfilm.pro` | 429 | - | - |  |
 | **FullHDFilmizlesene** | Movie | ✅200 | `https://www.fullhdfilmizlesene.mx` | 301 | ⚠️ | - | [CF] [→https://www.fullhdfilmizlesene.now/] |
 | **FullHDFilmİzlede** | Movie | ✅200 | _bilinmiyor_ | N/A | - | - |  |
 | **HDFilmCehennemi** | Movie, TvSeries | ✅200 | `https://www.hdfilmcehennemi.nl` | 200 | ⚠️ | - | [CF] |

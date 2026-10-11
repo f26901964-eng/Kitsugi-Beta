@@ -1,14 +1,14 @@
 # Kitsugi Provider Stream Source Discovery — L4/L5/L6 Raporu
 
-**Oluşturulma:** 2026-10-10T14:25:05.305344400
+**Oluşturulma:** 2026-10-11T06:46:28.673420400
 **Taranan provider:** 59
 
 ## Özet
 | Metrik | Sayı |
 |---|---|
 | 🔍 Arama başarılı (200 OK + embed bulundu) | 2 |
-| ✅ Arama sayfası 200 OK | 40 |
-| ❌ Arama başarısız (timeout/CF/404) | 19 |
+| ✅ Arama sayfası 200 OK | 39 |
+| ❌ Arama başarısız (timeout/CF/404) | 20 |
 | 🔐 Cloudflare challenge (JS bypass gerekli) | 0 |
 
 ## CDN Kullanım Haritası (hangi CDN kaç provider tarafından kullanılıyor)
@@ -57,7 +57,7 @@
 | **FilmMakinesi** | `https://filmmakinesi.to` | — | 0 | — | ❌ Erişilemiyor |
 | **FilmModu** | `https://www.filmmodu.one` | naruto | 0 | — | ⚠️ Sayfa OK, embed yok |
 | **FilmZal** | `https://filmzal.me` | — | 0 | — | ❌ Erişilemiyor |
-| **FullHDFilm** | `https://fullhdfilm.pro` | naruto | 0 | — | ⚠️ Sayfa OK, embed yok |
+| **FullHDFilm** | `https://fullhdfilm.pro` | — | 0 | — | ❌ Erişilemiyor |
 | **FullHDFilmizlesene** | `https://www.fullhdfilmizlesene.mx` | — | 0 | — | ❌ Erişilemiyor |
 | **HDFilmCehennemi** | `https://www.hdfilmcehennemi.nl` | — | 0 | — | ❌ Erişilemiyor |
 | **HDFilmDelisi** | `https://hdfilmdelisi.one` | naruto | 0 | — | ⚠️ Sayfa OK, embed yok |
