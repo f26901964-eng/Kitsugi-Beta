@@ -17,7 +17,13 @@ import com.kitsugi.animelist.R
 data class CsRepository(
     val name: String,
     val description: String?,
-    val pluginLists: List<String>
+    val pluginLists: List<String>,
+    /**
+     * Bu kayıt canlı depodan DEĞİL, yedek kaynaktan (Codeberg aynası / APK içine gömülü
+     * `assets/plugins/repo.json`) geldi. Güncelleme denetimi bu bayrağı görürse sonucu
+     * "depo güncel" diye sunmaz; kullanıcıya ulaşılamadığını bildirir.
+     */
+    val fromOfflineFallback: Boolean = false
 )
 
 data class CsPlugin(
@@ -37,7 +43,13 @@ data class CsPlugin(
     val fileHash: String? = null,
     /** File size in bytes, for display purposes (optional, provided by repo). */
     val fileSize: Long? = null,
-    val repositoryUrl: String? = null
+    val repositoryUrl: String? = null,
+    /**
+     * Kayıt canlı depodan değil yedek kaynaktan geldi (Codeberg aynası veya APK içine gömülü
+     * `assets/plugins/plugins.json`). Gömülü liste APK derlendiği anda dondurulduğu için
+     * sürüm bilgisi BAYATTIR: bu kayıtlarla "güncelleme yok" sonucuna varmak yanıltıcıdır.
+     */
+    val fromOfflineFallback: Boolean = false
 )
 
 /**
@@ -85,6 +97,112 @@ class CloudstreamRepoClient(private val context: android.content.Context? = null
         private const val TAG = "CloudstreamRepoClient"
         private const val CODEBERG_API_REPO_FALLBACK = "https://codeberg.org/api/v1/repos/BlackDamage/KitsugiPlugins/raw/builds/repo.json"
         private const val CODEBERG_API_PLUGINS_FALLBACK = "https://codeberg.org/api/v1/repos/BlackDamage/KitsugiPlugins/raw/builds/plugins.json"
+
+        /** Kitsugi resmi eklenti havuzu (uygulamanın varsayılan deposu). */
+        const val KITSUGI_PLUGINS_SLUG = "f26901964-eng/Kitsugi-Plugins"
+
+        private const val GITHUB_RAW_PREFIX = "https://raw.githubusercontent.com/"
+        private const val GITHUB_API_CONTENTS = "https://api.github.com/repos/"
+
+        /** Ayna zincirinin toplam süre bütçesi: güncelleme denetimi asılı kalmasın. */
+        private const val MIRROR_BUDGET_MS = 20_000L
+    }
+
+    /**
+     * URL Kitsugi eklenti havuzunu (yeni GitHub deposu veya eski Codeberg aynası) mu işaret ediyor?
+     *
+     * NOT: Daha önce bu kontrol bazı yerlerde yalnızca `KitsugiPlugins` (tire yok) ve
+     * `codeberg.org` arıyordu; resmi depo URL'si `f26901964-eng/Kitsugi-Plugins/builds/...`
+     * biçiminde tire içerdiği için o yollar hiç tetiklenmiyor, istek başarısız olduğunda
+     * doğrudan APK içindeki BAYAT listeye düşülüyordu. Tek bir yardımcı ile birleştirildi.
+     */
+    fun isKitsugiRepoUrl(url: String?): Boolean {
+        val value = url ?: return false
+        return value.contains("Kitsugi", ignoreCase = true) ||
+            value.contains("KitsugiPlugins", ignoreCase = true) ||
+            value.contains("Kitsugi-Plugins", ignoreCase = true) ||
+            value.contains("f26901964-eng", ignoreCase = true) ||
+            value.contains("BlackDamage/KitsugiPlugins", ignoreCase = true)
+    }
+
+    /**
+     * `raw.githubusercontent.com/<user>/<repo>/<dal>/<yol>` → `api.github.com` muadili.
+     *
+     * Neden: Türkiye'de `raw.githubusercontent.com` sık sık ISS/BTK seviyesinde engelleniyor
+     * (DNS zehirlenmesi, TLS reset). `api.github.com` çoğu zaman açık kalıyor ve
+     * `Accept: application/vnd.github.raw` başlığı ile AYNI içeriği (CDN önbelleği olmadan)
+     * veriyor. Böylece "depoya ulaşılamadı → bayat gömülü liste" zinciri kırılıyor.
+     */
+    internal fun githubApiContentUrl(rawUrl: String): String? {
+        if (!rawUrl.startsWith(GITHUB_RAW_PREFIX, ignoreCase = true)) return null
+        val rest = rawUrl.removePrefix(GITHUB_RAW_PREFIX).substringBefore("?").substringBefore("#")
+        val parts = rest.split("/")
+        if (parts.size < 4) return null
+        val user = parts[0]
+        val repo = parts[1]
+        val branch = parts[2]
+        val path = parts.drop(3).joinToString("/")
+        if (user.isBlank() || repo.isBlank() || branch.isBlank() || path.isBlank()) return null
+        return "$GITHUB_API_CONTENTS$user/$repo/contents/$path?ref=$branch"
+    }
+
+    /**
+     * `cdn.jsdelivr.net/gh/<user>/<repo>@<dal>/<yol>` → `raw.githubusercontent.com` muadili.
+     *
+     * Kullanıcı "GitHub Vekil Sunucu (jsDelivr)" ayarını açtığında birincil istek doğrudan
+     * jsDelivr'a gider. jsDelivr dal içeriğini saatlerce önbellekleyebildiği için, tazelik
+     * gerektiren güncelleme denetiminde zincire ham GitHub adresi ve api.github.com muadili
+     * de eklenir (bkz. [mirrorChainFor]).
+     */
+    internal fun githubRawFromJsdelivr(url: String): String? {
+        val prefix = "https://cdn.jsdelivr.net/gh/"
+        if (!url.startsWith(prefix, ignoreCase = true)) return null
+        val rest = url.substring(prefix.length).substringBefore("?").substringBefore("#")
+        val at = rest.indexOf('@')
+        if (at <= 0) return null
+        val userRepo = rest.substring(0, at)
+        val branchPath = rest.substring(at + 1)
+        val slash = branchPath.indexOf('/')
+        if (slash <= 0) return null
+        val branch = branchPath.substring(0, slash)
+        val path = branchPath.substring(slash + 1)
+        if (userRepo.isBlank() || branch.isBlank() || path.isBlank()) return null
+        return "$GITHUB_RAW_PREFIX$userRepo/$branch/$path"
+    }
+
+    /**
+     * Bir manifest/eklenti listesi URL'si için denenecek ayna zinciri.
+     *
+     * Sıra önemli:
+     *  1. Birincil URL (doğrudan GitHub ham içeriği veya kullanıcının açtığı jsDelivr vekili)
+     *  2. `api.github.com` muadili — taze içerik, CDN gecikmesi yok
+     *  3. jsDelivr `gh` aynası (ISS engellerinde çalışır; dal içeriği birkaç saat önbelleklenir)
+     *  4. Kitsugi havuzu için eski Codeberg aynası (en son yedek; içerik daha eski olabilir)
+     */
+    internal fun mirrorChainFor(url: String): List<String> {
+        val chain = LinkedHashSet<String>()
+        chain.add(url)
+
+        // jsDelivr üzerinden gelen birincil URL ise: ham GitHub + api.github.com muadillerini ekle.
+        githubRawFromJsdelivr(url)?.let { raw ->
+            chain.add(raw)
+            githubApiContentUrl(raw)?.let { chain.add(it) }
+        }
+
+        githubApiContentUrl(url)?.let { chain.add(it) }
+
+        val jsdelivr = com.kitsugi.animelist.utils.CloudstreamUrlHelper.applyGithubProxy(url)
+        if (jsdelivr != url) chain.add(jsdelivr)
+
+        if (isKitsugiRepoUrl(url)) {
+            val fileName = url.substringBefore("?").substringBefore("#").substringAfterLast("/")
+            if (fileName.isNotBlank()) {
+                chain.add("https://codeberg.org/BlackDamage/KitsugiPlugins/raw/branch/builds/$fileName")
+            }
+        }
+
+        Log.d(TAG, "Ayna zinciri (${chain.size} aday): ${chain.joinToString(" → ")}")
+        return chain.toList()
     }
 
     fun fetchRepoFromAssets(assetPath: String = "plugins/repo.json"): CsRepository? {
@@ -102,7 +220,12 @@ class CloudstreamRepoClient(private val context: android.content.Context? = null
                     if (url.isNotBlank()) pluginLists.add(url)
                 }
             }
-            CsRepository(name = name, description = description, pluginLists = pluginLists)
+            CsRepository(
+                name = name,
+                description = description,
+                pluginLists = pluginLists,
+                fromOfflineFallback = true
+            )
         }.getOrNull()
     }
 
@@ -110,18 +233,33 @@ class CloudstreamRepoClient(private val context: android.content.Context? = null
         val ctx = context ?: return emptyList()
         return runCatching {
             val jsonStr = ctx.assets.open(assetPath).bufferedReader().use { it.readText() }
-            dedupePlugins(parsePluginsJson(jsonStr, false))
+            // Gömülü liste APK'nın derlendiği anda dondurulur; sürüm bilgisi bayat olduğu için
+            // "canlı depo verisi" sayılmaması adına işaretlenir.
+            dedupePlugins(parsePluginsJson(jsonStr, false)).map { it.copy(fromOfflineFallback = true) }
         }.getOrDefault(emptyList())
     }
 
-    suspend fun fetchRepo(repoUrl: String, useGithubProxy: Boolean = false, forceRefresh: Boolean = false): CsRepository? = withContext(Dispatchers.IO) {
-        val normalizedUrl = com.kitsugi.animelist.utils.CloudstreamUrlHelper.normalizeAndProxy(repoUrl, useGithubProxy)
-        val finalUrl = if (forceRefresh) com.kitsugi.animelist.utils.CloudstreamUrlHelper.withCacheBuster(normalizedUrl) else normalizedUrl
-        try {
+    /**
+     * Tek bir URL'yi indirir. Başarısızsa `null` döner (istisna fırlatmaz).
+     *
+     * @param forceRefresh true ise OkHttp önbelleği ve CDN devre dışı bırakılır (önbellek
+     *        kırıcı parametre + `no-cache` başlıkları). Kullanıcı "Yenile" dediğinde şart.
+     */
+    private fun executeGet(url: String, forceRefresh: Boolean): String? {
+        val finalUrl = if (forceRefresh) {
+            com.kitsugi.animelist.utils.CloudstreamUrlHelper.withCacheBuster(url)
+        } else {
+            url
+        }
+        val isGithubApi = finalUrl.contains("api.github.com/repos/", ignoreCase = true)
+        return try {
             val requestBuilder = Request.Builder()
                 .url(finalUrl)
                 .addHeader("User-Agent", "Mozilla/5.0 (Linux; Android 14; Mobile) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Mobile Safari/537.36 Kitsugi/2.4")
-                .addHeader("Accept", "application/json, text/plain, */*")
+                .addHeader(
+                    "Accept",
+                    if (isGithubApi) "application/vnd.github.raw" else "application/json, text/plain, */*"
+                )
 
             if (forceRefresh) {
                 requestBuilder.cacheControl(okhttp3.CacheControl.FORCE_NETWORK)
@@ -129,45 +267,82 @@ class CloudstreamRepoClient(private val context: android.content.Context? = null
                 requestBuilder.addHeader("Pragma", "no-cache")
             }
 
-            val request = requestBuilder.build()
-
-            val responseBody = client.newCall(request).execute().use { response ->
+            client.newCall(requestBuilder.build()).execute().use { response ->
                 if (!response.isSuccessful) {
-                    Log.e(TAG, "fetchRepo failed (${response.code}): $finalUrl")
+                    Log.e(TAG, "İstek başarısız (${response.code}): $finalUrl")
                     null
                 } else {
                     response.body?.string()
                 }
             }
-
-            if (responseBody == null) {
-                if (!useGithubProxy && repoUrl.contains("raw.githubusercontent.com", ignoreCase = true)) {
-                    Log.i(TAG, "Direct GitHub fetch failed for $repoUrl, automatically retrying with jsDelivr GitHub proxy...")
-                    return@withContext fetchRepo(repoUrl, useGithubProxy = true, forceRefresh = forceRefresh)
-                }
-                if (repoUrl.contains("codeberg.org", ignoreCase = true) || repoUrl.contains("KitsugiPlugins", ignoreCase = true) || repoUrl.contains("Kitsugi-Plugins", ignoreCase = true)) {
-                    Log.i(TAG, "Primary Codeberg fetch failed, trying Codeberg API fallback endpoint...")
-                    val apiResult = runCatching {
-                        val apiReq = Request.Builder().url(CODEBERG_API_REPO_FALLBACK).build()
-                        client.newCall(apiReq).execute().use { resp -> if (resp.isSuccessful) resp.body?.string() else null }
-                    }.getOrNull()
-                    if (apiResult != null) {
-                        return@withContext parseRepoJson(apiResult, finalUrl, useGithubProxy)
-                    }
-                    Log.i(TAG, "Codeberg remote endpoints failed, falling back to bundled assets repo...")
-                    return@withContext fetchRepoFromAssets()
-                }
-                return@withContext null
-            }
-
-            parseRepoJson(responseBody, finalUrl, useGithubProxy)
         } catch (e: Exception) {
-            Log.e(TAG, "fetchRepo exception for $finalUrl", e)
-            if (!useGithubProxy && repoUrl.contains("raw.githubusercontent.com", ignoreCase = true)) {
-                Log.i(TAG, "Direct GitHub fetch exception for $repoUrl, automatically retrying with jsDelivr proxy...")
-                return@withContext fetchRepo(repoUrl, useGithubProxy = true, forceRefresh = forceRefresh)
+            Log.w(TAG, "İstek hatası ($finalUrl): ${e.message}")
+            null
+        }
+    }
+
+    /**
+     * [url] için ayna zincirini sırayla dener ve ilk BAŞARILI yanıtı döndürür.
+     *
+     * @return gövde + gerçekten yanıt veren URL (yedek kaynak mı, birincil mi ayrımı için).
+     */
+    private fun fetchWithMirrors(
+        url: String,
+        forceRefresh: Boolean,
+        budgetMs: Long = MIRROR_BUDGET_MS
+    ): Pair<String, String>? {
+        val deadline = System.currentTimeMillis() + budgetMs
+        for (candidate in mirrorChainFor(url)) {
+            val body = executeGet(candidate, forceRefresh)
+            if (!body.isNullOrBlank()) return body to candidate
+            // Ağ tamamen kapalıysa tüm aynaları denemek kullanıcıyı bekletir:
+            // bütçe dolduğunda kalan aynalar atlanır, çağıran taraf yedek akışa geçer.
+            if (System.currentTimeMillis() > deadline) {
+                Log.w(TAG, "Ayna bütçesi (${budgetMs}ms) doldu, kalan adaylar atlanıyor: $url")
+                break
             }
-            if (repoUrl.contains("codeberg.org", ignoreCase = true) || repoUrl.contains("KitsugiPlugins", ignoreCase = true) || repoUrl.contains("Kitsugi-Plugins", ignoreCase = true)) {
+        }
+        return null
+    }
+
+    /** Yanıt bir yedek/ayna kaynaktan mı geldi (birincil URL dışında bir aday)? */
+    private fun isMirrorAnswer(primaryUrl: String, answeredUrl: String): Boolean {
+        val primary = primaryUrl.substringBefore("?").substringBefore("#")
+        val answered = answeredUrl.substringBefore("?").substringBefore("#")
+        return !answered.equals(primary, ignoreCase = true)
+    }
+
+    suspend fun fetchRepo(repoUrl: String, useGithubProxy: Boolean = false, forceRefresh: Boolean = false): CsRepository? = withContext(Dispatchers.IO) {
+        val normalizedUrl = com.kitsugi.animelist.utils.CloudstreamUrlHelper.normalizeAndProxy(repoUrl, useGithubProxy)
+        try {
+            val answer = fetchWithMirrors(normalizedUrl, forceRefresh)
+            if (answer != null) {
+                val (body, answeredUrl) = answer
+                val parsed = runCatching { parseRepoJson(body, answeredUrl, useGithubProxy) }.getOrNull()
+                if (parsed != null) {
+                    return@withContext if (isMirrorAnswer(normalizedUrl, answeredUrl)) {
+                        parsed.copy(fromOfflineFallback = true)
+                    } else {
+                        parsed
+                    }
+                }
+            }
+
+            // JsonParse fail / network fail → Kitsugi havuzu için Codeberg API yedeği
+            if (isKitsugiRepoUrl(repoUrl)) {
+                Log.i(TAG, "Birincil kaynak başarısız, Codeberg API yedeği deneniyor: $repoUrl")
+                val apiResult = executeGet(CODEBERG_API_REPO_FALLBACK, forceRefresh = false)
+                if (apiResult != null) {
+                    val parsed = runCatching { parseRepoJson(apiResult, CODEBERG_API_REPO_FALLBACK, useGithubProxy) }.getOrNull()
+                    if (parsed != null) return@withContext parsed.copy(fromOfflineFallback = true)
+                }
+                Log.i(TAG, "Codeberg uç noktaları da başarısız — APK içindeki (bayat) depo listesine düşülüyor.")
+                return@withContext fetchRepoFromAssets()
+            }
+            return@withContext null
+        } catch (e: Exception) {
+            Log.e(TAG, "fetchRepo istisnası: $normalizedUrl", e)
+            if (isKitsugiRepoUrl(repoUrl)) {
                 return@withContext fetchRepoFromAssets()
             }
             null
@@ -210,58 +385,42 @@ class CloudstreamRepoClient(private val context: android.content.Context? = null
 
     suspend fun fetchPlugins(pluginListUrl: String, useGithubProxy: Boolean = false, forceRefresh: Boolean = false): List<CsPlugin> = withContext(Dispatchers.IO) {
         val normalizedUrl = com.kitsugi.animelist.utils.CloudstreamUrlHelper.normalizeAndProxy(pluginListUrl, useGithubProxy)
-        val finalUrl = if (forceRefresh) com.kitsugi.animelist.utils.CloudstreamUrlHelper.withCacheBuster(normalizedUrl) else normalizedUrl
         try {
-            val requestBuilder = Request.Builder()
-                .url(finalUrl)
-                .addHeader("User-Agent", "Mozilla/5.0 (Linux; Android 14; Mobile) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Mobile Safari/537.36 Kitsugi/2.4")
-                .addHeader("Accept", "application/json, text/plain, */*")
-
-            if (forceRefresh) {
-                requestBuilder.cacheControl(okhttp3.CacheControl.FORCE_NETWORK)
-                requestBuilder.addHeader("Cache-Control", "no-cache, no-store, must-revalidate")
-                requestBuilder.addHeader("Pragma", "no-cache")
-            }
-
-            val request = requestBuilder.build()
-
-            val responseBody = client.newCall(request).execute().use { response ->
-                if (!response.isSuccessful) {
-                    Log.e(TAG, "fetchPlugins failed (${response.code}): $finalUrl")
-                    null
-                } else {
-                    response.body?.string()
-                }
-            }
-
-            if (responseBody == null) {
-                if (!useGithubProxy && pluginListUrl.contains("raw.githubusercontent.com", ignoreCase = true)) {
-                    Log.i(TAG, "Direct GitHub pluginList fetch failed for $pluginListUrl, retrying with jsDelivr proxy...")
-                    return@withContext fetchPlugins(pluginListUrl, useGithubProxy = true, forceRefresh = forceRefresh)
-                }
-                if (pluginListUrl.contains("codeberg.org", ignoreCase = true) || pluginListUrl.contains("KitsugiPlugins", ignoreCase = true)) {
-                    Log.i(TAG, "Primary Codeberg pluginList fetch failed, trying Codeberg API fallback endpoint...")
-                    val apiResult = runCatching {
-                        val apiReq = Request.Builder().url(CODEBERG_API_PLUGINS_FALLBACK).build()
-                        client.newCall(apiReq).execute().use { resp -> if (resp.isSuccessful) resp.body?.string() else null }
-                    }.getOrNull()
-                    if (apiResult != null) {
-                        return@withContext parsePluginsJson(apiResult, useGithubProxy)
+            val answer = fetchWithMirrors(normalizedUrl, forceRefresh)
+            if (answer != null) {
+                val (body, answeredUrl) = answer
+                val parsed = runCatching { parsePluginsJson(body, useGithubProxy) }.getOrNull()
+                if (parsed != null) {
+                    // Ayna yanıtı: içerik canlı depodan değil (ör. Codeberg'in eski dalı) —
+                    // kurulum için kullanılabilir ama "güncel sürüm" kaynağı sayılmaz.
+                    return@withContext if (isMirrorAnswer(normalizedUrl, answeredUrl)) {
+                        parsed.map { it.copy(fromOfflineFallback = true) }
+                    } else {
+                        parsed
                     }
-                    Log.i(TAG, "Codeberg remote plugins endpoints failed, falling back to bundled assets plugins...")
-                    return@withContext fetchPluginsFromAssets()
                 }
-                return@withContext emptyList()
             }
 
-            parsePluginsJson(responseBody, useGithubProxy)
-        } catch (e: Exception) {
-            Log.e(TAG, "fetchPlugins exception for $finalUrl", e)
-            if (!useGithubProxy && pluginListUrl.contains("raw.githubusercontent.com", ignoreCase = true)) {
-                Log.i(TAG, "Direct GitHub pluginList exception for $pluginListUrl, retrying with jsDelivr proxy...")
-                return@withContext fetchPlugins(pluginListUrl, useGithubProxy = true, forceRefresh = forceRefresh)
+            // Kitsugi havuzu: Codeberg API yedeği, ardından (en son çare) gömülü liste.
+            // NOT: bu kontrol daha önce yalnızca "KitsugiPlugins"/"codeberg.org" arıyordu;
+            // resmi depo URL'si "Kitsugi-Plugins" (tireli) olduğu için hiç tetiklenmiyordu.
+            if (isKitsugiRepoUrl(pluginListUrl)) {
+                Log.i(TAG, "Birincil eklenti listesi başarısız, Codeberg API yedeği deneniyor: $pluginListUrl")
+                val apiResult = executeGet(CODEBERG_API_PLUGINS_FALLBACK, forceRefresh = false)
+                if (apiResult != null) {
+                    val parsed = runCatching { parsePluginsJson(apiResult, useGithubProxy) }.getOrNull()
+                    if (!parsed.isNullOrEmpty()) {
+                        Log.i(TAG, "Codeberg yedeğinden ${parsed.size} eklenti okundu (bayat olabilir).")
+                        return@withContext parsed.map { it.copy(fromOfflineFallback = true) }
+                    }
+                }
+                Log.i(TAG, "Canlı eklenti listesine ulaşılamadı — APK içindeki (bayat) listeye düşülüyor.")
+                return@withContext fetchPluginsFromAssets()
             }
-            if (pluginListUrl.contains("codeberg.org", ignoreCase = true) || pluginListUrl.contains("KitsugiPlugins", ignoreCase = true)) {
+            return@withContext emptyList()
+        } catch (e: Exception) {
+            Log.e(TAG, "fetchPlugins istisnası: $normalizedUrl", e)
+            if (isKitsugiRepoUrl(pluginListUrl)) {
                 return@withContext fetchPluginsFromAssets()
             }
             emptyList()
@@ -349,7 +508,7 @@ class CloudstreamRepoClient(private val context: android.content.Context? = null
         if (repo == null && !useGithubProxy && repoUrl.contains("raw.githubusercontent.com", ignoreCase = true)) {
             repo = fetchRepo(repoUrl, useGithubProxy = true, forceRefresh = forceRefresh)
         }
-        if (repo == null && (normalizedRepoUrl.contains("KitsugiPlugins", ignoreCase = true) || normalizedRepoUrl.contains("Kitsugi-Plugins", ignoreCase = true) || normalizedRepoUrl.contains("codeberg.org", ignoreCase = true))) {
+        if (repo == null && isKitsugiRepoUrl(normalizedRepoUrl)) {
             repo = fetchRepoFromAssets()
         }
         if (repo == null) return null
@@ -359,7 +518,7 @@ class CloudstreamRepoClient(private val context: android.content.Context? = null
             if (plugins.isEmpty() && !useGithubProxy && listUrl.contains("raw.githubusercontent.com", ignoreCase = true)) {
                 plugins = fetchPlugins(listUrl, useGithubProxy = true, forceRefresh = forceRefresh)
             }
-            if (plugins.isEmpty() && (listUrl.contains("KitsugiPlugins", ignoreCase = true) || listUrl.contains("Kitsugi-Plugins", ignoreCase = true) || listUrl.contains("codeberg.org", ignoreCase = true))) {
+            if (plugins.isEmpty() && isKitsugiRepoUrl(listUrl)) {
                 plugins = fetchPluginsFromAssets()
             }
             all.addAll(plugins.map { it.copy(repositoryUrl = it.repositoryUrl ?: normalizedRepoUrl) })

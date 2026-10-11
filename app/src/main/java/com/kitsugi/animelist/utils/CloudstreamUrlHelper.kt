@@ -186,6 +186,13 @@ object CloudstreamUrlHelper {
             candidates.add("https://raw.githubusercontent.com/f26901964-eng/Kitsugi-Plugins/builds/prebuilt/$scraperId.cs3")
             candidates.add("https://cdn.jsdelivr.net/gh/f26901964-eng/Kitsugi-Plugins@builds/prebuilt/$scraperId.cs3")
 
+            // api.github.com aynası: raw.githubusercontent.com ISS/BTK tarafından
+            // engellendiğinde (Türkiye'de sık) ikili içeriği yine de indirir.
+            // İndirme katmanı bu adresler için `Accept: application/vnd.github.raw` gönderir
+            // (aksi halde GitHub base64 JSON döner ve ZIP doğrulaması başarısız olur).
+            candidates.add("https://api.github.com/repos/f26901964-eng/Kitsugi-Plugins/contents/prebuilt/$scraperId.cs3?ref=builds")
+            candidates.add("https://api.github.com/repos/f26901964-eng/Kitsugi-Plugins/contents/$scraperId.cs3?ref=builds")
+
             // 2b. Codeberg (eski birincil havuz) SON ÇARE yedeği.
             // Kitsugi-Plugins deposu Codeberg havuzunun yerini aldı; ancak bazı eklentiler
             // (ör. `Filmmirasım`, `FullHDFilmİzlede`, `YesilCamTv`, `__New`) yeni deponun

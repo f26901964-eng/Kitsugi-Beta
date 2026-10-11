@@ -1,4 +1,4 @@
-﻿package com.kitsugi.animelist.ui.components.addons
+package com.kitsugi.animelist.ui.components.addons
 import com.kitsugi.animelist.ui.components.KitsugiButton
 
 import com.kitsugi.animelist.ui.theme.gradient.Icon
@@ -51,6 +51,16 @@ internal fun CsInstalledPluginRow(
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     var isSettingsOpening by remember { mutableStateOf(false) }
+
+    // Güncelleme kararı TEK merkezden verilir: sürüm numarası VEYA dosya içerik parmak izi
+    // (SHA-256) farkı. Depoda yeniden derlenip sürümü artırılmayan eklentiler de burada
+    // "güncellenebilir" görünür. Hesaplama anahtarlarla önbelleklenir; içerik parmak izi
+    // yalnızca sürümler eşit olduğunda okunur.
+    val updateReason = remember(plugin.id, plugin.version, latestPlugin?.version, latestPlugin?.fileHash) {
+        com.kitsugi.animelist.data.cloudstream.CsPluginUpdateChecker.reason(context, plugin, latestPlugin)
+    }
+    val hasUpdate = updateReason != com.kitsugi.animelist.data.cloudstream.CsPluginUpdateChecker.Reason.NONE
+    val contentOnlyUpdate = updateReason == com.kitsugi.animelist.data.cloudstream.CsPluginUpdateChecker.Reason.CONTENT
 
     // Eklenti etkinse arka planda sessizce yükle (henüz yüklenmemişse),
     // böylece hasSettings reaktif olarak doğru sonuç verebilir.
@@ -292,7 +302,6 @@ internal fun CsInstalledPluginRow(
                             }
                         }
                     }
-                    val hasUpdate = latestPlugin != null && latestPlugin.version > plugin.version
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(6.dp)
@@ -313,7 +322,13 @@ internal fun CsInstalledPluginRow(
                                     .padding(horizontal = 6.dp, vertical = 2.dp)
                             ) {
                                 Text(
-                                    "⬆️ v${latestPlugin!!.version} Mevcut",
+                                    // İçerik değişikliğinde sürüm numarası aynı kalır; kullanıcıya
+                                    // "aynı sürüm" göstermek yanıltıcı olurdu.
+                                    if (contentOnlyUpdate) {
+                                        "⟳ Yeniden derlendi (v${latestPlugin?.version ?: plugin.version})"
+                                    } else {
+                                        "⬆️ v${latestPlugin?.version ?: plugin.version} Mevcut"
+                                    },
                                     color = accentColor,
                                     fontSize = 10.sp,
                                     fontWeight = FontWeight.Bold
@@ -355,7 +370,7 @@ internal fun CsInstalledPluginRow(
                 horizontalArrangement = Arrangement.End,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                if (latestPlugin != null && latestPlugin.version > plugin.version) {
+                if (latestPlugin != null && hasUpdate) {
                     KitsugiButton(
                         onClick = {
                             onStartReinstall()
@@ -372,7 +387,17 @@ internal fun CsInstalledPluginRow(
                             Icon(Icons.Rounded.ArrowCircleUp, contentDescription = null, tint = Color.White, modifier = Modifier.size(15.dp))
                         }
                         Spacer(Modifier.width(4.dp))
-                        Text(stringResource(R.string.inline_update_v_1_s_2e5501a, latestPlugin.version), color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                        Text(
+                            if (contentOnlyUpdate) {
+                                // Sürüm aynı, dosya değişti → "güncelle" yerine "yeniden kur" ifadesi doğru.
+                                "⟳ Yeniden kur (v${latestPlugin.version})"
+                            } else {
+                                stringResource(R.string.inline_update_v_1_s_2e5501a, latestPlugin.version)
+                            },
+                            color = Color.White,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold
+                        )
                     }
                     Spacer(Modifier.width(6.dp))
                 }

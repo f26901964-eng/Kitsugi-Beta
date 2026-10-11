@@ -18,6 +18,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -56,6 +57,8 @@ internal fun CsRepoCard(
     var isExpanded by remember { mutableStateOf(false) }
     var selectedLanguages by remember { mutableStateOf(setOf<String>()) }
     var selectedTvTypes by remember { mutableStateOf(setOf<String>()) }
+    // Kurulu .cs3 dosyalarının parmak izi okunurken Context gerekir (güncelleme tespiti).
+    val localContext = LocalContext.current
 
     val totalCount = plugins?.size ?: 0
     val installedCount = plugins?.count { plugin ->
@@ -163,13 +166,16 @@ internal fun CsRepoCard(
                 }
             } else {
                 val allInstalled = totalCount > 0 && installedCount == totalCount
+                // Güncelleme tespiti sürüm numarası VEYA dosya içerik parmak izi farkına bakar
+                // (depoda yeniden derlenip sürümü artırılmayan eklentiler de yakalanır).
                 val hasUpdates = plugins.any { plugin ->
                     val isStremio = plugin.url.trim().endsWith("/manifest.json", ignoreCase = true)
                     if (isStremio) {
                         false
                     } else {
                         val installedPlugin = csPlugins.find { it.id == plugin.internalName }
-                        installedPlugin != null && installedPlugin.version < plugin.version
+                        installedPlugin != null && com.kitsugi.animelist.data.cloudstream.CsPluginUpdateChecker
+                            .hasUpdate(localContext, installedPlugin, plugin)
                     }
                 }
 

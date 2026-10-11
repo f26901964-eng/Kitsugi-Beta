@@ -48,6 +48,13 @@ internal fun CsPluginRow(
 ) {
     val isStremio = plugin.url.trim().endsWith("/manifest.json", ignoreCase = true)
 
+    // Güncelleme kararı (sürüm numarası VEYA dosya içerik parmak izi) TEK merkezden gelir;
+    // böylece bu satır, kurulu eklenti sekmesindeki "güncelle" göstergesinden ayrışamaz.
+    val rowContext = LocalContext.current
+    val rowHasUpdate = installedPlugin != null &&
+        com.kitsugi.animelist.data.cloudstream.CsPluginUpdateChecker
+            .hasUpdate(rowContext, installedPlugin, plugin)
+
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -119,10 +126,11 @@ internal fun CsPluginRow(
                 }
 
                 val verText = if (installedVersion != null) {
-                    if (installedVersion < plugin.version) {
-                        "v$installedVersion → v${plugin.version}"
-                    } else {
-                        "v${plugin.version}"
+                    when {
+                        rowHasUpdate && installedVersion < plugin.version -> "v$installedVersion → v${plugin.version}"
+                        // Sürüm aynı ama dosya değişmiş (yeniden derlenmiş eklenti)
+                        rowHasUpdate -> "v${plugin.version} ⟳"
+                        else -> "v${plugin.version}"
                     }
                 } else {
                     "v${plugin.version}"
@@ -225,7 +233,8 @@ internal fun CsPluginRow(
                 }
             }
             PluginInstallState.IDLE -> {
-                val hasUpdate = !isStremio && isInstalled && installedVersion != null && installedVersion < plugin.version
+                // `installedVersion` null olabilir (entity yok); o durumda `rowHasUpdate` zaten false.
+                val hasUpdate = !isStremio && isInstalled && rowHasUpdate
                 if (hasUpdate) {
                     Text(
                         text = stringResource(R.string.inline_update_27ef47d),

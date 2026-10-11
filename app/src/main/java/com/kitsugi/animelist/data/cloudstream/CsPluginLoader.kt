@@ -218,7 +218,16 @@ object CsPluginLoader {
                 val requestBuilder = Request.Builder()
                     .url(downloadUrl)
                     .header("User-Agent", "Mozilla/5.0 (Linux; Android 14; Mobile) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Mobile Safari/537.36 Kitsugi/2.4")
-                    .header("Accept", "*/*")
+                    // api.github.com/.../contents/ uç noktası varsayılan olarak base64 JSON döner;
+                    // ham dosya (ikili .cs3) için bu başlık şarttır.
+                    .header(
+                        "Accept",
+                        if (downloadUrl.contains("api.github.com/repos/", ignoreCase = true)) {
+                            "application/vnd.github.raw"
+                        } else {
+                            "*/*"
+                        }
+                    )
 
                 if (forceDownload) {
                     requestBuilder.cacheControl(okhttp3.CacheControl.FORCE_NETWORK)
@@ -300,6 +309,9 @@ object CsPluginLoader {
 
                 // MUST be read-only for Android 10+ DEX security policy
                 targetFile.setReadOnly()
+                // Yeni dosya yazıldı: içerik parmak izi önbelleği geçersiz olmalı, aksi halde
+                // bir sonraki güncelleme denetimi eski hash'i "güncel" sanıp güncellemeyi atlar.
+                CsInstalledFingerprint.invalidate(context, scraperId)
                 Log.d(TAG, "Plugin $scraperId downloaded, verified, and installed atomicaly OK from $downloadUrl")
                 return true
             } catch (e: Exception) {

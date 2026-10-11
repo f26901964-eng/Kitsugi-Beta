@@ -28,17 +28,32 @@ object CsAutoUpdateBackoff {
     private fun prefs(context: Context) =
         context.applicationContext.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
 
-    private fun key(internalName: String, version: Int): String = "$internalName@$version"
+    /**
+     * Bekleme kaydının anahtarı.
+     *
+     * `fileHash` de anahtara girer: depo aynı sürüm numarasıyla YENİ bir dosya yayınlarsa
+     * (yeniden derleme) anahtar değişir ve bekleme süresi beklenmeden hemen denenir. Aksi
+     * halde içerik tabanlı güncelleme tespiti 12 saat boyunca boşa çalışırdı.
+     */
+    private fun key(internalName: String, version: Int, fileHash: String? = null): String {
+        val normalized = fileHash?.trim()?.takeIf { it.isNotBlank() }
+        return if (normalized == null) {
+            "$internalName@$version"
+        } else {
+            "$internalName@$version@${normalized.takeLast(16)}"
+        }
+    }
 
-    /** Bu (plugin, sürüm) için yakın zamanda başarısız bir deneme yapıldıysa true döner. */
+    /** Bu (plugin, sürüm, içerik) için yakın zamanda başarısız bir deneme yapıldıysa true döner. */
     fun shouldSkip(
         context: Context,
         internalName: String,
         version: Int,
+        fileHash: String? = null,
         nowMs: Long = System.currentTimeMillis()
     ): Boolean {
         return try {
-            val failedAt = prefs(context).getLong(key(internalName, version), 0L)
+            val failedAt = prefs(context).getLong(key(internalName, version, fileHash), 0L)
             failedAt > 0L && nowMs - failedAt < RETRY_AFTER_MS
         } catch (_: Throwable) {
             false
@@ -50,12 +65,13 @@ object CsAutoUpdateBackoff {
         context: Context,
         internalName: String,
         version: Int,
+        fileHash: String? = null,
         nowMs: Long = System.currentTimeMillis()
     ) {
         try {
             val p = prefs(context)
             val editor = p.edit()
-            editor.putLong(key(internalName, version), nowMs)
+            editor.putLong(key(internalName, version, fileHash), nowMs)
             // Eski kayıtları buda.
             p.all.forEach { (k, v) ->
                 if (v is Long && nowMs - v > PRUNE_AFTER_MS) editor.remove(k)
