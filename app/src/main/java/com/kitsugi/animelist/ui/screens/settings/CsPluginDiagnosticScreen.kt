@@ -170,6 +170,10 @@ fun CsPluginDiagnosticScreen(
                     // ── Summary cards ────────────────────────────────────────
                     if (results.isNotEmpty()) {
                         item {
+                            val hostAbiMissing by vm.hostAbiMissing.collectAsState()
+                            if (hostAbiMissing.isNotEmpty()) {
+                                HostAbiWarning(hostAbiMissing)
+                            }
                             SummaryCards(summary)
                         }
                     }
@@ -399,6 +403,38 @@ private fun ProgressCard(
                 fontSize = 11.sp
             )
         }
+    }
+}
+
+/**
+ * Uygulama tarafında eksik eklenti-runtime sınıflarını gösterir.
+ *
+ * Bu durumda düşen eklentiler "bozuk" DEĞİLDİR: hata uygulama paketlemesinden (R8/küçültme)
+ * kaynaklanır ve tüm eklentileri aynı anda etkiler. Kullanıcının yanlış teşhis koymasını
+ * engellemek için sayaçların ÜSTÜNDE gösterilir.
+ */
+@Composable
+private fun HostAbiWarning(missing: List<String>) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
+            .background(KitsugiColors.AccentRed.copy(alpha = 0.12f))
+            .padding(12.dp),
+        verticalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        Text(
+            "⚠️ Uygulama tarafı eksik (Host ABI)",
+            color = KitsugiColors.AccentRed,
+            fontSize = 13.sp,
+            fontWeight = FontWeight.Bold,
+        )
+        Text(
+            "Şu sınıflar uygulamada bulunamadı: ${missing.joinToString(", ")}. " +
+                "Bu sınıfları kullanan eklentiler \"bozuk\" değildir; hata uygulama paketlemesinden kaynaklanır.",
+            color = KitsugiColors.TextSecondary,
+            fontSize = 11.sp,
+        )
     }
 }
 

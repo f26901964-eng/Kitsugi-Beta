@@ -1828,14 +1828,38 @@ object CsStreamRunner {
         alternativeTitles: List<String>,
         year: Int?
     ): List<StreamSource> {
-        val episodeData = findEpisodeData(loadResponse, season, episode)
-        if (episodeData != null) {
-            Log.d(TAG, "[${api.name}] 📺 Dizi mekaniği: S${season}E${episode} bölüm verisi yüklenen sayfada bulundu")
-            return extractStreamsFromEpisode(api, loadResponse, episodeData, partialSink)
+        // ── Sezon çelişkisi denetimi ────────────────────────────────────────────
+        // Kullanıcı raporu (2026-10-12): Watch2Movies'te S1E1 istenirken yanlış sezon/bölüm
+        // oynatılabiliyordu. Arama bazen sitenin BAŞKA sezonunun sayfasını döndürür
+        // ("X 2. Sezon"); eski kod bu sayfadan sezon-bağımsız eşleşmeyle bir bölüm seçip
+        // yanlış içeriği oynatıyordu. Artık önce doğru sezon sayfasına inilir.
+        val pageSeason = CsEpisodeMatcher.pageSeasonOf(loadResponse)
+        // Yanlış pozitif koruması: sayfanın bölüm listesi istenen sezonu ZATEN içeriyorsa
+        // (çok sezonlu tek sayfa) başlıktan okunan sezon çelişki sayılmaz.
+        val pageCoversRequestedSeason = CsEpisodeMatcher.episodeSeasonsOf(loadResponse).contains(season)
+        val seasonConflict = pageSeason != null && pageSeason != season && !pageCoversRequestedSeason
+        if (pageSeason != null && pageSeason != season && pageCoversRequestedSeason) {
+            Log.d(
+                TAG,
+                "[${api.name}] 📺 Sayfa başlığı S$pageSeason diyor ama bölüm listesi S$season içeriyor — çelişki yok sayıldı."
+            )
+        }
+        if (seasonConflict) {
+            Log.w(
+                TAG,
+                "[${api.name}] 📺 Sayfa S$pageSeason sezonuna ait ama S$season istendi — doğrudan bölüm eşleşmesi atlanıyor."
+            )
+            CsTrace.warn(api.name, "episode", "Sayfa S$pageSeason, istenen S$season — sezon gezinmesi öncelikli")
+        } else {
+            val episodeData = findEpisodeData(loadResponse, season, episode)
+            if (episodeData != null) {
+                Log.d(TAG, "[${api.name}] 📺 Dizi mekaniği: S${season}E${episode} bölüm verisi yüklenen sayfada bulundu")
+                return extractStreamsFromEpisode(api, loadResponse, episodeData, partialSink)
+            }
         }
 
         val epCount = episodeCountOf(loadResponse)
-        if (epCount == 0) {
+        if (epCount == 0 && !seasonConflict) {
             val pageUrl = loadResponse.url.takeIf { !it.isNullOrBlank() }
             if (pageUrl == null) {
                 Log.w(TAG, "[${api.name}] 📺 Bölüm listesi boş ve sayfa URL'si de boş (${loadResponse.javaClass.simpleName})")
@@ -1848,7 +1872,7 @@ object CsStreamRunner {
             return extractStreamsFromEpisode(api, loadResponse, pageUrl, partialSink)
         }
 
-        // Bölüm listesi DOLU ama hedef S/E yok → site sezonu ayrı tutuyor; sezon sayfasına in.
+        // Bölüm listesi DOLU ama hedef S/E yok (ya da sayfa yanlış sezona ait) → sezon sayfasına in.
         // Gezinme sorguları için en güvenilir başlık, yüklenen sayfanın KENDİ adıdır
         // (doğrudan-URL modunda match.name eklenti adı olabilir).
         val navTitle = loadResponse.name.takeIf { !it.isNullOrBlank() } ?: title
@@ -1860,9 +1884,24 @@ object CsStreamRunner {
         if (navigated != null) {
             return extractStreamsFromEpisode(api, navigated.second, navigated.first, partialSink)
         }
+
+        // Sayfa-tipli plugin'lerde (bölüm listesi doldurulmaz) gezinme başarısızsa sayfa
+        // URL'si son çare olarak kullanılır — aksi hâlde kaynak tamamen kaybolurdu.
+        if (epCount == 0) {
+            loadResponse.url?.takeIf { it.isNotBlank() }?.let { pageUrl ->
+                Log.w(TAG, "[${api.name}] 📺 Sezon gezinmesi sonuçsuz; sayfa-tipli plugin URL fallback $pageUrl")
+                CsTrace.info(api.name, "episode", "Sezon gezinmesi sonuçsuz; sayfa URL'si kullanılıyor")
+                return extractStreamsFromEpisode(api, loadResponse, pageUrl, partialSink)
+            }
+        }
+
         CsPluginStatusTracker.recordSkip(
             api.name,
-            "S${season}E${episode} bulunamadı — sezon sayfası gezinmesi de sonuç vermedi (yüklenen sayfada ${epCount} bölüm vardı)"
+            if (seasonConflict) {
+                "S${season}E${episode} için doğru sezon sayfası bulunamadı (yüklenen sayfa S$pageSeason'a aitti) — yanlış sezon oynatılmadı"
+            } else {
+                "S${season}E${episode} bulunamadı — sezon sayfası gezinmesi de sonuç vermedi (yüklenen sayfada ${epCount} bölüm vardı)"
+            }
         )
         return emptyList()
     }
@@ -3198,7 +3237,7 @@ object CsStreamRunner {
         }
 
         // Eğer tüm stream'ler dead çıktıysa (false positive önlemi), orijinalleri döndür
-        val finalStreams = if (verifiedStreams.isEmpty() && streams.isNotEmpty()) {
+        val verifiedFinal = if (verifiedStreams.isEmpty() && streams.isNotEmpty()) {
             Log.w(TAG, "[${api.name}] Tüm streamler dead çıktı — false positive olabilir, orijinaller döndürülüyor.")
             streams
         } else {
@@ -3206,7 +3245,14 @@ object CsStreamRunner {
             verifiedStreams.sortedByDescending { it.qualityValue ?: 0 }
         }
 
-        CsTrace.info(api.name, "result", "Sonuç: ${finalStreams.size} doğrulanmış stream (ham ${streams.size}, ölü düşen ${deadStreams.size}), ${subtitleList.size} altyazı")
+        // ── Reklam / HLS parçası / tekrar temizliği ─────────────────────────────
+        // Kullanıcı raporu (2026-10-12): Dizipal bahis reklamını (`kralbet.mp4`) bölüm kaynağı
+        // gibi veriyordu; Watch2Movies ise HLS parçalarını (`seg-1-v1-a1.ts`) ayrı kaynak
+        // kartları olarak listeliyordu. Temizlik burada, doğrulama SONRASI yapılır ki
+        // elenenler gerçekten listeden çıksın.
+        val (finalStreams, sanitizedOut) = CsStreamSanitizer.sanitize(api.name, verifiedFinal)
+
+        CsTrace.info(api.name, "result", "Sonuç: ${finalStreams.size} doğrulanmış stream (ham ${streams.size}, ölü düşen ${deadStreams.size}, reklam/parça/tekrar elenen $sanitizedOut), ${subtitleList.size} altyazı")
         // Dil bilgisi: sağlayıcının kendi meta verisinden (DubStatus) okunur — tahmin edilmez.
         val providerAudioKind = CsEpisodeMatcher.findDubStatusForEpisodeData(loadResponse, episodeData)
         Log.d(

@@ -1111,6 +1111,11 @@ fun KitsugiFullscreenPlayerScreen(
 
                     // Buffering is handled reactively by MiddlePlayerControls (single unified spinner)
 
+                    // Ses parçası seçiminin GERÇEKTEN uygulandığını doğrulamak için güncel listeye
+                    // erişim (kullanıcı raporu 2026-10-12: "3 ses seçeneği hiçbir şey değiştirmiyor,
+                    // hep aynı İngilizce ses oynuyor").
+                    val latestAudioOptions = rememberUpdatedState(audioTrackOptions)
+
                     // ── New Reactive Sheet Host (Aniyomi-style) ───────────────────────
                     PlayerSheetsHost(
                         sheetShown = sheetShown,
@@ -1155,7 +1160,26 @@ fun KitsugiFullscreenPlayerScreen(
                         onDownloadSubtitle = { subtitle -> viewModel.downloadSubtitleToStorage(subtitle) },
                         audioTrackLabels = audioTrackOptions.map { it.label },
                         selectedAudioIndex = audioTrackOptions.indexOfFirst { it.isSelected },
-                        onSelectAudio = { idx -> audioTrackOptions.getOrNull(idx)?.let { playerEngine.selectTrack(it) } },
+                        onSelectAudio = { idx ->
+                            val picked = audioTrackOptions.getOrNull(idx)
+                            if (picked != null) {
+                                playerEngine.selectTrack(picked)
+                                // Motorun seçimi uygulayıp uygulamadığını kısa bir gecikmeyle kontrol et:
+                                // uygulanmadıysa kullanıcı sessizce eski sesi dinlemek yerine bilgilendirilir.
+                                scope.launch {
+                                    kotlinx.coroutines.delay(900L)
+                                    val options = latestAudioOptions.value
+                                    val applied = options.any { it.isSelected && it.label == picked.label }
+                                    if (options.isNotEmpty() && !applied) {
+                                        android.widget.Toast.makeText(
+                                            context,
+                                            "Ses parçası değişmedi: ${picked.label}. Kaynak tek ses sunuyor ya da cihaz bu parçayı çözemiyor olabilir.",
+                                            android.widget.Toast.LENGTH_LONG
+                                        ).show()
+                                    }
+                                }
+                            }
+                        },
                         onAddAudioFile = { audioPicker.launch(arrayOf("*/*")) },
                         streamSources = currentStreamSources,
                         selectedSourceIndex = currentSourceIndex,

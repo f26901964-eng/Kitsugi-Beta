@@ -43,15 +43,93 @@ internal object CsEpisodeMatcher {
     }
 
     /**
+     * Sayfanın (LoadResponse) kendi beyan ettiği sezon numarası; yoksa null.
+     *
+     * Kaynak: başlık ("Supernatural 2. Sezon") veya URL slug'ı ("/supernatural-2-sezon").
+     * Çağıran taraf, istenen sezonla çelişip çelişmediğini bu değerle anlar.
+     */
+    fun pageSeasonOf(response: LoadResponse): Int? {
+        return try {
+            val name = when (response) {
+                is AnimeLoadResponse -> response.name
+                is TvSeriesLoadResponse -> response.name
+                else -> null
+            }
+            // 1) Başlık: güvenilir kaynak ("Supernatural 2. Sezon", "Season 2", "II. Sezon")
+            CsTitleMatcher.parseSeasonFromTitle(name.orEmpty())?.let { return it }
+            // 2) Slug: YALNIZCA açık sezon işareti varsa ("/supernatural-2-sezon").
+            //    Çıplak sondaki sayı (/dizi/1/2 → bölüm numarası olabilir) sezon sayılmaz;
+            //    aksi hâlde yanlış "sezon çelişkisi" tespiti doğru bölümün oynatılmasını engellerdi.
+            val url = response.url
+            val path = try {
+                java.net.URI(url).rawPath.orEmpty()
+            } catch (_: Exception) {
+                url.substringBefore('?')
+            }
+            // Türkçe sitelerin iki yaygın kalıbı vardır:
+            //   /supernatural-2-sezon          → sezon anahtar sözcükten ÖNCE
+            //   /sezon-2/bolum-3, season-2/... → sezon anahtar sözcükten SONRA
+            // "sezon"dan sonraki ilk sayı tek başına sezon sayılırsa
+            // "/...-2-sezon-3-bolum" adresi yanlışlıkla "sezon 3" okunur ve doğru bölüm
+            // yanlış sezon çelişkisiyle engellenir. Bu yüzden ÖNCE anahtar sözcükten önceki
+            // sayı, yoksa sonraki sayı dikkate alınır.
+            val seasonBeforeKeyword = Regex(
+                """(?<!\d)(\d{1,2})[\s._-]*(?:sezon|season)(?![\p{L}])""",
+                RegexOption.IGNORE_CASE
+            ).find(path)?.groupValues?.getOrNull(1)?.toIntOrNull()
+            val seasonAfterKeyword = Regex(
+                """(?:sezon|season)[\s._-]*(\d{1,2})(?!\d)""",
+                RegexOption.IGNORE_CASE
+            ).find(path)?.groupValues?.getOrNull(1)?.toIntOrNull()
+            (seasonBeforeKeyword ?: seasonAfterKeyword)?.takeIf { it in 1..25 }
+        } catch (_: Exception) {
+            null
+        }
+    }
+
+    /**
+     * Sayfanın bölüm listesinde geçen HAM sezon numaraları.
+     *
+     * Sezon çelişkisi denetiminde yanlış pozitifi önler: sayfa başlığı "X 2. Sezon" dese bile
+     * bölüm listesi istenen sezonu içeriyorsa sayfa o sezonun verisini de taşıyor demektir ve
+     * çelişki sayılmamalıdır (aksi hâlde doğru bölüm haksız yere engellenirdi).
+     */
+    fun episodeSeasonsOf(response: LoadResponse): Set<Int> {
+        return try {
+            when (response) {
+                is AnimeLoadResponse -> response.episodes.values.flatten()
+                    .mapNotNull { getEpisodeSeason(it) }
+                    .toSet()
+                is TvSeriesLoadResponse -> response.episodes
+                    .mapNotNull { getEpisodeSeason(it) }
+                    .toSet()
+                else -> emptySet()
+            }
+        } catch (_: Exception) {
+            emptySet()
+        }
+    }
+
+    /**
      * Verilen [LoadResponse] içinde belirtilen sezon ve bölüme karşılık gelen
      * bölüm verisini (episode data string) döndürür.
      * Bulunamazsa `null` döner.
+     *
+     * @param allowSeasonConflict Sayfa AÇIKÇA başka bir sezona aitse (ör. aranan S1, sayfa
+     *   "2. Sezon") sezon-bağımsız geri dönüşler (bölüm numarasına göre arama) devre dışı
+     *   bırakılır. Varsayılan `false`: yanlış sezonun bölümünü oynatmak yerine `null` döner
+     *   ve çağıran taraf sezon sayfasına inmeyi dener.
      */
-    fun findEpisodeData(response: LoadResponse, season: Int, episode: Int): String? {
+    fun findEpisodeData(
+        response: LoadResponse,
+        season: Int,
+        episode: Int,
+        allowSeasonConflict: Boolean = false
+    ): String? {
         return try {
             when (response) {
-                is AnimeLoadResponse -> findInAnimeResponse(response, season, episode)
-                is TvSeriesLoadResponse -> findInTvSeriesResponse(response, season, episode)
+                is AnimeLoadResponse -> findInAnimeResponse(response, season, episode, allowSeasonConflict)
+                is TvSeriesLoadResponse -> findInTvSeriesResponse(response, season, episode, allowSeasonConflict)
                 is MovieLoadResponse -> {
                     Log.d(TAG, "MovieLoadResponse: dataUrl=${response.dataUrl}")
                     if (response.dataUrl.isNullOrBlank()) response.url else response.dataUrl
@@ -66,6 +144,21 @@ internal object CsEpisodeMatcher {
             null
         }
     }
+
+    /**
+     * Sayfanın beyan ettiği sezon, istenen sezonla çelişiyor mu?
+     *
+     * Bazı siteler her sezonu ayrı içerik olarak indeksler ("X 2. Sezon"); arama yanlış
+     * sezonun sayfasını döndürdüğünde eski kod sezon-bağımsız geri dönüşle o sayfanın
+     * 1. bölümünü oynatıyordu (kullanıcı: "içerik doğru ama yanlış sezon/bölüm oynuyor").
+     */
+    private fun hasSeasonConflict(response: LoadResponse, season: Int): Boolean {
+        val pageSeason = pageSeasonOf(response) ?: return false
+        if (pageSeason == season) return false
+        // Sayfanın bölüm listesi istenen sezonu içeriyorsa (çok sezonlu tek sayfa) çelişki yok.
+        return !episodeSeasonsOf(response).contains(season)
+    }
+
 
     /**
      * Seçilen bölümün hangi [com.lagradost.cloudstream3.DubStatus] kovasından geldiğini döndürür.
@@ -100,7 +193,12 @@ internal object CsEpisodeMatcher {
 
     // ─── Private helpers ─────────────────────────────────────────────────────
 
-    private fun findInAnimeResponse(response: AnimeLoadResponse, season: Int, episode: Int): String? {
+    private fun findInAnimeResponse(
+        response: AnimeLoadResponse,
+        season: Int,
+        episode: Int,
+        allowSeasonConflict: Boolean = false
+    ): String? {
         val allEntries = response.episodes.entries
         Log.d(TAG, "AnimeLoadResponse: ${allEntries.size} sezon bucket(ı)")
         allEntries.forEach { (dubStatus, eps) ->
@@ -116,6 +214,18 @@ internal object CsEpisodeMatcher {
         val rawSeasonsAnime = allEpisodesList.mapNotNull { getEpisodeSeason(it) }.toSet()
         val hasMultipleRawSeasonsAnime = rawSeasonsAnime.size > 1
         val treatSeason1AsTarget = !hasMultipleRawSeasonsAnime && !rawSeasonsAnime.contains(season) && foundSeason != null && foundSeason == season
+
+        // Sayfa açıkça BAŞKA bir sezona aitse (ör. aranan S1, sayfa "2. Sezon"):
+        // sezon-bağımsız geri dönüşler kapatılır. Aksi hâlde bu sayfanın 1. bölümü
+        // S1E1 sanılıp oynatılıyordu (yanlış sezon + yanlış bölüm).
+        val seasonConflict = !allowSeasonConflict && hasSeasonConflict(response, season)
+        val seasonAgnosticAllowed = !seasonConflict
+        if (seasonConflict) {
+            Log.w(
+                TAG,
+                "Anime: sezon çelişkisi — sayfa=${foundSeason ?: "?"} istenen=S$season; sezon-bağımsız eşleşmeler kapatıldı"
+            )
+        }
 
         val getEffectiveSeason = { ep: Any ->
             val epSeason = getEpisodeSeason(ep)
@@ -166,7 +276,7 @@ internal object CsEpisodeMatcher {
         }
 
         // Fallback 2: match by episode number only (season-agnostic) within preferred bucket
-        if (match == null && (season == 1 || treatSeason1AsTarget)) {
+        if (match == null && seasonAgnosticAllowed && (season == 1 || treatSeason1AsTarget)) {
             match = preferredEpisodes.find { ep ->
                 (getEpisodeNumber(ep) ?: -1) == episode
             }
@@ -174,7 +284,7 @@ internal object CsEpisodeMatcher {
         }
 
         // Fallback 3: match by episode number across all buckets
-        if (match == null && (season == 1 || treatSeason1AsTarget)) {
+        if (match == null && seasonAgnosticAllowed && (season == 1 || treatSeason1AsTarget)) {
             match = allEpisodes.find { ep ->
                 (getEpisodeNumber(ep) ?: -1) == episode
             }
@@ -182,7 +292,7 @@ internal object CsEpisodeMatcher {
         }
 
         // Fallback 4: none of the episodes have season/episode fields set at all
-        if (match == null && preferredEpisodes.isNotEmpty()) {
+        if (match == null && seasonAgnosticAllowed && preferredEpisodes.isNotEmpty()) {
             val allHaveNoMeta = preferredEpisodes.all { ep ->
                 getEpisodeNumber(ep) == null && getEpisodeSeason(ep) == null
             }
@@ -196,7 +306,7 @@ internal object CsEpisodeMatcher {
         }
 
         // Fallback 5: if there's exactly 1 episode and we want ep 1
-        if (match == null && episode == 1 && allEpisodes.size == 1) {
+        if (match == null && seasonAgnosticAllowed && episode == 1 && allEpisodes.size == 1) {
             match = allEpisodes.first()
             Log.d(TAG, "Tek bölüm fallback kullanıldı")
         }
@@ -246,7 +356,12 @@ internal object CsEpisodeMatcher {
         return match?.let { getEpisodeData(it) }
     }
 
-    private fun findInTvSeriesResponse(response: TvSeriesLoadResponse, season: Int, episode: Int): String? {
+    private fun findInTvSeriesResponse(
+        response: TvSeriesLoadResponse,
+        season: Int,
+        episode: Int,
+        allowSeasonConflict: Boolean = false
+    ): String? {
         Log.d(TAG, "TvSeriesLoadResponse: ${response.episodes.size} bölüm")
 
         val responseName = response.name ?: ""
@@ -257,6 +372,15 @@ internal object CsEpisodeMatcher {
         val rawSeasons = response.episodes.mapNotNull { getEpisodeSeason(it) }.toSet()
         val hasMultipleRawSeasons = rawSeasons.size > 1
         val treatSeason1AsTarget = !hasMultipleRawSeasons && !rawSeasons.contains(season) && foundSeason != null && foundSeason == season
+
+        val seasonConflict = !allowSeasonConflict && hasSeasonConflict(response, season)
+        val seasonAgnosticAllowed = !seasonConflict
+        if (seasonConflict) {
+            Log.w(
+                TAG,
+                "TvSeries: sezon çelişkisi — sayfa=${foundSeason ?: "?"} istenen=S$season; sezon-bağımsız eşleşmeler kapatıldı"
+            )
+        }
 
         val getEffectiveSeason = { ep: Any ->
             val epSeason = getEpisodeSeason(ep)
@@ -283,7 +407,7 @@ internal object CsEpisodeMatcher {
         }
 
         // Fallback 2: episode number only (season-agnostic)
-        if (match == null && (season == 1 || treatSeason1AsTarget)) {
+        if (match == null && seasonAgnosticAllowed && (season == 1 || treatSeason1AsTarget)) {
             match = response.episodes.find { ep ->
                 (getEpisodeNumber(ep) ?: -1) == episode
             }
@@ -291,13 +415,13 @@ internal object CsEpisodeMatcher {
         }
 
         // Fallback 3: single episode → always return it for ep=1
-        if (match == null && episode == 1 && response.episodes.size == 1) {
+        if (match == null && seasonAgnosticAllowed && episode == 1 && response.episodes.size == 1) {
             match = response.episodes.first()
             Log.d(TAG, "TvSeries: tek bölüm fallback kullanıldı")
         }
 
         // Fallback 4: index-based — used when ALL episodes have no metadata at all (flat list, no season/ep fields)
-        if (match == null && response.episodes.isNotEmpty()) {
+        if (match == null && seasonAgnosticAllowed && response.episodes.isNotEmpty()) {
             val allHaveNoMeta = response.episodes.all { ep ->
                 getEpisodeNumber(ep) == null && getEpisodeSeason(ep) == null
             }

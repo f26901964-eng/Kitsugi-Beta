@@ -44,6 +44,7 @@ import com.kitsugi.animelist.core.player.PlayerMediaSourceFactory
 import com.kitsugi.animelist.core.player.PlayerLoadingDiagnostics
 import com.kitsugi.animelist.core.player.PlayerPlaybackAnalytics
 import com.kitsugi.animelist.data.cloudstream.CsVideoInterceptorFactory
+import com.kitsugi.animelist.data.cloudstream.diag.CsTrace
 import com.kitsugi.animelist.data.settings.AppSettings
 import com.kitsugi.animelist.data.settings.Dv7HandlingMode
 import com.kitsugi.animelist.data.trailer.YoutubeChunkedDataSourceFactory
@@ -68,6 +69,15 @@ class Media3PlayerEngine(
          * `onTracksChanged` turunda yeniden denemesine imkân verir; sonsuz döngüyü engeller.
          */
         const val MAX_AUTO_SUBTITLE_ATTEMPTS = 8
+
+        /**
+         * Altyazının ekranın altından ne kadar yukarıda durduğu (görünüm yüksekliğinin oranı).
+         * Sabit bir varsayılan: görüntü modu değişse de altyazı hep aynı yerde durur.
+         */
+        const val SUBTITLE_BOTTOM_PADDING_FRACTION = 0.08f
+
+        /** Parça seçiminin uygulanıp uygulanmadığını kontrol etmeden önce beklenecek süre. */
+        const val TRACK_SELECTION_VERIFY_DELAY_MS = 450L
     }
 
     private val TAG = "Media3PlayerEngine"
@@ -267,7 +277,10 @@ class Media3PlayerEngine(
                         "kor", "ko" -> "Korece"
                         else -> rawLang?.uppercase(Locale.ROOT)
                     }
-                    val trackLabel = format.label ?: mappedLang ?: "Altyazı #${textOptions.size + 1}"
+                    val trackLabel = trackLabelWithSupport(
+                        format.label ?: mappedLang ?: "Altyazı #${textOptions.size + 1}",
+                        group.isTrackSupported(trackIndex)
+                    )
                     textOptions.add(
                         TrackOption(
                             group = group,
@@ -300,7 +313,10 @@ class Media3PlayerEngine(
                         "kor", "ko" -> "Korece"
                         else -> rawLang?.uppercase(Locale.ROOT)
                     }
-                    val trackLabel = format.label ?: mappedLang ?: "Ses #${audioOptions.size + 1}"
+                    val trackLabel = trackLabelWithSupport(
+                        format.label ?: mappedLang ?: "Ses #${audioOptions.size + 1}",
+                        group.isTrackSupported(trackIndex)
+                    )
                     audioOptions.add(
                         TrackOption(
                             group = group,
@@ -316,7 +332,10 @@ class Media3PlayerEngine(
             // ── Ses parçası seçimi (Türkçe önce, sonra tercih listesi, boşsa ilk ses) ──────────────
             // HLS veya çok dilli akışlarda audio parçaları DEFAULT=NO ile gelebilir (örn. Vidmixi/Dosyaload).
             // Hiçbir parça seçili değilse player sessiz oynar! Bu durumda her zaman geçerli bir ses seçilmelidir.
-            if (audioOptions.isNotEmpty()) {
+            // Kullanıcı sesi elle seçtiyse otomatik politika TAMAMEN devre dışı kalır.
+            // Aksi hâlde seçim sonrası parça geçişi sırasında oluşan kısa "hiçbir ses seçili
+            // değil" anı, otomatik seçiciyi tetikleyip kullanıcının seçimini geri alabiliyordu.
+            if (audioOptions.isNotEmpty() && !userSelectedAudioTrack) {
                 val currentlySelectedAudio = audioOptions.firstOrNull { it.isSelected }
                 val isSelectedAudioTurkish = currentlySelectedAudio != null && run {
                     val format = currentlySelectedAudio.group.getTrackFormat(currentlySelectedAudio.trackIndex)
@@ -918,9 +937,31 @@ class Media3PlayerEngine(
         }
     }
 
+    /**
+     * Cihazın çözemediği (codec/donanım desteği olmayan) parçaları etikette işaretler.
+     *
+     * Kullanıcı raporu (2026-10-12): "3 ses seçeneği hiçbir şey değiştirmiyor, hep aynı
+     * İngilizce ses oynuyor." Desteklenmeyen bir parça seçildiğinde ExoPlayer seçimi
+     * uygulamaz ve sessizce eski parça çalmaya devam eder; sebep arayüzde görünmüyordu.
+     */
+    private fun trackLabelWithSupport(baseLabel: String, supported: Boolean): String =
+        if (supported) baseLabel else "$baseLabel ⚠️ (cihaz desteklemiyor)"
+
     override fun selectTrack(trackOption: TrackOption) {
         runOnMainThread {
             val player = exoPlayer ?: return@runOnMainThread
+            if (!trackOption.group.isTrackSupported(trackOption.trackIndex)) {
+                Log.w(
+                    TAG,
+                    "Seçilen parça cihaz tarafından desteklenmiyor: '${trackOption.label}' — " +
+                        "ses/altyazı değişmeyebilir (donanım/codec kısıtı)."
+                )
+                CsTrace.warn(
+                    "Player",
+                    "track",
+                    "Desteklenmeyen parça seçildi: ${trackOption.label} (cihaz çözemiyor — seçim uygulanmayabilir)"
+                )
+            }
             val isSubtitle = trackOption.group.type == C.TRACK_TYPE_TEXT
             val type = if (isSubtitle) C.TRACK_TYPE_TEXT else C.TRACK_TYPE_AUDIO
             if (type == C.TRACK_TYPE_AUDIO) {
@@ -930,17 +971,64 @@ class Media3PlayerEngine(
                 userSelectedTextTrack = true
                 autoSubtitleSelectionSettled = true
             }
-            player.trackSelectionParameters = player.trackSelectionParameters
-                .buildUpon()
-                .setTrackTypeDisabled(type, false)
-                .setOverrideForType(
-                    TrackSelectionOverride(
-                        trackOption.group.mediaTrackGroup,
-                        trackOption.trackIndex
-                    )
-                )
-                .build()
+            applyTrackOverride(player, type, trackOption)
+
+            // ── Uygulandı mı doğrulaması ─────────────────────────────────────────
+            // Kullanıcı raporu (2026-10-12): "3 ses seçeneği hiçbir şey değiştirmiyor."
+            // ExoPlayer, çok gruplu/HLS akışlarında override'ı ilk turda uygulamayabiliyor;
+            // bu yüzden kısa bir gecikmeyle gerçekten seçili mi diye bakılır ve değilse
+            // zorlamalı yol (disable→enable + override) denenir.
+            val expectedGroup = trackOption.group.mediaTrackGroup
+            val expectedIndex = trackOption.trackIndex
+            val label = trackOption.label
+            mainHandler.postDelayed({
+                val p = exoPlayer ?: return@postDelayed
+                if (isTrackOverrideApplied(p.currentTracks, expectedGroup, expectedIndex)) {
+                    Log.i(TAG, "Parça seçimi uygulandı: $label (type=$type)")
+                    return@postDelayed
+                }
+                Log.w(TAG, "Parça seçimi ilk turda uygulanmadı ($label) — zorlamalı yeniden uygulanıyor.")
+                runCatching {
+                    p.trackSelectionParameters = p.trackSelectionParameters
+                        .buildUpon()
+                        .setTrackTypeDisabled(type, true)
+                        .build()
+                    p.trackSelectionParameters = p.trackSelectionParameters
+                        .buildUpon()
+                        .setTrackTypeDisabled(type, false)
+                        .setOverrideForType(TrackSelectionOverride(expectedGroup, expectedIndex))
+                        .build()
+                }.onFailure { Log.e(TAG, "Zorlamalı parça seçimi başarısız: ${it.message}") }
+            }, TRACK_SELECTION_VERIFY_DELAY_MS)
         }
+    }
+
+    /** Override'ı uygular (varsa o tür için eski override'lar yerine geçer). */
+    private fun applyTrackOverride(player: ExoPlayer, type: Int, trackOption: TrackOption) {
+        player.trackSelectionParameters = player.trackSelectionParameters
+            .buildUpon()
+            .setTrackTypeDisabled(type, false)
+            .setOverrideForType(
+                TrackSelectionOverride(
+                    trackOption.group.mediaTrackGroup,
+                    trackOption.trackIndex
+                )
+            )
+            .build()
+    }
+
+    /** Verilen grup/indeks gerçekten seçili mi? */
+    private fun isTrackOverrideApplied(
+        tracks: Tracks?,
+        group: androidx.media3.common.TrackGroup,
+        trackIndex: Int
+    ): Boolean {
+        if (tracks == null) return false
+        for (tracksGroup in tracks.groups) {
+            if (tracksGroup.mediaTrackGroup != group) continue
+            return trackIndex in 0 until tracksGroup.length && tracksGroup.isTrackSelected(trackIndex)
+        }
+        return false
     }
 
     override fun disableSubtitles() {
@@ -959,6 +1047,7 @@ class Media3PlayerEngine(
             val pv = root.findViewById<PlayerView>(R.id.trailer_player_view)
             pv.player = exoPlayer
             playerView = pv
+            detachSubtitleViewFromContentFrame(pv)
             applySubtitleStylesToView()
             applyAspectMode()
 
@@ -978,6 +1067,40 @@ class Media3PlayerEngine(
             }
         }
         return playerView!!
+    }
+
+    /**
+     * Altyazı görünümünü, videoyu taşıyan `exo_content_frame` (AspectRatioFrameLayout)
+     * içinden çıkarıp PlayerView kök katmanına taşır.
+     *
+     * NEDEN (2026-10-12 kullanıcı raporu): Media3, `exo_subtitles` görünümünü içerik
+     * çerçevesinin İÇİNE koyar. Kullanıcı görüntü modunu değiştirdiğinde (Doldur / Yakınlaştır
+     * / 16:9 / 4:3) içerik çerçevesinin en-boy oranı ve ölçüsü değişiyor; dolayısıyla altyazı
+     * alanı da yeniden ölçekleniyor ve altyazı ekranda kayıyor, geriliyor/kısaltılıyordu.
+     * Altyazıyı kök katmana taşıdığımızda konum ve genişlik yalnızca ekran ölçüsüne bağlı
+     * kalır: altyazı videodan bağımsız olarak alt tarafta sabit durur.
+     */
+    private fun detachSubtitleViewFromContentFrame(pv: PlayerView) {
+        runOnMainThread {
+            try {
+                val subtitleView = pv.subtitleView ?: return@runOnMainThread
+                val parent = subtitleView.parent as? android.view.ViewGroup ?: return@runOnMainThread
+                if (parent === pv) return@runOnMainThread // zaten kök katmanda
+                parent.removeView(subtitleView)
+                pv.addView(
+                    subtitleView,
+                    android.widget.FrameLayout.LayoutParams(
+                        android.view.ViewGroup.LayoutParams.MATCH_PARENT,
+                        android.view.ViewGroup.LayoutParams.MATCH_PARENT
+                    )
+                )
+                subtitleView.setBottomPaddingFraction(SUBTITLE_BOTTOM_PADDING_FRACTION)
+                Log.i(TAG, "Altyazı görünümü içerik çerçevesinden ayrıldı — görüntü modu artık altyazıyı etkilemez.")
+            } catch (t: Throwable) {
+                // Görsel/işlevsel bir zorunluluk değil; başarısız olursa eski davranış sürer.
+                Log.w(TAG, "Altyazı görünümü ayrılamadı (eski davranış geçerli): ${t.message}")
+            }
+        }
     }
 
     private fun applySubtitleStylesToView() {
@@ -1011,6 +1134,11 @@ class Media3PlayerEngine(
                     TypedValue.COMPLEX_UNIT_SP,
                     currentSubtitleStyle.size.toFloat()
                 )
+                // Altyazı, videonun ölçeklendirmesinden BAĞIMSIZ konumlanır (aşağıdaki
+                // detachSubtitleViewFromContentFrame açıklamasına bakın). Ayrıca her zaman
+                // aynı varsayılan alt boşluğu kullanır; "Doldur/Sığdır/16:9" gibi görüntü
+                // modları altyazının yerini ve genişliğini artık değiştirmez.
+                subtitleView.setBottomPaddingFraction(SUBTITLE_BOTTOM_PADDING_FRACTION)
                 
                 val density = context.resources.displayMetrics.density
                 val requested = -currentSubtitleStyle.verticalOffset.toFloat() * density
