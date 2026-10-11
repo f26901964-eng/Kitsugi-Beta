@@ -24,7 +24,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.PagerState
@@ -51,6 +50,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.BiasAlignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
@@ -390,17 +390,6 @@ fun KitsugiHeroSection(
         listOf(currentPage, currentPage - 1, currentPage + 1)
             .filter { it in items.indices }
             .distinct()
-    }
-
-    // Sayaç göstergesi için o an vitrinde görsel olarak baskın olan sayfa indeksi.
-    // derivedStateOf yalnızca değer değiştiğinde (yarısayfa eşiği aşılınca) recompose
-    // tetikler; kare başına tüm vitrini yeniden çizdirmez.
-    val heroCounterIndex by remember(pagerState, items.size) {
-        derivedStateOf {
-            round(pagerState.currentPage + pagerState.currentPageOffsetFraction)
-                .toInt()
-                .coerceIn(0, (items.size - 1).coerceAtLeast(0))
-        }
     }
 
     // Vitrin katmanları üst üste biner ve en üstteki katman dokunmayı ilk yakalar;
@@ -842,13 +831,26 @@ fun KitsugiHeroSection(
 
             if (items.size > 1) {
                 Spacer(modifier = Modifier.height(if (layout.isLandscape) 8.dp else 12.dp))
+                // Vitrin gösterge çubuğu: sayısal sayaç kaldırıldı; bunun yerine etkin
+                // sayfanın çizgisi çerçeve ile kapsanır ve kaçıncı vitrin sayfasında
+                // olunduğunu doğrudan gösterir. Çizgiler weight(1f) ile kullanılabilir
+                // genişliği paylaşır; telefon/tablet, yatay/dikey her ekran ölçüsünde
+                // taşma olmadan ekrana sığar. Geniş ekranlarda ise üst sınır ile
+                // çizgilerin aşırı uzaması engellenir.
+                // KitsugiColors.TextPrimary @Composable getter olduğundan drawBehind
+                // içinde değil, composition kapsamında okunup yakalanır.
+                val indicatorFrameColor = KitsugiColors.TextPrimary
                 Row(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .widthIn(max = (items.size * 34 + (items.size - 1) * 6).dp),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     items.forEachIndexed { index, _ ->
                         Box(
                             modifier = Modifier
+                                .weight(1f)
                                 .then(
                                     if (isTv) {
                                         Modifier
@@ -862,38 +864,46 @@ fun KitsugiHeroSection(
                                         }
                                     }
                                 )
-                                .clip(CircleShape)
-                                .background(accentColor)
-                                .graphicsLayer {
-                                    val activeFraction = heroPageVisibility(pagerState, index)
-                                    // Daha belirgin gösterge: etkin sayfa TAM opak ve kalın,
-                                    // pasif sayfalar da net seçilebilir koyulukta.
-                                    alpha = 0.30f + (0.70f * activeFraction)
-                                    // Sabit ölçü: her karede width değiştirip tüm Row'u yeniden
-                                    // ölçmek yerine GPU katmanını yatay ölçekle.
-                                    scaleX = 0.40f + (0.60f * activeFraction)
-                                    transformOrigin = androidx.compose.ui.graphics.TransformOrigin(0f, 0.5f)
-                                }
-                                .width(28.dp)
-                                .height(7.dp)
-                        )
-                    }
-
-                    // Sayısal sayaç: vitrinde o an kaçıncı sıradaki içeriğin
-                    // gösterildiğini açıkça belirtir (örn. "3 / 11").
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Box(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(999.dp))
-                            .background(KitsugiColors.SurfaceStrong.copy(alpha = 0.92f))
-                            .padding(horizontal = 10.dp, vertical = 4.dp)
-                    ) {
-                        Text(
-                            text = "${heroCounterIndex + 1} / ${items.size}",
-                            color = KitsugiColors.TextPrimary,
-                            style = MaterialTheme.typography.labelMedium,
-                            fontWeight = FontWeight.Black
-                        )
+                                .height(13.dp)
+                                .drawBehind {
+                                    // Etkin sayfanın çizgisini çerçeve ile kapsa;
+                                    // çerçeve opaklığı sayfa geçişiyle yumuşak değişir.
+                                    val frameFraction = heroPageVisibility(pagerState, index)
+                                    if (frameFraction > 0.02f) {
+                                        val strokeW = 1.5.dp.toPx()
+                                        val inset = strokeW / 2f
+                                        val w = size.width
+                                        val h = size.height
+                                        drawRoundRect(
+                                            color = indicatorFrameColor.copy(alpha = frameFraction),
+                                            topLeft = androidx.compose.ui.geometry.Offset(inset, inset),
+                                            size = androidx.compose.ui.geometry.Size(w - strokeW, h - strokeW),
+                                            cornerRadius = androidx.compose.ui.geometry.CornerRadius(h / 2f),
+                                            style = androidx.compose.ui.graphics.drawscope.Stroke(strokeW)
+                                        )
+                                    }
+                                },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 3.dp)
+                                    .clip(CircleShape)
+                                    .background(accentColor)
+                                    .graphicsLayer {
+                                        val activeFraction = heroPageVisibility(pagerState, index)
+                                        // Daha belirgin gösterge: etkin sayfa TAM opak ve kalın,
+                                        // pasif sayfalar da net seçilebilir koyulukta.
+                                        alpha = 0.30f + (0.70f * activeFraction)
+                                        // Sabit ölçü: her karede width değiştirip tüm Row'u yeniden
+                                        // ölçmek yerine GPU katmanını yatay ölçekle.
+                                        scaleX = 0.40f + (0.60f * activeFraction)
+                                        transformOrigin = androidx.compose.ui.graphics.TransformOrigin(0f, 0.5f)
+                                    }
+                                    .height(7.dp)
+                            )
+                        }
                     }
                 }
             }
