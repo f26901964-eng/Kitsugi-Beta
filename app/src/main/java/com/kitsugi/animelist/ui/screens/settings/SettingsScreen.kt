@@ -11,6 +11,10 @@ import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -65,6 +69,12 @@ import com.kitsugi.animelist.ui.components.KitsugiSettingsItem
 import com.kitsugi.animelist.ui.components.KitsugiSettingsSection
 import com.kitsugi.animelist.ui.components.KitsugiSystemSettingsDialog
 import com.kitsugi.animelist.ui.theme.KitsugiColors
+import com.kitsugi.animelist.ui.theme.LocalKitsugiOnAccent
+import com.kitsugi.animelist.ui.theme.LocalKitsugiAccentBrush
+import androidx.compose.foundation.background
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.Alignment
 import com.kitsugi.animelist.ui.theme.LocalKitsugiAccent
 
 // ─── Settings Nav Routes ────────────────────────────────────────────────────
@@ -170,6 +180,7 @@ fun SettingsScreen(
             SettingsRoute.KitsugiAccount -> {
                 SettingsSubPage(
                     title = stringResource(R.string.settings_kitsugi_account),
+                    icon = Icons.Rounded.AccountCircle,
                     onBack = { route = SettingsRoute.Main }
                 ) {
                     KitsugiAccountContent()
@@ -179,6 +190,7 @@ fun SettingsScreen(
             SettingsRoute.AccountConnections -> {
                 SettingsSubPage(
                     title = stringResource(R.string.settings_account_connections),
+                    icon = Icons.Rounded.Person,
                     onBack = { route = SettingsRoute.Main }
                 ) {
                     AccountConnectionsHubContent(
@@ -191,6 +203,7 @@ fun SettingsScreen(
             SettingsRoute.AniListSettings -> {
                 SettingsSubPage(
                     title = "AniList",
+                    icon = Icons.Rounded.Link,
                     onBack = { route = SettingsRoute.AccountConnections }
                 ) {
                     AniListSettingsContent(profile = params.profile)
@@ -200,6 +213,7 @@ fun SettingsScreen(
             SettingsRoute.MalSettings -> {
                 SettingsSubPage(
                     title = "MyAnimeList",
+                    icon = Icons.Rounded.Link,
                     onBack = { route = SettingsRoute.AccountConnections }
                 ) {
                     MalSettingsContent(profile = params.profile)
@@ -209,6 +223,7 @@ fun SettingsScreen(
             SettingsRoute.SimklSettings -> {
                 SettingsSubPage(
                     title = "Simkl",
+                    icon = Icons.Rounded.Link,
                     onBack = { route = SettingsRoute.AccountConnections }
                 ) {
                     SimklSettingsContent(profile = params.profile)
@@ -218,6 +233,7 @@ fun SettingsScreen(
             SettingsRoute.KitsuSettings -> {
                 SettingsSubPage(
                     title = "Kitsu",
+                    icon = Icons.Rounded.Link,
                     onBack = { route = SettingsRoute.AccountConnections }
                 ) {
                     KitsuSettingsContent(profile = params.profile)
@@ -227,6 +243,7 @@ fun SettingsScreen(
             SettingsRoute.ShikimoriSettings -> {
                 SettingsSubPage(
                     title = "Shikimori",
+                    icon = Icons.Rounded.Link,
                     onBack = { route = SettingsRoute.AccountConnections }
                 ) {
                     ShikimoriSettingsContent(profile = params.profile)
@@ -236,6 +253,7 @@ fun SettingsScreen(
             SettingsRoute.BangumiSettings -> {
                 SettingsSubPage(
                     title = "Bangumi",
+                    icon = Icons.Rounded.Link,
                     onBack = { route = SettingsRoute.AccountConnections }
                 ) {
                     BangumiSettingsContent(profile = params.profile)
@@ -245,6 +263,7 @@ fun SettingsScreen(
             SettingsRoute.CrossSyncSettings -> {
                 SettingsSubPage(
                     title = stringResource(R.string.settings_cross_sync),
+                    icon = Icons.Rounded.Sync,
                     onBack = { route = SettingsRoute.AccountConnections }
                 ) {
                     CrossSyncSettingsContent(profile = params.profile)
@@ -254,6 +273,7 @@ fun SettingsScreen(
             SettingsRoute.AppearancePreferences -> {
                 SettingsSubPage(
                     title = stringResource(R.string.settings_pref_title),
+                    icon = Icons.Rounded.Palette,
                     onBack = { route = SettingsRoute.Main }
                 ) {
                     SettingsPreferencesContent(
@@ -279,6 +299,7 @@ fun SettingsScreen(
             SettingsRoute.AddonsExtensions -> {
                 SettingsSubPage(
                     title = stringResource(R.string.settings_addons_sources),
+                    icon = Icons.Rounded.Extension,
                     onBack = { route = SettingsRoute.Main }
                 ) {
                     SettingsAddonsContent(
@@ -300,6 +321,7 @@ fun SettingsScreen(
             SettingsRoute.Integrations -> {
                 SettingsSubPage(
                     title = stringResource(R.string.settings_integrations),
+                    icon = Icons.Rounded.Hub,
                     onBack = { route = SettingsRoute.Main }
                 ) {
                     SettingsIntegrationsContent(integrations = params.integrations)
@@ -309,6 +331,7 @@ fun SettingsScreen(
             SettingsRoute.DataBackup -> {
                 SettingsSubPage(
                     title = stringResource(R.string.settings_data_backup),
+                    icon = Icons.Rounded.Storage,
                     onBack = { route = SettingsRoute.Main }
                 ) {
                     KitsugiSystemSettingsDialog(
@@ -331,6 +354,7 @@ fun SettingsScreen(
             SettingsRoute.Downloads -> {
                 SettingsSubPage(
                     title = stringResource(R.string.settings_download_settings),
+                    icon = Icons.Rounded.Tune,
                     onBack = { route = SettingsRoute.Main }
                 ) {
                     val accentColor = com.kitsugi.animelist.ui.theme.LocalKitsugiAccent.current
@@ -346,6 +370,7 @@ fun SettingsScreen(
             SettingsRoute.Storage -> {
                 SettingsSubPage(
                     title = stringResource(R.string.storage_title),
+                    icon = Icons.Rounded.CleaningServices,
                     onBack = { route = SettingsRoute.Main }
                 ) {
                     StorageSettingsContent()
@@ -362,6 +387,7 @@ fun SettingsScreen(
             SettingsRoute.Feedback -> {
                 SettingsSubPage(
                     title = stringResource(R.string.settings_feedback),
+                    icon = Icons.Rounded.Feedback,
                     onBack = { route = SettingsRoute.Main }
                 ) {
                     com.kitsugi.animelist.ui.screens.more.FeedbackDialog(
@@ -402,6 +428,7 @@ fun SettingsScreen(
             SettingsRoute.PluginDiagnostic -> {
                 SettingsSubPage(
                     title = stringResource(R.string.settings_plugin_diagnostic),
+                    icon = Icons.Rounded.Build,
                     onBack = { route = SettingsRoute.AddonsExtensions }
                 ) {
                     CsPluginDiagnosticScreen(
@@ -418,6 +445,7 @@ fun SettingsScreen(
             SettingsRoute.PlatformErrorCodes -> {
                 SettingsSubPage(
                     title = stringResource(R.string.platform_error_catalog_title),
+                    icon = Icons.Rounded.Info,
                     onBack = { route = errorCatalogBackRoute },
                 ) {
                     PlatformErrorCatalogScreen()
@@ -674,6 +702,8 @@ private fun SettingsMainPage(
 private fun SettingsSubPage(
     title: String,
     onBack: () -> Unit,
+    icon: androidx.compose.ui.graphics.vector.ImageVector? = null,
+    subtitle: String? = null,
     content: @Composable () -> Unit
 ) {
     Column(
@@ -681,15 +711,9 @@ private fun SettingsSubPage(
             .fillMaxSize()
             .statusBarsPadding()
     ) {
+        // Üst bar: yalnızca geri tuşu; başlık aşağıdaki büyük başlık bloğunda.
         TopAppBar(
-            title = {
-                Text(
-                    text = title,
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold,
-                    color = KitsugiColors.TextPrimary
-                )
-            },
+            title = {},
             navigationIcon = {
                 IconButton(onClick = onBack) {
                     Icon(
@@ -703,7 +727,48 @@ private fun SettingsSubPage(
                 containerColor = KitsugiColors.Background
             )
         )
-        HorizontalDivider(color = KitsugiColors.Border.copy(alpha = 0.5f))
+
+        // Büyük başlık + ikon standardı (ana menüdeki ikonla aynı gradyan daire).
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(start = 20.dp, end = 20.dp, top = 4.dp, bottom = 16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            if (icon != null) {
+                Box(
+                    modifier = Modifier
+                        .size(48.dp)
+                        .clip(CircleShape)
+                        .background(LocalKitsugiAccentBrush.current),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = icon,
+                        contentDescription = null,
+                        tint = LocalKitsugiOnAccent.current,
+                        modifier = Modifier.size(24.dp)
+                    )
+                }
+                Spacer(Modifier.width(14.dp))
+            }
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.headlineMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = KitsugiColors.TextPrimary
+                )
+                if (subtitle != null) {
+                    Spacer(Modifier.height(2.dp))
+                    Text(
+                        text = subtitle,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = KitsugiColors.TextSecondary
+                    )
+                }
+            }
+        }
         content()
     }
 }
