@@ -75,7 +75,23 @@ Eksik okunan bu kimlikler logo aramasının hiç başlamamasına yol açıyordu.
   `Sousou no Frieren` / `Re:Zero` gibi romaji başlıklı Simkl öğelerinde başlık logosunun
   görünmesi beklenir; logo yoksa metin yedeği (mevcut davranış) kalır.
 
-## 6. Kapsam dışı / açık konular
+## 6. Denetlenip bilinçli olarak değiştirilmeyen yerler
+
+- **`KitsugiHeroArtworkResolver` (vitrin arka planı/posteri):** aynı
+  `expectedTitles = allTitles` başlık doğrulaması Simkl dalında da uygulanıyor (:718),
+  yani romaji başlıklı Simkl öğelerinde TMDB görsel paketi doğrudan reddedilebiliyor.
+  Ancak bu yolda doğrulama başarısız olduğunda devreye giren bir **TMDB başlık + yıl
+  araması yedeği** vardır ve aynı yapım yine çözülür. Ayrıca bu yol başlık **logosunu**
+  değil yalnızca arka plan/poster adaylarını üretir; logo bulunamazsa Simkl CDN görseli
+  kullanılır. Cihazda doğrulanamadığı için davranış değiştiren ek bir düzenleme
+  yapılmadı; ileride cihazda doğrulanırsa Simkl kaydının kendi `ids.tmdb`'si otorite
+  kabul edilerek aynı kural oraya da uygulanabilir.
+- **`KitsugiExploreMediaCard`:** kart/şerit bileşeninde logo mantığı yok (yalnızca Simkl
+  CDN poster/arka plan görselleri); bu düzeltmeden etkilenmez, değişiklik gerekmez.
+- **`HeroLogoPolicy` + `HeroSelectionTest`:** politika katmanı testle sabitlenmiş ve
+  doğru çalışıyor; sorun bu katmanda değil, downstream doğrulamadaydı.
+
+## 7. Kapsam dışı / açık konular
 
 - Simkl kartlarında puan `92/10` biçiminde görünebiliyor (Simkl puanları 0–100 aralığında
   saklanır, `formatScore` 0–10 varsayar). Bu raporun konusu değildir; ayrı bir düzeltme
