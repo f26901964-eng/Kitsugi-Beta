@@ -406,24 +406,35 @@ class KitsugiStaffClient {
         name: String? = null
     ): KitsugiStaffDetail? {
         return withContext(Dispatchers.IO) {
-            if (staffId <= 0) return@withContext null
-            when (MalJikanMediaSupport.canonicalSource(source)) {
+            val canonicalSource = MalJikanMediaSupport.canonicalSource(source)
+            var personId = staffId
+            if (personId <= 0) {
+                // Kimliksiz kişi kayıtları (örn. MAL v2 authors node'u) ada göre Jikan
+                // kişiler arasında çözümlenir; bulunamazsa null — verisiz/boş kişi
+                // sayfası yerine hiç açılmasın (bkz. PLAN 2026-10-12).
+                val targetName = name?.trim()?.takeIf { it.isNotBlank() } ?: return@withContext null
+                personId = when (canonicalSource) {
+                    "jikan", "mal" -> resolveJikanPersonIdByName(targetName)
+                    else -> null
+                } ?: return@withContext null
+            }
+            when (canonicalSource) {
                 "bangumi", "bgm" -> {
-                    val raw = KitsugiBangumiCreditsClient.fetchPersonDetail(staffId, name)
-                        ?: KitsugiBangumiDetailClient.fetchStaffDetail(staffId)
+                    val raw = KitsugiBangumiCreditsClient.fetchPersonDetail(personId, name)
+                        ?: KitsugiBangumiDetailClient.fetchStaffDetail(personId)
                     // Karakter/yapım adları CJK kalmasın diye infobox + önbellekle zenginleştir.
                     // Ağ isteği sınırı ve zaman aşımı içeride korunur; başarısız olursa ham veri döner.
                     raw?.let { KitsugiBangumiDetailClient.enrichStaffDetailNames(it, cacheOnly = true) }
                 }
                 "shikimori" -> {
-                    KitsugiShikimoriClient.fetchStaffDetail(staffId)
+                    KitsugiShikimoriClient.fetchStaffDetail(personId)
                 }
                 "jikan", "mal" -> {
                     var detail: KitsugiStaffDetail? = null
                     var networkError: Throwable? = null
 
                     // 1. MAL / Jikan API
-                    val url = URL("https://api.jikan.moe/v4/people/$staffId/full")
+                    val url = URL("https://api.jikan.moe/v4/people/$personId/full")
                     val jikanRes = runCatching {
                         KitsugiApiBase.runWithRateLimit {
                             val response = KitsugiApiBase.executeGetRequestOrThrow(url)
@@ -502,9 +513,29 @@ class KitsugiStaffClient {
                                     ))
                                 }
                             }
+                            // Manga yapımları: yazar/çizer kişilerin eser listesi (bkz. PLAN 2026-10-12)
+                            val mangaWorks = data.optJSONArray("manga")
+                            if (mangaWorks != null) {
+                                for (i in 0 until mangaWorks.length()) {
+                                    val item = mangaWorks.optJSONObject(i) ?: continue
+                                    val position = (item.optNullableString("position") ?: "Ekip Üyesi").toTurkishStaffRole()
+                                    val mangaObj = item.optJSONObject("manga")
+                                    val mangaId = mangaObj?.optInt("mal_id") ?: 0
+                                    val mangaTitle = mangaObj?.optNullableString("title") ?: "Bilinmeyen"
+                                    val mangaImg = mangaObj?.optJSONObject("images")?.optJSONObject("jpg")?.optNullableString("image_url")
+                                    mediaWorks.add(KitsugiStaffMediaWork(
+                                        mediaId = mangaId,
+                                        mediaTitle = mangaTitle,
+                                        mediaImageUrl = mangaImg,
+                                        mediaType = "manga".toTurkishMediaTypeString(),
+                                        staffRole = position,
+                                        source = "jikan"
+                                    ))
+                                }
+                            }
 
                             KitsugiStaffDetail(
-                                id = staffId,
+                                id = personId,
                                 name = staffName,
                                 nativeName = nativeName,
                                 alternativeNames = alternativeNames,
@@ -532,7 +563,7 @@ class KitsugiStaffClient {
                     // 2. Shikimori Fallback / Merge (yalnızca Jikan başarısızsa veya biyografi/görsel eksikse)
                     if (detail == null || detail?.biography.isNullOrBlank() || detail?.imageUrl.isNullOrBlank()) {
                         runCatching {
-                            KitsugiShikimoriClient.fetchStaffDetail(staffId)
+                            KitsugiShikimoriClient.fetchStaffDetail(personId)
                         }.onSuccess { shikiDetail ->
                             if (shikiDetail != null) {
                                 detail = if (detail == null) shikiDetail else detail!!.mergeWith(shikiDetail)
@@ -819,6 +850,17 @@ class KitsugiStaffClient {
             }
         }
     }
+
+    /**
+     * Kimliksiz kişi kayıtlarını (örn. MAL v2 `authors[].node` — id eksikse) ada göre
+     * Jikan kişiler arasında çözümler. Ad eşleşmesi zorunludur; eşleşmezse null döner.
+     */
+    private suspend fun resolveJikanPersonIdByName(name: String): Int? = runCatching {
+        JikanApiClient().searchMalPeople(name, page = 1)
+            .firstOrNull { KitsugiPersonImageAggregator.nameMatches(name, it.title) }
+            ?.malId
+            ?.takeIf { it > 0 }
+    }.getOrNull()
 
     private suspend fun fetchAniListStaffByName(name: String): KitsugiStaffDetail? {
         val query = """

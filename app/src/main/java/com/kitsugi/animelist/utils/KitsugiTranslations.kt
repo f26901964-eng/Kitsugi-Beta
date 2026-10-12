@@ -305,6 +305,8 @@ private val statusMap = mapOf(
     "Not yet aired" to "Henüz Yayınlanmadı",
     "Finished" to "Tamamlandı",
     "Publishing" to "Yayımlanıyor",
+    "Currently Publishing" to "Yayımlanıyor",
+    "Not yet published" to "Henüz Yayımlanmadı",
     "Discontinued" to "Yayın Durduruldu",
     "On Hiatus" to "Ara Verildi",
     // AniList

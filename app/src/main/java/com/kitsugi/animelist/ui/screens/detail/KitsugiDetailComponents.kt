@@ -60,6 +60,28 @@ fun KitsugiStudiosCard(
     if (studios.isEmpty() && producers.isEmpty() && networks.isEmpty()) return
     val accentColor = LocalKitsugiAccent.current
 
+    // Manga ayrıntılarında yazar/dergi/yayıncı kayıtları bu kartın listelerini kullanır;
+    // başlıklar role göre doğru etiketi gösterir (örn. "Stüdyolar" yerine "Yazarlar").
+    val studiosLabel = when {
+        studios.all { it.role == com.kitsugi.animelist.data.remote.StudioRole.AUTHOR } ->
+            stringResource(R.string.detail_section_authors)
+        studios.all { it.role == com.kitsugi.animelist.data.remote.StudioRole.PUBLISHER } ->
+            stringResource(R.string.detail_section_publishers)
+        else -> stringResource(R.string.detail_section_studios)
+    }
+    val producersLabel = when {
+        producers.all { it.role == com.kitsugi.animelist.data.remote.StudioRole.MAGAZINE } ->
+            stringResource(R.string.detail_section_magazines)
+        producers.all { it.role == com.kitsugi.animelist.data.remote.StudioRole.PUBLISHER } ->
+            stringResource(R.string.detail_section_publishers)
+        else -> stringResource(R.string.detail_section_producers)
+    }
+    val networksLabel = when {
+        networks.all { it.role == com.kitsugi.animelist.data.remote.StudioRole.MAGAZINE } ->
+            stringResource(R.string.detail_section_magazines)
+        else -> stringResource(R.string.detail_section_networks)
+    }
+
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -69,7 +91,7 @@ fun KitsugiStudiosCard(
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         if (studios.isNotEmpty()) {
-            SectionLabel(stringResource(R.string.detail_section_studios))
+            SectionLabel(studiosLabel)
             FlowRow(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
@@ -91,7 +113,7 @@ fun KitsugiStudiosCard(
             }
         }
         if (producers.isNotEmpty()) {
-            SectionLabel(stringResource(R.string.detail_section_producers))
+            SectionLabel(producersLabel)
             FlowRow(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
@@ -109,7 +131,7 @@ fun KitsugiStudiosCard(
             }
         }
         if (networks.isNotEmpty()) {
-            SectionLabel(stringResource(R.string.detail_section_networks))
+            SectionLabel(networksLabel)
             FlowRow(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp)

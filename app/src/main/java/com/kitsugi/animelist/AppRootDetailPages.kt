@@ -238,6 +238,16 @@ fun AppRootDetailPages(
                     onStudioClick = { studioId, studioSource, studioName, studioImageUrl ->
                         navState.navigateToDetail(DetailScreen.StudioDetail(studioId, studioSource, studioName, studioImageUrl))
                     },
+                    onMagazineClick = { magazineId, magazineName ->
+                        triggerDetailSearchFilter(
+                            DetailSearchFilterRequest(
+                                source = key.result.source,
+                                mediaType = key.result.type,
+                                magazineId = magazineId.takeIf { it > 0 },
+                                magazineName = magazineName
+                            )
+                        )
+                    },
                     onUserProfileClick = { userId, username, avatarUrl, profileSource ->
                         navState.navigateToDetail(DetailScreen.UserProfile(userId, username, avatarUrl, profileSource))
                     },
@@ -388,6 +398,16 @@ fun AppRootDetailPages(
                         },
                         onStudioClick = { studioId, studioSource, studioName, studioImageUrl ->
                             navState.navigateToDetail(DetailScreen.StudioDetail(studioId, studioSource, studioName, studioImageUrl))
+                        },
+                        onMagazineClick = { magazineId, magazineName ->
+                            triggerDetailSearchFilter(
+                                DetailSearchFilterRequest(
+                                    source = entry.source,
+                                    mediaType = entry.type,
+                                    magazineId = magazineId.takeIf { it > 0 },
+                                    magazineName = magazineName
+                                )
+                            )
                         },
                         onUserProfileClick = { userId, username, avatarUrl, profileSource ->
                             navState.navigateToDetail(DetailScreen.UserProfile(userId, username, avatarUrl, profileSource))

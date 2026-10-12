@@ -216,7 +216,8 @@ class StaffDetailViewModel(application: Application) : AndroidViewModel(applicat
         val staffId = lastStaffId
         val source = lastSource
         val name = lastStaffName
-        if (staffId > 0 && source.isNotEmpty()) {
+        // Kimlik yerine ada göre açılan kişilerde (staffId<=0) da yeniden denenebilsin.
+        if ((staffId > 0 || !name.isNullOrBlank()) && source.isNotEmpty()) {
             _state.value = StaffDetailState.Loading
             _translatedBio.value = null
             viewModelScope.launch {
@@ -229,7 +230,7 @@ class StaffDetailViewModel(application: Application) : AndroidViewModel(applicat
         val staffId = lastStaffId
         val source = lastSource
         val name = lastStaffName
-        if (staffId > 0 && source.isNotEmpty()) {
+        if ((staffId > 0 || !name.isNullOrBlank()) && source.isNotEmpty()) {
             _isRefreshing.value = true
             viewModelScope.launch {
                 try {
@@ -303,7 +304,8 @@ class StaffDetailViewModel(application: Application) : AndroidViewModel(applicat
             }
 
             // Build gallery from imageUrl + Jikan /people pictures
-            buildStaffGallery(staffId, source, detail.imageUrl)
+            // Kimlik ada göre çözümlendiyse galeri de çözümlenmiş kimlikle istenir.
+            buildStaffGallery(detail.id.takeIf { it > 0 } ?: staffId, source, detail.imageUrl)
         } else if (_state.value !is StaffDetailState.Success) {
             _state.value = StaffDetailState.Error(KitsugiStrings.get(R.string.ekip_uyesi_detaylari_yuklenemedi))
         }

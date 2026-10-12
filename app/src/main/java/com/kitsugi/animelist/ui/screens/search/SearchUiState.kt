@@ -174,6 +174,11 @@ data class SearchUiState(
                 if (startYear != null || endYear != null) c++
                 if (season != null) c++
                 if (isAdultFilter != null) c++
+                // Detay sayfası çip tıklamalarından gelen kimlik facetleri (stüdyo/
+                // yapımcı/dergi/kanal): sayılırlarsa boş sorguyla arama tetiklenir.
+                if (malSpecificFilters.producerId != null) c++
+                if (malSpecificFilters.magazineId != null) c++
+                if (tmdbSpecificFilters.networkId != null) c++
                 c
             }
             SearchSourceEngine.ANILIST -> {

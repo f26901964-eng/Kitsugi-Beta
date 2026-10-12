@@ -395,13 +395,25 @@ internal object KitsugiMalDetailClient {
                         genres.any { tag -> tag.lowercase().contains("hentai") }
 
                 val producers = mutableListOf<KitsugiStudio>()
+                val serializations = mutableListOf<KitsugiStudio>()
                 if (mediaType == MediaType.Manga) {
+                    // Manga: yazarlar kişi (AUTHOR), yayıncılar şirket (PUBLISHER),
+                    // yayın dergileri MAGAZINE — eskiden hepsi stüdyo/yapımcı sanılıp tıklanınca
+                    // boş stüdyo sayfası açılıyordu (bkz. PLAN 2026-10-12).
                     data.optJSONArray("authors")?.let { arr ->
                         for (i in 0 until arr.length()) {
                             val obj = arr.getJSONObject(i)
                             val id = obj.optInt("mal_id")
                             val name = obj.optNullableString("name")
-                            if (!name.isNullOrBlank()) studios.add(KitsugiStudio(id = id, name = name, isMain = true, source = "jikan", imageUrl = studioImageUrl(obj)))
+                            if (!name.isNullOrBlank()) studios.add(KitsugiStudio(id = id, name = name, isMain = true, source = "jikan", role = StudioRole.AUTHOR, imageUrl = studioImageUrl(obj)))
+                        }
+                    }
+                    data.optJSONArray("publishers")?.let { arr ->
+                        for (i in 0 until arr.length()) {
+                            val obj = arr.getJSONObject(i)
+                            val id = obj.optInt("mal_id")
+                            val name = obj.optNullableString("name")
+                            if (!name.isNullOrBlank()) producers.add(KitsugiStudio(id = id, name = name, isMain = true, source = "jikan", role = StudioRole.PUBLISHER, imageUrl = studioImageUrl(obj)))
                         }
                     }
                     data.optJSONArray("serializations")?.let { arr ->
@@ -409,7 +421,7 @@ internal object KitsugiMalDetailClient {
                             val obj = arr.getJSONObject(i)
                             val id = obj.optInt("mal_id")
                             val name = obj.optNullableString("name")
-                            if (!name.isNullOrBlank()) producers.add(KitsugiStudio(id = id, name = name, isMain = false, source = "jikan", role = StudioRole.PRODUCER, imageUrl = studioImageUrl(obj)))
+                            if (!name.isNullOrBlank()) serializations.add(KitsugiStudio(id = id, name = name, isMain = false, source = "jikan", role = StudioRole.MAGAZINE, imageUrl = studioImageUrl(obj)))
                         }
                     }
                 } else {
@@ -463,6 +475,7 @@ internal object KitsugiMalDetailClient {
                     sourceMaterial = sourceMaterial,
                     studios = studios,
                     producers = producers,
+                    serializations = serializations,
                     rating = rating,
                     broadcast = broadcast,
                     episodeDuration = episodeDuration,
@@ -602,6 +615,8 @@ internal object KitsugiMalDetailClient {
                 "not_yet_aired"    -> "Not yet aired"
                 "finished"         -> "Finished"
                 "publishing"       -> "Publishing"
+                "currently_publishing" -> "Publishing"
+                "not_yet_published"    -> "Not yet published"
                 "discontinued"     -> "Discontinued"
                 "on_hiatus"        -> "On Hiatus"
                 else               -> statusRaw
@@ -645,6 +660,7 @@ internal object KitsugiMalDetailClient {
             // Studios & producers (anime only)
             val studios = mutableListOf<KitsugiStudio>()
             val producers = mutableListOf<KitsugiStudio>()
+            val serializations = mutableListOf<KitsugiStudio>()
             if (mediaType != MediaType.Manga) {
                 d.optJSONArray("studios")?.let { arr ->
                     for (i in 0 until arr.length()) {
@@ -663,7 +679,8 @@ internal object KitsugiMalDetailClient {
                     }
                 }
             } else {
-                // Manga: authors → studios, serializations → producers
+                // Manga: yazarlar kişi (AUTHOR), yayın dergileri MAGAZINE — stüdyo/yapımcı
+                // olarak etiketlenip ölü stüdyo sayfasına giden tıklamalar düzeltildi.
                 d.optJSONArray("authors")?.let { arr ->
                     for (i in 0 until arr.length()) {
                         val obj = arr.optJSONObject(i)?.optJSONObject("node") ?: continue
@@ -671,7 +688,7 @@ internal object KitsugiMalDetailClient {
                         val first = obj.optString("first_name", "")
                         val last = obj.optString("last_name", "")
                         val name = "$first $last".trim()
-                        if (name.isNotBlank()) studios.add(KitsugiStudio(id = id, name = name, isMain = true, source = "jikan", imageUrl = studioImageUrl(obj)))
+                        if (name.isNotBlank()) studios.add(KitsugiStudio(id = id, name = name, isMain = true, source = "jikan", role = StudioRole.AUTHOR, imageUrl = studioImageUrl(obj)))
                     }
                 }
                 d.optJSONArray("serialization")?.let { arr ->
@@ -679,7 +696,7 @@ internal object KitsugiMalDetailClient {
                         val obj = arr.optJSONObject(i)?.optJSONObject("node") ?: continue
                         val id = obj.optInt("id")
                         val name = obj.optNullableString("name")
-                        if (!name.isNullOrBlank()) producers.add(KitsugiStudio(id = id, name = name, isMain = false, source = "jikan", role = StudioRole.PRODUCER, imageUrl = studioImageUrl(obj)))
+                        if (!name.isNullOrBlank()) serializations.add(KitsugiStudio(id = id, name = name, isMain = false, source = "jikan", role = StudioRole.MAGAZINE, imageUrl = studioImageUrl(obj)))
                     }
                 }
             }
@@ -743,6 +760,7 @@ internal object KitsugiMalDetailClient {
                 sourceMaterial = sourceMaterial,
                 studios = studios,
                 producers = producers,
+                serializations = serializations,
                 rating = rating,
                 broadcast = broadcast,
                 episodeDuration = episodeDuration,

@@ -828,6 +828,11 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
         val cleanTag = request.tag?.let(::translateToEnglishForSearch)?.trim()?.takeIf { it.isNotBlank() }
         val season = CanonicalFilterBridge.normalizeSeason(request.season)
         val year = request.year?.takeIf { it > 0 }
+        // Stüdyo/yapımcı/dergi/kanal kimlik facetleri (detay sayfası çip tıklamaları).
+        val producerFacetId = request.producerId?.takeIf { it > 0 } ?: request.studioId?.takeIf { it > 0 }
+        val magazineFacetId = request.magazineId?.takeIf { it > 0 }
+        val magazineFacetName = request.magazineName?.trim()?.takeIf { it.isNotBlank() }
+        val networkFacetId = request.networkId?.takeIf { it > 0 }
         val normalizedRequest = request.copy(
             source = SearchSourceEngine.ALL.id,
             genre = cleanGenre,
@@ -881,7 +886,9 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
                 seasonYear = year,
                 genres = listOfNotNull(malGenreId),
                 startYear = if (season == null) year else null,
-                endYear = if (season == null) year else null
+                endYear = if (season == null) year else null,
+                producerId = producerFacetId,
+                magazineId = magazineFacetId
             )
         } else MalSpecificFilters()
 
@@ -894,7 +901,8 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
                 genres = tmdbGenreIds,
                 startYear = if (season == null) year else null,
                 endYear = if (season == null) year else null,
-                keyword = tmdbTagId?.toString()
+                keyword = tmdbTagId?.toString(),
+                networkId = networkFacetId
             )
         } else TmdbSpecificFilters()
 
@@ -941,15 +949,23 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
         val seasonEnum = season?.let { value ->
             KitsugiMediaSeason.entries.firstOrNull { it.apiValue == value }
         }
+        // Kimliksiz dergi kayıtlarında (id<=0) filtreyi ada göre metin aramasına indirge:
+        // kimlik facetini hiçbir motor uygulayamaz, talep kayıtlı kalırsa tüm motorlar
+        // kapanıp boş sonuç ekranı açılır. Amaç: asla verisiz/ölü ekran kalmamasın.
+        val degradeMagazineToQuery = magazineFacetId == null && magazineFacetName != null &&
+            facetTerms.isEmpty() && cleanTag == null && season == null && year == null &&
+            producerFacetId == null && networkFacetId == null
+        val fallbackQuery = if (degradeMagazineToQuery) magazineFacetName else ""
+        val storedFilterRequest = if (degradeMagazineToQuery) null else normalizedRequest
         _uiState.update { current ->
             current.copy(
-                query = "",
+                query = fallbackQuery,
                 selectedEngine = SearchSourceEngine.ALL,
                 selectedScope = targetScope,
                 currentTab = KitsugiSearchTab.All,
                 selectedPlatform = SearchPlatform.All,
                 selectedMediaType = request.mediaType,
-                detailSearchFilterRequest = normalizedRequest,
+                detailSearchFilterRequest = storedFilterRequest,
                 genres = listOfNotNull(cleanGenre ?: cleanTheme ?: cleanDemographic),
                 tags = listOfNotNull(cleanTag),
                 excludedGenres = emptyList(),

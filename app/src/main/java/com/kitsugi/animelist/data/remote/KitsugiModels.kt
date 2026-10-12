@@ -44,7 +44,9 @@ data class KitsugiTheme(
 )
 
 enum class StudioRole {
-    STUDIO, PRODUCER, MAGAZINE, PUBLISHER, NETWORK, LICENSOR
+    STUDIO, PRODUCER, MAGAZINE, PUBLISHER, NETWORK, LICENSOR,
+    /** Manga/roman yazarı (Jikan `authors` / MAL v2 `authors[].node`) — stüdyo değil, kişidir. */
+    AUTHOR
 }
 
 data class KitsugiStudio(

@@ -248,6 +248,22 @@ object CanonicalFilterBridge {
      */
     fun supportsDetailFilter(engine: SearchSourceEngine, request: DetailSearchFilterRequest): Boolean {
         if (engine == SearchSourceEngine.ALL) return true
+
+        // Kimlik (ID) facetleri: stüdyo/yapımcı ve dergi kimlikleri yalnızca Jikan/MAL
+        // arama uçlarında (`producers` / `magazines` parametreleri) uygulanabilir;
+        // kanal kimlikleri ise TMDB'de. Uygulanamayan sağlayıcı filtresiz sonuç
+        // döndürmesin diye diğer motorlar kapatılır.
+        val hasMagazine = request.magazineId?.let { it > 0 } == true
+        val hasProducerFacet = request.producerId?.let { it > 0 } == true ||
+            request.studioId?.let { it > 0 } == true
+        val hasNetworkFacet = request.networkId?.let { it > 0 } == true
+        if (hasMagazine || hasProducerFacet) {
+            return engine == SearchSourceEngine.MAL
+        }
+        if (hasNetworkFacet) {
+            return engine == SearchSourceEngine.TMDB
+        }
+
         val facetTerms = listOfNotNull(request.genre, request.theme, request.demographic)
             .map { SearchTranslation.translateToEnglishForSearch(it).trim() }
             .filter { it.isNotBlank() }

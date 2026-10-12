@@ -84,6 +84,10 @@ internal fun EntryDetailOverviewTab(
     externalUrl: String?,
     onSearchQuery: (String) -> Unit,
     onStudioClick: (id: Int, source: String, name: String?, url: String?) -> Unit,
+    /** Manga yazarı çipi → kişi (Staff) detay sayfası. */
+    onStaffClick: (id: Int, source: String, name: String?, url: String?) -> Unit,
+    /** Dergi/serialization çipi → dergiye göre filtrelenmiş arama. */
+    onMagazineClick: (id: Int, name: String) -> Unit,
     onGenreClick: (String) -> Unit = {},
     onTagClick: (KitsugiTag) -> Unit = {},
     onSearchBySeason: (DetailSeasonMetadata) -> Unit = {},
@@ -154,40 +158,40 @@ internal fun EntryDetailOverviewTab(
             )
         }
 
-        // Stüdyolar + Yapımcılar
+        // Stüdyolar + Yapımcılar + Yayıncılar + Dergiler
         if (detail != null &&
-            (detail.studios.isNotEmpty() || detail.producers.isNotEmpty() || detail.networks.isNotEmpty())) {
+            (detail.studios.isNotEmpty() || detail.producers.isNotEmpty() || detail.networks.isNotEmpty() || detail.serializations.isNotEmpty())) {
+            // Rol bazlı yönlendirme: yazar çipleri kişi sayfasına, dergi çipleri
+            // filtreli aramaya, stüdyo/yapımcı/yayıncı çipleri stüdyo sayfasına gider.
+            val studioChipClick: (com.kitsugi.animelist.data.remote.KitsugiStudio) -> Unit = { chip ->
+                when (chip.role) {
+                    com.kitsugi.animelist.data.remote.StudioRole.AUTHOR ->
+                        onStaffClick(chip.id, chip.source, chip.name, chip.imageUrl)
+                    com.kitsugi.animelist.data.remote.StudioRole.MAGAZINE -> {
+                        val magSource = chip.source.lowercase(java.util.Locale.ROOT).trim()
+                        val safeMagId = chip.id.takeIf {
+                            it > 0 && (magSource == "jikan" || magSource == "mal" || magSource == "myanimelist")
+                        } ?: 0
+                        onMagazineClick(safeMagId, chip.name)
+                    }
+                    else -> {
+                        val resolvedSource = resolveStudioClickSource(
+                            studioSource = chip.source,
+                            mediaSource = entry.source.lowercase(),
+                            mediaType = entry.type,
+                            role = chip.role
+                        )
+                        onStudioClick(chip.id, resolvedSource, chip.name, chip.imageUrl)
+                    }
+                }
+            }
             KitsugiStudiosCard(
                 studios = detail.studios,
                 producers = detail.producers,
-                networks = detail.networks,
-                onStudioClick = { studio ->
-                    val resolvedSource = resolveStudioClickSource(
-                        studioSource = studio.source,
-                        mediaSource = entry.source.lowercase(),
-                        mediaType = entry.type,
-                        role = studio.role
-                    )
-                    onStudioClick(studio.id, resolvedSource, studio.name, studio.imageUrl)
-                },
-                onProducerClick = { producer ->
-                    val resolvedSource = resolveStudioClickSource(
-                        studioSource = producer.source,
-                        mediaSource = entry.source.lowercase(),
-                        mediaType = entry.type,
-                        role = producer.role
-                    )
-                    onStudioClick(producer.id, resolvedSource, producer.name, producer.imageUrl)
-                },
-                onNetworkClick = { network ->
-                    val resolvedSource = resolveStudioClickSource(
-                        studioSource = network.source,
-                        mediaSource = entry.source.lowercase(),
-                        mediaType = entry.type,
-                        role = com.kitsugi.animelist.data.remote.StudioRole.NETWORK
-                    )
-                    onStudioClick(network.id, resolvedSource, network.name, network.imageUrl)
-                }
+                networks = detail.networks + detail.serializations,
+                onStudioClick = studioChipClick,
+                onProducerClick = studioChipClick,
+                onNetworkClick = studioChipClick
             )
         }
 

@@ -4689,6 +4689,9 @@
     <string name="detail_section_studios">Studios</string>
     <string name="detail_section_producers">Producers</string>
     <string name="detail_section_networks">Networks</string>
+    <string name="detail_section_authors">Authors</string>
+    <string name="detail_section_publishers">Publishers</string>
+    <string name="detail_section_magazines">Magazines</string>
     <string name="detail_section_tags">Tags</string>
     <string name="detail_section_streaming">Streaming platforms</string>
     <string name="detail_section_external">External links</string>
