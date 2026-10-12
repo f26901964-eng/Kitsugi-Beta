@@ -7250,7 +7250,7 @@ Eklentiler ekranından eklenti etkinleştirin.</string>
     <string name="fandom_section_overview">Genel bakış</string>
     <string name="fandom_settings_title">Fandom Wiki</string>
     <string name="fandom_settings_enabled">Wiki sekmesi</string>
-    <string name="fandom_settings_enabled_desc">Karakter sayfalarında Fandom wiki bilgilerini gösterir. Eşleştirme önce kimlikle (Wikidata) yapılır.</string>
+    <string name="fandom_settings_enabled_desc">Karakter ve yapım detay sayfalarında Fandom wiki bilgilerini gösterir. Eşleştirme önce kimlikle (Wikidata) yapılır.</string>
     <string name="fandom_settings_name">İsimle eşleştirme (son çare)</string>
     <string name="fandom_settings_name_desc">Kimlikle bulunamazsa wiki isimle aranır; karakterler ve Japonca/Korece adlarla doğrulanmadan gösterilmez.</string>
     <string name="fandom_settings_spoiler">Spoiler koruması</string>
@@ -7266,4 +7266,27 @@ Eklentiler ekranından eklenti etkinleştirin.</string>
     <string name="fandom_confirm_no">Hayır, yanlış</string>
     <string name="fandom_confirm_done">Teşekkürler, eşleşme onaylandı.</string>
     <string name="fandom_settings_clear_action">Temizle</string>
+    <string name="fandom_tab_loading">Wiki yükleniyor…</string>
+    <string name="fandom_unavailable_title">Wiki bulunamadı</string>
+    <string name="fandom_unavailable_character">Bu karakter için Fandom wiki sayfası bulunamadı.</string>
+    <string name="fandom_unavailable_media">Bu yapım için Fandom wiki\'si bulunamadı.</string>
+    <string name="fandom_unavailable_hint">Bağlantı hatasıysa tekrar deneyebilirsin.</string>
+    <string name="fandom_retry">Tekrar dene</string>
+    <string name="fandom_section_role_movie">Filmdeki rolü</string>
+    <string name="fandom_section_role_series">Dizideki rolü</string>
+    <string name="fandom_section_other_media">Diğer medyalarda görünümler</string>
+    <string name="fandom_section_appearances">Görünümler</string>
+    <string name="fandom_section_legacy">Miras</string>
+    <string name="fandom_section_creation">Yaratılış ve tasarım</string>
+    <string name="fandom_media_header_subtitle">Fandom wiki · evren rehberi</string>
+    <string name="fandom_media_summary_title">Seri özeti</string>
+    <string name="fandom_media_search_hint">Wiki\'de ara…</string>
+    <string name="fandom_media_search_empty">Aramayla eşleşen sayfa bulunamadı.</string>
+    <string name="fandom_guide_title">Evren rehberi</string>
+    <string name="fandom_guide_organizations">Organizasyonlar</string>
+    <string name="fandom_guide_abilities">Yetenekler</string>
+    <string name="fandom_guide_places">Mekânlar</string>
+    <string name="fandom_guide_terms">Terimler</string>
+    <string name="fandom_read_all">Tamamını oku</string>
+    <string name="fandom_blurb_empty">Bu sayfa için kısa açıklama yok.</string>
 </resources>

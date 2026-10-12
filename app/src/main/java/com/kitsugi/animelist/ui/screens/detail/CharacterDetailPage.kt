@@ -108,8 +108,12 @@ import androidx.compose.ui.focus.focusProperties
 import com.kitsugi.animelist.data.remote.GalleryItem
 import com.kitsugi.animelist.data.remote.GalleryCategory
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.graphics.Color
+import com.kitsugi.animelist.data.fandom.FandomCharacterQueries
 import com.kitsugi.animelist.ui.screens.detail.wiki.CharacterWikiTabContent
 import com.kitsugi.animelist.ui.screens.detail.wiki.FandomCharacterWikiViewModel
+import com.kitsugi.animelist.ui.screens.detail.wiki.WikiTabSkeleton
+import com.kitsugi.animelist.ui.screens.detail.wiki.WikiUnavailableCard
 
 sealed interface CharacterDetailState {
     object Loading : CharacterDetailState
@@ -248,7 +252,10 @@ fun CharacterDetailPage(
                 val wikiTranslations by wikiViewModel.translations.collectAsState()
                 val wikiTranslating by wikiViewModel.translating.collectAsState()
                 val wikiPrefs by wikiViewModel.prefs.collectAsState()
-                val wikiPage = (wikiState as? FandomCharacterWikiViewModel.UiState.Ready)?.page
+                // Sekme görünürlüğü çözümlemeyi beklemez: kimlik/ad varsa sekme vardır.
+                val wikiTabPossible = wikiPrefs.enabled && remember(rawDetail, source, characterId) {
+                    FandomCharacterQueries.from(rawDetail, source, characterId) != null
+                }
                 val isRefreshing by viewModel.isRefreshing.collectAsState()
                 val pullRefreshState = rememberPullToRefreshState()
                 PullToRefreshBox(
@@ -282,8 +289,9 @@ fun CharacterDetailPage(
                     add(CharacterTabKey.ABOUT)
                     add(CharacterTabKey.APPEARANCES)
                     if (source.lowercase() != "tmdb") add(CharacterTabKey.VOICE_ACTORS)
-                    // Wiki sekmesi en sonda: sayfa çözümlendikten sonra belirmesi diğer sekmeleri kaydırmaz.
-                    if (wikiPage != null) add(CharacterTabKey.WIKI)
+                    // Wiki sekmesi en sonda ama sayfa açılır açılmaz görünür: çözümleme sürerken
+                    // iskelet gösterilir, böylece sekme sonradan belirip sekmeleri kaydırmaz.
+                    if (wikiTabPossible) add(CharacterTabKey.WIKI)
                 }
                 val tabs = tabKeys.map { key ->
                     when (key) {
@@ -445,41 +453,39 @@ fun CharacterDetailPage(
                                                     onStaffClick = onStaffClick
                                                 )
                                             }
-                                            CharacterTabKey.WIKI -> {
-                                                if (wikiPage != null) {
-                                                    CharacterWikiTabContent(
-                                                        page = wikiPage,
-                                                        sections = wikiSections,
-                                                        translations = wikiTranslations,
-                                                        translatingKeys = wikiTranslating,
-                                                        spoilerGuard = wikiPrefs.spoilerGuard,
-                                                        accentColor = accentColor,
-                                                        onLoadSection = { index -> wikiViewModel.loadSection(index) },
-                                                        onTranslate = { key -> wikiViewModel.translate(key) },
-                                                        onShowOriginal = { key -> wikiViewModel.showOriginal(key) },
-                                                        onOpenGallery = { items, idx ->
-                                                            activeGalleryItems = items
-                                                            activeGalleryIndex = idx
-                                                        },
-                                                        onConfirm = {
-                                                            wikiViewModel.confirmMatch()
-                                                            android.widget.Toast.makeText(
-                                                                context,
-                                                                context.getString(R.string.fandom_confirm_done),
-                                                                android.widget.Toast.LENGTH_SHORT
-                                                            ).show()
-                                                        },
-                                                        onReportWrong = {
-                                                            wikiViewModel.reportWrongMatch()
-                                                            android.widget.Toast.makeText(
-                                                                context,
-                                                                context.getString(R.string.fandom_report_wrong_done),
-                                                                android.widget.Toast.LENGTH_SHORT
-                                                            ).show()
-                                                        }
-                                                    )
-                                                }
-                                            }
+                                            CharacterTabKey.WIKI -> CharacterWikiTabSlot(
+                                                wikiState = wikiState,
+                                                sections = wikiSections,
+                                                translations = wikiTranslations,
+                                                translatingKeys = wikiTranslating,
+                                                spoilerGuard = wikiPrefs.spoilerGuard,
+                                                accentColor = accentColor,
+                                                onLoadSection = { index -> wikiViewModel.loadSection(index) },
+                                                onTranslate = { key -> wikiViewModel.translate(key) },
+                                                onShowOriginal = { key -> wikiViewModel.showOriginal(key) },
+                                                onOpenGallery = { items, idx ->
+                                                    activeGalleryItems = items
+                                                    activeGalleryIndex = idx
+                                                },
+                                                onConfirm = {
+                                                    wikiViewModel.confirmMatch()
+                                                    android.widget.Toast.makeText(
+                                                        context,
+                                                        context.getString(R.string.fandom_confirm_done),
+                                                        android.widget.Toast.LENGTH_SHORT
+                                                    ).show()
+                                                },
+                                                onReportWrong = {
+                                                    wikiViewModel.reportWrongMatch()
+                                                    android.widget.Toast.makeText(
+                                                        context,
+                                                        context.getString(R.string.fandom_report_wrong_done),
+                                                        android.widget.Toast.LENGTH_SHORT
+                                                    ).show()
+                                                },
+                                                onRetry = { wikiViewModel.retry() }
+                                            )
+
                                             null -> Unit
                                         }
                                         Spacer(modifier = Modifier.height(32.dp))
@@ -638,41 +644,39 @@ fun CharacterDetailPage(
                                                         onStaffClick = onStaffClick
                                                     )
                                                 }
-                                                CharacterTabKey.WIKI -> {
-                                                    if (wikiPage != null) {
-                                                        CharacterWikiTabContent(
-                                                            page = wikiPage,
-                                                            sections = wikiSections,
-                                                            translations = wikiTranslations,
-                                                            translatingKeys = wikiTranslating,
-                                                            spoilerGuard = wikiPrefs.spoilerGuard,
-                                                            accentColor = accentColor,
-                                                            onLoadSection = { index -> wikiViewModel.loadSection(index) },
-                                                            onTranslate = { key -> wikiViewModel.translate(key) },
-                                                            onShowOriginal = { key -> wikiViewModel.showOriginal(key) },
-                                                            onOpenGallery = { items, idx ->
-                                                                activeGalleryItems = items
-                                                                activeGalleryIndex = idx
-                                                            },
-                                                            onConfirm = {
-                                                                wikiViewModel.confirmMatch()
-                                                                android.widget.Toast.makeText(
-                                                                    context,
-                                                                    context.getString(R.string.fandom_confirm_done),
-                                                                    android.widget.Toast.LENGTH_SHORT
-                                                                ).show()
-                                                            },
-                                                            onReportWrong = {
-                                                                wikiViewModel.reportWrongMatch()
-                                                                android.widget.Toast.makeText(
-                                                                    context,
-                                                                    context.getString(R.string.fandom_report_wrong_done),
-                                                                    android.widget.Toast.LENGTH_SHORT
-                                                                ).show()
-                                                            }
-                                                        )
-                                                    }
-                                                }
+                                                CharacterTabKey.WIKI -> CharacterWikiTabSlot(
+                                                    wikiState = wikiState,
+                                                    sections = wikiSections,
+                                                    translations = wikiTranslations,
+                                                    translatingKeys = wikiTranslating,
+                                                    spoilerGuard = wikiPrefs.spoilerGuard,
+                                                    accentColor = accentColor,
+                                                    onLoadSection = { index -> wikiViewModel.loadSection(index) },
+                                                    onTranslate = { key -> wikiViewModel.translate(key) },
+                                                    onShowOriginal = { key -> wikiViewModel.showOriginal(key) },
+                                                    onOpenGallery = { items, idx ->
+                                                        activeGalleryItems = items
+                                                        activeGalleryIndex = idx
+                                                    },
+                                                    onConfirm = {
+                                                        wikiViewModel.confirmMatch()
+                                                        android.widget.Toast.makeText(
+                                                            context,
+                                                            context.getString(R.string.fandom_confirm_done),
+                                                            android.widget.Toast.LENGTH_SHORT
+                                                        ).show()
+                                                    },
+                                                    onReportWrong = {
+                                                        wikiViewModel.reportWrongMatch()
+                                                        android.widget.Toast.makeText(
+                                                            context,
+                                                            context.getString(R.string.fandom_report_wrong_done),
+                                                            android.widget.Toast.LENGTH_SHORT
+                                                        ).show()
+                                                    },
+                                                    onRetry = { wikiViewModel.retry() }
+                                                )
+
                                                 null -> Unit
                                             }
                                             Spacer(modifier = Modifier.height(50.dp))
@@ -705,3 +709,46 @@ fun CharacterDetailPage(
 }
 
 
+/**
+ * Karakter "Wiki" sekmesinin yuvası: sekme sayfa açılır açılmaz vardır; çözümleme sürerken
+ * iskelet, sayfa gelince içerik, bulunamazsa boş durum + "Tekrar dene" gösterilir.
+ */
+@Composable
+private fun CharacterWikiTabSlot(
+    wikiState: FandomCharacterWikiViewModel.UiState,
+    sections: Map<Int, FandomCharacterWikiViewModel.SectionState>,
+    translations: Map<String, String>,
+    translatingKeys: Set<String>,
+    spoilerGuard: Boolean,
+    accentColor: Color,
+    onLoadSection: (Int) -> Unit,
+    onTranslate: (String) -> Unit,
+    onShowOriginal: (String) -> Unit,
+    onOpenGallery: (List<GalleryItem>, Int) -> Unit,
+    onConfirm: () -> Unit,
+    onReportWrong: () -> Unit,
+    onRetry: () -> Unit
+) {
+    when (wikiState) {
+        is FandomCharacterWikiViewModel.UiState.Ready -> CharacterWikiTabContent(
+            page = wikiState.page,
+            sections = sections,
+            translations = translations,
+            translatingKeys = translatingKeys,
+            spoilerGuard = spoilerGuard,
+            accentColor = accentColor,
+            onLoadSection = onLoadSection,
+            onTranslate = onTranslate,
+            onShowOriginal = onShowOriginal,
+            onOpenGallery = onOpenGallery,
+            onConfirm = onConfirm,
+            onReportWrong = onReportWrong
+        )
+        FandomCharacterWikiViewModel.UiState.Unavailable -> WikiUnavailableCard(
+            accentColor = accentColor,
+            messageRes = R.string.fandom_unavailable_character,
+            onRetry = onRetry
+        )
+        else -> WikiTabSkeleton(accentColor = accentColor)
+    }
+}

@@ -33,8 +33,11 @@ object FandomRepository {
     private const val WIKI_TTL_MS = 30L * DAY_MS
     private const val PAGE_TTL_MS = 7L * DAY_MS
     private const val SECTION_TTL_MS = 7L * DAY_MS
+    private const val GUIDE_TTL_MS = 7L * DAY_MS
+    private const val BLURB_TTL_MS = 7L * DAY_MS
     private const val NEGATIVE_TTL_MS = 3L * DAY_MS
     private const val TRANSIENT_NEGATIVE_TTL_MS = 10L * 60L * 1000L
+    private const val SEARCH_MEMO_TTL_MS = 5L * 60L * 1000L
 
     private val json = Json {
         ignoreUnknownKeys = true
@@ -49,6 +52,12 @@ object FandomRepository {
 
     @Serializable
     private data class StoredSection(val content: FandomSectionContent? = null)
+
+    @Serializable
+    private data class StoredGuide(val guide: FandomWorldGuide? = null)
+
+    @Serializable
+    private data class StoredBlurb(val blurb: FandomPageBlurb? = null)
 
     private data class Memo(val value: Any?, val expiresAt: Long)
 
@@ -124,6 +133,148 @@ object FandomRepository {
 
     private fun wikiCacheKey(mediaKey: String, nameAllowed: Boolean): String =
         "${KEY_PREFIX}wiki:$mediaKey:${if (nameAllowed) "n1" else "n0"}"
+
+    /**
+     * "Yanlışsa bildir" (yapım sekmesi): wiki bu yapım için reddedilir, wiki eşleşme
+     * önbelleği düşürülür; sonraki çözümlemede sıradaki aday değerlendirilir.
+     */
+    suspend fun rejectMediaWiki(context: Context, query: FandomMediaQuery, ref: FandomWikiRef) {
+        val appContext = context.applicationContext
+        val mediaKey = query.cacheKey() ?: return
+        FandomUserChoices.rejectWiki(appContext, mediaKey, ref.wikiId)
+        val keys = listOf(
+            wikiCacheKey(mediaKey, nameAllowed = true),
+            wikiCacheKey(mediaKey, nameAllowed = false)
+        )
+        keys.forEach { memory.remove(it) }
+        val dao = dao(appContext) ?: return
+        keys.forEach { key -> runCatchingDb { dao.deleteDetail(key) } }
+    }
+
+    // ── Evren rehberi ve kısa açıklamalar (Faz 2) ────────────────────────────
+
+    /**
+     * Yapım wiki'sinin evren rehberi: grup başına tek dolu kategori seçilir ve üyeleri
+     * çekilir. Kategori var/yok kararı tek `categoryinfo` isteğiyle toplu verilir.
+     * Ağ hatasında boş rehber döner (hata önbelleğe yazılmaz).
+     */
+    suspend fun loadWorldGuide(context: Context, wikiId: String): FandomWorldGuide {
+        val appContext = context.applicationContext
+        val key = "${KEY_PREFIX}guide:$wikiId"
+        return lockFor(sectionLocks, key).withLock {
+            val cached = readCached(appContext, key, positiveTtl = GUIDE_TTL_MS) { body ->
+                json.decodeFromString(StoredGuide.serializer(), body).guide
+            }
+            (cached?.value as? FandomWorldGuide)?.let { return@withLock it }
+            val guide = try {
+                buildWorldGuide(wikiId)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                Log.w(TAG, "Evren rehberi yüklenemedi ($wikiId): ${e.message}")
+                null
+            }
+            if (guide != null) {
+                writeCached(
+                    context = appContext,
+                    key = key,
+                    value = guide,
+                    encoded = json.encodeToString(StoredGuide.serializer(), StoredGuide(guide)),
+                    persist = true,
+                    ttl = GUIDE_TTL_MS
+                )
+            }
+            guide ?: FandomWorldGuide()
+        }
+    }
+
+    private suspend fun buildWorldGuide(wikiId: String): FandomWorldGuide? {
+        val info = FandomWikiResolver.siteInfoCached(wikiId) ?: return null
+        val catalog = FandomGuideCatalog.allCandidates(info.lang)
+        val categoryTitles = catalog.values.flatten().distinct().map { "Category:$it" }
+        if (categoryTitles.isEmpty()) return FandomWorldGuide()
+        val existing = FandomApi.categoryInfo(wikiId, categoryTitles)
+        val claimed = mutableSetOf<String>()
+        val groups = catalog.mapNotNull { (group, names) ->
+            val resolved = existing.entries.firstOrNull { (title, size) ->
+                size > 0 &&
+                    title !in claimed &&
+                    names.any { title.equals("Category:$it", ignoreCase = true) }
+            }?.key ?: return@mapNotNull null
+            claimed += resolved
+            val members = FandomApi.categoryMembers(wikiId, resolved, limit = 14)
+            if (members.isEmpty()) {
+                null
+            } else {
+                FandomGuideGroupContent(
+                    group = group,
+                    category = resolved.removePrefix("Category:"),
+                    items = members.map(::FandomGuideItem)
+                )
+            }
+        }
+        return FandomWorldGuide(groups)
+    }
+
+    /** Bir sayfanın kısa açıklaması (`fandomdescription`); yönlendirmeler çözülür. */
+    suspend fun loadPageBlurb(context: Context, wikiId: String, title: String): FandomPageBlurb? {
+        val appContext = context.applicationContext
+        val clean = title.trim()
+        if (clean.isEmpty()) return null
+        val key = "${KEY_PREFIX}blurb:$wikiId|${clean.lowercase()}"
+        return lockFor(sectionLocks, key).withLock {
+            val cached = readCached(appContext, key, positiveTtl = BLURB_TTL_MS) { body ->
+                json.decodeFromString(StoredBlurb.serializer(), body).blurb
+            }
+            (cached?.value as? FandomPageBlurb)?.let { return@withLock it }
+            val lookup = try {
+                FandomApi.lookupTitles(wikiId, listOf(clean))[clean]
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                Log.w(TAG, "Sayfa açıklaması yüklenemedi ($wikiId/$clean): ${e.message}")
+                null
+            }
+            val blurb = lookup?.takeIf { it.exists }?.let {
+                FandomPageBlurb(title = clean, resolvedTitle = it.resolvedTitle, description = it.description)
+            } ?: return@withLock null
+            writeCached(
+                context = appContext,
+                key = key,
+                value = blurb,
+                encoded = json.encodeToString(StoredBlurb.serializer(), StoredBlurb(blurb)),
+                persist = true,
+                ttl = BLURB_TTL_MS
+            )
+            blurb
+        }
+    }
+
+    /** Wiki ana sayfasının kısa açıklaması — yapım sekmesinde "seri özeti". */
+    suspend fun loadMainPageBlurb(context: Context, wikiId: String): FandomPageBlurb? {
+        val mainPage = FandomWikiResolver.siteInfoCached(wikiId)?.mainPage ?: return null
+        return loadPageBlurb(context, wikiId, mainPage)
+    }
+
+    /**
+     * Wiki içi arama (arama kutusu). Kalıcı önbelleğe yazılmaz; aynı sorgu süreç boyunca
+     * kısa bir süre bellekten servis edilir (yazım düzeltirken tekrar tekrar istek atılmaz).
+     */
+    suspend fun searchWiki(context: Context, wikiId: String, query: String): List<FandomSearchHit> {
+        val clean = query.trim()
+        if (clean.isBlank()) return emptyList()
+        val key = "search:$wikiId|${clean.lowercase()}"
+        memory[key]?.let { memo ->
+            if (memo.expiresAt > System.currentTimeMillis()) {
+                @Suppress("UNCHECKED_CAST")
+                return (memo.value as? List<FandomSearchHit>).orEmpty()
+            }
+            memory.remove(key)
+        }
+        val hits = FandomApi.searchHits(wikiId, clean, limit = 8)
+        memory[key] = Memo(hits, System.currentTimeMillis() + SEARCH_MEMO_TTL_MS)
+        return hits
+    }
 
     // ── Karakter → sayfa ─────────────────────────────────────────────────────
 

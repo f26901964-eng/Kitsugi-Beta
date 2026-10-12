@@ -172,4 +172,37 @@ object FandomApiParsers {
         val usage = parseJsonObject(json)?.optJSONObject("query")?.optJSONArray("exturlusage")
         return usage != null && usage.length() > 0
     }
+
+    /**
+     * `prop=categoryinfo` sonucu: çözülmüş kategori başlığı → üye sayısı.
+     * Olmayan (missing) kategoriler listede yer almaz; yönlendirmeler hedefe çözülür.
+     */
+    fun parseCategoryInfo(json: String?): Map<String, Int> {
+        val pages = parseJsonObject(json)?.optJSONObject("query")?.optJSONArray("pages") ?: return emptyMap()
+        val out = LinkedHashMap<String, Int>()
+        for (page in pages.objects()) {
+            val title = page.str("title") ?: continue
+            if (page.optBoolean("missing", false)) continue
+            val info = page.optJSONObject("categoryinfo") ?: continue
+            out[title] = info.optInt("size", 0).coerceAtLeast(0)
+        }
+        return out
+    }
+
+    /** `list=categorymembers` sonucu: ana ad alanındaki sayfa başlıkları. */
+    fun parseCategoryMembers(json: String?): List<String> {
+        val members = parseJsonObject(json)?.optJSONObject("query")?.optJSONArray("categorymembers")
+            ?: return emptyList()
+        return members.objects().mapNotNull { it.str("title") }.distinct()
+    }
+
+    /** `list=search` sonucu: başlık + etiketlerden arındırılmış snippet. */
+    fun parseSearchHits(json: String?): List<FandomSearchHit> {
+        val search = parseJsonObject(json)?.optJSONObject("query")?.optJSONArray("search") ?: return emptyList()
+        return search.objects().mapNotNull { item ->
+            val title = item.str("title") ?: return@mapNotNull null
+            val snippet = FandomHtmlText.inline(item.str("snippet")).takeIf { it.isNotBlank() }
+            FandomSearchHit(title = title, snippet = snippet)
+        }.distinctBy { it.title }
+    }
 }

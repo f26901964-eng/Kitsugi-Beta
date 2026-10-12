@@ -138,6 +138,9 @@ class FandomCharacterWikiViewModel(application: Application) : AndroidViewModel(
         bind(detail, lastSource, lastCharacterId)
     }
 
+    /** "Tekrar dene": son karakter için çözümlemeyi sıfırdan başlatır. */
+    fun retry() = rebind()
+
     fun loadSection(index: Int) {
         val page = (_state.value as? UiState.Ready)?.page ?: return
         when (_sections.value[index]) {

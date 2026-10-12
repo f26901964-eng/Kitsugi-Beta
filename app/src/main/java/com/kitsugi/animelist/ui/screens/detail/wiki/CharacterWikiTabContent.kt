@@ -584,7 +584,7 @@ private fun SectionBody(content: FandomSectionContent, translated: String?) {
 private fun WikiBlock(block: FandomTextBlock) {
     when (block.kind) {
         FandomBlockKind.HEADING -> Text(
-            text = block.text,
+            text = localizedSectionTitle(block.text),
             color = KitsugiColors.TextPrimary,
             style = MaterialTheme.typography.titleSmall,
             fontWeight = FontWeight.Bold,
@@ -741,25 +741,7 @@ private fun WikiFooter(page: FandomCharacterPage, accentColor: Color, onReportWr
 /** İngilizce wiki bölüm başlıklarını arayüz diline çevirir; bilinmeyenler aynen kalır. */
 @Composable
 private fun localizedSectionTitle(raw: String): String {
-    val resource = when (raw.trim().lowercase()) {
-        "appearance" -> R.string.fandom_section_appearance
-        "personality" -> R.string.fandom_section_personality
-        "history" -> R.string.fandom_section_history
-        "background", "backstory" -> R.string.fandom_section_background
-        "abilities", "abilities and powers", "powers and abilities", "powers & abilities",
-        "abilities & powers", "skills", "skills and abilities", "powers" -> R.string.fandom_section_abilities
-        "relationships" -> R.string.fandom_section_relationships
-        "trivia" -> R.string.fandom_section_trivia
-        "quotes" -> R.string.fandom_section_quotes
-        "plot" -> R.string.fandom_section_plot
-        "synopsis" -> R.string.fandom_section_synopsis
-        "battles & events", "battles and events", "battles" -> R.string.fandom_section_battles
-        "equipment" -> R.string.fandom_section_equipment
-        "etymology" -> R.string.fandom_section_etymology
-        "biography" -> R.string.fandom_section_biography
-        "overview" -> R.string.fandom_section_overview
-        else -> null
-    }
+    val resource = FandomSectionTitles.resId(raw)
     return if (resource != null) stringResource(resource) else raw
 }
 
