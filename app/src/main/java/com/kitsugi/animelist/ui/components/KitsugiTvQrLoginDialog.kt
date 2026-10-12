@@ -197,6 +197,33 @@ fun KitsugiTvQrLoginDialog(
         KitsugiWebViewDialog(
             title = title,
             url = showWebViewUrl!!,
+            onOpenInBrowser = {
+                // Uygulama içi WebView yerine varsayılan (3. parti) tarayıcıda giriş.
+                // URL taze PKCE çiftiyle yeniden üretilir; `malapp://auth` geri dönüş
+                // şeması kayıtlı olduğu için tarayıcı işini bitirince uygulamaya döner.
+                val svc = activeAuthService
+                if (!svc.isNullOrBlank()) {
+                    runCatching {
+                        val externalUrl = ExternalAuthManager.getAuthUrlAndPrepare(context, svc)
+                        context.startActivity(
+                            Intent(Intent.ACTION_VIEW, Uri.parse(externalUrl)).apply {
+                                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                            }
+                        )
+                        android.widget.Toast.makeText(
+                            context,
+                            KitsugiStrings.get(R.string.oauth_webview_tarayici_toast),
+                            android.widget.Toast.LENGTH_LONG
+                        ).show()
+                    }.onFailure { e ->
+                        android.widget.Toast.makeText(
+                            context,
+                            KitsugiStrings.get(R.string.hata_x, e.message),
+                            android.widget.Toast.LENGTH_LONG
+                        ).show()
+                    }
+                }
+            },
             onDismiss = {
                 showWebViewUrl = null
                 activeAuthService = null

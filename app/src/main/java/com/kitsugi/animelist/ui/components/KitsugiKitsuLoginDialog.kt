@@ -1,5 +1,7 @@
 package com.kitsugi.animelist.ui.components
 
+import android.content.Intent
+import android.net.Uri
 import com.kitsugi.animelist.ui.theme.gradient.Icon
 import com.kitsugi.animelist.ui.theme.gradient.Text
 import com.kitsugi.animelist.ui.components.KitsugiButton
@@ -18,6 +20,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
@@ -49,7 +52,22 @@ fun KitsugiKitsuLoginDialog(
 
     val accentColor = LocalKitsugiAccent.current
     val focusManager = LocalFocusManager.current
+    val context = LocalContext.current
     val kitsuBrandColor = Color(0xFFFD755C)
+
+    // Kitsu kimlik doğrulaması API üzerinden kullanıcı adı/şifre ile yapılır; tarayıcı
+    // butonu hesabı tarayıcıda doğrulama / şifre sıfırlama için bir çıkış yolu sunar.
+    val openKitsuInBrowser: () -> Unit = {
+        runCatching {
+            context.startActivity(
+                Intent(Intent.ACTION_VIEW, Uri.parse("https://kitsu.app/login")).apply {
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                }
+            )
+        }.onFailure { err ->
+            errorMessage = KitsugiStrings.get(R.string.tarayici_acilamadi_x, err.message)
+        }
+    }
 
     Dialog(
         onDismissRequest = { if (!isLoading) onDismiss() },
@@ -247,6 +265,37 @@ fun KitsugiKitsuLoginDialog(
                         }
                     }
                 }
+
+                Spacer(modifier = Modifier.height(6.dp))
+
+                // Çıkış yolu: hesabı varsayılan (3. parti) tarayıcıda doğrula / şifre sıfırla.
+                TextButton(
+                    onClick = openKitsuInBrowser,
+                    enabled = !isLoading
+                ) {
+                    Icon(
+                        Icons.Rounded.OpenInNew,
+                        contentDescription = null,
+                        modifier = Modifier.size(16.dp),
+                        tint = kitsuBrandColor
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        text = stringResource(R.string.inline_open_in_browser_eed20ab),
+                        color = kitsuBrandColor,
+                        fontWeight = FontWeight.SemiBold,
+                        style = MaterialTheme.typography.labelMedium
+                    )
+                }
+
+                Text(
+                    text = KitsugiStrings.get(R.string.kitsu_login_tarayici_aciklamasi),
+                    style = MaterialTheme.typography.labelSmall.copy(
+                        color = KitsugiColors.TextSecondary
+                    ),
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.padding(top = 2.dp)
+                )
             }
         }
     }

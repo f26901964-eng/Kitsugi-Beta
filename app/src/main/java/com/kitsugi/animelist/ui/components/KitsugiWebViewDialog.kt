@@ -1,4 +1,4 @@
-﻿package com.kitsugi.animelist.ui.components
+package com.kitsugi.animelist.ui.components
 import com.kitsugi.animelist.ui.components.KitsugiButton
 
 import android.view.ViewGroup
@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Close
+import androidx.compose.material.icons.rounded.OpenInNew
 import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -36,6 +37,7 @@ fun KitsugiWebViewDialog(
     url: String,
     onUrlRedirect: ((String) -> Boolean)? = null,
     onPageFinished: ((String) -> Unit)? = null,
+    onOpenInBrowser: (() -> Unit)? = null,
     onDismiss: () -> Unit
 ) {
     val accentColor = LocalKitsugiAccent.current
@@ -204,8 +206,35 @@ fun KitsugiWebViewDialog(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(16.dp),
-                    horizontalArrangement = Arrangement.End
+                    horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
+                    // Uygulama içi WebView sıkışırsa (Cloudflare doğrulaması, boş ekran)
+                    // kullanıcı tek dokunuşla varsayılan tarayıcıda devam edebilir.
+                    if (onOpenInBrowser != null) {
+                        OutlinedButton(
+                            onClick = {
+                                CookieManager.getInstance().flush()
+                                onOpenInBrowser()
+                            },
+                            shape = RoundedCornerShape(16.dp)
+                        ) {
+                            Icon(
+                                Icons.Rounded.OpenInNew,
+                                contentDescription = null,
+                                modifier = Modifier.size(16.dp),
+                                tint = accentColor
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = stringResource(R.string.inline_open_in_browser_eed20ab),
+                                color = accentColor,
+                                fontWeight = FontWeight.Bold,
+                                style = MaterialTheme.typography.labelSmall,
+                                maxLines = 1
+                            )
+                        }
+                    }
                     KitsugiButton(
                         onClick = {
                             CookieManager.getInstance().flush()
