@@ -79,6 +79,23 @@ class StreamViewModel(application: Application) : AndroidViewModel(application) 
      */
     @Volatile private var currentFetchKey: String? = null
 
+    /** Son [startFetch] parametreleri — tek eklenti yeniden denemesi ([retryPlugin]) için. */
+    private data class LastFetchParams(
+        val malId: Int?,
+        val aniListId: Int?,
+        val tmdbId: Int?,
+        val bangumiId: Int?,
+        val episode: Int,
+        val season: Int,
+        val title: String,
+        val alternativeTitles: List<String>,
+        val startYear: Int?,
+        val isMovie: Boolean,
+        val mediaType: MediaType?,
+    )
+
+    @Volatile private var lastFetchParams: LastFetchParams? = null
+
     /** Whether a fetch coroutine is currently running for [currentFetchKey]. */
     @Volatile private var isFetchInProgress = false
 
@@ -108,6 +125,13 @@ class StreamViewModel(application: Application) : AndroidViewModel(application) 
         mediaType: MediaType? = null
     ) {
         val newKey = "$malId:$aniListId:$tmdbId:$bangumiId:$isMovie:${mediaType?.name}:$season:$episode:$startYear:$cs3ApiName:$cs3Url:${title.hashCode()}:${alternativeTitles.hashCode()}"
+
+        lastFetchParams = LastFetchParams(
+            malId = malId, aniListId = aniListId, tmdbId = tmdbId, bangumiId = bangumiId,
+            episode = episode, season = season, title = title,
+            alternativeTitles = alternativeTitles, startYear = startYear,
+            isMovie = isMovie, mediaType = mediaType,
+        )
 
         // ── Cache hit: same combination, data already present ─────────────────
         if (newKey == currentFetchKey) {
@@ -171,9 +195,58 @@ class StreamViewModel(application: Application) : AndroidViewModel(application) 
     ) {
         CookieManager.getInstance().flush()
         _webViewDialogState.value = null
+        rerunCsPlugin(
+            pluginMatcher = { it.id == dismissedPluginId },
+            displayName = dismissedDisplayName,
+            params = LastFetchParams(
+                malId = malId, aniListId = aniListId, tmdbId = tmdbId, bangumiId = bangumiId,
+                episode = episode, season = season, title = title,
+                alternativeTitles = alternativeTitles, startYear = startYear,
+                isMovie = isMovie, mediaType = mediaType,
+            ),
+        )
+    }
 
-        // Clear the plugin's failure state so it can retry
-        CsPluginStatusTracker.clearPluginStatus(dismissedPluginId)
+    /**
+     * v2.4.256: Tek bir CloudStream eklentisini GERÇEKTEN yeniden çalıştırır.
+     *
+     * Eskiden hata kartında yalnızca CF/WAF için "Doğrula" vardı. Zaman aşımı, DNS veya
+     * "akış bulunamadı" gibi durumlarda ekran, aynı bölüm açık kaldığı sürece (cache hit)
+     * son kaydı göstermeye devam ediyordu; kullanıcı yeni bir istek tetikleyemiyordu.
+     * Bu metot eklentinin tracker kaydını (blok, hata mesajı, hata kodu) siler ve son
+     * [startFetch] parametreleriyle yalnızca o eklentiyi baştan dener.
+     */
+    fun retryPlugin(addonDisplayName: String) {
+        val params = lastFetchParams ?: run {
+            Log.w(TAG, "retryPlugin: Önceki fetch parametresi yok — yeniden deneme atlandı ($addonDisplayName)")
+            return
+        }
+        val pluginName = addonDisplayName.removePrefix("⚡ ").trim()
+        CsTrace.info(pluginName, "retry", "Kullanıcı yeniden deneme istedi")
+        rerunCsPlugin(
+            pluginMatcher = { it.name.equals(pluginName, ignoreCase = true) },
+            displayName = addonDisplayName,
+            params = params,
+        )
+    }
+
+    private fun rerunCsPlugin(
+        pluginMatcher: (com.kitsugi.animelist.data.local.CsPluginEntity) -> Boolean,
+        displayName: String,
+        params: LastFetchParams,
+    ) {
+        val dismissedDisplayName = displayName
+        val title = params.title
+        val alternativeTitles = params.alternativeTitles
+        val startYear = params.startYear
+        val season = params.season
+        val episode = params.episode
+        val malId = params.malId
+        val aniListId = params.aniListId
+        val tmdbId = params.tmdbId
+        val bangumiId = params.bangumiId
+        val isMovie = params.isMovie
+        val mediaType = params.mediaType
 
         // Reset addon state to "loading" so the user sees a spinner
         updateAddonStateSync(dismissedDisplayName, isLoading = true, streams = emptyList(), error = null)
@@ -181,7 +254,13 @@ class StreamViewModel(application: Application) : AndroidViewModel(application) 
         viewModelScope.launch {
             val db = KitsugiDatabase.getDatabase(context)
             val csPlugin = db.csPluginDao().getEnabledPlugins()
-                .firstOrNull { it.id == dismissedPluginId } ?: return@launch
+                .firstOrNull(pluginMatcher) ?: run {
+                    updateAddonStateSync(dismissedDisplayName, isLoading = false, error = "Eklenti bulunamadı veya devre dışı")
+                    return@launch
+                }
+            // Eski hata/blok kaydı yeni denemede "anında" geri gösterilmesin.
+            CsPluginStatusTracker.clearPluginStatus(csPlugin.id)
+            CsPluginStatusTracker.clearPluginStatus(csPlugin.name)
             try {
                 val apis = withContext(Dispatchers.IO) {
                     CsPluginLoader.loadExtension(context, csPlugin.id)

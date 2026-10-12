@@ -95,6 +95,7 @@ fun StreamScreenContent(
     onRememberChoice: (String) -> Unit = {},
     onOpenSettings: (() -> Unit)? = null,
     onVerifyPlugin: ((addonName: String) -> Unit)? = null,
+    onRetryPlugin: ((addonName: String) -> Unit)? = null,
     onOpenHistory: (() -> Unit)? = null,
     onOpenDownloads: (() -> Unit)? = null,
     onManualSearchClick: (() -> Unit)? = null
@@ -197,6 +198,7 @@ fun StreamScreenContent(
                 hasActiveFilter = hasActiveFilter, onStreamSelected = onStreamSelected,
                 onDownloadSelected = onDownloadSelected,
                 onVerifyPlugin = onVerifyPlugin, onOpenSettings = onOpenSettings,
+                onRetryPlugin = onRetryPlugin,
                 onOpenHistory = onOpenHistory,
                 onOpenDownloads = onOpenDownloads,
                 onManualSearchClick = onManualSearchClick
@@ -214,6 +216,7 @@ fun StreamScreenContent(
                 hasActiveFilter = hasActiveFilter, onStreamSelected = onStreamSelected,
                 onDownloadSelected = onDownloadSelected,
                 onVerifyPlugin = onVerifyPlugin, onOpenSettings = onOpenSettings,
+                onRetryPlugin = onRetryPlugin,
                 onOpenHistory = onOpenHistory,
                 onOpenDownloads = onOpenDownloads,
                 onManualSearchClick = onManualSearchClick
@@ -552,6 +555,7 @@ private fun LandscapeLayout(
     isResolvingId: Boolean, idResolveFailed: Boolean, isAnyLoading: Boolean,
     filteredAddonStates: List<AddonFetchState>, totalFilteredStreamsCount: Int, hasActiveFilter: Boolean,
     onStreamSelected: (StreamSource) -> Unit, onDownloadSelected: (StreamSource) -> Unit, onVerifyPlugin: ((String) -> Unit)?, onOpenSettings: (() -> Unit)?,
+    onRetryPlugin: ((String) -> Unit)? = null,
     onOpenHistory: (() -> Unit)? = null,
     onOpenDownloads: (() -> Unit)? = null,
     onManualSearchClick: (() -> Unit)? = null
@@ -740,6 +744,7 @@ private fun LandscapeLayout(
                         onDownloadSelected = onDownloadSelected,
                         onVerifyPlugin = onVerifyPlugin,
                         onOpenSettings = onOpenSettings,
+                        onRetryPlugin = onRetryPlugin,
                         // Ölçüm yalnızca görüş alanındaki kartlarda yapılır (kasma önlemi).
                         listState = listState
                     )
@@ -761,6 +766,7 @@ private fun PortraitLayout(
     isResolvingId: Boolean, idResolveFailed: Boolean, isAnyLoading: Boolean,
     filteredAddonStates: List<AddonFetchState>, totalFilteredStreamsCount: Int, hasActiveFilter: Boolean,
     onStreamSelected: (StreamSource) -> Unit, onDownloadSelected: (StreamSource) -> Unit, onVerifyPlugin: ((String) -> Unit)?, onOpenSettings: (() -> Unit)?,
+    onRetryPlugin: ((String) -> Unit)? = null,
     onOpenHistory: (() -> Unit)?,
     onOpenDownloads: (() -> Unit)? = null,
     onManualSearchClick: (() -> Unit)? = null
@@ -973,6 +979,7 @@ private fun PortraitLayout(
                         onDownloadSelected = onDownloadSelected,
                         onVerifyPlugin = onVerifyPlugin,
                         onOpenSettings = onOpenSettings,
+                        onRetryPlugin = onRetryPlugin,
                         // Ölçüm yalnızca görüş alanındaki kartlarda yapılır (kasma önlemi).
                         listState = listState
                     )

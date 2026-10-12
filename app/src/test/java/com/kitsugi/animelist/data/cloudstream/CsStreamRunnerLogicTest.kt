@@ -273,6 +273,26 @@ class CsStreamRunnerLogicTest {
         assertTrue(KNOWN_BROKEN_DOMAINS.any { it.contains("ugurfilm") })
     }
 
+    /**
+     * v2.4.256: HDFilmCehennemi2 eklenti deposunda .site domainine taşındı. Liste bu domaini
+     * "ölü" saydığında applyDomainFix eklentiyi başka bir siteye zorla çeviriyordu.
+     */
+    @Test
+    fun testKnownBrokenDomains_DoesNotContain_HdFilmCehennemi2Site() {
+        assertFalse(KNOWN_BROKEN_DOMAINS.any { "hdfilmcehennemi2.site".contains(it) })
+    }
+
+    /**
+     * v2.4.256: Numaralı eklenti (HDFilmCehennemi2) ana eklentinin (HDFilmCehennemi) yerleşik
+     * domainine DÜŞMEMELİ — ayrı sitelerdir. "2" son eki güvenli son ek listesinden çıkarıldı.
+     */
+    @Test
+    fun testResolveBuiltinDomain_NumberedVariant_DoesNotInheritParentDomain() {
+        assertNull(CsStreamRunner.resolveBuiltinDomain("hdfilmcehennemi2"))
+        // Ana eklenti kendi domainini korur.
+        assertNotNull(CsStreamRunner.resolveBuiltinDomain("hdfilmcehennemi"))
+    }
+
     // ─── CF_PROTECTED_PLUGINS Validation ─────────────────────────────────────
 
     @Test
