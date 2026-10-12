@@ -532,6 +532,7 @@ fun AppRoot(
             when (event) {
                 is ExternalAuthManager.AuthEvent.Success -> {
                     authViewModel.refreshAuthState()
+                    com.kitsugi.animelist.core.notifications.NotificationScheduler.reconcile(context)
 
                     appViewModel.showSnackbarMessage(
                         when (event.serviceName) {
@@ -567,6 +568,7 @@ fun AppRoot(
 
                 is ExternalAuthManager.AuthEvent.SessionExpired -> {
                     authViewModel.refreshAuthState()
+                    com.kitsugi.animelist.core.notifications.NotificationScheduler.reconcile(context)
                     appViewModel.showSnackbarMessage(
                         when (event.serviceName) {
                             "simkl" -> "Simkl oturum süresi doldu. Lütfen tekrar bağlanın."

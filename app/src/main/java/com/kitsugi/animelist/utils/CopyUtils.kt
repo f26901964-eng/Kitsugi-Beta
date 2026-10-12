@@ -14,16 +14,26 @@ import com.kitsugi.animelist.R
  * Çift tıklandığında [text] değerini panoya kopyalayan Modifier extension'ı.
  * Tüm uygulama genelinde kullanılır.
  */
-fun Modifier.copyOnDoubleTap(context: Context, text: String): Modifier =
-    this.pointerInput(text) {
+fun Modifier.copyOnDoubleTap(
+    context: Context,
+    text: String,
+    onSingleTap: (() -> Unit)? = null
+): Modifier = this.pointerInput(text, onSingleTap) {
+    val copyText = {
+        val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+        clipboard.setPrimaryClip(ClipData.newPlainText("Kitsugi_copy", text))
+        Toast.makeText(context, KitsugiStrings.get(R.string.kopyalandi_x, text), Toast.LENGTH_SHORT).show()
+    }
+
+    if (onSingleTap == null) {
+        detectTapGestures(onDoubleTap = { copyText() })
+    } else {
         detectTapGestures(
-            onDoubleTap = {
-                val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                clipboard.setPrimaryClip(ClipData.newPlainText("Kitsugi_copy", text))
-                Toast.makeText(context, KitsugiStrings.get(R.string.kopyalandi_x, text), Toast.LENGTH_SHORT).show()
-            }
+            onTap = { onSingleTap() },
+            onDoubleTap = { copyText() }
         )
     }
+}
 
 fun copyToClipboard(context: Context, text: String, label: String = "Kitsugi_copy") {
     val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager

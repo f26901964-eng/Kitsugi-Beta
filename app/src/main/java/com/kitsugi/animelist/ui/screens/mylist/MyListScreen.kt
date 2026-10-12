@@ -458,7 +458,7 @@ fun MyListScreen(
                 val pageIsConnected = when (pageTabIndex) {
                     MY_LIST_ANILIST_TAB_INDEX -> isAniListConnected
                     MY_LIST_MAL_TAB_INDEX -> isMalConnected
-                    MY_LIST_SIMKL_TAB_INDEX -> isSimklConnected
+                    MY_LIST_SIMKL_TAB_INDEX -> isSimklConnected && !isSimklSessionExpired
                     MY_LIST_KITSU_TAB_INDEX -> isKitsuConnected
                     MY_LIST_SHIKIMORI_TAB_INDEX -> isShikimoriConnected
                     MY_LIST_BANGUMI_TAB_INDEX -> isBangumiConnected

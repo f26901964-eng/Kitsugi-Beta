@@ -83,6 +83,12 @@ internal fun SettingsContext.buildSettingsParams() =
             onKitsuNotificationsChanged = { onKitsuNotificationsChanged(it) },
             shikimoriNotificationsEnabled = appSettings.shikimoriNotificationsEnabled,
             onShikimoriNotificationsChanged = { onShikimoriNotificationsChanged(it) },
+            isAniListConnected = authViewModel.isAniListConnected,
+            isMalConnected = authViewModel.isMalConnected,
+            isSimklConnected = authViewModel.isSimklConnected,
+            isKitsuConnected = authViewModel.isKitsuConnected,
+            isShikimoriConnected = authViewModel.isShikimoriConnected,
+            isBangumiConnected = authViewModel.isBangumiConnected,
             notificationInterval = appSettings.notificationInterval,
             onNotificationIntervalChanged = { onNotificationIntervalChanged(it) },
             splashAnimationEnabled = appSettings.splashAnimationEnabled,
@@ -591,93 +597,97 @@ internal fun SettingsContext.onFixedNavBarChanged(enabled: Boolean) {
     }
 }
 
+private fun SettingsContext.hasAnyLinkedNotificationAccount(): Boolean =
+    authViewModel.isAniListConnected || authViewModel.isMalConnected || authViewModel.isSimklConnected ||
+        authViewModel.isKitsuConnected || authViewModel.isShikimoriConnected || authViewModel.isBangumiConnected
+
 internal fun SettingsContext.onAiringNotificationsChanged(enabled: Boolean) {
     coroutineScope.launch {
+        if (enabled && !hasAnyLinkedNotificationAccount()) {
+            appViewModel.showSnackbarMessage(KitsugiStrings.get(R.string.settings_notifications_connect_any_account))
+            return@launch
+        }
         settingsDataStore.setAiringNotificationsEnabled(enabled)
         appViewModel.showSnackbarMessage(if (enabled) KitsugiStrings.get(R.string.yayin_bildirimleri_etkinlestirildi) else KitsugiStrings.get(R.string.yayin_bildirimleri_devre_disi_birakildi))
-        if (enabled) {
-            com.kitsugi.animelist.core.notifications.NotificationScheduler.schedule(context, appSettings.notificationInterval)
-        } else if (!appSettings.hasAnyNotificationSource()) {
-            com.kitsugi.animelist.core.notifications.NotificationScheduler.cancel(context)
-        }
+        com.kitsugi.animelist.core.notifications.NotificationScheduler.reconcile(context)
     }
 }
 
 internal fun SettingsContext.onAniListNotificationsChanged(enabled: Boolean) {
     coroutineScope.launch {
+        if (enabled && !authViewModel.isAniListConnected) {
+            appViewModel.showSnackbarMessage(
+                KitsugiStrings.get(R.string.settings_notifications_connect_account, "AniList")
+            )
+            return@launch
+        }
         settingsDataStore.setAniListNotificationsEnabled(enabled)
         appViewModel.showSnackbarMessage(if (enabled) KitsugiStrings.get(R.string.anilist_bildirimleri_etkinlestirildi) else KitsugiStrings.get(R.string.anilist_bildirimleri_devre_disi_birakildi))
-        if (enabled) {
-            com.kitsugi.animelist.core.notifications.NotificationScheduler.schedule(context, appSettings.notificationInterval)
-        } else if (!appSettings.hasAnyNotificationSource()) {
-            com.kitsugi.animelist.core.notifications.NotificationScheduler.cancel(context)
-        }
+        com.kitsugi.animelist.core.notifications.NotificationScheduler.reconcile(context)
     }
 }
 
 internal fun SettingsContext.onMalNotificationsChanged(enabled: Boolean) {
     coroutineScope.launch {
+        if (enabled && !authViewModel.isMalConnected) {
+            appViewModel.showSnackbarMessage(
+                KitsugiStrings.get(R.string.settings_notifications_connect_account, "MyAnimeList")
+            )
+            return@launch
+        }
         settingsDataStore.setMalNotificationsEnabled(enabled)
         appViewModel.showSnackbarMessage(if (enabled) KitsugiStrings.get(R.string.myanimelist_bildirimleri_etkinlestirildi) else KitsugiStrings.get(R.string.myanimelist_bildirimleri_devre_disi_birakildi))
-        if (enabled) {
-            com.kitsugi.animelist.core.notifications.NotificationScheduler.schedule(context, appSettings.notificationInterval)
-        } else if (!appSettings.hasAnyNotificationSource()) {
-            com.kitsugi.animelist.core.notifications.NotificationScheduler.cancel(context)
-        }
+        com.kitsugi.animelist.core.notifications.NotificationScheduler.reconcile(context)
     }
 }
 
 internal fun SettingsContext.onSimklNotificationsChanged(enabled: Boolean) {
     coroutineScope.launch {
+        if (enabled && !authViewModel.isSimklConnected) {
+            appViewModel.showSnackbarMessage(
+                KitsugiStrings.get(R.string.settings_notifications_connect_account, "Simkl")
+            )
+            return@launch
+        }
         settingsDataStore.setSimklNotificationsEnabled(enabled)
         appViewModel.showSnackbarMessage(if (enabled) KitsugiStrings.get(R.string.simkl_bildirimleri_etkinlestirildi) else KitsugiStrings.get(R.string.simkl_bildirimleri_devre_disi_birakildi))
-        if (enabled) {
-            com.kitsugi.animelist.core.notifications.NotificationScheduler.schedule(context, appSettings.notificationInterval)
-        } else if (!appSettings.hasAnyNotificationSource()) {
-            com.kitsugi.animelist.core.notifications.NotificationScheduler.cancel(context)
-        }
+        com.kitsugi.animelist.core.notifications.NotificationScheduler.reconcile(context)
     }
 }
 
 internal fun SettingsContext.onKitsuNotificationsChanged(enabled: Boolean) {
     coroutineScope.launch {
+        if (enabled && !authViewModel.isKitsuConnected) {
+            appViewModel.showSnackbarMessage(
+                KitsugiStrings.get(R.string.settings_notifications_connect_account, "Kitsu")
+            )
+            return@launch
+        }
         settingsDataStore.setKitsuNotificationsEnabled(enabled)
         appViewModel.showSnackbarMessage(if (enabled) KitsugiStrings.get(R.string.kitsu_bildirimleri_etkinlestirildi) else KitsugiStrings.get(R.string.kitsu_bildirimleri_devre_disi_birakildi))
-        if (enabled) {
-            com.kitsugi.animelist.core.notifications.NotificationScheduler.schedule(context, appSettings.notificationInterval)
-        } else if (!appSettings.hasAnyNotificationSource()) {
-            com.kitsugi.animelist.core.notifications.NotificationScheduler.cancel(context)
-        }
+        com.kitsugi.animelist.core.notifications.NotificationScheduler.reconcile(context)
     }
 }
 
 internal fun SettingsContext.onShikimoriNotificationsChanged(enabled: Boolean) {
     coroutineScope.launch {
+        if (enabled && !authViewModel.isShikimoriConnected) {
+            appViewModel.showSnackbarMessage(
+                KitsugiStrings.get(R.string.settings_notifications_connect_account, "Shikimori")
+            )
+            return@launch
+        }
         settingsDataStore.setShikimoriNotificationsEnabled(enabled)
         appViewModel.showSnackbarMessage(if (enabled) KitsugiStrings.get(R.string.shikimori_bildirimleri_etkinlestirildi) else KitsugiStrings.get(R.string.shikimori_bildirimleri_devre_disi_birakildi))
-        if (enabled) {
-            com.kitsugi.animelist.core.notifications.NotificationScheduler.schedule(context, appSettings.notificationInterval)
-        } else if (!appSettings.hasAnyNotificationSource()) {
-            com.kitsugi.animelist.core.notifications.NotificationScheduler.cancel(context)
-        }
+        com.kitsugi.animelist.core.notifications.NotificationScheduler.reconcile(context)
     }
 }
-
-/**
- * Arka plan bildirim işçisi için en az bir kaynak açık mı?
- * (Yeni kaynak eklendiğinde iptal koşulları burada tek yerden güncellenir.)
- */
-internal fun com.kitsugi.animelist.data.settings.AppSettings.hasAnyNotificationSource(): Boolean =
-    airingNotificationsEnabled || aniListNotificationsEnabled || malNotificationsEnabled ||
-        simklNotificationsEnabled || kitsuNotificationsEnabled || shikimoriNotificationsEnabled
 
 internal fun SettingsContext.onNotificationIntervalChanged(minutes: Int) {
     coroutineScope.launch {
         settingsDataStore.setNotificationInterval(minutes)
         appViewModel.showSnackbarMessage(KitsugiStrings.get(R.string.bildirim_sikligi_x_dakika_olarak_ayarlandi, minutes))
-        if (appSettings.airingNotificationsEnabled || appSettings.aniListNotificationsEnabled || appSettings.malNotificationsEnabled || appSettings.simklNotificationsEnabled) {
-            com.kitsugi.animelist.core.notifications.NotificationScheduler.schedule(context, minutes)
-        }
+        com.kitsugi.animelist.core.notifications.NotificationScheduler.reconcile(context)
     }
 }
 

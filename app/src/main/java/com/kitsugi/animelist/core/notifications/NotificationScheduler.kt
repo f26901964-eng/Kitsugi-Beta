@@ -2,27 +2,111 @@ package com.kitsugi.animelist.core.notifications
 
 import android.content.Context
 import android.util.Log
-import androidx.work.*
+import androidx.work.Constraints
+import androidx.work.ExistingPeriodicWorkPolicy
+import androidx.work.NetworkType
+import androidx.work.PeriodicWorkRequestBuilder
+import androidx.work.WorkManager
+import com.kitsugi.animelist.data.auth.ExternalAuthManager
+import com.kitsugi.animelist.data.settings.AppSettings
+import com.kitsugi.animelist.data.settings.SettingsDataStore
+import kotlinx.coroutines.flow.first
 import java.util.concurrent.TimeUnit
+
+internal data class NotificationAccountLinks(
+    val aniList: Boolean,
+    val mal: Boolean,
+    val simkl: Boolean,
+    val kitsu: Boolean,
+    val shikimori: Boolean,
+    val bangumi: Boolean
+) {
+    val any: Boolean
+        get() = aniList || mal || simkl || kitsu || shikimori || bangumi
+}
+
+internal fun shouldScheduleNotificationWork(
+    settings: AppSettings,
+    accounts: NotificationAccountLinks
+): Boolean =
+    (settings.airingNotificationsEnabled && accounts.any) ||
+        (settings.aniListNotificationsEnabled && accounts.aniList) ||
+        (settings.malNotificationsEnabled && accounts.mal) ||
+        (settings.simklNotificationsEnabled && accounts.simkl) ||
+        (settings.kitsuNotificationsEnabled && accounts.kitsu) ||
+        (settings.shikimoriNotificationsEnabled && accounts.shikimori)
 
 object NotificationScheduler {
     private const val TAG = "NotificationScheduler"
     private const val WORK_NAME = "airing_notifications_work"
 
     /**
-     * Schedules a unique periodic work request with constraints.
+     * Schedules only when at least one enabled notification source has a linked account.
+     * Returns true when work is scheduled and false when it is cancelled.
      */
-    fun schedule(context: Context, intervalMinutes: Int) {
+    suspend fun reconcile(context: Context): Boolean {
+        val appContext = context.applicationContext
+        return try {
+            val settings = SettingsDataStore(appContext).settingsFlow.first()
+            val shouldSchedule = shouldScheduleNotificationWork(
+                settings = settings,
+                accounts = getLinkedAccounts(appContext)
+            )
+
+            if (!shouldSchedule) {
+                cancel(appContext)
+                false
+            } else {
+                enqueuePeriodicWork(appContext, settings.notificationInterval)
+                true
+            }
+        } catch (error: Exception) {
+            Log.e(TAG, "Unable to verify linked notification sources; canceling periodic work", error)
+            runCatching { cancel(appContext) }
+            false
+        }
+    }
+
+    /**
+     * Called by the worker after checking/refreshing credentials. It cancels stale
+     * periodic work if all enabled sources have become unlinked, without re-enqueuing
+     * the currently-running periodic request.
+     */
+    suspend fun cancelIfNoActiveSources(context: Context) {
+        val appContext = context.applicationContext
+        try {
+            val settings = SettingsDataStore(appContext).settingsFlow.first()
+            val shouldSchedule = shouldScheduleNotificationWork(
+                settings = settings,
+                accounts = getLinkedAccounts(appContext)
+            )
+            if (!shouldSchedule) cancel(appContext)
+        } catch (error: Exception) {
+            Log.e(TAG, "Unable to verify linked notification sources; canceling periodic work", error)
+            runCatching { cancel(appContext) }
+        }
+    }
+
+    private fun getLinkedAccounts(context: Context): NotificationAccountLinks =
+        NotificationAccountLinks(
+            aniList = !ExternalAuthManager.getAniListToken(context).isNullOrBlank(),
+            mal = !ExternalAuthManager.getMalToken(context).isNullOrBlank(),
+            simkl = !ExternalAuthManager.getSimklToken(context).isNullOrBlank(),
+            kitsu = !ExternalAuthManager.getKitsuToken(context).isNullOrBlank(),
+            shikimori = !ExternalAuthManager.getShikimoriToken(context).isNullOrBlank(),
+            bangumi = ExternalAuthManager.getAuthState(context).isBangumiConnected
+        )
+
+    private fun enqueuePeriodicWork(context: Context, intervalMinutes: Int) {
         val workManager = WorkManager.getInstance(context)
 
-        // Constraints: require internet connectivity to fetch updates from external APIs
+        // Constraints: require internet connectivity to fetch updates from external APIs.
         val constraints = Constraints.Builder()
             .setRequiredNetworkType(NetworkType.CONNECTED)
             .build()
 
         // WorkManager minimum periodic interval is 15 minutes.
         val periodicInterval = intervalMinutes.coerceAtLeast(15).toLong()
-
         val workRequest = PeriodicWorkRequestBuilder<AiringNotificationWorker>(
             periodicInterval,
             TimeUnit.MINUTES
@@ -31,20 +115,16 @@ object NotificationScheduler {
             .build()
 
         Log.d(TAG, "Scheduling periodic airing notification work: interval = $periodicInterval mins")
-
         workManager.enqueueUniquePeriodicWork(
             WORK_NAME,
-            ExistingPeriodicWorkPolicy.UPDATE, // Update keeps it current with the new interval
+            ExistingPeriodicWorkPolicy.UPDATE,
             workRequest
         )
     }
 
-    /**
-     * Cancels the scheduled work request.
-     */
+    /** Cancels the scheduled work request. */
     fun cancel(context: Context) {
         Log.d(TAG, "Canceling periodic airing notification work")
-        val workManager = WorkManager.getInstance(context)
-        workManager.cancelUniqueWork(WORK_NAME)
+        WorkManager.getInstance(context.applicationContext).cancelUniqueWork(WORK_NAME)
     }
 }

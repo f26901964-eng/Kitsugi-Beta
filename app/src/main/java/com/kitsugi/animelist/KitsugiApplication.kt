@@ -195,12 +195,7 @@ class KitsugiApplication : Application(), SingletonImageLoader.Factory {
         // T3.3: WorkManager tabanlı bildirim planlaması
         applicationScope.launch {
             try {
-                val settings = com.kitsugi.animelist.data.settings.SettingsDataStore(this@KitsugiApplication).settingsFlow.first()
-                if (settings.airingNotificationsEnabled || settings.aniListNotificationsEnabled || settings.malNotificationsEnabled || settings.simklNotificationsEnabled) {
-                    com.kitsugi.animelist.core.notifications.NotificationScheduler.schedule(this@KitsugiApplication, settings.notificationInterval)
-                } else {
-                    com.kitsugi.animelist.core.notifications.NotificationScheduler.cancel(this@KitsugiApplication)
-                }
+                com.kitsugi.animelist.core.notifications.NotificationScheduler.reconcile(this@KitsugiApplication)
             } catch (e: Exception) {
                 android.util.Log.e("KitsugiApplication", "Failed to schedule notifications: ${e.message}")
             }

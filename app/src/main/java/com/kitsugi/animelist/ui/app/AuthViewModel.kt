@@ -299,6 +299,7 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                 "bangumi" -> settings.clearBangumiProfileInfo()
             }
             refreshAuthState()
+            com.kitsugi.animelist.core.notifications.NotificationScheduler.reconcile(context)
 
             // B1.12: Clear the TV launcher channel and watch-next recommendation when disconnecting
             try {

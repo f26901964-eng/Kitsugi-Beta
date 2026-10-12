@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -67,7 +68,15 @@ internal fun SheetRow(
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .tvClickable(enabled = onClick != null, shape = RoundedCornerShape(12.dp)) { onClick?.invoke() }
+            // Do not install a disabled click target over child inputs. In particular,
+            // that parent pointer node can make the tiny progress field difficult to focus.
+            .then(
+                if (onClick != null) {
+                    Modifier.tvClickable(shape = RoundedCornerShape(12.dp)) { onClick() }
+                } else {
+                    Modifier
+                }
+            )
             .padding(horizontal = 16.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -95,7 +104,12 @@ internal fun SheetRow(
                                 onValueChange(newValue)
                             }
                         },
-                        modifier = Modifier.widthIn(min = 20.dp),
+                        // Give the editable number a comfortable hit target so a user can
+                        // tap the current count and replace it directly (instead of
+                        // repeatedly pressing the +/- buttons).
+                        modifier = Modifier
+                            .widthIn(min = 48.dp)
+                            .heightIn(min = 32.dp),
                         textStyle = MaterialTheme.typography.bodySmall.copy(
                             color = KitsugiColors.TextSecondary,
                             fontWeight = FontWeight.SemiBold

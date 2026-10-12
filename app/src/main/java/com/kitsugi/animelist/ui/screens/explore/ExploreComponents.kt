@@ -189,10 +189,10 @@ fun AiringSoonHorizontalCard(
             .height(100.dp)
             .clip(RoundedCornerShape(12.dp))
             .background(KitsugiColors.Surface)
-            .then(
-                if (alreadyInList)
-                    Modifier.border(1.dp, KitsugiColors.AccentGreen.copy(0.45f), RoundedCornerShape(12.dp))
-                else Modifier
+            .border(
+                width = 1.dp,
+                color = if (alreadyInList) KitsugiColors.AccentGreen.copy(0.45f) else KitsugiColors.Border,
+                shape = RoundedCornerShape(12.dp)
             )
             .tvClickable(
                 shape = RoundedCornerShape(12.dp),
@@ -281,6 +281,7 @@ fun AiringSoonHorizontalCardPlaceholder(modifier: Modifier = Modifier) {
             .height(100.dp)
             .clip(RoundedCornerShape(12.dp))
             .background(KitsugiColors.Surface)
+            .border(1.dp, KitsugiColors.Border, RoundedCornerShape(12.dp))
             .padding(8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {

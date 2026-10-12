@@ -9,7 +9,7 @@ import com.kitsugi.animelist.ui.theme.gradient.CircularProgressIndicator
 import com.kitsugi.animelist.ui.theme.gradient.Icon
 import com.kitsugi.animelist.ui.theme.gradient.LinearProgressIndicator
 import com.kitsugi.animelist.ui.theme.gradient.Text
-import com.kitsugi.animelist.ui.components.KitsugiButton
+import com.kitsugi.animelist.ui.components.KitsugiAccountNotConnectedState
 
 import com.kitsugi.animelist.ui.theme.gradient.background
 import com.kitsugi.animelist.ui.theme.gradient.border
@@ -31,7 +31,6 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.kitsugi.animelist.ui.components.KitsugiPlatformLogo
 import com.kitsugi.animelist.ui.theme.KitsugiColors
 import com.kitsugi.animelist.ui.theme.LocalKitsugiAccent
 import androidx.compose.ui.res.stringResource
@@ -52,52 +51,11 @@ fun ExternalProfileWrapper(
     content: @Composable () -> Unit
 ) {
     if (!isConnected) {
-        Box(
-            modifier = Modifier.fillMaxSize(),
-            contentAlignment = Alignment.Center
-        ) {
-            Card(
-                shape = RoundedCornerShape(24.dp),
-                colors = CardDefaults.cardColors(containerColor = KitsugiColors.Surface),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(24.dp)
-            ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(32.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    KitsugiPlatformLogo(
-                        platformId = platformName,
-                        size = 56.dp,
-                        modifier = Modifier.padding(bottom = 8.dp)
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(
-                        text = stringResource(R.string.inline_1_s_account_not_connected_086498f, platformName),
-                        color = KitsugiColors.TextPrimary,
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(
-                        text = stringResource(R.string.profil_istatistiklerinizi_favorilerinizi_ve_sosyal_aktivitelerin),
-                        color = KitsugiColors.TextMuted,
-                        style = MaterialTheme.typography.bodySmall,
-                        textAlign = androidx.compose.ui.text.style.TextAlign.Center,
-                        modifier = Modifier.padding(horizontal = 16.dp)
-                    )
-                    Spacer(modifier = Modifier.height(24.dp))
-                    KitsugiButton(
-                        onClick = onConnectClick
-                    ) {
-                        Text(text = stringResource(R.string.hesabi_bagla), color = KitsugiColors.Background, fontWeight = FontWeight.Bold)
-                    }
-                }
-            }
-        }
+        KitsugiAccountNotConnectedState(
+            platformName = platformName,
+            onConnectClick = onConnectClick,
+            modifier = Modifier.fillMaxSize()
+        )
     } else if (isLoading) {
         Box(
             modifier = Modifier.fillMaxSize(),

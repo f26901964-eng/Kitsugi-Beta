@@ -106,6 +106,12 @@ fun KitsugiPreferencesSettingsDialog(
     onSimklNotificationsChanged: (Boolean) -> Unit = {},
     onKitsuNotificationsChanged: (Boolean) -> Unit = {},
     onShikimoriNotificationsChanged: (Boolean) -> Unit = {},
+    isAniListConnected: Boolean = false,
+    isMalConnected: Boolean = false,
+    isSimklConnected: Boolean = false,
+    isKitsuConnected: Boolean = false,
+    isShikimoriConnected: Boolean = false,
+    isBangumiConnected: Boolean = false,
     onNotificationIntervalChanged: (Int) -> Unit = {},
     onSearchHistoryEnabledChanged: (Boolean) -> Unit = {},
     onSplashAnimationEnabledChanged: (Boolean) -> Unit = {},
@@ -235,6 +241,12 @@ fun KitsugiPreferencesSettingsDialog(
                         onSimklNotificationsChanged = onSimklNotificationsChanged,
                         onKitsuNotificationsChanged = onKitsuNotificationsChanged,
                         onShikimoriNotificationsChanged = onShikimoriNotificationsChanged,
+                        isAniListConnected = isAniListConnected,
+                        isMalConnected = isMalConnected,
+                        isSimklConnected = isSimklConnected,
+                        isKitsuConnected = isKitsuConnected,
+                        isShikimoriConnected = isShikimoriConnected,
+                        isBangumiConnected = isBangumiConnected,
                         onNotificationIntervalChanged = onNotificationIntervalChanged,
                         onSearchHistoryEnabledChanged = onSearchHistoryEnabledChanged,
                         accentColor = accentColor,
@@ -686,6 +698,12 @@ private fun ListScoreTab(
     onSimklNotificationsChanged: (Boolean) -> Unit = {},
     onKitsuNotificationsChanged: (Boolean) -> Unit = {},
     onShikimoriNotificationsChanged: (Boolean) -> Unit = {},
+    isAniListConnected: Boolean = false,
+    isMalConnected: Boolean = false,
+    isSimklConnected: Boolean = false,
+    isKitsuConnected: Boolean = false,
+    isShikimoriConnected: Boolean = false,
+    isBangumiConnected: Boolean = false,
     onNotificationIntervalChanged: (Int) -> Unit = {},
     onSearchHistoryEnabledChanged: (Boolean) -> Unit = {},
     accentColor: Color,
@@ -1346,88 +1364,103 @@ private fun ListScoreTab(
                 )
             }
 
+            val hasAnyNotificationAccount = isAniListConnected || isMalConnected || isSimklConnected ||
+                isKitsuConnected || isShikimoriConnected || isBangumiConnected
+
             KitsugiSettingsDivider()
 
             KitsugiSettingsSwitchItem(
                 title = stringResource(R.string.settings_airing_notifications),
-                description = if (appSettings.airingNotificationsEnabled)
-                    stringResource(R.string.settings_airing_notifications_desc_enabled)
-                else
-                    stringResource(R.string.settings_airing_notifications_desc_disabled),
+                description = when {
+                    !hasAnyNotificationAccount -> stringResource(R.string.settings_notifications_connect_any_account)
+                    appSettings.airingNotificationsEnabled -> stringResource(R.string.settings_airing_notifications_desc_enabled)
+                    else -> stringResource(R.string.settings_airing_notifications_desc_disabled)
+                },
                 icon = Icons.Rounded.Settings,
                 iconColor = accentColor,
-                checked = appSettings.airingNotificationsEnabled,
-                onCheckedChange = { handleAiringNotificationsToggle(it) }
+                checked = hasAnyNotificationAccount && appSettings.airingNotificationsEnabled,
+                enabled = hasAnyNotificationAccount,
+                onCheckedChange = { if (hasAnyNotificationAccount) handleAiringNotificationsToggle(it) }
             )
 
             KitsugiSettingsDivider()
 
             KitsugiSettingsSwitchItem(
                 title = stringResource(R.string.settings_notif_anilist),
-                description = if (appSettings.aniListNotificationsEnabled)
-                    stringResource(R.string.settings_notif_anilist_on)
-                else
-                    stringResource(R.string.settings_notif_anilist_off),
+                description = when {
+                    !isAniListConnected -> stringResource(R.string.settings_notifications_connect_account, "AniList")
+                    appSettings.aniListNotificationsEnabled -> stringResource(R.string.settings_notif_anilist_on)
+                    else -> stringResource(R.string.settings_notif_anilist_off)
+                },
                 icon = Icons.Rounded.Settings,
                 iconColor = accentColor,
-                checked = appSettings.aniListNotificationsEnabled,
-                onCheckedChange = { handleAniListNotificationsToggle(it) }
+                checked = isAniListConnected && appSettings.aniListNotificationsEnabled,
+                enabled = isAniListConnected,
+                onCheckedChange = { if (isAniListConnected) handleAniListNotificationsToggle(it) }
             )
 
             KitsugiSettingsDivider()
 
             KitsugiSettingsSwitchItem(
                 title = stringResource(R.string.settings_notif_mal),
-                description = if (appSettings.malNotificationsEnabled)
-                    stringResource(R.string.settings_notif_mal_on)
-                else
-                    stringResource(R.string.settings_notif_mal_off),
+                description = when {
+                    !isMalConnected -> stringResource(R.string.settings_notifications_connect_account, "MyAnimeList")
+                    appSettings.malNotificationsEnabled -> stringResource(R.string.settings_notif_mal_on)
+                    else -> stringResource(R.string.settings_notif_mal_off)
+                },
                 icon = Icons.Rounded.Settings,
                 iconColor = accentColor,
-                checked = appSettings.malNotificationsEnabled,
-                onCheckedChange = { handleMalNotificationsToggle(it) }
+                checked = isMalConnected && appSettings.malNotificationsEnabled,
+                enabled = isMalConnected,
+                onCheckedChange = { if (isMalConnected) handleMalNotificationsToggle(it) }
             )
 
             KitsugiSettingsDivider()
 
             KitsugiSettingsSwitchItem(
                 title = stringResource(R.string.settings_notif_simkl),
-                description = if (appSettings.simklNotificationsEnabled)
-                    stringResource(R.string.settings_notif_simkl_on)
-                else
-                    stringResource(R.string.settings_notif_simkl_off),
+                description = when {
+                    !isSimklConnected -> stringResource(R.string.settings_notifications_connect_account, "Simkl")
+                    appSettings.simklNotificationsEnabled -> stringResource(R.string.settings_notif_simkl_on)
+                    else -> stringResource(R.string.settings_notif_simkl_off)
+                },
                 icon = Icons.Rounded.Settings,
                 iconColor = accentColor,
-                checked = appSettings.simklNotificationsEnabled,
-                onCheckedChange = { handleSimklNotificationsToggle(it) }
+                checked = isSimklConnected && appSettings.simklNotificationsEnabled,
+                enabled = isSimklConnected,
+                onCheckedChange = { if (isSimklConnected) handleSimklNotificationsToggle(it) }
             )
 
             KitsugiSettingsDivider()
 
             KitsugiSettingsSwitchItem(
                 title = stringResource(R.string.settings_notif_kitsu),
-                description = if (appSettings.kitsuNotificationsEnabled)
-                    stringResource(R.string.settings_notif_kitsu_on)
-                else
-                    stringResource(R.string.settings_notif_kitsu_off),
+                description = when {
+                    !isKitsuConnected -> stringResource(R.string.settings_notifications_connect_account, "Kitsu")
+                    appSettings.kitsuNotificationsEnabled -> stringResource(R.string.settings_notif_kitsu_on)
+                    else -> stringResource(R.string.settings_notif_kitsu_off)
+                },
                 icon = Icons.Rounded.Settings,
                 iconColor = accentColor,
-                checked = appSettings.kitsuNotificationsEnabled,
-                onCheckedChange = { handleKitsuNotificationsToggle(it) }
+                checked = isKitsuConnected && appSettings.kitsuNotificationsEnabled,
+                enabled = isKitsuConnected,
+                onCheckedChange = { if (isKitsuConnected) handleKitsuNotificationsToggle(it) }
             )
 
             KitsugiSettingsDivider()
 
             KitsugiSettingsSwitchItem(
                 title = stringResource(R.string.settings_notif_shikimori),
-                description = if (appSettings.shikimoriNotificationsEnabled)
-                    stringResource(R.string.settings_notif_shikimori_on)
-                else
-                    stringResource(R.string.settings_notif_shikimori_off),
+                description = when {
+                    !isShikimoriConnected -> stringResource(R.string.settings_notifications_connect_account, "Shikimori")
+                    appSettings.shikimoriNotificationsEnabled -> stringResource(R.string.settings_notif_shikimori_on)
+                    else -> stringResource(R.string.settings_notif_shikimori_off)
+                },
                 icon = Icons.Rounded.Settings,
                 iconColor = accentColor,
-                checked = appSettings.shikimoriNotificationsEnabled,
-                onCheckedChange = { handleShikimoriNotificationsToggle(it) }
+                checked = isShikimoriConnected && appSettings.shikimoriNotificationsEnabled,
+                enabled = isShikimoriConnected,
+                onCheckedChange = { if (isShikimoriConnected) handleShikimoriNotificationsToggle(it) }
             )
 
             KitsugiSettingsDivider()

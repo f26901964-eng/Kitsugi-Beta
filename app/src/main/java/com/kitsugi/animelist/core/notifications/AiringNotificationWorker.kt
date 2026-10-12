@@ -52,18 +52,35 @@ class AiringNotificationWorker(
         // Load settings
         val settings = SettingsDataStore(context).settingsFlow.first()
 
-        val isAiringEnabled = settings.airingNotificationsEnabled
-        val isAniListEnabled = settings.aniListNotificationsEnabled
-        val isMalEnabled = settings.malNotificationsEnabled
-        val isSimklEnabled = settings.simklNotificationsEnabled
-        val isKitsuEnabled = settings.kitsuNotificationsEnabled
-        val isShikimoriEnabled = settings.shikimoriNotificationsEnabled
+        // A saved toggle alone is not enough: source notifications must never poll or
+        // produce local airing alerts after the corresponding account was disconnected.
+        val aniListTokenForGate = ExternalAuthManager.getAniListToken(context)
+        val malTokenForGate = ExternalAuthManager.getMalToken(context)
+        val simklTokenForGate = ExternalAuthManager.getSimklToken(context)
+        val kitsuTokenForGate = ExternalAuthManager.getKitsuToken(context)
+        val shikimoriTokenForGate = ExternalAuthManager.getShikimoriToken(context)
+        val bangumiConnected = ExternalAuthManager.getAuthState(context).isBangumiConnected
+        val hasLinkedAccount = listOf(
+            aniListTokenForGate,
+            malTokenForGate,
+            simklTokenForGate,
+            kitsuTokenForGate,
+            shikimoriTokenForGate
+        ).any { !it.isNullOrBlank() } || bangumiConnected
+
+        val isAiringEnabled = settings.airingNotificationsEnabled && hasLinkedAccount
+        val isAniListEnabled = settings.aniListNotificationsEnabled && !aniListTokenForGate.isNullOrBlank()
+        val isMalEnabled = settings.malNotificationsEnabled && !malTokenForGate.isNullOrBlank()
+        val isSimklEnabled = settings.simklNotificationsEnabled && !simklTokenForGate.isNullOrBlank()
+        val isKitsuEnabled = settings.kitsuNotificationsEnabled && !kitsuTokenForGate.isNullOrBlank()
+        val isShikimoriEnabled = settings.shikimoriNotificationsEnabled && !shikimoriTokenForGate.isNullOrBlank()
 
         // If no notifications are enabled, stop immediately
         if (!isAiringEnabled && !isAniListEnabled && !isMalEnabled && !isSimklEnabled &&
             !isKitsuEnabled && !isShikimoriEnabled
         ) {
-            Log.d(TAG, "No notification channels are enabled. Stopping worker.")
+            Log.d(TAG, "No linked notification sources are enabled. Canceling stale periodic work.")
+            NotificationScheduler.cancelIfNoActiveSources(context)
             return Result.success()
         }
 
@@ -325,6 +342,7 @@ class AiringNotificationWorker(
             }
         }
 
+        NotificationScheduler.cancelIfNoActiveSources(context)
         return Result.success()
     }
 

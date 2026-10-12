@@ -125,6 +125,7 @@
     <string name="settings_airing_notifications">Airing Notifications</string>
     <string name="settings_airing_notifications_desc_enabled">Receive notifications when new episodes of watching anime air</string>
     <string name="settings_airing_notifications_desc_disabled">Episode notifications for watching anime are disabled</string>
+    <string name="settings_notifications_connect_any_account">Connect at least one source account to enable airing notifications.</string>
     <string name="settings_save_search_history">Save Search History</string>
     <string name="settings_save_search_history_desc_enabled">Saves search history on your device and suggests them in subsequent searches</string>
     <string name="settings_save_search_history_desc_disabled">Saving search history is disabled</string>
@@ -1008,6 +1009,7 @@
     <string name="settings_notif_shikimori">Shikimori Notifications</string>
     <string name="settings_notif_anilist_on">Unread AniList notifications are checked in the background</string>
     <string name="settings_notif_anilist_off">Background check for unread AniList notifications is disabled</string>
+    <string name="settings_notifications_connect_account">Connect your %1$s account to enable %1$s notifications.</string>
     <string name="settings_notif_mal_on">New airings in the MyAnimeList calendar are checked in the background</string>
     <string name="settings_notif_mal_off">MyAnimeList new airing check is disabled</string>
     <string name="settings_notif_simkl_on">Updates in the Simkl watch list are checked in the background</string>

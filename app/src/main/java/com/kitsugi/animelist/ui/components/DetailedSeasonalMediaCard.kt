@@ -126,10 +126,10 @@ fun DetailedSeasonalMediaCard(
     Card(
         modifier = modifier
             .fillMaxWidth()
-            .then(
-                if (alreadyInList) {
-                    Modifier.border(1.dp, KitsugiColors.AccentGreen.copy(alpha = 0.45f), RoundedCornerShape(20.dp))
-                } else Modifier
+            .border(
+                width = 1.dp,
+                color = if (alreadyInList) KitsugiColors.AccentGreen.copy(alpha = 0.45f) else KitsugiColors.Border,
+                shape = RoundedCornerShape(20.dp)
             )
             .tvClickable(
                 shape = RoundedCornerShape(20.dp),

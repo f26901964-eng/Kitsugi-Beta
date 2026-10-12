@@ -907,21 +907,11 @@ fun MyListContentPage(
         }
     ) {
         if (!isConnected && searchQuery.isBlank()) {
-            LazyColumn(
-                state = pageScrollState,
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(horizontal = horizontalPadding)
-            ) {
-                item {
-                    MyListNotConnectedState(
-                        selectedTabIndex = pageTabIndex,
-                        isSimklSessionExpired = isSimklSessionExpired,
-                        onLogin = onLogin
-                    )
-                    Spacer(modifier = Modifier.height(90.dp))
-                }
-            }
+            MyListNotConnectedState(
+                selectedTabIndex = pageTabIndex,
+                isSimklSessionExpired = isSimklSessionExpired,
+                onLogin = onLogin
+            )
         } else if (pageEntries.isEmpty() && searchQuery.isBlank()) {
             LazyColumn(
                 state = pageScrollState,

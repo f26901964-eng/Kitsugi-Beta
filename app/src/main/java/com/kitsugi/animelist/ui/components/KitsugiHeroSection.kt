@@ -607,18 +607,16 @@ fun KitsugiHeroSection(
         // (One Piece'e tıklayınca Frieren açılması vb.). Sadece o an ÖNDE olan sayfa
         // (offset mutlak değeri en küçük olan) tıklama alsın; diğer katmanlar
         // pointerInput'ı kendi üstlerine kapatmasın.
-        val frontPageIndex by remember(pagerState) {
+        // visiblePageIndices changes when the pager settles on a new item. Keep it as a
+        // remember key: otherwise derivedStateOf retains the initial neighbor list and
+        // later hero pages have no clickable front layer (taps appear to do nothing).
+        val frontPageIndex by remember(pagerState, visiblePageIndices) {
             derivedStateOf {
-                var best = visiblePageIndices.firstOrNull() ?: 0
-                var bestOffset = Float.MAX_VALUE
-                visiblePageIndices.forEach { idx ->
-                    val o = abs(heroPageOffset(pagerState, idx))
-                    if (o < bestOffset) {
-                        bestOffset = o
-                        best = idx
-                    }
-                }
-                best
+                frontHeroPageIndex(
+                    currentPage = pagerState.currentPage,
+                    currentPageOffsetFraction = pagerState.currentPageOffsetFraction,
+                    visiblePageIndices = visiblePageIndices
+                )
             }
         }
 
@@ -882,7 +880,9 @@ fun KitsugiHeroSection(
                     val isFrontPageCol = (page == frontPageIndex)
 
                     val context = LocalContext.current
-                    val copyTitleGesture = Modifier.copyOnDoubleTap(context, displayTitle)
+                    val copyTitleGesture = Modifier.copyOnDoubleTap(context, displayTitle) {
+                        openVisibleHeroItem()
+                    }
 
                     Column(
                         modifier = Modifier

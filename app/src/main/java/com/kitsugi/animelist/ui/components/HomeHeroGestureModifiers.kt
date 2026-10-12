@@ -45,6 +45,15 @@ fun heroPageVisibility(
     return (1f - abs(heroPageOffset(pagerState, page))).coerceIn(0f, 1f)
 }
 
+/** Returns the visually foremost item from the currently composed hero layers. */
+fun frontHeroPageIndex(
+    currentPage: Int,
+    currentPageOffsetFraction: Float,
+    visiblePageIndices: List<Int>
+): Int = visiblePageIndices.minByOrNull { page ->
+    abs((currentPage - page) + currentPageOffsetFraction)
+} ?: currentPage
+
 fun Modifier.homeHeroPagerGesture(
     pagerState: PagerState,
     itemCount: Int,

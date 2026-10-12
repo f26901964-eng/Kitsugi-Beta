@@ -4,11 +4,9 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import androidx.tvprovider.media.tv.TvContractCompat
-import com.kitsugi.animelist.data.settings.SettingsDataStore
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
 /**
@@ -51,14 +49,11 @@ class TvChannelBootReceiver : BroadcastReceiver() {
             try {
                 val appCtx = context.applicationContext
 
-                // Bildirim ayarını oku
-                val settings = SettingsDataStore(appCtx).settingsFlow.first()
-                if (settings.airingNotificationsEnabled || settings.aniListNotificationsEnabled || settings.malNotificationsEnabled || settings.simklNotificationsEnabled) {
-                    com.kitsugi.animelist.core.notifications.NotificationScheduler.schedule(appCtx, settings.notificationInterval)
+                val scheduled = com.kitsugi.animelist.core.notifications.NotificationScheduler.reconcile(appCtx)
+                if (scheduled) {
                     android.util.Log.d("BootReceiver", "Boot sonrası WorkManager bildirimleri planlandı.")
                 } else {
-                    com.kitsugi.animelist.core.notifications.NotificationScheduler.cancel(appCtx)
-                    android.util.Log.d("BootReceiver", "Bildirimler kapalı — planlama iptal edildi.")
+                    android.util.Log.d("BootReceiver", "Bağlı bildirim kaynağı yok — planlama iptal edildi.")
                 }
             } catch (e: Exception) {
                 android.util.Log.e("BootReceiver", "Boot airing alarm hatası: ${e.message}", e)

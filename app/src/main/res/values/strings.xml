@@ -125,6 +125,7 @@
     <string name="settings_airing_notifications">Yayın Bildirimleri</string>
     <string name="settings_airing_notifications_desc_enabled">İzlediğiniz animelerin yeni bölümleri yayınlandığında bildirim alırsınız</string>
     <string name="settings_airing_notifications_desc_disabled">İzlediğiniz animelerin bölüm bildirimleri kapalı</string>
+    <string name="settings_notifications_connect_any_account">Yayın bildirimlerini açmak için önce en az bir kaynak hesabını bağlayın.</string>
     <string name="settings_save_search_history">Arama Geçmişini Kaydet</string>
     <string name="settings_save_search_history_desc_enabled">Arama geçmişinizi cihazınızda kaydeder ve sonraki aramalarda önerir</string>
     <string name="settings_save_search_history_desc_disabled">Arama geçmişi kaydetme devre dışı</string>
@@ -1008,6 +1009,7 @@
     <string name="settings_notif_shikimori">Shikimori Bildirimleri</string>
     <string name="settings_notif_anilist_on">Okunmamış AniList bildirimleri arka planda kontrol edilir</string>
     <string name="settings_notif_anilist_off">Okunmamış AniList bildirimlerinin arka plan kontrolü devre dışı</string>
+    <string name="settings_notifications_connect_account">%1$s bildirimlerini açmak için önce %1$s hesabınızı bağlayın.</string>
     <string name="settings_notif_mal_on">MyAnimeList takvimindeki yeni yayınlar arka planda kontrol edilir</string>
     <string name="settings_notif_mal_off">MyAnimeList yeni yayın kontrolü devre dışı</string>
     <string name="settings_notif_simkl_on">Simkl izleme listesindeki güncellemeler arka planda kontrol edilir</string>
