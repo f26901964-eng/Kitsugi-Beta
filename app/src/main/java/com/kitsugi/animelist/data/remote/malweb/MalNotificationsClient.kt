@@ -134,7 +134,9 @@ internal object MalNotificationsClient {
     data class RelatedAnime(val title: String, val url: String?)
 
     suspend fun fetch(cookieHeader: String): Feed = withContext(Dispatchers.IO) {
-        if (!MalWebSessionStore.isAuthenticatedCookie(cookieHeader)) {
+        // Çerez adına göre karar verilmez: MAL'ın hangi çerezle "giriş yapılmış" saydığını
+        // yalnızca MAL bilir. İstek yapılır, giriş sayfasına düşülürse oturum istenir.
+        if (cookieHeader.isBlank()) {
             throw MalWebSessionRequiredException("MAL web oturumu gerekli")
         }
         val safeCookie = cookieHeader.replace("\r", "").replace("\n", "").trim()
@@ -181,8 +183,13 @@ internal object MalNotificationsClient {
                         throw MalNotificationsFetchException("MAL bildirim isteği HTTP ${response.code}")
                     }
                     val body = response.body?.string().orEmpty()
-                    return@withContext parseHtml(body) ?: throw MalNotificationsParseException(
-                        "MAL bildirim verisi sayfada bulunamadı (oturum, doğrulama veya sayfa yapısı değişmiş olabilir)"
+                    parseHtml(body)?.let { return@withContext it }
+                    // Bazı durumlarda MAL giriş formunu 200 ile döner (yönlendirme yok).
+                    if (looksSignedOutPage(body)) {
+                        throw MalWebSessionRequiredException("MAL web oturumu sona ermiş")
+                    }
+                    throw MalNotificationsParseException(
+                        "MAL bildirim verisi sayfada bulunamadı (doğrulama veya sayfa yapısı değişmiş olabilir)"
                     )
                 }
             }
@@ -201,6 +208,19 @@ internal object MalNotificationsClient {
             .getOrNull() ?: return null
         val rawItems = root["items"] as? JsonArray ?: return null
         return Feed(rawItems.mapNotNull { it.asObjectOrNull()?.toNotification() })
+    }
+
+    /**
+     * Bildirim işaretçisi bulunamayan sayfa aslında MAL giriş formu mu?
+     * Bu durumda kullanıcıdan bir kez web oturumu istenir; sayfa yapısı hatası demek değildir.
+     */
+    internal fun looksSignedOutPage(html: String): Boolean {
+        if (html.isBlank()) return false
+        return html.contains("action=\"/login.php", ignoreCase = true) ||
+            html.contains("name=\"loginForm\"", ignoreCase = true) ||
+            html.contains("id=\"loginForm\"", ignoreCase = true) ||
+            html.contains("name=\"csrf_token\"", ignoreCase = true) &&
+            html.contains("login.php", ignoreCase = true)
     }
 
     private fun findJsonObjectEnd(text: String, start: Int): Int? {

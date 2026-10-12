@@ -424,10 +424,11 @@
     <string name="notif_mal_web_connect">Connect MAL web session</string>
     <string name="notif_mal_web_refresh">Refresh MAL notifications</string>
     <string name="notif_mal_web_login_title">Sign in to MyAnimeList</string>
-    <string name="notif_mal_web_login_hint">MAL API authorization does not include the website session cookie. Sign in to MAL once; notifications will then load here as native cards.</string>
+    <string name="notif_mal_web_login_hint">MAL API authorization does not include the website session cookie. Sign in to MAL once; notifications then load here as native cards on their own.</string>
     <string name="notif_mal_web_refresh_hint">Notifications are fetched directly from your MAL web session and shown in this native list.</string>
     <string name="notif_notice_mal_web_feed">Loaded %1$d notifications from your MAL account.</string>
-    <string name="notif_notice_mal_web_session_required">No MAL web session is connected. Sign in once using the button above to load real notifications. Showing the app calendar for now: %1$s</string>
+    <string name="notif_notice_mal_web_session_required">No MAL web session is connected. Sign in to MAL once to load real notifications. Showing the app calendar for now: %1$s</string>
+    <string name="notif_notice_mal_web_parse_failed">The MAL notification page could not be read (the session may have expired or the page layout changed). Showing the app calendar for now: %1$s</string>
     <string name="notif_notice_mal_web_fetch_failed">Could not load MAL account notifications right now. Showing the app calendar for now: %1$s</string>
     <string name="notif_mal_deleted_suffix"> (deleted)</string>
     <string name="notif_login_required_simkl">You need to log in to Simkl</string>

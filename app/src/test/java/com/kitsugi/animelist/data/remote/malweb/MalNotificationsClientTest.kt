@@ -61,6 +61,18 @@ class MalNotificationsClientTest {
     }
 
     @Test
+    fun detectsSignedOutLoginPageSoCallerAsksForWebSession() {
+        // MAL bazen giriş formunu 200 ile döner; bu "sayfa yapısı hatası" değil, oturum eksikliğidir.
+        val loginPage = """
+            <html><body><form id="loginForm" action="/login.php?from=%2Fnotification"
+                method="POST"><input name="csrf_token" value="x"></form></body></html>
+        """.trimIndent()
+        assertTrue(MalNotificationsClient.looksSignedOutPage(loginPage))
+        assertFalse(MalNotificationsClient.looksSignedOutPage("<html><body>Maintenance</body></html>"))
+        assertFalse(MalNotificationsClient.looksSignedOutPage(""))
+    }
+
+    @Test
     fun onlyAcceptsSafeMALItemUrlsNotTheNotificationLandingPage() {
         val external = notification(id = "1", url = "https://example.org/something")
         val relative = notification(id = "2", url = "/profile/User/friends")

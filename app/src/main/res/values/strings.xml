@@ -424,10 +424,11 @@
     <string name="notif_mal_web_connect">MAL web oturumunu bağla</string>
     <string name="notif_mal_web_refresh">MAL bildirimlerini yenile</string>
     <string name="notif_mal_web_login_title">MyAnimeList hesabına giriş</string>
-    <string name="notif_mal_web_login_hint">MAL API izni web oturum çerezini içermez. İlk bağlantıda MAL\'a giriş yap; bildirimler ardından burada yerel kartlar olarak yüklenir.</string>
+    <string name="notif_mal_web_login_hint">MAL API izni web oturum çerezini içermez. Bir kez MAL\'a giriş yap; bildirimler ardından kendiliğinden burada yerel kartlar olarak yüklenir.</string>
     <string name="notif_mal_web_refresh_hint">Bildirimler MAL web oturumunuzla doğrudan alınır ve burada yerel listede gösterilir.</string>
     <string name="notif_notice_mal_web_feed">MAL hesabından %1$d bildirim yüklendi.</string>
-    <string name="notif_notice_mal_web_session_required">MAL web oturumu bağlı değil; gerçek bildirimleri görmek için üstteki düğmeden bir kez giriş yap. Şimdilik uygulama takvimi gösteriliyor: %1$s</string>
+    <string name="notif_notice_mal_web_session_required">MAL web oturumu bağlı değil; gerçek bildirimleri görmek için bir kez MAL\'a giriş yap. Şimdilik uygulama takvimi gösteriliyor: %1$s</string>
+    <string name="notif_notice_mal_web_parse_failed">MAL bildirim sayfası okunamadı (oturum düşmüş veya sayfa yapısı değişmiş olabilir). Şimdilik uygulama takvimi gösteriliyor: %1$s</string>
     <string name="notif_notice_mal_web_fetch_failed">MAL hesabı bildirimleri şu anda alınamadı. Şimdilik uygulama takvimi gösteriliyor: %1$s</string>
     <string name="notif_mal_deleted_suffix"> (silinmiş)</string>
     <string name="notif_login_required_simkl">Simkl\'e giriş yapmanız gerekiyor</string>

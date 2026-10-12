@@ -139,6 +139,7 @@ fun KitsugiNotificationsScreen(
     var showSourcePickerSheet by remember { mutableStateOf(false) }
     var showMalWebLogin by remember { mutableStateOf(false) }
     var malWebLoginHandled by remember { mutableStateOf(false) }
+    var malWebLoginAutoOpened by remember { mutableStateOf(false) }
 
     // ── ViewModel state'lerini topla ──
     val malState       by viewModel.mal.collectAsState()
@@ -182,6 +183,30 @@ fun KitsugiNotificationsScreen(
             3 -> if (isKitsuConnected) viewModel.loadKitsu(mediaEntries)
             4 -> if (isShikimoriConnected) viewModel.loadShikimori(mediaEntries)
             5 -> if (isBangumiConnected) viewModel.loadBangumi(mediaEntries)
+        }
+    }
+
+    // ── Otomatik MAL web oturumu ──
+    // MAL OAuth girişi uygulama içi WebView'de yapıldıysa web oturumu zaten hazırdır ve
+    // bildirimler doğrudan yüklenir. Oturum gerçekten yoksa (ör. giriş harici tarayıcıda
+    // tamamlandıysa) kullanıcıyı aramaya bırakmadan giriş penceresi bir kez kendiliğinden açılır.
+    LaunchedEffect(
+        pagerState.currentPage,
+        isMalConnected,
+        malState.requiresMalWebLogin,
+        malState.isLoading,
+        malState.items.isEmpty()
+    ) {
+        if (pagerState.currentPage == 1 &&
+            isMalConnected &&
+            !malWebLoginAutoOpened &&
+            !malWebLoginHandled &&
+            !malState.isLoading &&
+            malState.items.isEmpty() &&
+            malState.requiresMalWebLogin
+        ) {
+            malWebLoginAutoOpened = true
+            showMalWebLogin = true
         }
     }
 
@@ -406,15 +431,15 @@ fun KitsugiNotificationsScreen(
                     listState = malListState,
                     onUserProfileClick = onUserProfileClick,
                     malWebSessionTitle = stringResource(
-                        if (malState.requiresMalWebLogin) R.string.notif_mal_web_connect
+                        if (malState.requiresMalWebLogin || !isMalConnected) R.string.notif_mal_web_connect
                         else R.string.notif_mal_web_refresh
                     ),
                     malWebSessionHint = stringResource(
-                        if (malState.requiresMalWebLogin) R.string.notif_mal_web_login_hint
+                        if (malState.requiresMalWebLogin || !isMalConnected) R.string.notif_mal_web_login_hint
                         else R.string.notif_mal_web_refresh_hint
                     ),
                     onMalWebSessionAction = {
-                        if (malState.requiresMalWebLogin) {
+                        if (malState.requiresMalWebLogin || !isMalConnected) {
                             malWebLoginHandled = false
                             showMalWebLogin = true
                         } else {
