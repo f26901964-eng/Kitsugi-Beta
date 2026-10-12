@@ -192,7 +192,7 @@ https://<wiki>.fandom.com/api.php?action=query&redirects=1
 
 **Solo Leveling — aynı serinin oyun wiki'si.**
 - Adaylar: `solo-leveling` (hub: anime, ~600 sayfa) ve `solo-leveling-arise` (hub: games, ~300 sayfa).
-- İkisinde de Sung Jinwoo, Cha Hae-In, Yoo Jinho, Go Gunhee sayfaları var; parmak izi tek başına ayırmıyor.
+- İkisinde de Sung Jinwoo sayfası var; oyun wiki'sinde ayrıca Cha Hae-In, Yoo Jinho, Go Gunhee sayfaları da var. Parmak izi tek başına ayırmıyor.
 - Hub, birebir wiki adı ("Solo Leveling Wiki" / "Solo Leveling: ARISE Wiki") ve büyüklük doğru olanı seçtiriyor.
 - Bilgi kutusundaki Hangul `성진우` yerel ad teyidi için kullanılabilir. `Jinwoo Sung` (Batı sırası) yok, `Sung Jin-Woo` yönlendirmesi var → ad sırası ve tire varyantları gerekli.
 
