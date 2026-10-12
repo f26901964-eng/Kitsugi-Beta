@@ -1,23 +1,36 @@
-# PLAN/TASK — Fandom Wiki entegrasyonu (yalnızca kimlikle eşleştirme)
+# PLAN/TASK — Fandom Wiki entegrasyonu (önce kimlik, son çare isim)
 
 Tarih: 2026-10-12
 Durum: Plan — onay bekliyor. Henüz kod yazılmadı.
+Güncelleme: İsimle bulma, kimlikle doğrulanan **son çare** olarak eklendi.
 
 ## Amaç
 
 Detay sayfalarında yapımın ve karakterin Fandom wiki içeriğini (bilgi kutusu, bölümler, evren terimleri) Kitsugi içinde göstermek.
-Eşleştirme **isimle değil, kimlikle** yapılır. Emin olunmayan hiçbir şey gösterilmez.
+Önce kimlikle eşleştirilir. Kimlik yolu tükenirse isimle aday bulunur, ama bu aday **kimlikten gelen bağımsız kanıtla** doğrulanmadan gösterilmez.
 
 ## Temel kararlar
 
 1. **Kimlik zinciri.** Fandom'da AniList/MAL/TMDB kimliği için standart alan yok. Köprü Wikidata: aynı kayıtta kaynak kimlikleri ile Fandom wiki kimliği (P4073) ve Fandom sayfa kimliği (P6262) birlikte tutuluyor.
-2. **Katı mod (varsayılan).** Kimlik zinciri wiki bulamazsa Wiki sekmesi hiç görünmez. İsimle arama, adres (slug) tahmini, yapay zekâ ve bulanık puanlama (`verify`) **kullanılmaz**.
-3. **Kendi eşleme tablomuz.** Wikidata'da bağlantısı eksik popüler yapımlar için küçük, elle doğrulanmış tablo: `assets/fandom/fandom_overrides.json`.
+2. **Arama sırası:**
+   1. Eşleme tablosu
+   2. Önbellek
+   3. Wikidata
+   4. İlişki yürüyüşü
+   5. **Son çare: isimle bulma**
+   6. Hiçbiri tutmazsa Wiki sekmesi görünmez.
+3. **İsim yalnızca aday üretir, kabul kararını kanıt verir.** Kanıt, kaynaktan kimlikle zaten bildiğimiz şeylerdir:
+   - Ana karakterler ve onların Japonca/Korece adları
+   - Yazar ve stüdyo
+   - Varsa wiki'nin AniList/MAL linki
+
+   Yapay zekâ kullanılmaz.
+4. **Kendi eşleme tablomuz.** Wikidata'da bağlantısı eksik popüler yapımlar için küçük, elle doğrulanmış tablo: `assets/fandom/fandom_overrides.json`.
    - Anahtar: AniList/MAL kimliği **veya** Wikidata QID'si. Seri/franchise QID'si verilirse tüm sezonları kapsar.
    - İleride GitHub'dan güncellenebilir.
-4. **Kotlin'e port, yeni bağımlılık yok.** OkHttp (`KitsugiHttpClient`), Jsoup, org.json ve Room zaten var. Python gömülmez.
-5. **Tembel yükleme.**
-   - Sayfa açılınca yalnızca "wiki var mı?" sorulur (küçük Wikidata istekleri).
+5. **Kotlin'e port, yeni bağımlılık yok.** OkHttp (`KitsugiHttpClient`), Jsoup, org.json ve Room zaten var. Python gömülmez.
+6. **Tembel yükleme.**
+   - Sayfa açılınca yalnızca "wiki var mı?" sorulur.
    - İçerik, sekme açılınca çekilir.
    - Arka planda toplu tarama yapılmaz.
 
@@ -26,7 +39,7 @@ Eşleştirme **isimle değil, kimlikle** yapılır. Emin olunmayan hiçbir şey 
 | Ekran | Dosya | Eklenecek | Faz |
 |---|---|---|---|
 | Karakter detayı (telefon + TV aynı sayfa) | `ui/screens/detail/CharacterDetailPage.kt` | Sona **Wiki** sekmesi: Hakkında · Yapımlar · Seslendirenler · **Wiki** | 1 |
-| Ayarlar | `ui/screens/settings/SettingsScreen.kt` | Fandom Wiki: aç/kapat · spoiler koruması · Türkçe wiki önceliği | 1 |
+| Ayarlar | `ui/screens/settings/SettingsScreen.kt` | Fandom Wiki: aç/kapat · isimle eşleştirme · spoiler koruması · Türkçe wiki önceliği | 1 |
 | Anime/manga detayı — listedeki kayıt | `ui/screens/detail/MediaEntryDetailPage.kt` | Sona **Wiki** sekmesi (Yorumlar / Bölümler'den sonra) | 2 |
 | Anime/manga detayı — arama/keşfet sonucu | `ui/screens/detail/ApiResultDetailPage.kt` | Aynı **Wiki** sekmesi | 2 |
 | TV anime detayı (sekme yok, satırlar var) | `ui/tv/detail/TvDetailScreen.kt` | Yeni **Wiki** satırı (kumandayla gezilen kartlar) | 2 |
@@ -38,20 +51,23 @@ Eşleştirme **isimle değil, kimlikle** yapılır. Emin olunmayan hiçbir şey 
 
 **Sekme neden en sonda?**
 - Sekmeler kodda sıra numarasıyla bağlı (`when (page) { 0 -> … 8 -> … }`, `loadTab(tabIndex)`). Araya eklemek mevcut sekmeleri kaydırır.
-- Wiki sekmesi ancak wiki kesinleşince belirdiği için sona eklenmesi diğer sekmeleri oynatmaz.
+- Wiki sekmesi ancak wiki bulununca belirdiği için sona eklenmesi diğer sekmeleri oynatmaz.
 
 ## Veri akışı
 
 ```
 Detay sayfası açılır
   → FandomRepository.resolve…()   (arka planda; önbellekte varsa 0 istek)
-      eşleme tablosu → Wikidata kaydı → P4073 / P6262
+      1 eşleme tablosu → 2 önbellek → 3 Wikidata (P4073/P6262)
+      → 4 ilişkili yapımların kimlikleri → 5 son çare: isimle aday + kanıtla doğrulama
   → wiki bulunduysa Wiki sekmesi belirir; bulunamadıysa hiçbir şey değişmez
 Kullanıcı Wiki sekmesini açar
-  → yalnızca giriş bölümü + bilgi kutusu çekilir (action=parse&section=0)
-  → diğer bölümler kullanıcı açtıkça yüklenir (section=N)
+  → yalnızca giriş bölümü + bilgi kutusu çekilir
+  → diğer bölümler kullanıcı açtıkça yüklenir
   → İngilizce metin → mevcut çeviri düğmesi (TranslationManager)
 ```
+
+İsimle bulunan sonuç da **kimliğe bağlanarak** önbelleğe yazılır (`anilist:<id> → wiki`). Böylece isim araması her yapım için 30 günde en fazla bir kez çalışır.
 
 ## Kimlik zinciri (teknik)
 
@@ -71,78 +87,171 @@ Kullanıcı Wiki sekmesini açar
 ### Yapım → wiki
 
 1. **Eşleme tablosu.** `fandom_overrides.json` içinde kimlik varsa doğrudan kullanılır.
-2. **Wikidata kaydını bul.** `KitsugiIdResolver.resolveIds(...)` bir `wikidataId` döndürdüyse o kullanılır. Döndürmediyse şu arama yapılır:
-   `https://www.wikidata.org/w/api.php?action=query&list=search&srsearch=haswbstatement:P8729=<id>&format=json`
-   - Anime için sıra: P8729 → P4086 → P11495 → P5732 → P4983/P4947.
-   - Manga için sıra: P8731 → P4087 → P11494. Manga'da `resolveIds` ARM'yi atladığı için `wikidataId` gelmez.
-3. **Wiki kimliğini oku.** `action=wbgetentities&ids=<QID>&props=claims` → P4073 değerleri.
-4. **Üst kayıtlara çık.** P4073 yoksa en fazla 2 adım yukarı çıkılır:
-   - P179 (dizinin parçası)
-   - P144 (uyarlandığı eser)
-   - P8345 (medya franchise'ı)
-   - P361 (parçası olduğu)
-   - P155/P156 (önceki/sonraki sezon)
-
-   Üst kayıtlar `wbgetentities` ile toplu okunur (≤50). Bu adımda eşleme tablosunda QID anahtarı da aranır.
-5. **Aday seç.** Saf fonksiyon olarak yazılır ve test edilir.
-   - **Çapraz/genel wikiler elenir:** `hero`, `villains`, `isekai`, `cosplay`, `dubbing`, `*.doblaje`, `*-dubber`, `dubdb`, `netflix`, `tropedia`, `animanga`, `anime`, `manga`, `vsbattles`, … Liste, Python'daki `CROSSOVER_BLOCKLIST` ve Wikidata'da görülenlerden oluşur.
-   - **Ana wiki öncelikli.** Dil öneki olmayan wiki seçilir; `tr.` sürümü ayrıca not edilir (Türkçe wiki özelliği için).
+2. **Önbellek.** Daha önce çözülmüş sonuç varsa kullanılır.
+3. **Wikidata.**
+   - `KitsugiIdResolver.resolveIds(...)` bir `wikidataId` döndürdüyse o kullanılır. Döndürmediyse şu arama yapılır:
+     `https://www.wikidata.org/w/api.php?action=query&list=search&srsearch=haswbstatement:P8729=<id>&format=json`
+     - Anime için sıra: P8729 → P4086 → P11495 → P5732 → P4983/P4947.
+     - Manga için sıra: P8731 → P4087 → P11494.
+   - Wiki kimliği `action=wbgetentities&ids=<QID>&props=claims` ile okunur (P4073).
+   - P4073 yoksa en fazla 2 adım yukarı çıkılır: P179 (dizinin parçası), P144 (uyarlandığı eser), P8345 (medya franchise'ı), P361 (parçası olduğu), P155/P156 (önceki/sonraki sezon). Üst kayıtlar `wbgetentities` ile toplu okunur (≤50); bu adımda eşleme tablosunda QID anahtarı da aranır.
+4. **İlişki yürüyüşü (hâlâ kimlik).** AniList ilişkilerinden önceki/sonraki sezon, ana seri, kaynak manga/light novel ve yan hikâyelerin kimlikleri alınır; bunlar için 1–3. adımlar tekrarlanır. Film, OVA ve devam sezonları çoğu zaman bu adımda çözülür.
+5. **Son çare: isimle bulma.** Ayrıntısı aşağıdaki bölümde.
+6. **Aday seçimi ve önbellek.** Saf fonksiyon olarak yazılır ve test edilir.
+   - **Çapraz/genel wikiler elenir:** `hero`, `villains`, `isekai`, `cosplay`, `dubbing`, `*.doblaje`, `*-dubber`, `dubdb`, `netflix`, `tropedia`, `animanga`, `anime`, `manga`, `vsbattles`, `powerlisting`, `*fanon*`, … Liste, Python'daki `CROSSOVER_BLOCKLIST` ve Wikidata'da görülenlerden oluşur.
+   - **Ana wiki öncelikli.** Dil öneki olmayan wiki seçilir; `tr.` sürümü ayrıca not edilir.
    - **Birden fazla ana aday varsa** makale sayısı büyük olan seçilir (`meta=siteinfo&siprop=statistics`). Örnekler: AoT için `attackontitan` / `shingekipedia`, MHA için `bokunoheroacademia` / `myheroacademia`.
-6. **Önbelleğe al.** Sonuç, QID ve kaynak kimlik anahtarıyla saklanır: bulunduysa 30 gün, bulunamadıysa 1 gün.
+   - **Önbellek süreleri:** bulunduysa 30 gün; bulunamadıysa 3 gün (yayındaki yapım) veya 7 gün (diğerleri).
 
 **URL notu:**
 - P4073 `tr.onepiece` → `https://onepiece.fandom.com/tr/api.php`
 - `jujutsu-kaisen` → `https://jujutsu-kaisen.fandom.com/api.php`
 
-### Karakter → wiki sayfası
+## Son çare: isimle bulma (güçlü doğrulama)
 
-1. AniList karakter kimliği (P11736) veya MAL karakter kimliği (P4085) ile `haswbstatement` araması → P6262 değerleri (ör. `jujutsu-kaisen:Satoru_Gojo`). `CharacterDetailViewModel` bu iki kimliği ve `nativeName`'i zaten hesaplıyor.
-2. P6262 değeri, karakterin yapımının wiki'siyle aynı wiki'de olmalı. Çapraz wikiler elenir.
-3. Wikidata'da kayıt yoksa iki koşul birlikte aranır:
-   - Karakterin ana yapımının wiki'sinde (yukarıdaki zincirle bulunur) **birebir** başlık eşleşmesi: `action=query&titles=<ad>&redirects=1` (wiki'nin kendi yönlendirmeleri kullanılır).
-   - Bilgi kutusundaki `Kanji` alanının AniList/MAL `nativeName` ile aynı olması (boşluk ve `・` temizlenerek).
+İlke: **isimle bul, kimlikle doğrula.** İsim yalnızca aday listesini üretir. Bir adayın kabulü, kaynaktan kimlikle bildiğimiz bilgilerin wiki'de bulunmasına bağlıdır.
 
-   Kesin eşleşme yoksa sekme görünmez.
-4. TMDB kaynaklı karakter sayfalarında Faz 1'de Wiki sekmesi yok.
+### A. Aday üretme (en fazla 3 arama + 6 adres denemesi)
 
-## Sayfa ayrıştırma (Jsoup)
+- **Sorgular** (kaynaktan kimlikle gelen veriden):
+  - İngilizce başlık
+  - Romaji başlık
+  - Eş anlamlı başlıklar
+  - **Başlık + yazar** (ör. `Monster Naoki Urasawa`)
+  - Devam sezonlarında kök başlık ("Season 2", "2nd Season", "Part 2", "Movie" ve alt başlıklar ayıklanır)
+- **Fandom topluluk araması:** `https://services.fandom.com/unified-search/community-search?query=<sorgu>&lang=en&limit=8`. Sonuçta ad, URL, `hub` (anime / games / tv / books …), sayfa sayısı, görüntülenme ve açıklama gelir.
+- **Adres denemesi:** başlıktan üretilen adresler (`spy-x-family`, `spyxfamily`, …) `siteinfo` ile denenir. Python `slug.py` mantığı burada kullanılır.
+- **Normalizasyon:** `×` → `x`, köşeli parantez ve noktalama temizliği (`[Oshi no Ko]`), uzatma işaretleri (`ō` → `o`), `:` ve alt başlık ayrımı.
 
-Örnek: `jujutsu-kaisen:Satoru_Gojo`, `action=parse&section=0` (2026-10-12).
-- **Bilgi kutusu grupları:**
-  - Biographical Information: Kanji, Rōmaji, Alias
-  - Personal Description: Species, Birthday, Age, Gender, Height, Hair/Eye Color
-  - Professional Status: Status, Relatives, Occupation, Affiliation, Grade
-  - First Appearance: Manga/Anime Debut
-  - Portrayal: Japanese/English Voice
-- **Bölümler** (`prop=sections`): Appearance, Personality, Abilities and Powers (alt bölümlerle), Battles & Events, Trivia, References, Navigation.
+### B. Ön eleme (ek istek yok, arama sonucundan)
 
-Kurallar:
-- **Bilgi kutusu yapısı:** `aside.portable-infobox` → `section.pi-group` (`h2.pi-header`) → `div.pi-data` (`h3.pi-data-label`, `div.pi-data-value`).
-  - Görseller: `figure.pi-image img` (`data-src`/`src`).
-  - Sekmeli görseller: `.pi-image-collection`.
-- **Giriş metni:** `.mw-parser-output > p`, ilk başlığa kadar.
-- **Temizlenecekler:** `sup.reference`, `ol.references`, `.mw-references-wrap`, `table` (bakım uyarıları), `.navbox`, `.notice`, `.mbox`, `.toc`, yorum düğümleri.
-- **Gizlenecek bölümler:** References, Navigation, Gallery/Image Gallery, External Links, See Also ve diğer dillerdeki karşılıkları.
+- Kara liste, `fanon` / `RP` / `simulator` gibi kelimeler, 20 makaleden küçük wikiler ve dil (en/tr dışı) elenir.
+- `hub = anime` / `books` / `tv` ise artı puan; `games` / `lifestyle` ise eksi puan.
+- Topluluk açıklamasında ana karakter adı veya yazar geçiyorsa artı puan.
+
+### C. Doğrulama (kalan en iyi 3 aday için birer istek)
+
+Tek istekle karakter **parmak izi** alınır:
+
+```
+https://<wiki>.fandom.com/api.php?action=query&redirects=1
+  &titles=<ana ve yan karakter adları + varyantları>   (≤50 başlık)
+  &prop=pageprops&ppprop=infoboxes|fandomdescription&format=json&formatversion=2
+```
+
+- **Karakter bulunma oranı.** Kaynaktaki ana (MAIN) karakterlerin kaçının sayfası var? Wiki'nin kendi yönlendirmeleri yazım farklarını çözer (ör. `Kenzo Tenma` → `Kenzō Tenma`, `Heinrich Lunge` → `Heinrich Runge`, `Sung Jin-Woo` → `Sung Jinwoo`).
+- **Yerel ad teyidi.** `pageprops.infoboxes` bilgi kutusunu hazır JSON olarak veriyor. İçindeki Kanji / Hangul / Japanese alanı, AniList/MAL `native` adıyla karşılaştırılır (boşluk ve `・` temizlenerek). Bu, isimden bağımsız en güçlü kanıttır.
+- **Ek kanıtlar (gerekirse):**
+  - `fandomdescription` içinde seri adının geçmesi
+  - Yazar veya stüdyo sayfası/adı
+  - `list=exturlusage` ile wiki'de birebir `anilist.co/anime/<id>` veya `myanimelist.net/anime/<id>` linki. Nadir bulunur ama bulunursa kesin kabul.
+
+### D. Puanlama ve karar
+
+| Kanıt | Ağırlık |
+|---|---|
+| Ana karakter bulunma oranı | 0,40 |
+| Yerel ad (Kanji/Hangul) teyidi | 0,20 |
+| Wiki adı ↔ başlık benzerliği (fazladan kelime cezası: "ARISE", "Simulator"…) | 0,15 |
+| Hub uyumu (anime/books/tv) | 0,10 |
+| Yazar/stüdyo izi | 0,10 |
+| Büyüklük/etkinlik (makale, görüntülenme) | 0,05 |
+| Birebir AniList/MAL linki | doğrudan kabul |
+
+**Vetolar:**
+- Kara listedeki wiki
+- Kaynakta en az 2 ana karakter varken parmak izinin 0 çıkması
+- Dil uyumsuzluğu
+
+**Karar:**
+- **Kesin (≥ 0,85 ve en az bir yerel ad teyidi):** Wiki sekmesi normal görünür. Altta "Otomatik eşleşme · Yanlışsa bildir" yazar.
+- **Muhtemel (0,65–0,85):** Sekme görünür, üstte bir kerelik "Bu wiki doğru mu? Evet / Hayır" kartı çıkar. Cevap kimliğe bağlı saklanır.
+- **Zayıf (< 0,65) veya veto:** Sekme görünmez; negatif önbelleğe yazılır.
+- **Doğrulama verisi yoksa** (kaynakta karakter listesi boş vb.) sonuç en fazla "muhtemel" olabilir.
+
+### E. Öğrenme ve güvenlik ağı
+
+- Kabul edilen eşleşme kimliğe bağlanır; sonraki açılışlar kimlik yolundan gelir.
+- "Bu wiki yanlış" → o kimlik için yerel kara liste + varsa sıradaki aday.
+- Onaylanan eşleşmeler ileride GitHub'daki eşleme tablosuna aktarılabilir.
+
+### F. İstek bütçesi
+
+İsim yolu yalnızca kimlik yolu başarısız olunca çalışır:
+- En fazla yaklaşık 12 küçük istek: 3 arama + 6 `siteinfo` + 3 parmak izi.
+- Düşük öncelikli; aynı anda en fazla 2 istek.
+- Sonuç 30 gün saklanır (negatif sonuç 3–7 gün).
+
+### G. Canlı test (2026-10-12)
+
+**Monster (2004) — genel isim tuzağı.**
+- `Monster` araması: ilk sıradaki aday `monster.fandom.com` çıktı. Bu, genel "canavarlar" wiki'si (4000 sayfa).
+- Parmak izi **0/5** (Kenzo Tenma, Johan Liebert, Nina Fortner, Heinrich Lunge, Wolfgang Grimmer yok) → **veto**.
+- `Monster Naoki Urasawa` (başlık + yazar) araması: ilk sırada "Naoki Urasawa's Monster Wiki" (`obluda.fandom.com`). Bu adres tahminle asla bulunamazdı.
+- Parmak izi **5/5**. `Kenzo Tenma` → `Kenzō Tenma`, `Heinrich Lunge` → `Heinrich Runge` yönlendirmeleri wiki'nin kendisinden geldi.
+
+**Solo Leveling — aynı serinin oyun wiki'si.**
+- Adaylar: `solo-leveling` (hub: anime, ~600 sayfa) ve `solo-leveling-arise` (hub: games, ~300 sayfa).
+- İkisinde de Sung Jinwoo, Cha Hae-In, Yoo Jinho, Go Gunhee sayfaları var; parmak izi tek başına ayırmıyor.
+- Hub, birebir wiki adı ("Solo Leveling Wiki" / "Solo Leveling: ARISE Wiki") ve büyüklük doğru olanı seçtiriyor.
+- Bilgi kutusundaki Hangul `성진우` yerel ad teyidi için kullanılabilir. `Jinwoo Sung` (Batı sırası) yok, `Sung Jin-Woo` yönlendirmesi var → ad sırası ve tire varyantları gerekli.
+
+## Karakter → wiki sayfası
+
+1. **Wikidata.** AniList karakter kimliği (P11736) veya MAL karakter kimliği (P4085) ile `haswbstatement` → P6262 (ör. `jujutsu-kaisen:Satoru_Gojo`). P6262 değeri yapımın wiki'siyle aynı olmalı; çapraz wikiler elenir. `CharacterDetailViewModel` bu iki kimliği ve `nativeName`'i zaten hesaplıyor.
+2. **Wiki içinde ad varyantlarıyla tek istek.** Kimlik zinciri ya da isim yoluyla bulunmuş wiki'de şu varyantlar tek `titles=` isteğinde denenir:
+   - Tam ad ve ters sıra (Japon/Kore sırası ↔ Batı sırası)
+   - Uzatma işaretsiz yazım (`Gojō` → `Gojo`)
+   - Tire/boşluk varyantları (`Jin-Woo` ↔ `Jinwoo`)
+   - AniList alternatif adları
+   - Wiki'de tekse yalnızca ilk ad
+
+   İstek `redirects=1` + `ppprop=infoboxes` ile atılır.
+3. **Wiki içi arama.** Varyantlar tutmazsa `list=search&srsearch=<ad>&srlimit=5` ile en iyi 5 sayfa alınır.
+4. **Kabul kuralı.** Aşağıdakilerden biri gerekir:
+   - Bilgi kutusundaki yerel ad = kaynaktaki `native` ad
+   - Yerel ad yoksa: tek birebir başlık eşleşmesi + sayfanın karakter kategorisinde olması
+
+   Ad ayrım (disambiguation) sayfası çıkarsa bağlantıları açılıp aynı kuralla seçilir. Kesin değilse sekme görünmez.
+5. TMDB kaynaklı karakter sayfalarında Faz 1'de Wiki sekmesi yok.
+
+## Sayfa ayrıştırma
+
+- **Bilgi kutusu ve kısa açıklama:** `prop=pageprops&ppprop=infoboxes|fandomdescription`.
+  - `infoboxes`: portable infobox'ın hazır JSON hâli (gruplar, etiketler, değerler, görseller).
+  - `fandomdescription`: kısa özet.
+  - 50 sayfaya kadar tek istekte alınabilir; HTML ayrıştırmaya gerek kalmaz. Değerlerdeki küçük HTML parçaları (`<li>`, `<small>`, `<sup>`) temizlenir.
+- **Bölüm başlıkları:** `action=parse&prop=sections`.
+- **Bölüm metni:** kullanıcı açtıkça `action=parse&section=N&prop=text&disableeditsection=1&disablelimitreport=1`, Jsoup ile işlenir.
+  - Temizlenecekler: `sup.reference`, `ol.references`, `.mw-references-wrap`, `table` (bakım uyarıları), `.navbox`, `.notice`, `.mbox`, `.toc`, yorum düğümleri.
+  - Gizlenecek bölümler: References, Navigation, Gallery/Image Gallery, External Links, See Also ve diğer dillerdeki karşılıkları.
+- **Örnek** (`jujutsu-kaisen:Satoru_Gojo`):
+  - Bilgi kutusu grupları: Biographical Information, Personal Description, Professional Status, First Appearance, Portrayal.
+  - Bölümler: Appearance, Personality, Abilities and Powers, Battles & Events, Trivia, References, Navigation.
 - **Spoiler koruması (varsayılan açık):** Aşağıdakiler bulanık gösterilir, dokununca açılır.
-  - Bilgi kutusunda Status/Durum/Estado alanları
+  - Status/Durum/Estado alanları
   - History, Synopsis, Plot, Story, Battles & Events, Geçmiş, Hikâye bölümleri
-- **Saklanan veri:** Ham HTML değil, sadeleştirilmiş JSON (alanlar + düz metin). Böylece veritabanı şişmez.
+- **Saklanan veri:** Ham HTML değil, sadeleştirilmiş JSON. Böylece veritabanı şişmez.
 
 ## Fazlar ve görevler
 
-### Faz 1 — Altyapı + karakter Wiki sekmesi
+### Faz 1 — Altyapı (kimlik + son çare isim) + karakter Wiki sekmesi
 
-- [ ] `data/fandom/FandomModels.kt` — `FandomWikiRef`, `FandomInfobox`, `FandomSection`, `FandomCharacterPage`.
+- [ ] `data/fandom/FandomModels.kt` — `FandomWikiRef` (kaynak: tablo / wikidata / ilişki / isim + güven), `FandomInfobox`, `FandomSection`, `FandomCharacterPage`.
 - [ ] `data/fandom/WikidataClient.kt` — `haswbstatement` araması ve `wbgetentities` claim okuma (org.json).
-- [ ] `data/fandom/FandomCandidateSelector.kt` — çapraz wiki filtresi, dil ayrımı, makale sayısıyla seçim, URL üretimi (saf fonksiyonlar).
-- [ ] `data/fandom/FandomWikiResolver.kt` — yapım kimlikleri → `FandomWikiRef` (eşleme tablosu → Wikidata → üst kayıtlar).
-- [ ] `data/fandom/FandomCharacterResolver.kt` — karakter kimlikleri → sayfa (P6262; yoksa birebir başlık + Kanji teyidi).
-- [ ] `data/fandom/FandomApi.kt` — MediaWiki çağrıları: `siteinfo`, `parse` (section 0 / N / sections), `query&titles&redirects`.
-- [ ] `data/fandom/FandomPageParser.kt` — bilgi kutusu, giriş, bölüm metni, temizlik, spoiler işaretleri.
+- [ ] `data/fandom/FandomCandidateSelector.kt` — kara liste, dil ayrımı, makale sayısıyla seçim, URL üretimi (saf fonksiyonlar).
+- [ ] `data/fandom/FandomRelationWalker.kt` — AniList ilişkilerinden kimlik listesi.
+- [ ] `data/fandom/FandomCommunitySearch.kt` — topluluk araması + adres denemesi (aday üretme).
+- [ ] `data/fandom/FandomNameMatcher.kt` — ön eleme, parmak izi isteği, yerel ad teyidi, puanlama, vetolar, karar (saf puanlama fonksiyonları ayrı).
+- [ ] `data/fandom/FandomNameVariants.kt` — başlık ve karakter adı varyantları, normalizasyon.
+- [ ] `data/fandom/FandomWikiResolver.kt` — 6 adımlı zinciri yönetir.
+- [ ] `data/fandom/FandomCharacterResolver.kt` — karakter → sayfa (Wikidata → varyantlar → wiki içi arama + yerel ad teyidi).
+- [ ] `data/fandom/FandomApi.kt` — MediaWiki çağrıları: `siteinfo`, `query&titles&redirects&pageprops`, `parse` (sections / section N), `list=search`, `exturlusage`.
+- [ ] `data/fandom/FandomPageParser.kt` — `infoboxes` JSON, bölüm HTML'i, temizlik, spoiler işaretleri.
 - [ ] `data/fandom/FandomRepository.kt` — UI'nin tek giriş noktası.
   - Kalıcı önbellek: `persistent_details_cache` (`fandom:` önekli anahtar).
   - Bellek önbelleği: `BoundedCache`.
-  - Aynı isteği tekilleştirme ve negatif önbellek.
+  - Aynı isteği tekilleştirme, negatif önbellek, düşük öncelikli kuyruk.
 - [ ] `assets/fandom/fandom_overrides.json` — ilk tablo.
   - AniList 127230 → `chainsaw-man`, 140960 → `spy-x-family`, 151807 → `solo-leveling`. Üçü de 2026-10-12'de siteinfo ile doğrulandı.
   - `series_glossary.json` içindeki `anilist:` anahtarları gözden geçirilerek eklenecek.
@@ -152,8 +261,9 @@ Kurallar:
   - Galeri şeridi (mevcut galeri diyaloğuna bağlanır)
   - Çeviri düğmesi
   - Kaynak satırı
+  - "Bu wiki doğru mu?" kartı (muhtemel eşleşme) ve "Yanlışsa bildir" bağlantısı
 - [ ] `CharacterDetailPage.kt` — Wiki sekmesi hem telefon hem geniş/TV düzeninde. `when (page)` sekme anahtarına göre çalışır (TMDB'de sekme sayısı farklı).
-- [ ] Ayarlar: `AppSettings` / `SettingsDataStore` / `SettingsScreen` / `SettingsSearch`. Üç anahtar da varsayılan açık: `fandomWikiEnabled`, `fandomSpoilerGuard`, `fandomPreferTurkish`.
+- [ ] Ayarlar: `AppSettings` / `SettingsDataStore` / `SettingsScreen` / `SettingsSearch`. Dört anahtar da varsayılan açık: `fandomWikiEnabled`, `fandomNameFallback`, `fandomSpoilerGuard`, `fandomPreferTurkish`.
 - [ ] Metinler: `values/strings.xml` + `values-en/strings.xml`.
 - [ ] Testler (aşağıda) + CI'ya `--tests 'com.kitsugi.animelist.data.fandom.*'` eklenmesi.
 
@@ -164,13 +274,12 @@ Kurallar:
   - `categorymembers` ile üye listesi
   - Yönlendirmelerden takma adlar
   - Oyuncu/ekip sayfalarını eleme
-  - Toplu kısa özetler
+  - `fandomdescription` ile toplu kısa özetler
 - [ ] `MediaWikiTabContent.kt` — evren rehberi çipleri ve "wiki'de ara". Çipe dokununca alt kart açılır: kısa açıklama + "Tamamını oku".
 - [ ] `MediaEntryDetailPage.kt` + `ApiResultDetailPage.kt` — Wiki sekmesi sona eklenir (indeks hesaplanır). Bilgi sekmesine kısayol kartı.
 - [ ] `TvDetailScreen.kt` — Wiki satırı.
 - [ ] Türkçe wiki: P4073'te `tr.` sürümü varsa öncelik verilir (ayara bağlı).
 - [ ] `FandomTermMatcher.kt` (PATF portu) — `TranslationManager.maskMarkdown` yer tutucularıyla isim koruması + Türkçe ek (ünlü uyumu) düzeltici.
-- [ ] "Bu wiki yanlış" bildirimi → yerel geçersiz kılma.
 
 ### Faz 3 — Bölüm / oynatıcı / manga
 
@@ -181,10 +290,15 @@ Kurallar:
 
 ## Testler (JVM)
 
-- `FandomPageParserTest` — portable infobox HTML örneğinden gruplar/alanlar/görsel çıkarımı; temizlik kuralları; spoiler işaretleri.
-- `FandomCandidateSelectorTest` — çapraz wiki eleme, ana/dil sürümü ayrımı, makale sayısıyla seçim, `tr.` tespiti, URL üretimi (`tr.onepiece` → `onepiece.fandom.com/tr`).
+- `FandomPageParserTest` — `infoboxes` JSON örneğinden gruplar/alanlar/görsel çıkarımı; bölüm HTML temizliği; spoiler işaretleri.
+- `FandomCandidateSelectorTest` — kara liste, ana/dil sürümü ayrımı, makale sayısıyla seçim, `tr.` tespiti, URL üretimi (`tr.onepiece` → `onepiece.fandom.com/tr`).
 - `WikidataClaimsParserTest` — `wbgetentities` JSON örneğinden P4073/P6262/üst kayıt çıkarımı.
-- `FandomCharacterMatchTest` — Kanji normalizasyonu (`五条 悟` = `五条悟`), birebir başlık/yönlendirme kuralı.
+- `FandomNameVariantsTest` — `×` → `x`, `[Oshi no Ko]`, `Kenzō` ↔ `Kenzo`, `Jin-Woo` ↔ `Jinwoo`, ad sırası, sezon eki ayıklama.
+- `FandomNameMatcherTest` — bugünkü canlı test örnekleriyle:
+  - Monster: genel wiki veto, `obluda` kabul
+  - Solo Leveling: anime wiki'si oyun wiki'sini geçer
+  - Eşik ve veto kuralları
+- `FandomCharacterMatchTest` — yerel ad normalizasyonu (`五条 悟` = `五条悟`), ad ayrım sayfası, birebir başlık kuralı.
 
 ## Kurallar
 
@@ -204,12 +318,14 @@ Kurallar:
 - **Satoru Gojo (AniList karakter 127691):**
   - Wiki sekmesi görünür.
   - Bilgi kutusunda Kanji, Doğum günü, Boy ve Bağlılık var; **Statü bulanık**.
-  - Appearance / Personality / Abilities and Powers / Battles & Events / Trivia bölümleri listelenir; References / Navigation gizli.
+  - Bölümler listelenir; References / Navigation gizli.
   - Kaynak satırı ve link var.
-- Kimlik zinciri veya birebir eşleşme olmayan karakterde Wiki sekmesi hiç görünmez, hata da gösterilmez.
-- Wiki sekmesi açılmadan wiki içeriği indirilmez; yalnızca küçük Wikidata istekleri yapılır.
+- **Monster (2004) karakterleri:** Kimlik yolu tutmazsa isim yolu `obluda.fandom.com`'u bulur; genel `monster.fandom.com` asla seçilmez.
+- **Solo Leveling karakterleri:** `solo-leveling` seçilir, `solo-leveling-arise` seçilmez.
+- Kimlik ve isim yolunda kanıt yetersizse Wiki sekmesi hiç görünmez, hata da gösterilmez.
+- Wiki sekmesi açılmadan wiki içeriği indirilmez.
 - İkinci açılış önbellekten, ağ isteği olmadan gelir.
-- Ayar kapalıyken sekme de istek de yok.
+- Ayar kapalıyken sekme de istek de yok. "İsimle eşleştirme" kapalıysa yalnızca kimlik yolu çalışır.
 - TV'de sekme ve bölümler kumandayla açılır.
 
 ## Çalışma düzeni
@@ -228,3 +344,4 @@ Kurallar:
 - Wikidata'da AniList kimliği olan 7.086 anime var; yaklaşık 1.068'i P4073'e ulaşıyor. Çoğu seri/franchise üzerinden; doğrudan bağlı olan yalnızca 45.
 - AniList karakter kimliği olan 6.014 karakterin 4.505'inde P6262 var. Bir kısmı çapraz wikilerde: hero, villains, isekai, cosplay, doblaje.
 - Ağır SPARQL sorguları 502 / zaman aşımı verdi. Bu yüzden uygulamada Wikidata Action API (`haswbstatement` + `wbgetentities`) kullanılacak.
+- İsim yolu testleri: yukarıdaki "Son çare → G. Canlı test" bölümü (Monster, Solo Leveling).
