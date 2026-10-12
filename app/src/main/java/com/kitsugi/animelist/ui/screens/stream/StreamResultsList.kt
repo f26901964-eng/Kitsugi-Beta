@@ -29,6 +29,7 @@ import com.kitsugi.animelist.ui.components.errors.PlatformErrorExplanationBlock
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.ChevronRight
 import androidx.compose.material.icons.rounded.Extension
+import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.res.stringResource
@@ -44,6 +45,8 @@ fun LazyListScope.renderStreamResultsItems(
     onDownloadSelected: (StreamSource) -> Unit,
     onVerifyPlugin: ((addonName: String) -> Unit)? = null,
     onOpenSettings: (() -> Unit)? = null,
+    /** v2.4.256: CloudStream eklentisini yalnızca o eklenti için yeniden çalıştırır. */
+    onRetryPlugin: ((addonName: String) -> Unit)? = null,
     /**
      * Listenin kendi durumu. Verilirse ölçüm (ağ isteği) YALNIZCA görüş alanındaki kartlar
      * için başlatılır; null ise tüm kartlar ölçebilir (eski davranış).
@@ -88,6 +91,9 @@ fun LazyListScope.renderStreamResultsItems(
                     accentColor = accentColor,
                     onVerify = if (addonState.requiresVerification) {
                         onVerifyPlugin?.let { callback -> { callback(addonState.addonName) } }
+                    } else null,
+                    onRetry = if (addonState.addonName.startsWith("⚡ ")) {
+                        onRetryPlugin?.let { callback -> { callback(addonState.addonName) } }
                     } else null
                 )
             }
@@ -111,7 +117,8 @@ fun StreamResultsList(
     onStreamSelected: (StreamSource) -> Unit,
     onDownloadSelected: (StreamSource) -> Unit,
     onVerifyPlugin: ((addonName: String) -> Unit)? = null,
-    onOpenSettings: (() -> Unit)? = null
+    onOpenSettings: (() -> Unit)? = null,
+    onRetryPlugin: ((addonName: String) -> Unit)? = null
 ) {
     val listState = androidx.compose.foundation.lazy.rememberLazyListState()
     LazyColumn(
@@ -126,6 +133,7 @@ fun StreamResultsList(
             onDownloadSelected = onDownloadSelected,
             onVerifyPlugin = onVerifyPlugin,
             onOpenSettings = onOpenSettings,
+            onRetryPlugin = onRetryPlugin,
             listState = listState
         )
     }
@@ -135,7 +143,8 @@ fun StreamResultsList(
 private fun StreamErrorCard(
     addonState: AddonFetchState,
     accentColor: Color = Color.Unspecified,
-    onVerify: (() -> Unit)? = null
+    onVerify: (() -> Unit)? = null,
+    onRetry: (() -> Unit)? = null
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -174,28 +183,55 @@ private fun StreamErrorCard(
                 PlatformErrorExplanationBlock(code = code)
             }
 
-            if (onVerify != null) {
+            if (onVerify != null || onRetry != null) {
                 Spacer(modifier = Modifier.height(2.dp))
-                KitsugiButton(
-                    onClick = onVerify,
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = accentColor.copy(alpha = 0.2f),
-                        contentColor = accentColor
-                    ),
-                    shape = RoundedCornerShape(10.dp),
-                    contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Rounded.Extension,
-                        contentDescription = null,
-                        modifier = Modifier.size(14.dp)
-                    )
-                    Spacer(Modifier.width(6.dp))
-                    Text(
-                        text = stringResource(R.string.inline_verify_extension_captcha_02452f6),
-                        style = MaterialTheme.typography.labelMedium,
-                        fontWeight = FontWeight.Bold
-                    )
+            }
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                if (onVerify != null) {
+                    KitsugiButton(
+                        onClick = onVerify,
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = accentColor.copy(alpha = 0.2f),
+                            contentColor = accentColor
+                        ),
+                        shape = RoundedCornerShape(10.dp),
+                        contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Rounded.Extension,
+                            contentDescription = null,
+                            modifier = Modifier.size(14.dp)
+                        )
+                        Spacer(Modifier.width(6.dp))
+                        Text(
+                            text = stringResource(R.string.inline_verify_extension_captcha_02452f6),
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
+                if (onRetry != null) {
+                    KitsugiButton(
+                        onClick = onRetry,
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = accentColor.copy(alpha = 0.2f),
+                            contentColor = accentColor
+                        ),
+                        shape = RoundedCornerShape(10.dp),
+                        contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Rounded.Refresh,
+                            contentDescription = null,
+                            modifier = Modifier.size(14.dp)
+                        )
+                        Spacer(Modifier.width(6.dp))
+                        Text(
+                            text = stringResource(R.string.action_retry),
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
                 }
             }
         }

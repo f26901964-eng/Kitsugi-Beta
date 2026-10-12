@@ -485,6 +485,9 @@ fun KitsugiStreamScreen(
         onVerifyPlugin = { addonDisplayName ->
             viewModel.onVerifyPlugin(addonDisplayName)
         },
+        onRetryPlugin = { addonDisplayName ->
+            viewModel.retryPlugin(addonDisplayName)
+        },
         onOpenSettings = { showSettingsDialog = true },
         onOpenHistory = onOpenHistory,
         onOpenDownloads = onOpenDownloads,

@@ -484,7 +484,11 @@ object CsStreamRunner {
 
     /**
      * Kalıcı olarak kapalı veya ölü olduğu bilinen alan adları.
-     * Eklentinin mainUrl değeri bu domainlerden birini içeriyorsa eklenti direkt atlanır.
+     *
+     * DİKKAT (v2.4.256 notu): Eklenti artık ATLANMIYOR (v2.4.240+), ama bu liste hâlâ ETKİLİ:
+     * [applyDomainFix] eşleşen eklentinin mainUrl'ini "ölü domain kurtarma" ile uzak/yerleşik
+     * tablodaki adrese ZORLA çevirir. Eklenti deposu bir eklentiyi buradaki bir domaine
+     * taşırsa, o domain bu listeden MUTLAKA çıkarılmalıdır.
      */
     private val KNOWN_BROKEN_DOMAINS = setOf(
         // ─── DNS çözümlenemeyen / tamamen kapalı domainler ────────────────────
@@ -506,7 +510,9 @@ object CsStreamRunner {
         "net52.cc",             // MirrorVerse eski domain (domain fix ile net77'ye yönlendiriliyor)
         "tafdi.info",           // Tafdi — 0 sonuç, DNS yok
         "dizimag.mom",          // DiziMag — 0 sonuç
-        "hdfilmcehennemi2.site",// HDFilmCehennemi2 — ölü mirror
+        // v2.4.256: "hdfilmcehennemi2.site" ÇIKARILDI — eklenti deposu HDFilmCehennemi2'yi bu
+        // domaine taşıdı (canlı). Listede kaldığı sürece applyDomainFix eklentiyi "ölü domain
+        // kurtarma" yoluyla BAŞKA bir siteye (ana HDFC: hdfilmcehennemi.nl) çeviriyordu.
         "hdfilmizle.to",        // HDFilmIzle — 0 sonuç
         "hdfilmsite.net",       // HDFilmSitesi — 0 sonuç
         "filmkovasi.pw",        // FilmKovasi — 0 sonuç
@@ -885,8 +891,12 @@ object CsStreamRunner {
 
     /** Eklenti adından türetilen ekler — bir marka değişikliği anlamına GELMEYEN son ekler. */
     private val SAFE_NAME_SUFFIXES = listOf(
-        "original", "orijinal", "plus", "pro", "tv", "hd", "2", "sitesi", "provider", "official"
+        "original", "orijinal", "plus", "pro", "tv", "hd", "sitesi", "provider", "official"
     )
+    // v2.4.256: "2" son eki ÇIKARILDI. Numaralı eklentiler (HDFilmCehennemi2 vb.) ana eklentinin
+    // aynası DEĞİL, ayrı sitelerdir; "2" güvenli sayıldığı için HDFilmCehennemi2 yerleşik tabloda
+    // "hdfilmcehennemi" anahtarına düşüyor ve mainUrl'i ana HDFC sitesine çevriliyordu
+    // (farklı HTML yapısı → 0 sonuç → revert → zaman aşımı).
 
     /**
      * Eklenti adına karşılık gelen yerleşik varsayılan domaini bulur.
