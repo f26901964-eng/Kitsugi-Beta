@@ -48,7 +48,7 @@ Sunucu sözleşmesi: `req.JSON` (415) → `mw.NeedLogin` (401) → `mw.NeedScope
 - [x] T8 — Diyalogda "Bağlantıyı ve yazma iznini test et" bölümü; çift `emitBangumiSuccess()` çağrısı kaldırıldı
 - [x] T9 — TR/EN metinler (`values/`, `values-en/`): yazma hatası, test satırları, PAT bölümü — anahtar sayısı iki dosyada eşit (6955/6955)
 - [x] T10 — `AccountSettingsSubPages.kt` KDoc + `PLAN_BANGUMI_INTEGRATION.md` güncellendi; sürüm 2.4.257 + sürüm notları
-- [ ] T11 — Kullanıcıda cihaz testi: **Ayarlar → Hesap Bağlantıları → Bangumi → Bağla → "Bağlantıyı ve yazma iznini test et"** → çıkan satırların paylaşılması (§5)
+- [x] T11 — Cihaz testi sonucu (2026-10-12): sunucu metni **`HTTP 415 Unsupported Media Type — request with body must set "content-type" header to "application/json"`** → kök neden token/kapsam değil, `Content-Type` başlığı (OkHttp `; charset=utf-8` eki, sunucuda tam-eşitlik denetimi). v2.4.261'de düzeltildi → `PLAN_TASK_BANGUMI_415_CONTENT_TYPE_FIX_2026-10-12.md`
 - [ ] T12 — Üst tarafa bildirim: `bangumi/server` PR #1011 sonrası dizi/nesne kapsam uyumsuzluğu (hazır metin: `BANGUMI_YAZMA_TESHISI_RAPORU_2026-10-12.md` §8)
 
 ---

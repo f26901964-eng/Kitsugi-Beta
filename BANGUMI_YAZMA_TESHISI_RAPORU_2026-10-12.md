@@ -1,5 +1,12 @@
 # Bangumi Yazma Hatası — Teşhis Raporu (2026-10-12)
 
+> ⚠️ **DÜZELTME — 2026-10-12, v2.4.261.** Bu raporun "İstek biçimi doğru" (§1 madde 2, §4 "Eksik/yanlış başlık → Elendi")
+> tespiti **yanlış çıktı**. Gerçek kök neden `Content-Type` başlığıydı: OkHttp `String.toRequestBody(mediaType)` tipe
+> `; charset=utf-8` (küçük harf) ekleyip elle konan başlığı eziyor; Bangumi sunucusu (`web/req/content_type.go`) ise
+> başlığı **birebir** karşılaştırıp yalnızca `application/json` / `application/json; charset=UTF-8` kabul ediyor →
+> **415**. Bu ara katman `NeedLogin`/`NeedScope`'tan önce çalıştığı için buradaki 401/403 teorileri hiç devreye girmedi.
+> Düzeltme ve kanıt zinciri: `PLAN_TASK_BANGUMI_415_CONTENT_TYPE_FIX_2026-10-12.md`.
+
 > Kullanıcı bildirimi: *"Bangumi'de hâlâ hata alıyorum, listeye hiçbir şey ekleyemiyorum."*
 > Ekran görüntüsü: Steins;Gate detay sayfası (Bangumi kaynaklı, 2011, TV, 25 Bölüm)
 > → `Bangumi güncellenemedi (Steins;Gate): Bilinmeyen hata`.

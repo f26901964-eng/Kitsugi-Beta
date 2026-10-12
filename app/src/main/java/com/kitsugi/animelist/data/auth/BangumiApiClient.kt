@@ -6,8 +6,9 @@ import com.kitsugi.animelist.core.network.KitsugiHttpClient
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.FormBody
-import okhttp3.MediaType.Companion.toMediaTypeOrNull
+import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.Request
+import okhttp3.RequestBody
 import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONArray
 import org.json.JSONObject
@@ -107,7 +108,26 @@ object BangumiApiClient {
      */
     private const val PROBE_SUBJECT_ID = 999_999_999
 
-    private val JSON_MEDIA_TYPE = "application/json".toMediaTypeOrNull()
+    /**
+     * Gövdeli isteklerde sunucuya gidecek `Content-Type` değeri — **birebir** `application/json`.
+     *
+     * Bangumi sunucusu (`bangumi/server` → `web/req/content_type.go` → `req.JSON`) başlığı
+     * ön-ek/parametre ayrıştırması yapmadan **tam dize eşitliğiyle** denetler; yalnızca
+     * `application/json` ve `application/json; charset=UTF-8` (büyük harf) kabul edilir,
+     * aksi hâlde **415 Unsupported Media Type** döner. Bu ara katman tüm koleksiyon yazma
+     * rotalarında (`POST/PATCH /v0/users/-/collections/...`, `PUT .../episodes/{id}`,
+     * `/v0/indices*`) `NeedLogin`/`NeedScope`'tan **önce** çalışır; `POST /v0/search/subjects`
+     * ise bu ara katmanı kullanmaz (bu yüzden arama çalışırken yazma 415 alıyordu).
+     *
+     * OkHttp tuzağı: `String.toRequestBody(mediaType)` tipte charset yoksa kendisi
+     * `; charset=utf-8` (küçük harf) ekler ve `BridgeInterceptor` elle konan `Content-Type`
+     * başlığını gövdenin tipiyle **ezer** → sunucu `application/json; charset=utf-8` görür →
+     * 415. Çözüm [buildJsonRequestBody]: gövde ham bayt olarak verilir, tip olduğu gibi kalır.
+     * Mihon/Aniyomi de aynı sebeple gövdeyi tipsiz kurup başlığı elle `application/json` yapar.
+     */
+    const val JSON_CONTENT_TYPE = "application/json"
+
+    private val JSON_MEDIA_TYPE = JSON_CONTENT_TYPE.toMediaType()
 
     /**
      * Bangumi, tarayıcı dışı istemcilerden **geliştirici kimliği + uygulama adı + sürüm +
@@ -416,6 +436,12 @@ object BangumiApiClient {
         val isUnauthorized: Boolean get() = code == 401
         val isForbidden: Boolean get() = code == 403
         val isNotFound: Boolean get() = code == 404
+
+        /**
+         * 415 → sunucunun `req.JSON` ara katmanı `Content-Type` başlığını reddetti.
+         * Bu bir **istemci (uygulama) hatasıdır**, token/kapsamla ilgisi yoktur — bkz. [JSON_CONTENT_TYPE].
+         */
+        val isUnsupportedMediaType: Boolean get() = code == 415
         val isRateLimited: Boolean get() = code == 429
     }
 
@@ -481,6 +507,21 @@ object BangumiApiClient {
         execute(request)
     }
 
+    /**
+     * JSON gövdesini, telde **tam olarak** `Content-Type: application/json` üretecek biçimde kurar.
+     *
+     * `ByteArray.toRequestBody(mediaType)` tipi olduğu gibi taşır (charset eklemez); böylece
+     * `BridgeInterceptor`'ın başlığa yazdığı `body.contentType().toString()` değeri de
+     * [JSON_CONTENT_TYPE] ile birebir aynı olur ve sunucunun tam-eşitlik denetimini geçer.
+     * **`String.toRequestBody(...)` bilerek kullanılmaz** — bkz. [JSON_CONTENT_TYPE].
+     *
+     * @param jsonBody `null` → boş gövde (yine de `application/json` tipli)
+     */
+    internal fun buildJsonRequestBody(jsonBody: JSONObject?): RequestBody {
+        val bytes = (jsonBody?.toString() ?: "").toByteArray(Charsets.UTF_8)
+        return bytes.toRequestBody(JSON_MEDIA_TYPE)
+    }
+
     private fun send(
         method: String,
         path: String,
@@ -488,12 +529,14 @@ object BangumiApiClient {
         token: String?,
         query: Map<String, String?> = emptyMap()
     ): String? {
-        val body = (jsonBody?.toString() ?: "").toRequestBody(JSON_MEDIA_TYPE)
+        val body = buildJsonRequestBody(jsonBody)
         val request = Request.Builder()
             .url(buildUrl(path, query))
             .method(method, body)
             .bangumiHeaders(token)
-            .header("Content-Type", "application/json")
+            // Bilgilendirici: BridgeInterceptor bu başlığı body.contentType() ile yeniden yazar;
+            // ikisi de JSON_CONTENT_TYPE olduğu için telde tam "application/json" gider.
+            .header("Content-Type", JSON_CONTENT_TYPE)
             .build()
         return execute(request)
     }
@@ -1548,6 +1591,13 @@ object BangumiApiClient {
         /** 403 ama sebep kapsam değil (yasaklı kullanıcı, reddedilen User-Agent, bölge engeli…). */
         FORBIDDEN_OTHER,
 
+        /**
+         * 415 → sunucu isteğin **biçimini** reddetti (`Content-Type` tam `application/json`
+         * değil). Token ve kapsam denetimine hiç ulaşılmadı; bu **uygulama tarafı** bir
+         * hatadır ve kullanıcı yeniden bağlanarak çözemez. Bkz. [JSON_CONTENT_TYPE].
+         */
+        REQUEST_REJECTED,
+
         /** Ağ hatası, 5xx, zaman aşımı ya da beklenmeyen yanıt. */
         FAILED
     }
@@ -1579,6 +1629,11 @@ object BangumiApiClient {
      *  - **403 + "scope"** → kapsam yok → [CollectionWriteProbe.SCOPE_DENIED]
      *  - **401** → token geçersiz → [CollectionWriteProbe.UNAUTHORIZED]
      *  - **403 (başka sebep)** → [CollectionWriteProbe.FORBIDDEN_OTHER] (ham metin `detail`'de)
+     *  - **415** → `Content-Type` reddedildi; token/kapsama hiç bakılmadı →
+     *    [CollectionWriteProbe.REQUEST_REJECTED] (istemci hatası; bkz. [JSON_CONTENT_TYPE])
+     *
+     * Ara katman sırası `req.JSON` → `NeedLogin` → `NeedScope` olduğundan 415, 401/403'ten
+     * **önce** gelir: 415 görülüyorsa token hakkında hiçbir şey söylenemez.
      */
     suspend fun probeCollectionWrite(token: String): CollectionWriteProbeResult =
         withContext(Dispatchers.IO) {
@@ -1592,6 +1647,11 @@ object BangumiApiClient {
                     .ifBlank { error.message }
                 val haystack = detail.lowercase()
                 when {
+                    // 415 en önce: req.JSON ara katmanı yetki denetimlerinden önce çalışır;
+                    // bu yanıt token'ın durumunu değil, isteğin biçimini anlatır.
+                    error.isUnsupportedMediaType -> CollectionWriteProbeResult(
+                        CollectionWriteProbe.REQUEST_REJECTED, error.code, detail
+                    )
                     error.isUnauthorized -> CollectionWriteProbeResult(
                         CollectionWriteProbe.UNAUTHORIZED, error.code, detail
                     )

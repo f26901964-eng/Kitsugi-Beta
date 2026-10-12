@@ -1,5 +1,23 @@
 # Kitsugi-Beta — Sürüm Notları / Release Notes
 
+## 🇹🇷 Türkçe (v2.4.261)
+
+### 🎌 1. Bangumi: Listeye Ekleme / Güncelleme Artık Çalışıyor (HTTP 415 düzeltmesi)
+- **Belirti:** Bangumi kaynaklı her "Listeye Ekle", durum/puan ve bölüm ilerlemesi yazması `HTTP 415 Unsupported Media Type — request with body must set "content-type" header to "application/json"` ile reddediliyordu; arama ve okuma çalışıyordu.
+- **Kök neden:** Sunucu (`bangumi/server` → `web/req/content_type.go`) `Content-Type` başlığını **birebir** karşılaştırır (`application/json` veya `application/json; charset=UTF-8`). OkHttp'nin `String.toRequestBody(mediaType)` yolu tipe `; charset=utf-8` (küçük harf) ekleyip elle konan başlığı eziyordu → 415. Ara katman token denetiminden **önce** çalıştığı için önceki "kapsam/token" teorileri sonuç vermemişti.
+- **Düzeltme:** `BangumiApiClient.buildJsonRequestBody()` — gövde ham UTF-8 bayt, tip tam `application/json` (Mihon/Aniyomi sözleşmesi). Tüm yazma uçları ve yazma sondası tek `send()`'den geçtiği için tek noktadan düzeldi.
+- **Tanı:** 415 ayrı sınıflandırılıyor (`bangumi_write_failed_unsupported_media`, sonda sonucu `REQUEST_REJECTED`): "uygulama hatası, yeniden bağlanmak çözmez".
+- **Test:** `BangumiApiClientWriteTest` — gövde tipi birebir `application/json`, charset yok, UTF-8/`Content-Length` doğru, eski yolun reddedilme sebebi belgelendi.
+
+## 🇬🇧 English (v2.4.261)
+
+### 🎌 1. Bangumi: Add to List / Updates Work Again (HTTP 415 fix)
+- **Symptom:** every Bangumi "Add to list", status/score and episode-progress write was rejected with `HTTP 415 Unsupported Media Type — request with body must set "content-type" header to "application/json"`, while search and reads kept working.
+- **Root cause:** the server (`bangumi/server` → `web/req/content_type.go`) compares `Content-Type` by **exact string equality** (`application/json` or `application/json; charset=UTF-8`). OkHttp's `String.toRequestBody(mediaType)` appends `; charset=utf-8` (lowercase) and overwrites the manually set header → 415. The middleware runs **before** the token checks, which is why earlier "scope/token" theories went nowhere.
+- **Fix:** `BangumiApiClient.buildJsonRequestBody()` — raw UTF-8 bytes with the media type kept exactly `application/json` (the Mihon/Aniyomi contract). All write endpoints and the write probe share one `send()`, so one change fixes all of them.
+- **Diagnostics:** 415 is classified separately (`bangumi_write_failed_unsupported_media`, probe result `REQUEST_REJECTED`): "app bug, reconnecting will not help".
+- **Tests:** `BangumiApiClientWriteTest` — body type exactly `application/json`, no charset, correct UTF-8/`Content-Length`, and the legacy path's rejection documented.
+
 ## 🇹🇷 Türkçe (v2.4.260)
 
 ### 🧭 1. Ortak Üst Sekme Bandı (Görünüm & Tercihler Mimarisi)

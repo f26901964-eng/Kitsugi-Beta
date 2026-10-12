@@ -118,6 +118,7 @@ etiket/renk: `KitsugiHeroSection`, `KitsugiPlatformLogo`, `Character/StaffDetail
   `-` takma adı yalnızca yazma uçlarında geçerli, okuma ucunda 404 "user doesn't exist" verir → `BangumiAuthStore.resolveUsername`,
   `POST|PATCH /v0/users/-/collections/{id}` → 204, bölüm: `…/episodes` (`{episode_id:[…],type}`)
 - **DELETE YOK** → silme = `type=5 (抛弃)` + `rate=0` (Aniyomi/Mihon da `DeletableAnimeTracker` uygulamaz)
+- **Yazma uçlarında `Content-Type` birebir `application/json` olmalı** (`web/req/content_type.go`: tam dize eşitliği; `application/json; charset=UTF-8` dışında parametreli değer **415**). OkHttp'de gövdeyi `String.toRequestBody(mediaType)` ile KURMA (tipe `; charset=utf-8` ekler ve başlığı ezer) → `BangumiApiClient.buildJsonRequestBody()` kullan. Ara katman sırası `req.JSON` → `NeedLogin` → `NeedScope`; arama ucu bu denetimden muaf. (v2.4.261 düzeltmesi)
 - `ep_status/vol_status` **yalnız kitap**; anime ilerlemesi bölüm uçlarıyla (打格子)
 - Enum'lar: SubjectType 1=kitap 2=anime 3=müzik 4=oyun 6=real (5 yok) · Episode.type 0=本篇 1=SP 2=OP 3=ED
 - Kapak: `https://lain.bgm.tv/pic/cover/{l,c,m,s,g}/…` (hotlink koruması → `Referer: https://bgm.tv/`)

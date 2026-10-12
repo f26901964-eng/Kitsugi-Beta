@@ -6092,6 +6092,8 @@ Eklentiler ekranından eklenti etkinleştirin.</string>
     <string name="bangumi_write_failed_server">Bangumi sunucusu geçici hata verdi (HTTP %1$d). Sonra tekrar deneyin.</string>
     <string name="bangumi_write_failed_network">Bangumi\'ye ulaşılamadı: %1$s</string>
     <string name="bangumi_write_failed_http">Bangumi yazma hatası (HTTP %1$d): %2$s</string>
+    <!-- 415: sunucu Content-Type başlığını reddetti. Uygulama hatasıdır; token/kapsamla ilgisi yoktur. -->
+    <string name="bangumi_write_failed_unsupported_media">Bangumi isteğin biçimini reddetti (415 Unsupported Media Type). Bu, hesabınızla veya token\'la ilgili değildir; uygulamanın gönderdiği Content-Type başlığı sunucunun beklediğiyle birebir eşleşmiyor. Lütfen uygulamayı güncelleyin ve sorun sürerse bildirin.</string>
     <string name="bangumi_write_failed_detail_suffix"> — sunucu: %1$s</string>
 
     <!-- Kişisel erişim anahtarı (个人令牌) — kurulum gerektirmeyen bağlantı yolu -->
@@ -6123,6 +6125,7 @@ Eklentiler ekranından eklenti etkinleştirin.</string>
     <string name="bangumi_diag_write_ok">Yazma kapısı AÇIK — sunucu token\'ı kabul etti (kapsam denetimi geçti).</string>
     <string name="bangumi_diag_write_denied">HATA: sunucu yazmayı kapsam yüzünden reddetti (403 insufficient token scope). Bu, uygulamadan değil token kapsamından kaynaklanır: Bangumi\'nin yeni OAuth sunucusu kapsamı JSON dizisi olarak yazıyor, API ise yalnızca JSON nesnesi çözebiliyor. Çözüm: aşağıdaki bölümden kişisel erişim anahtarı ile bağlanın.</string>
     <string name="bangumi_diag_write_unauthorized">HATA: token reddedildi (401). Bangumi hesabını yeniden bağlayın.</string>
+    <string name="bangumi_diag_write_request_rejected">HATA: sunucu isteğin biçimini reddetti (415) — token ve kapsam denetimine hiç ulaşılmadı. Bu bir uygulama hatasıdır (Content-Type başlığı birebir \"application/json\" olmalı); yeniden bağlanmak çözmez, lütfen bildirin. Sunucu mesajı: %1$s</string>
     <string name="bangumi_diag_write_failed">Yazma testi tamamlanamadı: %1$s</string>
     <string name="account_sync_mal_delete_api_error">MAL silme hatası: %1$d %2$s</string>
     <string name="source_unknown">Bilinmeyen</string>

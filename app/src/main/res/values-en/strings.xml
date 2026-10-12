@@ -6087,6 +6087,8 @@
     <string name="bangumi_write_failed_server">Bangumi server returned a temporary error (HTTP %1$d). Try again later.</string>
     <string name="bangumi_write_failed_network">Could not reach Bangumi: %1$s</string>
     <string name="bangumi_write_failed_http">Bangumi write error (HTTP %1$d): %2$s</string>
+    <!-- 415: the server rejected the Content-Type header. App-side bug; unrelated to token/scope. -->
+    <string name="bangumi_write_failed_unsupported_media">Bangumi rejected the request format (415 Unsupported Media Type). This is not about your account or token; the Content-Type header sent by the app does not exactly match what the server expects. Please update the app and report it if the problem persists.</string>
     <string name="bangumi_write_failed_detail_suffix"> — server: %1$s</string>
 
     <!-- Personal access token (个人令牌) — no app registration required -->
@@ -6118,6 +6120,7 @@
     <string name="bangumi_diag_write_ok">Write gate is OPEN — the server accepted the token (scope check passed).</string>
     <string name="bangumi_diag_write_denied">ERROR: the server refused writes because of token scope (403 insufficient token scope). This comes from the token scope, not the app: Bangumi\'s new OAuth server stores the scope as a JSON array while the API can only parse a JSON object. Fix: connect with a personal access token in the section below.</string>
     <string name="bangumi_diag_write_unauthorized">ERROR: token rejected (401). Reconnect your Bangumi account.</string>
+    <string name="bangumi_diag_write_request_rejected">ERROR: the server rejected the request format (415) — the token and scope checks were never reached. This is an app bug (the Content-Type header must be exactly \"application/json\"); reconnecting will not help, please report it. Server message: %1$s</string>
     <string name="bangumi_diag_write_failed">Write test could not complete: %1$s</string>
     <string name="account_sync_mal_delete_api_error">MAL deletion error: %1$d %2$s</string>
     <string name="source_unknown">Unknown</string>

@@ -281,6 +281,10 @@ object BangumiAuthManager {
                 KitsugiStrings.get(R.string.bangumi_diag_write_unauthorized)
             BangumiApiClient.CollectionWriteProbe.FORBIDDEN_OTHER ->
                 KitsugiStrings.get(R.string.bangumi_diag_write_forbidden_other, probe.detail ?: "?")
+            // 415: sunucu isteğin biçimini reddetti — token/kapsam denetimine hiç ulaşılmadı.
+            // Kullanıcının yapabileceği bir şey yoktur; uygulama hatası olarak raporlanmalı.
+            BangumiApiClient.CollectionWriteProbe.REQUEST_REJECTED ->
+                KitsugiStrings.get(R.string.bangumi_diag_write_request_rejected, probe.detail ?: "?")
             BangumiApiClient.CollectionWriteProbe.FAILED ->
                 KitsugiStrings.get(R.string.bangumi_diag_write_failed, probe.detail ?: "?")
         }
