@@ -444,4 +444,3 @@ Diğer:
 - `series_glossary.json` içindeki `anilist:` eşleşmeleri tabloya eklenmedi; içinde gürültü olduğu için tek tek gözden geçirilmesi gerekiyor.
 - Bölüm metnindeki tablolar (yetenek/istatistik tabloları) Faz 1'de gösterilmez.
 - Faz 2: anime Wiki sekmesi + TV satırı + çeviride isim koruması (bkz. "Faz 2").
-
