@@ -39,6 +39,7 @@ import com.kitsugi.animelist.data.remote.KitsugiForumTopic
 import com.kitsugi.animelist.ui.components.KitsugiImageGalleryDialog
 import com.kitsugi.animelist.ui.components.KitsugiMarkdownText
 import com.kitsugi.animelist.ui.components.KitsugiPlasmaLoader
+import com.kitsugi.animelist.ui.screens.detail.DetailTopicDialogLoadingSkeleton
 import com.kitsugi.animelist.ui.theme.KitsugiColors
 import com.kitsugi.animelist.ui.theme.LocalKitsugiAccent
 import com.kitsugi.animelist.ui.utils.tvClickable
@@ -417,9 +418,7 @@ fun TvTopicDetailDialog(
                         activeTopic.body
                     }
                     if (isLoading && commentsList.isEmpty() && displayBody.isBlank()) {
-                        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                            KitsugiPlasmaLoader(size = 48.dp)
-                        }
+                        DetailTopicDialogLoadingSkeleton()
                     } else if (commentsList.isEmpty() && displayBody.isBlank()) {
                         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                             Text(

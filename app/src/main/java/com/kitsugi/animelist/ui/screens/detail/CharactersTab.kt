@@ -22,7 +22,6 @@ import com.kitsugi.animelist.data.remote.KitsugiCharacter
 import com.kitsugi.animelist.data.remote.KitsugiStaff
 import com.kitsugi.animelist.ui.theme.LocalKitsugiAccent
 import com.kitsugi.animelist.ui.theme.KitsugiColors
-import com.kitsugi.animelist.ui.components.KitsugiShimmerAvatarRow
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.getValue
@@ -110,7 +109,7 @@ fun CharactersTabContent(
 
     when (state) {
         is DetailTabState.Loading -> {
-            KitsugiShimmerAvatarRow(avatarCount = 6)
+            DetailCharactersLoadingSkeleton(itemCount = 4)
         }
         is DetailTabState.Error -> {
             Text(
@@ -469,7 +468,7 @@ fun StaffTabContent(
 ) {
     when (state) {
         is DetailTabState.Loading -> {
-            KitsugiShimmerAvatarRow(avatarCount = 6)
+            DetailStaffLoadingSkeleton(itemCount = 5)
         }
         is DetailTabState.Error -> {
             Text(

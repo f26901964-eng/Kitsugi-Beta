@@ -68,16 +68,14 @@ val LocalShimmerOffset: ProvidableCompositionLocal<State<Float>?> = compositionL
 
 private val SHIMMER_GRADIENT_END_PX = 1300f
 
-/** Tarama bandının genişliği (px) — animasyon sırasında canvas bu kadar kaydırılır. */
-private const val SHIMMER_SWEEP_PX = 300f
-
 @Composable
 private fun kitsugiShimmerColors(): List<Color> = listOf(
-    KitsugiColors.Surface,
-    KitsugiColors.SurfaceSoft.copy(alpha = 0.6f),
-    KitsugiColors.SurfaceStrong.copy(alpha = 0.4f),
-    KitsugiColors.SurfaceSoft.copy(alpha = 0.6f),
-    KitsugiColors.Surface,
+    KitsugiColors.SurfaceSoft,
+    KitsugiColors.SurfaceStrong.copy(alpha = 0.72f),
+    // A restrained center highlight keeps the sweep visible in both dark and AMOLED themes.
+    KitsugiColors.TextMuted.copy(alpha = 0.22f),
+    KitsugiColors.SurfaceStrong.copy(alpha = 0.72f),
+    KitsugiColors.SurfaceSoft,
 )
 
 /**
@@ -134,17 +132,24 @@ fun KitsugiShimmerBlock(
     val ownOffset = if (provided == null) rememberKitsugiShimmerOffsetState() else null
     val offset = provided ?: ownOffset
     val shape = remember(cornerRadius) { RoundedCornerShape(cornerRadius) }
+    val baseColor = KitsugiColors.SurfaceSoft
     Box(
         modifier = modifier
             .clip(shape)
             .drawBehind {
-                if (offset == null) {
-                    drawRect(brush = brush)
-                } else {
+                // Always paint a stable placeholder surface first. Previously the entire
+                // placeholder was translated off-canvas for much of each cycle, so cards
+                // appeared as empty dark blocks between shimmer passes.
+                drawRect(color = baseColor)
+                if (offset != null) {
                     // `.value` yalnızca burada okunur → yalnızca yeniden çizim.
+                    // One component-width of travel keeps the sweep intersecting the shape
+                    // for the whole cycle, regardless of portrait/landscape constraints.
                     val sweep = offset.value
-                    val shift = sweep * (size.width + SHIMMER_SWEEP_PX) - SHIMMER_SWEEP_PX
+                    val shift = sweep * size.width * 2f - size.width
                     translate(left = shift) { drawRect(brush = brush) }
+                } else {
+                    drawRect(brush = brush)
                 }
             },
     )

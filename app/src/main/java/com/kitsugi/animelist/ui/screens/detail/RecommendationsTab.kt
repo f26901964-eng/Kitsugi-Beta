@@ -25,7 +25,6 @@ import com.kitsugi.animelist.ui.theme.LocalKitsugiAccent
 import com.kitsugi.animelist.ui.theme.KitsugiColors
 import com.kitsugi.animelist.ui.components.KitsugiNsfwImage
 import com.kitsugi.animelist.ui.utils.tvClickable
-import com.kitsugi.animelist.ui.components.KitsugiShimmerSearchResultList
 import com.kitsugi.animelist.utils.PreferenceHelpers.getDisplayTitle
 
 import androidx.compose.runtime.remember
@@ -41,7 +40,7 @@ fun RecommendationsTabContent(
 ) {
     when (state) {
         is DetailTabState.Loading -> {
-            KitsugiShimmerSearchResultList(itemCount = 4)
+            DetailRecommendationsLoadingSkeleton(itemCount = 4)
         }
         is DetailTabState.Error -> {
             Box(

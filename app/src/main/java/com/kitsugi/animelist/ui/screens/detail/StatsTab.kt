@@ -47,12 +47,7 @@ fun StatsTabContent(
 
     when (state) {
         is DetailTabState.Loading -> {
-            Text(
-                text = if (isTurkish) stringResource(R.string.ui_statistics_loading) else "Loading statistics...",
-                color = KitsugiColors.TextSecondary,
-                style = MaterialTheme.typography.bodyMedium,
-                modifier = Modifier.padding(vertical = 16.dp)
-            )
+            DetailStatsLoadingSkeleton()
         }
         is DetailTabState.Error -> {
             Text(

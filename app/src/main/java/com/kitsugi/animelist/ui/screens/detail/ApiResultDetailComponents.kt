@@ -56,8 +56,6 @@ import com.kitsugi.animelist.utils.toFriendlySourceLabel
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.size
-import com.kitsugi.animelist.ui.theme.gradient.CircularProgressIndicator
-import com.kitsugi.animelist.ui.components.KitsugiPlasmaLoader
 import androidx.compose.ui.unit.sp
 import com.kitsugi.animelist.data.remote.KitsugiMediaDetail
 import com.kitsugi.animelist.model.MediaType
@@ -405,13 +403,11 @@ internal fun ApiSynopsisCard(
             }
         }
 
-        if (isLoading || synopsis.isNullOrBlank()) {
-            val text = when {
-                isLoading -> stringResource(R.string.detail_synopsis_loading)
-                else -> stringResource(R.string.detail_synopsis_none)
-            }
+        if (isLoading) {
+            DetailSynopsisLoadingSkeleton()
+        } else if (synopsis.isNullOrBlank()) {
             Text(
-                text = text,
+                text = stringResource(R.string.detail_synopsis_none),
                 color = KitsugiColors.TextMuted,
                 style = MaterialTheme.typography.bodyMedium
             )
@@ -996,18 +992,7 @@ internal fun ApiMdbListRatingCard(
 
         // ── Body ─────────────────────────────────────────────────────────────
         if (isLoading) {
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.padding(vertical = 4.dp)
-            ) {
-                KitsugiPlasmaLoader(size = 18.dp)
-                Text(
-                    text = stringResource(R.string.detail_ratings_loading),
-                    color = KitsugiColors.TextMuted,
-                    style = MaterialTheme.typography.bodySmall
-                )
-            }
+            DetailRatingBadgesLoadingSkeleton()
         } else if (ratings != null) {
             val isTv = LocalIsTv.current
             val badgeList = buildList<@Composable () -> Unit> {

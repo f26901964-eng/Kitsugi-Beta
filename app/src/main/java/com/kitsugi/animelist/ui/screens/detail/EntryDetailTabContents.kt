@@ -65,11 +65,6 @@ import com.kitsugi.animelist.ui.theme.KitsugiColors
 import com.kitsugi.animelist.ui.theme.LocalKitsugiAccent
 import com.kitsugi.animelist.ui.utils.tvClickable
 import com.kitsugi.animelist.utils.KitsugiTranslateUtils.openTranslator
-import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
-import androidx.compose.animation.core.tween
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import com.kitsugi.animelist.ui.screens.fullscreen.KitsugiFullscreenPlayerActivity
@@ -560,54 +555,10 @@ internal fun DetailGalleryCard(
     }
 }
 
-/**
- * Gallery veri gelene kadar gösterilen pulse shimmer placeholder.
- */
+/** Gallery placeholders retain the horizontal thumbnail rail's real proportions. */
 @Composable
 internal fun DetailGalleryLoadingCard() {
-    val infiniteTransition = rememberInfiniteTransition(label = "gallery_shimmer")
-    val alpha by infiniteTransition.animateFloat(
-        initialValue = 0.3f,
-        targetValue = 0.7f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 900),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "alpha"
-    )
-
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(18.dp))
-            .background(KitsugiColors.SurfaceSoft)
-            .border(1.dp, KitsugiColors.Border, RoundedCornerShape(18.dp))
-            .padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
-    ) {
-        // Başlık placeholder
-        Box(
-            modifier = Modifier
-                .fillMaxWidth(0.4f)
-                .height(16.dp)
-                .clip(RoundedCornerShape(8.dp))
-                .background(KitsugiColors.TextMuted.copy(alpha = alpha))
-        )
-        // Resim kartları placeholder
-        Row(
-            horizontalArrangement = Arrangement.spacedBy(10.dp)
-        ) {
-            repeat(4) {
-                Box(
-                    modifier = Modifier
-                        .height(90.dp)
-                        .width(120.dp)
-                        .clip(RoundedCornerShape(12.dp))
-                        .background(KitsugiColors.TextMuted.copy(alpha = alpha))
-                )
-            }
-        }
-    }
+    DetailGalleryLoadingSkeleton()
 }
 
 /**

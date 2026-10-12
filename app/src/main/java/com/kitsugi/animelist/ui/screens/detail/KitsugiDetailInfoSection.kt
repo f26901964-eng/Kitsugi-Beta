@@ -664,15 +664,12 @@ internal fun DetailSynopsisCard(
                     )
                 }
             }
-        } else {
-            val text = when (synopsisState) {
-                SynopsisState.Loading -> stringResource(R.string.detail_synopsis_loading)
-                SynopsisState.Error -> stringResource(R.string.detail_synopsis_error)
-                else -> ""
-            }
+        } else if (synopsisState is SynopsisState.Loading) {
+            DetailSynopsisLoadingSkeleton()
+        } else if (synopsisState is SynopsisState.Error) {
             Text(
-                text = text,
-                color = if (synopsisState is SynopsisState.Error) KitsugiColors.AccentRed else KitsugiColors.TextMuted,
+                text = stringResource(R.string.detail_synopsis_error),
+                color = KitsugiColors.AccentRed,
                 style = MaterialTheme.typography.bodyMedium
             )
         }

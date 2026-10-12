@@ -32,6 +32,11 @@
 - Ana sayfa vitrininde pager sayfaları arasında görsel olarak önde olan sayfanın tıklamayı doğru alması sağlandı (`HomeHeroGestureModifiers`).
 - Çift dokunmayla başlık kopyalama korunurken, tek dokunuş doğrudan ilgili yapımın detay sayfasını açar.
 
+### 💀 7. Detay Ekranları: İçerikle Birebir Eşleşen Shimmer İskeletleri
+- Detay sayfalarındaki tüm yükleme durumları içerikle eşleşen shimmer iskeletlerine dönüştürüldü: ilişkiler, öneriler, karakterler ve ekip, istatistikler, bölümler, galeri, puanlar, incelemeler ve sosyal akış.
+- Dikey ve yatay ekran yönelimine tam uyum; TV detay dialoglarındaki ana yükleme durumları da içerik biçiminde gösteriliyor.
+- Shimmer bloklarına animasyon geçişi sırasında görünür kalan kalıcı bir taban yüzeyi eklendi.
+
 ---
 
 ## 🇬🇧 English
@@ -65,3 +70,7 @@
 ### 🎯 6. Home Hero Click & Layering Refinement
 - Visually dominant hero page in the carousel reliably captures clicks via `HomeHeroGestureModifiers`.
 - Single tap navigates to media details while double tap preserves title copying.
+
+### 💀 7. Detail Screens: Content-Matching Shimmer Skeletons
+- Replaced generic spinners across detail tabs with content-matching shimmer skeletons: relations, recommendations, characters & staff, stats, episodes, gallery, scores, reviews, and social feed.
+- Fully adaptive across portrait, landscape, and TV dialogs with persistent surface background during sweep transitions.

@@ -25,6 +25,9 @@
 ### 🎯 6. Vitrin Tıklamaları ve Sayfa Katmanı
 - Ana sayfa vitrininde öndeki sayfa tıklamayı doğru alır; tek dokunuş detay sayfasına gider, çift dokunuş kopyalar.
 
+### 💀 7. Detay Ekranları: İçerikle Birebir Eşleşen Shimmer İskeletleri
+- Detay sayfalarındaki tüm yükleme durumları (ilişkiler, öneriler, karakterler, ekip, istatistikler, bölümler, galeri, puanlar, incelemeler, sosyal akış) içerikle eşleşen shimmer iskeletlerine dönüştürüldü; dikey/yatay/TV uyumlu.
+
 ---
 
 ## 🇬🇧 English (v2.4.260)
@@ -46,6 +49,9 @@
 
 ### 🎯 6. Home Hero Click Improvements
 - Visually dominant carousel items capture clicks reliably (`HomeHeroGestureModifiers`).
+
+### 💀 7. Detail Screens: Content-Matching Shimmer Skeletons
+- Replaced generic spinners across detail tabs with content-matching shimmer skeletons; fully adaptive across portrait, landscape, and TV dialogs.
 
 ---
 

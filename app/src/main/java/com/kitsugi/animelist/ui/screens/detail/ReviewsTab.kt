@@ -44,7 +44,6 @@ import com.kitsugi.animelist.ui.components.KitsugiTopicDetailBottomSheet
 import com.kitsugi.animelist.ui.theme.LocalKitsugiAccent
 import com.kitsugi.animelist.ui.theme.KitsugiColors
 import com.kitsugi.animelist.ui.components.KitsugiPlatformLogo
-import com.kitsugi.animelist.ui.components.KitsugiShimmerSearchResultList
 import androidx.compose.foundation.clickable
 import com.kitsugi.animelist.utils.ShareUtils
 import com.kitsugi.animelist.utils.KitsugiTranslateUtils.openTranslator
@@ -96,23 +95,39 @@ fun ReviewsTabContent(
 
     var forumTopics by remember { mutableStateOf<List<KitsugiForumTopic>>(emptyList()) }
     var activitiesList by remember { mutableStateOf<List<KitsugiActivity>>(emptyList()) }
+    var isLoadingTopics by remember { mutableStateOf(true) }
+    var isLoadingActivities by remember { mutableStateOf(true) }
 
     LaunchedEffect(source, externalId, mediaType, tmdbId, realMalId) {
         // A reused detail composable must not briefly show the previous title's social feed.
         forumTopics = emptyList()
         activitiesList = emptyList()
+        isLoadingTopics = true
+        isLoadingActivities = true
         launch {
-            runCatching {
+            try {
                 forumTopics = apiClient.fetchForumTopics(
                     source, externalId, mediaType, tmdbId = tmdbId, realMalId = realMalId
                 )
+            } catch (cancelled: kotlinx.coroutines.CancellationException) {
+                throw cancelled
+            } catch (_: Exception) {
+                // Keep the section empty when the optional social feed is unavailable.
+            } finally {
+                isLoadingTopics = false
             }
         }
         launch {
-            runCatching {
+            try {
                 activitiesList = apiClient.fetchActivities(
                     source, externalId, mediaType = mediaType, tmdbId = tmdbId, realMalId = realMalId
                 )
+            } catch (cancelled: kotlinx.coroutines.CancellationException) {
+                throw cancelled
+            } catch (_: Exception) {
+                // Keep the section empty when the optional social feed is unavailable.
+            } finally {
+                isLoadingActivities = false
             }
         }
     }
@@ -130,7 +145,7 @@ fun ReviewsTabContent(
         modifier = Modifier.fillMaxWidth()
     ) {
         // --- 1. FORUM TOPICS SECTION ---
-        if (forumTopics.isNotEmpty()) {
+        if (forumTopics.isNotEmpty() || isLoadingTopics) {
             Column(
                 verticalArrangement = Arrangement.spacedBy(8.dp),
                 modifier = Modifier
@@ -168,50 +183,54 @@ fun ReviewsTabContent(
                     }
                 }
 
-                LazyRow(
-                    state = topicsListState,
-                    flingBehavior = com.kitsugi.animelist.ui.utils.KitsugiScrollDefaults.rememberRowSnapFling(topicsListState),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp),
-                    contentPadding = PaddingValues(horizontal = 14.dp),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    items(forumTopics) { topic ->
-                        TopicCard(
-                            topic = topic,
-                            onUserProfileClick = handleUserProfileClick,
-                            onClick = {
-                                Toast.makeText(context, KitsugiStrings.get(R.string.loading), Toast.LENGTH_SHORT).show()
-                                activeTopicForDetail = topic
-                            },
-                            backgroundColor = KitsugiColors.SurfaceSoft,
-                            onLikeClick = if (topic.source.equals("anilist", ignoreCase = true)) {
-                                {
-                                    coroutineScope.launch {
-                                        val success = apiClient.toggleLike(topic.id, "THREAD")
-                                        if (success) {
-                                            forumTopics = forumTopics.map {
-                                                if (it.id == topic.id) {
-                                                    val newLiked = !it.isLiked
-                                                    val newCount = if (newLiked) it.likeCount + 1 else it.likeCount - 1
-                                                    it.copy(isLiked = newLiked, likeCount = newCount)
-                                                } else {
-                                                    it
+                if (isLoadingTopics && forumTopics.isEmpty()) {
+                    DetailSocialCardsLoadingSkeleton(itemCount = 2, horizontalPadding = 14.dp)
+                } else {
+                    LazyRow(
+                        state = topicsListState,
+                        flingBehavior = com.kitsugi.animelist.ui.utils.KitsugiScrollDefaults.rememberRowSnapFling(topicsListState),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        contentPadding = PaddingValues(horizontal = 14.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        items(forumTopics) { topic ->
+                            TopicCard(
+                                topic = topic,
+                                onUserProfileClick = handleUserProfileClick,
+                                onClick = {
+                                    Toast.makeText(context, KitsugiStrings.get(R.string.loading), Toast.LENGTH_SHORT).show()
+                                    activeTopicForDetail = topic
+                                },
+                                backgroundColor = KitsugiColors.SurfaceSoft,
+                                onLikeClick = if (topic.source.equals("anilist", ignoreCase = true)) {
+                                    {
+                                        coroutineScope.launch {
+                                            val success = apiClient.toggleLike(topic.id, "THREAD")
+                                            if (success) {
+                                                forumTopics = forumTopics.map {
+                                                    if (it.id == topic.id) {
+                                                        val newLiked = !it.isLiked
+                                                        val newCount = if (newLiked) it.likeCount + 1 else it.likeCount - 1
+                                                        it.copy(isLiked = newLiked, likeCount = newCount)
+                                                    } else {
+                                                        it
+                                                    }
                                                 }
+                                            } else {
+                                                Toast.makeText(context, KitsugiStrings.get(R.string.lutfen_once_giris_yapin), Toast.LENGTH_SHORT).show()
                                             }
-                                        } else {
-                                            Toast.makeText(context, KitsugiStrings.get(R.string.lutfen_once_giris_yapin), Toast.LENGTH_SHORT).show()
                                         }
                                     }
-                                }
-                            } else null
-                        )
+                                } else null
+                            )
+                        }
                     }
                 }
             }
         }
 
         // --- 2. ACTIVITIES SECTION ---
-        if (activitiesList.isNotEmpty()) {
+        if (activitiesList.isNotEmpty() || isLoadingActivities) {
             Column(
                 verticalArrangement = Arrangement.spacedBy(8.dp),
                 modifier = Modifier
@@ -249,43 +268,47 @@ fun ReviewsTabContent(
                     }
                 }
 
-                LazyRow(
-                    state = activitiesListState,
-                    flingBehavior = com.kitsugi.animelist.ui.utils.KitsugiScrollDefaults.rememberRowSnapFling(activitiesListState),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp),
-                    contentPadding = PaddingValues(horizontal = 14.dp),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    items(activitiesList) { activity ->
-                        ActivityCard(
-                            activity = activity,
-                            titleLanguage = titleLanguage,
-                            onUserProfileClick = handleUserProfileClick,
-                            onClick = {
-                                Toast.makeText(context, KitsugiStrings.get(R.string.loading), Toast.LENGTH_SHORT).show()
-                                activeActivityIdForDetail = activity.id
-                            },
-                            backgroundColor = KitsugiColors.SurfaceSoft,
-                            onLikeClick = {
-                                // Aktiviteler her zaman AniList kaynaklıdır (MAL için de ARM ile çözülür) → beğeni her kaynakta denenir
-                                coroutineScope.launch {
-                                    val success = apiClient.toggleLike(activity.id, "ACTIVITY")
-                                    if (success) {
-                                        activitiesList = activitiesList.map {
-                                            if (it.id == activity.id) {
-                                                val newLiked = !it.isLiked
-                                                val newCount = if (newLiked) it.likeCount + 1 else it.likeCount - 1
-                                                it.copy(isLiked = newLiked, likeCount = newCount)
-                                            } else {
-                                                it
+                if (isLoadingActivities && activitiesList.isEmpty()) {
+                    DetailSocialCardsLoadingSkeleton(itemCount = 2, isActivity = true, horizontalPadding = 14.dp)
+                } else {
+                    LazyRow(
+                        state = activitiesListState,
+                        flingBehavior = com.kitsugi.animelist.ui.utils.KitsugiScrollDefaults.rememberRowSnapFling(activitiesListState),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        contentPadding = PaddingValues(horizontal = 14.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        items(activitiesList) { activity ->
+                            ActivityCard(
+                                activity = activity,
+                                titleLanguage = titleLanguage,
+                                onUserProfileClick = handleUserProfileClick,
+                                onClick = {
+                                    Toast.makeText(context, KitsugiStrings.get(R.string.loading), Toast.LENGTH_SHORT).show()
+                                    activeActivityIdForDetail = activity.id
+                                },
+                                backgroundColor = KitsugiColors.SurfaceSoft,
+                                onLikeClick = {
+                                    // Aktiviteler her zaman AniList kaynaklıdır (MAL için de ARM ile çözülür) → beğeni her kaynakta denenir
+                                    coroutineScope.launch {
+                                        val success = apiClient.toggleLike(activity.id, "ACTIVITY")
+                                        if (success) {
+                                            activitiesList = activitiesList.map {
+                                                if (it.id == activity.id) {
+                                                    val newLiked = !it.isLiked
+                                                    val newCount = if (newLiked) it.likeCount + 1 else it.likeCount - 1
+                                                    it.copy(isLiked = newLiked, likeCount = newCount)
+                                                } else {
+                                                    it
+                                                }
                                             }
+                                        } else {
+                                            Toast.makeText(context, KitsugiStrings.get(R.string.lutfen_once_giris_yapin), Toast.LENGTH_SHORT).show()
                                         }
-                                    } else {
-                                        Toast.makeText(context, KitsugiStrings.get(R.string.lutfen_once_giris_yapin), Toast.LENGTH_SHORT).show()
                                     }
                                 }
-                            }
-                        )
+                            )
+                        }
                     }
                 }
             }
@@ -332,7 +355,7 @@ fun ReviewsTabContent(
             when (state) {
                 is DetailTabState.Loading -> {
                     Box(modifier = Modifier.padding(horizontal = 14.dp)) {
-                        KitsugiShimmerSearchResultList(itemCount = 2)
+                        DetailReviewsLoadingSkeleton(itemCount = 2)
                     }
                 }
                 is DetailTabState.Error -> {

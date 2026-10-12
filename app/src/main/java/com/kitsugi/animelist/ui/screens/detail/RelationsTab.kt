@@ -22,7 +22,6 @@ import com.kitsugi.animelist.model.MediaType
 import com.kitsugi.animelist.ui.theme.LocalKitsugiAccent
 import com.kitsugi.animelist.ui.theme.KitsugiColors
 import com.kitsugi.animelist.ui.components.KitsugiNsfwImage
-import com.kitsugi.animelist.ui.components.KitsugiShimmerSearchResultList
 import com.kitsugi.animelist.utils.PreferenceHelpers.getDisplayTitle
 
 import androidx.compose.runtime.remember
@@ -40,7 +39,7 @@ fun RelationsTabContent(
 ) {
     when (state) {
         is DetailTabState.Loading -> {
-            KitsugiShimmerSearchResultList(itemCount = 3)
+            DetailRelationsLoadingSkeleton(itemCount = 3)
         }
         is DetailTabState.Error -> {
             Text(

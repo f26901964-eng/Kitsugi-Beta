@@ -20,9 +20,6 @@ import androidx.compose.material.icons.rounded.Bookmarks
 import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.Movie
 import androidx.compose.ui.platform.LocalContext
-import com.kitsugi.animelist.ui.components.KitsugiShimmerAvatarRow
-import com.kitsugi.animelist.ui.components.KitsugiShimmerMediaRow
-import com.kitsugi.animelist.ui.components.KitsugiShimmerSearchResultList
 import com.kitsugi.animelist.ui.components.KitsugiUiverseGlowButton
 import com.kitsugi.animelist.ui.theme.gradient.Icon
 import androidx.compose.material3.MaterialTheme
@@ -71,6 +68,10 @@ import com.kitsugi.animelist.model.MediaEntry
 import com.kitsugi.animelist.model.MediaType
 import com.kitsugi.animelist.ui.screens.detail.ApiResultDetailViewModel
 import com.kitsugi.animelist.ui.screens.detail.DetailTabState
+import com.kitsugi.animelist.ui.screens.detail.DetailTvPeopleRailSkeleton
+import com.kitsugi.animelist.ui.screens.detail.DetailTvRelationsRailSkeleton
+import com.kitsugi.animelist.ui.screens.detail.DetailTvEpisodesRailSkeleton
+import com.kitsugi.animelist.ui.screens.detail.DetailStatsLoadingSkeleton
 import com.kitsugi.animelist.ui.theme.LocalKitsugiAccent
 import com.kitsugi.animelist.ui.theme.KitsugiColors
 import com.kitsugi.animelist.ui.theme.KitsugiTvTokens
@@ -571,7 +572,7 @@ fun TvDetailScreen(
 
                                 when (val epState = episodesState) {
                                     is DetailTabState.Loading -> {
-                                        KitsugiShimmerMediaRow(cardCount = 4)
+                                        DetailTvEpisodesRailSkeleton(itemCount = 4)
                                     }
                                     is DetailTabState.Success -> {
                                         val episodes = epState.data
@@ -638,7 +639,7 @@ fun TvDetailScreen(
 
                             when (val charsState = charactersState) {
                                 is DetailTabState.Loading -> {
-                                    KitsugiShimmerAvatarRow(avatarCount = 6)
+                                    DetailTvPeopleRailSkeleton(itemCount = 6)
                                 }
                                 is DetailTabState.Success -> {
                                     val characters = charsState.data
@@ -697,7 +698,7 @@ fun TvDetailScreen(
 
                             when (val stfState = staffState) {
                                 is DetailTabState.Loading -> {
-                                    KitsugiShimmerAvatarRow(avatarCount = 6)
+                                    DetailTvPeopleRailSkeleton(itemCount = 6, showRole = true)
                                 }
                                 is DetailTabState.Success -> {
                                     val staffList = stfState.data
@@ -753,7 +754,7 @@ fun TvDetailScreen(
 
                             when (val relsState = relationsState) {
                                 is DetailTabState.Loading -> {
-                                    KitsugiShimmerSearchResultList(itemCount = 3)
+                                    DetailTvRelationsRailSkeleton(itemCount = 4)
                                 }
                                 is DetailTabState.Success -> {
                                     val relations = relsState.data
@@ -898,9 +899,18 @@ fun TvDetailScreen(
                     }
 
                     // --- Stats Section ---
-                    if (statsState is DetailTabState.Success) {
-                        val statsData = (statsState as DetailTabState.Success<KitsugiStats?>).data
-                        if (statsData != null) {
+                    when (val currentStats = statsState) {
+                        is DetailTabState.Loading -> item {
+                            Column(verticalArrangement = Arrangement.spacedBy(KitsugiTvTokens.Spacing.sm)) {
+                                Text(
+                                    text = stringResource(R.string.istatistikler),
+                                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                                    color = KitsugiColors.TextPrimary
+                                )
+                                DetailStatsLoadingSkeleton()
+                            }
+                        }
+                        is DetailTabState.Success -> currentStats.data?.let { statsData ->
                             item {
                                 TvStatsSection(
                                     stats = statsData,
@@ -918,6 +928,7 @@ fun TvDetailScreen(
                                 )
                             }
                         }
+                        else -> Unit
                     }
 
                     // --- Reviews, Activities & Forum Topics Section ---

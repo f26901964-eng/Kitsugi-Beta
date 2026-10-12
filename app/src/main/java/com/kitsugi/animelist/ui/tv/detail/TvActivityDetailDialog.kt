@@ -39,7 +39,7 @@ import com.kitsugi.animelist.data.remote.KitsugiActivity
 import com.kitsugi.animelist.data.remote.KitsugiActivityReply
 import com.kitsugi.animelist.ui.components.KitsugiImageGalleryDialog
 import com.kitsugi.animelist.ui.components.KitsugiMarkdownText
-import com.kitsugi.animelist.ui.components.KitsugiPlasmaLoader
+import com.kitsugi.animelist.ui.screens.detail.DetailActivityDialogLoadingSkeleton
 import com.kitsugi.animelist.ui.theme.KitsugiColors
 import com.kitsugi.animelist.ui.theme.LocalKitsugiAccent
 import com.kitsugi.animelist.ui.utils.tvClickable
@@ -311,9 +311,7 @@ fun TvActivityDetailDialog(
                         .padding(12.dp)
                 ) {
                     if (isLoading) {
-                        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                            KitsugiPlasmaLoader(size = 48.dp)
-                        }
+                        DetailActivityDialogLoadingSkeleton()
                     } else if (activityDetails == null) {
                         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                             Text(

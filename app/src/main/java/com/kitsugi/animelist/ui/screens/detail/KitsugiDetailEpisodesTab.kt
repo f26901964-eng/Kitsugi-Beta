@@ -31,7 +31,6 @@ import androidx.compose.material.icons.rounded.KeyboardArrowDown
 import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.PlayCircle
 import com.kitsugi.animelist.ui.theme.gradient.CircularProgressIndicator
-import com.kitsugi.animelist.ui.components.KitsugiPlasmaLoader
 import com.kitsugi.animelist.ui.theme.gradient.Icon
 import androidx.compose.material3.MaterialTheme
 import com.kitsugi.animelist.ui.theme.gradient.Text
@@ -84,14 +83,7 @@ fun EpisodesTabContent(
 
     when (state) {
         is DetailTabState.Loading -> {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(200.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                KitsugiPlasmaLoader(size = 48.dp)
-            }
+            DetailEpisodesLoadingSkeleton(totalSeasons = totalSeasons)
         }
         is DetailTabState.Success -> {
             val episodes = state.data

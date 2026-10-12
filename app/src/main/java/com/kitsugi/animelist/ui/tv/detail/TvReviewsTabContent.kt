@@ -37,6 +37,8 @@ import com.kitsugi.animelist.data.remote.KitsugiForumTopic
 import com.kitsugi.animelist.data.remote.KitsugiReview
 import com.kitsugi.animelist.model.MediaType
 import com.kitsugi.animelist.ui.screens.detail.DetailTabState
+import com.kitsugi.animelist.ui.screens.detail.DetailReviewsLoadingSkeleton
+import com.kitsugi.animelist.ui.screens.detail.DetailSocialCardsLoadingSkeleton
 import com.kitsugi.animelist.ui.theme.KitsugiColors
 import com.kitsugi.animelist.ui.theme.KitsugiTvTokens
 import com.kitsugi.animelist.ui.theme.LocalKitsugiAccent
@@ -69,6 +71,8 @@ fun TvReviewsTabContent(
 
     var forumTopics by remember { mutableStateOf<List<KitsugiForumTopic>>(emptyList()) }
     var activitiesList by remember { mutableStateOf<List<KitsugiActivity>>(emptyList()) }
+    var isLoadingTopics by remember { mutableStateOf(true) }
+    var isLoadingActivities by remember { mutableStateOf(true) }
 
     var activeReviewForDetail by remember { mutableStateOf<KitsugiReview?>(null) }
     var activeTopicForDetail by remember { mutableStateOf<KitsugiForumTopic?>(null) }
@@ -80,18 +84,32 @@ fun TvReviewsTabContent(
         // Clear stale rows before this detail's ID mapping is resolved.
         forumTopics = emptyList()
         activitiesList = emptyList()
+        isLoadingTopics = true
+        isLoadingActivities = true
         launch {
-            runCatching {
+            try {
                 forumTopics = apiClient.fetchForumTopics(
                     source, externalId, mediaType, tmdbId = tmdbId, realMalId = realMalId
                 )
+            } catch (cancelled: kotlinx.coroutines.CancellationException) {
+                throw cancelled
+            } catch (_: Exception) {
+                // Keep the section empty when the optional social feed is unavailable.
+            } finally {
+                isLoadingTopics = false
             }
         }
         launch {
-            runCatching {
+            try {
                 activitiesList = apiClient.fetchActivities(
                     source, externalId, mediaType = mediaType, tmdbId = tmdbId, realMalId = realMalId
                 )
+            } catch (cancelled: kotlinx.coroutines.CancellationException) {
+                throw cancelled
+            } catch (_: Exception) {
+                // Keep the section empty when the optional social feed is unavailable.
+            } finally {
+                isLoadingActivities = false
             }
         }
     }
@@ -103,8 +121,9 @@ fun TvReviewsTabContent(
     val hasTopics = forumTopics.isNotEmpty()
     val hasActivities = activitiesList.isNotEmpty()
     val hasReviews = reviewsList.isNotEmpty()
+    val isLoadingReviews = state is DetailTabState.Loading
 
-    if (hasTopics || hasActivities || hasReviews) {
+    if (hasTopics || hasActivities || hasReviews || isLoadingTopics || isLoadingActivities || isLoadingReviews) {
         val topicsRowFocusRequester = remember { FocusRequester() }
         val activitiesRowFocusRequester = remember { FocusRequester() }
         val reviewsRowFocusRequester = remember { FocusRequester() }
@@ -114,137 +133,149 @@ fun TvReviewsTabContent(
             verticalArrangement = Arrangement.spacedBy(KitsugiTvTokens.Spacing.itemGap)
         ) {
             // --- 1. FORUM TOPICS ROW ---
-            if (hasTopics) {
+            if (hasTopics || isLoadingTopics) {
                 Column(verticalArrangement = Arrangement.spacedBy(KitsugiTvTokens.Spacing.sm)) {
                     Text(
                         text = stringResource(R.string.tartisma_konulari),
                         style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
                         color = KitsugiColors.TextPrimary
                     )
-                    LazyRow(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .focusRequester(if (hasTopics) focusRequester else topicsRowFocusRequester)
-                            .focusGroup()
-                            .focusProperties {
-                                up = focusUp
-                                down = when {
-                                    hasActivities -> activitiesRowFocusRequester
-                                    hasReviews    -> reviewsRowFocusRequester
-                                    else          -> focusDown
-                                }
-                            },
-                        horizontalArrangement = Arrangement.spacedBy(KitsugiTvTokens.Spacing.itemGap),
-                        contentPadding = PaddingValues(vertical = 4.dp)
-                    ) {
-                        items(forumTopics) { topic ->
-                            TvTopicCard(
-                                topic = topic,
-                                onClick = { activeTopicForDetail = topic },
-                                onLikeClick = if (topic.source.equals("anilist", ignoreCase = true)) {
-                                    {
-                                        coroutineScope.launch {
-                                            val success = apiClient.toggleLike(topic.id, "THREAD")
-                                            if (success) {
-                                                forumTopics = forumTopics.map {
-                                                    if (it.id == topic.id) {
-                                                        val newLiked = !it.isLiked
-                                                        val newCount = if (newLiked) it.likeCount + 1 else it.likeCount - 1
-                                                        it.copy(isLiked = newLiked, likeCount = newCount)
-                                                    } else it
+                    if (isLoadingTopics && !hasTopics) {
+                        DetailSocialCardsLoadingSkeleton(itemCount = 3, cardWidth = 260.dp)
+                    } else {
+                        LazyRow(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .focusRequester(if (hasTopics) focusRequester else topicsRowFocusRequester)
+                                .focusGroup()
+                                .focusProperties {
+                                    up = focusUp
+                                    down = when {
+                                        hasActivities -> activitiesRowFocusRequester
+                                        hasReviews    -> reviewsRowFocusRequester
+                                        else          -> focusDown
+                                    }
+                                },
+                            horizontalArrangement = Arrangement.spacedBy(KitsugiTvTokens.Spacing.itemGap),
+                            contentPadding = PaddingValues(vertical = 4.dp)
+                        ) {
+                            items(forumTopics) { topic ->
+                                TvTopicCard(
+                                    topic = topic,
+                                    onClick = { activeTopicForDetail = topic },
+                                    onLikeClick = if (topic.source.equals("anilist", ignoreCase = true)) {
+                                        {
+                                            coroutineScope.launch {
+                                                val success = apiClient.toggleLike(topic.id, "THREAD")
+                                                if (success) {
+                                                    forumTopics = forumTopics.map {
+                                                        if (it.id == topic.id) {
+                                                            val newLiked = !it.isLiked
+                                                            val newCount = if (newLiked) it.likeCount + 1 else it.likeCount - 1
+                                                            it.copy(isLiked = newLiked, likeCount = newCount)
+                                                        } else it
+                                                    }
+                                                } else {
+                                                    Toast.makeText(context, KitsugiStrings.get(R.string.lutfen_once_giris_yapin), Toast.LENGTH_SHORT).show()
                                                 }
-                                            } else {
-                                                Toast.makeText(context, KitsugiStrings.get(R.string.lutfen_once_giris_yapin), Toast.LENGTH_SHORT).show()
                                             }
                                         }
-                                    }
-                                } else null
-                            )
+                                    } else null
+                                )
+                            }
                         }
                     }
                 }
             }
 
             // --- 2. ACTIVITIES ROW ---
-            if (hasActivities) {
+            if (hasActivities || isLoadingActivities) {
                 Column(verticalArrangement = Arrangement.spacedBy(KitsugiTvTokens.Spacing.sm)) {
                     Text(
                         text = "Aktiviteler",
                         style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
                         color = KitsugiColors.TextPrimary
                     )
-                    LazyRow(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .focusRequester(if (!hasTopics) focusRequester else activitiesRowFocusRequester)
-                            .focusGroup()
-                            .focusProperties {
-                                up = if (hasTopics) topicsRowFocusRequester else focusUp
-                                down = if (hasReviews) reviewsRowFocusRequester else focusDown
-                            },
-                        horizontalArrangement = Arrangement.spacedBy(KitsugiTvTokens.Spacing.itemGap),
-                        contentPadding = PaddingValues(vertical = 4.dp)
-                    ) {
-                        items(activitiesList) { activity ->
-                            TvActivityCard(
-                                activity = activity,
-                                titleLanguage = titleLanguage,
-                                onClick = { activeActivityIdForDetail = activity.id },
-                                onLikeClick = {
-                                    if (source.lowercase() == "jikan" || source.lowercase() == "mal") {
-                                        Toast.makeText(context, KitsugiStrings.get(R.string.begeni_ozelligi_mal_kaynagi_icin_desteklenmemektedir), Toast.LENGTH_SHORT).show()
-                                    } else {
-                                        coroutineScope.launch {
-                                            val success = apiClient.toggleLike(activity.id, "ACTIVITY")
-                                            if (success) {
-                                                activitiesList = activitiesList.map {
-                                                    if (it.id == activity.id) {
-                                                        val newLiked = !it.isLiked
-                                                        val newCount = if (newLiked) it.likeCount + 1 else it.likeCount - 1
-                                                        it.copy(isLiked = newLiked, likeCount = newCount)
-                                                    } else it
+                    if (isLoadingActivities && !hasActivities) {
+                        DetailSocialCardsLoadingSkeleton(itemCount = 3, cardWidth = 260.dp, isActivity = true)
+                    } else {
+                        LazyRow(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .focusRequester(if (!hasTopics) focusRequester else activitiesRowFocusRequester)
+                                .focusGroup()
+                                .focusProperties {
+                                    up = if (hasTopics) topicsRowFocusRequester else focusUp
+                                    down = if (hasReviews) reviewsRowFocusRequester else focusDown
+                                },
+                            horizontalArrangement = Arrangement.spacedBy(KitsugiTvTokens.Spacing.itemGap),
+                            contentPadding = PaddingValues(vertical = 4.dp)
+                        ) {
+                            items(activitiesList) { activity ->
+                                TvActivityCard(
+                                    activity = activity,
+                                    titleLanguage = titleLanguage,
+                                    onClick = { activeActivityIdForDetail = activity.id },
+                                    onLikeClick = {
+                                        if (source.lowercase() == "jikan" || source.lowercase() == "mal") {
+                                            Toast.makeText(context, KitsugiStrings.get(R.string.begeni_ozelligi_mal_kaynagi_icin_desteklenmemektedir), Toast.LENGTH_SHORT).show()
+                                        } else {
+                                            coroutineScope.launch {
+                                                val success = apiClient.toggleLike(activity.id, "ACTIVITY")
+                                                if (success) {
+                                                    activitiesList = activitiesList.map {
+                                                        if (it.id == activity.id) {
+                                                            val newLiked = !it.isLiked
+                                                            val newCount = if (newLiked) it.likeCount + 1 else it.likeCount - 1
+                                                            it.copy(isLiked = newLiked, likeCount = newCount)
+                                                        } else it
+                                                    }
+                                                } else {
+                                                    Toast.makeText(context, KitsugiStrings.get(R.string.lutfen_once_giris_yapin), Toast.LENGTH_SHORT).show()
                                                 }
-                                            } else {
-                                                Toast.makeText(context, KitsugiStrings.get(R.string.lutfen_once_giris_yapin), Toast.LENGTH_SHORT).show()
                                             }
                                         }
                                     }
-                                }
-                            )
+                                )
+                            }
                         }
                     }
                 }
             }
 
             // --- 3. REVIEWS ROW ---
-            if (hasReviews) {
+            if (hasReviews || isLoadingReviews) {
                 Column(verticalArrangement = Arrangement.spacedBy(KitsugiTvTokens.Spacing.sm)) {
                     Text(
                         text = stringResource(R.string.incelemeler),
                         style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
                         color = KitsugiColors.TextPrimary
                     )
-                    LazyRow(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .focusRequester(if (!hasTopics && !hasActivities) focusRequester else reviewsRowFocusRequester)
-                            .focusGroup()
-                            .focusProperties {
-                                up = when {
-                                    hasActivities -> activitiesRowFocusRequester
-                                    hasTopics     -> topicsRowFocusRequester
-                                    else          -> focusUp
-                                }
-                                down = focusDown
-                            },
-                        horizontalArrangement = Arrangement.spacedBy(KitsugiTvTokens.Spacing.itemGap),
-                        contentPadding = PaddingValues(vertical = 4.dp)
-                    ) {
-                        items(reviewsList.take(10)) { review ->
-                            TvReviewCard(
-                                review = review,
-                                onClick = { activeReviewForDetail = review }
-                            )
+                    if (isLoadingReviews && !hasReviews) {
+                        DetailReviewsLoadingSkeleton(itemCount = 3, cardWidth = 260.dp)
+                    } else {
+                        LazyRow(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .focusRequester(if (!hasTopics && !hasActivities) focusRequester else reviewsRowFocusRequester)
+                                .focusGroup()
+                                .focusProperties {
+                                    up = when {
+                                        hasActivities -> activitiesRowFocusRequester
+                                        hasTopics     -> topicsRowFocusRequester
+                                        else          -> focusUp
+                                    }
+                                    down = focusDown
+                                },
+                            horizontalArrangement = Arrangement.spacedBy(KitsugiTvTokens.Spacing.itemGap),
+                            contentPadding = PaddingValues(vertical = 4.dp)
+                        ) {
+                            items(reviewsList.take(10)) { review ->
+                                TvReviewCard(
+                                    review = review,
+                                    onClick = { activeReviewForDetail = review }
+                                )
+                            }
                         }
                     }
                 }
