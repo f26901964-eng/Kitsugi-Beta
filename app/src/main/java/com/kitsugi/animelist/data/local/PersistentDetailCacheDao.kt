@@ -21,4 +21,11 @@ interface PersistentDetailCacheDao {
 
     @Query("DELETE FROM persistent_details_cache WHERE cachedAtMs < :threshold")
     suspend fun deleteOlderThan(threshold: Long)
+
+    /**
+     * Belirli önekle başlayan kayıtları siler (ör. Fandom Wiki önbelleği: `fandom:v1:`).
+     * Önek LIKE joker karakteri (`%`, `_`) içermemelidir.
+     */
+    @Query("DELETE FROM persistent_details_cache WHERE cacheKey LIKE :prefix || '%'")
+    suspend fun deleteByPrefix(prefix: String)
 }

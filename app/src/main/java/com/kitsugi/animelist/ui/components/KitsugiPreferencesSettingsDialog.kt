@@ -1045,6 +1045,9 @@ private fun ListScoreTab(
             }
         }
 
+        // FANDOM WIKI — tercihlerini kendisi okuyup yazan bağımsız bölüm (parametre zinciri gerekmez)
+        com.kitsugi.animelist.ui.screens.detail.wiki.FandomWikiSettingsSection(accentColor = accentColor)
+
         // DEĞERLENDİRME & BİLDİRİMLER
         KitsugiSettingsSection(title = stringResource(R.string.settings_section_rating_notifs)) {
             Box {
