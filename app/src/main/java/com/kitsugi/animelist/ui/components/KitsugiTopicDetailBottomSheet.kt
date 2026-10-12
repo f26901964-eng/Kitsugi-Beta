@@ -54,7 +54,7 @@ fun KitsugiTopicDetailBottomSheet(
     topic: KitsugiForumTopic,
     source: String,
     apiClient: JikanApiClient,
-    onUserProfileClick: ((userId: Int?, username: String, avatarUrl: String?) -> Unit)? = null,
+    onUserProfileClick: ((userId: Int?, username: String, avatarUrl: String?, source: String) -> Unit)? = null,
     onDismiss: () -> Unit
 ) {
     val context = LocalContext.current
@@ -393,7 +393,7 @@ fun KitsugiTopicDetailBottomSheet(
                                         .background(KitsugiColors.SurfaceSoft)
                                         .then(
                                             if (onUserProfileClick != null) {
-                                                Modifier.clickable { onUserProfileClick(activeTopic.userId, activeTopic.username, activeTopic.avatarUrl) }
+                                                Modifier.clickable { onUserProfileClick(activeTopic.userId, activeTopic.username, activeTopic.avatarUrl, activeTopic.source) }
                                             } else Modifier
                                         )
                                 ) {
@@ -424,7 +424,7 @@ fun KitsugiTopicDetailBottomSheet(
                                     modifier = if (onUserProfileClick != null) {
                                         Modifier
                                             .clip(RoundedCornerShape(4.dp))
-                                            .clickable { onUserProfileClick(activeTopic.userId, activeTopic.username, activeTopic.avatarUrl) }
+                                            .clickable { onUserProfileClick(activeTopic.userId, activeTopic.username, activeTopic.avatarUrl, activeTopic.source) }
                                             .padding(horizontal = 4.dp, vertical = 2.dp)
                                     } else Modifier
                                 )
@@ -556,6 +556,7 @@ fun KitsugiTopicDetailBottomSheet(
                             coroutineScope = coroutineScope,
                             selectedLanguage = selectedLanguage,
                             translatedComments = translatedComments,
+                            commentSource = activeTopic.source,
                             onUserProfileClick = onUserProfileClick,
                             onReplyClick = if (isAniListTopic) {
                                 { target ->

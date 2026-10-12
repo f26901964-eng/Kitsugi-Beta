@@ -186,6 +186,7 @@ class KitsugiProfileViewModel(application: Application) : AndroidViewModel(appli
 
     // --- ANILIST API FETCHING ---
     fun fetchAniListProfile(forceRefresh: Boolean = false) {
+        if (_aniListState.value.isLoading) return
         if (!forceRefresh && _aniListState.value.userId != null) {
             return
         }
@@ -1210,6 +1211,7 @@ class KitsugiProfileViewModel(application: Application) : AndroidViewModel(appli
 
     // --- MYANIMELIST API FETCHING (via Official API & Jikan Fallback) ---
     fun fetchMalProfile(forceRefresh: Boolean = false) {
+        if (_malState.value.isLoading) return
         if (!forceRefresh && _malState.value.name.isNotBlank()) {
             return
         }
@@ -1505,6 +1507,7 @@ class KitsugiProfileViewModel(application: Application) : AndroidViewModel(appli
 
     // --- SIMKL API FETCHING ---
     fun fetchSimklProfile(forceRefresh: Boolean = false) {
+        if (_simklState.value.isLoading) return
         if (!forceRefresh && _simklState.value.name.isNotBlank()) {
             return
         }
@@ -1635,6 +1638,7 @@ class KitsugiProfileViewModel(application: Application) : AndroidViewModel(appli
 
     // --- KITSU API FETCHING ---
     fun fetchKitsuProfile(forceRefresh: Boolean = false) {
+        if (_kitsuState.value.isLoading) return
         if (!forceRefresh && _kitsuState.value.name.isNotBlank()) {
             return
         }
@@ -1758,6 +1762,7 @@ class KitsugiProfileViewModel(application: Application) : AndroidViewModel(appli
 
     // --- BANGUMI API FETCHING ---
     fun fetchBangumiProfile(forceRefresh: Boolean = false) {
+        if (_bangumiState.value.isLoading) return
         if (!forceRefresh && _bangumiState.value.lastUpdatedMs > 0L) return
 
         if (!com.kitsugi.animelist.data.auth.BangumiAuthStore.isConnected(context)) {
@@ -1809,6 +1814,7 @@ class KitsugiProfileViewModel(application: Application) : AndroidViewModel(appli
 
     // --- SHIKIMORI API FETCHING ---
     fun fetchShikimoriProfile(forceRefresh: Boolean = false) {
+        if (_shikimoriState.value.isLoading) return
         if (!forceRefresh && _shikimoriState.value.name.isNotBlank()) {
             return
         }

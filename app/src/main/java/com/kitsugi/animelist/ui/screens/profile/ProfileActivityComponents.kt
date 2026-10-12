@@ -32,6 +32,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -226,7 +227,9 @@ fun ActivityCard(
                                             "TV", "TV_SHOW" -> MediaType.TvShow
                                             else -> MediaType.Anime
                                         }
-                                        onMediaClick?.invoke(activity.mediaId!!, mType)
+                                        activity.mediaId?.let { mId ->
+                                            onMediaClick?.invoke(mId, mType)
+                                        }
                                     }
                                 } else Modifier
                             )
@@ -514,12 +517,17 @@ fun FavoritesExpandedBottomSheet(
 
             Spacer(modifier = Modifier.height(12.dp))
 
+            // LazyVerticalGrid dikey olarak SINIRLI yükseklik ister. Sheet/Column zincirinde
+            // sınırsız (Infinity) max height gelirse "Vertically scrollable component was
+            // measured with an infinity maximum height" çöküşü oluşur. Bu yüzden yüksekliği
+            // ekran yüksekliğine bağlı sabit bir üst sınırla garanti altına alıyoruz.
+            val favGridHeight = (LocalConfiguration.current.screenHeightDp * 0.7f).dp
             LazyVerticalGrid(
                 state = favGridState,
                 columns = GridCells.Adaptive(minSize = 100.dp),
                 modifier = Modifier
                     .fillMaxWidth()
-                    .weight(1f, fill = false),
+                    .height(favGridHeight),
                 verticalArrangement = Arrangement.spacedBy(14.dp),
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {

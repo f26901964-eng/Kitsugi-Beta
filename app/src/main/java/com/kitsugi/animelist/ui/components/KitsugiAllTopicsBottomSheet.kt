@@ -20,6 +20,7 @@ import androidx.compose.material.icons.automirrored.rounded.Comment
 import androidx.compose.material.icons.rounded.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -34,6 +35,7 @@ import coil3.compose.AsyncImage
 import com.kitsugi.animelist.data.local.TranslationManager
 import com.kitsugi.animelist.data.remote.JikanApiClient
 import com.kitsugi.animelist.data.remote.KitsugiForumTopic
+import com.kitsugi.animelist.data.remote.SocialFeedCache
 import com.kitsugi.animelist.ui.components.KitsugiPlatformLogo
 import com.kitsugi.animelist.model.MediaType
 import com.kitsugi.animelist.ui.theme.LocalKitsugiAccent
@@ -55,7 +57,7 @@ fun KitsugiAllTopicsBottomSheet(
     apiClient: JikanApiClient,
     tmdbId: Int? = null,
     realMalId: Int? = null,
-    onUserProfileClick: ((userId: Int?, username: String, avatarUrl: String?) -> Unit)? = null,
+    onUserProfileClick: ((userId: Int?, username: String, avatarUrl: String?, source: String) -> Unit)? = null,
     onDismiss: () -> Unit
 ) {
     val context = LocalContext.current
@@ -63,15 +65,20 @@ fun KitsugiAllTopicsBottomSheet(
     val coroutineScope = rememberCoroutineScope()
     val translationManager = remember { TranslationManager(context) }
 
-    var topicsList by remember { mutableStateOf<List<KitsugiForumTopic>>(emptyList()) }
-    var isLoading by remember { mutableStateOf(true) }
+    val socialFeedKey = remember(source, externalId, mediaType, tmdbId, realMalId) {
+        SocialFeedCache.feedKey(source, externalId, mediaType, tmdbId, realMalId)
+    }
+    val cachedFeed = remember(socialFeedKey) { SocialFeedCache.allTopics(socialFeedKey) }
+
+    var topicsList by remember { mutableStateOf<List<KitsugiForumTopic>>(cachedFeed?.items ?: emptyList()) }
+    var isLoading by remember { mutableStateOf(cachedFeed == null) }
     var isLoadingMore by remember { mutableStateOf(false) }
-    var page by remember { mutableStateOf(1) }
-    var hasMore by remember { mutableStateOf(true) }
+    var page by remember { mutableStateOf(cachedFeed?.page ?: 1) }
+    var hasMore by remember { mutableStateOf(cachedFeed?.hasMore ?: true) }
 
     // Translation & source filter states
-    var selectedLanguage by remember { mutableStateOf("original") }
-    var selectedSourceFilter by remember { mutableStateOf("all") }
+    var selectedLanguage by rememberSaveable { mutableStateOf("original") }
+    var selectedSourceFilter by rememberSaveable { mutableStateOf("all") }
     val translatedTitles = remember { mutableStateMapOf<Int, String>() }
 
     val filteredTopics = remember(topicsList, selectedSourceFilter) {
@@ -86,17 +93,23 @@ fun KitsugiAllTopicsBottomSheet(
 
     val listState = rememberLazyListState()
 
-    // Initial Load
+    // Initial Load — profil ekranına gidilip geri dönüldüğünde liste önbellekten
+    // anında gelir ve YENİDEN YÜKLENMEZ ("yorumlar sayfası bozuluyor" hatası).
     LaunchedEffect(source, externalId, mediaType, tmdbId, realMalId) {
+        if (topicsList.isNotEmpty()) {
+            isLoading = false
+            return@LaunchedEffect
+        }
         isLoading = true
-        topicsList = emptyList()
         translatedTitles.clear()
         activeTopicForDetail = null
         page = 1
         hasMore = true
-        topicsList = apiClient.fetchForumTopics(
+        val fresh = apiClient.fetchForumTopics(
             source, externalId, mediaType, page = 1, tmdbId = tmdbId, realMalId = realMalId
         )
+        topicsList = fresh
+        SocialFeedCache.putAllTopics(socialFeedKey, SocialFeedCache.FeedState(fresh, page, hasMore))
         isLoading = false
     }
 
@@ -124,6 +137,7 @@ fun KitsugiAllTopicsBottomSheet(
                     topicsList = (topicsList + newTopics).distinctBy { "${it.source}_${it.id}" }
                     page = nextPage
                 }
+                SocialFeedCache.putAllTopics(socialFeedKey, SocialFeedCache.FeedState(topicsList, page, hasMore))
             } catch (e: Exception) {
                 // T3-05: printStackTrace → Log.e
                 android.util.Log.e("AllTopicsSheet", "loadNextPage failed: ${e.message}", e)
@@ -368,7 +382,7 @@ fun KitsugiAllTopicsBottomSheet(
                                     modifier = if (onUserProfileClick != null) {
                                         Modifier
                                             .clip(RoundedCornerShape(8.dp))
-                                            .clickable { onUserProfileClick(topic.userId, topic.username, topic.avatarUrl) }
+                                            .clickable { onUserProfileClick(topic.userId, topic.username, topic.avatarUrl, topic.source) }
                                             .padding(4.dp)
                                     } else Modifier
                                 ) {
@@ -431,6 +445,7 @@ fun KitsugiAllTopicsBottomSheet(
                                                                 it
                                                             }
                                                         }
+                                                        SocialFeedCache.putAllTopics(socialFeedKey, SocialFeedCache.FeedState(topicsList, page, hasMore))
                                                     } else {
                                                         Toast.makeText(context, KitsugiStrings.get(R.string.lutfen_once_giris_yapin), Toast.LENGTH_SHORT).show()
                                                     }

@@ -45,7 +45,7 @@ internal fun KitsugiReviewCard(
     modifier: Modifier = Modifier.fillMaxWidth(),
     preferredTranslator: String = "DEFAULT",
     backgroundColor: androidx.compose.ui.graphics.Color = KitsugiColors.Surface,
-    onUserProfileClick: ((userId: Int?, username: String, avatarUrl: String?) -> Unit)? = null,
+    onUserProfileClick: ((userId: Int?, username: String, avatarUrl: String?, source: String) -> Unit)? = null,
     onClick: () -> Unit,
     onHelpfulClick: () -> Unit,
     onImageGalleryRequest: ((urls: List<String>, index: Int) -> Unit)? = null
@@ -150,7 +150,7 @@ internal fun KitsugiReviewCard(
                 modifier = if (onUserProfileClick != null) {
                     Modifier
                         .clip(RoundedCornerShape(8.dp))
-                        .clickable { onUserProfileClick(rev.userId, rev.username, rev.avatarUrl) }
+                        .clickable { onUserProfileClick(rev.userId, rev.username, rev.avatarUrl, rev.source) }
                         .padding(4.dp)
                 } else Modifier
             ) {

@@ -26,9 +26,9 @@ import com.kitsugi.animelist.R
 /**
  * Detay sayfasında galerinin tüm kaynaklardan **tamamen** yüklenip yüklenmediği.
  *
- * `true` iken galeri butonu animasyonlu yükleniyor durumunda kalır ve tıklanamaz; galeriyi
- * açan resim tıklamaları da (kapak, poster, karakter/kişi görseli) yok sayılır. Sayfa
- * kökünde `CompositionLocalProvider` ile sağlanır.
+ * `true` iken galeri butonu animasyonlu yükleniyor durumunda kalır ve tıklanamaz. Sayfalar,
+ * ellerinde hazır olan vitrin görselini isterlerse bu sırada geçici galeri önizlemesi olarak
+ * açabilir. Sayfa kökünde `CompositionLocalProvider` ile sağlanır.
  */
 val LocalKitsugiGalleryLoading = compositionLocalOf { false }
 

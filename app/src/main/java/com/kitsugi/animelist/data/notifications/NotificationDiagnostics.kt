@@ -10,8 +10,11 @@ import com.kitsugi.animelist.data.platform.ListPlatform
 import com.kitsugi.animelist.data.platform.PlatformErrorCatalog
 import com.kitsugi.animelist.data.remote.KitsugiAiringCalendarClient
 import com.kitsugi.animelist.data.remote.SimklCalendarClient
+import com.kitsugi.animelist.data.remote.malweb.MalNotificationsClient
+import com.kitsugi.animelist.data.remote.malweb.MalWebSessionStore
 import com.kitsugi.animelist.model.MediaEntry
 import com.kitsugi.animelist.model.WatchStatus
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
@@ -26,15 +29,15 @@ import org.json.JSONObject
  * Bildirim Teşhisi — "çalışıyor mu, çalışmıyorsa neden?" sorusunun kanıtlı cevabı.
  *
  * Her kaynak için **gerçek bir ağ isteği** atar ve şunları raporlar:
- *   • Hesap bağlı mı (token var mı)?
+ *   • Hesap/oturum bağlı mı (token veya web çerezi var mı)?
  *   • Kullanılan uç nokta (endpoint)
  *   • HTTP durum kodu (varsa)
  *   • Dönen kayıt sayısı
  *   • Süre (ms) ve oluşan hata mesajı
  *
  * Notlar:
- *   • MyAnimeList'in resmî API'sinde (v2 / resmî uygulama API'si) **bildirim ucu yoktur**.
- *     Bu yüzden MAL için "yayın takvimi eşleşmesi" ölçülür.
+ *   • MAL API v2 bildirim ucu sunmaz; Kitsugi gerçek MAL hesabı bildirimlerini imzalı web
+ *     oturumuyla `myanimelist.net/notification` sayfasındaki JSON verisinden okur.
  *   • Simkl'in de bildirim ucu yoktur; takvim (v2 CDN) + izleme listesi eşleşmesi ölçülür.
  *   • Kitsu'nun genel API'sinde bildirim kaynağı yoktur.
  *   • Bangumi API'sinde (v0/p1) bildirim ucu yoktur; izleme listesi (DOING koleksiyonu)
@@ -68,7 +71,7 @@ object NotificationDiagnostics {
     suspend fun runAll(context: Context, mediaEntries: List<MediaEntry>): List<Row> {
         val rows = mutableListOf<Row>()
         rows += checkAniList(context)
-        rows += checkMal(context, mediaEntries)
+        rows += checkMal(context)
         rows += checkSimkl(context, mediaEntries)
         rows += checkKitsu(context)
         rows += checkBangumi(context, mediaEntries)
@@ -181,56 +184,51 @@ object NotificationDiagnostics {
     }
 
     // ─────────────────────────────────────────────────────────────────────────
-    // MAL — API'de bildirim ucu yok; yayın takvimi eşleşmesi ölçülür
+    // MAL — signed-in website notification feed (native UI uses the same client)
     // ─────────────────────────────────────────────────────────────────────────
 
-    private suspend fun checkMal(context: Context, mediaEntries: List<MediaEntry>): Row {
+    private suspend fun checkMal(context: Context): Row {
         val started = System.currentTimeMillis()
-        val token = ExternalAuthManager.getMalToken(context)
-        val watching = mediaEntries.filter {
-            (it.source.equals("jikan", true) || it.source.equals("mal", true)) &&
-                (it.status == WatchStatus.Watching || it.status == WatchStatus.Repeating)
-        }
-        if (token.isNullOrBlank()) {
+        val endpoint = "myanimelist.net/notification (window.MAL.notification)"
+        val oauthConnected = !ExternalAuthManager.getMalToken(context).isNullOrBlank()
+        val cookieHeader = MalWebSessionStore.authenticatedCookieHeader()
+        if (cookieHeader == null) {
             return Row(
                 source = "MyAnimeList",
                 connected = false,
-                endpoint = "MAL API v2 (bildirim ucu yok) + AniList yayın takvimi",
+                endpoint = endpoint,
                 ok = false,
                 durationMs = System.currentTimeMillis() - started,
-                detail = "Hesap bağlı değil",
-                hint = "Ayarlar > Platformlar üzerinden MyAnimeList'e giriş yapın."
+                detail = if (oauthConnected) "OAuth bağlı; MAL web oturumu bulunamadı" else "MAL web oturumu bağlı değil",
+                error = "is_signed_in=1 cookie missing",
+                hint = "Bildirimler ekranındaki 'MAL web oturumunu bağla' düğmesinden MAL'a giriş yapın."
             )
         }
 
         return try {
-            val nowSec = System.currentTimeMillis() / 1000L
-            val window = KitsugiAiringCalendarClient()
-                .fetchAiringWindow(nowSec - 7 * 24 * 3600L, nowSec + 2 * 3600L)
-            val malWatchingMalIds = watching.mapNotNull { it.malId }.toSet()
-            val matched = window.filter { it.malId != null && malWatchingMalIds.contains(it.malId) }
-
+            val feed = MalNotificationsClient.fetch(cookieHeader)
+            val unread = feed.items.count { !it.isRead }
             Row(
                 source = "MyAnimeList",
                 connected = true,
-                endpoint = "MAL API v2 (bildirim ucu yok) + AniList yayın takvimi",
+                endpoint = endpoint,
                 ok = true,
-                itemCount = matched.size,
+                itemCount = feed.items.size,
                 durationMs = System.currentTimeMillis() - started,
-                detail = "Listenizde ${malWatchingMalIds.size} MAL kaydı • son 7 günde ${matched.size} yayın eşleşmesi",
-                hint = if (malWatchingMalIds.isEmpty())
-                    "İzleme listenizde 'İzleniyor' durumunda MAL kaynaklı kayıt yok; eşleşme bu yüzden 0."
-                else null
+                detail = "MAL hesabından ${feed.items.size} bildirim • okunmamış: $unread"
             )
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             Row(
                 source = "MyAnimeList",
                 connected = true,
-                endpoint = "MAL API v2 (bildirim ucu yok) + AniList yayın takvimi",
+                endpoint = endpoint,
                 ok = false,
                 durationMs = System.currentTimeMillis() - started,
-                detail = "Yayın takvimi okunamadı",
-                error = e.message ?: e.javaClass.simpleName
+                detail = "MAL hesap bildirimleri okunamadı",
+                error = e.message ?: e.javaClass.simpleName,
+                hint = "Oturum süresi dolmuşsa Bildirimler ekranından web oturumunu yenileyin."
             )
         }
     }

@@ -127,7 +127,14 @@ fun KitsugiDetailHero(
     // ve görsel alanı yine Crop ile TAM kaplanır (bulanık dolgu/boşluk yok).
     val configuration = LocalConfiguration.current
     val screenHeightDp = configuration.screenHeightDp.toFloat()
-    val isLandscapeScreen = configuration.screenWidthDp > configuration.screenHeightDp
+    val screenWidthDp = configuration.screenWidthDp
+    // Yatay modda her zaman dikey poster birincil olur; dikey modda ekran
+    // oranına bakılır — uzun-dar telefonlarda dikey poster, daha kare/tablet
+    // benzeri cihazlarda yatay arka plan tercih edilir.
+    val artworkPreference = remember(screenWidthDp, configuration.screenHeightDp) {
+        resolveHeroArtworkPreference(screenWidthDp, configuration.screenHeightDp)
+    }
+    val usePosterArtwork = artworkPreference == HeroArtworkPreference.POSTER
 
     val artworkKey = artworkItem?.let { KitsugiHeroArtworkResolver.cacheKey(it) }
     // Önceden çözülmüş plan varsa ilk değer olarak onu kullan; yoksa önbelleğe bak.
@@ -192,10 +199,14 @@ fun KitsugiDetailHero(
             addAll(galleryVerticalUrls)
         }.distinct()
     }
-    // YÖN ⇄ GÖRSEL OTOMATİK EŞLEŞMESİ: yatay modda dikey poster birincil,
-    // dikey modda yatay arka plan birincil (çift sabit olduğu için eşleşme otomatiktir).
-    val imagePlan = remember(wideArtworkCandidates, tallArtworkCandidates, isLandscapeScreen) {
-        if (isLandscapeScreen) (tallArtworkCandidates + wideArtworkCandidates).distinct()
+    // YÖN ⇄ GÖRSEL OTOMATİK EŞLEŞMESİ:
+    //  - POSTER tercihi (yatay mod **ve** uzun-dar telefonlar): dikey poster birincil.
+    //  - BACKDROP tercihi (daha kare/tablet benzeri cihazlar): yatay arka plan birincil.
+    // Çift sabit olduğu için eşleşme otomatiktir; yedek aday olarak diğer tür
+    // listenin sonuna eklenir (kullanıcı elle kaydırdığında veya birincil aday
+    // yüklenemediğinde kullanılır).
+    val imagePlan = remember(wideArtworkCandidates, tallArtworkCandidates, usePosterArtwork) {
+        if (usePosterArtwork) (tallArtworkCandidates + wideArtworkCandidates).distinct()
         else (wideArtworkCandidates + tallArtworkCandidates).distinct()
     }
 
@@ -220,17 +231,19 @@ fun KitsugiDetailHero(
     BoxWithConstraints(
         modifier = Modifier.fillMaxWidth()
     ) {
-        // GÖRSEL ALANININ ŞEKLİ: yönün varsayılan oranıyla başlar, görsel yüklenince
-        // GERÇEK en-boy oranına kilitlenir → kutu, gösterdiği görselle birebir aynı
-        // şekle gelir ve görsel (Crop ile) alanı TAM kaplar; kırpma/boşluk ≈ sıfır.
-        //  - YATAY mod → 2:3 DİKEY poster kutusu (uzun-dar).
-        //  - DİKEY mod → 16:9 YATAY arka plan bandı (geniş-kısa).
-        val defaultBoxAspect = if (isLandscapeScreen) 2f / 3f else 16f / 9f
+        // GÖRSEL ALANININ ŞEKLİ: ekran yönü/boyutuna göre varsayılan oranla başlar,
+        // görsel yüklenince GERÇEK en-boy oranına kilitlenir → kutu, gösterdiği görselle
+        // birebir aynı şekle gelir ve görsel (Crop ile) alanı TAM kaplar; kırpma/boşluk ≈ sıfır.
+        //  - POSTER tercihi (yatay mod + uzun-dar telefonlar) → 2:3 DİKEY poster kutusu.
+        //  - BACKDROP tercihi (kare/tablet benzeri cihazlar) → 16:9 YATAY arka plan bandı.
+        val defaultBoxAspect = if (usePosterArtwork) 2f / 3f else 16f / 9f
         val boxAspect = (loadedImageAspect ?: defaultBoxAspect).coerceIn(
-            minimumValue = if (isLandscapeScreen) 0.5f else 1.0f,
-            maximumValue = if (isLandscapeScreen) 1.6f else 2.2f
+            minimumValue = if (usePosterArtwork) 0.5f else 1.0f,
+            maximumValue = if (usePosterArtwork) 1.6f else 2.2f
         )
-        val bannerCapDp = if (isLandscapeScreen) screenHeightDp else screenHeightDp * 0.62f
+        // POSTER'da görsel alanı çok uzun olabilir; ekran yüksekliğiyle sınırla.
+        // BACKDROP'ta 16:9 bant kendi sınırını getirir; yine de ekranın %62'sini aşmasın.
+        val bannerCapDp = if (usePosterArtwork) screenHeightDp else screenHeightDp * 0.62f
         val bannerHeight = (maxWidth / boxAspect).coerceAtMost(bannerCapDp.dp)
 
         // Başlık, meta bilgileri ve rozetler ayrı bir koyu alan ayırmak yerine

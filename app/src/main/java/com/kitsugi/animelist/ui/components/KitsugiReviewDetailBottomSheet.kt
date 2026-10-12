@@ -55,7 +55,7 @@ import com.kitsugi.animelist.utils.KitsugiStrings
 fun KitsugiReviewDetailBottomSheet(
     review: KitsugiReview,
     apiClient: JikanApiClient,
-    onUserProfileClick: ((userId: Int?, username: String, avatarUrl: String?) -> Unit)? = null,
+    onUserProfileClick: ((userId: Int?, username: String, avatarUrl: String?, source: String) -> Unit)? = null,
     onDismiss: () -> Unit
 ) {
     val context = LocalContext.current
@@ -152,7 +152,7 @@ fun KitsugiReviewDetailBottomSheet(
                             .background(KitsugiColors.SurfaceSoft)
                             .then(
                                 if (onUserProfileClick != null) {
-                                    Modifier.clickable { onUserProfileClick(review.userId, review.username, review.avatarUrl) }
+                                    Modifier.clickable { onUserProfileClick(review.userId, review.username, review.avatarUrl, review.source) }
                                 } else Modifier
                             )
                     ) {
@@ -186,7 +186,7 @@ fun KitsugiReviewDetailBottomSheet(
                             modifier = if (onUserProfileClick != null) {
                                 Modifier
                                     .clip(RoundedCornerShape(4.dp))
-                                    .clickable { onUserProfileClick(review.userId, review.username, review.avatarUrl) }
+                                    .clickable { onUserProfileClick(review.userId, review.username, review.avatarUrl, review.source) }
                                     .padding(horizontal = 4.dp, vertical = 2.dp)
                             } else Modifier
                         )

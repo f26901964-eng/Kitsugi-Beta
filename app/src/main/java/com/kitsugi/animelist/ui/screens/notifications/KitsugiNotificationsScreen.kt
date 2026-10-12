@@ -44,7 +44,9 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import android.content.Intent
 import android.content.res.Configuration
+import android.net.Uri
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil3.compose.AsyncImage
@@ -57,6 +59,8 @@ import com.kitsugi.animelist.data.platform.PlatformErrorCode
 import com.kitsugi.animelist.model.MediaEntry
 import com.kitsugi.animelist.ui.components.KitsugiPlatformLogo
 import com.kitsugi.animelist.ui.components.KitsugiPlasmaLoader
+import com.kitsugi.animelist.ui.components.KitsugiWebViewDialog
+import com.kitsugi.animelist.data.remote.malweb.MalWebSessionStore
 import com.kitsugi.animelist.ui.components.PlatformErrorExplanationBlock
 import com.kitsugi.animelist.ui.theme.KitsugiColors
 import com.kitsugi.animelist.ui.theme.LocalKitsugiAccent
@@ -65,6 +69,9 @@ import kotlinx.coroutines.launch
 import com.kitsugi.animelist.utils.KitsugiStrings
 
 // ─── Platform seçimi ──────────────────────────────────────────────────────────
+
+/** Native bildirim akışı için gereken MAL web oturumu yalnızca ilk bağlantıda istenir. */
+private const val MAL_WEB_LOGIN_URL = "https://myanimelist.net/login.php"
 
 private enum class NotifPlatform(
     val label: String,
@@ -130,6 +137,8 @@ fun KitsugiNotificationsScreen(
     var activeActivityIdForDetail by remember { mutableStateOf<Int?>(null) }
     var showDiagnostics by remember { mutableStateOf(false) }
     var showSourcePickerSheet by remember { mutableStateOf(false) }
+    var showMalWebLogin by remember { mutableStateOf(false) }
+    var malWebLoginHandled by remember { mutableStateOf(false) }
 
     // ── ViewModel state'lerini topla ──
     val malState       by viewModel.mal.collectAsState()
@@ -168,7 +177,7 @@ fun KitsugiNotificationsScreen(
                 resetPage = true,
                 mediaEntries = mediaEntries
             )
-            1 -> if (isMalConnected) viewModel.loadMal(mediaEntries)
+            1 -> viewModel.loadMal(mediaEntries)
             2 -> if (isSimklConnected) viewModel.loadTmdbSimkl(mediaEntries)
             3 -> if (isKitsuConnected) viewModel.loadKitsu(mediaEntries)
             4 -> if (isShikimoriConnected) viewModel.loadShikimori(mediaEntries)
@@ -252,7 +261,7 @@ fun KitsugiNotificationsScreen(
         val currentPlatform = NotifPlatform.entries.getOrElse(pagerState.currentPage) { NotifPlatform.ANILIST }
         val isCurrentConnected = when (currentPlatform) {
             NotifPlatform.ANILIST    -> isAniListConnected
-            NotifPlatform.MAL        -> isMalConnected
+            NotifPlatform.MAL        -> isMalConnected || !malState.requiresMalWebLogin
             NotifPlatform.TMDB_SIMKL -> isSimklConnected
             NotifPlatform.KITSU      -> isKitsuConnected
             NotifPlatform.SHIKIMORI  -> isShikimoriConnected
@@ -388,14 +397,41 @@ fun KitsugiNotificationsScreen(
                 // ──────────────── Page 1: MAL ────────────────
                 1 -> SourceNotifPage(
                     state = malState,
-                    isConnected = isMalConnected,
+                    // MAL's native feed can work without the separate MAL OAuth list token;
+                    // private website notifications are loaded with the WebView session.
+                    isConnected = true,
                     loginRequiredMessage = stringResource(R.string.notif_login_required_mal),
-                    emptyMessage = stringResource(R.string.notif_empty_list_mal),
+                    emptyMessage = stringResource(R.string.notif_empty_no_notifications),
                     accentColor = accentColor,
                     listState = malListState,
                     onUserProfileClick = onUserProfileClick,
+                    malWebSessionTitle = stringResource(
+                        if (malState.requiresMalWebLogin) R.string.notif_mal_web_connect
+                        else R.string.notif_mal_web_refresh
+                    ),
+                    malWebSessionHint = stringResource(
+                        if (malState.requiresMalWebLogin) R.string.notif_mal_web_login_hint
+                        else R.string.notif_mal_web_refresh_hint
+                    ),
+                    onMalWebSessionAction = {
+                        if (malState.requiresMalWebLogin) {
+                            malWebLoginHandled = false
+                            showMalWebLogin = true
+                        } else {
+                            viewModel.loadMal(mediaEntries)
+                        }
+                    },
                     onItemClick = { notif ->
-                        notif.mediaId?.let { id -> onOpenApiDetail?.invoke(id, "jikan", notif.mediaType, notif.title, notif.imageUrl) }
+                        val mediaId = notif.mediaId
+                        if (mediaId != null && onOpenApiDetail != null) {
+                            onOpenApiDetail.invoke(mediaId, "jikan", notif.mediaType, notif.title, notif.imageUrl)
+                        } else {
+                            notif.targetUrl?.let { target ->
+                                runCatching {
+                                    context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(target)))
+                                }
+                            }
+                        }
                     }
                 )
 
@@ -464,7 +500,7 @@ fun KitsugiNotificationsScreen(
         com.kitsugi.animelist.ui.components.KitsugiActivityDetailBottomSheet(
             activityId = activeActivityIdForDetail!!,
             apiClient = apiClient,
-            onUserProfileClick = { uid, uname, uavatar ->
+            onUserProfileClick = { uid, uname, uavatar, _ ->
                 if (uid != null) {
                     onUserProfileClick?.invoke(uid, uname, uavatar)
                 }
@@ -484,11 +520,36 @@ fun KitsugiNotificationsScreen(
         )
     }
 
+    if (showMalWebLogin) {
+        KitsugiWebViewDialog(
+            title = stringResource(R.string.notif_mal_web_login_title),
+            url = MAL_WEB_LOGIN_URL,
+            onPageFinished = { pageUrl ->
+                val path = Uri.parse(pageUrl).encodedPath.orEmpty()
+                if (!path.contains("login", ignoreCase = true) &&
+                    !malWebLoginHandled &&
+                    MalWebSessionStore.readAuthenticatedCookieHeader() != null
+                ) {
+                    malWebLoginHandled = true
+                    showMalWebLogin = false
+                    viewModel.loadMal(mediaEntries)
+                }
+            },
+            onDismiss = {
+                showMalWebLogin = false
+                if (!malWebLoginHandled && MalWebSessionStore.readAuthenticatedCookieHeader() != null) {
+                    malWebLoginHandled = true
+                    viewModel.loadMal(mediaEntries)
+                }
+            }
+        )
+    }
+
     if (showSourcePickerSheet) {
         NotificationSourcePickerSheet(
             selectedPlatformIndex = pagerState.currentPage,
             isAniListConnected = isAniListConnected,
-            isMalConnected = isMalConnected,
+            isMalConnected = isMalConnected || !malState.requiresMalWebLogin,
             isSimklConnected = isSimklConnected,
             isKitsuConnected = isKitsuConnected,
             isShikimoriConnected = isShikimoriConnected,
@@ -522,9 +583,15 @@ private fun SourceNotifPage(
     accentColor: Color,
     listState: androidx.compose.foundation.lazy.LazyListState,
     onUserProfileClick: ((userId: Int, username: String, avatarUrl: String?) -> Unit)?,
-    onItemClick: (NotifItem) -> Unit
+    onItemClick: (NotifItem) -> Unit,
+    malWebSessionTitle: String? = null,
+    malWebSessionHint: String? = null,
+    onMalWebSessionAction: (() -> Unit)? = null
 ) {
-    if (!isConnected && state.items.isEmpty()) {
+    val hasMalWebSessionAction =
+        malWebSessionTitle != null && malWebSessionHint != null && onMalWebSessionAction != null
+
+    if (!isConnected && state.items.isEmpty() && !hasMalWebSessionAction) {
         CenteredEmptyState(loginRequiredMessage)
         return
     }
@@ -534,38 +601,100 @@ private fun SourceNotifPage(
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(bottom = 80.dp)
     ) {
-        if (!state.notice.isNullOrBlank()) {
+        if (hasMalWebSessionAction) {
+            item(key = "mal_web_session_action") {
+                MalWebSessionActionCard(
+                    title = malWebSessionTitle!!,
+                    hint = malWebSessionHint!!,
+                    accentColor = accentColor,
+                    onClick = onMalWebSessionAction!!
+                )
+            }
+        }
+
+        if (!isConnected && state.items.isEmpty()) {
+            item(key = "login_required") { SourceNoticeBanner(text = loginRequiredMessage) }
+        } else if (!state.notice.isNullOrBlank()) {
             item(key = "notice") { SourceNoticeBanner(text = state.notice) }
         }
-        when {
-            state.isLoading && state.items.isEmpty() -> {
-                item { LoadingState(accentColor) }
-            }
-            state.error != null && state.items.isEmpty() -> {
-                item { CenteredEmptyState(state.error!!) }
-            }
-            state.items.isEmpty() -> {
-                item { CenteredEmptyState(emptyMessage) }
-            }
-            else -> {
-                items(state.items, key = { it.id }) { notif ->
-                    NotifItemRow(
-                        notif = notif,
-                        accentColor = accentColor,
-                        onUserProfileClick = onUserProfileClick,
-                        onClick = { onItemClick(notif) }
-                    )
+
+        // MAL's account feed is fetched by the app and rendered in this native list.
+        if (isConnected || state.items.isNotEmpty() || !hasMalWebSessionAction) {
+            when {
+                state.isLoading && state.items.isEmpty() -> {
+                    item { LoadingState(accentColor) }
                 }
-                if (state.isLoading) {
-                    item {
-                        Box(
-                            Modifier.fillMaxWidth().padding(16.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            KitsugiPlasmaLoader(size = 26.dp)
+                state.error != null && state.items.isEmpty() -> {
+                    item { CenteredEmptyState(state.error!!) }
+                }
+                state.items.isEmpty() -> {
+                    item { CenteredEmptyState(emptyMessage) }
+                }
+                else -> {
+                    items(state.items, key = { it.id }) { notif ->
+                        NotifItemRow(
+                            notif = notif,
+                            accentColor = accentColor,
+                            onUserProfileClick = onUserProfileClick,
+                            onClick = { onItemClick(notif) }
+                        )
+                    }
+                    if (state.isLoading) {
+                        item {
+                            Box(
+                                Modifier.fillMaxWidth().padding(16.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                KitsugiPlasmaLoader(size = 26.dp)
+                            }
                         }
                     }
                 }
+            }
+        }
+    }
+}
+
+@Composable
+private fun MalWebSessionActionCard(
+    title: String,
+    hint: String,
+    accentColor: Color,
+    onClick: () -> Unit
+) {
+    Card(
+        onClick = onClick,
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 10.dp),
+        shape = RoundedCornerShape(14.dp),
+        colors = CardDefaults.cardColors(containerColor = KitsugiColors.Surface)
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Icon(
+                imageVector = Icons.Rounded.NotificationsNone,
+                contentDescription = null,
+                tint = accentColor,
+                modifier = Modifier.size(22.dp)
+            )
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = title,
+                    color = KitsugiColors.TextPrimary,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.SemiBold
+                )
+                Spacer(Modifier.height(3.dp))
+                Text(
+                    text = hint,
+                    color = KitsugiColors.TextMuted,
+                    fontSize = 12.sp,
+                    lineHeight = 16.sp
+                )
             }
         }
     }

@@ -258,6 +258,15 @@ class StaffDetailViewModel(application: Application) : AndroidViewModel(applicat
         }
         val description = detail?.name ?: lastStaffName
 
+        // Publish the hero photo immediately. Other providers can take noticeably longer;
+        // keeping this first item available lets the photo open in the gallery meanwhile.
+        _galleryItems.value = ensureStaffHeroGalleryItem(
+            galleryItems = emptyList(),
+            imageUrl = mainImageUrl,
+            source = friendlySource,
+            description = description
+        )
+
         val aggregated = runCatching {
             KitsugiPersonImageAggregator.aggregate(
                 kind = KitsugiPersonImageAggregator.PersonKind.PERSON,

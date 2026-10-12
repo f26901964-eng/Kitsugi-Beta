@@ -117,12 +117,12 @@ fun KitsugiProfileScreen(
 
     LaunchedEffect(activeSubTab, isAniListConnected, isMalConnected, isSimklConnected, isKitsuConnected, isShikimoriConnected, isBangumiConnected) {
         when (activeSubTab) {
-            0 -> if (isAniListConnected && aniListState.userId == null) viewModel.fetchAniListProfile()
-            1 -> if (isMalConnected && malState.name.isBlank()) viewModel.fetchMalProfile()
-            2 -> if (isSimklConnected && simklState.name.isBlank()) viewModel.fetchSimklProfile()
-            3 -> if (isKitsuConnected && kitsuState.name.isBlank()) viewModel.fetchKitsuProfile()
-            4 -> if (isShikimoriConnected && shikimoriState.name.isBlank()) viewModel.fetchShikimoriProfile()
-            5 -> if (isBangumiConnected && bangumiState.lastUpdatedMs == 0L) viewModel.fetchBangumiProfile()
+            0 -> if (isAniListConnected && aniListState.userId == null && !aniListState.isLoading) viewModel.fetchAniListProfile()
+            1 -> if (isMalConnected && malState.name.isBlank() && !malState.isLoading) viewModel.fetchMalProfile()
+            2 -> if (isSimklConnected && simklState.name.isBlank() && !simklState.isLoading) viewModel.fetchSimklProfile()
+            3 -> if (isKitsuConnected && kitsuState.name.isBlank() && !kitsuState.isLoading) viewModel.fetchKitsuProfile()
+            4 -> if (isShikimoriConnected && shikimoriState.name.isBlank() && !shikimoriState.isLoading) viewModel.fetchShikimoriProfile()
+            5 -> if (isBangumiConnected && bangumiState.lastUpdatedMs == 0L && !bangumiState.isLoading) viewModel.fetchBangumiProfile()
         }
     }
 
@@ -383,8 +383,8 @@ fun KitsugiProfileScreen(
     }
 
     // ── Overlays / Dialogs ─────────────────────────────────────────────────
-    if (activeFavoriteSheet != null) {
-        val filterTitle = activeFavoriteSheet!!.first
+    activeFavoriteSheet?.let { sheet ->
+        val filterTitle = sheet.first
         val currentFavCategory = when (viewModel.aniListFavoritesFilter) {
             0 -> "anime"; 1 -> "manga"; 2 -> "characters"; 3 -> "staff"; 4 -> "studios"; else -> "anime"
         }
@@ -392,9 +392,9 @@ fun KitsugiProfileScreen(
             when (viewModel.aniListFavoritesFilter) {
                 0 -> aniListState.favoriteAnime; 1 -> aniListState.favoriteManga
                 2 -> aniListState.favoriteCharacters; 3 -> aniListState.favoriteStaff
-                4 -> aniListState.favoriteStudios; else -> activeFavoriteSheet!!.second
+                4 -> aniListState.favoriteStudios; else -> sheet.second
             }
-        } else { activeFavoriteSheet!!.second }
+        } else { sheet.second }
         val currentHasNext = if (activeSubTab == 0) {
             when (viewModel.aniListFavoritesFilter) {
                 0 -> aniListState.favAnimeHasNext; 1 -> aniListState.favMangaHasNext
@@ -414,9 +414,9 @@ fun KitsugiProfileScreen(
         )
     }
 
-    if (activeActivityIdForDetail != null) {
+    activeActivityIdForDetail?.let { actId ->
         KitsugiActivityDetailBottomSheet(
-            activityId = activeActivityIdForDetail!!,
+            activityId = actId,
             apiClient = apiClient,
             titleLanguage = appSettings.titleLanguage.toString(),
             blurAdultMedia = appSettings.blurAdultMedia,
@@ -425,8 +425,7 @@ fun KitsugiProfileScreen(
         )
     }
 
-    if (showDeleteConfirmDialog != null) {
-        val actIdStr = showDeleteConfirmDialog!!
+    showDeleteConfirmDialog?.let { actIdStr ->
         AlertDialog(
             onDismissRequest = { showDeleteConfirmDialog = null },
             title = { Text(stringResource(R.string.aktiviteyi_sil), color = KitsugiColors.TextPrimary, fontWeight = FontWeight.Bold) },
@@ -453,8 +452,7 @@ fun KitsugiProfileScreen(
         )
     }
 
-    if (activeGalleryImages != null) {
-        val (urls, initialIdx, title) = activeGalleryImages!!
+    activeGalleryImages?.let { (urls, initialIdx, title) ->
         KitsugiImageGalleryDialog(
             imageUrls = urls,
             initialIndex = initialIdx,

@@ -238,8 +238,8 @@ fun AppRootDetailPages(
                     onStudioClick = { studioId, studioSource, studioName, studioImageUrl ->
                         navState.navigateToDetail(DetailScreen.StudioDetail(studioId, studioSource, studioName, studioImageUrl))
                     },
-                    onUserProfileClick = { userId, username, avatarUrl ->
-                        navState.navigateToDetail(DetailScreen.UserProfile(userId, username, avatarUrl))
+                    onUserProfileClick = { userId, username, avatarUrl, profileSource ->
+                        navState.navigateToDetail(DetailScreen.UserProfile(userId, username, avatarUrl, profileSource))
                     },
                     onSearchQuery = triggerSearch,
                     onSearchByGenre = { genre ->
@@ -389,8 +389,8 @@ fun AppRootDetailPages(
                         onStudioClick = { studioId, studioSource, studioName, studioImageUrl ->
                             navState.navigateToDetail(DetailScreen.StudioDetail(studioId, studioSource, studioName, studioImageUrl))
                         },
-                        onUserProfileClick = { userId, username, avatarUrl ->
-                            navState.navigateToDetail(DetailScreen.UserProfile(userId, username, avatarUrl))
+                        onUserProfileClick = { userId, username, avatarUrl, profileSource ->
+                            navState.navigateToDetail(DetailScreen.UserProfile(userId, username, avatarUrl, profileSource))
                         },
                         onSearchQuery = triggerSearch,
                         onSearchByGenre = { genre ->
@@ -509,8 +509,57 @@ fun AppRootDetailPages(
         }
 
         is AppStateKey.UserProfile -> {
-            navState.stateHolder.SaveableStateProvider(key = "user_profile_${key.depth}_${key.userId}") {
-                com.kitsugi.animelist.ui.screens.profile.KitsugiUserProfileScreen(
+            navState.stateHolder.SaveableStateProvider(key = "user_profile_${key.depth}_${key.source}_${key.userId}_${key.username.orEmpty()}") {
+                val profileSource = key.source.lowercase()
+                val onProfileFavoriteMediaClick: (Int, MediaType, String, String, String?) -> Unit = { mediaId, mediaType, favSource, title, imageUrl ->
+                    val stableId = if (favSource == "anilist") mediaId + 100_000_000 else mediaId
+                    // isAdult, mevcut liste kaydından türetilerek blur tutarlılığı sağlanır.
+                    val resolvedIsAdult = mediaEntries.firstOrNull { entry ->
+                        entry.malId == stableId && entry.source.equals(favSource, ignoreCase = true)
+                    }?.isAdult ?: false
+                    val searchResult = com.kitsugi.animelist.data.remote.JikanSearchResult(
+                        malId = stableId,
+                        title = title.ifBlank { KitsugiStrings.get(R.string.loading) },
+                        subtitle = "",
+                        type = mediaType,
+                        total = null,
+                        score = null,
+                        isAdult = resolvedIsAdult,
+                        imageUrl = imageUrl,
+                        year = null,
+                        source = favSource
+                    )
+                    val existingEntry = mediaEntries.firstMatchingInSource(searchResult)
+                    if (existingEntry != null) {
+                        navState.navigateToDetail(DetailScreen.MediaDetail(existingEntry.id))
+                    } else {
+                        navState.navigateToDetail(DetailScreen.ApiResultDetail(searchResult))
+                    }
+                }
+                if (profileSource == "mal" || profileSource == "jikan" || profileSource == "kitsu" || profileSource == "simkl") {
+                    // MAL / Kitsu / Simkl kullanıcıları → uygulama içi, platforma özel profil
+                    com.kitsugi.animelist.ui.screens.profile.PlatformUserProfileScreen(
+                        source = profileSource,
+                        userId = key.userId,
+                        username = key.username,
+                        avatarUrl = key.avatarUrl,
+                        appSettings = appSettings,
+                        mediaEntries = mediaEntries,
+                        onBackClick = { navState.popDetailStack() },
+                        onEntryClick = { entry ->
+                            navState.navigateToDetail(DetailScreen.MediaDetail(entry.id))
+                        },
+                        onFavoriteMediaClick = onProfileFavoriteMediaClick,
+                        onFavoriteCharacterClick = { charId, charSource, name, imageUrl ->
+                            navState.navigateToDetail(DetailScreen.CharacterDetail(charId, charSource, name, imageUrl))
+                        },
+                        onFavoriteStaffClick = { staffId, staffSource, name, imageUrl ->
+                            navState.navigateToDetail(DetailScreen.StaffDetail(staffId, staffSource, name, imageUrl))
+                        },
+                        onScrollReset = onScrollReset
+                    )
+                } else {
+                    com.kitsugi.animelist.ui.screens.profile.KitsugiUserProfileScreen(
                     onScrollReset = onScrollReset,
                     userId = key.userId,
                     fallbackUsername = key.username,
@@ -518,31 +567,7 @@ fun AppRootDetailPages(
                     appSettings = appSettings,
                     mediaEntries = mediaEntries,
                     onBackClick = { navState.popDetailStack() },
-                    onFavoriteMediaClick = { mediaId, mediaType, source, title, imageUrl ->
-                        val stableId = if (source == "anilist") mediaId + 100_000_000 else mediaId
-                        // isAdult, mevcut liste kaydından türetilerek blur tutarlılığı sağlanır.
-                        val resolvedIsAdult = mediaEntries.firstOrNull { entry ->
-                            entry.malId == stableId && entry.source.equals(source, ignoreCase = true)
-                        }?.isAdult ?: false
-                        val searchResult = com.kitsugi.animelist.data.remote.JikanSearchResult(
-                            malId = stableId,
-                            title = title.ifBlank { KitsugiStrings.get(R.string.loading) },
-                            subtitle = "",
-                            type = mediaType,
-                            total = null,
-                            score = null,
-                            isAdult = resolvedIsAdult,
-                            imageUrl = imageUrl,
-                            year = null,
-                            source = source
-                        )
-                        val existingEntry = mediaEntries.firstMatchingInSource(searchResult)
-                        if (existingEntry != null) {
-                            navState.navigateToDetail(DetailScreen.MediaDetail(existingEntry.id))
-                        } else {
-                            navState.navigateToDetail(DetailScreen.ApiResultDetail(searchResult))
-                        }
-                    },
+                    onFavoriteMediaClick = onProfileFavoriteMediaClick,
                     onFavoriteCharacterClick = { charId, source, name, imageUrl ->
                         navState.navigateToDetail(DetailScreen.CharacterDetail(charId, source, name, imageUrl))
                     },
@@ -561,6 +586,7 @@ fun AppRootDetailPages(
                         navState.navigateToDetail(DetailScreen.UserMediaList(uId, key.username ?: "Kullanıcı", mType))
                     }
                 )
+                }
             }
         }
 

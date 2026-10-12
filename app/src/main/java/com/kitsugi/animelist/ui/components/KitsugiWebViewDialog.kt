@@ -35,9 +35,11 @@ fun KitsugiWebViewDialog(
     title: String,
     url: String,
     onUrlRedirect: ((String) -> Boolean)? = null,
+    onPageFinished: ((String) -> Unit)? = null,
     onDismiss: () -> Unit
 ) {
     val accentColor = LocalKitsugiAccent.current
+    val currentOnPageFinished by rememberUpdatedState(onPageFinished)
     var webViewInstance by remember { mutableStateOf<WebView?>(null) }
     var progress by remember { mutableStateOf(0) }
     var isLoading by remember { mutableStateOf(true) }
@@ -138,6 +140,7 @@ fun KitsugiWebViewDialog(
                                             }
                                             nh.cookieJar.syncFromWebView(finalUrl)
                                         } catch (_: Exception) {}
+                                        runCatching { currentOnPageFinished?.invoke(finalUrl) }
                                     }
 
                                     override fun shouldOverrideUrlLoading(view: WebView?, url: String?): Boolean {

@@ -1,4 +1,4 @@
-﻿package com.kitsugi.animelist.ui.components
+package com.kitsugi.animelist.ui.components
 import com.kitsugi.animelist.utils.KitsugiTranslateUtils
 import com.kitsugi.animelist.utils.KitsugiTranslatePrefs
 import com.kitsugi.animelist.ui.components.KitsugiButton
@@ -51,7 +51,7 @@ fun KitsugiActivityDetailBottomSheet(
     apiClient: JikanApiClient,
     titleLanguage: String = "ROMAJI",
     blurAdultMedia: Boolean = false,
-    onUserProfileClick: ((userId: Int?, username: String, avatarUrl: String?) -> Unit)? = null,
+    onUserProfileClick: ((userId: Int?, username: String, avatarUrl: String?, source: String) -> Unit)? = null,
     onMediaClick: ((mediaId: Int, mediaType: com.kitsugi.animelist.model.MediaType, source: String) -> Unit)? = null,
     onDismiss: () -> Unit
 ) {
@@ -278,7 +278,7 @@ fun KitsugiActivityDetailBottomSheet(
                                         .background(KitsugiColors.SurfaceSoft)
                                         .then(
                                             if (onUserProfileClick != null) {
-                                                Modifier.clickable { onUserProfileClick(act.userId, act.username, act.avatarUrl) }
+                                                Modifier.clickable { onUserProfileClick(act.userId, act.username, act.avatarUrl, act.source) }
                                             } else Modifier
                                         )
                                 ) {
@@ -310,7 +310,7 @@ fun KitsugiActivityDetailBottomSheet(
                                         modifier = if (onUserProfileClick != null) {
                                             Modifier
                                                 .clip(RoundedCornerShape(4.dp))
-                                                .clickable { onUserProfileClick(act.userId, act.username, act.avatarUrl) }
+                                                .clickable { onUserProfileClick(act.userId, act.username, act.avatarUrl, act.source) }
                                                 .padding(horizontal = 4.dp, vertical = 2.dp)
                                         } else Modifier
                                     )
@@ -452,7 +452,7 @@ fun KitsugiActivityDetailBottomSheet(
                                             .background(KitsugiColors.SurfaceSoft)
                                             .then(
                                                 if (onUserProfileClick != null) {
-                                                    Modifier.clickable { onUserProfileClick(reply.userId, reply.username, reply.avatarUrl) }
+                                                    Modifier.clickable { onUserProfileClick(reply.userId, reply.username, reply.avatarUrl, act.source) }
                                                 } else Modifier
                                             )
                                     ) {
@@ -483,7 +483,7 @@ fun KitsugiActivityDetailBottomSheet(
                                         modifier = if (onUserProfileClick != null) {
                                             Modifier
                                                 .clip(RoundedCornerShape(4.dp))
-                                                .clickable { onUserProfileClick(reply.userId, reply.username, reply.avatarUrl) }
+                                                .clickable { onUserProfileClick(reply.userId, reply.username, reply.avatarUrl, act.source) }
                                                 .padding(horizontal = 4.dp, vertical = 2.dp)
                                         } else Modifier
                                     )

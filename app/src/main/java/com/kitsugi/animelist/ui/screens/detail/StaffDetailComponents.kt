@@ -1,6 +1,7 @@
 package com.kitsugi.animelist.ui.screens.detail
 
 import com.kitsugi.animelist.ui.components.KitsugiGalleryIconButton
+import com.kitsugi.animelist.ui.components.LocalKitsugiGalleryLoading
 import com.kitsugi.animelist.utils.cleanShikimoriBbCode
 import com.kitsugi.animelist.ui.theme.gradient.background
 import com.kitsugi.animelist.ui.utils.tvClickable
@@ -294,7 +295,7 @@ internal fun StaffDetailLeftPanel(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    if (galleryItems.isNotEmpty()) {
+                    if (LocalKitsugiGalleryLoading.current || galleryItems.isNotEmpty()) {
                         Box(
                             modifier = Modifier
                                 .size(40.dp)
@@ -642,7 +643,7 @@ internal fun StaffPortraitHeroSection(
                 verticalAlignment = Alignment.CenterVertically
             ) {
 
-                if (galleryItems.isNotEmpty()) {
+                if (LocalKitsugiGalleryLoading.current || galleryItems.isNotEmpty()) {
                     Box(
                         modifier = Modifier
                             .size(40.dp)
@@ -786,7 +787,7 @@ internal fun StaffDetailStickyHeader(
                     overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.weight(1f)
                 )
-                if (galleryItems.isNotEmpty()) {
+                if (LocalKitsugiGalleryLoading.current || galleryItems.isNotEmpty()) {
                     KitsugiGalleryIconButton(onClick = {
                         onGalleryOpen(galleryItems, 0)
                     }, accentColor = accentColor)

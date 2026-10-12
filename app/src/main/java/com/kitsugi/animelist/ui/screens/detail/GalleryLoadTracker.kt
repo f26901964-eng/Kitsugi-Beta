@@ -10,7 +10,8 @@ import kotlinx.coroutines.flow.asStateFlow
  * Bir galeri; TMDB, Shikimori, Fanart.tv, Jikan, AniList, Bangumi gibi **birden fazla kaynaktan**
  * ve birden fazla işten (detay, galeri, detay sonrası yenileme) oluşur. [loading] yalnızca
  * BÜTÜN işler bittiğinde `false` olur. Bu süre boyunca galeri butonu yükleniyor animasyonunda
- * kalır ve resimlere / galeriye dokunulamaz.
+ * kalır ve devre dışıdır; sayfalar hazır olan vitrin görselini geçici galeri önizlemesi olarak
+ * açmayı ayrıca destekleyebilir.
  *
  * Her yeni içerik yüklemesinde [reset] çağrılır ve yeni bir "nesil" (generation) başlar.
  * Eski nesle ait işler bittiğinde [end] onları yok sayar; böylece sayaç bozulmaz.

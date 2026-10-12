@@ -375,7 +375,7 @@ fun KitsugiUserProfileScreen(
     }
 
     // ── Overlays ─────────────────────────────────────────────────────────────
-    if (activeFavoriteSheet != null) {
+    activeFavoriteSheet?.let { sheet ->
         val favoritesFilter = viewModel.favoritesFilter
         val currentHasNext = when (favoritesFilter) {
             0 -> state.favAnimeHasNext; 1 -> state.favMangaHasNext
@@ -388,10 +388,10 @@ fun KitsugiUserProfileScreen(
         val currentFavList = when (favoritesFilter) {
             0 -> state.favoriteAnime; 1 -> state.favoriteManga
             2 -> state.favoriteCharacters; 3 -> state.favoriteStaff
-            4 -> state.favoriteStudios; else -> activeFavoriteSheet!!.second
+            4 -> state.favoriteStudios; else -> sheet.second
         }
         FavoritesExpandedBottomSheet(
-            title = activeFavoriteSheet!!.first,
+            title = sheet.first,
             items = currentFavList,
             blurAdultMedia = appSettings.blurAdultMedia,
             hasNextPage = currentHasNext,
@@ -412,9 +412,9 @@ fun KitsugiUserProfileScreen(
         )
     }
 
-    if (activeActivityIdForDetail != null) {
+    activeActivityIdForDetail?.let { actId ->
         KitsugiActivityDetailBottomSheet(
-            activityId = activeActivityIdForDetail!!,
+            activityId = actId,
             apiClient = apiClient,
             titleLanguage = appSettings.titleLanguage.toString(),
             blurAdultMedia = appSettings.blurAdultMedia,
@@ -423,8 +423,7 @@ fun KitsugiUserProfileScreen(
         )
     }
 
-    if (activeGalleryImages != null) {
-        val (urls, idx, title) = activeGalleryImages!!
+    activeGalleryImages?.let { (urls, idx, title) ->
         KitsugiImageGalleryDialog(imageUrls = urls, initialIndex = idx, title = title, onDismiss = { activeGalleryImages = null })
     }
 }

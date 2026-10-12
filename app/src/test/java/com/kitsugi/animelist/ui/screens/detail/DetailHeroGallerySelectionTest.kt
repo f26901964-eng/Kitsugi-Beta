@@ -82,4 +82,31 @@ class DetailHeroGallerySelectionTest {
 
         assertEquals(false, heroArtworkUrlsMatch(first, second))
     }
+
+    @Test
+    fun `landscape mode always prefers poster artwork`() {
+        val preference = resolveHeroArtworkPreference(screenWidthDp = 800, screenHeightDp = 400)
+        assertEquals(HeroArtworkPreference.POSTER, preference)
+    }
+
+    @Test
+    fun `tall narrow phone in portrait prefers poster artwork`() {
+        // e.g. 390x844 (ratio ~0.46 <= 0.55) or 360x800 (ratio 0.45)
+        val modernPhone = resolveHeroArtworkPreference(screenWidthDp = 390, screenHeightDp = 844)
+        assertEquals(HeroArtworkPreference.POSTER, modernPhone)
+
+        val ultraTallPhone = resolveHeroArtworkPreference(screenWidthDp = 360, screenHeightDp = 800)
+        assertEquals(HeroArtworkPreference.POSTER, ultraTallPhone)
+    }
+
+    @Test
+    fun `square or tablet portrait prefers backdrop artwork`() {
+        // e.g. standard 16:9 phone portrait: 360x640 (ratio 0.5625 > 0.55)
+        val standardPhone = resolveHeroArtworkPreference(screenWidthDp = 360, screenHeightDp = 640)
+        assertEquals(HeroArtworkPreference.BACKDROP, standardPhone)
+
+        // Tablet portrait: 600x800 (ratio 0.75 > 0.55)
+        val tablet = resolveHeroArtworkPreference(screenWidthDp = 600, screenHeightDp = 800)
+        assertEquals(HeroArtworkPreference.BACKDROP, tablet)
+    }
 }

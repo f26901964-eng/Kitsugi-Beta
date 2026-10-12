@@ -278,9 +278,28 @@ fun StaffDetailPage(
                         alternatives = rawDetail.alternativeNames
                     )
                 }
-                val galleryItems = remember(rawGalleryItems, galleryLabel) {
-                    rawGalleryItems.map { item ->
+                val galleryItems = remember(rawGalleryItems, galleryLabel, detail.imageUrl, source) {
+                    val localizedItems = rawGalleryItems.map { item ->
                         if (item.description != null) item.copy(description = galleryLabel) else item
+                    }
+                    ensureStaffHeroGalleryItem(
+                        galleryItems = localizedItems,
+                        imageUrl = detail.imageUrl,
+                        source = source.toFriendlySourceLabel(),
+                        description = galleryLabel
+                    )
+                }
+                val dialogGalleryItems = if (activeGalleryItems.any { it.category == GalleryCategory.PERSON }) {
+                    // If the user opens the hero before aggregation finishes, keep the dialog
+                    // live-bound to this list so extra images appear as soon as they arrive.
+                    galleryItems
+                } else {
+                    activeGalleryItems
+                }
+                val openGallery: (List<GalleryItem>, Int) -> Unit = { items, index ->
+                    if (items.isNotEmpty()) {
+                        activeGalleryItems = items
+                        activeGalleryIndex = index.coerceIn(items.indices)
                     }
                 }
                 val isLandscape = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
@@ -314,10 +333,7 @@ fun StaffDetailPage(
                                     tabBarFocusRequester = tabBarFocusRequester,
                                     onBackClick = onBackClick,
                                     onToggleFavourite = { viewModel.toggleFavourite() },
-                                    onGalleryClick = { items, idx ->
-                                        if (!galleryLoading) activeGalleryItems = items
-                                        activeGalleryIndex = idx
-                                    },
+                                    onGalleryClick = openGallery,
                                     modifier = Modifier.weight(leftPanelWeight)
                                 )
                                 // Sağ panel
@@ -367,10 +383,7 @@ fun StaffDetailPage(
                                                     translatedBio = translatedBio,
                                                     preferredTranslator = preferredTranslator,
                                                     accentColor = accentColor,
-                                                    onGalleryClick = { items, idx ->
-                                                        if (!galleryLoading) activeGalleryItems = items
-                                                        activeGalleryIndex = idx
-                                                    },
+                                                    onGalleryClick = openGallery,
                                                     onTranslateClick = { viewModel.translateBio() }
                                                 )
                                             }
@@ -397,7 +410,7 @@ fun StaffDetailPage(
                             }
                             if (activeGalleryItems.isNotEmpty()) {
                                 KitsugiImageGalleryDialog(
-                                    galleryItems = activeGalleryItems,
+                                    galleryItems = dialogGalleryItems,
                                     initialIndex = activeGalleryIndex,
                                     title = detail.name,
                                     onDismiss = { activeGalleryItems = emptyList() }
@@ -425,10 +438,7 @@ fun StaffDetailPage(
                                     galleryItems = galleryItems,
                                     onBackClick = onBackClick,
                                     onToggleFavourite = { viewModel.toggleFavourite() },
-                                    onGalleryOpen = { items, idx ->
-                                        if (!galleryLoading) activeGalleryItems = items
-                                        activeGalleryIndex = idx
-                                    }
+                                    onGalleryOpen = openGallery
                                 )
                             }
 
@@ -452,10 +462,7 @@ fun StaffDetailPage(
                                     accentColor = accentColor,
                                     onBackClick = onBackClick,
                                     onToggleFavourite = { viewModel.toggleFavourite() },
-                                    onGalleryOpen = { items, idx ->
-                                        if (!galleryLoading) activeGalleryItems = items
-                                        activeGalleryIndex = idx
-                                    },
+                                    onGalleryOpen = openGallery,
                                     onTabSelected = { index ->
                                         coroutineScope.launch { pagerState.animateScrollToPage(index) }
                                     }
@@ -532,10 +539,7 @@ fun StaffDetailPage(
                                                         translatedBio = translatedBio,
                                                         preferredTranslator = preferredTranslator,
                                                         accentColor = accentColor,
-                                                        onGalleryClick = { items, idx ->
-                                                            if (!galleryLoading) activeGalleryItems = items
-                                                            activeGalleryIndex = idx
-                                                        },
+                                                        onGalleryClick = openGallery,
                                                         onTranslateClick = { viewModel.translateBio() }
                                                     )
                                                 }
@@ -564,7 +568,7 @@ fun StaffDetailPage(
 
                         if (activeGalleryItems.isNotEmpty()) {
                             KitsugiImageGalleryDialog(
-                                galleryItems = activeGalleryItems,
+                                galleryItems = dialogGalleryItems,
                                 initialIndex = activeGalleryIndex,
                                 title = detail.name,
                                 onDismiss = { activeGalleryItems = emptyList() }

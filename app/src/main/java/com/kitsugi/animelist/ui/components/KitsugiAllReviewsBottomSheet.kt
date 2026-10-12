@@ -21,6 +21,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -35,6 +36,7 @@ import coil3.compose.AsyncImage
 import com.kitsugi.animelist.data.local.TranslationManager
 import com.kitsugi.animelist.data.remote.JikanApiClient
 import com.kitsugi.animelist.data.remote.KitsugiReview
+import com.kitsugi.animelist.data.remote.SocialFeedCache
 import com.kitsugi.animelist.ui.components.KitsugiPlatformLogo
 import com.kitsugi.animelist.model.MediaType
 import com.kitsugi.animelist.ui.theme.LocalKitsugiAccent
@@ -56,7 +58,7 @@ fun KitsugiAllReviewsBottomSheet(
     apiClient: JikanApiClient,
     tmdbId: Int? = null,
     realMalId: Int? = null,
-    onUserProfileClick: ((userId: Int?, username: String, avatarUrl: String?) -> Unit)? = null,
+    onUserProfileClick: ((userId: Int?, username: String, avatarUrl: String?, source: String) -> Unit)? = null,
     onDismiss: () -> Unit
 ) {
     val context = LocalContext.current
@@ -64,15 +66,20 @@ fun KitsugiAllReviewsBottomSheet(
     val coroutineScope = rememberCoroutineScope()
     val translationManager = remember { TranslationManager(context) }
 
-    var reviewsList by remember { mutableStateOf<List<KitsugiReview>>(emptyList()) }
-    var isLoading by remember { mutableStateOf(true) }
+    val socialFeedKey = remember(source, externalId, mediaType, tmdbId, realMalId) {
+        SocialFeedCache.feedKey(source, externalId, mediaType, tmdbId, realMalId)
+    }
+    val cachedFeed = remember(socialFeedKey) { SocialFeedCache.allReviews(socialFeedKey) }
+
+    var reviewsList by remember { mutableStateOf<List<KitsugiReview>>(cachedFeed?.items ?: emptyList()) }
+    var isLoading by remember { mutableStateOf(cachedFeed == null) }
     var isLoadingMore by remember { mutableStateOf(false) }
-    var page by remember { mutableStateOf(1) }
-    var hasMore by remember { mutableStateOf(true) }
+    var page by remember { mutableStateOf(cachedFeed?.page ?: 1) }
+    var hasMore by remember { mutableStateOf(cachedFeed?.hasMore ?: true) }
 
     // Translation & source filter states
-    var selectedLanguage by remember { mutableStateOf("original") }
-    var selectedSourceFilter by remember { mutableStateOf("all") }
+    var selectedLanguage by rememberSaveable { mutableStateOf("original") }
+    var selectedSourceFilter by rememberSaveable { mutableStateOf("all") }
     val translatedSummaries = remember { mutableStateMapOf<String, String>() }
 
     val filteredReviews = remember(reviewsList, selectedSourceFilter) {
@@ -87,17 +94,22 @@ fun KitsugiAllReviewsBottomSheet(
 
     val listState = rememberLazyListState()
 
-    // Initial Load
+    // Initial Load — profil ekranından geri dönüşte liste önbellekten gelir, yeniden yüklenmez.
     LaunchedEffect(source, externalId, mediaType, tmdbId, realMalId) {
+        if (reviewsList.isNotEmpty()) {
+            isLoading = false
+            return@LaunchedEffect
+        }
         isLoading = true
-        reviewsList = emptyList()
         translatedSummaries.clear()
         activeReviewForDetail = null
         page = 1
         hasMore = true
-        reviewsList = apiClient.fetchReviews(
+        val fresh = apiClient.fetchReviews(
             source, externalId, mediaType, page = 1, tmdbId = tmdbId, realMalId = realMalId
         )
+        reviewsList = fresh
+        SocialFeedCache.putAllReviews(socialFeedKey, SocialFeedCache.FeedState(fresh, page, hasMore))
         isLoading = false
     }
 
@@ -125,6 +137,7 @@ fun KitsugiAllReviewsBottomSheet(
                     reviewsList = (reviewsList + newReviews).distinctBy { it.username + "_" + it.summary }
                     page = nextPage
                 }
+                SocialFeedCache.putAllReviews(socialFeedKey, SocialFeedCache.FeedState(reviewsList, page, hasMore))
             } catch (e: Exception) {
                 // T3-05: printStackTrace → Log.e
                 android.util.Log.e("AllReviewsSheet", "loadNextPage failed: ${e.message}", e)
@@ -334,7 +347,7 @@ fun KitsugiAllReviewsBottomSheet(
                                         Modifier
                                             .weight(1f)
                                             .clip(RoundedCornerShape(8.dp))
-                                            .clickable { onUserProfileClick(rev.userId, rev.username, rev.avatarUrl) }
+                                            .clickable { onUserProfileClick(rev.userId, rev.username, rev.avatarUrl, rev.source) }
                                             .padding(4.dp)
                                     } else Modifier.weight(1f)
                                 ) {
@@ -469,6 +482,7 @@ fun KitsugiAllReviewsBottomSheet(
                                                             it
                                                         }
                                                     }
+                                                    SocialFeedCache.putAllReviews(socialFeedKey, SocialFeedCache.FeedState(reviewsList, page, hasMore))
                                                 } else {
                                                     Toast.makeText(context, KitsugiStrings.get(R.string.lutfen_once_giris_yapin), Toast.LENGTH_SHORT).show()
                                                 }

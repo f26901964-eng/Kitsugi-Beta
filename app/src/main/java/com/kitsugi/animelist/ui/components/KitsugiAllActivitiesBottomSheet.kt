@@ -30,6 +30,7 @@ import androidx.compose.ui.unit.sp
 import coil3.compose.AsyncImage
 import com.kitsugi.animelist.data.remote.JikanApiClient
 import com.kitsugi.animelist.data.remote.KitsugiActivity
+import com.kitsugi.animelist.data.remote.SocialFeedCache
 import com.kitsugi.animelist.ui.components.KitsugiPlatformLogo
 import com.kitsugi.animelist.model.MediaType
 import com.kitsugi.animelist.ui.theme.LocalKitsugiAccent
@@ -53,33 +54,43 @@ fun KitsugiAllActivitiesBottomSheet(
     tmdbId: Int? = null,
     realMalId: Int? = null,
     titleLanguage: String = "ROMAJI",
-    onUserProfileClick: ((userId: Int?, username: String, avatarUrl: String?) -> Unit)? = null,
+    onUserProfileClick: ((userId: Int?, username: String, avatarUrl: String?, source: String) -> Unit)? = null,
     onDismiss: () -> Unit
 ) {
     val context = LocalContext.current
     val accentColor = LocalKitsugiAccent.current
     val coroutineScope = rememberCoroutineScope()
 
-    var activitiesList by remember { mutableStateOf<List<KitsugiActivity>>(emptyList()) }
-    var isLoading by remember { mutableStateOf(true) }
+    val socialFeedKey = remember(source, externalId, mediaType, tmdbId, realMalId) {
+        SocialFeedCache.feedKey(source, externalId, mediaType, tmdbId, realMalId)
+    }
+    val cachedFeed = remember(socialFeedKey) { SocialFeedCache.allActivities(socialFeedKey) }
+
+    var activitiesList by remember { mutableStateOf<List<KitsugiActivity>>(cachedFeed?.items ?: emptyList()) }
+    var isLoading by remember { mutableStateOf(cachedFeed == null) }
     var isLoadingMore by remember { mutableStateOf(false) }
-    var page by remember { mutableStateOf(1) }
-    var hasMore by remember { mutableStateOf(true) }
+    var page by remember { mutableStateOf(cachedFeed?.page ?: 1) }
+    var hasMore by remember { mutableStateOf(cachedFeed?.hasMore ?: true) }
 
     var activeActivityIdForDetail by remember { mutableStateOf<Int?>(null) }
 
     val listState = rememberLazyListState()
 
-    // Initial Load
+    // Initial Load — profil ekranından geri dönüşte liste önbellekten gelir, yeniden yüklenmez.
     LaunchedEffect(source, externalId, mediaType, tmdbId, realMalId) {
+        if (activitiesList.isNotEmpty()) {
+            isLoading = false
+            return@LaunchedEffect
+        }
         isLoading = true
-        activitiesList = emptyList()
         activeActivityIdForDetail = null
         page = 1
         hasMore = true
-        activitiesList = apiClient.fetchActivities(
+        val fresh = apiClient.fetchActivities(
             source, externalId, page = 1, mediaType = mediaType, tmdbId = tmdbId, realMalId = realMalId
         )
+        activitiesList = fresh
+        SocialFeedCache.putAllActivities(socialFeedKey, SocialFeedCache.FeedState(fresh, page, hasMore))
         isLoading = false
     }
 
@@ -107,6 +118,7 @@ fun KitsugiAllActivitiesBottomSheet(
                     activitiesList = (activitiesList + newActs).distinctBy { it.id }
                     page = nextPage
                 }
+                SocialFeedCache.putAllActivities(socialFeedKey, SocialFeedCache.FeedState(activitiesList, page, hasMore))
             } catch (e: Exception) {
                 // T3-05: printStackTrace → Log.e
                 android.util.Log.e("AllActivitiesSheet", "loadNextPage failed: ${e.message}", e)
@@ -223,7 +235,7 @@ fun KitsugiAllActivitiesBottomSheet(
                                     modifier = if (onUserProfileClick != null) {
                                         Modifier
                                             .clip(RoundedCornerShape(8.dp))
-                                            .clickable { onUserProfileClick(act.userId, act.username, act.avatarUrl) }
+                                            .clickable { onUserProfileClick(act.userId, act.username, act.avatarUrl, act.source) }
                                             .padding(4.dp)
                                     } else Modifier
                                 ) {
@@ -369,6 +381,7 @@ fun KitsugiAllActivitiesBottomSheet(
                                                         it
                                                     }
                                                 }
+                                                SocialFeedCache.putAllActivities(socialFeedKey, SocialFeedCache.FeedState(activitiesList, page, hasMore))
                                             } else {
                                                 Toast.makeText(context, KitsugiStrings.get(R.string.lutfen_once_giris_yapin), Toast.LENGTH_SHORT).show()
                                             }

@@ -47,7 +47,8 @@ internal fun KitsugiForumCommentCard(
     coroutineScope: CoroutineScope,
     selectedLanguage: String = "original",
     translatedComments: Map<Int, String> = emptyMap(),
-    onUserProfileClick: ((userId: Int?, username: String, avatarUrl: String?) -> Unit)? = null,
+    commentSource: String = "anilist",
+    onUserProfileClick: ((userId: Int?, username: String, avatarUrl: String?, source: String) -> Unit)? = null,
     onReplyClick: ((KitsugiForumReply) -> Unit)? = null
 ) {
     val accentColor = LocalKitsugiAccent.current
@@ -74,7 +75,7 @@ internal fun KitsugiForumCommentCard(
                 modifier = if (onUserProfileClick != null) {
                     Modifier
                         .clip(RoundedCornerShape(8.dp))
-                        .clickable { onUserProfileClick(comment.userId, comment.username, comment.avatarUrl) }
+                        .clickable { onUserProfileClick(comment.userId, comment.username, comment.avatarUrl, commentSource) }
                         .padding(end = 4.dp, top = 2.dp, bottom = 2.dp)
                 } else Modifier
             ) {
@@ -271,6 +272,7 @@ internal fun KitsugiForumCommentCard(
                     coroutineScope = coroutineScope,
                     selectedLanguage = selectedLanguage,
                     translatedComments = translatedComments,
+                    commentSource = commentSource,
                     onUserProfileClick = onUserProfileClick,
                     onReplyClick = onReplyClick
                 )
@@ -287,7 +289,8 @@ private fun KitsugiForumChildCommentRow(
     coroutineScope: CoroutineScope,
     selectedLanguage: String,
     translatedComments: Map<Int, String>,
-    onUserProfileClick: ((userId: Int?, username: String, avatarUrl: String?) -> Unit)?,
+    commentSource: String = "anilist",
+    onUserProfileClick: ((userId: Int?, username: String, avatarUrl: String?, source: String) -> Unit)?,
     onReplyClick: ((KitsugiForumReply) -> Unit)?
 ) {
     val accentColor = LocalKitsugiAccent.current
@@ -321,7 +324,7 @@ private fun KitsugiForumChildCommentRow(
                     modifier = if (onUserProfileClick != null) {
                         Modifier
                             .clip(RoundedCornerShape(8.dp))
-                            .clickable { onUserProfileClick(comment.userId, comment.username, comment.avatarUrl) }
+                            .clickable { onUserProfileClick(comment.userId, comment.username, comment.avatarUrl, commentSource) }
                             .padding(vertical = 2.dp)
                     } else Modifier
                 ) {
@@ -519,6 +522,7 @@ private fun KitsugiForumChildCommentRow(
                 coroutineScope = coroutineScope,
                 selectedLanguage = selectedLanguage,
                 translatedComments = translatedComments,
+                commentSource = commentSource,
                 onUserProfileClick = onUserProfileClick,
                 onReplyClick = onReplyClick
             )

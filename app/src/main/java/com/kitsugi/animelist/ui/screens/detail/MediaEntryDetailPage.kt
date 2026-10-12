@@ -148,7 +148,7 @@ fun MediaEntryDetailPage(
     onCharacterClick: (KitsugiCharacter) -> Unit,
     onStaffClick: (Int, String, String?, String?) -> Unit,
     onStudioClick: (Int, String, String?, String?) -> Unit,
-    onUserProfileClick: (Int, String, String?) -> Unit = { _, _, _ -> },
+    onUserProfileClick: (Int, String, String?, String) -> Unit = { _, _, _, _ -> },
     onSearchQuery: (String) -> Unit = {},
     onSearchByGenre: (String) -> Unit = {},
     onSearchByTag: (com.kitsugi.animelist.data.remote.KitsugiTag) -> Unit = {},
@@ -364,8 +364,7 @@ fun MediaEntryDetailPage(
                     onUnlinkMangaClick = { viewModel.deleteMangaMapping(displayEntry.id) },
                     onGalleryOpen = { items, idx ->
                         activeGalleryCategory = items.getOrNull(idx)?.category ?: GalleryCategory.POSTER
-                        // Vitrin tıklaması galeri yüklenirken de seçilen görseli hemen açar.
-                        activeGalleryItems = items
+                        if (!galleryLoading) activeGalleryItems = items
                         activeGalleryIndex = idx
                     },
                     leftPanelFocusRequester = lpFocus,
@@ -447,8 +446,7 @@ fun MediaEntryDetailPage(
                         onUnlinkMangaClick = { viewModel.deleteMangaMapping(displayEntry.id) },
                         onGalleryOpen = { items, idx ->
                             activeGalleryCategory = items.getOrNull(idx)?.category ?: GalleryCategory.POSTER
-                            // Vitrin tıklaması galeri yüklenirken de seçilen görseli hemen açar.
-                            activeGalleryItems = items
+                            if (!galleryLoading) activeGalleryItems = items
                             activeGalleryIndex = idx
                         },
                         leftPanelFocusRequester = lpFocus,

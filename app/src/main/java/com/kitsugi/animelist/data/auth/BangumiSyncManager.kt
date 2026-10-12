@@ -232,6 +232,11 @@ object BangumiSyncManager {
         // User-Agent reddi mi? (Sunucu üçünde de 403 döner, gövde metni farklıdır.)
         val scopeDenial = detail?.contains("scope", ignoreCase = true) ?: true
         val base = when {
+            // 415 → Content-Type reddi. req.JSON ara katmanı NeedLogin/NeedScope'tan önce çalışır;
+            // bu yanıt token'la ilgili değildir, uygulamanın gönderdiği başlıkla ilgilidir.
+            // (2.4.261 öncesi: OkHttp başlığı "application/json; charset=utf-8" yapıyordu, sunucu
+            // tam eşitlik istediği için HER yazma 415 alıyordu.)
+            error.isUnsupportedMediaType -> context.getString(R.string.bangumi_write_failed_unsupported_media)
             error.isUnauthorized -> context.getString(R.string.bangumi_write_failed_unauthorized)
             error.isForbidden && scopeDenial ->
                 context.getString(R.string.bangumi_write_failed_scope)

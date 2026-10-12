@@ -157,6 +157,7 @@ import java.io.OutputStreamWriter
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -263,20 +264,19 @@ fun AppRoot(
     }
 
     var hasSetInitialTab by remember { mutableStateOf(false) }
-    LaunchedEffect(appSettings) {
-        if (!hasSetInitialTab && appSettings.defaultTab.isNotEmpty()) {
-            val targetTab = when (appSettings.defaultTab) {
-                "LAST_USED" -> {
-                    val lastUsed = appSettings.lastUsedTab
-                    MainTab.entries.firstOrNull { it.name == lastUsed } ?: MainTab.Explore
-                }
-                else -> {
-                    MainTab.entries.firstOrNull { it.name == appSettings.defaultTab } ?: MainTab.Explore
-                }
+    LaunchedEffect(Unit) {
+        val initialSettings = settingsDataStore.settingsFlow.first()
+        val targetTab = when (initialSettings.defaultTab) {
+            "LAST_USED" -> {
+                val lastUsed = initialSettings.lastUsedTab
+                MainTab.entries.firstOrNull { it.name == lastUsed } ?: MainTab.Explore
             }
-            appViewModel.selectTab(targetTab)
-            hasSetInitialTab = true
+            else -> {
+                MainTab.entries.firstOrNull { it.name == initialSettings.defaultTab } ?: MainTab.Explore
+            }
         }
+        appViewModel.selectTab(targetTab)
+        hasSetInitialTab = true
     }
 
     LaunchedEffect(Unit) {
@@ -408,8 +408,10 @@ fun AppRoot(
 
     LaunchedEffect(selectedTab, navState.detailBackStack, navState.fullScreenGridState) {
         bottomBarScrollState.show()
-        coroutineScope.launch {
-            settingsDataStore.setLastUsedTab(selectedTab.name)
+        if (hasSetInitialTab) {
+            coroutineScope.launch {
+                settingsDataStore.setLastUsedTab(selectedTab.name)
+            }
         }
     }
 
@@ -886,7 +888,7 @@ fun AppRoot(
                     activeScreen is DetailScreen.Stats -> AppStateKey.Stats(depth = currentDepth)
                     activeScreen is DetailScreen.Favourites -> AppStateKey.Favourites(depth = currentDepth)
                     activeScreen is DetailScreen.About -> AppStateKey.About(depth = currentDepth)
-                    activeScreen is DetailScreen.UserProfile -> AppStateKey.UserProfile(activeScreen.userId, depth = currentDepth, username = activeScreen.username, avatarUrl = activeScreen.avatarUrl)
+                    activeScreen is DetailScreen.UserProfile -> AppStateKey.UserProfile(activeScreen.userId, depth = currentDepth, username = activeScreen.username, avatarUrl = activeScreen.avatarUrl, source = activeScreen.source)
                     activeScreen is DetailScreen.UserMediaList -> AppStateKey.UserMediaList(activeScreen.userId, depth = currentDepth, username = activeScreen.username, initialMediaType = activeScreen.initialMediaType)
                     activeScreen is DetailScreen.Notifications -> AppStateKey.Notifications(depth = currentDepth)
                     activeScreen is DetailScreen.Downloads -> AppStateKey.Downloads(depth = currentDepth)

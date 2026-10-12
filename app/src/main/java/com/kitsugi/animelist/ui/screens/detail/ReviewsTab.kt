@@ -19,6 +19,7 @@ import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import com.kitsugi.animelist.ui.theme.gradient.Text
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -33,6 +34,7 @@ import com.kitsugi.animelist.data.remote.JikanApiClient
 import com.kitsugi.animelist.data.remote.KitsugiActivity
 import com.kitsugi.animelist.data.remote.KitsugiForumTopic
 import com.kitsugi.animelist.data.remote.KitsugiReview
+import com.kitsugi.animelist.data.remote.SocialFeedCache
 import com.kitsugi.animelist.model.MediaType
 import com.kitsugi.animelist.ui.components.KitsugiActivityDetailBottomSheet
 import com.kitsugi.animelist.ui.components.KitsugiAllActivitiesBottomSheet
@@ -44,6 +46,7 @@ import com.kitsugi.animelist.ui.components.KitsugiTopicDetailBottomSheet
 import com.kitsugi.animelist.ui.theme.LocalKitsugiAccent
 import com.kitsugi.animelist.ui.theme.KitsugiColors
 import com.kitsugi.animelist.ui.components.KitsugiPlatformLogo
+import com.kitsugi.animelist.ui.components.KitsugiShimmerSearchResultList
 import androidx.compose.foundation.clickable
 import com.kitsugi.animelist.utils.ShareUtils
 import com.kitsugi.animelist.utils.KitsugiTranslateUtils.openTranslator
@@ -64,76 +67,115 @@ fun ReviewsTabContent(
     realMalId: Int? = null,
     titleLanguage: String = "ROMAJI",
     preferredTranslator: String = "DEFAULT",
-    onUserProfileClick: (userId: Int, username: String, avatarUrl: String?) -> Unit,
+    onUserProfileClick: (userId: Int, username: String, avatarUrl: String?, source: String) -> Unit,
     onImageGalleryRequest: ((urls: List<String>, index: Int) -> Unit)? = null
 ) {
     val coroutineScope = rememberCoroutineScope()
     val context = LocalContext.current
-    var activeReviewForDetail by remember { mutableStateOf<KitsugiReview?>(null) }
-    var activeTopicForDetail by remember { mutableStateOf<KitsugiForumTopic?>(null) }
-    var activeActivityIdForDetail by remember { mutableStateOf<Int?>(null) }
+    // Alt detay sayfaları (inceleme/konu/aktivite) da profil ekranına gidip geri
+    // dönüldüğünde korunur: kimlikler saveable anahtar olarak saklanır, nesneler
+    // geri yüklendiği listeden yeniden bulunur.
+    var activeReviewDetailKey by rememberSaveable { mutableStateOf("") }
+    var activeTopicDetailKey by rememberSaveable { mutableStateOf("") }
+    var activeActivityIdForDetail by rememberSaveable { mutableStateOf(-1) }
 
-    val handleUserProfileClick: (userId: Int?, username: String, avatarUrl: String?) -> Unit = { userId, username, avatarUrl ->
-        if (userId != null) {
-            // AniList kullanıcısı (userId varsa) → uygulama içi profil, hangi sekmede olursa olsun (evrensel birleştirme)
-            onUserProfileClick(userId, username, avatarUrl)
-        } else if (username.isNotBlank()) {
-            try {
-                // Jikan/Bangumi/TMDB kullanıcısı → dış tarayıcıda ilgili profil (MAL varsayılan)
-                val url = ShareUtils.buildProfileUrl("myanimelist", username)
-                val intent = android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(url))
-                context.startActivity(intent)
-            } catch (e: Exception) {
-                Toast.makeText(context, KitsugiStrings.get(R.string.profil_linki_acilamadi), Toast.LENGTH_SHORT).show()
+    val handleUserProfileClick: (userId: Int?, username: String, avatarUrl: String?, profileSource: String) -> Unit = { userId, username, avatarUrl, profileSource ->
+        val canonical = com.kitsugi.animelist.data.remote.canonicalMediaSourceId(profileSource)
+        when (canonical) {
+            // MAL / Kitsu / Simkl kullanıcıları → uygulama içi, platforma özel profil
+            "mal", "kitsu", "simkl" -> onUserProfileClick(userId ?: 0, username, avatarUrl, canonical)
+            // AniList kullanıcısı (userId varsa) → uygulama içi AniList profili
+            "anilist" -> {
+                if (userId != null) {
+                    onUserProfileClick(userId, username, avatarUrl, "anilist")
+                } else if (username.isNotBlank()) {
+                    try {
+                        val url = ShareUtils.buildProfileUrl("anilist", username)
+                        val intent = android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(url))
+                        context.startActivity(intent)
+                    } catch (e: Exception) {
+                        Toast.makeText(context, KitsugiStrings.get(R.string.profil_linki_acilamadi), Toast.LENGTH_SHORT).show()
+                    }
+                }
+            }
+            // Diğer platformlar (TMDB / Shikimori / Bangumi) → doğru sitede dış profil
+            else -> {
+                if (username.isNotBlank()) {
+                    try {
+                        val url = ShareUtils.buildProfileUrl(profileSource, username)
+                        val intent = android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(url))
+                        context.startActivity(intent)
+                    } catch (e: Exception) {
+                        Toast.makeText(context, KitsugiStrings.get(R.string.profil_linki_acilamadi), Toast.LENGTH_SHORT).show()
+                    }
+                }
             }
         }
     }
 
-    var showAllTopicsSheet by remember { mutableStateOf(false) }
-    var showAllActivitiesSheet by remember { mutableStateOf(false) }
-    var showAllReviewsSheet by remember { mutableStateOf(false) }
+    // Profil ekranına gidip geri dönüldüğünde yorumlar sayfası bozulmasın: akış
+    // verileri [SocialFeedCache] içinde saklanır, alt sayfa açık/kapalı durumu
+    // [rememberSaveable] ile korunur.
+    var showAllTopicsSheet by rememberSaveable { mutableStateOf(false) }
+    var showAllActivitiesSheet by rememberSaveable { mutableStateOf(false) }
+    var showAllReviewsSheet by rememberSaveable { mutableStateOf(false) }
 
-    var forumTopics by remember { mutableStateOf<List<KitsugiForumTopic>>(emptyList()) }
-    var activitiesList by remember { mutableStateOf<List<KitsugiActivity>>(emptyList()) }
-    var isLoadingTopics by remember { mutableStateOf(true) }
-    var isLoadingActivities by remember { mutableStateOf(true) }
+    val socialFeedKey = remember(source, externalId, mediaType, tmdbId, realMalId) {
+        SocialFeedCache.feedKey(source, externalId, mediaType, tmdbId, realMalId)
+    }
 
-    LaunchedEffect(source, externalId, mediaType, tmdbId, realMalId) {
-        // A reused detail composable must not briefly show the previous title's social feed.
-        forumTopics = emptyList()
-        activitiesList = emptyList()
-        isLoadingTopics = true
-        isLoadingActivities = true
-        launch {
-            try {
-                forumTopics = apiClient.fetchForumTopics(
-                    source, externalId, mediaType, tmdbId = tmdbId, realMalId = realMalId
-                )
-            } catch (cancelled: kotlinx.coroutines.CancellationException) {
-                throw cancelled
-            } catch (_: Exception) {
-                // Keep the section empty when the optional social feed is unavailable.
-            } finally {
-                isLoadingTopics = false
+    var forumTopics by remember { mutableStateOf<List<KitsugiForumTopic>>(SocialFeedCache.previewTopics(socialFeedKey)?.items ?: emptyList()) }
+    var activitiesList by remember { mutableStateOf<List<KitsugiActivity>>(SocialFeedCache.previewActivities(socialFeedKey)?.items ?: emptyList()) }
+
+    LaunchedEffect(socialFeedKey) {
+        val cachedTopics = SocialFeedCache.previewTopics(socialFeedKey)?.items
+        val cachedActivities = SocialFeedCache.previewActivities(socialFeedKey)?.items
+        if (cachedTopics != null && cachedActivities != null) {
+            // Geri dönüş: veriler önbellekte, ağa tekrar düşülmez (sayfa "bozulmaz").
+            forumTopics = cachedTopics
+            activitiesList = cachedActivities
+            return@LaunchedEffect
+        }
+        if (forumTopics.isEmpty()) {
+            launch {
+                runCatching {
+                    val topics = apiClient.fetchForumTopics(
+                        source, externalId, mediaType, tmdbId = tmdbId, realMalId = realMalId
+                    )
+                    if (topics.isNotEmpty()) {
+                        forumTopics = topics
+                        SocialFeedCache.putPreviewTopics(socialFeedKey, topics)
+                    }
+                }
             }
         }
-        launch {
-            try {
-                activitiesList = apiClient.fetchActivities(
-                    source, externalId, mediaType = mediaType, tmdbId = tmdbId, realMalId = realMalId
-                )
-            } catch (cancelled: kotlinx.coroutines.CancellationException) {
-                throw cancelled
-            } catch (_: Exception) {
-                // Keep the section empty when the optional social feed is unavailable.
-            } finally {
-                isLoadingActivities = false
+        if (activitiesList.isEmpty()) {
+            launch {
+                runCatching {
+                    val acts = apiClient.fetchActivities(
+                        source, externalId, mediaType = mediaType, tmdbId = tmdbId, realMalId = realMalId
+                    )
+                    if (acts.isNotEmpty()) {
+                        activitiesList = acts
+                        SocialFeedCache.putPreviewActivities(socialFeedKey, acts)
+                    }
+                }
             }
         }
     }
 
     var reviewsList by remember(state) {
         mutableStateOf(if (state is DetailTabState.Success) state.data else emptyList())
+    }
+
+    // Korunan alt detay sayfalarının nesnelerini listelerden geri bul.
+    val activeReviewForDetail: KitsugiReview? = remember(activeReviewDetailKey, reviewsList) {
+        if (activeReviewDetailKey.isEmpty()) null
+        else reviewsList.find { "${it.source}_${it.id ?: it.username.hashCode()}" == activeReviewDetailKey }
+    }
+    val activeTopicForDetail: KitsugiForumTopic? = remember(activeTopicDetailKey, forumTopics) {
+        if (activeTopicDetailKey.isEmpty()) null
+        else forumTopics.find { "${it.source}_${it.id}" == activeTopicDetailKey }
     }
 
     val topicsListState = androidx.compose.foundation.lazy.rememberLazyListState()
@@ -145,7 +187,7 @@ fun ReviewsTabContent(
         modifier = Modifier.fillMaxWidth()
     ) {
         // --- 1. FORUM TOPICS SECTION ---
-        if (forumTopics.isNotEmpty() || isLoadingTopics) {
+        if (forumTopics.isNotEmpty()) {
             Column(
                 verticalArrangement = Arrangement.spacedBy(8.dp),
                 modifier = Modifier
@@ -183,54 +225,51 @@ fun ReviewsTabContent(
                     }
                 }
 
-                if (isLoadingTopics && forumTopics.isEmpty()) {
-                    DetailSocialCardsLoadingSkeleton(itemCount = 2, horizontalPadding = 14.dp)
-                } else {
-                    LazyRow(
-                        state = topicsListState,
-                        flingBehavior = com.kitsugi.animelist.ui.utils.KitsugiScrollDefaults.rememberRowSnapFling(topicsListState),
-                        horizontalArrangement = Arrangement.spacedBy(10.dp),
-                        contentPadding = PaddingValues(horizontal = 14.dp),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        items(forumTopics) { topic ->
-                            TopicCard(
-                                topic = topic,
-                                onUserProfileClick = handleUserProfileClick,
-                                onClick = {
-                                    Toast.makeText(context, KitsugiStrings.get(R.string.loading), Toast.LENGTH_SHORT).show()
-                                    activeTopicForDetail = topic
-                                },
-                                backgroundColor = KitsugiColors.SurfaceSoft,
-                                onLikeClick = if (topic.source.equals("anilist", ignoreCase = true)) {
-                                    {
-                                        coroutineScope.launch {
-                                            val success = apiClient.toggleLike(topic.id, "THREAD")
-                                            if (success) {
-                                                forumTopics = forumTopics.map {
-                                                    if (it.id == topic.id) {
-                                                        val newLiked = !it.isLiked
-                                                        val newCount = if (newLiked) it.likeCount + 1 else it.likeCount - 1
-                                                        it.copy(isLiked = newLiked, likeCount = newCount)
-                                                    } else {
-                                                        it
-                                                    }
+                LazyRow(
+                    state = topicsListState,
+                    flingBehavior = com.kitsugi.animelist.ui.utils.KitsugiScrollDefaults.rememberRowSnapFling(topicsListState),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    contentPadding = PaddingValues(horizontal = 14.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    items(forumTopics) { topic ->
+                        TopicCard(
+                            topic = topic,
+                            onUserProfileClick = handleUserProfileClick,
+                            onClick = {
+                                Toast.makeText(context, KitsugiStrings.get(R.string.loading), Toast.LENGTH_SHORT).show()
+                                activeTopicDetailKey = "${topic.source}_${topic.id}"
+                            },
+                            backgroundColor = KitsugiColors.SurfaceSoft,
+                            onLikeClick = if (topic.source.equals("anilist", ignoreCase = true)) {
+                                {
+                                    coroutineScope.launch {
+                                        val success = apiClient.toggleLike(topic.id, "THREAD")
+                                        if (success) {
+                                            forumTopics = forumTopics.map {
+                                                if (it.id == topic.id) {
+                                                    val newLiked = !it.isLiked
+                                                    val newCount = if (newLiked) it.likeCount + 1 else it.likeCount - 1
+                                                    it.copy(isLiked = newLiked, likeCount = newCount)
+                                                } else {
+                                                    it
                                                 }
-                                            } else {
-                                                Toast.makeText(context, KitsugiStrings.get(R.string.lutfen_once_giris_yapin), Toast.LENGTH_SHORT).show()
                                             }
+                                            SocialFeedCache.putPreviewTopics(socialFeedKey, forumTopics)
+                                        } else {
+                                            Toast.makeText(context, KitsugiStrings.get(R.string.lutfen_once_giris_yapin), Toast.LENGTH_SHORT).show()
                                         }
                                     }
-                                } else null
-                            )
-                        }
+                                }
+                            } else null
+                        )
                     }
                 }
             }
         }
 
         // --- 2. ACTIVITIES SECTION ---
-        if (activitiesList.isNotEmpty() || isLoadingActivities) {
+        if (activitiesList.isNotEmpty()) {
             Column(
                 verticalArrangement = Arrangement.spacedBy(8.dp),
                 modifier = Modifier
@@ -268,47 +307,44 @@ fun ReviewsTabContent(
                     }
                 }
 
-                if (isLoadingActivities && activitiesList.isEmpty()) {
-                    DetailSocialCardsLoadingSkeleton(itemCount = 2, isActivity = true, horizontalPadding = 14.dp)
-                } else {
-                    LazyRow(
-                        state = activitiesListState,
-                        flingBehavior = com.kitsugi.animelist.ui.utils.KitsugiScrollDefaults.rememberRowSnapFling(activitiesListState),
-                        horizontalArrangement = Arrangement.spacedBy(10.dp),
-                        contentPadding = PaddingValues(horizontal = 14.dp),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        items(activitiesList) { activity ->
-                            ActivityCard(
-                                activity = activity,
-                                titleLanguage = titleLanguage,
-                                onUserProfileClick = handleUserProfileClick,
-                                onClick = {
-                                    Toast.makeText(context, KitsugiStrings.get(R.string.loading), Toast.LENGTH_SHORT).show()
-                                    activeActivityIdForDetail = activity.id
-                                },
-                                backgroundColor = KitsugiColors.SurfaceSoft,
-                                onLikeClick = {
-                                    // Aktiviteler her zaman AniList kaynaklıdır (MAL için de ARM ile çözülür) → beğeni her kaynakta denenir
-                                    coroutineScope.launch {
-                                        val success = apiClient.toggleLike(activity.id, "ACTIVITY")
-                                        if (success) {
-                                            activitiesList = activitiesList.map {
-                                                if (it.id == activity.id) {
-                                                    val newLiked = !it.isLiked
-                                                    val newCount = if (newLiked) it.likeCount + 1 else it.likeCount - 1
-                                                    it.copy(isLiked = newLiked, likeCount = newCount)
-                                                } else {
-                                                    it
-                                                }
+                LazyRow(
+                    state = activitiesListState,
+                    flingBehavior = com.kitsugi.animelist.ui.utils.KitsugiScrollDefaults.rememberRowSnapFling(activitiesListState),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    contentPadding = PaddingValues(horizontal = 14.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    items(activitiesList) { activity ->
+                        ActivityCard(
+                            activity = activity,
+                            titleLanguage = titleLanguage,
+                            onUserProfileClick = handleUserProfileClick,
+                            onClick = {
+                                Toast.makeText(context, KitsugiStrings.get(R.string.loading), Toast.LENGTH_SHORT).show()
+                                activeActivityIdForDetail = activity.id
+                            },
+                            backgroundColor = KitsugiColors.SurfaceSoft,
+                            onLikeClick = {
+                                // Aktiviteler her zaman AniList kaynaklıdır (MAL için de ARM ile çözülür) → beğeni her kaynakta denenir
+                                coroutineScope.launch {
+                                    val success = apiClient.toggleLike(activity.id, "ACTIVITY")
+                                    if (success) {
+                                        activitiesList = activitiesList.map {
+                                            if (it.id == activity.id) {
+                                                val newLiked = !it.isLiked
+                                                val newCount = if (newLiked) it.likeCount + 1 else it.likeCount - 1
+                                                it.copy(isLiked = newLiked, likeCount = newCount)
+                                            } else {
+                                                it
                                             }
-                                        } else {
-                                            Toast.makeText(context, KitsugiStrings.get(R.string.lutfen_once_giris_yapin), Toast.LENGTH_SHORT).show()
                                         }
+                                        SocialFeedCache.putPreviewActivities(socialFeedKey, activitiesList)
+                                    } else {
+                                        Toast.makeText(context, KitsugiStrings.get(R.string.lutfen_once_giris_yapin), Toast.LENGTH_SHORT).show()
                                     }
                                 }
-                            )
-                        }
+                            }
+                        )
                     }
                 }
             }
@@ -389,7 +425,7 @@ fun ReviewsTabContent(
                                     preferredTranslator = preferredTranslator,
                                     backgroundColor = KitsugiColors.SurfaceSoft,
                                     onUserProfileClick = handleUserProfileClick,
-                                    onClick = { activeReviewForDetail = rev },
+                                    onClick = { activeReviewDetailKey = "${rev.source}_${rev.id ?: rev.username.hashCode()}" },
                                     onHelpfulClick = {
                                         if (rev.id == null || rev.source != "anilist") {
                                             Toast.makeText(context, KitsugiStrings.get(R.string.begeni_sadece_anilist_incelemelerinde_desteklenir), Toast.LENGTH_SHORT).show()
@@ -473,7 +509,7 @@ fun ReviewsTabContent(
             review = activeReviewForDetail!!,
             apiClient = apiClient,
             onUserProfileClick = handleUserProfileClick,
-            onDismiss = { activeReviewForDetail = null }
+            onDismiss = { activeReviewDetailKey = "" }
         )
     }
 
@@ -483,17 +519,17 @@ fun ReviewsTabContent(
             source = source,
             apiClient = apiClient,
             onUserProfileClick = handleUserProfileClick,
-            onDismiss = { activeTopicForDetail = null }
+            onDismiss = { activeTopicDetailKey = "" }
         )
     }
 
-    if (activeActivityIdForDetail != null) {
+    if (activeActivityIdForDetail >= 0) {
         KitsugiActivityDetailBottomSheet(
-            activityId = activeActivityIdForDetail!!,
+            activityId = activeActivityIdForDetail,
             apiClient = apiClient,
             titleLanguage = titleLanguage,
             onUserProfileClick = handleUserProfileClick,
-            onDismiss = { activeActivityIdForDetail = null }
+            onDismiss = { activeActivityIdForDetail = -1 }
         )
     }
 }
@@ -501,7 +537,7 @@ fun ReviewsTabContent(
 @Composable
 private fun TopicCard(
     topic: KitsugiForumTopic,
-    onUserProfileClick: ((userId: Int?, username: String, avatarUrl: String?) -> Unit)? = null,
+    onUserProfileClick: ((userId: Int?, username: String, avatarUrl: String?, source: String) -> Unit)? = null,
     onClick: () -> Unit,
     onLikeClick: (() -> Unit)? = null,
     backgroundColor: androidx.compose.ui.graphics.Color = KitsugiColors.Surface
@@ -608,7 +644,7 @@ private fun TopicCard(
                 modifier = if (onUserProfileClick != null) {
                     Modifier
                         .clip(RoundedCornerShape(8.dp))
-                        .clickable { onUserProfileClick(topic.userId, topic.username, topic.avatarUrl) }
+                        .clickable { onUserProfileClick(topic.userId, topic.username, topic.avatarUrl, topic.source) }
                         .padding(4.dp)
                 } else Modifier
             ) {
@@ -657,7 +693,7 @@ private fun TopicCard(
 private fun ActivityCard(
     activity: KitsugiActivity,
     titleLanguage: String = "ROMAJI",
-    onUserProfileClick: ((userId: Int?, username: String, avatarUrl: String?) -> Unit)? = null,
+    onUserProfileClick: ((userId: Int?, username: String, avatarUrl: String?, source: String) -> Unit)? = null,
     onClick: () -> Unit,
     onLikeClick: () -> Unit,
     backgroundColor: androidx.compose.ui.graphics.Color = KitsugiColors.Surface
@@ -772,7 +808,7 @@ private fun ActivityCard(
                 modifier = if (onUserProfileClick != null) {
                     Modifier
                         .clip(RoundedCornerShape(8.dp))
-                        .clickable { onUserProfileClick(activity.userId, activity.username, activity.avatarUrl) }
+                        .clickable { onUserProfileClick(activity.userId, activity.username, activity.avatarUrl, activity.source) }
                         .padding(4.dp)
                 } else Modifier
             ) {

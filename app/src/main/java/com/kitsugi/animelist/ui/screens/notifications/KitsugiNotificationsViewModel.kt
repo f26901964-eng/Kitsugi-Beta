@@ -18,15 +18,21 @@ import com.kitsugi.animelist.data.remote.KitsugiAiringCalendarClient
 import com.kitsugi.animelist.data.remote.KitsugiAniListNotificationClient
 import com.kitsugi.animelist.data.remote.KitsugiBangumiDetailClient
 import com.kitsugi.animelist.data.remote.SimklCalendarClient
+import com.kitsugi.animelist.data.remote.malweb.MalNotificationsClient
+import com.kitsugi.animelist.data.remote.malweb.MalNotificationsParseException
+import com.kitsugi.animelist.data.remote.malweb.MalWebSessionRequiredException
+import com.kitsugi.animelist.data.remote.malweb.MalWebSessionStore
 import com.kitsugi.animelist.model.MediaEntry
 import com.kitsugi.animelist.model.MediaType
 import com.kitsugi.animelist.model.WatchStatus
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.time.Instant
@@ -67,7 +73,9 @@ data class NotifItem(
      * Kaynak tarafında tutulmayan kaynaklarda (MAL/Simkl/Kitsu/Bangumi)
      * arşiv listesi bu alanla yeni → eski sıralanır.
      */
-    val tsMs: Long? = null
+    val tsMs: Long? = null,
+    /** Güvenli platform URL'si; notification item tıklanınca açılır. */
+    val targetUrl: String? = null
 )
 
 // ─── UI State ─────────────────────────────────────────────────────────────────
@@ -78,12 +86,10 @@ data class NotifUiState(
     val error: String? = null,
     val hasMore: Boolean = true,
     val page: Int = 1,
-    /**
-     * Kullanıcıya gösterilecek bilgi notu. Örn.
-     * "MAL API'si kişisel bildirim sunmaz; bu liste yayın takvimi eşleşmesidir."
-     * Boş liste ile API hatasını birbirinden ayırır.
-     */
-    val notice: String? = null
+    /** Kullanıcıya gösterilecek kaynak açıklaması veya geçici akış uyarısı. */
+    val notice: String? = null,
+    /** MAL's private website feed requires a first-party WebView session cookie. */
+    val requiresMalWebLogin: Boolean = false
 )
 
 /** Bildirim Teşhisi ekran durumu. */
@@ -110,7 +116,8 @@ class KitsugiNotificationsViewModel(application: Application) : AndroidViewModel
     val aniListUnread: StateFlow<Int?> = _aniListUnread.asStateFlow()
 
     // ── MAL ──
-    private val _mal = MutableStateFlow(NotifUiState())
+    private val _mal = MutableStateFlow(NotifUiState(requiresMalWebLogin = true))
+    private var malReloadQueued = false
     val mal: StateFlow<NotifUiState> = _mal.asStateFlow()
 
     // ── TMDB+Simkl ──
@@ -332,67 +339,155 @@ class KitsugiNotificationsViewModel(application: Application) : AndroidViewModel
     // ─── MAL Yükleyici ───────────────────────────────────────────────────────
 
     /**
-     * MyAnimeList'in resmî API'sinde **bildirim ucu yoktur** (MAL API v2 / resmî
-     * uygulama API'si yalnızca anime, manga, liste ve kullanıcı uçları sunar).
-     * Bu yüzden MAL sekmesi "izleme listenizin son 7 gündeki yayınları" akışıdır ve
-     * bunu kullanıcıya açıkça söyler.
+     * Loads MAL's actual account notifications from the signed-in website feed and maps them
+     * into the native notification list. MAL OAuth remains useful for API/list operations, but
+     * MAL's private notification page authenticates with its own WebView session cookie.
+     * If that session is absent, retain the previous calendar-based fallback and prompt for a
+     * one-time website sign-in; never treat the OAuth bearer token as a site cookie.
      */
     fun loadMal(mediaEntries: List<MediaEntry>) {
-        if (_mal.value.isLoading) return
-        viewModelScope.launch {
-            _mal.value = NotifUiState(isLoading = true)
-            try {
-                val nowSec = System.currentTimeMillis() / 1000L
-                val fromSec = nowSec - 7L * 24 * 3600L
-                val airings = KitsugiAiringCalendarClient().fetchAiringWindow(fromSec, nowSec + 2L * 3600L)
-
-                val malEntries = mediaEntries.filter {
-                    (it.source.equals("jikan", ignoreCase = true) || it.source.equals("mal", ignoreCase = true)) &&
-                        (it.status == WatchStatus.Watching || it.status == WatchStatus.Repeating)
+        if (_mal.value.isLoading) {
+            if (!malReloadQueued) {
+                malReloadQueued = true
+                viewModelScope.launch {
+                    _mal.first { !it.isLoading }
+                    malReloadQueued = false
+                    loadMal(mediaEntries)
                 }
-                val malIds = malEntries.mapNotNull { it.malId }.toSet()
-                val matched = airings
-                    .filter { it.malId != null && malIds.contains(it.malId) }
-                    .sortedByDescending { it.airingAt }
+            }
+            return
+        }
+        _mal.value = _mal.value.copy(isLoading = true, error = null)
+        viewModelScope.launch {
+            var cookieHeader: String? = null
+            var webFeedError: Exception? = null
+            try {
+                val sessionCookie = MalWebSessionStore.authenticatedCookieHeader()
+                cookieHeader = sessionCookie
+                if (sessionCookie != null) {
+                    val feed = MalNotificationsClient.fetch(sessionCookie)
+                    val mapped = feed.items
+                        .map { it.toNotifItem() }
+                        .sortedWith(compareByDescending<NotifItem> { it.tsMs ?: Long.MIN_VALUE })
+                    _mal.value = NotifUiState(
+                        items = mapped,
+                        isLoading = false,
+                        hasMore = false,
+                        notice = ctx.getString(R.string.notif_notice_mal_web_feed, mapped.size),
+                        requiresMalWebLogin = false
+                    )
+                    return@launch
+                }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                webFeedError = e
+                android.util.Log.w("KitsugiNotif", "MAL account feed unavailable: ${e.message}")
+            }
 
-                val items = matched.map { entry ->
-                    val aired = entry.airingAt <= nowSec
-                    NotifItem(
-                        id = "mal_${entry.malId}_${entry.episode}",
-                        imageUrl = entry.coverUrl,
-                        title = entry.title,
-                        body = if (aired)
-                            ctx.getString(R.string.notif_mal_episode_released, entry.episode)
-                        else
-                            ctx.getString(R.string.notif_mal_episode_upcoming, entry.episode),
-                        dateText = formatEpochSec(entry.airingAt),
-                        tsMs = entry.airingAt * 1000L,
-                        mediaId = entry.malId,
-                        mediaType = "anime",
-                        source = "MyAnimeList"
+            try {
+                val (calendarItems, calendarNotice) = loadMalAiringFallback(mediaEntries)
+                val needsWebLogin = cookieHeader == null ||
+                    webFeedError is MalWebSessionRequiredException ||
+                    webFeedError is MalNotificationsParseException
+                val notice = when {
+                    needsWebLogin -> ctx.getString(
+                        R.string.notif_notice_mal_web_session_required,
+                        calendarNotice
+                    )
+                    else -> ctx.getString(
+                        R.string.notif_notice_mal_web_fetch_failed,
+                        calendarNotice
                     )
                 }
-
-                val notice = when {
-                    malEntries.isEmpty() -> ctx.getString(R.string.notif_notice_mal_no_list)
-                    items.isEmpty() -> ctx.getString(R.string.notif_notice_mal_no_airing, malIds.size)
-                    else -> ctx.getString(R.string.notif_notice_mal_feed, items.size, malIds.size)
-                }
-
                 _mal.value = NotifUiState(
-                    items = archiveAndMerge("MyAnimeList", items),
+                    items = archiveAndMerge("MyAnimeList", calendarItems),
                     isLoading = false,
                     hasMore = false,
-                    notice = notice
+                    notice = notice,
+                    requiresMalWebLogin = needsWebLogin
                 )
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
-                android.util.Log.e("KitsugiNotif", "MAL load failed: ${e.message}", e)
-                _mal.value = NotifUiState(
+                android.util.Log.e("KitsugiNotif", "MAL fallback load failed: ${e.message}", e)
+                _mal.value = _mal.value.copy(
                     isLoading = false,
-                    error = ctx.getString(R.string.notif_error_load, e.message ?: e.javaClass.simpleName)
+                    error = ctx.getString(R.string.notif_error_load, e.message ?: e.javaClass.simpleName),
+                    requiresMalWebLogin = cookieHeader == null ||
+                        webFeedError is MalWebSessionRequiredException ||
+                        webFeedError is MalNotificationsParseException
                 )
             }
         }
+    }
+
+    private suspend fun loadMalAiringFallback(mediaEntries: List<MediaEntry>): Pair<List<NotifItem>, String> {
+        val nowSec = System.currentTimeMillis() / 1000L
+        val fromSec = nowSec - 7L * 24 * 3600L
+        val airings = KitsugiAiringCalendarClient().fetchAiringWindow(fromSec, nowSec + 2L * 3600L)
+
+        val malEntries = mediaEntries.filter {
+            (it.source.equals("jikan", ignoreCase = true) || it.source.equals("mal", ignoreCase = true)) &&
+                (it.status == WatchStatus.Watching || it.status == WatchStatus.Repeating)
+        }
+        val malIds = malEntries.mapNotNull { it.malId }.toSet()
+        val matched = airings
+            .filter { it.malId != null && malIds.contains(it.malId) }
+            .sortedByDescending { it.airingAt }
+
+        val items = matched.map { entry ->
+            val aired = entry.airingAt <= nowSec
+            NotifItem(
+                id = "mal_${entry.malId}_${entry.episode}",
+                imageUrl = entry.coverUrl,
+                title = entry.title,
+                body = if (aired)
+                    ctx.getString(R.string.notif_mal_episode_released, entry.episode)
+                else
+                    ctx.getString(R.string.notif_mal_episode_upcoming, entry.episode),
+                dateText = formatEpochSec(entry.airingAt),
+                tsMs = entry.airingAt * 1000L,
+                mediaId = entry.malId,
+                mediaType = "anime",
+                source = "MyAnimeList"
+            )
+        }
+
+        val notice = when {
+            malEntries.isEmpty() -> ctx.getString(R.string.notif_notice_mal_no_list)
+            items.isEmpty() -> ctx.getString(R.string.notif_notice_mal_no_airing, malIds.size)
+            else -> ctx.getString(R.string.notif_notice_mal_feed, items.size, malIds.size)
+        }
+        return items to notice
+    }
+
+    private fun MalNotificationsClient.Notification.toNotifItem(): NotifItem {
+        val createdAtMs = createdAt?.let { if (it > 10_000_000_000L) it else it * 1000L }
+        val plainTitle = displayTitle()
+        val title = if (isDeleted &&
+            !plainTitle.contains("deleted", ignoreCase = true) &&
+            !plainTitle.contains("silin", ignoreCase = true)
+        ) {
+            plainTitle + ctx.getString(R.string.notif_mal_deleted_suffix)
+        } else plainTitle
+        return NotifItem(
+            id = "mal_web_$id",
+            imageUrl = imageUrl,
+            title = title,
+            body = displayBody(),
+            dateText = createdAtForDisplay?.takeIf(String::isNotBlank)
+                ?: date?.takeIf(String::isNotBlank)
+                ?: createdAtMs?.let(::formatEpochMs),
+            isUnread = !isRead,
+            mediaId = mediaId,
+            mediaType = mediaType,
+            userName = friendName ?: commentUserName ?: quoteUserName ?: postedUserName ?: senderName,
+            userAvatarUrl = imageUrl,
+            source = "MyAnimeList",
+            targetUrl = normalizedTargetUrl(),
+            tsMs = createdAtMs
+        )
     }
 
     // ─── TMDB+Simkl Yükleyici ────────────────────────────────────────────────

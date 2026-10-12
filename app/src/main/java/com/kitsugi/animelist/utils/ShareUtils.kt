@@ -141,8 +141,13 @@ object ShareUtils {
 
     fun buildProfileUrl(source: String, username: String): String {
         return when (source.lowercase()) {
-            "anilist" -> "https://anilist.co/user/$username"
+            "anilist", "al" -> "https://anilist.co/user/$username"
             "simkl" -> "https://simkl.com/user/$username"
+            "kitsu" -> "https://kitsu.app/users/$username"
+            "shikimori", "shiki" -> "https://shikimori.one/users/$username"
+            "bangumi", "bgm" -> "https://bgm.tv/user/$username"
+            "tmdb", "themoviedb" -> "https://www.themoviedb.org/u/$username"
+            "mal", "jikan", "myanimelist" -> "https://myanimelist.net/profile/$username"
             else -> "https://myanimelist.net/profile/$username"
         }
     }

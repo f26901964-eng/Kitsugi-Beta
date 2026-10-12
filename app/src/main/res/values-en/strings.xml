@@ -421,6 +421,15 @@
     
     <string name="notif_login_required_anilist">You need to log in to AniList</string>
     <string name="notif_login_required_mal">You need to log in to MAL</string>
+    <string name="notif_mal_web_connect">Connect MAL web session</string>
+    <string name="notif_mal_web_refresh">Refresh MAL notifications</string>
+    <string name="notif_mal_web_login_title">Sign in to MyAnimeList</string>
+    <string name="notif_mal_web_login_hint">MAL API authorization does not include the website session cookie. Sign in to MAL once; notifications will then load here as native cards.</string>
+    <string name="notif_mal_web_refresh_hint">Notifications are fetched directly from your MAL web session and shown in this native list.</string>
+    <string name="notif_notice_mal_web_feed">Loaded %1$d notifications from your MAL account.</string>
+    <string name="notif_notice_mal_web_session_required">No MAL web session is connected. Sign in once using the button above to load real notifications. Showing the app calendar for now: %1$s</string>
+    <string name="notif_notice_mal_web_fetch_failed">Could not load MAL account notifications right now. Showing the app calendar for now: %1$s</string>
+    <string name="notif_mal_deleted_suffix"> (deleted)</string>
     <string name="notif_login_required_simkl">You need to log in to Simkl</string>
     <string name="notif_empty_list_mal">No new episodes found for anime in your watch list</string>
     <string name="notif_empty_list_simkl">No new notifications for content in your watch list</string>
@@ -2206,7 +2215,7 @@
     <string name="notif_diag_recent_count">%1$d of the last 5 notifications returned</string>
     <string name="notif_diag_unread_count_suffix"> • unread: %1$d</string>
     <string name="notif_diag_request_failed">Request failed</string>
-    <string name="notif_diag_mal_endpoint">MAL API v2 (no notification endpoint) + AniList airing calendar</string>
+    <string name="notif_diag_mal_endpoint">MAL web /notification (window.MAL.notification)</string>
     <string name="notif_diag_mal_match_count">%1$d MAL entries in your list • %2$d airing matches in the last 7 days</string>
     <string name="notif_diag_mal_empty_list_hint">Your watchlist has no MAL entries with the Watching status, so there are no matches.</string>
     <string name="notif_diag_airing_calendar_unreadable">Could not read the airing calendar</string>
@@ -5411,7 +5420,7 @@
     <string name="hesabinizdaki_verileri_cekmek_icin_senkronize_et_butonunu_kullan">Use the \"Sync\" button to fetch data from your account.</string>
     <string name="manuel_x_kaydi">Manual %1$s Entry</string>
     <string name="yayin_takvimi_aktivite_begenileri_yorumlar_ve_forum_bildirimleri">Airing calendar, activity likes, comments and forum notifications</string>
-    <string name="kulup_mesajlari_arkadaslik_istekleri_ve_liste_bildirimleri">Club messages, friend requests and list notifications</string>
+    <string name="kulup_mesajlari_arkadaslik_istekleri_ve_liste_bildirimleri">Club, friend-request, and account notifications on the MAL website</string>
     <string name="dizi_film_ve_anime_yeni_bolum_yayin_bildirimleri">New episode airing notifications for series, movies and anime</string>
     <string name="topluluk_etkilesimleri_yorumlar_ve_takipci_bildirimleri">Community interactions, comments and follower notifications</string>
     <string name="kullanici_mesajlari_kulup_ve_yayin_guncellemeleri">User messages, club and airing updates</string>
@@ -5795,9 +5804,9 @@
     <string name="pf_err_mal_3002_title">MAL official API quota exceeded</string>
     <string name="pf_err_mal_3002_why">MAL API v2 returned 429 because too many requests were sent in a short window.</string>
     <string name="pf_err_mal_3002_fix">Wait a few minutes and retry.</string>
-    <string name="pf_err_mal_3003_title">MAL has no notification endpoint</string>
-    <string name="pf_err_mal_3003_why">MAL API v2 does not expose a notifications endpoint, so the app derives alerts from the AniList airing calendar.</string>
-    <string name="pf_err_mal_3003_fix">Sparse notifications are expected; when the account is linked, watchlist matching is used.</string>
+    <string name="pf_err_mal_3003_title">MAL web session required</string>
+    <string name="pf_err_mal_3003_why">MAL API v2 does not expose personal notifications; Kitsugi reads them through the signed-in MAL website. OAuth API authorization does not share the website session cookie.</string>
+    <string name="pf_err_mal_3003_fix">Open Notifications and choose “Connect MAL web session” to sign in to your MAL account.</string>
     <string name="pf_err_mal_3004_title">MAL list is private</string>
     <string name="pf_err_mal_3004_why">List visibility is disabled on the profile, so the API returns an empty list.</string>
     <string name="pf_err_mal_3004_fix">Make the list public in your MAL profile settings.</string>
@@ -6087,6 +6096,8 @@
     <string name="bangumi_write_failed_server">Bangumi server returned a temporary error (HTTP %1$d). Try again later.</string>
     <string name="bangumi_write_failed_network">Could not reach Bangumi: %1$s</string>
     <string name="bangumi_write_failed_http">Bangumi write error (HTTP %1$d): %2$s</string>
+    <!-- 415: the server rejected the Content-Type header. App-side bug; unrelated to token/scope. -->
+    <string name="bangumi_write_failed_unsupported_media">Bangumi rejected the request format (415 Unsupported Media Type). This is not about your account or token; the Content-Type header sent by the app does not exactly match what the server expects. Please update the app and report it if the problem persists.</string>
     <string name="bangumi_write_failed_detail_suffix"> — server: %1$s</string>
 
     <!-- Personal access token (个人令牌) — no app registration required -->
@@ -6118,6 +6129,7 @@
     <string name="bangumi_diag_write_ok">Write gate is OPEN — the server accepted the token (scope check passed).</string>
     <string name="bangumi_diag_write_denied">ERROR: the server refused writes because of token scope (403 insufficient token scope). This comes from the token scope, not the app: Bangumi\'s new OAuth server stores the scope as a JSON array while the API can only parse a JSON object. Fix: connect with a personal access token in the section below.</string>
     <string name="bangumi_diag_write_unauthorized">ERROR: token rejected (401). Reconnect your Bangumi account.</string>
+    <string name="bangumi_diag_write_request_rejected">ERROR: the server rejected the request format (415) — the token and scope checks were never reached. This is an app bug (the Content-Type header must be exactly \"application/json\"); reconnecting will not help, please report it. Server message: %1$s</string>
     <string name="bangumi_diag_write_failed">Write test could not complete: %1$s</string>
     <string name="account_sync_mal_delete_api_error">MAL deletion error: %1$d %2$s</string>
     <string name="source_unknown">Unknown</string>

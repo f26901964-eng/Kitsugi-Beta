@@ -421,6 +421,15 @@
     
     <string name="notif_login_required_anilist">AniList\'e giriş yapmanız gerekiyor</string>
     <string name="notif_login_required_mal">MAL\'a giriş yapmanız gerekiyor</string>
+    <string name="notif_mal_web_connect">MAL web oturumunu bağla</string>
+    <string name="notif_mal_web_refresh">MAL bildirimlerini yenile</string>
+    <string name="notif_mal_web_login_title">MyAnimeList hesabına giriş</string>
+    <string name="notif_mal_web_login_hint">MAL API izni web oturum çerezini içermez. İlk bağlantıda MAL\'a giriş yap; bildirimler ardından burada yerel kartlar olarak yüklenir.</string>
+    <string name="notif_mal_web_refresh_hint">Bildirimler MAL web oturumunuzla doğrudan alınır ve burada yerel listede gösterilir.</string>
+    <string name="notif_notice_mal_web_feed">MAL hesabından %1$d bildirim yüklendi.</string>
+    <string name="notif_notice_mal_web_session_required">MAL web oturumu bağlı değil; gerçek bildirimleri görmek için üstteki düğmeden bir kez giriş yap. Şimdilik uygulama takvimi gösteriliyor: %1$s</string>
+    <string name="notif_notice_mal_web_fetch_failed">MAL hesabı bildirimleri şu anda alınamadı. Şimdilik uygulama takvimi gösteriliyor: %1$s</string>
+    <string name="notif_mal_deleted_suffix"> (silinmiş)</string>
     <string name="notif_login_required_simkl">Simkl\'e giriş yapmanız gerekiyor</string>
     <string name="notif_empty_list_mal">İzleme listenizdeki animeler için yeni bölüm bulunamadı</string>
     <string name="notif_empty_list_simkl">İzleme listenizdeki içerikler için yeni bildirim yok</string>
@@ -2206,7 +2215,7 @@
     <string name="notif_diag_recent_count">Son 5 bildirimden %1$d kayıt döndü</string>
     <string name="notif_diag_unread_count_suffix"> • okunmamış: %1$d</string>
     <string name="notif_diag_request_failed">İstek başarısız</string>
-    <string name="notif_diag_mal_endpoint">MAL API v2 (bildirim ucu yok) + AniList yayın takvimi</string>
+    <string name="notif_diag_mal_endpoint">MAL web /notification (window.MAL.notification)</string>
     <string name="notif_diag_mal_match_count">Listenizde %1$d MAL kaydı • son 7 günde %2$d yayın eşleşmesi</string>
     <string name="notif_diag_mal_empty_list_hint">İzleme listenizde \'İzleniyor\' durumunda MAL kaynaklı kayıt yok; eşleşme bu yüzden 0.</string>
     <string name="notif_diag_airing_calendar_unreadable">Yayın takvimi okunamadı</string>
@@ -5413,7 +5422,7 @@ Eklentiler ekranından eklenti etkinleştirin.</string>
     <string name="hesabinizdaki_verileri_cekmek_icin_senkronize_et_butonunu_kullan">Hesabınızdaki verileri çekmek için \"Senkronize Et\" butonunu kullanın.</string>
     <string name="manuel_x_kaydi">Manuel %1$s Kaydı</string>
     <string name="yayin_takvimi_aktivite_begenileri_yorumlar_ve_forum_bildirimleri">Yayın takvimi, aktivite beğenileri, yorumlar ve forum bildirimleri</string>
-    <string name="kulup_mesajlari_arkadaslik_istekleri_ve_liste_bildirimleri">Kulüp mesajları, arkadaşlık istekleri ve liste bildirimleri</string>
+    <string name="kulup_mesajlari_arkadaslik_istekleri_ve_liste_bildirimleri">MAL web sayfasındaki kulüp, arkadaşlık isteği ve hesap bildirimleri</string>
     <string name="dizi_film_ve_anime_yeni_bolum_yayin_bildirimleri">Dizi, film ve anime yeni bölüm yayın bildirimleri</string>
     <string name="topluluk_etkilesimleri_yorumlar_ve_takipci_bildirimleri">Topluluk etkileşimleri, yorumlar ve takipçi bildirimleri</string>
     <string name="kullanici_mesajlari_kulup_ve_yayin_guncellemeleri">Kullanıcı mesajları, kulüp ve yayın güncellemeleri</string>
@@ -5797,9 +5806,9 @@ Eklentiler ekranından eklenti etkinleştirin.</string>
     <string name="pf_err_mal_3002_title">MAL resmi API kotası aşıldı</string>
     <string name="pf_err_mal_3002_why">MAL API v2, kısa sürede çok istek gönderildiği için 429 döndürdü.</string>
     <string name="pf_err_mal_3002_fix">Birkaç dakika bekleyip tekrar deneyin.</string>
-    <string name="pf_err_mal_3003_title">MAL\'ın bildirim ucu yok</string>
-    <string name="pf_err_mal_3003_why">MAL API v2 bildirim (notification) uç noktası sunmuyor. Uygulama bu yüzden bildirimleri AniList yayın takvimiyle türetiyor.</string>
-    <string name="pf_err_mal_3003_fix">Bildirim listesinin seyrek gelmesi normaldir; hesap bağlıysa liste eşleşmesi kullanılır.</string>
+    <string name="pf_err_mal_3003_title">MAL web oturumu gerekli</string>
+    <string name="pf_err_mal_3003_why">MAL API v2 kişisel bildirimleri sunmaz; Kitsugi bildirimleri MAL web oturumuyla alır. OAuth API bağlantısı web oturum çerezini paylaşmaz.</string>
+    <string name="pf_err_mal_3003_fix">Bildirimler ekranından “MAL web oturumunu bağla” seçeneğiyle MAL hesabınıza giriş yapın.</string>
     <string name="pf_err_mal_3004_title">MAL listesi gizli</string>
     <string name="pf_err_mal_3004_why">Profilde liste görünürlüğü kapatılmış; API boş liste döndürüyor.</string>
     <string name="pf_err_mal_3004_fix">MAL profil ayarlarından listeyi herkese açık yapın.</string>
@@ -6092,6 +6101,8 @@ Eklentiler ekranından eklenti etkinleştirin.</string>
     <string name="bangumi_write_failed_server">Bangumi sunucusu geçici hata verdi (HTTP %1$d). Sonra tekrar deneyin.</string>
     <string name="bangumi_write_failed_network">Bangumi\'ye ulaşılamadı: %1$s</string>
     <string name="bangumi_write_failed_http">Bangumi yazma hatası (HTTP %1$d): %2$s</string>
+    <!-- 415: sunucu Content-Type başlığını reddetti. Uygulama hatasıdır; token/kapsamla ilgisi yoktur. -->
+    <string name="bangumi_write_failed_unsupported_media">Bangumi isteğin biçimini reddetti (415 Unsupported Media Type). Bu, hesabınızla veya token\'la ilgili değildir; uygulamanın gönderdiği Content-Type başlığı sunucunun beklediğiyle birebir eşleşmiyor. Lütfen uygulamayı güncelleyin ve sorun sürerse bildirin.</string>
     <string name="bangumi_write_failed_detail_suffix"> — sunucu: %1$s</string>
 
     <!-- Kişisel erişim anahtarı (个人令牌) — kurulum gerektirmeyen bağlantı yolu -->
@@ -6123,6 +6134,7 @@ Eklentiler ekranından eklenti etkinleştirin.</string>
     <string name="bangumi_diag_write_ok">Yazma kapısı AÇIK — sunucu token\'ı kabul etti (kapsam denetimi geçti).</string>
     <string name="bangumi_diag_write_denied">HATA: sunucu yazmayı kapsam yüzünden reddetti (403 insufficient token scope). Bu, uygulamadan değil token kapsamından kaynaklanır: Bangumi\'nin yeni OAuth sunucusu kapsamı JSON dizisi olarak yazıyor, API ise yalnızca JSON nesnesi çözebiliyor. Çözüm: aşağıdaki bölümden kişisel erişim anahtarı ile bağlanın.</string>
     <string name="bangumi_diag_write_unauthorized">HATA: token reddedildi (401). Bangumi hesabını yeniden bağlayın.</string>
+    <string name="bangumi_diag_write_request_rejected">HATA: sunucu isteğin biçimini reddetti (415) — token ve kapsam denetimine hiç ulaşılmadı. Bu bir uygulama hatasıdır (Content-Type başlığı birebir \"application/json\" olmalı); yeniden bağlanmak çözmez, lütfen bildirin. Sunucu mesajı: %1$s</string>
     <string name="bangumi_diag_write_failed">Yazma testi tamamlanamadı: %1$s</string>
     <string name="account_sync_mal_delete_api_error">MAL silme hatası: %1$d %2$s</string>
     <string name="source_unknown">Bilinmeyen</string>

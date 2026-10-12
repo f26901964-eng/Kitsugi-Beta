@@ -197,7 +197,7 @@ fun ApiResultDetailPage(
     mdbListShowTmdb: Boolean = false,
     mdbListShowTrakt: Boolean = false,
     settingsDataStore: SettingsDataStore? = null,
-    onUserProfileClick: (userId: Int, username: String, avatarUrl: String?) -> Unit = { _, _, _ -> },
+    onUserProfileClick: (userId: Int, username: String, avatarUrl: String?, source: String) -> Unit = { _, _, _, _ -> },
     onToggleFavoriteClick: ((ApiSearchSelection) -> Unit)? = null
 ) {
     val accentColor = LocalKitsugiAccent.current
@@ -483,8 +483,7 @@ fun ApiResultDetailPage(
                     onReadMangaClick = onReadMangaClick,
                     onGalleryOpen = { items, idx ->
                         activeGalleryCategory = items.getOrNull(idx)?.category ?: GalleryCategory.POSTER
-                        // Vitrin tıklaması galeri yüklenirken de seçilen görseli hemen açar.
-                        activeGalleryItems = items
+                        if (!galleryLoading) activeGalleryItems = items
                         activeGalleryIndex = idx
                     },
                     onShowAuthWarning = { showAuthWarningDialog = true },
@@ -574,8 +573,7 @@ fun ApiResultDetailPage(
                         onReadMangaClick = onReadMangaClick,
                         onGalleryOpen = { items, idx ->
                             activeGalleryCategory = items.getOrNull(idx)?.category ?: GalleryCategory.POSTER
-                            // Vitrin tıklaması galeri yüklenirken de seçilen görseli hemen açar.
-                            activeGalleryItems = items
+                            if (!galleryLoading) activeGalleryItems = items
                             activeGalleryIndex = idx
                         },
                         onShowAuthWarning = { showAuthWarningDialog = true },

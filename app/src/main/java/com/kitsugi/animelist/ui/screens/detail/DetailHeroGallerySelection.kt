@@ -3,6 +3,70 @@ package com.kitsugi.animelist.ui.screens.detail
 import com.kitsugi.animelist.data.remote.GalleryCategory
 import com.kitsugi.animelist.data.remote.GalleryItem
 import java.util.Locale
+import kotlin.math.max
+
+/**
+ * Ekran yönüne + boyutuna göre detay vitrininin hangi görseli birincil göstereceğine
+ * karar veren sonuç.
+ *
+ *  - Yatay (landscape) modda her zaman dikey poster tercih edilir; ekran boyutu
+ *    ne olursa olsun, dikey poster dikey-uzun-dar bir kutuya yerleştirilir.
+ *  - Dikey (portrait) modda ekran oranına bakılır:
+ *      * Çok uzun-dar telefonlarda (genişlik/yükseklik ≤ `PORTRAIT_TALL_RATIO`)
+ *        dikey poster tercih edilir; poster dikey-uzun-dar bir kutuya yerleştirilir.
+ *      * Daha kare/tablet benzeri cihazlarda yatay arka plan tercih edilir.
+ *  - Hiçbir kurala uymayan nadir köşelerde güvenli varsayılan: yatay arka plan.
+ */
+internal enum class HeroArtworkPreference {
+    /** Dikey poster (uzun-dar kutu). */
+    POSTER,
+    /** Yatay arka plan / banner (geniş-kısa bant). */
+    BACKDROP
+}
+
+internal object HeroArtworkLayoutRules {
+    /**
+     * Dikey modda "yeterince uzun-dar telefon sayılır" eşiği. Tipik telefonler
+     * 9:19.5 (~0.46) ile 9:21 (~0.43) arasındadır; 0.55 üstü tablet/kare cihaz
+     * kabul edilir ve yatay arka plan tercih edilir.
+     */
+    const val PORTRAIT_TALL_RATIO: Float = 0.55f
+
+    /**
+     * Yatay modda "dikey poster için yeterince kısa modül" eşiği. Genelde tüm
+     * cihazlarda tetiklenir; çok ender "kare yatay" (tablet döndürülmüş) senaryoları
+     * için koruma sağlar.
+     */
+    const val LANDSCAPE_TALL_RATIO: Float = 0.40f
+}
+
+/**
+ * Ekranın yönüne + oranına göre vitrinin birincil görsel tercihini döndürür.
+ *
+ * @param screenWidthDp Ekranın mevcut genişliği (dp).
+ * @param screenHeightDp Ekranın mevcut yüksekliği (dp).
+ */
+internal fun resolveHeroArtworkPreference(
+    screenWidthDp: Int,
+    screenHeightDp: Int
+): HeroArtworkPreference {
+    val w = max(1, screenWidthDp).toFloat()
+    val h = max(1, screenHeightDp).toFloat()
+    val ratio = w / h
+    return when {
+        // Yatay mod (genişlik > yükseklik): her zaman dikey poster.
+        w > h -> {
+            if (ratio >= HeroArtworkLayoutRules.LANDSCAPE_TALL_RATIO) {
+                HeroArtworkPreference.POSTER
+            } else {
+                HeroArtworkPreference.BACKDROP
+            }
+        }
+        // Dikey mod: ekran ne kadar uzun-dar?
+        ratio <= HeroArtworkLayoutRules.PORTRAIT_TALL_RATIO -> HeroArtworkPreference.POSTER
+        else -> HeroArtworkPreference.BACKDROP
+    }
+}
 
 /** Galeride açılacak liste ile, bu listedeki başlangıç konumunu birlikte taşır. */
 internal data class HeroGallerySelection(

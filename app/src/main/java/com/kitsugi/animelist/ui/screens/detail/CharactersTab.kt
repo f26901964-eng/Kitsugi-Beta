@@ -208,8 +208,7 @@ fun CharactersTabContent(
         }
     }
 
-    if (selectedCharacterForVoiceActors != null) {
-        val character = selectedCharacterForVoiceActors!!
+    selectedCharacterForVoiceActors?.let { character ->
         val vaListState = rememberLazyListState()
         KitsugiSheetOrDialog(
             onDismiss = { selectedCharacterForVoiceActors = null },
