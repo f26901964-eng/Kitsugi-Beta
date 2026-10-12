@@ -429,6 +429,12 @@
     <string name="notif_notice_mal_web_feed">MAL hesabından %1$d bildirim yüklendi.</string>
     <string name="notif_notice_mal_web_session_required">MAL web oturumu bağlı değil; gerçek bildirimleri görmek için üstteki düğmeden bir kez giriş yap. Şimdilik uygulama takvimi gösteriliyor: %1$s</string>
     <string name="notif_notice_mal_web_fetch_failed">MAL hesabı bildirimleri şu anda alınamadı. Şimdilik uygulama takvimi gösteriliyor: %1$s</string>
+    <string name="notif_notice_mal_web_feed_unverified">MAL hesabından %1$d bildirim yüklendi. Web oturumunun hangi hesaba ait olduğu doğrulanamadı.</string>
+    <!-- ── MAL OAuth ⇄ web oturumu hesap eşlemesi (v2.4.262) ───────────────── -->
+    <string name="notif_mal_account_mismatch_error">Bağlı OAuth hesabı ile web oturumu eşleşmiyor, lütfen doğru hesapla giriş yapın.</string>
+    <string name="notif_mal_account_mismatch_action">Oturumu temizle ve yeniden giriş yap</string>
+    <string name="notif_mal_account_mismatch_hint">Bağlı OAuth hesabı: %1$s • Web oturumu: %2$s</string>
+    <string name="notif_mal_web_session_cleared">MAL web oturumu temizlendi. Bağlı hesabınla yeniden giriş yap.</string>
     <string name="notif_mal_deleted_suffix"> (silinmiş)</string>
     <string name="notif_login_required_simkl">Simkl\'e giriş yapmanız gerekiyor</string>
     <string name="notif_empty_list_mal">İzleme listenizdeki animeler için yeni bölüm bulunamadı</string>

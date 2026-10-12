@@ -71,6 +71,70 @@ class MalNotificationsClientTest {
         assertNull(notificationLandingPage.targetUrl)
     }
 
+    // ─── Oturum sahibinin kullanıcı adı (OAuth ⇄ web oturumu eşlemesi) ────────
+
+    @Test
+    fun readsSessionOwnerFromTheHeaderProfileLink() {
+        val html = """
+            <html><body>
+            <a class="header-profile-link" href="https://myanimelist.net/profile/KitsugiFan">
+                <img src="https://cdn.myanimelist.net/images/userimages/1.jpg"/>
+            </a>
+            <script>
+            window.MAL.notification = {"items":[{
+                "id": "notice-1",
+                "friendName": "SomeoneElse",
+                "friendProfileUrl": "https://myanimelist.net/profile/SomeoneElse"
+            }]};
+            </script>
+            </body></html>
+        """.trimIndent()
+
+        val feed = MalNotificationsClient.parseHtml(html)
+
+        assertEquals("KitsugiFan", requireNotNull(feed).sessionUsername)
+    }
+
+    @Test
+    fun fallsBackToTheMostFrequentProfileLinkWhenHeaderMarkupChanges() {
+        val html = """
+            <html><body>
+            <a href="https://myanimelist.net/profile/RealOwner">Profilim</a>
+            <a href="https://myanimelist.net/profile/RealOwner/friends">Arkadaşlarım</a>
+            <a href="/profile/OtherUser">OtherUser</a>
+            <script>window.MAL.notification = {"items":[]};</script>
+            </body></html>
+        """.trimIndent()
+
+        assertEquals("RealOwner", MalNotificationsClient.parseSessionUsername(html))
+    }
+
+    @Test
+    fun neverTakesTheSessionOwnerFromNotificationPayloadLinks() {
+        // Bildirim gönderenleri oturum sahibi SANILMAMALI: JSON içindeki profil
+        // bağlantıları taramadan çıkarılır.
+        val html = """
+            <script>window.MAL.notification = {"items":[{
+                "id": "notice-1",
+                "friendName": "Stranger",
+                "friendProfileUrl": "https://myanimelist.net/profile/Stranger"
+            }]};</script>
+        """.trimIndent()
+
+        assertNull(MalNotificationsClient.parseSessionUsername(html))
+    }
+
+    @Test
+    fun skipsReservedProfilePathsAndNumericIds() {
+        assertNull(MalNotificationsClient.parseSessionUsername("<a href=\"/profile/login\">Giriş</a>"))
+        assertNull(MalNotificationsClient.parseSessionUsername("<a href=\"/profile/12345\">id</a>"))
+    }
+
+    @Test
+    fun returnsNullForAnonymousPages() {
+        assertNull(MalNotificationsClient.parseSessionUsername("<html><body>Log In</body></html>"))
+    }
+
     private fun notification(id: String, url: String) = MalNotificationsClient.Notification(
         id = id,
         typeIdentifier = "friend_request",
