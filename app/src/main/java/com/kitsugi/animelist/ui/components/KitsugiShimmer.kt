@@ -8,6 +8,8 @@ import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import com.kitsugi.animelist.ui.theme.gradient.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -18,6 +20,8 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
@@ -35,7 +39,10 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.platform.LocalConfiguration
 import com.kitsugi.animelist.ui.theme.KitsugiColors
+import com.kitsugi.animelist.ui.theme.KitsugiTvTokens
+import com.kitsugi.animelist.ui.theme.LocalIsTv
 
 /**
  * Paylaşımlı shimmer fırçası. DEĞERİ SABİTTİR (animasyon içermez): tüketiciler
@@ -262,6 +269,211 @@ fun KitsugiShimmerMediaRow(
     ) {
         repeat(cardCount) {
             KitsugiShimmerMediaCard(brush = brush)
+        }
+    }
+}
+
+/**
+ * Arama/Keşfet yatay raflarında gerçek KitsugiExploreMediaCard düzenine uyan shimmer.
+ * Arama ekranı portrede poster kartı, yatayda poster + metin kartı kullandığından
+ * placeholder ölçülerini de aynı konfigürasyona göre seçer.
+ */
+@Composable
+fun KitsugiShimmerResponsiveMediaRow(
+    cardCount: Int = 5,
+    cardWidth: Dp,
+    isLandscape: Boolean,
+    contentPadding: PaddingValues = PaddingValues(0.dp),
+    cardSpacing: Dp = 12.dp,
+) {
+    val brush = LocalShimmerBrush.current ?: rememberKitsugiShimmerBrush()
+    LazyRow(
+        contentPadding = contentPadding,
+        horizontalArrangement = Arrangement.spacedBy(cardSpacing),
+    ) {
+        items(
+            count = cardCount.coerceAtLeast(0),
+            key = { index -> "responsive_shimmer_media_$index" },
+            contentType = { "responsive_shimmer_media_card" },
+        ) {
+            KitsugiShimmerResponsiveMediaCard(
+                brush = brush,
+                cardWidth = cardWidth,
+                isLandscape = isLandscape,
+            )
+        }
+    }
+}
+
+@Composable
+private fun KitsugiShimmerResponsiveMediaCard(
+    brush: Brush,
+    cardWidth: Dp,
+    isLandscape: Boolean,
+) {
+    val isTv = LocalIsTv.current
+    val screenWidthDp = LocalConfiguration.current.screenWidthDp
+    val cardShape = RoundedCornerShape(if (isTv) 12.dp else 24.dp)
+
+    when {
+        isTv -> {
+            // TV kartları her zaman dikey poster düzeninde kalır.
+            Column(
+                modifier = Modifier
+                    .width(cardWidth)
+                    .clip(cardShape)
+                    .background(KitsugiColors.Surface)
+            ) {
+                KitsugiShimmerBlock(
+                    brush = brush,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(KitsugiTvTokens.Cards.posterHeight),
+                    cornerRadius = 12.dp,
+                )
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(76.dp)
+                        .padding(
+                            horizontal = KitsugiTvTokens.Spacing.sm,
+                            vertical = KitsugiTvTokens.Spacing.sm,
+                        ),
+                    verticalArrangement = Arrangement.spacedBy(7.dp),
+                ) {
+                    KitsugiShimmerBlock(
+                        brush = brush,
+                        modifier = Modifier.fillMaxWidth(0.86f).height(12.dp),
+                        cornerRadius = 999.dp,
+                    )
+                    KitsugiShimmerBlock(
+                        brush = brush,
+                        modifier = Modifier.fillMaxWidth(0.58f).height(9.dp),
+                        cornerRadius = 999.dp,
+                    )
+                }
+            }
+        }
+
+        isLandscape -> {
+            // Keep the skeleton's outer dimensions and poster size in sync with the
+            // landscape branch of KitsugiExploreMediaCard.
+            val landscapeRowHeight = when {
+                screenWidthDp >= 1200 -> 160.dp
+                screenWidthDp >= 800 -> 145.dp
+                else -> 130.dp
+            }
+            val posterWidth = when {
+                screenWidthDp >= 1200 -> 110.dp
+                screenWidthDp >= 800 -> 100.dp
+                else -> 90.dp
+            }
+            val posterHeight = when {
+                screenWidthDp >= 1200 -> 160.dp
+                screenWidthDp >= 800 -> 145.dp
+                else -> 130.dp
+            }
+
+            Row(
+                modifier = Modifier
+                    .width(cardWidth)
+                    .clip(cardShape)
+                    .background(KitsugiColors.Surface)
+                    .padding(12.dp)
+                    .height(landscapeRowHeight),
+                verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(14.dp),
+            ) {
+                KitsugiShimmerBlock(
+                    brush = brush,
+                    modifier = Modifier.size(width = posterWidth, height = posterHeight),
+                    cornerRadius = 16.dp,
+                )
+                Column(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.Center,
+                ) {
+                    KitsugiShimmerBlock(
+                        brush = brush,
+                        modifier = Modifier.fillMaxWidth(0.95f).height(15.dp),
+                        cornerRadius = 999.dp,
+                    )
+                    Spacer(modifier = Modifier.height(5.dp))
+                    KitsugiShimmerBlock(
+                        brush = brush,
+                        modifier = Modifier.fillMaxWidth(0.70f).height(12.dp),
+                        cornerRadius = 999.dp,
+                    )
+                    Spacer(modifier = Modifier.height(9.dp))
+                    Row(horizontalArrangement = Arrangement.spacedBy(7.dp)) {
+                        KitsugiShimmerBlock(
+                            brush = brush,
+                            modifier = Modifier.width(34.dp).height(10.dp),
+                            cornerRadius = 999.dp,
+                        )
+                        KitsugiShimmerBlock(
+                            brush = brush,
+                            modifier = Modifier.width(46.dp).height(10.dp),
+                            cornerRadius = 999.dp,
+                        )
+                    }
+                }
+            }
+        }
+
+        else -> {
+            // Portrede, gerçek kartın 2:3 kapak oranı ve sabit metin alanı korunur.
+            Column(
+                modifier = Modifier
+                    .width(cardWidth)
+                    .clip(cardShape)
+                    .background(KitsugiColors.Surface)
+                    .padding(14.dp),
+            ) {
+                KitsugiShimmerBlock(
+                    brush = brush,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .aspectRatio(2f / 3f),
+                    cornerRadius = 20.dp,
+                )
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(182.dp),
+                ) {
+                    Spacer(modifier = Modifier.height(12.dp))
+                    KitsugiShimmerBlock(
+                        brush = brush,
+                        modifier = Modifier.fillMaxWidth(0.92f).height(16.dp),
+                        cornerRadius = 999.dp,
+                    )
+                    Spacer(modifier = Modifier.height(5.dp))
+                    KitsugiShimmerBlock(
+                        brush = brush,
+                        modifier = Modifier.fillMaxWidth(0.64f).height(16.dp),
+                        cornerRadius = 999.dp,
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    KitsugiShimmerBlock(
+                        brush = brush,
+                        modifier = Modifier.fillMaxWidth(0.82f).height(11.dp),
+                        cornerRadius = 999.dp,
+                    )
+                    Spacer(modifier = Modifier.height(5.dp))
+                    KitsugiShimmerBlock(
+                        brush = brush,
+                        modifier = Modifier.fillMaxWidth(0.52f).height(11.dp),
+                        cornerRadius = 999.dp,
+                    )
+                    Spacer(modifier = Modifier.height(10.dp))
+                    KitsugiShimmerBlock(
+                        brush = brush,
+                        modifier = Modifier.fillMaxWidth(0.42f).height(10.dp),
+                        cornerRadius = 999.dp,
+                    )
+                }
+            }
         }
     }
 }

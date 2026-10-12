@@ -56,7 +56,7 @@ import com.kitsugi.animelist.ui.components.KitsugiEmptyState
 import com.kitsugi.animelist.ui.components.KitsugiPlatformLogo
 import com.kitsugi.animelist.ui.components.KitsugiShimmerProvider
 import com.kitsugi.animelist.ui.components.KitsugiShimmerSearchResultList
-import com.kitsugi.animelist.ui.components.KitsugiShimmerMediaRow
+import com.kitsugi.animelist.ui.components.KitsugiShimmerResponsiveMediaRow
 import com.kitsugi.animelist.ui.components.KitsugiExploreMediaCard
 import com.kitsugi.animelist.ui.components.KitsugiPlasmaLoader
 import com.kitsugi.animelist.ui.components.KitsugiCosmicSearchBar
@@ -1019,6 +1019,8 @@ private fun MultiSearchSection(
     val accentColor = LocalKitsugiAccent.current
     val isLandscape = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
     val isTvDevice = LocalIsTvDevice.current
+    val isTv = LocalIsTv.current
+    val cardWidth = if (isLandscape) 260.dp else 180.dp
 
     Column(
         modifier = Modifier
@@ -1067,13 +1069,19 @@ private fun MultiSearchSection(
 
         when {
             isLoading && results.isEmpty() -> {
-                // Keşfet sayfası ile birebir aynı animasyonlu shimmer efekti
-                KitsugiShimmerMediaRow(cardCount = 5)
+                // Gerçek kartlarla aynı yön, genişlik ve yatay kaydırma davranışı:
+                // portrede 2:3 poster; yatayda poster + metin düzeni.
+                KitsugiShimmerResponsiveMediaRow(
+                    cardCount = 5,
+                    cardWidth = cardWidth,
+                    isLandscape = isLandscape && !isTv,
+                    contentPadding = PaddingValues(horizontal = 4.dp),
+                    cardSpacing = 12.dp,
+                )
             }
 
             else -> {
                 val lazyListState = androidx.compose.runtime.saveable.rememberSaveable(title, saver = LazyListState.Saver) { LazyListState() }
-                val cardWidth = if (isLandscape) 260.dp else 180.dp
 
                 if (isTvDevice) {
                     val tvSpec = KitsugiScrollDefaults.rememberTvCenteredSpec()
