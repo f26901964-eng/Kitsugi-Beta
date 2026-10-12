@@ -199,11 +199,6 @@ internal fun EntryDetailOverviewTab(
             )
         }
 
-        // Fragman (inline YouTube player)
-        if (!detail?.trailerUrl.isNullOrBlank()) {
-            KitsugiTrailerCard(trailerUrl = detail!!.trailerUrl!!)
-        }
-
         // Bilgi satırları
         if (detail != null) {
             EntryInfoSection(
@@ -221,14 +216,6 @@ internal fun EntryDetailOverviewTab(
             KitsugiLinksCard(
                 streamingLinks = detail.streamingLinks,
                 externalLinks = detail.externalLinks
-            )
-        }
-
-        // Açılış/Kapanış müzikleri
-        if (!detail?.openings.isNullOrEmpty() || !detail?.endings.isNullOrEmpty()) {
-            KitsugiThemesList(
-                openings = detail?.openings.orEmpty(),
-                endings = detail?.endings.orEmpty()
             )
         }
 
@@ -562,7 +549,7 @@ internal fun DetailGalleryLoadingCard() {
 }
 
 /**
- * Tab 6 — Episodes content for MediaEntryDetailPage.
+ * Visible tab 9 — Episodes content for MediaEntryDetailPage.
  */
 @Composable
 internal fun EntryDetailEpisodesTab(

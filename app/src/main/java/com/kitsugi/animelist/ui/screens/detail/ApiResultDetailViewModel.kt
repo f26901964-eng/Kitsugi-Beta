@@ -42,7 +42,7 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 
-/** Detay sekmesi indeksleri (ApiResultDetailPage tab listesiyle eşleşir). */
+/** Legacy data-tab indexes consumed by loadTab; the Videos pager page is mapped out by the UI. */
 private const val TAB_REVIEWS = 7
 private const val TAB_EPISODES = 8
 

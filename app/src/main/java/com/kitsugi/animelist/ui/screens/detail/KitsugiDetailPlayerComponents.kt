@@ -1,4 +1,4 @@
-﻿package com.kitsugi.animelist.ui.screens.detail
+package com.kitsugi.animelist.ui.screens.detail
 import com.kitsugi.animelist.ui.components.KitsugiButton
 
 import android.net.Uri
@@ -60,6 +60,7 @@ import com.kitsugi.animelist.core.player.engine.Media3PlayerEngine
 import com.kitsugi.animelist.core.player.engine.MpvPlayerEngine
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.rememberCoroutineScope
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
 import androidx.compose.ui.res.stringResource
 import com.kitsugi.animelist.R
@@ -100,13 +101,16 @@ fun KitsugiYouTubePlayer(
         isLoading = true
         hasError = false
         try {
-            val extractor = InAppYouTubeExtractor()
-            val source = extractor.extractPlaybackSource("https://www.youtube.com/watch?v=$videoId")
+            val source = InAppYouTubeExtractor.shared
+                .extractPlaybackSource("https://www.youtube.com/watch?v=$videoId")
             if (source != null) {
                 playbackSource = source
             } else {
                 hasError = true
             }
+        } catch (e: CancellationException) {
+            // Closing or switching videos cancels extraction; it is not a playback failure.
+            throw e
         } catch (e: Exception) {
             Log.e("KitsugiYouTubePlayer", "Extraction error for $videoId", e)
             hasError = true
@@ -168,16 +172,19 @@ fun KitsugiYouTubePlayer(
         var isPlayingState by remember { mutableStateOf(true) }
         var currentPosition by remember { mutableStateOf(0L) }
         var duration by remember { mutableStateOf(0L) }
+        val engineTypeForPlayer = activeEngineType
 
         DisposableEffect(playerEngine) {
+            var released = false
             val listener = object : PlayerEngine.Listener {
                 override fun onStateChanged(state: PlayerEngine.State) {
-                    isPlayingState = playerEngine.isPlaying
+                    if (!released) isPlayingState = playerEngine.isPlaying
                 }
 
                 override fun onPlaybackError(errorCode: Int, errorMsg: String, cause: Throwable?) {
+                    if (released) return
                     Log.e("KitsugiYouTubePlayer", "Playback error: $errorMsg (code: $errorCode)")
-                    if (activeEngineType == PlayerEngineType.MEDIA3) {
+                    if (engineTypeForPlayer == PlayerEngineType.MEDIA3) {
                         Log.d("KitsugiYouTubePlayer", "ExoPlayer failed, switching to MPV")
                         activeEngineType = PlayerEngineType.MPV
                     } else {
@@ -186,6 +193,7 @@ fun KitsugiYouTubePlayer(
                 }
 
                 override fun onPositionChanged(positionMs: Long, durationMs: Long) {
+                    if (released) return
                     currentPosition = positionMs
                     duration = durationMs
                 }
@@ -197,7 +205,9 @@ fun KitsugiYouTubePlayer(
             }
             playerEngine.addListener(listener)
             onDispose {
+                released = true
                 playerEngine.removeListener(listener)
+                runCatching { playerEngine.pause() }
                 playerEngine.release()
             }
         }
@@ -210,9 +220,13 @@ fun KitsugiYouTubePlayer(
                     startPositionMs = currentPosition
                 )
                 playerEngine.play()
+            } catch (e: CancellationException) {
+                // The player can be disposed while a prepare is awaiting IO work.
+                throw e
             } catch (e: Exception) {
+                if (engineTypeForPlayer != activeEngineType) return@LaunchedEffect
                 Log.e("KitsugiYouTubePlayer", "Prepare error", e)
-                if (activeEngineType == PlayerEngineType.MEDIA3) {
+                if (engineTypeForPlayer == PlayerEngineType.MEDIA3) {
                     activeEngineType = PlayerEngineType.MPV
                 } else {
                     hasError = true

@@ -150,11 +150,6 @@ internal fun ApiDetailOverviewTab(
             Spacer(modifier = Modifier.height(14.dp))
         }
 
-        if (!detail?.trailerUrl.isNullOrBlank()) {
-            KitsugiTrailerCard(trailerUrl = detail!!.trailerUrl!!)
-            Spacer(modifier = Modifier.height(14.dp))
-        }
-
         if (detail != null) {
             ApiInfoSection(
                 detail = detail,
@@ -174,12 +169,6 @@ internal fun ApiDetailOverviewTab(
             Spacer(modifier = Modifier.height(14.dp))
         }
 
-        if (!detail?.openings.isNullOrEmpty() || !detail?.endings.isNullOrEmpty()) {
-            KitsugiThemesList(
-                openings = detail?.openings.orEmpty(),
-                endings = detail?.endings.orEmpty()
-            )
-        }
     }
 }
 
@@ -192,7 +181,7 @@ internal fun resolveStudioClickSource(
 ): String = StudioSourceSupport.resolveClickSource(studioSource, mediaSource, mediaType, role)
 
 /**
- * Tab 6 — Episodes content for ApiResultDetailPage.
+ * Visible tab 9 — Episodes content for ApiResultDetailPage.
  */
 @Composable
 internal fun ApiDetailEpisodesTab(

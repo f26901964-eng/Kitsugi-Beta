@@ -344,6 +344,7 @@ fun ApiResultDetailPage(
         addAll(listOf(
             stringResource(R.string.detail_tab_info),
             stringResource(R.string.detail_tab_images),
+            stringResource(R.string.detail_tab_videos),
             stringResource(R.string.detail_tab_characters),
             stringResource(R.string.detail_tab_staff),
             stringResource(R.string.detail_tab_recommendations),
@@ -418,7 +419,9 @@ fun ApiResultDetailPage(
         resolvedTmdbId,
         detailState == null
     ) {
-        viewModel.loadTab(selectedTab, result, displayResult.realMalId)
+        detailDataTabIndexForPage(selectedTab)?.let { dataTabIndex ->
+            viewModel.loadTab(dataTabIndex, result, displayResult.realMalId)
+        }
     }
 
     LaunchedEffect(detailLoading) {
@@ -686,9 +689,14 @@ fun ApiResultDetailPage(
                             }
                         }
                     }
-                    2 -> CharactersTabContent(state = charactersState, onCharacterClick = onCharacterClick, onStaffClick = onStaffClick, onMediaClick = onMediaClick, titleLanguage = titleLanguage)
-                    3 -> StaffTabContent(state = staffState, onStaffClick = onStaffClick, titleLanguage = titleLanguage)
-                    4 -> RecommendationsTabContent(state = recommendationsState, titleLanguage = titleLanguage, blurAdultMedia = blurAdultMedia, onRecommendationClick = { rel ->
+                    2 -> {
+                        if (selectedTab == DETAIL_VIDEO_PAGE_INDEX) {
+                            KitsugiMediaVideosTab(detail = detailState)
+                        }
+                    }
+                    3 -> CharactersTabContent(state = charactersState, onCharacterClick = onCharacterClick, onStaffClick = onStaffClick, onMediaClick = onMediaClick, titleLanguage = titleLanguage)
+                    4 -> StaffTabContent(state = staffState, onStaffClick = onStaffClick, titleLanguage = titleLanguage)
+                    5 -> RecommendationsTabContent(state = recommendationsState, titleLanguage = titleLanguage, blurAdultMedia = blurAdultMedia, onRecommendationClick = { rel ->
                         val typeLabel = context.getString(rel.mediaType.labelRes())
                         val relResult = JikanSearchResult(
                             malId = rel.malId,
@@ -708,7 +716,7 @@ fun ApiResultDetailPage(
                         )
                         onRelationClick(relResult)
                     })
-                    5 -> RelationsTabContent(state = relationsState, titleLanguage = titleLanguage, blurAdultMedia = blurAdultMedia, onRelationClick = { rel ->
+                    6 -> RelationsTabContent(state = relationsState, titleLanguage = titleLanguage, blurAdultMedia = blurAdultMedia, onRelationClick = { rel ->
                         val typeLabel = context.getString(rel.mediaType.labelRes())
                         val relResult = JikanSearchResult(
                             malId = rel.malId,
@@ -728,8 +736,8 @@ fun ApiResultDetailPage(
                         )
                         onRelationClick(relResult)
                     })
-                    6 -> StatsTabContent(state = statsState)
-                    7 -> ReviewsTabContent(
+                    7 -> StatsTabContent(state = statsState)
+                    8 -> ReviewsTabContent(
                         state = reviewsState,
                         source = result.source,
                         externalId = result.malId,
@@ -747,7 +755,7 @@ fun ApiResultDetailPage(
                         onUserProfileClick = onUserProfileClick,
                         preferredTranslator = settingsState?.preferredTranslator ?: "DEFAULT"
                     )
-                    8 -> {
+                    9 -> {
                         val streamIds = displayResult.toStreamMediaIds(
                             resolvedRealMalId = detailState?.realMalId ?: displayResult.realMalId,
                             resolvedTmdbId = detailState?.tmdbId ?: resolvedTmdbId ?: displayResult.tmdbId

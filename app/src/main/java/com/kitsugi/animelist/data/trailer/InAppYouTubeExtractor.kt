@@ -15,10 +15,15 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.coroutines.withTimeout
+import kotlinx.coroutines.suspendCancellableCoroutine
+import okhttp3.Call
+import okhttp3.Callback
 import okhttp3.Headers
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import okhttp3.Response
 import okhttp3.RequestBody.Companion.toRequestBody
+import java.io.IOException
 import java.net.URL
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicReference
@@ -190,6 +195,11 @@ class InAppYouTubeExtractor {
     private val configMutex = Mutex()
 
     companion object {
+        /** A process-wide extractor reuses config and HTTP resources across detail-video switches. */
+        val shared: InAppYouTubeExtractor by lazy(LazyThreadSafetyMode.SYNCHRONIZED) {
+            InAppYouTubeExtractor()
+        }
+
         /** How long cached visitor_data stays valid before a proactive refresh. */
         private const val CONFIG_TTL_MS = 3 * 60 * 60 * 1000L // 3 hours
     }
@@ -416,6 +426,8 @@ class InAppYouTubeExtractor {
                         )
                     }
                 }
+            } catch (error: kotlinx.coroutines.CancellationException) {
+                throw error
             } catch (error: Exception) {
                 if (BuildConfig.DEBUG) {
                     Log.w(TAG, "Client ${client.key} failed: ${error.message}")
@@ -454,6 +466,8 @@ class InAppYouTubeExtractor {
                 ) {
                     bestManifest = candidate
                 }
+            } catch (error: kotlinx.coroutines.CancellationException) {
+                throw error
             } catch (error: Exception) {
                 if (BuildConfig.DEBUG) {
                     Log.w(TAG, "Manifest parse failed: ${error.message}")
@@ -532,7 +546,7 @@ class InAppYouTubeExtractor {
         return WatchConfig(apiKey = apiKey, visitorData = visitorData)
     }
 
-    private fun fetchPlayerResponse(
+    private suspend fun fetchPlayerResponse(
         apiKey: String,
         videoId: String,
         client: YouTubeClient,
@@ -584,7 +598,7 @@ class InAppYouTubeExtractor {
         return parsed ?: emptyMap<String, Any>()
     }
 
-    private fun parseHlsManifest(manifestUrl: String): ManifestBestVariant? {
+    private suspend fun parseHlsManifest(manifestUrl: String): ManifestBestVariant? {
         val response = performRequest(
             url = manifestUrl,
             method = "GET",
@@ -794,18 +808,21 @@ class InAppYouTubeExtractor {
             .build()
     }
 
-    private fun isUrlReachable(url: String): Boolean {
-        return runCatching {
+    private suspend fun isUrlReachable(url: String): Boolean {
+        return try {
             val request = Request.Builder()
                 .url(url)
                 .get()
                 .header("Range", "bytes=0-0")
                 .headers(buildHeaders(DEFAULT_HEADERS))
                 .build()
-            probeClient.newCall(request).execute().use { response ->
-                response.code == 200 || response.code == 206
-            }
-        }.getOrDefault(false)
+            val code = executeCallCancellable(probeClient.newCall(request)) { response -> response.code }
+            code == 200 || code == 206
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (_: Exception) {
+            false
+        }
     }
 
     private fun absolutizeUrl(baseUrl: String, maybeRelative: String): String {
@@ -823,7 +840,7 @@ class InAppYouTubeExtractor {
         }.getOrDefault(url.take(80))
     }
 
-    private fun performRequest(
+    private suspend fun performRequest(
         url: String,
         method: String,
         headers: Map<String, String>,
@@ -840,14 +857,48 @@ class InAppYouTubeExtractor {
             else -> requestBuilder.get()
         }
 
-        httpClient.newCall(requestBuilder.build()).execute().use { response ->
-            return RequestResponse(
+        return executeCallCancellable(httpClient.newCall(requestBuilder.build())) { response ->
+            RequestResponse(
                 ok = response.isSuccessful,
                 status = response.code,
                 statusText = response.message,
                 url = response.request.url.toString(),
                 body = response.body?.string().orEmpty()
             )
+        }
+    }
+
+    /**
+     * Executes an OkHttp request as a cancellable suspend call. Removing a player from the
+     * Compose tree now cancels its in-flight YouTube extraction instead of leaving blocking
+     * requests alive until their 20-second socket timeout.
+     */
+    private suspend fun <T> executeCallCancellable(
+        call: Call,
+        readResponse: (Response) -> T
+    ): T = suspendCancellableCoroutine { continuation ->
+        continuation.invokeOnCancellation { call.cancel() }
+        if (!continuation.isActive) return@suspendCancellableCoroutine
+
+        try {
+            call.enqueue(object : Callback {
+                override fun onFailure(call: Call, e: IOException) {
+                    if (continuation.isActive) {
+                        runCatching { continuation.resumeWith(Result.failure(e)) }
+                    }
+                }
+
+                override fun onResponse(call: Call, response: Response) {
+                    val result = runCatching { response.use(readResponse) }
+                    if (continuation.isActive) {
+                        runCatching { continuation.resumeWith(result) }
+                    }
+                }
+            })
+        } catch (e: Exception) {
+            if (continuation.isActive) {
+                runCatching { continuation.resumeWith(Result.failure(e)) }
+            }
         }
     }
 

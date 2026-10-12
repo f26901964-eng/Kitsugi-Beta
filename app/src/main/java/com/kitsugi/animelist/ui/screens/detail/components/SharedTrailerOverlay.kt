@@ -39,6 +39,7 @@ import com.kitsugi.animelist.data.trailer.InAppYouTubeExtractor
 import com.kitsugi.animelist.data.trailer.TrailerPlaybackSource
 import com.kitsugi.animelist.data.trailer.YoutubeChunkedDataSourceFactory
 import com.kitsugi.animelist.ui.theme.KitsugiColors
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
 import androidx.compose.ui.res.stringResource
 import com.kitsugi.animelist.R
@@ -83,13 +84,14 @@ fun SharedTrailerOverlay(
         errorMessage = null
         playbackSource = null
         try {
-            val extractor = InAppYouTubeExtractor()
-            val source = extractor.extractPlaybackSource(trailerUrl)
+            val source = InAppYouTubeExtractor.shared.extractPlaybackSource(trailerUrl)
             if (source != null) {
                 playbackSource = source
             } else {
                 errorMessage = KitsugiStrings.get(R.string.inline_failed_to_load_trailer_cc304f6)
             }
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             errorMessage = KitsugiStrings.get(R.string.baglanti_hatasi)
         } finally {

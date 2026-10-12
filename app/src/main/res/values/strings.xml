@@ -4740,6 +4740,8 @@ Eklentiler ekranından eklenti etkinleştirin.</string>
     <string name="notif_episode_title">%1$s - Bölüm %2$d</string>
     <string name="detail_tab_info">Bilgi</string>
     <string name="detail_tab_images">Resimler</string>
+    <string name="detail_tab_videos">Videolar</string>
+    <string name="detail_video_empty">Bu içerik için video bulunamadı.</string>
     <string name="detail_tab_characters">Karakterler</string>
     <string name="detail_tab_staff">Ekip</string>
     <string name="detail_tab_recommendations">Öneriler</string>

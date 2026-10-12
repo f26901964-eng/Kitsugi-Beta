@@ -283,6 +283,7 @@ fun MediaEntryDetailPage(
         addAll(listOf(
             stringResource(R.string.detail_tab_info),
             stringResource(R.string.detail_tab_images),
+            stringResource(R.string.detail_tab_videos),
             stringResource(R.string.detail_tab_characters),
             stringResource(R.string.detail_tab_staff),
             stringResource(R.string.detail_tab_recommendations),
@@ -308,7 +309,9 @@ fun MediaEntryDetailPage(
 
     // Call loadTab when tab changes
     LaunchedEffect(displayEntry.id, selectedTab, detailState?.realMalId, detailState?.tmdbId, resolvedTmdbId, detailState == null) {
-        viewModel.loadTab(selectedTab, displayEntry, detailState?.realMalId)
+        detailDataTabIndexForPage(selectedTab)?.let { dataTabIndex ->
+            viewModel.loadTab(dataTabIndex, displayEntry, detailState?.realMalId)
+        }
     }
 
     // Propagate original synopsis back to UI if requested
@@ -543,9 +546,14 @@ fun MediaEntryDetailPage(
                             }
                         }
                     }
-                    2 -> CharactersTabContent(state = charactersState, onCharacterClick = onCharacterClick, onStaffClick = onStaffClick, onMediaClick = onMediaClick, titleLanguage = titleLanguage)
-                    3 -> StaffTabContent(state = staffState, onStaffClick = onStaffClick, titleLanguage = titleLanguage)
-                    4 -> RecommendationsTabContent(state = recommendationsState, titleLanguage = titleLanguage, blurAdultMedia = blurAdultMedia, onRecommendationClick = { rel ->
+                    2 -> {
+                        if (selectedTab == DETAIL_VIDEO_PAGE_INDEX) {
+                            KitsugiMediaVideosTab(detail = detailState)
+                        }
+                    }
+                    3 -> CharactersTabContent(state = charactersState, onCharacterClick = onCharacterClick, onStaffClick = onStaffClick, onMediaClick = onMediaClick, titleLanguage = titleLanguage)
+                    4 -> StaffTabContent(state = staffState, onStaffClick = onStaffClick, titleLanguage = titleLanguage)
+                    5 -> RecommendationsTabContent(state = recommendationsState, titleLanguage = titleLanguage, blurAdultMedia = blurAdultMedia, onRecommendationClick = { rel ->
                         val typeLabel = context.getString(rel.mediaType.labelRes())
                         onRelationClick(JikanSearchResult(
                             malId = rel.malId,
@@ -563,7 +571,7 @@ fun MediaEntryDetailPage(
                             bangumiSubjectType = rel.bangumiSubjectType
                         ))
                     })
-                    5 -> RelationsTabContent(state = relationsState, titleLanguage = titleLanguage, blurAdultMedia = blurAdultMedia, onRelationClick = { rel ->
+                    6 -> RelationsTabContent(state = relationsState, titleLanguage = titleLanguage, blurAdultMedia = blurAdultMedia, onRelationClick = { rel ->
                         val typeLabel = context.getString(rel.mediaType.labelRes())
                         onRelationClick(JikanSearchResult(
                             malId = rel.malId,
@@ -581,8 +589,8 @@ fun MediaEntryDetailPage(
                             bangumiSubjectType = rel.bangumiSubjectType
                         ))
                     })
-                    6 -> StatsTabContent(state = statsState)
-                    7 -> ReviewsTabContent(
+                    7 -> StatsTabContent(state = statsState)
+                    8 -> ReviewsTabContent(
                         state = reviewsState,
                         source = displayEntry.source,
                         externalId = if (displayEntry.source.equals("simkl", true)) {
@@ -604,7 +612,7 @@ fun MediaEntryDetailPage(
                         onUserProfileClick = onUserProfileClick,
                         preferredTranslator = preferredTranslator
                     )
-                    8 -> {
+                    9 -> {
                         EntryDetailEpisodesTab(
                             entry = displayEntry,
                             detailState = detailState,
