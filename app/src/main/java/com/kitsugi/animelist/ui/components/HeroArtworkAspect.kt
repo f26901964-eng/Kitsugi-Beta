@@ -167,3 +167,45 @@ internal fun homeHeroHeightDp(
         }
     }
 }
+
+// ─────────────────────────────────────────────────────────────────────────────────
+// BEKLENEN (ÖLÇÜLMEDEN) GÖRSEL ORANI — VİTRİN SARSINTISINI ÖNLEYEN SABİT
+// ─────────────────────────────────────────────────────────────────────────────────
+// Bant yüksekliği yalnızca yüklenen görselin oranına bırakılırsa; sayfa değişiminde
+// görselin yüklenmesi beklenir, ölçüm gelince kutu bir kare sonra "yerine oturur".
+// Gözle görülen bu sarsıntının tek çözümü, kutuyu görsel doğmadan önce de DOĞRU
+// şekilde kurmaktır: poster her zaman 2:3, yatay arka plan her zaman 16:9'dur.
+// Zaman uyumsuz ölçüm geldiğinde fark yoksa hiçbir yeniden yerleşim olmaz.
+
+/** Dikey posterlerin varsayılan en-boy oranı (genişlik / yükseklik): 2:3. */
+internal const val HERO_EXPECTED_POSTER_ASPECT = 2f / 3f
+
+/** Yatay arka planların varsayılan en-boy oranı (genişlik / yükseklik): 16:9. */
+internal const val HERO_EXPECTED_BACKDROP_ASPECT = 16f / 9f
+
+/**
+ * Görsel henüz ölçülmeden kullanılacak **beklenen** en-boy oranını verir.
+ *
+ * @param primaryIsPoster Vitrin planının ilk adayı dikey bir poster mi?
+ */
+internal fun expectedHeroAspect(primaryIsPoster: Boolean): Float =
+    if (primaryIsPoster) HERO_EXPECTED_POSTER_ASPECT else HERO_EXPECTED_BACKDROP_ASPECT
+
+/**
+ * Vitrin görsel planının İLK adayı dikey poster mi?
+ *
+ * Plan mantığı (`heroImageCandidates`): tercih edilen tür elde varsa o birincildir,
+ * yoksa diğeri gösterilir. Görsel henüz indirilmediği için oran ölçülemez; bant
+ * yüksekliğini ilk kareden doğru kurabilmek adına beklenen oran bu tür bilgisinden
+ * türetilir ([expectedHeroAspect]).
+ */
+internal fun primaryHeroArtworkIsPoster(
+    hasPoster: Boolean,
+    hasBackdrop: Boolean,
+    preferBackdrop: Boolean
+): Boolean = when {
+    preferBackdrop && hasBackdrop -> false // yatay arka plan birincil
+    !preferBackdrop && hasPoster -> true   // dikey poster birincil
+    hasPoster -> true                      // tercih edilen tür yok → eldeki poster
+    else -> false                          // yalnızca yatay arka plan var
+}

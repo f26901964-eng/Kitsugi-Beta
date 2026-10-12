@@ -53,6 +53,7 @@ import com.kitsugi.animelist.ui.components.KitsugiShimmerHeroSection
 import com.kitsugi.animelist.ui.components.KitsugiErrorState
 import com.kitsugi.animelist.ui.components.KitsugiEmptyState
 import com.kitsugi.animelist.ui.components.KitsugiShimmerProvider
+import com.kitsugi.animelist.ui.components.kitsugiCardFrame
 import com.kitsugi.animelist.ui.theme.KitsugiColors
 import com.kitsugi.animelist.ui.theme.LocalIsTvDevice
 import com.kitsugi.animelist.ui.theme.LocalKitsugiAccent
@@ -552,7 +553,7 @@ fun ExploreScreen(
                                             .padding(horizontal = 20.dp, vertical = 6.dp)
                                             .clip(RoundedCornerShape(12.dp))
                                             .background(KitsugiColors.Surface.copy(alpha = 0.5f))
-                                            .border(1.dp, accentColor.copy(alpha = 0.3f), RoundedCornerShape(12.dp))
+                                            .kitsugiCardFrame(RoundedCornerShape(12.dp), highlightColor = accentColor.copy(alpha = 0.3f))
                                             .padding(horizontal = 16.dp, vertical = 12.dp)
                                     ) {
                                         Row(

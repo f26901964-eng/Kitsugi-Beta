@@ -163,6 +163,61 @@ fun KitsugiNeonGlowCard(
 }
 
 /**
+ * KART ÇERÇEVESİ — uygulamadaki **tüm kart benzeri kutucuklar** için tek ortak çerçeve.
+ *
+ * Ayar (Ayarlar → Görünüm & Tercihler → Kart Çerçeveleri):
+ *  - **AÇIK**  → kutucuk, [kitsugiNeonGlow] ile aynı tema/neon degrade kenarlığı alır.
+ *  - **KAPALI** → çerçeve hiç çizilmez; istenirse ince nötr (veya vurgu) kenarlık kalır.
+ *
+ * `kitsugiNeonGlow`'dan farkı: kapalıyken kutucuğun kaybolmaması için nötr kenarlığı
+ * (veya "Listemde" yeşili gibi vurgu rengini) korur. Böylece ayar kapatıldığında
+ * arayüz eskisi gibi görünür, açıldığında ise uygulamanın her yerindeki kartlar
+ * aynı dilde çerçevelenir.
+ *
+ * @param shape Kutucuğun kırpma şekli (kart ile birebir aynı olmalı).
+ * @param highlightColor Vurgu rengi (ör. "Listemde" yeşili). Açıkken çerçeve bu
+ *   renkten degradeye döner, kapalıyken kenarlık doğrudan bu renkle çizilir.
+ * @param drawNeutralWhenDisabled Kapalıyken nötr kenarlık çizilsin mi (varsayılan: evet).
+ */
+@Composable
+fun Modifier.kitsugiCardFrame(
+    shape: Shape,
+    frameWidth: Dp = 1.5.dp,
+    neutralWidth: Dp = 1.dp,
+    highlightColor: Color? = null,
+    drawNeutralWhenDisabled: Boolean = true
+): Modifier {
+    val framesEnabled = LocalCardFramesEnabled.current
+    val neutralColor = highlightColor ?: KitsugiColors.Border
+
+    if (!framesEnabled) {
+        // Vurgu rengi verildiyse (ör. "Listemde") her zaman çizilir; yalnızca
+        // nötr kenarlık istenmiyorsa ve vurgu yoksa hiçbir şey eklenmez.
+        return if (drawNeutralWhenDisabled || highlightColor != null) {
+            border(width = neutralWidth, color = neutralColor, shape = shape)
+        } else {
+            this
+        }
+    }
+
+    val accentColor = LocalKitsugiAccent.current
+    val accent2 = com.kitsugi.animelist.ui.theme.LocalKitsugiAccent2.current
+    val gradientColors = remember(accentColor, accent2, highlightColor) {
+        if (highlightColor != null) {
+            listOf(highlightColor, accent2 ?: accentColor)
+        } else {
+            listOf(accentColor, accent2 ?: Color(0xFF3700FF))
+        }
+    }
+
+    return kitsugiNeonGlow(
+        shape = shape,
+        borderWidth = frameWidth,
+        customGradientColors = gradientColors
+    )
+}
+
+/**
  * Mevcut Card bileşenlerinin etrafına doğrudan Uiverse 163° neon degrade kenarlık
  * ve derinlik parıltısı kazandıran yardımcı Modifier.
  */

@@ -34,6 +34,8 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import com.kitsugi.animelist.ui.theme.gradient.Text
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -88,8 +90,12 @@ import androidx.compose.runtime.derivedStateOf
 import androidx.compose.ui.res.stringResource
 import com.kitsugi.animelist.R
 
-private const val HERO_BACKGROUND_PARALLAX = 0.055f
+// NOT: Görsel katmanlarındaki yatay paralaks (eski HERO_BACKGROUND_PARALLAX = 0.055)
+// tamamen kaldırıldı. Sebep: geçiş sırasında kaydırılan görsel, parmak bırakıldığında
+// yerine geri kayıyor ve kullanıcıya "resim sonradan yerine oturuyor" gibi görünüyordu.
+// Kalan yumuşak geçiş (crossfade) hem daha sakin hem de daha az kare yükü demek.
 private const val HERO_BACKGROUND_SCALE = 1.0f
+// Başlık/meta bloğunun paralaksı korunur: görsel sabit kalırken metin hafifçe kayar.
 private const val HERO_CONTENT_PARALLAX = 0.18f
 
 /**
@@ -633,36 +639,70 @@ fun KitsugiHeroSection(
     ) {
         // Gerçek vitrin kutusu genişliği — kaplayan kırpma ve görsel seçimi bu ene oturur.
         val heroBoxWidthDp = maxWidth.value
-        // ── OTOMATİK BOYUT (detay sayfasıyla aynı mantık) ─────────────────────────
-        // Vitrin bandının yüksekliği sabit bir oran DEĞİLDİR; öndeki sayfanın o an
-        // gösterdiği görselin GERÇEK en-boy oranına kilitlenir:
+        // ── VİTRİN BANDI YÜKSEKLİĞİ (görsel şekline oturur) ───────────────────────
         //  - DİKEY poster  → uzun-dar kutu (ekran yüksekliğinin %62'siyle sınırlı),
         //  - YATAY arka plan → geniş-kısa bant (metin/bindirmeler sığsın diye ekran
         //    yüksekliğinin %34'ü taban),
         //  - YATAY mod     → mevcut ekran-duyarlı bant yüksekliği tavan kalır; yalnız
         //    çok geniş banner'lar bandı hafifçe kısaltır (poster fallback contain
-        //    mantığı bozulmaz).
+        //    mantığı bozulmaz),
+        //  - DİKEY mod     → sabit bant (cihazın dikey bant yüksekliği).
         // Başlık, rozetler ve gösterge çubuğu eskisi gibi görselin ÜSTÜNDE bindirilir.
-        // Yatay mod: mevcut ekran-duyarlı bant davranışı korunur.
-        // Dikey mod: bant yüksekliği SABİT (cihazın dikey bant yüksekliği). Poster ile
-        // yatay arka plan arasında geçişte kutu büyüyüp küçülmez; poster yatay moddaki
-        // gibi bulanık dolgu üzerinde, kırpılmadan ortada gösterilir.
-        val heroHeightDp = if (layout.isLandscape) {
+        // SARSINTI ÖNLEMİ: bant yüksekliği artık PARMAK ALTINDA değişmez.
+        // Önceden `frontPageIndex` (offset'e göre her karede değişen değer) okunuyordu;
+        // bu, sürükleme sırasında vitrinin — ve altındaki listenin — her karede yeniden
+        // ölçülmesine, dolayısıyla kaydırmada görülen "minnak sarsılmaya" yol açıyordu.
+        // `settledPage` yalnızca sayfa gerçekten oturduğunda değişir.
+        val settledPageIndex = pagerState.settledPage.coerceIn(items.indices)
+        val settledItem = items[settledPageIndex]
+        val settledArtwork = resolvedArtworkMap[KitsugiHeroArtworkResolver.cacheKey(settledItem)]
+        // Görselin GERÇEK oranı ölçülmeden önce plandan türetilen BEKLENEN oran
+        // kullanılır (poster 2:3 / yatay arka plan 16:9) → kutu ilk kareden doğru
+        // kurulur ve görsel yüklenince "sonradan yerine oturma" yaşanmaz.
+        val settledHasPoster = !settledItem.imageUrl.isNullOrBlank() ||
+            settledArtwork?.posterCandidates?.isNotEmpty() == true
+        val settledHasBackdrop = !settledItem.backdropUrl.isNullOrBlank() ||
+            settledArtwork?.backdropCandidates?.isNotEmpty() == true
+        val settledPreferBackdrop = homeHeroPrefersBackdrop(
+            screenWidthDp = screenWidthDp,
+            screenHeightDp = screenHeightDp,
+            isLandscape = layout.isLandscape,
+            mediaType = settledItem.type
+        )
+        val settledExpectedAspect = remember(
+            settledHasPoster,
+            settledHasBackdrop,
+            settledPreferBackdrop
+        ) {
+            expectedHeroAspect(
+                primaryHeroArtworkIsPoster(
+                    hasPoster = settledHasPoster,
+                    hasBackdrop = settledHasBackdrop,
+                    preferBackdrop = settledPreferBackdrop
+                )
+            )
+        }
+        val settledImageAspect = pageImageAspects[settledPageIndex] ?: settledExpectedAspect
+        val targetHeroHeightDp = if (layout.isLandscape) {
             homeHeroHeightDp(
                 heroWidthDp = heroBoxWidthDp,
                 screenHeightDp = screenHeightDp.toFloat(),
                 isLandscape = true,
                 landscapeBandHeightDp = layout.heroHeight.value,
-                imageAspect = pageImageAspects[frontPageIndex],
-                defaultAspect = if (layout.heroHeight.value > 0f) {
-                    heroBoxWidthDp / layout.heroHeight.value
-                } else {
-                    16f / 9f
-                }
+                imageAspect = settledImageAspect,
+                defaultAspect = settledImageAspect
             )
         } else {
             layout.heroHeight.value
         }
+        // Oran gerçekten farklıysa (ör. ultra geniş banner) bant ANİDEN zıplamasın;
+        // kısa bir yumuşatmayla kayar (normal içerikte hedef zaten aynı → hiç oynamaz).
+        val animatedHeroHeightDp by animateDpAsState(
+            targetValue = targetHeroHeightDp.dp,
+            animationSpec = tween(durationMillis = 280),
+            label = "homeHeroBandHeight"
+        )
+        val heroHeightDp = animatedHeroHeightDp.value
         val heroBoxHeightDp = heroHeightDp
         val heroWidthPx = with(LocalDensity.current) { heroBoxWidthDp.dp.toPx() }
         val heroScrollScale = 1f
@@ -789,13 +829,28 @@ fun KitsugiHeroSection(
                     }
 
                     if (!heroImageModel.isNullOrBlank()) {
+                        // Yığının EN ALT katmanı = öndeki (snap'e en yakın) sayfa.
+                        // Geçişte parlaklık düşmesini engellemek için bu katman, görseli
+                        // yüklendiği anda tam opak kalır (aşağıdaki alpha kuralı).
+                        val isStackBaseLayer = visiblePageIndices.firstOrNull() == page
+                        val layerImageReady = loadedImageAspect != null
                         Box(
                             modifier = Modifier
                                 .fillMaxSize()
                                 .graphicsLayer {
                                     val offset = heroPageOffset(pagerState, page)
-                                    alpha = (1f - abs(offset)).coerceIn(0f, 1f)
-                                    translationX = -offset * heroWidthPx * HERO_BACKGROUND_PARALLAX
+                                    val visibility = (1f - abs(offset)).coerceIn(0f, 1f)
+                                    // SARSINTI ÖNLEMİ 1 — opak taban: Eskiden iki katman da
+                                    // yarı saydam olduğu için geçişin tam ortasında toplam
+                                    // opaklık %75'e düşüyor, vitrin bir an kararıp geri
+                                    // geliyordu ("minnak sarsılma"). Taban katmanı opak
+                                    // kalınca komşu sayfa onun ÜSTÜNE biner; toplam opaklık
+                                    // her zaman %100'dür.
+                                    alpha = if (isStackBaseLayer && layerImageReady) 1f else visibility
+                                    // SARSINTI ÖNLEMİ 2 — paralaks kaldırıldı: görselin kaydırma
+                                    // sırasında kayıp bırakıldığında geri kayması, "resim
+                                    // sonradan yerine oturuyor" izlenimini veriyordu. Artık
+                                    // katmanlar yalnızca yumuşak geçişle (crossfade) değişir.
                                     translationY = heroScrollTranslationY
                                     scaleX = HERO_BACKGROUND_SCALE * heroScrollScale
                                     scaleY = HERO_BACKGROUND_SCALE * heroScrollScale
@@ -825,6 +880,7 @@ fun KitsugiHeroSection(
                                     contentScale = ContentScale.Fit,
                                     alignment = Alignment.Center,
                                     initials = displayTitle,
+                                    highQuality = true,
                                     onLoadingFailed = {
                                         if (heroImageIndex < heroImagePlan.lastIndex) {
                                             heroImageIndex += 1
@@ -849,10 +905,15 @@ fun KitsugiHeroSection(
                                         .padding(
                                             start = if (layout.isLandscape) layout.contentHorizontalPadding else 0.dp,
                                             end = if (layout.isLandscape) layout.contentHorizontalPadding else 0.dp,
-                                            top = if (layout.isLandscape) 10.dp else 6.dp,
-                                            // Altta başlık/meta bloğuna yer bırak: poster metnin
-                                            // arkasına gömülmesin, görsel alanın ortasında kalsın.
-                                            bottom = if (layout.isLandscape) 96.dp else 48.dp
+                                            // YATAY MOD: kutu geniş olduğu için dikey poster
+                                            // yükseklikle sınırlanır. Dikey boşluk bırakılırsa
+                                            // poster bandın ortasında "havada" kalır (üst ve
+                                            // alta oturmaz). Bu yüzden yatay modda poster
+                                            // bandın TAM yüksekliğine oturur.
+                                            top = if (layout.isLandscape) 0.dp else 6.dp,
+                                            // Dikey modda altta başlık/meta bloğuna yer bırakılır
+                                            // (poster metnin arkasına gömülmesin).
+                                            bottom = if (layout.isLandscape) 0.dp else 48.dp
                                         )
                                 )
                             } else {
@@ -865,6 +926,7 @@ fun KitsugiHeroSection(
                                     modifier = Modifier.fillMaxSize(),
                                     contentScale = ContentScale.Crop,
                                     alignment = heroAlignment,
+                                    highQuality = true,
                                     onLoadingFailed = {
                                         if (heroImageIndex < heroImagePlan.lastIndex) {
                                             heroImageIndex += 1
@@ -894,7 +956,8 @@ fun KitsugiHeroSection(
                                 .graphicsLayer {
                                     val offset = heroPageOffset(pagerState, page)
                                     alpha = (1f - abs(offset)).coerceIn(0f, 1f)
-                                    translationX = -offset * heroWidthPx * HERO_BACKGROUND_PARALLAX
+                                    // Görsel katmanlarındaki gibi paralaks YOK: geçiş
+                                    // sırasında kayıp geri dönme (yerine oturma) olmasın.
                                     translationY = heroScrollTranslationY
                                     scaleX = HERO_BACKGROUND_SCALE * heroScrollScale
                                     scaleY = HERO_BACKGROUND_SCALE * heroScrollScale

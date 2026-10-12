@@ -27,6 +27,7 @@ import androidx.compose.ui.unit.sp
 import com.kitsugi.animelist.data.remote.JikanSearchResult
 import kotlinx.coroutines.delay
 import com.kitsugi.animelist.ui.components.KitsugiNsfwImage
+import com.kitsugi.animelist.ui.components.kitsugiCardFrame
 import com.kitsugi.animelist.ui.components.KitsugiShimmerBlock
 import com.kitsugi.animelist.ui.components.LocalShimmerBrush
 import com.kitsugi.animelist.ui.components.rememberKitsugiShimmerBrush
@@ -189,10 +190,9 @@ fun AiringSoonHorizontalCard(
             .height(100.dp)
             .clip(RoundedCornerShape(12.dp))
             .background(KitsugiColors.Surface)
-            .border(
-                width = 1.dp,
-                color = if (alreadyInList) KitsugiColors.AccentGreen.copy(0.45f) else KitsugiColors.Border,
-                shape = RoundedCornerShape(12.dp)
+            .kitsugiCardFrame(
+                shape = RoundedCornerShape(12.dp),
+                highlightColor = if (alreadyInList) KitsugiColors.AccentGreen.copy(0.45f) else null
             )
             .tvClickable(
                 shape = RoundedCornerShape(12.dp),
@@ -281,7 +281,7 @@ fun AiringSoonHorizontalCardPlaceholder(modifier: Modifier = Modifier) {
             .height(100.dp)
             .clip(RoundedCornerShape(12.dp))
             .background(KitsugiColors.Surface)
-            .border(1.dp, KitsugiColors.Border, RoundedCornerShape(12.dp))
+            .kitsugiCardFrame(RoundedCornerShape(12.dp))
             .padding(8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {

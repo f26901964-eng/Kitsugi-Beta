@@ -9,6 +9,7 @@ import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
 import com.kitsugi.animelist.ui.theme.gradient.background
 import com.kitsugi.animelist.ui.theme.gradient.border
+import com.kitsugi.animelist.ui.components.kitsugiCardFrame
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -528,10 +529,10 @@ internal fun AiringEntryGridCard(
             .fillMaxWidth()
             .clip(RoundedCornerShape(18.dp))
             .background(KitsugiColors.Surface)
-            .then(
-                if (isInWatchingList)
-                    Modifier.border(1.dp, KitsugiColors.AccentGreen.copy(0.45f), RoundedCornerShape(18.dp))
-                else Modifier
+            .kitsugiCardFrame(
+                shape = RoundedCornerShape(18.dp),
+                highlightColor = if (isInWatchingList) KitsugiColors.AccentGreen.copy(0.45f) else null,
+                drawNeutralWhenDisabled = false
             )
             .clickable(onClick = onClick)
             .padding(8.dp)
@@ -660,7 +661,10 @@ private fun AiringEntryWideCard(
             .fillMaxWidth()
             .clip(shape)
             .background(KitsugiColors.Surface)
-            .border(1.dp, if (isInWatchingList) KitsugiColors.AccentGreen.copy(alpha = 0.7f) else KitsugiColors.Border, shape)
+            .kitsugiCardFrame(
+                shape = shape,
+                highlightColor = if (isInWatchingList) KitsugiColors.AccentGreen.copy(alpha = 0.7f) else null
+            )
             .clickable(onClick = onClick)
             .padding(12.dp),
         verticalAlignment = Alignment.CenterVertically
@@ -753,7 +757,9 @@ private fun AiringSkeletonCard(wide: Boolean, brush: Brush) {
     if (wide) {
         Row(
             modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(22.dp))
-                .background(KitsugiColors.Surface).padding(12.dp),
+                .background(KitsugiColors.Surface)
+                .kitsugiCardFrame(RoundedCornerShape(22.dp))
+                .padding(12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             KitsugiShimmerBlock(brush, Modifier.size(width = 86.dp, height = 120.dp), 16.dp)
@@ -766,7 +772,9 @@ private fun AiringSkeletonCard(wide: Boolean, brush: Brush) {
         }
     } else {
         Column(modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp))
-            .background(KitsugiColors.Surface).padding(8.dp)) {
+            .background(KitsugiColors.Surface)
+            .kitsugiCardFrame(RoundedCornerShape(18.dp))
+            .padding(8.dp)) {
             KitsugiShimmerBlock(brush, Modifier.fillMaxWidth().aspectRatio(2f / 3f), 14.dp)
             Spacer(Modifier.height(8.dp))
             KitsugiShimmerBlock(brush, Modifier.fillMaxWidth(0.85f).height(16.dp))

@@ -7,7 +7,6 @@ import com.kitsugi.animelist.ui.theme.gradient.Text
 
 import androidx.compose.foundation.ExperimentalFoundationApi
 import com.kitsugi.animelist.ui.theme.gradient.background
-import com.kitsugi.animelist.ui.theme.gradient.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.LazyRow
@@ -31,6 +30,7 @@ import com.kitsugi.animelist.model.MediaEntry
 import com.kitsugi.animelist.ui.components.KitsugiHorizontalMediaSection
 import com.kitsugi.animelist.ui.components.KitsugiPlatformLogo
 import com.kitsugi.animelist.ui.components.KitsugiShimmerMediaRow
+import com.kitsugi.animelist.ui.components.kitsugiCardFrame
 import com.kitsugi.animelist.ui.theme.KitsugiColors
 import com.kitsugi.animelist.ui.utils.tvClickable
 import androidx.compose.ui.res.stringResource
@@ -145,7 +145,7 @@ fun LazyListScope.allSourcesExploreSections(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 20.dp, vertical = 4.dp)
-                .border(1.dp, KitsugiColors.SurfaceElevated.copy(alpha = 0.78f), RoundedCornerShape(18.dp)),
+                .kitsugiCardFrame(RoundedCornerShape(18.dp), highlightColor = KitsugiColors.SurfaceElevated.copy(alpha = 0.78f)),
             shape = RoundedCornerShape(18.dp),
             color = KitsugiColors.Surface.copy(alpha = 0.96f),
             tonalElevation = 2.dp
@@ -271,7 +271,7 @@ private fun BackToExploreChip(onClick: () -> Unit) {
         modifier = Modifier
             .clip(shape)
             .background(KitsugiColors.SurfaceElevated.copy(alpha = 0.82f))
-            .border(1.dp, KitsugiColors.TextMuted.copy(alpha = 0.20f), shape)
+            .kitsugiCardFrame(shape, highlightColor = KitsugiColors.TextMuted.copy(alpha = 0.20f))
             .tvClickable(shape = shape, onClick = onClick)
             .padding(horizontal = 10.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -296,7 +296,7 @@ private fun SourceJumpChip(platform: ExplorePlatform, loading: Boolean, onClick:
         modifier = Modifier
             .clip(shape)
             .background(color.copy(alpha = 0.09f))
-            .border(1.dp, color.copy(alpha = 0.32f), shape)
+            .kitsugiCardFrame(shape, highlightColor = color.copy(alpha = 0.32f))
             .tvClickable(shape = shape, onClick = onClick)
             .padding(horizontal = 10.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -335,7 +335,7 @@ private fun SourceHeader(
     Column(
         Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 12.dp)
             .background(Brush.horizontalGradient(listOf(color.copy(alpha = 0.17f), KitsugiColors.Surface)), RoundedCornerShape(24.dp))
-            .border(1.dp, color.copy(alpha = 0.3f), RoundedCornerShape(24.dp))
+            .kitsugiCardFrame(RoundedCornerShape(24.dp), highlightColor = color.copy(alpha = 0.3f))
             .padding(18.dp)
     ) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
