@@ -1,5 +1,43 @@
 # Kitsugi-Beta — Sürüm Notları / Release Notes
 
+## 🇹🇷 Türkçe (v2.4.257)
+
+### 🌐 1. Güncellenmiş Domain Tablosu (57 → 88 Domain)
+- `domain_fixes.json` tablosu eklenti deposundaki güncel tabloyla eşitlendi: 31 yeni domain eklendi, 7 domain güncellendi.
+- **hdfilmcehennemi / hdfilmcehennemi2:** `.nl` yerine doğrudan `.biz` adreslerine güncellendi.
+- **recTV:** URL sonundaki mükerrer `/api` eki temizlendi (`/api/api/...` hatası giderildi).
+
+### 🛡️ 2. HDFilmCehennemi2 Zorla Yönlendirme Düzeltmesi
+- **Kök Neden:** `KNOWN_BROKEN_DOMAINS` ve `SAFE_NAME_SUFFIXES` içindeki `"2"` eki yüzünden HDFilmCehennemi2 (`hdfilmcehennemi2.site`), ana HDFC sitesine zorla yönlendiriliyordu. Sıfır sonuç dönüyor ve 75 saniyelik zaman aşımına (`KTS-CSP-9104`) yol açıyordu.
+- **Çözüm:** `hdfilmcehennemi2.site` ölü domainler listesinden çıkarıldı ve numaralı eklentilerin ana eklenti domainini miras alması engellendi.
+
+### 🔄 3. Eklenti Bazlı "Yeniden Dene" Butonu
+- Yayın arama sonuçları ekranında hata veren CloudStream eklentileri için kartın üzerine **"Yeniden Dene"** butonu eklendi.
+- Tüm aramayı baştan başlatmadan, yalnızca hata veren eklenti sıfırlanarak yeniden çalıştırılabilir.
+
+### 🧪 4. Testler
+- `CsStreamRunnerLogicTest` birim testleri güncellendi (`testKnownBrokenDomains_DoesNotContain_HdFilmCehennemi2Site`, `testResolveBuiltinDomain_NumberedVariant_DoesNotInheritParentDomain`).
+
+---
+
+## 🇬🇧 English (v2.4.257)
+
+### 🌐 1. Expanded Domain Mapping (57 → 88 Domains)
+- Synchronized `domain_fixes.json` with the latest plugin repository mapping: 31 new domains added, 7 domains updated.
+- **HDFilmCehennemi / HDFilmCehennemi2:** Updated from `.nl` to `.biz` matching active provider sources.
+- **recTV:** Removed duplicate trailing `/api` path suffix that caused `/api/api/...` malformed URLs.
+
+### 🛡️ 2. HDFilmCehennemi2 Forced Domain Redirect Fix
+- Removed `hdfilmcehennemi2.site` from `KNOWN_BROKEN_DOMAINS` and prevented numbered variant plugins from inheriting parent domains, preventing timeout errors (`KTS-CSP-9104`).
+
+### 🔄 3. Per-Plugin "Retry" Button
+- Added a dedicated **"Retry"** button on error cards for failed CloudStream providers in the stream screen.
+
+### 🧪 4. Tests
+- Added unit tests in `CsStreamRunnerLogicTest` for domain resolution and numbered variant independence.
+
+---
+
 ## 🇹🇷 Türkçe (v2.4.256)
 
 ### 🖼️ 1. Detay Vitrini: Yön ⇄ Görsel Otomatik Eşleşmesi ve TAM Kapsama (Kaynak & Listem Detay)
