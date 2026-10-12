@@ -313,26 +313,13 @@ fun SettingsScreen(
             }
 
             SettingsRoute.PlayerSettings -> {
-                val playerPageTitle = when (playerCurrentSubScreen) {
-                    PlayerSettingsSubScreen.Main -> stringResource(R.string.pd_title)
-                    PlayerSettingsSubScreen.DahiliOynatici -> stringResource(R.string.pd_tab_internal)
-                    PlayerSettingsSubScreen.Hareketler -> stringResource(R.string.pd_sub_gestures)
-                    PlayerSettingsSubScreen.KodCozucu -> stringResource(R.string.pd_tab_decoder)
-                    PlayerSettingsSubScreen.Altyazilar -> stringResource(R.string.pd_tab_subtitles)
-                    PlayerSettingsSubScreen.Ses -> stringResource(R.string.pd_sub_audio)
-                    PlayerSettingsSubScreen.OzelButonlar -> stringResource(R.string.pd_tab_custom_buttons)
-                    PlayerSettingsSubScreen.KodDuzenleyici -> stringResource(R.string.pd_tab_code_editor)
-                    PlayerSettingsSubScreen.Gelismis -> stringResource(R.string.pd_tab_advanced)
-                }
+                // Bölümler artık alt sayfa değil, üst sekme bandından yönetilir;
+                // bu yüzden başlık sabit ve geri tuşu doğrudan ayarlar ana sayfasına döner.
                 SettingsSubPage(
-                    title = playerPageTitle,
+                    title = stringResource(R.string.pd_title),
                     onBack = {
-                        if (playerCurrentSubScreen != PlayerSettingsSubScreen.Main) {
-                            playerInitialSubScreen = PlayerSettingsSubScreen.Main
-                            playerCurrentSubScreen = PlayerSettingsSubScreen.Main
-                        } else {
-                            route = SettingsRoute.Main
-                        }
+                        playerCurrentSubScreen = PlayerSettingsSubScreen.Main
+                        route = SettingsRoute.Main
                     },
                     contentHandlesNavigationBars = true
                 ) {

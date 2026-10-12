@@ -2,7 +2,6 @@ package com.kitsugi.animelist.ui.screens.offline
 
 import com.kitsugi.animelist.ui.theme.gradient.Icon
 import com.kitsugi.animelist.ui.theme.gradient.LinearProgressIndicator
-import com.kitsugi.animelist.ui.theme.gradient.TabRow
 import com.kitsugi.animelist.ui.theme.gradient.Text
 
 import android.app.DownloadManager
@@ -27,7 +26,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.*
 import androidx.compose.material3.*
-import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -48,6 +46,8 @@ import com.kitsugi.animelist.data.model.AnimeDownload
 import com.kitsugi.animelist.data.remote.GalleryCategory
 import com.kitsugi.animelist.data.remote.GalleryItem
 import com.kitsugi.animelist.ui.components.KitsugiImageGalleryDialog
+import com.kitsugi.animelist.ui.components.KitsugiSettingsSegmentedTabs
+import com.kitsugi.animelist.ui.components.KitsugiSettingsTabOption
 import com.kitsugi.animelist.ui.components.KitsugiAnimatedDeleteButton
 import com.kitsugi.animelist.ui.screens.fullscreen.KitsugiFullscreenPlayerActivity
 import com.kitsugi.animelist.ui.theme.KitsugiColors
@@ -183,89 +183,28 @@ fun DownloadsScreen(
             }
         }
 
-        // Tabs: Videolar | Altyazılar | Resimler
-        TabRow(
-            selectedTabIndex = pagerState.currentPage,
-            containerColor = KitsugiColors.Background,
-            contentColor = KitsugiColors.TextPrimary,
-            indicator = { tabPositions ->
-                TabRowDefaults.SecondaryIndicator(
-                    modifier = Modifier.tabIndicatorOffset(tabPositions[pagerState.currentPage]),
-                    color = accentColor,
-                    height = 3.dp
+        // Sekme bandı: Videolar | Altyazılar | Resimler — "Görünüm & Tercihler" bandıyla aynı
+        // (ekrana sığmazsa bandın kendi içinde yatay kaydırılır, ekrandan taşmaz)
+        KitsugiSettingsSegmentedTabs(
+            tabs = listOf(
+                KitsugiSettingsTabOption(
+                    title = stringResource(R.string.downloads_videos_count, downloads.size),
+                    icon = Icons.Rounded.VideoLibrary
+                ),
+                KitsugiSettingsTabOption(
+                    title = stringResource(R.string.inline_subtitles_1_s_b81ee5c, allSubtitles.size),
+                    icon = Icons.Rounded.Subtitles
+                ),
+                KitsugiSettingsTabOption(
+                    title = stringResource(R.string.downloads_images_count, allImages.size),
+                    icon = Icons.Rounded.Image
                 )
-            },
-            divider = {
-                HorizontalDivider(color = KitsugiColors.Border)
-            }
-        ) {
-            Tab(
-                selected = pagerState.currentPage == 0,
-                onClick = { scope.launch { pagerState.animateScrollToPage(0) } },
-                text = {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(6.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Rounded.VideoLibrary,
-                            contentDescription = null,
-                            modifier = Modifier.size(18.dp),
-                            tint = if (pagerState.currentPage == 0) accentColor else KitsugiColors.TextMuted
-                        )
-                        Text(
-                            text = stringResource(R.string.downloads_videos_count, downloads.size),
-                            fontWeight = if (pagerState.currentPage == 0) FontWeight.Bold else FontWeight.Normal,
-                            color = if (pagerState.currentPage == 0) KitsugiColors.TextPrimary else KitsugiColors.TextMuted
-                        )
-                    }
-                }
-            )
-            Tab(
-                selected = pagerState.currentPage == 1,
-                onClick = { scope.launch { pagerState.animateScrollToPage(1) } },
-                text = {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(6.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Rounded.Subtitles,
-                            contentDescription = null,
-                            modifier = Modifier.size(18.dp),
-                            tint = if (pagerState.currentPage == 1) accentColor else KitsugiColors.TextMuted
-                        )
-                        Text(
-                            text = stringResource(R.string.inline_subtitles_1_s_b81ee5c, allSubtitles.size),
-                            fontWeight = if (pagerState.currentPage == 1) FontWeight.Bold else FontWeight.Normal,
-                            color = if (pagerState.currentPage == 1) KitsugiColors.TextPrimary else KitsugiColors.TextMuted
-                        )
-                    }
-                }
-            )
-            Tab(
-                selected = pagerState.currentPage == 2,
-                onClick = { scope.launch { pagerState.animateScrollToPage(2) } },
-                text = {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(6.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Rounded.Image,
-                            contentDescription = null,
-                            modifier = Modifier.size(18.dp),
-                            tint = if (pagerState.currentPage == 2) accentColor else KitsugiColors.TextMuted
-                        )
-                        Text(
-                            text = stringResource(R.string.downloads_images_count, allImages.size),
-                            fontWeight = if (pagerState.currentPage == 2) FontWeight.Bold else FontWeight.Normal,
-                            color = if (pagerState.currentPage == 2) KitsugiColors.TextPrimary else KitsugiColors.TextMuted
-                        )
-                    }
-                }
-            )
-        }
+            ),
+            selectedIndex = pagerState.currentPage,
+            accentColor = accentColor,
+            onSelect = { index -> scope.launch { pagerState.animateScrollToPage(index) } },
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp)
+        )
 
         // Content
         HorizontalPager(

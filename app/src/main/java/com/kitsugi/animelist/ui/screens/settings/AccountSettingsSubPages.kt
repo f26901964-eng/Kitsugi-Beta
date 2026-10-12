@@ -7,6 +7,9 @@ import com.kitsugi.animelist.ui.theme.gradient.Text
 import com.kitsugi.animelist.ui.theme.gradient.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.ScrollState
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -29,6 +32,7 @@ import com.kitsugi.animelist.ui.theme.LocalIsTv
 import com.kitsugi.animelist.ui.theme.LocalKitsugiAccent
 import androidx.compose.ui.res.stringResource
 import com.kitsugi.animelist.R
+import kotlinx.coroutines.launch
 
 // ─────────────────────────────────────────────────────────────────────────────
 // 1. Hesap Bağlantıları Ana Hub Sayfası
@@ -39,8 +43,62 @@ internal fun AccountConnectionsHubContent(
     profile: ProfileSettings,
     onNavigate: (SettingsRoute) -> Unit
 ) {
-    val scrollState = rememberScrollState()
+    val accentColor = LocalKitsugiAccent.current
+    val scope = rememberCoroutineScope()
+    val pagerState = rememberPagerState(initialPage = 0, pageCount = { 2 })
+    val platformsScrollState = rememberScrollState()
+    val syncScrollState = rememberScrollState()
 
+    Column(modifier = Modifier.fillMaxSize()) {
+        // Üst sekme bandı — "Görünüm & Tercihler" bandıyla aynı davranış:
+        // sığmazsa kendi içinde kaydırılır, ekrandan taşmaz.
+        KitsugiSettingsSegmentedTabs(
+            tabs = listOf(
+                KitsugiSettingsTabOption(
+                    title = stringResource(R.string.settings_section_platforms),
+                    icon = Icons.Rounded.Link
+                ),
+                KitsugiSettingsTabOption(
+                    title = stringResource(R.string.settings_section_sync),
+                    icon = Icons.Rounded.CloudSync
+                )
+            ),
+            selectedIndex = pagerState.currentPage,
+            accentColor = accentColor,
+            onSelect = { index -> scope.launch { pagerState.animateScrollToPage(index) } },
+            modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp)
+        )
+
+        HorizontalPager(
+            state = pagerState,
+            modifier = Modifier
+                .fillMaxWidth()
+                .weight(1f)
+        ) { page ->
+            if (page == 0) {
+                PlatformConnectionsPage(
+                    profile = profile,
+                    onNavigate = onNavigate,
+                    scrollState = platformsScrollState
+                )
+            } else {
+                CrossSyncConnectionsPage(
+                    profile = profile,
+                    onNavigate = onNavigate,
+                    scrollState = syncScrollState
+                )
+            }
+        }
+    }
+}
+
+/** Sekme 1 — Platformlar: bağlı hesaplar ve her platformun kendi ayar sayfası. */
+@Composable
+private fun PlatformConnectionsPage(
+    profile: ProfileSettings,
+    onNavigate: (SettingsRoute) -> Unit,
+    scrollState: ScrollState
+) {
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -121,16 +179,32 @@ internal fun AccountConnectionsHubContent(
                 onClick = { onNavigate(SettingsRoute.BangumiSettings) }
             )
         }
+    }
+}
 
+/** Sekme 2 — Senkronizasyon: hesaplar arası çapraz eşitleme durumu. */
+@Composable
+private fun CrossSyncConnectionsPage(
+    profile: ProfileSettings,
+    onNavigate: (SettingsRoute) -> Unit,
+    scrollState: ScrollState
+) {
+    val connectedCount = (if (profile.isAniListConnected) 1 else 0) +
+            (if (profile.isMalConnected) 1 else 0) +
+            (if (profile.isSimklConnected) 1 else 0) +
+            (if (profile.isKitsuConnected) 1 else 0) +
+            (if (profile.isShikimoriConnected) 1 else 0) +
+            (if (profile.isBangumiConnected) 1 else 0)
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .verticalScroll(scrollState)
+            .padding(vertical = 12.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
         SectionHeader(stringResource(R.string.settings_section_sync))
         SettingsNavCard {
-            val connectedCount = (if (profile.isAniListConnected) 1 else 0) +
-                    (if (profile.isMalConnected) 1 else 0) +
-                    (if (profile.isSimklConnected) 1 else 0) +
-                    (if (profile.isKitsuConnected) 1 else 0) +
-                    (if (profile.isShikimoriConnected) 1 else 0) +
-                    (if (profile.isBangumiConnected) 1 else 0)
-
             AccountHubItem(
                 title = stringResource(R.string.settings_cross_sync),
                 subtitle = if (connectedCount >= 2) stringResource(R.string.deneysel_x_hesap_arasinda_karsilikli_senkronizasyon, connectedCount) else stringResource(R.string.deneysel_en_az_2_hesap_baglandiginda_etkinlesir),

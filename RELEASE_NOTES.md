@@ -1,5 +1,54 @@
 # Kitsugi-Beta — Sürüm Notları / Release Notes
 
+## 🇹🇷 Türkçe (v2.4.260)
+
+### 🧭 1. Ortak Üst Sekme Bandı (Görünüm & Tercihler Mimarisi)
+- "Ayarlar > Görünüm & Tercihler" bandı ortak bileşene taşındı: `KitsugiSettingsSegmentedTabs`.
+- **Oynatıcı Ayarları:** Ana menü listesi yerine 8 kaydırmalı sekme (`HorizontalPager`).
+- **İndirmeler:** Videolar / Altyazılar / Resimler için segmentli ortak bant.
+- **Platform Hata Kodları:** 11 sekme + platform logoları; her kategori yalnızca kendi kodlarını filtreler.
+- **Hesap Bağlantıları:** Platformlar ve Senkronizasyon sekmeleri.
+- **Duyarlı & TV Uyumlu:** Taşmayan, otomatik ortalanan, kenar solmalı ve D-pad odak takipli bant yapısı.
+
+### 🔢 2. İlerleme Sayacı: Büyütülmüş Dokunma Alanı
+- Manga ve anime ilerleme sayacında doğrudan değer girebilmek için dokunma alanı büyütüldü (`48dp × 32dp`) ve tıklamayı yutan katman kaldırıldı.
+
+### 🔲 3. Kart Çerçeveleri
+- Keşfet "Yakında Yayında" kartlarına ve detaylı sezonluk medya kartlarına çerçeve eklendi.
+
+### 👤 4. Profil ve Listem: Birleşik Bağlantısız Hesap Durumu
+- `KitsugiAccountNotConnectedState` bileşeni ile Listem ve Profil durumları eşitlendi; süresi dolmuş Simkl oturumu uyarısı eklendi.
+
+### 🔔 5. Bildirim Ayarları ve Hesap Kapıları
+- Hesapsız kaynak bildirimleri kapalı ve devre dışı; genel Airing en az bir hesap gerektirir.
+
+### 🎯 6. Vitrin Tıklamaları ve Sayfa Katmanı
+- Ana sayfa vitrininde öndeki sayfa tıklamayı doğru alır; tek dokunuş detay sayfasına gider, çift dokunuş kopyalar.
+
+---
+
+## 🇬🇧 English (v2.4.260)
+
+### 🧭 1. Unified Segmented Top Tab Bar
+- Responsive segmented tab bar `KitsugiSettingsSegmentedTabs` used in Player Settings (8 swipeable tabs), Downloads, Platform Error Codes (11 tabs with logos), and Account Connections.
+
+### 🔢 2. Progress Counter Direct Input
+- Touch targets expanded to `48dp × 32dp`; passive click blocker removed.
+
+### 🔲 3. Card Borders
+- Added borders to Explore Airing Soon and detailed seasonal media cards.
+
+### 👤 4. Unified Not-Connected Account States
+- Shared `KitsugiAccountNotConnectedState` across My List and Profile for all providers.
+
+### 🔔 5. Notification Gates
+- Source notifications disabled without accounts; global airing requires at least one provider.
+
+### 🎯 6. Home Hero Click Improvements
+- Visually dominant carousel items capture clicks reliably (`HomeHeroGestureModifiers`).
+
+---
+
 ## 🇹🇷 Türkçe (v2.4.259)
 
 ### 🖼️ 1. Detay Vitrini: 220dp Sabit Boşluk Kaldırıldı
