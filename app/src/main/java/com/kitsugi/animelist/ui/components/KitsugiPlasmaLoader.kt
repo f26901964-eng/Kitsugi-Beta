@@ -31,6 +31,26 @@ import kotlin.math.cos
 import kotlin.math.sin
 
 /**
+ * ÇÖKME/GC ÖNLEMİ: Canvas/drawBehind içinde her kare `Brush.xxxGradient()`
+ * çağırmak saniyede ~500 obje üretiyor (plasma küresinde 8 ayrı brush). Büyük
+ * GC churn'u sonunda LMKD süreci sessizce öldürüyor veya GC pauses sırasında
+ * RenderThread yarışıyla SIGSEGV tetikleniyor. Brush'lar parametrelerine göre
+ * önbelleklenir — renkler/nabız aynıysa aynı Brush nesnesi yeniden kullanılır.
+ */
+private data class PlasmaBrushCache(
+    val outerGlow: Brush,
+    val depthGlow: Brush,
+    val backgroundGradient: Brush,
+    val borderGradient: Brush,
+    val p2Orbit: Brush,
+    val p4Orbit: Brush,
+    val p6Orbit: Brush,
+    val coreGlow: Brush,
+    val topCrescent: Brush,
+    val bottomShadow: Brush
+)
+
+/**
  * Uiverse (andrew-manzyk) referanslı, organik sıvı lav/plazma küresi (Amber Plasma Lava Orb)
  * yüklenme animasyonu bileşeni.
  *

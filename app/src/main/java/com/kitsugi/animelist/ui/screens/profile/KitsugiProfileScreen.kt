@@ -78,6 +78,7 @@ fun KitsugiProfileScreen(
     onShikimoriAuthSubmit: ((String, String, String, (Boolean, String?) -> Unit) -> Unit)? = null,
     onBangumiAuthSubmit: ((String, String, String, (Boolean, String?) -> Unit) -> Unit)? = null,
     onUserProfileClick: (userId: Int, username: String, avatarUrl: String?) -> Unit = { _, _, _ -> },
+    onMalUserProfileClick: (userId: Int, username: String, avatarUrl: String?) -> Unit = { _, _, _ -> },
     isBottomBarVisible: Boolean = true,
     onScrollReset: () -> Unit = {},
     modifier: Modifier = Modifier
@@ -277,7 +278,13 @@ fun KitsugiProfileScreen(
                                 onOpenStatsClick = onOpenStatsClick,
                                 isLandscape = isLandscape,
                                 accentColor = accentColor,
-                                onImageClick = { urls, idx, title -> activeGalleryImages = Triple(urls, idx, title) }
+                                onImageClick = { urls, idx, title -> activeGalleryImages = Triple(urls, idx, title) },
+                                onFavoriteStudioClick = onFavoriteStudioClick,
+                                onGenreClick = onGenreClick,
+                                onUserProfileClick = onMalUserProfileClick,
+                                onLoadMoreFriends = { viewModel.loadMoreMalFriends() },
+                                onLoadMoreReviews = { viewModel.loadMoreMalReviews() },
+                                onLoadMoreRecommendations = { viewModel.loadMoreMalRecommendations() }
                             )
                         }
                         2 -> ExternalProfileWrapper(

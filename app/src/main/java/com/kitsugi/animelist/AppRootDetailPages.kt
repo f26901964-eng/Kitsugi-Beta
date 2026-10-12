@@ -281,7 +281,7 @@ fun AppRootDetailPages(
                         authViewModel.startExternalAuth("anilist")
                     },
                     onLoginMal = {
-                        authViewModel.startExternalAuth("mal")
+                        authViewModel.startMalOAuthWebSession()
                     },
                     onLoginSimkl = {
                         authViewModel.startExternalAuth("simkl")
@@ -556,6 +556,13 @@ fun AppRootDetailPages(
                         onFavoriteStaffClick = { staffId, staffSource, name, imageUrl ->
                             navState.navigateToDetail(DetailScreen.StaffDetail(staffId, staffSource, name, imageUrl))
                         },
+                        onFavoriteStudioClick = { studioId, studioSource, name, imageUrl ->
+                            navState.navigateToDetail(DetailScreen.StudioDetail(studioId, studioSource, name, imageUrl))
+                        },
+                        onGenreClick = triggerSearch,
+                        onUserProfileClick = { friendId, friendName, friendAvatar ->
+                            navState.navigateToDetail(DetailScreen.UserProfile(friendId, friendName, friendAvatar, profileSource))
+                        },
                         onScrollReset = onScrollReset
                     )
                 } else {
@@ -625,6 +632,11 @@ fun AppRootDetailPages(
                     isShikimoriConnected = authViewModel.isShikimoriConnected,
                     isBangumiConnected = authViewModel.isBangumiConnected,
                     onBack = { navState.popDetailStack() },
+                    onOpenMalAccountSettings = {
+                        navState.popDetailStack()
+                        appViewModel.selectTab(com.kitsugi.animelist.ui.navigation.MainTab.Settings)
+                        appViewModel.requestSettingsRoute(com.kitsugi.animelist.ui.screens.settings.SettingsRoute.MalSettings)
+                    },
                     onUserProfileClick = { userId, username, avatarUrl ->
                         navState.navigateToDetail(DetailScreen.UserProfile(userId, username, avatarUrl))
                     },

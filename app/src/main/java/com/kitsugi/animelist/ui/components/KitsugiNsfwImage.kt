@@ -1,6 +1,8 @@
 package com.kitsugi.animelist.ui.components
 
 import android.os.Build
+import android.os.Handler
+import android.os.Looper
 import com.kitsugi.animelist.ui.theme.gradient.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
@@ -31,8 +33,35 @@ import com.kitsugi.animelist.ui.utils.BlurTransformation
  * bu yüzden resmin kendisine bitmap seviyesinde bulanıklık uygulanmalıdır.
  */
 object KitsugiBlurSupport {
+
+    /**
+     * OEM ROM tespiti. MIUI/HyperOS, Realme UI, ColorOS, OriginOS, FunTouchOS, OneUI'nin
+     * bazı sürümlerinde özelleştirilmiş `libhwui.so`, RenderEffect bulanıklığında (GPU katmanı
+     * ayrımı / imhası) RenderThread üzerinde `fault_addr=0x20` imzalı SIGSEGV üretiyor.
+     * Bu cihazlarda GPU bulanıklığını TAMAMEN kapatıp bitmap stack-blur'a düşmek tek güvenli
+     * yoldur; aksi takdirde ağır çekim çizim anında "pat diye kapanma" kaçınılmazdır.
+     */
+    private val isProblematicOem: Boolean by lazy(LazyThreadSafetyMode.PUBLICATION) {
+        val mfr = Build.MANUFACTURER?.lowercase() ?: ""
+        val brand = Build.BRAND?.lowercase() ?: ""
+        val knownBad = listOf("xiaomi", "redmi", "poco", "realme", "oppo", "oneplus",
+            "vivo", "iqoo", "meizu", "infinix", "tecno", "itel", "honor", "hmd")
+        knownBad.any { it in mfr || it in brand }
+            || !System.getProperty("ro.miui.ui.version.name").isNullOrBlank()
+            || !System.getProperty("ro.mi.os.version.name").isNullOrBlank()
+            || !System.getProperty("ro.vivo.os.version").isNullOrBlank()
+            || !System.getProperty("ro.build.version.opporom").isNullOrBlank()
+            || !System.getProperty("ro.rom.version").isNullOrBlank()
+    }
+
     /** true → GPU RenderEffect bulanıklığı kullanılabilir */
-    val hasRenderEffectBlur: Boolean = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
+    val hasRenderEffectBlur: Boolean =
+        Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
+            && !isProblematicOem
+            // RenderEffect ile "fault_addr=0x20" imzalı RenderThread SIGSEGV'si
+            // bilinen olarak GPU sürücüsü eski/düzensiz cihazlarda da tetikleniyor.
+            // Düşük RAM veya düşük-end GPU'larda bitmap blur'a geri düşmek güvenli.
+            && Runtime.getRuntime()?.maxMemory()?.let { it >= 256L * 1024 * 1024 } ?: true
 
     /**
      * RenderEffect yarıçapı için güvenli üst sınır.
@@ -40,8 +69,11 @@ object KitsugiBlurSupport {
      * Özelleştirilmiş `libhwui` sürümlerinde (özellikle MIUI/HyperOS) büyük yarıçaplı
      * bulanıklıklar GPU katmanı ayırırken RenderThread içinde SIGSEGV üretebiliyor.
      * 24dp ve üzeri değerler çökme raporlarında görülen senaryolarla örtüşüyor.
+     *
+     * NOT: Sorunlu OEM'lerde `hasRenderEffectBlur` zaten `false` olduğu için bu üst sınıra
+     * hiç ulaşılmaz — tüm bulanıklıklar bitmap stack-blur olarak çalışır.
      */
-    val MAX_SAFE_BLUR_RADIUS: Dp = 16.dp
+    val MAX_SAFE_BLUR_RADIUS: Dp = 12.dp
 
     /**
      * Bitmap fallback bulanıklığı için Coil dönüşümü (stack blur).
@@ -180,19 +212,27 @@ fun KitsugiNsfwImage(
         contentAlignment = Alignment.Center
     ) {
         if (imageModel != null) {
-            // PERF: onError callback'ini her recomposition'da yeni lambda
-            // üretmeyecek şekilde sabitle; AsyncImage yeni gördüğü lambda'yı
-            // model değişikliği zannedebiliyor ve yeniden enqueue atabiliyor.
-            val errorCallback = remember(onLoadingFailed) {
-                onLoadingFailed?.let { { _: coil3.compose.AsyncImagePainter.State.Error -> it() } }
-            }
-            val successCallback = remember(onImageAspectResolved) {
+            val nsfwMainHandler = remember { Handler(Looper.getMainLooper()) }
+            // PERF: callback'ler her recomposition'da yeni lambda üretmesin;
+            // ayrıca AsyncImage onSuccess/onError çağrılarını çizim evresinde
+            // tetikleyebildiği için state değişikliğini bir kare sonraya post'luyoruz
+            // → RenderThread libhwui.so SIGSEGV (fault_addr=0x20) yarışı kapanır.
+            val successCallback = remember(onImageAspectResolved, nsfwMainHandler) {
                 onImageAspectResolved?.let { cb ->
                     { state: coil3.compose.AsyncImagePainter.State.Success ->
                         val size = state.painter.intrinsicSize
                         if (size.width > 0f && size.height > 0f && size.width.isFinite() && size.height.isFinite()) {
-                            cb(size.width / size.height)
+                            val ratio = size.width / size.height
+                            nsfwMainHandler.post { cb(ratio) }
                         }
+                    }
+                }
+            }
+            val errorCallback = remember(onLoadingFailed, nsfwMainHandler) {
+                onLoadingFailed?.let { cb ->
+                    { _: coil3.compose.AsyncImagePainter.State.Error ->
+                        nsfwMainHandler.post { cb() }
+                        Unit
                     }
                 }
             }

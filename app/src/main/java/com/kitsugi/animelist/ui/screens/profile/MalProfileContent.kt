@@ -67,13 +67,25 @@ fun MalProfileContent(
     onOpenStatsClick: (() -> Unit)? = null,
     isLandscape: Boolean,
     accentColor: Color,
-    onImageClick: ((urls: List<String>, initialIndex: Int, title: String) -> Unit)? = null
+    onImageClick: ((urls: List<String>, initialIndex: Int, title: String) -> Unit)? = null,
+    onFavoriteStudioClick: ((studioId: Int, source: String, name: String?, imageUrl: String?) -> Unit)? = null,
+    onGenreClick: (String) -> Unit = {},
+    onUserProfileClick: (userId: Int, username: String, avatarUrl: String?) -> Unit = { _, _, _ -> },
+    onLoadMoreFriends: (() -> Unit)? = null,
+    onLoadMoreReviews: (() -> Unit)? = null,
+    onLoadMoreRecommendations: (() -> Unit)? = null
 ) {
     var activeTab by rememberSaveable { mutableIntStateOf(viewModel.malActiveTab) }
     LaunchedEffect(activeTab) { viewModel.malActiveTab = activeTab }
 
     var statsMediaType by rememberSaveable { mutableIntStateOf(viewModel.malStatsMediaType) }
     LaunchedEffect(statsMediaType) { viewModel.malStatsMediaType = statsMediaType }
+
+    var statsSubTab by rememberSaveable { mutableIntStateOf(viewModel.malStatsSubTab) }
+    LaunchedEffect(statsSubTab) { viewModel.malStatsSubTab = statsSubTab }
+
+    var socialFilter by rememberSaveable { mutableIntStateOf(viewModel.malSocialFilter) }
+    LaunchedEffect(socialFilter) { viewModel.malSocialFilter = socialFilter }
 
     var favoritesFilter by rememberSaveable { mutableIntStateOf(viewModel.malFavoritesFilter) }
     LaunchedEffect(favoritesFilter) { viewModel.malFavoritesFilter = favoritesFilter }
@@ -101,6 +113,25 @@ fun MalProfileContent(
         activeTab = pagerState.currentPage
         viewModel.malActiveTab = pagerState.currentPage
     }
+
+    ProfileFavoritesAutoLoad(
+        listState = listState,
+        enabled = activeTab == 4 && socialFilter == 0 && state.friendsHasNextPage && onLoadMoreFriends != null,
+        count = state.socialState.followers.size,
+        onLoadMore = { onLoadMoreFriends?.invoke() }
+    )
+    ProfileFavoritesAutoLoad(
+        listState = listState,
+        enabled = activeTab == 4 && socialFilter == 1 && state.reviewsHasNextPage && onLoadMoreReviews != null,
+        count = state.reviews.size,
+        onLoadMore = { onLoadMoreReviews?.invoke() }
+    )
+    ProfileFavoritesAutoLoad(
+        listState = listState,
+        enabled = activeTab == 4 && socialFilter == 2 && state.recommendationsHasNextPage && onLoadMoreRecommendations != null,
+        count = state.recommendations.size,
+        onLoadMore = { onLoadMoreRecommendations?.invoke() }
+    )
 
     LazyColumn(
         state = listState,
@@ -264,20 +295,25 @@ fun MalProfileContent(
                             }
                         }
                     } else if (pagerState.currentPage == 4) {
-                        val userList = state.socialState.followers
                         val socialFilterState = rememberLazyListState()
+                        val socialLabels = listOf(
+                            stringResource(R.string.profile_mal_friends_count, state.socialState.followers.size),
+                            stringResource(R.string.profile_mal_tab_count, stringResource(R.string.detail_tab_reviews), state.reviews.size),
+                            stringResource(R.string.profile_mal_tab_count, stringResource(R.string.detail_tab_recommendations), state.recommendations.size),
+                            stringResource(R.string.profile_mal_tab_count, stringResource(R.string.profile_mal_clubs), state.clubs.size)
+                        )
                         androidx.compose.foundation.lazy.LazyRow(
                             state = socialFilterState,
                             flingBehavior = com.kitsugi.animelist.ui.utils.KitsugiScrollDefaults.rememberRowSnapFling(socialFilterState),
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
-                            item {
+                            items(socialLabels.size) { index ->
                                 ProfileFilterChip(
-                                    text = stringResource(R.string.arkadaslar_x, userList.size),
-                                    isSelected = true,
+                                    text = socialLabels[index],
+                                    isSelected = socialFilter == index,
                                     accentColor = accentColor,
-                                    onClick = {}
+                                    onClick = { socialFilter = index }
                                 )
                             }
                         }
@@ -364,8 +400,8 @@ fun MalProfileContent(
                                     )
                                     Spacer(modifier = Modifier.height(12.dp))
                                     Row(modifier = Modifier.fillMaxWidth()) {
-                                        StatCard("Anime", state.animeStats?.count?.toString() ?: "0")
-                                        StatCard("Manga", state.mangaStats?.count?.toString() ?: "0")
+                                        StatCard(stringResource(R.string.profile_anime_entries), state.animeStats?.count?.toString() ?: "0")
+                                        StatCard(stringResource(R.string.profile_manga_entries), state.mangaStats?.count?.toString() ?: "0")
                                     }
                                 }
                                 MalAboutExtras(state = state, accentColor = accentColor)
@@ -411,67 +447,17 @@ fun MalProfileContent(
                                     }
                                 }
                             }
-                            2 -> {
-                                val stats = if (statsMediaType == 0) state.animeStats else state.mangaStats
-                                Column(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .clip(RoundedCornerShape(24.dp))
-                                        .background(KitsugiColors.Surface)
-                                        .padding(18.dp),
-                                    verticalArrangement = Arrangement.spacedBy(14.dp)
-                                ) {
-                                    Row(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .clip(RoundedCornerShape(16.dp))
-                                            .background(KitsugiColors.SurfaceStrong)
-                                            .padding(4.dp)
-                                    ) {
-                                        listOf("Anime", "Manga").forEachIndexed { idx, label ->
-                                            val isSel = statsMediaType == idx
-                                            Box(
-                                                modifier = Modifier
-                                                    .weight(1f)
-                                                    .clip(RoundedCornerShape(12.dp))
-                                                    .background(if (isSel) accentColor else Color.Transparent)
-                                                    .clickable { statsMediaType = idx }
-                                                    .padding(vertical = 8.dp),
-                                                contentAlignment = Alignment.Center
-                                            ) {
-                                                Text(
-                                                    text = label,
-                                                    color = if (isSel) KitsugiColors.Background else KitsugiColors.TextMuted,
-                                                    fontWeight = FontWeight.Bold,
-                                                    style = MaterialTheme.typography.labelLarge
-                                                )
-                                            }
-                                        }
-                                    }
-
-                                    stats?.let { s ->
-                                        SegmentedDistributionBar(
-                                            watching = s.watching,
-                                            completed = s.completed,
-                                            planned = s.planned,
-                                            paused = s.paused,
-                                            dropped = s.dropped,
-                                            total = s.count,
-                                            accentColor = accentColor
-                                        )
-                                        StatItemRow(if (statsMediaType == 0) stringResource(R.string.profile_status_watching) else stringResource(R.string.profile_status_reading), s.watching, s.count, accentColor)
-                                        StatItemRow(stringResource(R.string.profile_status_completed), s.completed, s.count, KitsugiColors.AccentGreen)
-                                        StatItemRow(if (statsMediaType == 0) stringResource(R.string.profile_status_plan_to_watch_short) else stringResource(R.string.profile_status_plan_to_read_short), s.planned, s.count, KitsugiColors.TextMuted)
-                                        StatItemRow(stringResource(R.string.profile_status_on_hold), s.paused, s.count, KitsugiColors.AccentOrange)
-                                        StatItemRow(stringResource(R.string.profile_status_dropped), s.dropped, s.count, KitsugiColors.AccentPink)
-
-                                        Row(modifier = Modifier.fillMaxWidth()) {
-                                            StatCard(stringResource(R.string.profile_total_records), s.count.toString())
-                                            StatCard(stringResource(R.string.profile_average_score), "%.1f".format(s.meanScore))
-                                        }
-                                    }
-                                }
-                            }
+                            2 -> MalStatisticsSection(
+                                state = state,
+                                statsMediaType = statsMediaType,
+                                onStatsMediaTypeChange = { statsMediaType = it },
+                                statsSubTab = statsSubTab,
+                                onStatsSubTabChange = { statsSubTab = it },
+                                accentColor = accentColor,
+                                onGenreClick = onGenreClick,
+                                onStudioClick = onFavoriteStudioClick,
+                                onVoiceActorClick = onFavoriteStaffClick
+                            )
                             3 -> {
                                 val currentFavList = when (favoritesFilter) {
                                     0 -> state.favoriteAnime
@@ -610,58 +596,86 @@ fun MalProfileContent(
                                 }
                             }
                             4 -> {
-                                val userList = state.socialState.followers
-                                if (userList.isEmpty()) {
-                                    Box(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .padding(32.dp),
-                                        contentAlignment = Alignment.Center
-                                    ) {
-                                        Text(text = stringResource(R.string.arkadas_bulunamadi), color = KitsugiColors.TextMuted)
-                                    }
-                                } else {
-                                    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                                        val gridColumns = if (isLandscape) 3 else 2
-                                        userList.chunked(gridColumns).forEach { rowItems ->
-                                            Row(
-                                                modifier = Modifier.fillMaxWidth(),
-                                                horizontalArrangement = Arrangement.spacedBy(10.dp)
-                                            ) {
-                                                rowItems.forEach { u ->
-                                                    Column(
-                                                        modifier = Modifier
-                                                            .weight(1f)
-                                                            .clip(RoundedCornerShape(16.dp))
-                                                            .background(KitsugiColors.Surface)
-                                                            .padding(12.dp),
-                                                        horizontalAlignment = Alignment.CenterHorizontally
+                                when (socialFilter) {
+                                    0 -> {
+                                        val friendList = state.socialState.followers
+                                        if (friendList.isEmpty()) {
+                                            if (state.isExtraLoading) {
+                                                Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) { CircularProgressIndicator(color = accentColor) }
+                                            } else {
+                                                Box(Modifier.fillMaxWidth().padding(32.dp), contentAlignment = Alignment.Center) {
+                                                    Text(stringResource(R.string.profile_mal_no_friends), color = KitsugiColors.TextMuted)
+                                                }
+                                            }
+                                        } else {
+                                            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                                                val gridColumns = if (isLandscape) 3 else 2
+                                                friendList.chunked(gridColumns).forEach { rowItems ->
+                                                    Row(
+                                                        modifier = Modifier.fillMaxWidth(),
+                                                        horizontalArrangement = Arrangement.spacedBy(10.dp)
                                                     ) {
-                                                        AsyncImage(
-                                                            model = u.avatarUrl ?: "",
-                                                            contentDescription = u.name,
-                                                            modifier = Modifier
-                                                                .size(56.dp)
-                                                                .clip(CircleShape),
-                                                            contentScale = ContentScale.Crop
-                                                        )
-                                                        Spacer(modifier = Modifier.height(8.dp))
-                                                        Text(
-                                                            text = u.name,
-                                                            color = KitsugiColors.TextPrimary,
-                                                            style = MaterialTheme.typography.bodySmall,
-                                                            fontWeight = FontWeight.Bold,
-                                                            maxLines = 1,
-                                                            overflow = TextOverflow.Ellipsis
-                                                        )
+                                                        rowItems.forEach { user ->
+                                                            Column(
+                                                                modifier = Modifier
+                                                                    .weight(1f)
+                                                                    .clip(RoundedCornerShape(16.dp))
+                                                                    .background(KitsugiColors.Surface)
+                                                                    .clickable { onUserProfileClick(user.id, user.name, user.avatarUrl) }
+                                                                    .padding(12.dp),
+                                                                horizontalAlignment = Alignment.CenterHorizontally
+                                                            ) {
+                                                                AsyncImage(
+                                                                    model = user.avatarUrl ?: "",
+                                                                    contentDescription = user.name,
+                                                                    modifier = Modifier.size(56.dp).clip(CircleShape),
+                                                                    contentScale = ContentScale.Crop
+                                                                )
+                                                                Spacer(modifier = Modifier.height(8.dp))
+                                                                Text(
+                                                                    text = user.name,
+                                                                    color = KitsugiColors.TextPrimary,
+                                                                    style = MaterialTheme.typography.bodySmall,
+                                                                    fontWeight = FontWeight.Bold,
+                                                                    maxLines = 1,
+                                                                    overflow = TextOverflow.Ellipsis
+                                                                )
+                                                            }
+                                                        }
+                                                        repeat(gridColumns - rowItems.size) { Spacer(modifier = Modifier.weight(1f)) }
                                                     }
                                                 }
-                                                repeat(gridColumns - rowItems.size) {
-                                                    Spacer(modifier = Modifier.weight(1f))
-                                                }
+                                                if (state.isLoadingMoreFriends) CircularProgressIndicator(modifier = Modifier.size(22.dp).align(Alignment.CenterHorizontally), color = accentColor)
                                             }
                                         }
                                     }
+                                    1 -> MalReviewsSection(
+                                        state = state,
+                                        accentColor = accentColor,
+                                        onOpenMedia = { review ->
+                                            onFavoriteMediaClick(
+                                                review.malId,
+                                                if (review.kind.equals("manga", true)) MediaType.Manga else MediaType.Anime,
+                                                "jikan",
+                                                review.title,
+                                                review.imageUrl
+                                            )
+                                        }
+                                    )
+                                    2 -> MalRecommendationsSection(
+                                        state = state,
+                                        accentColor = accentColor,
+                                        onOpenMedia = { recommendation ->
+                                            onFavoriteMediaClick(
+                                                recommendation.malId,
+                                                if (recommendation.kind.equals("manga", true)) MediaType.Manga else MediaType.Anime,
+                                                "jikan",
+                                                recommendation.title,
+                                                recommendation.imageUrl
+                                            )
+                                        }
+                                    )
+                                    else -> MalClubsSection(state)
                                 }
                             }
                         }

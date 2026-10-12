@@ -59,8 +59,6 @@ import com.kitsugi.animelist.data.platform.PlatformErrorCode
 import com.kitsugi.animelist.model.MediaEntry
 import com.kitsugi.animelist.ui.components.KitsugiPlatformLogo
 import com.kitsugi.animelist.ui.components.KitsugiPlasmaLoader
-import com.kitsugi.animelist.ui.components.KitsugiWebViewDialog
-import com.kitsugi.animelist.data.remote.malweb.MalWebSessionStore
 import com.kitsugi.animelist.ui.components.PlatformErrorExplanationBlock
 import com.kitsugi.animelist.ui.theme.KitsugiColors
 import com.kitsugi.animelist.ui.theme.LocalKitsugiAccent
@@ -69,9 +67,6 @@ import kotlinx.coroutines.launch
 import com.kitsugi.animelist.utils.KitsugiStrings
 
 // ─── Platform seçimi ──────────────────────────────────────────────────────────
-
-/** Native bildirim akışı için gereken MAL web oturumu yalnızca ilk bağlantıda istenir. */
-private const val MAL_WEB_LOGIN_URL = "https://myanimelist.net/login.php"
 
 private enum class NotifPlatform(
     val label: String,
@@ -125,6 +120,7 @@ fun KitsugiNotificationsScreen(
     onBack: () -> Unit,
     onOpenApiDetail: ((mediaId: Int, source: String, mediaType: String?, title: String?, imageUrl: String?) -> Unit)? = null,
     onUserProfileClick: ((userId: Int, username: String, avatarUrl: String?) -> Unit)? = null,
+    onOpenMalAccountSettings: () -> Unit = {},
     viewModel: KitsugiNotificationsViewModel = viewModel()
 ) {
     val accentColor = LocalKitsugiAccent.current
@@ -137,9 +133,6 @@ fun KitsugiNotificationsScreen(
     var activeActivityIdForDetail by remember { mutableStateOf<Int?>(null) }
     var showDiagnostics by remember { mutableStateOf(false) }
     var showSourcePickerSheet by remember { mutableStateOf(false) }
-    var showMalWebLogin by remember { mutableStateOf(false) }
-    var malWebLoginHandled by remember { mutableStateOf(false) }
-    var malWebLoginAutoOpened by remember { mutableStateOf(false) }
 
     // ── ViewModel state'lerini topla ──
     val malState       by viewModel.mal.collectAsState()
@@ -187,29 +180,8 @@ fun KitsugiNotificationsScreen(
         }
     }
 
-    // ── Otomatik MAL web oturumu ──
-    // MAL OAuth girişi uygulama içi WebView'de yapıldıysa web oturumu zaten hazırdır ve
-    // bildirimler doğrudan yüklenir. Oturum gerçekten yoksa (ör. giriş harici tarayıcıda
-    // tamamlandıysa) kullanıcıyı aramaya bırakmadan giriş penceresi bir kez kendiliğinden açılır.
-    LaunchedEffect(
-        pagerState.currentPage,
-        isMalConnected,
-        malState.requiresMalWebLogin,
-        malState.isLoading,
-        malState.items.isEmpty()
-    ) {
-        if (pagerState.currentPage == 1 &&
-            isMalConnected &&
-            !malWebLoginAutoOpened &&
-            !malWebLoginHandled &&
-            !malState.isLoading &&
-            malState.items.isEmpty() &&
-            malState.requiresMalWebLogin
-        ) {
-            malWebLoginAutoOpened = true
-            showMalWebLogin = true
-        }
-    }
+    // A missing or mismatched website session is resolved from Settings → MAL account,
+    // where the shared in-app OAuth WebView can complete/reconnect the account.
 
     val malListState       = rememberLazyListState()
     val tmdbSimklListState = rememberLazyListState()
@@ -470,8 +442,7 @@ fun KitsugiNotificationsScreen(
                 // ──────────────── Page 1: MAL ────────────────
                 1 -> SourceNotifPage(
                     state = malState,
-                    // MAL's native feed can work without the separate MAL OAuth list token;
-                    // private website notifications are loaded with the WebView session.
+                    // Keep the native feed visible; website-session repair is routed through the shared account connection.
                     isConnected = true,
                     loginRequiredMessage = stringResource(R.string.notif_login_required_mal),
                     emptyMessage = stringResource(R.string.notif_empty_no_notifications),
@@ -495,21 +466,10 @@ fun KitsugiNotificationsScreen(
                         else -> stringResource(R.string.notif_mal_web_refresh_hint)
                     },
                     onMalWebSessionAction = {
-                        when {
-                            // Farklı hesap: önce yanlış oturumun çerezleri temizlenir, sonra
-                            // giriş WebView'i açılır — aksi hâlde WebView eski oturumla açılır.
-                            malState.malAccountMismatch -> {
-                                malWebLoginHandled = false
-                                viewModel.clearMalWebSession {
-                                    malWebLoginHandled = false
-                                    showMalWebLogin = true
-                                }
-                            }
-                            malState.requiresMalWebLogin || !isMalConnected -> {
-                                malWebLoginHandled = false
-                                showMalWebLogin = true
-                            }
-                            else -> viewModel.loadMal(mediaEntries)
+                        if (malState.malAccountMismatch || malState.requiresMalWebLogin || !isMalConnected) {
+                            onOpenMalAccountSettings()
+                        } else {
+                            viewModel.loadMal(mediaEntries)
                         }
                     },
                     onItemClick = { notif -> openMalNotification(notif) },
@@ -638,31 +598,6 @@ fun KitsugiNotificationsScreen(
             state = diagState,
             onRerun = { viewModel.runDiagnostics(mediaEntries) },
             onDismiss = { showDiagnostics = false }
-        )
-    }
-
-    if (showMalWebLogin) {
-        KitsugiWebViewDialog(
-            title = stringResource(R.string.notif_mal_web_login_title),
-            url = MAL_WEB_LOGIN_URL,
-            onPageFinished = { pageUrl ->
-                val path = Uri.parse(pageUrl).encodedPath.orEmpty()
-                if (!path.contains("login", ignoreCase = true) &&
-                    !malWebLoginHandled &&
-                    MalWebSessionStore.readAuthenticatedCookieHeader() != null
-                ) {
-                    malWebLoginHandled = true
-                    showMalWebLogin = false
-                    viewModel.loadMal(mediaEntries)
-                }
-            },
-            onDismiss = {
-                showMalWebLogin = false
-                if (!malWebLoginHandled && MalWebSessionStore.readAuthenticatedCookieHeader() != null) {
-                    malWebLoginHandled = true
-                    viewModel.loadMal(mediaEntries)
-                }
-            }
         )
     }
 

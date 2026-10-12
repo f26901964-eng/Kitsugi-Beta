@@ -142,7 +142,7 @@ fun AppRootTabPages(
                         ctx.appViewModel.selectTab(MainTab.Settings)
                     },
                     onLoginAniList = { ctx.authViewModel.startExternalAuth("anilist") },
-                    onLoginMal = { ctx.authViewModel.startExternalAuth("mal") },
+                    onLoginMal = { ctx.authViewModel.startMalOAuthWebSession() },
                     onLoginSimkl = { ctx.authViewModel.startExternalAuth("simkl") },
                     onLoginKitsu = {},
                     onLoginShikimori = {},
@@ -229,6 +229,9 @@ fun AppRootTabPages(
                     onUserProfileClick = { userId, username, avatarUrl ->
                         ctx.navState.navigateToDetail(DetailScreen.UserProfile(userId, username, avatarUrl))
                     },
+                    onMalUserProfileClick = { userId, username, avatarUrl ->
+                        ctx.navState.navigateToDetail(DetailScreen.UserProfile(userId, username, avatarUrl, "mal"))
+                    },
                     isBottomBarVisible = ctx.bottomBarScrollState.isVisible,
                     onScrollReset = ctx.onScrollReset
                 )
@@ -304,7 +307,8 @@ private fun ExploreTabPage(ctx: TabPagesContext) {
                 com.kitsugi.animelist.ui.screens.explore.ExplorePlatform.MAL     -> "mal"
                 else                                                              -> "anilist"
             }
-            ctx.authViewModel.startExternalAuth(provider)
+            if (provider == "mal") ctx.authViewModel.startMalOAuthWebSession()
+            else ctx.authViewModel.startExternalAuth(provider)
         }
     )
 }
@@ -474,7 +478,7 @@ private fun MyListTabPageWrapper(
         isShikimoriConnected = authViewModel.isShikimoriConnected,
         isBangumiConnected = authViewModel.isBangumiConnected,
         onLoginAniList = { authViewModel.startExternalAuth("anilist") },
-        onLoginMal = { authViewModel.startExternalAuth("mal") },
+        onLoginMal = { authViewModel.startMalOAuthWebSession() },
         onLoginSimkl = { authViewModel.startExternalAuth("simkl") },
         onSyncAniList = { authViewModel.importAniListAnimeList(mediaEntries, mediaRepository) },
         onSyncMal = { authViewModel.importMalAnimeList(mediaEntries, mediaRepository) },

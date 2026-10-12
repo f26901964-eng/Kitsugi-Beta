@@ -1,5 +1,7 @@
 package com.kitsugi.animelist.ui.components
 
+import android.os.Handler
+import android.os.Looper
 import com.kitsugi.animelist.model.MediaType
 import com.kitsugi.animelist.ui.theme.gradient.background
 import com.kitsugi.animelist.ui.theme.gradient.border
@@ -89,6 +91,19 @@ import com.kitsugi.animelist.R
 private const val HERO_BACKGROUND_PARALLAX = 0.055f
 private const val HERO_BACKGROUND_SCALE = 1.0f
 private const val HERO_CONTENT_PARALLAX = 0.18f
+
+/**
+ * ÇÖKME ÖNLEMİ: AsyncImage onSuccess çizim evresinde tetiklenebiliyor. Doğrudan
+ * callback içinde Compose state değiştirmek (özellikle bant yüksekliğini
+ * etkileyen pageImageAspects/loadedImageAspect) RenderThread libhwui.so içinde
+ * (fault_addr=0x20) yok edilmiş RenderNode'a erişimle SIGSEGV üretiyor.
+ * State değişikliğini ana iş parçacığı kuyruğunun sonuna (yani içinde
+ * bulunduğumuz kare BİTTİKTEN sonraya) bırakmak yarışı kapatır.
+ */
+private val mainHandler by lazy(LazyThreadSafetyMode.PUBLICATION) { Handler(Looper.getMainLooper()) }
+private fun postAfterFrame(block: () -> Unit) {
+    mainHandler.post(block)
+}
 
 private fun heroItemIdentity(item: JikanSearchResult): String =
     "${item.source.trim().lowercase()}:${item.type.name}:${item.malId}"
@@ -816,13 +831,16 @@ fun KitsugiHeroSection(
                                         }
                                     },
                                     onImageAspectResolved = { ratio ->
-                                        if (loadedImageAspect == null || abs((loadedImageAspect ?: ratio) - ratio) > 0.05f) {
-                                            loadedImageAspect = ratio
-                                            // Oranı vitrin geneline yayınla: bant yüksekliği
-                                            // öndeki sayfanın görsel şekline otomatik otursun.
-                                            val prevAspect = pageImageAspects[page]
-                                            if (prevAspect == null || abs(prevAspect - ratio) > 0.05f) {
-                                                pageImageAspects = pageImageAspects + (page to ratio)
+                                        // ÇÖKME ÖNLEMİ: state değişikliğini bir kare sonraya bırak.
+                                        postAfterFrame {
+                                            if (loadedImageAspect == null || abs((loadedImageAspect ?: ratio) - ratio) > 0.05f) {
+                                                loadedImageAspect = ratio
+                                                // Oranı vitrin geneline yayınla: bant yüksekliği
+                                                // öndeki sayfanın görsel şekline otomatik otursun.
+                                                val prevAspect = pageImageAspects[page]
+                                                if (prevAspect == null || abs(prevAspect - ratio) > 0.05f) {
+                                                    pageImageAspects = pageImageAspects + (page to ratio)
+                                                }
                                             }
                                         }
                                     },
@@ -853,13 +871,16 @@ fun KitsugiHeroSection(
                                         }
                                     },
                                     onImageAspectResolved = { ratio ->
-                                        if (loadedImageAspect == null || abs((loadedImageAspect ?: ratio) - ratio) > 0.05f) {
-                                            loadedImageAspect = ratio
-                                            // Oranı vitrin geneline yayınla: bant yüksekliği
-                                            // öndeki sayfanın görsel şekline otomatik otursun.
-                                            val prevAspect = pageImageAspects[page]
-                                            if (prevAspect == null || abs(prevAspect - ratio) > 0.05f) {
-                                                pageImageAspects = pageImageAspects + (page to ratio)
+                                        // ÇÖKME ÖNLEMİ: state değişikliğini bir kare sonraya bırak.
+                                        postAfterFrame {
+                                            if (loadedImageAspect == null || abs((loadedImageAspect ?: ratio) - ratio) > 0.05f) {
+                                                loadedImageAspect = ratio
+                                                // Oranı vitrin geneline yayınla: bant yüksekliği
+                                                // öndeki sayfanın görsel şekline otomatik otursun.
+                                                val prevAspect = pageImageAspects[page]
+                                                if (prevAspect == null || abs(prevAspect - ratio) > 0.05f) {
+                                                    pageImageAspects = pageImageAspects + (page to ratio)
+                                                }
                                             }
                                         }
                                     }

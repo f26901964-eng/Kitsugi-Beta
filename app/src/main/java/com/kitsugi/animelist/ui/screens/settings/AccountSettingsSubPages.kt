@@ -333,6 +333,14 @@ internal fun MalSettingsContent(profile: ProfileSettings) {
                 )
                 KitsugiSettingsDivider()
                 KitsugiSettingsItem(
+                    title = stringResource(R.string.profile_mal_reconnect_title),
+                    description = stringResource(R.string.profile_mal_reconnect_description),
+                    icon = Icons.Rounded.Refresh,
+                    iconColor = KitsugiColors.AccentBlue,
+                    onClick = profile.onMalReconnectClick
+                )
+                KitsugiSettingsDivider()
+                KitsugiSettingsItem(
                     title = stringResource(R.string.myanimelist_baglantisini_kes),
                     description = stringResource(R.string.hesabinizi_uygulamadan_kaldirir),
                     icon = Icons.Rounded.LinkOff,

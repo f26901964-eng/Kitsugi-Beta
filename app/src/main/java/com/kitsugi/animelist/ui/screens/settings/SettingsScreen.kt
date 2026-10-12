@@ -70,7 +70,7 @@ import com.kitsugi.animelist.ui.theme.LocalKitsugiAccent
 
 // ─── Settings Nav Routes ────────────────────────────────────────────────────
 
-internal enum class SettingsRoute {
+enum class SettingsRoute {
     // Ana menü
     Main,
     // Alt sayfalar
@@ -133,6 +133,13 @@ fun SettingsScreen(
             else -> Unit
         }
         route = target
+    }
+
+    LaunchedEffect(params.requestedSettingsRoute) {
+        params.requestedSettingsRoute?.let { target ->
+            route = target
+            params.onSettingsRouteConsumed(target)
+        }
     }
 
     fun openDownloads() {

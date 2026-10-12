@@ -375,8 +375,8 @@ class KitsugiNotificationsViewModel(application: Application) : AndroidViewModel
      * Loads MAL's actual account notifications from the signed-in website feed and maps them
      * into the native notification list. MAL OAuth remains useful for API/list operations, but
      * MAL's private notification page authenticates with its own WebView session cookie.
-     * If that session is absent, retain the previous calendar-based fallback and prompt for a
-     * one-time website sign-in; never treat the OAuth bearer token as a site cookie.
+     * If that session is absent, retain the calendar-based fallback and expose the MAL Settings
+     * reconnect action; never treat the OAuth bearer token as a site cookie.
      */
     fun loadMal(mediaEntries: List<MediaEntry>) {
         if (_mal.value.isLoading) {

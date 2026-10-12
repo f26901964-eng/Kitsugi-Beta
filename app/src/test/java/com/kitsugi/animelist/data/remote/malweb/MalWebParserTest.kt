@@ -231,6 +231,24 @@ class MalWebParserTest {
     }
 
     @Test
+    fun parsesContentRatingDistribution() {
+        val html = """
+            <html><head><title>TestUser's Anime Statistics - MyAnimeList.net</title></head><body>
+            <div id="statistics-anime-rating"><div class="stats-graph">
+              <ul>
+                <li><span class="rating">PG-13 - Teens 13 or older</span><span class="count">1,234</span><span class="percentage">72.5%</span></li>
+                <li><span class="rating">R - 17+ (violence &amp; profanity)</span><span class="count">42</span><span class="percentage">2.5%</span></li>
+              </ul>
+            </div></div></body></html>
+        """.trimIndent()
+
+        val stats = MalWebParser.parseDetailedStatistics(html, isAnime = true)!!
+        assertEquals(listOf("PG-13 - Teens 13 or older", "R - 17+ (violence & profanity)"), stats.ratingDistribution.map { it.rating })
+        assertEquals(listOf(1234, 42), stats.ratingDistribution.map { it.count })
+        assertEquals(listOf(72.5, 2.5), stats.ratingDistribution.map { it.percentage })
+    }
+
+    @Test
     fun parsesDates() {
         assertEquals("2026-10-11T12:00:00-07:00", MalWebDates.toIso("Now", now))
         assertEquals("2026-10-10T20:55:00-07:00", MalWebDates.toIso("Yesterday, 8:55 PM", now))

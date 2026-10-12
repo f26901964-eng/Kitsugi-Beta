@@ -108,7 +108,9 @@ class KitsugiProfileViewModel(application: Application) : AndroidViewModel(appli
     // MAL Tab & Sub-Filter state persistence
     var malActiveTab by mutableIntStateOf(0)
     var malStatsMediaType by mutableIntStateOf(0)
+    var malStatsSubTab by mutableIntStateOf(0)
     var malFavoritesFilter by mutableIntStateOf(0)
+    var malSocialFilter by mutableIntStateOf(0)
 
     // Simkl Tab & Sub-Filter state persistence
     var simklActiveTab by mutableIntStateOf(0)
@@ -1306,6 +1308,8 @@ class KitsugiProfileViewModel(application: Application) : AndroidViewModel(appli
                         joinedAt = joinedAt,
                         animeStats = officialAnimeStats,
                         mangaStats = officialMangaStats,
+                        animeDaysWatched = animeStatsObj?.optDouble("num_days", 0.0) ?: 0.0,
+                        mangaDaysRead = mangaStatsObj?.optDouble("num_days", 0.0) ?: 0.0,
                         isLoading = false
                     )
                 }
@@ -1343,64 +1347,136 @@ class KitsugiProfileViewModel(application: Application) : AndroidViewModel(appli
             }
         }
 
-        coroutineScope {
-            val fullJob = async(Dispatchers.IO) { runCatching { fetchData("$base/full") }.getOrNull() }
-            val friendsJob = async(Dispatchers.IO) { runCatching { fetchData("$base/friends") }.getOrNull() }
-            val historyJob = async(Dispatchers.IO) { runCatching { fetchData("$base/history") }.getOrNull() }
+        try {
+            coroutineScope {
+                val fullJob = async(Dispatchers.IO) { runCatching { fetchData("$base/full") }.getOrNull() }
+                val friendsJob = async(Dispatchers.IO) { runCatching { fetchData("$base/friends") }.getOrNull() }
+                val historyJob = async(Dispatchers.IO) { runCatching { fetchData("$base/history") }.getOrNull() }
+                val animeStatsJob = async(Dispatchers.IO) { runCatching { fetchData("$base/statistics/anime") }.getOrNull() }
+                val mangaStatsJob = async(Dispatchers.IO) { runCatching { fetchData("$base/statistics/manga") }.getOrNull() }
+                val reviewsJob = async(Dispatchers.IO) { runCatching { fetchData("$base/reviews?page=1") }.getOrNull() }
+                val recommendationsJob = async(Dispatchers.IO) { runCatching { fetchData("$base/recommendations?page=1") }.getOrNull() }
+                val clubsJob = async(Dispatchers.IO) { runCatching { fetchData("$base/clubs") }.getOrNull() }
 
-            // 1. Profil (istatistik + favori + son güncellemeler + hakkında) — tek sayfa.
-            fullJob.await()?.let { body ->
-                runCatching { applyMalFullProfile(JSONObject(body).optJSONObject("data")) }
-                    .onFailure { android.util.Log.w("ProfileViewModel", "MAL full profile parse failed: ${it.message}") }
-            }
+                // Public MAL profile fields: biography, favorites, recent list updates and links.
+                fullJob.await()?.let { body ->
+                    runCatching { applyMalFullProfile(JSONObject(body).optJSONObject("data")) }
+                        .onFailure { android.util.Log.w("ProfileViewModel", "MAL full profile parse failed: ${it.message}") }
+                }
 
-            // 2. Arkadaşlar
-            friendsJob.await()?.let { body ->
-                runCatching {
-                    val arr = JSONObject(body).optJSONArray("data") ?: return@runCatching
-                    val friends = (0 until arr.length()).mapNotNull { i ->
-                        val userObj = arr.optJSONObject(i)?.optJSONObject("user") ?: return@mapNotNull null
-                        val friendName = userObj.optNullableString("username") ?: return@mapNotNull null
-                        UserFollowItem(
-                            id = friendName.hashCode(),
-                            name = friendName,
-                            avatarUrl = userObj.optJSONObject("images")?.optJSONObject("jpg")?.optNullableString("image_url")
-                                ?: userObj.optNullableString("image_url")
-                        )
-                    }
-                    if (friends.isNotEmpty()) {
-                        _malState.update { it.copy(socialState = SocialState(followers = friends, following = friends)) }
-                    }
-                }.onFailure { android.util.Log.w("ProfileViewModel", "MAL friends parse failed: ${it.message}") }
-            }
+                // MAL exposes friends, not separate followers/following lists.
+                friendsJob.await()?.let { body ->
+                    runCatching {
+                        val root = JSONObject(body)
+                        val arr = root.optJSONArray("data") ?: JSONArray()
+                        val friends = (0 until arr.length()).mapNotNull { i ->
+                            val userObj = arr.optJSONObject(i)?.optJSONObject("user") ?: return@mapNotNull null
+                            val friendName = userObj.optNullableString("username") ?: return@mapNotNull null
+                            UserFollowItem(
+                                id = friendName.hashCode(),
+                                name = friendName,
+                                avatarUrl = userObj.optJSONObject("images")?.optJSONObject("jpg")?.optNullableString("image_url")
+                                    ?: userObj.optNullableString("image_url")
+                            )
+                        }
+                        val hasNext = root.optJSONObject("pagination")?.optBoolean("has_next_page") ?: (friends.size >= 10)
+                        _malState.update {
+                            it.copy(
+                                socialState = SocialState(followers = friends),
+                                friendsPage = 1,
+                                friendsHasNextPage = hasNext
+                            )
+                        }
+                    }.onFailure { android.util.Log.w("ProfileViewModel", "MAL friends parse failed: ${it.message}") }
+                }
 
-            // 3. Geçmiş (bölüm bölüm aktivite)
-            historyJob.await()?.let { body ->
-                runCatching {
-                    val arr = JSONObject(body).optJSONArray("data") ?: return@runCatching
-                    val items = (0 until minOf(arr.length(), 60)).mapNotNull { i ->
-                        val o = arr.optJSONObject(i) ?: return@mapNotNull null
-                        val entry = o.optJSONObject("entry") ?: return@mapNotNull null
-                        val id = entry.optInt("mal_id", 0).takeIf { it > 0 } ?: return@mapNotNull null
-                        val isManga = entry.optString("type", "anime").equals("manga", ignoreCase = true)
-                        MalActivityEntry(
-                            malId = id,
-                            isManga = isManga,
-                            title = entry.optNullableString("name") ?: entry.optNullableString("title") ?: return@mapNotNull null,
-                            imageUrl = null,
-                            status = if (isManga) "Reading" else "Watching",
-                            progress = o.optInt("increment", 0).takeIf { it > 0 },
-                            total = null,
-                            score = 0,
-                            dateIso = o.optNullableString("date")
-                        )
-                    }
-                    if (items.isNotEmpty()) _malState.update { it.copy(history = items) }
-                }.onFailure { android.util.Log.w("ProfileViewModel", "MAL history parse failed: ${it.message}") }
+                // MAL's public history is a real watch/read activity feed, distinct from followers.
+                historyJob.await()?.let { body ->
+                    runCatching {
+                        val arr = JSONObject(body).optJSONArray("data") ?: return@runCatching
+                        val items = (0 until minOf(arr.length(), 60)).mapNotNull { i ->
+                            val o = arr.optJSONObject(i) ?: return@mapNotNull null
+                            val entry = o.optJSONObject("entry") ?: return@mapNotNull null
+                            val id = entry.optInt("mal_id", 0).takeIf { it > 0 } ?: return@mapNotNull null
+                            val isManga = entry.optString("type", "anime").equals("manga", ignoreCase = true)
+                            MalActivityEntry(
+                                malId = id,
+                                isManga = isManga,
+                                title = entry.optNullableString("name") ?: entry.optNullableString("title") ?: return@mapNotNull null,
+                                imageUrl = null,
+                                status = if (isManga) "Reading" else "Watching",
+                                progress = o.optInt("increment", 0).takeIf { it > 0 },
+                                total = null,
+                                score = 0,
+                                dateIso = o.optNullableString("date")
+                            )
+                        }
+                        _malState.update { it.copy(history = items) }
+                    }.onFailure { android.util.Log.w("ProfileViewModel", "MAL history parse failed: ${it.message}") }
+                }
+
+                animeStatsJob.await()?.let { body ->
+                    runCatching {
+                        val stats = MalProfileDataMapper.parseDetailedStatistics(body)
+                        _malState.update {
+                            it.copy(
+                                animeScoreDistribution = stats.scores,
+                                animeTypeDistribution = stats.types,
+                                animeStatusDistribution = stats.statuses,
+                                animeRatingDistribution = stats.ratings,
+                                animeGenreStats = stats.genres,
+                                animeStudioStats = stats.studios,
+                                animeVoiceActorStats = stats.voiceActors
+                            )
+                        }
+                    }.onFailure { android.util.Log.w("ProfileViewModel", "MAL anime statistics parse failed: ${it.message}") }
+                }
+                mangaStatsJob.await()?.let { body ->
+                    runCatching {
+                        val stats = MalProfileDataMapper.parseDetailedStatistics(body)
+                        _malState.update {
+                            it.copy(
+                                mangaScoreDistribution = stats.scores,
+                                mangaTypeDistribution = stats.types,
+                                mangaStatusDistribution = stats.statuses,
+                                mangaRatingDistribution = stats.ratings,
+                                mangaGenreStats = stats.genres,
+                                mangaStudioStats = stats.studios
+                            )
+                        }
+                    }.onFailure { android.util.Log.w("ProfileViewModel", "MAL manga statistics parse failed: ${it.message}") }
+                }
+
+                reviewsJob.await()?.let { body ->
+                    runCatching {
+                        val page = MalProfileDataMapper.parseReviews(body)
+                        _malState.update {
+                            it.copy(reviews = page.items, reviewsPage = 1, reviewsHasNextPage = page.hasNextPage)
+                        }
+                    }.onFailure { android.util.Log.w("ProfileViewModel", "MAL reviews parse failed: ${it.message}") }
+                }
+                recommendationsJob.await()?.let { body ->
+                    runCatching {
+                        val page = MalProfileDataMapper.parseRecommendations(body)
+                        _malState.update {
+                            it.copy(
+                                recommendations = page.items,
+                                recommendationsPage = 1,
+                                recommendationsHasNextPage = page.hasNextPage
+                            )
+                        }
+                    }.onFailure { android.util.Log.w("ProfileViewModel", "MAL recommendations parse failed: ${it.message}") }
+                }
+                clubsJob.await()?.let { body ->
+                    runCatching {
+                        val clubs = MalProfileDataMapper.parseClubs(body)
+                        _malState.update { it.copy(clubs = clubs) }
+                    }.onFailure { android.util.Log.w("ProfileViewModel", "MAL clubs parse failed: ${it.message}") }
+                }
             }
+        } finally {
+            _malState.update { it.copy(isExtraLoading = false) }
         }
-
-        _malState.update { it.copy(isLoading = false, isExtraLoading = false) }
     }
 
     private fun applyMalFullProfile(data: JSONObject?) {
@@ -1494,14 +1570,130 @@ class KitsugiProfileViewModel(application: Application) : AndroidViewModel(appli
                 birthday = data.optNullableString("birthday").orEmpty().ifBlank { it.birthday },
                 lastOnline = data.optNullableString("last_online").orEmpty().ifBlank { it.lastOnline },
                 about = aboutText.ifBlank { it.about },
+                aboutHtml = aboutHtml.orEmpty().ifBlank { it.aboutHtml },
+                externalLinks = MalProfileDataMapper.parseExternalLinks(data).ifEmpty { it.externalLinks },
                 animeStats = animeStats?.takeIf { s -> s.count > 0 } ?: it.animeStats ?: animeStats,
                 mangaStats = mangaStats?.takeIf { s -> s.count > 0 } ?: it.mangaStats ?: mangaStats,
+                animeDaysWatched = statsObj?.optJSONObject("anime")?.optDouble("days_watched", it.animeDaysWatched) ?: it.animeDaysWatched,
+                mangaDaysRead = statsObj?.optJSONObject("manga")?.optDouble("days_read", it.mangaDaysRead) ?: it.mangaDaysRead,
+                animeRepeatCount = statsObj?.optJSONObject("anime")?.optInt("rewatched", it.animeRepeatCount) ?: it.animeRepeatCount,
+                mangaRepeatCount = statsObj?.optJSONObject("manga")?.optInt("reread", it.mangaRepeatCount) ?: it.mangaRepeatCount,
                 favoriteAnime = favList("anime", "title").ifEmpty { it.favoriteAnime },
                 favoriteManga = favList("manga", "title").ifEmpty { it.favoriteManga },
                 favoriteCharacters = favList("characters", "name").ifEmpty { it.favoriteCharacters },
                 favoriteStaff = favList("people", "name").ifEmpty { it.favoriteStaff },
                 recentUpdates = recent.ifEmpty { it.recentUpdates }
             )
+        }
+    }
+
+    private suspend fun fetchMalSupplementalPage(url: String): String? = withTimeoutOrNull(MAL_EXTRA_TIMEOUT_MS) {
+        when (val result = JikanGateway.fetch(url, JikanGateway.Priority.BACKGROUND, maxRetries = 1)) {
+            is com.kitsugi.animelist.data.remote.JikanResult.Ok -> result.body
+            else -> null
+        }
+    }
+
+    fun loadMoreMalFriends() {
+        val current = _malState.value
+        if (!current.friendsHasNextPage || current.isLoadingMoreFriends || current.name.isBlank()) return
+        val page = current.friendsPage + 1
+        _malState.update { it.copy(isLoadingMoreFriends = true) }
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val url = "https://api.jikan.moe/v4/users/${java.net.URLEncoder.encode(current.name, "UTF-8")}/friends?page=$page"
+                val body = fetchMalSupplementalPage(url)
+                if (body == null) {
+                    _malState.update { it.copy(friendsHasNextPage = false) }
+                    return@launch
+                }
+                val root = JSONObject(body)
+                val arr = root.optJSONArray("data") ?: JSONArray()
+                val newFriends = (0 until arr.length()).mapNotNull { i ->
+                    val user = arr.optJSONObject(i)?.optJSONObject("user") ?: return@mapNotNull null
+                    val name = user.optNullableString("username") ?: return@mapNotNull null
+                    UserFollowItem(
+                        id = name.hashCode(),
+                        name = name,
+                        avatarUrl = user.optJSONObject("images")?.optJSONObject("jpg")?.optNullableString("image_url")
+                            ?: user.optNullableString("image_url")
+                    )
+                }
+                val hasNext = root.optJSONObject("pagination")?.optBoolean("has_next_page") ?: (newFriends.size >= 10)
+                _malState.update { state ->
+                    val merged = (state.socialState.followers + newFriends).distinctBy { it.name.lowercase() }
+                    state.copy(
+                        socialState = state.socialState.copy(followers = merged),
+                        friendsPage = page,
+                        friendsHasNextPage = hasNext
+                    )
+                }
+            } catch (e: Exception) {
+                android.util.Log.w("ProfileViewModel", "MAL friends page failed: ${e.message}")
+                _malState.update { it.copy(friendsHasNextPage = false) }
+            } finally {
+                _malState.update { it.copy(isLoadingMoreFriends = false) }
+            }
+        }
+    }
+
+    fun loadMoreMalReviews() {
+        val current = _malState.value
+        if (!current.reviewsHasNextPage || current.isLoadingMoreReviews || current.name.isBlank()) return
+        val page = current.reviewsPage + 1
+        _malState.update { it.copy(isLoadingMoreReviews = true) }
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val encoded = java.net.URLEncoder.encode(current.name, "UTF-8")
+                val body = fetchMalSupplementalPage("https://api.jikan.moe/v4/users/$encoded/reviews?page=$page")
+                if (body == null) {
+                    _malState.update { it.copy(reviewsHasNextPage = false) }
+                    return@launch
+                }
+                val result = MalProfileDataMapper.parseReviews(body)
+                _malState.update { state ->
+                    state.copy(
+                        reviews = (state.reviews + result.items).distinctBy { it.reviewId },
+                        reviewsPage = page,
+                        reviewsHasNextPage = result.hasNextPage
+                    )
+                }
+            } catch (e: Exception) {
+                android.util.Log.w("ProfileViewModel", "MAL reviews page failed: ${e.message}")
+                _malState.update { it.copy(reviewsHasNextPage = false) }
+            } finally {
+                _malState.update { it.copy(isLoadingMoreReviews = false) }
+            }
+        }
+    }
+
+    fun loadMoreMalRecommendations() {
+        val current = _malState.value
+        if (!current.recommendationsHasNextPage || current.isLoadingMoreRecommendations || current.name.isBlank()) return
+        val page = current.recommendationsPage + 1
+        _malState.update { it.copy(isLoadingMoreRecommendations = true) }
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val encoded = java.net.URLEncoder.encode(current.name, "UTF-8")
+                val body = fetchMalSupplementalPage("https://api.jikan.moe/v4/users/$encoded/recommendations?page=$page")
+                if (body == null) {
+                    _malState.update { it.copy(recommendationsHasNextPage = false) }
+                    return@launch
+                }
+                val result = MalProfileDataMapper.parseRecommendations(body)
+                _malState.update { state ->
+                    state.copy(
+                        recommendations = (state.recommendations + result.items).distinctBy { it.recommendationId },
+                        recommendationsPage = page,
+                        recommendationsHasNextPage = result.hasNextPage
+                    )
+                }
+            } catch (e: Exception) {
+                android.util.Log.w("ProfileViewModel", "MAL recommendations page failed: ${e.message}")
+                _malState.update { it.copy(recommendationsHasNextPage = false) }
+            } finally {
+                _malState.update { it.copy(isLoadingMoreRecommendations = false) }
+            }
         }
     }
 
@@ -2150,29 +2342,48 @@ data class MalProfileState(
     // ── Cihaz üzeri MAL HTML / miribyou ile gelen ek alanlar ──
     val isExtraLoading: Boolean = false,
     val about: String = "",
+    val aboutHtml: String = "",
+    val externalLinks: List<MalExternalLink> = emptyList(),
     val gender: String = "",
     val birthday: String = "",
     val lastOnline: String = "",
+    val animeDaysWatched: Double = 0.0,
+    val mangaDaysRead: Double = 0.0,
+    val animeRepeatCount: Int = 0,
+    val mangaRepeatCount: Int = 0,
     /** Profil sayfasındaki "Last Anime/Manga Updates" (kapak, durum, ilerleme, puan, tarih). */
     val recentUpdates: List<MalActivityEntry> = emptyList(),
     /** /history sayfası: bölüm bölüm izleme/okuma geçmişi. */
     val history: List<MalActivityEntry> = emptyList(),
     // ── Yeni: Banner desteği ──
     val bannerUrl: String? = null,
-    // ── Yeni: Detaylı istatistikler ──
+    // ── Detaylı MAL istatistik sayfaları ──
     val animeScoreDistribution: List<ScoreStatItem> = emptyList(),
     val mangaScoreDistribution: List<ScoreStatItem> = emptyList(),
     val animeTypeDistribution: List<FormatStatItem> = emptyList(),
     val mangaTypeDistribution: List<FormatStatItem> = emptyList(),
+    val animeStatusDistribution: List<StatusStatItem> = emptyList(),
+    val mangaStatusDistribution: List<StatusStatItem> = emptyList(),
+    val animeRatingDistribution: List<FormatStatItem> = emptyList(),
+    val mangaRatingDistribution: List<FormatStatItem> = emptyList(),
     val animeGenreStats: List<RankedStatItem> = emptyList(),
     val mangaGenreStats: List<RankedStatItem> = emptyList(),
     val animeStudioStats: List<RankedStatItem> = emptyList(),
     val mangaStudioStats: List<RankedStatItem> = emptyList(),
     val animeVoiceActorStats: List<RankedStatItem> = emptyList(),
-    // ── Yeni: İncelemeler, Öneriler, Kulüpler ──
+    // ── Reviews, recommendations, clubs and pagination ──
     val reviews: List<MalReview> = emptyList(),
+    val reviewsPage: Int = 1,
+    val reviewsHasNextPage: Boolean = false,
+    val isLoadingMoreReviews: Boolean = false,
     val recommendations: List<MalRecommendation> = emptyList(),
+    val recommendationsPage: Int = 1,
+    val recommendationsHasNextPage: Boolean = false,
+    val isLoadingMoreRecommendations: Boolean = false,
     val clubs: List<MalClub> = emptyList(),
+    val friendsPage: Int = 1,
+    val friendsHasNextPage: Boolean = false,
+    val isLoadingMoreFriends: Boolean = false,
     // ── Yeni: Favori sayfalama ──
     val favAnimePage: Int = 1,
     val favAnimeHasNext: Boolean = false,
@@ -2200,7 +2411,12 @@ data class MalActivityEntry(
     val dateIso: String?
 )
 
-// ── Yeni: İnceleme, Öneri, Kulüp modelleri ──────────────────────────────
+// ── MAL profile enrichment models ───────────────────────────────────────
+
+data class MalExternalLink(
+    val name: String,
+    val url: String
+)
 
 data class MalReview(
     val reviewId: Int,

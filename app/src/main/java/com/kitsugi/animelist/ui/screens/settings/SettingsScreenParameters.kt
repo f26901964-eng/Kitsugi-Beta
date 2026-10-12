@@ -20,7 +20,9 @@ class SettingsScreenParameters(
     val onExplorePlugin: ((String) -> Unit)? = null,
     val onOpenPluginPicker: (() -> Unit)? = null,
     val onOpenAbout: (() -> Unit)? = null,
-    val onSubPageOpenChange: ((Boolean) -> Unit)? = null
+    val onSubPageOpenChange: ((Boolean) -> Unit)? = null,
+    val requestedSettingsRoute: SettingsRoute? = null,
+    val onSettingsRouteConsumed: (SettingsRoute) -> Unit = {}
 )
 
 data class GeneralSettings(
@@ -150,6 +152,7 @@ data class ProfileSettings(
     val onClearBannerImageClick: () -> Unit,
     val onAniListAuthClick: () -> Unit,
     val onMalAuthClick: () -> Unit,
+    val onMalReconnectClick: () -> Unit = {},
     val onAniListImportClick: () -> Unit,
     val onMalImportClick: () -> Unit,
     val onSimklAuthClick: () -> Unit = {},

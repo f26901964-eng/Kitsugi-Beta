@@ -65,6 +65,17 @@ class AppViewModel : ViewModel() {
     var showGlobalSearch by mutableStateOf(false)
         private set
 
+    internal var requestedSettingsRoute by mutableStateOf<com.kitsugi.animelist.ui.screens.settings.SettingsRoute?>(null)
+        private set
+
+    internal fun requestSettingsRoute(route: com.kitsugi.animelist.ui.screens.settings.SettingsRoute) {
+        requestedSettingsRoute = route
+    }
+
+    internal fun consumeSettingsRoute(route: com.kitsugi.animelist.ui.screens.settings.SettingsRoute) {
+        if (requestedSettingsRoute == route) requestedSettingsRoute = null
+    }
+
     // ── Backup / Import ───────────────────────────────────────────────────────
 
     var backupText by mutableStateOf("")

@@ -142,6 +142,7 @@ internal fun SettingsContext.buildSettingsParams() =
             onClearBannerImageClick = { onClearBannerImageClick() },
             onAniListAuthClick = { onAniListAuthClick() },
             onMalAuthClick = { onMalAuthClick() },
+            onMalReconnectClick = { onMalReconnectClick() },
             onAniListImportClick = { onAniListImportClick() },
             onMalImportClick = { onMalImportClick() },
             onSimklAuthClick = { onSimklAuthClick() },
@@ -532,7 +533,9 @@ internal fun SettingsContext.buildSettingsParams() =
         },
         onSubPageOpenChange = { isOpen ->
             navState.isSettingsSubPageOpen = isOpen
-        }
+        },
+        requestedSettingsRoute = appViewModel.requestedSettingsRoute,
+        onSettingsRouteConsumed = { appViewModel.consumeSettingsRoute(it) }
     )
 
 // ─── Non-Composable SettingsContext Extension Functions ────────────────────────────
@@ -572,7 +575,11 @@ internal fun SettingsContext.onAniListAuthClick() {
 
 internal fun SettingsContext.onMalAuthClick() {
     if (authViewModel.isMalConnected) authViewModel.disconnectExternalAccount("mal")
-    else authViewModel.startExternalAuth("mal")
+    else authViewModel.startMalOAuthWebSession()
+}
+
+internal fun SettingsContext.onMalReconnectClick() {
+    authViewModel.reconnectMalWebSession()
 }
 
 internal fun SettingsContext.onSimklAuthClick() {

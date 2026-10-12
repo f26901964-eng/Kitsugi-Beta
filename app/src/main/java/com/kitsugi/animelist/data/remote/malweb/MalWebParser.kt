@@ -534,6 +534,21 @@ object MalWebParser {
             }
         }
 
+        // ── İçerik derecelendirmesi (MAL kullanıcı istatistiklerinde mevcutsa) ──
+        val ratingBuckets = mutableListOf<RatingBucket>()
+        val ratingBox = doc.selectFirst("#statistics-${prefix}-rating .stats-graph, #statistics-${prefix}-rating, .stats-graph.rating-stats")
+        if (ratingBox != null) {
+            ratingBox.select("li, .bar, tr").forEach { item ->
+                val label = item.selectFirst(".label, .rating, td:first-child")?.text()?.trim()
+                    ?: return@forEach
+                val countText = item.selectFirst(".count, .value, td:nth-child(2)")?.text()?.trim()
+                val count = countText?.replace(",", "")?.toIntOrNull() ?: 0
+                val percentText = item.selectFirst(".percentage, td:nth-child(3)")?.text()?.trim()
+                val percent = percentText?.replace(Regex("[^0-9.]"), "")?.toDoubleOrNull() ?: 0.0
+                if (count > 0) ratingBuckets += RatingBucket(label, count, percent)
+            }
+        }
+
         // ── Tür istatistikleri ───────────────────────────────────────────────
         val genreStats = mutableListOf<GenreStat>()
         val genreBox = doc.selectFirst("#statistics-${prefix}-genre, .stats-genre")
@@ -589,6 +604,7 @@ object MalWebParser {
             scoreDistribution = scoreBuckets.sortedBy { it.score },
             typeDistribution = typeBuckets,
             statusDistribution = statusBuckets,
+            ratingDistribution = ratingBuckets,
             genreStats = genreStats.sortedByDescending { it.count },
             studioStats = studioStats.sortedByDescending { it.count },
             voiceActorStats = vaStats.sortedByDescending { it.count }

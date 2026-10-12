@@ -192,6 +192,16 @@ object MalWebJson {
             )
         }
         json.put("statuses", statusArray)
+
+        val ratingArray = JSONArray()
+        stats.ratingDistribution.forEach { bucket ->
+            ratingArray.put(JSONObject()
+                .put("rating", bucket.rating)
+                .put("count", bucket.count)
+                .put("percentage", bucket.percentage)
+            )
+        }
+        json.put("ratings", ratingArray)
         
         // Genre stats
         val genreArray = JSONArray()

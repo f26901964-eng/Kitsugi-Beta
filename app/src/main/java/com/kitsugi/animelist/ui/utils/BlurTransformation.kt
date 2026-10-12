@@ -20,12 +20,45 @@ class BlurTransformation(
     override suspend fun transform(input: Bitmap, size: Size): Bitmap {
         val r = radius.coerceIn(1, 250)
 
-        // Work on a mutable copy
-        val bitmap = input.copy(Bitmap.Config.ARGB_8888, true)
-            ?: return input
+        // BELLEK ÇÖKME ÖNLEMİ: çok büyük (örn. 4000x6000) posterleri tam çözünürlükte
+        // blur'lamak ARGB_8888'de kolayca 96 MB+ yer kaplayıp GC'yi kilitler ve dolaylı
+        // olarak LMKD'nin süreci öldürmesine yol açar. Yarıçap kadar örnekle (scale
+        // down) → bellek kullanımı kare oranda düşer, blur sonucu (görsel bulanık
+        // gösterildiği için) piksel piksel aynı görünür.
+        val maxDim = maxOf(input.width, input.height)
+        val scaleDown = when {
+            maxDim <= 400 -> 1
+            maxDim <= 800 -> 2
+            maxDim <= 1600 -> 4
+            else -> 6
+        }
+        val scaledW = (input.width / scaleDown).coerceAtLeast(1)
+        val scaledH = (input.height / scaleDown).coerceAtLeast(1)
+        val scaledR = (r / scaleDown).coerceAtLeast(1)
+        val source = if (scaleDown > 1) {
+            Bitmap.createScaledBitmap(input, scaledW, scaledH, true)
+        } else {
+            input
+        }
 
-        stackBlur(bitmap, r)
-        return bitmap
+        // Work on a mutable ARGB copy for in-place stack blur.
+        val bitmap = if (source.config == Bitmap.Config.ARGB_8888 && source.isMutable) {
+            source
+        } else {
+            source.copy(Bitmap.Config.ARGB_8888, true) ?: source
+        }
+
+        stackBlur(bitmap, scaledR)
+
+        // Gerekirse orijinal boyuta geri ölçekle (yumuşak blur için yeterli).
+        return if (scaleDown > 1 && bitmap.width != input.width) {
+            val result = Bitmap.createScaledBitmap(bitmap, input.width, input.height, true)
+            if (bitmap !== source) bitmap.recycle()
+            if (source !== input) source.recycle()
+            result
+        } else {
+            bitmap
+        }
     }
 
     /**

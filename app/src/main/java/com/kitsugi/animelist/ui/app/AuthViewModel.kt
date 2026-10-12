@@ -19,6 +19,7 @@ import com.kitsugi.animelist.data.auth.ExternalListSyncManager
 import com.kitsugi.animelist.data.auth.AniListSyncManager
 import com.kitsugi.animelist.data.auth.MalSyncManager
 import com.kitsugi.animelist.data.auth.MalImportManager
+import com.kitsugi.animelist.data.remote.malweb.MalWebSessionStore
 import com.kitsugi.animelist.data.auth.SimklImportManager
 import com.kitsugi.animelist.data.auth.SimklSyncManager
 import com.kitsugi.animelist.data.auth.KitsuApiClient
@@ -253,21 +254,29 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
             .getBoolean("simkl_session_expired", false)
     }
 
+    /** Starts MAL OAuth inside the app so its authenticated MAL cookies are shared with notifications. */
+    fun startMalOAuthWebSession() {
+        showOAuthDialog("mal")
+    }
+
     /**
-     * Eski davranış: doğrudan uygulama içi WebView ile giriş.
-     * Yeni (hatalı) davranış harici tarayıcıya atıyordu ve MAL'de basic auth popup çıkıyordu.
-     * Şimdi tekrar in-app WebView'a döndük; harici tarayıcı fallback olarak korunuyor.
+     * Re-establishes MAL's website session without disconnecting the stored MAL account.
+     * Clearing only MAL's cookies forces the in-app OAuth WebView to authenticate a fresh
+     * website session; notifications still verify that session against the OAuth account.
      */
+    fun reconnectMalWebSession() {
+        viewModelScope.launch {
+            runCatching { MalWebSessionStore.clearSession() }
+            showOAuthDialog("mal")
+        }
+    }
+
+    /** Uses the in-app OAuth WebView for MAL, AniList, and Simkl. */
     fun startExternalAuth(serviceName: String) {
-        // MyAnimeList: kullanıcının istediği akış — doğrudan MAL'ın kendi sitesine
-        // (harici tarayıcı) yönlendirilir, hesap bilgileri orada girilir ve malapp://auth
-        // ile uygulamaya geri dönülür. In-app WebView MAL'de client/basic-auth hatalarını
-        // kullanıcıya daha karmaşık gösterdiği için MAL için kullanılmaz.
         if (serviceName.equals("mal", ignoreCase = true)) {
-            startExternalAuthExternal(serviceName)
+            startMalOAuthWebSession()
             return
         }
-        // AniList / Simkl: uygulama içi WebView
         showOAuthDialog(serviceName)
     }
 

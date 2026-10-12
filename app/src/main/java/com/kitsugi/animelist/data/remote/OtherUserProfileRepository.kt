@@ -6,6 +6,7 @@ import com.kitsugi.animelist.data.auth.KitsuApiClient
 import com.kitsugi.animelist.ui.app.AniListStats
 import com.kitsugi.animelist.ui.app.KitsuProfileState
 import com.kitsugi.animelist.ui.app.MalActivityEntry
+import com.kitsugi.animelist.ui.app.MalProfileDataMapper
 import com.kitsugi.animelist.ui.app.MalProfileState
 import com.kitsugi.animelist.ui.app.ProfileFavoriteItem
 import com.kitsugi.animelist.ui.app.SimklProfileState
@@ -18,6 +19,7 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import okhttp3.Request
+import org.json.JSONArray
 import org.json.JSONObject
 import java.net.URLEncoder
 
@@ -65,17 +67,23 @@ object OtherUserProfileRepository {
             }
         }
 
-        // 2 + 3. Arkadaşlar ve geçmiş paralel çekilir; sonuçlar birleştirilip sırayla uygulanır.
+        // Public MAL data beyond the full profile is fetched together; MAL friendships remain
+        // explicitly friends (the API does not expose AniList-style followers/following).
+        state = state.copy(isExtraLoading = true)
         coroutineScope {
             val friendsJob = async { jikanBody("$base/friends") }
             val historyJob = async { jikanBody("$base/history") }
+            val animeStatsJob = async { jikanBody("$base/statistics/anime") }
+            val mangaStatsJob = async { jikanBody("$base/statistics/manga") }
+            val reviewsJob = async { jikanBody("$base/reviews?page=1") }
+            val recommendationsJob = async { jikanBody("$base/recommendations?page=1") }
+            val clubsJob = async { jikanBody("$base/clubs") }
 
             val friendsBody = friendsJob.await()
-            val historyBody = historyJob.await()
-
             if (friendsBody != null) {
                 runCatching {
-                    val arr = JSONObject(friendsBody).optJSONArray("data") ?: return@runCatching
+                    val root = JSONObject(friendsBody)
+                    val arr = root.optJSONArray("data") ?: return@runCatching
                     val friends = (0 until arr.length()).mapNotNull { i ->
                         val userObj = arr.optJSONObject(i)?.optJSONObject("user") ?: return@mapNotNull null
                         val friendName = userObj.optNullableString("username") ?: return@mapNotNull null
@@ -86,12 +94,16 @@ object OtherUserProfileRepository {
                                 ?: userObj.optNullableString("image_url")
                         )
                     }
-                    if (friends.isNotEmpty()) {
-                        state = state.copy(socialState = SocialState(followers = friends, following = friends))
-                    }
+                    val hasNext = root.optJSONObject("pagination")?.optBoolean("has_next_page") ?: (friends.size >= 10)
+                    state = state.copy(
+                        socialState = SocialState(followers = friends),
+                        friendsPage = 1,
+                        friendsHasNextPage = hasNext
+                    )
                 }
             }
 
+            val historyBody = historyJob.await()
             if (historyBody != null) {
                 runCatching {
                     val arr = JSONObject(historyBody).optJSONArray("data") ?: return@runCatching
@@ -112,12 +124,113 @@ object OtherUserProfileRepository {
                             dateIso = o.optNullableString("date")
                         )
                     }
-                    if (items.isNotEmpty()) state = state.copy(history = items)
+                    state = state.copy(history = items)
                 }
             }
+
+            animeStatsJob.await()?.let { body -> runCatching {
+                val stats = MalProfileDataMapper.parseDetailedStatistics(body)
+                state = state.copy(
+                    animeScoreDistribution = stats.scores,
+                    animeTypeDistribution = stats.types,
+                    animeStatusDistribution = stats.statuses,
+                    animeRatingDistribution = stats.ratings,
+                    animeGenreStats = stats.genres,
+                    animeStudioStats = stats.studios,
+                    animeVoiceActorStats = stats.voiceActors
+                )
+            } }
+            mangaStatsJob.await()?.let { body -> runCatching {
+                val stats = MalProfileDataMapper.parseDetailedStatistics(body)
+                state = state.copy(
+                    mangaScoreDistribution = stats.scores,
+                    mangaTypeDistribution = stats.types,
+                    mangaStatusDistribution = stats.statuses,
+                    mangaRatingDistribution = stats.ratings,
+                    mangaGenreStats = stats.genres,
+                    mangaStudioStats = stats.studios
+                )
+            } }
+            reviewsJob.await()?.let { body -> runCatching {
+                val page = MalProfileDataMapper.parseReviews(body)
+                state = state.copy(reviews = page.items, reviewsPage = 1, reviewsHasNextPage = page.hasNextPage)
+            } }
+            recommendationsJob.await()?.let { body -> runCatching {
+                val page = MalProfileDataMapper.parseRecommendations(body)
+                state = state.copy(
+                    recommendations = page.items,
+                    recommendationsPage = 1,
+                    recommendationsHasNextPage = page.hasNextPage
+                )
+            } }
+            clubsJob.await()?.let { body -> runCatching {
+                state = state.copy(clubs = MalProfileDataMapper.parseClubs(body))
+            } }
         }
 
-        state.copy(isLoading = false)
+        state.copy(isLoading = false, isExtraLoading = false)
+    }
+
+    suspend fun loadMoreMalFriends(username: String, state: MalProfileState): MalProfileState = withContext(Dispatchers.IO) {
+        if (!state.friendsHasNextPage || username.isBlank()) return@withContext state
+        val page = state.friendsPage + 1
+        val encoded = URLEncoder.encode(username, "UTF-8")
+        val body = jikanBody("https://api.jikan.moe/v4/users/$encoded/friends?page=$page")
+            ?: return@withContext state.copy(friendsHasNextPage = false)
+        runCatching {
+            val root = JSONObject(body)
+            val users = root.optJSONArray("data") ?: JSONArray()
+            val friends = (0 until users.length()).mapNotNull { index ->
+                val user = users.optJSONObject(index)?.optJSONObject("user") ?: return@mapNotNull null
+                val name = user.optNullableString("username") ?: return@mapNotNull null
+                UserFollowItem(
+                    id = name.hashCode(),
+                    name = name,
+                    avatarUrl = user.optJSONObject("images")?.optJSONObject("jpg")?.optNullableString("image_url")
+                        ?: user.optNullableString("image_url")
+                )
+            }
+            val hasNext = root.optJSONObject("pagination")?.optBoolean("has_next_page") ?: (friends.size >= 10)
+            state.copy(
+                socialState = state.socialState.copy(
+                    followers = (state.socialState.followers + friends).distinctBy { it.name.lowercase() }
+                ),
+                friendsPage = page,
+                friendsHasNextPage = hasNext
+            )
+        }.getOrElse { state.copy(friendsHasNextPage = false) }
+    }
+
+    suspend fun loadMoreMalReviews(username: String, state: MalProfileState): MalProfileState = withContext(Dispatchers.IO) {
+        if (!state.reviewsHasNextPage || username.isBlank()) return@withContext state
+        val page = state.reviewsPage + 1
+        val encoded = URLEncoder.encode(username, "UTF-8")
+        val body = jikanBody("https://api.jikan.moe/v4/users/$encoded/reviews?page=$page")
+            ?: return@withContext state.copy(reviewsHasNextPage = false)
+        runCatching {
+            val result = MalProfileDataMapper.parseReviews(body)
+            state.copy(
+                reviews = (state.reviews + result.items).distinctBy { it.reviewId },
+                reviewsPage = page,
+                reviewsHasNextPage = result.hasNextPage
+            )
+        }.getOrElse { state.copy(reviewsHasNextPage = false) }
+    }
+
+    suspend fun loadMoreMalRecommendations(username: String, state: MalProfileState): MalProfileState = withContext(Dispatchers.IO) {
+        if (!state.recommendationsHasNextPage || username.isBlank()) return@withContext state
+        val page = state.recommendationsPage + 1
+        val encoded = URLEncoder.encode(username, "UTF-8")
+        val body = jikanBody("https://api.jikan.moe/v4/users/$encoded/recommendations?page=$page")
+            ?: return@withContext state.copy(recommendationsHasNextPage = false)
+        runCatching {
+            val result = MalProfileDataMapper.parseRecommendations(body)
+            state.copy(
+                recommendations = (state.recommendations + result.items).distinctBy { it.recommendationId },
+                recommendationsPage = page,
+                recommendationsHasNextPage = result.hasNextPage
+            )
+        }.getOrElse { state.copy(recommendationsHasNextPage = false) }
     }
 
     private fun applyMalFullProfile(state: MalProfileState, data: JSONObject): MalProfileState {
@@ -204,8 +317,14 @@ object OtherUserProfileRepository {
             birthday = data.optNullableString("birthday").orEmpty().ifBlank { state.birthday },
             lastOnline = data.optNullableString("last_online").orEmpty().ifBlank { state.lastOnline },
             about = aboutText.ifBlank { state.about },
+            aboutHtml = aboutHtml.orEmpty().ifBlank { state.aboutHtml },
+            externalLinks = MalProfileDataMapper.parseExternalLinks(data).ifEmpty { state.externalLinks },
             animeStats = animeStats?.takeIf { s -> s.count > 0 } ?: state.animeStats ?: animeStats,
             mangaStats = mangaStats?.takeIf { s -> s.count > 0 } ?: state.mangaStats ?: mangaStats,
+            animeDaysWatched = statsObj?.optJSONObject("anime")?.optDouble("days_watched", state.animeDaysWatched) ?: state.animeDaysWatched,
+            mangaDaysRead = statsObj?.optJSONObject("manga")?.optDouble("days_read", state.mangaDaysRead) ?: state.mangaDaysRead,
+            animeRepeatCount = statsObj?.optJSONObject("anime")?.optInt("rewatched", state.animeRepeatCount) ?: state.animeRepeatCount,
+            mangaRepeatCount = statsObj?.optJSONObject("manga")?.optInt("reread", state.mangaRepeatCount) ?: state.mangaRepeatCount,
             favoriteAnime = favList("anime", "title").ifEmpty { state.favoriteAnime },
             favoriteManga = favList("manga", "title").ifEmpty { state.favoriteManga },
             favoriteCharacters = favList("characters", "name").ifEmpty { state.favoriteCharacters },

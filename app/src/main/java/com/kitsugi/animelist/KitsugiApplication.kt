@@ -396,6 +396,14 @@ class KitsugiApplication : Application(), SingletonImageLoader.Factory {
                 if (activeActivity === activity) {
                     activeActivity = null
                 }
+                // ÇÖKME ÖNLEMİ: Activity yıkılırken GPU RenderNode zinciri henüz
+                // RenderThread tarafından çiziliyorsa, framework'ün Surface'i
+                // destroy etmesiyle RenderThread'de serbest bırakılmış katmanlara
+                // erişip libhwui.so'da SIGSEGV (fault_addr=0x20) üretme yarışı oluşur
+                // (MIUI/HyperOS'ta kronik). Window'nun DecorView'una bağlı HardwareRenderer
+                // destroy öncesi senkron olarak durdurulursa bekleyen GPU işleri biter ve
+                // katmanlar güvenli sırayla serbest kalır.
+                safeFreeHardwareRenderer(activity)
             }
         })
 
@@ -714,6 +722,50 @@ object LocaleCache {
             ctx = ctx.baseContext
         }
         return null
+    }
+}
+
+/**
+ * Activity yıkımı sırasında bekleyen GPU komutlarını boşaltıp RenderNode katmanlarını
+ * güvenli biçimde serbest bıraktırır. Reflektif çağrıldığı için herhangi bir platform
+ * sürümünde çalışmazsa yutulur; hiçbir normal akışı etkilemez, sadece çökme ihtimalini
+ * azaltır.
+ */
+private fun safeFreeHardwareRenderer(activity: android.app.Activity) {
+    if (activity.isFinishing.not() && activity.isDestroyed.not()) return
+    // Sadece gerçekten ölmekte olan activity'de çalışsın; tab'li veya yeniden yaratılan
+    // activity'lerde dekor view henüz kullanımda olabilir.
+    runCatching {
+        val decorView = activity.window?.peekDecorView() ?: return@runCatching
+        // ThreadedRenderer.destroy() beklenmedik biçimde erken çağrılırsa framework'ün kendi
+        // destroy'unu kırabilir. Bunun yerine GPU boru hattını senkron olarak boşaltmak için
+        // View#onDescendantInvalidated sonrası "surface release" benzeri bir etki beklemek
+        // yerine, yalnızca DecorView'ın bitmap/drawable cache'ini ve HardwareLayer'larını
+        // temizlemek daha güvenli bir seçimdir.
+        decorView.destroyDrawingCache()
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.P) {
+            try {
+                // API 28+: ThreadedRenderer pause/drain (reflection)
+                val viewClass = android.view.View::class.java
+                val attachInfoField = viewClass.getDeclaredField("mAttachInfo").apply { isAccessible = true }
+                val attachInfo = attachInfoField.get(decorView) ?: return@runCatching
+                val attachInfoClass = attachInfo.javaClass
+                val trField = runCatching {
+                    attachInfoClass.getDeclaredField("mThreadedRenderer").apply { isAccessible = true }
+                }.getOrNull() ?: runCatching {
+                    attachInfoClass.getDeclaredField("mHardwareRenderer").apply { isAccessible = true }
+                }.getOrNull() ?: return@runCatching
+                val renderer = trField.get(attachInfo) ?: return@runCatching
+                // HardwareRenderer: pause/syncFrame/destroy güvenli yöntemlerini dene.
+                val rendererClass = renderer.javaClass
+                for (name in arrayOf("pause", "syncFrame", "drainFence", "notifyFramePending")) {
+                    runCatching {
+                        val m = rendererClass.getDeclaredMethod(name).apply { isAccessible = true }
+                        m.invoke(renderer)
+                    }
+                }
+            } catch (_: Throwable) {}
+        }
     }
 }
 

@@ -25,6 +25,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -51,6 +52,7 @@ import com.kitsugi.animelist.ui.theme.KitsugiColors
 import com.kitsugi.animelist.ui.theme.LocalKitsugiAccent
 import com.kitsugi.animelist.utils.KitsugiStrings
 import com.kitsugi.animelist.utils.ShareUtils
+import kotlinx.coroutines.launch
 
 /**
  * Yorum / inceleme / tartışma kartlarından açılan, MAL / Kitsu / Simkl KULLANICILARININ
@@ -74,6 +76,9 @@ fun PlatformUserProfileScreen(
     onFavoriteMediaClick: (mediaId: Int, mediaType: MediaType, source: String, title: String, imageUrl: String?) -> Unit,
     onFavoriteCharacterClick: (charId: Int, source: String, name: String?, imageUrl: String?) -> Unit = { _, _, _, _ -> },
     onFavoriteStaffClick: (staffId: Int, source: String, name: String?, imageUrl: String?) -> Unit = { _, _, _, _ -> },
+    onUserProfileClick: (userId: Int, username: String, avatarUrl: String?) -> Unit = { _, _, _ -> },
+    onFavoriteStudioClick: ((studioId: Int, source: String, name: String?, imageUrl: String?) -> Unit)? = null,
+    onGenreClick: (String) -> Unit = {},
     onScrollReset: () -> Unit = {}
 ) {
     val canonicalSource = source.lowercase().let {
@@ -98,6 +103,7 @@ fun PlatformUserProfileScreen(
     var loadError by remember(canonicalSource, userId, username) { mutableStateOf<String?>(null) }
     var isLoading by remember(canonicalSource, userId, username) { mutableStateOf(true) }
     var reloadTick by remember(canonicalSource, userId, username) { mutableStateOf(0) }
+    val profileScope = rememberCoroutineScope()
 
     LaunchedEffect(canonicalSource, userId, username, reloadTick) {
         isLoading = true
@@ -288,7 +294,43 @@ fun PlatformUserProfileScreen(
                                     onOpenStatsClick = null,
                                     isLandscape = isLandscape,
                                     accentColor = accentColor,
-                                    onImageClick = { urls, idx, title -> activeGalleryImages = Triple(urls, idx, title) }
+                                    onImageClick = { urls, idx, title -> activeGalleryImages = Triple(urls, idx, title) },
+                                    onFavoriteStudioClick = onFavoriteStudioClick,
+                                    onGenreClick = onGenreClick,
+                                    onUserProfileClick = onUserProfileClick,
+                                    onLoadMoreFriends = {
+                                        malState?.takeIf { it.friendsHasNextPage && !it.isLoadingMoreFriends }?.let { current ->
+                                            malState = current.copy(isLoadingMoreFriends = true)
+                                            profileScope.launch {
+                                                val loaded = runCatching {
+                                                    OtherUserProfileRepository.loadMoreMalFriends(current.name, current)
+                                                }.getOrElse { current.copy(friendsHasNextPage = false) }
+                                                malState = loaded.copy(isLoadingMoreFriends = false)
+                                            }
+                                        }
+                                    },
+                                    onLoadMoreReviews = {
+                                        malState?.takeIf { it.reviewsHasNextPage && !it.isLoadingMoreReviews }?.let { current ->
+                                            malState = current.copy(isLoadingMoreReviews = true)
+                                            profileScope.launch {
+                                                val loaded = runCatching {
+                                                    OtherUserProfileRepository.loadMoreMalReviews(current.name, current)
+                                                }.getOrElse { current.copy(reviewsHasNextPage = false) }
+                                                malState = loaded.copy(isLoadingMoreReviews = false)
+                                            }
+                                        }
+                                    },
+                                    onLoadMoreRecommendations = {
+                                        malState?.takeIf { it.recommendationsHasNextPage && !it.isLoadingMoreRecommendations }?.let { current ->
+                                            malState = current.copy(isLoadingMoreRecommendations = true)
+                                            profileScope.launch {
+                                                val loaded = runCatching {
+                                                    OtherUserProfileRepository.loadMoreMalRecommendations(current.name, current)
+                                                }.getOrElse { current.copy(recommendationsHasNextPage = false) }
+                                                malState = loaded.copy(isLoadingMoreRecommendations = false)
+                                            }
+                                        }
+                                    }
                                 )
                             }
                         }
