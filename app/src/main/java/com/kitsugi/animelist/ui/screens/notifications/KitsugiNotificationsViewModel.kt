@@ -128,7 +128,9 @@ class KitsugiNotificationsViewModel(application: Application) : AndroidViewModel
     val aniListUnread: StateFlow<Int?> = _aniListUnread.asStateFlow()
 
     // ── MAL ──
-    private val _mal = MutableStateFlow(NotifUiState(requiresMalWebLogin = true))
+    // Not: ilk durumda "web oturumu yok" denmez. Oturum kararı MAL'a yapılan gerçek istekle
+    // verilir (bkz. loadMal); aksi halde ekran açılır açılmaz gereksiz giriş penceresi çıkardı.
+    private val _mal = MutableStateFlow(NotifUiState())
     private var malReloadQueued = false
     val mal: StateFlow<NotifUiState> = _mal.asStateFlow()
 
@@ -371,12 +373,19 @@ class KitsugiNotificationsViewModel(application: Application) : AndroidViewModel
         }
         _mal.value = _mal.value.copy(isLoading = true, error = null)
         viewModelScope.launch {
-            var cookieHeader: String? = null
+            var attemptedWithCookie = false
             var webFeedError: Exception? = null
             try {
-                val sessionCookie = MalWebSessionStore.authenticatedCookieHeader()
-                cookieHeader = sessionCookie
+                // Karar tahminle değil, MAL'a sorularak verilir: kavanozda MAL çerezi varsa
+                // (OAuth girişi uygulama içi WebView'de yapıldıysa MALHLOGSESSID buradadır)
+                // besleme bir kez denenir; MAL giriş sayfasına düşerse oturum gerçekten yoktur.
+                val sessionCookie = MalWebSessionStore.browserCookieHeader()
+                android.util.Log.d(
+                    "KitsugiNotif",
+                    "MAL web çerezleri: ${MalWebSessionStore.presentCookieNames(sessionCookie).ifEmpty { listOf("yok") }}"
+                )
                 if (sessionCookie != null) {
+                    attemptedWithCookie = true
                     val feed = MalNotificationsClient.fetch(sessionCookie)
                     val identity = fetchMalOAuthIdentity()
                     val match = MalAccountMatch.status(
@@ -432,12 +441,19 @@ class KitsugiNotificationsViewModel(application: Application) : AndroidViewModel
 
             try {
                 val (calendarItems, calendarNotice) = loadMalAiringFallback(mediaEntries)
-                val needsWebLogin = cookieHeader == null ||
-                    webFeedError is MalWebSessionRequiredException ||
-                    webFeedError is MalNotificationsParseException
+                val needsWebLogin = !attemptedWithCookie ||
+                    webFeedError is MalWebSessionRequiredException
                 val notice = when {
-                    needsWebLogin -> ctx.getString(
+                    !attemptedWithCookie -> ctx.getString(
                         R.string.notif_notice_mal_web_session_required,
+                        calendarNotice
+                    )
+                    webFeedError is MalWebSessionRequiredException -> ctx.getString(
+                        R.string.notif_notice_mal_web_session_required,
+                        calendarNotice
+                    )
+                    webFeedError is MalNotificationsParseException -> ctx.getString(
+                        R.string.notif_notice_mal_web_parse_failed,
                         calendarNotice
                     )
                     else -> ctx.getString(
@@ -459,9 +475,8 @@ class KitsugiNotificationsViewModel(application: Application) : AndroidViewModel
                 _mal.value = _mal.value.copy(
                     isLoading = false,
                     error = ctx.getString(R.string.notif_error_load, e.message ?: e.javaClass.simpleName),
-                    requiresMalWebLogin = cookieHeader == null ||
-                        webFeedError is MalWebSessionRequiredException ||
-                        webFeedError is MalNotificationsParseException
+                    requiresMalWebLogin = !attemptedWithCookie ||
+                        webFeedError is MalWebSessionRequiredException
                 )
             }
         }

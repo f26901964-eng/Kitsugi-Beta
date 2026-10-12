@@ -13,6 +13,7 @@ import com.kitsugi.animelist.data.remote.KitsugiAiringCalendarClient
 import com.kitsugi.animelist.data.remote.SimklCalendarClient
 import com.kitsugi.animelist.data.remote.malweb.MalAccountMatch
 import com.kitsugi.animelist.data.remote.malweb.MalNotificationsClient
+import com.kitsugi.animelist.data.remote.malweb.MalWebSessionRequiredException
 import com.kitsugi.animelist.data.remote.malweb.MalWebSessionStore
 import com.kitsugi.animelist.model.MediaEntry
 import com.kitsugi.animelist.model.WatchStatus
@@ -193,7 +194,7 @@ object NotificationDiagnostics {
         val started = System.currentTimeMillis()
         val endpoint = "myanimelist.net/notification (window.MAL.notification)"
         val oauthConnected = !ExternalAuthManager.getMalToken(context).isNullOrBlank()
-        val cookieHeader = MalWebSessionStore.authenticatedCookieHeader()
+        val cookieHeader = MalWebSessionStore.browserCookieHeader()
         if (cookieHeader == null) {
             return Row(
                 source = "MyAnimeList",
@@ -201,12 +202,15 @@ object NotificationDiagnostics {
                 endpoint = endpoint,
                 ok = false,
                 durationMs = System.currentTimeMillis() - started,
-                detail = if (oauthConnected) "OAuth bağlı; MAL web oturumu bulunamadı" else "MAL web oturumu bağlı değil",
-                error = "is_signed_in=1 cookie missing",
-                hint = "Bildirimler ekranındaki 'MAL web oturumunu bağla' düğmesinden MAL'a giriş yapın."
+                detail = if (oauthConnected) "OAuth bağlı; MAL web çerezi bulunamadı" else "MAL web oturumu bağlı değil",
+                error = "MAL web çerezi yok (MALHLOGSESSID beklenir)",
+                hint = "Bildirimler ekranındaki 'MAL web oturumunu bağla' düğmesinden MAL'a bir kez giriş yapın."
             )
         }
 
+        // Değerler asla gösterilmez; yalnızca hangi MAL çerezleri bulundu.
+        val cookieNames = MalWebSessionStore.presentCookieNames(cookieHeader)
+            .ifEmpty { listOf("oturum çerezi yok") }
         return try {
             val feed = MalNotificationsClient.fetch(cookieHeader)
             val unread = feed.items.count { !it.isRead }
@@ -228,7 +232,7 @@ object NotificationDiagnostics {
                 ok = match != MalAccountMatch.Status.MISMATCHED,
                 itemCount = feed.items.size,
                 durationMs = System.currentTimeMillis() - started,
-                detail = "MAL hesabından ${feed.items.size} bildirim • okunmamış: $unread$identity",
+                detail = "MAL hesabından ${feed.items.size} bildirim • okunmamış: $unread$identity • çerez: ${cookieNames.joinToString()}",
                 error = if (match == MalAccountMatch.Status.MISMATCHED) {
                     "OAuth hesabı ile web oturumu farklı: $oauthUsername ≠ ${feed.sessionUsername}"
                 } else null,
@@ -238,6 +242,17 @@ object NotificationDiagnostics {
             )
         } catch (e: CancellationException) {
             throw e
+        } catch (e: MalWebSessionRequiredException) {
+            Row(
+                source = "MyAnimeList",
+                connected = false,
+                endpoint = endpoint,
+                ok = false,
+                durationMs = System.currentTimeMillis() - started,
+                detail = "MAL çerezi var ama oturum geçersiz • çerez: ${cookieNames.joinToString()}",
+                error = e.message ?: "oturum gerekli",
+                hint = "Bildirimler ekranındaki 'MAL web oturumunu bağla' düğmesinden MAL'a yeniden giriş yapın."
+            )
         } catch (e: Exception) {
             Row(
                 source = "MyAnimeList",
@@ -245,7 +260,7 @@ object NotificationDiagnostics {
                 endpoint = endpoint,
                 ok = false,
                 durationMs = System.currentTimeMillis() - started,
-                detail = "MAL hesap bildirimleri okunamadı",
+                detail = "MAL hesap bildirimleri okunamadı • çerez: ${cookieNames.joinToString()}",
                 error = e.message ?: e.javaClass.simpleName,
                 hint = "Oturum süresi dolmuşsa Bildirimler ekranından web oturumunu yenileyin."
             )
