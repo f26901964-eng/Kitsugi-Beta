@@ -399,6 +399,7 @@ fun MangaBrowseScreen(
             onClearBulkInstallResult = { addonViewModel.clearBulkInstallResult() },
             onToggleCsPlugin = { plugin, enabled -> addonViewModel.toggleCsPlugin(plugin, enabled) },
             onUninstallCsPlugin = { addonViewModel.uninstallCsPlugin(it) },
+            onUninstallAllCsPlugins = { addonViewModel.uninstallAllCsPlugins() },
             // ── GitHub Vekil Sunucu (jsDelivr) — eksik geçilen parametreler ─────
             useGithubProxy = appSettings.useGithubProxy,
             onUseGithubProxyChanged = { enabled ->

@@ -327,6 +327,11 @@ internal fun SettingsContext.buildSettingsParams() =
             onClearBulkInstallResult = { addonViewModel.clearBulkInstallResult() },
             csPlugins = csPluginsList,
             onToggleCsPlugin = { plugin, enabled -> onToggleCsPlugin(plugin, enabled) },
+            // NOT: Bu iki satır eksik olduğu için telefon Ayarlar > Eklentiler & Kaynaklar
+            // ekranında çöp kutusu simgesine basmak hiçbir şey yapmıyordu (varsayılan no-op
+            // callback çağrılıyordu); kurulu eklentiler toplu da silinemiyordu.
+            onUninstallCsPlugin = { plugin -> addonViewModel.uninstallCsPlugin(plugin) },
+            onUninstallAllCsPlugins = { addonViewModel.uninstallAllCsPlugins() },
             useGithubProxy = appSettings.useGithubProxy,
             onUseGithubProxyChanged = { enabled -> onUseGithubProxyChanged(enabled) },
             isCheckingUpdates = addonViewModel.isCheckingUpdates,

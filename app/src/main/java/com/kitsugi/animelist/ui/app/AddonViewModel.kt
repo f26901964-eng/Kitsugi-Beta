@@ -21,6 +21,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
 import com.kitsugi.animelist.utils.KitsugiStrings
 import com.kitsugi.animelist.R
 
@@ -763,7 +764,58 @@ class AddonViewModel(application: Application) : AndroidViewModel(application) {
                 repositoryUrl = plugin.repositoryUrl
             )
             csRepoRepository.uninstallCsPlugin(csPlugin)
+            // Eklenti silindiğinde "şu kadar güncelleme var" sayacı bayat kalmasın:
+            // ağ isteği olmadan son bilinen depo listesiyle yeniden hesaplanır.
+            refreshAvailableUpdatesCount()
             onShowMessage?.invoke(KitsugiStrings.get(R.string.eklenti_kaldirildi_x, plugin.name))
+        }
+    }
+
+    /**
+     * Kurulu tüm video sağlayıcı eklentilerini (CS3) topluca kaldırır.
+     * Tek tek silme ile aynı temizliği yapar: bellekten çıkarma, dosya silme, DB kaydı.
+     */
+    fun uninstallAllCsPlugins() {
+        viewModelScope.launch {
+            val removed = csRepoRepository.uninstallAllCsPlugins()
+            refreshAvailableUpdatesCount()
+            onShowMessage?.invoke(
+                if (removed > 0) {
+                    KitsugiStrings.get(R.string.eklenti_toplu_sil_sonuc, removed)
+                } else {
+                    KitsugiStrings.get(R.string.eklenti_toplu_sil_bos)
+                }
+            )
+        }
+    }
+
+    /**
+     * Güncellenebilir eklenti sayısını, ağ isteği atmadan son bilinen depo verisiyle
+     * yeniden hesaplar (kurulum/kaldırma sonrası sayaç güncel kalsın diye).
+     */
+    private suspend fun refreshAvailableUpdatesCount() {
+        try {
+            val latestById = withContext(kotlinx.coroutines.Dispatchers.IO) {
+                val map = mutableMapOf<String, CsPlugin>()
+                repoPluginsState.values.filterNotNull().flatten()
+                    .filterNot { it.fromOfflineFallback }
+                    .forEach { plugin ->
+                        val prev = map[plugin.internalName]
+                        if (prev == null || plugin.version > prev.version) {
+                            map[plugin.internalName] = plugin
+                        }
+                    }
+                map
+            }
+            val installed = withContext(kotlinx.coroutines.Dispatchers.IO) {
+                KitsugiDatabase.getDatabase(context).csPluginDao().getAllPlugins()
+            }
+            availableUpdatesCount = withContext(kotlinx.coroutines.Dispatchers.IO) {
+                com.kitsugi.animelist.data.cloudstream.CsPluginUpdateChecker
+                    .pendingUpdates(context, installed, latestById).size
+            }
+        } catch (e: Exception) {
+            android.util.Log.w("AddonViewModel", "Güncelleme sayacı yenilenemedi: ${e.message}")
         }
     }
 

@@ -406,25 +406,105 @@ class CloudstreamRepoRepository(private val context: Context) {
         }
     }
 
-    suspend fun uninstallCsPlugin(plugin: CsPlugin) = withContext(Dispatchers.IO) {
-        try {
-            val entity = csPluginDao.getPluginById(plugin.internalName)
-            if (entity != null) {
-                csPluginDao.delete(entity)
-            }
-            // Unload the extension from memory
-            com.kitsugi.animelist.data.cloudstream.CsPluginLoader.unloadExtension(context, plugin.internalName)
+    suspend fun uninstallCsPlugin(plugin: CsPlugin): Boolean = withContext(Dispatchers.IO) {
+        removeCsPluginFiles(plugin.internalName, plugin.name)
+    }
 
-            val extensionFile = java.io.File(context.filesDir, "cs_extensions/${plugin.internalName}.cs3")
-            if (extensionFile.exists()) {
-                try { extensionFile.setWritable(true) } catch (_: Exception) {}
-                extensionFile.delete()
+    /**
+     * Kurulu tek bir eklentiyi kayıttan ve diskten kaldırır.
+     * DB kaydı bulunamasa bile dosya kalıntısı temizlenir; böylece yarım kalan
+     * kurulumlarda da "silinemeyen eklenti" durumu oluşmaz.
+     */
+    private suspend fun removeCsPluginFiles(pluginId: String, pluginName: String?): Boolean =
+        withContext(Dispatchers.IO) {
+            var deleted = false
+            try {
+                val entity = csPluginDao.getPluginById(pluginId)
+                if (entity != null) {
+                    csPluginDao.delete(entity)
+                    deleted = true
+                }
+                removeCsPluginArtifacts(pluginId)
+                deleted = true
+                Log.d(TAG, "Successfully uninstalled CS plugin: ${pluginName ?: pluginId}")
+            } catch (e: Exception) {
+                Log.e(TAG, "uninstallCsPlugin failed for ${pluginName ?: pluginId}", e)
             }
-            com.kitsugi.animelist.data.cloudstream.CsInstalledFingerprint.invalidate(context, plugin.internalName)
-            Log.d(TAG, "Successfully uninstalled CS plugin: ${plugin.name}")
-        } catch (e: Exception) {
-            Log.e(TAG, "uninstallCsPlugin failed for ${plugin.name}", e)
+            deleted
         }
+
+    /**
+     * Bir eklentinin DB dışındaki izlerini temizler: bellekten çıkarma, .cs3 dosyası
+     * (ve yarım kalan indirmenin .tmp dosyası), içerik parmak izi kaydı.
+     * Tek tek ve toplu kaldırma aynı temizliği kullanır.
+     */
+    private suspend fun removeCsPluginArtifacts(pluginId: String) = withContext(Dispatchers.IO) {
+        // Unload the extension from memory
+        try {
+            com.kitsugi.animelist.data.cloudstream.CsPluginLoader.unloadExtension(context, pluginId)
+        } catch (e: Exception) {
+            Log.w(TAG, "uninstallCsPlugin: bellekten kaldırma başarısız ($pluginId)", e)
+        }
+
+        val extensionDir = java.io.File(context.filesDir, "cs_extensions")
+        val extensionFile = java.io.File(extensionDir, "$pluginId.cs3")
+        if (extensionFile.exists()) {
+            try { extensionFile.setWritable(true) } catch (_: Exception) {}
+            if (!extensionFile.delete()) {
+                Log.w(TAG, "uninstallCsPlugin: dosya silinemedi: ${extensionFile.absolutePath}")
+            }
+        }
+        // Yarım kalan indirmelerden arta kalan geçici dosya
+        val tempFile = java.io.File(extensionDir, "$pluginId.cs3.tmp")
+        if (tempFile.exists()) {
+            try { tempFile.setWritable(true) } catch (_: Exception) {}
+            tempFile.delete()
+        }
+        com.kitsugi.animelist.data.cloudstream.CsInstalledFingerprint.invalidate(context, pluginId)
+    }
+
+    /**
+     * Kurulu tüm CS eklentilerini topluca kaldırır: bellekten çıkarır, .cs3 dosyalarını
+     * diskten siler ve veritabanı kayıtlarını temizler. Tek bir eklentide oluşan hata
+     * diğerlerinin silinmesini engellemez.
+     *
+     * @return kaldırılan eklenti sayısı
+     */
+    suspend fun uninstallAllCsPlugins(): Int = withContext(Dispatchers.IO) {
+        var removed = 0
+        try {
+            val installed = csPluginDao.getAllPlugins()
+            val extensionDir = java.io.File(context.filesDir, "cs_extensions")
+            // Kayıtlar tek işlemde silinir; dosya temizliği eklenti başına yapılır.
+            csPluginDao.deleteAll()
+            for (plugin in installed) {
+                try {
+                    removeCsPluginArtifacts(plugin.id)
+                    removed++
+                } catch (e: Exception) {
+                    Log.e(TAG, "uninstallAllCsPlugins: ${plugin.id} kaldırılamadı", e)
+                }
+            }
+            // Yetim kalan dosyalar (DB kaydı olmayan .cs3 / .tmp artıkları) da temizlenir;
+            // aksi halde "sildim ama geri geldi/yeniden yüklendi" hissi oluşuyordu.
+            try {
+                extensionDir.listFiles()?.forEach { leftover ->
+                    if (leftover.name.endsWith(".cs3") || leftover.name.endsWith(".cs3.tmp")) {
+                        try { leftover.setWritable(true) } catch (_: Exception) {}
+                        if (!leftover.delete()) {
+                            Log.w(TAG, "uninstallAllCsPlugins: artık dosya silinemedi: ${leftover.absolutePath}")
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                Log.w(TAG, "uninstallAllCsPlugins: artık dosya taraması başarısız", e)
+            }
+            com.kitsugi.animelist.data.cloudstream.CsAutoUpdateBackoff.clearAll(context)
+            Log.d(TAG, "uninstallAllCsPlugins: $removed eklenti kaldırıldı")
+        } catch (e: Exception) {
+            Log.e(TAG, "uninstallAllCsPlugins failed", e)
+        }
+        removed
     }
 
     suspend fun syncAndAutoUpdate(force: Boolean = false): Int = withContext(Dispatchers.IO) {

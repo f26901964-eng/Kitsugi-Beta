@@ -1185,6 +1185,7 @@ private fun SettingsAddonsContent(
         onClearBulkInstallResult = addon.onClearBulkInstallResult,
         onToggleCsPlugin = addon.onToggleCsPlugin,
         onUninstallCsPlugin = addon.onUninstallCsPlugin,
+        onUninstallAllCsPlugins = addon.onUninstallAllCsPlugins,
         useGithubProxy = addon.useGithubProxy,
         onUseGithubProxyChanged = addon.onUseGithubProxyChanged,
         isCheckingUpdates = addon.isCheckingUpdates,
