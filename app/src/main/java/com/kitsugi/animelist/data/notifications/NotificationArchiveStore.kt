@@ -56,7 +56,12 @@ object NotificationArchiveStore {
         val tsMs: Long? = null,
         val imageUrl: String? = null,
         val mediaId: Int? = null,
-        val mediaType: String? = null
+        val mediaType: String? = null,
+        /**
+         * Medyanın gerçek adı (kategori adı olmayan). Arşivden gelen kayıtlar da doğru
+         * başlıkla detay açabilsin diye saklanır; eski arşiv dosyalarında bulunmaz.
+         */
+        val mediaTitle: String? = null
     )
 
     @Serializable

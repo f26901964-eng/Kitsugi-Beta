@@ -147,6 +147,147 @@ class MalNotificationsClientTest {
         assertNull(MalNotificationsClient.parseSessionUsername("<html><body>Log In</body></html>"))
     }
 
+    // ─── Akışın devamı: historyItems + sayfalama ──────────────────────────────
+
+    @Test
+    fun mergesHistoryItemsWithRecentItemsAndDeduplicatesById() {
+        // MAL okunmuş/eski bildirimleri `historyItems` altında döndürür. Yalnızca `items`
+        // okunduğu için kullanıcı "bildirimlerin devamını" hiç göremiyordu.
+        val html = """
+            <script>window.MAL.notification = {
+              "items": [{
+                "id": "recent-1",
+                "typeIdentifier": "related_anime_add",
+                "categoryName": "New Related Anime",
+                "anime": {"title": "Umayuru: Full Gate!", "mediaType": "ONA"},
+                "url": "https://myanimelist.net/anime/58447/Umayuru_Full_Gate"
+              }],
+              "historyItems": [{
+                "id": "older-1",
+                "typeIdentifier": "profile_comment",
+                "categoryName": "New profile comment",
+                "text": "Eski bildirim",
+                "url": "https://myanimelist.net/profile/Someone"
+              }, {
+                "id": "recent-1",
+                "typeIdentifier": "related_anime_add",
+                "categoryName": "New Related Anime"
+              }]
+            };</script>
+        """.trimIndent()
+
+        val feed = requireNotNull(MalNotificationsClient.parseHtml(html))
+
+        assertEquals(listOf("recent-1", "older-1"), feed.items.map { it.id })
+        assertEquals(1, feed.page)
+        assertTrue(feed.hasNextPage)
+    }
+
+    @Test
+    fun ignoresHistoryEntriesWithoutAnId() {
+        // Geçmiş kayıtlarının şeması aynı olmak zorunda değil; kimliksiz kayıt uydurulmaz.
+        val html = """
+            <script>window.MAL.notification = {"items":[],"historyItems":[{"text":"brace } inside"}]};</script>
+        """.trimIndent()
+
+        assertTrue(requireNotNull(MalNotificationsClient.parseHtml(html)).items.isEmpty())
+    }
+
+    @Test
+    fun buildsNextPageUrlOnlyForPagesAfterTheFirst() {
+        assertEquals("https://myanimelist.net/notification", MalNotificationsClient.pageUrlFor(1))
+        assertEquals("https://myanimelist.net/notification", MalNotificationsClient.pageUrlFor(0))
+        assertEquals("https://myanimelist.net/notification?page=3", MalNotificationsClient.pageUrlFor(3))
+    }
+
+    @Test
+    fun carriesTheRequestedPageInTheFeed() {
+        val html = """<script>window.MAL.notification = {"items":[]};</script>"""
+        val feed = requireNotNull(MalNotificationsClient.parseHtml(html, page = 2))
+
+        assertEquals(2, feed.page)
+        assertFalse(feed.hasNextPage)
+    }
+
+    @Test
+    fun treatsMangaLibraryTypesAsMangaNotAnime() {
+        // "Novel"/"Manhwa" gibi türler anime sayıldığında manga kimliği anime aramasına
+        // gidiyor ve detay sayfası aynı sayıya sahip başka bir animeyi açabiliyordu.
+        fun payload(mediaType: String, url: String) = """
+            <script>window.MAL.notification = {"items":[{
+              "id": "notice-$mediaType",
+              "typeIdentifier": "related_anime_add",
+              "categoryName": "New Related Anime",
+              "anime": {"title": "Some Light Novel", "mediaType": "$mediaType"},
+              "url": "$url"
+            }]};</script>
+        """.trimIndent()
+
+        assertEquals(
+            "manga",
+            requireNotNull(
+                MalNotificationsClient.parseHtml(
+                    payload("Light Novel", "https://myanimelist.net/manga/12345/Some")
+                )
+            ).items.single().mediaType
+        )
+        assertEquals(
+            "manga",
+            requireNotNull(
+                MalNotificationsClient.parseHtml(
+                    payload("Manhwa", "https://myanimelist.net/manga/12346/Some")
+                )
+            ).items.single().mediaType
+        )
+        assertEquals(
+            "anime",
+            requireNotNull(
+                MalNotificationsClient.parseHtml(
+                    payload("ONA", "https://myanimelist.net/anime/58447/Umayuru")
+                )
+            ).items.single().mediaType
+        )
+    }
+
+    @Test
+    fun detectsMangaFromTheUrlWhenThePayloadOmitsTheType() {
+        val html = """
+            <script>window.MAL.notification = {"items":[{
+              "id": "notice-11",
+              "typeIdentifier": "related_anime_add",
+              "categoryName": "New Related Anime",
+              "anime": {"title": "Some Manga"},
+              "url": "https://myanimelist.net/manga/77777/Some_Manga"
+            }]};</script>
+        """.trimIndent()
+
+        val item = requireNotNull(MalNotificationsClient.parseHtml(html)).items.single()
+
+        assertEquals("manga", item.mediaType)
+        assertEquals(77777, item.mediaId)
+    }
+
+    @Test
+    fun exposesTheRealMediaTitleInsteadOfTheCategoryName() {
+        // Kart başlığı MAL'ın kategori adıdır; detay sayfası medyanın gerçek adıyla açılmalı.
+        val html = """
+            <script>window.MAL.notification = {"items":[{
+              "id": "notice-9",
+              "typeIdentifier": "related_anime_add",
+              "categoryName": "New Related Anime",
+              "anime": {"title": "Umayuru: Full Gate!", "mediaType": "ONA"},
+              "url": "https://myanimelist.net/anime/58447/Umayuru_Full_Gate"
+            }]};</script>
+        """.trimIndent()
+
+        val item = requireNotNull(MalNotificationsClient.parseHtml(html)).items.single()
+
+        assertEquals("New Related Anime", item.displayTitle())
+        assertEquals("Umayuru: Full Gate!", item.mediaTitle)
+        assertEquals(58447, item.mediaId)
+        assertEquals("anime", item.mediaType)
+    }
+
     private fun notification(id: String, url: String) = MalNotificationsClient.Notification(
         id = id,
         typeIdentifier = "friend_request",

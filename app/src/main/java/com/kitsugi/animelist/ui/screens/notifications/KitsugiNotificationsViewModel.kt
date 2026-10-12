@@ -15,6 +15,8 @@ import com.kitsugi.animelist.data.auth.ShikimoriApiClient
 import com.kitsugi.animelist.data.notifications.NotificationArchiveStore
 import com.kitsugi.animelist.data.notifications.NotificationDiagnostics
 import com.kitsugi.animelist.data.remote.BangumiIdNamespace
+import com.kitsugi.animelist.data.remote.JikanSearchClient
+import com.kitsugi.animelist.data.remote.JikanSearchResult
 import com.kitsugi.animelist.data.remote.KitsugiAiringCalendarClient
 import com.kitsugi.animelist.data.remote.KitsugiAniListNotificationClient
 import com.kitsugi.animelist.data.remote.KitsugiBangumiDetailClient
@@ -67,6 +69,15 @@ data class NotifItem(
     val mediaId: Int? = null,
     val activityId: Int? = null,
     val mediaType: String? = null,
+    /**
+     * Bildirimin işaret ettiği medyanın GERÇEK adı (varsa).
+     *
+     * MAL'da kart başlığı MAL'ın kategori adıydı ("New Related Anime"); detay sayfası kart
+     * başlığıyla açıldığı için ekranda anime adı yerine kategori adı kalıyordu
+     * (bkz. PLAN_TASK_MAL_BILDIRIM_DETAY_VE_SAYFALAMA_2026-10-12.md). Bu alan hem kart
+     * başlığı hem detay yönlendirmesi için kullanılır; boşsa [title]'a düşülür.
+     */
+    val mediaTitle: String? = null,
     val userId: Int? = null,
     val userName: String? = null,
     val userAvatarUrl: String? = null,
@@ -173,6 +184,20 @@ class KitsugiNotificationsViewModel(application: Application) : AndroidViewModel
 
     // ─── Bildirim Arşivi (kaynak tarafında tutulmayanların yedeği) ───────────
 
+    /** Canlı kayıtları arşive yazar; listeyi DEĞİŞTİRMEZ (sayfa eklemede kullanılır). */
+    private fun writeArchive(source: String, live: List<NotifItem>) {
+        if (live.isEmpty()) return
+        NotificationArchiveStore.mergeSourceAsync(ctx, source, live.map { it.toArchived() })
+
+        // Bulut yedeği — giriş yoksa sessizce atlanır; akış asla beklemez.
+        if (KitsugiAccountRepository.isLoggedIn()) {
+            viewModelScope.launch(Dispatchers.IO) {
+                runCatching { KitsugiAccountRepository.pushNotificationArchive(ctx) }
+                    .onFailure { android.util.Log.w("KitsugiNotif", "Arşiv buluta yazılamadı: ${it.message}") }
+            }
+        }
+    }
+
     /**
      * Kaynak tarafında kalıcı bildirim ucu OLMAYAN kaynaklar için (MAL, Simkl,
      * Kitsu, Bangumi) canlı listeyi yerel arşivle birleştirir:
@@ -187,16 +212,7 @@ class KitsugiNotificationsViewModel(application: Application) : AndroidViewModel
      * tutulur, kaynağın akışı tek gerçek kaynaktır.
      */
     private fun archiveAndMerge(source: String, live: List<NotifItem>): List<NotifItem> {
-        val fresh = live.map { it.toArchived() }
-        NotificationArchiveStore.mergeSourceAsync(ctx, source, fresh)
-
-        // Bulut yedeği — giriş yoksa sessizce atlanır; akış asla beklemez.
-        if (KitsugiAccountRepository.isLoggedIn()) {
-            viewModelScope.launch(Dispatchers.IO) {
-                runCatching { KitsugiAccountRepository.pushNotificationArchive(ctx) }
-                    .onFailure { android.util.Log.w("KitsugiNotif", "Arşiv buluta yazılamadı: ${it.message}") }
-            }
-        }
+        writeArchive(source, live)
 
         val liveIds = live.map { it.id }.toSet()
         val stored = NotificationArchiveStore.loadSource(ctx, source)
@@ -221,7 +237,8 @@ class KitsugiNotificationsViewModel(application: Application) : AndroidViewModel
             tsMs = tsMs,
             imageUrl = imageUrl,
             mediaId = mediaId,
-            mediaType = mediaType
+            mediaType = mediaType,
+            mediaTitle = mediaTitle
         )
 
     private fun NotificationArchiveStore.ArchivedNotif.toNotifItem(): NotifItem =
@@ -234,6 +251,7 @@ class KitsugiNotificationsViewModel(application: Application) : AndroidViewModel
             tsMs = tsMs,
             mediaId = mediaId,
             mediaType = mediaType,
+            mediaTitle = mediaTitle,
             source = source
         )
 
@@ -343,6 +361,7 @@ class KitsugiNotificationsViewModel(application: Application) : AndroidViewModel
             mediaId = mediaId,
             activityId = activityId,
             mediaType = mediaType?.lowercase(),
+            mediaTitle = mediaTitle,
             userId = userId,
             userName = userName,
             userAvatarUrl = userAvatarUrl,
@@ -416,15 +435,20 @@ class KitsugiNotificationsViewModel(application: Application) : AndroidViewModel
                     val mapped = feed.items
                         .map { it.toNotifItem() }
                         .sortedWith(compareByDescending<NotifItem> { it.tsMs ?: Long.MIN_VALUE })
+                    // Web akışı da arşivlenir: MAL penceresinden düşen bildirimler cihazda
+                    // kalır ve "bildirimlerin devamı" kaybolmaz (diğer kaynaklarla aynı kural).
+                    val merged = archiveAndMerge("MyAnimeList", mapped)
                     val feedNotice = if (match == MalAccountMatch.Status.UNVERIFIED) {
                         ctx.getString(R.string.notif_notice_mal_web_feed_unverified, mapped.size)
                     } else {
                         ctx.getString(R.string.notif_notice_mal_web_feed, mapped.size)
                     }
                     _mal.value = NotifUiState(
-                        items = mapped,
+                        items = merged,
                         isLoading = false,
-                        hasMore = false,
+                        // Daha eski bildirimler varsa kaydırdıkça denenir (bkz. loadMalMore).
+                        hasMore = feed.hasNextPage,
+                        page = feed.page,
                         notice = feedNotice,
                         requiresMalWebLogin = false,
                         malOAuthUsername = identity.username,
@@ -479,6 +503,101 @@ class KitsugiNotificationsViewModel(application: Application) : AndroidViewModel
                         webFeedError is MalWebSessionRequiredException
                 )
             }
+        }
+    }
+
+    /**
+     * MAL bildirim akışında bir sonraki sayfayı ister — "bildirimlerin devamı".
+     *
+     * MAL bu akışın sayfalamasını belgelemiyor; karar bu yüzden VERİYLE verilir: dönen
+     * kayıtların hiçbiri yeni değilse akış bitmiş sayılır (`hasMore = false`) ve listede
+     * tekrar/uydurma kart oluşmaz. Yeni kayıt gelirse arşive de yazılır.
+     */
+    fun loadMalMore() {
+        val current = _mal.value
+        if (current.isLoading || !current.hasMore ||
+            current.requiresMalWebLogin || current.malAccountMismatch
+        ) {
+            return
+        }
+        _mal.value = current.copy(isLoading = true)
+        viewModelScope.launch {
+            val cookie = MalWebSessionStore.browserCookieHeader()
+            if (cookie.isNullOrBlank()) {
+                _mal.value = current.copy(isLoading = false, hasMore = false)
+                return@launch
+            }
+            try {
+                val feed = MalNotificationsClient.fetch(cookie, page = current.page + 1)
+                val existingIds = current.items.map { it.id }.toSet()
+                val fresh = feed.items
+                    .map { it.toNotifItem() }
+                    .filter { it.id !in existingIds }
+                if (fresh.isEmpty()) {
+                    // MAL aynı kayıtları döndürdü: sayfalama yok veya akış bitti.
+                    _mal.value = current.copy(isLoading = false, hasMore = false)
+                } else {
+                    writeArchive("MyAnimeList", fresh)
+                    val items = (current.items + fresh)
+                        .distinctBy { it.id }
+                        .sortedWith(compareByDescending<NotifItem> { it.tsMs ?: Long.MIN_VALUE })
+                    _mal.value = current.copy(
+                        items = items,
+                        isLoading = false,
+                        hasMore = feed.hasNextPage,
+                        page = feed.page
+                    )
+                }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                // Sayfa alınamadı: mevcut liste korunur, kullanıcıya hata basılmaz.
+                android.util.Log.w("KitsugiNotif", "MAL bildirim sayfası alınamadı: ${e.message}")
+                _mal.value = current.copy(isLoading = false, hasMore = false)
+            }
+        }
+    }
+
+    // ── Bildirim → medya kimliği çözümü ───────────────────────────────────────
+
+    /** Araması süren bildirim başlığı; doluysa ekranda kısa bir yükleme göstergesi çıkar. */
+    private val _resolvingMedia = MutableStateFlow<String?>(null)
+    val resolvingMedia: StateFlow<String?> = _resolvingMedia.asStateFlow()
+
+    /**
+     * Bildirimin medya kimliği yoksa (ör. MAL `related_anime_add` kaydı yalnızca ad ve tür
+     * taşıyorsa) normal arama API'siyle MAL kimliği bulunur; böylece detay sayfası
+     * herhangi bir MAL detay sayfası gibi açılır (tarayıcıya veya yanlış kayda düşmez).
+     */
+    fun resolveMalMedia(
+        title: String,
+        mediaType: String?,
+        onResolved: (JikanSearchResult?) -> Unit
+    ) {
+        val query = title.trim()
+        if (query.isEmpty() || _resolvingMedia.value != null) {
+            onResolved(null)
+            return
+        }
+        _resolvingMedia.value = query
+        viewModelScope.launch {
+            val result = try {
+                val type = if (mediaType?.contains("manga", ignoreCase = true) == true) {
+                    MediaType.Manga
+                } else {
+                    MediaType.Anime
+                }
+                JikanSearchClient()
+                    .searchMALOnly(query = query, mediaType = type, showAdultContent = true)
+                    .firstOrNull { it.malId > 0 }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                android.util.Log.w("KitsugiNotif", "Bildirim medyası çözülemedi: ${e.message}")
+                null
+            }
+            _resolvingMedia.value = null
+            onResolved(result)
         }
     }
 
@@ -576,17 +695,34 @@ class KitsugiNotificationsViewModel(application: Application) : AndroidViewModel
         ) {
             plainTitle + ctx.getString(R.string.notif_mal_deleted_suffix)
         } else plainTitle
+        // Medya bildirimlerinde kart başlığı medyanın GERÇEK adıdır (AniList/Simkl/Kitsu
+        // kartlarıyla aynı düzen); MAL'ın kategori adı ikinci satıra iner ve anime adı iki
+        // kez yazılmaz. Kategori adı yalnızca medya bilgisi olmayan bildirimlerde başlıktır.
+        val cardTitle = mediaTitle ?: title
+        val cardBody = if (mediaTitle != null) {
+            listOfNotNull(
+                displayTitle().takeIf { it.isNotBlank() },
+                animeMediaType?.trim()?.takeIf { it.isNotEmpty() },
+                // "Yayına başladı" bildirimlerinde tarih bilgisi ikinci satırda kalır.
+                date?.trim()?.takeIf { it.isNotEmpty() && typeIdentifier.equals("on_air", ignoreCase = true) }
+            ).joinToString(" • ").ifBlank { displayBody() }
+        } else {
+            displayBody()
+        }
         return NotifItem(
             id = "mal_web_$id",
             imageUrl = imageUrl,
-            title = title,
-            body = displayBody(),
+            title = cardTitle,
+            body = cardBody,
             dateText = createdAtForDisplay?.takeIf(String::isNotBlank)
                 ?: date?.takeIf(String::isNotBlank)
                 ?: createdAtMs?.let(::formatEpochMs),
             isUnread = !isRead,
             mediaId = mediaId,
             mediaType = mediaType,
+            // Detay yönlendirmesi ve arşiv, kart başlığından bağımsız olarak medyanın
+            // gerçek adını taşır.
+            mediaTitle = mediaTitle,
             userName = friendName ?: commentUserName ?: quoteUserName ?: postedUserName ?: senderName,
             userAvatarUrl = imageUrl,
             source = "MyAnimeList",

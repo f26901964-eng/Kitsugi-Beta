@@ -437,6 +437,8 @@
     <string name="notif_mal_account_mismatch_hint">Linked OAuth account: %1$s • Web session: %2$s</string>
     <string name="notif_mal_web_session_cleared">MAL web session cleared. Sign in again with your linked account.</string>
     <string name="notif_mal_deleted_suffix"> (deleted)</string>
+    <!-- Shown while a notification's media identity is being resolved before opening detail. -->
+    <string name="notif_resolving_media">Preparing the detail page…</string>
     <string name="notif_login_required_simkl">You need to log in to Simkl</string>
     <string name="notif_empty_list_mal">No new episodes found for anime in your watch list</string>
     <string name="notif_empty_list_simkl">No new notifications for content in your watch list</string>
