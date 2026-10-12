@@ -528,8 +528,21 @@ class KitsugiNotificationsViewModel(application: Application) : AndroidViewModel
                 return@launch
             }
             try {
-                val feed = MalNotificationsClient.fetch(cookie, page = current.page + 1)
                 val existingIds = current.items.map { it.id }.toSet()
+                // MAL bu akışın adresini belgelemiyor: aday adreslerin her biri denenir ve
+                // yalnızca GERÇEKTEN yeni kayıt getiren adres kabul edilir (bkz. fetchMore).
+                // Eski kod tek adresi (?page=N) deniyor, MAL aynı sayfayı döndürünce
+                // "devam yok" kararı verip listeyi kilitliyordu.
+                val feed = MalNotificationsClient.fetchMore(
+                    cookieHeader = cookie,
+                    page = current.page + 1,
+                    knownIds = existingIds
+                )
+                if (feed == null) {
+                    // Hiçbir aday yeni kayıt getirmedi: akış bitti (uydurma kart üretilmez).
+                    _mal.value = current.copy(isLoading = false, hasMore = false)
+                    return@launch
+                }
                 val fresh = feed.items
                     .map { it.toNotifItem() }
                     .filter { it.id !in existingIds }
@@ -550,6 +563,10 @@ class KitsugiNotificationsViewModel(application: Application) : AndroidViewModel
                 }
             } catch (e: CancellationException) {
                 throw e
+            } catch (e: MalWebSessionRequiredException) {
+                // Oturum gerçekten düştü: liste korunur, yeniden giriş kartı gösterilir.
+                android.util.Log.w("KitsugiNotif", "MAL web oturumu düştü (devam yüklenirken): ${e.message}")
+                _mal.value = current.copy(isLoading = false, hasMore = false, requiresMalWebLogin = true)
             } catch (e: Exception) {
                 // Sayfa alınamadı: mevcut liste korunur, kullanıcıya hata basılmaz.
                 android.util.Log.w("KitsugiNotif", "MAL bildirim sayfası alınamadı: ${e.message}")

@@ -19,7 +19,6 @@ import com.kitsugi.animelist.data.auth.ExternalListSyncManager
 import com.kitsugi.animelist.data.auth.AniListSyncManager
 import com.kitsugi.animelist.data.auth.MalSyncManager
 import com.kitsugi.animelist.data.auth.MalImportManager
-import com.kitsugi.animelist.data.remote.malweb.MalWebSessionStore
 import com.kitsugi.animelist.data.auth.SimklImportManager
 import com.kitsugi.animelist.data.auth.SimklSyncManager
 import com.kitsugi.animelist.data.auth.KitsuApiClient
@@ -236,9 +235,29 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
         oauthServiceToShow = serviceName.lowercase()
     }
 
+    /**
+     * Giriş akışı GERÇEKTEN tamamlandığında (kod → jeton değişimi başarılı) çağrılır.
+     *
+     * Yalnızca bu durumda tek oturum doğrulaması yapılır: kullanıcı pencereyi iptal ederse
+     * pencere yeniden açılmaz (web oturumu kurulmadığı için doğrulama da anlamsız olurdu).
+     */
+    fun noteOAuthSuccess(service: String?) {
+        if (service.equals("mal", ignoreCase = true)) malOAuthSucceeded = true
+    }
+
     fun dismissOAuthDialog() {
+        val finishedService = oauthServiceToShow
+        val succeeded = malOAuthSucceeded
+        malOAuthSucceeded = false
         oauthServiceToShow = null
         refreshAuthState()
+        // MAL'da tek girişin İKİ kimliği de bağlaması gerekir: OAuth jetonu (liste/senkron)
+        // ve web oturumu (bildirimler). Giriş başarıyla kapandıktan hemen sonra doğrulanır;
+        // web oturumu eksik ya da FARKLI bir hesaba aitse kullanıcıya tek dokunuşla tamamlama
+        // akışı sunulur (bağlı hesap kesilmez). İptal edilen girişte hiçbir şey yapılmaz.
+        if (succeeded && finishedService.equals("mal", ignoreCase = true) && isMalConnected) {
+            finalizeMalUnifiedSession()
+        }
     }
 
     fun refreshAuthState() {
@@ -256,7 +275,142 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
 
     /** Starts MAL OAuth inside the app so its authenticated MAL cookies are shared with notifications. */
     fun startMalOAuthWebSession() {
+        // Tek giriş akışı: doğrulama sonrası gerekirse yalnızca web çerezleri temizlenip
+        // aynı akış bir kez daha açılır (kullanıcı bağlı hesabıyla web oturumu da açar).
+        malWebReloginAttempted = false
         showOAuthDialog("mal")
+    }
+
+    // ── MAL tek oturum (API + web) durumu ──────────────────────────────────────
+
+    /** Son doğrulanan MAL oturum durumu (null = henüz doğrulanmadı). */
+    var malUnifiedStatus by mutableStateOf<com.kitsugi.animelist.data.auth.MalSessionCoordinator.Status?>(null)
+        private set
+
+    /** Doğrulama sürerken true (arayüz kısa bir gösterge gösterebilir). */
+    var isMalSessionVerifying by mutableStateOf(false)
+        private set
+
+    /**
+     * Tek oturum KURULDU sinyali (sayaç). Bildirimler ekranı bunu izleyip listeyi tazeler:
+     * web oturumu bağlandıktan sonra kullanıcı elle yenilemek zorunda kalmasın.
+     */
+    var malSessionReadyToken by mutableStateOf(0)
+        private set
+
+    /** Tek giriş akışında web oturumu için ikinci geçiş yapıldı mı (sonsuz döngü koruması). */
+    private var malWebReloginAttempted = false
+
+    /** Son MAL giriş penceresi gerçekten başarıyla tamamlandı mı (iptal edilmedi mi)? */
+    private var malOAuthSucceeded = false
+
+    /**
+     * Bildirimler ekranındaki "MAL oturumunu bağla / yenile" isteği.
+     *
+     * Web oturumu hazırsa hiçbir şey yapılmaz; değilse yalnızca MAL web çerezleri temizlenir
+     * ve TEK bir giriş penceresi açılır (kullanıcı bağlı hesabıyla web oturumunu da açar).
+     * Bağlı OAuth hesabı kesilmez — hedef: normal giriş ile bildirimler için giriş arasındaki
+     * farkı kaldırmak.
+     */
+    fun ensureMalUnifiedSession(onNeedsLogin: () -> Unit = {}) {
+        viewModelScope.launch {
+            val status = runCatching {
+                com.kitsugi.animelist.data.auth.MalSessionCoordinator.probe(context, verifyWeb = true)
+            }.getOrNull()
+            malUnifiedStatus = status
+            if (status != null && status.webReady) {
+                // Web oturumu zaten aynı hesapta: bildirim listesi kendini tazelesin
+                // ("yeniden giriş yapın" kartında kilitli kalmasın).
+                malSessionReadyToken++
+                return@launch
+            }
+            // Web oturumu yok ya da farklı hesaba ait: yalnızca MAL çerezleri temizlenir ve
+            // TEK bir giriş penceresi açılır — kullanıcı bağlı hesabıyla web oturumunu da açar.
+            malWebReloginAttempted = false
+            runCatching { com.kitsugi.animelist.data.auth.MalSessionCoordinator.clearWebSessionOnly() }
+            onNeedsLogin()
+            showOAuthDialog("mal")
+        }
+    }
+
+    /**
+     * Ayarlar sayfası açıldığında tek oturum durumunu pencere açmadan sorgular.
+     * Yalnızca durumu görüntülemek içindir: giriş akışını tetiklemez.
+     */
+    fun probeMalUnifiedSession() {
+        if (malUnifiedStatus != null || isMalSessionVerifying) return
+        viewModelScope.launch {
+            val status = runCatching {
+                com.kitsugi.animelist.data.auth.MalSessionCoordinator.probe(context, verifyWeb = true)
+            }.getOrNull()
+            if (status != null) malUnifiedStatus = status
+        }
+    }
+
+    /**
+     * MAL girişi kapandıktan sonra iki kimliği doğrular.
+     *
+     * - Eşleşiyorsa: durum saklanır, kullanıcıya tek satırlık özet gösterilir.
+     * - Eşleşmiyorsa/eksikse: yalnızca MAL web çerezleri silinir ve aynı giriş akışı BİR KEZ
+     *   daha açılır. Böylece "normal giriş" ile "bildirimler için giriş" ayrımı kalkar: tek
+     *   hesap, tek oturum, iki kimlik.
+     */
+    private fun finalizeMalUnifiedSession() {
+        viewModelScope.launch {
+            isMalSessionVerifying = true
+            val status = try {
+                com.kitsugi.animelist.data.auth.MalSessionCoordinator.verifyAndPersist(context)
+            } catch (e: Exception) {
+                android.util.Log.w("AuthViewModel", "MAL tek oturum doğrulanamadı: ${e.message}")
+                null
+            } finally {
+                isMalSessionVerifying = false
+            }
+            malUnifiedStatus = status
+            if (status == null) return@launch
+            when (status.state) {
+                com.kitsugi.animelist.data.auth.MalSessionCoordinator.State.LINKED -> {
+                    onShowMessage?.invoke(
+                        context.getString(R.string.mal_unified_session_linked, status.webUsername ?: "MAL")
+                    )
+                    // Bildirimler artık okunabilir: açık bildirim ekranı kendini tazeler.
+                    malSessionReadyToken++
+                }
+                com.kitsugi.animelist.data.auth.MalSessionCoordinator.State.MISMATCHED -> {
+                    if (!malWebReloginAttempted) {
+                        malWebReloginAttempted = true
+                        runCatching {
+                            com.kitsugi.animelist.data.auth.MalSessionCoordinator.clearWebSessionOnly()
+                        }
+                        onShowMessage?.invoke(
+                            context.getString(
+                                R.string.mal_unified_session_mismatch_relogin,
+                                status.oauthUsername ?: "MAL",
+                                status.webUsername ?: "?"
+                            )
+                        )
+                        showOAuthDialog("mal")
+                    } else {
+                        onShowMessage?.invoke(
+                            context.getString(R.string.mal_unified_session_mismatch)
+                        )
+                    }
+                }
+                com.kitsugi.animelist.data.auth.MalSessionCoordinator.State.API_ONLY -> {
+                    if (!malWebReloginAttempted) {
+                        malWebReloginAttempted = true
+                        runCatching {
+                            com.kitsugi.animelist.data.auth.MalSessionCoordinator.clearWebSessionOnly()
+                        }
+                        onShowMessage?.invoke(context.getString(R.string.mal_unified_session_web_missing))
+                        showOAuthDialog("mal")
+                    } else {
+                        onShowMessage?.invoke(context.getString(R.string.mal_unified_session_web_missing))
+                    }
+                }
+                else -> Unit
+            }
+        }
     }
 
     /**
@@ -266,7 +420,10 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
      */
     fun reconnectMalWebSession() {
         viewModelScope.launch {
-            runCatching { MalWebSessionStore.clearSession() }
+            runCatching { com.kitsugi.animelist.data.auth.MalSessionCoordinator.clearWebSessionOnly() }
+            // Tek giriş akışı: bu pencerede kullanıcı MAL'a giriş yapınca hem jeton hem web
+            // oturumu AYNI hesaba kurulur; doğrulama dialog kapanınca yapılır.
+            malWebReloginAttempted = false
             showOAuthDialog("mal")
         }
     }
@@ -301,7 +458,13 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
             val settings = SettingsDataStore(context)
             when (serviceName) {
                 "anilist" -> settings.clearAniListProfileInfo()
-                "mal" -> settings.clearMalProfileInfo()
+                "mal" -> {
+                    settings.clearMalProfileInfo()
+                    // Kaydedilen web kimliği de unutulur: bağlı hesap kalmadığı için ekranlarda
+                    // eski oturum sahibi adı görünmesin.
+                    com.kitsugi.animelist.data.auth.MalSessionCoordinator.forgetWebIdentity(context)
+                    malUnifiedStatus = null
+                }
                 "simkl" -> settings.clearSimklProfileInfo()
                 "kitsu" -> settings.clearKitsuProfileInfo()
                 "shikimori" -> settings.clearShikimoriProfileInfo()

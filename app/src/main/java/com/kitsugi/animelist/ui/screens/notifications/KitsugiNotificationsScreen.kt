@@ -121,6 +121,8 @@ fun KitsugiNotificationsScreen(
     onOpenApiDetail: ((mediaId: Int, source: String, mediaType: String?, title: String?, imageUrl: String?) -> Unit)? = null,
     onUserProfileClick: ((userId: Int, username: String, avatarUrl: String?) -> Unit)? = null,
     onOpenMalAccountSettings: () -> Unit = {},
+    /** MAL tek oturum kurulduğunda artan sayaç — bildirimler kendiliğinden tazelenir. */
+    malSessionRefreshToken: Int = 0,
     viewModel: KitsugiNotificationsViewModel = viewModel()
 ) {
     val accentColor = LocalKitsugiAccent.current
@@ -178,6 +180,12 @@ fun KitsugiNotificationsScreen(
             4 -> if (isShikimoriConnected) viewModel.loadShikimori(mediaEntries)
             5 -> if (isBangumiConnected) viewModel.loadBangumi(mediaEntries)
         }
+    }
+
+    // Tek giriş tamamlandı: web oturumu (bildirimler) artık aynı hesapta. Eski hâlde liste
+    // "yeniden giriş yapın" kartında kilitli kalıyordu; sinyal gelince kendini tazeler.
+    LaunchedEffect(malSessionRefreshToken) {
+        if (malSessionRefreshToken > 0 && isMalConnected) viewModel.loadMal(mediaEntries)
     }
 
     // A missing or mismatched website session is resolved from Settings → MAL account,

@@ -1087,6 +1087,9 @@ fun AppRoot(
                 serviceName = oauthService,
                 onDismiss = { authViewModel.dismissOAuthDialog() },
                 onSuccess = { svc ->
+                    // MAL'da tek giriş: başarılı girişten sonra iki kimlik (uygulama API'si +
+                    // web oturumu) doğrulanır. Eksik/farklı hesap varsa tek ek adım açılır.
+                    authViewModel.noteOAuthSuccess(svc)
                     authViewModel.dismissOAuthDialog()
                     // Başarı mesajı zaten authEvents flow'undan geliyor
                 },

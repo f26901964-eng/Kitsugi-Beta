@@ -153,6 +153,18 @@ data class ProfileSettings(
     val onAniListAuthClick: () -> Unit,
     val onMalAuthClick: () -> Unit,
     val onMalReconnectClick: () -> Unit = {},
+    /**
+     * MAL tek oturum durumu: OAuth jetonu (uygulama API'si) ile web oturumu (bildirimler)
+     * aynı hesabı mı gösteriyor? `null` ise henüz doğrulama yapılmadı.
+     */
+    val malUnifiedStatus: com.kitsugi.animelist.data.auth.MalSessionCoordinator.Status? = null,
+    /** Tek girişle iki kimliği de bağlayan onarım adımı. */
+    val onMalUnifiedFixClick: () -> Unit = {},
+    /**
+     * Ayarlar sayfası açıldığında tek oturum durumunu sorgular (giriş penceresi açmaz).
+     * Böylece kart yalnızca bir giriş denemesinden sonra değil, her açılışta görünür.
+     */
+    val onMalUnifiedProbe: () -> Unit = {},
     val onAniListImportClick: () -> Unit,
     val onMalImportClick: () -> Unit,
     val onSimklAuthClick: () -> Unit = {},
