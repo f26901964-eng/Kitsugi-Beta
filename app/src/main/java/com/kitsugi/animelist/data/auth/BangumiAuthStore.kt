@@ -48,6 +48,18 @@ object BangumiAuthStore {
      */
     private const val KEY_PENDING_REDIRECT = "bangumi_pending_redirect_uri"
 
+    /**
+     * Kullanıcının `next.bgm.tv/demo/access-token/create` sayfasından ürettiği **kişisel
+     * erişim anahtarı** (个人令牌) ile kurulmuş oturum.
+     *
+     * Bu oturumların `refresh_token`'ı yoktur; anahtar doğrudan `Bearer` olarak kullanılır.
+     * Ayrıca Bangumi veritabanında bu anahtarların `scope` alanı **boştur**; sunucu boş
+     * kapsamı "legacy" sayıp (`internal/auth/mysql_repository.go` → `parseTokenScope`)
+     * yazma uçlarındaki kapsam denetimini atlar. Bu yüzden kapsam kaynaklı bir 403
+     * yaşandığında kişisel anahtar, istemci tarafından çözülemeyen bu engeli atlar.
+     */
+    private const val KEY_MANUAL_TOKEN = "bangumi_manual_token"
+
     /** Süresi dolmadan 1 saat önce yenile (Aniyomi/Mihon `isExpired()` ile aynı pay). */
     private const val REFRESH_SAFETY_MARGIN_MS = 60L * 60L * 1000L
 
@@ -116,6 +128,12 @@ object BangumiAuthStore {
     /** Ham token (süre denetimi YAPMAZ). Yalnızca tanılama/çıktı için. */
     fun getToken(context: Context): String? = prefs(context).getString(KEY_TOKEN, null)
 
+    /**
+     * Oturum elle yapıştırılmış bir **kişisel erişim anahtarı** ile mi kuruldu?
+     * Bu oturumlarda refresh_token yoktur; token yenileme denenmez ve süre takibi yapılmaz.
+     */
+    fun isManualToken(context: Context): Boolean = prefs(context).getBoolean(KEY_MANUAL_TOKEN, false)
+
     fun getUserId(context: Context): Long = prefs(context).getLong(KEY_USER_ID, 0L)
 
     /** Koleksiyon uçlarında `-` yerine kullanılabilen benzersiz kullanıcı adı. */
@@ -140,6 +158,8 @@ object BangumiAuthStore {
             .putLong(KEY_EXPIRES_AT, System.currentTimeMillis() + token.expiresIn * 1000L)
         token.refreshToken?.let { editor.putString(KEY_REFRESH_TOKEN, it) }
         token.scope?.let { editor.putString(KEY_SCOPE, it) }
+        // Taze bir OAuth oturumu, elle yapıştırılmış PAT oturumunun yerini alır.
+        editor.remove(KEY_MANUAL_TOKEN)
 
         val resolvedUserId = user?.id ?: token.userId ?: 0L
         if (resolvedUserId > 0) editor.putLong(KEY_USER_ID, resolvedUserId)
@@ -192,6 +212,40 @@ object BangumiAuthStore {
         return getUserId(context).takeIf { it > 0L }?.toString()
     }
 
+    /**
+     * Kullanıcının yapıştırdığı kişisel erişim anahtarını oturum olarak kaydeder.
+     *
+     * `expires_at = 0` yazılır: Bangumi PAT'leri 7–365 gün arasında değişen sürelerle
+     * üretilir ve uç bunu yanıtında bildirmez. Bilinmeyen süre "süresi dolmuş" sayılmadığı
+     * için uygulama gereksiz yenileme denemesi yapmaz; anahtar gerçekten süresi dolduğunda
+     * yazma çağrısı 401 döner ve arayüz yeniden bağlanmayı ister.
+     */
+    fun saveManualToken(
+        context: Context,
+        accessToken: String,
+        user: BangumiApiClient.BangumiUser? = null,
+        notify: Boolean = true
+    ) {
+        val trimmed = accessToken.trim().removePrefix("Bearer ").removePrefix("bearer ").trim()
+        if (trimmed.isBlank()) return
+        val editor = prefs(context).edit()
+            .putString(KEY_TOKEN, trimmed)
+            .putString(KEY_TOKEN_TYPE, "Bearer")
+            .putLong(KEY_EXPIRES_AT, 0L)
+            .putBoolean(KEY_MANUAL_TOKEN, true)
+            // PAT ile refresh_token gelmez: eski OAuth oturumundan kalanı temizle ki
+            // yanlışlıkla yenileme denenmesin.
+            .remove(KEY_REFRESH_TOKEN)
+        user?.let {
+            if (it.id > 0) editor.putLong(KEY_USER_ID, it.id)
+            if (it.username.isNotBlank()) editor.putString(KEY_USERNAME, it.username)
+            if (it.nickname.isNotBlank()) editor.putString(KEY_NICKNAME, it.nickname)
+            it.avatarUrl?.let { url -> editor.putString(KEY_AVATAR, url) }
+        }
+        editor.apply()
+        if (notify) ExternalAuthManager.emitBangumiSuccess()
+    }
+
     fun logout(context: Context) {
         prefs(context).edit()
             .remove(KEY_TOKEN)
@@ -204,6 +258,7 @@ object BangumiAuthStore {
             .remove(KEY_NICKNAME)
             .remove(KEY_AVATAR)
             .remove(KEY_PENDING_REDIRECT)
+            .remove(KEY_MANUAL_TOKEN)
             .apply()
         // Uygulama kimlik bilgileri bilinçli olarak SAKLANIR: kullanıcı tekrar giriş
         // yaptığında App ID/Secret'i yeniden yazmak zorunda kalmasın.
@@ -223,12 +278,20 @@ object BangumiAuthStore {
      */
     suspend fun getValidToken(context: Context): String? {
         val token = getToken(context) ?: return null
+        // PAT oturumları yenilenemez: token olduğu gibi döner, süre takibi yapılmaz.
+        if (isManualToken(context)) return token
         if (!isExpired(context)) return token
         return forceRefresh(context)
     }
 
     /** Refresh token ile zorla yeni access token alır. */
     suspend fun forceRefresh(context: Context): String? = refreshMutex.withLock {
+        if (isManualToken(context)) {
+            // 401 alan bir PAT çağrısından sonra yenileme yolu YOKTUR: oturumu düşürüp
+            // kullanıcıdan yeni bir anahtar yapıştırmasını isteyen çağıran tarafa null döneriz.
+            Log.w(TAG, "forceRefresh: oturum kişisel erişim anahtarı ile kurulu, yenileme yok")
+            return@withLock null
+        }
         val refreshToken = prefs(context).getString(KEY_REFRESH_TOKEN, null)
         if (refreshToken.isNullOrBlank()) {
             Log.w(TAG, "forceRefresh: refresh_token yok, oturum kapatılıyor")

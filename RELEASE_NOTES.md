@@ -1,5 +1,27 @@
 # Kitsugi-Beta — Sürüm Notları / Release Notes
 
+## 🇹🇷 Türkçe (v2.4.258)
+
+### 🐙 1. Bangumi: "Listeye hiçbir şey ekleyemiyorum" — Hata Artık Görünür ve Ölçülebilir
+- **Gerçek Hata Metni:** `upsertCollection()` istisnayı yutmayı bıraktı. `BangumiSyncManager.describeWriteFailure()` ile HTTP kodu ve sunucunun ham hata mesajı kullanıcıya gösterilir.
+- **401 Otomatik Kurtarma:** 401 yanıtında token bir kez otomatik yenilenir ve istek tekrarlanır.
+- **400 Önleyici Temizleme:** Etiketler ve notlar sunucu kurallarına göre filtrelenir; boş etiket dizisi (`tags: []`) sunucudaki mevcut etiketleri sileceği için `null` gönderilir.
+- **Yan Etkisiz Yazma Testi:** Giriş diyaloğuna "Bağlantıyı ve yazma iznini test et" butonu eklendi (var olmayan yapıta boş PATCH testi).
+- **Kişisel Erişim Anahtarı (PAT) Girişi:** Uygulama kaydı gerektirmeyen ve Bangumi sunucusundaki OAuth kapsam uyumsuzluğunu aşan PAT desteği eklendi.
+
+---
+
+## 🇬🇧 English (v2.4.258)
+
+### 🐙 1. Bangumi: "Cannot add anything to list" — Failures Are Now Visible and Measurable
+- **Real Error Text:** Exceptions are no longer swallowed; actual HTTP code and server error descriptions are displayed.
+- **Self-Healing on 401:** Token is automatically refreshed once upon 401 error.
+- **Pre-Flight Sanitizing:** Tags and comments are sanitized; empty tag lists are dispatched as `null` to avoid remote tag deletion.
+- **Side-Effect-Free Write Test:** Added connection and write probe in login dialog.
+- **Personal Access Token (PAT) Support:** Added direct PAT login bypassing OAuth server scope parsing issues.
+
+---
+
 ## 🇹🇷 Türkçe (v2.4.257)
 
 ### 🌐 1. Güncellenmiş Domain Tablosu (57 → 88 Domain)

@@ -6075,6 +6075,53 @@ Eklentiler ekranından eklenti etkinleştirin.</string>
     <string name="bangumi_sync_progress_written">Bangumi bölüm ilerlemesi yazıldı: %1$d bölüm (%2$s)</string>
     <string name="bangumi_sync_progress_not_written">Bangumi bölüm ilerlemesi yazılamadı (%1$s)</string>
     <string name="bangumi_sync_delete_fallback">Bangumi API\'si koleksiyon kaydını silmeyi desteklemiyor; kayıt \'Bırakıldı\' olarak işaretlendi (%1$s)</string>
+    <string name="bangumi_sync_progress_not_written_detail">Bangumi bölüm ilerlemesi yazılamadı (%1$s): %2$s</string>
+
+    <string name="bangumi_write_failed_forbidden">Bangumi yazmayı reddetti (403): %1$s</string>
+    <!-- ── Bangumi yazma (koleksiyon) hataları — 2026-10-12 ─────────────────────
+         Eski davranış: `upsertCollection` istisnayı yutup `false` döndürüyordu ve arayüz
+         her koşulda "Bilinmeyen hata" gösteriyordu. Artık sunucunun gerçek yanıtı
+         (HTTP kodu + `title`/`description`) gösterilir. -->
+    <string name="bangumi_write_failed_unauthorized">Bangumi oturumu geçersiz (401). Uygulama token\'ı yenilemeyi denedi; yine olmadıysa Ayarlar → Hesap Bağlantıları → Bangumi üzerinden yeniden bağlanın.</string>
+    <string name="bangumi_write_failed_scope">Bangumi yazmayı reddetti: token kapsamı yetersiz (403). Bu, uygulamadan değil token\'ın kendisinden kaynaklanır. Çözüm: Bangumi hesabını kişisel erişim anahtarı ile bağlayın (Ayarlar → Hesap Bağlantıları → Bangumi → \"Kişisel Erişim Anahtarı\").</string>
+    <string name="bangumi_write_failed_not_found">Bangumi\'de bu yapım bulunamadı (404, subject %1$d). Eşleşme güncellenmeli.</string>
+    <string name="bangumi_write_failed_rejected">Bangumi isteği reddetti (400): %1$s</string>
+    <string name="bangumi_write_failed_rate_limited">Bangumi istek sınırına takıldı (429). Birkaç dakika sonra tekrar deneyin.</string>
+    <string name="bangumi_write_failed_server">Bangumi sunucusu geçici hata verdi (HTTP %1$d). Sonra tekrar deneyin.</string>
+    <string name="bangumi_write_failed_network">Bangumi\'ye ulaşılamadı: %1$s</string>
+    <string name="bangumi_write_failed_http">Bangumi yazma hatası (HTTP %1$d): %2$s</string>
+    <string name="bangumi_write_failed_detail_suffix"> — sunucu: %1$s</string>
+
+    <!-- Kişisel erişim anahtarı (个人令牌) — kurulum gerektirmeyen bağlantı yolu -->
+    <string name="bangumi_pat_bolum_baslik">Kişisel Erişim Anahtarı ile Bağlan (önerilir)</string>
+    <string name="bangumi_pat_bolum_aciklama">Uygulama kaydı (App ID / App Secret) gerektirmez ve koleksiyona yazma iznini garanti eder. next.bgm.tv/demo/access-token/create adresinden bir anahtar üretip buraya yapıştırın.</string>
+    <string name="bangumi_pat_anahtar_etiketi">Kişisel erişim anahtarı</string>
+    <string name="bangumi_pat_baglan_butonu">Anahtarla Bağlan</string>
+    <string name="bangumi_pat_baglanti_basarili">Bangumi bağlantısı kuruldu (kişisel erişim anahtarı). Koleksiyon aktarılıyor…</string>
+    <string name="bangumi_pat_veya_oauth">veya: kendi uygulamanızı kaydedip OAuth ile bağlanın</string>
+    <string name="bangumi_pat_olustur_linki">Anahtar oluştur (next.bgm.tv)</string>
+    <string name="bangumi_pat_bos">Erişim anahtarı boş görünüyor; anahtarı kopyalayıp tekrar yapıştırın.</string>
+    <string name="bangumi_pat_dogrulanamadi">Bangumi anahtarı doğrulanamadı (HTTP %1$d)</string>
+    <string name="bangumi_pat_401_ipucu">Anahtar geçersiz veya süresi dolmuş; yeni bir tane üretin.</string>
+
+    <string name="bangumi_diag_write_forbidden_other">HATA: sunucu yazmayı reddetti (403) ama sebep kapsam değil. Sunucu mesajı: %1$s</string>
+    <!-- Bağlantı ve yazma izni testi -->
+    <string name="bangumi_test_butonu">Bağlantıyı ve yazma iznini test et</string>
+    <string name="bangumi_test_calisiyor">Test ediliyor…</string>
+    <string name="bangumi_test_baslik">Bangumi bağlantı testi</string>
+    <string name="bangumi_diag_credentials_ok">App ID hazır: %1$s</string>
+    <string name="bangumi_diag_credentials_missing">Uyarı: App ID / App Secret yok (OAuth girişi için gerekir; kişisel erişim anahtarı kullanabilirsiniz).</string>
+    <string name="bangumi_diag_session_none">HATA: Bangumi oturumu yok; önce bağlanın.</string>
+    <string name="bangumi_diag_session_manual">Oturum: kişisel erişim anahtarı (yenileme yok, süre kullanıcı seçimi).</string>
+    <string name="bangumi_diag_session_oauth">Oturum: OAuth (token süresi dolmadan otomatik yenilenir).</string>
+    <string name="bangumi_diag_token_unavailable">HATA: geçerli bir erişim token\'ı alınamadı (yenileme başarısız).</string>
+    <string name="bangumi_diag_token_invalid">HATA: token geçersiz (HTTP %1$d). Bangumi hesabıyla yeniden giriş yapın.</string>
+    <string name="bangumi_diag_token_ok">Token geçerli — kullanıcı: %1$s</string>
+    <string name="bangumi_diag_network_error">HATA: Bangumi\'ye ulaşılamadı (%1$s).</string>
+    <string name="bangumi_diag_write_ok">Yazma kapısı AÇIK — sunucu token\'ı kabul etti (kapsam denetimi geçti).</string>
+    <string name="bangumi_diag_write_denied">HATA: sunucu yazmayı kapsam yüzünden reddetti (403 insufficient token scope). Bu, uygulamadan değil token kapsamından kaynaklanır: Bangumi\'nin yeni OAuth sunucusu kapsamı JSON dizisi olarak yazıyor, API ise yalnızca JSON nesnesi çözebiliyor. Çözüm: aşağıdaki bölümden kişisel erişim anahtarı ile bağlanın.</string>
+    <string name="bangumi_diag_write_unauthorized">HATA: token reddedildi (401). Bangumi hesabını yeniden bağlayın.</string>
+    <string name="bangumi_diag_write_failed">Yazma testi tamamlanamadı: %1$s</string>
     <string name="account_sync_mal_delete_api_error">MAL silme hatası: %1$d %2$s</string>
     <string name="source_unknown">Bilinmeyen</string>
     <string name="source_crew_member">Ekip Üyesi</string>

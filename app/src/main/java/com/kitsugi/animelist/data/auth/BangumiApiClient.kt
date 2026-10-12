@@ -53,8 +53,20 @@ object BangumiApiClient {
     /** Kullanıcının kendi uygulamalarını yönettiği sayfa (App ID / App Secret buradan alınır). */
     const val DEV_APP_URL = "$SITE_BASE/dev/app"
 
-    /** Kullanıcının elle (OAuth'suz) kalıcı access token üretebildiği sayfa — yalnızca test için. */
+    /** Kullanıcının elle (OAuth'suz) kalıcı access token üretebildiği sayfa. */
     const val PERSONAL_TOKEN_URL = "https://next.bgm.tv/demo/access-token"
+
+    /**
+     * Kişisel erişim anahtarı **oluşturma** sayfası (个人令牌).
+     *
+     * Anahtar süresi 7–365 gün arasında seçilir ve yalnızca bir kez gösterilir. Bu
+     * anahtarlar OAuth yerine geçer: `Authorization: Bearer <token>` biçiminde
+     * doğrudan kullanılır, yenileme akışı yoktur. `scope` alanı boş bırakıldığı için
+     * koleksiyon yazma uçlarındaki kapsam denetimine takılmaz — kapsam kaynaklı 403
+     * yaşayan kullanıcının çözüm yolu budur (bkz.
+     * [com.kitsugi.animelist.data.auth.BangumiAuthManager.connectWithPersonalToken]).
+     */
+    const val ACCESS_TOKEN_CREATE_URL = "$PERSONAL_TOKEN_URL/create"
 
     /**
      * OAuth geri dönüş şemaları.
@@ -77,6 +89,23 @@ object BangumiApiClient {
 
     /** `POST /v0/search/subjects` sunucu tarafında en fazla 20 sonuç döndürür (yumuşak sınır). */
     const val SEARCH_PAGE_SIZE = 20
+
+    /**
+     * Koleksiyon (收藏) yazma uçlarının sunucu tarafı sınırları.
+     * Kaynak: `bangumi/server` → `web/req/collection.go` → `Validate()`.
+     */
+    const val MAX_COLLECTION_TAGS = 10
+    const val MAX_COLLECTION_COMMENT_CHARS = 380
+    const val MIN_COLLECTION_TAG_CHARS = 2
+
+    /**
+     * [probeCollectionWrite] için kasten **var olmayan** yapıt kimliği.
+     *
+     * Yetki ara katmanları (`NeedLogin` → `NeedScope`) handler'dan önce çalıştığı için
+     * bu kimlik, gerçek bir koleksiyon satırına dokunmadan "yazma kapısı açık mı?"
+     * sorusunu kesin olarak yanıtlar: 404 = kapı açık, 403 = kapı kapalı.
+     */
+    private const val PROBE_SUBJECT_ID = 999_999_999
 
     private val JSON_MEDIA_TYPE = "application/json".toMediaTypeOrNull()
 
@@ -1250,8 +1279,153 @@ object BangumiApiClient {
     }
 
     /**
+     * Koleksiyon yazma uçlarının ortak gövdesi.
+     *
+     * Sunucu sözleşmesi (`bangumi/server` → `web/req/collection.go`):
+     *  - `type` 1..5 ([CollectionType]) — aralık dışıysa **400 "invalid type"**
+     *  - `rate` 0..10 — üstü **400 "rate overflow"**
+     *  - `tags` en fazla 10 adet, her biri en az 2 karakter ve `ValidateTag` süzgecinden
+     *    geçmeli (zero-width / yazdırılamayan karakter / çift boşluk yasak)
+     *  - `comment` en fazla 380 karakter, yazdırılamayan karakter yasak
+     *  - `ep_status` / `vol_status` yalnızca kitap条目'ları için anlamlı
+     *
+     * Alanlardan biri bile kuralı çiğnerse **istek tamamen 400 döner** (kısmi yazma yok),
+     * bu yüzden değerler burada da sunucu sınırlarına çekilir.
+     */
+    private fun buildCollectionPayload(
+        type: Int?,
+        rate: Int?,
+        epStatus: Int?,
+        volStatus: Int?,
+        comment: String?,
+        private: Boolean?,
+        tags: List<String>?
+    ): JSONObject = JSONObject().apply {
+        type?.let { put("type", it) }
+        rate?.let { put("rate", it.coerceIn(0, 10)) }
+        epStatus?.let { put("ep_status", it.coerceAtLeast(0)) }
+        volStatus?.let { put("vol_status", it.coerceAtLeast(0)) }
+        comment?.let { put("comment", it) }
+        private?.let { put("private", it) }
+        tags?.let { list -> put("tags", JSONArray(list)) }
+    }
+
+    /**
+     * `tags` alanını sunucu kurallarına uydurur (`web/req/collection.go` → `Validate`).
+     *
+     * Kural dışı **tek** etiket bütün koleksiyon isteğini 400 yaptığı için (ör. "TV" dışında
+     * tek karakterli bir etiket ya da görünmez karakter) etiketler gönderilmeden önce
+     * süzülür: NFKC normalleştirme, kırpma, boş/1 karakterli/zero-width/çift boşluklu
+     * kayıtların atılması, tekilleştirme ve 10 kayıt sınırı.
+     *
+     * @return `null` → gövdeye `tags` hiç yazılmaz (uzaktaki etiketler **korunur**).
+     *         Kitsugi'de "Bangumi etiketlerini temizle" diye bir niyet olmadığı için
+     *         süzgeçten hiçbir etiket geçmezse alan tamamen atlanır.
+     */
+    internal fun sanitizeTagsForWrite(tags: List<String>?): List<String>? {
+        if (tags == null) return null
+        val cleaned = tags.asSequence()
+            .map { java.text.Normalizer.normalize(it, java.text.Normalizer.Form.NFKC).trim() }
+            .filter { isWritableTag(it) }
+            .distinct()
+            .take(MAX_COLLECTION_TAGS)
+            .toList()
+        // Süzgeçten hiçbir etiket geçmediyse alanı HİÇ gönderme: `"tags": []` sunucuda
+        // mevcut etiketleri siler, oysa kullanıcının niyeti "etiket yaz"tır, "sil" değil.
+        return cleaned.ifEmpty { null }
+    }
+
+    /**
+     * `dam.ValidateTag` eşleniği: en az 2 rune, tamamı yazdırılabilir ve **boşluksuz**.
+     * (Sunucu `ExtraSpacePattern = "[\u3000 ]"` ile etiketlerde boşluğu ve ideografik
+     * boşluğu reddeder; `ZeroWidthPattern` de yalnız L/M/N/P/S/Z sınıflarını geçirir.)
+     */
+    private fun isWritableTag(tag: String): Boolean {
+        if (tag.isEmpty()) return false
+        var codePoints = 0
+        var index = 0
+        while (index < tag.length) {
+            val cp = tag.codePointAt(index)
+            index += Character.charCount(cp)
+            codePoints++
+            if (cp == ' '.code || cp == '\u3000'.code) return false
+            if (!isServerPrintable(cp)) return false
+        }
+        return codePoints >= MIN_COLLECTION_TAG_CHARS
+    }
+
+    /**
+     * `comment` alanını sunucu kurallarına uydurur: kırpılır, yazdırılamayan/zero-width
+     * karakterler atılır ve 380 **kod noktasına** kırpılır (sunucu karakter sayısı yerine
+     * rune sayar; Kotlin `String.take` UTF-16 birimi saydığı için emoji'li metinlerde
+     * yanlış kesim yapardı).
+     */
+    internal fun sanitizeCommentForWrite(comment: String?): String? {
+        if (comment == null) return null
+        val builder = StringBuilder(comment.length)
+        var index = 0
+        while (index < comment.length) {
+            val cp = comment.codePointAt(index)
+            index += Character.charCount(cp)
+            // \n, \t, \r sunucuda serbest (`dam.AllPrintableChar`); diğer yazdırılamayan
+            // karakterler gövdenin tamamını 400 yapar.
+            val allowed = cp == '\n'.code || cp == '\t'.code || cp == '\r'.code || isServerPrintable(cp)
+            if (allowed) builder.appendCodePoint(cp)
+        }
+        val cleaned = builder.toString().trim()
+        if (cleaned.isEmpty()) return null
+        return cleaned.takeCodePoints(MAX_COLLECTION_COMMENT_CHARS)
+    }
+
+    /**
+     * Sunucunun `dam.AllPrintableChar` eşleniği — Go `unicode.IsPrint`:
+     * L, M, N, P, S sınıfları + ASCII boşluk. (Z sınıfının diğer üyeleri, kontrol ve
+     * biçim karakterleri Go'da yazdırılabilir sayılmaz.)
+     */
+    private fun isServerPrintable(codePoint: Int): Boolean {
+        if (codePoint == ' '.code) return true
+        return when (Character.getType(codePoint)) {
+            Character.UPPERCASE_LETTER.toInt(),
+            Character.LOWERCASE_LETTER.toInt(),
+            Character.TITLECASE_LETTER.toInt(),
+            Character.MODIFIER_LETTER.toInt(),
+            Character.OTHER_LETTER.toInt(),
+            Character.NON_SPACING_MARK.toInt(),
+            Character.COMBINING_SPACING_MARK.toInt(),
+            Character.ENCLOSING_MARK.toInt(),
+            Character.DECIMAL_DIGIT_NUMBER.toInt(),
+            Character.LETTER_NUMBER.toInt(),
+            Character.OTHER_NUMBER.toInt(),
+            Character.CONNECTOR_PUNCTUATION.toInt(),
+            Character.DASH_PUNCTUATION.toInt(),
+            Character.START_PUNCTUATION.toInt(),
+            Character.END_PUNCTUATION.toInt(),
+            Character.INITIAL_QUOTE_PUNCTUATION.toInt(),
+            Character.FINAL_QUOTE_PUNCTUATION.toInt(),
+            Character.OTHER_PUNCTUATION.toInt(),
+            Character.MATH_SYMBOL.toInt(),
+            Character.CURRENCY_SYMBOL.toInt(),
+            Character.MODIFIER_SYMBOL.toInt(),
+            Character.OTHER_SYMBOL.toInt() -> true
+            else -> false
+        }
+    }
+
+    /** UTF-16 indekslerini bozmadan ilk `max` **kod noktasını** döndürür. */
+    private fun String.takeCodePoints(max: Int): String {
+        val count = codePointCount(0, length)
+        if (count <= max) return this
+        return substring(0, offsetByCodePoints(0, max))
+    }
+
+    /**
      * `POST /v0/users/-/collections/{subject_id}` — koleksiyon kaydı **yoksa oluşturur,
-     * varsa günceller** (upsert). Başarıda 204 döner.
+     * varsa günceller** (upsert). Başarıda sunucu **202** döner (API dokümanındaki "204"
+     * güncel değildir — bkz. `bangumi/api` issue #212).
+     *
+     * Hata durumunda **istisna fırlatır** (401/403/404/429/5xx ve ağ hataları).
+     * Eski sürüm hatayı yutup `false` döndürdüğü için arayüzde yalnızca
+     * "Bilinmeyen hata" görünüyordu; artık gerçek neden çağırana ulaşır.
      *
      * ÖNEMLİ: `ep_status` / `vol_status` alanları resmî sözleşmede **yalnızca书籍 (kit)
      *条目'ları** için tanımlıdır.动画 ilerlemesi için [markEpisodes] (bölüm bazlı
@@ -1260,7 +1434,7 @@ object BangumiApiClient {
      * @param type       [CollectionType]; null ise durum değiştirilmez
      * @param rate       0..10; `0` puanı siler
      * @param epStatus   yalnızca kitap条目'ları için anlamlı
-     * @param tags       null/boş → yok sayılır; `emptyList()` → tüm etiketleri siler
+     * @param tags       null → etiketler korunur; `emptyList()` → tüm etiketleri siler
      */
     suspend fun upsertCollection(
         token: String,
@@ -1272,26 +1446,17 @@ object BangumiApiClient {
         comment: String? = null,
         private: Boolean? = null,
         tags: List<String>? = null
-    ): Boolean = withContext(Dispatchers.IO) {
-        val payload = JSONObject().apply {
-            type?.let { put("type", it) }
-            rate?.let { put("rate", it.coerceIn(0, 10)) }
-            epStatus?.let { put("ep_status", it.coerceAtLeast(0)) }
-            volStatus?.let { put("vol_status", it.coerceAtLeast(0)) }
-            comment?.let { put("comment", it) }
-            private?.let { put("private", it) }
-            tags?.let { list -> put("tags", JSONArray(list)) }
-        }
-        runCatching {
-            send("POST", "/v0/users/-/collections/$subjectId", payload, token)
-            true
-        }.getOrElse { error ->
-            Log.e(TAG, "upsertCollection($subjectId) failed: ${error.message}")
-            false
-        }
+    ): Unit = withContext(Dispatchers.IO) {
+        val payload = buildCollectionPayload(type, rate, epStatus, volStatus, comment, private, tags)
+        send("POST", "/v0/users/-/collections/$subjectId", payload, token)
     }
 
-    /** `PATCH /v0/users/-/collections/{subject_id}` — yalnızca var olan kaydı günceller. */
+    /**
+     * `PATCH /v0/users/-/collections/{subject_id}` — yalnızca var olan kaydı günceller.
+     *
+     * Kayıt yoksa sunucu **404 "subject not collected"** döner; bu durum da istisna olarak
+     * yükselir (`isNotFound` ile ayırt edilebilir). Hata yutulmaz.
+     */
     suspend fun patchCollection(
         token: String,
         subjectId: Int,
@@ -1302,28 +1467,9 @@ object BangumiApiClient {
         comment: String? = null,
         private: Boolean? = null,
         tags: List<String>? = null
-    ): Boolean = withContext(Dispatchers.IO) {
-        val payload = JSONObject().apply {
-            type?.let { put("type", it) }
-            rate?.let { put("rate", it.coerceIn(0, 10)) }
-            epStatus?.let { put("ep_status", it.coerceAtLeast(0)) }
-            volStatus?.let { put("vol_status", it.coerceAtLeast(0)) }
-            comment?.let { put("comment", it) }
-            private?.let { put("private", it) }
-            tags?.let { list -> put("tags", JSONArray(list)) }
-        }
-        runCatching {
-            send("PATCH", "/v0/users/-/collections/$subjectId", payload, token)
-            true
-        }.getOrElse { error ->
-            if (error is BangumiApiException && error.isNotFound) {
-                // Kayıt henüz yok → PATCH 404 verir; çağıran taraf POST'a düşebilir.
-                Log.i(TAG, "patchCollection($subjectId): kayıt yok (404)")
-            } else {
-                Log.e(TAG, "patchCollection($subjectId) failed: ${error.message}")
-            }
-            false
-        }
+    ): Unit = withContext(Dispatchers.IO) {
+        val payload = buildCollectionPayload(type, rate, epStatus, volStatus, comment, private, tags)
+        send("PATCH", "/v0/users/-/collections/$subjectId", payload, token)
     }
 
     /**
@@ -1337,19 +1483,13 @@ object BangumiApiClient {
         subjectId: Int,
         episodeIds: List<Int>,
         type: Int = EpisodeCollectionType.DONE
-    ): Boolean = withContext(Dispatchers.IO) {
-        if (episodeIds.isEmpty()) return@withContext true
+    ): Unit = withContext(Dispatchers.IO) {
+        if (episodeIds.isEmpty()) return@withContext
         val payload = JSONObject().apply {
             put("episode_id", JSONArray(episodeIds))
             put("type", type)
         }
-        runCatching {
-            send("PATCH", "/v0/users/-/collections/$subjectId/episodes", payload, token)
-            true
-        }.getOrElse { error ->
-            Log.e(TAG, "markEpisodes($subjectId, ${episodeIds.size} ep) failed: ${error.message}")
-            false
-        }
+        send("PATCH", "/v0/users/-/collections/$subjectId/episodes", payload, token)
     }
 
     /**
@@ -1361,29 +1501,121 @@ object BangumiApiClient {
      *  3. [markEpisodes] ile tek istekte işaretlenir,
      *  4. kitap条目'larında ise doğrudan `ep_status` PATCH'lenir.
      *
-     * @return başarılı bölüm işaretleme sayısı (kitaplarda `epStatus`)
+     * @return bölüm listesi boş olduğunda `ep_status` yedeğinin kullanılıp kullanılmadığı
      */
     suspend fun setProgress(
         token: String,
         subject: BangumiSubject,
         watchedCount: Int
-    ): Boolean {
-        if (watchedCount <= 0) return true
+    ): Unit {
+        if (watchedCount <= 0) return
         if (subject.isBook) {
-            return patchCollection(token, subject.id, epStatus = watchedCount)
+            patchCollection(token, subject.id, epStatus = watchedCount)
+            return
         }
         val episodes = getAllMainEpisodes(subject.id, token)
         if (episodes.isEmpty()) {
             // Bölüm listesi boşsa (henüz wiki girişi yok) son çare olarak ep_status dene.
-            return patchCollection(token, subject.id, epStatus = watchedCount)
+            patchCollection(token, subject.id, epStatus = watchedCount)
+            return
         }
         val targetIds = episodes
             .filter { it.isMainStory }
             .sortedBy { it.sort }
             .take(watchedCount)
             .map { it.id }
-        return markEpisodes(token, subject.id, targetIds)
+        markEpisodes(token, subject.id, targetIds)
     }
+
+    // ── Yazma yetkisi tanılaması ─────────────────────────────────────────────
+
+    /**
+     * [probeCollectionWrite] sonucu: yazma kapısı açık mı, kapalıysa neden?
+     *
+     * Sınıflandırma **sunucunun yanıt gövdesine** dayanır; böylece 403'ün sebebi
+     * ("kapsam yok" / "kullanıcı yasaklı" / "User-Agent reddi") birbirinden ayrılır.
+     */
+    enum class CollectionWriteProbe {
+        /** Yazma kapısı AÇIK: kapsam denetimi geçildi (sunucu yapıtı bulamayıp 404 verdi). */
+        WRITE_ALLOWED,
+
+        /** 403 + "scope" → token'da `write:collection` kapsamı yok. Kalıcı; istemci düzeltemez. */
+        SCOPE_DENIED,
+
+        /** 401 → access token geçersiz veya süresi dolmuş. */
+        UNAUTHORIZED,
+
+        /** 403 ama sebep kapsam değil (yasaklı kullanıcı, reddedilen User-Agent, bölge engeli…). */
+        FORBIDDEN_OTHER,
+
+        /** Ağ hatası, 5xx, zaman aşımı ya da beklenmeyen yanıt. */
+        FAILED
+    }
+
+    /** [probeCollectionWrite] ayrıntılı sonucu. */
+    data class CollectionWriteProbeResult(
+        val outcome: CollectionWriteProbe,
+        val httpCode: Int? = null,
+        /** Sunucunun ham `title`/`description` metni — arayüzde kaybolmasın. */
+        val detail: String? = null
+    )
+
+    /**
+     * Koleksiyon **yazma kapısını** kesin olarak ve **yan etkisiz** biçimde sınar.
+     *
+     * Yöntem: `PATCH /v0/users/-/collections/[PROBE_SUBJECT_ID]` gövdesi `{}`.
+     *
+     *  - `PATCH`, `POST` ile **aynı** `write:collection` kapsamını ister
+     *    (`bangumi/server` → `web/routes.go:92-95`), ama `POST`'un aksine **kayıt
+     *    oluşturmaz** (`allowCreate = false`).
+     *  - Kimlik olarak [PROBE_SUBJECT_ID] (Bangumi'de var olmayan bir id) kullanılır:
+     *    yetki denetimleri (`NeedLogin` → `NeedScope`) **handler'dan önce** çalıştığı
+     *    için sonuç yapıtın varlığından bağımsızdır ve sunucu **hiçbir satıra dokunmaz**.
+     *  - Gövde `{}` olduğundan hiçbir alan "set" sayılmaz; koleksiyon zamanı/etiketi
+     *    değişmez, günlük kaydı üretilmez.
+     *
+     * Beklenen yanıtlar:
+     *  - **404** (yapıt yok) → kapsam denetimi GEÇTİ, yazma yetkisi var → [CollectionWriteProbe.WRITE_ALLOWED]
+     *  - **403 + "scope"** → kapsam yok → [CollectionWriteProbe.SCOPE_DENIED]
+     *  - **401** → token geçersiz → [CollectionWriteProbe.UNAUTHORIZED]
+     *  - **403 (başka sebep)** → [CollectionWriteProbe.FORBIDDEN_OTHER] (ham metin `detail`'de)
+     */
+    suspend fun probeCollectionWrite(token: String): CollectionWriteProbeResult =
+        withContext(Dispatchers.IO) {
+            try {
+                send("PATCH", "/v0/users/-/collections/$PROBE_SUBJECT_ID", JSONObject(), token)
+                // Buraya düşmek neredeyse imkânsız: id yok. Yine de yetki kapısı açık demektir.
+                CollectionWriteProbeResult(CollectionWriteProbe.WRITE_ALLOWED, 200, null)
+            } catch (error: BangumiApiException) {
+                val detail = listOfNotNull(error.title, error.description)
+                    .joinToString(" — ")
+                    .ifBlank { error.message }
+                val haystack = detail.lowercase()
+                when {
+                    error.isUnauthorized -> CollectionWriteProbeResult(
+                        CollectionWriteProbe.UNAUTHORIZED, error.code, detail
+                    )
+                    error.isForbidden && haystack.contains("scope") -> CollectionWriteProbeResult(
+                        CollectionWriteProbe.SCOPE_DENIED, error.code, detail
+                    )
+                    error.isForbidden -> CollectionWriteProbeResult(
+                        CollectionWriteProbe.FORBIDDEN_OTHER, error.code, detail
+                    )
+                    // 404: kapsam denetimi geçildi (handler'a ulaşıldı, yapıt bulunamadı).
+                    // Yanlış pozitife karşı koruma: gövde gerçekten Bangumi'nin yapıt
+                    // hatasını içermeli ("subject not found"); çerçeve seviyesindeki genel
+                    // bir 404 ("Not Found") yolun var olduğunu KANITLAMAZ.
+                    error.isNotFound && haystack.contains("subject") -> CollectionWriteProbeResult(
+                        CollectionWriteProbe.WRITE_ALLOWED, error.code, detail
+                    )
+                    else -> CollectionWriteProbeResult(CollectionWriteProbe.FAILED, error.code, detail)
+                }
+            } catch (error: Throwable) {
+                if (error is kotlinx.coroutines.CancellationException) throw error
+                Log.w(TAG, "probeCollectionWrite failed: ${error.message}")
+                CollectionWriteProbeResult(CollectionWriteProbe.FAILED, null, error.message)
+            }
+        }
 
     /** `GET /v0/users/-/collections/{subject_id}/episodes` — bölüm bazlı işaret durumları. */
     suspend fun getUserEpisodeCollections(

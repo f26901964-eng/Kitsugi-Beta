@@ -65,6 +65,18 @@ API: `https://api.bgm.tv/v0` (46 uç). Auth host'u farklıdır: `https://bgm.tv`
   4. **Kullanıcı verisini üçüncü tarafa vermek yasak** (#295) → hiçbir Bangumi verisi dış servise gönderilmez.
 - Scope'lar: sunucuda yalnız `write:collection` ve `write:indices` tanımlı; klasik OAuth token'ları
   (`scope == null`) yazma yetkisine sahip (`Auth.HasScope()`). Dev panelindeki READ/WRITE kutuları geleceğe yönelik.
+- **Güncelleme (2026-10-12 — `bangumi/server` PR #1011, 2026-06-25'te merge edildi):** Koleksiyon
+  yazma uçları artık `mw.NeedScope("write:collection")` ile korunuyor. Kapsam, token satırındaki
+  `scope` alanından okunuyor ve Go çözümleyicisi (`internal/auth/mysql_repository.go` →
+  `parseTokenScope`) **yalnızca JSON nesnesi** kabul ediyor; NULL/boş → "legacy" (izinli),
+  JSON **dizisi** → `Scope{}` + `legacy=false` → **403 `insufficient token scope`**. Yeni OAuth
+  servisi (`bangumi/server-private` → `routes/oauth/index.ts`) kapsamı `JSON.stringify(scope)` ile
+  yazdığı için **dizi** üretiyor. Bu yüzden kapsam reddi, istemciden bağımsız olarak yaşanabiliyor;
+  kişisel erişim anahtarlarında (`next.bgm.tv/demo/access-token/create`) `scope` boş kaldığı için
+  yazma çalışıyor. Kullanıcıya sunulan çözüm yolu budur; ayrıntı: `BANGUMI_YAZMA_TESHISI_RAPORU.md`.
+- Yazma hatası teşhisi: `BangumiSyncManager.describeWriteFailure()` sunucunun ham `title`/`description`
+  metnini gösterir; `BangumiAuthManager.diagnose()` ise var olmayan bir subject id'ye boş `PATCH`
+  atarak (yan etkisiz) yazma kapısını ölçer.
 
 ## 4. Mimari harita (bu depodaki dosyalar)
 

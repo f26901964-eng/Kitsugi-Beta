@@ -49,7 +49,9 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -63,7 +65,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import android.widget.Toast
 import com.kitsugi.animelist.data.auth.BangumiApiClient
+import com.kitsugi.animelist.data.auth.BangumiAuthManager
 import com.kitsugi.animelist.data.auth.BangumiAuthStore
 import com.kitsugi.animelist.data.auth.ExternalAuthManager
 import com.kitsugi.animelist.ui.theme.KitsugiColors
@@ -108,6 +112,20 @@ fun KitsugiBangumiLoginDialog(
     var isLoading by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
     val scrollState = rememberScrollState()
+    val scope = rememberCoroutineScope()
+
+    // ── Kişisel erişim anahtarı (PAT) ─────────────────────────────────────────
+    // OAuth yolunun yanında, uygulama kaydı gerektirmeyen ikinci bir bağlantı yolu.
+    // OAuth token'larında Bangumi'nin `scope` alanı JSON dizisi olarak yazılabiliyor;
+    // sunucu bunu "kapsamsız" sayarsa koleksiyon yazıları 403 ile reddedilir. PAT'lerde
+    // `scope` hiç yazılmaz → sunucu "legacy" kabul eder → yazma çalışır. Ayrıca
+    // yenileme akışı olmadığı için "refresh başarısız" durumu da oluşmaz.
+    var patToken by remember { mutableStateOf("") }
+    var patBusy by remember { mutableStateOf(false) }
+
+    // ── Bağlantı/yazma izni testi ────────────────────────────────────────────
+    var diagBusy by remember { mutableStateOf(false) }
+    var diagReport by remember { mutableStateOf<List<String>?>(null) }
 
     // Otomatik deep link ile giriş tamamlandığında diyaloğu kapat; hataları göster.
     LaunchedEffect(Unit) {
@@ -244,6 +262,168 @@ fun KitsugiBangumiLoginDialog(
                                 }
                             }
                         }
+                    }
+
+                    // Önerilen yol: Kişisel Erişim Anahtarı (个人令牌)
+                    // Uygulama kaydı gerekmez; `next.bgm.tv/demo/access-token/create`
+                    // sayfasından üretilir. OAuth token'larındaki kapsam (scope) sorunu
+                    // bu yolda oluşmaz.
+                    Surface(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(14.dp),
+                        color = bangumiBrandColor.copy(alpha = 0.10f),
+                        border = BorderStroke(1.dp, bangumiBrandColor.copy(alpha = 0.55f))
+                    ) {
+                        Column(modifier = Modifier.padding(14.dp)) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(
+                                    Icons.Rounded.VpnKey,
+                                    contentDescription = null,
+                                    tint = bangumiBrandColor,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    text = KitsugiStrings.get(R.string.bangumi_pat_bolum_baslik),
+                                    style = MaterialTheme.typography.labelMedium.copy(
+                                        fontWeight = FontWeight.Bold,
+                                        color = bangumiBrandColor
+                                    )
+                                )
+                            }
+                            Spacer(modifier = Modifier.height(6.dp))
+                            Text(
+                                text = KitsugiStrings.get(R.string.bangumi_pat_bolum_aciklama),
+                                style = MaterialTheme.typography.bodySmall.copy(
+                                    color = KitsugiColors.TextSecondary,
+                                    fontSize = 12.sp,
+                                    lineHeight = 16.sp
+                                )
+                            )
+                            Spacer(modifier = Modifier.height(8.dp))
+                            OutlinedTextField(
+                                value = patToken,
+                                onValueChange = {
+                                    patToken = it.trim()
+                                    errorMessage = null
+                                },
+                                label = { Text(KitsugiStrings.get(R.string.bangumi_pat_anahtar_etiketi)) },
+                                trailingIcon = {
+                                    KitsugiTonalButton(
+                                        onClick = {
+                                            val text = clipboard.getText()?.text.orEmpty().trim()
+                                            if (text.isNotBlank()) {
+                                                patToken = BangumiAuthManager.sanitizePersonalToken(text)
+                                                errorMessage = null
+                                            }
+                                        },
+                                        shape = RoundedCornerShape(8.dp),
+                                        modifier = Modifier.padding(end = 6.dp)
+                                    ) {
+                                        Icon(Icons.Rounded.ContentPaste, contentDescription = null, modifier = Modifier.size(14.dp))
+                                        Spacer(modifier = Modifier.width(4.dp))
+                                        Text(stringResource(R.string.yapistir), fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+                                    }
+                                },
+                                singleLine = true,
+                                enabled = !patBusy && !isLoading,
+                                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                                shape = RoundedCornerShape(10.dp),
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                TextButton(onClick = {
+                                    runCatching {
+                                        context.startActivity(
+                                            Intent(
+                                                Intent.ACTION_VIEW,
+                                                Uri.parse(BangumiApiClient.ACCESS_TOKEN_CREATE_URL)
+                                            )
+                                        )
+                                    }
+                                }) {
+                                    Icon(Icons.Rounded.OpenInNew, contentDescription = null, modifier = Modifier.size(14.dp))
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Text(KitsugiStrings.get(R.string.bangumi_pat_olustur_linki), fontSize = 11.sp)
+                                }
+
+                                Spacer(modifier = Modifier.weight(1f))
+
+                                KitsugiButton(
+                                    onClick = {
+                                        val clean = BangumiAuthManager.sanitizePersonalToken(patToken)
+                                        when {
+                                            clean.isBlank() -> {
+                                                errorMessage = KitsugiStrings.get(R.string.bangumi_pat_bos)
+                                            }
+                                            else -> {
+                                                patBusy = true
+                                                errorMessage = null
+                                                diagReport = null
+                                                BangumiAuthManager.connectWithPersonalToken(context, clean) { success, error ->
+                                                    patBusy = false
+                                                    if (success) {
+                                                        // `saveManualToken` zaten
+                                                        // `emitBangumiSuccess()` yayınlar; AppRoot'un
+                                                        // authEvents dinleyicisi koleksiyon aktarımını
+                                                        // başlatır (çift olay göndermiyoruz).
+                                                        Toast.makeText(
+                                                            context,
+                                                            KitsugiStrings.get(R.string.bangumi_pat_baglanti_basarili),
+                                                            Toast.LENGTH_LONG
+                                                        ).show()
+                                                        onDismiss()
+                                                    } else {
+                                                        errorMessage = error
+                                                            ?: KitsugiStrings.get(R.string.bangumi_baglantisi_basarisiz_oldu)
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    },
+                                    enabled = !patBusy && !isLoading && patToken.isNotBlank(),
+                                    shape = RoundedCornerShape(10.dp)
+                                ) {
+                                    if (patBusy) {
+                                        KitsugiPlasmaLoader(size = 16.dp)
+                                    } else {
+                                        Text(
+                                            text = KitsugiStrings.get(R.string.bangumi_pat_baglan_butonu),
+                                            style = MaterialTheme.typography.labelMedium,
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    // OAuth yolu ile PAT yolu arasında ayraç
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        androidx.compose.material3.HorizontalDivider(
+                            modifier = Modifier.weight(1f),
+                            color = KitsugiColors.Border.copy(alpha = 0.7f)
+                        )
+                        Text(
+                            text = KitsugiStrings.get(R.string.bangumi_pat_veya_oauth),
+                            style = MaterialTheme.typography.bodySmall.copy(
+                                color = KitsugiColors.TextSecondary,
+                                fontSize = 11.sp
+                            ),
+                            modifier = Modifier.padding(horizontal = 8.dp)
+                        )
+                        androidx.compose.material3.HorizontalDivider(
+                            modifier = Modifier.weight(1f),
+                            color = KitsugiColors.Border.copy(alpha = 0.7f)
+                        )
                     }
 
                     // 0. Adım: Uygulama kaydı (App ID / App Secret)
@@ -466,6 +646,88 @@ fun KitsugiBangumiLoginDialog(
                                 shape = RoundedCornerShape(10.dp),
                                 modifier = Modifier.fillMaxWidth()
                             )
+                        }
+                    }
+
+                    // Bağlantı + yazma izni testi
+                    // "Listeye Ekle çalışmıyor" şikâyetinin kökenini ekranda görünür kılar:
+                    // token geçerli mi, koleksiyona yazma izni var mı (403 mü, 404 mü).
+                    Surface(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(14.dp),
+                        color = KitsugiColors.SurfaceElevated.copy(alpha = 0.5f),
+                        border = BorderStroke(1.dp, KitsugiColors.Border)
+                    ) {
+                        Column(modifier = Modifier.padding(14.dp)) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(
+                                    Icons.Rounded.Tune,
+                                    contentDescription = null,
+                                    tint = KitsugiColors.TextPrimary,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    text = KitsugiStrings.get(R.string.bangumi_test_baslik),
+                                    style = MaterialTheme.typography.labelMedium.copy(
+                                        fontWeight = FontWeight.Bold,
+                                        color = KitsugiColors.TextPrimary
+                                    )
+                                )
+                            }
+                            Spacer(modifier = Modifier.height(8.dp))
+
+                            KitsugiTonalButton(
+                                onClick = {
+                                    diagBusy = true
+                                    diagReport = null
+                                    scope.launch {
+                                        val report = runCatching {
+                                            BangumiAuthManager.diagnose(context)
+                                        }.getOrElse { listOf("HATA: " + (it.message ?: "?")) }
+                                        diagReport = report
+                                        diagBusy = false
+                                    }
+                                },
+                                enabled = !diagBusy && !isLoading,
+                                shape = RoundedCornerShape(10.dp),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                if (diagBusy) {
+                                    KitsugiPlasmaLoader(size = 16.dp)
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text(
+                                        text = KitsugiStrings.get(R.string.bangumi_test_calisiyor),
+                                        style = MaterialTheme.typography.labelMedium
+                                    )
+                                } else {
+                                    Text(
+                                        text = KitsugiStrings.get(R.string.bangumi_test_butonu),
+                                        style = MaterialTheme.typography.labelMedium,
+                                        fontWeight = FontWeight.SemiBold
+                                    )
+                                }
+                            }
+
+                            diagReport?.let { report ->
+                                Spacer(modifier = Modifier.height(8.dp))
+                                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                    report.forEach { line ->
+                                        Text(
+                                            text = line,
+                                            style = MaterialTheme.typography.bodySmall.copy(
+                                                fontSize = 11.sp,
+                                                lineHeight = 15.sp,
+                                                color = if (line.startsWith("HATA")) {
+                                                    KitsugiColors.AccentRed
+                                                } else {
+                                                    KitsugiColors.TextSecondary
+                                                }
+                                            )
+                                        )
+                                    }
+                                }
+                            }
                         }
                     }
 

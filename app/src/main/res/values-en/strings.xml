@@ -6073,6 +6073,50 @@
     <string name="bangumi_sync_progress_written">Bangumi episode progress written: %1$d episodes (%2$s).</string>
     <string name="bangumi_sync_progress_not_written">Could not write Bangumi episode progress (%1$s).</string>
     <string name="bangumi_sync_delete_fallback">The Bangumi API does not support deleting collection entries; the entry was marked as dropped (%1$s).</string>
+    <string name="bangumi_sync_progress_not_written_detail">Could not write Bangumi episode progress (%1$s): %2$s</string>
+
+    <string name="bangumi_write_failed_forbidden">Bangumi refused the write (403): %1$s</string>
+    <!-- ── Bangumi collection write errors — 2026-10-12 ─────────────────────── -->
+    <string name="bangumi_write_failed_unauthorized">Bangumi session is invalid (401). The app tried to refresh the token; if that failed too, reconnect via Settings → Account Connections → Bangumi.</string>
+    <string name="bangumi_write_failed_scope">Bangumi refused the write: insufficient token scope (403). This comes from the token itself, not the app. Fix: connect your Bangumi account with a personal access token (Settings → Account Connections → Bangumi → \"Personal Access Token\").</string>
+    <string name="bangumi_write_failed_not_found">This title was not found on Bangumi (404, subject %1$d). The match needs to be updated.</string>
+    <string name="bangumi_write_failed_rejected">Bangumi rejected the request (400): %1$s</string>
+    <string name="bangumi_write_failed_rate_limited">Bangumi rate limit reached (429). Try again in a few minutes.</string>
+    <string name="bangumi_write_failed_server">Bangumi server returned a temporary error (HTTP %1$d). Try again later.</string>
+    <string name="bangumi_write_failed_network">Could not reach Bangumi: %1$s</string>
+    <string name="bangumi_write_failed_http">Bangumi write error (HTTP %1$d): %2$s</string>
+    <string name="bangumi_write_failed_detail_suffix"> — server: %1$s</string>
+
+    <!-- Personal access token (个人令牌) — no app registration required -->
+    <string name="bangumi_pat_bolum_baslik">Connect with a Personal Access Token (recommended)</string>
+    <string name="bangumi_pat_bolum_aciklama">No app registration (App ID / App Secret) needed, and it guarantees write access to your collection. Create a token at next.bgm.tv/demo/access-token/create and paste it below.</string>
+    <string name="bangumi_pat_anahtar_etiketi">Personal access token</string>
+    <string name="bangumi_pat_baglan_butonu">Connect with token</string>
+    <string name="bangumi_pat_baglanti_basarili">Bangumi connected (personal access token). Importing your collection…</string>
+    <string name="bangumi_pat_veya_oauth">or: register your own app and connect via OAuth</string>
+    <string name="bangumi_pat_olustur_linki">Create a token (next.bgm.tv)</string>
+    <string name="bangumi_pat_bos">The access token looks empty; copy it again and paste it here.</string>
+    <string name="bangumi_pat_dogrulanamadi">Could not verify the Bangumi token (HTTP %1$d)</string>
+    <string name="bangumi_pat_401_ipucu">The token is invalid or expired; create a new one.</string>
+
+    <string name="bangumi_diag_write_forbidden_other">ERROR: the server refused writes (403) but the reason is not scope. Server message: %1$s</string>
+    <!-- Connection and write-permission test -->
+    <string name="bangumi_test_butonu">Test connection and write permission</string>
+    <string name="bangumi_test_calisiyor">Testing…</string>
+    <string name="bangumi_test_baslik">Bangumi connection test</string>
+    <string name="bangumi_diag_credentials_ok">App ID ready: %1$s</string>
+    <string name="bangumi_diag_credentials_missing">Warning: no App ID / App Secret (needed for OAuth sign-in; you can use a personal access token instead).</string>
+    <string name="bangumi_diag_session_none">ERROR: no Bangumi session; connect first.</string>
+    <string name="bangumi_diag_session_manual">Session: personal access token (no refresh, expiry chosen by you).</string>
+    <string name="bangumi_diag_session_oauth">Session: OAuth (refreshes automatically before the token expires).</string>
+    <string name="bangumi_diag_token_unavailable">ERROR: could not obtain a valid access token (refresh failed).</string>
+    <string name="bangumi_diag_token_invalid">ERROR: token is invalid (HTTP %1$d). Sign in with your Bangumi account again.</string>
+    <string name="bangumi_diag_token_ok">Token is valid — user: %1$s</string>
+    <string name="bangumi_diag_network_error">ERROR: could not reach Bangumi (%1$s).</string>
+    <string name="bangumi_diag_write_ok">Write gate is OPEN — the server accepted the token (scope check passed).</string>
+    <string name="bangumi_diag_write_denied">ERROR: the server refused writes because of token scope (403 insufficient token scope). This comes from the token scope, not the app: Bangumi\'s new OAuth server stores the scope as a JSON array while the API can only parse a JSON object. Fix: connect with a personal access token in the section below.</string>
+    <string name="bangumi_diag_write_unauthorized">ERROR: token rejected (401). Reconnect your Bangumi account.</string>
+    <string name="bangumi_diag_write_failed">Write test could not complete: %1$s</string>
     <string name="account_sync_mal_delete_api_error">MAL deletion error: %1$d %2$s</string>
     <string name="source_unknown">Unknown</string>
     <string name="source_crew_member">Crew member</string>

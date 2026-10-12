@@ -114,41 +114,149 @@ object BangumiSyncManager {
 
         // 1) Durum + puan + görünürlük: tek upsert isteği.
         //    ep_status yalnızca kitap条目'larında anlamlı olduğu için anime'de burada GÖNDERİLMEZ.
-        val collectionUpdated = BangumiApiClient.upsertCollection(
-            token = token,
-            subjectId = subjectId,
-            type = status,
-            rate = rate,
-            epStatus = if (isBook) progress.takeIf { it > 0 } else null,
-            volStatus = if (isBook) entry.volumeProgress.takeIf { it > 0 } else null,
-            // Not ve etiketler: yalnızca dolu değerler gönderilir (boş alan uzaktaki notu silmez).
-            comment = entry.notes?.takeIf { it.isNotBlank() },
-            private = entry.isPrivate,
-            tags = entry.tags?.split(',')?.map { it.trim() }?.filter { it.isNotEmpty() }?.takeIf { it.isNotEmpty() }
-        )
+        val writeError = writeWithAuthRetry(context, subjectId) { activeToken ->
+            BangumiApiClient.upsertCollection(
+                token = activeToken,
+                subjectId = subjectId,
+                type = status,
+                rate = rate,
+                epStatus = if (isBook) progress.takeIf { it > 0 } else null,
+                volStatus = if (isBook) entry.volumeProgress.takeIf { it > 0 } else null,
+                // Not ve etiketler yalnızca doluysa gönderilir (boş alan uzaktaki notu silmez).
+                // Sunucu kuralı: not ≤380 karakter, etiket ≤10 adet, her etiket ≥2 karakter ve
+                // boşluksuz — kural dışı tek değer TÜM isteği 400 yaptığı için burada süzülür.
+                comment = BangumiApiClient.sanitizeCommentForWrite(entry.notes),
+                private = entry.isPrivate,
+                tags = BangumiApiClient.sanitizeTagsForWrite(
+                    entry.tags?.split(',')?.map { it.trim() }?.filter { it.isNotEmpty() }
+                )
+            )
+        }
+        val collectionUpdated = writeError == null
         if (collectionUpdated) {
             messages += context.getString(R.string.account_sync_entry_updated, "Bangumi", entry.title)
         } else {
-            errors += context.getString(R.string.account_sync_entry_update_failed, "Bangumi", entry.title, context.getString(R.string.account_sync_unknown_error))
+            Log.e(TAG, "syncEntryToBangumi($subjectId) failed: ${writeError?.message}", writeError)
+            errors += context.getString(
+                R.string.account_sync_entry_update_failed,
+                "Bangumi",
+                entry.title,
+                describeWriteFailure(context, subjectId, writeError)
+            )
         }
 
         // 2) Video subject'lerinde ilerleme bölüm bazlı işaretlenir (anime ve REAL dizi/film).
         if (!isBook && progress > 0 && collectionUpdated) {
-            val progressOk = runCatching {
-                val subject = BangumiApiClient.getSubject(subjectId, token)
-                BangumiApiClient.setProgress(token, subject, progress)
-            }.getOrElse { error ->
-                Log.w(TAG, "setProgress($subjectId) failed: ${error.message}")
-                false
+            val progressError = writeWithAuthRetry(context, subjectId) { activeToken ->
+                val subject = BangumiApiClient.getSubject(subjectId, activeToken)
+                BangumiApiClient.setProgress(activeToken, subject, progress)
             }
-            if (progressOk) {
+            if (progressError == null) {
                 messages += context.getString(R.string.bangumi_sync_progress_written, progress, entry.title)
             } else {
-                errors += context.getString(R.string.bangumi_sync_progress_not_written, entry.title)
+                Log.w(TAG, "setProgress($subjectId) failed: ${progressError.message}", progressError)
+                errors += context.getString(
+                    R.string.bangumi_sync_progress_not_written_detail,
+                    entry.title,
+                    describeWriteFailure(context, subjectId, progressError)
+                )
             }
         }
 
         SyncResult(messages, errors, subjectId, collectionUpdated)
+    }
+
+    /**
+     * Bir koleksiyon yazma işlemini çalıştırır ve **401 alındığında token'ı yenileyip
+     * işlemi bir kez daha dener**.
+     *
+     * Neden gerekli: erişim token'ı sunucu tarafında iptal edilmiş (ör. kullanıcı App
+     * Secret'i yeniledi, token tablosu temizlendi) ama yerel `expires_at` hâlâ ileriyi
+     * gösteriyor olabilir. Bu durumda [BangumiAuthStore.getValidToken] bayat token'ı
+     * döndürür, dolayısıyla **her** yazma 401 olur ve eski kod bunu yutup `false`
+     * döndürdüğü için kullanıcı yalnızca "Bilinmeyen hata" görürdü.
+     *
+     * @return `null` → işlem başarılı; aksi halde kullanıcıya gösterilecek gerçek hata.
+     */
+    private suspend fun writeWithAuthRetry(
+        context: Context,
+        subjectId: Int,
+        block: suspend (token: String) -> Unit
+    ): Throwable? {
+        val token = BangumiAuthStore.getValidToken(context)
+            ?: return IllegalStateException(context.getString(R.string.bangumi_oturumu_sona_erdi_lutfen_bangumi_hes))
+        return try {
+            block(token)
+            null
+        } catch (error: Throwable) {
+            if (error is kotlinx.coroutines.CancellationException) throw error
+            if (error !is BangumiApiClient.BangumiApiException || !error.isUnauthorized) return error
+            // 401 → zorla yenile. PAT oturumlarında yenileme yoktur; forceRefresh null döner
+            // ve kullanıcı 401 metniyle yeniden bağlanmaya yönlendirilir.
+            Log.w(TAG, "yazma 401 aldı (subject=$subjectId); token yenilenip bir kez daha denenecek")
+            val refreshed = BangumiAuthStore.forceRefresh(context)
+            if (refreshed.isNullOrBlank()) {
+                Log.e(TAG, "token yenilenemedi (subject=$subjectId) — kullanıcı yeniden bağlanmalı")
+                return error
+            }
+            try {
+                block(refreshed)
+                null
+            } catch (retryError: Throwable) {
+                if (retryError is kotlinx.coroutines.CancellationException) throw retryError
+                retryError
+            }
+        }
+    }
+
+    /**
+     * Yazma hatasını kullanıcıya anlamlı bir cümleye çevirir.
+     *
+     * Eski davranış: `upsertCollection` istisnayı yutup `false` döndürüyordu ve arayüz
+     * her koşulda "Bilinmeyen hata" yazıyordu — 401/403/404/429 ayrımı tamamen kayıptı.
+     * Bu fonksiyon sunucunun `title`/`description` alanlarını da metne katar ki
+     * (ör. `"insufficient token scope"`, `"tag 最短为两个字"`) teşhis mümkün olsun.
+     */
+    internal fun describeWriteFailure(context: Context, subjectId: Int, error: Throwable?): String {
+        if (error == null) return context.getString(R.string.account_sync_unknown_error)
+        if (error !is BangumiApiClient.BangumiApiException) {
+            return context.getString(
+                R.string.bangumi_write_failed_network,
+                error.message ?: error.javaClass.simpleName
+            )
+        }
+        val detail = listOfNotNull(error.title, error.description)
+            .joinToString(" — ")
+            .takeIf { it.isNotBlank() }
+        // 403'ün sebebi sunucu metninden ayırt edilir: kapsam reddi mi, hesap yasaklı mı,
+        // User-Agent reddi mi? (Sunucu üçünde de 403 döner, gövde metni farklıdır.)
+        val scopeDenial = detail?.contains("scope", ignoreCase = true) ?: true
+        val base = when {
+            error.isUnauthorized -> context.getString(R.string.bangumi_write_failed_unauthorized)
+            error.isForbidden && scopeDenial ->
+                context.getString(R.string.bangumi_write_failed_scope)
+            error.isForbidden -> context.getString(
+                R.string.bangumi_write_failed_forbidden,
+                detail ?: context.getString(R.string.account_sync_unknown_error)
+            )
+            error.isNotFound -> context.getString(R.string.bangumi_write_failed_not_found, subjectId)
+            error.code == 400 -> context.getString(
+                R.string.bangumi_write_failed_rejected,
+                detail ?: context.getString(R.string.account_sync_unknown_error)
+            )
+            error.isRateLimited -> context.getString(R.string.bangumi_write_failed_rate_limited)
+            error.code in 500..599 -> context.getString(R.string.bangumi_write_failed_server, error.code)
+            else -> context.getString(
+                R.string.bangumi_write_failed_http,
+                error.code,
+                detail ?: context.getString(R.string.account_sync_unknown_error)
+            )
+        }
+        // Sunucunun ham metni HER durumda eklenir: kullanıcı ekran görüntüsü paylaştığında
+        // sebep ("insufficient token scope", "you are not allowed to do this", "tag 最短为两个字"…)
+        // tahmin edilmeden okunabilsin.
+        if (detail == null) return base
+        return base + context.getString(R.string.bangumi_write_failed_detail_suffix, detail)
     }
 
     /**
@@ -162,8 +270,7 @@ object BangumiSyncManager {
         context: Context,
         entry: MediaEntry
     ): SyncResult = withContext(Dispatchers.IO) {
-        val token = BangumiAuthStore.getValidToken(context)
-        if (token.isNullOrBlank()) {
+        if (BangumiAuthStore.getValidToken(context).isNullOrBlank()) {
             return@withContext SyncResult(emptyList(), listOf(context.getString(R.string.account_sync_account_not_connected, "Bangumi")))
         }
         val subjectId = resolveSubjectId(context, entry)
@@ -173,20 +280,33 @@ object BangumiSyncManager {
                 unresolvedSubject = true
             )
 
-        val ok = BangumiApiClient.upsertCollection(
-            token = token,
-            subjectId = subjectId,
-            type = BangumiApiClient.CollectionType.DROPPED,
-            rate = 0
-        )
-        if (ok) {
+        val writeError = writeWithAuthRetry(context, subjectId) { activeToken ->
+            BangumiApiClient.upsertCollection(
+                token = activeToken,
+                subjectId = subjectId,
+                type = BangumiApiClient.CollectionType.DROPPED,
+                rate = 0
+            )
+        }
+        if (writeError == null) {
             SyncResult(
                 messages = listOf(
                     context.getString(R.string.bangumi_sync_delete_fallback, entry.title)
                 )
             )
         } else {
-            SyncResult(emptyList(), listOf(context.getString(R.string.account_sync_entry_update_failed, "Bangumi", entry.title, context.getString(R.string.account_sync_unknown_error))))
+            Log.e(TAG, "deleteEntryFromBangumi($subjectId) failed: ${writeError.message}", writeError)
+            SyncResult(
+                emptyList(),
+                listOf(
+                    context.getString(
+                        R.string.account_sync_entry_update_failed,
+                        "Bangumi",
+                        entry.title,
+                        describeWriteFailure(context, subjectId, writeError)
+                    )
+                )
+            )
         }
     }
 

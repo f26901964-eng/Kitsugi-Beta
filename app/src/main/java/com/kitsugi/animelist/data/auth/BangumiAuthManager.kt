@@ -144,27 +144,146 @@ object BangumiAuthManager {
         }
     }
 
+    /**
+     * **Kişisel erişim anahtarı** (个人令牌) ile bağlanır — OAuth'a alternatif,
+     * uygulama kaydı gerektirmeyen yol.
+     *
+     * Neden gerekli olabiliyor: Bangumi 2026-06-25'te (`bangumi/server` PR #1011)
+     * koleksiyon yazma uçlarına `write:collection` kapsam denetimi ekledi. Kapsam,
+     * token satırındaki `scope` alanından okunur ve Go tarafı bu alanı **yalnızca JSON
+     * nesnesi** olarak çözebilir; yeni OAuth servisi (`server-private`) ise aynı alanı
+     * **JSON dizisi** olarak yazıyor. Dizi çözülemeyince token "kapsamsız" sayılır ve
+     * yazma 403 ile reddedilir. Kişisel erişim anahtarlarında `scope` hiç yazılmadığı
+     * için sunucu onları "legacy" kabul eder ve yazma çalışır.
+     *
+     * Bu, tanılamadaki yazma sondasıyla (`probeCollectionWrite`) ölçülür: kullanıcı
+     * "Bağlantıyı ve yazma iznini test et" dediğinde kapsam reddi görülürse çözüm bu
+     * yoldur. Anahtar `next.bgm.tv/demo/access-token/create` sayfasından üretilir;
+     * süresi kullanıcı tarafından seçilir (7–365 gün) ve yenilenemez.
+     */
+    fun connectWithPersonalToken(
+        context: Context,
+        rawToken: String,
+        onResult: (success: Boolean, error: String?) -> Unit = { _, _ -> }
+    ) {
+        val token = sanitizePersonalToken(rawToken)
+        if (token.isBlank()) {
+            val message = KitsugiStrings.get(R.string.bangumi_pat_bos)
+            onResult(false, message)
+            return
+        }
+        CoroutineScope(Dispatchers.IO).launch {
+            runCatching { BangumiApiClient.getMe(token) }
+                .onSuccess { user ->
+                    BangumiAuthStore.saveManualToken(context, token, user)
+                    Log.i(TAG, "PAT oturumu kuruldu: uid=${user.id}")
+                    withContext(Dispatchers.Main) { onResult(true, null) }
+                }
+                .onFailure { error ->
+                    val message = when (error) {
+                        is BangumiApiClient.BangumiApiException -> buildString {
+                            append(KitsugiStrings.get(R.string.bangumi_pat_dogrulanamadi, error.code))
+                            error.title?.let { append(": ").append(it) }
+                            error.description?.let { append(" — ").append(it) }
+                            if (error.isUnauthorized) {
+                                append(". ").append(KitsugiStrings.get(R.string.bangumi_pat_401_ipucu))
+                            }
+                        }
+                        else -> KitsugiStrings.get(R.string.bangumi_diag_network_error, error.message ?: "?")
+                    }
+                    Log.e(TAG, message, error)
+                    withContext(Dispatchers.Main) { onResult(false, message) }
+                }
+        }
+    }
+
+    /**
+     * Kullanıcı anahtarı düz metin olarak da, `Bearer x` biçiminde de, tam URL olarak da
+     * yapıştırabilir; üç biçim de desteklenir. Tırnak/boşluk kırpılır.
+     */
+    internal fun sanitizePersonalToken(raw: String): String {
+        var value = raw.trim().trim('"', '\'', ' ')
+        if (value.contains("access_token=")) {
+            value = value.substringAfter("access_token=")
+        } else if (value.contains("token=")) {
+            value = value.substringAfter("token=")
+        }
+        value = value.substringBefore('&').substringBefore(' ').trim()
+        if (value.startsWith("Bearer ", ignoreCase = true)) {
+            value = value.substring(7).trim()
+        }
+        return value
+    }
+
     /** Oturumu kapatır (token + kullanıcı bilgisi silinir, App ID/Secret korunur). */
     fun logout(context: Context) {
         BangumiAuthStore.logout(context)
     }
 
-    /** Bağlantıyı test eder: kimlik bilgisi var mı, token yenilenebiliyor mu, API erişilebilir mi. */
+    /**
+     * Bağlantıyı **uçtan uca** test eder: App kimliği → oturum → token geçerliliği →
+     * koleksiyon **yazma kapısı**. Dönen satırlar giriş diyaloğunda gösterilir.
+     *
+     * Yazma testi [BangumiApiClient.probeCollectionWrite] ile yapılır: **var olmayan**
+     * bir yapıt kimliğine boş `PATCH` gönderilir. Bu istek hiçbir kaydı değiştirmez,
+     * ama sunucunun yazma kapısını kesin olarak ölçer (404 = açık, 403 = kapalı).
+     *
+     * Böylece "listeye hiçbir şey ekleyemiyorum" şikâyeti ölçülebilir bir sonuca döner:
+     *  - kapı kapalıysa sebep kapsamdır (`write:collection`) → kişisel erişim anahtarı çözer,
+     *  - kapı açıkken yazma yine başarısızsa sebep istek gövdesi ya da hesap durumudur;
+     *    yazma hatalarında sunucunun ham metni gösterilir.
+     */
     suspend fun diagnose(context: Context): List<String> {
         val report = mutableListOf<String>()
         report += if (BangumiAuthStore.hasCredentials(context)) {
-            "App ID hazır: ${BangumiAuthStore.getClientId(context).maskSecret()}"
+            KitsugiStrings.get(R.string.bangumi_diag_credentials_ok, BangumiAuthStore.getClientId(context).maskSecret())
         } else {
-            "HATA: App ID / App Secret yok → https://bgm.tv/dev/app"
+            KitsugiStrings.get(R.string.bangumi_diag_credentials_missing)
         }
-        report += if (BangumiAuthStore.isConnected(context)) {
-            "Oturum var (kullanıcı: ${BangumiAuthStore.getUsername(context) ?: "?"}, " +
-                "uid: ${BangumiAuthStore.getUserId(context)})"
+        if (!BangumiAuthStore.isConnected(context)) {
+            report += KitsugiStrings.get(R.string.bangumi_diag_session_none)
+            return report
+        }
+        report += if (BangumiAuthStore.isManualToken(context)) {
+            KitsugiStrings.get(R.string.bangumi_diag_session_manual)
         } else {
-            "Oturum yok"
+            KitsugiStrings.get(R.string.bangumi_diag_session_oauth)
         }
-        val reachable = runCatching { BangumiApiClient.testConnection() }.getOrDefault(false)
-        report += if (reachable) "api.bgm.tv erişilebilir" else "HATA: api.bgm.tv erişilemiyor"
+
+        val token = runCatching { BangumiAuthStore.getValidToken(context) }.getOrNull()
+        if (token.isNullOrBlank()) {
+            report += KitsugiStrings.get(R.string.bangumi_diag_token_unavailable)
+            return report
+        }
+
+        // 1) Token gerçekten geçerli mi? (`GET /v0/me`)
+        val me = runCatching { BangumiApiClient.getMe(token) }
+        val user = me.getOrNull()
+        if (user == null) {
+            val error = me.exceptionOrNull()
+            report += if (error is BangumiApiClient.BangumiApiException) {
+                KitsugiStrings.get(R.string.bangumi_diag_token_invalid, error.code)
+            } else {
+                KitsugiStrings.get(R.string.bangumi_diag_network_error, error?.message ?: "?")
+            }
+            return report
+        }
+        report += KitsugiStrings.get(R.string.bangumi_diag_token_ok, user.username)
+
+        // 2) Yazma kapısı: yan etkisiz PATCH sondası.
+        val probe = BangumiApiClient.probeCollectionWrite(token)
+        report += when (probe.outcome) {
+            BangumiApiClient.CollectionWriteProbe.WRITE_ALLOWED ->
+                KitsugiStrings.get(R.string.bangumi_diag_write_ok)
+            BangumiApiClient.CollectionWriteProbe.SCOPE_DENIED ->
+                KitsugiStrings.get(R.string.bangumi_diag_write_denied)
+            BangumiApiClient.CollectionWriteProbe.UNAUTHORIZED ->
+                KitsugiStrings.get(R.string.bangumi_diag_write_unauthorized)
+            BangumiApiClient.CollectionWriteProbe.FORBIDDEN_OTHER ->
+                KitsugiStrings.get(R.string.bangumi_diag_write_forbidden_other, probe.detail ?: "?")
+            BangumiApiClient.CollectionWriteProbe.FAILED ->
+                KitsugiStrings.get(R.string.bangumi_diag_write_failed, probe.detail ?: "?")
+        }
         return report
     }
 

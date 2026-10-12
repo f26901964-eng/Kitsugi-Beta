@@ -581,10 +581,17 @@ internal fun ShikimoriSettingsContent(profile: ProfileSettings) {
 
 /**
  * Bangumi hesap bağlantısı alt sayfası.
-
+ *
  * Shikimori sayfasıyla aynı yapı; farkı, Bangumi'de paylaşılan varsayılan uygulama kaydı
- * olmamasıdır. Kullanıcı önce https://bgm.tv/dev/app üzerinden kendi App ID / App Secret
- * değerini almalıdır (bkz. KitsugiBangumiLoginDialog ve docs/bangumi/).
+ * olmamasıdır. Kullanıcı ya https://bgm.tv/dev/app üzerinden kendi App ID / App Secret
+ * değerini alır (OAuth yolu) ya da `next.bgm.tv/demo/access-token/create` sayfasından
+ * **kişisel erişim anahtarı** üretir (uygulama kaydı gerekmez).
+ *
+ * Kişisel anahtar yolu, koleksiyon yazma uçlarındaki kapsam (`write:collection`)
+ * denetiminden etkilenmez: token satırında `scope` boş kalır ve sunucu bunu "legacy"
+ * sayar. 2026-06-25'ten (PR #1011) beri OAuth token'ının `scope` alanı JSON **dizisi**
+ * olarak yazıldığında Go API'si bunu çözemeyip yazmayı 403 ile reddedebildiği için bu
+ * yol kullanıcıya açıkça sunulur (bkz. `BANGUMI_YAZMA_TESHISI_RAPORU.md`).
  */
 @Composable
 internal fun BangumiSettingsContent(profile: ProfileSettings) {
