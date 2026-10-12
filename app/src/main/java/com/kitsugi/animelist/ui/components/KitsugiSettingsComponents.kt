@@ -3,6 +3,7 @@ package com.kitsugi.animelist.ui.components
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.MutableTransitionState
 import androidx.compose.animation.core.tween
@@ -10,9 +11,15 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.TransformOrigin
@@ -125,16 +132,36 @@ fun KitsugiSettingsSection(
 
 internal data class KitsugiSettingsTabOption(
     val title: String,
-    val icon: ImageVector
+    val icon: ImageVector,
+    /** Verilirse ikon yerine orijinal platform logosu gösterilir (AniList, MAL, Kitsu, ...). */
+    val platformId: String? = null
 )
 
-/** A shared, app-styled segmented selector for settings pagers. */
+/** Sekmenin sığmadığı durumda kullanılan en küçük genişlik. */
+private val SettingsTabMinWidth = 104.dp
+/** Kaydırmalı bantta sekmelerin ekran genişliğine oranı (aynı anda ~3 sekme görünür). */
+private const val SettingsTabScrollWidthFraction = 0.34f
+/** Kaydırmalı bantta sekme genişliği üst sınırı (tablet/yatay ekranda dev sekme olmasın). */
+private val SettingsTabScrollMaxWidth = 168.dp
+
+/**
+ * Ayarlar sayfalarının ortak üst sekme bandı ("Görünüm & Tercihler" bandı ile birebir aynı).
+ *
+ * Davranış:
+ * - Sekmeler ekrana **sığıyorsa** eşit olarak bölünür (taşma yok, kaydırma yok).
+ * - Sığmıyorsa bant **kendi içinde** yatay kaydırılır; bant ekranın sağına/soluna taşmaz.
+ * - Seçili sekme (ve TV'de odaklanan sekme) otomatik olarak görünür alana ortalanır.
+ * - Kaydırılabilir bandın kenarlarında "devamı var" solma ipucu çizilir.
+ *
+ * Böylece dikey/yatay, telefon/tablet ve TV'de aynı bant davranışı korunur.
+ */
 @Composable
 internal fun KitsugiSettingsSegmentedTabs(
     tabs: List<KitsugiSettingsTabOption>,
     selectedIndex: Int,
     accentColor: Color,
-    onSelect: (Int) -> Unit
+    onSelect: (Int) -> Unit,
+    modifier: Modifier = Modifier
 ) {
     if (tabs.isEmpty()) return
 
@@ -143,53 +170,136 @@ internal fun KitsugiSettingsSegmentedTabs(
     val safeSelectedIndex = selectedIndex.coerceIn(tabs.indices)
     val outerShape = RoundedCornerShape(16.dp)
     val segmentShape = RoundedCornerShape(13.dp)
+    val containerColor = KitsugiColors.Surface
+    val borderColor = KitsugiColors.Border
+    val scrollState = rememberScrollState()
+    val density = LocalDensity.current
+    val isTv = LocalIsTv.current
+    var focusedIndex by remember { mutableStateOf(-1) }
 
-    Row(
-        modifier = Modifier
+    BoxWithConstraints(
+        modifier = modifier
             .fillMaxWidth()
             .clip(outerShape)
-            .background(KitsugiColors.Surface)
-            .border(1.dp, KitsugiColors.Border.copy(alpha = 0.6f), outerShape)
-            .padding(4.dp),
-        horizontalArrangement = Arrangement.spacedBy(4.dp)
+            .background(containerColor)
+            .border(1.dp, borderColor.copy(alpha = 0.6f), outerShape)
+            .padding(4.dp)
     ) {
-        tabs.forEachIndexed { index, tab ->
-            val selected = safeSelectedIndex == index
-            Column(
-                modifier = Modifier
-                    .weight(1f)
-                    .heightIn(min = 54.dp)
-                    .clip(segmentShape)
-                    .then(
-                        if (selected) {
-                            Modifier
-                                .background(selectedSegmentFill, segmentShape)
-                                .border(1.dp, selectedSegmentBorder, segmentShape)
-                        } else {
-                            Modifier
-                        }
+        val spacing = 4.dp
+        val viewportWidth = maxWidth
+        val usableWidth = (viewportWidth - spacing * (tabs.size - 1)).coerceAtLeast(0.dp)
+        val evenWidth = usableWidth / tabs.size
+        val scrollable = evenWidth < SettingsTabMinWidth
+        val segmentWidth = if (scrollable) {
+            (viewportWidth * SettingsTabScrollWidthFraction)
+                .coerceIn(SettingsTabMinWidth, SettingsTabScrollMaxWidth)
+        } else {
+            evenWidth
+        }
+
+        val spacingPx = with(density) { spacing.toPx() }
+        val segmentPx = with(density) { segmentWidth.toPx() }
+        val viewportPx = with(density) { viewportWidth.toPx() }
+        val contentPx = tabs.size * segmentPx + spacingPx * (tabs.size - 1)
+        val maxScrollPx = (contentPx - viewportPx).coerceAtLeast(0f)
+
+        // Seçili (TV'de odaklı) sekmeyi görünür alana ortala
+        LaunchedEffect(safeSelectedIndex, focusedIndex, scrollable, segmentPx, maxScrollPx, viewportPx) {
+            if (!scrollable) {
+                scrollState.scrollTo(0)
+                return@LaunchedEffect
+            }
+            val targetIndex = if (isTv && focusedIndex in tabs.indices) focusedIndex else safeSelectedIndex
+            val itemCenter = targetIndex * (segmentPx + spacingPx) + segmentPx / 2f
+            scrollState.animateScrollTo((itemCenter - viewportPx / 2f).coerceIn(0f, maxScrollPx).toInt())
+        }
+
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .then(
+                    if (scrollable) {
+                        Modifier
+                            .horizontalScroll(scrollState)
+                            .drawWithContent {
+                                drawContent()
+                                val fadeWidth = 22.dp.toPx()
+                                val canScrollStart = scrollState.value > 2
+                                val canScrollEnd = scrollState.value < scrollState.maxValue - 2
+                                if (canScrollStart) {
+                                    drawRect(
+                                        brush = Brush.horizontalGradient(
+                                            0f to containerColor,
+                                            fadeWidth to Color.Transparent
+                                        ),
+                                        topLeft = Offset.Zero,
+                                        size = Size(fadeWidth, size.height)
+                                    )
+                                }
+                                if (canScrollEnd) {
+                                    drawRect(
+                                        brush = Brush.horizontalGradient(
+                                            0f to Color.Transparent,
+                                            fadeWidth to containerColor
+                                        ),
+                                        topLeft = Offset(size.width - fadeWidth, 0f),
+                                        size = Size(fadeWidth, size.height)
+                                    )
+                                }
+                            }
+                    } else {
+                        Modifier
+                    }
+                ),
+            horizontalArrangement = Arrangement.spacedBy(spacing)
+        ) {
+            tabs.forEachIndexed { index, tab ->
+                val selected = safeSelectedIndex == index
+                Column(
+                    modifier = Modifier
+                        .then(if (scrollable) Modifier.width(segmentWidth) else Modifier.weight(1f))
+                        .heightIn(min = 54.dp)
+                        .clip(segmentShape)
+                        .then(
+                            if (selected) {
+                                Modifier
+                                    .background(selectedSegmentFill, segmentShape)
+                                    .border(1.dp, selectedSegmentBorder, segmentShape)
+                            } else {
+                                Modifier
+                            }
+                        )
+                        .onFocusChanged { if (it.isFocused) focusedIndex = index }
+                        .tvClickable(shape = segmentShape) { onSelect(index) }
+                        .padding(vertical = 8.dp, horizontal = 6.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center
+                ) {
+                    if (tab.platformId != null) {
+                        KitsugiPlatformLogo(
+                            platformId = tab.platformId,
+                            size = 18.dp,
+                            modifier = Modifier.alpha(if (selected) 1f else 0.72f)
+                        )
+                    } else {
+                        Icon(
+                            imageVector = tab.icon,
+                            contentDescription = null,
+                            tint = if (selected) accentColor else KitsugiColors.TextMuted,
+                            modifier = Modifier.size(17.dp)
+                        )
+                    }
+                    Spacer(Modifier.height(4.dp))
+                    Text(
+                        text = tab.title,
+                        color = if (selected) accentColor else KitsugiColors.TextSecondary,
+                        fontSize = 11.sp,
+                        fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        textAlign = TextAlign.Center
                     )
-                    .tvClickable(shape = segmentShape) { onSelect(index) }
-                    .padding(vertical = 8.dp, horizontal = 3.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.Center
-            ) {
-                Icon(
-                    imageVector = tab.icon,
-                    contentDescription = null,
-                    tint = if (selected) accentColor else KitsugiColors.TextMuted,
-                    modifier = Modifier.size(17.dp)
-                )
-                Spacer(Modifier.height(4.dp))
-                Text(
-                    text = tab.title,
-                    color = if (selected) accentColor else KitsugiColors.TextSecondary,
-                    fontSize = 11.sp,
-                    fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    textAlign = TextAlign.Center
-                )
+                }
             }
         }
     }

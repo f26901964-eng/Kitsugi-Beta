@@ -1,5 +1,45 @@
 # Kitsugi-Beta — Sürüm Notları / Release Notes
 
+## 🇹🇷 Türkçe (v2.4.258)
+
+### 🧭 1. Ortak Üst Sekme Bandı Artık Her Yerde (Görünüm & Tercihler Mantığı)
+- "Ayarlar > Görünüm & Tercihler" bandı ve sağa/sola kaydırma mantığı ortak bileşene taşındı: `KitsugiSettingsSegmentedTabs`.
+- **Oynatıcı Ayarları:** Ana menü listesi kaldırıldı; 8 bölüm (Dahili oynatıcı · Hareketler · Kod çözücü · Alt yazılar · Ses · Özel butonlar · Kod düzenleyici · Gelişmiş) artık **kaydırmalı sekme**. Her sekmenin kendi kaydırma konumu korunur.
+- **İndirmeler:** Videolar / Altyazılar / Resimler bandı, Görünüm & Tercihler bandının birebir aynısı (alt çizgi yerine segmentli görünüm).
+- **Platform Hata Kodları:** Filtre çipleri yerine sekme bandı; her kategori yalnızca kendi kodlarını listeler. Sekmelerde platformların orijinal logoları.
+- **Hesap Bağlantıları:** Platformlar ve Senkronizasyon artık iki ayrı sekme.
+
+### 📐 2. Taşma Yok — Dikey/Yatay, Telefon/Tablet/TV Uyumlu Bant
+- Sekmeler ekrana **sığıyorsa** eşit bölünür (eski görünüm korunur).
+- **Sığmıyorsa** bant kendi içinde yatay kaydırılır; sekmeler ekranın sağına/soluna taşmaz.
+- **Seçili sekme otomatik ortalanır**, kenarlarda "devamı var" solma ipucu çizilir.
+- **TV'de** D-pad ile odaklanan sekme otomatik görünür alana getirilir.
+- Tablet/yatay ekranda sekme genişliği 168dp ile sınırlı; telefonda ~3 sekme görünür.
+
+### 🧩 3. Sekme Logoları
+- Bant, ikon yerine **platform logosu** gösterebiliyor (`platformId`): AniList / MyAnimeList / Kitsu / Shikimori / Bangumi / TMDB / Simkl sekmeleri gerçek logoları kullanıyor.
+
+---
+
+## 🇬🇧 English (v2.4.258)
+
+### 🧭 1. Shared Top Tab Bar Everywhere (Appearance & Preferences Behaviour)
+- The "Settings > Appearance & Preferences" tab bar + swipe logic is now a shared component: `KitsugiSettingsSegmentedTabs`.
+- **Player Settings:** the main menu list is gone; 8 sections (Internal player · Gestures · Decoder · Subtitles · Audio · Custom buttons · Code editor · Advanced) are now **swipeable tabs**, each keeping its own scroll position.
+- **Downloads:** Videos / Subtitles / Images bar now matches the Appearance & Preferences bar exactly.
+- **Platform Error Codes:** filter chips replaced by the tab bar; each category lists only its own codes, with real platform logos on the tabs.
+- **Account Connections:** Platforms and Sync are now two tabs.
+
+### 📐 2. No Overflow — Portrait/Landscape, Phone/Tablet/TV Friendly
+- Tabs **fit** → distributed evenly (previous look preserved). Tabs **do not fit** → the bar scrolls inside itself and never bleeds off the screen edges.
+- The **selected tab is auto-centered** with subtle edge fades; on **TV** the D-pad focused tab scrolls into view.
+- Tab width is capped at 168dp on tablets/landscape; ~3 tabs stay visible on phones.
+
+### 🧩 3. Tab Logos
+- The bar can render a **platform logo** instead of an icon (`platformId`) for AniList / MyAnimeList / Kitsu / Shikimori / Bangumi / TMDB / Simkl tabs.
+
+---
+
 ## 🇹🇷 Türkçe (v2.4.257)
 
 ### 🌐 1. Güncellenmiş Domain Tablosu (57 → 88 Domain)

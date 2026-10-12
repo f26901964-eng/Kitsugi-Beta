@@ -16,22 +16,16 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.activity.compose.BackHandler
-import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.slideInHorizontally
-import androidx.compose.animation.slideOutHorizontally
-import androidx.compose.animation.togetherWith
-import androidx.compose.animation.SizeTransform
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -61,6 +55,30 @@ enum class PlayerSettingsSubScreen {
     KodDuzenleyici,
     Gelismis
 }
+
+/**
+ * Oynatıcı Ayarları üst sekme bandı.
+ *
+ * Bölümler artık alt sayfa değil, **kaydırmalı sekme**: sağa/sola kaydırarak
+ * (veya banda dokunarak) bölümler arasında geçilir — "Görünüm & Tercihler"
+ * bandıyla aynı davranış. [Main] listesi kaldırıldığı için sekmeye karşılık gelmez.
+ */
+internal data class PlayerSettingsTab(
+    val subScreen: PlayerSettingsSubScreen,
+    val titleRes: Int,
+    val icon: androidx.compose.ui.graphics.vector.ImageVector
+)
+
+internal val PlayerSettingsTabs: List<PlayerSettingsTab> = listOf(
+    PlayerSettingsTab(PlayerSettingsSubScreen.DahiliOynatici, R.string.pd_tab_internal, Icons.Rounded.PlayCircle),
+    PlayerSettingsTab(PlayerSettingsSubScreen.Hareketler, R.string.pd_sub_gestures, Icons.Rounded.Swipe),
+    PlayerSettingsTab(PlayerSettingsSubScreen.KodCozucu, R.string.pd_tab_decoder, Icons.Rounded.Memory),
+    PlayerSettingsTab(PlayerSettingsSubScreen.Altyazilar, R.string.pd_tab_subtitles, Icons.Rounded.Subtitles),
+    PlayerSettingsTab(PlayerSettingsSubScreen.Ses, R.string.pd_sub_audio, Icons.Rounded.VolumeUp),
+    PlayerSettingsTab(PlayerSettingsSubScreen.OzelButonlar, R.string.pd_tab_custom_buttons, Icons.Rounded.SmartButton),
+    PlayerSettingsTab(PlayerSettingsSubScreen.KodDuzenleyici, R.string.pd_tab_code_editor, Icons.Rounded.Code),
+    PlayerSettingsTab(PlayerSettingsSubScreen.Gelismis, R.string.pd_tab_advanced, Icons.Rounded.Settings)
+)
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
@@ -182,19 +200,20 @@ fun KitsugiPlayerSettingsDialog(
     val customButtonsFlow = remember { db.customButtonDao().subscribeAll() }
     val customButtons by customButtonsFlow.collectAsState(initial = emptyList())
 
-    // Sub-screen Navigation State
-    var activeSubScreen by rememberSaveable { mutableStateOf(initialSubScreen) }
+    // ─── Üst sekme bandı + kaydırmalı sayfalar (Görünüm & Tercihler ile aynı mantık) ───
+    val pagerState = rememberPagerState(
+        initialPage = PlayerSettingsTabs.indexOfFirst { it.subScreen == initialSubScreen }.coerceAtLeast(0),
+        pageCount = { PlayerSettingsTabs.size }
+    )
     LaunchedEffect(initialSubScreen) {
-        activeSubScreen = initialSubScreen
+        val target = PlayerSettingsTabs.indexOfFirst { it.subScreen == initialSubScreen }
+        if (target >= 0 && pagerState.currentPage != target) {
+            pagerState.animateScrollToPage(target)
+        }
     }
-    LaunchedEffect(activeSubScreen) {
-        onSubScreenChanged(activeSubScreen)
+    LaunchedEffect(pagerState.currentPage) {
+        onSubScreenChanged(PlayerSettingsTabs[pagerState.currentPage].subScreen)
     }
-
-    // Lazy List States for scrolling
-    val mainMenuScrollState = rememberLazyListState()
-    val subScreenScrollState = rememberLazyListState()
-    val activeScrollState = if (activeSubScreen == PlayerSettingsSubScreen.Main) mainMenuScrollState else subScreenScrollState
 
     // File Editor dialog states
     var editingFile by remember { mutableStateOf<File?>(null) }
@@ -238,19 +257,15 @@ fun KitsugiPlayerSettingsDialog(
     var bufferRebExp by remember { mutableStateOf(false) }
     var bufferBackExp by remember { mutableStateOf(false) }
 
-    BackHandler(enabled = embeddedMode || activeSubScreen != PlayerSettingsSubScreen.Main) {
-        if (activeSubScreen != PlayerSettingsSubScreen.Main) {
-            activeSubScreen = PlayerSettingsSubScreen.Main
-        } else {
-            onDismiss()
-        }
+    BackHandler(enabled = embeddedMode) {
+        onDismiss()
     }
 
     KitsugiSheetOrDialog(
         onDismiss = onDismiss,
         fullScreen = true,
         embeddedMode = embeddedMode,
-        innerScrollState = activeScrollState
+        sheetGesturesEnabled = false
     ) {
         Column(
             modifier = Modifier
@@ -267,16 +282,7 @@ fun KitsugiPlayerSettingsDialog(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        if (activeSubScreen != PlayerSettingsSubScreen.Main) {
-                            IconButton(onClick = { activeSubScreen = PlayerSettingsSubScreen.Main }) {
-                                Icon(
-                                    imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
-                                    contentDescription = stringResource(R.string.notif_action_back),
-                                    tint = KitsugiColors.TextPrimary
-                                )
-                            }
-                            Spacer(modifier = Modifier.width(8.dp))
-                        } else if (embeddedMode) {
+                        if (embeddedMode) {
                             IconButton(onClick = onDismiss) {
                                 Icon(
                                     imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
@@ -287,17 +293,7 @@ fun KitsugiPlayerSettingsDialog(
                             Spacer(modifier = Modifier.width(8.dp))
                         }
                         Text(
-                            text = when (activeSubScreen) {
-                                PlayerSettingsSubScreen.Main -> stringResource(R.string.pd_title)
-                                PlayerSettingsSubScreen.DahiliOynatici -> stringResource(R.string.pd_tab_internal)
-                                PlayerSettingsSubScreen.Hareketler -> stringResource(R.string.pd_sub_gestures)
-                                PlayerSettingsSubScreen.KodCozucu -> stringResource(R.string.pd_tab_decoder)
-                                PlayerSettingsSubScreen.Altyazilar -> stringResource(R.string.pd_tab_subtitles)
-                                PlayerSettingsSubScreen.Ses -> stringResource(R.string.pd_sub_audio)
-                                PlayerSettingsSubScreen.OzelButonlar -> stringResource(R.string.pd_tab_custom_buttons)
-                                PlayerSettingsSubScreen.KodDuzenleyici -> stringResource(R.string.pd_tab_code_editor)
-                                PlayerSettingsSubScreen.Gelismis -> stringResource(R.string.pd_tab_advanced)
-                            },
+                            text = stringResource(R.string.pd_title),
                             color = KitsugiColors.TextPrimary,
                             style = MaterialTheme.typography.titleLarge,
                             fontWeight = FontWeight.Bold
@@ -318,114 +314,32 @@ fun KitsugiPlayerSettingsDialog(
 
             }
 
-            // Sub-screen Selector / Body Content with slide & fade transitions
-            AnimatedContent(
-                targetState = activeSubScreen,
-                modifier = Modifier.weight(1f),
-                transitionSpec = {
-                    if (targetState != PlayerSettingsSubScreen.Main) {
-                        (slideInHorizontally { it } + fadeIn()) togetherWith
-                                (slideOutHorizontally { -it / 3 } + fadeOut())
-                    } else {
-                        (slideInHorizontally { -it / 3 } + fadeIn()) togetherWith
-                                (slideOutHorizontally { it } + fadeOut())
-                    } using SizeTransform(clip = false)
+            // Üst sekme bandı — 8 bölüm, ekrana sığmazsa kendi içinde kaydırılır
+            KitsugiSettingsSegmentedTabs(
+                tabs = PlayerSettingsTabs.map {
+                    KitsugiSettingsTabOption(title = stringResource(it.titleRes), icon = it.icon)
                 },
-                label = "player_settings_subscreen"
-            ) { screen ->
-                when (screen) {
-                    PlayerSettingsSubScreen.Main -> {
-                        LazyColumn(
-                            state = mainMenuScrollState,
-                            modifier = Modifier.fillMaxSize(),
-                            verticalArrangement = Arrangement.spacedBy(4.dp),
-                            contentPadding = PaddingValues(vertical = 8.dp)
-                        ) {
-                            item {
-                                KitsugiSettingsItem(
-                                    title = stringResource(R.string.pd_tab_internal),
-                                    description = stringResource(R.string.pd_tab_internal_desc),
-                                    icon = Icons.Rounded.PlayCircle,
-                                    iconColor = accentColor,
-                                    onClick = { activeSubScreen = PlayerSettingsSubScreen.DahiliOynatici }
-                                )
-                                KitsugiSettingsDivider()
-                            }
-                            item {
-                                KitsugiSettingsItem(
-                                    title = stringResource(R.string.pd_sub_gestures),
-                                    description = stringResource(R.string.pd_tab_gestures_desc),
-                                    icon = Icons.Rounded.Swipe,
-                                    iconColor = accentColor,
-                                    onClick = { activeSubScreen = PlayerSettingsSubScreen.Hareketler }
-                                )
-                                KitsugiSettingsDivider()
-                            }
-                            item {
-                                KitsugiSettingsItem(
-                                    title = stringResource(R.string.pd_tab_decoder),
-                                    description = stringResource(R.string.pd_tab_decoder_desc),
-                                    icon = Icons.Rounded.Memory,
-                                    iconColor = accentColor,
-                                    onClick = { activeSubScreen = PlayerSettingsSubScreen.KodCozucu }
-                                )
-                                KitsugiSettingsDivider()
-                            }
-                            item {
-                                KitsugiSettingsItem(
-                                    title = stringResource(R.string.pd_tab_subtitles),
-                                    description = stringResource(R.string.pd_tab_subtitles_desc),
-                                    icon = Icons.Rounded.Subtitles,
-                                    iconColor = accentColor,
-                                    onClick = { activeSubScreen = PlayerSettingsSubScreen.Altyazilar }
-                                )
-                                KitsugiSettingsDivider()
-                            }
-                            item {
-                                KitsugiSettingsItem(
-                                    title = stringResource(R.string.pd_sub_audio),
-                                    description = stringResource(R.string.pd_tab_audio_desc),
-                                    icon = Icons.Rounded.VolumeUp,
-                                    iconColor = accentColor,
-                                    onClick = { activeSubScreen = PlayerSettingsSubScreen.Ses }
-                                )
-                                KitsugiSettingsDivider()
-                            }
-                            item {
-                                KitsugiSettingsItem(
-                                    title = stringResource(R.string.pd_tab_custom_buttons),
-                                    description = stringResource(R.string.pd_tab_custom_buttons_desc),
-                                    icon = Icons.Rounded.SmartButton,
-                                    iconColor = accentColor,
-                                    onClick = { activeSubScreen = PlayerSettingsSubScreen.OzelButonlar }
-                                )
-                                KitsugiSettingsDivider()
-                            }
-                            item {
-                                KitsugiSettingsItem(
-                                    title = stringResource(R.string.pd_tab_code_editor),
-                                    description = stringResource(R.string.pd_tab_code_editor_desc),
-                                    icon = Icons.Rounded.Code,
-                                    iconColor = accentColor,
-                                    onClick = { activeSubScreen = PlayerSettingsSubScreen.KodDuzenleyici }
-                                )
-                                KitsugiSettingsDivider()
-                            }
-                            item {
-                                KitsugiSettingsItem(
-                                    title = stringResource(R.string.pd_tab_advanced),
-                                    description = stringResource(R.string.pd_tab_advanced_desc),
-                                    icon = Icons.Rounded.Settings,
-                                    iconColor = accentColor,
-                                    onClick = { activeSubScreen = PlayerSettingsSubScreen.Gelismis }
-                                )
-                            }
-                        }
-                    }
+                selectedIndex = pagerState.currentPage,
+                accentColor = accentColor,
+                onSelect = { index -> scope.launch { pagerState.animateScrollToPage(index) } },
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+            )
 
+            // Body Content — sağa/sola kaydırma ile bölüm geçişi
+            HorizontalPager(
+                state = pagerState,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f)
+            ) { page ->
+                // Her sekmenin kendi kaydırma konumu korunur
+                val pageScrollState = rememberLazyListState()
+                when (PlayerSettingsTabs[page].subScreen) {
+                    // Not: "Main" menü listesi kaldırıldı; bölümler artık sekme bandından seçilir.
+                    PlayerSettingsSubScreen.Main -> Unit
                     PlayerSettingsSubScreen.DahiliOynatici -> {
                         LazyColumn(
-                            state = subScreenScrollState,
+                            state = pageScrollState,
                             modifier = Modifier.fillMaxSize(),
                             verticalArrangement = Arrangement.spacedBy(8.dp),
                             contentPadding = PaddingValues(16.dp)
@@ -690,7 +604,7 @@ fun KitsugiPlayerSettingsDialog(
 
                     PlayerSettingsSubScreen.Hareketler -> {
                         LazyColumn(
-                            state = subScreenScrollState,
+                            state = pageScrollState,
                             modifier = Modifier.fillMaxSize(),
                             verticalArrangement = Arrangement.spacedBy(8.dp),
                             contentPadding = PaddingValues(16.dp)
@@ -857,7 +771,7 @@ fun KitsugiPlayerSettingsDialog(
 
                     PlayerSettingsSubScreen.KodCozucu -> {
                         LazyColumn(
-                            state = subScreenScrollState,
+                            state = pageScrollState,
                             modifier = Modifier.fillMaxSize(),
                             verticalArrangement = Arrangement.spacedBy(8.dp),
                             contentPadding = PaddingValues(16.dp)
@@ -989,7 +903,7 @@ fun KitsugiPlayerSettingsDialog(
 
                     PlayerSettingsSubScreen.Altyazilar -> {
                         LazyColumn(
-                            state = subScreenScrollState,
+                            state = pageScrollState,
                             modifier = Modifier.fillMaxSize(),
                             verticalArrangement = Arrangement.spacedBy(8.dp),
                             contentPadding = PaddingValues(16.dp)
@@ -1385,7 +1299,7 @@ fun KitsugiPlayerSettingsDialog(
 
                     PlayerSettingsSubScreen.Ses -> {
                         LazyColumn(
-                            state = subScreenScrollState,
+                            state = pageScrollState,
                             modifier = Modifier.fillMaxSize(),
                             verticalArrangement = Arrangement.spacedBy(8.dp),
                             contentPadding = PaddingValues(16.dp)
@@ -1598,7 +1512,7 @@ fun KitsugiPlayerSettingsDialog(
                             }
 
                             LazyColumn(
-                                state = subScreenScrollState,
+                                state = pageScrollState,
                                 modifier = Modifier.weight(1f),
                                 verticalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
@@ -1741,7 +1655,7 @@ fun KitsugiPlayerSettingsDialog(
                             }
 
                             LazyColumn(
-                                state = subScreenScrollState,
+                                state = pageScrollState,
                                 modifier = Modifier.weight(1f),
                                 verticalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
@@ -1862,7 +1776,7 @@ fun KitsugiPlayerSettingsDialog(
 
                     PlayerSettingsSubScreen.Gelismis -> {
                         LazyColumn(
-                            state = subScreenScrollState,
+                            state = pageScrollState,
                             modifier = Modifier.fillMaxSize(),
                             verticalArrangement = Arrangement.spacedBy(8.dp),
                             contentPadding = PaddingValues(16.dp)
