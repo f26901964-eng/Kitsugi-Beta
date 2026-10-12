@@ -51,6 +51,8 @@ import androidx.tv.material3.MaterialTheme
 import com.kitsugi.animelist.ui.theme.gradient.Text
 import com.kitsugi.animelist.data.settings.AppSettings
 import com.kitsugi.animelist.data.settings.SettingsDataStore
+import com.kitsugi.animelist.data.fandom.FandomRepository
+import com.kitsugi.animelist.data.fandom.FandomWikiPrefs
 import com.kitsugi.animelist.ui.theme.KitsugiColors
 import com.kitsugi.animelist.ui.theme.KitsugiTvTokens
 import com.kitsugi.animelist.ui.utils.KitsugiScrollDefaults
@@ -81,6 +83,9 @@ fun TvSettingsScreen(
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val settings by settingsDataStore.settingsFlow.collectAsStateWithLifecycle(initialValue = AppSettings())
+    // Fandom Wiki tercihleri ayrı bir depoda (FandomWikiPrefs) tutulur.
+    FandomWikiPrefs.ensureLoaded(context)
+    val fandomPrefs by FandomWikiPrefs.stateFlow.collectAsStateWithLifecycle()
 
     // Auth durumunu LaunchedEffect ile yükle
     LaunchedEffect(Unit) { authViewModel.refreshAuthState() }
@@ -220,6 +225,81 @@ fun TvSettingsScreen(
                                 checked = settings.showAnimeLogos,
                                 onCheckedChange = { checked ->
                                     scope.launch { settingsDataStore.setShowAnimeLogos(checked) }
+                                }
+                            )
+                        }
+
+                        // ── Fandom Wiki (karakter detayındaki Wiki sekmesi) ──
+                        item {
+                            Text(
+                                text = stringResource(R.string.fandom_settings_title),
+                                style = MaterialTheme.typography.titleMedium,
+                                color = MaterialTheme.colorScheme.primary,
+                                fontWeight = FontWeight.Bold,
+                                modifier = Modifier.padding(top = 8.dp, bottom = 4.dp)
+                            )
+                        }
+
+                        item {
+                            TvSettingsToggleRow(
+                                title = stringResource(R.string.fandom_settings_enabled),
+                                description = stringResource(R.string.fandom_settings_enabled_desc),
+                                checked = fandomPrefs.enabled,
+                                onCheckedChange = { checked ->
+                                    FandomWikiPrefs.update(context) { it.copy(enabled = checked) }
+                                }
+                            )
+                        }
+
+                        if (fandomPrefs.enabled) {
+                            item {
+                                TvSettingsToggleRow(
+                                    title = stringResource(R.string.fandom_settings_name),
+                                    description = stringResource(R.string.fandom_settings_name_desc),
+                                    checked = fandomPrefs.nameFallback,
+                                    onCheckedChange = { checked ->
+                                        FandomWikiPrefs.update(context) { it.copy(nameFallback = checked) }
+                                    }
+                                )
+                            }
+
+                            item {
+                                TvSettingsToggleRow(
+                                    title = stringResource(R.string.fandom_settings_spoiler),
+                                    description = stringResource(R.string.fandom_settings_spoiler_desc),
+                                    checked = fandomPrefs.spoilerGuard,
+                                    onCheckedChange = { checked ->
+                                        FandomWikiPrefs.update(context) { it.copy(spoilerGuard = checked) }
+                                    }
+                                )
+                            }
+
+                            item {
+                                TvSettingsToggleRow(
+                                    title = stringResource(R.string.fandom_settings_turkish),
+                                    description = stringResource(R.string.fandom_settings_turkish_desc),
+                                    checked = fandomPrefs.preferTurkish,
+                                    onCheckedChange = { checked ->
+                                        FandomWikiPrefs.update(context) { it.copy(preferTurkish = checked) }
+                                    }
+                                )
+                            }
+                        }
+
+                        item {
+                            TvSettingsActionRow(
+                                title = stringResource(R.string.fandom_settings_clear_cache),
+                                description = stringResource(R.string.fandom_settings_clear_cache_desc),
+                                actionText = stringResource(R.string.fandom_settings_clear_action),
+                                onClick = {
+                                    scope.launch {
+                                        FandomRepository.clearAll(context)
+                                        android.widget.Toast.makeText(
+                                            context,
+                                            context.getString(R.string.fandom_settings_cache_cleared),
+                                            android.widget.Toast.LENGTH_SHORT
+                                        ).show()
+                                    }
                                 }
                             )
                         }

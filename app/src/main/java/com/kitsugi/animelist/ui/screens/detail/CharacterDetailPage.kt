@@ -108,12 +108,17 @@ import androidx.compose.ui.focus.focusProperties
 import com.kitsugi.animelist.data.remote.GalleryItem
 import com.kitsugi.animelist.data.remote.GalleryCategory
 import androidx.compose.ui.focus.focusRequester
+import com.kitsugi.animelist.ui.screens.detail.wiki.CharacterWikiTabContent
+import com.kitsugi.animelist.ui.screens.detail.wiki.FandomCharacterWikiViewModel
 
 sealed interface CharacterDetailState {
     object Loading : CharacterDetailState
     data class Error(val message: String) : CharacterDetailState
     data class Success(val detail: KitsugiCharacterDetail) : CharacterDetailState
 }
+
+/** Karakter detay sekmeleri. Sayfa içeriği sıra numarası yerine bu anahtarla seçilir. */
+private enum class CharacterTabKey { ABOUT, APPEARANCES, VOICE_ACTORS, WIKI }
 
 @Composable
 fun CharacterDetailPage(
@@ -138,6 +143,9 @@ fun CharacterDetailPage(
         "character_${com.kitsugi.animelist.data.remote.CharacterDetailIdentity.fetchKey(source, characterId, name, isRealMediaRole)}"
     }
     val viewModel: CharacterDetailViewModel = viewModel(key = viewModelKey)
+    // Fandom Wiki: karakterin wiki sayfası arka planda çözülür (kimlik önce, isim son çare);
+    // "Wiki" sekmesi yalnızca sayfa bulunursa en sona eklenir.
+    val wikiViewModel: FandomCharacterWikiViewModel = viewModel(key = "fandom_$viewModelKey")
     val galleryLoading by viewModel.galleryLoading.collectAsState()
     val translationLoading by viewModel.translationLoading.collectAsState()
     // Otomatik çeviri sürerken sayfadaki çeviri butonları galeri butonuyla aynı animasyonu gösterir.
@@ -231,6 +239,16 @@ fun CharacterDetailPage(
                         }
                     )
                 }
+                // Wiki çözümlemesi ham detayla yapılır (yerel ad gösterim tercihinden bağımsız).
+                LaunchedEffect(rawDetail, source, characterId) {
+                    wikiViewModel.bind(rawDetail, source, characterId)
+                }
+                val wikiState by wikiViewModel.state.collectAsState()
+                val wikiSections by wikiViewModel.sections.collectAsState()
+                val wikiTranslations by wikiViewModel.translations.collectAsState()
+                val wikiTranslating by wikiViewModel.translating.collectAsState()
+                val wikiPrefs by wikiViewModel.prefs.collectAsState()
+                val wikiPage = (wikiState as? FandomCharacterWikiViewModel.UiState.Ready)?.page
                 val isRefreshing by viewModel.isRefreshing.collectAsState()
                 val pullRefreshState = rememberPullToRefreshState()
                 PullToRefreshBox(
@@ -259,13 +277,30 @@ fun CharacterDetailPage(
                 val tabAbout      = stringResource(R.string.character_tab_about)
                 val tabAppearances = stringResource(R.string.character_tab_appearances)
                 val tabVoiceActors = stringResource(R.string.character_tab_voice_actors)
-                val tabs = if (source.lowercase() == "tmdb") {
-                    listOf(tabAbout, tabAppearances)
-                } else {
-                    listOf(tabAbout, tabAppearances, tabVoiceActors)
+                val tabWiki = stringResource(R.string.character_tab_wiki)
+                val tabKeys = buildList {
+                    add(CharacterTabKey.ABOUT)
+                    add(CharacterTabKey.APPEARANCES)
+                    if (source.lowercase() != "tmdb") add(CharacterTabKey.VOICE_ACTORS)
+                    // Wiki sekmesi en sonda: sayfa çözümlendikten sonra belirmesi diğer sekmeleri kaydırmaz.
+                    if (wikiPage != null) add(CharacterTabKey.WIKI)
+                }
+                val tabs = tabKeys.map { key ->
+                    when (key) {
+                        CharacterTabKey.ABOUT -> tabAbout
+                        CharacterTabKey.APPEARANCES -> tabAppearances
+                        CharacterTabKey.VOICE_ACTORS -> tabVoiceActors
+                        CharacterTabKey.WIKI -> tabWiki
+                    }
                 }
                 @OptIn(ExperimentalFoundationApi::class)
                 val pagerState = rememberPagerState(initialPage = 0, pageCount = { tabs.size })
+                // Wiki sekmesi kaldırılırsa (ör. "Yanlışsa bildir") geçersiz sayfada kalınmaz.
+                LaunchedEffect(tabs.size) {
+                    if (pagerState.currentPage >= tabs.size) {
+                        pagerState.scrollToPage((tabs.size - 1).coerceAtLeast(0))
+                    }
+                }
                 val selectedTab = pagerState.currentPage
                 val coroutineScope = rememberCoroutineScope()
                 val isTv = LocalIsTv.current
@@ -383,8 +418,8 @@ fun CharacterDetailPage(
                                             .verticalScroll(rememberScrollState())
                                             .padding(horizontal = 16.dp, vertical = 8.dp)
                                     ) {
-                                        when (page) {
-                                            0 -> {
+                                        when (tabKeys.getOrNull(page)) {
+                                            CharacterTabKey.ABOUT -> {
                                                 CharacterAboutTabContent(
                                                     detail = detail,
                                                     translatedBio = translatedBio,
@@ -397,19 +432,55 @@ fun CharacterDetailPage(
                                                     onTranslateClick = { viewModel.translateBio() }
                                                 )
                                             }
-                                            1 -> {
+                                            CharacterTabKey.APPEARANCES -> {
                                                 CharacterAppearancesTabContent(
                                                     detail = detail,
                                                     titleLanguage = titleLanguage,
                                                     onMediaClick = onMediaClick
                                                 )
                                             }
-                                            2 -> {
+                                            CharacterTabKey.VOICE_ACTORS -> {
                                                 CharacterVoiceActorsTabContent(
                                                     detail = detail,
                                                     onStaffClick = onStaffClick
                                                 )
                                             }
+                                            CharacterTabKey.WIKI -> {
+                                                if (wikiPage != null) {
+                                                    CharacterWikiTabContent(
+                                                        page = wikiPage,
+                                                        sections = wikiSections,
+                                                        translations = wikiTranslations,
+                                                        translatingKeys = wikiTranslating,
+                                                        spoilerGuard = wikiPrefs.spoilerGuard,
+                                                        accentColor = accentColor,
+                                                        onLoadSection = { index -> wikiViewModel.loadSection(index) },
+                                                        onTranslate = { key -> wikiViewModel.translate(key) },
+                                                        onShowOriginal = { key -> wikiViewModel.showOriginal(key) },
+                                                        onOpenGallery = { items, idx ->
+                                                            activeGalleryItems = items
+                                                            activeGalleryIndex = idx
+                                                        },
+                                                        onConfirm = {
+                                                            wikiViewModel.confirmMatch()
+                                                            android.widget.Toast.makeText(
+                                                                context,
+                                                                context.getString(R.string.fandom_confirm_done),
+                                                                android.widget.Toast.LENGTH_SHORT
+                                                            ).show()
+                                                        },
+                                                        onReportWrong = {
+                                                            wikiViewModel.reportWrongMatch()
+                                                            android.widget.Toast.makeText(
+                                                                context,
+                                                                context.getString(R.string.fandom_report_wrong_done),
+                                                                android.widget.Toast.LENGTH_SHORT
+                                                            ).show()
+                                                        }
+                                                    )
+                                                }
+                                            }
+                                            null -> Unit
                                         }
                                         Spacer(modifier = Modifier.height(32.dp))
                                     }
@@ -540,8 +611,8 @@ fun CharacterDetailPage(
                                                         .recordStablePageHeight(pageHeights, page, coordinates.size.height)
                                                 }
                                         ) {
-                                            when (page) {
-                                                0 -> {
+                                            when (tabKeys.getOrNull(page)) {
+                                                CharacterTabKey.ABOUT -> {
                                                     CharacterAboutTabContent(
                                                         detail = detail,
                                                         translatedBio = translatedBio,
@@ -554,19 +625,55 @@ fun CharacterDetailPage(
                                                         onTranslateClick = { viewModel.translateBio() }
                                                     )
                                                 }
-                                                1 -> {
+                                                CharacterTabKey.APPEARANCES -> {
                                                     CharacterAppearancesTabContent(
                                                         detail = detail,
                                                         titleLanguage = titleLanguage,
                                                         onMediaClick = onMediaClick
                                                     )
                                                 }
-                                                2 -> {
+                                                CharacterTabKey.VOICE_ACTORS -> {
                                                     CharacterVoiceActorsTabContent(
                                                         detail = detail,
                                                         onStaffClick = onStaffClick
                                                     )
                                                 }
+                                                CharacterTabKey.WIKI -> {
+                                                    if (wikiPage != null) {
+                                                        CharacterWikiTabContent(
+                                                            page = wikiPage,
+                                                            sections = wikiSections,
+                                                            translations = wikiTranslations,
+                                                            translatingKeys = wikiTranslating,
+                                                            spoilerGuard = wikiPrefs.spoilerGuard,
+                                                            accentColor = accentColor,
+                                                            onLoadSection = { index -> wikiViewModel.loadSection(index) },
+                                                            onTranslate = { key -> wikiViewModel.translate(key) },
+                                                            onShowOriginal = { key -> wikiViewModel.showOriginal(key) },
+                                                            onOpenGallery = { items, idx ->
+                                                                activeGalleryItems = items
+                                                                activeGalleryIndex = idx
+                                                            },
+                                                            onConfirm = {
+                                                                wikiViewModel.confirmMatch()
+                                                                android.widget.Toast.makeText(
+                                                                    context,
+                                                                    context.getString(R.string.fandom_confirm_done),
+                                                                    android.widget.Toast.LENGTH_SHORT
+                                                                ).show()
+                                                            },
+                                                            onReportWrong = {
+                                                                wikiViewModel.reportWrongMatch()
+                                                                android.widget.Toast.makeText(
+                                                                    context,
+                                                                    context.getString(R.string.fandom_report_wrong_done),
+                                                                    android.widget.Toast.LENGTH_SHORT
+                                                                ).show()
+                                                            }
+                                                        )
+                                                    }
+                                                }
+                                                null -> Unit
                                             }
                                             Spacer(modifier = Modifier.height(50.dp))
                                         }

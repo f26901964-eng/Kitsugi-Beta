@@ -1,0 +1,30 @@
+{
+  "version": 1,
+  "note": "Wikidata'da Fandom bağlantısı (P4073) eksik olan yapımlar için elle doğrulanmış eşleme tablosu. Her kayıt siteinfo ile doğrulanmalıdır. 'qid' alanına seri/franchise QID'si yazılırsa zincirdeki tüm sezonlar aynı wiki'ye bağlanır.",
+  "entries": [
+    {
+      "wiki": "chainsaw-man",
+      "anilist": [127230],
+      "mal": [44511],
+      "qid": ["Q104211858"],
+      "verified": "2026-10-12",
+      "title": "Chainsaw Man"
+    },
+    {
+      "wiki": "spy-x-family",
+      "anilist": [140960],
+      "mal": [50265, 50602],
+      "qid": ["Q117455980"],
+      "verified": "2026-10-12",
+      "title": "Spy x Family"
+    },
+    {
+      "wiki": "solo-leveling",
+      "anilist": [151807],
+      "mal": [52299],
+      "qid": ["Q125221706"],
+      "verified": "2026-10-12",
+      "title": "Solo Leveling"
+    }
+  ]
+}
