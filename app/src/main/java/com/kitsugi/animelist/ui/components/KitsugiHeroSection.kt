@@ -628,30 +628,26 @@ fun KitsugiHeroSection(
         //    çok geniş banner'lar bandı hafifçe kısaltır (poster fallback contain
         //    mantığı bozulmaz).
         // Başlık, rozetler ve gösterge çubuğu eskisi gibi görselin ÜSTÜNDE bindirilir.
-        val frontItem = items.getOrNull(frontPageIndex)
-        val frontPreferBackdrop = frontItem?.let {
-            homeHeroPrefersBackdrop(
-                screenWidthDp = screenWidthDp,
-                screenHeightDp = screenHeightDp,
-                isLandscape = layout.isLandscape,
-                mediaType = it.type
+        // Yatay mod: mevcut ekran-duyarlı bant davranışı korunur.
+        // Dikey mod: bant yüksekliği SABİT (cihazın dikey bant yüksekliği). Poster ile
+        // yatay arka plan arasında geçişte kutu büyüyüp küçülmez; poster yatay moddaki
+        // gibi bulanık dolgu üzerinde, kırpılmadan ortada gösterilir.
+        val heroHeightDp = if (layout.isLandscape) {
+            homeHeroHeightDp(
+                heroWidthDp = heroBoxWidthDp,
+                screenHeightDp = screenHeightDp.toFloat(),
+                isLandscape = true,
+                landscapeBandHeightDp = layout.heroHeight.value,
+                imageAspect = pageImageAspects[frontPageIndex],
+                defaultAspect = if (layout.heroHeight.value > 0f) {
+                    heroBoxWidthDp / layout.heroHeight.value
+                } else {
+                    16f / 9f
+                }
             )
-        } ?: true
-        val heroHeightDp = homeHeroHeightDp(
-            heroWidthDp = heroBoxWidthDp,
-            screenHeightDp = screenHeightDp.toFloat(),
-            isLandscape = layout.isLandscape,
-            landscapeBandHeightDp = layout.heroHeight.value,
-            imageAspect = pageImageAspects[frontPageIndex],
-            defaultAspect = if (layout.isLandscape) {
-                // Yatay modda görsel oranı henüz bilinmiyorsa mevcut bant oranı korunur.
-                if (layout.heroHeight.value > 0f) heroBoxWidthDp / layout.heroHeight.value else 16f / 9f
-            } else if (frontPreferBackdrop) {
-                16f / 9f
-            } else {
-                2f / 3f
-            }
-        )
+        } else {
+            layout.heroHeight.value
+        }
         val heroBoxHeightDp = heroHeightDp
         val heroWidthPx = with(LocalDensity.current) { heroBoxWidthDp.dp.toPx() }
         val heroScrollScale = 1f
@@ -766,7 +762,9 @@ fun KitsugiHeroSection(
                     // Geniş/yatay vitrin alanında (tablet yatay, tablet dikey geniş bant, telefon yatay)
                     // dikey bir görsel gösteriliyorsa:
                     // arkada yumuşak atmosferik katman + ön planda tam boy kesilmemiş dikey görsel gösterilir.
-                    val useDualLayerContain = isVerticalArtwork && isWideShowcaseBox
+                    // Dikey modda da dikey poster, yatay moddaki gibi (bulanık dolgu + tam
+                    // görünür poster) gösterilir: kutu sabit olduğu için poster kırpılmaz.
+                    val useDualLayerContain = isVerticalArtwork && (isWideShowcaseBox || !layout.isLandscape)
                     val heroAlignment = remember(isVerticalArtwork, heroBoxAspect, loadedImageAspect) {
                         heroImageAlignment(
                             chosenIsPoster = isVerticalArtwork,
