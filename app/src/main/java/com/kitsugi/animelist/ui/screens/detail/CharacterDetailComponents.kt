@@ -1,6 +1,7 @@
 package com.kitsugi.animelist.ui.screens.detail
 
 import com.kitsugi.animelist.ui.components.KitsugiGalleryIconButton
+import com.kitsugi.animelist.ui.components.KitsugiTranslateIconButton
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
@@ -444,14 +445,16 @@ internal fun CharacterAboutTabContent(
                         modifier = Modifier.weight(1f)
                     )
                     if (!detail.biography.isNullOrBlank()) {
-                        IconButton(
+                        // Otomatik çeviri sürerken galeri butonuyla aynı yüklenme animasyonunu gösterir.
+                        KitsugiTranslateIconButton(
                             onClick = {
                                 context.openTranslator(detail.biography, preferredTranslator)
                             },
-                            modifier = Modifier.size(36.dp)
-                        ) {
-                            Icon(Icons.Rounded.Translate, contentDescription = stringResource(R.string.cevir), tint = accentColor)
-                        }
+                            modifier = Modifier.size(36.dp),
+                            tint = accentColor,
+                            contentDescription = stringResource(R.string.cevir),
+                            ringSize = 30.dp
+                        )
                         Spacer(modifier = Modifier.width(6.dp))
                         IconButton(
                             onClick = {

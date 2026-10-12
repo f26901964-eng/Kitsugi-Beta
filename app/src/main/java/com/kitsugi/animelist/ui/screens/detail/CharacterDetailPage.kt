@@ -7,6 +7,7 @@ package com.kitsugi.animelist.ui.screens.detail
 
 import androidx.compose.runtime.CompositionLocalProvider
 import com.kitsugi.animelist.ui.components.LocalKitsugiGalleryLoading
+import com.kitsugi.animelist.ui.components.LocalKitsugiTranslationLoading
 import com.kitsugi.animelist.data.remote.galleryPersonLabel
 import com.kitsugi.animelist.ui.theme.gradient.background
 import com.kitsugi.animelist.ui.utils.tvClickable
@@ -138,7 +139,12 @@ fun CharacterDetailPage(
     }
     val viewModel: CharacterDetailViewModel = viewModel(key = viewModelKey)
     val galleryLoading by viewModel.galleryLoading.collectAsState()
-    CompositionLocalProvider(LocalKitsugiGalleryLoading provides galleryLoading) {
+    val translationLoading by viewModel.translationLoading.collectAsState()
+    // Otomatik çeviri sürerken sayfadaki çeviri butonları galeri butonuyla aynı animasyonu gösterir.
+    CompositionLocalProvider(
+        LocalKitsugiGalleryLoading provides galleryLoading,
+        LocalKitsugiTranslationLoading provides translationLoading
+    ) {
 
     // Load character in ViewModel — kartta gösterilen görsel (imageUrl) ipucu olarak
     // iletilir; kaynakta görsel yoksa detay sayfası resimsiz kalmaz.

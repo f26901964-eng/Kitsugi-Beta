@@ -1,6 +1,7 @@
 package com.kitsugi.animelist.ui.screens.detail
 
 import com.kitsugi.animelist.ui.components.KitsugiGalleryIconButton
+import com.kitsugi.animelist.ui.components.KitsugiTranslateIconButton
 import com.kitsugi.animelist.ui.components.LocalKitsugiGalleryLoading
 import com.kitsugi.animelist.utils.cleanShikimoriBbCode
 import com.kitsugi.animelist.ui.theme.gradient.background
@@ -444,18 +445,15 @@ internal fun StaffAboutTabContent(
                     )
 
                     if (!detail.biography.isNullOrBlank()) {
-                        IconButton(
+                        // Otomatik çeviri sürerken galeri butonuyla aynı yüklenme animasyonunu gösterir.
+                        KitsugiTranslateIconButton(
                             onClick = {
                                 context.openTranslator(detail.biography, preferredTranslator)
                             },
-                            modifier = Modifier.size(36.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Rounded.Translate,
-                                contentDescription = stringResource(R.string.action_translate),
-                                tint = accentColor
-                            )
-                        }
+                            modifier = Modifier.size(36.dp),
+                            tint = accentColor,
+                            ringSize = 30.dp
+                        )
                         Spacer(modifier = Modifier.width(6.dp))
                         IconButton(
                             onClick = {

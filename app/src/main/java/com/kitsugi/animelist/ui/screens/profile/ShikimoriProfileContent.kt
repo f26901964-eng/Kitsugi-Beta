@@ -51,6 +51,7 @@ import com.kitsugi.animelist.utils.KitsugiTranslateUtils.openTranslator
 import kotlinx.coroutines.launch
 import androidx.compose.ui.res.stringResource
 import com.kitsugi.animelist.R
+import com.kitsugi.animelist.ui.components.KitsugiTranslateIconButton
 import com.kitsugi.animelist.utils.KitsugiStrings
 
 @Composable
@@ -346,12 +347,14 @@ private fun ShikimoriAboutTab(
                             ) {
                                 Icon(Icons.Rounded.ContentCopy, contentDescription = stringResource(R.string.action_copy), tint = KitsugiColors.TextMuted, modifier = Modifier.size(16.dp))
                             }
-                            IconButton(
+                            KitsugiTranslateIconButton(
                                 onClick = { context.openTranslator(state.bio) },
-                                modifier = Modifier.size(32.dp)
-                            ) {
-                                Icon(Icons.Rounded.Translate, contentDescription = stringResource(R.string.cevir), tint = KitsugiColors.TextMuted, modifier = Modifier.size(16.dp))
-                            }
+                                modifier = Modifier.size(32.dp),
+                                tint = KitsugiColors.TextMuted,
+                                contentDescription = stringResource(R.string.cevir),
+                                iconSize = 16.dp,
+                                ringSize = 26.dp
+                            )
                         }
                     }
                     Spacer(modifier = Modifier.height(8.dp))

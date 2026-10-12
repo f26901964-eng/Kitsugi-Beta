@@ -26,6 +26,7 @@ import com.kitsugi.animelist.utils.KitsugiTranslateUtils.openTranslator
 import com.kitsugi.animelist.ui.screens.profile.StatCard
 import androidx.compose.ui.res.stringResource
 import com.kitsugi.animelist.R
+import com.kitsugi.animelist.ui.components.KitsugiTranslateIconButton
 import com.kitsugi.animelist.utils.KitsugiStrings
 
 @Composable
@@ -61,17 +62,14 @@ fun AniListInfoTab(
                         horizontalArrangement = Arrangement.spacedBy(4.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        IconButton(
+                        KitsugiTranslateIconButton(
                             onClick = { context.openTranslator(displayAbout) },
-                            modifier = Modifier.size(28.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Rounded.Translate,
-                                contentDescription = stringResource(R.string.cevir),
-                                tint = accentColor,
-                                modifier = Modifier.size(16.dp)
-                            )
-                        }
+                            modifier = Modifier.size(28.dp),
+                            tint = accentColor,
+                            contentDescription = stringResource(R.string.cevir),
+                            iconSize = 16.dp,
+                            ringSize = 24.dp
+                        )
                         IconButton(
                             onClick = {
                                 val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager

@@ -81,6 +81,12 @@ fun KitsugiAllTopicsBottomSheet(
     var selectedSourceFilter by rememberSaveable { mutableStateOf("all") }
     val translatedTitles = remember { mutableStateMapOf<Int, String>() }
 
+    /**
+     * Süren çeviri işi sayısı. Sıfırdan büyükken listedeki çeviri butonları galeri
+     * butonuyla aynı yüklenme (nabız + dönen halka) animasyonunu gösterir.
+     */
+    var activeTranslations by remember { mutableStateOf(0) }
+
     val filteredTopics = remember(topicsList, selectedSourceFilter) {
         if (selectedSourceFilter == "all") {
             topicsList
@@ -159,9 +165,14 @@ fun KitsugiAllTopicsBottomSheet(
             topicsList.forEach { topic ->
                 if (!translatedTitles.containsKey(topic.id)) {
                     coroutineScope.launch {
-                        val tr = translationManager.translateToTarget(topic.title)
-                        if (tr.isNotBlank()) {
-                            translatedTitles[topic.id] = tr
+                        activeTranslations++
+                        try {
+                            val tr = translationManager.translateToTarget(topic.title)
+                            if (tr.isNotBlank()) {
+                                translatedTitles[topic.id] = tr
+                            }
+                        } finally {
+                            activeTranslations--
                         }
                     }
                 }
@@ -343,17 +354,16 @@ fun KitsugiAllTopicsBottomSheet(
                                     horizontalArrangement = Arrangement.spacedBy(4.dp),
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    IconButton(
+                                    // Çeviri sürerken galeri butonuyla aynı yüklenme animasyonu.
+                                    KitsugiTranslateIconButton(
                                         onClick = { context.openTranslator(topic.title) },
-                                        modifier = Modifier.size(28.dp)
-                                    ) {
-                                        Icon(
-                                            imageVector = Icons.Rounded.Translate,
-                                            contentDescription = stringResource(R.string.cevir),
-                                            tint = accentColor,
-                                            modifier = Modifier.size(14.dp)
-                                        )
-                                    }
+                                        modifier = Modifier.size(28.dp),
+                                        tint = accentColor,
+                                        contentDescription = stringResource(R.string.cevir),
+                                        iconSize = 14.dp,
+                                        isLoading = activeTranslations > 0,
+                                        ringSize = 24.dp
+                                    )
                                     IconButton(
                                         onClick = {
                                             val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager

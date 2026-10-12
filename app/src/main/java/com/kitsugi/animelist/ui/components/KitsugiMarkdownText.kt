@@ -358,17 +358,21 @@ fun InteractiveSpoilerSheet(
         val isRussian = cleaned.any { it in '\u0400'..'\u04FF' }
         if (autoTranslate || isRussian) {
             isTranslating = true
-            val translationManager = com.kitsugi.animelist.data.local.TranslationManager(context)
-            val translated = translationManager.translateToTarget(cleaned) { partial ->
-                if (partial.isNotBlank()) {
-                    currentText = partial.cleanShikimoriBbCode()
-                    isTranslating = false
+            try {
+                val translationManager = com.kitsugi.animelist.data.local.TranslationManager(context)
+                val translated = translationManager.translateToTarget(cleaned) { partial ->
+                    // Kısmi (akış) sonuç anında gösterilir; yüklenme animasyonu çeviri
+                    // tamamen bitene kadar devam eder.
+                    if (partial.isNotBlank()) {
+                        currentText = partial.cleanShikimoriBbCode()
+                    }
                 }
+                if (translated.isNotBlank()) {
+                    currentText = translated.cleanShikimoriBbCode()
+                }
+            } finally {
+                isTranslating = false
             }
-            if (translated.isNotBlank()) {
-                currentText = translated.cleanShikimoriBbCode()
-            }
-            isTranslating = false
         }
     }
 
@@ -405,18 +409,16 @@ fun InteractiveSpoilerSheet(
                     )
                 }
 
-                // Çeviri ikonu: her yerde olduğu gibi harici çeviri uygulamasını açar.
-                IconButton(
+                // Çeviri ikonu: gizli metnin çevirisi sürerken galeri butonuyla aynı yüklenme animasyonu.
+                KitsugiTranslateIconButton(
                     onClick = { context.openTranslator(spoilerText.cleanShikimoriBbCode()) },
-                    modifier = Modifier.size(36.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Rounded.Translate,
-                        contentDescription = stringResource(R.string.cevir),
-                        tint = accent,
-                        modifier = Modifier.size(20.dp)
-                    )
-                }
+                    modifier = Modifier.size(36.dp),
+                    tint = accent,
+                    contentDescription = stringResource(R.string.cevir),
+                    iconSize = 20.dp,
+                    isLoading = isTranslating,
+                    ringSize = 30.dp
+                )
             }
             HorizontalDivider(color = KitsugiColors.Border)
             Spacer(Modifier.height(16.dp))
