@@ -5223,6 +5223,9 @@ Eklentiler ekranından eklenti etkinleştirin.</string>
     <string name="sayfa_yuklenemedi_x">Sayfa yüklenemedi: %1$s</string>
     <string name="guvenli_baglanti_x">Güvenli bağlantı • %1$s</string>
     <string name="sorun_mu_var_tarayicida_acmayi_deneyin">Sorun mu var? Tarayıcıda açmayı deneyin</string>
+    <string name="oauth_webview_tarayiciya_devam_ettir">Uygulama içi ekranda sorun yaşıyorsanız \'Tarayıcıda Aç\' ile varsayılan tarayıcınızda giriş yapın; işlem bitince Kitsugi\'ye otomatik olarak dönersiniz.</string>
+    <string name="oauth_webview_tarayici_toast">Tarayıcıda girişi tamamlayın. İşlem bitince Kitsugi\'ye otomatik olarak döneceksiniz.</string>
+    <string name="kitsu_login_tarayici_aciklamasi">Hesabınızı tarayıcıda doğrulamak veya şifrenizi sıfırlamak istiyorsanız \'Tarayıcıda Aç\'yı kullanın.</string>
     <string name="kart_cerceveleri">Kart Çerçeveleri</string>
     <string name="kartlarin_renkli_cercevesi_gorunur">Kartların renkli çerçevesi görünür</string>
     <string name="kartlarin_cercevesi_gizli">Kartların çerçevesi gizli</string>

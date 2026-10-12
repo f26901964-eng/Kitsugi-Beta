@@ -65,6 +65,43 @@ fun KitsugiOAuthWebViewDialog(
     var isLoading by remember { mutableStateOf(true) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
 
+    val serviceHost = when (serviceName.lowercase()) {
+        "mal" -> "myanimelist.net"
+        "anilist" -> "anilist.co"
+        else -> "simkl.com"
+    }
+
+    /**
+     * Uygulama içi WebView'ı bırakıp varsayılan (3. parti) tarayıcıda giriş yapar.
+     *
+     * Yetki URL'si [ExternalAuthManager.getAuthUrlAndPrepare] ile TAZE PKCE çiftiyle
+     * yeniden üretilir; tarayıcı bu URL'e gittiği için yeni üretilen challenge'ın
+     * eşleşen verifier'ı hafızaya yazılmış olur (aksi halde token takası reddedilir).
+     * `malapp://auth` geri dönüş şemasi AndroidManifest'te kayıtlı olduğu için
+     * kullanıcı tarayıcıda işini bitirince otomatik olarak uygulamaya döner ve
+     * [ExternalAuthManager.handleAuthIntent] token'ı takas eder.
+     */
+    val openInExternalBrowser: () -> Unit = {
+        try {
+            val extUrl = ExternalAuthManager.getAuthUrlAndPrepare(context, serviceName)
+            CookieManager.getInstance().flush()
+            context.startActivity(
+                Intent(Intent.ACTION_VIEW, Uri.parse(extUrl)).apply {
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                }
+            )
+            android.widget.Toast.makeText(
+                context,
+                KitsugiStrings.get(R.string.oauth_webview_tarayici_toast),
+                android.widget.Toast.LENGTH_LONG
+            ).show()
+            // Dialog kapanır: kullanıcı tarayıcıda; dönüşte deep link ile bağlanır.
+            onDismiss()
+        } catch (e: Exception) {
+            errorMessage = e.message ?: KitsugiStrings.get(R.string.auth_url_olusturulamadi)
+        }
+    }
+
     LaunchedEffect(serviceName) {
         try {
             authUrl = ExternalAuthManager.getAuthUrlAndPrepare(context, serviceName)
@@ -334,49 +371,57 @@ fun KitsugiOAuthWebViewDialog(
                 }
 
                 // Footer
-                Row(
+                Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(16.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
+                        .padding(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 16.dp)
                 ) {
-                    Column {
-                        Text(
-                            text = KitsugiStrings.get(R.string.guvenli_baglanti_x, when(serviceName.lowercase()){ "mal"->"myanimelist.net"; "anilist"->"anilist.co"; else->"simkl.com" }),
-                            color = KitsugiColors.TextMuted,
-                            style = MaterialTheme.typography.labelSmall
-                        )
-                        if (errorMessage != null) {
-                            Text(
-                                text = KitsugiStrings.get(R.string.sorun_mu_var_tarayicida_acmayi_deneyin),
-                                color = KitsugiColors.TextMuted,
-                                style = MaterialTheme.typography.labelSmall
+                    Text(
+                        text = KitsugiStrings.get(R.string.guvenli_baglanti_x, serviceHost),
+                        color = KitsugiColors.TextMuted,
+                        style = MaterialTheme.typography.labelSmall
+                    )
+                    Text(
+                        text = KitsugiStrings.get(R.string.oauth_webview_tarayiciya_devam_ettir),
+                        color = KitsugiColors.TextMuted,
+                        style = MaterialTheme.typography.labelSmall
+                    )
+                    Spacer(modifier = Modifier.height(10.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        // Her zaman görünür çıkış yolu: uygulama içi WebView sıkışırsa
+                        // (Cloudflare doğrulaması, boş ekran, döngüsel yönlendirme)
+                        // kullanıcı tek dokunuşla varsayılan tarayıcıda giriş yapar.
+                        OutlinedButton(
+                            onClick = openInExternalBrowser,
+                            modifier = Modifier.weight(1f),
+                            shape = RoundedCornerShape(16.dp)
+                        ) {
+                            Icon(
+                                Icons.Rounded.OpenInNew,
+                                contentDescription = null,
+                                modifier = Modifier.size(16.dp),
+                                tint = accentColor
                             )
-                        }
-                    }
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        if (errorMessage != null) {
-                            OutlinedButton(
-                                onClick = {
-                                    try {
-                                        val extUrl = ExternalAuthManager.getAuthUrlAndPrepare(context, serviceName)
-                                        val intent = Intent(Intent.ACTION_VIEW, Uri.parse(extUrl)).apply {
-                                            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                                        }
-                                        context.startActivity(intent)
-                                    } catch (_: Exception) {}
-                                },
-                                shape = RoundedCornerShape(16.dp)
-                            ) {
-                                Text(KitsugiStrings.get(R.string.inline_open_in_browser_eed20ab), color = accentColor, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelSmall)
-                            }
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = KitsugiStrings.get(R.string.inline_open_in_browser_eed20ab),
+                                color = accentColor,
+                                fontWeight = FontWeight.Bold,
+                                style = MaterialTheme.typography.labelSmall,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
                         }
                         Button(
                             onClick = {
                                 CookieManager.getInstance().flush()
                                 onDismiss()
                             },
+                            modifier = Modifier.weight(1f),
                             shape = RoundedCornerShape(16.dp),
                             colors = ButtonDefaults.buttonColors(containerColor = accentColor)
                         ) {

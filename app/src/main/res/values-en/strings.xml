@@ -5221,6 +5221,9 @@
     <string name="sayfa_yuklenemedi_x">Page could not be loaded: %1$s</string>
     <string name="guvenli_baglanti_x">Secure connection • %1$s</string>
     <string name="sorun_mu_var_tarayicida_acmayi_deneyin">Having trouble? Try opening in a browser</string>
+    <string name="oauth_webview_tarayiciya_devam_ettir">If the in-app screen is giving you trouble, use \'Open in Browser\' to sign in with your default browser. You will be brought back to Kitsugi automatically.</string>
+    <string name="oauth_webview_tarayici_toast">Finish signing in your browser. You will return to Kitsugi automatically.</string>
+    <string name="kitsu_login_tarayici_aciklamasi">Use \'Open in Browser\' if you want to verify your account or reset your password in your browser.</string>
     <string name="kart_cerceveleri">Card Frames</string>
     <string name="kartlarin_renkli_cercevesi_gorunur">Colorful card frames are visible</string>
     <string name="kartlarin_cercevesi_gizli">Card frames are hidden</string>
