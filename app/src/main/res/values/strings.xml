@@ -7253,4 +7253,10 @@ Eklentiler ekranından eklenti etkinleştirin.</string>
     <string name="fandom_settings_clear_cache">Wiki önbelleğini temizle</string>
     <string name="fandom_settings_clear_cache_desc">Kayıtlı wiki eşleşmelerini, sayfaları ve “yanlış” bildirimlerini siler.</string>
     <string name="fandom_settings_cache_cleared">Wiki önbelleği temizlendi.</string>
+    <string name="fandom_confirm_title">Bu eşleşme doğru mu?</string>
+    <string name="fandom_confirm_desc">Bu sayfa otomatik olarak eşleştirildi. Doğruysa onayla; yanlışsa bir daha gösterilmez.</string>
+    <string name="fandom_confirm_yes">Evet, doğru</string>
+    <string name="fandom_confirm_no">Hayır, yanlış</string>
+    <string name="fandom_confirm_done">Teşekkürler, eşleşme onaylandı.</string>
+    <string name="fandom_settings_clear_action">Temizle</string>
 </resources>

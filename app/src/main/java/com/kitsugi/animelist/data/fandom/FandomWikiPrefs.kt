@@ -76,29 +76,69 @@ object FandomWikiPrefs {
 }
 
 /**
- * Kullanıcının "Bu eşleşme yanlış" bildirimleri. Reddedilen wiki/sayfa bir daha önerilmez.
- * Önbellek temizliğinden etkilenmesin diye ayrı bir SharedPreferences dosyasında tutulur.
+ * Kullanıcının eşleşme kararları: "Bu eşleşme doğru" (onay) ve "Yanlışsa bildir" (ret).
+ * Reddedilen wiki/sayfa bir daha önerilmez; onaylanan eşleşme kesin kabul edilir.
+ * Önbellek süresinden etkilenmesin diye ayrı bir SharedPreferences dosyasında tutulur;
+ * yalnızca Ayarlar'daki "Wiki önbelleğini temizle" siler.
  */
 object FandomUserChoices {
 
     private const val PREFS_NAME = "kitsugi_fandom_choices"
     private const val PAGE_PREFIX = "page:"
     private const val WIKI_PREFIX = "wiki:"
+    private const val ACCEPTED_PAGE_PREFIX = "accepted-page:"
+    private const val ACCEPTED_WIKI_PREFIX = "accepted-wiki:"
     private const val SEPARATOR = "\u001F"
+
+    // ── Sayfa (karakter) ─────────────────────────────────────────────────────
 
     fun isPageRejected(context: Context, characterKey: String, wikiId: String, title: String): Boolean =
         prefs(context).getStringSet(PAGE_PREFIX + characterKey, emptySet())
             ?.contains(pageToken(wikiId, title)) == true
 
+    @Synchronized
     fun rejectPage(context: Context, characterKey: String, wikiId: String, title: String) {
-        addToSet(context, PAGE_PREFIX + characterKey, pageToken(wikiId, title))
+        val token = pageToken(wikiId, title)
+        val prefs = prefs(context)
+        val editor = prefs.edit()
+        addToSet(prefs, editor, PAGE_PREFIX + characterKey, token)
+        if (prefs.getString(ACCEPTED_PAGE_PREFIX + characterKey, null) == token) {
+            editor.remove(ACCEPTED_PAGE_PREFIX + characterKey)
+        }
+        editor.apply()
     }
 
-    fun isWikiRejected(context: Context, mediaKey: String, wikiId: String): Boolean =
-        prefs(context).getStringSet(WIKI_PREFIX + mediaKey, emptySet())?.contains(wikiId) == true
+    fun isPageAccepted(context: Context, characterKey: String, wikiId: String, title: String): Boolean =
+        prefs(context).getString(ACCEPTED_PAGE_PREFIX + characterKey, null) == pageToken(wikiId, title)
 
+    @Synchronized
+    fun acceptPage(context: Context, characterKey: String, wikiId: String, title: String) {
+        prefs(context).edit().putString(ACCEPTED_PAGE_PREFIX + characterKey, pageToken(wikiId, title)).apply()
+    }
+
+    // ── Wiki (yapım) ─────────────────────────────────────────────────────────
+
+    fun isWikiRejected(context: Context, mediaKey: String, wikiId: String): Boolean =
+        prefs(context).getStringSet(WIKI_PREFIX + mediaKey, emptySet())?.contains(wikiId.lowercase()) == true
+
+    @Synchronized
     fun rejectWiki(context: Context, mediaKey: String, wikiId: String) {
-        addToSet(context, WIKI_PREFIX + mediaKey, wikiId)
+        val normalized = wikiId.lowercase()
+        val prefs = prefs(context)
+        val editor = prefs.edit()
+        addToSet(prefs, editor, WIKI_PREFIX + mediaKey, normalized)
+        if (prefs.getString(ACCEPTED_WIKI_PREFIX + mediaKey, null) == normalized) {
+            editor.remove(ACCEPTED_WIKI_PREFIX + mediaKey)
+        }
+        editor.apply()
+    }
+
+    fun acceptedWiki(context: Context, mediaKey: String): String? =
+        prefs(context).getString(ACCEPTED_WIKI_PREFIX + mediaKey, null)?.takeIf { it.isNotBlank() }
+
+    @Synchronized
+    fun acceptWiki(context: Context, mediaKey: String, wikiId: String) {
+        prefs(context).edit().putString(ACCEPTED_WIKI_PREFIX + mediaKey, wikiId.lowercase()).apply()
     }
 
     fun clear(context: Context) {
@@ -108,13 +148,16 @@ object FandomUserChoices {
     private fun pageToken(wikiId: String, title: String): String =
         "${wikiId.lowercase()}$SEPARATOR${title.trim().replace('_', ' ')}"
 
-    @Synchronized
-    private fun addToSet(context: Context, key: String, value: String) {
-        val prefs = prefs(context)
+    private fun addToSet(
+        prefs: android.content.SharedPreferences,
+        editor: android.content.SharedPreferences.Editor,
+        key: String,
+        value: String
+    ) {
         // getStringSet'in döndürdüğü küme değiştirilmemelidir; kopya üzerinde çalışılır.
         val updated = HashSet(prefs.getStringSet(key, emptySet()).orEmpty())
         updated += value
-        prefs.edit().putStringSet(key, updated).apply()
+        editor.putStringSet(key, updated)
     }
 
     private fun prefs(context: Context) =

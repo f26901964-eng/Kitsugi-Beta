@@ -135,10 +135,27 @@ data class FandomCharacterPage(
     val confidence: FandomConfidence,
     /** Sayfa Türkçe wiki'den geliyorsa, eşleşmenin yapıldığı İngilizce wiki/sayfa. */
     val englishWikiId: String? = null,
-    val englishPageTitle: String? = null
+    val englishPageTitle: String? = null,
+    /** Wiki'nin bulunduğu yapımın önbellek anahtarı (ör. `al:113415`) — wiki düzeyinde onay/ret için. */
+    val mediaKey: String? = null,
+    /** Wiki'nin (sayfadan bağımsız olarak) nasıl bulunduğu ve güveni. */
+    val wikiSource: FandomMatchSource? = null,
+    val wikiConfidence: FandomConfidence? = null
 ) {
     val pageUrl: String
         get() = FandomUrls.pageUrl(wikiId, pageTitle)
+
+    /** Otomatik (kanıtı kesinleşmemiş) eşleşme: arayüz "Bu eşleşme doğru mu?" kartı gösterir. */
+    val needsConfirmation: Boolean
+        get() = confidence == FandomConfidence.PROBABLE
+
+    /**
+     * Wiki isimle bulundu ve kesinleşmedi. Kullanıcı "yanlış" derse en olası hata wiki'nin
+     * kendisidir; bu durumda wiki de o yapım için reddedilir. Kimlikle bulunan wiki asla
+     * reddedilmez (yalnızca sayfa eşleşmesi reddedilir).
+     */
+    val isWikiUnconfirmedNameMatch: Boolean
+        get() = wikiSource == FandomMatchSource.NAME && wikiConfidence == FandomConfidence.PROBABLE
 
     /** Eşleştirmenin yapıldığı (kullanıcı "yanlış" derse reddedilecek) wiki/sayfa çifti. */
     val matchedWikiId: String

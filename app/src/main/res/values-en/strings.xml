@@ -7248,4 +7248,10 @@
     <string name="fandom_settings_clear_cache">Clear wiki cache</string>
     <string name="fandom_settings_clear_cache_desc">Deletes saved wiki matches, pages and “wrong match” reports.</string>
     <string name="fandom_settings_cache_cleared">Wiki cache cleared.</string>
+    <string name="fandom_confirm_title">Is this match correct?</string>
+    <string name="fandom_confirm_desc">This page was matched automatically. Confirm it if it\'s right; if not, it won\'t be shown again.</string>
+    <string name="fandom_confirm_yes">Yes, correct</string>
+    <string name="fandom_confirm_no">No, wrong</string>
+    <string name="fandom_confirm_done">Thanks, the match is confirmed.</string>
+    <string name="fandom_settings_clear_action">Clear</string>
 </resources>

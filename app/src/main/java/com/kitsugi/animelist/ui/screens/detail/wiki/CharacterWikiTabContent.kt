@@ -57,7 +57,6 @@ import com.kitsugi.animelist.data.fandom.FandomCharacterPage
 import com.kitsugi.animelist.data.fandom.FandomConfidence
 import com.kitsugi.animelist.data.fandom.FandomInfobox
 import com.kitsugi.animelist.data.fandom.FandomInfoboxField
-import com.kitsugi.animelist.data.fandom.FandomMatchSource
 import com.kitsugi.animelist.data.fandom.FandomSectionContent
 import com.kitsugi.animelist.data.fandom.FandomSectionRef
 import com.kitsugi.animelist.data.fandom.FandomTextBlock
@@ -98,6 +97,7 @@ internal fun CharacterWikiTabContent(
     onTranslate: (String) -> Unit,
     onShowOriginal: (String) -> Unit,
     onOpenGallery: (List<GalleryItem>, Int) -> Unit,
+    onConfirm: () -> Unit,
     onReportWrong: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -110,6 +110,10 @@ internal fun CharacterWikiTabContent(
         modifier = modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
+        if (page.needsConfirmation) {
+            WikiConfirmCard(accentColor = accentColor, onConfirm = onConfirm, onReject = onReportWrong)
+        }
+
         WikiInfoboxCard(
             page = page,
             infobox = page.infobox,
@@ -188,6 +192,51 @@ internal fun CharacterWikiTabContent(
         }
 
         WikiFooter(page = page, accentColor = accentColor, onReportWrong = onReportWrong)
+    }
+}
+
+/** Otomatik (kesinleşmemiş) eşleşmede bir kerelik onay kartı. */
+@Composable
+private fun WikiConfirmCard(accentColor: Color, onConfirm: () -> Unit, onReject: () -> Unit) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(18.dp))
+            .background(accentColor.copy(alpha = 0.12f))
+            .padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(6.dp)
+    ) {
+        Text(
+            text = stringResource(R.string.fandom_confirm_title),
+            color = KitsugiColors.TextPrimary,
+            style = MaterialTheme.typography.titleSmall,
+            fontWeight = FontWeight.Bold
+        )
+        Text(
+            text = stringResource(R.string.fandom_confirm_desc),
+            color = KitsugiColors.TextSecondary,
+            style = MaterialTheme.typography.bodySmall
+        )
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.End
+        ) {
+            TextButton(onClick = onReject) {
+                Text(
+                    text = stringResource(R.string.fandom_confirm_no),
+                    color = KitsugiColors.TextSecondary,
+                    fontWeight = FontWeight.SemiBold
+                )
+            }
+            Spacer(modifier = Modifier.width(4.dp))
+            TextButton(onClick = onConfirm) {
+                Text(
+                    text = stringResource(R.string.fandom_confirm_yes),
+                    color = accentColor,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+        }
     }
 }
 
@@ -666,7 +715,8 @@ private fun WikiFooter(page: FandomCharacterPage, accentColor: Color, onReportWr
             style = MaterialTheme.typography.labelSmall
         )
         Row(verticalAlignment = Alignment.CenterVertically) {
-            val automatic = page.confidence == FandomConfidence.PROBABLE || page.matchSource == FandomMatchSource.NAME
+            // Kullanıcı onayladıysa (CERTAIN) etiket gösterilmez; "Yanlışsa bildir" her zaman açıktır.
+            val automatic = page.confidence == FandomConfidence.PROBABLE
             if (automatic) {
                 Text(
                     text = stringResource(R.string.fandom_auto_match),

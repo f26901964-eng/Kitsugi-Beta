@@ -26,8 +26,14 @@ data class FandomMediaQuery(
  * Sıra: 1) eşleme tablosu, 2) Wikidata (kimlik + üst kayıtlar), 3) ilişki yürüyüşü
  * (önceki sezon, kaynak eser… yine kimlikle), 4) son çare: isimle aday + kanıtla doğrulama.
  * Önbellek ve kullanıcı tercihleri [FandomRepository] katmanındadır.
+ *
+ * @param isWikiRejected kullanıcının bu yapım için "yanlış" dediği wikiler hiçbir adımda seçilmez;
+ *        isim yolunda sıradaki aday değerlendirilir.
  */
-internal class FandomWikiResolver(private val context: Context) {
+internal class FandomWikiResolver(
+    private val context: Context,
+    private val isWikiRejected: (String) -> Boolean = { false }
+) {
 
     companion object {
         private const val TAG = "FandomWikiResolver"
@@ -62,8 +68,8 @@ internal class FandomWikiResolver(private val context: Context) {
         val ids = completeIds(query)
         val overrides = FandomOverrides.table(context)
 
-        overrides.lookup(ids, query.isManga)?.let { wiki ->
-            siteInfoCached(wiki)?.let { info ->
+        overrides.lookup(ids, query.isManga)?.takeUnless { isWikiRejected(it) }?.let { wiki ->
+            siteInfoCached(wiki)?.takeUnless { isWikiRejected(it.wikiId) }?.let { info ->
                 return FandomWikiRef(info.wikiId, FandomMatchSource.OVERRIDE, FandomConfidence.CERTAIN, info.siteName)
             }
         }
@@ -141,7 +147,8 @@ internal class FandomWikiResolver(private val context: Context) {
         val qids = resolution.starts + resolution.visitedNodes
         for (qid in qids) {
             val wiki = overrides.lookupQid(qid) ?: continue
-            siteInfoCached(wiki)?.let { return it to true }
+            if (isWikiRejected(wiki)) continue
+            siteInfoCached(wiki)?.takeUnless { isWikiRejected(it.wikiId) }?.let { return it to true }
         }
         for (depth in 0..2) {
             val candidates = resolution.wikisByDepth[depth].orEmpty()
@@ -157,14 +164,15 @@ internal class FandomWikiResolver(private val context: Context) {
 
     /** Adaylardan erişilebilir olanı seçer (birden fazla ana aday → makale sayısı büyük olan). */
     private suspend fun pickAlive(candidates: List<String>): FandomSiteInfo? {
-        val usable = FandomCandidateSelector.usable(candidates)
+        val usable = FandomCandidateSelector.usable(candidates).filterNot { isWikiRejected(it) }
         if (usable.isEmpty()) return null
         val roots = usable.filter { FandomUrls.isRoot(it) }.take(MAX_ROOT_CANDIDATES)
         val pool = roots.ifEmpty { usable.filter { FandomUrls.languageOf(it) == "tr" }.take(2) }
         val infos = LinkedHashMap<String, FandomSiteInfo>()
         for (candidate in pool) {
             val info = siteInfoCached(candidate) ?: continue
-            if (!FandomCandidateSelector.isBlocked(info.wikiId)) infos.putIfAbsent(info.wikiId, info)
+            if (FandomCandidateSelector.isBlocked(info.wikiId) || isWikiRejected(info.wikiId)) continue
+            infos.putIfAbsent(info.wikiId, info)
         }
         if (infos.isEmpty()) return null
         val counts = infos.mapValues { (_, info) -> info.articles ?: 0 }
@@ -181,8 +189,8 @@ internal class FandomWikiResolver(private val context: Context) {
         val relations = evidence?.relations?.take(MAX_RELATIONS).orEmpty()
         for (relation in relations) {
             val relationIds = FandomSourceIds(aniListId = relation.aniListId, malId = relation.malId)
-            overrides.lookup(relationIds, relation.isManga)?.let { wiki ->
-                siteInfoCached(wiki)?.let { info ->
+            overrides.lookup(relationIds, relation.isManga)?.takeUnless { isWikiRejected(it) }?.let { wiki ->
+                siteInfoCached(wiki)?.takeUnless { isWikiRejected(it.wikiId) }?.let { info ->
                     return FandomWikiRef(info.wikiId, FandomMatchSource.RELATION, FandomConfidence.CERTAIN, info.siteName)
                 }
             }
@@ -245,7 +253,7 @@ internal class FandomWikiResolver(private val context: Context) {
 
         // B) Ön eleme + ucuz sıralama.
         val shortlisted = hits.values
-            .filter { FandomNameMatcher.preFilterVeto(it) == null }
+            .filter { FandomNameMatcher.preFilterVeto(it) == null && !isWikiRejected(it.wikiId) }
             .sortedByDescending { FandomNameMatcher.quickScore(it, nameEvidence) }
             .take(MAX_FINGERPRINT_CANDIDATES)
         if (shortlisted.isEmpty()) return null

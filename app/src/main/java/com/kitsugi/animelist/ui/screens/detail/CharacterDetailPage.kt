@@ -461,6 +461,14 @@ fun CharacterDetailPage(
                                                             activeGalleryItems = items
                                                             activeGalleryIndex = idx
                                                         },
+                                                        onConfirm = {
+                                                            wikiViewModel.confirmMatch()
+                                                            android.widget.Toast.makeText(
+                                                                context,
+                                                                context.getString(R.string.fandom_confirm_done),
+                                                                android.widget.Toast.LENGTH_SHORT
+                                                            ).show()
+                                                        },
                                                         onReportWrong = {
                                                             wikiViewModel.reportWrongMatch()
                                                             android.widget.Toast.makeText(
@@ -645,6 +653,14 @@ fun CharacterDetailPage(
                                                             onOpenGallery = { items, idx ->
                                                                 activeGalleryItems = items
                                                                 activeGalleryIndex = idx
+                                                            },
+                                                            onConfirm = {
+                                                                wikiViewModel.confirmMatch()
+                                                                android.widget.Toast.makeText(
+                                                                    context,
+                                                                    context.getString(R.string.fandom_confirm_done),
+                                                                    android.widget.Toast.LENGTH_SHORT
+                                                                ).show()
                                                             },
                                                             onReportWrong = {
                                                                 wikiViewModel.reportWrongMatch()

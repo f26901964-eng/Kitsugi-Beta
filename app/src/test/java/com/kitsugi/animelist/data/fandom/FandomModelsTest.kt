@@ -2,6 +2,7 @@ package com.kitsugi.animelist.data.fandom
 
 import kotlinx.serialization.json.Json
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -71,5 +72,24 @@ class FandomModelsTest {
             )
         )
         assertEquals("Outfit\n\n• Blindfold", content.plainText())
+    }
+
+    @Test
+    fun `confirmation flags follow confidence and wiki source`() {
+        val nameMatched = FandomCharacterPage(
+            wikiId = "obluda",
+            pageTitle = "Kenzō Tenma",
+            matchSource = FandomMatchSource.NAME,
+            confidence = FandomConfidence.PROBABLE,
+            mediaKey = "mal:a:19",
+            wikiSource = FandomMatchSource.NAME,
+            wikiConfidence = FandomConfidence.PROBABLE
+        )
+        assertTrue(nameMatched.needsConfirmation)
+        assertTrue(nameMatched.isWikiUnconfirmedNameMatch)
+
+        val idBasedWiki = nameMatched.copy(wikiSource = FandomMatchSource.WIKIDATA, wikiConfidence = FandomConfidence.CERTAIN)
+        assertFalse(idBasedWiki.isWikiUnconfirmedNameMatch)
+        assertFalse(nameMatched.copy(confidence = FandomConfidence.CERTAIN).needsConfirmation)
     }
 }

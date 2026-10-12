@@ -69,20 +69,35 @@ object FandomRepository {
         val prefs = FandomWikiPrefs.state(appContext)
         if (!prefs.enabled) return null
         val mediaKey = query.cacheKey() ?: return null
+
+        // Kullanıcının onayladığı wiki her şeyden önce gelir.
+        FandomUserChoices.acceptedWiki(appContext, mediaKey)?.let { accepted ->
+            val info = FandomWikiResolver.siteInfoCached(accepted)
+            return FandomWikiRef(
+                wikiId = info?.wikiId ?: accepted,
+                source = FandomMatchSource.USER,
+                confidence = FandomConfidence.CERTAIN,
+                siteName = info?.siteName
+            )
+        }
+
         val nameAllowed = allowNameFallback && prefs.nameFallback
-        val cacheKey = "${KEY_PREFIX}wiki:$mediaKey:${if (nameAllowed) "n1" else "n0"}"
+        val cacheKey = wikiCacheKey(mediaKey, nameAllowed)
 
         return lockFor(wikiLocks, cacheKey).withLock {
             val cached = readCached(appContext, cacheKey, positiveTtl = WIKI_TTL_MS) { body ->
                 json.decodeFromString(StoredWiki.serializer(), body).ref
             }
             if (cached != null) {
-                val ref = cached.value as? FandomWikiRef
-                return@withLock ref?.takeUnless { FandomUserChoices.isWikiRejected(appContext, mediaKey, it.wikiId) }
+                val ref = cached.value as? FandomWikiRef ?: return@withLock null
+                if (!FandomUserChoices.isWikiRejected(appContext, mediaKey, ref.wikiId)) return@withLock ref
+                // Kullanıcı bu wiki'yi reddetti: önbellek yok sayılır, sıradaki aday için yeniden çözülür.
             }
             val failuresBefore = FandomHttp.failureCount()
             val found = try {
-                FandomWikiResolver(appContext).resolve(query, nameAllowed)
+                FandomWikiResolver(appContext) { wikiId ->
+                    FandomUserChoices.isWikiRejected(appContext, mediaKey, wikiId)
+                }.resolve(query, nameAllowed)
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
@@ -107,6 +122,9 @@ object FandomRepository {
         }
     }
 
+    private fun wikiCacheKey(mediaKey: String, nameAllowed: Boolean): String =
+        "${KEY_PREFIX}wiki:$mediaKey:${if (nameAllowed) "n1" else "n0"}"
+
     // ── Karakter → sayfa ─────────────────────────────────────────────────────
 
     suspend fun resolveCharacterPage(context: Context, query: FandomCharacterQuery): FandomCharacterPage? {
@@ -121,10 +139,9 @@ object FandomRepository {
                 json.decodeFromString(StoredCharacter.serializer(), body).page
             }
             if (cached != null) {
-                val page = cached.value as? FandomCharacterPage
-                return@withLock page?.takeUnless {
-                    FandomUserChoices.isPageRejected(appContext, characterKey, it.matchedWikiId, it.matchedPageTitle)
-                }
+                val page = cached.value as? FandomCharacterPage ?: return@withLock null
+                if (!isRejected(appContext, characterKey, page)) return@withLock applyAcceptance(appContext, characterKey, page)
+                // Reddedilmiş eşleşme: önbellek yok sayılır, yeniden çözülür.
             }
             val failuresBefore = FandomHttp.failureCount()
             val page = try {
@@ -133,7 +150,7 @@ object FandomRepository {
                     allowNameFallback = prefs.nameFallback,
                     isRejected = { wikiId, title -> FandomUserChoices.isPageRejected(appContext, characterKey, wikiId, title) }
                 )
-                resolver.resolve(query)?.let { buildPage(it, prefs) }
+                resolver.resolve(query)?.let { buildPage(it, prefs) }?.let { applyAcceptance(appContext, characterKey, it) }
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
@@ -202,8 +219,29 @@ object FandomRepository {
             matchSource = resolved.source,
             confidence = resolved.confidence,
             englishWikiId = englishWikiId,
-            englishPageTitle = englishPageTitle
+            englishPageTitle = englishPageTitle,
+            mediaKey = resolved.mediaKey,
+            wikiSource = resolved.wikiSource,
+            wikiConfidence = resolved.wikiConfidence
         )
+    }
+
+    private fun isRejected(context: Context, characterKey: String, page: FandomCharacterPage): Boolean {
+        if (FandomUserChoices.isPageRejected(context, characterKey, page.matchedWikiId, page.matchedPageTitle)) return true
+        val mediaKey = page.mediaKey ?: return false
+        return page.wikiSource != FandomMatchSource.USER &&
+            FandomUserChoices.isWikiRejected(context, mediaKey, page.matchedWikiId)
+    }
+
+    /** Kullanıcının onayladığı otomatik eşleşme kesin sayılır. */
+    private fun applyAcceptance(context: Context, characterKey: String, page: FandomCharacterPage): FandomCharacterPage {
+        if (!page.needsConfirmation) return page
+        val accepted = FandomUserChoices.isPageAccepted(context, characterKey, page.matchedWikiId, page.matchedPageTitle)
+        return if (accepted) {
+            page.copy(confidence = FandomConfidence.CERTAIN, wikiConfidence = FandomConfidence.CERTAIN)
+        } else {
+            page
+        }
     }
 
     // ── Bölüm metni ──────────────────────────────────────────────────────────
@@ -234,12 +272,38 @@ object FandomRepository {
 
     // ── Kullanıcı bildirimi ve temizlik ──────────────────────────────────────
 
-    /** "Bu eşleşme yanlış": sayfa bu karakter için bir daha önerilmez, önbellek düşürülür. */
+    /**
+     * "Bu eşleşme doğru": sayfa (ve isimle bulunmuş wiki) kesin kabul edilir. Wiki onayı,
+     * aynı yapımın diğer karakterlerinde de kullanılır.
+     */
+    fun confirmCharacterPage(context: Context, query: FandomCharacterQuery, page: FandomCharacterPage): FandomCharacterPage {
+        val appContext = context.applicationContext
+        val characterKey = query.cacheKey()
+        FandomUserChoices.acceptPage(appContext, characterKey, page.matchedWikiId, page.matchedPageTitle)
+        val mediaKey = page.mediaKey
+        if (mediaKey != null && page.wikiSource == FandomMatchSource.NAME) {
+            FandomUserChoices.acceptWiki(appContext, mediaKey, page.matchedWikiId)
+        }
+        return page.copy(confidence = FandomConfidence.CERTAIN, wikiConfidence = FandomConfidence.CERTAIN)
+    }
+
+    /**
+     * "Bu eşleşme yanlış": sayfa bu karakter için bir daha önerilmez. Wiki isimle bulunup
+     * kesinleşmemişse wiki de o yapım için reddedilir (sıradaki aday değerlendirilir).
+     * İlgili önbellek kayıtları düşürülür.
+     */
     suspend fun rejectCharacterPage(context: Context, query: FandomCharacterQuery, page: FandomCharacterPage) {
         val appContext = context.applicationContext
         val characterKey = query.cacheKey()
         FandomUserChoices.rejectPage(appContext, characterKey, page.matchedWikiId, page.matchedPageTitle)
-        val keys = listOf("tr1:n1", "tr1:n0", "tr0:n1", "tr0:n0").map { "${KEY_PREFIX}char:$characterKey:$it" }
+        val keys = mutableListOf<String>()
+        listOf("tr1:n1", "tr1:n0", "tr0:n1", "tr0:n0").mapTo(keys) { "${KEY_PREFIX}char:$characterKey:$it" }
+        val mediaKey = page.mediaKey
+        if (mediaKey != null && page.isWikiUnconfirmedNameMatch) {
+            FandomUserChoices.rejectWiki(appContext, mediaKey, page.matchedWikiId)
+            keys += wikiCacheKey(mediaKey, nameAllowed = true)
+            keys += wikiCacheKey(mediaKey, nameAllowed = false)
+        }
         keys.forEach { memory.remove(it) }
         val dao = dao(appContext) ?: return
         keys.forEach { key -> runCatchingDb { dao.deleteDetail(key) } }

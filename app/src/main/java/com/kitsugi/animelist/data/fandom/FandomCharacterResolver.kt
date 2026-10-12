@@ -8,7 +8,11 @@ internal data class FandomResolvedCharacter(
     val lookup: FandomTitleLookup,
     val source: FandomMatchSource,
     val confidence: FandomConfidence,
-    val siteName: String?
+    val siteName: String?,
+    /** Wiki'nin bulunduğu yapımın önbellek anahtarı (wiki düzeyinde onay/ret için). */
+    val mediaKey: String? = null,
+    val wikiSource: FandomMatchSource? = null,
+    val wikiConfidence: FandomConfidence? = null
 )
 
 /**
@@ -36,7 +40,9 @@ internal class FandomCharacterResolver(
 
     suspend fun resolve(query: FandomCharacterQuery): FandomResolvedCharacter? {
         val articles = wikidataArticles(query)
-        val mediaWiki = resolveMediaWiki(query)
+        val media = resolveMediaWiki(query)
+        val mediaWiki = media?.first
+        val mediaKey = media?.second
 
         if (articles.isNotEmpty()) {
             val onMediaWiki = mediaWiki?.let { wiki -> articles.firstOrNull { it.first == wiki.wikiId } }
@@ -47,12 +53,17 @@ internal class FandomCharacterResolver(
                 if (lookup != null && lookup.exists && !lookup.isDisambiguation) {
                     val siteName = mediaWiki?.takeIf { it.wikiId == chosen.first }?.siteName
                         ?: FandomWikiResolver.siteInfoCached(chosen.first)?.siteName
+                    val onResolvedWiki = mediaWiki != null && mediaWiki.wikiId == chosen.first
                     return FandomResolvedCharacter(
                         wikiId = chosen.first,
                         lookup = lookup,
                         source = FandomMatchSource.WIKIDATA,
                         confidence = FandomConfidence.CERTAIN,
-                        siteName = siteName
+                        siteName = siteName,
+                        mediaKey = if (onResolvedWiki) mediaKey else null,
+                        // Sayfa kimlikle (P6262) doğrulandığı için wiki de kesin kabul edilir.
+                        wikiSource = if (onResolvedWiki) mediaWiki?.source else FandomMatchSource.WIKIDATA,
+                        wikiConfidence = FandomConfidence.CERTAIN
                     )
                 }
             }
@@ -61,7 +72,16 @@ internal class FandomCharacterResolver(
         val wiki = mediaWiki ?: return null
         val (lookup, matchConfidence) = matchInWiki(wiki.wikiId, query) ?: return null
         val confidence = if (wiki.confidence == FandomConfidence.PROBABLE) FandomConfidence.PROBABLE else matchConfidence
-        return FandomResolvedCharacter(wiki.wikiId, lookup, wiki.source, confidence, wiki.siteName)
+        return FandomResolvedCharacter(
+            wikiId = wiki.wikiId,
+            lookup = lookup,
+            source = wiki.source,
+            confidence = confidence,
+            siteName = wiki.siteName,
+            mediaKey = mediaKey,
+            wikiSource = wiki.source,
+            wikiConfidence = wiki.confidence
+        )
     }
 
     private suspend fun wikidataArticles(query: FandomCharacterQuery): List<Pair<String, String>> {
@@ -76,18 +96,22 @@ internal class FandomCharacterResolver(
             .distinct()
     }
 
-    /** Ana rol + anime önce; isim yolu yalnızca ilk yapım için denenir (istek bütçesi). */
-    private suspend fun resolveMediaWiki(query: FandomCharacterQuery): FandomWikiRef? {
+    /**
+     * Ana rol + anime önce; isim yolu yalnızca ilk yapım için denenir (istek bütçesi).
+     * @return (wiki, yapımın önbellek anahtarı)
+     */
+    private suspend fun resolveMediaWiki(query: FandomCharacterQuery): Pair<FandomWikiRef, String?>? {
         val ordered = query.appearances.sortedWith(
             compareByDescending<FandomAppearanceRef> { it.isMainRole }.thenBy { it.isManga }
         )
         ordered.take(MAX_APPEARANCES_TO_TRY).forEachIndexed { index, appearance ->
+            val mediaQuery = FandomMediaQuery(appearance.ids, appearance.isManga, appearance.isMovie, appearance.titles)
             val ref = FandomRepository.resolveMediaWiki(
                 context = context,
-                query = FandomMediaQuery(appearance.ids, appearance.isManga, appearance.isMovie, appearance.titles),
+                query = mediaQuery,
                 allowNameFallback = allowNameFallback && index == 0
             )
-            if (ref != null) return ref
+            if (ref != null) return ref to mediaQuery.cacheKey()
         }
         return null
     }

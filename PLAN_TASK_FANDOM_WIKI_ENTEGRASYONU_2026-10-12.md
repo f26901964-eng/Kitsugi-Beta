@@ -1,8 +1,9 @@
 # PLAN/TASK — Fandom Wiki entegrasyonu (önce kimlik, son çare isim)
 
 Tarih: 2026-10-12
-Durum: Plan — onay bekliyor. Henüz kod yazılmadı.
+Durum: **Faz 1 kodlandı (2026-10-13).** Derleme, birim testleri ve cihaz testi kullanıcıda.
 Güncelleme: İsimle bulma, kimlikle doğrulanan **son çare** olarak eklendi.
+Uygulanan dosyalar ve test rehberi: en alttaki "Faz 1 — Uygulama notları" bölümü.
 
 ## Amaç
 
@@ -167,7 +168,7 @@ https://<wiki>.fandom.com/api.php?action=query&redirects=1
 - **Kesin (≥ 0,85 ve en az bir yerel ad teyidi):** Wiki sekmesi normal görünür. Altta "Otomatik eşleşme · Yanlışsa bildir" yazar.
 - **Muhtemel (0,65–0,85):** Sekme görünür, üstte bir kerelik "Bu wiki doğru mu? Evet / Hayır" kartı çıkar. Cevap kimliğe bağlı saklanır.
 - **Zayıf (< 0,65) veya veto:** Sekme görünmez; negatif önbelleğe yazılır.
-- **Doğrulama verisi yoksa** (kaynakta karakter listesi boş vb.) sonuç en fazla "muhtemel" olabilir.
+- **Doğrulama verisi yoksa** (kaynakta karakter listesi boş, AniList'e ulaşılamadı vb.) isim yolu sonuç vermez; puan eşiğe ulaşamaz.
 
 ### E. Öğrenme ve güvenlik ağı
 
@@ -237,35 +238,34 @@ https://<wiki>.fandom.com/api.php?action=query&redirects=1
 
 ### Faz 1 — Altyapı (kimlik + son çare isim) + karakter Wiki sekmesi
 
-- [ ] `data/fandom/FandomModels.kt` — `FandomWikiRef` (kaynak: tablo / wikidata / ilişki / isim + güven), `FandomInfobox`, `FandomSection`, `FandomCharacterPage`.
-- [ ] `data/fandom/WikidataClient.kt` — `haswbstatement` araması ve `wbgetentities` claim okuma (org.json).
-- [ ] `data/fandom/FandomCandidateSelector.kt` — kara liste, dil ayrımı, makale sayısıyla seçim, URL üretimi (saf fonksiyonlar).
-- [ ] `data/fandom/FandomRelationWalker.kt` — AniList ilişkilerinden kimlik listesi.
-- [ ] `data/fandom/FandomCommunitySearch.kt` — topluluk araması + adres denemesi (aday üretme).
-- [ ] `data/fandom/FandomNameMatcher.kt` — ön eleme, parmak izi isteği, yerel ad teyidi, puanlama, vetolar, karar (saf puanlama fonksiyonları ayrı).
-- [ ] `data/fandom/FandomNameVariants.kt` — başlık ve karakter adı varyantları, normalizasyon.
-- [ ] `data/fandom/FandomWikiResolver.kt` — 6 adımlı zinciri yönetir.
-- [ ] `data/fandom/FandomCharacterResolver.kt` — karakter → sayfa (Wikidata → varyantlar → wiki içi arama + yerel ad teyidi).
-- [ ] `data/fandom/FandomApi.kt` — MediaWiki çağrıları: `siteinfo`, `query&titles&redirects&pageprops`, `parse` (sections / section N), `list=search`, `exturlusage`.
-- [ ] `data/fandom/FandomPageParser.kt` — `infoboxes` JSON, bölüm HTML'i, temizlik, spoiler işaretleri.
-- [ ] `data/fandom/FandomRepository.kt` — UI'nin tek giriş noktası.
+- [x] `data/fandom/FandomModels.kt` — `FandomWikiRef` (kaynak: tablo / wikidata / ilişki / isim + güven), `FandomInfobox`, `FandomSection`, `FandomCharacterPage`.
+- [x] `data/fandom/WikidataClient.kt` — `haswbstatement` araması ve `wbgetentities` claim okuma (org.json).
+- [x] `data/fandom/FandomCandidateSelector.kt` — kara liste, dil ayrımı, makale sayısıyla seçim, URL üretimi (saf fonksiyonlar).
+- [x] İlişki yürüyüşü ve topluluk araması + adres denemesi — `FandomWikiResolver.kt` içinde (`resolveViaRelations`, `searchByName`); ağ çağrıları `FandomApi.kt`.
+- [x] `data/fandom/FandomNameMatcher.kt` — ön eleme, parmak izi isteği, yerel ad teyidi, puanlama, vetolar, karar (saf puanlama fonksiyonları ayrı).
+- [x] `data/fandom/FandomNameVariants.kt` — başlık ve karakter adı varyantları, normalizasyon.
+- [x] `data/fandom/FandomWikiResolver.kt` — 6 adımlı zinciri yönetir.
+- [x] `data/fandom/FandomCharacterResolver.kt` — karakter → sayfa (Wikidata → varyantlar → wiki içi arama + yerel ad teyidi).
+- [x] `data/fandom/FandomApi.kt` — MediaWiki çağrıları: `siteinfo`, `query&titles&redirects&pageprops`, `parse` (sections / section N), `list=search`, `exturlusage`.
+- [x] Sayfa ayrıştırma — `FandomInfoboxParser.kt` (`infoboxes` JSON), `FandomHtmlText.kt` (bölüm HTML'i, temizlik), `FandomApiParsers.kt`, `FandomSpoilerRules.kt`.
+- [x] `data/fandom/FandomRepository.kt` — UI'nin tek giriş noktası.
   - Kalıcı önbellek: `persistent_details_cache` (`fandom:` önekli anahtar).
   - Bellek önbelleği: `BoundedCache`.
   - Aynı isteği tekilleştirme, negatif önbellek, düşük öncelikli kuyruk.
-- [ ] `assets/fandom/fandom_overrides.json` — ilk tablo.
+- [x] `assets/fandom/fandom_overrides.json` — ilk tablo.
   - AniList 127230 → `chainsaw-man`, 140960 → `spy-x-family`, 151807 → `solo-leveling`. Üçü de 2026-10-12'de siteinfo ile doğrulandı.
   - `series_glossary.json` içindeki `anilist:` anahtarları gözden geçirilerek eklenecek.
-- [ ] `ui/screens/detail/wiki/FandomCharacterWikiViewModel.kt` + `CharacterWikiTabContent.kt`:
+- [x] `ui/screens/detail/wiki/FandomCharacterWikiViewModel.kt` + `CharacterWikiTabContent.kt`:
   - Başlık ve bilgi kutusu kartı
   - Açılır bölümler
   - Galeri şeridi (mevcut galeri diyaloğuna bağlanır)
   - Çeviri düğmesi
   - Kaynak satırı
   - "Bu wiki doğru mu?" kartı (muhtemel eşleşme) ve "Yanlışsa bildir" bağlantısı
-- [ ] `CharacterDetailPage.kt` — Wiki sekmesi hem telefon hem geniş/TV düzeninde. `when (page)` sekme anahtarına göre çalışır (TMDB'de sekme sayısı farklı).
-- [ ] Ayarlar: `AppSettings` / `SettingsDataStore` / `SettingsScreen` / `SettingsSearch`. Dört anahtar da varsayılan açık: `fandomWikiEnabled`, `fandomNameFallback`, `fandomSpoilerGuard`, `fandomPreferTurkish`.
-- [ ] Metinler: `values/strings.xml` + `values-en/strings.xml`.
-- [ ] Testler (aşağıda) + CI'ya `--tests 'com.kitsugi.animelist.data.fandom.*'` eklenmesi.
+- [x] `CharacterDetailPage.kt` — Wiki sekmesi hem telefon hem geniş/TV düzeninde. `when (page)` sekme anahtarına göre çalışır (TMDB'de sekme sayısı farklı).
+- [x] Ayarlar: bağımsız `FandomWikiPrefs` (SharedPreferences) + `FandomWikiSettingsSection` (telefon) + TV ayarlar ekranı + `SettingsSearch` girişi. Dört anahtar da varsayılan açık: Wiki sekmesi, isimle eşleştirme, spoiler koruması, Türkçe wiki önceliği. Ek: "Wiki önbelleğini temizle".
+- [x] Metinler: `values/strings.xml` + `values-en/strings.xml`.
+- [x] Testler (aşağıda) + CI'ya `--tests 'com.kitsugi.animelist.data.fandom.*'` eklenmesi.
 
 ### Faz 2 — Anime Wiki sekmesi + TV satırı + Türkçe wiki + isim koruması
 
@@ -345,3 +345,103 @@ https://<wiki>.fandom.com/api.php?action=query&redirects=1
 - AniList karakter kimliği olan 6.014 karakterin 4.505'inde P6262 var. Bir kısmı çapraz wikilerde: hero, villains, isekai, cosplay, doblaje.
 - Ağır SPARQL sorguları 502 / zaman aşımı verdi. Bu yüzden uygulamada Wikidata Action API (`haswbstatement` + `wbgetentities`) kullanılacak.
 - İsim yolu testleri: yukarıdaki "Son çare → G. Canlı test" bölümü (Monster, Solo Leveling).
+
+## Faz 1 — Uygulama notları (2026-10-13)
+
+### Yeni dosyalar
+
+`app/src/main/java/com/kitsugi/animelist/data/fandom/`
+
+| Dosya | Görev |
+|---|---|
+| `FandomModels.kt` | Önbelleğe yazılan modeller (`@Serializable`): wiki eşleşmesi, bilgi kutusu, bölüm, karakter sayfası |
+| `FandomUrls.kt` | Wiki kimliği ↔ URL (`tr.onepiece` → `onepiece.fandom.com/tr`), güvenli API adresi, görsel küçültme |
+| `FandomJson.kt` | org.json yardımcıları (Android'de `optString` JSON `null` için "null" döndürür) |
+| `FandomCandidateSelector.kt` | Çapraz/fanon/dublaj wiki kara listesi, ana wiki önceliği, makale sayısıyla seçim |
+| `FandomNameVariants.kt` | Başlık/ad normalizasyonu, sezon eki ayıklama, adres ve karakter adı varyantları, yerel ad (Kanji/Hangul) teyidi |
+| `FandomSpoilerRules.kt` | Spoiler alanları/bölümleri, gizlenen bölümler |
+| `FandomHtmlText.kt` | Bilgi kutusu değeri ve bölüm HTML'ini sade metne/bloklara çevirme (Jsoup) |
+| `FandomInfoboxParser.kt` | `pageprops.infoboxes` JSON ayrıştırma |
+| `FandomNameMatcher.kt` | Son çare isim yolunun puanlaması, vetolar, karar |
+| `WikidataParsers.kt` | Wikidata Action API + SPARQL yanıtları, güvenli SPARQL üretimi |
+| `FandomApiParsers.kt` | MediaWiki + Fandom topluluk araması yanıtları |
+| `FandomAniListParser.kt` | Doğrulama verisi (başlıklar, yaratıcılar, karakterler, ilişkiler) |
+| `FandomMediaIds.kt` | Kitsugi offset'li kimliklerini çözme, Wikidata özellikleri |
+| `FandomOverrides.kt` | Elle doğrulanmış eşleme tablosu |
+| `FandomCharacterQuery.kt` | `KitsugiCharacterDetail` → sorgu |
+| `FandomHttp.kt` | Ortak HTTP (12 sn, en fazla 4 eşzamanlı istek, dürüst User-Agent, hata sayacı) |
+| `WikidataClient.kt` | SPARQL birincil, Action API yedeği |
+| `FandomApi.kt` | MediaWiki çağrıları + topluluk araması |
+| `FandomAniListSource.kt` | AniList doğrulama verisi (ortak, hız sınırlı AniList kapısı) |
+| `FandomWikiResolver.kt` | Yapım → wiki zinciri (tablo → Wikidata → ilişkiler → isim) |
+| `FandomCharacterResolver.kt` | Karakter → sayfa (P6262 → wiki içi varyantlar → wiki içi arama) |
+| `FandomRepository.kt` | Arayüzün tek giriş noktası; önbellek, onay/ret, temizlik |
+| `FandomWikiPrefs.kt` | Tercihler + kullanıcı kararları (`FandomUserChoices`) |
+
+`app/src/main/java/com/kitsugi/animelist/ui/screens/detail/wiki/`
+
+| Dosya | Görev |
+|---|---|
+| `FandomCharacterWikiViewModel.kt` | Wiki sekmesinin durumu, bölüm yükleme, çeviri, onay/ret |
+| `CharacterWikiTabContent.kt` | Wiki sekmesi arayüzü |
+| `FandomWikiSettingsSection.kt` | Telefon ayarlar bölümü |
+
+Diğer:
+- `app/src/main/assets/fandom/fandom_overrides.json` — Chainsaw Man, Spy×Family, Solo Leveling (siteinfo ile doğrulandı)
+- `app/src/test/java/com/kitsugi/animelist/data/fandom/` — 13 JVM test dosyası
+
+### Değişen dosyalar
+
+- `ui/screens/detail/CharacterDetailPage.kt`
+  - Sekmeler sıra numarası yerine anahtarla seçiliyor (`CharacterTabKey`).
+  - Wiki sekmesi sayfa bulununca en sona ekleniyor; kaldırılırsa geçersiz sayfada kalınmıyor.
+- `ui/components/KitsugiPreferencesSettingsDialog.kt` — "Liste ve puan" sekmesine Fandom Wiki bölümü (tek satır).
+- `ui/tv/settings/TvSettingsScreen.kt` — TV "Görünüm" sekmesine Fandom Wiki anahtarları.
+- `ui/screens/settings/SettingsSearch.kt` — ayarlar aramasına "Fandom Wiki" girişi.
+- `data/local/PersistentDetailCacheDao.kt` — `deleteByPrefix` sorgusu. Room şeması değişmez (v29), göç gerekmez.
+- `res/values/strings.xml` + `res/values-en/strings.xml` — 53 yeni metin, iki dilde birebir aynı anahtarlar.
+- `.github/workflows/android-build.yml` — CI'ya `com.kitsugi.animelist.data.fandom.*` testleri eklendi.
+
+### Plandan bilinçli sapmalar
+
+- **Ayarlar** `AppSettings`/`SettingsDataStore` zincirine eklenmedi; bağımsız `FandomWikiPrefs` kullanıldı. Ayarlar ekranındaki uzun parametre zincirine (7+ dosya) dokunmamak ve başka dallarla çakışma riskini azaltmak için.
+- **İlişki yürüyüşü ve topluluk araması** ayrı dosya yerine `FandomWikiResolver` içinde.
+- **Sayfa ayrıştırma** dört küçük dosyaya bölündü (yukarıdaki tablo).
+- **Onay/ret akışı** plandakinden ayrıntılı:
+  - "Bu eşleşme doğru mu? Evet / Hayır" kartı, kesinleşmemiş (muhtemel) her eşleşmede çıkar.
+  - **Evet:** Sayfa kesinleşir. Wiki isimle bulunduysa wiki de o yapım için onaylanır ve aynı yapımın diğer karakterlerinde kullanılır.
+  - **Hayır / Yanlışsa bildir:** Sayfa o karakter için reddedilir.
+    - Wiki isimle bulunup kesinleşmemişse wiki de o yapım için reddedilir; isim yolu sıradaki adayı dener.
+    - Kimlikle bulunan wiki asla reddedilmez.
+- **Kanıt yoksa isim yolu sonuç vermez** (AniList'e ulaşılamazsa veya karakter listesi boşsa).
+
+### Cihaz test rehberi
+
+1. **Satoru Gojo** (Jujutsu Kaisen) karakter sayfası:
+   - En sonda "Wiki" sekmesi belirir.
+   - Bilgi kutusu görünür; "Status" alanı gizli, dokununca açılır.
+   - "Battles & Events" bölümü uyarıyla açılır.
+   - "Wiki'de aç" bağlantısı çalışır.
+2. **Sung Jinwoo** (Solo Leveling): wiki eşleme tablosundan gelir (`solo-leveling`), oyun wiki'si (ARISE) seçilmez.
+3. **Monster (2004) karakterleri** (Kenzo Tenma, Johan Liebert):
+   - Kimlik yolu yoksa isim yolu `obluda.fandom.com`'u bulmalı; genel `monster.fandom.com` asla seçilmemeli.
+   - Yerel ad teyidi yoksa "Bu eşleşme doğru mu?" kartı çıkar. "Evet" ile kart kaybolur ve diğer Monster karakterlerinde de kesin sayılır.
+4. **Yanlışsa bildir:** Sekme kaybolur ya da sıradaki uygun sayfa gelir; aynı sayfa bir daha gösterilmez.
+5. **Ayarlar → Tercihler → Liste ve puan → Fandom Wiki:**
+   - "Wiki sekmesi" kapalıyken sekme yok, istek yok.
+   - "İsimle eşleştirme" kapalıyken yalnızca kimlik yolu çalışır (Monster karakterlerinde sekme görünmemeli).
+   - "Türkçe wiki önceliği": sayfanın Türkçe wiki'de dolu karşılığı varsa o gösterilir (ör. One Piece karakterleri).
+   - "Wiki önbelleğini temizle": önbellek ve onay/ret kararları silinir.
+6. **TV:**
+   - Karakter sayfasında Wiki sekmesi ve bölümler kumandayla açılır.
+   - TV Ayarlar → Görünüm → Fandom Wiki anahtarları çalışır.
+7. **Önbellek:** Aynı karakterin ikinci açılışı ağ beklemeden gelir.
+8. **Birim testleri:** `./gradlew :app:testFossDebugUnitTest --tests 'com.kitsugi.animelist.data.fandom.*'`
+
+### Bilinen sınırlar ve sonraki adımlar
+
+- TMDB kaynaklı (gerçek kişi rolleri) karakter sayfalarında Wiki sekmesi yok.
+- `series_glossary.json` içindeki `anilist:` eşleşmeleri tabloya eklenmedi; içinde gürültü olduğu için tek tek gözden geçirilmesi gerekiyor.
+- Bölüm metnindeki tablolar (yetenek/istatistik tabloları) Faz 1'de gösterilmez.
+- Faz 2: anime Wiki sekmesi + TV satırı + çeviride isim koruması (bkz. "Faz 2").
+

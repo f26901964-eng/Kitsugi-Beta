@@ -154,7 +154,7 @@ class FandomCharacterWikiViewModel(application: Application) : AndroidViewModel(
                 Log.w(TAG, "Bölüm yüklenemedi ($index): ${e.message}")
                 null
             }
-            if ((_state.value as? UiState.Ready)?.page != page) return@launch
+            if (!isCurrent(page)) return@launch
             val newState: SectionState = if (content != null) SectionState.Loaded(content) else SectionState.Failed
             _sections.update { it + (index to newState) }
             if (content != null && !content.isEmpty() && isAutoTranslateEnabled()) translate(sectionKey(index))
@@ -177,7 +177,7 @@ class FandomCharacterWikiViewModel(application: Application) : AndroidViewModel(
         translationJobs[key] = viewModelScope.launch {
             try {
                 val result = withContext(Dispatchers.IO) { translationManager.translateToTarget(text) }
-                if (result.isNotBlank() && result != text && (_state.value as? UiState.Ready)?.page == page) {
+                if (result.isNotBlank() && result != text && isCurrent(page)) {
                     _translations.update { it + (key to result) }
                 }
             } catch (e: CancellationException) {
@@ -195,6 +195,21 @@ class FandomCharacterWikiViewModel(application: Application) : AndroidViewModel(
         _translations.update { it - key }
     }
 
+    /** "Bu eşleşme doğru": otomatik eşleşme kesinleşir (wiki onayı aynı yapımın diğer karakterlerine de geçer). */
+    fun confirmMatch() {
+        val page = (_state.value as? UiState.Ready)?.page ?: return
+        val query = currentQuery ?: return
+        val confirmed = try {
+            FandomRepository.confirmCharacterPage(appContext, query, page)
+        } catch (e: Exception) {
+            Log.w(TAG, "Onay kaydedilemedi: ${e.message}")
+            return
+        }
+        if (isCurrent(page)) {
+            _state.value = UiState.Ready(confirmed)
+        }
+    }
+
     /** "Bu eşleşme yanlış": sayfa bu karakter için bir daha önerilmez, yeniden çözülür. */
     fun reportWrongMatch() {
         val page = (_state.value as? UiState.Ready)?.page ?: return
@@ -209,6 +224,12 @@ class FandomCharacterWikiViewModel(application: Application) : AndroidViewModel(
             }
             rebind()
         }
+    }
+
+    /** Aynı wiki sayfası hâlâ gösteriliyor mu? (Onay sonrası sayfa nesnesi değişir, kimliği değişmez.) */
+    private fun isCurrent(page: FandomCharacterPage): Boolean {
+        val current = (_state.value as? UiState.Ready)?.page ?: return false
+        return current.wikiId == page.wikiId && current.pageTitle == page.pageTitle
     }
 
     private fun cancelTranslations() {
