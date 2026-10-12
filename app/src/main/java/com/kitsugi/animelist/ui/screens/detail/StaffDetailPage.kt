@@ -7,6 +7,7 @@ package com.kitsugi.animelist.ui.screens.detail
 
 import androidx.compose.runtime.CompositionLocalProvider
 import com.kitsugi.animelist.ui.components.LocalKitsugiGalleryLoading
+import com.kitsugi.animelist.ui.components.LocalKitsugiTranslationLoading
 
 import com.kitsugi.animelist.ui.theme.gradient.background
 import com.kitsugi.animelist.ui.utils.tvClickable
@@ -134,7 +135,12 @@ fun StaffDetailPage(
     // Obtain ViewModel
     val viewModel: StaffDetailViewModel = viewModel(key = "staff_${source}_${staffId}")
     val galleryLoading by viewModel.galleryLoading.collectAsState()
-    CompositionLocalProvider(LocalKitsugiGalleryLoading provides galleryLoading) {
+    val translationLoading by viewModel.translationLoading.collectAsState()
+    // Otomatik çeviri sürerken sayfadaki çeviri butonları galeri butonuyla aynı animasyonu gösterir.
+    CompositionLocalProvider(
+        LocalKitsugiGalleryLoading provides galleryLoading,
+        LocalKitsugiTranslationLoading provides translationLoading
+    ) {
 
     // Load staff in ViewModel
     LaunchedEffect(staffId, source) {

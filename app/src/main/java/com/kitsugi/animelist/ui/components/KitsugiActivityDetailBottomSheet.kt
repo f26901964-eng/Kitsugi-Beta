@@ -70,6 +70,12 @@ fun KitsugiActivityDetailBottomSheet(
     var translatedText by remember { mutableStateOf<String?>(null) }
     val translatedReplies = remember { mutableStateMapOf<Int, String>() }
 
+    /**
+     * Süren çeviri işi sayısı. Sıfırdan büyükken aktivite ve yanıt çeviri butonları galeri
+     * butonuyla aynı yüklenme (nabız + dönen halka) animasyonunu gösterir.
+     */
+    var activeTranslations by remember { mutableStateOf(0) }
+
 
 
     var activeGalleryImages by remember { mutableStateOf<List<String>>(emptyList()) }
@@ -94,18 +100,28 @@ fun KitsugiActivityDetailBottomSheet(
             val act = activityDetails!!
             if (act.mediaTitle == null && translatedText == null && act.text.isNotBlank()) {
                 coroutineScope.launch {
-                    val tr = translationManager.translateToTarget(act.text) { partial ->
-                        if (partial.isNotBlank()) translatedText = partial
+                    activeTranslations++
+                    try {
+                        val tr = translationManager.translateToTarget(act.text) { partial ->
+                            if (partial.isNotBlank()) translatedText = partial
+                        }
+                        if (tr.isNotBlank()) translatedText = tr
+                    } finally {
+                        activeTranslations--
                     }
-                    if (tr.isNotBlank() && tr != act.text.trim()) translatedText = tr
                 }
             }
             act.replies.forEach { reply ->
                 if (!translatedReplies.containsKey(reply.id) && reply.text.isNotBlank()) {
                     coroutineScope.launch {
-                        val tr = translationManager.translateToTarget(reply.text)
-                        if (tr.isNotBlank() && tr != reply.text.trim()) {
-                            translatedReplies[reply.id] = tr
+                        activeTranslations++
+                        try {
+                            val tr = translationManager.translateToTarget(reply.text)
+                            if (tr.isNotBlank()) {
+                                translatedReplies[reply.id] = tr
+                            }
+                        } finally {
+                            activeTranslations--
                         }
                     }
                 }
@@ -210,16 +226,15 @@ fun KitsugiActivityDetailBottomSheet(
                         horizontalArrangement = Arrangement.spacedBy(4.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        IconButton(
+                        // Çeviri sürerken galeri butonuyla aynı yüklenme animasyonu.
+                        KitsugiTranslateIconButton(
                             onClick = { context.openTranslator(activityDetails!!.text) },
-                            modifier = Modifier.size(36.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Rounded.Translate,
-                                contentDescription = stringResource(R.string.cevir),
-                                tint = accentColor
-                            )
-                        }
+                            modifier = Modifier.size(36.dp),
+                            tint = accentColor,
+                            contentDescription = stringResource(R.string.cevir),
+                            isLoading = activeTranslations > 0,
+                            ringSize = 30.dp
+                        )
                         IconButton(
                             onClick = {
                                 val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
@@ -527,17 +542,15 @@ fun KitsugiActivityDetailBottomSheet(
                                     Row(
                                         horizontalArrangement = Arrangement.spacedBy(4.dp)
                                     ) {
-                                        IconButton(
+                                        KitsugiTranslateIconButton(
                                             onClick = { context.openTranslator(reply.text) },
-                                            modifier = Modifier.size(28.dp)
-                                        ) {
-                                            Icon(
-                                                imageVector = Icons.Rounded.Translate,
-                                                contentDescription = stringResource(R.string.cevir),
-                                                tint = accentColor,
-                                                modifier = Modifier.size(16.dp)
-                                            )
-                                        }
+                                            modifier = Modifier.size(28.dp),
+                                            tint = accentColor,
+                                            contentDescription = stringResource(R.string.cevir),
+                                            iconSize = 16.dp,
+                                            isLoading = activeTranslations > 0,
+                                            ringSize = 24.dp
+                                        )
                                         IconButton(
                                             onClick = {
                                                 val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager

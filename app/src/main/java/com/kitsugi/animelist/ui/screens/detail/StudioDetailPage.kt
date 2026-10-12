@@ -3,6 +3,7 @@ package com.kitsugi.animelist.ui.screens.detail
 import com.kitsugi.animelist.ui.utils.rememberKitsugiGridColumns
 import androidx.compose.runtime.CompositionLocalProvider
 import com.kitsugi.animelist.ui.components.LocalKitsugiGalleryLoading
+import com.kitsugi.animelist.ui.components.LocalKitsugiTranslationLoading
 import com.kitsugi.animelist.ui.components.KitsugiGalleryIconButton
 
 import android.content.res.Configuration
@@ -126,7 +127,12 @@ fun StudioDetailPage(
     }
     val viewModel: StudioDetailViewModel = viewModel(key = viewModelKey)
     val galleryLoading by viewModel.galleryLoading.collectAsState()
-    CompositionLocalProvider(LocalKitsugiGalleryLoading provides galleryLoading) {
+    val translationLoading by viewModel.translationLoading.collectAsState()
+    // Otomatik çeviri sürerken sayfadaki çeviri butonları galeri butonuyla aynı animasyonu gösterir.
+    CompositionLocalProvider(
+        LocalKitsugiGalleryLoading provides galleryLoading,
+        LocalKitsugiTranslationLoading provides translationLoading
+    ) {
 
     // Load studio in ViewModel
     LaunchedEffect(studioId, source, name, imageUrl) {

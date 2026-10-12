@@ -50,6 +50,16 @@ class StudioDetailViewModel(application: Application) : AndroidViewModel(applica
     private val _translatedAbout = MutableStateFlow<String?>(null)
     val translatedAbout: StateFlow<String?> = _translatedAbout.asStateFlow()
 
+    /**
+     * "Hakkında" çevirisi (otomatik ya da elle) sürerken `true`.
+     *
+     * Detay sayfası bu değeri `LocalKitsugiTranslationLoading` üzerinden sayfadaki çeviri
+     * butonuna verir; buton çeviri bitene kadar galeri butonuyla aynı yüklenme
+     * (nabız + dönen halka) animasyonunu gösterir.
+     */
+    private val _translationLoading = MutableStateFlow(false)
+    val translationLoading: StateFlow<Boolean> = _translationLoading.asStateFlow()
+
     /** Sonraki yapım sayfası yükleniyor mu (sonsuz kaydırma). */
     private val _isLoadingMore = MutableStateFlow(false)
     val isLoadingMore: StateFlow<Boolean> = _isLoadingMore.asStateFlow()
@@ -67,6 +77,9 @@ class StudioDetailViewModel(application: Application) : AndroidViewModel(applica
     private var lastStudioName: String? = null
     private var lastStudioImageUrl: String? = null
     private var aboutTranslateJob: kotlinx.coroutines.Job? = null
+
+    /** Çeviri işlerinin nesil sayacı — eski işlerin yüklenme durumunu kapatmasını engeller. */
+    @Volatile private var translationGeneration = 0
     private var lastAutoTranslateSetting: Boolean? = null
     private var lastTargetLangSetting: String? = null
 
@@ -96,7 +109,7 @@ class StudioDetailViewModel(application: Application) : AndroidViewModel(applica
                             forceRetranslate = prevTarget != settings.translateTargetLanguage
                         )
                     } else {
-                        aboutTranslateJob?.cancel()
+                        cancelAboutTranslation()
                         _translatedAbout.value = rawAbout
                     }
                 }
@@ -128,30 +141,47 @@ class StudioDetailViewModel(application: Application) : AndroidViewModel(applica
 
         _translatedAbout.value = rawAbout
         aboutTranslateJob?.cancel()
+        val generation = ++translationGeneration
         aboutTranslateJob = viewModelScope.launch {
-            val autoTranslate = runCatching {
-                settingsDataStore.settingsFlow.first().autoTranslateEnabled
-            }.getOrDefault(false)
-            val isRussian = rawAbout.any { it in '\u0400'..'\u04FF' }
-            if (!autoTranslate && !isRussian && !forceRetranslate) return@launch
+            try {
+                val autoTranslate = runCatching {
+                    settingsDataStore.settingsFlow.first().autoTranslateEnabled
+                }.getOrDefault(false)
+                val isRussian = rawAbout.any { it in '\u0400'..'\u04FF' }
+                if (!autoTranslate && !isRussian && !forceRetranslate) return@launch
 
-            val tr = withContext(Dispatchers.IO) {
-                translationManager.translateToTarget(rawAbout) { partial ->
-                    if (currentFetchKey == expectedFetchKey && partial.isNotBlank()) {
-                        _translatedAbout.value = partial
+                _translationLoading.value = true
+                val tr = withContext(Dispatchers.IO) {
+                    translationManager.translateToTarget(rawAbout) { partial ->
+                        if (currentFetchKey == expectedFetchKey && partial.isNotBlank()) {
+                            _translatedAbout.value = partial
+                        }
                     }
                 }
-            }
-            if (currentFetchKey == expectedFetchKey && !tr.isNullOrBlank()) {
-                if (tr != rawAbout) {
-                    DetailCache.putTranslation("studio_about", source, studioId, tr, identity)
-                    if (studioId > 0) {
-                        DetailCache.putTranslation("studio_about", source, studioId, tr)
+                if (currentFetchKey == expectedFetchKey && !tr.isNullOrBlank()) {
+                    if (tr != rawAbout) {
+                        DetailCache.putTranslation("studio_about", source, studioId, tr, identity)
+                        if (studioId > 0) {
+                            DetailCache.putTranslation("studio_about", source, studioId, tr)
+                        }
                     }
+                    _translatedAbout.value = tr
                 }
-                _translatedAbout.value = tr
+            } finally {
+                // Daha yeni bir çeviri işi başladıysa yüklenme durumunu ona bırak.
+                if (generation == translationGeneration) {
+                    _translationLoading.value = false
+                }
             }
         }
+    }
+
+    /** Çalışan "Hakkında" çevirisini bırakır ve yüklenme animasyonunu kapatır. */
+    private fun cancelAboutTranslation() {
+        translationGeneration++
+        aboutTranslateJob?.cancel()
+        aboutTranslateJob = null
+        _translationLoading.value = false
     }
 
     /**
@@ -168,7 +198,7 @@ class StudioDetailViewModel(application: Application) : AndroidViewModel(applica
 
         Log.d(TAG, "loadStudio: New key=$newKey (was $currentFetchKey)")
         currentFetchKey = newKey
-        aboutTranslateJob?.cancel()
+        cancelAboutTranslation()
         nextWorksPage = 2
         _isLoadingMore.value = false
         _loadMoreFailed.value = false

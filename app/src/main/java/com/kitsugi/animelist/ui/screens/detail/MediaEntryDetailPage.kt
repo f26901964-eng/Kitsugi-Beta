@@ -6,6 +6,7 @@
 package com.kitsugi.animelist.ui.screens.detail
 
 import com.kitsugi.animelist.ui.components.LocalKitsugiGalleryLoading
+import com.kitsugi.animelist.ui.components.LocalKitsugiTranslationLoading
 import com.kitsugi.animelist.ui.components.KitsugiGalleryIconButton
 import android.content.Intent
 import android.net.Uri
@@ -214,7 +215,12 @@ fun MediaEntryDetailPage(
     val targetSeason by viewModel.targetSeason.collectAsState()
     val galleryItems by viewModel.galleryItems.collectAsState()
     val galleryLoading by viewModel.galleryLoading.collectAsState()
-    CompositionLocalProvider(LocalKitsugiGalleryLoading provides galleryLoading) {
+    val translationLoading by viewModel.translationLoading.collectAsState()
+    // Otomatik çeviri sürerken sayfadaki çeviri butonları galeri butonuyla aynı animasyonu gösterir.
+    CompositionLocalProvider(
+        LocalKitsugiGalleryLoading provides galleryLoading,
+        LocalKitsugiTranslationLoading provides translationLoading
+    ) {
     val pageResetTrigger by viewModel.pageResetTrigger.collectAsState()
 
     // Sadece detay verisi hazır olana kadar yükleme ekranı göster.

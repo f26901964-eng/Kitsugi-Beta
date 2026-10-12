@@ -83,6 +83,12 @@ fun KitsugiTopicDetailBottomSheet(
     var translatedBody by remember(topic.id) { mutableStateOf<String?>(null) }
     val translatedComments = remember { mutableStateMapOf<Int, String>() }
 
+    /**
+     * Süren çeviri işi sayısı. Sıfırdan büyükken konu başlığındaki ve yorumlardaki çeviri
+     * butonları galeri butonuyla aynı yüklenme (nabız + dönen halka) animasyonunu gösterir.
+     */
+    var activeTranslations by remember { mutableStateOf(0) }
+
     val listState = rememberLazyListState()
 
     // Load initial comments + enrich MAL OP if needed
@@ -158,26 +164,41 @@ fun KitsugiTopicDetailBottomSheet(
             // Translate topic title
             if (translatedTitle == null && activeTopic.title.isNotBlank()) {
                 coroutineScope.launch {
-                    val tr = translationManager.translateToTarget(activeTopic.title)
-                    if (tr.isNotBlank() && tr != activeTopic.title.trim()) translatedTitle = tr
+                    activeTranslations++
+                    try {
+                        val tr = translationManager.translateToTarget(activeTopic.title)
+                        if (tr.isNotBlank()) translatedTitle = tr
+                    } finally {
+                        activeTranslations--
+                    }
                 }
             }
             // Translate topic OP body
             if (translatedBody == null && activeTopic.body.isNotBlank()) {
                 coroutineScope.launch {
-                    val tr = translationManager.translateToTarget(activeTopic.body) { partial ->
-                        if (partial.isNotBlank()) translatedBody = partial
+                    activeTranslations++
+                    try {
+                        val tr = translationManager.translateToTarget(activeTopic.body) { partial ->
+                            if (partial.isNotBlank()) translatedBody = partial
+                        }
+                        if (tr.isNotBlank()) translatedBody = tr
+                    } finally {
+                        activeTranslations--
                     }
-                    if (tr.isNotBlank() && tr != activeTopic.body.trim()) translatedBody = tr
                 }
             }
             // Recursive translation helper
             fun translateRecursive(comment: KitsugiForumReply) {
                 if (!translatedComments.containsKey(comment.id) && comment.comment.isNotBlank()) {
                     coroutineScope.launch {
-                        val tr = translationManager.translateToTarget(comment.comment)
-                        if (tr.isNotBlank() && tr != comment.comment.trim()) {
-                            translatedComments[comment.id] = tr
+                        activeTranslations++
+                        try {
+                            val tr = translationManager.translateToTarget(comment.comment)
+                            if (tr.isNotBlank()) {
+                                translatedComments[comment.id] = tr
+                            }
+                        } finally {
+                            activeTranslations--
                         }
                     }
                 }
@@ -312,7 +333,8 @@ fun KitsugiTopicDetailBottomSheet(
                     horizontalArrangement = Arrangement.spacedBy(4.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    IconButton(
+                    // Konu çevirisi sürerken galeri butonuyla aynı yüklenme animasyonu.
+                    KitsugiTranslateIconButton(
                         onClick = {
                             val textToTranslate = if (activeTopic.body.isNotBlank()) {
                                 "${activeTopic.title}\n\n${activeTopic.body}"
@@ -321,14 +343,12 @@ fun KitsugiTopicDetailBottomSheet(
                             }
                             context.openTranslator(textToTranslate)
                         },
-                        modifier = Modifier.size(36.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Rounded.Translate,
-                            contentDescription = stringResource(R.string.cevir),
-                            tint = accentColor
-                        )
-                    }
+                        modifier = Modifier.size(36.dp),
+                        tint = accentColor,
+                        contentDescription = stringResource(R.string.cevir),
+                        isLoading = activeTranslations > 0,
+                        ringSize = 30.dp
+                    )
                     IconButton(
                         onClick = {
                             val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
@@ -569,6 +589,7 @@ fun KitsugiTopicDetailBottomSheet(
                             selectedLanguage = selectedLanguage,
                             translatedComments = translatedComments,
                             commentSource = activeTopic.source,
+                            isTranslating = activeTranslations > 0,
                             onUserProfileClick = onUserProfileClick,
                             onReplyClick = if (isAniListTopic) {
                                 { target ->

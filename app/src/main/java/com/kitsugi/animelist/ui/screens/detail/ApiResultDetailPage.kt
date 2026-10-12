@@ -6,6 +6,7 @@
 package com.kitsugi.animelist.ui.screens.detail
 import com.kitsugi.animelist.ui.components.KitsugiButton
 import com.kitsugi.animelist.ui.components.LocalKitsugiGalleryLoading
+import com.kitsugi.animelist.ui.components.LocalKitsugiTranslationLoading
 import com.kitsugi.animelist.ui.components.KitsugiGalleryIconButton
 
 import android.content.Intent
@@ -241,7 +242,12 @@ fun ApiResultDetailPage(
     val galleryLoading by viewModel.galleryLoading.collectAsState()
     // Vitrin görsel planı sayfa açılmadan ÖNCE çözülür (TMDB/Fanart.tv en kaliteli sıra).
     val heroArtwork by viewModel.heroArtwork.collectAsState()
-    CompositionLocalProvider(LocalKitsugiGalleryLoading provides galleryLoading) {
+    val translationLoading by viewModel.translationLoading.collectAsState()
+    // Otomatik çeviri sürerken sayfadaki çeviri butonları galeri butonuyla aynı animasyonu gösterir.
+    CompositionLocalProvider(
+        LocalKitsugiGalleryLoading provides galleryLoading,
+        LocalKitsugiTranslationLoading provides translationLoading
+    ) {
     val pageResetTrigger by viewModel.pageResetTrigger.collectAsState()
 
     // Sadece detay verisi hazır olana kadar yükleme ekranı göster.

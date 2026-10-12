@@ -48,6 +48,8 @@ internal fun KitsugiForumCommentCard(
     selectedLanguage: String = "original",
     translatedComments: Map<Int, String> = emptyMap(),
     commentSource: String = "anilist",
+    /** Yorum çevirisi sürüyor mu — çeviri butonu bu sırada yüklenme animasyonu gösterir. */
+    isTranslating: Boolean = false,
     onUserProfileClick: ((userId: Int?, username: String, avatarUrl: String?, source: String) -> Unit)? = null,
     onReplyClick: ((KitsugiForumReply) -> Unit)? = null
 ) {
@@ -150,17 +152,15 @@ internal fun KitsugiForumCommentCard(
         ) {
             // Left micro-actions: Translate & Copy
             Row(horizontalArrangement = Arrangement.spacedBy(0.dp)) {
-                IconButton(
+                KitsugiTranslateIconButton(
                     onClick = { context.openTranslator(comment.comment) },
-                    modifier = Modifier.size(28.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Rounded.Translate,
-                        contentDescription = stringResource(R.string.cevir),
-                        tint = accentColor,
-                        modifier = Modifier.size(15.dp)
-                    )
-                }
+                    modifier = Modifier.size(28.dp),
+                    tint = accentColor,
+                    contentDescription = stringResource(R.string.cevir),
+                    iconSize = 15.dp,
+                    isLoading = isTranslating,
+                    ringSize = 24.dp
+                )
                 IconButton(
                     onClick = {
                         val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
@@ -273,6 +273,7 @@ internal fun KitsugiForumCommentCard(
                     selectedLanguage = selectedLanguage,
                     translatedComments = translatedComments,
                     commentSource = commentSource,
+                    isTranslating = isTranslating,
                     onUserProfileClick = onUserProfileClick,
                     onReplyClick = onReplyClick
                 )
@@ -290,6 +291,7 @@ private fun KitsugiForumChildCommentRow(
     selectedLanguage: String,
     translatedComments: Map<Int, String>,
     commentSource: String = "anilist",
+    isTranslating: Boolean = false,
     onUserProfileClick: ((userId: Int?, username: String, avatarUrl: String?, source: String) -> Unit)?,
     onReplyClick: ((KitsugiForumReply) -> Unit)?
 ) {
@@ -408,17 +410,15 @@ private fun KitsugiForumChildCommentRow(
                 Row(
                     horizontalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
-                    IconButton(
+                    KitsugiTranslateIconButton(
                         onClick = { context.openTranslator(comment.comment) },
-                        modifier = Modifier.size(24.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Rounded.Translate,
-                            contentDescription = stringResource(R.string.cevir),
-                            tint = accentColor,
-                            modifier = Modifier.size(14.dp)
-                        )
-                    }
+                        modifier = Modifier.size(24.dp),
+                        tint = accentColor,
+                        contentDescription = stringResource(R.string.cevir),
+                        iconSize = 14.dp,
+                        isLoading = isTranslating,
+                        ringSize = 22.dp
+                    )
                     IconButton(
                         onClick = {
                             val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
@@ -523,6 +523,7 @@ private fun KitsugiForumChildCommentRow(
                 selectedLanguage = selectedLanguage,
                 translatedComments = translatedComments,
                 commentSource = commentSource,
+                isTranslating = isTranslating,
                 onUserProfileClick = onUserProfileClick,
                 onReplyClick = onReplyClick
             )

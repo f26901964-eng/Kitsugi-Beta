@@ -125,16 +125,20 @@ fun KitsugiReviewDetailBottomSheet(
     LaunchedEffect(selectedLanguage, review.fullText) {
         if (selectedLanguage == "turkish" && translatedText == null) {
             isTranslating = true
-            val tr = translationManager.translateToTarget(review.fullText) { partial ->
-                if (partial.isNotBlank()) {
-                    translatedText = partial
-                    isTranslating = false
+            try {
+                val tr = translationManager.translateToTarget(review.fullText) { partial ->
+                    // Kısmi (akış) sonuç geldiğinde metin hemen gösterilir; yüklenme
+                    // animasyonu ise çeviri tamamen bitene kadar devam eder.
+                    if (partial.isNotBlank()) {
+                        translatedText = partial
+                    }
                 }
+                if (tr.isNotBlank()) {
+                    translatedText = tr
+                }
+            } finally {
+                isTranslating = false
             }
-            if (tr.isNotBlank() && tr != review.fullText.trim()) {
-                translatedText = tr
-            }
-            isTranslating = false
         }
     }
     val scrollState = rememberScrollState()
@@ -217,16 +221,15 @@ fun KitsugiReviewDetailBottomSheet(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    IconButton(
+                    // Çeviri sürerken (otomatik ya da elle) galeri butonuyla aynı animasyon.
+                    KitsugiTranslateIconButton(
                         onClick = { context.openTranslator(review.fullText, sourceLanguage = review.languageCode) },
-                        modifier = Modifier.size(36.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Rounded.Translate,
-                            contentDescription = stringResource(R.string.cevir),
-                            tint = accentColor
-                        )
-                    }
+                        modifier = Modifier.size(36.dp),
+                        tint = accentColor,
+                        contentDescription = stringResource(R.string.cevir),
+                        isLoading = isTranslating,
+                        ringSize = 30.dp
+                    )
 
                     IconButton(
                         onClick = {
@@ -329,7 +332,7 @@ fun KitsugiReviewDetailBottomSheet(
                     .verticalScroll(scrollState)
                     .padding(vertical = 4.dp)
             ) {
-                if (isTranslating) {
+                if (isTranslating && translatedText == null) {
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()

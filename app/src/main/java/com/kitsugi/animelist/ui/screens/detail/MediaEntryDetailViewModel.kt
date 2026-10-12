@@ -83,6 +83,16 @@ class MediaEntryDetailViewModel(application: Application) : AndroidViewModel(app
     private val _translatedSynopsis = MutableStateFlow<String?>(null)
     val translatedSynopsis: StateFlow<String?> = _translatedSynopsis.asStateFlow()
 
+    /**
+     * Özet çevirisi (otomatik ya da elle) sürerken `true`.
+     *
+     * Detay sayfası bu değeri `LocalKitsugiTranslationLoading` ile sayfadaki çeviri
+     * butonlarına verir; buton çeviri bitene kadar galeri butonuyla aynı yüklenme
+     * (nabız + dönen halka) animasyonunu gösterir.
+     */
+    private val _translationLoading = MutableStateFlow(false)
+    val translationLoading: StateFlow<Boolean> = _translationLoading.asStateFlow()
+
     private val _originalSynopsis = MutableStateFlow<String?>(null)
     val originalSynopsis: StateFlow<String?> = _originalSynopsis.asStateFlow()
 
@@ -142,6 +152,9 @@ class MediaEntryDetailViewModel(application: Application) : AndroidViewModel(app
     private var lastEntry: MediaEntry? = null
     private var mangaMappingJob: Job? = null
     private var synopsisTranslateJob: Job? = null
+
+    /** Çeviri işlerinin nesil sayacı — eski işlerin yüklenme durumunu kapatmasını engeller. */
+    @Volatile private var translationGeneration = 0
     private var lastAutoTranslateSetting: Boolean? = null
     private var lastTargetLangSetting: String? = null
 
@@ -166,7 +179,7 @@ class MediaEntryDetailViewModel(application: Application) : AndroidViewModel(app
                             forceRetranslate = prevTarget != settings.translateTargetLanguage
                         )
                     } else {
-                        synopsisTranslateJob?.cancel()
+                        cancelSynopsisTranslation()
                         _translatedSynopsis.value = null
                         _synopsisState.value = SynopsisState.Success(raw)
                     }
@@ -205,32 +218,49 @@ class MediaEntryDetailViewModel(application: Application) : AndroidViewModel(app
         }
 
         synopsisTranslateJob?.cancel()
+        val generation = ++translationGeneration
         synopsisTranslateJob = viewModelScope.launch {
-            val autoTranslate = runCatching { settingsDataStore.settingsFlow.first().autoTranslateEnabled }.getOrDefault(false)
-            val isRussian = rawText.any { it in '\u0400'..'\u04FF' }
-            if (autoTranslate || isRussian || forceRetranslate) {
-                val tr = withContext(Dispatchers.IO) {
-                    translationManager.translateToTarget(rawText) { partial ->
-                        if (currentFetchKey == expectedFetchKey && partial.isNotBlank()) {
-                            _synopsisState.value = SynopsisState.Success(partial)
-                            _translatedSynopsis.value = partial
+            try {
+                val autoTranslate = runCatching { settingsDataStore.settingsFlow.first().autoTranslateEnabled }.getOrDefault(false)
+                val isRussian = rawText.any { it in '\u0400'..'\u04FF' }
+                if (autoTranslate || isRussian || forceRetranslate) {
+                    _translationLoading.value = true
+                    val tr = withContext(Dispatchers.IO) {
+                        translationManager.translateToTarget(rawText) { partial ->
+                            if (currentFetchKey == expectedFetchKey && partial.isNotBlank()) {
+                                _synopsisState.value = SynopsisState.Success(partial)
+                                _translatedSynopsis.value = partial
+                            }
                         }
                     }
-                }
-                if (currentFetchKey == expectedFetchKey && !tr.isNullOrBlank()) {
-                    if (tr != rawText) {
-                        DetailCache.putTranslation("synopsis", entry.source, stableId, tr)
+                    if (currentFetchKey == expectedFetchKey && !tr.isNullOrBlank()) {
+                        if (tr != rawText) {
+                            DetailCache.putTranslation("synopsis", entry.source, stableId, tr)
+                        }
+                        _synopsisState.value = SynopsisState.Success(tr)
+                        _translatedSynopsis.value = tr
                     }
-                    _synopsisState.value = SynopsisState.Success(tr)
-                    _translatedSynopsis.value = tr
+                } else {
+                    if (currentFetchKey == expectedFetchKey) {
+                        _synopsisState.value = SynopsisState.Success(rawText)
+                        _translatedSynopsis.value = rawText
+                    }
                 }
-            } else {
-                if (currentFetchKey == expectedFetchKey) {
-                    _synopsisState.value = SynopsisState.Success(rawText)
-                    _translatedSynopsis.value = rawText
+            } finally {
+                // Daha yeni bir çeviri işi başladıysa yüklenme durumunu ona bırak.
+                if (generation == translationGeneration) {
+                    _translationLoading.value = false
                 }
             }
         }
+    }
+
+    /** Çalışan özet çevirisini bırakır ve yüklenme animasyonunu kapatır. */
+    private fun cancelSynopsisTranslation() {
+        translationGeneration++
+        synopsisTranslateJob?.cancel()
+        synopsisTranslateJob = null
+        _translationLoading.value = false
     }
 
     /**
@@ -268,7 +298,7 @@ class MediaEntryDetailViewModel(application: Application) : AndroidViewModel(app
         Log.d(TAG, "loadEntry: New key=$newKey (was $currentFetchKey)")
         currentFetchKey = newKey
         lastEntry = entry
-        synopsisTranslateJob?.cancel()
+        cancelSynopsisTranslation()
         _pageResetTrigger.value += 1 // Signal UI to scroll back to first tab
         // Eski kaydın sekme işleri iptal edilir: bit gecikmeli yanıtları yeni kaydın
         // state'ine yazamaz (yanlış içerik göstermenin klasik yolu).

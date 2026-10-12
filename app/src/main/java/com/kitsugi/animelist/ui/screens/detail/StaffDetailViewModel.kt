@@ -51,6 +51,16 @@ class StaffDetailViewModel(application: Application) : AndroidViewModel(applicat
     private val _translatedBio = MutableStateFlow<String?>(null)
     val translatedBio: StateFlow<String?> = _translatedBio.asStateFlow()
 
+    /**
+     * Biyografi çevirisi (otomatik ya da elle) sürerken `true`.
+     *
+     * Detay sayfası bu değeri `LocalKitsugiTranslationLoading` üzerinden sayfadaki çeviri
+     * butonuna verir; buton çeviri bitene kadar galeri butonuyla aynı yüklenme
+     * (nabız + dönen halka) animasyonunu gösterir.
+     */
+    private val _translationLoading = MutableStateFlow(false)
+    val translationLoading: StateFlow<Boolean> = _translationLoading.asStateFlow()
+
     private val _isFavourite = MutableStateFlow(false)
     val isFavourite: StateFlow<Boolean> = _isFavourite.asStateFlow()
 
@@ -62,6 +72,9 @@ class StaffDetailViewModel(application: Application) : AndroidViewModel(applicat
     private var lastSource: String = ""
     private var lastStaffName: String? = null
     private var bioTranslateJob: kotlinx.coroutines.Job? = null
+
+    /** Çeviri işlerinin nesil sayacı — eski işlerin yüklenme durumunu kapatmasını engeller. */
+    @Volatile private var translationGeneration = 0
     private var lastAutoTranslateSetting: Boolean? = null
     private var lastTargetLangSetting: String? = null
 
@@ -91,7 +104,7 @@ class StaffDetailViewModel(application: Application) : AndroidViewModel(applicat
                             forceRetranslate = prevTarget != settings.translateTargetLanguage
                         )
                     } else {
-                        bioTranslateJob?.cancel()
+                        cancelBioTranslation()
                         _translatedBio.value = null
                     }
                 }
@@ -119,26 +132,43 @@ class StaffDetailViewModel(application: Application) : AndroidViewModel(applicat
         }
 
         bioTranslateJob?.cancel()
+        val generation = ++translationGeneration
         bioTranslateJob = viewModelScope.launch {
-            val autoTranslate = runCatching { settingsDataStore.settingsFlow.first().autoTranslateEnabled }.getOrDefault(false)
-            val isRussian = bio.any { it in '\u0400'..'\u04FF' }
-            if (!autoTranslate && !isRussian && !forceRetranslate) return@launch
+            try {
+                val autoTranslate = runCatching { settingsDataStore.settingsFlow.first().autoTranslateEnabled }.getOrDefault(false)
+                val isRussian = bio.any { it in '\u0400'..'\u04FF' }
+                if (!autoTranslate && !isRussian && !forceRetranslate) return@launch
 
-            val tr = withContext(Dispatchers.IO) {
-                translationManager.translateToTarget(bio) { partial ->
-                    if (currentFetchKey == expectedFetchKey && partial.isNotBlank()) {
-                        _translatedBio.value = partial
+                _translationLoading.value = true
+                val tr = withContext(Dispatchers.IO) {
+                    translationManager.translateToTarget(bio) { partial ->
+                        if (currentFetchKey == expectedFetchKey && partial.isNotBlank()) {
+                            _translatedBio.value = partial
+                        }
                     }
                 }
-            }
-            if (currentFetchKey == expectedFetchKey && tr.isNotBlank()) {
-                if (tr != bio) {
-                    DetailCache.putTranslation("bio_staff", source, staffId, tr, identity)
-                    DetailCache.putTranslation("bio_staff", source, staffId, tr)
+                if (currentFetchKey == expectedFetchKey && tr.isNotBlank()) {
+                    if (tr != bio) {
+                        DetailCache.putTranslation("bio_staff", source, staffId, tr, identity)
+                        DetailCache.putTranslation("bio_staff", source, staffId, tr)
+                    }
+                    _translatedBio.value = tr
                 }
-                _translatedBio.value = tr
+            } finally {
+                // Daha yeni bir çeviri işi başladıysa yüklenme durumunu ona bırak.
+                if (generation == translationGeneration) {
+                    _translationLoading.value = false
+                }
             }
         }
+    }
+
+    /** Çalışan biyografi çevirisini bırakır ve yüklenme animasyonunu kapatır. */
+    private fun cancelBioTranslation() {
+        translationGeneration++
+        bioTranslateJob?.cancel()
+        bioTranslateJob = null
+        _translationLoading.value = false
     }
 
     fun translateBio() {
@@ -163,7 +193,7 @@ class StaffDetailViewModel(application: Application) : AndroidViewModel(applicat
 
         Log.d(TAG, "loadStaff: New key=$newKey (was $currentFetchKey)")
         currentFetchKey = newKey
-        bioTranslateJob?.cancel()
+        cancelBioTranslation()
         lastStaffId = staffId
         lastSource = source
         lastStaffName = name

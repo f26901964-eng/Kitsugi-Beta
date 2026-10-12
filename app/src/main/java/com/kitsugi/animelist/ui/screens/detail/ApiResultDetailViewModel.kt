@@ -78,6 +78,16 @@ class ApiResultDetailViewModel(application: Application) : AndroidViewModel(appl
     private val _translatedSynopsis = MutableStateFlow<String?>(null)
     val translatedSynopsis: StateFlow<String?> = _translatedSynopsis.asStateFlow()
 
+    /**
+     * Açıklama çevirisi (otomatik ya da elle) sürerken `true`.
+     *
+     * Detay sayfası bu değeri `LocalKitsugiTranslationLoading` üzerinden sayfadaki çeviri
+     * butonlarına verir; butonlar çeviri bitene kadar galeri butonuyla birebir aynı
+     * yüklenme (nabız + dönen halka) animasyonunu gösterir.
+     */
+    private val _translationLoading = MutableStateFlow(false)
+    val translationLoading: StateFlow<Boolean> = _translationLoading.asStateFlow()
+
     private val _logoUrl = MutableStateFlow<String?>(null)
     val logoUrl: StateFlow<String?> = _logoUrl.asStateFlow()
 
@@ -150,6 +160,9 @@ class ApiResultDetailViewModel(application: Application) : AndroidViewModel(appl
     private var currentFetchKey: String? = null
     private var lastResult: JikanSearchResult? = null
     private var synopsisTranslateJob: Job? = null
+
+    /** Çeviri işlerinin nesil sayacı — eski işlerin yüklenme durumunu kapatmasını engeller. */
+    @Volatile private var translationGeneration = 0
     private var lastAutoTranslateSetting: Boolean? = null
     private var lastTargetLangSetting: String? = null
 
@@ -174,7 +187,7 @@ class ApiResultDetailViewModel(application: Application) : AndroidViewModel(appl
                             forceRetranslate = prevTarget != settings.translateTargetLanguage
                         )
                     } else {
-                        synopsisTranslateJob?.cancel()
+                        cancelSynopsisTranslation()
                         _translatedSynopsis.value = null
                     }
                 }
@@ -201,22 +214,57 @@ class ApiResultDetailViewModel(application: Application) : AndroidViewModel(appl
             }
         }
 
+        startSynopsisTranslation(
+            result = result,
+            rawSynopsis = rawSynopsis,
+            expectedFetchKey = expectedFetchKey
+        )
+    }
+
+    /**
+     * Açıklama çevirisini başlatır ve çeviri boyunca [translationLoading]'i açık tutar.
+     *
+     * Kısmi (stream) sonuçlar geldiğinde de yüklenme durumu kapanmaz; buton ancak çeviri
+     * tamamen bittiğinde (ya da iptal edildiğinde) normal hâline döner.
+     */
+    private fun startSynopsisTranslation(
+        result: JikanSearchResult,
+        rawSynopsis: String,
+        expectedFetchKey: String?
+    ) {
+        val generation = ++translationGeneration
         synopsisTranslateJob?.cancel()
         synopsisTranslateJob = viewModelScope.launch {
-            val tr = withContext(Dispatchers.IO) {
-                translationManager.translateToTarget(rawSynopsis) { partial ->
-                    if (currentFetchKey == expectedFetchKey && partial.isNotBlank()) {
-                        _translatedSynopsis.value = partial
+            try {
+                _translationLoading.value = true
+                val tr = withContext(Dispatchers.IO) {
+                    translationManager.translateToTarget(rawSynopsis) { partial ->
+                        if (currentFetchKey == expectedFetchKey && partial.isNotBlank()) {
+                            _translatedSynopsis.value = partial
+                        }
                     }
                 }
-            }
-            if (currentFetchKey == expectedFetchKey && !tr.isNullOrBlank()) {
-                if (tr != rawSynopsis) {
-                    DetailCache.putTranslation("synopsis", result.source, result.malId, tr)
+                if (currentFetchKey == expectedFetchKey && !tr.isNullOrBlank()) {
+                    if (tr != rawSynopsis) {
+                        DetailCache.putTranslation("synopsis", result.source, result.malId, tr)
+                    }
+                    _translatedSynopsis.value = tr
                 }
-                _translatedSynopsis.value = tr
+            } finally {
+                // Daha yeni bir çeviri işi başladıysa yüklenme durumunu ona bırak.
+                if (generation == translationGeneration) {
+                    _translationLoading.value = false
+                }
             }
         }
+    }
+
+    /** Çalışan açıklama çevirisini bırakır ve yüklenme animasyonunu kapatır. */
+    private fun cancelSynopsisTranslation() {
+        translationGeneration++
+        synopsisTranslateJob?.cancel()
+        synopsisTranslateJob = null
+        _translationLoading.value = false
     }
 
     fun translateSynopsis() {
@@ -253,7 +301,7 @@ class ApiResultDetailViewModel(application: Application) : AndroidViewModel(appl
 
         Log.d(TAG, "loadResult: New key=$newKey (was $currentFetchKey)")
         currentFetchKey = newKey
-        synopsisTranslateJob?.cancel()
+        cancelSynopsisTranslation()
         cancelTabLoads() // eski sonucun sekme işleri yeni state'e yazmasın
         lastResult = result
         _pageResetTrigger.value += 1 // Signal UI to scroll back to first tab

@@ -50,6 +50,7 @@ import com.kitsugi.animelist.data.remote.KitsugiMediaDetail
 import com.kitsugi.animelist.model.MediaEntry
 import com.kitsugi.animelist.model.MediaType
 import com.kitsugi.animelist.ui.components.KitsugiMarkdownText
+import com.kitsugi.animelist.ui.components.KitsugiTranslateIconButton
 import com.kitsugi.animelist.ui.components.KitsugiDetailActionButton
 import com.kitsugi.animelist.ui.components.UiverseButtonPalette
 import com.kitsugi.animelist.ui.theme.LocalKitsugiAccent
@@ -580,15 +581,12 @@ internal fun DetailSynopsisCard(
             val accent = LocalKitsugiAccent.current
             val displayedText = (synopsisState as? SynopsisState.Success)?.text
 
-            // Translate button
+            // Translate button — otomatik çeviri sürerken galeri butonuyla aynı yüklenme animasyonu
             if (onTranslateClick != null && !originalText.isNullOrBlank()) {
-                IconButton(onClick = { onTranslateClick(originalText) }) {
-                    Icon(
-                        imageVector = Icons.Rounded.Translate,
-                        contentDescription = stringResource(R.string.action_translate),
-                        tint = accent
-                    )
-                }
+                KitsugiTranslateIconButton(
+                    onClick = { onTranslateClick(originalText) },
+                    tint = accent
+                )
             }
 
             // Copy button

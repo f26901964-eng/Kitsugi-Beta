@@ -338,17 +338,17 @@ fun KitsugiAllActivitiesBottomSheet(
                                     horizontalArrangement = Arrangement.spacedBy(4.dp),
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    IconButton(
+                                    // Bu listede uygulama içi çeviri yok — buton harici çeviriyi açar,
+                                    // bu yüzden yüklenme animasyonu gösterilmez (diğer butonlarla aynı görünüm).
+                                    KitsugiTranslateIconButton(
                                         onClick = { context.openTranslator(act.text) },
-                                        modifier = Modifier.size(28.dp)
-                                    ) {
-                                        Icon(
-                                            imageVector = Icons.Rounded.Translate,
-                                            contentDescription = stringResource(R.string.cevir),
-                                            tint = accentColor,
-                                            modifier = Modifier.size(14.dp)
-                                        )
-                                    }
+                                        modifier = Modifier.size(28.dp),
+                                        tint = accentColor,
+                                        contentDescription = stringResource(R.string.cevir),
+                                        iconSize = 14.dp,
+                                        isLoading = false,
+                                        ringSize = 24.dp
+                                    )
                                     IconButton(
                                         onClick = {
                                             val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager

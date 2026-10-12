@@ -65,6 +65,7 @@ import com.kitsugi.animelist.ui.theme.KitsugiColors
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import com.kitsugi.animelist.ui.components.KitsugiMarkdownText
+import com.kitsugi.animelist.ui.components.KitsugiTranslateIconButton
 import com.kitsugi.animelist.utils.PreferenceHelpers.getDisplayTitle
 import com.kitsugi.animelist.utils.PreferenceHelpers.getDisplayScore
 import androidx.compose.ui.res.stringResource
@@ -380,15 +381,12 @@ internal fun ApiSynopsisCard(
                 modifier = Modifier.weight(1f)
             )
 
-            // Translate button
+            // Translate button — otomatik çeviri sürerken galeri butonuyla aynı yüklenme animasyonu
             if (onTranslateClick != null && !synopsis.isNullOrBlank()) {
-                IconButton(onClick = onTranslateClick) {
-                    Icon(
-                        imageVector = Icons.Rounded.Translate,
-                        contentDescription = stringResource(R.string.action_translate),
-                        tint = LocalKitsugiAccent.current
-                    )
-                }
+                KitsugiTranslateIconButton(
+                    onClick = onTranslateClick,
+                    tint = LocalKitsugiAccent.current
+                )
             }
 
             // Copy button
