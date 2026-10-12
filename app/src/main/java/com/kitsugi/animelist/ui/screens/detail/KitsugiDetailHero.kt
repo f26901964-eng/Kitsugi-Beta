@@ -83,7 +83,8 @@ fun KitsugiDetailHero(
     year: String?,
     isAdult: Boolean,
     onBackClick: () -> Unit,
-    onPosterClick: (() -> Unit)? = null,
+    /** Vitrinde o anda gerçekten gösterilen görselin URL'sini ve türünü döndürür. */
+    onPosterClick: ((String, GalleryCategory) -> Unit)? = null,
     statusLabel: String? = null,
     statusColor: Color? = null,
     scoreLabel: String? = null,
@@ -231,13 +232,14 @@ fun KitsugiDetailHero(
         )
         val bannerCapDp = if (isLandscapeScreen) screenHeightDp else screenHeightDp * 0.62f
         val bannerHeight = (maxWidth / boxAspect).coerceAtMost(bannerCapDp.dp)
-        val heroBoxHeight = bannerHeight + DETAIL_HERO_INFO_AREA_HEIGHT
 
-        // 2. ADIM: asıl vitrin alanı (bant + alt bilgi alanı)
+        // Başlık, meta bilgileri ve rozetler ayrı bir koyu alan ayırmak yerine
+        // görselin alt bölümüne bindirilir. Böylece hem dikey hem yatay düzende
+        // vitrinin altında 220 dp'lik boş bir blok oluşmaz.
         BoxWithConstraints(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(heroBoxHeight)
+                .height(bannerHeight)
         ) {
             val heroBoxWidthDp = maxWidth.value
             val imageAreaModifier = Modifier
@@ -253,9 +255,19 @@ fun KitsugiDetailHero(
                 imageAspect = loadedImageAspect
             )
 
-            if (!heroImageModel.isNullOrBlank()) {
+            val displayedImageUrl = heroImageModel
+            if (!displayedImageUrl.isNullOrBlank()) {
+                val displayedCategory = if (isVerticalArtwork) {
+                    GalleryCategory.POSTER
+                } else {
+                    GalleryCategory.BACKDROP
+                }
                 val imageModifier = if (onPosterClick != null) {
-                    imageAreaModifier.tvClickable { onPosterClick() }
+                    imageAreaModifier.tvClickable {
+                        // Kaynak posteri değil, ekranda o anda seçilmiş olan gerçek
+                        // poster/backdrop URL'sini galeriye aktar.
+                        onPosterClick(displayedImageUrl, displayedCategory)
+                    }
                 } else {
                     imageAreaModifier
                 }
@@ -266,7 +278,7 @@ fun KitsugiDetailHero(
                 // TEK KATMAN, TAM KAPSAMA: görsel alanı hiçbir modda boşluk/bulanık
                 // dolgu bırakmaz; kutu oranı görsele uyduğu için kırpma da ≈ sıfırdır.
                 KitsugiNsfwImage(
-                    model = heroImageModel,
+                    model = displayedImageUrl,
                     contentDescription = title,
                     isAdult = isAdult,
                     blurAdultMedia = blurAdultMedia,
@@ -603,11 +615,6 @@ private fun MetadataIconText(
         )
     }
 }
-
-/**
- * Yatay modda 16:9 bandın altında başlık/logo, meta satırları ve rozetler için ayrılan alan.
- */
-internal val DETAIL_HERO_INFO_AREA_HEIGHT = 220.dp
 
 /** Dikey vitrin adayı: poster kategorisi veya belirgin dikey oran. */
 internal fun isVerticalGalleryItem(item: GalleryItem): Boolean {

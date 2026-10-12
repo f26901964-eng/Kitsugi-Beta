@@ -54,26 +54,14 @@ fun EntryDetailLeftPanel(
         onBackClick = onBackClick,
         titleLanguage = titleLanguage,
         blurAdultMedia = blurAdultMedia,
-        onPosterClick = { clickedUrl ->
-            if (!clickedUrl.isNullOrBlank()) {
-                val index = galleryItems.indexOfFirst { item ->
-                    item.url == clickedUrl || 
-                    item.url.substringAfterLast("/") == clickedUrl.substringAfterLast("/")
-                }
-                if (index >= 0) {
-                    onGalleryOpen(galleryItems, index)
-                } else {
-                    val coverItem = GalleryItem(
-                        url = clickedUrl,
-                        category = GalleryCategory.POSTER,
-                        source = entry.source
-                    )
-                    onGalleryOpen(listOf(coverItem) + galleryItems, 0)
-                }
-            } else if (galleryItems.isNotEmpty()) {
-                val posterIndex = galleryItems.indexOfFirst { it.category == GalleryCategory.POSTER }.coerceAtLeast(0)
-                onGalleryOpen(galleryItems, posterIndex)
-            }
+        onPosterClick = { clickedUrl, clickedCategory ->
+            val selection = selectHeroArtworkInGallery(
+                galleryItems = galleryItems,
+                clickedUrl = clickedUrl,
+                clickedCategory = clickedCategory,
+                source = entry.source
+            )
+            onGalleryOpen(selection.items, selection.index)
         },
         onGalleryClick = if (galleryItems.isNotEmpty() || !entry.imageUrl.isNullOrBlank()) {
             {
