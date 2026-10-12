@@ -364,7 +364,8 @@ fun MediaEntryDetailPage(
                     onUnlinkMangaClick = { viewModel.deleteMangaMapping(displayEntry.id) },
                     onGalleryOpen = { items, idx ->
                         activeGalleryCategory = items.getOrNull(idx)?.category ?: GalleryCategory.POSTER
-                        if (!galleryLoading) activeGalleryItems = items
+                        // Vitrin tıklaması galeri yüklenirken de seçilen görseli hemen açar.
+                        activeGalleryItems = items
                         activeGalleryIndex = idx
                     },
                     leftPanelFocusRequester = lpFocus,
@@ -446,7 +447,8 @@ fun MediaEntryDetailPage(
                         onUnlinkMangaClick = { viewModel.deleteMangaMapping(displayEntry.id) },
                         onGalleryOpen = { items, idx ->
                             activeGalleryCategory = items.getOrNull(idx)?.category ?: GalleryCategory.POSTER
-                            if (!galleryLoading) activeGalleryItems = items
+                            // Vitrin tıklaması galeri yüklenirken de seçilen görseli hemen açar.
+                            activeGalleryItems = items
                             activeGalleryIndex = idx
                         },
                         leftPanelFocusRequester = lpFocus,

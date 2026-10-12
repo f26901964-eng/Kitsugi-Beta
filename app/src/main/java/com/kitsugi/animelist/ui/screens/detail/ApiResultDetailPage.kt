@@ -483,7 +483,8 @@ fun ApiResultDetailPage(
                     onReadMangaClick = onReadMangaClick,
                     onGalleryOpen = { items, idx ->
                         activeGalleryCategory = items.getOrNull(idx)?.category ?: GalleryCategory.POSTER
-                        if (!galleryLoading) activeGalleryItems = items
+                        // Vitrin tıklaması galeri yüklenirken de seçilen görseli hemen açar.
+                        activeGalleryItems = items
                         activeGalleryIndex = idx
                     },
                     onShowAuthWarning = { showAuthWarningDialog = true },
@@ -573,7 +574,8 @@ fun ApiResultDetailPage(
                         onReadMangaClick = onReadMangaClick,
                         onGalleryOpen = { items, idx ->
                             activeGalleryCategory = items.getOrNull(idx)?.category ?: GalleryCategory.POSTER
-                            if (!galleryLoading) activeGalleryItems = items
+                            // Vitrin tıklaması galeri yüklenirken de seçilen görseli hemen açar.
+                            activeGalleryItems = items
                             activeGalleryIndex = idx
                         },
                         onShowAuthWarning = { showAuthWarningDialog = true },

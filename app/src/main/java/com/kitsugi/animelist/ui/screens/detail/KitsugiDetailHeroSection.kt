@@ -79,7 +79,8 @@ internal fun DetailHero(
     onBackClick: () -> Unit,
     titleLanguage: String,
     blurAdultMedia: Boolean = false,
-    onPosterClick: (String) -> Unit = {},
+    /** Vitrinde o anda gerçekten gösterilen görselin URL'sini ve türünü döndürür. */
+    onPosterClick: (String, GalleryCategory) -> Unit = { _, _ -> },
     onShareClick: (() -> Unit)? = null,
     onGalleryClick: (() -> Unit)? = null,
     nextAiring: String? = null,
@@ -123,6 +124,7 @@ internal fun DetailHero(
     val heroImageModel = imagePlan.getOrNull(imageIndex)
     val chosenIsPoster = heroImageModel != null && heroImageModel !in wideGalleryUrls
     var loadedImageAspect by remember(heroImageModel) { mutableStateOf<Float?>(null) }
+    val isVerticalArtwork = loadedImageAspect?.let { it < 1.05f } ?: chosenIsPoster
 
     BoxWithConstraints(
         modifier = Modifier.fillMaxWidth()
@@ -139,13 +141,14 @@ internal fun DetailHero(
         )
         val bannerCapDp = if (isLandscapeScreen) screenHeightDp else screenHeightDp * 0.62f
         val bannerHeight = (maxWidth / boxAspect).coerceAtMost(bannerCapDp.dp)
-        val heroBoxHeight = bannerHeight + DETAIL_HERO_INFO_AREA_HEIGHT
 
-        // 2. ADIM: asıl vitrin alanı (bant + alt bilgi alanı)
+        // Başlık, meta bilgileri ve rozetler ayrı bir koyu alan ayırmak yerine
+        // görselin alt bölümüne bindirilir. Böylece hem dikey hem yatay düzende
+        // vitrinin altında gereksiz boş bir blok kalmaz.
         BoxWithConstraints(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(heroBoxHeight)
+                .height(bannerHeight)
         ) {
             val heroBoxWidthDp = maxWidth.value
             val imageAreaModifier = Modifier
@@ -158,14 +161,24 @@ internal fun DetailHero(
                 heroAspect = imageAreaAspect,
                 imageAspect = loadedImageAspect
             )
-            if (!heroImageModel.isNullOrBlank()) {
+            val displayedImageUrl = heroImageModel
+            if (!displayedImageUrl.isNullOrBlank()) {
+                val displayedCategory = if (isVerticalArtwork) {
+                    GalleryCategory.POSTER
+                } else {
+                    GalleryCategory.BACKDROP
+                }
                 KitsugiNsfwImage(
-                    model = heroImageModel,
+                    model = displayedImageUrl,
                     contentDescription = entry.getDisplayTitle(titleLanguage),
                     isAdult = entry.isAdult,
                     blurAdultMedia = blurAdultMedia,
                     modifier = imageAreaModifier
-                        .tvClickable { onPosterClick(heroImageModel) },
+                        .tvClickable {
+                            // Kaynak posteri değil, ekranda o anda seçilmiş gerçek
+                            // poster/backdrop URL'sini galeriye aktar.
+                            onPosterClick(displayedImageUrl, displayedCategory)
+                        },
                     contentScale = ContentScale.Crop,
                     alignment = heroAlignmentValue,
                     onLoadingFailed = {
