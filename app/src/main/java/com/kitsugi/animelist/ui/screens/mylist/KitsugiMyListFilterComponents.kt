@@ -285,6 +285,53 @@ internal fun SortFilterRow(
     )
 }
 
+/**
+ * Filtre panelinin en üstündeki içerik türü hapları (Anime / Manga / Karakterler /
+ * Ekip / Stüdyo). Hem eski gömülü panelde hem de yeni premium açılır panelde
+ * (KitsugiMyListFilterSheet) ortak kullanılır.
+ */
+@Composable
+internal fun MyListContentTypeRow(
+    selectedTypeFilterId: String,
+    onTypeSelected: (String) -> Unit
+) {
+    val accentColor = LocalKitsugiAccent.current
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .horizontalScroll(rememberScrollState()),
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        val typeItems = listOf(
+            "anime" to "Anime",
+            "manga" to "Manga",
+            "characters" to "Karakterler",
+            "staff" to "Ekip",
+            "studios" to "Stüdyo"
+        )
+        typeItems.forEach { (id, label) ->
+            val isSelected = selectedTypeFilterId == id || (id == "anime" && selectedTypeFilterId == "all")
+            Box(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(if (isSelected) accentColor else KitsugiColors.SurfaceSoft)
+                    .tvClickable(shape = RoundedCornerShape(12.dp), onClick = {
+                        if (id == "anime" || id == "manga") onTypeSelected(id)
+                    })
+                    .padding(horizontal = 14.dp, vertical = 9.dp)
+            ) {
+                Text(
+                    text = if (isSelected) "✓ $label" else label,
+                    color = if (isSelected) KitsugiColors.Background else KitsugiColors.TextPrimary,
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+        }
+    }
+}
+
 @Composable
 internal fun RichMyListFilterPanel(
     selectedStatusFilterId: String,
@@ -315,39 +362,10 @@ internal fun RichMyListFilterPanel(
         verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
         // Top Content Types
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .horizontalScroll(rememberScrollState()),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            val typeItems = listOf(
-                "anime" to "Anime",
-                "manga" to "Manga",
-                "characters" to "Karakterler",
-                "staff" to "Ekip",
-                "studios" to "Stüdyo"
-            )
-            typeItems.forEach { (id, label) ->
-                val isSelected = selectedTypeFilterId == id || (id == "anime" && selectedTypeFilterId == "all")
-                Box(
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(12.dp))
-                        .background(if (isSelected) accentColor else KitsugiColors.SurfaceSoft)
-                        .tvClickable(shape = RoundedCornerShape(12.dp), onClick = {
-                            if (id == "anime" || id == "manga") onTypeSelected(id)
-                        })
-                        .padding(horizontal = 14.dp, vertical = 9.dp)
-                ) {
-                    Text(
-                        text = if (isSelected) "✓ $label" else label,
-                        color = if (isSelected) KitsugiColors.Background else KitsugiColors.TextPrimary,
-                        style = MaterialTheme.typography.labelMedium,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
-            }
-        }
+        MyListContentTypeRow(
+            selectedTypeFilterId = selectedTypeFilterId,
+            onTypeSelected = onTypeSelected
+        )
 
         // Section: Status Filters
         Column {

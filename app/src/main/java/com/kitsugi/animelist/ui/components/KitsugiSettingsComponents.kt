@@ -6,6 +6,8 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.MutableTransitionState
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -23,6 +25,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.TransformOrigin
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntRect
@@ -659,12 +662,17 @@ private class KitsugiMenuPositionProvider(
 }
 
 /**
- * Uygulamanın yüzey diliyle uyumlu açılır menü (Material'ın varsayılan DropdownMenu'su yerine).
- * - Yüzey: [KitsugiColors.SurfaceStrong], 20dp köşe, ince [KitsugiColors.Border] çerçeve, yumuşak gölge
- * - Animasyon: fade + hafif scale, üst kenardan açılıp kapanır
+ * 🌌 Kitsugi Premium Açılır Panel — ayarlar sekmeleri dahil tüm açılır menülerin
+ * ortak, modern yüzeyi (Material'ın varsayılan DropdownMenu'su yerine).
+ *
+ * - Yüzey: [KitsugiColors.SurfaceStrong], 22dp köşe, vurgu rengiyle parlayan
+ *   gradyan kenarlık + aurora glow (renkli gölge) + üstte yumuşak ışık bandı
+ * - Animasyon: yay fiziği (spring) ile hafif sekerek büyüyen premium açılış,
+ *   üst kenar kökenli scale + fade kapanış
  * - Uzun listeler kaydırılır; [modifier] iç sütuna uygulanır (genişlik/yükseklik sınırı için)
  *
  * Tüm açılır menüler (ayarlar, listeler, arama, detay) bu bileşeni kullanır.
+ * Tam ekran alt panel görünümü için bkz. [KitsugiPremiumSheet].
  */
 @Composable
 fun KitsugiDropdownMenu(
@@ -684,7 +692,8 @@ fun KitsugiDropdownMenu(
     val positionProvider = remember(gapPx, marginPx) {
         KitsugiMenuPositionProvider(gapPx = gapPx, marginPx = marginPx)
     }
-    val shape = RoundedCornerShape(20.dp)
+    val shape = RoundedCornerShape(22.dp)
+    val accentColor = LocalKitsugiAccent.current
 
     Popup(
         popupPositionProvider = positionProvider,
@@ -693,26 +702,53 @@ fun KitsugiDropdownMenu(
     ) {
         AnimatedVisibility(
             visibleState = visibleState,
-            enter = fadeIn(animationSpec = tween(durationMillis = 170, easing = FastOutSlowInEasing)) +
+            enter = fadeIn(animationSpec = tween(durationMillis = 150, easing = FastOutSlowInEasing)) +
                 scaleIn(
-                    animationSpec = tween(durationMillis = 170, easing = FastOutSlowInEasing),
-                    initialScale = 0.92f,
+                    animationSpec = spring(dampingRatio = 0.72f, stiffness = 700f),
+                    initialScale = 0.86f,
                     transformOrigin = TransformOrigin(0.5f, 0f)
                 ),
-            exit = fadeOut(animationSpec = tween(durationMillis = 120)) +
+            exit = fadeOut(animationSpec = tween(durationMillis = 110)) +
                 scaleOut(
-                    animationSpec = tween(durationMillis = 120),
-                    targetScale = 0.95f,
+                    animationSpec = tween(durationMillis = 110),
+                    targetScale = 0.94f,
                     transformOrigin = TransformOrigin(0.5f, 0f)
                 )
         ) {
             Box(
                 modifier = Modifier
-                    .shadow(elevation = 12.dp, shape = shape, clip = false)
+                    .shadow(
+                        elevation = 18.dp,
+                        shape = shape,
+                        clip = false,
+                        ambientColor = accentColor.copy(alpha = 0.25f),
+                        spotColor = accentColor.copy(alpha = 0.35f)
+                    )
                     .clip(shape)
                     .background(KitsugiColors.SurfaceStrong, shape)
-                    .border(1.dp, KitsugiColors.Border, shape)
+                    .border(
+                        width = 1.dp,
+                        brush = Brush.verticalGradient(
+                            listOf(
+                                accentColor.copy(alpha = 0.55f),
+                                accentColor.copy(alpha = 0.1f),
+                                KitsugiColors.Border.copy(alpha = 0.35f)
+                            )
+                        ),
+                        shape = shape
+                    )
             ) {
+                // Aurora üst ışık bandı — içeriğin arkasında kalır, tıklamayı engellemez.
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(64.dp)
+                        .background(
+                            Brush.verticalGradient(
+                                listOf(accentColor.copy(alpha = 0.12f), Color.Transparent)
+                            )
+                        )
+                )
                 Column(
                     modifier = modifier
                         .widthIn(min = 168.dp, max = 320.dp)
@@ -726,9 +762,10 @@ fun KitsugiDropdownMenu(
 }
 
 /**
- * Açılır menü satırı. [text] herhangi bir composable olabilir.
- * [selected] true ise satır accent renkli yarı saydam zemine oturur ve sağda onay işareti çıkar
- * (özel [trailingIcon] verilmediyse). [leadingIcon] solda gösterilir.
+ * Premium açılır menü satırı. Seçili durum yay fiziğiyle canlanır:
+ * solda gradyan seçim çubuğu büyür, zemin yarı saydam gradyan tona oturur ve
+ * sağdaki onay işareti spring ile yerine seker. Layout kayması yaşanmaz
+ * (çubuk her zaman yer kaplar, yalnızca görünürlüğü animasyonlanır).
  */
 @Composable
 fun KitsugiMenuItem(
@@ -741,21 +778,46 @@ fun KitsugiMenuItem(
     enabled: Boolean = true
 ) {
     val accentColor = LocalKitsugiAccent.current
-    val shape = RoundedCornerShape(12.dp)
+    val accentBrush = LocalKitsugiAccentBrush.current
+    val shape = RoundedCornerShape(14.dp)
+    val selectedBgBrush = accentBrushWithAlpha(0.16f)
+
+    val selectionProgress by animateFloatAsState(
+        targetValue = if (selected) 1f else 0f,
+        animationSpec = spring(dampingRatio = 0.6f, stiffness = 500f),
+        label = "kitsugiMenuItemSelection"
+    )
+
     Row(
         modifier = modifier
             .fillMaxWidth()
             .padding(vertical = 2.dp)
             .clip(shape)
-            .background(
-                if (selected) accentColor.copy(alpha = 0.15f) else Color.Transparent,
-                shape
+            .then(
+                if (selectionProgress > 0.01f) {
+                    Modifier.background(selectedBgBrush, shape)
+                } else {
+                    Modifier
+                }
             )
             .clickable(enabled = enabled, onClick = onClick)
             .padding(horizontal = 12.dp, vertical = 10.dp)
             .alpha(if (enabled) 1f else 0.38f),
         verticalAlignment = Alignment.CenterVertically
     ) {
+        // Gradyan seçim çubuğu — seçimde dikeyde büyüyerek belirir.
+        Box(
+            modifier = Modifier
+                .size(width = 3.dp, height = 18.dp)
+                .graphicsLayer {
+                    alpha = selectionProgress
+                    scaleY = selectionProgress.coerceAtLeast(0.001f)
+                }
+                .clip(RoundedCornerShape(2.dp))
+                .background(accentBrush, RoundedCornerShape(2.dp))
+        )
+        Spacer(modifier = Modifier.width(10.dp))
+
         if (leadingIcon != null) {
             leadingIcon()
             Spacer(modifier = Modifier.width(12.dp))
@@ -779,7 +841,14 @@ fun KitsugiMenuItem(
                     imageVector = Icons.Rounded.Check,
                     contentDescription = null,
                     tint = accentColor,
-                    modifier = Modifier.size(16.dp)
+                    modifier = Modifier
+                        .size(16.dp)
+                        .graphicsLayer {
+                            alpha = selectionProgress
+                            val checkScale = 0.5f + 0.5f * selectionProgress
+                            scaleX = checkScale
+                            scaleY = checkScale
+                        }
                 )
             }
         }
