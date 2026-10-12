@@ -406,19 +406,35 @@ fun KitsugiNotificationsScreen(
                     listState = malListState,
                     onUserProfileClick = onUserProfileClick,
                     malWebSessionTitle = stringResource(
-                        if (malState.requiresMalWebLogin) R.string.notif_mal_web_connect
+                        if (malState.malAccountMismatch) R.string.notif_mal_account_mismatch_action
+                        else if (malState.requiresMalWebLogin) R.string.notif_mal_web_connect
                         else R.string.notif_mal_web_refresh
                     ),
-                    malWebSessionHint = stringResource(
-                        if (malState.requiresMalWebLogin) R.string.notif_mal_web_login_hint
-                        else R.string.notif_mal_web_refresh_hint
-                    ),
+                    malWebSessionHint = when {
+                        malState.malAccountMismatch -> stringResource(
+                            R.string.notif_mal_account_mismatch_hint,
+                            malState.malOAuthUsername ?: "—",
+                            malState.malWebUsername ?: "—"
+                        )
+                        malState.requiresMalWebLogin -> stringResource(R.string.notif_mal_web_login_hint)
+                        else -> stringResource(R.string.notif_mal_web_refresh_hint)
+                    },
                     onMalWebSessionAction = {
-                        if (malState.requiresMalWebLogin) {
-                            malWebLoginHandled = false
-                            showMalWebLogin = true
-                        } else {
-                            viewModel.loadMal(mediaEntries)
+                        when {
+                            // Farklı hesap: önce yanlış oturumun çerezleri temizlenir, sonra
+                            // giriş WebView'i açılır — aksi hâlde WebView eski oturumla açılır.
+                            malState.malAccountMismatch -> {
+                                malWebLoginHandled = false
+                                viewModel.clearMalWebSession {
+                                    malWebLoginHandled = false
+                                    showMalWebLogin = true
+                                }
+                            }
+                            malState.requiresMalWebLogin -> {
+                                malWebLoginHandled = false
+                                showMalWebLogin = true
+                            }
+                            else -> viewModel.loadMal(mediaEntries)
                         }
                     },
                     onItemClick = { notif ->

@@ -24,6 +24,28 @@ internal object MalNotificationsClient {
     private const val NOTIFICATIONS_URL = "https://myanimelist.net/notification"
     private const val MAL_HOME_URL = "https://myanimelist.net/"
     private val json = Json { ignoreUnknownKeys = true }
+
+    /** `window.MAL.notification = { ... }` ataması. */
+    private val NOTIFICATION_MARKER = Regex("""window\.MAL\.notification\s*=""", RegexOption.IGNORE_CASE)
+
+    /**
+     * Profil bağlantısı. Başındaki MAL kök adresi isteğe bağlıdır; sayfa içi
+     * `/profile/ad` ve tam `https://myanimelist.net/profile/ad` biçimlerinin ikisi de eşleşir.
+     * Kullanıcı adından sonra bir ayırıcı zorunludur ki `/profile/ad/friends` alt yolları
+     * adın içine kaçmasın.
+     */
+    private val PROFILE_LINK = Regex(
+        """(?:https?://(?:www\.)?myanimelist\.net)?/profile/([A-Za-z0-9_\-]{2,32})(?=[/?#"'\s<>)])""",
+        RegexOption.IGNORE_CASE
+    )
+
+    /** Oturum sahibinin avatar bağlantısı (sayfa başlığı). */
+    private val HEADER_PROFILE_TAG = Regex("""<a\b[^>]*header-profile[^>]*>""", RegexOption.IGNORE_CASE)
+
+    /** Profil sayfası olmayan, ayrılmış yollar. */
+    private val RESERVED_PROFILE_NAMES = setOf(
+        "login", "logout", "register", "signup", "index", "edit", "settings", "notification", "profile"
+    )
     private val noRedirectClient by lazy {
         KitsugiHttpClient.jikanClient.newBuilder()
             .followRedirects(false)
@@ -31,7 +53,13 @@ internal object MalNotificationsClient {
             .build()
     }
 
-    data class Feed(val items: List<Notification>)
+    /**
+     * @param items Bildirim kartları.
+     * @param sessionUsername Sayfayı döndüren web oturumunun sahibi olan MAL kullanıcı adı.
+     *   Bağlı OAuth hesabıyla karşılaştırma için kullanılır; sayfa yapısı nedeniyle
+     *   okunamazsa `null` döner (bu durumda eşleşme "doğrulanamadı" sayılır).
+     */
+    data class Feed(val items: List<Notification>, val sessionUsername: String? = null)
 
     data class Notification(
         val id: String,
@@ -193,14 +221,78 @@ internal object MalNotificationsClient {
 
     /** Parses MAL's JSON assignment without evaluating page JavaScript. */
     internal fun parseHtml(html: String): Feed? {
-        val marker = Regex("""window\.MAL\.notification\s*=""", RegexOption.IGNORE_CASE).find(html) ?: return null
+        val marker = NOTIFICATION_MARKER.find(html) ?: return null
         val objectStart = html.indexOf('{', marker.range.last + 1)
         if (objectStart < 0) return null
         val objectEnd = findJsonObjectEnd(html, objectStart) ?: return null
         val root = runCatching { json.parseToJsonElement(html.substring(objectStart, objectEnd + 1)).jsonObject }
             .getOrNull() ?: return null
         val rawItems = root["items"] as? JsonArray ?: return null
-        return Feed(rawItems.mapNotNull { it.asObjectOrNull()?.toNotification() })
+        return Feed(
+            items = rawItems.mapNotNull { it.asObjectOrNull()?.toNotification() },
+            sessionUsername = parseSessionUsername(html)
+        )
+    }
+
+    /**
+     * Reads the signed-in account's username from the page chrome (header profile link).
+     *
+     * Two passes are used because MAL's markup is not stable:
+     *  1. The header profile anchor (`class="...header-profile..."`) — the account that owns
+     *     the session.
+     *  2. Otherwise the most frequently linked profile on the page, which is the session
+     *     owner for the notification page (the header repeats it; other people appear once).
+     *
+     * The `window.MAL.notification` JSON is excluded before scanning so that senders, friends
+     * and commenters inside the feed can never be mistaken for the session owner.
+     */
+    internal fun parseSessionUsername(html: String): String? {
+        val scannable = withoutNotificationJson(html)
+        return headerProfileUsername(scannable) ?: mostFrequentProfileUsername(scannable)
+    }
+
+    private fun withoutNotificationJson(html: String): String {
+        val marker = NOTIFICATION_MARKER.find(html) ?: return html
+        val start = html.indexOf('{', marker.range.last + 1)
+        if (start < 0) return html
+        val end = findJsonObjectEnd(html, start) ?: return html
+        return html.removeRange(start, end + 1)
+    }
+
+    private fun headerProfileUsername(html: String): String? {
+        for (tag in HEADER_PROFILE_TAG.findAll(html)) {
+            val name = PROFILE_LINK.find(tag.value)?.groupValues?.getOrNull(1)
+            if (name != null && isPlausibleUsername(name)) return name
+        }
+        return null
+    }
+
+    private fun mostFrequentProfileUsername(html: String): String? {
+        val counts = LinkedHashMap<String, Int>()
+        val display = HashMap<String, String>()
+        for (match in PROFILE_LINK.findAll(html)) {
+            val raw = match.groupValues[1]
+            if (!isPlausibleUsername(raw)) continue
+            val key = raw.lowercase()
+            counts[key] = (counts[key] ?: 0) + 1
+            if (!display.containsKey(key)) display[key] = raw
+        }
+        // LinkedHashMap sırası korur: eşit sayıda ilk görülen ad kazanır.
+        var bestKey: String? = null
+        var bestCount = 0
+        for ((key, count) in counts) {
+            if (count > bestCount) {
+                bestKey = key
+                bestCount = count
+            }
+        }
+        return bestKey?.let { display[it] }
+    }
+
+    private fun isPlausibleUsername(value: String): Boolean {
+        if (value.length < 2 || value.length > 32) return false
+        if (value.all { it.isDigit() }) return false
+        return value.lowercase() !in RESERVED_PROFILE_NAMES
     }
 
     private fun findJsonObjectEnd(text: String, start: Int): Int? {

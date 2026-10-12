@@ -346,4 +346,19 @@ object MalImportManager {
             )
         }
     }
+
+    /**
+     * `users/@me` çağrısından **ham** kullanıcı adını döndürür; alan yoksa/boşsa `null`.
+     *
+     * [fetchUserProfile] ad bulunamadığında yerelleştirilmiş bir görüntü adına ("MAL
+     * kullanıcısı") düşer; kimlik doğrulamada bu yedek ad kullanılamaz, aksi hâlde web
+     * oturumuyla karşılaştırma her zaman "eşleşmiyor" üretirdi. Bu yüzden hesap eşlemesi
+     * yalnızca bu katı işlevi kullanır.
+     */
+    suspend fun fetchUserName(accessToken: String): String? = withContext(Dispatchers.IO) {
+        runCatching {
+            val response = getJson(accessToken, "https://api.myanimelist.net/v2/users/@me")
+            JSONObject(response).optNullableString("name")?.trim()?.takeIf(String::isNotBlank)
+        }.getOrNull()
+    }
 }

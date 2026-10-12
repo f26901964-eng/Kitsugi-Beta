@@ -10,6 +10,7 @@ import com.kitsugi.animelist.data.auth.BangumiApiClient
 import com.kitsugi.animelist.data.auth.BangumiAuthStore
 import com.kitsugi.animelist.data.auth.ExternalAuthManager
 import com.kitsugi.animelist.data.auth.KitsuApiClient
+import com.kitsugi.animelist.data.auth.MalImportManager
 import com.kitsugi.animelist.data.auth.ShikimoriApiClient
 import com.kitsugi.animelist.data.notifications.NotificationArchiveStore
 import com.kitsugi.animelist.data.notifications.NotificationDiagnostics
@@ -18,6 +19,7 @@ import com.kitsugi.animelist.data.remote.KitsugiAiringCalendarClient
 import com.kitsugi.animelist.data.remote.KitsugiAniListNotificationClient
 import com.kitsugi.animelist.data.remote.KitsugiBangumiDetailClient
 import com.kitsugi.animelist.data.remote.SimklCalendarClient
+import com.kitsugi.animelist.data.remote.malweb.MalAccountMatch
 import com.kitsugi.animelist.data.remote.malweb.MalNotificationsClient
 import com.kitsugi.animelist.data.remote.malweb.MalNotificationsParseException
 import com.kitsugi.animelist.data.remote.malweb.MalWebSessionRequiredException
@@ -33,6 +35,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.time.Instant
@@ -89,7 +92,16 @@ data class NotifUiState(
     /** Kullanıcıya gösterilecek kaynak açıklaması veya geçici akış uyarısı. */
     val notice: String? = null,
     /** MAL's private website feed requires a first-party WebView session cookie. */
-    val requiresMalWebLogin: Boolean = false
+    val requiresMalWebLogin: Boolean = false,
+    /**
+     * Web oturumu ile bağlı OAuth hesabı farklı kişilere ait. Bildirimler gösterilmez ve
+     * kullanıcıdan doğru hesapla yeniden giriş yapması istenir.
+     */
+    val malAccountMismatch: Boolean = false,
+    /** Eşleşme uyarısında gösterilmek üzere: bağlı OAuth hesabının kullanıcı adı. */
+    val malOAuthUsername: String? = null,
+    /** Eşleşme uyarısında gösterilmek üzere: web oturumunun sahibi kullanıcı adı. */
+    val malWebUsername: String? = null
 )
 
 /** Bildirim Teşhisi ekran durumu. */
@@ -366,15 +378,48 @@ class KitsugiNotificationsViewModel(application: Application) : AndroidViewModel
                 cookieHeader = sessionCookie
                 if (sessionCookie != null) {
                     val feed = MalNotificationsClient.fetch(sessionCookie)
+                    val identity = fetchMalOAuthIdentity()
+                    val match = MalAccountMatch.status(
+                        oauthUsername = identity.username,
+                        webUsername = feed.sessionUsername,
+                        oauthAvailable = identity.tokenAvailable
+                    )
+                    if (match == MalAccountMatch.Status.MISMATCHED) {
+                        // WebView oturumu bağlı OAuth hesabından FARKLI bir hesaba ait:
+                        // bildirimler yayınlanmaz, aksi hâlde kullanıcı başkasının
+                        // bildirimlerini kendi listesi sanır.
+                        android.util.Log.w(
+                            "KitsugiNotif",
+                            "MAL account mismatch: oauth=${identity.username} web=${feed.sessionUsername}"
+                        )
+                        _mal.value = NotifUiState(
+                            items = emptyList(),
+                            isLoading = false,
+                            hasMore = false,
+                            error = ctx.getString(R.string.notif_mal_account_mismatch_error),
+                            requiresMalWebLogin = true,
+                            malAccountMismatch = true,
+                            malOAuthUsername = identity.username,
+                            malWebUsername = feed.sessionUsername
+                        )
+                        return@launch
+                    }
                     val mapped = feed.items
                         .map { it.toNotifItem() }
                         .sortedWith(compareByDescending<NotifItem> { it.tsMs ?: Long.MIN_VALUE })
+                    val feedNotice = if (match == MalAccountMatch.Status.UNVERIFIED) {
+                        ctx.getString(R.string.notif_notice_mal_web_feed_unverified, mapped.size)
+                    } else {
+                        ctx.getString(R.string.notif_notice_mal_web_feed, mapped.size)
+                    }
                     _mal.value = NotifUiState(
                         items = mapped,
                         isLoading = false,
                         hasMore = false,
-                        notice = ctx.getString(R.string.notif_notice_mal_web_feed, mapped.size),
-                        requiresMalWebLogin = false
+                        notice = feedNotice,
+                        requiresMalWebLogin = false,
+                        malOAuthUsername = identity.username,
+                        malWebUsername = feed.sessionUsername
                     )
                     return@launch
                 }
@@ -419,6 +464,51 @@ class KitsugiNotificationsViewModel(application: Application) : AndroidViewModel
                         webFeedError is MalNotificationsParseException
                 )
             }
+        }
+    }
+
+    private data class MalOAuthIdentity(
+        /** `users/@me` ile okunan bağlı hesap adı; okunamadıysa `null`. */
+        val username: String?,
+        /** MAL OAuth jetonu mevcut mu? (ad okunamasa bile jeton var olabilir) */
+        val tokenAvailable: Boolean
+    )
+
+    /**
+     * Bağlı MAL OAuth hesabının kullanıcı adını okur.
+     *
+     * Web oturumundan bağımsız bir kimliktir: OAuth jetonu `ExternalAuthManager` içinde, web
+     * oturumu ise WebView çerez deposunda durur. Bildirimler ikisi AYNI hesabı gösterdiğinde
+     * gösterilir.
+     */
+    private suspend fun fetchMalOAuthIdentity(): MalOAuthIdentity = withContext(Dispatchers.IO) {
+        val token = runCatching { ExternalAuthManager.getOrRefreshMalToken(ctx) }.getOrNull()
+        if (token.isNullOrBlank()) return@withContext MalOAuthIdentity(username = null, tokenAvailable = false)
+        val username = runCatching { MalImportManager.fetchUserName(token) }.getOrNull()
+        MalOAuthIdentity(username = username, tokenAvailable = true)
+    }
+
+    /**
+     * WebView'in MAL web oturumu çerezlerini temizler ve arayüzü yeniden giriş akışına
+     * yönlendirmek için [onCleared] çağırır (ör. giriş WebView'ini açan ekran).
+     *
+     * Yalnızca myanimelist.net çerezleri silinir; OAuth jetonları ve diğer platformların
+     * oturumları olduğu gibi kalır.
+     */
+    fun clearMalWebSession(onCleared: () -> Unit = {}) {
+        viewModelScope.launch {
+            val cleared = MalWebSessionStore.clearSession()
+            _mal.value = NotifUiState(
+                items = emptyList(),
+                isLoading = false,
+                hasMore = false,
+                notice = ctx.getString(R.string.notif_mal_web_session_cleared),
+                requiresMalWebLogin = true
+            )
+            if (!cleared) {
+                android.util.Log.w("KitsugiNotif", "MAL web oturumu çerezleri temizlenemedi")
+            }
+            onCleared()
         }
     }
 

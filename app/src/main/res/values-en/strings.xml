@@ -429,6 +429,12 @@
     <string name="notif_notice_mal_web_feed">Loaded %1$d notifications from your MAL account.</string>
     <string name="notif_notice_mal_web_session_required">No MAL web session is connected. Sign in once using the button above to load real notifications. Showing the app calendar for now: %1$s</string>
     <string name="notif_notice_mal_web_fetch_failed">Could not load MAL account notifications right now. Showing the app calendar for now: %1$s</string>
+    <string name="notif_notice_mal_web_feed_unverified">Loaded %1$d notifications from your MAL account. The web session could not be tied to a specific account.</string>
+    <!-- ── MAL OAuth ⇄ web session account matching (v2.4.262) ─────────────── -->
+    <string name="notif_mal_account_mismatch_error">The linked OAuth account does not match the web session, please sign in with the correct account.</string>
+    <string name="notif_mal_account_mismatch_action">Clear session and sign in again</string>
+    <string name="notif_mal_account_mismatch_hint">Linked OAuth account: %1$s • Web session: %2$s</string>
+    <string name="notif_mal_web_session_cleared">MAL web session cleared. Sign in again with your linked account.</string>
     <string name="notif_mal_deleted_suffix"> (deleted)</string>
     <string name="notif_login_required_simkl">You need to log in to Simkl</string>
     <string name="notif_empty_list_mal">No new episodes found for anime in your watch list</string>

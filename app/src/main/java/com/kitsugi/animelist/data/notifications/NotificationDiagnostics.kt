@@ -5,11 +5,13 @@ import android.util.Log
 import com.kitsugi.animelist.core.network.KitsugiHttpClient
 import com.kitsugi.animelist.data.auth.ExternalAuthManager
 import com.kitsugi.animelist.data.auth.KitsuApiClient
+import com.kitsugi.animelist.data.auth.MalImportManager
 import com.kitsugi.animelist.data.auth.ShikimoriApiClient
 import com.kitsugi.animelist.data.platform.ListPlatform
 import com.kitsugi.animelist.data.platform.PlatformErrorCatalog
 import com.kitsugi.animelist.data.remote.KitsugiAiringCalendarClient
 import com.kitsugi.animelist.data.remote.SimklCalendarClient
+import com.kitsugi.animelist.data.remote.malweb.MalAccountMatch
 import com.kitsugi.animelist.data.remote.malweb.MalNotificationsClient
 import com.kitsugi.animelist.data.remote.malweb.MalWebSessionStore
 import com.kitsugi.animelist.model.MediaEntry
@@ -208,14 +210,31 @@ object NotificationDiagnostics {
         return try {
             val feed = MalNotificationsClient.fetch(cookieHeader)
             val unread = feed.items.count { !it.isRead }
+            val token = ExternalAuthManager.getMalToken(context)
+            val oauthUsername = if (token.isNullOrBlank()) null
+            else runCatching { MalImportManager.fetchUserName(token) }.getOrNull()
+            val match = MalAccountMatch.status(oauthUsername, feed.sessionUsername, !token.isNullOrBlank())
+            val identity = when (match) {
+                MalAccountMatch.Status.MATCHED -> " • hesap: $oauthUsername"
+                MalAccountMatch.Status.MISMATCHED ->
+                    " • UYARI: OAuth=$oauthUsername ≠ web=${feed.sessionUsername}"
+                MalAccountMatch.Status.UNVERIFIED -> " • hesap eşleşmesi doğrulanamadı"
+                MalAccountMatch.Status.NO_OAUTH_ACCOUNT -> " • web oturumu: ${feed.sessionUsername ?: "?"}"
+            }
             Row(
                 source = "MyAnimeList",
                 connected = true,
                 endpoint = endpoint,
-                ok = true,
+                ok = match != MalAccountMatch.Status.MISMATCHED,
                 itemCount = feed.items.size,
                 durationMs = System.currentTimeMillis() - started,
-                detail = "MAL hesabından ${feed.items.size} bildirim • okunmamış: $unread"
+                detail = "MAL hesabından ${feed.items.size} bildirim • okunmamış: $unread$identity",
+                error = if (match == MalAccountMatch.Status.MISMATCHED) {
+                    "OAuth hesabı ile web oturumu farklı: $oauthUsername ≠ ${feed.sessionUsername}"
+                } else null,
+                hint = if (match == MalAccountMatch.Status.MISMATCHED) {
+                    "Bildirimler ekranındaki 'Oturumu temizle ve yeniden giriş yap' düğmesiyle bağlı hesabınıza giriş yapın."
+                } else null
             )
         } catch (e: CancellationException) {
             throw e

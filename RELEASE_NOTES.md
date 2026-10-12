@@ -1,5 +1,41 @@
 # Kitsugi-Beta — Sürüm Notları / Release Notes
 
+## 🇹🇷 Türkçe (v2.4.262)
+
+### 🔐 1. MyAnimeList: OAuth Hesabı ⇄ Web Oturumu Eşleme Kontrolü (Yanlış Hesap Bildirimleri Önlendi)
+- **Sorun:** MAL bildirimleri iki ayrı kimlikle çalışır: bağlı OAuth hesabı (`users/@me`) ve WebView'deki web oturumu (`is_signed_in=1`). WebView'de **başka bir MAL hesabı** açık kalmışsa bildirim sayfası o yabancı hesabın bildirimlerini döndürüyordu ve kullanıcı bunu kendi listesi sanıyordu.
+- **Çözüm:** Her yüklemede iki kimlik karşılaştırılıyor. Web oturumunun sahibi bildirim sayfasının HTML'indeki profil bağlantısından okunuyor (önce `header-profile` başlık bağlantısı, sonra sayfada en sık geçen profil bağlantısı); `window.MAL.notification` verisi taramadan çıkarılıyor. Bağlı OAuth hesabının adı `users/@me` çağrısından ham olarak alınıyor.
+- **Eşleşmezse:** Bildirimler gösterilmez; "Bağlı OAuth hesabı ile web oturumu eşleşmiyor, lütfen doğru hesapla giriş yapın." uyarısı, iki kullanıcı adı ve **"Oturumu temizle ve yeniden giriş yap"** düğmesi gösterilir. Düğme yalnızca `myanimelist.net` çerezlerini temizler; OAuth jetonları ve diğer platformların oturumları silinmez.
+- **Doğrulanamazsa:** Web oturumu okunamadığında liste gösterilmeye devam eder, yalnızca bilgi notu düşülür (tek bir ayrıştırıcı değişikliği özelliği tamamen kilitlemesin).
+- **Teşhis ekranı:** MAL satırı kimlik özetini yazar (`hesap: X` / `UYARI: OAuth=X ≠ web=Y`); eşleşmeme durumunda satır hatalı işaretlenir.
+- **Testler:** `MalNotificationsClientTest` (oturum sahibi ayrıştırma, JSON dışlama, ayrılmış adlar) ve `MalAccountMatchTest` (eşleşme/eşleşmeme, harf-boşluk toleransı, jeton yok durumu).
+
+### 🔍 2. Arama Ekranı: Dikey ve Yatay Uyumlu Shimmer İskeletleri
+- **Duyarlı Yükleme İskeleti:** `KitsugiShimmerResponsiveMediaRow` bileşeni eklendi.
+  - Dikey ekranda gerçek sonuç kartlarıyla birebir uyumlu `2:3` poster oranı.
+  - Yatay ekranda solda poster ve sağda başlık/meta bilgi düzeni.
+  - Android TV için dikey poster düzeni korundu.
+- **Yatay Kaydırılabilir Raflar:** Sonuçlar gelmeden önce iskelet rafları `LazyRow` ile yatay kaydırılabiliyor.
+- **Bağımsız Kaynak Geçişi:** Çoklu kaynak aramasında her kaynağın kendi sonucu geldikçe yalnızca o raf iskeletten gerçek kartlara geçiyor.
+
+## 🇬🇧 English (v2.4.262)
+
+### 🔐 1. MyAnimeList: OAuth Account ⇄ Web Session Matching (Wrong-Account Notifications Prevented)
+- **Problem:** MAL notifications rely on two separate identities: the linked OAuth account (`users/@me`) and the WebView website session (`is_signed_in=1`). If another MAL account was left signed in inside the WebView, the notification page returned that account's notifications while the user assumed they were their own.
+- **Fix:** Both identities are compared on every load. The session owner is read from the notification page HTML (header `header-profile` link first, then the most frequent profile link); the `window.MAL.notification` payload is excluded from the scan. The linked OAuth name comes raw from `users/@me`.
+- **On mismatch:** Notifications are not shown. The screen shows "The linked OAuth account does not match the web session, please sign in with the correct account.", both usernames and a **"Clear session and sign in again"** button that expires only `myanimelist.net` cookies — OAuth tokens and other platforms' sessions are untouched.
+- **If unverifiable:** When the session owner cannot be read the list keeps working with an informational note, so a single markup change cannot disable the feature.
+- **Diagnostics:** The MAL row reports the identity summary (`account: X` / `WARNING: OAuth=X ≠ web=Y`) and is flagged as failed on mismatch.
+- **Tests:** `MalNotificationsClientTest` (session-owner parsing, JSON exclusion, reserved names) and `MalAccountMatchTest` (match/mismatch, case and whitespace tolerance, no-token state).
+
+### 🔍 2. Search Screen: Adaptive Portrait & Landscape Shimmer Skeletons
+- **Responsive Loading Skeletons:** Introduced `KitsugiShimmerResponsiveMediaRow`.
+  - Portrait orientation matches true `2:3` poster aspect ratio and metadata structure.
+  - Landscape orientation matches true wide card layout (left poster, right metadata block).
+  - Preserved vertical poster orientation for Android TV.
+- **Scrollable Placeholders:** Loading shelves now utilize `LazyRow` for fluid horizontal scrolling.
+- **Independent Shelf Transitions:** Each provider independently transitions from shimmer to resolved media cards as results stream in.
+
 ## 🇹🇷 Türkçe (v2.4.261)
 
 ### 🎌 1. Bangumi: Listeye Ekleme / Güncelleme Düzeltildi (HTTP 415 Çözümü)
