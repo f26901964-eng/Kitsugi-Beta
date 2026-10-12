@@ -149,6 +149,7 @@ fun KitsugiNotificationsScreen(
     val bangumiState   by viewModel.bangumi.collectAsState()
     val aniListUnread  by viewModel.aniListUnread.collectAsState()
     val diagState      by viewModel.diagnostics.collectAsState()
+    val resolvingMediaTitle by viewModel.resolvingMedia.collectAsState()
 
     // ── Sayfa + filtre state ──
     val pagerState = rememberPagerState(
@@ -228,6 +229,53 @@ fun KitsugiNotificationsScreen(
             3 -> viewModel.loadKitsu(mediaEntries)
             4 -> viewModel.loadShikimori(mediaEntries)
             5 -> viewModel.loadBangumi(mediaEntries)
+        }
+    }
+
+    /** Güvenli MAL bağlantısını sistem tarayıcısında açar. */
+    fun openTargetInBrowser(url: String) {
+        runCatching {
+            context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
+        }
+    }
+
+    /**
+     * MAL bildirim kartı tıklaması.
+     *
+     * Kart başlığı MAL'ın **kategori adıdır** ("New Related Anime"); detay sayfası daha önce
+     * bu başlıkla ve yalnızca URL'den çıkarılan kimlikle açılıyordu. Artık detay, herhangi bir
+     * MAL detay sayfası gibi **medyanın gerçek adı + MAL kimliği** ile açılır:
+     *
+     *  1. Kimlik varsa (URL'den) doğrudan API detayı açılır.
+     *  2. Kimlik yoksa ad üzerinden normal arama API'siyle kimlik çözülür.
+     *  3. Medya bilgisi hiç yoksa (yorum, arkadaşlık, forum…) bağlantı tarayıcıda açılır.
+     */
+    fun openMalNotification(notif: NotifItem) {
+        val openDetail = onOpenApiDetail ?: run {
+            notif.targetUrl?.let { openTargetInBrowser(it) }
+            return
+        }
+        val realMediaTitle = notif.mediaTitle?.takeIf { it.isNotBlank() }
+        val mediaId = notif.mediaId
+        when {
+            mediaId != null ->
+                openDetail(mediaId, "jikan", notif.mediaType, realMediaTitle, notif.imageUrl)
+
+            realMediaTitle != null -> viewModel.resolveMalMedia(realMediaTitle, notif.mediaType) { resolved ->
+                if (resolved != null) {
+                    openDetail(
+                        resolved.malId,
+                        "jikan",
+                        notif.mediaType,
+                        resolved.title,
+                        resolved.imageUrl ?: notif.imageUrl
+                    )
+                } else {
+                    notif.targetUrl?.let { openTargetInBrowser(it) }
+                }
+            }
+
+            else -> notif.targetUrl?.let { openTargetInBrowser(it) }
         }
     }
 
@@ -393,7 +441,7 @@ fun KitsugiNotificationsScreen(
                                                         if (notif.activityId != null && notif.activityId > 0) {
                                                             activeActivityIdForDetail = notif.activityId
                                                         } else if (notif.mediaId != null) {
-                                                            onOpenApiDetail?.invoke(notif.mediaId, "anilist", notif.mediaType, notif.title, notif.imageUrl)
+                                                            onOpenApiDetail?.invoke(notif.mediaId, "anilist", notif.mediaType, notif.mediaTitle ?: notif.title, notif.imageUrl)
                                                         } else if (notif.userId != null && notif.userName != null) {
                                                             onUserProfileClick?.invoke(notif.userId, notif.userName, notif.userAvatarUrl)
                                                         }
@@ -464,18 +512,10 @@ fun KitsugiNotificationsScreen(
                             else -> viewModel.loadMal(mediaEntries)
                         }
                     },
-                    onItemClick = { notif ->
-                        val mediaId = notif.mediaId
-                        if (mediaId != null && onOpenApiDetail != null) {
-                            onOpenApiDetail.invoke(mediaId, "jikan", notif.mediaType, notif.title, notif.imageUrl)
-                        } else {
-                            notif.targetUrl?.let { target ->
-                                runCatching {
-                                    context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(target)))
-                                }
-                            }
-                        }
-                    }
+                    onItemClick = { notif -> openMalNotification(notif) },
+                    // Daha eski bildirimler varsa kaydırdıkça gelir.
+                    hasMore = malState.hasMore,
+                    onLoadMore = { viewModel.loadMalMore() }
                 )
 
                 // ──────────────── Page 2: TMDB & Simkl ────────────────
@@ -488,7 +528,9 @@ fun KitsugiNotificationsScreen(
                     listState = tmdbSimklListState,
                     onUserProfileClick = onUserProfileClick,
                     onItemClick = { notif ->
-                        notif.mediaId?.let { id -> onOpenApiDetail?.invoke(id, "simkl", notif.mediaType, notif.title, notif.imageUrl) }
+                        notif.mediaId?.let { id ->
+                            onOpenApiDetail?.invoke(id, "simkl", notif.mediaType, notif.mediaTitle ?: notif.title, notif.imageUrl)
+                        }
                     }
                 )
 
@@ -502,7 +544,9 @@ fun KitsugiNotificationsScreen(
                     listState = kitsuListState,
                     onUserProfileClick = onUserProfileClick,
                     onItemClick = { notif ->
-                        notif.mediaId?.let { id -> onOpenApiDetail?.invoke(id, "kitsu", notif.mediaType, notif.title, notif.imageUrl) }
+                        notif.mediaId?.let { id ->
+                            onOpenApiDetail?.invoke(id, "kitsu", notif.mediaType, notif.mediaTitle ?: notif.title, notif.imageUrl)
+                        }
                     }
                 )
 
@@ -516,7 +560,9 @@ fun KitsugiNotificationsScreen(
                     listState = shikimoriListState,
                     onUserProfileClick = onUserProfileClick,
                     onItemClick = { notif ->
-                        notif.mediaId?.let { id -> onOpenApiDetail?.invoke(id, "shikimori", notif.mediaType, notif.title, notif.imageUrl) }
+                        notif.mediaId?.let { id ->
+                            onOpenApiDetail?.invoke(id, "shikimori", notif.mediaType, notif.mediaTitle ?: notif.title, notif.imageUrl)
+                        }
                     }
                 )
 
@@ -532,7 +578,9 @@ fun KitsugiNotificationsScreen(
                     onItemClick = { notif ->
                         // mediaId Bangumi stableId'sidir (500M+); detay yönlendirmesi
                         // bu kimlikle yerel kaydı bulur, bulamazsa API detay açar.
-                        notif.mediaId?.let { id -> onOpenApiDetail?.invoke(id, "bangumi", notif.mediaType, notif.title, notif.imageUrl) }
+                        notif.mediaId?.let { id ->
+                            onOpenApiDetail?.invoke(id, "bangumi", notif.mediaType, notif.mediaTitle ?: notif.title, notif.imageUrl)
+                        }
                     }
                 )
             }
@@ -554,6 +602,36 @@ fun KitsugiNotificationsScreen(
             onDismiss = { activeActivityIdForDetail = null }
         )
     }
+
+    // Bildirimin medya kimliği çözülürken kısa bir gösterge; detay o kimlikle açılır.
+    if (resolvingMediaTitle != null) {
+        androidx.compose.ui.window.Dialog(
+            onDismissRequest = {},
+            properties = androidx.compose.ui.window.DialogProperties(
+                usePlatformDefaultWidth = false,
+                dismissOnBackPress = false,
+                dismissOnClickOutside = false
+            )
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.Black.copy(alpha = 0.45f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    KitsugiPlasmaLoader(size = 40.dp)
+                    Spacer(Modifier.height(12.dp))
+                    Text(
+                        text = stringResource(R.string.notif_resolving_media),
+                        color = KitsugiColors.TextPrimary,
+                        fontSize = 13.sp
+                    )
+                }
+            }
+        }
+    }
+
 
     if (showDiagnostics) {
         NotificationDiagnosticsSheet(
@@ -629,7 +707,10 @@ private fun SourceNotifPage(
     onItemClick: (NotifItem) -> Unit,
     malWebSessionTitle: String? = null,
     malWebSessionHint: String? = null,
-    onMalWebSessionAction: (() -> Unit)? = null
+    onMalWebSessionAction: (() -> Unit)? = null,
+    /** Kaynağın daha eski bildirimleri var mı? (kaydırdıkça istenir) */
+    hasMore: Boolean = false,
+    onLoadMore: (() -> Unit)? = null
 ) {
     val hasMalWebSessionAction =
         malWebSessionTitle != null && malWebSessionHint != null && onMalWebSessionAction != null
@@ -637,6 +718,19 @@ private fun SourceNotifPage(
     if (!isConnected && state.items.isEmpty() && !hasMalWebSessionAction) {
         CenteredEmptyState(loginRequiredMessage)
         return
+    }
+
+    // Sonsuz kaydırma: listenin sonuna yaklaşıldığında kaynağın sonraki sayfası istenir.
+    // MAL'ın web akışında akışın bittiği kararı veriyle verilir (ViewModel.loadMalMore).
+    val nearListEnd by remember {
+        derivedStateOf {
+            val total = listState.layoutInfo.totalItemsCount
+            val last = listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0
+            total > 0 && last >= total - 5
+        }
+    }
+    LaunchedEffect(nearListEnd, hasMore, state.isLoading) {
+        if (nearListEnd && hasMore && !state.isLoading) onLoadMore?.invoke()
     }
 
     LazyColumn(

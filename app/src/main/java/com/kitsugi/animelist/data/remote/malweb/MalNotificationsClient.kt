@@ -42,6 +42,14 @@ internal object MalNotificationsClient {
     /** Oturum sahibinin avatar bağlantısı (sayfa başlığı). */
     private val HEADER_PROFILE_TAG = Regex("""<a\b[^>]*header-profile[^>]*>""", RegexOption.IGNORE_CASE)
 
+    /**
+     * MAL'ın manga evrenindeki medya türleri. Anime türlerinin (TV/OVA/ONA/Movie/
+     * Special/PV) hiçbiri bu kelimeleri içermez.
+     */
+    private val MANGA_MEDIA_TYPES = listOf(
+        "manga", "novel", "manhwa", "manhua", "one-shot", "oneshot", "doujin"
+    )
+
     /** Profil sayfası olmayan, ayrılmış yollar. */
     private val RESERVED_PROFILE_NAMES = setOf(
         "login", "logout", "register", "signup", "index", "edit", "settings", "notification", "profile"
@@ -59,7 +67,20 @@ internal object MalNotificationsClient {
      *   Bağlı OAuth hesabıyla karşılaştırma için kullanılır; sayfa yapısı nedeniyle
      *   okunamazsa `null` döner (bu durumda eşleşme "doğrulanamadı" sayılır).
      */
-    data class Feed(val items: List<Notification>, val sessionUsername: String? = null)
+    data class Feed(
+        val items: List<Notification>,
+        val sessionUsername: String? = null,
+        /** Okunan akış sayfası (1 tabanlı). */
+        val page: Int = 1,
+        /**
+         * Daha eski bildirimler için başka bir sayfa denenebilir mi?
+         *
+         * MAL bu akış için herkese açık bir sayfalama sözleşmesi yayımlamıyor; bu yüzden
+         * karar istemcide verilir: yeni sayfa yeni kimlik döndürmezse akış "bitti" sayılır
+         * (bkz. [KitsugiNotificationsViewModel.loadMalMore]).
+         */
+        val hasNextPage: Boolean = false
+    )
 
     data class Notification(
         val id: String,
@@ -117,13 +138,41 @@ internal object MalNotificationsClient {
                 .mapNotNull { MalNotificationsClient.extractMediaId(it) }
                 .firstOrNull()
 
+        /**
+         * Bildirimin işaret ettiği medyanın GERÇEK adı (kategori adı değil).
+         *
+         * `related_anime_add` / `on_air` gibi bildirimlerde başlık MAL'ın kategori adıdır
+         * ("New Related Anime"); detay sayfası bu metinle açıldığında ekranda anime adı
+         * yerine kategori adı kalıyordu. Detay yönlendirmesi bu alanı kullanır.
+         */
+        val mediaTitle: String?
+            get() = animeTitle?.trim()?.takeIf { it.isNotEmpty() }
+                ?: animeItems.firstOrNull()?.title?.trim()?.takeIf { it.isNotEmpty() }
+
+        /**
+         * Bildirimin medya türü: `"anime"` / `"manga"` / `null`.
+         *
+         * MAL medya türleri iki evrene ayrılır: `TV, OVA, ONA, Movie, Special, PV, Music`
+         * (anime) ve `Manga, Novel, Light Novel, Manhwa, Manhua, One-shot, Doujin` (manga).
+         * Eskiden yalnızca `"manga"` metni arandığı için **Novel/Manhwa** kayıtları anime
+         * sayılıyor, manga kimliği anime aramasına veriliyor ve detay sayfası aynı sayıya
+         * sahip bambaşka bir animeyi açabiliyordu.
+         */
         val mediaType: String?
-            get() = when {
-                animeMediaType?.contains("manga", ignoreCase = true) == true -> "manga"
-                animeMediaType?.isNotBlank() == true -> "anime"
-                targetUrl?.contains("/manga/") == true -> "manga"
-                mediaId != null -> "anime"
-                else -> null
+            get() {
+                val declared = animeMediaType?.trim()?.lowercase().orEmpty()
+                val urlLooksManga = sequenceOf(animeUrl, url, animeItems.firstOrNull()?.url)
+                    .filterNotNull()
+                    .any { it.contains("/manga/") }
+                return when {
+                    declared.isEmpty() -> when {
+                        urlLooksManga -> "manga"
+                        mediaId != null -> "anime"
+                        else -> null
+                    }
+                    MANGA_MEDIA_TYPES.any { declared.contains(it) } -> "manga"
+                    else -> "anime"
+                }
             }
 
         fun displayTitle(): String = categoryName?.takeIf(String::isNotBlank)
@@ -161,7 +210,17 @@ internal object MalNotificationsClient {
 
     data class RelatedAnime(val title: String, val url: String?)
 
-    suspend fun fetch(cookieHeader: String): Feed = withContext(Dispatchers.IO) {
+    /**
+     * Bildirim akışının adresi.
+     *
+     * 1. sayfa parametresiz istenir (MAL'ın kendi adresi). Sonraki sayfalar `?page=N` ile
+     * denenir: MAL sayfalamayı destekliyorsa yeni kayıtlar gelir, desteklemiyorsa aynı
+     * kayıtlar döner ve istemci akışı "bitti" sayar (uydurma kayıt üretilmez).
+     */
+    internal fun pageUrlFor(page: Int): String =
+        if (page <= 1) NOTIFICATIONS_URL else "$NOTIFICATIONS_URL?page=$page"
+
+    suspend fun fetch(cookieHeader: String, page: Int = 1): Feed = withContext(Dispatchers.IO) {
         // Çerez adına göre karar verilmez: MAL'ın hangi çerezle "giriş yapılmış" saydığını
         // yalnızca MAL bilir. İstek yapılır, giriş sayfasına düşülürse oturum istenir.
         if (cookieHeader.isBlank()) {
@@ -174,7 +233,7 @@ internal object MalNotificationsClient {
         ) {
             "$safeCookie; anime_update_advanced=0"
         } else safeCookie
-        var currentUrl = NOTIFICATIONS_URL
+        var currentUrl = pageUrlFor(page)
 
         // Never let an automatically followed redirect carry a website session cookie to an
         // unrelated host. Follow only HTTPS redirects back to MAL's own canonical host(s).
@@ -211,7 +270,7 @@ internal object MalNotificationsClient {
                         throw MalNotificationsFetchException("MAL bildirim isteği HTTP ${response.code}")
                     }
                     val body = response.body?.string().orEmpty()
-                    parseHtml(body)?.let { return@withContext it }
+                    parseHtml(body, page)?.let { return@withContext it }
                     // Bazı durumlarda MAL giriş formunu 200 ile döner (yönlendirme yok).
                     if (looksSignedOutPage(body)) {
                         throw MalWebSessionRequiredException("MAL web oturumu sona ermiş")
@@ -227,7 +286,7 @@ internal object MalNotificationsClient {
     }
 
     /** Parses MAL's JSON assignment without evaluating page JavaScript. */
-    internal fun parseHtml(html: String): Feed? {
+    internal fun parseHtml(html: String, page: Int = 1): Feed? {
         val marker = NOTIFICATION_MARKER.find(html) ?: return null
         val objectStart = html.indexOf('{', marker.range.last + 1)
         if (objectStart < 0) return null
@@ -235,9 +294,22 @@ internal object MalNotificationsClient {
         val root = runCatching { json.parseToJsonElement(html.substring(objectStart, objectEnd + 1)).jsonObject }
             .getOrNull() ?: return null
         val rawItems = root["items"] as? JsonArray ?: return null
+
+        // MAL, okunmuş/eski bildirimleri `historyItems` altında döndürür. Yalnızca `items`
+        // okunduğu için kullanıcı "bildirimlerin devamını" hiç göremiyordu; iki liste aynı
+        // şemayla ayrıştırılıp `id` ile tekilleştirilir (kimliği olmayan kayıtlar atlanır).
+        val parsed = rawItems.mapNotNull { it.asObjectOrNull()?.toNotification() } +
+            (root["historyItems"] as? JsonArray).orEmpty()
+                .mapNotNull { it.asObjectOrNull()?.toNotification() }
+
+        val items = parsed.distinctBy { it.id }
         return Feed(
-            items = rawItems.mapNotNull { it.asObjectOrNull()?.toNotification() },
-            sessionUsername = parseSessionUsername(html)
+            items = items,
+            sessionUsername = parseSessionUsername(html),
+            page = page,
+            // Kayıt varsa bir sonraki sayfa denenebilir; gerçekten yeni kayıt gelmezse
+            // istemci akışı kapatır (bkz. Feed.hasNextPage).
+            hasNextPage = items.isNotEmpty()
         )
     }
 

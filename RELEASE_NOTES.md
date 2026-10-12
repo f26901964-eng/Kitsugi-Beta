@@ -1,5 +1,30 @@
 # Kitsugi-Beta — Sürüm Notları / Release Notes
 
+## 🇹🇷 Türkçe (v2.4.263)
+
+### 🔗 1. Bildirimden Açılan Detay Sayfası Artık Normal MAL Detayı
+- **Belirti:** Bildirimler > MyAnimeList'te bir kart açıldığında detay sayfası gerçek anime adı yerine **"New Related Anime"** (MAL'ın kategori adı) başlığıyla açılıyor, bazı kayıtlar yanlış yapımı gösterebiliyordu.
+- **Kök Neden:** Kart başlığı MAL'ın kategori adıdır (`categoryName`); tıklama bu metni detay sayfasına **başlık** olarak veriyordu ve detay sayfası çağıranın başlığını API başlığına tercih ediyor.
+- **Düzeltme:** Yönlendirme medyanın **gerçek adı + MAL kimliği** ile yapılır; kimlik yoksa normal arama API'siyle (`searchMALOnly`) çözülür. Böylece detay, herhangi bir MAL detay sayfası gibi açılır.
+
+### 🃏 2. Bildirim Kartları: Başlık Medyanın Adı
+- Medya bildirimlerinde kart başlığı medyanın adıdır (AniList/Simkl/Kitsu ile aynı düzen); MAL kategori adı ve tür ikinci satıra iner: `Umayuru: Full Gate!` + `New Related Anime • ONA`.
+
+### 🧾 3. Tür Karışması Düzeltildi (Novel/Manhwa artık manga)
+- Yalnızca `"manga"` metni aranıyordu; **Novel, Light Novel, Manhwa, Manhua, One-shot** kayıtları anime sayılıp manga kimliği anime aramasına gidiyor ve aynı sayıya sahip **başka bir anime** açılabiliyordu.
+
+### 📜 4. Bildirimlerin Devamı: Kaydırdıkça Daha Eskileri
+- `historyItems` (okunmuş/eski bildirimler) artık ayrıştırılıp `id` ile tekilleştirilir.
+- Liste sonunda akışın sonraki sayfası denenir (`?page=N`); yeni kayıt gelmezse akış "bitti" sayılır (tekrar/uydurma kart yok).
+- MAL web akışı da yerel arşive yazılır: pencereden düşen bildirimler cihazda kalır.
+
+### 🧪 5. Birim Testleri
+- `MalNotificationsClientTest` yeni vakalarla genişletildi: historyItems birleştirme/tekilleştirme, sayfa adresi üretimi, `mediaTitle` ve manga/novel/manhwa tür sınıflandırması.
+
+### ⚠️ Doğrulama
+- Ortamda Java bulunmadığından Gradle derlemesi çalıştırılamadı; `git diff --check` temiz. Cihazda: "New Related Anime" kartı → detay anime adıyla açılmalı, kaydırdıkça eski bildirimler gelmeli.
+
+
 ## 🇹🇷 Türkçe (v2.4.262)
 
 ### 🔔 1. MyAnimeList Bildirimleri Artık Gerçekten Geliyor (Kök Neden Düzeltmesi)

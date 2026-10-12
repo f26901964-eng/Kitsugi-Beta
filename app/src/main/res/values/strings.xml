@@ -437,6 +437,8 @@
     <string name="notif_mal_account_mismatch_hint">Bağlı OAuth hesabı: %1$s • Web oturumu: %2$s</string>
     <string name="notif_mal_web_session_cleared">MAL web oturumu temizlendi. Bağlı hesabınla yeniden giriş yap.</string>
     <string name="notif_mal_deleted_suffix"> (silinmiş)</string>
+    <!-- Bildirimden detay açılırken kimlik (medya) aranıyorsa gösterilir. -->
+    <string name="notif_resolving_media">Detay sayfası hazırlanıyor…</string>
     <string name="notif_login_required_simkl">Simkl\'e giriş yapmanız gerekiyor</string>
     <string name="notif_empty_list_mal">İzleme listenizdeki animeler için yeni bölüm bulunamadı</string>
     <string name="notif_empty_list_simkl">İzleme listenizdeki içerikler için yeni bildirim yok</string>
