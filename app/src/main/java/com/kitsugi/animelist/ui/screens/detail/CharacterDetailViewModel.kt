@@ -476,7 +476,11 @@ class CharacterDetailViewModel(application: Application) : AndroidViewModel(appl
                 malId = malId,
                 aniListId = aniListId,
                 names = names,
-                tmdbEnabled = tmdbEnabled
+                tmdbEnabled = tmdbEnabled,
+                // Karakterin kimliği (MAL/AniList) biliniyorsa ya da sayfa adı doğrulanmış bir
+                // TMDB rolünden açıldıysa tek kelimeli adlar ("Nobita", "Doraemon") da aday
+                // kabul edilir; katı kural bu karakterlerin galerisini tamamen boş bırakıyordu.
+                allowSingleTokenNames = aniListId != null || malId != null
             )
         }.getOrDefault(emptyList())
 

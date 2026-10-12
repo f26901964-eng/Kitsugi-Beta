@@ -652,10 +652,17 @@ fun AppRootDetailPages(
                     isShikimoriConnected = authViewModel.isShikimoriConnected,
                     isBangumiConnected = authViewModel.isBangumiConnected,
                     onBack = { navState.popDetailStack() },
+                    malSessionRefreshToken = authViewModel.malSessionReadyToken,
                     onOpenMalAccountSettings = {
-                        navState.popDetailStack()
-                        appViewModel.selectTab(com.kitsugi.animelist.ui.navigation.MainTab.Settings)
-                        appViewModel.requestSettingsRoute(com.kitsugi.animelist.ui.screens.settings.SettingsRoute.MalSettings)
+                        if (authViewModel.isMalConnected) {
+                            // Bağlı bir MAL hesabı VAR: web oturumu (bildirimler) aynı hesaba
+                            // burada, tek adımda bağlanır — ayarlar sayfasına gitmeye gerek yok.
+                            authViewModel.ensureMalUnifiedSession()
+                        } else {
+                            navState.popDetailStack()
+                            appViewModel.selectTab(com.kitsugi.animelist.ui.navigation.MainTab.Settings)
+                            appViewModel.requestSettingsRoute(com.kitsugi.animelist.ui.screens.settings.SettingsRoute.MalSettings)
+                        }
                     },
                     onUserProfileClick = { userId, username, avatarUrl ->
                         navState.navigateToDetail(DetailScreen.UserProfile(userId, username, avatarUrl))

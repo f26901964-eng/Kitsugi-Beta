@@ -292,11 +292,112 @@ internal fun AniListSettingsContent(profile: ProfileSettings) {
 // 3. MyAnimeList Alt Sayfası
 // ─────────────────────────────────────────────────────────────────────────────
 
+/**
+ * MAL tek oturum kartı — iki kimliğin durumunu tek satırda gösterir.
+ *
+ * Kullanıcı şikâyeti "normal girişten sonra bildirim gelmiyor" idi: OAuth jetonu bağlıydı
+ * ama web oturumu ya yoktu ya da başka hesaba aitti. Kart hangi parçanın eksik/yanlış
+ * olduğunu açıkça yazar ve tek dokunuşla ikisini birden bağlayan akışı açar.
+ */
+@Composable
+private fun MalUnifiedSessionCard(
+    status: com.kitsugi.animelist.data.auth.MalSessionCoordinator.Status,
+    onFixClick: () -> Unit
+) {
+    val state = status.state
+    val isLinked = state == com.kitsugi.animelist.data.auth.MalSessionCoordinator.State.LINKED
+    val color = if (isLinked) KitsugiColors.AccentGreen else KitsugiColors.AccentOrange
+    val icon = if (isLinked) Icons.Rounded.CheckCircle else Icons.Rounded.WarningAmber
+
+    val apiLine = if (status.hasApiToken) {
+        stringResource(R.string.mal_unified_status_api_connected, status.oauthUsername ?: "—")
+    } else {
+        stringResource(R.string.mal_unified_status_api_missing)
+    }
+    val webLine = if (status.hasWebCookie) {
+        stringResource(R.string.mal_unified_status_web_connected, status.webUsername ?: "—")
+    } else {
+        stringResource(R.string.mal_unified_status_web_missing_line)
+    }
+    val summary = when (state) {
+        com.kitsugi.animelist.data.auth.MalSessionCoordinator.State.LINKED ->
+            stringResource(R.string.mal_unified_status_linked_summary)
+        com.kitsugi.animelist.data.auth.MalSessionCoordinator.State.MISMATCHED ->
+            stringResource(R.string.mal_unified_status_mismatch_summary)
+        com.kitsugi.animelist.data.auth.MalSessionCoordinator.State.API_ONLY ->
+            stringResource(R.string.mal_unified_status_web_missing)
+        com.kitsugi.animelist.data.auth.MalSessionCoordinator.State.WEB_ONLY ->
+            stringResource(R.string.mal_unified_status_api_missing_summary)
+        else -> stringResource(R.string.mal_unified_status_unverified_summary)
+    }
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(14.dp),
+        colors = CardDefaults.cardColors(containerColor = KitsugiColors.Surface)
+    ) {
+        Column(modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                androidx.compose.material3.Icon(
+                    imageVector = icon,
+                    contentDescription = null,
+                    tint = color,
+                    modifier = Modifier.size(20.dp)
+                )
+                Spacer(modifier = Modifier.width(10.dp))
+                androidx.compose.material3.Text(
+                    text = stringResource(R.string.mal_unified_status_title),
+                    color = KitsugiColors.TextPrimary,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 14.sp
+                )
+            }
+            Spacer(modifier = Modifier.height(8.dp))
+            androidx.compose.material3.Text(
+                text = apiLine,
+                color = KitsugiColors.TextSecondary,
+                fontSize = 12.sp
+            )
+            androidx.compose.material3.Text(
+                text = webLine,
+                color = KitsugiColors.TextSecondary,
+                fontSize = 12.sp
+            )
+            Spacer(modifier = Modifier.height(6.dp))
+            androidx.compose.material3.Text(
+                text = summary,
+                color = KitsugiColors.TextMuted,
+                fontSize = 12.sp
+            )
+            if (!isLinked) {
+                Spacer(modifier = Modifier.height(10.dp))
+                OutlinedButton(
+                    onClick = onFixClick,
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(14.dp)
+                ) {
+                    androidx.compose.material3.Text(
+                        text = stringResource(R.string.mal_unified_fix_action),
+                        color = LocalKitsugiAccent.current,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 12.sp
+                    )
+                }
+            }
+        }
+    }
+}
+
 @Composable
 internal fun MalSettingsContent(profile: ProfileSettings) {
     val isTv = LocalIsTv.current
     var showTvQrDialog by remember { mutableStateOf(false) }
     val scrollState = rememberScrollState()
+    // Sayfa açıldığında tek oturum durumu sorgulanır (giriş penceresi açılmaz): böylece
+    // "uygulama API'si + web oturumu aynı hesapta mı" bilgisi her zaman görünür olur.
+    LaunchedEffect(Unit) {
+        if (profile.isMalConnected) profile.onMalUnifiedProbe()
+    }
 
     Column(
         modifier = Modifier
@@ -311,6 +412,16 @@ internal fun MalSettingsContent(profile: ProfileSettings) {
             username = profile.malUsername,
             isConnected = profile.isMalConnected
         )
+
+        // Tek oturum özeti: uygulama API'si (liste/senkron) ve web oturumu (bildirimler)
+        // AYNI hesapta mı? Farklıysa tek dokunuşla onarım adımı sunulur.
+        val malStatus = profile.malUnifiedStatus
+        if (profile.isMalConnected && malStatus != null) {
+            MalUnifiedSessionCard(
+                status = malStatus,
+                onFixClick = profile.onMalUnifiedFixClick
+            )
+        }
 
         SectionHeader(stringResource(R.string.settings_section_actions))
         SettingsNavCard {

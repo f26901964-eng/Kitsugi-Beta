@@ -194,6 +194,50 @@ class MalNotificationsClientTest {
     }
 
     @Test
+    fun parsesPageThatCarriesOnlyHistoryItems() {
+        // MAL bazı oturumlarda "items" alanını hiç yazmıyor ve TÜM kayıtları "historyItems"
+        // altında döndürüyor. Eski koşul (`items` zorunlu) bu sayfayı "veri yok" sayıyor ve
+        // kullanıcı "bildirimlerin devamı hiç gelmiyor" şikâyetini alıyordu.
+        val html = """
+            <html><body><script>
+            window.MAL.notification = {
+              "historyItems": [{
+                "id": "older-1",
+                "typeIdentifier": "related_anime_add",
+                "categoryName": "New Related Anime",
+                "createdAt": 1791132300,
+                "isRead": true,
+                "anime": {"title": "Fullmetal Alchemist", "mediaType": "TV"}
+              }]
+            };
+            </script></body></html>
+        """.trimIndent()
+
+        val feed = MalNotificationsClient.parseHtml(html, page = 1)
+
+        assertNotNull(feed)
+        val item = requireNotNull(feed).items.single()
+        assertEquals("older-1", item.id)
+        assertEquals("Fullmetal Alchemist", item.animeTitle)
+        assertTrue(item.isRead)
+    }
+
+    @Test
+    fun offersSeveralUrlCandidatesForOlderNotifications() {
+        // MAL sayfalama adresini belgelemiyor: 1. sayfa daima kendi adresi, sonraki
+        // sayfalarda birden fazla aday sırayla denenir (veriyle doğrulanır).
+        assertEquals(listOf("https://myanimelist.net/notification"), MalNotificationsClient.moreUrlCandidates(1))
+        assertEquals(listOf("https://myanimelist.net/notification"), MalNotificationsClient.moreUrlCandidates(0))
+
+        val candidates = MalNotificationsClient.moreUrlCandidates(2)
+        assertEquals(4, candidates.size)
+        assertEquals("https://myanimelist.net/notification?page=2", candidates.first())
+        assertEquals("https://myanimelist.net/notification?p=2", candidates[1])
+        assertTrue(candidates.all { it.startsWith("https://myanimelist.net/notification") })
+        assertTrue(candidates.all { it.contains("2") })
+    }
+
+    @Test
     fun buildsNextPageUrlOnlyForPagesAfterTheFirst() {
         assertEquals("https://myanimelist.net/notification", MalNotificationsClient.pageUrlFor(1))
         assertEquals("https://myanimelist.net/notification", MalNotificationsClient.pageUrlFor(0))

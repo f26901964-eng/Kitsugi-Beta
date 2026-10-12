@@ -61,6 +61,9 @@ object KitsugiPersonImageAggregator {
      * @param names      aday adlar: birincil ad + native/romanize/ingilizce/alternatif adlar
      * @param tmdbEnabled kullanıcı ayarı; kapalıysa TMDB atlanır
      * @param budgetMs   toplam süre bütçesi (kısmi sonuç döner)
+     * @param allowSingleTokenNames karakterin kimliği (MAL/AniList) biliniyorsa ya da adın
+     *   birebir eşleşmesi zorunlu tutuluyorsa tek kelimeli Latin adlar da aday kabul edilir
+     *   (bkz. [isUnambiguousName] 2. imzası). Varsayılan `false` = eski, katı davranış.
      */
     suspend fun aggregate(
         kind: PersonKind,
@@ -70,15 +73,19 @@ object KitsugiPersonImageAggregator {
         aniListId: Int?,
         names: List<String>,
         tmdbEnabled: Boolean,
-        budgetMs: Long = 9_000L
+        budgetMs: Long = 9_000L,
+        allowSingleTokenNames: Boolean = false
     ): List<SourceImage> {
         val canonical = MalJikanMediaSupport.canonicalSource(source)
         val isBangumiSource = canonical == "bangumi" || canonical == "bgm"
         // İsimle (kimliksiz) arama yalnızca AYIRT EDİCİ adlarla yapılır: "Suzu", "Ayane" gibi
         // tek kelimelik adlar binlerce farklı yapımın karakterinde geçer; bu adlarla yapılan
         // aramalar alakasız karakterin görselini getiriyordu.
+        // İstisna: çağıran, adayın ya kimlikle (MAL/AniList) ya da birebir ad eşleşmesiyle
+        // doğrulandığını garanti ediyorsa tek kelimeli adlar da kabul edilir — aksi hâlde
+        // "Nobita"/"Doraemon" gibi adlar hiç aranamıyor ve görsel hiç gelmiyordu.
         val nameCandidates = names.filter { it.isNotBlank() }.map { it.trim() }.distinct()
-            .filter { isUnambiguousName(it) }
+            .filter { isUnambiguousName(it, allowSingleTokenLatin = allowSingleTokenNames) }
             .take(SEARCH_NAME_ATTEMPTS)
         val knownMalId = when {
             MalJikanMediaSupport.isMalSource(source) ->
@@ -502,13 +509,36 @@ object KitsugiPersonImageAggregator {
      *  - Tek kelime ise yalnızca Japonca/Çince (CJK) ve en az 3 karakterli ad kabul edilir
      *    (ör. "森田鈴"). Latin tek kelimeli adlar ("Suzu", "Ayane") belirsizdir → reddedilir.
      */
-    internal fun isUnambiguousName(value: String): Boolean {
+    internal fun isUnambiguousName(value: String): Boolean = isUnambiguousName(value, allowSingleTokenLatin = false)
+
+    /**
+     * [isUnambiguousName] örüntüsünün çağıran tarafça DOĞRULANABİLEN aramalar için gevşetilmiş
+     * hâli.
+     *
+     * Kurgusal karakter adlarının büyük bölümü TEK kelimedir ve Latincedir: "Nobita",
+     * "Doraemon", "Goku", "Eren", "Luffy", "Spike"... Eski kural bu adları tamamen reddediyordu;
+     * sonuç: TMDB/Simkl kaynaklı anime detay sayfalarında (karakter kimliği TMDB kişi kimliği
+     * olduğu için) karakter hiçbir kaynaktan aranamıyor, hem kartta hem karakter detay sayfasında
+     * görsel hiç gelmiyordu.
+     *
+     * Bu çağrı yalnızca sonuç BAŞKA BİR KİMLİKLE doğrulanabildiğinde kullanılır:
+     *  - karakterin bağlı olduğu yapım (MAL/AniList kimliği) ile çapraz doğrulama, ya da
+     *  - arama sonucunda adın BİREBİR eşleşmesi zorunluluğu ([nameMatches]).
+     *
+     * @param allowSingleTokenLatin tek kelimeli Latin adlara izin verilsin mi.
+     */
+    internal fun isUnambiguousName(value: String, allowSingleTokenLatin: Boolean): Boolean {
         val normalized = normalizeName(value)
         val tokens = normalized.split(" ").filter { it.isNotBlank() }
         if (tokens.size >= 2) return true
         val single = tokens.firstOrNull() ?: return false
-        return single.length >= 3 && single.any { it.code >= 0x2E80 }
+        if (single.any { it.code >= 0x2E80 }) return single.length >= 3
+        // Tek kelimeli Latin ad: ancak çağıran doğrulama yapıyorsa kabul edilir.
+        return allowSingleTokenLatin && single.length >= MIN_SINGLE_TOKEN_LATIN_NAME
     }
+
+    /** Tek kelimeli Latin adın isimle aramaya sokulabilmesi için gereken en kısa uzunluk. */
+    private const val MIN_SINGLE_TOKEN_LATIN_NAME = 4
 
     /**
      * Sıkı eşleşme: tam normalize eşitlik veya aynı jeton kümesi (ör. "Kagenou Cid" ≡

@@ -226,6 +226,61 @@ internal object MalNotificationsClient {
         if (cookieHeader.isBlank()) {
             throw MalWebSessionRequiredException("MAL web oturumu gerekli")
         }
+        fetchPage(cookieHeader, pageUrlFor(page), page)
+    }
+
+    /**
+     * "Bildirimlerin devamı" — daha eski bildirimler için aday adresleri sırayla dener.
+     *
+     * MAL bu akışın sayfalamasını belgelemediği için karar VERİYLE verilir: adaylardan biri
+     * [knownIds] içinde olmayan yeni kayıt döndürürse o adres "çalışan" adres kabul edilir ve
+     * akış devam eder; hiçbiri yeni kayıt getirmezse akış biter (uydurma kart üretilmez).
+     *
+     * Yanlış adres tahminleri (404/aynı sayfa) oturum kararını BOZMAZ: yalnızca hiçbir aday
+     * sayfa döndürmediyse ve gerçek bir "oturum yok" yanıtı alındıysa oturum hatası yükseltilir.
+     */
+    suspend fun fetchMore(
+        cookieHeader: String,
+        page: Int,
+        knownIds: Set<String>
+    ): Feed? = withContext(Dispatchers.IO) {
+        if (cookieHeader.isBlank()) return@withContext null
+        var parsedAnyPage = false
+        var sessionError: MalWebSessionRequiredException? = null
+        for (url in moreUrlCandidates(page)) {
+            val feed = try {
+                fetchPage(cookieHeader, url, page)
+            } catch (e: MalWebSessionRequiredException) {
+                if (sessionError == null) sessionError = e
+                continue
+            } catch (e: Exception) {
+                continue
+            }
+            parsedAnyPage = true
+            if (feed.items.any { it.id !in knownIds }) return@withContext feed
+        }
+        if (!parsedAnyPage && sessionError != null) throw sessionError
+        null
+    }
+
+    /**
+     * Sayfa adayları (sırayla denenir). 1. sayfa her zaman MAL'ın kendi adresidir.
+     *
+     * `?page=N` MAL tarafından desteklenmiyorsa aynı kayıtlar döner ve istemci akışı kapatır;
+     * diğer biçimler yalnızca destekleniyor OLABİLECEĞİ için tahmin niteliğindedir.
+     */
+    internal fun moreUrlCandidates(page: Int): List<String> {
+        if (page <= 1) return listOf(NOTIFICATIONS_URL)
+        return listOf(
+            "$NOTIFICATIONS_URL?page=$page",
+            "$NOTIFICATIONS_URL?p=$page",
+            "$NOTIFICATIONS_URL/history?page=$page",
+            "$NOTIFICATIONS_URL/history?p=$page"
+        )
+    }
+
+    /** Tek bir adresi indirip ayrıştırır (yalnızca MAL'ın kendi adreslerine yönlendirme izni var). */
+    private suspend fun fetchPage(cookieHeader: String, startUrl: String, page: Int): Feed {
         val safeCookie = cookieHeader.replace("\r", "").replace("\n", "").trim()
         val requestCookie = if (safeCookie.split(';').none {
                 it.trim().substringBefore('=').equals("anime_update_advanced", ignoreCase = true)
@@ -233,7 +288,7 @@ internal object MalNotificationsClient {
         ) {
             "$safeCookie; anime_update_advanced=0"
         } else safeCookie
-        var currentUrl = pageUrlFor(page)
+        var currentUrl = startUrl
 
         // Never let an automatically followed redirect carry a website session cookie to an
         // unrelated host. Follow only HTTPS redirects back to MAL's own canonical host(s).
@@ -270,7 +325,7 @@ internal object MalNotificationsClient {
                         throw MalNotificationsFetchException("MAL bildirim isteği HTTP ${response.code}")
                     }
                     val body = response.body?.string().orEmpty()
-                    parseHtml(body, page)?.let { return@withContext it }
+                    parseHtml(body, page)?.let { return it }
                     // Bazı durumlarda MAL giriş formunu 200 ile döner (yönlendirme yok).
                     if (looksSignedOutPage(body)) {
                         throw MalWebSessionRequiredException("MAL web oturumu sona ermiş")
@@ -293,14 +348,17 @@ internal object MalNotificationsClient {
         val objectEnd = findJsonObjectEnd(html, objectStart) ?: return null
         val root = runCatching { json.parseToJsonElement(html.substring(objectStart, objectEnd + 1)).jsonObject }
             .getOrNull() ?: return null
-        val rawItems = root["items"] as? JsonArray ?: return null
+        val rawItems = root["items"] as? JsonArray
+        val rawHistory = root["historyItems"] as? JsonArray
+        // İki listeden en az biri bulunmalı; yalnızca `items` zorunlu sayıldığı için
+        // `historyItems` ile dönen (okunmuş/eski bildirim) sayfaları "veri yok" diye düşüyordu.
+        if (rawItems == null && rawHistory == null) return null
 
         // MAL, okunmuş/eski bildirimleri `historyItems` altında döndürür. Yalnızca `items`
         // okunduğu için kullanıcı "bildirimlerin devamını" hiç göremiyordu; iki liste aynı
         // şemayla ayrıştırılıp `id` ile tekilleştirilir (kimliği olmayan kayıtlar atlanır).
-        val parsed = rawItems.mapNotNull { it.asObjectOrNull()?.toNotification() } +
-            (root["historyItems"] as? JsonArray).orEmpty()
-                .mapNotNull { it.asObjectOrNull()?.toNotification() }
+        val parsed = rawItems.orEmpty().mapNotNull { it.asObjectOrNull()?.toNotification() } +
+            rawHistory.orEmpty().mapNotNull { it.asObjectOrNull()?.toNotification() }
 
         val items = parsed.distinctBy { it.id }
         return Feed(
