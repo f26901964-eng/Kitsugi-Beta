@@ -5,6 +5,7 @@ import com.kitsugi.animelist.ui.theme.gradient.Icon
 import com.kitsugi.animelist.ui.theme.gradient.Text
 import com.kitsugi.animelist.R
 import com.kitsugi.animelist.ui.components.KitsugiButton
+import com.kitsugi.animelist.ui.components.KitsugiConfirmDialog
 import com.kitsugi.animelist.ui.components.KitsugiTonalButton
 
 import com.kitsugi.animelist.ui.theme.gradient.background
@@ -60,6 +61,7 @@ internal fun CloudstreamExtensionsTab(
     bulkInstallCurrentName: String,
     onToggleCsPlugin: (CsPluginEntity, Boolean) -> Unit,
     onUninstallCsPlugin: (CsPluginEntity) -> Unit,
+    onUninstallAllCsPlugins: () -> Unit = {},
     onVerifyPlugin: (pluginId: String, pluginName: String) -> Unit,
     onOpenDiagnostic: (() -> Unit)? = null,
     useGithubProxy: Boolean = false,
@@ -75,6 +77,7 @@ internal fun CloudstreamExtensionsTab(
 ) {
     var activeSection by rememberSaveable { mutableStateOf(CsTabSection.REPOS) }
     var newRepoUrl by rememberSaveable { mutableStateOf("") }
+    var showDeleteAllConfirm by remember { mutableStateOf(false) }
 
     val pluginInstallStates = remember { mutableStateMapOf<String, PluginInstallState>() }
     val reinstallStates = remember { mutableStateMapOf<String, PluginInstallState>() }
@@ -213,7 +216,9 @@ internal fun CloudstreamExtensionsTab(
             }
         }
 
-        if (availableUpdatesCount > 0) {
+        // Kurulu eklenti yokken (ör. toplu kaldırma sonrası) sayaç henüz yenilenmemiş olsa bile
+        // "güncelleme var" bandı gösterilmez.
+        if (availableUpdatesCount > 0 && csPlugins.isNotEmpty()) {
             item {
                 Row(
                     modifier = Modifier
@@ -425,41 +430,56 @@ internal fun CloudstreamExtensionsTab(
             }
         } else {
             // Yüklü CS Eklentileri
+            // NOT: Başlık ile eylem butonları artık AYNI Row içinde değil. Eskiden
+            // SpaceBetween + weight(1f) ile yan yana duruyorlardı; butonlar (Tümünü Güncelle /
+            // Eklenti Portalı) yatayda tüm genişliği kapladığında başlık kolonu sıfıra kadar
+            // sıkışıyor ve metin harf harf alt alta yazılıyordu (büyük yazı tipi ölçeğinde
+            // ekran görüntüsündeki bozuk görünüm). Başlık tam genişlik alır, eylemler ayrı
+            // satırda sarılabilir (FlowRow) durur.
             item {
-                Row(
+                Column(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
+                    verticalArrangement = Arrangement.spacedBy(2.dp)
                 ) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            Text(stringResource(R.string.inline_installed_video_providers_d43a80f), color = KitsugiColors.TextPrimary, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
-                            Box(
-                                modifier = Modifier
-                                    .clip(RoundedCornerShape(999.dp))
-                                    .background(accentColor.copy(alpha = 0.15f))
-                                    .padding(horizontal = 8.dp, vertical = 2.dp)
-                            ) {
-                                Text(
-                                    text = csPlugins.size.toString(),
-                                    color = accentColor,
-                                    style = MaterialTheme.typography.labelSmall,
-                                    fontWeight = FontWeight.Bold
-                                )
-                            }
-                        }
-                        Spacer(Modifier.height(2.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
                         Text(
-                            stringResource(R.string.inline_video_provider_cs3_extensions_used_8c0e4e8),
-                            color = KitsugiColors.TextSecondary,
-                            style = MaterialTheme.typography.bodySmall
+                            stringResource(R.string.inline_installed_video_providers_d43a80f),
+                            color = KitsugiColors.TextPrimary,
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.Bold,
+                            // fill = false → başlık kalan genişliği aşmaz ama rozeti sağa itmez.
+                            modifier = Modifier.weight(1f, fill = false)
                         )
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(999.dp))
+                                .background(accentColor.copy(alpha = 0.15f))
+                                .padding(horizontal = 8.dp, vertical = 2.dp)
+                        ) {
+                            Text(
+                                text = csPlugins.size.toString(),
+                                color = accentColor,
+                                style = MaterialTheme.typography.labelSmall,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
                     }
-                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        if (availableUpdatesCount > 0) {
+                    Text(
+                        stringResource(R.string.inline_video_provider_cs3_extensions_used_8c0e4e8),
+                        color = KitsugiColors.TextSecondary,
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                    Spacer(Modifier.height(8.dp))
+                    FlowRow(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        if (availableUpdatesCount > 0 && csPlugins.isNotEmpty()) {
                             KitsugiButton(
                                 onClick = onUpdateAllPendingPlugins,
                                 shape = RoundedCornerShape(12.dp),
@@ -478,6 +498,22 @@ internal fun CloudstreamExtensionsTab(
                                 Icon(Icons.Rounded.Extension, contentDescription = null, tint = accentColor, modifier = Modifier.size(16.dp))
                                 Spacer(Modifier.width(6.dp))
                                 Text(stringResource(R.string.eklenti_portali), color = accentColor, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                            }
+                        }
+                        if (csPlugins.isNotEmpty()) {
+                            // Toplu kaldırma: kurulu tüm eklentileri tek onayla diskten siler.
+                            KitsugiButton(
+                                onClick = { showDeleteAllConfirm = true },
+                                shape = RoundedCornerShape(12.dp),
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = KitsugiColors.AccentRed,
+                                    contentColor = Color.White
+                                ),
+                                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
+                            ) {
+                                Icon(Icons.Rounded.DeleteForever, contentDescription = null, tint = Color.White, modifier = Modifier.size(16.dp))
+                                Spacer(Modifier.width(6.dp))
+                                Text(stringResource(R.string.eklenti_toplu_sil), color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
                             }
                         }
                     }
@@ -555,5 +591,20 @@ internal fun CloudstreamExtensionsTab(
                 }
             }
         }
+    }
+
+    // ── Toplu kaldırma onayı ──────────────────────────────────────────────────
+    if (showDeleteAllConfirm) {
+        KitsugiConfirmDialog(
+            title = stringResource(R.string.eklenti_toplu_sil_baslik),
+            message = stringResource(R.string.eklenti_toplu_sil_mesaj, csPlugins.size),
+            confirmText = stringResource(R.string.eklenti_toplu_sil),
+            isDestructive = true,
+            onConfirm = {
+                showDeleteAllConfirm = false
+                onUninstallAllCsPlugins()
+            },
+            onDismiss = { showDeleteAllConfirm = false }
+        )
     }
 }

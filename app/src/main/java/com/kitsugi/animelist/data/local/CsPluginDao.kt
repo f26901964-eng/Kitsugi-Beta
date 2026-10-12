@@ -25,4 +25,8 @@ interface CsPluginDao {
 
     @Delete
     suspend fun delete(plugin: CsPluginEntity)
+
+    /** Tüm kurulu CS eklenti kayıtlarını siler (toplu kaldırma akışı). */
+    @Query("DELETE FROM cs_plugins")
+    suspend fun deleteAll()
 }

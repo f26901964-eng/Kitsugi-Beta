@@ -316,6 +316,8 @@ data class AddonSettings(
     val csPlugins: List<CsPluginEntity> = emptyList(),
     val onToggleCsPlugin: (CsPluginEntity, Boolean) -> Unit = { _, _ -> },
     val onUninstallCsPlugin: (CsPluginEntity) -> Unit = {},
+    /** Kurulu tüm video sağlayıcı eklentilerini topluca kaldırır. */
+    val onUninstallAllCsPlugins: () -> Unit = {},
     // ─── GitHub Vekil Sunucu ──────────────────────────────────────────────────
     val useGithubProxy: Boolean = false,
     val onUseGithubProxyChanged: (Boolean) -> Unit = {},

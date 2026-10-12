@@ -93,4 +93,15 @@ object CsAutoUpdateBackoff {
         } catch (_: Throwable) {
         }
     }
+
+    /**
+     * Tüm kayıtları siler. Kurulu eklentiler topluca kaldırıldığında çağrılır; aksi halde
+     * artık var olmayan eklentiler için bekleme kayıtları tercih dosyasında kalırdı.
+     */
+    fun clearAll(context: Context) {
+        try {
+            prefs(context).edit().clear().apply()
+        } catch (_: Throwable) {
+        }
+    }
 }

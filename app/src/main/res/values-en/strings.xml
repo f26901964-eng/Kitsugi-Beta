@@ -5060,6 +5060,12 @@
     <string name="manga_eklentisi_yuklendi_x">✅ Manga extension installed: %1$s</string>
     <string name="eklenti_yuklenemedi_x">❌ Extension could not be installed: %1$s</string>
     <string name="eklenti_kaldirildi_x_5014f43">🗑️ Extension removed: %1$s</string>
+    <!-- Bulk extension removal (Settings > Addons & Sources > Video Providers > Installed) -->
+    <string name="eklenti_toplu_sil">Delete All</string>
+    <string name="eklenti_toplu_sil_baslik">Delete all extensions?</string>
+    <string name="eklenti_toplu_sil_mesaj">All %1$d installed video provider extensions will be deleted from disk and removed. This action cannot be undone.</string>
+    <string name="eklenti_toplu_sil_sonuc">🗑️ %1$d extensions removed</string>
+    <string name="eklenti_toplu_sil_bos">ℹ️ No installed extension found to remove</string>
     <string name="eklenti_etkinlestirildi_x">✅ Extension enabled: %1$s</string>
     <string name="yuklendi_x">✅ Installed: %1$s</string>
     <string name="indirilemedi_x">❌ Could not download: %1$s</string>

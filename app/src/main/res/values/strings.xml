@@ -5062,6 +5062,12 @@ Eklentiler ekranından eklenti etkinleştirin.</string>
     <string name="manga_eklentisi_yuklendi_x">✅ Manga eklentisi yüklendi: %1$s</string>
     <string name="eklenti_yuklenemedi_x">❌ Eklenti yüklenemedi: %1$s</string>
     <string name="eklenti_kaldirildi_x_5014f43">🗑️ Eklenti kaldırıldı: %1$s</string>
+    <!-- Toplu eklenti kaldırma (Ayarlar > Eklentiler & Kaynaklar > Video Sağlayıcıları > Kurulu) -->
+    <string name="eklenti_toplu_sil">Tümünü Sil</string>
+    <string name="eklenti_toplu_sil_baslik">Tüm eklentiler silinsin mi?</string>
+    <string name="eklenti_toplu_sil_mesaj">%1$d kurulu video sağlayıcı eklentisinin tamamı diskten silinecek ve kaldırılacak. Bu işlem geri alınamaz.</string>
+    <string name="eklenti_toplu_sil_sonuc">🗑️ %1$d eklenti kaldırıldı</string>
+    <string name="eklenti_toplu_sil_bos">ℹ️ Kaldırılacak kurulu eklenti bulunamadı</string>
     <string name="eklenti_etkinlestirildi_x">✅ Eklenti etkinleştirildi: %1$s</string>
     <string name="yuklendi_x">✅ Yüklendi: %1$s</string>
     <string name="indirilemedi_x">❌ İndirilemedi: %1$s</string>

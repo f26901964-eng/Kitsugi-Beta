@@ -676,6 +676,7 @@ fun KitsugiStreamScreen(
                 onClearBulkInstallResult = { addonViewModel.clearBulkInstallResult() },
                 onToggleCsPlugin = { plugin, enabled -> addonViewModel.toggleCsPlugin(plugin, enabled) },
                 onUninstallCsPlugin = { addonViewModel.uninstallCsPlugin(it) },
+                onUninstallAllCsPlugins = { addonViewModel.uninstallAllCsPlugins() },
                 // ── GitHub Vekil Sunucu (jsDelivr) ────────────────────────────────
                 // Bu parametreler eskiden GEÇİLMİYORDU: diyalog varsayılan (false / no-op)
                 // değerlerle açılıyordu ve anahtar hiçbir zaman AÇILAMIYORDU.
