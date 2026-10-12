@@ -1,5 +1,27 @@
 # Kitsugi-Beta — Sürüm Notları / Release Notes
 
+## 🇹🇷 Türkçe (v2.4.256)
+
+### 🖼️ 1. Detay Vitrini: Yön ⇄ Görsel Otomatik Eşleşmesi ve TAM Kapsama (Kaynak & Listem Detay)
+- **Yatay Mod → Dikey POSTER:** TMDB/Fanart kalite sırası → kaynak poster → dikey galeri (2:3 uzun-dar kutu). Dar sol panele yatay görsel sıkıştırma kaldırıldı.
+- **Dikey Mod → Yatay ARKA PLAN:** TMDB/Fanart kalite sırası → kaynak arka plan → yatay galeri (16:9 geniş-kısa bant).
+- **Otomatik Oran Kilitlenmesi:** Görsel yüklendiğinde `onImageAspectResolved` kutunun en-boy oranını görselin gerçek oranına kilitler.
+- **TAM Kapsama (`ContentScale.Crop`):** Bulanık dolgu / boşluk katmanı kaldırıldı. Kutu görsele kilitlendiği için kırpma kaybı olmaksızın alanı tam kaplar.
+- **Yedek Koruması:** Eşlerden biri yoksa diğeri güvenli oran sınırlarında ([0.5, 1.6] yatay, [1.0, 2.2] dikey) gösterilir.
+
+---
+
+## 🇬🇧 English (v2.4.256)
+
+### 🖼️ 1. Detail Hero: Orientation ⇄ Artwork Auto-Pairing & Full Coverage (Source & Library Detail)
+- **Landscape Mode → Vertical POSTER:** Quality ranked poster candidate in a 2:3 container fitting the tall/narrow left panel.
+- **Portrait Mode → Horizontal BACKDROP:** Quality ranked backdrop candidate in a 16:9 cinematic band.
+- **Aspect Ratio Locking:** Container locks to the image's exact dimensions via `onImageAspectResolved`.
+- **FULL Coverage (`ContentScale.Crop`):** Blurred ambient margins removed; image fills container seamlessly with zero crop loss.
+- **Fallback:** Missing pairs safely fall back within clamped bounds ([0.5, 1.6] landscape, [1.0, 2.2] portrait).
+
+---
+
 ## 🇹🇷 Türkçe (v2.4.255)
 
 ### 🚀 1. Detay Sayfasından Eklenti Video Hattı (Süre, CF Sabrı ve Tip Eşleştirme)

@@ -5,9 +5,6 @@ import com.kitsugi.animelist.ui.components.KitsugiGalleryIconButton
 import com.kitsugi.animelist.ui.theme.gradient.background
 import com.kitsugi.animelist.ui.theme.gradient.border
 import com.kitsugi.animelist.ui.utils.tvClickable
-import com.kitsugi.animelist.ui.components.HERO_BANNER_FIT_TOLERANCE
-import com.kitsugi.animelist.ui.components.HeroArtworkFit
-import com.kitsugi.animelist.ui.components.heroArtworkFit
 import com.kitsugi.animelist.ui.components.heroImageAlignment
 import com.kitsugi.animelist.data.remote.GalleryItem
 import com.kitsugi.animelist.data.remote.KitsugiHeroArtworkResolver
@@ -49,9 +46,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.Alignment
-import androidx.compose.ui.BiasAlignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.graphics.Brush
@@ -90,18 +85,20 @@ internal fun DetailHero(
     nextAiring: String? = null,
     showFavoriteButton: Boolean = false,
     onToggleFavoriteClick: (() -> Unit)? = null,
-    /** Kayıtla ilişkili galeri görselleri: yatay modda en kaliteli YATAY görsel vitrinde kullanılır. */
+    /** Kayıtla ilişkili galeri görselleri: yatay modda dikey poster, dikey modda yatay arka plan adayları vitrine akar. */
     galleryItems: List<GalleryItem> = emptyList()
 ) {
     val accentColor = LocalKitsugiAccent.current
     val statusColor = statusColor(entry.status)
     val context = LocalContext.current
 
-    // ── Görsel seçimi (ekran yönü fark etmez) ─────────────────────────────────
-    // KURAL: Detay sayfası vitrini her iki yönde de AYNI tasarımdır → en kaliteli
-    // **YATAY** görsel (galeri/TMDB/Fanart arka planları) 16:9 sinematik bantta
-    // **KIRPILMADAN** gösterilir; başlık ve meta veriler bandın altına akar.
-    // Poster yalnızca hiç yatay görsel yoksa bandın içinde kesilmeden gösterilir.
+    // ── Görsel seçimi: YÖN ⇄ GÖRSEL OTOMATİK EŞLEŞMESİ ─────────────────────────
+    // KURAL: Bir yapımın görsel çifti sabittir (dikey-uzun-dar POSTER + yatay-geniş-kısa
+    // ARKA PLAN); vitrin ekran yönüne göre doğru eşi OTOMATİK seçer ve görsel alanı
+    // gösterdiği görselin şekline birebir uyup resmi TAM kaplar:
+    //  - YATAY mod → en kaliteli DİKEY POSTER, uzun-dar kutuda tam kaplama.
+    //  - DİKEY mod → en kaliteli YATAY ARKA PLAN, geniş-kısa bantta tam kaplama.
+    // Eşlerden biri yoksa diğeri gösterilir; görsel alanı yine Crop ile TAM kaplanır.
     val configuration = LocalConfiguration.current
     val screenHeightDp = configuration.screenHeightDp.toFloat()
     val isLandscapeScreen = configuration.screenWidthDp > configuration.screenHeightDp
@@ -110,8 +107,17 @@ internal fun DetailHero(
     val wideGalleryUrls = remember(galleryItems) {
         galleryItems.filter { isHorizontalGalleryItem(it) }.sortedByDescending { galleryPixels(it) }.map { it.url }
     }
-    val imagePlan = remember(wideGalleryUrls, posterUrl) {
-        (wideGalleryUrls + listOfNotNull(posterUrl)).distinct()
+    val tallGalleryUrls = remember(galleryItems) {
+        galleryItems.filter { isVerticalGalleryItem(it) }.sortedByDescending { galleryPixels(it) }.map { it.url }
+    }
+    val tallCandidates = remember(posterUrl, tallGalleryUrls) {
+        listOfNotNull(posterUrl) + tallGalleryUrls
+    }
+    // YÖN ⇄ GÖRSEL OTOMATİK EŞLEŞMESİ: yatay modda dikey poster birincil,
+    // dikey modda yatay arka plan birincil (çift sabit olduğu için eşleşme otomatiktir).
+    val imagePlan = remember(wideGalleryUrls, tallCandidates, isLandscapeScreen) {
+        if (isLandscapeScreen) (tallCandidates + wideGalleryUrls).distinct()
+        else (wideGalleryUrls + tallCandidates).distinct()
     }
     var imageIndex by remember(imagePlan) { mutableIntStateOf(0) }
     val heroImageModel = imagePlan.getOrNull(imageIndex)
@@ -121,16 +127,18 @@ internal fun DetailHero(
     BoxWithConstraints(
         modifier = Modifier.fillMaxWidth()
     ) {
-        // 16:9 SİNEMATİK BANT: görsel alanı panel genişliğinden türetilir ve ekran
-        // yüksekliğinin %62'sini geçmez (TV / büyük tablet güvenliği).
-        // Yatay modda sol panel dar kaldığı için bant bir tabana (250dp) ve daha yüksek
-        // tavana (%72) kavuşur; görsel banttan saparsa KIRPILMAZ, "tam görünür + yumuşak
-        // dolgu" ile gösterilir.
-        val bannerCapDp = if (isLandscapeScreen) screenHeightDp * 0.72f else screenHeightDp * 0.62f
-        val bannerFloorDp = if (isLandscapeScreen) 250f else 0f
-        val bannerHeight = (maxWidth * DETAIL_HERO_BANNER_RATIO)
-            .coerceAtLeast(bannerFloorDp.dp)
-            .coerceAtMost(bannerCapDp.dp)
+        // GÖRSEL ALANININ ŞEKLİ: yönün varsayılan oranıyla başlar, görsel yüklenince
+        // GERÇEK en-boy oranına kilitlenir → kutu, gösterdiği görselle birebir aynı
+        // şekle gelir ve görsel (Crop ile) alanı TAM kaplar; kırpma/boşluk ≈ sıfır.
+        //  - YATAY mod → 2:3 DİKEY poster kutusu (uzun-dar).
+        //  - DİKEY mod → 16:9 YATAY arka plan bandı (geniş-kısa).
+        val defaultBoxAspect = if (isLandscapeScreen) 2f / 3f else 16f / 9f
+        val boxAspect = (loadedImageAspect ?: defaultBoxAspect).coerceIn(
+            minimumValue = if (isLandscapeScreen) 0.5f else 1.0f,
+            maximumValue = if (isLandscapeScreen) 1.6f else 2.2f
+        )
+        val bannerCapDp = if (isLandscapeScreen) screenHeightDp else screenHeightDp * 0.62f
+        val bannerHeight = (maxWidth / boxAspect).coerceAtMost(bannerCapDp.dp)
         val heroBoxHeight = bannerHeight + DETAIL_HERO_INFO_AREA_HEIGHT
 
         // 2. ADIM: asıl vitrin alanı (bant + alt bilgi alanı)
@@ -150,41 +158,7 @@ internal fun DetailHero(
                 heroAspect = imageAreaAspect,
                 imageAspect = loadedImageAspect
             )
-            // Görsel banttan belirgin farklı orandaysa KIRPMA yerine
-            // "tam görünür + yumuşak dolgu" kullanılır.
-            val useContainWithFill = heroArtworkFit(
-                boxAspect = imageAreaAspect,
-                imageAspect = loadedImageAspect,
-                tolerance = HERO_BANNER_FIT_TOLERANCE
-            ) == HeroArtworkFit.CONTAIN_WITH_FILL
-            if (!heroImageModel.isNullOrBlank() && useContainWithFill) {
-                // 1. Yumuşak atmosferik dolgu
-                KitsugiNsfwImage(
-                    model = heroImageModel,
-                    contentDescription = null,
-                    isAdult = entry.isAdult,
-                    blurAdultMedia = blurAdultMedia,
-                    modifier = imageAreaModifier.alpha(0.30f),
-                    contentScale = ContentScale.Crop,
-                    alignment = BiasAlignment(0f, -0.20f),
-                    highQuality = true
-                )
-                // 2. Kesilmemiş, ortalanmış görsel
-                KitsugiNsfwImage(
-                    model = heroImageModel,
-                    contentDescription = entry.getDisplayTitle(titleLanguage),
-                    isAdult = entry.isAdult,
-                    blurAdultMedia = blurAdultMedia,
-                    modifier = imageAreaModifier.tvClickable { onPosterClick(heroImageModel) },
-                    contentScale = ContentScale.Fit,
-                    alignment = Alignment.Center,
-                    onLoadingFailed = {
-                        if (imageIndex < imagePlan.lastIndex) imageIndex += 1
-                    },
-                    onImageAspectResolved = { ratio -> loadedImageAspect = ratio },
-                    highQuality = true
-                )
-            } else if (!heroImageModel.isNullOrBlank()) {
+            if (!heroImageModel.isNullOrBlank()) {
                 KitsugiNsfwImage(
                     model = heroImageModel,
                     contentDescription = entry.getDisplayTitle(titleLanguage),

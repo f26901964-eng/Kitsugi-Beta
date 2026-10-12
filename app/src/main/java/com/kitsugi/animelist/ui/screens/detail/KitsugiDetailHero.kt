@@ -1,9 +1,6 @@
 package com.kitsugi.animelist.ui.screens.detail
 
 import com.kitsugi.animelist.ui.components.KitsugiGalleryIconButton
-import com.kitsugi.animelist.ui.components.HERO_BANNER_FIT_TOLERANCE
-import com.kitsugi.animelist.ui.components.HeroArtworkFit
-import com.kitsugi.animelist.ui.components.heroArtworkFit
 import com.kitsugi.animelist.ui.components.heroImageAlignment
 import com.kitsugi.animelist.data.remote.JikanSearchResult
 import com.kitsugi.animelist.data.remote.GalleryCategory
@@ -12,7 +9,6 @@ import com.kitsugi.animelist.data.remote.KitsugiHeroArtworkResolver
 import com.kitsugi.animelist.model.MediaType
 import androidx.compose.runtime.mutableIntStateOf
 import kotlinx.coroutines.CancellationException
-import androidx.compose.ui.BiasAlignment
 import androidx.compose.ui.platform.LocalConfiguration
 
 import com.kitsugi.animelist.ui.theme.gradient.background
@@ -58,8 +54,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
-import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -122,12 +116,14 @@ fun KitsugiDetailHero(
     val fallbackPlaceholderColor = statusColor ?: accentColor
     val context = LocalContext.current
 
-    // ── Görsel seçimi (ekran yönü fark etmez) ─────────────────────────────────
-    // KURAL: Detay sayfası vitrini her iki yönde de AYNI tasarımdır →
-    // en kaliteli **YATAY** görsel (TMDB / Fanart.tv / galeri arka planları) 16:9
-    // sinematik bantta **KIRPILMADAN** gösterilir; başlık ve meta veriler bandın altına akar.
-    // Dikey poster yalnızca hiçbir yatay görsel yoksa (ör. bazı manga kayıtları) bandın
-    // içinde **kesilmeden** gösterilir; vitrin asla tam boy poster paneline dönüşmez.
+    // ── Görsel seçimi: YÖN ⇄ GÖRSEL OTOMATİK EŞLEŞMESİ ─────────────────────────
+    // KURAL: Bir yapımın görsel çifti sabittir (dikey-uzun-dar POSTER + yatay-geniş-kısa
+    // ARKA PLAN); vitrin ekran yönüne göre doğru eşi OTOMATİK seçer ve görsel alanı
+    // gösterdiği görselin şekline birebir uyup resmi TAM kaplar:
+    //  - YATAY mod → en kaliteli DİKEY POSTER, uzun-dar kutuda tam kaplama.
+    //  - DİKEY mod → en kaliteli YATAY ARKA PLAN, geniş-kısa bantta tam kaplama.
+    // Eşlerden biri yoksa diğeri gösterilir; kutu oranı güvenli aralığa sıkıştırılır
+    // ve görsel alanı yine Crop ile TAM kaplanır (bulanık dolgu/boşluk yok).
     val configuration = LocalConfiguration.current
     val screenHeightDp = configuration.screenHeightDp.toFloat()
     val isLandscapeScreen = configuration.screenWidthDp > configuration.screenHeightDp
@@ -187,7 +183,7 @@ fun KitsugiDetailHero(
             addAll(galleryHorizontalUrls)
         }.distinct()
     }
-    // Dikey adaylar yalnızca YEDEK: hiç yatay görsel yoksa bandın içinde kesilmeden gösterilir.
+    // Dikey adaylar: YATAY modda BİRİNCİL (uzun-dar poster kutusunu tam kaplar), dikey modda yedek.
     val tallArtworkCandidates = remember(nativePosterUrl, artwork, galleryVerticalUrls) {
         buildList {
             artwork?.posterCandidates?.let { addAll(it) }
@@ -195,8 +191,11 @@ fun KitsugiDetailHero(
             addAll(galleryVerticalUrls)
         }.distinct()
     }
-    val imagePlan = remember(wideArtworkCandidates, tallArtworkCandidates) {
-        (wideArtworkCandidates + tallArtworkCandidates).distinct()
+    // YÖN ⇄ GÖRSEL OTOMATİK EŞLEŞMESİ: yatay modda dikey poster birincil,
+    // dikey modda yatay arka plan birincil (çift sabit olduğu için eşleşme otomatiktir).
+    val imagePlan = remember(wideArtworkCandidates, tallArtworkCandidates, isLandscapeScreen) {
+        if (isLandscapeScreen) (tallArtworkCandidates + wideArtworkCandidates).distinct()
+        else (wideArtworkCandidates + tallArtworkCandidates).distinct()
     }
 
     var imageIndex by remember(imagePlan) { mutableIntStateOf(0) }
@@ -220,18 +219,18 @@ fun KitsugiDetailHero(
     BoxWithConstraints(
         modifier = Modifier.fillMaxWidth()
     ) {
-        // 16:9 SİNEMATİK BANT: görsel alanı panel genişliğinden türetilir (telefon, tablet,
-        // TV — dikey/yatay hepsi aynı oranı görür) ve ekran yüksekliğinin %62'sini geçmez.
-        //
-        // YATAY modda sol panel dar olduğu için 16:9 bant küçük kalıyordu (ekran
-        // görüntülerindeki "ufak vitrin" şikâyeti). Bu yüzden yatayda bant bir taban
-        // yüksekliğe (250dp) ve daha yüksek tavana (%72) kavuşur; görsel banttan
-        // belirgin saparsa KIRPILMAZ, "tam görünür + yumuşak dolgu" ile gösterilir.
-        val bannerCapDp = if (isLandscapeScreen) screenHeightDp * 0.72f else screenHeightDp * 0.62f
-        val bannerFloorDp = if (isLandscapeScreen) 250f else 0f
-        val bannerHeight = (maxWidth * DETAIL_HERO_BANNER_RATIO)
-            .coerceAtLeast(bannerFloorDp.dp)
-            .coerceAtMost(bannerCapDp.dp)
+        // GÖRSEL ALANININ ŞEKLİ: yönün varsayılan oranıyla başlar, görsel yüklenince
+        // GERÇEK en-boy oranına kilitlenir → kutu, gösterdiği görselle birebir aynı
+        // şekle gelir ve görsel (Crop ile) alanı TAM kaplar; kırpma/boşluk ≈ sıfır.
+        //  - YATAY mod → 2:3 DİKEY poster kutusu (uzun-dar).
+        //  - DİKEY mod → 16:9 YATAY arka plan bandı (geniş-kısa).
+        val defaultBoxAspect = if (isLandscapeScreen) 2f / 3f else 16f / 9f
+        val boxAspect = (loadedImageAspect ?: defaultBoxAspect).coerceIn(
+            minimumValue = if (isLandscapeScreen) 0.5f else 1.0f,
+            maximumValue = if (isLandscapeScreen) 1.6f else 2.2f
+        )
+        val bannerCapDp = if (isLandscapeScreen) screenHeightDp else screenHeightDp * 0.62f
+        val bannerHeight = (maxWidth / boxAspect).coerceAtMost(bannerCapDp.dp)
         val heroBoxHeight = bannerHeight + DETAIL_HERO_INFO_AREA_HEIGHT
 
         // 2. ADIM: asıl vitrin alanı (bant + alt bilgi alanı)
@@ -246,13 +245,8 @@ fun KitsugiDetailHero(
                 .height(bannerHeight)
                 .align(Alignment.TopCenter)
             val imageAreaAspect = if (bannerHeight.value > 0f) heroBoxWidthDp / bannerHeight.value else 1f
-            // Yatay görsel banttan belirgin farklı orandaysa KIRPMA yerine
-            // "tam görünür + yumuşak dolgu" kullanılır (sıkı eşik: en fazla ~%20 kırpma).
-            val useDualLayerContain = heroArtworkFit(
-                boxAspect = imageAreaAspect,
-                imageAspect = loadedImageAspect,
-                tolerance = HERO_BANNER_FIT_TOLERANCE
-            ) == HeroArtworkFit.CONTAIN_WITH_FILL
+            // Görsel alanı daima Crop ile TAM kaplanır; kutu oranı görselin gerçek
+            // oranına kilitlendiği için kırpma kaybı pratikte sıfırdır.
             val heroAlignment = heroImageAlignment(
                 chosenIsPoster = isVerticalArtwork,
                 heroAspect = imageAreaAspect,
@@ -269,43 +263,20 @@ fun KitsugiDetailHero(
                     if (imageIndex < imagePlan.lastIndex) imageIndex += 1
                 }
                 val onAspect: (Float) -> Unit = { ratio -> loadedImageAspect = ratio }
-                if (useDualLayerContain) {
-                    KitsugiNsfwImage(
-                        model = heroImageModel,
-                        contentDescription = null,
-                        isAdult = isAdult,
-                        blurAdultMedia = blurAdultMedia,
-                        modifier = imageAreaModifier.alpha(0.30f),
-                        contentScale = ContentScale.Crop,
-                        alignment = BiasAlignment(0f, -0.20f),
-                        highQuality = true
-                    )
-                    KitsugiNsfwImage(
-                        model = heroImageModel,
-                        contentDescription = title,
-                        isAdult = isAdult,
-                        blurAdultMedia = blurAdultMedia,
-                        modifier = imageModifier,
-                        contentScale = ContentScale.Fit,
-                        alignment = Alignment.Center,
-                        onLoadingFailed = onFailed,
-                        onImageAspectResolved = onAspect,
-                        highQuality = true
-                    )
-                } else {
-                    KitsugiNsfwImage(
-                        model = heroImageModel,
-                        contentDescription = title,
-                        isAdult = isAdult,
-                        blurAdultMedia = blurAdultMedia,
-                        modifier = imageModifier,
-                        contentScale = ContentScale.Crop,
-                        alignment = heroAlignment,
-                        onLoadingFailed = onFailed,
-                        onImageAspectResolved = onAspect,
-                        highQuality = true
-                    )
-                }
+                // TEK KATMAN, TAM KAPSAMA: görsel alanı hiçbir modda boşluk/bulanık
+                // dolgu bırakmaz; kutu oranı görsele uyduğu için kırpma da ≈ sıfırdır.
+                KitsugiNsfwImage(
+                    model = heroImageModel,
+                    contentDescription = title,
+                    isAdult = isAdult,
+                    blurAdultMedia = blurAdultMedia,
+                    modifier = imageModifier,
+                    contentScale = ContentScale.Crop,
+                    alignment = heroAlignment,
+                    onLoadingFailed = onFailed,
+                    onImageAspectResolved = onAspect,
+                    highQuality = true
+                )
             } else {
                 Box(
                     modifier = imageAreaModifier
@@ -632,17 +603,6 @@ private fun MetadataIconText(
         )
     }
 }
-
-/**
- * Vitrinin 16:9 sinematik bant (görsel alanı) yüksekliğinin genişliğe oranı.
- * Görsel alanı = panel genişliği * 9/16 → yatay kapak görselleri kırpılmadan görünür.
- */
-
-/**
- * Yatay modda kullanılan sinematik bant oranı (9:16 → 16:9 bandın yükseklik çarpanı).
- * Bant tam 16:9 olduğu için TMDB/Fanart yatay kapakları **hiç kırpılmadan** görünür.
- */
-internal const val DETAIL_HERO_BANNER_RATIO = 9f / 16f
 
 /**
  * Yatay modda 16:9 bandın altında başlık/logo, meta satırları ve rozetler için ayrılan alan.
