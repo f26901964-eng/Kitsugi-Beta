@@ -6,6 +6,7 @@ import com.kitsugi.animelist.ui.theme.gradient.background
 import com.kitsugi.animelist.ui.theme.gradient.border
 import com.kitsugi.animelist.ui.utils.tvClickable
 import com.kitsugi.animelist.ui.components.heroImageAlignment
+import com.kitsugi.animelist.data.remote.GalleryCategory
 import com.kitsugi.animelist.data.remote.GalleryItem
 import com.kitsugi.animelist.data.remote.KitsugiHeroArtworkResolver
 import androidx.compose.foundation.layout.Arrangement

@@ -1,5 +1,31 @@
 # Kitsugi-Beta — Sürüm Notları / Release Notes
 
+## 🇹🇷 Türkçe (v2.4.259)
+
+### 🖼️ 1. Detay Vitrini: 220dp Sabit Boşluk Kaldırıldı
+- Vitrinin altındaki sabit 220dp boş alan kaldırıldı; başlık, meta bilgileri ve rozetler doğrudan görselin alt bölümüne bindirildi (overlay).
+
+### 🔍 2. Vitrin Görseli Tıklaması ve Galeri Eşleşmesi
+- Vitrindeki görsele dokunulduğunda kaynak posteri yerine ekranda o anda gösterilen gerçek görsel (backdrop/poster) galeriye aktarılır.
+- Galeri henüz yükleniyor olsa bile tıklanan görsel listenin başına eklenerek beklemeden açılır.
+- TMDB, Kitsu, Bangumi, AniList, MAL ve Shikimori CDN çözünürlük ve boyut varyantları (`w500` vs `original`, `medium` vs `large`) aynı görsel olarak eşleştirilir.
+- `DetailHeroGallerySelectionTest` ile 4 birim test eklendi.
+
+---
+
+## 🇬🇧 English (v2.4.259)
+
+### 🖼️ 1. Detail Hero: 220dp Blank Gap Removed
+- Removed the hardcoded 220dp blank spacing below the hero visual; titles, metadata, and badges are now cleanly overlaid onto the bottom of the visual.
+
+### 🔍 2. Hero Visual Click & Gallery Synchronization
+- Tapping the hero visual now opens the exact artwork rendered on screen in the gallery rather than the upstream source poster.
+- Clicks open instantly even if the gallery is still loading.
+- TMDB, Kitsu, Bangumi, AniList, MAL, and Shikimori CDN quality and size variants are canonicalized and accurately matched.
+- 4 unit tests added in `DetailHeroGallerySelectionTest`.
+
+---
+
 ## 🇹🇷 Türkçe (v2.4.258)
 
 ### 🐙 1. Bangumi: "Listeye hiçbir şey ekleyemiyorum" — Hata Artık Görünür ve Ölçülebilir
