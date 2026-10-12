@@ -42,7 +42,7 @@ object MalWebSource {
 
     private val RESERVED = setOf("recentlyonline", "userbyid")
     private val USER_PATH = Regex(
-        """^users/([A-Za-z0-9_\-]{2,32})(?:/(full|statistics|favorites|about|userupdates|friends|history))?/?$"""
+        """^users/([A-Za-z0-9_\-]{2,32})(?:/(full|statistics|favorites|about|userupdates|friends|history|reviews|recommendations|clubs|statistics/anime|statistics/manga))?/?$"""
     )
 
     private class Target(val username: String, val endpoint: String, val query: Map<String, String>)
@@ -127,6 +127,53 @@ object MalWebSource {
                 }
                 val items = MalWebParser.parseHistory(html) ?: return unexpectedPage(path)
                 JikanResult.Ok(MalWebJson.history(items).toString())
+            }
+            "reviews" -> {
+                val pageNo = target.query["page"]?.toIntOrNull()?.coerceAtLeast(1) ?: 1
+                val path = if (pageNo > 1) "/profile/$u/reviews?p=$pageNo" else "/profile/$u/reviews"
+                val html = when (val r = page(path)) {
+                    is PageResult.Html -> r.html
+                    is PageResult.Error -> return r.result
+                }
+                val reviews = MalWebParser.parseReviews(html) ?: return unexpectedPage(path)
+                JikanResult.Ok(MalWebJson.reviews(reviews, pageNo).toString())
+            }
+            "recommendations" -> {
+                val pageNo = target.query["page"]?.toIntOrNull()?.coerceAtLeast(1) ?: 1
+                val path = if (pageNo > 1) "/profile/$u/recommendations?p=$pageNo" else "/profile/$u/recommendations"
+                val html = when (val r = page(path)) {
+                    is PageResult.Html -> r.html
+                    is PageResult.Error -> return r.result
+                }
+                val recs = MalWebParser.parseRecommendations(html) ?: return unexpectedPage(path)
+                JikanResult.Ok(MalWebJson.recommendations(recs, pageNo).toString())
+            }
+            "clubs" -> {
+                val path = "/profile/$u/clubs"
+                val html = when (val r = page(path)) {
+                    is PageResult.Html -> r.html
+                    is PageResult.Error -> return r.result
+                }
+                val clubs = MalWebParser.parseClubs(html) ?: return unexpectedPage(path)
+                JikanResult.Ok(MalWebJson.clubs(clubs).toString())
+            }
+            "statistics/anime" -> {
+                val path = "/profile/$u/statistics/anime"
+                val html = when (val r = page(path)) {
+                    is PageResult.Html -> r.html
+                    is PageResult.Error -> return r.result
+                }
+                val stats = MalWebParser.parseDetailedStatistics(html, isAnime = true) ?: return unexpectedPage(path)
+                JikanResult.Ok(MalWebJson.detailedAnimeStats(stats).toString())
+            }
+            "statistics/manga" -> {
+                val path = "/profile/$u/statistics/manga"
+                val html = when (val r = page(path)) {
+                    is PageResult.Html -> r.html
+                    is PageResult.Error -> return r.result
+                }
+                val stats = MalWebParser.parseDetailedStatistics(html, isAnime = false) ?: return unexpectedPage(path)
+                JikanResult.Ok(MalWebJson.detailedMangaStats(stats).toString())
             }
             else -> JikanResult.Failed(0, "unsupported")
         }

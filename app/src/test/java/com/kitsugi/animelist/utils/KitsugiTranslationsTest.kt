@@ -69,7 +69,7 @@ class KitsugiTranslationsTest {
         // Eşleşen Latin etiket sözlükteki biçime normalize edilir
         assertEquals("CLANNAD", "Clannad".toTurkishBangumiTag())
         // Sözlükte olmayan Latin etiketler olduğu gibi kalır
-        assertEquals("~After-Story~", "~After-Story~".toTurkishBangumiTag())
+        assertEquals("~Unknown-Tag~", "~Unknown-Tag~".toTurkishBangumiTag())
     }
 
     @Test

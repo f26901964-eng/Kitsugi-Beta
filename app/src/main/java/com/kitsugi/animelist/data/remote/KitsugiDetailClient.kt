@@ -186,6 +186,8 @@ class KitsugiDetailClient {
 
                 "simkl" -> KitsugiSimklDetailClient.fetchSimklDetailDirect(externalId, mediaType)?.synopsis
 
+                "tmdb" -> TmdbApiClient().fetchMediaDetail(externalId, mediaType == MediaType.Movie)?.synopsis
+
                 "bangumi" -> KitsugiBangumiDetailClient.fetchDetail(externalId, mediaType)?.synopsis
 
                 "kitsu" -> {

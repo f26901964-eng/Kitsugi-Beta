@@ -40,6 +40,7 @@ import com.kitsugi.animelist.ui.theme.LocalKitsugiAccent
 import com.kitsugi.animelist.ui.theme.KitsugiColors
 import com.kitsugi.animelist.utils.KitsugiTranslateUtils.openTranslator
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.first
 import androidx.compose.ui.res.stringResource
 import com.kitsugi.animelist.R
 import com.kitsugi.animelist.utils.KitsugiStrings
@@ -77,6 +78,12 @@ fun KitsugiActivityDetailBottomSheet(
     // Load activity details & replies
     LaunchedEffect(activityId) {
         isLoading = true
+        val autoTranslate = runCatching {
+            com.kitsugi.animelist.data.settings.SettingsDataStore(context).settingsFlow.first().autoTranslateEnabled
+        }.getOrDefault(false)
+        if (autoTranslate) {
+            selectedLanguage = "turkish"
+        }
         activityDetails = apiClient.fetchActivityReplies(activityId)
         isLoading = false
     }
@@ -85,17 +92,19 @@ fun KitsugiActivityDetailBottomSheet(
     LaunchedEffect(selectedLanguage, activityDetails) {
         if (selectedLanguage == "turkish" && activityDetails != null) {
             val act = activityDetails!!
-            if (act.mediaTitle == null && translatedText == null) {
+            if (act.mediaTitle == null && translatedText == null && act.text.isNotBlank()) {
                 coroutineScope.launch {
-                    val tr = translationManager.translateToTarget(act.text)
-                    if (tr.isNotBlank()) translatedText = tr
+                    val tr = translationManager.translateToTarget(act.text) { partial ->
+                        if (partial.isNotBlank()) translatedText = partial
+                    }
+                    if (tr.isNotBlank() && tr != act.text.trim()) translatedText = tr
                 }
             }
             act.replies.forEach { reply ->
-                if (!translatedReplies.containsKey(reply.id)) {
+                if (!translatedReplies.containsKey(reply.id) && reply.text.isNotBlank()) {
                     coroutineScope.launch {
                         val tr = translationManager.translateToTarget(reply.text)
-                        if (tr.isNotBlank()) {
+                        if (tr.isNotBlank() && tr != reply.text.trim()) {
                             translatedReplies[reply.id] = tr
                         }
                     }

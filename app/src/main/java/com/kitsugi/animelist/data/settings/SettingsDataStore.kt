@@ -468,7 +468,9 @@ class SettingsDataStore(
                     autoTranslateEnabled = preferences[Keys.AutoTranslateEnabled] ?: false,
                     preferredTranslator = preferences[Keys.PreferredTranslator] ?: "DEFAULT",
                     translateSourceLanguage = preferences[Keys.TranslateSourceLanguage] ?: "auto",
-                    translateTargetLanguage = preferences[Keys.TranslateTargetLanguage] ?: defaultTranslateTarget(),
+                    translateTargetLanguage = preferences[Keys.TranslateTargetLanguage]
+                        ?.takeIf { it.isNotBlank() }
+                        ?: defaultTranslateTarget(preferences[Keys.AppLanguage]),
                     selectedHomeLayoutId = preferences[Keys.SelectedHomeLayoutId] ?: "classic",
                     frameRateMatchingMode = runCatching {
                         com.kitsugi.animelist.data.settings.FrameRateMatchingMode.valueOf(
@@ -622,12 +624,12 @@ class SettingsDataStore(
      * Kullanıcı hiç hedef dil seçmediyse çeviri hedefi uygulamanın aktif dilidir —
      * böylece çeviri tek bir dile (Türkçe) kilitlenmez, tüm dilleri destekler.
      */
-    private fun defaultTranslateTarget(): String {
-        val tag = com.kitsugi.animelist.LocaleCache.localeTag
-        if (tag != com.kitsugi.animelist.LocaleCache.UNSET && tag.isNotBlank()) {
-            return tag.substringBefore('-')
-        }
-        return java.util.Locale.getDefault().language.ifBlank { "tr" }
+    private fun defaultTranslateTarget(appLanguage: String? = null): String {
+        val tag = appLanguage?.takeIf { it.isNotBlank() && it != "system" }
+            ?: com.kitsugi.animelist.LocaleCache.localeTag.takeIf {
+                it != com.kitsugi.animelist.LocaleCache.UNSET && it.isNotBlank()
+            }
+        return tag?.substringBefore('-')?.ifBlank { "tr" } ?: "tr"
     }
 
     suspend fun setCustomImageDownloadUri(uri: String) {

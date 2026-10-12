@@ -2156,7 +2156,34 @@ data class MalProfileState(
     /** Profil sayfasındaki "Last Anime/Manga Updates" (kapak, durum, ilerleme, puan, tarih). */
     val recentUpdates: List<MalActivityEntry> = emptyList(),
     /** /history sayfası: bölüm bölüm izleme/okuma geçmişi. */
-    val history: List<MalActivityEntry> = emptyList()
+    val history: List<MalActivityEntry> = emptyList(),
+    // ── Yeni: Banner desteği ──
+    val bannerUrl: String? = null,
+    // ── Yeni: Detaylı istatistikler ──
+    val animeScoreDistribution: List<ScoreStatItem> = emptyList(),
+    val mangaScoreDistribution: List<ScoreStatItem> = emptyList(),
+    val animeTypeDistribution: List<FormatStatItem> = emptyList(),
+    val mangaTypeDistribution: List<FormatStatItem> = emptyList(),
+    val animeGenreStats: List<RankedStatItem> = emptyList(),
+    val mangaGenreStats: List<RankedStatItem> = emptyList(),
+    val animeStudioStats: List<RankedStatItem> = emptyList(),
+    val mangaStudioStats: List<RankedStatItem> = emptyList(),
+    val animeVoiceActorStats: List<RankedStatItem> = emptyList(),
+    // ── Yeni: İncelemeler, Öneriler, Kulüpler ──
+    val reviews: List<MalReview> = emptyList(),
+    val recommendations: List<MalRecommendation> = emptyList(),
+    val clubs: List<MalClub> = emptyList(),
+    // ── Yeni: Favori sayfalama ──
+    val favAnimePage: Int = 1,
+    val favAnimeHasNext: Boolean = false,
+    val favMangaPage: Int = 1,
+    val favMangaHasNext: Boolean = false,
+    val favCharPage: Int = 1,
+    val favCharHasNext: Boolean = false,
+    val favStaffPage: Int = 1,
+    val favStaffHasNext: Boolean = false,
+    // ── Yeni: İstatistik alt sekmeleri ──
+    val statsSubTab: Int = 0  // 0: Genel, 1: Türler, 2: Stüdyolar, 3: Seslendirme
 )
 
 /** MAL aktivite satırı (son güncelleme veya geçmiş kaydı). */
@@ -2171,6 +2198,41 @@ data class MalActivityEntry(
     val total: Int?,
     val score: Int,
     val dateIso: String?
+)
+
+// ── Yeni: İnceleme, Öneri, Kulüp modelleri ──────────────────────────────
+
+data class MalReview(
+    val reviewId: Int,
+    val malId: Int,
+    val kind: String, // "anime" veya "manga"
+    val title: String,
+    val url: String,
+    val imageUrl: String?,
+    val score: Int,
+    val helpfulCount: Int,
+    val dateIso: String?,
+    val textPreview: String
+)
+
+data class MalRecommendation(
+    val recommendationId: Int,
+    val malId: Int,
+    val kind: String,
+    val title: String,
+    val url: String,
+    val imageUrl: String?,
+    val recommendationText: String,
+    val dateIso: String?
+)
+
+data class MalClub(
+    val clubId: Int,
+    val name: String,
+    val url: String,
+    val imageUrl: String?,
+    val memberCount: Int,
+    val category: String?
 )
 
 data class SimklProfileState(

@@ -61,27 +61,101 @@ class StaffDetailViewModel(application: Application) : AndroidViewModel(applicat
     private var lastStaffId: Int = 0
     private var lastSource: String = ""
     private var lastStaffName: String? = null
+    private var bioTranslateJob: kotlinx.coroutines.Job? = null
+    private var lastAutoTranslateSetting: Boolean? = null
+    private var lastTargetLangSetting: String? = null
 
-    fun translateBio() {
-        val detail = (_state.value as? StaffDetailState.Success)?.detail ?: return
-        val bio = detail.biography ?: return
+    private fun staffCacheIdentity(name: String?): String? =
+        name?.trim()?.lowercase()?.takeIf { it.isNotEmpty() }
+
+    init {
         viewModelScope.launch {
-            val tr = withContext(Dispatchers.IO) {
-                // Uzun biyografilerde çeviri parça parça akıtılır: çevrilen kısım
-                // anında ekrana gelir, kalanı arka planda sırayla çevrilir.
-                translationManager.translateToTarget(bio) { partial ->
-                    _translatedBio.value = partial
+            settingsDataStore.settingsFlow.collect { settings ->
+                val prevAuto = lastAutoTranslateSetting
+                val prevTarget = lastTargetLangSetting
+                lastAutoTranslateSetting = settings.autoTranslateEnabled
+                lastTargetLangSetting = settings.translateTargetLanguage
+                if (prevAuto == null && prevTarget == null) return@collect
+                if (prevAuto != settings.autoTranslateEnabled || prevTarget != settings.translateTargetLanguage) {
+                    val detail = (_state.value as? StaffDetailState.Success)?.detail ?: return@collect
+                    val bio = detail.biography ?: return@collect
+                    val expectedKey = currentFetchKey ?: return@collect
+                    val isRussian = bio.any { it in '\u0400'..'\u04FF' }
+                    if (settings.autoTranslateEnabled || isRussian) {
+                        triggerBioTranslationIfNeeded(
+                            bio = bio,
+                            source = lastSource,
+                            staffId = lastStaffId,
+                            name = lastStaffName ?: detail.name,
+                            expectedFetchKey = expectedKey,
+                            forceRetranslate = prevTarget != settings.translateTargetLanguage
+                        )
+                    } else {
+                        bioTranslateJob?.cancel()
+                        _translatedBio.value = null
+                    }
                 }
             }
-            if (tr.isNotBlank() && tr != bio) {
-                DetailCache.putTranslation("bio_staff", lastSource, detail.id, tr)
+        }
+    }
+
+    private fun triggerBioTranslationIfNeeded(
+        bio: String?,
+        source: String,
+        staffId: Int,
+        name: String?,
+        expectedFetchKey: String?,
+        forceRetranslate: Boolean = false
+    ) {
+        if (bio.isNullOrBlank()) return
+        val identity = staffCacheIdentity(name)
+        if (!forceRetranslate) {
+            val cachedTranslation = DetailCache.getTranslation("bio_staff", source, staffId, identity)
+                ?: DetailCache.getTranslation("bio_staff", source, staffId)
+            if (!cachedTranslation.isNullOrBlank()) {
+                _translatedBio.value = cachedTranslation
+                return
+            }
+        }
+
+        bioTranslateJob?.cancel()
+        bioTranslateJob = viewModelScope.launch {
+            val autoTranslate = runCatching { settingsDataStore.settingsFlow.first().autoTranslateEnabled }.getOrDefault(false)
+            val isRussian = bio.any { it in '\u0400'..'\u04FF' }
+            if (!autoTranslate && !isRussian && !forceRetranslate) return@launch
+
+            val tr = withContext(Dispatchers.IO) {
+                translationManager.translateToTarget(bio) { partial ->
+                    if (currentFetchKey == expectedFetchKey && partial.isNotBlank()) {
+                        _translatedBio.value = partial
+                    }
+                }
+            }
+            if (currentFetchKey == expectedFetchKey && tr.isNotBlank()) {
+                if (tr != bio) {
+                    DetailCache.putTranslation("bio_staff", source, staffId, tr, identity)
+                    DetailCache.putTranslation("bio_staff", source, staffId, tr)
+                }
                 _translatedBio.value = tr
             }
         }
     }
 
+    fun translateBio() {
+        val detail = (_state.value as? StaffDetailState.Success)?.detail ?: return
+        val bio = detail.biography ?: return
+        triggerBioTranslationIfNeeded(
+            bio = bio,
+            source = lastSource,
+            staffId = lastStaffId,
+            name = lastStaffName ?: detail.name,
+            expectedFetchKey = currentFetchKey,
+            forceRetranslate = true
+        )
+    }
+
     fun loadStaff(staffId: Int, source: String, name: String? = null) {
-        val newKey = "$source:$staffId"
+        val newKey = "$source:$staffId:${staffCacheIdentity(name).orEmpty()}"
         if (newKey == currentFetchKey) {
             Log.d(TAG, "loadStaff: Cache hit for key=$newKey — skipping")
             return
@@ -89,12 +163,15 @@ class StaffDetailViewModel(application: Application) : AndroidViewModel(applicat
 
         Log.d(TAG, "loadStaff: New key=$newKey (was $currentFetchKey)")
         currentFetchKey = newKey
+        bioTranslateJob?.cancel()
         lastStaffId = staffId
         lastSource = source
         lastStaffName = name
 
+        val identity = staffCacheIdentity(name)
         val cachedStaffDetail = DetailCache.getStaffDetail(source, staffId)
-        val cachedBioTranslation = DetailCache.getTranslation("bio_staff", source, staffId)
+        val cachedBioTranslation = DetailCache.getTranslation("bio_staff", source, staffId, identity)
+            ?: DetailCache.getTranslation("bio_staff", source, staffId)
 
         _state.value = if (cachedStaffDetail != null) StaffDetailState.Success(cachedStaffDetail) else StaffDetailState.Loading
         _translatedBio.value = cachedBioTranslation
@@ -145,8 +222,12 @@ class StaffDetailViewModel(application: Application) : AndroidViewModel(applicat
     }
 
     private suspend fun fetchStaffDetailInternal(staffId: Int, source: String, name: String? = null, force: Boolean = false) {
+        val expectedFetchKey = currentFetchKey
+        val identity = staffCacheIdentity(name)
         if (force) {
             DetailCache.removeStaffDetail(source, staffId)
+            DetailCache.removeTranslation("bio_staff", source, staffId, identity)
+            DetailCache.removeTranslation("bio_staff", source, staffId)
         }
         val cached = DetailCache.getStaffDetail(source, staffId)
         val detail = if (cached != null && !force) {
@@ -170,10 +251,22 @@ class StaffDetailViewModel(application: Application) : AndroidViewModel(applicat
             }.getOrNull()
         }
 
+        if (currentFetchKey != expectedFetchKey) return
         if (detail != null) {
             DetailCache.putStaffDetail(source, staffId, detail)
             _state.value = StaffDetailState.Success(detail)
             _isFavourite.value = detail.isFavourite
+
+            // Biyografi çevirisini galeri ve ek ağ çağrılarını beklemeden HEMEN başlat!
+            triggerBioTranslationIfNeeded(
+                bio = detail.biography,
+                source = source,
+                staffId = staffId,
+                name = name ?: detail.name,
+                expectedFetchKey = expectedFetchKey,
+                forceRetranslate = force
+            )
+
             if (isBangumiSource(source)) {
                 refreshBangumiFavourite(detail.id)
                 warmBangumiStaffTitles(detail)
@@ -181,27 +274,6 @@ class StaffDetailViewModel(application: Application) : AndroidViewModel(applicat
 
             // Build gallery from imageUrl + Jikan /people pictures
             buildStaffGallery(staffId, source, detail.imageUrl)
-
-            // Otomatik çeviri açıksa veya metin Rusça ise biyografiyi çevir (zaten Türkçeyse TranslationManager atlar)
-            val bio = detail.biography
-            val autoTranslate = runCatching { settingsDataStore.settingsFlow.first() }.getOrNull()?.autoTranslateEnabled ?: false
-            val isRussian = bio?.any { it in '\u0400'..'\u04FF' } == true
-            val cachedTranslation = DetailCache.getTranslation("bio_staff", source, staffId)
-            if (cachedTranslation != null && !force) {
-                _translatedBio.value = cachedTranslation
-            } else if (!bio.isNullOrBlank() && (autoTranslate || isRussian)) {
-                val tr = withContext(Dispatchers.IO) {
-                    // Uzun biyografilerde çeviri parça parça akıtılır: çevrilen kısım
-                    // anında ekrana gelir, kalanı arka planda sırayla çevrilir.
-                    translationManager.translateToTarget(bio) { partial ->
-                        _translatedBio.value = partial
-                    }
-                }
-                if (tr != bio) {
-                    DetailCache.putTranslation("bio_staff", source, staffId, tr)
-                    _translatedBio.value = tr
-                }
-            }
         } else if (_state.value !is StaffDetailState.Success) {
             _state.value = StaffDetailState.Error(KitsugiStrings.get(R.string.ekip_uyesi_detaylari_yuklenemedi))
         }

@@ -43,6 +43,7 @@ import com.kitsugi.animelist.data.remote.JikanApiClient
 import com.kitsugi.animelist.ui.theme.LocalKitsugiAccent
 import com.kitsugi.animelist.ui.theme.KitsugiColors
 import com.kitsugi.animelist.utils.KitsugiTranslateUtils.openTranslator
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
 import androidx.compose.foundation.clickable
@@ -112,11 +113,25 @@ fun KitsugiReviewDetailBottomSheet(
         }
     }
 
-    LaunchedEffect(selectedLanguage) {
+    LaunchedEffect(review.id) {
+        val autoTranslate = runCatching {
+            com.kitsugi.animelist.data.settings.SettingsDataStore(context).settingsFlow.first().autoTranslateEnabled
+        }.getOrDefault(false)
+        if (autoTranslate) {
+            selectedLanguage = "turkish"
+        }
+    }
+
+    LaunchedEffect(selectedLanguage, review.fullText) {
         if (selectedLanguage == "turkish" && translatedText == null) {
             isTranslating = true
-            val tr = translationManager.translateToTarget(review.fullText)
-            if (tr.isNotBlank()) {
+            val tr = translationManager.translateToTarget(review.fullText) { partial ->
+                if (partial.isNotBlank()) {
+                    translatedText = partial
+                    isTranslating = false
+                }
+            }
+            if (tr.isNotBlank() && tr != review.fullText.trim()) {
                 translatedText = tr
             }
             isTranslating = false

@@ -1487,16 +1487,29 @@ object KitsugiShikimoriClient {
         val result = java.util.concurrent.ConcurrentHashMap<String, String>()
         runCatching {
             withTimeoutOrNull(budgetMs) {
-                coroutineScope {
-                    targets.chunked(SHIKI_NAME_TRANSLATE_CONCURRENCY).forEach { chunk ->
-                        chunk.map { name ->
-                            async(Dispatchers.IO) {
-                                val translated = runCatching {
-                                    translationManager.translateTo(name, "auto", targetLang)
-                                }.getOrNull()
-                                if (!translated.isNullOrBlank()) result[name] = translated
+                targets.chunked(12).forEach { batch ->
+                    val joined = batch.joinToString("\n")
+                    val batchTranslated = runCatching {
+                        translationManager.translateTo(joined, "auto", targetLang)
+                    }.getOrNull()
+                    val lines = batchTranslated?.split("\n")?.map { it.trim() }.orEmpty()
+                    if (lines.size == batch.size && lines.all { it.isNotBlank() }) {
+                        batch.forEachIndexed { idx, orig ->
+                            result[orig] = lines[idx]
+                        }
+                    } else {
+                        coroutineScope {
+                            batch.chunked(SHIKI_NAME_TRANSLATE_CONCURRENCY).forEach { chunk ->
+                                chunk.map { name ->
+                                    async(Dispatchers.IO) {
+                                        val translated = runCatching {
+                                            translationManager.translateTo(name, "auto", targetLang)
+                                        }.getOrNull()
+                                        if (!translated.isNullOrBlank()) result[name] = translated
+                                    }
+                                }.forEach { it.await() }
                             }
-                        }.forEach { it.await() }
+                        }
                     }
                 }
             }

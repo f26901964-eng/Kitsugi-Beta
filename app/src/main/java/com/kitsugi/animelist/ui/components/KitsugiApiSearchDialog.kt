@@ -43,6 +43,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
+import kotlinx.coroutines.flow.first
 import com.kitsugi.animelist.data.remote.ApiSearchSelection
 import com.kitsugi.animelist.data.remote.JikanApiClient
 import com.kitsugi.animelist.data.remote.JikanSearchResult
@@ -659,6 +660,7 @@ private fun ApiResultPreviewDialog(
 ) {
     val isTvDevice = com.kitsugi.animelist.ui.theme.LocalIsTvDevice.current
     val accentColor = LocalKitsugiAccent.current
+    val previewContext = androidx.compose.ui.platform.LocalContext.current.applicationContext
 
     var synopsisState by remember(result.source, result.malId, result.type) {
         mutableStateOf<PreviewSynopsisState>(PreviewSynopsisState.Loading)
@@ -673,10 +675,22 @@ private fun ApiResultPreviewDialog(
             mediaType = result.type
         )
 
-        synopsisState = if (synopsis.isNullOrBlank()) {
-            PreviewSynopsisState.Error
+        if (synopsis.isNullOrBlank()) {
+            synopsisState = PreviewSynopsisState.Error
         } else {
-            PreviewSynopsisState.Success(synopsis)
+            synopsisState = PreviewSynopsisState.Success(synopsis)
+            val autoTranslate = runCatching {
+                com.kitsugi.animelist.data.settings.SettingsDataStore(previewContext).settingsFlow.first().autoTranslateEnabled
+            }.getOrDefault(false)
+            val isRussian = synopsis.any { it in '\u0400'..'\u04FF' }
+            if (autoTranslate || isRussian) {
+                val tr = com.kitsugi.animelist.data.local.TranslationManager(previewContext).translateToTarget(synopsis) { partial ->
+                    if (partial.isNotBlank()) synopsisState = PreviewSynopsisState.Success(partial)
+                }
+                if (tr.isNotBlank()) {
+                    synopsisState = PreviewSynopsisState.Success(tr)
+                }
+            }
         }
     }
 

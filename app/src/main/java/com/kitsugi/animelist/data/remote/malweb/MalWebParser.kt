@@ -137,6 +137,61 @@ object MalWebParser {
         val dateIso: String?
     )
 
+    // ── Detaylı İstatistik Modelleri ─────────────────────────────────────────
+
+    data class ScoreBucket(val score: Int, val count: Int, val percentage: Double = 0.0)
+    data class TypeBucket(val type: String, val count: Int, val percentage: Double = 0.0)
+    data class StatusBucket(val status: String, val count: Int, val percentage: Double = 0.0)
+    data class GenreStat(val genreId: Int, val name: String, val count: Int, val meanScore: Double = 0.0)
+    data class StudioStat(val studioId: Int, val name: String, val count: Int, val meanScore: Double = 0.0)
+    data class VoiceActorStat(val vaId: Int, val name: String, val count: Int, val meanScore: Double = 0.0)
+    data class RatingBucket(val rating: String, val count: Int, val percentage: Double = 0.0)
+
+    data class DetailedStats(
+        val scoreDistribution: List<ScoreBucket> = emptyList(),
+        val typeDistribution: List<TypeBucket> = emptyList(),
+        val statusDistribution: List<StatusBucket> = emptyList(),
+        val ratingDistribution: List<RatingBucket> = emptyList(),
+        val genreStats: List<GenreStat> = emptyList(),
+        val studioStats: List<StudioStat> = emptyList(),
+        val voiceActorStats: List<VoiceActorStat> = emptyList()
+    )
+
+    // ── İncelemeler, Öneriler, Kulüpler ──────────────────────────────────────
+
+    data class Review(
+        val reviewId: Int,
+        val malId: Int,
+        val kind: String,
+        val title: String,
+        val url: String,
+        val image: Images,
+        val score: Int,
+        val helpfulCount: Int,
+        val dateIso: String?,
+        val textPreview: String
+    )
+
+    data class Recommendation(
+        val recommendationId: Int,
+        val malId: Int,
+        val kind: String,
+        val title: String,
+        val url: String,
+        val image: Images,
+        val recommendationText: String,
+        val dateIso: String?
+    )
+
+    data class Club(
+        val clubId: Int,
+        val name: String,
+        val url: String,
+        val image: Images,
+        val memberCount: Int,
+        val category: String?
+    )
+
     // ── Profil ──────────────────────────────────────────────────────────────
 
     /**
@@ -401,6 +456,280 @@ object MalWebParser {
             )
         }
         return items
+    }
+
+    // ── Detaylı İstatistikler ────────────────────────────────────────────
+
+    /**
+     * `/profile/{username}/statistics/anime` veya `/profile/{username}/statistics/manga`
+     * sayfasından detaylı istatistikleri ayrıştırır.
+     *
+     * Puan dağılımı: `.stats-graph .score-stats li` veya `#statistics-anime-score .stats-graph`
+     * Format dağılımı: `#statistics-anime-type .stats-graph`
+     * Tür istatistikleri: `#statistics-anime-genre table` veya `.stats-genre`
+     * Stüdyo istatistikleri: `#statistics-anime-studio table` veya `.stats-studio`
+     * Seslendirme: `#statistics-anime-voice_actor table` veya `.stats-voice_actor`
+     */
+    fun parseDetailedStatistics(html: String, isAnime: Boolean): DetailedStats? {
+        val doc = Jsoup.parse(html, MAL_BASE)
+        // Sayfa bir istatistik sayfası mı kontrol et
+        if (!doc.title().contains("Statistics", ignoreCase = true) &&
+            doc.selectFirst(".statistics") == null) return null
+
+        val prefix = if (isAnime) "anime" else "manga"
+
+        // ── Puan dağılımı ────────────────────────────────────────────────────
+        val scoreBuckets = mutableListOf<ScoreBucket>()
+        val scoreBox = doc.selectFirst("#statistics-${prefix}-score .stats-graph, .stats-graph.score-stats")
+        if (scoreBox != null) {
+            scoreBox.select("li, .bar, tr").forEach { item ->
+                val scoreText = item.selectFirst(".score, .label, td:first-child")?.text()?.trim()
+                val countText = item.selectFirst(".count, .value, td:nth-child(2)")?.text()?.trim()
+                val percentText = item.selectFirst(".percentage, td:nth-child(3)")?.text()?.trim()
+                val score = scoreText?.replace(Regex("[^0-9]"), "")?.toIntOrNull() ?: return@forEach
+                val count = countText?.replace(",", "")?.toIntOrNull() ?: 0
+                val percent = percentText?.replace(Regex("[^0-9.]"), "")?.toDoubleOrNull() ?: 0.0
+                scoreBuckets += ScoreBucket(score, count, percent)
+            }
+        }
+        // Alternatif: grafik bar'larından oku
+        if (scoreBuckets.isEmpty()) {
+            for (i in 1..10) {
+                val bar = doc.selectFirst("#score_$i, .score-$i, [data-score='$i']")
+                if (bar != null) {
+                    val count = bar.attr("data-count").toIntOrNull()
+                        ?: bar.selectFirst(".count")?.text()?.replace(",", "")?.toIntOrNull() ?: 0
+                    val percent = bar.attr("data-percentage").toDoubleOrNull()
+                        ?: bar.selectFirst(".percentage")?.text()?.replace(Regex("[^0-9.]"), "")?.toDoubleOrNull() ?: 0.0
+                    scoreBuckets += ScoreBucket(i, count, percent)
+                }
+            }
+        }
+
+        // ── Format dağılımı ──────────────────────────────────────────────────
+        val typeBuckets = mutableListOf<TypeBucket>()
+        val typeBox = doc.selectFirst("#statistics-${prefix}-type .stats-graph, .stats-graph.type-stats")
+        if (typeBox != null) {
+            typeBox.select("li, .bar, tr").forEach { item ->
+                val typeText = item.selectFirst(".label, td:first-child")?.text()?.trim() ?: return@forEach
+                val countText = item.selectFirst(".count, .value, td:nth-child(2)")?.text()?.trim()
+                val count = countText?.replace(",", "")?.toIntOrNull() ?: 0
+                val percentText = item.selectFirst(".percentage, td:nth-child(3)")?.text()?.trim()
+                val percent = percentText?.replace(Regex("[^0-9.]"), "")?.toDoubleOrNull() ?: 0.0
+                typeBuckets += TypeBucket(typeText, count, percent)
+            }
+        }
+
+        // ── Durum dağılımı ───────────────────────────────────────────────────
+        val statusBuckets = mutableListOf<StatusBucket>()
+        val statusBox = doc.selectFirst("#statistics-${prefix}-status .stats-graph, .stats-graph.status-stats")
+        if (statusBox != null) {
+            statusBox.select("li, .bar, tr").forEach { item ->
+                val statusText = item.selectFirst(".label, td:first-child")?.text()?.trim() ?: return@forEach
+                val countText = item.selectFirst(".count, .value, td:nth-child(2)")?.text()?.trim()
+                val count = countText?.replace(",", "")?.toIntOrNull() ?: 0
+                val percentText = item.selectFirst(".percentage, td:nth-child(3)")?.text()?.trim()
+                val percent = percentText?.replace(Regex("[^0-9.]"), "")?.toDoubleOrNull() ?: 0.0
+                statusBuckets += StatusBucket(statusText, count, percent)
+            }
+        }
+
+        // ── Tür istatistikleri ───────────────────────────────────────────────
+        val genreStats = mutableListOf<GenreStat>()
+        val genreBox = doc.selectFirst("#statistics-${prefix}-genre, .stats-genre")
+        if (genreBox != null) {
+            genreBox.select("tr, .stats-stat-item, .genre-item").forEach { row ->
+                val nameEl = row.selectFirst("a[href*='/anime/genre/'], a[href*='/manga/genre/'], .name, .label, td:first-child a")
+                val name = nameEl?.text()?.trim() ?: return@forEach
+                val href = nameEl.attr("href")
+                val genreId = Regex("""/genre/(\d+)""").find(href)?.groupValues?.get(1)?.toIntOrNull() ?: 0
+                val countText = row.selectFirst(".count, td:nth-child(2), .value")?.text()?.trim()
+                val count = countText?.replace(",", "")?.toIntOrNull() ?: 0
+                val scoreText = row.selectFirst(".score, td:nth-child(3), .mean-score")?.text()?.trim()
+                val meanScore = scoreText?.replace(",", "")?.toDoubleOrNull() ?: 0.0
+                if (count > 0) genreStats += GenreStat(genreId, name, count, meanScore)
+            }
+        }
+
+        // ── Stüdyo istatistikleri ────────────────────────────────────────────
+        val studioStats = mutableListOf<StudioStat>()
+        val studioBox = doc.selectFirst("#statistics-${prefix}-studio, .stats-studio")
+        if (studioBox != null) {
+            studioBox.select("tr, .stats-stat-item, .studio-item").forEach { row ->
+                val nameEl = row.selectFirst("a[href*='/anime/producer/'], a[href*='/company/'], .name, .label, td:first-child a")
+                val name = nameEl?.text()?.trim() ?: return@forEach
+                val href = nameEl.attr("href")
+                val studioId = Regex("""/(?:producer|company)/(\d+)""").find(href)?.groupValues?.get(1)?.toIntOrNull() ?: 0
+                val countText = row.selectFirst(".count, td:nth-child(2), .value")?.text()?.trim()
+                val count = countText?.replace(",", "")?.toIntOrNull() ?: 0
+                val scoreText = row.selectFirst(".score, td:nth-child(3), .mean-score")?.text()?.trim()
+                val meanScore = scoreText?.replace(",", "")?.toDoubleOrNull() ?: 0.0
+                if (count > 0) studioStats += StudioStat(studioId, name, count, meanScore)
+            }
+        }
+
+        // ── Seslendirme sanatçısı istatistikleri ─────────────────────────────
+        val vaStats = mutableListOf<VoiceActorStat>()
+        val vaBox = doc.selectFirst("#statistics-${prefix}-voice_actor, #statistics-${prefix}-voice-actor, .stats-voice_actor")
+        if (vaBox != null) {
+            vaBox.select("tr, .stats-stat-item, .va-item").forEach { row ->
+                val nameEl = row.selectFirst("a[href*='/people/'], a[href*='/character/'], .name, .label, td:first-child a")
+                val name = nameEl?.text()?.trim() ?: return@forEach
+                val href = nameEl.attr("href")
+                val vaId = Regex("""/people/(\d+)""").find(href)?.groupValues?.get(1)?.toIntOrNull() ?: 0
+                val countText = row.selectFirst(".count, td:nth-child(2), .value")?.text()?.trim()
+                val count = countText?.replace(",", "")?.toIntOrNull() ?: 0
+                val scoreText = row.selectFirst(".score, td:nth-child(3), .mean-score")?.text()?.trim()
+                val meanScore = scoreText?.replace(",", "")?.toDoubleOrNull() ?: 0.0
+                if (count > 0) vaStats += VoiceActorStat(vaId, name, count, meanScore)
+            }
+        }
+
+        return DetailedStats(
+            scoreDistribution = scoreBuckets.sortedBy { it.score },
+            typeDistribution = typeBuckets,
+            statusDistribution = statusBuckets,
+            genreStats = genreStats.sortedByDescending { it.count },
+            studioStats = studioStats.sortedByDescending { it.count },
+            voiceActorStats = vaStats.sortedByDescending { it.count }
+        )
+    }
+
+    // ── İncelemeler ──────────────────────────────────────────────────────
+
+    /** `/profile/{username}/reviews` sayfasından incelemeleri ayrıştırır. */
+    fun parseReviews(html: String, nowMs: Long = System.currentTimeMillis()): List<Review>? {
+        val doc = Jsoup.parse(html, MAL_BASE)
+        if (!doc.title().contains("Reviews", ignoreCase = true) &&
+            doc.selectFirst(".reviews, .borderClass") == null) return null
+
+        val reviews = mutableListOf<Review>()
+        val reviewElements = doc.select(".review-element, .borderClass .spaceit_pad, .js-review-unit")
+        if (reviewElements.isEmpty()) return emptyList()
+
+        reviewElements.forEach { el ->
+            val link = el.selectFirst("a[href*='/anime/'], a[href*='/manga/']") ?: return@forEach
+            val href = absUrl(link.attr("href"))
+            val match = MEDIA_ID_REGEX.find(href) ?: return@forEach
+            val kind = match.groupValues[1]
+            val malId = match.groupValues[2].toIntOrNull() ?: return@forEach
+            val title = el.selectFirst(".title, .mb8 a, .update_details a")?.text()?.trim()
+                ?: link.text().trim()
+            val img = el.selectFirst("img")
+            val image = cleanImageUrl(img?.attr("data-src")?.ifBlank { null } ?: img?.attr("src"))
+
+            val scoreEl = el.selectFirst(".score, .rating")
+            val score = scoreEl?.text()?.replace(Regex("[^0-9]"), "")?.toIntOrNull() ?: 0
+
+            val helpfulEl = el.selectFirst(".helpful-count, .js-thank-count, [data-helpful-count]")
+            val helpfulCount = helpfulEl?.text()?.replace(Regex("[^0-9]"), "")?.toIntOrNull()
+                ?: helpfulEl?.attr("data-helpful-count")?.toIntOrNull() ?: 0
+
+            val dateEl = el.selectFirst(".update_details, .date, time")
+            val dateText = dateEl?.text()?.trim()
+                ?: dateEl?.attr("datetime")
+            val reviewId = el.attr("data-id").toIntOrNull()
+                ?: el.selectFirst("[data-id]")?.attr("data-id")?.toIntOrNull()
+                ?: reviews.size
+
+            val textEl = el.selectFirst(".text, .review-text, .js-review-text")
+            val textPreview = textEl?.text()?.trim()?.take(500) ?: ""
+
+            reviews += Review(
+                reviewId = reviewId,
+                malId = malId,
+                kind = kind,
+                title = title,
+                url = href,
+                image = Images(image),
+                score = score,
+                helpfulCount = helpfulCount,
+                dateIso = MalWebDates.toIso(dateText, nowMs),
+                textPreview = textPreview
+            )
+        }
+        return reviews
+    }
+
+    // ── Öneriler ─────────────────────────────────────────────────────────
+
+    /** `/profile/{username}/recommendations` sayfasından önerileri ayrıştırır. */
+    fun parseRecommendations(html: String, nowMs: Long = System.currentTimeMillis()): List<Recommendation>? {
+        val doc = Jsoup.parse(html, MAL_BASE)
+        if (!doc.title().contains("Recommendations", ignoreCase = true) &&
+            doc.selectFirst(".spaceit_pad, .js-similar-recommendations") == null) return null
+
+        val recommendations = mutableListOf<Recommendation>()
+        val recElements = doc.select(".spaceit_pad, .js-similar-recommendations .recommendation, .recommendations-table tr")
+
+        recElements.forEach { el ->
+            val link = el.selectFirst("a[href*='/anime/'], a[href*='/manga/']") ?: return@forEach
+            val href = absUrl(link.attr("href"))
+            val match = MEDIA_ID_REGEX.find(href) ?: return@forEach
+            val kind = match.groupValues[1]
+            val malId = match.groupValues[2].toIntOrNull() ?: return@forEach
+            val title = el.selectFirst(".title, strong, .js-similar-title")?.text()?.trim()
+                ?: link.text().trim()
+            val img = el.selectFirst("img")
+            val image = cleanImageUrl(img?.attr("data-src")?.ifBlank { null } ?: img?.attr("src"))
+
+            val textEl = el.selectFirst(".js-similar-recommendations-data, .recommendation-text, .text")
+            val recText = textEl?.text()?.trim()?.take(500) ?: ""
+
+            val dateEl = el.selectFirst(".date, .js-date, time")
+            val dateText = dateEl?.text()?.trim() ?: dateEl?.attr("datetime")
+
+            val recId = el.attr("data-id").toIntOrNull() ?: recommendations.size
+
+            if (recText.isNotBlank()) {
+                recommendations += Recommendation(
+                    recommendationId = recId,
+                    malId = malId,
+                    kind = kind,
+                    title = title,
+                    url = href,
+                    image = Images(image),
+                    recommendationText = recText,
+                    dateIso = MalWebDates.toIso(dateText, nowMs)
+                )
+            }
+        }
+        return recommendations
+    }
+
+    // ── Kulüpler ─────────────────────────────────────────────────────────
+
+    /** `/profile/{username}/clubs` sayfasından kulüpleri ayrıştırır. */
+    fun parseClubs(html: String): List<Club>? {
+        val doc = Jsoup.parse(html, MAL_BASE)
+        if (!doc.title().contains("Clubs", ignoreCase = true) &&
+            doc.selectFirst(".club-list, .js-scrollfix-bottom-rel .clubs") == null) return null
+
+        val clubs = mutableListOf<Club>()
+        val clubElements = doc.select(".club-list .club, .clubs-section .club, .js-club-list .js-club, .borderClass")
+
+        // Eğer yukarıdaki seçiciler çalışmazsa alternatif: list tablosu
+        val elements = clubElements.ifEmpty { doc.select(".list-table tr, .js-scrollfix-bottom-rel li") }
+
+        elements.forEach { el ->
+            val link = el.selectFirst("a[href*='/clubs.php?cid='], a[href*='/club/']") ?: return@forEach
+            val href = absUrl(link.attr("href"))
+            val clubId = Regex("""cid=(\d+)|/club/(\d+)""").find(href)?.groupValues?.drop(1)?.firstOrNull { it.isNotEmpty() }?.toIntOrNull()
+                ?: return@forEach
+            val name = el.selectFirst(".title, .club-name, a")?.text()?.trim() ?: link.text().trim()
+            val img = el.selectFirst("img")
+            val image = cleanImageUrl(img?.attr("data-src")?.ifBlank { null } ?: img?.attr("src"))
+
+            val memberEl = el.selectFirst(".members, .member-count, .info-text")
+            val memberText = memberEl?.text()?.replace(Regex("[^0-9]"), "") ?: "0"
+            val memberCount = memberText.toIntOrNull() ?: 0
+
+            val categoryEl = el.selectFirst(".category, .type")
+            val category = categoryEl?.text()?.trim()
+
+            clubs += Club(clubId, name, href, Images(image), memberCount, category)
+        }
+        return clubs
     }
 
     // ── Yardımcılar ─────────────────────────────────────────────────────────

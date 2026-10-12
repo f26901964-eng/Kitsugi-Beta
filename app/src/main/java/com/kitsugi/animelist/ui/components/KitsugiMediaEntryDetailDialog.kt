@@ -43,6 +43,7 @@ import com.kitsugi.animelist.model.WatchStatus
 import com.kitsugi.animelist.ui.theme.LocalKitsugiAccent
 import com.kitsugi.animelist.ui.theme.KitsugiColors
 import com.kitsugi.animelist.utils.toFriendlySourceLabel
+import kotlinx.coroutines.flow.first
 import androidx.compose.ui.res.stringResource
 import com.kitsugi.animelist.R
 
@@ -78,34 +79,49 @@ fun KitsugiMediaEntryDetailDialog(
     val context = LocalContext.current.applicationContext
 
     LaunchedEffect(entry.id, entry.source, entry.malId, entry.synopsis) {
-        if (!entry.synopsis.isNullOrBlank()) {
+        val rawSynopsis = if (!entry.synopsis.isNullOrBlank()) {
             synopsisState = SynopsisState.Success(entry.synopsis)
-            return@LaunchedEffect
-        }
+            entry.synopsis
+        } else {
+            synopsisState = SynopsisState.Loading
 
-        synopsisState = SynopsisState.Loading
-
-        // Kitsu kayıtlarında gerçek MAL ID doğrudan Kitsu ID olarak kullanılamaz;
-        // önce stable Kitsu ID çözülür, çözülemezse MAL üzerinden gidilir.
-        val resolvedExternalId = if (entry.source.equals("kitsu", ignoreCase = true)) {
-            com.kitsugi.animelist.data.remote.KitsuEntryIdResolver.resolveStableId(
-                entry,
-                context
+            // Kitsu kayıtlarında gerçek MAL ID doğrudan Kitsu ID olarak kullanılamaz;
+            // önce stable Kitsu ID çözülür, çözülemezse MAL üzerinden gidilir.
+            val resolvedExternalId = if (entry.source.equals("kitsu", ignoreCase = true)) {
+                com.kitsugi.animelist.data.remote.KitsuEntryIdResolver.resolveStableId(
+                    entry,
+                    context
+                )
+            } else {
+                entry.malId
+            }
+            val fetched = apiClient.fetchSynopsis(
+                source = if (entry.source.equals("kitsu", ignoreCase = true) && resolvedExternalId == null) "mal" else entry.source,
+                externalId = resolvedExternalId ?: entry.malId,
+                mediaType = entry.type
             )
-        } else {
-            entry.malId
+            if (!fetched.isNullOrBlank()) {
+                onSynopsisLoaded(fetched)
+                synopsisState = SynopsisState.Success(fetched)
+            }
+            fetched
         }
-        val synopsis = apiClient.fetchSynopsis(
-            source = if (entry.source.equals("kitsu", ignoreCase = true) && resolvedExternalId == null) "mal" else entry.source,
-            externalId = resolvedExternalId ?: entry.malId,
-            mediaType = entry.type
-        )
 
-        synopsisState = if (synopsis.isNullOrBlank()) {
-            SynopsisState.Error
+        if (rawSynopsis.isNullOrBlank()) {
+            synopsisState = SynopsisState.Error
         } else {
-            onSynopsisLoaded(synopsis)
-            SynopsisState.Success(synopsis)
+            val autoTranslate = runCatching {
+                com.kitsugi.animelist.data.settings.SettingsDataStore(context).settingsFlow.first().autoTranslateEnabled
+            }.getOrDefault(false)
+            val isRussian = rawSynopsis.any { it in '\u0400'..'\u04FF' }
+            if (autoTranslate || isRussian) {
+                val tr = com.kitsugi.animelist.data.local.TranslationManager(context).translateToTarget(rawSynopsis) { partial ->
+                    if (partial.isNotBlank()) synopsisState = SynopsisState.Success(partial)
+                }
+                if (tr.isNotBlank()) {
+                    synopsisState = SynopsisState.Success(tr)
+                }
+            }
         }
     }
 

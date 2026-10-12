@@ -66,6 +66,93 @@ class StudioDetailViewModel(application: Application) : AndroidViewModel(applica
     private var lastSource: String = ""
     private var lastStudioName: String? = null
     private var lastStudioImageUrl: String? = null
+    private var aboutTranslateJob: kotlinx.coroutines.Job? = null
+    private var lastAutoTranslateSetting: Boolean? = null
+    private var lastTargetLangSetting: String? = null
+
+    private fun studioCacheIdentity(name: String?): String? =
+        StudioSourceSupport.normalizeName(name).takeIf { it.isNotEmpty() }
+
+    init {
+        viewModelScope.launch {
+            settingsDataStore.settingsFlow.collect { settings ->
+                val prevAuto = lastAutoTranslateSetting
+                val prevTarget = lastTargetLangSetting
+                lastAutoTranslateSetting = settings.autoTranslateEnabled
+                lastTargetLangSetting = settings.translateTargetLanguage
+                if (prevAuto == null && prevTarget == null) return@collect
+                if (prevAuto != settings.autoTranslateEnabled || prevTarget != settings.translateTargetLanguage) {
+                    val detail = (_state.value as? StudioDetailState.Success)?.detail ?: return@collect
+                    val rawAbout = detail.about ?: return@collect
+                    val expectedKey = currentFetchKey ?: return@collect
+                    val isRussian = rawAbout.any { it in '\u0400'..'\u04FF' }
+                    if (settings.autoTranslateEnabled || isRussian) {
+                        triggerAboutTranslationIfNeeded(
+                            rawAbout = rawAbout,
+                            source = lastSource,
+                            studioId = detail.id.takeIf { it > 0 } ?: lastStudioId,
+                            name = lastStudioName ?: detail.name,
+                            expectedFetchKey = expectedKey,
+                            forceRetranslate = prevTarget != settings.translateTargetLanguage
+                        )
+                    } else {
+                        aboutTranslateJob?.cancel()
+                        _translatedAbout.value = rawAbout
+                    }
+                }
+            }
+        }
+    }
+
+    private fun triggerAboutTranslationIfNeeded(
+        rawAbout: String?,
+        source: String,
+        studioId: Int,
+        name: String?,
+        expectedFetchKey: String?,
+        forceRetranslate: Boolean = false
+    ) {
+        if (rawAbout.isNullOrBlank()) {
+            _translatedAbout.value = null
+            return
+        }
+        val identity = studioCacheIdentity(name)
+        if (!forceRetranslate) {
+            val cachedTr = DetailCache.getTranslation("studio_about", source, studioId, identity)
+                ?: DetailCache.getTranslation("studio_about", source, studioId)
+            if (!cachedTr.isNullOrBlank()) {
+                _translatedAbout.value = cachedTr
+                return
+            }
+        }
+
+        _translatedAbout.value = rawAbout
+        aboutTranslateJob?.cancel()
+        aboutTranslateJob = viewModelScope.launch {
+            val autoTranslate = runCatching {
+                settingsDataStore.settingsFlow.first().autoTranslateEnabled
+            }.getOrDefault(false)
+            val isRussian = rawAbout.any { it in '\u0400'..'\u04FF' }
+            if (!autoTranslate && !isRussian && !forceRetranslate) return@launch
+
+            val tr = withContext(Dispatchers.IO) {
+                translationManager.translateToTarget(rawAbout) { partial ->
+                    if (currentFetchKey == expectedFetchKey && partial.isNotBlank()) {
+                        _translatedAbout.value = partial
+                    }
+                }
+            }
+            if (currentFetchKey == expectedFetchKey && !tr.isNullOrBlank()) {
+                if (tr != rawAbout) {
+                    DetailCache.putTranslation("studio_about", source, studioId, tr, identity)
+                    if (studioId > 0) {
+                        DetailCache.putTranslation("studio_about", source, studioId, tr)
+                    }
+                }
+                _translatedAbout.value = tr
+            }
+        }
+    }
 
     /**
      * @param imageUrl detay sayfasındaki çipten taşınan kurum logosu; kaynak API kendi logosunu
@@ -81,6 +168,7 @@ class StudioDetailViewModel(application: Application) : AndroidViewModel(applica
 
         Log.d(TAG, "loadStudio: New key=$newKey (was $currentFetchKey)")
         currentFetchKey = newKey
+        aboutTranslateJob?.cancel()
         nextWorksPage = 2
         _isLoadingMore.value = false
         _loadMoreFailed.value = false
@@ -89,9 +177,14 @@ class StudioDetailViewModel(application: Application) : AndroidViewModel(applica
         lastStudioName = name?.takeIf { it.isNotBlank() }
         lastStudioImageUrl = imageUrl?.takeIf { it.isNotBlank() }
 
-        val cachedStudioDetail = DetailCache.getStudioDetail(source, studioId)
+        val identity = studioCacheIdentity(lastStudioName)
+        val cachedStudioDetail = DetailCache.getStudioDetail(source, studioId, identity)
             ?.takeIf { matchesExpectedStudio(source, lastStudioName, it.name) }
+        val cachedAboutTr = DetailCache.getTranslation("studio_about", source, studioId, identity)
+            ?: DetailCache.getTranslation("studio_about", source, studioId)
+
         _state.value = if (cachedStudioDetail != null) StudioDetailState.Success(cachedStudioDetail) else StudioDetailState.Loading
+        _translatedAbout.value = cachedAboutTr ?: cachedStudioDetail?.about
         if (cachedStudioDetail != null) _isFavourite.value = cachedStudioDetail.isFavourite
 
         galleryTracker.reset()
@@ -137,7 +230,8 @@ class StudioDetailViewModel(application: Application) : AndroidViewModel(applica
         name: String? = null,
         force: Boolean = false
     ) {
-        val cached = DetailCache.getStudioDetail(source, studioId)
+        val identity = studioCacheIdentity(name)
+        val cached = DetailCache.getStudioDetail(source, studioId, identity)
             ?.takeIf { matchesExpectedStudio(source, name, it.name) }
         val detail = if (cached != null && !force) {
             cached
@@ -148,7 +242,7 @@ class StudioDetailViewModel(application: Application) : AndroidViewModel(applica
 
             if (currentFetchKey != expectedFetchKey) return
             if (fetched != null) {
-                DetailCache.putStudioDetail(source, studioId, fetched)
+                DetailCache.putStudioDetail(source, studioId, fetched, identity)
             }
             fetched
         }
@@ -164,28 +258,14 @@ class StudioDetailViewModel(application: Application) : AndroidViewModel(applica
 
             // "Hakkında" — önce ham metin; otomatik çeviri açıksa veya metin Rusça ise
             // detay sayfasındaki Açıklama kartıyla aynı sözleşme izlenir ve Türkçeye çevrilir.
-            val rawAbout = detail.about
-            _translatedAbout.value = rawAbout
-            if (!rawAbout.isNullOrBlank()) {
-                val autoTranslate = runCatching {
-                    settingsDataStore.settingsFlow.first().autoTranslateEnabled
-                }.getOrDefault(false)
-                val isRussian = rawAbout.any { it in '\u0400'..'\u04FF' }
-                if (autoTranslate || isRussian) {
-                    val cachedTr = DetailCache.getTranslation("studio_about", source, studioId)
-                    if (cachedTr != null) {
-                        _translatedAbout.value = cachedTr
-                    } else {
-                        val tr = withContext(Dispatchers.IO) {
-                            translationManager.translateToTarget(rawAbout)
-                        }
-                        if (!tr.isNullOrBlank() && tr != rawAbout) {
-                            DetailCache.putTranslation("studio_about", source, studioId, tr)
-                            _translatedAbout.value = tr
-                        }
-                    }
-                }
-            }
+            triggerAboutTranslationIfNeeded(
+                rawAbout = detail.about,
+                source = source,
+                studioId = detail.id.takeIf { it > 0 } ?: studioId,
+                name = name ?: detail.name,
+                expectedFetchKey = expectedFetchKey,
+                forceRetranslate = force
+            )
 
             // Build gallery from studio imageUrl (logo)
             val imageUrl = detail.imageUrl ?: lastStudioImageUrl

@@ -337,6 +337,142 @@ class HeroImageSelectionTest {
         assertTrue("beklenen 16:9 bandı, bulunan $ratio", ratio in 1.70..1.85)
     }
 
+    // ─────────────────────────────────────────────────────────────────────────────
+    // Ana sayfa vitrini: OTOMATİK GÖRSEL BOYUTU (detay sayfasıyla aynı mantık)
+    // ─────────────────────────────────────────────────────────────────────────────
+
+    @Test
+    fun `home hero backdrop preference follows screen ratio like detail page`() {
+        // Manga/manhwa → her zaman dikey kapak
+        assertEquals(
+            false,
+            homeHeroPrefersBackdrop(360, 800, isLandscape = false, mediaType = MediaType.Manga)
+        )
+        // Yatay mod → yatay arka plan birincil (poster yoksa contain fallback korunur)
+        assertEquals(
+            true,
+            homeHeroPrefersBackdrop(844, 390, isLandscape = true, mediaType = MediaType.Anime)
+        )
+        // Dikey uzun-dar telefon → dikey poster (detay sayfasıyla aynı kural)
+        assertEquals(
+            false,
+            homeHeroPrefersBackdrop(360, 800, isLandscape = false, mediaType = MediaType.Anime)
+        )
+        // Dikey kare/tablet benzeri cihaz → yatay arka plan
+        assertEquals(
+            true,
+            homeHeroPrefersBackdrop(800, 1000, isLandscape = false, mediaType = MediaType.Anime)
+        )
+    }
+
+    @Test
+    fun `portrait hero band locks to the shown artwork aspect`() {
+        // 16:9 arka plan yüklendi → bant geniş-kısa forme oturur; ancak başlık/meta/
+        // gösterge çubuğu sığsın diye ekranın %34'ü taban kalır (360/1.78=202 < 272).
+        val backdropBand = homeHeroHeightDp(
+            heroWidthDp = 360f,
+            screenHeightDp = 800f,
+            isLandscape = false,
+            landscapeBandHeightDp = 288f,
+            imageAspect = 16f / 9f,
+            defaultAspect = 2f / 3f
+        )
+        assertEquals(800f * HOME_HERO_PORTRAIT_MIN_SCREEN_FRACTION, backdropBand, 0.5f)
+
+        // Dikey poster yüklendi → uzun-dar kutu; ekranın %62 tavanıyla sınırlı
+        // (360/0.667=540 > 496).
+        val posterBox = homeHeroHeightDp(
+            heroWidthDp = 360f,
+            screenHeightDp = 800f,
+            isLandscape = false,
+            landscapeBandHeightDp = 288f,
+            imageAspect = 2f / 3f,
+            defaultAspect = 2f / 3f
+        )
+        assertEquals(800f * HOME_HERO_PORTRAIT_MAX_SCREEN_FRACTION, posterBox, 0.5f)
+
+        // Dikey tablet: 16:9 arka plan tavana takılmadan BİREBİR oturur (800/1.78=449).
+        val tabletBand = homeHeroHeightDp(
+            heroWidthDp = 800f,
+            screenHeightDp = 1000f,
+            isLandscape = false,
+            landscapeBandHeightDp = 460f,
+            imageAspect = 16f / 9f,
+            defaultAspect = 16f / 9f
+        )
+        assertEquals(800f / (16f / 9f), tabletBand, 0.5f)
+
+        // Görsel henüz yüklenmedi → varsayılan oran (poster tercihi) ile başlar.
+        val beforeLoad = homeHeroHeightDp(
+            heroWidthDp = 360f,
+            screenHeightDp = 800f,
+            isLandscape = false,
+            landscapeBandHeightDp = 288f,
+            imageAspect = null,
+            defaultAspect = 2f / 3f
+        )
+        assertEquals(posterBox, beforeLoad, 0.5f)
+    }
+
+    @Test
+    fun `landscape hero band keeps screen responsive cap and only shrinks for ultra wide banners`() {
+        val band = heroBandHeightDp(390f, isLandscape = true, isTablet = false, isTv = false)
+
+        // 16:9 arka plan: istenen yükseklik (844/1.78=474) tavanı aşar → mevcut bant korunur.
+        val backdrop = homeHeroHeightDp(
+            heroWidthDp = 844f,
+            screenHeightDp = 390f,
+            isLandscape = true,
+            landscapeBandHeightDp = band,
+            imageAspect = 16f / 9f,
+            defaultAspect = 16f / 9f
+        )
+        assertEquals(band, backdrop, 0.5f)
+
+        // Dikey poster (manga fallback): bant UZAMAZ → contain mantığı korunur.
+        val poster = homeHeroHeightDp(
+            heroWidthDp = 844f,
+            screenHeightDp = 390f,
+            isLandscape = true,
+            landscapeBandHeightDp = band,
+            imageAspect = 2f / 3f,
+            defaultAspect = 2f / 3f
+        )
+        assertEquals(band, poster, 0.5f)
+
+        // 3.6:1 ultra geniş banner bile bandı kısaltmaz: oran güvenlik aralığına
+        // (HOME_HERO_MAX_ASPECT) sıkıştırılır → yatay moddaki mevcut sunum korunur.
+        val ultraWide = homeHeroHeightDp(
+            heroWidthDp = 844f,
+            screenHeightDp = 390f,
+            isLandscape = true,
+            landscapeBandHeightDp = band,
+            imageAspect = 3.6f,
+            defaultAspect = 16f / 9f
+        )
+        assertEquals(band, ultraWide, 0.5f)
+        assertTrue(
+            "bant tabanın altına inmeli değil",
+            ultraWide >= band * HOME_HERO_LANDSCAPE_MIN_BAND_FRACTION
+        )
+    }
+
+    @Test
+    fun `candidate overload with explicit preference keeps poster and backdrop order`() {
+        assertEquals(
+            listOf(backdrop, poster),
+            heroImageCandidates(posterUrl = poster, backdropUrl = backdrop, preferBackdrop = true)
+        )
+        assertEquals(
+            listOf(poster, backdrop),
+            heroImageCandidates(posterUrl = poster, backdropUrl = backdrop, preferBackdrop = false)
+        )
+        assertEquals(
+            listOf(backdrop),
+            heroImageCandidates(posterUrl = null, backdropUrl = backdrop, preferBackdrop = false)
+        )
+    }
+
     @Test
     fun `hero fit never slices a vertical poster inside the cinematic band`() {
         // Dikey poster (2:3 ≈ 0.667) + 16:9 bant (1.778) → fark eşiği aşılır → KIRPMA yok

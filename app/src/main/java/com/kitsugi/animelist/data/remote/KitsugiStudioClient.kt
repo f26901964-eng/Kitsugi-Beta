@@ -89,11 +89,11 @@ class KitsugiStudioClient {
                     StudioSourceSupport.namesMatch(expectedName, primary.name)
                 if (!primaryMatches) {
                     val recovered = recoverStudioByName(expectedName, excludeSource = canonicalSource.orEmpty())
-                    if (recovered != null) return@withContext recovered
+                    if (recovered != null) return@withContext enrichStudioMetaFromJikan(recovered, canonicalSource)
                 }
             }
 
-            primary
+            primary?.let { enrichStudioMetaFromJikan(it, canonicalSource) }
         }
     }
 
@@ -188,9 +188,12 @@ class KitsugiStudioClient {
         }.getOrNull() ?: return null
 
         val about = buildString {
-            if (!person.occupation.isNullOrBlank()) appendLine(person.occupation)
             if (!person.homeTown.isNullOrBlank()) appendLine(person.homeTown)
-            if (!person.biography.isNullOrBlank()) append(person.biography)
+            if (!person.biography.isNullOrBlank()) {
+                append(person.biography)
+            } else if (!person.occupation.isNullOrBlank()) {
+                append(person.occupation)
+            }
         }.trim().takeIf { it.isNotBlank() }
 
         return KitsugiStudioDetail(
@@ -201,6 +204,82 @@ class KitsugiStudioClient {
             about = about,
             mediaWorks = person.mediaWorks
         )
+    }
+
+    /**
+     * AniList, Shikimori, Bangumi veya TMDB kaynaklı stüdyolarda açıklama (about),
+     * kuruluş tarihi (established) veya logo (imageUrl) eksikse Jikan/MAL yapımcı
+     * kaydından tamamlar.
+     */
+    private suspend fun enrichStudioMetaFromJikan(
+        detail: KitsugiStudioDetail,
+        canonicalSource: String?
+    ): KitsugiStudioDetail {
+        if (canonicalSource == "jikan" || canonicalSource == "mal") return detail
+        val currentAbout = detail.about?.trim().orEmpty()
+        val hasSubstantialAbout = currentAbout.isNotBlank() &&
+            currentAbout.lines().any { line ->
+                val t = line.trim()
+                t.isNotBlank() &&
+                    !t.startsWith("Merkez:", ignoreCase = true) &&
+                    !t.startsWith("Ülke:", ignoreCase = true) &&
+                    !t.startsWith("Web:", ignoreCase = true)
+            }
+        if (hasSubstantialAbout && !detail.imageUrl.isNullOrBlank() && !detail.established.isNullOrBlank()) {
+            return detail
+        }
+        val studioName = detail.name.trim()
+        if (studioName.isBlank()) return detail
+
+        return runCatching {
+            val query = URLEncoder.encode(studioName, "UTF-8")
+            val url = URL("https://api.jikan.moe/v4/producers?q=$query&limit=25")
+            val response = KitsugiApiBase.runWithRateLimit {
+                KitsugiApiBase.executeGetRequest(url)
+            } ?: return@runCatching detail
+            val data = JSONObject(response).optJSONArray("data") ?: return@runCatching detail
+            val expectedKey = StudioSourceSupport.normalizeName(studioName)
+            var matchedItem: JSONObject? = null
+            var bestScore = 0
+
+            for (index in 0 until data.length()) {
+                val item = data.optJSONObject(index) ?: continue
+                val names = buildList {
+                    item.optNullableString("name")?.let(::add)
+                    item.optJSONArray("titles")?.let { titles ->
+                        for (titleIndex in 0 until titles.length()) {
+                            titles.optJSONObject(titleIndex)?.optNullableString("title")?.let(::add)
+                        }
+                    }
+                }
+                if (names.none { StudioSourceSupport.namesMatch(studioName, it) }) continue
+                val exact = names.any { StudioSourceSupport.normalizeName(it) == expectedKey }
+                val score = if (exact) 2 else 1
+                if (score > bestScore) {
+                    matchedItem = item
+                    bestScore = score
+                    if (exact) break
+                }
+            }
+
+            val item = matchedItem ?: return@runCatching detail
+            val jikanAbout = item.optNullableString("about")?.cleanApiText()?.takeIf { it.isNotBlank() }
+            val jikanImg = item.optJSONObject("images")?.optJSONObject("jpg")?.optNullableString("image_url")
+            val jikanEstablished = item.optNullableString("established")?.substringBefore("T")
+
+            val mergedAbout = when {
+                hasSubstantialAbout -> detail.about
+                currentAbout.isNotBlank() && !jikanAbout.isNullOrBlank() -> "$currentAbout\n\n$jikanAbout"
+                !jikanAbout.isNullOrBlank() -> jikanAbout
+                else -> detail.about
+            }
+
+            detail.copy(
+                about = mergedAbout,
+                imageUrl = detail.imageUrl?.takeIf { it.isNotBlank() } ?: jikanImg,
+                established = detail.established?.takeIf { it.isNotBlank() } ?: jikanEstablished
+            )
+        }.getOrDefault(detail)
     }
 
     private suspend fun searchJikanProducerId(expectedName: String): Int? = runCatching {

@@ -1083,6 +1083,9 @@ object ExternalAuthManager {
         )
     }
 
+    /** Other classes (e.g. MalUnifiedAuthManager) can read the same prefs. */
+    internal fun getPrefs(context: Context): SharedPreferences = prefs(context)
+
     fun handleSimkl401(context: Context) {
         disconnectAccount(context, "simkl")
         val settings = com.kitsugi.animelist.data.settings.SettingsDataStore(context)

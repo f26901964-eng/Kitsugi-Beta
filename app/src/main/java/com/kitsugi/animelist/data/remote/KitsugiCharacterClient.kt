@@ -637,15 +637,17 @@ class KitsugiCharacterClient {
                         Log.e(TAG, "Jikan fetch failed: ${err.message}", err)
                     }
 
-                    // 2. Shikimori Fallback / Merge
-                    runCatching {
-                        KitsugiShikimoriClient.fetchCharacterDetail(characterId)
-                    }.onSuccess { shikiDetail ->
-                        if (shikiDetail != null) {
-                            detail = if (detail == null) shikiDetail else detail!!.mergeWith(shikiDetail)
+                    // 2. Shikimori Fallback / Merge (yalnızca Jikan başarısızsa veya biyografi/görsel eksikse)
+                    if (detail == null || detail?.biography.isNullOrBlank() || detail?.imageUrl.isNullOrBlank()) {
+                        runCatching {
+                            KitsugiShikimoriClient.fetchCharacterDetail(characterId)
+                        }.onSuccess { shikiDetail ->
+                            if (shikiDetail != null) {
+                                detail = if (detail == null) shikiDetail else detail!!.mergeWith(shikiDetail)
+                            }
+                        }.onFailure { err ->
+                            Log.e(TAG, "Shikimori character detail fallback failed: ${err.message}", err)
                         }
-                    }.onFailure { err ->
-                        Log.e(TAG, "Shikimori character detail fallback failed: ${err.message}", err)
                     }
 
                     // 3. AniList Fallback / Merge
@@ -810,6 +812,25 @@ class KitsugiCharacterClient {
                         }
 
                         val isFavourite = data.optBoolean("isFavourite", false)
+                        val resolvedBiography = biography ?: try {
+                            val lookupName = primaryCharacterName(name)
+                            if (KitsugiPersonImageAggregator.isUnambiguousName(lookupName)) {
+                                val jikanSearch = JikanApiClient().searchMalCharacters(lookupName, page = 1)
+                                val firstMalId = jikanSearch
+                                    .firstOrNull { KitsugiPersonImageAggregator.nameMatches(lookupName, it.title) }
+                                    ?.malId
+                                if (firstMalId != null && firstMalId > 0) {
+                                    val jikanUrl = "https://api.jikan.moe/v4/characters/$firstMalId"
+                                    val jikanResp = (JikanGateway.fetch(jikanUrl, JikanGateway.Priority.UI) as? JikanResult.Ok)?.body
+                                    jikanResp?.let { JSONObject(it).optJSONObject("data")?.optNullableString("about")?.cleanApiText()?.takeIf { b -> b.isNotBlank() } }
+                                } else null
+                            } else null
+                        } catch (c: kotlinx.coroutines.CancellationException) {
+                            throw c
+                        } catch (_: Exception) {
+                            null
+                        }
+
                         KitsugiCharacterDetail(
                             id = characterId,
                             name = name,
@@ -820,7 +841,7 @@ class KitsugiCharacterClient {
                             age = age,
                             birthday = birthday,
                             bloodType = bloodType,
-                            biography = biography,
+                            biography = resolvedBiography,
                             voiceActors = vaMap.values.toList(),
                             mediaAppearances = mediaAppearances,
                             isFavourite = isFavourite,
@@ -842,7 +863,7 @@ class KitsugiCharacterClient {
                     val cleanCharName = name?.replace(Regex("\\s*\\((?:voice|uncredited|uncredited voice|child)\\)", RegexOption.IGNORE_CASE), "")?.trim()
                     if (!cleanCharName.isNullOrBlank()) {
                         val aniDetail = fetchAniListCharacterByName(primaryCharacterName(cleanCharName))
-                        if (aniDetail != null) {
+                        if (aniDetail != null && !aniDetail.biography.isNullOrBlank()) {
                             // Kaynakta görsel yoksa arayüzden gelen görseli tamamla.
                             return@withContext if (aniDetail.imageUrl.isNullOrBlank() && !fallbackImageUrl.isNullOrBlank()) {
                                 aniDetail.copy(imageUrl = fallbackImageUrl)
@@ -861,10 +882,14 @@ class KitsugiCharacterClient {
                                 fetchCharacterDetail("jikan", firstMalId, cleanCharName, fallbackImageUrl)
                             } else null
                         }.getOrNull()
-                        if (jikanDetail != null) {
-                            return@withContext if (jikanDetail.imageUrl.isNullOrBlank() && !fallbackImageUrl.isNullOrBlank()) {
-                                jikanDetail.copy(imageUrl = fallbackImageUrl)
-                            } else jikanDetail
+                        if (aniDetail != null || jikanDetail != null) {
+                            val combined = when {
+                                aniDetail != null && jikanDetail != null -> aniDetail.mergeWith(jikanDetail)
+                                else -> aniDetail ?: jikanDetail!!
+                            }
+                            return@withContext if (combined.imageUrl.isNullOrBlank() && !fallbackImageUrl.isNullOrBlank()) {
+                                combined.copy(imageUrl = fallbackImageUrl)
+                            } else combined
                         }
                     }
 

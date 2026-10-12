@@ -35,6 +35,7 @@ import com.kitsugi.animelist.ui.theme.KitsugiColors
 import com.kitsugi.animelist.ui.theme.LocalKitsugiAccent
 import com.kitsugi.animelist.utils.KitsugiMarkdownUtils.formatAniListMarkdown
 import com.kitsugi.animelist.utils.cleanShikimoriBbCode
+import kotlinx.coroutines.flow.first
 import com.mikepenz.markdown.model.ImageData
 import com.mikepenz.markdown.model.ImageTransformer
 import com.mikepenz.markdown.model.PlaceholderConfig
@@ -349,10 +350,21 @@ fun InteractiveSpoilerSheet(
     val context = LocalContext.current
 
     LaunchedEffect(spoilerText) {
-        if (currentText.any { it in '\u0400'..'\u04FF' }) {
+        val cleaned = spoilerText.cleanShikimoriBbCode()
+        currentText = cleaned
+        val autoTranslate = runCatching {
+            com.kitsugi.animelist.data.settings.SettingsDataStore(context).settingsFlow.first().autoTranslateEnabled
+        }.getOrDefault(false)
+        val isRussian = cleaned.any { it in '\u0400'..'\u04FF' }
+        if (autoTranslate || isRussian) {
             isTranslating = true
             val translationManager = com.kitsugi.animelist.data.local.TranslationManager(context)
-            val translated = translationManager.translate(currentText)
+            val translated = translationManager.translateToTarget(cleaned) { partial ->
+                if (partial.isNotBlank()) {
+                    currentText = partial.cleanShikimoriBbCode()
+                    isTranslating = false
+                }
+            }
             if (translated.isNotBlank()) {
                 currentText = translated.cleanShikimoriBbCode()
             }

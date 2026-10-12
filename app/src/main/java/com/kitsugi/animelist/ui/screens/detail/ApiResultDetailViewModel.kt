@@ -149,27 +149,93 @@ class ApiResultDetailViewModel(application: Application) : AndroidViewModel(appl
     // --- Cache / Lock Key ---
     private var currentFetchKey: String? = null
     private var lastResult: JikanSearchResult? = null
+    private var synopsisTranslateJob: Job? = null
+    private var lastAutoTranslateSetting: Boolean? = null
+    private var lastTargetLangSetting: String? = null
+
+    init {
+        viewModelScope.launch {
+            settingsDataStore.settingsFlow.collect { settings ->
+                val prevAuto = lastAutoTranslateSetting
+                val prevTarget = lastTargetLangSetting
+                lastAutoTranslateSetting = settings.autoTranslateEnabled
+                lastTargetLangSetting = settings.translateTargetLanguage
+                if (prevAuto == null && prevTarget == null) return@collect
+                if (prevAuto != settings.autoTranslateEnabled || prevTarget != settings.translateTargetLanguage) {
+                    val res = lastResult ?: return@collect
+                    val raw = _detailState.value?.synopsis ?: return@collect
+                    val isRussian = raw.any { it in '\u0400'..'\u04FF' }
+                    if (settings.autoTranslateEnabled || isRussian) {
+                        triggerSynopsisTranslationIfNeeded(
+                            result = res,
+                            rawSynopsis = raw,
+                            autoTranslate = settings.autoTranslateEnabled,
+                            expectedFetchKey = currentFetchKey,
+                            forceRetranslate = prevTarget != settings.translateTargetLanguage
+                        )
+                    } else {
+                        synopsisTranslateJob?.cancel()
+                        _translatedSynopsis.value = null
+                    }
+                }
+            }
+        }
+    }
+
+    private fun triggerSynopsisTranslationIfNeeded(
+        result: JikanSearchResult,
+        rawSynopsis: String?,
+        autoTranslate: Boolean,
+        expectedFetchKey: String?,
+        forceRetranslate: Boolean = false
+    ) {
+        if (rawSynopsis.isNullOrBlank()) return
+        val isRussian = rawSynopsis.any { it in '\u0400'..'\u04FF' }
+        if (!autoTranslate && !isRussian) return
+
+        if (!forceRetranslate) {
+            val cachedTr = DetailCache.getTranslation("synopsis", result.source, result.malId)
+            if (!cachedTr.isNullOrBlank()) {
+                _translatedSynopsis.value = cachedTr
+                return
+            }
+        }
+
+        synopsisTranslateJob?.cancel()
+        synopsisTranslateJob = viewModelScope.launch {
+            val tr = withContext(Dispatchers.IO) {
+                translationManager.translateToTarget(rawSynopsis) { partial ->
+                    if (currentFetchKey == expectedFetchKey && partial.isNotBlank()) {
+                        _translatedSynopsis.value = partial
+                    }
+                }
+            }
+            if (currentFetchKey == expectedFetchKey && !tr.isNullOrBlank()) {
+                if (tr != rawSynopsis) {
+                    DetailCache.putTranslation("synopsis", result.source, result.malId, tr)
+                }
+                _translatedSynopsis.value = tr
+            }
+        }
+    }
 
     fun translateSynopsis() {
         val res = lastResult ?: return
         val raw = _detailState.value?.synopsis ?: return
-        viewModelScope.launch {
-            val tr = withContext(Dispatchers.IO) {
-                translationManager.translateToTarget(raw) { partial ->
-                    _translatedSynopsis.value = partial
-                }
-            }
-            if (!tr.isNullOrBlank() && tr != raw) {
-                DetailCache.putTranslation("synopsis", res.source, res.malId, tr)
-                _translatedSynopsis.value = tr
-            }
-        }
+        triggerSynopsisTranslationIfNeeded(
+            result = res,
+            rawSynopsis = raw,
+            autoTranslate = true,
+            expectedFetchKey = currentFetchKey,
+            forceRetranslate = true
+        )
     }
 
     fun loadResult(result: JikanSearchResult, showAnimeLogos: Boolean, forceRefresh: Boolean = false) {
         if (forceRefresh) {
             currentFetchKey = null
             DetailCache.removeMediaDetail(result.source, result.malId)
+            DetailCache.removeTranslation("synopsis", result.source, result.malId)
             DetailCache.removeMediaCharacters(result.source, result.malId)
             DetailCache.removeMediaStaff(result.source, result.malId)
             DetailCache.removeMediaRelations(result.source, result.malId)
@@ -187,6 +253,7 @@ class ApiResultDetailViewModel(application: Application) : AndroidViewModel(appl
 
         Log.d(TAG, "loadResult: New key=$newKey (was $currentFetchKey)")
         currentFetchKey = newKey
+        synopsisTranslateJob?.cancel()
         cancelTabLoads() // eski sonucun sekme işleri yeni state'e yazmasın
         lastResult = result
         _pageResetTrigger.value += 1 // Signal UI to scroll back to first tab
@@ -422,6 +489,19 @@ class ApiResultDetailViewModel(application: Application) : AndroidViewModel(appl
         }
 
         _detailState.value = detail
+        val expectedFetchKey = currentFetchKey
+        val autoTranslate = settings?.autoTranslateEnabled ?: false
+
+        // Aşama 1'de özet geldiyse vitrin görselini ve Aşama 2 zenginleştirmesini beklemeden
+        // çeviriyi hemen arka planda başlat!
+        if (!detail?.synopsis.isNullOrBlank()) {
+            triggerSynopsisTranslationIfNeeded(
+                result = result,
+                rawSynopsis = detail?.synopsis,
+                autoTranslate = autoTranslate,
+                expectedFetchKey = expectedFetchKey
+            )
+        }
 
         // ── Vitrin görseli: SAYFA AÇILMADAN ÖNCE çözülür ─────────────────────────
         // Kullanıcı detay sayfasını görmeden en kaliteli TMDB (`/original`) /
@@ -496,29 +576,16 @@ class ApiResultDetailViewModel(application: Application) : AndroidViewModel(appl
                 }
             }
 
-            // Önce ham synopsis'i göster
+            // Aşama 2 yeni bir özet getirdiyse veya henüz çeviri başlamadıysa çeviriyi tetikle
             val rawSynopsis = finalDetail.synopsis
-            if (!rawSynopsis.isNullOrBlank()) {
-                _translatedSynopsis.value = rawSynopsis
-                // Google Translate yalnızca kullanıcı otomatik çeviri ayarını açtıysa veya metin Rusça ise çalışır.
-                val autoTranslate = settings?.autoTranslateEnabled ?: false
-                val isRussian = rawSynopsis.any { it in '\u0400'..'\u04FF' }
-                if (autoTranslate || isRussian) {
-                    val cachedTr = DetailCache.getTranslation("synopsis", result.source, result.malId)
-                    if (cachedTr != null) {
-                        _translatedSynopsis.value = cachedTr
-                    } else {
-                        val tr = withContext(Dispatchers.IO) {
-                            translationManager.translateToTarget(rawSynopsis) { partial ->
-                                _translatedSynopsis.value = partial
-                            }
-                        }
-                        if (!tr.isNullOrBlank() && tr != rawSynopsis) {
-                            DetailCache.putTranslation("synopsis", result.source, result.malId, tr)
-                            _translatedSynopsis.value = tr
-                        }
-                    }
-                }
+            if (!rawSynopsis.isNullOrBlank() && (rawSynopsis != detail.synopsis || _translatedSynopsis.value == null)) {
+                triggerSynopsisTranslationIfNeeded(
+                    result = result,
+                    rawSynopsis = rawSynopsis,
+                    autoTranslate = autoTranslate,
+                    expectedFetchKey = expectedFetchKey,
+                    forceRetranslate = rawSynopsis != detail.synopsis
+                )
             }
 
             // Fetch episode ratings

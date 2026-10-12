@@ -155,5 +155,148 @@ object MalWebJson {
         })
     )
 
+    // ── Detaylı İstatistikler ────────────────────────────────────────────
+
+    fun detailedAnimeStats(stats: MalWebParser.DetailedStats): JSONObject {
+        val json = JSONObject()
+        
+        // Score distribution
+        val scoreArray = JSONArray()
+        stats.scoreDistribution.forEach { bucket ->
+            scoreArray.put(JSONObject()
+                .put("score", bucket.score)
+                .put("count", bucket.count)
+                .put("percentage", bucket.percentage)
+            )
+        }
+        json.put("scores", scoreArray)
+        
+        // Type distribution
+        val typeArray = JSONArray()
+        stats.typeDistribution.forEach { bucket ->
+            typeArray.put(JSONObject()
+                .put("type", bucket.type)
+                .put("count", bucket.count)
+                .put("percentage", bucket.percentage)
+            )
+        }
+        json.put("types", typeArray)
+        
+        // Status distribution
+        val statusArray = JSONArray()
+        stats.statusDistribution.forEach { bucket ->
+            statusArray.put(JSONObject()
+                .put("status", bucket.status)
+                .put("count", bucket.count)
+                .put("percentage", bucket.percentage)
+            )
+        }
+        json.put("statuses", statusArray)
+        
+        // Genre stats
+        val genreArray = JSONArray()
+        stats.genreStats.forEach { genre ->
+            genreArray.put(JSONObject()
+                .put("mal_id", genre.genreId)
+                .put("name", genre.name)
+                .put("count", genre.count)
+                .put("mean_score", genre.meanScore)
+            )
+        }
+        json.put("genres", genreArray)
+        
+        // Studio stats
+        val studioArray = JSONArray()
+        stats.studioStats.forEach { studio ->
+            studioArray.put(JSONObject()
+                .put("mal_id", studio.studioId)
+                .put("name", studio.name)
+                .put("count", studio.count)
+                .put("mean_score", studio.meanScore)
+            )
+        }
+        json.put("studios", studioArray)
+        
+        // Voice actor stats
+        val vaArray = JSONArray()
+        stats.voiceActorStats.forEach { va ->
+            vaArray.put(JSONObject()
+                .put("mal_id", va.vaId)
+                .put("name", va.name)
+                .put("count", va.count)
+                .put("mean_score", va.meanScore)
+            )
+        }
+        json.put("voice_actors", vaArray)
+        
+        return json
+    }
+
+    fun detailedMangaStats(stats: MalWebParser.DetailedStats): JSONObject {
+        // Manga için de aynı yapıyı kullan, sadece field isimleri farklı olabilir
+        return detailedAnimeStats(stats)
+    }
+
+    // ── İncelemeler, Öneriler, Kulüpler ──────────────────────────────────
+
+    fun reviews(reviews: List<MalWebParser.Review>, page: Int = 1): JSONObject {
+        val data = JSONArray(reviews.map { review ->
+            JSONObject()
+                .put("mal_id", review.reviewId)
+                .put(
+                    "entry", JSONObject()
+                        .put("mal_id", review.malId)
+                        .put("type", review.kind)
+                        .put("name", review.title)
+                        .put("url", review.url)
+                        .put("images", images(review.image, withSizes = true))
+                )
+                .put("score", review.score)
+                .put("helpful_count", review.helpfulCount)
+                .put("date", review.dateIso.orNull())
+                .put("review", review.textPreview)
+        })
+        return JSONObject()
+            .put("pagination", JSONObject()
+                .put("last_visible_page", if (reviews.size >= 10) page + 1 else page)
+                .put("has_next_page", reviews.size >= 10))
+            .put("data", data)
+    }
+
+    fun recommendations(recs: List<MalWebParser.Recommendation>, page: Int = 1): JSONObject {
+        val data = JSONArray(recs.map { rec ->
+            JSONObject()
+                .put("mal_id", rec.recommendationId)
+                .put(
+                    "entry", JSONObject()
+                        .put("mal_id", rec.malId)
+                        .put("type", rec.kind)
+                        .put("title", rec.title)
+                        .put("url", rec.url)
+                        .put("images", images(rec.image, withSizes = true))
+                )
+                .put("recommendation", rec.recommendationText)
+                .put("date", rec.dateIso.orNull())
+        })
+        return JSONObject()
+            .put("pagination", JSONObject()
+                .put("last_visible_page", if (recs.size >= 10) page + 1 else page)
+                .put("has_next_page", recs.size >= 10))
+            .put("data", data)
+    }
+
+    fun clubs(clubs: List<MalWebParser.Club>): JSONObject {
+        val data = JSONArray(clubs.map { club ->
+            JSONObject()
+                .put("mal_id", club.clubId)
+                .put("name", club.name)
+                .put("url", club.url)
+                .put("images", images(club.image, withSizes = false))
+                .put("members", club.memberCount)
+                .put("category", club.category.orNull())
+        })
+        return JSONObject().put("data", data)
+    }
+
     fun wrap(data: Any): String = JSONObject().put("data", data).toString()
 }

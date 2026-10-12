@@ -131,7 +131,7 @@ internal object BangumiTagDictionary {
         g("avant_garde", "Avangart", "Avant Garde", "avant garde", "实验性", "實驗", "藝術電影", "意识流", "意識流"),
         g("parody", "Parodi", "Parody", "恶搞", "惡搞", "パロディ", "戏仿", "吐槽"),
         g("award_winning", "Ödüllü", "Award Winning", "获奖", "獲獎", "获奖作品", "获奖短片", "拿奖"),
-        g("classic", "Klasik", "Classic", "经典", "經典", "神作"),
+        g("classic", "Klasik", "Classic", "经典", "經典"),
         g("underrated", "Küçümsenmiş", "Underrated", "冷门", "冷門", "小众", "小众佳作", "被低估"),
         g("cult", "Kült", "Cult", "邪典", "カルト", "小众神作"),
         g("controversial", "Tartışmalı", "Controversial", "争议", "爭議", "炎上"),

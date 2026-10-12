@@ -1,44 +1,99 @@
 package com.kitsugi.animelist.data.local
 
 import android.content.Context
+import com.kitsugi.animelist.core.network.KitsugiHttpClient
+import com.kitsugi.animelist.utils.KitsugiTranslatePrefs
+import com.kitsugi.animelist.utils.cleanShikimoriBbCode
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.withContext
-import org.json.JSONArray
-import java.net.HttpURLConnection
-import java.net.URL
-import java.net.URLEncoder
+import okhttp3.Call
+import okhttp3.Callback
+import okhttp3.FormBody
+import okhttp3.OkHttpClient
 import okhttp3.Request
+import okhttp3.Response
+import org.json.JSONArray
+import org.json.JSONObject
+import java.io.IOException
+import java.net.URLEncoder
 import java.security.MessageDigest
-
-import com.kitsugi.animelist.utils.KitsugiTranslatePrefs
-import com.kitsugi.animelist.utils.cleanShikimoriBbCode
+import java.util.concurrent.TimeUnit
+import kotlin.coroutines.resume
+import kotlin.coroutines.resumeWithException
 
 class TranslationManager(context: Context) {
     companion object {
         /**
-         * Google gtx uç noktası çok sayıda eşzamanlı istekte 429 döndürür. İnceleme/yorum
-         * listeleri her öğe için ayrı çeviri başlattığında istekler birbirini boğup
-         * parçaların sessizce orijinal (İngilizce) kalmasına yol açıyordu. Tüm
-         * TranslationManager örnekleri bu kapıyı paylaşır.
+         * Eşzamanlı çeviri kapısı. Arka plan isim/yorum çevirilerinin aktif detay
+         * sayfası açıklamasını/biyografisini kilitlememesi için 4 izin kullanılır.
          */
-        private val requestGate = Semaphore(2)
+        private val requestGate = Semaphore(4)
+
+        /**
+         * Çeviri istekleri için özel OkHttp istemcisi:
+         * Genel [KitsugiHttpClient.client] içindeki RetryInterceptor bir uç nokta 429
+         * döndüğünde aynı URL'yi 3 kez bekleyerek tekrar deniyordu. Burada interceptor
+         * zinciri temizlenerek uç noktalar arası anında yedekli geçiş (fallback) sağlanır.
+         */
+        private val translationHttpClient: OkHttpClient by lazy {
+            KitsugiHttpClient.client.newBuilder()
+                .apply { interceptors().clear() }
+                .connectTimeout(8, TimeUnit.SECONDS)
+                .readTimeout(12, TimeUnit.SECONDS)
+                .writeTimeout(8, TimeUnit.SECONDS)
+                .build()
+        }
+
+        private const val MAX_CHUNK_CHARS = 1400
     }
 
     private val dbContext = context.applicationContext
     private val db = KitsugiDatabase.getDatabase(dbContext)
     private val dao = db.translationCacheDao()
 
+    private suspend fun ensurePrefsInitialized() {
+        if (!KitsugiTranslatePrefs.isInitialized) {
+            runCatching {
+                com.kitsugi.animelist.data.settings.SettingsDataStore(dbContext).settingsFlow.first()
+            }
+        }
+    }
+
     /**
      * Verilen metnin büyük olasılıkla Türkçe olup olmadığını kontrol eder.
-     * İngilizce kelimeler içeriyorsa kesinlikle Türkçe değildir.
-     * Yalnızca Türkçe'ye özgü harfler (ğ, ş, ı) veya belirgin Türkçe kelimeler içeriyorsa true döner.
+     * CJK / Kiril karakterleri veya İngilizce kelimeler içeriyorsa kesinlikle Türkçe değildir.
      */
     private fun isLikelyTurkish(text: String): Boolean {
         if (text.isBlank()) return false
+
+        // CJK (Çince/Japonca/Korece) veya Kiril harfleri varsa Türkçe değildir
+        var nonLatinScriptCount = 0
+        var letterCount = 0
+        for (ch in text) {
+            if (ch.isLetter()) {
+                letterCount++
+                val code = ch.code
+                if (code in 0x0400..0x04FF || // Cyrillic
+                    code in 0x3040..0x30FF || // Hiragana & Katakana
+                    code in 0x3400..0x4DBF || // CJK Ext A
+                    code in 0x4E00..0x9FFF || // CJK Unified
+                    code in 0xAC00..0xD7AF    // Hangul
+                ) {
+                    nonLatinScriptCount++
+                }
+            }
+        }
+        if (letterCount == 0) return false
+        if (nonLatinScriptCount > 0 && (nonLatinScriptCount >= 3 || nonLatinScriptCount * 10 >= letterCount)) {
+            return false
+        }
+
         val words = text.lowercase().split(Regex("""[\s\p{Punct}]+""")).filter { it.isNotBlank() }
         if (words.isEmpty()) return false
 
@@ -54,35 +109,42 @@ class TranslationManager(context: Context) {
             "some", "could", "them", "see", "other", "than", "then", "now",
             "only", "its", "over", "also", "after", "two", "how", "work",
             "first", "even", "new", "because", "born", "voiced", "role",
-            "series", "anime", "manga", "high", "school", "music", "band"
+            "series", "anime", "manga", "high", "school", "music", "band",
+            "studio", "company", "produced", "written", "directed", "story",
+            "character", "characters", "world", "life", "years", "was", "were",
+            "is", "are", "has", "had", "been", "into", "through", "during"
         )
         val englishCount = words.count { it in englishWords }
         if (englishCount >= 2) {
             return false
         }
 
-        // Yalnızca Türkçe'ye özgü karakterler (Almanca/Fransızca ile ortak olan ö, ü, ç HARİÇ)
-        val distinctTurkishChars = setOf('ğ', 'Ğ', 'ş', 'Ş', 'ı', 'İ')
-        val distinctCharCount = text.count { it in distinctTurkishChars }
-        if (distinctCharCount >= 3) return true
-
-        // Belirgin Türkçe kelimeler (Japonca veya Fransızca ile çakışabilecek da, de, ne, ve HARİÇ)
+        // Belirgin Türkçe kelimeler
         val turkishWords = setOf(
             "bir", "için", "olan", "sonra", "ancak", "olarak", "tarafından",
             "nedeniyle", "birlikte", "bulunan", "olduğu", "göre", "kendi",
             "çünkü", "böylece", "arasında", "yapılan", "yılında", "bölüm",
             "karakter", "karakteri", "biyografi", "hakkında", "seslendiren",
-            "sanatçı", "sanatçısı", "doğdu", "başladı", "yer", "aldı"
+            "sanatçı", "sanatçısı", "doğdu", "başladı", "aldı", "ilgili",
+            "üzerine", "karşı", "kadar", "daha", "çok", "गöre", "ise", "ile"
         )
         val turkishCount = words.count { it in turkishWords }
-        return turkishCount >= 2 && turkishCount > englishCount
+
+        // Yalnızca Türkçe'ye özgü karakterler
+        val distinctTurkishChars = setOf('ğ', 'Ğ', 'ş', 'Ş', 'ı', 'İ')
+        val distinctCharCount = text.count { it in distinctTurkishChars }
+
+        if (distinctCharCount >= 4 && englishCount == 0 && (turkishCount >= 1 || words.size <= 12)) {
+            return true
+        }
+        return turkishCount >= 2 && turkishCount > englishCount * 2
     }
 
     suspend fun translate(text: String?): String = withContext(Dispatchers.IO) {
         if (text.isNullOrBlank()) return@withContext ""
-        val settings = com.kitsugi.animelist.data.settings.SettingsDataStore(dbContext).settingsFlow.first()
-        val sourceLang = settings.translateSourceLanguage
-        val targetLang = settings.translateTargetLanguage
+        ensurePrefsInitialized()
+        val sourceLang = KitsugiTranslatePrefs.sourceLanguage.ifBlank { "auto" }
+        val targetLang = KitsugiTranslatePrefs.resolvedTarget()
         translateTo(text, sourceLang, targetLang)
     }
 
@@ -93,28 +155,35 @@ class TranslationManager(context: Context) {
         onPartial: ((String) -> Unit)? = null
     ): String = withContext(Dispatchers.IO) {
         if (text.isNullOrBlank()) return@withContext ""
-        
+
+        val resolvedSource = sourceLang.trim().ifBlank { "auto" }
+        val resolvedTarget = targetLang.trim().ifBlank { "tr" }
         val trimmed = text.trim().cleanShikimoriBbCode()
+        if (trimmed.isBlank()) return@withContext ""
 
         // Metin zaten Türkçeyse çevirme — gereksiz API çağrısını önle
-        if (targetLang == "tr" && isLikelyTurkish(trimmed)) return@withContext trimmed
+        if (resolvedTarget.equals("tr", ignoreCase = true) && isLikelyTurkish(trimmed)) {
+            return@withContext trimmed
+        }
 
-        val hash = md5(trimmed + "_" + sourceLang + "_" + targetLang)
+        val hash = md5("${trimmed}_${resolvedSource}_${resolvedTarget}")
 
         // 1. Check local Room database cache
         val cached = runCatching { dao.getTranslation(hash) }.getOrNull()
-        if (cached != null) {
-            return@withContext cached.cleanShikimoriBbCode()
+        if (!cached.isNullOrBlank()) {
+            val cleanedCached = cached.cleanShikimoriBbCode()
+            onPartial?.let { runCatching { it(cleanedCached) } }
+            return@withContext cleanedCached
         }
 
         // 2. If not cached, fetch translation from Google Translate.
         //    Uzun metinler parçalara bölünür; her parça tamamlandıkça [onPartial]
         //    ile çevrilen kısım UI'ya akıtılır (kullanıcı beklemeden okumaya başlar).
-        val result = fetchFromGoogle(trimmed, sourceLang, targetLang, onPartial)
+        val result = fetchFromGoogle(trimmed, resolvedSource, resolvedTarget, onPartial)
         val translated = result.text.cleanShikimoriBbCode()
 
         // 3. Cache the success response in DB — YALNIZCA tam başarıda.
-        //    Kısmî çeviriyi önbelleğe yazmayız; sonraki açılışta tam çeviri yeniden denenir.
+        //    Kısmî çeviriyi tam metin anahtarına yazmayız; sonraki açılışta kalan parçalar tamamlanır.
         if (result.fullyTranslated && translated.isNotBlank() && translated != trimmed) {
             runCatching {
                 dao.insertTranslation(TranslationCacheEntity(hash, translated))
@@ -122,10 +191,6 @@ class TranslationManager(context: Context) {
             return@withContext translated
         }
 
-        // Kısmî çeviri: başarılı parçalar çevrilmiş, başarısız parçalar orijinal hâlde
-        // döner. Önbelleğe yazılmaz (yukarıda), böylece sonraki açılışta tekrar denenir.
-        // Eskiden tüm metin orijinale dönüyordu; bir parça bile başarısız olsa hiçbir
-        // şey çevrilmiyordu.
         return@withContext if (translated.isBlank()) trimmed else translated
     }
 
@@ -133,57 +198,105 @@ class TranslationManager(context: Context) {
 
     /**
      * Metni KULLANICININ ayarladığı hedef dile çevirir (Ayarlar → Çeviri → Hedef dil;
-     * ayar yoksa uygulama dili). Kaynak dil otomatik algılanır. Hedef dil sabit Türkçe
-     * DEĞİLDİR: "Türkçe" sekmelerinin etiketi de bu dile göre değişir.
+     * ayar yoksa uygulama dili).
      */
-    suspend fun translateToTarget(text: String?, onPartial: ((String) -> Unit)? = null): String =
-        translateTo(text, "auto", KitsugiTranslatePrefs.resolvedTarget(), onPartial)
+    suspend fun translateToTarget(text: String?, onPartial: ((String) -> Unit)? = null): String {
+        ensurePrefsInitialized()
+        val sourceLang = KitsugiTranslatePrefs.sourceLanguage.ifBlank { "auto" }
+        val targetLang = KitsugiTranslatePrefs.resolvedTarget()
+        return translateTo(text, sourceLang, targetLang, onPartial)
+    }
 
     suspend fun translateToEnglish(text: String?): String = translateTo(text, "en")
 
     /**
-     * Markdown linklerini ve URL'leri Google Translate'in bozmasını önlemek için maskeler.
+     * Markdown linklerini, medya etiketlerini (img/webm/youtube), spoiler işaretlerini
+     * ve URL'leri Google Translate'in bozmasını önlemek için harf içermeyen sembolik
+     * yer tutucularla maskeler (böylece Google Translate yer tutucu içindeki kelimeleri çeviremez).
      */
     private fun maskMarkdown(text: String): Pair<String, (String) -> String> {
-        val linkRegex = Regex("""\[([^\]]+)\]\((https?://[^\s)]+)\)""")
-        val links = mutableListOf<Pair<String, String>>() // (label, url)
-        var masked = linkRegex.replace(text) { match ->
-            val idx = links.size
-            links.add(Pair(match.groupValues[1].trim(), match.groupValues[2].trim()))
-            "⟦L_${idx}_START⟧${match.groupValues[1].trim()}⟦L_${idx}_END⟧"
+        var masked = text
+
+        // 1. AniList / Markdown görsel ve video gömmeleri: img220(https://...), webm(https://...), ![](https://...)
+        val mediaEmbedRegex = Regex(
+            """(?:!\[[^\]]*\]\((https?://[^\s)]+)\)|(?:img\d*|webm|youtube)\s*\(\s*([^\s)]+)\s*\))""",
+            RegexOption.IGNORE_CASE
+        )
+        val rawTokens = mutableListOf<String>()
+        masked = mediaEmbedRegex.replace(masked) { match ->
+            val idx = rawTokens.size
+            rawTokens.add(match.value)
+            "⟪@$idx⟫"
         }
 
-        // Korunacak bağımsız URL'ler
-        val rawUrlRegex = Regex("""(?<![\[\(="'])(https?://[^\s<>"'\)]+)(?![\]\)"'])""")
-        val rawUrls = mutableListOf<String>()
+        // 2. Markdown linkleri: [Etiket](https://...)
+        val linkRegex = Regex("""\[([^\]]+)\]\((https?://[^\s)]+)\)""")
+        val links = mutableListOf<Pair<String, String>>() // (label, url)
+        masked = linkRegex.replace(masked) { match ->
+            val idx = links.size
+            val label = match.groupValues[1].trim()
+            val url = match.groupValues[2].trim()
+            links.add(Pair(label, url))
+            "⟪#$idx⟫$label⟪/$idx⟫"
+        }
+
+        // 3. Korunacak bağımsız URL'ler
+        val rawUrlRegex = Regex("""https?://[^\s<>"'\)\]]+""")
         masked = rawUrlRegex.replace(masked) { match ->
-            val idx = rawUrls.size
-            rawUrls.add(match.groupValues[1].trim())
-            "⟦URL_${idx}⟧"
+            val idx = rawTokens.size
+            rawTokens.add(match.value.trim())
+            "⟪@$idx⟫"
+        }
+
+        // 4. AniList spoiler sınırları (~!...!~): iç metin çevrilsin ama ~! ve !~ bozulmasın
+        val spoilerOpenToken = "⟪!9990⟫"
+        val spoilerCloseToken = "⟪!9991⟫"
+        val hasAniListSpoilers = masked.contains("~!") && masked.contains("!~")
+        if (hasAniListSpoilers) {
+            masked = masked
+                .replace("~!", spoilerOpenToken)
+                .replace("!~", spoilerCloseToken)
         }
 
         val unmasker: (String) -> String = { translated ->
             var res = translated
-            // Ham URL'leri geri yükle
-            rawUrls.forEachIndexed { i, url ->
-                res = res.replace("⟦URL_${i}⟧", url)
-                    .replace("⟦url_${i}⟧", url)
-                    .replace("⟦ URL_${i} ⟧", url)
-                    .replace("⟦ URL _ ${i} ⟧", url)
+
+            if (hasAniListSpoilers) {
+                res = res
+                    .replace(Regex("""⟪\s*!\s*9990\s*⟫"""), "~!")
+                    .replace(Regex("""⟪\s*!\s*9991\s*⟫"""), "!~")
+                    .replace(Regex("""~\s+!"""), "~!")
+                    .replace(Regex("""!\s+~"""), "!~")
             }
+
+            // Ham URL ve medya gömmelerini geri yükle
+            rawTokens.forEachIndexed { i, token ->
+                res = res.replace(Regex("""⟪\s*@\s*${i}\s*⟫"""), Regex.escapeReplacement(token))
+            }
+
             // Markdown linklerini geri yükle: etiket çevrildi, URL korundu
             links.forEachIndexed { i, (origLabel, url) ->
-                val pattern = Regex("""⟦\s*L_${i}_START\s*⟧(.*?)⟦\s*L_${i}_END\s*⟧""", RegexOption.DOT_MATCHES_ALL)
+                val pattern = Regex("""⟪\s*#\s*${i}\s*⟫(.*?)⟪\s*/\s*${i}\s*⟫""", RegexOption.DOT_MATCHES_ALL)
                 if (pattern.containsMatchIn(res)) {
                     res = pattern.replace(res) { m ->
                         val translatedLabel = m.groupValues[1].trim().ifBlank { origLabel }
                         "[$translatedLabel]($url)"
                     }
                 } else {
-                    res = res.replace("⟦L_${i}_START⟧", "[")
-                        .replace("⟦L_${i}_END⟧", "]($url)")
+                    val openRegex = Regex("""⟪\s*#\s*${i}\s*⟫""")
+                    val closeRegex = Regex("""⟪\s*/\s*${i}\s*⟫""")
+                    if (openRegex.containsMatchIn(res) && closeRegex.containsMatchIn(res)) {
+                        res = res.replace(openRegex, "[").replace(closeRegex, "]($url)")
+                    } else {
+                        res = res.replace(openRegex, "").replace(closeRegex, " ($url)")
+                    }
                 }
             }
+
+            // Eski önbellekten veya bozulmuş yanıttan kalabilecek artık yer tutucuları temizle
+            res = res
+                .replace(Regex("""⟪\s*[#@/!]?\s*\d+\s*⟫"""), "")
+                .replace(Regex("""⟦\s*L_\d+_(?:START|END|BAŞLANGIÇ|SON)\s*⟧""", RegexOption.IGNORE_CASE), "")
             res
         }
 
@@ -191,20 +304,9 @@ class TranslationManager(context: Context) {
     }
 
     /**
-     * Uzun metinleri Google Translate istek boyutu sınırını (~2500 karakter) aşmayacak parçalara böler.
-     *
-     * Bölme önceliği:
-     *  1. Paragraf (`\n\n`) sınırları,
-     *  2. Satır (`\n`) sınırları,
-     *  3. CÜMLE SONLARI (nokta, soru, ünlem, üç nokta, CJK noktalaması) —
-     *     tek paragraf/satır sınırı aştığında metni bozmamak için cümlelerden bölünür,
-     *  4. Kelime sınırları — tek cümle bile sınırı aşıyorsa.
-     *
-     * NOT: Eski sürüm 3. ve 4. adımları içermiyordu; satır sonu içermeyen 2000+
-     * karakterlik tek paragraflar (karakter biyografilerinde sık) TE PARÇA olarak
-     * gönderiliyor ve gtx ucu bunu sessizce reddediyordu → metin çevrilmeden kalıyordu.
+     * Uzun metinleri Google Translate istek boyutu sınırını aşmayacak parçalara böler.
      */
-    private fun splitIntoChunks(text: String, maxChunkSize: Int = 2000): List<String> {
+    private fun splitIntoChunks(text: String, maxChunkSize: Int = MAX_CHUNK_CHARS): List<String> {
         if (text.length <= maxChunkSize) return listOf(text)
         val chunks = mutableListOf<String>()
         var currentChunk = StringBuilder()
@@ -229,7 +331,6 @@ class TranslationManager(context: Context) {
             if (paragraph.length > maxChunkSize) {
                 for (line in paragraph.split("\n")) {
                     if (line.length > maxChunkSize) {
-                        // Satır tek başına sınırı aşıyor → cümle sonlarından böl
                         for (sentence in splitOversizedLine(line, maxChunkSize)) {
                             addPiece(sentence, " ")
                         }
@@ -247,24 +348,30 @@ class TranslationManager(context: Context) {
     }
 
     /**
-     * Sınırı aşan tek satırı cümle sonlarından böler. Cümle sonu sayılması için
-     * noktlamadan sonra boşluk veya satır sonu gelmesi şarttır (ondalık sayılar
-     * "3.14" ve "Mr." gibi kısaltmalar yanlış bölünmesin diye). Cümle bile
-     * sınırdan uzunsa kelimeden, kelime devasaysa sert kesilir.
+     * Sınırı aşan tek satırı cümle sonlarından böler.
+     * CJK noktalamaları (。！？；…) sonrasında boşluk olmasa bile cümle sonu sayılır;
+     * Latin noktalamalarında (.!?) ise "3.14" veya "Mr." bölünmesin diye boşluk/parantez/tırnak aranır.
      */
     private fun splitOversizedLine(line: String, maxChunkSize: Int): List<String> {
-        val sentenceEnders = ".!?…。！？；"
+        val cjkEnders = "…۔۔。！？；"
+        val asciiEnders = ".!?"
 
-        // 1) Satırı cümlelere ayır
         val sentences = mutableListOf<String>()
         val sb = StringBuilder()
         var i = 0
         while (i < line.length) {
             val c = line[i]
             sb.append(c)
-            if (sentenceEnders.indexOf(c) >= 0) {
+            val isCjkEnder = cjkEnders.indexOf(c) >= 0
+            val isAsciiEnder = asciiEnders.indexOf(c) >= 0
+            if (isCjkEnder || isAsciiEnder) {
                 val next = line.getOrNull(i + 1)
-                if (next == null || next.isWhitespace()) {
+                val isBoundary = if (isCjkEnder) {
+                    true
+                } else {
+                    next == null || next.isWhitespace() || next == '"' || next == '\'' || next == ')' || next == ']' || next == '”'
+                }
+                if (isBoundary) {
                     val s = sb.toString().trim()
                     if (s.isNotEmpty()) sentences.add(s)
                     sb.setLength(0)
@@ -276,7 +383,6 @@ class TranslationManager(context: Context) {
         sentences.removeAll { it.isBlank() }
         if (sentences.isEmpty()) return listOf(line)
 
-        // 2) Sınırı aşan cümleleri kelimeden böl
         val pieces = mutableListOf<String>()
         for (sentence in sentences) {
             if (sentence.length <= maxChunkSize) {
@@ -291,7 +397,6 @@ class TranslationManager(context: Context) {
                 }
                 if (wordChunk.isNotEmpty()) wordChunk.append(' ')
                 wordChunk.append(word)
-                // Tek kelime bile devasaysa (aralıksız CJK vb.) sert kes
                 while (wordChunk.length > maxChunkSize) {
                     pieces.add(wordChunk.substring(0, maxChunkSize))
                     wordChunk.delete(0, maxChunkSize)
@@ -302,52 +407,161 @@ class TranslationManager(context: Context) {
         return pieces
     }
 
+    private suspend fun Call.executeCancellable(): Response = suspendCancellableCoroutine { cont ->
+        cont.invokeOnCancellation {
+            runCatching { cancel() }
+        }
+        enqueue(object : Callback {
+            override fun onFailure(call: Call, e: IOException) {
+                if (cont.isActive) cont.resumeWithException(e)
+            }
+
+            override fun onResponse(call: Call, response: Response) {
+                if (cont.isActive) {
+                    cont.resume(response)
+                } else {
+                    response.close()
+                }
+            }
+        })
+    }
+
     /**
-     * Tek parça çevirisi ister. Başarısızlıkta (HTTP hatası, bozuk JSON) **null** döner —
-     * orijinal metni döndürmek yerine null, çağıran tarafın başarısızlığı AYIRT edebilmesini
-     * sağlar (eski davranış: orijinal metin dönüyordu → sessiz "çevrilemedi").
+     * Google Translate'in farklı uç noktalarından dönen JSON yanıtlarını (hem `dj=1`
+     * nesne biçimi hem klasik iç içe dizi biçimi) ayrıştırır.
      */
-    private fun fetchSingleChunk(text: String, sourceLang: String, targetLang: String): String? {
-        val formBody = okhttp3.FormBody.Builder()
+    private fun parseTranslationResponse(responseText: String): String? {
+        val trimmed = responseText.trim()
+        if (trimmed.isEmpty() || trimmed.startsWith("<")) return null
+
+        if (trimmed.startsWith("{")) {
+            val obj = JSONObject(trimmed)
+            val sentences = obj.optJSONArray("sentences")
+            if (sentences != null && sentences.length() > 0) {
+                val sb = StringBuilder()
+                for (i in 0 until sentences.length()) {
+                    val item = sentences.optJSONObject(i) ?: continue
+                    val trans = item.optString("trans", "")
+                    if (trans.isNotEmpty()) sb.append(trans)
+                }
+                if (sb.isNotEmpty()) return sb.toString()
+            }
+        }
+
+        if (trimmed.startsWith("[")) {
+            val jsonArray = JSONArray(trimmed)
+            val firstElem = jsonArray.opt(0)
+            if (firstElem is JSONArray) {
+                val sb = StringBuilder()
+                for (i in 0 until firstElem.length()) {
+                    val item = firstElem.opt(i)
+                    when (item) {
+                        is JSONArray -> {
+                            val part = item.optString(0, "")
+                            if (part.isNotEmpty()) sb.append(part)
+                        }
+                        is String -> {
+                            if (i == 0 && item.isNotEmpty()) sb.append(item)
+                        }
+                    }
+                }
+                if (sb.isNotEmpty()) return sb.toString()
+            } else if (firstElem is String && firstElem.isNotEmpty()) {
+                return firstElem
+            }
+        }
+
+        return null
+    }
+
+    private fun buildEndpointRequest(
+        endpointIndex: Int,
+        text: String,
+        sourceLang: String,
+        targetLang: String
+    ): Request {
+        val formBody = FormBody.Builder()
             .add("q", text)
             .build()
 
-        val urlStr = "https://translate.googleapis.com/translate_a/single?client=gtx&sl=$sourceLang&tl=$targetLang&dt=t"
-        val request = Request.Builder()
-            .url(urlStr)
-            .post(formBody)
-            .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64)")
-            .build()
-
-        return try {
-            com.kitsugi.animelist.core.network.KitsugiHttpClient.client.newCall(request).execute().use { response ->
-                if (!response.isSuccessful) {
-                    android.util.Log.w("TranslationManager", "Çeviri isteği başarısız: HTTP ${response.code} (parça uzunluğu=${text.length})")
-                    return null
+        return when (endpointIndex % 4) {
+            0 -> Request.Builder()
+                .url("https://translate.googleapis.com/translate_a/single?client=gtx&sl=$sourceLang&tl=$targetLang&dt=t&dj=1")
+                .post(formBody)
+                .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36")
+                .build()
+            1 -> Request.Builder()
+                .url("https://translate.google.com/translate_a/single?client=at&sl=$sourceLang&tl=$targetLang&dt=t&dj=1")
+                .post(formBody)
+                .header("User-Agent", "GoogleTranslate/6.29.0.05.421483610 (Linux; U; Android 13; Pixel 7)")
+                .build()
+            2 -> Request.Builder()
+                .url("https://translate.googleapis.com/translate_a/single?client=dict-chrome-ex&sl=$sourceLang&tl=$targetLang&dt=t&dj=1")
+                .post(formBody)
+                .header("User-Agent", "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36")
+                .build()
+            else -> {
+                val encoded = URLEncoder.encode(text, "UTF-8")
+                if (encoded.length <= 3600) {
+                    Request.Builder()
+                        .url("https://translate.googleapis.com/translate_a/single?client=gtx&sl=$sourceLang&tl=$targetLang&dt=t&q=$encoded")
+                        .get()
+                        .header("User-Agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Safari/605.1.15")
+                        .build()
+                } else {
+                    Request.Builder()
+                        .url("https://clients5.google.com/translate_a/t?client=dict-chrome-ex&sl=$sourceLang&tl=$targetLang&dt=t")
+                        .post(formBody)
+                        .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36")
+                        .build()
                 }
-                val responseText = response.body?.string() ?: return null
-                val jsonArray = JSONArray(responseText)
-                val sentences = jsonArray.optJSONArray(0) ?: return null
-                val result = StringBuilder()
-                for (i in 0 until sentences.length()) {
-                    val sentence = sentences.optJSONArray(i)
-                    val translatedPart = sentence?.optString(0)
-                    if (translatedPart != null) {
-                        result.append(translatedPart)
-                    }
-                }
-                result.toString()
             }
-        } catch (e: Exception) {
-            android.util.Log.w("TranslationManager", "Çeviri isteği istisna üretti: ${e.message}")
-            null
         }
     }
 
     /**
-     * Tek parça için uygulama seviyesinde yeniden deneme. OkHttp RetryInterceptor
-     * 429/5xx/ağ hatasında zaten retry eder; buradaki ek denemeler kalıcı hâle gelen
-     * başarısızlıklar (ör. uzun istek sonrası geçici ret) için son bir şans daha verir.
+     * Tek parça çevirisi ister. Birincil uç nokta 429/403/5xx döndürürse beklemeden
+     * yedek Google Translate uç noktalarına geçer.
+     */
+    private suspend fun fetchSingleChunk(
+        text: String,
+        sourceLang: String,
+        targetLang: String,
+        startEndpointIndex: Int = 0
+    ): String? {
+        for (offset in 0 until 4) {
+            val endpointIdx = (startEndpointIndex + offset) % 4
+            val request = buildEndpointRequest(endpointIdx, text, sourceLang, targetLang)
+            try {
+                val parsed = translationHttpClient.newCall(request).executeCancellable().use { response ->
+                    if (!response.isSuccessful) {
+                        android.util.Log.w(
+                            "TranslationManager",
+                            "Çeviri uç noktası #$endpointIdx başarısız: HTTP ${response.code} (uzunluk=${text.length})"
+                        )
+                        null
+                    } else {
+                        val body = response.body?.string()
+                        if (body.isNullOrBlank()) null else parseTranslationResponse(body)
+                    }
+                }
+                if (!parsed.isNullOrBlank()) {
+                    return parsed
+                }
+            } catch (ce: CancellationException) {
+                throw ce
+            } catch (e: Exception) {
+                android.util.Log.w("TranslationManager", "Çeviri uç noktası #$endpointIdx istisna: ${e.message}")
+            }
+        }
+        return null
+    }
+
+    /**
+     * Tek parça için yeniden deneme + parça bazlı Room önbelleği.
+     * Başarılı olan her parça kendi özet anahtarıyla da önbelleğe yazılır; böylece
+     * çok parçalı uzun biyografilerde/incelemelerde yarıda kesilme olsa bile
+     * çevrilmiş parçalar kaybolmaz.
      */
     private suspend fun fetchSingleChunkWithRetry(
         text: String,
@@ -355,17 +569,27 @@ class TranslationManager(context: Context) {
         targetLang: String,
         maxAttempts: Int = 3
     ): String? {
+        val chunkHash = md5("chunk_${text}_${sourceLang}_${targetLang}")
+        val cachedChunk = runCatching { dao.getTranslation(chunkHash) }.getOrNull()
+        if (!cachedChunk.isNullOrBlank()) {
+            return cachedChunk
+        }
+
         repeat(maxAttempts) { attempt ->
             val result = requestGate.withPermit {
-                runCatching { fetchSingleChunk(text, sourceLang, targetLang) }.getOrNull()
+                fetchSingleChunk(text, sourceLang, targetLang, startEndpointIndex = attempt)
             }
-            if (!result.isNullOrBlank()) return result
+            if (!result.isNullOrBlank()) {
+                if (result != text) {
+                    runCatching { dao.insertTranslation(TranslationCacheEntity(chunkHash, result)) }
+                }
+                return result
+            }
             if (attempt < maxAttempts - 1) {
-                // 429 (hız sınırı) için kademeli bekleme: 1s, 2s…
-                delay(1000L * (attempt + 1))
+                delay(600L * (attempt + 1))
             }
         }
-        android.util.Log.e("TranslationManager", "Çeviri parçası ${maxAttempts} denemede çevrilemedi (uzunluk=${text.length})")
+        android.util.Log.e("TranslationManager", "Çeviri parçası $maxAttempts denemede çevrilemedi (uzunluk=${text.length})")
         return null
     }
 
@@ -380,21 +604,18 @@ class TranslationManager(context: Context) {
     ): GoogleTranslationResult {
         return try {
             val (maskedText, unmasker) = maskMarkdown(text)
-            val chunks = splitIntoChunks(maskedText, maxChunkSize = 2000)
+            val chunks = splitIntoChunks(maskedText, maxChunkSize = MAX_CHUNK_CHARS)
             val translatedChunks = mutableListOf<String>()
             var allSucceeded = true
 
             for ((index, chunk) in chunks.withIndex()) {
                 val translated = fetchSingleChunkWithRetry(chunk, sourceLang, targetLang)
                 if (translated == null) {
-                    // Bu parça çevrilemedi → orijinal hâliyle birleştir (karışık dil olabilir)
                     allSucceeded = false
                     translatedChunks.add(chunk)
                 } else {
                     translatedChunks.add(translated)
                 }
-                // Uzun metinlerde ilerleme: çevrilen kısım + henüz çevrilmemiş özgün kuyruk
-                // birlikte gösterilir — metin "büyüyüp küçülmez", dil kademeli değişir.
                 if (onPartial != null && index < chunks.lastIndex) {
                     val remaining = chunks.subList(index + 1, chunks.size).joinToString("\n\n")
                     runCatching {
@@ -404,6 +625,8 @@ class TranslationManager(context: Context) {
             }
 
             GoogleTranslationResult(unmasker(translatedChunks.joinToString("\n\n")), allSucceeded)
+        } catch (ce: CancellationException) {
+            throw ce
         } catch (e: Exception) {
             android.util.Log.e("TranslationManager", "fetchFromGoogle failed: ${e.message}", e)
             GoogleTranslationResult(text, false)

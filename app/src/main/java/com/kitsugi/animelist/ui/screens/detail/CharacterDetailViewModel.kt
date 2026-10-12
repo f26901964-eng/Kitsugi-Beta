@@ -65,6 +65,9 @@ class CharacterDetailViewModel(application: Application) : AndroidViewModel(appl
     private var lastCharacterName: String? = null
     private var lastIsRealMediaRole: Boolean = false
     private var lastCharacterCacheIdentity: String? = null
+    private var bioTranslateJob: kotlinx.coroutines.Job? = null
+    private var lastAutoTranslateSetting: Boolean? = null
+    private var lastTargetLangSetting: String? = null
 
     /**
      * Arayüzden (karakter kartından) gelen görsel. Kaynak veride görsel yoksa detay
@@ -73,26 +76,88 @@ class CharacterDetailViewModel(application: Application) : AndroidViewModel(appl
      */
     private var lastHintImageUrl: String? = null
 
+    init {
+        viewModelScope.launch {
+            settingsDataStore.settingsFlow.collect { settings ->
+                val prevAuto = lastAutoTranslateSetting
+                val prevTarget = lastTargetLangSetting
+                lastAutoTranslateSetting = settings.autoTranslateEnabled
+                lastTargetLangSetting = settings.translateTargetLanguage
+                if (prevAuto == null && prevTarget == null) return@collect
+                if (prevAuto != settings.autoTranslateEnabled || prevTarget != settings.translateTargetLanguage) {
+                    val detail = (_state.value as? CharacterDetailState.Success)?.detail ?: return@collect
+                    val bio = detail.biography ?: return@collect
+                    val expectedKey = currentFetchKey ?: return@collect
+                    val isRussian = bio.any { it in '\u0400'..'\u04FF' }
+                    if (settings.autoTranslateEnabled || isRussian) {
+                        triggerBioTranslationIfNeeded(
+                            bio = bio,
+                            source = lastSource,
+                            characterId = lastCharacterId,
+                            cacheIdentity = lastCharacterCacheIdentity,
+                            expectedFetchKey = expectedKey,
+                            forceRetranslate = prevTarget != settings.translateTargetLanguage
+                        )
+                    } else {
+                        bioTranslateJob?.cancel()
+                        _translatedBio.value = null
+                    }
+                }
+            }
+        }
+    }
+
+    private fun triggerBioTranslationIfNeeded(
+        bio: String?,
+        source: String,
+        characterId: Int,
+        cacheIdentity: String?,
+        expectedFetchKey: String,
+        forceRetranslate: Boolean = false
+    ) {
+        if (bio.isNullOrBlank()) return
+        if (!forceRetranslate) {
+            val cachedTranslation = DetailCache.getTranslation("bio_char", source, characterId, cacheIdentity)
+            if (!cachedTranslation.isNullOrBlank()) {
+                _translatedBio.value = cachedTranslation
+                return
+            }
+        }
+
+        bioTranslateJob?.cancel()
+        bioTranslateJob = viewModelScope.launch {
+            val autoTranslate = runCatching { settingsDataStore.settingsFlow.first().autoTranslateEnabled }.getOrDefault(false)
+            val isRussian = bio.any { it in '\u0400'..'\u04FF' }
+            if (!autoTranslate && !isRussian && !forceRetranslate) return@launch
+
+            val tr = withContext(Dispatchers.IO) {
+                translationManager.translateToTarget(bio) { partial ->
+                    if (currentFetchKey == expectedFetchKey && partial.isNotBlank()) {
+                        _translatedBio.value = partial
+                    }
+                }
+            }
+            if (currentFetchKey == expectedFetchKey && tr.isNotBlank()) {
+                if (tr != bio) {
+                    DetailCache.putTranslation("bio_char", source, characterId, tr, cacheIdentity)
+                }
+                _translatedBio.value = tr
+            }
+        }
+    }
+
     fun translateBio() {
         val detail = (_state.value as? CharacterDetailState.Success)?.detail ?: return
         val bio = detail.biography ?: return
         val expectedFetchKey = currentFetchKey ?: return
-        val source = lastSource
-        val characterId = lastCharacterId
-        val cacheIdentity = lastCharacterCacheIdentity
-        viewModelScope.launch {
-            val tr = withContext(Dispatchers.IO) {
-                // Uzun biyografilerde çeviri parça parça akıtılır: çevrilen kısım
-                // anında ekrana gelir, kalanı arka planda sırayla çevrilir.
-                translationManager.translateToTarget(bio) { partial ->
-                    if (currentFetchKey == expectedFetchKey) _translatedBio.value = partial
-                }
-            }
-            if (currentFetchKey == expectedFetchKey && tr.isNotBlank() && tr != bio) {
-                DetailCache.putTranslation("bio_char", source, characterId, tr, cacheIdentity)
-                _translatedBio.value = tr
-            }
-        }
+        triggerBioTranslationIfNeeded(
+            bio = bio,
+            source = lastSource,
+            characterId = lastCharacterId,
+            cacheIdentity = lastCharacterCacheIdentity,
+            expectedFetchKey = expectedFetchKey,
+            forceRetranslate = true
+        )
     }
 
     fun loadCharacter(characterId: Int, source: String, name: String? = null, hintImageUrl: String? = null, isRealMediaRole: Boolean = false) {
@@ -107,6 +172,7 @@ class CharacterDetailViewModel(application: Application) : AndroidViewModel(appl
 
         Log.d(TAG, "loadCharacter: New key=$newKey (was $currentFetchKey)")
         currentFetchKey = newKey
+        bioTranslateJob?.cancel()
         _isRefreshing.value = false
         galleryTracker.reset()
         lastCharacterId = characterId
@@ -240,6 +306,7 @@ class CharacterDetailViewModel(application: Application) : AndroidViewModel(appl
         val cacheIdentity = CharacterDetailIdentity.cacheDiscriminator(source, name, isRealMediaRole)
         if (force) {
             DetailCache.removeCharacterDetail(source, characterId, cacheIdentity)
+            DetailCache.removeTranslation("bio_char", source, characterId, cacheIdentity)
         }
         val cached = DetailCache.getCharacterDetail(source, characterId, cacheIdentity)
             ?.takeIf { CharacterDetailIdentity.matchesExpectedDetail(source, name, isRealMediaRole, it) }
@@ -277,6 +344,17 @@ class CharacterDetailViewModel(application: Application) : AndroidViewModel(appl
             DetailCache.putCharacterDetail(source, characterId, detail, cacheIdentity)
             _state.value = CharacterDetailState.Success(detail)
             _isFavourite.value = detail.isFavourite
+
+            // Biyografi çevirisini galeri ve ek ağ çağrılarını beklemeden HEMEN başlat!
+            triggerBioTranslationIfNeeded(
+                bio = detail.biography,
+                source = source,
+                characterId = characterId,
+                cacheIdentity = cacheIdentity,
+                expectedFetchKey = expectedFetchKey,
+                forceRetranslate = force
+            )
+
             if (isBangumiSource(source)) {
                 refreshBangumiFavourite(detail.id)
                 warmBangumiCharacterTitles(detail)
@@ -291,28 +369,6 @@ class CharacterDetailViewModel(application: Application) : AndroidViewModel(appl
                 requestedName = name,
                 expectedFetchKey = expectedFetchKey
             )
-            if (currentFetchKey != expectedFetchKey) return
-
-            // Otomatik çeviri açıksa veya metin Rusça ise biyografiyi çevir.
-            val bio = detail.biography
-            val autoTranslate = runCatching { settingsDataStore.settingsFlow.first() }.getOrNull()?.autoTranslateEnabled ?: false
-            val isRussian = bio?.any { it in '\u0400'..'\u04FF' } == true
-            val cachedTranslation = DetailCache.getTranslation("bio_char", source, characterId, cacheIdentity)
-            if (cachedTranslation != null && !force) {
-                _translatedBio.value = cachedTranslation
-            } else if (!bio.isNullOrBlank() && (autoTranslate || isRussian)) {
-                val tr = withContext(Dispatchers.IO) {
-                    // Uzun biyografilerde çeviri parça parça akıtılır: çevrilen kısım
-                    // anında ekrana gelir, kalanı arka planda sırayla çevrilir.
-                    translationManager.translateToTarget(bio) { partial ->
-                        if (currentFetchKey == expectedFetchKey) _translatedBio.value = partial
-                    }
-                }
-                if (currentFetchKey == expectedFetchKey && tr != bio) {
-                    DetailCache.putTranslation("bio_char", source, characterId, tr, cacheIdentity)
-                    _translatedBio.value = tr
-                }
-            }
         } else if (currentFetchKey == expectedFetchKey && _state.value !is CharacterDetailState.Success) {
             _state.value = CharacterDetailState.Error(KitsugiStrings.get(R.string.karakter_detaylari_yuklenemedi))
         }

@@ -421,7 +421,13 @@ internal object TmdbCreditsClient {
             val responseText = executeGet(url) ?: return@withContext null
             val root = JSONObject(responseText)
             val name = root.optString("name", appString(R.string.source_unknown, "Unknown"))
-            val biography = root.optString("biography", "").cleanApiText().takeIf { it.isNotBlank() }
+            var biography = root.optString("biography", "").cleanApiText().takeIf { it.isNotBlank() }
+            if (biography.isNullOrBlank() && !language.startsWith("en", ignoreCase = true)) {
+                val enResponse = executeGet(TmdbUrlUtils.englishVariant(url))
+                biography = enResponse?.let {
+                    runCatching { JSONObject(it).optString("biography", "") }.getOrNull()
+                }?.cleanApiText()?.takeIf { it.isNotBlank() }
+            }
             val profilePath = root.optNullableString("profile_path") ?: ""
             val imageUrl = if (profilePath.isNotEmpty()) "$IMG_W300$profilePath" else null
             val birthday = root.optString("birthday", "").takeIf { it.isNotBlank() }
@@ -508,7 +514,13 @@ internal object TmdbCreditsClient {
             val responseText = executeGet(url) ?: return@withContext null
             val root = JSONObject(responseText)
             val name = root.optString("name", appString(R.string.source_unknown, "Unknown"))
-            val biography = root.optString("biography", "").cleanApiText().takeIf { it.isNotBlank() }
+            var biography = root.optString("biography", "").cleanApiText().takeIf { it.isNotBlank() }
+            if (biography.isNullOrBlank() && !language.startsWith("en", ignoreCase = true)) {
+                val enResponse = executeGet(TmdbUrlUtils.englishVariant(url))
+                biography = enResponse?.let {
+                    runCatching { JSONObject(it).optString("biography", "") }.getOrNull()
+                }?.cleanApiText()?.takeIf { it.isNotBlank() }
+            }
             val profilePath = root.optNullableString("profile_path") ?: ""
             val imageUrl = if (profilePath.isNotEmpty()) "$IMG_W300$profilePath" else null
             val birthday = root.optString("birthday", "").takeIf { it.isNotBlank() }

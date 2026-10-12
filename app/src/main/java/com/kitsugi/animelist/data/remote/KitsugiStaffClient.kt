@@ -529,15 +529,17 @@ class KitsugiStaffClient {
                         android.util.Log.e("KitsugiStaffClient", "Jikan fetch failed: ${err.message}", err)
                     }
 
-                    // 2. Shikimori Fallback / Merge
-                    runCatching {
-                        KitsugiShikimoriClient.fetchStaffDetail(staffId)
-                    }.onSuccess { shikiDetail ->
-                        if (shikiDetail != null) {
-                            detail = if (detail == null) shikiDetail else detail!!.mergeWith(shikiDetail)
+                    // 2. Shikimori Fallback / Merge (yalnızca Jikan başarısızsa veya biyografi/görsel eksikse)
+                    if (detail == null || detail?.biography.isNullOrBlank() || detail?.imageUrl.isNullOrBlank()) {
+                        runCatching {
+                            KitsugiShikimoriClient.fetchStaffDetail(staffId)
+                        }.onSuccess { shikiDetail ->
+                            if (shikiDetail != null) {
+                                detail = if (detail == null) shikiDetail else detail!!.mergeWith(shikiDetail)
+                            }
+                        }.onFailure { err ->
+                            android.util.Log.e("KitsugiStaffClient", "Shikimori staff detail fallback failed: ${err.message}", err)
                         }
-                    }.onFailure { err ->
-                        android.util.Log.e("KitsugiStaffClient", "Shikimori staff detail fallback failed: ${err.message}", err)
                     }
 
                     // 3. AniList Fallback / Merge
@@ -731,13 +733,31 @@ class KitsugiStaffClient {
                         }
 
                         val isFavourite = data.optBoolean("isFavourite", false)
+                        val resolvedBiography = biography ?: try {
+                            if (KitsugiPersonImageAggregator.isUnambiguousName(name)) {
+                                val jikanSearch = JikanApiClient().searchMalPeople(name, page = 1)
+                                val firstMalId = jikanSearch
+                                    .firstOrNull { KitsugiPersonImageAggregator.nameMatches(name, it.title) }
+                                    ?.malId
+                                if (firstMalId != null && firstMalId > 0) {
+                                    val jikanUrl = "https://api.jikan.moe/v4/people/$firstMalId"
+                                    val jikanResp = (JikanGateway.fetch(jikanUrl, JikanGateway.Priority.UI) as? JikanResult.Ok)?.body
+                                    jikanResp?.let { JSONObject(it).optJSONObject("data")?.optNullableString("about")?.cleanApiText()?.takeIf { b -> b.isNotBlank() } }
+                                } else null
+                            } else null
+                        } catch (c: kotlinx.coroutines.CancellationException) {
+                            throw c
+                        } catch (_: Exception) {
+                            null
+                        }
+
                         KitsugiStaffDetail(
                             id = staffId,
                             name = name,
                             nativeName = nativeName,
                             alternativeNames = alternativeNames,
                             imageUrl = imageUrl,
-                            biography = biography,
+                            biography = resolvedBiography,
                             occupation = occupation,
                             birthday = birthday,
                             age = age,
@@ -753,10 +773,14 @@ class KitsugiStaffClient {
                 }
                 "tmdb" -> {
                     val tmdbRes = TmdbApiClient().fetchPersonStaffDetail(staffId)
-                    if (tmdbRes != null && KitsugiApplication.getInstance()?.let { com.kitsugi.animelist.data.auth.ExternalAuthManager.getAniListToken(it) } != null) {
+                    if (tmdbRes != null && (tmdbRes.biography.isNullOrBlank() || KitsugiApplication.getInstance()?.let { com.kitsugi.animelist.data.auth.ExternalAuthManager.getAniListToken(it) } != null)) {
                         val aniListDetail = fetchAniListStaffByName(tmdbRes.name)
                         if (aniListDetail != null) {
-                            tmdbRes.copy(isFavourite = aniListDetail.isFavourite, aniListId = aniListDetail.id)
+                            tmdbRes.copy(
+                                biography = tmdbRes.biography?.takeIf { it.isNotBlank() } ?: aniListDetail.biography,
+                                isFavourite = aniListDetail.isFavourite,
+                                aniListId = aniListDetail.id
+                            )
                         } else {
                             tmdbRes
                         }

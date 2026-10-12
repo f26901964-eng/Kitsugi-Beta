@@ -39,6 +39,7 @@ import com.kitsugi.animelist.ui.theme.LocalKitsugiAccent
 import com.kitsugi.animelist.ui.theme.KitsugiColors
 import androidx.compose.ui.res.stringResource
 import com.kitsugi.animelist.R
+import kotlinx.coroutines.flow.first
 
 @Composable
 fun KitsugiHeroPreviewDialog(
@@ -48,6 +49,7 @@ fun KitsugiHeroPreviewDialog(
     onDismiss: () -> Unit
 ) {
     val accentColor = LocalKitsugiAccent.current
+    val previewContext = androidx.compose.ui.platform.LocalContext.current.applicationContext
 
     val apiClient = remember {
         JikanApiClient()
@@ -66,10 +68,22 @@ fun KitsugiHeroPreviewDialog(
             mediaType = result.type
         )
 
-        synopsisState = if (synopsis.isNullOrBlank()) {
-            HeroSynopsisState.Error
+        if (synopsis.isNullOrBlank()) {
+            synopsisState = HeroSynopsisState.Error
         } else {
-            HeroSynopsisState.Success(synopsis)
+            synopsisState = HeroSynopsisState.Success(synopsis)
+            val autoTranslate = runCatching {
+                com.kitsugi.animelist.data.settings.SettingsDataStore(previewContext).settingsFlow.first().autoTranslateEnabled
+            }.getOrDefault(false)
+            val isRussian = synopsis.any { it in '\u0400'..'\u04FF' }
+            if (autoTranslate || isRussian) {
+                val tr = com.kitsugi.animelist.data.local.TranslationManager(previewContext).translateToTarget(synopsis) { partial ->
+                    if (partial.isNotBlank()) synopsisState = HeroSynopsisState.Success(partial)
+                }
+                if (tr.isNotBlank()) {
+                    synopsisState = HeroSynopsisState.Success(tr)
+                }
+            }
         }
     }
 

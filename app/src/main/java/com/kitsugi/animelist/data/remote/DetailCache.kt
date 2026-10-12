@@ -223,30 +223,38 @@ object DetailCache {
     }
 
     // Studio Detail
-    fun getStudioDetail(source: String, id: Int): KitsugiStudioDetail? {
-        return studioDetails[makeKey(source, id)]
+    fun getStudioDetail(source: String, id: Int, identity: String? = null): KitsugiStudioDetail? {
+        return studioDetails[makeIdentityKey(source, id, identity)] ?: studioDetails[makeKey(source, id)]
     }
 
-    fun putStudioDetail(source: String, id: Int, detail: KitsugiStudioDetail) {
-        studioDetails[makeKey(source, id)] = detail
+    fun putStudioDetail(source: String, id: Int, detail: KitsugiStudioDetail, identity: String? = null) {
+        studioDetails[makeIdentityKey(source, id, identity)] = detail
+        if (id > 0) {
+            studioDetails[makeKey(source, id)] = detail
+        }
     }
 
     private val fanartGalleryCache = BoundedCache<String, List<GalleryItem>>("detail.fanartGallery", 20)
     private val tmdbGalleryCache = BoundedCache<String, List<GalleryItem>>("detail.tmdbGallery", 20)
 
+    private fun translationKey(type: String, source: String, id: Int, identity: String? = null): String {
+        val targetLang = com.kitsugi.animelist.utils.KitsugiTranslatePrefs.resolvedTarget().lowercase()
+        return "${targetLang}_${type.lowercase()}_${makeIdentityKey(source, id, identity)}"
+    }
+
     // Translations (Synopsis / Biography)
     fun getTranslation(type: String, source: String, id: Int, identity: String? = null): String? {
-        val key = "${type.lowercase()}_${makeIdentityKey(source, id, identity)}"
+        val key = translationKey(type, source, id, identity)
         return translations[key]
     }
 
     fun putTranslation(type: String, source: String, id: Int, translation: String, identity: String? = null) {
-        val key = "${type.lowercase()}_${makeIdentityKey(source, id, identity)}"
+        val key = translationKey(type, source, id, identity)
         translations[key] = translation
     }
 
     fun removeTranslation(type: String, source: String, id: Int, identity: String? = null) {
-        val key = "${type.lowercase()}_${makeIdentityKey(source, id, identity)}"
+        val key = translationKey(type, source, id, identity)
         translations.remove(key)
     }
 

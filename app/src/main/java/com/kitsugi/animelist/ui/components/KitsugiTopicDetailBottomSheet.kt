@@ -41,6 +41,7 @@ import com.kitsugi.animelist.ui.theme.KitsugiColors
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.flow.first
 import com.kitsugi.animelist.utils.KitsugiTranslateUtils.openTranslator
 
 import androidx.compose.foundation.clickable
@@ -142,29 +143,40 @@ fun KitsugiTopicDetailBottomSheet(
         }
     }
 
+    LaunchedEffect(topic.id) {
+        val autoTranslate = runCatching {
+            com.kitsugi.animelist.data.settings.SettingsDataStore(context).settingsFlow.first().autoTranslateEnabled
+        }.getOrDefault(false)
+        if (autoTranslate) {
+            selectedLanguage = "turkish"
+        }
+    }
+
     // Translation orchestration
     LaunchedEffect(selectedLanguage, commentsList, activeTopic.body) {
         if (selectedLanguage == "turkish") {
             // Translate topic title
-            if (translatedTitle == null) {
+            if (translatedTitle == null && activeTopic.title.isNotBlank()) {
                 coroutineScope.launch {
                     val tr = translationManager.translateToTarget(activeTopic.title)
-                    if (tr.isNotBlank()) translatedTitle = tr
+                    if (tr.isNotBlank() && tr != activeTopic.title.trim()) translatedTitle = tr
                 }
             }
             // Translate topic OP body
             if (translatedBody == null && activeTopic.body.isNotBlank()) {
                 coroutineScope.launch {
-                    val tr = translationManager.translateToTarget(activeTopic.body)
-                    if (tr.isNotBlank()) translatedBody = tr
+                    val tr = translationManager.translateToTarget(activeTopic.body) { partial ->
+                        if (partial.isNotBlank()) translatedBody = partial
+                    }
+                    if (tr.isNotBlank() && tr != activeTopic.body.trim()) translatedBody = tr
                 }
             }
             // Recursive translation helper
             fun translateRecursive(comment: KitsugiForumReply) {
-                if (!translatedComments.containsKey(comment.id)) {
+                if (!translatedComments.containsKey(comment.id) && comment.comment.isNotBlank()) {
                     coroutineScope.launch {
                         val tr = translationManager.translateToTarget(comment.comment)
-                        if (tr.isNotBlank()) {
+                        if (tr.isNotBlank() && tr != comment.comment.trim()) {
                             translatedComments[comment.id] = tr
                         }
                     }

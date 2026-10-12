@@ -1,5 +1,8 @@
 package com.kitsugi.animelist.ui.components
 
+import com.kitsugi.animelist.model.MediaType
+import kotlin.math.max
+
 /**
  * Vitrin (hero) görselinin kutuya yerleşme biçimi.
  *
@@ -66,4 +69,101 @@ internal fun heroBandHeightDp(
     isLandscape -> (screenHeightDp * 0.74f).coerceIn(280f, 420f)
     isTablet -> (screenHeightDp * 0.46f).coerceIn(440f, 560f)
     else -> (screenHeightDp * 0.55f).coerceIn(430f, 530f)
+}
+
+// ─────────────────────────────────────────────────────────────────────────────────
+// ANA SAYFA VİTRİNİ (KitsugiHeroSection): OTOMATİK GÖRSEL BOYUTU
+// ─────────────────────────────────────────────────────────────────────────────────
+// Detay sayfasında oturan mantığın birebir aynısı: vitrin bandı sabit bir yükseklik
+// DEĞİL, gösterdiği görselin GERÇEK en-boy oranına kilitlenen bir kutudur.
+//  - Dikey poster  → uzun-dar kutu,
+//  - Yatay arka plan → geniş-kısa bant,
+//  - Yatay mod     → mevcut ekran-duyarlı bant tavan olarak korunur (poster yoksa
+//    "tam ortada contain" fallback mantığı bozulmasın diye bant uzamaz).
+
+/** Dikey modda "uzun-dar telefon" eşiği (detay sayfasıyla aynı kural: ≤0.55 → poster). */
+internal const val HOME_HERO_PORTRAIT_TALL_RATIO = 0.55f
+
+/** Vitrin kutusunun kabul ettiği en küçük en-boy oranı (çok uzun poster taşmasın). */
+internal const val HOME_HERO_MIN_ASPECT = 0.55f
+
+/** Vitrin kutusunun kabul ettiği en büyük en-boy oranı (ultra-geniş banner taşmasın). */
+internal const val HOME_HERO_MAX_ASPECT = 2.35f
+
+/**
+ * Dikey modda bant yüksekliğinin TABANI (ekran yüksekliğinin oranı).
+ * 16:9 arka plan dar telefonda bandı aşırı kısaltmasın: başlık, rozetler ve gösterge
+ * çubuğu daima görselin üstünde okunur kalsın.
+ */
+internal const val HOME_HERO_PORTRAIT_MIN_SCREEN_FRACTION = 0.34f
+
+/** Dikey modda bant yüksekliğinin TAVANI (ekran yüksekliğinin oranı; detay ile aynı). */
+internal const val HOME_HERO_PORTRAIT_MAX_SCREEN_FRACTION = 0.62f
+
+/** Yatay modda bantın kısalabileceği en düşük oran (mevcut bant yüksekliğine göre). */
+internal const val HOME_HERO_LANDSCAPE_MIN_BAND_FRACTION = 0.78f
+
+/**
+ * Ana sayfa vitrininde yatay arka planın BİRİNCİL olup olmayacağına karar veren
+ * STABİL tercih (ekran oranından türer; kutu ölçüsünden türemez çünkü kutu zaten
+ * gösterilen görselin oranına göre boyutlanır — döngüsel olurdu).
+ *
+ * - Manga/manhwa → her zaman dikey kapak birincil.
+ * - Yatay mod → yatay arka plan birincil (bulunamazsa poster, contain ile oturur).
+ * - Dikey mod → uzun-dar telefonda dikey poster, kare/tablet benzeri cihazlarda
+ *   yatay arka plan (detay sayfasıyla aynı kural).
+ */
+internal fun homeHeroPrefersBackdrop(
+    screenWidthDp: Int,
+    screenHeightDp: Int,
+    isLandscape: Boolean,
+    mediaType: MediaType
+): Boolean {
+    if (mediaType == MediaType.Manga) return false
+    if (isLandscape) return true
+    val w = max(1, screenWidthDp).toFloat()
+    val h = max(1, screenHeightDp).toFloat()
+    return w / h > HOME_HERO_PORTRAIT_TALL_RATIO
+}
+
+/**
+ * Vitrin bandının yüksekliğini (dp) gösterilen görselin gerçek en-boy oranından üretir.
+ *
+ * @param heroWidthDp             Vitrin kutusunun genişliği (dp).
+ * @param screenHeightDp          Ekran yüksekliği (dp) — dikey mod tavan/tabanı için.
+ * @param isLandscape             Yatay mod mu?
+ * @param landscapeBandHeightDp   Yatay modda mevcut ekran-duyarlı bant yüksekliği (tavan).
+ * @param imageAspect             Öndeki sayfanın yüklenen görselinin gerçek oranı; yoksa `null`.
+ * @param defaultAspect           Görsel henüz yüklenmediyse varsayılan oran (2:3 / 16:9).
+ */
+internal fun homeHeroHeightDp(
+    heroWidthDp: Float,
+    screenHeightDp: Float,
+    isLandscape: Boolean,
+    landscapeBandHeightDp: Float,
+    imageAspect: Float?,
+    defaultAspect: Float
+): Float {
+    if (!heroWidthDp.isFinite() || heroWidthDp <= 0f) return landscapeBandHeightDp
+    val aspect = (imageAspect ?: defaultAspect).coerceIn(HOME_HERO_MIN_ASPECT, HOME_HERO_MAX_ASPECT)
+    val desired = heroWidthDp / aspect
+    return if (isLandscape) {
+        if (!landscapeBandHeightDp.isFinite() || landscapeBandHeightDp <= 0f) {
+            desired
+        } else {
+            desired.coerceIn(
+                landscapeBandHeightDp * HOME_HERO_LANDSCAPE_MIN_BAND_FRACTION,
+                landscapeBandHeightDp
+            )
+        }
+    } else {
+        if (!screenHeightDp.isFinite() || screenHeightDp <= 0f) {
+            desired
+        } else {
+            desired.coerceIn(
+                screenHeightDp * HOME_HERO_PORTRAIT_MIN_SCREEN_FRACTION,
+                screenHeightDp * HOME_HERO_PORTRAIT_MAX_SCREEN_FRACTION
+            )
+        }
+    }
 }

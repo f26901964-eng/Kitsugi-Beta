@@ -20,19 +20,24 @@ object KitsugiTranslatePrefs {
     var targetLanguage: String = ""
         private set
 
+    @Volatile
+    var isInitialized: Boolean = false
+        private set
+
     fun update(source: String?, target: String?) {
         sourceLanguage = source?.takeIf { it.isNotBlank() } ?: "auto"
         targetLanguage = target?.takeIf { it.isNotBlank() } ?: ""
+        isInitialized = true
     }
 
-    /** Hedef dil: kullanıcı ayarı → yoksa uygulamanın aktif dili. */
+    /** Hedef dil: kullanıcı ayarı → yoksa uygulamanın aktif dili (varsayılan Türkçe). */
     fun resolvedTarget(): String {
         targetLanguage.takeIf { it.isNotBlank() }?.let { return it }
         val tag = com.kitsugi.animelist.LocaleCache.localeTag
         if (tag != com.kitsugi.animelist.LocaleCache.UNSET && tag.isNotBlank()) {
-            return tag.substringBefore('-')
+            return tag.substringBefore('-').ifBlank { "tr" }
         }
-        return java.util.Locale.getDefault().language.ifBlank { "tr" }
+        return "tr"
     }
 }
 

@@ -44,6 +44,7 @@ import com.kitsugi.animelist.ui.theme.KitsugiColors
 import com.kitsugi.animelist.ui.theme.LocalKitsugiAccent
 import com.kitsugi.animelist.ui.utils.tvClickable
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.first
 import com.kitsugi.animelist.utils.KitsugiStrings
 
 @Composable
@@ -67,6 +68,12 @@ fun TvActivityDetailDialog(
 
     LaunchedEffect(activityId) {
         isLoading = true
+        val autoTranslate = runCatching {
+            com.kitsugi.animelist.data.settings.SettingsDataStore(context).settingsFlow.first().autoTranslateEnabled
+        }.getOrDefault(false)
+        if (autoTranslate) {
+            selectedLanguage = "turkish"
+        }
         runCatching {
             activityDetails = apiClient.fetchActivityReplies(activityId)
         }
@@ -76,17 +83,19 @@ fun TvActivityDetailDialog(
     LaunchedEffect(selectedLanguage, activityDetails) {
         if (selectedLanguage == "turkish" && activityDetails != null) {
             val act = activityDetails!!
-            if (act.mediaTitle == null && translatedText == null) {
+            if (act.mediaTitle == null && translatedText == null && act.text.isNotBlank()) {
                 coroutineScope.launch {
-                    val tr = translationManager.translateToTarget(act.text)
-                    if (tr.isNotBlank()) translatedText = tr
+                    val tr = translationManager.translateToTarget(act.text) { partial ->
+                        if (partial.isNotBlank()) translatedText = partial
+                    }
+                    if (tr.isNotBlank() && tr != act.text.trim()) translatedText = tr
                 }
             }
             act.replies.forEach { reply ->
-                if (!translatedReplies.containsKey(reply.id)) {
+                if (!translatedReplies.containsKey(reply.id) && reply.text.isNotBlank()) {
                     coroutineScope.launch {
                         val tr = translationManager.translateToTarget(reply.text)
-                        if (tr.isNotBlank()) {
+                        if (tr.isNotBlank() && tr != reply.text.trim()) {
                             translatedReplies[reply.id] = tr
                         }
                     }

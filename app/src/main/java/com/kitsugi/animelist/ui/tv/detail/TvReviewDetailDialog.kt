@@ -41,6 +41,7 @@ import com.kitsugi.animelist.ui.theme.KitsugiColors
 import com.kitsugi.animelist.ui.theme.LocalKitsugiAccent
 import com.kitsugi.animelist.ui.utils.tvClickable
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.first
 import com.kitsugi.animelist.utils.KitsugiStrings
 
 @Composable
@@ -67,11 +68,25 @@ fun TvReviewDetailDialog(
     var activeGalleryImages by remember { mutableStateOf<List<String>>(emptyList()) }
     var activeGalleryIndex by remember { mutableStateOf(0) }
 
-    LaunchedEffect(selectedLanguage) {
+    LaunchedEffect(review.id) {
+        val autoTranslate = runCatching {
+            com.kitsugi.animelist.data.settings.SettingsDataStore(context).settingsFlow.first().autoTranslateEnabled
+        }.getOrDefault(false)
+        if (autoTranslate) {
+            selectedLanguage = "turkish"
+        }
+    }
+
+    LaunchedEffect(selectedLanguage, review.fullText) {
         if (selectedLanguage == "turkish" && translatedText == null) {
             isTranslating = true
-            val tr = translationManager.translateToTarget(review.fullText)
-            if (tr.isNotBlank()) {
+            val tr = translationManager.translateToTarget(review.fullText) { partial ->
+                if (partial.isNotBlank()) {
+                    translatedText = partial
+                    isTranslating = false
+                }
+            }
+            if (tr.isNotBlank() && tr != review.fullText.trim()) {
                 translatedText = tr
             }
             isTranslating = false
