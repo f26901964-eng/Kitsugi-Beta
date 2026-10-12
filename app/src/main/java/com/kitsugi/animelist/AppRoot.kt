@@ -623,7 +623,9 @@ fun AppRoot(
             isAniListConnected = authViewModel.isAniListConnected,
             isMalConnected = authViewModel.isMalConnected,
             isSimklConnected = authViewModel.isSimklConnected,
-            isBangumiConnected = authViewModel.isBangumiConnected
+            isBangumiConnected = authViewModel.isBangumiConnected,
+            isKitsuConnected = authViewModel.isKitsuConnected,
+            isShikimoriConnected = authViewModel.isShikimoriConnected
         )
     }
 
@@ -1025,10 +1027,20 @@ fun AppRoot(
                                 source = com.kitsugi.animelist.data.remote.BangumiIdNamespace.SOURCE,
                                 malId = stableId ?: updatedEntry.malId
                             )
+                            // Bangumi'ye yazıldı → aynı içerik doğrulanmış kimlikle diğer
+                            // bağlı kaynaklara da yayılır (Bangumi yazması tekrarlanmaz).
                             if (addBangumiMembership) {
-                                mediaRepository.insert(persistedEntry.copy(id = 0), syncExternal = false)
+                                mediaRepository.insert(
+                                    persistedEntry.copy(id = 0),
+                                    syncExternal = true,
+                                    skipBangumiWrite = true
+                                )
                             } else {
-                                mediaRepository.update(persistedEntry, syncExternal = false)
+                                mediaRepository.update(
+                                    persistedEntry,
+                                    syncExternal = true,
+                                    skipBangumiWrite = true
+                                )
                             }
                             editingEntry = null
                             editingSourceHint = null

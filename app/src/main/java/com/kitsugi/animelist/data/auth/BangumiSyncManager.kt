@@ -85,7 +85,12 @@ object BangumiSyncManager {
      */
     suspend fun syncEntryToBangumi(
         context: Context,
-        entry: MediaEntry
+        entry: MediaEntry,
+        /**
+         * Çapraz eşitlemenin [CrossProviderIdentityResolver] ile önceden çözdüğü `subject_id`.
+         * Verildiğinde tekrar arama yapılmaz; verilmediğinde [resolveSubjectId] kendi zincirini işletir.
+         */
+        knownSubjectId: Int? = null
     ): SyncResult = withContext(Dispatchers.IO) {
         if (!supportsMediaType(entry.type)) {
             return@withContext SyncResult(emptyList(), listOf(context.getString(R.string.account_sync_service_media_type_unsupported)))
@@ -97,7 +102,7 @@ object BangumiSyncManager {
         }
 
         val isBook = entry.type == MediaType.Manga
-        val subjectId = resolveSubjectId(context, entry)
+        val subjectId = resolveSubjectId(context, entry, knownSubjectId)
         if (subjectId == null) {
             return@withContext SyncResult(
                 emptyList(),
@@ -273,12 +278,13 @@ object BangumiSyncManager {
      */
     suspend fun deleteEntryFromBangumi(
         context: Context,
-        entry: MediaEntry
+        entry: MediaEntry,
+        knownSubjectId: Int? = null
     ): SyncResult = withContext(Dispatchers.IO) {
         if (BangumiAuthStore.getValidToken(context).isNullOrBlank()) {
             return@withContext SyncResult(emptyList(), listOf(context.getString(R.string.account_sync_account_not_connected, "Bangumi")))
         }
-        val subjectId = resolveSubjectId(context, entry)
+        val subjectId = resolveSubjectId(context, entry, knownSubjectId)
             ?: return@withContext SyncResult(
                 emptyList(),
                 listOf(context.getString(R.string.account_sync_bangumi_match_not_found, entry.title)),
@@ -333,9 +339,16 @@ object BangumiSyncManager {
 
     /**
      * Kayıttan Bangumi `subject_id` çözer.
-     * Stable ID doğrudan kullanılır; legacy ham ID ise önce tür, başlık ve yıl ile doğrulanır.
+     *
+     * Sıra: çağıranın verdiği doğrulanmış kimlik → satırın stableId'si → legacy ham ID
+     * (tür, başlık ve yıl ile doğrulanır) → MAL↔Bangumi eşleme önbelleği / sıkı başlık araması.
      */
-    private suspend fun resolveSubjectId(context: Context, entry: MediaEntry): Int? {
+    private suspend fun resolveSubjectId(
+        context: Context,
+        entry: MediaEntry,
+        knownSubjectId: Int? = null
+    ): Int? {
+        knownSubjectId?.takeIf { it > 0 }?.let { return it }
         val stored = entry.malId
         BangumiIdNamespace.rawIdFromStable(stored)?.let { return it }
         val expectedSubjectType = BangumiIdNamespace.subjectTypeFor(entry.type)

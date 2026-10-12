@@ -155,7 +155,11 @@ class MyListViewModel(application: Application) : AndroidViewModel(application) 
         }
     }
 
-    /** Explicit Bangumi-list add/edit always targets the linked Bangumi account only. */
+    /**
+     * Bangumi liste ekranından ekleme/düzenleme: önce kullanıcının kendi Bangumi koleksiyonuna
+     * yazılır, sonra aynı içerik doğrulanmış kimlikle diğer bağlı kaynaklara yayılır
+     * (AniList · MAL · Simkl · Kitsu · Shikimori). Kimlik çözülemezse yalnızca Bangumi kalır.
+     */
     fun saveBangumiEntry(entry: MediaEntry, isNew: Boolean) {
         viewModelScope.launch {
             val result = BangumiSyncManager.syncEntryToBangumi(
@@ -168,8 +172,11 @@ class MyListViewModel(application: Application) : AndroidViewModel(application) 
                     source = BangumiIdNamespace.SOURCE,
                     malId = stableId ?: entry.malId
                 )
-                if (isNew) repository.insert(persisted.copy(id = 0), syncExternal = false)
-                else repository.update(persisted, syncExternal = false)
+                if (isNew) {
+                    repository.insert(persisted.copy(id = 0), syncExternal = true, skipBangumiWrite = true)
+                } else {
+                    repository.update(persisted, syncExternal = true, skipBangumiWrite = true)
+                }
             }
             val message = (result.messages + result.errors).joinToString(" • ")
                 .ifBlank { "Bangumi koleksiyonu güncellenemedi." }

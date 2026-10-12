@@ -469,6 +469,13 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
         val isAnimeOrManga = entry.type == MediaType.Anime || entry.type == MediaType.Manga
         if (!isAnimeOrManga) return null
 
+        // Çapraz eşitlemenin daha önce öğrendiği eşlemeler (ağ istemeden): canlı eşitleme
+        // bir yapımın MAL/AniList/Kitsu/Bangumi kimliklerini bir kez çözdüğünde kalıcıya yazar.
+        runSyncCatching {
+            com.kitsugi.animelist.data.auth.CrossProviderIdentityResolver
+                .resolve(context, entry, allowNetwork = false).malId
+        }.getOrNull()?.takeIf { it.isRealMalId() }?.let { return it }
+
         val rawAniListId = if (entry.source == "anilist" && entry.malId != null && entry.malId >= 100_000_000 && entry.malId < 300_000_000) {
             entry.malId - 100_000_000
         } else null
@@ -495,6 +502,14 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
             }.getOrNull()
         } else null
         if (armMal != null && armMal.isRealMalId()) return armMal
+
+        // Simkl (150M), Shikimori (400M) ve Bangumi (500M) alanındaki satırlar yukarıdaki
+        // zincirde hiç çözülemez; altı kaynaklık kimlik köprüsü onları da bilir.
+        val fromCrossBridge = runSyncCatching {
+            com.kitsugi.animelist.data.auth.CrossProviderIdentityResolver
+                .resolve(context, entry).malId
+        }.getOrNull()
+        if (fromCrossBridge != null && fromCrossBridge.isRealMalId()) return fromCrossBridge
 
         val searchTitle = entry.titleEnglish?.takeIf { it.isNotBlank() }
             ?: entry.title.takeIf { it.isNotBlank() }

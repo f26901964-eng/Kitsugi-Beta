@@ -369,7 +369,9 @@ class AppViewModel : ViewModel() {
         isAniListConnected: Boolean,
         isMalConnected: Boolean,
         isSimklConnected: Boolean,
-        isBangumiConnected: Boolean = false
+        isBangumiConnected: Boolean = false,
+        isKitsuConnected: Boolean = false,
+        isShikimoriConnected: Boolean = false
     ) {
         val result = selection.result
 
@@ -397,9 +399,12 @@ class AppViewModel : ViewModel() {
                 val remoteResult = BangumiSyncManager.syncEntryToBangumi(appContext, newBangumiEntry)
                 if (remoteResult.collectionUpdated) {
                     val stableId = remoteResult.subjectId?.let(BangumiIdNamespace::stableIdFromRaw)
+                    // Önce Bangumi koleksiyonu yazıldı; satır artık diğer kaynaklara da
+                    // yayılır (doğrulanmış MAL/AniList kimliği çözülebilirse).
                     repository.insert(
                         newBangumiEntry.copy(malId = stableId ?: newBangumiEntry.malId),
-                        syncExternal = false
+                        syncExternal = true,
+                        skipBangumiWrite = true
                     )
                     showSnackbarMessage(
                         (remoteResult.messages + remoteResult.errors)
@@ -413,29 +418,44 @@ class AppViewModel : ViewModel() {
             return
         }
 
-        // En az bir servis bağlı olmalı
-        if (!isAniListConnected && !isMalConnected && !isSimklConnected) {
+        // En az bir kaynak bağlı olmalı — Kitsu / Shikimori / Bangumi de artık tek başına yeterli,
+        // çünkü ekleme sonrası çapraz eşitleme altı kaynağın tamamına yayılıyor.
+        val anySourceConnected = isAniListConnected || isMalConnected || isSimklConnected ||
+            isKitsuConnected || isShikimoriConnected || isBangumiConnected
+        if (!anySourceConnected) {
             showSnackbarMessage(KitsugiStrings.get(R.string.listeye_eklemek_icin_en_az_bir_hesap_baglamalisin_anilist_mal_ve))
             return
         }
 
-        // Film/dizi için Simkl zorunlu değil, anime için MAL/AniList biri yeterli
-        if ((result.type == MediaType.TvShow || result.type == MediaType.Movie) && !isSimklConnected) {
+        // Film/dizi: Simkl bağlı değilse Bangumi (REAL türü) üzerinden de izlenebilir.
+        if ((result.type == MediaType.TvShow || result.type == MediaType.Movie) && !isSimklConnected && !isBangumiConnected) {
             showSnackbarMessage(KitsugiStrings.get(R.string.film_ve_dizileri_eklemek_icin_once_simkl_hesabini_baglamalisin))
             return
         }
-        if (result.type == MediaType.Anime && !isAniListConnected && !isMalConnected) {
+        if (result.type == MediaType.Anime && !isAniListConnected && !isMalConnected &&
+            !isKitsuConnected && !isShikimoriConnected
+        ) {
             showSnackbarMessage(KitsugiStrings.get(R.string.anime_eklemek_icin_anilist_veya_myanimelist_hesabini_baglamalisi))
             return
         }
 
         // Kaynak belirleme: unified entry'nin hangi source olacağını seç
+        val resultSource = com.kitsugi.animelist.data.remote.canonicalMediaSourceId(result.source)
         val primarySource = when {
-            result.type == MediaType.TvShow || result.type == MediaType.Movie -> "simkl"
-            result.source.equals("anilist", ignoreCase = true) && isAniListConnected -> "anilist"
-            result.source.equals("mal", ignoreCase = true) || result.source.equals("jikan", ignoreCase = true) -> "mal"
+            result.type == MediaType.TvShow || result.type == MediaType.Movie -> when {
+                isSimklConnected -> "simkl"
+                isBangumiConnected -> com.kitsugi.animelist.data.remote.BangumiIdNamespace.SOURCE
+                else -> "simkl"
+            }
+            resultSource == "anilist" && isAniListConnected -> "anilist"
+            resultSource == "mal" -> "mal"
+            resultSource == "kitsu" && isKitsuConnected -> "kitsu"
+            resultSource == "shikimori" && isShikimoriConnected -> "shikimori"
             isAniListConnected -> "anilist"
             isMalConnected -> "mal"
+            isSimklConnected -> "simkl"
+            isKitsuConnected -> "kitsu"
+            isShikimoriConnected -> "shikimori"
             else -> "simkl"
         }
 
@@ -511,7 +531,14 @@ class AppViewModel : ViewModel() {
                 isFavorite = false,
                 isAdult = result.isAdult,
                 source = primarySource,
-                malId = finalMalId ?: result.malId.takeIf { it > 0 },
+                // Satır kendi kaynağının kimliğini taşımaya devam eder (Kitsu 300M, Shikimori 400M
+                // aralığı); çözülen gerçek MAL ID yalnızca uzak çağrılarda kullanılır.
+                malId = when (primarySource) {
+                    "kitsu" -> result.malId.takeIf { it in 300_000_001..399_999_999 }
+                        ?: finalMalId ?: result.malId.takeIf { it > 0 }
+                    "shikimori" -> result.malId.takeIf { it > 0 } ?: finalMalId
+                    else -> finalMalId ?: result.malId.takeIf { it > 0 }
+                },
                 imageUrl = result.imageUrl,
                 year = result.year,
                 synopsis = selection.synopsis,

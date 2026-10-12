@@ -16,7 +16,13 @@ object ShikimoriSyncManager {
 
     data class SyncResult(
         val messages: List<String>,
-        val errors: List<String> = emptyList()
+        val errors: List<String> = emptyList(),
+        /**
+         * Shikimori `target_id` olacak doğrulanmış MAL kimliği çözülemedi.
+         * Bu bir API hatası değil, güvenli atlamadır: çağıran taraf kaydı yeniden
+         * denenecek hata kuyruğuna yazmamalıdır.
+         */
+        val unresolvedMedia: Boolean = false
     )
 
     fun watchStatusToShikimori(status: WatchStatus?): String = when (status) {
@@ -67,7 +73,11 @@ object ShikimoriSyncManager {
             ?: if (entry.source == "shikimori" && entry.malId != null && entry.malId > 0) entry.malId else null
 
         if (targetId == null) {
-            return@withContext SyncResult(messages = emptyList(), errors = listOf(context.getString(R.string.account_sync_shikimori_id_not_found, entry.title)))
+            return@withContext SyncResult(
+                messages = emptyList(),
+                errors = listOf(context.getString(R.string.account_sync_shikimori_id_not_found, entry.title)),
+                unresolvedMedia = true
+            )
         }
 
         val targetType = if (entry.type == MediaType.Manga) "Manga" else "Anime"

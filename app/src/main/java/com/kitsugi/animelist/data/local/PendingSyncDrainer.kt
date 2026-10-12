@@ -91,7 +91,10 @@ object PendingSyncDrainer {
 
             result.exceptionOrNull()?.let { if (it is CancellationException) throw it }
             val syncResult = result.getOrNull()
-            val success = result.isSuccess && syncResult != null && syncResult.errors.isEmpty() && syncResult.messages.isNotEmpty()
+            // Yalnızca gerçek hata yeniden denemeyi haklı çıkarır; "kimlik çözülemedi"
+            // (atlandı) durumları kuyrukta sonsuza kadar dönmez.
+            val success = result.isSuccess && syncResult != null && syncResult.errors.isEmpty() &&
+                (syncResult.messages.isNotEmpty() || syncResult.skipped.isNotEmpty())
 
             if (success) {
                 dao.deleteById(item.id)

@@ -21,7 +21,15 @@ class MediaEntryRepository(
     }
 
 
-    suspend fun insert(entry: MediaEntry, syncExternal: Boolean = true) {
+    /**
+     * @param skipBangumiWrite kayıt için Bangumi yazması çağrıda zaten yapıldıysa `true`;
+     * canlı çapraz eşitleme diğer beş kaynağa yine yayılır.
+     */
+    suspend fun insert(
+        entry: MediaEntry,
+        syncExternal: Boolean = true,
+        skipBangumiWrite: Boolean = false
+    ) {
         val entryWithTime = if (entry.updatedAt == 0L) {
             entry.copy(updatedAt = System.currentTimeMillis() / 1000L)
         } else {
@@ -30,7 +38,7 @@ class MediaEntryRepository(
         val newId = dao.insert(entryWithTime.copy(id = 0).toEntity())
         // DB'de oluşan gerçek id ile sync yap (AniList entryId geri yazımı doğru entity'yi yakalar)
         val persistedEntry = dao.getById(newId.toInt())?.toDomain() ?: entryWithTime.copy(id = newId.toInt())
-        if (syncExternal) syncEntryIfPossible(persistedEntry)
+        if (syncExternal) syncEntryIfPossible(persistedEntry, skipBangumiWrite = skipBangumiWrite)
     }
 
     suspend fun insertAll(entries: List<MediaEntry>) {
@@ -173,14 +181,19 @@ class MediaEntryRepository(
         dao.updateAll(entries.map { it.toEntity() })
     }
 
-    suspend fun update(entry: MediaEntry, syncExternal: Boolean = true, advancedScores: List<Double>? = null) {
+    suspend fun update(
+        entry: MediaEntry,
+        syncExternal: Boolean = true,
+        advancedScores: List<Double>? = null,
+        skipBangumiWrite: Boolean = false
+    ) {
         val entryWithTime = entry.copy(updatedAt = System.currentTimeMillis() / 1000L)
         dao.update(
             entryWithTime.toEntity()
         )
 
         if (syncExternal) {
-            syncEntryIfPossible(entryWithTime, advancedScores)
+            syncEntryIfPossible(entryWithTime, advancedScores, skipBangumiWrite)
         }
     }
 
@@ -222,7 +235,11 @@ class MediaEntryRepository(
     // Private Sync Helpers
     // ────────────────────────────────────────────────
 
-    private suspend fun syncEntryIfPossible(entry: MediaEntry, advancedScores: List<Double>? = null) {
+    private suspend fun syncEntryIfPossible(
+        entry: MediaEntry,
+        advancedScores: List<Double>? = null,
+        skipBangumiWrite: Boolean = false
+    ) {
         val appContext = context ?: return
         // Senkronizasyon için geçerli koşullar:
         // 1) malId var (MAL veya gerçek bir MAL ID'si olan AniList kaydı)
@@ -240,11 +257,14 @@ class MediaEntryRepository(
             ExternalListSyncManager.syncEntry(
                 context = appContext,
                 entry = entry,
-                advancedScores = advancedScores
+                advancedScores = advancedScores,
+                skipBangumiWrite = skipBangumiWrite
             )
         }
 
         val syncResult = result.getOrNull()
+        // "Atlandı" (kimlik güvenle çözülemedi) başarısızlık sayılmaz: kaynak listeye göre
+        // katalogda hiç karşılığı olmayan yapımlar kuyrukta birikip her açılışta tekrar denenirdi.
         val success = result.isSuccess && syncResult != null && syncResult.errors.isEmpty()
 
         if (success) {
@@ -269,7 +289,10 @@ class MediaEntryRepository(
             } else {
                 "📵 Çevrimdışı kaydedildi, bağlantı gelince gönderilecek"
             }
-            notifySyncResult(syncResult?.messages.orEmpty() + listOf(displayMessage))
+            notifySyncResult(
+                syncResult?.messages.orEmpty() + listOf(displayMessage) +
+                    listOfNotNull(syncOutcomeNote(syncResult?.outcomes))
+            )
         }
     }
 
@@ -307,7 +330,10 @@ class MediaEntryRepository(
             } else {
                 "📵 Çevrimdışı kaydedildi, bağlantı gelince gönderilecek"
             }
-            notifySyncResult(syncResult?.messages.orEmpty() + listOf(displayMessage))
+            notifySyncResult(
+                syncResult?.messages.orEmpty() + listOf(displayMessage) +
+                    listOfNotNull(syncOutcomeNote(syncResult?.outcomes))
+            )
         }
     }
 
@@ -332,6 +358,17 @@ class MediaEntryRepository(
                 if (sameLocalRecord) queueDao.deleteById(pending.id)
             }
         }
+    }
+
+    /**
+     * Hata durumunda hangi kaynağın neden eşitlenemediğini tek satırda özetler
+     * (ör. "AniList: eşitlendi · Kitsu: kimlik çözülemedi") — kullanıcı "neden yok"
+     * sorusunu raporu açmadan görebilsin diye.
+     */
+    private fun syncOutcomeNote(outcomes: Map<String, String>?): String? {
+        if (outcomes.isNullOrEmpty()) return null
+        val note = com.kitsugi.animelist.data.auth.CrossSyncPolicy.summarize(outcomes)
+        return note.takeIf { it.isNotBlank() }
     }
 
     private fun notifySyncResult(messages: List<String>) {
