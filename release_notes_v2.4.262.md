@@ -8,9 +8,9 @@
 - **Kök Neden:** Uygulama, MAL'ın **hiç yazmadığı** `is_signed_in=1` çerezini arıyordu. Bu yüzden
   uygulama içi WebView'de geçerli bir MAL oturumu dursa bile oturum "yok" sayılıyor ve bildirim
   isteği hiç atılmıyordu.
-- **Düzeltme:** Gerçek MAL oturum çerezleri tanınıyor: `MALHLOGSESSID` ve `MALSESSIONID`;
-  `is_logged_in` / `is_signed_in` bayrakları yalnızca yanlarında bir oturum çerezi varsa geçerli
-  sayılıyor (çıkış sonrası kalıntılar oturum sayılmıyor).
+- **Düzeltme:** Gerçek MAL oturum çerezleri tanınıyor: `MALHLOGSESSID` ve `MALSESSIONID`.
+  `is_logged_in` / `is_signed_in` bayrakları tek başına oturum sayılmıyor; yalnızca teşhis
+  satırında bilgi olarak gösteriliyor (çıkış sonrası kalıntılar da oturum sayılmıyor).
 - **Kanıtlı Karar:** Oturum artık çerez adına bakılarak tahmin edilmiyor; MAL'a istek atılır ve
   giriş sayfasına düşülürse oturum istenir. MAL giriş formunu 200 ile döndürdüğünde de bu doğru
   şekilde "oturum gerekli" olarak yorumlanıyor.
@@ -39,9 +39,9 @@
 - **Root Cause:** The app looked for an `is_signed_in=1` cookie that MAL never sets. Even with a
   valid MAL session in the in-app WebView, the session was considered missing, so the notification
   request was never sent.
-- **Fix:** Real MAL session cookies are recognized (`MALHLOGSESSID`, `MALSESSIONID`); the
-  `is_logged_in` / `is_signed_in` flags only count next to an actual session cookie, so stale
-  sign-out leftovers are ignored.
+- **Fix:** Real MAL session cookies are recognized (`MALHLOGSESSID`, `MALSESSIONID`). The
+  `is_logged_in` / `is_signed_in` flags never count on their own (that was the old bug); they are
+  reported as diagnostics only, and stale sign-out leftovers are ignored.
 - **Evidence-Based Decision:** The session is no longer guessed from cookie names — MAL is asked
   directly and a redirect to the login page is reported as a missing session. A login form returned
   with HTTP 200 is interpreted the same way.

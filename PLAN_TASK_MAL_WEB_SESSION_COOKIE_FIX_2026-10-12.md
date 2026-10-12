@@ -41,8 +41,9 @@ Kanıt: MALClient (Drutol) `MALHLOGSESSID` + `is_logged_in=1` ile oturum kurar v
 ## Düzeltme
 1. **`MalWebSessionStore`** — gerçek çerezler tanınır:
    - Boş olmayan `MALHLOGSESSID` veya `MALSESSIONID` → oturum var.
-   - `is_logged_in` / `is_signed_in` bayrakları yalnızca yanında bir oturum çerezi varsa geçerli
-     (çıkış sonrası kalan `MALHLOGSESSID=; is_logged_in=1` kalıntısı oturum sayılmaz).
+   - `is_logged_in` / `is_signed_in` bayrakları tek başına oturum SAYILMAZ (eski hata tam olarak
+     buydu); yalnızca teşhis satırında raporlanır. Çıkış sonrası `MALHLOGSESSID=; is_logged_in=1`
+     kalıntısı da oturum sayılmaz.
    - Yeni `browserCookieHeader()`: kavanozdaki TÜM MAL çerezleri (oturum doğrulanmadan).
    - Yeni `presentCookieNames()`: teşhis için yalnızca çerez ADLARI; değerler asla dışarı verilmez.
 2. **`KitsugiNotificationsViewModel.loadMal()`** — karar tahminle değil MAL'a sorularak verilir:

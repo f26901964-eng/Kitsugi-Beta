@@ -7,7 +7,7 @@ import org.junit.Test
 class MalWebSessionStoreTest {
     @Test
     fun acceptsMALsRealSignedInSessionCookies() {
-        // MAL giriş yapılmış oturumu MALHLOGSESSID ile taşır; is_signed_in diye bir çerezi yoktur.
+        // MAL giriş yapılmış oturumu MALHLOGSESSID (ve MALSESSIONID) ile taşır.
         assertTrue(
             MalWebSessionStore.isAuthenticatedCookie(
                 "MALSESSIONID=; MALHLOGSESSID=abc123def; m_gdpr_mdl_2=1; is_logged_in=1"
@@ -17,19 +17,21 @@ class MalWebSessionStoreTest {
     }
 
     @Test
-    fun acceptsLegacySignedInFlagOnlyNextToASessionCookie() {
-        // Eski Kitsugi sürümünün kabul ettiği bayrak, oturum çerezi yanındayken geçerli sayılır.
-        assertTrue(MalWebSessionStore.isAuthenticatedCookie("is_signed_in=1; MALHLOGSESSID=abc"))
-        assertTrue(MalWebSessionStore.isAuthenticatedCookie("other=value; is_logged_in=1; MALSESSIONID=x"))
+    fun rejectsFlagOnlyCookieHeaders() {
+        // Eski sürümün hatası: MALHLOGSESSID yokken oturum "bağlı" sayılıyordu.
+        assertFalse(MalWebSessionStore.isAuthenticatedCookie("is_signed_in=1"))
+        assertFalse(MalWebSessionStore.isAuthenticatedCookie("is_logged_in=1"))
+        assertFalse(MalWebSessionStore.isAuthenticatedCookie("is_logged_in=1; is_signed_in=1"))
         assertFalse(MalWebSessionStore.isAuthenticatedCookie("not_is_signed_in=1"))
-        assertFalse(MalWebSessionStore.isAuthenticatedCookie("is_signed_in=0; MALHLOGSESSID=abc"))
     }
 
     @Test
-    fun rejectsFlagOnlyOrEmptySessionCookies() {
-        // Çıkış sonrası kalıntı: bayrak durur ama oturum çerezlerinin değeri boştur.
-        assertFalse(MalWebSessionStore.isAuthenticatedCookie("is_logged_in=1"))
-        assertFalse(MalWebSessionStore.isAuthenticatedCookie("MALSESSIONID=; MALHLOGSESSID=; is_logged_in=1"))
+    fun rejectsEmptySessionCookieLeftovers() {
+        // Çıkış sonrası kalıntı: bayrak durur, oturum çerezlerinin değeri boştur.
+        assertFalse(
+            MalWebSessionStore.isAuthenticatedCookie("MALSESSIONID=; MALHLOGSESSID=; is_logged_in=1")
+        )
+        assertFalse(MalWebSessionStore.isAuthenticatedCookie("MALHLOGSESSID=   "))
         assertFalse(MalWebSessionStore.isAuthenticatedCookie("cf_clearance=abc; m_gdpr_mdl_2=1"))
         assertFalse(MalWebSessionStore.isAuthenticatedCookie(""))
         assertFalse(MalWebSessionStore.isAuthenticatedCookie(null))
@@ -42,7 +44,7 @@ class MalWebSessionStoreTest {
         )
         assertTrue(names.contains("malhlogsessid"))
         assertTrue(names.contains("is_logged_in=1"))
-        // Değerler asla dışarı verilmez.
+        // Çerez değerleri asla dışarı verilmez.
         assertFalse(names.any { it.contains("secret-value") })
         assertFalse(names.any { it.contains("leak") })
     }

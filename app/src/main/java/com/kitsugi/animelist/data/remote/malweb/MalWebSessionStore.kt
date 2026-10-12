@@ -74,16 +74,15 @@ internal object MalWebSessionStore {
     /**
      * Kavanozdaki çerez başlığı gerçek bir MAL oturumuna işaret ediyor mu?
      *
-     * Sıra: gerçek oturum çerezi (boş olmayan değerle) → kesin "giriş yapılmış".
-     * Aksi halde bayrak + boş oturum çerezi kalıntısı oturum sayılmaz.
+     * Karar yalnızca gerçek oturum çerezine (boş olmayan `MALHLOGSESSID` / `MALSESSIONID`)
+     * dayanır. Bayrak çerezleri tek başına yeterli değildir: eski sürümün `is_signed_in=1`
+     * araması tam olarak bu yüzden oturumu hiç göremiyordu ve çıkış sonrası kalıntı bayraklar
+     * yanlış "bağlı" sonucu üretirdi. Bayraklar yalnızca teşhis satırında raporlanır.
      */
     internal fun isAuthenticatedCookie(cookieHeader: String?): Boolean {
         val cookies = parseCookies(cookieHeader)
         if (cookies.isEmpty()) return false
-        if (SESSION_COOKIES.any { !cookies[it].isNullOrBlank() }) return true
-        // Eski davranışla bağlanmış kurulumlar: bayrak + en az bir oturum çerezi anahtarı.
-        return FLAG_COOKIES.any { cookies[it]?.trim() == "1" } &&
-            SESSION_COOKIES.any { cookies.containsKey(it) }
+        return SESSION_COOKIES.any { !cookies[it].isNullOrBlank() }
     }
 
     private fun parseCookies(cookieHeader: String?): Map<String, String> {
