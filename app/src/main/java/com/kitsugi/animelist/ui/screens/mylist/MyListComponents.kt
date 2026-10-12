@@ -75,6 +75,7 @@ import androidx.compose.ui.unit.sp
 import com.kitsugi.animelist.model.MediaEntry
 import com.kitsugi.animelist.model.WatchStatus
 import com.kitsugi.animelist.ui.components.KitsugiSearchField
+import com.kitsugi.animelist.ui.screens.mylist.components.KitsugiMyListFilterSheet
 import com.kitsugi.animelist.ui.screens.mylist.components.KitsugiMyListSortMenu
 import com.kitsugi.animelist.ui.theme.LocalKitsugiColors
 import com.kitsugi.animelist.ui.utils.dpadVerticalFastScroll
@@ -245,43 +246,34 @@ fun MyListHeaderSection(
             }
         }
 
-        AnimatedVisibility(
-            visible = showFilterPanel,
-            enter = expandVertically() + fadeIn(),
-            exit = shrinkVertically() + fadeOut()
-        ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = horizontalPadding, vertical = 6.dp)
-            ) {
-                RichMyListFilterPanel(
-                    selectedStatusFilterId = selectedStatusFilterId,
-                    selectedTypeFilterId = selectedTypeFilterId,
-                    selectedFavoriteFilterId = selectedFavoriteFilterId,
-                    selectedScoreFilterId = selectedScoreFilterId,
-                    selectedYearFilterId = selectedYearFilterId,
-                    selectedExtraFilterId = selectedExtraFilterId,
-                    selectedSortId = selectedSortId,
-                    onStatusSelected = onStatusFilterChange,
-                    onTypeSelected = onTypeFilterChange,
-                    onFavoriteSelected = onFavoriteFilterChange,
-                    onScoreSelected = onScoreFilterChange,
-                    onYearSelected = onYearFilterChange,
-                    onExtraSelected = onExtraFilterChange,
-                    onSortSelected = onSortChange,
-                    onResetFilters = {
-                        onStatusFilterChange("all")
-                        onTypeFilterChange("all")
-                        onFavoriteFilterChange("all")
-                        onScoreFilterChange("all")
-                        onYearFilterChange("all")
-                        onExtraFilterChange("all")
-                        onSortChange("newest")
-                    },
-                    onHideFilters = onHideFilters
-                )
-            }
+        // Filtre & sıralama bölümü artık satır içi alan yerine yeni premium
+        // açılır panelde (KitsugiMyListFilterSheet) açılır — liste yerinden
+        // oynamaz, panel tema vurgusuyla modern bir sheet olarak belirir.
+        if (showFilterPanel) {
+            KitsugiMyListFilterSheet(
+                selectedStatusFilterId = selectedStatusFilterId,
+                selectedTypeFilterId = selectedTypeFilterId,
+                selectedScoreFilterId = selectedScoreFilterId,
+                selectedYearFilterId = selectedYearFilterId,
+                selectedExtraFilterId = selectedExtraFilterId,
+                selectedSortId = selectedSortId,
+                onStatusSelected = onStatusFilterChange,
+                onTypeSelected = onTypeFilterChange,
+                onScoreSelected = onScoreFilterChange,
+                onYearSelected = onYearFilterChange,
+                onExtraSelected = onExtraFilterChange,
+                onSortSelected = onSortChange,
+                onResetFilters = {
+                    onStatusFilterChange("all")
+                    onTypeFilterChange("all")
+                    onFavoriteFilterChange("all")
+                    onScoreFilterChange("all")
+                    onYearFilterChange("all")
+                    onExtraFilterChange("all")
+                    onSortChange("newest")
+                },
+                onDismiss = onHideFilters
+            )
         }
 
         AnimatedVisibility(

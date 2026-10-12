@@ -6308,6 +6308,9 @@
     <string name="search_season_summer">Summer</string>
     <string name="search_season_fall">Fall</string>
     <string name="mylist_filter_all">All</string>
+    <string name="mylist_filter_sheet_title">Filter &amp; Sort</string>
+    <string name="mylist_filter_done">Done</string>
+    <string name="mylist_filter_active_count">%1$d active</string>
     <string name="mylist_filter_watching">Watching</string>
     <string name="mylist_filter_completed">Completed</string>
     <string name="mylist_filter_planned">Planned</string>

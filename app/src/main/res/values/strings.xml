@@ -6313,6 +6313,9 @@ Eklentiler ekranından eklenti etkinleştirin.</string>
     <string name="search_season_summer">Yaz</string>
     <string name="search_season_fall">Sonbahar</string>
     <string name="mylist_filter_all">Tümü</string>
+    <string name="mylist_filter_sheet_title">Filtrele &amp; Sırala</string>
+    <string name="mylist_filter_done">Bitti</string>
+    <string name="mylist_filter_active_count">%1$d aktif</string>
     <string name="mylist_filter_watching">İzleniyor</string>
     <string name="mylist_filter_completed">Tamamlandı</string>
     <string name="mylist_filter_planned">Planlandı</string>
