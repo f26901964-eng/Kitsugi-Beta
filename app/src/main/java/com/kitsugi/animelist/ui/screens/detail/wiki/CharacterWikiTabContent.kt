@@ -60,7 +60,6 @@ import com.kitsugi.animelist.data.fandom.FandomSectionRef
 import com.kitsugi.animelist.data.fandom.FandomTextBlock
 import com.kitsugi.animelist.data.remote.GalleryCategory
 import com.kitsugi.animelist.data.remote.GalleryItem
-import com.kitsugi.animelist.ui.components.KitsugiTranslateIconButton
 import com.kitsugi.animelist.ui.screens.detail.wiki.FandomCharacterWikiViewModel.Companion.KEY_DESCRIPTION
 import com.kitsugi.animelist.ui.screens.detail.wiki.FandomCharacterWikiViewModel.Companion.KEY_INFOBOX
 import com.kitsugi.animelist.ui.screens.detail.wiki.FandomCharacterWikiViewModel.Companion.infoboxFieldKey
@@ -93,13 +92,12 @@ internal fun CharacterWikiTabContent(
     spoilerGuard: Boolean,
     accentColor: Color,
     onLoadSection: (Int) -> Unit,
-    onTranslate: (String) -> Unit,
-    onShowOriginal: (String) -> Unit,
     onOpenGallery: (List<GalleryItem>, Int) -> Unit,
     onConfirm: () -> Unit,
     onReportWrong: () -> Unit,
     modifier: Modifier = Modifier,
-    onTranslateInfobox: () -> Unit = {}
+    /** Harici çeviri uygulaması tercihi (detay açıklama düğmesiyle aynı davranış için). */
+    preferredTranslator: String = "DEFAULT"
 ) {
     val context = LocalContext.current
     val pageKey = page.wikiId + "|" + page.pageTitle
@@ -126,8 +124,7 @@ internal fun CharacterWikiTabContent(
             onOpenGallery = onOpenGallery,
             translations = translations,
             infoboxTranslating = KEY_INFOBOX in translatingKeys,
-            onTranslateInfobox = onTranslateInfobox,
-            onShowOriginalInfobox = { onShowOriginal(KEY_INFOBOX) }
+            preferredTranslator = preferredTranslator
         )
 
         page.description?.let { description ->
@@ -143,13 +140,14 @@ internal fun CharacterWikiTabContent(
                         fontWeight = FontWeight.Bold,
                         modifier = Modifier.weight(1f)
                     )
-                    TranslateToggle(
-                        key = KEY_DESCRIPTION,
-                        isTranslated = translations[KEY_DESCRIPTION] != null,
-                        isLoading = KEY_DESCRIPTION in translatingKeys,
+                    // Detay sayfasındaki Açıklama kartının çeviri düğmesiyle birebir aynı:
+                    // her zaman görünür, dokununca orijinal metni harici çeviri uygulamasında açar,
+                    // uygulama içi çeviri sürerken nabız + dönen halka animasyonu gösterir.
+                    WikiTranslateButton(
+                        text = description,
+                        preferredTranslator = preferredTranslator,
                         accentColor = accentColor,
-                        onTranslate = onTranslate,
-                        onShowOriginal = onShowOriginal
+                        isLoading = KEY_DESCRIPTION in translatingKeys
                     )
                     CopyIconButton(
                         contentDescription = stringResource(R.string.fandom_copy_summary),
@@ -193,9 +191,8 @@ internal fun CharacterWikiTabContent(
                         onToggle = { expanded[section.index] = !isExpanded },
                         onReveal = { revealed[revealKey] = true },
                         onLoad = { onLoadSection(section.index) },
-                        onTranslate = { onTranslate(key) },
-                        onShowOriginal = { onShowOriginal(key) },
-                        onCopy = { text -> copyWikiText(context, text) }
+                        onCopy = { text -> copyWikiText(context, text) },
+                        preferredTranslator = preferredTranslator
                     )
                 }
             }
@@ -278,8 +275,7 @@ private fun WikiInfoboxCard(
     onOpenGallery: (List<GalleryItem>, Int) -> Unit,
     translations: Map<String, String> = emptyMap(),
     infoboxTranslating: Boolean = false,
-    onTranslateInfobox: () -> Unit = {},
-    onShowOriginalInfobox: () -> Unit = {}
+    preferredTranslator: String = "DEFAULT"
 ) {
     val context = LocalContext.current
     val images = infobox?.images.orEmpty()
@@ -362,7 +358,6 @@ private fun WikiInfoboxCard(
         if (fields.isNotEmpty()) {
             Spacer(modifier = Modifier.height(10.dp))
             // Bilgi kutusu araç satırı: toplu çeviri + tümünü kopyala (detay sayfalarındaki açıklama kartıyla aynı düzen).
-            val infoboxTranslated = translations[KEY_INFOBOX] != null
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically
@@ -374,22 +369,23 @@ private fun WikiInfoboxCard(
                     fontWeight = FontWeight.Bold,
                     modifier = Modifier.weight(1f)
                 )
-                TranslateToggle(
-                    key = KEY_INFOBOX,
-                    isTranslated = infoboxTranslated,
-                    isLoading = infoboxTranslating,
+                val hiddenIndices = if (spoilerGuard) {
+                    fields.indices.filter { fields[it].second.spoiler && revealed["field:$it"] != true }.toSet()
+                } else {
+                    emptySet()
+                }
+                // Detay sayfasındaki Açıklama kartıyla aynı çeviri düğmesi: ikon her zaman
+                // durur, dokununca bilgi kutusunun orijinal metni harici uygulamada açılır.
+                WikiTranslateButton(
+                    text = buildInfoboxSourceText(fields = fields, hiddenIndices = hiddenIndices),
+                    preferredTranslator = preferredTranslator,
                     accentColor = accentColor,
-                    onTranslate = { onTranslateInfobox() },
-                    onShowOriginal = { onShowOriginalInfobox() }
+                    isLoading = infoboxTranslating
                 )
                 val copyAllText = buildInfoboxCopyText(
                     fields = fields,
                     translations = translations,
-                    hiddenIndices = if (spoilerGuard) {
-                        fields.indices.filter { fields[it].second.spoiler && revealed["field:$it"] != true }.toSet()
-                    } else {
-                        emptySet()
-                    }
+                    hiddenIndices = hiddenIndices
                 )
                 CopyIconButton(
                     contentDescription = stringResource(R.string.fandom_copy_infobox),
@@ -523,6 +519,28 @@ private fun copyWikiText(context: android.content.Context, text: String) {
     android.widget.Toast.makeText(context, context.getString(R.string.toast_copied_clipboard), android.widget.Toast.LENGTH_SHORT).show()
 }
 
+/**
+ * Bilgi kutusunun **orijinal** (çevrilmemiş) metni: harici çeviri uygulamasına gönderilir.
+ * Etiket ve değerler wiki'nin kendi dilinde kalır; gizli (spoiler) alanların değeri gönderilmez.
+ */
+private fun buildInfoboxSourceText(
+    fields: List<Pair<String?, FandomInfoboxField>>,
+    hiddenIndices: Set<Int>
+): String {
+    val lines = ArrayList<String>(fields.size + 4)
+    var lastHeader: String? = null
+    fields.forEachIndexed { index, (header, field) ->
+        if (header != null && header != lastHeader) {
+            if (lines.isNotEmpty()) lines += ""
+            lines += header
+        }
+        lastHeader = header
+        val value = if (index in hiddenIndices) "[…]" else field.value
+        lines += "${field.label}: $value"
+    }
+    return lines.joinToString("\n")
+}
+
 /** Bilgi kutusunu "Etiket: değer" satırları hâlinde panoya kopyalanacak metne çevirir. */
 @Composable
 private fun buildInfoboxCopyText(
@@ -567,36 +585,6 @@ private fun localizedInfoboxValue(value: String): String {
 }
 
 @Composable
-private fun TranslateToggle(
-    key: String,
-    isTranslated: Boolean,
-    isLoading: Boolean,
-    accentColor: Color,
-    onTranslate: (String) -> Unit,
-    onShowOriginal: (String) -> Unit
-) {
-    if (isTranslated) {
-        TextButton(onClick = { onShowOriginal(key) }) {
-            Text(
-                text = stringResource(R.string.fandom_show_original),
-                color = accentColor,
-                style = MaterialTheme.typography.labelMedium,
-                fontWeight = FontWeight.Bold
-            )
-        }
-    } else {
-        KitsugiTranslateIconButton(
-            onClick = { onTranslate(key) },
-            modifier = Modifier.size(36.dp),
-            isLoading = isLoading,
-            tint = accentColor,
-            contentDescription = stringResource(R.string.cevir),
-            ringSize = 30.dp
-        )
-    }
-}
-
-@Composable
 private fun WikiSectionRow(
     section: FandomSectionRef,
     expanded: Boolean,
@@ -608,9 +596,8 @@ private fun WikiSectionRow(
     onToggle: () -> Unit,
     onReveal: () -> Unit,
     onLoad: () -> Unit,
-    onTranslate: () -> Unit,
-    onShowOriginal: () -> Unit,
-    onCopy: (String) -> Unit = {}
+    onCopy: (String) -> Unit = {},
+    preferredTranslator: String = "DEFAULT"
 ) {
     Column(modifier = Modifier.fillMaxWidth()) {
         Row(
@@ -687,13 +674,13 @@ private fun WikiSectionRow(
                                     horizontalArrangement = Arrangement.End,
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    TranslateToggle(
-                                        key = "",
-                                        isTranslated = translated != null,
-                                        isLoading = translating,
+                                    // Detay sayfasındaki açıklama düğmesiyle aynı: her zaman ikon,
+                                    // dokununca bölümün orijinal metni harici uygulamada açılır.
+                                    WikiTranslateButton(
+                                        text = state.content.plainText(),
+                                        preferredTranslator = preferredTranslator,
                                         accentColor = accentColor,
-                                        onTranslate = { onTranslate() },
-                                        onShowOriginal = { onShowOriginal() }
+                                        isLoading = translating
                                     )
                                     CopyIconButton(
                                         contentDescription = stringResource(R.string.fandom_copy_section),

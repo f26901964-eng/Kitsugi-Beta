@@ -62,7 +62,6 @@ import com.kitsugi.animelist.data.fandom.FandomUrls
 import com.kitsugi.animelist.data.fandom.FandomConfidence
 import com.kitsugi.animelist.data.fandom.FandomWikiRef
 import com.kitsugi.animelist.ui.components.KitsugiSheetOrDialog
-import com.kitsugi.animelist.ui.components.KitsugiTranslateIconButton
 import com.kitsugi.animelist.ui.theme.KitsugiColors
 import com.kitsugi.animelist.ui.theme.gradient.Icon
 import com.kitsugi.animelist.ui.theme.gradient.border
@@ -94,6 +93,7 @@ internal fun MediaWikiTabSlot(
     val selectedState by viewModel.selected.collectAsState()
     val translations by viewModel.translations.collectAsState()
     val translatingKeys by viewModel.translating.collectAsState()
+    val preferredTranslator by viewModel.preferredTranslator.collectAsState()
 
     LaunchedEffect(uiState) {
         if (uiState is FandomMediaWikiViewModel.UiState.Ready) viewModel.ensureContentLoaded()
@@ -109,6 +109,7 @@ internal fun MediaWikiTabSlot(
         selectedState = selectedState,
         translations = translations,
         translatingKeys = translatingKeys,
+        preferredTranslator = preferredTranslator,
         accentColor = accentColor,
         onRetry = viewModel::retry,
         onRetryGuide = viewModel::retryGuide,
@@ -118,8 +119,6 @@ internal fun MediaWikiTabSlot(
         onOpenItem = viewModel::openItem,
         onCloseItem = viewModel::closeItem,
         onRetryItem = viewModel::retryItem,
-        onTranslate = viewModel::translate,
-        onShowOriginal = viewModel::showOriginal,
         onReportWrong = viewModel::reportWrongMatch,
         modifier = modifier
     )
@@ -145,10 +144,10 @@ internal fun MediaWikiTabContent(
     onOpenItem: (String) -> Unit,
     onCloseItem: () -> Unit,
     onRetryItem: (String) -> Unit,
-    onTranslate: (String) -> Unit,
-    onShowOriginal: (String) -> Unit,
     onReportWrong: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    /** Harici çeviri uygulaması tercihi (detay açıklama düğmesiyle aynı davranış için). */
+    preferredTranslator: String = "DEFAULT"
 ) {
     val ready = uiState as? FandomMediaWikiViewModel.UiState.Ready
     Column(
@@ -170,8 +169,7 @@ internal fun MediaWikiTabContent(
                     translated = translations[FandomMediaWikiViewModel.KEY_SUMMARY],
                     translating = FandomMediaWikiViewModel.KEY_SUMMARY in translatingKeys,
                     accentColor = accentColor,
-                    onTranslate = { onTranslate(FandomMediaWikiViewModel.KEY_SUMMARY) },
-                    onShowOriginal = { onShowOriginal(FandomMediaWikiViewModel.KEY_SUMMARY) }
+                    preferredTranslator = preferredTranslator
                 )
                 MediaWikiSearchCard(
                     query = searchQuery,
@@ -207,8 +205,7 @@ internal fun MediaWikiTabContent(
             accentColor = accentColor,
             onClose = onCloseItem,
             onRetry = onRetryItem,
-            onTranslate = onTranslate,
-            onShowOriginal = onShowOriginal
+            preferredTranslator = preferredTranslator
         )
     }
 }
@@ -263,8 +260,7 @@ private fun MediaWikiSummaryCard(
     translated: String?,
     translating: Boolean,
     accentColor: Color,
-    onTranslate: () -> Unit,
-    onShowOriginal: () -> Unit
+    preferredTranslator: String = "DEFAULT"
 ) {
     val description = (state as? FandomMediaWikiViewModel.BlurbState.Ready)?.blurb?.description
     if (state is FandomMediaWikiViewModel.BlurbState.Idle || state is FandomMediaWikiViewModel.BlurbState.Loading) {
@@ -286,12 +282,14 @@ private fun MediaWikiSummaryCard(
                 fontWeight = FontWeight.Bold,
                 modifier = Modifier.weight(1f)
             )
-            WikiTranslateToggle(
-                isTranslated = translated != null,
-                isLoading = translating,
+            // Detay sayfasındaki Açıklama kartının çeviri düğmesiyle birebir aynı: her zaman
+            // görünür, dokununca orijinal özeti harici çeviri uygulamasında açar, uygulama içi
+            // çeviri sürerken nabız + dönen halka animasyonu gösterir.
+            WikiTranslateButton(
+                text = description,
+                preferredTranslator = preferredTranslator,
                 accentColor = accentColor,
-                onTranslate = onTranslate,
-                onShowOriginal = onShowOriginal
+                isLoading = translating
             )
         }
         Spacer(modifier = Modifier.height(8.dp))
@@ -706,8 +704,7 @@ private fun WikiItemSheet(
     accentColor: Color,
     onClose: () -> Unit,
     onRetry: (String) -> Unit,
-    onTranslate: (String) -> Unit,
-    onShowOriginal: (String) -> Unit
+    preferredTranslator: String = "DEFAULT"
 ) {
     val title = when (selectedState) {
         is FandomMediaWikiViewModel.SelectedState.Ready -> selectedState.title
@@ -759,15 +756,14 @@ private fun WikiItemSheet(
                             fontWeight = FontWeight.Bold,
                             modifier = Modifier.weight(1f)
                         )
-                        if (key != null) {
-                            WikiTranslateToggle(
-                                isTranslated = translations[key] != null,
-                                isLoading = key in translatingKeys,
-                                accentColor = accentColor,
-                                onTranslate = { onTranslate(key) },
-                                onShowOriginal = { onShowOriginal(key) }
-                            )
-                        }
+                        // Detay sayfasındaki açıklama düğmesiyle aynı: her zaman ikon,
+                        // dokununca kartın orijinal metni harici uygulamada açılır.
+                        WikiTranslateButton(
+                            text = selectedState.blurb?.description,
+                            preferredTranslator = preferredTranslator,
+                            accentColor = accentColor,
+                            isLoading = key != null && key in translatingKeys
+                        )
                     }
                     val description = blurb?.description
                     val translated = key?.let { translations[it] }
@@ -808,35 +804,6 @@ private fun WikiItemSheet(
                 else -> Unit
             }
         }
-    }
-}
-
-@Composable
-internal fun WikiTranslateToggle(
-    isTranslated: Boolean,
-    isLoading: Boolean,
-    accentColor: Color,
-    onTranslate: () -> Unit,
-    onShowOriginal: () -> Unit
-) {
-    if (isTranslated) {
-        TextButton(onClick = onShowOriginal) {
-            Text(
-                text = stringResource(R.string.fandom_show_original),
-                color = accentColor,
-                style = MaterialTheme.typography.labelMedium,
-                fontWeight = FontWeight.Bold
-            )
-        }
-    } else {
-        KitsugiTranslateIconButton(
-            onClick = onTranslate,
-            modifier = Modifier.size(36.dp),
-            isLoading = isLoading,
-            tint = accentColor,
-            contentDescription = stringResource(R.string.cevir),
-            ringSize = 30.dp
-        )
     }
 }
 

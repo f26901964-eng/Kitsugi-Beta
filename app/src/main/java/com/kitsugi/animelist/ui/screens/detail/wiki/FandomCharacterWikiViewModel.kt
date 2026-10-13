@@ -79,6 +79,14 @@ class FandomCharacterWikiViewModel(application: Application) : AndroidViewModel(
     private val _translating = MutableStateFlow<Set<String>>(emptySet())
     val translating: StateFlow<Set<String>> = _translating.asStateFlow()
 
+    /**
+     * Ayarlardaki çeviri uygulaması tercihi ("GOOGLE", "DEEPL", "TRANSLATE_YOU", "DEFAULT").
+     * Wiki çeviri düğmeleri de detay sayfasındaki açıklama düğmesiyle aynı davrandığı için
+     * (dokununca harici çeviri uygulaması açılır) bu tercih UI'ya akıtılır.
+     */
+    private val _preferredTranslator = MutableStateFlow("DEFAULT")
+    val preferredTranslator: StateFlow<String> = _preferredTranslator.asStateFlow()
+
     val prefs: StateFlow<FandomWikiPrefs.State> = FandomWikiPrefs.stateFlow
 
     private var boundKey: String? = null
@@ -96,6 +104,33 @@ class FandomCharacterWikiViewModel(application: Application) : AndroidViewModel(
                 .distinctUntilChanged()
                 .drop(1)
                 .collect { rebind() }
+        }
+        // Detay sayfalarındaki açıklama çevirisiyle aynı tepkisellik: sayfa açıkken
+        // otomatik çeviri açılırsa yüklü metinler çevrilir, kapanırsa orijinale dönülür,
+        // hedef dil değişince çeviriler tazelenir. Harici çeviri tercihi de buradan akar.
+        viewModelScope.launch {
+            var previous: Triple<Boolean, String, String>? = null
+            settingsDataStore.settingsFlow
+                .map { Triple(it.autoTranslateEnabled, it.translateTargetLanguage, it.preferredTranslator) }
+                .distinctUntilChanged()
+                .collect { current ->
+                    _preferredTranslator.value = current.third
+                    val previousState = previous
+                    previous = current
+                    if (previousState == null) return@collect
+                    val autoChanged = previousState.first != current.first
+                    val targetChanged = previousState.second != current.second
+                    when {
+                        autoChanged && !current.first -> {
+                            cancelTranslations()
+                            _translations.value = emptyMap()
+                        }
+                        (autoChanged && current.first) || (targetChanged && current.first) -> {
+                            retranslateLoadedTexts(force = targetChanged)
+                        }
+                        else -> Unit
+                    }
+                }
         }
     }
 
@@ -151,7 +186,12 @@ class FandomCharacterWikiViewModel(application: Application) : AndroidViewModel(
                 null
             }
             _state.value = if (page != null) UiState.Ready(page) else UiState.Unavailable
-            if (page?.description != null && isAutoTranslateEnabled()) translate(KEY_DESCRIPTION)
+            // Otomatik çeviri açıkken tüm metinler kendiliğinden çevrilir: özet + bilgi kutusu
+            // (bölümler kullanıcı açtıkça, [loadSection] içinde çevrilir).
+            if (page != null && isAutoTranslateEnabled()) {
+                if (!page.description.isNullOrBlank()) translate(KEY_DESCRIPTION)
+                if (!page.infobox?.allFields().isNullOrEmpty()) translateInfobox()
+            }
         }
     }
 
@@ -187,8 +227,13 @@ class FandomCharacterWikiViewModel(application: Application) : AndroidViewModel(
         }
     }
 
-    fun translate(key: String) {
-        if (key in _translating.value || key in _translations.value) return
+    /**
+     * Metni uygulama içi çeviriye verir. [force] = true iken eldeki çeviri yok sayılır
+     * (hedef dil değiştiğinde ya da otomatik çeviri yeni açıldığında).
+     */
+    fun translate(key: String, force: Boolean = false) {
+        if (key in _translating.value) return
+        if (!force && key in _translations.value) return
         val page = (_state.value as? UiState.Ready)?.page ?: return
         val text = when {
             key == KEY_DESCRIPTION -> page.description
@@ -199,17 +244,30 @@ class FandomCharacterWikiViewModel(application: Application) : AndroidViewModel(
             else -> null
         }
         if (text.isNullOrBlank()) return
+        if (force) clearTranslation(key)
         _translating.update { it + key }
         translationJobs[key] = viewModelScope.launch {
             try {
-                val result = withContext(Dispatchers.IO) { translationManager.translateToTarget(text) }
-                if (result.isNotBlank() && result != text && isCurrent(page)) {
+                // Parça parça akan çeviri: detay sayfasındaki açıklama çevirisiyle aynı davranış.
+                val result = withContext(Dispatchers.IO) {
+                    translationManager.translateToTarget(text) { partial ->
+                        if (partial.isNotBlank() && isCurrent(page)) {
+                            _translations.update { it + (key to partial) }
+                        }
+                    }
+                }
+                if (!isCurrent(page)) return@launch
+                if (result.isNotBlank() && result != text) {
                     _translations.update { it + (key to result) }
+                } else {
+                    // Metin zaten hedef dilde (ya da çeviri boş döndü): akan taslağı geri al.
+                    clearTranslation(key)
                 }
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
                 Log.w(TAG, "Çeviri başarısız ($key): ${e.message}")
+                if (isCurrent(page)) clearTranslation(key)
             } finally {
                 _translating.update { it - key }
                 translationJobs.remove(key)
@@ -217,12 +275,25 @@ class FandomCharacterWikiViewModel(application: Application) : AndroidViewModel(
         }
     }
 
-    fun showOriginal(key: String) {
+    /** Çeviriyi bırakıp orijinal metne döner. */
+    private fun clearTranslation(key: String) {
         if (key == KEY_INFOBOX) {
             _translations.update { map -> map.filterKeys { it != KEY_INFOBOX && !it.startsWith(INFOBOX_FIELD_PREFIX) } }
-            return
+        } else {
+            _translations.update { it - key }
         }
-        _translations.update { it - key }
+    }
+
+    /**
+     * Şu an bellekte olan tüm wiki metinlerini çevirir (açıklama + yüklenmiş bölümler +
+     * bilgi kutusu). Otomatik çeviri ayarı açıldığında ya da hedef dil değiştiğinde çağrılır.
+     */
+    private fun retranslateLoadedTexts(force: Boolean) {
+        val page = (_state.value as? UiState.Ready)?.page ?: return
+        if (force) _translations.value = emptyMap()
+        if (!page.description.isNullOrBlank()) translate(KEY_DESCRIPTION, force = force)
+        if (!page.infobox?.allFields().isNullOrEmpty()) translateInfobox(force = force)
+        _sections.value.keys.sorted().forEach { index -> translate(sectionKey(index), force = force) }
     }
 
     /**
@@ -230,8 +301,9 @@ class FandomCharacterWikiViewModel(application: Application) : AndroidViewModel(
      * olan kısa değerler ("Male", "Deceased"…) atlanır; sonuçlar alan sırasına göre saklanır.
      * Satır sayısı korunursa tek istekle, bozulursa alan alan çevrilir.
      */
-    fun translateInfobox() {
-        if (KEY_INFOBOX in _translating.value || KEY_INFOBOX in _translations.value) return
+    fun translateInfobox(force: Boolean = false) {
+        if (KEY_INFOBOX in _translating.value) return
+        if (!force && KEY_INFOBOX in _translations.value) return
         val page = (_state.value as? UiState.Ready)?.page ?: return
         val fields = page.infobox?.allFields().orEmpty()
         val targets = fields.withIndex()
@@ -243,6 +315,7 @@ class FandomCharacterWikiViewModel(application: Application) : AndroidViewModel(
             _translations.update { it + (KEY_INFOBOX to "1") }
             return
         }
+        if (force) clearTranslation(KEY_INFOBOX)
         _translating.update { it + KEY_INFOBOX }
         translationJobs[KEY_INFOBOX] = viewModelScope.launch {
             try {
