@@ -308,7 +308,13 @@ class KitsugiAiringCalendarClient {
      * tüm sayfanın açılmasını saniyelerce geciktiriyordu.
      */
     suspend fun fetchUpcomingSchedule(limit: Int = 30, accessToken: String? = null, preferredSource: String? = null): List<AiringEntry> {
-        val cacheKey = "${preferredSource ?: "anilist"}|${if (accessToken.isNullOrBlank()) "anon" else "auth"}"
+        // TMDB kaynaklı takvim kayıtları istenen dile göre yerelleştirilir (tr-TR/en-US/...).
+        // Önbellek anahtarı dili İÇERMEZSE dil değiştikten sonra TTL süresince eski dildeki
+        // "Yakında Yayında" başlıkları servis edilirdi.
+        val languageTag = if (preferredSource == "tmdb" || preferredSource == "all") {
+            TmdbApiClient.getActiveLanguage().lowercase()
+        } else "anilist"
+        val cacheKey = "${preferredSource ?: "anilist"}|${if (accessToken.isNullOrBlank()) "anon" else "auth"}|$languageTag"
         synchronized(upcomingLock) {
             upcomingCache[cacheKey]?.let { hit ->
                 if (hit.expiresAtMs > System.currentTimeMillis()) return hit.entries.take(limit)
