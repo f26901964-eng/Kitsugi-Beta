@@ -157,11 +157,6 @@ class KitsugiApplication : Application(), SingletonImageLoader.Factory {
         // Initialize ratings repository room cache context
         KitsugiEpisodeRatingsRepository.init(this)
 
-        // Bangumi Latin başlık önbelleğini arka planda belleğe al (disk okuması IO kapsamında).
-        // "Listem", Bangumi profili ve listeler ilk çizimde kullanıcının seçtiği başlık diline
-        // uyabilsin diye önbellek hazır tutulur; hiçbir ağ isteği yapılmaz.
-        runCatching { com.kitsugi.animelist.data.remote.BangumiTitleCache.warmUp() }
-
         // Initialize P2P Torrent Engine & Settings
         com.kitsugi.animelist.core.p2p.P2pSettingsRepository.initialize(this)
         com.kitsugi.animelist.core.p2p.P2pStreamingEngine.initialize(this)

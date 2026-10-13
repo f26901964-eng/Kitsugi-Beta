@@ -4787,7 +4787,6 @@
     <string name="detail_synopsis_loading">Loading description...</string>
     <string name="detail_synopsis_error">Couldn\'t load description.</string>
     <string name="detail_external_link">External Link</string>
-    <string name="detail_external_ratings">External Ratings</string>
     <string name="detail_info_status">Status</string>
     <string name="detail_info_season">Season</string>
     <string name="detail_info_source">Source</string>

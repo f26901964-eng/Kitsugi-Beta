@@ -10,7 +10,6 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
-import java.util.Locale
 import java.util.concurrent.ConcurrentHashMap
 
 import com.kitsugi.animelist.core.memory.BoundedCache
@@ -137,30 +136,6 @@ internal object BangumiTitleCache {
         if (current.isNotEmpty() && !PreferenceHelpers.hasCjkCharacters(current)) return null
         val cached = get(rawId) ?: return null
         return usableLatin(cached.romaji) ?: usableLatin(cached.english)
-    }
-
-    /**
-     * Kullanıcının **başlık dili** tercihine göre gösterim adı üretir.
-     *
-     * - `ENGLISH` → İngilizce ad (yoksa romaji)
-     * - `NATIVE` / `JAPANESE_STAFF` → özgün (Japonca/Çince) ad
-     * - diğer (ROMAJI) → romaji (yoksa İngilizce)
-     *
-     * Önbellekte uygun karşılık yoksa ya da üretilen ad [currentTitle] ile aynıysa `null`
-     * döner; çağıran taraf bu durumda elindeki adı korur. Böylece "Listem" gibi yalnızca
-     * özgün adla gelen (Bangumi koleksiyonundan içe aktarılmış) satırlar da seçilen dile
-     * uyar ve gereksiz yere aynı dize yeniden üretilmez.
-     */
-    fun localizedTitleFor(rawId: Int?, currentTitle: String?, titleLanguage: String): String? {
-        val current = currentTitle?.trim().orEmpty()
-        val cached = get(rawId) ?: return null
-        val candidate = when (titleLanguage.trim().uppercase(Locale.ROOT)) {
-            "ENGLISH" -> usableLatin(cached.english) ?: usableLatin(cached.romaji)
-            "NATIVE", "JAPANESE_STAFF" ->
-                cached.native?.trim()?.takeIf { it.isNotEmpty() } ?: usableLatin(cached.romaji)
-            else -> usableLatin(cached.romaji) ?: usableLatin(cached.english)
-        } ?: return null
-        return candidate.takeIf { !it.equals(current, ignoreCase = true) }
     }
 
     /** Bir kaydın Latin ad varyantlarını kaydeder (değişim yoksa disk yazması yapılmaz). */

@@ -4789,7 +4789,6 @@ Eklentiler ekranından eklenti etkinleştirin.</string>
     <string name="detail_synopsis_loading">Açıklama yükleniyor...</string>
     <string name="detail_synopsis_error">Açıklama alınamadı.</string>
     <string name="detail_external_link">Dış Bağlantı</string>
-    <string name="detail_external_ratings">Harici Puanlar</string>
     <string name="detail_info_status">Durum</string>
     <string name="detail_info_season">Sezon</string>
     <string name="detail_info_source">Kaynak</string>

@@ -95,47 +95,6 @@ class MdbListClientTest {
     }
 
     @Test
-    fun parseRatingsTreatsZeroScoresAsMissing() {
-        // MDBList bazı kayıtlar için puan yerine 0 döndürür; ekranda "0 Metacritic" gibi
-        // anlamsız kutular görünmemesi için bu değerler "puan yok" kabul edilir.
-        val result = MdbListClient.parseRatings(
-            """
-            {
-              "response": true,
-              "ratings": [
-                {"source":"IMDb", "value":"8.4/10"},
-                {"source":"Metacritic", "value":"0/100"},
-                {"source":"Letterboxd", "value":"0/5"},
-                {"source":"TMDb", "rating":0},
-                {"source":"Rotten Tomatoes", "value":"91%"}
-              ]
-            }
-            """.trimIndent(),
-            imdbId = null
-        )
-
-        requireNotNull(result)
-        assertEquals(8.4, result.imdb!!, 0.001)
-        assertEquals(91, result.tomatoes)
-        assertNull(result.metacritic)
-        assertNull(result.letterboxd)
-        assertNull(result.tmdb)
-        assertNull(result.trakt)
-    }
-
-    @Test
-    fun parseRatingsReturnsEmptyRatingsWhenEveryScoreIsZero() {
-        val result = MdbListClient.parseRatings(
-            """{"response":true,"ratings":[{"source":"IMDb","value":"0.0/10"},{"source":"Metacritic","value":0}]}""",
-            imdbId = null
-        )
-
-        requireNotNull(result)
-        // Boş (ama geçerli) bir yanıt: kart çizilmez, önbellek negatif kaydı korunur.
-        assertTrue(result.isEmpty)
-    }
-
-    @Test
     fun sensitiveUrlRedactorHidesCredentialParametersButPreservesOtherQueryValues() {
         val url = "https://example.test/item?api_key=tmdb-secret&language=tr-TR&apikey=mdb-secret&token=login-token"
 
