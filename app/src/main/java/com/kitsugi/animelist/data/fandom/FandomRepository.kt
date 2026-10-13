@@ -143,7 +143,7 @@ object FandomRepository {
     }
 
     private fun wikiCacheKey(mediaKey: String, nameAllowed: Boolean): String =
-        "${KEY_PREFIX}wiki:v2:$mediaKey:${if (nameAllowed) "n1" else "n0"}"
+        "${KEY_PREFIX}wiki:v3:$mediaKey:${if (nameAllowed) "n1" else "n0"}"
 
     /**
      * "Yanlışsa bildir" (yapım sekmesi): wiki bu yapım için reddedilir, wiki eşleşme
