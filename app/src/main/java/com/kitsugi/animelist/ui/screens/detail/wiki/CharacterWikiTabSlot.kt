@@ -26,14 +26,12 @@ internal fun CharacterWikiTabSlot(
     spoilerGuard: Boolean,
     accentColor: Color,
     onLoadSection: (Int) -> Unit,
-    onTranslate: (String) -> Unit,
-    onShowOriginal: (String) -> Unit,
     onOpenGallery: (List<GalleryItem>, Int) -> Unit,
     onConfirm: () -> Unit,
     onReportWrong: () -> Unit,
     onRetry: () -> Unit,
-    onTranslateInfobox: () -> Unit = {},
-    unavailableMessageRes: Int = R.string.fandom_unavailable_character
+    unavailableMessageRes: Int = R.string.fandom_unavailable_character,
+    preferredTranslator: String = "DEFAULT"
 ) {
     when (wikiState) {
         is FandomCharacterWikiViewModel.UiState.Ready -> CharacterWikiTabContent(
@@ -44,12 +42,10 @@ internal fun CharacterWikiTabSlot(
             spoilerGuard = spoilerGuard,
             accentColor = accentColor,
             onLoadSection = onLoadSection,
-            onTranslate = onTranslate,
-            onShowOriginal = onShowOriginal,
             onOpenGallery = onOpenGallery,
             onConfirm = onConfirm,
             onReportWrong = onReportWrong,
-            onTranslateInfobox = onTranslateInfobox
+            preferredTranslator = preferredTranslator
         )
         FandomCharacterWikiViewModel.UiState.Unavailable -> WikiUnavailableCard(
             accentColor = accentColor,
@@ -78,6 +74,7 @@ internal fun CharacterWikiTabSlot(
     val translations by viewModel.translations.collectAsState()
     val translating by viewModel.translating.collectAsState()
     val prefs by viewModel.prefs.collectAsState()
+    val preferredTranslator by viewModel.preferredTranslator.collectAsState()
     androidx.compose.foundation.layout.Box(modifier = modifier) {
         CharacterWikiTabSlot(
             wikiState = wikiState,
@@ -87,8 +84,6 @@ internal fun CharacterWikiTabSlot(
             spoilerGuard = prefs.spoilerGuard,
             accentColor = accentColor,
             onLoadSection = viewModel::loadSection,
-            onTranslate = viewModel::translate,
-            onShowOriginal = viewModel::showOriginal,
             onOpenGallery = onOpenGallery,
             onConfirm = {
                 viewModel.confirmMatch()
@@ -99,8 +94,8 @@ internal fun CharacterWikiTabSlot(
                 Toast.makeText(context, context.getString(R.string.fandom_report_wrong_done), Toast.LENGTH_SHORT).show()
             },
             onRetry = viewModel::retry,
-            onTranslateInfobox = viewModel::translateInfobox,
-            unavailableMessageRes = unavailableMessageRes
+            unavailableMessageRes = unavailableMessageRes,
+            preferredTranslator = preferredTranslator
         )
     }
 }

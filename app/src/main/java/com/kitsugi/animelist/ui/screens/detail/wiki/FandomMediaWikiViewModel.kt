@@ -14,6 +14,7 @@ import com.kitsugi.animelist.data.fandom.FandomWikiPrefs
 import com.kitsugi.animelist.data.fandom.FandomWikiRef
 import com.kitsugi.animelist.data.fandom.FandomWorldGuide
 import com.kitsugi.animelist.data.local.TranslationManager
+import com.kitsugi.animelist.data.settings.SettingsDataStore
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -92,6 +93,7 @@ class FandomMediaWikiViewModel(application: Application) : AndroidViewModel(appl
 
     private val appContext = application.applicationContext
     private val translationManager by lazy { TranslationManager(appContext) }
+    private val settingsDataStore by lazy { SettingsDataStore(appContext) }
 
     private val _state = MutableStateFlow<UiState>(UiState.Idle)
     val state: StateFlow<UiState> = _state.asStateFlow()
@@ -120,6 +122,14 @@ class FandomMediaWikiViewModel(application: Application) : AndroidViewModel(appl
     private val _translating = MutableStateFlow<Set<String>>(emptySet())
     val translating: StateFlow<Set<String>> = _translating.asStateFlow()
 
+    /**
+     * Ayarlardaki çeviri uygulaması tercihi ("GOOGLE", "DEEPL", "TRANSLATE_YOU", "DEFAULT").
+     * Wiki çeviri düğmeleri detay sayfasındaki açıklama düğmesiyle aynı davrandığı için
+     * (dokununca harici çeviri uygulaması açılır) bu tercih UI'ya akıtılır.
+     */
+    private val _preferredTranslator = MutableStateFlow("DEFAULT")
+    val preferredTranslator: StateFlow<String> = _preferredTranslator.asStateFlow()
+
     val prefs: StateFlow<FandomWikiPrefs.State> = FandomWikiPrefs.stateFlow
 
     private var boundKey: String? = null
@@ -140,6 +150,33 @@ class FandomMediaWikiViewModel(application: Application) : AndroidViewModel(appl
                 .distinctUntilChanged()
                 .drop(1)
                 .collect { rebind() }
+        }
+        // Detay sayfalarındaki açıklama çevirisiyle aynı tepkisellik: sekme açıkken
+        // otomatik çeviri açılırsa yüklü metinler çevrilir, kapanırsa orijinale dönülür,
+        // hedef dil değişince çeviriler tazelenir. Harici çeviri tercihi de buradan akar.
+        viewModelScope.launch {
+            var previous: Triple<Boolean, String, String>? = null
+            settingsDataStore.settingsFlow
+                .map { Triple(it.autoTranslateEnabled, it.translateTargetLanguage, it.preferredTranslator) }
+                .distinctUntilChanged()
+                .collect { current ->
+                    _preferredTranslator.value = current.third
+                    val previousState = previous
+                    previous = current
+                    if (previousState == null) return@collect
+                    val autoChanged = previousState.first != current.first
+                    val targetChanged = previousState.second != current.second
+                    when {
+                        autoChanged && !current.first -> {
+                            cancelTranslations()
+                            _translations.value = emptyMap()
+                        }
+                        (autoChanged && current.first) || (targetChanged && current.first) -> {
+                            retranslateLoadedTexts(force = targetChanged)
+                        }
+                        else -> Unit
+                    }
+                }
         }
     }
 
@@ -366,8 +403,13 @@ class FandomMediaWikiViewModel(application: Application) : AndroidViewModel(appl
 
     fun retryItem(title: String) = openItem(title)
 
-    fun translate(key: String) {
-        if (key in _translating.value || key in _translations.value) return
+    /**
+     * Metni uygulama içi çeviriye verir. [force] = true iken eldeki çeviri yok sayılır
+     * (hedef dil değiştiğinde ya da otomatik çeviri yeni açıldığında).
+     */
+    fun translate(key: String, force: Boolean = false) {
+        if (key in _translating.value) return
+        if (!force && key in _translations.value) return
         val ready = _state.value as? UiState.Ready ?: return
         val text = when {
             key == KEY_SUMMARY -> (_summary.value as? BlurbState.Ready)?.blurb?.description
@@ -378,17 +420,30 @@ class FandomMediaWikiViewModel(application: Application) : AndroidViewModel(appl
             else -> null
         }
         if (text.isNullOrBlank()) return
+        if (force) _translations.update { it - key }
         _translating.update { it + key }
         translationJobs[key] = viewModelScope.launch {
             try {
-                val result = withContext(Dispatchers.IO) { translationManager.translateToTarget(text) }
-                if (result.isNotBlank() && result != text && isCurrent(ready)) {
+                // Parça parça akan çeviri: detay sayfasındaki açıklama çevirisiyle aynı davranış.
+                val result = withContext(Dispatchers.IO) {
+                    translationManager.translateToTarget(text) { partial ->
+                        if (partial.isNotBlank() && isCurrent(ready)) {
+                            _translations.update { it + (key to partial) }
+                        }
+                    }
+                }
+                if (!isCurrent(ready)) return@launch
+                if (result.isNotBlank() && result != text) {
                     _translations.update { it + (key to result) }
+                } else {
+                    // Metin zaten hedef dilde (ya da çeviri boş döndü): akan taslağı geri al.
+                    _translations.update { it - key }
                 }
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
                 Log.w(TAG, "Çeviri başarısız ($key): ${e.message}")
+                if (isCurrent(ready)) _translations.update { it - key }
             } finally {
                 _translating.update { it - key }
                 translationJobs.remove(key)
@@ -396,8 +451,19 @@ class FandomMediaWikiViewModel(application: Application) : AndroidViewModel(appl
         }
     }
 
-    fun showOriginal(key: String) {
-        _translations.update { it - key }
+    /**
+     * Şu an bellekte olan tüm wiki metinlerini çevirir (seri özeti + açık kart açıklaması).
+     * Otomatik çeviri ayarı açıldığında ya da hedef dil değiştiğinde çağrılır.
+     */
+    private fun retranslateLoadedTexts(force: Boolean) {
+        if (force) _translations.value = emptyMap()
+        if (!(_summary.value as? BlurbState.Ready)?.blurb?.description.isNullOrBlank()) {
+            translate(KEY_SUMMARY, force = force)
+        }
+        val selected = _selected.value as? SelectedState.Ready
+        if (selected != null && !selected.blurb?.description.isNullOrBlank()) {
+            translate(itemKey(selected.title), force = force)
+        }
     }
 
     /** "Yanlışsa bildir": wiki bu yapım için reddedilir ve yeniden çözülür. */
@@ -424,8 +490,7 @@ class FandomMediaWikiViewModel(application: Application) : AndroidViewModel(appl
     private suspend fun maybeAutoTranslate(key: String) {
         // Otomatik çeviri yalnızca kullanıcı ayarı açıksa; karakter sekmesiyle aynı davranış.
         val auto = try {
-            com.kitsugi.animelist.data.settings.SettingsDataStore(appContext)
-                .settingsFlow.first().autoTranslateEnabled
+            settingsDataStore.settingsFlow.first().autoTranslateEnabled
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {

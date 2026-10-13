@@ -458,8 +458,7 @@ fun CharacterDetailPage(
                                                 spoilerGuard = wikiPrefs.spoilerGuard,
                                                 accentColor = accentColor,
                                                 onLoadSection = { index -> wikiViewModel.loadSection(index) },
-                                                onTranslate = { key -> wikiViewModel.translate(key) },
-                                                onShowOriginal = { key -> wikiViewModel.showOriginal(key) },
+                                                preferredTranslator = preferredTranslator,
                                                 onOpenGallery = { items, idx ->
                                                     activeGalleryItems = items
                                                     activeGalleryIndex = idx
@@ -480,8 +479,7 @@ fun CharacterDetailPage(
                                                         android.widget.Toast.LENGTH_SHORT
                                                     ).show()
                                                 },
-                                                onRetry = { wikiViewModel.retry() },
-                                                onTranslateInfobox = { wikiViewModel.translateInfobox() }
+                                                onRetry = { wikiViewModel.retry() }
                                             )
 
                                             null -> Unit
@@ -650,8 +648,7 @@ fun CharacterDetailPage(
                                                     spoilerGuard = wikiPrefs.spoilerGuard,
                                                     accentColor = accentColor,
                                                     onLoadSection = { index -> wikiViewModel.loadSection(index) },
-                                                    onTranslate = { key -> wikiViewModel.translate(key) },
-                                                    onShowOriginal = { key -> wikiViewModel.showOriginal(key) },
+                                                    preferredTranslator = preferredTranslator,
                                                     onOpenGallery = { items, idx ->
                                                         activeGalleryItems = items
                                                         activeGalleryIndex = idx
@@ -672,8 +669,7 @@ fun CharacterDetailPage(
                                                             android.widget.Toast.LENGTH_SHORT
                                                         ).show()
                                                     },
-                                                    onRetry = { wikiViewModel.retry() },
-                                                    onTranslateInfobox = { wikiViewModel.translateInfobox() }
+                                                    onRetry = { wikiViewModel.retry() }
                                                 )
 
                                                 null -> Unit
