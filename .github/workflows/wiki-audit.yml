@@ -27,7 +27,7 @@ jobs:
         with:
           python-version: '3.11'
       - name: Denetimi çalıştır
-        run: python3 tools/wiki_audit/audit.py --out tools/wiki_audit/results --workers 3 | tee tools/wiki_audit/run.log
+        run: python3 tools/wiki_audit/audit.py --out tools/wiki_audit/results --workers 2 | tee tools/wiki_audit/run.log
       - name: Sonuçları dala işle
         if: always()
         run: |

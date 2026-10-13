@@ -38,13 +38,38 @@ _cache = {}
 _cache_lock = threading.Lock()
 
 
-def http(url, accept="application/json", data=None, headers=None, retries=2, timeout=25):
+_host_last = {}
+_host_lock = threading.Lock()
+_HOST_GAP = {"www.wikidata.org": 0.6, "services.fandom.com": 0.15}
+_fail_by = {}
+
+
+def _throttle(host):
+    gap = _HOST_GAP.get(host)
+    if not gap:
+        return
+    with _host_lock:
+        wait = gap - (time.time() - _host_last.get(host, 0))
+        _host_last[host] = time.time() + max(wait, 0)
+    if wait > 0:
+        time.sleep(wait)
+
+
+def _note_fail(url, what):
+    host = urllib.parse.urlparse(url).netloc
+    k = f"{host} {what}"
+    _fail_by[k] = _fail_by.get(k, 0) + 1
+    _fail["n"] += 1
+
+
+def http(url, accept="application/json", data=None, headers=None, retries=4, timeout=25):
     key = (url, data)
     with _cache_lock:
         if key in _cache:
             return _cache[key]
-    last = None
+    host = urllib.parse.urlparse(url).netloc
     for attempt in range(retries + 1):
+        _throttle(host)
         with _sem:
             try:
                 req = urllib.request.Request(url, data=data, headers={"User-Agent": UA, "Accept": accept, **(headers or {})})
@@ -54,19 +79,21 @@ def http(url, accept="application/json", data=None, headers=None, retries=2, tim
                         _cache[key] = body
                     return body
             except urllib.error.HTTPError as e:
-                last = e.code
                 if e.code in (429, 500, 502, 503, 504) and attempt < retries:
-                    time.sleep(1.5 * (attempt + 1))
+                    try:
+                        ra = int(e.headers.get("Retry-After", "0"))
+                    except Exception:  # noqa
+                        ra = 0
+                    time.sleep(min(60, max(ra, 2 ** (attempt + 1))))
                     continue
                 if e.code != 404:
-                    _fail["n"] += 1
+                    _note_fail(url, str(e.code))
                 break
             except Exception as e:  # noqa
-                last = repr(e)
                 if attempt < retries:
-                    time.sleep(1.0)
+                    time.sleep(2 ** attempt)
                     continue
-                _fail["n"] += 1
+                _note_fail(url, type(e).__name__)
     return None
 
 
@@ -1359,7 +1386,7 @@ def report(results, out_dir, started):
             tot.setdefault(run["mode"], {}).setdefault(run["status"], 0)
             tot[run["mode"]][run["status"]] += 1
     lines.append(f"# Wiki kesif denetimi - {time.strftime('%Y-%m-%d %H:%M', time.gmtime())} UTC\n")
-    lines.append(f"Vaka sayisi: {len(results)}; sure: {int(time.time() - started)} sn; ag hatasi: {_fail['n']}\n")
+    lines.append(f"Vaka sayisi: {len(results)}; sure: {int(time.time() - started)} sn; ag hatasi: {_fail['n']} {_fail_by}\n")
     lines.append("## Ozet\n")
     lines.append("| mod | " + " | ".join(sorted({s for m in tot.values() for s in m})) + " |")
     sts = sorted({s for m in tot.values() for s in m})
