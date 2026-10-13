@@ -1,12 +1,8 @@
 package com.kitsugi.animelist.ui.screens.detail
 
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
-import androidx.compose.animation.expandVertically
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.shrinkVertically
+import com.kitsugi.animelist.ui.components.KitsugiDetailReveal
 import com.kitsugi.animelist.ui.theme.gradient.background
 import com.kitsugi.animelist.ui.theme.gradient.border
 import androidx.compose.foundation.BorderStroke
@@ -289,11 +285,7 @@ private fun SeasonAccordionItem(
         }
 
         // ── Bölümler (Animated Expand/Collapse) ─────────────────────────────
-        AnimatedVisibility(
-            visible = isExpanded,
-            enter = expandVertically(animationSpec = tween(300)) + fadeIn(animationSpec = tween(300)),
-            exit = shrinkVertically(animationSpec = tween(250)) + fadeOut(animationSpec = tween(200))
-        ) {
+        KitsugiDetailReveal(visible = isExpanded) {
             Box(
                 modifier = Modifier
                     .fillMaxWidth()

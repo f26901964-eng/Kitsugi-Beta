@@ -34,7 +34,6 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
@@ -74,11 +73,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.expandVertically
-import androidx.compose.animation.shrinkVertically
+import com.kitsugi.animelist.ui.components.rememberDetailStickyHeaderVisible
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.runtime.rememberCoroutineScope
 import com.kitsugi.animelist.data.remote.JikanApiClient
@@ -252,13 +247,11 @@ fun StaffDetailPage(
                     }
                 ) {
                 val listState = rememberLazyListState()
-                var showFloatingHeader by remember { mutableStateOf(false) }
-                LaunchedEffect(listState) {
-                    snapshotFlow { listState.firstVisibleItemIndex }.collect { index ->
-                        if (!showFloatingHeader && index >= 2) showFloatingHeader = true
-                        else if (showFloatingHeader && index == 0) showFloatingHeader = false
-                    }
-                }
+                val showFloatingHeader = rememberDetailStickyHeaderVisible(
+                    listState = listState,
+                    showAtIndex = 2,
+                    hideAtIndex = 0
+                )
                 val tabs = listOf(
                     stringResource(R.string.staff_tab_about),
                     stringResource(R.string.staff_tab_characters),

@@ -1,5 +1,6 @@
 package com.kitsugi.animelist.ui.screens.detail
 
+import com.kitsugi.animelist.ui.components.animateDetailContentSize
 import com.kitsugi.animelist.ui.theme.gradient.background
 import com.kitsugi.animelist.ui.theme.gradient.border
 import com.kitsugi.animelist.ui.utils.tvClickable
@@ -183,6 +184,7 @@ fun KitsugiTagsCard(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(22.dp))
+            .animateDetailContentSize()
             .background(KitsugiColors.Surface)
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)

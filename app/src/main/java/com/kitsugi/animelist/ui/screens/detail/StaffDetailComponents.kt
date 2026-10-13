@@ -34,11 +34,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.expandVertically
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.shrinkVertically
+import com.kitsugi.animelist.ui.components.KitsugiStickyHeaderReveal
 import com.kitsugi.animelist.ui.theme.LocalKitsugiAccent
 import com.kitsugi.animelist.ui.theme.KitsugiColors
 import com.kitsugi.animelist.utils.PreferenceHelpers.getDisplayTitle
@@ -755,11 +751,7 @@ internal fun StaffDetailStickyHeader(
             .fillMaxWidth()
             .background(KitsugiColors.Surface.copy(alpha = 0.97f))
     ) {
-        AnimatedVisibility(
-            visible = showFloatingHeader,
-            enter = fadeIn(),
-            exit = fadeOut()
-        ) {
+        KitsugiStickyHeaderReveal(visible = showFloatingHeader) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier

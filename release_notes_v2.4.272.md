@@ -2,6 +2,12 @@
 
 ## 🇹🇷 Türkçe (v2.4.272)
 
+### ✨ Detay Sayfalarında Ortak Akıcı Animasyonlar (Smooth Detail Transitions)
+- **Akıcı Video Açılışı & Liste Genişlemesi:** Video önizlemeleri ve açılış/kapanış (OP/ED) tema listeleri pat diye açılmak yerine yumuşak yükseklik ve görünürlük geçişiyle (`animateDetailContentSize`, `KitsugiDetailReveal`) genişleyip daralır. "Daha fazla" ile eklenen satırlar da animasyonla belirir.
+- **Hafif Oynatıcı Temizliği:** Video satırı kapatılırken oynatıcı motoru gecikmesiz derhal serbest bırakılır; yalnızca satır yüksekliği yumuşakça küçülür.
+- **Kaydırmayla Gelen Yapışkan Üst Çubuklar:** Karakter, ekip/seslendiren, medya ve stüdyo sayfalarındaki kaydırma başlıkları (`rememberDetailStickyHeaderVisible`) ortak fade ve kayma hareketiyle akıcı bir şekilde belirip kaybolur.
+- **Akordeon & Wiki Bölümleri:** Wiki açılır kartları, sezon akordeonları ve uzun açıklama metinleri aynı merkezi hareket token'larıyla standartlaştırıldı.
+
 ### 🎬 TMDB Keşfet Başlık Dil Önceliği (Türkçe → İngilizce → Romaji)
 - **Otomatik Keşfet Yenileme:** Ayarlar'dan "Dizi & Film Başlık Dili" (`tmdbLanguage`) değiştirildiğinde Keşfet sayfası artık otomatik olarak tam yeniden yüklenir; önceden eski dildeki başlıklar önbellekte kalıyordu.
 - **Takvim Önbelleğinde Dil Desteği:** "Yakında Yayında" takvim şeridi önbellek anahtarına aktif TMDB dili eklendi (`tmdb|anon|tr-tr`), dil değişiminde 90 saniye eski dilde kalması önlendi.
@@ -41,6 +47,12 @@
 ---
 
 ## 🇬🇧 English (v2.4.272)
+
+### ✨ Smooth Detail Animations & Transitions
+- **Fluid Video & List Expansions:** Video preview panels and opening/ending theme song lists now expand and collapse smoothly (`animateDetailContentSize`, `KitsugiDetailReveal`) rather than popping into view abruptly. Additional loaded rows animate in seamlessly.
+- **Instant Media Player Release:** Closing a video row instantly releases the media player engine while the container height gracefully shrinks.
+- **Sticky Header Transitions:** Scrolling floating top bars across character, staff/voice actor, media, and studio detail screens (`rememberDetailStickyHeaderVisible`) smoothly fade and slide into view without jitter.
+- **Standardized Accordion & Wiki Sections:** Wiki collapsible cards, season accordions, and synopsis expanders now utilize centralized, unified motion tokens.
 
 ### 🎬 TMDB Explore Title Language Priority (Turkish → English → Romaji)
 - **Automatic Explore Refresh:** Changing the "Series & Movie Title Language" (`tmdbLanguage`) now automatically refreshes the Explore screen, eliminating stale in-memory cached titles.

@@ -1,6 +1,6 @@
 package com.kitsugi.animelist.ui.screens.detail
 
-import androidx.compose.animation.animateContentSize
+import com.kitsugi.animelist.ui.components.animateDetailContentSize
 import com.kitsugi.animelist.ui.theme.gradient.background
 import com.kitsugi.animelist.ui.utils.tvClickable
 import androidx.compose.foundation.layout.Arrangement
@@ -414,7 +414,7 @@ internal fun ApiSynopsisCard(
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .animateContentSize()
+                    .animateDetailContentSize()
                     .then(if (isLongText && !isExpanded) Modifier.heightIn(max = 110.dp) else Modifier)
             ) {
                 SelectionContainer {
@@ -665,6 +665,7 @@ internal fun ApiThemesList(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(22.dp))
+            .animateDetailContentSize()
             .background(KitsugiColors.Surface)
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp)

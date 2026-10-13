@@ -2,11 +2,7 @@ package com.kitsugi.animelist.ui.screens.detail
 
 import com.kitsugi.animelist.ui.components.KitsugiGalleryIconButton
 import com.kitsugi.animelist.ui.components.KitsugiTranslateIconButton
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.expandVertically
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.shrinkVertically
+import com.kitsugi.animelist.ui.components.KitsugiStickyHeaderReveal
 import androidx.compose.foundation.ExperimentalFoundationApi
 import com.kitsugi.animelist.ui.theme.gradient.background
 import com.kitsugi.animelist.ui.utils.tvClickable
@@ -713,11 +709,7 @@ internal fun CharacterDetailStickyHeader(
             .fillMaxWidth()
             .background(KitsugiColors.Surface.copy(alpha = 0.97f))
     ) {
-        AnimatedVisibility(
-            visible = showFloatingHeader,
-            enter = fadeIn(),
-            exit = fadeOut()
-        ) {
+        KitsugiStickyHeaderReveal(visible = showFloatingHeader) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = androidx.compose.ui.Modifier

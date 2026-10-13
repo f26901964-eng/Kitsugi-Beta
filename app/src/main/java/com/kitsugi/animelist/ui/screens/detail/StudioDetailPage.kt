@@ -5,16 +5,14 @@ import androidx.compose.runtime.CompositionLocalProvider
 import com.kitsugi.animelist.ui.components.LocalKitsugiGalleryLoading
 import com.kitsugi.animelist.ui.components.LocalKitsugiTranslationLoading
 import com.kitsugi.animelist.ui.components.KitsugiGalleryIconButton
+import com.kitsugi.animelist.ui.components.KitsugiStickyHeaderReveal
 
 import android.content.res.Configuration
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
-import androidx.compose.animation.core.tween
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
-import androidx.compose.animation.shrinkVertically
 import com.kitsugi.animelist.ui.theme.gradient.background
 import com.kitsugi.animelist.ui.theme.gradient.border
 import androidx.compose.foundation.horizontalScroll
@@ -662,10 +660,8 @@ private fun StudioDetailSuccessContent(
             )
 
             // ── Kaydırınca beliren üst şerit (floating header) ────────────────
-            AnimatedVisibility(
+            KitsugiStickyHeaderReveal(
                 visible = showFloatingHeader,
-                enter = fadeIn(animationSpec = tween(260)),
-                exit = fadeOut(animationSpec = tween(220)),
                 modifier = Modifier.align(Alignment.TopCenter)
             ) {
                 Row(

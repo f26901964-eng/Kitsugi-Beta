@@ -4,11 +4,8 @@ import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.widget.Toast
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.expandVertically
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.shrinkVertically
+import com.kitsugi.animelist.ui.components.KitsugiDetailReveal
+import com.kitsugi.animelist.ui.components.animateDetailContentSize
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -241,11 +238,15 @@ private fun WikiConfirmCard(accentColor: Color, onConfirm: () -> Unit, onReject:
 }
 
 @Composable
-private fun WikiCard(content: @Composable ColumnScope.() -> Unit) {
+private fun WikiCard(
+    animateHeight: Boolean = false,
+    content: @Composable ColumnScope.() -> Unit
+) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(18.dp))
+            .then(if (animateHeight) Modifier.animateDetailContentSize() else Modifier)
             .background(KitsugiColors.Surface)
             .padding(16.dp),
         content = content
@@ -279,7 +280,7 @@ private fun WikiInfoboxCard(
     }
     val visibleCount = if (showAll) fields.size else minOf(fields.size, COLLAPSED_FIELD_COUNT)
 
-    WikiCard {
+    WikiCard(animateHeight = true) {
         Row(verticalAlignment = Alignment.Top) {
             images.firstOrNull()?.let { image ->
                 AsyncImage(
@@ -493,11 +494,7 @@ private fun WikiSectionRow(
                 )
             }
         }
-        AnimatedVisibility(
-            visible = expanded,
-            enter = expandVertically() + fadeIn(),
-            exit = shrinkVertically() + fadeOut()
-        ) {
+        KitsugiDetailReveal(visible = expanded) {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()

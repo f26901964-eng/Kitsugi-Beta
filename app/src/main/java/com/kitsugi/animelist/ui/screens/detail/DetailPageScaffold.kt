@@ -5,15 +5,12 @@
 
 package com.kitsugi.animelist.ui.screens.detail
 
+import com.kitsugi.animelist.ui.components.KitsugiStickyHeaderReveal
+import com.kitsugi.animelist.ui.components.rememberDetailStickyHeaderVisible
 import com.kitsugi.animelist.ui.theme.gradient.Icon
 import com.kitsugi.animelist.ui.theme.gradient.Text
 
 import android.content.res.Configuration
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.expandVertically
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.ExperimentalFoundationApi
 import com.kitsugi.animelist.ui.theme.gradient.background
 import androidx.compose.foundation.gestures.LocalBringIntoViewSpec
@@ -108,13 +105,11 @@ fun DetailPageScaffold(
     val tabBarFocusRequester = remember { FocusRequester() }
     val selectedTab = pagerState.currentPage
     // Yapışkan başlık yüksekliği index == 2 sınırında gidip gelmesin.
-    var showFloatingHeader by remember { mutableStateOf(false) }
-    LaunchedEffect(listState) {
-        snapshotFlow { listState.firstVisibleItemIndex }.collect { index ->
-            if (!showFloatingHeader && index >= 3) showFloatingHeader = true
-            else if (showFloatingHeader && index <= 1) showFloatingHeader = false
-        }
-    }
+    val showFloatingHeader = rememberDetailStickyHeaderVisible(
+        listState = listState,
+        showAtIndex = 3,
+        hideAtIndex = 1
+    )
 
     when {
         isLoading -> loadingScreen()
@@ -261,11 +256,7 @@ fun DetailPageScaffold(
                                             .fillMaxWidth()
                                             .background(KitsugiColors.Surface.copy(alpha = 0.97f))
                                     ) {
-                                        AnimatedVisibility(
-                                            visible = showFloatingHeader,
-                                            enter = fadeIn(),
-                                            exit = fadeOut()
-                                        ) {
+                                        KitsugiStickyHeaderReveal(visible = showFloatingHeader) {
                                             Row(
                                                 verticalAlignment = Alignment.CenterVertically,
                                                 modifier = Modifier

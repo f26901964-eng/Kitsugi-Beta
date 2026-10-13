@@ -3,9 +3,8 @@ import com.kitsugi.animelist.ui.components.KitsugiButton
 
 import android.net.Uri
 import android.util.Log
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.expandVertically
-import androidx.compose.animation.shrinkVertically
+import com.kitsugi.animelist.ui.components.KitsugiDetailReveal
+import com.kitsugi.animelist.ui.components.animateDetailContentSize
 import com.kitsugi.animelist.ui.theme.gradient.background
 import com.kitsugi.animelist.ui.utils.tvClickable
 import androidx.compose.foundation.layout.Arrangement
@@ -44,6 +43,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalUriHandler
@@ -155,49 +155,45 @@ fun KitsugiTrailerCard(trailerUrl: String, mediaTitle: String = "") {
             }
         }
 
-        AnimatedVisibility(
-            visible = isPlayerOpen,
-            enter = expandVertically(),
-            exit = shrinkVertically()
-        ) {
-            if (videoId != null) {
-                Box(
+        KitsugiDetailReveal(visible = isPlayerOpen) {
+            Column(modifier = Modifier.fillMaxWidth()) {
+                videoId?.let { selectedVideoId ->
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .aspectRatio(16f / 9f)
+                            .clip(RoundedCornerShape(16.dp))
+                            .background(Color.Black)
+                    ) {
+                        KitsugiYouTubePlayer(
+                            videoId = selectedVideoId,
+                            modifier = Modifier.fillMaxSize()
+                        )
+                    }
+                }
+
+                // Kapat butonu da aynı geçişin parçası olsun; satır ayrı ayrı pat diye belirmez.
+                Spacer(modifier = Modifier.height(8.dp))
+                Row(
                     modifier = Modifier
-                        .fillMaxWidth()
-                        .aspectRatio(16f / 9f)
-                        .clip(RoundedCornerShape(16.dp))
-                        .background(Color.Black)
+                        .clip(RoundedCornerShape(12.dp))
+                        .tvClickable(shape = RoundedCornerShape(12.dp)) { showPlayer = false }
+                        .padding(horizontal = 12.dp, vertical = 6.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
-                    KitsugiYouTubePlayer(
-                        videoId = videoId,
-                        modifier = Modifier.fillMaxSize()
+                    Icon(
+                        imageVector = Icons.Rounded.KeyboardArrowUp,
+                        contentDescription = null,
+                        tint = KitsugiColors.TextSecondary,
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Text(
+                        text = stringResource(R.string.kapat),
+                        color = KitsugiColors.TextSecondary,
+                        style = MaterialTheme.typography.labelMedium
                     )
                 }
-            }
-        }
-
-        if (isPlayerOpen) {
-            // Kapat butonu
-            Spacer(modifier = Modifier.height(8.dp))
-            Row(
-                modifier = Modifier
-                    .clip(RoundedCornerShape(12.dp))
-                    .tvClickable(shape = RoundedCornerShape(12.dp)) { showPlayer = false }
-                    .padding(horizontal = 12.dp, vertical = 6.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(4.dp)
-            ) {
-                Icon(
-                    imageVector = Icons.Rounded.KeyboardArrowUp,
-                    contentDescription = null,
-                    tint = KitsugiColors.TextSecondary,
-                    modifier = Modifier.size(16.dp)
-                )
-                Text(
-                    text = stringResource(R.string.kapat),
-                    color = KitsugiColors.TextSecondary,
-                    style = MaterialTheme.typography.labelMedium
-                )
             }
         }
     }
@@ -521,7 +517,6 @@ private fun DetailVideoGroup(
 ) {
     val initialCount = 3
     var expanded by remember(items) { mutableStateOf(false) }
-    val visibleItems = if (expanded) items else items.take(initialCount)
     val hasMore = items.size > initialCount
 
     Column(
@@ -529,8 +524,7 @@ private fun DetailVideoGroup(
             .fillMaxWidth()
             .clip(RoundedCornerShape(22.dp))
             .background(KitsugiColors.Surface)
-            .padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(10.dp)
+            .padding(16.dp)
     ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -575,88 +569,104 @@ private fun DetailVideoGroup(
             }
         }
 
-        visibleItems.forEach { item ->
-            val isSelected = activeVideoKey == item.key && !item.videoUrl.isNullOrBlank()
-            Column(modifier = Modifier.fillMaxWidth()) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(10.dp))
-                        .background(if (isSelected) accentColor.copy(alpha = 0.15f) else KitsugiColors.SurfaceSoft)
-                        .tvClickable(shape = RoundedCornerShape(10.dp)) {
-                            if (item.videoUrl.isNullOrBlank()) onSearch(item)
-                            else onVideoSelected(item.key)
-                        }
-                        .padding(horizontal = 12.dp, vertical = 10.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .size(32.dp)
-                            .clip(CircleShape)
-                            .background(if (isSelected) accentColor else accentColor.copy(alpha = 0.15f)),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = if (isSelected) Icons.Rounded.KeyboardArrowUp else Icons.Rounded.PlayArrow,
-                            contentDescription = null,
-                            tint = if (isSelected) KitsugiColors.Background else accentColor,
-                            modifier = Modifier.size(18.dp)
-                        )
-                    }
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = item.title,
-                            color = if (isSelected) accentColor else KitsugiColors.TextPrimary,
-                            style = MaterialTheme.typography.bodySmall,
-                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
-                        )
-                        Text(
-                            text = if (item.videoUrl.isNullOrBlank()) stringResource(R.string.ui_open_youtube_search)
-                            else stringResource(R.string.ui_play_in_app),
-                            color = KitsugiColors.TextMuted,
-                            style = MaterialTheme.typography.labelSmall
-                        )
-                    }
-                }
+        items.forEachIndexed { index, item ->
+            key(item.key) {
+                KitsugiDetailReveal(visible = expanded || index < initialCount) {
+                    Column(modifier = Modifier.fillMaxWidth()) {
+                        // Keep the current 10dp rhythm while allowing hidden items to occupy no space.
+                        Spacer(modifier = Modifier.height(10.dp))
+                        val isSelected = activeVideoKey == item.key && !item.videoUrl.isNullOrBlank()
 
-                // Keep one player instance in the composition and remove it immediately on close/switch.
-                if (isSelected) {
-                    Spacer(modifier = Modifier.height(8.dp))
-                    key(item.key) {
-                        Box(
+                        // Animate the row's measured height, but dispose the player immediately on
+                        // close/switch so two heavyweight video engines are never kept alive together.
+                        Column(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .aspectRatio(16f / 9f)
-                                .clip(RoundedCornerShape(16.dp))
-                                .background(Color.Black)
+                                .clipToBounds()
+                                .animateDetailContentSize()
                         ) {
-                            ThemePlayerContainer(
-                                url = item.videoUrl!!,
-                                modifier = Modifier.fillMaxSize()
-                            )
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clip(RoundedCornerShape(10.dp))
+                                    .background(if (isSelected) accentColor.copy(alpha = 0.15f) else KitsugiColors.SurfaceSoft)
+                                    .tvClickable(shape = RoundedCornerShape(10.dp)) {
+                                        if (item.videoUrl.isNullOrBlank()) onSearch(item)
+                                        else onVideoSelected(item.key)
+                                    }
+                                    .padding(horizontal = 12.dp, vertical = 10.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(10.dp)
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(32.dp)
+                                        .clip(CircleShape)
+                                        .background(if (isSelected) accentColor else accentColor.copy(alpha = 0.15f)),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        imageVector = if (isSelected) Icons.Rounded.KeyboardArrowUp else Icons.Rounded.PlayArrow,
+                                        contentDescription = null,
+                                        tint = if (isSelected) KitsugiColors.Background else accentColor,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                }
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = item.title,
+                                        color = if (isSelected) accentColor else KitsugiColors.TextPrimary,
+                                        style = MaterialTheme.typography.bodySmall,
+                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
+                                    )
+                                    Text(
+                                        text = if (item.videoUrl.isNullOrBlank()) stringResource(R.string.ui_open_youtube_search)
+                                        else stringResource(R.string.ui_play_in_app),
+                                        color = KitsugiColors.TextMuted,
+                                        style = MaterialTheme.typography.labelSmall
+                                    )
+                                }
+                            }
+
+                            // Keep one player instance in the composition and remove it immediately on close/switch.
+                            if (isSelected) {
+                                Spacer(modifier = Modifier.height(8.dp))
+                                key(item.key) {
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .aspectRatio(16f / 9f)
+                                            .clip(RoundedCornerShape(16.dp))
+                                            .background(Color.Black)
+                                    ) {
+                                        ThemePlayerContainer(
+                                            url = item.videoUrl!!,
+                                            modifier = Modifier.fillMaxSize()
+                                        )
+                                    }
+                                }
+                                Row(
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(12.dp))
+                                        .tvClickable(shape = RoundedCornerShape(12.dp)) { onVideoSelected(item.key) }
+                                        .padding(horizontal = 12.dp, vertical = 6.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Rounded.KeyboardArrowUp,
+                                        contentDescription = null,
+                                        tint = KitsugiColors.TextSecondary,
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                    Text(
+                                        text = stringResource(R.string.kapat),
+                                        color = KitsugiColors.TextSecondary,
+                                        style = MaterialTheme.typography.labelMedium
+                                    )
+                                }
+                            }
                         }
-                    }
-                    Row(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(12.dp))
-                            .tvClickable(shape = RoundedCornerShape(12.dp)) { onVideoSelected(item.key) }
-                            .padding(horizontal = 12.dp, vertical = 6.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(4.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Rounded.KeyboardArrowUp,
-                            contentDescription = null,
-                            tint = KitsugiColors.TextSecondary,
-                            modifier = Modifier.size(16.dp)
-                        )
-                        Text(
-                            text = stringResource(R.string.kapat),
-                            color = KitsugiColors.TextSecondary,
-                            style = MaterialTheme.typography.labelMedium
-                        )
                     }
                 }
             }
@@ -673,12 +683,7 @@ fun KitsugiThemesList(
 
     val accentColor = LocalKitsugiAccent.current
     val uriHandler = LocalUriHandler.current
-
-    // URL state: hangi tema seçili (null = kapalı)
     var activeVideoUrl by remember { mutableStateOf<String?>(null) }
-
-    // Collapse state — varsayılan 3 öğe gösterilir
-    val INITIAL_COUNT = 3
     var openingsExpanded by remember { mutableStateOf(false) }
     var endingsExpanded by remember { mutableStateOf(false) }
 
@@ -687,209 +692,156 @@ fun KitsugiThemesList(
             .fillMaxWidth()
             .clip(RoundedCornerShape(22.dp))
             .background(KitsugiColors.Surface)
-            .padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(10.dp)
+            .padding(16.dp)
     ) {
-        // Açılış Müzikleri
         if (openings.isNotEmpty()) {
-            val visibleOpenings = if (openingsExpanded) openings else openings.take(INITIAL_COUNT)
-            val hasMore = openings.size > INITIAL_COUNT
-
-            // Başlık + toggle satırı
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Text(
-                    text = stringResource(R.string.inline_opening_ending_music_videos_6b5701d),
-                    color = KitsugiColors.TextPrimary,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    modifier = Modifier.weight(1f)
-                )
-                if (hasMore) {
-                    Row(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(8.dp))
-                            .tvClickable(shape = RoundedCornerShape(8.dp)) { openingsExpanded = !openingsExpanded }
-                            .padding(horizontal = 10.dp, vertical = 5.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(4.dp)
-                    ) {
-                        Text(
-                            text = if (openingsExpanded) stringResource(R.string.daha_az) else stringResource(R.string.x_daha, openings.size - INITIAL_COUNT),
-                            color = accentColor,
-                            style = MaterialTheme.typography.labelMedium,
-                            fontWeight = FontWeight.Bold
-                        )
-                        Icon(
-                            imageVector = if (openingsExpanded) Icons.Rounded.KeyboardArrowUp else Icons.Rounded.KeyboardArrowDown,
-                            contentDescription = null,
-                            tint = accentColor,
-                            modifier = Modifier.size(16.dp)
-                        )
+            ThemeVideoSection(
+                title = stringResource(R.string.inline_opening_ending_music_videos_6b5701d),
+                themes = openings,
+                expanded = openingsExpanded,
+                activeVideoUrl = activeVideoUrl,
+                accentColor = accentColor,
+                onExpandedChange = { openingsExpanded = it },
+                onThemeClick = { theme ->
+                    if (theme.videoUrl != null) {
+                        activeVideoUrl = if (activeVideoUrl == theme.videoUrl) null else theme.videoUrl
+                    } else {
+                        val query = java.net.URLEncoder.encode(theme.label, "UTF-8")
+                        runCatching { uriHandler.openUri("https://www.youtube.com/results?search_query=$query") }
                     }
-                }
-            }
-
-            visibleOpenings.forEach { theme ->
-                Column(modifier = Modifier.fillMaxWidth()) {
-                    ThemeRow(
-                        theme = theme,
-                        isActive = activeVideoUrl == theme.videoUrl && activeVideoUrl != null,
-                        accentColor = accentColor,
-                        onClick = {
-                            if (theme.videoUrl != null) {
-                                activeVideoUrl = if (activeVideoUrl == theme.videoUrl) null else theme.videoUrl
-                            } else {
-                                val q = java.net.URLEncoder.encode(theme.label, "UTF-8")
-                                runCatching { uriHandler.openUri("https://www.youtube.com/results?search_query=$q") }
-                            }
-                        }
-                    )
-                    AnimatedVisibility(
-                        visible = activeVideoUrl == theme.videoUrl && activeVideoUrl != null,
-                        enter = expandVertically(),
-                        exit = shrinkVertically()
-                    ) {
-                        theme.videoUrl?.let { url ->
-                            Column(modifier = Modifier.padding(top = 8.dp)) {
-                                ThemePlayerContainer(
-                                    url = url,
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .aspectRatio(16f / 9f)
-                                )
-                                Spacer(modifier = Modifier.height(4.dp))
-                                Row(
-                                    modifier = Modifier
-                                        .clip(RoundedCornerShape(12.dp))
-                                        .tvClickable(shape = RoundedCornerShape(12.dp)) { activeVideoUrl = null }
-                                        .padding(horizontal = 12.dp, vertical = 6.dp),
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(4.dp)
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Rounded.KeyboardArrowUp,
-                                        contentDescription = null,
-                                        tint = KitsugiColors.TextSecondary,
-                                        modifier = Modifier.size(16.dp)
-                                    )
-                                    Text(
-                                        text = stringResource(R.string.kapat),
-                                        color = KitsugiColors.TextSecondary,
-                                        style = MaterialTheme.typography.labelMedium
-                                    )
-                                }
-                                Spacer(modifier = Modifier.height(8.dp))
-                            }
-                        }
-                    }
-                }
-            }
+                },
+                onClosePlayer = { activeVideoUrl = null }
+            )
         }
 
-        // Kapanış Müzikleri
         if (endings.isNotEmpty()) {
             if (openings.isNotEmpty()) {
+                Spacer(modifier = Modifier.height(10.dp))
                 androidx.compose.material3.HorizontalDivider(
                     color = KitsugiColors.Background.copy(alpha = 0.5f),
                     thickness = 0.5.dp
                 )
+                Spacer(modifier = Modifier.height(10.dp))
             }
-
-            val visibleEndings = if (endingsExpanded) endings else endings.take(INITIAL_COUNT)
-            val hasMore = endings.size > INITIAL_COUNT
-
-            // Başlık + toggle satırı
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Text(
-                    text = stringResource(R.string.kapanis_muzikleri),
-                    color = KitsugiColors.TextPrimary,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    modifier = Modifier.weight(1f)
-                )
-                if (hasMore) {
-                    Row(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(8.dp))
-                            .tvClickable(shape = RoundedCornerShape(8.dp)) { endingsExpanded = !endingsExpanded }
-                            .padding(horizontal = 10.dp, vertical = 5.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(4.dp)
-                    ) {
-                        Text(
-                            text = if (endingsExpanded) stringResource(R.string.daha_az) else stringResource(R.string.x_daha, endings.size - INITIAL_COUNT),
-                            color = accentColor,
-                            style = MaterialTheme.typography.labelMedium,
-                            fontWeight = FontWeight.Bold
-                        )
-                        Icon(
-                            imageVector = if (endingsExpanded) Icons.Rounded.KeyboardArrowUp else Icons.Rounded.KeyboardArrowDown,
-                            contentDescription = null,
-                            tint = accentColor,
-                            modifier = Modifier.size(16.dp)
-                        )
+            ThemeVideoSection(
+                title = stringResource(R.string.kapanis_muzikleri),
+                themes = endings,
+                expanded = endingsExpanded,
+                activeVideoUrl = activeVideoUrl,
+                accentColor = accentColor,
+                onExpandedChange = { endingsExpanded = it },
+                onThemeClick = { theme ->
+                    if (theme.videoUrl != null) {
+                        activeVideoUrl = if (activeVideoUrl == theme.videoUrl) null else theme.videoUrl
+                    } else {
+                        val query = java.net.URLEncoder.encode(theme.label, "UTF-8")
+                        runCatching { uriHandler.openUri("https://www.youtube.com/results?search_query=$query") }
                     }
+                },
+                onClosePlayer = { activeVideoUrl = null }
+            )
+        }
+    }
+}
+
+@Composable
+private fun ThemeVideoSection(
+    title: String,
+    themes: List<com.kitsugi.animelist.data.remote.KitsugiTheme>,
+    expanded: Boolean,
+    activeVideoUrl: String?,
+    accentColor: Color,
+    onExpandedChange: (Boolean) -> Unit,
+    onThemeClick: (com.kitsugi.animelist.data.remote.KitsugiTheme) -> Unit,
+    onClosePlayer: () -> Unit
+) {
+    val initialCount = 3
+    val hasMore = themes.size > initialCount
+
+    Column(modifier = Modifier.fillMaxWidth()) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Text(
+                text = title,
+                color = KitsugiColors.TextPrimary,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.weight(1f)
+            )
+            if (hasMore) {
+                Row(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(8.dp))
+                        .tvClickable(shape = RoundedCornerShape(8.dp)) { onExpandedChange(!expanded) }
+                        .padding(horizontal = 10.dp, vertical = 5.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    Text(
+                        text = if (expanded) stringResource(R.string.daha_az)
+                        else stringResource(R.string.x_daha, themes.size - initialCount),
+                        color = accentColor,
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Icon(
+                        imageVector = if (expanded) Icons.Rounded.KeyboardArrowUp else Icons.Rounded.KeyboardArrowDown,
+                        contentDescription = null,
+                        tint = accentColor,
+                        modifier = Modifier.size(16.dp)
+                    )
                 }
             }
+        }
 
-            visibleEndings.forEach { theme ->
-                Column(modifier = Modifier.fillMaxWidth()) {
-                    ThemeRow(
-                        theme = theme,
-                        isActive = activeVideoUrl == theme.videoUrl && activeVideoUrl != null,
-                        accentColor = accentColor,
-                        onClick = {
-                            if (theme.videoUrl != null) {
-                                activeVideoUrl = if (activeVideoUrl == theme.videoUrl) null else theme.videoUrl
-                            } else {
-                                val q = java.net.URLEncoder.encode(theme.label, "UTF-8")
-                                runCatching { uriHandler.openUri("https://www.youtube.com/results?search_query=$q") }
-                            }
-                        }
-                    )
-                    AnimatedVisibility(
-                        visible = activeVideoUrl == theme.videoUrl && activeVideoUrl != null,
-                        enter = expandVertically(),
-                        exit = shrinkVertically()
-                    ) {
-                        theme.videoUrl?.let { url ->
-                            Column(modifier = Modifier.padding(top = 8.dp)) {
-                                ThemePlayerContainer(
-                                    url = url,
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .aspectRatio(16f / 9f)
-                                )
-                                Spacer(modifier = Modifier.height(4.dp))
-                                Row(
-                                    modifier = Modifier
-                                        .clip(RoundedCornerShape(12.dp))
-                                        .tvClickable(shape = RoundedCornerShape(12.dp)) { activeVideoUrl = null }
-                                        .padding(horizontal = 12.dp, vertical = 6.dp),
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(4.dp)
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Rounded.KeyboardArrowUp,
-                                        contentDescription = null,
-                                        tint = KitsugiColors.TextSecondary,
-                                        modifier = Modifier.size(16.dp)
+        themes.forEachIndexed { index, theme ->
+            key("${title}_${index}_${theme.label}") {
+                KitsugiDetailReveal(visible = expanded || index < initialCount) {
+                    Column(modifier = Modifier.fillMaxWidth()) {
+                        Spacer(modifier = Modifier.height(10.dp))
+                        ThemeRow(
+                            theme = theme,
+                            isActive = activeVideoUrl == theme.videoUrl && activeVideoUrl != null,
+                            accentColor = accentColor,
+                            onClick = { onThemeClick(theme) }
+                        )
+                        KitsugiDetailReveal(
+                            visible = activeVideoUrl == theme.videoUrl && activeVideoUrl != null
+                        ) {
+                            theme.videoUrl?.let { url ->
+                                Column(modifier = Modifier.padding(top = 8.dp)) {
+                                    ThemePlayerContainer(
+                                        url = url,
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .aspectRatio(16f / 9f)
                                     )
-                                    Text(
-                                        text = stringResource(R.string.kapat),
-                                        color = KitsugiColors.TextSecondary,
-                                        style = MaterialTheme.typography.labelMedium
-                                    )
+                                    Spacer(modifier = Modifier.height(4.dp))
+                                    Row(
+                                        modifier = Modifier
+                                            .clip(RoundedCornerShape(12.dp))
+                                            .tvClickable(shape = RoundedCornerShape(12.dp), onClick = onClosePlayer)
+                                            .padding(horizontal = 12.dp, vertical = 6.dp),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Rounded.KeyboardArrowUp,
+                                            contentDescription = null,
+                                            tint = KitsugiColors.TextSecondary,
+                                            modifier = Modifier.size(16.dp)
+                                        )
+                                        Text(
+                                            text = stringResource(R.string.kapat),
+                                            color = KitsugiColors.TextSecondary,
+                                            style = MaterialTheme.typography.labelMedium
+                                        )
+                                    }
+                                    Spacer(modifier = Modifier.height(8.dp))
                                 }
-                                Spacer(modifier = Modifier.height(8.dp))
                             }
                         }
                     }
