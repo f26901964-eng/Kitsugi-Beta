@@ -1,18 +1,18 @@
-# Wiki kesif denetimi - 2026-10-13 16:46 UTC
+# Wiki kesif denetimi - 2026-10-13 17:03 UTC
 
-Vaka sayisi: 138; sure: 960 sn; ag hatasi: 1 {'kaiyari.fandom.com 410': 1}
+Vaka sayisi: 138; sure: 952 sn; ag hatasi: 2 {'kaiyari.fandom.com 410': 1, 'martial-peak-mp.fandom.com 522': 1}
 
 ## Ozet
 
 | mod | MISS | OK | UNVERIFIED-FOUND | UNVERIFIED-MISS |
 |---|---|---|---|---|
-| ids | 0 | 45 | 85 | 7 |
-| title-only | 3 | 42 | 70 | 22 |
+| ids | 0 | 45 | 86 | 6 |
+| title-only | 3 | 42 | 72 | 20 |
 
 ## Hangi asama buldu
 
-- **ids**: wikidata-P4073-depth1=37, wikidata-P4073-depth2=21, name-article-proof=17, name-score=17, wikidata-P4073-depth0=14, character-votes=8, wikidata-P6262-media=6, override=4, relation-wikidata-ADAPTATION=3, name-identity-link=1, name-native-title=1, relation-wikidata-ALTERNATIVE=1
-- **title-only**: wikidata-P4073-depth1=31, wikidata-P4073-depth2=20, name-score=20, name-article-proof=18, character-votes=6, override=4, wikidata-P6262-media=4, wikidata-P4073-depth0=3, relation-wikidata-ADAPTATION=3, name-identity-link=2, relation-wikidata-ALTERNATIVE=1
+- **ids**: wikidata-P4073-depth1=37, wikidata-P4073-depth2=21, name-article-proof=18, name-score=17, wikidata-P4073-depth0=14, character-votes=8, wikidata-P6262-media=6, override=4, relation-wikidata-ADAPTATION=3, name-identity-link=1, name-native-title=1, relation-wikidata-ALTERNATIVE=1
+- **title-only**: wikidata-P4073-depth1=31, name-article-proof=23, wikidata-P4073-depth2=20, name-score=18, character-votes=6, override=4, wikidata-P6262-media=4, wikidata-P4073-depth0=3, relation-wikidata-ADAPTATION=3, name-identity-link=1, relation-wikidata-ALTERNATIVE=1
 
 ## Ayrinti
 
@@ -125,7 +125,7 @@ Vaka sayisi: 138; sure: 960 sn; ag hatasi: 1 {'kaiyari.fandom.com 410': 1}
 | Hyouka | anime | - | ids | UNVERIFIED-FOUND | hyouka | wikidata-P4073-depth1 | CERTAIN | - |
 | Hyouka | anime | - | title-only | UNVERIFIED-FOUND | hyouka | wikidata-P4073-depth1 | CERTAIN | - |
 | Barakamon | anime | - | ids | UNVERIFIED-FOUND | barakamon | name-article-proof | PROBABLE | - |
-| Barakamon | anime | - | title-only | UNVERIFIED-FOUND | barakamon | name-score | CERTAIN | - |
+| Barakamon | anime | - | title-only | UNVERIFIED-FOUND | barakamon | name-article-proof | PROBABLE | - |
 | Golden Kamuy | anime | - | ids | UNVERIFIED-FOUND | goldenkamuy | wikidata-P4073-depth2 | CERTAIN | - |
 | Golden Kamuy | anime | - | title-only | UNVERIFIED-FOUND | goldenkamuy | wikidata-P4073-depth2 | CERTAIN | - |
 | Kaiji | anime | - | ids | UNVERIFIED-FOUND | kaiji | wikidata-P4073-depth1 | CERTAIN | - |
@@ -141,7 +141,7 @@ Vaka sayisi: 138; sure: 960 sn; ag hatasi: 1 {'kaiyari.fandom.com 410': 1}
 | Aria the Animation | anime | - | ids | UNVERIFIED-FOUND | aria | wikidata-P4073-depth1 | CERTAIN | - |
 | Aria the Animation | anime | - | title-only | UNVERIFIED-FOUND | aria | wikidata-P4073-depth1 | CERTAIN | - |
 | Nichijou | anime | - | ids | UNVERIFIED-FOUND | nichijou | name-article-proof | PROBABLE | - |
-| Nichijou | anime | - | title-only | UNVERIFIED-FOUND | nichijou | name-score | CERTAIN | - |
+| Nichijou | anime | - | title-only | UNVERIFIED-FOUND | nichijou | name-article-proof | PROBABLE | - |
 | Welcome to the NHK | anime | - | ids | UNVERIFIED-FOUND | welcometothenhk | name-article-proof | PROBABLE | - |
 | Welcome to the NHK | anime | - | title-only | UNVERIFIED-FOUND | welcometothenhk | name-article-proof | PROBABLE | - |
 | Beastars | anime | - | ids | UNVERIFIED-FOUND | beastars | wikidata-P6262-media | CERTAIN | - |
@@ -171,7 +171,7 @@ Vaka sayisi: 138; sure: 960 sn; ag hatasi: 1 {'kaiyari.fandom.com 410': 1}
 | Berserk | manga | berserk | ids | OK | berserk | wikidata-P6262-media | CERTAIN | HAYIR |
 | Berserk | manga | berserk | title-only | OK | berserk | wikidata-P6262-media | CERTAIN | HAYIR |
 | Vagabond | manga | - | ids | UNVERIFIED-FOUND | vagabond | name-article-proof | PROBABLE | - |
-| Vagabond | manga | - | title-only | UNVERIFIED-FOUND | vagabond | name-score | CERTAIN | - |
+| Vagabond | manga | - | title-only | UNVERIFIED-FOUND | vagabond | name-article-proof | PROBABLE | - |
 | Claymore | manga | - | ids | UNVERIFIED-FOUND | claymore | name-native-title | PROBABLE | - |
 | Claymore | manga | - | title-only | UNVERIFIED-FOUND | claymore | name-score | CERTAIN | - |
 | Parasyte | manga | - | ids | UNVERIFIED-FOUND | parasyte | name-score | CERTAIN | - |
@@ -181,7 +181,7 @@ Vaka sayisi: 138; sure: 960 sn; ag hatasi: 1 {'kaiyari.fandom.com 410': 1}
 | The God of High School | manga | - | ids | UNVERIFIED-FOUND | godofhighschool | name-score | CERTAIN | - |
 | The God of High School | manga | - | title-only | UNVERIFIED-FOUND | godofhighschool | name-score | CERTAIN | - |
 | Lookism | manga | - | ids | UNVERIFIED-FOUND | lookism | name-article-proof | PROBABLE | - |
-| Lookism | manga | - | title-only | UNVERIFIED-MISS | - | - | - | - |
+| Lookism | manga | - | title-only | UNVERIFIED-FOUND | lookism | name-article-proof | PROBABLE | - |
 | Noblesse | manga | - | ids | UNVERIFIED-FOUND | noblesse | name-score | PROBABLE | - |
 | Noblesse | manga | - | title-only | UNVERIFIED-FOUND | noblesse | name-score | PROBABLE | - |
 | Solo Leveling | manga | solo-leveling | ids | OK | solo-leveling | wikidata-P6262-media | CERTAIN | HAYIR |
@@ -189,7 +189,7 @@ Vaka sayisi: 138; sure: 960 sn; ag hatasi: 1 {'kaiyari.fandom.com 410': 1}
 | Omniscient Reader | manga | - | ids | UNVERIFIED-FOUND | omniscient-readers-viewpoint | name-article-proof | PROBABLE | - |
 | Omniscient Reader | manga | - | title-only | UNVERIFIED-FOUND | omniscient-readers-viewpoint | name-article-proof | PROBABLE | - |
 | Eleceed | manga | - | ids | UNVERIFIED-FOUND | eleceed | name-article-proof | PROBABLE | - |
-| Eleceed | manga | - | title-only | UNVERIFIED-FOUND | eleceed | name-identity-link | CERTAIN | - |
+| Eleceed | manga | - | title-only | UNVERIFIED-FOUND | eleceed | name-article-proof | PROBABLE | - |
 | Teenage Mercenary | manga | - | ids | UNVERIFIED-FOUND | mercenary-enrollment | name-article-proof | PROBABLE | - |
 | Teenage Mercenary | manga | - | title-only | UNVERIFIED-FOUND | mercenary-enrollment | name-article-proof | PROBABLE | - |
 | Mo Dao Zu Shi | manga | - | ids | UNVERIFIED-FOUND | modao-zushi | relation-wikidata-ALTERNATIVE | CERTAIN | - |
@@ -215,7 +215,7 @@ Vaka sayisi: 138; sure: 960 sn; ag hatasi: 1 {'kaiyari.fandom.com 410': 1}
 | Return of the Mount Hua Sect | manga | - | ids | UNVERIFIED-FOUND | return-of-the-blossoming-blade | character-votes | PROBABLE | - |
 | Return of the Mount Hua Sect | manga | - | title-only | UNVERIFIED-FOUND | return-of-the-blossoming-blade | character-votes | PROBABLE | - |
 | Wind Breaker | manga | - | ids | UNVERIFIED-FOUND | wind-breaker | name-score | CERTAIN | - |
-| Wind Breaker | manga | - | title-only | UNVERIFIED-MISS | - | - | - | - |
+| Wind Breaker | manga | - | title-only | UNVERIFIED-FOUND | windbreaker | name-score | PROBABLE | - |
 | Weak Hero | manga | - | ids | UNVERIFIED-FOUND | weakhero | name-article-proof | PROBABLE | - |
 | Weak Hero | manga | - | title-only | UNVERIFIED-FOUND | weakhero | name-article-proof | PROBABLE | - |
 | Soul Land | manga | - | ids | UNVERIFIED-FOUND | soulland | name-score | CERTAIN | - |
@@ -266,7 +266,7 @@ Vaka sayisi: 138; sure: 960 sn; ag hatasi: 1 {'kaiyari.fandom.com 410': 1}
 | Mr. Robot | tv | - | title-only | UNVERIFIED-FOUND | mrrobot | name-article-proof | PROBABLE | - |
 | Black Mirror | tv | - | ids | UNVERIFIED-FOUND | black-mirror | wikidata-P4073-depth0 | CERTAIN | - |
 | Black Mirror | tv | - | title-only | UNVERIFIED-FOUND | black-mirror | name-article-proof | PROBABLE | - |
-| Dark | tv | - | ids | UNVERIFIED-MISS | - | - | - | - |
+| Dark | tv | - | ids | UNVERIFIED-FOUND | dark-netflix | name-article-proof | PROBABLE | - |
 | Dark | tv | - | title-only | UNVERIFIED-MISS | - | - | - | - |
 | Arcane | tv | - | ids | UNVERIFIED-FOUND | leagueoflegends | wikidata-P4073-depth1 | CERTAIN | - |
 | Arcane | tv | - | title-only | UNVERIFIED-MISS | - | - | - | - |
@@ -365,15 +365,6 @@ kaynak: AniList#113425 MAL#40750 Kaifuku Jutsushi no Yarinaoshi
 - isim yolu: hepsi RED [('redo-of-healer', 0.38, 'REJECT', None, 'main 1/6 any 1/10 native 1', None, 10), ('rotd', 0.0, 'REJECT', 'no-main-characters', 'main 0/6 any 0/10 native 0', 'anime', 100), ('koukyuu-no-karasu', 0.0, 'REJECT', 'no-main-characters', 'main 0/6 any 0/10 native 0', 'anime', 100), ('hagure', 0.0, 'REJECT', 'no-main-characters', 'main 0/6 any 0/10 native 0', 'anime', 100), ('isekai-no-sata-wa-shachiku-shidai', 0.0, 'REJECT', 'no-main-characters', 'main 0/6 any 0/10 native 0', 'anime', 200)]
 - skorlar: [('redo-of-healer', 0.38, 'REJECT', None, 'main 1/6 any 1/10 native 1', None, 10), ('rotd', 0.0, 'REJECT', 'no-main-characters', 'main 0/6 any 0/10 native 0', 'anime', 100), ('koukyuu-no-karasu', 0.0, 'REJECT', 'no-main-characters', 'main 0/6 any 0/10 native 0', 'anime', 100), ('hagure', 0.0, 'REJECT', 'no-main-characters', 'main 0/6 any 0/10 native 0', 'anime', 100), ('isekai-no-sata-wa-shachiku-shidai', 0.0, 'REJECT', 'no-main-characters', 'main 0/6 any 0/10 native 0', 'anime', 200), ('otr-of-the-flame', 0.0, 'REJECT', 'no-main-characters', 'main 0/6 any 0/10 native 0', 'anime', 10), ('azarinth-healer', 0.0, 'REJECT', 'no-main-characters', 'main 0/6 any 0/10 native 0', 'books', 200), ('konton-e-no-koka', 0.0, 'REJECT', 'no-main-characters', 'main 0/6 any 0/10 native 0', 'anime', 10)]
 
-### Lookism [manga/title-only] UNVERIFIED-MISS (beklenen: None; bulunan: None)
-kaynak: AniList#86848 MAL#111202 Oemo Jisangjuui
-- baslik->AniList#86848 kopru
-- wikidata: starts=['Q19161871'] p4073={} nodes=[]
-- karakter oylari: yok
-- topluluk aramasi sorgulari=['Lookism', 'Oemo Jisangjuui', 'APARI3NCIAS', '외모지상주의', 'Lookism Tae-Jun Park'] -> 8 aday: ['lookism', 'questism', 'apm-entertainment', 'taejen', 'cooking-for-macaron', 'aikpop', 'taeyeon', 't-ara-fans']
-- isim yolu: hepsi RED [('lookism', 0.39, 'REJECT', None, 'main 0/1 any 1/5 native 1', 'anime', 1000), ('questism', 0.0, 'REJECT', 'no-characters', 'main 0/1 any 0/5 native 0', 'comics', 100), ('cooking-for-macaron', 0.0, 'REJECT', 'no-characters', 'main 0/1 any 0/5 native 0', 'tv', 10), ('apm-entertainment', 0.0, 'REJECT', 'no-characters', 'main 0/1 any 0/5 native 0', 'music', 500), ('t-ara-fans', 0.0, 'REJECT', 'no-characters', 'main 0/1 any 0/5 native 0', 'music', 500)]
-- skorlar: [('lookism', 0.39, 'REJECT', None, 'main 0/1 any 1/5 native 1', 'anime', 1000), ('questism', 0.0, 'REJECT', 'no-characters', 'main 0/1 any 0/5 native 0', 'comics', 100), ('cooking-for-macaron', 0.0, 'REJECT', 'no-characters', 'main 0/1 any 0/5 native 0', 'tv', 10), ('apm-entertainment', 0.0, 'REJECT', 'no-characters', 'main 0/1 any 0/5 native 0', 'music', 500), ('t-ara-fans', 0.0, 'REJECT', 'no-characters', 'main 0/1 any 0/5 native 0', 'music', 500), ('taejen', 0.0, 'REJECT', 'no-characters', 'main 0/1 any 0/5 native 0', 'games', 100), ('aikpop', 0.0, 'REJECT', 'no-characters', 'main 0/1 any 0/5 native 0', 'music', 10), ('taeyeon', 0.0, 'REJECT', 'no-characters', 'main 0/1 any 0/5 native 0', 'music', 10)]
-
 ### Bastard [manga/ids] UNVERIFIED-MISS (beklenen: None; bulunan: None)
 kaynak: AniList#170031 MAL#None Mosdwaemeogeun Nom
 - wikidata: kimlikle QID yok
@@ -390,15 +381,6 @@ kaynak: AniList#170031 MAL#None Mosdwaemeogeun Nom
 - topluluk aramasi sorgulari=['The Mean Guy', 'Mosdwaemeogeun Nom', 'Bastard', '못돼먹은 놈', 'The Mean Guy Tharchog'] -> 16 aday: ['bastard', 'bastard-webtoon', 'thebastardexecutioner', 'voidbastards-archive', 'voidbastards', 'backwaterbastards', 'the-bstard-son-the-devil-himself', 'sweethomewebtoon', 'bad-guy', 'the-bad-guys']
 - isim yolu: hepsi RED [('bastard', 0.0, 'REJECT', 'no-characters', 'main 0/1 any 0/5 native 0', 'anime', 700), ('bastard-webtoon', 0.0, 'REJECT', 'no-characters', 'main 0/1 any 0/5 native 0', 'anime', 10), ('thebastardexecutioner', 0.0, 'REJECT', 'no-characters', 'main 0/1 any 0/5 native 0', 'tv', 100), ('mightythor', 0.0, 'REJECT', 'no-characters', 'main 0/1 any 0/5 native 0', 'comics', 20000), ('sweethomewebtoon', 0.0, 'REJECT', 'no-characters', 'main 0/1 any 0/5 native 0', 'anime', 200)]
 - skorlar: [('bastard', 0.0, 'REJECT', 'no-characters', 'main 0/1 any 0/5 native 0', 'anime', 700), ('bastard-webtoon', 0.0, 'REJECT', 'no-characters', 'main 0/1 any 0/5 native 0', 'anime', 10), ('thebastardexecutioner', 0.0, 'REJECT', 'no-characters', 'main 0/1 any 0/5 native 0', 'tv', 100), ('mightythor', 0.0, 'REJECT', 'no-characters', 'main 0/1 any 0/5 native 0', 'comics', 20000), ('sweethomewebtoon', 0.0, 'REJECT', 'no-characters', 'main 0/1 any 0/5 native 0', 'anime', 200), ('the-bad-guys', 0.0, 'REJECT', 'no-characters', 'main 0/1 any 0/5 native 0', 'books', 100), ('the-good-guys-and-bad-guys', 0.0, 'REJECT', 'no-characters', 'main 0/1 any 0/5 native 0', 'books', 10), ('legends-of-thezmarr', 0.0, 'REJECT', 'no-characters', 'main 0/1 any 0/5 native 0', 'books', 10)]
-
-### Wind Breaker [manga/title-only] UNVERIFIED-MISS (beklenen: None; bulunan: None)
-kaynak: AniList#135083 MAL#133081 WIND BREAKER
-- baslik->AniList#86099 kopru
-- wikidata: starts=['Q122227187'] p4073={} nodes=[]
-- karakter oylari: yok
-- topluluk aramasi sorgulari=['Wind Breaker', 'ปั่นสู้ฝัน Wind Breaker', '윈드브레이커', 'Wind Breaker Yong-Seok Jo'] -> 11 aday: ['wind-breaker', 'windbreaker', 'wind-blow', 'windboys', 'tales-of-wind-official', 'second-wind', 'transformers-heroes-world-and-fantasy-wind', 'kazetsuyo', 'ynb-world', 'death-wish-dues']
-- isim yolu: hepsi RED [('wind-breaker', 0.0, 'REJECT', 'no-main-characters', 'main 0/5 any 0/9 native 0', 'comics', 400), ('ynb-world', 0.0, 'REJECT', 'no-main-characters', 'main 0/5 any 0/9 native 0', 'comics', 200), ('windbreaker', 0.57, 'REJECT', None, 'main 3/5 any 6/9 native 5', 'anime', 100), ('death-wish-dues', 0.0, 'REJECT', 'no-main-characters', 'main 0/5 any 0/9 native 0', 'books', 100), ('kazetsuyo', 0.0, 'REJECT', 'no-main-characters', 'main 0/5 any 0/9 native 0', 'tv', 10)]
-- skorlar: [('wind-breaker', 0.0, 'REJECT', 'no-main-characters', 'main 0/5 any 0/9 native 0', 'comics', 400), ('ynb-world', 0.0, 'REJECT', 'no-main-characters', 'main 0/5 any 0/9 native 0', 'comics', 200), ('windbreaker', 0.57, 'REJECT', None, 'main 3/5 any 6/9 native 5', 'anime', 100), ('death-wish-dues', 0.0, 'REJECT', 'no-main-characters', 'main 0/5 any 0/9 native 0', 'books', 100), ('kazetsuyo', 0.0, 'REJECT', 'no-main-characters', 'main 0/5 any 0/9 native 0', 'tv', 10), ('windboys', 0.0, 'REJECT', 'no-main-characters', 'main 0/5 any 0/9 native 0', 'games', 100), ('second-wind', 0.0, 'REJECT', 'no-main-characters', 'main 0/5 any 0/9 native 0', 'games', 100), ('wind-blow', 0.0, 'REJECT', 'no-main-characters', 'main 0/5 any 0/9 native 0', 'games', 10)]
 
 ### Game of Thrones [tv/title-only] MISS (beklenen: gameofthrones; bulunan: None)
 kaynak: Wikidata {'qid': 'Q23572', 'tmdb': 1399, 'imdb': 'tt0944947'}
@@ -434,13 +416,6 @@ kaynak: Wikidata {'qid': 'Q18389644', 'tmdb': 63639, 'imdb': 'tt3230854'}
 - topluluk aramasi sorgulari=['The Expanse'] -> 8 aday: ['expanse', 'the-expanse-swn', 'luminous-expanse-no-mans-sky-civilized-space', 'the-primordial-expanse', 'pseudo-simplicity-in-the-motley-expanse', 'pearlescent-expanse', 'wavering', 'sanguine-expanse']
 - isim yolu: hepsi RED [('expanse', 0.25, 'REJECT', None, 'fp-yok', 'tv', 3000), ('pearlescent-expanse', 0.1, 'REJECT', None, 'fp-yok', 'lifestyle', 100), ('the-expanse-swn', 0.1, 'REJECT', None, 'fp-yok', 'games', 10), ('wavering', 0.1, 'REJECT', None, 'fp-yok', 'games', 10), ('the-primordial-expanse', 0.09, 'REJECT', None, 'fp-yok', 'lifestyle', 10)]
 - skorlar: [('expanse', 0.25, 'REJECT', None, 'fp-yok', 'tv', 3000), ('pearlescent-expanse', 0.1, 'REJECT', None, 'fp-yok', 'lifestyle', 100), ('the-expanse-swn', 0.1, 'REJECT', None, 'fp-yok', 'games', 10), ('wavering', 0.1, 'REJECT', None, 'fp-yok', 'games', 10), ('the-primordial-expanse', 0.09, 'REJECT', None, 'fp-yok', 'lifestyle', 10), ('sanguine-expanse', 0.08, 'REJECT', None, 'fp-yok', 'books', 10), ('pseudo-simplicity-in-the-motley-expanse', 0.05, 'REJECT', None, 'fp-yok', 'games', 10), ('luminous-expanse-no-mans-sky-civilized-space', 0.04, 'REJECT', None, 'fp-yok', 'games', 10)]
-
-### Dark [tv/ids] UNVERIFIED-MISS (beklenen: None; bulunan: None)
-kaynak: Wikidata kimligi bulunamadi
-- karakter oylari: yok
-- topluluk aramasi sorgulari=['Dark'] -> 8 aday: ['dark-netflix', 'darkseries', 'in-the-dark-cw', 'the-dark-lore', 'sw-dark-times', 'dark-mindedseries', 'the-coming-of-the-dark', 'dark-family-fun']
-- isim yolu: hepsi RED [('dark-netflix', 0.24, 'REJECT', None, 'fp-yok', 'tv', 200), ('darkseries', 0.18, 'REJECT', None, 'fp-yok', 'books', 700), ('dark-mindedseries', 0.17, 'REJECT', None, 'fp-yok', 'books', 100), ('the-dark-lore', 0.16, 'REJECT', None, 'fp-yok', 'books', 10), ('in-the-dark-cw', 0.15, 'REJECT', None, 'fp-yok', 'tv', 10)]
-- skorlar: [('dark-netflix', 0.24, 'REJECT', None, 'fp-yok', 'tv', 200), ('darkseries', 0.18, 'REJECT', None, 'fp-yok', 'books', 700), ('dark-mindedseries', 0.17, 'REJECT', None, 'fp-yok', 'books', 100), ('the-dark-lore', 0.16, 'REJECT', None, 'fp-yok', 'books', 10), ('in-the-dark-cw', 0.15, 'REJECT', None, 'fp-yok', 'tv', 10), ('sw-dark-times', 0.1, 'REJECT', None, 'fp-yok', 'games', 10), ('dark-family-fun', 0.07, 'REJECT', None, 'fp-yok', 'lifestyle', 100), ('the-coming-of-the-dark', 0.06, 'REJECT', None, 'fp-yok', 'lifestyle', 10)]
 
 ### Dark [tv/title-only] UNVERIFIED-MISS (beklenen: None; bulunan: None)
 kaynak: Wikidata kimligi bulunamadi

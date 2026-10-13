@@ -38,7 +38,7 @@
   ],
   "source_info": "AniList#20 MAL#20 NARUTO",
   "expected_alive": true,
-  "secs": 4.5
+  "secs": 4.6
  },
  {
   "title": "One Piece",
@@ -120,7 +120,7 @@
   ],
   "source_info": "AniList#269 MAL#269 BLEACH",
   "expected_alive": true,
-  "secs": 5.6
+  "secs": 5.4
  },
  {
   "title": "Attack on Titan",
@@ -161,7 +161,7 @@
   ],
   "source_info": "AniList#16498 MAL#16498 Shingeki no Kyojin",
   "expected_alive": true,
-  "secs": 5.5
+  "secs": 5.3
  },
  {
   "title": "Attack on Titan Final Season",
@@ -202,7 +202,7 @@
   ],
   "source_info": "AniList#110277 MAL#40028 Shingeki no Kyojin: The Final Season",
   "expected_alive": true,
-  "secs": 5.2
+  "secs": 5.4
  },
  {
   "title": "Jujutsu Kaisen",
@@ -243,7 +243,7 @@
   ],
   "source_info": "AniList#113415 MAL#40748 Jujutsu Kaisen",
   "expected_alive": true,
-  "secs": 5.2
+  "secs": 5.4
  },
  {
   "title": "Jujutsu Kaisen 2nd Season",
@@ -366,7 +366,7 @@
   ],
   "source_info": "AniList#21459 MAL#31964 Boku no Hero Academia",
   "expected_alive": true,
-  "secs": 5.6
+  "secs": 5.7
  },
  {
   "title": "My Hero Academia Season 5",
@@ -407,7 +407,7 @@
   ],
   "source_info": "AniList#117193 MAL#41587 Boku no Hero Academia 5",
   "expected_alive": true,
-  "secs": 37.9
+  "secs": 39.0
  },
  {
   "title": "Fullmetal Alchemist: Brotherhood",
@@ -448,7 +448,7 @@
   ],
   "source_info": "AniList#5114 MAL#5114 Hagane no Renkinjutsushi: FULLMETAL ALCHEMIST",
   "expected_alive": true,
-  "secs": 35.2
+  "secs": 36.2
  },
  {
   "title": "Death Note",
@@ -530,7 +530,7 @@
   ],
   "source_info": "AniList#11061 MAL#11061 HUNTER×HUNTER (2011)",
   "expected_alive": true,
-  "secs": 7.7
+  "secs": 7.6
  },
  {
   "title": "One Punch Man",
@@ -636,7 +636,7 @@
   ],
   "source_info": "AniList#21087 MAL#30276 One Punch Man",
   "expected_alive": true,
-  "secs": 24.3
+  "secs": 24.0
  },
  {
   "title": "Tokyo Ghoul",
@@ -759,7 +759,7 @@
   ],
   "source_info": "AniList#21355 MAL#31240 Re:Zero kara Hajimeru Isekai Seikatsu",
   "expected_alive": true,
-  "secs": 6.2
+  "secs": 4.9
  },
  {
   "title": "Mob Psycho 100 II",
@@ -881,7 +881,7 @@
   ],
   "source_info": "AniList#105333 MAL#38691 Dr. STONE",
   "expected_alive": true,
-  "secs": 34.0
+  "secs": 33.9
  },
  {
   "title": "Black Clover",
@@ -922,7 +922,7 @@
   ],
   "source_info": "AniList#97940 MAL#34572 Black Clover",
   "expected_alive": true,
-  "secs": 7.8
+  "secs": 8.5
  },
  {
   "title": "Fairy Tail",
@@ -963,7 +963,7 @@
   ],
   "source_info": "AniList#6702 MAL#6702 FAIRY TAIL",
   "expected_alive": true,
-  "secs": 18.6
+  "secs": 20.0
  },
  {
   "title": "Dragon Ball Z",
@@ -1004,7 +1004,7 @@
   ],
   "source_info": "AniList#813 MAL#813 Dragon Ball Z",
   "expected_alive": true,
-  "secs": 4.5
+  "secs": 5.0
  },
  {
   "title": "Cowboy Bebop",
@@ -1045,7 +1045,7 @@
   ],
   "source_info": "AniList#1 MAL#1 Cowboy Bebop",
   "expected_alive": true,
-  "secs": 4.9
+  "secs": 6.7
  },
  {
   "title": "Steins;Gate",
@@ -1125,7 +1125,7 @@
   ],
   "source_info": "AniList#1575 MAL#1575 Code Geass: Hangyaku no Lelouch",
   "expected_alive": true,
-  "secs": 7.7
+  "secs": 7.8
  },
  {
   "title": "Neon Genesis Evangelion",
@@ -1166,7 +1166,7 @@
   ],
   "source_info": "AniList#30 MAL#30 Shin Seiki Evangelion",
   "expected_alive": true,
-  "secs": 7.7
+  "secs": 7.8
  },
  {
   "title": "Haikyu!!",
@@ -1207,7 +1207,7 @@
   ],
   "source_info": "AniList#20464 MAL#20583 Haikyuu!!",
   "expected_alive": true,
-  "secs": 65.3
+  "secs": 6.4
  },
  {
   "title": "Oshi no Ko",
@@ -1244,7 +1244,7 @@
   ],
   "source_info": "AniList#150672 MAL#52034 [Oshi no Ko]",
   "expected_alive": null,
-  "secs": 65.6
+  "secs": 66.0
  },
  {
   "title": "Sousou no Frieren",
@@ -1281,7 +1281,7 @@
   ],
   "source_info": "AniList#154587 MAL#52991 Sousou no Frieren",
   "expected_alive": null,
-  "secs": 6.1
+  "secs": 67.4
  },
  {
   "title": "Vinland Saga",
@@ -1322,7 +1322,7 @@
   ],
   "source_info": "AniList#101348 MAL#37521 VINLAND SAGA",
   "expected_alive": true,
-  "secs": 5.8
+  "secs": 7.8
  },
  {
   "title": "Dandadan",
@@ -1361,7 +1361,7 @@
   ],
   "source_info": "AniList#171018 MAL#57334 Dandadan",
   "expected_alive": null,
-  "secs": 14.9
+  "secs": 12.7
  },
  {
   "title": "Blue Lock",
@@ -1594,7 +1594,7 @@
   ],
   "source_info": "AniList#137822 MAL#49596 Blue Lock",
   "expected_alive": null,
-  "secs": 26.2
+  "secs": 25.3
  },
  {
   "title": "Bocchi the Rock!",
@@ -1631,7 +1631,7 @@
   ],
   "source_info": "AniList#130003 MAL#47917 Bocchi the Rock!",
   "expected_alive": null,
-  "secs": 6.5
+  "secs": 7.8
  },
  {
   "title": "Kaguya-sama: Love is War",
@@ -1670,7 +1670,7 @@
   ],
   "source_info": "AniList#101921 MAL#37999 Kaguya-sama wa Kokurasetai: Tensaitachi no Renai Zunousen",
   "expected_alive": null,
-  "secs": 9.5
+  "secs": 9.6
  },
  {
   "title": "Tensei shitara Slime Datta Ken",
@@ -1802,7 +1802,7 @@
   ],
   "source_info": "AniList#108465 MAL#39535 Mushoku Tensei: Isekai Ittara Honki Dasu",
   "expected_alive": null,
-  "secs": 26.1
+  "secs": 28.9
  },
  {
   "title": "Overlord",
@@ -1839,7 +1839,7 @@
   ],
   "source_info": "AniList#20832 MAL#29803 Overlord",
   "expected_alive": null,
-  "secs": 7.1
+  "secs": 6.9
  },
  {
   "title": "Konosuba",
@@ -1876,7 +1876,7 @@
   ],
   "source_info": "AniList#21202 MAL#30831 Kono Subarashii Sekai ni Shukufuku wo!",
   "expected_alive": null,
-  "secs": 20.2
+  "secs": 7.3
  },
  {
   "title": "Gintama",
@@ -1914,7 +1914,7 @@
   ],
   "source_info": "AniList#918 MAL#918 Gintama",
   "expected_alive": true,
-  "secs": 3.0
+  "secs": 11.2
  },
  {
   "title": "Chainsaw Man",
@@ -1952,7 +1952,7 @@
   ],
   "source_info": "AniList#127230 MAL#44511 Chainsaw Man",
   "expected_alive": true,
-  "secs": 5.4
+  "secs": 63.2
  },
  {
   "title": "Spy x Family",
@@ -1990,7 +1990,7 @@
   ],
   "source_info": "AniList#140960 MAL#50265 SPY×FAMILY",
   "expected_alive": true,
-  "secs": 5.4
+  "secs": 66.0
  },
  {
   "title": "Solo Leveling",
@@ -2067,7 +2067,7 @@
   ],
   "source_info": "AniList#457 MAL#457 Mushishi",
   "expected_alive": null,
-  "secs": 66.1
+  "secs": 14.7
  },
  {
   "title": "Monster",
@@ -2104,7 +2104,7 @@
   ],
   "source_info": "AniList#19 MAL#19 MONSTER",
   "expected_alive": null,
-  "secs": 66.2
+  "secs": 7.9
  },
  {
   "title": "Ping Pong the Animation",
@@ -2339,7 +2339,7 @@
   ],
   "source_info": "AniList#20607 MAL#22135 Ping Pong THE ANIMATION",
   "expected_alive": null,
-  "secs": 13.3
+  "secs": 13.4
  },
  {
   "title": "Ranking of Kings",
@@ -2376,7 +2376,7 @@
   ],
   "source_info": "AniList#113717 MAL#40834 Ousama Ranking",
   "expected_alive": null,
-  "secs": 5.9
+  "secs": 4.8
  },
  {
   "title": "Rurouni Kenshin",
@@ -2413,7 +2413,7 @@
   ],
   "source_info": "AniList#45 MAL#45 Rurouni Kenshin: Meiji Kenkaku Romantan",
   "expected_alive": null,
-  "secs": 6.4
+  "secs": 5.4
  },
  {
   "title": "Yu Yu Hakusho",
@@ -2452,7 +2452,7 @@
   ],
   "source_info": "AniList#392 MAL#392 Yuu☆Yuu☆Hakusho",
   "expected_alive": null,
-  "secs": 7.6
+  "secs": 5.6
  },
  {
   "title": "Great Teacher Onizuka",
@@ -2489,7 +2489,7 @@
   ],
   "source_info": "AniList#245 MAL#245 GTO",
   "expected_alive": null,
-  "secs": 7.7
+  "secs": 6.4
  },
  {
   "title": "Planetes",
@@ -2526,7 +2526,7 @@
   ],
   "source_info": "AniList#329 MAL#329 Planetes",
   "expected_alive": null,
-  "secs": 5.6
+  "secs": 29.8
  },
  {
   "title": "Ergo Proxy",
@@ -2565,7 +2565,7 @@
   ],
   "source_info": "AniList#790 MAL#790 Ergo Proxy",
   "expected_alive": null,
-  "secs": 5.4
+  "secs": 31.3
  },
  {
   "title": "Paranoia Agent",
@@ -2642,7 +2642,7 @@
   ],
   "source_info": "AniList#323 MAL#323 Mousou Dairinin",
   "expected_alive": null,
-  "secs": 35.3
+  "secs": 11.0
  },
  {
   "title": "Hyouka",
@@ -2679,7 +2679,7 @@
   ],
   "source_info": "AniList#12189 MAL#12189 Hyouka",
   "expected_alive": null,
-  "secs": 4.3
+  "secs": 5.1
  },
  {
   "title": "Barakamon",
@@ -2730,8 +2730,8 @@
     "mode": "title-only",
     "status": "UNVERIFIED-FOUND",
     "wiki": "barakamon",
-    "via": "name-score",
-    "conf": "CERTAIN",
+    "via": "name-article-proof",
+    "conf": "PROBABLE",
     "hits": [
      "barakamon",
      "yiki-the-asian-cat",
@@ -2752,80 +2752,7 @@
      "yiki-the-asian-cat",
      "thebrokenbroomocs"
     ],
-    "scores": [
-     [
-      "barakamon",
-      0.86,
-      "CERTAIN",
-      null,
-      "main 2/2 any 6/6 native 6",
-      "anime",
-      10
-     ],
-     [
-      "yamishibai",
-      0.0,
-      "REJECT",
-      "no-main-characters",
-      "main 0/2 any 0/6 native 0",
-      "anime",
-      900
-     ],
-     [
-      "pjsk-a-new-beginning",
-      0.0,
-      "REJECT",
-      "no-main-characters",
-      "main 0/2 any 0/6 native 0",
-      "anime",
-      10
-     ],
-     [
-      "demonscrest",
-      0.0,
-      "REJECT",
-      "no-main-characters",
-      "main 0/2 any 0/6 native 0",
-      "anime",
-      10
-     ],
-     [
-      "pompom-chicas-shows",
-      0.0,
-      "REJECT",
-      "no-main-characters",
-      "main 0/2 any 0/6 native 0",
-      "movies",
-      10
-     ],
-     [
-      "joshs-adventures",
-      0.0,
-      "REJECT",
-      "no-main-characters",
-      "main 0/2 any 0/6 native 0",
-      "lifestyle",
-      5000
-     ],
-     [
-      "yiki-the-asian-cat",
-      0.0,
-      "REJECT",
-      "no-main-characters",
-      "main 0/2 any 0/6 native 0",
-      "lifestyle",
-      10
-     ],
-     [
-      "thebrokenbroomocs",
-      0.0,
-      "REJECT",
-      "no-main-characters",
-      "main 0/2 any 0/6 native 0",
-      "lifestyle",
-      10
-     ]
-    ],
+    "scores": null,
     "trace": [
      "baslik->AniList#20722 kopru",
      "wikidata: starts=['Q120637199'] p4073={} nodes=['Q6579725', 'Q66006711']",
@@ -2836,7 +2763,7 @@
   ],
   "source_info": "AniList#20722 MAL#22789 Barakamon",
   "expected_alive": null,
-  "secs": 51.2
+  "secs": 21.2
  },
  {
   "title": "Golden Kamuy",
@@ -2873,7 +2800,7 @@
   ],
   "source_info": "AniList#99699 MAL#36028 Golden Kamuy",
   "expected_alive": null,
-  "secs": 7.9
+  "secs": 9.0
  },
  {
   "title": "Kaiji",
@@ -2910,7 +2837,7 @@
   ],
   "source_info": "AniList#10271 MAL#10271 Gyakkyou Burai Kaiji: Hakairoku-hen",
   "expected_alive": null,
-  "secs": 5.9
+  "secs": 6.1
  },
  {
   "title": "Dungeon Meshi",
@@ -2947,7 +2874,7 @@
   ],
   "source_info": "AniList#153518 MAL#52701 Dungeon Meshi",
   "expected_alive": null,
-  "secs": 5.3
+  "secs": 5.2
  },
  {
   "title": "Space Brothers",
@@ -3176,7 +3103,7 @@
   ],
   "source_info": "AniList#12431 MAL#12431 Uchuu Kyoudai",
   "expected_alive": null,
-  "secs": 24.9
+  "secs": 25.2
  },
  {
   "title": "Kino's Journey",
@@ -3295,7 +3222,7 @@
   ],
   "source_info": "AniList#486 MAL#486 Kino no Tabi: the Beautiful World",
   "expected_alive": null,
-  "secs": 21.9
+  "secs": 22.3
  },
  {
   "title": "Texhnolyze",
@@ -3518,7 +3445,7 @@
   ],
   "source_info": "AniList#26 MAL#26 TEXHNOLYZE",
   "expected_alive": null,
-  "secs": 12.6
+  "secs": 12.1
  },
  {
   "title": "Aria the Animation",
@@ -3555,7 +3482,7 @@
   ],
   "source_info": "AniList#477 MAL#477 ARIA The ANIMATION",
   "expected_alive": null,
-  "secs": 6.7
+  "secs": 9.2
  },
  {
   "title": "Nichijou",
@@ -3613,8 +3540,8 @@
     "mode": "title-only",
     "status": "UNVERIFIED-FOUND",
     "wiki": "nichijou",
-    "via": "name-score",
-    "conf": "CERTAIN",
+    "via": "name-article-proof",
+    "conf": "PROBABLE",
     "hits": [
      "nichijou",
      "monmusuonline",
@@ -3649,80 +3576,7 @@
      "nichibros",
      "elegant-yokai-apartment-life"
     ],
-    "scores": [
-     [
-      "nichijou",
-      0.98,
-      "CERTAIN",
-      null,
-      "main 6/6 any 10/10 native 6",
-      "anime",
-      400
-     ],
-     [
-      "cue-eng",
-      0.0,
-      "REJECT",
-      "no-main-characters",
-      "main 0/6 any 0/10 native 0",
-      "anime",
-      100
-     ],
-     [
-      "dailylifewithamonstergirl",
-      0.0,
-      "REJECT",
-      "no-main-characters",
-      "main 0/6 any 0/10 native 0",
-      "anime",
-      1000
-     ],
-     [
-      "everyday-solar-azerion",
-      0.0,
-      "REJECT",
-      "no-main-characters",
-      "main 0/6 any 0/10 native 0",
-      "comics",
-      100
-     ],
-     [
-      "inoubattlewanichijoukeinonakade",
-      0.0,
-      "REJECT",
-      "no-main-characters",
-      "main 0/6 any 0/10 native 0",
-      "anime",
-      100
-     ],
-     [
-      "the-daily-life-of-the-immortal-king",
-      0.0,
-      "REJECT",
-      "no-main-characters",
-      "main 0/6 any 0/10 native 0",
-      "anime",
-      100
-     ],
-     [
-      "nichibros",
-      0.0,
-      "REJECT",
-      "no-main-characters",
-      "main 0/6 any 0/10 native 0",
-      "anime",
-      200
-     ],
-     [
-      "elegant-yokai-apartment-life",
-      0.0,
-      "REJECT",
-      "no-main-characters",
-      "main 0/6 any 0/10 native 0",
-      "tv",
-      200
-     ]
-    ],
+    "scores": null,
     "trace": [
      "baslik->AniList#10165 kopru",
      "wikidata: starts=['Q106567447'] p4073={} nodes=['Q483120']",
@@ -3733,7 +3587,7 @@
   ],
   "source_info": "AniList#10165 MAL#10165 Nichijou",
   "expected_alive": null,
-  "secs": 19.2
+  "secs": 19.0
  },
  {
   "title": "Welcome to the NHK",
@@ -3828,7 +3682,7 @@
   ],
   "source_info": "AniList#1210 MAL#1210 NHK ni Youkoso!",
   "expected_alive": null,
-  "secs": 16.9
+  "secs": 20.8
  },
  {
   "title": "Beastars",
@@ -3865,7 +3719,7 @@
   ],
   "source_info": "AniList#107660 MAL#39195 BEASTARS",
   "expected_alive": null,
-  "secs": 5.2
+  "secs": 5.0
  },
  {
   "title": "Made in Abyss",
@@ -3960,7 +3814,7 @@
   ],
   "source_info": "AniList#97986 MAL#34599 Made in Abyss",
   "expected_alive": null,
-  "secs": 33.4
+  "secs": 33.0
  },
  {
   "title": "Dorohedoro",
@@ -4183,7 +4037,7 @@
   ],
   "source_info": "AniList#105228 MAL#38668 Dorohedoro",
   "expected_alive": null,
-  "secs": 29.1
+  "secs": 28.5
  },
  {
   "title": "Soul Eater",
@@ -4220,7 +4074,7 @@
   ],
   "source_info": "AniList#3588 MAL#3588 Soul Eater",
   "expected_alive": null,
-  "secs": 4.2
+  "secs": 3.7
  },
  {
   "title": "Sket Dance",
@@ -4423,7 +4277,7 @@
   ],
   "source_info": "AniList#9863 MAL#9863 SKET DANCE",
   "expected_alive": null,
-  "secs": 16.1
+  "secs": 16.7
  },
  {
   "title": "Mashle",
@@ -4677,7 +4531,7 @@
   ],
   "source_info": "AniList#151801 MAL#52211 MASHLE",
   "expected_alive": null,
-  "secs": 21.7
+  "secs": 19.6
  },
  {
   "title": "Bible Black",
@@ -4918,7 +4772,7 @@
   ],
   "source_info": "AniList#368 MAL#368 Bible Black",
   "expected_alive": null,
-  "secs": 16.7
+  "secs": 16.0
  },
  {
   "title": "Overflow",
@@ -5079,7 +4933,7 @@
   ],
   "source_info": "AniList#113417 MAL#40746 Overflow",
   "expected_alive": null,
-  "secs": 14.5
+  "secs": 15.0
  },
  {
   "title": "Kiss x Sis",
@@ -5306,7 +5160,7 @@
   ],
   "source_info": "AniList#5042 MAL#5042 kiss×sis",
   "expected_alive": null,
-  "secs": 19.2
+  "secs": 18.3
  },
  {
   "title": "Prison School",
@@ -5343,7 +5197,7 @@
   ],
   "source_info": "AniList#20807 MAL#30240 Prison School",
   "expected_alive": null,
-  "secs": 5.2
+  "secs": 6.5
  },
  {
   "title": "High School DxD",
@@ -5380,7 +5234,7 @@
   ],
   "source_info": "AniList#11617 MAL#11617 High School DxD",
   "expected_alive": null,
-  "secs": 5.4
+  "secs": 5.8
  },
  {
   "title": "Redo of Healer",
@@ -5639,7 +5493,7 @@
   ],
   "source_info": "AniList#113425 MAL#40750 Kaifuku Jutsushi no Yarinaoshi",
   "expected_alive": null,
-  "secs": 22.8
+  "secs": 21.3
  },
  {
   "title": "Berserk",
@@ -5680,7 +5534,7 @@
   ],
   "source_info": "AniList#30002 MAL#2 Berserk",
   "expected_alive": true,
-  "secs": 6.4
+  "secs": 5.9
  },
  {
   "title": "Vagabond",
@@ -5724,8 +5578,8 @@
     "mode": "title-only",
     "status": "UNVERIFIED-FOUND",
     "wiki": "vagabond",
-    "via": "name-score",
-    "conf": "CERTAIN",
+    "via": "name-article-proof",
+    "conf": "PROBABLE",
     "hits": [
      "vagabond",
      "last-samurai-standing",
@@ -5746,80 +5600,7 @@
      "last-samurai-standing",
      "blue-eye-samurai"
     ],
-    "scores": [
-     [
-      "vagabond",
-      0.98,
-      "CERTAIN",
-      null,
-      "main 3/3 any 7/7 native 7",
-      "anime",
-      300
-     ],
-     [
-      "ippo",
-      0.0,
-      "REJECT",
-      "no-main-characters",
-      "main 0/3 any 0/7 native 0",
-      "anime",
-      2000
-     ],
-     [
-      "mudazumo-naki-kaikaku",
-      0.0,
-      "REJECT",
-      "no-main-characters",
-      "main 0/3 any 0/7 native 0",
-      "anime",
-      100
-     ],
-     [
-      "ichinensei-ni-nacchattara",
-      0.0,
-      "REJECT",
-      "no-main-characters",
-      "main 0/3 any 0/7 native 0",
-      "anime",
-      10
-     ],
-     [
-      "my-daemon",
-      0.0,
-      "REJECT",
-      "no-main-characters",
-      "main 0/3 any 0/7 native 0",
-      "anime",
-      10
-     ],
-     [
-      "the-martial-unity",
-      0.0,
-      "REJECT",
-      "no-main-characters",
-      "main 0/3 any 0/7 native 0",
-      "books",
-      10
-     ],
-     [
-      "last-samurai-standing",
-      0.0,
-      "REJECT",
-      "no-main-characters",
-      "main 0/3 any 0/7 native 0",
-      "tv",
-      10
-     ],
-     [
-      "blue-eye-samurai",
-      0.0,
-      "REJECT",
-      "no-main-characters",
-      "main 0/3 any 0/7 native 0",
-      "tv",
-      10
-     ]
-    ],
+    "scores": null,
     "trace": [
      "baslik->AniList#30656 kopru",
      "wikidata: starts=['Q1244799'] p4073={} nodes=[]",
@@ -5830,7 +5611,7 @@
   ],
   "source_info": "AniList#30656 MAL#656 Vagabond",
   "expected_alive": null,
-  "secs": 14.1
+  "secs": 11.8
  },
  {
   "title": "Claymore",
@@ -5980,7 +5761,7 @@
   ],
   "source_info": "AniList#30583 MAL#583 CLAYMORE",
   "expected_alive": null,
-  "secs": 17.7
+  "secs": 16.1
  },
  {
   "title": "Parasyte",
@@ -6217,7 +5998,7 @@
   ],
   "source_info": "AniList#30401 MAL#401 Kiseijuu",
   "expected_alive": null,
-  "secs": 33.0
+  "secs": 23.3
  },
  {
   "title": "Tower of God",
@@ -6308,7 +6089,7 @@
   ],
   "source_info": "AniList#85143 MAL#122663 Sinui Tap",
   "expected_alive": true,
-  "secs": 17.9
+  "secs": 15.7
  },
  {
   "title": "The God of High School",
@@ -6561,7 +6342,7 @@
   ],
   "source_info": "AniList#85141 MAL#111996 God of High School",
   "expected_alive": null,
-  "secs": 18.3
+  "secs": 13.5
  },
  {
   "title": "Lookism",
@@ -6603,10 +6384,10 @@
    },
    {
     "mode": "title-only",
-    "status": "UNVERIFIED-MISS",
-    "wiki": null,
-    "via": null,
-    "conf": null,
+    "status": "UNVERIFIED-FOUND",
+    "wiki": "lookism",
+    "via": "name-article-proof",
+    "conf": "PROBABLE",
     "hits": [
      "lookism",
      "questism",
@@ -6627,92 +6408,18 @@
      "aikpop",
      "taeyeon"
     ],
-    "scores": [
-     [
-      "lookism",
-      0.39,
-      "REJECT",
-      null,
-      "main 0/1 any 1/5 native 1",
-      "anime",
-      1000
-     ],
-     [
-      "questism",
-      0.0,
-      "REJECT",
-      "no-characters",
-      "main 0/1 any 0/5 native 0",
-      "comics",
-      100
-     ],
-     [
-      "cooking-for-macaron",
-      0.0,
-      "REJECT",
-      "no-characters",
-      "main 0/1 any 0/5 native 0",
-      "tv",
-      10
-     ],
-     [
-      "apm-entertainment",
-      0.0,
-      "REJECT",
-      "no-characters",
-      "main 0/1 any 0/5 native 0",
-      "music",
-      500
-     ],
-     [
-      "t-ara-fans",
-      0.0,
-      "REJECT",
-      "no-characters",
-      "main 0/1 any 0/5 native 0",
-      "music",
-      500
-     ],
-     [
-      "taejen",
-      0.0,
-      "REJECT",
-      "no-characters",
-      "main 0/1 any 0/5 native 0",
-      "games",
-      100
-     ],
-     [
-      "aikpop",
-      0.0,
-      "REJECT",
-      "no-characters",
-      "main 0/1 any 0/5 native 0",
-      "music",
-      10
-     ],
-     [
-      "taeyeon",
-      0.0,
-      "REJECT",
-      "no-characters",
-      "main 0/1 any 0/5 native 0",
-      "music",
-      10
-     ]
-    ],
+    "scores": null,
     "trace": [
      "baslik->AniList#86848 kopru",
      "wikidata: starts=['Q19161871'] p4073={} nodes=[]",
      "karakter oylari: yok",
-     "topluluk aramasi sorgulari=['Lookism', 'Oemo Jisangjuui', 'APARI3NCIAS', '외모지상주의', 'Lookism Tae-Jun Park'] -> 8 aday: ['lookism', 'questism', 'apm-entertainment', 'taejen', 'cooking-for-macaron', 'aikpop', 'taeyeon', 't-ara-fans']",
-     "isim yolu: hepsi RED [('lookism', 0.39, 'REJECT', None, 'main 0/1 any 1/5 native 1', 'anime', 1000), ('questism', 0.0, 'REJECT', 'no-characters', 'main 0/1 any 0/5 native 0', 'comics', 100), ('cooking-for-macaron', 0.0, 'REJECT', 'no-characters', 'main 0/1 any 0/5 native 0', 'tv', 10), ('apm-entertainment', 0.0, 'REJECT', 'no-characters', 'main 0/1 any 0/5 native 0', 'music', 500), ('t-ara-fans', 0.0, 'REJECT', 'no-characters', 'main 0/1 any 0/5 native 0', 'music', 500)]"
+     "topluluk aramasi sorgulari=['Lookism', 'Oemo Jisangjuui', 'APARI3NCIAS', '외모지상주의', 'Lookism Tae-Jun Park'] -> 8 aday: ['lookism', 'questism', 'apm-entertainment', 'taejen', 'cooking-for-macaron', 'aikpop', 'taeyeon', 't-ara-fans']"
     ]
    }
   ],
   "source_info": "AniList#86848 MAL#111202 Oemo Jisangjuui",
   "expected_alive": null,
-  "secs": 17.2
+  "secs": 11.0
  },
  {
   "title": "Noblesse",
@@ -6915,7 +6622,7 @@
   ],
   "source_info": "AniList#59983 MAL#29983 Noblesse",
   "expected_alive": null,
-  "secs": 22.8
+  "secs": 19.1
  },
  {
   "title": "Solo Leveling",
@@ -6956,7 +6663,7 @@
   ],
   "source_info": "AniList#105398 MAL#121496 Na Honjaman Level Up",
   "expected_alive": true,
-  "secs": 6.2
+  "secs": 5.8
  },
  {
   "title": "Omniscient Reader",
@@ -7069,7 +6776,7 @@
   ],
   "source_info": "AniList#119257 MAL#132214 Jeonjijeok Dokja Sijeom",
   "expected_alive": null,
-  "secs": 18.2
+  "secs": 13.4
  },
  {
   "title": "Eleceed",
@@ -7120,8 +6827,8 @@
     "mode": "title-only",
     "status": "UNVERIFIED-FOUND",
     "wiki": "eleceed",
-    "via": "name-identity-link",
-    "conf": "CERTAIN",
+    "via": "name-article-proof",
+    "conf": "PROBABLE",
     "hits": [
      "eleceed",
      "the-electric-state",
@@ -7160,7 +6867,7 @@
   ],
   "source_info": "AniList#106929 MAL#147171 Eleceed",
   "expected_alive": null,
-  "secs": 14.5
+  "secs": 14.7
  },
  {
   "title": "Teenage Mercenary",
@@ -7237,7 +6944,7 @@
   ],
   "source_info": "AniList#126297 MAL#146966 Iphagyongbyeong",
   "expected_alive": null,
-  "secs": 14.5
+  "secs": 14.3
  },
  {
   "title": "Mo Dao Zu Shi",
@@ -7276,7 +6983,7 @@
   ],
   "source_info": "AniList#173984 MAL#None Madou Soshi",
   "expected_alive": null,
-  "secs": 5.6
+  "secs": 4.2
  },
  {
   "title": "Chainsaw Man",
@@ -7317,7 +7024,7 @@
   ],
   "source_info": "AniList#105778 MAL#116778 Chainsaw Man",
   "expected_alive": true,
-  "secs": 5.8
+  "secs": 4.9
  },
  {
   "title": "One Piece",
@@ -7358,7 +7065,7 @@
   ],
   "source_info": "AniList#30013 MAL#13 ONE PIECE",
   "expected_alive": true,
-  "secs": 6.3
+  "secs": 7.4
  },
  {
   "title": "Jujutsu Kaisen",
@@ -7399,7 +7106,7 @@
   ],
   "source_info": "AniList#101517 MAL#113138 Jujutsu Kaisen",
   "expected_alive": true,
-  "secs": 4.5
+  "secs": 5.4
  },
  {
   "title": "Dandadan",
@@ -7436,7 +7143,7 @@
   ],
   "source_info": "AniList#132029 MAL#135496 Dandadan",
   "expected_alive": null,
-  "secs": 4.5
+  "secs": 5.4
  },
  {
   "title": "Kaiju No. 8",
@@ -7473,7 +7180,7 @@
   ],
   "source_info": "AniList#177806 MAL#169783 Kaijuu 8-gou: RELAX",
   "expected_alive": null,
-  "secs": 6.3
+  "secs": 66.0
  },
  {
   "title": "Witch Hat Atelier",
@@ -7510,7 +7217,7 @@
   ],
   "source_info": "AniList#98263 MAL#100035 Tongari Boushi no Atelier",
   "expected_alive": null,
-  "secs": 65.0
+  "secs": 64.2
  },
  {
   "title": "Sweet Home",
@@ -7737,7 +7444,7 @@
   ],
   "source_info": "AniList#100954 MAL#124845 Sweet Home",
   "expected_alive": null,
-  "secs": 73.5
+  "secs": 12.6
  },
  {
   "title": "Bastard",
@@ -7978,7 +7685,7 @@
   ],
   "source_info": "AniList#170031 MAL#None Mosdwaemeogeun Nom",
   "expected_alive": null,
-  "secs": 17.2
+  "secs": 12.0
  },
  {
   "title": "The Beginning After the End",
@@ -7987,7 +7694,7 @@
   "runs": [],
   "source_info": "AniList'te bulunamadi: The Beginning After the End",
   "expected_alive": null,
-  "secs": 1.8
+  "secs": 0.9
  },
  {
   "title": "Villains Are Destined to Die",
@@ -8264,7 +7971,7 @@
   ],
   "source_info": "AniList#118408 MAL#133641 Agyeogui Ending Jugeumppun",
   "expected_alive": null,
-  "secs": 17.5
+  "secs": 16.2
  },
  {
   "title": "Return of the Mount Hua Sect",
@@ -8303,7 +8010,7 @@
   ],
   "source_info": "AniList#132144 MAL#146878 Hwasangwihwan",
   "expected_alive": null,
-  "secs": 6.4
+  "secs": 9.2
  },
  {
   "title": "Wind Breaker",
@@ -8419,10 +8126,10 @@
    },
    {
     "mode": "title-only",
-    "status": "UNVERIFIED-MISS",
-    "wiki": null,
-    "via": null,
-    "conf": null,
+    "status": "UNVERIFIED-FOUND",
+    "wiki": "windbreaker",
+    "via": "name-score",
+    "conf": "PROBABLE",
     "hits": [
      "wind-breaker",
      "windbreaker",
@@ -8468,7 +8175,7 @@
      [
       "windbreaker",
       0.57,
-      "REJECT",
+      "PROBABLE",
       null,
       "main 3/5 any 6/9 native 5",
       "anime",
@@ -8524,14 +8231,13 @@
      "baslik->AniList#86099 kopru",
      "wikidata: starts=['Q122227187'] p4073={} nodes=[]",
      "karakter oylari: yok",
-     "topluluk aramasi sorgulari=['Wind Breaker', 'ปั่นสู้ฝัน Wind Breaker', '윈드브레이커', 'Wind Breaker Yong-Seok Jo'] -> 11 aday: ['wind-breaker', 'windbreaker', 'wind-blow', 'windboys', 'tales-of-wind-official', 'second-wind', 'transformers-heroes-world-and-fantasy-wind', 'kazetsuyo', 'ynb-world', 'death-wish-dues']",
-     "isim yolu: hepsi RED [('wind-breaker', 0.0, 'REJECT', 'no-main-characters', 'main 0/5 any 0/9 native 0', 'comics', 400), ('ynb-world', 0.0, 'REJECT', 'no-main-characters', 'main 0/5 any 0/9 native 0', 'comics', 200), ('windbreaker', 0.57, 'REJECT', None, 'main 3/5 any 6/9 native 5', 'anime', 100), ('death-wish-dues', 0.0, 'REJECT', 'no-main-characters', 'main 0/5 any 0/9 native 0', 'books', 100), ('kazetsuyo', 0.0, 'REJECT', 'no-main-characters', 'main 0/5 any 0/9 native 0', 'tv', 10)]"
+     "topluluk aramasi sorgulari=['Wind Breaker', 'ปั่นสู้ฝัน Wind Breaker', '윈드브레이커', 'Wind Breaker Yong-Seok Jo'] -> 11 aday: ['wind-breaker', 'windbreaker', 'wind-blow', 'windboys', 'tales-of-wind-official', 'second-wind', 'transformers-heroes-world-and-fantasy-wind', 'kazetsuyo', 'ynb-world', 'death-wish-dues']"
     ]
    }
   ],
   "source_info": "AniList#135083 MAL#133081 WIND BREAKER",
   "expected_alive": null,
-  "secs": 27.9
+  "secs": 23.1
  },
  {
   "title": "Weak Hero",
@@ -8624,7 +8330,7 @@
   ],
   "source_info": "AniList#113488 MAL#128231 Yakanyeongung",
   "expected_alive": null,
-  "secs": 12.3
+  "secs": 9.2
  },
  {
   "title": "Soul Land",
@@ -8863,7 +8569,7 @@
   ],
   "source_info": "AniList#85446 MAL#72303 Douluo Dalu",
   "expected_alive": null,
-  "secs": 15.8
+  "secs": 14.4
  },
  {
   "title": "Battle Through the Heavens",
@@ -9126,7 +8832,7 @@
   ],
   "source_info": "AniList#85453 MAL#79193 Dou Po Cangqiong",
   "expected_alive": null,
-  "secs": 16.5
+  "secs": 12.6
  },
  {
   "title": "Martial Peak",
@@ -9369,7 +9075,7 @@
   ],
   "source_info": "AniList#104494 MAL#None Wu Lian Dianfeng",
   "expected_alive": null,
-  "secs": 17.9
+  "secs": 33.3
  },
  {
   "title": "Bakuman.",
@@ -9552,7 +9258,7 @@
   ],
   "source_info": "AniList#39711 MAL#9711 Bakuman.",
   "expected_alive": null,
-  "secs": 23.3
+  "secs": 18.5
  },
  {
   "title": "Overlord",
@@ -9589,7 +9295,7 @@
   ],
   "source_info": "AniList#85976 MAL#81669 Overlord",
   "expected_alive": null,
-  "secs": 5.1
+  "secs": 3.4
  },
  {
   "title": "Spice and Wolf",
@@ -9626,7 +9332,7 @@
   ],
   "source_info": "AniList#39115 MAL#9115 Ookami to Koushinryou",
   "expected_alive": null,
-  "secs": 4.2
+  "secs": 5.4
  },
  {
   "title": "Re:Zero kara Hajimeru Isekai Seikatsu",
@@ -9667,7 +9373,7 @@
   ],
   "source_info": "AniList#85737 MAL#74697 Re:Zero kara Hajimeru Isekai Seikatsu",
   "expected_alive": true,
-  "secs": 4.5
+  "secs": 4.6
  },
  {
   "title": "Classroom of the Elite",
@@ -9704,7 +9410,7 @@
   ],
   "source_info": "AniList#94970 MAL#89357 Youkoso Jitsuryoku Shijou Shugi no Kyoushitsu e",
   "expected_alive": null,
-  "secs": 4.8
+  "secs": 6.9
  },
  {
   "title": "The Melancholy of Haruhi Suzumiya",
@@ -9743,7 +9449,7 @@
   ],
   "source_info": "AniList#33083 MAL#3083 Suzumiya Haruhi no Yuuutsu",
   "expected_alive": null,
-  "secs": 6.6
+  "secs": 5.4
  },
  {
   "title": "Log Horizon",
@@ -9818,7 +9524,7 @@
   ],
   "source_info": "AniList#76024 MAL#46024 Log Horizon",
   "expected_alive": null,
-  "secs": 26.1
+  "secs": 77.5
  },
  {
   "title": "Mushoku Tensei: Isekai Ittara Honki Dasu",
@@ -9856,7 +9562,7 @@
   ],
   "source_info": "AniList#85470 MAL#70261 Mushoku Tensei: Isekai Ittara Honki Dasu",
   "expected_alive": null,
-  "secs": 5.2
+  "secs": 5.1
  },
  {
   "title": "Sword Art Online",
@@ -9897,7 +9603,7 @@
   ],
   "source_info": "AniList#51479 MAL#21479 Sword Art Online",
   "expected_alive": true,
-  "secs": 5.2
+  "secs": 5.1
  },
  {
   "title": "Breaking Bad",
@@ -9950,7 +9656,7 @@
   ],
   "source_info": "Wikidata {'qid': 'Q1079', 'tmdb': 1396, 'imdb': 'tt0903747'}",
   "expected_alive": true,
-  "secs": 3.6
+  "secs": 3.5
  },
  {
   "title": "Stranger Things",
@@ -10009,7 +9715,7 @@
   ],
   "source_info": "Wikidata {'qid': 'Q19798734', 'tmdb': 66732, 'imdb': 'tt4574334'}",
   "expected_alive": true,
-  "secs": 4.5
+  "secs": 3.8
  },
  {
   "title": "Game of Thrones",
@@ -10142,7 +9848,7 @@
   ],
   "source_info": "Wikidata {'qid': 'Q23572', 'tmdb': 1399, 'imdb': 'tt0944947'}",
   "expected_alive": true,
-  "secs": 5.0
+  "secs": 4.2
  },
  {
   "title": "The Walking Dead",
@@ -10201,7 +9907,7 @@
   ],
   "source_info": "Wikidata {'qid': 'Q232737', 'tmdb': 1402, 'imdb': 'tt1520211'}",
   "expected_alive": true,
-  "secs": 8.1
+  "secs": 4.5
  },
  {
   "title": "Supernatural",
@@ -10334,7 +10040,7 @@
   ],
   "source_info": "Wikidata {'qid': 'Q130585', 'tmdb': 1622, 'imdb': 'tt0460681'}",
   "expected_alive": true,
-  "secs": 7.1
+  "secs": 3.8
  },
  {
   "title": "The Witcher",
@@ -10410,7 +10116,7 @@
   ],
   "source_info": "Wikidata {'qid': 'Q47500433', 'tmdb': 71912, 'imdb': 'tt5180504'}",
   "expected_alive": null,
-  "secs": 8.3
+  "secs": 5.4
  },
  {
   "title": "Squid Game",
@@ -10465,7 +10171,7 @@
   ],
   "source_info": "Wikidata {'qid': 'Q106582931', 'tmdb': 93405, 'imdb': 'tt10919420'}",
   "expected_alive": null,
-  "secs": 7.1
+  "secs": 4.1
  },
  {
   "title": "Peaky Blinders",
@@ -10512,7 +10218,7 @@
   ],
   "source_info": "Wikidata {'qid': 'Q14944179', 'tmdb': 60574, 'imdb': 'tt2442560'}",
   "expected_alive": null,
-  "secs": 7.5
+  "secs": 4.2
  },
  {
   "title": "Severance",
@@ -10576,7 +10282,7 @@
   ],
   "source_info": "Wikidata {'qid': 'Q101096725', 'tmdb': 95396, 'imdb': 'tt11280740'}",
   "expected_alive": null,
-  "secs": 8.6
+  "secs": 4.4
  },
  {
   "title": "The Expanse",
@@ -10705,7 +10411,7 @@
   ],
   "source_info": "Wikidata {'qid': 'Q18389644', 'tmdb': 63639, 'imdb': 'tt3230854'}",
   "expected_alive": null,
-  "secs": 7.2
+  "secs": 4.2
  },
  {
   "title": "Mr. Robot",
@@ -10746,7 +10452,7 @@
   ],
   "source_info": "Wikidata {'qid': 'Q18844729', 'tmdb': 62560, 'imdb': 'tt4158110'}",
   "expected_alive": null,
-  "secs": 5.8
+  "secs": 3.0
  },
  {
   "title": "Black Mirror",
@@ -10789,7 +10495,7 @@
   ],
   "source_info": "Wikidata {'qid': 'Q558112', 'tmdb': 42009, 'imdb': 'tt2085059'}",
   "expected_alive": null,
-  "secs": 4.8
+  "secs": 3.3
  },
  {
   "title": "Dark",
@@ -10798,10 +10504,10 @@
   "runs": [
    {
     "mode": "ids",
-    "status": "UNVERIFIED-MISS",
-    "wiki": null,
-    "via": null,
-    "conf": null,
+    "status": "UNVERIFIED-FOUND",
+    "wiki": "dark-netflix",
+    "via": "name-article-proof",
+    "conf": "PROBABLE",
     "hits": [
      "dark-netflix",
      "darkseries",
@@ -10822,84 +10528,10 @@
      "dark-family-fun",
      "the-coming-of-the-dark"
     ],
-    "scores": [
-     [
-      "dark-netflix",
-      0.24,
-      "REJECT",
-      null,
-      "fp-yok",
-      "tv",
-      200
-     ],
-     [
-      "darkseries",
-      0.18,
-      "REJECT",
-      null,
-      "fp-yok",
-      "books",
-      700
-     ],
-     [
-      "dark-mindedseries",
-      0.17,
-      "REJECT",
-      null,
-      "fp-yok",
-      "books",
-      100
-     ],
-     [
-      "the-dark-lore",
-      0.16,
-      "REJECT",
-      null,
-      "fp-yok",
-      "books",
-      10
-     ],
-     [
-      "in-the-dark-cw",
-      0.15,
-      "REJECT",
-      null,
-      "fp-yok",
-      "tv",
-      10
-     ],
-     [
-      "sw-dark-times",
-      0.1,
-      "REJECT",
-      null,
-      "fp-yok",
-      "games",
-      10
-     ],
-     [
-      "dark-family-fun",
-      0.07,
-      "REJECT",
-      null,
-      "fp-yok",
-      "lifestyle",
-      100
-     ],
-     [
-      "the-coming-of-the-dark",
-      0.06,
-      "REJECT",
-      null,
-      "fp-yok",
-      "lifestyle",
-      10
-     ]
-    ],
+    "scores": null,
     "trace": [
      "karakter oylari: yok",
-     "topluluk aramasi sorgulari=['Dark'] -> 8 aday: ['dark-netflix', 'darkseries', 'in-the-dark-cw', 'the-dark-lore', 'sw-dark-times', 'dark-mindedseries', 'the-coming-of-the-dark', 'dark-family-fun']",
-     "isim yolu: hepsi RED [('dark-netflix', 0.24, 'REJECT', None, 'fp-yok', 'tv', 200), ('darkseries', 0.18, 'REJECT', None, 'fp-yok', 'books', 700), ('dark-mindedseries', 0.17, 'REJECT', None, 'fp-yok', 'books', 100), ('the-dark-lore', 0.16, 'REJECT', None, 'fp-yok', 'books', 10), ('in-the-dark-cw', 0.15, 'REJECT', None, 'fp-yok', 'tv', 10)]"
+     "topluluk aramasi sorgulari=['Dark'] -> 8 aday: ['dark-netflix', 'darkseries', 'in-the-dark-cw', 'the-dark-lore', 'sw-dark-times', 'dark-mindedseries', 'the-coming-of-the-dark', 'dark-family-fun']"
     ]
    },
    {
@@ -11011,7 +10643,7 @@
   ],
   "source_info": "Wikidata kimligi bulunamadi",
   "expected_alive": null,
-  "secs": 3.9
+  "secs": 2.3
  },
  {
   "title": "Arcane",
@@ -11140,7 +10772,7 @@
   ],
   "source_info": "Wikidata {'qid': 'Q85518571', 'tmdb': 94605, 'imdb': 'tt11126994'}",
   "expected_alive": null,
-  "secs": 7.6
+  "secs": 4.6
  },
  {
   "title": "Avatar: The Last Airbender",
@@ -11279,7 +10911,7 @@
   ],
   "source_info": "Wikidata {'qid': 'Q11572', 'tmdb': 246, 'imdb': 'tt0417299'}",
   "expected_alive": true,
-  "secs": 8.4
+  "secs": 5.7
  },
  {
   "title": "The Mandalorian",
@@ -11353,7 +10985,7 @@
   ],
   "source_info": "Wikidata {'qid': 'Q56876444', 'tmdb': 82856, 'imdb': 'tt8111088'}",
   "expected_alive": null,
-  "secs": 4.4
+  "secs": 4.9
  },
  {
   "title": "Inception",
@@ -11483,7 +11115,7 @@
   ],
   "source_info": "Wikidata {'qid': 'Q25188', 'tmdb': 27205, 'imdb': 'tt1375666'}",
   "expected_alive": null,
-  "secs": 10.4
+  "secs": 13.8
  },
  {
   "title": "Interstellar",
@@ -11612,7 +11244,7 @@
   ],
   "source_info": "Wikidata {'qid': 'Q13417189', 'tmdb': 157336, 'imdb': 'tt0816692'}",
   "expected_alive": null,
-  "secs": 7.4
+  "secs": 14.5
  },
  {
   "title": "The Dark Knight",
@@ -11742,7 +11374,7 @@
   ],
   "source_info": "Wikidata {'qid': 'Q163872', 'tmdb': 155, 'imdb': 'tt0468569'}",
   "expected_alive": null,
-  "secs": 8.2
+  "secs": 5.7
  },
  {
   "title": "Spirited Away",
@@ -11794,7 +11426,7 @@
   ],
   "source_info": "Wikidata {'qid': 'Q155653', 'tmdb': 129, 'imdb': 'tt0245429'}",
   "expected_alive": null,
-  "secs": 7.9
+  "secs": 7.0
  },
  {
   "title": "Your Name.",
@@ -11923,7 +11555,7 @@
   ],
   "source_info": "Wikidata {'qid': 'Q21697406', 'tmdb': 372058, 'imdb': 'tt5311514'}",
   "expected_alive": null,
-  "secs": 7.1
+  "secs": 12.5
  },
  {
   "title": "A Silent Voice",
@@ -11975,7 +11607,7 @@
   ],
   "source_info": "Wikidata {'qid': 'Q23925035', 'tmdb': 378064, 'imdb': 'tt5323662'}",
   "expected_alive": null,
-  "secs": 7.9
+  "secs": 5.6
  },
  {
   "title": "Spider-Man: No Way Home",
@@ -12111,7 +11743,7 @@
   ],
   "source_info": "Wikidata {'qid': 'Q68934496', 'tmdb': 634649, 'imdb': 'tt10872600'}",
   "expected_alive": null,
-  "secs": 8.8
+  "secs": 5.5
  },
  {
   "title": "Parasite",
@@ -12314,7 +11946,7 @@
   ],
   "source_info": "Wikidata {'qid': 'Q61448040', 'tmdb': 496243, 'imdb': 'tt6751668'}",
   "expected_alive": null,
-  "secs": 8.7
+  "secs": 9.9
  },
  {
   "title": "The Lord of the Rings: The Fellowship of the Ring",
@@ -12447,6 +12079,6 @@
   ],
   "source_info": "Wikidata {'qid': 'Q127367', 'tmdb': 120, 'imdb': 'tt0120737'}",
   "expected_alive": null,
-  "secs": 9.2
+  "secs": 10.5
  }
 ]
