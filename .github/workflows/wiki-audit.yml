@@ -1,0 +1,25 @@
+name: Fandom wiki denetimi (canlı)
+
+on:
+  workflow_dispatch:
+  push:
+    branches: ['arena/**']
+    paths:
+      - 'tools/wiki_audit/**'
+      - '.github/workflows/wiki-audit.yml'
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Ağ testi
+        run: |
+          curl -sS -m 15 -A "KitsugiAudit/1.0" "https://gintama.fandom.com/api.php?action=query&meta=siteinfo&format=json" | head -c 300
+          curl -sS -m 15 -A "KitsugiAudit/1.0" "https://services.fandom.com/unified-search/community-search?query=Gintama&lang=en&limit=2" | head -c 300
+          curl -sS -m 15 -A "KitsugiAudit/1.0" "https://www.wikidata.org/w/api.php?action=query&list=search&srsearch=haswbstatement:P8729=101922&format=json" | head -c 300
+          curl -sS -m 15 -A "KitsugiAudit/1.0" -X POST https://graphql.anilist.co -H 'Content-Type: application/json' -d '{"query":"{Media(id:1){id}}"}' | head -c 200
