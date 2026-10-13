@@ -44,10 +44,25 @@ Sonuç: `PreferenceHelpers.MediaEntry.getDisplayTitle("ROMAJI"|"ENGLISH")` hiçb
 - **Tetikleyici:** "Listem" ekranı (`MyListViewModel.init`) + `BangumiTitleCache.warmUp()`
   uygulama açılışında. Profil listesi de aynı önbellekten okur.
 
+### 1.1 "Adam akıllı" kapsam denetimi — Bangumi'nin başlık gösteren tüm yüzeyleri
+
+| Yüzey | Başlık kaynağı | Durum |
+|---|---|---|
+| **Listem** (yerel liste, ızgara/kompakt/geniş/minimal/posters dahil) | Room kaydı → `entry.getDisplayTitle(titleLanguage)` | ✅ Hidratör Latin adı **veritabanına** yazar; Room akışı satırı yeniden çizer |
+| **Bangumi profil sekmesi** (uzak koleksiyon) | `BangumiProfileContent` koleksiyon satırları | ✅ `LaunchedEffect` ile **eksik Latin adlar arka planda çözülür**, sonuç kalıcı önbelleğe yazılır ve satırlar anında yeniden çizilir |
+| **Keşfet / kaynak sekmeleri** (Bangumi canlı-aksiyon rafları) | `KitsugiBangumiClient.withLatinBangumiNames` → `JikanSearchResult.title/titleEnglish/titleRomaji` | ✅ Üç alan birlikte doldurulur; kart `titleLanguage`'a göre seçer |
+| **Arama sonuçları** | Aynı istemci (`/v0/search/subjects`) | ✅ Aynı yol |
+| **Detay sayfası — kadro/ilişkiler** | `BangumiSubjectTitleResolver.resolve(...)` (senkron geç `cacheOnly`, arka plan geç uzun bütçe) | ✅ Önbellekten anında, eksikler arka planda |
+| **Durum filtresi alt sayfası** | Yalnızca durum etiketleri — başlık yok | ✅ Etkilenmez |
+
+Ek güvence: JSON/`nameCn` gibi alanlar **doğrudan** hiçbir yüzeyde çizilmiyor; tüm Bangumi kararları
+`BangumiLocalizedName` / `BangumiTitleCache` / `BangumiSubjectTitleResolver` üzerinden geçiyor.
+
 ### Değişen dosyalar
 - **yeni:** `app/src/main/java/com/kitsugi/animelist/data/remote/BangumiLibraryTitleHydrator.kt`
 - `.../data/remote/BangumiTitleCache.kt` · `.../utils/PreferenceHelpers.kt`
 - `.../ui/screens/mylist/MyListViewModel.kt` · `.../ui/screens/profile/BangumiProfileContent.kt`
+  (profil listesi artık eksik Latin adları kendi içinde, arka planda çözer — önbellekte hazır olması beklenmez)
 - `.../KitsugiApplication.kt` (önbellek ısıtma)
 
 ---
