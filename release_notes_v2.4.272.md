@@ -2,6 +2,12 @@
 
 ## 🇹🇷 Türkçe (v2.4.272)
 
+### 🎬 TMDB Keşfet Başlık Dil Önceliği (Türkçe → İngilizce → Romaji)
+- **Otomatik Keşfet Yenileme:** Ayarlar'dan "Dizi & Film Başlık Dili" (`tmdbLanguage`) değiştirildiğinde Keşfet sayfası artık otomatik olarak tam yeniden yüklenir; önceden eski dildeki başlıklar önbellekte kalıyordu.
+- **Takvim Önbelleğinde Dil Desteği:** "Yakında Yayında" takvim şeridi önbellek anahtarına aktif TMDB dili eklendi (`tmdb|anon|tr-tr`), dil değişiminde 90 saniye eski dilde kalması önlendi.
+- **Kanji Sızması Engellendi & Backoff:** İngilizce (`en-US`) yedek başlık isteklerine backoff'lu (300ms/700ms) 3 deneme mekanizması eklendi. Paralel isteklerde oluşan 429/zaman aşımı kaynaklı CJK/kanji sızması giderildi.
+- **Kırılganlık Giderildi & Önbellek Geçersiz Kılma:** Bozuk tekil JSON kayıtlarının tüm şeridi düşürmesi `optJSONObject` ile engellendi. Eski hatalı başlıklı disk önbelleklerini geçersiz kılmak için `MediaTitleResolver.VERSION` 2'den 3'e yükseltildi.
+
 ### 🎌 Bangumi "Listem" Artık Başlık Dili Ayarına Uyuyor
 - **Sorun:** Bangumi koleksiyonu içe aktarılırken API yalnızca özgün adı (`name`, çoğu zaman Japonca) döndürüyor; İngilizce/Romaji karşılığı **hiç gelmiyordu**. Bu yüzden "Listem → Bangumi" listesi, Ayarlar → Görünüm & Tercihler → **Anime & Manga Başlık Dili** ne seçilirse seçilsin CJK (Japonca/Çince) adla çiziliyordu.
 - **Kalıcı Başlık Tamamlama:** Yeni `BangumiLibraryTitleHydrator`, kütüphanedeki eksik Latin adları arka planda tamamlar. Sıra: bellek önbelleği → Bangumi subject infobox'ı (`英文名` / `罗马字` / `别名`) → AniList birebir eşleşmesi. Sonuç veritabanına yazılır, yani **bir sonraki açılışta hiç ağ isteği yapılmaz**.
@@ -35,6 +41,12 @@
 ---
 
 ## 🇬🇧 English (v2.4.272)
+
+### 🎬 TMDB Explore Title Language Priority (Turkish → English → Romaji)
+- **Automatic Explore Refresh:** Changing the "Series & Movie Title Language" (`tmdbLanguage`) now automatically refreshes the Explore screen, eliminating stale in-memory cached titles.
+- **Language-Aware Airing Calendar:** Added the active TMDB language to the upcoming calendar cache key (`tmdb|anon|tr-tr`), preventing stale language serving during the 90-second TTL.
+- **Kanji Fallback Elimination:** Implemented 3 retries with backoff (300ms/700ms) for `en-US` fallback title fetching, preventing inadvertent CJK/kanji fallbacks under rate limits (429) or timeouts.
+- **Parsing Resilience & Cache Invalidation:** Switched to `optJSONObject` so a single corrupted item no longer breaks entire discover rows. Bumped `MediaTitleResolver.VERSION` from 2 to 3 to invalidate stale legacy title caches on disk.
 
 ### 🎌 Bangumi "My List" Now Follows the Title Language Setting
 - **Root Cause:** The Bangumi collection API returns only the original name (`name`, usually Japanese) and never provides the English/Romaji counterpart. As a result, the Bangumi tab of My List always rendered CJK titles regardless of **Settings → Appearance & Preferences → Anime & Manga Title Language**.
