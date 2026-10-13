@@ -25,6 +25,14 @@
       "qid": ["Q125221706"],
       "verified": "2026-10-12",
       "title": "Solo Leveling"
+    },
+    {
+      "wiki": "gintama",
+      "anilist": [918],
+      "mal": [918],
+      "verified": "2026-10-13",
+      "title": "Gintama",
+      "note": "Wikidata Q709716 (anime) üzerinde P4073 yok; community-search: gintama.fandom.com (en, anime hub, ~1000 sayfa)."
     }
   ]
 }
