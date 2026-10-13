@@ -17,17 +17,30 @@ data class FandomMediaQuery(
     val releaseYear: Int? = null
 ) {
     /**
-     * Kararlı yapım kimliği: kullanıcı onay/ret tercihleri için kullanılır ve zenginleştirme
-     * sırasında değişmez.
+     * A provider appearance can label a theatrical anime as just "Anime". Promote an explicit
+     * movie title marker so every caller (media, character, staff/voice actor) uses movie IDs.
      */
-    fun cacheKey(): String? = ids.stableKey(isManga, isMovie) ?: titleKey()
+    fun normalizedMediaKind(): FandomMediaQuery {
+        val resolvedMovie = !isManga && (isMovie || fallbackTitles.any(FandomMediaIds::isMovieType))
+        val resolvedTv = isTvShow && !resolvedMovie
+        return if (resolvedMovie == isMovie && resolvedTv == isTvShow) this
+        else copy(isMovie = resolvedMovie, isTvShow = resolvedTv)
+    }
+
+    /** Stable media identity used for user decisions; detail enrichment does not change this key. */
+    fun cacheKey(): String? {
+        val normalized = normalizedMediaKind()
+        return normalized.ids.stableKey(normalized.isManga, normalized.isMovie) ?: normalized.titleKey()
+    }
 
     /**
      * Çözümleme önbelleği kimliği ayrıca hesaba katar: detay yüklenince aynı yapım için
      * gelen ek Wikidata/IMDb ID'leri, yerel başlıklar veya yıl eski bir negatif sonucu
      * sonsuza yakın süreyle maskelemesin.
      */
-    fun resolutionKey(): String? = cacheKey()?.let { "$it:q${Integer.toHexString(hashCode())}" }
+    fun resolutionKey(): String? = normalizedMediaKind().let { normalized ->
+        normalized.cacheKey()?.let { "$it:q${Integer.toHexString(normalized.hashCode())}" }
+    }
 
     private fun titleKey(): String? {
         val title = fallbackTitles.firstOrNull()?.trim()?.takeIf { it.isNotEmpty() } ?: return null
@@ -70,9 +83,19 @@ object FandomMediaQueries {
         isTvShow: Boolean = false,
         releaseYear: Int? = null,
         imdbId: String? = null,
-        wikidataId: String? = null
+        wikidataId: String? = null,
+        /** Provider format metadata is more precise than a list's coarse Anime/TV label. */
+        format: String? = null,
+        rawFormat: String? = null,
+        subtitle: String? = null
     ): FandomMediaQuery? {
         val base = FandomMediaIds.fromStableId(source, mediaId)
+        // MAL/AniList lists often store theatrical anime as `Anime`/`TV`; the fetched detail's
+        // native format (for example `Movie`) must determine whether a TMDB ID is P4947 or P4983.
+        val isResolvedMovie = !isManga && (
+            isMovie || FandomMediaIds.isMovieType(format) || FandomMediaIds.isMovieType(rawFormat) ||
+                FandomMediaIds.isMovieType(subtitle) || titles.any(FandomMediaIds::isMovieType)
+            )
         val cleanImdbId = (imdbId ?: base.imdbId)
             ?.trim()
             ?.takeIf { it.matches(Regex("(?i)^tt[0-9]{5,12}$")) }
@@ -101,9 +124,9 @@ object FandomMediaQueries {
         return FandomMediaQuery(
             ids = ids,
             isManga = isManga,
-            isMovie = isMovie,
+            isMovie = isResolvedMovie,
             fallbackTitles = cleanTitles,
-            isTvShow = isTvShow,
+            isTvShow = isTvShow && !isResolvedMovie,
             releaseYear = releaseYear?.takeIf { it in 1800..2200 }
         )
     }

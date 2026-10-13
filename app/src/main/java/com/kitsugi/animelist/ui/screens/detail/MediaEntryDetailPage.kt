@@ -280,6 +280,9 @@ fun MediaEntryDetailPage(
             releaseYear = displayEntry.year ?: detailState?.year,
             imdbId = imdbId,
             wikidataId = wikidataId,
+            format = detailState?.format,
+            rawFormat = detailState?.rawFormat,
+            subtitle = displayEntry.subtitle,
             titles = (
                 listOfNotNull(
                     displayEntry.titleEnglish,

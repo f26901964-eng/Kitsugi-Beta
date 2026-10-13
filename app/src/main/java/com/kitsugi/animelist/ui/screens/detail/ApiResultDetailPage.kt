@@ -364,6 +364,9 @@ fun ApiResultDetailPage(
             releaseYear = displayResult.year ?: detailState?.year,
             imdbId = imdbId,
             wikidataId = wikidataId,
+            format = detailState?.format,
+            rawFormat = detailState?.rawFormat,
+            subtitle = displayResult.subtitle,
             titles = (
                 listOfNotNull(
                     displayResult.titleEnglish,

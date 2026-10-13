@@ -37,13 +37,21 @@ internal object WikidataClient {
     ): WikidataResolution? {
         val starts = LinkedHashSet<String>(startQids.filter { WikidataParsers.isQid(it) })
         if (starts.isEmpty()) {
-            for ((property, value) in lookups) {
-                val found = findQids(property, value, limit = 2) ?: return null
-                if (found.isNotEmpty()) {
-                    starts += found
-                    break
+            var lookupFailed = false
+            // One provider's Wikidata/API failure must not suppress every other identity
+            // (for example MAL can still resolve when the AniList property lookup times out).
+            for ((property, value) in lookups.take(MAX_LOOKUPS)) {
+                val found = findQids(property, value, limit = 2)
+                if (found == null) {
+                    lookupFailed = true
+                    continue
                 }
+                found.forEach { qid ->
+                    if (starts.size < MAX_MEDIA_QIDS) starts += qid
+                }
+                if (starts.size >= MAX_MEDIA_QIDS) break
             }
+            if (starts.isEmpty() && lookupFailed) return null
         }
         if (starts.isEmpty()) return WikidataResolution.NONE
 
@@ -141,11 +149,21 @@ internal object WikidataClient {
      */
     suspend fun findMediaQids(lookups: List<Pair<String, String>>): List<String>? {
         val found = LinkedHashSet<String>()
+        var anyLookupFailed = false
         for ((property, value) in lookups.take(MAX_LOOKUPS)) {
-            val qids = findQids(property, value, limit = 2) ?: return null
+            val qids = findQids(property, value, limit = 2)
+            if (qids == null) {
+                anyLookupFailed = true
+                continue
+            }
             found += qids
+            if (found.size >= MAX_MEDIA_QIDS) break
         }
-        return found.take(MAX_MEDIA_QIDS)
+        return when {
+            found.isNotEmpty() -> found.take(MAX_MEDIA_QIDS)
+            anyLookupFailed -> null
+            else -> emptyList()
+        }
     }
 
     /**

@@ -84,9 +84,10 @@ object FandomRepository {
 
     suspend fun resolveMediaWiki(context: Context, query: FandomMediaQuery, allowNameFallback: Boolean): FandomWikiRef? {
         val appContext = context.applicationContext
+        val effectiveQuery = query.normalizedMediaKind()
         val prefs = FandomWikiPrefs.state(appContext)
         if (!prefs.enabled) return null
-        val mediaKey = query.cacheKey() ?: return null
+        val mediaKey = effectiveQuery.cacheKey() ?: return null
 
         // Kullanıcının onayladığı wiki her şeyden önce gelir.
         FandomUserChoices.acceptedWiki(appContext, mediaKey)?.let { accepted ->
@@ -100,7 +101,7 @@ object FandomRepository {
         }
 
         val nameAllowed = allowNameFallback && prefs.nameFallback
-        val resolutionKey = query.resolutionKey() ?: mediaKey
+        val resolutionKey = effectiveQuery.resolutionKey() ?: mediaKey
         val cacheKey = wikiCacheKey(resolutionKey, nameAllowed)
 
         return lockFor(wikiLocks, cacheKey).withLock {
@@ -116,7 +117,7 @@ object FandomRepository {
             val found = try {
                 FandomWikiResolver(appContext) { wikiId ->
                     FandomUserChoices.isWikiRejected(appContext, mediaKey, wikiId)
-                }.resolve(query, nameAllowed)
+                }.resolve(effectiveQuery, nameAllowed)
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {

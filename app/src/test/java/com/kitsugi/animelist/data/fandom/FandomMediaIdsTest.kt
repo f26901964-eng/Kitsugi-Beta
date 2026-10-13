@@ -43,6 +43,9 @@ class FandomMediaIdsTest {
         assertFalse(FandomMediaIds.isMangaType(null))
         assertTrue(FandomMediaIds.isMovieType("Film"))
         assertTrue(FandomMediaIds.isMovieType("MOVIE"))
+        assertTrue(FandomMediaIds.isMovieType("Chainsaw Man – The Movie: Reze Arc"))
+        assertTrue(FandomMediaIds.isMovieType("劇場版 チェンソーマン"))
+        assertFalse(FandomMediaIds.isMovieType("Chainsaw Man"))
         assertTrue(FandomMediaIds.isMainRole("Ana Karakter"))
         assertTrue(FandomMediaIds.isMainRole("MAIN"))
         assertTrue(FandomMediaIds.isMainRole("主角"))
@@ -83,6 +86,59 @@ class FandomMediaIdsTest {
                 isManga = false,
                 isMovie = false
             ).isEmpty()
+        )
+    }
+
+    @Test
+    fun `exact external identity links cover every supported catalog source`() {
+        val links = FandomMediaIds.externalLinkLookups(
+            ids = FandomSourceIds(
+                aniListId = 171627,
+                malId = 57555,
+                kitsuId = 48323,
+                shikimoriId = 171627,
+                bangumiId = 98765,
+                tmdbId = 1_218_925,
+                wikidataId = "Q12345",
+                simklId = 456,
+                imdbId = "TT1234567"
+            ),
+            isManga = false,
+            isMovie = true
+        )
+
+        assertTrue("imdb.com/title/tt1234567" in links)
+        assertTrue("anilist.co/anime/171627" in links)
+        assertTrue("myanimelist.net/anime/57555" in links)
+        assertTrue("kitsu.app/anime/48323" in links)
+        assertTrue("kitsu.io/anime/48323" in links)
+        assertTrue("shikimori.one/animes/171627" in links)
+        assertTrue("bgm.tv/subject/98765" in links)
+        assertTrue("themoviedb.org/movie/1218925" in links)
+        assertTrue("simkl.com/movies/456" in links)
+        assertTrue("wikidata.org/wiki/Q12345" in links)
+        assertEquals("all identity URLs fit the resolver's bounded scan", 10, links.size)
+        assertEquals(
+            listOf("simkl.com/tv/456"),
+            FandomMediaIds.externalLinkLookups(
+                ids = FandomSourceIds(simklId = 456),
+                isManga = false,
+                isMovie = false,
+                isTvShow = true
+            )
+        )
+        assertEquals(
+            listOf(
+                "anilist.co/manga/1",
+                "myanimelist.net/manga/2",
+                "kitsu.app/manga/3",
+                "kitsu.io/manga/3"
+            ),
+            FandomMediaIds.externalLinkLookups(
+                ids = FandomSourceIds(aniListId = 1, malId = 2, kitsuId = 3),
+                isManga = true,
+                isMovie = false
+            )
         )
     }
 

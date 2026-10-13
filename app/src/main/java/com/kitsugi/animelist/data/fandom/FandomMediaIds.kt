@@ -105,10 +105,51 @@ object FandomMediaIds {
         return MANGA_HINTS.any { text.contains(it) }
     }
 
+    private val MOVIE_HINT = Regex(
+        "(?i)(^|[^\\p{L}\\p{N}])(?:movies?|films?|feature\\s+film|theatrical\\s+film|cinema|sinema\\s+filmi|uzun\\s+metraj)(?:$|[^\\p{L}\\p{N}])"
+    )
+
+    /** Explicit movie format or title marker, including common Japanese/Korean/Chinese labels. */
     fun isMovieType(label: String?): Boolean {
-        val text = label?.lowercase() ?: return false
-        return text.contains("movie") || text.contains("film")
+        val text = label?.trim()?.lowercase(java.util.Locale.ROOT) ?: return false
+        if (text.isBlank()) return false
+        return MOVIE_HINT.containsMatchIn(text) || listOf("映画", "劇場版", "剧场版", "電影", "电影", "극장판")
+            .any { hint -> text.contains(hint) }
     }
+
+    /**
+     * Outbound URLs used as exact identity proofs on Fandom pages. These are not guessed titles:
+     * every URL is constructed from a validated provider ID already attached to this media item.
+     */
+    fun externalLinkLookups(
+        ids: FandomSourceIds,
+        isManga: Boolean,
+        isMovie: Boolean,
+        isTvShow: Boolean = false
+    ): List<String> = buildList {
+        val animeOrManga = if (isManga) "manga" else "anime"
+        val simklKind = when {
+            isManga -> "manga"
+            isMovie -> "movies"
+            isTvShow -> "tv"
+            else -> "anime"
+        }
+        ids.wikidataId?.takeIf(WikidataParsers::isQid)?.let { add("wikidata.org/wiki/$it") }
+        ids.imdbId?.trim()?.takeIf { it.matches(Regex("(?i)^tt[0-9]{5,12}$")) }
+            ?.let { add("imdb.com/title/${it.lowercase(java.util.Locale.ROOT)}") }
+        ids.aniListId?.takeIf { it > 0 }?.let { add("anilist.co/$animeOrManga/$it") }
+        ids.malId?.takeIf { it in 1..99_999_999 }?.let { add("myanimelist.net/$animeOrManga/$it") }
+        ids.tmdbId?.takeIf { it > 0 }?.let {
+            add("themoviedb.org/${if (isMovie) "movie" else "tv"}/$it")
+        }
+        ids.kitsuId?.takeIf { it > 0 }?.let {
+            add("kitsu.app/$animeOrManga/$it")
+            add("kitsu.io/$animeOrManga/$it")
+        }
+        ids.shikimoriId?.takeIf { it > 0 }?.let { add("shikimori.one/${if (isManga) "mangas" else "animes"}/$it") }
+        ids.bangumiId?.takeIf { it > 0 }?.let { add("bgm.tv/subject/$it") }
+        ids.simklId?.takeIf { it > 0 }?.let { add("simkl.com/$simklKind/$it") }
+    }.distinct()
 
     /** Yerelleştirilmiş rol ("Ana Karakter", "Main", "MAIN", "主角") ana karakter mi? */
     fun isMainRole(label: String?): Boolean {

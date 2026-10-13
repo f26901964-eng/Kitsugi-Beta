@@ -264,7 +264,6 @@ internal object FandomApi {
                 "action" to "query",
                 "list" to "exturlusage",
                 "euquery" to urlWithoutProtocol,
-                "euprotocol" to "https",
                 "eunamespace" to "0",
                 "eulimit" to "1",
                 "format" to "json",

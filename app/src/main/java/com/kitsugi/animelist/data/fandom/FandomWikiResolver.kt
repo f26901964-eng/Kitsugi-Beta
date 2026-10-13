@@ -42,6 +42,10 @@ internal class FandomWikiResolver(
         private const val MAX_NATIVE_TITLE_CANDIDATES = 8
         private const val MAX_SLUG_PROBES = 8
         private const val MAX_SEARCH_QUERIES = 8
+        /** Last-resort exact-ID checks remain deliberately bounded to protect Fandom's API. */
+        private const val MAX_IDENTITY_LINK_CANDIDATES = 3
+        private const val MAX_IDENTITY_LINKS = 10
+        private const val MAX_ARTICLE_PROOF_CANDIDATES = 6
         /** Karakter oylamasında taranan en fazla medya QID'i (aynı yapımın farklı kayıtları). */
         private const val MAX_VOTE_MEDIA = 3
 
@@ -420,7 +424,97 @@ internal class FandomWikiResolver(
             }
         }
 
-        // C) Doğrulama: karakter parmak izi (aday başına tek istek).
+        // Build exact provider references now; the article proof below is cheaper and often
+        // sufficient, so external-link scans are delayed until they are actually needed.
+        val identityLinks = FandomMediaIds.externalLinkLookups(
+            ids = ids,
+            isManga = query.isManga,
+            isMovie = query.isMovie,
+            isTvShow = query.isTvShow
+        ).take(MAX_IDENTITY_LINKS)
+
+        // A specific, non-disambiguation article is a second independent proof. Requiring the
+        // candidate wiki itself to match the work title, genre hub and (for one-word titles) year
+        // prevents a generic "Monster" wiki from winning just because the word occurs there.
+        val articleTitles = FandomNameVariants.mediaTitleVariants(allTitles)
+        if (articleTitles.isNotEmpty()) {
+            val articleProofs = coroutineScope {
+                shortlisted.take(MAX_ARTICLE_PROOF_CANDIDATES).map { hit ->
+                    async {
+                        val lookups = safely { FandomApi.lookupTitles(hit.wikiId, articleTitles) }.orEmpty()
+                        val match = FandomMediaArticleMatcher.choose(allTitles, lookups.values)
+                            ?: return@async null
+                        val info = siteInfoCached(hit.wikiId) ?: return@async null
+                        if (!FandomMediaIdentityProof.hasStrongArticleProof(
+                                hit = hit,
+                                siteInfo = info,
+                                sourceTitles = allTitles,
+                                creators = creators,
+                                isManga = query.isManga,
+                                releaseYear = query.releaseYear,
+                                articleMatch = match
+                            )
+                        ) return@async null
+                        hit to (match to info)
+                    }
+                }.awaitAll().filterNotNull().distinctBy { it.first.wikiId }
+            }
+            if (articleProofs.size == 1) {
+                val (hit, pair) = articleProofs.single()
+                val (match, info) = pair
+                Log.d(TAG, "Yapım maddesi doğruladı: ${info.wikiId} ← ${match.lookup.resolvedTitle}")
+                return FandomWikiRef(
+                    wikiId = info.wikiId,
+                    source = FandomMatchSource.NAME,
+                    confidence = FandomConfidence.PROBABLE,
+                    siteName = info.siteName ?: hit.name,
+                    score = match.score,
+                    pageTitle = match.lookup.resolvedTitle
+                )
+            }
+        }
+
+        // C) Known provider IDs are an exact proof, independent of AniList availability. Keep
+        // the scan bounded and run it only after article-title proof did not identify one wiki.
+        val identityCandidateWikiIds = shortlisted
+            .take(MAX_IDENTITY_LINK_CANDIDATES)
+            .map { it.wikiId }
+            .toSet()
+        var identityMatches = emptySet<String>()
+        if (identityLinks.isNotEmpty()) {
+            val identityCandidates = shortlisted.filter { it.wikiId in identityCandidateWikiIds }
+            val linked = coroutineScope {
+                identityCandidates.map { hit ->
+                    async {
+                        var linkedBy: String? = null
+                        for (url in identityLinks) {
+                            if (safely { FandomApi.hasExternalLink(hit.wikiId, url) } == true) {
+                                linkedBy = url
+                                break
+                            }
+                        }
+                        linkedBy?.let { hit to it }
+                    }
+                }.awaitAll().filterNotNull().distinctBy { it.first.wikiId }
+            }
+            identityMatches = linked.map { it.first.wikiId }.toSet()
+            if (linked.size == 1) {
+                val (hit, url) = linked.single()
+                val info = siteInfoCached(hit.wikiId)
+                if (info != null && !isWikiRejected(info.wikiId) && !FandomCandidateSelector.isBlocked(info.wikiId)) {
+                    Log.d(TAG, "Kimlik bağlantısı doğruladı: ${info.wikiId} ← $url")
+                    return FandomWikiRef(
+                        wikiId = info.wikiId,
+                        source = FandomMatchSource.NAME,
+                        confidence = FandomConfidence.CERTAIN,
+                        siteName = info.siteName ?: hit.name,
+                        score = 1.0
+                    )
+                }
+            }
+        }
+
+        // D) Doğrulama: karakter parmak izi (aday başına tek istek).
         val scores = coroutineScope {
             shortlisted.map { hit ->
                 async {
@@ -430,16 +524,13 @@ internal class FandomWikiResolver(
             }.awaitAll()
         }
 
-        // D) Karar (+ muhtemel sonuçta birebir AniList/MAL bağlantısı ile yükseltme denemesi).
+        // E) Karar (+ muhtemel adayda yeniden tüm kaynakların birebir kimlik bağlantısı).
         var best = FandomNameMatcher.pickBest(scores) ?: return null
-        if (best.decision == FandomDecision.PROBABLE) {
-            val linkQueries = buildList {
-                val kind = if (query.isManga) "manga" else "anime"
-                ids.aniListId?.let { add("anilist.co/$kind/$it") }
-                ids.malId?.let { add("myanimelist.net/$kind/$it") }
-            }
-            for (link in linkQueries) {
-                if (FandomApi.hasExternalLink(best.wikiId, link)) {
+        if (best.decision == FandomDecision.PROBABLE &&
+            best.wikiId !in identityCandidateWikiIds && identityMatches.isEmpty()
+        ) {
+            for (link in identityLinks) {
+                if (safely { FandomApi.hasExternalLink(best.wikiId, link) } == true) {
                     best = best.copy(score = 1.0, decision = FandomDecision.CERTAIN)
                     break
                 }

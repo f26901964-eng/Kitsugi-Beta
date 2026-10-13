@@ -76,6 +76,51 @@ class FandomCharacterQueriesTest {
     }
 
     @Test
+    fun `movie title in character and staff appearances overrides coarse anime type`() {
+        val movieTitle = "Chainsaw Man – The Movie: Reze Arc"
+        val characterAppearance = KitsugiCharacterMediaAppearance(
+            mediaId = 57555,
+            title = movieTitle,
+            imageUrl = null,
+            mediaType = "Anime",
+            characterRole = "Main",
+            source = "jikan",
+            titleEnglish = movieTitle
+        )
+        val character = FandomCharacterQueries.from(
+            detail("jikan", appearances = listOf(characterAppearance)),
+            "jikan",
+            77
+        )!!
+
+        val staffRole = KitsugiStaffCharacterRole(
+            characterId = 2,
+            characterName = "Reze",
+            characterImageUrl = null,
+            mediaId = 57555,
+            mediaTitle = movieTitle,
+            mediaImageUrl = null,
+            mediaType = "Anime",
+            characterRole = "Main",
+            mediaSource = "jikan",
+            mediaTitleEnglish = movieTitle
+        )
+        val staff = FandomCharacterQueries.fromStaff(staff(roles = listOf(staffRole)), "jikan", 7)!!
+
+        listOf(character.appearances.single(), staff.appearances.single()).forEach { appearance ->
+            val mediaQuery = FandomMediaQuery(
+                ids = appearance.ids,
+                isManga = appearance.isManga,
+                isMovie = appearance.isMovie,
+                fallbackTitles = appearance.titles,
+                isTvShow = true
+            ).normalizedMediaKind()
+            assertTrue(mediaQuery.isMovie)
+            assertFalse(mediaQuery.isTvShow)
+        }
+    }
+
+    @Test
     fun `mal and shikimori character ids map to mal`() {
         val mal = FandomCharacterQueries.from(detail("jikan"), "jikan", 164471)!!
         assertEquals(164471, mal.malCharacterId)

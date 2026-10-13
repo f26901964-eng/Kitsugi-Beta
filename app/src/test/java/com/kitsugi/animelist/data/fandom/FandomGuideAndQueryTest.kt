@@ -74,6 +74,49 @@ class FandomMediaQueriesTest {
     }
 
     @Test
+    fun `movie format from detail overrides a coarse anime list type`() {
+        val query = FandomMediaQueries.fromMedia(
+            source = "mal",
+            mediaId = 57555,
+            tmdbId = 1_218_925,
+            isManga = false,
+            isMovie = false,
+            isTvShow = true,
+            releaseYear = 2025,
+            format = "MOVIE",
+            rawFormat = "Movie",
+            titles = listOf("Chainsaw Man – The Movie: Reze Arc")
+        )!!
+
+        assertTrue(query.isMovie)
+        assertEquals(false, query.isTvShow)
+        assertTrue(
+            FandomMediaIds.wikidataLookups(query.ids, isManga = false, isMovie = query.isMovie)
+                .contains("P4947" to "1218925")
+        )
+        assertTrue(
+            FandomMediaIds.wikidataLookups(query.ids, isManga = false, isMovie = query.isMovie)
+                .none { it.first == "P4983" }
+        )
+    }
+
+    @Test
+    fun `appearance title normalizes theatrical work for character and staff lookup`() {
+        val query = FandomMediaQuery(
+            ids = FandomSourceIds(malId = 57555, tmdbId = 1_218_925),
+            isManga = false,
+            isMovie = false,
+            fallbackTitles = listOf("Chainsaw Man – The Movie: Reze Arc"),
+            isTvShow = true
+        ).normalizedMediaKind()
+
+        assertTrue(query.isMovie)
+        assertEquals(false, query.isTvShow)
+        assertEquals("mal:a:57555", query.cacheKey())
+        assertTrue(query.resolutionKey()!!.startsWith("mal:a:57555:q"))
+    }
+
+    @Test
     fun `no ids but titles still yields query for name fallback`() {
         val query = FandomMediaQueries.fromMedia(
             source = "extension",
