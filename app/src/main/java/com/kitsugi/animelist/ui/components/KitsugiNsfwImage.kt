@@ -190,6 +190,8 @@ fun KitsugiNsfwImage(
             remember(model, radiusPx) {
                 ImageRequest.Builder(context)
                     .data(model)
+                    .size(480, 720)
+                    .precision(coil3.size.Precision.INEXACT)
                     .transformations(KitsugiBlurSupport.bitmapBlurTransformation(radiusPx))
                     .build()
             }

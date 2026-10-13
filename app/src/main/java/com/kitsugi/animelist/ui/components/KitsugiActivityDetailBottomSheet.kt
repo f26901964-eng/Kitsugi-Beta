@@ -221,14 +221,14 @@ fun KitsugiActivityDetailBottomSheet(
                     }
                 }
 
-                if (activityDetails != null) {
+                activityDetails?.let { details ->
                     Row(
                         horizontalArrangement = Arrangement.spacedBy(4.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         // Çeviri sürerken galeri butonuyla aynı yüklenme animasyonu.
                         KitsugiTranslateIconButton(
-                            onClick = { context.openTranslator(activityDetails!!.text) },
+                            onClick = { context.openTranslator(details.text) },
                             modifier = Modifier.size(36.dp),
                             tint = accentColor,
                             contentDescription = stringResource(R.string.cevir),
@@ -238,7 +238,7 @@ fun KitsugiActivityDetailBottomSheet(
                         IconButton(
                             onClick = {
                                 val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
-                                clipboard.setPrimaryClip(android.content.ClipData.newPlainText("activity_text", activityDetails!!.text))
+                                clipboard.setPrimaryClip(android.content.ClipData.newPlainText("activity_text", details.text))
                                 Toast.makeText(context, KitsugiStrings.get(R.string.toast_copied_clipboard), Toast.LENGTH_SHORT).show()
                             },
                             modifier = Modifier.size(36.dp)
@@ -386,13 +386,14 @@ fun KitsugiActivityDetailBottomSheet(
                                         .then(
                                             if (isMediaClickable) {
                                                 Modifier.clickable {
+                                                    val mediaId = act.mediaId ?: return@clickable
                                                     val mType = when (act.mediaType?.uppercase()) {
                                                         "MANGA" -> com.kitsugi.animelist.model.MediaType.Manga
                                                         "MOVIE" -> com.kitsugi.animelist.model.MediaType.Movie
                                                         "TV", "TV_SHOW" -> com.kitsugi.animelist.model.MediaType.TvShow
                                                         else -> com.kitsugi.animelist.model.MediaType.Anime
                                                     }
-                                                    onMediaClick?.invoke(act.mediaId!!, mType, "anilist")
+                                                    onMediaClick?.invoke(mediaId, mType, "anilist")
                                                     onDismiss()
                                                 }
                                             } else Modifier

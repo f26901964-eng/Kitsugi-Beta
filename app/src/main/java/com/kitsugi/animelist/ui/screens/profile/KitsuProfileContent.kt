@@ -26,10 +26,12 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.layout
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -264,45 +266,69 @@ fun KitsuProfileContent(
         // ── Pager Content ───────────────────────────────────────────────────
         item(key = "kitsu_content") {
             val density = androidx.compose.ui.platform.LocalDensity.current
+            val pageHeights = viewModel.kitsuPageHeights
+            val currentPage = pagerState.currentPage
+            val currentPageOffset = pagerState.currentPageOffsetFraction
+            val targetPage = if (currentPageOffset > 0f) currentPage + 1 else if (currentPageOffset < 0f) currentPage - 1 else currentPage
+            val currentHeightPx = pageHeights[currentPage] ?: 0
+            val targetHeightPx = pageHeights[targetPage] ?: currentHeightPx
+            val interpolatedHeightDp = remember(currentHeightPx, targetHeightPx, currentPageOffset) {
+                val heightPx = if (currentHeightPx > 0 && targetHeightPx > 0) {
+                    currentHeightPx + (targetHeightPx - currentHeightPx) * kotlin.math.abs(currentPageOffset)
+                } else if (currentHeightPx > 0) currentHeightPx.toFloat() else 0f
+                if (heightPx > 0f) with(density) { heightPx.toDp() } else null
+            }
             val screenHeightDp = androidx.compose.ui.platform.LocalConfiguration.current.screenHeightDp
 
             androidx.compose.foundation.pager.HorizontalPager(
                 state = pagerState,
                 userScrollEnabled = true,
-                beyondViewportPageCount = 1,
+                beyondViewportPageCount = 0,
                 pageSpacing = 12.dp,
                 verticalAlignment = Alignment.Top,
                 modifier = Modifier
                     .fillMaxWidth()
                     .layout { measurable, constraints ->
-                        val minPagerHeightPx = with(density) { (screenHeightDp - 64).dp.roundToPx() }
+                        val minPagerHeightPx = with(density) { (screenHeightDp - 64).dp.roundToPx() }.coerceAtLeast(0)
                         val placeable = measurable.measure(
                             constraints.copy(
                                 minHeight = minPagerHeightPx,
                                 maxHeight = androidx.compose.ui.unit.Constraints.Infinity
                             )
                         )
-                        layout(placeable.width, placeable.height) {
+                        val height = (interpolatedHeightDp?.roundToPx()?.coerceAtLeast(minPagerHeightPx) ?: placeable.height)
+                            .coerceIn(minPagerHeightPx, 16_000_000)
+                        layout(placeable.width, height) {
                             placeable.placeRelative(0, 0)
                         }
                     }
+                    .clipToBounds()
             ) { page ->
-                when (page) {
-                    0 -> KitsuAboutTab(
-                        state = state,
-                        accentColor = accentColor,
-                        onFavoriteMediaClick = onFavoriteMediaClick,
-                        onOpenFavoriteSheet = onOpenFavoriteSheet
-                    )
-                    1 -> KitsuStatsTab(state = state, accentColor = accentColor)
-                    2 -> KitsuLibraryTab(
-                        entries = state.libraryEntries,
-                        accentColor = accentColor,
-                        onEntryClick = { item ->
-                            val idInt = item.id.toIntOrNull() ?: 0
-                            onFavoriteMediaClick(idInt, MediaType.Anime, "kitsu", item.title, item.imageUrl)
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .onGloballyPositioned { coordinates ->
+                            com.kitsugi.animelist.ui.utils.KitsugiScrollDefaults
+                                .recordStablePageHeight(pageHeights, page, coordinates.size.height)
                         }
-                    )
+                ) {
+                    when (page) {
+                        0 -> KitsuAboutTab(
+                            state = state,
+                            accentColor = accentColor,
+                            onFavoriteMediaClick = onFavoriteMediaClick,
+                            onOpenFavoriteSheet = onOpenFavoriteSheet
+                        )
+                        1 -> KitsuStatsTab(state = state, accentColor = accentColor)
+                        2 -> KitsuLibraryTab(
+                            entries = state.libraryEntries,
+                            accentColor = accentColor,
+                            onEntryClick = { item ->
+                                val idInt = item.id.toIntOrNull() ?: 0
+                                onFavoriteMediaClick(idInt, MediaType.Anime, "kitsu", item.title, item.imageUrl)
+                            }
+                        )
+                    }
                 }
             }
         }

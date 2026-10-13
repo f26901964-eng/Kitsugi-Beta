@@ -218,7 +218,8 @@ fun P2pSettingsSection(
                             }
                             KitsugiDropdownMenu(
                                 expanded = uploadDropdownExpanded,
-                                onDismissRequest = { uploadDropdownExpanded = false }
+                                onDismissRequest = { uploadDropdownExpanded = false },
+                                dialogTitle = stringResource(R.string.inline_upload_speed_limit_332ad8b)
                             ) {
                                 uploadLimitOptions.forEach { (limit, label) ->
                                     KitsugiDropdownItem(
@@ -270,7 +271,8 @@ fun P2pSettingsSection(
                         }
                         KitsugiDropdownMenu(
                             expanded = profileDropdownExpanded,
-                            onDismissRequest = { profileDropdownExpanded = false }
+                            onDismissRequest = { profileDropdownExpanded = false },
+                            dialogTitle = stringResource(R.string.p2p_profile_label)
                         ) {
                             profileOptions.forEach { (profile, info) ->
                                 KitsugiDropdownItem(
@@ -322,7 +324,8 @@ fun P2pSettingsSection(
                         }
                         KitsugiDropdownMenu(
                             expanded = cacheDropdownExpanded,
-                            onDismissRequest = { cacheDropdownExpanded = false }
+                            onDismissRequest = { cacheDropdownExpanded = false },
+                            dialogTitle = stringResource(R.string.inline_torrent_disk_cache_size_a8b3881)
                         ) {
                             cacheOptions.forEach { (size, label) ->
                                 KitsugiDropdownItem(

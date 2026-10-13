@@ -417,9 +417,9 @@ fun KitsugiAllActivitiesBottomSheet(
         }
     }
 
-    if (activeActivityIdForDetail != null) {
+    activeActivityIdForDetail?.let { actId ->
         KitsugiActivityDetailBottomSheet(
-            activityId = activeActivityIdForDetail!!,
+            activityId = actId,
             apiClient = apiClient,
             titleLanguage = titleLanguage,
             onUserProfileClick = onUserProfileClick,

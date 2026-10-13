@@ -20,6 +20,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.grid.itemsIndexed
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
@@ -276,7 +277,7 @@ fun TvGridHomeContent(
                             verticalArrangement = Arrangement.spacedBy(KitsugiTvTokens.Spacing.itemGap),
                             modifier = Modifier.dpadVerticalFastScroll(scrollableState = gridState)
                         ) {
-                            items(currentItems, key = { it.kitsugiLazyKey("tvgrid") }) { item ->
+                            itemsIndexed(currentItems, key = { idx, it -> it.kitsugiLazyKey("tvgrid", idx) }) { _, item ->
                                 TvContentCard(
                                     item = item,
                                     isInitialFocused = false,

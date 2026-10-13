@@ -787,7 +787,7 @@ fun FullScreenMediaGridPage(
                         // işleminde TÜM item'ların key'ini bozar ve Compose'un tüm
                         // kartları yeniden oluşturmasına (recomposition + rebind)
                         // sebep olur. Sabit identity kullanarak reuse maksimize edilir.
-                        key = { _, item -> item.kitsugiLazyKey("grid") },
+                        key = { idx, item -> item.kitsugiLazyKey("grid", idx) },
                         contentType = { _, _ -> "media_card" }
                     ) { index, result ->
                         val showRank = !isSeasonalAnime
@@ -966,7 +966,7 @@ fun FullScreenMediaGridPage(
                     itemsIndexed(
                         items = displayedResults,
                         // PERF: identity-based key (index yok)
-                        key = { _, item -> item.kitsugiLazyKey("list") },
+                        key = { idx, item -> item.kitsugiLazyKey("list", idx) },
                         contentType = { _, _ -> if (isSeasonalAnime) "seasonal_card" else "ranking_card" }
                     ) { index, result ->
                         if (isSeasonalAnime) {

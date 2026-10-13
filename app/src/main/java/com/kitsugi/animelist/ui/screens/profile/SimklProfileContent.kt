@@ -224,7 +224,7 @@ fun SimklProfileContent(
         // Pager Content
         item(key = "content") {
             val density = androidx.compose.ui.platform.LocalDensity.current
-            val pageHeights = remember { androidx.compose.runtime.mutableStateMapOf<Int, Int>() }
+            val pageHeights = viewModel.simklPageHeights
             val currentPage = pagerState.currentPage
             val currentPageOffset = pagerState.currentPageOffsetFraction
             val targetPage = if (currentPageOffset > 0f) currentPage + 1 else if (currentPageOffset < 0f) currentPage - 1 else currentPage
@@ -248,20 +248,21 @@ fun SimklProfileContent(
             androidx.compose.foundation.pager.HorizontalPager(
                 state = pagerState,
                 userScrollEnabled = true,
-                beyondViewportPageCount = 1,
+                beyondViewportPageCount = 0,
                 pageSpacing = 12.dp,
                 verticalAlignment = Alignment.Top,
                 modifier = Modifier
                     .fillMaxWidth()
                     .layout { measurable, constraints ->
-                        val minPagerHeightPx = with(density) { (screenHeightDp - 64).dp.roundToPx() }
+                        val minPagerHeightPx = with(density) { (screenHeightDp - 64).dp.roundToPx() }.coerceAtLeast(0)
                         val placeable = measurable.measure(
                             constraints.copy(
                                 minHeight = minPagerHeightPx,
                                 maxHeight = androidx.compose.ui.unit.Constraints.Infinity
                             )
                         )
-                        val height = interpolatedHeightDp?.roundToPx()?.coerceAtLeast(minPagerHeightPx) ?: placeable.height
+                        val height = (interpolatedHeightDp?.roundToPx()?.coerceAtLeast(minPagerHeightPx) ?: placeable.height)
+                            .coerceIn(minPagerHeightPx, 16_000_000)
                         layout(placeable.width, height) {
                             placeable.placeRelative(0, 0)
                         }

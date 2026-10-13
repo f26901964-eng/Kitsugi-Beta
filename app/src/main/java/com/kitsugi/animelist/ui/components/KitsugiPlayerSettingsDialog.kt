@@ -363,7 +363,7 @@ fun KitsugiPlayerSettingsDialog(
                                             iconColor = accentColor,
                                             onClick = { playerDropdownExpanded = true }
                                         )
-                                        KitsugiDropdownMenu(expanded = playerDropdownExpanded, onDismissRequest = { playerDropdownExpanded = false }) {
+                                        KitsugiDropdownMenu(expanded = playerDropdownExpanded, onDismissRequest = { playerDropdownExpanded = false }, dialogTitle = stringResource(R.string.pd_default_video_player)) {
                                             playerOptions.forEach { option ->
                                                 KitsugiDropdownItem(
                                                     text = option.second,
@@ -397,7 +397,7 @@ fun KitsugiPlayerSettingsDialog(
                                                 iconColor = accentColor,
                                                 onClick = { extPackageDropdownExpanded = true }
                                             )
-                                            KitsugiDropdownMenu(expanded = extPackageDropdownExpanded, onDismissRequest = { extPackageDropdownExpanded = false }) {
+                                            KitsugiDropdownMenu(expanded = extPackageDropdownExpanded, onDismissRequest = { extPackageDropdownExpanded = false }, dialogTitle = stringResource(R.string.pd_external_player_app)) {
                                                 extOptions.forEach { option ->
                                                     KitsugiDropdownItem(
                                                         text = option.second,
@@ -444,7 +444,7 @@ fun KitsugiPlayerSettingsDialog(
                                             iconColor = accentColor,
                                             onClick = { introDropdownExpanded = true }
                                         )
-                                        KitsugiDropdownMenu(expanded = introDropdownExpanded, onDismissRequest = { introDropdownExpanded = false }) {
+                                        KitsugiDropdownMenu(expanded = introDropdownExpanded, onDismissRequest = { introDropdownExpanded = false }, dialogTitle = stringResource(R.string.pd_intro_skip_duration)) {
                                             introOptions.forEach { option ->
                                                 KitsugiDropdownItem(
                                                     text = option.second,
@@ -519,7 +519,7 @@ fun KitsugiPlayerSettingsDialog(
                                                 iconColor = accentColor,
                                                 onClick = { stillWatchingDropdownExpanded = true }
                                             )
-                                            KitsugiDropdownMenu(expanded = stillWatchingDropdownExpanded, onDismissRequest = { stillWatchingDropdownExpanded = false }) {
+                                            KitsugiDropdownMenu(expanded = stillWatchingDropdownExpanded, onDismissRequest = { stillWatchingDropdownExpanded = false }, dialogTitle = stringResource(R.string.player_inactivity_threshold)) {
                                                 thresholdOptions.forEach { option ->
                                                     KitsugiDropdownItem(
                                                         text = option.second,
@@ -551,7 +551,7 @@ fun KitsugiPlayerSettingsDialog(
                                             iconColor = accentColor,
                                             onClick = { postPlayDropdownExpanded = true }
                                         )
-                                        KitsugiDropdownMenu(expanded = postPlayDropdownExpanded, onDismissRequest = { postPlayDropdownExpanded = false }) {
+                                        KitsugiDropdownMenu(expanded = postPlayDropdownExpanded, onDismissRequest = { postPlayDropdownExpanded = false }, dialogTitle = stringResource(R.string.player_post_play_mode)) {
                                             postOptions.forEach { option ->
                                                 KitsugiDropdownItem(
                                                     text = option.second,
@@ -584,7 +584,7 @@ fun KitsugiPlayerSettingsDialog(
                                             iconColor = accentColor,
                                             onClick = { autoplayLimitDropdownExpanded = true }
                                         )
-                                        KitsugiDropdownMenu(expanded = autoplayLimitDropdownExpanded, onDismissRequest = { autoplayLimitDropdownExpanded = false }) {
+                                        KitsugiDropdownMenu(expanded = autoplayLimitDropdownExpanded, onDismissRequest = { autoplayLimitDropdownExpanded = false }, dialogTitle = stringResource(R.string.pd_autoplay_limit)) {
                                             limitOptions.forEach { option ->
                                                 KitsugiDropdownItem(
                                                     text = option.second,
@@ -674,7 +674,7 @@ fun KitsugiPlayerSettingsDialog(
                                             iconColor = accentColor,
                                             onClick = { doubleTapSeekDropdownExpanded = true }
                                         )
-                                        KitsugiDropdownMenu(expanded = doubleTapSeekDropdownExpanded, onDismissRequest = { doubleTapSeekDropdownExpanded = false }) {
+                                        KitsugiDropdownMenu(expanded = doubleTapSeekDropdownExpanded, onDismissRequest = { doubleTapSeekDropdownExpanded = false }, dialogTitle = stringResource(R.string.pd_double_tap_seek)) {
                                             seekSecOptions.forEach { seconds ->
                                                 KitsugiDropdownItem(
                                                     text = stringResource(R.string.pd_seconds, seconds),
@@ -701,7 +701,7 @@ fun KitsugiPlayerSettingsDialog(
                                             iconColor = accentColor,
                                             onClick = { holdSpeedDropdownExpanded = true }
                                         )
-                                        KitsugiDropdownMenu(expanded = holdSpeedDropdownExpanded, onDismissRequest = { holdSpeedDropdownExpanded = false }) {
+                                        KitsugiDropdownMenu(expanded = holdSpeedDropdownExpanded, onDismissRequest = { holdSpeedDropdownExpanded = false }, dialogTitle = stringResource(R.string.player_hold_speed)) {
                                             holdOptions.forEach { multiplier ->
                                                 KitsugiDropdownItem(
                                                     text = "${multiplier}x",
@@ -791,7 +791,7 @@ fun KitsugiPlayerSettingsDialog(
                                             iconColor = accentColor,
                                             onClick = { mpvHwdecDropdownExpanded = true }
                                         )
-                                        KitsugiDropdownMenu(expanded = mpvHwdecDropdownExpanded, onDismissRequest = { mpvHwdecDropdownExpanded = false }) {
+                                        KitsugiDropdownMenu(expanded = mpvHwdecDropdownExpanded, onDismissRequest = { mpvHwdecDropdownExpanded = false }, dialogTitle = stringResource(R.string.pd_mpv_hwdec)) {
                                             hwdecOptions.forEach { mode ->
                                                 KitsugiDropdownItem(
                                                     text = mode,
@@ -818,7 +818,7 @@ fun KitsugiPlayerSettingsDialog(
                                             iconColor = accentColor,
                                             onClick = { mpvGpuDropdownExpanded = true }
                                         )
-                                        KitsugiDropdownMenu(expanded = mpvGpuDropdownExpanded, onDismissRequest = { mpvGpuDropdownExpanded = false }) {
+                                        KitsugiDropdownMenu(expanded = mpvGpuDropdownExpanded, onDismissRequest = { mpvGpuDropdownExpanded = false }, dialogTitle = "MPV GPU Renderer Backend") {
                                             gpuOptions.forEach { renderer ->
                                                 KitsugiDropdownItem(
                                                     text = renderer,
@@ -845,7 +845,7 @@ fun KitsugiPlayerSettingsDialog(
                                             iconColor = accentColor,
                                             onClick = { mpvDebandDropdownExpanded = true }
                                         )
-                                        KitsugiDropdownMenu(expanded = mpvDebandDropdownExpanded, onDismissRequest = { mpvDebandDropdownExpanded = false }) {
+                                        KitsugiDropdownMenu(expanded = mpvDebandDropdownExpanded, onDismissRequest = { mpvDebandDropdownExpanded = false }, dialogTitle = stringResource(R.string.pd_mpv_deband)) {
                                             debandOptions.forEach { mode ->
                                                 KitsugiDropdownItem(
                                                     text = mode,
@@ -928,7 +928,7 @@ fun KitsugiPlayerSettingsDialog(
                                             iconColor = accentColor,
                                             onClick = { subSizeDropdownExpanded = true }
                                         )
-                                        KitsugiDropdownMenu(expanded = subSizeDropdownExpanded, onDismissRequest = { subSizeDropdownExpanded = false }) {
+                                        KitsugiDropdownMenu(expanded = subSizeDropdownExpanded, onDismissRequest = { subSizeDropdownExpanded = false }, dialogTitle = stringResource(R.string.pd_sub_font_size)) {
                                             sizeOptions.forEach { option ->
                                                 KitsugiDropdownItem(
                                                     text = option.second,
@@ -961,7 +961,7 @@ fun KitsugiPlayerSettingsDialog(
                                             iconColor = accentColor,
                                             onClick = { subColorDropdownExpanded = true }
                                         )
-                                        KitsugiDropdownMenu(expanded = subColorDropdownExpanded, onDismissRequest = { subColorDropdownExpanded = false }) {
+                                        KitsugiDropdownMenu(expanded = subColorDropdownExpanded, onDismissRequest = { subColorDropdownExpanded = false }, dialogTitle = stringResource(R.string.pd_sub_font_color)) {
                                             colorOptions.forEach { option ->
                                                 KitsugiDropdownItem(
                                                     text = option.second,
@@ -1029,7 +1029,7 @@ fun KitsugiPlayerSettingsDialog(
                                             iconColor = accentColor,
                                             onClick = { subJustificationDropdownExpanded = true }
                                         )
-                                        KitsugiDropdownMenu(expanded = subJustificationDropdownExpanded, onDismissRequest = { subJustificationDropdownExpanded = false }) {
+                                        KitsugiDropdownMenu(expanded = subJustificationDropdownExpanded, onDismissRequest = { subJustificationDropdownExpanded = false }, dialogTitle = stringResource(R.string.pd_sub_alignment)) {
                                             justificationOptions.forEach { option ->
                                                 KitsugiDropdownItem(
                                                     text = option.second,
@@ -1061,7 +1061,7 @@ fun KitsugiPlayerSettingsDialog(
                                             iconColor = accentColor,
                                             onClick = { subBgColorDropdownExpanded = true }
                                         )
-                                        KitsugiDropdownMenu(expanded = subBgColorDropdownExpanded, onDismissRequest = { subBgColorDropdownExpanded = false }) {
+                                        KitsugiDropdownMenu(expanded = subBgColorDropdownExpanded, onDismissRequest = { subBgColorDropdownExpanded = false }, dialogTitle = stringResource(R.string.pd_bg_color)) {
                                             bgColors.forEach { option ->
                                                 KitsugiDropdownItem(
                                                     text = option.second,
@@ -1113,7 +1113,7 @@ fun KitsugiPlayerSettingsDialog(
                                             iconColor = accentColor,
                                             onClick = { subBorderColorDropdownExpanded = true }
                                         )
-                                        KitsugiDropdownMenu(expanded = subBorderColorDropdownExpanded, onDismissRequest = { subBorderColorDropdownExpanded = false }) {
+                                        KitsugiDropdownMenu(expanded = subBorderColorDropdownExpanded, onDismissRequest = { subBorderColorDropdownExpanded = false }, dialogTitle = stringResource(R.string.pd_border_color)) {
                                             borderColors.forEach { option ->
                                                 KitsugiDropdownItem(
                                                     text = option.second,
@@ -1279,7 +1279,7 @@ fun KitsugiPlayerSettingsDialog(
                                             iconColor = accentColor,
                                             onClick = { subStartupDropdownExpanded = true }
                                         )
-                                        KitsugiDropdownMenu(expanded = subStartupDropdownExpanded, onDismissRequest = { subStartupDropdownExpanded = false }) {
+                                        KitsugiDropdownMenu(expanded = subStartupDropdownExpanded, onDismissRequest = { subStartupDropdownExpanded = false }, dialogTitle = stringResource(R.string.pd_sub_load_mode)) {
                                             startupModeOptions.forEach { option ->
                                                 KitsugiDropdownItem(
                                                     text = option.second,
@@ -1317,7 +1317,7 @@ fun KitsugiPlayerSettingsDialog(
                                             iconColor = accentColor,
                                             onClick = { volBoostCapDropdownExpanded = true }
                                         )
-                                        KitsugiDropdownMenu(expanded = volBoostCapDropdownExpanded, onDismissRequest = { volBoostCapDropdownExpanded = false }) {
+                                        KitsugiDropdownMenu(expanded = volBoostCapDropdownExpanded, onDismissRequest = { volBoostCapDropdownExpanded = false }, dialogTitle = stringResource(R.string.pd_volume_cap)) {
                                             capOptions.forEach { cap ->
                                                 KitsugiDropdownItem(
                                                     text = "%$cap",
@@ -1350,7 +1350,7 @@ fun KitsugiPlayerSettingsDialog(
                                             iconColor = accentColor,
                                             onClick = { audioBoostDropdownExpanded = true }
                                         )
-                                        KitsugiDropdownMenu(expanded = audioBoostDropdownExpanded, onDismissRequest = { audioBoostDropdownExpanded = false }) {
+                                        KitsugiDropdownMenu(expanded = audioBoostDropdownExpanded, onDismissRequest = { audioBoostDropdownExpanded = false }, dialogTitle = stringResource(R.string.pd_default_boost)) {
                                             boostOptions.forEach { option ->
                                                 KitsugiDropdownItem(
                                                     text = option.second,
@@ -1389,7 +1389,7 @@ fun KitsugiPlayerSettingsDialog(
                                             iconColor = accentColor,
                                             onClick = { audioDelayDropdownExpanded = true }
                                         )
-                                        KitsugiDropdownMenu(expanded = audioDelayDropdownExpanded, onDismissRequest = { audioDelayDropdownExpanded = false }) {
+                                        KitsugiDropdownMenu(expanded = audioDelayDropdownExpanded, onDismissRequest = { audioDelayDropdownExpanded = false }, dialogTitle = stringResource(R.string.sub_audio_delay)) {
                                             delayOptions.forEach { option ->
                                                 KitsugiDropdownItem(
                                                     text = option.second,

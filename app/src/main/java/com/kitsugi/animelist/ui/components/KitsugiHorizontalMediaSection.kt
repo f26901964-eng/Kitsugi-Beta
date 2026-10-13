@@ -144,7 +144,7 @@ fun KitsugiHorizontalMediaSection(
                                     items = results,
                                     // PERF: index-free stable key — Compose item'ları
                                     // yeniden kullanabilsin (filter/sort/prepend sonrası).
-                                    key = { _, result -> result.kitsugiLazyKey("tv") },
+                                    key = { idx, result -> result.kitsugiLazyKey("tv", idx) },
                                     contentType = { _, _ -> "h_media_card" }
                                 ) { index, result ->
                                     val requester = focusRequesters.getOrPut(index) { FocusRequester() }
@@ -183,7 +183,7 @@ fun KitsugiHorizontalMediaSection(
                         ) {
                             itemsIndexed(
                                 items = results,
-                                key = { _, result -> result.kitsugiLazyKey("h") },
+                                key = { idx, result -> result.kitsugiLazyKey("h", idx) },
                                 contentType = { _, _ -> "h_media_card" }
                             ) { _, result ->
                                 val cardWidth = if (isLandscape) 260.dp else 180.dp

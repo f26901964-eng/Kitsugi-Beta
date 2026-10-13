@@ -109,15 +109,29 @@ object KitsugiScrollDefaults {
         }
     }
 
+    private val mainHandler = android.os.Handler(android.os.Looper.getMainLooper())
+
     /**
-     * Pager yüksekliğini ölçülen içerikten beslerken 1px'lik ölçüm gürültüsünü yok say.
-     * Aksi halde yükseklik yazımı sayfayı yeniden ölçer, ölçüm tekrar değişir ve
-     * dikey kaydırma gidip gelir.
+     * Pager yüksekliğini ölçülen içerikten beslerken 4px'lik ölçüm gürültüsünü yok say
+     * ve state yazımını layout aşamasının (onGloballyPositioned) DIŞINA (bir sonraki
+     * main looper adımına) ertele.
+     *
+     * NEDEN: onGloballyPositioned doğrudan performLayout() sırasında çağrılır. Burada
+     * senkron olarak SnapshotStateMap (pageHeights) değiştirmek, üstteki .layout { ... }
+     * modifier'ını aynı karede yeniden tetikleyip AnimatedContent geçişi sırasında
+     * re-entrant measure/layout fırtınasına ve RenderThread çökmesine yol açar.
      */
     fun recordStablePageHeight(heights: MutableMap<Int, Int>, page: Int, measuredPx: Int) {
+        if (measuredPx <= 0) return
+        val safePx = measuredPx.coerceIn(1, 16_000_000)
         val previous = heights[page]
-        if (previous == null || kotlin.math.abs(previous - measuredPx) > 4) {
-            heights[page] = measuredPx
+        if (previous == null || kotlin.math.abs(previous - safePx) > 4) {
+            mainHandler.post {
+                val current = heights[page]
+                if (current == null || kotlin.math.abs(current - safePx) > 4) {
+                    heights[page] = safePx
+                }
+            }
         }
     }
 

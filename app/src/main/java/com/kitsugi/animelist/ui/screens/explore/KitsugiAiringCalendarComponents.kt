@@ -373,7 +373,7 @@ internal fun AiringEntryList(
             contentPadding = PaddingValues(start = 16.dp, top = 4.dp, end = 16.dp, bottom = 80.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
-            itemsIndexed(entries, key = { _, entry -> "${entry.malId}_${entry.aniListId}_${entry.episode}" }) { _, entry ->
+            itemsIndexed(entries, key = { idx, entry -> "${idx}_${entry.malId}_${entry.aniListId}_${entry.episode}" }) { _, entry ->
                 val isInList = remember(currentEntries, entry) {
                     currentEntries.any { me ->
                         (entry.malId != null && me.malId == entry.malId) ||
@@ -461,7 +461,7 @@ internal fun AiringEntryGridList(
             verticalArrangement = Arrangement.spacedBy(12.dp),
             horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            itemsIndexed(entries, key = { _, entry -> "${entry.aniListId}_${entry.episode}" }) { _, entry ->
+            itemsIndexed(entries, key = { idx, entry -> "${idx}_${entry.malId}_${entry.aniListId}_${entry.episode}" }) { _, entry ->
                 val isInList = remember(currentEntries, entry) {
                     currentEntries.any { me ->
                         (entry.malId != null && me.malId == entry.malId) ||

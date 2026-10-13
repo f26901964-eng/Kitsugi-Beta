@@ -260,23 +260,54 @@ fun AppRoot(
     }
 
     LaunchedEffect(navState.detailBackStack) {
+        // Çıkan (pop edilen) detay ekranının 280ms'lik AnimatedContent geçişi tamamlanıp
+        // SaveableStateProvider.onDispose çalıştıktan SONRA stateHolder.removeState çağrılmalıdır.
+        // Aksi halde hem geçiş ortasında aktif ViewModel/state silinir hem de SaveableStateProvider
+        // 280ms sonra kapanırken state'i tekrar savedStates haritasına yazıp kalıcı bellek sızıntısı üretir.
+        kotlinx.coroutines.delay(350L)
         navState.clearPreviousScreens()
     }
 
-    var hasSetInitialTab by remember { mutableStateOf(false) }
-    LaunchedEffect(Unit) {
-        val initialSettings = settingsDataStore.settingsFlow.first()
-        val targetTab = when (initialSettings.defaultTab) {
-            "LAST_USED" -> {
-                val lastUsed = initialSettings.lastUsedTab
-                MainTab.entries.firstOrNull { it.name == lastUsed } ?: MainTab.Explore
-            }
-            else -> {
-                MainTab.entries.firstOrNull { it.name == initialSettings.defaultTab } ?: MainTab.Explore
+    // İlk karede senkron açılış sekmesi: DataStore disk okumasını beklemeden önce
+    // senkron önbellekten (kitsugi_boot_prefs) son sekmeyi yükle; böylece uygulama
+    // Explore'dan başlayıp sonradan Profile'a sıçramaz ve çökme/kapanma anında
+    // son sekme kaybolmaz.
+    remember(Unit) {
+        if (!appViewModel.hasSetInitialTab) {
+            val bootPrefs = context.getSharedPreferences("kitsugi_boot_prefs", android.content.Context.MODE_PRIVATE)
+            val bootDefaultTab = bootPrefs.getString("default_tab", null)
+            val bootLastUsedTab = bootPrefs.getString("last_used_tab", null)
+            if (bootDefaultTab != null || bootLastUsedTab != null) {
+                val effectiveDefault = bootDefaultTab ?: "LAST_USED"
+                val targetName = if (effectiveDefault == "LAST_USED") (bootLastUsedTab ?: "Explore") else effectiveDefault
+                val targetTab = MainTab.entries.firstOrNull { it.name == targetName } ?: MainTab.Explore
+                appViewModel.setInitialTab(targetTab)
             }
         }
-        appViewModel.selectTab(targetTab)
-        hasSetInitialTab = true
+        true
+    }
+
+    LaunchedEffect(Unit) {
+        val initialSettings = settingsDataStore.settingsFlow.first()
+        runCatching {
+            context.getSharedPreferences("kitsugi_boot_prefs", android.content.Context.MODE_PRIVATE)
+                .edit()
+                .putString("default_tab", initialSettings.defaultTab)
+                .putString("last_used_tab", initialSettings.lastUsedTab)
+                .apply()
+        }
+        if (!appViewModel.hasSetInitialTab) {
+            val targetTab = when (initialSettings.defaultTab) {
+                "LAST_USED" -> {
+                    val lastUsed = initialSettings.lastUsedTab
+                    MainTab.entries.firstOrNull { it.name == lastUsed } ?: MainTab.Explore
+                }
+                else -> {
+                    MainTab.entries.firstOrNull { it.name == initialSettings.defaultTab } ?: MainTab.Explore
+                }
+            }
+            appViewModel.setInitialTab(targetTab)
+        }
     }
 
     LaunchedEffect(Unit) {
@@ -408,7 +439,7 @@ fun AppRoot(
 
     LaunchedEffect(selectedTab, navState.detailBackStack, navState.fullScreenGridState) {
         bottomBarScrollState.show()
-        if (hasSetInitialTab) {
+        if (appViewModel.hasSetInitialTab) {
             coroutineScope.launch {
                 settingsDataStore.setLastUsedTab(selectedTab.name)
             }
@@ -861,12 +892,14 @@ fun AppRoot(
                 val activeFullScreenGrid = navState.fullScreenGridState
                 val activeDetailEntry = selectedDetailEntry
 
+                val activeAddonFullScreenGrid = navState.addonFullScreenGridState
+
                 val activeCharacter = selectedCharacterIdAndSource
                 val activeStaff = selectedStaffIdAndSource
                 val activeStudio = selectedStudioIdAndSource
 
                 val currentDepth = (if (activeFullScreenGrid != null) 1 else 0) +
-                                   (if (navState.addonFullScreenGridState != null) 1 else 0) +
+                                   (if (activeAddonFullScreenGrid != null) 1 else 0) +
                                    (if (navState.mangaBrowseOpen) 1 else 0) +
                                    (if (navState.mangaDetailNavState != null) 1 else 0) +
                                    (if (navState.mangaReaderNavState != null) 1 else 0) +
@@ -884,8 +917,8 @@ fun AppRoot(
                     activeDetailEntry != null    -> AppStateKey.MediaDetail(activeDetailEntry.id, depth = currentDepth)
                     activeFullScreenGrid != null ->
                         AppStateKey.FullScreenGrid(activeFullScreenGrid, depth = currentDepth)
-                    navState.addonFullScreenGridState != null ->
-                        AppStateKey.AddonFullScreenGrid(navState.addonFullScreenGridState!!, depth = currentDepth)
+                    activeAddonFullScreenGrid != null ->
+                        AppStateKey.AddonFullScreenGrid(activeAddonFullScreenGrid, depth = currentDepth)
                     activeScreen is DetailScreen.AiringCalendar -> AppStateKey.AiringCalendar(depth = currentDepth, preferredSource = activeScreen.preferredSource)
                     activeScreen is DetailScreen.Stats -> AppStateKey.Stats(depth = currentDepth)
                     activeScreen is DetailScreen.Favourites -> AppStateKey.Favourites(depth = currentDepth)
@@ -1269,7 +1302,10 @@ private fun AppNavigationContent(
                         onItemClick = onOpenApiDetail,
                         onBackClick = {
                             navState.fullScreenGridState = null
-                            navState.stateHolder.removeState(gridKey)
+                            coroutineScope.launch {
+                                kotlinx.coroutines.delay(350L)
+                                navState.stateHolder.removeState(gridKey)
+                            }
                         },
                         titleLanguage = appSettings.titleLanguage,
                         scoreFormat = appSettings.scoreFormat,
@@ -1290,7 +1326,10 @@ private fun AppNavigationContent(
                         state = key.state,
                         onBackClick = {
                             navState.addonFullScreenGridState = null
-                            navState.stateHolder.removeState(gridKey)
+                            coroutineScope.launch {
+                                kotlinx.coroutines.delay(350L)
+                                navState.stateHolder.removeState(gridKey)
+                            }
                         },
                         titleLanguage = appSettings.titleLanguage,
                         scoreFormat = appSettings.scoreFormat,

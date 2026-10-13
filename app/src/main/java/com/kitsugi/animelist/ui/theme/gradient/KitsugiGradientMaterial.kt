@@ -135,7 +135,7 @@ private class AccentAwareBackgroundNode(
     private var cacheValid = false
 
     override fun ContentDrawScope.draw() {
-        if (color != Color.Unspecified && color.alpha > 0f) {
+        if (color != Color.Unspecified && color.alpha > 0f && size.width > 0f && size.height > 0f) {
             val accent = currentValueOf(LocalKitsugiAccent)
             val accent2 = currentValueOf(LocalKitsugiAccent2)
             val angle = currentValueOf(LocalKitsugiAccentAngle)
@@ -503,7 +503,9 @@ fun Icon(
                 .graphicsLayer(compositingStrategy = CompositingStrategy.Offscreen)
                 .drawWithContent {
                     drawContent()
-                    drawRect(brush = accentBrush, blendMode = BlendMode.SrcIn)
+                    if (size.width > 0f && size.height > 0f) {
+                        drawRect(brush = accentBrush, blendMode = BlendMode.SrcIn)
+                    }
                 },
             tint = Color.White
         )
@@ -544,7 +546,9 @@ fun Icon(
                 .graphicsLayer(compositingStrategy = CompositingStrategy.Offscreen)
                 .drawWithContent {
                     drawContent()
-                    drawRect(brush = accentBrush, blendMode = BlendMode.SrcIn)
+                    if (size.width > 0f && size.height > 0f) {
+                        drawRect(brush = accentBrush, blendMode = BlendMode.SrcIn)
+                    }
                 },
             tint = Color.White
         )
@@ -585,7 +589,9 @@ fun Icon(
                 .graphicsLayer(compositingStrategy = CompositingStrategy.Offscreen)
                 .drawWithContent {
                     drawContent()
-                    drawRect(brush = accentBrush, blendMode = BlendMode.SrcIn)
+                    if (size.width > 0f && size.height > 0f) {
+                        drawRect(brush = accentBrush, blendMode = BlendMode.SrcIn)
+                    }
                 },
             tint = Color.White
         )
@@ -877,7 +883,9 @@ fun RadioButton(
                 .graphicsLayer(compositingStrategy = CompositingStrategy.Offscreen)
                 .drawWithContent {
                     drawContent()
-                    drawRect(brush = accentBrush, blendMode = BlendMode.SrcIn)
+                    if (size.width > 0f && size.height > 0f) {
+                        drawRect(brush = accentBrush, blendMode = BlendMode.SrcIn)
+                    }
                 },
             enabled = enabled,
             colors = RadioButtonDefaults.colors(
@@ -965,7 +973,9 @@ fun CircularProgressIndicator(
                 .graphicsLayer(compositingStrategy = CompositingStrategy.Offscreen)
                 .drawWithContent {
                     drawContent()
-                    drawRect(brush = accentBrush, blendMode = BlendMode.SrcIn)
+                    if (size.width > 0f && size.height > 0f) {
+                        drawRect(brush = accentBrush, blendMode = BlendMode.SrcIn)
+                    }
                 },
             color = Color.White,
             strokeWidth = strokeWidth,
@@ -1000,7 +1010,9 @@ fun CircularProgressIndicator(
                 .graphicsLayer(compositingStrategy = CompositingStrategy.Offscreen)
                 .drawWithContent {
                     drawContent()
-                    drawRect(brush = accentBrush, blendMode = BlendMode.SrcIn)
+                    if (size.width > 0f && size.height > 0f) {
+                        drawRect(brush = accentBrush, blendMode = BlendMode.SrcIn)
+                    }
                 },
             color = Color.White,
             strokeWidth = strokeWidth,
@@ -1032,16 +1044,20 @@ fun LinearProgressIndicator(
         androidx.compose.material3.LinearProgressIndicator(
             modifier = modifier
                 .drawBehind {
-                    if (trackBrush != null) {
-                        drawRoundRect(brush = trackBrush, cornerRadius = CornerRadius(size.height / 2f))
-                    } else if (trackColor != Color.Transparent) {
-                        drawRoundRect(color = trackColor, cornerRadius = CornerRadius(size.height / 2f))
+                    if (size.width > 0f && size.height > 0f) {
+                        if (trackBrush != null) {
+                            drawRoundRect(brush = trackBrush, cornerRadius = CornerRadius(size.height / 2f))
+                        } else if (trackColor != Color.Transparent) {
+                            drawRoundRect(color = trackColor, cornerRadius = CornerRadius(size.height / 2f))
+                        }
                     }
                 }
                 .graphicsLayer(compositingStrategy = CompositingStrategy.Offscreen)
                 .drawWithContent {
                     drawContent()
-                    drawRect(brush = accentBrush, blendMode = BlendMode.SrcIn)
+                    if (size.width > 0f && size.height > 0f) {
+                        drawRect(brush = accentBrush, blendMode = BlendMode.SrcIn)
+                    }
                 },
             color = Color.White,
             trackColor = Color.Transparent,
@@ -1113,7 +1129,7 @@ fun TabRow(
     containerColor: Color = TabRowDefaults.primaryContainerColor,
     contentColor: Color = LocalKitsugiAccent.current,
     indicator: @Composable (tabPositions: List<TabPosition>) -> Unit = @Composable { tabPositions ->
-        if (selectedTabIndex < tabPositions.size) {
+        if (selectedTabIndex in tabPositions.indices) {
             Box(
                 Modifier
                     .tabIndicatorOffset(tabPositions[selectedTabIndex])
@@ -1147,7 +1163,7 @@ fun ScrollableTabRow(
     contentColor: Color = LocalKitsugiAccent.current,
     edgePadding: Dp = TabRowDefaults.ScrollableTabRowEdgeStartPadding,
     indicator: @Composable (tabPositions: List<TabPosition>) -> Unit = @Composable { tabPositions ->
-        if (selectedTabIndex < tabPositions.size) {
+        if (selectedTabIndex in tabPositions.indices) {
             Box(
                 Modifier
                     .tabIndicatorOffset(tabPositions[selectedTabIndex])

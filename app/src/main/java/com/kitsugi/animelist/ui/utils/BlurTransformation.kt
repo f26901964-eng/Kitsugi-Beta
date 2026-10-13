@@ -42,23 +42,21 @@ class BlurTransformation(
         }
 
         // Work on a mutable ARGB copy for in-place stack blur.
-        val bitmap = if (source.config == Bitmap.Config.ARGB_8888 && source.isMutable) {
+        // Always ensure we do not mutate `input` in-place if `source === input`.
+        val bitmap = if (source !== input && source.config == Bitmap.Config.ARGB_8888 && source.isMutable) {
             source
         } else {
-            source.copy(Bitmap.Config.ARGB_8888, true) ?: source
+            source.copy(Bitmap.Config.ARGB_8888, true) ?: return input
         }
 
         stackBlur(bitmap, scaledR)
 
-        // Gerekirse orijinal boyuta geri ölçekle (yumuşak blur için yeterli).
-        return if (scaleDown > 1 && bitmap.width != input.width) {
-            val result = Bitmap.createScaledBitmap(bitmap, input.width, input.height, true)
-            if (bitmap !== source) bitmap.recycle()
-            if (source !== input) source.recycle()
-            result
-        } else {
-            bitmap
-        }
+        // Küçültülmüş bulanık görseli tekrar input.width x input.height boyutuna BÜYÜTME:
+        // Bulanık görselde yüksek frekanslı detay yoktur; GPU çizim sırasında bilinear
+        // filtreleme ile alanı doldurduğunda görsel birebir aynı görünür, ancak Coil
+        // bellek önbelleğinde 16x-36x daha az RAM kaplar ve tehlikeli bitmap.recycle()
+        // yarışlarına (Canvas: trying to use a recycled bitmap / RenderThread SIGSEGV) girilmez.
+        return bitmap
     }
 
     /**
@@ -68,6 +66,7 @@ class BlurTransformation(
     private fun stackBlur(bitmap: Bitmap, radius: Int) {
         val w = bitmap.width
         val h = bitmap.height
+        if (w <= 1 || h <= 1 || radius < 1) return
         val pixels = IntArray(w * h)
         bitmap.getPixels(pixels, 0, w, 0, 0, w, h)
 

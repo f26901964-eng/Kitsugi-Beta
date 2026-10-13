@@ -253,7 +253,7 @@ fun KitsugiMediaGridDialog(
                         ) {
                             itemsIndexed(
                                 items = filteredResults,
-                                key = { _, result -> result.kitsugiLazyKey("dlg") },
+                                key = { idx, result -> result.kitsugiLazyKey("dlg", idx) },
                                 contentType = { _, _ -> "media_card" }
                             ) { _, result ->
                                 KitsugiExploreMediaCard(

@@ -48,6 +48,19 @@ import kotlinx.coroutines.launch
 
 val LocalDismissAnimated = staticCompositionLocalOf<() -> Unit> { {} }
 
+@Composable
+private fun DisableDialogWindowForceDark() {
+    val dialogView = androidx.compose.ui.platform.LocalView.current
+    if (!dialogView.isInEditMode && android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
+        androidx.compose.runtime.SideEffect {
+            runCatching {
+                dialogView.isForceDarkAllowed = false
+                dialogView.rootView?.isForceDarkAllowed = false
+            }
+        }
+    }
+}
+
 /**
  * Smart wrapper that renders as a ModalBottomSheet on mobile devices,
  * and as a full-screen centered Dialog on Android TV (for D-pad / remote control navigation).
@@ -127,6 +140,7 @@ fun KitsugiSheetOrDialog(
                 dismissOnClickOutside = true
             )
         ) {
+            DisableDialogWindowForceDark()
             CompositionLocalProvider(LocalDismissAnimated provides dismissAnimated) {
                 Box(
                     modifier = Modifier
@@ -143,7 +157,9 @@ fun KitsugiSheetOrDialog(
                         .padding(bottom = 8.dp)
                 ) {
                     Column(
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .heightIn(max = screenHeight * 0.85f),
                         content = content
                     )
                 }
@@ -166,6 +182,7 @@ fun KitsugiSheetOrDialog(
                 decorFitsSystemWindows = false
             )
         ) {
+            DisableDialogWindowForceDark()
             CompositionLocalProvider(LocalDismissAnimated provides dismissAnimated) {
                 Box(
                     modifier = Modifier
@@ -273,6 +290,7 @@ fun KitsugiSheetOrDialog(
                 )
             }
         ) {
+            DisableDialogWindowForceDark()
             CompositionLocalProvider(LocalDismissAnimated provides dismissAnimated) {
                 Box(
                     modifier = Modifier

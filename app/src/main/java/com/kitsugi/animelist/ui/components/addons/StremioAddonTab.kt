@@ -134,7 +134,11 @@ internal fun StremioTab(
                         Text(text = currentPlayerName, color = KitsugiColors.TextPrimary, fontSize = 14.sp)
                         Icon(Icons.Rounded.ArrowDropDown, contentDescription = stringResource(R.string.ui_tv_select), tint = KitsugiColors.TextSecondary)
                     }
-                    KitsugiDropdownMenu(expanded = dropdownExpanded, onDismissRequest = { dropdownExpanded = false }) {
+                    KitsugiDropdownMenu(
+                        expanded = dropdownExpanded,
+                        onDismissRequest = { dropdownExpanded = false },
+                        dialogTitle = stringResource(R.string.inline_default_player_engine_9ae31a7)
+                    ) {
                         playerOptions.forEach { option ->
                             KitsugiDropdownItem(
                                 text = option.second,

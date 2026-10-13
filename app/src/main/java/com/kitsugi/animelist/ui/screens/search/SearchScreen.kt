@@ -1105,7 +1105,7 @@ private fun MultiSearchSection(
                                 // DİKKAT: anahtarda `type` ZORUNLU — "Tümünü Gör" rafı karma
                                 // anime+manga listesi taşıyabilir; aynı kaynak+id iki farklı
                                 // yapımı gösterebilir (bkz. KitsugiLazyKeys).
-                                key = { _, result -> result.kitsugiLazyKey("sr_tv") },
+                                key = { idx, result -> result.kitsugiLazyKey("sr_tv", idx) },
                                 contentType = { _, _ -> "h_media_card" }
                             ) { index, result ->
                                 val requester = focusRequesters.getOrPut(index) { FocusRequester() }
@@ -1140,7 +1140,7 @@ private fun MultiSearchSection(
                     ) {
                         itemsIndexed(
                             items = results,
-                            key = { _, result -> result.kitsugiLazyKey("sr") },
+                            key = { idx, result -> result.kitsugiLazyKey("sr", idx) },
                             contentType = { _, _ -> "h_media_card" }
                         ) { _, result ->
                             KitsugiExploreMediaCard(

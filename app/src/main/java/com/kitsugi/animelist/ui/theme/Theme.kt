@@ -92,6 +92,19 @@ fun KitsugiAnimeListTheme(
     // Vurgu zeminindeki TÜM yazı/ikonlar için otomatik siyah-beyaz kontrast rengi
     val onAccent = onAccentColor(accentColor, accentColor2)
 
+    // MIUI / HyperOS / Android 10+ Force Dark (TransformCanvas) koruması:
+    // Bu tema altındaki tüm AndroidComposeView ve kök DecorView örneklerinde
+    // donanımsal ForceDark dönüşümünü kapatır.
+    val currentView = androidx.compose.ui.platform.LocalView.current
+    if (!currentView.isInEditMode && Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+        androidx.compose.runtime.SideEffect {
+            runCatching {
+                currentView.isForceDarkAllowed = false
+                currentView.rootView?.isForceDarkAllowed = false
+            }
+        }
+    }
+
     // Provide isTv as false for layout-adaptive components, but keep isTvDevice for D-pad enhancements
     CompositionLocalProvider(
         LocalIsTv provides false,

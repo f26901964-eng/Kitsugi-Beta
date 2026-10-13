@@ -504,18 +504,18 @@ fun ReviewsTabContent(
         )
     }
 
-    if (activeReviewForDetail != null) {
+    activeReviewForDetail?.let { rev ->
         KitsugiReviewDetailBottomSheet(
-            review = activeReviewForDetail!!,
+            review = rev,
             apiClient = apiClient,
             onUserProfileClick = handleUserProfileClick,
             onDismiss = { activeReviewDetailKey = "" }
         )
     }
 
-    if (activeTopicForDetail != null) {
+    activeTopicForDetail?.let { top ->
         KitsugiTopicDetailBottomSheet(
-            topic = activeTopicForDetail!!,
+            topic = top,
             source = source,
             apiClient = apiClient,
             onUserProfileClick = handleUserProfileClick,

@@ -58,6 +58,9 @@ class MainActivity : AppCompatActivity() {
         setTheme(R.style.Theme_KitsugiAnimeList)
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
+            runCatching { window.decorView.isForceDarkAllowed = false }
+        }
 
         setContent {
             val settingsDataStore = remember { com.kitsugi.animelist.data.settings.SettingsDataStore(applicationContext) }

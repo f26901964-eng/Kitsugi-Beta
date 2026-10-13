@@ -21,5 +21,12 @@ import com.kitsugi.animelist.data.remote.JikanSearchResult
  * Kullanım: `key = { _, item -> item.kitsugiLazyKey("grid") }` veya `key = { it.kitsugiLazyKey("tv") }`
  * (prefix o listenin okunabilirlik etiketidir; farklı listeler aynı öğeyi paylaşabilir).
  */
-fun JikanSearchResult.kitsugiLazyKey(prefix: String): String =
-    "${prefix}_${source.lowercase()}_${type.name.lowercase()}_${malId}_${tmdbId ?: 0}_${cs3Url.orEmpty().hashCode()}"
+fun JikanSearchResult.kitsugiLazyKey(prefix: String, index: Int = -1): String {
+    val idxPart = if (index >= 0) "${index}_" else ""
+    val idPart = if (malId == 0 && (tmdbId == null || tmdbId == 0) && cs3Url.isNullOrEmpty()) {
+        "${title.hashCode()}_${subtitle.hashCode()}"
+    } else {
+        "${malId}_${tmdbId ?: 0}_${cs3Url.orEmpty().hashCode()}"
+    }
+    return "${prefix}_${idxPart}${source.lowercase()}_${type.name.lowercase()}_$idPart"
+}

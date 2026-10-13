@@ -5,6 +5,7 @@ import coil3.ImageLoader
 import coil3.SingletonImageLoader
 import coil3.request.ImageRequest
 import coil3.size.Precision
+import coil3.request.allowHardware
 import coil3.request.allowRgb565
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
@@ -68,6 +69,7 @@ internal object HeroArtworkImagePolicy {
     fun request(context: Context, url: String): ImageRequest =
         ImageRequest.Builder(context)
             .data(url)
+            .allowHardware(false)
             .allowRgb565(false)
             .precision(Precision.EXACT)
             .size(targetWidthPx(context), targetHeightPx(context))

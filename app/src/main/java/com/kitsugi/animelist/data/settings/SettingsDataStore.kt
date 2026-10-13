@@ -1229,12 +1229,24 @@ class SettingsDataStore(
     }
 
     suspend fun setDefaultTab(tab: String) {
+        runCatching {
+            context.getSharedPreferences("kitsugi_boot_prefs", Context.MODE_PRIVATE)
+                .edit()
+                .putString("default_tab", tab)
+                .apply()
+        }
         context.settingsDataStore.edit { preferences ->
             preferences[Keys.DefaultTab] = tab
         }
     }
 
     suspend fun setLastUsedTab(tab: String) {
+        runCatching {
+            context.getSharedPreferences("kitsugi_boot_prefs", Context.MODE_PRIVATE)
+                .edit()
+                .putString("last_used_tab", tab)
+                .apply()
+        }
         context.settingsDataStore.edit { preferences ->
             preferences[Keys.LastUsedTab] = tab
         }

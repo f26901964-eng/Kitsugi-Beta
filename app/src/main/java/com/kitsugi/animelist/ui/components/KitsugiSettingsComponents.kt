@@ -31,6 +31,8 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntRect
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.LayoutDirection
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import androidx.compose.ui.window.Popup
 import androidx.compose.ui.window.PopupPositionProvider
 import androidx.compose.ui.window.PopupProperties
@@ -45,6 +47,7 @@ import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
@@ -59,12 +62,17 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.MenuDefaults
+import androidx.compose.material3.RadioButton
+import androidx.compose.material3.RadioButtonDefaults
+import androidx.compose.material3.Surface
 import androidx.compose.material3.SwitchDefaults
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -88,6 +96,25 @@ import com.kitsugi.animelist.ui.theme.gradient.border
 import com.kitsugi.animelist.ui.theme.isSameAccentRgb
 import com.kitsugi.animelist.ui.theme.accentBrushWithAlpha
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.stringResource
+import com.kitsugi.animelist.R
+
+/**
+ * Açılır seçimlerin sunum biçimi. Normal ekranlarda çapa bağlı küçük menü korunur;
+ * ayarlar sayfası bu değeri [SettingsDialog] yaparak AniHyou tarzı ortalanmış,
+ * arka planı karartan seçim pencerelerini kullanır.
+ */
+internal enum class KitsugiDropdownPresentation {
+    AnchoredPopup,
+    SettingsDialog
+}
+
+internal val LocalKitsugiDropdownPresentation = staticCompositionLocalOf {
+    KitsugiDropdownPresentation.AnchoredPopup
+}
+
+/** Seçim satırlarının modal pencere içinde radyo düğmesi çizmesini sağlar. */
+private val LocalKitsugiDropdownUsesRadio = staticCompositionLocalOf { false }
 
 @Composable
 fun KitsugiSettingsSection(
@@ -662,25 +689,33 @@ private class KitsugiMenuPositionProvider(
 }
 
 /**
- * 🌌 Kitsugi Premium Açılır Panel — ayarlar sekmeleri dahil tüm açılır menülerin
- * ortak, modern yüzeyi (Material'ın varsayılan DropdownMenu'su yerine).
+ * Ortak tek-seçimli menü yüzeyi.
  *
- * - Yüzey: [KitsugiColors.SurfaceStrong], 22dp köşe, vurgu rengiyle parlayan
- *   gradyan kenarlık + aurora glow (renkli gölge) + üstte yumuşak ışık bandı
- * - Animasyon: yay fiziği (spring) ile hafif sekerek büyüyen premium açılış,
- *   üst kenar kökenli scale + fade kapanış
- * - Uzun listeler kaydırılır; [modifier] iç sütuna uygulanır (genişlik/yükseklik sınırı için)
- *
- * Tüm açılır menüler (ayarlar, listeler, arama, detay) bu bileşeni kullanır.
- * Tam ekran alt panel görünümü için bkz. [KitsugiPremiumSheet].
+ * Normal ekranlarda çapa bağlı, yay animasyonlu kompakt menü kullanılır. Ayarlar ağacında
+ * [LocalKitsugiDropdownPresentation] değeri [KitsugiDropdownPresentation.SettingsDialog]
+ * olduğu için aynı çağrı otomatik olarak ortalanmış Material seçim penceresine dönüşür.
+ * Böylece arama/liste/detay ekranlarının kompakt menüleri etkilenmeden ayarlardaki tüm
+ * seçimler AniHyou referansındaki modal davranışı paylaşır.
  */
 @Composable
 fun KitsugiDropdownMenu(
     expanded: Boolean,
     onDismissRequest: () -> Unit,
     modifier: Modifier = Modifier,
+    dialogTitle: String? = null,
     content: @Composable ColumnScope.() -> Unit
 ) {
+    if (LocalKitsugiDropdownPresentation.current == KitsugiDropdownPresentation.SettingsDialog) {
+        KitsugiSettingsDropdownDialog(
+            expanded = expanded,
+            title = dialogTitle ?: stringResource(R.string.ui_tv_select),
+            onDismissRequest = onDismissRequest,
+            modifier = modifier,
+            content = content
+        )
+        return
+    }
+
     val visibleState = remember { MutableTransitionState(false) }
     visibleState.targetState = expanded
     // Kapanış animasyonu bitene kadar popup'ı canlı tut; sonra tamamen kaldır.
@@ -762,6 +797,89 @@ fun KitsugiDropdownMenu(
 }
 
 /**
+ * Ayarlar ekranına özel, AniHyou referansındaki sade Material seçim penceresi.
+ *
+ * Çapa bağlı ve sayfa akışını örten büyük paneller yerine pencere ekranın ortasında açılır,
+ * arkadaki ayar sayfasını karartır, seçenekleri radyo satırları olarak gösterir ve uzun
+ * listeleri kendi içinde kaydırır. Telefon, tablet ve TV'de aynı görsel hiyerarşi korunur.
+ */
+@Composable
+private fun KitsugiSettingsDropdownDialog(
+    expanded: Boolean,
+    title: String,
+    onDismissRequest: () -> Unit,
+    modifier: Modifier,
+    content: @Composable ColumnScope.() -> Unit
+) {
+    if (!expanded) return
+
+    val accentColor = LocalKitsugiAccent.current
+    val dialogShape = RoundedCornerShape(28.dp)
+
+    Dialog(
+        onDismissRequest = onDismissRequest,
+        properties = DialogProperties(
+            usePlatformDefaultWidth = false,
+            decorFitsSystemWindows = true
+        )
+    ) {
+        BoxWithConstraints(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = 24.dp, vertical = 32.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Surface(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .widthIn(max = 560.dp)
+                    .heightIn(max = maxHeight * 0.86f),
+                shape = dialogShape,
+                color = KitsugiColors.SurfaceStrong,
+                tonalElevation = 6.dp,
+                shadowElevation = 18.dp
+            ) {
+                Column(modifier = Modifier.fillMaxWidth()) {
+                    Text(
+                        text = title,
+                        color = KitsugiColors.TextPrimary,
+                        style = MaterialTheme.typography.headlineSmall,
+                        fontWeight = FontWeight.Medium,
+                        modifier = Modifier.padding(start = 28.dp, end = 28.dp, top = 26.dp, bottom = 10.dp)
+                    )
+
+                    CompositionLocalProvider(LocalKitsugiDropdownUsesRadio provides true) {
+                        Column(
+                            modifier = modifier
+                                .fillMaxWidth()
+                                .weight(1f, fill = false)
+                                .verticalScroll(rememberScrollState())
+                                .padding(horizontal = 16.dp, vertical = 4.dp),
+                            content = content
+                        )
+                    }
+
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(start = 20.dp, end = 20.dp, top = 8.dp, bottom = 14.dp),
+                        horizontalArrangement = Arrangement.End
+                    ) {
+                        TextButton(onClick = onDismissRequest) {
+                            Text(
+                                text = stringResource(R.string.action_close),
+                                color = accentColor,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+/**
  * Premium açılır menü satırı. Seçili durum yay fiziğiyle canlanır:
  * solda gradyan seçim çubuğu büyür, zemin yarı saydam gradyan tona oturur ve
  * sağdaki onay işareti spring ile yerine seker. Layout kayması yaşanmaz
@@ -780,6 +898,46 @@ fun KitsugiMenuItem(
     val accentColor = LocalKitsugiAccent.current
     val accentBrush = LocalKitsugiAccentBrush.current
     val shape = RoundedCornerShape(14.dp)
+
+    if (LocalKitsugiDropdownUsesRadio.current) {
+        Row(
+            modifier = modifier
+                .fillMaxWidth()
+                .clip(shape)
+                .tvClickable(shape = shape, enabled = enabled, onClick = onClick)
+                .padding(horizontal = 10.dp, vertical = 9.dp)
+                .alpha(if (enabled) 1f else 0.38f),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            RadioButton(
+                selected = selected,
+                onClick = null,
+                enabled = enabled,
+                colors = RadioButtonDefaults.colors(
+                    selectedColor = accentColor,
+                    unselectedColor = KitsugiColors.TextSecondary,
+                    disabledSelectedColor = KitsugiColors.TextMuted,
+                    disabledUnselectedColor = KitsugiColors.TextMuted
+                )
+            )
+            Spacer(modifier = Modifier.width(10.dp))
+            if (leadingIcon != null) {
+                leadingIcon()
+                Spacer(modifier = Modifier.width(12.dp))
+            }
+            Box(modifier = Modifier.weight(1f)) {
+                CompositionLocalProvider(LocalContentColor provides KitsugiColors.TextPrimary) {
+                    text()
+                }
+            }
+            if (trailingIcon != null) {
+                Spacer(modifier = Modifier.width(8.dp))
+                trailingIcon()
+            }
+        }
+        return
+    }
+
     val selectedBgBrush = accentBrushWithAlpha(0.16f)
 
     val selectionProgress by animateFloatAsState(

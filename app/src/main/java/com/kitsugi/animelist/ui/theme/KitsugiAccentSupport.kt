@@ -164,13 +164,17 @@ private object GradientBrushCache {
     }
 
     fun obtain(colors: List<Color>, angleDegrees: Float): AngleLinearGradientBrush {
+        if (colors.isEmpty()) {
+            return AngleLinearGradientBrush(listOf(Color(0xFFC8F4EF), Color(0xFFC8F4EF)), angleDegrees)
+        }
+        val safeAngle = if (angleDegrees.isFinite()) angleDegrees else 135f
         val key = GradientBrushKey(
             start = colors[0].value,
-            end = colors.getOrNull(1)?.value ?: 0UL,
-            angle = angleDegrees
+            end = colors.getOrNull(1)?.value ?: colors[0].value,
+            angle = safeAngle
         )
         return synchronized(cache) {
-            cache.getOrPut(key) { AngleLinearGradientBrush(colors.toList(), angleDegrees) }
+            cache.getOrPut(key) { AngleLinearGradientBrush(colors.toList(), safeAngle) }
         }
     }
 }
@@ -183,32 +187,64 @@ private object GradientBrushCache {
 fun angleLinearGradientBrush(colors: List<Color>, angleDegrees: Float): AngleLinearGradientBrush =
     GradientBrushCache.obtain(colors, angleDegrees)
 
-/** Açılı lineer gradyan fırçası — çizim alanının gerçek boyutuna göre hesaplanır. */
+/**
+ * Açılı lineer gradyan fırçası — çizim alanının gerçek boyutuna göre hesaplanır.
+ *
+ * NOT: Compose [ShaderBrush] yalnızca son tek `createdSize` değerini saklar; aynı fırça
+ * farklı boyutlardaki bileşenlerde (buton, kart, ikon, metin) paylaşıldığında `createdSize`
+ * her bileşende değiştiği için `createShader(size)` her bileşende tekrar çağrılır.
+ * Burada boyut bazlı (`w x h`) ikinci seviye LRU önbellek tutularak JNI üzerinden
+ * tekrar tekrar `android.graphics.LinearGradient` üretilmesi ve dejenere (0/NaN/Infinity)
+ * boyutlarda bozuk SkShader oluşması tamamen engellenir.
+ */
 class AngleLinearGradientBrush(
     private val colors: List<Color>,
     private val angleDegrees: Float
 ) : ShaderBrush() {
 
+    private val argbColors: IntArray = when {
+        colors.size >= 2 -> IntArray(colors.size) { colors[it].toArgb() }
+        colors.size == 1 -> intArrayOf(colors[0].toArgb(), colors[0].toArgb())
+        else -> intArrayOf(0xFFC8F4EF.toInt(), 0xFFC8F4EF.toInt())
+    }
+
+    private val shaderCache = object : LinkedHashMap<Long, Shader>(32, 0.75f, true) {
+        override fun removeEldestEntry(eldest: MutableMap.MutableEntry<Long, Shader>?): Boolean = size > 96
+    }
+
     override fun createShader(size: Size): Shader {
-        val w = if (size.width > 0f) size.width else 1f
-        val h = if (size.height > 0f) size.height else 1f
-        val rad = Math.toRadians(angleDegrees.toDouble())
+        val w = if (size.width.isFinite() && size.width >= 1f) size.width.coerceAtMost(16384f) else 1f
+        val h = if (size.height.isFinite() && size.height >= 1f) size.height.coerceAtMost(16384f) else 1f
+        val wInt = w.toInt().coerceAtLeast(1)
+        val hInt = h.toInt().coerceAtLeast(1)
+        val sizeKey = (wInt.toLong() shl 32) or (hInt.toLong() and 0xFFFFFFFFL)
+
+        synchronized(shaderCache) {
+            shaderCache[sizeKey]?.let { return it }
+        }
+
+        val safeAngle = if (angleDegrees.isFinite()) angleDegrees else 135f
+        val rad = Math.toRadians(safeAngle.toDouble())
         val dx = cos(rad).toFloat()
         val dy = sin(rad).toFloat()
         val cx = w / 2f
         val cy = h / 2f
-        // İpucu: merkezden köşelere tam kapsayan yarı uzunluk
-        val half = (abs(dx) * w + abs(dy) * h) / 2f
+        // İpucu: merkezden köşelere tam kapsayan yarı uzunluk (asla 0 olmasın)
+        val half = ((abs(dx) * w + abs(dy) * h) / 2f).coerceAtLeast(0.5f)
         val startX = cx - dx * half
         val startY = cy - dy * half
         val endX = cx + dx * half
         val endY = cy + dy * half
-        return android.graphics.LinearGradient(
+        val created = android.graphics.LinearGradient(
             startX, startY, endX, endY,
-            colors.map { it.toArgb() }.toIntArray(),
+            argbColors,
             null,
             android.graphics.Shader.TileMode.CLAMP
         )
+        synchronized(shaderCache) {
+            shaderCache[sizeKey] = created
+        }
+        return created
     }
 
     override fun equals(other: Any?): Boolean {
@@ -242,7 +278,11 @@ fun Modifier.accentBackground(shape: Shape = RectangleShape): Modifier {
     val brush = LocalKitsugiAccentBrush.current
     return this
         .clip(shape)
-        .drawBehind { drawRect(brush = brush) }
+        .drawBehind {
+            if (size.width > 0f && size.height > 0f) {
+                drawRect(brush = brush)
+            }
+        }
 }
 
 /** Vurgu zemininde kullanılacak otomatik kontrastlı metin rengi. */

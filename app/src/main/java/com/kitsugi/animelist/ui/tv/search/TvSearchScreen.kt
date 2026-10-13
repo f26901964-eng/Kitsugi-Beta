@@ -24,6 +24,7 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.grid.itemsIndexed
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -189,7 +190,7 @@ fun TvSearchScreen(
                         verticalArrangement = Arrangement.spacedBy(KitsugiTvTokens.Spacing.itemGap),
                         modifier = Modifier.dpadVerticalFastScroll(scrollableState = gridState)
                     ) {
-                        items(state.results, key = { it.kitsugiLazyKey("tvsr") }) { result ->
+                        itemsIndexed(state.results, key = { idx, it -> it.kitsugiLazyKey("tvsr", idx) }) { _, result ->
                             TvSearchResultCard(
                                 item = result,
                                 titleLanguage = titleLanguage,

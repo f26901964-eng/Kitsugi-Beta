@@ -341,10 +341,10 @@ fun PlatformUserProfileScreen(
     }
 
     // ── Favoriler "Tümünü Gör" sayfası ────────────────────────────────────────
-    if (activeFavoriteSheet != null) {
+    activeFavoriteSheet?.let { (sheetTitle, sheetItems) ->
         FavoritesExpandedBottomSheet(
-            title = activeFavoriteSheet!!.first,
-            items = activeFavoriteSheet!!.second,
+            title = sheetTitle,
+            items = sheetItems,
             blurAdultMedia = appSettings.blurAdultMedia,
             hasNextPage = false,
             onLoadMore = null,
@@ -354,8 +354,7 @@ fun PlatformUserProfileScreen(
     }
 
     // ── Görsel galerisi ───────────────────────────────────────────────────────
-    if (activeGalleryImages != null) {
-        val (urls, initialIdx, title) = activeGalleryImages!!
+    activeGalleryImages?.let { (urls, initialIdx, title) ->
         KitsugiImageGalleryDialog(
             imageUrls = urls,
             initialIndex = initialIdx,

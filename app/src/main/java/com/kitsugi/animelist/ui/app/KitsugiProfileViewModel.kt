@@ -121,6 +121,16 @@ class KitsugiProfileViewModel(application: Application) : AndroidViewModel(appli
     // Shikimori Tab & Sub-Filter state persistence
     var shikimoriActiveTab by mutableIntStateOf(0)
 
+    // Sekme (HorizontalPager) yükseklik önbellekleri:
+    // Profil sekmesinden çıkıp ikinci kez geri dönüldüğünde (veya detay sayfasından geri
+    // gelindiğinde) aktif sekmenin yüksekliği ilk kareden itibaren bilinsin; böylece
+    // AnimatedContent geçişi sırasında çift measure/layout dalgası oluşmaz.
+    val aniListPageHeights = androidx.compose.runtime.mutableStateMapOf<Int, Int>()
+    val malPageHeights = androidx.compose.runtime.mutableStateMapOf<Int, Int>()
+    val simklPageHeights = androidx.compose.runtime.mutableStateMapOf<Int, Int>()
+    val kitsuPageHeights = androidx.compose.runtime.mutableStateMapOf<Int, Int>()
+    val shikimoriPageHeights = androidx.compose.runtime.mutableStateMapOf<Int, Int>()
+
     // AniList profile UI state
     private val _aniListState = MutableStateFlow(AniListProfileState())
     val aniListState: StateFlow<AniListProfileState> = _aniListState.asStateFlow()

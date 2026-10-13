@@ -84,6 +84,7 @@ class AppNavigationState(
             .filter { (_, screen) -> screen !in detailBackStack }
 
         val baseOffset = (if (fullScreenGridState != null) 1 else 0) +
+                         (if (addonFullScreenGridState != null) 1 else 0) +
                          (if (mangaBrowseOpen) 1 else 0) +
                          (if (mangaDetailNavState != null) 1 else 0) +
                          (if (mangaReaderNavState != null) 1 else 0) +
@@ -94,14 +95,14 @@ class AppNavigationState(
             val key = when (screen) {
                 is DetailScreen.MediaDetail -> "media_${depth}_${screen.entryId}"
                 is DetailScreen.ApiResultDetail -> "api_${depth}_${screen.result.source}_${screen.result.malId}"
-                is DetailScreen.CharacterDetail -> "char_${depth}_${screen.source}_${screen.characterId}"
+                is DetailScreen.CharacterDetail -> "char_${depth}_${screen.source}_${screen.characterId}_${screen.name.orEmpty()}_${screen.isRealMediaRole}"
                 is DetailScreen.StaffDetail -> "staff_${depth}_${screen.source}_${screen.staffId}"
-                is DetailScreen.StudioDetail -> "studio_${depth}_${screen.source}_${screen.studioId}"
-                is DetailScreen.AiringCalendar -> "airing_calendar_${depth}"
+                is DetailScreen.StudioDetail -> "studio_${depth}_${screen.source}_${screen.studioId}_${screen.name.orEmpty()}"
+                is DetailScreen.AiringCalendar -> "airing_calendar_${depth}_${screen.preferredSource}"
                 DetailScreen.Stats -> "stats_${depth}"
                 DetailScreen.Favourites -> "favourites_${depth}"
                 DetailScreen.About -> "about_${depth}"
-                is DetailScreen.UserProfile -> "user_profile_${depth}_${screen.userId}"
+                is DetailScreen.UserProfile -> "user_profile_${depth}_${screen.source}_${screen.userId}_${screen.username.orEmpty()}"
                 is DetailScreen.UserMediaList -> "user_media_list_${depth}_${screen.userId}_${screen.initialMediaType.name}"
                 DetailScreen.Notifications -> "notifications_${depth}"
                 DetailScreen.Downloads -> "downloads_${depth}"
@@ -111,6 +112,31 @@ class AppNavigationState(
                 is DetailScreen.SourceSearchPage -> "source_search_${depth}_${screen.engine.id}"
             }
             stateHolder.removeState(key)
+            // Eğer aynı ekran baseOffset değişimi nedeniyle yalın derinlik ile kaydedildiyse onu da temizle
+            if (baseOffset != 0) {
+                val plainDepth = idx + 1
+                val fallbackKey = when (screen) {
+                    is DetailScreen.MediaDetail -> "media_${plainDepth}_${screen.entryId}"
+                    is DetailScreen.ApiResultDetail -> "api_${plainDepth}_${screen.result.source}_${screen.result.malId}"
+                    is DetailScreen.CharacterDetail -> "char_${plainDepth}_${screen.source}_${screen.characterId}_${screen.name.orEmpty()}_${screen.isRealMediaRole}"
+                    is DetailScreen.StaffDetail -> "staff_${plainDepth}_${screen.source}_${screen.staffId}"
+                    is DetailScreen.StudioDetail -> "studio_${plainDepth}_${screen.source}_${screen.studioId}_${screen.name.orEmpty()}"
+                    is DetailScreen.AiringCalendar -> "airing_calendar_${plainDepth}_${screen.preferredSource}"
+                    DetailScreen.Stats -> "stats_${plainDepth}"
+                    DetailScreen.Favourites -> "favourites_${plainDepth}"
+                    DetailScreen.About -> "about_${plainDepth}"
+                    is DetailScreen.UserProfile -> "user_profile_${plainDepth}_${screen.source}_${screen.userId}_${screen.username.orEmpty()}"
+                    is DetailScreen.UserMediaList -> "user_media_list_${plainDepth}_${screen.userId}_${screen.initialMediaType.name}"
+                    DetailScreen.Notifications -> "notifications_${plainDepth}"
+                    DetailScreen.Downloads -> "downloads_${plainDepth}"
+                    DetailScreen.WatchHistory -> "watch_history_${plainDepth}"
+                    DetailScreen.PluginPicker -> "plugin_picker_${plainDepth}"
+                    is DetailScreen.AddonExplore -> "addon_explore_${plainDepth}_${screen.apiName}"
+                    is DetailScreen.SourceSearchPage -> "source_search_${plainDepth}_${screen.engine.id}"
+                }
+                stateHolder.removeState(fallbackKey)
+                sourceSearchOwners.remove(fallbackKey)?.viewModelStore?.clear()
+            }
             sourceSearchOwners.remove(key)?.viewModelStore?.clear()
         }
         previousBackStack = detailBackStack

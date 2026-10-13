@@ -12,6 +12,7 @@ import com.kitsugi.animelist.ui.theme.gradient.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.horizontalScroll
@@ -406,13 +407,14 @@ fun KitsugiNotificationsScreen(
                                             item { LoadingState(accentColor) }
                                         }
                                         filterState.error != null && filterState.items.isEmpty() -> {
-                                            item { CenteredEmptyState(filterState.error!!) }
+                                            val errText = filterState.error.orEmpty()
+                                            item { CenteredEmptyState(errText) }
                                         }
                                         filterState.items.isEmpty() -> {
                                             item { CenteredEmptyState(stringResource(R.string.notif_empty_no_notifications)) }
                                         }
                                         else -> {
-                                            items(filterState.items, key = { it.id }) { notif ->
+                                            itemsIndexed(filterState.items, key = { idx, it -> "${idx}_${it.id}" }) { _, notif ->
                                                 NotifItemRow(
                                                     notif = notif,
                                                     accentColor = accentColor,
@@ -555,9 +557,9 @@ fun KitsugiNotificationsScreen(
         }
     }
 
-    if (activeActivityIdForDetail != null) {
+    activeActivityIdForDetail?.let { actId ->
         com.kitsugi.animelist.ui.components.KitsugiActivityDetailBottomSheet(
-            activityId = activeActivityIdForDetail!!,
+            activityId = actId,
             apiClient = apiClient,
             onUserProfileClick = { uid, uname, uavatar, _ ->
                 if (uid != null) {
@@ -681,13 +683,16 @@ private fun SourceNotifPage(
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(bottom = 80.dp)
     ) {
-        if (hasMalWebSessionAction) {
+        if (hasMalWebSessionAction && malWebSessionTitle != null && malWebSessionHint != null && onMalWebSessionAction != null) {
+            val sessionTitle = malWebSessionTitle
+            val sessionHint = malWebSessionHint
+            val sessionAction = onMalWebSessionAction
             item(key = "mal_web_session_action") {
                 MalWebSessionActionCard(
-                    title = malWebSessionTitle!!,
-                    hint = malWebSessionHint!!,
+                    title = sessionTitle,
+                    hint = sessionHint,
                     accentColor = accentColor,
-                    onClick = onMalWebSessionAction!!
+                    onClick = sessionAction
                 )
             }
         }
@@ -705,13 +710,14 @@ private fun SourceNotifPage(
                     item { LoadingState(accentColor) }
                 }
                 state.error != null && state.items.isEmpty() -> {
-                    item { CenteredEmptyState(state.error!!) }
+                    val errText = state.error.orEmpty()
+                    item { CenteredEmptyState(errText) }
                 }
                 state.items.isEmpty() -> {
                     item { CenteredEmptyState(emptyMessage) }
                 }
                 else -> {
-                    items(state.items, key = { it.id }) { notif ->
+                    itemsIndexed(state.items, key = { idx, it -> "${idx}_${it.id}" }) { _, notif ->
                         NotifItemRow(
                             notif = notif,
                             accentColor = accentColor,

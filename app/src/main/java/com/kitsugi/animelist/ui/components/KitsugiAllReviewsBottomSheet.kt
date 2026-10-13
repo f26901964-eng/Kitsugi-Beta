@@ -528,9 +528,9 @@ fun KitsugiAllReviewsBottomSheet(
         }
     }
 
-    if (activeReviewForDetail != null) {
+    activeReviewForDetail?.let { rev ->
         KitsugiReviewDetailBottomSheet(
-            review = activeReviewForDetail!!,
+            review = rev,
             apiClient = apiClient,
             onUserProfileClick = onUserProfileClick,
             onDismiss = { activeReviewForDetail = null }

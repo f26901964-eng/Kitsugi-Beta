@@ -148,7 +148,12 @@ class KitsugiSplashActivity : AppCompatActivity() {
             mediaPlayer = MediaPlayer.create(this, resId)?.apply {
                 setVolume(0.85f, 0.85f)
                 isLooping = false
-                setOnCompletionListener { release() }
+                setOnCompletionListener { mp ->
+                    runCatching { mp.release() }
+                    if (mediaPlayer === mp) {
+                        mediaPlayer = null
+                    }
+                }
                 start()
             }
         } catch (_: Exception) {
@@ -243,13 +248,13 @@ class KitsugiSplashActivity : AppCompatActivity() {
 
     override fun onPause() {
         super.onPause()
-        mediaPlayer?.takeIf { it.isPlaying }?.pause()
+        runCatching { mediaPlayer?.takeIf { it.isPlaying }?.pause() }
     }
 
     override fun onResume() {
         super.onResume()
         if (!transitionStarted) {
-            mediaPlayer?.takeIf { !it.isPlaying }?.start()
+            runCatching { mediaPlayer?.takeIf { !it.isPlaying }?.start() }
         }
     }
 

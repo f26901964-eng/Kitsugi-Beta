@@ -361,13 +361,17 @@ class KitsugiApplication : Application(), SingletonImageLoader.Factory {
         // Handler to delay-null activeActivity (gives plugin dialogs time to close)
         val activityNullHandler = android.os.Handler(android.os.Looper.getMainLooper())
         registerActivityLifecycleCallbacks(object : ActivityLifecycleCallbacks {
-            override fun onActivityCreated(activity: android.app.Activity, savedInstanceState: android.os.Bundle?) {}
+            override fun onActivityCreated(activity: android.app.Activity, savedInstanceState: android.os.Bundle?) {
+                disableForceDarkOnActivity(activity)
+            }
             override fun onActivityStarted(activity: android.app.Activity) {
+                disableForceDarkOnActivity(activity)
                 // Cancel any pending null — new activity is becoming visible
                 activityNullHandler.removeCallbacksAndMessages(null)
                 com.lagradost.api.setContext(java.lang.ref.WeakReference(getDynamicContext(activity)))
             }
             override fun onActivityResumed(activity: android.app.Activity) {
+                disableForceDarkOnActivity(activity)
                 activityNullHandler.removeCallbacksAndMessages(null)
                 activeActivity = activity
                 com.lagradost.api.setContext(java.lang.ref.WeakReference(getDynamicContext(activity)))
@@ -566,14 +570,54 @@ class KitsugiApplication : Application(), SingletonImageLoader.Factory {
                     .maxSizeBytes(512L * 1024 * 1024)
                     .build()
             }
-            // PERF: crossfade kaldırıldı — LazyList/Grid içinde kaydırma anında her yeni
-            // kart görseli crossfade animasyonu başlatıyordu ve bu scroll jank'ın başlıca
-            // sebeplerinden biriydi. Görseller anında (placeholder yerine doğrudan) görünür.
+            // PERF & STABILITY:
+            // 1) crossfade(false): LazyList/Grid içinde kaydırma anında her yeni kart görseli
+            //    crossfade animasyonu başlatmasın.
+            // 2) allowHardware(false): API 28+ ImageDecoder allowHardware(true) iken tüm görselleri
+            //    AHardwareBuffer (/dev/kgsl-3d0 + dmabuf) olarak ayırır, allowRgb565(true) ayarını
+            //    yok sayar ve galeri/profil geçişlerinde GPU buffer havuzunu tüketerek
+            //    RenderInspector DequeueBuffer timeout + libhwui.so RenderThread SIGSEGV'e yol açar.
+            //    allowHardware(false) ile RGB_565 gerçekten devreye girer (%50 RAM tasarrufu).
             .crossfade(false)
-            .allowHardware(true)
+            .allowHardware(false)
             .allowRgb565(true)           // posterlerde %50 bellek tasarrufu
             .precision(Precision.INEXACT)
             .build()
+    }
+}
+
+/**
+ * MIUI / HyperOS ve Android 10+ (API 29+) cihazlarda sistemin "Force Dark" (TransformCanvas)
+ * katmanını DecorView ve tüm alt View ağacında (AndroidComposeView dahil) devre dışı bırakır.
+ *
+ * NEDEN: MIUI ForceDark açıkken libhwui.so içindeki RenderNodeDrawable::drawContent (+0x23bb88)
+ * çizimi TransformCanvas (+0x2779c4) üzerinden geçirir ve Compose'un iç içe RenderNode + Shader
+ * ağacında SkShader null pointer dereference (+0x3ff650, fault_addr=0x20) ile RenderThread'i çökertir.
+ */
+private fun disableForceDarkOnActivity(activity: android.app.Activity) {
+    if (android.os.Build.VERSION.SDK_INT < android.os.Build.VERSION_CODES.Q) return
+    runCatching {
+        val decorView = activity.window?.peekDecorView() ?: activity.window?.decorView ?: return@runCatching
+        disableForceDarkTree(decorView)
+        decorView.post {
+            runCatching {
+                if (!activity.isFinishing && !activity.isDestroyed) {
+                    disableForceDarkTree(decorView)
+                }
+            }
+        }
+    }
+}
+
+private fun disableForceDarkTree(view: android.view.View) {
+    if (android.os.Build.VERSION.SDK_INT < android.os.Build.VERSION_CODES.Q) return
+    runCatching {
+        view.isForceDarkAllowed = false
+        if (view is android.view.ViewGroup) {
+            for (i in 0 until view.childCount) {
+                view.getChildAt(i)?.let { disableForceDarkTree(it) }
+            }
+        }
     }
 }
 

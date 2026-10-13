@@ -144,6 +144,16 @@ class AppViewModel : ViewModel() {
 
     private val tabHistory = java.util.ArrayList<MainTab>()
 
+    var hasSetInitialTab: Boolean = false
+        internal set
+
+    fun setInitialTab(tab: MainTab) {
+        if (!hasSetInitialTab) {
+            hasSetInitialTab = true
+            selectedTab = tab
+        }
+    }
+
     fun selectTab(tab: MainTab) {
         if (selectedTab != tab) {
             tabHistory.remove(tab)

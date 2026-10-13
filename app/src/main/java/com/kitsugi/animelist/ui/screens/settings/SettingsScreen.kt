@@ -36,6 +36,7 @@ import com.kitsugi.animelist.ui.theme.gradient.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -65,6 +66,8 @@ import com.kitsugi.animelist.ui.components.KitsugiSettingsDivider
 import com.kitsugi.animelist.ui.components.KitsugiSettingsItem
 import com.kitsugi.animelist.ui.components.KitsugiSettingsSection
 import com.kitsugi.animelist.ui.components.KitsugiSystemSettingsDialog
+import com.kitsugi.animelist.ui.components.KitsugiDropdownPresentation
+import com.kitsugi.animelist.ui.components.LocalKitsugiDropdownPresentation
 import com.kitsugi.animelist.ui.theme.KitsugiColors
 import com.kitsugi.animelist.ui.theme.LocalKitsugiAccent
 
@@ -186,7 +189,12 @@ fun SettingsScreen(
         }
     }
 
-    AnimatedContent(
+    // Ayarlar içindeki tüm tek-seçimli açılır alanlar, çapa bağlı taşan paneller yerine
+    // AniHyou benzeri ortalanmış ve arka planı karartan seçim penceresi olarak açılır.
+    CompositionLocalProvider(
+        LocalKitsugiDropdownPresentation provides KitsugiDropdownPresentation.SettingsDialog
+    ) {
+        AnimatedContent(
         targetState = route,
         transitionSpec = {
             if (targetState != SettingsRoute.Main) {
@@ -497,6 +505,7 @@ fun SettingsScreen(
                     PlatformErrorCatalogScreen()
                 }
             }
+        }
         }
     }
 

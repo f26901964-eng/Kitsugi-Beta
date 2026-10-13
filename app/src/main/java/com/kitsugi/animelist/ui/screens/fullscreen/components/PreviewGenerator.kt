@@ -76,67 +76,70 @@ class PreviewGenerator(
                 Log.d(TAG, "Cache miss or incomplete: extracting $totalFrames frames for $urlHash")
                 
                 val retriever = MediaMetadataRetriever()
-                if (headers.isNotEmpty() && Build.VERSION.SDK_INT >= Build.VERSION_CODES.ICE_CREAM_SANDWICH) {
-                    retriever.setDataSource(videoUrl, headers)
-                } else {
-                    retriever.setDataSource(videoUrl)
-                }
-
-                // Verify duration from media details if possible
-                val metaDuration = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)?.toLongOrNull()
-                if (metaDuration != null && metaDuration > 0) {
-                    durationMs = metaDuration
-                    stepMs = durationMs / totalFrames
-                }
-
-                for (i in 0 until totalFrames) {
-                    if (!isActive) break
-
-                    val frameFile = File(cacheDir, "$i.jpg")
-                    if (frameFile.exists() && frameFile.length() > 0) {
-                        continue
+                try {
+                    if (headers.isNotEmpty() && Build.VERSION.SDK_INT >= Build.VERSION_CODES.ICE_CREAM_SANDWICH) {
+                        retriever.setDataSource(videoUrl, headers)
+                    } else {
+                        retriever.setDataSource(videoUrl)
                     }
 
-                    val timeUs = (i * stepMs) * 1000L
-                    val bitmap = try {
-                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
-                            retriever.getScaledFrameAtTime(
-                                timeUs,
-                                MediaMetadataRetriever.OPTION_CLOSEST_SYNC,
-                                PREVIEW_WIDTH,
-                                PREVIEW_HEIGHT
-                            )
-                        } else {
-                            val raw = retriever.getFrameAtTime(timeUs, MediaMetadataRetriever.OPTION_CLOSEST_SYNC)
-                            raw?.let {
-                                val scaled = Bitmap.createScaledBitmap(it, PREVIEW_WIDTH, PREVIEW_HEIGHT, true)
-                                if (scaled != it) {
-                                    it.recycle()
-                                }
-                                scaled
-                            }
+                    // Verify duration from media details if possible
+                    val metaDuration = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)?.toLongOrNull()
+                    if (metaDuration != null && metaDuration > 0) {
+                        durationMs = metaDuration
+                        stepMs = durationMs / totalFrames
+                    }
+
+                    for (i in 0 until totalFrames) {
+                        if (!isActive) break
+
+                        val frameFile = File(cacheDir, "$i.jpg")
+                        if (frameFile.exists() && frameFile.length() > 0) {
+                            continue
                         }
-                    } catch (e: Exception) {
-                        Log.w(TAG, "Failed to extract frame at $timeUs us: ${e.message}")
-                        null
-                    }
 
-                    if (bitmap != null) {
-                        // Save to cache dir
-                        try {
-                            FileOutputStream(frameFile).use { out ->
-                                bitmap.compress(Bitmap.CompressFormat.JPEG, 70, out)
+                        val timeUs = (i * stepMs) * 1000L
+                        val bitmap = try {
+                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
+                                retriever.getScaledFrameAtTime(
+                                    timeUs,
+                                    MediaMetadataRetriever.OPTION_CLOSEST_SYNC,
+                                    PREVIEW_WIDTH,
+                                    PREVIEW_HEIGHT
+                                )
+                            } else {
+                                val raw = retriever.getFrameAtTime(timeUs, MediaMetadataRetriever.OPTION_CLOSEST_SYNC)
+                                raw?.let {
+                                    val scaled = Bitmap.createScaledBitmap(it, PREVIEW_WIDTH, PREVIEW_HEIGHT, true)
+                                    if (scaled !== it) {
+                                        it.recycle()
+                                    }
+                                    scaled
+                                }
                             }
                         } catch (e: Exception) {
-                            Log.e(TAG, "Failed to save frame $i to cache", e)
+                            Log.w(TAG, "Failed to extract frame at $timeUs us: ${e.message}")
+                            null
                         }
-                        
-                        // Keep in-memory if near start, or recycle to save memory
-                        // We will lazily load from disk when requested, so we recycle immediately
-                        bitmap.recycle()
+
+                        if (bitmap != null) {
+                            // Save to cache dir
+                            try {
+                                FileOutputStream(frameFile).use { out ->
+                                    bitmap.compress(Bitmap.CompressFormat.JPEG, 70, out)
+                                }
+                            } catch (e: Exception) {
+                                Log.e(TAG, "Failed to save frame $i to cache", e)
+                            }
+
+                            // Keep in-memory if near start, or recycle to save memory
+                            // This bitmap was never exposed to UI, so recycling here is safe
+                            bitmap.recycle()
+                        }
                     }
+                } finally {
+                    runCatching { retriever.release() }
                 }
-                retriever.release()
                 // Update directory lastModified so LRU knows it was recently active
                 cacheDir.setLastModified(System.currentTimeMillis())
                 Log.d(TAG, "Completed preview extraction for $urlHash")
@@ -177,14 +180,13 @@ class PreviewGenerator(
     }
 
     private fun cleanMemoryCache(exceptIndex: Int) {
-        // Keep up to 3 frames in memory (previous, current, next) and recycle others
+        // Keep up to 3 frames in memory (previous, current, next).
+        // NOT: UI'ya (Compose ImageBitmap / RenderNode) teslim edilmiş bitmap'ler üzerinde
+        // asla .recycle() ÇAĞIRMA — RenderThread o sırada önceki kareyi çiziyorsa
+        // "Canvas: trying to use a recycled bitmap" veya libhwui.so SIGSEGV oluşur.
+        // Referansı null yapmak GC / NativeAllocationRegistry için yeterlidir.
         for (i in images.indices) {
             if (i < exceptIndex - 1 || i > exceptIndex + 1) {
-                images[i]?.let {
-                    if (!it.isRecycled) {
-                        it.recycle()
-                    }
-                }
                 images[i] = null
             }
         }
@@ -195,11 +197,6 @@ class PreviewGenerator(
         scope.cancel()
         synchronized(images) {
             for (i in images.indices) {
-                images[i]?.let {
-                    if (!it.isRecycled) {
-                        it.recycle()
-                    }
-                }
                 images[i] = null
             }
         }

@@ -524,9 +524,9 @@ fun KitsugiAllTopicsBottomSheet(
         }
     }
 
-    if (activeTopicForDetail != null) {
+    activeTopicForDetail?.let { top ->
         KitsugiTopicDetailBottomSheet(
-            topic = activeTopicForDetail!!,
+            topic = top,
             source = source,
             apiClient = apiClient,
             onUserProfileClick = onUserProfileClick,

@@ -343,6 +343,15 @@ fun KitsugiImageGalleryDialog(
             decorFitsSystemWindows = false
         )
     ) {
+        val dialogView = androidx.compose.ui.platform.LocalView.current
+        if (!dialogView.isInEditMode && android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
+            androidx.compose.runtime.SideEffect {
+                runCatching {
+                    dialogView.isForceDarkAllowed = false
+                    dialogView.rootView?.isForceDarkAllowed = false
+                }
+            }
+        }
         Box(modifier = Modifier.fillMaxSize()) {
             AnimatedVisibility(
                 visible = isAnimatedVisible,
@@ -1789,8 +1798,19 @@ private fun GalleryImagePage(
             contentAlignment = Alignment.Center
         ) {
             // +18 içeriklerde her koşulda bulanıklık (cihaz desteklemiyorsa bitmap blur)
+            // BELLEK KORUMASI: 4K/6K TMDB/Fanart görsellerini tam çözünürlükte decode etmek
+            // sayfa başına 50-96 MB tüketip DequeueBuffer timeout + RenderThread SIGSEGV
+            // üretir; 1440x2160 INEXACT sınırı görsel kaliteyi korurken belleği %80 düşürür.
+            val galleryContext = LocalContext.current
+            val boundedGalleryModel = remember(imageUrl, galleryContext) {
+                coil3.request.ImageRequest.Builder(galleryContext)
+                    .data(imageUrl)
+                    .size(1440, 2160)
+                    .precision(coil3.size.Precision.INEXACT)
+                    .build()
+            }
             KitsugiNsfwImage(
-                model = imageUrl,
+                model = boundedGalleryModel,
                 contentDescription = stringResource(R.string.gallery_image_accessibility, title, page),
                 isAdult = isAdult,
                 modifier = Modifier

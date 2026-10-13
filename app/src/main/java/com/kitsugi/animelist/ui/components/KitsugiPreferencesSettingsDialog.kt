@@ -329,7 +329,8 @@ private fun AppearanceTab(
         KitsugiChoiceOption(id = "LAST_USED", title = stringResource(R.string.option_last_used), description = ""),
         KitsugiChoiceOption(id = "Explore", title = stringResource(R.string.tab_explore), description = ""),
         KitsugiChoiceOption(id = "MyList", title = stringResource(R.string.tab_mylist), description = ""),
-        KitsugiChoiceOption(id = "Search", title = stringResource(R.string.tab_search), description = "")
+        KitsugiChoiceOption(id = "Search", title = stringResource(R.string.tab_search), description = ""),
+        KitsugiChoiceOption(id = "Profile", title = stringResource(R.string.tab_profile), description = "")
     )
 
 
@@ -399,7 +400,7 @@ private fun AppearanceTab(
                     iconColor = accentColor,
                     onClick = { showThemeModeMenu = true }
                 )
-                KitsugiDropdownMenu(expanded = showThemeModeMenu, onDismissRequest = { showThemeModeMenu = false }) {
+                KitsugiDropdownMenu(expanded = showThemeModeMenu, onDismissRequest = { showThemeModeMenu = false }, dialogTitle = stringResource(R.string.settings_theme_mode)) {
                     themeModeOptions.forEach { opt ->
                         KitsugiDropdownItem(
                             text = opt.title,
@@ -554,7 +555,7 @@ private fun AppearanceTab(
                     iconColor = accentColor,
                     onClick = { showLanguageMenu = true }
                 )
-                KitsugiDropdownMenu(expanded = showLanguageMenu, onDismissRequest = { showLanguageMenu = false }) {
+                KitsugiDropdownMenu(expanded = showLanguageMenu, onDismissRequest = { showLanguageMenu = false }, dialogTitle = stringResource(R.string.settings_app_language)) {
                     appLanguageOptions.forEach { opt ->
                         KitsugiDropdownItem(
                             text = opt.title,
@@ -579,7 +580,7 @@ private fun AppearanceTab(
                     iconColor = accentColor,
                     onClick = { showDefaultTabMenu = true }
                 )
-                KitsugiDropdownMenu(expanded = showDefaultTabMenu, onDismissRequest = { showDefaultTabMenu = false }) {
+                KitsugiDropdownMenu(expanded = showDefaultTabMenu, onDismissRequest = { showDefaultTabMenu = false }, dialogTitle = stringResource(R.string.option_last_used)) {
                     defaultTabOptions.forEach { opt ->
                         KitsugiDropdownItem(
                             text = opt.title,
@@ -950,7 +951,7 @@ private fun ListScoreTab(
                     iconColor = accentColor,
                     onClick = { showTitleLanguageMenu = true }
                 )
-                KitsugiDropdownMenu(expanded = showTitleLanguageMenu, onDismissRequest = { showTitleLanguageMenu = false }) {
+                KitsugiDropdownMenu(expanded = showTitleLanguageMenu, onDismissRequest = { showTitleLanguageMenu = false }, dialogTitle = stringResource(R.string.settings_anime_title_language)) {
                     titleLanguageOptions.forEach { opt ->
                         KitsugiDropdownItem(
                             text = opt.title,
@@ -977,7 +978,7 @@ private fun ListScoreTab(
                     iconColor = accentColor,
                     onClick = { showStaffNameLanguageMenu = true }
                 )
-                KitsugiDropdownMenu(expanded = showStaffNameLanguageMenu, onDismissRequest = { showStaffNameLanguageMenu = false }) {
+                KitsugiDropdownMenu(expanded = showStaffNameLanguageMenu, onDismissRequest = { showStaffNameLanguageMenu = false }, dialogTitle = KitsugiStrings.get(R.string.ekip_karakter_adi_dili)) {
                     staffNameLanguageOptions.forEach { opt ->
                         KitsugiDropdownItem(
                             text = opt.title,
@@ -1004,7 +1005,7 @@ private fun ListScoreTab(
                     iconColor = accentColor,
                     onClick = { showTmdbLanguageMenu = true }
                 )
-                KitsugiDropdownMenu(expanded = showTmdbLanguageMenu, onDismissRequest = { showTmdbLanguageMenu = false }) {
+                KitsugiDropdownMenu(expanded = showTmdbLanguageMenu, onDismissRequest = { showTmdbLanguageMenu = false }, dialogTitle = stringResource(R.string.settings_movies_title_language)) {
                     AVAILABLE_TMDB_LANGUAGES.forEach { lang ->
                         KitsugiDropdownItem(
                             text = lang.displayName,
@@ -1030,7 +1031,7 @@ private fun ListScoreTab(
                     iconColor = accentColor,
                     onClick = { showListLayoutMenu = true }
                 )
-                KitsugiDropdownMenu(expanded = showListLayoutMenu, onDismissRequest = { showListLayoutMenu = false }) {
+                KitsugiDropdownMenu(expanded = showListLayoutMenu, onDismissRequest = { showListLayoutMenu = false }, dialogTitle = stringResource(R.string.settings_list_layout)) {
                     listLayoutOptions.forEach { opt ->
                         KitsugiDropdownItem(
                             text = opt.title,
@@ -1059,7 +1060,7 @@ private fun ListScoreTab(
                     iconColor = accentColor,
                     onClick = { showScoreFormatMenu = true }
                 )
-                KitsugiDropdownMenu(expanded = showScoreFormatMenu, onDismissRequest = { showScoreFormatMenu = false }) {
+                KitsugiDropdownMenu(expanded = showScoreFormatMenu, onDismissRequest = { showScoreFormatMenu = false }, dialogTitle = stringResource(R.string.settings_score_format)) {
                     scoreFormatOptions.forEach { opt ->
                         KitsugiDropdownItem(
                             text = opt.title,
@@ -1085,7 +1086,7 @@ private fun ListScoreTab(
                     iconColor = accentColor,
                     onClick = { showScoreStepMenu = true }
                 )
-                KitsugiDropdownMenu(expanded = showScoreStepMenu, onDismissRequest = { showScoreStepMenu = false }) {
+                KitsugiDropdownMenu(expanded = showScoreStepMenu, onDismissRequest = { showScoreStepMenu = false }, dialogTitle = KitsugiStrings.get(R.string.puanlama_adimlari)) {
                     scoreStepOptions.forEach { opt ->
                         KitsugiDropdownItem(
                             text = opt.title,
@@ -1859,7 +1860,7 @@ private fun MangaReaderTab(
                     iconColor = accentColor,
                     onClick = { showReadingModeMenu = true }
                 )
-                KitsugiDropdownMenu(expanded = showReadingModeMenu, onDismissRequest = { showReadingModeMenu = false }) {
+                KitsugiDropdownMenu(expanded = showReadingModeMenu, onDismissRequest = { showReadingModeMenu = false }, dialogTitle = stringResource(R.string.manga_reading_direction)) {
                     readingModeOptions.forEach { opt ->
                         KitsugiDropdownItem(
                             text = opt.title,
@@ -1884,7 +1885,7 @@ private fun MangaReaderTab(
                     iconColor = accentColor,
                     onClick = { showColorFilterMenu = true }
                 )
-                KitsugiDropdownMenu(expanded = showColorFilterMenu, onDismissRequest = { showColorFilterMenu = false }) {
+                KitsugiDropdownMenu(expanded = showColorFilterMenu, onDismissRequest = { showColorFilterMenu = false }, dialogTitle = stringResource(R.string.manga_color_filter)) {
                     colorFilterOptions.forEach { opt ->
                         KitsugiDropdownItem(
                             text = opt.title,
@@ -1909,7 +1910,7 @@ private fun MangaReaderTab(
                     iconColor = accentColor,
                     onClick = { showFitModeMenu = true }
                 )
-                KitsugiDropdownMenu(expanded = showFitModeMenu, onDismissRequest = { showFitModeMenu = false }) {
+                KitsugiDropdownMenu(expanded = showFitModeMenu, onDismissRequest = { showFitModeMenu = false }, dialogTitle = stringResource(R.string.manga_page_fit)) {
                     fitModeOptions.forEach { opt ->
                         KitsugiDropdownItem(
                             text = opt.title,

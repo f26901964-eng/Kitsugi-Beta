@@ -307,20 +307,23 @@ fun KitsugiUserProfileScreen(
 
                         androidx.compose.foundation.pager.HorizontalPager(
                             state = pagerState,
-                            beyondViewportPageCount = 1,
+                            beyondViewportPageCount = 0,
                             pageSpacing = 12.dp,
                             verticalAlignment = Alignment.Top,
                             modifier = Modifier.fillMaxWidth()
                                 .layout { measurable, constraints ->
-                                    val minH = with(density) { (screenH - 64).dp.roundToPx() }
+                                    val minH = with(density) { (screenH - 64).dp.roundToPx() }.coerceAtLeast(0)
                                     val placeable = measurable.measure(constraints.copy(minHeight = minH, maxHeight = androidx.compose.ui.unit.Constraints.Infinity))
-                                    val h = interpolatedH?.roundToPx()?.coerceAtLeast(minH) ?: placeable.height
+                                    val h = (interpolatedH?.roundToPx()?.coerceAtLeast(minH) ?: placeable.height)
+                                        .coerceIn(minH, 16_000_000)
                                     layout(placeable.width, h) { placeable.placeRelative(0, 0) }
                                 }.clipToBounds()
                         ) { page ->
                             Column(
                                 modifier = Modifier.fillMaxWidth()
-                                    .onGloballyPositioned { pageHeights[page] = it.size.height },
+                                    .onGloballyPositioned {
+                                        com.kitsugi.animelist.ui.utils.KitsugiScrollDefaults.recordStablePageHeight(pageHeights, page, it.size.height)
+                                    },
                                 verticalArrangement = Arrangement.spacedBy(16.dp)
                             ) {
                                 when (page) {
