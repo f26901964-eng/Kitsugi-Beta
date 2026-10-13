@@ -24,8 +24,10 @@ import kotlinx.serialization.json.Json
  *    Mevcut otomatik temizlik (MappingSyncWorker + StorageJanitor, 30 gün) bu kayıtları da
  *    kapsar; Room şeması değişmez. Ham HTML değil, sadeleştirilmiş JSON saklanır.
  *
- * Süreler: wiki eşleşmesi 30 gün, karakter sayfası ve bölümler 7 gün, "bulunamadı" 3 gün.
- * Çözümleme sırasında ağ hatası olduysa "bulunamadı" sonucu kalıcı önbelleğe yazılmaz.
+ * Süreler: wiki eşleşmesi 30 gün, karakter sayfası ve bölümler 7 gün, "bulunamadı" 1 gün.
+ * Çözümleme sırasında ağ hatası olduysa "bulunamadı" sonucu kalıcı önbelleğe yazılmaz
+ * (geçici kesinti bellekte 10 dk tutulur). Kullanıcı "Tekrar dene" derse önbellekler
+ * (olumsuz kayıtlar dahil) okunmadan çözümleme baştan yapılır.
  */
 object FandomRepository {
 
@@ -41,7 +43,9 @@ object FandomRepository {
     /** Evren rehberi çiplerinde bir seferde çekilen kategori üyesi sayısı. */
     private const val GUIDE_PAGE_SIZE = 14
     private const val BLURB_TTL_MS = 7L * DAY_MS
-    private const val NEGATIVE_TTL_MS = 3L * DAY_MS
+    /** "Bulunamadı" kaydı: yalnızca zincir tamamen sağlıklıysa kalıcı yazılır; 3 gün yerine
+     *  1 gün tutulur ki bayat olumsuz kayıtlar sekmeyi gereğinden uzun gizlemesin. */
+    private const val NEGATIVE_TTL_MS = 1L * DAY_MS
     private const val TRANSIENT_NEGATIVE_TTL_MS = 10L * 60L * 1000L
     private const val SEARCH_MEMO_TTL_MS = 5L * 60L * 1000L
 
@@ -82,7 +86,16 @@ object FandomRepository {
 
     // ── Yapım → wiki ─────────────────────────────────────────────────────────
 
-    suspend fun resolveMediaWiki(context: Context, query: FandomMediaQuery, allowNameFallback: Boolean): FandomWikiRef? {
+    /**
+     * [forceRefresh] = "Tekrar dene": olumlu/olumsuz wiki önbelleği okunmaz, çözümleme
+     * baştan yapılır (kullanıcının onayladığı wiki kısayolu korunur).
+     */
+    suspend fun resolveMediaWiki(
+        context: Context,
+        query: FandomMediaQuery,
+        allowNameFallback: Boolean,
+        forceRefresh: Boolean = false
+    ): FandomWikiRef? {
         val appContext = context.applicationContext
         val effectiveQuery = query.normalizedMediaKind()
         val prefs = FandomWikiPrefs.state(appContext)
@@ -105,7 +118,7 @@ object FandomRepository {
         val cacheKey = wikiCacheKey(resolutionKey, nameAllowed)
 
         return lockFor(wikiLocks, cacheKey).withLock {
-            val cached = readCached(appContext, cacheKey, positiveTtl = WIKI_TTL_MS) { body ->
+            val cached = if (forceRefresh) null else readCached(appContext, cacheKey, positiveTtl = WIKI_TTL_MS) { body ->
                 json.decodeFromString(StoredWiki.serializer(), body).ref
             }
             if (cached != null) {
@@ -640,7 +653,15 @@ object FandomRepository {
 
     // ── Karakter → sayfa ─────────────────────────────────────────────────────
 
-    suspend fun resolveCharacterPage(context: Context, query: FandomCharacterQuery): FandomCharacterPage? {
+    /**
+     * [forceRefresh] = "Tekrar dene": karakter ve yapım wiki önbellekleri (olumsuz kayıtlar
+     * dahil) okunmaz; çözümleme gerçekten baştan yapılır.
+     */
+    suspend fun resolveCharacterPage(
+        context: Context,
+        query: FandomCharacterQuery,
+        forceRefresh: Boolean = false
+    ): FandomCharacterPage? {
         val appContext = context.applicationContext
         val prefs = FandomWikiPrefs.state(appContext)
         if (!prefs.enabled) return null
@@ -648,7 +669,7 @@ object FandomRepository {
         val cacheKey = characterCacheKey(characterKey, prefs)
 
         return lockFor(characterLocks, cacheKey).withLock {
-            val cached = readCached(appContext, cacheKey, positiveTtl = PAGE_TTL_MS) { body ->
+            val cached = if (forceRefresh) null else readCached(appContext, cacheKey, positiveTtl = PAGE_TTL_MS) { body ->
                 json.decodeFromString(StoredCharacter.serializer(), body).page
             }
             if (cached != null) {
@@ -663,7 +684,7 @@ object FandomRepository {
                     allowNameFallback = prefs.nameFallback,
                     isRejected = { wikiId, title -> FandomUserChoices.isPageRejected(appContext, characterKey, wikiId, title) }
                 )
-                resolver.resolve(query)?.let { buildPage(appContext, it, prefs) }?.let { applyAcceptance(appContext, characterKey, it) }
+                resolver.resolve(query, forceRefresh)?.let { buildPage(appContext, it, prefs) }?.let { applyAcceptance(appContext, characterKey, it) }
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {

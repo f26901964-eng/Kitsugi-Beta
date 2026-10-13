@@ -1,5 +1,27 @@
 # Kitsugi-Beta — Sürüm Notları / Release Notes
 
+# Kitsugi-Beta v2.4.282
+
+## 🇹🇷 Türkçe (v2.4.282)
+
+### 🩺 Karakter / Ekip / Seslendiren Wiki: Ölü "Tekrar Dene" ve Bayat "Bulunamadı" Fix'i
+- **"Tekrar dene" artık gerçekten yeniden çözümlüyor:** Karakter, ekip ve seslendiren detayındaki Wiki sekmesinin yeniden deneme düğmesi yalnızca yeniden bağlanıyordu; karakter ve yapım wiki katmanlarındaki "bulunamadı" önbelleği (3 güne kadar) ile süreç içi "wiki yok" listesi (30 dk) aynı sonucu ağa çıkmadan geri veriyordu. Artık `forceRefresh` ile önbellekler (olumsuz kayıtlar dahil) okunmadan çözümleme baştan yapılıyor ve zehir kayıtlar temizleniyor (`FandomWikiResolver.forgetMissingWikis`).
+- **Geçici kesintiler kalıcı "bulunamadı" yazmıyor:** HTTP 403/408 (Cloudflare/WMF bot koruması, zaman aşımı) geçici hata sayılıyor (404 hâlâ "wiki gerçekten yok" anlamında); kimlik köprüsü (AniList/Kitsu/Simkl) istisnaları `FandomHttp.markFailure()` ile işaretleniyor; Wikidata karakter yedeğinde tek kimliğin ağ hatası zinciri kırmıyor.
+- **Bayat olumsuz kayıt penceresi kısaldı:** 3 gün → 1 gün.
+- **Sonuç:** Fandom sayfası var olan karakterlerde (örn. Date A Live → Kotori Itsuka) geçici kesinti sonrası günlerce süren "Wiki bulunamadı" durumu ve çalışmayan yeniden deneme düğmesi giderildi.
+
+---
+
+## 🇬🇧 English (v2.4.282)
+
+### 🩺 Character / Staff / VA Wiki: Dead "Retry" & Stale "Not Found" Fix
+- **Retry now truly re-resolves:** The Wiki tab retry on character, staff and voice-actor pages only re-bound the view model; the character- and media-wiki-layer "not found" caches (up to 3 days) plus the in-process "missing wiki" list (30 min) returned the same result without any network call. Retry now clears poison entries and re-resolves with caches bypassed (negative entries included) via `forceRefresh`.
+- **Transient outages no longer persist a "not found":** HTTP 403/408 (Cloudflare/WMF bot protection, timeouts) count as transient failures (404 still means "wiki really absent"); identity-bridge (AniList/Kitsu/Simkl) exceptions are marked via `FandomHttp.markFailure()`; a single failing Wikidata identity lookup no longer aborts the character fallback chain.
+- **Stale negative window shortened:** 3 days → 1 day.
+- **Result:** Characters whose Fandom page exists (e.g. Date A Live → Kotori Itsuka) no longer stay hidden for days after a transient outage, and the retry button recovers them immediately.
+
+---
+
 # Kitsugi-Beta v2.4.281
 
 ## 🇹🇷 Türkçe (v2.4.281)

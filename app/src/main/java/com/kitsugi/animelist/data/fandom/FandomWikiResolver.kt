@@ -68,6 +68,15 @@ internal class FandomWikiResolver(
             siteInfoCache[info.wikiId] = info
             return info
         }
+
+        /**
+         * "Tekrar dene": süreç içi "wiki yok" zehir kayıtları temizlenir. Geçici bir DNS/HTTP
+         * hatasıyla dolan bu liste, 30 dk boyunca canlı wiki'yi yok saydırıp kullanıcıya
+         * "buton çalışmıyor" hissi verebiliyordu.
+         */
+        fun forgetMissingWikis() {
+            missingWikis.clear()
+        }
     }
 
     suspend fun resolve(query: FandomMediaQuery, allowNameFallback: Boolean): FandomWikiRef? {
@@ -593,6 +602,10 @@ internal class FandomWikiResolver(
         throw e
     } catch (e: Exception) {
         Log.w(TAG, "Kimlik çözümlemesi başarısız: ${e.message}")
+        // Kimlik köprüsü (AniList/Kitsu/Simkl…) dış bir bağımlılıktır: buradaki patlama
+        // geçici bir kesintidir. İşaretlenmezse "bulunamadı" sonucu kalıcı önbelleğe yazılıp
+        // wiki'yi (ve dolaylı olarak karakter sayfalarını) yok yere gizliyordu.
+        FandomHttp.markFailure()
         null
     }
 }

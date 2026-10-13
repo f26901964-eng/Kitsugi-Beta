@@ -61,7 +61,13 @@ internal object FandomHttp {
                     when {
                         response.isSuccessful -> response.body?.string()
                         else -> {
-                            if (response.code == 429 || response.code >= 500) failures.incrementAndGet()
+                            // 403/408/429/5xx bu uçlarda hiçbir zaman "veri yok" anlamına gelmez
+                            // (Cloudflare/WMF bot koruması, zaman aşımı, sunucu hatası): geçici
+                            // sayılır ki çağran "bulunamadı" sonucunu kalıcı önbelleğe yazmasın.
+                            // 404 bilinçli olarak sayılmaz: olmayan wiki gerçekten 404 döner.
+                            if (response.code == 403 || response.code == 408 || response.code == 429 || response.code >= 500) {
+                                failures.incrementAndGet()
+                            }
                             Log.w(TAG, "HTTP ${response.code} ← ${shorten(url)}")
                             null
                         }

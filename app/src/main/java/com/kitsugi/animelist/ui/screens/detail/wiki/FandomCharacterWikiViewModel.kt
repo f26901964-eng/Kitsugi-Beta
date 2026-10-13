@@ -9,6 +9,7 @@ import com.kitsugi.animelist.data.fandom.FandomCharacterQueries
 import com.kitsugi.animelist.data.fandom.FandomCharacterQuery
 import com.kitsugi.animelist.data.fandom.FandomRepository
 import com.kitsugi.animelist.data.fandom.FandomSectionContent
+import com.kitsugi.animelist.data.fandom.FandomWikiResolver
 import com.kitsugi.animelist.data.fandom.FandomWikiPrefs
 import com.kitsugi.animelist.data.local.TranslationManager
 import com.kitsugi.animelist.data.remote.KitsugiCharacterDetail
@@ -162,7 +163,7 @@ class FandomCharacterWikiViewModel(application: Application) : AndroidViewModel(
      * Genel bağlama: [queryProvider] null dönerse sekme "bulunamadı" durumuna düşer.
      * Aynı sorgu + aynı tercihler için yeniden çözümleme yapılmaz.
      */
-    fun bindQuery(fallbackKey: String, queryProvider: () -> FandomCharacterQuery?) {
+    fun bindQuery(fallbackKey: String, queryProvider: () -> FandomCharacterQuery?, forceRefresh: Boolean = false) {
         lastBinding = { queryProvider() to fallbackKey }
         val prefsState = FandomWikiPrefs.state(appContext)
         val query = queryProvider()
@@ -186,7 +187,7 @@ class FandomCharacterWikiViewModel(application: Application) : AndroidViewModel(
         _state.value = UiState.Loading
         resolveJob = viewModelScope.launch {
             val page = try {
-                FandomRepository.resolveCharacterPage(appContext, query)
+                FandomRepository.resolveCharacterPage(appContext, query, forceRefresh)
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
@@ -203,14 +204,36 @@ class FandomCharacterWikiViewModel(application: Application) : AndroidViewModel(
         }
     }
 
-    private fun rebind() {
+    private fun rebind(forceRefresh: Boolean = false) {
         val binding = lastBinding ?: return
         boundKey = null
-        bindQuery(fallbackKey = binding().second, queryProvider = { binding().first })
+        bindQuery(
+            fallbackKey = binding().second,
+            queryProvider = { binding().first },
+            forceRefresh = forceRefresh
+        )
     }
 
-    /** "Tekrar dene": son karakter için çözümlemeyi sıfırdan başlatır. */
-    fun retry() = rebind()
+    /**
+     * "Tekrar dene": çözümleme gerçekten baştan yapılır.
+     *
+     * Önceki davranış yalnızca yeniden bağlanıyordu; karakter ve yapım wiki katmanlarındaki
+     * "bulunamadı" önbelleği (3 güne kadar) ve süreç içi "wiki yok" listesi aynı sonucu
+     * anında geri verdiği için düğme ölü gibi görünüyordu. Artık zehir kayıtlar temizlenir
+     * ve [bindQuery] çözümlemeyi `forceRefresh` ile (önbellek okumadan) çalıştırır.
+     */
+    fun retry() {
+        viewModelScope.launch {
+            try {
+                FandomWikiResolver.forgetMissingWikis()
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                Log.w(TAG, "Eksik wiki listesi temizlenemedi: ${e.message}")
+            }
+            rebind(forceRefresh = true)
+        }
+    }
 
     /** Orijinal / çeviri geçişi: bu anahtar için orijinal metnin gösterilip gösterilmeyeceğini değiştirir. */
     fun toggleOriginal(key: String) {

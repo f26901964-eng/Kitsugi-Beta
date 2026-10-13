@@ -38,9 +38,10 @@ internal class FandomCharacterResolver(
         val NATIVE_LABEL = Regex("(?i)(kanji|japanese|hangul|korean|chinese|native|日本語|漢字|한글)")
     }
 
-    suspend fun resolve(query: FandomCharacterQuery): FandomResolvedCharacter? {
+    /** [forceRefresh] kullanıcı "Tekrar dene" dediğinde yapım wiki önbelleğini de atlar. */
+    suspend fun resolve(query: FandomCharacterQuery, forceRefresh: Boolean = false): FandomResolvedCharacter? {
         val articles = wikidataArticles(query)
-        val media = resolveMediaWiki(query)
+        val media = resolveMediaWiki(query, forceRefresh)
         val mediaWiki = media?.first
         val mediaKey = media?.second
 
@@ -105,7 +106,10 @@ internal class FandomCharacterResolver(
      * Ana rol + anime önce; isim yolu yalnızca ilk yapım için denenir (istek bütçesi).
      * @return (wiki, yapımın önbellek anahtarı)
      */
-    private suspend fun resolveMediaWiki(query: FandomCharacterQuery): Pair<FandomWikiRef, String?>? {
+    private suspend fun resolveMediaWiki(
+        query: FandomCharacterQuery,
+        forceRefresh: Boolean = false
+    ): Pair<FandomWikiRef, String?>? {
         val ordered = query.appearances.sortedWith(
             compareByDescending<FandomAppearanceRef> { it.isMainRole }.thenBy { it.isManga }
         )
@@ -114,7 +118,8 @@ internal class FandomCharacterResolver(
             val ref = FandomRepository.resolveMediaWiki(
                 context = context,
                 query = mediaQuery,
-                allowNameFallback = allowNameFallback && index == 0
+                allowNameFallback = allowNameFallback && index == 0,
+                forceRefresh = forceRefresh
             )
             if (ref != null) return ref to mediaQuery.cacheKey()
         }

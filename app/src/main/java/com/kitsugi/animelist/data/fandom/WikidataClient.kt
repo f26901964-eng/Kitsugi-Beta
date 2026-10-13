@@ -90,11 +90,12 @@ internal object WikidataClient {
     suspend fun characterArticles(lookups: List<Pair<String, String>>): List<String> {
         val query = WikidataParsers.buildCharacterQuery(lookups) ?: return emptyList()
         WikidataParsers.parseCharacterResults(sparql(query))?.let { return it }
-        // Yedek: Action API
+        // Yedek: Action API. Tek bir kimliğin ağ hatası zinciri kırmaz: sıradaki denenir.
+        // (Tüm sağlayıcılar hatalıysa boş döner; HTTP katmanı hatayı zaten geçici sayar.)
         for ((property, value) in lookups) {
-            val qids = findQids(property, value, limit = 2) ?: return emptyList()
+            val qids = findQids(property, value, limit = 2) ?: continue
             if (qids.isEmpty()) continue
-            val entities = getEntities(qids) ?: return emptyList()
+            val entities = getEntities(qids) ?: continue
             val articles = entities.values.flatMap { it.fandomArticleIds }.distinct()
             if (articles.isNotEmpty()) return articles
         }
