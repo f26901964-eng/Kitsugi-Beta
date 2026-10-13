@@ -32,10 +32,7 @@ import kotlin.math.roundToInt
 import kotlin.math.sin
 
 /** Renk döngüsünün kare başına yeniden kurulacak adım sayısı (kuantalama). */
-private const val PlasmaColorSteps = 24f
-
-/** Çekirdek nabzının kare başına yeniden kurulacak adım sayısı (kuantalama). */
-private const val PlasmaPulseSteps = 16f
+private const val PlasmaColorSteps = 32f
 
 /** Bu boyut ve altındaki kürelerde hafif (kompakt) çizim yolu kullanılır. */
 private val PlasmaCompactBelow: Dp = 30.dp
@@ -122,12 +119,11 @@ fun KitsugiPlasmaLoader(
 
     // Uiverse renklerinin dinamik renk geçişi (Amber altın <-> Derin kor ateşi)
     //
-    // KARE BAŞINA churn önlemi: nabız ve renk kayması 60 fps okunsa da gradyanlar
-    // yalnızca kuantalanmış adımlar değiştiğinde yeniden kurulur. Liste satırı /
-    // rozet gibi aynı ekranda onlarca örneği çizilen göstericilerde GC baskısı
-    // oluşmaması için buradan sonra animasyon değerleri adım adım ilerler.
+    // KARE BAŞINA churn önlemi: renk kayması çok yavaş ilerleyen bir döngü olduğu
+    // için 32 adıma kuantalanır — gradyan renkleri gereksiz yere her kare yeniden
+    // kurulmaz. Çekirdek nabzı (yarıçap) ise SÜREKLİ bırakılır: onu kuantalamak
+    // kürenin nefes alma hareketinde gözle görülür takılma yaratırdı.
     val colorStep = (colorPhase * PlasmaColorSteps).roundToInt() / PlasmaColorSteps
-    val pulseStep = (coreGlowPulse * PlasmaPulseSteps).roundToInt() / PlasmaPulseSteps
 
     val c1 = remember(baseOne, colorStep) {
         interpolateColor(baseOne, Color(0xFFFF8A3D), colorStep)
@@ -152,7 +148,7 @@ fun KitsugiPlasmaLoader(
                 drawCircle(
                     brush = Brush.radialGradient(
                         colors = listOf(
-                            c3.copy(alpha = 0.65f * pulseStep.coerceIn(0.8f, 1.2f)),
+                            c3.copy(alpha = 0.65f * coreGlowPulse.coerceIn(0.8f, 1.2f)),
                             c4.copy(alpha = 0.35f),
                             Color.Transparent
                         ),
@@ -225,7 +221,7 @@ fun KitsugiPlasmaLoader(
                     center = Offset(cx, cy)
                 )
 
-                val coreR = r * (0.52f + 0.12f * (pulseStep - 1f))
+                val coreR = r * (0.52f + 0.12f * (coreGlowPulse - 1f))
                 drawCircle(
                     brush = Brush.radialGradient(
                         colors = listOf(
@@ -334,9 +330,9 @@ fun KitsugiPlasmaLoader(
                             Color.Transparent
                         ),
                         center = centerOffset,
-                        radius = (w * 0.32f) * pulseStep
+                        radius = (w * 0.32f) * coreGlowPulse
                     ),
-                    radius = (w * 0.32f) * pulseStep,
+                    radius = (w * 0.32f) * coreGlowPulse,
                     center = centerOffset
                 )
 

@@ -94,8 +94,9 @@ Yapılan:
 4. **Köstebek koruması (performans):** bu 57 nokta liste satırlarında/rozetlerde aynı anda
    onlarca örneği çizilebiliyordu. plazma küresinde kare başına ~8 gradyan üretiliyordu ve
    repoda bunun GC/RenderThread çökmesine yol açtığı defalarca raporlandı. Önlemler:
-   * renk kayması 24 adıma, çekirdek nabzı 16 adıma **kuantalandı** → gradyanlar her kare
-     değil, adım değiştikçe kuruluyor;
+   * renk döngüsü (6 sn) 32 adıma **kuantalandı** → gradyan renkleri her kare değil, adım
+     değiştikçe kuruluyor; çekirdek nabzı (yarıçap) bilinçli olarak sürekli bırakıldı,
+     çünkü onu kuantalamak kürenin nefes alma hareketini takılma yaptıracaktı;
    * **30 dp ve altı için kompakt çizim yolu** eklendi (kehribar hâle + akkor çekirdek +
      yörüngedeki parlak nokta = 3 gradyan, dönen poligonlar ve karışım modları yok);
    * çizim artık `size` parametresine değil **ölçülen kutuya** (`DrawScope.size`) bağlandı;
