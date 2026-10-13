@@ -196,6 +196,15 @@ object FandomApiParsers {
         return members.objects().mapNotNull { it.str("title") }.distinct()
     }
 
+    /**
+     * `continue` bloğundaki sonraki sayfa jetonu. Kategoride başka üye yoksa `null`
+     * döner — "Devamını göster" düğmesinin görünürlüğü buna bağlıdır.
+     */
+    fun parseContinueToken(json: String?): String? =
+        parseJsonObject(json)?.optJSONObject("continue")
+            ?.str("cmcontinue")
+            ?.takeIf { it.isNotBlank() }
+
     /** `list=search` sonucu: başlık + etiketlerden arındırılmış snippet. */
     fun parseSearchHits(json: String?): List<FandomSearchHit> {
         val search = parseJsonObject(json)?.optJSONObject("query")?.optJSONArray("search") ?: return emptyList()

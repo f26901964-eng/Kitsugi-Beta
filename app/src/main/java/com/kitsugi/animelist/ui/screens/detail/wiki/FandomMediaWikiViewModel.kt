@@ -4,6 +4,8 @@ import android.app.Application
 import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.kitsugi.animelist.data.fandom.FandomGuideGroup
+import com.kitsugi.animelist.data.fandom.FandomGuideItem
 import com.kitsugi.animelist.data.fandom.FandomMediaQuery
 import com.kitsugi.animelist.data.fandom.FandomPageBlurb
 import com.kitsugi.animelist.data.fandom.FandomRepository
@@ -50,6 +52,16 @@ class FandomMediaWikiViewModel(application: Application) : AndroidViewModel(appl
         data object Failed : GuideState
     }
 
+    /**
+     * "Devamını göster" akışının durumu (aynı anda tek grup yüklenir).
+     * [Failed] yalnızca ilgili grubun düğmesinde "tekrar dene" ipucu gösterir; çipler kalır.
+     */
+    sealed interface GuideMore {
+        data object Idle : GuideMore
+        data class Loading(val group: FandomGuideGroup) : GuideMore
+        data class Failed(val group: FandomGuideGroup) : GuideMore
+    }
+
     sealed interface BlurbState {
         data object Idle : BlurbState
         data object Loading : BlurbState
@@ -87,6 +99,9 @@ class FandomMediaWikiViewModel(application: Application) : AndroidViewModel(appl
     private val _guide = MutableStateFlow<GuideState>(GuideState.Idle)
     val guide: StateFlow<GuideState> = _guide.asStateFlow()
 
+    private val _guideMore = MutableStateFlow<GuideMore>(GuideMore.Idle)
+    val guideMore: StateFlow<GuideMore> = _guideMore.asStateFlow()
+
     private val _summary = MutableStateFlow<BlurbState>(BlurbState.Idle)
     val summary: StateFlow<BlurbState> = _summary.asStateFlow()
 
@@ -111,6 +126,7 @@ class FandomMediaWikiViewModel(application: Application) : AndroidViewModel(appl
     private var lastQuery: FandomMediaQuery? = null
     private var resolveJob: Job? = null
     private var guideJob: Job? = null
+    private var guideMoreJob: Job? = null
     private var summaryJob: Job? = null
     private var searchJob: Job? = null
     private var selectedJob: Job? = null
@@ -140,6 +156,8 @@ class FandomMediaWikiViewModel(application: Application) : AndroidViewModel(appl
         boundKey = key
         resolveJob?.cancel()
         guideJob?.cancel()
+        guideMoreJob?.cancel()
+        _guideMore.value = GuideMore.Idle
         summaryJob?.cancel()
         searchJob?.cancel()
         selectedJob?.cancel()
@@ -233,7 +251,58 @@ class FandomMediaWikiViewModel(application: Application) : AndroidViewModel(appl
 
     fun retryGuide() {
         _guide.value = GuideState.Idle
+        _guideMore.value = GuideMore.Idle
         ensureContentLoaded()
+    }
+
+    /**
+     * "Devamını göster": ilgili grubun kategorisinde sonraki sayfayı çeker ve çiplere ekler.
+     *
+     * Jeton `null` ise (kategori tükendi) hiç istek atılmaz. Aynı anda tek grup yüklenir;
+     * yükleme sürerken gelen dokunuşlar yok sayılır. Hata olursa mevcut çipler korunur,
+     * düğme "tekrar dene" durumuna geçer.
+     */
+    fun loadMoreGuide(group: FandomGuideGroup) {
+        val ready = _state.value as? UiState.Ready ?: return
+        val content = (_guide.value as? GuideState.Ready)
+            ?.guide?.groups?.firstOrNull { it.group == group } ?: return
+        val token = content.nextToken ?: return
+        if (_guideMore.value is GuideMore.Loading) return
+        _guideMore.value = GuideMore.Loading(group)
+        guideMoreJob = viewModelScope.launch {
+            val page = try {
+                FandomRepository.loadMoreGuideItems(
+                    context = appContext,
+                    wikiId = ready.ref.wikiId,
+                    category = content.category,
+                    continueToken = token
+                )
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                Log.w(TAG, "Rehber devamı yüklenemedi (${content.category}): ${e.message}")
+                null
+            }
+            if (!isCurrent(ready)) return@launch
+            val current = (_guide.value as? GuideState.Ready)?.guide
+            if (page == null || current == null) {
+                _guideMore.value = GuideMore.Failed(group)
+                return@launch
+            }
+            val merged = current.groups.map { item ->
+                if (item.group != group) {
+                    item
+                } else {
+                    item.copy(
+                        items = (item.items + page.items.map(::FandomGuideItem))
+                            .distinctBy { it.title },
+                        nextToken = page.nextToken
+                    )
+                }
+            }
+            _guide.value = GuideState.Ready(current.copy(groups = merged))
+            _guideMore.value = GuideMore.Idle
+        }
     }
 
     /** Arama kutusu: kısa bir duraklamayla (debounce) wiki içi arama. */

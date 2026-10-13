@@ -34,6 +34,8 @@ object FandomRepository {
     private const val PAGE_TTL_MS = 7L * DAY_MS
     private const val SECTION_TTL_MS = 7L * DAY_MS
     private const val GUIDE_TTL_MS = 7L * DAY_MS
+    /** Evren rehberi çiplerinde bir seferde çekilen kategori üyesi sayısı. */
+    private const val GUIDE_PAGE_SIZE = 14
     private const val BLURB_TTL_MS = 7L * DAY_MS
     private const val NEGATIVE_TTL_MS = 3L * DAY_MS
     private const val TRANSIENT_NEGATIVE_TTL_MS = 10L * 60L * 1000L
@@ -176,7 +178,9 @@ object FandomRepository {
      */
     suspend fun loadWorldGuide(context: Context, wikiId: String): FandomWorldGuide {
         val appContext = context.applicationContext
-        val key = "${KEY_PREFIX}guide:$wikiId"
+        // v2: rehber kayıtları artık `cmcontinue` jetonunu da taşıyor. Eski kayıtlarda
+        // jeton olmadığı için ("Devamını göster" çalışmazdı) anahtar sürümlendi.
+        val key = "${KEY_PREFIX}guide:v2:$wikiId"
         return lockFor(sectionLocks, key).withLock {
             val cached = readCached(appContext, key, positiveTtl = GUIDE_TTL_MS) { body ->
                 json.decodeFromString(StoredGuide.serializer(), body).guide
@@ -218,18 +222,50 @@ object FandomRepository {
                     names.any { title.equals("Category:$it", ignoreCase = true) }
             }?.key ?: return@mapNotNull null
             claimed += resolved
-            val members = FandomApi.categoryMembers(wikiId, resolved, limit = 14)
-            if (members.isEmpty()) {
+            // İlk sayfa + `cmcontinue` jetonu: "Devamını göster" sonraki 14'lük sayfayı çeker.
+            val page = FandomApi.categoryMembersPage(wikiId, resolved, limit = GUIDE_PAGE_SIZE)
+            if (page.items.isEmpty()) {
                 null
             } else {
                 FandomGuideGroupContent(
                     group = group,
                     category = resolved.removePrefix("Category:"),
-                    items = members.map(::FandomGuideItem)
+                    items = page.items.map(::FandomGuideItem),
+                    nextToken = page.nextToken
                 )
             }
         }
         return FandomWorldGuide(groups)
+    }
+
+    /**
+     * Evren rehberi grubunun sonraki sayfası ("Devamını göster").
+     *
+     * Rehberin ilk sayfası kalıcı önbellektedir; devamı ise yalnızca oturum belleğine
+     * eklenir (VM durumunda tutulur) — bu yüzden önbellek yazımı yapılmaz, yalnızca
+     * ağ isteği yapılır. Ağ hatasında `null` döner ve kullanıcı yeniden deneyebilir.
+     */
+    suspend fun loadMoreGuideItems(
+        context: Context,
+        wikiId: String,
+        category: String,
+        continueToken: String?
+    ): FandomCategoryMembersPage? {
+        if (continueToken.isNullOrBlank() || category.isBlank()) return null
+        val title = if (category.startsWith("Category:")) category else "Category:$category"
+        return try {
+            FandomApi.categoryMembersPage(
+                wikiId = wikiId,
+                categoryTitle = title,
+                limit = GUIDE_PAGE_SIZE,
+                continueToken = continueToken
+            )
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            Log.w(TAG, "Rehber devamı yüklenemedi ($wikiId/$category): ${e.message}")
+            null
+        }
     }
 
     /** Bir sayfanın kısa açıklaması (`fandomdescription`); yönlendirmeler çözülür. */

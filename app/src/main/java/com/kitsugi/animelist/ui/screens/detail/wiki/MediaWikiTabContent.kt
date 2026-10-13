@@ -37,11 +37,19 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
+import androidx.compose.animation.animateContentSize
+import androidx.compose.material.icons.rounded.ExpandLess
+import androidx.compose.material.icons.rounded.ExpandMore
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -49,6 +57,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.kitsugi.animelist.R
 import com.kitsugi.animelist.data.fandom.FandomGuideGroup
+import com.kitsugi.animelist.data.fandom.FandomGuideItem
 import com.kitsugi.animelist.data.fandom.FandomUrls
 import com.kitsugi.animelist.data.fandom.FandomConfidence
 import com.kitsugi.animelist.data.fandom.FandomWikiRef
@@ -56,7 +65,11 @@ import com.kitsugi.animelist.ui.components.KitsugiSheetOrDialog
 import com.kitsugi.animelist.ui.components.KitsugiTranslateIconButton
 import com.kitsugi.animelist.ui.theme.KitsugiColors
 import com.kitsugi.animelist.ui.theme.gradient.Icon
+import com.kitsugi.animelist.ui.theme.gradient.border
 import com.kitsugi.animelist.ui.utils.tvClickable
+
+/** Evren rehberi grubunda katlanmışken gösterilen çip sayısı. */
+private const val GUIDE_COLLAPSED_CHIPS = 8
 
 /**
  * Yapım detayındaki "Wiki" sekmesi (Faz 2).
@@ -74,6 +87,7 @@ internal fun MediaWikiTabSlot(
 ) {
     val uiState by viewModel.state.collectAsState()
     val guideState by viewModel.guide.collectAsState()
+    val guideMore by viewModel.guideMore.collectAsState()
     val summaryState by viewModel.summary.collectAsState()
     val searchState by viewModel.searchState.collectAsState()
     val searchQuery by viewModel.searchQuery.collectAsState()
@@ -88,6 +102,7 @@ internal fun MediaWikiTabSlot(
     MediaWikiTabContent(
         uiState = uiState,
         guideState = guideState,
+        guideMore = guideMore,
         summaryState = summaryState,
         searchState = searchState,
         searchQuery = searchQuery,
@@ -97,6 +112,7 @@ internal fun MediaWikiTabSlot(
         accentColor = accentColor,
         onRetry = viewModel::retry,
         onRetryGuide = viewModel::retryGuide,
+        onLoadMoreGuide = viewModel::loadMoreGuide,
         onSearchChange = viewModel::onSearchQueryChange,
         onClearSearch = viewModel::clearSearch,
         onOpenItem = viewModel::openItem,
@@ -113,6 +129,7 @@ internal fun MediaWikiTabSlot(
 internal fun MediaWikiTabContent(
     uiState: FandomMediaWikiViewModel.UiState,
     guideState: FandomMediaWikiViewModel.GuideState,
+    guideMore: FandomMediaWikiViewModel.GuideMore,
     summaryState: FandomMediaWikiViewModel.BlurbState,
     searchState: FandomMediaWikiViewModel.SearchState,
     searchQuery: String,
@@ -122,6 +139,7 @@ internal fun MediaWikiTabContent(
     accentColor: Color,
     onRetry: () -> Unit,
     onRetryGuide: () -> Unit,
+    onLoadMoreGuide: (FandomGuideGroup) -> Unit,
     onSearchChange: (String) -> Unit,
     onClearSearch: () -> Unit,
     onOpenItem: (String) -> Unit,
@@ -165,9 +183,11 @@ internal fun MediaWikiTabContent(
                 )
                 MediaWikiGuideCard(
                     state = guideState,
+                    guideMore = guideMore,
                     accentColor = accentColor,
                     onOpenItem = onOpenItem,
-                    onRetryGuide = onRetryGuide
+                    onRetryGuide = onRetryGuide,
+                    onLoadMoreGuide = onLoadMoreGuide
                 )
                 MediaWikiFooter(
                     ref = ready.ref,
@@ -401,9 +421,11 @@ private fun MediaWikiSearchCard(
 @Composable
 private fun MediaWikiGuideCard(
     state: FandomMediaWikiViewModel.GuideState,
+    guideMore: FandomMediaWikiViewModel.GuideMore,
     accentColor: Color,
     onOpenItem: (String) -> Unit,
-    onRetryGuide: () -> Unit
+    onRetryGuide: () -> Unit,
+    onLoadMoreGuide: (FandomGuideGroup) -> Unit
 ) {
     when (state) {
         is FandomMediaWikiViewModel.GuideState.Idle, is FandomMediaWikiViewModel.GuideState.Loading -> {
@@ -447,27 +469,167 @@ private fun MediaWikiGuideCard(
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold
                 )
-                Spacer(modifier = Modifier.height(4.dp))
-                groups.forEach { group ->
-                    Spacer(modifier = Modifier.height(10.dp))
-                    Text(
-                        text = stringResource(groupLabelRes(group.group)),
-                        color = KitsugiColors.TextMuted,
-                        style = MaterialTheme.typography.labelMedium,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Spacer(modifier = Modifier.height(6.dp))
-                    FlowRow(
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        group.items.forEach { item ->
-                            GuideChip(title = item.title, accentColor = accentColor, onClick = { onOpenItem(item.title) })
-                        }
+                groups.forEach { section ->
+                    // Grup kimliği sabit: katla/aç durumu liste yenilenince kaymaz.
+                    key(section.group) {
+                        val loadingGroup = (guideMore as? FandomMediaWikiViewModel.GuideMore.Loading)?.group
+                        val failedGroup = (guideMore as? FandomMediaWikiViewModel.GuideMore.Failed)?.group
+                        Spacer(modifier = Modifier.height(12.dp))
+                        GuideGroupSection(
+                            heading = stringResource(groupLabelRes(section.group)),
+                            items = section.items,
+                            hasMoreOnWiki = section.hasMore,
+                            isLoadingMore = loadingGroup == section.group,
+                            loadFailed = failedGroup == section.group,
+                            accentColor = accentColor,
+                            onOpenItem = onOpenItem,
+                            onLoadMore = { onLoadMoreGuide(section.group) }
+                        )
                     }
                 }
             }
         }
+    }
+}
+
+/**
+ * Evren rehberi grubu: başlık + çipler + "Devamını göster" / "Daha az göster".
+ *
+ * Katlanmış durumda ilk [GUIDE_COLLAPSED_CHIPS] çip görünür (çipler zaten sayfalı
+ * geldiği için liste başlangıçta kısa kalır). "Devamını göster":
+ *  1) yüklü ama gizli çipler varsa onları açar,
+ *  2) wiki kategorisinde başka sayfa varsa (`cmcontinue`) sonraki 14'lük sayfayı çeker.
+ * Böylece düğme, eldeki veri bittiğinde de aynı yerde durup devamını getirir.
+ */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun GuideGroupSection(
+    heading: String,
+    items: List<FandomGuideItem>,
+    hasMoreOnWiki: Boolean,
+    isLoadingMore: Boolean,
+    loadFailed: Boolean,
+    accentColor: Color,
+    onOpenItem: (String) -> Unit,
+    onLoadMore: () -> Unit
+) {
+    if (items.isEmpty()) return
+    // Grup başlığına bağlı: veri yenilenince (ya da sayfa yeniden kurulunca) sıfırlanır.
+    var expanded by rememberSaveable(heading) { mutableStateOf(false) }
+    val hiddenCount = (items.size - GUIDE_COLLAPSED_CHIPS).coerceAtLeast(0)
+    val visibleItems = if (expanded || hiddenCount == 0) items else items.take(GUIDE_COLLAPSED_CHIPS)
+    val canCollapse = expanded && hiddenCount > 0
+    val canShowMore = (!expanded && hiddenCount > 0) || hasMoreOnWiki
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .animateContentSize()
+    ) {
+        Text(
+            text = heading,
+            color = KitsugiColors.TextMuted,
+            style = MaterialTheme.typography.labelMedium,
+            fontWeight = FontWeight.Bold
+        )
+        Spacer(modifier = Modifier.height(6.dp))
+        FlowRow(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            visibleItems.forEach { item ->
+                GuideChip(title = item.title, accentColor = accentColor, onClick = { onOpenItem(item.title) })
+            }
+        }
+        if (canShowMore || canCollapse) {
+            Spacer(modifier = Modifier.height(10.dp))
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                if (canShowMore) {
+                    GuideActionChip(
+                        label = when {
+                            isLoadingMore -> stringResource(R.string.fandom_guide_more_loading)
+                            !expanded && hiddenCount > 0 ->
+                                stringResource(R.string.fandom_guide_show_more_count, hiddenCount)
+                            else -> stringResource(R.string.fandom_guide_show_more)
+                        },
+                        icon = if (isLoadingMore) null else Icons.Rounded.ExpandMore,
+                        loading = isLoadingMore,
+                        enabled = !isLoadingMore,
+                        accentColor = accentColor,
+                        onClick = {
+                            if (!expanded) expanded = true
+                            if (hasMoreOnWiki) onLoadMore()
+                        }
+                    )
+                }
+                if (canCollapse) {
+                    GuideActionChip(
+                        label = stringResource(R.string.fandom_guide_show_less),
+                        icon = Icons.Rounded.ExpandLess,
+                        loading = false,
+                        accentColor = accentColor,
+                        onClick = { expanded = false }
+                    )
+                }
+            }
+        }
+        if (loadFailed) {
+            Spacer(modifier = Modifier.height(6.dp))
+            Text(
+                text = stringResource(R.string.studio_page_load_more_failed),
+                color = KitsugiColors.TextMuted,
+                style = MaterialTheme.typography.labelSmall
+            )
+        }
+    }
+}
+
+/** Rehber grubu altındaki vurgu renkli eylem düğmesi (TV'de odak halkası alır). */
+@Composable
+private fun GuideActionChip(
+    label: String,
+    icon: ImageVector?,
+    loading: Boolean,
+    accentColor: Color,
+    enabled: Boolean = true,
+    onClick: () -> Unit
+) {
+    val shape = RoundedCornerShape(12.dp)
+    Row(
+        modifier = Modifier
+            .clip(shape)
+            .background(accentColor.copy(alpha = 0.12f))
+            .border(1.dp, accentColor.copy(alpha = 0.32f), shape)
+            .tvClickable(enabled = enabled, shape = shape) { onClick() }
+            .padding(horizontal = 12.dp, vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        if (loading) {
+            CircularProgressIndicator(
+                modifier = Modifier.size(14.dp),
+                color = accentColor,
+                strokeWidth = 2.dp
+            )
+        } else if (icon != null) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                tint = accentColor,
+                modifier = Modifier.size(16.dp)
+            )
+        }
+        Spacer(modifier = Modifier.width(6.dp))
+        Text(
+            text = label,
+            color = accentColor,
+            style = MaterialTheme.typography.labelLarge,
+            fontWeight = FontWeight.SemiBold,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
+        )
     }
 }
 
@@ -477,6 +639,7 @@ private fun GuideChip(title: String, accentColor: Color, onClick: () -> Unit) {
         modifier = Modifier
             .clip(RoundedCornerShape(10.dp))
             .background(KitsugiColors.SurfaceStrong)
+            .border(1.dp, accentColor.copy(alpha = 0.18f), RoundedCornerShape(10.dp))
             .tvClickable(shape = RoundedCornerShape(10.dp)) { onClick() }
             .padding(horizontal = 12.dp, vertical = 8.dp)
     ) {

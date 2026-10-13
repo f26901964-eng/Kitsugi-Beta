@@ -171,6 +171,33 @@ class FandomApiParsersGuideTest {
     }
 
     @Test
+    fun `category members page exposes the continue token`() {
+        val json = """
+            {"continue":{"cmcontinue":"page|123|456","continue":"-||"},"query":{"categorymembers":[
+              {"pageid":10,"title":"Emilia Camp"}
+            ]}}
+        """.trimIndent()
+        assertEquals("page|123|456", FandomApiParsers.parseContinueToken(json))
+        assertNull(FandomApiParsers.parseContinueToken("""{"query":{"categorymembers":[]}}"""))
+        assertNull(FandomApiParsers.parseContinueToken(null))
+    }
+
+    @Test
+    fun `guide group content reports more pages only with a token`() {
+        assertTrue(
+            FandomGuideGroupContent(
+                group = FandomGuideGroup.PLACES,
+                category = "Locations",
+                items = listOf(FandomGuideItem("Karakura Town")),
+                nextToken = "page|0|1"
+            ).hasMore
+        )
+        assertTrue(
+            !FandomGuideGroupContent(group = FandomGuideGroup.PLACES, category = "Locations").hasMore
+        )
+    }
+
+    @Test
     fun `search hits strip markup from snippets`() {
         val json = """
             {"query":{"search":[

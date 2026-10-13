@@ -7491,4 +7491,23 @@ Eklentiler ekranından eklenti etkinleştirin.</string>
     <string name="cross_sync_identity_type_mismatch">MAL #%1$d medya türü %2$s, yerel %3$s türüyle uyuşmuyor ("%4$s")</string>
     <string name="cross_sync_identity_year_unavailable">Yerel kayıtta veya MAL kataloğunda geçerli yayın yılı yok; hesaplar arası kimlik doğrulanamadı.</string>
     <string name="cross_sync_reason_bangumi_crosswalk_missing">Yetkili MAL↔Bangumi kimlik eşlemesi bulunmuyor</string>
+    <!-- Evren rehberi: katla/aç + "Devamını göster" (kategori sayfalaması) -->
+    <string name="fandom_guide_show_more">Devamını göster</string>
+    <string name="fandom_guide_show_more_count">Devamını göster (+%1$d)</string>
+    <string name="fandom_guide_show_less">Daha az göster</string>
+    <string name="fandom_guide_more_loading">Yükleniyor…</string>
+    <!-- Detay > Grafikler sekmesi -->
+    <string name="detail_stats_rankings_title">Sıralama</string>
+    <string name="detail_stats_rankings_subtitle">AniList sıralamalarındaki yerler</string>
+    <string name="detail_stats_rank_popular">Popülerlik</string>
+    <string name="detail_stats_rank_rated">Puan</string>
+    <string name="detail_stats_status_title">Durum Dağılımı</string>
+    <string name="detail_stats_status_subtitle">Toplam %1$s kayıt</string>
+    <string name="detail_stats_status_watching">Şimdiki</string>
+    <string name="detail_stats_status_completed">Tamamlanan</string>
+    <string name="detail_stats_status_planned">Planlanan</string>
+    <string name="detail_stats_status_dropped">Bırakıldı</string>
+    <string name="detail_stats_status_paused">Ara verildi</string>
+    <string name="detail_stats_score_title">Puan Dağılımı</string>
+    <string name="detail_stats_score_subtitle">%1$s oy · Ort. %2$s</string>
 </resources>

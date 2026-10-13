@@ -110,21 +110,37 @@ internal object FandomApi {
         return FandomApiParsers.parseCategoryInfo(FandomHttp.get(url))
     }
 
-    /** Bir kategorinin ana ad alanındaki sayfaları (çip listesi). */
-    suspend fun categoryMembers(wikiId: String, categoryTitle: String, limit: Int = 14): List<String> {
-        val url = FandomUrls.apiQuery(
-            wikiId,
-            listOf(
-                "action" to "query",
-                "list" to "categorymembers",
-                "cmtitle" to categoryTitle,
-                "cmnamespace" to "0",
-                "cmlimit" to limit.coerceIn(1, 50).toString(),
-                "format" to "json",
-                "formatversion" to "2"
-            )
-        ) ?: return emptyList()
-        return FandomApiParsers.parseCategoryMembers(FandomHttp.get(url))
+    /** Bir kategorinin ana ad alanındaki sayfaları (çip listesi) — yalnızca ilk sayfa. */
+    suspend fun categoryMembers(wikiId: String, categoryTitle: String, limit: Int = 14): List<String> =
+        categoryMembersPage(wikiId, categoryTitle, limit).items
+
+    /**
+     * Bir kategorinin ana ad alanındaki sayfaları, `cmcontinue` ile sayfalanmış.
+     * "Devamını göster" akışı: ilk istek [continueToken] olmadan yapılır, yanıttaki
+     * jeton sonraki isteğe taşınır; jeton `null` ise kategori tükenmiştir.
+     */
+    suspend fun categoryMembersPage(
+        wikiId: String,
+        categoryTitle: String,
+        limit: Int = 14,
+        continueToken: String? = null
+    ): FandomCategoryMembersPage {
+        val params = mutableListOf(
+            "action" to "query",
+            "list" to "categorymembers",
+            "cmtitle" to categoryTitle,
+            "cmnamespace" to "0",
+            "cmlimit" to limit.coerceIn(1, 50).toString(),
+            "format" to "json",
+            "formatversion" to "2"
+        )
+        if (!continueToken.isNullOrBlank()) params += "cmcontinue" to continueToken
+        val url = FandomUrls.apiQuery(wikiId, params) ?: return FandomCategoryMembersPage()
+        val body = FandomHttp.get(url)
+        return FandomCategoryMembersPage(
+            items = FandomApiParsers.parseCategoryMembers(body),
+            nextToken = FandomApiParsers.parseContinueToken(body)
+        )
     }
 
     /** Wiki içi arama: başlık + kırpılmış özet (arama kartı sonuç listesi). */

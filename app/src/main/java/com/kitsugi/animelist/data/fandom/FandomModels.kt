@@ -154,7 +154,21 @@ data class FandomGuideGroupContent(
     val group: FandomGuideGroup,
     /** Üyelerin çekildiği kategori (ör. `Organizations`). */
     val category: String,
-    val items: List<FandomGuideItem> = emptyList()
+    val items: List<FandomGuideItem> = emptyList(),
+    /**
+     * MediaWiki `cmcontinue` jetonu: `null` ise kategoride bu listeden fazlası yok.
+     * "Devamını göster" bu jetonla sonraki sayfayı çeker (14'lük sayfalar).
+     */
+    val nextToken: String? = null
+) {
+    /** Kategoride henüz gösterilmeyen üyeler var mı? */
+    val hasMore: Boolean get() = nextToken != null
+}
+
+/** `list=categorymembers` yanıtının tek sayfası: üye başlıkları + sonraki sayfa jetonu. */
+data class FandomCategoryMembersPage(
+    val items: List<String> = emptyList(),
+    val nextToken: String? = null
 )
 
 /**

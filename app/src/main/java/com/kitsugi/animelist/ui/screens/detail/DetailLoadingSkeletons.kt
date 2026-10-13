@@ -6,6 +6,7 @@ import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -342,74 +343,66 @@ internal fun DetailTvEpisodesRailSkeleton(itemCount: Int = 4) {
     }
 }
 
+/**
+ * "Grafikler" sekmesi iskeleti — yüklenen içerikle aynı düzeni izler: sıralama
+ * satırları, durum gösterge çubuğu + saran lejant çipleri ve puan kolonları.
+ */
 @Composable
 internal fun DetailStatsLoadingSkeleton() {
     DetailShimmerFrame { brush ->
         Column(
             modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp)
+            verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            // Ranking rows
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                DetailShimmerLine(brush, Modifier.width(104.dp).height(19.dp))
-                repeat(2) {
+            // 1) Sıralama kartı
+            StatsSkeletonCard {
+                DetailShimmerLine(brush, Modifier.width(150.dp).height(16.dp))
+                Spacer(Modifier.height(14.dp))
+                repeat(3) { index ->
                     Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(16.dp))
-                            .background(KitsugiColors.Surface)
-                            .padding(horizontal = 16.dp, vertical = 12.dp),
+                        modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        DetailShimmerLine(brush, Modifier.size(20.dp), 999.dp)
+                        DetailShimmerLine(brush, Modifier.size(40.dp))
                         Spacer(Modifier.width(12.dp))
-                        DetailShimmerLine(brush, Modifier.fillMaxWidth(0.55f).height(13.dp))
-                    }
-                }
-            }
-
-            // Status distribution and the stacked share bar
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(18.dp))
-                    .background(KitsugiColors.Surface)
-                    .padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                DetailShimmerLine(brush, Modifier.width(150.dp).height(17.dp))
-                Row(
-                    modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    repeat(4) {
-                        Box(
-                            modifier = Modifier
-                                .clip(CircleShape)
-                                .background(KitsugiColors.SurfaceStrong)
-                                .padding(horizontal = 12.dp, vertical = 8.dp)
+                        Column(
+                            modifier = Modifier.weight(1f),
+                            verticalArrangement = Arrangement.spacedBy(6.dp)
                         ) {
-                            DetailShimmerLine(brush, Modifier.width(75.dp).height(12.dp))
+                            DetailShimmerLine(
+                                brush,
+                                Modifier.fillMaxWidth(if (index == 1) 0.62f else 0.74f).height(13.dp)
+                            )
+                            DetailShimmerLine(brush, Modifier.fillMaxWidth(0.34f).height(10.dp))
                         }
                     }
                 }
-                DetailShimmerLine(brush, Modifier.fillMaxWidth().height(12.dp), 999.dp)
-                DetailShimmerLine(brush, Modifier.width(84.dp).height(10.dp))
             }
 
-            // Score distribution chart
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(18.dp))
-                    .background(KitsugiColors.Surface)
-                    .padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(10.dp)
-            ) {
-                DetailShimmerLine(brush, Modifier.width(156.dp).height(17.dp))
+            // 2) Durum dağılımı kartı
+            StatsSkeletonCard {
+                DetailShimmerLine(brush, Modifier.width(170.dp).height(16.dp))
+                Spacer(Modifier.height(16.dp))
+                DetailShimmerLine(brush, Modifier.fillMaxWidth().height(12.dp))
+                Spacer(Modifier.height(14.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    repeat(3) { index ->
+                        DetailShimmerLine(
+                            brush,
+                            Modifier.width((104 + index * 16).dp).height(30.dp),
+                            cornerRadius = 12.dp
+                        )
+                    }
+                }
+            }
+
+            // 3) Puan dağılımı kartı
+            StatsSkeletonCard {
+                DetailShimmerLine(brush, Modifier.width(180.dp).height(16.dp))
+                Spacer(Modifier.height(18.dp))
                 Row(
-                    modifier = Modifier.fillMaxWidth().height(94.dp),
-                    horizontalArrangement = Arrangement.spacedBy(7.dp),
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
                     verticalAlignment = Alignment.Bottom
                 ) {
                     repeat(10) { index ->
@@ -418,15 +411,32 @@ internal fun DetailStatsLoadingSkeleton() {
                             horizontalAlignment = Alignment.CenterHorizontally,
                             verticalArrangement = Arrangement.spacedBy(5.dp)
                         ) {
-                            val barHeight = (22 + ((index * 17) % 48)).dp
-                            DetailShimmerLine(brush, Modifier.width(12.dp).height(barHeight), 4.dp)
-                            DetailShimmerLine(brush, Modifier.width(16.dp).height(6.dp))
+                            DetailShimmerLine(brush, Modifier.width(20.dp).height(8.dp))
+                            val barHeight = (30 + ((index * 23) % 70)).dp
+                            DetailShimmerLine(
+                                brush,
+                                Modifier.fillMaxWidth().height(barHeight),
+                                cornerRadius = 8.dp
+                            )
+                            DetailShimmerLine(brush, Modifier.width(14.dp).height(8.dp))
                         }
                     }
                 }
             }
         }
     }
+}
+
+@Composable
+private fun StatsSkeletonCard(content: @Composable ColumnScope.() -> Unit) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(18.dp))
+            .background(KitsugiColors.Surface)
+            .padding(16.dp),
+        content = content
+    )
 }
 
 /** Horizontal review cards, matching the review section's actual scrolling direction. */

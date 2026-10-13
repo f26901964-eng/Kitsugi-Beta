@@ -7486,4 +7486,23 @@
     <string name="cross_sync_identity_type_mismatch">MAL #%1$d is %2$s, which is incompatible with local type %3$s ("%4$s")</string>
     <string name="cross_sync_identity_year_unavailable">The local entry or MAL catalog has no valid release year; cross-account identity could not be verified.</string>
     <string name="cross_sync_reason_bangumi_crosswalk_missing">No authoritative MAL↔Bangumi identity crosswalk is available</string>
+    <!-- Universe guide: collapse/expand + "Show more" (category pagination) -->
+    <string name="fandom_guide_show_more">Show more</string>
+    <string name="fandom_guide_show_more_count">Show more (+%1$d)</string>
+    <string name="fandom_guide_show_less">Show less</string>
+    <string name="fandom_guide_more_loading">Loading…</string>
+    <!-- Detail > Stats tab -->
+    <string name="detail_stats_rankings_title">Rankings</string>
+    <string name="detail_stats_rankings_subtitle">Placements in AniList rankings</string>
+    <string name="detail_stats_rank_popular">Popularity</string>
+    <string name="detail_stats_rank_rated">Score</string>
+    <string name="detail_stats_status_title">Status Distribution</string>
+    <string name="detail_stats_status_subtitle">%1$s total entries</string>
+    <string name="detail_stats_status_watching">Current</string>
+    <string name="detail_stats_status_completed">Completed</string>
+    <string name="detail_stats_status_planned">Planning</string>
+    <string name="detail_stats_status_dropped">Dropped</string>
+    <string name="detail_stats_status_paused">Paused</string>
+    <string name="detail_stats_score_title">Score Distribution</string>
+    <string name="detail_stats_score_subtitle">%1$s votes · Avg. %2$s</string>
 </resources>
