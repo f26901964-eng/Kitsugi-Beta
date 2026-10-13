@@ -58,6 +58,9 @@ internal object FandomAniListSource {
             Log.w(TAG, "AniList doğrulama verisi alınamadı ($key): ${e.message}")
             null
         }
+        // Yanıt yoksa (429 cooldown, ağ, zaman aşımı) bu geçici bir hatadır: çağıran
+        // "bulunamadı" sonucunu kalıcı önbelleğe yazmasın diye işaretlenir.
+        if (body == null) FandomHttp.markFailure()
         val evidence = FandomAniListParser.parse(body, isManga) ?: return null
         cache[key] = evidence
         return evidence

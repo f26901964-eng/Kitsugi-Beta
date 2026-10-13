@@ -178,8 +178,22 @@ class FandomMediaWikiViewModel(application: Application) : AndroidViewModel(appl
         bind(lastQuery)
     }
 
-    /** "Tekrar dene". */
-    fun retry() = rebind()
+    /** "Tekrar dene": eski (olumsuz dahil) wiki önbelleği silinir, çözümleme baştan yapılır. */
+    fun retry() {
+        val query = lastQuery
+        viewModelScope.launch {
+            if (query != null) {
+                try {
+                    FandomRepository.forgetMediaWiki(appContext, query)
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    Log.w(TAG, "Önbellek temizlenemedi: ${e.message}")
+                }
+            }
+            rebind()
+        }
+    }
 
     /** Sekme görünür olduğunda çağrılır: seri özeti + evren rehberi aşamalı çekilir. */
     fun ensureContentLoaded() {

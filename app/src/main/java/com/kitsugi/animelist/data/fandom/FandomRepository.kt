@@ -151,6 +151,22 @@ object FandomRepository {
         keys.forEach { key -> runCatchingDb { dao.deleteDetail(key) } }
     }
 
+    /**
+     * Kullanıcı "Tekrar dene" dediğinde: yapımın wiki önbelleğini (bellek + kalıcı, olumlu veya
+     * olumsuz) siler ki çözümleme gerçekten yeniden yapılsın. Kullanıcı kararları korunur.
+     */
+    suspend fun forgetMediaWiki(context: Context, query: FandomMediaQuery) {
+        val appContext = context.applicationContext
+        val mediaKey = query.cacheKey() ?: return
+        val keys = listOf(
+            wikiCacheKey(mediaKey, nameAllowed = true),
+            wikiCacheKey(mediaKey, nameAllowed = false)
+        )
+        keys.forEach { memory.remove(it) }
+        val dao = dao(appContext) ?: return
+        keys.forEach { key -> runCatchingDb { dao.deleteDetail(key) } }
+    }
+
     // ── Evren rehberi ve kısa açıklamalar (Faz 2) ────────────────────────────
 
     /**

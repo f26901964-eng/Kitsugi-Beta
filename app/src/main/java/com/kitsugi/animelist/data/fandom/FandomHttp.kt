@@ -44,6 +44,11 @@ internal object FandomHttp {
 
     fun failureCount(): Int = failures.get()
 
+    /** Fandom/Wikidata dışındaki bağımlılıklarda (ör. AniList doğrulama) yaşanan geçici hatayı sayar. */
+    fun markFailure() {
+        failures.incrementAndGet()
+    }
+
     suspend fun get(url: String, accept: String = "application/json"): String? = withContext(Dispatchers.IO) {
         permits.withPermit {
             try {

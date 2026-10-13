@@ -189,6 +189,36 @@ object WikidataParsers {
         return bindings.objects().mapNotNull { bindingValue(it, "article") }.distinct()
     }
 
+    /**
+     * Verilen öğelerin P6262 (Fandom sayfa kimliği) değerleri — tek hafif sorgu (`VALUES`).
+     * QID'ler doğrulanmadan sorguya girmez.
+     */
+    fun buildItemArticlesQuery(qids: List<String>): String? {
+        val valid = qids.filter { isQid(it) }.distinct()
+        if (valid.isEmpty()) return null
+        val values = valid.joinToString(" ") { "wd:$it" }
+        return """
+            SELECT ?item ?article WHERE {
+              VALUES ?item { $values }
+              ?item wdt:P6262 ?article .
+            }
+        """.trimIndent()
+    }
+
+    /** [buildItemArticlesQuery] yanıtı: öğe QID'i → P6262 değerleri. Ayrıştırılamazsa null. */
+    fun parseItemArticles(json: String?): Map<String, List<String>>? {
+        val root = parseJsonObject(json) ?: return null
+        val bindings = root.optJSONObject("results")?.optJSONArray("bindings") ?: return null
+        val result = LinkedHashMap<String, MutableList<String>>()
+        for (binding in bindings.objects()) {
+            val item = entityValue(binding, "item") ?: continue
+            val article = bindingValue(binding, "article") ?: continue
+            val list = result.getOrPut(item) { mutableListOf() }
+            if (article !in list) list.add(article)
+        }
+        return result
+    }
+
     private fun bindingValue(binding: JSONObject, name: String): String? =
         binding.optJSONObject(name)?.str("value")
 

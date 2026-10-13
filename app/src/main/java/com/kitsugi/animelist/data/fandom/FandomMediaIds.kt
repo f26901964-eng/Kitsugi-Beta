@@ -8,11 +8,12 @@ data class FandomSourceIds(
     val shikimoriId: Int? = null,
     val bangumiId: Int? = null,
     val tmdbId: Int? = null,
-    val wikidataId: String? = null
+    val wikidataId: String? = null,
+    val simklId: Int? = null
 ) {
     val isEmpty: Boolean
         get() = aniListId == null && malId == null && kitsuId == null && shikimoriId == null &&
-            bangumiId == null && tmdbId == null && wikidataId == null
+            bangumiId == null && tmdbId == null && wikidataId == null && simklId == null
 
     /** Önbellek anahtarı: en kararlı kimlikten başlayarak. */
     fun stableKey(isManga: Boolean, isMovie: Boolean): String? {
@@ -23,6 +24,7 @@ data class FandomSourceIds(
             kitsuId != null -> "kitsu:$kind:$kitsuId"
             shikimoriId != null -> "shiki:$kind:$shikimoriId"
             bangumiId != null -> "bgm:$bangumiId"
+            simklId != null -> "simkl:$simklId"
             tmdbId != null -> "tmdb:${if (isMovie) "movie" else "tv"}:$tmdbId"
             wikidataId != null -> "wd:$wikidataId"
             else -> null
@@ -47,6 +49,8 @@ object FandomMediaIds {
     private const val KITSU_OFFSET = 300_000_000
     private const val SHIKIMORI_OFFSET = 400_000_000
     private const val BANGUMI_OFFSET = 500_000_000
+    /** Simkl kararlı kimlik ofseti (`CrossProviderIds.SIMKL_OFFSET` ile aynı sözleşme). */
+    private const val SIMKL_OFFSET = 150_000_000
     private const val WINDOW = 100_000_000
 
     private val MAL_SOURCES = setOf("mal", "jikan", "myanimelist")
@@ -70,6 +74,7 @@ object FandomMediaIds {
             key == "shikimori" -> FandomSourceIds(shikimoriId = unwrap(id, SHIKIMORI_OFFSET))
             key == "bangumi" || key == "bgm" -> FandomSourceIds(bangumiId = unwrap(id, BANGUMI_OFFSET))
             key == "tmdb" -> FandomSourceIds(tmdbId = id)
+            key == "simkl" -> FandomSourceIds(simklId = unwrap(id, SIMKL_OFFSET))
             else -> FandomSourceIds()
         }
     }

@@ -43,4 +43,15 @@ class FandomOverridesTest {
         assertEquals("spy-x-family", table.lookup(FandomSourceIds(malId = 50602), isManga = false))
         assertEquals("solo-leveling", table.lookupQid("Q125221706"))
     }
+
+    @Test
+    fun `shipped asset maps Gintama anime by AniList and MAL id`() {
+        val file = listOf(
+            File("src/main/assets/${FandomOverrides.ASSET_PATH}"),
+            File("app/src/main/assets/${FandomOverrides.ASSET_PATH}")
+        ).first { it.exists() }
+        val table = FandomOverrides.parse(file.readText())
+        assertEquals("gintama", table.lookup(FandomSourceIds(aniListId = 918), isManga = false))
+        assertEquals("gintama", table.lookup(FandomSourceIds(malId = 918), isManga = false))
+    }
 }

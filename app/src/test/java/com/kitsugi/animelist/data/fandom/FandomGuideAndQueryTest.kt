@@ -66,7 +66,7 @@ class FandomMediaQueriesTest {
     @Test
     fun `no ids but titles still yields query for name fallback`() {
         val query = FandomMediaQueries.fromMedia(
-            source = "simkl",
+            source = "extension",
             mediaId = 555,
             isManga = false,
             isMovie = false,
@@ -76,6 +76,18 @@ class FandomMediaQueriesTest {
         assertEquals(listOf("Monster"), query?.fallbackTitles)
         // Kimliksiz sorgu da önbelleklenebilir olmalı (eklenti mangası / TV): başlık anahtarı.
         assertEquals("title:a:monster", query?.cacheKey())
+    }
+
+    @Test
+    fun `simkl source resolves simkl stable key`() {
+        val query = FandomMediaQueries.fromMedia(
+            source = "simkl",
+            mediaId = 555,
+            isManga = false,
+            isMovie = false,
+            titles = listOf("Monster")
+        )
+        assertEquals("simkl:555", query?.ids?.stableKey(false, false))
     }
 
     @Test

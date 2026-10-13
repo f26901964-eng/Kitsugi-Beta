@@ -31,7 +31,8 @@ data class FandomMediaQuery(
             .replace(' ', '_')
             .take(80)
         if (normalized.isEmpty()) return null
-        return "title:${if (isManga) "m" else "a"}:$normalized"
+        val kind = if (isManga) "m" else "a"
+        return "title:$kind:$normalized"
     }
 }
 
@@ -57,6 +58,8 @@ internal class FandomWikiResolver(
         private const val MAX_FINGERPRINT_CANDIDATES = 3
         private const val MAX_SLUG_PROBES = 3
         private const val MAX_SEARCH_QUERIES = 3
+        /** Karakter oylamasında taranan en fazla medya QID'i (aynı yapımın farklı kayıtları). */
+        private const val MAX_VOTE_MEDIA = 3
 
         /** siteinfo sonuçları (null = wiki yok/erişilemez) — süreç boyunca paylaşılır. */
         private val siteInfoCache = BoundedCache<String, FandomSiteInfo>("fandom_siteinfo", 96)
@@ -101,6 +104,9 @@ internal class FandomWikiResolver(
             }
         }
 
+        // Doğrudan P4073 yoksa (çoğu yapımda eksik) karakter oylaması: medya → karakterler → P6262.
+        resolveByCharacterVotes(lookups, starts)?.let { return it }
+
         val evidence = FandomAniListSource.load(ids.aniListId, ids.malId, query.isManga)
 
         resolveViaRelations(evidence, overrides)?.let { return it }
@@ -109,6 +115,42 @@ internal class FandomWikiResolver(
             searchByName(evidence, query, ids)?.let { return it }
         }
         return null
+    }
+
+    // ── Karakter oylaması ────────────────────────────────────────────────────
+
+    /**
+     * Medya QID'lerinin karakterlerini (P1441 ters bağlantı) tarar, her karakterin P6262 wiki'lerini
+     * oylar. Kazanan wiki siteinfo ile doğrulanır (canlı, yeterli makale). Sonuç PROBABLE:
+     * karakter oylaması kesin kimlik değil, güçlü bir kanıttır.
+     */
+    private suspend fun resolveByCharacterVotes(
+        lookups: List<Pair<String, String>>,
+        starts: List<String>
+    ): FandomWikiRef? {
+        val qids = LinkedHashSet<String>()
+        starts.filter { WikidataParsers.isQid(it) }.forEach { qids += it }
+        if (lookups.isNotEmpty()) {
+            val found = WikidataClient.findMediaQids(lookups) ?: return null
+            qids += found
+        }
+        if (qids.isEmpty()) return null
+
+        val votes = LinkedHashMap<String, Int>()
+        for (qid in qids.take(MAX_VOTE_MEDIA)) {
+            val perCharacter = WikidataClient.characterArticlesOf(qid) ?: continue
+            WikidataCharacterVotes.tally(perCharacter).forEach { (wiki, n) ->
+                votes[wiki] = (votes[wiki] ?: 0) + n
+            }
+        }
+        val winner = WikidataCharacterVotes.winner(votes) ?: return null
+        if (isWikiRejected(winner)) return null
+        val info = siteInfoCached(winner)
+            ?.takeUnless { isWikiRejected(it.wikiId) || FandomCandidateSelector.isBlocked(it.wikiId) }
+            ?: return null
+        if ((info.articles ?: 0) < WikidataCharacterVotes.MIN_WIKI_ARTICLES) return null
+        Log.d(TAG, "Karakter oylaması: ${info.wikiId} oylar=${votes[winner]} toplam=${votes.size} aday")
+        return FandomWikiRef(info.wikiId, FandomMatchSource.WIKIDATA, FandomConfidence.PROBABLE, info.siteName)
     }
 
     // ── Kimlikleri tamamlama ─────────────────────────────────────────────────

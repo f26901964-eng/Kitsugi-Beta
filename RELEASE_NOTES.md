@@ -1,11 +1,11 @@
 # Kitsugi-Beta — Sürüm Notları / Release Notes
 
-# Kitsugi-Beta v2.4.272
+# Kitsugi-Beta v2.4.273
 
-## 🇹🇷 Türkçe (v2.4.272)
+## 🇹🇷 Türkçe (v2.4.273)
 
 ### 📚 Fandom Wiki Faz 3 (Bilgi Kutusu Çevirileri, Görsel Dayanıklılığı, Kopyalama & Tüm Sayfalarda Wiki)
-- **Bilgi Kutusu Etiket & Değer Çevirileri:** `FandomInfoboxLabels` ile ~90 bilgi kutusu etiketi (Name, Species, Birthday, Affiliation, Occupation...), grup başlıkları ve kısa değerler (Male/Female, Alive, Deceased...) arayüz diline çevrilir. TR/EN dil dosyalarına 178 yeni anahtar eklendi.
+- **Bilgi Kutusu Etiket & Değer Çevirileri:** `FandomInfoboxLabels` ile ~90 bilgi kutusu etiketi (Name, Species, Birthday, Affiliation, Occupation...), grup başlıkları ve kısa durum değerleri (Male/Female, Alive, Deceased...) arayüz diline çevrilir. TR/EN dil dosyalarına 178 yeni anahtar eklendi.
 - **Toplu Çeviri & Kopyalama Düğmeleri:** Bilgi kutusuna tek tıkla toplu çeviri ("Orijinal" ile geri dönüş) ve "Etiket: Değer" formatında panoya kopyalama eklendi. Wiki özeti ve her açılan bölüm kartına 36 dp'lik, değer satırlarına ise 13 dp'lik minik kopyalama düğmeleri yerleştirildi.
 - **Görsel Yükleme Dayanıklılığı:** Fandom CDN'e yönelik `Referer` ve `Accept` başlık filtreleri (`FandomImageHeaders`), ölçekli → özgün → format=original yedek zinciri (`FandomWikiImage`) ve kırık görsel ikonu eklendi.
 - **Tüm Sayfalarda Wiki Desteği:**
@@ -39,25 +39,15 @@
 - **"0 Metacritic" Hatası Giderildi:** MDBList bazı kayıtlar için "puan yok" yerine **0** döndürüyordu ve ekranda `0` puanlı anlamsız kutular görünüyordu. Artık 0 değerleri "puan yok" kabul edilir; hiç puan yoksa kart tamamen gizlenir.
 - **Yükleme İskeleti:** Kart iskeleti yeni ızgara geometrisine uyarlandı; yükleme bitince düzen zıplamaz.
 
-### ⚡ AniList GraphQL Senkronizasyon Düzeltmesi (Direct Interpolation)
-- **Doğrudan Dolar İşareti İnterpolasyonu:** AniList `SaveMediaListEntry` GraphQL mutasyon sorgusu artık metin yerine doğrudan Kotlin `${'$'}` interpolasyonu ile derlenir; kırılgan ardışık `.replace()` zinciri kaldırıldı.
-- **Puan Güvenliği:** Puanı bulunmayan kayıtlarda `scoreRaw` değişkeni GraphQL mutasyonuna dahil edilmez. Bu sayede AniList'teki mevcut puanların silinmesi veya API'nin hata vermesi engellendi.
-- **Kullanıcı Aitlik Doğrulaması:** AniList liste kayıtlarının (`aniListEntryId`) güncellenmesi veya silinmesi öncesinde, kaydın gerçekten oturum açmış kullanıcıya (`Viewer.id`) ait olduğu ve hedeflenen medyayla eşleştiği doğrulanır.
-
-### 🛡️ Çapraz Senkronizasyon Güvenlik Denetimi & Kimlik Koruma Kalkanı (Sync Safety Audit)
-- **Resmî Katalog Doğrulama Kapısı:** Farklı hesaplar arası (cross-account) yazmalarda, hedef platforma kayıt eklenmeden önce resmî MAL kataloğundan başlık, medya türü ve yıl doğrulanır; üçüncü parti tahminler ve belirsiz eşleşmeler engellenir.
-- **Bangumi Çapraz Yazma Koruması (Fail-Closed):** Desteklenen API yolunda yetkili MAL↔Bangumi kimlik eşlemesi bulunmadığından, yanlış içerik yazılmasını önlemek amacıyla çapraz eklemeler güvenli tarafta kalarak atlanır; yalnızca aynı hesaptaki doğrulanmış kayıtlar güncellenir.
-- **Kimlik Uzayı (Namespace) Ayrımı & Taşma Koruması:** Kitsu, Shikimori ve Bangumi sağlayıcı kimliklerinin birbirine ve MAL ID uzayına karışması engellendi. Kitsu ve Bangumi ID dönüşümlerine 32-bit tamsayı taşma kontrolü eklendi.
-- **Doğrulama Birim Testleri:** `CrossSyncEntryFactoryTest`, `KitsuMediaIdentityTest`, `KitsuIdNamespaceTest` ve `CrossSyncIdentityGuardTest` ile senkronizasyon sınırlarının tam gerileme testi sağlandı.
-
-### 📚 Fandom Wiki Faz 2 (Anında Sekme, Başlık Çevirileri & Medya Wiki Sekmesi)
-- **Sıfır Zıplama & Anında Sekme:** Karakter detay sayfasında wiki sekmesi sayfa açılır açılmaz shimmer iskeletiyle belirir. Çözümleme tamamlandığında düzen hiç zıplamadan içerik doldurulur.
-- **24+ Başlık Çeviri Tablosu:** "Role in the Series", "Appearances in Other Media", "Creation and Design", "Legacy", "About" gibi sık karşılaşılan Fandom başlıkları Türkçeleştirildi.
-- **Medya Detayında Wiki Sekmesi:** Anime ve manga detay sayfalarına genel özet, içindekiler ve bilgi kutusu içeren Fandom Wiki sekmesi entegre edildi.
+### 🗳️ Wikidata Karakter Oylaması ile Akıllı Fandom Wiki Keşfi & Simkl Desteği
+- **Karakter Sayfalarından Wiki Oylaması:** Wikidata üzerinde yapımın doğrudan Fandom bağlantısı (P4073) bulunmadığında (yapımların %99'unda eksik), medyanın QID'i bulunur → ters P1441 ("present in work") ile karakterler taranır → karakterlerin P6262 Fandom sayfa kimlikleri üzerinden wiki oylaması (`WikidataCharacterVotes`) yapılır.
+- **Güvenli Eşik & Doğrulama:** Bir wiki'nin seçilmesi için en az 2 oy alması, ikinciden kesin fazla olması ve `siteinfo` ile doğrulanması (canlı ve ≥20 makale) şartı getirildi. Dil wikileri ve engelli wikiler elenir.
+- **Simkl Entegrasyonu:** `FandomSourceIds` modeline `simklId` eklendi; `fromStableId("simkl", ...)` ofset dönüşümü tamamlandı ve detay sayfalarından Fandom sorgusuna iletildi.
+- **Yeniden Deneme:** Wiki kartında "Tekrar dene" tıklandığında eski olumsuz önbellekler temizlenerek çözümleme sıfırdan koşturulur.
 
 ---
 
-## 🇬🇧 English (v2.4.272)
+## 🇬🇧 English (v2.4.273)
 
 ### 📚 Fandom Wiki Phase 3 (Infobox Translations, Image Resilience, Copy Actions & Global Wiki Tabs)
 - **Infobox Label & Value Localization:** Integrated `FandomInfoboxLabels` supporting ~90 infobox keys (Species, Birthday, Affiliation, Occupation...), group headers, and finite status values (Male/Female, Alive, Deceased...) localized via strings.xml.
@@ -93,6 +83,38 @@
 - **No More Cut-off:** Ratings no longer overflow a horizontally scrolled strip; they are laid out in a grid that spans the screen width (5–7 ratings split across two balanced rows).
 - **"0 Metacritic" Fixed:** MDBList returned **0** instead of "no score" for some entries, which rendered meaningless zero boxes. Zero is now treated as "no score", and the card hides entirely when nothing is available.
 - **Loading Skeleton:** The skeleton mirrors the new grid geometry so the layout no longer jumps when loading finishes.
+
+### 🗳️ Smart Fandom Wiki Discovery via Wikidata Character Voting & Simkl Support
+- **Character Page Wiki Voting:** When an entry lacks a direct Fandom wiki property (P4073) on Wikidata (missing in ~99% of media), media QIDs are looked up → reverse P1441 ("present in work") queries characters → character P6262 Fandom article claims vote on the correct wiki (`WikidataCharacterVotes`).
+- **Strict Consensus & Validation:** A wiki candidate must achieve at least 2 votes with a strict plurality over runner-ups, and is validated via `siteinfo` (active and ≥20 articles). Language variants and blocked wikis are filtered out.
+- **Simkl Integration:** Added `simklId` to `FandomSourceIds`, integrated Simkl stable ID offset resolution, and piped Simkl IDs from media detail views into wiki queries.
+- **Cache Invalidation on Retry:** Tapping "Retry" on wiki cards now flushes negative query caches to perform a clean re-resolution.
+
+---
+
+# Kitsugi-Beta v2.4.272
+
+## 🇹🇷 Türkçe (v2.4.272)
+
+### ⚡ AniList GraphQL Senkronizasyon Düzeltmesi (Direct Interpolation)
+- **Doğrudan Dolar İşareti İnterpolasyonu:** AniList `SaveMediaListEntry` GraphQL mutasyon sorgusu artık metin yerine doğrudan Kotlin `${'$'}` interpolasyonu ile derlenir; kırılgan ardışık `.replace()` zinciri kaldırıldı.
+- **Puan Güvenliği:** Puanı bulunmayan kayıtlarda `scoreRaw` değişkeni GraphQL mutasyonuna dahil edilmez. Bu sayede AniList'teki mevcut puanların silinmesi veya API'nin hata vermesi engellendi.
+- **Kullanıcı Aitlik Doğrulaması:** AniList liste kayıtlarının (`aniListEntryId`) güncellenmesi veya silinmesi öncesinde, kaydın gerçekten oturum açmış kullanıcıya (`Viewer.id`) ait olduğu ve hedeflenen medyayla eşleştiği doğrulanır.
+
+### 🛡️ Çapraz Senkronizasyon Güvenlik Denetimi & Kimlik Koruma Kalkanı (Sync Safety Audit)
+- **Resmî Katalog Doğrulama Kapısı:** Farklı hesaplar arası (cross-account) yazmalarda, hedef platforma kayıt eklenmeden önce resmî MAL kataloğundan başlık, medya türü ve yıl doğrulanır; üçüncü parti tahminler ve belirsiz eşleşmeler engellenir.
+- **Bangumi Çapraz Yazma Koruması (Fail-Closed):** Desteklenen API yolunda yetkili MAL↔Bangumi kimlik eşlemesi bulunmadığından, yanlış içerik yazılmasını önlemek amacıyla çapraz eklemeler güvenli tarafta kalarak atlanır; yalnızca aynı hesaptaki doğrulanmış kayıtlar güncellenir.
+- **Kimlik Uzayı (Namespace) Ayrımı & Taşma Koruması:** Kitsu, Shikimori ve Bangumi sağlayıcı kimliklerinin birbirine ve MAL ID uzayına karışması engellendi. Kitsu ve Bangumi ID dönüşümlerine 32-bit tamsayı taşma kontrolü eklendi.
+- **Doğrulama Birim Testleri:** `CrossSyncEntryFactoryTest`, `KitsuMediaIdentityTest`, `KitsuIdNamespaceTest` ve `CrossSyncIdentityGuardTest` ile senkronizasyon sınırlarının tam gerileme testi sağlandı.
+
+### 📚 Fandom Wiki Faz 2 (Anında Sekme, Başlık Çevirileri & Medya Wiki Sekmesi)
+- **Sıfır Zıplama & Anında Sekme:** Karakter detay sayfasında wiki sekmesi sayfa açılır açılmaz shimmer iskeletiyle belirir. Çözümleme tamamlandığında düzen hiç zıplamadan içerik doldurulur.
+- **24+ Başlık Çeviri Tablosu:** "Role in the Series", "Appearances in Other Media", "Creation and Design", "Legacy", "About" gibi sık karşılaşılan Fandom başlıkları Türkçeleştirildi.
+- **Medya Detayında Wiki Sekmesi:** Anime ve manga detay sayfalarına genel özet, içindekiler ve bilgi kutusu içeren Fandom Wiki sekmesi entegre edildi.
+
+---
+
+## 🇬🇧 English (v2.4.272)
 
 ### ⚡ AniList GraphQL Mutation Hardening (Direct Interpolation)
 - **Direct Variable Interpolation:** The AniList `SaveMediaListEntry` GraphQL mutation now uses direct Kotlin `${'$'}` variable interpolation instead of error-prone string `.replace()` calls.
