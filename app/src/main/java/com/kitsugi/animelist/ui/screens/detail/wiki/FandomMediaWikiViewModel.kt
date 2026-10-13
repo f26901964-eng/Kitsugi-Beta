@@ -5,6 +5,8 @@ import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.kitsugi.animelist.data.fandom.FandomCharacterPage
+import com.kitsugi.animelist.data.fandom.FandomArticlePage
+import com.kitsugi.animelist.data.fandom.FandomSectionContent
 import com.kitsugi.animelist.data.fandom.FandomGuideGroup
 import com.kitsugi.animelist.data.fandom.FandomGuideItem
 import com.kitsugi.animelist.data.fandom.FandomMediaQuery
@@ -93,14 +95,23 @@ class FandomMediaWikiViewModel(application: Application) : AndroidViewModel(appl
     sealed interface SelectedState {
         data object Closed : SelectedState
         data object Loading : SelectedState
-        data class Ready(val title: String, val blurb: FandomPageBlurb?) : SelectedState
+        data class Ready(val title: String, val article: FandomArticlePage) : SelectedState
         data class Failed(val title: String) : SelectedState
+    }
+
+    sealed interface ArticleSectionState {
+        data object Loading : ArticleSectionState
+        data class Loaded(val content: FandomSectionContent) : ArticleSectionState
+        data object Failed : ArticleSectionState
     }
 
     companion object {
         private const val TAG = "FandomMediaWikiVM"
         const val KEY_SUMMARY = "media:desc"
         fun itemKey(title: String): String = "item:$title"
+        fun articleSectionKey(title: String, index: Int): String = "item-sec:$index:$title"
+        fun articleInfoboxKey(title: String): String = "item-info:$title"
+        fun articleInfoboxFieldKey(title: String, index: Int): String = "item-if:$index:$title"
         private const val SEARCH_DEBOUNCE_MS = 350L
     }
 
@@ -134,6 +145,9 @@ class FandomMediaWikiViewModel(application: Application) : AndroidViewModel(appl
 
     private val _selected = MutableStateFlow<SelectedState>(SelectedState.Closed)
     val selected: StateFlow<SelectedState> = _selected.asStateFlow()
+
+    private val _selectedSections = MutableStateFlow<Map<Int, ArticleSectionState>>(emptyMap())
+    val selectedSections: StateFlow<Map<Int, ArticleSectionState>> = _selectedSections.asStateFlow()
 
     private val _translations = MutableStateFlow<Map<String, String>>(emptyMap())
     val translations: StateFlow<Map<String, String>> = _translations.asStateFlow()
@@ -170,6 +184,7 @@ class FandomMediaWikiViewModel(application: Application) : AndroidViewModel(appl
     private var summaryJob: Job? = null
     private var searchJob: Job? = null
     private var selectedJob: Job? = null
+    private val selectedSectionJobs = HashMap<Int, Job>()
     private val translationJobs = HashMap<String, Job>()
 
     init {
@@ -231,9 +246,11 @@ class FandomMediaWikiViewModel(application: Application) : AndroidViewModel(appl
         summaryJob?.cancel()
         searchJob?.cancel()
         selectedJob?.cancel()
+        cancelSelectedSectionJobs()
         cancelTranslations()
         _article.value = ArticleState.Idle
         _articleSections.value = emptyMap()
+        _selectedSections.value = emptyMap()
         _translations.value = emptyMap()
         _originalKeys.value = emptySet()
         _guide.value = GuideState.Idle
@@ -534,24 +551,71 @@ class FandomMediaWikiViewModel(application: Application) : AndroidViewModel(appl
     fun openItem(title: String) {
         val ready = _state.value as? UiState.Ready ?: return
         selectedJob?.cancel()
+        cancelSelectedSectionJobs()
+        cancelArticleItemTranslations()
+        _selectedSections.value = emptyMap()
         _selected.value = SelectedState.Loading
         selectedJob = viewModelScope.launch {
-            val blurb = try {
-                FandomRepository.loadPageBlurb(appContext, ready.ref.wikiId, title)
+            val article = try {
+                FandomRepository.loadArticle(appContext, ready.ref.wikiId, title)
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                Log.w(TAG, "Öğe yüklenemedi ($title): ${e.message}")
+                Log.w(TAG, "Wiki makalesi yüklenemedi ($title): ${e.message}")
                 null
             }
             if (!isCurrent(ready)) return@launch
-            _selected.value = SelectedState.Ready(title, blurb)
-            if (!blurb?.description.isNullOrBlank()) maybeAutoTranslate(itemKey(title))
+            _selected.value = if (article != null) {
+                SelectedState.Ready(title, article)
+            } else {
+                SelectedState.Failed(title)
+            }
+            val key = itemKey(title)
+            if (!article?.description.isNullOrBlank() && _translations.value[key] == null) {
+                maybeAutoTranslate(key)
+            }
+            if (!article?.infobox?.allFields().isNullOrEmpty() && isAutoTranslateEnabled()) {
+                translateArticleInfobox(title)
+            }
+        }
+    }
+
+    fun loadSelectedSection(index: Int) {
+        val selected = _selected.value as? SelectedState.Ready ?: return
+        when (_selectedSections.value[index]) {
+            is ArticleSectionState.Loading, is ArticleSectionState.Loaded -> return
+            else -> Unit
+        }
+        _selectedSections.update { it + (index to ArticleSectionState.Loading) }
+        selectedSectionJobs[index]?.cancel()
+        selectedSectionJobs[index] = viewModelScope.launch {
+            val content = try {
+                FandomRepository.loadSection(
+                    appContext,
+                    selected.article.wikiId,
+                    selected.article.pageTitle,
+                    index
+                )
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                Log.w(TAG, "Wiki makale bölümü yüklenemedi (${selected.title}/$index): ${e.message}")
+                null
+            }
+            if (!isCurrentArticleItem(selected.title, selected.article.pageTitle)) return@launch
+            val next: ArticleSectionState = if (content != null) ArticleSectionState.Loaded(content) else ArticleSectionState.Failed
+            _selectedSections.update { it + (index to next) }
+            if (content != null && !content.isEmpty() && isAutoTranslateEnabled()) {
+                translate(articleSectionKey(selected.title, index))
+            }
         }
     }
 
     fun closeItem() {
         selectedJob?.cancel()
+        cancelSelectedSectionJobs()
+        cancelArticleItemTranslations()
+        _selectedSections.value = emptyMap()
         _selected.value = SelectedState.Closed
     }
 
@@ -584,7 +648,18 @@ class FandomMediaWikiViewModel(application: Application) : AndroidViewModel(appl
             }
             key.startsWith("item:") -> {
                 val title = key.removePrefix("item:")
-                (_selected.value as? SelectedState.Ready)?.takeIf { it.title == title }?.blurb?.description
+                (_selected.value as? SelectedState.Ready)?.takeIf { it.title == title }?.article?.description
+            }
+            key.startsWith("item-sec:") -> {
+                val parts = key.removePrefix("item-sec:")
+                val index = parts.substringBefore(':').toIntOrNull()
+                val title = parts.substringAfter(':', missingDelimiterValue = "")
+                if (index == null || title.isBlank()) null
+                else {
+                    val current = _selected.value as? SelectedState.Ready
+                    current?.takeIf { it.title == title }
+                        ?.let { (_selectedSections.value[index] as? ArticleSectionState.Loaded)?.content?.plainText() }
+                }
             }
             else -> null
         }
@@ -679,6 +754,93 @@ class FandomMediaWikiViewModel(application: Application) : AndroidViewModel(appl
      * Şu an bellekte olan tüm wiki metinlerini çevirir (seri özeti + açık kart açıklaması + madde).
      * Otomatik çeviri ayarı açıldığında ya da hedef dil değiştiğinde çağrılır.
      */
+    private fun translateArticleInfobox(title: String, force: Boolean = false) {
+        val infoKey = articleInfoboxKey(title)
+        if (force) {
+            translationJobs.remove(infoKey)?.cancel()
+            _translating.update { it - infoKey }
+            _translations.update { map -> map.filterKeys { it != infoKey && !it.startsWith("item-if:") } }
+        }
+        if (infoKey in _translating.value) return
+        if (!force && infoKey in _translations.value) return
+        val article = (_selected.value as? SelectedState.Ready)
+            ?.takeIf { it.title == title }?.article ?: return
+        val targets = article.infobox?.allFields().orEmpty().withIndex()
+            .filter { (_, field) ->
+                field.value.isNotBlank() && FandomInfoboxLabels.valueResId(field.value) == null
+            }
+            .take(40)
+        if (targets.isEmpty()) {
+            _translations.update { it + (infoKey to "1") }
+            return
+        }
+        _translating.update { it + infoKey }
+        translationJobs[infoKey] = viewModelScope.launch {
+            try {
+                val translatedValues = withContext(Dispatchers.IO) {
+                    val sourceLines = targets.map { (_, field) -> field.value.replace(Regex("\\s*\\n\\s*"), " · ").trim() }
+                    val translatedJoined = try {
+                        translationManager.translateToTarget(sourceLines.joinToString("\n"))
+                    } catch (e: CancellationException) {
+                        throw e
+                    } catch (e: Exception) {
+                        ""
+                    }
+                    val lines = translatedJoined.split('\n').map { it.trim() }
+                    if (lines.size == sourceLines.size && lines.all { it.isNotBlank() }) {
+                        lines
+                    } else {
+                        sourceLines.map { value ->
+                            try {
+                                translationManager.translateToTarget(value)
+                            } catch (e: CancellationException) {
+                                throw e
+                            } catch (e: Exception) {
+                                value
+                            }
+                        }
+                    }
+                }
+                if (!isCurrentArticleItem(title, article.pageTitle)) return@launch
+                val additions = HashMap<String, String>()
+                targets.forEachIndexed { position, (fieldIndex, field) ->
+                    val translated = translatedValues.getOrNull(position).orEmpty()
+                    if (translated.isNotBlank() && translated != field.value) {
+                        additions[articleInfoboxFieldKey(title, fieldIndex)] = translated
+                    }
+                }
+                additions[infoKey] = "1"
+                _translations.update { it + additions }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                Log.w(TAG, "Wiki bilgi kutusu çevirisi başarısız ($title): ${e.message}")
+            } finally {
+                _translating.update { it - infoKey }
+                translationJobs.remove(infoKey)
+            }
+        }
+    }
+
+    private fun cancelSelectedSectionJobs() {
+        selectedSectionJobs.values.forEach { it.cancel() }
+        selectedSectionJobs.clear()
+    }
+
+    private fun cancelArticleItemTranslations() {
+        val keys = translationJobs.keys.filter { it.startsWith("item") }
+        keys.forEach { key ->
+            translationJobs.remove(key)?.cancel()
+            _translating.update { it - key }
+        }
+        _translations.update { map -> map.filterKeys { !it.startsWith("item") } }
+    }
+
+    private fun isCurrentArticleItem(title: String, pageTitle: String): Boolean {
+        val current = _selected.value as? SelectedState.Ready ?: return false
+        return current.title == title && current.article.pageTitle == pageTitle
+    }
+
     private fun retranslateLoadedTexts(force: Boolean) {
         if (force) {
             _translations.value = emptyMap()
@@ -688,8 +850,18 @@ class FandomMediaWikiViewModel(application: Application) : AndroidViewModel(appl
             translate(KEY_SUMMARY, force = force)
         }
         val selected = _selected.value as? SelectedState.Ready
-        if (selected != null && !selected.blurb?.description.isNullOrBlank()) {
-            translate(itemKey(selected.title), force = force)
+        if (selected != null) {
+            if (!selected.article.description.isNullOrBlank()) {
+                translate(itemKey(selected.title), force = force)
+            }
+            if (!selected.article.infobox?.allFields().isNullOrEmpty()) {
+                translateArticleInfobox(selected.title, force = force)
+            }
+            _selectedSections.value.forEach { (index, state) ->
+                if (state is ArticleSectionState.Loaded) {
+                    translate(articleSectionKey(selected.title, index), force = force)
+                }
+            }
         }
         val articlePage = (_article.value as? ArticleState.Ready)?.page
         if (articlePage != null) {

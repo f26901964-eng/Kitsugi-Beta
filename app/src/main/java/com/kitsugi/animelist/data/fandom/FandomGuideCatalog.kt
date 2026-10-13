@@ -3,19 +3,32 @@ package com.kitsugi.animelist.data.fandom
 /**
  * Evren rehberi kategori adayları (saf veri; ağ isteği yok).
  *
- * Fandom wikilerinde kategoriler adlandırma birliği taşımaz: bir wikide `Organizations`,
- * diğerinde `Factions` veya Türkçe wikide `Organizasyonlar` olabilir. Her grup için
- * öncelik sırasıyla adaylar denenir; ilk dolu kategori grubu temsil eder.
+ * Fandom wikilerinde kategori adlandırma birliği taşımaz: organizasyonlar için
+ * `Organizations` / `Factions`, olay örgüsü için `Story Arcs` / `Sagas`, içerik dizinleri
+ * için `Episodes` / `Chapters` gibi alternatifler kullanılır. Her grup için öncelik
+ * sırasındaki ilk dolu kategori seçilir.
  *
  * Wiki diline göre (`siteinfo.lang`) yerel dil adayları öne alınır, İngilizce adaylar
- * her zaman son çare olarak eklenir — böylece tek `categoryinfo` isteğiyle var/yok
- * kararı verilir, grup başına ayrıca istek atılmaz.
+ * her zaman son çare olarak eklenir — böylece kategori var/yok kararı `categoryinfo`
+ * ile 50 başlıklı gruplar halinde sorgulanabilir.
  */
 object FandomGuideCatalog {
 
     private val EN = mapOf(
+        FandomGuideGroup.CHARACTERS to listOf(
+            "Characters", "Main Characters", "Character Index", "Character List"
+        ),
         FandomGuideGroup.ORGANIZATIONS to listOf(
             "Organizations", "Organisations", "Factions", "Groups", "Clans", "Guilds", "Teams"
+        ),
+        FandomGuideGroup.STORY_ARCS to listOf(
+            "Story Arcs", "Arcs", "Sagas", "Story", "Plot"
+        ),
+        FandomGuideGroup.EPISODES to listOf(
+            "Episodes", "Anime Episodes", "TV Episodes", "Episode List"
+        ),
+        FandomGuideGroup.CHAPTERS to listOf(
+            "Chapters", "Manga Chapters", "Chapter List", "Volumes"
         ),
         FandomGuideGroup.ABILITIES to listOf(
             "Abilities", "Powers", "Techniques", "Skills", "Magic", "Spells", "Curses", "Quirks"
@@ -29,14 +42,26 @@ object FandomGuideCatalog {
     )
 
     private val TR = mapOf(
+        FandomGuideGroup.CHARACTERS to listOf(
+            "Karakterler", "Ana Karakterler", "Karakter Dizini"
+        ),
         FandomGuideGroup.ORGANIZATIONS to listOf(
             "Organizasyonlar", "Kuruluşlar", "Gruplar", "Klanlar", "Fraksiyonlar", "Takımlar"
+        ),
+        FandomGuideGroup.STORY_ARCS to listOf(
+            "Hikâye Yayları", "Hikaye Yayları", "Hikâye", "Hikaye", "Olay Örgüsü", "Destanlar"
+        ),
+        FandomGuideGroup.EPISODES to listOf(
+            "Bölümler", "Anime Bölümleri", "Dizi Bölümleri"
+        ),
+        FandomGuideGroup.CHAPTERS to listOf(
+            "Manga Bölümleri", "Bölümler (Manga)", "Fasıllar", "Ciltler"
         ),
         FandomGuideGroup.ABILITIES to listOf(
             "Yetenekler", "Güçler", "Teknikler", "Beceriler", "Büyüler", "Lanetler"
         ),
         FandomGuideGroup.PLACES to listOf(
-            "Mekanlar", "Konumlar", "Yerler", "Şehirler", "Ülkeler", "Bölgeler"
+            "Mekanlar", "Mekânlar", "Konumlar", "Yerler", "Şehirler", "Ülkeler", "Bölgeler"
         ),
         FandomGuideGroup.TERMS to listOf(
             "Terimler", "Kavramlar", "Sözlük", "Eşyalar", "Nesneler", "Silahlar", "Türler", "Olaylar"
@@ -49,7 +74,7 @@ object FandomGuideCatalog {
         return if (lang?.lowercase() == "tr") (TR[group].orEmpty() + english).distinct() else english
     }
 
-    /** Tüm grupların adayları (grup sırası sabittir: organizasyon → yetenek → mekân → terim). */
+    /** Tüm grupların adayları (karakter → organizasyon → hikâye → bölüm → bilgi sırası). */
     fun allCandidates(lang: String?): Map<FandomGuideGroup, List<String>> =
         FandomGuideGroup.values().associateWith { candidates(lang, it) }
 }

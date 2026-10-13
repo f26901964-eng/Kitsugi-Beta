@@ -22,6 +22,16 @@ class FandomGuideCatalogTest {
     }
 
     @Test
+    fun `guide covers characters story arcs episodes and chapters`() {
+        assertTrue(FandomGuideCatalog.candidates("en", FandomGuideGroup.CHARACTERS).contains("Characters"))
+        assertTrue(FandomGuideCatalog.candidates("en", FandomGuideGroup.STORY_ARCS).contains("Story Arcs"))
+        assertTrue(FandomGuideCatalog.candidates("en", FandomGuideGroup.EPISODES).contains("Episodes"))
+        assertTrue(FandomGuideCatalog.candidates("en", FandomGuideGroup.CHAPTERS).contains("Chapters"))
+        assertEquals("Karakterler", FandomGuideCatalog.candidates("tr", FandomGuideGroup.CHARACTERS).first())
+        assertEquals("Bölümler", FandomGuideCatalog.candidates("tr", FandomGuideGroup.EPISODES).first())
+    }
+
+    @Test
     fun `all groups present and deduped`() {
         val all = FandomGuideCatalog.allCandidates(null)
         assertEquals(FandomGuideGroup.values().toList(), all.keys.toList())

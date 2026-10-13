@@ -103,6 +103,45 @@ class FandomHtmlTextTest {
     }
 
     @Test
+    fun `content tables keep chapter and episode information but navigation tables are dropped`() {
+        val html = """
+            <table class="wikitable">
+              <tr><th>Number of Chapters</th><th>Number of Episodes</th></tr>
+              <tr><td>18</td><td>8</td></tr>
+              <tr><td>1. Ryomen Sukuna<br>2. Secret Execution</td><td>1. Ryomen Sukuna</td></tr>
+            </table>
+            <table class="navbox"><tr><td>Related navigation</td></tr></table>
+        """.trimIndent()
+        val blocks = FandomHtmlText.blocks(html)
+        assertEquals(3, blocks.size)
+        assertEquals("Number of Chapters · Number of Episodes", blocks[0].text)
+        assertTrue(blocks[1].text.contains("Number of Chapters: 18"))
+        assertTrue(blocks[1].text.contains("Number of Episodes: 8"))
+        assertTrue(blocks[2].text.contains("Ryomen Sukuna"))
+        assertTrue(blocks.none { it.text.contains("Related navigation") })
+    }
+
+    @Test
+    fun `article figures and gallery items keep secure image urls and captions`() {
+        val html = """
+            <figure>
+              <img data-src="//static.wikia.nocookie.net/test/images/a/ab/Gojo.webp/revision/latest/scale-to-width-down/320?cb=1"
+                   src="data:image/gif;base64,AA" alt="Satoru Gojo">
+              <figcaption>Gojo at Jujutsu High</figcaption>
+            </figure>
+            <ul class="gallery mw-gallery-traditional">
+              <li class="gallerybox"><div class="thumb"><img src="https://static.wikia.nocookie.net/test/images/Battle.jpg/revision/latest?cb=2"></div>
+                <div class="gallerytext"><p>Shibuya Incident</p></div></li>
+            </ul>
+        """.trimIndent()
+        val images = FandomHtmlText.blocks(html).filter { it.kind == FandomBlockKind.IMAGE }
+        assertEquals(2, images.size)
+        assertEquals("https://static.wikia.nocookie.net/test/images/a/ab/Gojo.webp/revision/latest/scale-to-width-down/320?cb=1", images[0].image?.url)
+        assertEquals("Gojo at Jujutsu High", images[0].image?.caption)
+        assertEquals("Shibuya Incident", images[1].image?.caption)
+    }
+
+    @Test
     fun `block count is bounded and empty input yields nothing`() {
         val html = (1..200).joinToString("") { "<p>Paragraph $it</p>" }
         assertEquals(10, FandomHtmlText.blocks(html, maxBlocks = 10).size)

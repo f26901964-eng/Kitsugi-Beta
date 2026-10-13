@@ -127,12 +127,14 @@ data class FandomSectionRef(
 )
 
 @Serializable
-enum class FandomBlockKind { PARAGRAPH, HEADING, BULLET, QUOTE }
+enum class FandomBlockKind { PARAGRAPH, HEADING, BULLET, QUOTE, IMAGE }
 
 @Serializable
 data class FandomTextBlock(
     val kind: FandomBlockKind,
-    val text: String
+    val text: String,
+    /** İçerik bölümlerindeki görsel (yalnızca IMAGE bloklarında doludur). */
+    val image: FandomImage? = null
 )
 
 /** Bir wiki bölümünün sadeleştirilmiş metni (ham HTML saklanmaz). */
@@ -144,10 +146,12 @@ data class FandomSectionContent(
 ) {
     fun isEmpty(): Boolean = blocks.isEmpty() && links.isEmpty()
 
-    /** Çeviri ve kopyalama için paragraf aralıklı düz metin. */
-    fun plainText(): String = blocks.joinToString("\n\n") { block ->
-        if (block.kind == FandomBlockKind.BULLET) "• ${block.text}" else block.text
-    }
+    /** Çeviri ve kopyalama için paragraf aralıklı düz metin; görsel URL'leri metne karışmaz. */
+    fun plainText(): String = blocks
+        .filterNot { it.kind == FandomBlockKind.IMAGE }
+        .joinToString("\n\n") { block ->
+            if (block.kind == FandomBlockKind.BULLET) "• ${block.text}" else block.text
+        }
 }
 
 /** `action=query&list=search` sonucundaki bir sayfa (başlık + kırpılmış özet). */
@@ -172,7 +176,16 @@ data class FandomPageBlurb(
 
 /** Evren rehberi grupları (yapım wiki'sindeki kategori kümeleri). */
 @Serializable
-enum class FandomGuideGroup { ORGANIZATIONS, ABILITIES, PLACES, TERMS }
+enum class FandomGuideGroup {
+    CHARACTERS,
+    ORGANIZATIONS,
+    STORY_ARCS,
+    EPISODES,
+    CHAPTERS,
+    ABILITIES,
+    PLACES,
+    TERMS
+}
 
 @Serializable
 data class FandomGuideItem(val title: String)
@@ -253,4 +266,23 @@ data class FandomCharacterPage(
 
     val matchedPageTitle: String
         get() = englishPageTitle ?: pageTitle
+}
+/**
+ * Medya wiki'sindeki herhangi bir makale için uygulama içi okuma modeli.
+ * Arama sonucu ve evren rehberi çipinden açıldığında bilgi kutusu/içindekiler hemen,
+ * içerik bölümleri ise kullanıcı açtıkça yüklenir.
+ */
+@Serializable
+data class FandomArticlePage(
+    val wikiId: String,
+    val pageTitle: String,
+    val siteName: String? = null,
+    val description: String? = null,
+    val infobox: FandomInfobox? = null,
+    val sections: List<FandomSectionRef> = emptyList(),
+    /** İçindekiler isteği başarısızsa yeniden deneme eylemi gösterilir. */
+    val sectionsFailed: Boolean = false
+) {
+    val pageUrl: String
+        get() = FandomUrls.pageUrl(wikiId, pageTitle)
 }

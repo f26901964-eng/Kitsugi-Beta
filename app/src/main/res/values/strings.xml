@@ -7302,6 +7302,13 @@ Eklentiler ekranından eklenti etkinleştirin.</string>
     <string name="fandom_media_search_hint">Wiki\'de ara…</string>
     <string name="fandom_media_search_empty">Aramayla eşleşen sayfa bulunamadı.</string>
     <string name="fandom_guide_title">Evren rehberi</string>
+    <string name="fandom_guide_characters">Karakterler</string>
+    <string name="fandom_guide_story_arcs">Hikâye yayları</string>
+    <string name="fandom_guide_episodes">Anime bölümleri</string>
+    <string name="fandom_guide_chapters">Manga bölümleri</string>
+    <string name="fandom_article_no_sections">Bu makalede uygulama içinde açılabilir bölüm bulunmuyor.</string>
+    <string name="fandom_contents_load_failed">Makale içindekileri yüklenemedi.</string>
+    <string name="fandom_open_article_external">Fandom\'da aç</string>
     <string name="fandom_guide_organizations">Organizasyonlar</string>
     <string name="fandom_guide_abilities">Yetenekler</string>
     <string name="fandom_guide_places">Mekânlar</string>

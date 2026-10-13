@@ -191,13 +191,23 @@ object FandomApiParsers {
         if (root.has("error")) return null
         val sections = root.optJSONObject("parse")?.optJSONArray("sections") ?: return emptyList()
         val result = mutableListOf<FandomSectionRef>()
+        // level, spoiler inheritance, hidden subtree. Hidden sections' descendants are hidden too.
+        val ancestors = mutableListOf<Triple<Int, Boolean, Boolean>>()
         for (section in sections.objects()) {
             val index = section.optString("index").toIntOrNull() ?: continue
             val level = section.optString("level").toIntOrNull()
                 ?: (section.optInt("toclevel", 1) + 1)
             val title = FandomHtmlText.inline(section.optString("line"))
-            if (title.isBlank() || FandomSpoilerRules.isHiddenSection(title)) continue
-            result += FandomSectionRef(index, title, level, FandomSpoilerRules.isSpoilerSection(title))
+            while (ancestors.lastOrNull()?.first?.let { it >= level } == true) {
+                ancestors.removeAt(ancestors.lastIndex)
+            }
+            val parent = ancestors.lastOrNull()
+            val spoiler = parent?.second == true || FandomSpoilerRules.isSpoilerSection(title)
+            val hidden = parent?.third == true || FandomSpoilerRules.isHiddenSection(title)
+            if (title.isNotBlank() && !hidden) {
+                result += FandomSectionRef(index, title, level, spoiler)
+            }
+            ancestors += Triple(level, spoiler, hidden)
         }
         return result
     }

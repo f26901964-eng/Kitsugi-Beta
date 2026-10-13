@@ -64,14 +64,43 @@ class FandomModelsTest {
     }
 
     @Test
-    fun `section content plain text marks bullets`() {
+    fun `article page round trips with image infobox and builds its source url`() {
+        val article = FandomArticlePage(
+            wikiId = "tr.onepiece",
+            pageTitle = "Monkey D. Luffy",
+            siteName = "One Piece Vikisi",
+            description = "Hasır Şapka Korsanları'nın kaptanı.",
+            infobox = FandomInfobox(
+                title = "Monkey D. Luffy",
+                images = listOf(FandomImage("https://static.wikia.nocookie.net/x/luffy.png", "Timeskip")),
+                groups = listOf(FandomInfoboxGroup(fields = listOf(FandomInfoboxField("Age", "19"))))
+            ),
+            sections = listOf(FandomSectionRef(1, "Appearance", 2)),
+            sectionsFailed = true
+        )
+        val encoded = json.encodeToString(FandomArticlePage.serializer(), article)
+        assertEquals(article, json.decodeFromString(FandomArticlePage.serializer(), encoded))
+        val legacy = json.decodeFromString(
+            FandomArticlePage.serializer(),
+            """{"wikiId":"onepiece","pageTitle":"Monkey D. Luffy"}"""
+        )
+        assertFalse(legacy.sectionsFailed)
+        assertEquals("https://onepiece.fandom.com/tr/wiki/Monkey_D._Luffy", article.pageUrl)
+    }
+
+    @Test
+    fun `section plain text omits image urls but keeps text and legacy blocks decode`() {
+        val image = FandomImage("https://static.wikia.nocookie.net/x/hero.png", "The hero")
         val content = FandomSectionContent(
             listOf(
                 FandomTextBlock(FandomBlockKind.HEADING, "Outfit"),
-                FandomTextBlock(FandomBlockKind.BULLET, "Blindfold")
+                FandomTextBlock(FandomBlockKind.BULLET, "Blindfold"),
+                FandomTextBlock(FandomBlockKind.IMAGE, "The hero", image)
             )
         )
         assertEquals("Outfit\n\n• Blindfold", content.plainText())
+        val legacy = json.decodeFromString(FandomTextBlock.serializer(), """{"kind":"PARAGRAPH","text":"old cache"}""")
+        assertEquals(null, legacy.image)
     }
 
     @Test

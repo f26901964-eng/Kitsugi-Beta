@@ -7297,6 +7297,13 @@
     <string name="fandom_media_search_hint">Search the wiki…</string>
     <string name="fandom_media_search_empty">No pages matched your search.</string>
     <string name="fandom_guide_title">Universe guide</string>
+    <string name="fandom_guide_characters">Characters</string>
+    <string name="fandom_guide_story_arcs">Story arcs</string>
+    <string name="fandom_guide_episodes">Anime episodes</string>
+    <string name="fandom_guide_chapters">Manga chapters</string>
+    <string name="fandom_article_no_sections">This article has no expandable sections in-app.</string>
+    <string name="fandom_contents_load_failed">Failed to load article sections.</string>
+    <string name="fandom_open_article_external">Open on Fandom</string>
     <string name="fandom_guide_organizations">Organizations</string>
     <string name="fandom_guide_abilities">Abilities</string>
     <string name="fandom_guide_places">Locations</string>

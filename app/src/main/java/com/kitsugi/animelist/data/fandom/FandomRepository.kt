@@ -37,6 +37,7 @@ object FandomRepository {
     private const val PAGE_TTL_MS = 7L * DAY_MS
     private const val SECTION_TTL_MS = 7L * DAY_MS
     private const val GUIDE_TTL_MS = 7L * DAY_MS
+    private const val ARTICLE_TTL_MS = 7L * DAY_MS
     /** Evren rehberi çiplerinde bir seferde çekilen kategori üyesi sayısı. */
     private const val GUIDE_PAGE_SIZE = 14
     private const val BLURB_TTL_MS = 7L * DAY_MS
@@ -63,6 +64,9 @@ object FandomRepository {
 
     @Serializable
     private data class StoredBlurb(val blurb: FandomPageBlurb? = null)
+
+    @Serializable
+    private data class StoredArticle(val article: FandomArticlePage? = null)
 
     private data class Memo(val value: Any?, val expiresAt: Long)
 
@@ -332,6 +336,80 @@ object FandomRepository {
         val hits = FandomApi.searchHits(wikiId, clean, limit = 8)
         memory[key] = Memo(hits, System.currentTimeMillis() + SEARCH_MEMO_TTL_MS)
         return hits
+    }
+
+    /**
+     * Wiki makalesinin uygulama içi okuma görünümü: açıklama + infobox + içindekiler.
+     * Makale gövdeleri burada topluca indirilmez; bölümler [loadSection] ile kullanıcı
+     * açtıkça alınır. Böylece büyük wiki sayfalarında gereksiz veri ve görsel trafiği olmaz.
+     */
+    suspend fun loadArticle(context: Context, wikiId: String, title: String): FandomArticlePage? {
+        val appContext = context.applicationContext
+        val clean = title.trim()
+        if (clean.isEmpty()) return null
+        val key = "${KEY_PREFIX}article:v1:$wikiId|${clean.lowercase()}"
+        return lockFor(sectionLocks, key).withLock {
+            val cached = readCached(appContext, key, positiveTtl = ARTICLE_TTL_MS) { body ->
+                json.decodeFromString(StoredArticle.serializer(), body).article
+            }
+            if (cached != null) return@withLock cached.value as? FandomArticlePage
+
+            val failuresBefore = FandomHttp.failureCount()
+            val lookup = try {
+                FandomApi.lookupTitles(wikiId, listOf(clean))[clean]
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                Log.w(TAG, "Makale özeti yüklenemedi ($wikiId/$clean): ${e.message}")
+                null
+            } ?: return@withLock null
+
+            if (!lookup.exists) {
+                val transientFailure = FandomHttp.failureCount() != failuresBefore
+                if (!transientFailure) {
+                    writeCached(
+                        context = appContext,
+                        key = key,
+                        value = null,
+                        encoded = json.encodeToString(StoredArticle.serializer(), StoredArticle()),
+                        persist = true,
+                        ttl = NEGATIVE_TTL_MS
+                    )
+                }
+                return@withLock null
+            }
+
+            val pageTitle = lookup.resolvedTitle ?: return@withLock null
+            val sections = try {
+                FandomApi.sections(wikiId, pageTitle)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                Log.w(TAG, "Makale içindekileri yüklenemedi ($wikiId/$pageTitle): ${e.message}")
+                null
+            }
+            val article = FandomArticlePage(
+                wikiId = wikiId,
+                pageTitle = pageTitle,
+                siteName = FandomWikiResolver.siteInfoCached(wikiId)?.siteName,
+                description = lookup.description?.let { FandomNameVariants.cleanDescription(it) }?.takeIf { it.isNotBlank() },
+                infobox = FandomInfoboxParser.parse(lookup.infoboxJson, wikiId),
+                sections = sections.orEmpty(),
+                sectionsFailed = sections == null
+            )
+            // An incomplete TOC is shown with a retry action, but is not cached so that retry
+            // can actually reach MediaWiki again instead of replaying the same partial result.
+            if (sections == null) return@withLock article
+            writeCached(
+                context = appContext,
+                key = key,
+                value = article,
+                encoded = json.encodeToString(StoredArticle.serializer(), StoredArticle(article)),
+                persist = true,
+                ttl = ARTICLE_TTL_MS
+            )
+            article
+        }
     }
 
     // ── Yapım wiki maddesi (bilgi kutusu + bütün bölümler) ───────────────────

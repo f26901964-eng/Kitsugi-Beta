@@ -47,6 +47,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontStyle
@@ -226,7 +227,8 @@ internal fun CharacterWikiTabContent(
                         onReveal = { revealed[revealKey] = true },
                         onLoad = { onLoadSection(section.index) },
                         onCopy = { text -> copyWikiText(context, text) },
-                        preferredTranslator = preferredTranslator
+                        preferredTranslator = preferredTranslator,
+                        onOpenGallery = onOpenGallery
                     )
                 }
             }
@@ -648,7 +650,8 @@ private fun WikiSectionRow(
     onCopy: (String) -> Unit = {},
     preferredTranslator: String = "DEFAULT",
     showingOriginal: Boolean = false,
-    onToggleOriginal: (() -> Unit)? = null
+    onToggleOriginal: (() -> Unit)? = null,
+    onOpenGallery: (List<GalleryItem>, Int) -> Unit = { _, _ -> }
 ) {
     Column(modifier = Modifier.fillMaxWidth()) {
         Row(
@@ -741,7 +744,11 @@ private fun WikiSectionRow(
                                         onClick = { onCopy(if (showingOriginal || translated == null) state.content.plainText() else translated) }
                                     )
                                 }
-                                SectionBody(content = state.content, translated = if (showingOriginal) null else translated)
+                                SectionBody(
+                                    content = state.content,
+                                    translated = if (showingOriginal) null else translated,
+                                    onOpenGallery = onOpenGallery
+                                )
                             }
                         }
                     }
@@ -752,8 +759,25 @@ private fun WikiSectionRow(
 }
 
 @Composable
-private fun SectionBody(content: FandomSectionContent, translated: String?) {
+private fun SectionBody(
+    content: FandomSectionContent,
+    translated: String?,
+    onOpenGallery: (List<GalleryItem>, Int) -> Unit
+) {
     val context = LocalContext.current
+    val galleryItems = remember(content) {
+        content.blocks.mapNotNull { it.image }
+            .distinctBy { it.url }
+            .map { image ->
+                GalleryItem(
+                    url = image.url,
+                    source = FANDOM_GALLERY_SOURCE,
+                    category = GalleryCategory.CHARACTER,
+                    description = image.caption
+                )
+            }
+    }
+    val imageBlocks = content.blocks.filter { it.kind == FandomBlockKind.IMAGE }
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         SelectionContainer {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -768,8 +792,20 @@ private fun SectionBody(content: FandomSectionContent, translated: String?) {
                                 style = MaterialTheme.typography.bodyMedium
                             )
                         }
+                    imageBlocks.forEach { block ->
+                        WikiImageBlock(block) {
+                            val image = block.image ?: return@WikiImageBlock
+                            val index = galleryItems.indexOfFirst { it.url == image.url }.coerceAtLeast(0)
+                            if (galleryItems.isNotEmpty()) onOpenGallery(galleryItems, index)
+                        }
+                    }
                 } else {
-                    content.blocks.forEach { block -> WikiBlock(block) }
+                    content.blocks.forEach { block ->
+                        WikiBlock(block) { image ->
+                            val index = galleryItems.indexOfFirst { it.url == image.url }.coerceAtLeast(0)
+                            if (galleryItems.isNotEmpty()) onOpenGallery(galleryItems, index)
+                        }
+                    }
                 }
             }
         }
@@ -794,7 +830,10 @@ private fun SectionBody(content: FandomSectionContent, translated: String?) {
 }
 
 @Composable
-private fun WikiBlock(block: FandomTextBlock) {
+private fun WikiBlock(
+    block: FandomTextBlock,
+    onOpenImage: (com.kitsugi.animelist.data.fandom.FandomImage) -> Unit = {}
+) {
     when (block.kind) {
         FandomBlockKind.HEADING -> Text(
             text = localizedSectionTitle(block.text),
@@ -834,6 +873,35 @@ private fun WikiBlock(block: FandomTextBlock) {
                 color = KitsugiColors.TextSecondary,
                 style = MaterialTheme.typography.bodyMedium,
                 fontStyle = FontStyle.Italic
+            )
+        }
+        FandomBlockKind.IMAGE -> block.image?.let { image ->
+            WikiImageBlock(block) { onOpenImage(image) }
+        }
+    }
+}
+
+@Composable
+private fun WikiImageBlock(block: FandomTextBlock, onOpenImage: () -> Unit) {
+    val image = block.image ?: return
+    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        FandomWikiImage(
+            url = image.url,
+            width = 720,
+            contentDescription = image.caption,
+            contentScale = ContentScale.Fit,
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(220.dp)
+                .clip(RoundedCornerShape(12.dp))
+                .background(KitsugiColors.SurfaceStrong)
+                .tvClickable(shape = RoundedCornerShape(12.dp)) { onOpenImage() }
+        )
+        image.caption?.takeIf { it.isNotBlank() }?.let { caption ->
+            Text(
+                text = caption,
+                color = KitsugiColors.TextMuted,
+                style = MaterialTheme.typography.labelSmall
             )
         }
     }

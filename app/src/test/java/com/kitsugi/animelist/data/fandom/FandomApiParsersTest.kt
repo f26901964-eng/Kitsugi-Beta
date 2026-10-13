@@ -84,15 +84,18 @@ class FandomApiParsersTest {
               {"toclevel":1,"level":"2","line":"Battles &amp; Events","index":"9"},
               {"toclevel":2,"level":"3","line":"<i>Overview</i>","index":"4"},
               {"toclevel":1,"level":"2","line":"References","index":"11"},
+              {"toclevel":1,"level":"2","line":"Gallery","index":"12"},
+              {"toclevel":2,"level":"3","line":"Artwork","index":"13"},
+              {"toclevel":1,"level":"2","line":"Trivia","index":"14"},
               {"toclevel":1,"level":"2","line":"Navigation","index":"T-1"}
             ]}}
         """.trimIndent()
         val sections = FandomApiParsers.parseSections(json)
         assertNotNull(sections)
-        assertEquals(listOf("Appearance", "Battles & Events", "Overview"), sections!!.map { it.title })
-        assertEquals(listOf(1, 9, 4), sections.map { it.index })
-        assertEquals(listOf(2, 2, 3), sections.map { it.level })
-        assertEquals(listOf(false, true, false), sections.map { it.spoiler })
+        assertEquals(listOf("Appearance", "Battles & Events", "Overview", "Trivia"), sections!!.map { it.title })
+        assertEquals(listOf(1, 9, 4, 14), sections.map { it.index })
+        assertEquals(listOf(2, 2, 3, 2), sections.map { it.level })
+        assertEquals(listOf(false, true, true, false), sections.map { it.spoiler })
         assertNull(FandomApiParsers.parseSections("""{"error":{"code":"missingtitle"}}"""))
     }
 

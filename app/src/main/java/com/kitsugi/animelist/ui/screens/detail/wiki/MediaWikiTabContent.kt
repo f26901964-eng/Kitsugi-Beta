@@ -58,6 +58,16 @@ import androidx.compose.ui.unit.dp
 import com.kitsugi.animelist.R
 import com.kitsugi.animelist.data.remote.GalleryCategory
 import com.kitsugi.animelist.data.remote.GalleryItem
+import androidx.compose.runtime.mutableStateMapOf
+import androidx.compose.runtime.remember
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalConfiguration
+import com.kitsugi.animelist.data.fandom.FandomArticlePage
+import com.kitsugi.animelist.data.fandom.FandomBlockKind
+import com.kitsugi.animelist.data.fandom.FandomInfoboxField
+import com.kitsugi.animelist.data.fandom.FandomSectionContent
+import com.kitsugi.animelist.data.fandom.FandomSectionRef
+import com.kitsugi.animelist.data.fandom.FandomTextBlock
 import com.kitsugi.animelist.data.fandom.FandomGuideGroup
 import com.kitsugi.animelist.data.fandom.FandomGuideItem
 import com.kitsugi.animelist.data.fandom.FandomUrls
@@ -96,6 +106,7 @@ internal fun MediaWikiTabSlot(
     val searchState by viewModel.searchState.collectAsState()
     val searchQuery by viewModel.searchQuery.collectAsState()
     val selectedState by viewModel.selected.collectAsState()
+    val selectedSections by viewModel.selectedSections.collectAsState()
     val translations by viewModel.translations.collectAsState()
     val translatingKeys by viewModel.translating.collectAsState()
     val preferredTranslator by viewModel.preferredTranslator.collectAsState()
@@ -116,6 +127,7 @@ internal fun MediaWikiTabSlot(
         searchState = searchState,
         searchQuery = searchQuery,
         selectedState = selectedState,
+        selectedSections = selectedSections,
         translations = translations,
         translatingKeys = translatingKeys,
         spoilerGuard = prefs.spoilerGuard,
@@ -129,6 +141,7 @@ internal fun MediaWikiTabSlot(
         onSearchChange = viewModel::onSearchQueryChange,
         onClearSearch = viewModel::clearSearch,
         onOpenItem = viewModel::openItem,
+        onLoadSelectedSection = viewModel::loadSelectedSection,
         onCloseItem = viewModel::closeItem,
         onRetryItem = viewModel::retryItem,
         onReportWrong = viewModel::reportWrongMatch,
@@ -151,6 +164,7 @@ internal fun MediaWikiTabContent(
     searchState: FandomMediaWikiViewModel.SearchState,
     searchQuery: String,
     selectedState: FandomMediaWikiViewModel.SelectedState,
+    selectedSections: Map<Int, FandomMediaWikiViewModel.ArticleSectionState>,
     translations: Map<String, String>,
     translatingKeys: Set<String>,
     spoilerGuard: Boolean = false,
@@ -164,6 +178,7 @@ internal fun MediaWikiTabContent(
     onSearchChange: (String) -> Unit,
     onClearSearch: () -> Unit,
     onOpenItem: (String) -> Unit,
+    onLoadSelectedSection: (Int) -> Unit,
     onCloseItem: () -> Unit,
     onRetryItem: (String) -> Unit,
     onReportWrong: () -> Unit,
@@ -272,12 +287,15 @@ internal fun MediaWikiTabContent(
     if (ready != null) {
         WikiItemSheet(
             selectedState = selectedState,
+            selectedSections = selectedSections,
             wikiId = ready.ref.wikiId,
+            spoilerGuard = spoilerGuard,
             translations = translations,
             translatingKeys = translatingKeys,
             accentColor = accentColor,
             onClose = onCloseItem,
             onRetry = onRetryItem,
+            onLoadSection = onLoadSelectedSection,
             preferredTranslator = preferredTranslator,
             originalKeys = originalKeys,
             onToggleOriginal = onToggleOriginal
@@ -775,36 +793,34 @@ private fun MediaWikiFooter(
     }
 }
 
-/** Çip / arama sonucu kartı: kısa açıklama + çeviri + "Tamamını oku". */
+/** Çip / arama sonucu kartı: tam makale okuyucusu (açıklama, bilgi kutusu, açılır bölümler, görseller). */
 @Composable
 private fun WikiItemSheet(
     selectedState: FandomMediaWikiViewModel.SelectedState,
+    selectedSections: Map<Int, FandomMediaWikiViewModel.ArticleSectionState>,
     wikiId: String,
+    spoilerGuard: Boolean,
     translations: Map<String, String>,
     translatingKeys: Set<String>,
     accentColor: Color,
     onClose: () -> Unit,
     onRetry: (String) -> Unit,
+    onLoadSection: (Int) -> Unit,
     preferredTranslator: String = "DEFAULT",
     originalKeys: Set<String> = emptySet(),
     onToggleOriginal: (String) -> Unit = {}
 ) {
-    val title = when (selectedState) {
-        is FandomMediaWikiViewModel.SelectedState.Ready -> selectedState.title
-        is FandomMediaWikiViewModel.SelectedState.Failed -> selectedState.title
-        is FandomMediaWikiViewModel.SelectedState.Loading -> null
-        else -> null
-    }
     if (selectedState is FandomMediaWikiViewModel.SelectedState.Closed) return
-    val key = title?.let(FandomMediaWikiViewModel::itemKey)
-    KitsugiSheetOrDialog(onDismiss = onClose) {
+    val scrollState = rememberScrollState()
+    val maxHeight = LocalConfiguration.current.screenHeightDp.dp * 0.84f
+    KitsugiSheetOrDialog(onDismiss = onClose, innerColumnScrollState = scrollState) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .heightIn(max = 480.dp)
-                .verticalScroll(rememberScrollState())
+                .heightIn(max = maxHeight)
+                .verticalScroll(scrollState)
                 .padding(horizontal = 20.dp, vertical = 12.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp)
+            verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             when (selectedState) {
                 is FandomMediaWikiViewModel.SelectedState.Loading -> WikiLoadingLine(accentColor)
@@ -827,55 +843,142 @@ private fun WikiItemSheet(
                 }
                 is FandomMediaWikiViewModel.SelectedState.Ready -> {
                     val context = LocalContext.current
-                    val blurb = selectedState.blurb
+                    val article = selectedState.article
+                    val articleTitle = article.pageTitle
+                    val description = article.description
+                    val key = FandomMediaWikiViewModel.itemKey(selectedState.title)
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text(
-                            text = blurb?.resolvedTitle ?: selectedState.title,
-                            color = KitsugiColors.TextPrimary,
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold,
-                            modifier = Modifier.weight(1f)
-                        )
-                        val itemShowingOriginal = key != null && key in originalKeys
-                        val itemHasTranslation = key != null && translations[key] != null
-                        // Detay sayfasındaki açıklama düğmesiyle aynı: her zaman ikon,
-                        // dokununca kartın orijinal metni harici uygulamada açılır.
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = articleTitle,
+                                color = KitsugiColors.TextPrimary,
+                                style = MaterialTheme.typography.titleLarge,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Text(
+                                text = article.siteName ?: wikiId,
+                                color = accentColor,
+                                style = MaterialTheme.typography.labelMedium,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                        }
                         WikiTranslateButton(
-                            text = selectedState.blurb?.description,
+                            text = description,
                             preferredTranslator = preferredTranslator,
                             accentColor = accentColor,
-                            isLoading = key != null && key in translatingKeys,
-                            hasTranslation = itemHasTranslation,
-                            showingOriginal = itemShowingOriginal,
-                            onToggleOriginal = { key?.let(onToggleOriginal) }
+                            isLoading = key in translatingKeys
                         )
-                    }
-                    val description = blurb?.description
-                    val translated = key?.let { translations[it] }
-                    val itemShowingOriginal = key != null && key in originalKeys
-                    val shownDescription = if (itemShowingOriginal) description.orEmpty() else (translated ?: description.orEmpty())
-                    if (!description.isNullOrBlank() || translated != null) {
-                        SelectionContainer {
-                            Text(
-                                text = shownDescription,
-                                color = KitsugiColors.TextPrimary,
-                                style = MaterialTheme.typography.bodyMedium
+                        IconButton(onClick = onClose) {
+                            Icon(
+                                imageVector = Icons.Rounded.Close,
+                                contentDescription = stringResource(R.string.action_close),
+                                tint = KitsugiColors.TextSecondary
                             )
+                        }
+                    }
+
+                    ArticleInfoboxCard(
+                        article = article,
+                        keyTitle = selectedState.title,
+                        translations = translations,
+                        translatingKeys = translatingKeys,
+                        spoilerGuard = spoilerGuard,
+                        accentColor = accentColor,
+                        preferredTranslator = preferredTranslator
+                    )
+
+                    if (!description.isNullOrBlank()) {
+                        WikiCard {
+                            Text(
+                                text = stringResource(R.string.fandom_summary_title),
+                                color = KitsugiColors.TextPrimary,
+                                style = MaterialTheme.typography.titleSmall,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Spacer(modifier = Modifier.height(6.dp))
+                            SelectionContainer {
+                                Text(
+                                    text = translations[key] ?: description,
+                                    color = KitsugiColors.TextPrimary,
+                                    style = MaterialTheme.typography.bodyMedium
+                                )
+                            }
+                        }
+                    }
+
+                    val topLevel = article.sections.minOfOrNull { it.level } ?: 0
+                    val visibleSections = article.sections
+                    if (article.sectionsFailed) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = stringResource(R.string.fandom_contents_load_failed),
+                                color = KitsugiColors.TextMuted,
+                                style = MaterialTheme.typography.bodySmall,
+                                modifier = Modifier.weight(1f)
+                            )
+                            TextButton(onClick = { onRetry(selectedState.title) }) {
+                                Text(stringResource(R.string.action_retry_label), color = accentColor)
+                            }
+                        }
+                    } else if (visibleSections.isNotEmpty()) {
+                        WikiCard {
+                            Text(
+                                text = stringResource(R.string.fandom_contents_title),
+                                color = KitsugiColors.TextPrimary,
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold
+                            )
+                            visibleSections.forEach { section ->
+                                ArticleSectionRow(
+                                    articleTitle = selectedState.title,
+                                    section = section,
+                                    depth = (section.level - topLevel).coerceIn(0, 4),
+                                    state = selectedSections[section.index],
+                                    translated = translations[
+                                        FandomMediaWikiViewModel.articleSectionKey(selectedState.title, section.index)
+                                    ],
+                                    translating = FandomMediaWikiViewModel.articleSectionKey(
+                                        selectedState.title,
+                                        section.index
+                                    ) in translatingKeys,
+                                    spoilerGuard = spoilerGuard,
+                                    accentColor = accentColor,
+                                    preferredTranslator = preferredTranslator,
+                                    onLoad = { onLoadSection(section.index) }
+                                )
+                            }
                         }
                     } else {
                         Text(
-                            text = stringResource(R.string.fandom_blurb_empty),
+                            text = stringResource(R.string.fandom_article_no_sections),
                             color = KitsugiColors.TextMuted,
                             style = MaterialTheme.typography.bodySmall
                         )
                     }
-                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-                        TextButton(onClick = {
-                            openExternal(context, FandomUrls.pageUrl(wikiId, blurb?.resolvedTitle ?: selectedState.title))
-                        }) {
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = stringResource(R.string.fandom_source_label, article.siteName ?: wikiId),
+                                color = KitsugiColors.TextSecondary,
+                                style = MaterialTheme.typography.bodySmall
+                            )
+                            Text(
+                                text = stringResource(R.string.fandom_license_note),
+                                color = KitsugiColors.TextMuted,
+                                style = MaterialTheme.typography.labelSmall
+                            )
+                        }
+                        TextButton(onClick = { openExternal(context, article.pageUrl) }) {
                             Icon(
                                 imageVector = Icons.Rounded.OpenInNew,
                                 contentDescription = null,
@@ -884,7 +987,7 @@ private fun WikiItemSheet(
                             )
                             Spacer(modifier = Modifier.width(6.dp))
                             Text(
-                                text = stringResource(R.string.fandom_read_all),
+                                text = stringResource(R.string.fandom_open_article_external),
                                 color = accentColor,
                                 fontWeight = FontWeight.Bold
                             )
@@ -895,6 +998,366 @@ private fun WikiItemSheet(
             }
         }
     }
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun ArticleInfoboxCard(
+    article: FandomArticlePage,
+    keyTitle: String,
+    translations: Map<String, String>,
+    translatingKeys: Set<String>,
+    spoilerGuard: Boolean,
+    accentColor: Color,
+    preferredTranslator: String
+) {
+    val infobox = article.infobox ?: return
+    val fields = infobox.groups.flatMap { group -> group.fields.map { group.header to it } }
+    if (fields.isEmpty() && infobox.images.isEmpty()) return
+    val revealed = remember(article.wikiId, article.pageTitle) { mutableStateMapOf<Int, Boolean>() }
+    var showAll by rememberSaveable(article.wikiId, article.pageTitle) { mutableStateOf(false) }
+    val visibleCount = if (showAll) fields.size else minOf(fields.size, 10)
+
+    WikiCard {
+        if (infobox.images.isNotEmpty()) {
+            FlowRow(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                infobox.images.take(8).forEach { image ->
+                    Column(
+                        modifier = Modifier.width(72.dp),
+                        verticalArrangement = Arrangement.spacedBy(3.dp)
+                    ) {
+                        FandomWikiImage(
+                            url = image.url,
+                            width = 180,
+                            contentDescription = image.caption ?: article.pageTitle,
+                            accentColor = accentColor,
+                            contentScale = ContentScale.Crop,
+                            modifier = Modifier
+                                .size(width = 72.dp, height = 96.dp)
+                                .clip(RoundedCornerShape(10.dp))
+                                .background(KitsugiColors.SurfaceStrong)
+                        )
+                        image.caption?.takeIf { it.isNotBlank() }?.let { caption ->
+                            Text(
+                                text = caption,
+                                color = KitsugiColors.TextMuted,
+                                style = MaterialTheme.typography.labelSmall,
+                                maxLines = 2,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
+                    }
+                }
+            }
+            Spacer(modifier = Modifier.height(8.dp))
+        }
+        Text(
+            text = infobox.title ?: article.pageTitle,
+            color = KitsugiColors.TextPrimary,
+            style = MaterialTheme.typography.titleSmall,
+            fontWeight = FontWeight.Bold
+        )
+        if (fields.isNotEmpty()) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = stringResource(R.string.fandom_infobox_title),
+                    color = KitsugiColors.TextMuted,
+                    style = MaterialTheme.typography.labelMedium,
+                    modifier = Modifier.weight(1f)
+                )
+                val sourceText = fields.mapIndexedNotNull { index, (_, field) ->
+                    val hidden = spoilerGuard && field.spoiler && revealed[index] != true
+                    if (hidden) null else "${field.label}: ${field.value}"
+                }.joinToString("\n")
+                WikiTranslateButton(
+                    text = sourceText,
+                    preferredTranslator = preferredTranslator,
+                    accentColor = accentColor,
+                    isLoading = FandomMediaWikiViewModel.articleInfoboxKey(keyTitle) in translatingKeys
+                )
+            }
+            var lastHeader: String? = null
+            fields.take(visibleCount).forEachIndexed { index, (header, field) ->
+                if (header != null && header != lastHeader) {
+                    Text(
+                        text = localizedInfoboxHeader(header),
+                        color = KitsugiColors.TextMuted,
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.padding(top = if (index == 0) 4.dp else 8.dp, bottom = 3.dp)
+                    )
+                }
+                lastHeader = header
+                val hidden = spoilerGuard && field.spoiler && revealed[index] != true
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 3.dp),
+                    verticalAlignment = Alignment.Top
+                ) {
+                    Text(
+                        text = localizedInfoboxLabel(field),
+                        color = KitsugiColors.TextSecondary,
+                        style = MaterialTheme.typography.bodySmall,
+                        modifier = Modifier.weight(0.4f).padding(end = 8.dp)
+                    )
+                    if (hidden) {
+                        Box(
+                            modifier = Modifier
+                                .weight(0.6f)
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(KitsugiColors.SurfaceStrong)
+                                .tvClickable(shape = RoundedCornerShape(8.dp)) { revealed[index] = true }
+                                .padding(horizontal = 8.dp, vertical = 5.dp)
+                        ) {
+                            Text(
+                                text = stringResource(R.string.fandom_spoiler_hidden),
+                                color = KitsugiColors.TextMuted,
+                                style = MaterialTheme.typography.labelSmall
+                            )
+                        }
+                    } else {
+                        Text(
+                            text = translations[FandomMediaWikiViewModel.articleInfoboxFieldKey(keyTitle, index)]
+                                ?: localizedInfoboxValue(field.value),
+                            color = KitsugiColors.TextPrimary,
+                            style = MaterialTheme.typography.bodySmall,
+                            fontWeight = FontWeight.SemiBold,
+                            modifier = Modifier.weight(0.6f)
+                        )
+                    }
+                }
+            }
+            if (fields.size > 10) {
+                TextButton(onClick = { showAll = !showAll }) {
+                    Text(
+                        text = stringResource(if (showAll) R.string.fandom_show_less else R.string.fandom_show_all_fields),
+                        color = accentColor,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ArticleSectionRow(
+    articleTitle: String,
+    section: FandomSectionRef,
+    depth: Int,
+    state: FandomMediaWikiViewModel.ArticleSectionState?,
+    translated: String?,
+    translating: Boolean,
+    spoilerGuard: Boolean,
+    accentColor: Color,
+    preferredTranslator: String,
+    onLoad: () -> Unit
+) {
+    var expanded by rememberSaveable(articleTitle, section.index) { mutableStateOf(false) }
+    var revealed by rememberSaveable(articleTitle, section.index) { mutableStateOf(false) }
+    val gated = spoilerGuard && section.spoiler && !revealed
+    Column(
+        modifier = Modifier.fillMaxWidth().animateContentSize()
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(10.dp))
+                .tvClickable(shape = RoundedCornerShape(10.dp)) { expanded = !expanded }
+                .padding(start = (depth * 14).dp, top = 9.dp, bottom = 9.dp, end = 3.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                imageVector = if (expanded) Icons.Rounded.ExpandLess else Icons.Rounded.ExpandMore,
+                contentDescription = null,
+                tint = accentColor,
+                modifier = Modifier.size(20.dp)
+            )
+            Spacer(modifier = Modifier.width(7.dp))
+            Text(
+                text = localizedSectionTitle(section.title),
+                color = KitsugiColors.TextPrimary,
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.SemiBold,
+                modifier = Modifier.weight(1f)
+            )
+            if (section.spoiler) {
+                Text(
+                    text = stringResource(R.string.fandom_spoiler_badge),
+                    color = KitsugiColors.AccentOrange,
+                    style = MaterialTheme.typography.labelSmall,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+        }
+        if (expanded) {
+            Column(
+                modifier = Modifier.padding(start = (27 + depth * 14).dp, end = 3.dp, bottom = 10.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                if (gated) {
+                    Text(
+                        text = stringResource(R.string.fandom_spoiler_section_warning),
+                        color = KitsugiColors.TextSecondary,
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                    TextButton(onClick = { revealed = true }) {
+                        Text(
+                            text = stringResource(R.string.fandom_spoiler_reveal),
+                            color = accentColor,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                } else {
+                    LaunchedEffect(articleTitle, section.index) {
+                        if (state == null) onLoad()
+                    }
+                    when (state) {
+                        null, is FandomMediaWikiViewModel.ArticleSectionState.Loading -> WikiLoadingLine(accentColor)
+                        is FandomMediaWikiViewModel.ArticleSectionState.Failed -> Row(
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = stringResource(R.string.fandom_section_error),
+                                color = KitsugiColors.TextMuted,
+                                style = MaterialTheme.typography.bodySmall,
+                                modifier = Modifier.weight(1f)
+                            )
+                            TextButton(onClick = onLoad) {
+                                Text(stringResource(R.string.action_retry_label), color = accentColor)
+                            }
+                        }
+                        is FandomMediaWikiViewModel.ArticleSectionState.Loaded -> {
+                            if (state.content.isEmpty()) {
+                                Text(
+                                    text = stringResource(R.string.fandom_section_empty),
+                                    color = KitsugiColors.TextMuted,
+                                    style = MaterialTheme.typography.bodySmall
+                                )
+                            } else {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.End
+                                ) {
+                                    WikiTranslateButton(
+                                        text = state.content.plainText(),
+                                        preferredTranslator = preferredTranslator,
+                                        accentColor = accentColor,
+                                        isLoading = translating
+                                    )
+                                }
+                                ArticleSectionBody(state.content, translated)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ArticleSectionBody(content: FandomSectionContent, translated: String?) {
+    SelectionContainer {
+        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            if (translated != null) {
+                translated.split(Regex("\\n\\s*\\n"))
+                    .map { it.trim() }
+                    .filter { it.isNotEmpty() }
+                    .forEach { paragraph ->
+                        Text(
+                            text = paragraph,
+                            color = KitsugiColors.TextPrimary,
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                    }
+                content.blocks
+                    .filter { it.kind == FandomBlockKind.IMAGE }
+                    .forEach { block -> ArticleImageBlock(block) }
+            } else {
+                content.blocks.forEach { block ->
+                    when (block.kind) {
+                        FandomBlockKind.HEADING -> Text(
+                            text = localizedSectionTitle(block.text),
+                            color = KitsugiColors.TextPrimary,
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.Bold
+                        )
+                        FandomBlockKind.PARAGRAPH -> Text(
+                            text = block.text,
+                            color = KitsugiColors.TextPrimary,
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                        FandomBlockKind.BULLET -> Row(modifier = Modifier.fillMaxWidth()) {
+                            Text("•", color = KitsugiColors.TextSecondary, modifier = Modifier.padding(end = 8.dp))
+                            Text(block.text, color = KitsugiColors.TextPrimary, modifier = Modifier.weight(1f))
+                        }
+                        FandomBlockKind.QUOTE -> Text(
+                            text = "“${block.text}”",
+                            color = KitsugiColors.TextSecondary,
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                        FandomBlockKind.IMAGE -> ArticleImageBlock(block)
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ArticleImageBlock(block: FandomTextBlock) {
+    val image = block.image ?: return
+    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        FandomWikiImage(
+            url = image.url,
+            width = 720,
+            contentDescription = image.caption,
+            accentColor = KitsugiColors.TextMuted,
+            contentScale = ContentScale.Fit,
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(220.dp)
+                .clip(RoundedCornerShape(12.dp))
+                .background(KitsugiColors.SurfaceStrong)
+        )
+        image.caption?.takeIf { it.isNotBlank() }?.let { caption ->
+            Text(
+                text = caption,
+                color = KitsugiColors.TextMuted,
+                style = MaterialTheme.typography.labelSmall
+            )
+        }
+    }
+}
+
+@Composable
+private fun localizedInfoboxLabel(field: FandomInfoboxField): String {
+    val resource = FandomInfoboxLabels.labelResId(field.label, field.source)
+    return if (resource != null) stringResource(resource) else field.label
+}
+
+@Composable
+private fun localizedInfoboxHeader(header: String): String {
+    val resource = FandomInfoboxLabels.headerResId(header)
+    return if (resource != null) stringResource(resource) else header
+}
+
+@Composable
+private fun localizedInfoboxValue(value: String): String {
+    val resource = FandomInfoboxLabels.valueResId(value)
+    return if (resource != null) stringResource(resource) else value
+}
+
+@Composable
+private fun localizedSectionTitle(raw: String): String {
+    val resource = FandomSectionTitles.resId(raw)
+    return if (resource != null) stringResource(resource) else raw
 }
 
 @Composable
@@ -928,7 +1391,11 @@ private fun WikiCard(content: @Composable ColumnScope.() -> Unit) {
 
 @Composable
 private fun groupLabelRes(group: FandomGuideGroup): Int = when (group) {
+    FandomGuideGroup.CHARACTERS -> R.string.fandom_guide_characters
     FandomGuideGroup.ORGANIZATIONS -> R.string.fandom_guide_organizations
+    FandomGuideGroup.STORY_ARCS -> R.string.fandom_guide_story_arcs
+    FandomGuideGroup.EPISODES -> R.string.fandom_guide_episodes
+    FandomGuideGroup.CHAPTERS -> R.string.fandom_guide_chapters
     FandomGuideGroup.ABILITIES -> R.string.fandom_guide_abilities
     FandomGuideGroup.PLACES -> R.string.fandom_guide_places
     FandomGuideGroup.TERMS -> R.string.fandom_guide_terms

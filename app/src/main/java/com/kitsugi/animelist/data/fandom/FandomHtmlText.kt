@@ -6,27 +6,30 @@ import org.jsoup.nodes.Node
 import org.jsoup.nodes.TextNode
 
 /**
- * Fandom HTML parçalarını sade metne çevirir (saf fonksiyonlar, Jsoup).
+ * Fandom HTML parçalarını sadeleştirilmiş bloklara çevirir (saf fonksiyonlar, Jsoup).
  *
  *  - [inline]: bilgi kutusu değerleri gibi kısa parçalar; liste maddeleri ve `<br>` → " · ".
- *  - [blocks]: bölüm gövdesi; başlık / paragraf / madde / alıntı blokları.
+ *  - [blocks]: bölüm gövdesi; başlık / paragraf / madde / alıntı / görsel blokları.
  *
- * Kaynak işaretleri (`[1]`), düzenleme bağlantıları, furigana (`<rt>`), tablolar,
- * gezinti kutuları ve bakım uyarıları atılır.
+ * Bölüm tablosu gövdesi de içerik taşıdığı için metin satırlarına düzleştirilir (ör. hikâye
+ * yaylarındaki manga-bölüm / anime-bölüm listeleri). Navigasyon tabloları ve infobox'lar
+ * çıkarılır; resim galerileri sınırlı sayıda görsel+altyazı bloğu olarak korunur.
  */
 object FandomHtmlText {
 
     private const val INLINE_SEPARATOR = " · "
+    private const val MAX_SECTION_IMAGES = 12
+    private const val MAX_BLOCK_TEXT = 1_600
 
     private const val JUNK_SELECTOR =
         "sup.reference, .reference, .mw-ref, sup[id^=cite_ref], .mw-editsection, " +
             "style, script, noscript, rt, rp, .noprint, .error, .printfooter, .mw-cite-backlink"
 
     private const val SECTION_JUNK_SELECTOR = JUNK_SELECTOR +
-        ", ol.references, .mw-references-wrap, .references, .navbox, .toc, #toc, table, .notice, " +
-        ".mbox, .ambox, .portable-infobox, aside, figure, .thumb, .gallery, .wikia-gallery, " +
-        ".wds-tabs__wrapper, .mw-collapsible-toggle, .dablink, .hatnote, .mw-empty-elt, " +
-        "img, audio, video, iframe, .reference-text"
+        ", ol.references, .mw-references-wrap, .references, .navbox, .navigation-box, " +
+            "table.navbox, .toc, #toc, .notice, .mbox, .ambox, .portable-infobox, aside, " +
+            ".wds-tabs__wrapper, .mw-collapsible-toggle, .dablink, .hatnote, .mw-empty-elt, " +
+            ".reference-text"
 
     private val REF_MARKERS = Regex(
         "\\[\\s*(?:\\d+|[a-z]|note\\s*\\d+|citation needed|kaynak belirtilmeli)\\s*]",
@@ -170,8 +173,10 @@ object FandomHtmlText {
     private class BlockCollector(private val maxBlocks: Int) {
         private val out = mutableListOf<FandomTextBlock>()
         private val pending = StringBuilder()
+        private val seenImages = HashSet<String>()
         private var headingsSeen = 0
         private var contentSeen = false
+        private var imagesSeen = 0
 
         fun result(): List<FandomTextBlock> = out.toList()
 
@@ -193,14 +198,20 @@ object FandomHtmlText {
 
         private fun add(kind: FandomBlockKind, raw: String) {
             if (out.size >= maxBlocks) return
-            val text = tidyBlock(raw)
+            val text = tidyBlock(raw).take(MAX_BLOCK_TEXT)
             if (text.isEmpty()) return
             if (kind != FandomBlockKind.HEADING) contentSeen = true
             out += FandomTextBlock(kind, text)
         }
 
         private fun handle(element: Element) {
-            when (val tag = element.normalName()) {
+            val tag = element.normalName()
+            if (isImageContainer(element)) {
+                flushPending()
+                emitImages(element)
+                return
+            }
+            when (tag) {
                 "h1", "h2", "h3", "h4", "h5", "h6" -> {
                     flushPending()
                     headingsSeen++
@@ -210,6 +221,8 @@ object FandomHtmlText {
                 "p" -> {
                     flushPending()
                     add(FandomBlockKind.PARAGRAPH, inlineOf(element))
+                    // Bazı Fandom makaleleri önemli illüstrasyonları paragraf içine gömer.
+                    emitImages(element)
                 }
                 "ul", "ol" -> {
                     flushPending()
@@ -224,6 +237,7 @@ object FandomHtmlText {
                 "blockquote" -> {
                     flushPending()
                     add(FandomBlockKind.QUOTE, inlineOf(element))
+                    emitImages(element)
                 }
                 "dl" -> {
                     flushPending()
@@ -234,6 +248,14 @@ object FandomHtmlText {
                             else -> walk(child)
                         }
                     }
+                }
+                "table" -> {
+                    flushPending()
+                    handleContentTable(element)
+                }
+                "img" -> {
+                    flushPending()
+                    emitImages(element)
                 }
                 "br" -> pending.append(' ')
                 else -> {
@@ -248,10 +270,54 @@ object FandomHtmlText {
             }
         }
 
+        /**
+         * Bölümün ana metnine ait tabloları sırayla ve satır sınırlarını koruyarak düzleştirir.
+         * Navigasyon/infobox tabloları üstte selector ile zaten çıkarılmıştır.
+         */
+        private fun handleContentTable(table: Element) {
+            val rows = table.select("tr").take(32)
+            if (rows.isEmpty()) {
+                walk(table)
+                return
+            }
+            val firstHeaders = rows.first().children()
+                .filter { it.normalName() == "th" }
+                .map { inlineOf(it) }
+            rows.forEach { row ->
+                if (out.size >= maxBlocks) return
+                val cells = row.children().filter { it.normalName() == "th" || it.normalName() == "td" }
+                if (cells.isEmpty()) return@forEach
+                val values = cells.map { inlineOf(it).take(MAX_BLOCK_TEXT) }
+                val meaningful = values.withIndex().filter { it.value.isNotBlank() }
+                if (meaningful.isEmpty()) return@forEach
+                val headers = cells.mapIndexedNotNull { index, cell ->
+                    if (cell.normalName() == "th") index to values[index] else null
+                }.toMap()
+                val isHeaderRow = cells.all { it.normalName() == "th" }
+                val rowText = when {
+                    isHeaderRow -> meaningful.joinToString(" · ") { it.value }
+                    headers.isNotEmpty() -> meaningful.joinToString(" · ") { (index, value) ->
+                        val label = headers[index]
+                            ?: firstHeaders.getOrNull(index)?.takeIf { it.isNotBlank() }
+                        if (label.isNullOrBlank() || label == value) value else "$label: $value"
+                    }
+                    firstHeaders.size == values.size && firstHeaders.any { it.isNotBlank() } ->
+                        meaningful.joinToString(" · ") { (index, value) ->
+                            val label = firstHeaders.getOrNull(index).orEmpty()
+                            if (label.isBlank()) value else "$label: $value"
+                        }
+                    else -> meaningful.joinToString(" · ") { it.value }
+                }
+                add(FandomBlockKind.BULLET, rowText)
+                emitImages(row)
+            }
+        }
+
         private fun handleListItem(item: Element) {
             val own = item.clone()
-            own.select("ul, ol").remove()
+            own.select("ul, ol, figure, .thumb, .gallery").remove()
             add(FandomBlockKind.BULLET, inlineOf(own))
+            emitImages(item)
             item.children()
                 .filter { it.normalName() == "ul" || it.normalName() == "ol" }
                 .forEach { nested ->
@@ -259,6 +325,56 @@ object FandomHtmlText {
                         if (child.normalName() == "li") handleListItem(child)
                     }
                 }
+        }
+
+        private fun isImageContainer(element: Element): Boolean =
+            element.normalName() == "figure" ||
+                element.hasClass("gallery") ||
+                element.hasClass("wikia-gallery") ||
+                element.hasClass("thumb") ||
+                element.hasClass("gallerybox")
+
+        private fun emitImages(container: Element) {
+            if (imagesSeen >= MAX_SECTION_IMAGES || out.size >= maxBlocks) return
+            val images = if (container.normalName() == "img") listOf(container) else container.select("img")
+            for (img in images) {
+                if (imagesSeen >= MAX_SECTION_IMAGES || out.size >= maxBlocks) break
+                val url = imageUrl(img) ?: continue
+                if (!seenImages.add(url)) continue
+                val width = (img.attr("data-width").ifBlank { img.attr("width") }).toIntOrNull()
+                val height = (img.attr("data-height").ifBlank { img.attr("height") }).toIntOrNull()
+                if (width != null && height != null && width < 32 && height < 32) continue
+
+                val imageContainer = img.parents().firstOrNull { it.hasClass("gallerybox") }
+                    ?: img.parents().firstOrNull {
+                        it.normalName() == "figure" || it.hasClass("thumb") || it.hasClass("gallery")
+                    }
+                    ?: container
+                val caption = imageContainer.selectFirst(".gallerytext, .thumbcaption, figcaption, .caption")
+                    ?.let(::inlineOf)
+                    ?.takeIf { it.isNotBlank() }
+                    ?: img.attr("alt").trim().takeIf { it.isNotBlank() }
+                val fandomImage = FandomImage(url = url, caption = caption)
+                out += FandomTextBlock(
+                    kind = FandomBlockKind.IMAGE,
+                    text = caption.orEmpty(),
+                    image = fandomImage
+                )
+                imagesSeen++
+                contentSeen = true
+            }
+        }
+
+        private fun imageUrl(image: Element): String? {
+            val srcSet = image.attr("data-srcset").ifBlank { image.attr("srcset") }
+            val fromSrcSet = srcSet.substringBefore(',').trim().substringBefore(' ').trim()
+            val candidate = sequenceOf(
+                image.attr("data-src"),
+                image.attr("data-original"),
+                fromSrcSet,
+                image.attr("src")
+            ).firstOrNull { it.isNotBlank() && !it.startsWith("data:") }
+            return FandomUrls.normalizeImageUrl(candidate)
         }
     }
 

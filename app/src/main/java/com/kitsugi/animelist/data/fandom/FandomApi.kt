@@ -153,24 +153,28 @@ internal object FandomApi {
     }
 
     /**
-     * Kategori adaylarının varlığı ve sayfa sayısı — tek istekte toplu (`prop=categoryinfo`).
-     * Anahtarlar yönlendirmeler çözüldükten sonraki başlıklardır (`Category:…`).
+     * Kategori adaylarının varlığı ve sayfa sayısı — 50 başlıklı gruplar halinde toplu
+     * (`prop=categoryinfo`). Anahtarlar yönlendirmeler çözüldükten sonraki başlıklardır.
      */
     suspend fun categoryInfo(wikiId: String, categoryTitles: List<String>): Map<String, Int> {
-        val clean = categoryTitles.map { it.trim() }.filter { it.isNotEmpty() }.distinct().take(MAX_TITLES_PER_REQUEST)
+        val clean = categoryTitles.map { it.trim() }.filter { it.isNotEmpty() }.distinct()
         if (clean.isEmpty()) return emptyMap()
-        val url = FandomUrls.apiQuery(
-            wikiId,
-            listOf(
-                "action" to "query",
-                "titles" to clean.joinToString("|"),
-                "prop" to "categoryinfo",
-                "redirects" to "1",
-                "format" to "json",
-                "formatversion" to "2"
-            )
-        ) ?: return emptyMap()
-        return FandomApiParsers.parseCategoryInfo(FandomHttp.get(url))
+        val result = LinkedHashMap<String, Int>()
+        for (chunk in clean.chunked(MAX_TITLES_PER_REQUEST)) {
+            val url = FandomUrls.apiQuery(
+                wikiId,
+                listOf(
+                    "action" to "query",
+                    "titles" to chunk.joinToString("|"),
+                    "prop" to "categoryinfo",
+                    "redirects" to "1",
+                    "format" to "json",
+                    "formatversion" to "2"
+                )
+            ) ?: continue
+            result.putAll(FandomApiParsers.parseCategoryInfo(FandomHttp.get(url)))
+        }
+        return result
     }
 
     /** Bir kategorinin ana ad alanındaki sayfaları (çip listesi) — yalnızca ilk sayfa. */
