@@ -89,6 +89,62 @@ internal object FandomApi {
         return FandomApiParsers.parseParsedText(FandomHttp.get(url))
     }
 
+    /**
+     * Kategori adaylarının varlığı ve sayfa sayısı — tek istekte toplu (`prop=categoryinfo`).
+     * Anahtarlar yönlendirmeler çözüldükten sonraki başlıklardır (`Category:…`).
+     */
+    suspend fun categoryInfo(wikiId: String, categoryTitles: List<String>): Map<String, Int> {
+        val clean = categoryTitles.map { it.trim() }.filter { it.isNotEmpty() }.distinct().take(MAX_TITLES_PER_REQUEST)
+        if (clean.isEmpty()) return emptyMap()
+        val url = FandomUrls.apiQuery(
+            wikiId,
+            listOf(
+                "action" to "query",
+                "titles" to clean.joinToString("|"),
+                "prop" to "categoryinfo",
+                "redirects" to "1",
+                "format" to "json",
+                "formatversion" to "2"
+            )
+        ) ?: return emptyMap()
+        return FandomApiParsers.parseCategoryInfo(FandomHttp.get(url))
+    }
+
+    /** Bir kategorinin ana ad alanındaki sayfaları (çip listesi). */
+    suspend fun categoryMembers(wikiId: String, categoryTitle: String, limit: Int = 14): List<String> {
+        val url = FandomUrls.apiQuery(
+            wikiId,
+            listOf(
+                "action" to "query",
+                "list" to "categorymembers",
+                "cmtitle" to categoryTitle,
+                "cmnamespace" to "0",
+                "cmlimit" to limit.coerceIn(1, 50).toString(),
+                "format" to "json",
+                "formatversion" to "2"
+            )
+        ) ?: return emptyList()
+        return FandomApiParsers.parseCategoryMembers(FandomHttp.get(url))
+    }
+
+    /** Wiki içi arama: başlık + kırpılmış özet (arama kartı sonuç listesi). */
+    suspend fun searchHits(wikiId: String, query: String, limit: Int = 8): List<FandomSearchHit> {
+        if (query.isBlank()) return emptyList()
+        val url = FandomUrls.apiQuery(
+            wikiId,
+            listOf(
+                "action" to "query",
+                "list" to "search",
+                "srsearch" to query,
+                "srnamespace" to "0",
+                "srlimit" to limit.coerceIn(1, 10).toString(),
+                "format" to "json",
+                "formatversion" to "2"
+            )
+        ) ?: return emptyList()
+        return FandomApiParsers.parseSearchHits(FandomHttp.get(url))
+    }
+
     suspend fun searchPages(wikiId: String, query: String, limit: Int = 5): List<String> {
         if (query.isBlank()) return emptyList()
         val url = FandomUrls.apiQuery(

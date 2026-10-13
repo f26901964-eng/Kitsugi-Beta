@@ -97,6 +97,7 @@ import com.kitsugi.animelist.data.remote.KitsugiStreamingEpisode
 import com.kitsugi.animelist.data.remote.KitsugiStats
 import com.kitsugi.animelist.model.MediaEntry
 import com.kitsugi.animelist.data.remote.toStreamMediaIds
+import com.kitsugi.animelist.data.fandom.FandomMediaQueries
 import com.kitsugi.animelist.model.MediaType
 import com.kitsugi.animelist.model.WatchStatus
 import androidx.compose.foundation.gestures.LocalBringIntoViewSpec
@@ -124,6 +125,8 @@ import androidx.compose.animation.expandVertically
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.runtime.collectAsState
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.kitsugi.animelist.ui.screens.detail.wiki.FandomMediaWikiViewModel
+import com.kitsugi.animelist.ui.screens.detail.wiki.MediaWikiTabSlot
 import android.content.res.Configuration
 import androidx.compose.ui.platform.LocalConfiguration
 import com.kitsugi.animelist.ui.theme.LocalIsTv
@@ -185,6 +188,9 @@ fun MediaEntryDetailPage(
 
     // Obtain ViewModel
     val viewModel: MediaEntryDetailViewModel = viewModel(key = "entry_${entry.source}_${entry.id}")
+    // Fandom Wiki (Faz 2): yapım wiki'si sekmesi sayfa açılır açılmaz vardır; eşleşme arka planda çözülür.
+    val wikiViewModel: FandomMediaWikiViewModel = viewModel(key = "fandom_media_${entry.source}_${entry.id}")
+    val wikiPrefs by wikiViewModel.prefs.collectAsState()
 
     val settingsState = settingsDataStore?.settingsFlow?.collectAsState(initial = AppSettings())?.value
     val mdbListRatings by viewModel.mdbListRatings.collectAsState()
@@ -245,6 +251,28 @@ fun MediaEntryDetailPage(
         }
     }
 
+    // Wiki sorgusu: kimlikler netleştikçe (gerçek MAL/TMDB) sorgu yeniden kurulur.
+    val wikiQuery = remember(displayEntry, detailState, resolvedTmdbId) {
+        FandomMediaQueries.fromMedia(
+            source = displayEntry.source,
+            mediaId = displayEntry.id,
+            malId = displayEntry.malId ?: detailState?.realMalId,
+            aniListId = displayEntry.aniListEntryId,
+            tmdbId = displayEntry.tmdbId ?: detailState?.tmdbId ?: resolvedTmdbId,
+            isManga = displayEntry.type == MediaType.Manga,
+            isMovie = displayEntry.type == MediaType.Movie,
+            titles = listOfNotNull(
+                displayEntry.titleEnglish,
+                displayEntry.title,
+                detailState?.titleRomaji,
+                detailState?.titleEnglish
+            )
+        )
+    }
+    LaunchedEffect(wikiQuery, wikiPrefs.enabled, wikiPrefs.nameFallback) {
+        wikiViewModel.bind(wikiQuery.takeIf { wikiPrefs.enabled })
+    }
+
     val externalUrl = remember(displayEntry) { buildExternalUrl(displayEntry) }
 
     val onMediaClick: (Int, String, String) -> Unit = { mediaId, mediaType, mediaSource ->
@@ -293,7 +321,9 @@ fun MediaEntryDetailPage(
             stringResource(R.string.detail_tab_reviews)
         ))
         if (hasTvEpisodes) add(stringResource(R.string.tv_detail_episodes))
+        if (wikiPrefs.enabled) add(stringResource(R.string.character_tab_wiki))
     }
+    val wikiPageIndex = if (wikiPrefs.enabled) tabs.size - 1 else -1
     val pagerState = rememberPagerState(initialPage = 0, pageCount = { tabs.size })
     val selectedTab = pagerState.currentPage
 
@@ -310,6 +340,7 @@ fun MediaEntryDetailPage(
 
     // Call loadTab when tab changes
     LaunchedEffect(displayEntry.id, selectedTab, detailState?.realMalId, detailState?.tmdbId, resolvedTmdbId, detailState == null) {
+        if (selectedTab == wikiPageIndex) return@LaunchedEffect
         detailDataTabIndexForPage(selectedTab)?.let { dataTabIndex ->
             viewModel.loadTab(dataTabIndex, displayEntry, detailState?.realMalId)
         }
@@ -466,7 +497,9 @@ fun MediaEntryDetailPage(
                 }
             },
             pageContent = { page ->
-                when (page) {
+                if (page == wikiPageIndex) {
+                    MediaWikiTabSlot(viewModel = wikiViewModel, accentColor = accentColor)
+                } else when (page) {
                     0 -> {
                         EntryDetailOverviewTab(
                             entry = displayEntry,

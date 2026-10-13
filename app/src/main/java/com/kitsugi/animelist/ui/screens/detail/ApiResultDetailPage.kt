@@ -149,6 +149,9 @@ import androidx.compose.animation.expandVertically
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.runtime.collectAsState
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.kitsugi.animelist.data.fandom.FandomMediaQueries
+import com.kitsugi.animelist.ui.screens.detail.wiki.FandomMediaWikiViewModel
+import com.kitsugi.animelist.ui.screens.detail.wiki.MediaWikiTabSlot
 import android.content.res.Configuration
 import androidx.compose.ui.platform.LocalConfiguration
 import com.kitsugi.animelist.ui.theme.LocalIsTv
@@ -217,6 +220,9 @@ fun ApiResultDetailPage(
 
     // Obtain ViewModel
     val viewModel: ApiResultDetailViewModel = viewModel(key = "api_${result.source}_${result.malId}_${result.type.name}")
+    // Fandom Wiki (Faz 2): arama/keşfet sonucu detayında da wiki sekmesi vardır.
+    val wikiViewModel: FandomMediaWikiViewModel = viewModel(key = "fandom_media_${result.source}_${result.malId}")
+    val wikiPrefs by wikiViewModel.prefs.collectAsState()
 
     // Load result in ViewModel
     LaunchedEffect(result.source, result.malId, result.type, showAnimeLogos) {
@@ -338,6 +344,28 @@ fun ApiResultDetailPage(
         ?: findExistingEntry?.invoke(displayResult)?.takeIf { it.matchesInSource(displayResult) }
     val isFavorite = effectiveExistingEntry?.isFavorite ?: (detailState?.isFavourite ?: false)
 
+    // Wiki sorgusu: kimlikler (gerçek MAL/TMDB) detayla birlikte netleşir.
+    val wikiQuery = remember(result, displayResult, detailState, resolvedTmdbId) {
+        FandomMediaQueries.fromMedia(
+            source = result.source,
+            mediaId = result.malId,
+            malId = displayResult.realMalId ?: detailState?.realMalId,
+            tmdbId = result.tmdbId ?: detailState?.tmdbId ?: resolvedTmdbId,
+            isManga = result.type == MediaType.Manga,
+            isMovie = result.type == MediaType.Movie,
+            titles = listOfNotNull(
+                result.titleEnglish,
+                result.title,
+                result.titleRomaji,
+                detailState?.titleRomaji,
+                detailState?.titleEnglish
+            )
+        )
+    }
+    LaunchedEffect(wikiQuery, wikiPrefs.enabled, wikiPrefs.nameFallback) {
+        wikiViewModel.bind(wikiQuery.takeIf { wikiPrefs.enabled })
+    }
+
     // State for tabs
     val isAnime = result.type == MediaType.Anime
     val hasTvEpisodes = isAnime || result.type == MediaType.TvShow
@@ -354,7 +382,9 @@ fun ApiResultDetailPage(
             stringResource(R.string.detail_tab_reviews)
         ))
         if (hasTvEpisodes) add(stringResource(R.string.tv_detail_episodes))
+        if (wikiPrefs.enabled) add(stringResource(R.string.character_tab_wiki))
     }
+    val wikiPageIndex = if (wikiPrefs.enabled) tabs.size - 1 else -1
     val pagerState = rememberPagerState(initialPage = 0, pageCount = { tabs.size })
     val selectedTab = pagerState.currentPage
 
@@ -420,8 +450,10 @@ fun ApiResultDetailPage(
         resolvedTmdbId,
         detailState == null
     ) {
-        detailDataTabIndexForPage(selectedTab)?.let { dataTabIndex ->
-            viewModel.loadTab(dataTabIndex, result, displayResult.realMalId)
+        if (selectedTab != wikiPageIndex) {
+            detailDataTabIndexForPage(selectedTab)?.let { dataTabIndex ->
+                viewModel.loadTab(dataTabIndex, result, displayResult.realMalId)
+            }
         }
     }
 
@@ -595,7 +627,9 @@ fun ApiResultDetailPage(
                 }
             },
             pageContent = { page ->
-                when (page) {
+                if (page == wikiPageIndex) {
+                    MediaWikiTabSlot(viewModel = wikiViewModel, accentColor = accentColor)
+                } else when (page) {
                     0 -> {
                         ApiDetailOverviewTab(
                             result = result,

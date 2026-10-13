@@ -122,6 +122,50 @@ data class FandomSectionContent(
     }
 }
 
+/** `action=query&list=search` sonucundaki bir sayfa (başlık + kırpılmış özet). */
+data class FandomSearchHit(
+    val title: String,
+    val snippet: String? = null
+)
+
+/**
+ * Bir sayfanın kimliği + kısa açıklaması (`fandomdescription`).
+ * Evren rehberi çiplerinde, arama sonuçlarında ve seri özetinde kullanılır.
+ */
+@Serializable
+data class FandomPageBlurb(
+    val title: String,
+    /** Yönlendirmeler çözüldükten sonraki gerçek başlık; sayfa yoksa null. */
+    val resolvedTitle: String? = null,
+    val description: String? = null
+) {
+    val exists: Boolean get() = resolvedTitle != null
+}
+
+/** Evren rehberi grupları (yapım wiki'sindeki kategori kümeleri). */
+@Serializable
+enum class FandomGuideGroup { ORGANIZATIONS, ABILITIES, PLACES, TERMS }
+
+@Serializable
+data class FandomGuideItem(val title: String)
+
+@Serializable
+data class FandomGuideGroupContent(
+    val group: FandomGuideGroup,
+    /** Üyelerin çekildiği kategori (ör. `Organizations`). */
+    val category: String,
+    val items: List<FandomGuideItem> = emptyList()
+)
+
+/**
+ * Yapım wiki'sinin "evren rehberi": organizasyonlar, yetenekler, mekânlar, terimler.
+ * Çiplerdeki isimler orijinal kalır; açıklamalar isteğe bağlı olarak çevrilir.
+ */
+@Serializable
+data class FandomWorldGuide(val groups: List<FandomGuideGroupContent> = emptyList()) {
+    fun isEmpty(): Boolean = groups.all { it.items.isEmpty() }
+}
+
 /** Karakter Wiki sekmesinde gösterilen sayfa özeti. */
 @Serializable
 data class FandomCharacterPage(

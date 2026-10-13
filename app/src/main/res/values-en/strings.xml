@@ -7276,4 +7276,28 @@
     <string name="fandom_confirm_no">No, wrong</string>
     <string name="fandom_confirm_done">Thanks, the match is confirmed.</string>
     <string name="fandom_settings_clear_action">Clear</string>
+    <!-- Fandom Wiki Phase 2 (Instant tab + Media wiki tab + Title translations) -->
+    <string name="fandom_tab_loading">Loading wiki…</string>
+    <string name="fandom_unavailable_title">No wiki found</string>
+    <string name="fandom_unavailable_character">No Fandom wiki page found for this character.</string>
+    <string name="fandom_unavailable_media">No Fandom wiki found for this title.</string>
+    <string name="fandom_unavailable_hint">If this is a connection error, you can try again.</string>
+    <string name="fandom_retry">Try again</string>
+    <string name="fandom_section_role_movie">Role in the movie</string>
+    <string name="fandom_section_role_series">Role in the series</string>
+    <string name="fandom_section_other_media">Appearances in other media</string>
+    <string name="fandom_section_appearances">Appearances</string>
+    <string name="fandom_section_legacy">Legacy</string>
+    <string name="fandom_section_creation">Creation and conception</string>
+    <string name="fandom_media_header_subtitle">Fandom wiki · universe guide</string>
+    <string name="fandom_media_summary_title">Series summary</string>
+    <string name="fandom_media_search_hint">Search the wiki…</string>
+    <string name="fandom_media_search_empty">No pages matched your search.</string>
+    <string name="fandom_guide_title">Universe guide</string>
+    <string name="fandom_guide_organizations">Organizations</string>
+    <string name="fandom_guide_abilities">Abilities</string>
+    <string name="fandom_guide_places">Locations</string>
+    <string name="fandom_guide_terms">Terms</string>
+    <string name="fandom_read_all">Read full page</string>
+    <string name="fandom_blurb_empty">No short description for this page.</string>
 </resources>
