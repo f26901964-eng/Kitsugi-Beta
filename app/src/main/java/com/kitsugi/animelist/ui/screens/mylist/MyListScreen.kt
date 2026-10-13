@@ -65,6 +65,7 @@ import com.kitsugi.animelist.ui.theme.LocalIsTv
 import com.kitsugi.animelist.model.MediaEntry
 import com.kitsugi.animelist.model.MediaType
 import com.kitsugi.animelist.model.WatchStatus
+import com.kitsugi.animelist.data.local.MyListIdentityCrosswalk
 import com.kitsugi.animelist.data.remote.matchesInSource
 import com.kitsugi.animelist.data.remote.BangumiMediaEntryFactory
 import com.kitsugi.animelist.data.remote.canonicalMediaSourceId
@@ -232,8 +233,20 @@ fun MyListScreen(
         }
     }
 
-    val allLibraryItems = remember(entriesAfterAdultFilter) {
-        groupMyListEntries(entriesAfterAdultFilter)
+    // Birleşik kütüphane yalnızca satırın KENDİ kaynak uzayındaki kimliğiyle kurulabilir;
+    // Bangumi/Kitsu/Shikimori satırlarında MAL ekseni olmadığı için Çince/Rusça katalog
+    // başlıkları hiç eşmez ve aynı yapım "Tümü" sekmesinde ikinci bir kart olur (1502/786
+    // şişkinliğinin kök nedeni). Çapraz eşitlemenin çözüp kalıcı yazdığı kimlik köprüsü
+    // burada okunur — ağa çıkılmaz.
+    var combinedIdentityExtras by remember {
+        mutableStateOf<Map<Int, Set<String>>>(emptyMap())
+    }
+    LaunchedEffect(entriesAfterAdultFilter) {
+        combinedIdentityExtras = MyListIdentityCrosswalk.build(context, entriesAfterAdultFilter)
+    }
+
+    val allLibraryItems = remember(entriesAfterAdultFilter, combinedIdentityExtras) {
+        groupMyListEntries(entriesAfterAdultFilter, combinedIdentityExtras)
     }
     val allLibraryEntries = remember(allLibraryItems) {
         allLibraryItems.map { it.entry }

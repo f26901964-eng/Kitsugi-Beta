@@ -342,6 +342,24 @@ object CrossProviderIdentityResolver {
         if (resolved.malId != null && canonicalKey != cacheKey) {
             CrossProviderIdentityCache.write(context, canonicalKey, resolved, complete)
         }
+        // Bangumi ↔ MAL köprüsü iki yönde de kalıcı olsun: içe aktarılmış bir条目 satırının MAL
+        // kimliği yalnızca bu tur için bellekte çözülmüştü. Çift yazılmazsa birleşik kütüphane
+        // ("Listem → Tümü") o satırı hiçbir zaman MAL/AniList grubuna katamıyor ve sayaç
+        // Bangumi kadar şişiyor — bkz. MyListIdentityCrosswalk.
+        val learnedMalId = resolved.malId
+        val learnedSubjectId = resolved.bangumiSubjectId
+        if (learnedMalId != null && learnedSubjectId != null && connected.bangumi &&
+            CrossSyncPolicy.supportsBangumi(entry.type)
+        ) {
+            runSyncCatching {
+                BangumiLocalMappingCache.put(
+                    context = context,
+                    malId = learnedMalId,
+                    subjectType = BangumiIdNamespace.subjectTypeFor(entry.type),
+                    subjectId = learnedSubjectId
+                )
+            }
+        }
         if (resolved.isEmpty) Log.d(TAG, "Kimlik çözülemedi (atlanacak kaynaklar olacak): ${entry.title}")
         resolved
     }

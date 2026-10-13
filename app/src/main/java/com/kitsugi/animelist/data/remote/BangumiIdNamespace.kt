@@ -228,6 +228,17 @@ object BangumiLocalMappingCache {
         prefs(context).edit().putInt(key(malId, subjectType), subjectId).apply()
     }
 
+    /**
+     * Öğrenilmiş tüm `MAL →条目` eşlemeleri (anahtar biçimi: `bgm_a_<malId>` / `bgm_m_<malId>`).
+     * Birleşik kütüphane, Bangumi satırlarını MAL/AniList satırlarıyla eşleştirebilmek için bu
+     * haritayı tersine çevirir — bkz. [com.kitsugi.animelist.data.local.MyListIdentityCrosswalk].
+     */
+    fun snapshot(context: Context): Map<String, Int> = runCatching {
+        prefs(context).all.mapNotNull { (prefKey, value) ->
+            (value as? Int)?.let { prefKey to it }
+        }.toMap()
+    }.getOrDefault(emptyMap())
+
     fun put(context: Context, malId: Int, isAnime: Boolean, subjectId: Int) = put(
         context,
         malId,

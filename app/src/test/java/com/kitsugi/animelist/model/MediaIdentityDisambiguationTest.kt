@@ -136,4 +136,30 @@ class MediaIdentityDisambiguationTest {
         val keys = MediaIdentity.keys(shikiEntry)
         assertTrue("Keys should contain Shikimori namespaced key", keys.contains("Anime:shikimori:50000"))
     }
+
+    @Test
+    fun simklStableIdWindowIsRecognisedForAniListRowsOnly() {
+        // AniList owns 100M..299M, but a *Simkl* row is the only one that may carry 150M..249M.
+        val anilistRow = testEntry(id = 1, title = "Show", source = "anilist", malId = 100_000_870)
+        assertEquals(setOf("Anime:anilist:870"), MediaIdentity.keys(anilistRow))
+
+        val bangumiRow = testEntry(id = 2, title = "Show", source = "bangumi", malId = 500_000_870)
+        assertEquals(setOf("Anime:bangumi:870"), MediaIdentity.keys(bangumiRow))
+    }
+
+    @Test
+    fun aSingleAgreeingIdInANameSpaceProvesIdentityEvenWithLegacyExtras() {
+        val enriched = testEntry(id = 1, title = "Köprü", source = "bangumi", malId = 500_057_162)
+        val other = testEntry(id = 2, title = "Frieren", source = "anilist", malId = 52991)
+
+        // The row's own namespace plus a crosswalk hit can hold two ids at once. Old behavior
+        // kept the last value only, so a matching id could still be reported as a conflict.
+        val enrichedKeys = MediaIdentity.keys(enriched, setOf("Anime:mal:52991", "Anime:anilist:51004"))
+        val otherKeys = MediaIdentity.keys(other)
+
+        assertTrue(
+            MediaIdentity.conflictingIdentityKeys(enriched.type, other.type, enrichedKeys, otherKeys).isEmpty()
+        )
+        assertTrue(MediaIdentity.sameMedia(enriched, other, enrichedKeys, otherKeys))
+    }
 }

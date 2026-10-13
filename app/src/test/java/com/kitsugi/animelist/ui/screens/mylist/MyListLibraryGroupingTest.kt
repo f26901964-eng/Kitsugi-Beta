@@ -73,6 +73,37 @@ class MyListLibraryGroupingTest {
     }
 
     @Test
+    fun bangumiCopyMergesIntoCombinedLibraryViaCrosswalkKeys() {
+        val anilist = entry(id = 10, title = "Sousou no Frieren", source = "anilist", malId = 52991)
+            .copy(titleEnglish = "Frieren: Beyond Journey's End")
+        // Bangumi içe aktarması yalnızca bgm.tv'nin kendi kimliğini ve Çince katalog başlığını taşır.
+        val bangumi = entry(id = 20, title = "葬送のフリーレン", source = "bangumi", malId = 500_057_162)
+
+        // Without the crosswalk the same production is counted twice (the reported inflation).
+        assertEquals(2, groupMyListEntries(listOf(anilist, bangumi)).size)
+
+        val grouped = groupMyListEntries(
+            entries = listOf(anilist, bangumi),
+            identityExtras = mapOf(bangumi.id to setOf("Anime:mal:52991"))
+        )
+
+        assertEquals(1, grouped.size)
+        assertEquals("AniList stays the combined tile's representative", anilist.id, grouped.single().entry.id)
+        assertEquals(listOf("anilist", "bangumi"), grouped.single().sourceIds)
+    }
+
+    @Test
+    fun crosswalkInheritsAdultFlagAndDoesNotInventCrossTypeMerges() {
+        val bangumi = entry(id = 21, title = "葬送のフリーレン", source = "bangumi", malId = 500_057_162)
+            .copy(isAdult = true)
+        val manga = entry(id = 22, title = "Sousou no Frieren", source = "mal", malId = 52991, type = MediaType.Manga)
+
+        // The crosswalk key is only ever offered for the row's own media type.
+        val grouped = groupMyListEntries(listOf(manga, bangumi), mapOf(bangumi.id to setOf("Anime:mal:52991")))
+        assertEquals(2, grouped.size)
+    }
+
+    @Test
     fun bangumiTabOnlyShowsStableBangumiCollectionEntries() {
         val importedBangumi = entry(
             id = 3,

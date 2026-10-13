@@ -39,6 +39,17 @@ object MediaIdentity {
         entry.tmdbId?.takeIf { it > 0 }?.let { add("$prefix:tmdb:$it") }
     }
 
+    /**
+     * Canonical keys of [entry] plus [extras] — the cross-provider crosswalk keys learned for
+     * this row elsewhere (see `MyListIdentityCrosswalk`).
+     *
+     * A row only ever carries **its own** provider ID in `malId`, so an imported Bangumi/Kitsu/
+     * Shikimori record has no key in common with the AniList or MAL record of the same title.
+     * Extra keys close that gap without touching the stored row.
+     */
+    fun keys(entry: MediaEntry, extras: Set<String>): Set<String> =
+        if (extras.isEmpty()) keys(entry) else keys(entry) + extras
+
     /** Returns the value only when this record's source contract says it is a real MAL ID. */
     fun realMalId(entry: MediaEntry): Int? {
         val source = canonicalSource(entry.source)
@@ -92,20 +103,65 @@ object MediaIdentity {
         .lowercase(Locale.ROOT).replace(nonIdentityCharacters, "")
 
     /** Provider-ID namespaces present on both entries but pointing at different IDs. */
-    fun conflictingIdentityKeys(a: MediaEntry, b: MediaEntry): Set<String> {
-        if (a.type != b.type) return emptySet()
-        val aIds = keys(a).associateBy { it.substringBeforeLast(':') }
-        val bIds = keys(b).associateBy { it.substringBeforeLast(':') }
-        return aIds.keys.intersect(bIds.keys).filterTo(mutableSetOf()) { aIds[it] != bIds[it] }
+    fun conflictingIdentityKeys(a: MediaEntry, b: MediaEntry): Set<String> =
+        conflictingIdentityKeys(a.type, b.type, keys(a), keys(b))
+
+    /**
+     * [conflictingIdentityKeys] for precomputed key sets, so callers that merge crosswalk keys
+     * into a row's identity can reuse the exact same rules.
+     *
+     * A namespace counts as conflicting only when the two sides share **no** value in it. That
+     * matters because an enriched row can legitimately hold several IDs in one namespace (e.g. a
+     * legacy Kitsu row plus a crosswalk hit); as soon as one value agrees the identity is proven.
+     */
+    fun conflictingIdentityKeys(
+        typeA: MediaType?,
+        typeB: MediaType?,
+        keysA: Set<String>,
+        keysB: Set<String>
+    ): Set<String> {
+        if (typeA != typeB) return emptySet()
+        if (keysA.isEmpty() || keysB.isEmpty()) return emptySet()
+        val byNamespaceA = keysA.groupByNamespace()
+        val byNamespaceB = keysB.groupByNamespace()
+        return byNamespaceA.keys.intersect(byNamespaceB.keys).filterTo(mutableSetOf()) { namespace ->
+            byNamespaceA.getValue(namespace).intersect(byNamespaceB.getValue(namespace)).isEmpty()
+        }
     }
 
-    fun sameMedia(a: MediaEntry, b: MediaEntry, allowTitle: Boolean = true): Boolean {
+    /** `"Anime:mal:123"` → `("Anime:mal" to "123")`; namespaces may hold several values. */
+    private fun Set<String>.groupByNamespace(): Map<String, Set<String>> =
+        groupBy({ it.substringBeforeLast(':') }, { it.substringAfterLast(':') })
+            .mapValues { (_, values) -> values.toSet() }
+
+    fun sameMedia(a: MediaEntry, b: MediaEntry, allowTitle: Boolean = true): Boolean =
+        sameMedia(a, b, keys(a), keys(b), allowTitle)
+
+    /**
+     * [sameMedia] against precomputed identity keys. [keysA]/[keysB] may carry crosswalk keys
+     * (`MediaIdentity.keys(entry, extras)`) — everything else about the decision is identical.
+     */
+    fun sameMedia(
+        a: MediaEntry,
+        b: MediaEntry,
+        keysA: Set<String>,
+        keysB: Set<String>,
+        allowTitle: Boolean = true
+    ): Boolean {
         if (a.type != b.type) return false
-        val aKeys = keys(a)
-        val bKeys = keys(b)
-        if (conflictingIdentityKeys(a, b).isNotEmpty()) return false
-        if (aKeys.intersect(bKeys).isNotEmpty()) return true
-        if (!allowTitle || (a.year != null && b.year != null && a.year != b.year)) return false
+        if (conflictingIdentityKeys(a.type, b.type, keysA, keysB).isNotEmpty()) return false
+        if (keysA.intersect(keysB).isNotEmpty()) return true
+        if (!allowTitle) return false
+        return titleMatch(a, b)
+    }
+
+    /**
+     * The two rows look like the same production but share no verified ID, so the catalog title
+     * decides. A known release year on both sides must agree (a re-make with the identical title
+     * is still a different production).
+     */
+    private fun titleMatch(a: MediaEntry, b: MediaEntry): Boolean {
+        if (a.year != null && b.year != null && a.year != b.year) return false
 
         val normA = normalizedTitle(a.title)
         val normB = normalizedTitle(b.title)

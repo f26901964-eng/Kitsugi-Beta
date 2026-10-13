@@ -122,7 +122,7 @@ internal data class MyListLibraryItem(
 
 private data class MutableMyListLibraryGroup(
     var representative: MediaEntry,
-    val entries: MutableList<MediaEntry> = mutableListOf(),
+    val members: MutableList<IdentityKeysOf> = mutableListOf(),
     val sourceIds: LinkedHashSet<String> = linkedSetOf()
 )
 
@@ -131,15 +131,35 @@ private data class MutableMyListLibraryGroup(
  * the underlying records. The representative is the newest inserted record; progress and
  * status changes remain scoped to that provider, while [sourceIds] exposes every provider
  * that has a matching record.
+ *
+ * [identityExtras] maps a row's `MediaEntry.id` to cross-provider identity keys learned
+ * elsewhere (`MyListIdentityCrosswalk`: the cross-provider ID cache and the MAL ↔ Bangumi
+ * mapping). A row only carries **its own** provider ID, so without these keys an imported
+ * Bangumi/Kitsu/Shikimori copy has nothing in common with the AniList/MAL copy and can only
+ * merge by title — which fails for non-Latin catalog titles (Bangumi stores `name_cn`), and
+ * every copy then becomes its own tile in "Tümü". See the report
+ * `KOK_NEDEN_RAPORU_LISTEM_TUMU_SAYI_SISMESI_BANGUMI_2026-10-13.md`.
  */
-internal fun groupMyListEntries(entries: List<MediaEntry>): List<MyListLibraryItem> {
+internal fun groupMyListEntries(
+    entries: List<MediaEntry>,
+    identityExtras: Map<Int, Set<String>> = emptyMap()
+): List<MyListLibraryItem> {
     if (entries.isEmpty()) return emptyList()
 
-    val groups = mutableListOf<MutableMyListLibraryGroup>()
+    // Identity keys are resolved once per row: the matcher below compares every entry against
+    // the groups it has already opened, so recomputing `MediaIdentity.keys` in that loop was
+    // the dominant cost of building a multi-thousand row combined library.
     val groupIndexesByIdentity = mutableMapOf<String, MutableList<Int>>()
+    val groups = mutableListOf<MutableMyListLibraryGroup>()
 
     entries.forEach { entry ->
-        val candidateKeys = identityCandidateKeys(entry)
+        val identity = IdentityKeysOf(
+            entry = entry,
+            keys = if (identityExtras.isEmpty()) MediaIdentity.keys(entry)
+            else MediaIdentity.keys(entry, identityExtras[entry.id].orEmpty())
+        )
+
+        val candidateKeys = identityCandidateKeys(identity)
         val candidateGroups = candidateKeys
             .asSequence()
             .flatMap { groupIndexesByIdentity[it].orEmpty().asSequence() }
@@ -147,11 +167,21 @@ internal fun groupMyListEntries(entries: List<MediaEntry>): List<MyListLibraryIt
             .sorted()
 
         val matchingGroupIndex = candidateGroups.firstOrNull { groupIndex ->
-            val groupEntries = groups[groupIndex].entries
+            val groupEntries = groups[groupIndex].members
             groupEntries.none { existing ->
-                MediaIdentity.conflictingIdentityKeys(existing, entry).isNotEmpty()
+                MediaIdentity.conflictingIdentityKeys(
+                    typeA = existing.entry.type,
+                    typeB = entry.type,
+                    keysA = existing.keys,
+                    keysB = identity.keys
+                ).isNotEmpty()
             } && groupEntries.any { existing ->
-                MediaIdentity.sameMedia(existing, entry)
+                MediaIdentity.sameMedia(
+                    a = existing.entry,
+                    b = entry,
+                    keysA = existing.keys,
+                    keysB = identity.keys
+                )
             }
         }
 
@@ -161,12 +191,12 @@ internal fun groupMyListEntries(entries: List<MediaEntry>): List<MyListLibraryIt
         val group = groups[groupIndex]
 
         if (matchingGroupIndex != null) {
-            group.entries += entry
+            group.members += identity
             if (isBetterRepresentative(entry, group.representative)) {
                 group.representative = entry
             }
         } else {
-            group.entries += entry
+            group.members += identity
         }
 
         sourceBadgeId(entry.source)?.let(group.sourceIds::add)
@@ -176,15 +206,89 @@ internal fun groupMyListEntries(entries: List<MediaEntry>): List<MyListLibraryIt
         }
     }
 
-    return groups.map { group ->
+    // ── 2. tur: aynı yapımın farklı gruplarını birleştir ───────────────────────
+    // İlk geçiş açgözlüdür: satır, aday gruplardan *ilk* uyanın içine konur. Kayıtlar hangi
+    // sırada geldiği (içe aktarma sırası!) iki ayrı grubun açılmasını belirleyebiliyor ve
+    // gruplar birbirine hiç eklenmediği için aynı içerik "Tümü" sekmesinde iki kart olarak
+    // kalıyordu. Bu tur, aday anahtarı çakışan grupları üye üye yeniden doğrulayıp birleştirir;
+    // sonuç artık sıra bağımsızdır ve tek bir tarama maliyeti üretir.
+    val parent = MutableList(groups.size) { it }
+
+    fun root(index: Int): Int {
+        var current = index
+        while (parent[current] != current) {
+            parent[current] = parent[parent[current]] // path halving
+            current = parent[current]
+        }
+        return current
+    }
+
+    if (groups.size > 1) {
+        // Birleşme, tek bir satırın gruba katılmasından daha gevşek olamaz: tüm üye çiftleri
+        // çakışmasız olmalı ve en az bir çift gerçekten aynı yapım olmalı.
+        fun compatible(left: Int, right: Int): Boolean {
+            val leftMembers = groups[left].members
+            val rightMembers = groups[right].members
+            for (existing in leftMembers) {
+                for (candidate in rightMembers) {
+                    val conflict = MediaIdentity.conflictingIdentityKeys(
+                        typeA = existing.entry.type,
+                        typeB = candidate.entry.type,
+                        keysA = existing.keys,
+                        keysB = candidate.keys
+                    )
+                    if (conflict.isNotEmpty()) return false
+                }
+            }
+            return leftMembers.any { existing ->
+                rightMembers.any { candidate ->
+                    MediaIdentity.sameMedia(
+                        a = existing.entry,
+                        b = candidate.entry,
+                        keysA = existing.keys,
+                        keysB = candidate.keys
+                    )
+                }
+            }
+        }
+
+        for (groupIndexes in groupIndexesByIdentity.values) {
+            if (groupIndexes.size < 2) continue
+            var survivor = root(groupIndexes.first())
+            for (candidateIndex in groupIndexes.drop(1)) {
+                val other = root(candidateIndex)
+                if (other == survivor) continue
+                if (!compatible(survivor, other)) {
+                    survivor = other
+                    continue
+                }
+                val target = groups[survivor]
+                val source = groups[other]
+                target.members += source.members
+                source.sourceIds.forEach { badge -> if (badge !in target.sourceIds) target.sourceIds += badge }
+                if (isBetterRepresentative(source.representative, target.representative)) {
+                    target.representative = source.representative
+                }
+                parent[other] = survivor
+            }
+        }
+    }
+
+    return groups.mapIndexedNotNull { groupIndex, group ->
+        if (root(groupIndex) != groupIndex) return@mapIndexedNotNull null
         MyListLibraryItem(
             // Adult metadata from any linked provider is authoritative for the combined
             // tile: don't let a non-adult representative unblur a copy flagged +18 elsewhere.
-            entry = group.representative.copy(isAdult = group.entries.any { it.isAdult }),
+            entry = group.representative.copy(
+                isAdult = group.members.any { it.entry.isAdult }
+            ),
             sourceIds = group.sourceIds.toList()
         )
     }
 }
+
+/** A row together with its resolved identity keys (own provider IDs + crosswalk extras). */
+private data class IdentityKeysOf(val entry: MediaEntry, val keys: Set<String>)
 
 /** Canonical IDs are shared by source logos, source tabs, and search-result aliases. */
 internal fun sourceBadgeId(source: String): String? = when (source.trim().lowercase()) {
@@ -198,8 +302,14 @@ internal fun sourceBadgeId(source: String): String? = when (source.trim().lowerc
     else -> null
 }
 
-private fun identityCandidateKeys(entry: MediaEntry): Set<String> = buildSet {
-    MediaIdentity.keys(entry).forEach { add("id:$it") }
+/**
+ * Keys used to *find* candidate groups. They are a superset of the identity keys (normalized
+ * titles included) — the identity check below still has to confirm the match, so a loose title
+ * key can only ever produce a candidate, never a merge.
+ */
+private fun identityCandidateKeys(identity: IdentityKeysOf): Set<String> = buildSet {
+    identity.keys.forEach { add("id:$it") }
+    val entry = identity.entry
     listOfNotNull(entry.title, entry.titleEnglish, entry.titleJapanese).forEach { title ->
         val normalized = MediaIdentity.normalizedTitle(title)
         if (normalized.isNotBlank()) add("title:${entry.type.name}:$normalized")
