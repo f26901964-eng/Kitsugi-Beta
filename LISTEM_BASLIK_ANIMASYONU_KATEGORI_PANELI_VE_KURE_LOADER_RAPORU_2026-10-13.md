@@ -76,8 +76,10 @@ Panel artık doğrudan `KitsugiPremiumSheet` üzerine kurulu:
 ## 3. Uygulama geneli: dönen halka → ışık küresi
 
 Resim 4'teki animasyon `KitsugiPlasmaLoader` (aynı sayfada fragman oynatıcısının içindeki
-46 dp'lik küre). Uygulamada **57 ayrı yerde** hâlâ `CircularProgressIndicator` halkası
-dönüyordu (30'u `ui.theme.gradient` sarmalayıcısı üzerinden, 27'si doğrudan material3'ten).
+46 dp'lik küre). Uygulamada **40 dosyada 52 belirsiz (dönen) `CircularProgressIndicator`
+çağrısı** vardı: 29'u `ui.theme.gradient` sarmalayıcısı üzerinden, 23'ü (13 dosya) doğrudan
+material3'ten çiziliyordu. Düzenleme sonrası ikisi de tek noktada birleşti ve material3'ten
+çizen çağrı kalmadı (betikle doğrulandı: 52/52 ortak sarmalayıcıda).
 
 Yapılan:
 
@@ -85,18 +87,18 @@ Yapılan:
    (belirsiz/indeterminate overload) artık halka çizmiyor, `KitsugiPlasmaLoader`'ı çağırıyor.
    İmza aynen korundu (`color`, `strokeWidth`, `trackColor`, `strokeCap`), böylece hiçbir çağrı
    noktası bozulmadı. Boyut çağıranın `Modifier.size(...)` değeri; verilmemişse 40 dp.
-2. **Doğrudan material3 kullanan 13 dosya** bu ortak sarmalayıcıya bağlandı (yalnızca import
+2. **Doğrudan material3 kullanan 13 dosya (23 çağrı noktası)** bu ortak sarmalayıcıya bağlandı (yalnızca import
    satırı değişti/eklendi) — oynatıcı tamponlama, wiki sekmeleri, Fandom görsel yükleme,
    eklenti satırları, P2P, depolama taraması, MAL profili, OAuth WebView, fragman overlay'i vb.
-3. **Belirli (yüzdeli) göstergeler halka olarak kaldı:** indirme ilerlemesi
+3. **Belirli (yüzdeli) göstergeler halka olarak kaldı:** indirme ilerlemesi halkası
    (`KitsugiDetailEpisodesTab`) ve `LinearProgressIndicator`'lar — bunlar "yükleniyor" değil
    "şu kadar tamam" bilgisi veriyor.
 4. **Köstebek koruması (performans):** bu 57 nokta liste satırlarında/rozetlerde aynı anda
    onlarca örneği çizilebiliyordu. plazma küresinde kare başına ~8 gradyan üretiliyordu ve
    repoda bunun GC/RenderThread çökmesine yol açtığı defalarca raporlandı. Önlemler:
    * renk döngüsü (6 sn) 32 adıma **kuantalandı** → gradyan renkleri her kare değil, adım
-     değiştikçe kuruluyor; çekirdek nabzı (yarıçap) bilinçli olarak sürekli bırakıldı,
-     çünkü onu kuantalamak kürenin nefes alma hareketini takılma yaptıracaktı;
+     değiştikçe kuruluyor; çekirdek nabzı (yarıçap) bilinçli olarak sürekli bırakıldı, çünkü
+     onu kuantalamak kürenin nefes alma hareketinde gözle görülür takılma yaratırdı;
    * **30 dp ve altı için kompakt çizim yolu** eklendi (kehribar hâle + akkor çekirdek +
      yörüngedeki parlak nokta = 3 gradyan, dönen poligonlar ve karışım modları yok);
    * çizim artık `size` parametresine değil **ölçülen kutuya** (`DrawScope.size`) bağlandı;
