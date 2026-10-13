@@ -1335,7 +1335,7 @@ def report(results, out_dir, started):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--out", default=os.path.join(HERE, "out"))
+    ap.add_argument("--out", default=os.path.join(HERE, "results"))
     ap.add_argument("--only", default=None)
     ap.add_argument("--workers", type=int, default=3)
     a = ap.parse_args()
