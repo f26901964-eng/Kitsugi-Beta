@@ -182,4 +182,14 @@ class FandomNameMatcherTest {
         val partial = FandomFingerprint(mainTotal = 2, mainFound = 1, anyTotal = 6, anyFound = 3, nativeConfirmed = 1)
         assertEquals(FandomDecision.PROBABLE, FandomNameMatcher.score(hit, evidence, partial).decision)
     }
+
+    @Test
+    fun `three native-script character confirmations are decisive enough for probable`() {
+        val evidence = FandomNameEvidence(titles = listOf("Wind Breaker"), isManga = true)
+        val hit = FandomCommunityHit("windbreaker", "Windbreaker Wiki", "en", "anime", 100)
+        val fp = FandomFingerprint(mainTotal = 5, mainFound = 3, anyTotal = 9, anyFound = 6, nativeConfirmed = 5)
+        assertEquals(FandomDecision.PROBABLE, FandomNameMatcher.score(hit, evidence, fp).decision)
+        val few = fp.copy(nativeConfirmed = 2, anyFound = 3)
+        assertEquals(FandomDecision.REJECT, FandomNameMatcher.score(hit, evidence, few).decision)
+    }
 }

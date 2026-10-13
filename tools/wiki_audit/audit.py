@@ -834,7 +834,8 @@ def score(hit, ev, fp):
     elif total >= 0.65: d = "PROBABLE"
     elif fp is not None and hub >= 0.5 and (
             (fp["mainTotal"] >= 2 and fp["mainFound"] == fp["mainTotal"] and fp["anyFound"] >= 4 and fp["anyFound"] / fp["anyTotal"] >= 0.6)
-            or (fp["anyFound"] >= 3 and fp["anyTotal"] > 0 and fp["anyFound"] / fp["anyTotal"] >= 0.5 and title >= 0.99)):
+            or (fp["anyFound"] >= 3 and fp["anyTotal"] > 0 and fp["anyFound"] / fp["anyTotal"] >= 0.5 and title >= 0.99)
+            or (fp["nativeConfirmed"] >= 3 and fp["anyTotal"] > 0 and fp["anyFound"] / fp["anyTotal"] >= 0.5)):
         d = "PROBABLE"
     else: d = "REJECT"
     return {"wikiId": hit["wikiId"], "score": total, "decision": d, "share": share, "title": title}
@@ -984,7 +985,7 @@ def anilist_title_bridge(titles, is_manga):
 
 AL_PAGE_QUERY = """
 query ($search: String, $type: MediaType) {
-  Page(perPage: 10) { media(search: $search, type: $type, sort: [SEARCH_MATCH]) { id idMal popularity title { romaji english native } synonyms } }
+  Page(perPage: 10) { media(search: $search, type: $type, sort: [SEARCH_MATCH]) { id idMal popularity startDate { year } title { romaji english native } synonyms } }
 }"""
 
 
@@ -998,6 +999,7 @@ def resolve(q, trace):
             ids = q["ids"] = {"anilist": br["id"], "mal": br.get("idMal")}
             if br.get("_full"):
                 q["evidence"] = parse_evidence(br["_full"], q["is_manga"])
+            if not q.get("year"): q["year"] = (br.get("startDate") or {}).get("year")
             trace.append(f"baslik->AniList#{br['id']} kopru")
     ovr = ovr_lookup(ids, q["is_manga"])
     if ovr:
@@ -1306,6 +1308,9 @@ def wd_pick_work(title, is_movie):
     return None
 
 
+YEARS = {"Dark": 2017, "Parasite": 2019, "Squid Game": 2021, "Severance": 2022, "Arcane": 2021, "Inception": 2010}
+
+
 def build_queries(case):
     title, kind, expected = case
     out = []
@@ -1337,7 +1342,7 @@ def build_queries(case):
     ids = {}
     if w:
         ids = {"tmdb": w["tmdb"], "imdb": w["imdb"]}
-    out.append(("ids", {"ids": ids, "is_manga": False, "is_movie": is_movie, "is_tv": not is_movie, "titles": names, "year": None, "evidence": None}))
+    out.append(("ids", {"ids": ids, "is_manga": False, "is_movie": is_movie, "is_tv": not is_movie, "titles": names, "year": YEARS.get(title), "evidence": None}))
     out.append(("title-only", {"ids": {}, "is_manga": False, "is_movie": is_movie, "is_tv": not is_movie, "titles": names, "year": None, "evidence": None}))
     return out, info
 

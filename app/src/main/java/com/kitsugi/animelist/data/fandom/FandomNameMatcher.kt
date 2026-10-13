@@ -205,7 +205,9 @@ object FandomNameMatcher {
         val overwhelmingOverlap = fp != null && hub >= 0.5 && (
             (fp.mainTotal >= 2 && fp.mainFound == fp.mainTotal && fp.anyFound >= 4 &&
                 fp.anyFound.toDouble() / fp.anyTotal >= 0.6) ||
-                (fp.anyFound >= 3 && fp.anyTotal > 0 && fp.anyFound.toDouble() / fp.anyTotal >= 0.5 && title >= 0.99)
+                (fp.anyFound >= 3 && fp.anyTotal > 0 && fp.anyFound.toDouble() / fp.anyTotal >= 0.5 && title >= 0.99) ||
+                // Yerel (CJK/Hangul) karakter adlarının ≥3'ü wiki makalelerinde doğrulandıysa tesadüf değildir.
+                (fp.nativeConfirmed >= 3 && fp.anyTotal > 0 && fp.anyFound.toDouble() / fp.anyTotal >= 0.5)
             )
         val decision = when {
             hasEvidence && total >= CERTAIN_THRESHOLD && nativeConfirmed >= 1 -> FandomDecision.CERTAIN

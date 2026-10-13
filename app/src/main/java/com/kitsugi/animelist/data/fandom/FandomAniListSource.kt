@@ -42,6 +42,7 @@ internal object FandomAniListSource {
               id
               idMal
               popularity
+              startDate { year }
               title { romaji english native }
               synonyms
             }

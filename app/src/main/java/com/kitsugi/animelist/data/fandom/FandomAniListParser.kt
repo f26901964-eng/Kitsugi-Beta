@@ -40,6 +40,7 @@ data class FandomTitleCandidate(
     val aniListId: Int,
     val malId: Int?,
     val popularity: Int,
+    val startYear: Int? = null,
     /** Bütün başlıklar: english, romaji, native ve eş anlamlılar. */
     val titles: List<String>
 )
@@ -141,6 +142,7 @@ object FandomAniListParser {
                 aniListId = id,
                 malId = item.positiveInt("idMal"),
                 popularity = item.optInt("popularity", 0),
+                startYear = item.optJSONObject("startDate")?.positiveInt("year"),
                 titles = all
             )
         }

@@ -70,8 +70,9 @@ internal class FandomWikiResolver(
         }
     }
 
-    suspend fun resolve(query: FandomMediaQuery, allowNameFallback: Boolean): FandomWikiRef? {
-        val ids = bridgeIdsByTitle(query, completeIds(query))
+    suspend fun resolve(rawQuery: FandomMediaQuery, allowNameFallback: Boolean): FandomWikiRef? {
+        val query = bridgeQueryByTitle(rawQuery)
+        val ids = completeIds(query)
         val overrides = FandomOverrides.table(context)
 
         overrides.lookup(ids, query.isManga)?.takeUnless { isWikiRejected(it) }?.let { wiki ->
@@ -176,15 +177,18 @@ internal class FandomWikiResolver(
      * ayrım sayfası olabilir). Başlık AniList'te birebir bulunursa kimlikler tamamlanır ve
      * Wikidata / karakter oylaması / ilişki / kimlikli isim doğrulaması açılır.
      */
-    private suspend fun bridgeIdsByTitle(query: FandomMediaQuery, ids: FandomSourceIds): FandomSourceIds {
-        val hasCatalogId = ids.aniListId != null || ids.malId != null || ids.wikidataId != null ||
-            ids.tmdbId != null || ids.imdbId != null || ids.kitsuId != null || ids.bangumiId != null ||
-            ids.shikimoriId != null || ids.simklId != null
-        if (hasCatalogId || query.isMovie || query.isTvShow || query.fallbackTitles.isEmpty()) return ids
-        val match = FandomAniListSource.findByTitle(query.fallbackTitles, query.isManga) ?: return ids
+    private suspend fun bridgeQueryByTitle(query: FandomMediaQuery): FandomMediaQuery {
+        if (!query.ids.isEmpty || query.isMovie || query.isTvShow || query.fallbackTitles.isEmpty()) return query
+        val match = FandomAniListSource.findByTitle(query.fallbackTitles, query.isManga) ?: return query
         Log.d(TAG, "Başlık → AniList#${match.aniListId} (MAL#${match.malId})")
-        val bridged = ids.copy(aniListId = match.aniListId, malId = match.malId?.takeIf { it in 1..99_999_999 })
-        return completeIds(query.copy(ids = bridged))
+        return query.copy(
+            ids = query.ids.copy(
+                aniListId = match.aniListId,
+                malId = match.malId?.takeIf { it in 1..99_999_999 }
+            ),
+            // Tek kelimelik başlıklar (Lookism) için makale kanıtı yıl ister; eklenti kaydında yıl yoktur.
+            releaseYear = query.releaseYear ?: match.startYear?.takeIf { it in 1800..2200 }
+        )
     }
 
     private suspend fun completeIds(query: FandomMediaQuery): FandomSourceIds {
