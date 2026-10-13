@@ -18,8 +18,8 @@ import org.jsoup.nodes.TextNode
 object FandomHtmlText {
 
     private const val INLINE_SEPARATOR = " · "
-    private const val MAX_SECTION_IMAGES = 12
-    private const val MAX_BLOCK_TEXT = 1_600
+    private const val MAX_SECTION_IMAGES = 24
+    private const val MAX_BLOCK_TEXT = 8_000
 
     private const val JUNK_SELECTOR =
         "sup.reference, .reference, .mw-ref, sup[id^=cite_ref], .mw-editsection, " +
@@ -160,7 +160,7 @@ object FandomHtmlText {
      * `action=parse&section=N` çıktısını bloklara ayırır. Çıktının başındaki bölüm
      * başlığı (içerikten önceki ilk başlık) atlanır; alt başlıklar korunur.
      */
-    fun blocks(html: String?, maxBlocks: Int = 120): List<FandomTextBlock> {
+    fun blocks(html: String?, maxBlocks: Int = 400): List<FandomTextBlock> {
         if (html.isNullOrBlank()) return emptyList()
         val body = Jsoup.parseBodyFragment(html).body()
         body.select(SECTION_JUNK_SELECTOR).remove()
@@ -275,7 +275,7 @@ object FandomHtmlText {
          * Navigasyon/infobox tabloları üstte selector ile zaten çıkarılmıştır.
          */
         private fun handleContentTable(table: Element) {
-            val rows = table.select("tr").take(32)
+            val rows = table.select("tr").take(150)
             if (rows.isEmpty()) {
                 walk(table)
                 return
@@ -382,59 +382,4 @@ object FandomHtmlText {
         val text = tidyInline(raw)
         return if (text.any { it.isLetterOrDigit() }) text else ""
     }
-
-    /**
-     * HTML'deki VİKİ İÇİ bağlantıları (/wiki/Title) ayıklar. Özel ad alanları
-     * (Kategori:, Dosya:, Şablon: …), bağlantı çapaları (#ref…) ve aynı başlık tekrarları
-     * ayıklanır; sonuçlar görüntülenme sırasına göre döner.
-     */
-    fun internalWikiLinks(html: String?): List<String> {
-        if (html.isNullOrBlank()) return emptyList()
-        val body = Jsoup.parseBodyFragment(html).body()
-        body.select(JUNK_SELECTOR).remove()
-        val out = LinkedHashSet<String>()
-        body.select("a[href]").forEach { a ->
-            val href = a.attr("href")
-            val title = parseWikiLink(href) ?: return@forEach
-            if (isSpecialNamespace(title)) return@forEach
-            val text = inline(a.text()).takeIf { it.isNotBlank() } ?: title
-            // Bağlantı metni "[]" veya referans gibi işe yaramazsa atla.
-            if (!text.any { it.isLetterOrDigit() }) return@forEach
-            out += title
-        }
-        return out.toList()
-    }
-
-    private fun parseWikiLink(href: String): String? {
-        var raw = href.trim()
-        if (raw.isEmpty()) return null
-        val hash = raw.indexOf('#')
-        if (hash >= 0) raw = raw.substring(0, hash)
-        val marker = "/wiki/"
-        val idx = raw.indexOf(marker)
-        if (idx < 0) return null
-        val tail = raw.substring(idx + marker.length)
-        if (tail.isBlank()) return null
-        return tail
-            .replace('_', ' ')
-            .replace("%20", " ")
-            .replace("%2F", "/")
-            .replace("%3A", ":")
-            .replace("%28", "(")
-            .replace("%29", ")")
-            .trim()
-            .takeIf { it.isNotEmpty() && it.length <= 200 }
-    }
-
-    private val SPECIAL_NS = setOf(
-        "Kategori:", "Dosya:", "Şablon:", "Modül:", "Özel:", "Tartışma:", "Kullanıcı:",
-        "Kullanıcı mesaj:", "Vikipedi:", "MediaWiki:", "TimedText:", "Help:", "Yardım:",
-        "Category:", "File:", "Template:", "Module:", "Special:", "Talk:", "User:",
-        "User talk:", "Wikipedia:", "MediaWiki talk:", "Help talk:", "File talk:",
-        "Template talk:", "Category talk:", "Fandom:", "Community Central:"
-    )
-
-    private fun isSpecialNamespace(title: String): Boolean =
-        SPECIAL_NS.any { title.startsWith(it, ignoreCase = true) }
 }
-

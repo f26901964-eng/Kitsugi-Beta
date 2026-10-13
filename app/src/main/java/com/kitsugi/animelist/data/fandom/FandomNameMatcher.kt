@@ -66,7 +66,13 @@ object FandomNameMatcher {
     const val PROBABLE_THRESHOLD = 0.65
     const val AMBIGUITY_MARGIN = 0.05
 
-    private const val MIN_PAGE_COUNT = 20
+    /**
+     * Topluluk aramasının `pageCount` alanı gerçek makale sayısı değil KABA bir kovadır: canlı
+     * denetimde 74-87 makaleli (Barakamon, Texhnolyze, Uchuu Kyoudai) wikiler 10 döndürdü. Eski
+     * eşik (20) bu gerçek wikileri "tiny" diye eliyordu. Yalnızca kovanın altındaki değerler elenir;
+     * gerçek boyut siteinfo ile (kimlik kanıtında) ayrıca doğrulanır.
+     */
+    private const val MIN_PAGE_COUNT = 10
     private val FAN_CONTENT = Regex("(?i)\\b(fanon|fan ?fic(tion)?|role ?play|rp|simulator|tycoon|roblox)\\b")
 
     /** Ek istek gerektirmeyen ön eleme. Veto nedeni ya da null döner. */
@@ -192,10 +198,22 @@ object FandomNameMatcher {
         // Yerel ad yoksa: en az 4 karakter sayfası + yüksek oran + birebir wiki adı + oyun dışı hub.
         val strongWithoutNative = fp != null && fp.anyTotal > 0 && fp.anyFound >= 4 &&
             share >= 0.75 && title >= 0.9 && hub >= 0.5
+        // Canlı denetim: başlığı wiki adından farklı (Uchuu Kyoudai = Space Brothers, kiss×sis) ya da
+        // az karakter sayfalı wikilerde kanıt ezici olduğu halde toplam puan 0.53-0.59'da kalıp
+        // reddediliyordu. Ana karakterlerin TAMAMI + karakterlerin çoğu bulunduysa ya da wiki adı
+        // birebir olup karakterlerin yarısı bulunduysa kabul edilir (yalnızca PROBABLE).
+        val overwhelmingOverlap = fp != null && hub >= 0.5 && (
+            (fp.mainTotal >= 2 && fp.mainFound == fp.mainTotal && fp.anyFound >= 4 &&
+                fp.anyFound.toDouble() / fp.anyTotal >= 0.6) ||
+                (fp.anyFound >= 3 && fp.anyTotal > 0 && fp.anyFound.toDouble() / fp.anyTotal >= 0.5 && title >= 0.99) ||
+                // Yerel (CJK/Hangul) karakter adlarının ≥3'ü wiki makalelerinde doğrulandıysa tesadüf değildir.
+                (fp.nativeConfirmed >= 3 && fp.anyTotal > 0 && fp.anyFound.toDouble() / fp.anyTotal >= 0.5)
+            )
         val decision = when {
             hasEvidence && total >= CERTAIN_THRESHOLD && nativeConfirmed >= 1 -> FandomDecision.CERTAIN
             strongWithoutNative -> FandomDecision.CERTAIN
             total >= PROBABLE_THRESHOLD -> FandomDecision.PROBABLE
+            overwhelmingOverlap -> FandomDecision.PROBABLE
             else -> FandomDecision.REJECT
         }
         return FandomNameScore(hit.wikiId, total, decision)

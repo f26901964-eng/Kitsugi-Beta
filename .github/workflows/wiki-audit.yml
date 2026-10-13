@@ -1,0 +1,39 @@
+name: Fandom wiki denetimi (canlı)
+
+# Geçici tanı iş akışı: tools/wiki_audit/audit.py canlı Fandom/Wikidata/AniList
+# yanıtlarıyla uygulamanın wiki keşif akışını çalıştırır ve sonucu aynı dala işler.
+
+on:
+  workflow_dispatch:
+  push:
+    branches: ['arena/**']
+    paths:
+      - 'tools/wiki_audit/audit.py'
+      - '.github/workflows/wiki-audit.yml'
+
+concurrency:
+  group: wiki-audit-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Denetimi çalıştır
+        run: python3 tools/wiki_audit/audit.py --out tools/wiki_audit/results --workers 2 | tee tools/wiki_audit/run.log
+      - name: Sonuçları dala işle
+        if: always()
+        run: |
+          git config user.name "wiki-audit"
+          git config user.email "wiki-audit@users.noreply.github.com"
+          git add -f tools/wiki_audit/results tools/wiki_audit/run.log
+          git commit -m "chore(audit): canlı wiki denetim sonuçları" || exit 0
+          git pull --rebase origin "${GITHUB_REF_NAME}" || true
+          git push origin "HEAD:${GITHUB_REF_NAME}"

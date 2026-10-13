@@ -116,8 +116,11 @@ class FandomNameMatcherTest {
         assertEquals("blocked", FandomNameMatcher.preFilterVeto(FandomCommunityHit("villains", "Villains Wiki")))
         assertEquals(
             "tiny",
-            FandomNameMatcher.preFilterVeto(FandomCommunityHit("solo-leveling-simulator", "Solo Leveling Simulator Wiki", "en", "games", 10))
+            FandomNameMatcher.preFilterVeto(FandomCommunityHit("solo-leveling-simulator", "Solo Leveling Simulator Wiki", "en", "games", 5))
         )
+        // Live finding: community-search pageCount is a coarse bucket. Barakamon Wiki has 85 articles
+        // but reports 10, so the bucket floor itself must not be treated as "tiny".
+        assertNull(FandomNameMatcher.preFilterVeto(FandomCommunityHit("barakamon", "Barakamon Wiki", "en", "anime", 10)))
         assertEquals(
             "fan-content",
             FandomNameMatcher.preFilterVeto(FandomCommunityHit("anime-battle", "Anime Battle Simulator Wiki", "en", "games", 500))
@@ -156,5 +159,37 @@ class FandomNameMatcherTest {
         val score = FandomNameMatcher.score(urasawaMonster, monsterEvidence, fingerprint = null, exactLink = true)
         assertEquals(FandomDecision.CERTAIN, score.decision)
         assertEquals(1.0, score.score, 1e-9)
+    }
+
+    @Test
+    fun `overwhelming character overlap accepts a wiki whose name differs from the title`() {
+        val evidence = FandomNameEvidence(titles = listOf("Space Brothers"), isManga = false)
+        val hit = FandomCommunityHit("uchuu-kyoudai", "Uchuu Kyoudai Wiki", "en", "anime", 10)
+        val strong = FandomFingerprint(mainTotal = 2, mainFound = 2, anyTotal = 6, anyFound = 5, nativeConfirmed = 0)
+        assertEquals(FandomDecision.PROBABLE, FandomNameMatcher.score(hit, evidence, strong).decision)
+
+        val weak = FandomFingerprint(mainTotal = 2, mainFound = 1, anyTotal = 6, anyFound = 2, nativeConfirmed = 0)
+        assertEquals(FandomDecision.REJECT, FandomNameMatcher.score(hit, evidence, weak).decision)
+
+        val game = hit.copy(wikiId = "uchuu-game", hub = "games")
+        assertEquals(FandomDecision.REJECT, FandomNameMatcher.score(game, evidence, strong).decision)
+    }
+
+    @Test
+    fun `exact wiki name plus half of the characters is probable`() {
+        val evidence = FandomNameEvidence(titles = listOf("Noblesse"), isManga = true)
+        val hit = FandomCommunityHit("noblesse", "Noblesse Wiki", "en", "anime", 1000)
+        val partial = FandomFingerprint(mainTotal = 2, mainFound = 1, anyTotal = 6, anyFound = 3, nativeConfirmed = 1)
+        assertEquals(FandomDecision.PROBABLE, FandomNameMatcher.score(hit, evidence, partial).decision)
+    }
+
+    @Test
+    fun `three native-script character confirmations are decisive enough for probable`() {
+        val evidence = FandomNameEvidence(titles = listOf("Wind Breaker"), isManga = true)
+        val hit = FandomCommunityHit("windbreaker", "Windbreaker Wiki", "en", "anime", 100)
+        val fp = FandomFingerprint(mainTotal = 5, mainFound = 3, anyTotal = 9, anyFound = 6, nativeConfirmed = 5)
+        assertEquals(FandomDecision.PROBABLE, FandomNameMatcher.score(hit, evidence, fp).decision)
+        val few = fp.copy(nativeConfirmed = 2, anyFound = 3)
+        assertEquals(FandomDecision.REJECT, FandomNameMatcher.score(hit, evidence, few).decision)
     }
 }

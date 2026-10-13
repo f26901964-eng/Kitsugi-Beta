@@ -14,6 +14,7 @@ import org.json.JSONObject
 internal object FandomAniListSource {
 
     private const val TAG = "FandomAniList"
+    private const val MAX_TITLE_QUERIES = 2
 
     private val QUERY = """
         query (${'$'}id: Int, ${'$'}idMal: Int, ${'$'}type: MediaType) {
@@ -34,7 +35,59 @@ internal object FandomAniListSource {
         }
     """.trimIndent()
 
+    private val SEARCH_QUERY = """
+        query (${'$'}search: String, ${'$'}type: MediaType) {
+          Page(perPage: 10) {
+            media(search: ${'$'}search, type: ${'$'}type, sort: [SEARCH_MATCH]) {
+              id
+              idMal
+              popularity
+              startDate { year }
+              title { romaji english native }
+              synonyms
+            }
+          }
+        }
+    """.trimIndent()
+
     private val cache = BoundedCache<String, FandomMediaEvidence>("fandom_anilist_evidence", 48)
+    private val titleCache = BoundedCache<String, FandomTitleCandidate>("fandom_anilist_title", 48)
+
+    /**
+     * Eklenti kaynaklı manga/manhwa gibi KİMLİKSİZ kayıtlar için başlıkla AniList kimliği bulur.
+     * Yalnızca normalize edilmiş başlığı birebir eşleşen sonuç kabul edilir; bulunamazsa null.
+     * Kimlik bulununca Wikidata / karakter doğrulaması gibi güçlü yollar açılır.
+     */
+    suspend fun findByTitle(titles: List<String>, isManga: Boolean): FandomTitleCandidate? {
+        val queries = titles.map { it.trim() }.filter { it.isNotEmpty() && it.length <= 200 }
+            .distinctBy(FandomNameVariants::normalizeForCompare)
+            .take(MAX_TITLE_QUERIES)
+        for (title in queries) {
+            val key = "${if (isManga) "m" else "a"}:${FandomNameVariants.normalizeForCompare(title)}"
+            titleCache[key]?.let { return it }
+            val variables = JSONObject()
+                .put("search", title)
+                .put("type", if (isManga) "MANGA" else "ANIME")
+            val body = try {
+                KitsugiApiBase.executeAniListQuery(SEARCH_QUERY, variables)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                Log.w(TAG, "AniList başlık araması başarısız ($title): ${e.message}")
+                null
+            }
+            if (body == null) {
+                FandomHttp.markFailure()
+                continue
+            }
+            val match = FandomAniListParser.pickTitleMatch(FandomAniListParser.parseTitleSearch(body), queries)
+            if (match != null) {
+                titleCache[key] = match
+                return match
+            }
+        }
+        return null
+    }
 
     suspend fun load(aniListId: Int?, malId: Int?, isManga: Boolean): FandomMediaEvidence? {
         val key = when {

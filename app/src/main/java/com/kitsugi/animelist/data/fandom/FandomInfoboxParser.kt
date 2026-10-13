@@ -21,8 +21,8 @@ import org.json.JSONObject
  */
 object FandomInfoboxParser {
 
-    private const val MAX_IMAGES = 8
-    private const val MAX_VALUE_LENGTH = 600
+    private const val MAX_IMAGES = 24
+    private const val MAX_VALUE_LENGTH = 2_000
     private const val MAX_DEPTH = 6
 
     fun parse(infoboxesJson: String?, wikiId: String? = null): FandomInfobox? {
@@ -116,11 +116,17 @@ object FandomInfoboxParser {
 
     private fun parseField(data: JSONObject?, wikiId: String?): FandomInfoboxField? {
         if (data == null) return null
-        val rawValue = data.str("value")
+        return buildField(data.str("label"), data.str("value"), data.str("source"), wikiId)
+    }
+
+    /**
+     * Tek bilgi kutusu satırı. JSON (`pageprops.infoboxes`) ve işlenmiş HTML (`aside.portable-infobox`)
+     * yolları aynı kuralları (etiket temizliği, spoiler, bağlantı çıkarımı) paylaşsın diye ortaktır.
+     */
+    internal fun buildField(rawLabel: String?, rawValue: String?, source: String?, wikiId: String?): FandomInfoboxField? {
         val value = FandomHtmlText.inline(rawValue)
         if (value.isBlank()) return null
-        val source = data.str("source")
-        val label = FandomHtmlText.inline(data.str("label")).trimEnd(':', ' ').trim()
+        val label = FandomHtmlText.inline(rawLabel).trimEnd(':', ' ').trim()
         val finalLabel = label.ifBlank {
             source?.replace('_', ' ')?.trim()?.replaceFirstChar { it.uppercaseChar() }.orEmpty()
         }
