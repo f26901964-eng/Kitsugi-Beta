@@ -805,6 +805,10 @@ def score(hit, ev, fp):
     if has_ev and total >= 0.85 and nc >= 1: d = "CERTAIN"
     elif strong: d = "CERTAIN"
     elif total >= 0.65: d = "PROBABLE"
+    elif fp is not None and hub >= 0.5 and (
+            (fp["mainTotal"] >= 2 and fp["mainFound"] == fp["mainTotal"] and fp["anyFound"] >= 4 and fp["anyFound"] / fp["anyTotal"] >= 0.6)
+            or (fp["anyFound"] >= 3 and fp["anyTotal"] > 0 and fp["anyFound"] / fp["anyTotal"] >= 0.5 and title >= 0.99)):
+        d = "PROBABLE"
     else: d = "REJECT"
     return {"wikiId": hit["wikiId"], "score": total, "decision": d, "share": share, "title": title}
 

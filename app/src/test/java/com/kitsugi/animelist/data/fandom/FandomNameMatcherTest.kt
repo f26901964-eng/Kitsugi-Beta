@@ -160,4 +160,26 @@ class FandomNameMatcherTest {
         assertEquals(FandomDecision.CERTAIN, score.decision)
         assertEquals(1.0, score.score, 1e-9)
     }
+
+    @Test
+    fun `overwhelming character overlap accepts a wiki whose name differs from the title`() {
+        val evidence = FandomNameEvidence(titles = listOf("Space Brothers"), isManga = false)
+        val hit = FandomCommunityHit("uchuu-kyoudai", "Uchuu Kyoudai Wiki", "en", "anime", 10)
+        val strong = FandomFingerprint(mainTotal = 2, mainFound = 2, anyTotal = 6, anyFound = 5, nativeConfirmed = 0)
+        assertEquals(FandomDecision.PROBABLE, FandomNameMatcher.score(hit, evidence, strong).decision)
+
+        val weak = FandomFingerprint(mainTotal = 2, mainFound = 1, anyTotal = 6, anyFound = 2, nativeConfirmed = 0)
+        assertEquals(FandomDecision.REJECT, FandomNameMatcher.score(hit, evidence, weak).decision)
+
+        val game = hit.copy(wikiId = "uchuu-game", hub = "games")
+        assertEquals(FandomDecision.REJECT, FandomNameMatcher.score(game, evidence, strong).decision)
+    }
+
+    @Test
+    fun `exact wiki name plus half of the characters is probable`() {
+        val evidence = FandomNameEvidence(titles = listOf("Noblesse"), isManga = true)
+        val hit = FandomCommunityHit("noblesse", "Noblesse Wiki", "en", "anime", 1000)
+        val partial = FandomFingerprint(mainTotal = 2, mainFound = 1, anyTotal = 6, anyFound = 3, nativeConfirmed = 1)
+        assertEquals(FandomDecision.PROBABLE, FandomNameMatcher.score(hit, evidence, partial).decision)
+    }
 }
