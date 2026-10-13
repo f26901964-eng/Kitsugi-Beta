@@ -43,6 +43,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalUriHandler
+import androidx.compose.ui.platform.UriHandler
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -53,17 +54,12 @@ import com.kitsugi.animelist.data.remote.MdbListRatings
 import com.kitsugi.animelist.utils.toTurkishGenre
 import com.kitsugi.animelist.utils.toEnglishGenreForSearch
 import com.kitsugi.animelist.utils.toFriendlySourceLabel
-import androidx.compose.foundation.horizontalScroll
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.size
 import androidx.compose.ui.unit.sp
 import com.kitsugi.animelist.data.remote.KitsugiMediaDetail
 import com.kitsugi.animelist.model.MediaType
 import com.kitsugi.animelist.ui.theme.LocalKitsugiAccent
-import com.kitsugi.animelist.ui.theme.LocalIsTv
 import com.kitsugi.animelist.ui.theme.KitsugiColors
-import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.items
 import com.kitsugi.animelist.ui.components.KitsugiMarkdownText
 import com.kitsugi.animelist.ui.components.KitsugiTranslateIconButton
 import com.kitsugi.animelist.utils.PreferenceHelpers.getDisplayTitle
@@ -910,11 +906,181 @@ internal fun ApiDetailPill(
     }
 }
 
-// ─── MDBList Rating Card ─────────────────────────────────────────────────────
+// ─── Harici Puanlar (MDBList) ────────────────────────────────────────────────
 
 /**
- * Displays external ratings (IMDb, Rotten Tomatoes, Metacritic, Letterboxd, TMDB, Trakt)
- * fetched via the MDBList API. Renders as a horizontal scrolling row of colored badge chips.
+ * Harici bir puan kaynağının gösterim modeli (IMDb, Rotten Tomatoes, Metacritic,
+ * Letterboxd, TMDB, Trakt).
+ */
+internal data class MdbRatingItem(
+    val emoji: String,
+    val label: String,
+    val value: String,
+    val accent: Color,
+    val onClick: (() -> Unit)?
+)
+
+// Marka renkleri, koyu tema üzerinde okunacak parlaklıkta seçildi: eski sürümdeki
+// tam doygun arka planlar yerine bu renkler yalnızca metin + hafif zemin tonu olarak
+// kullanılır (bkz. [MdbRatingBadge]).
+private val MdbImdbAccent = Color(0xFFF5C518)
+private val MdbTomatoAccent = Color(0xFFFF4B32)
+private val MdbAudienceAccent = Color(0xFFFF9500)
+private val MdbLetterboxdAccent = Color(0xFF40BCF4)
+private val MdbTmdbAccent = Color(0xFF01D277)
+private val MdbTraktAccent = Color(0xFFED1C24)
+
+/** Metacritic'in kendi eşikleri: 61+ yeşil, 40–60 sarı, altı kırmızı. */
+private fun mdbMetacriticAccent(score: Int): Color = when {
+    score >= 61 -> Color(0xFF66CC33)
+    score >= 40 -> Color(0xFFFFCC33)
+    else -> Color(0xFFFF4D4D)
+}
+
+/**
+ * Seçili kaynaklardan gösterilecek puanları üretir.
+ *
+ * Yalnızca geçerli (0'dan büyük) puanlar listeye girer; MDBList bazı kayıtlar için
+ * "puan yok" anlamında 0 döndürür ve ekranda "0 Metacritic" gibi anlamsız kutular
+ * görünmesi istenmez.
+ */
+private fun buildMdbRatingItems(
+    ratings: MdbListRatings?,
+    mediaTitle: String,
+    uriHandler: UriHandler,
+    showImdb: Boolean,
+    showTomatoes: Boolean,
+    showMetacritic: Boolean,
+    showAudience: Boolean,
+    showLetterboxd: Boolean,
+    showTmdb: Boolean,
+    showTrakt: Boolean
+): List<MdbRatingItem> {
+    if (ratings == null) return emptyList()
+    val imdbId = ratings.imdbId
+
+    fun encodedTitle(): String =
+        runCatching { java.net.URLEncoder.encode(mediaTitle, "UTF-8") }.getOrDefault("")
+
+    fun openExternal(url: String) {
+        runCatching { uriHandler.openUri(url) }
+    }
+
+    return buildList {
+        val imdbScore = ratings.imdb
+        if (showImdb && imdbScore != null && imdbScore > 0.0) {
+            add(
+                MdbRatingItem(
+                    emoji = "⭐",
+                    label = "IMDb",
+                    value = String.format("%.1f", imdbScore),
+                    accent = MdbImdbAccent,
+                    onClick = {
+                        val id = imdbId
+                        if (!id.isNullOrBlank()) openExternal("https://www.imdb.com/title/$id")
+                        else openExternal("https://www.imdb.com/find?q=${encodedTitle()}")
+                    }
+                )
+            )
+        }
+
+        val tomatoScore = ratings.tomatoes
+        if (showTomatoes && tomatoScore != null && tomatoScore > 0) {
+            add(
+                MdbRatingItem(
+                    emoji = "🍅",
+                    label = "Tomatometer",
+                    value = "$tomatoScore%",
+                    accent = MdbTomatoAccent,
+                    onClick = { openExternal("https://www.rottentomatoes.com/search?search=${encodedTitle()}") }
+                )
+            )
+        }
+
+        val audienceScore = ratings.tomatoesAudience
+        if (showAudience && audienceScore != null && audienceScore > 0) {
+            add(
+                MdbRatingItem(
+                    emoji = "🍿",
+                    label = "Audience",
+                    value = "$audienceScore%",
+                    accent = MdbAudienceAccent,
+                    onClick = { openExternal("https://www.rottentomatoes.com/search?search=${encodedTitle()}") }
+                )
+            )
+        }
+
+        val metacriticScore = ratings.metacritic
+        if (showMetacritic && metacriticScore != null && metacriticScore > 0) {
+            add(
+                MdbRatingItem(
+                    emoji = "🎖️",
+                    label = "Metacritic",
+                    value = "$metacriticScore",
+                    accent = mdbMetacriticAccent(metacriticScore),
+                    onClick = { openExternal("https://www.metacritic.com/search/${encodedTitle()}/") }
+                )
+            )
+        }
+
+        val letterboxdScore = ratings.letterboxd
+        if (showLetterboxd && letterboxdScore != null && letterboxdScore > 0.0) {
+            add(
+                MdbRatingItem(
+                    emoji = "📽️",
+                    label = "Letterboxd",
+                    value = String.format("%.1f", letterboxdScore),
+                    accent = MdbLetterboxdAccent,
+                    onClick = {
+                        val id = imdbId
+                        if (!id.isNullOrBlank()) openExternal("https://letterboxd.com/imdb/$id")
+                        else openExternal("https://letterboxd.com/search/${encodedTitle()}")
+                    }
+                )
+            )
+        }
+
+        val tmdbScore = ratings.tmdb
+        if (showTmdb && tmdbScore != null && tmdbScore > 0.0) {
+            add(
+                MdbRatingItem(
+                    emoji = "🎬",
+                    label = "TMDB",
+                    value = String.format("%.1f", tmdbScore),
+                    accent = MdbTmdbAccent,
+                    onClick = { openExternal("https://www.themoviedb.org/search?query=${encodedTitle()}") }
+                )
+            )
+        }
+
+        val traktScore = ratings.trakt
+        if (showTrakt && traktScore != null && traktScore > 0.0) {
+            add(
+                MdbRatingItem(
+                    emoji = "📺",
+                    label = "Trakt",
+                    value = String.format("%.0f%%", traktScore),
+                    accent = MdbTraktAccent,
+                    onClick = {
+                        val id = imdbId
+                        if (!id.isNullOrBlank()) openExternal("https://trakt.tv/search/imdb/$id")
+                        else openExternal("https://trakt.tv/search?query=${encodedTitle()}")
+                    }
+                )
+            )
+        }
+    }
+}
+
+/**
+ * Harici puanları (IMDb, Rotten Tomatoes, Metacritic, Letterboxd, TMDB, Trakt) MDBList
+ * API'sinden gelen verilerle gösterir.
+ *
+ * Tasarım dili uygulamanın geri kalanıyla aynıdır: "İstatistikler" ve "Türler" blokları gibi
+ * `Surface` zeminli tek kart; içinde marka rengine hafifçe boyanmış (alpha 0.14) puan
+ * yastıkları. Böylece harici puanlar sayfaya "yapıştırılmış" görünmez, tamamen okunur kalır.
+ * Yastıklar sabit genişlikte bir şeride değil, ekran genişliğine eşit dağılan bir ızgaraya
+ * yerleşir; hiçbir puan yatay kaydırma olmadan kesilmeden görünür.
  */
 @Composable
 internal fun ApiMdbListRatingCard(
@@ -930,217 +1096,121 @@ internal fun ApiMdbListRatingCard(
     onSettingsClick: (() -> Unit)? = null,
     mediaTitle: String = ""
 ) {
-    if (!isLoading && (ratings == null || ratings.isEmpty)) return
-
     val accentColor = LocalKitsugiAccent.current
     val uriHandler = LocalUriHandler.current
+
+    val ratingItems = buildMdbRatingItems(
+        ratings = ratings,
+        mediaTitle = mediaTitle,
+        uriHandler = uriHandler,
+        showImdb = showImdb,
+        showTomatoes = showTomatoes,
+        showMetacritic = showMetacritic,
+        showAudience = showAudience,
+        showLetterboxd = showLetterboxd,
+        showTmdb = showTmdb,
+        showTrakt = showTrakt
+    )
+
+    // Yükleniyor değilken gösterilecek puan yoksa kart tamamen gizlenir.
+    if (!isLoading && ratingItems.isEmpty()) return
 
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(16.dp))
+            .clip(RoundedCornerShape(22.dp))
             .background(KitsugiColors.Surface)
-            .padding(top = 14.dp, bottom = 14.dp, start = 16.dp, end = 16.dp),
+            .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        // ── Header ──────────────────────────────────────────────────────────
+        // ── Başlık ───────────────────────────────────────────────────────────
         Row(
+            modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween,
-            modifier = Modifier.fillMaxWidth()
+            horizontalArrangement = Arrangement.SpaceBetween
         ) {
+            Text(
+                text = stringResource(R.string.detail_external_ratings),
+                color = KitsugiColors.TextPrimary,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold
+            )
+
             Row(
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                horizontalArrangement = Arrangement.spacedBy(4.dp)
             ) {
                 Box(
                     modifier = Modifier
-                        .clip(RoundedCornerShape(6.dp))
-                        .background(KitsugiColors.AccentBrush)
+                        .clip(RoundedCornerShape(7.dp))
+                        .background(accentColor.copy(alpha = 0.14f))
                         .padding(horizontal = 8.dp, vertical = 3.dp)
                 ) {
                     Text(
                         text = "MDBList",
-                        color = KitsugiColors.OnAccent,
+                        color = accentColor,
                         style = MaterialTheme.typography.labelSmall,
                         fontWeight = FontWeight.Black
                     )
                 }
-                Text(
-                    text = "Harici Puanlar",
-                    color = KitsugiColors.TextSecondary,
-                    style = MaterialTheme.typography.labelSmall
-                )
-            }
 
-            if (onSettingsClick != null) {
-                IconButton(
-                    onClick = onSettingsClick,
-                    modifier = Modifier.size(24.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Rounded.Settings,
-                        contentDescription = stringResource(R.string.ayarlar),
-                        tint = KitsugiColors.TextSecondary,
-                        modifier = Modifier.size(16.dp)
-                    )
+                if (onSettingsClick != null) {
+                    IconButton(
+                        onClick = onSettingsClick,
+                        modifier = Modifier.size(26.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Rounded.Settings,
+                            contentDescription = stringResource(R.string.ayarlar),
+                            tint = KitsugiColors.TextSecondary,
+                            modifier = Modifier.size(16.dp)
+                        )
+                    }
                 }
             }
         }
 
-        // ── Body ─────────────────────────────────────────────────────────────
+        // ── Gövde ────────────────────────────────────────────────────────────
         if (isLoading) {
             DetailRatingBadgesLoadingSkeleton()
-        } else if (ratings != null) {
-            val isTv = LocalIsTv.current
-            val badgeList = buildList<@Composable () -> Unit> {
-                val imdbId = ratings.imdbId
-                if (showImdb && ratings.imdb != null) {
-                    add {
-                        MdbRatingBadge(
-                            emoji = "⭐",
-                            label = "IMDb",
-                            value = String.format("%.1f", ratings.imdb),
-                            badgeColor = Color(0xFFF5C518),
-                            textColor = Color(0xFF1A1A1A),
-                            onClick = {
-                                if (!imdbId.isNullOrBlank()) {
-                                    runCatching { uriHandler.openUri("https://www.imdb.com/title/$imdbId") }
-                                } else {
-                                    val query = java.net.URLEncoder.encode(mediaTitle, "UTF-8")
-                                    runCatching { uriHandler.openUri("https://www.imdb.com/find?q=$query") }
-                                }
-                            }
-                        )
-                    }
-                }
-                if (showTomatoes && ratings.tomatoes != null) {
-                    add {
-                        MdbRatingBadge(
-                            emoji = "🍅",
-                            label = "Tomatometer",
-                            value = "${ratings.tomatoes}%",
-                            badgeColor = Color(0xFFFA320A),
-                            textColor = Color.White,
-                            onClick = {
-                                val query = java.net.URLEncoder.encode(mediaTitle, "UTF-8")
-                                runCatching { uriHandler.openUri("https://www.rottentomatoes.com/search?search=$query") }
-                            }
-                        )
-                    }
-                }
-                if (showAudience && ratings.tomatoesAudience != null) {
-                    add {
-                        MdbRatingBadge(
-                            emoji = "🍿",
-                            label = "Audience",
-                            value = "${ratings.tomatoesAudience}%",
-                            badgeColor = Color(0xFFFA6D0A),
-                            textColor = Color.White,
-                            onClick = {
-                                val query = java.net.URLEncoder.encode(mediaTitle, "UTF-8")
-                                runCatching { uriHandler.openUri("https://www.rottentomatoes.com/search?search=$query") }
-                            }
-                        )
-                    }
-                }
-                if (showMetacritic && ratings.metacritic != null) {
-                    val metaColor = when {
-                        ratings.metacritic >= 61 -> Color(0xFF6AC045)
-                        ratings.metacritic >= 40 -> Color(0xFFFFCC34)
-                        else -> Color(0xFFFF4444)
-                    }
-                    val metaTextColor = if (ratings.metacritic >= 40) Color(0xFF1A1A1A) else Color.White
-                    add {
-                        MdbRatingBadge(
-                            emoji = "🎖️",
-                            label = "Metacritic",
-                            value = "${ratings.metacritic}",
-                            badgeColor = metaColor,
-                            textColor = metaTextColor,
-                            onClick = {
-                                val query = java.net.URLEncoder.encode(mediaTitle, "UTF-8")
-                                runCatching { uriHandler.openUri("https://www.metacritic.com/search/$query/") }
-                            }
-                        )
-                    }
-                }
-                if (showLetterboxd && ratings.letterboxd != null) {
-                    add {
-                        MdbRatingBadge(
-                            emoji = "📽️",
-                            label = "Letterboxd",
-                            value = String.format("%.1f", ratings.letterboxd),
-                            badgeColor = Color(0xFF2C3440),
-                            textColor = Color(0xFF40BCF4),
-                            onClick = {
-                                if (!imdbId.isNullOrBlank()) {
-                                    runCatching { uriHandler.openUri("https://letterboxd.com/imdb/$imdbId") }
-                                } else {
-                                    val query = java.net.URLEncoder.encode(mediaTitle, "UTF-8")
-                                    runCatching { uriHandler.openUri("https://letterboxd.com/search/$query") }
-                                }
-                            }
-                        )
-                    }
-                }
-                if (showTmdb && ratings.tmdb != null) {
-                    add {
-                        MdbRatingBadge(
-                            emoji = "🎬",
-                            label = "TMDB",
-                            value = String.format("%.1f", ratings.tmdb),
-                            badgeColor = Color(0xFFFFB800),
-                            textColor = Color(0xFF141414),
-                            onClick = {
-                                val query = java.net.URLEncoder.encode(mediaTitle, "UTF-8")
-                                runCatching { uriHandler.openUri("https://www.themoviedb.org/search?query=$query") }
-                            }
-                        )
-                    }
-                }
-                if (showTrakt && ratings.trakt != null) {
-                    add {
-                        MdbRatingBadge(
-                            emoji = "📺",
-                            label = "Trakt",
-                            value = String.format("%.0f%%", ratings.trakt),
-                            badgeColor = Color(0xFFED1C24),
-                            textColor = Color.White,
-                            onClick = {
-                                if (!imdbId.isNullOrBlank()) {
-                                    runCatching { uriHandler.openUri("https://trakt.tv/search/imdb/$imdbId") }
-                                } else {
-                                    val query = java.net.URLEncoder.encode(mediaTitle, "UTF-8")
-                                    runCatching { uriHandler.openUri("https://trakt.tv/search?query=$query") }
-                                }
-                            }
-                        )
-                    }
-                }
-            }
+        } else {
+            MdbRatingGrid(items = ratingItems)
+        }
+    }
+}
 
-            if (isTv) {
-                LazyRow(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    items(badgeList) { badgeComposable ->
-                        badgeComposable()
-                    }
+/**
+ * Puan yastıklarını satırlara böler. Sütun sayısı öğe sayısına göre seçilir; son satırda
+ * eksik kalan hücreler [Spacer] ile doldurulur, böylece hiçbir yastık gereksiz yere
+ * genişlemez ve ızgara hizalı kalır.
+ */
+@Composable
+private fun MdbRatingGrid(items: List<MdbRatingItem>) {
+    if (items.isEmpty()) return
+
+    val columns = when {
+        items.size <= 2 -> 2
+        items.size == 3 -> 3
+        items.size == 4 -> 4
+        items.size == 5 -> 3
+        items.size == 6 -> 3
+        else -> 4
+    }
+
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        items.chunked(columns).forEach { rowItems ->
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                rowItems.forEach { item ->
+                    MdbRatingBadge(
+                        item = item,
+                        modifier = Modifier.weight(1f)
+                    )
                 }
-            } else {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .horizontalScroll(rememberScrollState()),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    badgeList.forEach { badgeComposable ->
-                        badgeComposable()
-                    }
+                repeat(columns - rowItems.size) {
+                    Spacer(modifier = Modifier.weight(1f))
                 }
             }
         }
@@ -1149,50 +1219,46 @@ internal fun ApiMdbListRatingCard(
 
 @Composable
 private fun MdbRatingBadge(
-    emoji: String,
-    label: String,
-    value: String,
-    badgeColor: Color,
-    textColor: Color,
-    onClick: (() -> Unit)? = null
+    item: MdbRatingItem,
+    modifier: Modifier = Modifier
 ) {
+    val shape = RoundedCornerShape(14.dp)
+
     Column(
-        modifier = Modifier
-            .clip(RoundedCornerShape(14.dp))
-            .background(badgeColor)
-            .let {
-                if (onClick != null) {
-                    it.tvClickable(shape = RoundedCornerShape(14.dp), onClick = onClick)
-                } else {
-                    it
-                }
+        modifier = modifier
+            .clip(shape)
+            .background(item.accent.copy(alpha = 0.14f))
+            .let { base ->
+                val click = item.onClick
+                if (click != null) base.tvClickable(shape = shape, onClick = click) else base
             }
-            .padding(horizontal = 14.dp, vertical = 10.dp),
+            .padding(horizontal = 8.dp, vertical = 10.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(3.dp)
     ) {
-        // Büyük skor değeri
+        // Büyük skor değeri — marka renginde
         Text(
-            text = value,
-            color = textColor,
+            text = item.value,
+            color = item.accent,
             fontWeight = FontWeight.Black,
-            fontSize = 20.sp,
-            lineHeight = 22.sp,
+            fontSize = 18.sp,
+            lineHeight = 20.sp,
+            maxLines = 1,
             textAlign = TextAlign.Center
         )
-        // Emoji + Label satırı
+        // Emoji + etiket satırı
         Row(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(3.dp)
         ) {
             Text(
-                text = emoji,
+                text = item.emoji,
                 fontSize = 10.sp,
                 lineHeight = 12.sp
             )
             Text(
-                text = label,
-                color = textColor.copy(alpha = 0.85f),
+                text = item.label,
+                color = KitsugiColors.TextSecondary,
                 style = MaterialTheme.typography.labelSmall,
                 fontWeight = FontWeight.SemiBold,
                 maxLines = 1,

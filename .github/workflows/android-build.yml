@@ -72,6 +72,8 @@ jobs:
             --tests 'com.kitsugi.animelist.data.cloudstream.CsPluginUpdateCheckerTest' \
             --tests 'com.kitsugi.animelist.data.remote.CloudstreamRepoMirrorTest' \
             --tests 'com.kitsugi.animelist.data.fandom.*' \
+            --tests 'com.kitsugi.animelist.data.remote.MdbListClientTest' \
+            --tests 'com.kitsugi.animelist.data.remote.BangumiLibraryTitleHydratorTest' \
             :app:assembleFossDebug --stacktrace --console=plain 2>&1 | tee build.log
         env:
           GRADLE_OPTS: -Dfile.encoding=UTF-8

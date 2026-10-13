@@ -32,6 +32,21 @@ data class MdbListRatings(
         metacritic == null && letterboxd == null && tmdb == null && trakt == null
 }
 
+/**
+ * MDBList, bir kayıt için puan bulunamadığında alanı **0** olarak döndürür. 0 gerçek bir
+ * puan değildir (IMDb 0,0 / Metacritic 0 / Trakt %0 diye bir şey yoktur); ekranda
+ * "0 Metacritic" gibi anlamsız kutular çizilmemesi için bu değerler "puan yok" kabul edilir.
+ */
+private fun MdbListRatings.withoutEmptyScores(): MdbListRatings = copy(
+    imdb = imdb?.takeIf { it > 0.0 },
+    tomatoes = tomatoes?.takeIf { it > 0 },
+    tomatoesAudience = tomatoesAudience?.takeIf { it > 0 },
+    metacritic = metacritic?.takeIf { it > 0 },
+    letterboxd = letterboxd?.takeIf { it > 0.0 },
+    tmdb = tmdb?.takeIf { it > 0.0 },
+    trakt = trakt?.takeIf { it > 0.0 }
+)
+
 object MdbListClient {
 
     private const val TAG = "MdbListClient"
@@ -204,7 +219,7 @@ object MdbListClient {
                     tmdb = tmdb,
                     trakt = trakt,
                     imdbId = imdbId ?: root.optString("imdbid").takeIf(imdbIdPattern::matches)
-                )
+                ).withoutEmptyScores()
             }
 
             // Older MDBList responses expose scores as top-level fields.
@@ -217,7 +232,7 @@ object MdbListClient {
                 tmdb = firstNumber(root.opt("tmdbrating")),
                 trakt = firstNumber(root.opt("traktrating")),
                 imdbId = imdbId ?: root.optString("imdbid").takeIf(imdbIdPattern::matches)
-            )
+            ).withoutEmptyScores()
 
             when {
                 !legacy.isEmpty -> legacy
