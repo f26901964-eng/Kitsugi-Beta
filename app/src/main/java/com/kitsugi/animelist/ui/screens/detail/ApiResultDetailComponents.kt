@@ -1217,17 +1217,30 @@ private fun MdbRatingGrid(items: List<MdbRatingItem>) {
     }
 }
 
+/**
+ * Koyu temada marka rengi olduğu gibi kullanılır. Açık temada (beyaz/açık yüzey) aynı parlak
+ * renk okunmaz olacağından renk siyaha doğru koyulaştırılır; skor metni 18sp kalın olduğu
+ * için bu oran rahatça okunur kalır.
+ */
+private fun Color.forRatingSurface(surface: Color): Color =
+    if (surface.luminance() > 0.5f) {
+        Color(red = red * 0.55f, green = green * 0.55f, blue = blue * 0.55f, alpha = alpha)
+    } else {
+        this
+    }
+
 @Composable
 private fun MdbRatingBadge(
     item: MdbRatingItem,
     modifier: Modifier = Modifier
 ) {
     val shape = RoundedCornerShape(14.dp)
+    val accent = item.accent.forRatingSurface(KitsugiColors.Surface)
 
     Column(
         modifier = modifier
             .clip(shape)
-            .background(item.accent.copy(alpha = 0.14f))
+            .background(accent.copy(alpha = 0.14f))
             .let { base ->
                 val click = item.onClick
                 if (click != null) base.tvClickable(shape = shape, onClick = click) else base
@@ -1239,7 +1252,7 @@ private fun MdbRatingBadge(
         // Büyük skor değeri — marka renginde
         Text(
             text = item.value,
-            color = item.accent,
+            color = accent,
             fontWeight = FontWeight.Black,
             fontSize = 18.sp,
             lineHeight = 20.sp,
