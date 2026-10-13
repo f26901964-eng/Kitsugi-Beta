@@ -1,6 +1,7 @@
 package com.kitsugi.animelist.data.remote
 
 import com.kitsugi.animelist.core.memory.BoundedCache
+import com.kitsugi.animelist.data.auth.BangumiApiClient
 import com.kitsugi.animelist.model.MediaType
 import com.kitsugi.animelist.utils.PreferenceHelpers
 import kotlinx.coroutines.CancellationException
@@ -8,6 +9,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.withTimeoutOrNull
@@ -19,42 +21,86 @@ import java.util.concurrent.ConcurrentHashMap
  * Bangumi kişi/karakter detay listelerindeki **yapım başlıkları** için ortak Latin
  * (romaji / İngilizce) başlık çözümleyicisi.
  *
- * Bangumi'nin liste uçları (`/v0/persons/{id}/subjects`, `/v0/characters/{id}/subjects`)
- * yalnızca özgün adı (`name`, çoğu zaman Japonca) ve `name_cn` (Çince) döndürür; infobox
- * LISTELERDE yoktur. Bu yüzden kişi/karakter sayfalarının "Karakterler" ve "Yapımlar"
- * sekmeleri CJK başlıkla çiziliyordu. Bu çözümleyici üç kademeli çalışır:
+ * Bangumi'nin liste ve arama uçları çoğunlukla özgün adı (`name`, genellikle Japonca) ile
+ * `name_cn` (Çince) döndürür; English alanı veya subject infobox'u bulunmayabilir. Bu nedenle
+ * Keşfet, arama, profil ve kütüphane satırlarında tercih edilen dil için ortak çözüm uygular:
  *
- *  1. [BangumiTitleCache] — kayıt daha önce herhangi bir yerde çözüldüyse ağ isteği YOK.
- *  2. Bangumi v0 subject detayı (`infobox` → `英文名` / `罗马字` / `别名`) — sınırlı ve
- *     önbellekli; bulunan ad kalıcı önbelleğe yazılır.
- *  3. **AniList toplu arama** — Bangumi infobox'ında Latin ad yoksa (çoğu anime/manga)
- *     tek bir GraphQL isteğinde birden çok aliased `Page(media(search: ...))` sorgusu
- *     gönderilir; adayın `title.native` / `synonyms` alanlarından biri Bangumi özgün
- *     adıyla BİREBİR (normalize) eşleşirse romaji + İngilizce alınır ve önbelleklenir.
- *     Yanlış eşleşme yerine "eşleşme yok" tercih edilir.
+ *  1. [BangumiTitleCache] — kayıt daha önce çözüldüyse ağ isteği yapılmaz; ancak Romaji tek
+ *     başına güvenilir İngilizce sayılmaz.
+ *  2. Anime/Manga için **AniList toplu araması** — bir GraphQL isteğinde birden çok aliased
+ *     `Page(media(search: ...))` sorgusu gönderilir. Adayın `title.native` / `synonyms`
+ *     alanlarından biri Bangumi özgün adıyla BİREBİR (normalize) eşleşirse adlar alınır.
+ *  3. Bangumi v0 subject infobox'u (`英文名` / `罗马字` / `别名`) — önceki adı çözmediyse,
+ *     sınırlı ve önbellekli subject detayı.
+ *  4. Canlı-aksiyon içerik için TMDB — başlık, yıl ve medya türü doğrulanmadan eşleşme alınmaz.
  *
- * Tüm sonuçlar [BangumiTitleCache]'e kalıcı yazılır: uzun filmografiler ilk ziyarette
- * kısmen, sonraki ziyaretlerde tamamen Latin başlıkla açılır. Çözülemeyen kayıtlar
- * olumsuz önbelleğe alınır ve aynı oturumda tekrar aranmaz.
+ * Tüm sonuçlar [BangumiTitleCache]'e kalıcı yazılır. Olumsuz önbelleğe yalnızca içerik için
+ * uygun olan tüm kaynaklar gerçekten denendiyse ve güvenilir İngilizce bulunamadıysa girilir;
+ * timeout, ağ hatası veya işlem sınırının dışındaki kayıtlar daha sonra yeniden denenebilir.
  */
 internal object BangumiSubjectTitleResolver {
 
     private const val TAG = "BangumiTitleResolver"
 
-    /** Bangumi subject kimliği + hâlâ CJK görünen başlığı + medya türü. */
-    internal data class Request(val rawId: Int, val nativeTitle: String, val mediaType: MediaType) {
+    /** Bangumi subject kimliği + özgün başlık + görüntü türü ve biliniyorsa Bangumi türü. */
+    internal data class Request(
+        val rawId: Int,
+        val nativeTitle: String,
+        val mediaType: MediaType,
+        val subjectType: Int? = null
+    ) {
         companion object {
             /** Liste satırından istek üretir; stableId veya doğrudan rawId kabul edilir, geçersizse null. */
-            fun fromRow(mediaId: Int, currentTitle: String, mediaTypeKey: String): Request? {
+            fun fromRow(
+                mediaId: Int,
+                currentTitle: String,
+                mediaTypeKey: String,
+                subjectType: Int? = null
+            ): Request? {
                 val raw = BangumiIdNamespace.rawIdOrNull(mediaId) ?: return null
-                return Request(raw, currentTitle, mediaTypeFromKey(mediaTypeKey))
+                return Request(raw, currentTitle, mediaTypeFromKey(mediaTypeKey), subjectType)
             }
         }
     }
 
+    /** Romaji tek başına İngilizce tercihini tamamlamaz; arama ancak English gerçekten ayrışmışsa biter. */
+    internal fun hasReliableEnglish(titles: BangumiTitleCache.LatinTitles?): Boolean {
+        val english = usable(titles?.english) ?: return false
+        val romaji = usable(titles?.romaji)
+        return romaji == null || !english.equals(romaji, ignoreCase = true)
+    }
+
+    internal fun shouldTryAniList(request: Request): Boolean = when (request.subjectType) {
+        BangumiApiClient.SubjectType.ANIME, BangumiApiClient.SubjectType.BOOK -> true
+        BangumiApiClient.SubjectType.REAL -> false
+        else -> request.mediaType == MediaType.Anime || request.mediaType == MediaType.Manga ||
+            request.mediaType == MediaType.Movie
+    }
+
+    internal fun shouldTryTmdb(request: Request): Boolean = when (request.subjectType) {
+        BangumiApiClient.SubjectType.ANIME, BangumiApiClient.SubjectType.BOOK -> false
+        else -> request.mediaType == MediaType.TvShow || request.mediaType == MediaType.Movie
+    }
+
+    /** Negatif önbellek yalnızca gereken her provider pass'i tamamlandıysa yazılabilir. */
+    internal fun shouldMarkNegative(
+        request: Request,
+        completedAniList: Boolean,
+        completedTmdb: Boolean,
+        titles: BangumiTitleCache.LatinTitles?
+    ): Boolean {
+        if (hasReliableEnglish(titles)) return false
+        val needsAniList = shouldTryAniList(request)
+        val needsTmdb = shouldTryTmdb(request)
+        return (needsAniList || needsTmdb) &&
+            (!needsAniList || completedAniList) &&
+            (!needsTmdb || completedTmdb)
+    }
+
     internal fun mediaTypeFromKey(key: String): MediaType = when (key.trim().lowercase(Locale.ROOT)) {
         "manga" -> MediaType.Manga
-        "tv", "movie" -> MediaType.TvShow
+        "movie" -> MediaType.Movie
+        "tv", "tvshow" -> MediaType.TvShow
         else -> MediaType.Anime
     }
 
@@ -68,10 +114,18 @@ internal object BangumiSubjectTitleResolver {
     private const val INFOBOX_BATCH_TIMEOUT_BACKGROUND_MS = 20_000L
     private const val ANILIST_BATCH_TIMEOUT_MS = 9_000L
     private const val ANILIST_BATCH_TIMEOUT_BACKGROUND_MS = 24_000L
+    private const val TMDB_PASS_LIMIT = 20
+    private const val TMDB_PASS_LIMIT_BACKGROUND = 60
+    private const val TMDB_BATCH_TIMEOUT_MS = 15_000L
+    private const val TMDB_BATCH_TIMEOUT_BACKGROUND_MS = 30_000L
     private const val NEGATIVE_TTL_MS = 6 * 60 * 60 * 1000L
 
     private val infoboxSemaphore = Semaphore(8)
     private val anilistSemaphore = Semaphore(2)
+    private val tmdbSemaphore = Semaphore(3)
+    // Keşfet rafları aynı Bangumi subject'i eşzamanlı çözmek isteyebilir. Kısa stripe kilitleri
+    // aynı ID için provider çağrılarını tekilleştirir; sabit boyutla sınırsız kilit birikmesi önlenir.
+    private val resolutionLocks = Array(256) { Mutex() }
 
     /** Ağ isteği yapıldığı hâlde Latin ad bulunamayan kayıtlar (tekrar arama yapılmaz). */
     private val negativeCache = BoundedCache<Int, Long>("bangumi.titleResolver.negative", 512)
@@ -87,59 +141,60 @@ internal object BangumiSubjectTitleResolver {
         requests: List<Request>,
         background: Boolean = false,
         cacheOnly: Boolean = false
+    ): Map<Int, BangumiTitleCache.LatinTitles> = withResolutionLocks(requests) {
+        resolveLocked(requests, background, cacheOnly)
+    }
+
+    private suspend fun resolveLocked(
+        requests: List<Request>,
+        background: Boolean,
+        cacheOnly: Boolean
     ): Map<Int, BangumiTitleCache.LatinTitles> {
         val result = ConcurrentHashMap<Int, BangumiTitleCache.LatinTitles>()
         val pending = mutableListOf<Request>()
         for (req in requests.filter { it.rawId > 0 }.distinctBy { it.rawId }) {
             val cached = usableLatin(BangumiTitleCache.get(req.rawId))
-            if (cached != null) result[req.rawId] = cached else pending += req
+            if (cached != null) result[req.rawId] = cached
+            // Romaji-only cache ENGLISH seçimini tamamlamaz. Kısmi başlığı gösterirken
+            // gerçek İngilizceyi başka kaynaktan tamamlamayı da dene.
+            if (!hasReliableEnglish(cached) && !isNegative(req.rawId)) pending += req
         }
         if (pending.isEmpty() || cacheOnly) return result
 
-        // 1) Bangumi v0 subject infobox'u (önbellekli, sınırlı).
-        val infoboxLimit = if (background) INFOBOX_PASS_LIMIT_BACKGROUND else INFOBOX_PASS_LIMIT
-        val infoboxBatchTimeout = if (background) INFOBOX_BATCH_TIMEOUT_BACKGROUND_MS else INFOBOX_BATCH_TIMEOUT_MS
-        val infoboxPending = pending.filter { !isNegative(it.rawId) }.take(infoboxLimit)
-        if (infoboxPending.isNotEmpty()) {
-            val fetchedNoLatin = ConcurrentHashMap<Int, Boolean>()
-            withTimeoutOrNull(infoboxBatchTimeout) {
+        val loadedSubjects = ConcurrentHashMap<Int, BangumiApiClient.BangumiSubject>()
+
+        // Kütüphane satırında Bangumi subjectType saklanmıyor. Movie türündeki eski satırlarda
+        // anime filmi ile canlı-aksiyon filmi karışmasın diye source routing'den önce subject'i
+        // yükleyip gerçek Bangumi türünü öğren.
+        val typeProbePending = pending.filter { it.mediaType == MediaType.Movie && it.subjectType == null }
+            .take(if (background) INFOBOX_PASS_LIMIT_BACKGROUND else INFOBOX_PASS_LIMIT)
+        if (typeProbePending.isNotEmpty()) {
+            val typeProbeTimeout = if (background) INFOBOX_BATCH_TIMEOUT_BACKGROUND_MS else INFOBOX_BATCH_TIMEOUT_MS
+            withTimeoutOrNull(typeProbeTimeout) {
                 coroutineScope {
-                    infoboxPending.map { req ->
+                    typeProbePending.map { req ->
                         async(Dispatchers.IO) {
-                            val localized = try {
-                                infoboxSemaphore.withPermit {
-                                    withTimeoutOrNull(INFOBOX_LOOKUP_TIMEOUT_MS) {
-                                        val subject = KitsugiBangumiDetailClient.loadSubject(req.rawId)
-                                            ?: return@withTimeoutOrNull null
-                                        BangumiNameLocalizer.subject(subject.name, subject.nameCn, subject.infobox)
-                                    }
-                                }
-                            } catch (cancelled: CancellationException) {
-                                throw cancelled
-                            } catch (_: Exception) {
-                                null
-                            }
-                            val latin = localized?.let { latinOf(it.romaji, it.english, it.native) }
-                            if (latin != null) {
-                                BangumiTitleCache.put(req.rawId, latin.romaji, latin.english, latin.native)
-                                result[req.rawId] = latin
-                            } else if (localized != null) {
-                                fetchedNoLatin[req.rawId] = true
-                            }
+                            val localized = loadLocalizedSubject(req, loadedSubjects) ?: return@async
+                            val latin = latinOf(localized.romaji, localized.english, localized.native) ?: return@async
+                            BangumiTitleCache.put(req.rawId, latin.romaji, latin.english, latin.native)
+                            result[req.rawId] = usableLatin(BangumiTitleCache.get(req.rawId)) ?: latin
                         }
                     }.awaitAll()
                 }
             }
-            for (rawId in fetchedNoLatin.keys) markNegative(rawId)
         }
 
-        // 2) AniList toplu (aliased) arama — hâlâ CJK kalan anime/manga satırları.
+        // 1) Önce Anime/Manga için Aliased AniList araması yap. Bu, infobox'u olmayan
+        // Bangumi listelerindeki yaygın durumu tek istekte çözer; sağlam İngilizce bulunduğunda
+        // aşağıdaki per-subject detay isteği tamamen atlanır.
         val anilistLimit = if (background) ANILIST_PASS_LIMIT_BACKGROUND else ANILIST_PASS_LIMIT
         val anilistBatchTimeout = if (background) ANILIST_BATCH_TIMEOUT_BACKGROUND_MS else ANILIST_BATCH_TIMEOUT_MS
         val anilistPending = pending.filter { req ->
-            (req.mediaType == MediaType.Anime || req.mediaType == MediaType.Manga) &&
-                !isNegative(req.rawId) && !result.containsKey(req.rawId)
+            val actualType = loadedSubjects[req.rawId]?.type ?: req.subjectType
+            shouldTryAniList(req.copy(subjectType = actualType)) && !isNegative(req.rawId) &&
+                !hasReliableEnglish(result[req.rawId] ?: BangumiTitleCache.get(req.rawId))
         }.take(anilistLimit)
+        val completedAniList = ConcurrentHashMap.newKeySet<Int>()
         if (anilistPending.isNotEmpty()) {
             withTimeoutOrNull(anilistBatchTimeout) {
                 coroutineScope {
@@ -156,16 +211,163 @@ internal object BangumiSubjectTitleResolver {
                         }
                     }.awaitAll().forEach { chunkResult ->
                         if (chunkResult == null) return@forEach
+                        completedAniList.addAll(chunkResult.unmatched)
                         for ((rawId, latin) in chunkResult.resolved) {
+                            completedAniList += rawId
                             BangumiTitleCache.put(rawId, latin.romaji, latin.english, latin.native)
-                            result[rawId] = latin
+                            result[rawId] = usableLatin(BangumiTitleCache.get(rawId)) ?: latin
                         }
-                        for (rawId in chunkResult.unmatched) markNegative(rawId)
                     }
                 }
             }
         }
+
+        // 2) English hâlâ doğrulanmadıysa subject infobox'una dön (infobox'a özgü English / romaji).
+        // Burada "Latin ad bulunamadı" diye negative-cache yazılmaz: Anime/Manga yukarıda AniList'i,
+        // canlı-aksiyon da aşağıda TMDB'yi henüz denememiş olabilir.
+        val infoboxLimit = if (background) INFOBOX_PASS_LIMIT_BACKGROUND else INFOBOX_PASS_LIMIT
+        val infoboxBatchTimeout = if (background) INFOBOX_BATCH_TIMEOUT_BACKGROUND_MS else INFOBOX_BATCH_TIMEOUT_MS
+        val infoboxPending = pending.filter { req ->
+            !isNegative(req.rawId) &&
+                !hasReliableEnglish(result[req.rawId] ?: BangumiTitleCache.get(req.rawId))
+        }.take(infoboxLimit)
+        if (infoboxPending.isNotEmpty()) {
+            withTimeoutOrNull(infoboxBatchTimeout) {
+                coroutineScope {
+                    infoboxPending.map { req ->
+                        async(Dispatchers.IO) {
+                            val localized = loadLocalizedSubject(req, loadedSubjects) ?: return@async
+                            val latin = latinOf(localized.romaji, localized.english, localized.native)
+                                ?: return@async
+                            BangumiTitleCache.put(req.rawId, latin.romaji, latin.english, latin.native)
+                            result[req.rawId] = usableLatin(BangumiTitleCache.get(req.rawId)) ?: latin
+                        }
+                    }.awaitAll()
+                }
+            }
+        }
+        // 3) Canlı-aksiyon (ve türü belirsiz film) adları için Bangumi'nin aynı katı TMDB
+        // başlık/yıl/tür eşleştirmesi. AniList'e ait anime filmleri subjectType=ANIME ile bu
+        // kola düşmez; böylece anime filmine yanlışlıkla canlı-aksiyon adı yazılmaz.
+        val tmdbLimit = if (background) TMDB_PASS_LIMIT_BACKGROUND else TMDB_PASS_LIMIT
+        val tmdbBatchTimeout = if (background) TMDB_BATCH_TIMEOUT_BACKGROUND_MS else TMDB_BATCH_TIMEOUT_MS
+        val tmdbPending = pending.filter { req ->
+            val actualType = loadedSubjects[req.rawId]?.type ?: req.subjectType
+            shouldTryTmdb(req.copy(subjectType = actualType)) && !isNegative(req.rawId) &&
+                !hasReliableEnglish(result[req.rawId] ?: BangumiTitleCache.get(req.rawId))
+        }.take(tmdbLimit)
+        val completedTmdb = ConcurrentHashMap.newKeySet<Int>()
+        if (tmdbPending.isNotEmpty()) {
+            withTimeoutOrNull(tmdbBatchTimeout) {
+                coroutineScope {
+                    tmdbPending.map { req ->
+                        async(Dispatchers.IO) {
+                            try {
+                                val subject = loadedSubjects[req.rawId]
+                                    ?: KitsugiBangumiDetailClient.loadSubject(req.rawId)
+                                    ?: return@async
+                                loadedSubjects[req.rawId] = subject
+                                if (!shouldTryTmdb(req.copy(subjectType = subject.type))) return@async
+                                val match = tmdbSemaphore.withPermit {
+                                    KitsugiBangumiDetailClient.findMatchingTmdbTitle(
+                                        rawId = req.rawId,
+                                        mediaType = req.mediaType,
+                                        subjectHint = subject
+                                    )
+                                }
+                                completedTmdb += req.rawId
+                                if (match != null) {
+                                    val english = usable(match.titleEnglish)
+                                    val existing = result[req.rawId]
+                                        ?: usableLatin(BangumiTitleCache.get(req.rawId))
+                                    val tmdbTitle = usable(match.title)
+                                    val romaji = usable(match.titleRomaji)
+                                        ?: existing?.romaji
+                                        ?: tmdbTitle?.takeUnless { english != null && it.equals(english, true) }
+                                    val titles = latinOf(romaji, english, existing?.native ?: req.nativeTitle)
+                                    if (titles != null) {
+                                        BangumiTitleCache.put(
+                                            req.rawId,
+                                            titles.romaji,
+                                            titles.english,
+                                            titles.native
+                                        )
+                                        result[req.rawId] = usableLatin(BangumiTitleCache.get(req.rawId)) ?: titles
+                                    }
+                                }
+                            } catch (cancelled: CancellationException) {
+                                throw cancelled
+                            } catch (e: Exception) {
+                                android.util.Log.w(TAG, "TMDB başlık eşleştirmesi başarısız (${req.rawId}): ${e.message}")
+                            }
+                        }
+                    }.awaitAll()
+                }
+            }
+        }
+
+        // Bir içerik ancak kendisi için uygun olan bütün dış kaynaklar denendiyse olumsuz
+        // önbelleğe girer. Zaman aşımı/ağ hatası ve çözümleme limitinin dışındaki kayıtlar,
+        // sonraki açılışta tekrar denenebilir.
+        val anilistDoneIds = completedAniList.toSet()
+        val tmdbDoneIds = completedTmdb.toSet()
+        for (req in pending) {
+            val current = result[req.rawId] ?: usableLatin(BangumiTitleCache.get(req.rawId))
+            val effectiveRequest = req.copy(
+                subjectType = loadedSubjects[req.rawId]?.type ?: req.subjectType
+            )
+            if (
+                shouldMarkNegative(
+                    request = effectiveRequest,
+                    completedAniList = req.rawId in anilistDoneIds,
+                    completedTmdb = req.rawId in tmdbDoneIds,
+                    titles = current
+                )
+            ) {
+                markNegative(req.rawId)
+            }
+        }
         return result
+    }
+
+    private suspend fun <T> withResolutionLocks(requests: List<Request>, block: suspend () -> T): T {
+        // Her çağrı kilitleri ID sırasına göre alır; örtüşen raflar birbirini beklese de deadlock olmaz.
+        val indexes = requests.asSequence()
+            .map { it.rawId }
+            .filter { it > 0 }
+            .map { it % resolutionLocks.size }
+            .distinct()
+            .sorted()
+            .toList()
+        val acquired = mutableListOf<Int>()
+        try {
+            for (index in indexes) {
+                resolutionLocks[index].lock()
+                acquired += index
+            }
+            return block()
+        } finally {
+            acquired.asReversed().forEach { resolutionLocks[it].unlock() }
+        }
+    }
+
+    private suspend fun loadLocalizedSubject(
+        request: Request,
+        loadedSubjects: ConcurrentHashMap<Int, BangumiApiClient.BangumiSubject>
+    ): BangumiLocalizedName? = try {
+        infoboxSemaphore.withPermit {
+            withTimeoutOrNull(INFOBOX_LOOKUP_TIMEOUT_MS) {
+                val subject = loadedSubjects[request.rawId]
+                    ?: KitsugiBangumiDetailClient.loadSubject(request.rawId)
+                    ?: return@withTimeoutOrNull null
+                loadedSubjects[request.rawId] = subject
+                BangumiNameLocalizer.subject(subject.name, subject.nameCn, subject.infobox)
+            }
+        }
+    } catch (cancelled: CancellationException) {
+        throw cancelled
+    } catch (_: Exception) {
+        null
     }
 
     // ── AniList aliased arama ─────────────────────────────────────────────────

@@ -8,11 +8,6 @@ import com.kitsugi.animelist.data.auth.BangumiAuthStore
 import com.kitsugi.animelist.model.MediaType
 import com.kitsugi.animelist.utils.PreferenceHelpers
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.async
-import kotlinx.coroutines.awaitAll
-import kotlinx.coroutines.coroutineScope
-import kotlinx.coroutines.sync.Semaphore
-import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.withContext
 import java.util.Calendar
 
@@ -319,75 +314,92 @@ object KitsugiBangumiClient {
     }
 
     /**
-     * Bangumi liste/arama uçları (`/v0/search`, `/v0/subjects` vb.) infobox döndürmez; İngilizce
-     * ve romaji ad yalnızca subject detayında bulunur. Başlığı hâlâ CJK (Japonca/Çince/Korece)
-     * olan satırlar için subject bir kez çekilir, Latin adlar [BangumiTitleCache]'e yazılır ve
-     * satır o adlarla güncellenir. Böylece liste kartları da uygulama dil tercihine uyar.
-     * Latin ad bulunamazsa satır olduğu gibi kalır (son çare orijinal ad).
-     *
-     * PERFORMANS SÖZLEŞMESİ (Keşfet düzeltmesi):
-     *  - Bilinen Latin adlar AĞA ÇIKMADAN uygulanır (önbellek-öncelikli).
-     *  - Aynı subject için eşzamanlı istekler TEK çağrıda birleşir (uçta tekilleştirme);
-     *    örn. "Bu Sezon" ve "Şu An Yayında" rafları aynı kaydı iki kez çekmez.
-     *  - Tüm raflar 3 eşzamanlı subject isteğini PAYLAŞIR. Eskisi gibi raf başına
-     *    Semaphore(4) ile 14 raf paralel çalışınca bgm.tv'ye ~56 eşzamanlı istek gidiyor,
-     *    429/retry döngüsü sayfayı dakikalarca kilitliyordu.
+     * Arama/keşfet uçlarının kısa subject yanıtında infobox bulunmaz. Bu yüzden yalnızca
+     * doğrudan Bangumi alanlarına bakmak yetmez: başlık subject türüne göre AniList veya katı
+     * TMDB eşleşmesiyle, gerekirse subject infobox'ıyla tamamlanır. Romaji-only kayıt İngilizce
+     * başlık varmış gibi kabul edilmez.
      */
-    private val latinNameLimiter = Semaphore(3)
-    private val latinNameScope = kotlinx.coroutines.CoroutineScope(
-        kotlinx.coroutines.SupervisorJob() + Dispatchers.IO
-    )
-    private val latinNameInFlight =
-        java.util.concurrent.ConcurrentHashMap<Int, kotlinx.coroutines.Deferred<BangumiLocalizedName?>>()
+    @Suppress("UNUSED_PARAMETER")
+    internal suspend fun List<JikanSearchResult>.withLatinBangumiNames(context: Context? = null): List<JikanSearchResult> {
+        val requests = mapNotNull { item ->
+            if (!item.source.equals(SOURCE, ignoreCase = true)) return@mapNotNull null
+            val rawId = BangumiIdNamespace.rawIdFromStable(item.malId) ?: item.malId
+            if (rawId <= 0 || hasReliableEnglish(item)) return@mapNotNull null
+            val nativeTitle = item.titleJapanese?.trim()?.takeIf { it.isNotEmpty() } ?: item.title
+            if (nativeTitle.isBlank()) return@mapNotNull null
+            BangumiSubjectTitleResolver.Request(
+                rawId = rawId,
+                nativeTitle = nativeTitle,
+                mediaType = titleLookupMediaType(item),
+                subjectType = item.bangumiSubjectType
+            )
+        }
+        if (requests.isEmpty()) return map { applyLocalizedBangumiTitles(it, BangumiTitleCache.get(rawBangumiId(it))) }
 
-    private fun sharedSubjectNames(rawId: Int, token: String?): kotlinx.coroutines.Deferred<BangumiLocalizedName?> {
-        synchronized(latinNameInFlight) {
-            latinNameInFlight[rawId]?.let { return it }
-            val job = latinNameScope.async {
-                latinNameLimiter.withPermit {
-                    runCatching { BangumiApiClient.getSubject(rawId, token) }.getOrNull()
-                }?.let { subject -> BangumiNameLocalizer.subject(subject.name, subject.nameCn, subject.infobox) }
-            }
-            job.invokeOnCompletion { synchronized(latinNameInFlight) { latinNameInFlight.remove(rawId, job) } }
-            latinNameInFlight[rawId] = job
-            return job
+        val resolved = try {
+            BangumiSubjectTitleResolver.resolve(requests)
+        } catch (cancelled: kotlinx.coroutines.CancellationException) {
+            throw cancelled
+        } catch (error: Exception) {
+            Log.w(TAG, "Bangumi arama/keşfet başlıkları tamamlanamadı: ${error.message}")
+            emptyMap()
+        }
+        return map { item ->
+            if (!item.source.equals(SOURCE, ignoreCase = true)) return@map item
+            val rawId = rawBangumiId(item)
+            val titles = rawId?.let { resolved[it] } ?: BangumiTitleCache.get(rawId)
+            applyLocalizedBangumiTitles(item, titles)
         }
     }
 
-    internal suspend fun List<JikanSearchResult>.withLatinBangumiNames(context: Context? = null): List<JikanSearchResult> {
-        if (none { it.source == SOURCE && PreferenceHelpers.hasCjkCharacters(it.title) }) return this
-        return coroutineScope {
-            map { item ->
-                async {
-                    if (item.source != SOURCE || !PreferenceHelpers.hasCjkCharacters(item.title)) return@async item
-                    val rawId = BangumiIdNamespace.rawIdFromStable(item.malId) ?: item.malId
-                    if (rawId <= 0) return@async item
+    private fun rawBangumiId(item: JikanSearchResult): Int? =
+        if (!item.source.equals(SOURCE, ignoreCase = true)) null
+        else BangumiIdNamespace.rawIdFromStable(item.malId) ?: item.malId.takeIf { it > 0 }
 
-                    // 1) Önbellekte Latin adı varsa ağ isteği yapılmaz.
-                    BangumiTitleCache.latinTitleFor(rawId, item.title)?.let { latin ->
-                        val cached = BangumiTitleCache.get(rawId)
-                        return@async item.copy(
-                            title = latin,
-                            titleEnglish = cached?.english ?: item.titleEnglish,
-                            titleRomaji = cached?.romaji ?: item.titleRomaji
-                        )
-                    }
+    private fun titleLookupMediaType(item: JikanSearchResult): MediaType = when (item.bangumiSubjectType) {
+        BangumiApiClient.SubjectType.ANIME -> MediaType.Anime
+        BangumiApiClient.SubjectType.BOOK -> MediaType.Manga
+        BangumiApiClient.SubjectType.REAL -> item.type
+        else -> item.type
+    }
 
-                    // 2) Önbellek boşsa subject detayı — uçuşta tekilleştirilmiş ve
-                    //    küresel olarak eşzamanlılık sınırı uygulanmış tek çağrı.
-                    val localized = runCatching {
-                        sharedSubjectNames(rawId, tokenOrNull(context)).await()
-                    }.getOrNull() ?: return@async item
-                    BangumiTitleCache.put(rawId, localized.romaji, localized.english, localized.native)
-                    val latinTitle = localized.romaji ?: localized.english
-                    if (latinTitle == null) item else item.copy(
-                        title = latinTitle,
-                        titleEnglish = localized.english ?: item.titleEnglish,
-                        titleRomaji = localized.romaji ?: item.titleRomaji
-                    )
-                }
-            }.awaitAll()
+    private fun hasReliableEnglish(item: JikanSearchResult): Boolean =
+        BangumiSubjectTitleResolver.hasReliableEnglish(
+            BangumiTitleCache.LatinTitles(
+                romaji = item.titleRomaji,
+                english = item.titleEnglish,
+                native = item.titleJapanese
+            )
+        )
+
+    /** Safely copies each language variant into its own display field. */
+    internal fun applyLocalizedBangumiTitles(
+        item: JikanSearchResult,
+        titles: BangumiTitleCache.LatinTitles?
+    ): JikanSearchResult {
+        if (!item.source.equals(SOURCE, ignoreCase = true)) return item
+        val itemEnglish = com.kitsugi.animelist.utils.MediaTitleResolver.latin(item.titleEnglish)
+        val itemRomaji = com.kitsugi.animelist.utils.MediaTitleResolver.latin(item.titleRomaji)
+        val cachedEnglish = com.kitsugi.animelist.utils.MediaTitleResolver.latin(titles?.english)
+        val cacheReliable = BangumiSubjectTitleResolver.hasReliableEnglish(titles)
+        val itemReliable = BangumiSubjectTitleResolver.hasReliableEnglish(
+            BangumiTitleCache.LatinTitles(itemRomaji, itemEnglish, item.titleJapanese)
+        )
+        val english = when {
+            cacheReliable -> cachedEnglish
+            itemReliable -> itemEnglish
+            else -> null
         }
+        val romaji = com.kitsugi.animelist.utils.MediaTitleResolver.latin(titles?.romaji) ?: itemRomaji
+        val native = item.titleJapanese?.takeIf { it.isNotBlank() }
+            ?: titles?.native?.takeIf { it.isNotBlank() }
+        val title = romaji ?: english ?: item.title
+        return item.copy(
+            title = title,
+            titleEnglish = english,
+            titleJapanese = native,
+            titleRomaji = romaji
+        )
     }
 
     // ── Keşfet kategorileri ──────────────────────────────────────────────────
@@ -683,8 +695,12 @@ object KitsugiBangumiClient {
         val ratingScore = rating?.score ?: 0.0
         val collectionTotal = collection?.total ?: 0
         val localizedTitle = BangumiNameLocalizer.subject(name, nameCn, infobox)
-        // Keşfet/arama uçları infobox dönürmez → İngilizce/romaji ad bilgisi ancak kayıt daha
-        // önce çözüldüyse vardır; kalıcı önbellek onu listeye de taşır.
+        // Keşfet/arama kısa subject yanıtı infobox dönürmez. Önbellekteki İngilizce ile
+        // romaji'yi ayrı alanlarda tut; tek bir genel Latin başlığı English diye kopyalama.
+        val cachedTitles = BangumiTitleCache.get(id)
+        val cachedEnglish = cachedTitles?.english?.takeIf {
+            BangumiSubjectTitleResolver.hasReliableEnglish(cachedTitles)
+        }
         val latinOverride = BangumiTitleCache.latinTitleFor(id, localizedTitle.display)
         return JikanSearchResult(
             malId = BangumiIdNamespace.stableIdFromRaw(id) ?: id,
@@ -697,8 +713,9 @@ object KitsugiBangumiClient {
             imageUrl = BangumiApiClient.absoluteImageUrl(images?.poster),
             year = date?.take(4)?.toIntOrNull(),
             source = SOURCE,
-            titleEnglish = localizedTitle.english ?: latinOverride,
-            titleJapanese = localizedTitle.native,
+            titleEnglish = localizedTitle.english ?: cachedEnglish,
+            titleJapanese = localizedTitle.native ?: cachedTitles?.native,
+            titleRomaji = localizedTitle.romaji ?: cachedTitles?.romaji ?: latinOverride,
             // Bangumi API yalnızca dikey kapak (poster) döndürür; yatay arka plan TMDB/Fanart'tan çözülür.
             backdropUrl = null,
             rank = rating?.rank?.takeIf { it > 0 },
@@ -713,6 +730,10 @@ object KitsugiBangumiClient {
     /** Koleksiyon satırındaki kısaltılmış条目 → [JikanSearchResult] (içe aktarma önizlemesi). */
     fun BangumiApiClient.BangumiSlimSubject.toSearchResult(): JikanSearchResult {
         val localizedTitle = BangumiNameLocalizer.entity(name, nameCn)
+        val cachedTitles = BangumiTitleCache.get(id)
+        val cachedEnglish = cachedTitles?.english?.takeIf {
+            BangumiSubjectTitleResolver.hasReliableEnglish(cachedTitles)
+        }
         val latinOverride = BangumiTitleCache.latinTitleFor(id, localizedTitle.display)
         return JikanSearchResult(
             malId = BangumiIdNamespace.stableIdFromRaw(id) ?: id,
@@ -725,9 +746,9 @@ object KitsugiBangumiClient {
             imageUrl = BangumiApiClient.absoluteImageUrl(images?.poster),
             year = date?.take(4)?.toIntOrNull(),
             source = SOURCE,
-            titleEnglish = localizedTitle.english ?: latinOverride,
-            titleJapanese = localizedTitle.native,
-            titleRomaji = localizedTitle.romaji ?: latinOverride,
+            titleEnglish = localizedTitle.english ?: cachedEnglish,
+            titleJapanese = localizedTitle.native ?: cachedTitles?.native,
+            titleRomaji = localizedTitle.romaji ?: cachedTitles?.romaji ?: latinOverride,
             rank = rank.takeIf { it > 0 },
             favorites = collectionTotal.takeIf { it > 0 },
             rawScoreDouble = score.takeIf { it > 0 },

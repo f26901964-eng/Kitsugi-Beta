@@ -294,4 +294,36 @@ object FandomApiParsers {
             FandomSearchHit(title = title, snippet = snippet)
         }.distinctBy { it.title }
     }
+
+    /**
+     * `prop=pageimages|pageprops` sonucunda tam sayfalar (ns=0, var olan, ayrım
+     * sayfası değil). `query.pages[]` formatversion=2 biçiminde okunur; eski biçim
+     * (nesne olarak pages) için de yedek vardır.
+     */
+    fun parseRelatedPages(json: String?): List<FandomRelatedPage> {
+        val query = parseJsonObject(json)?.optJSONObject("query") ?: return emptyList()
+        val pages = ArrayList<JSONObject>()
+        query.optJSONArray("pages")?.let { arr -> pages += arr.objects() }
+        query.optJSONObject("pages")?.let { obj ->
+            val keys = obj.keys()
+            while (keys.hasNext()) obj.optJSONObject(keys.next())?.let { pages += it }
+        }
+        val out = ArrayList<FandomRelatedPage>(pages.size)
+        for (page in pages) {
+            val title = page.str("title") ?: continue
+            if (page.optBoolean("missing", false) || page.optBoolean("invalid", false)) continue
+            if (page.optInt("ns", 0) != 0) continue
+            val props = page.optJSONObject("pageprops")
+            // Anlam ayrımı sayfaları (disambiguation) "ilgili" listesine girmesin.
+            if (props?.has("disambiguation") == true) continue
+            val description = props?.str("fandomdescription") ?: page.str("extract")
+            val thumbnail = page.optJSONObject("thumbnail")?.str("source")
+            out += FandomRelatedPage(
+                title = title,
+                snippet = description?.takeIf { it.isNotBlank() },
+                thumbnailUrl = thumbnail?.takeIf { it.isNotBlank() }
+            )
+        }
+        return out.distinctBy { it.title }
+    }
 }

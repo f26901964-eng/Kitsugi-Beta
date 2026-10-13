@@ -69,9 +69,9 @@ internal object BangumiLibraryTitleHydrator {
                 return
             }
 
-            // Yeni bir ad üretilmediyse (hepsi negatif önbellekte) döngüyü boşa çevirmeyelim.
-            if (resolved.isEmpty()) return
-            applyResolvedTitles(database, resolved)
+            // Hiçbir veritabanı alanı değişmediyse (örn. yalnızca Romaji bulunabildi) sonraki
+            // turları boşa çalıştırmayalım; İngilizce eksikleri bir sonraki gerçek tetikte denenir.
+            if (resolved.isEmpty() || !applyResolvedTitles(database, resolved)) return
         }
     }
 
@@ -89,13 +89,17 @@ internal object BangumiLibraryTitleHydrator {
             if (rawId <= 0 || requests.containsKey(rawId)) continue
 
             val current = entity.title.trim()
-            val english = entity.titleEnglish?.trim().orEmpty()
-            // Eldeki Latin adlardan biri kullanılabilirse ağ isteği yapılmaz.
-            val hasLatinTitle = current.isNotEmpty() && !PreferenceHelpers.hasCjkCharacters(current)
-            val hasLatinEnglish = english.isNotEmpty() && !PreferenceHelpers.hasCjkCharacters(english)
-            if (hasLatinTitle || hasLatinEnglish) continue
+            val cached = BangumiTitleCache.get(rawId)
+            val english = entity.titleEnglish?.trim()?.takeIf { PreferenceHelpers.isLatinText(it) }
+                ?: cached?.english
+            val romaji = current.takeIf { PreferenceHelpers.isLatinText(it) } ?: cached?.romaji
+            val hasEnglish = BangumiSubjectTitleResolver.hasReliableEnglish(
+                BangumiTitleCache.LatinTitles(romaji, english, entity.titleJapanese ?: cached?.native)
+            )
+            // Latin/romaji başlık tek başına yeterli değil: English seçiliyken gerçek İngilizce
+            // karşılık başka kaynakta olabilir. Ancak özgün (Bangumi) başlığı biliyorsak ararız.
+            if (hasEnglish) continue
 
-            // AniList eşleşmesi birebir olduğu için özgün (CJK) ad gerekir.
             val nativeTitle = listOfNotNull(
                 entity.titleJapanese?.trim()?.takeIf { it.isNotEmpty() },
                 current.takeIf { it.isNotEmpty() }
@@ -114,7 +118,7 @@ internal object BangumiLibraryTitleHydrator {
     private suspend fun applyResolvedTitles(
         database: KitsugiDatabase,
         resolved: Map<Int, BangumiTitleCache.LatinTitles>
-    ) {
+    ): Boolean {
         val dao = database.mediaEntryDao()
         val updates = ArrayList<MediaEntryEntity>()
         for (entity in dao.getAll()) {
@@ -146,8 +150,9 @@ internal object BangumiLibraryTitleHydrator {
             )
             if (updated != entity) updates += updated
         }
-        if (updates.isEmpty()) return
+        if (updates.isEmpty()) return false
         database.withTransaction { dao.updateAll(updates) }
+        return true
     }
 
     private fun isBangumi(entity: MediaEntryEntity): Boolean =

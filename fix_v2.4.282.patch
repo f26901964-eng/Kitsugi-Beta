@@ -1,0 +1,507 @@
+diff --git a/KOK_NEDEN_RAPORU_KARAKTER_WIKI_BULUNAMADI_VE_OLU_TEKRAR_DENE_2026-10-13.md b/KOK_NEDEN_RAPORU_KARAKTER_WIKI_BULUNAMADI_VE_OLU_TEKRAR_DENE_2026-10-13.md
+new file mode 100644
+index 0000000..e3549d2
+--- /dev/null
++++ b/KOK_NEDEN_RAPORU_KARAKTER_WIKI_BULUNAMADI_VE_OLU_TEKRAR_DENE_2026-10-13.md
+@@ -0,0 +1,86 @@
++# Karakter / Ekip / Seslendiren Wiki Sekmesi — "Bulunamadı" ve Ölü "Tekrar Dene" Kök Neden Raporu (2026-10-13)
++
++## 1. Kullanıcı bildirimi
++
++- Karakter detayında (ör. **Itsuka Kotori / Date A Live**) Wiki sekmesi "Wiki bulunamadı" diyor;
++  oysa Fandom'da sayfa var: `date-a-live.fandom.com/wiki/Kotori_Itsuka`.
++- Karakter, ekip ve seslendiren detaylarındaki **"Tekrar dene" düğmesine basınca hiçbir şey
++  olmuyor** (ağ isteği bile yok hissi).
++
++## 2. Kök neden 1 — "Tekrar dene" önbellek duvarına çarpıyor (ölü düğme)
++
++Çözümleme üç katmanlı önbellek kullanıyor:
++
++| Katman | Anahtar | Olumsuz TTL |
++|---|---|---|
++| Karakter sayfası | `fandom:v1:char:v3:<kimlik>:…` | 3 gün (kalıcı DB) |
++| Yapım wiki | `fandom:v1:wiki:v2:<mediaKey>:…` | 3 gün (kalıcı DB) |
++| Süreç içi "wiki yok" | `missingWikis` (siteinfo) | 30 dk (bellek) |
++
++`FandomCharacterWikiViewModel.retry()` yalnızca `rebind()` yapıyordu: `bindQuery` →
++`resolveCharacterPage` → **`readCached` olumsuz kaydı döndürüyor** → ağa çıkılmadan `null` →
++`UiState.Unavailable`. Yapım katmanı da kendi olumsuz kaydını döndürdüğü için zincir hiç
++canlanmıyordu. Kullanıcıya yansıyan: düğme ölü.
++
++Karşılaştırma: yapım wiki sekmesi (`FandomMediaWikiViewModel.retry`) zaten önce
++`FandomRepository.forgetMediaWiki(...)` ile önbelleği silip sonra yeniden çözümlüyordu.
++Karakter tarafında bu eşdeğer adım **hiç yoktu** — asimetri bug'ın kendisi.
++
++### Çözüm
++- `resolveCharacterPage(context, query, forceRefresh)` ve
++  `resolveMediaWiki(context, query, allowNameFallback, forceRefresh)` parametreleri eklendi:
++  `forceRefresh=true` iken olumlu/olumsuz önbellek **okunmuyor** (yazma yine yapılır, böylece
++  sonuç kaydı tazelenir). Kullanıcının onayladığı wiki kısayolu korunur.
++- `FandomCharacterResolver.resolve(query, forceRefresh)` bayrağı yapım katmanına taşır.
++- `FandomCharacterWikiViewModel.retry()`: `FandomWikiResolver.forgetMissingWikis()` (süreç içi
++  zehir listesi) + `rebind(forceRefresh = true)`. Düğme basılınca iskelet görünür → gerçek istekler
++  gider → sonuç (bulunursa içerik, bulunmazsa taze değerlendirme) gelir.
++
++## 3. Kök neden 2 — Geçici kesintinin 3 gün kalıcı "bulunamadı" yazması
++
++`writeCached(persist = !transientFailure)` kuralı var ama `transientFailure` yalnızca
++`FandomHttp.failureCount()` farkına bakıyor. Üç açık:
++
++1. **HTTP 403/408 sayılmıyordu.** `services.fandom.com` (Cloudflare) ve `query.wikidata.org`
++   (WMF bot politikası) tarayıcı dışı istemciye 403/408 dönebiliyor; bu kodlar "veri yok"
++   anlamına gelmediği hâlde sayılmadığı için zincir "sağlıklı bulamadım" sanıp olumsuz kaydı
++   **3 gün kalıcı** yazıyordu. (404 bilinçli olarak hâlâ sayılmaz: olmayan wiki gerçekten 404.)
++2. **Kimlik köprüsü patlamaları sayılmıyordu.** `FandomWikiResolver.safely {}` (AniList/Kitsu/Simkl
++   çapraz kimlik) istisnayı yutuyor, failureCount artmıyordu → aynı 3 gün zehir.
++   Artık `safely {}` istisnada `FandomHttp.markFailure()` çağırıyor.
++3. **Wikidata karakter yedeği zinciri tek hatada kırıyordu.** `characterArticles()` Action API
++   yedeğinde ilk `findQids/getEntities` null dönüşünde `return emptyList()` diyordu; artık
++   `continue` ile sıradaki kimliği deniyor.
++
++Ek koruma: kalıcı olumsuz TTL 3 gün → **1 gün** indirildi (sekme yalnızca sayfa açılışında
++çözümlendiği için API yükü ihmal edilebilir; bayat zehir penceresi üçte bire iner).
++
++## 4. Neden "wiki var ama bulamıyor" günlerce sürüyordu
++
++Yukarıdaki iki kök neden birleşince: geçici bir kesinti anında üretilen olumsuz kayıt 3 gün
++kalıcı oluyor, kullanıcı her girişinde aynı kaydı okuyor, "Tekrar dene" de aynı kaydı okuduğu
++için kurtuluş yolu kalmıyordu. Bu paket sonrası:
++
++- Kesinti anında üretilen sonuç kalıcı yazılmaz (10 dk bellek).
++- Kalıcı yazılan olumsuz kayıt 1 günde düşer.
++- Kullanıcı istediği an "Tekrar dene" ile önbelleksiz taze çözümleme başlatır.
++
++## 5. Değişen dosyalar
++
++| Dosya | Değişiklik |
++|---|---|
++| `data/fandom/FandomHttp.kt` | 403/408 geçici hata sayılır (429/5xx zaten). |
++| `data/fandom/WikidataClient.kt` | `characterArticles` Action API yedeğinde `return emptyList()` → `continue`. |
++| `data/fandom/FandomWikiResolver.kt` | `safely {}` istisnada `markFailure()`; `forgetMissingWikis()` eklendi. |
++| `data/fandom/FandomCharacterResolver.kt` | `resolve(query, forceRefresh)`; yapım çözümlemesine taşınır. |
++| `data/fandom/FandomRepository.kt` | `resolveMediaWiki`/`resolveCharacterPage` + `forceRefresh`; NEGATIVE_TTL 1 gün; doküman. |
++| `ui/.../wiki/FandomCharacterWikiViewModel.kt` | `retry()` = zehir temizliği + `forceRefresh` ile yeniden çözümleme. |
++| `app/build.gradle.kts` | 2.4.282. |
++
++## 6. Doğrulama notu
++
++Bu ortamda Android derlemesi ve cihaz testi yapılamadı (Gradle bağımlılıkları ağ politikası
++gereği çekilemiyor). Değişiklikler yalnızca imza uyumu ve çağrı noktaları açısından denetlendi:
++tüm mevcut çağrılar varsayılan parametreyle uyumlu kalır (`forceRefresh = false` öntanımlı).
++Davranış doğrulaması cihazda yapılmalıdır: Wiki sekmesi olmayan bir karakterde "Tekrar dene" →
++iskelet → içerik; ayrıca Ayarlar → Fandom Wiki önbellek temizliği yolu eskisi gibi çalışır.
+diff --git a/PLAN_TASK_KARAKTER_WIKI_TEKRAR_DENE_VE_BAYAT_BULUNAMADI_FIX_2026-10-13.md b/PLAN_TASK_KARAKTER_WIKI_TEKRAR_DENE_VE_BAYAT_BULUNAMADI_FIX_2026-10-13.md
+new file mode 100644
+index 0000000..9aea31a
+--- /dev/null
++++ b/PLAN_TASK_KARAKTER_WIKI_TEKRAR_DENE_VE_BAYAT_BULUNAMADI_FIX_2026-10-13.md
+@@ -0,0 +1,53 @@
++# PLAN TASK — Karakter / Ekip / Seslendiren Wiki: Ölü "Tekrar Dene" ve Bayat "Bulunamadı" Fix'i (2026-10-13)
++
++Sürüm: **v2.4.282** · Dal: `arena/1788057b-kitsugi-beta` · Commit: `d765c5f`
++Kök neden raporu: `KOK_NEDEN_RAPORU_KARAKTER_WIKI_BULUNAMADI_VE_OLU_TEKRAR_DENE_2026-10-13.md`
++
++## 1. Görev tanımı (kullanıcı bildirimi)
++
++1. Fandom'da sayfası olan karakterlerde (ör. **Itsuka Kotori / Date A Live** →
++   `date-a-live.fandom.com/wiki/Kotori_Itsuka`) karakter detayındaki Wiki sekmesi
++   "Wiki bulunamadı" diyor.
++2. Karakter, ekip ve seslendiren detaylarındaki **"Tekrar dene"** düğmesine basınca hiçbir
++   şey olmuyor (ağ isteği bile gitmiyor hissi).
++
++## 2. Tespit edilen kök nedenler
++
++| # | Kök neden | Etki |
++|---|---|---|
++| 1 | `FandomCharacterWikiViewModel.retry()` yalnızca `rebind()` yapıyordu; karakter (`char:v3`, 3 gün) + yapım wiki (`wiki:v2`, 3 gün) + süreç içi `missingWikis` (30 dk) önbellekleri aynı sonucu ağa çıkmadan geri veriyordu. | Düğme ölü. |
++| 2 | Geçici kesintiler (HTTP 403/408, kimlik köprüsü istisnaları, tek Wikidata sorgusu hatası) `failureCount`'i arttırmadığı için "bulunamadı" **3 gün kalıcı** yazılıyordu. | Wiki varken günlerce "bulunamadı". |
++| 3 | `WikidataClient.characterArticles()` Action API yedeğinde ilk null'da `return emptyList()` ile zinciri kırıyordu. | Karakter kimlik yolu sessizce ölüyordu. |
++
++## 3. Yapılan değişiklikler
++
++| Dosya | Değişiklik |
++|---|---|
++| `app/src/main/java/com/kitsugi/animelist/ui/screens/detail/wiki/FandomCharacterWikiViewModel.kt` | `retry()` = `FandomWikiResolver.forgetMissingWikis()` + `rebind(forceRefresh = true)`; `bindQuery(..., forceRefresh)` parametresi. |
++| `app/src/main/java/com/kitsugi/animelist/data/fandom/FandomRepository.kt` | `resolveCharacterPage` / `resolveMediaWiki` + `forceRefresh` (olumsuz kayıtlar dahil önbellek okunmaz); `NEGATIVE_TTL_MS` 3 gün → 1 gün; sınıf dokümanı. |
++| `app/src/main/java/com/kitsugi/animelist/data/fandom/FandomCharacterResolver.kt` | `resolve(query, forceRefresh)`; bayrak yapım wiki çözümlemesine taşınır. |
++| `app/src/main/java/com/kitsugi/animelist/data/fandom/FandomWikiResolver.kt` | `safely {}` istisnada `FandomHttp.markFailure()`; companion'a `forgetMissingWikis()`. |
++| `app/src/main/java/com/kitsugi/animelist/data/fandom/FandomHttp.kt` | 403/408 geçici hata sayılır (429/5xx zaten); 404 bilinçli olarak sayılmaz. |
++| `app/src/main/java/com/kitsugi/animelist/data/fandom/WikidataClient.kt` | `characterArticles` yedeğinde `return emptyList()` → `continue`. |
++| `app/build.gradle.kts` | `appVersionName = "2.4.282"`. |
++| `RELEASE_NOTES.md`, `release_notes_v2.4.282.md` | Sürüm notları. |
++
++## 4. Kabul kriterleri (cihaz testi)
++
++- [ ] Wiki sekmesi "bulunamadı" durumundayken "Tekrar dene" → iskelet görünür, gerçek istekler
++      gider (logcat'te `FandomHttp` satırları), sonuç tazelenir.
++- [ ] Kotori örneği: `date-a-live` wiki + `Kotori Itsuka` sayfası sekmede dolu gelir
++      (bilgi kutusu + bölümler).
++- [ ] Ekip ve seslendiren detaylarındaki Wiki sekmesi retry'si de aynı davranışı gösterir
++      (aynı ViewModel).
++- [ ] Uçak modunda retry → hata yine "bulunamadı" kartına düşer ama kalıcı yazılmaz
++      (10 dk geçici); bağlantı gelince retry kurtarır.
++- [ ] Ayarlar → Fandom Wiki → "önbelleği temizle" akışı eskisi gibi çalışır.
++
++## 5. Riskler ve geri alma
++
++- `forceRefresh` yalnızca kullanıcı başlatmalı retry yolunda `true`; normal bağlama ve tercih
++  değişimi önbellekle çalışmaya devam eder (API yükü artmaz).
++- Olumsuz TTL kısalması en kötü ihtimalle günde birkaç ek istek üretir (sekme yalnızca sayfa
++  açılışında çözümlenir).
++- Geri alma: tek commit (`d765c5f`) revert edilebilir.
+diff --git a/RELEASE_NOTES.md b/RELEASE_NOTES.md
+index ed42ca0..281cd20 100644
+--- a/RELEASE_NOTES.md
++++ b/RELEASE_NOTES.md
+@@ -1,5 +1,27 @@
+ # Kitsugi-Beta — Sürüm Notları / Release Notes
+ 
++# Kitsugi-Beta v2.4.282
++
++## 🇹🇷 Türkçe (v2.4.282)
++
++### 🩺 Karakter / Ekip / Seslendiren Wiki: Ölü "Tekrar Dene" ve Bayat "Bulunamadı" Fix'i
++- **"Tekrar dene" artık gerçekten yeniden çözümlüyor:** Karakter, ekip ve seslendiren detayındaki Wiki sekmesinin yeniden deneme düğmesi yalnızca yeniden bağlanıyordu; karakter ve yapım wiki katmanlarındaki "bulunamadı" önbelleği (3 güne kadar) ile süreç içi "wiki yok" listesi (30 dk) aynı sonucu ağa çıkmadan geri veriyordu. Artık `forceRefresh` ile önbellekler (olumsuz kayıtlar dahil) okunmadan çözümleme baştan yapılıyor ve zehir kayıtlar temizleniyor (`FandomWikiResolver.forgetMissingWikis`).
++- **Geçici kesintiler kalıcı "bulunamadı" yazmıyor:** HTTP 403/408 (Cloudflare/WMF bot koruması, zaman aşımı) geçici hata sayılıyor (404 hâlâ "wiki gerçekten yok" anlamında); kimlik köprüsü (AniList/Kitsu/Simkl) istisnaları `FandomHttp.markFailure()` ile işaretleniyor; Wikidata karakter yedeğinde tek kimliğin ağ hatası zinciri kırmıyor.
++- **Bayat olumsuz kayıt penceresi kısaldı:** 3 gün → 1 gün.
++- **Sonuç:** Fandom sayfası var olan karakterlerde (örn. Date A Live → Kotori Itsuka) geçici kesinti sonrası günlerce süren "Wiki bulunamadı" durumu ve çalışmayan yeniden deneme düğmesi giderildi.
++
++---
++
++## 🇬🇧 English (v2.4.282)
++
++### 🩺 Character / Staff / VA Wiki: Dead "Retry" & Stale "Not Found" Fix
++- **Retry now truly re-resolves:** The Wiki tab retry on character, staff and voice-actor pages only re-bound the view model; the character- and media-wiki-layer "not found" caches (up to 3 days) plus the in-process "missing wiki" list (30 min) returned the same result without any network call. Retry now clears poison entries and re-resolves with caches bypassed (negative entries included) via `forceRefresh`.
++- **Transient outages no longer persist a "not found":** HTTP 403/408 (Cloudflare/WMF bot protection, timeouts) count as transient failures (404 still means "wiki really absent"); identity-bridge (AniList/Kitsu/Simkl) exceptions are marked via `FandomHttp.markFailure()`; a single failing Wikidata identity lookup no longer aborts the character fallback chain.
++- **Stale negative window shortened:** 3 days → 1 day.
++- **Result:** Characters whose Fandom page exists (e.g. Date A Live → Kotori Itsuka) no longer stay hidden for days after a transient outage, and the retry button recovers them immediately.
++
++---
++
+ # Kitsugi-Beta v2.4.281
+ 
+ ## 🇹🇷 Türkçe (v2.4.281)
+diff --git a/app/build.gradle.kts b/app/build.gradle.kts
+index a8ffc2b..b4c6e84 100644
+--- a/app/build.gradle.kts
++++ b/app/build.gradle.kts
+@@ -37,7 +37,7 @@ android {
+     val bangumiClientId     = localProperties.getProperty("bangumi_client_id")     ?: "YOUR_BANGUMI_CLIENT_ID"
+     val bangumiClientSecret = localProperties.getProperty("bangumi_client_secret") ?: "YOUR_BANGUMI_CLIENT_SECRET"
+ 
+-    val appVersionName = "2.4.281"
++    val appVersionName = "2.4.282"
+ 
+     compileSdk = 36
+ 
+diff --git a/app/src/main/java/com/kitsugi/animelist/data/fandom/FandomCharacterResolver.kt b/app/src/main/java/com/kitsugi/animelist/data/fandom/FandomCharacterResolver.kt
+index f5a46c8..89707b2 100644
+--- a/app/src/main/java/com/kitsugi/animelist/data/fandom/FandomCharacterResolver.kt
++++ b/app/src/main/java/com/kitsugi/animelist/data/fandom/FandomCharacterResolver.kt
+@@ -38,9 +38,10 @@ internal class FandomCharacterResolver(
+         val NATIVE_LABEL = Regex("(?i)(kanji|japanese|hangul|korean|chinese|native|日本語|漢字|한글)")
+     }
+ 
+-    suspend fun resolve(query: FandomCharacterQuery): FandomResolvedCharacter? {
++    /** [forceRefresh] kullanıcı "Tekrar dene" dediğinde yapım wiki önbelleğini de atlar. */
++    suspend fun resolve(query: FandomCharacterQuery, forceRefresh: Boolean = false): FandomResolvedCharacter? {
+         val articles = wikidataArticles(query)
+-        val media = resolveMediaWiki(query)
++        val media = resolveMediaWiki(query, forceRefresh)
+         val mediaWiki = media?.first
+         val mediaKey = media?.second
+ 
+@@ -105,7 +106,10 @@ internal class FandomCharacterResolver(
+      * Ana rol + anime önce; isim yolu yalnızca ilk yapım için denenir (istek bütçesi).
+      * @return (wiki, yapımın önbellek anahtarı)
+      */
+-    private suspend fun resolveMediaWiki(query: FandomCharacterQuery): Pair<FandomWikiRef, String?>? {
++    private suspend fun resolveMediaWiki(
++        query: FandomCharacterQuery,
++        forceRefresh: Boolean = false
++    ): Pair<FandomWikiRef, String?>? {
+         val ordered = query.appearances.sortedWith(
+             compareByDescending<FandomAppearanceRef> { it.isMainRole }.thenBy { it.isManga }
+         )
+@@ -114,7 +118,8 @@ internal class FandomCharacterResolver(
+             val ref = FandomRepository.resolveMediaWiki(
+                 context = context,
+                 query = mediaQuery,
+-                allowNameFallback = allowNameFallback && index == 0
++                allowNameFallback = allowNameFallback && index == 0,
++                forceRefresh = forceRefresh
+             )
+             if (ref != null) return ref to mediaQuery.cacheKey()
+         }
+diff --git a/app/src/main/java/com/kitsugi/animelist/data/fandom/FandomHttp.kt b/app/src/main/java/com/kitsugi/animelist/data/fandom/FandomHttp.kt
+index a6c5f4f..c571a9d 100644
+--- a/app/src/main/java/com/kitsugi/animelist/data/fandom/FandomHttp.kt
++++ b/app/src/main/java/com/kitsugi/animelist/data/fandom/FandomHttp.kt
+@@ -61,7 +61,13 @@ internal object FandomHttp {
+                     when {
+                         response.isSuccessful -> response.body?.string()
+                         else -> {
+-                            if (response.code == 429 || response.code >= 500) failures.incrementAndGet()
++                            // 403/408/429/5xx bu uçlarda hiçbir zaman "veri yok" anlamına gelmez
++                            // (Cloudflare/WMF bot koruması, zaman aşımı, sunucu hatası): geçici
++                            // sayılır ki çağran "bulunamadı" sonucunu kalıcı önbelleğe yazmasın.
++                            // 404 bilinçli olarak sayılmaz: olmayan wiki gerçekten 404 döner.
++                            if (response.code == 403 || response.code == 408 || response.code == 429 || response.code >= 500) {
++                                failures.incrementAndGet()
++                            }
+                             Log.w(TAG, "HTTP ${response.code} ← ${shorten(url)}")
+                             null
+                         }
+diff --git a/app/src/main/java/com/kitsugi/animelist/data/fandom/FandomRepository.kt b/app/src/main/java/com/kitsugi/animelist/data/fandom/FandomRepository.kt
+index df12204..d6a3026 100644
+--- a/app/src/main/java/com/kitsugi/animelist/data/fandom/FandomRepository.kt
++++ b/app/src/main/java/com/kitsugi/animelist/data/fandom/FandomRepository.kt
+@@ -24,8 +24,10 @@ import kotlinx.serialization.json.Json
+  *    Mevcut otomatik temizlik (MappingSyncWorker + StorageJanitor, 30 gün) bu kayıtları da
+  *    kapsar; Room şeması değişmez. Ham HTML değil, sadeleştirilmiş JSON saklanır.
+  *
+- * Süreler: wiki eşleşmesi 30 gün, karakter sayfası ve bölümler 7 gün, "bulunamadı" 3 gün.
+- * Çözümleme sırasında ağ hatası olduysa "bulunamadı" sonucu kalıcı önbelleğe yazılmaz.
++ * Süreler: wiki eşleşmesi 30 gün, karakter sayfası ve bölümler 7 gün, "bulunamadı" 1 gün.
++ * Çözümleme sırasında ağ hatası olduysa "bulunamadı" sonucu kalıcı önbelleğe yazılmaz
++ * (geçici kesinti bellekte 10 dk tutulur). Kullanıcı "Tekrar dene" derse önbellekler
++ * (olumsuz kayıtlar dahil) okunmadan çözümleme baştan yapılır.
+  */
+ object FandomRepository {
+ 
+@@ -41,7 +43,9 @@ object FandomRepository {
+     /** Evren rehberi çiplerinde bir seferde çekilen kategori üyesi sayısı. */
+     private const val GUIDE_PAGE_SIZE = 14
+     private const val BLURB_TTL_MS = 7L * DAY_MS
+-    private const val NEGATIVE_TTL_MS = 3L * DAY_MS
++    /** "Bulunamadı" kaydı: yalnızca zincir tamamen sağlıklıysa kalıcı yazılır; 3 gün yerine
++     *  1 gün tutulur ki bayat olumsuz kayıtlar sekmeyi gereğinden uzun gizlemesin. */
++    private const val NEGATIVE_TTL_MS = 1L * DAY_MS
+     private const val TRANSIENT_NEGATIVE_TTL_MS = 10L * 60L * 1000L
+     private const val SEARCH_MEMO_TTL_MS = 5L * 60L * 1000L
+ 
+@@ -82,7 +86,16 @@ object FandomRepository {
+ 
+     // ── Yapım → wiki ─────────────────────────────────────────────────────────
+ 
+-    suspend fun resolveMediaWiki(context: Context, query: FandomMediaQuery, allowNameFallback: Boolean): FandomWikiRef? {
++    /**
++     * [forceRefresh] = "Tekrar dene": olumlu/olumsuz wiki önbelleği okunmaz, çözümleme
++     * baştan yapılır (kullanıcının onayladığı wiki kısayolu korunur).
++     */
++    suspend fun resolveMediaWiki(
++        context: Context,
++        query: FandomMediaQuery,
++        allowNameFallback: Boolean,
++        forceRefresh: Boolean = false
++    ): FandomWikiRef? {
+         val appContext = context.applicationContext
+         val effectiveQuery = query.normalizedMediaKind()
+         val prefs = FandomWikiPrefs.state(appContext)
+@@ -105,7 +118,7 @@ object FandomRepository {
+         val cacheKey = wikiCacheKey(resolutionKey, nameAllowed)
+ 
+         return lockFor(wikiLocks, cacheKey).withLock {
+-            val cached = readCached(appContext, cacheKey, positiveTtl = WIKI_TTL_MS) { body ->
++            val cached = if (forceRefresh) null else readCached(appContext, cacheKey, positiveTtl = WIKI_TTL_MS) { body ->
+                 json.decodeFromString(StoredWiki.serializer(), body).ref
+             }
+             if (cached != null) {
+@@ -640,7 +653,15 @@ object FandomRepository {
+ 
+     // ── Karakter → sayfa ─────────────────────────────────────────────────────
+ 
+-    suspend fun resolveCharacterPage(context: Context, query: FandomCharacterQuery): FandomCharacterPage? {
++    /**
++     * [forceRefresh] = "Tekrar dene": karakter ve yapım wiki önbellekleri (olumsuz kayıtlar
++     * dahil) okunmaz; çözümleme gerçekten baştan yapılır.
++     */
++    suspend fun resolveCharacterPage(
++        context: Context,
++        query: FandomCharacterQuery,
++        forceRefresh: Boolean = false
++    ): FandomCharacterPage? {
+         val appContext = context.applicationContext
+         val prefs = FandomWikiPrefs.state(appContext)
+         if (!prefs.enabled) return null
+@@ -648,7 +669,7 @@ object FandomRepository {
+         val cacheKey = characterCacheKey(characterKey, prefs)
+ 
+         return lockFor(characterLocks, cacheKey).withLock {
+-            val cached = readCached(appContext, cacheKey, positiveTtl = PAGE_TTL_MS) { body ->
++            val cached = if (forceRefresh) null else readCached(appContext, cacheKey, positiveTtl = PAGE_TTL_MS) { body ->
+                 json.decodeFromString(StoredCharacter.serializer(), body).page
+             }
+             if (cached != null) {
+@@ -663,7 +684,7 @@ object FandomRepository {
+                     allowNameFallback = prefs.nameFallback,
+                     isRejected = { wikiId, title -> FandomUserChoices.isPageRejected(appContext, characterKey, wikiId, title) }
+                 )
+-                resolver.resolve(query)?.let { buildPage(appContext, it, prefs) }?.let { applyAcceptance(appContext, characterKey, it) }
++                resolver.resolve(query, forceRefresh)?.let { buildPage(appContext, it, prefs) }?.let { applyAcceptance(appContext, characterKey, it) }
+             } catch (e: CancellationException) {
+                 throw e
+             } catch (e: Exception) {
+diff --git a/app/src/main/java/com/kitsugi/animelist/data/fandom/FandomWikiResolver.kt b/app/src/main/java/com/kitsugi/animelist/data/fandom/FandomWikiResolver.kt
+index 46b03bd..2719aaf 100644
+--- a/app/src/main/java/com/kitsugi/animelist/data/fandom/FandomWikiResolver.kt
++++ b/app/src/main/java/com/kitsugi/animelist/data/fandom/FandomWikiResolver.kt
+@@ -68,6 +68,15 @@ internal class FandomWikiResolver(
+             siteInfoCache[info.wikiId] = info
+             return info
+         }
++
++        /**
++         * "Tekrar dene": süreç içi "wiki yok" zehir kayıtları temizlenir. Geçici bir DNS/HTTP
++         * hatasıyla dolan bu liste, 30 dk boyunca canlı wiki'yi yok saydırıp kullanıcıya
++         * "buton çalışmıyor" hissi verebiliyordu.
++         */
++        fun forgetMissingWikis() {
++            missingWikis.clear()
++        }
+     }
+ 
+     suspend fun resolve(query: FandomMediaQuery, allowNameFallback: Boolean): FandomWikiRef? {
+@@ -593,6 +602,10 @@ internal class FandomWikiResolver(
+         throw e
+     } catch (e: Exception) {
+         Log.w(TAG, "Kimlik çözümlemesi başarısız: ${e.message}")
++        // Kimlik köprüsü (AniList/Kitsu/Simkl…) dış bir bağımlılıktır: buradaki patlama
++        // geçici bir kesintidir. İşaretlenmezse "bulunamadı" sonucu kalıcı önbelleğe yazılıp
++        // wiki'yi (ve dolaylı olarak karakter sayfalarını) yok yere gizliyordu.
++        FandomHttp.markFailure()
+         null
+     }
+ }
+diff --git a/app/src/main/java/com/kitsugi/animelist/data/fandom/WikidataClient.kt b/app/src/main/java/com/kitsugi/animelist/data/fandom/WikidataClient.kt
+index 6d47939..fc0bfe0 100644
+--- a/app/src/main/java/com/kitsugi/animelist/data/fandom/WikidataClient.kt
++++ b/app/src/main/java/com/kitsugi/animelist/data/fandom/WikidataClient.kt
+@@ -90,11 +90,12 @@ internal object WikidataClient {
+     suspend fun characterArticles(lookups: List<Pair<String, String>>): List<String> {
+         val query = WikidataParsers.buildCharacterQuery(lookups) ?: return emptyList()
+         WikidataParsers.parseCharacterResults(sparql(query))?.let { return it }
+-        // Yedek: Action API
++        // Yedek: Action API. Tek bir kimliğin ağ hatası zinciri kırmaz: sıradaki denenir.
++        // (Tüm sağlayıcılar hatalıysa boş döner; HTTP katmanı hatayı zaten geçici sayar.)
+         for ((property, value) in lookups) {
+-            val qids = findQids(property, value, limit = 2) ?: return emptyList()
++            val qids = findQids(property, value, limit = 2) ?: continue
+             if (qids.isEmpty()) continue
+-            val entities = getEntities(qids) ?: return emptyList()
++            val entities = getEntities(qids) ?: continue
+             val articles = entities.values.flatMap { it.fandomArticleIds }.distinct()
+             if (articles.isNotEmpty()) return articles
+         }
+diff --git a/app/src/main/java/com/kitsugi/animelist/ui/screens/detail/wiki/FandomCharacterWikiViewModel.kt b/app/src/main/java/com/kitsugi/animelist/ui/screens/detail/wiki/FandomCharacterWikiViewModel.kt
+index 559b568..591eec2 100644
+--- a/app/src/main/java/com/kitsugi/animelist/ui/screens/detail/wiki/FandomCharacterWikiViewModel.kt
++++ b/app/src/main/java/com/kitsugi/animelist/ui/screens/detail/wiki/FandomCharacterWikiViewModel.kt
+@@ -9,6 +9,7 @@ import com.kitsugi.animelist.data.fandom.FandomCharacterQueries
+ import com.kitsugi.animelist.data.fandom.FandomCharacterQuery
+ import com.kitsugi.animelist.data.fandom.FandomRepository
+ import com.kitsugi.animelist.data.fandom.FandomSectionContent
++import com.kitsugi.animelist.data.fandom.FandomWikiResolver
+ import com.kitsugi.animelist.data.fandom.FandomWikiPrefs
+ import com.kitsugi.animelist.data.local.TranslationManager
+ import com.kitsugi.animelist.data.remote.KitsugiCharacterDetail
+@@ -162,7 +163,7 @@ class FandomCharacterWikiViewModel(application: Application) : AndroidViewModel(
+      * Genel bağlama: [queryProvider] null dönerse sekme "bulunamadı" durumuna düşer.
+      * Aynı sorgu + aynı tercihler için yeniden çözümleme yapılmaz.
+      */
+-    fun bindQuery(fallbackKey: String, queryProvider: () -> FandomCharacterQuery?) {
++    fun bindQuery(fallbackKey: String, queryProvider: () -> FandomCharacterQuery?, forceRefresh: Boolean = false) {
+         lastBinding = { queryProvider() to fallbackKey }
+         val prefsState = FandomWikiPrefs.state(appContext)
+         val query = queryProvider()
+@@ -186,7 +187,7 @@ class FandomCharacterWikiViewModel(application: Application) : AndroidViewModel(
+         _state.value = UiState.Loading
+         resolveJob = viewModelScope.launch {
+             val page = try {
+-                FandomRepository.resolveCharacterPage(appContext, query)
++                FandomRepository.resolveCharacterPage(appContext, query, forceRefresh)
+             } catch (e: CancellationException) {
+                 throw e
+             } catch (e: Exception) {
+@@ -203,14 +204,36 @@ class FandomCharacterWikiViewModel(application: Application) : AndroidViewModel(
+         }
+     }
+ 
+-    private fun rebind() {
++    private fun rebind(forceRefresh: Boolean = false) {
+         val binding = lastBinding ?: return
+         boundKey = null
+-        bindQuery(fallbackKey = binding().second, queryProvider = { binding().first })
++        bindQuery(
++            fallbackKey = binding().second,
++            queryProvider = { binding().first },
++            forceRefresh = forceRefresh
++        )
+     }
+ 
+-    /** "Tekrar dene": son karakter için çözümlemeyi sıfırdan başlatır. */
+-    fun retry() = rebind()
++    /**
++     * "Tekrar dene": çözümleme gerçekten baştan yapılır.
++     *
++     * Önceki davranış yalnızca yeniden bağlanıyordu; karakter ve yapım wiki katmanlarındaki
++     * "bulunamadı" önbelleği (3 güne kadar) ve süreç içi "wiki yok" listesi aynı sonucu
++     * anında geri verdiği için düğme ölü gibi görünüyordu. Artık zehir kayıtlar temizlenir
++     * ve [bindQuery] çözümlemeyi `forceRefresh` ile (önbellek okumadan) çalıştırır.
++     */
++    fun retry() {
++        viewModelScope.launch {
++            try {
++                FandomWikiResolver.forgetMissingWikis()
++            } catch (e: CancellationException) {
++                throw e
++            } catch (e: Exception) {
++                Log.w(TAG, "Eksik wiki listesi temizlenemedi: ${e.message}")
++            }
++            rebind(forceRefresh = true)
++        }
++    }
+ 
+     /** Orijinal / çeviri geçişi: bu anahtar için orijinal metnin gösterilip gösterilmeyeceğini değiştirir. */
+     fun toggleOriginal(key: String) {
+diff --git a/release_notes_v2.4.282.md b/release_notes_v2.4.282.md
+new file mode 100644
+index 0000000..9d0d46b
+--- /dev/null
++++ b/release_notes_v2.4.282.md
+@@ -0,0 +1,35 @@
++# Kitsugi Beta v2.4.282
++
++## 🇹🇷 Türkçe
++
++### Karakter / Ekip / Seslendiren "Wiki" sekmesi: "Tekrar dene" artık gerçekten yeniden çözümlüyor
++- **Ölü "Tekrar dene" düğmesi düzeltildi.** Karakter, ekip ve seslendirme sanatçısı detayındaki
++  Wiki sekmesinin "Tekrar dene" düğmesi yalnızca yeniden bağlanıyordu; karakter katmanındaki ve
++  yapım wiki katmanındaki "bulunamadı" önbelleği (3 güne kadar) ile süreç içi "wiki yok" listesi
++  (30 dk) aynı sonucu ağa hiç çıkmadan geri verdiği için düğme çalışmıyormuş gibi görünüyordu.
++  Artık yeniden deneme; önbellekleri (olumsuz kayıtlar dahil) okumadan, zehir kayıtları temizleyip
++  çözümlemeyi baştan yapıyor. Yapım wiki sekmesindeki davranışla aynı seviyeye getirildi.
++- **Bayat "bulunamadı" kayıtları kısaltıldı:** 3 gün → 1 gün.
++- **Geçici kesintiler artık kalıcı "bulunamadı" yazmıyor:**
++  - HTTP 403/408 (Cloudflare/WMF bot koruması, zaman aşımı) geçici hata sayılıyor;
++    404 (gerçekten olmayan wiki) sayılmıyor.
++  - Kimlik köprüsü (AniList/Kitsu/Simkl) patlamaları geçici hata işaretliyor.
++  - Wikidata karakter yedeğinde tek kimliğin ağ hatası tüm zinciri kırmıyor, sıradaki deneniyor.
++- Sonuç: Fandom sayfası var olan karakterlerde (ör. Date A Live → Kotori Itsuka) geçici bir
++  kesinti sonrası günlerce süren "Wiki bulunamadı" durumu ve çalışmayan yeniden deneme düğmesi
++  giderildi; ilk sağlıklı istekte sekme yeniden doluyor.
++
++## 🇬🇧 English
++
++### Character / Staff / Voice-actor "Wiki" tab: "Retry" now truly re-resolves
++- **Dead "Retry" button fixed.** On character, staff and voice-actor detail pages the Wiki tab's
++  retry only re-bound the view model; the character-layer and media-wiki-layer "not found" caches
++  (up to 3 days) plus the in-process "missing wiki" list (30 min) returned the same result without
++  any network call, so the button felt broken. Retry now clears the poison entries and re-resolves
++  with caches bypassed (negative entries included), matching the media wiki tab behaviour.
++- **Stale negatives shortened:** 3 days → 1 day.
++- **Transient outages no longer persist a "not found":** HTTP 403/408 counted as transient
++  (404 still means "wiki really absent"), identity-bridge exceptions marked transient, and the
++  Wikidata character fallback no longer aborts the whole chain when one identity lookup fails.
++- Result: characters whose Fandom page exists (e.g. Date A Live → Kotori Itsuka) no longer stay
++  hidden for days after a transient outage, and retry recovers them immediately.

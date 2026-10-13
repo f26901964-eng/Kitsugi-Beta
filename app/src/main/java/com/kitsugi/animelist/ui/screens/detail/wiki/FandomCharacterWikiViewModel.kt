@@ -5,10 +5,15 @@ import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.kitsugi.animelist.data.fandom.FandomCharacterPage
+import com.kitsugi.animelist.data.fandom.FandomFullPage
+import com.kitsugi.animelist.data.fandom.FandomRelatedPage
+import kotlin.collections.ArrayDeque
+import java.util.LinkedHashSet
 import com.kitsugi.animelist.data.fandom.FandomCharacterQueries
 import com.kitsugi.animelist.data.fandom.FandomCharacterQuery
 import com.kitsugi.animelist.data.fandom.FandomRepository
 import com.kitsugi.animelist.data.fandom.FandomSectionContent
+import com.kitsugi.animelist.data.fandom.FandomWikiResolver
 import com.kitsugi.animelist.data.fandom.FandomWikiPrefs
 import com.kitsugi.animelist.data.local.TranslationManager
 import com.kitsugi.animelist.data.remote.KitsugiCharacterDetail
@@ -50,6 +55,22 @@ class FandomCharacterWikiViewModel(application: Application) : AndroidViewModel(
         data object Failed : SectionState
     }
 
+    /** Uygulama içi wiki okuyucu durumu (medya sekmesiyle aynı sözleşme). */
+    sealed interface ReaderState {
+        data object Closed : ReaderState
+        data object Loading : ReaderState
+        data class Ready(
+            val wikiId: String,
+            val page: FandomFullPage,
+            val sections: Map<Int, FandomSectionContent>,
+            val related: List<FandomRelatedPage>,
+            val loadingSection: Int? = null,
+            val failedSection: Int? = null
+        ) : ReaderState
+        data class Failed(val title: String) : ReaderState
+    }
+
+
     companion object {
         private const val TAG = "FandomWikiVM"
         const val KEY_DESCRIPTION = "desc"
@@ -71,6 +92,19 @@ class FandomCharacterWikiViewModel(application: Application) : AndroidViewModel(
 
     private val _sections = MutableStateFlow<Map<Int, SectionState>>(emptyMap())
     val sections: StateFlow<Map<Int, SectionState>> = _sections.asStateFlow()
+
+    private val _reader = MutableStateFlow<ReaderState>(ReaderState.Closed)
+    val reader: StateFlow<ReaderState> = _reader.asStateFlow()
+
+    private val _relatedPages = MutableStateFlow<List<FandomRelatedPage>>(emptyList())
+    val relatedPages: StateFlow<List<FandomRelatedPage>> = _relatedPages.asStateFlow()
+    private var relatedJob: Job? = null
+
+    private var readerJob: Job? = null
+    private var readerSectionJob: Job? = null
+    private var readerRelatedJob: Job? = null
+    private val readerBackStack = ArrayDeque<Pair<String, String>>() // wikiId to title
+
 
     /** Çevrilmiş metinler: [KEY_DESCRIPTION] veya [sectionKey]. */
     private val _translations = MutableStateFlow<Map<String, String>>(emptyMap())
@@ -162,7 +196,7 @@ class FandomCharacterWikiViewModel(application: Application) : AndroidViewModel(
      * Genel bağlama: [queryProvider] null dönerse sekme "bulunamadı" durumuna düşer.
      * Aynı sorgu + aynı tercihler için yeniden çözümleme yapılmaz.
      */
-    fun bindQuery(fallbackKey: String, queryProvider: () -> FandomCharacterQuery?) {
+    fun bindQuery(fallbackKey: String, queryProvider: () -> FandomCharacterQuery?, forceRefresh: Boolean = false) {
         lastBinding = { queryProvider() to fallbackKey }
         val prefsState = FandomWikiPrefs.state(appContext)
         val query = queryProvider()
@@ -171,11 +205,18 @@ class FandomCharacterWikiViewModel(application: Application) : AndroidViewModel(
         } else {
             "${query.cacheKey()}|${prefsState.enabled}|${prefsState.nameFallback}|${prefsState.preferTurkish}"
         }
-        if (key == boundKey) return
+        if (key == boundKey && !forceRefresh) return
         boundKey = key
         currentQuery = query
         resolveJob?.cancel()
         cancelTranslations()
+        readerJob?.cancel()
+        readerSectionJob?.cancel()
+        readerRelatedJob?.cancel()
+        relatedJob?.cancel()
+        readerBackStack.clear()
+        _relatedPages.value = emptyList()
+        _reader.value = ReaderState.Closed
         _sections.value = emptyMap()
         _translations.value = emptyMap()
 
@@ -186,7 +227,7 @@ class FandomCharacterWikiViewModel(application: Application) : AndroidViewModel(
         _state.value = UiState.Loading
         resolveJob = viewModelScope.launch {
             val page = try {
-                FandomRepository.resolveCharacterPage(appContext, query)
+                FandomRepository.resolveCharacterPage(appContext, query, forceRefresh)
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
@@ -196,21 +237,71 @@ class FandomCharacterWikiViewModel(application: Application) : AndroidViewModel(
             _state.value = if (page != null) UiState.Ready(page) else UiState.Unavailable
             // Otomatik çeviri açıkken tüm metinler kendiliğinden çevrilir: özet + bilgi kutusu
             // (bölümler kullanıcı açtıkça, [loadSection] içinde çevrilir).
-            if (page != null && isAutoTranslateEnabled()) {
-                if (!page.description.isNullOrBlank()) translate(KEY_DESCRIPTION)
-                if (!page.infobox?.allFields().isNullOrEmpty()) translateInfobox()
+            if (page != null) {
+                if (isAutoTranslateEnabled()) {
+                    if (!page.description.isNullOrBlank()) translate(KEY_DESCRIPTION)
+                    if (!page.infobox?.allFields().isNullOrEmpty()) translateInfobox()
+                }
+                // İlgili wiki sayfalarını arka planda topla (ilk 1-2 bölümden viki içi bağlantılar).
+                val wikiId = page.wikiId
+                val pageTitle = page.pageTitle
+                relatedJob?.cancel()
+                _relatedPages.value = emptyList()
+                relatedJob = viewModelScope.launch {
+                    val list = try {
+                        val titles = LinkedHashSet<String>()
+                        for (idx in listOf(0, 1)) {
+                            val sec = FandomRepository.loadSection(appContext, wikiId, pageTitle, idx)
+                            if (sec != null) titles += sec.links
+                        }
+                        if (titles.isNotEmpty()) {
+                            FandomRepository.loadRelatedPages(appContext, wikiId, titles.take(30))
+                        } else emptyList()
+                    } catch (e: CancellationException) {
+                        throw e
+                    } catch (e: Exception) {
+                        Log.w(TAG, "İlgili wiki sayfaları yüklenemedi ($pageTitle): ${e.message}")
+                        emptyList()
+                    }
+                    val current = (_state.value as? UiState.Ready)?.page ?: return@launch
+                    if (current.wikiId == wikiId && current.pageTitle == pageTitle) {
+                        _relatedPages.value = list.take(20)
+                    }
+                }
             }
         }
     }
 
-    private fun rebind() {
+    private fun rebind(forceRefresh: Boolean = false) {
         val binding = lastBinding ?: return
         boundKey = null
-        bindQuery(fallbackKey = binding().second, queryProvider = { binding().first })
+        bindQuery(
+            fallbackKey = binding().second,
+            queryProvider = { binding().first },
+            forceRefresh = forceRefresh
+        )
     }
 
-    /** "Tekrar dene": son karakter için çözümlemeyi sıfırdan başlatır. */
-    fun retry() = rebind()
+    /**
+     * "Tekrar dene": çözümleme gerçekten baştan yapılır.
+     *
+     * Önceki davranış yalnızca yeniden bağlanıyordu; karakter ve yapım wiki katmanlarındaki
+     * "bulunamadı" önbelleği (3 güne kadar) ve süreç içi "wiki yok" listesi aynı sonucu
+     * anında geri verdiği için düğme ölü gibi görünüyordu. Artık zehir kayıtlar temizlenir
+     * ve [bindQuery] çözümlemeyi `forceRefresh` ile (önbellek okumadan) çalıştırır.
+     */
+    fun retry() {
+        viewModelScope.launch {
+            try {
+                FandomWikiResolver.forgetMissingWikis()
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                Log.w(TAG, "Eksik wiki listesi temizlenemedi: ${e.message}")
+            }
+            rebind(forceRefresh = true)
+        }
+    }
 
     /** Orijinal / çeviri geçişi: bu anahtar için orijinal metnin gösterilip gösterilmeyeceğini değiştirir. */
     fun toggleOriginal(key: String) {
@@ -428,5 +519,117 @@ class FandomCharacterWikiViewModel(application: Application) : AndroidViewModel(
         throw e
     } catch (e: Exception) {
         false
+    }
+    // ── Uygulama içi wiki okuyucu ────────────────────────────────────────────
+
+    /** Mevcut karakterin wiki sayfasını veya başka bir wiki sayfasını okuyucuda açar. */
+    fun openReader(title: String? = null, wikiIdOverride: String? = null, pushToBackStack: Boolean = true) {
+        val page = (_state.value as? UiState.Ready)?.page ?: return
+        val targetWiki = wikiIdOverride ?: page.wikiId
+        val targetTitle = (title ?: page.pageTitle).trim()
+        if (targetTitle.isEmpty()) return
+        val current = (_reader.value as? ReaderState.Ready)
+        if (pushToBackStack && current != null
+            && !(current.page.displayTitle.equals(targetTitle, ignoreCase = true) && current.wikiId == targetWiki)) {
+            readerBackStack.addLast(current.wikiId to current.page.displayTitle)
+        }
+        readerJob?.cancel()
+        readerSectionJob?.cancel()
+        readerRelatedJob?.cancel()
+        _reader.value = ReaderState.Loading
+        readerJob = viewModelScope.launch {
+            val meta = try {
+                FandomRepository.loadFullPageMeta(appContext, targetWiki, targetTitle)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                Log.w(TAG, "Okuyucu sayfa yüklenemedi ($targetWiki/$targetTitle): ${e.message}")
+                null
+            }
+            if (meta == null) {
+                _reader.value = ReaderState.Failed(targetTitle)
+                return@launch
+            }
+            _reader.value = ReaderState.Ready(
+                wikiId = targetWiki,
+                page = meta,
+                sections = emptyMap(),
+                related = emptyList()
+            )
+            launchRelatedLoad(targetWiki, meta)
+        }
+    }
+
+    private fun launchRelatedLoad(wikiId: String, page: FandomFullPage) {
+        readerRelatedJob?.cancel()
+        readerRelatedJob = viewModelScope.launch {
+            val candidates = LinkedHashSet<String>()
+            for (idx in listOf(0, 1)) {
+                val sec = FandomRepository.loadSection(appContext, wikiId, page.displayTitle, idx)
+                if (sec != null) candidates += sec.links
+            }
+            val related = try {
+                val titles = candidates.take(30)
+                if (titles.isEmpty()) emptyList()
+                else FandomRepository.loadRelatedPages(appContext, wikiId, titles)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                Log.w(TAG, "Okuyucu ilgili sayfalar yüklenemedi (${page.displayTitle}): ${e.message}")
+                emptyList()
+            }
+            val cur = _reader.value as? ReaderState.Ready ?: return@launch
+            if (cur.page.displayTitle != page.displayTitle || cur.wikiId != wikiId) return@launch
+            _reader.value = cur.copy(related = related.take(20))
+        }
+    }
+
+    fun loadReaderSection(index: Int) {
+        val cur = _reader.value as? ReaderState.Ready ?: return
+        if (cur.sections.containsKey(index)) return
+        readerSectionJob?.cancel()
+        _reader.value = cur.copy(loadingSection = index, failedSection = null)
+        readerSectionJob = viewModelScope.launch {
+            val content = try {
+                FandomRepository.loadSection(appContext, cur.wikiId, cur.page.displayTitle, index)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                Log.w(TAG, "Okuyucu bölüm yüklenemedi (${cur.page.displayTitle}#$index): ${e.message}")
+                null
+            }
+            val now = _reader.value as? ReaderState.Ready ?: return@launch
+            if (now.page.displayTitle != cur.page.displayTitle || now.wikiId != cur.wikiId) return@launch
+            if (content == null) {
+                _reader.value = now.copy(loadingSection = null, failedSection = index)
+                return@launch
+            }
+            val sections = HashMap(now.sections)
+            sections[index] = content
+            _reader.value = now.copy(sections = sections, loadingSection = null, failedSection = null)
+        }
+    }
+
+    fun retryReaderSection(index: Int) = loadReaderSection(index)
+
+    fun openReaderLink(title: String) = openReader(title = title, pushToBackStack = true)
+
+    fun readerBack(): Boolean {
+        val prev = readerBackStack.removeLastOrNull()
+        return if (prev != null) {
+            openReader(title = prev.second, wikiIdOverride = prev.first, pushToBackStack = false)
+            true
+        } else {
+            closeReader()
+            false
+        }
+    }
+
+    fun closeReader() {
+        readerJob?.cancel()
+        readerSectionJob?.cancel()
+        readerRelatedJob?.cancel()
+        readerBackStack.clear()
+        _reader.value = ReaderState.Closed
     }
 }

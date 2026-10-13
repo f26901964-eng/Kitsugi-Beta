@@ -23,7 +23,7 @@ class KitsugiBangumiDetailClientTest {
 
     @Before
     fun useEnglishLocale() {
-        // Çeviri yardımcıları cihaz diline bakar; testler İngilizce çıktıyı doğrular.
+        // Çeviri yardımcıları cihaz diline bakar; saf birim testleri İngilizce çıktıyı doğrular.
         Locale.setDefault(Locale.US)
     }
 
@@ -254,9 +254,9 @@ class KitsugiBangumiDetailClientTest {
         assertEquals("Main", KitsugiBangumiDetailClient.characterRole(1))
         assertEquals("Supporting", KitsugiBangumiDetailClient.characterRole(2))
         assertEquals("Background", KitsugiBangumiDetailClient.characterRole(3))
-        assertEquals("Japonca", KitsugiBangumiDetailClient.castLanguage(0))
-        assertEquals("Çince", KitsugiBangumiDetailClient.castLanguage(3))
-        assertEquals("İngilizce", KitsugiBangumiDetailClient.castLanguage(5))
+        assertEquals("Japanese", KitsugiBangumiDetailClient.castLanguage(0))
+        assertEquals("Chinese", KitsugiBangumiDetailClient.castLanguage(3))
+        assertEquals("English", KitsugiBangumiDetailClient.castLanguage(5))
     }
 
     @Test
@@ -312,7 +312,7 @@ class KitsugiBangumiDetailClientTest {
             detail.producers.map { it.name }
         )
         // Ana + diğer kanallar birleşir
-        assertEquals(listOf("TBS", "MBS", "RKB", "CBC", "BS-i", "BS-TBS"), detail.networks.map { it.name })
+        assertEquals(listOf("TBS", "MBS", "RKB", "CBC", "BS-TBS"), detail.networks.map { it.name })
         assertEquals(9, detail.score)
         assertEquals(92, detail.meanScore)
         assertEquals(1, detail.rank)
@@ -375,7 +375,7 @@ class KitsugiBangumiDetailClientTest {
         assertEquals("bangumi", nagisa.source)
         assertEquals("https://lain.bgm.tv/r/400/pic/crt/m/aa/bb/3_x.jpg", nagisa.imageUrl)
         assertEquals(listOf("中原麻衣", "Test EN"), nagisa.voiceActors.map { it.name })
-        assertEquals(listOf("Japonca", "İngilizce"), nagisa.voiceActors.map { it.language })
+        assertEquals(listOf("Japanese", "English"), nagisa.voiceActors.map { it.language })
         assertEquals("https://lain.bgm.tv/r/400/pic/crt/m/xx/yy/9_z.jpg", nagisa.voiceActors[0].imageUrl)
         assertNull(nagisa.voiceActors[1].imageUrl)
         // Özgün Japonca ad korunur; Çince yerelleştirme ana adı ezmez.
@@ -466,7 +466,7 @@ class KitsugiBangumiDetailClientTest {
         assertEquals(listOf(1, 2), episodes.map { it.episodeNumber })
         // API'nin Çince yerelleştirmesi yerine özgün bölüm adı önceliklidir.
         assertEquals("#1 – 桜の下で", episodes[0].title)
-        assertEquals("Bölüm 2", episodes[1].title)
+        assertEquals("Episode 2", episodes[1].title)
         assertEquals("https://bgm.tv/ep/100", episodes[0].url)
         assertEquals("Bangumi", episodes[0].site)
     }
@@ -635,11 +635,45 @@ class KitsugiBangumiDetailClientTest {
             englishAliases = listOf("Nagisa Furukawa")
         )
 
-        // Kaynak romaji alanı vermiyorsa English Latin adı hem English hem de güvenli
-        // romaji geri dönüşüdür; sahte kanji okunuşu oluşturulmaz.
+        // Kaynak romaji alanı vermiyorsa açık English alanı güvenilir kalır; ROMAJI ekranı
+        // bu güvenli English fallback'i kullanır ve sahte kanji okunuşu oluşturulmaz.
+        assertEquals("Nagisa Furukawa", localized.english)
+        assertNull(localized.romaji)
+        assertTrue(
+            BangumiSubjectTitleResolver.hasReliableEnglish(
+                BangumiTitleCache.LatinTitles(localized.romaji, localized.english, localized.native)
+            )
+        )
         assertEquals("Nagisa Furukawa", localized.displayFor("ENGLISH"))
         assertEquals("Nagisa Furukawa", localized.displayFor("ROMAJI"))
         assertEquals("古河渚", localized.displayFor("NATIVE"))
+    }
+
+    @Test
+    fun latinNativeNameIsDisplayedAsFallbackButNotStoredAsEnglish() {
+        val localized = BangumiNameLocalizer.entity(name = "Shingeki no Kyojin")
+
+        assertNull(localized.english)
+        assertEquals("Shingeki no Kyojin", localized.displayFor("ENGLISH"))
+        assertFalse(
+            BangumiSubjectTitleResolver.hasReliableEnglish(
+                BangumiTitleCache.LatinTitles(localized.romaji, localized.english, localized.native)
+            )
+        )
+    }
+
+    @Test
+    fun romajiInfoboxIsNotMisreportedAsEnglish() {
+        val localized = BangumiNameLocalizer.subject(
+            name = "進撃の巨人",
+            nameCn = "进击的巨人",
+            infobox = mapOf("罗马字" to listOf("Shingeki no Kyojin"))
+        )
+
+        assertNull(localized.english)
+        assertEquals("Shingeki no Kyojin", localized.romaji)
+        // English tercihi, gerçek İngilizce bulunana kadar güvenli Latin fallback kullanır.
+        assertEquals("Shingeki no Kyojin", localized.displayFor("ENGLISH"))
     }
 
     @Test

@@ -7515,6 +7515,17 @@ Eklentiler ekranından eklenti etkinleştirin.</string>
     <string name="fandom_guide_show_more_count">Devamını göster (+%1$d)</string>
     <string name="fandom_guide_show_less">Daha az göster</string>
     <string name="fandom_guide_more_loading">Yükleniyor…</string>
+    <!-- Uygulama içi wiki okuyucu + "İlgili wiki sayfaları" -->
+    <string name="fandom_related_pages_title">İlgili wiki sayfaları</string>
+    <string name="fandom_related_pages_count">%1$d madde</string>
+    <string name="fandom_open_page">Fandom sayfasını</string>
+    <string name="fandom_reader_back">Geri</string>
+    <string name="fandom_reader_close">Kapat</string>
+    <string name="fandom_reader_contents">İçindekiler</string>
+    <string name="fandom_reader_open_browser">Tarayıcıda aç</string>
+    <string name="fandom_reader_failed">Sayfa yüklenemedi</string>
+    <string name="fandom_reader_empty">Bu sayfada gösterilecek içerik yok.</string>
+    <string name="fandom_related_empty">İlgili wiki sayfası bulunamadı.</string>
     <!-- Detay > Grafikler sekmesi -->
     <string name="detail_stats_rankings_title">Sıralama</string>
     <string name="detail_stats_rankings_subtitle">AniList sıralamalarındaki yerler</string>

@@ -4,6 +4,9 @@ import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.widget.Toast
+import androidx.activity.compose.BackHandler
+import androidx.compose.material.icons.automirrored.rounded.MenuBook
+import com.kitsugi.animelist.data.fandom.FandomRelatedPage
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -20,6 +23,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
@@ -112,6 +116,24 @@ internal fun MediaWikiTabSlot(
     val preferredTranslator by viewModel.preferredTranslator.collectAsState()
     val prefs by viewModel.prefs.collectAsState()
     val originalKeys by viewModel.originalKeys.collectAsState()
+    val readerState by viewModel.reader.collectAsState()
+    val relatedPages by viewModel.relatedPages.collectAsState()
+    val readerRender = (readerState as? FandomMediaWikiViewModel.ReaderState.Ready)?.let { r ->
+        FandomReaderRenderState(
+            wikiId = (uiState as? FandomMediaWikiViewModel.UiState.Ready)?.ref?.wikiId ?: "",
+            page = r.page,
+            sections = r.sections,
+            related = r.related,
+            loadingSection = r.loadingSection,
+            failedSection = r.failedSection,
+            hasBackStack = true
+        )
+    }
+    val ready = uiState as? FandomMediaWikiViewModel.UiState.Ready
+
+    BackHandler(enabled = readerState != FandomMediaWikiViewModel.ReaderState.Closed) {
+        viewModel.readerBack()
+    }
 
     LaunchedEffect(uiState) {
         if (uiState is FandomMediaWikiViewModel.UiState.Ready) viewModel.ensureContentLoaded()
@@ -140,7 +162,7 @@ internal fun MediaWikiTabSlot(
         onLoadMoreGuide = viewModel::loadMoreGuide,
         onSearchChange = viewModel::onSearchQueryChange,
         onClearSearch = viewModel::clearSearch,
-        onOpenItem = viewModel::openItem,
+        onOpenItem = { viewModel.openReader(it) },
         onLoadSelectedSection = viewModel::loadSelectedSection,
         onCloseItem = viewModel::closeItem,
         onRetryItem = viewModel::retryItem,
@@ -149,8 +171,30 @@ internal fun MediaWikiTabSlot(
         preferredTranslator = preferredTranslator,
         originalKeys = originalKeys,
         onToggleOriginal = viewModel::toggleOriginal,
+        relatedPages = relatedPages,
+        onOpenReaderHome = { viewModel.openReaderMainPage() },
         modifier = modifier
     )
+
+    if (ready != null && readerState != FandomMediaWikiViewModel.ReaderState.Closed) {
+        val wikiId = ready.ref.wikiId
+        val context = LocalContext.current
+        FandomWikiReaderSheet(
+            state = readerRender,
+            accentColor = accentColor,
+            onClose = viewModel::closeReader,
+            onBack = { viewModel.readerBack() },
+            onLoadSection = viewModel::loadReaderSection,
+            onRetrySection = viewModel::retryReaderSection,
+            onOpenLink = viewModel::openReaderLink,
+            onOpenInBrowser = {
+                val title = (readerState as? FandomMediaWikiViewModel.ReaderState.Ready)?.page?.displayTitle
+                    ?: return@FandomWikiReaderSheet
+                openExternal(context, FandomUrls.pageUrl(wikiId, title))
+            },
+            onTranslateSummary = null
+        )
+    }
 }
 
 @Composable
@@ -186,6 +230,8 @@ internal fun MediaWikiTabContent(
     preferredTranslator: String = "DEFAULT",
     originalKeys: Set<String> = emptySet(),
     onToggleOriginal: (String) -> Unit = {},
+    relatedPages: List<FandomRelatedPage> = emptyList(),
+    onOpenReaderHome: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     val ready = uiState as? FandomMediaWikiViewModel.UiState.Ready
@@ -208,7 +254,7 @@ internal fun MediaWikiTabContent(
                 onRetry = onRetry
             )
             else -> {
-                MediaWikiHeaderCard(ref = ready.ref, accentColor = accentColor)
+                MediaWikiHeaderCard(ref = ready.ref, accentColor = accentColor, onOpenWiki = onOpenReaderHome)
                 if (ready.ref.confidence == FandomConfidence.PROBABLE && articlePage?.needsConfirmation != true) {
                     WikiConfirmCard(
                         accentColor = accentColor,
@@ -255,6 +301,14 @@ internal fun MediaWikiTabContent(
                         preferredTranslator = preferredTranslator,
                         showingOriginal = FandomMediaWikiViewModel.KEY_SUMMARY in originalKeys,
                         onToggleOriginal = { onToggleOriginal(FandomMediaWikiViewModel.KEY_SUMMARY) }
+                    )
+                }
+                if (relatedPages.isNotEmpty()) {
+                    RelatedPagesStrip(
+                        title = stringResource(R.string.fandom_related_pages_title),
+                        pages = relatedPages,
+                        accentColor = accentColor,
+                        onOpenItem = onOpenItem
                     )
                 }
                 MediaWikiSearchCard(
@@ -306,9 +360,11 @@ internal fun MediaWikiTabContent(
 @Composable
 private fun MediaWikiHeaderCard(
     ref: FandomWikiRef,
-    accentColor: Color
+    accentColor: Color,
+    onOpenWiki: (() -> Unit)? = null
 ) {
     val context = LocalContext.current
+    val openAction = onOpenWiki ?: { openExternal(context, FandomUrls.baseUrl(ref.wikiId)) }
     WikiCard {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Column(modifier = Modifier.weight(1f)) {
@@ -328,19 +384,61 @@ private fun MediaWikiHeaderCard(
                     fontWeight = FontWeight.SemiBold
                 )
             }
-            TextButton(onClick = { openExternal(context, FandomUrls.baseUrl(ref.wikiId)) }) {
+            TextButton(onClick = openAction) {
                 Icon(
-                    imageVector = Icons.Rounded.OpenInNew,
+                    imageVector = Icons.AutoMirrored.Rounded.MenuBook,
                     contentDescription = null,
                     tint = accentColor,
                     modifier = Modifier.size(16.dp)
                 )
                 Spacer(modifier = Modifier.width(6.dp))
                 Text(
-                    text = stringResource(R.string.fandom_open_in_browser),
+                    text = stringResource(R.string.fandom_open_page),
                     color = accentColor,
                     style = MaterialTheme.typography.labelMedium,
                     fontWeight = FontWeight.Bold
+                )
+            }
+        }
+    }
+}
+
+/**
+ * "İlgili wiki sayfaları" şeridi: yatay kaydırılabilir kartlar; her kart
+ * FandomWikiReader'daki [WikiRelatedPageCard] ile aynı görsel dile sahiptir.
+ */
+@Composable
+private fun RelatedPagesStrip(
+    title: String,
+    pages: List<FandomRelatedPage>,
+    accentColor: Color,
+    onOpenItem: (String) -> Unit
+) {
+    if (pages.isEmpty()) return
+    WikiCard {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                text = title,
+                color = KitsugiColors.TextPrimary,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.weight(1f)
+            )
+            Text(
+                text = stringResource(R.string.fandom_related_pages_count, pages.size),
+                color = KitsugiColors.TextMuted,
+                style = MaterialTheme.typography.labelSmall
+            )
+        }
+        Spacer(modifier = Modifier.height(10.dp))
+        androidx.compose.foundation.lazy.LazyRow(
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            items(pages, key = { it.title }) { page ->
+                WikiRelatedPageCard(
+                    page = page,
+                    accentColor = accentColor,
+                    onClick = { onOpenItem(page.title) }
                 )
             }
         }

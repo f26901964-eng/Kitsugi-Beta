@@ -173,20 +173,30 @@ fun BangumiProfileContent(
     // başlık dilini görür.
     val resolvedTitles = remember { mutableStateMapOf<Int, String>() }
     LaunchedEffect(state.collections, titleLanguage) {
+        resolvedTitles.clear()
         val wantsLatin = !titleLanguage.equals("NATIVE", ignoreCase = true) &&
             !titleLanguage.equals("JAPANESE_STAFF", ignoreCase = true)
         if (!wantsLatin || state.collections.isEmpty()) return@LaunchedEffect
         val pending = state.collections.mapNotNull { collection ->
             val subject = collection.subject ?: return@mapNotNull null
-            val base = BangumiNameLocalizer.entity(subject.name, subject.nameCn).displayFor(titleLanguage)
-            if (!PreferenceHelpers.hasCjkCharacters(base)) return@mapNotNull null
-            if (BangumiTitleCache.localizedTitleFor(collection.subjectId, base, titleLanguage) != null) {
-                return@mapNotNull null
-            }
+            val localized = BangumiNameLocalizer.entity(subject.name, subject.nameCn)
+            val base = localized.displayFor(titleLanguage)
+            val cached = BangumiTitleCache.get(collection.subjectId)
+            val english = localized.english ?: cached?.english
+            val romaji = localized.romaji ?: cached?.romaji
+            val hasReliableEnglish = BangumiSubjectTitleResolver.hasReliableEnglish(
+                BangumiTitleCache.LatinTitles(romaji, english, localized.native ?: cached?.native)
+            )
+            val needsEnglish = titleLanguage.equals("ENGLISH", ignoreCase = true) && !hasReliableEnglish
+            val needsAnyLatin = PreferenceHelpers.hasCjkCharacters(base) &&
+                BangumiTitleCache.localizedTitleFor(collection.subjectId, base, titleLanguage) == null
+            if (!needsEnglish && !needsAnyLatin) return@mapNotNull null
+
             BangumiSubjectTitleResolver.Request(
                 rawId = collection.subjectId,
-                nativeTitle = base,
-                mediaType = BangumiIdNamespace.mediaTypeFor(collection.subjectType, subject.platform)
+                nativeTitle = subject.name.ifBlank { subject.nameCn },
+                mediaType = BangumiIdNamespace.mediaTypeFor(collection.subjectType, subject.platform),
+                subjectType = collection.subjectType
             )
         }
         if (pending.isEmpty()) return@LaunchedEffect

@@ -272,4 +272,69 @@ internal object FandomApi {
         ) ?: return false
         return FandomApiParsers.parseExtUrlUsageFound(FandomHttp.get(url))
     }
+
+    /**
+     * Belirli başlıklar için önizleme (kapak + açıklama): "İlgili wiki sayfaları"
+     * ve metin içi bağlantı kartları kullanır. Tek istekte `prop=pageimages|pageprops`
+     * ile thumbnail + fandomdescription alınır.
+     */
+    suspend fun pagePreviews(wikiId: String, titles: List<String>, thumbWidth: Int = 320): List<FandomRelatedPage> {
+        val clean = titles.map { it.trim() }
+            .filter { it.isNotEmpty() && it.length <= 200 && !it.contains('|') }
+            .distinct()
+        if (clean.isEmpty()) return emptyList()
+        val out = ArrayList<FandomRelatedPage>()
+        for (chunk in clean.chunked(MAX_TITLES_PER_REQUEST)) {
+            val params = mutableListOf(
+                "action" to "query",
+                "titles" to chunk.joinToString("|"),
+                "redirects" to "1",
+                "prop" to "pageprops|pageimages",
+                "ppprop" to "fandomdescription|disambiguation",
+                "piprop" to "thumbnail",
+                "pithumbsize" to thumbWidth.toString(),
+                "pilimit" to chunk.size.toString(),
+                "format" to "json",
+                "formatversion" to "2"
+            )
+            val url = FandomUrls.apiQuery(wikiId, params) ?: continue
+            out += FandomApiParsers.parseRelatedPages(FandomHttp.get(url))
+        }
+        return out
+    }
+
+    /**
+     * Bir sayfanın uygulama içi okuyucu için tam özeti: kapak + açıklama + bölümler.
+     * Bölümler ayrı istekle (`sections(wikiId, title)`) zaten çekiliyor; bu metod
+     * thumbnail + fandomdescription döndürür ve yönlendirmeleri çözer.
+     */
+    suspend fun pageMeta(wikiId: String, title: String, thumbWidth: Int = 600): FandomFullPage? {
+        val clean = title.trim()
+        if (clean.isEmpty()) return null
+        val url = FandomUrls.apiQuery(
+            wikiId,
+            listOf(
+                "action" to "query",
+                "titles" to clean,
+                "redirects" to "1",
+                "prop" to "pageprops|pageimages",
+                "ppprop" to "fandomdescription|disambiguation",
+                "piprop" to "thumbnail",
+                "pithumbsize" to thumbWidth.toString(),
+                "format" to "json",
+                "formatversion" to "2"
+            )
+        ) ?: return null
+        val body = FandomHttp.get(url)
+        val pages = FandomApiParsers.parseRelatedPages(body)
+        val hit = pages.firstOrNull() ?: return null
+        val sections = try { sections(wikiId, hit.title) } catch (_: Exception) { emptyList() }
+        return FandomFullPage(
+            title = clean,
+            resolvedTitle = hit.title.takeIf { it.equals(clean, ignoreCase = true).not() } ?: hit.title,
+            description = hit.snippet,
+            thumbnailUrl = hit.thumbnailUrl,
+            sections = sections ?: emptyList()
+        )
+    }
 }

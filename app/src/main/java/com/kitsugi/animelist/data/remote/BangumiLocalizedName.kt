@@ -107,10 +107,12 @@ internal object BangumiNameLocalizer {
         val aliasLatin = latin(aliases)
 
         // Bangumi çoğu kayıtta romaji için ayrı bir alan sunmaz. Latin biçimli özgün ad veya
-        // alias, romaji için en iyi kaynaktır; İngilizce alan ise yalnızca English tercihini
-        // öncelemek için ayrı korunur.
-        val romaji = explicitRomaji ?: nativeLatin ?: aliasLatin ?: explicitEnglish
-        val english = explicitEnglish ?: nativeLatin ?: romaji
+        // alias, romaji için en iyi güvenli yedektir; `english` yalnızca açıkça English olarak
+        // etiketlenmiş kaynaktan gelir. Latin biçimli özgün ad da dilini tek başına kanıtlamaz:
+        // cache'e Romaji diye yazıp English bilgisini ezmemek için onu yalnızca romaji'de tut.
+        // UI, İngilizce bulunmadığında `displayFor` içinde bu güvenli Latin fallback'i gösterir.
+        val romaji = explicitRomaji ?: nativeLatin ?: aliasLatin
+        val english = explicitEnglish
         val display = romaji ?: english ?: native ?: chinese ?: "?"
         // "Diğer Adlar" alanı tüm bilinen varyantları göstermelidir: Japonca, Çince ve Korece
         // adlar dahil. Yalnızca görüntülenen ana ad tekrar edilmez.

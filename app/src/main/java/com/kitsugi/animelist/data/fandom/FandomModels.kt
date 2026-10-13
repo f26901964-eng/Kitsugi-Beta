@@ -142,9 +142,11 @@ data class FandomTextBlock(
 data class FandomSectionContent(
     val blocks: List<FandomTextBlock> = emptyList(),
     /** Linked cast/crew/character pages found in tables and lists in this section. */
-    val links: List<FandomWikiLink> = emptyList()
+    val linkedEntities: List<FandomWikiLink> = emptyList(),
+    /** Bölümdeki viki içi bağlantılar (görünüm sırasıyla, tekrarsız). */
+    val links: List<String> = emptyList()
 ) {
-    fun isEmpty(): Boolean = blocks.isEmpty() && links.isEmpty()
+    fun isEmpty(): Boolean = blocks.isEmpty() && links.isEmpty() && linkedEntities.isEmpty()
 
     /** Çeviri ve kopyalama için paragraf aralıklı düz metin; görsel URL'leri metne karışmaz. */
     fun plainText(): String = blocks
@@ -189,6 +191,33 @@ enum class FandomGuideGroup {
 
 @Serializable
 data class FandomGuideItem(val title: String)
+
+/**
+ * Bir wiki sayfası için önizleme kartı ("İlgili wiki sayfaları" ve arama/bağlantı
+ * sonuçlarında kullanılır). Başlık, küçük açıklama ve varsa kapak görseli taşır;
+ * görsel yoksa arayüz başlık ilk harfiyle bir yer tutucu gösterir.
+ */
+@Serializable
+data class FandomRelatedPage(
+    val title: String,
+    val snippet: String? = null,
+    val thumbnailUrl: String? = null
+)
+
+/**
+ * Uygulama içi wiki okuyucu için bir sayfanın tamamı: başlık, yönlendirme
+ * çözülmüş hâli, kısa özet, kapak görseli, bölümler (İçindekiler).
+ */
+@Serializable
+data class FandomFullPage(
+    val title: String,
+    val resolvedTitle: String? = null,
+    val description: String? = null,
+    val thumbnailUrl: String? = null,
+    val sections: List<FandomSectionRef> = emptyList()
+) {
+    val displayTitle: String get() = resolvedTitle ?: title
+}
 
 @Serializable
 data class FandomGuideGroupContent(

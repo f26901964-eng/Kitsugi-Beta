@@ -61,7 +61,7 @@ class BangumiLibraryTitleHydratorTest {
             listOf(
                 // 1) Yalnızca özgün (Japonca) ad → çözülmeli.
                 entity(id = 1, title = "進撃の巨人", titleJapanese = "進撃の巨人"),
-                // 2) Ad zaten Latin → ağ isteği yapılmamalı.
+                // 2) Latin başlık var ama özgün CJK ad yok → kaynakta güvenli eşleştirme yapılamaz.
                 entity(id = 2, title = "Shingeki no Kyojin"),
                 // 3) İngilizce ad zaten var → ağ isteği yapılmamalı.
                 entity(id = 3, title = "進撃の巨人", titleEnglish = "Attack on Titan"),
@@ -75,6 +75,22 @@ class BangumiLibraryTitleHydratorTest {
         assertEquals(listOf(1234), requests.map { it.rawId })
         assertEquals("進撃の巨人", requests.first().nativeTitle)
         assertEquals(MediaType.Anime, requests.first().mediaType)
+    }
+
+    @Test
+    fun pendingRequestsTreatsRomajiOnlyAsMissingEnglishWhenNativeTitleIsAvailable() {
+        val requests = BangumiLibraryTitleHydrator.pendingRequests(
+            listOf(
+                entity(
+                    id = 1,
+                    title = "Shingeki no Kyojin",
+                    titleJapanese = "進撃の巨人"
+                )
+            )
+        )
+
+        assertEquals(listOf(1234), requests.map { it.rawId })
+        assertEquals("進撃の巨人", requests.single().nativeTitle)
     }
 
     @Test

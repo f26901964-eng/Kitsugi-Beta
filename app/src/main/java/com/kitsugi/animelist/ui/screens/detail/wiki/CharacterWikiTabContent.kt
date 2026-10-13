@@ -31,6 +31,7 @@ import androidx.compose.material.icons.rounded.ContentCopy
 import androidx.compose.material.icons.rounded.ExpandLess
 import androidx.compose.material.icons.rounded.ExpandMore
 import androidx.compose.material.icons.rounded.OpenInNew
+import androidx.compose.material.icons.automirrored.rounded.MenuBook
 import androidx.compose.material.icons.rounded.Warning
 import com.kitsugi.animelist.ui.theme.gradient.CircularProgressIndicator
 import androidx.compose.material3.IconButton
@@ -111,7 +112,9 @@ internal fun CharacterWikiTabContent(
     galleryCategory: GalleryCategory = GalleryCategory.CHARACTER,
     preferredTranslator: String = "DEFAULT",
     originalKeys: Set<String> = emptySet(),
-    onToggleOriginal: (String) -> Unit = {}
+    onToggleOriginal: (String) -> Unit = {},
+    onOpenWikiPage: ((String?) -> Unit)? = null,
+    relatedPages: List<com.kitsugi.animelist.data.fandom.FandomRelatedPage> = emptyList()
 ) {
     val context = LocalContext.current
     val pageKey = page.wikiId + "|" + page.pageTitle
@@ -228,13 +231,66 @@ internal fun CharacterWikiTabContent(
                         onLoad = { onLoadSection(section.index) },
                         onCopy = { text -> copyWikiText(context, text) },
                         preferredTranslator = preferredTranslator,
-                        onOpenGallery = onOpenGallery
+                        onOpenGallery = onOpenGallery,
+                        onOpenLink = { linkTitle ->
+                            onOpenWikiPage?.invoke(linkTitle) ?: openExternal(context, com.kitsugi.animelist.data.fandom.FandomUrls.pageUrl(page.wikiId, linkTitle))
+                        }
                     )
                 }
             }
         }
 
-        if (showFooter) WikiFooter(page = page, accentColor = accentColor, onReportWrong = onReportWrong)
+        if (relatedPages.isNotEmpty()) {
+            CharacterRelatedStrip(
+                pages = relatedPages,
+                accentColor = accentColor,
+                onOpenPage = { p -> onOpenWikiPage?.invoke(p) }
+            )
+        }
+
+        if (showFooter) WikiFooter(
+            page = page,
+            accentColor = accentColor,
+            onReportWrong = onReportWrong,
+            onOpenWikiPage = onOpenWikiPage
+        )
+    }
+}
+
+@Composable
+private fun CharacterRelatedStrip(
+    pages: List<com.kitsugi.animelist.data.fandom.FandomRelatedPage>,
+    accentColor: Color,
+    onOpenPage: (String) -> Unit
+) {
+    if (pages.isEmpty()) return
+    WikiCard {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                text = stringResource(R.string.fandom_related_pages_title),
+                color = KitsugiColors.TextPrimary,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.weight(1f)
+            )
+            Text(
+                text = stringResource(R.string.fandom_related_pages_count, pages.size),
+                color = KitsugiColors.TextMuted,
+                style = MaterialTheme.typography.labelSmall
+            )
+        }
+        Spacer(Modifier.height(10.dp))
+        androidx.compose.foundation.lazy.LazyRow(
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            items(pages, key = { it.title }) { page ->
+                WikiRelatedPageCard(
+                    page = page,
+                    accentColor = accentColor,
+                    onClick = { onOpenPage(page.title) }
+                )
+            }
+        }
     }
 }
 
@@ -651,7 +707,8 @@ private fun WikiSectionRow(
     preferredTranslator: String = "DEFAULT",
     showingOriginal: Boolean = false,
     onToggleOriginal: (() -> Unit)? = null,
-    onOpenGallery: (List<GalleryItem>, Int) -> Unit = { _, _ -> }
+    onOpenGallery: (List<GalleryItem>, Int) -> Unit = { _, _ -> },
+    onOpenLink: (String) -> Unit = {}
 ) {
     Column(modifier = Modifier.fillMaxWidth()) {
         Row(
@@ -747,7 +804,8 @@ private fun WikiSectionRow(
                                 SectionBody(
                                     content = state.content,
                                     translated = if (showingOriginal) null else translated,
-                                    onOpenGallery = onOpenGallery
+                                    onOpenGallery = onOpenGallery,
+                                    onOpenLink = onOpenLink
                                 )
                             }
                         }
@@ -762,7 +820,8 @@ private fun WikiSectionRow(
 private fun SectionBody(
     content: FandomSectionContent,
     translated: String?,
-    onOpenGallery: (List<GalleryItem>, Int) -> Unit
+    onOpenGallery: (List<GalleryItem>, Int) -> Unit,
+    onOpenLink: (String) -> Unit = {}
 ) {
     val context = LocalContext.current
     val galleryItems = remember(content) {
@@ -809,15 +868,35 @@ private fun SectionBody(
                 }
             }
         }
-        if (content.links.isNotEmpty()) {
+        if (content.linkedEntities.isNotEmpty()) {
             Row(
                 modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
                 horizontalArrangement = Arrangement.spacedBy(6.dp)
             ) {
-                content.links.forEach { link ->
-                    TextButton(onClick = { openExternal(context, link.pageUrl) }) {
+                content.linkedEntities.forEach { link ->
+                    TextButton(onClick = {
+                        onOpenLink(link.pageTitle)
+                    }) {
                         Text(
                             text = link.label,
+                            color = KitsugiColors.AccentBlue,
+                            style = MaterialTheme.typography.labelMedium,
+                            maxLines = 1
+                        )
+                    }
+                }
+            }
+        } else if (content.links.isNotEmpty()) {
+            Row(
+                modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                content.links.forEach { linkTitle ->
+                    TextButton(onClick = {
+                        onOpenLink(linkTitle)
+                    }) {
+                        Text(
+                            text = linkTitle,
                             color = KitsugiColors.AccentBlue,
                             style = MaterialTheme.typography.labelMedium,
                             maxLines = 1
@@ -959,7 +1038,12 @@ private fun LoadingLine(accentColor: Color) {
 }
 
 @Composable
-private fun WikiFooter(page: FandomCharacterPage, accentColor: Color, onReportWrong: () -> Unit) {
+private fun WikiFooter(
+    page: FandomCharacterPage,
+    accentColor: Color,
+    onReportWrong: () -> Unit,
+    onOpenWikiPage: ((String?) -> Unit)? = null
+) {
     val context = LocalContext.current
     Column(
         modifier = Modifier
@@ -974,20 +1058,38 @@ private fun WikiFooter(page: FandomCharacterPage, accentColor: Color, onReportWr
                 style = MaterialTheme.typography.bodySmall,
                 modifier = Modifier.weight(1f)
             )
-            TextButton(onClick = { openExternal(context, page.pageUrl) }) {
-                Icon(
-                    imageVector = Icons.Rounded.OpenInNew,
-                    contentDescription = null,
-                    tint = accentColor,
-                    modifier = Modifier.size(16.dp)
-                )
-                Spacer(modifier = Modifier.width(6.dp))
-                Text(
-                    text = stringResource(R.string.fandom_open_in_browser),
-                    color = accentColor,
-                    style = MaterialTheme.typography.labelMedium,
-                    fontWeight = FontWeight.Bold
-                )
+            if (onOpenWikiPage != null) {
+                TextButton(onClick = { onOpenWikiPage(page.pageTitle) }) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Rounded.MenuBook,
+                        contentDescription = null,
+                        tint = accentColor,
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        text = stringResource(R.string.fandom_open_page),
+                        color = accentColor,
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            } else {
+                TextButton(onClick = { openExternal(context, page.pageUrl) }) {
+                    Icon(
+                        imageVector = Icons.Rounded.OpenInNew,
+                        contentDescription = null,
+                        tint = accentColor,
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        text = stringResource(R.string.fandom_open_in_browser),
+                        color = accentColor,
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
             }
         }
         Text(

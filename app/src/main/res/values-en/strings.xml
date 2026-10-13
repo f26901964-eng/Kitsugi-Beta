@@ -7510,6 +7510,17 @@
     <string name="fandom_guide_show_more_count">Show more (+%1$d)</string>
     <string name="fandom_guide_show_less">Show less</string>
     <string name="fandom_guide_more_loading">Loading…</string>
+    <!-- In-app wiki reader + "Related wiki pages" -->
+    <string name="fandom_related_pages_title">Related wiki pages</string>
+    <string name="fandom_related_pages_count">%1$d items</string>
+    <string name="fandom_open_page">Fandom page</string>
+    <string name="fandom_reader_back">Back</string>
+    <string name="fandom_reader_close">Close</string>
+    <string name="fandom_reader_contents">Contents</string>
+    <string name="fandom_reader_open_browser">Open in browser</string>
+    <string name="fandom_reader_failed">Page could not be loaded</string>
+    <string name="fandom_reader_empty">There is nothing to display on this page.</string>
+    <string name="fandom_related_empty">No related wiki pages found.</string>
     <!-- Detail > Stats tab -->
     <string name="detail_stats_rankings_title">Rankings</string>
     <string name="detail_stats_rankings_subtitle">Placements in AniList rankings</string>

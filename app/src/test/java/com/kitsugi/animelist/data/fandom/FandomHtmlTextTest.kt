@@ -148,4 +148,19 @@ class FandomHtmlTextTest {
         assertTrue(FandomHtmlText.blocks("").isEmpty())
         assertTrue(FandomHtmlText.blocks("<p> </p><p>…</p>").isEmpty())
     }
+
+    @Test
+    fun `internalWikiLinks extracts article titles while ignoring special namespaces`() {
+        val html = """
+            <p>
+              <a href="/wiki/Yuji_Itadori">Yuji</a> and <a href="/wiki/Megumi_Fushiguro">Megumi</a>
+              met with <a href="/wiki/File:Jujutsu.png">a photo</a>,
+              checked <a href="/wiki/Special:Search">search</a> and
+              <a href="https://example.com/external">external site</a>.
+              Also referenced <a href="/wiki/Yuji_Itadori#Abilities">Yuji's abilities</a>.
+            </p>
+        """.trimIndent()
+        val links = FandomHtmlText.internalWikiLinks(html)
+        assertEquals(listOf("Yuji Itadori", "Megumi Fushiguro"), links)
+    }
 }

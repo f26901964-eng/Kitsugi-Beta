@@ -166,4 +166,24 @@ class FandomApiParsersTest {
         val json = """{"query":{"search":[{"ns":0,"title":"Satoru Gojo"},{"ns":0,"title":"Gojo Clan"}]}}"""
         assertEquals(listOf("Satoru Gojo", "Gojo Clan"), FandomApiParsers.parseSearchTitles(json))
     }
+
+    @Test
+    fun `parseRelatedPages extracts preview cards and preserves order`() {
+        val json = """
+            {"batchcomplete":true,"query":{"pages":[
+              {"pageid":101,"ns":0,"title":"Gojo Satoru",
+               "pageprops":{"fandomdescription":"The strongest jujutsu sorcerer."},"thumbnail":{"source":"https://static.wikia.nocookie.net/jujutsu/gojo.jpg"}},
+              {"pageid":102,"ns":0,"title":"Megumi Fushiguro",
+               "extract":"A grade 2 sorcerer and first-year student."}
+            ]}}
+        """.trimIndent()
+        val list = FandomApiParsers.parseRelatedPages(json)
+        assertEquals(2, list.size)
+        assertEquals("Gojo Satoru", list[0].title)
+        assertEquals("The strongest jujutsu sorcerer.", list[0].snippet)
+        assertEquals("https://static.wikia.nocookie.net/jujutsu/gojo.jpg", list[0].thumbnailUrl)
+        assertEquals("Megumi Fushiguro", list[1].title)
+        assertEquals("A grade 2 sorcerer and first-year student.", list[1].snippet)
+        assertNull(list[1].thumbnailUrl)
+    }
 }

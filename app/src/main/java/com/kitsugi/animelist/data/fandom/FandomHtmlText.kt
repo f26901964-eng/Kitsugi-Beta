@@ -382,4 +382,59 @@ object FandomHtmlText {
         val text = tidyInline(raw)
         return if (text.any { it.isLetterOrDigit() }) text else ""
     }
+
+    /**
+     * HTML'deki VİKİ İÇİ bağlantıları (/wiki/Title) ayıklar. Özel ad alanları
+     * (Kategori:, Dosya:, Şablon: …), bağlantı çapaları (#ref…) ve aynı başlık tekrarları
+     * ayıklanır; sonuçlar görüntülenme sırasına göre döner.
+     */
+    fun internalWikiLinks(html: String?): List<String> {
+        if (html.isNullOrBlank()) return emptyList()
+        val body = Jsoup.parseBodyFragment(html).body()
+        body.select(JUNK_SELECTOR).remove()
+        val out = LinkedHashSet<String>()
+        body.select("a[href]").forEach { a ->
+            val href = a.attr("href")
+            val title = parseWikiLink(href) ?: return@forEach
+            if (isSpecialNamespace(title)) return@forEach
+            val text = inline(a.text()).takeIf { it.isNotBlank() } ?: title
+            // Bağlantı metni "[]" veya referans gibi işe yaramazsa atla.
+            if (!text.any { it.isLetterOrDigit() }) return@forEach
+            out += title
+        }
+        return out.toList()
+    }
+
+    private fun parseWikiLink(href: String): String? {
+        var raw = href.trim()
+        if (raw.isEmpty()) return null
+        val hash = raw.indexOf('#')
+        if (hash >= 0) raw = raw.substring(0, hash)
+        val marker = "/wiki/"
+        val idx = raw.indexOf(marker)
+        if (idx < 0) return null
+        val tail = raw.substring(idx + marker.length)
+        if (tail.isBlank()) return null
+        return tail
+            .replace('_', ' ')
+            .replace("%20", " ")
+            .replace("%2F", "/")
+            .replace("%3A", ":")
+            .replace("%28", "(")
+            .replace("%29", ")")
+            .trim()
+            .takeIf { it.isNotEmpty() && it.length <= 200 }
+    }
+
+    private val SPECIAL_NS = setOf(
+        "Kategori:", "Dosya:", "Şablon:", "Modül:", "Özel:", "Tartışma:", "Kullanıcı:",
+        "Kullanıcı mesaj:", "Vikipedi:", "MediaWiki:", "TimedText:", "Help:", "Yardım:",
+        "Category:", "File:", "Template:", "Module:", "Special:", "Talk:", "User:",
+        "User talk:", "Wikipedia:", "MediaWiki talk:", "Help talk:", "File talk:",
+        "Template talk:", "Category talk:", "Fandom:", "Community Central:"
+    )
+
+    private fun isSpecialNamespace(title: String): Boolean =
+        SPECIAL_NS.any { title.startsWith(it, ignoreCase = true) }
 }
+

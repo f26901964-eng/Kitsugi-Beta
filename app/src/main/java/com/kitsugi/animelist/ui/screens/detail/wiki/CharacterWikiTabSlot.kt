@@ -1,6 +1,8 @@
 package com.kitsugi.animelist.ui.screens.detail.wiki
 
 import android.widget.Toast
+import androidx.activity.compose.BackHandler
+import com.kitsugi.animelist.data.fandom.FandomUrls
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -33,7 +35,9 @@ internal fun CharacterWikiTabSlot(
     unavailableMessageRes: Int = R.string.fandom_unavailable_character,
     preferredTranslator: String = "DEFAULT",
     originalKeys: Set<String> = emptySet(),
-    onToggleOriginal: (String) -> Unit = {}
+    onToggleOriginal: (String) -> Unit = {},
+    onOpenWikiPage: ((String?) -> Unit)? = null,
+    relatedPages: List<com.kitsugi.animelist.data.fandom.FandomRelatedPage> = emptyList()
 ) {
     when (wikiState) {
         is FandomCharacterWikiViewModel.UiState.Ready -> CharacterWikiTabContent(
@@ -49,7 +53,9 @@ internal fun CharacterWikiTabSlot(
             onReportWrong = onReportWrong,
             preferredTranslator = preferredTranslator,
             originalKeys = originalKeys,
-            onToggleOriginal = onToggleOriginal
+            onToggleOriginal = onToggleOriginal,
+            onOpenWikiPage = onOpenWikiPage,
+            relatedPages = relatedPages
         )
         FandomCharacterWikiViewModel.UiState.Unavailable -> WikiUnavailableCard(
             accentColor = accentColor,
@@ -80,6 +86,13 @@ internal fun CharacterWikiTabSlot(
     val prefs by viewModel.prefs.collectAsState()
     val preferredTranslator by viewModel.preferredTranslator.collectAsState()
     val originalKeys by viewModel.originalKeys.collectAsState()
+    val readerState by viewModel.reader.collectAsState()
+    val related by viewModel.relatedPages.collectAsState()
+
+    BackHandler(enabled = readerState != FandomCharacterWikiViewModel.ReaderState.Closed) {
+        viewModel.readerBack()
+    }
+
     androidx.compose.foundation.layout.Box(modifier = modifier) {
         CharacterWikiTabSlot(
             wikiState = wikiState,
@@ -102,7 +115,44 @@ internal fun CharacterWikiTabSlot(
             unavailableMessageRes = unavailableMessageRes,
             preferredTranslator = preferredTranslator,
             originalKeys = originalKeys,
-            onToggleOriginal = viewModel::toggleOriginal
+            onToggleOriginal = viewModel::toggleOriginal,
+            onOpenWikiPage = { title -> viewModel.openReader(title) },
+            relatedPages = related
         )
+
+        val readerReady = readerState as? FandomCharacterWikiViewModel.ReaderState.Ready
+        if (readerReady != null) {
+            FandomWikiReaderSheet(
+                state = FandomReaderRenderState(
+                    wikiId = readerReady.wikiId,
+                    page = readerReady.page,
+                    sections = readerReady.sections,
+                    related = readerReady.related,
+                    loadingSection = readerReady.loadingSection,
+                    failedSection = readerReady.failedSection,
+                    hasBackStack = true
+                ),
+                accentColor = accentColor,
+                onClose = viewModel::closeReader,
+                onBack = { viewModel.readerBack() },
+                onLoadSection = viewModel::loadReaderSection,
+                onRetrySection = viewModel::retryReaderSection,
+                onOpenLink = viewModel::openReaderLink,
+                onOpenInBrowser = {
+                    val title = readerReady.page.displayTitle
+                    val open: (String) -> Unit = { url ->
+                        try {
+                            context.startActivity(
+                                android.content.Intent(android.content.Intent.ACTION_VIEW,
+                                    android.net.Uri.parse(url)).addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                            )
+                        } catch (_: Exception) {
+                            Toast.makeText(context, context.getString(R.string.fandom_open_failed), Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                    open(FandomUrls.pageUrl(readerReady.wikiId, title))
+                }
+            )
+        }
     }
 }

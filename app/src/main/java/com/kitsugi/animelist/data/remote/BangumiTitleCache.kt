@@ -74,6 +74,18 @@ internal object BangumiTitleCache {
         PreferenceHelpers.isLatinText(it)
     }
 
+    /** Kısmi kaynak güncellemelerini eski alanları silmeden birleştiren saf yardımcı. */
+    internal fun mergeTitles(
+        previous: LatinTitles?,
+        romaji: String?,
+        english: String?,
+        native: String?
+    ): LatinTitles = LatinTitles(
+        romaji = usableLatin(romaji) ?: previous?.romaji,
+        english = usableLatin(english) ?: previous?.english,
+        native = native?.trim()?.takeIf { it.isNotEmpty() } ?: previous?.native
+    )
+
     /** Disk önbelleğini bir kez belleğe alır. */
     private fun ensureLoaded() {
         if (loaded) return
@@ -167,18 +179,18 @@ internal object BangumiTitleCache {
     suspend fun put(rawId: Int?, romaji: String?, english: String?, native: String?) {
         val id = rawId ?: return
         if (id <= 0) return
-        val record = LatinTitles(usableLatin(romaji), usableLatin(english), native?.trim()?.takeIf { it.isNotEmpty() })
-        if (record.isEmpty) return
         ensureLoaded()
-        val previous = memory[id]
-        if (previous != null &&
-            previous.romaji == record.romaji &&
-            previous.english == record.english &&
-            previous.native == record.native
-        ) {
-            return
-        }
-        memory[id] = record
+        // Bilgi kaynakları alanları farklı zamanlarda tamamlayabilir: örneğin Bangumi infobox
+        // yalnızca romaji verirken AniList daha sonra gerçek İngilizceyi bulur. Kısmi bir
+        // güncelleme mevcut karşılığı silmemeli; aynı subject farklı keşfet raflarında eşzamanlı
+        // çözülebileceğinden birleştirme + bellek yazımı atomik yapılır.
+        val record = synchronized(loadLock) {
+            val previous = memory[id]
+            val merged = mergeTitles(previous, romaji, english, native)
+            if (merged.isEmpty || merged == previous) return@synchronized null
+            memory[id] = merged
+            merged
+        } ?: return
         val context = appContext() ?: return
         withContext(Dispatchers.IO) {
             runCatching {
@@ -189,10 +201,12 @@ internal object BangumiTitleCache {
                     // "bir daha çözülmesi gereken başlık" maliyeti doğurur, veri hatası doğurmaz.
                     editor.clear()
                 }
+                // Eşzamanlı kısmi güncellemelerin I/O sırası tersine dönse bile yeni alan silinmesin.
+                val latest = synchronized(loadLock) { memory[id] ?: record }
                 val payload = JSONObject()
-                record.romaji?.let { payload.put("r", it) }
-                record.english?.let { payload.put("e", it) }
-                record.native?.let { payload.put("n", it) }
+                latest.romaji?.let { payload.put("r", it) }
+                latest.english?.let { payload.put("e", it) }
+                latest.native?.let { payload.put("n", it) }
                 editor.putString("$KEY_PREFIX$id", payload.toString())
                 editor.apply()
             }

@@ -74,6 +74,10 @@ jobs:
             --tests 'com.kitsugi.animelist.data.fandom.*' \
             --tests 'com.kitsugi.animelist.data.remote.MdbListClientTest' \
             --tests 'com.kitsugi.animelist.data.remote.BangumiLibraryTitleHydratorTest' \
+            --tests 'com.kitsugi.animelist.data.remote.BangumiSubjectTitleResolverTest' \
+            --tests 'com.kitsugi.animelist.data.remote.BangumiTitleCacheTest' \
+            --tests 'com.kitsugi.animelist.data.remote.KitsugiBangumiDetailClientTest' \
+            --tests 'com.kitsugi.animelist.data.remote.KitsugiBangumiClientTitleTest' \
             :app:assembleFossDebug --stacktrace --console=plain 2>&1 | tee build.log
         env:
           GRADLE_OPTS: -Dfile.encoding=UTF-8

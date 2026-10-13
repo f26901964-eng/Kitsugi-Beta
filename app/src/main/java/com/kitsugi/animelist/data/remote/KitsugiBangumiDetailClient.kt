@@ -281,7 +281,8 @@ object KitsugiBangumiDetailClient {
     private suspend fun rememberLatinTitle(rawId: Int, detail: KitsugiMediaDetail) {
         BangumiTitleCache.put(
             rawId = rawId,
-            romaji = detail.titleRomaji ?: detail.title,
+            romaji = detail.titleRomaji
+                ?: detail.title.takeIf { detail.titleEnglish.isNullOrBlank() },
             english = detail.titleEnglish,
             native = detail.titleNative ?: detail.titleJapanese
         )
@@ -404,9 +405,11 @@ object KitsugiBangumiDetailClient {
         }
         val networks = splitNetworks(valuesAll("播放电视台", "播放電視台", "其他电视台", "其他電視台"))
             .map { it.toLatinStudioName() }
+            .distinct()
             .map { KitsugiStudio(id = 0, name = it, isMain = false, source = SOURCE, role = StudioRole.NETWORK) }
         val serializations = splitCompanies(values("连载杂志", "連載雜誌", "杂志"))
             .map { it.toLatinStudioName() }
+            .distinct()
             .map { KitsugiStudio(id = 0, name = it, isMain = true, source = SOURCE, role = StudioRole.MAGAZINE) }
 
         // ── Yayın bilgisi ────────────────────────────────────────────────────
@@ -841,40 +844,62 @@ object KitsugiBangumiDetailClient {
     }
 
     private suspend fun matchOnTmdb(subject: BangumiSubject, mediaType: MediaType): CrossIds {
+        val hit = findMatchingTmdbTitle(subject, mediaType) ?: return CrossIds()
+        val tmdbId = hit.tmdbId?.takeIf { it > 0 } ?: return CrossIds()
+        val resolved = runCatching {
+            KitsugiIdResolver.resolveIds(malId = null, aniListId = null, tmdbId = tmdbId, mediaType = mediaType)
+        }.getOrNull()
+        return CrossIds(
+            aniListId = resolved?.aniListId,
+            malId = resolved?.malId,
+            tmdbId = tmdbId,
+            kitsuId = resolved?.kitsuId,
+            tvdbId = resolved?.tvdbId,
+            imdbId = resolved?.imdbId
+        )
+    }
+
+    /**
+     * Canlı-aksiyon Bangumi başlıklarını listede İngilizceyle göstermek ve detay eşleştirmesi
+     * için aynı katı TMDB aramasını paylaşır. Başlık + yıl + medya türü doğrulanmadan eşleşme
+     * kabul edilmez; yanlış kaydın İngilizce adı listeye taşınmaz.
+     */
+    internal suspend fun findMatchingTmdbTitle(
+        rawId: Int,
+        mediaType: MediaType,
+        subjectHint: BangumiSubject? = null
+    ): JikanSearchResult? {
+        val subject = subjectHint ?: loadSubject(rawId) ?: return null
+        return findMatchingTmdbTitle(subject, mediaType)
+    }
+
+    private suspend fun findMatchingTmdbTitle(
+        subject: BangumiSubject,
+        mediaType: MediaType
+    ): JikanSearchResult? {
         val titles = subjectTitleSet(subject)
         val subjectYear = subject.date?.take(4)?.toIntOrNull()
-        for (q in listOfNotNull(subject.nameCn.takeIf { it.isNotBlank() }, subject.name.takeIf { it.isNotBlank() }).distinct()) {
+        for (query in listOfNotNull(subject.nameCn.takeIf { it.isNotBlank() }, subject.name.takeIf { it.isNotBlank() }).distinct()) {
             val results = try {
-                TmdbApiClient().search(q)
+                TmdbApiClient().search(query)
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
                 emptyList()
             }
-            val hit = results.firstOrNull { r ->
-                val tmdbId = r.tmdbId ?: return@firstOrNull false
-                if (tmdbId <= 0 || r.type != mediaType) return@firstOrNull false
-                val names = listOf(r.title, r.titleEnglish, r.titleJapanese).map { normalizeTitle(it) }.filter { it.length >= 2 }
+            val hit = results.firstOrNull { result ->
+                val tmdbId = result.tmdbId ?: return@firstOrNull false
+                if (tmdbId <= 0 || result.type != mediaType) return@firstOrNull false
+                val names = listOf(result.title, result.titleEnglish, result.titleJapanese)
+                    .map { normalizeTitle(it) }
+                    .filter { it.length >= 2 }
                 val titleMatch = names.any { it in titles }
-                val yearMatch = subjectYear != null && r.year != null && kotlin.math.abs(subjectYear - r.year) <= 1
-                titleMatch && (yearMatch || subjectYear == null || r.year == null)
+                val yearMatch = subjectYear != null && result.year != null && kotlin.math.abs(subjectYear - result.year) <= 1
+                titleMatch && (yearMatch || subjectYear == null || result.year == null)
             }
-            val tmdbId = hit?.tmdbId
-            if (tmdbId != null && tmdbId > 0) {
-                val resolved = runCatching {
-                    KitsugiIdResolver.resolveIds(malId = null, aniListId = null, tmdbId = tmdbId, mediaType = mediaType)
-                }.getOrNull()
-                return CrossIds(
-                    aniListId = resolved?.aniListId,
-                    malId = resolved?.malId,
-                    tmdbId = tmdbId,
-                    kitsuId = resolved?.kitsuId,
-                    tvdbId = resolved?.tvdbId,
-                    imdbId = resolved?.imdbId
-                )
-            }
+            if (hit != null) return hit
         }
-        return CrossIds()
+        return null
     }
 
     // ── Kalıcı önbellek ──────────────────────────────────────────────────────
@@ -1349,12 +1374,24 @@ object KitsugiBangumiDetailClient {
     /** Başlıkta Latin bir karşılık biliniyorsa ilişki kaydına işler. */
     private fun withCachedLatinTitle(relation: KitsugiRelation): KitsugiRelation {
         val raw = BangumiIdNamespace.rawIdFromStable(relation.malId) ?: return relation
-        val latin = BangumiTitleCache.latinTitleFor(raw, relation.title) ?: return relation
-        return relation.copy(
-            title = latin,
-            titleEnglish = relation.titleEnglish ?: latin,
-            titleRomaji = relation.titleRomaji ?: latin
+        val cached = BangumiTitleCache.get(raw)
+        val latin = BangumiTitleCache.latinTitleFor(raw, relation.title)
+        val relationRomaji = relation.titleRomaji
+            ?: relation.title.takeIf { PreferenceHelpers.isLatinText(it) }
+        val relationHasReliableEnglish = BangumiSubjectTitleResolver.hasReliableEnglish(
+            BangumiTitleCache.LatinTitles(relationRomaji, relation.titleEnglish, relation.titleJapanese)
         )
+        val cachedEnglish = cached?.english?.takeIf {
+            BangumiSubjectTitleResolver.hasReliableEnglish(cached)
+        }
+        val english = if (relationHasReliableEnglish) relation.titleEnglish else cachedEnglish
+        val updated = relation.copy(
+            title = latin ?: relation.title,
+            titleEnglish = english,
+            titleJapanese = relation.titleJapanese ?: cached?.native,
+            titleRomaji = relation.titleRomaji ?: cached?.romaji
+        )
+        return updated.takeUnless { it == relation } ?: relation
     }
 
     /** Çiplerde CJK başlık görünüyor ve kayıtta Latin varyant yoksa ek arama yapılır. */
@@ -1376,8 +1413,12 @@ object KitsugiBangumiDetailClient {
         val rawId = optInt("id", 0).takeIf { it > 0 } ?: return null
         val stable = stableIdOf(rawId) ?: return null
         val localizedTitle = localizedName()
-        // Liste uçlarında infobox alanı dönmez; daha önce çözülmüş Latin ad önbellekten alınır.
+        // Liste uçlarında infobox alanı dönmez; dil varyantları önbellekten ayrı alınır.
+        val cachedTitles = BangumiTitleCache.get(rawId)
         val cachedLatin = BangumiTitleCache.latinTitleFor(rawId, localizedTitle.display)
+        val cachedEnglish = cachedTitles?.english?.takeIf {
+            BangumiSubjectTitleResolver.hasReliableEnglish(cachedTitles)
+        }
         return KitsugiRelation(
             malId = stable,
             title = cachedLatin
@@ -1386,9 +1427,9 @@ object KitsugiBangumiDetailClient {
             imageUrl = optJSONObject("images").image("common", "medium", "large", "grid", "small"),
             mediaType = BangumiIdNamespace.mediaTypeFor(type, optString("platform").takeIf { it.isNotBlank() }),
             source = SOURCE,
-            titleEnglish = localizedTitle.english ?: cachedLatin,
-            titleJapanese = localizedTitle.native,
-            titleRomaji = localizedTitle.romaji ?: cachedLatin,
+            titleEnglish = localizedTitle.english ?: cachedEnglish,
+            titleJapanese = localizedTitle.native ?: cachedTitles?.native,
+            titleRomaji = localizedTitle.romaji ?: cachedTitles?.romaji ?: cachedLatin,
             isAdult = optBoolean("nsfw", false),
             bangumiSubjectType = type
         )
@@ -1519,8 +1560,9 @@ object KitsugiBangumiDetailClient {
                 PreferenceHelpers.isLatinText(it)
             }
             val name = latinName ?: rawName ?: rawNameCn
+            val defaultTitle = if (isTurkish()) "Bölüm $number" else "Episode $number"
             KitsugiStreamingEpisode(
-                title = if (name != null) "#$number – $name" else KitsugiStrings.get(R.string.inline_episode_1_s_dc662be, number),
+                title = if (name != null) "#$number – $name" else KitsugiStrings.getOrFallback(R.string.inline_episode_1_s_dc662be, defaultTitle, number),
                 thumbnail = null,
                 url = if (id > 0) "${BangumiApiClient.SITE_BASE}/ep/$id" else null,
                 site = "Bangumi",

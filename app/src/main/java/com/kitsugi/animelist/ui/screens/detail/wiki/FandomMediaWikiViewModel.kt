@@ -6,6 +6,11 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.kitsugi.animelist.data.fandom.FandomCharacterPage
 import com.kitsugi.animelist.data.fandom.FandomArticlePage
+import com.kitsugi.animelist.data.fandom.FandomFullPage
+import com.kitsugi.animelist.data.fandom.FandomRelatedPage
+import com.kitsugi.animelist.data.fandom.FandomWikiResolver
+import kotlin.collections.ArrayDeque
+import java.util.LinkedHashSet
 import com.kitsugi.animelist.data.fandom.FandomSectionContent
 import com.kitsugi.animelist.data.fandom.FandomGuideGroup
 import com.kitsugi.animelist.data.fandom.FandomGuideItem
@@ -105,6 +110,23 @@ class FandomMediaWikiViewModel(application: Application) : AndroidViewModel(appl
         data object Failed : ArticleSectionState
     }
 
+    /** Uygulama içi wiki okuyucu: mevcut sayfa + geri yığını + ilgili sayfalar. */
+    sealed interface ReaderState {
+        data object Closed : ReaderState
+        data object Loading : ReaderState
+        data class Ready(
+            val page: FandomFullPage,
+            /** Başlangıç özeti (kısa açıklama) ve sonrasında yüklenen bölümler. */
+            val sections: Map<Int, FandomSectionContent>,
+            /** İçerikteki bağlantılardan ve "Ayrıca bakınız"dan derlenen ilgili sayfalar. */
+            val related: List<FandomRelatedPage>,
+            val loadingSection: Int? = null,
+            val failedSection: Int? = null
+        ) : ReaderState
+        data class Failed(val title: String) : ReaderState
+    }
+
+
     companion object {
         private const val TAG = "FandomMediaWikiVM"
         const val KEY_SUMMARY = "media:desc"
@@ -148,6 +170,21 @@ class FandomMediaWikiViewModel(application: Application) : AndroidViewModel(appl
 
     private val _selectedSections = MutableStateFlow<Map<Int, ArticleSectionState>>(emptyMap())
     val selectedSections: StateFlow<Map<Int, ArticleSectionState>> = _selectedSections.asStateFlow()
+
+    private val _reader = MutableStateFlow<ReaderState>(ReaderState.Closed)
+    val reader: StateFlow<ReaderState> = _reader.asStateFlow()
+
+    /** Ana sayfa için toplanmış "İlgili wiki sayfaları" kartları. */
+    private val _relatedPages = MutableStateFlow<List<FandomRelatedPage>>(emptyList())
+    val relatedPages: StateFlow<List<FandomRelatedPage>> = _relatedPages.asStateFlow()
+    private var relatedJob: Job? = null
+
+    private var readerJob: Job? = null
+    private var readerSectionJob: Job? = null
+    private var readerRelatedJob: Job? = null
+    /** Okuyucu geri yığını: en üst açık sayfanın altında kalan başlıklar. */
+    private val readerBackStack = ArrayDeque<String>()
+
 
     private val _translations = MutableStateFlow<Map<String, String>>(emptyMap())
     val translations: StateFlow<Map<String, String>> = _translations.asStateFlow()
@@ -248,6 +285,13 @@ class FandomMediaWikiViewModel(application: Application) : AndroidViewModel(appl
         selectedJob?.cancel()
         cancelSelectedSectionJobs()
         cancelTranslations()
+        readerJob?.cancel()
+        readerSectionJob?.cancel()
+        readerRelatedJob?.cancel()
+        relatedJob?.cancel()
+        readerBackStack.clear()
+        _relatedPages.value = emptyList()
+        _reader.value = ReaderState.Closed
         _article.value = ArticleState.Idle
         _articleSections.value = emptyMap()
         _selectedSections.value = emptyMap()
@@ -364,6 +408,30 @@ class FandomMediaWikiViewModel(application: Application) : AndroidViewModel(appl
                 }
                 if (!isCurrent(ready)) return@launch
                 _guide.value = if (guide != null) GuideState.Ready(guide) else GuideState.Failed
+            }
+        }
+        if (_relatedPages.value.isEmpty()) {
+            relatedJob?.cancel()
+            relatedJob = viewModelScope.launch {
+                val pages = try {
+                    val mainPage = FandomWikiResolver.siteInfoCached(ready.ref.wikiId)?.mainPage ?: return@launch
+                    val candidateTitles = LinkedHashSet<String>()
+                    for (idx in listOf(0, 1)) {
+                        val sec = FandomRepository.loadSection(appContext, ready.ref.wikiId, mainPage, idx)
+                        if (sec != null) candidateTitles += sec.links
+                    }
+                    if (candidateTitles.isNotEmpty()) {
+                        FandomRepository.loadRelatedPages(appContext, ready.ref.wikiId, candidateTitles.take(30))
+                    } else emptyList()
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    Log.w(TAG, "İlgili wiki sayfaları yüklenemedi: ${e.message}")
+                    emptyList()
+                }
+                if (!isCurrent(ready)) return@launch
+                val main = FandomWikiResolver.siteInfoCached(ready.ref.wikiId)?.mainPage.orEmpty()
+                _relatedPages.value = pages.filter { !it.title.equals(main, ignoreCase = true) }.take(20)
             }
         }
     }
@@ -483,16 +551,15 @@ class FandomMediaWikiViewModel(application: Application) : AndroidViewModel(appl
         _guideMore.value = GuideMore.Loading(group)
         guideMoreJob = viewModelScope.launch {
             val page = try {
-                FandomRepository.loadMoreGuideItems(
-                    context = appContext,
+                FandomRepository.loadAllRemainingGuideItems(
                     wikiId = ready.ref.wikiId,
                     category = content.category,
-                    continueToken = token
+                    startToken = token
                 )
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                Log.w(TAG, "Rehber devamı yüklenemedi (${content.category}): ${e.message}")
+                Log.w(TAG, "Rehber tüm sayfalar yüklenemedi (${content.category}): ${e.message}")
                 null
             }
             if (!isCurrent(ready)) return@launch
@@ -890,6 +957,136 @@ class FandomMediaWikiViewModel(application: Application) : AndroidViewModel(appl
             }
             rebind()
         }
+    }
+
+    // ── Uygulama içi wiki okuyucu ────────────────────────────────────────────
+
+    /** Ana wiki sayfasını okuyucuda aç (üst başlıktaki "Fandom sayfasını" için). */
+    fun openReaderMainPage() {
+        val ready = _state.value as? UiState.Ready ?: return
+        viewModelScope.launch {
+            val main = FandomWikiResolver.siteInfoCached(ready.ref.wikiId)?.mainPage
+                ?: ready.ref.siteName
+                ?: ready.ref.wikiId
+            openReader(main, pushToBackStack = false)
+        }
+    }
+
+    /** Bir sayfayı uygulama İÇİNDE okuyucu olarak açar; zaten açıksa yeni sayfaya gider. */
+    fun openReader(title: String, pushToBackStack: Boolean = true) {
+        val ready = _state.value as? UiState.Ready ?: return
+        val clean = title.trim()
+        if (clean.isEmpty()) return
+        val current = (_reader.value as? ReaderState.Ready)?.page?.displayTitle
+        if (pushToBackStack && !current.isNullOrBlank() && !current.equals(clean, ignoreCase = true)) {
+            readerBackStack.addLast(current)
+        }
+        readerJob?.cancel()
+        readerSectionJob?.cancel()
+        readerRelatedJob?.cancel()
+        _reader.value = ReaderState.Loading
+        readerJob = viewModelScope.launch {
+            val page = try {
+                FandomRepository.loadFullPageMeta(appContext, ready.ref.wikiId, clean)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                Log.w(TAG, "Okuyucu sayfa yüklenemedi ($clean): ${e.message}")
+                null
+            }
+            if (!isCurrent(ready)) return@launch
+            if (page == null) {
+                _reader.value = ReaderState.Failed(clean)
+                return@launch
+            }
+            val initialSections = HashMap<Int, FandomSectionContent>()
+            _reader.value = ReaderState.Ready(
+                page = page,
+                sections = initialSections,
+                related = emptyList()
+            )
+            // İlgili sayfaları arka planda doldur.
+            launchRelatedLoadForReader(ready.ref.wikiId, page)
+        }
+    }
+
+    private fun launchRelatedLoadForReader(wikiId: String, page: FandomFullPage) {
+        // Geçerli sayfanın ilk 1–2 bölümünden (özet + içerik başlangıcı) viki içi
+        // bağlantıları topla, önizleme (kapak + açıklama) çek ve ilgili sayfalar kartına koy.
+        readerRelatedJob?.cancel()
+        readerRelatedJob = viewModelScope.launch {
+            val related = try {
+                val candidates = LinkedHashSet<String>()
+                for (idx in listOf(0, 1)) {
+                    val sec = FandomRepository.loadSection(appContext, wikiId, page.displayTitle, idx)
+                    if (sec != null) candidates += sec.links
+                }
+                val titles = candidates.take(30)
+                if (titles.isEmpty()) emptyList()
+                else FandomRepository.loadRelatedPages(appContext, wikiId, titles)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                Log.w(TAG, "Okuyucu ilgili sayfalar yüklenemedi (${page.displayTitle}): ${e.message}")
+                emptyList()
+            }
+            val cur = _reader.value as? ReaderState.Ready ?: return@launch
+            if (cur.page.displayTitle != page.displayTitle) return@launch
+            _reader.value = cur.copy(related = related.filter { !it.title.equals(page.displayTitle, ignoreCase = true) }.take(20))
+        }
+    }
+
+    /** Okuyucu: bir bölümü yükler (tıklanınca çağrılır; İçindekiler →). */
+    fun loadReaderSection(index: Int) {
+        val ready = _state.value as? UiState.Ready ?: return
+        val cur = _reader.value as? ReaderState.Ready ?: return
+        if (cur.sections.containsKey(index)) return
+        readerSectionJob?.cancel()
+        _reader.value = cur.copy(loadingSection = index, failedSection = null)
+        readerSectionJob = viewModelScope.launch {
+            val content = try {
+                FandomRepository.loadSection(appContext, ready.ref.wikiId, cur.page.displayTitle, index)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                Log.w(TAG, "Okuyucu bölüm yüklenemedi (${cur.page.displayTitle}#$index): ${e.message}")
+                null
+            }
+            val now = _reader.value as? ReaderState.Ready ?: return@launch
+            if (now.page.displayTitle != cur.page.displayTitle) return@launch
+            if (content == null) {
+                _reader.value = now.copy(loadingSection = null, failedSection = index)
+                return@launch
+            }
+            val sections = HashMap(now.sections)
+            sections[index] = content
+            _reader.value = now.copy(sections = sections, loadingSection = null, failedSection = null)
+        }
+    }
+
+    fun retryReaderSection(index: Int) = loadReaderSection(index)
+
+    /** İlgili sayfa kartına veya metin içi bağlantıya tıklama: yeni sayfa aç. */
+    fun openReaderLink(title: String) = openReader(title, pushToBackStack = true)
+
+    /** Okuyucuda geri: önceki sayfaya dön, yığın boşsa kapat. */
+    fun readerBack(): Boolean {
+        val prev = readerBackStack.removeLastOrNull()
+        return if (prev != null) {
+            openReader(prev, pushToBackStack = false)
+            true
+        } else {
+            closeReader()
+            false
+        }
+    }
+
+    fun closeReader() {
+        readerJob?.cancel()
+        readerSectionJob?.cancel()
+        readerRelatedJob?.cancel()
+        readerBackStack.clear()
+        _reader.value = ReaderState.Closed
     }
 
     private fun isCurrent(ready: UiState.Ready): Boolean {

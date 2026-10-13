@@ -1,9 +1,11 @@
 package com.kitsugi.animelist.data.remote
 
+import com.kitsugi.animelist.data.auth.BangumiApiClient
 import com.kitsugi.animelist.model.MediaType
 import org.json.JSONArray
 import org.json.JSONObject
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -49,6 +51,80 @@ class BangumiSubjectTitleResolverTest {
         assertEquals(MediaType.Anime, BangumiSubjectTitleResolver.mediaTypeFromKey("anime"))
         assertEquals(MediaType.Anime, BangumiSubjectTitleResolver.mediaTypeFromKey("ANIME"))
         assertEquals(MediaType.TvShow, BangumiSubjectTitleResolver.mediaTypeFromKey("tv"))
+    }
+
+    @Test
+    fun romajiOnlyCacheDoesNotSuppressEnglishLookup() {
+        val partial = BangumiTitleCache.LatinTitles(
+            romaji = "Shingeki no Kyojin",
+            english = null,
+            native = "進撃の巨人"
+        )
+        assertFalse(BangumiSubjectTitleResolver.hasReliableEnglish(partial))
+        assertTrue(
+            BangumiSubjectTitleResolver.hasReliableEnglish(
+                partial.copy(english = "Attack on Titan")
+            )
+        )
+        // Eski cache'de English=Romaji şeklinde saklanan değer de yeniden doğrulanır.
+        assertFalse(
+            BangumiSubjectTitleResolver.hasReliableEnglish(
+                partial.copy(english = "Shingeki no Kyojin")
+            )
+        )
+    }
+
+    @Test
+    fun mediaTypeFromKey_keepsMovieDistinct() {
+        assertEquals(MediaType.Movie, BangumiSubjectTitleResolver.mediaTypeFromKey("movie"))
+        assertEquals(MediaType.TvShow, BangumiSubjectTitleResolver.mediaTypeFromKey("tvshow"))
+    }
+
+    @Test
+    fun animeMovieUsesAniListButBangumiRealMovieUsesTmdb() {
+        val animeMovie = request(1, "映画", MediaType.Movie).copy(
+            subjectType = BangumiApiClient.SubjectType.ANIME
+        )
+        val realMovie = request(2, "电影", MediaType.Movie).copy(
+            subjectType = BangumiApiClient.SubjectType.REAL
+        )
+
+        assertTrue(BangumiSubjectTitleResolver.shouldTryAniList(animeMovie))
+        assertFalse(BangumiSubjectTitleResolver.shouldTryTmdb(animeMovie))
+        assertFalse(BangumiSubjectTitleResolver.shouldTryAniList(realMovie))
+        assertTrue(BangumiSubjectTitleResolver.shouldTryTmdb(realMovie))
+    }
+
+    @Test
+    fun negativeCacheRequiresEveryApplicableProviderToFinishWithoutEnglish() {
+        val romajiOnly = BangumiTitleCache.LatinTitles(
+            romaji = "Shingeki no Kyojin",
+            english = null,
+            native = "進撃の巨人"
+        )
+        val realMovie = request(1, "電影", MediaType.Movie).copy(
+            subjectType = BangumiApiClient.SubjectType.REAL
+        )
+        val unknownMovie = request(2, "電影", MediaType.Movie)
+        val anime = request(3, "進撃の巨人", MediaType.Anime)
+
+        assertFalse(BangumiSubjectTitleResolver.shouldMarkNegative(realMovie, false, false, romajiOnly))
+        assertFalse(BangumiSubjectTitleResolver.shouldMarkNegative(realMovie, true, false, romajiOnly))
+        assertTrue(BangumiSubjectTitleResolver.shouldMarkNegative(realMovie, false, true, romajiOnly))
+
+        // Tür bilinmiyorsa hem AniList hem TMDB geçişi tamamlanmalıdır.
+        assertFalse(BangumiSubjectTitleResolver.shouldMarkNegative(unknownMovie, true, false, romajiOnly))
+        assertTrue(BangumiSubjectTitleResolver.shouldMarkNegative(unknownMovie, true, true, romajiOnly))
+        // Anime için uygun tek kaynak AniList'tir; TMDB sonucu gerekmez.
+        assertTrue(BangumiSubjectTitleResolver.shouldMarkNegative(anime, true, false, romajiOnly))
+        assertFalse(
+            BangumiSubjectTitleResolver.shouldMarkNegative(
+                anime,
+                completedAniList = true,
+                completedTmdb = true,
+                titles = romajiOnly.copy(english = "Attack on Titan")
+            )
+        )
     }
 
     @Test
