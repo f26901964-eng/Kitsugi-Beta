@@ -87,3 +87,43 @@ kimlik çapraz eşlemesi (AniList↔MAL) için yardımcı olabilir.
   Android build (`arena/**` dalındaki GitHub Actions) ile doğrulanmalı.
 
 Bu rapor yalnızca araştırmadır; uygulama değişikliği bu dosyayı izleyen bir sonraki adımdır.
+
+## 7. Tüm kaynaklar (AniList, MAL, Kitsu, Shikimori, Bangumi, TMDB, Simkl …)
+
+### 7.1 Kodda bugünkü durum
+- `CrossProviderIdentityResolver.resolve(context, entry)` (data/auth/CrossProviderIdentity.kt) zaten
+  malId, aniListId, kitsuId, shikimoriId, bangumiSubjectId, tmdbId, simklId alanlarını çözüyor
+  (önbellekli, ağ kapılı).
+- Fandom tarafı (`FandomMediaQueries` / `FandomMediaIds.fromStableId`) bu çözümü kullanmıyor:
+  - Simkl ofseti (`SIMKL_OFFSET = 150_000_000`) hiç tanınmıyor → Simkl kaynaklı kayıtlar kimlikle aranamıyor,
+    yalnızca başlıkla (son çare) deneniyor.
+  - `FandomSourceIds` içinde simkl alanı yok.
+  - `wikidataLookups` yalnızca AniList/MAL/Kitsu/Bangumi/TMDB özelliklerine bakıyor.
+
+### 7.2 Wikidata özellikleri (doğrulama durumu)
+| Kaynak | Wikidata özelliği | Durum |
+|---|---|---|
+| AniList anime | P8729 | doğrulandı (7.087 öğe) |
+| MyAnimeList anime | P4086 | doğrulandı (Gintama Q709716 = 918) |
+| Kitsu anime | P11495 | doğrulandı (wikidata.org/wiki/Property:P11495) |
+| Bangumi subject | P5732 | doğrulandı (wikidata.org/wiki/Property:P5732) |
+| TMDB TV / film | P4983 / P4947 | kodda kullanılıyor (kapsam ölçülmedi) |
+| IMDb | P345 | Gintama Q709716'da mevcut (tt0988818) — köprü olarak kullanılabilir |
+| Shikimori | **doğrulanamadı** | P11419 yanlış çıktı (CASA oyun kimliği). Shikimori anime kimliği çoğu zaman MAL kimliğiyle aynıdır (shikimori.one/animes/z{malId}); MAL üzerinden köprülenebilir. |
+| Simkl | **Wikidata özelliği bulunamadı** | Simkl → TMDB/IMDb/MAL köprüsü (CrossProviderIdentity) ile çözülmeli. |
+
+### 7.3 Önerilen yaklaşım
+1. Yapımın **tüm bilinen kimliklerini** tek seferde topla (CrossProviderIdentityResolver; Simkl dahil).
+2. Her Wikidata özelliği için (P8729, P4086, P11495, P5732, P4983/P4947, P345 IMDb) ayrı arama yap;
+   ilk eşleşen medya QID'ini al. Çoklu eşleşmede en çok karakter oyu alan kayıt.
+3. Medya QID'inden 1. bölümdeki karakter-oy yolu (P1441 ters bağlantı → P6262) ile wiki çıkar.
+4. Kimlik hiç yoksa (örn. yalnızca Simkl) → TMDB/IMDb üzerinden köprüle; o da yoksa mevcut isim yolu.
+5. Doğrulama: `siteinfo`, karakter sayfaları, `exturlusage` (AniList/MAL bağlantısı) — mevcut kod.
+
+### 7.4 Uygulama planı (henüz kodlanmadı)
+- `FandomSourceIds`'e `simklId` ve `imdbId` ekle; `FandomMediaIds.fromStableId`'ye Simkl ofsetini ekle.
+- `FandomMediaQueries.fromMedia` çağrı noktalarında (MediaEntryDetailPage / ApiResultDetailPage)
+  `CrossProviderIdentityResolver` sonuçlarını birleştir.
+- `wikidataLookups`'a IMDb (P345) ve Shikimori→MAL köprüsünü ekle.
+- Birim testleri: her kaynak için kimlik → (özellik, değer) üretimi.
+- Derleme ve gerçek cihaz testi `arena/**` dalındaki Actions iş akışıyla yapılmalı.
