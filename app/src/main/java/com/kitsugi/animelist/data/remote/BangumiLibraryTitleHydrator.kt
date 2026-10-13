@@ -75,8 +75,13 @@ internal object BangumiLibraryTitleHydrator {
         }
     }
 
-    /** Latin adı henüz bilinmeyen Bangumi satırları için çözümleme istekleri. */
-    private fun pendingRequests(entities: List<MediaEntryEntity>): List<BangumiSubjectTitleResolver.Request> {
+    /**
+     * Latin adı henüz bilinmeyen Bangumi satırları için çözümleme istekleri.
+     *
+     * `internal` — birim testi bu seçimin doğru olduğunu doğrular (bkz.
+     * `BangumiLibraryTitleHydratorTest`). Network/DB'ye dokunmayan saf bir fonksiyondur.
+     */
+    internal fun pendingRequests(entities: List<MediaEntryEntity>): List<BangumiSubjectTitleResolver.Request> {
         val requests = LinkedHashMap<Int, BangumiSubjectTitleResolver.Request>()
         for (entity in entities) {
             if (!isBangumi(entity)) continue
