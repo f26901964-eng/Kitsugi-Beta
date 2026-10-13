@@ -86,6 +86,7 @@ import com.kitsugi.animelist.ui.utils.dpadVerticalFastScroll
 import com.kitsugi.animelist.ui.utils.tvClickable
 import kotlinx.coroutines.launch
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import com.kitsugi.animelist.R
 import com.kitsugi.animelist.utils.KitsugiStrings
 
@@ -265,9 +266,16 @@ fun KitsugiUserMediaListScreen(
         else -> stringResource(R.string.profile_anilist_anime_manga_list)
     }
 
+    // Üst bar, "Listem" ile aynı hareketi paylaşsın: aşağı kaydırınca yumuşakça
+    // çekilir, yukarı kaydırınca yumuşakça geri gelir.
+    val headerState = com.kitsugi.animelist.ui.components.rememberScrollAwareHeaderState(
+        listState = listState
+    )
+
     Column(
         modifier = Modifier
             .fillMaxSize()
+            .nestedScroll(headerState.nestedScrollConnection)
             .background(colors.background)
     ) {
         Surface(
@@ -306,6 +314,7 @@ fun KitsugiUserMediaListScreen(
                 accentColor = accentColor,
                 horizontalPadding = horizontalPadding,
                 hasActiveFilters = hasActiveFilters,
+                headerCollapsed = headerState.isCollapsed,
                 headerTitle = username,
                 headerSubtitle = headerSubtitle,
                 onBackClick = onBackClick,

@@ -29,6 +29,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
+import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 
 // ─── Motion Token'ları ─────────────────────────────────────────────────────
 // KitsugiMobile Tokens.kt'deki motion.normalMillis vb. değerlerden uyarlama.
@@ -172,6 +175,62 @@ fun rememberDetailStickyHeaderVisible(
         }
     }
     return isVisible
+}
+
+// ─── Kaydırmaya Duyarlı Üst Bar (Diğer Sayfalarla Ortak Davranış) ───────────
+// Aşağı kaydırınca üst bar yumuşakça çekilir, yukarı kaydırınca yumuşakça geri
+// gelir. Jest yönü LazyColumn'un ürettiği konum farklarından değil, kullanıcının
+// kendi kaydırma girdisinden okunur (bkz. PluginPickerScreen); böylece başlık
+// açılıp kapanırken liste kayması yeni bir "kaydırma" gibi algılanıp titreme
+// (flicker) üretmez.
+
+/** [rememberScrollAwareHeaderState] tarafından döndürülen durum taşıyıcısı. */
+class ScrollAwareHeaderState internal constructor(
+    val isCollapsed: Boolean,
+    val nestedScrollConnection: NestedScrollConnection
+)
+
+/**
+ * Liste kaydırmasına duyarlı üst bar durumu.
+ *
+ * @param listState Takip edilecek LazyListState (tepeye dönünce bar otomatik açılır).
+ * @param hideDeadZonePx Listenin ilk [hideDeadZonePx] pikselinde başlık gizlenmez;
+ *   böylece kısa bir kaydırma üst barı düşürüp listeyi zıplatmaz.
+ */
+@Composable
+fun rememberScrollAwareHeaderState(
+    listState: LazyListState,
+    hideDeadZonePx: Int = 120
+): ScrollAwareHeaderState {
+    var collapsed by remember(listState) { mutableStateOf(false) }
+
+    val connection = remember(listState, hideDeadZonePx) {
+        object : NestedScrollConnection {
+            override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
+                if (source == NestedScrollSource.UserInput) {
+                    val delta = available.y
+                    val nearTop = listState.firstVisibleItemIndex == 0 &&
+                            listState.firstVisibleItemScrollOffset < hideDeadZonePx
+                    if (delta < -16f && !collapsed && !nearTop) {
+                        collapsed = true
+                    } else if (delta > 16f && collapsed) {
+                        collapsed = false
+                    }
+                }
+                return Offset.Zero
+            }
+        }
+    }
+
+    LaunchedEffect(listState) {
+        snapshotFlow {
+            listState.firstVisibleItemIndex to listState.firstVisibleItemScrollOffset
+        }.collect { (index, offset) ->
+            if (index == 0 && offset == 0 && collapsed) collapsed = false
+        }
+    }
+
+    return ScrollAwareHeaderState(collapsed, connection)
 }
 
 // ─── Detay Sayfasına Giriş Geçişi ─────────────────────────────────────────

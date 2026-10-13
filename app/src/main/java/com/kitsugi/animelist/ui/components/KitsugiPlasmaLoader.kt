@@ -28,7 +28,17 @@ import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import kotlin.math.cos
+import kotlin.math.roundToInt
 import kotlin.math.sin
+
+/** Renk döngüsünün kare başına yeniden kurulacak adım sayısı (kuantalama). */
+private const val PlasmaColorSteps = 24f
+
+/** Çekirdek nabzının kare başına yeniden kurulacak adım sayısı (kuantalama). */
+private const val PlasmaPulseSteps = 16f
+
+/** Bu boyut ve altındaki kürelerde hafif (kompakt) çizim yolu kullanılır. */
+private val PlasmaCompactBelow: Dp = 30.dp
 
 /**
  * ÇÖKME/GC ÖNLEMİ: Canvas/drawBehind içinde her kare `Brush.xxxGradient()`
@@ -111,11 +121,19 @@ fun KitsugiPlasmaLoader(
     )
 
     // Uiverse renklerinin dinamik renk geçişi (Amber altın <-> Derin kor ateşi)
-    val c1 = remember(baseOne, colorPhase) {
-        interpolateColor(baseOne, Color(0xFFFF8A3D), colorPhase)
+    //
+    // KARE BAŞINA churn önlemi: nabız ve renk kayması 60 fps okunsa da gradyanlar
+    // yalnızca kuantalanmış adımlar değiştiğinde yeniden kurulur. Liste satırı /
+    // rozet gibi aynı ekranda onlarca örneği çizilen göstericilerde GC baskısı
+    // oluşmaması için buradan sonra animasyon değerleri adım adım ilerler.
+    val colorStep = (colorPhase * PlasmaColorSteps).roundToInt() / PlasmaColorSteps
+    val pulseStep = (coreGlowPulse * PlasmaPulseSteps).roundToInt() / PlasmaPulseSteps
+
+    val c1 = remember(baseOne, colorStep) {
+        interpolateColor(baseOne, Color(0xFFFF8A3D), colorStep)
     }
-    val c2 = remember(baseTwo, colorPhase) {
-        interpolateColor(baseTwo, Color(0xFF8E1B00), colorPhase)
+    val c2 = remember(baseTwo, colorStep) {
+        interpolateColor(baseTwo, Color(0xFF8E1B00), colorStep)
     }
     val c3 = c1.copy(alpha = 0.50f)
     val c4 = c2.copy(alpha = 0.55f)
@@ -125,12 +143,16 @@ fun KitsugiPlasmaLoader(
         modifier = modifier
             .size(size)
             .drawBehind {
-                val px = size.toPx()
+                // Çizim her zaman ÖLÇÜLEN kutuya göre yapılır (parametradaki Dp'ye değil):
+                // çağıran `Modifier.size(14.dp)` verip varsayılan 42.dp bırakırsa ışıma
+                // artık komşu satırlara taşmıyor.
+                val px = this.size.minDimension
+                val compact = px <= PlasmaCompactBelow.toPx()
                 // CSS: box-shadow: 0 0 25px 0 var(--color-three), 0 20px 50px 0 var(--color-four)
                 drawCircle(
                     brush = Brush.radialGradient(
                         colors = listOf(
-                            c3.copy(alpha = 0.65f * coreGlowPulse.coerceIn(0.8f, 1.2f)),
+                            c3.copy(alpha = 0.65f * pulseStep.coerceIn(0.8f, 1.2f)),
                             c4.copy(alpha = 0.35f),
                             Color.Transparent
                         ),
@@ -141,19 +163,21 @@ fun KitsugiPlasmaLoader(
                     center = center
                 )
 
-                // Alt lav derinlik düşüm ışığı (0 20px 50px)
-                drawCircle(
-                    brush = Brush.radialGradient(
-                        colors = listOf(
-                            c4.copy(alpha = 0.45f),
-                            Color.Transparent
+                // Alt lav derinlik düşüm ışığı (0 20px 50px) — küçük boyutta gereksiz katman
+                if (!compact) {
+                    drawCircle(
+                        brush = Brush.radialGradient(
+                            colors = listOf(
+                                c4.copy(alpha = 0.45f),
+                                Color.Transparent
+                            ),
+                            center = Offset(center.x, center.y + px * 0.20f),
+                            radius = px * 0.85f
                         ),
-                        center = Offset(center.x, center.y + px * 0.20f),
-                        radius = px * 0.85f
-                    ),
-                    radius = px * 0.85f,
-                    center = Offset(center.x, center.y + px * 0.20f)
-                )
+                        radius = px * 0.85f,
+                        center = Offset(center.x, center.y + px * 0.20f)
+                    )
+                }
             }
             .clip(CircleShape)
             // CSS: .loader::before { background: linear-gradient(180deg, var(--color-five), var(--color-four)); }
@@ -177,116 +201,167 @@ fun KitsugiPlasmaLoader(
             val h = this.size.height
             val centerOffset = Offset(w / 2f, h / 2f)
 
-            // CSS Uiverse 7 Rotating Polygons / Metaballs:
-            // 1. Dönen Arka Plan Gradye Kutusu (.loader .box)
-            drawRect(
-                brush = Brush.verticalGradient(
-                    0.30f to c1.copy(alpha = 0.85f),
-                    0.70f to c2.copy(alpha = 0.85f)
-                )
-            )
+            // ── Kompakt ışık küresi (rozet, satır içi gösterge, buton içi) ──────────
+            // 30 dp ve altında 7 eksende dönen plazma simülasyonu hem görsel olarak
+            // boğuluyor hem de kare başına 8 gradyan üretiyordu. Aynı kimliği (kehribar
+            // hâle + akkor çekirdek + dönen parlak nokta) 3 gradyanla çizeriz.
+            val side = this.size.minDimension
+            if (side <= PlasmaCompactBelow.toPx()) {
+                val r = side / 2f
+                val cx = this.size.width / 2f
+                val cy = this.size.height / 2f
 
-            // Poligon 2: origin: 50% 50%, reverse
-            rotate(-mainRotation, pivot = centerOffset) {
                 drawCircle(
                     brush = Brush.radialGradient(
-                        colors = listOf(c1, Color.Transparent),
+                        colors = listOf(
+                            c1.copy(alpha = 0.50f),
+                            c2.copy(alpha = 0.28f),
+                            Color.Transparent
+                        ),
+                        center = Offset(cx, cy),
+                        radius = r
+                    ),
+                    radius = r,
+                    center = Offset(cx, cy)
+                )
+
+                val coreR = r * (0.52f + 0.12f * (pulseStep - 1f))
+                drawCircle(
+                    brush = Brush.radialGradient(
+                        colors = listOf(
+                            Color.White.copy(alpha = 0.92f),
+                            c1.copy(alpha = 0.95f),
+                            c2.copy(alpha = 0.80f),
+                            Color.Transparent
+                        ),
+                        center = Offset(cx, cy),
+                        radius = coreR
+                    ),
+                    radius = coreR,
+                    center = Offset(cx, cy)
+                )
+
+                val orbitRad = Math.toRadians(mainRotation.toDouble())
+                drawCircle(
+                    color = c1.copy(alpha = 0.90f),
+                    radius = r * 0.16f,
+                    center = Offset(
+                        (cx + cos(orbitRad) * r * 0.60f).toFloat(),
+                        (cy + sin(orbitRad) * r * 0.60f).toFloat()
+                    )
+                )
+            } else {
+                // CSS Uiverse 7 Rotating Polygons / Metaballs:
+                // 1. Dönen Arka Plan Gradye Kutusu (.loader .box)
+                drawRect(
+                    brush = Brush.verticalGradient(
+                        0.30f to c1.copy(alpha = 0.85f),
+                        0.70f to c2.copy(alpha = 0.85f)
+                    )
+                )
+
+                // Poligon 2: origin: 50% 50%, reverse
+                rotate(-mainRotation, pivot = centerOffset) {
+                    drawCircle(
+                        brush = Brush.radialGradient(
+                            colors = listOf(c1, Color.Transparent),
+                            center = centerOffset,
+                            radius = w * 0.45f
+                        ),
+                        radius = w * 0.45f,
                         center = centerOffset,
-                        radius = w * 0.45f
-                    ),
-                    radius = w * 0.45f,
-                    center = centerOffset,
-                    blendMode = BlendMode.Screen
-                )
-            }
+                        blendMode = BlendMode.Screen
+                    )
+                }
 
-            // Poligon 3: origin: 50% 60%, rotation forward, delay -1/3 (120deg phase)
-            val p3Angle = mainRotation + 120f
-            val p3Pivot = Offset(w * 0.50f, h * 0.60f)
-            rotate(p3Angle, pivot = p3Pivot) {
-                val rad = Math.toRadians(p3Angle.toDouble())
-                val orbitX = (w * 0.50f + cos(rad) * (w * 0.16f)).toFloat()
-                val orbitY = (h * 0.60f + sin(rad) * (h * 0.16f)).toFloat()
-                drawCircle(
-                    brush = Brush.radialGradient(
-                        colors = listOf(c1.copy(alpha = 0.9f), Color.Transparent),
+                // Poligon 3: origin: 50% 60%, rotation forward, delay -1/3 (120deg phase)
+                val p3Angle = mainRotation + 120f
+                val p3Pivot = Offset(w * 0.50f, h * 0.60f)
+                rotate(p3Angle, pivot = p3Pivot) {
+                    val rad = Math.toRadians(p3Angle.toDouble())
+                    val orbitX = (w * 0.50f + cos(rad) * (w * 0.16f)).toFloat()
+                    val orbitY = (h * 0.60f + sin(rad) * (h * 0.16f)).toFloat()
+                    drawCircle(
+                        brush = Brush.radialGradient(
+                            colors = listOf(c1.copy(alpha = 0.9f), Color.Transparent),
+                            center = Offset(orbitX, orbitY),
+                            radius = w * 0.36f
+                        ),
+                        radius = w * 0.36f,
                         center = Offset(orbitX, orbitY),
-                        radius = w * 0.36f
-                    ),
-                    radius = w * 0.36f,
-                    center = Offset(orbitX, orbitY),
-                    blendMode = BlendMode.Screen
-                )
-            }
+                        blendMode = BlendMode.Screen
+                    )
+                }
 
-            // Poligon 4 & 5: origin: 40% 40%, reverse, phase delays
-            val p4Angle = -mainRotation + 60f
-            val p4Pivot = Offset(w * 0.40f, h * 0.40f)
-            rotate(p4Angle, pivot = p4Pivot) {
-                drawCircle(
-                    brush = Brush.radialGradient(
-                        colors = listOf(c2, Color.Transparent),
+                // Poligon 4 & 5: origin: 40% 40%, reverse, phase delays
+                val p4Angle = -mainRotation + 60f
+                val p4Pivot = Offset(w * 0.40f, h * 0.40f)
+                rotate(p4Angle, pivot = p4Pivot) {
+                    drawCircle(
+                        brush = Brush.radialGradient(
+                            colors = listOf(c2, Color.Transparent),
+                            center = Offset(w * 0.38f, h * 0.38f),
+                            radius = w * 0.38f
+                        ),
+                        radius = w * 0.38f,
                         center = Offset(w * 0.38f, h * 0.38f),
-                        radius = w * 0.38f
-                    ),
-                    radius = w * 0.38f,
-                    center = Offset(w * 0.38f, h * 0.38f),
-                    blendMode = BlendMode.Plus
-                )
-            }
+                        blendMode = BlendMode.Plus
+                    )
+                }
 
-            // Poligon 6 & 7: origin: 60% 40%, forward, phase delays
-            val p6Angle = mainRotation + 240f
-            val p6Pivot = Offset(w * 0.60f, h * 0.40f)
-            rotate(p6Angle, pivot = p6Pivot) {
+                // Poligon 6 & 7: origin: 60% 40%, forward, phase delays
+                val p6Angle = mainRotation + 240f
+                val p6Pivot = Offset(w * 0.60f, h * 0.40f)
+                rotate(p6Angle, pivot = p6Pivot) {
+                    drawCircle(
+                        brush = Brush.radialGradient(
+                            colors = listOf(c1.copy(alpha = 0.85f), Color.Transparent),
+                            center = Offset(w * 0.62f, h * 0.38f),
+                            radius = w * 0.35f
+                        ),
+                        radius = w * 0.35f,
+                        center = Offset(w * 0.62f, h * 0.38f),
+                        blendMode = BlendMode.Screen
+                    )
+                }
+
+                // Akkor Çekirdek (Merkez sıvı plazma nabzı)
                 drawCircle(
                     brush = Brush.radialGradient(
-                        colors = listOf(c1.copy(alpha = 0.85f), Color.Transparent),
-                        center = Offset(w * 0.62f, h * 0.38f),
-                        radius = w * 0.35f
+                        colors = listOf(
+                            c1,
+                            c2.copy(alpha = 0.7f),
+                            Color.Transparent
+                        ),
+                        center = centerOffset,
+                        radius = (w * 0.32f) * pulseStep
                     ),
-                    radius = w * 0.35f,
-                    center = Offset(w * 0.62f, h * 0.38f),
-                    blendMode = BlendMode.Screen
+                    radius = (w * 0.32f) * pulseStep,
+                    center = centerOffset
+                )
+
+                // CSS .loader::before İç Gölgeler (inset 0 10px 10px c3, inset 0 -10px 10px c4)
+                // Üst parlak hilal
+                drawCircle(
+                    brush = Brush.verticalGradient(
+                        colors = listOf(c1.copy(alpha = 0.35f), Color.Transparent),
+                        startY = 0f,
+                        endY = h * 0.35f
+                    ),
+                    radius = w * 0.50f,
+                    center = centerOffset
+                )
+                // Alt koyu lav gölgesi
+                drawCircle(
+                    brush = Brush.verticalGradient(
+                        colors = listOf(Color.Transparent, c2.copy(alpha = 0.45f)),
+                        startY = h * 0.65f,
+                        endY = h
+                    ),
+                    radius = w * 0.50f,
+                    center = centerOffset
                 )
             }
-
-            // Akkor Çekirdek (Merkez sıvı plazma nabzı)
-            drawCircle(
-                brush = Brush.radialGradient(
-                    colors = listOf(
-                        c1,
-                        c2.copy(alpha = 0.7f),
-                        Color.Transparent
-                    ),
-                    center = centerOffset,
-                    radius = (w * 0.32f) * coreGlowPulse
-                ),
-                radius = (w * 0.32f) * coreGlowPulse,
-                center = centerOffset
-            )
-
-            // CSS .loader::before İç Gölgeler (inset 0 10px 10px c3, inset 0 -10px 10px c4)
-            // Üst parlak hilal
-            drawCircle(
-                brush = Brush.verticalGradient(
-                    colors = listOf(c1.copy(alpha = 0.35f), Color.Transparent),
-                    startY = 0f,
-                    endY = h * 0.35f
-                ),
-                radius = w * 0.50f,
-                center = centerOffset
-            )
-            // Alt koyu lav gölgesi
-            drawCircle(
-                brush = Brush.verticalGradient(
-                    colors = listOf(Color.Transparent, c2.copy(alpha = 0.45f)),
-                    startY = h * 0.65f,
-                    endY = h
-                ),
-                radius = w * 0.50f,
-                center = centerOffset
-            )
         }
     }
 }
