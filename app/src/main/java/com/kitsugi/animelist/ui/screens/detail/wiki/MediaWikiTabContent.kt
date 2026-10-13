@@ -187,8 +187,13 @@ internal fun MediaWikiTabSlot(
     if (ready != null && readerState != FandomMediaWikiViewModel.ReaderState.Closed) {
         val wikiId = ready.ref.wikiId
         val context = LocalContext.current
+        val readerFailedTitle = (readerState as? FandomMediaWikiViewModel.ReaderState.Failed)?.title
         FandomWikiReaderSheet(
             state = readerRender,
+            failedTitle = readerFailedTitle,
+            onRetryFailed = readerFailedTitle?.let { failed ->
+                { viewModel.openReader(failed, pushToBackStack = false) }
+            },
             accentColor = accentColor,
             onClose = viewModel::closeReader,
             onBack = { viewModel.readerBack() },
@@ -298,7 +303,18 @@ internal fun MediaWikiTabContent(
                         galleryCategory = GalleryCategory.OTHER,
                         preferredTranslator = preferredTranslator,
                         originalKeys = originalKeys,
-                        onToggleOriginal = onToggleOriginal
+                        onToggleOriginal = onToggleOriginal,
+                        // Makale bölümlerinin altındaki mavi wiki bağlantıları
+                        // (Hunters, Nen, Phantom Troupe...) ve ilişkili sayfa
+                        // kartları uygulama İÇİ okuyucuda açılır. Bu iki geri
+                        // çağrı verilmezse CharacterWikiTabContent tarayıcıya
+                        // düşüyordu (v2.4.282'de medya sekmesinde unutulmuştu).
+                        onOpenWikiPage = { title ->
+                            val clean = title?.trim().orEmpty()
+                            if (clean.isNotEmpty()) onOpenItem(clean)
+                            else onOpenReaderHome?.invoke()
+                        },
+                        onOpenWikiLink = { link -> onOpenItem(link.pageTitle) }
                     )
                     FandomMediaWikiViewModel.ArticleState.Unavailable -> WikiUnavailableCard(
                         accentColor = accentColor,

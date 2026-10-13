@@ -4,7 +4,15 @@
 
 ## 🇹🇷 Türkçe
 
-### 1. Wiki Okuyucu "Fandom sayfasını" Butonu Çökmesi Giderildi (Kritik Düzeltme)
+### 1. Wiki Makale İçi Mavi Bağlantılar ve İlişkili Sayfalar Artık Uygulama İçinde Açılıyor
+- **Kök neden:** Yapım (medya) detayındaki Wiki sekmesi, makale bölümlerinin altındaki mavi bağlantı şeridini (örn. Hunter × Hunter → *Hunters, Hunter License, Hunter Exam, Nen, Phantom Troupe, Gon Freecss, Kite...*) çizerken uygulama içi okuyucu geri çağrısını iletmiyordu. Bu yüzden bağlantılar harici tarayıcıya yönleniyordu; önceki "sıfır tarayıcı yönlendirmesi" medya makalesinin bölüm içi bağlantılarını atlamıştı.
+- **Düzeltme:** Medya Wiki sekmesi artık bölüm altı mavi bağlantıları, ilişkili sayfa kartlarını ve makale alt bilgisini doğrudan uygulama içi okuyucuya (`FandomWikiReader`) bağlıyor.
+- **Hedef wiki kimliği korundu:** Karakter, ekip ve seslendiren sayfalarında bir bağlantı farklı bir wiki'ye işaret ediyorsa okuyucu o hedef wiki'de açılır.
+- **İlişkili sayfa kartları:** "İlgili sayfalar" kartındaki *sayfayı aç* düğmesi ve görselsiz kart dokunuşu da tarayıcı yerine uygulama içi okuyucuyu açar.
+- **Okuyucu hata durumu (Tekrar dene):** Bağlanılan sayfa yüklenemezse okuyucu sonsuz yükleme animasyonunda kalmaz; sayfa başlığıyla birlikte *"Sayfa yüklenemedi · Tekrar dene"* kartı gösterilir (medya, karakter ve ekip okuyucu akışlarının tamamında).
+- Harici tarayıcı yalnızca okuyucunun üst çubuğundaki dünya (🌐) simgesine bilerek dokunulduğunda açılır.
+
+### 2. Wiki Okuyucu "Fandom sayfasını" Butonu Çökmesi Giderildi (Kritik Düzeltme)
 - **Belirti:** Yapım/karakter/ekip detayındaki Wiki sekmesinde "İlgili wiki sayfaları" şeridindeki **"Fandom sayfasını"** butonuna basıldığında veya dahili wiki bağlantısı tıklandığında, okuyucu sayfası yüklenir yüklenmez uygulama çöküyordu (`IllegalStateException: Vertically scrollable component was measured with an infinity maximum height constraints`).
 - **Kök neden:** Detay sayfası sekme içeriği portre düzende `DetailPageScaffold` içindeki `HorizontalPager` tarafından **sınırsız yükseklik** (`Constraints.Infinity`) ile ölçülüyor; yatay/TV düzeninde ise sekme içeriği zaten bir `verticalScroll` kutusunun içinde bulunuyor. Okuyucu bu ağacın içine gömülü çizildiğinde kendi kaydırma alanı sonsuz kısıt alıyor ya da iç içe kaydırma kısıtı nedeniyle Compose yasaklı istisnayı fırlatıyordu.
 - **Çözüm:** Uygulama içi wiki okuyucu artık **kendi tam ekran penceresinde** (tam ekran `Dialog`) açılıyor. Dialog penceresi sistem seviyesinde her zaman sınırlı (bounded) kısıt verdiğinden bu çökme sınıfı kökten ortadan kaldırıldı.
@@ -51,7 +59,15 @@
 
 ## 🇬🇧 English
 
-### 1. Critical Fix: Wiki Reader "Open Fandom page" Unbounded Height Crash
+### 1. In-Article Blue Wiki Links and Related Entities Open In-App
+- **Root cause:** The media Wiki tab rendered the blue link strip under article sections (e.g. Hunter × Hunter → *Hunters, Hunter License, Hunter Exam, Nen, Phantom Troupe, Gon Freecss, Kite...*) without forwarding the in-app reader callback, silently dropping to the external browser. The previous "zero browser jumping" pass missed section links on media pages.
+- **Fix:** The media Wiki tab now routes section links, related-entity cards and the article footer directly through the in-app reader (`FandomWikiReader`).
+- **Target wiki id preserved:** On character/staff/voice-actor pages, links pointing to another wiki open the reader on that target wiki.
+- **Related page cards:** The *open page* button and tapping imageless entity cards open in the in-app reader instead of launching the browser.
+- **Reader failure state (Retry):** If a linked page cannot be loaded, the reader no longer spins forever; it displays the page title alongside *"Page could not be loaded · Retry"* (across media, character and staff flows).
+- The external browser opens strictly when explicitly tapping the globe (🌐) icon in the reader header.
+
+### 2. Critical Fix: Wiki Reader "Open Fandom page" Unbounded Height Crash
 - **Symptom:** Tapping **"Open Fandom page"** on the related-wiki-pages strip or opening an internal wiki link in the Wiki tab crashed the app the moment the reader content finished loading (`IllegalStateException: Vertically scrollable component was measured with an infinity maximum height constraints`).
 - **Root cause:** In portrait mode, detail tab content is measured by a `HorizontalPager` with **unbounded height** (`Constraints.Infinity`); in landscape/TV layouts, tab content already lives inside a `verticalScroll`. Rendering the reader inline gave its scrollable column an infinite height constraint (or created nested vertical scrolls), triggering Compose's fatal measurement exception.
 - **Fix:** The in-app wiki reader now opens in its **own full-screen window (`Dialog`)**. Window constraints are guaranteed to be strictly bounded, permanently eliminating this entire class of crashes.

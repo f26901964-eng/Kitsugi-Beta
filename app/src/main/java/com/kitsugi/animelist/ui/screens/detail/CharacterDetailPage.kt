@@ -114,6 +114,9 @@ import com.kitsugi.animelist.data.fandom.FandomCharacterQueries
 import com.kitsugi.animelist.ui.screens.detail.wiki.CharacterWikiTabSlot
 import com.kitsugi.animelist.ui.components.KitsugiPullToRefreshIndicator
 import androidx.activity.compose.BackHandler
+import com.kitsugi.animelist.ui.screens.detail.wiki.FandomWikiReaderSheet
+import com.kitsugi.animelist.ui.screens.detail.wiki.FandomReaderRenderState
+import com.kitsugi.animelist.data.fandom.FandomUrls
 import com.kitsugi.animelist.ui.screens.detail.wiki.FandomCharacterWikiViewModel
 
 sealed interface CharacterDetailState {
@@ -473,6 +476,7 @@ fun CharacterDetailPage(
                                                 originalKeys = wikiOriginalKeys,
                                                 onToggleOriginal = { key -> wikiViewModel.toggleOriginal(key) },
                                                 onOpenWikiPage = { title -> wikiViewModel.openReader(title) },
+                                                onOpenWikiLink = { link -> wikiViewModel.openReader(link.pageTitle, wikiIdOverride = link.wikiId) },
                                                 relatedPages = wikiRelatedPages,
                                                 onOpenGallery = { items, idx ->
                                                     activeGalleryItems = items
@@ -680,6 +684,7 @@ fun CharacterDetailPage(
                                                     originalKeys = wikiOriginalKeys,
                                                     onToggleOriginal = { key -> wikiViewModel.toggleOriginal(key) },
                                                 onOpenWikiPage = { title -> wikiViewModel.openReader(title) },
+                                                onOpenWikiLink = { link -> wikiViewModel.openReader(link.pageTitle, wikiIdOverride = link.wikiId) },
                                                 relatedPages = wikiRelatedPages,
                                                     onOpenGallery = { items, idx ->
                                                         activeGalleryItems = items
@@ -739,10 +744,50 @@ fun CharacterDetailPage(
                 }
                 } // end else (portrait)
 
-                // Not: Uygulama içi wiki okuyucu artık burada İKİNCİ kez çizilmiyor.
-                // Okuyucuyu `CharacterWikiTabSlot` (wiki sekmesi) tek noktadan, kendi tam
-                // ekran penceresinde (Dialog) render eder. Burada da çizilseydi iki ayrı
-                // pencere üst üste açılırdı (geri tuşu iki kez basmayı gerektirirdi).
+                val readerReady = wikiReaderState as? com.kitsugi.animelist.ui.screens.detail.wiki.FandomCharacterWikiViewModel.ReaderState.Ready
+                val readerFailedTitle = (wikiReaderState as? com.kitsugi.animelist.ui.screens.detail.wiki.FandomCharacterWikiViewModel.ReaderState.Failed)?.title
+                // Loading/Failed da gösterilir: mavi bağlantı yüklenemezse
+                // sonsuz spinner ya da tepkisiz tıklama olmasın.
+                if (wikiReaderState != com.kitsugi.animelist.ui.screens.detail.wiki.FandomCharacterWikiViewModel.ReaderState.Closed) {
+                    FandomWikiReaderSheet(
+                        state = readerReady?.let { ready ->
+                            FandomReaderRenderState(
+                                wikiId = ready.wikiId,
+                                page = ready.page,
+                                sections = ready.sections,
+                                related = ready.related,
+                                loadingSection = ready.loadingSection,
+                                failedSection = ready.failedSection,
+                                hasBackStack = true
+                            )
+                        },
+                        failedTitle = readerFailedTitle,
+                        onRetryFailed = readerFailedTitle?.let { failed ->
+                            { wikiViewModel.openReader(failed, pushToBackStack = false) }
+                        },
+                        accentColor = accentColor,
+                        onClose = wikiViewModel::closeReader,
+                        onBack = { wikiViewModel.readerBack() },
+                        onLoadSection = wikiViewModel::loadReaderSection,
+                        onRetrySection = wikiViewModel::retryReaderSection,
+                        onOpenLink = wikiViewModel::openReaderLink,
+                        onOpenInBrowser = {
+                            val ready = readerReady ?: return@FandomWikiReaderSheet
+                            val title = ready.page.displayTitle
+                            val open: (String) -> Unit = { url ->
+                                try {
+                                    context.startActivity(
+                                        android.content.Intent(android.content.Intent.ACTION_VIEW,
+                                            android.net.Uri.parse(url)).addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                                    )
+                                } catch (_: Exception) {
+                                    android.widget.Toast.makeText(context, context.getString(R.string.fandom_open_failed), android.widget.Toast.LENGTH_SHORT).show()
+                                }
+                            }
+                            open(FandomUrls.pageUrl(ready.wikiId, title))
+                        }
+                    )
+                }
                 } // end PullToRefreshBox
             }
         }
