@@ -51,12 +51,12 @@ jobs:
           sudo swapon /swapfile || echo "swapon atlandı"
           mkdir -p ~/.gradle
           cat > ~/.gradle/gradle.properties << 'EOP'
-          org.gradle.jvmargs=-Xmx2g -Xms512m -XX:+UseG1GC -Dfile.encoding=UTF-8
+          org.gradle.jvmargs=-Xmx2g -Xms512m -Xss16m -XX:+UseG1GC -Dfile.encoding=UTF-8
           org.gradle.workers.max=1
           org.gradle.parallel=true
           org.gradle.daemon=true
           org.gradle.caching=true
-          kotlin.daemon.jvmargs=-Xmx4g -Xms1g -XX:+UseG1GC
+          kotlin.daemon.jvmargs=-Xmx4g -Xms1g -Xss16m -XX:+UseG1GC
           kotlin.compiler.execution.strategy=daemon
           EOP
 
