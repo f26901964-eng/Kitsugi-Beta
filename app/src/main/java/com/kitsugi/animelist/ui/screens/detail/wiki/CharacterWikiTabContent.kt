@@ -114,6 +114,9 @@ internal fun CharacterWikiTabContent(
     originalKeys: Set<String> = emptySet(),
     onToggleOriginal: (String) -> Unit = {},
     onOpenWikiPage: ((String?) -> Unit)? = null,
+    /** Wiki kimliği taşıyan bağlantılar (bölüm altı + ilişkili sayfalar) için; başlığa
+     *  ek olarak hedef wiki de korunur. Verilmezse [onOpenWikiPage]'e düşülür. */
+    onOpenWikiLink: ((FandomWikiLink) -> Unit)? = null,
     relatedPages: List<com.kitsugi.animelist.data.fandom.FandomRelatedPage> = emptyList()
 ) {
     val context = LocalContext.current
@@ -151,7 +154,9 @@ internal fun CharacterWikiTabContent(
             WikiRelatedEntitiesCard(
                 entities = page.relatedEntities,
                 accentColor = accentColor,
-                onOpenGallery = onOpenGallery
+                onOpenGallery = onOpenGallery,
+                onOpenWikiLink = onOpenWikiLink,
+                onOpenWikiPage = onOpenWikiPage
             )
         }
 
@@ -234,7 +239,8 @@ internal fun CharacterWikiTabContent(
                         onOpenGallery = onOpenGallery,
                         onOpenLink = { linkTitle ->
                             onOpenWikiPage?.invoke(linkTitle) ?: openExternal(context, com.kitsugi.animelist.data.fandom.FandomUrls.pageUrl(page.wikiId, linkTitle))
-                        }
+                        },
+                        onOpenWikiLink = onOpenWikiLink
                     )
                 }
             }
@@ -244,7 +250,12 @@ internal fun CharacterWikiTabContent(
             CharacterRelatedStrip(
                 pages = relatedPages,
                 accentColor = accentColor,
-                onOpenPage = { p -> onOpenWikiPage?.invoke(p) }
+                onOpenPage = { p ->
+                    // Uygulama içi okuyucu bağlı değilse ölü düğme bırakma:
+                    // son çare olarak tarayıcı (normal akışta hep bağlanır).
+                    onOpenWikiPage?.invoke(p)
+                        ?: openExternal(context, com.kitsugi.animelist.data.fandom.FandomUrls.pageUrl(page.wikiId, p))
+                }
             )
         }
 
@@ -708,7 +719,8 @@ private fun WikiSectionRow(
     showingOriginal: Boolean = false,
     onToggleOriginal: (() -> Unit)? = null,
     onOpenGallery: (List<GalleryItem>, Int) -> Unit = { _, _ -> },
-    onOpenLink: (String) -> Unit = {}
+    onOpenLink: (String) -> Unit = {},
+    onOpenWikiLink: ((FandomWikiLink) -> Unit)? = null
 ) {
     Column(modifier = Modifier.fillMaxWidth()) {
         Row(
@@ -805,7 +817,8 @@ private fun WikiSectionRow(
                                     content = state.content,
                                     translated = if (showingOriginal) null else translated,
                                     onOpenGallery = onOpenGallery,
-                                    onOpenLink = onOpenLink
+                                    onOpenLink = onOpenLink,
+                                    onOpenWikiLink = onOpenWikiLink
                                 )
                             }
                         }
@@ -821,7 +834,8 @@ private fun SectionBody(
     content: FandomSectionContent,
     translated: String?,
     onOpenGallery: (List<GalleryItem>, Int) -> Unit,
-    onOpenLink: (String) -> Unit = {}
+    onOpenLink: (String) -> Unit = {},
+    onOpenWikiLink: ((FandomWikiLink) -> Unit)? = null
 ) {
     val context = LocalContext.current
     val galleryItems = remember(content) {
@@ -875,7 +889,10 @@ private fun SectionBody(
             ) {
                 content.linkedEntities.forEach { link ->
                     TextButton(onClick = {
-                        onOpenLink(link.pageTitle)
+                        // Mavi bağlantı şeridi: hedef wiki kimliği korunarak
+                        // uygulama içi okuyucuda açılır, tarayıcıya düşmez.
+                        if (onOpenWikiLink != null) onOpenWikiLink(link)
+                        else onOpenLink(link.pageTitle)
                     }) {
                         Text(
                             text = link.label,
@@ -1140,9 +1157,20 @@ private fun openExternal(context: Context, url: String) {
 private fun WikiRelatedEntitiesCard(
     entities: List<FandomWikiLink>,
     accentColor: Color,
-    onOpenGallery: (List<GalleryItem>, Int) -> Unit
+    onOpenGallery: (List<GalleryItem>, Int) -> Unit,
+    onOpenWikiLink: ((FandomWikiLink) -> Unit)? = null,
+    onOpenWikiPage: ((String?) -> Unit)? = null
 ) {
     val context = LocalContext.current
+    // Sayfa açma: önce wiki kimlikli uygulama içi okuyucu, sonra başlıklı
+    // okuyucu; ikisi de yoksa (bağımsız yeniden kullanım) tarayıcı son çaredir.
+    val openEntityPage: (FandomWikiLink) -> Unit = { entity ->
+        when {
+            onOpenWikiLink != null -> onOpenWikiLink(entity)
+            onOpenWikiPage != null -> onOpenWikiPage(entity.pageTitle)
+            else -> openExternal(context, entity.pageUrl)
+        }
+    }
     val orderedGroups = remember(entities) {
         val priority = listOf(
             FandomRelationType.CHARACTER,
@@ -1213,7 +1241,7 @@ private fun WikiRelatedEntitiesCard(
                                             listOf(GalleryItem(url, FANDOM_GALLERY_SOURCE, category, entity.label)),
                                             0
                                         )
-                                    } ?: openExternal(context, entity.pageUrl)
+                                    } ?: openEntityPage(entity)
                                 },
                             contentAlignment = Alignment.Center
                         ) {
@@ -1258,7 +1286,7 @@ private fun WikiRelatedEntitiesCard(
                                 overflow = TextOverflow.Ellipsis
                             )
                         }
-                        TextButton(onClick = { openExternal(context, entity.pageUrl) }) {
+                        TextButton(onClick = { openEntityPage(entity) }) {
                             Text(
                                 text = stringResource(R.string.fandom_open_related_page),
                                 color = accentColor,

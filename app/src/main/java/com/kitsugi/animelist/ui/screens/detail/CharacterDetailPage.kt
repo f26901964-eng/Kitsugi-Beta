@@ -476,6 +476,7 @@ fun CharacterDetailPage(
                                                 originalKeys = wikiOriginalKeys,
                                                 onToggleOriginal = { key -> wikiViewModel.toggleOriginal(key) },
                                                 onOpenWikiPage = { title -> wikiViewModel.openReader(title) },
+                                                onOpenWikiLink = { link -> wikiViewModel.openReader(link.pageTitle, wikiIdOverride = link.wikiId) },
                                                 relatedPages = wikiRelatedPages,
                                                 onOpenGallery = { items, idx ->
                                                     activeGalleryItems = items
@@ -673,6 +674,7 @@ fun CharacterDetailPage(
                                                     originalKeys = wikiOriginalKeys,
                                                     onToggleOriginal = { key -> wikiViewModel.toggleOriginal(key) },
                                                 onOpenWikiPage = { title -> wikiViewModel.openReader(title) },
+                                                onOpenWikiLink = { link -> wikiViewModel.openReader(link.pageTitle, wikiIdOverride = link.wikiId) },
                                                 relatedPages = wikiRelatedPages,
                                                     onOpenGallery = { items, idx ->
                                                         activeGalleryItems = items
@@ -723,17 +725,26 @@ fun CharacterDetailPage(
                 } // end else (portrait)
 
                 val readerReady = wikiReaderState as? com.kitsugi.animelist.ui.screens.detail.wiki.FandomCharacterWikiViewModel.ReaderState.Ready
-                if (readerReady != null) {
+                val readerFailedTitle = (wikiReaderState as? com.kitsugi.animelist.ui.screens.detail.wiki.FandomCharacterWikiViewModel.ReaderState.Failed)?.title
+                // Loading/Failed da gösterilir: mavi bağlantı yüklenemezse
+                // sonsuz spinner ya da tepkisiz tıklama olmasın.
+                if (wikiReaderState != com.kitsugi.animelist.ui.screens.detail.wiki.FandomCharacterWikiViewModel.ReaderState.Closed) {
                     FandomWikiReaderSheet(
-                        state = FandomReaderRenderState(
-                            wikiId = readerReady.wikiId,
-                            page = readerReady.page,
-                            sections = readerReady.sections,
-                            related = readerReady.related,
-                            loadingSection = readerReady.loadingSection,
-                            failedSection = readerReady.failedSection,
-                            hasBackStack = true
-                        ),
+                        state = readerReady?.let { ready ->
+                            FandomReaderRenderState(
+                                wikiId = ready.wikiId,
+                                page = ready.page,
+                                sections = ready.sections,
+                                related = ready.related,
+                                loadingSection = ready.loadingSection,
+                                failedSection = ready.failedSection,
+                                hasBackStack = true
+                            )
+                        },
+                        failedTitle = readerFailedTitle,
+                        onRetryFailed = readerFailedTitle?.let { failed ->
+                            { wikiViewModel.openReader(failed, pushToBackStack = false) }
+                        },
                         accentColor = accentColor,
                         onClose = wikiViewModel::closeReader,
                         onBack = { wikiViewModel.readerBack() },
@@ -741,7 +752,8 @@ fun CharacterDetailPage(
                         onRetrySection = wikiViewModel::retryReaderSection,
                         onOpenLink = wikiViewModel::openReaderLink,
                         onOpenInBrowser = {
-                            val title = readerReady.page.displayTitle
+                            val ready = readerReady ?: return@FandomWikiReaderSheet
+                            val title = ready.page.displayTitle
                             val open: (String) -> Unit = { url ->
                                 try {
                                     context.startActivity(
@@ -752,7 +764,7 @@ fun CharacterDetailPage(
                                     android.widget.Toast.makeText(context, context.getString(R.string.fandom_open_failed), android.widget.Toast.LENGTH_SHORT).show()
                                 }
                             }
-                            open(FandomUrls.pageUrl(readerReady.wikiId, title))
+                            open(FandomUrls.pageUrl(ready.wikiId, title))
                         }
                     )
                 }

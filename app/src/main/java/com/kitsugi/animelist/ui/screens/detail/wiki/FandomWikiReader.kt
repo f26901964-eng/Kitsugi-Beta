@@ -100,7 +100,10 @@ internal fun FandomWikiReaderSheet(
     onOpenInBrowser: () -> Unit,
     onTranslateSummary: (() -> Unit)? = null,
     summaryIsTranslating: Boolean = false,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    /** Yüklenemeyen sayfanın başlığı; doluysa sonsuz yükleme yerine hata kartı gösterilir. */
+    failedTitle: String? = null,
+    onRetryFailed: (() -> Unit)? = null
 ) {
     Surface(
         modifier = modifier.fillMaxSize(),
@@ -109,7 +112,7 @@ internal fun FandomWikiReaderSheet(
     ) {
         Column(modifier = Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.navigationBars)) {
             ReaderTopBar(
-                title = state?.page?.displayTitle,
+                title = state?.page?.displayTitle ?: failedTitle,
                 accentColor = accentColor,
                 hasBackStack = state?.hasBackStack == true,
                 onBack = onBack,
@@ -117,6 +120,11 @@ internal fun FandomWikiReaderSheet(
                 onOpenInBrowser = onOpenInBrowser
             )
             when {
+                state == null && failedTitle != null -> ReaderFailed(
+                    title = failedTitle,
+                    accentColor = accentColor,
+                    onRetry = onRetryFailed
+                )
                 state == null -> ReaderLoading(accentColor)
                 else -> ReaderContent(
                     state = state,
@@ -177,6 +185,41 @@ private fun ReaderTopBar(
                 contentDescription = stringResource(R.string.fandom_reader_close),
                 tint = KitsugiColors.TextMuted
             )
+        }
+    }
+}
+
+/** Okuyucu sayfası yüklenemedi: ölü sonsuz spinner yerine başlık + tekrar dene. */
+@Composable
+private fun ReaderFailed(title: String, accentColor: Color, onRetry: (() -> Unit)?) {
+    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+            modifier = Modifier.padding(horizontal = 24.dp)
+        ) {
+            Text(
+                text = title,
+                color = KitsugiColors.TextPrimary,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis
+            )
+            Text(
+                text = stringResource(R.string.fandom_reader_failed),
+                color = KitsugiColors.TextMuted,
+                style = MaterialTheme.typography.bodyMedium
+            )
+            if (onRetry != null) {
+                TextButton(onClick = onRetry) {
+                    Text(
+                        text = stringResource(R.string.action_retry_label),
+                        color = accentColor,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            }
         }
     }
 }
