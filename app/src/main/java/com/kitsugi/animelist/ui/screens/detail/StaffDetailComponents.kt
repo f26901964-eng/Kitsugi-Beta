@@ -1,6 +1,7 @@
 package com.kitsugi.animelist.ui.screens.detail
 
 import com.kitsugi.animelist.ui.components.KitsugiGalleryIconButton
+import com.kitsugi.animelist.ui.components.KitsugiOriginalToggleButton
 import com.kitsugi.animelist.ui.components.KitsugiTranslateIconButton
 import com.kitsugi.animelist.ui.components.LocalKitsugiGalleryLoading
 import com.kitsugi.animelist.utils.cleanShikimoriBbCode
@@ -379,7 +380,9 @@ internal fun StaffAboutTabContent(
     accentColor: Color,
     onGalleryClick: (List<GalleryItem>, Int) -> Unit,
     modifier: Modifier = Modifier,
-    onTranslateClick: (() -> Unit)? = null
+    onTranslateClick: (() -> Unit)? = null,
+    showOriginalBio: Boolean = false,
+    onToggleOriginalBio: (() -> Unit)? = null
 ) {
     val context = androidx.compose.ui.platform.LocalContext.current
     androidx.compose.foundation.text.selection.SelectionContainer(modifier = modifier) {
@@ -419,7 +422,7 @@ internal fun StaffAboutTabContent(
                 }
             }
 
-            val displayBio = (translatedBio ?: detail.biography)?.cleanShikimoriBbCode()
+            val displayBio = (if (showOriginalBio) detail.biography else translatedBio ?: detail.biography)?.cleanShikimoriBbCode()
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -441,6 +444,13 @@ internal fun StaffAboutTabContent(
                     )
 
                     if (!detail.biography.isNullOrBlank()) {
+                        if (translatedBio != null && onToggleOriginalBio != null) {
+                            KitsugiOriginalToggleButton(
+                                showingOriginal = showOriginalBio,
+                                onClick = onToggleOriginalBio,
+                                tint = accentColor
+                            )
+                        }
                         // Otomatik çeviri sürerken galeri butonuyla aynı yüklenme animasyonunu gösterir.
                         KitsugiTranslateIconButton(
                             onClick = {

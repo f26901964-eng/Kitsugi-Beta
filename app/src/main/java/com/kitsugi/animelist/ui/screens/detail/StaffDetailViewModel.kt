@@ -51,6 +51,10 @@ class StaffDetailViewModel(application: Application) : AndroidViewModel(applicat
     private val _translatedBio = MutableStateFlow<String?>(null)
     val translatedBio: StateFlow<String?> = _translatedBio.asStateFlow()
 
+    /** Biyografide orijinal metin gösteriliyor mu (çeviri varken "Orijinal" / "Çeviri" geçişi). */
+    private val _showBioOriginal = MutableStateFlow(false)
+    val showBioOriginal: StateFlow<Boolean> = _showBioOriginal.asStateFlow()
+
     /**
      * Biyografi çevirisi (otomatik ya da elle) sürerken `true`.
      *
@@ -169,6 +173,13 @@ class StaffDetailViewModel(application: Application) : AndroidViewModel(applicat
         bioTranslateJob?.cancel()
         bioTranslateJob = null
         _translationLoading.value = false
+        // Yeni kişi / otomatik çeviri kapandı: eski orijinal-geçiş durumu geçerli değil.
+        _showBioOriginal.value = false
+    }
+
+    /** Orijinal / çeviri geçişi (biyografi). Çeviri bellekte kalır, yeniden çevrilmez. */
+    fun toggleBioOriginal() {
+        _showBioOriginal.value = !_showBioOriginal.value
     }
 
     fun translateBio() {

@@ -10,14 +10,19 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
 import com.kitsugi.animelist.ui.theme.gradient.background
 import com.kitsugi.animelist.ui.utils.tvClickable
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -35,12 +40,16 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
@@ -59,7 +68,6 @@ import com.kitsugi.animelist.core.player.engine.PlayerEngineType
 import com.kitsugi.animelist.core.player.engine.Media3PlayerEngine
 import com.kitsugi.animelist.core.player.engine.MpvPlayerEngine
 import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.rememberCoroutineScope
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
 import androidx.compose.ui.res.stringResource
@@ -173,6 +181,8 @@ fun KitsugiYouTubePlayer(
         var currentPosition by remember { mutableStateOf(0L) }
         var duration by remember { mutableStateOf(0L) }
         val engineTypeForPlayer = activeEngineType
+        // Uygulama alt sekmeye / arka plana alındığında oynatıcıyı durdurur.
+        val resumedState = rememberInlinePlayerResumed()
 
         DisposableEffect(playerEngine) {
             var released = false
@@ -212,6 +222,14 @@ fun KitsugiYouTubePlayer(
             }
         }
 
+        // Arka plana geçildiğinde dur; geri dönünce kendiliğinden başlatma.
+        LaunchedEffect(resumedState.value, playerEngine) {
+            if (!resumedState.value) {
+                runCatching { playerEngine.pause() }
+                isPlayingState = false
+            }
+        }
+
         LaunchedEffect(source, activeEngineType) {
             try {
                 playerEngine.prepare(
@@ -219,7 +237,8 @@ fun KitsugiYouTubePlayer(
                     audioUrl = source.audioUrl,
                     startPositionMs = currentPosition
                 )
-                playerEngine.play()
+                // Hazırlık sürerken uygulama arka plana gittiyse oynatmaya başlama.
+                if (resumedState.value) playerEngine.play() else runCatching { playerEngine.pause() }
             } catch (e: CancellationException) {
                 // The player can be disposed while a prepare is awaiting IO work.
                 throw e
@@ -239,7 +258,7 @@ fun KitsugiYouTubePlayer(
                 while (true) {
                     currentPosition = playerEngine.currentPosition
                     duration = playerEngine.duration.coerceAtLeast(0L)
-                    delay(1000)
+                    delay(500)
                 }
             }
         }
@@ -275,7 +294,14 @@ fun KitsugiYouTubePlayer(
 }
 
 // ---------------------------------------------------------------------------
-//  Oynatıcı Hareket Sarmalayıcısı (Gesture Wrapper)
+//  Satır içi oynatıcı kontrolleri (Gesture Wrapper)
+//
+//  - Tek dokunma: kontrolleri göster / gizle (oynatılırken 3 sn sonra kendiliğinden gizlenir).
+//  - Ortadaki büyük düğme: oynat / duraklat. Alt çubuktaki düğme de aynısını yapar.
+//  - Alt çubuk: sürüklenebilir ilerleme çubuğu, süre bilgisi ve tam ekran düğmesi.
+//  - Çift dokunma: sol/sağ yarıdan 5 sn geri / ileri.
+//  Tüm düğmeler kendi dokunma alanına sahiptir; oynatıcı yüzeyine düşen dokunmalar
+//  ayrıca çift dokunma / kontrol gizleme için kullanılır.
 // ---------------------------------------------------------------------------
 @Composable
 fun KitsugiPlayerGestureWrapper(
@@ -288,8 +314,25 @@ fun KitsugiPlayerGestureWrapper(
     onFullscreen: (() -> Unit)? = null,
     content: @Composable () -> Unit
 ) {
+    val accentColor = LocalKitsugiAccent.current
+    val latestPosition by rememberUpdatedState(currentPosition)
+    val latestDuration by rememberUpdatedState(duration)
+    val latestOnSeek by rememberUpdatedState(onSeek)
+    val latestOnPlayPause by rememberUpdatedState(onPlayPause)
+
+    var controlsVisible by remember { mutableStateOf(true) }
+    var controlsToken by remember { mutableIntStateOf(0) }
     var seekFeedbackText by remember { mutableStateOf<String?>(null) }
-    var playPauseFeedbackIcon by remember { mutableStateOf<androidx.compose.ui.graphics.vector.ImageVector?>(null) }
+
+    // Duraklatılmışken kontroller hep görünür; oynarken dokunmadan sonra gizlenir.
+    val showControls = controlsVisible || !isPlaying
+
+    LaunchedEffect(controlsVisible, controlsToken, isPlaying) {
+        if (controlsVisible && isPlaying) {
+            delay(3_000L)
+            controlsVisible = false
+        }
+    }
 
     LaunchedEffect(seekFeedbackText) {
         if (seekFeedbackText != null) {
@@ -298,49 +341,46 @@ fun KitsugiPlayerGestureWrapper(
         }
     }
 
-    LaunchedEffect(playPauseFeedbackIcon) {
-        if (playPauseFeedbackIcon != null) {
-            delay(500)
-            playPauseFeedbackIcon = null
-        }
-    }
-
     Box(
         modifier = modifier,
         contentAlignment = Alignment.Center
     ) {
-        // Video Player
+        // Video yüzeyi
         content()
 
-        // Gesture Overlay Layer
+        // Dokunma katmanı: tek dokunma kontrolleri açar/kapatır, çift dokunma 5 sn atlatır.
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .pointerInput(isPlaying, currentPosition, duration) {
+                .pointerInput(Unit) {
                     detectTapGestures(
                         onDoubleTap = { offset ->
-                            val width = size.width
-                            val isRightSide = offset.x > width / 2f
-                            
-                            if (isRightSide) {
-                                val target = (currentPosition + 5000).coerceAtMost(duration)
-                                onSeek(target)
-                                seekFeedbackText = "+5s"
+                            val isRightSide = offset.x > size.width / 2f
+                            val total = latestDuration
+                            val target = if (isRightSide) {
+                                val forward = latestPosition + 5_000L
+                                if (total > 0L) forward.coerceAtMost(total) else forward
                             } else {
-                                val target = (currentPosition - 5000).coerceAtLeast(0)
-                                onSeek(target)
-                                seekFeedbackText = "-5s"
+                                (latestPosition - 5_000L).coerceAtLeast(0L)
                             }
+                            latestOnSeek(target)
+                            seekFeedbackText = if (isRightSide) "+5s" else "-5s"
+                            controlsVisible = true
+                            controlsToken++
                         },
                         onTap = {
-                            onPlayPause()
-                            playPauseFeedbackIcon = if (isPlaying) Icons.Rounded.Pause else Icons.Rounded.PlayArrow
+                            if (controlsVisible) {
+                                controlsVisible = false
+                            } else {
+                                controlsVisible = true
+                                controlsToken++
+                            }
                         }
                     )
                 }
         )
 
-        // Seek (+/- 5s) Overlay
+        // Seek (+/- 5s) geri bildirimi
         AnimatedVisibility(
             visible = seekFeedbackText != null,
             enter = fadeIn(animationSpec = tween(150)) + scaleIn(initialScale = 0.8f),
@@ -373,47 +413,192 @@ fun KitsugiPlayerGestureWrapper(
             }
         }
 
-        // Play/Pause Overlay
+        // Ortadaki oynat / duraklat düğmesi
         AnimatedVisibility(
-            visible = playPauseFeedbackIcon != null,
-            enter = fadeIn(animationSpec = tween(150)) + scaleIn(initialScale = 0.8f),
-            exit = fadeOut(animationSpec = tween(150))
+            visible = showControls,
+            modifier = Modifier.align(Alignment.Center),
+            enter = fadeIn(animationSpec = tween(150)),
+            exit = fadeOut(animationSpec = tween(200))
         ) {
             Box(
                 modifier = Modifier
-                    .size(60.dp)
+                    .size(56.dp)
                     .clip(CircleShape)
-                    .background(Color.Black.copy(alpha = 0.6f)),
+                    .background(Color.Black.copy(alpha = 0.55f))
+                    .tvClickable(shape = CircleShape) {
+                        latestOnPlayPause()
+                        controlsVisible = true
+                        controlsToken++
+                    },
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
-                    imageVector = playPauseFeedbackIcon ?: Icons.Rounded.PlayArrow,
-                    contentDescription = null,
+                    imageVector = if (isPlaying) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
+                    contentDescription = stringResource(if (isPlaying) R.string.inline_player_pause else R.string.inline_player_play),
                     tint = Color.White,
                     modifier = Modifier.size(32.dp)
                 )
             }
         }
 
-        // Tam ekran butonu (sağ alt köşe)
-        if (onFullscreen != null) {
-            Box(
+        // Alt kontrol çubuğu: ilerleme, süre, oynat/duraklat ve tam ekran
+        AnimatedVisibility(
+            visible = showControls,
+            modifier = Modifier.align(Alignment.BottomCenter),
+            enter = fadeIn(animationSpec = tween(150)),
+            exit = fadeOut(animationSpec = tween(200))
+        ) {
+            Column(
                 modifier = Modifier
-                    .align(Alignment.BottomEnd)
-                    .padding(8.dp)
-                    .size(36.dp)
-                    .clip(CircleShape)
-                    .background(Color.Black.copy(alpha = 0.5f))
-                    .tvClickable(shape = CircleShape) { onFullscreen() },
-                contentAlignment = Alignment.Center
+                    .fillMaxWidth()
+                    .background(
+                        Brush.verticalGradient(
+                            listOf(Color.Transparent, Color.Black.copy(alpha = 0.78f))
+                        )
+                    )
+                    .padding(start = 10.dp, end = 10.dp, top = 18.dp, bottom = 4.dp)
             ) {
-                Icon(
-                    imageVector = Icons.Rounded.Fullscreen,
-                    contentDescription = "Tam Ekran",
-                    tint = Color.White,
-                    modifier = Modifier.size(22.dp)
+                InlinePlayerSeekBar(
+                    positionMs = currentPosition,
+                    durationMs = duration,
+                    accentColor = accentColor,
+                    onSeekFraction = { fraction ->
+                        val total = latestDuration
+                        if (total > 0L) latestOnSeek((total * fraction).toLong())
+                        controlsVisible = true
+                        controlsToken++
+                    }
                 )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(36.dp)
+                            .clip(CircleShape)
+                            .tvClickable(shape = CircleShape) {
+                                latestOnPlayPause()
+                                controlsVisible = true
+                                controlsToken++
+                            },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = if (isPlaying) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
+                            contentDescription = stringResource(if (isPlaying) R.string.inline_player_pause else R.string.inline_player_play),
+                            tint = Color.White,
+                            modifier = Modifier.size(22.dp)
+                        )
+                    }
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        text = "${formatInlinePlayerTime(currentPosition)} / ${formatInlinePlayerTime(duration)}",
+                        color = Color.White.copy(alpha = 0.85f),
+                        style = MaterialTheme.typography.labelSmall
+                    )
+                    Spacer(modifier = Modifier.weight(1f))
+                    if (onFullscreen != null) {
+                        Box(
+                            modifier = Modifier
+                                .size(36.dp)
+                                .clip(CircleShape)
+                                .tvClickable(shape = CircleShape) { onFullscreen() },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Rounded.Fullscreen,
+                                contentDescription = stringResource(R.string.inline_player_fullscreen),
+                                tint = Color.White,
+                                modifier = Modifier.size(22.dp)
+                            )
+                        }
+                    }
+                }
             }
         }
+    }
+}
+
+/**
+ * Satır içi oynatıcının ilerleme çubuğu. Dokunarak ya da sürükleyerek konum seçilir;
+ * sürükleme bitene kadar çubuk parmağı izler, bitince tek seferde arama yapılır.
+ */
+@Composable
+private fun InlinePlayerSeekBar(
+    positionMs: Long,
+    durationMs: Long,
+    accentColor: Color,
+    onSeekFraction: (Float) -> Unit
+) {
+    val canSeek = durationMs > 0L
+    val basis = if (canSeek) (positionMs.toFloat() / durationMs.toFloat()).coerceIn(0f, 1f) else 0f
+    var dragFraction by remember { mutableFloatStateOf(-1f) }
+    val isDragging = dragFraction >= 0f
+    val shown = if (isDragging) dragFraction else basis
+    val latestOnSeekFraction by rememberUpdatedState(onSeekFraction)
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(22.dp)
+            .pointerInput(canSeek) {
+                if (canSeek) {
+                    detectTapGestures(
+                        onTap = { offset ->
+                            latestOnSeekFraction((offset.x / size.width).coerceIn(0f, 1f))
+                        }
+                    )
+                }
+            }
+            .pointerInput(canSeek) {
+                if (canSeek) {
+                    detectHorizontalDragGestures(
+                        onDragStart = { offset ->
+                            dragFraction = (offset.x / size.width).coerceIn(0f, 1f)
+                        },
+                        onHorizontalDrag = { change, _ ->
+                            dragFraction = (change.position.x / size.width).coerceIn(0f, 1f)
+                        },
+                        onDragEnd = {
+                            if (dragFraction >= 0f) latestOnSeekFraction(dragFraction)
+                            dragFraction = -1f
+                        },
+                        onDragCancel = { dragFraction = -1f }
+                    )
+                }
+            },
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Box(
+            modifier = Modifier
+                .weight(shown.coerceAtLeast(0.001f))
+                .height(3.dp)
+                .background(accentColor)
+        )
+        Box(
+            modifier = Modifier
+                .size(if (isDragging) 15.dp else 11.dp)
+                .clip(CircleShape)
+                .background(accentColor)
+        )
+        Box(
+            modifier = Modifier
+                .weight((1f - shown).coerceAtLeast(0.001f))
+                .height(3.dp)
+                .background(Color.White.copy(alpha = 0.3f))
+        )
+    }
+}
+
+private fun formatInlinePlayerTime(ms: Long): String {
+    val totalSec = (ms / 1000L).coerceAtLeast(0L)
+    val hours = totalSec / 3600L
+    val minutes = (totalSec % 3600L) / 60L
+    val seconds = totalSec % 60L
+    return if (hours > 0L) {
+        String.format("%d:%02d:%02d", hours, minutes, seconds)
+    } else {
+        String.format("%02d:%02d", minutes, seconds)
     }
 }

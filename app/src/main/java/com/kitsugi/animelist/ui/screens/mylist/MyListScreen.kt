@@ -81,6 +81,7 @@ import com.kitsugi.animelist.ui.theme.LocalKitsugiAccent
 import com.kitsugi.animelist.ui.theme.KitsugiColors
 import com.kitsugi.animelist.ui.theme.LocalKitsugiColors
 import androidx.compose.foundation.gestures.LocalBringIntoViewSpec
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.runtime.CompositionLocalProvider
 import com.kitsugi.animelist.ui.utils.KitsugiScrollDefaults
 import kotlinx.coroutines.launch
@@ -170,8 +171,9 @@ fun MyListScreen(
     var restoredTabs by remember { mutableStateOf(emptySet<Int>()) }
 
     var isFabVisible by rememberSaveable { mutableStateOf(true) }
-    // showHeader and showScrollToTop are driven by active tab scroll — updated in LaunchedEffect below
-    var showHeader by remember { mutableStateOf(true) }
+    // Üst başlığın görünürlüğü `headerState` ile (aşağıda, aktif sekmenin scroll
+    // alanına bağlı) tek yerden yönetilir; MyListHeaderSection yalnızca animasyonu
+    // çizer. Ekranda ikinci bir "showHeader" state'i tutmak çift kaynak yaratıyordu.
     var showScrollToTopState by remember { mutableStateOf(false) }
     var prevIndex by remember { mutableIntStateOf(0) }
     var prevOffset by remember { mutableIntStateOf(0) }
@@ -331,9 +333,19 @@ fun MyListScreen(
     }
     val activeTabScrollState = tabScrollStates[selectedTabIndex.coerceIn(0, MY_LIST_TAB_COUNT - 1)]
 
+    // ── Başlık (Listem + arama/filtre ikonları) kaydırmaya duyarlı ──────────────
+    // Eskiden yalnızca "listenin tepesine dönünce" geri geliyordu ve yükseklik tek
+    // karede 60.dp → 0.dp atladığı için bar pat diye kaybolup pat diye geri geliyordu.
+    // Artık uygulamanın ortak kaydırma-duyarlı başlık hareketini kullanıyor: aşağı
+    // kaydırınca yumuşakça çekiliyor, yukarı kaydırınca yumuşakça geri geliyor.
+    val headerState = com.kitsugi.animelist.ui.components.rememberScrollAwareHeaderState(
+        listState = activeTabScrollState
+    )
+
     Column(
         modifier = Modifier
             .fillMaxSize()
+            .nestedScroll(headerState.nestedScrollConnection)
             .background(KitsugiColors.background)
     ) {
         val hasActiveFilters = selectedStatusFilterId != "all" ||
@@ -377,7 +389,8 @@ fun MyListScreen(
                 activeTabScrollState = activeTabScrollState,
                 accentColor = accentColor,
                 horizontalPadding = horizontalPadding,
-                hasActiveFilters = hasActiveFilters
+                hasActiveFilters = hasActiveFilters,
+                headerCollapsed = headerState.isCollapsed
             )
         }
 
@@ -430,8 +443,6 @@ fun MyListScreen(
                 }
                 val scrollingDown = index > prevIndex || (index == prevIndex && offset > prevOffset + 15)
                 val scrollingUp   = index < prevIndex || (index == prevIndex && offset < prevOffset - 15)
-                // Header collapse
-                showHeader = (index == 0 && offset < 100)
                 // Reset scroll/show bottom bar at top
                 if (index == 0 && offset == 0) {
                     onScrollReset()

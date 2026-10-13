@@ -46,14 +46,38 @@ data class FandomWikiRef(
     val source: FandomMatchSource,
     val confidence: FandomConfidence,
     val siteName: String? = null,
-    val score: Double? = null
+    val score: Double? = null,
+    /** Direct P6262 article title when Wikidata links this item to its exact Fandom page. */
+    val pageTitle: String? = null
 )
 
 @Serializable
 data class FandomImage(
     val url: String,
-    val caption: String? = null
+    val caption: String? = null,
+    val fileTitle: String? = null,
+    val artist: String? = null,
+    val license: String? = null
 )
+
+/** Semantic roles inferred from infobox labels and article section headings. */
+@Serializable
+enum class FandomRelationType { CHARACTER, CAST, VOICE_ACTOR, STAFF, CREW, MUSIC, RELATED }
+
+/** A verified or discoverable page linked from another Fandom article. */
+@Serializable
+data class FandomWikiLink(
+    val wikiId: String,
+    val pageTitle: String,
+    val label: String,
+    val role: FandomRelationType = FandomRelationType.RELATED,
+    val language: String? = null,
+    val context: String? = null,
+    val description: String? = null,
+    val imageUrl: String? = null
+) {
+    val pageUrl: String get() = FandomUrls.pageUrl(wikiId, pageTitle)
+}
 
 @Serializable
 data class FandomInfoboxField(
@@ -62,7 +86,9 @@ data class FandomInfoboxField(
     /** Şablon parametresi (`status`, `age`…); spoiler ve yerel ad tespitinde kullanılır. */
     val source: String? = null,
     /** Spoiler içerebilir (ör. Durum/Status) → arayüzde dokunana kadar gizli. */
-    val spoiler: Boolean = false
+    val spoiler: Boolean = false,
+    /** Değerdeki gerçek Fandom madde bağlantıları (karakter, ekip, seslendiren vb.). */
+    val links: List<FandomWikiLink> = emptyList()
 )
 
 @Serializable
@@ -112,9 +138,11 @@ data class FandomTextBlock(
 /** Bir wiki bölümünün sadeleştirilmiş metni (ham HTML saklanmaz). */
 @Serializable
 data class FandomSectionContent(
-    val blocks: List<FandomTextBlock> = emptyList()
+    val blocks: List<FandomTextBlock> = emptyList(),
+    /** Linked cast/crew/character pages found in tables and lists in this section. */
+    val links: List<FandomWikiLink> = emptyList()
 ) {
-    fun isEmpty(): Boolean = blocks.isEmpty()
+    fun isEmpty(): Boolean = blocks.isEmpty() && links.isEmpty()
 
     /** Çeviri ve kopyalama için paragraf aralıklı düz metin. */
     fun plainText(): String = blocks.joinToString("\n\n") { block ->
@@ -198,7 +226,11 @@ data class FandomCharacterPage(
     val mediaKey: String? = null,
     /** Wiki'nin (sayfadan bağımsız olarak) nasıl bulunduğu ve güveni. */
     val wikiSource: FandomMatchSource? = null,
-    val wikiConfidence: FandomConfidence? = null
+    val wikiConfidence: FandomConfidence? = null,
+    /** Main-article gallery images in addition to infobox images. */
+    val galleryImages: List<FandomImage> = emptyList(),
+    /** Linked characters, cast, voice actors, staff and related articles. */
+    val relatedEntities: List<FandomWikiLink> = emptyList()
 ) {
     val pageUrl: String
         get() = FandomUrls.pageUrl(wikiId, pageTitle)

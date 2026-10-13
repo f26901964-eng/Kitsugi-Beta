@@ -43,6 +43,7 @@ class FandomUrlsTest {
     @Test
     fun `wiki id is extracted from community urls`() {
         assertEquals("obluda", FandomUrls.wikiIdFromUrl("https://obluda.fandom.com/"))
+        assertEquals("onepiece", FandomUrls.wikiIdFromUrl("https://onepiece.wikia.com/wiki/Monkey_D_Luffy"))
         assertEquals("tr.onepiece", FandomUrls.wikiIdFromUrl("https://onepiece.fandom.com/tr/"))
         assertEquals("solo-leveling", FandomUrls.wikiIdFromUrl("https://solo-leveling.fandom.com/wiki/Sung_Jinwoo"))
         assertEquals("zh-tw.example", FandomUrls.wikiIdFromUrl("https://example.fandom.com/zh-tw/wiki/X"))
@@ -77,6 +78,24 @@ class FandomUrlsTest {
             "https://onepiece.fandom.com/tr/wiki/Monkey_D._Luffy",
             FandomUrls.pageUrl("tr.onepiece", "Monkey D. Luffy")
         )
+    }
+
+    @Test
+    fun `article hrefs resolve wiki identity and reject non-article namespaces`() {
+        assertEquals(
+            "solo-leveling" to "Sung Jinwoo",
+            FandomUrls.parseArticleUrl("/wiki/Sung_Jinwoo", "solo-leveling")
+        )
+        assertEquals(
+            "tr.onepiece" to "Monkey D. Luffy",
+            FandomUrls.parseArticleUrl("https://onepiece.fandom.com/wiki/Monkey_D._Luffy", "tr.onepiece")
+        )
+        assertEquals(
+            "jujutsu-kaisen" to "Satoru Gojo",
+            FandomUrls.parseArticleUrl("https://jujutsu-kaisen.fandom.com/wiki/Satoru_Gojo?so=search", "other-wiki")
+        )
+        assertNull(FandomUrls.parseArticleUrl("/wiki/File:Gojo.png", "jujutsu-kaisen"))
+        assertNull(FandomUrls.parseArticleUrl("https://example.com/wiki/Gojo", "jujutsu-kaisen"))
     }
 
     @Test

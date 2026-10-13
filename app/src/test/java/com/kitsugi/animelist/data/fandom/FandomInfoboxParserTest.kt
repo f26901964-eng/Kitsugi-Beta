@@ -65,6 +65,22 @@ class FandomInfoboxParserTest {
     }
 
     @Test
+    fun `infobox values preserve linked cast and voice actor pages`() {
+        val json = """[{"data":[
+            {"type":"data","data":{"label":"Voice Actor (Japanese)","value":"<a href=\"/wiki/Aya_Hirano\">Aya Hirano</a>","source":"Japanese VA"}},
+            {"type":"data","data":{"label":"Character","value":"<a href=\"/wiki/Haruhi_Suzumiya\">Haruhi</a>","source":"Character"}}
+        ]}]"""
+
+        val fields = FandomInfoboxParser.parse(json, wikiId = "haruhi-suzumiya")!!.allFields()
+
+        assertEquals("Aya Hirano", fields[0].links.single().label)
+        assertEquals("ja", fields[0].links.single().language)
+        assertEquals(FandomRelationType.VOICE_ACTOR, fields[0].links.single().role)
+        assertEquals("Haruhi Suzumiya", fields[1].links.single().pageTitle)
+        assertEquals(FandomRelationType.CHARACTER, fields[1].links.single().role)
+    }
+
+    @Test
     fun `richest infobox wins and invalid input returns null`() {
         val two = """[{"data":[{"type":"title","data":{"value":"Small"}}]},""" +
             """{"data":[{"type":"title","data":{"value":"Rich"}},{"type":"data","data":{"label":"Age","value":"17"}}]}]"""

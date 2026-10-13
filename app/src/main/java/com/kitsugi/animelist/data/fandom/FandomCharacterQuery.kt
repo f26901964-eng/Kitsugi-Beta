@@ -40,11 +40,10 @@ object FandomCharacterQueries {
     private const val MAX_APPEARANCES = 6
 
     /**
-     * @return TMDB (gerçek kişi rolleri) için ve doğrulanabilir hiçbir kimlik/ad yoksa null.
+     * @return doğrulanabilir hiçbir kimlik/ad/appearance yoksa null.
      */
     fun from(detail: KitsugiCharacterDetail, source: String, characterId: Int): FandomCharacterQuery? {
         val canonical = source.trim().lowercase()
-        if (canonical == "tmdb") return null
         val isMal = FandomMediaIds.isMalSource(canonical)
 
         // CharacterDetailViewModel ile aynı kurallar: Shikimori karakter kimliği MAL'i aynalar;
@@ -67,24 +66,20 @@ object FandomCharacterQueries {
 
         val appearances = detail.mediaAppearances.mapNotNull { appearance ->
             val ids = FandomMediaIds.fromStableId(appearance.source, appearance.mediaId)
-            if (ids.isEmpty) return@mapNotNull null
+            val titles = mediaTitles(appearance.titleEnglish, appearance.titleRomaji, appearance.title)
+            if (ids.isEmpty && titles.isEmpty()) return@mapNotNull null
             FandomAppearanceRef(
                 ids = ids,
                 isManga = FandomMediaIds.isMangaType(appearance.mediaType),
                 isMovie = FandomMediaIds.isMovieType(appearance.mediaType),
                 isMainRole = FandomMediaIds.isMainRole(appearance.characterRole),
-                titles = listOfNotNull(appearance.titleEnglish, appearance.titleRomaji, appearance.title)
-                    .map { it.trim() }
-                    .filter {
-                        it.isNotEmpty() && FandomNameVariants.isMostlyLatin(it) &&
-                            !it.equals("Bilinmeyen", ignoreCase = true) && !it.equals("Unknown", ignoreCase = true)
-                    }
-                    .distinct()
+                titles = titles
             )
         }.take(MAX_APPEARANCES)
 
         val hasCharacterId = aniListCharacterId != null || malCharacterId != null
-        if (!hasCharacterId && (names.isEmpty() || appearances.isEmpty())) return null
+        val hasCharacterName = names.isNotEmpty() || !detail.nativeName.isNullOrBlank()
+        if (!hasCharacterId && (!hasCharacterName || appearances.isEmpty())) return null
 
         return FandomCharacterQuery(
             source = canonical,
@@ -107,17 +102,16 @@ object FandomCharacterQueries {
      * olmadığı için kimlik yolu yoktur; kişi, çalıştığı yapımların wiki'sinde adıyla aranır ve
      * bilgi kutusundaki Japonca/Korece adla doğrulanır (karakterlerle aynı kural).
      *
-     * @return TMDB (gerçek kişi, Fandom'da nadiren sayfa) için ve ad/yapım yoksa null.
+     * @return doğrulanabilir bir kişi adı veya çalıştığı yapım yoksa null.
      */
     fun fromStaff(detail: KitsugiStaffDetail, source: String, staffId: Int): FandomCharacterQuery? {
         val canonical = source.trim().lowercase()
-        if (canonical == "tmdb") return null
 
         val names = listOfNotNull(detail.englishName, detail.romanizedName, detail.name)
             .map { it.replace(Regex("\\s+"), " ").trim() }
             .filter { it.isNotEmpty() && FandomNameVariants.isMostlyLatin(it) }
             .distinct()
-        if (names.isEmpty()) return null
+        if (names.isEmpty() && detail.nativeName.isNullOrBlank()) return null
 
         // Seslendirdiği ana karakterlerin yapımları önce (wiki'de kişi sayfası olma olasılığı en yüksek),
         // sonra diğer roller ve ekip çalışmaları. Aynı yapım bir kez alınır.
@@ -127,31 +121,35 @@ object FandomCharacterQueries {
                 .sortedByDescending { FandomMediaIds.isMainRole(it.characterRole) }
             for (role in roleMedia) {
                 val ids = FandomMediaIds.fromStableId(role.mediaSource, role.mediaId)
-                if (ids.isEmpty) continue
-                val key = ids.stableKey(FandomMediaIds.isMangaType(role.mediaType), FandomMediaIds.isMovieType(role.mediaType)) ?: continue
+                val isManga = FandomMediaIds.isMangaType(role.mediaType)
+                val isMovie = FandomMediaIds.isMovieType(role.mediaType)
+                val titles = staffTitles(role.mediaTitleEnglish, role.mediaTitleRomaji, role.mediaTitle)
+                val key = FandomMediaQuery(ids, isManga, isMovie, titles).cacheKey() ?: continue
                 if (!seen.add(key)) continue
                 add(
                     FandomAppearanceRef(
                         ids = ids,
-                        isManga = FandomMediaIds.isMangaType(role.mediaType),
-                        isMovie = FandomMediaIds.isMovieType(role.mediaType),
+                        isManga = isManga,
+                        isMovie = isMovie,
                         isMainRole = FandomMediaIds.isMainRole(role.characterRole),
-                        titles = staffTitles(role.mediaTitleEnglish, role.mediaTitleRomaji, role.mediaTitle)
+                        titles = titles
                     )
                 )
             }
             for (work in detail.mediaWorks) {
                 val ids = FandomMediaIds.fromStableId(work.source, work.mediaId)
-                if (ids.isEmpty) continue
-                val key = ids.stableKey(FandomMediaIds.isMangaType(work.mediaType), FandomMediaIds.isMovieType(work.mediaType)) ?: continue
+                val isManga = FandomMediaIds.isMangaType(work.mediaType)
+                val isMovie = FandomMediaIds.isMovieType(work.mediaType)
+                val titles = staffTitles(work.titleEnglish, work.titleRomaji, work.mediaTitle)
+                val key = FandomMediaQuery(ids, isManga, isMovie, titles).cacheKey() ?: continue
                 if (!seen.add(key)) continue
                 add(
                     FandomAppearanceRef(
                         ids = ids,
-                        isManga = FandomMediaIds.isMangaType(work.mediaType),
-                        isMovie = FandomMediaIds.isMovieType(work.mediaType),
+                        isManga = isManga,
+                        isMovie = isMovie,
                         isMainRole = false,
-                        titles = staffTitles(work.titleEnglish, work.titleRomaji, work.mediaTitle)
+                        titles = titles
                     )
                 )
             }
@@ -174,12 +172,16 @@ object FandomCharacterQueries {
         )
     }
 
-    private fun staffTitles(vararg titles: String?): List<String> =
-        titles.filterNotNull()
-            .map { it.trim() }
-            .filter {
-                it.isNotEmpty() && FandomNameVariants.isMostlyLatin(it) &&
-                    !it.equals("Bilinmeyen", ignoreCase = true) && !it.equals("Unknown", ignoreCase = true)
-            }
-            .distinct()
+    private fun staffTitles(vararg titles: String?): List<String> = mediaTitles(*titles)
+
+    private fun mediaTitles(vararg titles: String?): List<String> = titles.filterNotNull()
+        .map { it.replace(Regex("\\s+"), " ").trim() }
+        .filter {
+            it.isNotEmpty() && it.length <= 200 &&
+                !it.equals("Bilinmeyen", ignoreCase = true) &&
+                !it.equals("Unknown", ignoreCase = true) &&
+                !it.equals("N/A", ignoreCase = true)
+        }
+        .distinctBy(FandomNameVariants::normalizeForCompare)
+        .take(8)
 }

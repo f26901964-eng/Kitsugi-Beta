@@ -124,7 +124,7 @@ class FandomMediaQueriesTest {
     }
 
     @Test
-    fun `non-latin titles are dropped`() {
+    fun `non-latin titles are preserved alongside romanized fallbacks`() {
         val query = FandomMediaQueries.fromMedia(
             source = "mal",
             mediaId = 1,
@@ -132,7 +132,73 @@ class FandomMediaQueriesTest {
             isMovie = false,
             titles = listOf("君の名は。", "Kimi no Na wa.")
         )
-        assertEquals(listOf("Kimi no Na wa."), query?.fallbackTitles)
+        assertEquals(listOf("君の名は。", "Kimi no Na wa."), query?.fallbackTitles)
+    }
+
+    @Test
+    fun `TV title cache keys keep type and release year`() {
+        val query = FandomMediaQueries.fromMedia(
+            source = "extension",
+            mediaId = null,
+            isManga = false,
+            isMovie = false,
+            isTvShow = true,
+            releaseYear = 2024,
+            titles = listOf("孤独のグルメ")
+        )
+        assertEquals("title:tv:孤独のグルメ:2024", query?.cacheKey())
+        assertEquals(2024, query?.releaseYear)
+    }
+
+    @Test
+    fun `resolution cache key changes when richer detail data arrives`() {
+        val initial = FandomMediaQueries.fromMedia(
+            source = "mal",
+            mediaId = 123,
+            isManga = false,
+            isMovie = false,
+            titles = listOf("Example")
+        )!!
+        val enriched = FandomMediaQueries.fromMedia(
+            source = "mal",
+            mediaId = 123,
+            isManga = false,
+            isMovie = false,
+            imdbId = "tt1234567",
+            wikidataId = "Q123",
+            titles = listOf("Example", "例")
+        )!!
+
+        assertEquals(initial.cacheKey(), enriched.cacheKey())
+        assertTrue(initial.resolutionKey() != enriched.resolutionKey())
+    }
+
+    @Test
+    fun `IMDb and Wikidata IDs are validated and kept for lookup`() {
+        val query = FandomMediaQueries.fromMedia(
+            source = "tmdb",
+            mediaId = 1396,
+            isManga = false,
+            isMovie = false,
+            imdbId = "TT0903747",
+            wikidataId = "q8337",
+            titles = listOf("Breaking Bad")
+        )
+        assertEquals("tt0903747", query?.ids?.imdbId)
+        assertEquals("Q8337", query?.ids?.wikidataId)
+        assertTrue(FandomMediaIds.wikidataLookups(query!!.ids, false, false).contains("P345" to "tt0903747"))
+
+        val invalid = FandomMediaQueries.fromMedia(
+            source = null,
+            mediaId = null,
+            isManga = false,
+            isMovie = false,
+            imdbId = "not-an-imdb-id",
+            wikidataId = "nope",
+            titles = listOf("Example")
+        )
+        assertNull(invalid?.ids?.imdbId)
+        assertNull(invalid?.ids?.wikidataId)
     }
 }
 

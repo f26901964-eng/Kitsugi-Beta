@@ -50,6 +50,10 @@ class StudioDetailViewModel(application: Application) : AndroidViewModel(applica
     private val _translatedAbout = MutableStateFlow<String?>(null)
     val translatedAbout: StateFlow<String?> = _translatedAbout.asStateFlow()
 
+    /** "Hakkında" metninde orijinal gösteriliyor mu (çeviri varken "Orijinal" / "Çeviri" geçişi). */
+    private val _showAboutOriginal = MutableStateFlow(false)
+    val showAboutOriginal: StateFlow<Boolean> = _showAboutOriginal.asStateFlow()
+
     /**
      * "Hakkında" çevirisi (otomatik ya da elle) sürerken `true`.
      *
@@ -182,6 +186,13 @@ class StudioDetailViewModel(application: Application) : AndroidViewModel(applica
         aboutTranslateJob?.cancel()
         aboutTranslateJob = null
         _translationLoading.value = false
+        // Yeni stüdyo / otomatik çeviri kapandı: eski orijinal-geçiş durumu geçerli değil.
+        _showAboutOriginal.value = false
+    }
+
+    /** Orijinal / çeviri geçişi ("Hakkında"). Çeviri bellekte kalır, yeniden çevrilmez. */
+    fun toggleAboutOriginal() {
+        _showAboutOriginal.value = !_showAboutOriginal.value
     }
 
     /**

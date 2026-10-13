@@ -62,6 +62,7 @@ import com.kitsugi.animelist.model.MediaType
 import com.kitsugi.animelist.ui.theme.LocalKitsugiAccent
 import com.kitsugi.animelist.ui.theme.KitsugiColors
 import com.kitsugi.animelist.ui.components.KitsugiMarkdownText
+import com.kitsugi.animelist.ui.components.KitsugiOriginalToggleButton
 import com.kitsugi.animelist.ui.components.KitsugiTranslateIconButton
 import com.kitsugi.animelist.utils.PreferenceHelpers.getDisplayTitle
 import com.kitsugi.animelist.utils.PreferenceHelpers.getDisplayScore
@@ -355,7 +356,12 @@ internal fun ApiSynopsisCard(
     isLoading: Boolean,
     onTranslateClick: (() -> Unit)? = null,
     onCopyClick: (() -> Unit)? = null,
-    onImageGalleryRequest: ((urls: List<String>, index: Int) -> Unit)? = null
+    onImageGalleryRequest: ((urls: List<String>, index: Int) -> Unit)? = null,
+    /** Uygulama içi çeviri var mı (orijinal/çeviri geçiş düğmesi için). */
+    hasTranslation: Boolean = false,
+    /** Şu an orijinal metin gösteriliyor mu (yalnızca düğme etiketi; metni çağıran taraf seçer). */
+    showingOriginal: Boolean = false,
+    onToggleOriginal: (() -> Unit)? = null
 ) {
     val context = LocalContext.current
     Column(
@@ -377,6 +383,15 @@ internal fun ApiSynopsisCard(
                 fontWeight = FontWeight.Bold,
                 modifier = Modifier.weight(1f)
             )
+
+            // Orijinal / çeviri geçişi (çeviri varken)
+            if (hasTranslation && onToggleOriginal != null) {
+                KitsugiOriginalToggleButton(
+                    showingOriginal = showingOriginal,
+                    onClick = onToggleOriginal,
+                    tint = LocalKitsugiAccent.current
+                )
+            }
 
             // Translate button — otomatik çeviri sürerken galeri butonuyla aynı yüklenme animasyonu
             if (onTranslateClick != null && !synopsis.isNullOrBlank()) {

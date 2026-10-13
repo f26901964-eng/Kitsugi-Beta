@@ -38,6 +38,7 @@ class FandomApiParsersTest {
               "pages":[
                 {"pageid":2065,"ns":0,"title":"Kenzō Tenma",
                  "pageprops":{"fandomdescription":"Dr. Kenzō Tenma is a Japanese neurosurgeon.","infoboxes":"[]"},
+                 "thumbnail":{"source":"//static.wikia.nocookie.net/monster/images/tenma.png"},
                  "langlinks":[{"lang":"tr","url":"https://monster.fandom.com/tr/wiki/Kenzo_Tenma","title":"Kenzo Tenma"}]},
                 {"pageid":2087,"ns":0,"title":"Heinrich Runge","pageprops":{"disambiguation":""}},
                 {"ns":0,"title":"Nina Fortner","missing":true}
@@ -51,11 +52,28 @@ class FandomApiParsersTest {
         assertEquals("Kenzō Tenma", tenma.resolvedTitle)
         assertEquals(2065L, tenma.pageId)
         assertEquals("Dr. Kenzō Tenma is a Japanese neurosurgeon.", tenma.description)
+        assertEquals("https://static.wikia.nocookie.net/monster/images/tenma.png", tenma.thumbnailUrl)
         assertEquals("tr.monster" to "Kenzo Tenma", tenma.turkishLink)
         assertTrue(result.getValue("Heinrich Lunge").isDisambiguation)
         assertFalse(result.getValue("Nina Fortner").exists)
         assertFalse(result.getValue("Unrequested").exists)
         assertTrue(FandomApiParsers.parseTitleLookups(listOf("a"), "oops").isEmpty())
+    }
+
+    @Test
+    fun `plaintext extract is used when fandom description is absent`() {
+        val json = """
+            {"query":{"pages":[
+              {"pageid":1,"ns":0,"title":"The Bear","extract":"Carmen Berzatto returns to Chicago to run the family sandwich shop."},
+              {"pageid":2,"ns":0,"title":"Sydney Adamu","pageprops":{"fandomdescription":"A talented young chef."},"extract":"A longer extract."}
+            ]}}
+        """.trimIndent()
+        val results = FandomApiParsers.parseTitleLookups(listOf("The Bear", "Sydney Adamu"), json)
+        assertEquals(
+            "Carmen Berzatto returns to Chicago to run the family sandwich shop.",
+            results.getValue("The Bear").description
+        )
+        assertEquals("A talented young chef.", results.getValue("Sydney Adamu").description)
     }
 
     @Test
@@ -76,6 +94,35 @@ class FandomApiParsersTest {
         assertEquals(listOf(2, 2, 3), sections.map { it.level })
         assertEquals(listOf(false, true, false), sections.map { it.spoiler })
         assertNull(FandomApiParsers.parseSections("""{"error":{"code":"missingtitle"}}"""))
+    }
+
+    @Test
+    fun `page image batches and imageinfo preserve urls captions and attribution`() {
+        val pageJson = """
+            {"continue":{"imcontinue":"4|next-file.jpg","continue":"||"},"query":{"pages":[
+              {"pageid":9,"ns":0,"title":"Spy x Family","thumbnail":{"source":"//static.wikia.nocookie.net/spy/images/cover.jpg"},
+               "images":[{"ns":6,"title":"File:Poster.jpg"},{"ns":6,"title":"File:Anya.png"}]}
+            ]}}
+        """.trimIndent()
+        val batch = FandomApiParsers.parsePageImageBatch(pageJson, "Spy x Family")
+        assertEquals("https://static.wikia.nocookie.net/spy/images/cover.jpg", batch.leadImage?.url)
+        assertEquals(listOf("File:Poster.jpg", "File:Anya.png"), batch.fileTitles)
+        assertEquals("4|next-file.jpg", batch.continueToken)
+        assertEquals("||", batch.generalContinueToken)
+
+        val imageInfoJson = """
+            {"query":{"pages":[{"ns":6,"title":"File:Poster.jpg","imageinfo":[{
+              "url":"https://static.wikia.nocookie.net/spy/images/poster.jpg",
+              "thumburl":"https://static.wikia.nocookie.net/spy/images/poster.jpg/revision/latest/scale-to-width-down/1200",
+              "extmetadata":{"ImageDescription":{"value":"<b>Key art</b>"},"Artist":{"value":"Studio"},"LicenseShortName":{"value":"CC BY-SA"}}
+            }]}]}}
+        """.trimIndent()
+        val image = FandomApiParsers.parseImageInfo(imageInfoJson).single()
+        assertEquals("File:Poster.jpg", image.fileTitle)
+        assertTrue(image.url.contains("scale-to-width-down/1200"))
+        assertEquals("Key art", image.caption)
+        assertEquals("Studio", image.artist)
+        assertEquals("CC BY-SA", image.license)
     }
 
     @Test

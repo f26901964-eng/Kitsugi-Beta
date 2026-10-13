@@ -26,8 +26,10 @@ import androidx.compose.material.icons.rounded.Fullscreen
 import androidx.compose.material.icons.rounded.KeyboardArrowDown
 import androidx.compose.material.icons.rounded.KeyboardArrowUp
 import androidx.compose.material.icons.rounded.PlayArrow
+import androidx.compose.material.icons.rounded.Share
 import com.kitsugi.animelist.ui.theme.gradient.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.IconButton
 import com.kitsugi.animelist.ui.theme.gradient.CircularProgressIndicator
 import com.kitsugi.animelist.ui.theme.gradient.Icon
 import androidx.compose.material3.MaterialTheme
@@ -238,6 +240,8 @@ fun ThemePlayerContainer(
         var currentPosition by remember { mutableStateOf(0L) }
         var duration by remember { mutableStateOf(0L) }
         val engineTypeForPlayer = activeEngineType
+        // Uygulama alt sekmeye / arka plana alındığında oynatıcıyı durdurur.
+        val resumedState = rememberInlinePlayerResumed()
 
         DisposableEffect(playerEngine) {
             var released = false
@@ -280,6 +284,14 @@ fun ThemePlayerContainer(
             }
         }
 
+        // Arka plana geçildiğinde dur; geri dönünce kendiliğinden başlatma.
+        LaunchedEffect(resumedState.value, playerEngine) {
+            if (!resumedState.value) {
+                runCatching { playerEngine.pause() }
+                isPlayingState = false
+            }
+        }
+
         LaunchedEffect(url, retryTrigger, activeEngineType) {
             isPlayerError = false
             isPlayerLoading = true
@@ -288,7 +300,8 @@ fun ThemePlayerContainer(
                     videoUrl = url,
                     startPositionMs = currentPosition
                 )
-                playerEngine.play()
+                // Hazırlık sürerken uygulama arka plana gittiyse oynatmaya başlama.
+                if (resumedState.value) playerEngine.play() else runCatching { playerEngine.pause() }
             } catch (e: CancellationException) {
                 // Closing or replacing this row cancels prepare; do not trigger MPV fallback.
                 throw e
@@ -400,13 +413,32 @@ private data class DetailVideoItem(
 )
 
 /**
+ * Video bağlantısını paylaşır. Oynatılabilir bağlantı yoksa (YouTube araması gerekiyorsa)
+ * arama bağlantısı paylaşılır; alıcı her zaman açılabilir bir adres görür.
+ */
+private fun shareDetailVideo(context: android.content.Context, mediaTitle: String, item: DetailVideoItem) {
+    val url = item.videoUrl?.takeIf { it.isNotBlank() }
+        ?: "https://www.youtube.com/results?search_query=${java.net.URLEncoder.encode(item.title, "UTF-8")}"
+    val title = if (mediaTitle.isBlank()) item.title else "$mediaTitle · ${item.title}"
+    com.kitsugi.animelist.utils.ShareUtils.shareText(context, title, url)
+}
+
+/**
  * Dedicated Videos tab shared by API-backed and list-backed media detail pages.
  * Exactly one selected item owns the inline player; changing or closing a row removes
  * the previous player immediately instead of keeping it alive for an exit animation.
  */
 @Composable
-fun KitsugiMediaVideosTab(detail: com.kitsugi.animelist.data.remote.KitsugiMediaDetail?) {
+fun KitsugiMediaVideosTab(
+    detail: com.kitsugi.animelist.data.remote.KitsugiMediaDetail?,
+    /** Paylaşımda video başlığının önüne eklenen yapım adı (boşsa yalnızca video adı). */
+    mediaTitle: String = ""
+) {
     val trailerUrl = detail?.trailerUrl?.takeIf { it.isNotBlank() }
+    val shareContext = LocalContext.current
+    val onShareVideo: (DetailVideoItem) -> Unit = { item ->
+        shareDetailVideo(shareContext, mediaTitle, item)
+    }
     val openingItems = remember(detail?.openings) {
         detail?.openings.orEmpty().mapIndexed { index, theme ->
             DetailVideoItem("opening-$index", theme.label, theme.videoUrl)
@@ -460,7 +492,8 @@ fun KitsugiMediaVideosTab(detail: com.kitsugi.animelist.data.remote.KitsugiMedia
                     onSearch = { item ->
                         val query = java.net.URLEncoder.encode(item.title, "UTF-8")
                         runCatching { uriHandler.openUri("https://www.youtube.com/results?search_query=$query") }
-                    }
+                    },
+                    onShare = onShareVideo
                 )
             }
 
@@ -479,7 +512,8 @@ fun KitsugiMediaVideosTab(detail: com.kitsugi.animelist.data.remote.KitsugiMedia
                     },
                     onCollapseHiddenItems = { hiddenKeys ->
                         if (activeVideoKey?.let { it in hiddenKeys } == true) activeVideoKey = null
-                    }
+                    },
+                    onShare = onShareVideo
                 )
             }
 
@@ -498,7 +532,8 @@ fun KitsugiMediaVideosTab(detail: com.kitsugi.animelist.data.remote.KitsugiMedia
                     },
                     onCollapseHiddenItems = { hiddenKeys ->
                         if (activeVideoKey?.let { it in hiddenKeys } == true) activeVideoKey = null
-                    }
+                    },
+                    onShare = onShareVideo
                 )
             }
         }
@@ -513,7 +548,8 @@ private fun DetailVideoGroup(
     accentColor: Color,
     onVideoSelected: (String) -> Unit,
     onSearch: (DetailVideoItem) -> Unit,
-    onCollapseHiddenItems: (Set<String>) -> Unit = {}
+    onCollapseHiddenItems: (Set<String>) -> Unit = {},
+    onShare: (DetailVideoItem) -> Unit = {}
 ) {
     val initialCount = 3
     var expanded by remember(items) { mutableStateOf(false) }
@@ -590,40 +626,58 @@ private fun DetailVideoGroup(
                                     .fillMaxWidth()
                                     .clip(RoundedCornerShape(10.dp))
                                     .background(if (isSelected) accentColor.copy(alpha = 0.15f) else KitsugiColors.SurfaceSoft)
-                                    .tvClickable(shape = RoundedCornerShape(10.dp)) {
-                                        if (item.videoUrl.isNullOrBlank()) onSearch(item)
-                                        else onVideoSelected(item.key)
-                                    }
-                                    .padding(horizontal = 12.dp, vertical = 10.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(10.dp)
+                                    .padding(end = 2.dp),
+                                verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Box(
+                                // Oynat / kapat alanı: satırın asıl dokunma bölgesi.
+                                Row(
                                     modifier = Modifier
-                                        .size(32.dp)
-                                        .clip(CircleShape)
-                                        .background(if (isSelected) accentColor else accentColor.copy(alpha = 0.15f)),
-                                    contentAlignment = Alignment.Center
+                                        .weight(1f)
+                                        .clip(RoundedCornerShape(10.dp))
+                                        .tvClickable(shape = RoundedCornerShape(10.dp)) {
+                                            if (item.videoUrl.isNullOrBlank()) onSearch(item)
+                                            else onVideoSelected(item.key)
+                                        }
+                                        .padding(horizontal = 12.dp, vertical = 10.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(10.dp)
                                 ) {
-                                    Icon(
-                                        imageVector = if (isSelected) Icons.Rounded.KeyboardArrowUp else Icons.Rounded.PlayArrow,
-                                        contentDescription = null,
-                                        tint = if (isSelected) KitsugiColors.Background else accentColor,
-                                        modifier = Modifier.size(18.dp)
-                                    )
+                                    Box(
+                                        modifier = Modifier
+                                            .size(32.dp)
+                                            .clip(CircleShape)
+                                            .background(if (isSelected) accentColor else accentColor.copy(alpha = 0.15f)),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Icon(
+                                            imageVector = if (isSelected) Icons.Rounded.KeyboardArrowUp else Icons.Rounded.PlayArrow,
+                                            contentDescription = null,
+                                            tint = if (isSelected) KitsugiColors.Background else accentColor,
+                                            modifier = Modifier.size(18.dp)
+                                        )
+                                    }
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text(
+                                            text = item.title,
+                                            color = if (isSelected) accentColor else KitsugiColors.TextPrimary,
+                                            style = MaterialTheme.typography.bodySmall,
+                                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
+                                        )
+                                        Text(
+                                            text = if (item.videoUrl.isNullOrBlank()) stringResource(R.string.ui_open_youtube_search)
+                                            else stringResource(R.string.ui_play_in_app),
+                                            color = KitsugiColors.TextMuted,
+                                            style = MaterialTheme.typography.labelSmall
+                                        )
+                                    }
                                 }
-                                Column(modifier = Modifier.weight(1f)) {
-                                    Text(
-                                        text = item.title,
-                                        color = if (isSelected) accentColor else KitsugiColors.TextPrimary,
-                                        style = MaterialTheme.typography.bodySmall,
-                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
-                                    )
-                                    Text(
-                                        text = if (item.videoUrl.isNullOrBlank()) stringResource(R.string.ui_open_youtube_search)
-                                        else stringResource(R.string.ui_play_in_app),
-                                        color = KitsugiColors.TextMuted,
-                                        style = MaterialTheme.typography.labelSmall
+                                // Video bağlantısını paylaş (resim ve detay sayfası paylaşımıyla aynı akış).
+                                IconButton(onClick = { onShare(item) }) {
+                                    Icon(
+                                        imageVector = Icons.Rounded.Share,
+                                        contentDescription = stringResource(R.string.action_share),
+                                        tint = KitsugiColors.TextSecondary,
+                                        modifier = Modifier.size(20.dp)
                                     )
                                 }
                             }

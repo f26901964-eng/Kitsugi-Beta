@@ -94,22 +94,37 @@ class FandomNameMatcherTest {
     }
 
     @Test
-    fun `prefilter vetoes blocked tiny foreign and fan wikis`() {
+    fun `native-title verification keeps candidates beyond the fingerprint top three`() {
+        val hits = (1..5).map { index ->
+            FandomCommunityHit(
+                wikiId = "native-proof-$index",
+                name = "Unrelated English Wiki $index",
+                language = "en",
+                hub = "anime",
+                pageCount = 100
+            )
+        }
+
+        val candidates = FandomNameMatcher.nativeTitleVerificationCandidates(hits, limit = 8)
+
+        assertEquals(5, candidates.size)
+        assertTrue(candidates.any { it.wikiId == "native-proof-5" })
+    }
+
+    @Test
+    fun `prefilter blocks fan content but allows localized communities`() {
         assertEquals("blocked", FandomNameMatcher.preFilterVeto(FandomCommunityHit("villains", "Villains Wiki")))
         assertEquals(
             "tiny",
             FandomNameMatcher.preFilterVeto(FandomCommunityHit("solo-leveling-simulator", "Solo Leveling Simulator Wiki", "en", "games", 10))
         )
         assertEquals(
-            "language",
-            FandomNameMatcher.preFilterVeto(FandomCommunityHit("re-monster-ita", "Re:Monster Ita Wikia", "it", "books", 100))
-        )
-        assertEquals("language", FandomNameMatcher.preFilterVeto(FandomCommunityHit("es.onepiece", "One Piece Wiki")))
-        assertEquals(
             "fan-content",
             FandomNameMatcher.preFilterVeto(FandomCommunityHit("anime-battle", "Anime Battle Simulator Wiki", "en", "games", 500))
         )
         assertNull(FandomNameMatcher.preFilterVeto(FandomCommunityHit("tr.onepiece", "One Piece Vikisi", "tr", "anime", 300)))
+        assertNull(FandomNameMatcher.preFilterVeto(FandomCommunityHit("es.onepiece", "One Piece Wiki", "es", "anime", 300)))
+        assertNull(FandomNameMatcher.preFilterVeto(FandomCommunityHit("re-monster-ita", "Re:Monster Ita Wikia", "it", "books", 100)))
     }
 
     @Test

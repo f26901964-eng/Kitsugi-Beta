@@ -31,7 +31,9 @@ internal fun CharacterWikiTabSlot(
     onReportWrong: () -> Unit,
     onRetry: () -> Unit,
     unavailableMessageRes: Int = R.string.fandom_unavailable_character,
-    preferredTranslator: String = "DEFAULT"
+    preferredTranslator: String = "DEFAULT",
+    originalKeys: Set<String> = emptySet(),
+    onToggleOriginal: (String) -> Unit = {}
 ) {
     when (wikiState) {
         is FandomCharacterWikiViewModel.UiState.Ready -> CharacterWikiTabContent(
@@ -45,7 +47,9 @@ internal fun CharacterWikiTabSlot(
             onOpenGallery = onOpenGallery,
             onConfirm = onConfirm,
             onReportWrong = onReportWrong,
-            preferredTranslator = preferredTranslator
+            preferredTranslator = preferredTranslator,
+            originalKeys = originalKeys,
+            onToggleOriginal = onToggleOriginal
         )
         FandomCharacterWikiViewModel.UiState.Unavailable -> WikiUnavailableCard(
             accentColor = accentColor,
@@ -75,6 +79,7 @@ internal fun CharacterWikiTabSlot(
     val translating by viewModel.translating.collectAsState()
     val prefs by viewModel.prefs.collectAsState()
     val preferredTranslator by viewModel.preferredTranslator.collectAsState()
+    val originalKeys by viewModel.originalKeys.collectAsState()
     androidx.compose.foundation.layout.Box(modifier = modifier) {
         CharacterWikiTabSlot(
             wikiState = wikiState,
@@ -95,7 +100,9 @@ internal fun CharacterWikiTabSlot(
             },
             onRetry = viewModel::retry,
             unavailableMessageRes = unavailableMessageRes,
-            preferredTranslator = preferredTranslator
+            preferredTranslator = preferredTranslator,
+            originalKeys = originalKeys,
+            onToggleOriginal = viewModel::toggleOriginal
         )
     }
 }

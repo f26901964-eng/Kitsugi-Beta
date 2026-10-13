@@ -106,7 +106,10 @@ internal fun EntryDetailOverviewTab(
     galleryItems: List<GalleryItem> = emptyList(),
     galleryLoading: Boolean = false,
     onGalleryItemRequest: ((items: List<GalleryItem>, index: Int) -> Unit)? = null,
-    onTranslateClick: (() -> Unit)? = null
+    onTranslateClick: (() -> Unit)? = null,
+    synopsisHasTranslation: Boolean = false,
+    showSynopsisOriginal: Boolean = false,
+    onToggleSynopsisOriginal: (() -> Unit)? = null
 ) {
     val context = LocalContext.current
 
@@ -126,7 +129,10 @@ internal fun EntryDetailOverviewTab(
                 clipboard.setPrimaryClip(android.content.ClipData.newPlainText("synopsis", textToCopy))
                 android.widget.Toast.makeText(context, context.getString(R.string.toast_copied_clipboard), android.widget.Toast.LENGTH_SHORT).show()
             },
-            onImageGalleryRequest = onImageGalleryRequest
+            onImageGalleryRequest = onImageGalleryRequest,
+            hasTranslation = synopsisHasTranslation,
+            showingOriginal = showSynopsisOriginal,
+            onToggleOriginal = onToggleSynopsisOriginal
         )
 
 

@@ -93,6 +93,10 @@ class MediaEntryDetailViewModel(application: Application) : AndroidViewModel(app
     private val _translationLoading = MutableStateFlow(false)
     val translationLoading: StateFlow<Boolean> = _translationLoading.asStateFlow()
 
+    /** Açıklamada orijinal metin gösteriliyor mu (çeviri varken "Orijinal" / "Çeviri" geçişi). */
+    private val _showSynopsisOriginal = MutableStateFlow(false)
+    val showSynopsisOriginal: StateFlow<Boolean> = _showSynopsisOriginal.asStateFlow()
+
     private val _originalSynopsis = MutableStateFlow<String?>(null)
     val originalSynopsis: StateFlow<String?> = _originalSynopsis.asStateFlow()
 
@@ -261,6 +265,13 @@ class MediaEntryDetailViewModel(application: Application) : AndroidViewModel(app
         synopsisTranslateJob?.cancel()
         synopsisTranslateJob = null
         _translationLoading.value = false
+            // Yeni kayıt / otomatik çeviri kapandı: eski orijinal-geçiş durumu geçerli değil.
+        _showSynopsisOriginal.value = false
+    }
+
+    /** Orijinal / çeviri geçişi (açıklama). Çeviri bellekte kalır, yeniden çevrilmez. */
+    fun toggleSynopsisOriginal() {
+        _showSynopsisOriginal.value = !_showSynopsisOriginal.value
     }
 
     /**

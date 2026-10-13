@@ -209,6 +209,13 @@ fun MediaEntryDetailPage(
     val synopsisState by viewModel.synopsisState.collectAsState()
     val translatedSynopsis by viewModel.translatedSynopsis.collectAsState()
     val originalSynopsis by viewModel.originalSynopsis.collectAsState()
+    val showSynopsisOriginal by viewModel.showSynopsisOriginal.collectAsState()
+    // Orijinal / çeviri geçişi: orijinal gösterilirken özet ham metniyle verilir.
+    val synopsisHasTranslation = translatedSynopsis != null && translatedSynopsis != originalSynopsis
+    val displayedSynopsisState = run {
+        val raw = originalSynopsis
+        if (showSynopsisOriginal && !raw.isNullOrBlank()) SynopsisState.Success(raw) else synopsisState
+    }
     val logoUrl by viewModel.logoUrl.collectAsState()
     val episodeRatings by viewModel.episodeRatings.collectAsState()
     val resolvedTmdbId by viewModel.resolvedTmdbId.collectAsState()
@@ -252,21 +259,38 @@ fun MediaEntryDetailPage(
     }
 
     // Wiki sorgusu: kimlikler netleştikçe (gerçek MAL/TMDB) sorgu yeniden kurulur.
-    val wikiQuery = remember(displayEntry, detailState, resolvedTmdbId) {
+    val wikiQuery = remember(displayEntry, detailState, resolvedTmdbId, mdbListRatings) {
+        val imdbId = mdbListRatings?.imdbId
+            ?: detailState?.externalLinks?.firstOrNull { it.site.contains("IMDb", ignoreCase = true) || it.url.contains("imdb.com", ignoreCase = true) }
+                ?.url?.let { Regex("(?i)tt[0-9]{5,12}").find(it)?.value }
+        val wikidataId = detailState?.externalLinks
+            ?.firstOrNull { it.site.contains("Wikidata", ignoreCase = true) || it.url.contains("wikidata.org", ignoreCase = true) }
+            ?.url?.let { Regex("(?i)Q[0-9]+").find(it)?.value }
         FandomMediaQueries.fromMedia(
             source = displayEntry.source,
-            mediaId = displayEntry.id,
-            malId = displayEntry.malId ?: detailState?.realMalId,
+            // `id` is the local Room row; provider identity lives in `malId` and the explicit ID fields.
+            mediaId = displayEntry.malId,
+            malId = detailState?.realMalId,
             aniListId = displayEntry.aniListEntryId,
             tmdbId = displayEntry.tmdbId ?: detailState?.tmdbId ?: resolvedTmdbId,
             simklId = displayEntry.simklId,
             isManga = displayEntry.type == MediaType.Manga,
             isMovie = displayEntry.type == MediaType.Movie,
-            titles = listOfNotNull(
-                displayEntry.titleEnglish,
-                displayEntry.title,
-                detailState?.titleRomaji,
-                detailState?.titleEnglish
+            isTvShow = displayEntry.type == MediaType.TvShow,
+            releaseYear = displayEntry.year ?: detailState?.year,
+            imdbId = imdbId,
+            wikidataId = wikidataId,
+            titles = (
+                listOfNotNull(
+                    displayEntry.titleEnglish,
+                    displayEntry.title,
+                    displayEntry.titleJapanese,
+                    detailState?.titleNative,
+                    detailState?.titleJapanese,
+                    detailState?.titleRomaji,
+                    detailState?.titleEnglish,
+                    detailState?.titleTurkish
+                ) + detailState?.synonyms.orEmpty()
             )
         )
     }
@@ -499,13 +523,21 @@ fun MediaEntryDetailPage(
             },
             pageContent = { page ->
                 if (page == wikiPageIndex) {
-                    MediaWikiTabSlot(viewModel = wikiViewModel, accentColor = accentColor)
+                    MediaWikiTabSlot(
+                        viewModel = wikiViewModel,
+                        accentColor = accentColor,
+                        onOpenGallery = { items, index ->
+                            activeGalleryCategory = items.getOrNull(index)?.category ?: GalleryCategory.OTHER
+                            activeGalleryItems = items
+                            activeGalleryIndex = index
+                        }
+                    )
                 } else when (page) {
                     0 -> {
                         EntryDetailOverviewTab(
                             entry = displayEntry,
                             detail = detailState,
-                            synopsisState = synopsisState,
+                            synopsisState = displayedSynopsisState,
                             originalSynopsis = originalSynopsis,
                             externalUrl = externalUrl,
                             onSearchQuery = onSearchQuery,
@@ -540,7 +572,10 @@ fun MediaEntryDetailPage(
                                 if (!galleryLoading) activeGalleryItems = items
                                 activeGalleryIndex = index
                             },
-                            onTranslateClick = { viewModel.translateSynopsis(displayEntry) }
+                            onTranslateClick = { viewModel.translateSynopsis(displayEntry) },
+                            synopsisHasTranslation = synopsisHasTranslation,
+                            showSynopsisOriginal = showSynopsisOriginal,
+                            onToggleSynopsisOriginal = { viewModel.toggleSynopsisOriginal() }
                         )
                     }
                     1 -> {
@@ -585,7 +620,7 @@ fun MediaEntryDetailPage(
                     }
                     2 -> {
                         if (selectedTab == DETAIL_VIDEO_PAGE_INDEX) {
-                            KitsugiMediaVideosTab(detail = detailState)
+                            KitsugiMediaVideosTab(detail = detailState, mediaTitle = displayEntry.title)
                         }
                     }
                     3 -> CharactersTabContent(state = charactersState, onCharacterClick = onCharacterClick, onStaffClick = onStaffClick, onMediaClick = onMediaClick, titleLanguage = titleLanguage)

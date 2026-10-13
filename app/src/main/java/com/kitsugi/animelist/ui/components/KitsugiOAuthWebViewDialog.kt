@@ -1,5 +1,6 @@
 package com.kitsugi.animelist.ui.components
 
+import com.kitsugi.animelist.ui.theme.gradient.CircularProgressIndicator
 import android.content.Intent
 import android.net.Uri
 import android.view.ViewGroup

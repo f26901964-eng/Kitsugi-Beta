@@ -206,6 +206,7 @@ fun StudioDetailPage(
                 val detail = currentState.detail
                 val galleryItems by viewModel.galleryItems.collectAsState()
                 val translatedAbout by viewModel.translatedAbout.collectAsState()
+                val showAboutOriginal by viewModel.showAboutOriginal.collectAsState()
                 val isLoadingMore by viewModel.isLoadingMore.collectAsState()
                 val loadMoreFailed by viewModel.loadMoreFailed.collectAsState()
                 var activeGalleryItems by remember { mutableStateOf<List<GalleryItem>>(emptyList()) }
@@ -221,6 +222,9 @@ fun StudioDetailPage(
                     titleLanguage = titleLanguage,
                     translatedAbout = translatedAbout,
                     preferredTranslator = preferredTranslator,
+                    aboutHasTranslation = translatedAbout != null && translatedAbout != detail.about,
+                    showAboutOriginal = showAboutOriginal,
+                    onToggleAboutOriginal = { viewModel.toggleAboutOriginal() },
                     onTranslateAbout = { viewModel.translateAbout() },
                     onBackClick = onBackClick,
                     onToggleFavourite = { viewModel.toggleFavourite() },
@@ -266,6 +270,9 @@ private fun StudioDetailSuccessContent(
     titleLanguage: String,
     translatedAbout: String? = null,
     preferredTranslator: String = "DEFAULT",
+    aboutHasTranslation: Boolean = false,
+    showAboutOriginal: Boolean = false,
+    onToggleAboutOriginal: () -> Unit = {},
     onTranslateAbout: () -> Unit = {},
     onBackClick: () -> Unit,
     onToggleFavourite: () -> Unit,
@@ -554,7 +561,10 @@ private fun StudioDetailSuccessContent(
                                 modifier = Modifier.padding(horizontal = 8.dp, vertical = 8.dp),
                                 translatedAbout = translatedAbout,
                                 onTranslateClick = onAboutTranslateClick,
-                                onCopyClick = onAboutCopyClick
+                                onCopyClick = onAboutCopyClick,
+                                aboutHasTranslation = aboutHasTranslation,
+                                showAboutOriginal = showAboutOriginal,
+                                onToggleAboutOriginal = onToggleAboutOriginal
                             )
                         }
                     }
@@ -615,7 +625,10 @@ private fun StudioDetailSuccessContent(
                                 modifier = Modifier.padding(horizontal = 4.dp, vertical = 4.dp),
                                 translatedAbout = translatedAbout,
                                 onTranslateClick = onAboutTranslateClick,
-                                onCopyClick = onAboutCopyClick
+                                onCopyClick = onAboutCopyClick,
+                                aboutHasTranslation = aboutHasTranslation,
+                                showAboutOriginal = showAboutOriginal,
+                                onToggleAboutOriginal = onToggleAboutOriginal
                             )
                         }
                     }

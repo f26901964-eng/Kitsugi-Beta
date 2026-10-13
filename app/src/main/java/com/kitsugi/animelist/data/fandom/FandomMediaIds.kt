@@ -9,11 +9,13 @@ data class FandomSourceIds(
     val bangumiId: Int? = null,
     val tmdbId: Int? = null,
     val wikidataId: String? = null,
-    val simklId: Int? = null
+    val simklId: Int? = null,
+    /** IMDb title ID (P345); especially useful for Simkl/TMDB entries missing catalog IDs. */
+    val imdbId: String? = null
 ) {
     val isEmpty: Boolean
         get() = aniListId == null && malId == null && kitsuId == null && shikimoriId == null &&
-            bangumiId == null && tmdbId == null && wikidataId == null && simklId == null
+            bangumiId == null && tmdbId == null && wikidataId == null && simklId == null && imdbId == null
 
     /** Önbellek anahtarı: en kararlı kimlikten başlayarak. */
     fun stableKey(isManga: Boolean, isMovie: Boolean): String? {
@@ -26,6 +28,7 @@ data class FandomSourceIds(
             bangumiId != null -> "bgm:$bangumiId"
             simklId != null -> "simkl:$simklId"
             tmdbId != null -> "tmdb:${if (isMovie) "movie" else "tv"}:$tmdbId"
+            imdbId != null -> "imdb:${imdbId.lowercase(java.util.Locale.ROOT)}"
             wikidataId != null -> "wd:$wikidataId"
             else -> null
         }
@@ -53,16 +56,21 @@ object FandomMediaIds {
     private const val SIMKL_OFFSET = 150_000_000
     private const val WINDOW = 100_000_000
 
-    private val MAL_SOURCES = setOf("mal", "jikan", "myanimelist")
+    private val MAL_SOURCES = setOf("mal", "jikan", "myanimelist", "jikan (mal)", "mal (jikan)")
 
-    fun isMalSource(source: String?): Boolean {
-        val key = source?.trim()?.lowercase() ?: return false
-        return key in MAL_SOURCES
+    private fun canonicalSource(source: String?): String = when (source?.trim()?.lowercase().orEmpty()) {
+        "al" -> "anilist"
+        "shiki" -> "shikimori"
+        "bgm", "bgm.tv" -> "bangumi"
+        "themoviedb" -> "tmdb"
+        else -> source?.trim()?.lowercase().orEmpty()
     }
+
+    fun isMalSource(source: String?): Boolean = canonicalSource(source) in MAL_SOURCES
 
     fun fromStableId(source: String?, id: Int?): FandomSourceIds {
         if (id == null || id <= 0) return FandomSourceIds()
-        val key = source?.trim()?.lowercase().orEmpty()
+        val key = canonicalSource(source)
         return when {
             key in MAL_SOURCES -> if (id < ANILIST_OFFSET) FandomSourceIds(malId = id) else FandomSourceIds()
             key == "anilist" -> when {
@@ -123,5 +131,9 @@ object FandomMediaIds {
                 ids.bangumiId?.let { add("P5732" to it.toString()) }
                 ids.tmdbId?.let { add((if (isMovie) "P4947" else "P4983") to it.toString()) }
             }
+            ids.imdbId
+                ?.trim()
+                ?.takeIf { it.matches(Regex("(?i)^tt[0-9]{5,12}$")) }
+                ?.let { add("P345" to it.lowercase(java.util.Locale.ROOT)) }
         }
 }

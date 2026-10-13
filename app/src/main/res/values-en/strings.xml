@@ -7282,6 +7282,8 @@
     <string name="fandom_unavailable_title">No wiki found</string>
     <string name="fandom_unavailable_character">No Fandom wiki page found for this character.</string>
     <string name="fandom_unavailable_media">No Fandom wiki found for this title.</string>
+    <string name="fandom_media_article_unavailable_title">Article not found</string>
+    <string name="fandom_media_article_unavailable">No matching article page for this title was found in the wiki.</string>
     <string name="fandom_unavailable_hint">If this is a connection error, you can try again.</string>
     <string name="fandom_retry">Try again</string>
     <string name="fandom_section_role_movie">Role in the movie</string>
@@ -7471,6 +7473,16 @@
     <string name="fandom_translate_infobox">Translate infobox</string>
     <string name="fandom_infobox_title">Infobox</string>
     <string name="fandom_image_failed">Image could not be loaded</string>
+    <string name="fandom_wiki_images_title">Fandom images</string>
+    <string name="fandom_related_title">Related Wiki pages</string>
+    <string name="fandom_related_cast">Cast</string>
+    <string name="fandom_related_staff">Staff</string>
+    <string name="fandom_related_other">Related Wiki pages</string>
+    <string name="fandom_open_related_page">Open Fandom page</string>
+    <string name="fandom_related_article_count">%1$d pages</string>
+    <string name="fandom_image_source_file">File</string>
+    <string name="fandom_image_credit">Image credit</string>
+    <string name="fandom_image_license">License</string>
     <string name="fandom_unavailable_staff">No Fandom wiki page was found for this person.</string>
     <string name="fandom_staff_tab_wiki">Wiki</string>
     <string name="fandom_manga_wiki_title">Fandom Wiki</string>
@@ -7505,4 +7517,9 @@
     <string name="detail_stats_status_paused">Paused</string>
     <string name="detail_stats_score_title">Score Distribution</string>
     <string name="detail_stats_score_subtitle">%1$s votes · Avg. %2$s</string>
+    <string name="inline_player_play">Play</string>
+    <string name="inline_player_pause">Pause</string>
+    <string name="inline_player_fullscreen">Fullscreen</string>
+    <string name="translate_show_translation">Translation</string>
+    <string name="translate_show_original">Original</string>
 </resources>

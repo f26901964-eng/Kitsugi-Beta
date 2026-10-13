@@ -233,6 +233,7 @@ fun ApiResultDetailPage(
     val detailState by viewModel.detailState.collectAsState()
     val detailLoading by viewModel.detailLoading.collectAsState()
     val translatedSynopsis by viewModel.translatedSynopsis.collectAsState()
+    val showSynopsisOriginal by viewModel.showSynopsisOriginal.collectAsState()
     val logoUrl by viewModel.logoUrl.collectAsState()
     val episodeRatings by viewModel.episodeRatings.collectAsState()
     val resolvedTmdbId by viewModel.resolvedTmdbId.collectAsState()
@@ -345,20 +346,36 @@ fun ApiResultDetailPage(
     val isFavorite = effectiveExistingEntry?.isFavorite ?: (detailState?.isFavourite ?: false)
 
     // Wiki sorgusu: kimlikler (gerçek MAL/TMDB) detayla birlikte netleşir.
-    val wikiQuery = remember(result, displayResult, detailState, resolvedTmdbId) {
+    val wikiQuery = remember(result, displayResult, detailState, resolvedTmdbId, mdbListRatings) {
+        val imdbId = mdbListRatings?.imdbId
+            ?: detailState?.externalLinks?.firstOrNull { it.site.contains("IMDb", ignoreCase = true) || it.url.contains("imdb.com", ignoreCase = true) }
+                ?.url?.let { Regex("(?i)tt[0-9]{5,12}").find(it)?.value }
+        val wikidataId = detailState?.externalLinks
+            ?.firstOrNull { it.site.contains("Wikidata", ignoreCase = true) || it.url.contains("wikidata.org", ignoreCase = true) }
+            ?.url?.let { Regex("(?i)Q[0-9]+").find(it)?.value }
         FandomMediaQueries.fromMedia(
-            source = result.source,
-            mediaId = result.malId,
+            source = sourceId,
+            mediaId = displayResult.malId,
             malId = displayResult.realMalId ?: detailState?.realMalId,
-            tmdbId = result.tmdbId ?: detailState?.tmdbId ?: resolvedTmdbId,
-            isManga = result.type == MediaType.Manga,
-            isMovie = result.type == MediaType.Movie,
-            titles = listOfNotNull(
-                result.titleEnglish,
-                result.title,
-                result.titleRomaji,
-                detailState?.titleRomaji,
-                detailState?.titleEnglish
+            tmdbId = displayResult.tmdbId ?: detailState?.tmdbId ?: resolvedTmdbId,
+            isManga = displayResult.type == MediaType.Manga,
+            isMovie = displayResult.type == MediaType.Movie,
+            isTvShow = displayResult.type == MediaType.TvShow,
+            releaseYear = displayResult.year ?: detailState?.year,
+            imdbId = imdbId,
+            wikidataId = wikidataId,
+            titles = (
+                listOfNotNull(
+                    displayResult.titleEnglish,
+                    displayResult.title,
+                    displayResult.titleRomaji,
+                    displayResult.titleJapanese,
+                    detailState?.titleNative,
+                    detailState?.titleJapanese,
+                    detailState?.titleRomaji,
+                    detailState?.titleEnglish,
+                    detailState?.titleTurkish
+                ) + detailState?.synonyms.orEmpty()
             )
         )
     }
@@ -468,8 +485,9 @@ fun ApiResultDetailPage(
     }
 
     val synopsisForSave = detailState?.synopsis
-    // Use translated synopsis if available, fallback to raw
-    val displaySynopsis = translatedSynopsis ?: detailState?.synopsis
+    // Çeviri varsa (ve kullanıcı orijinale geçmediyse) çeviriyi, yoksa orijinali göster
+    val synopsisHasTranslation = translatedSynopsis != null && translatedSynopsis != detailState?.synopsis
+    val displaySynopsis = if (showSynopsisOriginal) detailState?.synopsis else translatedSynopsis ?: detailState?.synopsis
 
     KitsugiPageEnter {
         DetailPageScaffold(
@@ -628,7 +646,15 @@ fun ApiResultDetailPage(
             },
             pageContent = { page ->
                 if (page == wikiPageIndex) {
-                    MediaWikiTabSlot(viewModel = wikiViewModel, accentColor = accentColor)
+                    MediaWikiTabSlot(
+                        viewModel = wikiViewModel,
+                        accentColor = accentColor,
+                        onOpenGallery = { items, index ->
+                            activeGalleryCategory = items.getOrNull(index)?.category ?: GalleryCategory.OTHER
+                            activeGalleryItems = items
+                            activeGalleryIndex = index
+                        }
+                    )
                 } else when (page) {
                     0 -> {
                         ApiDetailOverviewTab(
@@ -648,6 +674,9 @@ fun ApiResultDetailPage(
                                 val raw = detailState?.synopsis
                                 if (!raw.isNullOrBlank()) context.openTranslator(raw, settingsState?.preferredTranslator ?: "DEFAULT")
                             },
+                            synopsisHasTranslation = synopsisHasTranslation,
+                            showSynopsisOriginal = showSynopsisOriginal,
+                            onToggleSynopsisOriginal = { viewModel.toggleSynopsisOriginal() },
                             onCopyClick = {
                                 val text = displaySynopsis ?: detailState?.synopsis
                                 if (!text.isNullOrBlank()) {
@@ -728,7 +757,7 @@ fun ApiResultDetailPage(
                     }
                     2 -> {
                         if (selectedTab == DETAIL_VIDEO_PAGE_INDEX) {
-                            KitsugiMediaVideosTab(detail = detailState)
+                            KitsugiMediaVideosTab(detail = detailState, mediaTitle = displayResult.title)
                         }
                     }
                     3 -> CharactersTabContent(state = charactersState, onCharacterClick = onCharacterClick, onStaffClick = onStaffClick, onMediaClick = onMediaClick, titleLanguage = titleLanguage)
@@ -1005,7 +1034,7 @@ fun ApiResultDetailPage(
             initialCategory = activeGalleryCategory ?: activeGalleryItems.getOrNull(activeGalleryIndex)?.category,
             title = displayResult.title,
             isAdult = displayResult.isAdult,
-            onDismiss = { 
+            onDismiss = {
                 activeGalleryItems = emptyList()
                 activeGalleryCategory = null
             }

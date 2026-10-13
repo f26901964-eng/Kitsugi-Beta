@@ -12,6 +12,10 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
+import com.kitsugi.animelist.data.fandom.FandomRelationType
+import com.kitsugi.animelist.data.fandom.FandomWikiLink
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -28,7 +32,7 @@ import androidx.compose.material.icons.rounded.ExpandLess
 import androidx.compose.material.icons.rounded.ExpandMore
 import androidx.compose.material.icons.rounded.OpenInNew
 import androidx.compose.material.icons.rounded.Warning
-import androidx.compose.material3.CircularProgressIndicator
+import com.kitsugi.animelist.ui.theme.gradient.CircularProgressIndicator
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.TextButton
@@ -96,20 +100,29 @@ internal fun CharacterWikiTabContent(
     onConfirm: () -> Unit,
     onReportWrong: () -> Unit,
     modifier: Modifier = Modifier,
-    /** Harici çeviri uygulaması tercihi (detay açıklama düğmesiyle aynı davranış için). */
-    preferredTranslator: String = "DEFAULT"
+    onTranslate: ((String) -> Unit)? = null,
+    onShowOriginal: ((String) -> Unit)? = null,
+    onTranslateInfobox: () -> Unit = {},
+    showNestedSections: Boolean = false,
+    initiallyShowAllFields: Boolean = false,
+    showConfirmation: Boolean = true,
+    showFooter: Boolean = true,
+    galleryCategory: GalleryCategory = GalleryCategory.CHARACTER,
+    preferredTranslator: String = "DEFAULT",
+    originalKeys: Set<String> = emptySet(),
+    onToggleOriginal: (String) -> Unit = {}
 ) {
     val context = LocalContext.current
     val pageKey = page.wikiId + "|" + page.pageTitle
     val expanded = remember(pageKey) { mutableStateMapOf<Int, Boolean>() }
     val revealed = remember(pageKey) { mutableStateMapOf<String, Boolean>() }
-    var showAllFields by remember(pageKey) { mutableStateOf(false) }
+    var showAllFields by remember(pageKey, initiallyShowAllFields) { mutableStateOf(initiallyShowAllFields) }
 
     Column(
         modifier = modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        if (page.needsConfirmation) {
+        if (showConfirmation && page.needsConfirmation) {
             WikiConfirmCard(accentColor = accentColor, onConfirm = onConfirm, onReject = onReportWrong)
         }
 
@@ -122,12 +135,26 @@ internal fun CharacterWikiTabContent(
             onToggleShowAll = { showAllFields = !showAllFields },
             accentColor = accentColor,
             onOpenGallery = onOpenGallery,
+            galleryCategory = galleryCategory,
             translations = translations,
             infoboxTranslating = KEY_INFOBOX in translatingKeys,
-            preferredTranslator = preferredTranslator
+            preferredTranslator = preferredTranslator,
+            infoboxShowingOriginal = KEY_INFOBOX in originalKeys,
+            onToggleInfoboxOriginal = { onToggleOriginal(KEY_INFOBOX) }
         )
 
+        if (page.relatedEntities.isNotEmpty()) {
+            WikiRelatedEntitiesCard(
+                entities = page.relatedEntities,
+                accentColor = accentColor,
+                onOpenGallery = onOpenGallery
+            )
+        }
+
         page.description?.let { description ->
+            val descriptionShowingOriginal = KEY_DESCRIPTION in originalKeys
+            val descriptionHasTranslation = translations.containsKey(KEY_DESCRIPTION)
+            val shownDescription = if (descriptionShowingOriginal) description else (translations[KEY_DESCRIPTION] ?: description)
             WikiCard(animateHeight = true) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -147,17 +174,20 @@ internal fun CharacterWikiTabContent(
                         text = description,
                         preferredTranslator = preferredTranslator,
                         accentColor = accentColor,
-                        isLoading = KEY_DESCRIPTION in translatingKeys
+                        isLoading = KEY_DESCRIPTION in translatingKeys,
+                        hasTranslation = descriptionHasTranslation,
+                        showingOriginal = descriptionShowingOriginal,
+                        onToggleOriginal = { onToggleOriginal(KEY_DESCRIPTION) }
                     )
                     CopyIconButton(
                         contentDescription = stringResource(R.string.fandom_copy_summary),
-                        onClick = { copyWikiText(context, translations[KEY_DESCRIPTION] ?: description) }
+                        onClick = { copyWikiText(context, shownDescription) }
                     )
                 }
                 Spacer(modifier = Modifier.height(8.dp))
                 SelectionContainer {
                     Text(
-                        text = translations[KEY_DESCRIPTION] ?: description,
+                        text = shownDescription,
                         color = KitsugiColors.TextPrimary,
                         style = MaterialTheme.typography.bodyMedium
                     )
@@ -166,7 +196,7 @@ internal fun CharacterWikiTabContent(
         }
 
         val topLevel = page.sections.minOfOrNull { it.level }
-        val visibleSections = page.sections.filter { it.level == topLevel }
+        val visibleSections = if (showNestedSections) page.sections else page.sections.filter { it.level == topLevel }
         if (visibleSections.isNotEmpty()) {
             WikiCard {
                 Text(
@@ -180,13 +210,17 @@ internal fun CharacterWikiTabContent(
                     val isExpanded = expanded[section.index] == true
                     val revealKey = "section:${section.index}"
                     val key = sectionKey(section.index)
+                    val sectionShowingOriginal = key in originalKeys
                     WikiSectionRow(
                         section = section,
+                        depth = if (showNestedSections) (section.level - (topLevel ?: section.level)).coerceAtLeast(0) else 0,
                         expanded = isExpanded,
                         gated = spoilerGuard && section.spoiler && revealed[revealKey] != true,
                         state = sections[section.index],
                         translated = translations[key],
                         translating = key in translatingKeys,
+                        showingOriginal = sectionShowingOriginal,
+                        onToggleOriginal = { onToggleOriginal(key) },
                         accentColor = accentColor,
                         onToggle = { expanded[section.index] = !isExpanded },
                         onReveal = { revealed[revealKey] = true },
@@ -198,13 +232,13 @@ internal fun CharacterWikiTabContent(
             }
         }
 
-        WikiFooter(page = page, accentColor = accentColor, onReportWrong = onReportWrong)
+        if (showFooter) WikiFooter(page = page, accentColor = accentColor, onReportWrong = onReportWrong)
     }
 }
 
 /** Otomatik (kesinleşmemiş) eşleşmede bir kerelik onay kartı. */
 @Composable
-private fun WikiConfirmCard(accentColor: Color, onConfirm: () -> Unit, onReject: () -> Unit) {
+internal fun WikiConfirmCard(accentColor: Color, onConfirm: () -> Unit, onReject: () -> Unit) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -273,18 +307,21 @@ private fun WikiInfoboxCard(
     onToggleShowAll: () -> Unit,
     accentColor: Color,
     onOpenGallery: (List<GalleryItem>, Int) -> Unit,
+    galleryCategory: GalleryCategory = GalleryCategory.CHARACTER,
     translations: Map<String, String> = emptyMap(),
     infoboxTranslating: Boolean = false,
-    preferredTranslator: String = "DEFAULT"
+    preferredTranslator: String = "DEFAULT",
+    infoboxShowingOriginal: Boolean = false,
+    onToggleInfoboxOriginal: (() -> Unit)? = null
 ) {
     val context = LocalContext.current
     val images = infobox?.images.orEmpty()
-    val galleryItems = remember(images) {
+    val galleryItems = remember(images, galleryCategory) {
         images.map { image ->
             GalleryItem(
                 url = image.url,
                 source = FANDOM_GALLERY_SOURCE,
-                category = GalleryCategory.CHARACTER,
+                category = galleryCategory,
                 description = image.caption
             )
         }
@@ -376,16 +413,21 @@ private fun WikiInfoboxCard(
                 }
                 // Detay sayfasındaki Açıklama kartıyla aynı çeviri düğmesi: ikon her zaman
                 // durur, dokununca bilgi kutusunun orijinal metni harici uygulamada açılır.
+                val infoboxHasTranslation = fields.indices.any { translations.containsKey(infoboxFieldKey(it)) }
                 WikiTranslateButton(
                     text = buildInfoboxSourceText(fields = fields, hiddenIndices = hiddenIndices),
                     preferredTranslator = preferredTranslator,
                     accentColor = accentColor,
-                    isLoading = infoboxTranslating
+                    isLoading = infoboxTranslating,
+                    hasTranslation = infoboxHasTranslation,
+                    showingOriginal = infoboxShowingOriginal,
+                    onToggleOriginal = onToggleInfoboxOriginal
                 )
                 val copyAllText = buildInfoboxCopyText(
                     fields = fields,
                     translations = translations,
-                    hiddenIndices = hiddenIndices
+                    hiddenIndices = hiddenIndices,
+                    showingOriginal = infoboxShowingOriginal
                 )
                 CopyIconButton(
                     contentDescription = stringResource(R.string.fandom_copy_infobox),
@@ -407,7 +449,11 @@ private fun WikiInfoboxCard(
                 lastHeader = header
                 val revealKey = "field:$index"
                 val hidden = spoilerGuard && field.spoiler && revealed[revealKey] != true
-                val displayValue = translations[infoboxFieldKey(index)] ?: localizedInfoboxValue(field.value)
+                val displayValue = if (infoboxShowingOriginal) {
+                    localizedInfoboxValue(field.value)
+                } else {
+                    translations[infoboxFieldKey(index)] ?: localizedInfoboxValue(field.value)
+                }
                 WikiFieldRow(
                     label = localizedInfoboxLabel(field),
                     value = displayValue,
@@ -546,7 +592,8 @@ private fun buildInfoboxSourceText(
 private fun buildInfoboxCopyText(
     fields: List<Pair<String?, FandomInfoboxField>>,
     translations: Map<String, String>,
-    hiddenIndices: Set<Int>
+    hiddenIndices: Set<Int>,
+    showingOriginal: Boolean = false
 ): String {
     val hiddenLabel = stringResource(R.string.fandom_spoiler_badge)
     val lines = ArrayList<String>(fields.size + 4)
@@ -559,6 +606,7 @@ private fun buildInfoboxCopyText(
         lastHeader = header
         val value = when {
             index in hiddenIndices -> "[$hiddenLabel]"
+            showingOriginal -> localizedInfoboxValue(field.value)
             else -> translations[infoboxFieldKey(index)] ?: localizedInfoboxValue(field.value)
         }
         lines += "${localizedInfoboxLabel(field)}: $value"
@@ -587,6 +635,7 @@ private fun localizedInfoboxValue(value: String): String {
 @Composable
 private fun WikiSectionRow(
     section: FandomSectionRef,
+    depth: Int = 0,
     expanded: Boolean,
     gated: Boolean,
     state: SectionState?,
@@ -597,7 +646,9 @@ private fun WikiSectionRow(
     onReveal: () -> Unit,
     onLoad: () -> Unit,
     onCopy: (String) -> Unit = {},
-    preferredTranslator: String = "DEFAULT"
+    preferredTranslator: String = "DEFAULT",
+    showingOriginal: Boolean = false,
+    onToggleOriginal: (() -> Unit)? = null
 ) {
     Column(modifier = Modifier.fillMaxWidth()) {
         Row(
@@ -605,7 +656,7 @@ private fun WikiSectionRow(
                 .fillMaxWidth()
                 .clip(RoundedCornerShape(12.dp))
                 .tvClickable(shape = RoundedCornerShape(12.dp)) { onToggle() }
-                .padding(vertical = 10.dp, horizontal = 4.dp),
+                .padding(start = (4 + depth * 14).dp, end = 4.dp, top = 10.dp, bottom = 10.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Icon(
@@ -618,7 +669,7 @@ private fun WikiSectionRow(
             Text(
                 text = localizedSectionTitle(section.title),
                 color = KitsugiColors.TextPrimary,
-                style = MaterialTheme.typography.bodyLarge,
+                style = if (depth == 0) MaterialTheme.typography.bodyLarge else MaterialTheme.typography.bodyMedium,
                 fontWeight = FontWeight.SemiBold,
                 modifier = Modifier.weight(1f)
             )
@@ -635,7 +686,7 @@ private fun WikiSectionRow(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(start = 30.dp, end = 4.dp, bottom = 10.dp),
+                    .padding(start = 30.dp + (depth * 14).dp, end = 4.dp, bottom = 10.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 if (gated) {
@@ -680,14 +731,17 @@ private fun WikiSectionRow(
                                         text = state.content.plainText(),
                                         preferredTranslator = preferredTranslator,
                                         accentColor = accentColor,
-                                        isLoading = translating
+                                        isLoading = translating,
+                                        hasTranslation = translated != null,
+                                        showingOriginal = showingOriginal,
+                                        onToggleOriginal = onToggleOriginal
                                     )
                                     CopyIconButton(
                                         contentDescription = stringResource(R.string.fandom_copy_section),
-                                        onClick = { onCopy(translated ?: state.content.plainText()) }
+                                        onClick = { onCopy(if (showingOriginal || translated == null) state.content.plainText() else translated) }
                                     )
                                 }
-                                SectionBody(content = state.content, translated = translated)
+                                SectionBody(content = state.content, translated = if (showingOriginal) null else translated)
                             }
                         }
                     }
@@ -699,21 +753,41 @@ private fun WikiSectionRow(
 
 @Composable
 private fun SectionBody(content: FandomSectionContent, translated: String?) {
-    SelectionContainer {
-        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            if (translated != null) {
-                translated.split(PARAGRAPH_SPLIT)
-                    .map { it.trim() }
-                    .filter { it.isNotEmpty() }
-                    .forEach { paragraph ->
+    val context = LocalContext.current
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        SelectionContainer {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                if (translated != null) {
+                    translated.split(PARAGRAPH_SPLIT)
+                        .map { it.trim() }
+                        .filter { it.isNotEmpty() }
+                        .forEach { paragraph ->
+                            Text(
+                                text = paragraph,
+                                color = KitsugiColors.TextPrimary,
+                                style = MaterialTheme.typography.bodyMedium
+                            )
+                        }
+                } else {
+                    content.blocks.forEach { block -> WikiBlock(block) }
+                }
+            }
+        }
+        if (content.links.isNotEmpty()) {
+            Row(
+                modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                content.links.forEach { link ->
+                    TextButton(onClick = { openExternal(context, link.pageUrl) }) {
                         Text(
-                            text = paragraph,
-                            color = KitsugiColors.TextPrimary,
-                            style = MaterialTheme.typography.bodyMedium
+                            text = link.label,
+                            color = KitsugiColors.AccentBlue,
+                            style = MaterialTheme.typography.labelMedium,
+                            maxLines = 1
                         )
                     }
-            } else {
-                content.blocks.forEach { block -> WikiBlock(block) }
+                }
             }
         }
     }
@@ -890,4 +964,150 @@ private fun openExternal(context: Context, url: String) {
     } catch (e: Exception) {
         Toast.makeText(context, context.getString(R.string.fandom_open_failed), Toast.LENGTH_SHORT).show()
     }
+}
+
+@Composable
+private fun WikiRelatedEntitiesCard(
+    entities: List<FandomWikiLink>,
+    accentColor: Color,
+    onOpenGallery: (List<GalleryItem>, Int) -> Unit
+) {
+    val context = LocalContext.current
+    val orderedGroups = remember(entities) {
+        val priority = listOf(
+            FandomRelationType.CHARACTER,
+            FandomRelationType.CAST,
+            FandomRelationType.VOICE_ACTOR,
+            FandomRelationType.STAFF,
+            FandomRelationType.CREW,
+            FandomRelationType.MUSIC,
+            FandomRelationType.RELATED
+        )
+        val grouped = entities.groupBy { it.role }
+        priority.mapNotNull { role ->
+            val list = grouped[role] ?: return@mapNotNull null
+            role to list
+        }
+    }
+
+    WikiCard {
+        Text(
+            text = stringResource(R.string.fandom_related_title),
+            color = KitsugiColors.TextPrimary,
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.Bold
+        )
+        orderedGroups.forEach { (role, entities) ->
+            Text(
+                text = stringResource(relatedTitleRes(role)),
+                color = accentColor,
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.SemiBold,
+                modifier = Modifier.padding(top = 10.dp)
+            )
+            Text(
+                text = stringResource(R.string.fandom_related_article_count, entities.size),
+                color = KitsugiColors.TextMuted,
+                style = MaterialTheme.typography.labelSmall
+            )
+            LazyRow(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                items(
+                    items = entities,
+                    key = { entity -> "${entity.wikiId}:${entity.pageTitle}:${entity.role}:${entity.language}" }
+                ) { entity ->
+                    Column(
+                        modifier = Modifier
+                            .width(132.dp)
+                            .clip(RoundedCornerShape(14.dp))
+                            .background(KitsugiColors.SurfaceStrong)
+                            .padding(8.dp),
+                        verticalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(104.dp)
+                                .clip(RoundedCornerShape(10.dp))
+                                .background(KitsugiColors.Surface)
+                                .tvClickable(shape = RoundedCornerShape(10.dp)) {
+                                    entity.imageUrl?.let { url ->
+                                        val category = if (role == FandomRelationType.CHARACTER) {
+                                            GalleryCategory.CHARACTER
+                                        } else {
+                                            GalleryCategory.PERSON
+                                        }
+                                        onOpenGallery(
+                                            listOf(GalleryItem(url, FANDOM_GALLERY_SOURCE, category, entity.label)),
+                                            0
+                                        )
+                                    } ?: openExternal(context, entity.pageUrl)
+                                },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            if (!entity.imageUrl.isNullOrBlank()) {
+                                FandomWikiImage(
+                                    url = entity.imageUrl,
+                                    width = 240,
+                                    contentDescription = entity.label,
+                                    accentColor = accentColor,
+                                    modifier = Modifier.fillMaxWidth().height(104.dp)
+                                )
+                            } else {
+                                Text(
+                                    text = entity.label.take(1).uppercase(),
+                                    color = accentColor,
+                                    style = MaterialTheme.typography.headlineMedium,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                        }
+                        Text(
+                            text = entity.label,
+                            color = KitsugiColors.TextPrimary,
+                            style = MaterialTheme.typography.bodySmall,
+                            fontWeight = FontWeight.SemiBold,
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                        entity.language?.let { language ->
+                            Text(
+                                text = language.uppercase(),
+                                color = KitsugiColors.TextMuted,
+                                style = MaterialTheme.typography.labelSmall
+                            )
+                        }
+                        entity.description?.takeIf { it.isNotBlank() }?.let { description ->
+                            Text(
+                                text = description,
+                                color = KitsugiColors.TextSecondary,
+                                style = MaterialTheme.typography.labelSmall,
+                                maxLines = 3,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
+                        TextButton(onClick = { openExternal(context, entity.pageUrl) }) {
+                            Text(
+                                text = stringResource(R.string.fandom_open_related_page),
+                                color = accentColor,
+                                style = MaterialTheme.typography.labelSmall,
+                                maxLines = 1
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+private fun relatedTitleRes(role: FandomRelationType): Int = when (role) {
+    FandomRelationType.CHARACTER -> R.string.fandom_section_characters
+    FandomRelationType.CAST -> R.string.fandom_related_cast
+    FandomRelationType.VOICE_ACTOR -> R.string.fandom_section_voice_actors
+    FandomRelationType.STAFF, FandomRelationType.CREW -> R.string.fandom_related_staff
+    FandomRelationType.MUSIC -> R.string.fandom_section_music
+    FandomRelationType.RELATED -> R.string.fandom_related_other
 }

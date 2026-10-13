@@ -46,8 +46,13 @@ internal class FandomCharacterResolver(
 
         if (articles.isNotEmpty()) {
             val onMediaWiki = mediaWiki?.let { wiki -> articles.firstOrNull { it.first == wiki.wikiId } }
-            val chosen = onMediaWiki
-                ?: if (mediaWiki == null) articles.firstOrNull { FandomUrls.isRoot(it.first) } else null
+            val wikidataChoice = if (mediaWiki == null) {
+                FandomCandidateSelector.choose(articles.map { it.first })?.primary
+                    ?.let { selectedWiki -> articles.firstOrNull { it.first == selectedWiki } }
+            } else {
+                null
+            }
+            val chosen = onMediaWiki ?: wikidataChoice
             if (chosen != null && !isRejected(chosen.first, chosen.second)) {
                 val lookup = FandomApi.lookupTitles(chosen.first, listOf(chosen.second))[chosen.second]
                 if (lookup != null && lookup.exists && !lookup.isDisambiguation) {
@@ -122,6 +127,7 @@ internal class FandomCharacterResolver(
     ): Pair<FandomTitleLookup, FandomConfidence>? {
         val variants = LinkedHashSet<String>()
         query.names.forEach { variants += FandomNameVariants.characterTitleVariants(it, max = 6) }
+        query.nativeName?.let { variants += FandomNameVariants.characterTitleVariants(it, max = 6) }
         variants += query.alternatives
         val titles = variants.filter { it.isNotBlank() }.take(MAX_TITLE_VARIANTS)
         if (titles.isEmpty()) return null
@@ -145,7 +151,7 @@ internal class FandomCharacterResolver(
 
         // Wiki içi arama — yalnızca yerel ad teyidiyle kabul edilir.
         if (!native.isNullOrBlank()) {
-            val term = query.names.firstOrNull() ?: return null
+            val term = query.names.firstOrNull() ?: native
             val checked = found.mapNotNull { it.resolvedTitle }.toSet()
             val candidates = FandomApi.searchPages(wikiId, term, limit = 5).filter { it !in checked }
             if (candidates.isNotEmpty()) {

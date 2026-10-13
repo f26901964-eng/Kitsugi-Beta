@@ -53,6 +53,64 @@ object FandomHtmlText {
         return inlineOf(body)
     }
 
+    /** Extracts real internal article links while retaining the row/list context for role labels. */
+    fun wikiLinks(
+        html: String?,
+        defaultWikiId: String,
+        role: FandomRelationType = FandomRelationType.RELATED,
+        language: String? = null
+    ): List<FandomWikiLink> {
+        if (html.isNullOrBlank()) return emptyList()
+        val baseUrl = FandomUrls.baseUrl(defaultWikiId).orEmpty()
+        val body = Jsoup.parseBodyFragment(html, baseUrl).body()
+        body.select(
+            JUNK_SELECTOR + ", .navbox, .toc, #toc, .portable-infobox, .wds-tabs__wrapper, " +
+                ".mw-editsection, .dablink, .hatnote, .wikia-gallery, .gallery, .mw-empty-elt"
+        ).remove()
+        val links = body.select("a[href]").mapNotNull { anchor ->
+            if (anchor.hasClass("new") || anchor.attr("data-redlink").equals("1")) return@mapNotNull null
+            val href = anchor.absUrl("href").ifBlank { anchor.attr("href") }
+            val target = FandomUrls.parseArticleUrl(href, defaultWikiId) ?: return@mapNotNull null
+            val label = inline(anchor.html()).ifBlank { target.second }
+            val row = anchor.closest("tr")
+            val cell = anchor.closest("td, th")
+            val rowHeader = row?.children()?.filter { it.normalName() == "th" }.orEmpty()
+            val columnHeader = if (rowHeader.size == 1) {
+                rowHeader.first()?.text()
+            } else {
+                val table = row?.closest("table")
+                val headerRow = table?.select("tr")?.firstOrNull { candidate ->
+                    candidate.children().any { it.normalName() == "th" }
+                }
+                val columnIndex = cell?.siblingIndex()
+                val headerCells = headerRow?.children()?.filter { it.normalName() in setOf("th", "td") }.orEmpty()
+                columnIndex?.let { headerCells.getOrNull(it)?.text() }
+            }
+            val contextElement = row ?: anchor.closest("li, dd, p") ?: anchor
+            val context = inline(contextElement.text())
+                .takeIf { it.isNotBlank() && it != label }
+                ?.take(360)
+            val explicitRole = columnHeader?.let(FandomRelationClassifier::forInfoboxLabel)
+                ?.takeUnless { it == FandomRelationType.RELATED }
+            val contextualRole = context?.let(FandomRelationClassifier::forInfoboxLabel)
+                ?.takeUnless { it == FandomRelationType.RELATED }
+            FandomWikiLink(
+                wikiId = target.first,
+                pageTitle = target.second,
+                label = label.take(200),
+                role = explicitRole ?: contextualRole ?: role,
+                language = columnHeader?.let(FandomRelationClassifier::languageHint)
+                    ?: context?.let(FandomRelationClassifier::languageHint)
+                    ?: language
+                    ?: FandomUrls.languageOf(target.first),
+                context = context
+            )
+        }
+        return links.distinctBy {
+            "${it.wikiId}|${FandomNameVariants.normalizeForCompare(it.pageTitle)}|${it.role}|${it.language.orEmpty()}"
+        }
+    }
+
     private fun inlineOf(element: Element): String {
         val sb = StringBuilder()
         appendInline(element, sb)

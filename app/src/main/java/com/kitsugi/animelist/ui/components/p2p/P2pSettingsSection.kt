@@ -1,4 +1,5 @@
 package com.kitsugi.animelist.ui.components.p2p
+import com.kitsugi.animelist.ui.theme.gradient.CircularProgressIndicator
 import com.kitsugi.animelist.ui.components.KitsugiButton
 
 import android.widget.Toast

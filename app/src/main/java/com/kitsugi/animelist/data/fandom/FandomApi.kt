@@ -41,8 +41,13 @@ internal object FandomApi {
                 "action" to "query",
                 "titles" to chunk.joinToString("|"),
                 "redirects" to "1",
-                "prop" to (if (withTurkishLink) "pageprops|langlinks" else "pageprops"),
+                "prop" to (if (withTurkishLink) "pageprops|langlinks|extracts|pageimages" else "pageprops|extracts|pageimages"),
                 "ppprop" to "infoboxes|fandomdescription|disambiguation",
+                "piprop" to "thumbnail",
+                "pithumbsize" to "480",
+                "exintro" to "1",
+                "explaintext" to "1",
+                "exchars" to "1200",
                 "format" to "json",
                 "formatversion" to "2"
             )
@@ -55,6 +60,64 @@ internal object FandomApi {
         }
         return result
     }
+
+    /** Lead image plus the page's full MediaWiki file list and attribution metadata. */
+    suspend fun pageImages(wikiId: String, title: String, maxImages: Int = 300): List<FandomImage> {
+        val fileTitles = LinkedHashSet<String>()
+        var leadImage: FandomImage? = null
+        var imageContinue: String? = null
+        var generalContinue: String? = null
+        var pagesFetched = 0
+        val limit = maxImages.coerceIn(1, 500)
+        do {
+            val params = mutableListOf(
+                "action" to "query",
+                "titles" to title,
+                "prop" to "images|pageimages",
+                "imlimit" to "50",
+                "piprop" to "thumbnail",
+                "pithumbsize" to "1200",
+                "format" to "json",
+                "formatversion" to "2"
+            )
+            imageContinue?.let { params += "imcontinue" to it }
+            generalContinue?.let { params += "continue" to it }
+            val url = FandomUrls.apiQuery(wikiId, params) ?: break
+            val batch = FandomApiParsers.parsePageImageBatch(FandomHttp.get(url), title)
+            if (leadImage == null) leadImage = batch.leadImage
+            batch.fileTitles.forEach { fileTitles += it }
+            imageContinue = batch.continueToken
+            generalContinue = batch.generalContinueToken
+            pagesFetched += batch.fileTitles.size
+        } while (!imageContinue.isNullOrBlank() && pagesFetched < limit)
+
+        val details = mutableListOf<FandomImage>()
+        for (chunk in fileTitles.take(limit).chunked(MAX_TITLES_PER_REQUEST)) {
+            val url = FandomUrls.apiQuery(
+                wikiId,
+                listOf(
+                    "action" to "query",
+                    "titles" to chunk.joinToString("|"),
+                    "prop" to "imageinfo",
+                    "iiprop" to "url|extmetadata",
+                    "iiurlwidth" to "1200",
+                    "format" to "json",
+                    "formatversion" to "2"
+                )
+            ) ?: continue
+            details += FandomApiParsers.parseImageInfo(FandomHttp.get(url))
+        }
+        val leadIdentity = leadImage?.url?.let(::imageIdentity)
+        val detailedLead = leadIdentity?.let { identity -> details.firstOrNull { imageIdentity(it.url) == identity } }
+        val preferredLead = detailedLead?.let { image ->
+            image.copy(caption = image.caption ?: leadImage?.caption)
+        } ?: leadImage
+        return (listOfNotNull(preferredLead) + details.filterNot { imageIdentity(it.url) == leadIdentity })
+            .distinctBy { imageIdentity(it.url) }
+    }
+
+    private fun imageIdentity(url: String): String =
+        url.substringBefore("/revision/latest").substringBefore('?').trimEnd('/')
 
     suspend fun sections(wikiId: String, title: String): List<FandomSectionRef>? {
         val url = FandomUrls.apiQuery(

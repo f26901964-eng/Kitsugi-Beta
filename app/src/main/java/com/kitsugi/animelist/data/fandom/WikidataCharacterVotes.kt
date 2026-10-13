@@ -1,42 +1,42 @@
 package com.kitsugi.animelist.data.fandom
 
 /**
- * Karakter oylaması (saf mantık, ağ yok).
+ * Character-vote fallback (pure logic, no network).
  *
- * Bir yapımın karakterleri Wikidata'da P6262 (Fandom sayfa kimliği) taşır; karakterlerin
- * çoğu aynı wiki'ye işaret ediyorsa o wiki yapımın wiki'sidir. Her karakter en fazla bir
- * oy verir (aynı wiki'ye birden çok sayfa = tek oy), dil wikileri ve engelli wikiler yok sayılır.
+ * A work's characters carry Wikidata P6262 Fandom article IDs. If enough characters point to
+ * the same community, it is likely the work's wiki. Each character votes once for its preferred
+ * page language (root/English, then Turkish, then another localized community).
  */
 internal object WikidataCharacterVotes {
 
-    /** Bir yapım için sorgulanan en fazla karakter (ters P1441 sonucundan). */
+    /** Maximum characters queried for one work (from reverse P1441 links). */
     const val MAX_CHARACTERS = 50
 
-    /** Bir wiki'nin kazanabilmesi için gereken en az oy. */
+    /** Minimum votes required for a community to win. */
     const val MIN_VOTES = 2
 
-    /** Kazanan wiki'nin siteinfo makale sayısı alt sınırı (küçük/boş wiki'leri eler). */
+    /** Minimum article count for the winning community (reject empty/tiny wikis). */
     const val MIN_WIKI_ARTICLES = 20
 
     /**
-     * Karakter başına P6262 değerleri → wiki kimliği → oy sayısı.
-     * Her karakter bir wiki için en fazla bir oy verir.
+     * P6262 values per character → wiki ID → vote count. A character votes at most once.
      */
     fun tally(perCharacter: List<List<String>>): Map<String, Int> {
         val votes = LinkedHashMap<String, Int>()
         for (articles in perCharacter) {
             val wikis = articles
                 .mapNotNull { FandomUrls.parseArticleId(it)?.first }
-                .filter { FandomUrls.isRoot(it) && !FandomCandidateSelector.isBlocked(it) }
+                .filterNot(FandomCandidateSelector::isBlocked)
                 .distinct()
-            for (wiki in wikis) votes[wiki] = (votes[wiki] ?: 0) + 1
+            val wiki = FandomCandidateSelector.choose(wikis)?.primary ?: continue
+            votes[wiki] = (votes[wiki] ?: 0) + 1
         }
         return votes
     }
 
     /**
-     * Kazanan wiki: en az [MIN_VOTES] oy almış ve ikinciden **kesin** fazla oyu olan.
-     * Eşitlik veya yetersiz oy durumunda null (belirsizlik kabul edilmez).
+     * Winner: at least [MIN_VOTES] and a strict lead over second place. Ties and low vote counts
+     * are ambiguous and intentionally return null.
      */
     fun winner(votes: Map<String, Int>): String? {
         val ranked = votes.entries.sortedWith(

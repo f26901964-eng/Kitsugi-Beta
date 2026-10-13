@@ -1,4 +1,5 @@
 package com.kitsugi.animelist.ui.components
+import com.kitsugi.animelist.ui.theme.gradient.CircularProgressIndicator
 import com.kitsugi.animelist.utils.KitsugiTranslateUtils
 import com.kitsugi.animelist.utils.KitsugiTranslatePrefs
 import com.kitsugi.animelist.ui.components.KitsugiButton

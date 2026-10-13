@@ -1,4 +1,5 @@
 ﻿package com.kitsugi.animelist.ui.screens.detail.components
+import com.kitsugi.animelist.ui.theme.gradient.CircularProgressIndicator
 import com.kitsugi.animelist.ui.components.KitsugiButton
 
 import android.net.Uri
@@ -38,6 +39,7 @@ import androidx.media3.ui.PlayerView
 import com.kitsugi.animelist.data.trailer.InAppYouTubeExtractor
 import com.kitsugi.animelist.data.trailer.TrailerPlaybackSource
 import com.kitsugi.animelist.data.trailer.YoutubeChunkedDataSourceFactory
+import com.kitsugi.animelist.ui.screens.detail.rememberInlinePlayerResumed
 import com.kitsugi.animelist.ui.theme.KitsugiColors
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
@@ -153,6 +155,13 @@ fun SharedTrailerOverlay(
     // Apply pause/resume
     LaunchedEffect(isPaused) {
         exoPlayer.playWhenReady = !isPaused
+    }
+
+    // Uygulama alt sekmeye / arka plana alındığında durdur. Geri dönünce kendiliğinden
+    // devam etmez; kullanıcı oynat düğmesine basana kadar duraklı kalır.
+    val resumedState = rememberInlinePlayerResumed()
+    LaunchedEffect(resumedState.value) {
+        if (!resumedState.value) isPaused = true
     }
 
     // Auto-hide controls after 3s

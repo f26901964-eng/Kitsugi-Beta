@@ -7287,6 +7287,8 @@ Eklentiler ekranından eklenti etkinleştirin.</string>
     <string name="fandom_unavailable_title">Wiki bulunamadı</string>
     <string name="fandom_unavailable_character">Bu karakter için Fandom wiki sayfası bulunamadı.</string>
     <string name="fandom_unavailable_media">Bu yapım için Fandom wiki\'si bulunamadı.</string>
+    <string name="fandom_media_article_unavailable_title">Madde bulunamadı</string>
+    <string name="fandom_media_article_unavailable">Bu wiki içinde yapımın eşleşen bir madde sayfası bulunamadı.</string>
     <string name="fandom_unavailable_hint">Bağlantı hatasıysa tekrar deneyebilirsin.</string>
     <string name="fandom_retry">Tekrar dene</string>
     <string name="fandom_section_role_movie">Filmdeki rolü</string>
@@ -7476,6 +7478,16 @@ Eklentiler ekranından eklenti etkinleştirin.</string>
     <string name="fandom_translate_infobox">Bilgi kutusunu çevir</string>
     <string name="fandom_infobox_title">Bilgi kutusu</string>
     <string name="fandom_image_failed">Görsel yüklenemedi</string>
+    <string name="fandom_wiki_images_title">Fandom görselleri</string>
+    <string name="fandom_related_title">İlgili Wiki sayfaları</string>
+    <string name="fandom_related_cast">Oyuncu kadrosu</string>
+    <string name="fandom_related_staff">Ekip</string>
+    <string name="fandom_related_other">İlgili Wiki sayfaları</string>
+    <string name="fandom_open_related_page">Fandom sayfasını aç</string>
+    <string name="fandom_related_article_count">%1$d madde</string>
+    <string name="fandom_image_source_file">Dosya</string>
+    <string name="fandom_image_credit">Görsel kredisi</string>
+    <string name="fandom_image_license">Lisans</string>
     <string name="fandom_unavailable_staff">Bu kişi için Fandom wiki sayfası bulunamadı.</string>
     <string name="fandom_staff_tab_wiki">Wiki</string>
     <string name="fandom_manga_wiki_title">Fandom Wiki</string>
@@ -7510,4 +7522,9 @@ Eklentiler ekranından eklenti etkinleştirin.</string>
     <string name="detail_stats_status_paused">Ara verildi</string>
     <string name="detail_stats_score_title">Puan Dağılımı</string>
     <string name="detail_stats_score_subtitle">%1$s oy · Ort. %2$s</string>
+    <string name="inline_player_play">Oynat</string>
+    <string name="inline_player_pause">Duraklat</string>
+    <string name="inline_player_fullscreen">Tam ekran</string>
+    <string name="translate_show_translation">Çeviri</string>
+    <string name="translate_show_original">Orijinal</string>
 </resources>

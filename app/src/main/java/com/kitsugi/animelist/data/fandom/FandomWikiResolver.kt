@@ -7,34 +7,10 @@ import com.kitsugi.animelist.data.remote.KitsugiIdResolver
 import com.kitsugi.animelist.model.MediaType
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.withContext
-
-/** Bir yapımın wiki'sini bulmak için girdi. */
-data class FandomMediaQuery(
-    val ids: FandomSourceIds,
-    val isManga: Boolean,
-    val isMovie: Boolean = false,
-    /** AniList verisi alınamazsa isim yolunda kullanılacak başlıklar. */
-    val fallbackTitles: List<String> = emptyList()
-) {
-    /**
-     * Önbellek anahtarı: kimlik varsa kimlikten; hiç kimlik yoksa (ör. eklenti kaynağından
-     * açılan manga/dizi) ilk başlıktan türetilir — böylece isim yolu da önbelleklenir.
-     */
-    fun cacheKey(): String? = ids.stableKey(isManga, isMovie) ?: titleKey()
-
-    private fun titleKey(): String? {
-        val title = fallbackTitles.firstOrNull()?.trim()?.takeIf { it.isNotEmpty() } ?: return null
-        val normalized = title.lowercase(java.util.Locale.ROOT)
-            .replace(Regex("[^\\p{L}\\p{N}]+"), " ")
-            .trim()
-            .replace(' ', '_')
-            .take(80)
-        if (normalized.isEmpty()) return null
-        val kind = if (isManga) "m" else "a"
-        return "title:$kind:$normalized"
-    }
-}
 
 /**
  * Yapım → Fandom wiki çözümleyici.
@@ -51,13 +27,21 @@ internal class FandomWikiResolver(
     private val isWikiRejected: (String) -> Boolean = { false }
 ) {
 
+    private data class ResolutionPick(
+        val info: FandomSiteInfo,
+        val viaOverride: Boolean,
+        val articleTitle: String? = null
+    )
+
     companion object {
         private const val TAG = "FandomWikiResolver"
         private const val MAX_RELATIONS = 4
         private const val MAX_ROOT_CANDIDATES = 4
-        private const val MAX_FINGERPRINT_CANDIDATES = 3
-        private const val MAX_SLUG_PROBES = 3
-        private const val MAX_SEARCH_QUERIES = 3
+        private const val MAX_LOCALIZED_CANDIDATES = 8
+        private const val MAX_FINGERPRINT_CANDIDATES = 8
+        private const val MAX_NATIVE_TITLE_CANDIDATES = 8
+        private const val MAX_SLUG_PROBES = 8
+        private const val MAX_SEARCH_QUERIES = 8
         /** Karakter oylamasında taranan en fazla medya QID'i (aynı yapımın farklı kayıtları). */
         private const val MAX_VOTE_MEDIA = 3
 
@@ -97,9 +81,20 @@ internal class FandomWikiResolver(
         if (lookups.isNotEmpty() || starts.isNotEmpty()) {
             val resolution = WikidataClient.resolveMedia(lookups, starts)
             if (resolution != null) {
-                pickFromResolution(resolution, overrides)?.let { (info, viaOverride) ->
-                    val source = if (viaOverride) FandomMatchSource.OVERRIDE else FandomMatchSource.WIKIDATA
-                    return FandomWikiRef(info.wikiId, source, FandomConfidence.CERTAIN, info.siteName)
+                pickFromResolution(resolution, overrides)?.let { pick ->
+                    val source = if (pick.viaOverride) FandomMatchSource.OVERRIDE else FandomMatchSource.WIKIDATA
+                    val candidateTitle = pick.articleTitle
+                    val pageTitle = candidateTitle?.takeIf {
+                        query.ids.wikidataId != null ||
+                            FandomNameMatcher.titleSimilarity(it, query.fallbackTitles) >= 0.55
+                    }
+                    return FandomWikiRef(
+                        wikiId = pick.info.wikiId,
+                        source = source,
+                        confidence = FandomConfidence.CERTAIN,
+                        siteName = pick.info.siteName,
+                        pageTitle = pageTitle
+                    )
                 }
             }
         }
@@ -157,25 +152,54 @@ internal class FandomWikiResolver(
 
     private suspend fun completeIds(query: FandomMediaQuery): FandomSourceIds {
         var ids = query.ids
+        val mediaType = when {
+            query.isManga -> MediaType.Manga
+            query.isMovie -> MediaType.Movie
+            query.isTvShow -> MediaType.TvShow
+            else -> MediaType.Anime
+        }
+
+        // Shikimori IDs are not MAL IDs; resolve them through the established mapping first.
         val shikimoriId = ids.shikimoriId
         if (ids.malId == null && shikimoriId != null) {
             val mal = safely { withContext(Dispatchers.IO) { KitsugiIdResolver.resolveMalIdFromShikimori(shikimoriId) } }
-            if (mal != null && mal > 0) ids = ids.copy(malId = mal)
+            if (mal != null && mal in 1..99_999_999) ids = ids.copy(malId = mal)
         }
-        // Kitsu / Bangumi / TMDB kaynaklarında AniList–MAL kimliği yoksa çapraz kimlik çözülür
-        // (AniList doğrulama verisi ve ilişki yürüyüşü bu kimliklere ihtiyaç duyar).
-        if (ids.aniListId == null && ids.malId == null &&
-            (ids.kitsuId != null || ids.bangumiId != null || ids.tmdbId != null)
+
+        val currentSimklId = ids.simklId
+        if (currentSimklId != null && mediaType != MediaType.Manga &&
+            (ids.aniListId == null || ids.malId == null || ids.tmdbId == null || ids.imdbId == null)
         ) {
-            val mediaType = when {
-                query.isManga -> MediaType.Manga
-                ids.tmdbId != null && query.isMovie -> MediaType.Movie
-                else -> MediaType.Anime
+            val currentTmdbId = ids.tmdbId
+            val currentMalId = ids.malId
+            val simkl = safely {
+                com.kitsugi.animelist.data.remote.KitsugiSimklDetailClient.resolveSimklCrossIds(
+                    simklId = currentSimklId,
+                    mediaType = mediaType,
+                    hintTmdbId = currentTmdbId,
+                    hintMalId = currentMalId
+                )
             }
+            if (simkl != null) {
+                ids = ids.copy(
+                    aniListId = ids.aniListId ?: simkl.aniListId?.takeIf { it > 0 },
+                    malId = ids.malId ?: simkl.malId?.takeIf { it in 1..99_999_999 },
+                    kitsuId = ids.kitsuId ?: simkl.kitsuId?.takeIf { it > 0 },
+                    tmdbId = ids.tmdbId ?: simkl.tmdbId?.takeIf { it > 0 },
+                    imdbId = ids.imdbId ?: simkl.imdbId?.trim()?.takeIf { it.matches(Regex("(?i)^tt[0-9]{5,12}$")) }
+                )
+            }
+        }
+
+        // Kitsu / Bangumi / TMDB identities can be bridged to MAL/AniList. The result is also
+        // useful for IMDb (P345) lookups, even when this item already had a primary catalog ID.
+        val hasCatalogId = ids.aniListId != null || ids.malId != null || ids.kitsuId != null ||
+            ids.bangumiId != null || ids.tmdbId != null
+        if (hasCatalogId && (ids.imdbId == null || (ids.aniListId == null && ids.malId == null))) {
             val resolved = safely {
                 KitsugiIdResolver.resolveIds(
-                    malId = null,
-                    aniListId = null,
+                    malId = ids.malId,
+                    aniListId = ids.aniListId,
                     tmdbId = ids.tmdbId,
                     mediaType = mediaType,
                     kitsuId = ids.kitsuId,
@@ -184,10 +208,11 @@ internal class FandomWikiResolver(
             }
             if (resolved != null) {
                 ids = ids.copy(
-                    aniListId = resolved.aniListId?.takeIf { it > 0 },
-                    malId = resolved.malId?.takeIf { it in 1..99_999_999 },
-                    tmdbId = ids.tmdbId ?: resolved.tmdbId,
-                    wikidataId = ids.wikidataId ?: resolved.wikidataId?.takeIf { WikidataParsers.isQid(it) }
+                    aniListId = ids.aniListId ?: resolved.aniListId?.takeIf { it > 0 },
+                    malId = ids.malId ?: resolved.malId?.takeIf { it in 1..99_999_999 },
+                    tmdbId = ids.tmdbId ?: resolved.tmdbId?.takeIf { it > 0 },
+                    wikidataId = ids.wikidataId ?: resolved.wikidataId?.takeIf { WikidataParsers.isQid(it) },
+                    imdbId = ids.imdbId ?: resolved.imdbId?.trim()?.takeIf { it.matches(Regex("(?i)^tt[0-9]{5,12}$")) }
                 )
             }
         }
@@ -196,45 +221,64 @@ internal class FandomWikiResolver(
 
     // ── Wikidata sonucundan seçim ────────────────────────────────────────────
 
-    /** @return (wiki bilgisi, QID eşleme tablosundan mı geldi) */
+    /** Resolve the live wiki and retain an item-level P6262 title when it targets that wiki. */
     private suspend fun pickFromResolution(
         resolution: WikidataResolution,
         overrides: FandomOverrideTable
-    ): Pair<FandomSiteInfo, Boolean>? {
+    ): ResolutionPick? {
         val qids = resolution.starts + resolution.visitedNodes
         for (qid in qids) {
             val wiki = overrides.lookupQid(qid) ?: continue
             if (isWikiRejected(wiki)) continue
-            siteInfoCached(wiki)?.takeUnless { isWikiRejected(it.wikiId) }?.let { return it to true }
+            siteInfoCached(wiki)?.takeUnless { isWikiRejected(it.wikiId) }?.let { info ->
+                return ResolutionPick(info, viaOverride = true, articleTitle = directArticleTitle(resolution, info.wikiId))
+            }
         }
         for (depth in 0..2) {
             val candidates = resolution.wikisByDepth[depth].orEmpty()
             if (candidates.isEmpty()) continue
-            pickAlive(candidates)?.let { return it to false }
+            pickAlive(candidates)?.let { info ->
+                return ResolutionPick(info, viaOverride = false, articleTitle = directArticleTitle(resolution, info.wikiId))
+            }
         }
         val articleWikis = resolution.articleIds.mapNotNull { FandomUrls.parseArticleId(it)?.first }
         if (articleWikis.isNotEmpty()) {
-            pickAlive(articleWikis)?.let { return it to false }
+            pickAlive(articleWikis)?.let { info ->
+                return ResolutionPick(info, viaOverride = false, articleTitle = directArticleTitle(resolution, info.wikiId))
+            }
         }
         return null
     }
 
-    /** Adaylardan erişilebilir olanı seçer (birden fazla ana aday → makale sayısı büyük olan). */
+    private fun directArticleTitle(resolution: WikidataResolution, wikiId: String): String? =
+        resolution.articleIds.asSequence()
+            .mapNotNull(FandomUrls::parseArticleId)
+            .firstOrNull { it.first == wikiId }
+            ?.second
+
+    /** Choose a live root wiki when available, then Turkish, then any localized wiki. */
     private suspend fun pickAlive(candidates: List<String>): FandomSiteInfo? {
         val usable = FandomCandidateSelector.usable(candidates).filterNot { isWikiRejected(it) }
         if (usable.isEmpty()) return null
         val roots = usable.filter { FandomUrls.isRoot(it) }.take(MAX_ROOT_CANDIDATES)
-        val pool = roots.ifEmpty { usable.filter { FandomUrls.languageOf(it) == "tr" }.take(2) }
-        val infos = LinkedHashMap<String, FandomSiteInfo>()
-        for (candidate in pool) {
-            val info = siteInfoCached(candidate) ?: continue
-            if (FandomCandidateSelector.isBlocked(info.wikiId) || isWikiRejected(info.wikiId)) continue
-            infos.putIfAbsent(info.wikiId, info)
+        val localized = usable.filterNot { FandomUrls.isRoot(it) }
+            .sortedBy { if (FandomUrls.languageOf(it) == "tr") 0 else 1 }
+            .take(MAX_LOCALIZED_CANDIDATES)
+        suspend fun loadInfos(pool: List<String>): List<FandomSiteInfo> = coroutineScope {
+            pool.map { candidate ->
+                async { siteInfoCached(candidate) }
+            }.awaitAll()
+                .filterNotNull()
+                .filterNot { FandomCandidateSelector.isBlocked(it.wikiId) || isWikiRejected(it.wikiId) }
+                .distinctBy { it.wikiId }
         }
+        val rootInfos = loadInfos(roots)
+        val infos = rootInfos.ifEmpty { loadInfos(localized) }
         if (infos.isEmpty()) return null
-        val counts = infos.mapValues { (_, info) -> info.articles ?: 0 }
-        val choice = FandomCandidateSelector.choose(infos.keys, counts) ?: return null
-        return infos[choice.primary]
+        val byWiki = infos.associateBy { it.wikiId }
+        val counts = infos.associate { it.wikiId to (it.articles ?: 0) }
+        val choice = FandomCandidateSelector.choose(byWiki.keys, counts) ?: return null
+        return byWiki[choice.primary]
     }
 
     // ── İlişki yürüyüşü ──────────────────────────────────────────────────────
@@ -267,11 +311,11 @@ internal class FandomWikiResolver(
         query: FandomMediaQuery,
         ids: FandomSourceIds
     ): FandomWikiRef? {
-        val allTitles = (evidence?.titles.orEmpty() + query.fallbackTitles)
+        val allTitles = (evidence?.titles.orEmpty() + listOfNotNull(evidence?.nativeTitle) + query.fallbackTitles)
             .map { it.trim() }
-            .filter { it.isNotEmpty() && FandomNameVariants.isMostlyLatin(it) }
-            .distinct()
-        val baseTitles = FandomNameVariants.baseTitleVariants(allTitles)
+            .filter { it.isNotEmpty() && it.length <= 200 }
+            .distinctBy(FandomNameVariants::normalizeForCompare)
+        val baseTitles = FandomNameVariants.mediaTitleVariants(allTitles)
         if (baseTitles.isEmpty()) return null
         val creators = evidence?.creators.orEmpty()
         val nameEvidence = FandomNameEvidence(
@@ -280,25 +324,44 @@ internal class FandomWikiResolver(
             characterNames = evidence?.characters?.map { it.fullName }.orEmpty(),
             isManga = query.isManga
         )
+        val nativeTitles = FandomNameVariants.mediaTitleVariants(allTitles)
+            .filterNot(FandomNameVariants::isMostlyLatin)
 
-        // A) Aday üretme: başlık, başlık + yazar, ikinci başlık.
+        // A) Aday üretme: ana başlık, varsa yerel yazım, yazar ipucu ve ikinci başlık.
+        val latinTitles = baseTitles.filter(FandomNameVariants::isMostlyLatin)
+        val latinQueryLimit = if (nativeTitles.isEmpty()) MAX_SEARCH_QUERIES - 1 else 3
         val queries = buildList {
-            add(baseTitles.first())
+            latinTitles.take(latinQueryLimit).forEach(::add)
+            nativeTitles.take(3).forEach(::add)
             creators.firstOrNull()?.let { add("${baseTitles.first()} $it") }
-            baseTitles.getOrNull(1)?.let { add(it) }
-        }.distinct().take(MAX_SEARCH_QUERIES)
+            if (nativeTitles.isNotEmpty()) {
+                latinTitles.drop(3).firstOrNull()?.let(::add)
+                nativeTitles.drop(3).firstOrNull()?.let(::add)
+            }
+        }.distinctBy(FandomNameVariants::normalizeForCompare).take(MAX_SEARCH_QUERIES)
         val hits = LinkedHashMap<String, FandomCommunityHit>()
-        for (text in queries) {
-            FandomApi.communitySearch(text).forEach { hit -> hits.putIfAbsent(hit.wikiId, hit) }
+        val nativeQueryKeys = nativeTitles.map(FandomNameVariants::normalizeForCompare).toSet()
+        val nativeSearchHitIds = LinkedHashSet<String>()
+        val searchResults = coroutineScope {
+            queries.map { text -> async { text to FandomApi.communitySearch(text) } }.awaitAll()
+        }
+        searchResults.forEach { (text, results) ->
+            val cameFromNativeQuery = FandomNameVariants.normalizeForCompare(text) in nativeQueryKeys
+            results.forEach { hit ->
+                hits.putIfAbsent(hit.wikiId, hit)
+                if (cameFromNativeQuery) nativeSearchHitIds += hit.wikiId
+            }
         }
         val hasExactTitle = hits.values.any { FandomNameMatcher.titleSimilarity(it.name, nameEvidence.titles, creators) >= 0.99 }
         if (!hasExactTitle) {
             val slugs = FandomNameVariants.slugCandidates(baseTitles)
                 .filter { it !in hits }
                 .take(MAX_SLUG_PROBES)
-            for (slug in slugs) {
-                val info = siteInfoCached(slug) ?: continue
-                if (info.wikiId in hits) continue
+            val slugInfos = coroutineScope {
+                slugs.map { slug -> async { siteInfoCached(slug) } }.awaitAll()
+            }
+            slugInfos.filterNotNull().forEach { info ->
+                if (info.wikiId in hits) return@forEach
                 hits[info.wikiId] = FandomCommunityHit(
                     wikiId = info.wikiId,
                     name = info.siteName ?: info.wikiId,
@@ -315,10 +378,56 @@ internal class FandomWikiResolver(
             .take(MAX_FINGERPRINT_CANDIDATES)
         if (shortlisted.isEmpty()) return null
 
+        // Yerel başlıkla açılmış eklenti/sağlayıcı kayıtlarında romaji olmayabilir. Topluluk
+        // araması yerel adı kabul ettiyse, aday wiki içinde aynı adlı gerçek (ambiguous olmayan)
+        // maddeyi doğrula. Tek bir doğrulanmış wiki yoksa güvenli biçimde isim puanlamasına dön.
+        if (nativeTitles.isNotEmpty()) {
+            // A native-only title can have zero token overlap with an English wiki name. Probe a
+            // wider (still bounded) search set before falling back to the three fingerprint hits.
+            val nativePriorityHits = buildList {
+                nativeSearchHitIds.forEach { wikiId -> hits[wikiId]?.let(::add) }
+                hits.values.filterNot { it.wikiId in nativeSearchHitIds }.forEach(::add)
+            }
+            val nativeCandidates = FandomNameMatcher.nativeTitleVerificationCandidates(
+                hits = nativePriorityHits.filterNot { isWikiRejected(it.wikiId) },
+                limit = MAX_NATIVE_TITLE_CANDIDATES
+            )
+            val nativeKeys = nativeQueryKeys
+            val verified = coroutineScope {
+                nativeCandidates.map { hit ->
+                    async {
+                        val lookups = safely { FandomApi.lookupTitles(hit.wikiId, nativeTitles) }.orEmpty()
+                        val exact = lookups.values.firstOrNull { lookup ->
+                            lookup.exists && !lookup.isDisambiguation &&
+                                FandomNameVariants.normalizeForCompare(lookup.requested) in nativeKeys
+                        } ?: return@async null
+                        val info = siteInfoCached(hit.wikiId) ?: return@async null
+                        hit to (exact to info)
+                    }
+                }.awaitAll().filterNotNull().distinctBy { it.first.wikiId }
+            }
+            if (verified.size == 1) {
+                val (hit, pair) = verified.single()
+                val info = pair.second
+                Log.d(TAG, "Yerel başlık doğrulaması: ${info.wikiId} ← ${pair.first.resolvedTitle}")
+                return FandomWikiRef(
+                    wikiId = info.wikiId,
+                    source = FandomMatchSource.NAME,
+                    confidence = FandomConfidence.PROBABLE,
+                    siteName = info.siteName ?: hit.name,
+                    score = 0.75
+                )
+            }
+        }
+
         // C) Doğrulama: karakter parmak izi (aday başına tek istek).
-        val scores = shortlisted.map { hit ->
-            val characterPrint = fingerprint(hit.wikiId, evidence)
-            FandomNameMatcher.score(hit, nameEvidence, characterPrint)
+        val scores = coroutineScope {
+            shortlisted.map { hit ->
+                async {
+                    val characterPrint = fingerprint(hit.wikiId, evidence)
+                    FandomNameMatcher.score(hit, nameEvidence, characterPrint)
+                }
+            }.awaitAll()
         }
 
         // D) Karar (+ muhtemel sonuçta birebir AniList/MAL bağlantısı ile yükseltme denemesi).

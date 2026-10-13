@@ -68,15 +68,12 @@ object FandomNameMatcher {
 
     private const val MIN_PAGE_COUNT = 20
     private val FAN_CONTENT = Regex("(?i)\\b(fanon|fan ?fic(tion)?|role ?play|rp|simulator|tycoon|roblox)\\b")
-    private val ALLOWED_LANGUAGES = setOf("en", "tr")
 
     /** Ek istek gerektirmeyen ön eleme. Veto nedeni ya da null döner. */
     fun preFilterVeto(hit: FandomCommunityHit): String? {
         if (FandomCandidateSelector.isBlocked(hit.wikiId)) return "blocked"
-        val wikiLanguage = FandomUrls.languageOf(hit.wikiId)
-        if (wikiLanguage != null && wikiLanguage != "tr") return "language"
-        val language = hit.language?.trim()?.lowercase()?.substringBefore('-')
-        if (!language.isNullOrEmpty() && language !in ALLOWED_LANGUAGES) return "language"
+        // Localized Fandom communities are valid targets too; article/entity evidence, not locale,
+        // decides whether the candidate represents this item.
         val pages = hit.pageCount
         if (pages != null && pages < MIN_PAGE_COUNT) return "tiny"
         if (FAN_CONTENT.containsMatchIn(hit.name)) return "fan-content"
@@ -129,6 +126,20 @@ object FandomNameMatcher {
             needle.length >= 4 && haystack.contains(" $needle ")
         }
     }
+
+    /**
+     * Native-script verification cannot depend on title-token score: an English-named wiki
+     * may host an article whose exact title is Japanese/Korean/Chinese. Keep a wider, bounded
+     * candidate pool so this exact-page check can run before fingerprint fallback.
+     */
+    fun nativeTitleVerificationCandidates(
+        hits: Collection<FandomCommunityHit>,
+        rejectedWikiIds: Set<String> = emptySet(),
+        limit: Int = 8
+    ): List<FandomCommunityHit> = hits
+        .filter { it.wikiId !in rejectedWikiIds && preFilterVeto(it) == null }
+        .distinctBy { it.wikiId }
+        .take(limit.coerceAtLeast(0))
 
     /** Parmak izi isteği atılacak adayları sıralamak için ucuz ön puan. */
     fun quickScore(hit: FandomCommunityHit, evidence: FandomNameEvidence): Double {

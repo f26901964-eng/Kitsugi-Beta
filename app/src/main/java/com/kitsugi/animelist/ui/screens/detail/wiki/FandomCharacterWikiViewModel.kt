@@ -55,7 +55,7 @@ class FandomCharacterWikiViewModel(application: Application) : AndroidViewModel(
         const val KEY_DESCRIPTION = "desc"
         /** Bilgi kutusu toplu çeviri durumu; alan bazlı sonuçlar [infoboxFieldKey] ile saklanır. */
         const val KEY_INFOBOX = "infobox"
-        private const val INFOBOX_FIELD_PREFIX = "ib:"
+        const val INFOBOX_FIELD_PREFIX = "ib:"
         private const val MAX_INFOBOX_FIELDS = 60
         fun sectionKey(index: Int): String = "sec:$index"
         /** Düzleştirilmiş alan sırasına (grup → alan) göre anahtar. */
@@ -78,6 +78,14 @@ class FandomCharacterWikiViewModel(application: Application) : AndroidViewModel(
 
     private val _translating = MutableStateFlow<Set<String>>(emptySet())
     val translating: StateFlow<Set<String>> = _translating.asStateFlow()
+
+    /**
+     * Orijinal metne dönülmüş anahtarlar ([KEY_DESCRIPTION], [sectionKey], [KEY_INFOBOX]).
+     * Çeviri bellekte kalır; geçiş düğmesiyle tekrar gösterilebilir. Bu anahtarlar için
+     * otomatik çeviri yeniden çalışıp üstüne yazmaz.
+     */
+    private val _originalKeys = MutableStateFlow<Set<String>>(emptySet())
+    val originalKeys: StateFlow<Set<String>> = _originalKeys.asStateFlow()
 
     /**
      * Ayarlardaki çeviri uygulaması tercihi ("GOOGLE", "DEEPL", "TRANSLATE_YOU", "DEFAULT").
@@ -204,6 +212,11 @@ class FandomCharacterWikiViewModel(application: Application) : AndroidViewModel(
     /** "Tekrar dene": son karakter için çözümlemeyi sıfırdan başlatır. */
     fun retry() = rebind()
 
+    /** Orijinal / çeviri geçişi: bu anahtar için orijinal metnin gösterilip gösterilmeyeceğini değiştirir. */
+    fun toggleOriginal(key: String) {
+        _originalKeys.update { if (key in it) it - key else it + key }
+    }
+
     fun loadSection(index: Int) {
         val page = (_state.value as? UiState.Ready)?.page ?: return
         when (_sections.value[index]) {
@@ -213,7 +226,13 @@ class FandomCharacterWikiViewModel(application: Application) : AndroidViewModel(
         _sections.update { it + (index to SectionState.Loading) }
         viewModelScope.launch {
             val content = try {
-                FandomRepository.loadSection(appContext, page.wikiId, page.pageTitle, index)
+                FandomRepository.loadSection(
+                    appContext,
+                    page.wikiId,
+                    page.pageTitle,
+                    index,
+                    page.sections.firstOrNull { it.index == index }?.title
+                )
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
@@ -234,6 +253,7 @@ class FandomCharacterWikiViewModel(application: Application) : AndroidViewModel(
     fun translate(key: String, force: Boolean = false) {
         if (key in _translating.value) return
         if (!force && key in _translations.value) return
+        if (!force && key in _originalKeys.value) return
         val page = (_state.value as? UiState.Ready)?.page ?: return
         val text = when {
             key == KEY_DESCRIPTION -> page.description
@@ -290,7 +310,10 @@ class FandomCharacterWikiViewModel(application: Application) : AndroidViewModel(
      */
     private fun retranslateLoadedTexts(force: Boolean) {
         val page = (_state.value as? UiState.Ready)?.page ?: return
-        if (force) _translations.value = emptyMap()
+        if (force) {
+            _translations.value = emptyMap()
+            _originalKeys.value = emptySet()
+        }
         if (!page.description.isNullOrBlank()) translate(KEY_DESCRIPTION, force = force)
         if (!page.infobox?.allFields().isNullOrEmpty()) translateInfobox(force = force)
         _sections.value.keys.sorted().forEach { index -> translate(sectionKey(index), force = force) }
@@ -304,6 +327,7 @@ class FandomCharacterWikiViewModel(application: Application) : AndroidViewModel(
     fun translateInfobox(force: Boolean = false) {
         if (KEY_INFOBOX in _translating.value) return
         if (!force && KEY_INFOBOX in _translations.value) return
+        if (!force && KEY_INFOBOX in _originalKeys.value) return
         val page = (_state.value as? UiState.Ready)?.page ?: return
         val fields = page.infobox?.allFields().orEmpty()
         val targets = fields.withIndex()
@@ -394,6 +418,8 @@ class FandomCharacterWikiViewModel(application: Application) : AndroidViewModel(
         translationJobs.values.forEach { it.cancel() }
         translationJobs.clear()
         _translating.value = emptySet()
+        // Yeni sayfa / otomatik çeviri kapandı: eski orijinal-geçiş durumu geçerli değil.
+        _originalKeys.value = emptySet()
     }
 
     private suspend fun isAutoTranslateEnabled(): Boolean = try {

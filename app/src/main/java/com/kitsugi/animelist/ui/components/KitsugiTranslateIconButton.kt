@@ -6,13 +6,18 @@ import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Translate
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -97,5 +102,39 @@ fun KitsugiTranslateIconButton(
                 )
             }
         }
+    }
+}
+
+/**
+ * Uygulama içi (otomatik) çeviri ekranda gösterilirken orijinal metne geçiş düğmesi.
+ *
+ * Çeviri gösterilirken "Orijinal" yazar ve dokununca orijinal metin geri gelir; orijinal
+ * gösterilirken "Çeviri" yazar ve dokununca çeviri tekrar gösterilir. Çeviri çoğunlukla
+ * otomatik olarak yapıldığı için, bu düğme kullanıcıya her zaman orijinal metne dönme
+ * imkânı verir. Yalnızca çeviri mevcutken çağrılmalıdır.
+ *
+ * @param showingOriginal şu an orijinal metin gösteriliyor mu.
+ * @param onClick geçişi yapan callback (durumu çağıran taraf tutar).
+ */
+@Composable
+fun KitsugiOriginalToggleButton(
+    showingOriginal: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    tint: Color = LocalKitsugiAccent.current
+) {
+    TextButton(
+        onClick = onClick,
+        modifier = modifier,
+        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp)
+    ) {
+        Text(
+            text = stringResource(
+                if (showingOriginal) R.string.translate_show_translation else R.string.translate_show_original
+            ),
+            color = tint,
+            style = MaterialTheme.typography.labelMedium,
+            fontWeight = FontWeight.Bold
+        )
     }
 }

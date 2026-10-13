@@ -27,7 +27,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.OpenInNew
 import androidx.compose.material.icons.rounded.Search
-import androidx.compose.material3.CircularProgressIndicator
+import com.kitsugi.animelist.ui.theme.gradient.CircularProgressIndicator
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextFieldDefaults
@@ -56,6 +56,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.kitsugi.animelist.R
+import com.kitsugi.animelist.data.remote.GalleryCategory
+import com.kitsugi.animelist.data.remote.GalleryItem
 import com.kitsugi.animelist.data.fandom.FandomGuideGroup
 import com.kitsugi.animelist.data.fandom.FandomGuideItem
 import com.kitsugi.animelist.data.fandom.FandomUrls
@@ -82,9 +84,12 @@ private const val GUIDE_COLLAPSED_CHIPS = 8
 internal fun MediaWikiTabSlot(
     viewModel: FandomMediaWikiViewModel,
     accentColor: Color,
+    onOpenGallery: ((List<GalleryItem>, Int) -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     val uiState by viewModel.state.collectAsState()
+    val articleState by viewModel.article.collectAsState()
+    val articleSections by viewModel.articleSections.collectAsState()
     val guideState by viewModel.guide.collectAsState()
     val guideMore by viewModel.guideMore.collectAsState()
     val summaryState by viewModel.summary.collectAsState()
@@ -94,6 +99,8 @@ internal fun MediaWikiTabSlot(
     val translations by viewModel.translations.collectAsState()
     val translatingKeys by viewModel.translating.collectAsState()
     val preferredTranslator by viewModel.preferredTranslator.collectAsState()
+    val prefs by viewModel.prefs.collectAsState()
+    val originalKeys by viewModel.originalKeys.collectAsState()
 
     LaunchedEffect(uiState) {
         if (uiState is FandomMediaWikiViewModel.UiState.Ready) viewModel.ensureContentLoaded()
@@ -101,6 +108,8 @@ internal fun MediaWikiTabSlot(
 
     MediaWikiTabContent(
         uiState = uiState,
+        articleState = articleState,
+        articleSections = articleSections,
         guideState = guideState,
         guideMore = guideMore,
         summaryState = summaryState,
@@ -109,9 +118,12 @@ internal fun MediaWikiTabSlot(
         selectedState = selectedState,
         translations = translations,
         translatingKeys = translatingKeys,
-        preferredTranslator = preferredTranslator,
+        spoilerGuard = prefs.spoilerGuard,
         accentColor = accentColor,
         onRetry = viewModel::retry,
+        onRetryArticle = viewModel::retryArticle,
+        onLoadArticleSection = viewModel::loadArticleSection,
+        onConfirm = viewModel::confirmMatch,
         onRetryGuide = viewModel::retryGuide,
         onLoadMoreGuide = viewModel::loadMoreGuide,
         onSearchChange = viewModel::onSearchQueryChange,
@@ -120,6 +132,10 @@ internal fun MediaWikiTabSlot(
         onCloseItem = viewModel::closeItem,
         onRetryItem = viewModel::retryItem,
         onReportWrong = viewModel::reportWrongMatch,
+        onOpenGallery = onOpenGallery,
+        preferredTranslator = preferredTranslator,
+        originalKeys = originalKeys,
+        onToggleOriginal = viewModel::toggleOriginal,
         modifier = modifier
     )
 }
@@ -127,6 +143,8 @@ internal fun MediaWikiTabSlot(
 @Composable
 internal fun MediaWikiTabContent(
     uiState: FandomMediaWikiViewModel.UiState,
+    articleState: FandomMediaWikiViewModel.ArticleState,
+    articleSections: Map<Int, FandomCharacterWikiViewModel.SectionState>,
     guideState: FandomMediaWikiViewModel.GuideState,
     guideMore: FandomMediaWikiViewModel.GuideMore,
     summaryState: FandomMediaWikiViewModel.BlurbState,
@@ -135,8 +153,12 @@ internal fun MediaWikiTabContent(
     selectedState: FandomMediaWikiViewModel.SelectedState,
     translations: Map<String, String>,
     translatingKeys: Set<String>,
+    spoilerGuard: Boolean = false,
     accentColor: Color,
     onRetry: () -> Unit,
+    onRetryArticle: () -> Unit = {},
+    onLoadArticleSection: (Int) -> Unit = {},
+    onConfirm: () -> Unit = {},
     onRetryGuide: () -> Unit,
     onLoadMoreGuide: (FandomGuideGroup) -> Unit,
     onSearchChange: (String) -> Unit,
@@ -145,11 +167,19 @@ internal fun MediaWikiTabContent(
     onCloseItem: () -> Unit,
     onRetryItem: (String) -> Unit,
     onReportWrong: () -> Unit,
-    modifier: Modifier = Modifier,
-    /** Harici çeviri uygulaması tercihi (detay açıklama düğmesiyle aynı davranış için). */
-    preferredTranslator: String = "DEFAULT"
+    onOpenGallery: ((List<GalleryItem>, Int) -> Unit)? = null,
+    preferredTranslator: String = "DEFAULT",
+    originalKeys: Set<String> = emptySet(),
+    onToggleOriginal: (String) -> Unit = {},
+    modifier: Modifier = Modifier
 ) {
     val ready = uiState as? FandomMediaWikiViewModel.UiState.Ready
+    val articlePage = (articleState as? FandomMediaWikiViewModel.ArticleState.Ready)?.page
+    val context = LocalContext.current
+    val openArticleGallery: (List<GalleryItem>, Int) -> Unit = onOpenGallery ?: { items, index ->
+        items.getOrNull(index)?.let { openExternal(context, it.url) }
+    }
+
     Column(
         modifier = modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(16.dp)
@@ -164,13 +194,54 @@ internal fun MediaWikiTabContent(
             )
             else -> {
                 MediaWikiHeaderCard(ref = ready.ref, accentColor = accentColor)
-                MediaWikiSummaryCard(
-                    state = summaryState,
-                    translated = translations[FandomMediaWikiViewModel.KEY_SUMMARY],
-                    translating = FandomMediaWikiViewModel.KEY_SUMMARY in translatingKeys,
-                    accentColor = accentColor,
-                    preferredTranslator = preferredTranslator
-                )
+                if (ready.ref.confidence == FandomConfidence.PROBABLE && articlePage?.needsConfirmation != true) {
+                    WikiConfirmCard(
+                        accentColor = accentColor,
+                        onConfirm = onConfirm,
+                        onReject = onReportWrong
+                    )
+                }
+                when (articleState) {
+                    is FandomMediaWikiViewModel.ArticleState.Ready -> CharacterWikiTabContent(
+                        page = articleState.page,
+                        sections = articleSections,
+                        translations = translations,
+                        translatingKeys = translatingKeys,
+                        spoilerGuard = spoilerGuard,
+                        accentColor = accentColor,
+                        onLoadSection = onLoadArticleSection,
+                        onOpenGallery = openArticleGallery,
+                        onConfirm = onConfirm,
+                        onReportWrong = onReportWrong,
+                        showNestedSections = true,
+                        initiallyShowAllFields = true,
+                        galleryCategory = GalleryCategory.OTHER,
+                        preferredTranslator = preferredTranslator,
+                        originalKeys = originalKeys,
+                        onToggleOriginal = onToggleOriginal
+                    )
+                    FandomMediaWikiViewModel.ArticleState.Unavailable -> WikiUnavailableCard(
+                        accentColor = accentColor,
+                        messageRes = R.string.fandom_media_article_unavailable,
+                        onRetry = onRetryArticle,
+                        titleRes = R.string.fandom_media_article_unavailable_title
+                    )
+                    FandomMediaWikiViewModel.ArticleState.Idle,
+                    FandomMediaWikiViewModel.ArticleState.Loading -> WikiCard {
+                        WikiLoadingLine(accentColor)
+                    }
+                }
+                if (articlePage?.description.isNullOrBlank()) {
+                    MediaWikiSummaryCard(
+                        state = summaryState,
+                        translated = translations[FandomMediaWikiViewModel.KEY_SUMMARY],
+                        translating = FandomMediaWikiViewModel.KEY_SUMMARY in translatingKeys,
+                        accentColor = accentColor,
+                        preferredTranslator = preferredTranslator,
+                        showingOriginal = FandomMediaWikiViewModel.KEY_SUMMARY in originalKeys,
+                        onToggleOriginal = { onToggleOriginal(FandomMediaWikiViewModel.KEY_SUMMARY) }
+                    )
+                }
                 MediaWikiSearchCard(
                     query = searchQuery,
                     state = searchState,
@@ -187,11 +258,13 @@ internal fun MediaWikiTabContent(
                     onRetryGuide = onRetryGuide,
                     onLoadMoreGuide = onLoadMoreGuide
                 )
-                MediaWikiFooter(
-                    ref = ready.ref,
-                    accentColor = accentColor,
-                    onReportWrong = onReportWrong
-                )
+                if (articlePage == null) {
+                    MediaWikiFooter(
+                        ref = ready.ref,
+                        accentColor = accentColor,
+                        onReportWrong = onReportWrong
+                    )
+                }
             }
         }
     }
@@ -205,7 +278,9 @@ internal fun MediaWikiTabContent(
             accentColor = accentColor,
             onClose = onCloseItem,
             onRetry = onRetryItem,
-            preferredTranslator = preferredTranslator
+            preferredTranslator = preferredTranslator,
+            originalKeys = originalKeys,
+            onToggleOriginal = onToggleOriginal
         )
     }
 }
@@ -260,7 +335,9 @@ private fun MediaWikiSummaryCard(
     translated: String?,
     translating: Boolean,
     accentColor: Color,
-    preferredTranslator: String = "DEFAULT"
+    preferredTranslator: String = "DEFAULT",
+    showingOriginal: Boolean = false,
+    onToggleOriginal: (() -> Unit)? = null
 ) {
     val description = (state as? FandomMediaWikiViewModel.BlurbState.Ready)?.blurb?.description
     if (state is FandomMediaWikiViewModel.BlurbState.Idle || state is FandomMediaWikiViewModel.BlurbState.Loading) {
@@ -270,6 +347,7 @@ private fun MediaWikiSummaryCard(
         return
     }
     if (description.isNullOrBlank()) return
+    val shownText = if (showingOriginal) description else (translated ?: description)
     WikiCard {
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -289,13 +367,16 @@ private fun MediaWikiSummaryCard(
                 text = description,
                 preferredTranslator = preferredTranslator,
                 accentColor = accentColor,
-                isLoading = translating
+                isLoading = translating,
+                hasTranslation = translated != null,
+                showingOriginal = showingOriginal,
+                onToggleOriginal = onToggleOriginal
             )
         }
         Spacer(modifier = Modifier.height(8.dp))
         SelectionContainer {
             Text(
-                text = translated ?: description,
+                text = shownText,
                 color = KitsugiColors.TextPrimary,
                 style = MaterialTheme.typography.bodyMedium
             )
@@ -704,7 +785,9 @@ private fun WikiItemSheet(
     accentColor: Color,
     onClose: () -> Unit,
     onRetry: (String) -> Unit,
-    preferredTranslator: String = "DEFAULT"
+    preferredTranslator: String = "DEFAULT",
+    originalKeys: Set<String> = emptySet(),
+    onToggleOriginal: (String) -> Unit = {}
 ) {
     val title = when (selectedState) {
         is FandomMediaWikiViewModel.SelectedState.Ready -> selectedState.title
@@ -756,21 +839,28 @@ private fun WikiItemSheet(
                             fontWeight = FontWeight.Bold,
                             modifier = Modifier.weight(1f)
                         )
+                        val itemShowingOriginal = key != null && key in originalKeys
+                        val itemHasTranslation = key != null && translations[key] != null
                         // Detay sayfasındaki açıklama düğmesiyle aynı: her zaman ikon,
                         // dokununca kartın orijinal metni harici uygulamada açılır.
                         WikiTranslateButton(
                             text = selectedState.blurb?.description,
                             preferredTranslator = preferredTranslator,
                             accentColor = accentColor,
-                            isLoading = key != null && key in translatingKeys
+                            isLoading = key != null && key in translatingKeys,
+                            hasTranslation = itemHasTranslation,
+                            showingOriginal = itemShowingOriginal,
+                            onToggleOriginal = { key?.let(onToggleOriginal) }
                         )
                     }
                     val description = blurb?.description
                     val translated = key?.let { translations[it] }
+                    val itemShowingOriginal = key != null && key in originalKeys
+                    val shownDescription = if (itemShowingOriginal) description.orEmpty() else (translated ?: description.orEmpty())
                     if (!description.isNullOrBlank() || translated != null) {
                         SelectionContainer {
                             Text(
-                                text = translated ?: description.orEmpty(),
+                                text = shownDescription,
                                 color = KitsugiColors.TextPrimary,
                                 style = MaterialTheme.typography.bodyMedium
                             )

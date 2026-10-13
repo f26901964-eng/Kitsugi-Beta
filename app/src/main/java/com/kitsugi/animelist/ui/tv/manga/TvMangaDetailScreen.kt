@@ -63,6 +63,9 @@ import com.kitsugi.animelist.data.manga.MangaChapter
 import com.kitsugi.animelist.data.manga.MangaDetails
 import com.kitsugi.animelist.data.manga.MangaSource
 import com.kitsugi.animelist.data.manga.MangaStatus
+import com.kitsugi.animelist.data.fandom.FandomMediaQueries
+import com.kitsugi.animelist.ui.screens.detail.wiki.FandomMediaWikiViewModel
+import com.kitsugi.animelist.ui.screens.detail.wiki.MediaWikiSectionCard
 import com.kitsugi.animelist.ui.screens.manga.MangaDetailViewModel
 import com.kitsugi.animelist.ui.theme.KitsugiColors
 import com.kitsugi.animelist.ui.theme.KitsugiTvTokens
@@ -96,6 +99,19 @@ fun TvMangaDetailScreen(
     )
     val uiState by viewModel.uiState.collectAsState()
     val details = uiState.details
+
+    val wikiViewModel: FandomMediaWikiViewModel = viewModel(
+        key = "fandom_tv_manga_${source.name}_${mangaDetails.url}"
+    )
+    val wikiQuery = remember(details.title, details.url) {
+        FandomMediaQueries.fromMedia(
+            source = null,
+            mediaId = null,
+            isManga = true,
+            isMovie = false,
+            titles = listOf(details.title)
+        )
+    }
 
     val listState = rememberLazyListState()
     val backButtonFocusRequester = remember { FocusRequester() }
@@ -311,97 +327,97 @@ fun TvMangaDetailScreen(
                 }
             }
 
-            // ── SAĞ PANEL: Bölüm Listesi ───────────────────────────────────────
-            Column(
+            // ── SAĞ PANEL: Bölümler + Wiki ─────────────────────────────────────
+            LazyColumn(
+                state = listState,
                 modifier = Modifier
                     .weight(0.55f)
                     .fillMaxHeight()
                     .background(KitsugiColors.Surface.copy(alpha = 0.2f), RoundedCornerShape(12.dp))
-                    .padding(16.dp),
-                verticalArrangement = Arrangement.Top
+                    .padding(16.dp)
+                    .focusRequester(listFocusRequester)
+                    .focusGroup()
+                    .focusRestorer()
+                    .dpadRepeatThrottle(horizontalGateMs = Long.MAX_VALUE, verticalGateMs = 80L),
+                verticalArrangement = Arrangement.spacedBy(6.dp),
+                contentPadding = PaddingValues(vertical = 4.dp)
             ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Text(
-                        text = stringResource(R.string.bolumler) + if (uiState.chapters.isNotEmpty()) " (${uiState.chapters.size})" else "",
-                        color = KitsugiColors.TextPrimary,
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold
-                    )
-                    IconButton(
-                        onClick = { viewModel.loadChapters() },
-                        modifier = Modifier.size(36.dp)
-                    ) {
-                        Icon(
-                            Icons.Rounded.Refresh,
-                            contentDescription = stringResource(R.string.yenile),
-                            tint = KitsugiColors.TextSecondary,
-                            modifier = Modifier.size(18.dp)
+                item(key = "chapter_header") {
+                    Column {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text(
+                                text = stringResource(R.string.bolumler) + if (uiState.chapters.isNotEmpty()) " (${uiState.chapters.size})" else "",
+                                color = KitsugiColors.TextPrimary,
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold
+                            )
+                            IconButton(
+                                onClick = { viewModel.loadChapters() },
+                                modifier = Modifier.size(36.dp)
+                            ) {
+                                Icon(
+                                    Icons.Rounded.Refresh,
+                                    contentDescription = stringResource(R.string.yenile),
+                                    tint = KitsugiColors.TextSecondary,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
+                        }
+                        Spacer(Modifier.height(6.dp))
+                    }
+                }
+
+                when {
+                    uiState.isLoadingChapters -> item(key = "chapters_loading") {
+                        Box(
+                            Modifier.fillMaxWidth().height(180.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            KitsugiPlasmaLoader(size = 48.dp)
+                        }
+                    }
+                    uiState.error != null -> item(key = "chapters_error") {
+                        Column(
+                            modifier = Modifier.fillMaxWidth().height(180.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.Center
+                        ) {
+                            Text(
+                                uiState.error!!,
+                                color = KitsugiColors.TextSecondary,
+                                style = MaterialTheme.typography.bodyMedium
+                            )
+                            Spacer(Modifier.height(12.dp))
+                            Button(
+                                onClick = { viewModel.loadChapters() },
+                                colors = ButtonDefaults.buttonColors(containerColor = KitsugiColors.AccentBlue)
+                            ) {
+                                Text("Tekrar Dene", fontWeight = FontWeight.Bold)
+                            }
+                        }
+                    }
+                    else -> itemsIndexed(
+                        items = uiState.chapters,
+                        key = { _, ch -> ch.chapter.url }
+                    ) { _, row ->
+                        TvChapterListItem(
+                            row = row,
+                            onClick = { onOpenChapter(row.chapter) }
                         )
                     }
                 }
 
-                Spacer(Modifier.height(12.dp))
-
-                Box(modifier = Modifier.weight(1f)) {
-                    when {
-                        uiState.isLoadingChapters -> {
-                            Box(
-                                Modifier.fillMaxSize(),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                KitsugiPlasmaLoader(size = 48.dp)
-                            }
-                        }
-
-                        uiState.error != null -> {
-                            Column(
-                                modifier = Modifier.fillMaxSize(),
-                                horizontalAlignment = Alignment.CenterHorizontally,
-                                verticalArrangement = Arrangement.Center
-                            ) {
-                                Text(
-                                    uiState.error!!,
-                                    color = KitsugiColors.TextSecondary,
-                                    style = MaterialTheme.typography.bodyMedium
-                                )
-                                Spacer(Modifier.height(12.dp))
-                                Button(
-                                    onClick = { viewModel.loadChapters() },
-                                    colors = ButtonDefaults.buttonColors(containerColor = KitsugiColors.AccentBlue)
-                                ) {
-                                    Text("Tekrar Dene", fontWeight = FontWeight.Bold)
-                                }
-                            }
-                        }
-
-                        else -> {
-                            LazyColumn(
-                                state = listState,
-                                modifier = Modifier
-                                    .fillMaxSize()
-                                    .focusRequester(listFocusRequester)
-                                    .focusGroup()
-                                    .focusRestorer()
-                                    .dpadRepeatThrottle(horizontalGateMs = Long.MAX_VALUE, verticalGateMs = 80L),
-                                verticalArrangement = Arrangement.spacedBy(6.dp),
-                                contentPadding = PaddingValues(vertical = 4.dp)
-                            ) {
-                                itemsIndexed(
-                                    items = uiState.chapters,
-                                    key = { _, ch -> ch.chapter.url }
-                                ) { index, row ->
-                                    TvChapterListItem(
-                                        row = row,
-                                        onClick = { onOpenChapter(row.chapter) }
-                                    )
-                                }
-                            }
-                        }
-                    }
+                item(key = "fandom_wiki") {
+                    MediaWikiSectionCard(
+                        viewModel = wikiViewModel,
+                        query = wikiQuery,
+                        accentColor = KitsugiColors.AccentBlue,
+                        modifier = Modifier.fillMaxWidth()
+                    )
                 }
             }
         }

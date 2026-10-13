@@ -7,6 +7,9 @@ import com.kitsugi.animelist.data.local.KitsugiDatabase
 import com.kitsugi.animelist.data.local.PersistentDetailCacheDao
 import com.kitsugi.animelist.data.local.PersistentDetailCacheEntity
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.Serializable
@@ -93,7 +96,8 @@ object FandomRepository {
         }
 
         val nameAllowed = allowNameFallback && prefs.nameFallback
-        val cacheKey = wikiCacheKey(mediaKey, nameAllowed)
+        val resolutionKey = query.resolutionKey() ?: mediaKey
+        val cacheKey = wikiCacheKey(resolutionKey, nameAllowed)
 
         return lockFor(wikiLocks, cacheKey).withLock {
             val cached = readCached(appContext, cacheKey, positiveTtl = WIKI_TTL_MS) { body ->
@@ -134,7 +138,7 @@ object FandomRepository {
     }
 
     private fun wikiCacheKey(mediaKey: String, nameAllowed: Boolean): String =
-        "${KEY_PREFIX}wiki:$mediaKey:${if (nameAllowed) "n1" else "n0"}"
+        "${KEY_PREFIX}wiki:v2:$mediaKey:${if (nameAllowed) "n1" else "n0"}"
 
     /**
      * "Yanlışsa bildir" (yapım sekmesi): wiki bu yapım için reddedilir, wiki eşleşme
@@ -143,10 +147,11 @@ object FandomRepository {
     suspend fun rejectMediaWiki(context: Context, query: FandomMediaQuery, ref: FandomWikiRef) {
         val appContext = context.applicationContext
         val mediaKey = query.cacheKey() ?: return
+        val resolutionKey = query.resolutionKey() ?: mediaKey
         FandomUserChoices.rejectWiki(appContext, mediaKey, ref.wikiId)
         val keys = listOf(
-            wikiCacheKey(mediaKey, nameAllowed = true),
-            wikiCacheKey(mediaKey, nameAllowed = false)
+            wikiCacheKey(resolutionKey, nameAllowed = true),
+            wikiCacheKey(resolutionKey, nameAllowed = false)
         )
         keys.forEach { memory.remove(it) }
         val dao = dao(appContext) ?: return
@@ -160,9 +165,10 @@ object FandomRepository {
     suspend fun forgetMediaWiki(context: Context, query: FandomMediaQuery) {
         val appContext = context.applicationContext
         val mediaKey = query.cacheKey() ?: return
+        val resolutionKey = query.resolutionKey() ?: mediaKey
         val keys = listOf(
-            wikiCacheKey(mediaKey, nameAllowed = true),
-            wikiCacheKey(mediaKey, nameAllowed = false)
+            wikiCacheKey(resolutionKey, nameAllowed = true),
+            wikiCacheKey(resolutionKey, nameAllowed = false)
         )
         keys.forEach { memory.remove(it) }
         val dao = dao(appContext) ?: return
@@ -328,6 +334,231 @@ object FandomRepository {
         return hits
     }
 
+    // ── Yapım wiki maddesi (bilgi kutusu + bütün bölümler) ───────────────────
+
+    /**
+     * Resolve and cache the actual Fandom article for a media item. The wiki itself has already
+     * been identity-validated by [resolveMediaWiki]; this method matches the item's title inside
+     * that wiki, rejects disambiguation pages, prefers an existing Turkish language link, and
+     * returns the same rich page model used by the character article UI.
+     */
+    suspend fun resolveMediaArticle(
+        context: Context,
+        query: FandomMediaQuery,
+        ref: FandomWikiRef
+    ): FandomCharacterPage? {
+        val appContext = context.applicationContext
+        val mediaKey = query.cacheKey() ?: return null
+        val resolutionKey = query.resolutionKey() ?: mediaKey
+        val prefs = FandomWikiPrefs.state(appContext)
+        val cacheKey = mediaArticleCacheKey(resolutionKey, ref.wikiId, prefs.preferTurkish)
+
+        return lockFor(characterLocks, cacheKey).withLock {
+            val cached = readCached(appContext, cacheKey, positiveTtl = PAGE_TTL_MS) { body ->
+                json.decodeFromString(StoredCharacter.serializer(), body).page
+            }
+            if (cached != null) {
+                val page = cached.value as? FandomCharacterPage ?: return@withLock null
+                return@withLock page.withMediaRef(ref, mediaKey)
+            }
+
+            val failuresBefore = FandomHttp.failureCount()
+            val page = try {
+                buildMediaArticle(appContext, query, ref, mediaKey, prefs.preferTurkish)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                Log.w(TAG, "Yapım wiki maddesi yüklenemedi ($mediaKey/${ref.wikiId}): ${e.message}")
+                null
+            }
+            val transientFailure = FandomHttp.failureCount() != failuresBefore
+            writeCached(
+                context = appContext,
+                key = cacheKey,
+                value = page,
+                encoded = json.encodeToString(StoredCharacter.serializer(), StoredCharacter(page)),
+                persist = !transientFailure,
+                ttl = when {
+                    transientFailure -> TRANSIENT_NEGATIVE_TTL_MS
+                    page != null -> PAGE_TTL_MS
+                    else -> NEGATIVE_TTL_MS
+                }
+            )
+            page?.withMediaRef(ref, mediaKey)
+        }
+    }
+
+    suspend fun forgetMediaArticle(context: Context, query: FandomMediaQuery, wikiId: String) {
+        val mediaKey = query.cacheKey() ?: return
+        val resolutionKey = query.resolutionKey() ?: mediaKey
+        val keys = listOf(
+            mediaArticleCacheKey(resolutionKey, wikiId, preferTurkish = true),
+            mediaArticleCacheKey(resolutionKey, wikiId, preferTurkish = false)
+        )
+        keys.forEach { memory.remove(it) }
+        val dao = dao(context.applicationContext) ?: return
+        keys.forEach { key -> runCatchingDb { dao.deleteDetail(key) } }
+    }
+
+    private fun mediaArticleCacheKey(mediaKey: String, wikiId: String, preferTurkish: Boolean): String =
+        "${KEY_PREFIX}media-page:v3:$mediaKey:$wikiId:${if (preferTurkish) "tr1" else "tr0"}"
+
+    private suspend fun buildMediaArticle(
+        context: Context,
+        query: FandomMediaQuery,
+        ref: FandomWikiRef,
+        mediaKey: String,
+        preferTurkish: Boolean
+    ): FandomCharacterPage? {
+        var sourceTitles = query.fallbackTitles
+            .map { it.trim() }
+            .filter { it.isNotEmpty() }
+            .distinctBy(FandomNameVariants::normalizeForCompare)
+        var catalogTitlesLoaded = false
+        var titleCandidates = FandomNameVariants.mediaTitleVariants(sourceTitles)
+        var match: FandomMediaArticleMatcher.Match? = ref.pageTitle
+            ?.takeIf { it.isNotBlank() }
+            ?.let { title ->
+                FandomApi.lookupTitles(
+                    wikiId = ref.wikiId,
+                    titles = listOf(title),
+                    withTurkishLink = preferTurkish
+                )[title]
+            }
+            ?.takeIf { it.exists && !it.isDisambiguation }
+            ?.let { FandomMediaArticleMatcher.Match(it, FandomConfidence.CERTAIN, 1.0) }
+        if (titleCandidates.isEmpty() && match == null &&
+            (query.ids.aniListId != null || query.ids.malId != null)
+        ) {
+            val catalogTitles = FandomAniListSource.load(query.ids.aniListId, query.ids.malId, query.isManga)
+                ?.let { evidence -> evidence.titles + listOfNotNull(evidence.nativeTitle) }
+                .orEmpty()
+            catalogTitlesLoaded = true
+            sourceTitles = catalogTitles.distinctBy(FandomNameVariants::normalizeForCompare)
+            titleCandidates = FandomNameVariants.mediaTitleVariants(sourceTitles)
+        }
+        if (titleCandidates.isEmpty() && match == null) return null
+
+        var directLookups: Map<String, FandomTitleLookup> = if (titleCandidates.isEmpty() || match != null) {
+            emptyMap()
+        } else {
+            FandomApi.lookupTitles(
+                wikiId = ref.wikiId,
+                titles = titleCandidates,
+                withTurkishLink = preferTurkish
+            )
+        }
+        if (match == null) match = FandomMediaArticleMatcher.choose(sourceTitles, directLookups.values)
+
+        // The detail screen already supplies cross-provider titles. Fetch AniList aliases only
+        // if those did not resolve an article, avoiding an extra catalog request on the hot path.
+        if (match == null && !catalogTitlesLoaded &&
+            (query.ids.aniListId != null || query.ids.malId != null)
+        ) {
+            val catalogTitles = FandomAniListSource.load(query.ids.aniListId, query.ids.malId, query.isManga)
+                ?.let { evidence -> evidence.titles + listOfNotNull(evidence.nativeTitle) }
+                .orEmpty()
+            if (catalogTitles.isNotEmpty()) {
+                sourceTitles = (catalogTitles + sourceTitles)
+                    .distinctBy(FandomNameVariants::normalizeForCompare)
+                titleCandidates = FandomNameVariants.mediaTitleVariants(sourceTitles)
+                directLookups = FandomApi.lookupTitles(
+                    wikiId = ref.wikiId,
+                    titles = titleCandidates,
+                    withTurkishLink = preferTurkish
+                )
+                match = FandomMediaArticleMatcher.choose(sourceTitles, directLookups.values)
+            }
+        }
+        if (match == null) {
+            val searchTitles = coroutineScope {
+                titleCandidates.take(4)
+                    .map { title -> async { FandomApi.searchPages(ref.wikiId, title, limit = 6) } }
+                    .awaitAll()
+                    .flatten()
+                    .distinct()
+                    .take(24)
+            }
+            if (searchTitles.isNotEmpty()) {
+                val searched = FandomApi.lookupTitles(
+                    wikiId = ref.wikiId,
+                    titles = searchTitles,
+                    withTurkishLink = preferTurkish
+                )
+                match = FandomMediaArticleMatcher.choose(sourceTitles, searched.values)
+            }
+        }
+        val selected = match ?: return null
+        var wikiId = ref.wikiId
+        var lookup = selected.lookup
+        var siteName = ref.siteName
+        var englishWikiId: String? = null
+        var englishPageTitle: String? = null
+        val englishTitle = lookup.resolvedTitle ?: return null
+
+        if (preferTurkish && FandomUrls.languageOf(wikiId) != "tr") {
+            val turkishLink = lookup.turkishLink ?: run {
+                FandomApi.lookupTitles(ref.wikiId, listOf(englishTitle), withTurkishLink = true)[englishTitle]?.turkishLink
+            }
+            if (turkishLink != null) {
+                val (trWiki, trTitle) = turkishLink
+                val trLookup = FandomApi.lookupTitles(trWiki, listOf(trTitle))[trTitle]
+                // Some Turkish pages contain their useful content only in article sections;
+                // the language link itself confirms the page exists, and those sections are loaded below.
+                val usableTurkishPage = trLookup != null && trLookup.exists && !trLookup.isDisambiguation
+                if (usableTurkishPage && trLookup != null) {
+                    englishWikiId = wikiId
+                    englishPageTitle = englishTitle
+                    wikiId = trWiki
+                    lookup = trLookup
+                    siteName = null
+                }
+            }
+        }
+
+        val pageTitle = lookup.resolvedTitle ?: return null
+        val sections = FandomApi.sections(wikiId, pageTitle).orEmpty()
+        val resolvedSiteName = siteName ?: FandomWikiResolver.siteInfoCached(wikiId)?.siteName
+        val articleConfidence = if (selected.confidence == FandomConfidence.PROBABLE ||
+            ref.confidence == FandomConfidence.PROBABLE
+        ) FandomConfidence.PROBABLE else FandomConfidence.CERTAIN
+        val page = FandomCharacterPage(
+            wikiId = wikiId,
+            pageTitle = pageTitle,
+            siteName = resolvedSiteName,
+            description = lookup.description
+                ?.let(FandomNameVariants::cleanDescription)
+                ?.takeIf { it.isNotBlank() },
+            infobox = FandomInfoboxParser.parse(lookup.infoboxJson, wikiId),
+            sections = sections,
+            matchSource = ref.source,
+            confidence = articleConfidence,
+            englishWikiId = englishWikiId,
+            englishPageTitle = englishPageTitle,
+            mediaKey = mediaKey,
+            wikiSource = ref.source,
+            wikiConfidence = ref.confidence
+        )
+        return enrichArticlePage(context.applicationContext, page)
+    }
+
+    private fun FandomCharacterPage.withMediaRef(ref: FandomWikiRef, mediaKey: String): FandomCharacterPage {
+        val combinedConfidence = when {
+            // An explicit user confirmation covers the selected article as well as the wiki.
+            ref.source == FandomMatchSource.USER -> FandomConfidence.CERTAIN
+            confidence == FandomConfidence.PROBABLE || ref.confidence == FandomConfidence.PROBABLE -> FandomConfidence.PROBABLE
+            else -> FandomConfidence.CERTAIN
+        }
+        return copy(
+            matchSource = ref.source,
+            confidence = combinedConfidence,
+            mediaKey = mediaKey,
+            wikiSource = ref.source,
+            wikiConfidence = ref.confidence,
+            siteName = siteName ?: ref.siteName
+        )
+    }
+
     // ── Karakter → sayfa ─────────────────────────────────────────────────────
 
     suspend fun resolveCharacterPage(context: Context, query: FandomCharacterQuery): FandomCharacterPage? {
@@ -353,14 +584,14 @@ object FandomRepository {
                     allowNameFallback = prefs.nameFallback,
                     isRejected = { wikiId, title -> FandomUserChoices.isPageRejected(appContext, characterKey, wikiId, title) }
                 )
-                resolver.resolve(query)?.let { buildPage(it, prefs) }?.let { applyAcceptance(appContext, characterKey, it) }
+                resolver.resolve(query)?.let { buildPage(appContext, it, prefs) }?.let { applyAcceptance(appContext, characterKey, it) }
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
                 Log.w(TAG, "Karakter sayfası çözümlemesi başarısız ($characterKey): ${e.message}")
                 null
             }
-            val transientFailure = page == null && FandomHttp.failureCount() != failuresBefore
+            val transientFailure = FandomHttp.failureCount() != failuresBefore
             writeCached(
                 context = appContext,
                 key = cacheKey,
@@ -368,8 +599,8 @@ object FandomRepository {
                 encoded = json.encodeToString(StoredCharacter.serializer(), StoredCharacter(page)),
                 persist = !transientFailure,
                 ttl = when {
-                    page != null -> PAGE_TTL_MS
                     transientFailure -> TRANSIENT_NEGATIVE_TTL_MS
+                    page != null -> PAGE_TTL_MS
                     else -> NEGATIVE_TTL_MS
                 }
             )
@@ -378,12 +609,16 @@ object FandomRepository {
     }
 
     private fun characterCacheKey(characterKey: String, prefs: FandomWikiPrefs.State): String =
-        "${KEY_PREFIX}char:$characterKey:" +
+        "${KEY_PREFIX}char:v3:$characterKey:" +
             (if (prefs.preferTurkish) "tr1" else "tr0") + ":" +
             (if (prefs.nameFallback) "n1" else "n0")
 
     /** Sayfa özetini oluşturur; tercih açıksa ve sayfanın Türkçe karşılığı doluysa onu kullanır. */
-    private suspend fun buildPage(resolved: FandomResolvedCharacter, prefs: FandomWikiPrefs.State): FandomCharacterPage? {
+    private suspend fun buildPage(
+        context: Context,
+        resolved: FandomResolvedCharacter,
+        prefs: FandomWikiPrefs.State
+    ): FandomCharacterPage? {
         val englishTitle = resolved.lookup.resolvedTitle ?: return null
         var wikiId = resolved.wikiId
         var lookup = resolved.lookup
@@ -397,9 +632,8 @@ object FandomRepository {
             if (turkishLink != null) {
                 val (trWiki, trTitle) = turkishLink
                 val trLookup = FandomApi.lookupTitles(trWiki, listOf(trTitle))[trTitle]
-                val hasContent = trLookup != null && trLookup.exists &&
-                    (trLookup.infoboxJson != null || (trLookup.description?.length ?: 0) >= 80)
-                if (hasContent && trLookup != null) {
+                val usableTurkishPage = trLookup != null && trLookup.exists && !trLookup.isDisambiguation
+                if (usableTurkishPage && trLookup != null) {
                     englishWikiId = wikiId
                     englishPageTitle = englishTitle
                     wikiId = trWiki
@@ -412,12 +646,12 @@ object FandomRepository {
         val title = lookup.resolvedTitle ?: return null
         val sections = FandomApi.sections(wikiId, title).orEmpty()
         val resolvedSiteName = siteName ?: FandomWikiResolver.siteInfoCached(wikiId)?.siteName
-        return FandomCharacterPage(
+        val page = FandomCharacterPage(
             wikiId = wikiId,
             pageTitle = title,
             siteName = resolvedSiteName,
             description = lookup.description?.let { FandomNameVariants.cleanDescription(it) }?.takeIf { it.isNotBlank() },
-            infobox = FandomInfoboxParser.parse(lookup.infoboxJson),
+            infobox = FandomInfoboxParser.parse(lookup.infoboxJson, wikiId),
             sections = sections,
             matchSource = resolved.source,
             confidence = resolved.confidence,
@@ -427,7 +661,97 @@ object FandomRepository {
             wikiSource = resolved.wikiSource,
             wikiConfidence = resolved.wikiConfidence
         )
+        return enrichArticlePage(context.applicationContext, page)
     }
+
+    /**
+     * Build a small, typed relationship graph from linked infobox values and the Wiki's own
+     * cast/character/staff sections; also resolve page/gallery thumbnails through imageinfo.
+     */
+    private suspend fun enrichArticlePage(context: Context, page: FandomCharacterPage): FandomCharacterPage {
+        val relationSections = page.sections.mapNotNull { section ->
+            FandomRelationClassifier.forSection(section.title)?.let { section to it }
+        }
+        val (galleryImages, sectionLinks) = coroutineScope {
+            val imageDeferred = async {
+                try {
+                    FandomApi.pageImages(page.wikiId, page.pageTitle)
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    Log.w(TAG, "Wiki görselleri yüklenemedi (${page.wikiId}/${page.pageTitle}): ${e.message}")
+                    emptyList()
+                }
+            }
+            val linkDeferred = relationSections.map { (section, _) ->
+                async {
+                    try {
+                        loadSection(context, page.wikiId, page.pageTitle, section.index, section.title)
+                            ?.links.orEmpty()
+                    } catch (e: CancellationException) {
+                        throw e
+                    } catch (e: Exception) {
+                        Log.w(TAG, "Wiki ilişkileri çıkarılamadı (${page.pageTitle}/${section.title}): ${e.message}")
+                        emptyList()
+                    }
+                }
+            }
+            imageDeferred.await() to linkDeferred.awaitAll().flatten()
+        }
+        val infoboxLinks = page.infobox?.allFields()?.flatMap { it.links }.orEmpty()
+        val currentPageTitle = FandomNameVariants.normalizeForCompare(page.pageTitle)
+        val links = (infoboxLinks + sectionLinks)
+            .distinctBy(::relationKey)
+            .filterNot {
+                it.wikiId == page.wikiId &&
+                    FandomNameVariants.normalizeForCompare(it.pageTitle) == currentPageTitle
+            }
+        if (links.isEmpty()) {
+            return page.copy(galleryImages = galleryImages)
+        }
+
+        val lookupsByWiki = coroutineScope {
+            links.groupBy { it.wikiId }.map { (wikiId, wikiLinks) ->
+                async {
+                    val lookups = try {
+                        FandomApi.lookupTitles(wikiId, wikiLinks.map { it.pageTitle }.distinct())
+                    } catch (e: CancellationException) {
+                        throw e
+                    } catch (e: Exception) {
+                        Log.w(TAG, "İlişkili Wiki maddeleri çözümlenemedi ($wikiId): ${e.message}")
+                        emptyMap()
+                    }
+                    wikiId to lookups
+                }
+            }.awaitAll().toMap()
+        }
+
+        fun enrich(link: FandomWikiLink): FandomWikiLink? {
+            val lookup = lookupsByWiki[link.wikiId]?.get(link.pageTitle)
+            if (lookup != null && (!lookup.exists || lookup.isDisambiguation)) return null
+            return link.copy(
+                pageTitle = lookup?.resolvedTitle ?: link.pageTitle,
+                description = lookup?.description?.let(FandomNameVariants::cleanDescription),
+                imageUrl = lookup?.thumbnailUrl
+            )
+        }
+        val relatedEntities = links.mapNotNull(::enrich)
+        val enrichedInfobox = page.infobox?.let { infobox ->
+            infobox.copy(groups = infobox.groups.map { group ->
+                group.copy(fields = group.fields.map { field ->
+                    field.copy(links = field.links.mapNotNull(::enrich))
+                })
+            })
+        }
+        return page.copy(
+            infobox = enrichedInfobox,
+            galleryImages = galleryImages,
+            relatedEntities = relatedEntities
+        )
+    }
+
+    private fun relationKey(link: FandomWikiLink): String =
+        "${link.wikiId}|${FandomNameVariants.normalizeForCompare(link.pageTitle)}|${link.role}|${link.language.orEmpty()}"
 
     private fun isRejected(context: Context, characterKey: String, page: FandomCharacterPage): Boolean {
         if (FandomUserChoices.isPageRejected(context, characterKey, page.matchedWikiId, page.matchedPageTitle)) return true
@@ -449,9 +773,15 @@ object FandomRepository {
 
     // ── Bölüm metni ──────────────────────────────────────────────────────────
 
-    suspend fun loadSection(context: Context, wikiId: String, pageTitle: String, index: Int): FandomSectionContent? {
+    suspend fun loadSection(
+        context: Context,
+        wikiId: String,
+        pageTitle: String,
+        index: Int,
+        sectionTitle: String? = null
+    ): FandomSectionContent? {
         val appContext = context.applicationContext
-        val cacheKey = "${KEY_PREFIX}sec:$wikiId|$pageTitle|$index"
+        val cacheKey = "${KEY_PREFIX}sec:v3:$wikiId|$pageTitle|$index"
         return lockFor(sectionLocks, cacheKey).withLock {
             val cached = readCached(appContext, cacheKey, positiveTtl = SECTION_TTL_MS) { body ->
                 json.decodeFromString(StoredSection.serializer(), body).content
@@ -460,7 +790,17 @@ object FandomRepository {
             if (cachedContent != null) return@withLock cachedContent
 
             val html = FandomApi.sectionHtml(wikiId, pageTitle, index) ?: return@withLock null
-            val content = FandomSectionContent(FandomHtmlText.blocks(html))
+            val relationType = sectionTitle?.let(FandomRelationClassifier::forSection)
+                ?: FandomRelationType.RELATED
+            val content = FandomSectionContent(
+                blocks = FandomHtmlText.blocks(html),
+                links = FandomHtmlText.wikiLinks(
+                    html = html,
+                    defaultWikiId = wikiId,
+                    role = relationType,
+                    language = sectionTitle?.let(FandomRelationClassifier::languageHint)
+                )
+            )
             writeCached(
                 context = appContext,
                 key = cacheKey,
@@ -500,7 +840,7 @@ object FandomRepository {
         val characterKey = query.cacheKey()
         FandomUserChoices.rejectPage(appContext, characterKey, page.matchedWikiId, page.matchedPageTitle)
         val keys = mutableListOf<String>()
-        listOf("tr1:n1", "tr1:n0", "tr0:n1", "tr0:n0").mapTo(keys) { "${KEY_PREFIX}char:$characterKey:$it" }
+        listOf("tr1:n1", "tr1:n0", "tr0:n1", "tr0:n0").mapTo(keys) { "${KEY_PREFIX}char:v3:$characterKey:$it" }
         val mediaKey = page.mediaKey
         if (mediaKey != null && page.isWikiUnconfirmedNameMatch) {
             FandomUserChoices.rejectWiki(appContext, mediaKey, page.matchedWikiId)

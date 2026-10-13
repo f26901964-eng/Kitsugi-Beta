@@ -6,6 +6,7 @@
 package com.kitsugi.animelist.ui.screens.mylist
 
 import com.kitsugi.animelist.ui.components.KitsugiPlatformLogo
+import com.kitsugi.animelist.ui.components.KitsugiStickyHeaderReveal
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
@@ -51,8 +52,6 @@ import androidx.compose.material3.pulltorefresh.PullToRefreshDefaults
 import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.snapshotFlow
 import android.content.res.Configuration
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.runtime.getValue
@@ -64,9 +63,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
@@ -113,6 +110,14 @@ fun MyListHeaderSection(
     accentColor: Color,
     horizontalPadding: Dp,
     hasActiveFilters: Boolean,
+    /**
+     * Üst barın kaydırma nedeniyle çekilip çekilmeyeceği. Davranış tek yerden
+     * yönetilsin diye kararı çağıran ekran verir
+     * (bkz. [com.kitsugi.animelist.ui.components.rememberScrollAwareHeaderState]);
+     * bağımsız açılır listelerde (kullanıcı listesi vb.) varsayılan `false`
+     * bırakılabilir — başlık o zaman sabit kalır.
+     */
+    headerCollapsed: Boolean = false,
     headerTitle: String = "Listem",
     headerSubtitle: String? = null,
     onBackClick: (() -> Unit)? = null,
@@ -121,125 +126,110 @@ fun MyListHeaderSection(
     val KitsugiColors = LocalKitsugiColors.current
     var showSortMenu by rememberSaveable { mutableStateOf(false) }
 
-    // Yüksekliği her scroll pikseline bağlamak liste viewport'unu sürekli
-    // değiştirip başlığı ileri-geri zıplatıyordu. Eşik aşılınca bir kez kapanır;
-    // tekrar açılması için listenin tepesine dönmek gerekir.
-    var headerCollapsed by remember { mutableStateOf(false) }
-    LaunchedEffect(activeTabScrollState) {
-        snapshotFlow {
-            activeTabScrollState.firstVisibleItemIndex to activeTabScrollState.firstVisibleItemScrollOffset
-        }.collect { (index, offset) ->
-            if (!headerCollapsed && (index > 0 || offset > 180)) {
-                headerCollapsed = true
-            } else if (headerCollapsed && index == 0 && offset == 0) {
-                headerCollapsed = false
-            }
-        }
-    }
     val expandedHeaderHeight = if (headerSubtitle.isNullOrBlank()) 60.dp else 68.dp
-    val headerHeight = if (headerCollapsed) 0.dp else expandedHeaderHeight
-    val collapseProgress = if (headerCollapsed) 1f else 0f
 
     Column {
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(headerHeight)
-                .graphicsLayer {
-                    alpha = 1f - collapseProgress
-                    translationY = -20.dp.toPx() * collapseProgress
-                }
-                .clipToBounds()
-        ) {
-            Row(
+        // Başlık eskiden 60.dp → 0.dp yüksekliğine tek karede atlıyor, bu yüzden üst bar
+        // aşağı kaydırınca "pat diye" kaybolup tepede geri geliyordu. Artık uygulamanın
+        // ortak hareket dilini (KitsugiMotion sticky header geçişi) kullanıyor: yükseklik,
+        // soluklaşma ve yukarı süzülme aynı anda yumuşak easing ile animasyonlanır;
+        // liste de başlıkla birlikte akarak yer değiştirir.
+        KitsugiStickyHeaderReveal(visible = !headerCollapsed) {
+            Box(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(expandedHeaderHeight)
-                    .padding(start = if (onBackClick == null) horizontalPadding else 4.dp, end = 4.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
             ) {
                 Row(
-                    modifier = Modifier.weight(1f),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(expandedHeaderHeight)
+                        .padding(start = if (onBackClick == null) horizontalPadding else 4.dp, end = 4.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    if (onBackClick != null) {
-                        IconButton(onClick = onBackClick) {
-                            Icon(
-                                imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
-                                contentDescription = stringResource(R.string.geri),
-                                tint = KitsugiColors.textPrimary
-                            )
+                    Row(
+                        modifier = Modifier.weight(1f),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        if (onBackClick != null) {
+                            IconButton(onClick = onBackClick) {
+                                Icon(
+                                    imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
+                                    contentDescription = stringResource(R.string.geri),
+                                    tint = KitsugiColors.textPrimary
+                                )
+                            }
+                            Spacer(modifier = Modifier.width(4.dp))
                         }
-                        Spacer(modifier = Modifier.width(4.dp))
-                    }
 
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = headerTitle,
-                            color = KitsugiColors.textPrimary,
-                            style = MaterialTheme.typography.headlineLarge,
-                            fontWeight = FontWeight.Bold,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                        if (!headerSubtitle.isNullOrBlank()) {
+                        Column(modifier = Modifier.weight(1f)) {
                             Text(
-                                text = headerSubtitle,
-                                color = KitsugiColors.textMuted,
-                                style = MaterialTheme.typography.bodySmall,
+                                text = headerTitle,
+                                color = KitsugiColors.textPrimary,
+                                style = MaterialTheme.typography.headlineLarge,
+                                fontWeight = FontWeight.Bold,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis
                             )
-                        }
-                    }
-                }
-
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(0.dp)
-                ) {
-                    IconButton(
-                        onClick = {
-                            val nextLayoutId = when (selectedListLayoutId) {
-                                "compact" -> "comfortable"
-                                "comfortable" -> "large"
-                                "large" -> "grid_2col"
-                                "grid_2col" -> "compact"
-                                else -> "comfortable"
+                            if (!headerSubtitle.isNullOrBlank()) {
+                                Text(
+                                    text = headerSubtitle,
+                                    color = KitsugiColors.textMuted,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
                             }
-                            onListLayoutChange(nextLayoutId)
                         }
+                    }
+
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(0.dp)
                     ) {
-                        val layoutIcon = when (selectedListLayoutId) {
-                            "compact" -> Icons.Rounded.DensityMedium
-                            "comfortable" -> Icons.Rounded.FormatListBulleted
-                            "large" -> Icons.Rounded.ViewStream
-                            "grid_2col" -> Icons.Rounded.GridView
-                            else -> Icons.Rounded.FormatListBulleted
-                        }
-                        Icon(
-                            imageVector = layoutIcon,
-                            contentDescription = stringResource(R.string.gorunum_degistir),
-                            tint = KitsugiColors.textSecondary
-                        )
-                    }
-
-                    IconButton(onClick = onSearchFieldToggle) {
-                        Icon(
-                            imageVector = Icons.Rounded.Search,
-                            contentDescription = stringResource(R.string.arama),
-                            tint = if (showSearchField || searchQuery.isNotBlank()) accentColor else KitsugiColors.textSecondary
-                        )
-                    }
-
-                    Box {
-                        IconButton(onClick = onFilterPanelToggle) {
+                        IconButton(
+                            onClick = {
+                                val nextLayoutId = when (selectedListLayoutId) {
+                                    "compact" -> "comfortable"
+                                    "comfortable" -> "large"
+                                    "large" -> "grid_2col"
+                                    "grid_2col" -> "compact"
+                                    else -> "comfortable"
+                                }
+                                onListLayoutChange(nextLayoutId)
+                            }
+                        ) {
+                            val layoutIcon = when (selectedListLayoutId) {
+                                "compact" -> Icons.Rounded.DensityMedium
+                                "comfortable" -> Icons.Rounded.FormatListBulleted
+                                "large" -> Icons.Rounded.ViewStream
+                                "grid_2col" -> Icons.Rounded.GridView
+                                else -> Icons.Rounded.FormatListBulleted
+                            }
                             Icon(
-                                imageVector = Icons.Rounded.FilterList,
-                                contentDescription = "Filtrele ve Sırala",
-                                tint = if (showFilterPanel || hasActiveFilters) accentColor else KitsugiColors.textSecondary
+                                imageVector = layoutIcon,
+                                contentDescription = stringResource(R.string.gorunum_degistir),
+                                tint = KitsugiColors.textSecondary
                             )
+                        }
+
+                        IconButton(onClick = onSearchFieldToggle) {
+                            Icon(
+                                imageVector = Icons.Rounded.Search,
+                                contentDescription = stringResource(R.string.arama),
+                                tint = if (showSearchField || searchQuery.isNotBlank()) accentColor else KitsugiColors.textSecondary
+                            )
+                        }
+
+                        Box {
+                            IconButton(onClick = onFilterPanelToggle) {
+                                Icon(
+                                    imageVector = Icons.Rounded.FilterList,
+                                    contentDescription = "Filtrele ve Sırala",
+                                    tint = if (showFilterPanel || hasActiveFilters) accentColor else KitsugiColors.textSecondary
+                                )
+                            }
                         }
                     }
                 }

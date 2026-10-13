@@ -1,7 +1,9 @@
 package com.kitsugi.animelist.data.fandom
 
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
+import java.net.URLDecoder
 import java.net.URLEncoder
+import java.util.Locale
 
 /**
  * Fandom wiki kimliği ↔ URL dönüşümleri.
@@ -70,6 +72,47 @@ object FandomUrls {
         return "$base/wiki/${encodeTitle(title)}"
     }
 
+    /** Resolve an internal Fandom `/wiki/...` href to its canonical wiki id and article title. */
+    fun parseArticleUrl(url: String?, defaultWikiId: String): Pair<String, String>? {
+        val raw = url?.trim()?.takeIf { it.isNotEmpty() } ?: return null
+        val base = baseUrl(defaultWikiId) ?: return null
+        val candidate = when {
+            raw.startsWith("//") -> "https:$raw"
+            raw.startsWith("http://", ignoreCase = true) || raw.startsWith("https://", ignoreCase = true) -> raw
+            else -> "$base/${raw.removePrefix("/")}"
+        }
+        val parsed = candidate.toHttpUrlOrNull() ?: return null
+        var targetWiki = wikiIdFromUrl(parsed.toString()) ?: return null
+        val defaultParts = parse(defaultWikiId)
+        val targetParts = parse(targetWiki)
+        if (defaultParts?.lang != null && targetParts != null && targetParts.lang == null && defaultParts.name == targetParts.name) {
+            targetWiki = normalize(defaultWikiId) ?: targetWiki
+        }
+
+        val path = parsed.encodedPath
+        val wikiMarker = "/wiki/"
+        val markerIndex = path.indexOf(wikiMarker)
+        val encodedTitle = if (markerIndex >= 0) {
+            path.substring(markerIndex + wikiMarker.length).trim('/')
+        } else {
+            parsed.queryParameter("title") ?: return null
+        }
+        val decoded = runCatching {
+            URLDecoder.decode(encodedTitle.replace("+", "%2B"), "UTF-8")
+        }.getOrDefault(encodedTitle)
+            .replace('_', ' ')
+            .trim()
+        if (decoded.isBlank() || decoded.length > 300) return null
+        val namespace = decoded.substringBefore(':', "").trim().lowercase(Locale.ROOT)
+        if (namespace in NON_ARTICLE_NAMESPACES || namespace.endsWith(" talk")) return null
+        return targetWiki to decoded
+    }
+
+    private val NON_ARTICLE_NAMESPACES = setOf(
+        "file", "image", "media", "category", "special", "template", "module", "mediawiki", "user",
+        "talk", "help", "portal", "forum", "blog", "message wall", "timedtext", "draft"
+    )
+
     /** Sayfa başlığını `/wiki/` yolu için kodlar (boşluk → `_`). */
     fun encodeTitle(title: String): String =
         URLEncoder.encode(title.trim().replace(' ', '_'), "UTF-8")
@@ -87,8 +130,12 @@ object FandomUrls {
     fun wikiIdFromUrl(url: String?): String? {
         val httpUrl = url?.trim()?.toHttpUrlOrNull() ?: return null
         val host = httpUrl.host.lowercase()
-        if (!host.endsWith(".fandom.com")) return null
-        val sub = host.removeSuffix(".fandom.com")
+        val domain = when {
+            host.endsWith(".fandom.com") -> ".fandom.com"
+            host.endsWith(".wikia.com") -> ".wikia.com" // Legacy Fandom/Wikia domains redirect to the canonical host.
+            else -> return null
+        }
+        val sub = host.removeSuffix(domain)
         if (sub.isEmpty() || sub.contains('.')) return null
         val first = httpUrl.pathSegments.firstOrNull()?.lowercase().orEmpty()
         val lang = first.takeIf { it.isNotEmpty() && LANG_SEGMENT.matches(it) }

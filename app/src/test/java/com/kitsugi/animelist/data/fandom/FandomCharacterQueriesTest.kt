@@ -37,7 +37,7 @@ class FandomCharacterQueriesTest {
     )
 
     @Test
-    fun `tmdb characters are skipped`() {
+    fun `tmdb character without media appearances is skipped`() {
         assertNull(FandomCharacterQueries.from(detail("tmdb"), "tmdb", 5))
     }
 
@@ -70,7 +70,7 @@ class FandomCharacterQueriesTest {
         assertEquals(FandomSourceIds(malId = 40748), query.appearances[0].ids)
         assertTrue(query.appearances[0].isMainRole)
         assertFalse(query.appearances[0].isManga)
-        assertEquals(listOf("JUJUTSU KAISEN", "Jujutsu Kaisen"), query.appearances[0].titles)
+        assertEquals(listOf("JUJUTSU KAISEN"), query.appearances[0].titles)
         assertEquals(FandomSourceIds(aniListId = 101517), query.appearances[1].ids)
         assertTrue(query.appearances[1].isManga)
     }
@@ -86,7 +86,26 @@ class FandomCharacterQueriesTest {
     }
 
     @Test
-    fun `characters without ids or verifiable names are skipped`() {
+    fun `title-only appearance from an unrecognized provider is retained`() {
+        val appearance = KitsugiCharacterMediaAppearance(
+            mediaId = 55,
+            title = "異世界おじさん",
+            imageUrl = null,
+            mediaType = "Anime",
+            characterRole = "Main",
+            source = "plugin-provider"
+        )
+        val query = FandomCharacterQueries.from(
+            detail("plugin-provider", appearances = listOf(appearance)),
+            "plugin-provider",
+            77
+        )!!
+        assertTrue(query.appearances.single().ids.isEmpty)
+        assertEquals(listOf("異世界おじさん"), query.appearances.single().titles)
+    }
+
+    @Test
+    fun `characters without ids names or appearances are skipped`() {
         val bare = detail("bangumi").copy(name = "五条悟", englishName = null, romanizedName = null)
         assertNull(FandomCharacterQueries.from(bare, "bangumi", 77))
     }
@@ -147,16 +166,18 @@ class FandomCharacterQueriesTest {
     }
 
     @Test
-    fun `staff without works or latin name is skipped, tmdb too`() {
+    fun `staff can use a native name and title-only provider appearance`() {
         assertNull(FandomCharacterQueries.fromStaff(staff(), "jikan", 7))
         val roles = listOf(
             KitsugiStaffCharacterRole(
                 characterId = 2, characterName = "X", characterImageUrl = null,
-                mediaId = 1, mediaTitle = "A", mediaImageUrl = null,
-                mediaType = "TV", characterRole = "Main", mediaSource = "jikan"
+                mediaId = 1, mediaTitle = "Jujutsu Kaisen", mediaImageUrl = null,
+                mediaType = "TV", characterRole = "Main", mediaSource = "custom-source"
             )
         )
-        assertNull(FandomCharacterQueries.fromStaff(staff(roles, name = "梶裕貴"), "jikan", 7))
-        assertNull(FandomCharacterQueries.fromStaff(staff(roles), "tmdb", 7))
+        val query = FandomCharacterQueries.fromStaff(staff(roles, name = "梶裕貴"), "jikan", 7)
+        assertEquals(listOf("Jujutsu Kaisen"), query?.appearances?.single()?.titles)
+        assertEquals("梶裕貴", query?.nativeName)
+        assertEquals("staff-tmdb", FandomCharacterQueries.fromStaff(staff(roles), "tmdb", 7)?.source)
     }
 }

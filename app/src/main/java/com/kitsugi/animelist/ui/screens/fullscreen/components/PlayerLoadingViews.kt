@@ -1,4 +1,5 @@
 ﻿package com.kitsugi.animelist.ui.screens.fullscreen.components
+import com.kitsugi.animelist.ui.theme.gradient.CircularProgressIndicator
 import com.kitsugi.animelist.ui.components.KitsugiButton
 
 import com.kitsugi.animelist.ui.theme.gradient.background

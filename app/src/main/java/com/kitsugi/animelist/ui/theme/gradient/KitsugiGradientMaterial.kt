@@ -76,6 +76,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
+import com.kitsugi.animelist.ui.components.KitsugiPlasmaLoader
 import com.kitsugi.animelist.ui.theme.KitsugiColors
 import com.kitsugi.animelist.ui.theme.LocalInsideAccentSurface
 import com.kitsugi.animelist.ui.theme.LocalKitsugiAccent
@@ -958,6 +959,18 @@ fun Checkbox(
 // 6. CircularProgressIndicator & LinearProgressIndicator
 // ─────────────────────────────────────────────────────────────────────────────
 
+/**
+ * Uygulamanın ORTAK belirsiz (dönen) yüklenme göstergesi.
+ *
+ * Standart "pat pat dönen halka" kaldırıldı: çağrının yapıldığı her yerde artık
+ * [KitsugiPlasmaLoader] ışık küresi çizilir (büyük boyutta tam plazma simülasyonu,
+ * 30 dp ve altında kompakt ışık küresi). Böylece oynatıcı, liste satırları, rozetler,
+ * buton içi durumlar ve sheet'ler tek bir yüklenme kimliği paylaşır.
+ *
+ * `strokeWidth`, `trackColor` ve `strokeCap` parametreleri yalnızca eski çağrı
+ * noktalarının bozulmaması için taşınır; halka çizilmediği için görünüme etkisi yoktur.
+ * Boyut, çağıranın `Modifier.size(...)` değeriyle belirlenir (verilmemişse 40 dp).
+ */
 @Composable
 fun CircularProgressIndicator(
     modifier: Modifier = Modifier,
@@ -966,31 +979,11 @@ fun CircularProgressIndicator(
     trackColor: Color = ProgressIndicatorDefaults.circularIndeterminateTrackColor,
     strokeCap: StrokeCap = ProgressIndicatorDefaults.CircularIndeterminateStrokeCap
 ) {
-    val accentBrush = resolveCurrentAccentBrush(color)
-    if (accentBrush != null) {
-        androidx.compose.material3.CircularProgressIndicator(
-            modifier = modifier
-                .graphicsLayer(compositingStrategy = CompositingStrategy.Offscreen)
-                .drawWithContent {
-                    drawContent()
-                    if (size.width > 0f && size.height > 0f) {
-                        drawRect(brush = accentBrush, blendMode = BlendMode.SrcIn)
-                    }
-                },
-            color = Color.White,
-            strokeWidth = strokeWidth,
-            trackColor = Color.Transparent,
-            strokeCap = strokeCap
-        )
-    } else {
-        androidx.compose.material3.CircularProgressIndicator(
-            modifier = modifier,
-            color = color,
-            strokeWidth = strokeWidth,
-            trackColor = trackColor,
-            strokeCap = strokeCap
-        )
-    }
+    KitsugiPlasmaLoader(
+        modifier = modifier,
+        size = 40.dp,
+        color = color
+    )
 }
 
 @Composable

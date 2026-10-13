@@ -66,7 +66,10 @@ internal fun ApiDetailOverviewTab(
     onImageGalleryRequest: ((urls: List<String>, index: Int) -> Unit)? = null,
     galleryItems: List<GalleryItem> = emptyList(),
     galleryLoading: Boolean = false,
-    onGalleryItemRequest: ((items: List<GalleryItem>, index: Int) -> Unit)? = null
+    onGalleryItemRequest: ((items: List<GalleryItem>, index: Int) -> Unit)? = null,
+    synopsisHasTranslation: Boolean = false,
+    showSynopsisOriginal: Boolean = false,
+    onToggleSynopsisOriginal: (() -> Unit)? = null
 ) {
     Column(
         modifier = Modifier.padding(horizontal = 0.dp, vertical = 14.dp)
@@ -76,7 +79,10 @@ internal fun ApiDetailOverviewTab(
             isLoading = isDetailLoading || (!isDetailLoading && detail?.synopsis != null && isTranslating),
             onTranslateClick = onTranslateClick,
             onCopyClick = onCopyClick,
-            onImageGalleryRequest = onImageGalleryRequest
+            onImageGalleryRequest = onImageGalleryRequest,
+            hasTranslation = synopsisHasTranslation,
+            showingOriginal = showSynopsisOriginal,
+            onToggleOriginal = onToggleSynopsisOriginal
         )
 
 

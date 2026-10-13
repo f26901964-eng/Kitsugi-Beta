@@ -331,16 +331,22 @@ internal fun StudioAboutSection(
     modifier: Modifier = Modifier,
     translatedAbout: String? = null,
     onTranslateClick: ((String) -> Unit)? = null,
-    onCopyClick: ((String) -> Unit)? = null
+    onCopyClick: ((String) -> Unit)? = null,
+    aboutHasTranslation: Boolean = false,
+    showAboutOriginal: Boolean = false,
+    onToggleAboutOriginal: (() -> Unit)? = null
 ) {
     Box(modifier = modifier) {
         val aboutTitle = stringResource(R.string.studio_about_title)
         DetailSynopsisCard(
             title = aboutTitle,
-            synopsisState = SynopsisState.Success(translatedAbout ?: about),
+            synopsisState = SynopsisState.Success(if (showAboutOriginal) about else translatedAbout ?: about),
             originalText = about,
             onTranslateClick = onTranslateClick,
             onCopyClick = onCopyClick,
+            hasTranslation = aboutHasTranslation,
+            showingOriginal = showAboutOriginal,
+            onToggleOriginal = onToggleAboutOriginal,
             onImageGalleryRequest = { urls, idx ->
                 val items = urls.map { url -> GalleryItem(url = url, category = GalleryCategory.OTHER, source = aboutTitle) }
                 onGalleryClick(items, idx)

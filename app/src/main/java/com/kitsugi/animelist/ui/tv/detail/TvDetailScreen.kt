@@ -165,18 +165,34 @@ fun TvDetailScreen(
     // Fandom Wiki (TV): telefondaki sekmenin karşılığı, listenin sonunda açılır kart.
     val wikiViewModel: FandomMediaWikiViewModel = viewModel(key = "fandom_tv_${result.source}_${result.malId}_${result.type.name}")
     val wikiQuery = remember(result, displayResult, detailState) {
+        val imdbId = detailState?.externalLinks
+            ?.firstOrNull { it.site.contains("IMDb", ignoreCase = true) || it.url.contains("imdb.com", ignoreCase = true) }
+            ?.url?.let { Regex("(?i)tt[0-9]{5,12}").find(it)?.value }
+        val wikidataId = detailState?.externalLinks
+            ?.firstOrNull { it.site.contains("Wikidata", ignoreCase = true) || it.url.contains("wikidata.org", ignoreCase = true) }
+            ?.url?.let { Regex("(?i)Q[0-9]+").find(it)?.value }
         FandomMediaQueries.fromMedia(
             source = result.source,
             mediaId = result.malId,
             malId = displayResult.realMalId ?: detailState?.realMalId,
-            tmdbId = result.tmdbId ?: detailState?.tmdbId,
-            isManga = result.type == MediaType.Manga,
+            tmdbId = displayResult.tmdbId ?: detailState?.tmdbId,
+            isManga = displayResult.type == MediaType.Manga,
             isMovie = isMovie,
-            titles = listOfNotNull(
-                displayResult.titleEnglish,
-                displayResult.title,
-                displayResult.titleRomaji,
-                detailState?.titleEnglish
+            isTvShow = !isMovie,
+            releaseYear = displayResult.year ?: detailState?.year,
+            imdbId = imdbId,
+            wikidataId = wikidataId,
+            titles = (
+                listOfNotNull(
+                    displayResult.titleEnglish,
+                    displayResult.title,
+                    displayResult.titleRomaji,
+                    displayResult.titleJapanese,
+                    detailState?.titleNative,
+                    detailState?.titleJapanese,
+                    detailState?.titleEnglish,
+                    detailState?.titleTurkish
+                ) + detailState?.synonyms.orEmpty()
             )
         )
     }

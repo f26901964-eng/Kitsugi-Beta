@@ -13,12 +13,19 @@ class FandomMediaIdsTest {
         assertEquals(FandomSourceIds(malId = 44511), FandomMediaIds.fromStableId("jikan", 44511))
         assertEquals(FandomSourceIds(malId = 44511), FandomMediaIds.fromStableId("MAL", 44511))
         assertEquals(FandomSourceIds(malId = 44511), FandomMediaIds.fromStableId("anilist", 44511))
+        assertEquals(FandomSourceIds(malId = 44511), FandomMediaIds.fromStableId("jikan (MAL)", 44511))
+        assertEquals(FandomSourceIds(malId = 44511), FandomMediaIds.fromStableId("MAL (Jikan)", 44511))
+        assertEquals(FandomSourceIds(aniListId = 127230), FandomMediaIds.fromStableId("al", 100_127_230))
         assertEquals(FandomSourceIds(aniListId = 127230), FandomMediaIds.fromStableId("anilist", 100_127_230))
         assertEquals(FandomSourceIds(kitsuId = 1376), FandomMediaIds.fromStableId("kitsu", 300_001_376))
         assertEquals(FandomSourceIds(kitsuId = 1376), FandomMediaIds.fromStableId("kitsu", 1376))
         assertEquals(FandomSourceIds(shikimoriId = 5114), FandomMediaIds.fromStableId("shikimori", 400_005_114))
+        assertEquals(FandomSourceIds(shikimoriId = 5114), FandomMediaIds.fromStableId("shiki", 400_005_114))
         assertEquals(FandomSourceIds(bangumiId = 35658), FandomMediaIds.fromStableId("bangumi", 500_035_658))
+        assertEquals(FandomSourceIds(bangumiId = 35658), FandomMediaIds.fromStableId("bgm.tv", 500_035_658))
+        assertEquals(FandomSourceIds(bangumiId = 35658), FandomMediaIds.fromStableId("bgm", 500_035_658))
         assertEquals(FandomSourceIds(tmdbId = 1429), FandomMediaIds.fromStableId("tmdb", 1429))
+        assertEquals(FandomSourceIds(tmdbId = 1429), FandomMediaIds.fromStableId("TheMovieDB", 1429))
         assertEquals(FandomSourceIds(simklId = 1), FandomMediaIds.fromStableId("simkl", 150_000_001))
         assertEquals(FandomSourceIds(simklId = 1429), FandomMediaIds.fromStableId("simkl", 1429))
         assertTrue(FandomMediaIds.fromStableId("anilist", 0).isEmpty)
@@ -57,6 +64,25 @@ class FandomMediaIdsTest {
         assertEquals(
             listOf("P8731" to "11757", "P4087" to "11757", "P11494" to "6589", "P5732" to "12345"),
             FandomMediaIds.wikidataLookups(ids, isManga = true, isMovie = false)
+        )
+    }
+
+    @Test
+    fun `IMDb ID maps to Wikidata P345`() {
+        assertEquals(
+            listOf("P345" to "tt0903747"),
+            FandomMediaIds.wikidataLookups(
+                FandomSourceIds(imdbId = "TT0903747"),
+                isManga = false,
+                isMovie = false
+            )
+        )
+        assertTrue(
+            FandomMediaIds.wikidataLookups(
+                FandomSourceIds(imdbId = "bad-id"),
+                isManga = false,
+                isMovie = false
+            ).isEmpty()
         )
     }
 

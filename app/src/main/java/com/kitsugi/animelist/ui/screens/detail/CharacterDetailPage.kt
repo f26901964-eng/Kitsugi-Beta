@@ -166,6 +166,7 @@ fun CharacterDetailPage(
     // Collect states from ViewModel
     val state by viewModel.state.collectAsState()
     val translatedBio by viewModel.translatedBio.collectAsState()
+    val showBioOriginal by viewModel.showBioOriginal.collectAsState()
     val isFavourite by viewModel.isFavourite.collectAsState()
     val isAniListSource = source.lowercase() == "anilist"
     val isAniListConnected = remember { com.kitsugi.animelist.data.auth.ExternalAuthManager.getAniListToken(context) != null }
@@ -250,6 +251,7 @@ fun CharacterDetailPage(
                 val wikiSections by wikiViewModel.sections.collectAsState()
                 val wikiTranslations by wikiViewModel.translations.collectAsState()
                 val wikiTranslating by wikiViewModel.translating.collectAsState()
+                val wikiOriginalKeys by wikiViewModel.originalKeys.collectAsState()
                 val wikiPrefs by wikiViewModel.prefs.collectAsState()
                 // Sekme görünürlüğü çözümlemeyi beklemez: kimlik/ad varsa sekme vardır.
                 val wikiTabPossible = wikiPrefs.enabled && remember(rawDetail, source, characterId) {
@@ -434,7 +436,9 @@ fun CharacterDetailPage(
                                                         if (!galleryLoading) activeGalleryItems = items
                                                         activeGalleryIndex = idx
                                                     },
-                                                    onTranslateClick = { viewModel.translateBio() }
+                                                    onTranslateClick = { viewModel.translateBio() },
+                                                    showOriginalBio = showBioOriginal,
+                                                    onToggleOriginalBio = { viewModel.toggleBioOriginal() }
                                                 )
                                             }
                                             CharacterTabKey.APPEARANCES -> {
@@ -459,6 +463,8 @@ fun CharacterDetailPage(
                                                 accentColor = accentColor,
                                                 onLoadSection = { index -> wikiViewModel.loadSection(index) },
                                                 preferredTranslator = preferredTranslator,
+                                                originalKeys = wikiOriginalKeys,
+                                                onToggleOriginal = { key -> wikiViewModel.toggleOriginal(key) },
                                                 onOpenGallery = { items, idx ->
                                                     activeGalleryItems = items
                                                     activeGalleryIndex = idx
@@ -625,7 +631,9 @@ fun CharacterDetailPage(
                                                             if (!galleryLoading) activeGalleryItems = items
                                                             activeGalleryIndex = idx
                                                         },
-                                                        onTranslateClick = { viewModel.translateBio() }
+                                                        onTranslateClick = { viewModel.translateBio() },
+                                                        showOriginalBio = showBioOriginal,
+                                                        onToggleOriginalBio = { viewModel.toggleBioOriginal() }
                                                     )
                                                 }
                                                 CharacterTabKey.APPEARANCES -> {
@@ -650,6 +658,8 @@ fun CharacterDetailPage(
                                                     accentColor = accentColor,
                                                     onLoadSection = { index -> wikiViewModel.loadSection(index) },
                                                     preferredTranslator = preferredTranslator,
+                                                    originalKeys = wikiOriginalKeys,
+                                                    onToggleOriginal = { key -> wikiViewModel.toggleOriginal(key) },
                                                     onOpenGallery = { items, idx ->
                                                         activeGalleryItems = items
                                                         activeGalleryIndex = idx

@@ -45,11 +45,29 @@ class FandomCandidateSelectorTest {
     }
 
     @Test
-    fun `turkish wiki is accepted alone but other languages are not`() {
+    fun `localized wikis are accepted when no root wiki exists`() {
         assertEquals("tr.pokemon", FandomCandidateSelector.choose(listOf("de.pokemon", "tr.pokemon"))!!.primary)
-        assertNull(FandomCandidateSelector.choose(listOf("de.pokemon", "fr.pokemon")))
+        assertEquals("ja.pokemon", FandomCandidateSelector.choose(listOf("ja.pokemon"))!!.primary)
+        assertEquals(
+            "fr.pokemon",
+            FandomCandidateSelector.choose(
+                listOf("de.pokemon", "fr.pokemon"),
+                mapOf("de.pokemon" to 50, "fr.pokemon" to 120)
+            )!!.primary
+        )
         assertNull(FandomCandidateSelector.choose(listOf("villains", "hero")))
         assertNull(FandomCandidateSelector.choose(emptyList()))
+    }
+
+    @Test
+    fun `article count ranks multiple wikis in the preferred localized language`() {
+        assertEquals(
+            "tr.second",
+            FandomCandidateSelector.choose(
+                listOf("tr.first", "tr.second"),
+                mapOf("tr.first" to 10, "tr.second" to 900)
+            )!!.primary
+        )
     }
 
     @Test

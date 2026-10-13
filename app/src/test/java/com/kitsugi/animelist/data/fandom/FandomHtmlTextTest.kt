@@ -59,6 +59,38 @@ class FandomHtmlTextTest {
     }
 
     @Test
+    fun `wiki links preserve article targets roles language and row context`() {
+        val html = """
+            <table class="wikitable">
+              <tr><th>Japanese voice actor</th><td><a href="/wiki/Kana_Hanazawa">Kana Hanazawa</a></td></tr>
+              <tr><th>Character</th><td><a href="/wiki/Sung_Jinwoo">Sung Jinwoo</a></td></tr>
+              <tr><td><a class="new" href="/wiki/Red_Link">Red link</a></td></tr>
+              <tr><td><a href="/wiki/File:Portrait.png">Portrait</a></td></tr>
+              <tr><td><a href="https://example.com/person">External</a></td></tr>
+            </table>
+            <table>
+              <tr><th>Character</th><th>Voice Actor</th></tr>
+              <tr><td><a href="/wiki/Megumin">Megumin</a></td><td><a href="/wiki/Rie_Takahashi">Rie Takahashi</a></td></tr>
+            </table>
+        """.trimIndent()
+
+        val links = FandomHtmlText.wikiLinks(
+            html,
+            defaultWikiId = "frieren",
+            role = FandomRelationType.RELATED
+        )
+
+        assertEquals(4, links.size)
+        val kana = links[0]
+        assertEquals("frieren" to "Kana Hanazawa", kana.wikiId to kana.pageTitle)
+        assertEquals(FandomRelationType.VOICE_ACTOR, kana.role)
+        assertEquals("ja", kana.language)
+        assertEquals(FandomRelationType.CHARACTER, links[1].role)
+        assertEquals(FandomRelationType.CHARACTER, links[2].role)
+        assertEquals(FandomRelationType.VOICE_ACTOR, links[3].role)
+    }
+
+    @Test
     fun `definition lists become headings and paragraphs`() {
         val html = "<dl><dt>Limitless</dt><dd>Brings the concept of infinity into reality.</dd></dl>"
         assertEquals(

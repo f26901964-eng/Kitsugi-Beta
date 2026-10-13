@@ -157,6 +157,7 @@ fun StaffDetailPage(
     // Collect states from ViewModel
     val state by viewModel.state.collectAsState()
     val translatedBio by viewModel.translatedBio.collectAsState()
+    val showBioOriginal by viewModel.showBioOriginal.collectAsState()
     val isFavourite by viewModel.isFavourite.collectAsState()
     val isAniListSource = source.lowercase() == "anilist"
     val isAniListConnected = remember { com.kitsugi.animelist.data.auth.ExternalAuthManager.getAniListToken(context) != null }
@@ -410,7 +411,9 @@ fun StaffDetailPage(
                                                     preferredTranslator = preferredTranslator,
                                                     accentColor = accentColor,
                                                     onGalleryClick = openGallery,
-                                                    onTranslateClick = { viewModel.translateBio() }
+                                                    onTranslateClick = { viewModel.translateBio() },
+                                                    showOriginalBio = showBioOriginal,
+                                                    onToggleOriginalBio = { viewModel.toggleBioOriginal() }
                                                 )
                                             }
                                             1 -> {
@@ -573,7 +576,9 @@ fun StaffDetailPage(
                                                         preferredTranslator = preferredTranslator,
                                                         accentColor = accentColor,
                                                         onGalleryClick = openGallery,
-                                                        onTranslateClick = { viewModel.translateBio() }
+                                                        onTranslateClick = { viewModel.translateBio() },
+                                                        showOriginalBio = showBioOriginal,
+                                                        onToggleOriginalBio = { viewModel.toggleBioOriginal() }
                                                     )
                                                 }
                                                 1 -> {

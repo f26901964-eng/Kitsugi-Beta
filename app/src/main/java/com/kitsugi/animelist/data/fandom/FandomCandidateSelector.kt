@@ -4,9 +4,9 @@ package com.kitsugi.animelist.data.fandom
  * Wiki adayları arasından seçim kuralları (saf fonksiyonlar).
  *
  *  1. Çapraz/genel wikiler (Heroes, Villains, Isekai, dublaj, fanon, VS Battles…) elenir.
- *  2. Dil öneki olmayan ana (İngilizce) wiki önceliklidir; yoksa Türkçe sürüm kabul edilir.
- *     Diğer dillerdeki wikiler tek başına seçilmez.
- *  3. Birden fazla ana aday varsa makale sayısı büyük olan kazanır; eşitlikte ilk sıradaki.
+ *  2. Dil öneki olmayan ana (İngilizce) wiki önceliklidir; yoksa Türkçe, sonra diğer
+ *     yerelleştirilmiş sürümler kabul edilir.
+ *  3. Seçilen dil grubunda birden fazla aday varsa makale sayısı büyük olan kazanır.
  */
 object FandomCandidateSelector {
 
@@ -54,21 +54,30 @@ object FandomCandidateSelector {
     fun rootCandidates(candidates: Iterable<String>): List<String> =
         usable(candidates).filter { FandomUrls.isRoot(it) }
 
-    fun needsArticleCounts(candidates: Iterable<String>): Boolean = rootCandidates(candidates).size > 1
+    fun needsArticleCounts(candidates: Iterable<String>): Boolean = preferredCandidates(usable(candidates)).size > 1
+
+    private fun preferredCandidates(all: List<String>): List<String> {
+        val roots = all.filter { FandomUrls.isRoot(it) }
+        if (roots.isNotEmpty()) return roots
+        val turkish = all.filter { FandomUrls.languageOf(it) == "tr" }
+        return turkish.ifEmpty { all }
+    }
 
     /**
-     * @param articleCounts kanonik wiki kimliği → makale sayısı (yalnızca birden fazla
-     *        ana aday varken gerekir).
+     * @param articleCounts canonical wiki ID → article count (used to rank multiple candidates
+     *        within the preferred language group).
      */
     fun choose(candidates: Iterable<String>, articleCounts: Map<String, Int> = emptyMap()): Choice? {
         val all = usable(candidates)
         if (all.isEmpty()) return null
         val roots = all.filter { FandomUrls.isRoot(it) }
         val turkish = all.filter { FandomUrls.languageOf(it) == "tr" }
+        val preferred = preferredCandidates(all)
         val primary = when {
-            roots.isNotEmpty() -> roots.maxByOrNull { articleCounts[it] ?: -1 } ?: roots.first()
-            turkish.isNotEmpty() -> turkish.first()
-            else -> return null
+            preferred.isEmpty() -> return null
+            roots.isNotEmpty() -> preferred.maxByOrNull { articleCounts[it] ?: -1 } ?: preferred.first()
+            turkish.isNotEmpty() -> preferred.maxByOrNull { articleCounts[it] ?: -1 } ?: preferred.first()
+            else -> preferred.maxByOrNull { articleCounts[it] ?: -1 } ?: preferred.first()
         }
         val primaryParts = FandomUrls.parse(primary)
         val turkishPair = if (primaryParts?.lang == "tr") {

@@ -7,15 +7,16 @@ import org.junit.Test
 class WikidataCharacterVotesTest {
 
     @Test
-    fun `tally counts one vote per character per root wiki`() {
+    fun `tally counts one vote per character and accepts localized-only communities`() {
         val votes = WikidataCharacterVotes.tally(
             listOf(
-                listOf("gintama:Sakata_Gintoki", "gintama:Sakata_Gintoki_(alt)"), // tek oy
-                listOf("gintama:Kagura", "es.doblaje:Gintoki_Sakata"),           // dil wiki'si yok sayılır
-                listOf("datealive:Tohka_Yatogami")
+                listOf("gintama:Sakata_Gintoki", "gintama:Sakata_Gintoki_(alt)"),
+                listOf("gintama:Kagura", "ja.gintama:Kagura", "es.doblaje:Gintoki_Sakata"),
+                listOf("datealive:Tohka_Yatogami"),
+                listOf("ja.kimetsu-no-yaiba:Tanjirou_Kamado")
             )
         )
-        assertEquals(mapOf("gintama" to 2, "datealive" to 1), votes)
+        assertEquals(mapOf("gintama" to 2, "datealive" to 1, "ja.kimetsu-no-yaiba" to 1), votes)
     }
 
     @Test

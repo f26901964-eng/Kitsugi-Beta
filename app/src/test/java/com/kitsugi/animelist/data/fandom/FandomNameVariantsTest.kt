@@ -36,6 +36,18 @@ class FandomNameVariantsTest {
     }
 
     @Test
+    fun `media title variants preserve native script and romanized forms`() {
+        assertEquals(
+            listOf("君の名は。", "Kimi no Na wa"),
+            FandomNameVariants.mediaTitleVariants(listOf("君の名は。", "Kimi no Na wa."))
+        )
+        assertEquals(
+            listOf("呪術廻戦 0: 東京都立呪術高等専門学校", "呪術廻戦 0"),
+            FandomNameVariants.mediaTitleVariants(listOf("呪術廻戦 0: 東京都立呪術高等専門学校"))
+        )
+    }
+
+    @Test
     fun `base title variants keep order and split subtitles`() {
         val variants = FandomNameVariants.baseTitleVariants(
             listOf("Demon Slayer: Kimetsu no Yaiba", "Kimetsu no Yaiba", "鬼滅の刃")

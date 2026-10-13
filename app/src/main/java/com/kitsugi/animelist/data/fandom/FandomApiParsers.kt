@@ -12,6 +12,13 @@ data class FandomSiteInfo(
     val mainPage: String?
 )
 
+data class FandomPageImageBatch(
+    val leadImage: FandomImage? = null,
+    val fileTitles: List<String> = emptyList(),
+    val continueToken: String? = null,
+    val generalContinueToken: String? = null
+)
+
 /** `action=query&titles=…&redirects=1&prop=pageprops` sonucunda istenen bir başlık. */
 data class FandomTitleLookup(
     val requested: String,
@@ -22,7 +29,9 @@ data class FandomTitleLookup(
     val description: String?,
     val isDisambiguation: Boolean,
     /** Türkçe dil bağlantısı (wiki kimliği, sayfa başlığı) — `prop=langlinks&lllang=tr`. */
-    val turkishLink: Pair<String, String>? = null
+    val turkishLink: Pair<String, String>? = null,
+    /** `prop=pageimages` thumbnail for related-article cards. */
+    val thumbnailUrl: String? = null
 ) {
     val exists: Boolean
         get() = resolvedTitle != null
@@ -87,12 +96,73 @@ object FandomApiParsers {
                 resolvedTitle = if (exists) finalTitle else null,
                 pageId = if (exists) page?.optLong("pageid", 0L)?.takeIf { it > 0L } else null,
                 infoboxJson = props?.str("infoboxes"),
-                description = props?.str("fandomdescription"),
+                // Fandom short descriptions are ideal when present; MediaWiki extracts keep
+                // otherwise-valid articles useful on wikis that do not publish fandomdescription.
+                description = props?.str("fandomdescription")
+                    ?.takeIf { it.isNotBlank() }
+                    ?: page?.str("extract")?.takeIf { it.isNotBlank() },
                 isDisambiguation = props?.has("disambiguation") == true,
-                turkishLink = if (exists) parseTurkishLink(page?.optJSONArray("langlinks")) else null
+                turkishLink = if (exists) parseTurkishLink(page?.optJSONArray("langlinks")) else null,
+                thumbnailUrl = if (exists) FandomUrls.normalizeImageUrl(page?.optJSONObject("thumbnail")?.str("source")) else null
             )
         }
         return result
+    }
+
+    /** `prop=images|pageimages` output: lead image, file-page titles and pagination tokens. */
+    fun parsePageImageBatch(json: String?, pageTitle: String): FandomPageImageBatch {
+        val root = parseJsonObject(json) ?: return FandomPageImageBatch()
+        if (root.has("error")) return FandomPageImageBatch()
+        val page = root.optJSONObject("query")?.optJSONArray("pages")?.objects()?.firstOrNull()
+            ?: root.optJSONObject("query")?.optJSONObject("pages")?.let { pages ->
+                val keys = pages.keys()
+                if (keys.hasNext()) pages.optJSONObject(keys.next()) else null
+            }
+            ?: return FandomPageImageBatch()
+        val lead = page.optJSONObject("thumbnail")?.str("source")
+            ?.let(FandomUrls::normalizeImageUrl)
+            ?.let { FandomImage(url = it, caption = pageTitle) }
+        val files = page.optJSONArray("images").objects()
+            .mapNotNull { it.str("title") }
+            .distinct()
+        val continuation = root.optJSONObject("continue")
+        return FandomPageImageBatch(
+            leadImage = lead,
+            fileTitles = files,
+            continueToken = continuation?.str("imcontinue"),
+            generalContinueToken = continuation?.str("continue")
+        )
+    }
+
+    /** `prop=imageinfo` results with normalized URLs and any attribution exposed by the wiki. */
+    fun parseImageInfo(json: String?): List<FandomImage> {
+        val root = parseJsonObject(json) ?: return emptyList()
+        if (root.has("error")) return emptyList()
+        val pages = root.optJSONObject("query")?.optJSONArray("pages")?.objects().orEmpty()
+        val legacyPages = root.optJSONObject("query")?.optJSONObject("pages")
+        val allPages = pages.ifEmpty {
+            legacyPages?.let { obj ->
+                buildList<JSONObject> {
+                    val keys = obj.keys()
+                    while (keys.hasNext()) obj.optJSONObject(keys.next())?.let(::add)
+                }
+            }.orEmpty()
+        }
+        return allPages.mapNotNull { page ->
+            val info = page.optJSONArray("imageinfo")?.optJSONObject(0) ?: return@mapNotNull null
+            val url = FandomUrls.normalizeImageUrl(info.str("thumburl") ?: info.str("url")) ?: return@mapNotNull null
+            val metadata = info.optJSONObject("extmetadata")
+            fun metadataText(key: String): String? = metadata?.optJSONObject(key)?.str("value")
+                ?.let(FandomHtmlText::inline)
+                ?.takeIf { it.isNotBlank() }
+            FandomImage(
+                url = url,
+                caption = metadataText("ImageDescription") ?: metadataText("ObjectName"),
+                fileTitle = page.str("title"),
+                artist = metadataText("Artist") ?: metadataText("Credit"),
+                license = metadataText("LicenseShortName")
+            )
+        }.distinctBy { it.fileTitle ?: it.url }
     }
 
     private fun parseTurkishLink(links: JSONArray?): Pair<String, String>? {

@@ -116,6 +116,32 @@ object FandomNameVariants {
         return out.values.take(max)
     }
 
+    /**
+     * Wiki madde adları için varyantlar. `baseTitleVariants` arama motoru sorgularında
+     * tercih edilen Latin adlara sadıktır; bu fonksiyon ise başlık yedeği olarak Japonca,
+     * Korece, Çince ve diğer yerel alfabelerdeki başlıkları da korur.
+     */
+    fun mediaTitleVariants(titles: List<String>, max: Int = 12): List<String> {
+        val out = LinkedHashMap<String, String>()
+        fun add(candidate: String?) {
+            val text = candidate?.replace(WHITESPACE, " ")?.trim()?.trim(':', '-', ' ') ?: return
+            if (text.length < 2 || text.none { it.isLetterOrDigit() }) return
+            val key = normalizeForCompare(text)
+            if (key.isNotEmpty() && key !in out) out[key] = text
+        }
+        titles.forEach { raw ->
+            if (raw.isBlank()) return@forEach
+            if (isMostlyLatin(raw)) {
+                baseTitleVariants(listOf(raw), max = 4).forEach(::add)
+            } else {
+                add(raw)
+                val colon = raw.indexOf(':')
+                if (colon > 0) add(raw.substring(0, colon))
+            }
+        }
+        return out.values.take(max)
+    }
+
     private val SLUG_OK = Regex("^[a-z0-9][a-z0-9-]*[a-z0-9]$")
 
     /** Başlıktan olası Fandom alt alan adları: `spy-x-family`, `spyxfamily`… */

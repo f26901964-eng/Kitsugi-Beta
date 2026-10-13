@@ -88,6 +88,10 @@ class ApiResultDetailViewModel(application: Application) : AndroidViewModel(appl
     private val _translationLoading = MutableStateFlow(false)
     val translationLoading: StateFlow<Boolean> = _translationLoading.asStateFlow()
 
+    /** Açıklamada orijinal metin gösteriliyor mu (çeviri varken "Orijinal" / "Çeviri" geçişi). */
+    private val _showSynopsisOriginal = MutableStateFlow(false)
+    val showSynopsisOriginal: StateFlow<Boolean> = _showSynopsisOriginal.asStateFlow()
+
     private val _logoUrl = MutableStateFlow<String?>(null)
     val logoUrl: StateFlow<String?> = _logoUrl.asStateFlow()
 
@@ -265,6 +269,13 @@ class ApiResultDetailViewModel(application: Application) : AndroidViewModel(appl
         synopsisTranslateJob?.cancel()
         synopsisTranslateJob = null
         _translationLoading.value = false
+            // Yeni kayıt / otomatik çeviri kapandı: eski orijinal-geçiş durumu geçerli değil.
+        _showSynopsisOriginal.value = false
+    }
+
+    /** Orijinal / çeviri geçişi (açıklama). Çeviri bellekte kalır, yeniden çevrilmez. */
+    fun toggleSynopsisOriginal() {
+        _showSynopsisOriginal.value = !_showSynopsisOriginal.value
     }
 
     fun translateSynopsis() {

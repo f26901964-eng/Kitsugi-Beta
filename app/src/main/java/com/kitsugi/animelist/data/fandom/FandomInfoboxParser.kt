@@ -25,7 +25,7 @@ object FandomInfoboxParser {
     private const val MAX_VALUE_LENGTH = 600
     private const val MAX_DEPTH = 6
 
-    fun parse(infoboxesJson: String?): FandomInfobox? {
+    fun parse(infoboxesJson: String?, wikiId: String? = null): FandomInfobox? {
         if (infoboxesJson.isNullOrBlank()) return null
         val array = try {
             JSONArray(infoboxesJson)
@@ -35,7 +35,7 @@ object FandomInfoboxParser {
         var best: FandomInfobox? = null
         var bestWeight = -1
         for (box in array.objects()) {
-            val parsed = parseBox(box)
+            val parsed = parseBox(box, wikiId)
             val titleWeight = if (parsed.title.isNullOrBlank()) 0 else 1
             val weight = parsed.allFields().size * 2 + parsed.images.size + titleWeight
             if (weight > bestWeight) {
@@ -80,13 +80,13 @@ object FandomInfoboxParser {
         }
     }
 
-    private fun parseBox(box: JSONObject): FandomInfobox {
+    private fun parseBox(box: JSONObject, wikiId: String?): FandomInfobox {
         val builder = Builder()
-        walk(box.optJSONArray("data"), builder, depth = 0)
+        walk(box.optJSONArray("data"), builder, depth = 0, wikiId = wikiId)
         return builder.build()
     }
 
-    private fun walk(items: JSONArray?, builder: Builder, depth: Int) {
+    private fun walk(items: JSONArray?, builder: Builder, depth: Int, wikiId: String?) {
         if (items == null || depth > MAX_DEPTH) return
         for (item in items.objects()) {
             when (item.str("type")) {
@@ -98,25 +98,26 @@ object FandomInfoboxParser {
                 }
                 "image" -> parseImages(item.opt("data"), builder)
                 "header" -> builder.header(FandomHtmlText.inline(item.optJSONObject("data")?.str("value")))
-                "data" -> parseField(item.optJSONObject("data"))?.let { builder.field(it) }
+                "data" -> parseField(item.optJSONObject("data"), wikiId)?.let { builder.field(it) }
                 "group" -> {
                     builder.closeGroup()
-                    walk(item.optJSONObject("data")?.optJSONArray("value"), builder, depth + 1)
+                    walk(item.optJSONObject("data")?.optJSONArray("value"), builder, depth + 1, wikiId)
                     builder.closeGroup()
                 }
                 "navigation" -> Unit
                 else -> when (val data = item.opt("data")) {
-                    is JSONObject -> walk(data.optJSONArray("value"), builder, depth + 1)
-                    is JSONArray -> walk(data, builder, depth + 1)
+                    is JSONObject -> walk(data.optJSONArray("value"), builder, depth + 1, wikiId)
+                    is JSONArray -> walk(data, builder, depth + 1, wikiId)
                     else -> Unit
                 }
             }
         }
     }
 
-    private fun parseField(data: JSONObject?): FandomInfoboxField? {
+    private fun parseField(data: JSONObject?, wikiId: String?): FandomInfoboxField? {
         if (data == null) return null
-        val value = FandomHtmlText.inline(data.str("value"))
+        val rawValue = data.str("value")
+        val value = FandomHtmlText.inline(rawValue)
         if (value.isBlank()) return null
         val source = data.str("source")
         val label = FandomHtmlText.inline(data.str("label")).trimEnd(':', ' ').trim()
@@ -124,11 +125,17 @@ object FandomInfoboxParser {
             source?.replace('_', ' ')?.trim()?.replaceFirstChar { it.uppercaseChar() }.orEmpty()
         }
         if (finalLabel.isBlank()) return null
+        val role = FandomRelationClassifier.forInfoboxLabel(finalLabel)
+        val language = FandomRelationClassifier.languageHint(finalLabel)
+        val links = wikiId?.let {
+            FandomHtmlText.wikiLinks(rawValue, it, role = role, language = language)
+        }.orEmpty()
         return FandomInfoboxField(
             label = finalLabel,
             value = value.take(MAX_VALUE_LENGTH),
             source = source,
-            spoiler = FandomSpoilerRules.isSpoilerField(finalLabel, source)
+            spoiler = FandomSpoilerRules.isSpoilerField(finalLabel, source),
+            links = links
         )
     }
 
