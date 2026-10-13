@@ -2,6 +2,15 @@
 
 ## 🇹🇷 Türkçe (v2.4.272)
 
+### 📚 Fandom Wiki Faz 3 (Bilgi Kutusu Çevirileri, Görsel Dayanıklılığı, Kopyalama & Tüm Sayfalarda Wiki)
+- **Bilgi Kutusu Etiket & Değer Çevirileri:** `FandomInfoboxLabels` ile ~90 bilgi kutusu etiketi (Name, Species, Birthday, Affiliation, Occupation...), grup başlıkları ve kısa değerler (Male/Female, Alive, Deceased...) arayüz diline çevrilir. TR/EN dil dosyalarına 178 yeni anahtar eklendi.
+- **Toplu Çeviri & Kopyalama Düğmeleri:** Bilgi kutusuna tek tıkla toplu çeviri ("Orijinal" ile geri dönüş) ve "Etiket: Değer" formatında panoya kopyalama eklendi. Wiki özeti ve her açılan bölüm kartına 36 dp'lik, değer satırlarına ise 13 dp'lik minik kopyalama düğmeleri yerleştirildi.
+- **Görsel Yükleme Dayanıklılığı:** Fandom CDN'e yönelik `Referer` ve `Accept` başlık filtreleri (`FandomImageHeaders`), ölçekli → özgün → format=original yedek zinciri (`FandomWikiImage`) ve kırık görsel ikonu eklendi.
+- **Tüm Sayfalarda Wiki Desteği:**
+  - **Ekip / Seslendirme Sanatçısı:** `StaffDetailPage` ekranına 4. sekme olarak "Wiki" eklendi; sanatçı, seslendirdiği ana yapımların evren wiki'lerinde aranır.
+  - **Eklenti Kaynaklı Manga/Manhwa:** `MangaDetailScreen` üzerine açılır "Wiki" kartı eklendi; başlık bazlı çözümleme sağlandı.
+  - **Android TV:** TV detay ekranının sonuna kumanda uyumlu açılır "Wiki" kartı eklendi.
+
 ### ✨ Detay Sayfalarında Ortak Akıcı Animasyonlar (Smooth Detail Transitions)
 - **Akıcı Video Açılışı & Liste Genişlemesi:** Video önizlemeleri ve açılış/kapanış (OP/ED) tema listeleri pat diye açılmak yerine yumuşak yükseklik ve görünürlük geçişiyle (`animateDetailContentSize`, `KitsugiDetailReveal`) genişleyip daralır. "Daha fazla" ile eklenen satırlar da animasyonla belirir.
 - **Hafif Oynatıcı Temizliği:** Video satırı kapatılırken oynatıcı motoru gecikmesiz derhal serbest bırakılır; yalnızca satır yüksekliği yumuşakça küçülür.
@@ -47,6 +56,15 @@
 ---
 
 ## 🇬🇧 English (v2.4.272)
+
+### 📚 Fandom Wiki Phase 3 (Infobox Translations, Image Resilience, Copy Actions & Global Wiki Tabs)
+- **Infobox Label & Value Localization:** Integrated `FandomInfoboxLabels` supporting ~90 infobox keys (Species, Birthday, Affiliation, Occupation...), group headers, and finite status values (Male/Female, Alive, Deceased...) localized via strings.xml.
+- **Batch Translation & One-Tap Copy:** Added batch translation for character infoboxes alongside structured full-infobox copy actions. Added 36dp copy icon buttons for summary & section cards and compact 13dp copy buttons for individual attribute rows.
+- **Resilient Image Pipeline:** Introduced `FandomImageHeaders` (`Referer` & AVIF-safe headers), `FandomWikiImage` multifold fallback chain (scaled → original → `format=original`), and broken-image indicator.
+- **Ubiquitous Wiki Integration:**
+  - **Staff / Voice Actor Screens:** Added a dedicated 4th "Wiki" tab to `StaffDetailPage` querying media wikis for the person's voiced characters.
+  - **Extension Manga/Manhwa:** Added a collapsible "Wiki" card on `MangaDetailScreen` with title-fallback cache resolution.
+  - **Android TV:** Added a remote-friendly collapsible "Wiki" section card at the end of TV detail screens.
 
 ### ✨ Smooth Detail Animations & Transitions
 - **Fluid Video & List Expansions:** Video preview panels and opening/ending theme song lists now expand and collapse smoothly (`animateDetailContentSize`, `KitsugiDetailReveal`) rather than popping into view abruptly. Additional loaded rows animate in seamlessly.

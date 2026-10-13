@@ -5,6 +5,8 @@
 
 package com.kitsugi.animelist.ui.screens.detail
 
+import com.kitsugi.animelist.ui.components.rememberDetailStickyHeaderVisible
+
 import androidx.compose.runtime.CompositionLocalProvider
 import com.kitsugi.animelist.ui.components.LocalKitsugiGalleryLoading
 import com.kitsugi.animelist.ui.components.LocalKitsugiTranslationLoading
@@ -73,7 +75,11 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
-import com.kitsugi.animelist.ui.components.rememberDetailStickyHeaderVisible
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.runtime.rememberCoroutineScope
 import com.kitsugi.animelist.data.remote.JikanApiClient
@@ -104,6 +110,9 @@ import com.kitsugi.animelist.R
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
+import com.kitsugi.animelist.data.fandom.FandomCharacterQueries
+import com.kitsugi.animelist.ui.screens.detail.wiki.CharacterWikiTabSlot
+import com.kitsugi.animelist.ui.screens.detail.wiki.FandomCharacterWikiViewModel
 
 sealed interface StaffDetailState {
     object Loading : StaffDetailState
@@ -129,6 +138,9 @@ fun StaffDetailPage(
 
     // Obtain ViewModel
     val viewModel: StaffDetailViewModel = viewModel(key = "staff_${source}_${staffId}")
+    // Fandom Wiki: kişi, çalıştığı yapımların wiki'sinde adıyla aranır (karakter sayfasıyla aynı akış).
+    val wikiViewModel: FandomCharacterWikiViewModel = viewModel(key = "fandom_staff_${source}_${staffId}")
+    val wikiPrefs by wikiViewModel.prefs.collectAsState()
     val galleryLoading by viewModel.galleryLoading.collectAsState()
     val translationLoading by viewModel.translationLoading.collectAsState()
     // Otomatik çeviri sürerken sayfadaki çeviri butonları galeri butonuyla aynı animasyonu gösterir.
@@ -252,13 +264,28 @@ fun StaffDetailPage(
                     showAtIndex = 2,
                     hideAtIndex = 0
                 )
-                val tabs = listOf(
-                    stringResource(R.string.staff_tab_about),
-                    stringResource(R.string.staff_tab_characters),
-                    stringResource(R.string.staff_tab_works)
-                )
+                // Wiki çözümlemesi ham detayla yapılır (ad gösterim tercihinden bağımsız).
+                LaunchedEffect(rawDetail, source, staffId) {
+                    wikiViewModel.bindStaff(rawDetail, source, staffId)
+                }
+                // Sekme görünürlüğü çözümlemeyi beklemez: ad + yapım varsa sekme vardır.
+                val wikiTabPossible = wikiPrefs.enabled && remember(rawDetail, source, staffId) {
+                    FandomCharacterQueries.fromStaff(rawDetail, source, staffId) != null
+                }
+                val tabs = buildList {
+                    add(stringResource(R.string.staff_tab_about))
+                    add(stringResource(R.string.staff_tab_characters))
+                    add(stringResource(R.string.staff_tab_works))
+                    if (wikiTabPossible) add(stringResource(R.string.fandom_staff_tab_wiki))
+                }
                 @OptIn(ExperimentalFoundationApi::class)
                 val pagerState = rememberPagerState(initialPage = 0, pageCount = { tabs.size })
+                // Wiki sekmesi kaldırılırsa (ayar kapatıldıysa) geçersiz sayfada kalınmaz.
+                LaunchedEffect(tabs.size) {
+                    if (pagerState.currentPage >= tabs.size) {
+                        pagerState.scrollToPage((tabs.size - 1).coerceAtLeast(0))
+                    }
+                }
                 val selectedTab = pagerState.currentPage
                 val coroutineScope = rememberCoroutineScope()
                 val isTv = LocalIsTv.current
@@ -401,6 +428,12 @@ fun StaffDetailPage(
                                                     onMediaClick = onMediaClick
                                                 )
                                             }
+                                            3 -> CharacterWikiTabSlot(
+                                                viewModel = wikiViewModel,
+                                                accentColor = accentColor,
+                                                onOpenGallery = openGallery,
+                                                unavailableMessageRes = R.string.fandom_unavailable_staff
+                                            )
                                         }
                                         Spacer(modifier = Modifier.height(32.dp))
                                     }
@@ -557,6 +590,12 @@ fun StaffDetailPage(
                                                         onMediaClick = onMediaClick
                                                     )
                                                 }
+                                                3 -> CharacterWikiTabSlot(
+                                                    viewModel = wikiViewModel,
+                                                    accentColor = accentColor,
+                                                    onOpenGallery = openGallery,
+                                                    unavailableMessageRes = R.string.fandom_unavailable_staff
+                                                )
                                             }
                                             Spacer(modifier = Modifier.height(50.dp))
                                         }

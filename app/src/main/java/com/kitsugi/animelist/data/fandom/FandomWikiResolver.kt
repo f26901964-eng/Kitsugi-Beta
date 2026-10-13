@@ -17,7 +17,22 @@ data class FandomMediaQuery(
     /** AniList verisi alınamazsa isim yolunda kullanılacak başlıklar. */
     val fallbackTitles: List<String> = emptyList()
 ) {
-    fun cacheKey(): String? = ids.stableKey(isManga, isMovie)
+    /**
+     * Önbellek anahtarı: kimlik varsa kimlikten; hiç kimlik yoksa (ör. eklenti kaynağından
+     * açılan manga/dizi) ilk başlıktan türetilir — böylece isim yolu da önbelleklenir.
+     */
+    fun cacheKey(): String? = ids.stableKey(isManga, isMovie) ?: titleKey()
+
+    private fun titleKey(): String? {
+        val title = fallbackTitles.firstOrNull()?.trim()?.takeIf { it.isNotEmpty() } ?: return null
+        val normalized = title.lowercase(java.util.Locale.ROOT)
+            .replace(Regex("[^\\p{L}\\p{N}]+"), " ")
+            .trim()
+            .replace(' ', '_')
+            .take(80)
+        if (normalized.isEmpty()) return null
+        return "title:${if (isManga) "m" else "a"}:$normalized"
+    }
 }
 
 /**

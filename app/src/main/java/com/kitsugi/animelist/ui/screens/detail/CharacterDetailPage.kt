@@ -5,6 +5,8 @@
 
 package com.kitsugi.animelist.ui.screens.detail
 
+import com.kitsugi.animelist.ui.components.rememberDetailStickyHeaderVisible
+
 import androidx.compose.runtime.CompositionLocalProvider
 import com.kitsugi.animelist.ui.components.LocalKitsugiGalleryLoading
 import com.kitsugi.animelist.ui.components.LocalKitsugiTranslationLoading
@@ -75,7 +77,11 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
-import com.kitsugi.animelist.ui.components.rememberDetailStickyHeaderVisible
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.runtime.rememberCoroutineScope
 import com.kitsugi.animelist.data.remote.JikanApiClient
@@ -105,10 +111,8 @@ import com.kitsugi.animelist.data.remote.GalleryCategory
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import com.kitsugi.animelist.data.fandom.FandomCharacterQueries
-import com.kitsugi.animelist.ui.screens.detail.wiki.CharacterWikiTabContent
+import com.kitsugi.animelist.ui.screens.detail.wiki.CharacterWikiTabSlot
 import com.kitsugi.animelist.ui.screens.detail.wiki.FandomCharacterWikiViewModel
-import com.kitsugi.animelist.ui.screens.detail.wiki.WikiTabSkeleton
-import com.kitsugi.animelist.ui.screens.detail.wiki.WikiUnavailableCard
 
 sealed interface CharacterDetailState {
     object Loading : CharacterDetailState
@@ -476,7 +480,8 @@ fun CharacterDetailPage(
                                                         android.widget.Toast.LENGTH_SHORT
                                                     ).show()
                                                 },
-                                                onRetry = { wikiViewModel.retry() }
+                                                onRetry = { wikiViewModel.retry() },
+                                                onTranslateInfobox = { wikiViewModel.translateInfobox() }
                                             )
 
                                             null -> Unit
@@ -667,7 +672,8 @@ fun CharacterDetailPage(
                                                             android.widget.Toast.LENGTH_SHORT
                                                         ).show()
                                                     },
-                                                    onRetry = { wikiViewModel.retry() }
+                                                    onRetry = { wikiViewModel.retry() },
+                                                    onTranslateInfobox = { wikiViewModel.translateInfobox() }
                                                 )
 
                                                 null -> Unit
@@ -698,50 +704,5 @@ fun CharacterDetailPage(
             }
         }
     }
-    }
-}
-
-
-/**
- * Karakter "Wiki" sekmesinin yuvası: sekme sayfa açılır açılmaz vardır; çözümleme sürerken
- * iskelet, sayfa gelince içerik, bulunamazsa boş durum + "Tekrar dene" gösterilir.
- */
-@Composable
-private fun CharacterWikiTabSlot(
-    wikiState: FandomCharacterWikiViewModel.UiState,
-    sections: Map<Int, FandomCharacterWikiViewModel.SectionState>,
-    translations: Map<String, String>,
-    translatingKeys: Set<String>,
-    spoilerGuard: Boolean,
-    accentColor: Color,
-    onLoadSection: (Int) -> Unit,
-    onTranslate: (String) -> Unit,
-    onShowOriginal: (String) -> Unit,
-    onOpenGallery: (List<GalleryItem>, Int) -> Unit,
-    onConfirm: () -> Unit,
-    onReportWrong: () -> Unit,
-    onRetry: () -> Unit
-) {
-    when (wikiState) {
-        is FandomCharacterWikiViewModel.UiState.Ready -> CharacterWikiTabContent(
-            page = wikiState.page,
-            sections = sections,
-            translations = translations,
-            translatingKeys = translatingKeys,
-            spoilerGuard = spoilerGuard,
-            accentColor = accentColor,
-            onLoadSection = onLoadSection,
-            onTranslate = onTranslate,
-            onShowOriginal = onShowOriginal,
-            onOpenGallery = onOpenGallery,
-            onConfirm = onConfirm,
-            onReportWrong = onReportWrong
-        )
-        FandomCharacterWikiViewModel.UiState.Unavailable -> WikiUnavailableCard(
-            accentColor = accentColor,
-            messageRes = R.string.fandom_unavailable_character,
-            onRetry = onRetry
-        )
-        else -> WikiTabSkeleton(accentColor = accentColor)
     }
 }

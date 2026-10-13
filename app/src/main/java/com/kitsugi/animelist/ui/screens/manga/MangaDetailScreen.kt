@@ -57,6 +57,10 @@ import com.kitsugi.animelist.ui.theme.KitsugiColors
 import androidx.compose.ui.res.stringResource
 import com.kitsugi.animelist.R
 import com.kitsugi.animelist.ui.components.safeBlur
+import androidx.compose.runtime.remember
+import com.kitsugi.animelist.data.fandom.FandomMediaQueries
+import com.kitsugi.animelist.ui.screens.detail.wiki.FandomMediaWikiViewModel
+import com.kitsugi.animelist.ui.screens.detail.wiki.MediaWikiSectionCard
 
 /**
  * Manga Detay + "Oku" Ekranı.
@@ -82,6 +86,17 @@ fun MangaDetailScreen(
     )
     val uiState by viewModel.uiState.collectAsState()
     val details = uiState.details
+    // Fandom Wiki: eklenti kaynağında kimlik yoktur; seri başlığıyla (isim yolu) çözülür.
+    val wikiViewModel: FandomMediaWikiViewModel = viewModel(key = "fandom_manga_${source.name}_${mangaDetails.url}")
+    val wikiQuery = remember(details.title) {
+        FandomMediaQueries.fromMedia(
+            source = null,
+            mediaId = null,
+            isManga = true,
+            isMovie = false,
+            titles = listOf(details.title)
+        )
+    }
 
     Box(
         modifier = Modifier
@@ -127,6 +142,16 @@ fun MangaDetailScreen(
                         modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
                     )
                 }
+            }
+
+            // ─── Fandom Wiki (açılır kart; içerik kullanıcı açınca yüklenir) ─────
+            item(key = "fandom_wiki") {
+                MediaWikiSectionCard(
+                    viewModel = wikiViewModel,
+                    query = wikiQuery,
+                    accentColor = accent,
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                )
             }
 
             // ─── Bölümler Başlığı ──────────────────────────────────────────────

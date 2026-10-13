@@ -74,6 +74,28 @@ class FandomMediaQueriesTest {
         )
         assertEquals(null, query?.ids?.stableKey(false, false))
         assertEquals(listOf("Monster"), query?.fallbackTitles)
+        // Kimliksiz sorgu da önbelleklenebilir olmalı (eklenti mangası / TV): başlık anahtarı.
+        assertEquals("title:a:monster", query?.cacheKey())
+    }
+
+    @Test
+    fun `title cache key is normalized and manga aware`() {
+        val manga = FandomMediaQueries.fromMedia(
+            source = null,
+            mediaId = null,
+            isManga = true,
+            isMovie = false,
+            titles = listOf("  Solo   Leveling: Ragnarok! ")
+        )
+        assertEquals("title:m:solo_leveling_ragnarok", manga?.cacheKey())
+        val withIds = FandomMediaQueries.fromMedia(
+            source = "mal",
+            mediaId = 1,
+            isManga = false,
+            isMovie = false,
+            titles = listOf("Cowboy Bebop")
+        )
+        assertEquals(withIds?.ids?.stableKey(false, false), withIds?.cacheKey())
     }
 
     @Test

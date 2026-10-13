@@ -112,4 +112,15 @@ class FandomUrlsTest {
         assertNull(FandomUrls.normalizeImageUrl("data:image/png;base64,xyz"))
         assertNull(FandomUrls.normalizeImageUrl(null))
     }
+
+    @Test
+    fun `withOriginalFormat only touches fandom cdn urls once`() {
+        val url = "https://static.wikia.nocookie.net/w/images/a/ab/X.webp/revision/latest?cb=1"
+        assertEquals("$url&format=original", FandomUrls.withOriginalFormat(url))
+        val noQuery = "https://static.wikia.nocookie.net/w/images/a/ab/X.webp/revision/latest"
+        assertEquals("$noQuery?format=original", FandomUrls.withOriginalFormat(noQuery))
+        val already = "$url&format=webp"
+        assertEquals(already, FandomUrls.withOriginalFormat(already))
+        assertEquals("https://example.com/x.png", FandomUrls.withOriginalFormat("https://example.com/x.png"))
+    }
 }

@@ -2,6 +2,9 @@ package com.kitsugi.animelist.data.fandom
 
 import com.kitsugi.animelist.data.remote.KitsugiCharacterDetail
 import com.kitsugi.animelist.data.remote.KitsugiCharacterMediaAppearance
+import com.kitsugi.animelist.data.remote.KitsugiStaffCharacterRole
+import com.kitsugi.animelist.data.remote.KitsugiStaffDetail
+import com.kitsugi.animelist.data.remote.KitsugiStaffMediaWork
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -86,5 +89,74 @@ class FandomCharacterQueriesTest {
     fun `characters without ids or verifiable names are skipped`() {
         val bare = detail("bangumi").copy(name = "五条悟", englishName = null, romanizedName = null)
         assertNull(FandomCharacterQueries.from(bare, "bangumi", 77))
+    }
+
+    private fun staff(
+        roles: List<KitsugiStaffCharacterRole> = emptyList(),
+        works: List<KitsugiStaffMediaWork> = emptyList(),
+        name: String = "Yuki Kaji"
+    ) = KitsugiStaffDetail(
+        id = 7,
+        name = name,
+        nativeName = "梶裕貴",
+        alternativeNames = listOf("Kaji Yuuki"),
+        imageUrl = null,
+        biography = null,
+        occupation = null,
+        birthday = null,
+        age = null,
+        gender = null,
+        homeTown = null,
+        characterRoles = roles,
+        mediaWorks = works
+    )
+
+    @Test
+    fun `staff query uses voiced main roles first and dedups works`() {
+        val roles = listOf(
+            KitsugiStaffCharacterRole(
+                characterId = 1, characterName = "Side", characterImageUrl = null,
+                mediaId = 200, mediaTitle = "Other Show", mediaImageUrl = null,
+                mediaType = "TV", characterRole = "Supporting", mediaSource = "jikan"
+            ),
+            KitsugiStaffCharacterRole(
+                characterId = 2, characterName = "Eren Yeager", characterImageUrl = null,
+                mediaId = 16498, mediaTitle = "Shingeki no Kyojin", mediaImageUrl = null,
+                mediaType = "TV", characterRole = "Main", mediaSource = "jikan",
+                mediaTitleEnglish = "Attack on Titan"
+            )
+        )
+        val works = listOf(
+            KitsugiStaffMediaWork(
+                mediaId = 16498, mediaTitle = "Shingeki no Kyojin", mediaImageUrl = null,
+                mediaType = "TV", staffRole = "Theme Song Performance", source = "jikan"
+            )
+        )
+        val query = FandomCharacterQueries.fromStaff(staff(roles, works), "jikan", 7)!!
+        assertEquals("staff-jikan", query.source)
+        assertEquals(7, query.characterId)
+        assertEquals("staff-jikan:7", query.cacheKey())
+        assertNull(query.aniListCharacterId)
+        assertEquals(listOf("Yuki Kaji"), query.names)
+        assertEquals("梶裕貴", query.nativeName)
+        assertEquals(2, query.appearances.size)
+        assertEquals(16498, query.appearances[0].ids.malId)
+        assertTrue(query.appearances[0].isMainRole)
+        assertTrue(query.appearances[0].titles.contains("Attack on Titan"))
+        assertFalse(query.appearances[1].isMainRole)
+    }
+
+    @Test
+    fun `staff without works or latin name is skipped, tmdb too`() {
+        assertNull(FandomCharacterQueries.fromStaff(staff(), "jikan", 7))
+        val roles = listOf(
+            KitsugiStaffCharacterRole(
+                characterId = 2, characterName = "X", characterImageUrl = null,
+                mediaId = 1, mediaTitle = "A", mediaImageUrl = null,
+                mediaType = "TV", characterRole = "Main", mediaSource = "jikan"
+            )
+        )
+        assertNull(FandomCharacterQueries.fromStaff(staff(roles, name = "梶裕貴"), "jikan", 7))
+        assertNull(FandomCharacterQueries.fromStaff(staff(roles), "tmdb", 7))
     }
 }

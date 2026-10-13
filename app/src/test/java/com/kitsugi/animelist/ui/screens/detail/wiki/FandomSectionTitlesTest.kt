@@ -26,6 +26,13 @@ class FandomSectionTitlesTest {
     }
 
     @Test
+    fun `second screenshot headings map too`() {
+        assertEquals(R.string.fandom_section_people_killed, FandomSectionTitles.resId("People killed"))
+        assertEquals(R.string.fandom_section_people_killed, FandomSectionTitles.resId("Titans killed"))
+        assertEquals(R.string.fandom_section_status, FandomSectionTitles.resId("Status"))
+    }
+
+    @Test
     fun `matching ignores case and extra whitespace`() {
         assertEquals(
             R.string.fandom_section_role_series,

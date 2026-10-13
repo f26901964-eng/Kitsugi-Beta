@@ -122,6 +122,15 @@ object FandomUrls {
         return url.substring(0, insertAt) + "/scale-to-width-down/$width" + url.substring(insertAt)
     }
 
+    /**
+     * Fandom CDN görseline `format=original` ekler: CDN'in içerik pazarlığıyla (AVIF/WebP)
+     * dönüştürmesini kapatır; dosya yüklendiği biçimde gelir. Fandom dışı adresler aynen döner.
+     */
+    fun withOriginalFormat(url: String): String {
+        if (!url.contains("wikia.nocookie.net") || url.contains("format=")) return url
+        return url + (if (url.contains('?')) "&" else "?") + "format=original"
+    }
+
     /** `//static…` ve `http://` görsel adreslerini `https://` biçimine getirir. */
     fun normalizeImageUrl(url: String?): String? {
         val raw = url?.trim().orEmpty()

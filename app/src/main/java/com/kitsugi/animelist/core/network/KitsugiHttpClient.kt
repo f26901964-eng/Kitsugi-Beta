@@ -71,6 +71,18 @@ object KitsugiHttpClient {
                     if (original.header("Accept-Language") == null) {
                         reqBuilder.header("Accept-Language", "tr-TR,tr;q=0.9,en;q=0.8")
                     }
+                    // Fandom görsel CDN'i (static.wikia.nocookie.net): tarayıcı dışı istemcilere
+                    // Referer/Accept olmadan 403 dönebiliyor ya da içerik pazarlığında AVIF seçebiliyor
+                    // (eski Android sürümleri AVIF çözemez). Tarayıcıya yakın başlıklar eklenir;
+                    // Accept listesi AVIF içermez (WebP/PNG/JPEG ile sınırlı).
+                    if (FandomImageHeaders.applies(original.url.host)) {
+                        if (original.header("Referer") == null) {
+                            reqBuilder.header("Referer", FandomImageHeaders.REFERER)
+                        }
+                        if (original.header("Accept") == null) {
+                            reqBuilder.header("Accept", FandomImageHeaders.ACCEPT)
+                        }
+                    }
                     chain.proceed(reqBuilder.build())
                 }
             )

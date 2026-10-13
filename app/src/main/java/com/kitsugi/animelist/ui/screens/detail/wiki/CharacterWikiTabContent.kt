@@ -1,11 +1,12 @@
 package com.kitsugi.animelist.ui.screens.detail.wiki
 
+import com.kitsugi.animelist.ui.components.KitsugiDetailReveal
+import com.kitsugi.animelist.ui.components.animateDetailContentSize
+
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.widget.Toast
-import com.kitsugi.animelist.ui.components.KitsugiDetailReveal
-import com.kitsugi.animelist.ui.components.animateDetailContentSize
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -22,11 +23,13 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.ContentCopy
 import androidx.compose.material.icons.rounded.ExpandLess
 import androidx.compose.material.icons.rounded.ExpandMore
 import androidx.compose.material.icons.rounded.OpenInNew
 import androidx.compose.material.icons.rounded.Warning
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -40,14 +43,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import coil3.compose.AsyncImage
 import com.kitsugi.animelist.R
 import com.kitsugi.animelist.data.fandom.FandomBlockKind
 import com.kitsugi.animelist.data.fandom.FandomCharacterPage
@@ -57,11 +58,12 @@ import com.kitsugi.animelist.data.fandom.FandomInfoboxField
 import com.kitsugi.animelist.data.fandom.FandomSectionContent
 import com.kitsugi.animelist.data.fandom.FandomSectionRef
 import com.kitsugi.animelist.data.fandom.FandomTextBlock
-import com.kitsugi.animelist.data.fandom.FandomUrls
 import com.kitsugi.animelist.data.remote.GalleryCategory
 import com.kitsugi.animelist.data.remote.GalleryItem
 import com.kitsugi.animelist.ui.components.KitsugiTranslateIconButton
 import com.kitsugi.animelist.ui.screens.detail.wiki.FandomCharacterWikiViewModel.Companion.KEY_DESCRIPTION
+import com.kitsugi.animelist.ui.screens.detail.wiki.FandomCharacterWikiViewModel.Companion.KEY_INFOBOX
+import com.kitsugi.animelist.ui.screens.detail.wiki.FandomCharacterWikiViewModel.Companion.infoboxFieldKey
 import com.kitsugi.animelist.ui.screens.detail.wiki.FandomCharacterWikiViewModel.Companion.sectionKey
 import com.kitsugi.animelist.ui.screens.detail.wiki.FandomCharacterWikiViewModel.SectionState
 import com.kitsugi.animelist.ui.theme.KitsugiColors
@@ -96,8 +98,10 @@ internal fun CharacterWikiTabContent(
     onOpenGallery: (List<GalleryItem>, Int) -> Unit,
     onConfirm: () -> Unit,
     onReportWrong: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    onTranslateInfobox: () -> Unit = {}
 ) {
+    val context = LocalContext.current
     val pageKey = page.wikiId + "|" + page.pageTitle
     val expanded = remember(pageKey) { mutableStateMapOf<Int, Boolean>() }
     val revealed = remember(pageKey) { mutableStateMapOf<String, Boolean>() }
@@ -119,11 +123,15 @@ internal fun CharacterWikiTabContent(
             showAll = showAllFields,
             onToggleShowAll = { showAllFields = !showAllFields },
             accentColor = accentColor,
-            onOpenGallery = onOpenGallery
+            onOpenGallery = onOpenGallery,
+            translations = translations,
+            infoboxTranslating = KEY_INFOBOX in translatingKeys,
+            onTranslateInfobox = onTranslateInfobox,
+            onShowOriginalInfobox = { onShowOriginal(KEY_INFOBOX) }
         )
 
         page.description?.let { description ->
-            WikiCard {
+            WikiCard(animateHeight = true) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically
@@ -142,6 +150,10 @@ internal fun CharacterWikiTabContent(
                         accentColor = accentColor,
                         onTranslate = onTranslate,
                         onShowOriginal = onShowOriginal
+                    )
+                    CopyIconButton(
+                        contentDescription = stringResource(R.string.fandom_copy_summary),
+                        onClick = { copyWikiText(context, translations[KEY_DESCRIPTION] ?: description) }
                     )
                 }
                 Spacer(modifier = Modifier.height(8.dp))
@@ -182,7 +194,8 @@ internal fun CharacterWikiTabContent(
                         onReveal = { revealed[revealKey] = true },
                         onLoad = { onLoadSection(section.index) },
                         onTranslate = { onTranslate(key) },
-                        onShowOriginal = { onShowOriginal(key) }
+                        onShowOriginal = { onShowOriginal(key) },
+                        onCopy = { text -> copyWikiText(context, text) }
                     )
                 }
             }
@@ -262,8 +275,13 @@ private fun WikiInfoboxCard(
     showAll: Boolean,
     onToggleShowAll: () -> Unit,
     accentColor: Color,
-    onOpenGallery: (List<GalleryItem>, Int) -> Unit
+    onOpenGallery: (List<GalleryItem>, Int) -> Unit,
+    translations: Map<String, String> = emptyMap(),
+    infoboxTranslating: Boolean = false,
+    onTranslateInfobox: () -> Unit = {},
+    onShowOriginalInfobox: () -> Unit = {}
 ) {
+    val context = LocalContext.current
     val images = infobox?.images.orEmpty()
     val galleryItems = remember(images) {
         images.map { image ->
@@ -280,13 +298,14 @@ private fun WikiInfoboxCard(
     }
     val visibleCount = if (showAll) fields.size else minOf(fields.size, COLLAPSED_FIELD_COUNT)
 
-    WikiCard(animateHeight = true) {
+    WikiCard {
         Row(verticalAlignment = Alignment.Top) {
             images.firstOrNull()?.let { image ->
-                AsyncImage(
-                    model = FandomUrls.scaledImage(image.url, 360),
+                FandomWikiImage(
+                    url = image.url,
+                    width = 360,
                     contentDescription = infobox?.title ?: page.pageTitle,
-                    contentScale = ContentScale.Crop,
+                    accentColor = accentColor,
                     modifier = Modifier
                         .width(92.dp)
                         .height(126.dp)
@@ -322,10 +341,12 @@ private fun WikiInfoboxCard(
                     ) {
                         images.forEachIndexed { index, image ->
                             if (index == 0) return@forEachIndexed
-                            AsyncImage(
-                                model = FandomUrls.scaledImage(image.url, 160),
+                            FandomWikiImage(
+                                url = image.url,
+                                width = 160,
                                 contentDescription = image.caption,
-                                contentScale = ContentScale.Crop,
+                                accentColor = accentColor,
+                                iconSize = 16.dp,
                                 modifier = Modifier
                                     .size(44.dp)
                                     .clip(RoundedCornerShape(10.dp))
@@ -339,12 +360,48 @@ private fun WikiInfoboxCard(
         }
 
         if (fields.isNotEmpty()) {
-            Spacer(modifier = Modifier.height(14.dp))
+            Spacer(modifier = Modifier.height(10.dp))
+            // Bilgi kutusu araç satırı: toplu çeviri + tümünü kopyala (detay sayfalarındaki açıklama kartıyla aynı düzen).
+            val infoboxTranslated = translations[KEY_INFOBOX] != null
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = stringResource(R.string.fandom_infobox_title),
+                    color = KitsugiColors.TextPrimary,
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.weight(1f)
+                )
+                TranslateToggle(
+                    key = KEY_INFOBOX,
+                    isTranslated = infoboxTranslated,
+                    isLoading = infoboxTranslating,
+                    accentColor = accentColor,
+                    onTranslate = { onTranslateInfobox() },
+                    onShowOriginal = { onShowOriginalInfobox() }
+                )
+                val copyAllText = buildInfoboxCopyText(
+                    fields = fields,
+                    translations = translations,
+                    hiddenIndices = if (spoilerGuard) {
+                        fields.indices.filter { fields[it].second.spoiler && revealed["field:$it"] != true }.toSet()
+                    } else {
+                        emptySet()
+                    }
+                )
+                CopyIconButton(
+                    contentDescription = stringResource(R.string.fandom_copy_infobox),
+                    onClick = { copyWikiText(context, copyAllText) }
+                )
+            }
+            Spacer(modifier = Modifier.height(4.dp))
             var lastHeader: String? = null
             fields.take(visibleCount).forEachIndexed { index, (header, field) ->
                 if (header != null && header != lastHeader) {
                     Text(
-                        text = header,
+                        text = localizedInfoboxHeader(header),
                         color = KitsugiColors.TextMuted,
                         style = MaterialTheme.typography.labelMedium,
                         fontWeight = FontWeight.Bold,
@@ -353,10 +410,14 @@ private fun WikiInfoboxCard(
                 }
                 lastHeader = header
                 val revealKey = "field:$index"
+                val hidden = spoilerGuard && field.spoiler && revealed[revealKey] != true
+                val displayValue = translations[infoboxFieldKey(index)] ?: localizedInfoboxValue(field.value)
                 WikiFieldRow(
-                    field = field,
-                    hidden = spoilerGuard && field.spoiler && revealed[revealKey] != true,
-                    onReveal = { revealed[revealKey] = true }
+                    label = localizedInfoboxLabel(field),
+                    value = displayValue,
+                    hidden = hidden,
+                    onReveal = { revealed[revealKey] = true },
+                    onCopy = if (hidden) null else ({ copyWikiText(context, displayValue) })
                 )
                 Spacer(modifier = Modifier.height(6.dp))
             }
@@ -375,13 +436,19 @@ private fun WikiInfoboxCard(
 }
 
 @Composable
-private fun WikiFieldRow(field: FandomInfoboxField, hidden: Boolean, onReveal: () -> Unit) {
+private fun WikiFieldRow(
+    label: String,
+    value: String,
+    hidden: Boolean,
+    onReveal: () -> Unit,
+    onCopy: (() -> Unit)?
+) {
     Row(
         modifier = Modifier.fillMaxWidth(),
         verticalAlignment = Alignment.Top
     ) {
         Text(
-            text = field.label,
+            text = label,
             color = KitsugiColors.TextSecondary,
             style = MaterialTheme.typography.bodySmall,
             fontWeight = FontWeight.Medium,
@@ -405,16 +472,98 @@ private fun WikiFieldRow(field: FandomInfoboxField, hidden: Boolean, onReveal: (
                 )
             }
         } else {
-            SelectionContainer(modifier = Modifier.weight(0.62f)) {
-                Text(
-                    text = field.value,
-                    color = KitsugiColors.TextPrimary,
-                    style = MaterialTheme.typography.bodySmall,
-                    fontWeight = FontWeight.SemiBold
-                )
+            Row(modifier = Modifier.weight(0.62f), verticalAlignment = Alignment.Top) {
+                SelectionContainer(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = value,
+                        color = KitsugiColors.TextPrimary,
+                        style = MaterialTheme.typography.bodySmall,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
+                if (onCopy != null) {
+                    // Minik kopyala düğmesi: değerin yanında, satır yüksekliğini büyütmeden.
+                    IconButton(
+                        onClick = onCopy,
+                        modifier = Modifier
+                            .padding(start = 4.dp)
+                            .size(22.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Rounded.ContentCopy,
+                            contentDescription = stringResource(R.string.fandom_copy_value),
+                            tint = KitsugiColors.TextMuted,
+                            modifier = Modifier.size(13.dp)
+                        )
+                    }
+                }
             }
         }
     }
+}
+
+/** 36 dp'lik kopyala düğmesi (açıklama kartlarındaki ile aynı ölçü). */
+@Composable
+private fun CopyIconButton(contentDescription: String, onClick: () -> Unit) {
+    IconButton(onClick = onClick, modifier = Modifier.size(36.dp)) {
+        Icon(
+            imageVector = Icons.Rounded.ContentCopy,
+            contentDescription = contentDescription,
+            tint = KitsugiColors.TextSecondary,
+            modifier = Modifier.size(18.dp)
+        )
+    }
+}
+
+/** Detay sayfalarındaki açıklama kartıyla aynı davranış: panoya yaz + kısa "kopyalandı" bildirimi. */
+private fun copyWikiText(context: android.content.Context, text: String) {
+    if (text.isBlank()) return
+    val clipboard = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+    clipboard.setPrimaryClip(android.content.ClipData.newPlainText("fandom_wiki", text))
+    android.widget.Toast.makeText(context, context.getString(R.string.toast_copied_clipboard), android.widget.Toast.LENGTH_SHORT).show()
+}
+
+/** Bilgi kutusunu "Etiket: değer" satırları hâlinde panoya kopyalanacak metne çevirir. */
+@Composable
+private fun buildInfoboxCopyText(
+    fields: List<Pair<String?, FandomInfoboxField>>,
+    translations: Map<String, String>,
+    hiddenIndices: Set<Int>
+): String {
+    val hiddenLabel = stringResource(R.string.fandom_spoiler_badge)
+    val lines = ArrayList<String>(fields.size + 4)
+    var lastHeader: String? = null
+    fields.forEachIndexed { index, (header, field) ->
+        if (header != null && header != lastHeader) {
+            if (lines.isNotEmpty()) lines += ""
+            lines += localizedInfoboxHeader(header)
+        }
+        lastHeader = header
+        val value = when {
+            index in hiddenIndices -> "[$hiddenLabel]"
+            else -> translations[infoboxFieldKey(index)] ?: localizedInfoboxValue(field.value)
+        }
+        lines += "${localizedInfoboxLabel(field)}: $value"
+    }
+    return lines.joinToString("\n")
+}
+
+@Composable
+private fun localizedInfoboxLabel(field: FandomInfoboxField): String {
+    val resource = FandomInfoboxLabels.labelResId(field.label, field.source)
+    return if (resource != null) stringResource(resource) else field.label
+}
+
+@Composable
+private fun localizedInfoboxHeader(header: String): String {
+    val resource = FandomInfoboxLabels.headerResId(header)
+    return if (resource != null) stringResource(resource) else header
+}
+
+@Composable
+private fun localizedInfoboxValue(value: String): String {
+    val resource = FandomInfoboxLabels.valueResId(value)
+    return if (resource != null) stringResource(resource) else value
 }
 
 @Composable
@@ -460,7 +609,8 @@ private fun WikiSectionRow(
     onReveal: () -> Unit,
     onLoad: () -> Unit,
     onTranslate: () -> Unit,
-    onShowOriginal: () -> Unit
+    onShowOriginal: () -> Unit,
+    onCopy: (String) -> Unit = {}
 ) {
     Column(modifier = Modifier.fillMaxWidth()) {
         Row(
@@ -534,7 +684,8 @@ private fun WikiSectionRow(
                             } else {
                                 Row(
                                     modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.End
+                                    horizontalArrangement = Arrangement.End,
+                                    verticalAlignment = Alignment.CenterVertically
                                 ) {
                                     TranslateToggle(
                                         key = "",
@@ -543,6 +694,10 @@ private fun WikiSectionRow(
                                         accentColor = accentColor,
                                         onTranslate = { onTranslate() },
                                         onShowOriginal = { onShowOriginal() }
+                                    )
+                                    CopyIconButton(
+                                        contentDescription = stringResource(R.string.fandom_copy_section),
+                                        onClick = { onCopy(translated ?: state.content.plainText()) }
                                     )
                                 }
                                 SectionBody(content = state.content, translated = translated)

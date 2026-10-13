@@ -51,6 +51,9 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.kitsugi.animelist.data.fandom.FandomMediaQueries
+import com.kitsugi.animelist.ui.screens.detail.wiki.FandomMediaWikiViewModel
+import com.kitsugi.animelist.ui.screens.detail.wiki.MediaWikiSectionCard
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.gestures.LocalBringIntoViewSpec
 import androidx.compose.ui.ExperimentalComposeUiApi
@@ -158,6 +161,25 @@ fun TvDetailScreen(
     val displayTitle = displayResult.getDisplayTitle(titleLanguage)
     val displaySynopsis = translatedSynopsis ?: detailState?.synopsis ?: ""
     val isMovie = displayResult.type == MediaType.Movie
+
+    // Fandom Wiki (TV): telefondaki sekmenin karşılığı, listenin sonunda açılır kart.
+    val wikiViewModel: FandomMediaWikiViewModel = viewModel(key = "fandom_tv_${result.source}_${result.malId}_${result.type.name}")
+    val wikiQuery = remember(result, displayResult, detailState) {
+        FandomMediaQueries.fromMedia(
+            source = result.source,
+            mediaId = result.malId,
+            malId = displayResult.realMalId ?: detailState?.realMalId,
+            tmdbId = result.tmdbId ?: detailState?.tmdbId,
+            isManga = result.type == MediaType.Manga,
+            isMovie = isMovie,
+            titles = listOfNotNull(
+                displayResult.titleEnglish,
+                displayResult.title,
+                displayResult.titleRomaji,
+                detailState?.titleEnglish
+            )
+        )
+    }
 
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -952,6 +974,18 @@ fun TvDetailScreen(
                                 else            -> playButtonFocusRequester
                             },
                             focusDown = FocusRequester.Cancel
+                        )
+                    }
+
+                    // --- Fandom Wiki (açılır kart) ---
+                    item(key = "fandom_wiki") {
+                        MediaWikiSectionCard(
+                            viewModel = wikiViewModel,
+                            query = wikiQuery,
+                            accentColor = accentColor,
+                            title = stringResource(R.string.fandom_tv_wiki_title),
+                            hint = stringResource(R.string.fandom_manga_wiki_hint),
+                            modifier = Modifier.padding(top = KitsugiTvTokens.Spacing.xl)
                         )
                     }
                 }
