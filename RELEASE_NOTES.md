@@ -1,10 +1,20 @@
 # Kitsugi-Beta — Sürüm Notları / Release Notes
 
-# Kitsugi Beta v2.4.282
+# Kitsugi Beta v2.4.283
 
 ## 🇹🇷 Türkçe
 
-### 1. Plazma Küre Yenileme Animasyonu (Pull-to-Refresh)
+### 1. Wiki Okuyucu "Fandom sayfasını" Butonu Çökmesi Giderildi (Kritik Düzeltme)
+- **Belirti:** Yapım/karakter/ekip detayındaki Wiki sekmesinde "İlgili wiki sayfaları" şeridindeki **"Fandom sayfasını"** butonuna basıldığında veya dahili wiki bağlantısı tıklandığında, okuyucu sayfası yüklenir yüklenmez uygulama çöküyordu (`IllegalStateException: Vertically scrollable component was measured with an infinity maximum height constraints`).
+- **Kök neden:** Detay sayfası sekme içeriği portre düzende `DetailPageScaffold` içindeki `HorizontalPager` tarafından **sınırsız yükseklik** (`Constraints.Infinity`) ile ölçülüyor; yatay/TV düzeninde ise sekme içeriği zaten bir `verticalScroll` kutusunun içinde bulunuyor. Okuyucu bu ağacın içine gömülü çizildiğinde kendi kaydırma alanı sonsuz kısıt alıyor ya da iç içe kaydırma kısıtı nedeniyle Compose yasaklı istisnayı fırlatıyordu.
+- **Çözüm:** Uygulama içi wiki okuyucu artık **kendi tam ekran penceresinde** (tam ekran `Dialog`) açılıyor. Dialog penceresi sistem seviyesinde her zaman sınırlı (bounded) kısıt verdiğinden bu çökme sınıfı kökten ortadan kaldırıldı.
+- **Gezinme ve Görünüm Korundu:** Başlık çubuğu, içindekiler tablosu, bölüm içerikleri, ilgili sayfalar şeridi ve geri yığını (`BackHandler` — önceki wiki sayfasına dönüş) eksiksiz çalışır; durum çubuğu ve gezinme çubuğu boşlukları (edge-to-edge) ile MIUI/HyperOS force-dark koruması pencereye uygulandı.
+- **Çift çizim temizliği:** Karakter detay sayfasında kök seviyedeki mükerrer okuyucu render'ı kaldırıldı, sekme üzerinden tek noktadan pencere açılması sağlandı.
+
+### 2. Galeri "Detaylar" Levhası Sınırsız Yükseklik Koruması
+- Galeri ekranındaki "Detaylar" bilgi levhasına, uygulamanın diğer tüm alt sayfalarında bulunan `heightIn(max = ekranın %85'i)` kısıtı eklendi. Böylece alt sayfa sınırsız yükseklikle ölçülse bile aynı dikey kaydırma çökmesinin oluşması engellendi.
+
+### 3. Plazma Küre Yenileme Animasyonu (Pull-to-Refresh)
 - **Tüm yenileme göstergeleri plazma küre oldu:** Profil (MyAnimeList / AniList vb. tüm sekmeler), Keşfet, Listem, medya detay iskeleti (`DetailPageScaffold` — film/dizi detaylarının hepsi), karakter detayı, ekip detayı, kullanıcı profili ve kullanıcı listesi ekranlarındaki varsayılan Material göstergesi (siyah yuvarlak içindeki dönen ok) tamamen kaldırıldı.
 - **Ortak `KitsugiPullToRefreshIndicator` bileşeni:** Tam ekran yüklenme animasyonundaki parlayan plazma kürenin (`KitsugiPlasmaLoader`) aynısı kullanıldı. Çekmeye başlayınca belirip çekiş mesafesiyle büyür, yenileme sürerken tam boyunda atmaya devam eder, boşta duran sayfalarda hiç çizilmez (sıfır performans maliyeti).
 
@@ -41,7 +51,17 @@
 
 ## 🇬🇧 English
 
-### 1. Plasma Orb Pull-to-Refresh Animation
+### 1. Critical Fix: Wiki Reader "Open Fandom page" Unbounded Height Crash
+- **Symptom:** Tapping **"Open Fandom page"** on the related-wiki-pages strip or opening an internal wiki link in the Wiki tab crashed the app the moment the reader content finished loading (`IllegalStateException: Vertically scrollable component was measured with an infinity maximum height constraints`).
+- **Root cause:** In portrait mode, detail tab content is measured by a `HorizontalPager` with **unbounded height** (`Constraints.Infinity`); in landscape/TV layouts, tab content already lives inside a `verticalScroll`. Rendering the reader inline gave its scrollable column an infinite height constraint (or created nested vertical scrolls), triggering Compose's fatal measurement exception.
+- **Fix:** The in-app wiki reader now opens in its **own full-screen window (`Dialog`)**. Window constraints are guaranteed to be strictly bounded, permanently eliminating this entire class of crashes.
+- **Preserved Navigation & Aesthetics:** The reader maintains its top bar, table of contents, lazy section loading, related pages strip, and back-stack navigation (`BackHandler` returns to previous page). Edge-to-edge system insets and MIUI/HyperOS force-dark prevention are fully integrated.
+- **Duplicate render removed:** Eliminated redundant root-level reader composition on character detail pages so multiple stacked dialogs never occur.
+
+### 2. Gallery "Details" Sheet Height Guard
+- The image gallery's details sheet now enforces the same `heightIn(max = 85% of screen)` guard used across all other bottom sheets, preventing the identical vertically-scrollable unbounded crash.
+
+### 3. Plasma Orb Pull-to-Refresh Animation
 - **All pull-to-refresh indicators are now the plasma orb:** The default Material refresh indicator (spinning arrow in a dark circle) was removed from Profile (all tabs), Explore, My List, media detail scaffold (`DetailPageScaffold` — all movies/series), character detail, staff detail, user profile, and user list screens.
 - **Shared `KitsugiPullToRefreshIndicator` component:** Renders the glowing plasma orb from the fullscreen loader (`KitsugiPlasmaLoader`). Smoothly scales with pull distance, keeps pulsing at full size while refreshing, and never draws when idle (zero idle overhead).
 

@@ -49,7 +49,7 @@ import kotlinx.coroutines.launch
 val LocalDismissAnimated = staticCompositionLocalOf<() -> Unit> { {} }
 
 @Composable
-private fun DisableDialogWindowForceDark() {
+internal fun DisableDialogWindowForceDark() {
     val dialogView = androidx.compose.ui.platform.LocalView.current
     if (!dialogView.isInEditMode && android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
         androidx.compose.runtime.SideEffect {

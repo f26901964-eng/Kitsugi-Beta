@@ -20,6 +20,7 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyRow
@@ -54,6 +55,8 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import coil3.compose.SubcomposeAsyncImage
 import coil3.request.ImageRequest
 import coil3.request.crossfade
@@ -65,6 +68,7 @@ import com.kitsugi.animelist.data.fandom.FandomSectionContent
 import com.kitsugi.animelist.data.fandom.FandomSectionRef
 import com.kitsugi.animelist.data.fandom.FandomSpoilerRules
 import com.kitsugi.animelist.data.fandom.FandomUrls
+import com.kitsugi.animelist.ui.components.DisableDialogWindowForceDark
 import com.kitsugi.animelist.ui.theme.KitsugiColors
 import com.kitsugi.animelist.ui.theme.gradient.Icon
 import com.kitsugi.animelist.ui.utils.tvClickable
@@ -87,6 +91,21 @@ data class FandomReaderRenderState(
  * Tam ekran uygulama içi wiki okuyucu. Tarayıcıya ATLAMAZ, aynı wiki sekmesindeki
  * kartlarla aynı renkler/şekiller kullanılır; üst çubuk + kaydırılabilir içerik +
  * İçindekiler + İlgili sayfalar + bağlantı içinden başka sayfa açma + geri yığını.
+ *
+ * KRİTİK (çökme düzeltmesi): Okuyucu KENDİ penceresinde (tam ekran Dialog) çizilir.
+ *
+ *  1) Detay sayfası sekme içeriği portre düzende `DetailPageScaffold` içindeki
+ *     `HorizontalPager` tarafından `constraints.copy(maxHeight = Constraints.Infinity)`
+ *     ile ölçülür (sekme yüksekliğini doğal hâliyle ölçebilmek için). Okuyucu bu
+ *     öğenin İÇİNE gömülü çizildiğinde `verticalScroll` sonsuz max height alıyor ve
+ *     `IllegalStateException: Vertically scrollable component was measured with an
+ *     infinity maximum height constraints` ile uygulama kapanıyordu.
+ *  2) Yatay/TV düzeninde sayfa içeriği zaten bir `Box.verticalScroll` içindedir;
+ *     okuyucunun kendi kaydırması onun içine iç içe girdiğinde AYNI istisna oluşuyordu.
+ *
+ * Dialog penceresi her koşulda sınırlı (bounded) kısıt verir; bu yüzden okuyucu hangi
+ * ekrandan açılırsa açılsın (yapım / karakter / ekip / gömülü wiki kartı) güvenlidir.
+ * Geri tuşu: yığın varsa önceki wiki sayfasına döner, yığın boşsa okuyucuyu kapatır.
  */
 @Composable
 internal fun FandomWikiReaderSheet(
@@ -102,31 +121,49 @@ internal fun FandomWikiReaderSheet(
     summaryIsTranslating: Boolean = false,
     modifier: Modifier = Modifier
 ) {
-    Surface(
-        modifier = modifier.fillMaxSize(),
-        color = KitsugiColors.Background,
-        contentColor = KitsugiColors.TextPrimary
+    val hasBackStack = state?.hasBackStack == true
+
+    Dialog(
+        onDismissRequest = { if (hasBackStack) onBack() else onClose() },
+        properties = DialogProperties(
+            usePlatformDefaultWidth = false,
+            dismissOnBackPress = true,
+            dismissOnClickOutside = false,
+            decorFitsSystemWindows = false
+        )
     ) {
-        Column(modifier = Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.navigationBars)) {
-            ReaderTopBar(
-                title = state?.page?.displayTitle,
-                accentColor = accentColor,
-                hasBackStack = state?.hasBackStack == true,
-                onBack = onBack,
-                onClose = onClose,
-                onOpenInBrowser = onOpenInBrowser
-            )
-            when {
-                state == null -> ReaderLoading(accentColor)
-                else -> ReaderContent(
-                    state = state,
+        DisableDialogWindowForceDark()
+        Surface(
+            modifier = modifier.fillMaxSize(),
+            color = KitsugiColors.Background,
+            contentColor = KitsugiColors.TextPrimary
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .statusBarsPadding()
+                    .windowInsetsPadding(WindowInsets.navigationBars)
+            ) {
+                ReaderTopBar(
+                    title = state?.page?.displayTitle,
                     accentColor = accentColor,
-                    onLoadSection = onLoadSection,
-                    onRetrySection = onRetrySection,
-                    onOpenLink = onOpenLink,
-                    onTranslateSummary = onTranslateSummary,
-                    summaryIsTranslating = summaryIsTranslating
+                    hasBackStack = hasBackStack,
+                    onBack = onBack,
+                    onClose = onClose,
+                    onOpenInBrowser = onOpenInBrowser
                 )
+                when {
+                    state == null -> ReaderLoading(accentColor)
+                    else -> ReaderContent(
+                        state = state,
+                        accentColor = accentColor,
+                        onLoadSection = onLoadSection,
+                        onRetrySection = onRetrySection,
+                        onOpenLink = onOpenLink,
+                        onTranslateSummary = onTranslateSummary,
+                        summaryIsTranslating = summaryIsTranslating
+                    )
+                }
             }
         }
     }

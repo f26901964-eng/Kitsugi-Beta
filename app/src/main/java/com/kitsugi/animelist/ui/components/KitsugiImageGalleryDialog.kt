@@ -1511,6 +1511,13 @@ private fun GalleryDetailsSheet(
     val langInfo = formatLanguage(item.language)
     val resStr = formatResolution(item.width, item.height)
 
+    // Ayrıntı levhasının kaydırılabilir içeriği: yükseklik HER KOŞULDA sınırlı tutulur.
+    // Sheet penceresi sınırsız (Infinity) dikey kısıt verirse `verticalScroll` şu hatayla
+    // uygulamayı kapatıyordu: "Vertically scrollable component was measured with an
+    // infinity maximum height constraints". `KitsugiSheetOrDialog` ve `WikiItemSheet`
+    // aynı korumayı `heightIn(max = ...)` ile uygular (galeri çökme raporu 2026-10-13).
+    val maxContentHeight = LocalConfiguration.current.screenHeightDp.dp * 0.85f
+
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
@@ -1529,6 +1536,7 @@ private fun GalleryDetailsSheet(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
+                .heightIn(max = maxContentHeight)
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = 20.dp)
                 .padding(bottom = 32.dp)
