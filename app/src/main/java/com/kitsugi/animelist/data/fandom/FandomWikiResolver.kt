@@ -68,6 +68,15 @@ internal class FandomWikiResolver(
             siteInfoCache[info.wikiId] = info
             return info
         }
+
+        /**
+         * "Tekrar dene": süreç içi "wiki yok" zehir kayıtları temizlenir. Geçici bir DNS/HTTP
+         * hatasıyla dolan bu liste, 30 dk boyunca canlı wiki'yi yok saydırıp kullanıcıya
+         * "buton çalışmıyor" hissi verebiliyordu.
+         */
+        fun forgetMissingWikis() {
+            missingWikis.clear()
+        }
     }
 
     suspend fun resolve(rawQuery: FandomMediaQuery, allowNameFallback: Boolean): FandomWikiRef? {
@@ -634,6 +643,7 @@ internal class FandomWikiResolver(
         throw e
     } catch (e: Exception) {
         Log.w(TAG, "Kimlik çözümlemesi başarısız: ${e.message}")
+        FandomHttp.markFailure()
         null
     }
 }

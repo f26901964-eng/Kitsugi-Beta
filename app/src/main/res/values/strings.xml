@@ -7277,10 +7277,17 @@ Eklentiler ekranından eklenti etkinleştirin.</string>
     <string name="fandom_settings_clear_cache_desc">Kayıtlı wiki eşleşmelerini, sayfaları ve “yanlış” bildirimlerini siler.</string>
     <string name="fandom_settings_cache_cleared">Wiki önbelleği temizlendi.</string>
     <string name="fandom_confirm_title">Bu eşleşme doğru mu?</string>
-    <string name="fandom_confirm_desc">Bu sayfa otomatik olarak eşleştirildi. Doğruysa onayla; yanlışsa bir daha gösterilmez.</string>
+    <string name="fandom_confirm_desc">Bu sayfa otomatik olarak eşleştirildi. Doğruysa onayla; yanlışsa bir daha gösterilmez ama sonradan geri alabilirsin.</string>
     <string name="fandom_confirm_yes">Evet, doğru</string>
     <string name="fandom_confirm_no">Hayır, yanlış</string>
     <string name="fandom_confirm_done">Teşekkürler, eşleşme onaylandı.</string>
+    <string name="fandom_reject_undo_title">Eşleşme yanlış işaretlendi</string>
+    <string name="fandom_reject_undo_desc">“%1$s” bir daha gösterilmeyecek. Yanlışlıkla bastıysan geri alabilirsin; doğruysa kartı kapatman yeterli.</string>
+    <string name="fandom_reject_undo_action">Geri al</string>
+    <string name="fandom_reject_undo_done">Geri alındı, eşleşme tekrar gösterilecek.</string>
+    <string name="fandom_settings_restore_rejected">Reddedilen eşleşmeleri geri getir</string>
+    <string name="fandom_settings_restore_rejected_desc">Yanlışlıkla “Hayır, yanlış” dediğin wiki ve sayfa eşleşmeleri tekrar önerilir. Onayladığın eşleşmeler korunur.</string>
+    <string name="fandom_settings_rejected_restored">Reddedilen eşleşmeler geri getirildi.</string>
     <string name="fandom_settings_clear_action">Temizle</string>
     <!-- Fandom Wiki Faz 2 (Anında sekme + Yapım wiki sekmesi + Başlık çevirileri) -->
     <string name="fandom_tab_loading">Wiki yükleniyor…</string>

@@ -5,6 +5,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ManageSearch
 import androidx.compose.material.icons.rounded.AutoStories
 import androidx.compose.material.icons.rounded.DeleteSweep
+import androidx.compose.material.icons.rounded.History
 import androidx.compose.material.icons.rounded.Language
 import androidx.compose.material.icons.rounded.VisibilityOff
 import androidx.compose.runtime.Composable
@@ -80,6 +81,22 @@ fun FandomWikiSettingsSection(accentColor: Color) {
             checked = state.preferTurkish,
             enabled = state.enabled,
             onCheckedChange = { checked -> FandomWikiPrefs.update(context) { it.copy(preferTurkish = checked) } }
+        )
+
+        KitsugiSettingsDivider()
+
+        // Yanlışlıkla "Hayır, yanlış" denmiş ve geri alma kartı kapatılmış olsa bile kurtarma yolu.
+        KitsugiSettingsItem(
+            title = stringResource(R.string.fandom_settings_restore_rejected),
+            description = stringResource(R.string.fandom_settings_restore_rejected_desc),
+            icon = Icons.Rounded.History,
+            iconColor = accentColor,
+            onClick = {
+                scope.launch {
+                    FandomRepository.restoreRejectedMatches(context)
+                    Toast.makeText(context, context.getString(R.string.fandom_settings_rejected_restored), Toast.LENGTH_SHORT).show()
+                }
+            }
         )
 
         KitsugiSettingsDivider()

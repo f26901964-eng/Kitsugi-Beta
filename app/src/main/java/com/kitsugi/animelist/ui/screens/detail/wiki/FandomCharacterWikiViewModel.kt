@@ -100,6 +100,12 @@ class FandomCharacterWikiViewModel(application: Application) : AndroidViewModel(
     val relatedPages: StateFlow<List<FandomRelatedPage>> = _relatedPages.asStateFlow()
     private var relatedJob: Job? = null
 
+    // Son reddedilen sayfa: kullanıcı "Hayır, yanlış"a bastıktan sonra sekmenin en üstünde
+    // "Geri al" kartı olarak gösterilir. Farklı bir karaktere geçildiğinde düşürülür.
+    private var lastRejectedBindingKey: String? = null
+    private val _lastRejected = MutableStateFlow<FandomCharacterPage?>(null)
+    val lastRejected: StateFlow<FandomCharacterPage?> = _lastRejected.asStateFlow()
+
     private var readerJob: Job? = null
     private var readerSectionJob: Job? = null
     private var readerRelatedJob: Job? = null
@@ -207,6 +213,10 @@ class FandomCharacterWikiViewModel(application: Application) : AndroidViewModel(
         }
         if (key == boundKey && !forceRefresh) return
         boundKey = key
+        if (lastRejectedBindingKey != fallbackKey) {
+            lastRejectedBindingKey = null
+            _lastRejected.value = null
+        }
         currentQuery = query
         resolveJob?.cancel()
         cancelTranslations()
@@ -496,7 +506,35 @@ class FandomCharacterWikiViewModel(application: Application) : AndroidViewModel(
                 Log.w(TAG, "Bildirim kaydedilemedi: ${e.message}")
             }
             rebind()
+            // `rebind()` senkron tamamlanır; kartı ondan sonra koymak bağlama sıfırlamasına
+            // takılmadan (aynı anahtar) kartın yeni durumda da görünmesini sağlar.
+            lastRejectedBindingKey = boundKey
+            _lastRejected.value = page
         }
+    }
+
+    /** Geri alma kartındaki "Geri al": reddi kaldırır ve sayfayı tekrar çözümletir. */
+    fun undoLastReject() {
+        val rejected = _lastRejected.value ?: return
+        val query = currentQuery ?: return
+        viewModelScope.launch {
+            try {
+                FandomRepository.undoRejectCharacterPage(appContext, query, rejected)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                Log.w(TAG, "Ret geri alınamadı: ${e.message}")
+            }
+            lastRejectedBindingKey = null
+            _lastRejected.value = null
+            rebind()
+        }
+    }
+
+    /** Geri alma kartını kapatır; ret kalıcıdır, Ayarlar'dan yine de geri getirilebilir. */
+    fun dismissLastRejected() {
+        lastRejectedBindingKey = null
+        _lastRejected.value = null
     }
 
     /** Aynı wiki sayfası hâlâ gösteriliyor mu? (Onay sonrası sayfa nesnesi değişir, kimliği değişmez.) */

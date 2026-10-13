@@ -108,6 +108,16 @@ object FandomUserChoices {
         editor.apply()
     }
 
+    /** Yanlışlıkla basılan "Hayır, yanlış"ı geri alır: sayfa tekrar önerilebilir. */
+    @Synchronized
+    fun unrejectPage(context: Context, characterKey: String, wikiId: String, title: String) {
+        val key = PAGE_PREFIX + characterKey
+        val prefs = prefs(context)
+        val updated = HashSet(prefs.getStringSet(key, emptySet()).orEmpty())
+        if (!updated.remove(pageToken(wikiId, title))) return
+        prefs.edit().putStringSet(key, updated).apply()
+    }
+
     fun isPageAccepted(context: Context, characterKey: String, wikiId: String, title: String): Boolean =
         prefs(context).getString(ACCEPTED_PAGE_PREFIX + characterKey, null) == pageToken(wikiId, title)
 
@@ -133,8 +143,32 @@ object FandomUserChoices {
         editor.apply()
     }
 
+    /** Yanlışlıkla basılan "Hayır, yanlış"ı geri alır: wiki bu yapım için tekrar önerilebilir. */
+    @Synchronized
+    fun unrejectWiki(context: Context, mediaKey: String, wikiId: String) {
+        val key = WIKI_PREFIX + mediaKey
+        val prefs = prefs(context)
+        val updated = HashSet(prefs.getStringSet(key, emptySet()).orEmpty())
+        if (!updated.remove(wikiId.lowercase())) return
+        prefs.edit().putStringSet(key, updated).apply()
+    }
+
     fun acceptedWiki(context: Context, mediaKey: String): String? =
         prefs(context).getString(ACCEPTED_WIKI_PREFIX + mediaKey, null)?.takeIf { it.isNotBlank() }
+
+    /**
+     * Yalnızca retleri siler (Ayarlar → "Reddedilen eşleşmeleri geri getir").
+     * Kullanıcının onayladığı eşleşmeler korunur.
+     */
+    @Synchronized
+    fun clearRejections(context: Context) {
+        val prefs = prefs(context)
+        val editor = prefs.edit()
+        prefs.all.keys
+            .filter { it.startsWith(PAGE_PREFIX) || it.startsWith(WIKI_PREFIX) }
+            .forEach { editor.remove(it) }
+        editor.apply()
+    }
 
     @Synchronized
     fun acceptWiki(context: Context, mediaKey: String, wikiId: String) {

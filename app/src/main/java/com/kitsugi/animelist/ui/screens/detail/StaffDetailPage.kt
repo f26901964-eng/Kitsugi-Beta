@@ -39,7 +39,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
-import androidx.compose.material3.pulltorefresh.PullToRefreshDefaults
+import com.kitsugi.animelist.ui.components.KitsugiPullToRefreshIndicator
 import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -250,12 +250,10 @@ fun StaffDetailPage(
                     modifier = Modifier.fillMaxSize(),
                     state = pullRefreshState,
                     indicator = {
-                        PullToRefreshDefaults.Indicator(
+                        KitsugiPullToRefreshIndicator(
                             state = pullRefreshState,
                             isRefreshing = isRefreshing,
-                            modifier = Modifier.align(Alignment.TopCenter),
-                            containerColor = KitsugiColors.Surface,
-                            color = accentColor
+                            modifier = Modifier.align(Alignment.TopCenter)
                         )
                     }
                 ) {

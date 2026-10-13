@@ -82,6 +82,62 @@ private const val FANDOM_GALLERY_SOURCE = "Fandom"
 private val PARAGRAPH_SPLIT = Regex("\\n\\s*\\n")
 
 /**
+ * "Hayır, yanlış" tıklandıktan sonra görünen geri alma kartı.
+ *
+ * Sekmenin en üstünde yer alır; kullanıcı hemen geri alabilir veya kartı kapatabilir.
+ * Kart kapatılsa bile Ayarlar → Fandom Wiki → "Reddedilen eşleşmeleri geri getir"
+ * yoluyla retler topluca geri getirilebilir.
+ */
+@Composable
+internal fun WikiRejectedUndoCard(
+    accentColor: Color,
+    rejectedName: String,
+    onUndo: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(18.dp))
+            .background(KitsugiColors.Surface)
+            .padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(6.dp)
+    ) {
+        Text(
+            text = stringResource(R.string.fandom_reject_undo_title),
+            color = KitsugiColors.TextPrimary,
+            style = MaterialTheme.typography.titleSmall,
+            fontWeight = FontWeight.Bold
+        )
+        Text(
+            text = stringResource(R.string.fandom_reject_undo_desc, rejectedName),
+            color = KitsugiColors.TextSecondary,
+            style = MaterialTheme.typography.bodySmall
+        )
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.End
+        ) {
+            TextButton(onClick = onDismiss) {
+                Text(
+                    text = stringResource(R.string.action_close),
+                    color = KitsugiColors.TextSecondary,
+                    fontWeight = FontWeight.SemiBold
+                )
+            }
+            Spacer(modifier = Modifier.width(4.dp))
+            TextButton(onClick = onUndo) {
+                Text(
+                    text = stringResource(R.string.fandom_reject_undo_action),
+                    color = accentColor,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+        }
+    }
+}
+
+/**
  * Karakter detayındaki "Wiki" sekmesi.
  *
  * Bilgi kutusu (spoiler alanları dokunana kadar gizli), kısa özet, açılır bölümler

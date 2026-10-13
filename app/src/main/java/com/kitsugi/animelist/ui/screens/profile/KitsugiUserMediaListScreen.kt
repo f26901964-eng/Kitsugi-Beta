@@ -39,7 +39,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import com.kitsugi.animelist.ui.theme.gradient.Text
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
-import androidx.compose.material3.pulltorefresh.PullToRefreshDefaults
+import com.kitsugi.animelist.ui.components.KitsugiPullToRefreshIndicator
 import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -342,12 +342,10 @@ fun KitsugiUserMediaListScreen(
                 .fillMaxWidth(),
             state = refreshState,
             indicator = {
-                PullToRefreshDefaults.Indicator(
+                KitsugiPullToRefreshIndicator(
                     state = refreshState,
                     isRefreshing = isRefreshing,
-                    modifier = Modifier.align(Alignment.TopCenter),
-                    containerColor = colors.surface,
-                    color = accentColor
+                    modifier = Modifier.align(Alignment.TopCenter)
                 )
             }
         ) {

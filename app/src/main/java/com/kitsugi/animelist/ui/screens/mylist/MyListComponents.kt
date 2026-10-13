@@ -48,7 +48,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import com.kitsugi.animelist.ui.theme.gradient.Text
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
-import androidx.compose.material3.pulltorefresh.PullToRefreshDefaults
+import com.kitsugi.animelist.ui.components.KitsugiPullToRefreshIndicator
 import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
@@ -879,12 +879,10 @@ fun MyListContentPage(
         modifier = Modifier.fillMaxSize(),
         state = pageRefreshState,
         indicator = {
-            PullToRefreshDefaults.Indicator(
+            KitsugiPullToRefreshIndicator(
                 state = pageRefreshState,
                 isRefreshing = pageIsRefreshing,
-                modifier = Modifier.align(Alignment.TopCenter),
-                containerColor = KitsugiColors.surface,
-                color = accentColor
+                modifier = Modifier.align(Alignment.TopCenter)
             )
         }
     ) {

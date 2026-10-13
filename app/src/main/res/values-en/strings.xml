@@ -7272,10 +7272,17 @@
     <string name="fandom_settings_clear_cache_desc">Deletes saved wiki matches, pages and “wrong match” reports.</string>
     <string name="fandom_settings_cache_cleared">Wiki cache cleared.</string>
     <string name="fandom_confirm_title">Is this match correct?</string>
-    <string name="fandom_confirm_desc">This page was matched automatically. Confirm it if it\'s right; if not, it won\'t be shown again.</string>
+    <string name="fandom_confirm_desc">This page was matched automatically. Confirm it if it\'s right; if not, it won\'t be shown again, but you can undo it later.</string>
     <string name="fandom_confirm_yes">Yes, correct</string>
     <string name="fandom_confirm_no">No, wrong</string>
     <string name="fandom_confirm_done">Thanks, the match is confirmed.</string>
+    <string name="fandom_reject_undo_title">Match marked as wrong</string>
+    <string name="fandom_reject_undo_desc">“%1$s” won\'t be shown again. If you tapped by mistake, you can undo it; if it really is wrong, just dismiss this card.</string>
+    <string name="fandom_reject_undo_action">Undo</string>
+    <string name="fandom_reject_undo_done">Undone, the match will be shown again.</string>
+    <string name="fandom_settings_restore_rejected">Restore rejected matches</string>
+    <string name="fandom_settings_restore_rejected_desc">Wikis and pages you marked “No, wrong” by mistake will be suggested again. Matches you confirmed are kept.</string>
+    <string name="fandom_settings_rejected_restored">Rejected matches restored.</string>
     <string name="fandom_settings_clear_action">Clear</string>
     <!-- Fandom Wiki Phase 2 (Instant tab + Media wiki tab + Title translations) -->
     <string name="fandom_tab_loading">Loading wiki…</string>

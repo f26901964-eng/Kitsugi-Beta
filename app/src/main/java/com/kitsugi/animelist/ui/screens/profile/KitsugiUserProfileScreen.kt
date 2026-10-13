@@ -46,6 +46,7 @@ import com.kitsugi.animelist.ui.app.ProfileFavoriteItem
 import com.kitsugi.animelist.ui.components.KitsugiActivityDetailBottomSheet
 import com.kitsugi.animelist.ui.components.KitsugiImageGalleryDialog
 import com.kitsugi.animelist.ui.components.KitsugiPlasmaLoader
+import com.kitsugi.animelist.ui.components.KitsugiPullToRefreshIndicator
 import com.kitsugi.animelist.ui.theme.KitsugiColors
 import com.kitsugi.animelist.ui.theme.LocalKitsugiAccent
 import com.kitsugi.animelist.utils.ShareUtils
@@ -172,7 +173,14 @@ fun KitsugiUserProfileScreen(
             isRefreshing = state.isLoading && state.name.isNotBlank(),
             onRefresh = { viewModel.loadUser(userId, fallbackUsername, fallbackAvatar, forceRefresh = true) },
             modifier = Modifier.weight(1f).fillMaxWidth(),
-            state = pullRefreshState
+            state = pullRefreshState,
+            indicator = {
+                KitsugiPullToRefreshIndicator(
+                    state = pullRefreshState,
+                    isRefreshing = state.isLoading && state.name.isNotBlank(),
+                    modifier = Modifier.align(Alignment.TopCenter)
+                )
+            }
         ) {
             if (state.isLoading && state.name.isBlank()) {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {

@@ -2,6 +2,10 @@ package com.kitsugi.animelist.ui.screens.detail.wiki
 
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.ui.unit.dp
 import com.kitsugi.animelist.data.fandom.FandomUrls
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -37,32 +41,48 @@ internal fun CharacterWikiTabSlot(
     originalKeys: Set<String> = emptySet(),
     onToggleOriginal: (String) -> Unit = {},
     onOpenWikiPage: ((String?) -> Unit)? = null,
-    relatedPages: List<com.kitsugi.animelist.data.fandom.FandomRelatedPage> = emptyList()
+    relatedPages: List<com.kitsugi.animelist.data.fandom.FandomRelatedPage> = emptyList(),
+    rejectedName: String? = null,
+    onUndoReject: () -> Unit = {},
+    onDismissRejectedUndo: () -> Unit = {}
 ) {
-    when (wikiState) {
-        is FandomCharacterWikiViewModel.UiState.Ready -> CharacterWikiTabContent(
-            page = wikiState.page,
-            sections = sections,
-            translations = translations,
-            translatingKeys = translatingKeys,
-            spoilerGuard = spoilerGuard,
-            accentColor = accentColor,
-            onLoadSection = onLoadSection,
-            onOpenGallery = onOpenGallery,
-            onConfirm = onConfirm,
-            onReportWrong = onReportWrong,
-            preferredTranslator = preferredTranslator,
-            originalKeys = originalKeys,
-            onToggleOriginal = onToggleOriginal,
-            onOpenWikiPage = onOpenWikiPage,
-            relatedPages = relatedPages
-        )
-        FandomCharacterWikiViewModel.UiState.Unavailable -> WikiUnavailableCard(
-            accentColor = accentColor,
-            messageRes = unavailableMessageRes,
-            onRetry = onRetry
-        )
-        else -> WikiTabSkeleton(accentColor = accentColor)
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        if (rejectedName != null) {
+            WikiRejectedUndoCard(
+                accentColor = accentColor,
+                rejectedName = rejectedName,
+                onUndo = onUndoReject,
+                onDismiss = onDismissRejectedUndo
+            )
+        }
+        when (wikiState) {
+            is FandomCharacterWikiViewModel.UiState.Ready -> CharacterWikiTabContent(
+                page = wikiState.page,
+                sections = sections,
+                translations = translations,
+                translatingKeys = translatingKeys,
+                spoilerGuard = spoilerGuard,
+                accentColor = accentColor,
+                onLoadSection = onLoadSection,
+                onOpenGallery = onOpenGallery,
+                onConfirm = onConfirm,
+                onReportWrong = onReportWrong,
+                preferredTranslator = preferredTranslator,
+                originalKeys = originalKeys,
+                onToggleOriginal = onToggleOriginal,
+                onOpenWikiPage = onOpenWikiPage,
+                relatedPages = relatedPages
+            )
+            FandomCharacterWikiViewModel.UiState.Unavailable -> WikiUnavailableCard(
+                accentColor = accentColor,
+                messageRes = unavailableMessageRes,
+                onRetry = onRetry
+            )
+            else -> WikiTabSkeleton(accentColor = accentColor)
+        }
     }
 }
 
@@ -88,6 +108,7 @@ internal fun CharacterWikiTabSlot(
     val originalKeys by viewModel.originalKeys.collectAsState()
     val readerState by viewModel.reader.collectAsState()
     val related by viewModel.relatedPages.collectAsState()
+    val lastRejected by viewModel.lastRejected.collectAsState()
 
     BackHandler(enabled = readerState != FandomCharacterWikiViewModel.ReaderState.Closed) {
         viewModel.readerBack()
@@ -117,7 +138,13 @@ internal fun CharacterWikiTabSlot(
             originalKeys = originalKeys,
             onToggleOriginal = viewModel::toggleOriginal,
             onOpenWikiPage = { title -> viewModel.openReader(title) },
-            relatedPages = related
+            relatedPages = related,
+            rejectedName = lastRejected?.pageTitle,
+            onUndoReject = {
+                viewModel.undoLastReject()
+                Toast.makeText(context, context.getString(R.string.fandom_reject_undo_done), Toast.LENGTH_SHORT).show()
+            },
+            onDismissRejectedUndo = viewModel::dismissLastRejected
         )
 
         val readerReady = readerState as? FandomCharacterWikiViewModel.ReaderState.Ready

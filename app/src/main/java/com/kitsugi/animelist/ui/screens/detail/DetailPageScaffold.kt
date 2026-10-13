@@ -30,7 +30,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material3.*
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
-import androidx.compose.material3.pulltorefresh.PullToRefreshDefaults
+import com.kitsugi.animelist.ui.components.KitsugiPullToRefreshIndicator
 import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -122,12 +122,10 @@ fun DetailPageScaffold(
                 modifier = Modifier.fillMaxSize(),
                 state = pullRefreshState,
                 indicator = {
-                    PullToRefreshDefaults.Indicator(
+                    KitsugiPullToRefreshIndicator(
                         state = pullRefreshState,
                         isRefreshing = isRefreshing,
-                        modifier = Modifier.align(Alignment.TopCenter),
-                        containerColor = KitsugiColors.Surface,
-                        color = accentColor
+                        modifier = Modifier.align(Alignment.TopCenter)
                     )
                 }
             ) {

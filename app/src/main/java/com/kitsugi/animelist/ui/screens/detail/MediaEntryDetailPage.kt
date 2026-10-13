@@ -34,9 +34,6 @@ import androidx.compose.material.icons.rounded.Favorite
 import androidx.compose.material.icons.rounded.FavoriteBorder
 import com.kitsugi.animelist.ui.theme.gradient.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.pulltorefresh.PullToRefreshBox
-import androidx.compose.material3.pulltorefresh.PullToRefreshDefaults
-import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import com.kitsugi.animelist.ui.theme.gradient.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect

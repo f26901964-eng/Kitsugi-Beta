@@ -80,9 +80,21 @@ object FandomRepository {
 
     private fun lockFor(locks: Array<Mutex>, key: String): Mutex = locks[(key.hashCode() and Int.MAX_VALUE) % locks.size]
 
+    /**
+     * "Tekrar dene": bellek içi "wiki yok" zehir kayıtları temizlenir.
+     */
+    fun forgetMissingWikis() {
+        FandomWikiResolver.forgetMissingWikis()
+    }
+
     // ── Yapım → wiki ─────────────────────────────────────────────────────────
 
-    suspend fun resolveMediaWiki(context: Context, query: FandomMediaQuery, allowNameFallback: Boolean): FandomWikiRef? {
+    suspend fun resolveMediaWiki(
+        context: Context,
+        query: FandomMediaQuery,
+        allowNameFallback: Boolean,
+        forceRefresh: Boolean = false
+    ): FandomWikiRef? {
         val appContext = context.applicationContext
         val effectiveQuery = query.normalizedMediaKind()
         val prefs = FandomWikiPrefs.state(appContext)
@@ -105,7 +117,7 @@ object FandomRepository {
         val cacheKey = wikiCacheKey(resolutionKey, nameAllowed)
 
         return lockFor(wikiLocks, cacheKey).withLock {
-            val cached = readCached(appContext, cacheKey, positiveTtl = WIKI_TTL_MS) { body ->
+            val cached = if (forceRefresh) null else readCached(appContext, cacheKey, positiveTtl = WIKI_TTL_MS) { body ->
                 json.decodeFromString(StoredWiki.serializer(), body).ref
             }
             if (cached != null) {
@@ -154,6 +166,24 @@ object FandomRepository {
         val mediaKey = query.cacheKey() ?: return
         val resolutionKey = query.resolutionKey() ?: mediaKey
         FandomUserChoices.rejectWiki(appContext, mediaKey, ref.wikiId)
+        val keys = listOf(
+            wikiCacheKey(resolutionKey, nameAllowed = true),
+            wikiCacheKey(resolutionKey, nameAllowed = false)
+        )
+        keys.forEach { memory.remove(it) }
+        val dao = dao(appContext) ?: return
+        keys.forEach { key -> runCatchingDb { dao.deleteDetail(key) } }
+    }
+
+    /**
+     * "Hayır, yanlış"ın geri alınması (yapım wiki sekmesi): wiki reddi kaldırılır
+     * ve ilgili önbellek kayıtları düşürülür ki reddedilen wiki tekrar çözülebilsin.
+     */
+    suspend fun undoRejectMediaWiki(context: Context, query: FandomMediaQuery, ref: FandomWikiRef) {
+        val appContext = context.applicationContext
+        val mediaKey = query.cacheKey() ?: return
+        val resolutionKey = query.resolutionKey() ?: mediaKey
+        FandomUserChoices.unrejectWiki(appContext, mediaKey, ref.wikiId)
         val keys = listOf(
             wikiCacheKey(resolutionKey, nameAllowed = true),
             wikiCacheKey(resolutionKey, nameAllowed = false)
@@ -277,6 +307,102 @@ object FandomRepository {
             Log.w(TAG, "Rehber devamı yüklenemedi ($wikiId/$category): ${e.message}")
             null
         }
+    }
+
+    /**
+     * Bir rehber grubunun KALAN tüm sayfalarını tek seferde çeker ("Devamını göster"
+     * artık her dokunuşta bir sonraki sayfa değil, tümünü sırayla çeker). Sonuçlar
+     * tek bir `FandomCategoryMembersPage` olarak birleştirilir; ağ hatasında şimdiye
+     * kadar çekilenler döndürülür, hata bayrağı için `null` bırakılır (çağıran VM
+     * istisna durumunu mevcut state'den ayırt eder).
+     */
+    suspend fun loadAllRemainingGuideItems(
+        wikiId: String,
+        category: String,
+        startToken: String?
+    ): FandomCategoryMembersPage {
+        if (startToken.isNullOrBlank() || category.isBlank()) return FandomCategoryMembersPage()
+        val title = if (category.startsWith("Category:")) category else "Category:$category"
+        val all = ArrayList<String>()
+        var token: String? = startToken
+        var safety = 0
+        try {
+            while (!token.isNullOrBlank() && safety < 40) {
+                val page = FandomApi.categoryMembersPage(
+                    wikiId = wikiId,
+                    categoryTitle = title,
+                    limit = GUIDE_PAGE_SIZE,
+                    continueToken = token
+                )
+                all += page.items
+                token = page.nextToken
+                safety++
+                if (token.isNullOrBlank()) break
+            }
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            Log.w(TAG, "Rehber tüm sayfalar yüklenemedi ($wikiId/$category): ${e.message}")
+        }
+        return FandomCategoryMembersPage(items = all, nextToken = token)
+    }
+
+    /**
+     * Uygulama içi wiki okuyucu için bir sayfanın üst verileri (başlık, kapak, açıklama,
+     * içindekiler). Kısa ömürlü bellek önbelleği kullanır; kalıcı yazmaz.
+     */
+    suspend fun loadFullPageMeta(context: Context, wikiId: String, title: String): FandomFullPage? {
+        val appContext = context.applicationContext
+        val clean = title.trim()
+        if (clean.isEmpty()) return null
+        val key = "${KEY_PREFIX}meta:$wikiId|${clean.lowercase()}"
+        return lockFor(sectionLocks, key).withLock {
+            memory[key]?.let { memo ->
+                if (memo.expiresAt > System.currentTimeMillis()) {
+                    @Suppress("UNCHECKED_CAST")
+                    return@withLock (memo.value as? FandomFullPage)
+                }
+                memory.remove(key)
+            }
+            val meta = try {
+                FandomApi.pageMeta(wikiId, clean)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                Log.w(TAG, "Sayfa meta yüklenemedi ($wikiId/$clean): ${e.message}")
+                null
+            } ?: return@withLock null
+            memory[key] = Memo(meta, System.currentTimeMillis() + BLURB_TTL_MS)
+            meta
+        }
+    }
+
+    /**
+     * "İlgili wiki sayfaları" kartları için önizleme listesi: başlık, küçük açıklama,
+     * kapak. Yalnızca oturum belleğinde tutulur.
+     */
+    suspend fun loadRelatedPages(context: Context, wikiId: String, titles: List<String>): List<FandomRelatedPage> {
+        val appContext = context.applicationContext
+        val clean = titles.map { it.trim() }.filter { it.isNotEmpty() }.distinct()
+        if (clean.isEmpty()) return emptyList()
+        val key = "${KEY_PREFIX}rel:$wikiId|${clean.sorted().joinToString("|").lowercase().hashCode()}"
+        memory[key]?.let { memo ->
+            if (memo.expiresAt > System.currentTimeMillis()) {
+                @Suppress("UNCHECKED_CAST")
+                return (memo.value as? List<FandomRelatedPage>).orEmpty()
+            }
+            memory.remove(key)
+        }
+        val pages = try {
+            FandomApi.pagePreviews(wikiId, clean, thumbWidth = 320)
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            Log.w(TAG, "İlgili sayfalar yüklenemedi ($wikiId): ${e.message}")
+            emptyList()
+        }
+        memory[key] = Memo(pages, System.currentTimeMillis() + SEARCH_MEMO_TTL_MS)
+        return pages
     }
 
     /** Bir sayfanın kısa açıklaması (`fandomdescription`); yönlendirmeler çözülür. */
@@ -640,7 +766,15 @@ object FandomRepository {
 
     // ── Karakter → sayfa ─────────────────────────────────────────────────────
 
-    suspend fun resolveCharacterPage(context: Context, query: FandomCharacterQuery): FandomCharacterPage? {
+    /**
+     * [forceRefresh] = "Tekrar dene": karakter ve yapım wiki önbellekleri (olumsuz kayıtlar
+     * dahil) okunmaz; çözümleme gerçekten baştan yapılır.
+     */
+    suspend fun resolveCharacterPage(
+        context: Context,
+        query: FandomCharacterQuery,
+        forceRefresh: Boolean = false
+    ): FandomCharacterPage? {
         val appContext = context.applicationContext
         val prefs = FandomWikiPrefs.state(appContext)
         if (!prefs.enabled) return null
@@ -648,7 +782,7 @@ object FandomRepository {
         val cacheKey = characterCacheKey(characterKey, prefs)
 
         return lockFor(characterLocks, cacheKey).withLock {
-            val cached = readCached(appContext, cacheKey, positiveTtl = PAGE_TTL_MS) { body ->
+            val cached = if (forceRefresh) null else readCached(appContext, cacheKey, positiveTtl = PAGE_TTL_MS) { body ->
                 json.decodeFromString(StoredCharacter.serializer(), body).page
             }
             if (cached != null) {
@@ -663,7 +797,7 @@ object FandomRepository {
                     allowNameFallback = prefs.nameFallback,
                     isRejected = { wikiId, title -> FandomUserChoices.isPageRejected(appContext, characterKey, wikiId, title) }
                 )
-                resolver.resolve(query)?.let { buildPage(appContext, it, prefs) }?.let { applyAcceptance(appContext, characterKey, it) }
+                resolver.resolve(query, forceRefresh)?.let { buildPage(appContext, it, prefs) }?.let { applyAcceptance(appContext, characterKey, it) }
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
@@ -767,7 +901,7 @@ object FandomRepository {
                 async {
                     try {
                         loadSection(context, page.wikiId, page.pageTitle, section.index, section.title)
-                            ?.links.orEmpty()
+                            ?.linkedEntities.orEmpty()
                     } catch (e: CancellationException) {
                         throw e
                     } catch (e: Exception) {
@@ -926,12 +1060,13 @@ object FandomRepository {
                 ?: FandomRelationType.RELATED
             val content = FandomSectionContent(
                 blocks = FandomHtmlText.blocks(html),
-                links = FandomHtmlText.wikiLinks(
+                linkedEntities = FandomHtmlText.wikiLinks(
                     html = html,
                     defaultWikiId = wikiId,
                     role = relationType,
                     language = sectionTitle?.let(FandomRelationClassifier::languageHint)
-                )
+                ),
+                links = FandomHtmlText.internalWikiLinks(html)
             )
             writeCached(
                 context = appContext,
@@ -982,6 +1117,41 @@ object FandomRepository {
         keys.forEach { memory.remove(it) }
         val dao = dao(appContext) ?: return
         keys.forEach { key -> runCatchingDb { dao.deleteDetail(key) } }
+    }
+
+    /**
+     * "Hayır, yanlış"ın geri alınması (karakter/kişi sekmesi): sayfa reddi kaldırılır;
+     * wiki isimle bulunup kesinleşmemişse wiki reddi de kaldırılır. İlgili önbellek
+     * kayıtları düşürülür ki reddedilen sayfa tekrar çözülebilsin.
+     */
+    suspend fun undoRejectCharacterPage(context: Context, query: FandomCharacterQuery, page: FandomCharacterPage) {
+        val appContext = context.applicationContext
+        val characterKey = query.cacheKey()
+        FandomUserChoices.unrejectPage(appContext, characterKey, page.matchedWikiId, page.matchedPageTitle)
+        val keys = mutableListOf<String>()
+        listOf("tr1:n1", "tr1:n0", "tr0:n1", "tr0:n0").mapTo(keys) { "${KEY_PREFIX}char:v4:$characterKey:$it" }
+        val mediaKey = page.mediaKey
+        if (mediaKey != null && page.isWikiUnconfirmedNameMatch) {
+            FandomUserChoices.unrejectWiki(appContext, mediaKey, page.matchedWikiId)
+            keys += wikiCacheKey(mediaKey, nameAllowed = true)
+            keys += wikiCacheKey(mediaKey, nameAllowed = false)
+        }
+        keys.forEach { memory.remove(it) }
+        val dao = dao(appContext) ?: return
+        keys.forEach { key -> runCatchingDb { dao.deleteDetail(key) } }
+    }
+
+    /**
+     * Ayarlardaki "Reddedilen eşleşmeleri geri getir": tüm sayfa/wiki retleri silinir ve
+     * Fandom önbelleği düşürülür; böylece reddedilenler her yerde tekrar önerilir.
+     * Onaylanan eşleşmeler korunur. Geri alma kartı kapatılmış olsa bile kurtarma yolu budur.
+     */
+    suspend fun restoreRejectedMatches(context: Context) {
+        val appContext = context.applicationContext
+        memory.clear()
+        FandomUserChoices.clearRejections(appContext)
+        val dao = dao(appContext) ?: return
+        runCatchingDb { dao.deleteByPrefix(KEY_PREFIX) }
     }
 
     /** Ayarlardaki "Wiki önbelleğini temizle": önbellek + eşleşme bildirimleri. */

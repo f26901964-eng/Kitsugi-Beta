@@ -34,9 +34,6 @@ import androidx.compose.foundation.gestures.LocalBringIntoViewSpec
 import androidx.compose.runtime.CompositionLocalProvider
 import com.kitsugi.animelist.ui.utils.KitsugiScrollDefaults
 import com.kitsugi.animelist.ui.utils.dpadVerticalFastScroll
-import androidx.compose.material3.pulltorefresh.PullToRefreshBox
-import androidx.compose.material3.pulltorefresh.PullToRefreshDefaults
-import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.material3.MaterialTheme
 import com.kitsugi.animelist.ui.theme.gradient.Text
 import androidx.compose.runtime.Composable

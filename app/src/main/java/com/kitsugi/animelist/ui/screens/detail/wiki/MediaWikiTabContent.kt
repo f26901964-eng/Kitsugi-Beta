@@ -101,6 +101,7 @@ internal fun MediaWikiTabSlot(
     onOpenGallery: ((List<GalleryItem>, Int) -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
+    val context = LocalContext.current
     val uiState by viewModel.state.collectAsState()
     val articleState by viewModel.article.collectAsState()
     val articleSections by viewModel.articleSections.collectAsState()
@@ -118,6 +119,7 @@ internal fun MediaWikiTabSlot(
     val originalKeys by viewModel.originalKeys.collectAsState()
     val readerState by viewModel.reader.collectAsState()
     val relatedPages by viewModel.relatedPages.collectAsState()
+    val lastRejected by viewModel.lastRejected.collectAsState()
     val readerRender = (readerState as? FandomMediaWikiViewModel.ReaderState.Ready)?.let { r ->
         FandomReaderRenderState(
             wikiId = (uiState as? FandomMediaWikiViewModel.UiState.Ready)?.ref?.wikiId ?: "",
@@ -167,6 +169,12 @@ internal fun MediaWikiTabSlot(
         onCloseItem = viewModel::closeItem,
         onRetryItem = viewModel::retryItem,
         onReportWrong = viewModel::reportWrongMatch,
+        rejectedName = lastRejected?.let { it.siteName ?: it.wikiId },
+        onUndoReject = {
+            viewModel.undoLastReject()
+            Toast.makeText(context, context.getString(R.string.fandom_reject_undo_done), Toast.LENGTH_SHORT).show()
+        },
+        onDismissRejectedUndo = viewModel::dismissLastRejected,
         onOpenGallery = onOpenGallery,
         preferredTranslator = preferredTranslator,
         originalKeys = originalKeys,
@@ -226,6 +234,9 @@ internal fun MediaWikiTabContent(
     onCloseItem: () -> Unit,
     onRetryItem: (String) -> Unit,
     onReportWrong: () -> Unit,
+    rejectedName: String? = null,
+    onUndoReject: () -> Unit = {},
+    onDismissRejectedUndo: () -> Unit = {},
     onOpenGallery: ((List<GalleryItem>, Int) -> Unit)? = null,
     preferredTranslator: String = "DEFAULT",
     originalKeys: Set<String> = emptySet(),
@@ -245,6 +256,14 @@ internal fun MediaWikiTabContent(
         modifier = modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
+        if (rejectedName != null) {
+            WikiRejectedUndoCard(
+                accentColor = accentColor,
+                rejectedName = rejectedName,
+                onUndo = onUndoReject,
+                onDismiss = onDismissRejectedUndo
+            )
+        }
         when {
             ready == null && (uiState is FandomMediaWikiViewModel.UiState.Idle ||
                 uiState is FandomMediaWikiViewModel.UiState.Loading) -> WikiTabSkeleton(accentColor)

@@ -112,6 +112,7 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import com.kitsugi.animelist.data.fandom.FandomCharacterQueries
 import com.kitsugi.animelist.ui.screens.detail.wiki.CharacterWikiTabSlot
+import com.kitsugi.animelist.ui.components.KitsugiPullToRefreshIndicator
 import androidx.activity.compose.BackHandler
 import com.kitsugi.animelist.ui.screens.detail.wiki.FandomWikiReaderSheet
 import com.kitsugi.animelist.ui.screens.detail.wiki.FandomReaderRenderState
@@ -259,6 +260,7 @@ fun CharacterDetailPage(
                 val wikiPrefs by wikiViewModel.prefs.collectAsState()
                 val wikiReaderState by wikiViewModel.reader.collectAsState()
                 val wikiRelatedPages by wikiViewModel.relatedPages.collectAsState()
+                val wikiLastRejected by wikiViewModel.lastRejected.collectAsState()
 
                 BackHandler(enabled = wikiReaderState != com.kitsugi.animelist.ui.screens.detail.wiki.FandomCharacterWikiViewModel.ReaderState.Closed) {
                     wikiViewModel.readerBack()
@@ -275,12 +277,10 @@ fun CharacterDetailPage(
                     modifier = Modifier.fillMaxSize(),
                     state = pullRefreshState,
                     indicator = {
-                        PullToRefreshDefaults.Indicator(
+                        KitsugiPullToRefreshIndicator(
                             state = pullRefreshState,
                             isRefreshing = isRefreshing,
-                            modifier = Modifier.align(Alignment.TopCenter),
-                            containerColor = KitsugiColors.Surface,
-                            color = accentColor
+                            modifier = Modifier.align(Alignment.TopCenter)
                         )
                     }
                 ) {
@@ -497,7 +497,17 @@ fun CharacterDetailPage(
                                                         android.widget.Toast.LENGTH_SHORT
                                                     ).show()
                                                 },
-                                                onRetry = { wikiViewModel.retry() }
+                                                onRetry = { wikiViewModel.retry() },
+                                                rejectedName = wikiLastRejected?.pageTitle,
+                                                onUndoReject = {
+                                                    wikiViewModel.undoLastReject()
+                                                    android.widget.Toast.makeText(
+                                                        context,
+                                                        context.getString(R.string.fandom_reject_undo_done),
+                                                        android.widget.Toast.LENGTH_SHORT
+                                                    ).show()
+                                                },
+                                                onDismissRejectedUndo = { wikiViewModel.dismissLastRejected() }
                                             )
 
                                             null -> Unit
@@ -694,7 +704,17 @@ fun CharacterDetailPage(
                                                             android.widget.Toast.LENGTH_SHORT
                                                         ).show()
                                                     },
-                                                    onRetry = { wikiViewModel.retry() }
+                                                    onRetry = { wikiViewModel.retry() },
+                                                    rejectedName = wikiLastRejected?.pageTitle,
+                                                    onUndoReject = {
+                                                        wikiViewModel.undoLastReject()
+                                                        android.widget.Toast.makeText(
+                                                            context,
+                                                            context.getString(R.string.fandom_reject_undo_done),
+                                                            android.widget.Toast.LENGTH_SHORT
+                                                        ).show()
+                                                    },
+                                                    onDismissRejectedUndo = { wikiViewModel.dismissLastRejected() }
                                                 )
 
                                                 null -> Unit
