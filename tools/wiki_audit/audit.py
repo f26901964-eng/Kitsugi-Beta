@@ -654,7 +654,6 @@ def pick_alive(cands):
     us = usable(cands)
     if not us:
         return None
-    roots = [w for w in us if is_root(w)][:4]
     loc = sorted([w for w in us if not is_root(w)], key=lambda w: 0 if lang_of(w) == "tr" else 1)[:8]
 
     def load(pool):
@@ -665,13 +664,22 @@ def pick_alive(cands):
                 res.append(i)
         return res
 
-    infos = load(roots) or load(loc)
+    roots = [w for w in us if is_root(w)][:8]
+    infos = load(roots)
+    if not any(lang_rank(i) <= 1 for i in infos):
+        infos = infos + [i for i in load(loc) if i["wikiId"] not in [x["wikiId"] for x in infos]]
     if not infos:
         return None
-    by = {i["wikiId"]: i for i in infos}
-    counts = {i["wikiId"]: i.get("articles") or 0 for i in infos}
-    ch = choose_wiki(list(by.keys()), counts)
-    return by.get(ch)
+    best_rank = min(lang_rank(i) for i in infos)
+    grp = [i for i in infos if lang_rank(i) == best_rank]
+    best = dict(max(grp, key=lambda i: i.get("articles") or 0))
+    best["_rank"] = best_rank
+    return best
+
+
+def lang_rank(info):
+    lg = (info.get("lang") or "").lower().split("-")[0]
+    return 0 if lg == "en" else (1 if lg == "tr" else 2)
 
 
 # --------------------------------------------------------------------------- Overrides
@@ -706,7 +714,8 @@ def ovr_lookup(ids, is_manga):
 
 # --------------------------------------------------------------------------- Name matcher / proof (port)
 
-MIN_PAGES = 20
+# Topluluk aramasinin pageCount alani KABA bir kovadir (85 makaleli wiki icin 10 donuyor); gercek makale sayisi degildir.
+MIN_PAGES = 10
 FAN = re.compile(r"\b(fanon|fan ?fic(tion)?|role ?play|rp|simulator|tycoon|roblox)\b", re.I)
 
 
@@ -923,9 +932,42 @@ def parse_evidence(media, fallback_manga):
             "is_manga": (media.get("type") or "") == "MANGA" if media.get("type") else fallback_manga}
 
 
+def anilist_title_bridge(titles, is_manga):
+    """Kimliksiz kayit icin: basligi BIREBIR eslesen en populer AniList kaydi."""
+    wanted = {norm(t) for t in titles[:2] if norm(t)}
+    for t in titles[:2]:
+        r = anilist(AL_PAGE_QUERY, {"search": t, "type": "MANGA" if is_manga else "ANIME"})
+        media = (((r or {}).get("data") or {}).get("Page") or {}).get("media") or []
+        ok = []
+        for m in media:
+            tt = m.get("title") or {}
+            names = [tt.get("english"), tt.get("romaji"), tt.get("native")] + (m.get("synonyms") or [])
+            if any(n and norm(n) in wanted for n in names): ok.append(m)
+        if ok:
+            best = max(ok, key=lambda m: m.get("popularity") or 0)
+            full = anilist(AL_QUERY, {"id": best["id"]})
+            best["_full"] = (((full or {}).get("data") or {}).get("Media"))
+            return best
+    return None
+
+
+AL_PAGE_QUERY = """
+query ($search: String, $type: MediaType) {
+  Page(perPage: 10) { media(search: $search, type: $type, sort: [SEARCH_MATCH]) { id idMal popularity title { romaji english native } synonyms } }
+}"""
+
+
 def resolve(q, trace):
     """q: dict(ids, is_manga, is_movie, is_tv, titles, year, evidence). Returns dict or None."""
     ids = q["ids"]
+    weak = [None]
+    if not ids and not q["is_movie"] and not q["is_tv"] and q["titles"]:
+        br = anilist_title_bridge(q["titles"], q["is_manga"])
+        if br:
+            ids = q["ids"] = {"anilist": br["id"], "mal": br.get("idMal")}
+            if br.get("_full"):
+                q["evidence"] = parse_evidence(br["_full"], q["is_manga"])
+            trace.append(f"baslik->AniList#{br['id']} kopru")
     ovr = ovr_lookup(ids, q["is_manga"])
     if ovr:
         si = siteinfo(ovr)
@@ -946,11 +988,17 @@ def resolve(q, trace):
                 c = res["wikis"].get(d)
                 if c:
                     pk = pick_alive(c)
+                    if pk and pk.get("_rank", 0) >= 2:
+                        weak[0] = weak[0] or {"wiki": pk["wikiId"], "via": f"wikidata-P4073-depth{d}-yabanci-dil", "conf": "CERTAIN"}
+                        trace.append(f"yabanci dilli wikidata sonucu ertelendi: {pk['wikiId']} ({pk.get('lang')})")
+                        break
                     if pk: return {"wiki": pk["wikiId"], "via": f"wikidata-P4073-depth{d}", "conf": "CERTAIN"}
             aw = [parse_article_id(a)[0] for a in res["articles"] if parse_article_id(a)]
-            if aw:
+            if aw and not weak[0]:
                 pk = pick_alive(aw)
-                if pk: return {"wiki": pk["wikiId"], "via": "wikidata-P6262-media", "conf": "CERTAIN"}
+                if pk and pk.get("_rank", 0) >= 2:
+                    weak[0] = {"wiki": pk["wikiId"], "via": "wikidata-P6262-media-yabanci-dil", "conf": "CERTAIN"}
+                elif pk: return {"wiki": pk["wikiId"], "via": "wikidata-P6262-media", "conf": "CERTAIN"}
     # karakter oylamasi
     qids = [s for s in starts if QID.match(s)]
     voted = None
@@ -999,7 +1047,8 @@ def resolve(q, trace):
                     if c:
                         pk = pick_alive(c)
                         if pk: return {"wiki": pk["wikiId"], "via": f"relation-wikidata-{rel['rt']}", "conf": "CERTAIN"}
-    return name_path(q, ev, trace)
+    r = name_path(q, ev, trace)
+    return r or weak[0]
 
 
 def name_path(q, ev, trace):
@@ -1103,8 +1152,11 @@ def name_path(q, ev, trace):
     scores = []
     for h in shortlisted:
         fp = fingerprint(h["wikiId"], ev)
-        scores.append(score(h, nev, fp))
-    q["_scores"] = [(s["wikiId"], round(s["score"], 2), s["decision"], s.get("veto")) for s in scores]
+        sc = score(h, nev, fp)
+        sc["fp"] = (f"main {fp['mainFound']}/{fp['mainTotal']} any {fp['anyFound']}/{fp['anyTotal']} native {fp['nativeConfirmed']}" if fp else "fp-yok")
+        sc["hub"] = h.get("hub"); sc["pc"] = h.get("pageCount")
+        scores.append(sc)
+    q["_scores"] = [(s["wikiId"], round(s["score"], 2), s["decision"], s.get("veto"), s["fp"], s["hub"], s["pc"]) for s in scores]
     best = pick_best(scores)
     if not best:
         trace.append(f"isim yolu: hepsi RED {q['_scores'][:5]}")
@@ -1148,8 +1200,8 @@ CASES = [
     ("Naruto", "anime", "naruto"), ("One Piece", "anime", "onepiece"), ("Bleach", "anime", "bleach"),
     ("Attack on Titan", "anime", "attackontitan"), ("Attack on Titan Final Season", "anime", "attackontitan"),
     ("Jujutsu Kaisen", "anime", "jujutsu-kaisen"), ("Jujutsu Kaisen 2nd Season", "anime", "jujutsu-kaisen"),
-    ("Demon Slayer: Kimetsu no Yaiba", "anime", "kimetsu-no-yaiba"), ("My Hero Academia", "anime", "bokunoheroacademia"),
-    ("My Hero Academia Season 5", "anime", "bokunoheroacademia"),
+    ("Demon Slayer: Kimetsu no Yaiba", "anime", "kimetsu-no-yaiba"), ("My Hero Academia", "anime", "myheroacademia"),
+    ("My Hero Academia Season 5", "anime", "myheroacademia"),
     ("Fullmetal Alchemist: Brotherhood", "anime", "fma"), ("Death Note", "anime", "deathnote"),
     ("Hunter x Hunter (2011)", "anime", "hunterxhunter"), ("One Punch Man", "anime", "onepunchman"),
     ("Tokyo Ghoul", "anime", "tokyoghoul"), ("Sword Art Online", "anime", "swordartonline"),
@@ -1170,6 +1222,12 @@ CASES = [
     ("Paranoia Agent", "anime", None), ("Hyouka", "anime", None), ("Barakamon", "anime", None),
     ("Golden Kamuy", "anime", None), ("Kaiji", "anime", None), ("Dungeon Meshi", "anime", None),
     ("Space Brothers", "anime", None), ("Kino's Journey", "anime", None), ("Texhnolyze", "anime", None),
+    ("Aria the Animation", "anime", None), ("Nichijou", "anime", None), ("Welcome to the NHK", "anime", None),
+    ("Beastars", "anime", None), ("Made in Abyss", "anime", None), ("Dorohedoro", "anime", None),
+    ("Soul Eater", "anime", None), ("Sket Dance", "anime", None), ("Mashle", "anime", None),
+    # Yetiskin / ecchi
+    ("Bible Black", "anime", None), ("Overflow", "anime", None), ("Kiss x Sis", "anime", None),
+    ("Prison School", "anime", None), ("High School DxD", "anime", None), ("Redo of Healer", "anime", None),
     # Manga / manhwa / manhua
     ("Berserk", "manga", "berserk"), ("Vagabond", "manga", None), ("Claymore", "manga", None), ("Parasyte", "manga", None),
     ("Tower of God", "manga", "towerofgod"), ("The God of High School", "manga", None), ("Lookism", "manga", None),
@@ -1177,6 +1235,10 @@ CASES = [
     ("Eleceed", "manga", None), ("Teenage Mercenary", "manga", None), ("Mo Dao Zu Shi", "manga", None),
     ("Chainsaw Man", "manga", "chainsaw-man"), ("One Piece", "manga", "onepiece"), ("Jujutsu Kaisen", "manga", "jujutsu-kaisen"),
     ("Dandadan", "manga", None), ("Kaiju No. 8", "manga", None), ("Witch Hat Atelier", "manga", None),
+    ("Sweet Home", "manga", None), ("Bastard", "manga", None), ("The Beginning After the End", "manga", None),
+    ("Villains Are Destined to Die", "manga", None), ("Return of the Mount Hua Sect", "manga", None),
+    ("Wind Breaker", "manga", None), ("Weak Hero", "manga", None), ("Soul Land", "manga", None),
+    ("Battle Through the Heavens", "manga", None), ("Martial Peak", "manga", None), ("Bakuman.", "manga", None),
     # Light novel
     ("Overlord", "ln", None), ("Spice and Wolf", "ln", None), ("Re:Zero kara Hajimeru Isekai Seikatsu", "ln", "rezero"),
     ("Classroom of the Elite", "ln", None), ("The Melancholy of Haruhi Suzumiya", "ln", None), ("Log Horizon", "ln", None),

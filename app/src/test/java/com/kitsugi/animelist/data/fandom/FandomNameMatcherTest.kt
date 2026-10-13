@@ -116,8 +116,11 @@ class FandomNameMatcherTest {
         assertEquals("blocked", FandomNameMatcher.preFilterVeto(FandomCommunityHit("villains", "Villains Wiki")))
         assertEquals(
             "tiny",
-            FandomNameMatcher.preFilterVeto(FandomCommunityHit("solo-leveling-simulator", "Solo Leveling Simulator Wiki", "en", "games", 10))
+            FandomNameMatcher.preFilterVeto(FandomCommunityHit("solo-leveling-simulator", "Solo Leveling Simulator Wiki", "en", "games", 5))
         )
+        // Live finding: community-search pageCount is a coarse bucket. Barakamon Wiki has 85 articles
+        // but reports 10, so the bucket floor itself must not be treated as "tiny".
+        assertNull(FandomNameMatcher.preFilterVeto(FandomCommunityHit("barakamon", "Barakamon Wiki", "en", "anime", 10)))
         assertEquals(
             "fan-content",
             FandomNameMatcher.preFilterVeto(FandomCommunityHit("anime-battle", "Anime Battle Simulator Wiki", "en", "games", 500))

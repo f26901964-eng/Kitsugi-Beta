@@ -36,7 +36,7 @@ internal class FandomWikiResolver(
     companion object {
         private const val TAG = "FandomWikiResolver"
         private const val MAX_RELATIONS = 4
-        private const val MAX_ROOT_CANDIDATES = 4
+        private const val MAX_ROOT_CANDIDATES = 8
         private const val MAX_LOCALIZED_CANDIDATES = 8
         private const val MAX_FINGERPRINT_CANDIDATES = 8
         private const val MAX_NATIVE_TITLE_CANDIDATES = 8
@@ -71,7 +71,7 @@ internal class FandomWikiResolver(
     }
 
     suspend fun resolve(query: FandomMediaQuery, allowNameFallback: Boolean): FandomWikiRef? {
-        val ids = completeIds(query)
+        val ids = bridgeIdsByTitle(query, completeIds(query))
         val overrides = FandomOverrides.table(context)
 
         overrides.lookup(ids, query.isManga)?.takeUnless { isWikiRejected(it) }?.let { wiki ->
@@ -80,6 +80,7 @@ internal class FandomWikiResolver(
             }
         }
 
+        var foreignWikidataRef: FandomWikiRef? = null
         val lookups = FandomMediaIds.wikidataLookups(ids, query.isManga, query.isMovie)
         val starts = listOfNotNull(ids.wikidataId)
         if (lookups.isNotEmpty() || starts.isNotEmpty()) {
@@ -92,13 +93,18 @@ internal class FandomWikiResolver(
                         query.ids.wikidataId != null ||
                             FandomNameMatcher.titleSimilarity(it, query.fallbackTitles) >= 0.55
                     }
-                    return FandomWikiRef(
+                    val ref = FandomWikiRef(
                         wikiId = pick.info.wikiId,
                         source = source,
                         confidence = FandomConfidence.CERTAIN,
                         siteName = pick.info.siteName,
                         pageTitle = pageTitle
                     )
+                    // Dil öneki olmayan wiki İngilizce olmak zorunda değildir (Polonya'nın `wiedzmin`,
+                    // Rusya'nın `ru.domb`). Yabancı dilli sonuç, daha iyi bir İngilizce/Türkçe wiki
+                    // bulunamazsa son çare olarak tutulur.
+                    if (pick.viaOverride || isPreferredLanguage(pick.info)) return ref
+                    foreignWikidataRef = ref
                 }
             }
         }
@@ -113,8 +119,18 @@ internal class FandomWikiResolver(
         if (allowNameFallback) {
             searchByName(evidence, query, ids)?.let { return it }
         }
-        return null
+        return foreignWikidataRef
     }
+
+    /** İngilizce ya da Türkçe (uygulama dili) wiki: yabancı dilli kök wiki'den önce gelir. */
+    private fun isPreferredLanguage(info: FandomSiteInfo): Boolean = languageRank(info) <= 1
+
+    private fun languageRank(info: FandomSiteInfo): Int =
+        when (info.lang?.lowercase(java.util.Locale.ROOT)?.substringBefore('-')) {
+            "en" -> 0
+            "tr" -> 1
+            else -> 2
+        }
 
     // ── Karakter oylaması ────────────────────────────────────────────────────
 
@@ -153,6 +169,23 @@ internal class FandomWikiResolver(
     }
 
     // ── Kimlikleri tamamlama ─────────────────────────────────────────────────
+
+    /**
+     * Eklenti kaynaklı kayıtlarda (ör. MangaDetailScreen) hiçbir katalog kimliği yoktur; isim yolu
+     * karakter kanıtı olmadan çalışıp çoğu zaman reddeder (franchise wiki'lerinde başlık sayfası
+     * ayrım sayfası olabilir). Başlık AniList'te birebir bulunursa kimlikler tamamlanır ve
+     * Wikidata / karakter oylaması / ilişki / kimlikli isim doğrulaması açılır.
+     */
+    private suspend fun bridgeIdsByTitle(query: FandomMediaQuery, ids: FandomSourceIds): FandomSourceIds {
+        val hasCatalogId = ids.aniListId != null || ids.malId != null || ids.wikidataId != null ||
+            ids.tmdbId != null || ids.imdbId != null || ids.kitsuId != null || ids.bangumiId != null ||
+            ids.shikimoriId != null || ids.simklId != null
+        if (hasCatalogId || query.isMovie || query.isTvShow || query.fallbackTitles.isEmpty()) return ids
+        val match = FandomAniListSource.findByTitle(query.fallbackTitles, query.isManga) ?: return ids
+        Log.d(TAG, "Başlık → AniList#${match.aniListId} (MAL#${match.malId})")
+        val bridged = ids.copy(aniListId = match.aniListId, malId = match.malId?.takeIf { it in 1..99_999_999 })
+        return completeIds(query.copy(ids = bridged))
+    }
 
     private suspend fun completeIds(query: FandomMediaQuery): FandomSourceIds {
         var ids = query.ids
@@ -260,7 +293,11 @@ internal class FandomWikiResolver(
             .firstOrNull { it.first == wikiId }
             ?.second
 
-    /** Choose a live root wiki when available, then Turkish, then any localized wiki. */
+    /**
+     * Canlı bir wiki seçer. Dil sırası siteinfo'daki GERÇEK dile göre belirlenir (önek yok = İngilizce
+     * varsayımı yanlıştı): önce İngilizce, sonra Türkçe, sonra diğerleri; aynı dil grubunda makale
+     * sayısı büyük olan kazanır. İngilizce/Türkçe kök wiki yoksa yerelleştirilmiş adaylar da yüklenir.
+     */
     private suspend fun pickAlive(candidates: List<String>): FandomSiteInfo? {
         val usable = FandomCandidateSelector.usable(candidates).filterNot { isWikiRejected(it) }
         if (usable.isEmpty()) return null
@@ -276,13 +313,13 @@ internal class FandomWikiResolver(
                 .filterNot { FandomCandidateSelector.isBlocked(it.wikiId) || isWikiRejected(it.wikiId) }
                 .distinctBy { it.wikiId }
         }
-        val rootInfos = loadInfos(roots)
-        val infos = rootInfos.ifEmpty { loadInfos(localized) }
+        var infos = loadInfos(roots)
+        if (infos.none(::isPreferredLanguage)) {
+            infos = (infos + loadInfos(localized)).distinctBy { it.wikiId }
+        }
         if (infos.isEmpty()) return null
-        val byWiki = infos.associateBy { it.wikiId }
-        val counts = infos.associate { it.wikiId to (it.articles ?: 0) }
-        val choice = FandomCandidateSelector.choose(byWiki.keys, counts) ?: return null
-        return byWiki[choice.primary]
+        val bestRank = infos.minOf(::languageRank)
+        return infos.filter { languageRank(it) == bestRank }.maxByOrNull { it.articles ?: 0 }
     }
 
     // ── İlişki yürüyüşü ──────────────────────────────────────────────────────

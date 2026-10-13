@@ -66,7 +66,13 @@ object FandomNameMatcher {
     const val PROBABLE_THRESHOLD = 0.65
     const val AMBIGUITY_MARGIN = 0.05
 
-    private const val MIN_PAGE_COUNT = 20
+    /**
+     * Topluluk aramasının `pageCount` alanı gerçek makale sayısı değil KABA bir kovadır: canlı
+     * denetimde 74-87 makaleli (Barakamon, Texhnolyze, Uchuu Kyoudai) wikiler 10 döndürdü. Eski
+     * eşik (20) bu gerçek wikileri "tiny" diye eliyordu. Yalnızca kovanın altındaki değerler elenir;
+     * gerçek boyut siteinfo ile (kimlik kanıtında) ayrıca doğrulanır.
+     */
+    private const val MIN_PAGE_COUNT = 10
     private val FAN_CONTENT = Regex("(?i)\\b(fanon|fan ?fic(tion)?|role ?play|rp|simulator|tycoon|roblox)\\b")
 
     /** Ek istek gerektirmeyen ön eleme. Veto nedeni ya da null döner. */

@@ -35,6 +35,15 @@ data class FandomMediaEvidence(
     val relations: List<FandomRelatedMedia>
 )
 
+/** AniList başlık aramasından dönen aday (kimliksiz kaynaklar için kimlik köprüsü). */
+data class FandomTitleCandidate(
+    val aniListId: Int,
+    val malId: Int?,
+    val popularity: Int,
+    /** Bütün başlıklar: english, romaji, native ve eş anlamlılar. */
+    val titles: List<String>
+)
+
 /** AniList GraphQL `Media` yanıtının ayrıştırılması (saf fonksiyonlar). */
 object FandomAniListParser {
 
@@ -114,5 +123,38 @@ object FandomAniListParser {
         return result
             .sortedBy { RELATION_PRIORITY.indexOf(it.relationType) }
             .distinctBy { it.aniListId }
+    }
+
+    /** `Page.media` başlık arama yanıtı. */
+    fun parseTitleSearch(json: String?): List<FandomTitleCandidate> {
+        val media = parseJsonObject(json)?.optJSONObject("data")?.optJSONObject("Page")?.optJSONArray("media")
+        return media.objects().mapNotNull { item ->
+            val id = item.positiveInt("id") ?: return@mapNotNull null
+            val title = item.optJSONObject("title")
+            val all = buildList {
+                title?.str("english")?.let { add(it) }
+                title?.str("romaji")?.let { add(it) }
+                title?.str("native")?.let { add(it) }
+                addAll(item.optJSONArray("synonyms").strings())
+            }
+            FandomTitleCandidate(
+                aniListId = id,
+                malId = item.positiveInt("idMal"),
+                popularity = item.optInt("popularity", 0),
+                titles = all
+            )
+        }
+    }
+
+    /**
+     * Başlığı BİREBİR (normalize edilmiş) eşleşen en popüler aday. Bulanık eşleşme kabul edilmez:
+     * yanlış kimlik, yanlış wiki'ye götürür.
+     */
+    fun pickTitleMatch(candidates: List<FandomTitleCandidate>, queryTitles: List<String>): FandomTitleCandidate? {
+        val wanted = queryTitles.map(FandomNameVariants::normalizeForCompare).filter { it.isNotEmpty() }.toSet()
+        if (wanted.isEmpty()) return null
+        return candidates
+            .filter { candidate -> candidate.titles.any { FandomNameVariants.normalizeForCompare(it) in wanted } }
+            .maxByOrNull { it.popularity }
     }
 }

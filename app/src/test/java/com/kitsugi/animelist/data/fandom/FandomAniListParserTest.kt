@@ -75,4 +75,29 @@ class FandomAniListParserTest {
         assertTrue(evidence.characters.isEmpty())
         assertTrue(evidence.relations.isEmpty())
     }
+
+    private val titleSearch = """
+        {"data":{"Page":{"media":[
+          {"id":1,"idMal":100,"popularity":5,"title":{"romaji":"Naruto Spin-off","english":null,"native":null},"synonyms":[]},
+          {"id":30,"idMal":13,"popularity":90000,"title":{"romaji":"NARUTO","english":"Naruto","native":"NARUTO -ナルト-"},"synonyms":["Naruto Uzumaki"]},
+          {"id":31,"idMal":null,"popularity":10,"title":{"romaji":"Naruto","english":null,"native":null},"synonyms":[null]}
+        ]}}}
+    """.trimIndent()
+
+    @Test
+    fun `title search picks the most popular exact title match`() {
+        val candidates = FandomAniListParser.parseTitleSearch(titleSearch)
+        assertEquals(3, candidates.size)
+        val match = FandomAniListParser.pickTitleMatch(candidates, listOf("Naruto"))
+        assertEquals(30, match?.aniListId)
+        assertEquals(13, match?.malId)
+    }
+
+    @Test
+    fun `title search never accepts a fuzzy match`() {
+        val candidates = FandomAniListParser.parseTitleSearch(titleSearch)
+        assertNull(FandomAniListParser.pickTitleMatch(candidates, listOf("Naruto Shippuden")))
+        assertNull(FandomAniListParser.pickTitleMatch(candidates, emptyList()))
+        assertTrue(FandomAniListParser.parseTitleSearch("not json").isEmpty())
+    }
 }
