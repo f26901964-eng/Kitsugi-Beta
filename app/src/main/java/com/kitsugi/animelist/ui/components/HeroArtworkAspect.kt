@@ -100,6 +100,34 @@ internal const val HOME_HERO_PORTRAIT_MIN_SCREEN_FRACTION = 0.34f
 /** Dikey modda bant yüksekliğinin TAVANI (ekran yüksekliğinin oranı; detay ile aynı). */
 internal const val HOME_HERO_PORTRAIT_MAX_SCREEN_FRACTION = 0.62f
 
+/**
+ * Dikey modda **DİKEY (poster/kapak)** görselin bant yüksekliği TAVANI
+ * (ekran yüksekliğinin oranı).
+ *
+ * Poster birincilse kutu, gösterilen görselin oranına TAM oturmak zorunda: aksi hâlde
+ * poster ya kırpılır ya da iki yanda bulanık dolgu boşluğu kalır — kullanıcının
+ * "ekrana tam oturmuyor" dediği görüntü. 2:3 bir posterin ihtiyaç duyduğu yükseklik
+ * `ekranGenişliği / 0.667`dir; bu da 20:9 bir telefonda ekranın ~%68'i, 16:9 bir
+ * telefonda ~%75'idir. Tavan 0.74 → 19.5:9 ve daha dar TÜM telefonlarda poster
+ * kenardan kenağa, kırpılmadan ve boşluksuz oturur. Daha kare/tablet oranlı cihazlarda
+ * tavan aşılır; orada eski "bulanık dolgu + ortada kesilmemiş poster" (contain)
+ * sunumuna düşülür (bkz. [isHeroBoxFullBleed]).
+ */
+internal const val HOME_HERO_PORTRAIT_VERTICAL_MAX_SCREEN_FRACTION = 0.74f
+
+/** Bu eşiğin altındaki en-boy oranları "dikey" (poster/kapak) sayılır. */
+internal const val HOME_HERO_VERTICAL_ASPECT_LIMIT = 1.05f
+
+/**
+ * Kutu oranı ile görsel oranı bu eşikten daha yakınsa görsel kutuya TAM oturur
+ * (kırpma ≈ %0) → kenardan kenağa full-bleed çizilir; bulanık dolgu katmanına gerek yok.
+ */
+internal const val HERO_FULL_BLEED_FIT_TOLERANCE = 1.06f
+
+/** Vitrin ölçeğinde "dikey" (poster/kapak) sayılan en-boy oranı mı? */
+internal fun isVerticalHeroAspect(aspect: Float): Boolean =
+    aspect.isFinite() && aspect > 0.05f && aspect < HOME_HERO_VERTICAL_ASPECT_LIMIT
+
 /** Yatay modda bantın kısalabileceği en düşük oran (mevcut bant yüksekliğine göre). */
 internal const val HOME_HERO_LANDSCAPE_MIN_BAND_FRACTION = 0.78f
 
@@ -135,6 +163,14 @@ internal fun homeHeroPrefersBackdrop(
  * @param landscapeBandHeightDp   Yatay modda mevcut ekran-duyarlı bant yüksekliği (tavan).
  * @param imageAspect             Öndeki sayfanın yüklenen görselinin gerçek oranı; yoksa `null`.
  * @param defaultAspect           Görsel henüz yüklenmediyse varsayılan oran (2:3 / 16:9).
+ * @param portraitFallbackBandHeightDp Dikey modda **yatay** görsel için kullanılacak sabit
+ *   bant (ekran-duyarlı `heroBandHeightDp`). 0 verilirse eski oran tabanı/tavanı kullanılır.
+ *
+ * DİKEY modda iki ayrı kural vardır:
+ *  - **Dikey görsel (poster/kapak)** → kutu görselin oranına KİLİTLENİR
+ *    (`heroWidthDp / oran`, tavan ekranın %74'ü) → poster kenardan kenağa tam oturur.
+ *  - **Yatay görsel (16:9 key visual)** → sabit bant korunur; başlık, rozetler, meta ve
+ *    gösterge çubuğu görselin üstünde okunur kalır. (Eski davranış birebir korunur.)
  */
 internal fun homeHeroHeightDp(
     heroWidthDp: Float,
@@ -142,30 +178,59 @@ internal fun homeHeroHeightDp(
     isLandscape: Boolean,
     landscapeBandHeightDp: Float,
     imageAspect: Float?,
-    defaultAspect: Float
+    defaultAspect: Float,
+    portraitFallbackBandHeightDp: Float = 0f
 ): Float {
     if (!heroWidthDp.isFinite() || heroWidthDp <= 0f) return landscapeBandHeightDp
-    val aspect = (imageAspect ?: defaultAspect).coerceIn(HOME_HERO_MIN_ASPECT, HOME_HERO_MAX_ASPECT)
+    val rawAspect = imageAspect?.takeIf { it.isFinite() && it > 0.05f } ?: defaultAspect
+    val aspect = rawAspect.coerceIn(HOME_HERO_MIN_ASPECT, HOME_HERO_MAX_ASPECT)
     val desired = heroWidthDp / aspect
-    return if (isLandscape) {
+    if (isLandscape) {
         if (!landscapeBandHeightDp.isFinite() || landscapeBandHeightDp <= 0f) {
-            desired
-        } else {
-            desired.coerceIn(
-                landscapeBandHeightDp * HOME_HERO_LANDSCAPE_MIN_BAND_FRACTION,
-                landscapeBandHeightDp
-            )
+            return desired
         }
-    } else {
-        if (!screenHeightDp.isFinite() || screenHeightDp <= 0f) {
-            desired
-        } else {
-            desired.coerceIn(
-                screenHeightDp * HOME_HERO_PORTRAIT_MIN_SCREEN_FRACTION,
-                screenHeightDp * HOME_HERO_PORTRAIT_MAX_SCREEN_FRACTION
-            )
-        }
+        return desired.coerceIn(
+            landscapeBandHeightDp * HOME_HERO_LANDSCAPE_MIN_BAND_FRACTION,
+            landscapeBandHeightDp
+        )
     }
+    if (!screenHeightDp.isFinite() || screenHeightDp <= 0f) {
+        return desired
+    }
+    if (!isVerticalHeroAspect(aspect)) {
+        // Yatay görsel → dikey modda mevcut sabit bant (verilmişse) aynen kullanılır.
+        if (portraitFallbackBandHeightDp > 0f) return portraitFallbackBandHeightDp
+        return desired.coerceIn(
+            screenHeightDp * HOME_HERO_PORTRAIT_MIN_SCREEN_FRACTION,
+            screenHeightDp * HOME_HERO_PORTRAIT_MAX_SCREEN_FRACTION
+        )
+    }
+    // DİKEY poster/kapak → kutu görselin oranına oturur: kırpma yok, yan boşluk yok.
+    val maxHeight = screenHeightDp * HOME_HERO_PORTRAIT_VERTICAL_MAX_SCREEN_FRACTION
+    val minHeight = (
+        if (portraitFallbackBandHeightDp > 0f) {
+            portraitFallbackBandHeightDp
+        } else {
+            screenHeightDp * HOME_HERO_PORTRAIT_MIN_SCREEN_FRACTION
+        }
+        ).coerceAtMost(maxHeight)
+    return desired.coerceIn(minHeight, maxHeight)
+}
+
+/**
+ * Vitrin kutusu, gösterilen görselin oranına TAM oturuyor mu?
+ *
+ * `true` ise görsel kutuya kırpılmadan ve kenarlarda boşluk kalmadan (full-bleed)
+ * çizilir; atmosferik dolgu katmanına gerek yoktur. `false` ise eski çift katman
+ * (bulanık dolgu + ortada kesilmemiş görsel) sunumu kullanılır.
+ *
+ * @param boxAspect   Kutu en-boy oranı (genişlik / yükseklik).
+ * @param imageAspect Görselin gerçek ya da beklenen (poster 2:3 / arka plan 16:9) oranı.
+ */
+internal fun isHeroBoxFullBleed(boxAspect: Float, imageAspect: Float?): Boolean {
+    if (imageAspect == null || !imageAspect.isFinite() || imageAspect <= 0.05f) return false
+    if (!boxAspect.isFinite() || boxAspect <= 0.05f) return false
+    return heroArtworkFit(boxAspect, imageAspect, HERO_FULL_BLEED_FIT_TOLERANCE) == HeroArtworkFit.COVER
 }
 
 // ─────────────────────────────────────────────────────────────────────────────────

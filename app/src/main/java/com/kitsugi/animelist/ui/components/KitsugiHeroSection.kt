@@ -683,18 +683,19 @@ fun KitsugiHeroSection(
             )
         }
         val settledImageAspect = pageImageAspects[settledPageIndex] ?: settledExpectedAspect
-        val targetHeroHeightDp = if (layout.isLandscape) {
-            homeHeroHeightDp(
-                heroWidthDp = heroBoxWidthDp,
-                screenHeightDp = screenHeightDp.toFloat(),
-                isLandscape = true,
-                landscapeBandHeightDp = layout.heroHeight.value,
-                imageAspect = settledImageAspect,
-                defaultAspect = settledImageAspect
-            )
-        } else {
-            layout.heroHeight.value
-        }
+        val targetHeroHeightDp = homeHeroHeightDp(
+            heroWidthDp = heroBoxWidthDp,
+            screenHeightDp = screenHeightDp.toFloat(),
+            isLandscape = layout.isLandscape,
+            landscapeBandHeightDp = layout.heroHeight.value,
+            imageAspect = settledImageAspect,
+            defaultAspect = settledImageAspect,
+            // DİKEY mod: dikey poster/kapak gösteriliyorsa kutu görselin oranına
+            // KİLİTLENİR → poster kenardan kenağa, kırpılmadan ve yanlarda bulanık
+            // dolgu boşluğu olmadan tam oturur. Yatay (16:9) görselde ise eski
+            // sabit bant birebir korunur (başlık/meta/gösterge çubuğu sığsın).
+            portraitFallbackBandHeightDp = layout.heroHeight.value
+        )
         // Oran gerçekten farklıysa (ör. ultra geniş banner) bant ANİDEN zıplamasın;
         // kısa bir yumuşatmayla kayar (normal içerikte hedef zaten aynı → hiç oynamaz).
         val animatedHeroHeightDp by animateDpAsState(
@@ -704,6 +705,14 @@ fun KitsugiHeroSection(
         )
         val heroHeightDp = animatedHeroHeightDp.value
         val heroBoxHeightDp = heroHeightDp
+        // Full-bleed kararı ANİMASYONLU yükseklikten değil HEDEF yükseklikten okunur:
+        // bant yumuşak geçişle (280 ms) yerine otururken katman modu ileri geri
+        // zıplayıp titreme yapmasın.
+        val heroBoxTargetAspect = if (targetHeroHeightDp > 0f) {
+            heroBoxWidthDp / targetHeroHeightDp
+        } else {
+            1f
+        }
         val heroWidthPx = with(LocalDensity.current) { heroBoxWidthDp.dp.toPx() }
         val heroScrollScale = 1f
         val heroScrollTranslationY = 0f
@@ -796,30 +805,58 @@ fun KitsugiHeroSection(
                     var heroImageIndex by remember(heroImagePlan) { mutableIntStateOf(0) }
                     val heroImageModel = heroImagePlan.getOrNull(heroImageIndex)
 
+                    fun candidateIsPoster(model: String?): Boolean = when {
+                        model == null -> false
+                        artwork != null && model in artwork.posterCandidates && model !in artwork.backdropCandidates -> true
+                        artwork != null && model in artwork.backdropCandidates -> false
+                        else -> KitsugiHeroArtworkResolver.isLikelyVerticalUrl(
+                            url = model,
+                            posterUrl = item.imageUrl,
+                            backdropUrl = item.backdropUrl
+                        )
+                    }
                     val chosenIsPoster = remember(heroImageModel, item.imageUrl, item.backdropUrl, artwork) {
-                        when {
-                            heroImageModel == null -> false
-                            artwork != null && heroImageModel in artwork.posterCandidates && heroImageModel !in artwork.backdropCandidates -> true
-                            artwork != null && heroImageModel in artwork.backdropCandidates -> false
-                            else -> KitsugiHeroArtworkResolver.isLikelyVerticalUrl(
-                                url = heroImageModel,
-                                posterUrl = item.imageUrl,
-                                backdropUrl = item.backdropUrl
-                            )
+                        candidateIsPoster(heroImageModel)
+                    }
+                    // Bir aday YÜKLENEMEZSE (404 vb.) ölçülen oran artık geçersizdir: bant
+                    // eski poster oranına kilitli kalıp yeni yatay görseli fena kırpmasın.
+                    // Sıradaki adayın BEKLENEN oranı (poster 2:3 / arka plan 16:9) yazılır.
+                    fun advanceToNextCandidate() {
+                        if (heroImageIndex >= heroImagePlan.lastIndex) return
+                        val next = heroImagePlan.getOrNull(heroImageIndex + 1)
+                        heroImageIndex += 1
+                        postAfterFrame {
+                            pageImageAspects = pageImageAspects +
+                                (page to expectedHeroAspect(candidateIsPoster(next)))
                         }
                     }
 
                     // Yüklü görselin gerçek en-boy oranı (width / height).
                     var loadedImageAspect by remember(heroImageModel) { mutableStateOf<Float?>(null) }
-                    val isVerticalArtwork = loadedImageAspect?.let { it < 1.05f } ?: chosenIsPoster
+                    val isVerticalArtwork = loadedImageAspect?.let { isVerticalHeroAspect(it) } ?: chosenIsPoster
                     val isWideShowcaseBox = isWideHeroBox(heroBoxAspect, minAspect = 1.18f)
+
+                    // DİKEY MOD + DİKEY GÖRSEL: bant yüksekliği görselin oranına kilitlendiği
+                    // için (bkz. homeHeroHeightDp dikey dalı) kutu ile görsel BİREBİR aynı
+                    // şekle gelir → poster kenardan kenağa, kırpılmadan ve iki yanda bulanık
+                    // dolgu boşluğu olmadan TAM oturur ("ekrana tam oturması").
+                    // Ölçüm henüz gelmediyse BEKLENEN oran kullanılır (poster 2:3 / arka plan
+                    // 16:9): kutu zaten bu orandan kurulduğu için ilk kare de doğrudur.
+                    val effectiveArtworkAspect = loadedImageAspect ?: expectedHeroAspect(isVerticalArtwork)
+                    val portraitFillsScreen = !layout.isLandscape &&
+                        isVerticalArtwork &&
+                        isHeroBoxFullBleed(
+                            boxAspect = heroBoxTargetAspect,
+                            imageAspect = effectiveArtworkAspect
+                        )
 
                     // Geniş/yatay vitrin alanında (tablet yatay, tablet dikey geniş bant, telefon yatay)
                     // dikey bir görsel gösteriliyorsa:
                     // arkada yumuşak atmosferik katman + ön planda tam boy kesilmemiş dikey görsel gösterilir.
-                    // Dikey modda da dikey poster, yatay moddaki gibi (bulanık dolgu + tam
-                    // görünür poster) gösterilir: kutu sabit olduğu için poster kırpılmaz.
-                    val useDualLayerContain = isVerticalArtwork && (isWideShowcaseBox || !layout.isLandscape)
+                    // Dikey modda da, kutu görsele tam oturamadığında (ör. çok uzun poster tavanı
+                    // aştı) aynı çift katman korunur: poster kırpılmaz.
+                    val useDualLayerContain = isVerticalArtwork &&
+                        (isWideShowcaseBox || (!layout.isLandscape && !portraitFillsScreen))
                     val heroAlignment = remember(isVerticalArtwork, heroBoxAspect, loadedImageAspect) {
                         heroImageAlignment(
                             chosenIsPoster = isVerticalArtwork,
@@ -882,9 +919,7 @@ fun KitsugiHeroSection(
                                     initials = displayTitle,
                                     highQuality = true,
                                     onLoadingFailed = {
-                                        if (heroImageIndex < heroImagePlan.lastIndex) {
-                                            heroImageIndex += 1
-                                        }
+                                        advanceToNextCandidate()
                                     },
                                     onImageAspectResolved = { ratio ->
                                         // ÇÖKME ÖNLEMİ: state değişikliğini bir kare sonraya bırak.
@@ -928,9 +963,7 @@ fun KitsugiHeroSection(
                                     alignment = heroAlignment,
                                     highQuality = true,
                                     onLoadingFailed = {
-                                        if (heroImageIndex < heroImagePlan.lastIndex) {
-                                            heroImageIndex += 1
-                                        }
+                                        advanceToNextCandidate()
                                     },
                                     onImageAspectResolved = { ratio ->
                                         // ÇÖKME ÖNLEMİ: state değişikliğini bir kare sonraya bırak.

@@ -379,8 +379,8 @@ class HeroImageSelectionTest {
         )
         assertEquals(800f * HOME_HERO_PORTRAIT_MIN_SCREEN_FRACTION, backdropBand, 0.5f)
 
-        // Dikey poster yüklendi → uzun-dar kutu; ekranın %62 tavanıyla sınırlı
-        // (360/0.667=540 > 496).
+        // Dikey poster yüklendi → kutu posterin oranına KİLİTLENİR: 360/0.667 = 540
+        // (yeni tavan 0.74 → 592; poster artık kırpılmıyor ve yan boşluk kalmıyor).
         val posterBox = homeHeroHeightDp(
             heroWidthDp = 360f,
             screenHeightDp = 800f,
@@ -389,7 +389,7 @@ class HeroImageSelectionTest {
             imageAspect = 2f / 3f,
             defaultAspect = 2f / 3f
         )
-        assertEquals(800f * HOME_HERO_PORTRAIT_MAX_SCREEN_FRACTION, posterBox, 0.5f)
+        assertEquals(360f / (2f / 3f), posterBox, 0.5f)
 
         // Dikey tablet: 16:9 arka plan tavana takılmadan BİREBİR oturur (800/1.78=449).
         val tabletBand = homeHeroHeightDp(
@@ -412,6 +412,90 @@ class HeroImageSelectionTest {
             defaultAspect = 2f / 3f
         )
         assertEquals(posterBox, beforeLoad, 0.5f)
+    }
+
+    @Test
+    fun `portrait poster band fills the screen edge to edge on modern phones`() {
+        // Kullanıcı bildirimi: "dikey boyutta poster gösterecekse TAM göstersin; otomatik
+        // vitrin ekrana tam oturmalı". Yani dikey modda poster birincilse bant, posterin
+        // GERÇEK oranına kilitlenmeli → ne kırpma ne de iki yanda bulanık dolgu boşluğu.
+        val phones = listOf(
+            360f to 800f,   // 20:9
+            412f to 915f,   // 19.5:9 (Pixel)
+            393f to 873f,   // 19.5:9
+            320f to 640f    // eski 16:9 küçük telefon
+        )
+        phones.forEach { (width, height) ->
+            val fallbackBand = heroBandHeightDp(height, isLandscape = false, isTablet = false, isTv = false)
+            val posterBand = homeHeroHeightDp(
+                heroWidthDp = width,
+                screenHeightDp = height,
+                isLandscape = false,
+                landscapeBandHeightDp = fallbackBand,
+                imageAspect = 2f / 3f,
+                defaultAspect = 2f / 3f,
+                portraitFallbackBandHeightDp = fallbackBand
+            )
+            val boxAspect = width / posterBand
+            assertTrue(
+                "${width}x${height}: poster kutuya tam oturmalı (oran $boxAspect)",
+                isHeroBoxFullBleed(boxAspect = boxAspect, imageAspect = 2f / 3f)
+            )
+            // Kutu posterden KISA olamaz: aksi hâlde iki yanda boşluk kalır.
+            assertTrue(
+                "${width}x${height}: bant posterin ihtiyaç duyduğu yüksekliğe eşit olmalı",
+                posterBand <= width / (2f / 3f) + 1f
+            )
+        }
+    }
+
+    @Test
+    fun `portrait poster falls back to cinematic contain when it cannot fit the screen`() {
+        // Kare / tablet oranlı cihaz: 2:3 poster ekranın %94'ünü ister → tavan (0.74) aşılır.
+        // Burada eski "bulanık dolgu + ortada kesilmemiş poster" sunumu korunur (kırpma yok).
+        val fallbackBand = heroBandHeightDp(800f, isLandscape = false, isTablet = false, isTv = false)
+        val posterBand = homeHeroHeightDp(
+            heroWidthDp = 480f,
+            screenHeightDp = 800f,
+            isLandscape = false,
+            landscapeBandHeightDp = fallbackBand,
+            imageAspect = 2f / 3f,
+            defaultAspect = 2f / 3f,
+            portraitFallbackBandHeightDp = fallbackBand
+        )
+        assertEquals(800f * HOME_HERO_PORTRAIT_VERTICAL_MAX_SCREEN_FRACTION, posterBand, 0.5f)
+        assertEquals(false, isHeroBoxFullBleed(boxAspect = 480f / posterBand, imageAspect = 2f / 3f))
+    }
+
+    @Test
+    fun `portrait horizontal backdrop keeps the legacy fixed band`() {
+        // Yatay (16:9 key visual) görselde dikey mod DAVRANIŞI DEĞİŞMEZ: başlık, rozetler,
+        // meta ve gösterge çubuğu sığsın diye ekran-duyarlı sabit bant korunur.
+        val fallbackBand = heroBandHeightDp(800f, isLandscape = false, isTablet = false, isTv = false)
+        val backdropBand = homeHeroHeightDp(
+            heroWidthDp = 360f,
+            screenHeightDp = 800f,
+            isLandscape = false,
+            landscapeBandHeightDp = fallbackBand,
+            imageAspect = 16f / 9f,
+            defaultAspect = 16f / 9f,
+            portraitFallbackBandHeightDp = fallbackBand
+        )
+        assertEquals(fallbackBand, backdropBand, 0.5f)
+    }
+
+    @Test
+    fun `full bleed detection accepts only boxes that match the artwork`() {
+        // Kutu ile görsel BİREBİR aynı oranda → full-bleed (kırpma ≈ 0).
+        assertEquals(true, isHeroBoxFullBleed(boxAspect = 2f / 3f, imageAspect = 2f / 3f))
+        // Hafif sapma (%6) hâlâ full-bleed sayılır (gözle görülür kırpma yok).
+        assertEquals(true, isHeroBoxFullBleed(boxAspect = 0.70f, imageAspect = 2f / 3f))
+        // Sabit bant + poster (eski davranış) → dolgulu contain sunumu gerekir.
+        assertEquals(false, isHeroBoxFullBleed(boxAspect = 360f / 440f, imageAspect = 2f / 3f))
+        // Yatay görsel dikey kutuda → full-bleed değil.
+        assertEquals(false, isHeroBoxFullBleed(boxAspect = 2f / 3f, imageAspect = 16f / 9f))
+        // Ölçüm yok → karar verilemez.
+        assertEquals(false, isHeroBoxFullBleed(boxAspect = 2f / 3f, imageAspect = null))
     }
 
     @Test
