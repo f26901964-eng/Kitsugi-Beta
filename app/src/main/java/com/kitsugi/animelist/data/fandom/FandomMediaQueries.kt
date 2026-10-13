@@ -19,7 +19,8 @@ object FandomMediaQueries {
         tmdbId: Int? = null,
         isManga: Boolean,
         isMovie: Boolean,
-        titles: List<String>
+        titles: List<String>,
+        simklId: Int? = null
     ): FandomMediaQuery? {
         val base = FandomMediaIds.fromStableId(source, mediaId)
         val ids = FandomSourceIds(
@@ -29,7 +30,8 @@ object FandomMediaQueries {
             shikimoriId = base.shikimoriId,
             bangumiId = base.bangumiId,
             tmdbId = base.tmdbId ?: tmdbId?.takeIf { it > 0 },
-            wikidataId = base.wikidataId
+            wikidataId = base.wikidataId,
+            simklId = base.simklId ?: simklId?.takeIf { it > 0 }
         )
         val cleanTitles = titles
             .map { it.replace(Regex("\\s+"), " ").trim() }

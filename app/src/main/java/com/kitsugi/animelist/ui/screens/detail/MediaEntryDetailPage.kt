@@ -259,6 +259,7 @@ fun MediaEntryDetailPage(
             malId = displayEntry.malId ?: detailState?.realMalId,
             aniListId = displayEntry.aniListEntryId,
             tmdbId = displayEntry.tmdbId ?: detailState?.tmdbId ?: resolvedTmdbId,
+            simklId = displayEntry.simklId,
             isManga = displayEntry.type == MediaType.Manga,
             isMovie = displayEntry.type == MediaType.Movie,
             titles = listOfNotNull(

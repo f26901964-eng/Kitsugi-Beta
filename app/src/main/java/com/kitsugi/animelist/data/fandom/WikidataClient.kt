@@ -14,6 +14,10 @@ internal object WikidataClient {
     private const val API = "https://www.wikidata.org/w/api.php"
     private const val SPARQL = "https://query.wikidata.org/sparql"
     private const val MAX_PARENTS_PER_LEVEL = 8
+    /** Medya kimliği başına en fazla sorgulanan özellik (AniList, MAL, Kitsu, Bangumi, TMDB…). */
+    private const val MAX_LOOKUPS = 6
+    /** Bulunacak en fazla medya QID'i (aynı adı taşıyan farklı öğeler için sınır). */
+    private const val MAX_MEDIA_QIDS = 3
 
     private val PROPERTY = Regex("^P[1-9]\\d{0,6}$")
     private val VALUE = Regex("^[A-Za-z0-9._:/-]{1,64}$")
@@ -126,6 +130,59 @@ internal object WikidataClient {
             result.putAll(WikidataParsers.parseEntities(body))
         }
         return result
+    }
+
+    // ── Karakter oylaması (medya → karakterler → P6262) ──────────────────────
+
+    /**
+     * Kimlik çiftlerinden (AniList/MAL/Kitsu/Bangumi/TMDB…) medya QID'lerini bulur.
+     * En fazla [MAX_LOOKUPS] özellik sorgulanır; kimlik sırası öncelik sırasıdır.
+     * Ağ hatasında null (çağıran sonucu kalıcı yazmaz).
+     */
+    suspend fun findMediaQids(lookups: List<Pair<String, String>>): List<String>? {
+        val found = LinkedHashSet<String>()
+        for ((property, value) in lookups.take(MAX_LOOKUPS)) {
+            val qids = findQids(property, value, limit = 2) ?: return null
+            found += qids
+        }
+        return found.take(MAX_MEDIA_QIDS)
+    }
+
+    /**
+     * Bir medya öğesinin "eserde yer alan" (P1441 ters bağlantı) öğeleri → her birinin P6262 değerleri.
+     * Karakter olmayan öğeler (şarkı, mekân…) P6262 taşımadığı için sonuca girmez.
+     * Önce tek SPARQL sorgusu; WDQS yanıt vermezse `wbgetentities` yedeği. Ağ hatasında null.
+     */
+    suspend fun characterArticlesOf(mediaQid: String): List<List<String>>? {
+        if (!WikidataParsers.isQid(mediaQid)) return emptyList()
+        val members = searchStatementQids("P1441", mediaQid, limit = WikidataCharacterVotes.MAX_CHARACTERS)
+            ?: return null
+        if (members.isEmpty()) return emptyList()
+        val byItem: Map<String, List<String>> =
+            WikidataParsers.buildItemArticlesQuery(members)
+                ?.let { query -> WikidataParsers.parseItemArticles(sparql(query)) }
+                ?: run {
+                    val entities = getEntities(members) ?: return null
+                    entities.mapValues { (_, claims) -> claims.fandomArticleIds }
+                }
+        return members.mapNotNull { qid -> byItem[qid]?.takeIf { it.isNotEmpty() } }
+    }
+
+    /** `haswbstatement:<property>=<value>` — sonuçlar [limit] ile sınırlı (MediaWiki srlimit ≤ 50). */
+    private suspend fun searchStatementQids(property: String, value: String, limit: Int): List<String>? {
+        if (!PROPERTY.matches(property) || !VALUE.matches(value)) return emptyList()
+        val url = API.toHttpUrl().newBuilder()
+            .addQueryParameter("action", "query")
+            .addQueryParameter("list", "search")
+            .addQueryParameter("srsearch", "haswbstatement:$property=$value")
+            .addQueryParameter("srnamespace", "0")
+            .addQueryParameter("srlimit", limit.coerceIn(1, 50).toString())
+            .addQueryParameter("format", "json")
+            .addQueryParameter("formatversion", "2")
+            .build()
+            .toString()
+        val body = FandomHttp.get(url) ?: return null
+        return WikidataParsers.parseSearchQids(body)
     }
 
     private suspend fun sparql(query: String): String? {

@@ -19,7 +19,8 @@ class FandomMediaIdsTest {
         assertEquals(FandomSourceIds(shikimoriId = 5114), FandomMediaIds.fromStableId("shikimori", 400_005_114))
         assertEquals(FandomSourceIds(bangumiId = 35658), FandomMediaIds.fromStableId("bangumi", 500_035_658))
         assertEquals(FandomSourceIds(tmdbId = 1429), FandomMediaIds.fromStableId("tmdb", 1429))
-        assertTrue(FandomMediaIds.fromStableId("simkl", 150_000_001).isEmpty)
+        assertEquals(FandomSourceIds(simklId = 1), FandomMediaIds.fromStableId("simkl", 150_000_001))
+        assertEquals(FandomSourceIds(simklId = 1429), FandomMediaIds.fromStableId("simkl", 1429))
         assertTrue(FandomMediaIds.fromStableId("anilist", 0).isEmpty)
         assertTrue(FandomMediaIds.fromStableId(null, 5).isEmpty)
     }
