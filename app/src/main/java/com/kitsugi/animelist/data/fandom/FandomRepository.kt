@@ -480,7 +480,7 @@ object FandomRepository {
     }
 
     private fun mediaArticleCacheKey(mediaKey: String, wikiId: String, preferTurkish: Boolean): String =
-        "${KEY_PREFIX}media-page:v3:$mediaKey:$wikiId:${if (preferTurkish) "tr1" else "tr0"}"
+        "${KEY_PREFIX}media-page:v4:$mediaKey:$wikiId:${if (preferTurkish) "tr1" else "tr0"}"
 
     private suspend fun buildMediaArticle(
         context: Context,
@@ -688,7 +688,7 @@ object FandomRepository {
     }
 
     private fun characterCacheKey(characterKey: String, prefs: FandomWikiPrefs.State): String =
-        "${KEY_PREFIX}char:v3:$characterKey:" +
+        "${KEY_PREFIX}char:v4:$characterKey:" +
             (if (prefs.preferTurkish) "tr1" else "tr0") + ":" +
             (if (prefs.nameFallback) "n1" else "n0")
 
@@ -747,7 +747,8 @@ object FandomRepository {
      * Build a small, typed relationship graph from linked infobox values and the Wiki's own
      * cast/character/staff sections; also resolve page/gallery thumbnails through imageinfo.
      */
-    private suspend fun enrichArticlePage(context: Context, page: FandomCharacterPage): FandomCharacterPage {
+    private suspend fun enrichArticlePage(context: Context, rawPage: FandomCharacterPage): FandomCharacterPage {
+        val page = applyLead(context, rawPage)
         val relationSections = page.sections.mapNotNull { section ->
             FandomRelationClassifier.forSection(section.title)?.let { section to it }
         }
@@ -827,6 +828,58 @@ object FandomRepository {
             galleryImages = galleryImages,
             relatedEntities = relatedEntities
         )
+    }
+
+    /**
+     * Giriş bölümünü (section 0) çeker; tam giriş metnini ve eksiksiz bilgi kutusunu sayfaya işler.
+     * Ağ/ayrıştırma hatasında sayfa olduğu gibi kalır (yalnızca eski davranış).
+     */
+    private suspend fun applyLead(context: Context, page: FandomCharacterPage): FandomCharacterPage {
+        val lead = try {
+            loadLead(context, page.wikiId, page.pageTitle)
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            Log.w(TAG, "Wiki girişi yüklenemedi (${page.wikiId}/${page.pageTitle}): ${e.message}")
+            null
+        } ?: return page
+        return page.copy(
+            description = FandomLeadParser.mergeDescription(page.description, lead.intro),
+            infobox = FandomLeadParser.mergeInfobox(page.infobox, lead.infobox)
+        )
+    }
+
+    @Serializable
+    private data class StoredLead(
+        val infobox: FandomInfobox? = null,
+        val intro: String? = null,
+        val found: Boolean = false
+    )
+
+    private suspend fun loadLead(context: Context, wikiId: String, pageTitle: String): FandomLeadParser.Lead? {
+        val appContext = context.applicationContext
+        val key = "${KEY_PREFIX}lead:v1:$wikiId|$pageTitle"
+        return lockFor(sectionLocks, key).withLock {
+            val cached = readCached(appContext, key, positiveTtl = SECTION_TTL_MS) { body ->
+                json.decodeFromString(StoredLead.serializer(), body).takeIf { it.found }
+            }
+            (cached?.value as? StoredLead)?.let { return@withLock FandomLeadParser.Lead(it.infobox, it.intro) }
+            if (cached != null) return@withLock null
+            val failuresBefore = FandomHttp.failureCount()
+            val html = FandomApi.sectionHtml(wikiId, pageTitle, 0)
+            if (html == null) return@withLock null
+            val lead = FandomLeadParser.parse(html, wikiId)
+            val stored = StoredLead(lead.infobox, lead.intro, found = !lead.isEmpty)
+            writeCached(
+                context = appContext,
+                key = key,
+                value = stored.takeIf { it.found },
+                encoded = json.encodeToString(StoredLead.serializer(), stored),
+                persist = FandomHttp.failureCount() == failuresBefore,
+                ttl = if (stored.found) SECTION_TTL_MS else NEGATIVE_TTL_MS
+            )
+            lead.takeUnless { it.isEmpty }
+        }
     }
 
     private fun relationKey(link: FandomWikiLink): String =
@@ -919,7 +972,7 @@ object FandomRepository {
         val characterKey = query.cacheKey()
         FandomUserChoices.rejectPage(appContext, characterKey, page.matchedWikiId, page.matchedPageTitle)
         val keys = mutableListOf<String>()
-        listOf("tr1:n1", "tr1:n0", "tr0:n1", "tr0:n0").mapTo(keys) { "${KEY_PREFIX}char:v3:$characterKey:$it" }
+        listOf("tr1:n1", "tr1:n0", "tr0:n1", "tr0:n0").mapTo(keys) { "${KEY_PREFIX}char:v4:$characterKey:$it" }
         val mediaKey = page.mediaKey
         if (mediaKey != null && page.isWikiUnconfirmedNameMatch) {
             FandomUserChoices.rejectWiki(appContext, mediaKey, page.matchedWikiId)
