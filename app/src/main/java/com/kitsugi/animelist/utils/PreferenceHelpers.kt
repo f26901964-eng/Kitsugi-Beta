@@ -1,6 +1,8 @@
 package com.kitsugi.animelist.utils
 
 import com.kitsugi.animelist.model.MediaEntry
+import com.kitsugi.animelist.data.remote.BangumiIdNamespace
+import com.kitsugi.animelist.data.remote.BangumiTitleCache
 import com.kitsugi.animelist.data.remote.JikanSearchResult
 import com.kitsugi.animelist.data.remote.KitsugiRelation
 import com.kitsugi.animelist.data.remote.KitsugiCharacterMediaAppearance
@@ -96,7 +98,32 @@ object PreferenceHelpers {
                     ?: title
             }
         }
-        return PreferenceHelpers.getDisplayTitle(title, titleEnglish, titleJapanese, titleLanguage)
+        val resolved = PreferenceHelpers.getDisplayTitle(title, titleEnglish, titleJapanese, titleLanguage)
+        return bangumiCachedTitleOrNull(titleLanguage, resolved) ?: resolved
+    }
+
+    /**
+     * Bangumi kaynaklı kayıtlar için önbellekten dile uygun ad.
+     *
+     * Bangumi'nin koleksiyon/liste uçları YALNIZCA özgün adı (`name`, çoğu zaman Japonca)
+     * döndürür: içe aktarılan satırlarda `titleEnglish` boş kalır. Bu yüzden "Listem" ve
+     * benzeri listeler, kullanıcı Romaji/İngilizce başlık dilini seçse bile CJK adla
+     * çiziliyordu. Latin adlar (romaji/İngilizce) detay sayfası, keşfet veya
+     * [com.kitsugi.animelist.data.remote.BangumiLibraryTitleHydrator] tarafından öğrenilir
+     * ve [BangumiTitleCache]'e yazılır; burada yalnızca bellek içi önbellek okunur —
+     * ekran bekletilmez, ağ isteği yapılmaz.
+     *
+     * @param resolved mevcut alanlardan çözülen ad — Latin alfabeli ve boş değilse
+     *        önbelleğe hiç bakılmaz (önbellek yalnızca eksik durumu tamamlar).
+     */
+    private fun MediaEntry.bangumiCachedTitleOrNull(titleLanguage: String, resolved: String): String? {
+        val wantsLatin = !titleLanguage.equals("NATIVE", ignoreCase = true) &&
+            !titleLanguage.equals("JAPANESE_STAFF", ignoreCase = true)
+        if (!wantsLatin) return null
+        if (resolved.isNotBlank() && !hasCjkCharacters(resolved)) return null
+        if (!BangumiIdNamespace.SOURCE.equals(source.trim(), ignoreCase = true)) return null
+        val rawId = BangumiIdNamespace.rawIdOrNull(malId) ?: return null
+        return BangumiTitleCache.localizedTitleFor(rawId, title, titleLanguage)
     }
 
     fun JikanSearchResult.getDisplayTitle(titleLanguage: String): String {

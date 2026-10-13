@@ -673,21 +673,24 @@ internal fun DetailSynopsisLoadingSkeleton() {
 @Composable
 internal fun DetailRatingBadgesLoadingSkeleton() {
     DetailShimmerFrame { brush ->
+        // Gerçek kart artık ekran genişliğine eşit dağılan bir ızgara çiziyor; iskelet de
+        // aynı geometriyi taklit eder ki yükleme bittiğinde kart zıplamasın.
         Row(
-            modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalAlignment = Alignment.CenterVertically
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             repeat(3) { index ->
                 Column(
                     modifier = Modifier
-                        .clip(RoundedCornerShape(12.dp))
+                        .weight(1f)
+                        .clip(RoundedCornerShape(14.dp))
                         .background(KitsugiColors.SurfaceSoft)
-                        .padding(horizontal = 12.dp, vertical = 9.dp),
+                        .padding(vertical = 10.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
-                    DetailShimmerLine(brush, Modifier.width(if (index == 0) 46.dp else 62.dp).height(8.dp))
-                    DetailShimmerLine(brush, Modifier.width(if (index == 1) 34.dp else 42.dp).height(13.dp))
+                    DetailShimmerLine(brush, Modifier.width(if (index == 0) 42.dp else 54.dp).height(15.dp))
+                    DetailShimmerLine(brush, Modifier.width(if (index == 1) 32.dp else 44.dp).height(9.dp))
                 }
             }
         }

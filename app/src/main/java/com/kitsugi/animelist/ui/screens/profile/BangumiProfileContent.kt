@@ -28,8 +28,10 @@ import com.kitsugi.animelist.ui.theme.gradient.Icon
 import androidx.compose.material3.MaterialTheme
 import com.kitsugi.animelist.ui.theme.gradient.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
@@ -50,12 +52,15 @@ import com.kitsugi.animelist.data.auth.BangumiApiClient.BangumiFavoriteItem
 import com.kitsugi.animelist.data.auth.BangumiApiClient.BangumiUserCollection
 import com.kitsugi.animelist.data.remote.BangumiIdNamespace
 import com.kitsugi.animelist.data.remote.BangumiNameLocalizer
+import com.kitsugi.animelist.data.remote.BangumiSubjectTitleResolver
+import com.kitsugi.animelist.data.remote.BangumiTitleCache
 import com.kitsugi.animelist.model.MediaType
 import com.kitsugi.animelist.ui.app.BangumiProfileState
 import com.kitsugi.animelist.ui.components.KitsugiWebViewDialog
 import com.kitsugi.animelist.ui.theme.KitsugiColors
 import androidx.compose.ui.res.stringResource
 import com.kitsugi.animelist.utils.KitsugiStrings
+import com.kitsugi.animelist.utils.PreferenceHelpers
 import com.kitsugi.animelist.R
 
 /**
@@ -161,6 +166,40 @@ fun BangumiProfileContent(
         if (statusFilter == 0) itemsOfType else itemsOfType.filter { it.type == statusFilter }
     }
 
+    // Bangumi koleksiyon ucu yalnızca özgün adı döndürür. Latin ad daha önce hiçbir yerde
+    // (kütüphane içe aktarma, detay, keşfet) çözülmediyse satır CJK kalırdı; bu efekt
+    // eksikleri arka planda çözer (resolver sonucu kalıcı önbelleğe yazar) ve [resolvedTitles]
+    // üzerinden satırları yeniden çizer — kullanıcı artık hangi ekranda olursa olsun seçtiği
+    // başlık dilini görür.
+    val resolvedTitles = remember { mutableStateMapOf<Int, String>() }
+    LaunchedEffect(state.collections, titleLanguage) {
+        val wantsLatin = !titleLanguage.equals("NATIVE", ignoreCase = true) &&
+            !titleLanguage.equals("JAPANESE_STAFF", ignoreCase = true)
+        if (!wantsLatin || state.collections.isEmpty()) return@LaunchedEffect
+        val pending = state.collections.mapNotNull { collection ->
+            val subject = collection.subject ?: return@mapNotNull null
+            val base = BangumiNameLocalizer.entity(subject.name, subject.nameCn).displayFor(titleLanguage)
+            if (!PreferenceHelpers.hasCjkCharacters(base)) return@mapNotNull null
+            if (BangumiTitleCache.localizedTitleFor(collection.subjectId, base, titleLanguage) != null) {
+                return@mapNotNull null
+            }
+            BangumiSubjectTitleResolver.Request(
+                rawId = collection.subjectId,
+                nativeTitle = base,
+                mediaType = BangumiIdNamespace.mediaTypeFor(collection.subjectType, subject.platform)
+            )
+        }
+        if (pending.isEmpty()) return@LaunchedEffect
+        runCatching { BangumiSubjectTitleResolver.resolve(pending, background = true) }
+        // Çözülen adları yayınla → satırlar yeniden çizilir (önbellek zaten kalıcı).
+        for (collection in state.collections) {
+            val subject = collection.subject ?: continue
+            val base = BangumiNameLocalizer.entity(subject.name, subject.nameCn).displayFor(titleLanguage)
+            BangumiTitleCache.localizedTitleFor(collection.subjectId, base, titleLanguage)
+                ?.let { resolvedTitles[collection.subjectId] = it }
+        }
+    }
+
     val typeOptions = BANGUMI_TYPE_FILTERS.map { type ->
         type to "${subjectTypeLabel(type)} (${typeCounts[type] ?: 0})"
     }
@@ -230,16 +269,26 @@ fun BangumiProfileContent(
                 visibleItems,
                 key = { "${it.subjectType}-${it.subjectId}" }
             ) { collection ->
+                val resolvedTitle = resolvedTitles[collection.subjectId]
                 BangumiCollectionRow(
                     collection = collection,
                     accentColor = accentColor,
+                    resolvedTitle = resolvedTitle,
                     titleLanguage = titleLanguage,
                     onClick = {
                         if (BangumiIdNamespace.supportsSubjectType(collection.subjectType)) {
                             onOpenAnimeOrManga(
                                 collection.subjectId,
                                 BangumiIdNamespace.mediaTypeFor(collection.subjectType, collection.subject?.platform),
-                                collection.subject?.let {
+                                resolvedTitle
+                                    ?: BangumiTitleCache.localizedTitleFor(
+                                        collection.subjectId,
+                                        collection.subject?.let {
+                                            BangumiNameLocalizer.entity(it.name, it.nameCn).displayFor(titleLanguage)
+                                        },
+                                        titleLanguage
+                                    )
+                                    ?: collection.subject?.let {
                                     BangumiNameLocalizer.entity(it.name, it.nameCn).displayFor(titleLanguage)
                                 } ?: "#${collection.subjectId}",
                                 collection.subject?.images?.poster
@@ -488,11 +537,18 @@ private fun BangumiCollectionRow(
     collection: BangumiUserCollection,
     accentColor: Color,
     titleLanguage: String,
+    resolvedTitle: String?,
     onClick: () -> Unit
 ) {
     val subject = collection.subject
-    val title = subject?.let { BangumiNameLocalizer.entity(it.name, it.nameCn).displayFor(titleLanguage) }
-        ?.takeIf { it.isNotBlank() } ?: "#${collection.subjectId}"
+    val baseTitle = subject?.let { BangumiNameLocalizer.entity(it.name, it.nameCn).displayFor(titleLanguage) }
+        ?.takeIf { it.isNotBlank() }
+    // Bangumi koleksiyon ucu yalnızca özgün adı döndürür; Latin ad (romaji/İngilizce) öğrenildiyse
+    // (bkz. BangumiLibraryTitleHydrator / keşfet / detay) seçilen başlık diline uyulur.
+    val title = resolvedTitle
+        ?: BangumiTitleCache.localizedTitleFor(collection.subjectId, baseTitle, titleLanguage)
+        ?: baseTitle
+        ?: "#${collection.subjectId}"
     Row(
         modifier = Modifier
             .fillMaxWidth()
