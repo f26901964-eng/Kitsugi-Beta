@@ -50,6 +50,7 @@ import com.kitsugi.animelist.data.auth.BangumiApiClient.BangumiFavoriteItem
 import com.kitsugi.animelist.data.auth.BangumiApiClient.BangumiUserCollection
 import com.kitsugi.animelist.data.remote.BangumiIdNamespace
 import com.kitsugi.animelist.data.remote.BangumiNameLocalizer
+import com.kitsugi.animelist.data.remote.BangumiTitleCache
 import com.kitsugi.animelist.model.MediaType
 import com.kitsugi.animelist.ui.app.BangumiProfileState
 import com.kitsugi.animelist.ui.components.KitsugiWebViewDialog
@@ -239,7 +240,13 @@ fun BangumiProfileContent(
                             onOpenAnimeOrManga(
                                 collection.subjectId,
                                 BangumiIdNamespace.mediaTypeFor(collection.subjectType, collection.subject?.platform),
-                                collection.subject?.let {
+                                BangumiTitleCache.localizedTitleFor(
+                                    collection.subjectId,
+                                    collection.subject?.let {
+                                        BangumiNameLocalizer.entity(it.name, it.nameCn).displayFor(titleLanguage)
+                                    },
+                                    titleLanguage
+                                ) ?: collection.subject?.let {
                                     BangumiNameLocalizer.entity(it.name, it.nameCn).displayFor(titleLanguage)
                                 } ?: "#${collection.subjectId}",
                                 collection.subject?.images?.poster
@@ -491,8 +498,13 @@ private fun BangumiCollectionRow(
     onClick: () -> Unit
 ) {
     val subject = collection.subject
-    val title = subject?.let { BangumiNameLocalizer.entity(it.name, it.nameCn).displayFor(titleLanguage) }
-        ?.takeIf { it.isNotBlank() } ?: "#${collection.subjectId}"
+    val baseTitle = subject?.let { BangumiNameLocalizer.entity(it.name, it.nameCn).displayFor(titleLanguage) }
+        ?.takeIf { it.isNotBlank() }
+    // Bangumi koleksiyon ucu yalnızca özgün adı döndürür; Latin ad (romaji/İngilizce) öğrenildiyse
+    // (bkz. BangumiLibraryTitleHydrator / keşfet / detay) seçilen başlık diline uyulur.
+    val title = BangumiTitleCache.localizedTitleFor(collection.subjectId, baseTitle, titleLanguage)
+        ?: baseTitle
+        ?: "#${collection.subjectId}"
     Row(
         modifier = Modifier
             .fillMaxWidth()

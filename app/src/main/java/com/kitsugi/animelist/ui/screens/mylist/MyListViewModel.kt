@@ -10,7 +10,9 @@ import com.kitsugi.animelist.model.WatchStatus
 import com.kitsugi.animelist.data.auth.ExternalAuthManager
 import com.kitsugi.animelist.data.auth.BangumiSyncManager
 import com.kitsugi.animelist.data.remote.BangumiIdNamespace
+import com.kitsugi.animelist.data.remote.BangumiLibraryTitleHydrator
 import com.kitsugi.animelist.model.MediaType
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -61,6 +63,20 @@ class MyListViewModel(application: Application) : AndroidViewModel(application) 
             // alanını taşımadığından satırlar isAdult=false yazılıyordu → Listem (Simkl)
             // ve "Tümü" sekmesinde afişler bulanıklanmıyordu.
             AdultFlagBackfillMigration.runIfNeeded(context, dao)
+        }
+
+        // Bangumi koleksiyonundan içe aktarılan satırlar YALNIZCA özgün (Japonca) adla gelir;
+        // kullanıcı "Başlık Dili" olarak Romaji/İngilizce seçtiğinde liste CJK adla çiziliyordu.
+        // Latin adları arka planda tamamla (önce önbellek, sonra subject infobox'ı / AniList).
+        // Sonuç veritabanına yazıldığı için bir sonraki açılışta hiçbir iş kalmaz.
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                BangumiLibraryTitleHydrator.hydrate(KitsugiDatabase.getDatabase(context))
+            } catch (cancelled: kotlinx.coroutines.CancellationException) {
+                throw cancelled
+            } catch (error: Exception) {
+                android.util.Log.w("MyListViewModel", "Bangumi başlık tamamlama atlandı: ${error.message}")
+            }
         }
     }
 
