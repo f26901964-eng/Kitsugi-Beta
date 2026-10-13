@@ -112,6 +112,17 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
         private set
     private var tmdbEnrichContinueWatchingState = true
 
+    /**
+     * Son görülen "Dizi & Film Başlık Dili" (tmdbLanguage) değeri.
+     *
+     * KRİTİK: Kullanıcı bu ayarı değiştirdiğinde (ör. English → Türkçe) TMDB şeritlerinin
+     * tamamının YENİ dilde yeniden çekilmesi gerekir. Eski kontrol yalnızca
+     * enabled/enrich/apiKey değişimlerini izliyordu; dil değişimi göz ardı edildiği için
+     * bellek içi platformCache + allSourceStates eski dildeki başlıklarla yaşamaya devam
+     * ediyordu — "Türkçe seçtim ama isimler hâlâ Türkçe değil" şikayetinin kök nedeni.
+     */
+    private var tmdbLanguageState = ""
+
     private val initialPayload: ExplorePayload?
         get() = platformCache[selectedPlatform]
 
@@ -227,12 +238,18 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
 
                 // TMDB toggle değişiklikleri
                 val userKey = settings.tmdbUserApiKey
+                // Dil değişimi (Dizi & Film Başlık Dili) de tam yeniden yükleme gerektirir:
+                // önbellekteki başlıklar eski dilde çözümlenmiş olabilir.
+                val tmdbLanguageChanged = tmdbLanguageState.isNotBlank() &&
+                    tmdbLanguageState != settings.tmdbLanguage
                 val tmdbChanged = tmdbEnabledState != settings.tmdbEnabled ||
                     tmdbEnrichContinueWatchingState != settings.tmdbEnrichContinueWatching ||
-                    userKey != tmdbUserApiKeyState
+                    userKey != tmdbUserApiKeyState ||
+                    tmdbLanguageChanged
                 tmdbEnabledState = settings.tmdbEnabled
                 tmdbModernHomeEnabled = settings.tmdbModernHomeEnabled
                 tmdbEnrichContinueWatchingState = settings.tmdbEnrichContinueWatching
+                tmdbLanguageState = settings.tmdbLanguage
 
                 // tmdbUserApiKey değişince TmdbApiClient'i yeniden oluştur
                 if (userKey != tmdbUserApiKeyState) {

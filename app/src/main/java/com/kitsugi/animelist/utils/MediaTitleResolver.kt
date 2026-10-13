@@ -23,8 +23,13 @@ object MediaTitleResolver {
      * Başlık seçim mantığı değiştiğinde bu değer artırılır; bellek içi ve disk
      * önbellek anahtarları sürümle birlikte tutulduğu için eski (hatalı) başlıklar
      * önbellekten servis edilmez.
+     *
+     * v3: en-US yedek başlık isteği geri çekilmeli 3 denemeye çıkarıldı (429/timeout'ta
+     * CJK başlık ekrana düşüyordu) + Keşfet artık "Dizi & Film Başlık Dili" değişiminde
+     * kendini yeniliyor. v2 anahtarıyla diske yazılmış eski/yanlış dil başlıkları bu
+     * sayede bir daha servis edilmez.
      */
-    const val VERSION = 2
+    const val VERSION = 3
 
     fun hasCjk(text: String?): Boolean = PreferenceHelpers.hasCjkCharacters(text)
 

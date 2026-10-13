@@ -4,6 +4,7 @@ import com.kitsugi.animelist.core.memory.BoundedCache
 
 import android.util.Log
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
 import com.kitsugi.animelist.model.MediaType
@@ -502,15 +503,21 @@ internal object TmdbDiscoverClient {
      *
      * ⚠️ [TmdbUrlUtils.withLanguage] kullanılır: `with_original_language` parametresi
      * bozulmadığı için İngilizce isteği aynı içerik listesini döner ve ID eşleşmesi tutar.
+     *
+     * Yedek istek boş/hatalı dönerse geri çekilmeli (backoff) olarak yeniden denenir:
+     * harita boş kalırsa Türkçesi olmayan CJK başlıklar ekrana düşer. Keşfet açılışı
+     * ~12 şeridi paralel çeker ve her biri bu isteği tetikleyebildiği için art arda
+     * (beklemesiz) denemek paylaşımlı API anahtarında 429/timeout'a takılıyordu;
+     * 300ms → 700ms beklemeyle 3 deneme yapılır.
      */
     private suspend fun fetchEnglishTitlesMap(
         url: String,
         executeGet: suspend (String) -> String?
     ): Map<Int, String> {
         val enUrl = TmdbUrlUtils.englishVariant(url)
-        // Yedek istek boş/hatalı dönerse tekrar denenir: harita boş kalırsa CJK başlık
-        // ekrana düşebileceği için bu isteğin başarılı olması kritiktir.
-        repeat(2) { attempt ->
+        val backoffDelaysMs = longArrayOf(0L, 300L, 700L)
+        for ((attempt, delayMs) in backoffDelaysMs.withIndex()) {
+            if (delayMs > 0L) delay(delayMs)
             try {
                 val map = TmdbTitleFallback.parseEnglishTitles(executeGet(enUrl))
                 if (map.isNotEmpty()) return map
@@ -540,7 +547,7 @@ internal object TmdbDiscoverClient {
 
             val list = mutableListOf<JikanSearchResult>()
             for (i in 0 until minOf(results.length(), 20)) {
-                val item = results.getJSONObject(i)
+                val item = results.optJSONObject(i) ?: continue
                 val tmdbId = item.optInt("id", 0).takeIf { it > 0 } ?: continue
                 val isMovie = isMovieUrl || mediaType == MediaType.Movie
                 val localizedTitle = if (isMovie) item.optString("title", "") else item.optString("name", "")
@@ -619,7 +626,7 @@ internal object TmdbDiscoverClient {
 
             val list = mutableListOf<JikanSearchResult>()
             for (i in 0 until minOf(results.length(), 20)) {
-                val item = results.getJSONObject(i)
+                val item = results.optJSONObject(i) ?: continue
                 val tmdbId = item.optInt("id", 0).takeIf { it > 0 } ?: continue
                 val mediaTypeStr = item.optString("media_type", "movie")
                 if (mediaTypeStr == "person") continue
