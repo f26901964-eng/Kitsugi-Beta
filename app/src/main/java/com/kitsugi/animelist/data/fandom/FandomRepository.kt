@@ -913,7 +913,7 @@ object FandomRepository {
         sectionTitle: String? = null
     ): FandomSectionContent? {
         val appContext = context.applicationContext
-        val cacheKey = "${KEY_PREFIX}sec:v3:$wikiId|$pageTitle|$index"
+        val cacheKey = "${KEY_PREFIX}sec:v4:$wikiId|$pageTitle|$index"
         return lockFor(sectionLocks, cacheKey).withLock {
             val cached = readCached(appContext, cacheKey, positiveTtl = SECTION_TTL_MS) { body ->
                 json.decodeFromString(StoredSection.serializer(), body).content
