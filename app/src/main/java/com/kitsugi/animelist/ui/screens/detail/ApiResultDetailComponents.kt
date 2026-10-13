@@ -967,12 +967,13 @@ private fun buildMdbRatingItems(
     }
 
     return buildList {
-        if (showImdb && (ratings.imdb ?: 0.0) > 0.0) {
+        val imdbScore = ratings.imdb
+        if (showImdb && imdbScore != null && imdbScore > 0.0) {
             add(
                 MdbRatingItem(
                     emoji = "⭐",
                     label = "IMDb",
-                    value = String.format("%.1f", ratings.imdb),
+                    value = String.format("%.1f", imdbScore),
                     accent = MdbImdbAccent,
                     onClick = {
                         val id = imdbId
@@ -983,49 +984,52 @@ private fun buildMdbRatingItems(
             )
         }
 
-        if (showTomatoes && (ratings.tomatoes ?: 0) > 0) {
+        val tomatoScore = ratings.tomatoes
+        if (showTomatoes && tomatoScore != null && tomatoScore > 0) {
             add(
                 MdbRatingItem(
                     emoji = "🍅",
                     label = "Tomatometer",
-                    value = "${ratings.tomatoes}%",
+                    value = "$tomatoScore%",
                     accent = MdbTomatoAccent,
                     onClick = { openExternal("https://www.rottentomatoes.com/search?search=${encodedTitle()}") }
                 )
             )
         }
 
-        if (showAudience && (ratings.tomatoesAudience ?: 0) > 0) {
+        val audienceScore = ratings.tomatoesAudience
+        if (showAudience && audienceScore != null && audienceScore > 0) {
             add(
                 MdbRatingItem(
                     emoji = "🍿",
                     label = "Audience",
-                    value = "${ratings.tomatoesAudience}%",
+                    value = "$audienceScore%",
                     accent = MdbAudienceAccent,
                     onClick = { openExternal("https://www.rottentomatoes.com/search?search=${encodedTitle()}") }
                 )
             )
         }
 
-        if (showMetacritic && (ratings.metacritic ?: 0) > 0) {
-            val score = ratings.metacritic
+        val metacriticScore = ratings.metacritic
+        if (showMetacritic && metacriticScore != null && metacriticScore > 0) {
             add(
                 MdbRatingItem(
                     emoji = "🎖️",
                     label = "Metacritic",
-                    value = "$score",
-                    accent = mdbMetacriticAccent(score),
+                    value = "$metacriticScore",
+                    accent = mdbMetacriticAccent(metacriticScore),
                     onClick = { openExternal("https://www.metacritic.com/search/${encodedTitle()}/") }
                 )
             )
         }
 
-        if (showLetterboxd && (ratings.letterboxd ?: 0.0) > 0.0) {
+        val letterboxdScore = ratings.letterboxd
+        if (showLetterboxd && letterboxdScore != null && letterboxdScore > 0.0) {
             add(
                 MdbRatingItem(
                     emoji = "📽️",
                     label = "Letterboxd",
-                    value = String.format("%.1f", ratings.letterboxd),
+                    value = String.format("%.1f", letterboxdScore),
                     accent = MdbLetterboxdAccent,
                     onClick = {
                         val id = imdbId
@@ -1036,24 +1040,26 @@ private fun buildMdbRatingItems(
             )
         }
 
-        if (showTmdb && (ratings.tmdb ?: 0.0) > 0.0) {
+        val tmdbScore = ratings.tmdb
+        if (showTmdb && tmdbScore != null && tmdbScore > 0.0) {
             add(
                 MdbRatingItem(
                     emoji = "🎬",
                     label = "TMDB",
-                    value = String.format("%.1f", ratings.tmdb),
+                    value = String.format("%.1f", tmdbScore),
                     accent = MdbTmdbAccent,
                     onClick = { openExternal("https://www.themoviedb.org/search?query=${encodedTitle()}") }
                 )
             )
         }
 
-        if (showTrakt && (ratings.trakt ?: 0.0) > 0.0) {
+        val traktScore = ratings.trakt
+        if (showTrakt && traktScore != null && traktScore > 0.0) {
             add(
                 MdbRatingItem(
                     emoji = "📺",
                     label = "Trakt",
-                    value = String.format("%.0f%%", ratings.trakt),
+                    value = String.format("%.0f%%", traktScore),
                     accent = MdbTraktAccent,
                     onClick = {
                         val id = imdbId
