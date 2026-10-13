@@ -1,18 +1,18 @@
-# Wiki kesif denetimi - 2026-10-13 16:29 UTC
+# Wiki kesif denetimi - 2026-10-13 16:46 UTC
 
-Vaka sayisi: 138; sure: 1483 sn; ag hatasi: 522
+Vaka sayisi: 138; sure: 960 sn; ag hatasi: 1 {'kaiyari.fandom.com 410': 1}
 
 ## Ozet
 
 | mod | MISS | OK | UNVERIFIED-FOUND | UNVERIFIED-MISS |
 |---|---|---|---|---|
-| ids | 0 | 40 | 76 | 21 |
-| title-only | 1 | 39 | 64 | 33 |
+| ids | 0 | 45 | 85 | 7 |
+| title-only | 3 | 42 | 70 | 22 |
 
 ## Hangi asama buldu
 
-- **ids**: wikidata-P4073-depth1=35, wikidata-P4073-depth2=21, name-article-proof=14, name-score=13, wikidata-P4073-depth0=9, character-votes=7, wikidata-P6262-media=6, override=4, relation-wikidata-ADAPTATION=3, name-identity-link=1, name-native-title=1, relation-wikidata-ALTERNATIVE=1, wikidata-P4073-depth1-yabanci-dil=1
-- **title-only**: wikidata-P4073-depth1=31, wikidata-P4073-depth2=20, name-score=18, name-article-proof=12, character-votes=5, override=4, wikidata-P6262-media=4, wikidata-P4073-depth0=3, relation-wikidata-ADAPTATION=3, name-identity-link=2, relation-wikidata-ALTERNATIVE=1
+- **ids**: wikidata-P4073-depth1=37, wikidata-P4073-depth2=21, name-article-proof=17, name-score=17, wikidata-P4073-depth0=14, character-votes=8, wikidata-P6262-media=6, override=4, relation-wikidata-ADAPTATION=3, name-identity-link=1, name-native-title=1, relation-wikidata-ALTERNATIVE=1
+- **title-only**: wikidata-P4073-depth1=31, wikidata-P4073-depth2=20, name-score=20, name-article-proof=18, character-votes=6, override=4, wikidata-P6262-media=4, wikidata-P4073-depth0=3, relation-wikidata-ADAPTATION=3, name-identity-link=2, relation-wikidata-ALTERNATIVE=1
 
 ## Ayrinti
 
@@ -208,24 +208,24 @@ Vaka sayisi: 138; sure: 1483 sn; ag hatasi: 522
 | Witch Hat Atelier | manga | - | title-only | UNVERIFIED-FOUND | witch-hat-atelier | wikidata-P4073-depth1 | CERTAIN | - |
 | Sweet Home | manga | - | ids | UNVERIFIED-FOUND | sweet-home-netflix | name-score | PROBABLE | - |
 | Sweet Home | manga | - | title-only | UNVERIFIED-FOUND | sweet-home-netflix | name-score | PROBABLE | - |
-| Bastard | manga | - | ids | UNVERIFIED-FOUND | bastard-webtoon | name-score | PROBABLE | - |
-| Bastard | manga | - | title-only | UNVERIFIED-FOUND | bastard-webtoon | name-score | PROBABLE | - |
-| Villains Are Destined to Die | manga | - | ids | UNVERIFIED-MISS | - | - | - | - |
-| Villains Are Destined to Die | manga | - | title-only | UNVERIFIED-MISS | - | - | - | - |
+| Bastard | manga | - | ids | UNVERIFIED-MISS | - | - | - | - |
+| Bastard | manga | - | title-only | UNVERIFIED-MISS | - | - | - | - |
+| Villains Are Destined to Die | manga | - | ids | UNVERIFIED-FOUND | villains-are-destined-to-die | name-score | CERTAIN | - |
+| Villains Are Destined to Die | manga | - | title-only | UNVERIFIED-FOUND | villains-are-destined-to-die | name-score | CERTAIN | - |
 | Return of the Mount Hua Sect | manga | - | ids | UNVERIFIED-FOUND | return-of-the-blossoming-blade | character-votes | PROBABLE | - |
 | Return of the Mount Hua Sect | manga | - | title-only | UNVERIFIED-FOUND | return-of-the-blossoming-blade | character-votes | PROBABLE | - |
-| Wind Breaker | manga | - | ids | UNVERIFIED-MISS | - | - | - | - |
+| Wind Breaker | manga | - | ids | UNVERIFIED-FOUND | wind-breaker | name-score | CERTAIN | - |
 | Wind Breaker | manga | - | title-only | UNVERIFIED-MISS | - | - | - | - |
-| Weak Hero | manga | - | ids | UNVERIFIED-MISS | - | - | - | - |
-| Weak Hero | manga | - | title-only | UNVERIFIED-MISS | - | - | - | - |
-| Soul Land | manga | - | ids | UNVERIFIED-MISS | - | - | - | - |
-| Soul Land | manga | - | title-only | UNVERIFIED-MISS | - | - | - | - |
-| Battle Through the Heavens | manga | - | ids | UNVERIFIED-MISS | - | - | - | - |
-| Battle Through the Heavens | manga | - | title-only | UNVERIFIED-MISS | - | - | - | - |
-| Martial Peak | manga | - | ids | UNVERIFIED-MISS | - | - | - | - |
-| Martial Peak | manga | - | title-only | UNVERIFIED-MISS | - | - | - | - |
-| Bakuman. | manga | - | ids | UNVERIFIED-MISS | - | - | - | - |
-| Bakuman. | manga | - | title-only | UNVERIFIED-MISS | - | - | - | - |
+| Weak Hero | manga | - | ids | UNVERIFIED-FOUND | weakhero | name-article-proof | PROBABLE | - |
+| Weak Hero | manga | - | title-only | UNVERIFIED-FOUND | weakhero | name-article-proof | PROBABLE | - |
+| Soul Land | manga | - | ids | UNVERIFIED-FOUND | soulland | name-score | CERTAIN | - |
+| Soul Land | manga | - | title-only | UNVERIFIED-FOUND | soulland | name-score | CERTAIN | - |
+| Battle Through the Heavens | manga | - | ids | UNVERIFIED-FOUND | battle-through-the-heavens | name-score | CERTAIN | - |
+| Battle Through the Heavens | manga | - | title-only | UNVERIFIED-FOUND | battle-through-the-heavens | name-score | CERTAIN | - |
+| Martial Peak | manga | - | ids | UNVERIFIED-FOUND | martial-peak-mp | name-score | PROBABLE | - |
+| Martial Peak | manga | - | title-only | UNVERIFIED-FOUND | martial-peak-mp | name-score | PROBABLE | - |
+| Bakuman. | manga | - | ids | UNVERIFIED-FOUND | bakuman | name-score | CERTAIN | - |
+| Bakuman. | manga | - | title-only | UNVERIFIED-FOUND | bakuman | name-score | CERTAIN | - |
 | Overlord | ln | - | ids | UNVERIFIED-FOUND | overlordmaruyama | wikidata-P4073-depth1 | CERTAIN | - |
 | Overlord | ln | - | title-only | UNVERIFIED-FOUND | overlordmaruyama | wikidata-P4073-depth1 | CERTAIN | - |
 | Spice and Wolf | ln | - | ids | UNVERIFIED-FOUND | spiceandwolf | wikidata-P4073-depth1 | CERTAIN | - |
@@ -234,30 +234,30 @@ Vaka sayisi: 138; sure: 1483 sn; ag hatasi: 522
 | Re:Zero kara Hajimeru Isekai Seikatsu | ln | rezero | title-only | OK | rezero | wikidata-P4073-depth1 | CERTAIN | HAYIR |
 | Classroom of the Elite | ln | - | ids | UNVERIFIED-FOUND | you-zitsu | wikidata-P4073-depth1 | CERTAIN | - |
 | Classroom of the Elite | ln | - | title-only | UNVERIFIED-FOUND | you-zitsu | wikidata-P4073-depth1 | CERTAIN | - |
-| The Melancholy of Haruhi Suzumiya | ln | - | ids | UNVERIFIED-FOUND | haruhi | name-score | CERTAIN | - |
-| The Melancholy of Haruhi Suzumiya | ln | - | title-only | UNVERIFIED-FOUND | haruhi | name-score | CERTAIN | - |
-| Log Horizon | ln | - | ids | UNVERIFIED-MISS | - | - | - | - |
-| Log Horizon | ln | - | title-only | UNVERIFIED-FOUND | log-horizon | name-score | CERTAIN | - |
+| The Melancholy of Haruhi Suzumiya | ln | - | ids | UNVERIFIED-FOUND | haruhi | character-votes | PROBABLE | - |
+| The Melancholy of Haruhi Suzumiya | ln | - | title-only | UNVERIFIED-FOUND | haruhi | character-votes | PROBABLE | - |
+| Log Horizon | ln | - | ids | UNVERIFIED-FOUND | log-horizon | name-article-proof | PROBABLE | - |
+| Log Horizon | ln | - | title-only | UNVERIFIED-FOUND | log-horizon | name-article-proof | PROBABLE | - |
 | Mushoku Tensei: Isekai Ittara Honki Dasu | ln | - | ids | UNVERIFIED-FOUND | mushokutensei | wikidata-P6262-media | CERTAIN | - |
 | Mushoku Tensei: Isekai Ittara Honki Dasu | ln | - | title-only | UNVERIFIED-FOUND | mushokutensei | character-votes | PROBABLE | - |
 | Sword Art Online | ln | swordartonline | ids | OK | swordartonline | wikidata-P4073-depth0 | CERTAIN | HAYIR |
 | Sword Art Online | ln | swordartonline | title-only | OK | swordartonline | wikidata-P4073-depth0 | CERTAIN | HAYIR |
-| Breaking Bad | tv | breakingbad | ids | UNVERIFIED-MISS | - | - | - | - |
-| Breaking Bad | tv | breakingbad | title-only | UNVERIFIED-MISS | - | - | - | - |
-| Stranger Things | tv | strangerthings | ids | UNVERIFIED-MISS | - | - | - | - |
-| Stranger Things | tv | strangerthings | title-only | UNVERIFIED-MISS | - | - | - | - |
-| Game of Thrones | tv | gameofthrones | ids | UNVERIFIED-MISS | - | - | - | - |
-| Game of Thrones | tv | gameofthrones | title-only | UNVERIFIED-MISS | - | - | - | - |
-| The Walking Dead | tv | walkingdead | ids | UNVERIFIED-MISS | - | - | - | - |
-| The Walking Dead | tv | walkingdead | title-only | UNVERIFIED-MISS | - | - | - | - |
-| Supernatural | tv | supernatural | ids | UNVERIFIED-MISS | - | - | - | - |
-| Supernatural | tv | supernatural | title-only | UNVERIFIED-MISS | - | - | - | - |
-| The Witcher | tv | - | ids | UNVERIFIED-FOUND | raganius | wikidata-P4073-depth1-yabanci-dil | CERTAIN | - |
+| Breaking Bad | tv | breakingbad | ids | OK | breakingbad | wikidata-P4073-depth0 | CERTAIN | HAYIR |
+| Breaking Bad | tv | breakingbad | title-only | OK | breakingbad | name-article-proof | PROBABLE | evet |
+| Stranger Things | tv | strangerthings | ids | OK | strangerthings | wikidata-P4073-depth0 | CERTAIN | HAYIR |
+| Stranger Things | tv | strangerthings | title-only | OK | strangerthings | name-article-proof | PROBABLE | evet |
+| Game of Thrones | tv | gameofthrones | ids | OK | gameofthrones | wikidata-P4073-depth0 | CERTAIN | HAYIR |
+| Game of Thrones | tv | gameofthrones | title-only | MISS | - | - | - | evet |
+| The Walking Dead | tv | walkingdead | ids | OK | walkingdead | wikidata-P4073-depth1 | CERTAIN | HAYIR |
+| The Walking Dead | tv | walkingdead | title-only | OK | walkingdead | name-article-proof | PROBABLE | evet |
+| Supernatural | tv | supernatural | ids | OK | supernatural | wikidata-P4073-depth0 | CERTAIN | HAYIR |
+| Supernatural | tv | supernatural | title-only | MISS | - | - | - | evet |
+| The Witcher | tv | - | ids | UNVERIFIED-FOUND | witcher | wikidata-P4073-depth1 | CERTAIN | - |
 | The Witcher | tv | - | title-only | UNVERIFIED-MISS | - | - | - | - |
-| Squid Game | tv | - | ids | UNVERIFIED-MISS | - | - | - | - |
+| Squid Game | tv | - | ids | UNVERIFIED-FOUND | squid-game | wikidata-P4073-depth0 | CERTAIN | - |
 | Squid Game | tv | - | title-only | UNVERIFIED-FOUND | squid-game-players | name-article-proof | PROBABLE | - |
-| Peaky Blinders | tv | - | ids | UNVERIFIED-MISS | - | - | - | - |
-| Peaky Blinders | tv | - | title-only | UNVERIFIED-MISS | - | - | - | - |
+| Peaky Blinders | tv | - | ids | UNVERIFIED-FOUND | peaky-blinders | name-article-proof | PROBABLE | - |
+| Peaky Blinders | tv | - | title-only | UNVERIFIED-FOUND | peaky-blinders | name-article-proof | PROBABLE | - |
 | Severance | tv | - | ids | UNVERIFIED-FOUND | severance-tv | character-votes | PROBABLE | - |
 | Severance | tv | - | title-only | UNVERIFIED-MISS | - | - | - | - |
 | The Expanse | tv | - | ids | UNVERIFIED-FOUND | expanse | wikidata-P4073-depth0 | CERTAIN | - |
@@ -374,30 +374,22 @@ kaynak: AniList#86848 MAL#111202 Oemo Jisangjuui
 - isim yolu: hepsi RED [('lookism', 0.39, 'REJECT', None, 'main 0/1 any 1/5 native 1', 'anime', 1000), ('questism', 0.0, 'REJECT', 'no-characters', 'main 0/1 any 0/5 native 0', 'comics', 100), ('cooking-for-macaron', 0.0, 'REJECT', 'no-characters', 'main 0/1 any 0/5 native 0', 'tv', 10), ('apm-entertainment', 0.0, 'REJECT', 'no-characters', 'main 0/1 any 0/5 native 0', 'music', 500), ('t-ara-fans', 0.0, 'REJECT', 'no-characters', 'main 0/1 any 0/5 native 0', 'music', 500)]
 - skorlar: [('lookism', 0.39, 'REJECT', None, 'main 0/1 any 1/5 native 1', 'anime', 1000), ('questism', 0.0, 'REJECT', 'no-characters', 'main 0/1 any 0/5 native 0', 'comics', 100), ('cooking-for-macaron', 0.0, 'REJECT', 'no-characters', 'main 0/1 any 0/5 native 0', 'tv', 10), ('apm-entertainment', 0.0, 'REJECT', 'no-characters', 'main 0/1 any 0/5 native 0', 'music', 500), ('t-ara-fans', 0.0, 'REJECT', 'no-characters', 'main 0/1 any 0/5 native 0', 'music', 500), ('taejen', 0.0, 'REJECT', 'no-characters', 'main 0/1 any 0/5 native 0', 'games', 100), ('aikpop', 0.0, 'REJECT', 'no-characters', 'main 0/1 any 0/5 native 0', 'music', 10), ('taeyeon', 0.0, 'REJECT', 'no-characters', 'main 0/1 any 0/5 native 0', 'music', 10)]
 
-### Villains Are Destined to Die [manga/ids] UNVERIFIED-MISS (beklenen: None; bulunan: None)
-kaynak: AniList#118408 MAL#133641 Agyeogui Ending Jugeumppun
-- wikidata: starts=['Q97420049'] p4073={} nodes=[]
+### Bastard [manga/ids] UNVERIFIED-MISS (beklenen: None; bulunan: None)
+kaynak: AniList#170031 MAL#None Mosdwaemeogeun Nom
+- wikidata: kimlikle QID yok
 - karakter oylari: yok
-- topluluk aramasi sorgulari=['Villains Are Destined to Die', 'Agyeogui Ending Jugeumppun', 'Death Is The Only Ending For The Villainess', '악역의 엔딩은 죽음뿐', 'Villains Are Destined to Die Suwol', "The Villain's Ending Is Death"] -> 35 aday: ['villains-are-destined-to-die', 'villains', 'heroes-and-villain', 'i-am-the-fated-villain-novel', 'villain-deaths', 'cthulhu-death-may-die', 'the-new-villains-defeats', 'd-o-d-f', 'ending-maker', 'at-the-end']
-- isim yolu: hepsi RED [('villains-are-destined-to-die', 0.0, 'REJECT', 'no-main-characters', 'main 0/6 any 0/10 native 0', 'anime', 500), ('ftblbv', 0.0, 'REJECT', 'no-main-characters', 'main 0/6 any 0/10 native 0', 'books', 100), ('divine-emperor-of-death-novel', 0.0, 'REJECT', 'no-main-characters', 'main 0/6 any 0/10 native 0', 'books', 1000), ('ending-maker', 0.0, 'REJECT', 'no-main-characters', 'main 0/6 any 0/10 native 0', 'books', 10), ('the-villain-wants-to-live', 0.0, 'REJECT', 'no-main-characters', 'main 0/6 any 0/10 native 0', 'books', 200)]
-- skorlar: [('villains-are-destined-to-die', 0.0, 'REJECT', 'no-main-characters', 'main 0/6 any 0/10 native 0', 'anime', 500), ('ftblbv', 0.0, 'REJECT', 'no-main-characters', 'main 0/6 any 0/10 native 0', 'books', 100), ('divine-emperor-of-death-novel', 0.0, 'REJECT', 'no-main-characters', 'main 0/6 any 0/10 native 0', 'books', 1000), ('ending-maker', 0.0, 'REJECT', 'no-main-characters', 'main 0/6 any 0/10 native 0', 'books', 10), ('the-villain-wants-to-live', 0.0, 'REJECT', 'no-main-characters', 'main 0/6 any 0/10 native 0', 'books', 200), ('ge-goodending', 0.0, 'REJECT', 'no-main-characters', 'main 0/6 any 0/10 native 0', 'comics', 10), ('im-the-villainess-so-im-taming-the-final-boss', 0.0, 'REJECT', 'no-main-characters', 'main 0/6 any 0/10 native 0', 'anime', 200), ('femalevillains', 0.0, 'REJECT', 'no-main-characters', 'main 0/6 any 0/10 native 0', 'tv', 8000)]
+- topluluk aramasi sorgulari=['The Mean Guy', 'Mosdwaemeogeun Nom', 'Bastard', '못돼먹은 놈', '街頭幹架王', 'The Mean Guy Tharchog'] -> 16 aday: ['bastard', 'bastard-webtoon', 'thebastardexecutioner', 'voidbastards-archive', 'voidbastards', 'backwaterbastards', 'the-bstard-son-the-devil-himself', 'sweethomewebtoon', 'bad-guy', 'the-bad-guys']
+- isim yolu: hepsi RED [('bastard', 0.0, 'REJECT', 'no-characters', 'main 0/1 any 0/5 native 0', 'anime', 700), ('bastard-webtoon', 0.0, 'REJECT', 'no-characters', 'main 0/1 any 0/5 native 0', 'anime', 10), ('thebastardexecutioner', 0.0, 'REJECT', 'no-characters', 'main 0/1 any 0/5 native 0', 'tv', 100), ('mightythor', 0.0, 'REJECT', 'no-characters', 'main 0/1 any 0/5 native 0', 'comics', 20000), ('sweethomewebtoon', 0.0, 'REJECT', 'no-characters', 'main 0/1 any 0/5 native 0', 'anime', 200)]
+- skorlar: [('bastard', 0.0, 'REJECT', 'no-characters', 'main 0/1 any 0/5 native 0', 'anime', 700), ('bastard-webtoon', 0.0, 'REJECT', 'no-characters', 'main 0/1 any 0/5 native 0', 'anime', 10), ('thebastardexecutioner', 0.0, 'REJECT', 'no-characters', 'main 0/1 any 0/5 native 0', 'tv', 100), ('mightythor', 0.0, 'REJECT', 'no-characters', 'main 0/1 any 0/5 native 0', 'comics', 20000), ('sweethomewebtoon', 0.0, 'REJECT', 'no-characters', 'main 0/1 any 0/5 native 0', 'anime', 200), ('the-bad-guys', 0.0, 'REJECT', 'no-characters', 'main 0/1 any 0/5 native 0', 'books', 100), ('the-good-guys-and-bad-guys', 0.0, 'REJECT', 'no-characters', 'main 0/1 any 0/5 native 0', 'books', 10), ('legends-of-thezmarr', 0.0, 'REJECT', 'no-characters', 'main 0/1 any 0/5 native 0', 'books', 10)]
 
-### Villains Are Destined to Die [manga/title-only] UNVERIFIED-MISS (beklenen: None; bulunan: None)
-kaynak: AniList#118408 MAL#133641 Agyeogui Ending Jugeumppun
-- baslik->AniList#118408 kopru
-- wikidata: starts=['Q97420049'] p4073={} nodes=[]
+### Bastard [manga/title-only] UNVERIFIED-MISS (beklenen: None; bulunan: None)
+kaynak: AniList#170031 MAL#None Mosdwaemeogeun Nom
+- baslik->AniList#170031 kopru
+- wikidata: kimlikle QID yok
 - karakter oylari: yok
-- topluluk aramasi sorgulari=['Villains Are Destined to Die', 'Agyeogui Ending Jugeumppun', 'Death Is The Only Ending For The Villainess', '악역의 엔딩은 죽음뿐', 'Villains Are Destined to Die Suwol', "The Villain's Ending Is Death"] -> 35 aday: ['villains-are-destined-to-die', 'villains', 'heroes-and-villain', 'i-am-the-fated-villain-novel', 'villain-deaths', 'cthulhu-death-may-die', 'the-new-villains-defeats', 'd-o-d-f', 'ending-maker', 'at-the-end']
-- isim yolu: hepsi RED [('villains-are-destined-to-die', 0.0, 'REJECT', 'no-main-characters', 'main 0/6 any 0/10 native 0', 'anime', 500), ('ftblbv', 0.0, 'REJECT', 'no-main-characters', 'main 0/6 any 0/10 native 0', 'books', 100), ('divine-emperor-of-death-novel', 0.0, 'REJECT', 'no-main-characters', 'main 0/6 any 0/10 native 0', 'books', 1000), ('ending-maker', 0.0, 'REJECT', 'no-main-characters', 'main 0/6 any 0/10 native 0', 'books', 10), ('the-villain-wants-to-live', 0.0, 'REJECT', 'no-main-characters', 'main 0/6 any 0/10 native 0', 'books', 200)]
-- skorlar: [('villains-are-destined-to-die', 0.0, 'REJECT', 'no-main-characters', 'main 0/6 any 0/10 native 0', 'anime', 500), ('ftblbv', 0.0, 'REJECT', 'no-main-characters', 'main 0/6 any 0/10 native 0', 'books', 100), ('divine-emperor-of-death-novel', 0.0, 'REJECT', 'no-main-characters', 'main 0/6 any 0/10 native 0', 'books', 1000), ('ending-maker', 0.0, 'REJECT', 'no-main-characters', 'main 0/6 any 0/10 native 0', 'books', 10), ('the-villain-wants-to-live', 0.0, 'REJECT', 'no-main-characters', 'main 0/6 any 0/10 native 0', 'books', 200), ('ge-goodending', 0.0, 'REJECT', 'no-main-characters', 'main 0/6 any 0/10 native 0', 'comics', 10), ('im-the-villainess-so-im-taming-the-final-boss', 0.0, 'REJECT', 'no-main-characters', 'main 0/6 any 0/10 native 0', 'anime', 200), ('femalevillains', 0.0, 'REJECT', 'no-main-characters', 'main 0/6 any 0/10 native 0', 'tv', 8000)]
-
-### Wind Breaker [manga/ids] UNVERIFIED-MISS (beklenen: None; bulunan: None)
-kaynak: AniList#135083 MAL#133081 WIND BREAKER
-- wikidata: starts=['Q107040899'] p4073={} nodes=[]
-- karakter oylari: yok
-- topluluk aramasi sorgulari=['WIND BREAKER', 'WIND BREAKER—防風少年', 'ウィンドブレイカ', 'วินด์เบรกเกอร์', 'WIND BREAKER Satoru Nii'] -> 9 aday: ['wind-breaker', 'windbreaker', 'windboys', 'demonscrest', 'the-martial-unity', 'raijin', 'windslayer', 'academys-genius-swordmaster', 'onepunchman']
-- isim yolu: hepsi RED [('wind-breaker', 0.0, 'REJECT', 'no-characters', 'main 0/1 any 0/5 native 0', 'comics', 400), ('onepunchman', 0.0, 'REJECT', 'no-characters', 'main 0/1 any 0/5 native 0', 'anime', 1000), ('windbreaker', 0.0, 'REJECT', 'no-characters', 'main 0/1 any 0/5 native 0', 'anime', 100), ('demonscrest', 0.0, 'REJECT', 'no-characters', 'main 0/1 any 0/5 native 0', 'anime', 10), ('the-martial-unity', 0.0, 'REJECT', 'no-characters', 'main 0/1 any 0/5 native 0', 'books', 10)]
-- skorlar: [('wind-breaker', 0.0, 'REJECT', 'no-characters', 'main 0/1 any 0/5 native 0', 'comics', 400), ('onepunchman', 0.0, 'REJECT', 'no-characters', 'main 0/1 any 0/5 native 0', 'anime', 1000), ('windbreaker', 0.0, 'REJECT', 'no-characters', 'main 0/1 any 0/5 native 0', 'anime', 100), ('demonscrest', 0.0, 'REJECT', 'no-characters', 'main 0/1 any 0/5 native 0', 'anime', 10), ('the-martial-unity', 0.0, 'REJECT', 'no-characters', 'main 0/1 any 0/5 native 0', 'books', 10), ('academys-genius-swordmaster', 0.0, 'REJECT', 'no-characters', 'main 0/1 any 0/5 native 0', 'anime', 10), ('windboys', 0.0, 'REJECT', 'no-characters', 'main 0/1 any 0/5 native 0', 'games', 100), ('windslayer', 0.0, 'REJECT', 'no-characters', 'main 0/1 any 0/5 native 0', 'games', 100)]
+- topluluk aramasi sorgulari=['The Mean Guy', 'Mosdwaemeogeun Nom', 'Bastard', '못돼먹은 놈', 'The Mean Guy Tharchog'] -> 16 aday: ['bastard', 'bastard-webtoon', 'thebastardexecutioner', 'voidbastards-archive', 'voidbastards', 'backwaterbastards', 'the-bstard-son-the-devil-himself', 'sweethomewebtoon', 'bad-guy', 'the-bad-guys']
+- isim yolu: hepsi RED [('bastard', 0.0, 'REJECT', 'no-characters', 'main 0/1 any 0/5 native 0', 'anime', 700), ('bastard-webtoon', 0.0, 'REJECT', 'no-characters', 'main 0/1 any 0/5 native 0', 'anime', 10), ('thebastardexecutioner', 0.0, 'REJECT', 'no-characters', 'main 0/1 any 0/5 native 0', 'tv', 100), ('mightythor', 0.0, 'REJECT', 'no-characters', 'main 0/1 any 0/5 native 0', 'comics', 20000), ('sweethomewebtoon', 0.0, 'REJECT', 'no-characters', 'main 0/1 any 0/5 native 0', 'anime', 200)]
+- skorlar: [('bastard', 0.0, 'REJECT', 'no-characters', 'main 0/1 any 0/5 native 0', 'anime', 700), ('bastard-webtoon', 0.0, 'REJECT', 'no-characters', 'main 0/1 any 0/5 native 0', 'anime', 10), ('thebastardexecutioner', 0.0, 'REJECT', 'no-characters', 'main 0/1 any 0/5 native 0', 'tv', 100), ('mightythor', 0.0, 'REJECT', 'no-characters', 'main 0/1 any 0/5 native 0', 'comics', 20000), ('sweethomewebtoon', 0.0, 'REJECT', 'no-characters', 'main 0/1 any 0/5 native 0', 'anime', 200), ('the-bad-guys', 0.0, 'REJECT', 'no-characters', 'main 0/1 any 0/5 native 0', 'books', 100), ('the-good-guys-and-bad-guys', 0.0, 'REJECT', 'no-characters', 'main 0/1 any 0/5 native 0', 'books', 10), ('legends-of-thezmarr', 0.0, 'REJECT', 'no-characters', 'main 0/1 any 0/5 native 0', 'books', 10)]
 
 ### Wind Breaker [manga/title-only] UNVERIFIED-MISS (beklenen: None; bulunan: None)
 kaynak: AniList#135083 MAL#133081 WIND BREAKER
@@ -405,171 +397,17 @@ kaynak: AniList#135083 MAL#133081 WIND BREAKER
 - wikidata: starts=['Q122227187'] p4073={} nodes=[]
 - karakter oylari: yok
 - topluluk aramasi sorgulari=['Wind Breaker', 'ปั่นสู้ฝัน Wind Breaker', '윈드브레이커', 'Wind Breaker Yong-Seok Jo'] -> 11 aday: ['wind-breaker', 'windbreaker', 'wind-blow', 'windboys', 'tales-of-wind-official', 'second-wind', 'transformers-heroes-world-and-fantasy-wind', 'kazetsuyo', 'ynb-world', 'death-wish-dues']
-- isim yolu: hepsi RED [('wind-breaker', 0.0, 'REJECT', 'no-main-characters', 'main 0/5 any 0/9 native 0', 'comics', 400), ('ynb-world', 0.0, 'REJECT', 'no-main-characters', 'main 0/5 any 0/9 native 0', 'comics', 200), ('windbreaker', 0.0, 'REJECT', 'no-main-characters', 'main 0/5 any 0/9 native 0', 'anime', 100), ('death-wish-dues', 0.0, 'REJECT', 'no-main-characters', 'main 0/5 any 0/9 native 0', 'books', 100), ('kazetsuyo', 0.0, 'REJECT', 'no-main-characters', 'main 0/5 any 0/9 native 0', 'tv', 10)]
-- skorlar: [('wind-breaker', 0.0, 'REJECT', 'no-main-characters', 'main 0/5 any 0/9 native 0', 'comics', 400), ('ynb-world', 0.0, 'REJECT', 'no-main-characters', 'main 0/5 any 0/9 native 0', 'comics', 200), ('windbreaker', 0.0, 'REJECT', 'no-main-characters', 'main 0/5 any 0/9 native 0', 'anime', 100), ('death-wish-dues', 0.0, 'REJECT', 'no-main-characters', 'main 0/5 any 0/9 native 0', 'books', 100), ('kazetsuyo', 0.0, 'REJECT', 'no-main-characters', 'main 0/5 any 0/9 native 0', 'tv', 10), ('windboys', 0.0, 'REJECT', 'no-main-characters', 'main 0/5 any 0/9 native 0', 'games', 100), ('second-wind', 0.0, 'REJECT', 'no-main-characters', 'main 0/5 any 0/9 native 0', 'games', 100), ('wind-blow', 0.0, 'REJECT', 'no-main-characters', 'main 0/5 any 0/9 native 0', 'games', 10)]
+- isim yolu: hepsi RED [('wind-breaker', 0.0, 'REJECT', 'no-main-characters', 'main 0/5 any 0/9 native 0', 'comics', 400), ('ynb-world', 0.0, 'REJECT', 'no-main-characters', 'main 0/5 any 0/9 native 0', 'comics', 200), ('windbreaker', 0.57, 'REJECT', None, 'main 3/5 any 6/9 native 5', 'anime', 100), ('death-wish-dues', 0.0, 'REJECT', 'no-main-characters', 'main 0/5 any 0/9 native 0', 'books', 100), ('kazetsuyo', 0.0, 'REJECT', 'no-main-characters', 'main 0/5 any 0/9 native 0', 'tv', 10)]
+- skorlar: [('wind-breaker', 0.0, 'REJECT', 'no-main-characters', 'main 0/5 any 0/9 native 0', 'comics', 400), ('ynb-world', 0.0, 'REJECT', 'no-main-characters', 'main 0/5 any 0/9 native 0', 'comics', 200), ('windbreaker', 0.57, 'REJECT', None, 'main 3/5 any 6/9 native 5', 'anime', 100), ('death-wish-dues', 0.0, 'REJECT', 'no-main-characters', 'main 0/5 any 0/9 native 0', 'books', 100), ('kazetsuyo', 0.0, 'REJECT', 'no-main-characters', 'main 0/5 any 0/9 native 0', 'tv', 10), ('windboys', 0.0, 'REJECT', 'no-main-characters', 'main 0/5 any 0/9 native 0', 'games', 100), ('second-wind', 0.0, 'REJECT', 'no-main-characters', 'main 0/5 any 0/9 native 0', 'games', 100), ('wind-blow', 0.0, 'REJECT', 'no-main-characters', 'main 0/5 any 0/9 native 0', 'games', 10)]
 
-### Weak Hero [manga/ids] UNVERIFIED-MISS (beklenen: None; bulunan: None)
-kaynak: AniList#113488 MAL#128231 Yakanyeongung
-- wikidata: kimlikle QID yok
-- karakter oylari: yok
-- topluluk aramasi sorgulari=['Weak Hero', 'Yakanyeongung', 'Weak Hero: Un héroe débil', '약한영웅', 'WEAK HERO นักเรียนดีเดือด', 'Weak Hero Seopass', 'Un héroe débil'] -> 18 aday: ['weakhero', 'andromeda', 'hero', 'heroes-and-villain', 'lesserknown-heroes-and-villains', 'villains', 'heroes', 'unpublished-heroes', 'heroes-of-thedas', 'my-hero-academia-fanon']
-- isim yolu: hepsi RED [('weakhero', 0.0, 'REJECT', 'no-main-characters', 'main 0/4 any 0/8 native 0', 'comics', 500), ('myheroacademia', 0.0, 'REJECT', 'no-main-characters', 'main 0/4 any 0/8 native 0', 'anime', 3000), ('no-hero', 0.0, 'REJECT', 'no-main-characters', 'main 0/4 any 0/8 native 0', 'anime', 100), ('the-hero', 0.0, 'REJECT', 'no-main-characters', 'main 0/4 any 0/8 native 0', 'movies', 10), ('hero-high', 0.0, 'REJECT', 'no-main-characters', 'main 0/4 any 0/8 native 0', 'tv', 100)]
-- skorlar: [('weakhero', 0.0, 'REJECT', 'no-main-characters', 'main 0/4 any 0/8 native 0', 'comics', 500), ('myheroacademia', 0.0, 'REJECT', 'no-main-characters', 'main 0/4 any 0/8 native 0', 'anime', 3000), ('no-hero', 0.0, 'REJECT', 'no-main-characters', 'main 0/4 any 0/8 native 0', 'anime', 100), ('the-hero', 0.0, 'REJECT', 'no-main-characters', 'main 0/4 any 0/8 native 0', 'movies', 10), ('hero-high', 0.0, 'REJECT', 'no-main-characters', 'main 0/4 any 0/8 native 0', 'tv', 100), ('heroes-and-villain', 0.0, 'REJECT', 'no-main-characters', 'main 0/4 any 0/8 native 0', 'movies', 10000), ('andromeda', 0.0, 'REJECT', 'no-main-characters', 'main 0/4 any 0/8 native 0', 'tv', 1000), ('fed-hero-warfare', 0.0, 'REJECT', 'no-main-characters', 'main 0/4 any 0/8 native 0', 'games', 100)]
-
-### Weak Hero [manga/title-only] UNVERIFIED-MISS (beklenen: None; bulunan: None)
-kaynak: AniList#113488 MAL#128231 Yakanyeongung
-- baslik->AniList#113488 kopru
-- wikidata: kimlikle QID yok
-- karakter oylari: yok
-- topluluk aramasi sorgulari=['Weak Hero', 'Yakanyeongung', 'Weak Hero: Un héroe débil', '약한영웅', 'Weak Hero Seopass', 'Un héroe débil'] -> 14 aday: ['weakhero', 'andromeda', 'hero', 'heroes-and-villain', 'lesserknown-heroes-and-villains', 'villains', 'heroes', 'unpublished-heroes', 'heroes-of-thedas', 'the-hero']
-- isim yolu: hepsi RED [('weakhero', 0.0, 'REJECT', 'no-main-characters', 'main 0/4 any 0/8 native 0', 'comics', 500), ('no-hero', 0.0, 'REJECT', 'no-main-characters', 'main 0/4 any 0/8 native 0', 'anime', 100), ('the-hero', 0.0, 'REJECT', 'no-main-characters', 'main 0/4 any 0/8 native 0', 'movies', 10), ('heroes-and-villain', 0.0, 'REJECT', 'no-main-characters', 'main 0/4 any 0/8 native 0', 'movies', 10000), ('andromeda', 0.0, 'REJECT', 'no-main-characters', 'main 0/4 any 0/8 native 0', 'tv', 1000)]
-- skorlar: [('weakhero', 0.0, 'REJECT', 'no-main-characters', 'main 0/4 any 0/8 native 0', 'comics', 500), ('no-hero', 0.0, 'REJECT', 'no-main-characters', 'main 0/4 any 0/8 native 0', 'anime', 100), ('the-hero', 0.0, 'REJECT', 'no-main-characters', 'main 0/4 any 0/8 native 0', 'movies', 10), ('heroes-and-villain', 0.0, 'REJECT', 'no-main-characters', 'main 0/4 any 0/8 native 0', 'movies', 10000), ('andromeda', 0.0, 'REJECT', 'no-main-characters', 'main 0/4 any 0/8 native 0', 'tv', 1000), ('evil-hero', 0.0, 'REJECT', 'no-main-characters', 'main 0/4 any 0/8 native 0', 'lifestyle', 10), ('shining-universe-hero-parody', 0.0, 'REJECT', 'no-main-characters', 'main 0/4 any 0/8 native 0', 'lifestyle', 10), ('heroes-of-thedas', 0.0, 'REJECT', 'no-main-characters', 'main 0/4 any 0/8 native 0', 'games', 10)]
-
-### Soul Land [manga/ids] UNVERIFIED-MISS (beklenen: None; bulunan: None)
-kaynak: AniList#85446 MAL#72303 Douluo Dalu
-- wikidata: kimlikle QID yok
-- karakter oylari: yok
-- topluluk aramasi sorgulari=['Soul Land', 'Douluo Dalu', 'Lands of Battle', '斗罗大陆', 'Soul Land Fengchun Mu', 'Combat Continent'] -> 16 aday: ['soulland', 'genesis-horizon', 'legacyofkain', 'battle-on-serene-land', 'disciples', 'despicableme', 'kinalite-kingdom-offical', 'the-luminous-grove-roleplay', 'divine-soul-emperor', 'martial-arts-sect-to-immortal-cultivation-sect']
-- isim yolu: hepsi RED [('soulland', 0.0, 'REJECT', 'no-main-characters', 'main 0/6 any 0/8 native 0', 'anime', 4000), ('lost-soul', 0.0, 'REJECT', 'no-main-characters', 'main 0/6 any 0/8 native 0', 'tv', 100), ('onepunchman', 0.0, 'REJECT', 'no-main-characters', 'main 0/6 any 0/8 native 0', 'anime', 1000), ('genesis-horizon', 0.0, 'REJECT', 'no-main-characters', 'main 0/6 any 0/8 native 0', 'anime', 200), ('battle-on-serene-land', 0.0, 'REJECT', 'no-main-characters', 'main 0/6 any 0/8 native 0', 'tv', 100)]
-- skorlar: [('soulland', 0.0, 'REJECT', 'no-main-characters', 'main 0/6 any 0/8 native 0', 'anime', 4000), ('lost-soul', 0.0, 'REJECT', 'no-main-characters', 'main 0/6 any 0/8 native 0', 'tv', 100), ('onepunchman', 0.0, 'REJECT', 'no-main-characters', 'main 0/6 any 0/8 native 0', 'anime', 1000), ('genesis-horizon', 0.0, 'REJECT', 'no-main-characters', 'main 0/6 any 0/8 native 0', 'anime', 200), ('battle-on-serene-land', 0.0, 'REJECT', 'no-main-characters', 'main 0/6 any 0/8 native 0', 'tv', 100), ('martial-arts-sect-to-immortal-cultivation-sect', 0.0, 'REJECT', 'no-main-characters', 'main 0/6 any 0/8 native 0', 'books', 100), ('soulkingdom', 0.0, 'REJECT', 'no-main-characters', 'main 0/6 any 0/8 native 0', 'games', 700), ('soul-concerts', 0.0, 'REJECT', 'no-main-characters', 'main 0/6 any 0/8 native 0', 'music', 900)]
-
-### Soul Land [manga/title-only] UNVERIFIED-MISS (beklenen: None; bulunan: None)
-kaynak: AniList#85446 MAL#72303 Douluo Dalu
-- baslik->AniList#85446 kopru
-- wikidata: kimlikle QID yok
-- karakter oylari: yok
-- topluluk aramasi sorgulari=['Soul Land', 'Douluo Dalu', 'Lands of Battle', '斗罗大陆', 'Soul Land Fengchun Mu', 'Combat Continent'] -> 16 aday: ['soulland', 'genesis-horizon', 'legacyofkain', 'battle-on-serene-land', 'disciples', 'despicableme', 'kinalite-kingdom-offical', 'the-luminous-grove-roleplay', 'divine-soul-emperor', 'martial-arts-sect-to-immortal-cultivation-sect']
-- isim yolu: hepsi RED [('soulland', 0.0, 'REJECT', 'no-main-characters', 'main 0/6 any 0/8 native 0', 'anime', 4000), ('lost-soul', 0.0, 'REJECT', 'no-main-characters', 'main 0/6 any 0/8 native 0', 'tv', 100), ('onepunchman', 0.0, 'REJECT', 'no-main-characters', 'main 0/6 any 0/8 native 0', 'anime', 1000), ('genesis-horizon', 0.0, 'REJECT', 'no-main-characters', 'main 0/6 any 0/8 native 0', 'anime', 200), ('battle-on-serene-land', 0.0, 'REJECT', 'no-main-characters', 'main 0/6 any 0/8 native 0', 'tv', 100)]
-- skorlar: [('soulland', 0.0, 'REJECT', 'no-main-characters', 'main 0/6 any 0/8 native 0', 'anime', 4000), ('lost-soul', 0.0, 'REJECT', 'no-main-characters', 'main 0/6 any 0/8 native 0', 'tv', 100), ('onepunchman', 0.0, 'REJECT', 'no-main-characters', 'main 0/6 any 0/8 native 0', 'anime', 1000), ('genesis-horizon', 0.0, 'REJECT', 'no-main-characters', 'main 0/6 any 0/8 native 0', 'anime', 200), ('battle-on-serene-land', 0.0, 'REJECT', 'no-main-characters', 'main 0/6 any 0/8 native 0', 'tv', 100), ('martial-arts-sect-to-immortal-cultivation-sect', 0.0, 'REJECT', 'no-main-characters', 'main 0/6 any 0/8 native 0', 'books', 100), ('soulkingdom', 0.0, 'REJECT', 'no-main-characters', 'main 0/6 any 0/8 native 0', 'games', 700), ('soul-concerts', 0.0, 'REJECT', 'no-main-characters', 'main 0/6 any 0/8 native 0', 'music', 900)]
-
-### Battle Through the Heavens [manga/ids] UNVERIFIED-MISS (beklenen: None; bulunan: None)
-kaynak: AniList#85453 MAL#79193 Dou Po Cangqiong
-- wikidata: kimlikle QID yok
-- karakter oylari: yok
-- topluluk aramasi sorgulari=['Battle Through the Heavens', 'Dou Po Cangqiong', 'Fight Break Sphere', '斗破蒼穹', 'Battle Through the Heavens Tian Can Tudou', 'Dou Po Cang Qiong'] -> 28 aday: ['battle-through-the-heavens', 'across-the-heavens', 'the-heavens', 'vsbattles', 'everything-starts-from-breaking-through-the-sky', 'battle-for-the-earth', 'battle-spirits', 'war-sovereign-soaring-the-heavens', 'my-female-apprentices-are-all-future-big-shots', 'doulongzhanshi']
-- isim yolu: hepsi RED [('battle-through-the-heavens', 0.0, 'REJECT', 'no-characters', 'main 0/1 any 0/5 native 0', 'anime', 2000), ('war-sovereign-soaring-the-heavens', 0.0, 'REJECT', 'no-characters', 'main 0/1 any 0/5 native 0', 'anime', 1000), ('ni-tian-xie-shen-against-the-gods', 0.0, 'REJECT', 'no-characters', 'main 0/1 any 0/5 native 0', 'anime', 1000), ('legend-of-ling-tian-en', 0.0, 'REJECT', 'no-characters', 'main 0/1 any 0/5 native 0', 'anime', 300), ('my-female-apprentices-are-all-future-big-shots', 0.0, 'REJECT', 'no-characters', 'main 0/1 any 0/5 native 0', 'comics', 200)]
-- skorlar: [('battle-through-the-heavens', 0.0, 'REJECT', 'no-characters', 'main 0/1 any 0/5 native 0', 'anime', 2000), ('war-sovereign-soaring-the-heavens', 0.0, 'REJECT', 'no-characters', 'main 0/1 any 0/5 native 0', 'anime', 1000), ('ni-tian-xie-shen-against-the-gods', 0.0, 'REJECT', 'no-characters', 'main 0/1 any 0/5 native 0', 'anime', 1000), ('legend-of-ling-tian-en', 0.0, 'REJECT', 'no-characters', 'main 0/1 any 0/5 native 0', 'anime', 300), ('my-female-apprentices-are-all-future-big-shots', 0.0, 'REJECT', 'no-characters', 'main 0/1 any 0/5 native 0', 'comics', 200), ('against-the-sky-supreme-ni-tian-zhizun', 0.0, 'REJECT', 'no-characters', 'main 0/1 any 0/5 native 0', 'anime', 200), ('battle-for-the-earth', 0.0, 'REJECT', 'no-characters', 'main 0/1 any 0/5 native 0', 'tv', 100), ('builang', 0.0, 'REJECT', 'no-characters', 'main 0/1 any 0/5 native 0', 'books', 100)]
-
-### Battle Through the Heavens [manga/title-only] UNVERIFIED-MISS (beklenen: None; bulunan: None)
-kaynak: AniList#85453 MAL#79193 Dou Po Cangqiong
-- baslik->AniList#85453 kopru
-- wikidata: kimlikle QID yok
-- karakter oylari: yok
-- topluluk aramasi sorgulari=['Battle Through the Heavens', 'Dou Po Cangqiong', 'Fight Break Sphere', '斗破蒼穹', 'Battle Through the Heavens Tian Can Tudou', 'Dou Po Cang Qiong'] -> 28 aday: ['battle-through-the-heavens', 'across-the-heavens', 'the-heavens', 'vsbattles', 'everything-starts-from-breaking-through-the-sky', 'battle-for-the-earth', 'battle-spirits', 'war-sovereign-soaring-the-heavens', 'my-female-apprentices-are-all-future-big-shots', 'doulongzhanshi']
-- isim yolu: hepsi RED [('battle-through-the-heavens', 0.0, 'REJECT', 'no-characters', 'main 0/1 any 0/5 native 0', 'anime', 2000), ('war-sovereign-soaring-the-heavens', 0.0, 'REJECT', 'no-characters', 'main 0/1 any 0/5 native 0', 'anime', 1000), ('ni-tian-xie-shen-against-the-gods', 0.0, 'REJECT', 'no-characters', 'main 0/1 any 0/5 native 0', 'anime', 1000), ('legend-of-ling-tian-en', 0.0, 'REJECT', 'no-characters', 'main 0/1 any 0/5 native 0', 'anime', 300), ('my-female-apprentices-are-all-future-big-shots', 0.0, 'REJECT', 'no-characters', 'main 0/1 any 0/5 native 0', 'comics', 200)]
-- skorlar: [('battle-through-the-heavens', 0.0, 'REJECT', 'no-characters', 'main 0/1 any 0/5 native 0', 'anime', 2000), ('war-sovereign-soaring-the-heavens', 0.0, 'REJECT', 'no-characters', 'main 0/1 any 0/5 native 0', 'anime', 1000), ('ni-tian-xie-shen-against-the-gods', 0.0, 'REJECT', 'no-characters', 'main 0/1 any 0/5 native 0', 'anime', 1000), ('legend-of-ling-tian-en', 0.0, 'REJECT', 'no-characters', 'main 0/1 any 0/5 native 0', 'anime', 300), ('my-female-apprentices-are-all-future-big-shots', 0.0, 'REJECT', 'no-characters', 'main 0/1 any 0/5 native 0', 'comics', 200), ('against-the-sky-supreme-ni-tian-zhizun', 0.0, 'REJECT', 'no-characters', 'main 0/1 any 0/5 native 0', 'anime', 200), ('battle-for-the-earth', 0.0, 'REJECT', 'no-characters', 'main 0/1 any 0/5 native 0', 'tv', 100), ('builang', 0.0, 'REJECT', 'no-characters', 'main 0/1 any 0/5 native 0', 'books', 100)]
-
-### Martial Peak [manga/ids] UNVERIFIED-MISS (beklenen: None; bulunan: None)
-kaynak: AniList#104494 MAL#None Wu Lian Dianfeng
-- wikidata: starts=['Q113143207'] p4073={} nodes=[]
-- karakter oylari: yok
-- topluluk aramasi sorgulari=['Martial Peak', 'Wu Lian Dianfeng', 'The Pinnacle of Martial Arts', '武炼巅峰', '무련전봉', '武錬天下', 'Martial Peak PIKAPI'] -> 18 aday: ['martialpeak', 'martial-peak-mp', 'martial-peak-world', 'martial-arts-sect-to-immortal-cultivation-sect', 'permanent-martial-arts', 'my-female-apprentices-are-all-future-big-shots', 'martial-arts-master', 'complete-martial-arts-attributes', 'kuatixiduibi', 'eternal-life-begins-with-taking-a-wife']
-- isim yolu: hepsi RED [('martialpeak', 0.0, 'REJECT', 'no-characters', 'main 0/1 any 0/5 native 0', 'anime', 100), ('martial-peak-mp', 0.0, 'REJECT', 'no-characters', 'main 0/1 any 0/5 native 0', 'anime', 1000), ('martial-arts-master', 0.0, 'REJECT', 'no-characters', 'main 0/1 any 0/5 native 0', 'books', 1000), ('martial-world', 0.0, 'REJECT', 'no-characters', 'main 0/1 any 0/5 native 0', 'anime', 1000), ('martial-master', 0.0, 'REJECT', 'no-characters', 'main 0/1 any 0/5 native 0', 'books', 600)]
-- skorlar: [('martialpeak', 0.0, 'REJECT', 'no-characters', 'main 0/1 any 0/5 native 0', 'anime', 100), ('martial-peak-mp', 0.0, 'REJECT', 'no-characters', 'main 0/1 any 0/5 native 0', 'anime', 1000), ('martial-arts-master', 0.0, 'REJECT', 'no-characters', 'main 0/1 any 0/5 native 0', 'books', 1000), ('martial-world', 0.0, 'REJECT', 'no-characters', 'main 0/1 any 0/5 native 0', 'anime', 1000), ('martial-master', 0.0, 'REJECT', 'no-characters', 'main 0/1 any 0/5 native 0', 'books', 600), ('martialartskids', 0.0, 'REJECT', 'no-characters', 'main 0/1 any 0/5 native 0', 'tv', 10000), ('martial-god', 0.0, 'REJECT', 'no-characters', 'main 0/1 any 0/5 native 0', 'books', 10), ('worlds-best-martial-artist', 0.0, 'REJECT', 'no-characters', 'main 0/1 any 0/5 native 0', 'books', 200)]
-
-### Martial Peak [manga/title-only] UNVERIFIED-MISS (beklenen: None; bulunan: None)
-kaynak: AniList#104494 MAL#None Wu Lian Dianfeng
-- baslik->AniList#104494 kopru
-- wikidata: starts=['Q113143207'] p4073={} nodes=[]
-- karakter oylari: yok
-- topluluk aramasi sorgulari=['Martial Peak', 'Wu Lian Dianfeng', 'The Pinnacle of Martial Arts', '武炼巅峰', 'Martial Peak PIKAPI'] -> 18 aday: ['martialpeak', 'martial-peak-mp', 'martial-peak-world', 'martial-arts-sect-to-immortal-cultivation-sect', 'permanent-martial-arts', 'my-female-apprentices-are-all-future-big-shots', 'martial-arts-master', 'complete-martial-arts-attributes', 'kuatixiduibi', 'eternal-life-begins-with-taking-a-wife']
-- isim yolu: hepsi RED [('martialpeak', 0.0, 'REJECT', 'no-characters', 'main 0/1 any 0/5 native 0', 'anime', 100), ('martial-peak-mp', 0.0, 'REJECT', 'no-characters', 'main 0/1 any 0/5 native 0', 'anime', 1000), ('martial-arts-master', 0.0, 'REJECT', 'no-characters', 'main 0/1 any 0/5 native 0', 'books', 1000), ('martial-world', 0.0, 'REJECT', 'no-characters', 'main 0/1 any 0/5 native 0', 'anime', 1000), ('martial-master', 0.0, 'REJECT', 'no-characters', 'main 0/1 any 0/5 native 0', 'books', 600)]
-- skorlar: [('martialpeak', 0.0, 'REJECT', 'no-characters', 'main 0/1 any 0/5 native 0', 'anime', 100), ('martial-peak-mp', 0.0, 'REJECT', 'no-characters', 'main 0/1 any 0/5 native 0', 'anime', 1000), ('martial-arts-master', 0.0, 'REJECT', 'no-characters', 'main 0/1 any 0/5 native 0', 'books', 1000), ('martial-world', 0.0, 'REJECT', 'no-characters', 'main 0/1 any 0/5 native 0', 'anime', 1000), ('martial-master', 0.0, 'REJECT', 'no-characters', 'main 0/1 any 0/5 native 0', 'books', 600), ('martialartskids', 0.0, 'REJECT', 'no-characters', 'main 0/1 any 0/5 native 0', 'tv', 10000), ('martial-god', 0.0, 'REJECT', 'no-characters', 'main 0/1 any 0/5 native 0', 'books', 10), ('worlds-best-martial-artist', 0.0, 'REJECT', 'no-characters', 'main 0/1 any 0/5 native 0', 'books', 200)]
-
-### Bakuman. [manga/ids] UNVERIFIED-MISS (beklenen: None; bulunan: None)
-kaynak: AniList#39711 MAL#9711 Bakuman.
-- wikidata: starts=['Q804555'] p4073={} nodes=['Q29881026']
-- karakter oylari: {'bakuman': 1}
-- topluluk aramasi sorgulari=['Bakuman。', 'バクマン。', 'Бакуман', '바쿠만', 'Bakuman。 Tsugumi Ooba', '爆漫王'] -> 8 aday: ['bakuman', 'bakuman-fanon', 'platinumend', 'branson-universe', 'tadaimaokaeri', 'manga', 'renai-daikou', 'lobotomycorpo-1107']
-- isim yolu: hepsi RED [('bakuman', 0.0, 'REJECT', 'no-main-characters', 'main 0/2 any 0/6 native 0', 'anime', 400), ('platinumend', 0.0, 'REJECT', 'no-main-characters', 'main 0/2 any 0/6 native 0', 'anime', 300), ('branson-universe', 0.0, 'REJECT', 'no-main-characters', 'main 0/2 any 0/6 native 0', 'tv', 10000), ('tadaimaokaeri', 0.0, 'REJECT', 'no-main-characters', 'main 0/2 any 0/6 native 0', 'anime', 10), ('renai-daikou', 0.0, 'REJECT', 'no-main-characters', 'main 0/2 any 0/6 native 0', 'anime', 10)]
-- skorlar: [('bakuman', 0.0, 'REJECT', 'no-main-characters', 'main 0/2 any 0/6 native 0', 'anime', 400), ('platinumend', 0.0, 'REJECT', 'no-main-characters', 'main 0/2 any 0/6 native 0', 'anime', 300), ('branson-universe', 0.0, 'REJECT', 'no-main-characters', 'main 0/2 any 0/6 native 0', 'tv', 10000), ('tadaimaokaeri', 0.0, 'REJECT', 'no-main-characters', 'main 0/2 any 0/6 native 0', 'anime', 10), ('renai-daikou', 0.0, 'REJECT', 'no-main-characters', 'main 0/2 any 0/6 native 0', 'anime', 10), ('lobotomycorpo-1107', 0.0, 'REJECT', 'no-main-characters', 'main 0/2 any 0/6 native 0', 'games', 10)]
-
-### Bakuman. [manga/title-only] UNVERIFIED-MISS (beklenen: None; bulunan: None)
-kaynak: AniList#39711 MAL#9711 Bakuman.
-- baslik->AniList#39711 kopru
-- wikidata: starts=['Q804555'] p4073={} nodes=['Q29881026']
-- karakter oylari: {'bakuman': 1}
-- topluluk aramasi sorgulari=['Bakuman。', 'バクマン。', 'Bakuman。 Tsugumi Ooba'] -> 8 aday: ['bakuman', 'bakuman-fanon', 'platinumend', 'branson-universe', 'tadaimaokaeri', 'manga', 'renai-daikou', 'lobotomycorpo-1107']
-- isim yolu: hepsi RED [('bakuman', 0.0, 'REJECT', 'no-main-characters', 'main 0/2 any 0/6 native 0', 'anime', 400), ('platinumend', 0.0, 'REJECT', 'no-main-characters', 'main 0/2 any 0/6 native 0', 'anime', 300), ('branson-universe', 0.0, 'REJECT', 'no-main-characters', 'main 0/2 any 0/6 native 0', 'tv', 10000), ('tadaimaokaeri', 0.0, 'REJECT', 'no-main-characters', 'main 0/2 any 0/6 native 0', 'anime', 10), ('renai-daikou', 0.0, 'REJECT', 'no-main-characters', 'main 0/2 any 0/6 native 0', 'anime', 10)]
-- skorlar: [('bakuman', 0.0, 'REJECT', 'no-main-characters', 'main 0/2 any 0/6 native 0', 'anime', 400), ('platinumend', 0.0, 'REJECT', 'no-main-characters', 'main 0/2 any 0/6 native 0', 'anime', 300), ('branson-universe', 0.0, 'REJECT', 'no-main-characters', 'main 0/2 any 0/6 native 0', 'tv', 10000), ('tadaimaokaeri', 0.0, 'REJECT', 'no-main-characters', 'main 0/2 any 0/6 native 0', 'anime', 10), ('renai-daikou', 0.0, 'REJECT', 'no-main-characters', 'main 0/2 any 0/6 native 0', 'anime', 10), ('lobotomycorpo-1107', 0.0, 'REJECT', 'no-main-characters', 'main 0/2 any 0/6 native 0', 'games', 10)]
-
-### Log Horizon [ln/ids] UNVERIFIED-MISS (beklenen: None; bulunan: None)
-kaynak: AniList#76024 MAL#46024 Log Horizon
-- wikidata: starts=['Q1195326'] p4073={} nodes=[]
-- karakter oylari: {'log-horizon': 1}
-- topluluk aramasi sorgulari=['Log Horizon', 'ログ・ホライズン', 'Log Horizon Mamare Touno'] -> 8 aday: ['log-horizon', 'loghorizonfanon', 'genesis-horizon', 'sound-horizon', 'horizon-game', 'horizon', 'horizon-ocs', 'zeronotsukaima']
-- isim yolu: hepsi RED [('log-horizon', 0.0, 'REJECT', 'no-main-characters', 'main 0/4 any 0/8 native 0', 'anime', 800), ('genesis-horizon', 0.0, 'REJECT', 'no-main-characters', 'main 0/4 any 0/8 native 0', 'anime', 200), ('horizon', 0.0, 'REJECT', 'no-main-characters', 'main 0/4 any 0/8 native 0', 'games', 3000), ('horizon-game', 0.0, 'REJECT', 'no-main-characters', 'main 0/4 any 0/8 native 0', 'games', 100), ('zeronotsukaima', 0.0, 'REJECT', 'no-main-characters', 'main 0/4 any 0/8 native 0', 'anime', 400)]
-- skorlar: [('log-horizon', 0.0, 'REJECT', 'no-main-characters', 'main 0/4 any 0/8 native 0', 'anime', 800), ('genesis-horizon', 0.0, 'REJECT', 'no-main-characters', 'main 0/4 any 0/8 native 0', 'anime', 200), ('horizon', 0.0, 'REJECT', 'no-main-characters', 'main 0/4 any 0/8 native 0', 'games', 3000), ('horizon-game', 0.0, 'REJECT', 'no-main-characters', 'main 0/4 any 0/8 native 0', 'games', 100), ('zeronotsukaima', 0.0, 'REJECT', 'no-main-characters', 'main 0/4 any 0/8 native 0', 'anime', 400), ('horizon-ocs', 0.0, 'REJECT', 'no-main-characters', 'main 0/4 any 0/8 native 0', 'lifestyle', 100), ('sound-horizon', 0.0, 'REJECT', 'no-main-characters', 'main 0/4 any 0/8 native 0', 'music', 10)]
-
-### Breaking Bad [tv/ids] UNVERIFIED-MISS (beklenen: breakingbad; bulunan: None)
-kaynak: Wikidata {'qid': 'Q1079', 'tmdb': 1396, 'imdb': 'tt0903747'}
-- wikidata: starts=['Q1079'] p4073={0: ['breakingbad']} nodes=[]
-- karakter oylari: {'breakingbad': 47}
-- topluluk aramasi sorgulari=['Breaking Bad'] -> 6 aday: ['breakingbad', 'breaking-bad-tycoon-official', 'breaking-bad-roleplay-mspfa', 'onetreehill', 'evergeennova', 'dice-funk']
-- isim yolu: hepsi RED [('breakingbad', 0.25, 'REJECT', None, 'fp-yok', 'tv', 2000), ('onetreehill', 0.1, 'REJECT', None, 'fp-yok', 'tv', 800), ('dice-funk', 0.04, 'REJECT', None, 'fp-yok', 'games', 100), ('evergeennova', 0.03, 'REJECT', None, 'fp-yok', 'lifestyle', 400)]
-- skorlar: [('breakingbad', 0.25, 'REJECT', None, 'fp-yok', 'tv', 2000), ('onetreehill', 0.1, 'REJECT', None, 'fp-yok', 'tv', 800), ('dice-funk', 0.04, 'REJECT', None, 'fp-yok', 'games', 100), ('evergeennova', 0.03, 'REJECT', None, 'fp-yok', 'lifestyle', 400)]
-
-### Breaking Bad [tv/title-only] UNVERIFIED-MISS (beklenen: breakingbad; bulunan: None)
-kaynak: Wikidata {'qid': 'Q1079', 'tmdb': 1396, 'imdb': 'tt0903747'}
-- karakter oylari: yok
-- topluluk aramasi sorgulari=['Breaking Bad'] -> 6 aday: ['breakingbad', 'breaking-bad-tycoon-official', 'breaking-bad-roleplay-mspfa', 'onetreehill', 'evergeennova', 'dice-funk']
-- isim yolu: hepsi RED [('breakingbad', 0.25, 'REJECT', None, 'fp-yok', 'tv', 2000), ('onetreehill', 0.1, 'REJECT', None, 'fp-yok', 'tv', 800), ('dice-funk', 0.04, 'REJECT', None, 'fp-yok', 'games', 100), ('evergeennova', 0.03, 'REJECT', None, 'fp-yok', 'lifestyle', 400)]
-- skorlar: [('breakingbad', 0.25, 'REJECT', None, 'fp-yok', 'tv', 2000), ('onetreehill', 0.1, 'REJECT', None, 'fp-yok', 'tv', 800), ('dice-funk', 0.04, 'REJECT', None, 'fp-yok', 'games', 100), ('evergeennova', 0.03, 'REJECT', None, 'fp-yok', 'lifestyle', 400)]
-
-### Stranger Things [tv/ids] UNVERIFIED-MISS (beklenen: strangerthings; bulunan: None)
-kaynak: Wikidata {'qid': 'Q19798734', 'tmdb': 66732, 'imdb': 'tt4574334'}
-- wikidata: starts=['Q19798734'] p4073={0: ['strangerthings']} nodes=[]
-- karakter oylari: {'strangerthings': 17}
-- topluluk aramasi sorgulari=['Stranger Things'] -> 8 aday: ['strangerthings', 'strangerthingsthegame', 'stranger-things-the-fall-of-hawkins', 'stranger-things-puzzle-tales', 'strangerthingsremake', 'scream-things', 'mikewheeler', 'something-strange']
-- isim yolu: hepsi RED [('strangerthings', 0.25, 'REJECT', None, 'fp-yok', 'tv', 1000), ('scream-things', 0.14, 'REJECT', None, 'fp-yok', 'movies', 500), ('strangerthingsthegame', 0.12, 'REJECT', None, 'fp-yok', 'games', 10), ('stranger-things-the-fall-of-hawkins', 0.13, 'REJECT', None, 'fp-yok', 'tv', 10), ('stranger-things-puzzle-tales', 0.1, 'REJECT', None, 'fp-yok', 'games', 10)]
-- skorlar: [('strangerthings', 0.25, 'REJECT', None, 'fp-yok', 'tv', 1000), ('scream-things', 0.14, 'REJECT', None, 'fp-yok', 'movies', 500), ('strangerthingsthegame', 0.12, 'REJECT', None, 'fp-yok', 'games', 10), ('stranger-things-the-fall-of-hawkins', 0.13, 'REJECT', None, 'fp-yok', 'tv', 10), ('stranger-things-puzzle-tales', 0.1, 'REJECT', None, 'fp-yok', 'games', 10), ('strangerthingsremake', 0.08, 'REJECT', None, 'fp-yok', 'tv', 100), ('mikewheeler', 0.07, 'REJECT', None, 'fp-yok', 'tv', 10), ('something-strange', 0.05, 'REJECT', None, 'fp-yok', 'games', 800)]
-
-### Stranger Things [tv/title-only] UNVERIFIED-MISS (beklenen: strangerthings; bulunan: None)
-kaynak: Wikidata {'qid': 'Q19798734', 'tmdb': 66732, 'imdb': 'tt4574334'}
-- karakter oylari: yok
-- topluluk aramasi sorgulari=['Stranger Things'] -> 8 aday: ['strangerthings', 'strangerthingsthegame', 'stranger-things-the-fall-of-hawkins', 'stranger-things-puzzle-tales', 'strangerthingsremake', 'scream-things', 'mikewheeler', 'something-strange']
-- isim yolu: hepsi RED [('strangerthings', 0.25, 'REJECT', None, 'fp-yok', 'tv', 1000), ('scream-things', 0.14, 'REJECT', None, 'fp-yok', 'movies', 500), ('strangerthingsthegame', 0.12, 'REJECT', None, 'fp-yok', 'games', 10), ('stranger-things-the-fall-of-hawkins', 0.13, 'REJECT', None, 'fp-yok', 'tv', 10), ('stranger-things-puzzle-tales', 0.1, 'REJECT', None, 'fp-yok', 'games', 10)]
-- skorlar: [('strangerthings', 0.25, 'REJECT', None, 'fp-yok', 'tv', 1000), ('scream-things', 0.14, 'REJECT', None, 'fp-yok', 'movies', 500), ('strangerthingsthegame', 0.12, 'REJECT', None, 'fp-yok', 'games', 10), ('stranger-things-the-fall-of-hawkins', 0.13, 'REJECT', None, 'fp-yok', 'tv', 10), ('stranger-things-puzzle-tales', 0.1, 'REJECT', None, 'fp-yok', 'games', 10), ('strangerthingsremake', 0.08, 'REJECT', None, 'fp-yok', 'tv', 100), ('mikewheeler', 0.07, 'REJECT', None, 'fp-yok', 'tv', 10), ('something-strange', 0.05, 'REJECT', None, 'fp-yok', 'games', 800)]
-
-### Game of Thrones [tv/ids] UNVERIFIED-MISS (beklenen: gameofthrones; bulunan: None)
-kaynak: Wikidata {'qid': 'Q23572', 'tmdb': 1399, 'imdb': 'tt0944947'}
-- wikidata: starts=['Q23572'] p4073={0: ['gameofthrones', 'ru.gameofthrones']} nodes=[]
-- karakter oylari: {'gameofthrones': 26, 'iceandfire': 11, 'ru.gameofthrones': 7, 'femalevillains': 1}
-- topluluk aramasi sorgulari=['Game of Thrones'] -> 8 aday: ['gameofthrones', 'gotascent', 'gameofthronesrewritten', 'game-of-thrones-legacy', 'game-of-thrones-legends', 'game-of-thrones-beyond-the-wall', 'game-of-thrones-winter-is-coming-game', 'ttgot']
-- isim yolu: hepsi RED [('gameofthronesrewritten', 0.2, 'REJECT', None, 'fp-yok', 'tv', 300), ('gotascent', 0.17, 'REJECT', None, 'fp-yok', 'games', 10000), ('ttgot', 0.15, 'REJECT', None, 'fp-yok', 'games', 200), ('game-of-thrones-legacy', 0.14, 'REJECT', None, 'fp-yok', 'games', 10), ('game-of-thrones-legends', 0.14, 'REJECT', None, 'fp-yok', 'games', 10)]
-- skorlar: [('gameofthronesrewritten', 0.2, 'REJECT', None, 'fp-yok', 'tv', 300), ('gotascent', 0.17, 'REJECT', None, 'fp-yok', 'games', 10000), ('ttgot', 0.15, 'REJECT', None, 'fp-yok', 'games', 200), ('game-of-thrones-legacy', 0.14, 'REJECT', None, 'fp-yok', 'games', 10), ('game-of-thrones-legends', 0.14, 'REJECT', None, 'fp-yok', 'games', 10), ('gameofthrones', 0.14, 'REJECT', None, 'fp-yok', 'tv', 5000), ('game-of-thrones-beyond-the-wall', 0.12, 'REJECT', None, 'fp-yok', 'games', 100), ('game-of-thrones-winter-is-coming-game', 0.11, 'REJECT', None, 'fp-yok', 'games', 200)]
-
-### Game of Thrones [tv/title-only] UNVERIFIED-MISS (beklenen: gameofthrones; bulunan: None)
+### Game of Thrones [tv/title-only] MISS (beklenen: gameofthrones; bulunan: None)
 kaynak: Wikidata {'qid': 'Q23572', 'tmdb': 1399, 'imdb': 'tt0944947'}
 - karakter oylari: yok
 - topluluk aramasi sorgulari=['Game of Thrones'] -> 8 aday: ['gameofthrones', 'gotascent', 'gameofthronesrewritten', 'game-of-thrones-legacy', 'game-of-thrones-legends', 'game-of-thrones-beyond-the-wall', 'game-of-thrones-winter-is-coming-game', 'ttgot']
 - isim yolu: hepsi RED [('gameofthronesrewritten', 0.2, 'REJECT', None, 'fp-yok', 'tv', 300), ('gotascent', 0.17, 'REJECT', None, 'fp-yok', 'games', 10000), ('ttgot', 0.15, 'REJECT', None, 'fp-yok', 'games', 200), ('game-of-thrones-legacy', 0.14, 'REJECT', None, 'fp-yok', 'games', 10), ('game-of-thrones-legends', 0.14, 'REJECT', None, 'fp-yok', 'games', 10)]
 - skorlar: [('gameofthronesrewritten', 0.2, 'REJECT', None, 'fp-yok', 'tv', 300), ('gotascent', 0.17, 'REJECT', None, 'fp-yok', 'games', 10000), ('ttgot', 0.15, 'REJECT', None, 'fp-yok', 'games', 200), ('game-of-thrones-legacy', 0.14, 'REJECT', None, 'fp-yok', 'games', 10), ('game-of-thrones-legends', 0.14, 'REJECT', None, 'fp-yok', 'games', 10), ('gameofthrones', 0.14, 'REJECT', None, 'fp-yok', 'tv', 5000), ('game-of-thrones-beyond-the-wall', 0.12, 'REJECT', None, 'fp-yok', 'games', 100), ('game-of-thrones-winter-is-coming-game', 0.11, 'REJECT', None, 'fp-yok', 'games', 200)]
 
-### The Walking Dead [tv/ids] UNVERIFIED-MISS (beklenen: walkingdead; bulunan: None)
-kaynak: Wikidata {'qid': 'Q232737', 'tmdb': 1402, 'imdb': 'tt1520211'}
-- wikidata: starts=['Q232737'] p4073={1: ['walkingdead']} nodes=['Q3177580', 'Q340181']
-- karakter oylari: {'walkingdead': 6, 'tekken': 1}
-- topluluk aramasi sorgulari=['The Walking Dead'] -> 8 aday: ['walkingdead', 'the-walking-deadseries', 'thewalkingdeadworldbeyond', 'amcs-the-walking-dead', 'the-walking-dead-tv-series-facts', 'the-walking-dead-live-again', 'the-walking-dead-infected', 'the-walking-dead-new-blood-remake']
-- isim yolu: hepsi RED [('walkingdead', 0.26, 'REJECT', None, 'fp-yok', 'tv', 10000), ('the-walking-deadseries', 0.25, 'REJECT', None, 'fp-yok', 'comics', 400), ('amcs-the-walking-dead', 0.18, 'REJECT', None, 'fp-yok', 'tv', 100), ('the-walking-dead-infected', 0.17, 'REJECT', None, 'fp-yok', 'tv', 10), ('the-walking-dead-new-blood-remake', 0.17, 'REJECT', None, 'fp-yok', 'tv', 800)]
-- skorlar: [('walkingdead', 0.26, 'REJECT', None, 'fp-yok', 'tv', 10000), ('the-walking-deadseries', 0.25, 'REJECT', None, 'fp-yok', 'comics', 400), ('amcs-the-walking-dead', 0.18, 'REJECT', None, 'fp-yok', 'tv', 100), ('the-walking-dead-infected', 0.17, 'REJECT', None, 'fp-yok', 'tv', 10), ('the-walking-dead-new-blood-remake', 0.17, 'REJECT', None, 'fp-yok', 'tv', 800), ('thewalkingdeadworldbeyond', 0.16, 'REJECT', None, 'fp-yok', 'tv', 100), ('the-walking-dead-tv-series-facts', 0.13, 'REJECT', None, 'fp-yok', 'tv', 10), ('the-walking-dead-live-again', 0.09, 'REJECT', None, 'fp-yok', 'lifestyle', 10)]
-
-### The Walking Dead [tv/title-only] UNVERIFIED-MISS (beklenen: walkingdead; bulunan: None)
-kaynak: Wikidata {'qid': 'Q232737', 'tmdb': 1402, 'imdb': 'tt1520211'}
-- karakter oylari: yok
-- topluluk aramasi sorgulari=['The Walking Dead'] -> 8 aday: ['walkingdead', 'the-walking-deadseries', 'thewalkingdeadworldbeyond', 'amcs-the-walking-dead', 'the-walking-dead-tv-series-facts', 'the-walking-dead-live-again', 'the-walking-dead-infected', 'the-walking-dead-new-blood-remake']
-- isim yolu: hepsi RED [('walkingdead', 0.26, 'REJECT', None, 'fp-yok', 'tv', 10000), ('the-walking-deadseries', 0.25, 'REJECT', None, 'fp-yok', 'comics', 400), ('amcs-the-walking-dead', 0.18, 'REJECT', None, 'fp-yok', 'tv', 100), ('the-walking-dead-infected', 0.17, 'REJECT', None, 'fp-yok', 'tv', 10), ('the-walking-dead-new-blood-remake', 0.17, 'REJECT', None, 'fp-yok', 'tv', 800)]
-- skorlar: [('walkingdead', 0.26, 'REJECT', None, 'fp-yok', 'tv', 10000), ('the-walking-deadseries', 0.25, 'REJECT', None, 'fp-yok', 'comics', 400), ('amcs-the-walking-dead', 0.18, 'REJECT', None, 'fp-yok', 'tv', 100), ('the-walking-dead-infected', 0.17, 'REJECT', None, 'fp-yok', 'tv', 10), ('the-walking-dead-new-blood-remake', 0.17, 'REJECT', None, 'fp-yok', 'tv', 800), ('thewalkingdeadworldbeyond', 0.16, 'REJECT', None, 'fp-yok', 'tv', 100), ('the-walking-dead-tv-series-facts', 0.13, 'REJECT', None, 'fp-yok', 'tv', 10), ('the-walking-dead-live-again', 0.09, 'REJECT', None, 'fp-yok', 'lifestyle', 10)]
-
-### Supernatural [tv/ids] UNVERIFIED-MISS (beklenen: supernatural; bulunan: None)
-kaynak: Wikidata {'qid': 'Q130585', 'tmdb': 1622, 'imdb': 'tt0460681'}
-- wikidata: starts=['Q130585'] p4073={0: ['supernatural']} nodes=[]
-- karakter oylari: {'supernatural': 2}
-- topluluk aramasi sorgulari=['Supernatural'] -> 8 aday: ['supernatural', 'the-supernatural-saga', 'supernatural-the-kripke-show', 'chronicles-of-the-supernatural', 'supernatural-next-generation', 'supernatural-characters', 'science-and-the-supernatural', 'school-of-the-supernatural']
-- isim yolu: hepsi RED [('supernatural', 0.26, 'REJECT', None, 'fp-yok', 'tv', 5000), ('supernatural-the-kripke-show', 0.14, 'REJECT', None, 'fp-yok', 'tv', 200), ('supernatural-next-generation', 0.13, 'REJECT', None, 'fp-yok', 'tv', 100), ('chronicles-of-the-supernatural', 0.13, 'REJECT', None, 'fp-yok', 'comics', 10), ('science-and-the-supernatural', 0.13, 'REJECT', None, 'fp-yok', 'books', 10)]
-- skorlar: [('supernatural', 0.26, 'REJECT', None, 'fp-yok', 'tv', 5000), ('supernatural-the-kripke-show', 0.14, 'REJECT', None, 'fp-yok', 'tv', 200), ('supernatural-next-generation', 0.13, 'REJECT', None, 'fp-yok', 'tv', 100), ('chronicles-of-the-supernatural', 0.13, 'REJECT', None, 'fp-yok', 'comics', 10), ('science-and-the-supernatural', 0.13, 'REJECT', None, 'fp-yok', 'books', 10), ('school-of-the-supernatural', 0.13, 'REJECT', None, 'fp-yok', 'books', 10), ('the-supernatural-saga', 0.09, 'REJECT', None, 'fp-yok', 'lifestyle', 10), ('supernatural-characters', 0.09, 'REJECT', None, 'fp-yok', 'lifestyle', 10)]
-
-### Supernatural [tv/title-only] UNVERIFIED-MISS (beklenen: supernatural; bulunan: None)
+### Supernatural [tv/title-only] MISS (beklenen: supernatural; bulunan: None)
 kaynak: Wikidata {'qid': 'Q130585', 'tmdb': 1622, 'imdb': 'tt0460681'}
 - karakter oylari: yok
 - topluluk aramasi sorgulari=['Supernatural'] -> 8 aday: ['supernatural', 'the-supernatural-saga', 'supernatural-the-kripke-show', 'chronicles-of-the-supernatural', 'supernatural-next-generation', 'supernatural-characters', 'science-and-the-supernatural', 'school-of-the-supernatural']
@@ -582,29 +420,6 @@ kaynak: Wikidata {'qid': 'Q47500433', 'tmdb': 71912, 'imdb': 'tt5180504'}
 - topluluk aramasi sorgulari=['The Witcher'] -> 5 aday: ['witcher', 'witcher-games', 'the-witcher-rpg', 'the-witcher-fanon', 'witcher-fanon-earth-116']
 - isim yolu: hepsi RED [('witcher', 0.21, 'REJECT', None, 'fp-yok', 'games', 10000), ('witcher-games', 0.21, 'REJECT', None, 'fp-yok', 'games', 10000), ('the-witcher-rpg', 0.11, 'REJECT', None, 'fp-yok', 'games', 100)]
 - skorlar: [('witcher', 0.21, 'REJECT', None, 'fp-yok', 'games', 10000), ('witcher-games', 0.21, 'REJECT', None, 'fp-yok', 'games', 10000), ('the-witcher-rpg', 0.11, 'REJECT', None, 'fp-yok', 'games', 100)]
-
-### Squid Game [tv/ids] UNVERIFIED-MISS (beklenen: None; bulunan: None)
-kaynak: Wikidata {'qid': 'Q106582931', 'tmdb': 93405, 'imdb': 'tt10919420'}
-- wikidata: starts=['Q106582931'] p4073={0: ['squid-game']} nodes=[]
-- karakter oylari: {'squid-game': 7}
-- topluluk aramasi sorgulari=['Squid Game'] -> 8 aday: ['squid-game', 'squid-game-au', 'squid-game-players', 'squid-game-the-challenge-players', 'squid-game-2042', 'squid-game-headcanon', 'every-single-player-from-squid-game-the-challenge', 'squid-game-minor-players']
-- isim yolu: hepsi RED [('squid-game', 0.25, 'REJECT', None, 'fp-yok', 'tv', 2000), ('squid-game-au', 0.23, 'REJECT', None, 'fp-yok', 'anime', 100), ('squid-game-players', 0.19, 'REJECT', None, 'fp-yok', 'movies', 600), ('squid-game-headcanon', 0.18, 'REJECT', None, 'fp-yok', 'tv', 100), ('squid-game-2042', 0.12, 'REJECT', None, 'fp-yok', 'games', 10)]
-- skorlar: [('squid-game', 0.25, 'REJECT', None, 'fp-yok', 'tv', 2000), ('squid-game-au', 0.23, 'REJECT', None, 'fp-yok', 'anime', 100), ('squid-game-players', 0.19, 'REJECT', None, 'fp-yok', 'movies', 600), ('squid-game-headcanon', 0.18, 'REJECT', None, 'fp-yok', 'tv', 100), ('squid-game-2042', 0.12, 'REJECT', None, 'fp-yok', 'games', 10), ('squid-game-the-challenge-players', 0.11, 'REJECT', None, 'fp-yok', 'lifestyle', 800), ('squid-game-minor-players', 0.11, 'REJECT', None, 'fp-yok', 'lifestyle', 500), ('every-single-player-from-squid-game-the-challenge', 0.12, 'REJECT', None, 'fp-yok', 'tv', 10)]
-
-### Peaky Blinders [tv/ids] UNVERIFIED-MISS (beklenen: None; bulunan: None)
-kaynak: Wikidata {'qid': 'Q14944179', 'tmdb': 60574, 'imdb': 'tt2442560'}
-- wikidata: starts=['Q14944179'] p4073={} nodes=[]
-- karakter oylari: yok
-- topluluk aramasi sorgulari=['Peaky Blinders'] -> 1 aday: ['peaky-blinders']
-- isim yolu: hepsi RED [('peaky-blinders', 0.24, 'REJECT', None, 'fp-yok', 'tv', 300)]
-- skorlar: [('peaky-blinders', 0.24, 'REJECT', None, 'fp-yok', 'tv', 300)]
-
-### Peaky Blinders [tv/title-only] UNVERIFIED-MISS (beklenen: None; bulunan: None)
-kaynak: Wikidata {'qid': 'Q14944179', 'tmdb': 60574, 'imdb': 'tt2442560'}
-- karakter oylari: yok
-- topluluk aramasi sorgulari=['Peaky Blinders'] -> 1 aday: ['peaky-blinders']
-- isim yolu: hepsi RED [('peaky-blinders', 0.24, 'REJECT', None, 'fp-yok', 'tv', 300)]
-- skorlar: [('peaky-blinders', 0.24, 'REJECT', None, 'fp-yok', 'tv', 300)]
 
 ### Severance [tv/title-only] UNVERIFIED-MISS (beklenen: None; bulunan: None)
 kaynak: Wikidata {'qid': 'Q101096725', 'tmdb': 95396, 'imdb': 'tt11280740'}

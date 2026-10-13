@@ -38,7 +38,7 @@
   ],
   "source_info": "AniList#20 MAL#20 NARUTO",
   "expected_alive": true,
-  "secs": 5.6
+  "secs": 4.5
  },
  {
   "title": "One Piece",
@@ -79,7 +79,7 @@
   ],
   "source_info": "AniList#21 MAL#21 ONE PIECE",
   "expected_alive": true,
-  "secs": 6.5
+  "secs": 7.3
  },
  {
   "title": "Bleach",
@@ -120,7 +120,7 @@
   ],
   "source_info": "AniList#269 MAL#269 BLEACH",
   "expected_alive": true,
-  "secs": 7.3
+  "secs": 5.6
  },
  {
   "title": "Attack on Titan",
@@ -161,7 +161,7 @@
   ],
   "source_info": "AniList#16498 MAL#16498 Shingeki no Kyojin",
   "expected_alive": true,
-  "secs": 7.1
+  "secs": 5.5
  },
  {
   "title": "Attack on Titan Final Season",
@@ -202,7 +202,7 @@
   ],
   "source_info": "AniList#110277 MAL#40028 Shingeki no Kyojin: The Final Season",
   "expected_alive": true,
-  "secs": 8.0
+  "secs": 5.2
  },
  {
   "title": "Jujutsu Kaisen",
@@ -243,7 +243,7 @@
   ],
   "source_info": "AniList#113415 MAL#40748 Jujutsu Kaisen",
   "expected_alive": true,
-  "secs": 9.0
+  "secs": 5.2
  },
  {
   "title": "Jujutsu Kaisen 2nd Season",
@@ -284,7 +284,7 @@
   ],
   "source_info": "AniList#145064 MAL#51009 Jujutsu Kaisen 2nd Season",
   "expected_alive": true,
-  "secs": 7.2
+  "secs": 5.4
  },
  {
   "title": "Demon Slayer: Kimetsu no Yaiba",
@@ -325,7 +325,7 @@
   ],
   "source_info": "AniList#101922 MAL#38000 Kimetsu no Yaiba",
   "expected_alive": true,
-  "secs": 9.0
+  "secs": 5.4
  },
  {
   "title": "My Hero Academia",
@@ -366,7 +366,7 @@
   ],
   "source_info": "AniList#21459 MAL#31964 Boku no Hero Academia",
   "expected_alive": true,
-  "secs": 9.0
+  "secs": 5.6
  },
  {
   "title": "My Hero Academia Season 5",
@@ -407,7 +407,7 @@
   ],
   "source_info": "AniList#117193 MAL#41587 Boku no Hero Academia 5",
   "expected_alive": true,
-  "secs": 41.3
+  "secs": 37.9
  },
  {
   "title": "Fullmetal Alchemist: Brotherhood",
@@ -448,7 +448,7 @@
   ],
   "source_info": "AniList#5114 MAL#5114 Hagane no Renkinjutsushi: FULLMETAL ALCHEMIST",
   "expected_alive": true,
-  "secs": 37.7
+  "secs": 35.2
  },
  {
   "title": "Death Note",
@@ -489,7 +489,7 @@
   ],
   "source_info": "AniList#1535 MAL#1535 DEATH NOTE",
   "expected_alive": true,
-  "secs": 40.4
+  "secs": 5.1
  },
  {
   "title": "Hunter x Hunter (2011)",
@@ -530,7 +530,7 @@
   ],
   "source_info": "AniList#11061 MAL#11061 HUNTER×HUNTER (2011)",
   "expected_alive": true,
-  "secs": 5.4
+  "secs": 7.7
  },
  {
   "title": "One Punch Man",
@@ -636,7 +636,7 @@
   ],
   "source_info": "AniList#21087 MAL#30276 One Punch Man",
   "expected_alive": true,
-  "secs": 15.3
+  "secs": 24.3
  },
  {
   "title": "Tokyo Ghoul",
@@ -677,7 +677,7 @@
   ],
   "source_info": "AniList#20605 MAL#22319 Tokyo Ghoul",
   "expected_alive": true,
-  "secs": 5.4
+  "secs": 7.0
  },
  {
   "title": "Sword Art Online",
@@ -718,7 +718,7 @@
   ],
   "source_info": "AniList#11757 MAL#11757 Sword Art Online",
   "expected_alive": true,
-  "secs": 8.1
+  "secs": 7.8
  },
  {
   "title": "Re:Zero kara Hajimeru Isekai Seikatsu",
@@ -759,7 +759,7 @@
   ],
   "source_info": "AniList#21355 MAL#31240 Re:Zero kara Hajimeru Isekai Seikatsu",
   "expected_alive": true,
-  "secs": 6.3
+  "secs": 6.2
  },
  {
   "title": "Mob Psycho 100 II",
@@ -800,7 +800,7 @@
   ],
   "source_info": "AniList#101338 MAL#37510 Mob Psycho 100 II",
   "expected_alive": true,
-  "secs": 6.3
+  "secs": 6.1
  },
  {
   "title": "Dr. Stone",
@@ -881,7 +881,7 @@
   ],
   "source_info": "AniList#105333 MAL#38691 Dr. STONE",
   "expected_alive": true,
-  "secs": 46.3
+  "secs": 34.0
  },
  {
   "title": "Black Clover",
@@ -922,7 +922,7 @@
   ],
   "source_info": "AniList#97940 MAL#34572 Black Clover",
   "expected_alive": true,
-  "secs": 6.3
+  "secs": 7.8
  },
  {
   "title": "Fairy Tail",
@@ -963,7 +963,7 @@
   ],
   "source_info": "AniList#6702 MAL#6702 FAIRY TAIL",
   "expected_alive": true,
-  "secs": 41.4
+  "secs": 18.6
  },
  {
   "title": "Dragon Ball Z",
@@ -1004,7 +1004,7 @@
   ],
   "source_info": "AniList#813 MAL#813 Dragon Ball Z",
   "expected_alive": true,
-  "secs": 42.4
+  "secs": 4.5
  },
  {
   "title": "Cowboy Bebop",
@@ -1045,7 +1045,7 @@
   ],
   "source_info": "AniList#1 MAL#1 Cowboy Bebop",
   "expected_alive": true,
-  "secs": 5.5
+  "secs": 4.9
  },
  {
   "title": "Steins;Gate",
@@ -1082,7 +1082,7 @@
   ],
   "source_info": "AniList#9253 MAL#9253 Steins;Gate",
   "expected_alive": null,
-  "secs": 6.9
+  "secs": 5.4
  },
  {
   "title": "Code Geass: Lelouch of the Rebellion",
@@ -1125,7 +1125,7 @@
   ],
   "source_info": "AniList#1575 MAL#1575 Code Geass: Hangyaku no Lelouch",
   "expected_alive": true,
-  "secs": 8.1
+  "secs": 7.7
  },
  {
   "title": "Neon Genesis Evangelion",
@@ -1166,7 +1166,7 @@
   ],
   "source_info": "AniList#30 MAL#30 Shin Seiki Evangelion",
   "expected_alive": true,
-  "secs": 8.1
+  "secs": 7.7
  },
  {
   "title": "Haikyu!!",
@@ -1207,7 +1207,7 @@
   ],
   "source_info": "AniList#20464 MAL#20583 Haikyuu!!",
   "expected_alive": true,
-  "secs": 8.1
+  "secs": 65.3
  },
  {
   "title": "Oshi no Ko",
@@ -1244,7 +1244,7 @@
   ],
   "source_info": "AniList#150672 MAL#52034 [Oshi no Ko]",
   "expected_alive": null,
-  "secs": 8.1
+  "secs": 65.6
  },
  {
   "title": "Sousou no Frieren",
@@ -1281,7 +1281,7 @@
   ],
   "source_info": "AniList#154587 MAL#52991 Sousou no Frieren",
   "expected_alive": null,
-  "secs": 8.1
+  "secs": 6.1
  },
  {
   "title": "Vinland Saga",
@@ -1322,7 +1322,7 @@
   ],
   "source_info": "AniList#101348 MAL#37521 VINLAND SAGA",
   "expected_alive": true,
-  "secs": 45.2
+  "secs": 5.8
  },
  {
   "title": "Dandadan",
@@ -1361,7 +1361,7 @@
   ],
   "source_info": "AniList#171018 MAL#57334 Dandadan",
   "expected_alive": null,
-  "secs": 40.6
+  "secs": 14.9
  },
  {
   "title": "Blue Lock",
@@ -1594,7 +1594,7 @@
   ],
   "source_info": "AniList#137822 MAL#49596 Blue Lock",
   "expected_alive": null,
-  "secs": 53.2
+  "secs": 26.2
  },
  {
   "title": "Bocchi the Rock!",
@@ -1631,7 +1631,7 @@
   ],
   "source_info": "AniList#130003 MAL#47917 Bocchi the Rock!",
   "expected_alive": null,
-  "secs": 3.6
+  "secs": 6.5
  },
  {
   "title": "Kaguya-sama: Love is War",
@@ -1670,7 +1670,7 @@
   ],
   "source_info": "AniList#101921 MAL#37999 Kaguya-sama wa Kokurasetai: Tensaitachi no Renai Zunousen",
   "expected_alive": null,
-  "secs": 7.1
+  "secs": 9.5
  },
  {
   "title": "Tensei shitara Slime Datta Ken",
@@ -1707,7 +1707,7 @@
   ],
   "source_info": "AniList#101280 MAL#37430 Tensei Shitara Slime Datta Ken",
   "expected_alive": null,
-  "secs": 4.5
+  "secs": 4.8
  },
  {
   "title": "Mushoku Tensei: Jobless Reincarnation",
@@ -1731,8 +1731,8 @@
      "tensei-kenja",
      "reincarnated-into-a-game-as-the-heros-friend",
      "reincarnation-paradise",
-     "the-reincarnated-assassin-is-a-genius-swordsman",
      "demonscrest",
+     "the-reincarnated-assassin-is-a-genius-swordsman",
      "reincarnation-no-kaben",
      "isekai",
      "mondaiji",
@@ -1773,8 +1773,8 @@
      "tensei-kenja",
      "reincarnated-into-a-game-as-the-heros-friend",
      "reincarnation-paradise",
-     "the-reincarnated-assassin-is-a-genius-swordsman",
      "demonscrest",
+     "the-reincarnated-assassin-is-a-genius-swordsman",
      "reincarnation-no-kaben",
      "isekai",
      "mondaiji",
@@ -1802,7 +1802,7 @@
   ],
   "source_info": "AniList#108465 MAL#39535 Mushoku Tensei: Isekai Ittara Honki Dasu",
   "expected_alive": null,
-  "secs": 14.3
+  "secs": 26.1
  },
  {
   "title": "Overlord",
@@ -1839,7 +1839,7 @@
   ],
   "source_info": "AniList#20832 MAL#29803 Overlord",
   "expected_alive": null,
-  "secs": 5.4
+  "secs": 7.1
  },
  {
   "title": "Konosuba",
@@ -1876,7 +1876,7 @@
   ],
   "source_info": "AniList#21202 MAL#30831 Kono Subarashii Sekai ni Shukufuku wo!",
   "expected_alive": null,
-  "secs": 6.3
+  "secs": 20.2
  },
  {
   "title": "Gintama",
@@ -1914,7 +1914,7 @@
   ],
   "source_info": "AniList#918 MAL#918 Gintama",
   "expected_alive": true,
-  "secs": 6.3
+  "secs": 3.0
  },
  {
   "title": "Chainsaw Man",
@@ -1952,7 +1952,7 @@
   ],
   "source_info": "AniList#127230 MAL#44511 Chainsaw Man",
   "expected_alive": true,
-  "secs": 44.2
+  "secs": 5.4
  },
  {
   "title": "Spy x Family",
@@ -1990,7 +1990,7 @@
   ],
   "source_info": "AniList#140960 MAL#50265 SPY×FAMILY",
   "expected_alive": true,
-  "secs": 41.5
+  "secs": 5.4
  },
  {
   "title": "Solo Leveling",
@@ -2028,7 +2028,7 @@
   ],
   "source_info": "AniList#151807 MAL#52299 Ore dake Level Up na Ken",
   "expected_alive": true,
-  "secs": 39.8
+  "secs": 4.5
  },
  {
   "title": "Mushishi",
@@ -2067,7 +2067,7 @@
   ],
   "source_info": "AniList#457 MAL#457 Mushishi",
   "expected_alive": null,
-  "secs": 7.2
+  "secs": 66.1
  },
  {
   "title": "Monster",
@@ -2104,7 +2104,7 @@
   ],
   "source_info": "AniList#19 MAL#19 MONSTER",
   "expected_alive": null,
-  "secs": 7.2
+  "secs": 66.2
  },
  {
   "title": "Ping Pong the Animation",
@@ -2339,7 +2339,7 @@
   ],
   "source_info": "AniList#20607 MAL#22135 Ping Pong THE ANIMATION",
   "expected_alive": null,
-  "secs": 10.8
+  "secs": 13.3
  },
  {
   "title": "Ranking of Kings",
@@ -2376,7 +2376,7 @@
   ],
   "source_info": "AniList#113717 MAL#40834 Ousama Ranking",
   "expected_alive": null,
-  "secs": 7.2
+  "secs": 5.9
  },
  {
   "title": "Rurouni Kenshin",
@@ -2413,7 +2413,7 @@
   ],
   "source_info": "AniList#45 MAL#45 Rurouni Kenshin: Meiji Kenkaku Romantan",
   "expected_alive": null,
-  "secs": 7.2
+  "secs": 6.4
  },
  {
   "title": "Yu Yu Hakusho",
@@ -2452,7 +2452,7 @@
   ],
   "source_info": "AniList#392 MAL#392 Yuu☆Yuu☆Hakusho",
   "expected_alive": null,
-  "secs": 8.1
+  "secs": 7.6
  },
  {
   "title": "Great Teacher Onizuka",
@@ -2489,7 +2489,7 @@
   ],
   "source_info": "AniList#245 MAL#245 GTO",
   "expected_alive": null,
-  "secs": 8.1
+  "secs": 7.7
  },
  {
   "title": "Planetes",
@@ -2526,7 +2526,7 @@
   ],
   "source_info": "AniList#329 MAL#329 Planetes",
   "expected_alive": null,
-  "secs": 8.1
+  "secs": 5.6
  },
  {
   "title": "Ergo Proxy",
@@ -2565,7 +2565,7 @@
   ],
   "source_info": "AniList#790 MAL#790 Ergo Proxy",
   "expected_alive": null,
-  "secs": 40.8
+  "secs": 5.4
  },
  {
   "title": "Paranoia Agent",
@@ -2642,7 +2642,7 @@
   ],
   "source_info": "AniList#323 MAL#323 Mousou Dairinin",
   "expected_alive": null,
-  "secs": 45.3
+  "secs": 35.3
  },
  {
   "title": "Hyouka",
@@ -2679,7 +2679,7 @@
   ],
   "source_info": "AniList#12189 MAL#12189 Hyouka",
   "expected_alive": null,
-  "secs": 41.7
+  "secs": 4.3
  },
  {
   "title": "Barakamon",
@@ -2836,7 +2836,7 @@
   ],
   "source_info": "AniList#20722 MAL#22789 Barakamon",
   "expected_alive": null,
-  "secs": 17.9
+  "secs": 51.2
  },
  {
   "title": "Golden Kamuy",
@@ -2873,7 +2873,7 @@
   ],
   "source_info": "AniList#99699 MAL#36028 Golden Kamuy",
   "expected_alive": null,
-  "secs": 6.3
+  "secs": 7.9
  },
  {
   "title": "Kaiji",
@@ -2910,7 +2910,7 @@
   ],
   "source_info": "AniList#10271 MAL#10271 Gyakkyou Burai Kaiji: Hakairoku-hen",
   "expected_alive": null,
-  "secs": 5.4
+  "secs": 5.9
  },
  {
   "title": "Dungeon Meshi",
@@ -2947,7 +2947,7 @@
   ],
   "source_info": "AniList#153518 MAL#52701 Dungeon Meshi",
   "expected_alive": null,
-  "secs": 6.3
+  "secs": 5.3
  },
  {
   "title": "Space Brothers",
@@ -3176,7 +3176,7 @@
   ],
   "source_info": "AniList#12431 MAL#12431 Uchuu Kyoudai",
   "expected_alive": null,
-  "secs": 13.5
+  "secs": 24.9
  },
  {
   "title": "Kino's Journey",
@@ -3295,7 +3295,7 @@
   ],
   "source_info": "AniList#486 MAL#486 Kino no Tabi: the Beautiful World",
   "expected_alive": null,
-  "secs": 6.0
+  "secs": 21.9
  },
  {
   "title": "Texhnolyze",
@@ -3518,7 +3518,7 @@
   ],
   "source_info": "AniList#26 MAL#26 TEXHNOLYZE",
   "expected_alive": null,
-  "secs": 42.3
+  "secs": 12.6
  },
  {
   "title": "Aria the Animation",
@@ -3555,7 +3555,7 @@
   ],
   "source_info": "AniList#477 MAL#477 ARIA The ANIMATION",
   "expected_alive": null,
-  "secs": 38.6
+  "secs": 6.7
  },
  {
   "title": "Nichijou",
@@ -3733,7 +3733,7 @@
   ],
   "source_info": "AniList#10165 MAL#10165 Nichijou",
   "expected_alive": null,
-  "secs": 48.6
+  "secs": 19.2
  },
  {
   "title": "Welcome to the NHK",
@@ -3828,7 +3828,7 @@
   ],
   "source_info": "AniList#1210 MAL#1210 NHK ni Youkoso!",
   "expected_alive": null,
-  "secs": 11.8
+  "secs": 16.9
  },
  {
   "title": "Beastars",
@@ -3865,7 +3865,7 @@
   ],
   "source_info": "AniList#107660 MAL#39195 BEASTARS",
   "expected_alive": null,
-  "secs": 2.7
+  "secs": 5.2
  },
  {
   "title": "Made in Abyss",
@@ -3960,7 +3960,7 @@
   ],
   "source_info": "AniList#97986 MAL#34599 Made in Abyss",
   "expected_alive": null,
-  "secs": 14.2
+  "secs": 33.4
  },
  {
   "title": "Dorohedoro",
@@ -4183,7 +4183,7 @@
   ],
   "source_info": "AniList#105228 MAL#38668 Dorohedoro",
   "expected_alive": null,
-  "secs": 13.5
+  "secs": 29.1
  },
  {
   "title": "Soul Eater",
@@ -4220,7 +4220,7 @@
   ],
   "source_info": "AniList#3588 MAL#3588 Soul Eater",
   "expected_alive": null,
-  "secs": 3.5
+  "secs": 4.2
  },
  {
   "title": "Sket Dance",
@@ -4423,7 +4423,7 @@
   ],
   "source_info": "AniList#9863 MAL#9863 SKET DANCE",
   "expected_alive": null,
-  "secs": 12.2
+  "secs": 16.1
  },
  {
   "title": "Mashle",
@@ -4677,7 +4677,7 @@
   ],
   "source_info": "AniList#151801 MAL#52211 MASHLE",
   "expected_alive": null,
-  "secs": 14.5
+  "secs": 21.7
  },
  {
   "title": "Bible Black",
@@ -4918,7 +4918,7 @@
   ],
   "source_info": "AniList#368 MAL#368 Bible Black",
   "expected_alive": null,
-  "secs": 36.9
+  "secs": 16.7
  },
  {
   "title": "Overflow",
@@ -5079,7 +5079,7 @@
   ],
   "source_info": "AniList#113417 MAL#40746 Overflow",
   "expected_alive": null,
-  "secs": 35.3
+  "secs": 14.5
  },
  {
   "title": "Kiss x Sis",
@@ -5306,7 +5306,7 @@
   ],
   "source_info": "AniList#5042 MAL#5042 kiss×sis",
   "expected_alive": null,
-  "secs": 38.6
+  "secs": 19.2
  },
  {
   "title": "Prison School",
@@ -5343,7 +5343,7 @@
   ],
   "source_info": "AniList#20807 MAL#30240 Prison School",
   "expected_alive": null,
-  "secs": 6.8
+  "secs": 5.2
  },
  {
   "title": "High School DxD",
@@ -5380,7 +5380,7 @@
   ],
   "source_info": "AniList#11617 MAL#11617 High School DxD",
   "expected_alive": null,
-  "secs": 2.3
+  "secs": 5.4
  },
  {
   "title": "Redo of Healer",
@@ -5639,7 +5639,7 @@
   ],
   "source_info": "AniList#113425 MAL#40750 Kaifuku Jutsushi no Yarinaoshi",
   "expected_alive": null,
-  "secs": 17.6
+  "secs": 22.8
  },
  {
   "title": "Berserk",
@@ -5680,7 +5680,7 @@
   ],
   "source_info": "AniList#30002 MAL#2 Berserk",
   "expected_alive": true,
-  "secs": 3.6
+  "secs": 6.4
  },
  {
   "title": "Vagabond",
@@ -5830,7 +5830,7 @@
   ],
   "source_info": "AniList#30656 MAL#656 Vagabond",
   "expected_alive": null,
-  "secs": 11.3
+  "secs": 14.1
  },
  {
   "title": "Claymore",
@@ -5980,7 +5980,7 @@
   ],
   "source_info": "AniList#30583 MAL#583 CLAYMORE",
   "expected_alive": null,
-  "secs": 9.5
+  "secs": 17.7
  },
  {
   "title": "Parasyte",
@@ -6217,7 +6217,7 @@
   ],
   "source_info": "AniList#30401 MAL#401 Kiseijuu",
   "expected_alive": null,
-  "secs": 42.5
+  "secs": 33.0
  },
  {
   "title": "Tower of God",
@@ -6308,7 +6308,7 @@
   ],
   "source_info": "AniList#85143 MAL#122663 Sinui Tap",
   "expected_alive": true,
-  "secs": 10.9
+  "secs": 17.9
  },
  {
   "title": "The God of High School",
@@ -6342,8 +6342,8 @@
      "high-school-dxd-british-gram",
      "high-school-family",
      "young-gods",
-     "young-master-baek",
      "jinyong",
+     "young-master-baek",
      "the-school-series"
     ],
     "shortlist": [
@@ -6463,8 +6463,8 @@
      "high-school-dxd-british-gram",
      "high-school-family",
      "young-gods",
-     "young-master-baek",
      "jinyong",
+     "young-master-baek",
      "the-school-series"
     ],
     "shortlist": [
@@ -6561,7 +6561,7 @@
   ],
   "source_info": "AniList#85141 MAL#111996 God of High School",
   "expected_alive": null,
-  "secs": 40.7
+  "secs": 18.3
  },
  {
   "title": "Lookism",
@@ -6712,7 +6712,7 @@
   ],
   "source_info": "AniList#86848 MAL#111202 Oemo Jisangjuui",
   "expected_alive": null,
-  "secs": 40.8
+  "secs": 17.2
  },
  {
   "title": "Noblesse",
@@ -6915,7 +6915,7 @@
   ],
   "source_info": "AniList#59983 MAL#29983 Noblesse",
   "expected_alive": null,
-  "secs": 10.7
+  "secs": 22.8
  },
  {
   "title": "Solo Leveling",
@@ -6956,7 +6956,7 @@
   ],
   "source_info": "AniList#105398 MAL#121496 Na Honjaman Level Up",
   "expected_alive": true,
-  "secs": 4.2
+  "secs": 6.2
  },
  {
   "title": "Omniscient Reader",
@@ -7069,7 +7069,7 @@
   ],
   "source_info": "AniList#119257 MAL#132214 Jeonjijeok Dokja Sijeom",
   "expected_alive": null,
-  "secs": 12.1
+  "secs": 18.2
  },
  {
   "title": "Eleceed",
@@ -7160,7 +7160,7 @@
   ],
   "source_info": "AniList#106929 MAL#147171 Eleceed",
   "expected_alive": null,
-  "secs": 9.5
+  "secs": 14.5
  },
  {
   "title": "Teenage Mercenary",
@@ -7237,7 +7237,7 @@
   ],
   "source_info": "AniList#126297 MAL#146966 Iphagyongbyeong",
   "expected_alive": null,
-  "secs": 11.8
+  "secs": 14.5
  },
  {
   "title": "Mo Dao Zu Shi",
@@ -7276,7 +7276,7 @@
   ],
   "source_info": "AniList#173984 MAL#None Madou Soshi",
   "expected_alive": null,
-  "secs": 4.6
+  "secs": 5.6
  },
  {
   "title": "Chainsaw Man",
@@ -7317,7 +7317,7 @@
   ],
   "source_info": "AniList#105778 MAL#116778 Chainsaw Man",
   "expected_alive": true,
-  "secs": 5.0
+  "secs": 5.8
  },
  {
   "title": "One Piece",
@@ -7358,7 +7358,7 @@
   ],
   "source_info": "AniList#30013 MAL#13 ONE PIECE",
   "expected_alive": true,
-  "secs": 37.3
+  "secs": 6.3
  },
  {
   "title": "Jujutsu Kaisen",
@@ -7399,7 +7399,7 @@
   ],
   "source_info": "AniList#101517 MAL#113138 Jujutsu Kaisen",
   "expected_alive": true,
-  "secs": 38.9
+  "secs": 4.5
  },
  {
   "title": "Dandadan",
@@ -7436,7 +7436,7 @@
   ],
   "source_info": "AniList#132029 MAL#135496 Dandadan",
   "expected_alive": null,
-  "secs": 34.6
+  "secs": 4.5
  },
  {
   "title": "Kaiju No. 8",
@@ -7510,7 +7510,7 @@
   ],
   "source_info": "AniList#98263 MAL#100035 Tongari Boushi no Atelier",
   "expected_alive": null,
-  "secs": 7.2
+  "secs": 65.0
  },
  {
   "title": "Sweet Home",
@@ -7737,7 +7737,7 @@
   ],
   "source_info": "AniList#100954 MAL#124845 Sweet Home",
   "expected_alive": null,
-  "secs": 10.7
+  "secs": 73.5
  },
  {
   "title": "Bastard",
@@ -7746,10 +7746,10 @@
   "runs": [
    {
     "mode": "ids",
-    "status": "UNVERIFIED-FOUND",
-    "wiki": "bastard-webtoon",
-    "via": "name-score",
-    "conf": "PROBABLE",
+    "status": "UNVERIFIED-MISS",
+    "wiki": null,
+    "via": null,
+    "conf": null,
     "hits": [
      "bastard",
      "bastard-webtoon",
@@ -7759,36 +7759,41 @@
      "backwaterbastards",
      "the-bstard-son-the-devil-himself",
      "sweethomewebtoon",
-     "tomb-raider-king",
-     "manager-kim-manhwa",
-     "lilkim"
+     "bad-guy",
+     "the-bad-guys",
+     "the-good-guys-and-bad-guys",
+     "mightythor",
+     "legends-of-thezmarr",
+     "daggerheart",
+     "bad-deathclaw",
+     "bad-things-happen"
     ],
     "shortlist": [
      "bastard",
      "bastard-webtoon",
      "thebastardexecutioner",
+     "mightythor",
      "sweethomewebtoon",
-     "tomb-raider-king",
-     "manager-kim-manhwa",
-     "the-bstard-son-the-devil-himself",
-     "voidbastards"
+     "the-bad-guys",
+     "the-good-guys-and-bad-guys",
+     "legends-of-thezmarr"
     ],
     "scores": [
      [
       "bastard",
       0.0,
       "REJECT",
-      "no-main-characters",
-      "main 0/4 any 0/4 native 0",
+      "no-characters",
+      "main 0/1 any 0/5 native 0",
       "anime",
       700
      ],
      [
       "bastard-webtoon",
-      0.66,
-      "PROBABLE",
-      null,
-      "main 3/4 any 3/4 native 1",
+      0.0,
+      "REJECT",
+      "no-characters",
+      "main 0/1 any 0/5 native 0",
       "anime",
       10
      ],
@@ -7796,69 +7801,70 @@
       "thebastardexecutioner",
       0.0,
       "REJECT",
-      "no-main-characters",
-      "main 0/4 any 0/4 native 0",
+      "no-characters",
+      "main 0/1 any 0/5 native 0",
       "tv",
       100
+     ],
+     [
+      "mightythor",
+      0.0,
+      "REJECT",
+      "no-characters",
+      "main 0/1 any 0/5 native 0",
+      "comics",
+      20000
      ],
      [
       "sweethomewebtoon",
       0.0,
       "REJECT",
-      "no-main-characters",
-      "main 0/4 any 0/4 native 0",
+      "no-characters",
+      "main 0/1 any 0/5 native 0",
       "anime",
       200
      ],
      [
-      "tomb-raider-king",
+      "the-bad-guys",
       0.0,
       "REJECT",
-      "no-main-characters",
-      "main 0/4 any 0/4 native 0",
-      "anime",
-      1000
-     ],
-     [
-      "manager-kim-manhwa",
-      0.0,
-      "REJECT",
-      "no-main-characters",
-      "main 0/4 any 0/4 native 0",
-      "comics",
+      "no-characters",
+      "main 0/1 any 0/5 native 0",
+      "books",
       100
      ],
      [
-      "the-bstard-son-the-devil-himself",
+      "the-good-guys-and-bad-guys",
       0.0,
       "REJECT",
-      "no-main-characters",
-      "main 0/4 any 0/4 native 0",
-      "tv",
-      200
+      "no-characters",
+      "main 0/1 any 0/5 native 0",
+      "books",
+      10
      ],
      [
-      "voidbastards",
+      "legends-of-thezmarr",
       0.0,
       "REJECT",
-      "no-main-characters",
-      "main 0/4 any 0/4 native 0",
-      "games",
-      200
+      "no-characters",
+      "main 0/1 any 0/5 native 0",
+      "books",
+      10
      ]
     ],
     "trace": [
-     "wikidata: starts=['Q109269720'] p4073={} nodes=[]",
+     "wikidata: kimlikle QID yok",
      "karakter oylari: yok",
-     "topluluk aramasi sorgulari=['Bastard', 'Hurejasik', 'Bâtard', '후레자식', '不肖子', 'バスタード', 'Bastard Carnby Kim', 'Bastardo'] -> 11 aday: ['bastard', 'bastard-webtoon', 'thebastardexecutioner', 'voidbastards-archive', 'voidbastards', 'backwaterbastards', 'the-bstard-son-the-devil-himself', 'sweethomewebtoon', 'tomb-raider-king', 'manager-kim-manhwa']"
+     "topluluk aramasi sorgulari=['The Mean Guy', 'Mosdwaemeogeun Nom', 'Bastard', '못돼먹은 놈', '街頭幹架王', 'The Mean Guy Tharchog'] -> 16 aday: ['bastard', 'bastard-webtoon', 'thebastardexecutioner', 'voidbastards-archive', 'voidbastards', 'backwaterbastards', 'the-bstard-son-the-devil-himself', 'sweethomewebtoon', 'bad-guy', 'the-bad-guys']",
+     "isim yolu: hepsi RED [('bastard', 0.0, 'REJECT', 'no-characters', 'main 0/1 any 0/5 native 0', 'anime', 700), ('bastard-webtoon', 0.0, 'REJECT', 'no-characters', 'main 0/1 any 0/5 native 0', 'anime', 10), ('thebastardexecutioner', 0.0, 'REJECT', 'no-characters', 'main 0/1 any 0/5 native 0', 'tv', 100), ('mightythor', 0.0, 'REJECT', 'no-characters', 'main 0/1 any 0/5 native 0', 'comics', 20000), ('sweethomewebtoon', 0.0, 'REJECT', 'no-characters', 'main 0/1 any 0/5 native 0', 'anime', 200)]"
     ]
    },
    {
     "mode": "title-only",
-    "status": "UNVERIFIED-FOUND",
-    "wiki": "bastard-webtoon",
-    "via": "name-score",
-    "conf": "PROBABLE",
+    "status": "UNVERIFIED-MISS",
+    "wiki": null,
+    "via": null,
+    "conf": null,
     "hits": [
      "bastard",
      "bastard-webtoon",
@@ -7868,35 +7874,41 @@
      "backwaterbastards",
      "the-bstard-son-the-devil-himself",
      "sweethomewebtoon",
-     "manager-kim-manhwa",
-     "lilkim"
+     "bad-guy",
+     "the-bad-guys",
+     "the-good-guys-and-bad-guys",
+     "mightythor",
+     "legends-of-thezmarr",
+     "daggerheart",
+     "bad-deathclaw",
+     "bad-things-happen"
     ],
     "shortlist": [
      "bastard",
      "bastard-webtoon",
      "thebastardexecutioner",
+     "mightythor",
      "sweethomewebtoon",
-     "manager-kim-manhwa",
-     "the-bstard-son-the-devil-himself",
-     "voidbastards",
-     "voidbastards-archive"
+     "the-bad-guys",
+     "the-good-guys-and-bad-guys",
+     "legends-of-thezmarr"
     ],
     "scores": [
      [
       "bastard",
       0.0,
       "REJECT",
-      "no-main-characters",
-      "main 0/4 any 0/4 native 0",
+      "no-characters",
+      "main 0/1 any 0/5 native 0",
       "anime",
       700
      ],
      [
       "bastard-webtoon",
-      0.66,
-      "PROBABLE",
-      null,
-      "main 3/4 any 3/4 native 1",
+      0.0,
+      "REJECT",
+      "no-characters",
+      "main 0/1 any 0/5 native 0",
       "anime",
       10
      ],
@@ -7904,68 +7916,69 @@
       "thebastardexecutioner",
       0.0,
       "REJECT",
-      "no-main-characters",
-      "main 0/4 any 0/4 native 0",
+      "no-characters",
+      "main 0/1 any 0/5 native 0",
       "tv",
       100
+     ],
+     [
+      "mightythor",
+      0.0,
+      "REJECT",
+      "no-characters",
+      "main 0/1 any 0/5 native 0",
+      "comics",
+      20000
      ],
      [
       "sweethomewebtoon",
       0.0,
       "REJECT",
-      "no-main-characters",
-      "main 0/4 any 0/4 native 0",
+      "no-characters",
+      "main 0/1 any 0/5 native 0",
       "anime",
       200
      ],
      [
-      "manager-kim-manhwa",
+      "the-bad-guys",
       0.0,
       "REJECT",
-      "no-main-characters",
-      "main 0/4 any 0/4 native 0",
-      "comics",
+      "no-characters",
+      "main 0/1 any 0/5 native 0",
+      "books",
       100
      ],
      [
-      "the-bstard-son-the-devil-himself",
+      "the-good-guys-and-bad-guys",
       0.0,
       "REJECT",
-      "no-main-characters",
-      "main 0/4 any 0/4 native 0",
-      "tv",
-      200
+      "no-characters",
+      "main 0/1 any 0/5 native 0",
+      "books",
+      10
      ],
      [
-      "voidbastards",
+      "legends-of-thezmarr",
       0.0,
       "REJECT",
-      "no-main-characters",
-      "main 0/4 any 0/4 native 0",
-      "games",
-      200
-     ],
-     [
-      "voidbastards-archive",
-      0.0,
-      "REJECT",
-      "no-main-characters",
-      "main 0/4 any 0/4 native 0",
-      "games",
-      100
+      "no-characters",
+      "main 0/1 any 0/5 native 0",
+      "books",
+      10
      ]
     ],
     "trace": [
-     "baslik->AniList#86964 kopru",
-     "wikidata: starts=['Q109269720'] p4073={} nodes=[]",
+     "baslik->AniList#170031 kopru",
+     "wikidata: kimlikle QID yok",
      "karakter oylari: yok",
-     "topluluk aramasi sorgulari=['Bastard', 'Hurejasik', 'Bâtard', '후레자식', 'Bastard Carnby Kim', 'Bastardo'] -> 10 aday: ['bastard', 'bastard-webtoon', 'thebastardexecutioner', 'voidbastards-archive', 'voidbastards', 'backwaterbastards', 'the-bstard-son-the-devil-himself', 'sweethomewebtoon', 'manager-kim-manhwa', 'lilkim']"
+     "topluluk aramasi sorgulari=['The Mean Guy', 'Mosdwaemeogeun Nom', 'Bastard', '못돼먹은 놈', 'The Mean Guy Tharchog'] -> 16 aday: ['bastard', 'bastard-webtoon', 'thebastardexecutioner', 'voidbastards-archive', 'voidbastards', 'backwaterbastards', 'the-bstard-son-the-devil-himself', 'sweethomewebtoon', 'bad-guy', 'the-bad-guys']",
+     "isim yolu: hepsi RED [('bastard', 0.0, 'REJECT', 'no-characters', 'main 0/1 any 0/5 native 0', 'anime', 700), ('bastard-webtoon', 0.0, 'REJECT', 'no-characters', 'main 0/1 any 0/5 native 0', 'anime', 10), ('thebastardexecutioner', 0.0, 'REJECT', 'no-characters', 'main 0/1 any 0/5 native 0', 'tv', 100), ('mightythor', 0.0, 'REJECT', 'no-characters', 'main 0/1 any 0/5 native 0', 'comics', 20000), ('sweethomewebtoon', 0.0, 'REJECT', 'no-characters', 'main 0/1 any 0/5 native 0', 'anime', 200)]"
     ]
    }
   ],
-  "source_info": "AniList#86964 MAL#111213 Hurejasik",
+  "source_info": "AniList#170031 MAL#None Mosdwaemeogeun Nom",
   "expected_alive": null,
-  "secs": 148.8
+  "secs": 17.2
  },
  {
   "title": "The Beginning After the End",
@@ -7983,10 +7996,10 @@
   "runs": [
    {
     "mode": "ids",
-    "status": "UNVERIFIED-MISS",
-    "wiki": null,
-    "via": null,
-    "conf": null,
+    "status": "UNVERIFIED-FOUND",
+    "wiki": "villains-are-destined-to-die",
+    "via": "name-score",
+    "conf": "CERTAIN",
     "hits": [
      "villains-are-destined-to-die",
      "villains",
@@ -8017,11 +8030,11 @@
      "til-siste-mann",
      "villainsfanon",
      "ftblbv",
-     "horror-villains",
      "villains-database",
+     "horror-villains",
      "listofdeaths",
-     "extras-death-i-am-the-son-of-hades",
      "the-villain-wants-to-live",
+     "extras-death-i-am-the-son-of-hades",
      "divine-emperor-of-death-novel"
     ],
     "shortlist": [
@@ -8037,10 +8050,10 @@
     "scores": [
      [
       "villains-are-destined-to-die",
-      0.0,
-      "REJECT",
-      "no-main-characters",
-      "main 0/6 any 0/10 native 0",
+      0.88,
+      "CERTAIN",
+      null,
+      "main 6/6 any 10/10 native 7",
       "anime",
       500
      ],
@@ -8111,16 +8124,15 @@
     "trace": [
      "wikidata: starts=['Q97420049'] p4073={} nodes=[]",
      "karakter oylari: yok",
-     "topluluk aramasi sorgulari=['Villains Are Destined to Die', 'Agyeogui Ending Jugeumppun', 'Death Is The Only Ending For The Villainess', '악역의 엔딩은 죽음뿐', 'Villains Are Destined to Die Suwol', \"The Villain's Ending Is Death\"] -> 35 aday: ['villains-are-destined-to-die', 'villains', 'heroes-and-villain', 'i-am-the-fated-villain-novel', 'villain-deaths', 'cthulhu-death-may-die', 'the-new-villains-defeats', 'd-o-d-f', 'ending-maker', 'at-the-end']",
-     "isim yolu: hepsi RED [('villains-are-destined-to-die', 0.0, 'REJECT', 'no-main-characters', 'main 0/6 any 0/10 native 0', 'anime', 500), ('ftblbv', 0.0, 'REJECT', 'no-main-characters', 'main 0/6 any 0/10 native 0', 'books', 100), ('divine-emperor-of-death-novel', 0.0, 'REJECT', 'no-main-characters', 'main 0/6 any 0/10 native 0', 'books', 1000), ('ending-maker', 0.0, 'REJECT', 'no-main-characters', 'main 0/6 any 0/10 native 0', 'books', 10), ('the-villain-wants-to-live', 0.0, 'REJECT', 'no-main-characters', 'main 0/6 any 0/10 native 0', 'books', 200)]"
+     "topluluk aramasi sorgulari=['Villains Are Destined to Die', 'Agyeogui Ending Jugeumppun', 'Death Is The Only Ending For The Villainess', '악역의 엔딩은 죽음뿐', 'Villains Are Destined to Die Suwol', \"The Villain's Ending Is Death\"] -> 35 aday: ['villains-are-destined-to-die', 'villains', 'heroes-and-villain', 'i-am-the-fated-villain-novel', 'villain-deaths', 'cthulhu-death-may-die', 'the-new-villains-defeats', 'd-o-d-f', 'ending-maker', 'at-the-end']"
     ]
    },
    {
     "mode": "title-only",
-    "status": "UNVERIFIED-MISS",
-    "wiki": null,
-    "via": null,
-    "conf": null,
+    "status": "UNVERIFIED-FOUND",
+    "wiki": "villains-are-destined-to-die",
+    "via": "name-score",
+    "conf": "CERTAIN",
     "hits": [
      "villains-are-destined-to-die",
      "villains",
@@ -8151,11 +8163,11 @@
      "til-siste-mann",
      "villainsfanon",
      "ftblbv",
-     "horror-villains",
      "villains-database",
+     "horror-villains",
      "listofdeaths",
-     "extras-death-i-am-the-son-of-hades",
      "the-villain-wants-to-live",
+     "extras-death-i-am-the-son-of-hades",
      "divine-emperor-of-death-novel"
     ],
     "shortlist": [
@@ -8171,10 +8183,10 @@
     "scores": [
      [
       "villains-are-destined-to-die",
-      0.0,
-      "REJECT",
-      "no-main-characters",
-      "main 0/6 any 0/10 native 0",
+      0.88,
+      "CERTAIN",
+      null,
+      "main 6/6 any 10/10 native 7",
       "anime",
       500
      ],
@@ -8246,14 +8258,13 @@
      "baslik->AniList#118408 kopru",
      "wikidata: starts=['Q97420049'] p4073={} nodes=[]",
      "karakter oylari: yok",
-     "topluluk aramasi sorgulari=['Villains Are Destined to Die', 'Agyeogui Ending Jugeumppun', 'Death Is The Only Ending For The Villainess', '악역의 엔딩은 죽음뿐', 'Villains Are Destined to Die Suwol', \"The Villain's Ending Is Death\"] -> 35 aday: ['villains-are-destined-to-die', 'villains', 'heroes-and-villain', 'i-am-the-fated-villain-novel', 'villain-deaths', 'cthulhu-death-may-die', 'the-new-villains-defeats', 'd-o-d-f', 'ending-maker', 'at-the-end']",
-     "isim yolu: hepsi RED [('villains-are-destined-to-die', 0.0, 'REJECT', 'no-main-characters', 'main 0/6 any 0/10 native 0', 'anime', 500), ('ftblbv', 0.0, 'REJECT', 'no-main-characters', 'main 0/6 any 0/10 native 0', 'books', 100), ('divine-emperor-of-death-novel', 0.0, 'REJECT', 'no-main-characters', 'main 0/6 any 0/10 native 0', 'books', 1000), ('ending-maker', 0.0, 'REJECT', 'no-main-characters', 'main 0/6 any 0/10 native 0', 'books', 10), ('the-villain-wants-to-live', 0.0, 'REJECT', 'no-main-characters', 'main 0/6 any 0/10 native 0', 'books', 200)]"
+     "topluluk aramasi sorgulari=['Villains Are Destined to Die', 'Agyeogui Ending Jugeumppun', 'Death Is The Only Ending For The Villainess', '악역의 엔딩은 죽음뿐', 'Villains Are Destined to Die Suwol', \"The Villain's Ending Is Death\"] -> 35 aday: ['villains-are-destined-to-die', 'villains', 'heroes-and-villain', 'i-am-the-fated-villain-novel', 'villain-deaths', 'cthulhu-death-may-die', 'the-new-villains-defeats', 'd-o-d-f', 'ending-maker', 'at-the-end']"
     ]
    }
   ],
   "source_info": "AniList#118408 MAL#133641 Agyeogui Ending Jugeumppun",
   "expected_alive": null,
-  "secs": 171.7
+  "secs": 17.5
  },
  {
   "title": "Return of the Mount Hua Sect",
@@ -8292,7 +8303,7 @@
   ],
   "source_info": "AniList#132144 MAL#146878 Hwasangwihwan",
   "expected_alive": null,
-  "secs": 2.8
+  "secs": 6.4
  },
  {
   "title": "Wind Breaker",
@@ -8301,10 +8312,10 @@
   "runs": [
    {
     "mode": "ids",
-    "status": "UNVERIFIED-MISS",
-    "wiki": null,
-    "via": null,
-    "conf": null,
+    "status": "UNVERIFIED-FOUND",
+    "wiki": "wind-breaker",
+    "via": "name-score",
+    "conf": "CERTAIN",
     "hits": [
      "wind-breaker",
      "windbreaker",
@@ -8329,10 +8340,10 @@
     "scores": [
      [
       "wind-breaker",
-      0.0,
-      "REJECT",
-      "no-characters",
-      "main 0/1 any 0/5 native 0",
+      0.98,
+      "CERTAIN",
+      null,
+      "main 1/1 any 5/5 native 5",
       "comics",
       400
      ],
@@ -8403,8 +8414,7 @@
     "trace": [
      "wikidata: starts=['Q107040899'] p4073={} nodes=[]",
      "karakter oylari: yok",
-     "topluluk aramasi sorgulari=['WIND BREAKER', 'WIND BREAKER—防風少年', 'ウィンドブレイカ', 'วินด์เบรกเกอร์', 'WIND BREAKER Satoru Nii'] -> 9 aday: ['wind-breaker', 'windbreaker', 'windboys', 'demonscrest', 'the-martial-unity', 'raijin', 'windslayer', 'academys-genius-swordmaster', 'onepunchman']",
-     "isim yolu: hepsi RED [('wind-breaker', 0.0, 'REJECT', 'no-characters', 'main 0/1 any 0/5 native 0', 'comics', 400), ('onepunchman', 0.0, 'REJECT', 'no-characters', 'main 0/1 any 0/5 native 0', 'anime', 1000), ('windbreaker', 0.0, 'REJECT', 'no-characters', 'main 0/1 any 0/5 native 0', 'anime', 100), ('demonscrest', 0.0, 'REJECT', 'no-characters', 'main 0/1 any 0/5 native 0', 'anime', 10), ('the-martial-unity', 0.0, 'REJECT', 'no-characters', 'main 0/1 any 0/5 native 0', 'books', 10)]"
+     "topluluk aramasi sorgulari=['WIND BREAKER', 'WIND BREAKER—防風少年', 'ウィンドブレイカ', 'วินด์เบรกเกอร์', 'WIND BREAKER Satoru Nii'] -> 9 aday: ['wind-breaker', 'windbreaker', 'windboys', 'demonscrest', 'the-martial-unity', 'raijin', 'windslayer', 'academys-genius-swordmaster', 'onepunchman']"
     ]
    },
    {
@@ -8457,10 +8467,10 @@
      ],
      [
       "windbreaker",
-      0.0,
+      0.57,
       "REJECT",
-      "no-main-characters",
-      "main 0/5 any 0/9 native 0",
+      null,
+      "main 3/5 any 6/9 native 5",
       "anime",
       100
      ],
@@ -8515,13 +8525,13 @@
      "wikidata: starts=['Q122227187'] p4073={} nodes=[]",
      "karakter oylari: yok",
      "topluluk aramasi sorgulari=['Wind Breaker', 'ปั่นสู้ฝัน Wind Breaker', '윈드브레이커', 'Wind Breaker Yong-Seok Jo'] -> 11 aday: ['wind-breaker', 'windbreaker', 'wind-blow', 'windboys', 'tales-of-wind-official', 'second-wind', 'transformers-heroes-world-and-fantasy-wind', 'kazetsuyo', 'ynb-world', 'death-wish-dues']",
-     "isim yolu: hepsi RED [('wind-breaker', 0.0, 'REJECT', 'no-main-characters', 'main 0/5 any 0/9 native 0', 'comics', 400), ('ynb-world', 0.0, 'REJECT', 'no-main-characters', 'main 0/5 any 0/9 native 0', 'comics', 200), ('windbreaker', 0.0, 'REJECT', 'no-main-characters', 'main 0/5 any 0/9 native 0', 'anime', 100), ('death-wish-dues', 0.0, 'REJECT', 'no-main-characters', 'main 0/5 any 0/9 native 0', 'books', 100), ('kazetsuyo', 0.0, 'REJECT', 'no-main-characters', 'main 0/5 any 0/9 native 0', 'tv', 10)]"
+     "isim yolu: hepsi RED [('wind-breaker', 0.0, 'REJECT', 'no-main-characters', 'main 0/5 any 0/9 native 0', 'comics', 400), ('ynb-world', 0.0, 'REJECT', 'no-main-characters', 'main 0/5 any 0/9 native 0', 'comics', 200), ('windbreaker', 0.57, 'REJECT', None, 'main 3/5 any 6/9 native 5', 'anime', 100), ('death-wish-dues', 0.0, 'REJECT', 'no-main-characters', 'main 0/5 any 0/9 native 0', 'books', 100), ('kazetsuyo', 0.0, 'REJECT', 'no-main-characters', 'main 0/5 any 0/9 native 0', 'tv', 10)]"
     ]
    }
   ],
   "source_info": "AniList#135083 MAL#133081 WIND BREAKER",
   "expected_alive": null,
-  "secs": 263.3
+  "secs": 27.9
  },
  {
   "title": "Weak Hero",
@@ -8530,10 +8540,10 @@
   "runs": [
    {
     "mode": "ids",
-    "status": "UNVERIFIED-MISS",
-    "wiki": null,
-    "via": null,
-    "conf": null,
+    "status": "UNVERIFIED-FOUND",
+    "wiki": "weakhero",
+    "via": "name-article-proof",
+    "conf": "PROBABLE",
     "hits": [
      "weakhero",
      "andromeda",
@@ -8564,93 +8574,19 @@
      "andromeda",
      "fed-hero-warfare"
     ],
-    "scores": [
-     [
-      "weakhero",
-      0.0,
-      "REJECT",
-      "no-main-characters",
-      "main 0/4 any 0/8 native 0",
-      "comics",
-      500
-     ],
-     [
-      "myheroacademia",
-      0.0,
-      "REJECT",
-      "no-main-characters",
-      "main 0/4 any 0/8 native 0",
-      "anime",
-      3000
-     ],
-     [
-      "no-hero",
-      0.0,
-      "REJECT",
-      "no-main-characters",
-      "main 0/4 any 0/8 native 0",
-      "anime",
-      100
-     ],
-     [
-      "the-hero",
-      0.0,
-      "REJECT",
-      "no-main-characters",
-      "main 0/4 any 0/8 native 0",
-      "movies",
-      10
-     ],
-     [
-      "hero-high",
-      0.0,
-      "REJECT",
-      "no-main-characters",
-      "main 0/4 any 0/8 native 0",
-      "tv",
-      100
-     ],
-     [
-      "heroes-and-villain",
-      0.0,
-      "REJECT",
-      "no-main-characters",
-      "main 0/4 any 0/8 native 0",
-      "movies",
-      10000
-     ],
-     [
-      "andromeda",
-      0.0,
-      "REJECT",
-      "no-main-characters",
-      "main 0/4 any 0/8 native 0",
-      "tv",
-      1000
-     ],
-     [
-      "fed-hero-warfare",
-      0.0,
-      "REJECT",
-      "no-main-characters",
-      "main 0/4 any 0/8 native 0",
-      "games",
-      100
-     ]
-    ],
+    "scores": null,
     "trace": [
      "wikidata: kimlikle QID yok",
      "karakter oylari: yok",
-     "topluluk aramasi sorgulari=['Weak Hero', 'Yakanyeongung', 'Weak Hero: Un héroe débil', '약한영웅', 'WEAK HERO นักเรียนดีเดือด', 'Weak Hero Seopass', 'Un héroe débil'] -> 18 aday: ['weakhero', 'andromeda', 'hero', 'heroes-and-villain', 'lesserknown-heroes-and-villains', 'villains', 'heroes', 'unpublished-heroes', 'heroes-of-thedas', 'my-hero-academia-fanon']",
-     "isim yolu: hepsi RED [('weakhero', 0.0, 'REJECT', 'no-main-characters', 'main 0/4 any 0/8 native 0', 'comics', 500), ('myheroacademia', 0.0, 'REJECT', 'no-main-characters', 'main 0/4 any 0/8 native 0', 'anime', 3000), ('no-hero', 0.0, 'REJECT', 'no-main-characters', 'main 0/4 any 0/8 native 0', 'anime', 100), ('the-hero', 0.0, 'REJECT', 'no-main-characters', 'main 0/4 any 0/8 native 0', 'movies', 10), ('hero-high', 0.0, 'REJECT', 'no-main-characters', 'main 0/4 any 0/8 native 0', 'tv', 100)]"
+     "topluluk aramasi sorgulari=['Weak Hero', 'Yakanyeongung', 'Weak Hero: Un héroe débil', '약한영웅', 'WEAK HERO นักเรียนดีเดือด', 'Weak Hero Seopass', 'Un héroe débil'] -> 18 aday: ['weakhero', 'andromeda', 'hero', 'heroes-and-villain', 'lesserknown-heroes-and-villains', 'villains', 'heroes', 'unpublished-heroes', 'heroes-of-thedas', 'my-hero-academia-fanon']"
     ]
    },
    {
     "mode": "title-only",
-    "status": "UNVERIFIED-MISS",
-    "wiki": null,
-    "via": null,
-    "conf": null,
+    "status": "UNVERIFIED-FOUND",
+    "wiki": "weakhero",
+    "via": "name-article-proof",
+    "conf": "PROBABLE",
     "hits": [
      "weakhero",
      "andromeda",
@@ -8677,92 +8613,18 @@
      "shining-universe-hero-parody",
      "heroes-of-thedas"
     ],
-    "scores": [
-     [
-      "weakhero",
-      0.0,
-      "REJECT",
-      "no-main-characters",
-      "main 0/4 any 0/8 native 0",
-      "comics",
-      500
-     ],
-     [
-      "no-hero",
-      0.0,
-      "REJECT",
-      "no-main-characters",
-      "main 0/4 any 0/8 native 0",
-      "anime",
-      100
-     ],
-     [
-      "the-hero",
-      0.0,
-      "REJECT",
-      "no-main-characters",
-      "main 0/4 any 0/8 native 0",
-      "movies",
-      10
-     ],
-     [
-      "heroes-and-villain",
-      0.0,
-      "REJECT",
-      "no-main-characters",
-      "main 0/4 any 0/8 native 0",
-      "movies",
-      10000
-     ],
-     [
-      "andromeda",
-      0.0,
-      "REJECT",
-      "no-main-characters",
-      "main 0/4 any 0/8 native 0",
-      "tv",
-      1000
-     ],
-     [
-      "evil-hero",
-      0.0,
-      "REJECT",
-      "no-main-characters",
-      "main 0/4 any 0/8 native 0",
-      "lifestyle",
-      10
-     ],
-     [
-      "shining-universe-hero-parody",
-      0.0,
-      "REJECT",
-      "no-main-characters",
-      "main 0/4 any 0/8 native 0",
-      "lifestyle",
-      10
-     ],
-     [
-      "heroes-of-thedas",
-      0.0,
-      "REJECT",
-      "no-main-characters",
-      "main 0/4 any 0/8 native 0",
-      "games",
-      10
-     ]
-    ],
+    "scores": null,
     "trace": [
      "baslik->AniList#113488 kopru",
      "wikidata: kimlikle QID yok",
      "karakter oylari: yok",
-     "topluluk aramasi sorgulari=['Weak Hero', 'Yakanyeongung', 'Weak Hero: Un héroe débil', '약한영웅', 'Weak Hero Seopass', 'Un héroe débil'] -> 14 aday: ['weakhero', 'andromeda', 'hero', 'heroes-and-villain', 'lesserknown-heroes-and-villains', 'villains', 'heroes', 'unpublished-heroes', 'heroes-of-thedas', 'the-hero']",
-     "isim yolu: hepsi RED [('weakhero', 0.0, 'REJECT', 'no-main-characters', 'main 0/4 any 0/8 native 0', 'comics', 500), ('no-hero', 0.0, 'REJECT', 'no-main-characters', 'main 0/4 any 0/8 native 0', 'anime', 100), ('the-hero', 0.0, 'REJECT', 'no-main-characters', 'main 0/4 any 0/8 native 0', 'movies', 10), ('heroes-and-villain', 0.0, 'REJECT', 'no-main-characters', 'main 0/4 any 0/8 native 0', 'movies', 10000), ('andromeda', 0.0, 'REJECT', 'no-main-characters', 'main 0/4 any 0/8 native 0', 'tv', 1000)]"
+     "topluluk aramasi sorgulari=['Weak Hero', 'Yakanyeongung', 'Weak Hero: Un héroe débil', '약한영웅', 'Weak Hero Seopass', 'Un héroe débil'] -> 14 aday: ['weakhero', 'andromeda', 'hero', 'heroes-and-villain', 'lesserknown-heroes-and-villains', 'villains', 'heroes', 'unpublished-heroes', 'heroes-of-thedas', 'the-hero']"
     ]
    }
   ],
   "source_info": "AniList#113488 MAL#128231 Yakanyeongung",
   "expected_alive": null,
-  "secs": 243.1
+  "secs": 12.3
  },
  {
   "title": "Soul Land",
@@ -8771,10 +8633,10 @@
   "runs": [
    {
     "mode": "ids",
-    "status": "UNVERIFIED-MISS",
-    "wiki": null,
-    "via": null,
-    "conf": null,
+    "status": "UNVERIFIED-FOUND",
+    "wiki": "soulland",
+    "via": "name-score",
+    "conf": "CERTAIN",
     "hits": [
      "soulland",
      "genesis-horizon",
@@ -8806,10 +8668,10 @@
     "scores": [
      [
       "soulland",
-      0.0,
-      "REJECT",
-      "no-main-characters",
-      "main 0/6 any 0/8 native 0",
+      0.9,
+      "CERTAIN",
+      null,
+      "main 6/6 any 8/8 native 7",
       "anime",
       4000
      ],
@@ -8880,16 +8742,15 @@
     "trace": [
      "wikidata: kimlikle QID yok",
      "karakter oylari: yok",
-     "topluluk aramasi sorgulari=['Soul Land', 'Douluo Dalu', 'Lands of Battle', '斗罗大陆', 'Soul Land Fengchun Mu', 'Combat Continent'] -> 16 aday: ['soulland', 'genesis-horizon', 'legacyofkain', 'battle-on-serene-land', 'disciples', 'despicableme', 'kinalite-kingdom-offical', 'the-luminous-grove-roleplay', 'divine-soul-emperor', 'martial-arts-sect-to-immortal-cultivation-sect']",
-     "isim yolu: hepsi RED [('soulland', 0.0, 'REJECT', 'no-main-characters', 'main 0/6 any 0/8 native 0', 'anime', 4000), ('lost-soul', 0.0, 'REJECT', 'no-main-characters', 'main 0/6 any 0/8 native 0', 'tv', 100), ('onepunchman', 0.0, 'REJECT', 'no-main-characters', 'main 0/6 any 0/8 native 0', 'anime', 1000), ('genesis-horizon', 0.0, 'REJECT', 'no-main-characters', 'main 0/6 any 0/8 native 0', 'anime', 200), ('battle-on-serene-land', 0.0, 'REJECT', 'no-main-characters', 'main 0/6 any 0/8 native 0', 'tv', 100)]"
+     "topluluk aramasi sorgulari=['Soul Land', 'Douluo Dalu', 'Lands of Battle', '斗罗大陆', 'Soul Land Fengchun Mu', 'Combat Continent'] -> 16 aday: ['soulland', 'genesis-horizon', 'legacyofkain', 'battle-on-serene-land', 'disciples', 'despicableme', 'kinalite-kingdom-offical', 'the-luminous-grove-roleplay', 'divine-soul-emperor', 'martial-arts-sect-to-immortal-cultivation-sect']"
     ]
    },
    {
     "mode": "title-only",
-    "status": "UNVERIFIED-MISS",
-    "wiki": null,
-    "via": null,
-    "conf": null,
+    "status": "UNVERIFIED-FOUND",
+    "wiki": "soulland",
+    "via": "name-score",
+    "conf": "CERTAIN",
     "hits": [
      "soulland",
      "genesis-horizon",
@@ -8921,10 +8782,10 @@
     "scores": [
      [
       "soulland",
-      0.0,
-      "REJECT",
-      "no-main-characters",
-      "main 0/6 any 0/8 native 0",
+      0.9,
+      "CERTAIN",
+      null,
+      "main 6/6 any 8/8 native 7",
       "anime",
       4000
      ],
@@ -8996,14 +8857,13 @@
      "baslik->AniList#85446 kopru",
      "wikidata: kimlikle QID yok",
      "karakter oylari: yok",
-     "topluluk aramasi sorgulari=['Soul Land', 'Douluo Dalu', 'Lands of Battle', '斗罗大陆', 'Soul Land Fengchun Mu', 'Combat Continent'] -> 16 aday: ['soulland', 'genesis-horizon', 'legacyofkain', 'battle-on-serene-land', 'disciples', 'despicableme', 'kinalite-kingdom-offical', 'the-luminous-grove-roleplay', 'divine-soul-emperor', 'martial-arts-sect-to-immortal-cultivation-sect']",
-     "isim yolu: hepsi RED [('soulland', 0.0, 'REJECT', 'no-main-characters', 'main 0/6 any 0/8 native 0', 'anime', 4000), ('lost-soul', 0.0, 'REJECT', 'no-main-characters', 'main 0/6 any 0/8 native 0', 'tv', 100), ('onepunchman', 0.0, 'REJECT', 'no-main-characters', 'main 0/6 any 0/8 native 0', 'anime', 1000), ('genesis-horizon', 0.0, 'REJECT', 'no-main-characters', 'main 0/6 any 0/8 native 0', 'anime', 200), ('battle-on-serene-land', 0.0, 'REJECT', 'no-main-characters', 'main 0/6 any 0/8 native 0', 'tv', 100)]"
+     "topluluk aramasi sorgulari=['Soul Land', 'Douluo Dalu', 'Lands of Battle', '斗罗大陆', 'Soul Land Fengchun Mu', 'Combat Continent'] -> 16 aday: ['soulland', 'genesis-horizon', 'legacyofkain', 'battle-on-serene-land', 'disciples', 'despicableme', 'kinalite-kingdom-offical', 'the-luminous-grove-roleplay', 'divine-soul-emperor', 'martial-arts-sect-to-immortal-cultivation-sect']"
     ]
    }
   ],
   "source_info": "AniList#85446 MAL#72303 Douluo Dalu",
   "expected_alive": null,
-  "secs": 221.4
+  "secs": 15.8
  },
  {
   "title": "Battle Through the Heavens",
@@ -9012,10 +8872,10 @@
   "runs": [
    {
     "mode": "ids",
-    "status": "UNVERIFIED-MISS",
-    "wiki": null,
-    "via": null,
-    "conf": null,
+    "status": "UNVERIFIED-FOUND",
+    "wiki": "battle-through-the-heavens",
+    "via": "name-score",
+    "conf": "CERTAIN",
     "hits": [
      "battle-through-the-heavens",
      "across-the-heavens",
@@ -9028,8 +8888,8 @@
      "my-female-apprentices-are-all-future-big-shots",
      "doulongzhanshi",
      "divine-god-against-the-heavens-by-razakarim",
-     "builang",
      "permanent-martial-arts",
+     "builang",
      "fortune-quest",
      "wings-of-fire-vselennaya-dregorn",
      "dbz-dokkanbattle",
@@ -9059,10 +8919,10 @@
     "scores": [
      [
       "battle-through-the-heavens",
-      0.0,
-      "REJECT",
-      "no-characters",
-      "main 0/1 any 0/5 native 0",
+      0.89,
+      "CERTAIN",
+      null,
+      "main 1/1 any 3/5 native 2",
       "anime",
       2000
      ],
@@ -9133,16 +8993,15 @@
     "trace": [
      "wikidata: kimlikle QID yok",
      "karakter oylari: yok",
-     "topluluk aramasi sorgulari=['Battle Through the Heavens', 'Dou Po Cangqiong', 'Fight Break Sphere', '斗破蒼穹', 'Battle Through the Heavens Tian Can Tudou', 'Dou Po Cang Qiong'] -> 28 aday: ['battle-through-the-heavens', 'across-the-heavens', 'the-heavens', 'vsbattles', 'everything-starts-from-breaking-through-the-sky', 'battle-for-the-earth', 'battle-spirits', 'war-sovereign-soaring-the-heavens', 'my-female-apprentices-are-all-future-big-shots', 'doulongzhanshi']",
-     "isim yolu: hepsi RED [('battle-through-the-heavens', 0.0, 'REJECT', 'no-characters', 'main 0/1 any 0/5 native 0', 'anime', 2000), ('war-sovereign-soaring-the-heavens', 0.0, 'REJECT', 'no-characters', 'main 0/1 any 0/5 native 0', 'anime', 1000), ('ni-tian-xie-shen-against-the-gods', 0.0, 'REJECT', 'no-characters', 'main 0/1 any 0/5 native 0', 'anime', 1000), ('legend-of-ling-tian-en', 0.0, 'REJECT', 'no-characters', 'main 0/1 any 0/5 native 0', 'anime', 300), ('my-female-apprentices-are-all-future-big-shots', 0.0, 'REJECT', 'no-characters', 'main 0/1 any 0/5 native 0', 'comics', 200)]"
+     "topluluk aramasi sorgulari=['Battle Through the Heavens', 'Dou Po Cangqiong', 'Fight Break Sphere', '斗破蒼穹', 'Battle Through the Heavens Tian Can Tudou', 'Dou Po Cang Qiong'] -> 28 aday: ['battle-through-the-heavens', 'across-the-heavens', 'the-heavens', 'vsbattles', 'everything-starts-from-breaking-through-the-sky', 'battle-for-the-earth', 'battle-spirits', 'war-sovereign-soaring-the-heavens', 'my-female-apprentices-are-all-future-big-shots', 'doulongzhanshi']"
     ]
    },
    {
     "mode": "title-only",
-    "status": "UNVERIFIED-MISS",
-    "wiki": null,
-    "via": null,
-    "conf": null,
+    "status": "UNVERIFIED-FOUND",
+    "wiki": "battle-through-the-heavens",
+    "via": "name-score",
+    "conf": "CERTAIN",
     "hits": [
      "battle-through-the-heavens",
      "across-the-heavens",
@@ -9155,8 +9014,8 @@
      "my-female-apprentices-are-all-future-big-shots",
      "doulongzhanshi",
      "divine-god-against-the-heavens-by-razakarim",
-     "builang",
      "permanent-martial-arts",
+     "builang",
      "fortune-quest",
      "wings-of-fire-vselennaya-dregorn",
      "dbz-dokkanbattle",
@@ -9186,10 +9045,10 @@
     "scores": [
      [
       "battle-through-the-heavens",
-      0.0,
-      "REJECT",
-      "no-characters",
-      "main 0/1 any 0/5 native 0",
+      0.89,
+      "CERTAIN",
+      null,
+      "main 1/1 any 3/5 native 2",
       "anime",
       2000
      ],
@@ -9261,14 +9120,13 @@
      "baslik->AniList#85453 kopru",
      "wikidata: kimlikle QID yok",
      "karakter oylari: yok",
-     "topluluk aramasi sorgulari=['Battle Through the Heavens', 'Dou Po Cangqiong', 'Fight Break Sphere', '斗破蒼穹', 'Battle Through the Heavens Tian Can Tudou', 'Dou Po Cang Qiong'] -> 28 aday: ['battle-through-the-heavens', 'across-the-heavens', 'the-heavens', 'vsbattles', 'everything-starts-from-breaking-through-the-sky', 'battle-for-the-earth', 'battle-spirits', 'war-sovereign-soaring-the-heavens', 'my-female-apprentices-are-all-future-big-shots', 'doulongzhanshi']",
-     "isim yolu: hepsi RED [('battle-through-the-heavens', 0.0, 'REJECT', 'no-characters', 'main 0/1 any 0/5 native 0', 'anime', 2000), ('war-sovereign-soaring-the-heavens', 0.0, 'REJECT', 'no-characters', 'main 0/1 any 0/5 native 0', 'anime', 1000), ('ni-tian-xie-shen-against-the-gods', 0.0, 'REJECT', 'no-characters', 'main 0/1 any 0/5 native 0', 'anime', 1000), ('legend-of-ling-tian-en', 0.0, 'REJECT', 'no-characters', 'main 0/1 any 0/5 native 0', 'anime', 300), ('my-female-apprentices-are-all-future-big-shots', 0.0, 'REJECT', 'no-characters', 'main 0/1 any 0/5 native 0', 'comics', 200)]"
+     "topluluk aramasi sorgulari=['Battle Through the Heavens', 'Dou Po Cangqiong', 'Fight Break Sphere', '斗破蒼穹', 'Battle Through the Heavens Tian Can Tudou', 'Dou Po Cang Qiong'] -> 28 aday: ['battle-through-the-heavens', 'across-the-heavens', 'the-heavens', 'vsbattles', 'everything-starts-from-breaking-through-the-sky', 'battle-for-the-earth', 'battle-spirits', 'war-sovereign-soaring-the-heavens', 'my-female-apprentices-are-all-future-big-shots', 'doulongzhanshi']"
     ]
    }
   ],
   "source_info": "AniList#85453 MAL#79193 Dou Po Cangqiong",
   "expected_alive": null,
-  "secs": 241.8
+  "secs": 16.5
  },
  {
   "title": "Martial Peak",
@@ -9277,10 +9135,10 @@
   "runs": [
    {
     "mode": "ids",
-    "status": "UNVERIFIED-MISS",
-    "wiki": null,
-    "via": null,
-    "conf": null,
+    "status": "UNVERIFIED-FOUND",
+    "wiki": "martial-peak-mp",
+    "via": "name-score",
+    "conf": "PROBABLE",
     "hits": [
      "martialpeak",
      "martial-peak-mp",
@@ -9314,19 +9172,19 @@
     "scores": [
      [
       "martialpeak",
-      0.0,
-      "REJECT",
-      "no-characters",
-      "main 0/1 any 0/5 native 0",
+      0.78,
+      "PROBABLE",
+      null,
+      "main 1/1 any 1/5 native 1",
       "anime",
       100
      ],
      [
       "martial-peak-mp",
-      0.0,
-      "REJECT",
-      "no-characters",
-      "main 0/1 any 0/5 native 0",
+      0.84,
+      "PROBABLE",
+      null,
+      "main 1/1 any 3/5 native 2",
       "anime",
       1000
      ],
@@ -9341,10 +9199,10 @@
      ],
      [
       "martial-world",
-      0.0,
+      0.59,
       "REJECT",
-      "no-characters",
-      "main 0/1 any 0/5 native 0",
+      null,
+      "main 1/1 any 1/5 native 0",
       "anime",
       1000
      ],
@@ -9388,16 +9246,15 @@
     "trace": [
      "wikidata: starts=['Q113143207'] p4073={} nodes=[]",
      "karakter oylari: yok",
-     "topluluk aramasi sorgulari=['Martial Peak', 'Wu Lian Dianfeng', 'The Pinnacle of Martial Arts', '武炼巅峰', '무련전봉', '武錬天下', 'Martial Peak PIKAPI'] -> 18 aday: ['martialpeak', 'martial-peak-mp', 'martial-peak-world', 'martial-arts-sect-to-immortal-cultivation-sect', 'permanent-martial-arts', 'my-female-apprentices-are-all-future-big-shots', 'martial-arts-master', 'complete-martial-arts-attributes', 'kuatixiduibi', 'eternal-life-begins-with-taking-a-wife']",
-     "isim yolu: hepsi RED [('martialpeak', 0.0, 'REJECT', 'no-characters', 'main 0/1 any 0/5 native 0', 'anime', 100), ('martial-peak-mp', 0.0, 'REJECT', 'no-characters', 'main 0/1 any 0/5 native 0', 'anime', 1000), ('martial-arts-master', 0.0, 'REJECT', 'no-characters', 'main 0/1 any 0/5 native 0', 'books', 1000), ('martial-world', 0.0, 'REJECT', 'no-characters', 'main 0/1 any 0/5 native 0', 'anime', 1000), ('martial-master', 0.0, 'REJECT', 'no-characters', 'main 0/1 any 0/5 native 0', 'books', 600)]"
+     "topluluk aramasi sorgulari=['Martial Peak', 'Wu Lian Dianfeng', 'The Pinnacle of Martial Arts', '武炼巅峰', '무련전봉', '武錬天下', 'Martial Peak PIKAPI'] -> 18 aday: ['martialpeak', 'martial-peak-mp', 'martial-peak-world', 'martial-arts-sect-to-immortal-cultivation-sect', 'permanent-martial-arts', 'my-female-apprentices-are-all-future-big-shots', 'martial-arts-master', 'complete-martial-arts-attributes', 'kuatixiduibi', 'eternal-life-begins-with-taking-a-wife']"
     ]
    },
    {
     "mode": "title-only",
-    "status": "UNVERIFIED-MISS",
-    "wiki": null,
-    "via": null,
-    "conf": null,
+    "status": "UNVERIFIED-FOUND",
+    "wiki": "martial-peak-mp",
+    "via": "name-score",
+    "conf": "PROBABLE",
     "hits": [
      "martialpeak",
      "martial-peak-mp",
@@ -9431,19 +9288,19 @@
     "scores": [
      [
       "martialpeak",
-      0.0,
-      "REJECT",
-      "no-characters",
-      "main 0/1 any 0/5 native 0",
+      0.78,
+      "PROBABLE",
+      null,
+      "main 1/1 any 1/5 native 1",
       "anime",
       100
      ],
      [
       "martial-peak-mp",
-      0.0,
-      "REJECT",
-      "no-characters",
-      "main 0/1 any 0/5 native 0",
+      0.84,
+      "PROBABLE",
+      null,
+      "main 1/1 any 3/5 native 2",
       "anime",
       1000
      ],
@@ -9458,10 +9315,10 @@
      ],
      [
       "martial-world",
-      0.0,
+      0.59,
       "REJECT",
-      "no-characters",
-      "main 0/1 any 0/5 native 0",
+      null,
+      "main 1/1 any 1/5 native 0",
       "anime",
       1000
      ],
@@ -9506,14 +9363,13 @@
      "baslik->AniList#104494 kopru",
      "wikidata: starts=['Q113143207'] p4073={} nodes=[]",
      "karakter oylari: yok",
-     "topluluk aramasi sorgulari=['Martial Peak', 'Wu Lian Dianfeng', 'The Pinnacle of Martial Arts', '武炼巅峰', 'Martial Peak PIKAPI'] -> 18 aday: ['martialpeak', 'martial-peak-mp', 'martial-peak-world', 'martial-arts-sect-to-immortal-cultivation-sect', 'permanent-martial-arts', 'my-female-apprentices-are-all-future-big-shots', 'martial-arts-master', 'complete-martial-arts-attributes', 'kuatixiduibi', 'eternal-life-begins-with-taking-a-wife']",
-     "isim yolu: hepsi RED [('martialpeak', 0.0, 'REJECT', 'no-characters', 'main 0/1 any 0/5 native 0', 'anime', 100), ('martial-peak-mp', 0.0, 'REJECT', 'no-characters', 'main 0/1 any 0/5 native 0', 'anime', 1000), ('martial-arts-master', 0.0, 'REJECT', 'no-characters', 'main 0/1 any 0/5 native 0', 'books', 1000), ('martial-world', 0.0, 'REJECT', 'no-characters', 'main 0/1 any 0/5 native 0', 'anime', 1000), ('martial-master', 0.0, 'REJECT', 'no-characters', 'main 0/1 any 0/5 native 0', 'books', 600)]"
+     "topluluk aramasi sorgulari=['Martial Peak', 'Wu Lian Dianfeng', 'The Pinnacle of Martial Arts', '武炼巅峰', 'Martial Peak PIKAPI'] -> 18 aday: ['martialpeak', 'martial-peak-mp', 'martial-peak-world', 'martial-arts-sect-to-immortal-cultivation-sect', 'permanent-martial-arts', 'my-female-apprentices-are-all-future-big-shots', 'martial-arts-master', 'complete-martial-arts-attributes', 'kuatixiduibi', 'eternal-life-begins-with-taking-a-wife']"
     ]
    }
   ],
   "source_info": "AniList#104494 MAL#None Wu Lian Dianfeng",
   "expected_alive": null,
-  "secs": 229.4
+  "secs": 17.9
  },
  {
   "title": "Bakuman.",
@@ -9522,10 +9378,10 @@
   "runs": [
    {
     "mode": "ids",
-    "status": "UNVERIFIED-MISS",
-    "wiki": null,
-    "via": null,
-    "conf": null,
+    "status": "UNVERIFIED-FOUND",
+    "wiki": "bakuman",
+    "via": "name-score",
+    "conf": "CERTAIN",
     "hits": [
      "bakuman",
      "bakuman-fanon",
@@ -9547,10 +9403,10 @@
     "scores": [
      [
       "bakuman",
-      0.0,
-      "REJECT",
-      "no-main-characters",
-      "main 0/2 any 0/6 native 0",
+      0.98,
+      "CERTAIN",
+      null,
+      "main 2/2 any 6/6 native 6",
       "anime",
       400
      ],
@@ -9603,16 +9459,15 @@
     "trace": [
      "wikidata: starts=['Q804555'] p4073={} nodes=['Q29881026']",
      "karakter oylari: {'bakuman': 1}",
-     "topluluk aramasi sorgulari=['Bakuman。', 'バクマン。', 'Бакуман', '바쿠만', 'Bakuman。 Tsugumi Ooba', '爆漫王'] -> 8 aday: ['bakuman', 'bakuman-fanon', 'platinumend', 'branson-universe', 'tadaimaokaeri', 'manga', 'renai-daikou', 'lobotomycorpo-1107']",
-     "isim yolu: hepsi RED [('bakuman', 0.0, 'REJECT', 'no-main-characters', 'main 0/2 any 0/6 native 0', 'anime', 400), ('platinumend', 0.0, 'REJECT', 'no-main-characters', 'main 0/2 any 0/6 native 0', 'anime', 300), ('branson-universe', 0.0, 'REJECT', 'no-main-characters', 'main 0/2 any 0/6 native 0', 'tv', 10000), ('tadaimaokaeri', 0.0, 'REJECT', 'no-main-characters', 'main 0/2 any 0/6 native 0', 'anime', 10), ('renai-daikou', 0.0, 'REJECT', 'no-main-characters', 'main 0/2 any 0/6 native 0', 'anime', 10)]"
+     "topluluk aramasi sorgulari=['Bakuman。', 'バクマン。', 'Бакуман', '바쿠만', 'Bakuman。 Tsugumi Ooba', '爆漫王'] -> 8 aday: ['bakuman', 'bakuman-fanon', 'platinumend', 'branson-universe', 'tadaimaokaeri', 'manga', 'renai-daikou', 'lobotomycorpo-1107']"
     ]
    },
    {
     "mode": "title-only",
-    "status": "UNVERIFIED-MISS",
-    "wiki": null,
-    "via": null,
-    "conf": null,
+    "status": "UNVERIFIED-FOUND",
+    "wiki": "bakuman",
+    "via": "name-score",
+    "conf": "CERTAIN",
     "hits": [
      "bakuman",
      "bakuman-fanon",
@@ -9634,10 +9489,10 @@
     "scores": [
      [
       "bakuman",
-      0.0,
-      "REJECT",
-      "no-main-characters",
-      "main 0/2 any 0/6 native 0",
+      0.98,
+      "CERTAIN",
+      null,
+      "main 2/2 any 6/6 native 6",
       "anime",
       400
      ],
@@ -9691,14 +9546,13 @@
      "baslik->AniList#39711 kopru",
      "wikidata: starts=['Q804555'] p4073={} nodes=['Q29881026']",
      "karakter oylari: {'bakuman': 1}",
-     "topluluk aramasi sorgulari=['Bakuman。', 'バクマン。', 'Bakuman。 Tsugumi Ooba'] -> 8 aday: ['bakuman', 'bakuman-fanon', 'platinumend', 'branson-universe', 'tadaimaokaeri', 'manga', 'renai-daikou', 'lobotomycorpo-1107']",
-     "isim yolu: hepsi RED [('bakuman', 0.0, 'REJECT', 'no-main-characters', 'main 0/2 any 0/6 native 0', 'anime', 400), ('platinumend', 0.0, 'REJECT', 'no-main-characters', 'main 0/2 any 0/6 native 0', 'anime', 300), ('branson-universe', 0.0, 'REJECT', 'no-main-characters', 'main 0/2 any 0/6 native 0', 'tv', 10000), ('tadaimaokaeri', 0.0, 'REJECT', 'no-main-characters', 'main 0/2 any 0/6 native 0', 'anime', 10), ('renai-daikou', 0.0, 'REJECT', 'no-main-characters', 'main 0/2 any 0/6 native 0', 'anime', 10)]"
+     "topluluk aramasi sorgulari=['Bakuman。', 'バクマン。', 'Bakuman。 Tsugumi Ooba'] -> 8 aday: ['bakuman', 'bakuman-fanon', 'platinumend', 'branson-universe', 'tadaimaokaeri', 'manga', 'renai-daikou', 'lobotomycorpo-1107']"
     ]
    }
   ],
   "source_info": "AniList#39711 MAL#9711 Bakuman.",
   "expected_alive": null,
-  "secs": 205.2
+  "secs": 23.3
  },
  {
   "title": "Overlord",
@@ -9735,7 +9589,7 @@
   ],
   "source_info": "AniList#85976 MAL#81669 Overlord",
   "expected_alive": null,
-  "secs": 1.9
+  "secs": 5.1
  },
  {
   "title": "Spice and Wolf",
@@ -9813,7 +9667,7 @@
   ],
   "source_info": "AniList#85737 MAL#74697 Re:Zero kara Hajimeru Isekai Seikatsu",
   "expected_alive": true,
-  "secs": 2.7
+  "secs": 4.5
  },
  {
   "title": "Classroom of the Elite",
@@ -9850,7 +9704,7 @@
   ],
   "source_info": "AniList#94970 MAL#89357 Youkoso Jitsuryoku Shijou Shugi no Kyoushitsu e",
   "expected_alive": null,
-  "secs": 7.2
+  "secs": 4.8
  },
  {
   "title": "The Melancholy of Haruhi Suzumiya",
@@ -9861,259 +9715,35 @@
     "mode": "ids",
     "status": "UNVERIFIED-FOUND",
     "wiki": "haruhi",
-    "via": "name-score",
-    "conf": "CERTAIN",
-    "hits": [
-     "haruhi",
-     "ouran",
-     "welcometothenhk",
-     "chunibyo",
-     "anohana",
-     "free-anime",
-     "oregairu",
-     "mahouka-koukou-no-rettousei",
-     "isekai-no-sata-wa-shachiku-shidai",
-     "soranootoshimono",
-     "shigatsu-wa-kimi-no-uso",
-     "anime-and-manga-series",
-     "the-series-info",
-     "world-stories-series",
-     "sakamichi-series",
-     "light-life-series",
-     "pretty-cure-with-series",
-     "fushigiboshi-no-futagohime-in-series",
-     "given",
-     "demonscrest",
-     "tadaimaokaeri",
-     "mudazumo-naki-kaikaku",
-     "another",
-     "spongebobchannal",
-     "mochapedia",
-     "yandere-simulator-demo",
-     "batalla-por-aprobar",
-     "hirasawafan"
-    ],
-    "shortlist": [
-     "haruhi",
-     "mahouka-koukou-no-rettousei",
-     "soranootoshimono",
-     "pretty-cure-with-series",
-     "fushigiboshi-no-futagohime-in-series",
-     "isekai-no-sata-wa-shachiku-shidai",
-     "shigatsu-wa-kimi-no-uso",
-     "anime-and-manga-series"
-    ],
-    "scores": [
-     [
-      "haruhi",
-      0.88,
-      "CERTAIN",
-      null,
-      "main 5/5 any 9/9 native 9",
-      "anime",
-      400
-     ],
-     [
-      "mahouka-koukou-no-rettousei",
-      0.0,
-      "REJECT",
-      "no-main-characters",
-      "main 0/5 any 0/9 native 0",
-      "anime",
-      1000
-     ],
-     [
-      "soranootoshimono",
-      0.0,
-      "REJECT",
-      "no-main-characters",
-      "main 0/5 any 0/9 native 0",
-      "anime",
-      200
-     ],
-     [
-      "pretty-cure-with-series",
-      0.0,
-      "REJECT",
-      "no-main-characters",
-      "main 0/5 any 0/9 native 0",
-      "anime",
-      100
-     ],
-     [
-      "fushigiboshi-no-futagohime-in-series",
-      0.0,
-      "REJECT",
-      "no-main-characters",
-      "main 0/5 any 0/9 native 0",
-      "anime",
-      100
-     ],
-     [
-      "isekai-no-sata-wa-shachiku-shidai",
-      0.0,
-      "REJECT",
-      "no-main-characters",
-      "main 0/5 any 0/9 native 0",
-      "anime",
-      200
-     ],
-     [
-      "shigatsu-wa-kimi-no-uso",
-      0.0,
-      "REJECT",
-      "no-main-characters",
-      "main 0/5 any 0/9 native 0",
-      "anime",
-      100
-     ],
-     [
-      "anime-and-manga-series",
-      0.0,
-      "REJECT",
-      "no-main-characters",
-      "main 0/5 any 0/9 native 0",
-      "anime",
-      10
-     ]
-    ],
+    "via": "character-votes",
+    "conf": "PROBABLE",
+    "hits": null,
+    "shortlist": null,
+    "scores": null,
     "trace": [
      "wikidata: starts=['Q498992'] p4073={} nodes=[]",
-     "karakter oylari: {'haruhi': 3}",
-     "topluluk aramasi sorgulari=['The Melancholy of Haruhi Suzumiya', 'Suzumiya Haruhi no Yuuutsu', 'Suzumiya Haruhi Series', '涼宮ハルヒの憂鬱', 'The Melancholy of Haruhi Suzumiya Nagaru Tanigawa', 'La malinconia di Haruhi Suzumiya'] -> 28 aday: ['haruhi', 'ouran', 'welcometothenhk', 'chunibyo', 'anohana', 'free-anime', 'oregairu', 'mahouka-koukou-no-rettousei', 'isekai-no-sata-wa-shachiku-shidai', 'soranootoshimono']"
+     "karakter oylari: {'haruhi': 3}"
     ]
    },
    {
     "mode": "title-only",
     "status": "UNVERIFIED-FOUND",
     "wiki": "haruhi",
-    "via": "name-score",
-    "conf": "CERTAIN",
-    "hits": [
-     "haruhi",
-     "ouran",
-     "welcometothenhk",
-     "chunibyo",
-     "anohana",
-     "free-anime",
-     "oregairu",
-     "mahouka-koukou-no-rettousei",
-     "isekai-no-sata-wa-shachiku-shidai",
-     "soranootoshimono",
-     "shigatsu-wa-kimi-no-uso",
-     "anime-and-manga-series",
-     "the-series-info",
-     "world-stories-series",
-     "sakamichi-series",
-     "light-life-series",
-     "pretty-cure-with-series",
-     "fushigiboshi-no-futagohime-in-series",
-     "given",
-     "demonscrest",
-     "tadaimaokaeri",
-     "mudazumo-naki-kaikaku",
-     "another",
-     "spongebobchannal",
-     "mochapedia",
-     "yandere-simulator-demo",
-     "batalla-por-aprobar",
-     "hirasawafan"
-    ],
-    "shortlist": [
-     "haruhi",
-     "mahouka-koukou-no-rettousei",
-     "soranootoshimono",
-     "pretty-cure-with-series",
-     "fushigiboshi-no-futagohime-in-series",
-     "isekai-no-sata-wa-shachiku-shidai",
-     "shigatsu-wa-kimi-no-uso",
-     "anime-and-manga-series"
-    ],
-    "scores": [
-     [
-      "haruhi",
-      0.88,
-      "CERTAIN",
-      null,
-      "main 5/5 any 9/9 native 9",
-      "anime",
-      400
-     ],
-     [
-      "mahouka-koukou-no-rettousei",
-      0.0,
-      "REJECT",
-      "no-main-characters",
-      "main 0/5 any 0/9 native 0",
-      "anime",
-      1000
-     ],
-     [
-      "soranootoshimono",
-      0.0,
-      "REJECT",
-      "no-main-characters",
-      "main 0/5 any 0/9 native 0",
-      "anime",
-      200
-     ],
-     [
-      "pretty-cure-with-series",
-      0.0,
-      "REJECT",
-      "no-main-characters",
-      "main 0/5 any 0/9 native 0",
-      "anime",
-      100
-     ],
-     [
-      "fushigiboshi-no-futagohime-in-series",
-      0.0,
-      "REJECT",
-      "no-main-characters",
-      "main 0/5 any 0/9 native 0",
-      "anime",
-      100
-     ],
-     [
-      "isekai-no-sata-wa-shachiku-shidai",
-      0.0,
-      "REJECT",
-      "no-main-characters",
-      "main 0/5 any 0/9 native 0",
-      "anime",
-      200
-     ],
-     [
-      "shigatsu-wa-kimi-no-uso",
-      0.0,
-      "REJECT",
-      "no-main-characters",
-      "main 0/5 any 0/9 native 0",
-      "anime",
-      100
-     ],
-     [
-      "anime-and-manga-series",
-      0.0,
-      "REJECT",
-      "no-main-characters",
-      "main 0/5 any 0/9 native 0",
-      "anime",
-      10
-     ]
-    ],
+    "via": "character-votes",
+    "conf": "PROBABLE",
+    "hits": null,
+    "shortlist": null,
+    "scores": null,
     "trace": [
      "baslik->AniList#33083 kopru",
      "wikidata: starts=['Q498992'] p4073={} nodes=[]",
-     "karakter oylari: {'haruhi': 3}",
-     "topluluk aramasi sorgulari=['The Melancholy of Haruhi Suzumiya', 'Suzumiya Haruhi no Yuuutsu', 'Suzumiya Haruhi Series', '涼宮ハルヒの憂鬱', 'The Melancholy of Haruhi Suzumiya Nagaru Tanigawa', 'La malinconia di Haruhi Suzumiya'] -> 28 aday: ['haruhi', 'ouran', 'welcometothenhk', 'chunibyo', 'anohana', 'free-anime', 'oregairu', 'mahouka-koukou-no-rettousei', 'isekai-no-sata-wa-shachiku-shidai', 'soranootoshimono']"
+     "karakter oylari: {'haruhi': 3}"
     ]
    }
   ],
   "source_info": "AniList#33083 MAL#3083 Suzumiya Haruhi no Yuuutsu",
   "expected_alive": null,
-  "secs": 275.4
+  "secs": 6.6
  },
  {
   "title": "Log Horizon",
@@ -10122,10 +9752,10 @@
   "runs": [
    {
     "mode": "ids",
-    "status": "UNVERIFIED-MISS",
-    "wiki": null,
-    "via": null,
-    "conf": null,
+    "status": "UNVERIFIED-FOUND",
+    "wiki": "log-horizon",
+    "via": "name-article-proof",
+    "conf": "PROBABLE",
     "hits": [
      "log-horizon",
      "loghorizonfanon",
@@ -10145,84 +9775,19 @@
      "horizon-ocs",
      "sound-horizon"
     ],
-    "scores": [
-     [
-      "log-horizon",
-      0.0,
-      "REJECT",
-      "no-main-characters",
-      "main 0/4 any 0/8 native 0",
-      "anime",
-      800
-     ],
-     [
-      "genesis-horizon",
-      0.0,
-      "REJECT",
-      "no-main-characters",
-      "main 0/4 any 0/8 native 0",
-      "anime",
-      200
-     ],
-     [
-      "horizon",
-      0.0,
-      "REJECT",
-      "no-main-characters",
-      "main 0/4 any 0/8 native 0",
-      "games",
-      3000
-     ],
-     [
-      "horizon-game",
-      0.0,
-      "REJECT",
-      "no-main-characters",
-      "main 0/4 any 0/8 native 0",
-      "games",
-      100
-     ],
-     [
-      "zeronotsukaima",
-      0.0,
-      "REJECT",
-      "no-main-characters",
-      "main 0/4 any 0/8 native 0",
-      "anime",
-      400
-     ],
-     [
-      "horizon-ocs",
-      0.0,
-      "REJECT",
-      "no-main-characters",
-      "main 0/4 any 0/8 native 0",
-      "lifestyle",
-      100
-     ],
-     [
-      "sound-horizon",
-      0.0,
-      "REJECT",
-      "no-main-characters",
-      "main 0/4 any 0/8 native 0",
-      "music",
-      10
-     ]
-    ],
+    "scores": null,
     "trace": [
      "wikidata: starts=['Q1195326'] p4073={} nodes=[]",
      "karakter oylari: {'log-horizon': 1}",
-     "topluluk aramasi sorgulari=['Log Horizon', 'ログ・ホライズン', 'Log Horizon Mamare Touno'] -> 8 aday: ['log-horizon', 'loghorizonfanon', 'genesis-horizon', 'sound-horizon', 'horizon-game', 'horizon', 'horizon-ocs', 'zeronotsukaima']",
-     "isim yolu: hepsi RED [('log-horizon', 0.0, 'REJECT', 'no-main-characters', 'main 0/4 any 0/8 native 0', 'anime', 800), ('genesis-horizon', 0.0, 'REJECT', 'no-main-characters', 'main 0/4 any 0/8 native 0', 'anime', 200), ('horizon', 0.0, 'REJECT', 'no-main-characters', 'main 0/4 any 0/8 native 0', 'games', 3000), ('horizon-game', 0.0, 'REJECT', 'no-main-characters', 'main 0/4 any 0/8 native 0', 'games', 100), ('zeronotsukaima', 0.0, 'REJECT', 'no-main-characters', 'main 0/4 any 0/8 native 0', 'anime', 400)]"
+     "topluluk aramasi sorgulari=['Log Horizon', 'ログ・ホライズン', 'Log Horizon Mamare Touno'] -> 8 aday: ['log-horizon', 'loghorizonfanon', 'genesis-horizon', 'sound-horizon', 'horizon-game', 'horizon', 'horizon-ocs', 'zeronotsukaima']"
     ]
    },
    {
     "mode": "title-only",
     "status": "UNVERIFIED-FOUND",
     "wiki": "log-horizon",
-    "via": "name-score",
-    "conf": "CERTAIN",
+    "via": "name-article-proof",
+    "conf": "PROBABLE",
     "hits": [
      "log-horizon",
      "loghorizonfanon",
@@ -10242,71 +9807,7 @@
      "horizon-ocs",
      "sound-horizon"
     ],
-    "scores": [
-     [
-      "log-horizon",
-      0.99,
-      "CERTAIN",
-      null,
-      "main 4/4 any 8/8 native 8",
-      "anime",
-      800
-     ],
-     [
-      "genesis-horizon",
-      0.0,
-      "REJECT",
-      "no-main-characters",
-      "main 0/4 any 0/8 native 0",
-      "anime",
-      200
-     ],
-     [
-      "horizon",
-      0.0,
-      "REJECT",
-      "no-main-characters",
-      "main 0/4 any 0/8 native 0",
-      "games",
-      3000
-     ],
-     [
-      "horizon-game",
-      0.0,
-      "REJECT",
-      "no-main-characters",
-      "main 0/4 any 0/8 native 0",
-      "games",
-      100
-     ],
-     [
-      "zeronotsukaima",
-      0.0,
-      "REJECT",
-      "no-main-characters",
-      "main 0/4 any 0/8 native 0",
-      "anime",
-      400
-     ],
-     [
-      "horizon-ocs",
-      0.0,
-      "REJECT",
-      "no-main-characters",
-      "main 0/4 any 0/8 native 0",
-      "lifestyle",
-      100
-     ],
-     [
-      "sound-horizon",
-      0.0,
-      "REJECT",
-      "no-main-characters",
-      "main 0/4 any 0/8 native 0",
-      "music",
-      10
-     ]
-    ],
+    "scores": null,
     "trace": [
      "baslik->AniList#76024 kopru",
      "wikidata: starts=['Q1195326'] p4073={} nodes=[]",
@@ -10317,7 +9818,7 @@
   ],
   "source_info": "AniList#76024 MAL#46024 Log Horizon",
   "expected_alive": null,
-  "secs": 204.8
+  "secs": 26.1
  },
  {
   "title": "Mushoku Tensei: Isekai Ittara Honki Dasu",
@@ -10355,7 +9856,7 @@
   ],
   "source_info": "AniList#85470 MAL#70261 Mushoku Tensei: Isekai Ittara Honki Dasu",
   "expected_alive": null,
-  "secs": 2.5
+  "secs": 5.2
  },
  {
   "title": "Sword Art Online",
@@ -10396,7 +9897,7 @@
   ],
   "source_info": "AniList#51479 MAL#21479 Sword Art Online",
   "expected_alive": true,
-  "secs": 2.1
+  "secs": 5.2
  },
  {
   "title": "Breaking Bad",
@@ -10405,75 +9906,25 @@
   "runs": [
    {
     "mode": "ids",
-    "status": "UNVERIFIED-MISS",
-    "wiki": null,
-    "via": null,
-    "conf": null,
-    "hits": [
-     "breakingbad",
-     "breaking-bad-tycoon-official",
-     "breaking-bad-roleplay-mspfa",
-     "onetreehill",
-     "evergeennova",
-     "dice-funk"
-    ],
-    "shortlist": [
-     "breakingbad",
-     "onetreehill",
-     "dice-funk",
-     "evergeennova"
-    ],
-    "scores": [
-     [
-      "breakingbad",
-      0.25,
-      "REJECT",
-      null,
-      "fp-yok",
-      "tv",
-      2000
-     ],
-     [
-      "onetreehill",
-      0.1,
-      "REJECT",
-      null,
-      "fp-yok",
-      "tv",
-      800
-     ],
-     [
-      "dice-funk",
-      0.04,
-      "REJECT",
-      null,
-      "fp-yok",
-      "games",
-      100
-     ],
-     [
-      "evergeennova",
-      0.03,
-      "REJECT",
-      null,
-      "fp-yok",
-      "lifestyle",
-      400
-     ]
-    ],
+    "status": "OK",
+    "wiki": "breakingbad",
+    "via": "wikidata-P4073-depth0",
+    "conf": "CERTAIN",
+    "hits": null,
+    "shortlist": null,
+    "scores": null,
     "trace": [
-     "wikidata: starts=['Q1079'] p4073={0: ['breakingbad']} nodes=[]",
-     "karakter oylari: {'breakingbad': 47}",
-     "topluluk aramasi sorgulari=['Breaking Bad'] -> 6 aday: ['breakingbad', 'breaking-bad-tycoon-official', 'breaking-bad-roleplay-mspfa', 'onetreehill', 'evergeennova', 'dice-funk']",
-     "isim yolu: hepsi RED [('breakingbad', 0.25, 'REJECT', None, 'fp-yok', 'tv', 2000), ('onetreehill', 0.1, 'REJECT', None, 'fp-yok', 'tv', 800), ('dice-funk', 0.04, 'REJECT', None, 'fp-yok', 'games', 100), ('evergeennova', 0.03, 'REJECT', None, 'fp-yok', 'lifestyle', 400)]"
-    ]
+     "wikidata: starts=['Q1079'] p4073={0: ['breakingbad']} nodes=[]"
+    ],
+    "expected_in_hits": false,
+    "expected_in_shortlist": false
    },
    {
     "mode": "title-only",
-    "status": "UNVERIFIED-MISS",
-    "wiki": null,
-    "via": null,
-    "conf": null,
+    "status": "OK",
+    "wiki": "breakingbad",
+    "via": "name-article-proof",
+    "conf": "PROBABLE",
     "hits": [
      "breakingbad",
      "breaking-bad-tycoon-official",
@@ -10488,54 +9939,18 @@
      "dice-funk",
      "evergeennova"
     ],
-    "scores": [
-     [
-      "breakingbad",
-      0.25,
-      "REJECT",
-      null,
-      "fp-yok",
-      "tv",
-      2000
-     ],
-     [
-      "onetreehill",
-      0.1,
-      "REJECT",
-      null,
-      "fp-yok",
-      "tv",
-      800
-     ],
-     [
-      "dice-funk",
-      0.04,
-      "REJECT",
-      null,
-      "fp-yok",
-      "games",
-      100
-     ],
-     [
-      "evergeennova",
-      0.03,
-      "REJECT",
-      null,
-      "fp-yok",
-      "lifestyle",
-      400
-     ]
-    ],
+    "scores": null,
     "trace": [
      "karakter oylari: yok",
-     "topluluk aramasi sorgulari=['Breaking Bad'] -> 6 aday: ['breakingbad', 'breaking-bad-tycoon-official', 'breaking-bad-roleplay-mspfa', 'onetreehill', 'evergeennova', 'dice-funk']",
-     "isim yolu: hepsi RED [('breakingbad', 0.25, 'REJECT', None, 'fp-yok', 'tv', 2000), ('onetreehill', 0.1, 'REJECT', None, 'fp-yok', 'tv', 800), ('dice-funk', 0.04, 'REJECT', None, 'fp-yok', 'games', 100), ('evergeennova', 0.03, 'REJECT', None, 'fp-yok', 'lifestyle', 400)]"
-    ]
+     "topluluk aramasi sorgulari=['Breaking Bad'] -> 6 aday: ['breakingbad', 'breaking-bad-tycoon-official', 'breaking-bad-roleplay-mspfa', 'onetreehill', 'evergeennova', 'dice-funk']"
+    ],
+    "expected_in_hits": true,
+    "expected_in_shortlist": true
    }
   ],
   "source_info": "Wikidata {'qid': 'Q1079', 'tmdb': 1396, 'imdb': 'tt0903747'}",
-  "expected_alive": false,
-  "secs": 72.4
+  "expected_alive": true,
+  "secs": 3.6
  },
  {
   "title": "Stranger Things",
@@ -10544,117 +9959,25 @@
   "runs": [
    {
     "mode": "ids",
-    "status": "UNVERIFIED-MISS",
-    "wiki": null,
-    "via": null,
-    "conf": null,
-    "hits": [
-     "strangerthings",
-     "strangerthingsthegame",
-     "stranger-things-the-fall-of-hawkins",
-     "stranger-things-puzzle-tales",
-     "strangerthingsremake",
-     "scream-things",
-     "mikewheeler",
-     "something-strange"
-    ],
-    "shortlist": [
-     "strangerthings",
-     "scream-things",
-     "strangerthingsthegame",
-     "stranger-things-the-fall-of-hawkins",
-     "stranger-things-puzzle-tales",
-     "strangerthingsremake",
-     "mikewheeler",
-     "something-strange"
-    ],
-    "scores": [
-     [
-      "strangerthings",
-      0.25,
-      "REJECT",
-      null,
-      "fp-yok",
-      "tv",
-      1000
-     ],
-     [
-      "scream-things",
-      0.14,
-      "REJECT",
-      null,
-      "fp-yok",
-      "movies",
-      500
-     ],
-     [
-      "strangerthingsthegame",
-      0.12,
-      "REJECT",
-      null,
-      "fp-yok",
-      "games",
-      10
-     ],
-     [
-      "stranger-things-the-fall-of-hawkins",
-      0.13,
-      "REJECT",
-      null,
-      "fp-yok",
-      "tv",
-      10
-     ],
-     [
-      "stranger-things-puzzle-tales",
-      0.1,
-      "REJECT",
-      null,
-      "fp-yok",
-      "games",
-      10
-     ],
-     [
-      "strangerthingsremake",
-      0.08,
-      "REJECT",
-      null,
-      "fp-yok",
-      "tv",
-      100
-     ],
-     [
-      "mikewheeler",
-      0.07,
-      "REJECT",
-      null,
-      "fp-yok",
-      "tv",
-      10
-     ],
-     [
-      "something-strange",
-      0.05,
-      "REJECT",
-      null,
-      "fp-yok",
-      "games",
-      800
-     ]
-    ],
+    "status": "OK",
+    "wiki": "strangerthings",
+    "via": "wikidata-P4073-depth0",
+    "conf": "CERTAIN",
+    "hits": null,
+    "shortlist": null,
+    "scores": null,
     "trace": [
-     "wikidata: starts=['Q19798734'] p4073={0: ['strangerthings']} nodes=[]",
-     "karakter oylari: {'strangerthings': 17}",
-     "topluluk aramasi sorgulari=['Stranger Things'] -> 8 aday: ['strangerthings', 'strangerthingsthegame', 'stranger-things-the-fall-of-hawkins', 'stranger-things-puzzle-tales', 'strangerthingsremake', 'scream-things', 'mikewheeler', 'something-strange']",
-     "isim yolu: hepsi RED [('strangerthings', 0.25, 'REJECT', None, 'fp-yok', 'tv', 1000), ('scream-things', 0.14, 'REJECT', None, 'fp-yok', 'movies', 500), ('strangerthingsthegame', 0.12, 'REJECT', None, 'fp-yok', 'games', 10), ('stranger-things-the-fall-of-hawkins', 0.13, 'REJECT', None, 'fp-yok', 'tv', 10), ('stranger-things-puzzle-tales', 0.1, 'REJECT', None, 'fp-yok', 'games', 10)]"
-    ]
+     "wikidata: starts=['Q19798734'] p4073={0: ['strangerthings']} nodes=[]"
+    ],
+    "expected_in_hits": false,
+    "expected_in_shortlist": false
    },
    {
     "mode": "title-only",
-    "status": "UNVERIFIED-MISS",
-    "wiki": null,
-    "via": null,
-    "conf": null,
+    "status": "OK",
+    "wiki": "strangerthings",
+    "via": "name-article-proof",
+    "conf": "PROBABLE",
     "hits": [
      "strangerthings",
      "strangerthingsthegame",
@@ -10675,90 +9998,18 @@
      "mikewheeler",
      "something-strange"
     ],
-    "scores": [
-     [
-      "strangerthings",
-      0.25,
-      "REJECT",
-      null,
-      "fp-yok",
-      "tv",
-      1000
-     ],
-     [
-      "scream-things",
-      0.14,
-      "REJECT",
-      null,
-      "fp-yok",
-      "movies",
-      500
-     ],
-     [
-      "strangerthingsthegame",
-      0.12,
-      "REJECT",
-      null,
-      "fp-yok",
-      "games",
-      10
-     ],
-     [
-      "stranger-things-the-fall-of-hawkins",
-      0.13,
-      "REJECT",
-      null,
-      "fp-yok",
-      "tv",
-      10
-     ],
-     [
-      "stranger-things-puzzle-tales",
-      0.1,
-      "REJECT",
-      null,
-      "fp-yok",
-      "games",
-      10
-     ],
-     [
-      "strangerthingsremake",
-      0.08,
-      "REJECT",
-      null,
-      "fp-yok",
-      "tv",
-      100
-     ],
-     [
-      "mikewheeler",
-      0.07,
-      "REJECT",
-      null,
-      "fp-yok",
-      "tv",
-      10
-     ],
-     [
-      "something-strange",
-      0.05,
-      "REJECT",
-      null,
-      "fp-yok",
-      "games",
-      800
-     ]
-    ],
+    "scores": null,
     "trace": [
      "karakter oylari: yok",
-     "topluluk aramasi sorgulari=['Stranger Things'] -> 8 aday: ['strangerthings', 'strangerthingsthegame', 'stranger-things-the-fall-of-hawkins', 'stranger-things-puzzle-tales', 'strangerthingsremake', 'scream-things', 'mikewheeler', 'something-strange']",
-     "isim yolu: hepsi RED [('strangerthings', 0.25, 'REJECT', None, 'fp-yok', 'tv', 1000), ('scream-things', 0.14, 'REJECT', None, 'fp-yok', 'movies', 500), ('strangerthingsthegame', 0.12, 'REJECT', None, 'fp-yok', 'games', 10), ('stranger-things-the-fall-of-hawkins', 0.13, 'REJECT', None, 'fp-yok', 'tv', 10), ('stranger-things-puzzle-tales', 0.1, 'REJECT', None, 'fp-yok', 'games', 10)]"
-    ]
+     "topluluk aramasi sorgulari=['Stranger Things'] -> 8 aday: ['strangerthings', 'strangerthingsthegame', 'stranger-things-the-fall-of-hawkins', 'stranger-things-puzzle-tales', 'strangerthingsremake', 'scream-things', 'mikewheeler', 'something-strange']"
+    ],
+    "expected_in_hits": true,
+    "expected_in_shortlist": true
    }
   ],
   "source_info": "Wikidata {'qid': 'Q19798734', 'tmdb': 66732, 'imdb': 'tt4574334'}",
-  "expected_alive": false,
-  "secs": 93.0
+  "expected_alive": true,
+  "secs": 4.5
  },
  {
   "title": "Game of Thrones",
@@ -10767,114 +10018,22 @@
   "runs": [
    {
     "mode": "ids",
-    "status": "UNVERIFIED-MISS",
-    "wiki": null,
-    "via": null,
-    "conf": null,
-    "hits": [
-     "gameofthrones",
-     "gotascent",
-     "gameofthronesrewritten",
-     "game-of-thrones-legacy",
-     "game-of-thrones-legends",
-     "game-of-thrones-beyond-the-wall",
-     "game-of-thrones-winter-is-coming-game",
-     "ttgot"
-    ],
-    "shortlist": [
-     "gameofthronesrewritten",
-     "gotascent",
-     "ttgot",
-     "game-of-thrones-legacy",
-     "game-of-thrones-legends",
-     "gameofthrones",
-     "game-of-thrones-beyond-the-wall",
-     "game-of-thrones-winter-is-coming-game"
-    ],
-    "scores": [
-     [
-      "gameofthronesrewritten",
-      0.2,
-      "REJECT",
-      null,
-      "fp-yok",
-      "tv",
-      300
-     ],
-     [
-      "gotascent",
-      0.17,
-      "REJECT",
-      null,
-      "fp-yok",
-      "games",
-      10000
-     ],
-     [
-      "ttgot",
-      0.15,
-      "REJECT",
-      null,
-      "fp-yok",
-      "games",
-      200
-     ],
-     [
-      "game-of-thrones-legacy",
-      0.14,
-      "REJECT",
-      null,
-      "fp-yok",
-      "games",
-      10
-     ],
-     [
-      "game-of-thrones-legends",
-      0.14,
-      "REJECT",
-      null,
-      "fp-yok",
-      "games",
-      10
-     ],
-     [
-      "gameofthrones",
-      0.14,
-      "REJECT",
-      null,
-      "fp-yok",
-      "tv",
-      5000
-     ],
-     [
-      "game-of-thrones-beyond-the-wall",
-      0.12,
-      "REJECT",
-      null,
-      "fp-yok",
-      "games",
-      100
-     ],
-     [
-      "game-of-thrones-winter-is-coming-game",
-      0.11,
-      "REJECT",
-      null,
-      "fp-yok",
-      "games",
-      200
-     ]
-    ],
+    "status": "OK",
+    "wiki": "gameofthrones",
+    "via": "wikidata-P4073-depth0",
+    "conf": "CERTAIN",
+    "hits": null,
+    "shortlist": null,
+    "scores": null,
     "trace": [
-     "wikidata: starts=['Q23572'] p4073={0: ['gameofthrones', 'ru.gameofthrones']} nodes=[]",
-     "karakter oylari: {'gameofthrones': 26, 'iceandfire': 11, 'ru.gameofthrones': 7, 'femalevillains': 1}",
-     "topluluk aramasi sorgulari=['Game of Thrones'] -> 8 aday: ['gameofthrones', 'gotascent', 'gameofthronesrewritten', 'game-of-thrones-legacy', 'game-of-thrones-legends', 'game-of-thrones-beyond-the-wall', 'game-of-thrones-winter-is-coming-game', 'ttgot']",
-     "isim yolu: hepsi RED [('gameofthronesrewritten', 0.2, 'REJECT', None, 'fp-yok', 'tv', 300), ('gotascent', 0.17, 'REJECT', None, 'fp-yok', 'games', 10000), ('ttgot', 0.15, 'REJECT', None, 'fp-yok', 'games', 200), ('game-of-thrones-legacy', 0.14, 'REJECT', None, 'fp-yok', 'games', 10), ('game-of-thrones-legends', 0.14, 'REJECT', None, 'fp-yok', 'games', 10)]"
-    ]
+     "wikidata: starts=['Q23572'] p4073={0: ['gameofthrones', 'ru.gameofthrones']} nodes=[]"
+    ],
+    "expected_in_hits": false,
+    "expected_in_shortlist": false
    },
    {
     "mode": "title-only",
-    "status": "UNVERIFIED-MISS",
+    "status": "MISS",
     "wiki": null,
     "via": null,
     "conf": null,
@@ -10976,12 +10135,14 @@
      "karakter oylari: yok",
      "topluluk aramasi sorgulari=['Game of Thrones'] -> 8 aday: ['gameofthrones', 'gotascent', 'gameofthronesrewritten', 'game-of-thrones-legacy', 'game-of-thrones-legends', 'game-of-thrones-beyond-the-wall', 'game-of-thrones-winter-is-coming-game', 'ttgot']",
      "isim yolu: hepsi RED [('gameofthronesrewritten', 0.2, 'REJECT', None, 'fp-yok', 'tv', 300), ('gotascent', 0.17, 'REJECT', None, 'fp-yok', 'games', 10000), ('ttgot', 0.15, 'REJECT', None, 'fp-yok', 'games', 200), ('game-of-thrones-legacy', 0.14, 'REJECT', None, 'fp-yok', 'games', 10), ('game-of-thrones-legends', 0.14, 'REJECT', None, 'fp-yok', 'games', 10)]"
-    ]
+    ],
+    "expected_in_hits": true,
+    "expected_in_shortlist": true
    }
   ],
   "source_info": "Wikidata {'qid': 'Q23572', 'tmdb': 1399, 'imdb': 'tt0944947'}",
-  "expected_alive": false,
-  "secs": 86.3
+  "expected_alive": true,
+  "secs": 5.0
  },
  {
   "title": "The Walking Dead",
@@ -10990,117 +10151,25 @@
   "runs": [
    {
     "mode": "ids",
-    "status": "UNVERIFIED-MISS",
-    "wiki": null,
-    "via": null,
-    "conf": null,
-    "hits": [
-     "walkingdead",
-     "the-walking-deadseries",
-     "thewalkingdeadworldbeyond",
-     "amcs-the-walking-dead",
-     "the-walking-dead-tv-series-facts",
-     "the-walking-dead-live-again",
-     "the-walking-dead-infected",
-     "the-walking-dead-new-blood-remake"
-    ],
-    "shortlist": [
-     "walkingdead",
-     "the-walking-deadseries",
-     "amcs-the-walking-dead",
-     "the-walking-dead-infected",
-     "the-walking-dead-new-blood-remake",
-     "thewalkingdeadworldbeyond",
-     "the-walking-dead-tv-series-facts",
-     "the-walking-dead-live-again"
-    ],
-    "scores": [
-     [
-      "walkingdead",
-      0.26,
-      "REJECT",
-      null,
-      "fp-yok",
-      "tv",
-      10000
-     ],
-     [
-      "the-walking-deadseries",
-      0.25,
-      "REJECT",
-      null,
-      "fp-yok",
-      "comics",
-      400
-     ],
-     [
-      "amcs-the-walking-dead",
-      0.18,
-      "REJECT",
-      null,
-      "fp-yok",
-      "tv",
-      100
-     ],
-     [
-      "the-walking-dead-infected",
-      0.17,
-      "REJECT",
-      null,
-      "fp-yok",
-      "tv",
-      10
-     ],
-     [
-      "the-walking-dead-new-blood-remake",
-      0.17,
-      "REJECT",
-      null,
-      "fp-yok",
-      "tv",
-      800
-     ],
-     [
-      "thewalkingdeadworldbeyond",
-      0.16,
-      "REJECT",
-      null,
-      "fp-yok",
-      "tv",
-      100
-     ],
-     [
-      "the-walking-dead-tv-series-facts",
-      0.13,
-      "REJECT",
-      null,
-      "fp-yok",
-      "tv",
-      10
-     ],
-     [
-      "the-walking-dead-live-again",
-      0.09,
-      "REJECT",
-      null,
-      "fp-yok",
-      "lifestyle",
-      10
-     ]
-    ],
+    "status": "OK",
+    "wiki": "walkingdead",
+    "via": "wikidata-P4073-depth1",
+    "conf": "CERTAIN",
+    "hits": null,
+    "shortlist": null,
+    "scores": null,
     "trace": [
-     "wikidata: starts=['Q232737'] p4073={1: ['walkingdead']} nodes=['Q3177580', 'Q340181']",
-     "karakter oylari: {'walkingdead': 6, 'tekken': 1}",
-     "topluluk aramasi sorgulari=['The Walking Dead'] -> 8 aday: ['walkingdead', 'the-walking-deadseries', 'thewalkingdeadworldbeyond', 'amcs-the-walking-dead', 'the-walking-dead-tv-series-facts', 'the-walking-dead-live-again', 'the-walking-dead-infected', 'the-walking-dead-new-blood-remake']",
-     "isim yolu: hepsi RED [('walkingdead', 0.26, 'REJECT', None, 'fp-yok', 'tv', 10000), ('the-walking-deadseries', 0.25, 'REJECT', None, 'fp-yok', 'comics', 400), ('amcs-the-walking-dead', 0.18, 'REJECT', None, 'fp-yok', 'tv', 100), ('the-walking-dead-infected', 0.17, 'REJECT', None, 'fp-yok', 'tv', 10), ('the-walking-dead-new-blood-remake', 0.17, 'REJECT', None, 'fp-yok', 'tv', 800)]"
-    ]
+     "wikidata: starts=['Q232737'] p4073={1: ['walkingdead']} nodes=['Q3177580', 'Q340181']"
+    ],
+    "expected_in_hits": false,
+    "expected_in_shortlist": false
    },
    {
     "mode": "title-only",
-    "status": "UNVERIFIED-MISS",
-    "wiki": null,
-    "via": null,
-    "conf": null,
+    "status": "OK",
+    "wiki": "walkingdead",
+    "via": "name-article-proof",
+    "conf": "PROBABLE",
     "hits": [
      "walkingdead",
      "the-walking-deadseries",
@@ -11121,90 +10190,18 @@
      "the-walking-dead-tv-series-facts",
      "the-walking-dead-live-again"
     ],
-    "scores": [
-     [
-      "walkingdead",
-      0.26,
-      "REJECT",
-      null,
-      "fp-yok",
-      "tv",
-      10000
-     ],
-     [
-      "the-walking-deadseries",
-      0.25,
-      "REJECT",
-      null,
-      "fp-yok",
-      "comics",
-      400
-     ],
-     [
-      "amcs-the-walking-dead",
-      0.18,
-      "REJECT",
-      null,
-      "fp-yok",
-      "tv",
-      100
-     ],
-     [
-      "the-walking-dead-infected",
-      0.17,
-      "REJECT",
-      null,
-      "fp-yok",
-      "tv",
-      10
-     ],
-     [
-      "the-walking-dead-new-blood-remake",
-      0.17,
-      "REJECT",
-      null,
-      "fp-yok",
-      "tv",
-      800
-     ],
-     [
-      "thewalkingdeadworldbeyond",
-      0.16,
-      "REJECT",
-      null,
-      "fp-yok",
-      "tv",
-      100
-     ],
-     [
-      "the-walking-dead-tv-series-facts",
-      0.13,
-      "REJECT",
-      null,
-      "fp-yok",
-      "tv",
-      10
-     ],
-     [
-      "the-walking-dead-live-again",
-      0.09,
-      "REJECT",
-      null,
-      "fp-yok",
-      "lifestyle",
-      10
-     ]
-    ],
+    "scores": null,
     "trace": [
      "karakter oylari: yok",
-     "topluluk aramasi sorgulari=['The Walking Dead'] -> 8 aday: ['walkingdead', 'the-walking-deadseries', 'thewalkingdeadworldbeyond', 'amcs-the-walking-dead', 'the-walking-dead-tv-series-facts', 'the-walking-dead-live-again', 'the-walking-dead-infected', 'the-walking-dead-new-blood-remake']",
-     "isim yolu: hepsi RED [('walkingdead', 0.26, 'REJECT', None, 'fp-yok', 'tv', 10000), ('the-walking-deadseries', 0.25, 'REJECT', None, 'fp-yok', 'comics', 400), ('amcs-the-walking-dead', 0.18, 'REJECT', None, 'fp-yok', 'tv', 100), ('the-walking-dead-infected', 0.17, 'REJECT', None, 'fp-yok', 'tv', 10), ('the-walking-dead-new-blood-remake', 0.17, 'REJECT', None, 'fp-yok', 'tv', 800)]"
-    ]
+     "topluluk aramasi sorgulari=['The Walking Dead'] -> 8 aday: ['walkingdead', 'the-walking-deadseries', 'thewalkingdeadworldbeyond', 'amcs-the-walking-dead', 'the-walking-dead-tv-series-facts', 'the-walking-dead-live-again', 'the-walking-dead-infected', 'the-walking-dead-new-blood-remake']"
+    ],
+    "expected_in_hits": true,
+    "expected_in_shortlist": true
    }
   ],
   "source_info": "Wikidata {'qid': 'Q232737', 'tmdb': 1402, 'imdb': 'tt1520211'}",
-  "expected_alive": false,
-  "secs": 83.5
+  "expected_alive": true,
+  "secs": 8.1
  },
  {
   "title": "Supernatural",
@@ -11213,114 +10210,22 @@
   "runs": [
    {
     "mode": "ids",
-    "status": "UNVERIFIED-MISS",
-    "wiki": null,
-    "via": null,
-    "conf": null,
-    "hits": [
-     "supernatural",
-     "the-supernatural-saga",
-     "supernatural-the-kripke-show",
-     "chronicles-of-the-supernatural",
-     "supernatural-next-generation",
-     "supernatural-characters",
-     "science-and-the-supernatural",
-     "school-of-the-supernatural"
-    ],
-    "shortlist": [
-     "supernatural",
-     "supernatural-the-kripke-show",
-     "supernatural-next-generation",
-     "chronicles-of-the-supernatural",
-     "science-and-the-supernatural",
-     "school-of-the-supernatural",
-     "the-supernatural-saga",
-     "supernatural-characters"
-    ],
-    "scores": [
-     [
-      "supernatural",
-      0.26,
-      "REJECT",
-      null,
-      "fp-yok",
-      "tv",
-      5000
-     ],
-     [
-      "supernatural-the-kripke-show",
-      0.14,
-      "REJECT",
-      null,
-      "fp-yok",
-      "tv",
-      200
-     ],
-     [
-      "supernatural-next-generation",
-      0.13,
-      "REJECT",
-      null,
-      "fp-yok",
-      "tv",
-      100
-     ],
-     [
-      "chronicles-of-the-supernatural",
-      0.13,
-      "REJECT",
-      null,
-      "fp-yok",
-      "comics",
-      10
-     ],
-     [
-      "science-and-the-supernatural",
-      0.13,
-      "REJECT",
-      null,
-      "fp-yok",
-      "books",
-      10
-     ],
-     [
-      "school-of-the-supernatural",
-      0.13,
-      "REJECT",
-      null,
-      "fp-yok",
-      "books",
-      10
-     ],
-     [
-      "the-supernatural-saga",
-      0.09,
-      "REJECT",
-      null,
-      "fp-yok",
-      "lifestyle",
-      10
-     ],
-     [
-      "supernatural-characters",
-      0.09,
-      "REJECT",
-      null,
-      "fp-yok",
-      "lifestyle",
-      10
-     ]
-    ],
+    "status": "OK",
+    "wiki": "supernatural",
+    "via": "wikidata-P4073-depth0",
+    "conf": "CERTAIN",
+    "hits": null,
+    "shortlist": null,
+    "scores": null,
     "trace": [
-     "wikidata: starts=['Q130585'] p4073={0: ['supernatural']} nodes=[]",
-     "karakter oylari: {'supernatural': 2}",
-     "topluluk aramasi sorgulari=['Supernatural'] -> 8 aday: ['supernatural', 'the-supernatural-saga', 'supernatural-the-kripke-show', 'chronicles-of-the-supernatural', 'supernatural-next-generation', 'supernatural-characters', 'science-and-the-supernatural', 'school-of-the-supernatural']",
-     "isim yolu: hepsi RED [('supernatural', 0.26, 'REJECT', None, 'fp-yok', 'tv', 5000), ('supernatural-the-kripke-show', 0.14, 'REJECT', None, 'fp-yok', 'tv', 200), ('supernatural-next-generation', 0.13, 'REJECT', None, 'fp-yok', 'tv', 100), ('chronicles-of-the-supernatural', 0.13, 'REJECT', None, 'fp-yok', 'comics', 10), ('science-and-the-supernatural', 0.13, 'REJECT', None, 'fp-yok', 'books', 10)]"
-    ]
+     "wikidata: starts=['Q130585'] p4073={0: ['supernatural']} nodes=[]"
+    ],
+    "expected_in_hits": false,
+    "expected_in_shortlist": false
    },
    {
     "mode": "title-only",
-    "status": "UNVERIFIED-MISS",
+    "status": "MISS",
     "wiki": null,
     "via": null,
     "conf": null,
@@ -11422,12 +10327,14 @@
      "karakter oylari: yok",
      "topluluk aramasi sorgulari=['Supernatural'] -> 8 aday: ['supernatural', 'the-supernatural-saga', 'supernatural-the-kripke-show', 'chronicles-of-the-supernatural', 'supernatural-next-generation', 'supernatural-characters', 'science-and-the-supernatural', 'school-of-the-supernatural']",
      "isim yolu: hepsi RED [('supernatural', 0.26, 'REJECT', None, 'fp-yok', 'tv', 5000), ('supernatural-the-kripke-show', 0.14, 'REJECT', None, 'fp-yok', 'tv', 200), ('supernatural-next-generation', 0.13, 'REJECT', None, 'fp-yok', 'tv', 100), ('chronicles-of-the-supernatural', 0.13, 'REJECT', None, 'fp-yok', 'comics', 10), ('science-and-the-supernatural', 0.13, 'REJECT', None, 'fp-yok', 'books', 10)]"
-    ]
+    ],
+    "expected_in_hits": true,
+    "expected_in_shortlist": true
    }
   ],
   "source_info": "Wikidata {'qid': 'Q130585', 'tmdb': 1622, 'imdb': 'tt0460681'}",
-  "expected_alive": false,
-  "secs": 69.1
+  "expected_alive": true,
+  "secs": 7.1
  },
  {
   "title": "The Witcher",
@@ -11437,56 +10344,14 @@
    {
     "mode": "ids",
     "status": "UNVERIFIED-FOUND",
-    "wiki": "raganius",
-    "via": "wikidata-P4073-depth1-yabanci-dil",
+    "wiki": "witcher",
+    "via": "wikidata-P4073-depth1",
     "conf": "CERTAIN",
-    "hits": [
-     "witcher",
-     "witcher-games",
-     "the-witcher-rpg",
-     "the-witcher-fanon",
-     "witcher-fanon-earth-116"
-    ],
-    "shortlist": [
-     "witcher",
-     "witcher-games",
-     "the-witcher-rpg"
-    ],
-    "scores": [
-     [
-      "witcher",
-      0.21,
-      "REJECT",
-      null,
-      "fp-yok",
-      "games",
-      10000
-     ],
-     [
-      "witcher-games",
-      0.21,
-      "REJECT",
-      null,
-      "fp-yok",
-      "games",
-      10000
-     ],
-     [
-      "the-witcher-rpg",
-      0.11,
-      "REJECT",
-      null,
-      "fp-yok",
-      "games",
-      100
-     ]
-    ],
+    "hits": null,
+    "shortlist": null,
+    "scores": null,
     "trace": [
-     "wikidata: starts=['Q47500433'] p4073={1: ['vedmak', 'wiedzmin', 'witcher', 'hexer', 'sorceleur', 'zaklinac', 'noituri', 'raganius', 'zaklinac', 'vestac']} nodes=['Q11835640']",
-     "yabanci dilli wikidata sonucu ertelendi: raganius (lt)",
-     "karakter oylari: {'witcher': 5, 'wiedzmin': 2}",
-     "topluluk aramasi sorgulari=['The Witcher'] -> 5 aday: ['witcher', 'witcher-games', 'the-witcher-rpg', 'the-witcher-fanon', 'witcher-fanon-earth-116']",
-     "isim yolu: hepsi RED [('witcher', 0.21, 'REJECT', None, 'fp-yok', 'games', 10000), ('witcher-games', 0.21, 'REJECT', None, 'fp-yok', 'games', 10000), ('the-witcher-rpg', 0.11, 'REJECT', None, 'fp-yok', 'games', 100)]"
+     "wikidata: starts=['Q47500433'] p4073={1: ['vedmak', 'wiedzmin', 'witcher', 'hexer', 'sorceleur', 'zaklinac', 'noituri', 'raganius', 'zaklinac', 'vestac']} nodes=['Q11835640']"
     ]
    },
    {
@@ -11545,7 +10410,7 @@
   ],
   "source_info": "Wikidata {'qid': 'Q47500433', 'tmdb': 71912, 'imdb': 'tt5180504'}",
   "expected_alive": null,
-  "secs": 36.9
+  "secs": 8.3
  },
  {
   "title": "Squid Game",
@@ -11554,109 +10419,15 @@
   "runs": [
    {
     "mode": "ids",
-    "status": "UNVERIFIED-MISS",
-    "wiki": null,
-    "via": null,
-    "conf": null,
-    "hits": [
-     "squid-game",
-     "squid-game-au",
-     "squid-game-players",
-     "squid-game-the-challenge-players",
-     "squid-game-2042",
-     "squid-game-headcanon",
-     "every-single-player-from-squid-game-the-challenge",
-     "squid-game-minor-players"
-    ],
-    "shortlist": [
-     "squid-game",
-     "squid-game-au",
-     "squid-game-players",
-     "squid-game-headcanon",
-     "squid-game-2042",
-     "squid-game-the-challenge-players",
-     "squid-game-minor-players",
-     "every-single-player-from-squid-game-the-challenge"
-    ],
-    "scores": [
-     [
-      "squid-game",
-      0.25,
-      "REJECT",
-      null,
-      "fp-yok",
-      "tv",
-      2000
-     ],
-     [
-      "squid-game-au",
-      0.23,
-      "REJECT",
-      null,
-      "fp-yok",
-      "anime",
-      100
-     ],
-     [
-      "squid-game-players",
-      0.19,
-      "REJECT",
-      null,
-      "fp-yok",
-      "movies",
-      600
-     ],
-     [
-      "squid-game-headcanon",
-      0.18,
-      "REJECT",
-      null,
-      "fp-yok",
-      "tv",
-      100
-     ],
-     [
-      "squid-game-2042",
-      0.12,
-      "REJECT",
-      null,
-      "fp-yok",
-      "games",
-      10
-     ],
-     [
-      "squid-game-the-challenge-players",
-      0.11,
-      "REJECT",
-      null,
-      "fp-yok",
-      "lifestyle",
-      800
-     ],
-     [
-      "squid-game-minor-players",
-      0.11,
-      "REJECT",
-      null,
-      "fp-yok",
-      "lifestyle",
-      500
-     ],
-     [
-      "every-single-player-from-squid-game-the-challenge",
-      0.12,
-      "REJECT",
-      null,
-      "fp-yok",
-      "tv",
-      10
-     ]
-    ],
+    "status": "UNVERIFIED-FOUND",
+    "wiki": "squid-game",
+    "via": "wikidata-P4073-depth0",
+    "conf": "CERTAIN",
+    "hits": null,
+    "shortlist": null,
+    "scores": null,
     "trace": [
-     "wikidata: starts=['Q106582931'] p4073={0: ['squid-game']} nodes=[]",
-     "karakter oylari: {'squid-game': 7}",
-     "topluluk aramasi sorgulari=['Squid Game'] -> 8 aday: ['squid-game', 'squid-game-au', 'squid-game-players', 'squid-game-the-challenge-players', 'squid-game-2042', 'squid-game-headcanon', 'every-single-player-from-squid-game-the-challenge', 'squid-game-minor-players']",
-     "isim yolu: hepsi RED [('squid-game', 0.25, 'REJECT', None, 'fp-yok', 'tv', 2000), ('squid-game-au', 0.23, 'REJECT', None, 'fp-yok', 'anime', 100), ('squid-game-players', 0.19, 'REJECT', None, 'fp-yok', 'movies', 600), ('squid-game-headcanon', 0.18, 'REJECT', None, 'fp-yok', 'tv', 100), ('squid-game-2042', 0.12, 'REJECT', None, 'fp-yok', 'games', 10)]"
+     "wikidata: starts=['Q106582931'] p4073={0: ['squid-game']} nodes=[]"
     ]
    },
    {
@@ -11694,7 +10465,7 @@
   ],
   "source_info": "Wikidata {'qid': 'Q106582931', 'tmdb': 93405, 'imdb': 'tt10919420'}",
   "expected_alive": null,
-  "secs": 36.7
+  "secs": 7.1
  },
  {
   "title": "Peaky Blinders",
@@ -11703,67 +10474,45 @@
   "runs": [
    {
     "mode": "ids",
-    "status": "UNVERIFIED-MISS",
-    "wiki": null,
-    "via": null,
-    "conf": null,
+    "status": "UNVERIFIED-FOUND",
+    "wiki": "peaky-blinders",
+    "via": "name-article-proof",
+    "conf": "PROBABLE",
     "hits": [
      "peaky-blinders"
     ],
     "shortlist": [
      "peaky-blinders"
     ],
-    "scores": [
-     [
-      "peaky-blinders",
-      0.24,
-      "REJECT",
-      null,
-      "fp-yok",
-      "tv",
-      300
-     ]
-    ],
+    "scores": null,
     "trace": [
      "wikidata: starts=['Q14944179'] p4073={} nodes=[]",
      "karakter oylari: yok",
-     "topluluk aramasi sorgulari=['Peaky Blinders'] -> 1 aday: ['peaky-blinders']",
-     "isim yolu: hepsi RED [('peaky-blinders', 0.24, 'REJECT', None, 'fp-yok', 'tv', 300)]"
+     "topluluk aramasi sorgulari=['Peaky Blinders'] -> 1 aday: ['peaky-blinders']"
     ]
    },
    {
     "mode": "title-only",
-    "status": "UNVERIFIED-MISS",
-    "wiki": null,
-    "via": null,
-    "conf": null,
+    "status": "UNVERIFIED-FOUND",
+    "wiki": "peaky-blinders",
+    "via": "name-article-proof",
+    "conf": "PROBABLE",
     "hits": [
      "peaky-blinders"
     ],
     "shortlist": [
      "peaky-blinders"
     ],
-    "scores": [
-     [
-      "peaky-blinders",
-      0.24,
-      "REJECT",
-      null,
-      "fp-yok",
-      "tv",
-      300
-     ]
-    ],
+    "scores": null,
     "trace": [
      "karakter oylari: yok",
-     "topluluk aramasi sorgulari=['Peaky Blinders'] -> 1 aday: ['peaky-blinders']",
-     "isim yolu: hepsi RED [('peaky-blinders', 0.24, 'REJECT', None, 'fp-yok', 'tv', 300)]"
+     "topluluk aramasi sorgulari=['Peaky Blinders'] -> 1 aday: ['peaky-blinders']"
     ]
    }
   ],
   "source_info": "Wikidata {'qid': 'Q14944179', 'tmdb': 60574, 'imdb': 'tt2442560'}",
   "expected_alive": null,
-  "secs": 15.4
+  "secs": 7.5
  },
  {
   "title": "Severance",
@@ -11827,7 +10576,7 @@
   ],
   "source_info": "Wikidata {'qid': 'Q101096725', 'tmdb': 95396, 'imdb': 'tt11280740'}",
   "expected_alive": null,
-  "secs": 6.4
+  "secs": 8.6
  },
  {
   "title": "The Expanse",
@@ -11956,7 +10705,7 @@
   ],
   "source_info": "Wikidata {'qid': 'Q18389644', 'tmdb': 63639, 'imdb': 'tt3230854'}",
   "expected_alive": null,
-  "secs": 3.1
+  "secs": 7.2
  },
  {
   "title": "Mr. Robot",
@@ -11997,7 +10746,7 @@
   ],
   "source_info": "Wikidata {'qid': 'Q18844729', 'tmdb': 62560, 'imdb': 'tt4158110'}",
   "expected_alive": null,
-  "secs": 1.3
+  "secs": 5.8
  },
  {
   "title": "Black Mirror",
@@ -12040,7 +10789,7 @@
   ],
   "source_info": "Wikidata {'qid': 'Q558112', 'tmdb': 42009, 'imdb': 'tt2085059'}",
   "expected_alive": null,
-  "secs": 1.4
+  "secs": 4.8
  },
  {
   "title": "Dark",
@@ -12262,7 +11011,7 @@
   ],
   "source_info": "Wikidata kimligi bulunamadi",
   "expected_alive": null,
-  "secs": 2.0
+  "secs": 3.9
  },
  {
   "title": "Arcane",
@@ -12391,7 +11140,7 @@
   ],
   "source_info": "Wikidata {'qid': 'Q85518571', 'tmdb': 94605, 'imdb': 'tt11126994'}",
   "expected_alive": null,
-  "secs": 2.4
+  "secs": 7.6
  },
  {
   "title": "Avatar: The Last Airbender",
@@ -12530,7 +11279,7 @@
   ],
   "source_info": "Wikidata {'qid': 'Q11572', 'tmdb': 246, 'imdb': 'tt0417299'}",
   "expected_alive": true,
-  "secs": 2.7
+  "secs": 8.4
  },
  {
   "title": "The Mandalorian",
@@ -12604,7 +11353,7 @@
   ],
   "source_info": "Wikidata {'qid': 'Q56876444', 'tmdb': 82856, 'imdb': 'tt8111088'}",
   "expected_alive": null,
-  "secs": 1.7
+  "secs": 4.4
  },
  {
   "title": "Inception",
@@ -12734,7 +11483,7 @@
   ],
   "source_info": "Wikidata {'qid': 'Q25188', 'tmdb': 27205, 'imdb': 'tt1375666'}",
   "expected_alive": null,
-  "secs": 3.0
+  "secs": 10.4
  },
  {
   "title": "Interstellar",
@@ -12863,7 +11612,7 @@
   ],
   "source_info": "Wikidata {'qid': 'Q13417189', 'tmdb': 157336, 'imdb': 'tt0816692'}",
   "expected_alive": null,
-  "secs": 2.3
+  "secs": 7.4
  },
  {
   "title": "The Dark Knight",
@@ -12993,7 +11742,7 @@
   ],
   "source_info": "Wikidata {'qid': 'Q163872', 'tmdb': 155, 'imdb': 'tt0468569'}",
   "expected_alive": null,
-  "secs": 3.2
+  "secs": 8.2
  },
  {
   "title": "Spirited Away",
@@ -13045,7 +11794,7 @@
   ],
   "source_info": "Wikidata {'qid': 'Q155653', 'tmdb': 129, 'imdb': 'tt0245429'}",
   "expected_alive": null,
-  "secs": 1.9
+  "secs": 7.9
  },
  {
   "title": "Your Name.",
@@ -13174,7 +11923,7 @@
   ],
   "source_info": "Wikidata {'qid': 'Q21697406', 'tmdb': 372058, 'imdb': 'tt5311514'}",
   "expected_alive": null,
-  "secs": 2.5
+  "secs": 7.1
  },
  {
   "title": "A Silent Voice",
@@ -13226,7 +11975,7 @@
   ],
   "source_info": "Wikidata {'qid': 'Q23925035', 'tmdb': 378064, 'imdb': 'tt5323662'}",
   "expected_alive": null,
-  "secs": 1.8
+  "secs": 7.9
  },
  {
   "title": "Spider-Man: No Way Home",
@@ -13362,7 +12111,7 @@
   ],
   "source_info": "Wikidata {'qid': 'Q68934496', 'tmdb': 634649, 'imdb': 'tt10872600'}",
   "expected_alive": null,
-  "secs": 2.8
+  "secs": 8.8
  },
  {
   "title": "Parasite",
@@ -13565,7 +12314,7 @@
   ],
   "source_info": "Wikidata {'qid': 'Q61448040', 'tmdb': 496243, 'imdb': 'tt6751668'}",
   "expected_alive": null,
-  "secs": 3.7
+  "secs": 8.7
  },
  {
   "title": "The Lord of the Rings: The Fellowship of the Ring",
@@ -13698,6 +12447,6 @@
   ],
   "source_info": "Wikidata {'qid': 'Q127367', 'tmdb': 120, 'imdb': 'tt0120737'}",
   "expected_alive": null,
-  "secs": 4.8
+  "secs": 9.2
  }
 ]
