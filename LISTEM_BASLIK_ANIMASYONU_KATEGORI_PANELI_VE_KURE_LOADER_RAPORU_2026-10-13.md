@@ -112,8 +112,10 @@ Yapılan:
 
 ## Doğrulama
 
-* Bu sandbox'ta JDK/Android SDK yok, derleme **CI**'da doğrulanıyor:
-  `.github/workflows/android-build.yml` (`:app:assembleFossDebug` + foss debug APK artifact'i).
+* Bu sandbox'ta JDK/Android SDK yok; derleme **CI ile doğrulandı**:
+  `🏗️ Android Derleme Doğrulama` çalışması `success` —
+  `:app:testFossDebugUnitTest` + `:app:assembleFossDebug` (foss debug APK artifact'i yüklendi).
+  Run: https://github.com/f26901964-eng/Kitsugi-Beta/actions/runs/38402253102
 * `python3 scripts/check_localization_resource_parity.py` → 7378 dize, TR/EN senkron
   (yeni dize eklenmedi; mevcut `search_filter_category` ve `mylist_filter_*` kullanıldı).
 * Tüm düzenlenen dosyalarda parantez/süslü parantez dengesi ve import tutarlılığı betikle
@@ -125,3 +127,13 @@ Halka görünümüne dönmek için `KitsugiGradientMaterial.kt` içindeki indete
 `CircularProgressIndicator` gövdesini eski `material3` delegasyonuna çevirmek yeterli;
 `KitsugiPlasmaLoader` değişiklikleri (kompakt yol + kuantalama) diğer 70 kullanımı da
 olumlu etkilediği için korunabilir.
+
+## Bilinçli olarak dokunulmayanlar
+
+* **Pull-to-refresh göstergesi** (`PullToRefreshDefaults.Indicator`, MyList + detay
+  sayfaları): bu bir "yükleniyor placeholder'i" değil, sürükleme jestine bağlı M3
+  yay/bilezik animasyonu. İstenirse her `PullToRefreshBox`'a `indicator = { ... }`
+  slotu verilerek o da küreye çevrilebilir (ayrı karar).
+* **Durum simgeleri:** `KitsugiCrossSyncDialog` başlığındaki dönen Sync ikonu (senkron
+  sürüyor anlamı taşıyor; bitince ✓, hata olursa ⚠ oluyor) ve `LinearProgressIndicator`
+  gibi gerçek ilerleme çubukları olduğu gibi bırakıldı.
