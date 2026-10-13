@@ -5,8 +5,6 @@ import com.kitsugi.animelist.utils.KitsugiStrings
 
 import com.kitsugi.animelist.core.memory.BoundedCache
 
-import com.kitsugi.animelist.data.remote.JikanGateway
-import com.kitsugi.animelist.data.remote.JikanResult
 import android.util.Log
 import com.kitsugi.animelist.model.MediaEntry
 import com.kitsugi.animelist.model.MediaIdentity
@@ -15,39 +13,40 @@ import okhttp3.Request
 import org.json.JSONObject
 import java.text.Normalizer
 import java.util.Locale
-import java.util.Optional
-import java.util.concurrent.ConcurrentHashMap
-import kotlin.math.abs
+
 
 /**
  * Çapraz senkronizasyonda **yanlış içerik eklenmesine** karşı kimlik güvencesi.
  *
  * Sorun: Bir grubun MAL kimliği tek bir sağlayıcı eşlemesinden (Simkl `ids.mal`, Kitsu `mappings`,
- * AniList `idMal`) ya da ARM/Jikan çıkarımından geliyorsa ve bu eşleme hatalıysa, aynı yanlış kimlik
- * MAL, AniList, Kitsu, Shikimori ve Simkl'a "yeni kayıt" olarak yazılır — kullanıcı hiç eklemediği bir
- * anime/manga ile karşılaşır. Güncellemeler platformun kendi kayıt kimliğiyle yapıldığı için güvenlidir;
- * risk yalnızca EKLEME yolundadır.
+ * AniList `idMal`) ya da ARM/Jikan çıkarımından geliyorsa ve bu eşleme hatalıysa, hem yeni kayıt
+ * eklemek hem de hedef hesaptaki mevcut kayda durum/ilerleme/puan yazmak yanlış içeriği etkileyebilir.
+ * Bu nedenle her çapraz hesaplı yazma yolu, yeni veya mevcut hedef olmasından bağımsız olarak hem
+ * kaynak MAL kimliğini hem de hedef sağlayıcının native kaydını yeniden doğrulamalıdır.
  *
- * Kural: *Doğrulanamayan kimlikle asla yeni kayıt eklenmez.*
- *  - Grup içinde MAL/Shikimori kaynaklı bir kayıt varsa kimlik doğaldır → güvenilir.
- *  - En az iki farklı platform bağımsız olarak aynı MAL ID'yi bildiriyorsa → güvenilir.
- *  - Aksi halde MAL kataloğundan (resmi v2 API, yedek: Jikan) başlık + yıl çekilir ve yerel kayıtla
- *    karşılaştırılır. Başlık akrabalığı yoksa ya da yıl uyuşmuyorsa [Verdict.Rejected];
- *    katalog ulaşılamazsa [Verdict.Unverifiable] — her iki durumda da ekleme yapılmaz.
+ * Kurallar:
+ *  - Kaynağın veya birden çok sağlayıcının ID iddiası tek başına yeterli değildir.
+ *  - Kaynak MAL kimliği, MAL'ın resmî kataloğunda medya türü, başlık ve bilinen yıl ile doğrulanır.
+ *  - Hedef sağlayıcı ID'si kendi namespace'inde doğrulanır; Shikimori `target_id` MAL ID sayılmaz.
+ *  - Uyuşmazlıkta, eksik yıl/başlıkta veya katalog erişilemediğinde mutasyon durur.
  */
 object CrossSyncIdentityGuard {
 
     private const val TAG = "CrossSyncIdentityGuard"
 
-    /** Kimliği "doğal olarak MAL" olan kaynaklar (kayıt kimliği = MAL ID). */
-    val NATIVE_MAL_SOURCES: Set<String> = setOf("mal", "myanimelist", "shikimori")
+    /** Gerçek kaynak kaydı kendi MAL ID'siyle tanımlanır; Shikimori ID'leri bu kümeye girmez. */
+    val NATIVE_MAL_SOURCES: Set<String> = setOf("mal", "myanimelist")
 
     sealed class Verdict {
-        /** Doğrulamaya gerek kalmadan güvenilir (doğal kaynak veya çoklu bağımsız kaynak). */
+        /** Tanı/geriye dönük uyumluluk için tutulur; cross-account eklemeyi asla yetkilendirmez. */
         data class Trusted(val reason: String) : Verdict()
 
-        /** MAL kataloğu ile başlık ve yıl uyuştu. */
-        data class Verified(val remoteTitle: String, val remoteYear: Int?) : Verdict()
+        /** MAL kataloğu ile başlık, tür ve yıl uyuştu; yazma aramalarında yalnız bu yerel alias'lar kullanılmalı. */
+        data class Verified(
+            val remoteTitle: String,
+            val remoteYear: Int?,
+            val matchedLocalTitles: List<String> = emptyList()
+        ) : Verdict()
 
         /** MAL kataloğundaki içerik yerel kayıtla uyuşmuyor — kimlik büyük olasılıkla yanlış. */
         data class Rejected(val reason: String, val remoteTitle: String?, val remoteYear: Int?) : Verdict()
@@ -55,7 +54,7 @@ object CrossSyncIdentityGuard {
         /** Katalog ulaşılamadı / yanıt vermedi; güvenli taraf: ekleme yapılmaz. */
         data class Unverifiable(val reason: String) : Verdict()
 
-        val allowsAdditions: Boolean get() = this is Trusted || this is Verified
+        val allowsAdditions: Boolean get() = this is Verified
 
         fun describe(): String = when (this) {
             is Trusted -> KitsugiStrings.get(R.string.cross_sync_identity_trusted, reason)
@@ -114,14 +113,26 @@ object CrossSyncIdentityGuard {
         .filterNot { tok -> tok.all { it.isDigit() } }
         .toSet()
 
+    /** Primary and English titles only; secondary Japanese aliases can be shared by different works. */
     fun aliasesOf(entry: MediaEntry): List<String> =
-        listOfNotNull(entry.title, entry.titleEnglish, entry.titleJapanese)
+        listOfNotNull(entry.title, entry.titleEnglish)
             .map { it.trim() }
             .filter { it.isNotEmpty() }
             .distinct()
 
-    /** Yıl bilinmiyorsa uyumlu sayılır; ikisi de biliniyorsa en fazla 1 yıl fark (sezon geçişleri, bölgesel tarihler). */
-    fun yearsCompatible(a: Int?, b: Int?): Boolean = a == null || b == null || abs(a - b) <= 1
+    /** Cross-sync writes require two known, positive, exactly matching release years. */
+    fun yearsCompatible(a: Int?, b: Int?): Boolean = a != null && a > 0 && b != null && b > 0 && a == b
+
+    /** A catalog result from another MAL media namespace can never authorize a write. */
+    fun mediaTypesCompatible(local: MediaType, remoteType: String?): Boolean {
+        val normalized = remoteType?.lowercase(Locale.ROOT)?.filter { it.isLetterOrDigit() } ?: return false
+        return when (local) {
+            MediaType.Manga -> normalized in setOf("manga", "manhwa", "manhua", "oneshot", "doujinshi", "novel", "lightnovel")
+            MediaType.Anime -> normalized in setOf("tv", "movie", "ova", "ona", "special", "music", "pv", "cm", "anime")
+            MediaType.Movie -> normalized == "movie"
+            MediaType.TvShow -> normalized in setOf("tv", "series")
+        }
+    }
 
     /**
      * Güçlü akrabalık: normalize başlıklar eşit, biri diğerinin ön eki ya da (yeterince uzunsa) içinde.
@@ -232,15 +243,59 @@ object CrossSyncIdentityGuard {
         return false
     }
 
-    /** Aynı sağlayıcı kimliğini paylaşan iki yerel kaydın başlıkları aynı eserin varyantı gibi görünüyor mu? */
-    fun entriesLookRelated(a: MediaEntry, b: MediaEntry): Boolean {
-        val strict = a.year == null || b.year == null
-        return titlesLookRelated(aliasesOf(a), aliasesOf(b), strict = strict)
+    /**
+     * Cross-sync yazma/cluster kararı için katı başlık eşdeğerliği. Tek bir ortak kelime veya genel
+     * prefix yeterli değildir; numaralı sezonlar/remake'ler de sayısal belirteçleri aynı olmalıdır.
+     */
+    fun titlesAreIdentityEquivalent(a: String, b: String): Boolean {
+        val na = MediaIdentity.normalizedTitle(a)
+        val nb = MediaIdentity.normalizedTitle(b)
+        if (na.isBlank() || nb.isBlank()) return false
+        if (na == nb) return true
+        if (isKnown86TitleExpansion(na, nb)) return true
+        if (numericTokens(a) != numericTokens(b)) return false
+
+        // Keep every word, including articles and season/movie descriptors. Removing common
+        // tokens can collapse distinct titles ("No Game No Life" vs "Game Life").
+        // The only special spelling normalization is the audited Mayoiga/Mayohiga alias.
+        fun strictCompactKey(value: String): String = rawTokens(value)
+            .map { if (it == "mayohiga") "mayoiga" else it }
+            .joinToString("")
+
+        val ka = strictCompactKey(a)
+        val kb = strictCompactKey(b)
+        if (ka.isEmpty() || kb.isEmpty()) return false
+        if (ka == kb) return true
+        // One explicitly narrow romaji variant: an inserted intervocalic "h" (Mayoiga/Mayohiga).
+        // General edit-distance matches are intentionally rejected for cross-account identity.
+        val intervocalicH = Regex("(?<=[aeiou])h(?=[aeiou])")
+        return intervocalicH.replace(ka, "") == intervocalicH.replace(kb, "")
     }
+
+    private fun isKnown86TitleExpansion(a: String, b: String): Boolean {
+        val marker = "86eightysix"
+        fun collapseKnownExpansion(value: String): String =
+            if (value.startsWith(marker)) "86${value.removePrefix(marker)}" else value
+        return (a.startsWith(marker) || b.startsWith(marker)) && collapseKnownExpansion(a) == collapseKnownExpansion(b)
+    }
+
+    fun matchingLocalTitleAliases(localTitles: Collection<String>, remoteTitles: Collection<String>): List<String> {
+        val remote = remoteTitles.filter { it.isNotBlank() }
+        return localTitles.filter { local ->
+            local.isNotBlank() && remote.any { title -> titlesAreIdentityEquivalent(local, title) }
+        }.distinct()
+    }
+
+    fun titlesAreIdentityEquivalent(a: Collection<String>, b: Collection<String>): Boolean =
+        matchingLocalTitleAliases(a, b).isNotEmpty()
+
+    /** Same-ID cluster relation; unlike the UI/detail heuristic this never accepts one shared word. */
+    fun entriesLookRelated(a: MediaEntry, b: MediaEntry): Boolean =
+        titlesAreIdentityEquivalent(aliasesOf(a), aliasesOf(b))
 
     // ───────────────────────────── MAL kimlik doğrulama ─────────────────────────────
 
-    private val identityCache = BoundedCache<String, Optional<RemoteIdentity>>("crossSync.identity", 500)
+    private val identityCache = BoundedCache<String, RemoteIdentity>("crossSync.identity.officialMal.v2", 500)
 
     /**
      * Grubun MAL kimliğini kataloğa karşı doğrular. Ağ hatalarında istisna fırlatmaz; [Verdict.Unverifiable] döner.
@@ -261,12 +316,24 @@ object CrossSyncIdentityGuard {
             ?: return Verdict.Unverifiable(KitsugiStrings.get(R.string.cross_sync_identity_remote_title_unavailable, malId))
         if (remote.titles.isEmpty()) return Verdict.Unverifiable(KitsugiStrings.get(R.string.cross_sync_identity_remote_empty_title, malId))
 
+        val typeOk = mediaTypesCompatible(mediaType, remote.mediaType)
         val yearOk = yearsCompatible(localYear, remote.year)
-        val strict = localYear == null || remote.year == null
-        val related = titlesLookRelated(titles, remote.titles, strict = strict)
+        val matchedLocalTitles = matchingLocalTitleAliases(titles, remote.titles)
+        val related = matchedLocalTitles.isNotEmpty()
 
         return when {
-            related && yearOk -> Verdict.Verified(remote.primaryTitle, remote.year)
+            !typeOk -> Verdict.Rejected(
+                reason = KitsugiStrings.get(
+                    R.string.cross_sync_identity_type_mismatch,
+                    malId,
+                    remote.mediaType ?: "unknown",
+                    mediaType.name,
+                    remote.primaryTitle
+                ),
+                remoteTitle = remote.primaryTitle,
+                remoteYear = remote.year
+            )
+            related && yearOk -> Verdict.Verified(remote.primaryTitle, remote.year, matchedLocalTitles)
             !related -> Verdict.Rejected(
                 reason = KitsugiStrings.get(
                     R.string.cross_sync_identity_title_mismatch,
@@ -278,6 +345,8 @@ object CrossSyncIdentityGuard {
                 remoteTitle = remote.primaryTitle,
                 remoteYear = remote.year
             )
+            localYear == null || localYear <= 0 || remote.year == null || remote.year <= 0 ->
+                Verdict.Unverifiable(KitsugiStrings.get(R.string.cross_sync_identity_year_unavailable))
             else -> Verdict.Rejected(
                 reason = KitsugiStrings.get(
                     R.string.cross_sync_identity_year_mismatch,
@@ -298,11 +367,15 @@ object CrossSyncIdentityGuard {
     private suspend fun fetchRemoteIdentity(malId: Int, mediaType: MediaType): RemoteIdentity? {
         val endpoint = if (mediaType == MediaType.Manga) "manga" else "anime"
         val key = "$endpoint:$malId"
-        identityCache[key]?.let { return it.orElse(null) }
+        identityCache[key]?.let { return it }
 
-        val fetched = fetchFromOfficialMal(malId, endpoint) ?: fetchFromJikan(malId, endpoint)
-        // Yalnızca başarılı yanıtlar önbelleğe alınır; geçici ağ hataları bir sonraki grupta tekrar denensin.
-        if (fetched != null) identityCache[key] = Optional.of(fetched)
+        // Cross-account writes require the authoritative MAL catalog. Jikan is a useful metadata
+        // mirror, but it is not strong enough to authorize an account mutation when MAL is down or
+        // its client configuration is missing. Fail closed instead of substituting a second source.
+        val fetched = fetchFromOfficialMal(malId, endpoint)
+            ?.takeIf { it.titles.isNotEmpty() && !it.mediaType.isNullOrBlank() }
+        // Cache successful official responses only; transient failures may be retried later.
+        if (fetched != null) identityCache[key] = fetched
         return fetched
     }
 
@@ -327,6 +400,10 @@ object CrossSyncIdentityGuard {
                 val text = response.body?.string()
                 if (text.isNullOrBlank()) return null
                 val json = JSONObject(text)
+                if (json.optInt("id", 0) != malId) {
+                    Log.w(TAG, "official MAL returned a different ID than requested for $endpoint/$malId")
+                    return null
+                }
                 val titles = mutableListOf<String>()
                 json.optString("title").takeIf { it.isNotBlank() }?.let { titles += it }
                 json.optJSONObject("alternative_titles")?.let { alt ->
@@ -349,48 +426,5 @@ object CrossSyncIdentityGuard {
         }
     }
 
-    private suspend fun fetchFromJikan(malId: Int, endpoint: String): RemoteIdentity? {
-        // Kimlik doğrulaması arka plan işi: JikanGateway'de BACKGROUND önceliği (kullanıcı
-        // ekranlarının kotasını yemez) ve önbellek/tekilleştirme burada da geçerlidir.
-        return try {
-            val text = when (val r = JikanGateway.fetch(
-                "https://api.jikan.moe/v4/$endpoint/$malId",
-                JikanGateway.Priority.BACKGROUND
-            )) {
-                is JikanResult.Ok -> r.body
-                else -> {
-                    Log.w(TAG, "Jikan identity ${r.javaClass.simpleName} for $endpoint/$malId")
-                    return null
-                }
-            }
-            if (text.isBlank()) return null
-            run {
-                val data = JSONObject(text).optJSONObject("data") ?: return null
-                val titles = mutableListOf<String>()
-                data.optString("title").takeIf { it.isNotBlank() }?.let { titles += it }
-                data.optString("title_english").takeIf { it.isNotBlank() }?.let { titles += it }
-                data.optString("title_japanese").takeIf { it.isNotBlank() }?.let { titles += it }
-                data.optJSONArray("titles")?.let { arr ->
-                    for (i in 0 until arr.length()) {
-                        arr.optJSONObject(i)?.optString("title")?.takeIf { it.isNotBlank() }?.let { titles += it }
-                    }
-                }
-                data.optJSONArray("title_synonyms")?.let { arr ->
-                    for (i in 0 until arr.length()) arr.optString(i).takeIf { it.isNotBlank() }?.let { titles += it }
-                }
-                val year = data.optInt("year", 0).takeIf { it > 0 }
-                    ?: yearRegex.find(data.optJSONObject("aired")?.optString("from") ?: data.optJSONObject("published")?.optString("from").orEmpty())
-                        ?.groupValues?.get(1)?.toIntOrNull()
-                RemoteIdentity(
-                    malId = malId,
-                    titles = titles.distinct(),
-                    year = year,
-                    mediaType = data.optString("type").takeIf { it.isNotBlank() }
-                )
-            }
-        } catch (e: Exception) {
-            Log.w(TAG, "Jikan identity fetch failed for $endpoint/$malId: ${e.message}")
-            null
-        }
-    }
+
 }

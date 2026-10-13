@@ -47,7 +47,7 @@ object KitsuIdNamespace {
 
     /** Kitsu sayısal ID → stableId. Geçersizse null. */
     fun stableIdFromRaw(kitsuId: Int?): Int? =
-        kitsuId?.takeIf { it > 0 && it + KITSU_OFFSET <= STABLE_ID_MAX }?.plus(KITSU_OFFSET)
+        kitsuId?.takeIf { it in 1..(STABLE_ID_MAX - KITSU_OFFSET) }?.plus(KITSU_OFFSET)
 
     /**
      * Bir kaydın `malId` alanında gerçek bir MAL ID'si mi saklı?

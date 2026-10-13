@@ -44,6 +44,14 @@ object KitsuApiClient {
         val avatarUrl: String?
     )
 
+    data class KitsuMediaIdentity(
+        val id: Int,
+        val type: String,
+        val titles: List<String>,
+        val year: Int?,
+        val malIds: Set<Int>
+    )
+
     data class KitsuFullProfile(
         val id: String,
         val name: String,
@@ -1013,5 +1021,97 @@ object KitsuApiClient {
                 results
             }
         }.getOrDefault(emptyList())
+    }
+
+    /** Fetches the catalog identity for a Kitsu ID so external mappings are verified before writes. */
+    suspend fun fetchKitsuMediaIdentity(kitsuId: Int, isAnime: Boolean): KitsuMediaIdentity? = withContext(Dispatchers.IO) {
+        if (kitsuId <= 0) return@withContext null
+        val endpoint = if (isAnime) "anime" else "manga"
+        val url = "$BASE_URL/$endpoint/$kitsuId?include=mappings&fields[$endpoint]=canonicalTitle,titles,abbreviatedTitles,startDate,mappings&fields[mappings]=externalSite,externalId"
+        val request = Request.Builder()
+            .url(url)
+            .addHeader("Accept", "application/vnd.api+json")
+            .addHeader("User-Agent", "KitsugiApp/2.4")
+            .get()
+            .build()
+        PlatformRateLimiter.acquire("kitsu")
+        runCatching {
+            KitsugiHttpClient.client.newCall(request).execute().use { response ->
+                if (response.code == 429) {
+                    PlatformRateLimiter.notifyRateLimited("kitsu")
+                    return@use null
+                }
+                if (!response.isSuccessful) return@use null
+                parseKitsuMediaIdentity(response.body?.string().orEmpty(), kitsuId, isAnime)
+            }
+        }.getOrElse { error ->
+            Log.w(TAG, "Kitsu identity lookup failed for $endpoint/$kitsuId: ${error.message}")
+            null
+        }
+    }
+
+    internal fun parseKitsuMediaIdentity(body: String, expectedId: Int, isAnime: Boolean): KitsuMediaIdentity? {
+        if (expectedId <= 0) return null
+        val endpoint = if (isAnime) "anime" else "manga"
+        val root = runCatching { JSONObject(body) }.getOrNull() ?: return null
+        val data = root.optJSONObject("data") ?: return null
+        val id = data.optString("id").toIntOrNull() ?: return null
+        val type = data.optString("type").lowercase(java.util.Locale.ROOT)
+        if (id != expectedId || type != endpoint) return null
+        val attrs = data.optJSONObject("attributes") ?: return null
+        val titles = buildList {
+            attrs.optString("canonicalTitle").takeIf { it.isNotBlank() }?.let(::add)
+            val titleObject = attrs.optJSONObject("titles")
+            if (titleObject != null) {
+                val keys = titleObject.keys()
+                while (keys.hasNext()) titleObject.optString(keys.next()).takeIf { it.isNotBlank() }?.let(::add)
+            }
+            val abbreviated = attrs.optJSONArray("abbreviatedTitles")
+            if (abbreviated != null) {
+                for (index in 0 until abbreviated.length()) {
+                    abbreviated.optString(index).takeIf { it.isNotBlank() }?.let(::add)
+                }
+            }
+        }.distinct()
+        if (titles.isEmpty()) return null
+
+        val linkedMappingIds = buildSet {
+            val mappings = data.optJSONObject("relationships")
+                ?.optJSONObject("mappings")
+                ?.optJSONArray("data") ?: return@buildSet
+            for (index in 0 until mappings.length()) {
+                mappings.optJSONObject(index)?.optString("id")?.takeIf { it.isNotBlank() }?.let(::add)
+            }
+        }
+        val included = root.optJSONArray("included") ?: JSONArray()
+        val malSite = "myanimelist/$endpoint"
+        val malIds = buildSet {
+            for (index in 0 until included.length()) {
+                val mapping = included.optJSONObject(index) ?: continue
+                if (mapping.optString("type") != "mappings") continue
+                val mappingId = mapping.optString("id")
+                val item = mapping.optJSONObject("relationships")?.optJSONObject("item")?.optJSONObject("data")
+                val itemId = item?.optString("id")
+                val itemType = item?.optString("type")?.lowercase(java.util.Locale.ROOT)
+                val mappingIsLinked = mappingId in linkedMappingIds
+                val itemPointsToMedia = itemId == id.toString() && itemType == endpoint
+                val itemRelationIsConsistent = item == null || (itemId.isNullOrBlank() && itemType.isNullOrBlank()) || itemPointsToMedia
+                val belongsToMedia = itemRelationIsConsistent &&
+                    (mappingIsLinked || (linkedMappingIds.isEmpty() && itemPointsToMedia))
+                if (!belongsToMedia) continue
+                val mappingAttrs = mapping.optJSONObject("attributes") ?: continue
+                if (mappingAttrs.optString("externalSite").trim().lowercase(java.util.Locale.ROOT) != malSite) continue
+                val externalId = mappingAttrs.optString("externalId").toIntOrNull()
+                    ?.takeIf { it in 1..99_999_999 } ?: continue
+                add(externalId)
+            }
+        }
+        return KitsuMediaIdentity(
+            id = id,
+            type = type,
+            titles = titles,
+            year = attrs.optString("startDate").take(4).toIntOrNull()?.takeIf { it > 0 },
+            malIds = malIds
+        )
     }
 }

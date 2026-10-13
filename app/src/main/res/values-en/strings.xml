@@ -7300,4 +7300,14 @@
     <string name="fandom_guide_terms">Terms</string>
     <string name="fandom_read_all">Read full page</string>
     <string name="fandom_blurb_empty">No short description for this page.</string>
+
+<string name="account_sync_bangumi_crosswalk_unavailable">Bangumi cross-account write skipped: no authoritative MAL↔Bangumi identity crosswalk is available for %1$s.</string>
+    <string name="account_sync_anilist_entry_identity_mismatch">Could not verify that the AniList list entry belongs to this media: %1$s.</string>
+    <string name="account_sync_mal_identity_unverified">Could not verify the MAL record (%1$s): %2$s.</string>
+    <string name="account_sync_cross_service_identity_skipped">Could not verify the MAL identity for %1$s; writes to other platforms were skipped to prevent an incorrect match.</string>
+    <string name="account_sync_cross_service_delete_skipped">Could not verify the MAL identity for %1$s; deletes from other platforms were skipped to prevent removing the wrong record.</string>
+    <string name="simkl_sync_tv_progress_unsupported">The aggregate episode count for %1$s cannot be safely translated into Simkl season/episode IDs; progress was not written.</string>
+    <string name="cross_sync_identity_type_mismatch">MAL #%1$d is %2$s, which is incompatible with local type %3$s ("%4$s")</string>
+    <string name="cross_sync_identity_year_unavailable">The local entry or MAL catalog has no valid release year; cross-account identity could not be verified.</string>
+    <string name="cross_sync_reason_bangumi_crosswalk_missing">No authoritative MAL↔Bangumi identity crosswalk is available</string>
 </resources>

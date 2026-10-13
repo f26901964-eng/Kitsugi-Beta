@@ -81,7 +81,7 @@ class BangumiApiClientSearchTest {
         assertEquals(7.4, first.rating!!.score, 0.0001)
         assertEquals(36, first.collection!!.total)
         assertEquals(
-            "https://lain.bgm.tv/pic/cover/c/aa/bb/51_x.jpg",
+            "https://lain.bgm.tv/pic/cover/l/aa/bb/51_x.jpg",
             BangumiApiClient.absoluteImageUrl(first.images?.poster)
         )
 

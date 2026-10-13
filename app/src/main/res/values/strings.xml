@@ -7305,4 +7305,14 @@ Eklentiler ekranından eklenti etkinleştirin.</string>
     <string name="fandom_guide_terms">Terimler</string>
     <string name="fandom_read_all">Tamamını oku</string>
     <string name="fandom_blurb_empty">Bu sayfa için kısa açıklama yok.</string>
+
+<string name="account_sync_bangumi_crosswalk_unavailable">%1$s için yetkili MAL↔Bangumi kimlik eşlemesi olmadığı için hesaplar arası yazma atlandı.</string>
+    <string name="account_sync_anilist_entry_identity_mismatch">AniList liste kaydının bu medya ile eşleştiği doğrulanamadı: %1$s</string>
+    <string name="account_sync_mal_identity_unverified">MAL kaydı doğrulanamadı (%1$s): %2$s</string>
+    <string name="account_sync_cross_service_identity_skipped">%1$s için MAL kimliği doğrulanamadı; yanlış eşleşmeyi önlemek için diğer platformlara yazma atlandı.</string>
+    <string name="account_sync_cross_service_delete_skipped">%1$s için MAL kimliği doğrulanamadı; yanlış kaydın silinmesini önlemek için diğer platformlardaki silme atlandı.</string>
+    <string name="simkl_sync_tv_progress_unsupported">%1$s için toplam bölüm sayısı Simkl sezon/bölüm kimliklerine güvenli biçimde çevrilemedi; ilerleme yazılmadı.</string>
+    <string name="cross_sync_identity_type_mismatch">MAL #%1$d medya türü %2$s, yerel %3$s türüyle uyuşmuyor ("%4$s")</string>
+    <string name="cross_sync_identity_year_unavailable">Yerel kayıtta veya MAL kataloğunda geçerli yayın yılı yok; hesaplar arası kimlik doğrulanamadı.</string>
+    <string name="cross_sync_reason_bangumi_crosswalk_missing">Yetkili MAL↔Bangumi kimlik eşlemesi bulunmuyor</string>
 </resources>

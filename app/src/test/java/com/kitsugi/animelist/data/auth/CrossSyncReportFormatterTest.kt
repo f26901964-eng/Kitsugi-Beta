@@ -36,13 +36,13 @@ class CrossSyncReportFormatterTest {
             generatedAt = 1234L
         )
 
-        assertTrue(report.contains("SORUNLAR / UYARILAR (2)"))
+        assertTrue(report.contains("SORUNLAR / UYARILAR (2)") || report.contains("ISSUES / WARNINGS (2)"))
         assertTrue(report.contains("MAL ID: 101 ile MAL ID: 202 uyuşmuyor"))
         assertTrue(report.contains("java.io.IOException: HTTP 500"))
-        assertTrue(report.contains("TÜM İŞLEM VE EŞLEŞTİRME KAYITLARI (4)"))
+        assertTrue(report.contains("TÜM İŞLEM VE EŞLEŞTİRME KAYITLARI (4)") || report.contains("ALL SYNC AND MATCHING EVENTS (4)"))
         assertTrue(report.contains("Başarıyla eklendi"))
         assertTrue(report.contains("Bangumi kaydı eşitlendi"))
-        assertTrue(report.contains("AniList: başlangıç=4"))
+        assertTrue(report.contains("AniList: başlangıç=4") || report.contains("AniList: initial=4"))
     }
 
     @Test

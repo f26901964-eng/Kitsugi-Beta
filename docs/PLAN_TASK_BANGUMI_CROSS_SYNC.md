@@ -1,5 +1,7 @@
 # Görev — Bangumi (bgm.tv) Çapraz Eşitleme (Cross-Sync) Tam Entegrasyonu
 
+> **Güvenlik kararı, 2026-10-13:** Aşağıdaki uygulama notları tarihsel bağlamdır; içlerindeki başlık/yıl araması ve `BangumiLocalMappingCache` öğrenimi daha sonra yapılan güvenlik denetiminde yeterli kimlik kanıtı sayılmadı. Bangumi'nin desteklenen API yolunda resmî MAL crosswalk bulunmadığından cross-account Bangumi ekleme, güncelleme ve bırakma yazmaları şimdilik fail-closed; Bangumi kaynağından diğer servislere MAL kimliği türetmek de kapalı. Yalnızca aynı Bangumi hesabındaki native subject ID doğrulandıktan sonra yapılan yazmalar açık. Bkz. `docs/audits/CROSS_ACCOUNT_SYNC_SAFETY_AUDIT_2026-10-13.md`.
+
 Tarih: 2026-10-10 · Branch: `arena/ce8cfe2b-kitsugi-beta`
 
 ## 1. İstek ve Arka Plan
