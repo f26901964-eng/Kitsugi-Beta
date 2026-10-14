@@ -1,5 +1,6 @@
 package com.kitsugi.animelist.data.remote.malweb
 
+import android.content.Context
 import com.kitsugi.animelist.core.network.KitsugiHttpClient
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -11,6 +12,7 @@ import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonObject
 import okhttp3.Request
+import org.jsoup.Jsoup
 
 /**
  * MyAnimeList's website-only notification feed.
@@ -35,7 +37,7 @@ internal object MalNotificationsClient {
      * adın içine kaçmasın.
      */
     private val PROFILE_LINK = Regex(
-        """(?:https?://(?:www\.)?myanimelist\.net)?/profile/([A-Za-z0-9_\-]{2,32})(?=[/?#"'\s<>)])""",
+        """(?:https?://(?:www\.)?myanimelist\.net)?/profile/([A-Za-z0-9_-]{2,32})(?=[/?#"'\s<>)])""",
         RegexOption.IGNORE_CASE
     )
 
@@ -73,13 +75,13 @@ internal object MalNotificationsClient {
         /** Okunan akış sayfası (1 tabanlı). */
         val page: Int = 1,
         /**
-         * Daha eski bildirimler için başka bir sayfa denenebilir mi?
-         *
-         * MAL bu akış için herkese açık bir sayfalama sözleşmesi yayımlamıyor; bu yüzden
-         * karar istemcide verilir: yeni sayfa yeni kimlik döndürmezse akış "bitti" sayılır
-         * (bkz. [KitsugiNotificationsViewModel.loadMalMore]).
+         * Daha eski bildirimler için devam denemesi yapılabilir mi? MAL bu akış için
+         * yayımlanmış bir sözleşme sunmuyor; açık bir next URL veya web sayfasının kendi
+         * istemcisiyle aşağı kaydırma sonucu yeni kayıt bulunması beklenir.
          */
-        val hasNextPage: Boolean = false
+        val hasNextPage: Boolean = false,
+        /** MAL HTML/JSON açık bir next URL verdiyse güvenli aynı-kaynak bağlantısı. */
+        val nextPageUrl: String? = null
     )
 
     data class Notification(
@@ -210,73 +212,59 @@ internal object MalNotificationsClient {
 
     data class RelatedAnime(val title: String, val url: String?)
 
-    /**
-     * Bildirim akışının adresi.
-     *
-     * 1. sayfa parametresiz istenir (MAL'ın kendi adresi). Sonraki sayfalar `?page=N` ile
-     * denenir: MAL sayfalamayı destekliyorsa yeni kayıtlar gelir, desteklemiyorsa aynı
-     * kayıtlar döner ve istemci akışı "bitti" sayar (uydurma kayıt üretilmez).
-     */
-    internal fun pageUrlFor(page: Int): String =
-        if (page <= 1) NOTIFICATIONS_URL else "$NOTIFICATIONS_URL?page=$page"
-
-    suspend fun fetch(cookieHeader: String, page: Int = 1): Feed = withContext(Dispatchers.IO) {
+    suspend fun fetch(cookieHeader: String): Feed = withContext(Dispatchers.IO) {
         // Çerez adına göre karar verilmez: MAL'ın hangi çerezle "giriş yapılmış" saydığını
         // yalnızca MAL bilir. İstek yapılır, giriş sayfasına düşülürse oturum istenir.
         if (cookieHeader.isBlank()) {
             throw MalWebSessionRequiredException("MAL web oturumu gerekli")
         }
-        fetchPage(cookieHeader, pageUrlFor(page), page)
+        fetchPage(cookieHeader, NOTIFICATIONS_URL, page = 1)
     }
 
     /**
-     * "Bildirimlerin devamı" — daha eski bildirimler için aday adresleri sırayla dener.
+     * Loads the next MAL website batch without inventing an API-v2 route or page query.
      *
-     * MAL bu akışın sayfalamasını belgelemediği için karar VERİYLE verilir: adaylardan biri
-     * [knownIds] içinde olmayan yeni kayıt döndürürse o adres "çalışan" adres kabul edilir ve
-     * akış devam eder; hiçbiri yeni kayıt getirmezse akış biter (uydurma kart üretilmez).
-     *
-     * Yanlış adres tahminleri (404/aynı sayfa) oturum kararını BOZMAZ: yalnızca hiçbir aday
-     * sayfa döndürmediyse ve gerçek bir "oturum yok" yanıtı alındıysa oturum hatası yükseltilir.
+     * The official MAL v2 API has no personal-notification resource. If the page exposes an
+     * explicit same-origin next URL, it is tried first and trusted only when it returns unseen
+     * IDs. Otherwise the same signed-in `/notification` page is opened in a short-lived WebView;
+     * MAL's own JavaScript is allowed to request the next batch as its notification pane scrolls.
+     * No OAuth bearer token is sent to the website; the shared WebView cookie jar supplies the
+     * website session.
      */
     suspend fun fetchMore(
+        context: Context,
         cookieHeader: String,
         page: Int,
+        nextPageUrl: String? = null,
         knownIds: Set<String>
     ): Feed? = withContext(Dispatchers.IO) {
         if (cookieHeader.isBlank()) return@withContext null
-        var parsedAnyPage = false
         var sessionError: MalWebSessionRequiredException? = null
-        for (url in moreUrlCandidates(page)) {
+        val explicitNextUrl = normalizeNotificationPageUrl(nextPageUrl)
+        if (explicitNextUrl != null) {
             val feed = try {
-                fetchPage(cookieHeader, url, page)
+                fetchPage(cookieHeader, explicitNextUrl, page)
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
             } catch (e: MalWebSessionRequiredException) {
-                if (sessionError == null) sessionError = e
-                continue
-            } catch (e: Exception) {
-                continue
+                sessionError = e
+                null
+            } catch (_: Exception) {
+                null
             }
-            parsedAnyPage = true
-            if (feed.items.any { it.id !in knownIds }) return@withContext feed
+            if (feed?.items?.any { it.id !in knownIds } == true) return@withContext feed
         }
-        if (!parsedAnyPage && sessionError != null) throw sessionError
-        null
-    }
 
-    /**
-     * Sayfa adayları (sırayla denenir). 1. sayfa her zaman MAL'ın kendi adresidir.
-     *
-     * `?page=N` MAL tarafından desteklenmiyorsa aynı kayıtlar döner ve istemci akışı kapatır;
-     * diğer biçimler yalnızca destekleniyor OLABİLECEĞİ için tahmin niteliğindedir.
-     */
-    internal fun moreUrlCandidates(page: Int): List<String> {
-        if (page <= 1) return listOf(NOTIFICATIONS_URL)
-        return listOf(
-            "$NOTIFICATIONS_URL?page=$page",
-            "$NOTIFICATIONS_URL?p=$page",
-            "$NOTIFICATIONS_URL/history?page=$page",
-            "$NOTIFICATIONS_URL/history?p=$page"
-        )
+        // No guessed query parameters: let the first-party frontend run its actual continuation.
+        val browserFeed = MalNotificationsWebPager.fetch(context, page)
+        if (browserFeed.items.any { it.id !in knownIds }) return@withContext browserFeed
+        if (browserFeed.hasNextPage) {
+            throw MalNotificationsFetchException(
+                "MAL bildirim sayfası devam olabileceğini bildirdi ancak yeni kayıt yüklemedi"
+            )
+        }
+        sessionError?.let { throw it }
+        null
     }
 
     /** Tek bir adresi indirip ayrıştırır (yalnızca MAL'ın kendi adreslerine yönlendirme izni var). */
@@ -299,7 +287,7 @@ internal object MalNotificationsClient {
                 .header("X-Requested-With", "XMLHttpRequest")
                 .header("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8")
                 .header("Accept-Language", "tr-TR,tr;q=0.9,en-US;q=0.8,en;q=0.7")
-                .header("Referer", MAL_HOME_URL)
+                .header("Referer", if (page <= 1) MAL_HOME_URL else NOTIFICATIONS_URL)
                 .header("Cache-Control", "no-cache")
                 .build()
 
@@ -340,7 +328,7 @@ internal object MalNotificationsClient {
         throw MalNotificationsFetchException("MAL bildirim isteği çok fazla yönlendirildi")
     }
 
-    /** Parses MAL's JSON assignment without evaluating page JavaScript. */
+    /** Parses MAL's embedded notification assignment without evaluating page JavaScript. */
     internal fun parseHtml(html: String, page: Int = 1): Feed? {
         val marker = NOTIFICATION_MARKER.find(html) ?: return null
         val objectStart = html.indexOf('{', marker.range.last + 1)
@@ -348,28 +336,109 @@ internal object MalNotificationsClient {
         val objectEnd = findJsonObjectEnd(html, objectStart) ?: return null
         val root = runCatching { json.parseToJsonElement(html.substring(objectStart, objectEnd + 1)).jsonObject }
             .getOrNull() ?: return null
-        val rawItems = root["items"] as? JsonArray
-        val rawHistory = root["historyItems"] as? JsonArray
-        // İki listeden en az biri bulunmalı; yalnızca `items` zorunlu sayıldığı için
-        // `historyItems` ile dönen (okunmuş/eski bildirim) sayfaları "veri yok" diye düşüyordu.
-        if (rawItems == null && rawHistory == null) return null
-
-        // MAL, okunmuş/eski bildirimleri `historyItems` altında döndürür. Yalnızca `items`
-        // okunduğu için kullanıcı "bildirimlerin devamını" hiç göremiyordu; iki liste aynı
-        // şemayla ayrıştırılıp `id` ile tekilleştirilir (kimliği olmayan kayıtlar atlanır).
-        val parsed = rawItems.orEmpty().mapNotNull { it.asObjectOrNull()?.toNotification() } +
-            rawHistory.orEmpty().mapNotNull { it.asObjectOrNull()?.toNotification() }
-
-        val items = parsed.distinctBy { it.id }
-        return Feed(
-            items = items,
-            sessionUsername = parseSessionUsername(html),
+        return parseRoot(
+            root = root,
             page = page,
-            // Kayıt varsa bir sonraki sayfa denenebilir; gerçekten yeni kayıt gelmezse
-            // istemci akışı kapatır (bkz. Feed.hasNextPage).
-            hasNextPage = items.isNotEmpty()
+            sessionUsername = parseSessionUsername(html),
+            nextPageUrlHint = notificationNextPageUrl(root) ?: nextPageUrlFromHtml(html)
         )
     }
+
+    /** WebView bridge path: parse the object after MAL's own page JavaScript has run. */
+    internal fun parseNotificationPayload(
+        payload: String,
+        page: Int,
+        sessionUsername: String?,
+        hasNextPageOverride: Boolean? = null
+    ): Feed? {
+        val root = runCatching { json.parseToJsonElement(payload).jsonObject }.getOrNull() ?: return null
+        return parseRoot(
+            root = root,
+            page = page,
+            sessionUsername = sessionUsername,
+            browserHasNextOverride = hasNextPageOverride,
+            nextPageUrlHint = notificationNextPageUrl(root)
+        )
+    }
+
+    private fun parseRoot(
+        root: JsonObject,
+        page: Int,
+        sessionUsername: String?,
+        browserHasNextOverride: Boolean? = null,
+        nextPageUrlHint: String? = null
+    ): Feed? {
+        val rawItems = root["items"] as? JsonArray
+        val rawHistory = root["historyItems"] as? JsonArray
+        // MAL may send only historyItems for an all-read notification history.
+        if (rawItems == null && rawHistory == null) return null
+
+        val parsed = rawItems.orEmpty().mapNotNull { it.asObjectOrNull()?.toNotification() } +
+            rawHistory.orEmpty().mapNotNull { it.asObjectOrNull()?.toNotification() }
+        val items = parsed.distinctBy { it.id }
+        val pagination = root["pagination"] as? JsonObject
+        val explicitHasNext = root.boolean("hasNextPage")
+            ?: root.boolean("has_next_page")
+            ?: root.boolean("hasMore")
+            ?: root.boolean("has_more")
+            ?: pagination?.boolean("hasNextPage")
+            ?: pagination?.boolean("has_next_page")
+        val embeddedNextUrl = nextPageUrlHint ?: notificationNextPageUrl(root)
+
+        return Feed(
+            items = items,
+            sessionUsername = sessionUsername,
+            page = page,
+            // Without a server contract, an item-bearing feed is a continuation hint only;
+            // the caller still requires unseen IDs before appending or advancing the page.
+            hasNextPage = explicitHasNext ?: (browserHasNextOverride ?: (embeddedNextUrl != null || items.isNotEmpty())),
+            nextPageUrl = embeddedNextUrl
+        )
+    }
+
+    private fun notificationNextPageUrl(root: JsonObject): String? {
+        val pagination = root["pagination"] as? JsonObject
+        return sequenceOf(
+            root.string("nextPageUrl"),
+            root.string("next_page_url"),
+            root.string("nextUrl"),
+            root.string("next_url"),
+            pagination?.string("nextPageUrl"),
+            pagination?.string("next_page_url"),
+            pagination?.string("nextUrl"),
+            pagination?.string("next_url"),
+            pagination?.string("next")
+        )
+            .filterNotNull()
+            .filter(String::isNotBlank)
+            .mapNotNull(::normalizeNotificationPageUrl)
+            .firstOrNull()
+    }
+
+    private fun nextPageUrlFromHtml(html: String): String? = runCatching {
+        val document = Jsoup.parse(html)
+        val relNext = document.select("a[rel], link[rel]")
+            .firstOrNull { element -> element.attr("rel").split(' ').any { it.equals("next", true) } }
+            ?.attr("href")
+        val dataNext = document.selectFirst("[data-next-url]")?.attr("data-next-url")
+        normalizeNotificationPageUrl(relNext ?: dataNext)
+    }.getOrNull()
+
+    internal fun normalizeNotificationPageUrl(raw: String?): String? = runCatching {
+        if (raw.isNullOrBlank()) return@runCatching null
+        val base = java.net.URI(NOTIFICATIONS_URL)
+        val target = base.resolve(raw.trim())
+        val host = target.host?.lowercase() ?: return@runCatching null
+        val path = target.path.orEmpty()
+        val isNotificationPath = path.equals("/notification", ignoreCase = true) ||
+            path.startsWith("/notification/", ignoreCase = true)
+        if (!target.scheme.equals("https", ignoreCase = true) ||
+            target.userInfo != null || (target.port != -1 && target.port != 443) ||
+            (host != "myanimelist.net" && host != "www.myanimelist.net") ||
+            !isNotificationPath
+        ) return@runCatching null
+        target.toString()
+    }.getOrNull()
 
     /**
      * Reads the signed-in account's username from the page chrome (header profile link).
@@ -386,6 +455,18 @@ internal object MalNotificationsClient {
     internal fun parseSessionUsername(html: String): String? {
         val scannable = withoutNotificationJson(html)
         return headerProfileUsername(scannable) ?: mostFrequentProfileUsername(scannable)
+    }
+
+    /** Parse the first-party owner profile URL returned by the WebView bridge. */
+    internal fun parseSessionUsernameFromProfileUrl(raw: String?): String? {
+        val safeUrl = raw?.let(::normalizeMalUrl) ?: return null
+        val uri = runCatching { java.net.URI(safeUrl) }.getOrNull() ?: return null
+        val host = uri.host?.lowercase()
+        if (host != "myanimelist.net" && host != "www.myanimelist.net") return null
+        val username = Regex("""^/profile/([A-Za-z0-9_-]{2,32})(?:/|$)""", RegexOption.IGNORE_CASE)
+            .find(uri.path.orEmpty())?.groupValues?.getOrNull(1)
+            ?: return null
+        return username.takeIf(::isPlausibleUsername)
     }
 
     private fun withoutNotificationJson(html: String): String {

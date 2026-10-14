@@ -300,34 +300,45 @@ fun PlatformUserProfileScreen(
                                     onUserProfileClick = onUserProfileClick,
                                     onLoadMoreFriends = {
                                         malState?.takeIf { it.friendsHasNextPage && !it.isLoadingMoreFriends }?.let { current ->
-                                            malState = current.copy(isLoadingMoreFriends = true)
+                                            malState = current.copy(isLoadingMoreFriends = true, friendsLoadMoreFailed = false)
                                             profileScope.launch {
                                                 val loaded = runCatching {
                                                     OtherUserProfileRepository.loadMoreMalFriends(current.name, current)
-                                                }.getOrElse { current.copy(friendsHasNextPage = false) }
+                                                }.getOrElse { current.copy(friendsLoadMoreFailed = true) }
                                                 malState = loaded.copy(isLoadingMoreFriends = false)
                                             }
                                         }
                                     },
                                     onLoadMoreReviews = {
                                         malState?.takeIf { it.reviewsHasNextPage && !it.isLoadingMoreReviews }?.let { current ->
-                                            malState = current.copy(isLoadingMoreReviews = true)
+                                            malState = current.copy(isLoadingMoreReviews = true, reviewsLoadMoreFailed = false)
                                             profileScope.launch {
                                                 val loaded = runCatching {
                                                     OtherUserProfileRepository.loadMoreMalReviews(current.name, current)
-                                                }.getOrElse { current.copy(reviewsHasNextPage = false) }
+                                                }.getOrElse { current.copy(reviewsLoadMoreFailed = true) }
                                                 malState = loaded.copy(isLoadingMoreReviews = false)
                                             }
                                         }
                                     },
                                     onLoadMoreRecommendations = {
                                         malState?.takeIf { it.recommendationsHasNextPage && !it.isLoadingMoreRecommendations }?.let { current ->
-                                            malState = current.copy(isLoadingMoreRecommendations = true)
+                                            malState = current.copy(isLoadingMoreRecommendations = true, recommendationsLoadMoreFailed = false)
                                             profileScope.launch {
                                                 val loaded = runCatching {
                                                     OtherUserProfileRepository.loadMoreMalRecommendations(current.name, current)
-                                                }.getOrElse { current.copy(recommendationsHasNextPage = false) }
+                                                }.getOrElse { current.copy(recommendationsLoadMoreFailed = true) }
                                                 malState = loaded.copy(isLoadingMoreRecommendations = false)
+                                            }
+                                        }
+                                    },
+                                    onLoadMoreClubs = {
+                                        malState?.takeIf { it.clubsHasNextPage && !it.isLoadingMoreClubs }?.let { current ->
+                                            malState = current.copy(isLoadingMoreClubs = true, clubsLoadMoreFailed = false)
+                                            profileScope.launch {
+                                                val loaded = runCatching {
+                                                    OtherUserProfileRepository.loadMoreMalClubs(current.name, current)
+                                                }.getOrElse { current.copy(clubsLoadMoreFailed = true) }
+                                                malState = loaded.copy(isLoadingMoreClubs = false)
                                             }
                                         }
                                     }

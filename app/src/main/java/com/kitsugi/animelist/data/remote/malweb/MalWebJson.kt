@@ -135,6 +135,7 @@ object MalWebJson {
         })
         return JSONObject()
             .put("pagination", JSONObject()
+                .put("current_page", currentPage)
                 .put("last_visible_page", if (page.hasNextPage) currentPage + 1 else currentPage)
                 .put("has_next_page", page.hasNextPage))
             .put("data", data)
@@ -249,7 +250,11 @@ object MalWebJson {
 
     // ── İncelemeler, Öneriler, Kulüpler ──────────────────────────────────
 
-    fun reviews(reviews: List<MalWebParser.Review>, page: Int = 1): JSONObject {
+    fun reviews(
+        reviews: List<MalWebParser.Review>,
+        page: Int = 1,
+        hasNextPage: Boolean = false
+    ): JSONObject {
         val data = JSONArray(reviews.map { review ->
             JSONObject()
                 .put("mal_id", review.reviewId)
@@ -268,12 +273,17 @@ object MalWebJson {
         })
         return JSONObject()
             .put("pagination", JSONObject()
-                .put("last_visible_page", if (reviews.size >= 10) page + 1 else page)
-                .put("has_next_page", reviews.size >= 10))
+                .put("current_page", page)
+                .put("last_visible_page", if (hasNextPage) page + 1 else page)
+                .put("has_next_page", hasNextPage))
             .put("data", data)
     }
 
-    fun recommendations(recs: List<MalWebParser.Recommendation>, page: Int = 1): JSONObject {
+    fun recommendations(
+        recs: List<MalWebParser.Recommendation>,
+        page: Int = 1,
+        hasNextPage: Boolean = false
+    ): JSONObject {
         val data = JSONArray(recs.map { rec ->
             JSONObject()
                 .put("mal_id", rec.recommendationId)
@@ -290,12 +300,13 @@ object MalWebJson {
         })
         return JSONObject()
             .put("pagination", JSONObject()
-                .put("last_visible_page", if (recs.size >= 10) page + 1 else page)
-                .put("has_next_page", recs.size >= 10))
+                .put("current_page", page)
+                .put("last_visible_page", if (hasNextPage) page + 1 else page)
+                .put("has_next_page", hasNextPage))
             .put("data", data)
     }
 
-    fun clubs(clubs: List<MalWebParser.Club>): JSONObject {
+    fun clubs(clubs: List<MalWebParser.Club>, page: Int = 1, hasNextPage: Boolean = false): JSONObject {
         val data = JSONArray(clubs.map { club ->
             JSONObject()
                 .put("mal_id", club.clubId)
@@ -305,7 +316,12 @@ object MalWebJson {
                 .put("members", club.memberCount)
                 .put("category", club.category.orNull())
         })
-        return JSONObject().put("data", data)
+        return JSONObject()
+            .put("pagination", JSONObject()
+                .put("current_page", page)
+                .put("last_visible_page", if (hasNextPage) page + 1 else page)
+                .put("has_next_page", hasNextPage))
+            .put("data", data)
     }
 
     fun wrap(data: Any): String = JSONObject().put("data", data).toString()

@@ -231,6 +231,26 @@ class MalWebParserTest {
     }
 
     @Test
+    fun followsOnlyObservedSameOriginNextPageLinks() {
+        val firstPage = """
+            <html><body><div class="pagination">
+              <a class="link next" href="?p=2" aria-label="Next page">Next</a>
+            </div></body></html>
+        """.trimIndent()
+        assertEquals(
+            "/profile/TestUser/reviews?p=2",
+            MalWebParser.nextPagePath(firstPage, "/profile/TestUser/reviews")
+        )
+
+        val externalNext = "<a rel=\"next\" href=\"https://example.org/page/2\">Next</a>"
+        val differentMALPath = "<a rel=\"next\" href=\"/profile/OtherUser/reviews?p=2\">Next</a>"
+        val samePage = "<a rel=\"next\" href=\"#next\">Next</a>"
+        assertNull(MalWebParser.nextPagePath(externalNext, "/profile/TestUser/reviews"))
+        assertNull(MalWebParser.nextPagePath(differentMALPath, "/profile/TestUser/reviews"))
+        assertNull(MalWebParser.nextPagePath(samePage, "/profile/TestUser/reviews"))
+    }
+
+    @Test
     fun parsesContentRatingDistribution() {
         val html = """
             <html><head><title>TestUser's Anime Statistics - MyAnimeList.net</title></head><body>

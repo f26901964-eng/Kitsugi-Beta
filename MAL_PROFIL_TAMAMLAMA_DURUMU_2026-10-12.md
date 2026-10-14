@@ -1,5 +1,7 @@
 # MAL Profil Tamamlama Durumu - 2026-10-12
 
+> Tarihsel ara durum. UI/ViewModel TODO'ları mevcut kaynakta büyük ölçüde tamamlanmış olduğundan bu dosya güncel gap listesi değildir. Güncel, kaynak izlemeli değerlendirme: `MAL_CAPABILITY_AUDIT_2026-10-14.md`.
+
 ## ✅ Tamamlanan İşler
 
 ### 1. Tek Giriş Sistemi (MalUnifiedAuthManager) 🎯

@@ -100,6 +100,10 @@ data class NotifUiState(
     val error: String? = null,
     val hasMore: Boolean = true,
     val page: Int = 1,
+    /** MAL sayfası açık bir next URL sunduysa, güvenli aynı-kaynak bağlantısı. */
+    val nextPageUrl: String? = null,
+    /** Daha eski MAL bildirimlerini yükleme hatası; mevcut kartlar korunur ve yeniden denenebilir. */
+    val loadMoreError: String? = null,
     /** Kullanıcıya gösterilecek kaynak açıklaması veya geçici akış uyarısı. */
     val notice: String? = null,
     /** MAL's private website feed requires a first-party WebView session cookie. */
@@ -449,6 +453,8 @@ class KitsugiNotificationsViewModel(application: Application) : AndroidViewModel
                         // Daha eski bildirimler varsa kaydırdıkça denenir (bkz. loadMalMore).
                         hasMore = feed.hasNextPage,
                         page = feed.page,
+                        nextPageUrl = feed.nextPageUrl,
+                        loadMoreError = null,
                         notice = feedNotice,
                         requiresMalWebLogin = false,
                         malOAuthUsername = identity.username,
@@ -507,11 +513,8 @@ class KitsugiNotificationsViewModel(application: Application) : AndroidViewModel
     }
 
     /**
-     * MAL bildirim akışında bir sonraki sayfayı ister — "bildirimlerin devamı".
-     *
-     * MAL bu akışın sayfalamasını belgelemiyor; karar bu yüzden VERİYLE verilir: dönen
-     * kayıtların hiçbiri yeni değilse akış bitmiş sayılır (`hasMore = false`) ve listede
-     * tekrar/uydurma kart oluşmaz. Yeni kayıt gelirse arşive de yazılır.
+     * Loads older MAL website notifications. Continuation is accepted only when it contains
+     * IDs that are not already visible; transient failures preserve the feed and expose retry.
      */
     fun loadMalMore() {
         val current = _mal.value
@@ -520,35 +523,66 @@ class KitsugiNotificationsViewModel(application: Application) : AndroidViewModel
         ) {
             return
         }
-        _mal.value = current.copy(isLoading = true)
+        _mal.value = current.copy(isLoading = true, loadMoreError = null)
         viewModelScope.launch {
-            val cookie = MalWebSessionStore.browserCookieHeader()
-            if (cookie.isNullOrBlank()) {
-                _mal.value = current.copy(isLoading = false, hasMore = false)
-                return@launch
-            }
             try {
+                val cookie = MalWebSessionStore.browserCookieHeader()
+                if (cookie.isNullOrBlank()) {
+                    _mal.value = current.copy(
+                        isLoading = false,
+                        hasMore = false,
+                        requiresMalWebLogin = true,
+                        loadMoreError = null
+                    )
+                    return@launch
+                }
+
                 val existingIds = current.items.map { it.id }.toSet()
-                // MAL bu akışın adresini belgelemiyor: aday adreslerin her biri denenir ve
-                // yalnızca GERÇEKTEN yeni kayıt getiren adres kabul edilir (bkz. fetchMore).
-                // Eski kod tek adresi (?page=N) deniyor, MAL aynı sayfayı döndürünce
-                // "devam yok" kararı verip listeyi kilitliyordu.
+                val nextPage = current.page + 1
                 val feed = MalNotificationsClient.fetchMore(
+                    context = ctx,
                     cookieHeader = cookie,
-                    page = current.page + 1,
+                    page = nextPage,
+                    nextPageUrl = current.nextPageUrl,
                     knownIds = existingIds
                 )
                 if (feed == null) {
-                    // Hiçbir aday yeni kayıt getirmedi: akış bitti (uydurma kart üretilmez).
-                    _mal.value = current.copy(isLoading = false, hasMore = false)
+                    _mal.value = current.copy(isLoading = false, hasMore = false, loadMoreError = null)
                     return@launch
                 }
+
+                // The browser cookie jar and OAuth token are separate. Verify that a session
+                // switch during pagination cannot mix another account's notifications in.
+                val identity = fetchMalOAuthIdentity()
+                val match = MalAccountMatch.status(
+                    oauthUsername = identity.username,
+                    webUsername = feed.sessionUsername,
+                    oauthAvailable = identity.tokenAvailable
+                )
+                if (match == MalAccountMatch.Status.MISMATCHED) {
+                    android.util.Log.w(
+                        "KitsugiNotif",
+                        "MAL account mismatch during pagination: oauth=${identity.username} web=${feed.sessionUsername}"
+                    )
+                    _mal.value = current.copy(
+                        items = emptyList(),
+                        isLoading = false,
+                        hasMore = false,
+                        error = ctx.getString(R.string.notif_mal_account_mismatch_error),
+                        requiresMalWebLogin = true,
+                        malAccountMismatch = true,
+                        malOAuthUsername = identity.username,
+                        malWebUsername = feed.sessionUsername,
+                        loadMoreError = null
+                    )
+                    return@launch
+                }
+
                 val fresh = feed.items
-                    .map { it.toNotifItem() }
                     .filter { it.id !in existingIds }
+                    .map { it.toNotifItem() }
                 if (fresh.isEmpty()) {
-                    // MAL aynı kayıtları döndürdü: sayfalama yok veya akış bitti.
-                    _mal.value = current.copy(isLoading = false, hasMore = false)
+                    _mal.value = current.copy(isLoading = false, hasMore = false, loadMoreError = null)
                 } else {
                     writeArchive("MyAnimeList", fresh)
                     val items = (current.items + fresh)
@@ -558,19 +592,30 @@ class KitsugiNotificationsViewModel(application: Application) : AndroidViewModel
                         items = items,
                         isLoading = false,
                         hasMore = feed.hasNextPage,
-                        page = feed.page
+                        page = feed.page,
+                        nextPageUrl = feed.nextPageUrl,
+                        malOAuthUsername = identity.username,
+                        malWebUsername = feed.sessionUsername,
+                        loadMoreError = null
                     )
                 }
             } catch (e: CancellationException) {
                 throw e
             } catch (e: MalWebSessionRequiredException) {
-                // Oturum gerçekten düştü: liste korunur, yeniden giriş kartı gösterilir.
-                android.util.Log.w("KitsugiNotif", "MAL web oturumu düştü (devam yüklenirken): ${e.message}")
-                _mal.value = current.copy(isLoading = false, hasMore = false, requiresMalWebLogin = true)
+                android.util.Log.w("KitsugiNotif", "MAL web session expired during pagination: ${e.message}")
+                _mal.value = current.copy(
+                    isLoading = false,
+                    hasMore = false,
+                    requiresMalWebLogin = true,
+                    loadMoreError = null
+                )
             } catch (e: Exception) {
-                // Sayfa alınamadı: mevcut liste korunur, kullanıcıya hata basılmaz.
-                android.util.Log.w("KitsugiNotif", "MAL bildirim sayfası alınamadı: ${e.message}")
-                _mal.value = current.copy(isLoading = false, hasMore = false)
+                android.util.Log.w("KitsugiNotif", "MAL notifications could not be continued: ${e.message}")
+                _mal.value = current.copy(
+                    isLoading = false,
+                    hasMore = true,
+                    loadMoreError = ctx.getString(R.string.notif_mal_load_more_failed)
+                )
             }
         }
     }

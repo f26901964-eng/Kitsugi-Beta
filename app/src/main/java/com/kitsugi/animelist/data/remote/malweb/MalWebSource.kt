@@ -36,6 +36,7 @@ object MalWebSource {
     private const val HTML_TTL_MS = 10L * 60L * 1000L
     private const val BLOCK_COOLDOWN_MS = 10L * 60L * 1000L
     private const val MAX_CACHE_ENTRIES = 40
+    private const val MAX_OBSERVED_PAGES = 100
 
     private const val USER_AGENT =
         "Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0.0.0 Mobile Safari/537.36"
@@ -109,14 +110,15 @@ object MalWebSource {
                 JikanResult.Ok(body)
             }
             "friends" -> {
-                val pageNo = target.query["page"]?.toIntOrNull()?.coerceAtLeast(1) ?: 1
-                val path = if (pageNo > 1) "/profile/$u/friends?p=$pageNo" else "/profile/$u/friends"
-                val html = when (val r = page(path)) {
-                    is PageResult.Html -> r.html
-                    is PageResult.Error -> return r.result
+                val pageNo = requestedPage(target.query)
+                val loaded = when (val result = observedPage("/profile/$u/friends", pageNo)) {
+                    is ObservedPage.Found -> result
+                    is ObservedPage.Error -> return result.result
+                    ObservedPage.End -> return JikanResult.Failed(404, "no observed friends next link")
                 }
-                val parsed = MalWebParser.parseFriends(html) ?: return unexpectedPage(path)
-                JikanResult.Ok(MalWebJson.friends(parsed, pageNo).toString())
+                val parsed = MalWebParser.parseFriends(loaded.html) ?: return unexpectedPage(loaded.path)
+                val hasNext = MalWebParser.nextPagePath(loaded.html, loaded.path) != null
+                JikanResult.Ok(MalWebJson.friends(parsed.copy(hasNextPage = hasNext), pageNo).toString())
             }
             "history" -> {
                 val type = target.query["type"]?.lowercase()?.takeIf { it == "anime" || it == "manga" }
@@ -129,33 +131,37 @@ object MalWebSource {
                 JikanResult.Ok(MalWebJson.history(items).toString())
             }
             "reviews" -> {
-                val pageNo = target.query["page"]?.toIntOrNull()?.coerceAtLeast(1) ?: 1
-                val path = if (pageNo > 1) "/profile/$u/reviews?p=$pageNo" else "/profile/$u/reviews"
-                val html = when (val r = page(path)) {
-                    is PageResult.Html -> r.html
-                    is PageResult.Error -> return r.result
+                val pageNo = requestedPage(target.query)
+                val loaded = when (val result = observedPage("/profile/$u/reviews", pageNo)) {
+                    is ObservedPage.Found -> result
+                    is ObservedPage.Error -> return result.result
+                    ObservedPage.End -> return JikanResult.Failed(404, "no observed reviews next link")
                 }
-                val reviews = MalWebParser.parseReviews(html) ?: return unexpectedPage(path)
-                JikanResult.Ok(MalWebJson.reviews(reviews, pageNo).toString())
+                val reviews = MalWebParser.parseReviews(loaded.html) ?: return unexpectedPage(loaded.path)
+                val hasNext = MalWebParser.nextPagePath(loaded.html, loaded.path) != null
+                JikanResult.Ok(MalWebJson.reviews(reviews, pageNo, hasNext).toString())
             }
             "recommendations" -> {
-                val pageNo = target.query["page"]?.toIntOrNull()?.coerceAtLeast(1) ?: 1
-                val path = if (pageNo > 1) "/profile/$u/recommendations?p=$pageNo" else "/profile/$u/recommendations"
-                val html = when (val r = page(path)) {
-                    is PageResult.Html -> r.html
-                    is PageResult.Error -> return r.result
+                val pageNo = requestedPage(target.query)
+                val loaded = when (val result = observedPage("/profile/$u/recommendations", pageNo)) {
+                    is ObservedPage.Found -> result
+                    is ObservedPage.Error -> return result.result
+                    ObservedPage.End -> return JikanResult.Failed(404, "no observed recommendations next link")
                 }
-                val recs = MalWebParser.parseRecommendations(html) ?: return unexpectedPage(path)
-                JikanResult.Ok(MalWebJson.recommendations(recs, pageNo).toString())
+                val recs = MalWebParser.parseRecommendations(loaded.html) ?: return unexpectedPage(loaded.path)
+                val hasNext = MalWebParser.nextPagePath(loaded.html, loaded.path) != null
+                JikanResult.Ok(MalWebJson.recommendations(recs, pageNo, hasNext).toString())
             }
             "clubs" -> {
-                val path = "/profile/$u/clubs"
-                val html = when (val r = page(path)) {
-                    is PageResult.Html -> r.html
-                    is PageResult.Error -> return r.result
+                val pageNo = requestedPage(target.query)
+                val loaded = when (val result = observedPage("/profile/$u/clubs", pageNo)) {
+                    is ObservedPage.Found -> result
+                    is ObservedPage.Error -> return result.result
+                    ObservedPage.End -> return JikanResult.Failed(404, "no observed clubs next link")
                 }
-                val clubs = MalWebParser.parseClubs(html) ?: return unexpectedPage(path)
-                JikanResult.Ok(MalWebJson.clubs(clubs).toString())
+                val clubs = MalWebParser.parseClubs(loaded.html) ?: return unexpectedPage(loaded.path)
+                val hasNext = MalWebParser.nextPagePath(loaded.html, loaded.path) != null
+                JikanResult.Ok(MalWebJson.clubs(clubs, pageNo, hasNext).toString())
             }
             "statistics/anime" -> {
                 val path = "/profile/$u/statistics/anime"
@@ -190,6 +196,33 @@ object MalWebSource {
     private sealed class PageResult {
         class Html(val html: String) : PageResult()
         class Error(val result: JikanResult) : PageResult()
+    }
+
+    private sealed class ObservedPage {
+        data class Found(val path: String, val html: String) : ObservedPage()
+        data class Error(val result: JikanResult) : ObservedPage()
+        object End : ObservedPage()
+    }
+
+    private fun requestedPage(query: Map<String, String>): Int =
+        query["page"]?.toIntOrNull()?.coerceIn(1, MAX_OBSERVED_PAGES) ?: 1
+
+    /**
+     * The `page` query belongs to the Jikan-compatible contract. For the device source, follow
+     * only next links actually present in MAL's preceding HTML page; never synthesize MAL's query.
+     */
+    private suspend fun observedPage(firstPath: String, requestedPage: Int): ObservedPage {
+        val pageLimit = requestedPage.coerceIn(1, MAX_OBSERVED_PAGES)
+        var path = firstPath
+        for (pageNo in 1..pageLimit) {
+            val html = when (val result = page(path)) {
+                is PageResult.Html -> result.html
+                is PageResult.Error -> return ObservedPage.Error(result.result)
+            }
+            if (pageNo == pageLimit) return ObservedPage.Found(path, html)
+            path = MalWebParser.nextPagePath(html, path) ?: return ObservedPage.End
+        }
+        return ObservedPage.End
     }
 
     private fun cached(path: String): String? = synchronized(cacheLock) {

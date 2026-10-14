@@ -1,5 +1,7 @@
 # MAL Profil Tamamlama Planı - Kapsamlı Analiz ve Uygulama Rehberi
 
+> Tarihsel plan, güncel görev listesi değildir. Çok sayıda maddesi mevcut kaynakta uygulanmış; MAL route'ları ve selector'ları için listelenen bazı URL örnekleri ise doğrulanmamış varsayımlardır. Güncel kaynak izlemeli değerlendirme: `MAL_CAPABILITY_AUDIT_2026-10-14.md`.
+
 **Tarih:** 2026-10-12  
 **Amaç:** MyAnimeList profil sayfasında AniList'te olup MAL'de eksik olan tüm özellikleri tamamlamak ve MAL'in web API'si ile sunabileceği her şeyi araştırmak
 

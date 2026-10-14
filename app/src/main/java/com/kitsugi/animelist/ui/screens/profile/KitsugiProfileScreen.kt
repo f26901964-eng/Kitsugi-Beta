@@ -282,7 +282,8 @@ fun KitsugiProfileScreen(
                                 onUserProfileClick = onMalUserProfileClick,
                                 onLoadMoreFriends = { viewModel.loadMoreMalFriends() },
                                 onLoadMoreReviews = { viewModel.loadMoreMalReviews() },
-                                onLoadMoreRecommendations = { viewModel.loadMoreMalRecommendations() }
+                                onLoadMoreRecommendations = { viewModel.loadMoreMalRecommendations() },
+                                onLoadMoreClubs = { viewModel.loadMoreMalClubs() }
                             )
                         }
                         2 -> ExternalProfileWrapper(

@@ -18,7 +18,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.*
+import androidx.compose.material.icons.rounded.OpenInNew
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import com.kitsugi.animelist.ui.theme.gradient.CircularProgressIndicator
@@ -51,8 +51,6 @@ import com.kitsugi.animelist.ui.app.RankedStatItem
 import com.kitsugi.animelist.ui.app.ScoreStatItem
 import com.kitsugi.animelist.ui.app.StatusStatItem
 import com.kitsugi.animelist.ui.theme.KitsugiColors
-import com.kitsugi.animelist.ui.components.stats.KitsugiStatsCard
-import com.kitsugi.animelist.ui.components.stats.KitsugiStatsCardHeader
 import com.kitsugi.animelist.ui.theme.gradient.Icon
 import com.kitsugi.animelist.ui.theme.gradient.Text
 import com.kitsugi.animelist.ui.theme.gradient.background
@@ -425,7 +423,7 @@ fun MalActivitySection(
     }
 }
 
-/** MAL statistics view: keeps MAL's available distributions while using the shared Kitsugi chart-card language. */
+/** MAL statistics view: exposes the distributions MAL actually provides, without inventing AniList-only fields. */
 @Composable
 fun MalStatisticsSection(
     state: MalProfileState,
@@ -450,41 +448,58 @@ fun MalStatisticsSection(
     val selectedSubTab = if (!isAnime && statsSubTab >= 2) 1 else statsSubTab
 
     Column(
-        modifier = Modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(24.dp))
+            .background(KitsugiColors.Surface)
+            .padding(18.dp),
+        verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
-        KitsugiStatsCard {
-            KitsugiStatsCardHeader(
-                title = stringResource(R.string.profile_stats_general),
-                icon = Icons.Rounded.BarChart,
-                subtitle = "MAL",
-                accentColor = accentColor
-            )
-            Spacer(Modifier.height(12.dp))
-            ProfileStatsMediaSwitcher(
-                selected = statsMediaType,
-                accentColor = accentColor,
-                onSelected = onStatsMediaTypeChange
-            )
-            Spacer(Modifier.height(10.dp))
-            val statTabs = listOf(
-                0 to stringResource(R.string.profile_stats_general),
-                1 to stringResource(R.string.profile_mal_distributions)
-            ) +
-                (if (isAnime && studios.isNotEmpty()) listOf(2 to stringResource(R.string.profile_mal_studios)) else emptyList()) +
-                (if (isAnime && voiceActors.isNotEmpty()) listOf(3 to stringResource(R.string.profile_mal_voice_actors)) else emptyList())
-            Row(
-                modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                statTabs.forEach { (index, label) ->
-                    ProfileFilterChip(
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(16.dp))
+                .background(KitsugiColors.SurfaceStrong)
+                .padding(4.dp)
+        ) {
+            listOf(stringResource(R.string.profile_anime_entries), stringResource(R.string.profile_manga_entries)).forEachIndexed { index, label ->
+                val selected = statsMediaType == index
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(if (selected) accentColor else Color.Transparent)
+                        .clickable { onStatsMediaTypeChange(index) }
+                        .padding(vertical = 8.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
                         text = label,
-                        isSelected = selectedSubTab == index,
-                        accentColor = accentColor,
-                        onClick = { onStatsSubTabChange(index) }
+                        color = if (selected) KitsugiColors.Background else KitsugiColors.TextMuted,
+                        fontWeight = FontWeight.Bold,
+                        style = MaterialTheme.typography.labelLarge
                     )
                 }
+            }
+        }
+
+        val statTabs = listOf(
+            0 to stringResource(R.string.profile_stats_general),
+            1 to stringResource(R.string.profile_mal_distributions)
+        ) +
+            (if (isAnime && studios.isNotEmpty()) listOf(2 to stringResource(R.string.profile_mal_studios)) else emptyList()) +
+            (if (isAnime && voiceActors.isNotEmpty()) listOf(3 to stringResource(R.string.profile_mal_voice_actors)) else emptyList())
+        Row(
+            modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            statTabs.forEach { (index, label) ->
+                ProfileFilterChip(
+                    text = label,
+                    isSelected = selectedSubTab == index,
+                    accentColor = accentColor,
+                    onClick = { onStatsSubTabChange(index) }
+                )
             }
         }
 
@@ -493,38 +508,31 @@ fun MalStatisticsSection(
                 if (stats == null) {
                     if (state.isExtraLoading) LoadingHint() else MalEmptyHint(stringResource(R.string.profile_mal_statistics_unavailable))
                 } else {
-                    KitsugiStatsCard {
-                        KitsugiStatsCardHeader(
-                            title = stringResource(R.string.profile_stats_general),
-                            icon = Icons.Rounded.BarChart,
-                            subtitle = if (isAnime) stringResource(R.string.media_type_anime) else stringResource(R.string.profile_manga_list),
-                            accentColor = accentColor
+                    Row(modifier = Modifier.fillMaxWidth()) {
+                        StatCard(stringResource(R.string.profile_stat_total_entries), stats.count.toString())
+                        StatCard(
+                            if (isAnime) stringResource(R.string.profile_stat_episodes_watched)
+                            else stringResource(R.string.profile_stat_chapters_read),
+                            stats.episodesWatched.toString()
                         )
-                        Spacer(Modifier.height(12.dp))
-                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                            StatCard(stringResource(R.string.profile_stat_total_entries), stats.count.toString())
-                            StatCard(
-                                if (isAnime) stringResource(R.string.profile_stat_episodes_watched) else stringResource(R.string.profile_stat_chapters_read),
-                                stats.episodesWatched.toString()
-                            )
-                            StatCard(
-                                if (isAnime) stringResource(R.string.profile_stat_days_watched_short) else stringResource(R.string.profile_mal_days_read),
-                                String.format(KitsugiStrings.locale(), "%.1f", if (isAnime) state.animeDaysWatched else state.mangaDaysRead)
-                            )
+                        StatCard(
+                            if (isAnime) stringResource(R.string.profile_stat_days_watched_short)
+                            else stringResource(R.string.profile_mal_days_read),
+                            String.format(KitsugiStrings.locale(), "%.1f", if (isAnime) state.animeDaysWatched else state.mangaDaysRead)
+                        )
+                    }
+                    Row(modifier = Modifier.fillMaxWidth()) {
+                        StatCard(
+                            if (isAnime) stringResource(R.string.profile_mal_rewatched)
+                            else stringResource(R.string.profile_mal_reread),
+                            (if (isAnime) state.animeRepeatCount else state.mangaRepeatCount).toString()
+                        )
+                        if (!isAnime) {
+                            StatCard(stringResource(R.string.profile_stat_volumes_read), stats.minutesWatched.toString())
+                        } else {
+                            StatCard(stringResource(R.string.profile_status_planned), stats.planned.toString())
                         }
-                        Spacer(Modifier.height(6.dp))
-                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                            StatCard(
-                                if (isAnime) stringResource(R.string.profile_mal_rewatched) else stringResource(R.string.profile_mal_reread),
-                                (if (isAnime) state.animeRepeatCount else state.mangaRepeatCount).toString()
-                            )
-                            if (!isAnime) {
-                                StatCard(stringResource(R.string.profile_stat_volumes_read), stats.minutesWatched.toString())
-                            } else {
-                                StatCard(stringResource(R.string.profile_status_planned), stats.planned.toString())
-                            }
-                            StatCard(stringResource(R.string.profile_average_score), String.format(KitsugiStrings.locale(), "%.2f", stats.meanScore))
-                        }
+                        StatCard(stringResource(R.string.profile_average_score), String.format(KitsugiStrings.locale(), "%.2f", stats.meanScore))
                     }
 
                     val defaultStatusColor = KitsugiColors.TextMuted
@@ -534,33 +542,27 @@ fun MalStatisticsSection(
                         }
                     } else {
                         listOf(
-                            Triple(if (isAnime) stringResource(R.string.profile_status_watching) else stringResource(R.string.profile_status_reading), stats.watching, KitsugiColors.AccentGreen),
-                            Triple(stringResource(R.string.profile_status_completed), stats.completed, KitsugiColors.AccentBlue),
-                            Triple(if (isAnime) stringResource(R.string.profile_status_plan_to_watch_short) else stringResource(R.string.profile_status_plan_to_read_short), stats.planned, KitsugiColors.AccentIndigo),
-                            Triple(stringResource(R.string.profile_status_on_hold), stats.paused, KitsugiColors.TextMuted),
-                            Triple(stringResource(R.string.profile_status_dropped), stats.dropped, KitsugiColors.AccentRed)
+                            Triple(if (isAnime) stringResource(R.string.profile_status_watching) else stringResource(R.string.profile_status_reading), stats.watching, Color(0xFF81C784)),
+                            Triple(stringResource(R.string.profile_status_completed), stats.completed, Color(0xFF64B5F6)),
+                            Triple(if (isAnime) stringResource(R.string.profile_status_plan_to_watch_short) else stringResource(R.string.profile_status_plan_to_read_short), stats.planned, Color(0xFFA1887F)),
+                            Triple(stringResource(R.string.profile_status_on_hold), stats.paused, Color(0xFFFFB74D)),
+                            Triple(stringResource(R.string.profile_status_dropped), stats.dropped, Color(0xFFE57373))
                         ).filter { it.second > 0 }
                     }
                     if (statusItems.isNotEmpty()) {
-                        KitsugiStatsCard {
-                            KitsugiStatsCardHeader(stringResource(R.string.durum_dagilimi), Icons.Rounded.DonutLarge, accentColor = accentColor)
-                            Spacer(Modifier.height(12.dp))
-                            HorizontalStatsBar(statusItems)
-                        }
+                        HorizontalDivider(color = KitsugiColors.SurfaceStrong)
+                        SectionTitle(stringResource(R.string.durum_dagilimi))
+                        HorizontalStatsBar(statusItems)
                     }
                     if (scores.isNotEmpty()) {
-                        KitsugiStatsCard {
-                            KitsugiStatsCardHeader(stringResource(R.string.detail_stat_score), Icons.Rounded.BarChart, accentColor = accentColor)
-                            Spacer(Modifier.height(12.dp))
-                            VerticalStatsBar(scores.map { it.score.toString() to it.count.toFloat() }, accentColor)
-                        }
+                        HorizontalDivider(color = KitsugiColors.SurfaceStrong)
+                        SectionTitle(stringResource(R.string.detail_stat_score))
+                        VerticalStatsBar(scores.map { it.score.toString() to it.count.toFloat() }, accentColor)
                     }
                     if (ratings.isNotEmpty()) {
-                        KitsugiStatsCard {
-                            KitsugiStatsCardHeader(stringResource(R.string.profile_mal_rating_distribution), Icons.Rounded.Movie, accentColor = accentColor)
-                            Spacer(Modifier.height(12.dp))
-                            VerticalStatsBar(ratings.map { it.format to it.count.toFloat() }, accentColor)
-                        }
+                        HorizontalDivider(color = KitsugiColors.SurfaceStrong)
+                        SectionTitle(stringResource(R.string.profile_mal_rating_distribution))
+                        VerticalStatsBar(ratings.map { it.format to it.count.toFloat() }, accentColor)
                     }
                 }
             }
@@ -569,35 +571,29 @@ fun MalStatisticsSection(
                     if (state.isExtraLoading) LoadingHint() else MalEmptyHint(stringResource(R.string.profile_mal_statistics_unavailable))
                 } else {
                     if (types.isNotEmpty()) {
-                        KitsugiStatsCard {
-                            KitsugiStatsCardHeader(stringResource(R.string.profile_mal_type_distribution), Icons.Rounded.Movie, accentColor = accentColor)
-                            Spacer(Modifier.height(12.dp))
-                            VerticalStatsBar(types.map { it.format to it.count.toFloat() }, accentColor)
-                        }
+                        SectionTitle(stringResource(R.string.profile_mal_type_distribution))
+                        VerticalStatsBar(types.map { it.format to it.count.toFloat() }, accentColor)
                     }
                     if (genres.isNotEmpty()) {
-                        KitsugiStatsCard {
-                            KitsugiStatsCardHeader(stringResource(R.string.profile_mal_top_genres), Icons.Rounded.Label, accentColor = accentColor)
-                            Spacer(Modifier.height(8.dp))
-                            genres.take(12).forEachIndexed { index, genre ->
-                                PositionalStatItemCard(
-                                    rank = index + 1,
-                                    title = genre.name,
-                                    count = genre.count,
-                                    meanScore = genre.meanScore,
-                                    accentColor = accentColor,
-                                    onClick = { onGenreClick(genre.name) }
-                                )
-                            }
+                        if (types.isNotEmpty()) HorizontalDivider(color = KitsugiColors.SurfaceStrong)
+                        SectionTitle(stringResource(R.string.profile_mal_top_genres))
+                        genres.take(12).forEachIndexed { index, genre ->
+                            PositionalStatItemCard(
+                                rank = index + 1,
+                                title = genre.name,
+                                count = genre.count,
+                                meanScore = genre.meanScore,
+                                accentColor = accentColor,
+                                onClick = { onGenreClick(genre.name) }
+                            )
                         }
                     }
                 }
             }
             2 -> {
                 if (studios.isEmpty()) MalEmptyHint(stringResource(R.string.profile_mal_statistics_unavailable))
-                else KitsugiStatsCard {
-                    KitsugiStatsCardHeader(stringResource(R.string.profile_mal_studios), Icons.Rounded.Groups, accentColor = accentColor)
-                    Spacer(Modifier.height(8.dp))
+                else {
+                    SectionTitle(stringResource(R.string.profile_mal_studios))
                     studios.take(12).forEachIndexed { index, studio ->
                         PositionalStatItemCard(
                             rank = index + 1,
@@ -614,9 +610,8 @@ fun MalStatisticsSection(
             }
             3 -> {
                 if (voiceActors.isEmpty()) MalEmptyHint(stringResource(R.string.profile_mal_statistics_unavailable))
-                else KitsugiStatsCard {
-                    KitsugiStatsCardHeader(stringResource(R.string.profile_mal_voice_actors), Icons.Rounded.Person, accentColor = accentColor)
-                    Spacer(Modifier.height(8.dp))
+                else {
+                    SectionTitle(stringResource(R.string.profile_mal_voice_actors))
                     voiceActors.take(12).forEachIndexed { index, person ->
                         PositionalStatItemCard(
                             rank = index + 1,
@@ -631,41 +626,6 @@ fun MalStatisticsSection(
                         )
                     }
                 }
-            }
-        }
-    }
-}
-
-@Composable
-private fun ProfileStatsMediaSwitcher(
-    selected: Int,
-    accentColor: Color,
-    onSelected: (Int) -> Unit
-) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(14.dp))
-            .background(KitsugiColors.SurfaceStrong)
-            .padding(4.dp)
-    ) {
-        listOf(stringResource(R.string.profile_anime_entries), stringResource(R.string.profile_manga_entries)).forEachIndexed { index, label ->
-            val isSelected = selected == index
-            Box(
-                modifier = Modifier
-                    .weight(1f)
-                    .clip(RoundedCornerShape(11.dp))
-                    .background(if (isSelected) accentColor else Color.Transparent)
-                    .clickable { onSelected(index) }
-                    .padding(vertical = 9.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    text = label,
-                    color = if (isSelected) KitsugiColors.Background else KitsugiColors.TextMuted,
-                    fontWeight = FontWeight.Bold,
-                    style = MaterialTheme.typography.labelLarge
-                )
             }
         }
     }
@@ -702,13 +662,35 @@ private fun MalEmptyHint(text: String) {
 }
 
 @Composable
+internal fun MalLoadMoreRetry(accentColor: Color, onRetry: () -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
+            .clickable(onClick = onRetry)
+            .padding(vertical = 10.dp),
+        horizontalArrangement = Arrangement.Center,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            text = stringResource(R.string.profile_mal_load_more_retry),
+            color = accentColor,
+            style = MaterialTheme.typography.labelMedium,
+            fontWeight = FontWeight.SemiBold
+        )
+    }
+}
+
+@Composable
 fun MalReviewsSection(
     state: MalProfileState,
     accentColor: Color,
+    onRetry: (() -> Unit)? = null,
     onOpenMedia: (MalReview) -> Unit
 ) {
     when {
         state.reviews.isEmpty() && state.isExtraLoading -> LoadingHint()
+        state.reviews.isEmpty() && state.reviewsLoadMoreFailed && onRetry != null -> MalLoadMoreRetry(accentColor, onRetry)
         state.reviews.isEmpty() -> MalEmptyHint(stringResource(R.string.profile_mal_no_reviews))
         else -> Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
             SectionTitle(stringResource(R.string.profile_mal_reviews))
@@ -716,6 +698,7 @@ fun MalReviewsSection(
                 MalReviewCard(review, accentColor, onOpenMedia)
             }
             if (state.isLoadingMoreReviews) LoadingHint()
+            if (state.reviewsLoadMoreFailed && onRetry != null) MalLoadMoreRetry(accentColor, onRetry)
         }
     }
 }
@@ -788,10 +771,12 @@ private fun MalReviewCard(
 fun MalRecommendationsSection(
     state: MalProfileState,
     accentColor: Color,
+    onRetry: (() -> Unit)? = null,
     onOpenMedia: (MalRecommendation) -> Unit
 ) {
     when {
         state.recommendations.isEmpty() && state.isExtraLoading -> LoadingHint()
+        state.recommendations.isEmpty() && state.recommendationsLoadMoreFailed && onRetry != null -> MalLoadMoreRetry(accentColor, onRetry)
         state.recommendations.isEmpty() -> MalEmptyHint(stringResource(R.string.profile_mal_no_recommendations))
         else -> Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
             SectionTitle(stringResource(R.string.profile_mal_recommendations))
@@ -799,6 +784,7 @@ fun MalRecommendationsSection(
                 MalRecommendationCard(recommendation, accentColor, onOpenMedia)
             }
             if (state.isLoadingMoreRecommendations) LoadingHint()
+            if (state.recommendationsLoadMoreFailed && onRetry != null) MalLoadMoreRetry(accentColor, onRetry)
         }
     }
 }
@@ -862,13 +848,16 @@ private fun MalRecommendationCard(
 }
 
 @Composable
-fun MalClubsSection(state: MalProfileState) {
+fun MalClubsSection(state: MalProfileState, accentColor: Color, onRetry: (() -> Unit)? = null) {
     when {
         state.clubs.isEmpty() && state.isExtraLoading -> LoadingHint()
+        state.clubs.isEmpty() && state.clubsLoadMoreFailed && onRetry != null -> MalLoadMoreRetry(accentColor, onRetry)
         state.clubs.isEmpty() -> MalEmptyHint(stringResource(R.string.profile_mal_no_clubs))
         else -> Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
             SectionTitle(stringResource(R.string.profile_mal_clubs))
             state.clubs.forEach { club -> MalClubCard(club) }
+            if (state.isLoadingMoreClubs) LoadingHint()
+            if (state.clubsLoadMoreFailed && onRetry != null) MalLoadMoreRetry(accentColor, onRetry)
         }
     }
 }

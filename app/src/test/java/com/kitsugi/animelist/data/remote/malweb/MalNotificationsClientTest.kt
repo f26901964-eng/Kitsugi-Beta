@@ -89,7 +89,7 @@ class MalNotificationsClientTest {
     fun readsSessionOwnerFromTheHeaderProfileLink() {
         val html = """
             <html><body>
-            <a class="header-profile-link" href="https://myanimelist.net/profile/KitsugiFan">
+            <a class="header-profile-link" href="https://myanimelist.net/profile/Kitsugi-Fan_2">
                 <img src="https://cdn.myanimelist.net/images/userimages/1.jpg"/>
             </a>
             <script>
@@ -104,7 +104,7 @@ class MalNotificationsClientTest {
 
         val feed = MalNotificationsClient.parseHtml(html)
 
-        assertEquals("KitsugiFan", requireNotNull(feed).sessionUsername)
+        assertEquals("Kitsugi-Fan_2", requireNotNull(feed).sessionUsername)
     }
 
     @Test
@@ -140,6 +140,21 @@ class MalNotificationsClientTest {
     fun skipsReservedProfilePathsAndNumericIds() {
         assertNull(MalNotificationsClient.parseSessionUsername("<a href=\"/profile/login\">Giriş</a>"))
         assertNull(MalNotificationsClient.parseSessionUsername("<a href=\"/profile/12345\">id</a>"))
+    }
+
+    @Test
+    fun parsesHyphenatedAndUnderscoredSessionProfileUrls() {
+        assertEquals(
+            "A-user_2",
+            MalNotificationsClient.parseSessionUsernameFromProfileUrl(
+                "https://myanimelist.net/profile/A-user_2"
+            )
+        )
+        assertEquals(
+            "A_user-2",
+            MalNotificationsClient.parseSessionUsernameFromProfileUrl("/profile/A_user-2/friends")
+        )
+        assertNull(MalNotificationsClient.parseSessionUsernameFromProfileUrl("https://example.org/profile/A-user_2"))
     }
 
     @Test
@@ -223,25 +238,20 @@ class MalNotificationsClientTest {
     }
 
     @Test
-    fun offersSeveralUrlCandidatesForOlderNotifications() {
-        // MAL sayfalama adresini belgelemiyor: 1. sayfa daima kendi adresi, sonraki
-        // sayfalarda birden fazla aday sırayla denenir (veriyle doğrulanır).
-        assertEquals(listOf("https://myanimelist.net/notification"), MalNotificationsClient.moreUrlCandidates(1))
-        assertEquals(listOf("https://myanimelist.net/notification"), MalNotificationsClient.moreUrlCandidates(0))
-
-        val candidates = MalNotificationsClient.moreUrlCandidates(2)
-        assertEquals(4, candidates.size)
-        assertEquals("https://myanimelist.net/notification?page=2", candidates.first())
-        assertEquals("https://myanimelist.net/notification?p=2", candidates[1])
-        assertTrue(candidates.all { it.startsWith("https://myanimelist.net/notification") })
-        assertTrue(candidates.all { it.contains("2") })
-    }
-
-    @Test
-    fun buildsNextPageUrlOnlyForPagesAfterTheFirst() {
-        assertEquals("https://myanimelist.net/notification", MalNotificationsClient.pageUrlFor(1))
-        assertEquals("https://myanimelist.net/notification", MalNotificationsClient.pageUrlFor(0))
-        assertEquals("https://myanimelist.net/notification?page=3", MalNotificationsClient.pageUrlFor(3))
+    fun acceptsOnlySameOriginNotificationContinuationUrls() {
+        assertEquals(
+            "https://myanimelist.net/notification?cursor=older",
+            MalNotificationsClient.normalizeNotificationPageUrl("?cursor=older")
+        )
+        assertEquals(
+            "https://www.myanimelist.net/notification/history?cursor=older",
+            MalNotificationsClient.normalizeNotificationPageUrl(
+                "https://www.myanimelist.net/notification/history?cursor=older"
+            )
+        )
+        assertNull(MalNotificationsClient.normalizeNotificationPageUrl("https://example.org/notification?page=2"))
+        assertNull(MalNotificationsClient.normalizeNotificationPageUrl("https://myanimelist.net/anime/1"))
+        assertNull(MalNotificationsClient.normalizeNotificationPageUrl("javascript:alert(1)"))
     }
 
     @Test
@@ -250,6 +260,35 @@ class MalNotificationsClientTest {
         val feed = requireNotNull(MalNotificationsClient.parseHtml(html, page = 2))
 
         assertEquals(2, feed.page)
+        assertFalse(feed.hasNextPage)
+    }
+
+    @Test
+    fun preservesOnlyAnExplicitSafeContinuationUrl() {
+        val html = """<script>window.MAL.notification = {
+            "items": [{"id": "notice-1"}],
+            "pagination": {"next_url": "/notification?cursor=older"}
+        };</script>"""
+
+        val feed = requireNotNull(MalNotificationsClient.parseHtml(html))
+
+        assertTrue(feed.hasNextPage)
+        assertEquals("https://myanimelist.net/notification?cursor=older", feed.nextPageUrl)
+    }
+
+    @Test
+    fun browserCanReportThatTheNativeFeedHasReachedItsEnd() {
+        val payload = """{"items":[{"id":"notice-1"}],"historyItems":[]}"""
+
+        val feed = requireNotNull(
+            MalNotificationsClient.parseNotificationPayload(
+                payload = payload,
+                page = 2,
+                sessionUsername = "MALUser",
+                hasNextPageOverride = false
+            )
+        )
+
         assertFalse(feed.hasNextPage)
     }
 

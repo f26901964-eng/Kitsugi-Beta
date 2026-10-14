@@ -164,7 +164,13 @@ object OtherUserProfileRepository {
                 )
             } }
             clubsJob.await()?.let { body -> runCatching {
-                state = state.copy(clubs = MalProfileDataMapper.parseClubs(body))
+                val page = MalProfileDataMapper.parseClubsPage(body)
+                state = state.copy(
+                    clubs = page.items,
+                    clubsPage = 1,
+                    clubsHasNextPage = page.hasNextPage,
+                    clubsLoadMoreFailed = false
+                )
             } }
         }
 
@@ -176,7 +182,7 @@ object OtherUserProfileRepository {
         val page = state.friendsPage + 1
         val encoded = URLEncoder.encode(username, "UTF-8")
         val body = jikanBody("https://api.jikan.moe/v4/users/$encoded/friends?page=$page")
-            ?: return@withContext state.copy(friendsHasNextPage = false)
+            ?: return@withContext state.copy(friendsLoadMoreFailed = true)
         runCatching {
             val root = JSONObject(body)
             val users = root.optJSONArray("data") ?: JSONArray()
@@ -196,9 +202,10 @@ object OtherUserProfileRepository {
                     followers = (state.socialState.followers + friends).distinctBy { it.name.lowercase() }
                 ),
                 friendsPage = page,
-                friendsHasNextPage = hasNext
+                friendsHasNextPage = hasNext,
+                friendsLoadMoreFailed = false
             )
-        }.getOrElse { state.copy(friendsHasNextPage = false) }
+        }.getOrElse { state.copy(friendsLoadMoreFailed = true) }
     }
 
     suspend fun loadMoreMalReviews(username: String, state: MalProfileState): MalProfileState = withContext(Dispatchers.IO) {
@@ -206,15 +213,16 @@ object OtherUserProfileRepository {
         val page = state.reviewsPage + 1
         val encoded = URLEncoder.encode(username, "UTF-8")
         val body = jikanBody("https://api.jikan.moe/v4/users/$encoded/reviews?page=$page")
-            ?: return@withContext state.copy(reviewsHasNextPage = false)
+            ?: return@withContext state.copy(reviewsLoadMoreFailed = true)
         runCatching {
             val result = MalProfileDataMapper.parseReviews(body)
             state.copy(
                 reviews = (state.reviews + result.items).distinctBy { it.reviewId },
                 reviewsPage = page,
-                reviewsHasNextPage = result.hasNextPage
+                reviewsHasNextPage = result.hasNextPage,
+                reviewsLoadMoreFailed = false
             )
-        }.getOrElse { state.copy(reviewsHasNextPage = false) }
+        }.getOrElse { state.copy(reviewsLoadMoreFailed = true) }
     }
 
     suspend fun loadMoreMalRecommendations(username: String, state: MalProfileState): MalProfileState = withContext(Dispatchers.IO) {
@@ -222,15 +230,33 @@ object OtherUserProfileRepository {
         val page = state.recommendationsPage + 1
         val encoded = URLEncoder.encode(username, "UTF-8")
         val body = jikanBody("https://api.jikan.moe/v4/users/$encoded/recommendations?page=$page")
-            ?: return@withContext state.copy(recommendationsHasNextPage = false)
+            ?: return@withContext state.copy(recommendationsLoadMoreFailed = true)
         runCatching {
             val result = MalProfileDataMapper.parseRecommendations(body)
             state.copy(
                 recommendations = (state.recommendations + result.items).distinctBy { it.recommendationId },
                 recommendationsPage = page,
-                recommendationsHasNextPage = result.hasNextPage
+                recommendationsHasNextPage = result.hasNextPage,
+                recommendationsLoadMoreFailed = false
             )
-        }.getOrElse { state.copy(recommendationsHasNextPage = false) }
+        }.getOrElse { state.copy(recommendationsLoadMoreFailed = true) }
+    }
+
+    suspend fun loadMoreMalClubs(username: String, state: MalProfileState): MalProfileState = withContext(Dispatchers.IO) {
+        if (!state.clubsHasNextPage || username.isBlank()) return@withContext state
+        val page = state.clubsPage + 1
+        val encoded = URLEncoder.encode(username, "UTF-8")
+        val body = jikanBody("https://api.jikan.moe/v4/users/$encoded/clubs?page=$page")
+            ?: return@withContext state.copy(clubsLoadMoreFailed = true)
+        runCatching {
+            val result = MalProfileDataMapper.parseClubsPage(body)
+            state.copy(
+                clubs = (state.clubs + result.items).distinctBy { it.clubId },
+                clubsPage = page,
+                clubsHasNextPage = result.hasNextPage,
+                clubsLoadMoreFailed = false
+            )
+        }.getOrElse { state.copy(clubsLoadMoreFailed = true) }
     }
 
     private fun applyMalFullProfile(state: MalProfileState, data: JSONObject): MalProfileState {

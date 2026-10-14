@@ -423,7 +423,7 @@ object MalWebParser {
                 friendsSinceIso = MalWebDates.toIso(since, nowMs)
             )
         }
-        val hasNext = doc.select("a[href*='friends?p=']").any { it.text().trim().equals("Next", ignoreCase = true) }
+        val hasNext = doc.select("a[href]").any(::isNextPageLink)
         return FriendsPage(friends, hasNext)
     }
 
@@ -749,6 +749,49 @@ object MalWebParser {
     }
 
     // ── Yardımcılar ─────────────────────────────────────────────────────────
+
+    /**
+     * Resolve a pagination link only when the page itself exposes it. This deliberately avoids
+     * constructing MAL query parameters such as `?p=2` or `?page=2` from convention alone.
+     * The returned value is a same-origin path + query suitable for the next on-device request.
+     */
+    fun nextPagePath(html: String, currentPath: String): String? = runCatching {
+        val current = java.net.URI(MAL_BASE).resolve(currentPath)
+        if (!isSafeMalUri(current)) return@runCatching null
+
+        val document = Jsoup.parse(html, current.toString())
+        val currentQuery = current.rawQuery.orEmpty()
+        val next = document.select("a[href]").firstNotNullOfOrNull { link ->
+            if (!isNextPageLink(link)) return@firstNotNullOfOrNull null
+            val href = link.attr("href").takeIf { it.isNotBlank() } ?: return@firstNotNullOfOrNull null
+            val candidate = current.resolve(href)
+            candidate.takeIf {
+                isSafeMalUri(it) &&
+                    it.rawPath == current.rawPath &&
+                    it.rawQuery.orEmpty() != currentQuery
+            }
+        } ?: return@runCatching null
+
+        next.rawPath + next.rawQuery?.let { "?$it" }.orEmpty()
+    }.getOrNull()
+
+    private fun isSafeMalUri(uri: java.net.URI): Boolean {
+        val host = uri.host?.lowercase(Locale.US)
+        return uri.scheme.equals("https", ignoreCase = true) &&
+            (host == "myanimelist.net" || host == "www.myanimelist.net") &&
+            uri.userInfo == null && (uri.port == -1 || uri.port == 443)
+    }
+
+    private fun isNextPageLink(element: Element): Boolean {
+        val relNext = element.attr("rel").split(Regex("\\s+")).any { it.equals("next", ignoreCase = true) }
+        if (relNext) return true
+        val label = listOf(element.text(), element.attr("aria-label"), element.attr("title"), element.className())
+            .joinToString(" ")
+            .lowercase(Locale.US)
+            .replace(Regex("\\s+"), " ")
+            .trim()
+        return label.contains("next") || label == "›" || label == "»" || label == "→" || label == ">"
+    }
 
     internal fun cleanImageUrl(raw: String?): String {
         if (raw.isNullOrBlank()) return ""

@@ -157,9 +157,11 @@ internal object MalProfileDataMapper {
         return MalPagedItems(items, paginationHasNext(root, items.size))
     }
 
-    fun parseClubs(body: String): List<MalClub> {
-        val (_, data) = payload(body)
-        return data.optJSONArray("data").objects().mapNotNull { item ->
+    fun parseClubs(body: String): List<MalClub> = parseClubsPage(body).items
+
+    fun parseClubsPage(body: String): MalPagedItems<MalClub> {
+        val (root, data) = payload(body)
+        val items = data.optJSONArray("data").objects().mapNotNull { item ->
             val id = item.optInt("mal_id", 0).takeIf { it > 0 } ?: return@mapNotNull null
             val name = item.optNullableString("name")?.takeIf { it.isNotBlank() } ?: return@mapNotNull null
             MalClub(
@@ -171,6 +173,7 @@ internal object MalProfileDataMapper {
                 category = item.optNullableString("category")
             )
         }
+        return MalPagedItems(items, paginationHasNext(root, items.size))
     }
 
     fun parseExternalLinks(data: JSONObject): List<MalExternalLink> =

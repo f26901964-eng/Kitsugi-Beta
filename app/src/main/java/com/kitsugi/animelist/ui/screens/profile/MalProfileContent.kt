@@ -74,7 +74,8 @@ fun MalProfileContent(
     onUserProfileClick: (userId: Int, username: String, avatarUrl: String?) -> Unit = { _, _, _ -> },
     onLoadMoreFriends: (() -> Unit)? = null,
     onLoadMoreReviews: (() -> Unit)? = null,
-    onLoadMoreRecommendations: (() -> Unit)? = null
+    onLoadMoreRecommendations: (() -> Unit)? = null,
+    onLoadMoreClubs: (() -> Unit)? = null
 ) {
     var activeTab by rememberSaveable { mutableIntStateOf(viewModel.malActiveTab) }
     LaunchedEffect(activeTab) { viewModel.malActiveTab = activeTab }
@@ -132,6 +133,12 @@ fun MalProfileContent(
         enabled = activeTab == 4 && socialFilter == 2 && state.recommendationsHasNextPage && onLoadMoreRecommendations != null,
         count = state.recommendations.size,
         onLoadMore = { onLoadMoreRecommendations?.invoke() }
+    )
+    ProfileFavoritesAutoLoad(
+        listState = listState,
+        enabled = activeTab == 4 && socialFilter == 3 && state.clubsHasNextPage && onLoadMoreClubs != null,
+        count = state.clubs.size,
+        onLoadMore = { onLoadMoreClubs?.invoke() }
     )
 
     LazyColumn(
@@ -604,6 +611,8 @@ fun MalProfileContent(
                                         if (friendList.isEmpty()) {
                                             if (state.isExtraLoading) {
                                                 Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) { CircularProgressIndicator(color = accentColor) }
+                                            } else if (state.friendsLoadMoreFailed && onLoadMoreFriends != null) {
+                                                MalLoadMoreRetry(accentColor, onLoadMoreFriends)
                                             } else {
                                                 Box(Modifier.fillMaxWidth().padding(32.dp), contentAlignment = Alignment.Center) {
                                                     Text(stringResource(R.string.profile_mal_no_friends), color = KitsugiColors.TextMuted)
@@ -648,12 +657,16 @@ fun MalProfileContent(
                                                     }
                                                 }
                                                 if (state.isLoadingMoreFriends) CircularProgressIndicator(modifier = Modifier.size(22.dp).align(Alignment.CenterHorizontally), color = accentColor)
+                                                if (state.friendsLoadMoreFailed && onLoadMoreFriends != null) {
+                                                    MalLoadMoreRetry(accentColor, onLoadMoreFriends)
+                                                }
                                             }
                                         }
                                     }
                                     1 -> MalReviewsSection(
                                         state = state,
                                         accentColor = accentColor,
+                                        onRetry = onLoadMoreReviews,
                                         onOpenMedia = { review ->
                                             onFavoriteMediaClick(
                                                 review.malId,
@@ -667,6 +680,7 @@ fun MalProfileContent(
                                     2 -> MalRecommendationsSection(
                                         state = state,
                                         accentColor = accentColor,
+                                        onRetry = onLoadMoreRecommendations,
                                         onOpenMedia = { recommendation ->
                                             onFavoriteMediaClick(
                                                 recommendation.malId,
@@ -677,7 +691,7 @@ fun MalProfileContent(
                                             )
                                         }
                                     )
-                                    else -> MalClubsSection(state)
+                                    else -> MalClubsSection(state, accentColor, onLoadMoreClubs)
                                 }
                             }
                         }

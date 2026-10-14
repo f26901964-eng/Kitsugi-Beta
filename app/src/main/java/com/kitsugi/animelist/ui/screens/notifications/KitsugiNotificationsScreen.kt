@@ -674,8 +674,10 @@ private fun SourceNotifPage(
             total > 0 && last >= total - 5
         }
     }
-    LaunchedEffect(nearListEnd, hasMore, state.isLoading) {
-        if (nearListEnd && hasMore && !state.isLoading) onLoadMore?.invoke()
+    LaunchedEffect(nearListEnd, hasMore, state.isLoading, state.loadMoreError) {
+        if (nearListEnd && hasMore && !state.isLoading && state.loadMoreError == null) {
+            onLoadMore?.invoke()
+        }
     }
 
     LazyColumn(
@@ -732,6 +734,27 @@ private fun SourceNotifPage(
                                 contentAlignment = Alignment.Center
                             ) {
                                 KitsugiPlasmaLoader(size = 26.dp)
+                            }
+                        }
+                    }
+                    state.loadMoreError?.let { message ->
+                        item(key = "mal_load_more_error") {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                Text(
+                                    text = message,
+                                    modifier = Modifier.weight(1f),
+                                    color = KitsugiColors.TextMuted,
+                                    fontSize = 12.sp
+                                )
+                                TextButton(onClick = { onLoadMore?.invoke() }) {
+                                    Text(stringResource(R.string.notif_mal_load_more_retry))
+                                }
                             }
                         }
                     }

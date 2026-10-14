@@ -1644,13 +1644,13 @@ class KitsugiProfileViewModel(application: Application) : AndroidViewModel(appli
         val current = _malState.value
         if (!current.friendsHasNextPage || current.isLoadingMoreFriends || current.name.isBlank()) return
         val page = current.friendsPage + 1
-        _malState.update { it.copy(isLoadingMoreFriends = true) }
+        _malState.update { it.copy(isLoadingMoreFriends = true, friendsLoadMoreFailed = false) }
         viewModelScope.launch(Dispatchers.IO) {
             try {
                 val url = "https://api.jikan.moe/v4/users/${java.net.URLEncoder.encode(current.name, "UTF-8")}/friends?page=$page"
                 val body = fetchMalSupplementalPage(url)
                 if (body == null) {
-                    _malState.update { it.copy(friendsHasNextPage = false) }
+                    _malState.update { it.copy(friendsLoadMoreFailed = true) }
                     return@launch
                 }
                 val root = JSONObject(body)
@@ -1671,12 +1671,13 @@ class KitsugiProfileViewModel(application: Application) : AndroidViewModel(appli
                     state.copy(
                         socialState = state.socialState.copy(followers = merged),
                         friendsPage = page,
-                        friendsHasNextPage = hasNext
+                        friendsHasNextPage = hasNext,
+                        friendsLoadMoreFailed = false
                     )
                 }
             } catch (e: Exception) {
                 android.util.Log.w("ProfileViewModel", "MAL friends page failed: ${e.message}")
-                _malState.update { it.copy(friendsHasNextPage = false) }
+                _malState.update { it.copy(friendsLoadMoreFailed = true) }
             } finally {
                 _malState.update { it.copy(isLoadingMoreFriends = false) }
             }
@@ -1687,13 +1688,13 @@ class KitsugiProfileViewModel(application: Application) : AndroidViewModel(appli
         val current = _malState.value
         if (!current.reviewsHasNextPage || current.isLoadingMoreReviews || current.name.isBlank()) return
         val page = current.reviewsPage + 1
-        _malState.update { it.copy(isLoadingMoreReviews = true) }
+        _malState.update { it.copy(isLoadingMoreReviews = true, reviewsLoadMoreFailed = false) }
         viewModelScope.launch(Dispatchers.IO) {
             try {
                 val encoded = java.net.URLEncoder.encode(current.name, "UTF-8")
                 val body = fetchMalSupplementalPage("https://api.jikan.moe/v4/users/$encoded/reviews?page=$page")
                 if (body == null) {
-                    _malState.update { it.copy(reviewsHasNextPage = false) }
+                    _malState.update { it.copy(reviewsLoadMoreFailed = true) }
                     return@launch
                 }
                 val result = MalProfileDataMapper.parseReviews(body)
@@ -1701,12 +1702,13 @@ class KitsugiProfileViewModel(application: Application) : AndroidViewModel(appli
                     state.copy(
                         reviews = (state.reviews + result.items).distinctBy { it.reviewId },
                         reviewsPage = page,
-                        reviewsHasNextPage = result.hasNextPage
+                        reviewsHasNextPage = result.hasNextPage,
+                        reviewsLoadMoreFailed = false
                     )
                 }
             } catch (e: Exception) {
                 android.util.Log.w("ProfileViewModel", "MAL reviews page failed: ${e.message}")
-                _malState.update { it.copy(reviewsHasNextPage = false) }
+                _malState.update { it.copy(reviewsLoadMoreFailed = true) }
             } finally {
                 _malState.update { it.copy(isLoadingMoreReviews = false) }
             }
@@ -1717,13 +1719,13 @@ class KitsugiProfileViewModel(application: Application) : AndroidViewModel(appli
         val current = _malState.value
         if (!current.recommendationsHasNextPage || current.isLoadingMoreRecommendations || current.name.isBlank()) return
         val page = current.recommendationsPage + 1
-        _malState.update { it.copy(isLoadingMoreRecommendations = true) }
+        _malState.update { it.copy(isLoadingMoreRecommendations = true, recommendationsLoadMoreFailed = false) }
         viewModelScope.launch(Dispatchers.IO) {
             try {
                 val encoded = java.net.URLEncoder.encode(current.name, "UTF-8")
                 val body = fetchMalSupplementalPage("https://api.jikan.moe/v4/users/$encoded/recommendations?page=$page")
                 if (body == null) {
-                    _malState.update { it.copy(recommendationsHasNextPage = false) }
+                    _malState.update { it.copy(recommendationsLoadMoreFailed = true) }
                     return@launch
                 }
                 val result = MalProfileDataMapper.parseRecommendations(body)
@@ -1731,14 +1733,46 @@ class KitsugiProfileViewModel(application: Application) : AndroidViewModel(appli
                     state.copy(
                         recommendations = (state.recommendations + result.items).distinctBy { it.recommendationId },
                         recommendationsPage = page,
-                        recommendationsHasNextPage = result.hasNextPage
+                        recommendationsHasNextPage = result.hasNextPage,
+                        recommendationsLoadMoreFailed = false
                     )
                 }
             } catch (e: Exception) {
                 android.util.Log.w("ProfileViewModel", "MAL recommendations page failed: ${e.message}")
-                _malState.update { it.copy(recommendationsHasNextPage = false) }
+                _malState.update { it.copy(recommendationsLoadMoreFailed = true) }
             } finally {
                 _malState.update { it.copy(isLoadingMoreRecommendations = false) }
+            }
+        }
+    }
+
+    fun loadMoreMalClubs() {
+        val current = _malState.value
+        if (!current.clubsHasNextPage || current.isLoadingMoreClubs || current.name.isBlank()) return
+        val page = current.clubsPage + 1
+        _malState.update { it.copy(isLoadingMoreClubs = true, clubsLoadMoreFailed = false) }
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val encoded = java.net.URLEncoder.encode(current.name, "UTF-8")
+                val body = fetchMalSupplementalPage("https://api.jikan.moe/v4/users/$encoded/clubs?page=$page")
+                if (body == null) {
+                    _malState.update { it.copy(clubsLoadMoreFailed = true) }
+                    return@launch
+                }
+                val result = MalProfileDataMapper.parseClubsPage(body)
+                _malState.update { state ->
+                    state.copy(
+                        clubs = (state.clubs + result.items).distinctBy { it.clubId },
+                        clubsPage = page,
+                        clubsHasNextPage = result.hasNextPage,
+                        clubsLoadMoreFailed = false
+                    )
+                }
+            } catch (e: Exception) {
+                android.util.Log.w("ProfileViewModel", "MAL clubs page failed: ${e.message}")
+                _malState.update { it.copy(clubsLoadMoreFailed = true) }
+            } finally {
+                _malState.update { it.copy(isLoadingMoreClubs = false) }
             }
         }
     }
@@ -2496,14 +2530,21 @@ data class MalProfileState(
     val reviewsPage: Int = 1,
     val reviewsHasNextPage: Boolean = false,
     val isLoadingMoreReviews: Boolean = false,
+    val reviewsLoadMoreFailed: Boolean = false,
     val recommendations: List<MalRecommendation> = emptyList(),
     val recommendationsPage: Int = 1,
     val recommendationsHasNextPage: Boolean = false,
     val isLoadingMoreRecommendations: Boolean = false,
+    val recommendationsLoadMoreFailed: Boolean = false,
     val clubs: List<MalClub> = emptyList(),
+    val clubsPage: Int = 1,
+    val clubsHasNextPage: Boolean = false,
+    val isLoadingMoreClubs: Boolean = false,
+    val clubsLoadMoreFailed: Boolean = false,
     val friendsPage: Int = 1,
     val friendsHasNextPage: Boolean = false,
     val isLoadingMoreFriends: Boolean = false,
+    val friendsLoadMoreFailed: Boolean = false,
     // ── Yeni: Favori sayfalama ──
     val favAnimePage: Int = 1,
     val favAnimeHasNext: Boolean = false,

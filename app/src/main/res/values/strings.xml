@@ -426,6 +426,8 @@
     <string name="notif_mal_web_login_title">MAL oturumunu Ayarlar bölümünde tamamla</string>
     <string name="notif_mal_web_login_hint">MAL oturumunu Ayarlar bölümünden tamamla veya yeniden bağla. Uygulama içi yetkilendirme, bildirimlerin kullandığı ortak web oturumunu oluşturur.</string>
     <string name="notif_mal_web_refresh_hint">Bildirimler MAL web oturumunuzla doğrudan alınır ve burada yerel listede gösterilir.</string>
+    <string name="notif_mal_load_more_failed">Daha eski MAL bildirimleri yüklenemedi.</string>
+    <string name="notif_mal_load_more_retry">Tekrar dene</string>
     <string name="notif_notice_mal_web_feed">MAL hesabından %1$d bildirim yüklendi.</string>
     <string name="notif_notice_mal_web_session_required">MAL web oturumu bağlı değil. Tamamlamak için MAL ayarlarını aç. Şimdilik uygulama takvimi gösteriliyor: %1$s</string>
     <string name="notif_notice_mal_web_parse_failed">MAL bildirim sayfası okunamadı (oturum düşmüş veya sayfa yapısı değişmiş olabilir). Şimdilik uygulama takvimi gösteriliyor: %1$s</string>
@@ -6982,6 +6984,7 @@ Eklentiler ekranından eklenti etkinleştirin.</string>
     <string name="profile_mal_friends_count">Arkadaşlar (%1$d)</string>
     <string name="profile_mal_clubs">Kulüpler</string>
     <string name="profile_mal_club_members">Üye: %1$d</string>
+    <string name="profile_mal_load_more_retry">Devamı yüklenemedi · Tekrar dene</string>
     <string name="profile_mal_no_clubs">Kulüp bulunamadı.</string>
     <string name="profile_mal_no_friends">MyAnimeList arkadaşı bulunamadı.</string>
     <string name="profile_mal_no_recommendations">Öneri bulunamadı.</string>

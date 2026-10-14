@@ -35,6 +35,29 @@ class MalProfileDataMapperTest {
     }
 
     @Test
+    fun parsesClubsAndPaginationMetadata() {
+        val body = """
+            {
+              "data": [{
+                "mal_id": 71,
+                "name": "Example Club",
+                "url": "https://myanimelist.net/clubs.php?cid=71",
+                "members": 123,
+                "category": "Anime"
+              }],
+              "pagination": {"current_page": 1, "has_next_page": true}
+            }
+        """.trimIndent()
+
+        val result = MalProfileDataMapper.parseClubsPage(body)
+
+        assertTrue(result.hasNextPage)
+        assertEquals(71, result.items.single().clubId)
+        assertEquals("Example Club", result.items.single().name)
+        assertEquals(123, result.items.single().memberCount)
+    }
+
+    @Test
     fun parsesReviewsRecommendationsAndPagination() {
         val reviewsBody = """
             {
