@@ -27,7 +27,7 @@ import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonObject
 import java.io.ByteArrayInputStream
 import java.util.concurrent.atomic.AtomicBoolean
-import kotlin.coroutines.Continuation
+import kotlinx.coroutines.CancellableContinuation
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 
@@ -63,7 +63,7 @@ internal object MalNotificationsWebPager {
     private class FetchSession(
         private val context: Context,
         private val page: Int,
-        private val continuation: Continuation<MalNotificationsClient.Feed>
+        private val continuation: CancellableContinuation<MalNotificationsClient.Feed>
     ) : WebViewClient() {
         private val handler = Handler(Looper.getMainLooper())
         private val completed = AtomicBoolean(false)
