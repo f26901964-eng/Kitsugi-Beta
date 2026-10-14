@@ -10,14 +10,22 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.Code
 import androidx.compose.material.icons.rounded.Info
+import androidx.compose.material.icons.rounded.NewReleases
+import androidx.compose.material.icons.rounded.OpenInNew
 import androidx.compose.material.icons.rounded.Public
+import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material.icons.rounded.Warning
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -36,6 +44,9 @@ import com.kitsugi.animelist.ui.theme.LocalKitsugiAccent
 import com.kitsugi.animelist.ui.theme.LocalKitsugiColors
 import com.kitsugi.animelist.ui.utils.tvClickable
 import com.kitsugi.animelist.ui.screens.settings.DeveloperLogsDialog
+import com.kitsugi.animelist.ui.components.CleanReleaseNotesText
+import com.kitsugi.animelist.core.update.AppRelease
+import com.kitsugi.animelist.core.update.KitsugiUpdateRepository
 
 import com.kitsugi.animelist.BuildConfig
 import kotlinx.coroutines.Dispatchers
@@ -67,6 +78,28 @@ fun AboutScreen(
     val pluginsRepo = "https://github.com/f26901964-eng/Kitsugi-Plugins"
 
     var showDeveloperLogs by remember { mutableStateOf(false) }
+
+    // ── Sürüm notları (GitHub'daki en son sürüm) ────────────────────────────────
+    // Uygulama güncellemeleri GitHub Releases üzerinden dağıtıldığı için kullanıcı,
+    // yeni sürümü kurmadan önce ne değiştiğini burada okuyabilir. İçerik
+    // KitsugiUpdateRepository üzerinden (6 saatlik disk önbelleğiyle) çekilir.
+    val updateRepository = remember { KitsugiUpdateRepository() }
+    var releaseNotesState by remember { mutableStateOf<ReleaseNotesUiState>(ReleaseNotesUiState.Loading) }
+    var releaseNotesRefreshKey by remember { mutableStateOf(0) }
+
+    LaunchedEffect(releaseNotesRefreshKey) {
+        releaseNotesState = ReleaseNotesUiState.Loading
+        val result = updateRepository.latestRelease(context, force = releaseNotesRefreshKey > 0)
+        releaseNotesState = result.fold(
+            onSuccess = { release ->
+                if (release == null) ReleaseNotesUiState.Unavailable
+                else ReleaseNotesUiState.Ready(release)
+            },
+            onFailure = { error ->
+                ReleaseNotesUiState.Failed(error.localizedMessage ?: error.message.orEmpty())
+            }
+        )
+    }
 
     val libraries = listOf(
         // ── Medya Motoru ──────────────────────────────────────────────
@@ -401,6 +434,20 @@ fun AboutScreen(
 
                 Spacer(modifier = Modifier.height(16.dp))
 
+                // Release Notes Card — uygulama GitHub üzerinden güncellendiği için
+                // son sürümün değişiklik notları burada okunabilir olmalı.
+                ReleaseNotesCard(
+                    state = releaseNotesState,
+                    installedVersion = version,
+                    hasUpdate = (releaseNotesState as? ReleaseNotesUiState.Ready)
+                        ?.let { updateRepository.isNewerThanInstalled(it.release) } == true,
+                    accentColor = accentColor,
+                    onRefresh = { releaseNotesRefreshKey++ },
+                    onOpenReleases = { openUrl("$projectRepo/releases") }
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
+
                 // Debug and Logs Card
                 Card(
                     shape = RoundedCornerShape(24.dp),
@@ -646,3 +693,230 @@ data class LibraryInfo(
     val desc: String,
     val url: String
 )
+
+/** "Sürüm Notları" kartının durumları. */
+private sealed interface ReleaseNotesUiState {
+    /** İstek sürüyor (ilk açılış ya da "Yenile"). */
+    object Loading : ReleaseNotesUiState
+    /** Uç noktalar yanıt vermedi ya da yayınlanmış bir sürüm yok. */
+    object Unavailable : ReleaseNotesUiState
+    /** Ağ hatası: kullanıcıya sebep gösterilir, yeniden deneme sunulur. */
+    data class Failed(val message: String) : ReleaseNotesUiState
+    /** Son sürümün notları hazır. */
+    data class Ready(val release: AppRelease) : ReleaseNotesUiState
+}
+
+/**
+ * Uygulama Hakkında → **Sürüm Notları** kartı.
+ *
+ * Uygulama GitHub Releases üzerinden güncellendiği için kullanıcı yeni sürümü kurmadan
+ * önce ne değiştiğini görebilmelidir: kart, GitHub'daki **en son** sürümün başlığını,
+ * yayın tarihini ve markdown notlarını ([CleanReleaseNotesText] ile sadeleştirilmiş)
+ * gösterir. Kurulu sürüm en güncel olsa bile notlar gösterilir; yalnızca "Güncelleme var"
+ * rozetinin görünürlüğü değişir.
+ */
+@Composable
+private fun ReleaseNotesCard(
+    state: ReleaseNotesUiState,
+    installedVersion: String,
+    hasUpdate: Boolean,
+    accentColor: Color,
+    onRefresh: () -> Unit,
+    onOpenReleases: () -> Unit
+) {
+    val KitsugiColors = LocalKitsugiColors.current
+    Card(
+        shape = RoundedCornerShape(24.dp),
+        colors = CardDefaults.cardColors(containerColor = KitsugiColors.surface),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Column(
+            modifier = Modifier.padding(20.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    imageVector = Icons.Rounded.NewReleases,
+                    contentDescription = null,
+                    tint = accentColor,
+                    modifier = Modifier.size(22.dp)
+                )
+                Spacer(Modifier.width(8.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = stringResource(R.string.about_release_notes_title),
+                        color = KitsugiColors.textPrimary,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Text(
+                        text = stringResource(R.string.about_release_notes_subtitle),
+                        color = KitsugiColors.textMuted,
+                        style = MaterialTheme.typography.labelSmall
+                    )
+                }
+                IconButton(
+                    onClick = onRefresh,
+                    enabled = state !is ReleaseNotesUiState.Loading
+                ) {
+                    Icon(
+                        imageVector = Icons.Rounded.Refresh,
+                        contentDescription = stringResource(R.string.about_release_notes_refresh),
+                        tint = if (state is ReleaseNotesUiState.Loading) KitsugiColors.textMuted else accentColor,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+            }
+
+            when (state) {
+                is ReleaseNotesUiState.Loading -> Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    CircularProgressIndicator(
+                        color = accentColor,
+                        strokeWidth = 2.dp,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Text(
+                        text = stringResource(R.string.about_release_notes_loading),
+                        color = KitsugiColors.textSecondary,
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                }
+
+                is ReleaseNotesUiState.Unavailable -> Text(
+                    text = stringResource(R.string.about_release_notes_unavailable),
+                    color = KitsugiColors.textMuted,
+                    style = MaterialTheme.typography.bodySmall
+                )
+
+                is ReleaseNotesUiState.Failed -> Column(
+                    verticalArrangement = Arrangement.spacedBy(2.dp)
+                ) {
+                    Text(
+                        text = stringResource(R.string.about_release_notes_error),
+                        color = KitsugiColors.textSecondary,
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                    TextButton(onClick = onRefresh) {
+                        Text(
+                            text = stringResource(R.string.about_release_notes_retry),
+                            color = accentColor,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
+
+                is ReleaseNotesUiState.Ready -> {
+                    val release = state.release
+                    // Rozetler: en son sürüm · (güncelleme var | kurulu sürüm güncel) · tarih
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        ReleaseBadge(
+                            text = "v${release.versionName}",
+                            accentColor = accentColor,
+                            containerColor = accentColor.copy(alpha = 0.16f)
+                        )
+                        Text(
+                            text = if (hasUpdate) {
+                                stringResource(R.string.about_release_notes_update_available)
+                            } else {
+                                stringResource(R.string.about_release_notes_up_to_date)
+                            },
+                            color = if (hasUpdate) accentColor else KitsugiColors.textMuted,
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+
+                    Text(
+                        text = stringResource(R.string.about_release_notes_installed, installedVersion),
+                        color = KitsugiColors.textMuted,
+                        style = MaterialTheme.typography.labelSmall
+                    )
+
+                    if (release.releaseTitle.isNotBlank() &&
+                        release.releaseTitle != "v${release.versionName}" &&
+                        release.releaseTitle != release.versionName
+                    ) {
+                        Text(
+                            text = release.releaseTitle,
+                            color = KitsugiColors.textPrimary,
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
+
+                    if (release.publishedAt.isNotBlank()) {
+                        Text(
+                            text = stringResource(R.string.about_release_notes_published, release.publishedAt),
+                            color = KitsugiColors.textMuted,
+                            style = MaterialTheme.typography.labelSmall
+                        )
+                    }
+
+                    // Notlar uzun olabilir: kart büyüyüp sayfayı kaplamasın diye sabit
+                    // yükseklikte, kendi içinde kaydırılabilir bir kutuda gösterilir.
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .heightIn(max = 300.dp)
+                            .clip(RoundedCornerShape(16.dp))
+                            .background(color = KitsugiColors.surfaceSoft, shape = RoundedCornerShape(16.dp))
+                            .border(
+                                width = 1.dp,
+                                color = KitsugiColors.surfaceStrong,
+                                shape = RoundedCornerShape(16.dp)
+                            )
+                            .padding(14.dp)
+                            .verticalScroll(rememberScrollState())
+                    ) {
+                        CleanReleaseNotesText(notes = release.releaseNotes)
+                    }
+
+                    TextButton(onClick = onOpenReleases) {
+                        Icon(
+                            imageVector = Icons.Rounded.OpenInNew,
+                            contentDescription = null,
+                            tint = accentColor,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(Modifier.width(6.dp))
+                        Text(
+                            text = stringResource(R.string.about_release_notes_open_github),
+                            color = accentColor,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+/** Sürüm notları kartındaki küçük bilgi rozeti (sürüm, tarih, güncelleme durumu). */
+@Composable
+private fun ReleaseBadge(
+    text: String,
+    accentColor: Color,
+    containerColor: Color
+) {
+    Box(
+        modifier = Modifier
+            .clip(RoundedCornerShape(8.dp))
+            .background(color = containerColor, shape = RoundedCornerShape(8.dp))
+            .padding(horizontal = 8.dp, vertical = 4.dp)
+    ) {
+        Text(
+            text = text,
+            color = accentColor,
+            style = MaterialTheme.typography.labelSmall,
+            fontWeight = FontWeight.Bold
+        )
+    }
+}

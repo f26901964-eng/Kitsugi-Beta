@@ -1930,6 +1930,18 @@
     <string name="inline_app_updates_72b007e">App Updates</string>
     <string name="inline_check_for_new_versions_automatical_1803304">Check for new versions automatically or manually.</string>
     <string name="inline_check_now_c288ab8">Check Now</string>
+    <string name="about_release_notes_title">Release Notes</string>
+    <string name="about_release_notes_subtitle">Changelog of the latest release on GitHub</string>
+    <string name="about_release_notes_loading">Loading release notes…</string>
+    <string name="about_release_notes_error">Release notes could not be loaded. Check your connection and try again.</string>
+    <string name="about_release_notes_unavailable">No published release notes were found.</string>
+    <string name="about_release_notes_retry">Try again</string>
+    <string name="about_release_notes_refresh">Refresh</string>
+    <string name="about_release_notes_update_available">New version available</string>
+    <string name="about_release_notes_up_to_date">Installed version is up to date</string>
+    <string name="about_release_notes_installed">Installed version: %1$s</string>
+    <string name="about_release_notes_published">Published: %1$s</string>
+    <string name="about_release_notes_open_github">All releases on GitHub</string>
     <string name="inline_extension_updates_15cbd1c">Extension Updates</string>
     <string name="inline_check_the_versions_of_video_4536a47">Check the versions of video provider extensions in repositories.</string>
     <string name="inline_developer_error_logs_fb50437">Developer &amp; Error Logs</string>
@@ -4866,6 +4878,8 @@
     <string name="storage_bucket_subtitles_desc">Downloaded and extracted subtitle archives</string>
     <string name="storage_bucket_database">Database cache</string>
     <string name="storage_bucket_database_desc">Detail, video resolution and translation records (older than 30 days are dropped automatically)</string>
+    <string name="storage_bucket_wiki">Wiki cache</string>
+    <string name="storage_bucket_wiki_desc">Fandom and Wikipedia article, infobox and character records (older than 30 days are dropped automatically)</string>
     <string name="storage_bucket_diagnostics">Diagnostics</string>
     <string name="storage_bucket_diagnostics_desc">Crash reports and debug logs</string>
     <string name="storage_bucket_webview">Web data</string>
