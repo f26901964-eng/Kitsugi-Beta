@@ -1,11 +1,11 @@
 {
   "_comment": "Kitsugi Eklenti Domain Listesi — GitHub Actions + AI tarafından otomatik güncellenir.",
   "_format": "eklentiAdi (küçük harf) → güncel ana URL",
-  "_updated": "2026-10-13 03:07 UTC",
+  "_updated": "2026-10-14 03:17 UTC",
   "_stats": {
     "total": 83,
     "added": 0,
-    "removed": 5,
+    "removed": 0,
     "changed": 0,
     "ai_assisted": 0,
     "blocked": 152
