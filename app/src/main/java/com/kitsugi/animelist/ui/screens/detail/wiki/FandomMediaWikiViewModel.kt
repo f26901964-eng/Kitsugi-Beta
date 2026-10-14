@@ -730,8 +730,9 @@ class FandomMediaWikiViewModel(application: Application) : AndroidViewModel(appl
                 index?.let { articlePage?.infobox?.allFields()?.getOrNull(it)?.value }
             }
             key.startsWith("sec:") -> {
-                val index = key.removePrefix("sec:").toIntOrNull()
-                (index?.let { _articleSections.value[it] } as? FandomCharacterWikiViewModel.SectionState.Loaded)
+                // Bölüm kimliği metindir ("3" veya şablon bölümü "T-1"); Int'e çevrilmez.
+                val index = key.removePrefix("sec:")
+                (_articleSections.value[index] as? FandomCharacterWikiViewModel.SectionState.Loaded)
                     ?.content?.plainText()
             }
             key.startsWith("item:") -> {
@@ -740,9 +741,9 @@ class FandomMediaWikiViewModel(application: Application) : AndroidViewModel(appl
             }
             key.startsWith("item-sec:") -> {
                 val parts = key.removePrefix("item-sec:")
-                val index = parts.substringBefore(':').toIntOrNull()
+                val index = parts.substringBefore(':')
                 val title = parts.substringAfter(':', missingDelimiterValue = "")
-                if (index == null || title.isBlank()) null
+                if (index.isBlank() || title.isBlank()) null
                 else {
                     val current = _selected.value as? SelectedState.Ready
                     current?.takeIf { it.title == title }
