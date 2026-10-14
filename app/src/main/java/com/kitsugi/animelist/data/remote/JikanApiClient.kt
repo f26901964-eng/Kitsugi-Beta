@@ -178,11 +178,16 @@ class JikanApiClient(
         season: String? = null,
         seasonYear: Int? = null,
         startYear: Int? = null,
-        endYear: Int? = null
+        endYear: Int? = null,
+        /**
+         * Keşfet "Tümünü Gör" sayfası kullanır: tür facet'i olmadan yalnız sıralama istendiğinde
+         * (başlık/tarih sıraları) resmî MAL sıralama ucu yerine Jikan liste ucunu zorlar.
+         */
+        applySortWithoutFacets: Boolean = false
     ) = jikanSearchClient.searchMalAdvanced(
         query, mediaType, showAdultContent, status, format, genres, excludedGenres,
         rating, minScore, maxScore, producerId, magazineId, letter, sort, orderBy,
-        page, season, seasonYear, startYear, endYear
+        page, season, seasonYear, startYear, endYear, applySortWithoutFacets
     )
 
     suspend fun searchMalCharacters(query: String, page: Int = 1, orderBy: String = "favorites", sort: String = "desc", letter: String? = null) =

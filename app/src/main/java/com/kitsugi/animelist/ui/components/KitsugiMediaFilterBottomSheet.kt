@@ -105,12 +105,37 @@ fun KitsugiMediaFilterBottomSheet(
     initialSortOption: KitsugiGridSortOption,
     onDismissRequest: () -> Unit,
     onApply: (genreId: String, sortOption: KitsugiGridSortOption) -> Unit,
-    onReset: () -> Unit
+    onReset: () -> Unit,
+    /**
+     * Filtrelerin uygulanacağı kaynağın adı (örn. "AniList"). Verilirse çiplerin hangi kaynakta
+     * sunucu tarafında çalıştığı bilgisi başlıkta ve çiplerde gösterilir.
+     */
+    sourceLabel: String? = null,
+    /** Kaynağın kendi API'sinde süzebildiği tür kimlikleri. `null` = bilgi yok (rozet çizilmez). */
+    serverGenreIds: Set<String>? = null,
+    /** Kaynağın kendi API'sinde sıralayabildiği seçenekler. `null` = bilgi yok (rozet çizilmez). */
+    serverSorts: Set<KitsugiGridSortOption>? = null
 ) {
     val accentColor = LocalKitsugiAccent.current
 
     var selectedGenreId by remember { mutableStateOf(initialGenreId) }
     var selectedSortOption by remember { mutableStateOf(initialSortOption) }
+
+    fun sortIsServer(sort: KitsugiGridSortOption): Boolean =
+        serverSorts == null || serverSorts.contains(sort)
+
+    fun genreIsServer(genreId: String): Boolean =
+        serverGenreIds == null || genreId == "ALL" || serverGenreIds.contains(genreId)
+
+    val localGenreLabel: String? =
+        if (serverGenreIds != null && !genreIsServer(selectedGenreId)) {
+            KITSUGI_MEDIA_GENRES.firstOrNull { it.id == selectedGenreId }?.displayLabel()
+        } else null
+    val localSortLabel: String? =
+        if (serverSorts != null && !sortIsServer(selectedSortOption)) {
+            selectedSortOption.displayLabel()
+        } else null
+    val localSelectionSummary: String = listOfNotNull(localGenreLabel, localSortLabel).joinToString(" · ")
 
     KitsugiSheetOrDialog(onDismiss = onDismissRequest) {
         Column(
@@ -161,6 +186,28 @@ fun KitsugiMediaFilterBottomSheet(
                         style = MaterialTheme.typography.bodyMedium,
                         fontWeight = FontWeight.Bold
                     )
+                }
+            }
+
+            // Kaynak bilgisi: hangi seçenek API'de, hangisi cihazda uygulanıyor?
+            if (sourceLabel != null && (serverGenreIds != null || serverSorts != null)) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 20.dp, vertical = 2.dp)
+                ) {
+                    Text(
+                        text = stringResource(R.string.filtre_kaynak_sunucu_bilgi, sourceLabel),
+                        color = KitsugiColors.TextMuted,
+                        style = MaterialTheme.typography.labelSmall
+                    )
+                    if (localSelectionSummary.isNotBlank()) {
+                        Text(
+                            text = stringResource(R.string.filtre_kaynak_yerel_bilgi, localSelectionSummary),
+                            color = KitsugiColors.TextMuted,
+                            style = MaterialTheme.typography.labelSmall
+                        )
+                    }
                 }
             }
 
@@ -216,8 +263,10 @@ fun KitsugiMediaFilterBottomSheet(
                         ) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Text(
-                                    text = sort.displayLabel(),
-                                    color = if (isSelected) accentColor else KitsugiColors.TextPrimary,
+                                    text = if (sortIsServer(sort)) sort.displayLabel()
+                                        else "📱 ${sort.displayLabel()}",
+                                    color = (if (isSelected) accentColor else KitsugiColors.TextPrimary)
+                                        .copy(alpha = if (sortIsServer(sort)) 1f else 0.62f),
                                     fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
                                     fontSize = 13.sp
                                 )
@@ -281,8 +330,10 @@ fun KitsugiMediaFilterBottomSheet(
                         ) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Text(
-                                    text = genre.displayLabel(),
-                                    color = if (isSelected) accentColor else KitsugiColors.TextPrimary,
+                                    text = if (genreIsServer(genre.id)) genre.displayLabel()
+                                        else "📱 ${genre.displayLabel()}",
+                                    color = (if (isSelected) accentColor else KitsugiColors.TextPrimary)
+                                        .copy(alpha = if (genreIsServer(genre.id)) 1f else 0.62f),
                                     fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
                                     fontSize = 13.sp
                                 )

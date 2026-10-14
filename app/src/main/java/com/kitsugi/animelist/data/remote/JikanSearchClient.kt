@@ -209,7 +209,14 @@ class JikanSearchClient {
         season: String? = null,
         seasonYear: Int? = null,
         startYear: Int? = null,
-        endYear: Int? = null
+        endYear: Int? = null,
+        /**
+         * Yalnızca sıralama istendiğinde (tür/yıl gibi hiçbir facet yokken) resmî MAL sıralama
+         * ucu yerine Jikan liste ucunu kullanmayı zorlar. Keşfet "Tümünü Gör" sayfası başlık ve
+         * çıkış tarihi sıralarını bu yolla sunucudan alır; varsayılan `false` eski davranışı
+         * (puan/popülerlik sıralama ucu) korur.
+         */
+        applySortWithoutFacets: Boolean = false
     ): List<JikanSearchResult> {
         return withContext(Dispatchers.IO) {
             val endpoint = if (mediaType == MediaType.Manga) "manga" else "anime"
@@ -257,7 +264,8 @@ class JikanSearchClient {
             val hasJikanFilters = !genres.isNullOrEmpty() || !excludedGenres.isNullOrEmpty() ||
                 !status.isNullOrBlank() || !format.isNullOrBlank() || !rating.isNullOrBlank() ||
                 minScore != null || maxScore != null || producerId != null || magazineId != null ||
-                startYear != null || endYear != null || season != null || seasonYear != null
+                startYear != null || endYear != null || season != null || seasonYear != null ||
+                (applySortWithoutFacets && !orderBy.isNullOrBlank())
             if (query.isBlank() && hasJikanFilters) {
                 val params = mutableListOf("limit=24", "page=${page.coerceAtLeast(1)}", "sfw=${jikanSfw(showAdultContent)}")
                 fun addParam(key: String, value: String?) {

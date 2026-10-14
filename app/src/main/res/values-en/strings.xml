@@ -4369,6 +4369,9 @@
 	<string name="tumunu_gor">See All</string>
 	<string name="secili">Selected</string>
 	<string name="filtre_ve_siralama">Filter &amp; Sort</string>
+	<!-- Explore "See all" page: whether filters run on the source API or on the device -->
+	<string name="filtre_kaynak_sunucu_bilgi">☁️ Genre and sort are applied on %1$s</string>
+	<string name="filtre_kaynak_yerel_bilgi">📱 Applied on device: %1$s</string>
 	<string name="sonraki_bolum">Next Episode</string>
 	<string name="vazgec">Discard</string>
 	<string name="kisisel_dusuncelerinizi_yazin">Write your personal thoughts...</string>
