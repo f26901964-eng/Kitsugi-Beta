@@ -155,8 +155,12 @@ fun AddonFullScreenGridPage(
     val convertedResults = remember(loadedItems) {
         loadedItems.map { it.toAddonSearchResult() }
     }
-    val displayedResults = remember(convertedResults, selectedTypeId, selectedSortOption) {
-        val filtered = convertedResults.filter { studioTypeMatches(selectedTypeId, it.type) }
+    // +18 UYUMU (2026-10-14): "Tümünü Gör" ızgarası da göster/gizle sözleşmesine uyar.
+    val showAdultContent = com.kitsugi.animelist.ui.theme.LocalShowAdultContent.current
+    val displayedResults = remember(convertedResults, selectedTypeId, selectedSortOption, showAdultContent) {
+        val filtered = convertedResults
+            .filter { showAdultContent || !it.isAdult }
+            .filter { studioTypeMatches(selectedTypeId, it.type) }
         when (selectedSortOption) {
             StudioSortOption.DEFAULT -> filtered
             StudioSortOption.TITLE_ASC -> filtered.sortedBy { it.title.lowercase() }

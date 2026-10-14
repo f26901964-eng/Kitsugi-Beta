@@ -32,6 +32,16 @@ val LocalIsTvDevice = staticCompositionLocalOf { false }
  */
 val LocalBlurAdultMedia = compositionLocalOf { false }
 
+/**
+ * +18 içerikler listelerde gösterilsin mi? (Ayarlar → Yetişkin İçeriği)
+ *
+ * `false` iken yetişkin (`isAdult = true`) öğeler tüm kaynak raflarında/arama
+ * sonuçlarında filtrelenir. Kök composable bunu sağladığı için derin ekranlar
+ * (eklenti portalı, manga uzantıları, ilişkiler sekmesi vb.) parametre delmeye
+ * gerek kalmadan `LocalShowAdultContent.current` ile gizleme uygulayabilir.
+ */
+val LocalShowAdultContent = compositionLocalOf { false }
+
 private val DarkColorScheme = darkColorScheme(
     primary = Purple80,
     secondary = PurpleGrey80,

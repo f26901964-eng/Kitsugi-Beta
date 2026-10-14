@@ -219,12 +219,18 @@ private fun DetailContent(
         else -> null
     }
 
+    // +18 UYUMU (2026-10-14): eklenti detay diyaloğundaki posterler de blurAdultMedia
+    // sözleşmesine uyar — NSFW türü veya bilinen yetişkin eklenti ise görsel bulanıklaştırılır.
+    val isAdultResponse = runCatching { loadResponse.type == TvType.NSFW }.getOrDefault(false) ||
+        CsStreamRunner.ADULT_PLUGINS_SET.contains(api.name)
+
     Box(modifier = Modifier.fillMaxSize()) {
         // Blurred background backdrop for premium look
         if (!loadResponse.posterUrl.isNullOrBlank()) {
-            AsyncImage(
+            com.kitsugi.animelist.ui.components.KitsugiNsfwImage(
                 model = loadResponse.posterUrl,
                 contentDescription = null,
+                isAdult = isAdultResponse,
                 contentScale = ContentScale.Crop,
                 modifier = Modifier
                     .fillMaxWidth()
@@ -269,9 +275,10 @@ private fun DetailContent(
                             .height(160.dp),
                         elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
                     ) {
-                        AsyncImage(
+                        com.kitsugi.animelist.ui.components.KitsugiNsfwImage(
                             model = loadResponse.posterUrl,
                             contentDescription = loadResponse.name,
+                            isAdult = isAdultResponse,
                             contentScale = ContentScale.Crop,
                             modifier = Modifier.fillMaxSize()
                         )

@@ -112,6 +112,14 @@ fun AddonExplorePage(
     var hasSearched by remember { mutableStateOf(false) }
     var activeDetailUrl by remember { mutableStateOf<String?>(null) }
 
+    // +18 UYUMU (2026-10-14): eklenti portalı da uygulamanın geri kalanıyla aynı
+    // göster/gizle sözleşmesine uyar — yetişkin sonuçlar ayar kapalıyken elenir.
+    val showAdultContent = com.kitsugi.animelist.ui.theme.LocalShowAdultContent.current
+    val visibleSearchResults = remember(searchResults, showAdultContent) {
+        if (showAdultContent) searchResults else searchResults.filter { !isAddonAdultResponse(it) }
+    }
+
+
     BackHandler {
         when {
             activeDetailUrl != null -> activeDetailUrl = null
@@ -197,8 +205,11 @@ fun AddonExplorePage(
     }
 
     // Vitrin öğeleri — ana sayfa (Keşfet) vitriniyle aynı model üzerinden beslenir.
-    val heroResults = remember(homeLists) {
-        homeLists.firstOrNull { it.list.isNotEmpty() }?.list?.take(10)
+    val heroResults = remember(homeLists, showAdultContent) {
+        homeLists.asSequence()
+            .map { shelf -> shelf.list.filter { showAdultContent || !isAddonAdultResponse(it) } }
+            .firstOrNull { it.isNotEmpty() }
+            ?.take(10)
             ?.map { it.toAddonSearchResult() } ?: emptyList()
     }
     val isBlocked = CsPluginStatusTracker.isBlocked(api.name)
@@ -235,7 +246,7 @@ fun AddonExplorePage(
                                     contentAlignment = Alignment.Center
                                 ) { KitsugiPlasmaLoader(size = 48.dp) }
                             }
-                            searchResults.isEmpty() -> {
+                            visibleSearchResults.isEmpty() -> {
                                 Box(
                                     Modifier.fillMaxSize().padding(top = 88.dp),
                                     contentAlignment = Alignment.Center
@@ -251,14 +262,14 @@ fun AddonExplorePage(
                                 ) {
                                     item {
                                         Text(
-                                            stringResource(R.string.inline_1_s_2_s_results_1656e6f, searchQuery, searchResults.size),
+                                            stringResource(R.string.inline_1_s_2_s_results_1656e6f, searchQuery, visibleSearchResults.size),
                                             color = KitsugiColors.TextPrimary,
                                             fontSize = 15.sp,
                                             fontWeight = FontWeight.Bold,
                                             modifier = Modifier.padding(horizontal = 4.dp)
                                         )
                                     }
-                                    items(searchResults.chunked(3)) { row ->
+                                    items(visibleSearchResults.chunked(3)) { row ->
                                         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                                             row.forEach { item ->
                                                 Box(Modifier.weight(1f)) {
@@ -336,10 +347,11 @@ fun AddonExplorePage(
                             // aynı kutucuk (KitsugiExploreMediaCard), aynı kaydırma/snap
                             // mekaniği, aynı "Tümünü Gör" sözleşmesi.
                             items(homeLists, key = { "cat_${homeLists.indexOf(it)}_${it.name}" }) { homeList ->
-                                if (homeList.list.isNotEmpty()) {
-                                    val rowResults = remember(homeList) {
-                                        homeList.list.map { it.toAddonSearchResult() }
-                                    }
+                                val rowResults = remember(homeList, showAdultContent) {
+                                    homeList.list.map { it.toAddonSearchResult() }
+                                        .filter { showAdultContent || !it.isAdult }
+                                }
+                                if (rowResults.isNotEmpty()) {
                                     val matchingPage = remember(homeList.name) {
                                         api.mainPage.firstOrNull { it.name == homeList.name }
                                     }

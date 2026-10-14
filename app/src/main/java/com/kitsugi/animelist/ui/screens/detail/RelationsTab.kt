@@ -50,7 +50,9 @@ fun RelationsTabContent(
             )
         }
         is DetailTabState.Success -> {
-            val list = state.data
+            // +18 UYUMU (2026-10-14): ilişkili başlıklar da göster/gizle sözleşmesine uyar.
+            val showAdult = com.kitsugi.animelist.ui.theme.LocalShowAdultContent.current
+            val list = if (showAdult) state.data else state.data.filter { !it.isAdult }
             if (list.isEmpty()) {
                 Text(
                     text = stringResource(R.string.inline_no_related_titles_found_736beb1),

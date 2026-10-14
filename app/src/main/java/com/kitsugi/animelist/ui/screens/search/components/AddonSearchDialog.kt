@@ -86,6 +86,14 @@ fun AddonSearchDialog(
     var hasSearched by remember { mutableStateOf(false) }
     var activeDetailItem by remember { mutableStateOf<Pair<MainAPI, SearchResponse>?>(null) }
 
+    // +18 UYUMU (2026-10-14): çoklu eklenti arama diyaloğu da göster/gizle sözleşmesine
+    // uyar — yetişkin (NSFW türü veya bilinen yetişkin eklenti) sonuçlar ayar kapalıyken elenir.
+    val showAdultContent = com.kitsugi.animelist.ui.theme.LocalShowAdultContent.current
+    val visibleResults = remember(searchResults, showAdultContent) {
+        if (showAdultContent) searchResults
+        else searchResults.filter { !isAddonAdultResponse(it.second) }
+    }
+
     // Load active addons
     LaunchedEffect(Unit) {
         withContext(Dispatchers.IO) {
@@ -285,9 +293,9 @@ fun AddonSearchDialog(
                     }
                 } else {
                     // Content Area
-                    if (hasSearched && searchResults.isNotEmpty()) {
-                        val groupedResults = remember(searchResults) {
-                            searchResults.groupBy { it.first }
+                    if (hasSearched && visibleResults.isNotEmpty()) {
+                        val groupedResults = remember(visibleResults) {
+                            visibleResults.groupBy { it.first }
                         }
 
                         LazyColumn(
@@ -324,7 +332,8 @@ fun AddonSearchDialog(
                                                     quality = response.quality?.name,
                                                     onClick = {
                                                         activeDetailItem = api to response
-                                                    }
+                                                    },
+                                                    isAdult = isAddonAdultResponse(response)
                                                 )
                                             }
                                         }
@@ -332,7 +341,7 @@ fun AddonSearchDialog(
                                 }
                             }
                         }
-                    } else if (hasSearched && searchResults.isEmpty()) {
+                    } else if (hasSearched && visibleResults.isEmpty()) {
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -470,7 +479,9 @@ fun ResultItemCard(
     imageUrl: String?,
     apiName: String,
     quality: String?,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    /** +18 UYUMU (2026-10-14): öğe yetişkinse görsel blurAdultMedia ile bulanıklaştırılır. */
+    isAdult: Boolean = false
 ) {
     Box(
         modifier = Modifier
@@ -491,8 +502,10 @@ fun ResultItemCard(
                     // Bazı Türk siteleri (DiziBox, SezonlukDizi vb.) görselleri
                     // Referer header olmadan engeller. Referer olarak sitenin kendi
                     // mainUrl'ini gönderiyoruz — hotlink korumasını aşmak için.
+                    // +18 UYUMU (2026-10-14): istek KitsugiNsfwImage'e verilir; bitmap-blur
+                    // yolu başlıkları koruyarak dönüşümü ekler (ham görsel asla sızmaz).
                     val imageRequest = remember(imageUrl) {
-                        coil.request.ImageRequest.Builder(context)
+                        coil3.request.ImageRequest.Builder(context)
                             .data(imageUrl)
                             .addHeader(
                                 "Referer",
@@ -505,12 +518,12 @@ fun ResultItemCard(
                                 "User-Agent",
                                 "Mozilla/5.0 (Linux; Android 13) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Mobile Safari/537.36"
                             )
-                            .crossfade(true)
                             .build()
                     }
-                    AsyncImage(
+                    com.kitsugi.animelist.ui.components.KitsugiNsfwImage(
                         model = imageRequest,
                         contentDescription = title,
+                        isAdult = isAdult,
                         modifier = Modifier.fillMaxSize(),
                         contentScale = ContentScale.Crop
                     )

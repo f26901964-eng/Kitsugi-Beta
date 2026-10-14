@@ -146,12 +146,18 @@ fun LazyListScope.addonExploreInlineSections(
 ) {
     // ── Hero Banner ─────────────────────────────────────────────────────────
     item(key = "inline_hero_${api.name}") {
-        val heroItem = state.homeLists.firstOrNull { it.list.isNotEmpty() }?.list?.firstOrNull()
+        // +18 UYUMU (2026-10-14): vitrin öğesi de göster/gizle sözleşmesine uyar.
+        val showAdultContent = com.kitsugi.animelist.ui.theme.LocalShowAdultContent.current
+        val heroItem = state.homeLists.asSequence()
+            .map { shelf -> shelf.list.filter { showAdultContent || !isAddonAdultResponse(it) } }
+            .firstOrNull { it.isNotEmpty() }
+            ?.firstOrNull()
         val accentColor = LocalKitsugiAccent.current
         val context = LocalContext.current
 
         InlineHeroBanner(
             item = heroItem,
+            isAdult = isAddonAdultResponse(heroItem),
             apiName = api.name,
             accentColor = accentColor,
             onPlayClick = {
@@ -256,7 +262,10 @@ fun LazyListScope.addonExploreInlineSections(
 
     // ── Kategori Satırları ──────────────────────────────────────────────────
     items(state.homeLists, key = { "inline_cat_${api.name}_${it.name}" }) { homeList ->
-        if (homeList.list.isNotEmpty()) {
+        // +18 UYUMU (2026-10-14): raf tamamen yetişkin içerikten oluşuyorsa ve ayar
+        // kapalıysa raf hiç çizilmez (boş başlık bırakılmaz).
+        val shelfShowAdult = com.kitsugi.animelist.ui.theme.LocalShowAdultContent.current
+        if (homeList.list.any { shelfShowAdult || !isAddonAdultResponse(it) }) {
             val accentColor = LocalKitsugiAccent.current
             val context = LocalContext.current
             val matchingPage = remember(homeList.name) {
@@ -285,7 +294,9 @@ private fun InlineHeroBanner(
     apiName: String,
     accentColor: androidx.compose.ui.graphics.Color,
     onPlayClick: () -> Unit,
-    onRefresh: () -> Unit
+    onRefresh: () -> Unit,
+    /** +18 UYUMU (2026-10-14): öğe yetişkinse poster blurAdultMedia ile bulanıklaştırılır. */
+    isAdult: Boolean = false
 ) {
     val context = LocalContext.current
     Box(
@@ -296,19 +307,19 @@ private fun InlineHeroBanner(
         // Poster
         if (item != null && !item.posterUrl.isNullOrBlank()) {
             val req = remember(item.posterUrl) {
-                ImageRequest.Builder(context)
-                    .data(item.posterUrl)
+                coil3.request.ImageRequest.Builder(context)
+                    .data(item.posterUrl!!)
                     .addHeader("Referer", try {
                         val u = android.net.Uri.parse(item.posterUrl)
                         "${u.scheme}://${u.host}/"
                     } catch (_: Exception) { item.posterUrl!! })
                     .addHeader("User-Agent", "Mozilla/5.0 (Linux; Android 13) AppleWebKit/537.36")
-                    .crossfade(true)
                     .build()
             }
-            AsyncImage(
+            com.kitsugi.animelist.ui.components.KitsugiNsfwImage(
                 model = req,
                 contentDescription = item.name,
+                isAdult = isAdult,
                 modifier = Modifier.fillMaxSize(),
                 contentScale = ContentScale.Crop
             )
@@ -413,6 +424,12 @@ private fun InlineCategoryRow(
     onSeeAllClick: ((apiName: String, title: String, mainPageData: String, horizontalImages: Boolean, initialItems: List<SearchResponse>) -> Unit)?,
     onItemClick: ((api: MainAPI, url: String) -> Unit)? = null
 ) {
+    // +18 UYUMU (2026-10-14): satır öğeleri ve "Tümünü Gör" başlangıç listesi de
+    // göster/gizle sözleşmesine uyar.
+    val showAdultContent = com.kitsugi.animelist.ui.theme.LocalShowAdultContent.current
+    val visibleItems = remember(homeList, showAdultContent) {
+        homeList.list.filter { showAdultContent || !isAddonAdultResponse(it) }
+    }
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -446,7 +463,7 @@ private fun InlineCategoryRow(
                                 homeList.name,
                                 matchingPage.data,
                                 matchingPage.horizontalImages,
-                                homeList.list
+                                visibleItems
                             )
                         }
                         .padding(horizontal = 8.dp, vertical = 4.dp)
@@ -471,12 +488,13 @@ private fun InlineCategoryRow(
             contentPadding = PaddingValues(horizontal = 12.dp),
             horizontalArrangement = Arrangement.spacedBy(10.dp)
         ) {
-            items(homeList.list) { item ->
+            items(visibleItems) { item ->
                 ResultItemCard(
                     title = item.name,
                     imageUrl = item.posterUrl,
                     apiName = api.name,
                     quality = item.quality?.name,
+                    isAdult = isAddonAdultResponse(item),
                     onClick = {
                         if (onItemClick != null) {
                             onItemClick(api, item.url)

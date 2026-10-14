@@ -817,6 +817,7 @@ fun AppRoot(
     val touchBringIntoView = com.kitsugi.animelist.ui.utils.KitsugiScrollDefaults.rememberTouchPassthroughSpec()
     CompositionLocalProvider(
         LocalBlurAdultMedia provides appSettings.blurAdultMedia,
+        com.kitsugi.animelist.ui.theme.LocalShowAdultContent provides appSettings.showAdultContent,
         // Telefon/tablette odaklı kart listeyi geri çekmesin. TV kendi spec'ini korur.
         androidx.compose.foundation.gestures.LocalBringIntoViewSpec provides if (isTvDevice) {
             androidx.compose.foundation.gestures.LocalBringIntoViewSpec.current

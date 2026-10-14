@@ -51,8 +51,11 @@ fun KitsugiAiringCalendarScreen(
     var showOnlyMyList by rememberSaveable { mutableStateOf(false) }
     var isGridView by rememberSaveable { mutableStateOf(true) }
 
-    val filteredScheduleMap = remember(viewModel.weekSchedule, showOnlyMyList, currentEntries) {
-        if (showOnlyMyList) {
+    // +18 UYUMU (2026-10-14): yayın takvimi de göster/gizle sözleşmesine uyar —
+    // yetişkin (isAdult) kayıtlar ayar kapalıyken gün raflarında listelenmez.
+    val showAdultContent = com.kitsugi.animelist.ui.theme.LocalShowAdultContent.current
+    val filteredScheduleMap = remember(viewModel.weekSchedule, showOnlyMyList, currentEntries, showAdultContent) {
+        val base = if (showOnlyMyList) {
             viewModel.weekSchedule.mapValues { (_, entries) ->
                 entries.filter { entry ->
                     currentEntries.any { me ->
@@ -65,6 +68,7 @@ fun KitsugiAiringCalendarScreen(
         } else {
             viewModel.weekSchedule
         }
+        base.mapValues { (_, entries) -> entries.filter { showAdultContent || !it.isAdult } }
     }
 
     val initialPage = remember { DAYS_ORDERED.indexOf(viewModel.selectedDay).coerceAtLeast(0) }

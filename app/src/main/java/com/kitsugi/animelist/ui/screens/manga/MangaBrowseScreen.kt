@@ -136,14 +136,22 @@ fun MangaBrowseScreen(
         raw.distinctBy { "${it.first.stableSourceKey()}|${it.second.url}" }
     }
 
-    val backdropUrl = mergedMangas.firstOrNull()?.second?.thumbnailUrl
+    // +18 UYUMU (2026-10-14): uzantı gözat/arama sonuçları da göster/gizle sözleşmesine
+    // uyar — yetişkin (hentai/doujin vb.) başlıklar ayar kapalıyken listelenmez.
+    val showAdultContent = com.kitsugi.animelist.ui.theme.LocalShowAdultContent.current
+    val visibleMangas = remember(mergedMangas, showAdultContent) {
+        if (showAdultContent) mergedMangas else mergedMangas.filter { !it.second.isAdultContent }
+    }
+
+    val backdropUrl = visibleMangas.firstOrNull()?.second?.thumbnailUrl
 
     Box(Modifier.fillMaxSize().background(KitsugiColors.Background)) {
 
         // ── Backdrop ──
         if (!backdropUrl.isNullOrBlank()) {
-            AsyncImage(
+            com.kitsugi.animelist.ui.components.KitsugiNsfwImage(
                 model = backdropUrl, contentDescription = null, contentScale = ContentScale.Crop,
+                isAdult = visibleMangas.firstOrNull()?.second?.isAdultContent == true,
                 modifier = Modifier.fillMaxSize().graphicsLayer { alpha = 0.18f }
             )
         }
@@ -187,7 +195,11 @@ fun MangaBrowseScreen(
                         .background(KitsugiColors.SurfaceStrong)
                 ) {
                     if (!backdropUrl.isNullOrBlank()) {
-                        AsyncImage(model = backdropUrl, contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
+                        com.kitsugi.animelist.ui.components.KitsugiNsfwImage(
+                            model = backdropUrl, contentDescription = null, contentScale = ContentScale.Crop,
+                            isAdult = visibleMangas.firstOrNull()?.second?.isAdultContent == true,
+                            modifier = Modifier.fillMaxSize()
+                        )
                     } else {
                         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                             Icon(Icons.Rounded.Book, null, tint = KitsugiColors.TextMuted, modifier = Modifier.size(24.dp))
@@ -207,7 +219,7 @@ fun MangaBrowseScreen(
                     Spacer(Modifier.height(2.dp))
                     Text(
                         if (query.isNotBlank())
-                            "${mergedMangas.size} sonuç · ${states.size} kaynak"
+                            "${visibleMangas.size} sonuç · ${states.size} kaynak"
                         else
                             "${popular.size} manga · ${selFilter?.lang?.uppercase() ?: ""}",
                         color = KitsugiColors.TextSecondary,
@@ -319,7 +331,7 @@ fun MangaBrowseScreen(
                                 }
                             }
                         }
-                        !loading && mergedMangas.isEmpty() ->
+                        !loading && visibleMangas.isEmpty() ->
                             Box(Modifier.fillMaxSize(), Alignment.Center) {
                                 Column(
                                     horizontalAlignment = Alignment.CenterHorizontally,
@@ -336,7 +348,7 @@ fun MangaBrowseScreen(
                             horizontalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
                             // 1) ÖNCE başarıyla veri gelen kaynakların mangaları (en üstte).
-                            items(mergedMangas, key = { "${it.first.stableSourceKey()}|${it.second.url}" }) { (source, manga) ->
+                            items(visibleMangas, key = { "${it.first.stableSourceKey()}|${it.second.url}" }) { (source, manga) ->
                                 MangaCard(manga, accentColor) { onMangaClick(source, manga) }
                             }
                             // 2) SONRA hâlâ yüklenen kaynakların iskelet (placeholder) kartları — EN ALTTA.
