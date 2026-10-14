@@ -624,10 +624,16 @@ object FandomHtmlText {
         private fun countImages(container: Element): Int =
             if (container.normalName() == "img") 1 else container.select("img").size
 
-        /** Fandom video yer tutucusu sayısı (`data-video-key` taşıyan öğeler). */
+        /**
+         * Fandom video yer tutucusu sayısı (`data-video-key` taşıyan öğeler).
+         *
+         * Jsoup'ta `select` öğenin KENDİNİ de eşleştirir; bu yüzden kapsayıcı ayrıca
+         * sayılırsa her video iki kez sayılır (canlı testte 2 video "4" çıkmıştı).
+         */
         private fun countVideos(container: Element): Int {
             val self = if (container.attr("data-video-key").isNotBlank()) 1 else 0
-            return self + container.select("[data-video-key]").size
+            val descendants = container.select("[data-video-key]").count { it !== container }
+            return self + descendants
         }
 
         private fun emitImages(container: Element) {
