@@ -106,6 +106,20 @@ internal object WikidataClient {
         return emptyList()
     }
 
+    /**
+     * Tek bir kimlik özelliğinden (AniList/MAL karakter veya kişi kimliği) Wikidata kaydı:
+     * Fandom P6262 değerleri ve Vikipedi sitelinks'i (`enwiki`, `trwiki`) birlikte döner.
+     *
+     * Kimlik özelliği benzersiz olmalıdır: birden çok QID eşleşirse (veri hatası / ad çakışması)
+     * hangisinin doğru olduğu bilinemez, sonuç null döner. Ağ hatasında da null (çağıran
+     * geçici hatayı [FandomHttp] üzerinden zaten işaretler).
+     */
+    suspend fun identityClaims(property: String, value: String): WikidataEntityClaims? {
+        val qids = findQids(property, value, limit = 3) ?: return null
+        if (qids.size != 1) return null
+        return getEntities(qids)?.get(qids.single())
+    }
+
     // ── Düşük seviye çağrılar ────────────────────────────────────────────────
 
     /** `haswbstatement:P8729=11757` → QID'ler. Ağ hatasında null. */

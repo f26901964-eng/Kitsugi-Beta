@@ -225,4 +225,29 @@ class FandomCharacterQueriesTest {
         assertEquals("梶裕貴", query?.nativeName)
         assertEquals("staff-tmdb", FandomCharacterQueries.fromStaff(staff(roles), "tmdb", 7)?.source)
     }
+
+    @Test
+    fun `staff identity ids come from AniList and MAL sources`() {
+        val roles = listOf(
+            KitsugiStaffCharacterRole(
+                characterId = 2, characterName = "X", characterImageUrl = null,
+                mediaId = 1, mediaTitle = "Jujutsu Kaisen", mediaImageUrl = null,
+                mediaType = "TV", characterRole = "Main", mediaSource = "anilist"
+            )
+        )
+        val fromAniList = FandomCharacterQueries.fromStaff(staff(roles).copy(aniListId = 96870), "anilist", 96870)!!
+        assertTrue(fromAniList.isStaff)
+        assertEquals(96870, fromAniList.aniListStaffId)
+        assertNull(fromAniList.malPeopleId)
+
+        val fromShikimori = FandomCharacterQueries.fromStaff(staff(roles), "shikimori", 65)!!
+        assertNull(fromShikimori.aniListStaffId)
+        assertEquals(65, fromShikimori.malPeopleId)
+
+        // Karakter sorguları ekip değildir ve ekip kimliği taşımaz.
+        val character = FandomCharacterQueries.from(detail("anilist"), "anilist", 1)!!
+        assertFalse(character.isStaff)
+        assertNull(character.aniListStaffId)
+        assertNull(character.malPeopleId)
+    }
 }

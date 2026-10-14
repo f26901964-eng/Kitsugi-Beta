@@ -829,7 +829,7 @@ object FandomRepository {
             }
             if (cached != null) {
                 val page = cached.value as? FandomCharacterPage ?: return@withLock null
-                if (!isRejected(appContext, characterKey, page)) return@withLock applyAcceptance(appContext, characterKey, page)
+                if (!isRejected(appContext, characterKey, page)) return@withLock applyAcceptanceToAll(appContext, characterKey, page)
                 // Reddedilmiş eşleşme: önbellek yok sayılır, yeniden çözülür.
             }
             val failuresBefore = FandomHttp.failureCount()
@@ -839,7 +839,13 @@ object FandomRepository {
                     allowNameFallback = prefs.nameFallback,
                     isRejected = { wikiId, title -> FandomUserChoices.isPageRejected(appContext, characterKey, wikiId, title) }
                 )
-                resolver.resolve(query, forceRefresh)?.let { buildPage(appContext, it, prefs) }?.let { applyAcceptance(appContext, characterKey, it) }
+                val built = mutableListOf<FandomCharacterPage>()
+                for (resolved in resolver.resolveAll(query, forceRefresh)) {
+                    // Bir kaynağın sayfa kurulumu hata verirse diğer kaynak yine gösterilir.
+                    val source = buildSourcePage(appContext, resolved, prefs) ?: continue
+                    built += applyAcceptance(appContext, characterKey, source)
+                }
+                built.firstOrNull()?.copy(alternatives = built.drop(1))
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
@@ -863,8 +869,29 @@ object FandomRepository {
         }
     }
 
+    /** Karakter önbelleği sürümü: v5 = çoklu kaynak (Fandom + Vikipedi) alanı. Eski kayıtlar yok sayılır. */
+    private const val CHARACTER_CACHE_VERSION = "char:v5"
+
+    /** Bir kişi/karakterin tüm tercih kombinasyonlarındaki önbellek anahtarları (silme için). */
+    private fun characterCacheKeys(characterKey: String): List<String> =
+        listOf("tr1:n1", "tr1:n0", "tr0:n1", "tr0:n0").map { "${KEY_PREFIX}$CHARACTER_CACHE_VERSION:$characterKey:$it" }
+
+    /** [buildPage] hatasını tek kaynakla sınırlar (iptal yayılır). */
+    private suspend fun buildSourcePage(
+        context: Context,
+        resolved: FandomResolvedCharacter,
+        prefs: FandomWikiPrefs.State
+    ): FandomCharacterPage? = try {
+        buildPage(context, resolved, prefs)
+    } catch (e: CancellationException) {
+        throw e
+    } catch (e: Exception) {
+        Log.w(TAG, "Kaynak sayfası kurulamadı (${resolved.wikiId}): ${e.message}")
+        null
+    }
+
     private fun characterCacheKey(characterKey: String, prefs: FandomWikiPrefs.State): String =
-        "${KEY_PREFIX}char:v4:$characterKey:" +
+        "${KEY_PREFIX}$CHARACTER_CACHE_VERSION:$characterKey:" +
             (if (prefs.preferTurkish) "tr1" else "tr0") + ":" +
             (if (prefs.nameFallback) "n1" else "n0")
 
@@ -1068,6 +1095,12 @@ object FandomRepository {
             FandomUserChoices.isWikiRejected(context, mediaKey, page.matchedWikiId)
     }
 
+    /** Birincil sayfa ve alternatiflerinin onay durumunu birlikte uygular. */
+    private fun applyAcceptanceToAll(context: Context, characterKey: String, page: FandomCharacterPage): FandomCharacterPage {
+        val primary = applyAcceptance(context, characterKey, page.copy(alternatives = emptyList()))
+        return primary.copy(alternatives = page.alternatives.map { applyAcceptance(context, characterKey, it) })
+    }
+
     /** Kullanıcının onayladığı otomatik eşleşme kesin sayılır. */
     private fun applyAcceptance(context: Context, characterKey: String, page: FandomCharacterPage): FandomCharacterPage {
         if (!page.needsConfirmation) return page
@@ -1155,8 +1188,7 @@ object FandomRepository {
         val appContext = context.applicationContext
         val characterKey = query.cacheKey()
         FandomUserChoices.rejectPage(appContext, characterKey, page.matchedWikiId, page.matchedPageTitle)
-        val keys = mutableListOf<String>()
-        listOf("tr1:n1", "tr1:n0", "tr0:n1", "tr0:n0").mapTo(keys) { "${KEY_PREFIX}char:v4:$characterKey:$it" }
+        val keys = characterCacheKeys(characterKey).toMutableList()
         val mediaKey = page.mediaKey
         if (mediaKey != null && page.isWikiUnconfirmedNameMatch) {
             FandomUserChoices.rejectWiki(appContext, mediaKey, page.matchedWikiId)
@@ -1177,8 +1209,7 @@ object FandomRepository {
         val appContext = context.applicationContext
         val characterKey = query.cacheKey()
         FandomUserChoices.unrejectPage(appContext, characterKey, page.matchedWikiId, page.matchedPageTitle)
-        val keys = mutableListOf<String>()
-        listOf("tr1:n1", "tr1:n0", "tr0:n1", "tr0:n0").mapTo(keys) { "${KEY_PREFIX}char:v4:$characterKey:$it" }
+        val keys = characterCacheKeys(characterKey).toMutableList()
         val mediaKey = page.mediaKey
         if (mediaKey != null && page.isWikiUnconfirmedNameMatch) {
             FandomUserChoices.unrejectWiki(appContext, mediaKey, page.matchedWikiId)

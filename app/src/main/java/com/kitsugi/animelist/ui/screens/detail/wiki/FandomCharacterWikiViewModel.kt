@@ -249,41 +249,75 @@ class FandomCharacterWikiViewModel(application: Application) : AndroidViewModel(
                 null
             }
             _state.value = if (page != null) UiState.Ready(page) else UiState.Unavailable
-            // Otomatik çeviri açıkken tüm metinler kendiliğinden çevrilir: özet + bilgi kutusu
-            // (bölümler kullanıcı açtıkça, [loadSection] içinde çevrilir).
-            if (page != null) {
-                if (isAutoTranslateEnabled()) {
-                    if (!page.description.isNullOrBlank()) translate(KEY_DESCRIPTION)
-                    if (!page.infobox?.allFields().isNullOrEmpty()) translateInfobox()
+            if (page != null) onPageReady(page)
+        }
+    }
+
+    /**
+     * Hazır bir sayfa için: otomatik çeviri ve ilgili wiki sayfaları. Karakter bağlanınca ve
+     * kaynak (Fandom ↔ Vikipedi) değişince aynı akış çalışır.
+     */
+    private fun onPageReady(page: FandomCharacterPage) {
+        // Otomatik çeviri açıkken tüm metinler kendiliğinden çevrilir: özet + bilgi kutusu
+        // (bölümler kullanıcı açtıkça, [loadSection] içinde çevrilir). Ayar suspend olduğu
+        // için bu kontrol bir coroutine içinde yapılır; sayfa bu sırada değişmişse atlanır.
+        viewModelScope.launch {
+            if (!isCurrent(page) || !isAutoTranslateEnabled()) return@launch
+            if (!page.description.isNullOrBlank()) translate(KEY_DESCRIPTION)
+            if (!page.infobox?.allFields().isNullOrEmpty()) translateInfobox()
+        }
+        // İlgili wiki sayfalarını arka planda topla (ilk 1-2 bölümden viki içi bağlantılar).
+        val wikiId = page.wikiId
+        val pageTitle = page.pageTitle
+        relatedJob?.cancel()
+        _relatedPages.value = emptyList()
+        relatedJob = viewModelScope.launch {
+            val list = try {
+                val titles = LinkedHashSet<String>()
+                for (idx in listOf(0, 1)) {
+                    val sec = FandomRepository.loadSection(appContext, wikiId, pageTitle, idx)
+                    if (sec != null) titles += sec.links
                 }
-                // İlgili wiki sayfalarını arka planda topla (ilk 1-2 bölümden viki içi bağlantılar).
-                val wikiId = page.wikiId
-                val pageTitle = page.pageTitle
-                relatedJob?.cancel()
-                _relatedPages.value = emptyList()
-                relatedJob = viewModelScope.launch {
-                    val list = try {
-                        val titles = LinkedHashSet<String>()
-                        for (idx in listOf(0, 1)) {
-                            val sec = FandomRepository.loadSection(appContext, wikiId, pageTitle, idx)
-                            if (sec != null) titles += sec.links
-                        }
-                        if (titles.isNotEmpty()) {
-                            FandomRepository.loadRelatedPages(appContext, wikiId, titles.take(30))
-                        } else emptyList()
-                    } catch (e: CancellationException) {
-                        throw e
-                    } catch (e: Exception) {
-                        Log.w(TAG, "İlgili wiki sayfaları yüklenemedi ($pageTitle): ${e.message}")
-                        emptyList()
-                    }
-                    val current = (_state.value as? UiState.Ready)?.page ?: return@launch
-                    if (current.wikiId == wikiId && current.pageTitle == pageTitle) {
-                        _relatedPages.value = list.take(20)
-                    }
-                }
+                if (titles.isNotEmpty()) {
+                    FandomRepository.loadRelatedPages(appContext, wikiId, titles.take(30))
+                } else emptyList()
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                Log.w(TAG, "İlgili wiki sayfaları yüklenemedi ($pageTitle): ${e.message}")
+                emptyList()
+            }
+            val current = (_state.value as? UiState.Ready)?.page ?: return@launch
+            if (current.wikiId == wikiId && current.pageTitle == pageTitle) {
+                _relatedPages.value = list.take(20)
             }
         }
+    }
+
+    /**
+     * Birden çok kaynak (Fandom sayfası + Vikipedi maddesi) varsa seçilen kaynağı etkin yapar.
+     * [index] 0 = şu anki sayfa, sonrası [FandomCharacterPage.alternatives]. Sekmenin açık
+     * bölümleri, çevirileri ve ilgili sayfaları yeni kaynağa göre sıfırlanır.
+     */
+    fun switchSource(index: Int) {
+        val current = (_state.value as? UiState.Ready)?.page ?: return
+        val next = current.withSourceAt(index) ?: return
+        if (next.wikiId == current.wikiId && next.pageTitle == current.pageTitle) return
+        cancelTranslations()
+        relatedJob?.cancel()
+        readerJob?.cancel()
+        readerSectionJobs.values.forEach { it.cancel() }
+        readerSectionJobs.clear()
+        readerRelatedJob?.cancel()
+        readerBrowserController.reset()
+        _readerBrowser.value = FandomReaderBrowserState.Empty
+        _relatedPages.value = emptyList()
+        _reader.value = ReaderState.Closed
+        _sections.value = emptyMap()
+        _translations.value = emptyMap()
+        _originalKeys.value = emptySet()
+        _state.value = UiState.Ready(next)
+        onPageReady(next)
     }
 
     private fun rebind(forceRefresh: Boolean = false) {

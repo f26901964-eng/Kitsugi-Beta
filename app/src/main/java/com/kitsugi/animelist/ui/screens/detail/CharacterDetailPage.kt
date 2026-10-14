@@ -478,6 +478,7 @@ fun CharacterDetailPage(
                                                 onToggleOriginal = { key -> wikiViewModel.toggleOriginal(key) },
                                                 onOpenWikiPage = { title -> wikiViewModel.openReader(title) },
                                                 onOpenWikiLink = { link -> wikiViewModel.openReader(link.pageTitle, wikiIdOverride = link.wikiId) },
+                                                onSwitchSource = { wikiViewModel.switchSource(it) },
                                                 relatedPages = wikiRelatedPages,
                                                 onOpenGallery = { items, idx ->
                                                     activeGalleryItems = items
@@ -686,6 +687,7 @@ fun CharacterDetailPage(
                                                     onToggleOriginal = { key -> wikiViewModel.toggleOriginal(key) },
                                                 onOpenWikiPage = { title -> wikiViewModel.openReader(title) },
                                                 onOpenWikiLink = { link -> wikiViewModel.openReader(link.pageTitle, wikiIdOverride = link.wikiId) },
+                                                onSwitchSource = { wikiViewModel.switchSource(it) },
                                                 relatedPages = wikiRelatedPages,
                                                     onOpenGallery = { items, idx ->
                                                         activeGalleryItems = items
