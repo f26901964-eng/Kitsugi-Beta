@@ -396,6 +396,15 @@ class FandomCharacterWikiViewModel(application: Application) : AndroidViewModel(
         val page = (_state.value as? UiState.Ready)?.page ?: return
         val reader = _reader.value as? ReaderState.Ready
         val readerLocation = reader?.let { FandomReaderLocation(it.wikiId, it.page.displayTitle) }
+
+        // YAPI KORUMASI: Bölüm içeriği düz metne indirilmez; blok blok çevrilir ve blok
+        // anahtarlarına yazılır. Böylece liste/kart/başlık düzeni, görsel sırası ve
+        // bağlantı hedefleri çeviri sonrasında da birebir aynı kalır.
+        sectionStructure(key, reader, readerLocation)?.let { structure ->
+            translateSectionStructured(key, structure, page, force)
+            return
+        }
+
         val text = when {
             key == KEY_DESCRIPTION -> page.description
             key.startsWith("sec:") -> {
@@ -451,7 +460,82 @@ class FandomCharacterWikiViewModel(application: Application) : AndroidViewModel(
         if (key == KEY_INFOBOX) {
             _translations.update { map -> map.filterKeys { it != KEY_INFOBOX && !it.startsWith(INFOBOX_FIELD_PREFIX) } }
         } else {
-            _translations.update { it - key }
+            // Bölüm çevirisinde blok çocukları da silinir; yarım kalan çeviri ekranda kalmaz.
+            _translations.update { it.withoutTranslation(key) }
+        }
+    }
+
+    /**
+     * Anahtar bir bölüm içeriğine karşılık geliyorsa o içeriği döner; aksi hâlde `null`
+     * (açıklama/özet gibi düz metin akışı kullanılır).
+     */
+    private fun sectionStructure(
+        key: String,
+        reader: ReaderState.Ready?,
+        readerLocation: FandomReaderLocation?
+    ): FandomSectionContent? {
+        if (key.startsWith("sec:")) {
+            val index = key.removePrefix("sec:").toIntOrNull() ?: return null
+            return (_sections.value[index] as? SectionState.Loaded)?.content
+        }
+        if (reader == null || readerLocation == null) return null
+        return reader.sections.entries
+            .firstOrNull { (index, _) -> key == FandomReaderTranslationKeys.section(readerLocation, index) }
+            ?.value
+    }
+
+    /**
+     * Bölümü blok blok çevirir. Tamamlanan her blok anında arayüze akar; sonuçta bölüm
+     * anahtarına "tamam" işareti yazılır. Hiçbir blok çevrilemezse (örn. metin zaten hedef
+     * dilde) çeviri tamamen geri alınır ve orijinal hâliyle kalır.
+     */
+    private fun translateSectionStructured(
+        key: String,
+        content: FandomSectionContent,
+        page: FandomCharacterPage,
+        force: Boolean
+    ) {
+        if (force) clearTranslation(key)
+        _translating.update { it + key }
+        val generation = translationGeneration
+        translationJobs[key] = viewModelScope.launch {
+            fun isAlive(): Boolean = generation == translationGeneration && isCurrent(page)
+            try {
+                val entries = withContext(Dispatchers.IO) {
+                    translateSectionBlocks(
+                        baseKey = key,
+                        content = content,
+                        translate = { chunk -> translationManager.translateToTarget(chunk) },
+                        onBlock = { childKey, value ->
+                            // Her blok anında yansır; bölüm anahtarına işaret de yazılır ki
+                            // "çevrildi/orijinal" düğmesi ilk blokla birlikte doğru duruma geçsin.
+                            if (isAlive()) {
+                                _translations.update {
+                                    it + (childKey to value) + (key to WikiStructuredTranslationKeys.COMPLETE)
+                                }
+                            }
+                        }
+                    )
+                }
+                if (!isAlive()) return@launch
+                if (entries.isEmpty()) {
+                    clearTranslation(key)
+                } else {
+                    _translations.update { it + entries + (key to WikiStructuredTranslationKeys.COMPLETE) }
+                }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                Log.w(TAG, "Bölüm çevirisi başarısız ($key): ${e.message}")
+                if (generation == translationGeneration && isCurrent(page)) clearTranslation(key)
+            } finally {
+                if (generation == translationGeneration &&
+                    translationJobs[key] === kotlin.coroutines.coroutineContext[kotlinx.coroutines.Job]
+                ) {
+                    _translating.update { it - key }
+                    translationJobs.remove(key)
+                }
+            }
         }
     }
 
@@ -509,15 +593,11 @@ class FandomCharacterWikiViewModel(application: Application) : AndroidViewModel(
             try {
                 val results = withContext(Dispatchers.IO) {
                     val singleLine = targets.map { it.value.value.replace(Regex("\\s*\\n\\s*"), " · ").trim() }
-                    val joined = singleLine.joinToString("\n")
-                    val translatedJoined = runCatching { translationManager.translateToTarget(joined) }.getOrDefault("")
-                    val lines = translatedJoined.split('\n').map { it.trim() }
-                    if (lines.size == singleLine.size) {
-                        lines
-                    } else {
-                        singleLine.map { value ->
-                            runCatching { translationManager.translateToTarget(value) }.getOrDefault(value)
-                        }
+                    // YAPI KORUMASI: Satır sayısı kanıtlanır (⟪§⟫ ayırıcı jetonu). Google
+                    // satırları birleştirir/bölerse tek istek terk edilir ve alanlar tek tek
+                    // çevrilir; böylece etiket-değer eşleşmesi hiçbir koşulda kaymaz.
+                    translateRowsPreservingStructure(singleLine) { row ->
+                        translationManager.translateToTarget(row)
                     }
                 }
                 if (generation != translationGeneration || !isCurrent(page)) return@launch

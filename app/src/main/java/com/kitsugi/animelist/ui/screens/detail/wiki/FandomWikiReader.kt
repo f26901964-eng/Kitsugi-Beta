@@ -837,6 +837,7 @@ private fun ReaderContentsCard(
                             translatedText = state.translations[FandomReaderTranslationKeys.section(
                                 FandomReaderLocation(state.wikiId, state.page.displayTitle), section.index
                             )],
+                            translations = state.translations,
                             isTranslating = FandomReaderTranslationKeys.section(
                                 FandomReaderLocation(state.wikiId, state.page.displayTitle), section.index
                             ) in state.translatingKeys,
@@ -866,6 +867,8 @@ private fun ReaderSectionContent(
     isFailed: Boolean,
     translationKey: String,
     translatedText: String?,
+    /** Bölümün blok blok çevirileri (yapı koruyan çeviri); anahtar [translationKey] önekli. */
+    translations: Map<String, String> = emptyMap(),
     isTranslating: Boolean,
     showingOriginal: Boolean,
     preferredTranslator: String,
@@ -908,7 +911,16 @@ private fun ReaderSectionContent(
             }
             else -> {
                 val sourceText = content.plainText()
-                val showTranslated = !translatedText.isNullOrBlank() && !showingOriginal
+                // YAPI KORUMASI: Çeviri blok blok yapıldığı için aynı yapılandırılmış çizici
+                // kullanılır. Görseller kendi konumunda kalır, madde/kart/alıntı düzeni ve
+                // bağlantılar (dokunma hedefleri) orijinaldekiyle birebir aynıdır.
+                val translatedContent = remember(content, translations, translationKey, showingOriginal) {
+                    if (showingOriginal) null else content.withTranslatedBlocks(translationKey, translations)
+                }
+                // Yapı bilgisi olmayan (eski önbellek) düz metin çevirisi için yedek yol.
+                val flatTranslation = translatedText?.takeUnless {
+                    it.isBlank() || WikiStructuredTranslationKeys.isCompleteMarker(it)
+                }
                 if (sourceText.isNotBlank()) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -925,18 +937,20 @@ private fun ReaderSectionContent(
                         )
                     }
                 }
-                if (showTranslated) {
-                    Text(
-                        text = translatedText.orEmpty(),
-                        color = KitsugiColors.TextPrimary,
-                        style = MaterialTheme.typography.bodyMedium
-                    )
-                    // Çeviri düz metindir; görseller ayrı blok olarak kalır ve galeriye
-                    // erişim çevrilmiş görünümde de aynı şekilde çalışır.
-                    content.blocks.filter { it.kind == FandomBlockKind.IMAGE || it.kind == FandomBlockKind.CARD }
-                        .forEach { block -> ReaderBlock(block, accentColor, onOpenLink, galleryItems, onOpenGallery) }
-                } else {
-                    content.blocks.forEach { block ->
+                when {
+                    translatedContent != null -> translatedContent.blocks.forEach { block ->
+                        ReaderBlock(block, accentColor, onOpenLink, galleryItems, onOpenGallery)
+                    }
+                    flatTranslation != null && !showingOriginal -> {
+                        Text(
+                            text = flatTranslation,
+                            color = KitsugiColors.TextPrimary,
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                        content.blocks.filter { it.kind == FandomBlockKind.IMAGE || it.kind == FandomBlockKind.CARD }
+                            .forEach { block -> ReaderBlock(block, accentColor, onOpenLink, galleryItems, onOpenGallery) }
+                    }
+                    else -> content.blocks.forEach { block ->
                         ReaderBlock(block, accentColor, onOpenLink, galleryItems, onOpenGallery)
                     }
                 }

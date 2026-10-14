@@ -4,6 +4,7 @@ import android.content.Context
 import com.kitsugi.animelist.core.network.KitsugiHttpClient
 import com.kitsugi.animelist.utils.KitsugiTranslatePrefs
 import com.kitsugi.animelist.utils.cleanShikimoriBbCode
+import com.kitsugi.animelist.utils.isTechnicalTranslationValue
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -161,6 +162,11 @@ class TranslationManager(context: Context) {
         val trimmed = text.trim().cleanShikimoriBbCode()
         if (trimmed.isBlank()) return@withContext ""
 
+        // Teknik metin (yalnızca URL, dosya adı, `File:` ad alanı değeri…) çevrilmez.
+        // Google Translate bu değerlere boşluk ekler / yol parçasını çevirir ve bağlantı
+        // erişilemez hâle gelir; hiç istek yapmadan orijinali döndürmek en güvenli yol.
+        if (isTechnicalTranslationValue(trimmed)) return@withContext trimmed
+
         // Metin zaten Türkçeyse çevirme — gereksiz API çağrısını önle
         if (resolvedTarget.equals("tr", ignoreCase = true) && isLikelyTurkish(trimmed)) {
             return@withContext trimmed
@@ -210,11 +216,24 @@ class TranslationManager(context: Context) {
     suspend fun translateToEnglish(text: String?): String = translateTo(text, "en")
 
     /**
+     * Maskelenmiş metin + çeviri sonrası geri kurma ve bütünlük denetimi.
+     *
+     * [isIntact] çevirinin korunan jetonları **kaybetmediğini** doğrular. Google bir jetonu
+     * düşürürse korunan URL/dosya adı metinden tamamen silinirdi; bu durumda çeviri
+     * reddedilir ve o parça orijinal hâliyle gösterilir (kopuk bağlantı gösterilmez).
+     */
+    private class MaskedMarkdown(
+        val masked: String,
+        val unmask: (String) -> String,
+        val isIntact: (String) -> Boolean
+    )
+
+    /**
      * Markdown linklerini, medya etiketlerini (img/webm/youtube), spoiler işaretlerini
      * ve URL'leri Google Translate'in bozmasını önlemek için harf içermeyen sembolik
      * yer tutucularla maskeler (böylece Google Translate yer tutucu içindeki kelimeleri çeviremez).
      */
-    private fun maskMarkdown(text: String): Pair<String, (String) -> String> {
+    private fun maskMarkdown(text: String): MaskedMarkdown {
         var masked = text
 
         // 1. AniList / Markdown görsel ve video gömmeleri: img220(https://...), webm(https://...), ![](https://...)
@@ -243,6 +262,19 @@ class TranslationManager(context: Context) {
         // 3. Korunacak bağımsız URL'ler
         val rawUrlRegex = Regex("""https?://[^\s<>"'\)\]]+""")
         masked = rawUrlRegex.replace(masked) { match ->
+            val idx = rawTokens.size
+            rawTokens.add(match.value.trim())
+            "⟪@$idx⟫"
+        }
+
+        // 3.5 Wiki'ye özgü korunacak jetonlar: [[Sayfa|Etiket]], {{şablon}}, File:/Image:/
+        //     Category: ad alanı değerleri ve e-posta adresleri. Bunlar çevrilirse bağlantı
+        //     hedefi ya da şablon adı bozulur; kullanıcı yanlış sayfaya düşer.
+        val wikiTokenRegex = Regex(
+            """\[\[[^\]]+\]\]|\{\{[^}]+\}\}|\b(?:File|Image|Category|Template|Dosya|Resim|Kategori|Şablon)\s*:\s*[^\s|]+|\b[\w.+-]+@[\w-]+\.[A-Za-z]{2,}\b""",
+            RegexOption.IGNORE_CASE
+        )
+        masked = wikiTokenRegex.replace(masked) { match ->
             val idx = rawTokens.size
             rawTokens.add(match.value.trim())
             "⟪@$idx⟫"
@@ -300,7 +332,17 @@ class TranslationManager(context: Context) {
             res
         }
 
-        return Pair(masked, unmasker)
+        // Bütünlük denetimi: korunan jetonlardan biri çeviri yanıtında kaybolduysa
+        // URL/dosya adı metinden tamamen silinmiş demektir → çeviri reddedilir.
+        val isIntact: (String) -> Boolean = { translated ->
+            rawTokens.indices.all { index ->
+                Regex("⟪\\s*@\\s*$index\\s*⟫").containsMatchIn(translated)
+            } && links.indices.all { index ->
+                Regex("⟪\\s*#\\s*$index\\s*⟫").containsMatchIn(translated)
+            }
+        }
+
+        return MaskedMarkdown(masked, unmasker, isIntact)
     }
 
     /**
@@ -603,28 +645,37 @@ class TranslationManager(context: Context) {
         onPartial: ((String) -> Unit)? = null
     ): GoogleTranslationResult {
         return try {
-            val (maskedText, unmasker) = maskMarkdown(text)
-            val chunks = splitIntoChunks(maskedText, maxChunkSize = MAX_CHUNK_CHARS)
+            val mask = maskMarkdown(text)
+            val chunks = splitIntoChunks(mask.masked, maxChunkSize = MAX_CHUNK_CHARS)
             val translatedChunks = mutableListOf<String>()
             var allSucceeded = true
 
             for ((index, chunk) in chunks.withIndex()) {
-                val translated = fetchSingleChunkWithRetry(chunk, sourceLang, targetLang)
-                if (translated == null) {
+                val raw = fetchSingleChunkWithRetry(chunk, sourceLang, targetLang)
+                // Korumalı jeton (URL/dosya adı/bağlantı) kaybı varsa çeviri reddedilir:
+                // bozuk bağlantı göstermektense kaynak metin korunur.
+                val translated = if (raw == null || !mask.isIntact(raw)) {
+                    if (raw != null) {
+                        android.util.Log.w(
+                            "TranslationManager",
+                            "Çeviri korunan bağlantı jetonunu kaybetti; parça orijinal bırakıldı (uzunluk=${chunk.length})"
+                        )
+                    }
                     allSucceeded = false
-                    translatedChunks.add(chunk)
+                    chunk
                 } else {
-                    translatedChunks.add(translated)
+                    raw
                 }
+                translatedChunks.add(translated)
                 if (onPartial != null && index < chunks.lastIndex) {
                     val remaining = chunks.subList(index + 1, chunks.size).joinToString("\n\n")
                     runCatching {
-                        onPartial(unmasker(translatedChunks.joinToString("\n\n") + "\n\n" + remaining))
+                        onPartial(mask.unmask(translatedChunks.joinToString("\n\n") + "\n\n" + remaining))
                     }
                 }
             }
 
-            GoogleTranslationResult(unmasker(translatedChunks.joinToString("\n\n")), allSucceeded)
+            GoogleTranslationResult(mask.unmask(translatedChunks.joinToString("\n\n")), allSucceeded)
         } catch (ce: CancellationException) {
             throw ce
         } catch (e: Exception) {

@@ -878,6 +878,17 @@ class FandomMediaWikiViewModel(application: Application) : AndroidViewModel(appl
         val ready = _state.value as? UiState.Ready ?: return
         val articleTarget = isArticleTranslationKey(key)
         val articlePage = (_article.value as? ArticleState.Ready)?.page
+        val reader = _reader.value as? ReaderState.Ready
+        val readerLocation = reader?.let { FandomReaderLocation(ready.ref.wikiId, it.page.displayTitle) }
+
+        // YAPI KORUMASI: Bölüm içeriği düz metne indirilmez; blok blok çevrilip blok
+        // anahtarlarına yazılır. Böylece liste/kart/başlık düzeni, görsel sırası ve
+        // bağlantı hedefleri çeviri sonrasında da birebir aynı kalır.
+        sectionStructure(key, reader, readerLocation)?.let { structure ->
+            translateSectionStructured(key, structure, ready, articleTarget, articlePage, force)
+            return
+        }
+
         val text = currentTextForKey(key)
         if (text.isNullOrBlank()) return
         // Kaynak zaten hedef dilde: "çeviri" metni değiştirmez, yalnızca kafa karıştırır
@@ -1028,12 +1039,11 @@ class FandomMediaWikiViewModel(application: Application) : AndroidViewModel(appl
             try {
                 val translated = withContext(Dispatchers.IO) {
                     val lines = targets.map { it.value.value.replace(Regex("\\s*\\n\\s*"), " · ").trim() }
-                    val joined = runCatching {
-                        translationManager.translateToTarget(lines.joinToString("\n"))
-                    }.getOrDefault("")
-                    val resultLines = joined.split('\n').map { it.trim() }
-                    if (resultLines.size == lines.size) resultLines else lines.map { line ->
-                        runCatching { translationManager.translateToTarget(line) }.getOrDefault(line)
+                    // YAPI KORUMASI: Satır sayısı kanıtlanır (⟪§⟫ ayırıcı jetonu). Google
+                    // satırları birleştirir/bölerse tek istek terk edilir ve alanlar tek tek
+                    // çevrilir; etiket-değer eşleşmesi hiçbir koşulda kaymaz.
+                    translateRowsPreservingStructure(lines) { line ->
+                        translationManager.translateToTarget(line)
                     }
                 }
                 if (generation != translationGeneration || !isCurrent(ready) || !isCurrentArticle(page)) return@launch
@@ -1066,7 +1076,93 @@ class FandomMediaWikiViewModel(application: Application) : AndroidViewModel(appl
         if (key == FandomCharacterWikiViewModel.KEY_INFOBOX) {
             _translations.update { map -> map.filterKeys { it != key && !it.startsWith("ib:") } }
         } else {
-            _translations.update { it - key }
+            // Bölüm çevirisinde blok çocukları da bırakılır; yarım çeviri ekranda kalmaz.
+            _translations.update { it.withoutTranslation(key) }
+        }
+    }
+
+    /**
+     * Anahtar bir bölüm içeriğine karşılık geliyorsa o içeriği döner; aksi hâlde `null`
+     * (özet/açıklama/bilgi kutusu gibi düz metin akışları kullanılır).
+     */
+    private fun sectionStructure(
+        key: String,
+        reader: ReaderState.Ready?,
+        readerLocation: FandomReaderLocation?
+    ): FandomSectionContent? {
+        if (key.startsWith("item-sec:")) {
+            val parts = key.removePrefix("item-sec:")
+            val index = parts.substringBefore(':').toIntOrNull() ?: return null
+            val title = parts.substringAfter(':', missingDelimiterValue = "")
+            val current = _selected.value as? SelectedState.Ready ?: return null
+            if (title.isBlank() || current.title != title) return null
+            return (_selectedSections.value[index] as? ArticleSectionState.Loaded)?.content
+        }
+        if (key.startsWith("sec:")) {
+            val index = key.removePrefix("sec:").toIntOrNull() ?: return null
+            return (_articleSections.value[index] as? FandomCharacterWikiViewModel.SectionState.Loaded)?.content
+        }
+        if (reader == null || readerLocation == null) return null
+        return reader.sections.entries
+            .firstOrNull { (index, _) -> key == FandomReaderTranslationKeys.section(readerLocation, index) }
+            ?.value
+    }
+
+    /**
+     * Bölümü blok blok çevirir. Tamamlanan her blok anında arayüze akar; sonuçta bölüm
+     * anahtarına "tamam" işareti yazılır. Hiçbir blok çevrilemezse (örn. metin zaten hedef
+     * dilde) çeviri tamamen geri alınır ve bölüm orijinal hâliyle kalır.
+     */
+    private fun translateSectionStructured(
+        key: String,
+        content: FandomSectionContent,
+        ready: UiState.Ready,
+        articleTarget: Boolean,
+        articlePage: FandomCharacterPage?,
+        force: Boolean
+    ) {
+        if (force) _translations.update { it.withoutTranslation(key) }
+        _translating.update { it + key }
+        val generation = translationGeneration
+        translationJobs[key] = viewModelScope.launch {
+            fun isAlive(): Boolean = generation == translationGeneration && isCurrent(ready) &&
+                (!articleTarget || articlePage?.let(::isCurrentArticle) == true)
+            try {
+                val entries = withContext(Dispatchers.IO) {
+                    translateSectionBlocks(
+                        baseKey = key,
+                        content = content,
+                        translate = { chunk -> translationManager.translateToTarget(chunk) },
+                        onBlock = { childKey, value ->
+                            // Her blok anında yansır; bölüm anahtarına işaret de yazılır ki
+                            // "çevrildi/orijinal" düğmesi ilk blokla birlikte doğru duruma geçsin.
+                            if (isAlive()) {
+                                _translations.update {
+                                    it + (childKey to value) + (key to WikiStructuredTranslationKeys.COMPLETE)
+                                }
+                            }
+                        }
+                    )
+                }
+                if (!isAlive()) return@launch
+                if (entries.isEmpty()) {
+                    _translations.update { it.withoutTranslation(key) }
+                } else {
+                    _translations.update { it + entries + (key to WikiStructuredTranslationKeys.COMPLETE) }
+                }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                Log.w(TAG, "Bölüm çevirisi başarısız ($key): ${e.message}")
+                if (generation == translationGeneration) _translations.update { it.withoutTranslation(key) }
+            } finally {
+                if (generation == translationGeneration &&
+                    translationJobs[key] === kotlin.coroutines.coroutineContext[kotlinx.coroutines.Job]
+                ) {
+                    _translating.update { it - key }
+                    translationJobs.remove(key)
+                }
+            }
         }
     }
 
@@ -1100,26 +1196,10 @@ class FandomMediaWikiViewModel(application: Application) : AndroidViewModel(appl
             try {
                 val translatedValues = withContext(Dispatchers.IO) {
                     val sourceLines = targets.map { (_, field) -> field.value.replace(Regex("\\s*\\n\\s*"), " · ").trim() }
-                    val translatedJoined = try {
-                        translationManager.translateToTarget(sourceLines.joinToString("\n"))
-                    } catch (e: CancellationException) {
-                        throw e
-                    } catch (e: Exception) {
-                        ""
-                    }
-                    val lines = translatedJoined.split('\n').map { it.trim() }
-                    if (lines.size == sourceLines.size && lines.all { it.isNotBlank() }) {
-                        lines
-                    } else {
-                        sourceLines.map { value ->
-                            try {
-                                translationManager.translateToTarget(value)
-                            } catch (e: CancellationException) {
-                                throw e
-                            } catch (e: Exception) {
-                                value
-                            }
-                        }
+                    // YAPI KORUMASI: Satır sayısı kanıtlanır (⟪§⟫ ayırıcı jetonu); kanıtlanamazsa
+                    // alanlar tek tek çevrilir ve sıra hiçbir koşulda kaymaz.
+                    translateRowsPreservingStructure(sourceLines) { row ->
+                        translationManager.translateToTarget(row)
                     }
                 }
                 if (generation != translationGeneration || !isCurrentArticleItem(title, article.pageTitle)) return@launch

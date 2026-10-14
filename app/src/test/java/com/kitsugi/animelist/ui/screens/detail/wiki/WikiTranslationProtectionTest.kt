@@ -1,0 +1,289 @@
+package com.kitsugi.animelist.ui.screens.detail.wiki
+
+import com.kitsugi.animelist.data.fandom.FandomBlockKind
+import com.kitsugi.animelist.data.fandom.FandomBlockLink
+import com.kitsugi.animelist.data.fandom.FandomImage
+import com.kitsugi.animelist.data.fandom.FandomSectionContent
+import com.kitsugi.animelist.data.fandom.FandomTextBlock
+import kotlinx.coroutines.runBlocking
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
+import org.junit.Test
+
+/**
+ * Otomatik çeviri koruma katmanının sözleşme testleri.
+ *
+ * Buradaki kurallar doğrudan kullanıcı şikâyetlerinden türetildi: çeviri açıldığında
+ * bağlantılar kopmamalı, sayfa düzeni (blok sırası, görsel konumu, kart/grup yapısı)
+ * değişmemeli ve bilgi kutusu değerleri birbirine kaymamalı.
+ */
+class WikiTranslationProtectionTest {
+
+    private fun paragraph(text: String, links: List<FandomBlockLink> = emptyList()) =
+        FandomTextBlock(kind = FandomBlockKind.PARAGRAPH, text = text, links = links)
+
+    private fun image(url: String = "https://static.example/yume.png") =
+        FandomTextBlock(
+            kind = FandomBlockKind.IMAGE,
+            text = "Yume Tōrō",
+            image = FandomImage(url = url, caption = "Yume Tōrō")
+        )
+
+    // ---------------------------------------------------------------- yapı koruması
+
+    @Test
+    fun blockTranslationKeepsOrderKindsImagesAndLinks() = runBlocking {
+        val content = FandomSectionContent(
+            blocks = listOf(
+                FandomTextBlock(kind = FandomBlockKind.HEADING, text = "Name"),
+                paragraph(
+                    text = "Yume Tōrō is a song from the Your Name film.",
+                    links = listOf(
+                        FandomBlockLink(label = "Yume Tōrō", url = "https://kiminonawa.fandom.com/wiki/Yume_Tourou"),
+                        FandomBlockLink(label = "Your Name", url = "https://kiminonawa.fandom.com/wiki/Kimi_no_Na_wa")
+                    )
+                ),
+                image(),
+                FandomTextBlock(kind = FandomBlockKind.BULLET, text = "Release Date: August 24, 2016"),
+                FandomTextBlock(
+                    kind = FandomBlockKind.CARD,
+                    text = "Kimi no Na wa. Soundtracks",
+                    href = "https://kiminonawa.fandom.com/wiki/Kimi_no_Na_wa._Soundtracks",
+                    subtitle = "Release date: 2016"
+                ),
+                FandomTextBlock(kind = FandomBlockKind.QUOTE, text = "It plays at the end of the 2nd minute.")
+            )
+        )
+
+        val entries = translateSectionBlocks("sec:0", content) { text -> "[tr] $text" }
+
+        val translated = content.withTranslatedBlocks("sec:0", entries)
+        assertNotNull(translated)
+        translated!!
+
+        // Blok sayısı, türü ve SIRASI birebir korunur: görseller yerinden kaymaz.
+        assertEquals(content.blocks.size, translated.blocks.size)
+        assertEquals(
+            content.blocks.map { it.kind },
+            translated.blocks.map { it.kind }
+        )
+
+        // Görsel bloğu hiç değişmez (URL ve başlık aynı).
+        assertEquals(content.blocks[2], translated.blocks[2])
+
+        // Bağlantılar (dokunma hedefi) ve etiketleri korunur.
+        val translatedParagraph = translated.blocks[1]
+        assertEquals(content.blocks[1].links, translatedParagraph.links)
+        assertTrue(translatedParagraph.text.startsWith("[tr] "))
+        assertTrue(translatedParagraph.text.contains("Yume Tōrō"))
+        assertTrue(translatedParagraph.text.contains("Your Name"))
+
+        // Sayfaya bağlı kart başlığı çevrilmez; yalnızca alt satır çevrilir.
+        val card = translated.blocks[4]
+        assertEquals("Kimi no Na wa. Soundtracks", card.text)
+        assertEquals("[tr] Release date: 2016", card.subtitle)
+        assertEquals("https://kiminonawa.fandom.com/wiki/Kimi_no_Na_wa._Soundtracks", card.href)
+    }
+
+    @Test
+    fun translatedTextIsNotProducedWhenTranslationIsIdentical() = runBlocking {
+        val content = FandomSectionContent(blocks = listOf(paragraph("Yume Tōrō")))
+        val entries = translateSectionBlocks("sec:0", content) { it }
+        assertTrue(entries.isEmpty())
+        assertNull(content.withTranslatedBlocks("sec:0", entries))
+    }
+
+    @Test
+    fun withTranslatedBlocksReturnsNullWhenNoChildTranslationExists() {
+        val content = FandomSectionContent(blocks = listOf(paragraph("Yume Tōrō")))
+        assertNull(content.withTranslatedBlocks("sec:0", emptyMap()))
+        assertNull(content.withTranslatedBlocks("sec:0", mapOf("sec:0" to WikiStructuredTranslationKeys.COMPLETE)))
+    }
+
+    // ---------------------------------------------------------------- bağlantı koruması
+
+    @Test
+    fun linkMaskRefusesTranslationThatLostLabels() {
+        val text = "Yume Tōrō is a song from Your Name."
+        val mask = WikiLinkLabelMask.of(
+            text,
+            listOf(
+                FandomBlockLink("Yume Tōrō", "https://wiki/Yume_Tourou"),
+                FandomBlockLink("Your Name", "https://wiki/Kimi_no_Na_wa")
+            )
+        )
+        assertTrue(mask.hasMaskedLabels)
+        assertFalse(mask.masked.contains("Yume Tōrō"))
+
+        // Jetonlar korunmuşsa çeviri geri kurulur.
+        val restored = mask.restore("⟪L0⟫ bir şarkıdır, ⟪L1⟫ filminden.")
+        assertEquals("Yume Tōrō bir şarkıdır, Your Name filminden.", restored)
+
+        // Google jetonu düşürdüyse (ya da çoğalttıysa) çeviri reddedilir.
+        assertNull(mask.restore("Yume Tōrō bir şarkıdır."))
+        assertNull(mask.restore("⟪L0⟫ ⟪L0⟫ ⟪L1⟫"))
+    }
+
+    @Test
+    fun blockWithLinksStaysOriginalWhenMaskCannotBeRestored() = runBlocking {
+        val content = FandomSectionContent(
+            blocks = listOf(
+                paragraph(
+                    text = "Yume Tōrō is a song from Your Name.",
+                    links = listOf(FandomBlockLink("Yume Tōrō", "https://wiki/Yume_Tourou"))
+                )
+            )
+        )
+        // Çeviri jetonu düşüren bir yanıt döndürüyor → blok orijinal hâliyle kalmalı.
+        val entries = translateSectionBlocks("sec:0", content) { "tamamen başka bir metin" }
+        assertTrue(entries.isEmpty())
+        assertNull(content.withTranslatedBlocks("sec:0", entries))
+    }
+
+    // ---------------------------------------------------------------- teknik değerler
+
+    @Test
+    fun technicalValuesAreNeverSentToTranslator() = runBlocking {
+        val rows = listOf(
+            "https://kiminonawa.fandom.com/wiki/File:01_-_Yume_Tourou.ogg",
+            "File:01_-_Yume_Tourou.ogg",
+            "01_-_Yume_Tourou.ogg",
+            "August 24, 2016",
+            "2:09"
+        )
+        val seen = mutableListOf<String>()
+        val translator: suspend (String) -> String = { value ->
+            seen.add(value)
+            "[tr] $value"
+        }
+        val translated = translateRowsPreservingStructure(rows, translator)
+
+        assertEquals(rows.size, translated.size)
+        // URL, ad alanı ve dosya adı satırları çeviriye hiç gönderilmez.
+        assertEquals(rows[0], translated[0])
+        assertEquals(rows[1], translated[1])
+        assertEquals(rows[2], translated[2])
+        assertTrue(seen.none { it.contains("https://") || it.startsWith("File:") || it.endsWith(".ogg") })
+        // Çevrilebilir satır (tarih) çeviriden geçer; "2:09" gibi teknik satır yerinde kalır.
+        assertEquals("[tr] August 24, 2016", translated[3])
+        assertEquals("2:09", translated[4])
+    }
+
+    @Test
+    fun isTechnicalWikiValueRecognisesUrlsFilesAndNamespaces() {
+        assertTrue(isTechnicalWikiValue("https://kiminonawa.fandom.com/wiki/File:01_-_Yume_Tourou.ogg"))
+        assertTrue(isTechnicalWikiValue("File:01_-_Yume_Tourou.ogg"))
+        assertTrue(isTechnicalWikiValue("Category:Songs"))
+        assertTrue(isTechnicalWikiValue("01_-_Yume_Tourou.ogg"))
+        assertTrue(isTechnicalWikiValue("2016"))
+        assertTrue(isTechnicalWikiValue("v2.4.289"))
+
+        assertFalse(isTechnicalWikiValue("Kimi no Na wa."))
+        assertFalse(isTechnicalWikiValue("Yume Tōrō is a song from the Your Name film."))
+        assertFalse(isTechnicalWikiValue("Release Date: August 24, 2016"))
+    }
+
+    // ---------------------------------------------------------------- satır yapısı
+
+    @Test
+    fun rowTranslationUsesSentinelProofWhenLineCountIsPreserved() = runBlocking {
+        val rows = listOf("Kanji", "Rōmaji: Yume Tōrō", "English: Dream Lantern")
+        var calls = 0
+        val translator: suspend (String) -> String = { joined ->
+            calls++
+            // Ayırıcıyı koruyan "gerçekçi" Google yanıtı.
+            joined.split("⟪§⟫").joinToString("⟪§⟫") { it.trim().let { line -> "[tr] $line" } }
+        }
+        val translated = translateRowsPreservingStructure(rows, translator)
+
+        assertEquals(1, calls)
+        assertEquals(listOf("[tr] Kanji", "[tr] Rōmaji: Yume Tōrō", "[tr] English: Dream Lantern"), translated)
+    }
+
+    @Test
+    fun rowTranslationFallsBackToPerRowWhenSentinelIsLost() = runBlocking {
+        val rows = listOf("Kanji", "Rōmaji: Yume Tōrō", "English: Dream Lantern")
+        val calls = mutableListOf<String>()
+        val translator: suspend (String) -> String = { value ->
+            calls.add(value)
+            if (value.contains("⟪§⟫")) "tek satıra indirgenmiş cevap" else "[tr] $value"
+        }
+        val translated = translateRowsPreservingStructure(rows, translator)
+
+        // İlk çağrı tek istek, sonrası satır satır yedek.
+        assertEquals(4, calls.size)
+        assertEquals(listOf("[tr] Kanji", "[tr] Rōmaji: Yume Tōrō", "[tr] English: Dream Lantern"), translated)
+    }
+
+    @Test
+    fun rowTranslationKeepsRowCountWhenTranslatorFails() = runBlocking {
+        val rows = listOf("Kanji", "Rōmaji: Yume Tōrō")
+        val translated = translateRowsPreservingStructure(rows) { throw IllegalStateException("ağ yok") }
+        assertEquals(rows, translated)
+    }
+
+    // ---------------------------------------------------------------- kopyalama ve temizlik
+
+    @Test
+    fun copyTextKeepsBulletsAndSkipsImages() = runBlocking {
+        val content = FandomSectionContent(
+            blocks = listOf(
+                FandomTextBlock(kind = FandomBlockKind.BULLET, text = "Track Number: 1"),
+                image()
+            )
+        )
+        val entries = translateSectionBlocks("sec:0", content) { text -> "[tr] $text" }
+
+        assertEquals("• [tr] Track Number: 1", content.copyTextFor("sec:0", entries, showOriginal = false))
+        assertEquals("• Track Number: 1", content.copyTextFor("sec:0", entries, showOriginal = true))
+    }
+
+    @Test
+    fun copyTextFallsBackToFlatTranslationForLegacyEntries() {
+        val content = FandomSectionContent(blocks = listOf(paragraph("Yume Tōrō")))
+        val flat = "Eski önbellekten gelen düz metin çevirisi"
+        assertEquals(flat, content.copyTextFor("sec:0", emptyMap(), showOriginal = false, flatFallback = flat))
+        assertEquals("Yume Tōrō", content.copyTextFor("sec:0", emptyMap(), showOriginal = true, flatFallback = flat))
+    }
+
+    @Test
+    fun copyTextNeverCopiesTheCompleteMarker() {
+        val content = FandomSectionContent(blocks = listOf(paragraph("Yume Tōrō")))
+        val marker = WikiStructuredTranslationKeys.COMPLETE
+        // Yapısal çeviri yoksa (örn. bölümde yalnızca görsel var) düz metin yedeği işareti
+        // panoya taşımamalı; orijinal metin kopyalanır.
+        assertEquals("Yume Tōrō", content.copyTextFor("sec:0", mapOf("sec:0" to marker), showOriginal = false, flatFallback = marker))
+    }
+
+    @Test
+    fun withoutTranslationDropsBaseKeyAndAllBlockChildren() {
+        val child = WikiStructuredTranslationKeys.block("sec:0", 3)
+        val subtitleChild = WikiStructuredTranslationKeys.subtitle("sec:0", 3)
+        val other = WikiStructuredTranslationKeys.block("sec:1", 3)
+        val map = mapOf(
+            "sec:0" to WikiStructuredTranslationKeys.COMPLETE,
+            child to "çevrilmiş blok",
+            subtitleChild to "çevrilmiş alt satır",
+            other to "başka bölüm",
+            "desc" to "açıklama"
+        )
+
+        val cleaned = map.withoutTranslation("sec:0")
+        assertEquals(setOf(other, "desc"), cleaned.keys)
+        assertTrue(WikiStructuredTranslationKeys.belongsTo("sec:0", "sec:0"))
+        assertTrue(WikiStructuredTranslationKeys.isChildOf(child, "sec:0"))
+        assertFalse(WikiStructuredTranslationKeys.isChildOf(other, "sec:0"))
+    }
+
+    @Test
+    fun completeMarkerIsDistinguishedFromRealTranslations() {
+        assertTrue(WikiStructuredTranslationKeys.isCompleteMarker(WikiStructuredTranslationKeys.COMPLETE))
+        assertTrue(WikiStructuredTranslationKeys.isCompleteMarker("1"))
+        assertFalse(WikiStructuredTranslationKeys.isCompleteMarker("Yume Tōrō çevirisi"))
+        assertFalse(WikiStructuredTranslationKeys.isCompleteMarker(null))
+        assertFalse(WikiStructuredTranslationKeys.isCompleteMarker("11"))
+    }
+}
