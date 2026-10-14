@@ -161,6 +161,26 @@ object FandomUrls {
         return targetWiki to decoded
     }
 
+    /** Reader routing is deliberately separate from article discovery's namespace filter.
+     * Non-article pages still have a valid destination, inside the app's WebView.
+     */
+    data class ReaderLinkTarget(val url: String, val articleTitle: String? = null)
+
+    fun readerLinkTarget(url: String, wikiId: String, currentTitle: String): ReaderLinkTarget? {
+        if (url.isBlank() || normalize(wikiId) == null) return null
+        val base = pageUrl(wikiId, currentTitle).toHttpUrlOrNull() ?: return null
+        // HttpUrl.resolve handles protocol-relative, root-relative, query and fragment links;
+        // unlike string concatenation it never duplicates a language prefix.
+        val resolved = base.resolve(url.trim()) ?: return null
+        val target = parseArticleUrl(resolved.toString(), wikiId)
+        val article = target?.takeIf {
+            it.first == normalize(wikiId) && resolved.fragment == null &&
+                (resolved.queryParameter("action") ?: "view") == "view" &&
+                resolved.queryParameter("diff") == null && resolved.queryParameter("oldid") == null
+        }?.second
+        return ReaderLinkTarget(resolved.toString(), article)
+    }
+
     private val NON_ARTICLE_NAMESPACES = setOf(
         "file", "image", "media", "category", "special", "template", "module", "mediawiki", "user",
         "talk", "help", "portal", "forum", "blog", "message wall", "timedtext", "draft"

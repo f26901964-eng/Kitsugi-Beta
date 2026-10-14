@@ -72,8 +72,6 @@ import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.compositionLocalOf
-import android.content.Intent
-import android.net.Uri
 import com.kitsugi.animelist.data.fandom.FandomBlockLink
 import com.kitsugi.animelist.data.fandom.FandomTextBlock
 import com.kitsugi.animelist.data.fandom.FandomUrls
@@ -97,6 +95,7 @@ import com.kitsugi.animelist.ui.components.KitsugiImageGalleryDialog
 import com.kitsugi.animelist.ui.theme.KitsugiColors
 import com.kitsugi.animelist.ui.theme.gradient.Icon
 import com.kitsugi.animelist.ui.utils.tvClickable
+import com.kitsugi.animelist.ui.components.KitsugiWebViewDialog
 import kotlinx.coroutines.flow.collect
 
 /**
@@ -524,11 +523,24 @@ private fun ReaderContent(
     val galleryItems = remember(state.wikiId, state.page, state.sections, state.related) {
         buildReaderGalleryItems(state)
     }
-    val context = LocalContext.current
-    // Sayfa içi bağlantılar (metin, kart, bağlantı grubu, görsel href) buradan yönlenir:
-    // aynı wiki makalesi → uygulama içi okuyucu; diğer her şey → harici uygulama/tarayıcı.
-    val openTarget: (String) -> Unit = remember(state.wikiId, onOpenLink) {
-        { url: String -> openFandomTarget(context, state.wikiId, url, onOpenLink) }
+    var webPageUrl by remember(scrollKey) { mutableStateOf<String?>(null) }
+    // Every HTTP(S) link stays inside the app, including File/Category/Help and other wikis.
+    val openTarget: (String) -> Unit = { url ->
+        FandomUrls.readerLinkTarget(url, state.wikiId, state.page.displayTitle)?.let { target ->
+            val articleTitle = target.articleTitle
+            if (articleTitle != null) onOpenLink(articleTitle) else webPageUrl = target.url
+        }
+    }
+    webPageUrl?.let { url ->
+        KitsugiWebViewDialog(
+            title = state.page.displayTitle,
+            url = url,
+            // Block non-web schemes instead of handing them off to another application.
+            onUrlRedirect = { destination ->
+                FandomUrls.readerLinkTarget(destination, state.wikiId, state.page.displayTitle) == null
+            },
+            onDismiss = { webPageUrl = null }
+        )
     }
     CompositionLocalProvider(LocalFandomLinkOpener provides openTarget) {
     Column(
@@ -595,23 +607,6 @@ private fun ReaderContent(
         }
         Spacer(modifier = Modifier.height(24.dp))
     }
-    }
-}
-
-private fun openFandomTarget(
-    context: android.content.Context,
-    wikiId: String,
-    url: String,
-    onOpenLink: (String) -> Unit
-) {
-    val target = FandomUrls.parseArticleUrl(url, wikiId)
-    if (target != null && target.first == wikiId) {
-        onOpenLink(target.second)
-        return
-    }
-    val absolute = if (url.startsWith("/")) FandomUrls.baseUrl(wikiId)?.let { it + url } ?: url else url
-    runCatching {
-        context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(absolute)))
     }
 }
 

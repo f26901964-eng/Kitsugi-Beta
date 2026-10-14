@@ -10,6 +10,48 @@ import org.junit.Test
 class FandomUrlsTest {
 
     @Test
+    fun `reader keeps ordinary articles native and other wiki pages in app web view`() {
+        val wiki = "residentevil"
+        assertEquals("Resident Evil 4", FandomUrls.readerLinkTarget(
+            "/wiki/Resident_Evil_4", wiki, "Main Page"
+        )?.articleTitle)
+        listOf(
+            "/wiki/File:Resident_Evil_Wiki.png",
+            "/wiki/Category:Games",
+            "/wiki/Help:Contents",
+            "https://other.fandom.com/wiki/Main_Page",
+            "https://example.com/about",
+            "/wiki/Main_Page?action=edit",
+            "/wiki/Main_Page?diff=123",
+            "/wiki/Main_Page?oldid=123",
+            "#History"
+        ).forEach { href ->
+            val target = FandomUrls.readerLinkTarget(href, wiki, "Main Page")
+            assertNotNull(href, target)
+            assertNull(href, target?.articleTitle)
+        }
+    }
+
+    @Test
+    fun `reader resolves relative links without corrupting language or CDN hosts`() {
+        assertEquals("https://static.wikia.nocookie.net/residentevil/logo.png",
+            FandomUrls.readerLinkTarget("//static.wikia.nocookie.net/residentevil/logo.png",
+                "residentevil", "Main Page")?.url)
+        assertEquals("https://onepiece.fandom.com/tr/wiki/File:Logo.png",
+            FandomUrls.readerLinkTarget("/tr/wiki/File:Logo.png", "tr.onepiece", "Main Page")?.url)
+        assertEquals("https://onepiece.fandom.com/tr/wiki/Main_Page?title=Help:Contents",
+            FandomUrls.readerLinkTarget("?title=Help:Contents", "tr.onepiece", "Main Page")?.url)
+        assertEquals("Luffy", FandomUrls.readerLinkTarget("Luffy", "tr.onepiece", "Main Page")?.articleTitle)
+    }
+
+    @Test
+    fun `reader does not launch executable or external app schemes`() {
+        listOf("javascript:alert(1)", "intent://wiki", "mailto:test@example.com", "file:///tmp/a", "data:text/html,test", "").forEach {
+            assertNull(it, FandomUrls.readerLinkTarget(it, "residentevil", "Main Page"))
+        }
+    }
+
+    @Test
     fun `normalize accepts wikidata P4073 forms and rejects invalid ids`() {
         assertEquals("jujutsu-kaisen", FandomUrls.normalize("jujutsu-kaisen"))
         assertEquals("tr.onepiece", FandomUrls.normalize("TR.OnePiece"))
