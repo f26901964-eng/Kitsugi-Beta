@@ -37,18 +37,23 @@ import com.kitsugi.animelist.utils.KitsugiStrings
 /**
  * Uygulama içi OAuth WebView dialog'u — MAL, AniList, Simkl için.
  *
- * Eski davranış: startAuthentication() doğrudan harici tarayıcıya (Intent.ACTION_VIEW)
- * atıyordu. Harici tarayıcıda MAL'in /v1/oauth2/authorize ucu bazen HTTP 401 Basic Auth
- * challenge döndürüyor (Cloudflare / hatalı client_id / Brave kalkanları) ve tarayıcı
- * \"Oturum açın\" popup'ı gösteriyor. Kullanıcı MAL kullanıcı adı/şifresini oraya yazsa bile
- * giriş başarısız oluyor çünkü beklenen HTTP Basic değil, HTML form login.
+ * Kök neden düzeltmesi (2026-10-14): Uygulama içi ekranda giriş yapılamıyor,
+ * Cloudflare/MAL WAF doğrulaması takılıyordu; yalnızca harici tarayıcı çalışıyordu.
+ * Sebep: WebView'e SABİT sahte User-Agent ("Chrome/124, Android 13, Pixel 7") veriliyordu.
+ * Cloudflare ve MAL WAF, isteğin gerçek TLS/JS parmak izini beyan edilen UA ile
+ * karşılaştırır; uyumsuzluk bot sinyalidir ve doğrulama döngüsü üretir. Artık
+ * SİSTEM WebView'inin gerçek varsayılan UA'sı kullanılır (cihazın gerçek WebView
+ * sürümünü ve modelini içerir, parmak iziyle tutarlıdır).
  *
- * Yeni davranış (eski haline restore):
- *  - Uygulama içinde WebView açılır, User-Agent Chrome Mobile olarak ayarlanır.
+ * Davranış:
+ *  - Uygulama içinde WebView açılır; User-Agent varsayılan (gerçek) bırakılır.
  *  - CookieManager ile üçüncü parti çerezlere izin verilir.
  *  - onReceivedHttpAuthRequest override edilerek Basic Auth popup'ı engellenir
  *    (kullanıcıya HTML login formu gösterilir).
- *  - malapp://auth redirect'i yakalanıp ExternalAuthManager.handleAuthIntent() ile token takas edilir.
+ *  - malapp://auth redirect'i TEK bir korumalı işleyiciyle yakalanıp (çift takas
+ *    koruması) ExternalAuthManager.handleAuthIntent() ile token takas edilir.
+ *    Yakalama kanalları: shouldOverrideUrlLoading + onPageStarted +
+ *    doUpdateVisitedHistory (JS window.location dönüşleri için).
  *  - Başarılı olunca dialog kapanır ve snackbar ile bilgi verilir.
  */
 @Composable
@@ -216,127 +221,112 @@ fun KitsugiOAuthWebViewDialog(
                                         ViewGroup.LayoutParams.MATCH_PARENT
                                     )
                                     webViewClient = object : WebViewClient() {
-                                        override fun onPageStarted(view: WebView?, url: String?, favicon: android.graphics.Bitmap?) {
-                                            if (url != null) {
-                                                // OAuth redirect yakala
-                                                if (url.startsWith("malapp://auth")) {
-                                                    val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
-                                                    ExternalAuthManager.handleAuthIntent(
-                                                        ctx,
-                                                        intent,
-                                                        onSuccess = { svc ->
-                                                            android.widget.Toast.makeText(
-                                                                ctx,
-                                                                "${svc.uppercase()} bağlantısı başarılı",
-                                                                android.widget.Toast.LENGTH_SHORT
-                                                            ).show()
-                                                            onSuccess(svc)
-                                                            onDismiss()
-                                                        },
-                                                        onError = { err ->
-                                                            errorMessage = err
-                                                            onError(err)
-                                                        }
-                                                    )
-                                                    return
-                                                }
-                                            }
-                                            isLoading = true
-                                            progress = 0
-                                        }
+                                    // malapp://auth dönüşü yalnızca BİR KEZ işlenir.
+                                    // Aynı yönlendirme birden fazla kanala düşerse
+                                    // (shouldOverrideUrlLoading + onPageStarted +
+                                    // doUpdateVisitedHistory) kod iki kez takas
+                                    // edilip "kod zaten kullanılmış" hatası üretilmesin.
+                                    var authRedirectHandled = false
 
-                                        override fun onPageFinished(view: WebView?, pageUrl: String?) {
-                                            isLoading = false
-                                            // Cookie sync for Cloudflare bypass
-                                            val finalUrl = pageUrl ?: authUrl ?: ""
-                                            try {
-                                                CookieManager.getInstance().flush()
-                                                // Sync to OkHttp if possible
-                                                val nh = try {
-                                                    uy.kohesive.injekt.Injekt.get(eu.kanade.tachiyomi.network.NetworkHelper::class.java)
-                                                } catch (_: Exception) {
-                                                    eu.kanade.tachiyomi.network.NetworkHelper(ctx)
-                                                }
-                                                nh.cookieJar.syncFromWebView(finalUrl)
-                                            } catch (_: Exception) {}
-                                        }
-
-                                        override fun shouldOverrideUrlLoading(view: WebView?, url: String?): Boolean {
-                                            if (url != null && url.startsWith("malapp://auth")) {
-                                                val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
-                                                ExternalAuthManager.handleAuthIntent(
+                                    /** OAuth geri dönüş şemasını yakalar; tüketildiyse true döner. */
+                                    fun handleAuthRedirect(rawUrl: String?): Boolean {
+                                        if (rawUrl == null || !rawUrl.startsWith("malapp://auth")) return false
+                                        if (authRedirectHandled) return true
+                                        authRedirectHandled = true
+                                        val intent = Intent(Intent.ACTION_VIEW, Uri.parse(rawUrl))
+                                        ExternalAuthManager.handleAuthIntent(
+                                            ctx,
+                                            intent,
+                                            onSuccess = { svc ->
+                                                android.widget.Toast.makeText(
                                                     ctx,
-                                                    intent,
-                                                    onSuccess = { svc ->
-                                                        android.widget.Toast.makeText(
-                                                            ctx,
-                                                            "${svc.uppercase()} bağlantısı başarılı",
-                                                            android.widget.Toast.LENGTH_SHORT
-                                                        ).show()
-                                                        onSuccess(svc)
-                                                        onDismiss()
-                                                    },
-                                                    onError = { err ->
-                                                        errorMessage = err
-                                                        onError(err)
-                                                    }
-                                                )
-                                                return true
+                                                    "${svc.uppercase()} bağlantısı başarılı",
+                                                    android.widget.Toast.LENGTH_SHORT
+                                                ).show()
+                                                onSuccess(svc)
+                                                onDismiss()
+                                            },
+                                            onError = { err ->
+                                                errorMessage = err
+                                                onError(err)
                                             }
-                                            return false
-                                        }
+                                        )
+                                        return true
+                                    }
 
-                                        override fun shouldOverrideUrlLoading(view: WebView?, request: WebResourceRequest?): Boolean {
-                                            val requestUrl = request?.url?.toString()
-                                            if (requestUrl != null && requestUrl.startsWith("malapp://auth")) {
-                                                val intent = Intent(Intent.ACTION_VIEW, Uri.parse(requestUrl))
-                                                ExternalAuthManager.handleAuthIntent(
-                                                    ctx,
-                                                    intent,
-                                                    onSuccess = { svc ->
-                                                        android.widget.Toast.makeText(
-                                                            ctx,
-                                                            "${svc.uppercase()} bağlantısı başarılı",
-                                                            android.widget.Toast.LENGTH_SHORT
-                                                        ).show()
-                                                        onSuccess(svc)
-                                                        onDismiss()
-                                                    },
-                                                    onError = { err ->
-                                                        errorMessage = err
-                                                        onError(err)
-                                                    }
-                                                )
-                                                return true
-                                            }
-                                            return false
+                                    override fun onPageStarted(view: WebView?, url: String?, favicon: android.graphics.Bitmap?) {
+                                        if (handleAuthRedirect(url)) {
+                                            // WebView özel şemayı yüklemeye çalışıp
+                                            // ERR_UNKNOWN_URL_SCHEME hata sayfası üretmesin.
+                                            view?.stopLoading()
+                                            return
                                         }
+                                        isLoading = true
+                                        progress = 0
+                                    }
 
-                                        // FIX: MAL'in bazen döndürdüğü HTTP 401 Basic Auth challenge'ını engelle
-                                        // Eski tarayıcı popup'ı \"Oturum açın\" diye çıkıyordu ve kullanıcı doğru bilgileri
-                                        // girse bile giriş başarısız oluyordu. WebView'da bu callback'i override edip
-                                        // iptal ederek HTML login formunun gösterilmesini sağlıyoruz.
-                                        override fun onReceivedHttpAuthRequest(
-                                            view: WebView?,
-                                            handler: android.webkit.HttpAuthHandler?,
-                                            host: String?,
-                                            realm: String?
-                                        ) {
-                                            // Basic Auth popup'ını gösterme, iptal et ve kullanıcıya bilgi ver
-                                            handler?.cancel()
-                                            errorMessage = KitsugiStrings.get(R.string.mal_temel_kimlik_dogrulama_istedi_beklenmeyen_lutfen_sayfayi_yen, host)
+                                    /**
+                                     * JS `window.location` ile yapılan OAuth geri dönüşleri
+                                     * bazı WebView sürümlerinde shouldOverrideUrlLoading'e
+                                     * düşmez; bu kanca en güvenilir yakalama noktasıdır.
+                                     */
+                                    override fun doUpdateVisitedHistory(view: WebView?, url: String?, isReload: Boolean) {
+                                        if (handleAuthRedirect(url)) {
+                                            view?.stopLoading()
+                                            return
                                         }
+                                        super.doUpdateVisitedHistory(view, url, isReload)
+                                    }
 
-                                        override fun onReceivedError(
-                                            view: WebView?,
-                                            request: WebResourceRequest?,
-                                            error: android.webkit.WebResourceError?
-                                        ) {
-                                            if (request?.isForMainFrame == true) {
-                                                errorMessage = KitsugiStrings.get(R.string.sayfa_yuklenemedi_x, error?.description)
-                                            }
+                                    override fun shouldOverrideUrlLoading(view: WebView?, url: String?): Boolean {
+                                        return handleAuthRedirect(url)
+                                    }
+
+                                    override fun shouldOverrideUrlLoading(view: WebView?, request: WebResourceRequest?): Boolean {
+                                        return handleAuthRedirect(request?.url?.toString())
+                                    }
+
+                                    // FIX: MAL'in bazen döndürdüğü HTTP 401 Basic Auth challenge'ını engelle
+                                    // Eski tarayıcıda "Oturum açın" popup'ı çıkıyordu ve kullanıcı doğru
+                                    // girse bile giriş başarısız oluyordu. WebView'da bu callback'i override edip
+                                    // iptal ederek HTML login formunun gösterilmesini sağlıyoruz.
+                                    override fun onReceivedHttpAuthRequest(
+                                        view: WebView?, handler: android.webkit.HttpAuthHandler?, host: String?, realm: String?
+                                    ) {
+                                        // Basic Auth popup'ını gösterme, iptal et ve kullanıcıya bilgi ver
+                                        handler?.cancel()
+                                        errorMessage = KitsugiStrings.get(R.string.mal_temel_kimlik_dogrulama_istedi_beklenmeyen_lutfen_sayfayi_yen, host)
+                                    }
+
+                                    override fun onReceivedError(
+                                        view: WebView?, request: WebResourceRequest?, error: android.webkit.WebResourceError?
+                                    ) {
+                                        if (request?.isForMainFrame == true) {
+                                            val failingUrl = request.url?.toString().orEmpty()
+                                            // malapp:// gibi özel şemalı geri dönüşler WebView'te
+                                            // yükleme hatası üretir; bunlar gerçek sayfa hatası
+                                            // değildir ve yukarıda işlenmiş yönlendirmelerdir.
+                                            if (failingUrl.startsWith("malapp://") || failingUrl.startsWith("intent:")) return
+                                            errorMessage = KitsugiStrings.get(R.string.sayfa_yuklenemedi_x, error?.description)
                                         }
                                     }
+
+                                    override fun onPageFinished(view: WebView?, pageUrl: String?) {
+                                        isLoading = false
+                                        // Cookie sync for Cloudflare bypass
+                                        val finalUrl = pageUrl ?: authUrl ?: ""
+                                        try {
+                                            CookieManager.getInstance().flush()
+                                            // Sync to OkHttp if possible
+                                            val nh = try {
+                                                uy.kohesive.injekt.Injekt.get(eu.kanade.tachiyomi.network.NetworkHelper::class.java)
+                                            } catch (_: Exception) {
+                                                eu.kanade.tachiyomi.network.NetworkHelper(ctx)
+                                            }
+                                            nh.cookieJar.syncFromWebView(finalUrl)
+                                        } catch (_: Exception) {}
+                                    }
+                                }
                                     webChromeClient = object : WebChromeClient() {
                                         override fun onProgressChanged(view: WebView?, newProgress: Int) {
                                             progress = newProgress
@@ -354,8 +344,12 @@ fun KitsugiOAuthWebViewDialog(
                                         setSupportZoom(true)
                                         builtInZoomControls = true
                                         displayZoomControls = false
-                                        // Modern Chrome Mobile UA — Cloudflare ve MAL WAF'ı için kritik
-                                        userAgentString = "Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Mobile Safari/537.36"
+                                        // KÖK NEDEN DÜZELTMESİ (2026-10-14): userAgentString SABİTLENMEZ.
+                                        // Eskiden sabit "Chrome/124 (Android 13, Pixel 7)" sahte UA'sı gönderiliyordu;
+                                        // Cloudflare/MAL WAF gerçek TLS+JS parmak iziyle UA'yı karşılaştırıyor,
+                                        // uyumsuzluğu bot sanıp "Gerçek kişi misiniz?" doğrulama döngüsüne sokuyordu.
+                                        // Varsayılan UA cihazın GERÇEK WebView sürümünü/modelini içerdiği için
+                                        // parmak iziyle tutarlıdır ve harici tarayıcıdakine yakın geçiş sağlar.
                                     }
                                     CookieManager.getInstance().setAcceptCookie(true)
                                     CookieManager.getInstance().setAcceptThirdPartyCookies(this, true)

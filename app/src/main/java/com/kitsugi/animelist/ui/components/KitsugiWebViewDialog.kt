@@ -119,13 +119,38 @@ fun KitsugiWebViewDialog(
                                     ViewGroup.LayoutParams.MATCH_PARENT,
                                     ViewGroup.LayoutParams.MATCH_PARENT
                                 )
+                                // Aynı redirect'in birden fazla kanaldan (onPageStarted +
+                                // shouldOverrideUrlLoading + doUpdateVisitedHistory) iki kez
+                                // işlenmesini önleyen koruma.
+                                var lastRedirectHandledUrl: String? = null
+                                fun interceptRedirect(rawUrl: String?): Boolean {
+                                    if (rawUrl == null) return false
+                                    if (rawUrl == lastRedirectHandledUrl) return true
+                                    val consumed = onUrlRedirect?.invoke(rawUrl) == true
+                                    if (consumed) lastRedirectHandledUrl = rawUrl
+                                    return consumed
+                                }
                                 webViewClient = object : WebViewClient() {
                                     override fun onPageStarted(view: WebView?, url: String?, favicon: android.graphics.Bitmap?) {
-                                        if (url != null && onUrlRedirect?.invoke(url) == true) {
+                                        if (interceptRedirect(url)) {
+                                            view?.stopLoading()
                                             return
                                         }
                                         isLoading = true
                                         progress = 0
+                                    }
+
+                                    /**
+                                     * JS window.location ile yapılan OAuth geri dönüşleri bazı
+                                     * WebView sürümlerinde shouldOverrideUrlLoading'e düşmez;
+                                     * bu kanca en güvenilir yakalama noktasıdır.
+                                     */
+                                    override fun doUpdateVisitedHistory(view: WebView?, url: String?, isReload: Boolean) {
+                                        if (interceptRedirect(url)) {
+                                            view?.stopLoading()
+                                            return
+                                        }
+                                        super.doUpdateVisitedHistory(view, url, isReload)
                                     }
 
                                     override fun onPageFinished(view: WebView?, pageUrl: String?) {
@@ -146,15 +171,14 @@ fun KitsugiWebViewDialog(
                                     }
 
                                     override fun shouldOverrideUrlLoading(view: WebView?, url: String?): Boolean {
-                                        if (url != null && onUrlRedirect?.invoke(url) == true) {
+                                        if (interceptRedirect(url)) {
                                             return true
                                         }
                                         return super.shouldOverrideUrlLoading(view, url)
                                     }
 
                                     override fun shouldOverrideUrlLoading(view: WebView?, request: android.webkit.WebResourceRequest?): Boolean {
-                                        val requestUrl = request?.url?.toString()
-                                        if (requestUrl != null && onUrlRedirect?.invoke(requestUrl) == true) {
+                                        if (interceptRedirect(request?.url?.toString())) {
                                             return true
                                         }
                                         return super.shouldOverrideUrlLoading(view, request)
@@ -187,7 +211,11 @@ fun KitsugiWebViewDialog(
                                     setSupportZoom(true)
                                     builtInZoomControls = true
                                     displayZoomControls = false
-                                    userAgentString = "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Mobile Safari/537.36"
+                                    // KÖK NEDEN DÜZELTMESİ (2026-10-14): userAgentString SABİTLENMEZ.
+                                    // Sabit sahte "Chrome/124" UA'sı, Cloudflare/MAL WAF'ın gerçek
+                                    // TLS+JS parmak iziyle UA karşılaştırmasında uyumsuzluk yaratıp
+                                    // giriş sayfalarını doğrulama döngüsüne sokuyordu. Sistem
+                                    // WebView'inin gerçek varsayılan UA'sı kullanılır.
                                 }
                                 // Üçüncü parti cookie'lere izin ver (bazı Türk kaynaklarda gerekli)
                                 CookieManager.getInstance().setAcceptCookie(true)
