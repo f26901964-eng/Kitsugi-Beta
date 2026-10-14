@@ -92,16 +92,16 @@ class FandomApiParsersTest {
         """.trimIndent()
         val sections = FandomApiParsers.parseSections(json)
         assertNotNull(sections)
-        // Şablon bölümü ("T-1") ARTIK korunuyor: MediaWiki onu section=T-1 ile aynı şekilde
-        // döndürür, atılması bölümün tüm içeriğini kaybettiriyordu.
+        // "Navigation" şablon bölümü (index "T-1") olmasına rağmen GİZLİ bölüm
+        // listesinde olduğu için elenir; şablon kimliği tek başına eleme nedeni değildir.
+        // Şablon bölümlerinin korunduğunu FandomContentCompletenessTest kilitler.
         assertEquals(
-            listOf("Appearance", "Battles & Events", "Overview", "Trivia", "Navigation"),
+            listOf("Appearance", "Battles & Events", "Overview", "Trivia"),
             sections!!.map { it.title }
         )
-        assertEquals(listOf("1", "9", "4", "14", "T-1"), sections.map { it.index })
-        assertEquals(listOf(2, 2, 3, 2, 2), sections.map { it.level })
-        assertEquals(listOf(false, true, true, false, false), sections.map { it.spoiler })
-        assertEquals(listOf(false, false, false, false, true), sections.map { it.isTemplateSection })
+        assertEquals(listOf("1", "9", "4", "14"), sections.map { it.index })
+        assertEquals(listOf(2, 2, 3, 2), sections.map { it.level })
+        assertEquals(listOf(false, true, true, false), sections.map { it.spoiler })
         assertNull(FandomApiParsers.parseSections("""{"error":{"code":"missingtitle"}}"""))
     }
 

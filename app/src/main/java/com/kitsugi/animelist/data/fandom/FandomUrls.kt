@@ -108,9 +108,22 @@ object FandomUrls {
         return targetWiki to decoded
     }
 
+    /**
+     * Madde OLMAYAN ad alanları. Canlı denetimde `Kategori:` bağlantılarının makale
+     * sayılıp tıklanabilir bağlantıya dönüştüğü görüldü: listede `category` vardı ama
+     * Fandom'un yerel ad alanı adları (`kategori`, `yardım`, `kullanıcı`…) yoktu.
+     */
     private val NON_ARTICLE_NAMESPACES = setOf(
         "file", "image", "media", "category", "special", "template", "module", "mediawiki", "user",
-        "talk", "help", "portal", "forum", "blog", "message wall", "timedtext", "draft"
+        "talk", "help", "portal", "forum", "blog", "message wall", "timedtext", "draft",
+        // Türkçe / çok dilli wiki ad alanları
+        "kategori", "kategorija", "dosya", "resim", "şablon", "sablon", "modül", "modul",
+        "özel", "ozel", "yardım", "yardim", "kullanıcı", "kullanici", "kullanıcı mesaj",
+        "tartışma", "tartisma", "vikipedi", "vikia", "fandom", "community central",
+        // Diğer yaygın diller
+        "categoría", "categoria", "catégorie", "kategorie", "категория", "ファイル", "カテゴリ",
+        "help talk", "category talk", "template talk", "user talk", "file talk", "module talk",
+        "wikipedia", "wikipédia", "projekt", "project"
     )
 
     /** Sayfa başlığını `/wiki/` yolu için kodlar (boşluk → `_`). */

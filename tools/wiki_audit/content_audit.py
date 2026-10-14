@@ -100,7 +100,7 @@ def _kotlin_selector_list(relative, name):
 
 HTML_TEXT = os.path.join("data", "fandom", "FandomHtmlText.kt")
 MAX_SECTION_IMAGES = _kotlin_const(HTML_TEXT, "MAX_SECTION_IMAGES")
-MAX_BLOCKS = 400                 # FandomHtmlText.blocks(maxBlocks=400) varsayilani
+MAX_BLOCKS = _kotlin_const(HTML_TEXT, "MAX_BLOCKS")
 MAX_TABLE_ROWS = _kotlin_const(HTML_TEXT, "MAX_TABLE_ROWS")
 UI_INFOBOX_IMAGES = 8            # MediaWikiTabContent ArticleInfoboxCard images.take(8)
 UI_INFOBOX_FIELDS = 10           # ArticleInfoboxCard minOf(fields.size, 10) + "tumunu goster"

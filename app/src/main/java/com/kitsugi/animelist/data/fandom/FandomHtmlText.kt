@@ -37,6 +37,15 @@ object FandomHtmlText {
      * çıkarıldı; aşan kısım için satır sayısı notu üretilir.
      */
     private const val MAX_TABLE_ROWS = 2_000
+
+    /**
+     * Bölüm başına blok üst sınırı.
+     *
+     * Canlı denetim bunun GERÇEK darboğaz olduğunu gösterdi: tablo satırı sınırı 2000'e
+     * çıkarılsa da 1500 satırlık bir liste sayfası 400 blokta kesiliyordu. 4000'e çıkarıldı
+     * (bölüm başına ~4000 kısa blok; bellek açısından sorun değil).
+     */
+    private const val MAX_BLOCKS = 4_000
     private const val MAX_BLOCK_TEXT = 8_000
 
     /**
@@ -345,7 +354,7 @@ object FandomHtmlText {
      * [wikiId] verildiğinde blok içindeki wiki bağlantıları kanonik wiki+başlık çiftine
      * çözülür ve [FandomTextBlock.linkSpans] doldurulur (arayüz bunları tıklanabilir yapar).
      */
-    fun blocks(html: String?, maxBlocks: Int = 400, wikiId: String? = null): List<FandomTextBlock> {
+    fun blocks(html: String?, maxBlocks: Int = MAX_BLOCKS, wikiId: String? = null): List<FandomTextBlock> {
         if (html.isNullOrBlank()) return emptyList()
         val body = Jsoup.parseBodyFragment(html, FandomUrls.baseUrl(wikiId.orEmpty()).orEmpty()).body()
         body.select(SECTION_JUNK_SELECTOR).remove()

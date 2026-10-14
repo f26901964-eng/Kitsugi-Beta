@@ -33,14 +33,17 @@ class FandomContentCompletenessTest {
               {"toclevel":1,"level":"1","line":"Kişilik","number":"1","index":"1"},
               {"toclevel":1,"level":"2","line":"Seslendirenler","number":"2","index":"T-1"},
               {"toclevel":1,"level":"2","line":"Görünümler","number":"3","index":"T-2"},
-              {"toclevel":1,"level":"1","line":"Trivia","number":"4","index":"4"}
+              {"toclevel":1,"level":"1","line":"Trivia","number":"4","index":"4"},
+              {"toclevel":1,"level":"2","line":"Gallery","number":"5","index":"5"}
             ]}}
         """.trimIndent()
         val sections = FandomApiParsers.parseSections(json)
         assertNotNull(sections)
         val indexes = sections!!.map { it.index }
-        assertEquals(listOf("1", "T-1", "T-2"), indexes)
-        assertTrue("Trivia gizli bölüm olarak kalmalı", indexes.none { it == "4" })
+        // Şablon bölümleri (T-x) korunur. "Trivia" FandomSpoilerRules'a göre GİZLİ bölüm
+        // DEĞİLDİR (normal bölümdür), bu yüzden listede kalır; "Gallery" ise gizlidir.
+        assertEquals(listOf("1", "T-1", "T-2", "4"), indexes)
+        assertTrue("Galeri gizli bölüm olarak elenmeli", indexes.none { it == "5" })
 
         val template = sections.first { it.index == "T-1" }
         assertEquals("Seslendirenler", template.title)
@@ -209,7 +212,10 @@ class FandomContentCompletenessTest {
             <figure data-video-key="def456"><img src="https://static.wikia.nocookie.net/v2.png"/></figure>
         """.trimIndent()
         val blocks = FandomHtmlText.blocks(html)
-        assertTrue(blocks.any { it.text.contains("2 video") })
+        assertTrue(
+            "video notu bulunamadı; bloklar: " + blocks.map { it.kind.name + ":" + it.text.take(60) },
+            blocks.any { it.text.contains("2 video") }
+        )
     }
 
     // ── 5. Regresyon: bilinen iyi davranışlar korunuyor ─────────────────────
