@@ -156,8 +156,13 @@ internal class FandomWikiResolver(
         val resolution = if (lookups.isNotEmpty() || starts.isNotEmpty()) {
             WikidataClient.resolveMedia(lookups, starts)
         } else null
-        val alternatives = resolveWikipediaSources(resolution, query, allowNameFallback)
-            .filterNot { it.wikiId == primary.wikiId }
+        val alternatives = resolveWikipediaSources(
+            resolution = resolution,
+            query = query,
+            // Birincil kaynak zaten Vikipedi ise isim araması yinelenmez (aynı ağır arama iki
+            // kez atılmasın); yalnızca sitelink tabanlı kardeş dil sürümleri toplanır.
+            allowNameFallback = allowNameFallback && !FandomUrls.isWikipedia(primary.wikiId)
+        ).filterNot { it.wikiId == primary.wikiId }
         return if (alternatives.isEmpty()) listOf(primary) else listOf(primary) + alternatives
     }
 

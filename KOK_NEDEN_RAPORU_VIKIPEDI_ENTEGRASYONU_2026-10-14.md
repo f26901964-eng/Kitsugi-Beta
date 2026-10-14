@@ -80,7 +80,8 @@ aynıysa (VIkipedi TR + Türkçe hedef) uygulama içi çeviri hiç başlatılmaz
 
 `FandomWikiResolver.resolveWikipediaSource()` tek bir kaynak döndürüyordu (tercih TR ise TR, değilse
 EN) ve `resolveAll()` Vikipedi birincil olduğunda tek elemanlı liste dönüyordu — İngilizce maddeyi
-görmek isteyen kullanıcı için hiçbir yol yoktu. → `resolveWikipediaSources()` sipariş korunmuş liste
+görmek isteyen kullanıcı için hiçbir yol yoktu. Kaynak çipleri satırı ayrıca yatay kaydırılabilir
+yapıldı (üç kaynak dar ekranda taşmasın); birincil kaynak Vikipedi ise isim araması yinelenmez. → `resolveWikipediaSources()` sipariş korunmuş liste
 döndürür: (1) kullanıcı tercihi, (2) kardeş dil sürümü, (3) TR/EN sitelink'i yoksa ilk geçerli dil
 (deterministik), (4) hiçbiri yoksa `WikipediaResolver` isim araması. Sekmedeki çipler
 `wiki_source_wikipedia_tr` ("Vikipedi (TR)"), `wiki_source_wikipedia` ("Wikipedia") ve diğer diller
@@ -113,6 +114,9 @@ tabanlı davranış korunur; yanlış "bulunamadı" üretilmez.
 - Vikipedi maddelerinde `prop=images` isteği atlanır: madde başına onlarca ikon/logo dosyası
   dönüyordu ve bu liste arayüzde kullanılmıyordu (galeri, bilgi kutusunun kendi görsellerini
   kullanır).
+- Okuyucuda Vikipedi sayfası açıldığında başlığın altındaki kısa açıklama artık maddenin giriş
+  metninden (`extracts`, `exintro`) doldurulur; Fandom'a özgü `fandomdescription` alanı
+  Vikipedi'de bulunmadığı için bu satır boş kalıyordu.
 - Madde önbellek anahtarı `media-page:v5` → **`v6`**: dil sürümü davranışı değiştiği için eski
   kayıtlar yanlış dilde madde döndürebilirdi.
 - `fandom_open_page_wikipedia` → **"Vikipedi'de oku"**, `fandom_unavailable_media` →

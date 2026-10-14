@@ -339,25 +339,32 @@ internal object FandomApi {
     /**
      * Bir sayfanın uygulama içi okuyucu için tam özeti: kapak + açıklama + bölümler.
      * Bölümler ayrı istekle (`sections(wikiId, title)`) zaten çekiliyor; bu metod
-     * thumbnail + fandomdescription döndürür ve yönlendirmeleri çözer.
+     * thumbnail + fandomdescription (Vikipedi'de maddenin girişi, `extracts`) döndürür ve
+     * yönlendirmeleri çözer.
      */
     suspend fun pageMeta(wikiId: String, title: String, thumbWidth: Int = 600): FandomFullPage? {
         val clean = title.trim()
         if (clean.isEmpty()) return null
-        val url = FandomUrls.apiQuery(
-            wikiId,
-            listOf(
-                "action" to "query",
-                "titles" to clean,
-                "redirects" to "1",
-                "prop" to "pageprops|pageimages",
-                "ppprop" to "fandomdescription|disambiguation",
-                "piprop" to "thumbnail",
-                "pithumbsize" to thumbWidth.toString(),
-                "format" to "json",
-                "formatversion" to "2"
-            )
-        ) ?: return null
+        // Vikipedi'de `fandomdescription` alanı yoktur; okuyucu başlığının altındaki kısa özet
+        // maddenin giriş bölümünden (`extracts`) beslenir. Fandom istekleri değişmez.
+        val wikipedia = FandomUrls.isWikipedia(wikiId)
+        val params = mutableListOf(
+            "action" to "query",
+            "titles" to clean,
+            "redirects" to "1",
+            "prop" to (if (wikipedia) "pageprops|pageimages|extracts" else "pageprops|pageimages"),
+            "pprop" to "fandomdescription|disambiguation",
+            "piprop" to "thumbnail",
+            "pithumbsize" to thumbWidth.toString(),
+            "format" to "json",
+            "formatversion" to "2"
+        )
+        if (wikipedia) {
+            params += "exintro" to "1"
+            params += "explaintext" to "1"
+            params += "exchars" to "1200"
+        }
+        val url = FandomUrls.apiQuery(wikiId, params) ?: return null
         val body = FandomHttp.get(url)
         val pages = FandomApiParsers.parseRelatedPages(body)
         val hit = pages.firstOrNull() ?: return null

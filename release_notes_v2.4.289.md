@@ -56,6 +56,9 @@ tüm hataları kök nedenden çözer.
 - Vikipedi birincil kaynak olduğunda artık **kardeş dil sürümü** de kaynak çipinde listelenir
   (öncelik kullanıcı tercihine göre TR→EN veya EN→TR). TR/EN sitelink'i olmayan yapımlarda ilk
   geçerli dil deterministik sırayla gösterilir (`Ad (DİL)` biçiminde).
+- Kaynak çipleri artık **yatay kaydırılabilir**: üç kaynak (Fandom + Vikipedi TR + Wikipedia) dar
+  ekranlarda taşmaz. Birincil kaynak Vikipedi olduğunda isim araması ikinci kez çalıştırılmaz
+  (gereksiz ağ trafiği önlenir).
 
 #### 5) Yanlış madde riskine karşı kimlik denetimi
 - İsimle arama yolunda (`WikipediaResolver`) maddenin Wikidata kimliği (`pageprops.wikibase_item`)
@@ -77,6 +80,8 @@ tüm hataları kök nedenden çözer.
   "Wikipedia") — Vikipedi görsellerinde artık "Fandom" yazmaz.
 - Vikipedi maddelerinde `prop=images` (madde başına onlarca ikon/logo dosyası) isteği atlanır;
   bu liste arayüzde kullanılmıyordu. Performans ve veri tasarrufu.
+- Okuyucuda Vikipedi sayfası açıldığında kısa açıklama satırı artık maddenin giriş metninden
+  (`extracts`) doldurulur; Fandom'da kullanılan alan Vikipedi'de bulunmadığı için boş kalıyordu.
 - Madde önbellek sürümü `v6`'ya yükseltildi (dil sürümü davranışı değiştiği için eski kayıtlar
   yanlış dilde madde döndürebilirdi).
 - `FandomUrlsTest` içine kaynak adı eşlemesini doğrulayan yeni birim testi eklendi.
@@ -135,6 +140,9 @@ Three distinct root causes, all fixed:
 - When Wikipedia is the primary source, its **sibling language edition** is now listed as a source
   chip (TR→EN or EN→TR depending on the user preference). Titles without TR/EN sitelinks fall back
   to the first available language in deterministic order (rendered as `Name (LANG)`).
+- The source chip row is now **horizontally scrollable**, so three sources (Fandom + Vikipedi TR +
+  Wikipedia) do not overflow on narrow screens. When Wikipedia is already the primary source, the
+  name search is not repeated (avoiding redundant network traffic).
 
 #### 5) Identity verification against wrong articles
 - On the name-search path (`WikipediaResolver`) the article's Wikidata identity
@@ -157,6 +165,9 @@ Three distinct root causes, all fixed:
   Wikipedia images no longer say "Fandom".
 - The `prop=images` request (dozens of icon/logo files per article) is skipped for Wikipedia
   articles; the list was unused by the UI. Performance and data saving.
+- When the reader opens a Wikipedia page, its short description line is now filled from the
+  article lead (`extracts`); the field used for Fandom does not exist on Wikipedia and used to
+  stay empty.
 - Article cache key bumped to `v6` (the language-edition behaviour changed, so old entries could
   return an article in the wrong language).
 - Added a unit test to `FandomUrlsTest` covering the gallery source mapping.
