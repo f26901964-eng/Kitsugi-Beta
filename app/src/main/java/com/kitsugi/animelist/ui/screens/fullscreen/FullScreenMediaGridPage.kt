@@ -81,7 +81,11 @@ import com.kitsugi.animelist.ui.components.DetailedSeasonalMediaCard
 import com.kitsugi.animelist.ui.components.KitsugiSeasonalFilterBottomSheet
 import com.kitsugi.animelist.ui.screens.explore.ExploreCategoryType
 import com.kitsugi.animelist.ui.screens.explore.exploreIdentity
+import com.kitsugi.animelist.ui.screens.explore.ExploreFilterClients
 import com.kitsugi.animelist.ui.screens.explore.ExplorePlatform
+import com.kitsugi.animelist.ui.screens.explore.ExploreSourceFilters
+import com.kitsugi.animelist.ui.screens.explore.fetchFilteredExplorePage
+import com.kitsugi.animelist.ui.screens.explore.localizedLabel
 import com.kitsugi.animelist.ui.theme.KitsugiColors
 import com.kitsugi.animelist.ui.theme.LocalIsTv
 import com.kitsugi.animelist.ui.theme.LocalKitsugiAccent
@@ -166,6 +170,19 @@ fun FullScreenMediaGridPage(
     var selectedSortOption by rememberSaveable { mutableStateOf(KitsugiGridSortOption.DEFAULT) }
     var showGeneralFilterBottomSheet by remember { mutableStateOf(false) }
 
+    // ── Kaynağa gönderilen (uygulanmış) filtre ve sıralama ────────────────────
+    // Çipteki seçim ile API'ye giden seçim ayrı tutulur: "Uygula" yalnız burayı değiştirir,
+    // dolayısıyla sayfa baştan (1. sayfadan) filtrelenmiş olarak çekilir.
+    var appliedGenreId by rememberSaveable { mutableStateOf("ALL") }
+    var appliedSortOption by rememberSaveable { mutableStateOf(KitsugiGridSortOption.DEFAULT) }
+    /**
+     * Her filtre/sıralama uygulamasında artan jeton. Uçuştaki eski sayfa istekleri bu jetonu
+     * karşılaştırıp sonucu yazmaz; böylece hızlı ardışık seçimlerde liste eski veriyle dolmaz.
+     */
+    var filterGeneration by remember { mutableIntStateOf(0) }
+    /** Mevsim/yıl değişiminde liste baştan çekilmelidir (tohum listeye dönüş yeterli değil). */
+    var forceFreshFetch by remember { mutableStateOf(false) }
+
     val isSeasonalAnime = categoryType == ExploreCategoryType.SEASONAL_ANIME &&
         platform != ExplorePlatform.TMDB && platform != ExplorePlatform.SIMKL
     val dynamicTitle = remember(isSeasonalAnime, title, seasonalSeason, seasonalYear) {
@@ -177,7 +194,10 @@ fun FullScreenMediaGridPage(
         } else title
     }
 
-    var loadedResults by remember(platform, categoryType) { mutableStateOf(session?.cachedResults ?: initialResults) }
+    // Filtrasyon öncesi "tohum" liste: filtre temizlendiğinde ağa çıkmadan geri dönülen başlangıç
+    // verisi (keşfet rafından gelen ilk sonuçlar ya da sayfa hafızası).
+    val seedResults = remember(platform, categoryType) { session?.cachedResults ?: initialResults }
+    var loadedResults by remember(platform, categoryType) { mutableStateOf(seedResults) }
     var currentPage by remember(platform, categoryType) {
         mutableIntStateOf(session?.cachedPage ?: if (initialResults.isEmpty()) 0 else 1)
     }
@@ -190,6 +210,11 @@ fun FullScreenMediaGridPage(
         context.getString(com.kitsugi.animelist.R.string.explore_simkl_plantowatch_series),
         context.getString(com.kitsugi.animelist.R.string.explore_simkl_plantowatch_movies)
     ).any { title.contains(it, ignoreCase = true) }
+    // Kullanıcının kendi listeleri (Simkl izleme listeleri, TMDB izlemeye devam) kaynak
+    // API'sinde filtrelenebilir bir katalog değildir → filtre yalnız cihazda uygulanır.
+    val isTmdbPersonalList = platform == ExplorePlatform.TMDB &&
+        (title.startsWith("İzlemeye Devam") || title.startsWith("Planladıklarım"))
+    val isPersonalList = isSimklPersonalList || isTmdbPersonalList
     val simklCategoryUsesFiniteChart = platform == ExplorePlatform.SIMKL && categoryType in setOf(
         ExploreCategoryType.TOP_ANIME,
         ExploreCategoryType.MOVIE_ANIME,
@@ -212,6 +237,21 @@ fun FullScreenMediaGridPage(
         session?.cachedResults = loadedResults
         session?.cachedPage = currentPage
         session?.cachedHasMore = hasMorePages
+    }
+
+    // ── Kaynak-tarafı filtre yetenekleri ──────────────────────────────────────
+    // Seçilen tür/sıralama kaynağın API'sinde karşılığı varsa istek doğrudan filtreli gider
+    // (sayfa 2, 3… aynı sırayı korur). Yoksa eski davranış korunur: elde tutulan liste
+    // cihazda süzülür/sıralanır ve filtre sayfası bu çipi "📱 yerel" olarak işaretler.
+    val serverGenreSupported = !isPersonalList && appliedGenreId != "ALL" &&
+        ExploreSourceFilters.supportsGenre(platform, categoryType, appliedGenreId)
+    val serverSortSupported = !isPersonalList && appliedSortOption != KitsugiGridSortOption.DEFAULT &&
+        ExploreSourceFilters.supportsSort(platform, categoryType, appliedSortOption, appliedGenreId)
+    val serverFilterActive = serverGenreSupported || serverSortSupported
+    val localGenreFilter = appliedGenreId != "ALL" && !serverGenreSupported
+    val localSort = appliedSortOption != KitsugiGridSortOption.DEFAULT && !serverSortSupported
+    val filterClients = remember(apiClient, tmdbApiClient, simklApiClient) {
+        ExploreFilterClients(jikan = apiClient, tmdb = tmdbApiClient, simkl = simklApiClient)
     }
 
     // ── Yaklaşan yayın tarihi zenginleştirme ──────────────────────────────────
@@ -340,106 +380,140 @@ fun FullScreenMediaGridPage(
         else -> simklApiClient.getExploreGenrePage("anime", "rank", page, SIMKL_EXPLORE_PAGE_SIZE)
     }
 
+    /**
+     * Kategorinin kendi (filtresiz) sayfası. Mevcut davranış birebir korunur; sunucu tarafı
+     * filtre/sıralama etkin değilken sayfalama buradan yürür.
+     */
+    suspend fun baseExplorePage(np: Int): List<JikanSearchResult> = when (platform) {
+        ExplorePlatform.MAL -> when (categoryType) {
+            ExploreCategoryType.TOP_RATED_ANIME -> apiClient.topAnime(np, showAdultContent)
+            ExploreCategoryType.TOP_RATED_MANGA -> apiClient.topManga(np, showAdultContent)
+            ExploreCategoryType.TOP_ANIME -> apiClient.topAnime(np)
+            ExploreCategoryType.TRENDING_ANIME -> apiClient.trendingAnime(np)
+            ExploreCategoryType.AIRING_ANIME -> apiClient.airingAnime(np)
+            ExploreCategoryType.UPCOMING_ANIME -> apiClient.upcomingAnime(np)
+            ExploreCategoryType.MOVIE_ANIME -> apiClient.movieAnime(np)
+            ExploreCategoryType.SEASONAL_ANIME -> apiClient.seasonalAnime(np, showAdultContent, seasonalYear, seasonalSeason, seasonalSort)
+            ExploreCategoryType.TOP_MANGA -> apiClient.topManga(np)
+            ExploreCategoryType.PUBLISHING_MANGA -> apiClient.publishingManga(np)
+            ExploreCategoryType.TRENDING_MANGA -> apiClient.trendingManga(np)
+            ExploreCategoryType.NEWLY_ADDED_ANIME -> apiClient.newlyAddedAnime(np)
+            ExploreCategoryType.NEWLY_ADDED_MANGA -> apiClient.newlyAddedManga(np)
+            ExploreCategoryType.MANHWA_MANHUA -> apiClient.manhwaManhua(np, showAdultContent)
+            ExploreCategoryType.NOVELS -> apiClient.novelsShelf(np, showAdultContent)
+            ExploreCategoryType.BANGUMI_TV,
+            ExploreCategoryType.BANGUMI_MOVIES,
+            ExploreCategoryType.UPCOMING_MEDIA_TMDB -> emptyList()
+        }
+        ExplorePlatform.AniList -> when (categoryType) {
+            ExploreCategoryType.TOP_RATED_ANIME -> apiClient.aniListTopRated(com.kitsugi.animelist.model.MediaType.Anime, np, showAdultContent)
+            ExploreCategoryType.TOP_RATED_MANGA -> apiClient.aniListTopRated(com.kitsugi.animelist.model.MediaType.Manga, np, showAdultContent)
+            ExploreCategoryType.TOP_ANIME -> apiClient.aniListTopAnime(np)
+            ExploreCategoryType.TRENDING_ANIME -> apiClient.aniListTrendingAnime(np)
+            ExploreCategoryType.AIRING_ANIME -> apiClient.aniListAiringAnime(np)
+            ExploreCategoryType.UPCOMING_ANIME -> apiClient.aniListUpcomingAnime(np)
+            ExploreCategoryType.MOVIE_ANIME -> apiClient.aniListMovieAnime(np)
+            ExploreCategoryType.SEASONAL_ANIME -> apiClient.aniListSeasonalAnime(np, showAdultContent, seasonalYear, seasonalSeason, seasonalSort)
+            ExploreCategoryType.TOP_MANGA -> apiClient.aniListTopManga(np)
+            ExploreCategoryType.PUBLISHING_MANGA -> apiClient.aniListPublishingManga(np)
+            ExploreCategoryType.TRENDING_MANGA -> apiClient.aniListTrendingManga(np)
+            ExploreCategoryType.NEWLY_ADDED_ANIME -> apiClient.aniListNewlyAddedAnime(np)
+            ExploreCategoryType.NEWLY_ADDED_MANGA -> apiClient.aniListNewlyAddedManga(np)
+            // AniList manhwa/manhua'yı ayrı tür olarak sınıflandırmaz → raf yok.
+            ExploreCategoryType.MANHWA_MANHUA -> emptyList()
+            ExploreCategoryType.NOVELS -> apiClient.aniListNovels(np, showAdultContent)
+            ExploreCategoryType.BANGUMI_TV,
+            ExploreCategoryType.BANGUMI_MOVIES,
+            ExploreCategoryType.UPCOMING_MEDIA_TMDB -> emptyList()
+        }
+        ExplorePlatform.TMDB -> {
+            if (title.startsWith("İzlemeye Devam") || title.startsWith("Planladıklarım")) emptyList()
+            else when (categoryType) {
+                ExploreCategoryType.TOP_ANIME -> tmdbApiClient.getTrendingAll(np)
+                ExploreCategoryType.TRENDING_ANIME -> tmdbApiClient.getTrendingMedia(np)
+                ExploreCategoryType.AIRING_ANIME -> tmdbApiClient.getTrendingShows(np)
+                ExploreCategoryType.MOVIE_ANIME -> tmdbApiClient.getTrendingMovies(np)
+                ExploreCategoryType.UPCOMING_ANIME -> tmdbApiClient.getPopularMovies(np)
+                ExploreCategoryType.TOP_MANGA -> tmdbApiClient.getPopularShows(np)
+                ExploreCategoryType.PUBLISHING_MANGA -> tmdbApiClient.getTopRatedMovies(np)
+                ExploreCategoryType.SEASONAL_ANIME -> tmdbApiClient.getTopRatedShows(np)
+                ExploreCategoryType.TRENDING_MANGA -> tmdbApiClient.getTopRatedAnime(np)
+                ExploreCategoryType.NEWLY_ADDED_ANIME -> tmdbApiClient.getPopularMedia(np)
+                ExploreCategoryType.UPCOMING_MEDIA_TMDB -> tmdbApiClient.getUpcomingMedia(np)
+                else -> emptyList()
+            }
+        }
+        ExplorePlatform.KITSU -> when (categoryType) {
+            ExploreCategoryType.TOP_RATED_ANIME -> com.kitsugi.animelist.data.remote.KitsuExploreClient.topRatedAnime(20, offset = (np - 1) * 20)
+            ExploreCategoryType.TOP_RATED_MANGA -> com.kitsugi.animelist.data.remote.KitsuExploreClient.topRatedManga(20, offset = (np - 1) * 20)
+            ExploreCategoryType.TRENDING_ANIME -> com.kitsugi.animelist.data.remote.KitsuExploreClient.trendingAnime(20, offset = (np - 1) * 20)
+            ExploreCategoryType.MOVIE_ANIME -> com.kitsugi.animelist.data.remote.KitsuExploreClient.movieAnime(20, offset = (np - 1) * 20)
+            ExploreCategoryType.SEASONAL_ANIME -> fetchSeasonalPage(np)
+            ExploreCategoryType.TOP_ANIME -> com.kitsugi.animelist.data.remote.KitsuExploreClient.topAnime(20, offset = (np - 1) * 20)
+            ExploreCategoryType.AIRING_ANIME -> com.kitsugi.animelist.data.remote.KitsuExploreClient.airingAnime(20, offset = (np - 1) * 20)
+            ExploreCategoryType.UPCOMING_ANIME -> com.kitsugi.animelist.data.remote.KitsuExploreClient.upcomingAnime(20, offset = (np - 1) * 20)
+            ExploreCategoryType.TOP_MANGA -> com.kitsugi.animelist.data.remote.KitsuExploreClient.topManga(20, offset = (np - 1) * 20)
+            ExploreCategoryType.PUBLISHING_MANGA -> com.kitsugi.animelist.data.remote.KitsuExploreClient.publishingManga(20, offset = (np - 1) * 20)
+            ExploreCategoryType.TRENDING_MANGA -> com.kitsugi.animelist.data.remote.KitsuExploreClient.trendingManga(20, offset = (np - 1) * 20)
+            ExploreCategoryType.NEWLY_ADDED_ANIME -> com.kitsugi.animelist.data.remote.KitsuExploreClient.newlyAddedAnime(20, offset = (np - 1) * 20)
+            ExploreCategoryType.NEWLY_ADDED_MANGA -> com.kitsugi.animelist.data.remote.KitsuExploreClient.newlyAddedManga(20, offset = (np - 1) * 20)
+            else -> emptyList()
+        }
+        ExplorePlatform.SHIKIMORI -> when (categoryType) {
+            ExploreCategoryType.TRENDING_ANIME -> com.kitsugi.animelist.data.remote.KitsugiShikimoriClient.trendingAnime(limit = 20, page = np, censored = !showAdultContent)
+            ExploreCategoryType.MOVIE_ANIME -> com.kitsugi.animelist.data.remote.KitsugiShikimoriClient.movieAnime(limit = 20, page = np, censored = !showAdultContent)
+            ExploreCategoryType.SEASONAL_ANIME -> fetchSeasonalPage(np)
+            ExploreCategoryType.TRENDING_MANGA -> com.kitsugi.animelist.data.remote.KitsugiShikimoriClient.searchMediaAdvanced(com.kitsugi.animelist.model.MediaType.Manga, order = "popularity", page = np, limit = 20, censored = !showAdultContent)
+            ExploreCategoryType.TOP_ANIME -> com.kitsugi.animelist.data.remote.KitsugiShikimoriClient.searchMediaAdvanced(com.kitsugi.animelist.model.MediaType.Anime, order = "ranked", page = np, limit = 20, censored = !showAdultContent)
+            ExploreCategoryType.AIRING_ANIME -> com.kitsugi.animelist.data.remote.KitsugiShikimoriClient.airingAnime(limit = 20, page = np, censored = !showAdultContent)
+            ExploreCategoryType.UPCOMING_ANIME -> com.kitsugi.animelist.data.remote.KitsugiShikimoriClient.searchMediaAdvanced(com.kitsugi.animelist.model.MediaType.Anime, statuses = listOf("anons"), order = "popularity", page = np, limit = 20, censored = !showAdultContent)
+            ExploreCategoryType.TOP_MANGA -> com.kitsugi.animelist.data.remote.KitsugiShikimoriClient.searchMediaAdvanced(com.kitsugi.animelist.model.MediaType.Manga, order = "ranked", page = np, limit = 20, censored = !showAdultContent)
+            ExploreCategoryType.PUBLISHING_MANGA -> com.kitsugi.animelist.data.remote.KitsugiShikimoriClient.searchMediaAdvanced(com.kitsugi.animelist.model.MediaType.Manga, statuses = listOf("ongoing"), order = "popularity", page = np, limit = 20, censored = !showAdultContent)
+            ExploreCategoryType.MANHWA_MANHUA -> com.kitsugi.animelist.data.remote.KitsugiShikimoriClient.searchMediaAdvanced(com.kitsugi.animelist.model.MediaType.Manga, kinds = listOf("manhwa", "manhua"), order = "popularity", page = np, limit = 20, censored = !showAdultContent)
+            ExploreCategoryType.NOVELS -> com.kitsugi.animelist.data.remote.KitsugiShikimoriClient.searchMediaAdvanced(com.kitsugi.animelist.model.MediaType.Manga, kinds = listOf("light_novel", "novel"), order = "popularity", page = np, limit = 20, censored = !showAdultContent)
+            else -> emptyList()
+        }
+        ExplorePlatform.BANGUMI -> bangumiPage(np)
+        ExplorePlatform.SIMKL -> fetchSimklPage(np)
+        else -> emptyList()
+    }
+
+    /**
+     * Sayfa isteği. Kaynak API'si seçilen tür/sıralamayı destekliyorsa filtre doğrudan
+     * kaynağa gönderilir ([fetchFilteredExplorePage]); aksi halde kategorinin kendi ucuna
+     * düşülür ve filtre yalnızca cihazda uygulanır.
+     */
+    suspend fun fetchExplorePage(np: Int): List<JikanSearchResult> {
+        if (!serverFilterActive) return baseExplorePage(np)
+        val filtered = fetchFilteredExplorePage(
+            platform = platform,
+            categoryType = categoryType,
+            // Sunucuda karşılığı olmayan seçenek yerelde uygulanacağı için buraya gönderilmez.
+            genreId = if (serverGenreSupported) appliedGenreId else "ALL",
+            sort = if (serverSortSupported) appliedSortOption else KitsugiGridSortOption.DEFAULT,
+            page = np,
+            showAdultContent = showAdultContent,
+            clients = filterClients,
+            seasonalSeason = if (isSeasonalAnime) seasonalSeason else null,
+            seasonalYear = if (isSeasonalAnime) seasonalYear else null,
+            seasonalSort = if (isSeasonalAnime) seasonalSort else null
+        )
+        // Filtresiz kategori sayfasına DÜŞÜLMEZ: aksi halde tür süzgeci uygulanmış bir listede
+        // filtresiz kayıtlar görünürdü. Boş sayfa = "bu filtrede sonuç yok" ve sayfalama durur.
+        return filtered
+    }
+
     fun loadNextPage() {
         if (isLoadingMore || !hasMorePages) return
         isLoadingMore = true; loadError = null
+        val generation = filterGeneration
         scope.launch {
             try {
                 val isInitialSimklPage = platform == ExplorePlatform.SIMKL && !simklPageInitialized
                 val np = if (isInitialSimklPage) 1 else currentPage + 1
-                val newItems = when (platform) {
-                    ExplorePlatform.MAL -> when (categoryType) {
-                        ExploreCategoryType.TOP_RATED_ANIME -> apiClient.topAnime(np, showAdultContent)
-                        ExploreCategoryType.TOP_RATED_MANGA -> apiClient.topManga(np, showAdultContent)
-                        ExploreCategoryType.TOP_ANIME -> apiClient.topAnime(np)
-                        ExploreCategoryType.TRENDING_ANIME -> apiClient.trendingAnime(np)
-                        ExploreCategoryType.AIRING_ANIME -> apiClient.airingAnime(np)
-                        ExploreCategoryType.UPCOMING_ANIME -> apiClient.upcomingAnime(np)
-                        ExploreCategoryType.MOVIE_ANIME -> apiClient.movieAnime(np)
-                        ExploreCategoryType.SEASONAL_ANIME -> apiClient.seasonalAnime(np, showAdultContent, seasonalYear, seasonalSeason, seasonalSort)
-                        ExploreCategoryType.TOP_MANGA -> apiClient.topManga(np)
-                        ExploreCategoryType.PUBLISHING_MANGA -> apiClient.publishingManga(np)
-                        ExploreCategoryType.TRENDING_MANGA -> apiClient.trendingManga(np)
-                        ExploreCategoryType.NEWLY_ADDED_ANIME -> apiClient.newlyAddedAnime(np)
-                        ExploreCategoryType.NEWLY_ADDED_MANGA -> apiClient.newlyAddedManga(np)
-                        ExploreCategoryType.MANHWA_MANHUA -> apiClient.manhwaManhua(np, showAdultContent)
-                        ExploreCategoryType.NOVELS -> apiClient.novelsShelf(np, showAdultContent)
-                        ExploreCategoryType.BANGUMI_TV,
-                        ExploreCategoryType.BANGUMI_MOVIES,
-                        ExploreCategoryType.UPCOMING_MEDIA_TMDB -> emptyList()
-                    }
-                    ExplorePlatform.AniList -> when (categoryType) {
-                        ExploreCategoryType.TOP_RATED_ANIME -> apiClient.aniListTopRated(com.kitsugi.animelist.model.MediaType.Anime, np, showAdultContent)
-                        ExploreCategoryType.TOP_RATED_MANGA -> apiClient.aniListTopRated(com.kitsugi.animelist.model.MediaType.Manga, np, showAdultContent)
-                        ExploreCategoryType.TOP_ANIME -> apiClient.aniListTopAnime(np)
-                        ExploreCategoryType.TRENDING_ANIME -> apiClient.aniListTrendingAnime(np)
-                        ExploreCategoryType.AIRING_ANIME -> apiClient.aniListAiringAnime(np)
-                        ExploreCategoryType.UPCOMING_ANIME -> apiClient.aniListUpcomingAnime(np)
-                        ExploreCategoryType.MOVIE_ANIME -> apiClient.aniListMovieAnime(np)
-                        ExploreCategoryType.SEASONAL_ANIME -> apiClient.aniListSeasonalAnime(np, showAdultContent, seasonalYear, seasonalSeason, seasonalSort)
-                        ExploreCategoryType.TOP_MANGA -> apiClient.aniListTopManga(np)
-                        ExploreCategoryType.PUBLISHING_MANGA -> apiClient.aniListPublishingManga(np)
-                        ExploreCategoryType.TRENDING_MANGA -> apiClient.aniListTrendingManga(np)
-                        ExploreCategoryType.NEWLY_ADDED_ANIME -> apiClient.aniListNewlyAddedAnime(np)
-                        ExploreCategoryType.NEWLY_ADDED_MANGA -> apiClient.aniListNewlyAddedManga(np)
-                        // AniList manhwa/manhua'yı ayrı tür olarak sınıflandırmaz → raf yok.
-                        ExploreCategoryType.MANHWA_MANHUA -> emptyList()
-                        ExploreCategoryType.NOVELS -> apiClient.aniListNovels(np, showAdultContent)
-                        ExploreCategoryType.BANGUMI_TV,
-                        ExploreCategoryType.BANGUMI_MOVIES,
-                        ExploreCategoryType.UPCOMING_MEDIA_TMDB -> emptyList()
-                    }
-                    ExplorePlatform.TMDB -> {
-                        if (title.startsWith("İzlemeye Devam") || title.startsWith("Planladıklarım")) emptyList()
-                        else when (categoryType) {
-                            ExploreCategoryType.TOP_ANIME -> tmdbApiClient.getTrendingAll(np)
-                            ExploreCategoryType.TRENDING_ANIME -> tmdbApiClient.getTrendingMedia(np)
-                            ExploreCategoryType.AIRING_ANIME -> tmdbApiClient.getTrendingShows(np)
-                            ExploreCategoryType.MOVIE_ANIME -> tmdbApiClient.getTrendingMovies(np)
-                            ExploreCategoryType.UPCOMING_ANIME -> tmdbApiClient.getPopularMovies(np)
-                            ExploreCategoryType.TOP_MANGA -> tmdbApiClient.getPopularShows(np)
-                            ExploreCategoryType.PUBLISHING_MANGA -> tmdbApiClient.getTopRatedMovies(np)
-                            ExploreCategoryType.SEASONAL_ANIME -> tmdbApiClient.getTopRatedShows(np)
-                            ExploreCategoryType.TRENDING_MANGA -> tmdbApiClient.getTopRatedAnime(np)
-                            ExploreCategoryType.NEWLY_ADDED_ANIME -> tmdbApiClient.getPopularMedia(np)
-                            ExploreCategoryType.UPCOMING_MEDIA_TMDB -> tmdbApiClient.getUpcomingMedia(np)
-                            else -> emptyList()
-                        }
-                    }
-                    ExplorePlatform.KITSU -> when (categoryType) {
-                        ExploreCategoryType.TOP_RATED_ANIME -> com.kitsugi.animelist.data.remote.KitsuExploreClient.topRatedAnime(20, offset = (np - 1) * 20)
-                        ExploreCategoryType.TOP_RATED_MANGA -> com.kitsugi.animelist.data.remote.KitsuExploreClient.topRatedManga(20, offset = (np - 1) * 20)
-                        ExploreCategoryType.TRENDING_ANIME -> com.kitsugi.animelist.data.remote.KitsuExploreClient.trendingAnime(20, offset = (np - 1) * 20)
-                        ExploreCategoryType.MOVIE_ANIME -> com.kitsugi.animelist.data.remote.KitsuExploreClient.movieAnime(20, offset = (np - 1) * 20)
-                        ExploreCategoryType.SEASONAL_ANIME -> fetchSeasonalPage(np)
-                        ExploreCategoryType.TOP_ANIME -> com.kitsugi.animelist.data.remote.KitsuExploreClient.topAnime(20, offset = (np - 1) * 20)
-                        ExploreCategoryType.AIRING_ANIME -> com.kitsugi.animelist.data.remote.KitsuExploreClient.airingAnime(20, offset = (np - 1) * 20)
-                        ExploreCategoryType.UPCOMING_ANIME -> com.kitsugi.animelist.data.remote.KitsuExploreClient.upcomingAnime(20, offset = (np - 1) * 20)
-                        ExploreCategoryType.TOP_MANGA -> com.kitsugi.animelist.data.remote.KitsuExploreClient.topManga(20, offset = (np - 1) * 20)
-                        ExploreCategoryType.PUBLISHING_MANGA -> com.kitsugi.animelist.data.remote.KitsuExploreClient.publishingManga(20, offset = (np - 1) * 20)
-                        ExploreCategoryType.TRENDING_MANGA -> com.kitsugi.animelist.data.remote.KitsuExploreClient.trendingManga(20, offset = (np - 1) * 20)
-                        ExploreCategoryType.NEWLY_ADDED_ANIME -> com.kitsugi.animelist.data.remote.KitsuExploreClient.newlyAddedAnime(20, offset = (np - 1) * 20)
-                        ExploreCategoryType.NEWLY_ADDED_MANGA -> com.kitsugi.animelist.data.remote.KitsuExploreClient.newlyAddedManga(20, offset = (np - 1) * 20)
-                        else -> emptyList()
-                    }
-                    ExplorePlatform.SHIKIMORI -> when (categoryType) {
-                        ExploreCategoryType.TRENDING_ANIME -> com.kitsugi.animelist.data.remote.KitsugiShikimoriClient.trendingAnime(limit = 20, page = np, censored = !showAdultContent)
-                        ExploreCategoryType.MOVIE_ANIME -> com.kitsugi.animelist.data.remote.KitsugiShikimoriClient.movieAnime(limit = 20, page = np, censored = !showAdultContent)
-                        ExploreCategoryType.SEASONAL_ANIME -> fetchSeasonalPage(np)
-                        ExploreCategoryType.TRENDING_MANGA -> com.kitsugi.animelist.data.remote.KitsugiShikimoriClient.searchMediaAdvanced(com.kitsugi.animelist.model.MediaType.Manga, order = "popularity", page = np, limit = 20, censored = !showAdultContent)
-                        ExploreCategoryType.TOP_ANIME -> com.kitsugi.animelist.data.remote.KitsugiShikimoriClient.searchMediaAdvanced(com.kitsugi.animelist.model.MediaType.Anime, order = "ranked", page = np, limit = 20, censored = !showAdultContent)
-                        ExploreCategoryType.AIRING_ANIME -> com.kitsugi.animelist.data.remote.KitsugiShikimoriClient.airingAnime(limit = 20, page = np, censored = !showAdultContent)
-                        ExploreCategoryType.UPCOMING_ANIME -> com.kitsugi.animelist.data.remote.KitsugiShikimoriClient.searchMediaAdvanced(com.kitsugi.animelist.model.MediaType.Anime, statuses = listOf("anons"), order = "popularity", page = np, limit = 20, censored = !showAdultContent)
-                        ExploreCategoryType.TOP_MANGA -> com.kitsugi.animelist.data.remote.KitsugiShikimoriClient.searchMediaAdvanced(com.kitsugi.animelist.model.MediaType.Manga, order = "ranked", page = np, limit = 20, censored = !showAdultContent)
-                        ExploreCategoryType.PUBLISHING_MANGA -> com.kitsugi.animelist.data.remote.KitsugiShikimoriClient.searchMediaAdvanced(com.kitsugi.animelist.model.MediaType.Manga, statuses = listOf("ongoing"), order = "popularity", page = np, limit = 20, censored = !showAdultContent)
-                        ExploreCategoryType.MANHWA_MANHUA -> com.kitsugi.animelist.data.remote.KitsugiShikimoriClient.searchMediaAdvanced(com.kitsugi.animelist.model.MediaType.Manga, kinds = listOf("manhwa", "manhua"), order = "popularity", page = np, limit = 20, censored = !showAdultContent)
-                        ExploreCategoryType.NOVELS -> com.kitsugi.animelist.data.remote.KitsugiShikimoriClient.searchMediaAdvanced(com.kitsugi.animelist.model.MediaType.Manga, kinds = listOf("light_novel", "novel"), order = "popularity", page = np, limit = 20, censored = !showAdultContent)
-                        else -> emptyList()
-                    }
-                    ExplorePlatform.BANGUMI -> bangumiPage(np)
-                    ExplorePlatform.SIMKL -> fetchSimklPage(np)
-                    else -> emptyList()
-                }
+                val newItems = fetchExplorePage(np)
+                // Kullanıcı bu istek uçuştayken filtreyi değiştirdiyse sonucu yazma.
+                if (generation != filterGeneration) return@launch
                 if (isInitialSimklPage) {
                     if (newItems.isEmpty()) {
                         // Keep the already-visible chart data and allow the page-one request to be retried.
@@ -470,8 +544,11 @@ fun FullScreenMediaGridPage(
                     }
                 }
             } catch (e: Exception) {
-                loadError = e.message ?: "Yükleme hatası"
-            } finally { isLoadingMore = false }
+                if (generation == filterGeneration) loadError = e.message ?: "Yükleme hatası"
+            } finally {
+                // Filtre değiştiyse yeni yükleme durumu o yönetir; eskisi elleçlemesin.
+                if (generation == filterGeneration) isLoadingMore = false
+            }
         }
     }
 
@@ -481,22 +558,31 @@ fun FullScreenMediaGridPage(
         }
     }
 
+    /**
+     * Mevsimsel filtre sayfası uygulaması. Yıl/mevsim değişince liste baştan (1. sayfadan)
+     * kaynaktan çekilir; tür süzgeci de seçiliyse aynı istekte kaynağa gönderilir.
+     */
     fun applySeasonalFilter(season: String, year: Int, sort: String) {
         seasonalSeason = season; seasonalYear = year; seasonalSort = sort
-        currentPage = 1; hasMorePages = true; loadedResults = emptyList()
-        isLoadingMore = true; loadError = null
-        scope.launch {
-            try {
-                loadedResults = fetchSeasonalPage(1)
-            } catch (e: Exception) {
-                loadError = e.message ?: "Hata"
-            } finally { isLoadingMore = false }
-        }
+        forceFreshFetch = true
+        filterGeneration += 1
     }
 
-    val displayedResults = remember(loadedResults, showAdultContent, selectedGenreId, selectedSortOption) {
+    // Yerel (cihazda) filtre/sıralama YALNIZCA kaynağın uygulayamadığı seçenekler için çalışır:
+    //  - Sunucu tarafında süzülmüş sayfalarda aynı türü bir de anahtar kelimeyle elemek, kaynağın
+    //    döndürdüğü doğru kayıtları (ör. Çince etiketli Bangumi kayıtlarını) budayabilir.
+    //  - Sunucu sıralaması etkinken listeyi yeniden dizmek, sayfa 2 geldiğinde sırayı bozarak
+    //    "kaydırdıkça sıralama değişiyor" hatasını üretirdi.
+    val displayedResults = remember(
+        loadedResults,
+        showAdultContent,
+        selectedGenreId,
+        selectedSortOption,
+        localGenreFilter,
+        localSort
+    ) {
         val base = loadedResults.filter { showAdultContent || !it.isAdult }
-        val filtered = if (selectedGenreId == "ALL") {
+        val filtered = if (!localGenreFilter || selectedGenreId == "ALL") {
             base
         } else {
             val genreObj = KITSUGI_MEDIA_GENRES.firstOrNull { it.id == selectedGenreId }
@@ -514,6 +600,8 @@ fun FullScreenMediaGridPage(
                 base
             }
         }
+
+        if (!localSort) return@remember filtered
 
         when (selectedSortOption) {
             KitsugiGridSortOption.DEFAULT -> filtered
@@ -568,6 +656,91 @@ fun FullScreenMediaGridPage(
         }
     }
 
+    // ── Filtre uygulama ve kaynaktan yeniden çekme ────────────────────────────
+    /**
+     * "Filtre ve Sıralama" sayfasından gelen seçimi uygular. Seçim kaynağın API'sinde
+     * karşılığı olan bir tür/sıralama ise liste 1. sayfadan itibaren filtreli çekilir;
+     * aksi halde eski davranış korunur (cihazda süzme/sıralama).
+     */
+    fun applyExploreFilter(genreId: String, sortOption: KitsugiGridSortOption) {
+        selectedGenreId = genreId
+        selectedSortOption = sortOption
+        if (genreId == appliedGenreId && sortOption == appliedSortOption) return
+        appliedGenreId = genreId
+        appliedSortOption = sortOption
+        filterGeneration += 1
+    }
+
+    suspend fun scrollToTopOfGrid() {
+        runCatching {
+            if (isGridView) gridState.scrollToItem(0) else listState.scrollToItem(0)
+        }
+    }
+
+    /**
+     * Uygulanan filtre/sıralama değiştiğinde listeyi yeniden kurar.
+     * [forceFreshFetch] mevsim/yıl gibi kaynak parametrelerinin de değiştiği durumlarda
+     * "tohum listeye dön" kısayolunu atlayıp sayfayı baştan çeker.
+     */
+    suspend fun reloadForActiveFilter(generation: Int, forceFreshFetch: Boolean) {
+        if (generation != filterGeneration) return
+
+        if (!forceFreshFetch && !serverFilterActive) {
+            // Filtre yalnız cihazda uygulanıyor: başlangıç listesine dönmek yeterli, ağa çıkılmaz.
+            loadedResults = seedResults
+            currentPage = session?.cachedPage ?: if (seedResults.isEmpty()) 0 else 1
+            hasMorePages = session?.cachedHasMore ?: !isSimklPersonalList
+            loadError = null
+            isLoadingMore = false
+            simklTrendingResults = null
+            scrollToTopOfGrid()
+            return
+        }
+
+        // Liste baştan kurulur: sayfa 1, filtreli istek, kaydırma başa.
+        loadedResults = emptyList()
+        currentPage = 0
+        hasMorePages = true
+        loadError = null
+        isLoadingMore = true
+        simklTrendingResults = null
+        simklPageInitialized = platform != ExplorePlatform.SIMKL
+        try {
+            val items = fetchExplorePage(1)
+            if (generation != filterGeneration) return
+            loadedResults = items
+            currentPage = 1
+            // Boş ilk sayfa = bu filtrede sonuç yok → sonsuz sağlamaya çalışıp döngüye girme.
+            hasMorePages = items.isNotEmpty()
+            scrollToTopOfGrid()
+        } catch (e: Exception) {
+            if (generation == filterGeneration) loadError = e.message ?: "Yükleme hatası"
+        } finally {
+            if (generation == filterGeneration) isLoadingMore = false
+        }
+    }
+
+    // Filtre/sıralama (veya mevsim) değişti → 1. sayfayı kaynaktan yeniden çek.
+    LaunchedEffect(filterGeneration) {
+        if (filterGeneration == 0) return@LaunchedEffect
+        val force = forceFreshFetch
+        forceFreshFetch = false
+        reloadForActiveFilter(filterGeneration, force)
+    }
+
+    // Süreç yeniden başlatıldığında `rememberSaveable` filtresini geri getirir ama liste
+    // tohum hâlindedir (oturum önbelleği boş) → sunucu filtresi sayfa 1'den yeniden uygulanır.
+    // Cihazda süzülen seçimlerde ağa çıkılmaz.
+    LaunchedEffect(Unit) {
+        val hasAppliedFilter = appliedGenreId != "ALL" ||
+            appliedSortOption != KitsugiGridSortOption.DEFAULT
+        if (filterGeneration == 0 && hasAppliedFilter && session?.cachedResults == null &&
+            (serverGenreSupported || serverSortSupported)
+        ) {
+            filterGeneration += 1
+        }
+    }
+
     // ── Otomatik sayfalama emniyeti ────────────────────────────────────────────
     // ESKİ HATA: `isLoadingMore` tetikleyicinin anahtarıydı. Her sayfa yüklemesi
     // bittiğinde (true→false) efekt yeniden başlıyor, liste yerleşimi (layout) henüz
@@ -581,7 +754,7 @@ fun FullScreenMediaGridPage(
     var autoLoadBudget by remember { mutableIntStateOf(AUTO_LOAD_BUDGET_PER_SCROLL) }
     var lastAutoLoadVisibleCount by remember { mutableIntStateOf(-1) }
 
-    LaunchedEffect(selectedGenreId, selectedSortOption, seasonalSeason, seasonalYear, seasonalSort) {
+    LaunchedEffect(selectedGenreId, selectedSortOption, seasonalSeason, seasonalYear, seasonalSort, filterGeneration) {
         autoLoadBudget = AUTO_LOAD_BUDGET_PER_SCROLL
         lastAutoLoadVisibleCount = -1
     }
@@ -728,7 +901,12 @@ fun FullScreenMediaGridPage(
                             selectedGenreId = selectedGenreId,
                             accentColor = accentColor,
                             onGenreClick = { genreId, isSelected ->
-                                selectedGenreId = if (isSelected && genreId != "ALL") "ALL" else genreId
+                                // Çipe dokunmak filtreyi hemen uygular; tür kaynağın API'sinde
+                                // varsa liste o türle baştan çekilir.
+                                applyExploreFilter(
+                                    if (isSelected && genreId != "ALL") "ALL" else genreId,
+                                    selectedSortOption
+                                )
                             }
                         )
 
@@ -738,6 +916,9 @@ fun FullScreenMediaGridPage(
                         val activeFilterDesc = buildString {
                             activeGenreLabel?.let { append(" • $it") }
                             activeSortLabel?.let { append(" • $it") }
+                            // ☁️ = kaynak API'sinde uygulandı, 📱 = kaynak desteklemediği için cihazda.
+                            if (serverFilterActive) append(" ☁️")
+                            else if (localGenreFilter || localSort) append(" 📱")
                         }
 
                         Row(
@@ -763,8 +944,7 @@ fun FullScreenMediaGridPage(
                                     style = MaterialTheme.typography.labelSmall,
                                     fontWeight = FontWeight.Bold,
                                     modifier = Modifier.clickable {
-                                        selectedGenreId = "ALL"
-                                        selectedSortOption = KitsugiGridSortOption.DEFAULT
+                                        applyExploreFilter("ALL", KitsugiGridSortOption.DEFAULT)
                                     }
                                 )
                             }
@@ -905,7 +1085,12 @@ fun FullScreenMediaGridPage(
                             selectedGenreId = selectedGenreId,
                             accentColor = accentColor,
                             onGenreClick = { genreId, isSelected ->
-                                selectedGenreId = if (isSelected && genreId != "ALL") "ALL" else genreId
+                                // Çipe dokunmak filtreyi hemen uygular; tür kaynağın API'sinde
+                                // varsa liste o türle baştan çekilir.
+                                applyExploreFilter(
+                                    if (isSelected && genreId != "ALL") "ALL" else genreId,
+                                    selectedSortOption
+                                )
                             }
                         )
                     }
@@ -919,6 +1104,9 @@ fun FullScreenMediaGridPage(
                     val activeFilterDesc = buildString {
                         activeGenreLabel?.let { append(" • $it") }
                         activeSortLabel?.let { append(" • $it") }
+                        // ☁️ = kaynak API'sinde uygulandı, 📱 = kaynak desteklemediği için cihazda.
+                        if (serverFilterActive) append(" ☁️")
+                        else if (localGenreFilter || localSort) append(" 📱")
                     }
 
                     Column {
@@ -944,8 +1132,7 @@ fun FullScreenMediaGridPage(
                                     style = MaterialTheme.typography.labelSmall,
                                     fontWeight = FontWeight.Bold,
                                     modifier = Modifier.clickable {
-                                        selectedGenreId = "ALL"
-                                        selectedSortOption = KitsugiGridSortOption.DEFAULT
+                                        applyExploreFilter("ALL", KitsugiGridSortOption.DEFAULT)
                                     }
                                 )
                             }
@@ -1144,15 +1331,16 @@ fun FullScreenMediaGridPage(
             KitsugiMediaFilterBottomSheet(
                 initialGenreId = selectedGenreId,
                 initialSortOption = selectedSortOption,
+                // Kaynakta uygulanamayan çipler sayfada "📱 yerel" olarak işaretlenir; kullanıcı
+                // hangi filtrenin API'ye gittiğini, hangisinin cihazda süzüldüğünü görür.
+                sourceLabel = if (isPersonalList) null else platform.localizedLabel(),
+                serverGenreIds = if (isPersonalList) emptySet()
+                    else ExploreSourceFilters.serverGenreIds(platform, categoryType),
+                serverSorts = if (isPersonalList) emptySet()
+                    else ExploreSourceFilters.serverSorts(platform, categoryType, appliedGenreId),
                 onDismissRequest = { showGeneralFilterBottomSheet = false },
-                onApply = { genreId, sortOption ->
-                    selectedGenreId = genreId
-                    selectedSortOption = sortOption
-                },
-                onReset = {
-                    selectedGenreId = "ALL"
-                    selectedSortOption = KitsugiGridSortOption.DEFAULT
-                }
+                onApply = { genreId, sortOption -> applyExploreFilter(genreId, sortOption) },
+                onReset = { applyExploreFilter("ALL", KitsugiGridSortOption.DEFAULT) }
             )
         }
     }

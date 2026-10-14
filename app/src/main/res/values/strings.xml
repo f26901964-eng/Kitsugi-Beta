@@ -4371,6 +4371,9 @@ Eklentiler ekranından eklenti etkinleştirin.</string>
 	<string name="tumunu_gor">Tümünü Gör</string>
 	<string name="secili">Seçili</string>
 	<string name="filtre_ve_siralama">Filtre ve Sıralama</string>
+	<!-- Keşfet "Tümünü Gör" sayfası: filtrelerin kaynak API'sinde mi cihazda mı uygulandığı -->
+	<string name="filtre_kaynak_sunucu_bilgi">☁️ Tür ve sıralama %1$s API\'sinde uygulanır</string>
+	<string name="filtre_kaynak_yerel_bilgi">📱 Cihazda uygulanan: %1$s</string>
 	<string name="sonraki_bolum">Sonraki Bölüm</string>
 	<string name="vazgec">Vazgeç</string>
 	<string name="kisisel_dusuncelerinizi_yazin">Kişisel düşüncelerinizi yazın...</string>
