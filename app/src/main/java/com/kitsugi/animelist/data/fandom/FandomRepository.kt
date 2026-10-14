@@ -625,8 +625,10 @@ object FandomRepository {
         keys.forEach { key -> runCatchingDb { dao.deleteDetail(key) } }
     }
 
+    // v6: Vikipedi kaynaklarında "Türkçe önceliği" artık maddeyi sessizce TR sürümüne
+    // çevirmiyor; eski (v5) kayıtlar yanlış dilde madde döndürebileceği için sürüm yükseltildi.
     private fun mediaArticleCacheKey(mediaKey: String, wikiId: String, preferTurkish: Boolean): String =
-        "${KEY_PREFIX}media-page:v5:$mediaKey:$wikiId:${if (preferTurkish) "tr1" else "tr0"}"
+        "${KEY_PREFIX}media-page:v6:$mediaKey:$wikiId:${if (preferTurkish) "tr1" else "tr0"}"
 
     private suspend fun buildMediaArticle(
         context: Context,
@@ -743,7 +745,10 @@ object FandomRepository {
         var englishPageTitle: String? = null
         val englishTitle = lookup.resolvedTitle ?: return null
 
-        if (preferTurkish && FandomUrls.languageOf(wikiId) != "tr") {
+        // Vikipedi kaynaklarında dil sürümü kullanıcıya AYRI kaynak olarak sunulur (TR/EN
+        // çipleri); burada sessizce TR maddeye geçmek "Wikipedia (EN)" çipinin altında TR
+        // madde göstermek demekti. Bu yüzden dil değiştirme yalnızca Fandom wiki'lerinde.
+        if (preferTurkish && !FandomUrls.isWikipedia(wikiId) && FandomUrls.languageOf(wikiId) != "tr") {
             val turkishLink = lookup.turkishLink ?: run {
                 FandomApi.lookupTitles(ref.wikiId, listOf(englishTitle), withTurkishLink = true)[englishTitle]?.turkishLink
             }
@@ -931,7 +936,11 @@ object FandomRepository {
         val (galleryImages, sectionLinks) = coroutineScope {
             val imageDeferred = async {
                 try {
-                    FandomApi.pageImages(page.wikiId, page.pageTitle)
+                    // Vikipedi maddelerinde `prop=images` onlarca ikon/logo dosyası döndürür ve
+                    // bu liste arayüzde hiç kullanılmaz (galeri, bilgi kutusunun kendi
+                    // görsellerini kullanır). Boşuna istek atmamak için yalnızca Fandom.
+                    if (FandomUrls.isWikipedia(page.wikiId)) emptyList<FandomImage>()
+                    else FandomApi.pageImages(page.wikiId, page.pageTitle)
                 } catch (e: CancellationException) {
                     throw e
                 } catch (e: Exception) {

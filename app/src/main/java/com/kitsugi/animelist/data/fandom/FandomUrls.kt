@@ -63,6 +63,17 @@ object FandomUrls {
         return WikiIdParts(lang, name)
     }
 
+    /**
+     * Galeri/künye gibi yüzeylerde gösterilen kaynak adı: Fandom wiki'leri için "Fandom",
+     * Vikipedi için ilgili dil sürümünün gerçek adı ("Vikipedi" / "Wikipedia").
+     */
+    fun displaySourceName(wikiId: String?): String =
+        if (isWikipedia(wikiId)) {
+            if (wikipediaLang(wikiId) == "tr") "Vikipedi" else "Wikipedia"
+        } else {
+            "Fandom"
+        }
+
     /** Kimliği kanonik biçime getirir (`EN.Naruto` → `naruto`). Geçersizse null. */
     fun normalize(wikiId: String?): String? {
         val raw = wikiId?.trim()?.lowercase(Locale.ROOT) ?: return null

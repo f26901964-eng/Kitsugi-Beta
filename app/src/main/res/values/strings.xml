@@ -7296,7 +7296,7 @@ Eklentiler ekranından eklenti etkinleştirin.</string>
     <string name="fandom_tab_loading">Wiki yükleniyor…</string>
     <string name="fandom_unavailable_title">Wiki bulunamadı</string>
     <string name="fandom_unavailable_character">Bu karakter için Fandom wiki sayfası bulunamadı.</string>
-    <string name="fandom_unavailable_media">Bu yapım için Fandom wiki\'si bulunamadı.</string>
+    <string name="fandom_unavailable_media">Bu yapım için wiki bulunamadı (Fandom veya Vikipedi).</string>
     <string name="fandom_media_article_unavailable_title">Madde bulunamadı</string>
     <string name="fandom_media_article_unavailable">Bu wiki içinde yapımın eşleşen bir madde sayfası bulunamadı.</string>
     <string name="fandom_unavailable_hint">Bağlantı hatasıysa tekrar deneyebilirsin.</string>
@@ -7309,10 +7309,16 @@ Eklentiler ekranından eklenti etkinleştirin.</string>
     <string name="fandom_section_creation">Yaratılış ve tasarım</string>
     <string name="fandom_media_header_subtitle">Fandom wiki · evren rehberi</string>
     <string name="fandom_media_header_subtitle_wikipedia">Wikipedia · Açık Ansiklopedi</string>
+    <string name="fandom_media_header_subtitle_wikipedia_tr">Vikipedi · Açık Ansiklopedi</string>
+    <string name="fandom_source_label_wikipedia">Kaynak: %1$s</string>
+    <string name="fandom_license_note_wikipedia">Vikipedi içerikleri CC BY-SA 4.0 lisansıyla paylaşılır.</string>
+    <string name="wiki_source_wikipedia_other">%1$s (%2$s)</string>
+    <string name="fandom_related_pages_title_wikipedia">İlgili maddeler</string>
+    <string name="fandom_open_page_wikipedia_page">Vikipedi sayfası</string>
     <string name="wiki_source_fandom">Fandom Wiki</string>
     <string name="wiki_source_wikipedia">Wikipedia</string>
     <string name="wiki_source_wikipedia_tr">Vikipedi (TR)</string>
-    <string name="fandom_open_page_wikipedia">Vikipedi\'de aç</string>
+    <string name="fandom_open_page_wikipedia">Vikipedi\'de oku</string>
     <string name="fandom_media_summary_title">Seri özeti</string>
     <string name="fandom_media_search_hint">Wiki\'de ara…</string>
     <string name="fandom_media_search_empty">Aramayla eşleşen sayfa bulunamadı.</string>

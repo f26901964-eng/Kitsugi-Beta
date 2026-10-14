@@ -64,6 +64,7 @@ import com.kitsugi.animelist.data.fandom.FandomInfoboxField
 import com.kitsugi.animelist.data.fandom.FandomSectionContent
 import com.kitsugi.animelist.data.fandom.FandomSectionRef
 import com.kitsugi.animelist.data.fandom.FandomTextBlock
+import com.kitsugi.animelist.data.fandom.FandomUrls
 import com.kitsugi.animelist.data.remote.GalleryCategory
 import com.kitsugi.animelist.data.remote.GalleryItem
 import com.kitsugi.animelist.ui.screens.detail.wiki.FandomCharacterWikiViewModel.Companion.KEY_DESCRIPTION
@@ -295,6 +296,7 @@ internal fun CharacterWikiTabContent(
                         onCopy = { text -> copyWikiText(context, text) },
                         preferredTranslator = preferredTranslator,
                         onOpenGallery = onOpenGallery,
+                        gallerySource = FandomUrls.displaySourceName(page.wikiId),
                         onOpenLink = { linkTitle ->
                             onOpenWikiPage?.invoke(linkTitle) ?: openExternal(context, com.kitsugi.animelist.data.fandom.FandomUrls.pageUrl(page.wikiId, linkTitle))
                         },
@@ -307,6 +309,7 @@ internal fun CharacterWikiTabContent(
         if (relatedPages.isNotEmpty()) {
             CharacterRelatedStrip(
                 pages = relatedPages,
+                wikipedia = FandomUrls.isWikipedia(page.wikiId),
                 accentColor = accentColor,
                 onOpenPage = { p ->
                     // Uygulama içi okuyucu bağlı değilse ölü düğme bırakma:
@@ -329,6 +332,7 @@ internal fun CharacterWikiTabContent(
 @Composable
 private fun CharacterRelatedStrip(
     pages: List<com.kitsugi.animelist.data.fandom.FandomRelatedPage>,
+    wikipedia: Boolean,
     accentColor: Color,
     onOpenPage: (String) -> Unit
 ) {
@@ -336,7 +340,10 @@ private fun CharacterRelatedStrip(
     WikiCard {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(
-                text = stringResource(R.string.fandom_related_pages_title),
+                text = stringResource(
+                    if (wikipedia) R.string.fandom_related_pages_title_wikipedia
+                    else R.string.fandom_related_pages_title
+                ),
                 color = KitsugiColors.TextPrimary,
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold,
@@ -356,6 +363,10 @@ private fun CharacterRelatedStrip(
                 WikiRelatedPageCard(
                     page = page,
                     accentColor = accentColor,
+                    actionLabel = stringResource(
+                        if (wikipedia) R.string.fandom_open_page_wikipedia_page
+                        else R.string.fandom_open_page
+                    ),
                     onClick = { onOpenPage(page.title) }
                 )
             }
@@ -443,11 +454,12 @@ private fun WikiInfoboxCard(
 ) {
     val context = LocalContext.current
     val images = infobox?.images.orEmpty()
-    val galleryItems = remember(images, galleryCategory) {
+    val gallerySource = FandomUrls.displaySourceName(page.wikiId)
+    val galleryItems = remember(images, galleryCategory, gallerySource) {
         images.map { image ->
             GalleryItem(
                 url = image.url,
-                source = FANDOM_GALLERY_SOURCE,
+                source = gallerySource,
                 category = galleryCategory,
                 description = image.caption
             )
@@ -778,7 +790,9 @@ private fun WikiSectionRow(
     onToggleOriginal: (() -> Unit)? = null,
     onOpenGallery: (List<GalleryItem>, Int) -> Unit = { _, _ -> },
     onOpenLink: (String) -> Unit = {},
-    onOpenWikiLink: ((FandomWikiLink) -> Unit)? = null
+    onOpenWikiLink: ((FandomWikiLink) -> Unit)? = null,
+    /** Galeri penceresindeki kaynak adı ("Fandom" / "Vikipedi" / "Wikipedia"). */
+    gallerySource: String = FANDOM_GALLERY_SOURCE
 ) {
     Column(modifier = Modifier.fillMaxWidth()) {
         Row(
@@ -876,7 +890,8 @@ private fun WikiSectionRow(
                                     translated = if (showingOriginal) null else translated,
                                     onOpenGallery = onOpenGallery,
                                     onOpenLink = onOpenLink,
-                                    onOpenWikiLink = onOpenWikiLink
+                                    onOpenWikiLink = onOpenWikiLink,
+                                    gallerySource = gallerySource
                                 )
                             }
                         }
@@ -893,16 +908,17 @@ private fun SectionBody(
     translated: String?,
     onOpenGallery: (List<GalleryItem>, Int) -> Unit,
     onOpenLink: (String) -> Unit = {},
-    onOpenWikiLink: ((FandomWikiLink) -> Unit)? = null
+    onOpenWikiLink: ((FandomWikiLink) -> Unit)? = null,
+    gallerySource: String = FANDOM_GALLERY_SOURCE
 ) {
     val context = LocalContext.current
-    val galleryItems = remember(content) {
+    val galleryItems = remember(content, gallerySource) {
         content.blocks.mapNotNull { it.image }
             .distinctBy { it.url }
             .map { image ->
                 GalleryItem(
                     url = image.url,
-                    source = FANDOM_GALLERY_SOURCE,
+                    source = gallerySource,
                     category = GalleryCategory.CHARACTER,
                     description = image.caption
                 )
@@ -1164,9 +1180,14 @@ private fun WikiFooter(
             .padding(horizontal = 4.dp),
         verticalArrangement = Arrangement.spacedBy(2.dp)
     ) {
+        val wikipediaPage = FandomUrls.isWikipedia(page.wikiId)
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(
-                text = stringResource(R.string.fandom_source_label, page.siteName ?: page.wikiId),
+                text = stringResource(
+                    if (wikipediaPage) R.string.fandom_source_label_wikipedia
+                    else R.string.fandom_source_label,
+                    page.siteName ?: page.wikiId
+                ),
                 color = KitsugiColors.TextSecondary,
                 style = MaterialTheme.typography.bodySmall,
                 modifier = Modifier.weight(1f)
@@ -1181,7 +1202,10 @@ private fun WikiFooter(
                     )
                     Spacer(modifier = Modifier.width(6.dp))
                     Text(
-                        text = stringResource(R.string.fandom_open_page),
+                        text = stringResource(
+                            if (wikipediaPage) R.string.fandom_open_page_wikipedia_page
+                            else R.string.fandom_open_page
+                        ),
                         color = accentColor,
                         style = MaterialTheme.typography.labelMedium,
                         fontWeight = FontWeight.Bold
@@ -1206,7 +1230,10 @@ private fun WikiFooter(
             }
         }
         Text(
-            text = stringResource(R.string.fandom_license_note),
+            text = stringResource(
+                if (wikipediaPage) R.string.fandom_license_note_wikipedia
+                else R.string.fandom_license_note
+            ),
             color = KitsugiColors.TextMuted,
             style = MaterialTheme.typography.labelSmall
         )
@@ -1334,7 +1361,14 @@ private fun WikiRelatedEntitiesCard(
                                             GalleryCategory.PERSON
                                         }
                                         onOpenGallery(
-                                            listOf(GalleryItem(url, FANDOM_GALLERY_SOURCE, category, entity.label)),
+                                            listOf(
+                                                GalleryItem(
+                                                    url,
+                                                    FandomUrls.displaySourceName(entity.wikiId),
+                                                    category,
+                                                    entity.label
+                                                )
+                                            ),
                                             0
                                         )
                                     } ?: openEntityPage(entity)

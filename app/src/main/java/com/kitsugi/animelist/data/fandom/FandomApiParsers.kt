@@ -28,6 +28,11 @@ data class FandomTitleLookup(
     val infoboxJson: String?,
     val description: String?,
     val isDisambiguation: Boolean,
+    /**
+     * `pageprops.wikibase_item` — maddenin bağlı olduğu Wikidata varlığı.
+     * Yalnızca `ppprop=wikibase_item` ile istendiğinde dolu gelir (Vikipedi maddeleri).
+     */
+    val wikidataItem: String? = null,
     /** Türkçe dil bağlantısı (wiki kimliği, sayfa başlığı) — `prop=langlinks&lllang=tr`. */
     val turkishLink: Pair<String, String>? = null,
     /** `prop=pageimages` thumbnail for related-article cards. */
@@ -102,6 +107,7 @@ object FandomApiParsers {
                     ?.takeIf { it.isNotBlank() }
                     ?: page?.str("extract")?.takeIf { it.isNotBlank() },
                 isDisambiguation = props?.has("disambiguation") == true,
+                wikidataItem = props?.str("wikibase_item")?.trim()?.takeIf { it.isNotEmpty() },
                 turkishLink = if (exists) parseTurkishLink(page?.optJSONArray("langlinks")) else null,
                 thumbnailUrl = if (exists) FandomUrls.normalizeImageUrl(page?.optJSONObject("thumbnail")?.str("source")) else null
             )

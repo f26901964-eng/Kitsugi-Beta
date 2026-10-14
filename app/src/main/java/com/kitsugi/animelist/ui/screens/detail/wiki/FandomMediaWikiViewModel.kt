@@ -14,14 +14,17 @@ import com.kitsugi.animelist.data.fandom.FandomSectionContent
 import com.kitsugi.animelist.data.fandom.FandomGuideGroup
 import com.kitsugi.animelist.data.fandom.FandomGuideItem
 import com.kitsugi.animelist.data.fandom.FandomMediaQuery
+import com.kitsugi.animelist.data.fandom.FandomNameVariants
 import com.kitsugi.animelist.data.fandom.FandomPageBlurb
 import com.kitsugi.animelist.data.fandom.FandomRepository
 import com.kitsugi.animelist.data.fandom.FandomSearchHit
+import com.kitsugi.animelist.data.fandom.FandomUrls
 import com.kitsugi.animelist.data.fandom.FandomWikiPrefs
 import com.kitsugi.animelist.data.fandom.FandomWikiRef
 import com.kitsugi.animelist.data.fandom.FandomWorldGuide
 import com.kitsugi.animelist.data.local.TranslationManager
 import com.kitsugi.animelist.data.settings.SettingsDataStore
+import com.kitsugi.animelist.utils.KitsugiTranslatePrefs
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -72,6 +75,13 @@ class FandomMediaWikiViewModel(application: Application) : AndroidViewModel(appl
         data object Loading : GuideState
         data class Ready(val guide: FandomWorldGuide) : GuideState
         data object Failed : GuideState
+
+        /**
+         * Bu kaynakta "evren rehberi" kavramı yok: Vikipedi'de Fandom'daki gibi kategori
+         * şeması (Karakterler/Kuruluşlar/Bölümler…) bulunmaz; `Category:Karakterler` gibi
+         * genel kategoriler yapımla ilgisiz çipler üretirdi. Kart hiç çizilmez.
+         */
+        data object Unsupported : GuideState
     }
 
     /**
@@ -136,6 +146,15 @@ class FandomMediaWikiViewModel(application: Application) : AndroidViewModel(appl
         fun articleInfoboxKey(title: String): String = "item-info:$title"
         fun articleInfoboxFieldKey(title: String, index: Int): String = "item-if:$index:$title"
         private const val SEARCH_DEBOUNCE_MS = 350L
+
+        /** "İlgili maddeler" listesine girmemesi gereken ansiklopedi iskelet sayfaları. */
+        private val ENCYCLOPEDIA_BOILERPLATE_TITLES = setOf(
+            "anasayfa", "main page", "wikipedia", "vikipedi", "portal", "help", "yardim"
+        )
+        private val ENCYCLOPEDIA_BOILERPLATE_PREFIXES = listOf(
+            "vikipedi ", "wikipedia ", "yardim ", "help ", "portal ", "sablon ", "template ",
+            "dosya ", "file ", "kategori ", "category ", "ozel ", "special ", "taslak "
+        )
     }
 
     private val appContext = application.applicationContext
@@ -199,6 +218,17 @@ class FandomMediaWikiViewModel(application: Application) : AndroidViewModel(appl
 
     private val _translating = MutableStateFlow<Set<String>>(emptySet())
     val translating: StateFlow<Set<String>> = _translating.asStateFlow()
+
+    /**
+     * Her çeviri kaydının hangi KAYNAK METİNDEN üretildiği (anahtar → metin).
+     *
+     * Çeviriler eskiden yalnızca anahtarla ("desc", "sec:0"…) tutuluyordu; wiki kaynağı
+     * değiştiğinde (Fandom → Vikipedi ya da Vikipedi TR → EN) aynı anahtar başka bir maddeyi
+     * işaret ettiği hâlde eski çeviri ekranda kalıyordu. Sonuç: "Orijinal / Çeviri" düğmesi
+     * içeriği TAMAMEN farklı bir metne çeviriyordu. Kaynak metin eşleşmiyorsa çeviri geçersiz
+     * sayılır ([pruneStaleTranslations]).
+     */
+    private val translationBases = HashMap<String, String>()
 
     /**
      * Orijinal metne dönülmüş anahtarlar ([KEY_SUMMARY], [itemKey], [FandomCharacterWikiViewModel.KEY_DESCRIPTION], vb.).
@@ -311,6 +341,7 @@ class FandomMediaWikiViewModel(application: Application) : AndroidViewModel(appl
         _articleSections.value = emptyMap()
         _selectedSections.value = emptyMap()
         _translations.value = emptyMap()
+        translationBases.clear()
         _originalKeys.value = emptySet()
         _guide.value = GuideState.Idle
         _summary.value = BlurbState.Idle
@@ -350,7 +381,15 @@ class FandomMediaWikiViewModel(application: Application) : AndroidViewModel(appl
         }
     }
 
-    /** Farklı bir wiki kaynağına geçiş yapar (ör. Fandom ↔ Wikipedia). */
+    /**
+     * Farklı bir wiki kaynağına geçiş yapar (Fandom ↔ Vikipedi; Vikipedi TR ↔ EN).
+     *
+     * Kaynak değişiminde ÖNCEKİ kaynağa ait bütün türev durum düşürülür. Özellikle çeviriler:
+     * aynı anahtar ("desc") başka bir maddeyi işaret ettiği için eski çeviri ekranda kalırsa
+     * "Orijinal / Çeviri" düğmesi içeriği tamamen farklı bir metne çeviriyordu (EN Vikipedi'den
+     * TR Vikipedi'ye geçişte birebir bu oluyordu). Madde bölümleri de taşınırsa "İçindekiler"
+     * altında önceki maddenin metni görünürdü.
+     */
     fun switchSource(index: Int) {
         val current = _state.value as? UiState.Ready ?: return
         if (index !in current.availableSources.indices || index == current.activeSourceIndex) return
@@ -359,13 +398,29 @@ class FandomMediaWikiViewModel(application: Application) : AndroidViewModel(appl
             ref = newRef,
             activeSourceIndex = index
         )
+        // Çeviri işleri + Orijinal/Çeviri geçişleri (cancelTranslations üretimi artırır).
+        cancelTranslations()
+        _translations.value = emptyMap()
+        _originalKeys.value = emptySet()
+        translationBases.clear()
         articleJob?.cancel()
+        articleGeneration += 1
         _article.value = ArticleState.Idle
+        _articleSections.value = emptyMap()
         summaryJob?.cancel()
         _summary.value = BlurbState.Idle
         guideJob?.cancel()
+        guideMoreJob?.cancel()
+        _guideMore.value = GuideMore.Idle
         _guide.value = GuideState.Idle
+        relatedJob?.cancel()
         _relatedPages.value = emptyList()
+        searchJob?.cancel()
+        _searchQuery.value = ""
+        _searchState.value = SearchState.Idle
+        selectedJob?.cancel()
+        cancelSelectedSectionJobs()
+        cancelArticleItemTranslations()
         _selected.value = SelectedState.Closed
         _selectedSections.value = emptyMap()
         ensureContentLoaded()
@@ -400,10 +455,18 @@ class FandomMediaWikiViewModel(application: Application) : AndroidViewModel(appl
         }
     }
 
-    /** Sekme görünür olduğunda çağrılır: seri özeti + evren rehberi aşamalı çekilir. */
+    /**
+     * Sekme görünür olduğunda çağrılır: yapım maddesi + (kaynağa göre) seri özeti ve evren rehberi.
+     *
+     * Kaynak Vikipedi olduğunda "seri özeti" (ana sayfa özeti) ve "evren rehberi" (kategori
+     * çipleri) KASTEN yüklenmez: Vikipedi ana sayfası yapımın özeti değildir ve orada Fandom
+     * tarzı bir kategori şeması yoktur. İlgili maddeler de ana sayfa yerine yapımın kendi
+     * maddesinden türetilir.
+     */
     fun ensureContentLoaded() {
         val ready = _state.value as? UiState.Ready ?: return
         val query = lastQuery ?: return
+        val wikipediaSource = FandomUrls.isWikipedia(ready.ref.wikiId)
         if (_article.value == ArticleState.Idle) {
             val articleRequestGeneration = articleGeneration
             _article.value = ArticleState.Loading
@@ -418,43 +481,58 @@ class FandomMediaWikiViewModel(application: Application) : AndroidViewModel(appl
                 }
                 if (articleRequestGeneration != articleGeneration || !isCurrent(ready)) return@launch
                 _article.value = if (page != null) ArticleState.Ready(page) else ArticleState.Unavailable
+                // Madde metni değişti: önceki metne bağlı çeviriler düşer.
+                pruneStaleTranslations()
                 if (!page?.description.isNullOrBlank() && isAutoTranslateEnabled()) {
                     translate(FandomCharacterWikiViewModel.KEY_DESCRIPTION)
+                }
+                if (page != null && FandomUrls.isWikipedia(ready.ref.wikiId)) {
+                    loadRelatedPagesForWikipedia(ready)
                 }
             }
         }
         if (_summary.value == BlurbState.Idle) {
-            _summary.value = BlurbState.Loading
-            summaryJob = viewModelScope.launch {
-                val blurb = try {
-                    FandomRepository.loadMainPageBlurb(appContext, ready.ref.wikiId)
-                } catch (e: CancellationException) {
-                    throw e
-                } catch (e: Exception) {
-                    Log.w(TAG, "Seri özeti yüklenemedi: ${e.message}")
-                    null
+            if (wikipediaSource) {
+                // Vikipedi'de "seri özeti" kartı boş kalır (madde özeti zaten madde kartında).
+                _summary.value = BlurbState.Ready(null)
+            } else {
+                _summary.value = BlurbState.Loading
+                summaryJob = viewModelScope.launch {
+                    val blurb = try {
+                        FandomRepository.loadMainPageBlurb(appContext, ready.ref.wikiId)
+                    } catch (e: CancellationException) {
+                        throw e
+                    } catch (e: Exception) {
+                        Log.w(TAG, "Seri özeti yüklenemedi: ${e.message}")
+                        null
+                    }
+                    if (!isCurrent(ready)) return@launch
+                    _summary.value = BlurbState.Ready(blurb)
+                    pruneStaleTranslations()
+                    if (!blurb?.description.isNullOrBlank()) maybeAutoTranslate(KEY_SUMMARY)
                 }
-                if (!isCurrent(ready)) return@launch
-                _summary.value = BlurbState.Ready(blurb)
-                if (!blurb?.description.isNullOrBlank()) maybeAutoTranslate(KEY_SUMMARY)
             }
         }
         if (_guide.value == GuideState.Idle) {
-            _guide.value = GuideState.Loading
-            guideJob = viewModelScope.launch {
-                val guide = try {
-                    FandomRepository.loadWorldGuide(appContext, ready.ref.wikiId)
-                } catch (e: CancellationException) {
-                    throw e
-                } catch (e: Exception) {
-                    Log.w(TAG, "Evren rehberi yüklenemedi: ${e.message}")
-                    null
+            if (wikipediaSource) {
+                _guide.value = GuideState.Unsupported
+            } else {
+                _guide.value = GuideState.Loading
+                guideJob = viewModelScope.launch {
+                    val guide = try {
+                        FandomRepository.loadWorldGuide(appContext, ready.ref.wikiId)
+                    } catch (e: CancellationException) {
+                        throw e
+                    } catch (e: Exception) {
+                        Log.w(TAG, "Evren rehberi yüklenemedi: ${e.message}")
+                        null
+                    }
+                    if (!isCurrent(ready)) return@launch
+                    _guide.value = if (guide != null) GuideState.Ready(guide) else GuideState.Failed
                 }
-                if (!isCurrent(ready)) return@launch
-                _guide.value = if (guide != null) GuideState.Ready(guide) else GuideState.Failed
             }
         }
-        if (_relatedPages.value.isEmpty()) {
+        if (!wikipediaSource && _relatedPages.value.isEmpty()) {
             relatedJob?.cancel()
             relatedJob = viewModelScope.launch {
                 val pages = try {
@@ -480,6 +558,55 @@ class FandomMediaWikiViewModel(application: Application) : AndroidViewModel(appl
         }
     }
 
+    /**
+     * Vikipedi kaynağında "İlgili maddeler": kaynak, wiki'nin ANA SAYFASI değil yapımın KENDİ
+     * maddesidir. Anasayfa bağlantıları günün seçkin maddeleridir ("Tarım, Hukuk, Ahlat,
+     * Türkçe"…) ve yapımla hiçbir ilgisi yoktu. Maddenin giriş + ilk bölüm bağlantıları ise
+     * gerçek anlamda ilgili maddelerdir (yazar, stüdyo, uyarlama, karakterler…).
+     */
+    private fun loadRelatedPagesForWikipedia(ready: UiState.Ready) {
+        val article = (_article.value as? ArticleState.Ready)?.page ?: return
+        if (_relatedPages.value.isNotEmpty()) return
+        relatedJob?.cancel()
+        relatedJob = viewModelScope.launch {
+            val pages = try {
+                val wikiId = article.wikiId
+                val currentKey = FandomNameVariants.normalizeForCompare(article.pageTitle)
+                val titles = LinkedHashSet<String>()
+                for (idx in listOf(0, 1)) {
+                    val section = FandomRepository.loadSection(appContext, wikiId, article.pageTitle, idx)
+                    if (section != null) titles += section.links
+                }
+                val candidates = titles
+                    .filter { it.isNotBlank() && it.length <= 200 }
+                    .filterNot { FandomNameVariants.normalizeForCompare(it) == currentKey }
+                    .filterNot { title -> isEncyclopediaBoilerplatePage(title) }
+                    .take(30)
+                if (candidates.isEmpty()) emptyList()
+                else FandomRepository.loadRelatedPages(appContext, wikiId, candidates)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                Log.w(TAG, "İlgili maddeler yüklenemedi (${article.pageTitle}): ${e.message}")
+                emptyList()
+            }
+            if (!isCurrent(ready)) return@launch
+            val current = (_article.value as? ArticleState.Ready)?.page ?: return@launch
+            if (current.wikiId != article.wikiId || current.pageTitle != article.pageTitle) return@launch
+            _relatedPages.value = pages
+                .filter { !it.title.equals(article.pageTitle, ignoreCase = true) }
+                .take(20)
+        }
+    }
+
+    /** Ansiklopedi iskelet sayfaları (ana sayfa, portal, yardım…) "ilgili madde" değildir. */
+    private fun isEncyclopediaBoilerplatePage(title: String): Boolean {
+        val normalized = FandomNameVariants.normalizeForCompare(title)
+        if (normalized.isEmpty()) return true
+        if (normalized in ENCYCLOPEDIA_BOILERPLATE_TITLES) return true
+        return ENCYCLOPEDIA_BOILERPLATE_PREFIXES.any { normalized.startsWith(it) }
+    }
+
     /** Retry fetching the complete article without discarding the already-resolved wiki. */
     fun retryArticle() {
         val ready = _state.value as? UiState.Ready ?: return
@@ -489,8 +616,11 @@ class FandomMediaWikiViewModel(application: Application) : AndroidViewModel(appl
         val oldArticleTranslationKeys = translationJobs.keys.filter(::isArticleTranslationKey).toSet()
         oldArticleTranslationKeys.forEach { key -> translationJobs.remove(key)?.cancel() }
         _translating.update { it - oldArticleTranslationKeys }
+        relatedJob?.cancel()
+        _relatedPages.value = emptyList()
         _article.value = ArticleState.Loading
         _articleSections.value = emptyMap()
+        translationBases.keys.filter(::isArticleTranslationKey).forEach { translationBases.remove(it) }
         _translations.update { map -> map.filterKeys { key -> !isArticleTranslationKey(key) } }
         viewModelScope.launch {
             try {
@@ -537,6 +667,7 @@ class FandomMediaWikiViewModel(application: Application) : AndroidViewModel(appl
                 FandomCharacterWikiViewModel.SectionState.Failed
             }
             _articleSections.update { it + (index to loaded) }
+            pruneStaleTranslations()
             if (content != null && !content.isEmpty() && isAutoTranslateEnabled()) {
                 translate(FandomCharacterWikiViewModel.sectionKey(index))
             }
@@ -681,6 +812,7 @@ class FandomMediaWikiViewModel(application: Application) : AndroidViewModel(appl
             } else {
                 SelectedState.Failed(title)
             }
+            pruneStaleTranslations()
             val key = itemKey(title)
             if (!article?.description.isNullOrBlank() && _translations.value[key] == null) {
                 maybeAutoTranslate(key)
@@ -716,6 +848,7 @@ class FandomMediaWikiViewModel(application: Application) : AndroidViewModel(appl
             if (!isCurrentArticleItem(selected.title, selected.article.pageTitle)) return@launch
             val next: ArticleSectionState = if (content != null) ArticleSectionState.Loaded(content) else ArticleSectionState.Failed
             _selectedSections.update { it + (index to next) }
+            pruneStaleTranslations()
             if (content != null && !content.isEmpty() && isAutoTranslateEnabled()) {
                 translate(articleSectionKey(selected.title, index))
             }
@@ -745,9 +878,71 @@ class FandomMediaWikiViewModel(application: Application) : AndroidViewModel(appl
         val ready = _state.value as? UiState.Ready ?: return
         val articleTarget = isArticleTranslationKey(key)
         val articlePage = (_article.value as? ArticleState.Ready)?.page
+        val text = currentTextForKey(key)
+        if (text.isNullOrBlank()) return
+        // Kaynak zaten hedef dilde: "çeviri" metni değiştirmez, yalnızca kafa karıştırır
+        // (Vikipedi TR maddesi + Türkçe hedef gibi). Düğme hiç çıkmaz.
+        if (isTargetLanguageSource(ready.ref.wikiId)) {
+            translationJobs.remove(key)?.cancel()
+            translationBases.remove(key)
+            _translating.update { it - key }
+            _originalKeys.update { it - key }
+            _translations.update { it - key }
+            return
+        }
+        if (force) _translations.update { it - key }
+        _translating.update { it + key }
+        val generation = translationGeneration
+        // Çeviri bu metne bağlanır; metin değişirse [pruneStaleTranslations] kaydı düşürür.
+        translationBases[key] = text
+        translationJobs[key] = viewModelScope.launch {
+            try {
+                // Parça parça akan çeviri: detay sayfasındaki açıklama çevirisiyle aynı davranış.
+                val result = withContext(Dispatchers.IO) {
+                    translationManager.translateToTarget(text) { partial ->
+                        if (generation == translationGeneration && partial.isNotBlank() && isCurrent(ready) &&
+                            (!articleTarget || articlePage?.let(::isCurrentArticle) == true)
+                        ) {
+                            _translations.update { it + (key to partial) }
+                        }
+                    }
+                }
+                if (generation != translationGeneration || !isCurrent(ready) ||
+                    (articleTarget && articlePage?.let(::isCurrentArticle) != true)
+                ) return@launch
+                if (result.isNotBlank() && result != text) {
+                    _translations.update { it + (key to result) }
+                } else {
+                    translationBases.remove(key)
+                    _originalKeys.update { it - key }
+                    _translations.update { it - key }
+                }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                if (generation == translationGeneration) {
+                    Log.w(TAG, "Çeviri başarısız ($key): ${e.message}")
+                    translationBases.remove(key)
+                    if (isCurrent(ready)) _translations.update { it - key }
+                }
+            } finally {
+                if (generation == translationGeneration &&
+                    translationJobs[key] === kotlin.coroutines.coroutineContext[kotlinx.coroutines.Job]
+                ) {
+                    _translating.update { it - key }
+                    translationJobs.remove(key)
+                }
+            }
+        }
+    }
+
+    /** Çeviri anahtarının şu anki kaynak metni; metin henüz yüklenmediyse null. */
+    private fun currentTextForKey(key: String): String? {
+        val ready = _state.value as? UiState.Ready ?: return null
+        val articlePage = (_article.value as? ArticleState.Ready)?.page
         val reader = _reader.value as? ReaderState.Ready
         val readerLocation = reader?.let { FandomReaderLocation(ready.ref.wikiId, it.page.displayTitle) }
-        val text = when {
+        return when {
             key == KEY_SUMMARY -> (_summary.value as? BlurbState.Ready)?.blurb?.description
             key == FandomCharacterWikiViewModel.KEY_DESCRIPTION -> articlePage?.description
             key.startsWith("ib:") -> {
@@ -781,46 +976,37 @@ class FandomMediaWikiViewModel(application: Application) : AndroidViewModel(appl
             }?.value?.plainText()
             else -> null
         }
-        if (text.isNullOrBlank()) return
-        if (force) _translations.update { it - key }
-        _translating.update { it + key }
-        val generation = translationGeneration
-        translationJobs[key] = viewModelScope.launch {
-            try {
-                // Parça parça akan çeviri: detay sayfasındaki açıklama çevirisiyle aynı davranış.
-                val result = withContext(Dispatchers.IO) {
-                    translationManager.translateToTarget(text) { partial ->
-                        if (generation == translationGeneration && partial.isNotBlank() && isCurrent(ready) &&
-                            (!articleTarget || articlePage?.let(::isCurrentArticle) == true)
-                        ) {
-                            _translations.update { it + (key to partial) }
-                        }
-                    }
-                }
-                if (generation != translationGeneration || !isCurrent(ready) ||
-                    (articleTarget && articlePage?.let(::isCurrentArticle) != true)
-                ) return@launch
-                if (result.isNotBlank() && result != text) {
-                    _translations.update { it + (key to result) }
-                } else {
-                    _translations.update { it - key }
-                }
-            } catch (e: CancellationException) {
-                throw e
-            } catch (e: Exception) {
-                if (generation == translationGeneration) {
-                    Log.w(TAG, "Çeviri başarısız ($key): ${e.message}")
-                    if (isCurrent(ready)) _translations.update { it - key }
-                }
-            } finally {
-                if (generation == translationGeneration &&
-                    translationJobs[key] === kotlin.coroutines.coroutineContext[kotlinx.coroutines.Job]
-                ) {
-                    _translating.update { it - key }
-                    translationJobs.remove(key)
-                }
-            }
-        }
+    }
+
+    /**
+     * Kaynağın içerik dili çeviri hedefiyle aynı mı? (Örn. Vikipedi TR maddesi + Türkçe hedef.)
+     * Aynı dildeki metni "çevirmek" içeriği değiştirmez, yalnızca kullanıcıya iki farklı metin
+     * varmış izlenimi verir; bu yüzden bu kaynaklarda uygulama içi çeviri hiç başlatılmaz.
+     */
+    private fun isTargetLanguageSource(wikiId: String): Boolean {
+        val origin = if (FandomUrls.isWikipedia(wikiId)) FandomUrls.wikipediaLang(wikiId)
+        else FandomUrls.languageOf(wikiId)
+        val target = KitsugiTranslatePrefs.resolvedTarget()
+        if (origin.isNullOrBlank() || target.isBlank()) return false
+        return origin.equals(target.substringBefore('-'), ignoreCase = true)
+    }
+
+    /**
+     * Metni değişen anahtarların çevirisini (ve Orijinal/Çeviri durumunu) düşürür.
+     * Kaynak/madde değişiminde eski çevirinin ekranda kalmasını yapısal olarak engeller.
+     */
+    private fun pruneStaleTranslations() {
+        if (translationBases.isEmpty()) return
+        val stale = translationBases.entries
+            .filter { (key, base) -> base != currentTextForKey(key) }
+            .map { it.key }
+        if (stale.isEmpty()) return
+        stale.forEach { translationBases.remove(it) }
+        val staleSet = stale.toSet()
+        staleSet.forEach { key -> translationJobs.remove(key)?.cancel() }
+        _translating.update { it - staleSet }
+        _originalKeys.update { it - staleSet }
+        _translations.update { it - staleSet }
     }
 
     fun translateInfobox() {
@@ -1076,9 +1262,25 @@ class FandomMediaWikiViewModel(application: Application) : AndroidViewModel(appl
 
     // ── Uygulama içi wiki okuyucu ────────────────────────────────────────────
 
-    /** Ana wiki sayfasını okuyucuda aç (üst başlıktaki "Fandom sayfasını" için). */
+    /**
+     * Üst başlıktaki "Fandom sayfasını" / "Vikipedi'de oku" düğmesi.
+     *
+     * Vikipedi'de ansiklopedinin ANA SAYFASI ("Anasayfa") hiçbir işe yaramaz: kullanıcı yapımın
+     * maddesini beklerken günün seçkin maddelerini görüyordu. Bu yüzden Vikipedi kaynağında
+     * önce eşleşen madde, madde yoksa ana sayfa açılır. Fandom'da davranış aynıdır (wiki ana
+     * sayfası = yapımın hub'ı).
+     */
     fun openReaderMainPage() {
         val ready = _state.value as? UiState.Ready ?: return
+        if (FandomUrls.isWikipedia(ready.ref.wikiId)) {
+            val articleTitle = (_article.value as? ArticleState.Ready)?.page?.pageTitle
+                ?.takeIf { it.isNotBlank() }
+                ?: ready.ref.pageTitle?.takeIf { it.isNotBlank() }
+            if (articleTitle != null) {
+                openReader(articleTitle, pushToBackStack = false)
+                return
+            }
+        }
         viewModelScope.launch {
             val main = FandomWikiResolver.siteInfoCached(ready.ref.wikiId)?.mainPage
                 ?: ready.ref.siteName
@@ -1127,6 +1329,7 @@ class FandomMediaWikiViewModel(application: Application) : AndroidViewModel(appl
                 sections = emptyMap(),
                 related = emptyList()
             )
+            pruneStaleTranslations()
             launchRelatedLoadForReader(location.wikiId, page)
             // Giriş bölümü (section 0) her zaman yüklenir: makale özeti veya ana sayfanın
             // tüm modülleri (hero, öne çıkan makale, kartlar, içerik kutuları) buradan gelir.
@@ -1198,6 +1401,7 @@ class FandomMediaWikiViewModel(application: Application) : AndroidViewModel(appl
                     loadingSections = now.loadingSections - index,
                     failedSections = now.failedSections - index
                 )
+                pruneStaleTranslations()
                 if (!content.isEmpty() && isAutoTranslateEnabled()) {
                     val currentLocation = location.copy(title = cur.page.displayTitle)
                     translate(FandomReaderTranslationKeys.section(currentLocation, index))

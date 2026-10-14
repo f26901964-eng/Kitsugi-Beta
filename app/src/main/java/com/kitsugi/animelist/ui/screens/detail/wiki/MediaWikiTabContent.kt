@@ -263,6 +263,14 @@ internal fun MediaWikiTabContent(
 ) {
     val ready = uiState as? FandomMediaWikiViewModel.UiState.Ready
     val articlePage = (articleState as? FandomMediaWikiViewModel.ArticleState.Ready)?.page
+    // Vikipedi kaynaklarında "seri özeti" (wiki ana sayfası) ve "evren rehberi" (kategori
+    // çipleri) anlamsızdır; ikisi de yalnızca Fandom wiki'lerinde gösterilir.
+    val wikipediaSource = ready?.let { FandomUrls.isWikipedia(it.ref.wikiId) } == true
+    val relatedTitleRes = if (wikipediaSource) R.string.fandom_related_pages_title_wikipedia
+    else R.string.fandom_related_pages_title
+    val relatedActionLabel = stringResource(
+        if (wikipediaSource) R.string.fandom_open_page_wikipedia_page else R.string.fandom_open_page
+    )
     val context = LocalContext.current
     val openArticleGallery: (List<GalleryItem>, Int) -> Unit = onOpenGallery ?: { items, index ->
         items.getOrNull(index)?.let { openExternal(context, it.url) }
@@ -295,7 +303,10 @@ internal fun MediaWikiTabContent(
                     activeSourceIndex = ready.activeSourceIndex,
                     onSwitchSource = onSwitchSource,
                     accentColor = accentColor,
-                    onOpenWiki = onOpenReaderHome
+                    onOpenWiki = onOpenReaderHome,
+                    // Vikipedi'de başlık ansiklopedi adıdır ("Vikipedi"); kullanıcının hangi
+                    // MADDEYİ gördüğünü doğrulayabilmesi için madde başlığı ayrıca yazılır.
+                    articleTitle = articlePage?.pageTitle
                 )
                 if (ready.ref.confidence == FandomConfidence.PROBABLE && articlePage?.needsConfirmation != true) {
                     WikiConfirmCard(
@@ -360,7 +371,7 @@ internal fun MediaWikiTabContent(
                         WikiLoadingLine(accentColor)
                     }
                 }
-                if (articlePage?.description.isNullOrBlank()) {
+                if (!wikipediaSource && articlePage?.description.isNullOrBlank()) {
                     MediaWikiSummaryCard(
                         state = summaryState,
                         translated = translations[FandomMediaWikiViewModel.KEY_SUMMARY],
@@ -373,7 +384,8 @@ internal fun MediaWikiTabContent(
                 }
                 if (relatedPages.isNotEmpty()) {
                     RelatedPagesStrip(
-                        title = stringResource(R.string.fandom_related_pages_title),
+                        title = stringResource(relatedTitleRes),
+                        actionLabel = relatedActionLabel,
                         pages = relatedPages,
                         accentColor = accentColor,
                         onOpenItem = onOpenItem
@@ -432,11 +444,13 @@ private fun MediaWikiHeaderCard(
     activeSourceIndex: Int = 0,
     onSwitchSource: ((Int) -> Unit)? = null,
     accentColor: Color,
-    onOpenWiki: (() -> Unit)? = null
+    onOpenWiki: (() -> Unit)? = null,
+    articleTitle: String? = null
 ) {
     val context = LocalContext.current
     val openAction = onOpenWiki ?: { openExternal(context, FandomUrls.baseUrl(ref.wikiId)) }
     val isWp = FandomUrls.isWikipedia(ref.wikiId)
+    val wikiLang = if (isWp) FandomUrls.wikipediaLang(ref.wikiId) else null
     WikiCard {
         Column {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -452,13 +466,28 @@ private fun MediaWikiHeaderCard(
                     Spacer(modifier = Modifier.height(2.dp))
                     Text(
                         text = stringResource(
-                            if (isWp) R.string.fandom_media_header_subtitle_wikipedia
-                            else R.string.fandom_media_header_subtitle
+                            when {
+                                // "Wikipedia · Açık Ansiklopedi" TR maddesinde de yazıyordu;
+                                // Vikipedi kendi diliyle anılmalı.
+                                isWp && wikiLang == "tr" -> R.string.fandom_media_header_subtitle_wikipedia_tr
+                                isWp -> R.string.fandom_media_header_subtitle_wikipedia
+                                else -> R.string.fandom_media_header_subtitle
+                            }
                         ),
                         color = accentColor,
                         style = MaterialTheme.typography.labelMedium,
                         fontWeight = FontWeight.SemiBold
                     )
+                    if (isWp && !articleTitle.isNullOrBlank()) {
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Text(
+                            text = articleTitle,
+                            color = KitsugiColors.TextSecondary,
+                            style = MaterialTheme.typography.bodySmall,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
                 }
                 TextButton(onClick = openAction) {
                     Icon(
@@ -489,8 +518,15 @@ private fun MediaWikiHeaderCard(
                     availableSources.forEachIndexed { index, sourceRef ->
                         val isSelected = index == activeSourceIndex
                         val isSourceWp = FandomUrls.isWikipedia(sourceRef.wikiId)
+                        val sourceLang = if (isSourceWp) FandomUrls.wikipediaLang(sourceRef.wikiId) else null
                         val sourceTitle = when {
-                            isSourceWp -> if (sourceRef.wikiId == "wikipedia.tr") stringResource(R.string.wiki_source_wikipedia_tr) else stringResource(R.string.wiki_source_wikipedia)
+                            isSourceWp && sourceLang == "tr" -> stringResource(R.string.wiki_source_wikipedia_tr)
+                            isSourceWp && sourceLang == "en" -> stringResource(R.string.wiki_source_wikipedia)
+                            isSourceWp -> stringResource(
+                                R.string.wiki_source_wikipedia_other,
+                                sourceRef.siteName ?: "Wikipedia",
+                                sourceLang.orEmpty().uppercase()
+                            )
                             else -> sourceRef.siteName ?: stringResource(R.string.wiki_source_fandom)
                         }
                         Box(
@@ -527,6 +563,7 @@ private fun MediaWikiHeaderCard(
 @Composable
 private fun RelatedPagesStrip(
     title: String,
+    actionLabel: String,
     pages: List<FandomRelatedPage>,
     accentColor: Color,
     onOpenItem: (String) -> Unit
@@ -555,6 +592,7 @@ private fun RelatedPagesStrip(
                 WikiRelatedPageCard(
                     page = page,
                     accentColor = accentColor,
+                    actionLabel = actionLabel,
                     onClick = { onOpenItem(page.title) }
                 )
             }
@@ -742,6 +780,8 @@ private fun MediaWikiGuideCard(
     onLoadMoreGuide: (FandomGuideGroup) -> Unit
 ) {
     when (state) {
+        // Vikipedi kaynağı: "evren rehberi" kavramı yok, kart hiç çizilmez.
+        is FandomMediaWikiViewModel.GuideState.Unsupported -> return
         is FandomMediaWikiViewModel.GuideState.Idle, is FandomMediaWikiViewModel.GuideState.Loading -> {
             WikiCard {
                 Text(
@@ -974,17 +1014,25 @@ private fun MediaWikiFooter(
     accentColor: Color,
     onReportWrong: () -> Unit
 ) {
+    val wikipedia = FandomUrls.isWikipedia(ref.wikiId)
     Column(
         modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp),
         verticalArrangement = Arrangement.spacedBy(2.dp)
     ) {
         Text(
-            text = stringResource(R.string.fandom_source_label, ref.siteName ?: ref.wikiId),
+            text = stringResource(
+                if (wikipedia) R.string.fandom_source_label_wikipedia
+                else R.string.fandom_source_label,
+                ref.siteName ?: ref.wikiId
+            ),
             color = KitsugiColors.TextSecondary,
             style = MaterialTheme.typography.bodySmall
         )
         Text(
-            text = stringResource(R.string.fandom_license_note),
+            text = stringResource(
+                if (wikipedia) R.string.fandom_license_note_wikipedia
+                else R.string.fandom_license_note
+            ),
             color = KitsugiColors.TextMuted,
             style = MaterialTheme.typography.labelSmall
         )
@@ -1182,18 +1230,26 @@ private fun WikiItemSheet(
                         )
                     }
 
+                    val articleWikipedia = FandomUrls.isWikipedia(article.wikiId)
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
-                                text = stringResource(R.string.fandom_source_label, article.siteName ?: wikiId),
+                                text = stringResource(
+                                    if (articleWikipedia) R.string.fandom_source_label_wikipedia
+                                    else R.string.fandom_source_label,
+                                    article.siteName ?: wikiId
+                                ),
                                 color = KitsugiColors.TextSecondary,
                                 style = MaterialTheme.typography.bodySmall
                             )
                             Text(
-                                text = stringResource(R.string.fandom_license_note),
+                                text = stringResource(
+                                    if (articleWikipedia) R.string.fandom_license_note_wikipedia
+                                    else R.string.fandom_license_note
+                                ),
                                 color = KitsugiColors.TextMuted,
                                 style = MaterialTheme.typography.labelSmall
                             )

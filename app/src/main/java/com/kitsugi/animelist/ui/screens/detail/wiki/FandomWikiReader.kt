@@ -1174,26 +1174,29 @@ private fun ReaderLinkGroup(block: FandomTextBlock, accentColor: Color) {
 }
 
 private fun buildReaderGalleryItems(state: FandomReaderRenderState): List<GalleryItem> = buildList {
+    // Kaynak adı okuyucunun bulunduğu wiki'ye göre: Vikipedi maddelerinde "Fandom" yazması
+    // kullanıcıya yanlış kaynak gösterirdi.
+    val sourceLabel = FandomUrls.displaySourceName(state.wikiId)
     state.page.thumbnailUrl?.takeIf { it.isNotBlank() }?.let { url ->
-        add(GalleryItem(url, READER_GALLERY_SOURCE, GalleryCategory.OTHER, state.page.displayTitle))
+        add(GalleryItem(url, sourceLabel, GalleryCategory.OTHER, state.page.displayTitle))
     }
     state.sections.toSortedMap().values.forEach { content ->
         content.blocks.asSequence()
             .filter { it.kind == FandomBlockKind.IMAGE || it.kind == FandomBlockKind.CARD }
             .mapNotNull { it.image }
             .filter { it.url.isNotBlank() }
-            .forEach { image -> add(image.toReaderGalleryItem()) }
+            .forEach { image -> add(image.toReaderGalleryItem(sourceLabel)) }
     }
     state.related.forEach { page ->
         page.thumbnailUrl?.takeIf { it.isNotBlank() }?.let { url ->
-            add(GalleryItem(url, READER_GALLERY_SOURCE, GalleryCategory.OTHER, page.title))
+            add(GalleryItem(url, sourceLabel, GalleryCategory.OTHER, page.title))
         }
     }
 }.distinctBy { it.url }
 
-private fun FandomImage.toReaderGalleryItem(): GalleryItem = GalleryItem(
+private fun FandomImage.toReaderGalleryItem(sourceLabel: String): GalleryItem = GalleryItem(
     url = url,
-    source = READER_GALLERY_SOURCE,
+    source = sourceLabel,
     category = GalleryCategory.OTHER,
     description = caption,
     details = buildMap {
@@ -1237,10 +1240,17 @@ private fun ReaderRelatedCard(
     onOpenGallery: (List<GalleryItem>, Int) -> Unit,
     onOpenPage: (String) -> Unit
 ) {
+    val wikipedia = FandomUrls.isWikipedia(wikiId)
+    val actionLabel = stringResource(
+        if (wikipedia) R.string.fandom_open_page_wikipedia_page else R.string.fandom_open_page
+    )
     ReaderCard {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(
-                text = stringResource(R.string.fandom_related_pages_title),
+                text = stringResource(
+                    if (wikipedia) R.string.fandom_related_pages_title_wikipedia
+                    else R.string.fandom_related_pages_title
+                ),
                 color = KitsugiColors.TextPrimary,
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold,
@@ -1258,6 +1268,7 @@ private fun ReaderRelatedCard(
                 WikiRelatedPageCard(
                     page = page,
                     accentColor = accentColor,
+                    actionLabel = actionLabel,
                     onClick = { onOpenPage(page.title) },
                     onImageClick = { url ->
                         val index = galleryItems.indexOfFirst { it.url == url }
@@ -1275,8 +1286,11 @@ internal fun WikiRelatedPageCard(
     page: FandomRelatedPage,
     accentColor: Color,
     onClick: () -> Unit,
-    onImageClick: ((String) -> Unit)? = null
+    onImageClick: ((String) -> Unit)? = null,
+    /** Kart altındaki eylem etiketi; verilmezse "Fandom sayfası". Vikipedi'de "Vikipedi sayfası". */
+    actionLabel: String? = null
 ) {
+    val resolvedActionLabel = actionLabel ?: stringResource(R.string.fandom_open_page)
     Column(
         modifier = Modifier
             .width(160.dp)
@@ -1345,7 +1359,7 @@ internal fun WikiRelatedPageCard(
                 .padding(horizontal = 10.dp, vertical = 6.dp)
         ) {
             Text(
-                text = stringResource(R.string.fandom_open_page),
+                text = resolvedActionLabel,
                 color = accentColor,
                 style = MaterialTheme.typography.labelLarge,
                 fontWeight = FontWeight.Bold,

@@ -61,6 +61,39 @@ internal object FandomApi {
         return result
     }
 
+    /**
+     * Verilen başlıkların Wikidata varlık kimlikleri (`pageprops.wikibase_item`).
+     *
+     * Kimlik denetimi: başlık benzerliği tek başına yeterli değildir — aynı adı taşıyan başka
+     * bir yapımın maddesi "ilgili" sayılıp gösterilebilir. Yalnızca Vikipedi maddeleri için
+     * çağrılır; Fandom isteklerinin parametreleri DEĞİŞMEZ (Fandom'da bu alan yoktur).
+     */
+    suspend fun pageWikidataItems(wikiId: String, titles: List<String>): Map<String, String> {
+        val clean = titles.map { it.trim() }
+            .filter { it.isNotEmpty() && it.length <= 200 && !it.contains('|') }
+            .distinct()
+        if (clean.isEmpty()) return emptyMap()
+        val result = LinkedHashMap<String, String>()
+        for (chunk in clean.chunked(MAX_TITLES_PER_REQUEST)) {
+            val url = FandomUrls.apiQuery(
+                wikiId,
+                listOf(
+                    "action" to "query",
+                    "titles" to chunk.joinToString("|"),
+                    "redirects" to "1",
+                    "prop" to "pageprops",
+                    "ppprop" to "wikibase_item",
+                    "format" to "json",
+                    "formatversion" to "2"
+                )
+            ) ?: continue
+            FandomApiParsers.parseTitleLookups(chunk, FandomHttp.get(url)).forEach { (requested, lookup) ->
+                lookup.wikidataItem?.let { qid -> result[requested] = qid }
+            }
+        }
+        return result
+    }
+
     /** Lead image plus the page's full MediaWiki file list and attribution metadata. */
     suspend fun pageImages(wikiId: String, title: String, maxImages: Int = 300): List<FandomImage> {
         val fileTitles = LinkedHashSet<String>()

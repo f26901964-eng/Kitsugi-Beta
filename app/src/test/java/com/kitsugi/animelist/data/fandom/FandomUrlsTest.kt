@@ -214,6 +214,16 @@ class FandomUrlsTest {
     }
 
     @Test
+    fun `gallery source names follow the wiki family`() {
+        assertEquals("Fandom", FandomUrls.displaySourceName("residentevil"))
+        assertEquals("Fandom", FandomUrls.displaySourceName("tr.attackontitan"))
+        assertEquals("Vikipedi", FandomUrls.displaySourceName("wikipedia.tr"))
+        assertEquals("Wikipedia", FandomUrls.displaySourceName("wikipedia.en"))
+        assertEquals("Wikipedia", FandomUrls.displaySourceName("wikipedia.ja"))
+        assertEquals("Fandom", FandomUrls.displaySourceName(null))
+    }
+
+    @Test
     fun `withOriginalFormat only touches fandom cdn urls once`() {
         val url = "https://static.wikia.nocookie.net/w/images/a/ab/X.webp/revision/latest?cb=1"
         assertEquals("$url&format=original", FandomUrls.withOriginalFormat(url))

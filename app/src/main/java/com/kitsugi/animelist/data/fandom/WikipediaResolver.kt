@@ -19,7 +19,9 @@ internal object WikipediaResolver {
      */
     suspend fun resolve(
         query: FandomMediaQuery,
-        preferTurkish: Boolean = false
+        preferTurkish: Boolean = false,
+        /** Bilinen Wikidata varlıkları (yapım ve üst kayıtları): başlık eşleşmesini doğrular. */
+        expectedQids: Set<String> = emptySet()
     ): FandomWikiRef? {
         val titles = query.fallbackTitles
             .map { it.trim() }
@@ -30,7 +32,7 @@ internal object WikipediaResolver {
         val languages = if (preferTurkish) listOf("wikipedia.tr", "wikipedia.en") else listOf("wikipedia.en", "wikipedia.tr")
 
         for (wikiId in languages) {
-            val ref = searchInWiki(wikiId, titles, query)
+            val ref = searchInWiki(wikiId, titles, query, expectedQids)
             if (ref != null) return ref
         }
         return null
@@ -39,7 +41,8 @@ internal object WikipediaResolver {
     private suspend fun searchInWiki(
         wikiId: String,
         titles: List<String>,
-        query: FandomMediaQuery
+        query: FandomMediaQuery,
+        expectedQids: Set<String>
     ): FandomWikiRef? {
         val searchQueries = buildSearchQueries(titles, query)
         val candidateTitles = LinkedHashSet<String>()
@@ -68,7 +71,17 @@ internal object WikipediaResolver {
         val matchedTitle = match.lookup.resolvedTitle ?: match.lookup.requested
         val siteName = if (wikiId == "wikipedia.tr") "Vikipedi" else "Wikipedia"
 
-        val confidence = if (match.score >= CERTAIN_SIMILARITY) FandomConfidence.CERTAIN else FandomConfidence.PROBABLE
+        // Kimlik denetimi: madde başka bir varlığa (aynı adlı başka yapım) aitse eşleşme
+        // "kesin" sayılmaz; kullanıcıya onay kartı gösterilir. Kanıt yoksa davranış eskisi.
+        val mismatch = identityMismatch(wikiId, matchedTitle, expectedQids)
+        if (mismatch) {
+            Log.d(TAG, "Vikipedi kimlik uyuşmazlığı: $wikiId/$matchedTitle (beklenen: $expectedQids)")
+        }
+        val confidence = when {
+            mismatch -> FandomConfidence.PROBABLE
+            match.score >= CERTAIN_SIMILARITY -> FandomConfidence.CERTAIN
+            else -> FandomConfidence.PROBABLE
+        }
         return FandomWikiRef(
             wikiId = wikiId,
             source = FandomMatchSource.NAME,
@@ -77,6 +90,30 @@ internal object WikipediaResolver {
             score = match.score,
             pageTitle = matchedTitle
         )
+    }
+
+    /**
+     * Maddenin Wikidata kimliği bilinen bir varlığa ait DEĞİL mi?
+     *
+     * Yalnızca kanıt varsa (maddenin kimliği okunabildiyse) `true` döner; ağ hatası ya da
+     * kimliksiz madde durumunda mevcut puan tabanlı kabul korunur (yanlış "bulunamadı"
+     * üretmemek için).
+     */
+    private suspend fun identityMismatch(
+        wikiId: String,
+        title: String,
+        expectedQids: Set<String>
+    ): Boolean {
+        if (expectedQids.isEmpty() || !FandomUrls.isWikipedia(wikiId)) return false
+        val item = try {
+            FandomApi.pageWikidataItems(wikiId, listOf(title))[title]
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            Log.w(TAG, "Vikipedi kimliği okunamadı ($wikiId/$title): ${e.message}")
+            null
+        }
+        return item != null && item !in expectedQids
     }
 
     private fun buildSearchQueries(titles: List<String>, query: FandomMediaQuery): List<String> {

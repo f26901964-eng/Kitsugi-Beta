@@ -134,16 +134,21 @@ internal class FandomWikiResolver(
 
         // Fandom üzerinde wiki bulunamadıysa (ör. Asya dizileri, TV programları, bağımsız yapımlar):
         // 2. açık kaynak ansiklopedi olarak Vikipedi (Wikipedia / MediaWiki) devreye girer.
-        resolveWikipediaSource(wikidataResolution, query, allowNameFallback)?.let { return it }
+        resolveWikipediaSources(wikidataResolution, query, allowNameFallback).firstOrNull()?.let { return it }
 
         return foreignWikidataRef
     }
 
+    /**
+     * Sekmede gösterilecek kaynak listesi: birincil wiki + alternatifler.
+     *
+     * Vikipedi birincil olduğunda (Fandom'da yapım bulunamadı) artık kardeş dil sürümü de
+     * eklenir: Fandom ↔ Vikipedi geçişi olduğu gibi, **Vikipedi (TR) ↔ Wikipedia (EN)**
+     * geçişi de mümkün olur. Önceden Vikipedi bulunduğunda liste tek elemanlı dönüyordu ve
+     * kullanıcı İngilizce maddeyi görmek isterse hiçbir yol yoktu.
+     */
     suspend fun resolveAll(rawQuery: FandomMediaQuery, allowNameFallback: Boolean): List<FandomWikiRef> {
         val primary = resolve(rawQuery, allowNameFallback) ?: return emptyList()
-        if (FandomUrls.isWikipedia(primary.wikiId)) {
-            return listOf(primary)
-        }
         val query = bridgeQueryByTitle(rawQuery)
         val ids = completeIds(query)
         val lookups = FandomMediaIds.wikidataLookups(ids, query.isManga, query.isMovie)
@@ -151,65 +156,87 @@ internal class FandomWikiResolver(
         val resolution = if (lookups.isNotEmpty() || starts.isNotEmpty()) {
             WikidataClient.resolveMedia(lookups, starts)
         } else null
-        val wp = resolveWikipediaSource(resolution, query, allowNameFallback)
-        return if (wp != null && wp.wikiId != primary.wikiId && !isWikiRejected(wp.wikiId)) {
-            listOf(primary, wp)
-        } else {
-            listOf(primary)
-        }
+        val alternatives = resolveWikipediaSources(resolution, query, allowNameFallback)
+            .filterNot { it.wikiId == primary.wikiId }
+        return if (alternatives.isEmpty()) listOf(primary) else listOf(primary) + alternatives
     }
 
-    private suspend fun resolveWikipediaSource(
+    /**
+     * Vikipedi kaynakları — öncelik sırası korunmuş liste:
+     *  1. kullanıcı tercihi (`Türkçe wiki önceliği` → TR, kapalıysa EN),
+     *  2. diğer dil (TR ↔ EN geçişi için),
+     *  3. TR/EN sitelink'i yoksa ilk geçerli dildeki madde,
+     *  4. hiçbiri yoksa (son çare, isimle arama) [WikipediaResolver] sonucu.
+     *
+     * Liste en fazla iki wiki döner: dil sürümleri **aynı yapımın** farklı dilleridir, bu yüzden
+     * "ilgili kaynak" olarak sunulmaları güvenlidir (Fandom'da isimle bulunan bir wiki gibi
+     * yanlış yapıma ait olma olasılığı yoktur — başlık doğrudan Wikidata sitelink'idir).
+     */
+    private suspend fun resolveWikipediaSources(
         resolution: WikidataResolution?,
         query: FandomMediaQuery,
         allowNameFallback: Boolean
-    ): FandomWikiRef? {
+    ): List<FandomWikiRef> {
         val titles = resolution?.wikipediaTitles.orEmpty()
-        val tr = titles["trwiki"]
-        val en = titles["enwiki"]
         val prefs = FandomWikiPrefs.state(context)
-        if (prefs.preferTurkish && !tr.isNullOrBlank() && !isWikiRejected("wikipedia.tr")) {
-            val info = siteInfoCached("wikipedia.tr")
-            return FandomWikiRef(
-                wikiId = "wikipedia.tr",
-                source = FandomMatchSource.WIKIDATA,
-                confidence = FandomConfidence.CERTAIN,
-                siteName = info?.siteName ?: "Vikipedi",
-                pageTitle = tr
-            )
+        val ordered = LinkedHashMap<String, String>() // wikiId → madde başlığı
+        fun add(site: String, title: String?) {
+            val clean = title?.trim()?.takeIf { it.isNotEmpty() } ?: return
+            val lang = site.removeSuffix("wiki").replace('_', '-')
+            val wikiId = FandomUrls.normalize("wikipedia.$lang") ?: return
+            ordered.putIfAbsent(wikiId, clean)
         }
-        if (!en.isNullOrBlank() && !isWikiRejected("wikipedia.en")) {
-            val info = siteInfoCached("wikipedia.en")
-            return FandomWikiRef(
-                wikiId = "wikipedia.en",
-                source = FandomMatchSource.WIKIDATA,
-                confidence = FandomConfidence.CERTAIN,
-                siteName = info?.siteName ?: "Wikipedia",
-                pageTitle = en
-            )
+        val primarySite = if (prefs.preferTurkish) "trwiki" else "enwiki"
+        val secondarySite = if (prefs.preferTurkish) "enwiki" else "trwiki"
+        add(primarySite, titles[primarySite])
+        add(secondarySite, titles[secondarySite])
+        if (ordered.isEmpty()) {
+            // TR/EN sitelink'i yok (ör. yalnızca JA/DE): ilk geçerli dil, deterministik sırayla.
+            titles.keys.sorted().forEach { site -> if (ordered.isEmpty()) add(site, titles[site]) }
         }
-        if (titles.isNotEmpty()) {
-            val (key, title) = titles.entries.first()
-            val lang = key.removeSuffix("wiki").ifBlank { "en" }
-            val wikiId = "wikipedia.$lang"
-            if (!isWikiRejected(wikiId)) {
-                val info = siteInfoCached(wikiId)
-                return FandomWikiRef(
-                    wikiId = wikiId,
-                    source = FandomMatchSource.WIKIDATA,
-                    confidence = FandomConfidence.CERTAIN,
-                    siteName = info?.siteName ?: "Wikipedia",
-                    pageTitle = title
-                )
-            }
-        }
+        val refs = ordered.entries
+            .filterNot { (wikiId, _) -> isWikiRejected(wikiId) }
+            .map { (wikiId, title) -> wikipediaRef(wikiId, title) }
+        if (refs.isNotEmpty()) return refs
         if (allowNameFallback) {
-            val searched = WikipediaResolver.resolve(query, preferTurkish = prefs.preferTurkish)
+            val searched = WikipediaResolver.resolve(
+                query = query,
+                preferTurkish = prefs.preferTurkish,
+                expectedQids = expectedQids(resolution, query)
+            )
             if (searched != null && !isWikiRejected(searched.wikiId)) {
-                return searched
+                return listOf(searched)
             }
         }
-        return null
+        return emptyList()
+    }
+
+    /**
+     * Vikipedi madde doğrulaması için "beklenen" Wikidata varlıkları: yapım + üst kayıtları.
+     *
+     * Sitelink yolundan gelen madde zaten doğrudur; bu liste yalnızca son çare İSİM aramasında
+     * "aynı adı taşıyan başka bir yapım" riskini yakalamak için kullanılır (madde kimliği
+     * okunabiliyorsa ve listede yoksa eşleşme kesin sayılmaz).
+     */
+    private fun expectedQids(resolution: WikidataResolution?, query: FandomMediaQuery): Set<String> {
+        val qids = LinkedHashSet<String>()
+        query.ids.wikidataId?.let { qids += it }
+        resolution?.starts?.forEach { qids += it }
+        resolution?.visitedNodes?.forEach { qids += it }
+        return qids.filter { WikidataParsers.isQid(it) }.toSet()
+    }
+
+    private suspend fun wikipediaRef(wikiId: String, title: String): FandomWikiRef {
+        val normalized = FandomUrls.normalize(wikiId) ?: wikiId
+        val info = siteInfoCached(normalized)
+        val fallbackName = if (FandomUrls.wikipediaLang(normalized) == "tr") "Vikipedi" else "Wikipedia"
+        return FandomWikiRef(
+            wikiId = normalized,
+            source = FandomMatchSource.WIKIDATA,
+            confidence = FandomConfidence.CERTAIN,
+            siteName = info?.siteName ?: fallbackName,
+            pageTitle = title
+        )
     }
 
     /** İngilizce ya da Türkçe (uygulama dili) wiki: yabancı dilli kök wiki'den önce gelir. */
