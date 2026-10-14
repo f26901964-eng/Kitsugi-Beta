@@ -68,13 +68,34 @@ internal fun SearchResponse.toAddonSearchResult(): JikanSearchResult {
         type = type.toAddonMediaType(),
         total = null,
         score = null,
-        isAdult = false,
+        // +18 UYUMU (2026-10-14): eklenti sonuçları bugüne kadar hep isAdult=false
+        // taşıyordu; bu yüzden ne blurAdultMedia bulanıklığı ne de showAdultContent
+        // gizlemesi eklenti (CloudStream) kaynaklarına uygulanabiliyordu. CS3 türü
+        // NSFW ise VEYA eklenti bilinen yetişkin eklenti listesindeyse +18 işaretle.
+        isAdult = isAddonAdultResponse(this),
         imageUrl = posterUrl,
         year = safeYear(),
         source = apiName,
         cs3Url = url,
         cs3ApiName = apiName
     )
+}
+
+/**
+ * CS3 [SearchResponse] için +18 tespiti.
+ *
+ * - `TvType.NSFW`: eklentinin kendisi içeriği NSFW olarak bildirmiş.
+ * - `CsStreamRunner.ADULT_PLUGINS_SET`: stream pipeline'ında zaten +18 kabul edilen
+ *   eklenti adları — arama/keşfet yüzeylerinde de aynı sözleşme geçerli olmalı.
+ * - `TvType` yansımalı okuma: bazı CS3 derlemelerinde `type` alanı farklı görünürlükte
+ *   olabiliyor; hata durumunda güvenli biçimde false dönülür.
+ */
+internal fun isAddonAdultResponse(response: SearchResponse?): Boolean {
+    if (response == null) return false
+    val typeIsNsfw = runCatching { response.type == TvType.NSFW }.getOrDefault(false)
+    if (typeIsNsfw) return true
+    val apiName = runCatching { response.apiName }.getOrNull()
+    return apiName != null && com.kitsugi.animelist.data.cloudstream.CsStreamRunner.ADULT_PLUGINS_SET.contains(apiName)
 }
 
 /**

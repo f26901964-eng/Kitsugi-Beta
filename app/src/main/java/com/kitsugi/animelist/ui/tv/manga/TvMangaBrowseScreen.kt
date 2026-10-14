@@ -135,7 +135,13 @@ fun TvMangaBrowseScreen(
         raw.distinctBy { "${it.source}_${it.url}" }
     }
 
-    val backdropUrl = mergedMangas.firstOrNull()?.thumbnailUrl
+    // +18 UYUMU (2026-10-14): TV uzantı gözatma ekranı da göster/gizle sözleşmesine uyar.
+    val showAdultContent = com.kitsugi.animelist.ui.theme.LocalShowAdultContent.current
+    val visibleMangas = remember(mergedMangas, showAdultContent) {
+        if (showAdultContent) mergedMangas else mergedMangas.filter { !it.isAdultContent }
+    }
+
+    val backdropUrl = visibleMangas.firstOrNull()?.thumbnailUrl
 
     Box(Modifier.fillMaxSize().background(KitsugiColors.Background)) {
 
@@ -144,7 +150,7 @@ fun TvMangaBrowseScreen(
             com.kitsugi.animelist.ui.components.KitsugiNsfwImage(
                 model = backdropUrl,
                 contentDescription = null,
-                isAdult = mergedMangas.firstOrNull()?.isAdultContent ?: false,
+                isAdult = visibleMangas.firstOrNull()?.isAdultContent ?: false,
                 contentScale = ContentScale.Crop,
                 modifier = Modifier.fillMaxSize().graphicsLayer { alpha = 0.12f }
             )
@@ -311,7 +317,7 @@ fun TvMangaBrowseScreen(
                             }
                         }
                     }
-                    !isLoading && mergedMangas.isEmpty() -> {
+                    !isLoading && visibleMangas.isEmpty() -> {
                         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                                 Icon(
@@ -346,7 +352,7 @@ fun TvMangaBrowseScreen(
                             verticalArrangement   = Arrangement.spacedBy(12.dp),
                             horizontalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
-                            itemsIndexed(mergedMangas, key = { _, m -> "${m.source}_${m.url}" }) { _, manga ->
+                            itemsIndexed(visibleMangas, key = { _, m -> "${m.source}_${m.url}" }) { _, manga ->
                                 TvMangaCard(
                                     manga = manga,
                                     onClick = {

@@ -188,12 +188,20 @@ fun KitsugiNsfwImage(
             val density = LocalDensity.current
             val radiusPx = with(density) { blurRadius.toPx() }.toInt()
             remember(model, radiusPx) {
-                ImageRequest.Builder(context)
-                    .data(model)
-                    .size(480, 720)
-                    .precision(coil3.size.Precision.INEXACT)
-                    .transformations(KitsugiBlurSupport.bitmapBlurTransformation(radiusPx))
-                    .build()
+                // +18 UYUMU (2026-10-14): çağran taraf özel başlıklı (Referer/User-Agent)
+                // bir ImageRequest verdiyse istek kimliğini KORU — yalnızca dönüşümü ekle.
+                // Aksi halde hotlink korumalı site görselleri bitmap-blur yolunda 403 olurdu.
+                when (model) {
+                    is ImageRequest -> model.newBuilder(context)
+                        .transformations(KitsugiBlurSupport.bitmapBlurTransformation(radiusPx))
+                        .build()
+                    else -> ImageRequest.Builder(context)
+                        .data(model)
+                        .size(480, 720)
+                        .precision(coil3.size.Precision.INEXACT)
+                        .transformations(KitsugiBlurSupport.bitmapBlurTransformation(radiusPx))
+                        .build()
+                }
             }
         }
         // Vitrin: RGB_565 degrade'ini kapat, sınırlı ve sabit anahtarlı ölçü kullan.
