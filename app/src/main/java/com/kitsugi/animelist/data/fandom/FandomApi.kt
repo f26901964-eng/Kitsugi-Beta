@@ -134,13 +134,17 @@ internal object FandomApi {
         return FandomApiParsers.parseSections(FandomHttp.get(url))
     }
 
-    suspend fun sectionHtml(wikiId: String, title: String, index: Int): String? {
+    /**
+     * Bir bölümün HTML'i. [index] MediaWiki bölüm kimliğidir ve sayısal olmak zorunda
+     * DEĞİLDİR: şablonla eklenen bölümler `T-1`, `T-2`… kimliği taşır.
+     */
+    suspend fun sectionHtml(wikiId: String, title: String, index: String): String? {
         val url = FandomUrls.apiQuery(
             wikiId,
             listOf(
                 "action" to "parse",
                 "page" to title,
-                "section" to index.toString(),
+                "section" to index,
                 "prop" to "text",
                 "redirects" to "1",
                 "disableeditsection" to "1",

@@ -30,7 +30,7 @@ class FandomModelsTest {
                     )
                 )
             ),
-            sections = listOf(FandomSectionRef(1, "Appearance", 2)),
+            sections = listOf(FandomSectionRef("1", "Appearance", 2)),
             matchSource = FandomMatchSource.WIKIDATA,
             confidence = FandomConfidence.CERTAIN
         )
@@ -75,7 +75,7 @@ class FandomModelsTest {
                 images = listOf(FandomImage("https://static.wikia.nocookie.net/x/luffy.png", "Timeskip")),
                 groups = listOf(FandomInfoboxGroup(fields = listOf(FandomInfoboxField("Age", "19"))))
             ),
-            sections = listOf(FandomSectionRef(1, "Appearance", 2)),
+            sections = listOf(FandomSectionRef("1", "Appearance", 2)),
             sectionsFailed = true
         )
         val encoded = json.encodeToString(FandomArticlePage.serializer(), article)

@@ -185,7 +185,11 @@ object FandomApiParsers {
         return map
     }
 
-    /** `action=parse&prop=sections`. Şablon bölümleri (`T-1`) ve gizli bölümler atlanır. */
+    /**
+     * `action=parse&prop=sections`. Gizli bölümler (Trivia/Galeri/Kaynakça…) ve onların
+     * alt ağacı atlanır; şablon bölümleri (`T-1`) ise KORUNUR — MediaWiki bu bölümleri
+     * `action=parse&section=T-1` ile aynı şekilde döndürür.
+     */
     fun parseSections(json: String?): List<FandomSectionRef>? {
         val root = parseJsonObject(json) ?: return null
         if (root.has("error")) return null
@@ -194,7 +198,8 @@ object FandomApiParsers {
         // level, spoiler inheritance, hidden subtree. Hidden sections' descendants are hidden too.
         val ancestors = mutableListOf<Triple<Int, Boolean, Boolean>>()
         for (section in sections.objects()) {
-            val index = section.optString("index").toIntOrNull() ?: continue
+            // Şablon bölümleri sayısal olmayan kimlik taşır ("T-1"); metin olarak korunur.
+            val index = section.optString("index").trim().takeIf { it.isNotEmpty() } ?: continue
             val level = section.optString("level").toIntOrNull()
                 ?: (section.optInt("toclevel", 1) + 1)
             val title = FandomHtmlText.inline(section.optString("line"))

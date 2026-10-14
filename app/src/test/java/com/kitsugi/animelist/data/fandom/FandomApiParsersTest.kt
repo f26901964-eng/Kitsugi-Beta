@@ -77,7 +77,7 @@ class FandomApiParsersTest {
     }
 
     @Test
-    fun `sections skip template and hidden sections and flag spoilers`() {
+    fun `sections keep template sections, skip hidden ones and flag spoilers`() {
         val json = """
             {"parse":{"title":"Satoru Gojo","pageid":162,"sections":[
               {"toclevel":1,"level":"2","line":"Appearance","index":"1"},
@@ -92,10 +92,16 @@ class FandomApiParsersTest {
         """.trimIndent()
         val sections = FandomApiParsers.parseSections(json)
         assertNotNull(sections)
-        assertEquals(listOf("Appearance", "Battles & Events", "Overview", "Trivia"), sections!!.map { it.title })
-        assertEquals(listOf(1, 9, 4, 14), sections.map { it.index })
-        assertEquals(listOf(2, 2, 3, 2), sections.map { it.level })
-        assertEquals(listOf(false, true, true, false), sections.map { it.spoiler })
+        // Şablon bölümü ("T-1") ARTIK korunuyor: MediaWiki onu section=T-1 ile aynı şekilde
+        // döndürür, atılması bölümün tüm içeriğini kaybettiriyordu.
+        assertEquals(
+            listOf("Appearance", "Battles & Events", "Overview", "Trivia", "Navigation"),
+            sections!!.map { it.title }
+        )
+        assertEquals(listOf("1", "9", "4", "14", "T-1"), sections.map { it.index })
+        assertEquals(listOf(2, 2, 3, 2, 2), sections.map { it.level })
+        assertEquals(listOf(false, true, true, false, false), sections.map { it.spoiler })
+        assertEquals(listOf(false, false, false, false, true), sections.map { it.isTemplateSection })
         assertNull(FandomApiParsers.parseSections("""{"error":{"code":"missingtitle"}}"""))
     }
 

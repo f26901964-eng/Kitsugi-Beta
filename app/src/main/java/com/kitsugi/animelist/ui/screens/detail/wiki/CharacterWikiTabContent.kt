@@ -148,12 +148,12 @@ internal fun WikiRejectedUndoCard(
 @Composable
 internal fun CharacterWikiTabContent(
     page: FandomCharacterPage,
-    sections: Map<Int, SectionState>,
+    sections: Map<String, SectionState>,
     translations: Map<String, String>,
     translatingKeys: Set<String>,
     spoilerGuard: Boolean,
     accentColor: Color,
-    onLoadSection: (Int) -> Unit,
+    onLoadSection: (String) -> Unit,
     onOpenGallery: (List<GalleryItem>, Int) -> Unit,
     onConfirm: () -> Unit,
     onReportWrong: () -> Unit,
@@ -177,7 +177,7 @@ internal fun CharacterWikiTabContent(
 ) {
     val context = LocalContext.current
     val pageKey = page.wikiId + "|" + page.pageTitle
-    val expanded = remember(pageKey) { mutableStateMapOf<Int, Boolean>() }
+    val expanded = remember(pageKey) { mutableStateMapOf<String, Boolean>() }
     val revealed = remember(pageKey) { mutableStateMapOf<String, Boolean>() }
     var showAllFields by remember(pageKey, initiallyShowAllFields) { mutableStateOf(initiallyShowAllFields) }
 
@@ -872,6 +872,7 @@ private fun WikiSectionRow(
                                 SectionBody(
                                     content = state.content,
                                     translated = if (showingOriginal) null else translated,
+                                    accentColor = accentColor,
                                     onOpenGallery = onOpenGallery,
                                     onOpenLink = onOpenLink,
                                     onOpenWikiLink = onOpenWikiLink
@@ -889,6 +890,7 @@ private fun WikiSectionRow(
 private fun SectionBody(
     content: FandomSectionContent,
     translated: String?,
+    accentColor: Color,
     onOpenGallery: (List<GalleryItem>, Int) -> Unit,
     onOpenLink: (String) -> Unit = {},
     onOpenWikiLink: ((FandomWikiLink) -> Unit)? = null
@@ -930,7 +932,7 @@ private fun SectionBody(
                     }
                 } else {
                     content.blocks.forEach { block ->
-                        WikiBlock(block) { image ->
+                        WikiBlock(block = block, accentColor = accentColor, onOpenLink = onOpenLink) { image ->
                             val index = galleryItems.indexOfFirst { it.url == image.url }.coerceAtLeast(0)
                             if (galleryItems.isNotEmpty()) onOpenGallery(galleryItems, index)
                         }
@@ -984,6 +986,8 @@ private fun SectionBody(
 @Composable
 private fun WikiBlock(
     block: FandomTextBlock,
+    accentColor: Color,
+    onOpenLink: (String) -> Unit = {},
     onOpenImage: (com.kitsugi.animelist.data.fandom.FandomImage) -> Unit = {}
 ) {
     when (block.kind) {
@@ -994,8 +998,10 @@ private fun WikiBlock(
             fontWeight = FontWeight.Bold,
             modifier = Modifier.padding(top = 4.dp)
         )
-        FandomBlockKind.PARAGRAPH -> Text(
-            text = block.text,
+        FandomBlockKind.PARAGRAPH -> WikiLinkedText(
+            block = block,
+            accentColor = accentColor,
+            onOpenLink = onOpenLink,
             color = KitsugiColors.TextPrimary,
             style = MaterialTheme.typography.bodyMedium
         )
@@ -1006,8 +1012,10 @@ private fun WikiBlock(
                 style = MaterialTheme.typography.bodyMedium,
                 modifier = Modifier.padding(end = 8.dp)
             )
-            Text(
-                text = block.text,
+            WikiLinkedText(
+                block = block,
+                accentColor = accentColor,
+                onOpenLink = onOpenLink,
                 color = KitsugiColors.TextPrimary,
                 style = MaterialTheme.typography.bodyMedium,
                 modifier = Modifier.weight(1f)
@@ -1020,8 +1028,10 @@ private fun WikiBlock(
                 .background(KitsugiColors.SurfaceSoft)
                 .padding(horizontal = 12.dp, vertical = 8.dp)
         ) {
-            Text(
-                text = block.text,
+            WikiLinkedText(
+                block = block,
+                accentColor = accentColor,
+                onOpenLink = onOpenLink,
                 color = KitsugiColors.TextSecondary,
                 style = MaterialTheme.typography.bodyMedium,
                 fontStyle = FontStyle.Italic

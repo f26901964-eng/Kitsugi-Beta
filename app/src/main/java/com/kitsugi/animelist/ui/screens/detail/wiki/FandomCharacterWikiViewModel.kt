@@ -22,6 +22,9 @@ import com.kitsugi.animelist.data.settings.SettingsDataStore
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -62,10 +65,10 @@ class FandomCharacterWikiViewModel(application: Application) : AndroidViewModel(
         data class Ready(
             val wikiId: String,
             val page: FandomFullPage,
-            val sections: Map<Int, FandomSectionContent>,
+            val sections: Map<String, FandomSectionContent>,
             val related: List<FandomRelatedPage>,
-            val loadingSection: Int? = null,
-            val failedSection: Int? = null
+            val loadingSection: String? = null,
+            val failedSection: String? = null
         ) : ReaderState
         data class Failed(val title: String) : ReaderState
     }
@@ -78,7 +81,9 @@ class FandomCharacterWikiViewModel(application: Application) : AndroidViewModel(
         const val KEY_INFOBOX = "infobox"
         const val INFOBOX_FIELD_PREFIX = "ib:"
         private const val MAX_INFOBOX_FIELDS = 60
-        fun sectionKey(index: Int): String = "sec:$index"
+        fun sectionKey(index: String): String = "sec:$index"
+        /** Okuyucu açılınca otomatik yüklenen bölüm sayısı (giriş "0" hariç). */
+        private const val AUTOLOAD_SECTION_COUNT = 3
         /** Düzleştirilmiş alan sırasına (grup → alan) göre anahtar. */
         fun infoboxFieldKey(index: Int): String = "$INFOBOX_FIELD_PREFIX$index"
     }
@@ -90,8 +95,8 @@ class FandomCharacterWikiViewModel(application: Application) : AndroidViewModel(
     private val _state = MutableStateFlow<UiState>(UiState.Idle)
     val state: StateFlow<UiState> = _state.asStateFlow()
 
-    private val _sections = MutableStateFlow<Map<Int, SectionState>>(emptyMap())
-    val sections: StateFlow<Map<Int, SectionState>> = _sections.asStateFlow()
+    private val _sections = MutableStateFlow<Map<String, SectionState>>(emptyMap())
+    val sections: StateFlow<Map<String, SectionState>> = _sections.asStateFlow()
 
     private val _reader = MutableStateFlow<ReaderState>(ReaderState.Closed)
     val reader: StateFlow<ReaderState> = _reader.asStateFlow()
@@ -109,6 +114,7 @@ class FandomCharacterWikiViewModel(application: Application) : AndroidViewModel(
     private var readerJob: Job? = null
     private var readerSectionJob: Job? = null
     private var readerRelatedJob: Job? = null
+    private var readerPreloadJob: Job? = null
     private val readerBackStack = ArrayDeque<Pair<String, String>>() // wikiId to title
 
 
@@ -223,6 +229,7 @@ class FandomCharacterWikiViewModel(application: Application) : AndroidViewModel(
         readerJob?.cancel()
         readerSectionJob?.cancel()
         readerRelatedJob?.cancel()
+        readerPreloadJob?.cancel()
         relatedJob?.cancel()
         readerBackStack.clear()
         _relatedPages.value = emptyList()
@@ -260,7 +267,7 @@ class FandomCharacterWikiViewModel(application: Application) : AndroidViewModel(
                 relatedJob = viewModelScope.launch {
                     val list = try {
                         val titles = LinkedHashSet<String>()
-                        for (idx in listOf(0, 1)) {
+                        for (idx in listOf("0", "1")) {
                             val sec = FandomRepository.loadSection(appContext, wikiId, pageTitle, idx)
                             if (sec != null) titles += sec.links
                         }
@@ -318,7 +325,7 @@ class FandomCharacterWikiViewModel(application: Application) : AndroidViewModel(
         _originalKeys.update { if (key in it) it - key else it + key }
     }
 
-    fun loadSection(index: Int) {
+    fun loadSection(index: String) {
         val page = (_state.value as? UiState.Ready)?.page ?: return
         when (_sections.value[index]) {
             is SectionState.Loading, is SectionState.Loaded -> return
@@ -359,8 +366,8 @@ class FandomCharacterWikiViewModel(application: Application) : AndroidViewModel(
         val text = when {
             key == KEY_DESCRIPTION -> page.description
             key.startsWith("sec:") -> {
-                val index = key.removePrefix("sec:").toIntOrNull()
-                (index?.let { _sections.value[it] } as? SectionState.Loaded)?.content?.plainText()
+                val index = key.removePrefix("sec:")
+                (_sections.value[index] as? SectionState.Loaded)?.content?.plainText()
             }
             else -> null
         }
@@ -574,6 +581,7 @@ class FandomCharacterWikiViewModel(application: Application) : AndroidViewModel(
         readerJob?.cancel()
         readerSectionJob?.cancel()
         readerRelatedJob?.cancel()
+        readerPreloadJob?.cancel()
         _reader.value = ReaderState.Loading
         readerJob = viewModelScope.launch {
             val meta = try {
@@ -594,7 +602,51 @@ class FandomCharacterWikiViewModel(application: Application) : AndroidViewModel(
                 sections = emptyMap(),
                 related = emptyList()
             )
+            // Giriş + ilk bölümler otomatik yüklenir: gövde metni tek dokunuşla görünür.
+            preloadReaderSections(targetWiki, meta)
             launchRelatedLoad(targetWiki, meta)
+        }
+    }
+
+    /**
+     * Okuyucu açılır açılmaz giriş bölümünü ("0") ve içindekilerdeki ilk bölümleri çeker.
+     * Bölümler paralel yüklenir; biri başarısız olursa diğerleri etkilenmez.
+     */
+    private fun preloadReaderSections(wikiId: String, page: FandomFullPage) {
+        val wanted = (listOf("0") + page.sections.take(AUTOLOAD_SECTION_COUNT).map { it.index })
+            .distinct()
+        readerPreloadJob?.cancel()
+        readerPreloadJob = viewModelScope.launch {
+            coroutineScope {
+                wanted.map { index ->
+                    async {
+                        val title = page.sections.firstOrNull { it.index == index }?.title
+                        val content = try {
+                            FandomRepository.loadSection(appContext, wikiId, page.displayTitle, index, title)
+                        } catch (e: CancellationException) {
+                            throw e
+                        } catch (e: Exception) {
+                            Log.w(TAG, "Okuyucu ön yükleme başarısız (${page.displayTitle}#$index): ${e.message}")
+                            null
+                        }
+                        index to content
+                    }
+                }.awaitAll()
+            }.forEach { (index, content) ->
+                val cur = _reader.value as? ReaderState.Ready ?: return@forEach
+                if (cur.page.displayTitle != page.displayTitle || cur.wikiId != wikiId) return@forEach
+                if (cur.sections.containsKey(index)) return@forEach
+                if (content == null) {
+                    if (cur.failedSection == null) _reader.value = cur.copy(failedSection = index)
+                    return@forEach
+                }
+                val sections = HashMap(cur.sections)
+                sections[index] = content
+                _reader.value = cur.copy(
+                    sections = sections,
+                    failedSection = if (cur.failedSection == index) null else cur.failedSection
+                )
+            }
         }
     }
 
@@ -602,7 +654,7 @@ class FandomCharacterWikiViewModel(application: Application) : AndroidViewModel(
         readerRelatedJob?.cancel()
         readerRelatedJob = viewModelScope.launch {
             val candidates = LinkedHashSet<String>()
-            for (idx in listOf(0, 1)) {
+            for (idx in listOf("0", "1")) {
                 val sec = FandomRepository.loadSection(appContext, wikiId, page.displayTitle, idx)
                 if (sec != null) candidates += sec.links
             }
@@ -622,7 +674,7 @@ class FandomCharacterWikiViewModel(application: Application) : AndroidViewModel(
         }
     }
 
-    fun loadReaderSection(index: Int) {
+    fun loadReaderSection(index: String) {
         val cur = _reader.value as? ReaderState.Ready ?: return
         if (cur.sections.containsKey(index)) return
         readerSectionJob?.cancel()
@@ -648,7 +700,7 @@ class FandomCharacterWikiViewModel(application: Application) : AndroidViewModel(
         }
     }
 
-    fun retryReaderSection(index: Int) = loadReaderSection(index)
+    fun retryReaderSection(index: String) = loadReaderSection(index)
 
     fun openReaderLink(title: String) = openReader(title = title, pushToBackStack = true)
 
@@ -667,6 +719,7 @@ class FandomCharacterWikiViewModel(application: Application) : AndroidViewModel(
         readerJob?.cancel()
         readerSectionJob?.cancel()
         readerRelatedJob?.cancel()
+        readerPreloadJob?.cancel()
         readerBackStack.clear()
         _reader.value = ReaderState.Closed
     }

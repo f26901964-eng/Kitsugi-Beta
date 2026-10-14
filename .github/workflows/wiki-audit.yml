@@ -9,6 +9,9 @@ on:
     branches: ['arena/**']
     paths:
       - 'tools/wiki_audit/audit.py'
+      - 'tools/wiki_audit/content_audit.py'
+      - 'app/src/main/java/com/kitsugi/animelist/data/fandom/FandomHtmlText.kt'
+      - 'app/src/main/java/com/kitsugi/animelist/data/fandom/FandomApiParsers.kt'
       - '.github/workflows/wiki-audit.yml'
 
 concurrency:
@@ -26,8 +29,15 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-      - name: Denetimi çalıştır
+      - name: Keşif denetimini çalıştır
         run: python3 tools/wiki_audit/audit.py --out tools/wiki_audit/results --workers 2 | tee tools/wiki_audit/run.log
+      - name: İçerik denetimini çalıştır
+        # "Bulunan sayfadaki veri eksiksiz alınıp gösteriliyor mu?" ölçümü.
+        # Sabitleri (MAX_SECTION_IMAGES, JUNK_SELECTOR…) Kotlin kaynağından okur;
+        # Kotlin değişince ölçüm de kendiliğinden güncellenir.
+        run: |
+          python3 tools/wiki_audit/content_audit.py \
+            --out tools/wiki_audit/results --workers 2 | tee -a tools/wiki_audit/run.log
       - name: Sonuçları dala işle
         if: always()
         run: |

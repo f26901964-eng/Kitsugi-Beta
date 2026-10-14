@@ -26,12 +26,12 @@ import com.kitsugi.animelist.data.remote.GalleryItem
 @Composable
 internal fun CharacterWikiTabSlot(
     wikiState: FandomCharacterWikiViewModel.UiState,
-    sections: Map<Int, FandomCharacterWikiViewModel.SectionState>,
+    sections: Map<String, FandomCharacterWikiViewModel.SectionState>,
     translations: Map<String, String>,
     translatingKeys: Set<String>,
     spoilerGuard: Boolean,
     accentColor: Color,
-    onLoadSection: (Int) -> Unit,
+    onLoadSection: (String) -> Unit,
     onOpenGallery: (List<GalleryItem>, Int) -> Unit,
     onConfirm: () -> Unit,
     onReportWrong: () -> Unit,

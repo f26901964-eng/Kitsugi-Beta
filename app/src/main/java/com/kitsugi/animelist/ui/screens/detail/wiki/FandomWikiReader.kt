@@ -80,10 +80,10 @@ import com.kitsugi.animelist.ui.utils.tvClickable
 data class FandomReaderRenderState(
     val wikiId: String,
     val page: FandomFullPage,
-    val sections: Map<Int, FandomSectionContent>,
+    val sections: Map<String, FandomSectionContent>,
     val related: List<FandomRelatedPage>,
-    val loadingSection: Int? = null,
-    val failedSection: Int? = null,
+    val loadingSection: String? = null,
+    val failedSection: String? = null,
     val hasBackStack: Boolean = false
 )
 
@@ -113,8 +113,8 @@ internal fun FandomWikiReaderSheet(
     accentColor: Color,
     onClose: () -> Unit,
     onBack: () -> Unit,
-    onLoadSection: (Int) -> Unit,
-    onRetrySection: (Int) -> Unit,
+    onLoadSection: (String) -> Unit,
+    onRetrySection: (String) -> Unit,
     onOpenLink: (String) -> Unit,
     onOpenInBrowser: () -> Unit,
     onTranslateSummary: (() -> Unit)? = null,
@@ -277,8 +277,8 @@ private fun ReaderLoading(accentColor: Color) {
 private fun ReaderContent(
     state: FandomReaderRenderState,
     accentColor: Color,
-    onLoadSection: (Int) -> Unit,
-    onRetrySection: (Int) -> Unit,
+    onLoadSection: (String) -> Unit,
+    onRetrySection: (String) -> Unit,
     onOpenLink: (String) -> Unit,
     onTranslateSummary: (() -> Unit)?,
     summaryIsTranslating: Boolean
@@ -312,7 +312,7 @@ private fun ReaderContent(
         // Yüklü bölümler
         state.page.sections
             .filter { it.index in state.sections.keys || state.failedSection == it.index || state.loadingSection == it.index }
-            .sortedBy { it.index }
+            .sortedWith(compareBy({ it.index.toIntOrNull() == null }, { it.index.toIntOrNull() ?: 0 }, { it.index }))
             .forEach { sec ->
                 ReaderSectionCard(
                     section = sec,
@@ -406,11 +406,11 @@ private fun ReaderHeaderCard(
 @Composable
 private fun ReaderContentsCard(
     sections: List<FandomSectionRef>,
-    loaded: Set<Int>,
-    loading: Int?,
-    failed: Int?,
+    loaded: Set<String>,
+    loading: String?,
+    failed: String?,
     accentColor: Color,
-    onToggle: (Int) -> Unit
+    onToggle: (String) -> Unit
 ) {
     ReaderCard {
         Text(
@@ -526,15 +526,23 @@ private fun ReaderBlock(
             fontWeight = FontWeight.Bold,
             modifier = Modifier.padding(top = 4.dp)
         )
-        FandomBlockKind.PARAGRAPH -> Text(
-            text = block.text,
+        FandomBlockKind.PARAGRAPH -> WikiLinkedText(
+            block = block,
+            accentColor = accentColor,
+            onOpenLink = onOpenLink,
             color = KitsugiColors.TextPrimary,
             style = MaterialTheme.typography.bodyMedium
         )
         FandomBlockKind.BULLET -> Row(Modifier.fillMaxWidth()) {
             Text("•", color = KitsugiColors.TextSecondary, modifier = Modifier.padding(end = 8.dp))
-            Text(block.text, color = KitsugiColors.TextPrimary,
-                style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
+            WikiLinkedText(
+                block = block,
+                accentColor = accentColor,
+                onOpenLink = onOpenLink,
+                color = KitsugiColors.TextPrimary,
+                style = MaterialTheme.typography.bodyMedium,
+                modifier = Modifier.weight(1f)
+            )
         }
         FandomBlockKind.QUOTE -> Box(
             Modifier
@@ -543,8 +551,14 @@ private fun ReaderBlock(
                 .background(KitsugiColors.SurfaceSoft)
                 .padding(horizontal = 12.dp, vertical = 8.dp)
         ) {
-            Text(block.text, color = KitsugiColors.TextSecondary,
-                style = MaterialTheme.typography.bodyMedium, fontStyle = androidx.compose.ui.text.font.FontStyle.Italic)
+            WikiLinkedText(
+                block = block,
+                accentColor = accentColor,
+                onOpenLink = onOpenLink,
+                color = KitsugiColors.TextSecondary,
+                style = MaterialTheme.typography.bodyMedium,
+                fontStyle = androidx.compose.ui.text.font.FontStyle.Italic
+            )
         }
         FandomBlockKind.IMAGE -> {
             val img = block.image

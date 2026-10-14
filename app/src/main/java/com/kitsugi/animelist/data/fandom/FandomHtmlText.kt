@@ -18,9 +18,21 @@ import org.jsoup.nodes.TextNode
 object FandomHtmlText {
 
     private const val INLINE_SEPARATOR = " · "
-    private const val MAX_SECTION_IMAGES = 24
+
+    /**
+     * Bölüm başına görsel üst sınırı. Eski değer 24 idi ve "Galeri"/"Görünümler" gibi
+     * görsel ağırlıklı bölümlerde onlarca görsel sessizce düşüyordu; sınır korunuyor ama
+     * artık aşıldığında [FandomBlockKind.PARAGRAPH] ile "N görsel daha var" notu üretiliyor.
+     */
+    private const val MAX_SECTION_IMAGES = 60
     private const val MAX_BLOCK_TEXT = 8_000
 
+    /**
+     * Bölüm metninden SİLİNEN yapılar: atıflar, düzenleme bağlantıları, gezinme kutuları
+     * ve bilgi kutuları. Katlanabilir içerik (`.mw-collapsible-toggle`) ve sekmeli içerik
+     * (`.wds-tabs__wrapper`) eskiden buradaydı; oysa ikisi de GERÇEK içerik taşır
+     * (yalnızca tarayıcıda katlanmış görünür). Artık korunuyorlar.
+     */
     private const val JUNK_SELECTOR =
         "sup.reference, .reference, .mw-ref, sup[id^=cite_ref], .mw-editsection, " +
             "style, script, noscript, rt, rp, .noprint, .error, .printfooter, .mw-cite-backlink"
@@ -28,8 +40,7 @@ object FandomHtmlText {
     private const val SECTION_JUNK_SELECTOR = JUNK_SELECTOR +
         ", ol.references, .mw-references-wrap, .references, .navbox, .navigation-box, " +
             "table.navbox, .toc, #toc, .notice, .mbox, .ambox, .portable-infobox, aside, " +
-            ".wds-tabs__wrapper, .mw-collapsible-toggle, .dablink, .hatnote, .mw-empty-elt, " +
-            ".reference-text"
+            ".notice, .dablink, .hatnote, .mw-empty-elt, .reference-text"
 
     private val REF_MARKERS = Regex(
         "\\[\\s*(?:\\d+|[a-z]|note\\s*\\d+|citation needed|kaynak belirtilmeli)\\s*]",
@@ -114,13 +125,65 @@ object FandomHtmlText {
         }
     }
 
-    private fun inlineOf(element: Element): String {
+    private fun inlineOf(element: Element): String = tidyInline(collectInline(element).text)
+
+    /** Metin + bağlantı konumları birlikte üretilir (arayüz bağlantıları tıklanabilir yapar). */
+    private data class InlineResult(val text: String, val links: List<FandomTextLinkSpan>)
+
+    private fun collectInline(element: Element, defaultWikiId: String? = null): InlineResult {
         val sb = StringBuilder()
-        appendInline(element, sb)
-        return tidyInline(sb.toString())
+        val spans = mutableListOf<Span>()
+        appendInline(element, sb, defaultWikiId, spans)
+        val tidied = tidyForInline(sb.toString())
+        return InlineResult(tidied.text, remapSpans(spans, tidied, defaultWikiId))
     }
 
-    private fun appendInline(node: Node, sb: StringBuilder) {
+    private class Span(var start: Int, var end: Int, val href: String?, val fallbackTitle: String?)
+
+    private fun remapSpans(
+        spans: List<Span>,
+        tidied: TidyResult,
+        defaultWikiId: String?
+    ): List<FandomTextLinkSpan> {
+        if (spans.isEmpty()) return emptyList()
+        val out = ArrayList<FandomTextLinkSpan>(spans.size)
+        for (span in spans) {
+            val href = span.href ?: continue
+            val start = tidied.mapPosition(span.start)
+            val end = tidied.mapPosition(span.end)
+            if (start < 0 || end <= start || end > tidied.text.length) continue
+            val label = tidied.text.substring(start, end)
+            // Metin temizliği sırasında etiket tamamen silindiyse bağlantıyı da at.
+            if (label.isBlank() || !label.any { it.isLetterOrDigit() }) continue
+            val target = if (defaultWikiId != null) {
+                FandomUrls.parseArticleUrl(href, defaultWikiId)
+            } else {
+                internalLinkTitle(href)?.let { null to it }
+            } ?: continue
+            out += FandomTextLinkSpan(
+                start = start,
+                end = end,
+                wikiId = target.first ?: defaultWikiId.orEmpty(),
+                title = target.second
+            )
+        }
+        return dedupeSpans(out)
+    }
+
+    /** Aynı hedefin aynı metinde tekrar eden konumları korunur; birebir çakışanlar tekilleştirilir. */
+    private fun dedupeSpans(spans: List<FandomTextLinkSpan>): List<FandomTextLinkSpan> {
+        val seen = HashSet<String>()
+        return spans.filter { span ->
+            span.start < span.end && seen.add("${span.start}:${span.end}:${span.title}")
+        }
+    }
+
+    private fun appendInline(
+        node: Node,
+        sb: StringBuilder,
+        defaultWikiId: String?,
+        spans: MutableList<Span>
+    ) {
         for (child in node.childNodes()) {
             when (child) {
                 is TextNode -> sb.append(child.text())
@@ -130,10 +193,20 @@ object FandomHtmlText {
                         tag == "br" -> appendSeparator(sb)
                         tag in BLOCKISH_INLINE_TAGS -> {
                             appendSeparator(sb)
-                            appendInline(child, sb)
+                            appendInline(child, sb, defaultWikiId, spans)
                             appendSeparator(sb)
                         }
-                        else -> appendInline(child, sb)
+                        tag == "a" -> {
+                            val href = child.attr("href").takeIf { it.isNotBlank() }
+                            val redlink = child.hasClass("new") || child.attr("data-redlink") == "1"
+                            val start = sb.length
+                            appendInline(child, sb, defaultWikiId, spans)
+                            val end = sb.length
+                            if (href != null && !redlink && end > start) {
+                                spans += Span(start, end, href, null)
+                            }
+                        }
+                        else -> appendInline(child, sb, defaultWikiId, spans)
                     }
                 }
             }
@@ -147,11 +220,104 @@ object FandomHtmlText {
         sb.append(INLINE_SEPARATOR)
     }
 
-    private fun tidyInline(raw: String): String {
-        var text = REF_MARKERS.replace(raw, "")
-        text = text.replace('\n', ' ').replace(HORIZONTAL_SPACE, " ")
-        text = text.replace(REPEATED_SEPARATORS, INLINE_SEPARATOR)
-        return text.trim().trim('·').trim()
+    private fun tidyInline(raw: String): String = tidyForInline(raw).text
+
+    /**
+     * Metin temizliğinin KONUM KORUYAN hâli: [TidyResult.map] girdideki her karakterin
+     * çıktıda hangi konuma geldiğini tutar, böylece bağlantı aralıkları bozulmaz.
+     */
+    private class TidyResult(val text: String, private val map: IntArray) {
+        /** Girdi konumu → çıktı konumu; çıktıdan düşen konumlar bir sonraki geçerli konuma yuvarlanır. */
+        fun mapPosition(input: Int): Int {
+            if (map.isEmpty()) return 0
+            val clamped = input.coerceIn(0, map.lastIndex)
+            val direct = map[clamped]
+            if (direct >= 0) return direct
+            for (i in clamped..map.lastIndex) {
+                if (map[i] >= 0) return map[i]
+            }
+            for (i in clamped downTo 0) {
+                if (map[i] >= 0) return map[i] + 1
+            }
+            return map.count { it >= 0 }
+        }
+    }
+
+    private fun tidyForInline(raw: String): TidyResult {
+        var text = raw
+        var map = IntArray(raw.length) { it }
+        REF_MARKERS.findAll(raw).toList().reversed().forEach { match ->
+            text = text.removeRange(match.range.first, match.range.last + 1)
+            map = dropRange(map, match.range.first, match.range.last + 1)
+        }
+        val builder = StringBuilder(text.length)
+        val remap = IntArray(map.size) { -1 }
+        for (i in text.indices) {
+            val source = map[i]
+            val ch = text[i]
+            if (isHorizontalSpace(ch)) {
+                if (builder.isNotEmpty() && builder.last() != ' ') {
+                    builder.append(' ')
+                    if (source >= 0) remap[source] = builder.length - 1
+                }
+            } else {
+                builder.append(ch)
+                if (source >= 0) remap[source] = builder.length - 1
+            }
+        }
+        text = builder.toString()
+        map = remap
+        REPEATED_SEPARATORS.findAll(text).toList().reversed().forEach { match ->
+            if (match.value == INLINE_SEPARATOR) return@forEach
+            text = text.replaceRange(match.range, INLINE_SEPARATOR)
+            map = replaceRange(map, match.range.first, match.range.last + 1)
+        }
+        val trimmedStart = text.length - text.trimStart().length
+        val trimmedEnd = text.trimEnd().length
+        text = text.substring(trimmedStart, trimmedEnd)
+        map = shiftMap(map, -trimmedStart)
+        while (text.startsWith('·')) {
+            text = text.substring(1)
+            map = dropRange(map, 0, 1)
+        }
+        while (text.endsWith('·')) {
+            text = text.substring(0, text.length - 1)
+            map = dropRange(map, text.length, text.length + 1)
+        }
+        return TidyResult(text.trim(), shiftMap(map, 0))
+    }
+
+    private fun isHorizontalSpace(ch: Char): Boolean =
+        ch == ' ' || ch == '\t' || ch == '\u00A0' || ch == '\u2009' || ch == '\u200A'
+
+    private fun dropRange(map: IntArray, from: Int, to: Int): IntArray {
+        val out = IntArray(map.size) { -1 }
+        for (i in map.indices) {
+            out[i] = when {
+                i < from -> map[i]
+                i >= to -> map[i]
+                else -> -1
+            }
+        }
+        return out
+    }
+
+    /** Silinen aralık yerine tek bir ayraç girdiğinde konum haritasını günceller. */
+    private fun replaceRange(map: IntArray, from: Int, to: Int): IntArray {
+        val out = IntArray(map.size) { -1 }
+        for (i in map.indices) {
+            out[i] = when {
+                i < from -> map[i]
+                i >= to -> map[i]
+                else -> if (i == from) map[i] else -1
+            }
+        }
+        return out
+    }
+
+    private fun shiftMap(map: IntArray, delta: Int): IntArray {
+        if (delta == 0) return map
+        return IntArray(map.size) { if (map[it] >= 0) map[it] + delta else -1 }
     }
 
     // ── Bölüm gövdesi (bloklar) ──────────────────────────────────────────────
@@ -159,14 +325,19 @@ object FandomHtmlText {
     /**
      * `action=parse&section=N` çıktısını bloklara ayırır. Çıktının başındaki bölüm
      * başlığı (içerikten önceki ilk başlık) atlanır; alt başlıklar korunur.
+     *
+     * [wikiId] verildiğinde blok içindeki wiki bağlantıları kanonik wiki+başlık çiftine
+     * çözülür ve [FandomTextBlock.linkSpans] doldurulur (arayüz bunları tıklanabilir yapar).
      */
-    fun blocks(html: String?, maxBlocks: Int = 400): List<FandomTextBlock> {
+    fun blocks(html: String?, maxBlocks: Int = 400, wikiId: String? = null): List<FandomTextBlock> {
         if (html.isNullOrBlank()) return emptyList()
-        val body = Jsoup.parseBodyFragment(html).body()
+        val body = Jsoup.parseBodyFragment(html, FandomUrls.baseUrl(wikiId.orEmpty()).orEmpty()).body()
         body.select(SECTION_JUNK_SELECTOR).remove()
         val collector = BlockCollector(maxBlocks)
+        collector.wikiId = wikiId
         collector.walk(body)
         collector.flushPending()
+        collector.appendOmissionNotes()
         return collector.result()
     }
 
@@ -177,6 +348,21 @@ object FandomHtmlText {
         private var headingsSeen = 0
         private var contentSeen = false
         private var imagesSeen = 0
+
+        /** Bağlantıların çözüleceği varsayılan wiki (`tr.onepiece` gibi). */
+        var wikiId: String? = null
+
+        /** Bir bloğun metni + içindeki bağlantı aralıkları birlikte taşınır. */
+        private data class Inline(val text: String, val links: List<FandomTextLinkSpan>)
+
+        /** Son üretilen bloğun bağlantıları; [add] çağrısında bloğa işlenir. */
+        private val pendingLinks = mutableListOf<FandomTextLinkSpan>()
+
+        /** Kırpma sayıları: kullanıcıya "N satır daha var" notu olarak gösterilir. */
+        var tableRowsOmitted = 0
+            private set
+        var imagesOmitted = 0
+            private set
 
         fun result(): List<FandomTextBlock> = out.toList()
 
@@ -196,12 +382,68 @@ object FandomHtmlText {
             add(FandomBlockKind.PARAGRAPH, text)
         }
 
+        /**
+         * Bölüm sonuna "kırpıldı" notları ekler. Sessiz veri kaybı yerine kullanıcıya
+         * eksik kalan satır/görsel sayısı bildirilir.
+         */
+        fun appendOmissionNotes() {
+            if (tableRowsOmitted > 0) {
+                out += FandomTextBlock(
+                    kind = FandomBlockKind.PARAGRAPH,
+                    text = "… (+$tableRowsOmitted tablo satırı gösterilmedi)"
+                )
+            }
+            if (imagesOmitted > 0) {
+                out += FandomTextBlock(
+                    kind = FandomBlockKind.PARAGRAPH,
+                    text = "… (+$imagesOmitted görsel bölüm sınırına takıldı)"
+                )
+            }
+        }
+
         private fun add(kind: FandomBlockKind, raw: String) {
-            if (out.size >= maxBlocks) return
+            if (out.size >= maxBlocks) {
+                pendingLinks.clear()
+                return
+            }
             val text = tidyBlock(raw).take(MAX_BLOCK_TEXT)
-            if (text.isEmpty()) return
+            if (text.isEmpty()) {
+                pendingLinks.clear()
+                return
+            }
+            val links = pendingLinks
+                .filter { it.start >= 0 && it.end > it.start && it.end <= text.length }
+                .let { if (text.length < raw.length) it.filter { span -> span.end <= text.length } else it }
+            pendingLinks.clear()
             if (kind != FandomBlockKind.HEADING) contentSeen = true
-            out += FandomTextBlock(kind, text)
+            out += FandomTextBlock(kind, text, linkSpans = links)
+        }
+
+        /**
+         * Metin + bağlantı aralıklarını birlikte üretir. Konumlar zaten temizlenmiş
+         * metne göredir; bu yüzden [addInline] ile eklenir (ham metin yeniden
+         * temizlenmez, aralıklar bozulmaz).
+         */
+        private fun inlineWithLinks(element: Element): Inline {
+            val collected = collectInline(element, wikiId)
+            pendingLinks += collected.links
+            return Inline(collected.text, collected.links)
+        }
+
+        private fun addInline(kind: FandomBlockKind, inline: Inline) {
+            if (out.size >= maxBlocks) {
+                pendingLinks.clear()
+                return
+            }
+            val text = inline.text.take(MAX_BLOCK_TEXT)
+            if (text.isEmpty() || !text.any { it.isLetterOrDigit() }) {
+                pendingLinks.clear()
+                return
+            }
+            val links = inline.links.filter { it.start >= 0 && it.end > it.start && it.end <= text.length }
+            pendingLinks.clear()
+            if (kind != FandomBlockKind.HEADING) contentSeen = true
+            out += FandomTextBlock(kind, text, linkSpans = links)
         }
 
         private fun handle(element: Element) {
@@ -216,11 +458,11 @@ object FandomHtmlText {
                     flushPending()
                     headingsSeen++
                     if (headingsSeen == 1 && !contentSeen) return
-                    add(FandomBlockKind.HEADING, inlineOf(element))
+                    addInline(FandomBlockKind.HEADING, inlineWithLinks(element))
                 }
                 "p" -> {
                     flushPending()
-                    add(FandomBlockKind.PARAGRAPH, inlineOf(element))
+                    addInline(FandomBlockKind.PARAGRAPH, inlineWithLinks(element))
                     // Bazı Fandom makaleleri önemli illüstrasyonları paragraf içine gömer.
                     emitImages(element)
                 }
@@ -236,15 +478,15 @@ object FandomHtmlText {
                 }
                 "blockquote" -> {
                     flushPending()
-                    add(FandomBlockKind.QUOTE, inlineOf(element))
+                    addInline(FandomBlockKind.QUOTE, inlineWithLinks(element))
                     emitImages(element)
                 }
                 "dl" -> {
                     flushPending()
                     element.children().forEach { child ->
                         when (child.normalName()) {
-                            "dt" -> add(FandomBlockKind.HEADING, inlineOf(child))
-                            "dd" -> add(FandomBlockKind.PARAGRAPH, inlineOf(child))
+                            "dt" -> addInline(FandomBlockKind.HEADING, inlineWithLinks(child))
+                            "dd" -> addInline(FandomBlockKind.PARAGRAPH, inlineWithLinks(child))
                             else -> walk(child)
                         }
                     }
@@ -275,11 +517,15 @@ object FandomHtmlText {
          * Navigasyon/infobox tabloları üstte selector ile zaten çıkarılmıştır.
          */
         private fun handleContentTable(table: Element) {
-            val rows = table.select("tr").take(150)
+            val allRows = table.select("tr")
+            val rows = allRows.take(150)
             if (rows.isEmpty()) {
                 walk(table)
                 return
             }
+            // 150 satır üstü tablolar kırpılır; kullanıcıya kaç satır kaldığı bildirilir.
+            val omitted = (allRows.size - rows.size).coerceAtLeast(0)
+            tableRowsOmitted += omitted
             val firstHeaders = rows.first().children()
                 .filter { it.normalName() == "th" }
                 .map { inlineOf(it) }
@@ -316,7 +562,7 @@ object FandomHtmlText {
         private fun handleListItem(item: Element) {
             val own = item.clone()
             own.select("ul, ol, figure, .thumb, .gallery").remove()
-            add(FandomBlockKind.BULLET, inlineOf(own))
+            addInline(FandomBlockKind.BULLET, inlineWithLinks(own))
             emitImages(item)
             item.children()
                 .filter { it.normalName() == "ul" || it.normalName() == "ol" }
@@ -334,11 +580,21 @@ object FandomHtmlText {
                 element.hasClass("thumb") ||
                 element.hasClass("gallerybox")
 
+        /** Bir düğümdeki <img> sayısı (sınır aşımında "kaç görsel kaldı" notu için). */
+        private fun countImages(container: Element): Int =
+            if (container.normalName() == "img") 1 else container.select("img").size
+
         private fun emitImages(container: Element) {
-            if (imagesSeen >= MAX_SECTION_IMAGES || out.size >= maxBlocks) return
+            if (imagesSeen >= MAX_SECTION_IMAGES || out.size >= maxBlocks) {
+                imagesOmitted += countImages(container)
+                return
+            }
             val images = if (container.normalName() == "img") listOf(container) else container.select("img")
             for (img in images) {
-                if (imagesSeen >= MAX_SECTION_IMAGES || out.size >= maxBlocks) break
+                if (imagesSeen >= MAX_SECTION_IMAGES || out.size >= maxBlocks) {
+                    imagesOmitted++
+                    continue
+                }
                 val url = imageUrl(img) ?: continue
                 if (!seenImages.add(url)) continue
                 val width = (img.attr("data-width").ifBlank { img.attr("width") }).toIntOrNull()
@@ -403,6 +659,16 @@ object FandomHtmlText {
             out += title
         }
         return out.toList()
+    }
+
+    /**
+     * Wiki kimliği bilinmeyen bağlamlar (infobox değerleri) için `href` → madde başlığı.
+     * Özel ad alanları ve çapalar elenir; bağlantı değilse `null`.
+     */
+    internal fun internalLinkTitle(href: String?): String? {
+        val raw = href?.trim()?.takeIf { it.isNotEmpty() } ?: return null
+        val title = parseWikiLink(raw) ?: return null
+        return if (isSpecialNamespace(title)) null else title
     }
 
     private fun parseWikiLink(href: String): String? {

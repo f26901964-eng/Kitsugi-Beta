@@ -1000,7 +1000,7 @@ object FandomRepository {
             (cached?.value as? StoredLead)?.let { return@withLock FandomLeadParser.Lead(it.infobox, it.intro) }
             if (cached != null) return@withLock null
             val failuresBefore = FandomHttp.failureCount()
-            val html = FandomApi.sectionHtml(wikiId, pageTitle, 0)
+            val html = FandomApi.sectionHtml(wikiId, pageTitle, "0")
             if (html == null) return@withLock null
             val lead = FandomLeadParser.parse(html, wikiId)
             val stored = StoredLead(lead.infobox, lead.intro, found = !lead.isEmpty)
@@ -1039,15 +1039,22 @@ object FandomRepository {
 
     // ── Bölüm metni ──────────────────────────────────────────────────────────
 
+    /**
+     * Bir bölümün içeriği. [index] MediaWiki bölüm kimliğidir: sayısal ("3") veya şablon
+     * bölümü ("T-1"). Şablon bölümleri eskiden hiç listelenmediği için içerikleri de
+     * hiç çekilmiyordu.
+     */
     suspend fun loadSection(
         context: Context,
         wikiId: String,
         pageTitle: String,
-        index: Int,
+        index: String,
         sectionTitle: String? = null
     ): FandomSectionContent? {
         val appContext = context.applicationContext
-        val cacheKey = "${KEY_PREFIX}sec:v4:$wikiId|$pageTitle|$index"
+        // v5: bloklar artık tıklanabilir bağlantı aralığı (linkSpans) taşıyor; eski
+        // kayıtlar bu alanı boş okur, bağlantılar hiç tıklanmaz kalırdı.
+        val cacheKey = "${KEY_PREFIX}sec:v5:$wikiId|$pageTitle|$index"
         return lockFor(sectionLocks, cacheKey).withLock {
             val cached = readCached(appContext, cacheKey, positiveTtl = SECTION_TTL_MS) { body ->
                 json.decodeFromString(StoredSection.serializer(), body).content
@@ -1059,7 +1066,7 @@ object FandomRepository {
             val relationType = sectionTitle?.let(FandomRelationClassifier::forSection)
                 ?: FandomRelationType.RELATED
             val content = FandomSectionContent(
-                blocks = FandomHtmlText.blocks(html),
+                blocks = FandomHtmlText.blocks(html, wikiId = wikiId),
                 linkedEntities = FandomHtmlText.wikiLinks(
                     html = html,
                     defaultWikiId = wikiId,

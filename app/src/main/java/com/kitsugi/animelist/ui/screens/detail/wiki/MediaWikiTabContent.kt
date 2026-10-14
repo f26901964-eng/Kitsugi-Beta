@@ -214,28 +214,28 @@ internal fun MediaWikiTabSlot(
 internal fun MediaWikiTabContent(
     uiState: FandomMediaWikiViewModel.UiState,
     articleState: FandomMediaWikiViewModel.ArticleState,
-    articleSections: Map<Int, FandomCharacterWikiViewModel.SectionState>,
+    articleSections: Map<String, FandomCharacterWikiViewModel.SectionState>,
     guideState: FandomMediaWikiViewModel.GuideState,
     guideMore: FandomMediaWikiViewModel.GuideMore,
     summaryState: FandomMediaWikiViewModel.BlurbState,
     searchState: FandomMediaWikiViewModel.SearchState,
     searchQuery: String,
     selectedState: FandomMediaWikiViewModel.SelectedState,
-    selectedSections: Map<Int, FandomMediaWikiViewModel.ArticleSectionState>,
+    selectedSections: Map<String, FandomMediaWikiViewModel.ArticleSectionState>,
     translations: Map<String, String>,
     translatingKeys: Set<String>,
     spoilerGuard: Boolean = false,
     accentColor: Color,
     onRetry: () -> Unit,
     onRetryArticle: () -> Unit = {},
-    onLoadArticleSection: (Int) -> Unit = {},
+    onLoadArticleSection: (String) -> Unit = {},
     onConfirm: () -> Unit = {},
     onRetryGuide: () -> Unit,
     onLoadMoreGuide: (FandomGuideGroup) -> Unit,
     onSearchChange: (String) -> Unit,
     onClearSearch: () -> Unit,
     onOpenItem: (String) -> Unit,
-    onLoadSelectedSection: (Int) -> Unit,
+    onLoadSelectedSection: (String) -> Unit,
     onCloseItem: () -> Unit,
     onRetryItem: (String) -> Unit,
     onReportWrong: () -> Unit,
@@ -387,7 +387,9 @@ internal fun MediaWikiTabContent(
             onLoadSection = onLoadSelectedSection,
             preferredTranslator = preferredTranslator,
             originalKeys = originalKeys,
-            onToggleOriginal = onToggleOriginal
+            onToggleOriginal = onToggleOriginal,
+            // Madde sayfasındaki metin içi bağlantılar uygulama içi okuyucuda açılır.
+            onOpenLink = onOpenItem
         )
     }
 }
@@ -930,7 +932,7 @@ private fun MediaWikiFooter(
 @Composable
 private fun WikiItemSheet(
     selectedState: FandomMediaWikiViewModel.SelectedState,
-    selectedSections: Map<Int, FandomMediaWikiViewModel.ArticleSectionState>,
+    selectedSections: Map<String, FandomMediaWikiViewModel.ArticleSectionState>,
     wikiId: String,
     spoilerGuard: Boolean,
     translations: Map<String, String>,
@@ -938,10 +940,11 @@ private fun WikiItemSheet(
     accentColor: Color,
     onClose: () -> Unit,
     onRetry: (String) -> Unit,
-    onLoadSection: (Int) -> Unit,
+    onLoadSection: (String) -> Unit,
     preferredTranslator: String = "DEFAULT",
     originalKeys: Set<String> = emptySet(),
-    onToggleOriginal: (String) -> Unit = {}
+    onToggleOriginal: (String) -> Unit = {},
+    onOpenLink: (String) -> Unit = {}
 ) {
     if (selectedState is FandomMediaWikiViewModel.SelectedState.Closed) return
     val scrollState = rememberScrollState()
@@ -1083,6 +1086,7 @@ private fun WikiItemSheet(
                                     spoilerGuard = spoilerGuard,
                                     accentColor = accentColor,
                                     preferredTranslator = preferredTranslator,
+                                    onOpenLink = onOpenLink,
                                     onLoad = { onLoadSection(section.index) }
                                 )
                             }
@@ -1153,11 +1157,17 @@ private fun ArticleInfoboxCard(
 
     WikiCard {
         if (infobox.images.isNotEmpty()) {
+            // Bilgi kutusu görselleri eskiden take(8) ile SESSİZCE kırpılıyordu;
+            // artık kalanını açan bir düğme var.
+            var showAllImages by rememberSaveable(article.wikiId, article.pageTitle) {
+                mutableStateOf(false)
+            }
+            val visibleImages = if (showAllImages) infobox.images else infobox.images.take(8)
             FlowRow(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                infobox.images.take(8).forEach { image ->
+                visibleImages.forEach { image ->
                     Column(
                         modifier = Modifier.width(72.dp),
                         verticalArrangement = Arrangement.spacedBy(3.dp)
@@ -1186,6 +1196,18 @@ private fun ArticleInfoboxCard(
                 }
             }
             Spacer(modifier = Modifier.height(8.dp))
+            if (infobox.images.size > 8) {
+                TextButton(onClick = { showAllImages = !showAllImages }) {
+                    Text(
+                        text = stringResource(
+                            if (showAllImages) R.string.fandom_show_less
+                            else R.string.fandom_show_all_fields
+                        ) + if (showAllImages) "" else " (${infobox.images.size})",
+                        color = accentColor,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            }
         }
         Text(
             text = infobox.title ?: article.pageTitle,
@@ -1289,6 +1311,7 @@ private fun ArticleSectionRow(
     spoilerGuard: Boolean,
     accentColor: Color,
     preferredTranslator: String,
+    onOpenLink: (String) -> Unit = {},
     onLoad: () -> Unit
 ) {
     var expanded by rememberSaveable(articleTitle, section.index) { mutableStateOf(false) }
@@ -1384,7 +1407,12 @@ private fun ArticleSectionRow(
                                         isLoading = translating
                                     )
                                 }
-                                ArticleSectionBody(state.content, translated)
+                                ArticleSectionBody(
+                                    content = state.content,
+                                    translated = translated,
+                                    accentColor = accentColor,
+                                    onOpenLink = onOpenLink
+                                )
                             }
                         }
                     }
@@ -1395,7 +1423,12 @@ private fun ArticleSectionRow(
 }
 
 @Composable
-private fun ArticleSectionBody(content: FandomSectionContent, translated: String?) {
+private fun ArticleSectionBody(
+    content: FandomSectionContent,
+    translated: String?,
+    accentColor: Color,
+    onOpenLink: (String) -> Unit = {}
+) {
     SelectionContainer {
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
             if (translated != null) {
@@ -1421,18 +1454,30 @@ private fun ArticleSectionBody(content: FandomSectionContent, translated: String
                             style = MaterialTheme.typography.titleSmall,
                             fontWeight = FontWeight.Bold
                         )
-                        FandomBlockKind.PARAGRAPH -> Text(
-                            text = block.text,
+                        FandomBlockKind.PARAGRAPH -> WikiLinkedText(
+                            block = block,
+                            accentColor = accentColor,
+                            onOpenLink = onOpenLink,
                             color = KitsugiColors.TextPrimary,
                             style = MaterialTheme.typography.bodyMedium
                         )
                         FandomBlockKind.BULLET -> Row(modifier = Modifier.fillMaxWidth()) {
                             Text("•", color = KitsugiColors.TextSecondary, modifier = Modifier.padding(end = 8.dp))
-                            Text(block.text, color = KitsugiColors.TextPrimary, modifier = Modifier.weight(1f))
+                            WikiLinkedText(
+                                block = block,
+                                accentColor = accentColor,
+                                onOpenLink = onOpenLink,
+                                color = KitsugiColors.TextPrimary,
+                                modifier = Modifier.weight(1f)
+                            )
                         }
-                        FandomBlockKind.QUOTE -> Text(
-                            text = "“${block.text}”",
+                        FandomBlockKind.QUOTE -> WikiLinkedText(
+                            block = block,
+                            accentColor = accentColor,
+                            onOpenLink = onOpenLink,
                             color = KitsugiColors.TextSecondary,
+                            prefix = "“",
+                            suffix = "”",
                             style = MaterialTheme.typography.bodyMedium
                         )
                         FandomBlockKind.IMAGE -> ArticleImageBlock(block)

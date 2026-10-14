@@ -117,24 +117,50 @@ data class FandomInfobox(
     }
 }
 
-/** `action=parse&prop=sections` sonucundaki bir bölüm. */
+/**
+ * `action=parse&prop=sections` sonucundaki bir bölüm.
+ *
+ * MediaWiki bölüm kimliği HER ZAMAN sayı değildir: sayfa gövdesine şablonla eklenen
+ * (`<section begin>` / transclusion) bölümler `T-1`, `T-2`… kimliği taşır. Uygulama bu
+ * kimliği eskiden `toIntOrNull()` ile okuyordu ve çevrilemeyen her bölüm **içeriğiyle
+ * birlikte** kayboluyordu (Seslendirenler / Görünümler / Güçler gibi şablon bölümleri).
+ * Bu yüzden kimlik metin olarak saklanır; `isNumeric` okuyucunun sayısal bölüm
+ * özellikleri için kullanılır.
+ */
 @Serializable
 data class FandomSectionRef(
-    val index: Int,
+    val index: String,
     val title: String,
     val level: Int,
     val spoiler: Boolean = false
-)
+) {
+    /** Şablon bölümü mü? (`T-1` gibi; sayısal olmayan her kimlik.) */
+    val isTemplateSection: Boolean get() = index.toIntOrNull() == null
+}
 
 @Serializable
 enum class FandomBlockKind { PARAGRAPH, HEADING, BULLET, QUOTE, IMAGE }
+
+/**
+ * Metin bloğunun içindeki gerçek wiki bağlantısının konumu. Arayüz bunları tıklanabilir
+ * yapar: bağlantı metni düz metne düzleştirilirken hedef kayboluyordu.
+ */
+@Serializable
+data class FandomTextLinkSpan(
+    val start: Int,
+    val end: Int,
+    val wikiId: String,
+    val title: String
+)
 
 @Serializable
 data class FandomTextBlock(
     val kind: FandomBlockKind,
     val text: String,
     /** İçerik bölümlerindeki görsel (yalnızca IMAGE bloklarında doludur). */
-    val image: FandomImage? = null
+    val image: FandomImage? = null,
+    /** [text] içindeki tıklanabilir wiki bağlantıları (konum + hedef). */
+    val linkSpans: List<FandomTextLinkSpan> = emptyList()
 )
 
 /** Bir wiki bölümünün sadeleştirilmiş metni (ham HTML saklanmaz). */
