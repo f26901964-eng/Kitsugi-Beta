@@ -25,8 +25,16 @@ data class FandomCharacterQuery(
     /** Kaynaktaki yerel ad (Kanji/Hangul) — en güçlü doğrulama kanıtı. */
     val nativeName: String?,
     val alternatives: List<String>,
-    val appearances: List<FandomAppearanceRef>
+    val appearances: List<FandomAppearanceRef>,
+    /** AniList kişi kimliği (Wikidata P11227) — yalnızca ekip/seslendirme sorgularında. */
+    val aniListStaffId: Int? = null,
+    /** MyAnimeList kişi kimliği (Wikidata P4084) — yalnızca ekip/seslendirme sorgularında. */
+    val malPeopleId: Int? = null
 ) {
+    /** Ekip / seslendirme sanatçısı sorgusu mu? (`fromStaff` `staff-` öneki koyar.) */
+    val isStaff: Boolean
+        get() = source.startsWith("staff-")
+
     fun cacheKey(): String = when {
         aniListCharacterId != null -> "al:$aniListCharacterId"
         malCharacterId != null -> "mal:$malCharacterId"
@@ -156,11 +164,21 @@ object FandomCharacterQueries {
         }.take(MAX_APPEARANCES)
         if (appearances.isEmpty()) return null
 
+        // Kişi kimlikleri: AniList kişi kimliği (P11227) ve MAL kişi kimliği (P4084).
+        // Shikimori kişi kimliği MAL ile aynıdır (karakter yolundaki kuralla aynı).
+        val aniListStaff = detail.aniListId?.takeIf { it > 0 }
+            ?: if (canonical == "anilist") staffId.takeIf { it > 0 } else null
+        val malPeople = if (FandomMediaIds.isMalSource(canonical) || canonical == "shikimori") {
+            staffId.takeIf { it > 0 }
+        } else null
+
         return FandomCharacterQuery(
             source = "staff-$canonical",
             characterId = staffId,
             aniListCharacterId = null,
             malCharacterId = null,
+            aniListStaffId = aniListStaff,
+            malPeopleId = malPeople,
             names = names,
             nativeName = detail.nativeName?.trim()?.takeIf { it.isNotEmpty() },
             alternatives = detail.alternativeNames

@@ -268,7 +268,7 @@ fun DownloadsScreen(
                                         val baseName = videoFile.nameWithoutExtension
                                         val companionSubs = if (parentDir != null && parentDir.exists()) {
                                             parentDir.listFiles()?.filter { f ->
-                                                f.isFile && f.name.startsWith(baseName) && f.extension.lowercase() in listOf("srt", "ass", "ssa", "vtt")
+                                                f.isFile && f.name.startsWith("$baseName.") && f.extension.lowercase() in listOf("srt", "ass", "ssa", "vtt")
                                             }?.map { subFile ->
                                                 val lang = subFile.nameWithoutExtension.removePrefix(baseName).trim('.', '_')
                                                 com.kitsugi.animelist.core.player.SubtitleInput(
@@ -761,7 +761,7 @@ fun DownloadItemRow(
             val bName = vFile.nameWithoutExtension
             if (pDir != null && pDir.exists()) {
                 pDir.listFiles()?.filter { f ->
-                    f.isFile && f.name.startsWith(bName) && f.extension.lowercase() in listOf("srt", "ass", "ssa", "vtt")
+                    f.isFile && f.name.startsWith("$bName.") && f.extension.lowercase() in listOf("srt", "ass", "ssa", "vtt")
                 }?.map { subFile ->
                     val lang = subFile.nameWithoutExtension.removePrefix(bName).trim('.', '_')
                     OfflinePlaybackHelper.LocalSubtitle(

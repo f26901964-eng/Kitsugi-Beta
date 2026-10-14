@@ -299,10 +299,31 @@ data class FandomCharacterPage(
     /** Main-article gallery images in addition to infobox images. */
     val galleryImages: List<FandomImage> = emptyList(),
     /** Linked characters, cast, voice actors, staff and related articles. */
-    val relatedEntities: List<FandomWikiLink> = emptyList()
+    val relatedEntities: List<FandomWikiLink> = emptyList(),
+    /**
+     * Aynı kişi/karakter için bulunan diğer kaynaklar (ör. Fandom sayfası varken Vikipedi maddesi).
+     * Bu liste yalnızca üst düzey sayfada doludur; içindeki sayfaların kendisi boş tutulur.
+     */
+    val alternatives: List<FandomCharacterPage> = emptyList()
 ) {
     val pageUrl: String
         get() = FandomUrls.pageUrl(wikiId, pageTitle)
+
+    /** Kullanılabilir kaynak sayısı (bu sayfa + alternatifler). */
+    val sourceCount: Int
+        get() = 1 + alternatives.size
+
+    /**
+     * [index]. kaynağı (0 = bu sayfa, sonrası [alternatives]) etkin yapar. Seçilen kaynağın
+     * alternatifleri, diğer kaynakları içerecek şekilde yeniden kurulur. Geçersiz indekste null.
+     */
+    fun withSourceAt(index: Int): FandomCharacterPage? {
+        if (index < 0 || index >= sourceCount) return null
+        val all = listOf(copy(alternatives = emptyList())) +
+            alternatives.map { it.copy(alternatives = emptyList()) }
+        val target = all[index]
+        return target.copy(alternatives = all.filterIndexed { i, _ -> i != index })
+    }
 
     /** Otomatik (kanıtı kesinleşmemiş) eşleşme: arayüz "Bu eşleşme doğru mu?" kartı gösterir. */
     val needsConfirmation: Boolean

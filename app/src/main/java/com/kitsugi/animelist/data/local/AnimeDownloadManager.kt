@@ -125,8 +125,8 @@ object AnimeDownloadManager {
             e.printStackTrace()
         }
 
-        // Uygulama içi kopyanın yanı sıra `Download/Kitsugi/Video|Subtitles` altındaki
-        // dışa aktarılmış kopyaları da temizle; aksi hâlde bölüm "silinmiş" görünürken
+        // Video, altyazı, metadata ve poster (Download/Kitsugi/Video|Subtitles|Images) dahil
+        // dışa aktarılan tüm dosyalar temizlenir; aksi hâlde bölüm "silinmiş" görünürken
         // dosya diskte kalıp yer kaplamaya devam ediyordu.
         if (record != null) {
             try {

@@ -174,7 +174,9 @@ internal fun CharacterWikiTabContent(
     /** Wiki kimliği taşıyan bağlantılar (bölüm altı + ilişkili sayfalar) için; başlığa
      *  ek olarak hedef wiki de korunur. Verilmezse [onOpenWikiPage]'e düşülür. */
     onOpenWikiLink: ((FandomWikiLink) -> Unit)? = null,
-    relatedPages: List<com.kitsugi.animelist.data.fandom.FandomRelatedPage> = emptyList()
+    relatedPages: List<com.kitsugi.animelist.data.fandom.FandomRelatedPage> = emptyList(),
+    /** Birden çok kaynak (Fandom + Vikipedi) varken kaynak çiplerinden seçimi bildirir (indeks). */
+    onSwitchSource: (Int) -> Unit = {}
 ) {
     val context = LocalContext.current
     val pageKey = page.wikiId + "|" + page.pageTitle
@@ -186,6 +188,9 @@ internal fun CharacterWikiTabContent(
         modifier = modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
+        if (page.alternatives.isNotEmpty()) {
+            WikiSourceChips(page = page, accentColor = accentColor, onSwitchSource = onSwitchSource)
+        }
         if (showConfirmation && page.needsConfirmation) {
             WikiConfirmCard(accentColor = accentColor, onConfirm = onConfirm, onReject = onReportWrong)
         }
@@ -1163,6 +1168,52 @@ private fun LoadingLine(accentColor: Color) {
             color = KitsugiColors.TextMuted,
             style = MaterialTheme.typography.bodySmall
         )
+    }
+}
+
+/**
+ * Birden çok kaynak (Fandom + Vikipedi) varken kaynak çipleri. Etkin kaynak her zaman ilk sıradadır;
+ * diğerine dokununca [onSwitchSource] ile geçilir (indeks 1..n).
+ */
+@Composable
+private fun WikiSourceChips(
+    page: FandomCharacterPage,
+    accentColor: Color,
+    onSwitchSource: (Int) -> Unit
+) {
+    val sources = listOf(page) + page.alternatives
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .horizontalScroll(rememberScrollState()),
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        sources.forEachIndexed { index, source ->
+            val selected = index == 0
+            val isWikipedia = FandomUrls.isWikipedia(source.wikiId)
+            val label = when {
+                isWikipedia && source.wikiId == "wikipedia.tr" -> stringResource(R.string.wiki_source_wikipedia_tr)
+                isWikipedia -> stringResource(R.string.wiki_source_wikipedia)
+                else -> source.siteName ?: stringResource(R.string.wiki_source_fandom)
+            }
+            Box(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(
+                        if (selected) accentColor.copy(alpha = 0.22f)
+                        else KitsugiColors.Surface.copy(alpha = 0.6f)
+                    )
+                    .padding(horizontal = 12.dp, vertical = 6.dp)
+                    .tvClickable(enabled = !selected, shape = RoundedCornerShape(8.dp)) { onSwitchSource(index) }
+            ) {
+                Text(
+                    text = (if (isWikipedia) "📖 " else "🌐 ") + label,
+                    color = if (selected) accentColor else KitsugiColors.TextSecondary,
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium
+                )
+            }
+        }
     }
 }
 

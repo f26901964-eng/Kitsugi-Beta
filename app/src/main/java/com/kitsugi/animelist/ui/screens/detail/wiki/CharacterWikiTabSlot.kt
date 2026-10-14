@@ -45,7 +45,8 @@ internal fun CharacterWikiTabSlot(
     relatedPages: List<com.kitsugi.animelist.data.fandom.FandomRelatedPage> = emptyList(),
     rejectedName: String? = null,
     onUndoReject: () -> Unit = {},
-    onDismissRejectedUndo: () -> Unit = {}
+    onDismissRejectedUndo: () -> Unit = {},
+    onSwitchSource: (Int) -> Unit = {}
 ) {
     Column(
         modifier = Modifier.fillMaxWidth(),
@@ -76,7 +77,8 @@ internal fun CharacterWikiTabSlot(
                 onToggleOriginal = onToggleOriginal,
                 onOpenWikiPage = onOpenWikiPage,
                 onOpenWikiLink = onOpenWikiLink,
-                relatedPages = relatedPages
+                relatedPages = relatedPages,
+                onSwitchSource = onSwitchSource
             )
             FandomCharacterWikiViewModel.UiState.Unavailable -> WikiUnavailableCard(
                 accentColor = accentColor,
@@ -145,6 +147,7 @@ internal fun CharacterWikiTabSlot(
                 viewModel.openReader(link.pageTitle, wikiIdOverride = link.wikiId)
             },
             relatedPages = related,
+            onSwitchSource = viewModel::switchSource,
             rejectedName = lastRejected?.pageTitle,
             onUndoReject = {
                 viewModel.undoLastReject()
