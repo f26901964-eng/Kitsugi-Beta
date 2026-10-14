@@ -18,18 +18,35 @@ import org.jsoup.nodes.TextNode
 object FandomHtmlText {
 
     private const val INLINE_SEPARATOR = " · "
-    private const val MAX_SECTION_IMAGES = 24
+
+    /** Bölüm başına görsel sınırı: ana sayfa gibi yoğun sayfalarda (yüzlerce kart) kesilmez. */
+    private const val MAX_SECTION_IMAGES = 300
     private const val MAX_BLOCK_TEXT = 8_000
+    private const val MAX_BLOCK_LINKS = 120
+    private const val MAX_TABLE_ROWS = 300
+
+    /** Blok sınırı: bölüm HTML'i (ör. ana sayfa) tamamen okunabilsin diye yüksek tutulur. */
+    const val SECTION_MAX_BLOCKS = 1_500
+
+    /** Kart hücresinde satır sonu yaratan blok öğeler. */
+    private val BLOCK_BREAK_TAGS = setOf(
+        "p", "div", "li", "ul", "ol", "dl", "dt", "dd", "tr", "table", "h1", "h2", "h3", "h4", "h5", "h6",
+        "blockquote", "section", "center"
+    )
 
     private const val JUNK_SELECTOR =
         "sup.reference, .reference, .mw-ref, sup[id^=cite_ref], .mw-editsection, " +
             "style, script, noscript, rt, rp, .noprint, .error, .printfooter, .mw-cite-backlink"
 
+    /**
+     * Bölüm gövdesinden çıkarılanlar: kaynakça, içindekiler, bakım/uyarı kutuları ve bilgi
+     * kutusu (infobox ayrı işlenir). Navigasyon kutuları (navbox) ARTIK çıkarılmaz; bağlantı
+     * grubu olarak korunur.
+     */
     private const val SECTION_JUNK_SELECTOR = JUNK_SELECTOR +
-        ", ol.references, .mw-references-wrap, .references, .navbox, .navigation-box, " +
-            "table.navbox, .toc, #toc, .notice, .mbox, .ambox, .portable-infobox, aside, " +
-            ".wds-tabs__wrapper, .mw-collapsible-toggle, .dablink, .hatnote, .mw-empty-elt, " +
-            ".reference-text"
+        ", ol.references, .mw-references-wrap, .references, .toc, #toc, .notice, .mbox, .ambox, " +
+            ".portable-infobox, aside, .wds-tabs__wrapper, .mw-collapsible-toggle, .dablink, " +
+            ".hatnote, .mw-empty-elt, .reference-text"
 
     private val REF_MARKERS = Regex(
         "\\[\\s*(?:\\d+|[a-z]|note\\s*\\d+|citation needed|kaynak belirtilmeli)\\s*]",
@@ -159,24 +176,72 @@ object FandomHtmlText {
     /**
      * `action=parse&section=N` çıktısını bloklara ayırır. Çıktının başındaki bölüm
      * başlığı (içerikten önceki ilk başlık) atlanır; alt başlıklar korunur.
+     *
+     * [wikiId] verilirse bağlantılar ve bağlantılı görseller mutlak URL'ye çevrilir;
+     * böylece okuyucu her öğeyi (kart, grup, satır içi bağlantı) tıklanabilir yapabilir.
      */
-    fun blocks(html: String?, maxBlocks: Int = 400): List<FandomTextBlock> {
+    fun blocks(html: String?, maxBlocks: Int = 400, wikiId: String? = null): List<FandomTextBlock> {
         if (html.isNullOrBlank()) return emptyList()
         val body = Jsoup.parseBodyFragment(html).body()
         body.select(SECTION_JUNK_SELECTOR).remove()
-        val collector = BlockCollector(maxBlocks)
+        val collector = BlockCollector(maxBlocks, wikiId)
         collector.walk(body)
         collector.flushPending()
         return collector.result()
     }
 
-    private class BlockCollector(private val maxBlocks: Int) {
+    /**
+     * Göreli Fandom bağlantısını (`/wiki/…`, `//…`) mutlak URL'ye çevirir. Sayfa içi çapalar
+     * (`#…`) ve `javascript:` bağlantıları tıklanabilir hedef değildir (`null`).
+     */
+    fun absoluteUrl(href: String?, wikiId: String?): String? {
+        val raw = href?.trim().orEmpty()
+        if (raw.isEmpty() || raw.startsWith("#") || raw.startsWith("javascript:", ignoreCase = true)) return null
+        return when {
+            raw.startsWith("//") -> "https:$raw"
+            raw.startsWith("http://", ignoreCase = true) || raw.startsWith("https://", ignoreCase = true) -> raw
+            raw.startsWith("mailto:", ignoreCase = true) -> raw
+            wikiId != null -> FandomUrls.baseUrl(wikiId)?.let { "$it/${raw.removePrefix("/")}" } ?: raw
+            else -> raw
+        }
+    }
+
+    /** Etiketi olan, kırmızı (olmayan) bağlantılar. Yalnızca görselden oluşan bağlantılar atlanır. */
+    private fun anchorLinks(root: Element, wikiId: String?): List<FandomBlockLink> {
+        val anchors = (if (root.normalName() == "a") listOf(root) else emptyList()) + root.select("a[href]")
+        val out = LinkedHashMap<String, FandomBlockLink>()
+        anchors.forEach { a ->
+            if (a.hasClass("new") || a.attr("data-redlink") == "1") return@forEach
+            val label = tidyInline(a.text()).take(200)
+            if (label.isBlank() || label.none { it.isLetterOrDigit() }) return@forEach
+            val url = absoluteUrl(a.attr("href"), wikiId) ?: return@forEach
+            out.putIfAbsent("$label|$url", FandomBlockLink(label, url))
+        }
+        return out.values.toList()
+    }
+
+    private class BlockCollector(private val maxBlocks: Int, private val wikiId: String?) {
         private val out = mutableListOf<FandomTextBlock>()
         private val pending = StringBuilder()
+        private val pendingLinks = LinkedHashMap<String, FandomBlockLink>()
         private val seenImages = HashSet<String>()
         private var headingsSeen = 0
         private var contentSeen = false
         private var imagesSeen = 0
+
+        /** Tablo hücresi içindeki bir parça: metin (isteğe bağlı bağlantı), görsel veya boş. */
+        private class Seg(
+            val text: String = "",
+            val link: FandomBlockLink? = null,
+            val image: Element? = null,
+            val href: String? = null
+        )
+
+        /** Görselle başlayan bir kart taslağı; satırlar başlık ve alt metne dönüşür. */
+        private class CardDraft(val image: Element, val href: String?) {
+            val lines = mutableListOf<String>()
+            val links = mutableListOf<FandomBlockLink>()
+        }
 
         fun result(): List<FandomTextBlock> = out.toList()
 
@@ -192,16 +257,34 @@ object FandomHtmlText {
 
         fun flushPending() {
             val text = pending.toString()
+            val links = pendingLinks.values.toList()
             pending.setLength(0)
-            add(FandomBlockKind.PARAGRAPH, text)
+            pendingLinks.clear()
+            add(FandomBlockKind.PARAGRAPH, text, links = links)
         }
 
-        private fun add(kind: FandomBlockKind, raw: String) {
+        private fun add(
+            kind: FandomBlockKind,
+            raw: String,
+            href: String? = null,
+            subtitle: String? = null,
+            links: List<FandomBlockLink> = emptyList()
+        ) {
             if (out.size >= maxBlocks) return
             val text = tidyBlock(raw).take(MAX_BLOCK_TEXT)
             if (text.isEmpty()) return
             if (kind != FandomBlockKind.HEADING) contentSeen = true
-            out += FandomTextBlock(kind, text)
+            out += FandomTextBlock(
+                kind = kind,
+                text = text,
+                href = href,
+                subtitle = subtitle?.let { tidyBlock(it) }?.takeIf { it.isNotEmpty() },
+                links = links.take(MAX_BLOCK_LINKS)
+            )
+        }
+
+        private fun collectPendingLinks(element: Element) {
+            anchorLinks(element, wikiId).forEach { pendingLinks.putIfAbsent("${it.label}|${it.url}", it) }
         }
 
         private fun handle(element: Element) {
@@ -220,7 +303,7 @@ object FandomHtmlText {
                 }
                 "p" -> {
                     flushPending()
-                    add(FandomBlockKind.PARAGRAPH, inlineOf(element))
+                    add(FandomBlockKind.PARAGRAPH, inlineOf(element), links = anchorLinks(element, wikiId))
                     // Bazı Fandom makaleleri önemli illüstrasyonları paragraf içine gömer.
                     emitImages(element)
                 }
@@ -236,7 +319,7 @@ object FandomHtmlText {
                 }
                 "blockquote" -> {
                     flushPending()
-                    add(FandomBlockKind.QUOTE, inlineOf(element))
+                    add(FandomBlockKind.QUOTE, inlineOf(element), links = anchorLinks(element, wikiId))
                     emitImages(element)
                 }
                 "dl" -> {
@@ -244,23 +327,44 @@ object FandomHtmlText {
                     element.children().forEach { child ->
                         when (child.normalName()) {
                             "dt" -> add(FandomBlockKind.HEADING, inlineOf(child))
-                            "dd" -> add(FandomBlockKind.PARAGRAPH, inlineOf(child))
+                            "dd" -> add(FandomBlockKind.PARAGRAPH, inlineOf(child), links = anchorLinks(child, wikiId))
                             else -> walk(child)
                         }
                     }
                 }
                 "table" -> {
                     flushPending()
-                    handleContentTable(element)
+                    handleTable(element)
                 }
                 "img" -> {
                     flushPending()
                     emitImages(element)
                 }
                 "br" -> pending.append(' ')
+                "div", "center" -> {
+                    flushPending()
+                    when {
+                        isNavigationBox(element) || isLinkCluster(element) -> {
+                            // Kutudaki görseller (logo, ikon) da korunur; bağlantılar grup olur.
+                            emitImages(element)
+                            emitLinkGroup(element)
+                        }
+                        else -> {
+                            walk(element)
+                            flushPending()
+                        }
+                    }
+                }
                 else -> {
                     if (tag in INLINE_TAGS) {
-                        pending.append(inlineOf(element))
+                        // Satır içi öğe görsel taşıyorsa (bağlantılı görsel, ikon) görseli kaybetme.
+                        if (element.select("img").isNotEmpty()) {
+                            flushPending()
+                            emitImages(element)
+                        }
+                        val text = inlineOf(element)
+                        if (text.isNotEmpty()) pending.append(text)
+                        collectPendingLinks(element)
                     } else {
                         flushPending()
                         walk(element)
@@ -271,13 +375,19 @@ object FandomHtmlText {
         }
 
         /**
-         * Bölümün ana metnine ait tabloları sırayla ve satır sınırlarını koruyarak düzleştirir.
-         * Navigasyon/infobox tabloları üstte selector ile zaten çıkarılmıştır.
+         * Tablo: başlık satırları `HEADING`; görsel içeren hücreler kart (`CARD`) olarak;
+         * tek sütunlu metin hücreleri satır satır `BULLET`; çok sütunlu metin satırları
+         * "Başlık: değer" biçiminde. Navigasyon kutuları bağlantı grubuna dönüşür.
          */
-        private fun handleContentTable(table: Element) {
-            val rows = table.select("tr").take(150)
+        private fun handleTable(table: Element) {
+            if (isNavigationBox(table)) {
+                emitLinkGroup(table)
+                return
+            }
+            val rows = table.select("tr").take(MAX_TABLE_ROWS)
             if (rows.isEmpty()) {
                 walk(table)
+                flushPending()
                 return
             }
             val firstHeaders = rows.first().children()
@@ -287,15 +397,26 @@ object FandomHtmlText {
                 if (out.size >= maxBlocks) return
                 val cells = row.children().filter { it.normalName() == "th" || it.normalName() == "td" }
                 if (cells.isEmpty()) return@forEach
+                if (cells.all { it.normalName() == "th" }) {
+                    val header = cells.map { inlineOf(it) }.filter { it.isNotBlank() }.joinToString(" · ")
+                    add(FandomBlockKind.HEADING, header)
+                    return@forEach
+                }
+                if (cells.any { it.select("img").isNotEmpty() }) {
+                    cells.forEach { handleCardCell(it) }
+                    return@forEach
+                }
+                if (cells.size == 1) {
+                    emitCellLines(cells.first())
+                    return@forEach
+                }
                 val values = cells.map { inlineOf(it).take(MAX_BLOCK_TEXT) }
                 val meaningful = values.withIndex().filter { it.value.isNotBlank() }
                 if (meaningful.isEmpty()) return@forEach
                 val headers = cells.mapIndexedNotNull { index, cell ->
                     if (cell.normalName() == "th") index to values[index] else null
                 }.toMap()
-                val isHeaderRow = cells.all { it.normalName() == "th" }
                 val rowText = when {
-                    isHeaderRow -> meaningful.joinToString(" · ") { it.value }
                     headers.isNotEmpty() -> meaningful.joinToString(" · ") { (index, value) ->
                         val label = headers[index]
                             ?: firstHeaders.getOrNull(index)?.takeIf { it.isNotBlank() }
@@ -308,15 +429,169 @@ object FandomHtmlText {
                         }
                     else -> meaningful.joinToString(" · ") { it.value }
                 }
-                add(FandomBlockKind.BULLET, rowText)
-                emitImages(row)
+                add(FandomBlockKind.BULLET, rowText, links = anchorLinks(row, wikiId))
+            }
+        }
+
+        /** Metin-yalnız tablo hücresi: her satır ayrı madde (bağlantılarıyla). */
+        private fun emitCellLines(cell: Element) {
+            flushPending()
+            splitLines(cell).forEach { line ->
+                val text = line.joinToString("") { it.text }
+                add(FandomBlockKind.BULLET, text, links = line.mapNotNull { it.link })
+            }
+        }
+
+        /**
+         * Görsel içeren hücre: her görsel yeni bir kart başlatır. Görselden sonraki ilk
+         * satır başlık, kalanlar alt metin olur; kartın bağlantısı görselin (veya başlık
+         * bağlantısının) hedefidir. Görselsiz satırlar kart öncesinde madde olarak kalır.
+         */
+        private fun handleCardCell(cell: Element) {
+            flushPending()
+            var card: CardDraft? = null
+            fun closeCard() {
+                card?.let { emitCard(it) }
+                card = null
+            }
+            splitLines(cell).forEach { line ->
+                val buffer = StringBuilder()
+                val lineLinks = mutableListOf<FandomBlockLink>()
+                fun flushLine() {
+                    val text = buffer.toString()
+                    val c = card
+                    if (text.isNotBlank() || lineLinks.isNotEmpty()) {
+                        if (c != null) {
+                            if (text.isNotBlank()) c.lines += text
+                            c.links += lineLinks
+                        } else {
+                            add(FandomBlockKind.BULLET, text, links = lineLinks.toList())
+                        }
+                    }
+                    buffer.setLength(0)
+                    lineLinks.clear()
+                }
+                line.forEach { seg ->
+                    val image = seg.image
+                    if (image != null) {
+                        flushLine()
+                        closeCard()
+                        card = CardDraft(image, seg.href)
+                    } else {
+                        buffer.append(seg.text)
+                        seg.link?.let { lineLinks.add(it) }
+                    }
+                }
+                flushLine()
+            }
+            closeCard()
+        }
+
+        private fun emitCard(card: CardDraft) {
+            if (out.size >= maxBlocks) return
+            val imageUrl = imageUrl(card.image)
+            val lines = card.lines.map { tidyBlock(it) }.filter { it.isNotEmpty() }
+            val title = lines.firstOrNull()
+                ?: card.image.attr("alt").trim().takeIf { it.isNotBlank() }
+                ?: hostLabel(card.href)
+            if (title.isNullOrBlank() && imageUrl == null) return
+            val subtitle = lines.drop(1).filterNot { it == title }.distinct()
+                .joinToString(" · ")
+                .takeIf { it.isNotBlank() }
+            val href = card.href ?: card.links.firstOrNull()?.url
+            val image = imageUrl?.let { FandomImage(url = it, caption = title) }
+            out += FandomTextBlock(
+                kind = FandomBlockKind.CARD,
+                text = title.orEmpty().take(MAX_BLOCK_TEXT),
+                image = image,
+                href = href,
+                subtitle = subtitle?.take(MAX_BLOCK_TEXT),
+                links = card.links.distinctBy { it.url }.take(MAX_BLOCK_LINKS)
+            )
+            contentSeen = true
+        }
+
+        /** Hücreyi satırlara böler (`<br>`, blok öğeler ve metindeki satır sonları). */
+        private fun splitLines(root: Element): List<List<Seg>> {
+            val lines = mutableListOf<List<Seg>>()
+            var current = mutableListOf<Seg>()
+            fun newLine() {
+                if (current.isNotEmpty()) lines.add(current)
+                current = mutableListOf()
+            }
+            fun visit(node: Node, href: String?) {
+                when (node) {
+                    is TextNode -> {
+                        node.text().split('\n').forEachIndexed { index, part ->
+                            if (index > 0) newLine()
+                            if (part.isNotBlank()) {
+                                val link = href?.let { FandomBlockLink(tidyInline(part).take(200), it) }
+                                    ?.takeIf { it.label.isNotBlank() }
+                                current.add(Seg(text = part, link = link, href = href))
+                            }
+                        }
+                    }
+                    is Element -> {
+                        val tag = node.normalName()
+                        val ownHref = if (tag == "a" && !node.hasClass("new")) {
+                            absoluteUrl(node.attr("href"), wikiId)
+                        } else null
+                        val effectiveHref = ownHref ?: href
+                        when {
+                            tag == "br" -> newLine()
+                            tag == "img" -> current.add(Seg(image = node, href = effectiveHref))
+                            tag == "a" && ownHref != null && node.select("img").isEmpty() -> {
+                                val label = tidyInline(node.text()).take(200)
+                                if (label.isNotBlank()) {
+                                    current.add(Seg(text = node.text(), link = FandomBlockLink(label, ownHref), href = ownHref))
+                                }
+                            }
+                            tag in BLOCK_BREAK_TAGS -> {
+                                newLine()
+                                node.childNodes().forEach { visit(it, effectiveHref) }
+                                newLine()
+                            }
+                            else -> node.childNodes().forEach { visit(it, effectiveHref) }
+                        }
+                    }
+                }
+            }
+            root.childNodes().forEach { visit(it, null) }
+            newLine()
+            return lines
+        }
+
+        /** Navigasyon kutusu (navbox): satır başlığı (th) grup adı, satırdaki bağlantılar çipler. */
+        private fun emitLinkGroup(container: Element) {
+            flushPending()
+            val rows = container.select("tr").take(MAX_TABLE_ROWS)
+            val title = (container.selectFirst(".navbox-title, .navigation-box-title, .navbox-title-group")
+                ?: rows.firstOrNull()?.selectFirst("th"))
+                ?.let { inlineOf(it) }?.takeIf { it.isNotBlank() }
+            if (rows.isEmpty()) {
+                // Tablosuz navbox (div): tüm bağlantılar tek grup.
+                val links = anchorLinks(container, wikiId)
+                if (links.isNotEmpty() && out.size < maxBlocks) {
+                    out += FandomTextBlock(FandomBlockKind.LINK_GROUP, text = title.orEmpty(), links = links.take(MAX_BLOCK_LINKS))
+                    contentSeen = true
+                }
+                return
+            }
+            title?.let { add(FandomBlockKind.HEADING, it) }
+            rows.forEach { row ->
+                if (out.size >= maxBlocks) return
+                val label = row.selectFirst("th")?.let { inlineOf(it) }?.takeIf { it.isNotBlank() && it != title }
+                val links = anchorLinks(row, wikiId)
+                if (links.isEmpty()) return@forEach
+                out += FandomTextBlock(FandomBlockKind.LINK_GROUP, text = label.orEmpty(), links = links.take(MAX_BLOCK_LINKS))
+                contentSeen = true
             }
         }
 
         private fun handleListItem(item: Element) {
             val own = item.clone()
             own.select("ul, ol, figure, .thumb, .gallery").remove()
-            add(FandomBlockKind.BULLET, inlineOf(own))
+            add(FandomBlockKind.BULLET, inlineOf(own), links = anchorLinks(own, wikiId))
             emitImages(item)
             item.children()
                 .filter { it.normalName() == "ul" || it.normalName() == "ol" }
@@ -333,6 +608,24 @@ object FandomHtmlText {
                 element.hasClass("wikia-gallery") ||
                 element.hasClass("thumb") ||
                 element.hasClass("gallerybox")
+
+        private fun isNavigationBox(element: Element): Boolean =
+            element.hasClass("navbox") || element.hasClass("navbox-inner") ||
+                element.hasClass("navigation-box") || element.hasClass("navbox-subgroup")
+
+        /**
+         * Yalnızca bağlantılardan oluşan kutu (ör. "Capcom Wikis", "Horror Games", dil ve
+         * şablon listeleri): en az üç bağlantı ve metnin büyük kısmı bağlantı.
+         */
+        private fun isLinkCluster(element: Element): Boolean {
+            if (element.select("table, p").size > 2) return false
+            val anchors = element.select("a[href]").filter { tidyInline(it.text()).isNotBlank() }
+            if (anchors.size < 3) return false
+            val fullText = tidyInline(element.text())
+            if (fullText.isEmpty() || fullText.length > 900) return false
+            val anchorText = anchors.sumOf { tidyInline(it.text()).length }
+            return anchorText * 10 >= fullText.length * 6
+        }
 
         private fun emitImages(container: Element) {
             if (imagesSeen >= MAX_SECTION_IMAGES || out.size >= maxBlocks) return
@@ -354,16 +647,23 @@ object FandomHtmlText {
                     ?.let(::inlineOf)
                     ?.takeIf { it.isNotBlank() }
                     ?: img.attr("alt").trim().takeIf { it.isNotBlank() }
+                // Bağlantılı görsel: dokununca hedef sayfa açılır (galeri, kart, ana sayfa vitrini).
+                val href = img.parents().firstOrNull { it.normalName() == "a" && it.hasAttr("href") }
+                    ?.let { absoluteUrl(it.attr("href"), wikiId) }
                 val fandomImage = FandomImage(url = url, caption = caption)
                 out += FandomTextBlock(
                     kind = FandomBlockKind.IMAGE,
                     text = caption.orEmpty(),
-                    image = fandomImage
+                    image = fandomImage,
+                    href = href
                 )
                 imagesSeen++
                 contentSeen = true
             }
         }
+
+        private fun hostLabel(href: String?): String? =
+            href?.substringAfter("://", "")?.substringBefore('/')?.takeIf { it.isNotBlank() }
 
         private fun imageUrl(image: Element): String? {
             val srcSet = image.attr("data-srcset").ifBlank { image.attr("srcset") }

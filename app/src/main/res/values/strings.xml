@@ -7556,4 +7556,7 @@ Eklentiler ekranından eklenti etkinleştirin.</string>
     <string name="inline_player_fullscreen">Tam ekran</string>
     <string name="translate_show_translation">Çeviri</string>
     <string name="translate_show_original">Orijinal</string>
+    <string name="fandom_reader_intro">Giriş</string>
+    <string name="fandom_open_linked_page">Sayfayı aç</string>
+    <string name="fandom_open_wiki_home">Wiki ana sayfasını aç</string>
 </resources>

@@ -1097,6 +1097,9 @@ class FandomMediaWikiViewModel(application: Application) : AndroidViewModel(appl
                 related = emptyList()
             )
             launchRelatedLoadForReader(location.wikiId, page)
+            // Giriş bölümü (section 0) her zaman yüklenir: makale özeti veya ana sayfanın
+            // tüm modülleri (hero, öne çıkan makale, kartlar, içerik kutuları) buradan gelir.
+            loadReaderSection(0)
             if (!page.description.isNullOrBlank() && isAutoTranslateEnabled()) {
                 translate(FandomReaderTranslationKeys.description(resolvedLocation))
             }

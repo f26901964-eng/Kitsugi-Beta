@@ -1030,6 +1030,44 @@ private fun WikiBlock(
         FandomBlockKind.IMAGE -> block.image?.let { image ->
             WikiImageBlock(block) { onOpenImage(image) }
         }
+        FandomBlockKind.CARD -> Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            block.image?.let { image ->
+                WikiImageBlock(block) { onOpenImage(image) }
+            }
+            if (block.text.isNotBlank()) {
+                Text(
+                    text = block.text,
+                    color = KitsugiColors.TextPrimary,
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.SemiBold
+                )
+            }
+            block.subtitle?.takeIf { it.isNotBlank() }?.let { subtitle ->
+                Text(
+                    text = subtitle,
+                    color = KitsugiColors.TextMuted,
+                    style = MaterialTheme.typography.labelMedium
+                )
+            }
+        }
+        FandomBlockKind.LINK_GROUP -> Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            if (block.text.isNotBlank()) {
+                Text(
+                    text = block.text,
+                    color = KitsugiColors.TextPrimary,
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+            val labels = block.links.map { it.label }.filter { it.isNotBlank() }
+            if (labels.isNotEmpty()) {
+                Text(
+                    text = labels.joinToString(" · "),
+                    color = KitsugiColors.TextSecondary,
+                    style = MaterialTheme.typography.bodyMedium
+                )
+            }
+        }
     }
 }
 

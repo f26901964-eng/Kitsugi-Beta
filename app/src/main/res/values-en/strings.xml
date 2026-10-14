@@ -7551,4 +7551,7 @@
     <string name="inline_player_fullscreen">Fullscreen</string>
     <string name="translate_show_translation">Translation</string>
     <string name="translate_show_original">Original</string>
+    <string name="fandom_reader_intro">Introduction</string>
+    <string name="fandom_open_linked_page">Open page</string>
+    <string name="fandom_open_wiki_home">Open wiki home page</string>
 </resources>

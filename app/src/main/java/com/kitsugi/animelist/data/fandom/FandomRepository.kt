@@ -606,7 +606,7 @@ object FandomRepository {
     }
 
     private fun mediaArticleCacheKey(mediaKey: String, wikiId: String, preferTurkish: Boolean): String =
-        "${KEY_PREFIX}media-page:v4:$mediaKey:$wikiId:${if (preferTurkish) "tr1" else "tr0"}"
+        "${KEY_PREFIX}media-page:v5:$mediaKey:$wikiId:${if (preferTurkish) "tr1" else "tr0"}"
 
     private suspend fun buildMediaArticle(
         context: Context,
@@ -621,6 +621,27 @@ object FandomRepository {
             .distinctBy(FandomNameVariants::normalizeForCompare)
         var catalogTitlesLoaded = false
         var titleCandidates = FandomNameVariants.mediaTitleVariants(sourceTitles)
+        // Aynı adı taşıyan yapımlar Fandom'da "Ad (YIL)" ile ayrılır: düz "Resident Evil"
+        // 2002 oyununun makalesidir, 2026 dizisi "Resident Evil (2026)"dır. Yayın yılı
+        // biliniyorsa önce yıllı başlık denenir; düz ad çakışıp yanlış makaleyi ya da
+        // "bulunamadı" sonucunu üretmesin.
+        val yearMatch: FandomMediaArticleMatcher.Match? = query.releaseYear?.let { year ->
+            val yearTitles = sourceTitles.take(3).map { "$it ($year)" }.distinct()
+            if (yearTitles.isEmpty()) {
+                null
+            } else {
+                FandomApi.lookupTitles(
+                    wikiId = ref.wikiId,
+                    titles = yearTitles,
+                    withTurkishLink = preferTurkish
+                ).values
+                    .firstOrNull { lookup ->
+                        lookup.exists && !lookup.isDisambiguation &&
+                            lookup.resolvedTitle?.contains("($year)") == true
+                    }
+                    ?.let { FandomMediaArticleMatcher.Match(it, FandomConfidence.CERTAIN, 1.0) }
+            }
+        }
         var match: FandomMediaArticleMatcher.Match? = ref.pageTitle
             ?.takeIf { it.isNotBlank() }
             ?.let { title ->
@@ -632,6 +653,7 @@ object FandomRepository {
             }
             ?.takeIf { it.exists && !it.isDisambiguation }
             ?.let { FandomMediaArticleMatcher.Match(it, FandomConfidence.CERTAIN, 1.0) }
+        match = yearMatch ?: match
         if (titleCandidates.isEmpty() && match == null &&
             (query.ids.aniListId != null || query.ids.malId != null)
         ) {
@@ -1047,9 +1069,10 @@ object FandomRepository {
         sectionTitle: String? = null
     ): FandomSectionContent? {
         val appContext = context.applicationContext
-        // v5: v4 kayıtları, yüzde-kodu çözülmemiş bağlantı başlıkları (`Shinj%C5%8D…`)
-        // içerebiliyordu; anahtar değişimi eski çipleri anında geçersiz kılar.
-        val cacheKey = "${KEY_PREFIX}sec:v5:$wikiId|$pageTitle|$index"
+        // v6: kartlar (CARD), bağlantı grupları (LINK_GROUP), bağlantılı görsel hedefleri ve
+        // satır içi bağlantılar eklendi; navbox'lar artık düşmüyor. Eski (v5) kayıtlar bu
+        // yüzden geçersiz sayılır. (v5 öncesi: yüzde-kodu çözülmemiş bağlantı başlıkları.)
+        val cacheKey = "${KEY_PREFIX}sec:v6:$wikiId|$pageTitle|$index"
         return lockFor(sectionLocks, cacheKey).withLock {
             val cached = readCached(appContext, cacheKey, positiveTtl = SECTION_TTL_MS) { body ->
                 json.decodeFromString(StoredSection.serializer(), body).content
@@ -1061,7 +1084,11 @@ object FandomRepository {
             val relationType = sectionTitle?.let(FandomRelationClassifier::forSection)
                 ?: FandomRelationType.RELATED
             val content = FandomSectionContent(
-                blocks = FandomHtmlText.blocks(html),
+                blocks = FandomHtmlText.blocks(
+                    html = html,
+                    maxBlocks = FandomHtmlText.SECTION_MAX_BLOCKS,
+                    wikiId = wikiId
+                ),
                 linkedEntities = FandomHtmlText.wikiLinks(
                     html = html,
                     defaultWikiId = wikiId,

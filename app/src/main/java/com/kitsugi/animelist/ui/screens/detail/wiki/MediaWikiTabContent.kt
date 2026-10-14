@@ -324,12 +324,27 @@ internal fun MediaWikiTabContent(
                         },
                         onOpenWikiLink = { link -> onOpenItem(link.pageTitle) }
                     )
-                    FandomMediaWikiViewModel.ArticleState.Unavailable -> WikiUnavailableCard(
-                        accentColor = accentColor,
-                        messageRes = R.string.fandom_media_article_unavailable,
-                        onRetry = onRetryArticle,
-                        titleRes = R.string.fandom_media_article_unavailable_title
-                    )
+                    FandomMediaWikiViewModel.ArticleState.Unavailable -> Column(
+                        verticalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        WikiUnavailableCard(
+                            accentColor = accentColor,
+                            messageRes = R.string.fandom_media_article_unavailable,
+                            onRetry = onRetryArticle,
+                            titleRes = R.string.fandom_media_article_unavailable_title
+                        )
+                        // Eşleşen madde yoksa bile wiki'nin ana sayfası (hero, öne çıkan
+                        // makaleler, kategori kartları, içerik kutuları) okuyucuda açılır.
+                        if (onOpenReaderHome != null) {
+                            TextButton(onClick = onOpenReaderHome) {
+                                Text(
+                                    text = stringResource(R.string.fandom_open_wiki_home),
+                                    color = accentColor,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                        }
+                    }
                     FandomMediaWikiViewModel.ArticleState.Idle,
                     FandomMediaWikiViewModel.ArticleState.Loading -> WikiCard {
                         WikiLoadingLine(accentColor)
@@ -1444,6 +1459,36 @@ private fun ArticleSectionBody(content: FandomSectionContent, translated: String
                             style = MaterialTheme.typography.bodyMedium
                         )
                         FandomBlockKind.IMAGE -> ArticleImageBlock(block)
+                        FandomBlockKind.CARD -> Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                            if (block.image != null) ArticleImageBlock(block)
+                            if (block.text.isNotBlank()) Text(
+                                text = block.text,
+                                color = KitsugiColors.TextPrimary,
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                            block.subtitle?.takeIf { it.isNotBlank() }?.let { subtitle ->
+                                Text(
+                                    text = subtitle,
+                                    color = KitsugiColors.TextMuted,
+                                    style = MaterialTheme.typography.labelMedium
+                                )
+                            }
+                        }
+                        FandomBlockKind.LINK_GROUP -> Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            if (block.text.isNotBlank()) Text(
+                                text = block.text,
+                                color = KitsugiColors.TextPrimary,
+                                style = MaterialTheme.typography.titleSmall,
+                                fontWeight = FontWeight.Bold
+                            )
+                            val labels = block.links.map { it.label }.filter { it.isNotBlank() }
+                            if (labels.isNotEmpty()) Text(
+                                text = labels.joinToString(" · "),
+                                color = KitsugiColors.TextSecondary,
+                                style = MaterialTheme.typography.bodyMedium
+                            )
+                        }
                     }
                 }
             }

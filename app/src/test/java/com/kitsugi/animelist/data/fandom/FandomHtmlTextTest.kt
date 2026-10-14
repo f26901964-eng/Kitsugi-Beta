@@ -201,4 +201,57 @@ class FandomHtmlTextTest {
             links
         )
     }
+
+    @Test
+    fun `paragraph keeps its inline wiki links with absolute urls`() {
+        val html = "<p>Visit <a href=\"/wiki/Jill_Valentine\">Jill</a> and <a href=\"#Notes\">notes</a>.</p>"
+        val block = FandomHtmlText.blocks(html, wikiId = "residentevil").single()
+        assertEquals(PARAGRAPH, block.kind)
+        // Sayfa içi çapa (#Notes) tıklanabilir hedef değildir.
+        assertEquals(1, block.links.size)
+        assertEquals("Jill", block.links.single().label)
+        assertEquals("https://residentevil.fandom.com/wiki/Jill_Valentine", block.links.single().url)
+    }
+
+    @Test
+    fun `image cell becomes a card with title subtitle image and target`() {
+        val html = """
+            <table><tr><td>
+              <a href="/wiki/Resident_Evil_2_(remake)"><img src="https://static.wikia.nocookie.net/residentevil/images/a/ab/RE2.jpg/revision/latest?cb=1" alt="RE2"></a>
+              <br>Resident Evil 2<br>2019
+            </td></tr></table>
+        """.trimIndent()
+        val card = FandomHtmlText.blocks(html, wikiId = "residentevil").single { it.kind == FandomBlockKind.CARD }
+        assertEquals("Resident Evil 2", card.text)
+        assertEquals("2019", card.subtitle)
+        assertEquals("https://residentevil.fandom.com/wiki/Resident_Evil_2_(remake)", card.href)
+        assertTrue(card.image?.url?.startsWith("https://") == true)
+    }
+
+    @Test
+    fun `navigation box keeps every link as a link group`() {
+        val html = """
+            <table class="navbox"><tr><th>Franchise</th></tr>
+            <tr><td><a href="/wiki/Resident_Evil">Resident Evil</a> · <a href="/wiki/Umbrella">Umbrella</a></td></tr></table>
+        """.trimIndent()
+        val blocks = FandomHtmlText.blocks(html, wikiId = "residentevil")
+        val group = blocks.single { it.kind == FandomBlockKind.LINK_GROUP }
+        assertEquals(listOf("Resident Evil", "Umbrella"), group.links.map { it.label })
+        assertTrue(group.links.all { it.url.startsWith("https://residentevil.fandom.com/wiki/") })
+    }
+
+    @Test
+    fun `linked image keeps its target page`() {
+        val html = "<p><a href=\"/wiki/Video_Games\"><img src=\"https://static.wikia.nocookie.net/residentevil/images/a/ab/Games.jpg/revision/latest?cb=3\"></a></p>"
+        val image = FandomHtmlText.blocks(html, wikiId = "residentevil").single { it.kind == FandomBlockKind.IMAGE }
+        assertEquals("https://residentevil.fandom.com/wiki/Video_Games", image.href)
+    }
+
+    @Test
+    fun `absolute url resolution handles relative protocol and anchors`() {
+        assertEquals("https://residentevil.fandom.com/wiki/Virus", FandomHtmlText.absoluteUrl("/wiki/Virus", "residentevil"))
+        assertEquals("https://static.example.com/a.png", FandomHtmlText.absoluteUrl("//static.example.com/a.png", null))
+        assertEquals(null, FandomHtmlText.absoluteUrl("#Top", "residentevil"))
+        assertEquals(null, FandomHtmlText.absoluteUrl("javascript:void(0)", "residentevil"))
+    }
 }

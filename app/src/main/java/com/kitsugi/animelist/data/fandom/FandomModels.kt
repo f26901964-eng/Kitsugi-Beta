@@ -126,15 +126,35 @@ data class FandomSectionRef(
     val spoiler: Boolean = false
 )
 
+/**
+ * Okuyucu blok türleri.
+ *  - [CARD]: Görsel + başlık + alt metin (ana sayfadaki "Video Games", "Featured Characters"
+ *    gibi kart ızgaraları). Dokunulunca bağlantı hedefi açılır.
+ *  - [LINK_GROUP]: Başlıklı bağlantı grubu (navbox'lar, "Capcom Wikis", sosyal medya, şablon
+ *    listeleri). Her bağlantı ayrı çip olarak gösterilir.
+ */
 @Serializable
-enum class FandomBlockKind { PARAGRAPH, HEADING, BULLET, QUOTE, IMAGE }
+enum class FandomBlockKind { PARAGRAPH, HEADING, BULLET, QUOTE, IMAGE, CARD, LINK_GROUP }
+
+/** Metin / kart içindeki tıklanabilir bağlantı: görünen etiket + mutlak URL. */
+@Serializable
+data class FandomBlockLink(
+    val label: String,
+    val url: String
+)
 
 @Serializable
 data class FandomTextBlock(
     val kind: FandomBlockKind,
     val text: String,
-    /** İçerik bölümlerindeki görsel (yalnızca IMAGE bloklarında doludur). */
-    val image: FandomImage? = null
+    /** İçerik bölümlerindeki görsel (IMAGE ve CARD bloklarında doludur). */
+    val image: FandomImage? = null,
+    /** Bloğun tıklanınca açılacağı mutlak URL (bağlantılı görsel, kart, grup). */
+    val href: String? = null,
+    /** Kartın ikincil satırı (ör. "Release date: 2027"). */
+    val subtitle: String? = null,
+    /** Metindeki bağlantılar (satır içi tıklanabilir alanlar veya grup çipleri). */
+    val links: List<FandomBlockLink> = emptyList()
 )
 
 /** Bir wiki bölümünün sadeleştirilmiş metni (ham HTML saklanmaz). */
@@ -152,7 +172,12 @@ data class FandomSectionContent(
     fun plainText(): String = blocks
         .filterNot { it.kind == FandomBlockKind.IMAGE }
         .joinToString("\n\n") { block ->
-            if (block.kind == FandomBlockKind.BULLET) "• ${block.text}" else block.text
+            when (block.kind) {
+                FandomBlockKind.BULLET -> "• ${block.text}"
+                FandomBlockKind.CARD -> listOfNotNull(block.text.takeIf { it.isNotBlank() }, block.subtitle)
+                    .joinToString(" — ")
+                else -> block.text
+            }
         }
 }
 

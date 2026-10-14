@@ -63,6 +63,20 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.LinkAnnotation
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.TextLinkStyles
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.style.TextDecoration
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.compositionLocalOf
+import android.content.Intent
+import android.net.Uri
+import com.kitsugi.animelist.data.fandom.FandomBlockLink
+import com.kitsugi.animelist.data.fandom.FandomTextBlock
+import com.kitsugi.animelist.data.fandom.FandomUrls
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import coil3.compose.SubcomposeAsyncImage
@@ -510,6 +524,13 @@ private fun ReaderContent(
     val galleryItems = remember(state.wikiId, state.page, state.sections, state.related) {
         buildReaderGalleryItems(state)
     }
+    val context = LocalContext.current
+    // Sayfa içi bağlantılar (metin, kart, bağlantı grubu, görsel href) buradan yönlenir:
+    // aynı wiki makalesi → uygulama içi okuyucu; diğer her şey → harici uygulama/tarayıcı.
+    val openTarget: (String) -> Unit = remember(state.wikiId, onOpenLink) {
+        { url: String -> openFandomTarget(context, state.wikiId, url, onOpenLink) }
+    }
+    CompositionLocalProvider(LocalFandomLinkOpener provides openTarget) {
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -521,6 +542,17 @@ private fun ReaderContent(
             state = state,
             galleryItems = galleryItems,
             accentColor = accentColor,
+            onToggleOriginal = onToggleOriginal,
+            onOpenGallery = onOpenGallery
+        )
+
+        // Giriş bölümü (section 0): makale özeti veya ana sayfanın tüm modülleri.
+        ReaderLeadCard(
+            state = state,
+            accentColor = accentColor,
+            galleryItems = galleryItems,
+            onRetry = { onRetrySection(READER_LEAD_SECTION) },
+            onOpenLink = onOpenLink,
             onToggleOriginal = onToggleOriginal,
             onOpenGallery = onOpenGallery
         )
@@ -562,6 +594,75 @@ private fun ReaderContent(
             )
         }
         Spacer(modifier = Modifier.height(24.dp))
+    }
+    }
+}
+
+private fun openFandomTarget(
+    context: android.content.Context,
+    wikiId: String,
+    url: String,
+    onOpenLink: (String) -> Unit
+) {
+    val target = FandomUrls.parseArticleUrl(url, wikiId)
+    if (target != null && target.first == wikiId) {
+        onOpenLink(target.second)
+        return
+    }
+    val absolute = if (url.startsWith("/")) FandomUrls.baseUrl(wikiId)?.let { it + url } ?: url else url
+    runCatching {
+        context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(absolute)))
+    }
+}
+
+/** Okuyucu içindeki bağlantı hedefini sağlar; varsayılan no-op (sekme içi kullanımlar için). */
+private val LocalFandomLinkOpener = compositionLocalOf<(String) -> Unit> { { _: String -> } }
+
+/** Giriş bölümü (MediaWiki section 0). Ana sayfa için tüm içerik buradadır. */
+private const val READER_LEAD_SECTION = 0
+
+@Composable
+private fun ReaderLeadCard(
+    state: FandomReaderRenderState,
+    accentColor: Color,
+    galleryItems: List<GalleryItem>,
+    onRetry: () -> Unit,
+    onOpenLink: (String) -> Unit,
+    onToggleOriginal: (String) -> Unit,
+    onOpenGallery: (List<GalleryItem>, Int) -> Unit
+) {
+    val index = READER_LEAD_SECTION
+    val content = state.sections[index]
+    val isLoading = index in state.loadingSections
+    val isFailed = index in state.failedSections
+    if (content == null && !isLoading && !isFailed) return
+    val location = FandomReaderLocation(state.wikiId, state.page.displayTitle)
+    val key = FandomReaderTranslationKeys.section(location, index)
+    ReaderCard {
+        Text(
+            text = stringResource(R.string.fandom_reader_intro),
+            color = KitsugiColors.TextPrimary,
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.Bold
+        )
+        Spacer(Modifier.height(8.dp))
+        ReaderSectionContent(
+            section = FandomSectionRef(index = index, title = state.page.displayTitle, level = 1),
+            content = content,
+            isLoading = isLoading,
+            isFailed = isFailed,
+            translationKey = key,
+            translatedText = state.translations[key],
+            isTranslating = key in state.translatingKeys,
+            showingOriginal = key in state.originalKeys,
+            preferredTranslator = state.preferredTranslator,
+            accentColor = accentColor,
+            onRetry = onRetry,
+            onOpenLink = onOpenLink,
+            onToggleOriginal = onToggleOriginal,
+            galleryItems = galleryItems,
+            onOpenGallery = onOpenGallery
+        )
     }
 }
 
@@ -810,7 +911,7 @@ private fun ReaderSectionContent(
                     )
                     // Çeviri düz metindir; görseller ayrı blok olarak kalır ve galeriye
                     // erişim çevrilmiş görünümde de aynı şekilde çalışır.
-                    content.blocks.filter { it.kind == FandomBlockKind.IMAGE }
+                    content.blocks.filter { it.kind == FandomBlockKind.IMAGE || it.kind == FandomBlockKind.CARD }
                         .forEach { block -> ReaderBlock(block, accentColor, onOpenLink, galleryItems, onOpenGallery) }
                 } else {
                     content.blocks.forEach { block ->
@@ -818,7 +919,7 @@ private fun ReaderSectionContent(
                     }
                 }
                 if (content.links.isNotEmpty() && !FandomSpoilerRules.isHiddenSection(section.title)) {
-                    ReaderLinkChips(links = content.links.take(12), accentColor = accentColor, onOpenLink = onOpenLink)
+                    ReaderLinkChips(links = content.links, accentColor = accentColor, onOpenLink = onOpenLink)
                 }
             }
         }
@@ -827,29 +928,40 @@ private fun ReaderSectionContent(
 
 @Composable
 private fun ReaderBlock(
-    block: com.kitsugi.animelist.data.fandom.FandomTextBlock,
+    block: FandomTextBlock,
     accentColor: Color,
     onOpenLink: (String) -> Unit,
     galleryItems: List<GalleryItem>,
     onOpenGallery: (List<GalleryItem>, Int) -> Unit
 ) {
+    val openTarget = LocalFandomLinkOpener.current
     when (block.kind) {
-        FandomBlockKind.HEADING -> Text(
+        FandomBlockKind.HEADING -> ReaderLinkedText(
             text = localizedSectionTitle(block.text),
+            links = block.links,
             color = KitsugiColors.TextPrimary,
+            linkColor = accentColor,
             style = MaterialTheme.typography.titleSmall,
             fontWeight = FontWeight.Bold,
             modifier = Modifier.padding(top = 4.dp)
         )
-        FandomBlockKind.PARAGRAPH -> Text(
+        FandomBlockKind.PARAGRAPH -> ReaderLinkedText(
             text = block.text,
+            links = block.links,
             color = KitsugiColors.TextPrimary,
+            linkColor = accentColor,
             style = MaterialTheme.typography.bodyMedium
         )
         FandomBlockKind.BULLET -> Row(Modifier.fillMaxWidth()) {
             Text("•", color = KitsugiColors.TextSecondary, modifier = Modifier.padding(end = 8.dp))
-            Text(block.text, color = KitsugiColors.TextPrimary,
-                style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
+            ReaderLinkedText(
+                text = block.text,
+                links = block.links,
+                color = KitsugiColors.TextPrimary,
+                linkColor = accentColor,
+                style = MaterialTheme.typography.bodyMedium,
+                modifier = Modifier.weight(1f)
+            )
         }
         FandomBlockKind.QUOTE -> Box(
             Modifier
@@ -858,8 +970,13 @@ private fun ReaderBlock(
                 .background(KitsugiColors.Surface)
                 .padding(horizontal = 12.dp, vertical = 8.dp)
         ) {
-            Text(block.text, color = KitsugiColors.TextSecondary,
-                style = MaterialTheme.typography.bodyMedium, fontStyle = androidx.compose.ui.text.font.FontStyle.Italic)
+            ReaderLinkedText(
+                text = block.text,
+                links = block.links,
+                color = KitsugiColors.TextSecondary,
+                linkColor = accentColor,
+                style = MaterialTheme.typography.bodyMedium.copy(fontStyle = androidx.compose.ui.text.font.FontStyle.Italic)
+            )
         }
         FandomBlockKind.IMAGE -> {
             val image = block.image
@@ -893,6 +1010,168 @@ private fun ReaderBlock(
                             style = MaterialTheme.typography.labelSmall
                         )
                     }
+                    block.href?.let { href ->
+                        Text(
+                            text = stringResource(R.string.fandom_open_linked_page),
+                            color = accentColor,
+                            style = MaterialTheme.typography.labelLarge,
+                            fontWeight = FontWeight.Medium,
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(8.dp))
+                                .tvClickable(shape = RoundedCornerShape(8.dp)) { openTarget(href) }
+                                .padding(horizontal = 8.dp, vertical = 4.dp)
+                        )
+                    }
+                }
+            }
+        }
+        FandomBlockKind.CARD -> ReaderCardTile(block, accentColor, galleryItems, onOpenGallery)
+        FandomBlockKind.LINK_GROUP -> ReaderLinkGroup(block, accentColor)
+    }
+}
+
+/** Metin + satır içi bağlantılar: her bağlantı etiketi tıklanabilir ve okuyucu yönlendirmesine gider. */
+@Composable
+private fun ReaderLinkedText(
+    text: String,
+    links: List<FandomBlockLink>,
+    color: Color,
+    linkColor: Color,
+    style: TextStyle,
+    modifier: Modifier = Modifier,
+    fontWeight: FontWeight? = null
+) {
+    val openTarget = LocalFandomLinkOpener.current
+    if (links.isEmpty()) {
+        Text(text = text, color = color, style = style, fontWeight = fontWeight, modifier = modifier)
+        return
+    }
+    val annotated = remember(text, links, linkColor, openTarget) {
+        buildReaderLinkedText(text, links, linkColor, openTarget)
+    }
+    Text(text = annotated, color = color, style = style, fontWeight = fontWeight, modifier = modifier)
+}
+
+private fun buildReaderLinkedText(
+    text: String,
+    links: List<FandomBlockLink>,
+    linkColor: Color,
+    openTarget: (String) -> Unit
+): AnnotatedString = buildAnnotatedString {
+    append(text)
+    var cursor = 0
+    links.forEach { link ->
+        if (link.label.isBlank() || link.url.isBlank()) return@forEach
+        var start = text.indexOf(link.label, cursor)
+        if (start < 0) start = text.indexOf(link.label)
+        if (start < 0) return@forEach
+        val end = start + link.label.length
+        addLink(
+            LinkAnnotation.Clickable(
+                tag = link.url,
+                styles = TextLinkStyles(SpanStyle(color = linkColor, textDecoration = TextDecoration.Underline)),
+                linkInteractionListener = { openTarget(link.url) }
+            ),
+            start,
+            end
+        )
+        cursor = end
+    }
+}
+
+/** Ana sayfa kartı: görsel (varsa) + başlık + alt başlık; tüm kart tıklanabilir. */
+@Composable
+private fun ReaderCardTile(
+    block: FandomTextBlock,
+    accentColor: Color,
+    galleryItems: List<GalleryItem>,
+    onOpenGallery: (List<GalleryItem>, Int) -> Unit
+) {
+    val openTarget = LocalFandomLinkOpener.current
+    val href = block.href
+    val image = block.image?.takeIf { it.url.isNotBlank() }
+    val imageIndex = image?.let { img -> galleryItems.indexOfFirst { it.url == img.url }.coerceAtLeast(0) } ?: 0
+    val shape = RoundedCornerShape(12.dp)
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(shape)
+            .background(KitsugiColors.SurfaceStrong)
+            .tvClickable(shape = shape) {
+                when {
+                    href != null -> openTarget(href)
+                    image != null && galleryItems.isNotEmpty() -> onOpenGallery(galleryItems, imageIndex)
+                }
+            }
+            .padding(8.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        if (image != null) {
+            SubcomposeAsyncImage(
+                model = image.url,
+                contentDescription = block.text,
+                modifier = Modifier
+                    .size(width = 84.dp, height = 84.dp)
+                    .clip(RoundedCornerShape(8.dp)),
+                contentScale = androidx.compose.ui.layout.ContentScale.Fit
+            )
+            Spacer(modifier = Modifier.width(10.dp))
+        }
+        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            if (block.text.isNotBlank()) {
+                Text(
+                    text = block.text,
+                    color = if (href != null) accentColor else KitsugiColors.TextPrimary,
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.SemiBold
+                )
+            }
+            block.subtitle?.takeIf { it.isNotBlank() }?.let { subtitle ->
+                Text(
+                    text = subtitle,
+                    color = KitsugiColors.TextMuted,
+                    style = MaterialTheme.typography.labelMedium
+                )
+            }
+        }
+    }
+}
+
+/** Bağlantı grubu (Contents/navbox/ilgili sayfalar gibi): tüm bağlantılar çip olarak gösterilir. */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun ReaderLinkGroup(block: FandomTextBlock, accentColor: Color) {
+    val openTarget = LocalFandomLinkOpener.current
+    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        if (block.text.isNotBlank()) {
+            Text(
+                text = localizedSectionTitle(block.text),
+                color = KitsugiColors.TextPrimary,
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.Bold
+            )
+        }
+        FlowRow(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            block.links.forEach { link ->
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(accentColor.copy(alpha = 0.10f))
+                        .border(1.dp, accentColor.copy(alpha = 0.25f), RoundedCornerShape(10.dp))
+                        .tvClickable(shape = RoundedCornerShape(10.dp)) { openTarget(link.url) }
+                        .padding(horizontal = 10.dp, vertical = 6.dp)
+                ) {
+                    Text(
+                        link.label,
+                        color = accentColor,
+                        style = MaterialTheme.typography.labelLarge,
+                        fontWeight = FontWeight.Medium,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis
+                    )
                 }
             }
         }
@@ -905,7 +1184,7 @@ private fun buildReaderGalleryItems(state: FandomReaderRenderState): List<Galler
     }
     state.sections.toSortedMap().values.forEach { content ->
         content.blocks.asSequence()
-            .filter { it.kind == FandomBlockKind.IMAGE }
+            .filter { it.kind == FandomBlockKind.IMAGE || it.kind == FandomBlockKind.CARD }
             .mapNotNull { it.image }
             .filter { it.url.isNotBlank() }
             .forEach { image -> add(image.toReaderGalleryItem()) }
