@@ -109,11 +109,12 @@ object FandomApiParsers {
                 resolvedTitle = if (exists) finalTitle else null,
                 pageId = if (exists) page?.optLong("pageid", 0L)?.takeIf { it > 0L } else null,
                 infoboxJson = props?.str("infoboxes"),
-                // Fandom short descriptions are ideal when present; MediaWiki extracts keep
-                // otherwise-valid articles useful on wikis that do not publish fandomdescription.
-                description = props?.str("fandomdescription")
-                    ?.takeIf { it.isNotBlank() }
-                    ?: page?.str("extract")?.takeIf { it.isNotBlank() },
+                // Merge the wiki short-description with its longer intro extract when the latter
+                // is a genuine continuation, so inline profiles do not stop at a short snippet.
+                description = FandomLeadParser.mergeDescription(
+                    props?.str("fandomdescription"),
+                    page?.str("extract")
+                ),
                 isDisambiguation = props?.has("disambiguation") == true,
                 wikidataItem = props?.str("wikibase_item")?.trim()?.takeIf { it.isNotEmpty() },
                 turkishLink = if (exists) parseTurkishLink(page?.optJSONArray("langlinks")) else null,
@@ -325,7 +326,7 @@ object FandomApiParsers {
             (query.optJSONObject("pages")?.length() ?: 0) > 0
     }
 
-    fun parseRelatedPages(json: String?): List<FandomRelatedPage> {
+    fun parseRelatedPages(json: String?, wikiId: String? = null): List<FandomRelatedPage> {
         val root = parseJsonObject(json) ?: return emptyList()
         if (root.has("error")) return emptyList()
         val query = root.optJSONObject("query") ?: return emptyList()
@@ -345,12 +346,17 @@ object FandomApiParsers {
             val props = page.optJSONObject("pageprops")
             // Anlam ayrımı sayfaları (disambiguation) "ilgili" listesine girmesin.
             if (props?.has("disambiguation") == true) continue
-            val description = props?.str("fandomdescription") ?: page.str("extract")
-            val thumbnail = page.optJSONObject("thumbnail")?.str("source")
+            val description = FandomLeadParser.mergeDescription(
+                props?.str("fandomdescription"),
+                page.str("extract")
+            )
+            val thumbnail = FandomUrls.normalizeImageUrl(page.optJSONObject("thumbnail")?.str("source"))
+            val infobox = FandomInfoboxParser.parse(props?.str("infoboxes"), wikiId)
             out += FandomRelatedPage(
                 title = title,
-                snippet = description?.takeIf { it.isNotBlank() },
-                thumbnailUrl = FandomUrls.normalizeImageUrl(thumbnail)
+                snippet = description,
+                thumbnailUrl = thumbnail?.takeIf { it.isNotBlank() },
+                profile = FandomPageProfile.from(infobox, description)
             )
         }
         return out.distinctBy { it.title }

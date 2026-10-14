@@ -7507,6 +7507,7 @@
     <string name="fandom_related_staff">Staff</string>
     <string name="fandom_related_other">Related Wiki pages</string>
     <string name="fandom_open_related_page">Open Fandom page</string>
+    <string name="fandom_related_details_unavailable">No extra intro or infobox details are available for this wiki article.</string>
     <string name="fandom_related_article_count">%1$d pages</string>
     <string name="fandom_image_source_file">File</string>
     <string name="fandom_image_credit">Image credit</string>

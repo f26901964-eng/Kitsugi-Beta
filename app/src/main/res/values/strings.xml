@@ -7512,6 +7512,7 @@ Eklentiler ekranından eklenti etkinleştirin.</string>
     <string name="fandom_related_staff">Ekip</string>
     <string name="fandom_related_other">İlgili Wiki sayfaları</string>
     <string name="fandom_open_related_page">Fandom sayfasını aç</string>
+    <string name="fandom_related_details_unavailable">Bu wiki sayfasında ek tanıtım veya bilgi kutusu verisi bulunamadı.</string>
     <string name="fandom_related_article_count">%1$d madde</string>
     <string name="fandom_image_source_file">Dosya</string>
     <string name="fandom_image_credit">Görsel kredisi</string>

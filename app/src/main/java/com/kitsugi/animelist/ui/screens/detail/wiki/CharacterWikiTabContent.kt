@@ -216,6 +216,7 @@ internal fun CharacterWikiTabContent(
             WikiRelatedEntitiesCard(
                 entities = page.relatedEntities,
                 accentColor = accentColor,
+                spoilerGuard = spoilerGuard,
                 onOpenGallery = onOpenGallery,
                 onOpenWikiLink = onOpenWikiLink,
                 onOpenWikiPage = onOpenWikiPage
@@ -1362,6 +1363,7 @@ private fun openExternal(context: Context, url: String) {
 private fun WikiRelatedEntitiesCard(
     entities: List<FandomWikiLink>,
     accentColor: Color,
+    spoilerGuard: Boolean = true,
     onOpenGallery: (List<GalleryItem>, Int) -> Unit,
     onOpenWikiLink: ((FandomWikiLink) -> Unit)? = null,
     onOpenWikiPage: ((String?) -> Unit)? = null
@@ -1400,113 +1402,43 @@ private fun WikiRelatedEntitiesCard(
             style = MaterialTheme.typography.titleMedium,
             fontWeight = FontWeight.Bold
         )
-        orderedGroups.forEach { (role, entities) ->
+        orderedGroups.forEach { (role, groupEntities) ->
             Text(
                 text = stringResource(relatedTitleRes(role)),
                 color = accentColor,
                 style = MaterialTheme.typography.titleSmall,
                 fontWeight = FontWeight.SemiBold,
-                modifier = Modifier.padding(top = 10.dp)
+                modifier = Modifier.padding(top = 12.dp)
             )
             Text(
-                text = stringResource(R.string.fandom_related_article_count, entities.size),
+                text = stringResource(R.string.fandom_related_article_count, groupEntities.size),
                 color = KitsugiColors.TextMuted,
                 style = MaterialTheme.typography.labelSmall
             )
-            LazyRow(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(10.dp)
-            ) {
+            LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 items(
-                    items = entities,
+                    items = groupEntities,
                     key = { entity -> "${entity.wikiId}:${entity.pageTitle}:${entity.role}:${entity.language}" }
                 ) { entity ->
-                    Column(
-                        modifier = Modifier
-                            .width(132.dp)
-                            .clip(RoundedCornerShape(14.dp))
-                            .background(KitsugiColors.SurfaceStrong)
-                            .padding(8.dp),
-                        verticalArrangement = Arrangement.spacedBy(6.dp)
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(104.dp)
-                                .clip(RoundedCornerShape(10.dp))
-                                .background(KitsugiColors.Surface)
-                                .tvClickable(shape = RoundedCornerShape(10.dp)) {
-                                    entity.imageUrl?.let { url ->
-                                        val category = if (role == FandomRelationType.CHARACTER) {
-                                            GalleryCategory.CHARACTER
-                                        } else {
-                                            GalleryCategory.PERSON
-                                        }
-                                        onOpenGallery(
-                                            listOf(
-                                                GalleryItem(
-                                                    url,
-                                                    FandomUrls.displaySourceName(entity.wikiId),
-                                                    category,
-                                                    entity.label
-                                                )
-                                            ),
-                                            0
-                                        )
-                                    } ?: openEntityPage(entity)
-                                },
-                            contentAlignment = Alignment.Center
-                        ) {
-                            if (!entity.imageUrl.isNullOrBlank()) {
-                                FandomWikiImage(
-                                    url = entity.imageUrl,
-                                    width = 240,
-                                    contentDescription = entity.label,
-                                    accentColor = accentColor,
-                                    modifier = Modifier.fillMaxWidth().height(104.dp)
-                                )
-                            } else {
-                                Text(
-                                    text = entity.label.take(1).uppercase(),
-                                    color = accentColor,
-                                    style = MaterialTheme.typography.headlineMedium,
-                                    fontWeight = FontWeight.Bold
-                                )
-                            }
-                        }
-                        Text(
-                            text = entity.label,
-                            color = KitsugiColors.TextPrimary,
-                            style = MaterialTheme.typography.bodySmall,
-                            fontWeight = FontWeight.SemiBold,
-                            maxLines = 2,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                        entity.language?.let { language ->
-                            Text(
-                                text = language.uppercase(),
-                                color = KitsugiColors.TextMuted,
-                                style = MaterialTheme.typography.labelSmall
-                            )
-                        }
-                        entity.description?.takeIf { it.isNotBlank() }?.let { description ->
-                            Text(
-                                text = description,
-                                color = KitsugiColors.TextSecondary,
-                                style = MaterialTheme.typography.labelSmall,
-                                maxLines = 3,
-                                overflow = TextOverflow.Ellipsis
-                            )
-                        }
-                        TextButton(onClick = { openEntityPage(entity) }) {
-                            Text(
-                                text = stringResource(R.string.fandom_open_related_page),
-                                color = accentColor,
-                                style = MaterialTheme.typography.labelSmall,
-                                maxLines = 1
-                            )
-                        }
+                    val category = if (role == FandomRelationType.CHARACTER) {
+                        GalleryCategory.CHARACTER
+                    } else {
+                        GalleryCategory.PERSON
                     }
+                    val sourceLabel = FandomUrls.displaySourceName(entity.wikiId)
+                    WikiRelatedEntityDetailCard(
+                        entity = entity,
+                        accentColor = accentColor,
+                        spoilerGuard = spoilerGuard,
+                        modifier = Modifier.width(300.dp),
+                        onOpenPage = { openEntityPage(entity) },
+                        onOpenImage = { url ->
+                            onOpenGallery(
+                                listOf(GalleryItem(url, sourceLabel, category, entity.label)),
+                                0
+                            )
+                        }
+                    )
                 }
             }
         }

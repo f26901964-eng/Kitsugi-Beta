@@ -32,7 +32,25 @@ class FandomModelsTest {
             ),
             sections = listOf(FandomSectionRef(1, "Appearance", 2)),
             matchSource = FandomMatchSource.WIKIDATA,
-            confidence = FandomConfidence.CERTAIN
+            confidence = FandomConfidence.CERTAIN,
+            relatedEntities = listOf(
+                FandomWikiLink(
+                    wikiId = "jujutsu-kaisen",
+                    pageTitle = "Yuji Itadori",
+                    label = "Yuji Itadori",
+                    role = FandomRelationType.CHARACTER,
+                    profile = FandomPageProfile(
+                        title = "Yuji Itadori",
+                        intro = "A first-year student at Tokyo Jujutsu High.",
+                        groups = listOf(
+                            FandomProfileGroup(
+                                header = "Personal Information",
+                                fields = listOf(FandomProfileField("Age", "15", source = "age"))
+                            )
+                        )
+                    )
+                )
+            )
         )
         val encoded = json.encodeToString(FandomCharacterPage.serializer(), page)
         assertEquals(page, json.decodeFromString(FandomCharacterPage.serializer(), encoded))

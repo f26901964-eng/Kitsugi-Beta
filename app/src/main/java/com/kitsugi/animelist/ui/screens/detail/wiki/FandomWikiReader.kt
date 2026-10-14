@@ -1304,12 +1304,12 @@ private fun ReaderRelatedCard(
         Spacer(Modifier.height(10.dp))
         LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             items(related, key = { it.title }) { page ->
-                WikiRelatedPageCard(
+                WikiRelatedPageDetailCard(
                     page = page,
                     accentColor = accentColor,
-                    actionLabel = actionLabel,
-                    onClick = { onOpenPage(page.title) },
-                    onImageClick = { url ->
+                    modifier = Modifier.width(300.dp),
+                    onOpenPage = { onOpenPage(page.title) },
+                    onOpenImage = { url ->
                         val index = galleryItems.indexOfFirst { it.url == url }
                         if (index >= 0) onOpenGallery(galleryItems, index)
                     }

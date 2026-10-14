@@ -464,6 +464,10 @@ object FandomRepository {
         return pages
     }
 
+    /** Full lead text from section 0; used inline so the Wiki tab is useful before opening the reader. */
+    suspend fun loadPageLeadIntro(context: Context, wikiId: String, title: String): String? =
+        loadLead(context, wikiId, title)?.intro
+
     /** Bir sayfanın kısa açıklaması (`fandomdescription`); yönlendirmeler çözülür. */
     suspend fun loadPageBlurb(context: Context, wikiId: String, title: String): FandomPageBlurb? {
         val appContext = context.applicationContext
@@ -1068,10 +1072,13 @@ object FandomRepository {
         fun enrich(link: FandomWikiLink): FandomWikiLink? {
             val lookup = lookupsByWiki[link.wikiId]?.get(link.pageTitle)
             if (lookup != null && (!lookup.exists || lookup.isDisambiguation)) return null
+            val description = lookup?.description?.let(FandomNameVariants::cleanDescription)
+            val infobox = lookup?.infoboxJson?.let { FandomInfoboxParser.parse(it, link.wikiId) }
             return link.copy(
                 pageTitle = lookup?.resolvedTitle ?: link.pageTitle,
-                description = lookup?.description?.let(FandomNameVariants::cleanDescription),
-                imageUrl = lookup?.thumbnailUrl
+                description = description,
+                imageUrl = lookup?.thumbnailUrl ?: infobox?.images?.firstOrNull()?.url,
+                profile = FandomPageProfile.from(infobox, description)
             )
         }
         val relatedEntities = links.mapNotNull(::enrich)

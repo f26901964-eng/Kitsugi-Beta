@@ -174,19 +174,33 @@ class FandomApiParsersTest {
         val json = """
             {"batchcomplete":true,"query":{"pages":[
               {"pageid":101,"ns":0,"title":"Gojo Satoru",
-               "pageprops":{"fandomdescription":"The strongest jujutsu sorcerer."},"thumbnail":{"source":"https://static.wikia.nocookie.net/jujutsu/gojo.jpg"}},
+               "pageprops":{"fandomdescription":"The strongest jujutsu sorcerer.",
+                 "infoboxes":"[{\"data\":[{\"type\":\"title\",\"data\":{\"value\":\"Satoru Gojo\"}},{\"type\":\"data\",\"data\":{\"label\":\"Age\",\"value\":\"28\",\"source\":\"age\"}}]}]"},
+               "thumbnail":{"source":"https://static.wikia.nocookie.net/jujutsu/gojo.jpg"}},
               {"pageid":102,"ns":0,"title":"Megumi Fushiguro",
-               "extract":"A grade 2 sorcerer and first-year student."}
+               "extract":"A grade 2 sorcerer and first-year student."},
+              {"pageid":103,"ns":0,"title":"Riza Hawkeye",
+               "pageprops":{"fandomdescription":"A skilled sniper and officer..."},
+               "extract":"A skilled sniper and officer in the Amestrian military, assigned to Roy Mustang's unit."}
             ]}}
         """.trimIndent()
-        val list = FandomApiParsers.parseRelatedPages(json)
-        assertEquals(2, list.size)
+        val list = FandomApiParsers.parseRelatedPages(json, "jujutsu-kaisen")
+        assertEquals(3, list.size)
         assertEquals("Gojo Satoru", list[0].title)
         assertEquals("The strongest jujutsu sorcerer.", list[0].snippet)
         assertEquals("https://static.wikia.nocookie.net/jujutsu/gojo.jpg", list[0].thumbnailUrl)
+        assertEquals("Satoru Gojo", list[0].profile?.title)
+        assertEquals("The strongest jujutsu sorcerer.", list[0].profile?.intro)
+        assertEquals("Age", list[0].profile?.groups?.firstOrNull()?.fields?.firstOrNull()?.label)
+        assertEquals("28", list[0].profile?.groups?.firstOrNull()?.fields?.firstOrNull()?.value)
         assertEquals("Megumi Fushiguro", list[1].title)
         assertEquals("A grade 2 sorcerer and first-year student.", list[1].snippet)
         assertNull(list[1].thumbnailUrl)
+        assertEquals("Riza Hawkeye", list[2].title)
+        assertEquals(
+            "A skilled sniper and officer in the Amestrian military, assigned to Roy Mustang's unit.",
+            list[2].snippet
+        )
     }
     @Test
     fun `legacy missing flags and pages without IDs never become clickable related cards`() {

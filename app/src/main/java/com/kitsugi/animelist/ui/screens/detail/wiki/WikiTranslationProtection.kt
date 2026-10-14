@@ -171,8 +171,8 @@ internal class WikiLinkLabelMask private constructor(
 internal suspend fun translateSectionBlocks(
     baseKey: String,
     content: FandomSectionContent,
-    translate: suspend (String) -> String,
-    onBlock: (childKey: String, value: String) -> Unit = { _, _ -> }
+    onBlock: (childKey: String, value: String) -> Unit = { _, _ -> },
+    translate: suspend (String) -> String
 ): Map<String, String> {
     if (content.blocks.isEmpty()) return emptyMap()
     val entries = LinkedHashMap<String, String>()

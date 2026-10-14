@@ -60,6 +60,61 @@ data class FandomImage(
     val license: String? = null
 )
 
+/** A plain infobox field used by inline related-page profiles (no nested article links). */
+@Serializable
+data class FandomProfileField(
+    val label: String,
+    val value: String,
+    val source: String? = null,
+    val spoiler: Boolean = false
+)
+
+@Serializable
+data class FandomProfileGroup(
+    val header: String? = null,
+    val fields: List<FandomProfileField> = emptyList()
+)
+
+/**
+ * The profile data shown directly on a parent Wiki page for a related character, cast member,
+ * voice actor, crew member, or article. It intentionally contains plain fields rather than an
+ * infobox model so serialization cannot recurse through an infobox's linked-page graph.
+ */
+@Serializable
+data class FandomPageProfile(
+    val title: String? = null,
+    val intro: String? = null,
+    val images: List<FandomImage> = emptyList(),
+    val groups: List<FandomProfileGroup> = emptyList()
+) {
+    fun hasDetails(): Boolean = !intro.isNullOrBlank() || images.isNotEmpty() ||
+        groups.any { it.fields.isNotEmpty() }
+
+    companion object {
+        fun from(infobox: FandomInfobox?, intro: String?): FandomPageProfile? {
+            val profile = FandomPageProfile(
+                title = infobox?.title,
+                intro = intro?.takeIf { it.isNotBlank() },
+                images = infobox?.images.orEmpty(),
+                groups = infobox?.groups.orEmpty().map { group ->
+                    FandomProfileGroup(
+                        header = group.header,
+                        fields = group.fields.map { field ->
+                            FandomProfileField(
+                                label = field.label,
+                                value = field.value,
+                                source = field.source,
+                                spoiler = field.spoiler
+                            )
+                        }
+                    )
+                }
+            )
+            return profile.takeIf { it.hasDetails() }
+        }
+    }
+}
+
 /** Semantic roles inferred from infobox labels and article section headings. */
 @Serializable
 enum class FandomRelationType { CHARACTER, CAST, VOICE_ACTOR, STAFF, CREW, MUSIC, RELATED }
@@ -74,7 +129,9 @@ data class FandomWikiLink(
     val language: String? = null,
     val context: String? = null,
     val description: String? = null,
-    val imageUrl: String? = null
+    val imageUrl: String? = null,
+    /** Full intro/infobox fields rendered inline; opening the article is optional. */
+    val profile: FandomPageProfile? = null
 ) {
     val pageUrl: String get() = FandomUrls.pageUrl(wikiId, pageTitle)
 }
@@ -226,7 +283,9 @@ data class FandomGuideItem(val title: String)
 data class FandomRelatedPage(
     val title: String,
     val snippet: String? = null,
-    val thumbnailUrl: String? = null
+    val thumbnailUrl: String? = null,
+    /** Expanded profile data so important facts are visible without opening another page. */
+    val profile: FandomPageProfile? = null
 )
 
 /**

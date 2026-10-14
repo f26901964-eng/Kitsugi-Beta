@@ -58,7 +58,6 @@ internal object FandomApi {
         return result
     }
 
-<<<<<<< HEAD
     /**
      * Verilen başlıkların Wikidata varlık kimlikleri (`pageprops.wikibase_item`).
      *
@@ -92,7 +91,6 @@ internal object FandomApi {
         return result
     }
 
-=======
     /** TextExtracts is available on Wikipedia, not on Fandom's MediaWiki fork. Sending
      * `prop=extracts` to Fandom can invalidate the *whole* query, even for existing pages. */
     internal fun titleLookupParams(
@@ -135,8 +133,6 @@ internal object FandomApi {
         if (FandomUrls.isWikipedia(wikiId)) listOf(
             "exintro" to "1", "explaintext" to "1", "exchars" to "1200"
         ) else emptyList()
-
->>>>>>> origin/arena/74cf06bb-kitsugi-beta
     /** Lead image plus the page's full MediaWiki file list and attribution metadata. */
     suspend fun pageImages(wikiId: String, title: String, maxImages: Int = 300): List<FandomImage> {
         val fileTitles = LinkedHashSet<String>()
@@ -369,14 +365,14 @@ internal object FandomApi {
                 "titles" to chunk.joinToString("|"),
                 "redirects" to "1",
                 "prop" to previewProps(wikiId),
-                "ppprop" to "fandomdescription|disambiguation",
+                "ppprop" to "infoboxes|fandomdescription|disambiguation",
                 "piprop" to "thumbnail",
                 "pithumbsize" to thumbWidth.toString(),
                 "pilimit" to chunk.size.toString()
             ) + excerptParams(wikiId) + listOf("format" to "json", "formatversion" to "2")
             val url = FandomUrls.apiQuery(wikiId, params) ?: continue
             val body = FandomHttp.get(url)
-            val pages = FandomApiParsers.parseRelatedPages(body)
+            val pages = FandomApiParsers.parseRelatedPages(body, wikiId)
             out += if (pages.isNotEmpty() || FandomApiParsers.hasValidPageQuery(body)) {
                 pages
             } else {
@@ -422,13 +418,13 @@ internal object FandomApi {
                 "titles" to clean,
                 "redirects" to "1",
                 "prop" to previewProps(wikiId),
-                "ppprop" to "fandomdescription|disambiguation",
+                "ppprop" to "infoboxes|fandomdescription|disambiguation",
                 "piprop" to "thumbnail",
                 "pithumbsize" to thumbWidth.toString()
             ) + excerptParams(wikiId) + listOf("format" to "json", "formatversion" to "2")
             val url = FandomUrls.apiQuery(wikiId, params) ?: return null
             val body = FandomHttp.get(url)
-            FandomApiParsers.parseRelatedPages(body).firstOrNull()
+            FandomApiParsers.parseRelatedPages(body, wikiId).firstOrNull()
                 ?: if (!FandomApiParsers.hasValidPageQuery(body)) barePagePreviews(wikiId, listOf(clean)).firstOrNull()
                     else null
         } ?: return null

@@ -387,9 +387,9 @@ internal fun MediaWikiTabContent(
                 if (relatedPages.isNotEmpty()) {
                     RelatedPagesStrip(
                         title = stringResource(relatedTitleRes),
-                        actionLabel = relatedActionLabel,
                         pages = relatedPages,
                         accentColor = accentColor,
+                        spoilerGuard = spoilerGuard,
                         onOpenItem = onOpenItem
                     )
                 }
@@ -568,9 +568,9 @@ private fun MediaWikiHeaderCard(
 @Composable
 private fun RelatedPagesStrip(
     title: String,
-    actionLabel: String,
     pages: List<FandomRelatedPage>,
     accentColor: Color,
+    spoilerGuard: Boolean = true,
     onOpenItem: (String) -> Unit
 ) {
     if (pages.isEmpty()) return
@@ -594,11 +594,12 @@ private fun RelatedPagesStrip(
             horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             items(pages, key = { it.title }) { page ->
-                WikiRelatedPageCard(
+                WikiRelatedPageDetailCard(
                     page = page,
                     accentColor = accentColor,
-                    actionLabel = actionLabel,
-                    onClick = { onOpenItem(page.title) }
+                    spoilerGuard = spoilerGuard,
+                    modifier = Modifier.width(300.dp),
+                    onOpenPage = { onOpenItem(page.title) }
                 )
             }
         }
