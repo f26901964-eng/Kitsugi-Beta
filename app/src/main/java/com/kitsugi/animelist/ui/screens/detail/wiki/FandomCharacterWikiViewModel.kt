@@ -717,8 +717,37 @@ class FandomCharacterWikiViewModel(application: Application) : AndroidViewModel(
 
     fun retryReaderSection(index: Int) = loadReaderSection(index)
 
-    /** İlgili sayfa kartına veya metin içi bağlantıya tıklama: yeni history girdisi aç. */
-    fun openReaderLink(title: String) = openReader(title = title, pushToBackStack = true)
+    /**
+     * İlgili sayfa kartı / metin içi bağlantı: Chrome/Brave gibi aktif sekmenin hemen
+     * sağında YENİ sekmede açılır (kaynak sayfa yerinde kalır). Aynı sayfa zaten açık
+     * bir sekmedeyse ona geçilir; sekme sınırı doluysa bağlantı ölü doğmasın diye aktif
+     * sekmede geçmişe eklenerek açılır.
+     */
+    fun openReaderLink(title: String) {
+        val rootPage = (_state.value as? UiState.Ready)?.page ?: return
+        val currentReader = _reader.value as? ReaderState.Ready
+        val targetTitle = title.trim()
+        if (targetTitle.isEmpty()) return
+        val location = FandomReaderLocation(
+            currentReader?.wikiId ?: rootPage.wikiId,
+            targetTitle
+        )
+        val before = readerBrowserController.snapshot
+        val target = readerBrowserController.openInNewTab(location)
+        if (target == null) {
+            // Sekme sınırı (12) dolu: aynı sekmede geçmişli gezinmeye düş.
+            readerBrowserController.navigate(location, pushHistory = true)
+            _readerBrowser.value = readerBrowserController.snapshot
+            loadReaderLocation(location)
+            return
+        }
+        _readerBrowser.value = readerBrowserController.snapshot
+        // Bağlantı zaten aktif sekmedeki sayfanın kendisiyse yeniden yükleme yapma.
+        if (readerBrowserController.snapshot.activeTabId == before.activeTabId &&
+            target == before.activeTab?.location
+        ) return
+        loadReaderLocation(target)
+    }
 
     fun readerBack(): Boolean {
         val previous = readerBrowserController.back()
@@ -761,6 +790,15 @@ class FandomCharacterWikiViewModel(application: Application) : AndroidViewModel(
         val nextLocation = readerBrowserController.closeTab(tabId)
         _readerBrowser.value = readerBrowserController.snapshot
         if (wasActive && nextLocation != null) loadReaderLocation(nextLocation)
+    }
+
+    /** Sekmeye uzun basma: diğer tüm sekmeleri kapat, bunu tut. */
+    fun closeOtherReaderTabs(tabId: Long) {
+        val before = readerBrowserController.snapshot
+        if (before.tabs.size <= 1) return
+        val location = readerBrowserController.closeOtherTabs(tabId) ?: return
+        _readerBrowser.value = readerBrowserController.snapshot
+        if (before.activeTabId != tabId) loadReaderLocation(location)
     }
 
     fun closeReader() {

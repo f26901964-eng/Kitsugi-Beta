@@ -118,11 +118,54 @@ internal class FandomReaderBrowserController {
     fun openNewTab(): FandomReaderLocation? {
         if (tabs.size >= MAX_TABS) return null
         val location = activeLocation ?: return null
+        return insertTabAfterActive(location)
+    }
+
+    /**
+     * Chrome/Brave-style "open link in new tab": the page opens in a new tab inserted
+     * immediately to the RIGHT of the active tab (not appended at the end of the strip)
+     * and becomes active, so the source page stays untouched one tap away.
+     *
+     * If the same page is already open this switches to that tab instead of stacking
+     * duplicates; a link to the very page being read is a no-op that returns the active
+     * location (with no tab yet, that first tab is simply created). Returns null only
+     * when [MAX_TABS] is reached — callers then fall back to navigating the current
+     * tab (with history) so a tapped link never dies silently.
+     */
+    fun openInNewTab(location: FandomReaderLocation): FandomReaderLocation? {
+        val current = snapshot.activeTab
+        if (current == null) {
+            val tab = FandomReaderTab(id = nextTabId++, location = location)
+            tabs = listOf(tab)
+            activeTabId = tab.id
+            return location
+        }
+        if (current.location.isSamePageAs(location)) return current.location
+        val existing = tabs.firstOrNull { it.location.isSamePageAs(location) }
+        if (existing != null) {
+            activeTabId = existing.id
+            return existing.location
+        }
+        if (tabs.size >= MAX_TABS) return null
+        return insertTabAfterActive(location)
+    }
+
+    /** Inserts a tab directly after the active one and activates it (Chrome tab order). */
+    private fun insertTabAfterActive(location: FandomReaderLocation): FandomReaderLocation {
         val tab = FandomReaderTab(id = nextTabId++, location = location)
-        tabs = tabs + tab
+        val activeIndex = tabs.indexOfFirst { it.id == activeTabId }
+        tabs = if (activeIndex >= 0) {
+            tabs.toMutableList().apply { add(activeIndex + 1, tab) }
+        } else {
+            tabs + tab
+        }
         activeTabId = tab.id
         return location
     }
+
+    private fun FandomReaderLocation.isSamePageAs(other: FandomReaderLocation): Boolean =
+        wikiId.equals(other.wikiId, ignoreCase = true) &&
+            title.replace('_', ' ').trim().equals(other.title.replace('_', ' ').trim(), ignoreCase = true)
 
     fun switchTab(tabId: Long): FandomReaderLocation? {
         val tab = tabs.firstOrNull { it.id == tabId } ?: return null
@@ -150,6 +193,14 @@ internal class FandomReaderBrowserController {
         val next = tabs[newIndex]
         activeTabId = next.id
         return next.location
+    }
+
+    /** Long-press on a tab: close every other tab and keep (and activate) this one. */
+    fun closeOtherTabs(tabId: Long): FandomReaderLocation? {
+        val tab = tabs.firstOrNull { it.id == tabId } ?: return null
+        tabs = listOf(tab)
+        activeTabId = tab.id
+        return tab.location
     }
 
     private fun replaceTab(tab: FandomReaderTab) {

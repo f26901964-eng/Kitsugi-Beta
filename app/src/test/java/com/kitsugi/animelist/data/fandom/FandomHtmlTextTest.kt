@@ -163,4 +163,42 @@ class FandomHtmlTextTest {
         val links = FandomHtmlText.internalWikiLinks(html)
         assertEquals(listOf("Yuji Itadori", "Megumi Fushiguro"), links)
     }
+
+    @Test
+    fun `internalWikiLinks decodes utf8 percent encoded titles`() {
+        // Gerçek vaka (Yoshihiro Togashi sayfası): ō, UTF-8'de %C5%8D olarak kodlanır.
+        // Çiplerde `Shinj%C5%8D, Yamagata` yerine çözülmüş başlık görünmelidir.
+        val html = """
+            <p>
+              <a href="/wiki/Shinj%C5%8D,_Yamagata">Shinjō, Yamagata</a>
+              <a href="/wiki/Weekly_Sh%C5%8Dnen_Jump">Weekly Shōnen Jump</a>
+              <a href="/wiki/Tank%C5%8Dbon">Tankōbon</a>
+              <a href="/wiki/Ten_de_Sh%C5%8Dwaru_Cupid">Ten de Shōwaru Cupid</a>
+              <a href="/wiki/Category:Sh%C5%8Dnen_manga">category</a>
+            </p>
+        """.trimIndent()
+        val links = FandomHtmlText.internalWikiLinks(html)
+        assertEquals(
+            listOf("Shinjō, Yamagata", "Weekly Shōnen Jump", "Tankōbon", "Ten de Shōwaru Cupid"),
+            links
+        )
+    }
+
+    @Test
+    fun `internalWikiLinks decodes encoded punctuation keeps plus and survives malformed escapes`() {
+        val html = """
+            <p>
+              <a href="/wiki/Shonen_Jump_%28magazine%29">Shonen Jump (magazine)</a>
+              <a href="/wiki/A%2FB_Testing">A/B Testing</a>
+              <a href="/wiki/C%2B%2B">C++</a>
+              <a href="/wiki/Plus+Sign">Plus+Sign</a>
+              <a href="/wiki/Bad%ZZEscape">Bad escape</a>
+            </p>
+        """.trimIndent()
+        val links = FandomHtmlText.internalWikiLinks(html)
+        assertEquals(
+            listOf("Shonen Jump (magazine)", "A/B Testing", "C++", "Plus+Sign", "Bad%ZZEscape"),
+            links
+        )
+    }
 }

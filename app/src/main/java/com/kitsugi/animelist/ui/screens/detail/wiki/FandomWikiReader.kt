@@ -6,6 +6,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
@@ -22,7 +23,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
@@ -133,6 +133,7 @@ internal fun FandomWikiReaderSheet(
     onNewTab: () -> Unit = {},
     onSwitchTab: (Long) -> Unit = {},
     onCloseTab: (Long) -> Unit = {},
+    onCloseOtherTabs: (Long) -> Unit = {},
     onLoadSection: (Int) -> Unit,
     onRetrySection: (Int) -> Unit,
     onOpenLink: (String) -> Unit,
@@ -189,7 +190,8 @@ internal fun FandomWikiReaderSheet(
                     navigation = navigation,
                     accentColor = accentColor,
                     onSwitchTab = onSwitchTab,
-                    onCloseTab = onCloseTab
+                    onCloseTab = onCloseTab,
+                    onCloseOtherTabs = onCloseOtherTabs
                 )
                 when {
                     state == null && failedTitle != null -> ReaderFailed(
@@ -302,57 +304,137 @@ private fun ReaderTopBar(
     }
 }
 
+/** Sekmelerin en dar hâli; bunun altına sığılmazsa şerit yatay kaydırılır (Chrome davranışı). */
+private val READER_TAB_MIN_WIDTH = 88.dp
+
+/** Az sekme varken bir sekmenin genişleyebileceği üst sınır; artan alan boş kalır. */
+private val READER_TAB_MAX_WIDTH = 220.dp
+private val READER_TAB_SPACING = 6.dp
+private val READER_TAB_HEIGHT = 38.dp
+
+/**
+ * Chrome/Brave tarzı sekme şeridi:
+ *  - Sekmeler yan yana dizilir ve kullanılabilir genişliği EŞİT paylaşır; sekme sayısı
+ *    arttıkça hepsi birlikte daralır, azaldıkça yeniden genişler.
+ *  - Eşit pay [READER_TAB_MIN_WIDTH] altına düşerse genişlik orada sabitlenir ve şerit
+ *    yatay kaydırılabilir olur; yeni/açılan sekme otomatik görünür alana kaydırılır.
+ *  - Aktif sekme sayfa arkaplanıyla aynı renkte ve üst köşeleri yuvarlıdır (içerikle
+ *    bütünleşir), pasif sekmeler şerit üzerinde düz durur. Dar sekmelerde kapat (×)
+ *    yalnızca aktif sekmede gösterilir — Chrome'un dar sekmede yaptığı gibi.
+ */
 @Composable
 private fun ReaderTabStrip(
     navigation: FandomReaderBrowserState,
     accentColor: Color,
     onSwitchTab: (Long) -> Unit,
-    onCloseTab: (Long) -> Unit
+    onCloseTab: (Long) -> Unit,
+    onCloseOtherTabs: (Long) -> Unit = {}
 ) {
     if (navigation.tabs.isEmpty()) return
-    LazyRow(
+    BoxWithConstraints(
         modifier = Modifier
             .fillMaxWidth()
             .background(KitsugiColors.Surface.copy(alpha = 0.72f))
-            .padding(horizontal = 10.dp, vertical = 6.dp),
-        horizontalArrangement = Arrangement.spacedBy(8.dp)
+            .padding(start = 10.dp, end = 10.dp, top = 6.dp)
     ) {
-        items(navigation.tabs, key = { it.id }) { tab ->
-            val selected = tab.id == navigation.activeTabId
-            Row(
-                modifier = Modifier
-                    .widthIn(min = 104.dp, max = 240.dp)
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(if (selected) accentColor.copy(alpha = 0.18f) else KitsugiColors.SurfaceStrong)
-                    .border(
-                        width = 1.dp,
-                        color = if (selected) accentColor.copy(alpha = 0.60f) else KitsugiColors.SurfaceStrong,
-                        shape = RoundedCornerShape(12.dp)
-                    )
-                    .tvClickable(shape = RoundedCornerShape(12.dp)) { onSwitchTab(tab.id) }
-                    .padding(start = 12.dp, end = 4.dp, top = 2.dp, bottom = 2.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = tab.location.title,
-                    color = if (selected) accentColor else KitsugiColors.TextSecondary,
-                    style = MaterialTheme.typography.labelLarge,
-                    fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.weight(1f)
-                )
-                IconButton(
-                    onClick = { onCloseTab(tab.id) },
-                    modifier = Modifier.size(30.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Rounded.Close,
-                        contentDescription = stringResource(R.string.fandom_reader_close_tab, tab.location.title),
-                        tint = if (selected) accentColor else KitsugiColors.TextMuted,
-                        modifier = Modifier.size(16.dp)
+        val count = navigation.tabs.size
+        val equalWidth = (maxWidth - READER_TAB_SPACING * (count - 1)) / count
+        if (equalWidth >= READER_TAB_MIN_WIDTH) {
+            // Hepsi ekrana sığıyor: eşit paylaş (gerekirse üst sınırda bırak).
+            Row(horizontalArrangement = Arrangement.spacedBy(READER_TAB_SPACING)) {
+                navigation.tabs.forEach { tab ->
+                    ReaderTabChip(
+                        title = tab.location.title,
+                        selected = tab.id == navigation.activeTabId,
+                        accentColor = accentColor,
+                        showClose = tab.id == navigation.activeTabId || equalWidth >= 132.dp,
+                        onClick = { onSwitchTab(tab.id) },
+                        onClose = { onCloseTab(tab.id) },
+                        onLongClick = { onCloseOtherTabs(tab.id) },
+                        modifier = if (equalWidth > READER_TAB_MAX_WIDTH) {
+                            Modifier.width(READER_TAB_MAX_WIDTH)
+                        } else {
+                            Modifier.weight(1f)
+                        }
                     )
                 }
+            }
+        } else {
+            // Sığmıyor: sabit dar genişlik + yatay kaydırma; aktif sekme görünür tutulur.
+            val listState = androidx.compose.foundation.lazy.rememberLazyListState()
+            val activeIndex = navigation.tabs.indexOfFirst { it.id == navigation.activeTabId }
+            LaunchedEffect(navigation.activeTabId, navigation.tabs.size) {
+                if (activeIndex >= 0) listState.animateScrollToItem(activeIndex)
+            }
+            LazyRow(
+                state = listState,
+                horizontalArrangement = Arrangement.spacedBy(READER_TAB_SPACING)
+            ) {
+                items(navigation.tabs, key = { it.id }) { tab ->
+                    ReaderTabChip(
+                        title = tab.location.title,
+                        selected = tab.id == navigation.activeTabId,
+                        accentColor = accentColor,
+                        showClose = tab.id == navigation.activeTabId,
+                        onClick = { onSwitchTab(tab.id) },
+                        onClose = { onCloseTab(tab.id) },
+                        onLongClick = { onCloseOtherTabs(tab.id) },
+                        modifier = Modifier.width(READER_TAB_MIN_WIDTH)
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ReaderTabChip(
+    title: String,
+    selected: Boolean,
+    accentColor: Color,
+    showClose: Boolean,
+    onClick: () -> Unit,
+    onClose: () -> Unit,
+    onLongClick: () -> Unit = {},
+    modifier: Modifier = Modifier
+) {
+    val shape = RoundedCornerShape(topStart = 12.dp, topEnd = 12.dp, bottomStart = 4.dp, bottomEnd = 4.dp)
+    Row(
+        modifier = modifier
+            .height(READER_TAB_HEIGHT)
+            .clip(shape)
+            .background(if (selected) KitsugiColors.Background else KitsugiColors.SurfaceStrong.copy(alpha = 0.55f))
+            .then(
+                if (selected) {
+                    Modifier.border(1.dp, accentColor.copy(alpha = 0.45f), shape)
+                } else {
+                    Modifier
+                }
+            )
+            .tvClickable(shape = shape, onLongClick = onLongClick) { onClick() }
+            .padding(start = 10.dp, end = if (showClose) 2.dp else 8.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            text = title,
+            color = if (selected) accentColor else KitsugiColors.TextSecondary,
+            style = MaterialTheme.typography.labelLarge,
+            fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.weight(1f)
+        )
+        if (showClose) {
+            IconButton(
+                onClick = onClose,
+                modifier = Modifier.size(28.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Rounded.Close,
+                    contentDescription = stringResource(R.string.fandom_reader_close_tab, title),
+                    tint = if (selected) accentColor else KitsugiColors.TextMuted,
+                    modifier = Modifier.size(15.dp)
+                )
             }
         }
     }

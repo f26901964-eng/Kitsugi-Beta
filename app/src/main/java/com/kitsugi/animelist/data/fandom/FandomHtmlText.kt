@@ -410,18 +410,31 @@ object FandomHtmlText {
         if (raw.isEmpty()) return null
         val hash = raw.indexOf('#')
         if (hash >= 0) raw = raw.substring(0, hash)
+        val query = raw.indexOf('?')
+        if (query >= 0) raw = raw.substring(0, query)
         val marker = "/wiki/"
         val idx = raw.indexOf(marker)
         if (idx < 0) return null
         val tail = raw.substring(idx + marker.length)
         if (tail.isBlank()) return null
-        return tail
+        // href'ler UTF-8 yüzde-kodlu gelir (`Shinj%C5%8D,_Yamagata` = `Shinjō, Yamagata`).
+        // Yalnızca birkaç kodu elle çözmek ō/ş/ç gibi ASCII dışı karakterleri `%C5%8D`
+        // olarak çiplere (ve tıklanınca çift kodlanmış bozuk sayfa aramasına) taşıyordu;
+        // bu yüzden tamamı çözülür. `+`, MediaWiki yolunda boşluk değil artı işaretidir:
+        // URLDecoder onu boşluğa çevirmesin diye önce `%2B` olarak korunur
+        // (FandomUrls.parseArticleUrl ile aynı yaklaşım).
+        val decoded = runCatching {
+            java.net.URLDecoder.decode(tail.replace("+", "%2B"), "UTF-8")
+        }.getOrElse {
+            // Bozuk yüzde dizisi (ör. `%ZZ`): en azından bilinen kodları elle çöz.
+            tail.replace("%20", " ")
+                .replace("%2F", "/")
+                .replace("%3A", ":")
+                .replace("%28", "(")
+                .replace("%29", ")")
+        }
+        return decoded
             .replace('_', ' ')
-            .replace("%20", " ")
-            .replace("%2F", "/")
-            .replace("%3A", ":")
-            .replace("%28", "(")
-            .replace("%29", ")")
             .trim()
             .takeIf { it.isNotEmpty() && it.length <= 200 }
     }

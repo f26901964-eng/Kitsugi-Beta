@@ -72,4 +72,136 @@ class FandomReaderBrowserTest {
         assertFalse(browser.snapshot.canOpenNewTab)
         assertNull(browser.openNewTab())
     }
+
+    // ── Chrome/Brave sekme düzeni ────────────────────────────────────────────
+
+    private fun loc(title: String, wikiId: String = "hunter-x-hunter") =
+        FandomReaderLocation(wikiId, title)
+
+    private fun controllerWith(vararg titles: String): FandomReaderBrowserController {
+        val controller = FandomReaderBrowserController()
+        controller.navigate(loc(titles.first()), pushHistory = false)
+        titles.drop(1).forEach { controller.openInNewTab(loc(it)) }
+        return controller
+    }
+
+    private fun titles(controller: FandomReaderBrowserController): List<String> =
+        controller.snapshot.tabs.map { it.location.title }
+
+    @Test
+    fun `link opens in new tab immediately to the right of the active tab`() {
+        val controller = controllerWith("A", "B", "C")
+        // Ortadaki sekmeye dönüp bağlantıya tıklamak sona değil sağa eklemeli (Chrome).
+        val bId = controller.snapshot.tabs[1].id
+        controller.switchTab(bId)
+
+        val opened = controller.openInNewTab(loc("Gon Freecss"))
+
+        assertEquals(loc("Gon Freecss"), opened)
+        assertEquals(listOf("A", "B", "Gon Freecss", "C"), titles(controller))
+        assertEquals("Gon Freecss", controller.snapshot.activeTab?.location?.title)
+    }
+
+    @Test
+    fun `first link creates the first tab and source page survives`() {
+        val controller = FandomReaderBrowserController()
+        controller.openInNewTab(loc("Yoshihiro Togashi"))
+        controller.openInNewTab(loc("Gon Freecss"))
+
+        assertEquals(listOf("Yoshihiro Togashi", "Gon Freecss"), titles(controller))
+        // Kaynak sekme yerinde duruyor; tek dokunuşla geri dönülebilir.
+        val sourceId = controller.snapshot.tabs[0].id
+        assertEquals(loc("Yoshihiro Togashi"), controller.switchTab(sourceId))
+    }
+
+    @Test
+    fun `opening an already open page switches to its tab instead of duplicating`() {
+        val controller = controllerWith("A", "B")
+        val aId = controller.snapshot.tabs[0].id
+
+        val opened = controller.openInNewTab(loc("a")) // büyük/küçük harf duyarsız
+
+        assertEquals(loc("A"), opened)
+        assertEquals(listOf("A", "B"), titles(controller))
+        assertEquals(aId, controller.snapshot.activeTabId)
+    }
+
+    @Test
+    fun `link to the page already being read is a no-op`() {
+        val controller = controllerWith("A")
+        val activeBefore = controller.snapshot.activeTabId
+
+        val opened = controller.openInNewTab(loc("A"))
+
+        assertEquals(loc("A"), opened)
+        assertEquals(1, controller.snapshot.tabs.size)
+        assertEquals(activeBefore, controller.snapshot.activeTabId)
+    }
+
+    @Test
+    fun `tab limit makes openInNewTab return null so caller can fall back to same tab`() {
+        val controller = controllerWith("A")
+        repeat(FandomReaderBrowserController.MAX_TABS - 1) {
+            controller.openInNewTab(loc("Page $it"))
+        }
+        assertEquals(FandomReaderBrowserController.MAX_TABS, controller.snapshot.tabs.size)
+        assertNull(controller.openInNewTab(loc("Overflow")))
+        // Zaten açık sayfa sınır doluyken bile sekme değiştirerek açılabilir.
+        assertEquals(loc("A"), controller.openInNewTab(loc("A")))
+    }
+
+    @Test
+    fun `duplicate tab button also inserts to the right of the active tab`() {
+        val controller = controllerWith("A", "B")
+        controller.switchTab(controller.snapshot.tabs[0].id)
+
+        controller.openNewTab()
+
+        assertEquals(listOf("A", "A", "B"), titles(controller))
+        assertEquals(1, controller.snapshot.tabs.indexOfFirst { it.id == controller.snapshot.activeTabId })
+    }
+
+    @Test
+    fun `closing the active tab activates the right neighbour then the left one`() {
+        val controller = controllerWith("A", "B", "C")
+        controller.switchTab(controller.snapshot.tabs[1].id) // B aktif
+
+        assertEquals(loc("C"), controller.closeTab(controller.snapshot.activeTabId!!))
+        assertEquals(listOf("A", "C"), titles(controller))
+
+        // Son sekmeyi (C) kapatmak solundaki A'yı etkinleştirir.
+        assertEquals(loc("A"), controller.closeTab(controller.snapshot.activeTabId!!))
+        assertTrue(controller.snapshot.tabs.single().location.title == "A")
+    }
+
+    @Test
+    fun `closing a background tab keeps the active page`() {
+        val controller = controllerWith("A", "B")
+        val aId = controller.snapshot.tabs[0].id
+
+        assertNull(controller.closeTab(aId))
+        assertEquals("B", controller.snapshot.activeTab?.location?.title)
+    }
+
+    @Test
+    fun `closing other tabs keeps only the long pressed tab and activates it`() {
+        val controller = controllerWith("A", "B", "C")
+        val aId = controller.snapshot.tabs[0].id
+
+        assertEquals(loc("A"), controller.closeOtherTabs(aId))
+        assertEquals(listOf("A"), titles(controller))
+        assertEquals(aId, controller.snapshot.activeTabId)
+    }
+
+    @Test
+    fun `history stays per tab when new tabs open`() {
+        val controller = controllerWith("A")
+        controller.navigate(loc("A2"), pushHistory = true) // aynı sekmede geçmişli gezinme
+        controller.openInNewTab(loc("B"))
+        // Yeni sekmenin kendi geçmişi boş; ilk sekmenin geçmişi ise olduğu gibi durur.
+        assertNull(controller.back())
+        controller.switchTab(controller.snapshot.tabs[0].id)
+        assertEquals(loc("A"), controller.back())
+        assertEquals(loc("A2"), controller.forward())
+    }
 }

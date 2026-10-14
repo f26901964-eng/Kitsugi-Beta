@@ -777,6 +777,7 @@ fun CharacterDetailPage(
                         onNewTab = { wikiViewModel.newReaderTab() },
                         onSwitchTab = wikiViewModel::switchReaderTab,
                         onCloseTab = wikiViewModel::closeReaderTab,
+                        onCloseOtherTabs = wikiViewModel::closeOtherReaderTabs,
                         onToggleOriginal = wikiViewModel::toggleOriginal,
                         onLoadSection = wikiViewModel::loadReaderSection,
                         onRetrySection = wikiViewModel::retryReaderSection,

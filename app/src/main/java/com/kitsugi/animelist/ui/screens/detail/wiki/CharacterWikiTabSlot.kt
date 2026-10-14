@@ -185,6 +185,7 @@ internal fun CharacterWikiTabSlot(
                 onNewTab = { viewModel.newReaderTab() },
                 onSwitchTab = viewModel::switchReaderTab,
                 onCloseTab = viewModel::closeReaderTab,
+                onCloseOtherTabs = viewModel::closeOtherReaderTabs,
                 onToggleOriginal = viewModel::toggleOriginal,
                 onLoadSection = viewModel::loadReaderSection,
                 onRetrySection = viewModel::retryReaderSection,

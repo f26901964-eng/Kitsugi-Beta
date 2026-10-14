@@ -1179,8 +1179,36 @@ class FandomMediaWikiViewModel(application: Application) : AndroidViewModel(appl
 
     fun retryReaderSection(index: Int) = loadReaderSection(index)
 
-    /** İçerik bağlantısı veya ilişkili sayfa kartı yeni history girdisi açar. */
-    fun openReaderLink(title: String) = openReader(title, pushToBackStack = true)
+    /**
+     * Sayfa içi bağlantı / ilişkili sayfa kartı: Chrome/Brave gibi aktif sekmenin hemen
+     * sağında YENİ sekmede açılır (kaynak sayfa yerinde kalır). Aynı sayfa zaten açık bir
+     * sekmedeyse ona geçilir; sekme sınırı doluysa bağlantı ölü doğmasın diye aktif
+     * sekmede geçmişe eklenerek açılır.
+     */
+    fun openReaderLink(title: String) {
+        val ready = _state.value as? UiState.Ready ?: return
+        val clean = title.trim()
+        if (clean.isEmpty()) return
+        openReaderLocationInNewTab(FandomReaderLocation(ready.ref.wikiId, clean))
+    }
+
+    private fun openReaderLocationInNewTab(location: FandomReaderLocation) {
+        val before = readerBrowserController.snapshot
+        val target = readerBrowserController.openInNewTab(location)
+        if (target == null) {
+            // Sekme sınırı (12) dolu: aynı sekmede geçmişli gezinmeye düş.
+            readerBrowserController.navigate(location, pushHistory = true)
+            _readerBrowser.value = readerBrowserController.snapshot
+            loadReaderLocation(location)
+            return
+        }
+        _readerBrowser.value = readerBrowserController.snapshot
+        // Bağlantı zaten aktif sekmedeki sayfanın kendisiyse yeniden yükleme yapma.
+        if (readerBrowserController.snapshot.activeTabId == before.activeTabId &&
+            target == before.activeTab?.location
+        ) return
+        loadReaderLocation(target)
+    }
 
     fun readerBack(): Boolean {
         val previous = readerBrowserController.back()
@@ -1223,6 +1251,15 @@ class FandomMediaWikiViewModel(application: Application) : AndroidViewModel(appl
         val nextLocation = readerBrowserController.closeTab(tabId)
         _readerBrowser.value = readerBrowserController.snapshot
         if (wasActive && nextLocation != null) loadReaderLocation(nextLocation)
+    }
+
+    /** Sekmeye uzun basma: diğer tüm sekmeleri kapat, bunu tut. */
+    fun closeOtherReaderTabs(tabId: Long) {
+        val before = readerBrowserController.snapshot
+        if (before.tabs.size <= 1) return
+        val location = readerBrowserController.closeOtherTabs(tabId) ?: return
+        _readerBrowser.value = readerBrowserController.snapshot
+        if (before.activeTabId != tabId) loadReaderLocation(location)
     }
 
     fun closeReader() {
