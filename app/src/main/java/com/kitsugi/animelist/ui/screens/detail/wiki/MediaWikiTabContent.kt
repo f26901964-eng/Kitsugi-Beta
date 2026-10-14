@@ -6,6 +6,7 @@ import android.net.Uri
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.compose.material.icons.automirrored.rounded.MenuBook
+import androidx.compose.foundation.clickable
 import com.kitsugi.animelist.data.fandom.FandomRelatedPage
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -185,6 +186,7 @@ internal fun MediaWikiTabSlot(
         onToggleOriginal = viewModel::toggleOriginal,
         relatedPages = relatedPages,
         onOpenReaderHome = { viewModel.openReaderMainPage() },
+        onSwitchSource = viewModel::switchSource,
         modifier = modifier
     )
 
@@ -256,6 +258,7 @@ internal fun MediaWikiTabContent(
     onToggleOriginal: (String) -> Unit = {},
     relatedPages: List<FandomRelatedPage> = emptyList(),
     onOpenReaderHome: (() -> Unit)? = null,
+    onSwitchSource: ((Int) -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     val ready = uiState as? FandomMediaWikiViewModel.UiState.Ready
@@ -286,7 +289,14 @@ internal fun MediaWikiTabContent(
                 onRetry = onRetry
             )
             else -> {
-                MediaWikiHeaderCard(ref = ready.ref, accentColor = accentColor, onOpenWiki = onOpenReaderHome)
+                MediaWikiHeaderCard(
+                    ref = ready.ref,
+                    availableSources = ready.availableSources,
+                    activeSourceIndex = ready.activeSourceIndex,
+                    onSwitchSource = onSwitchSource,
+                    accentColor = accentColor,
+                    onOpenWiki = onOpenReaderHome
+                )
                 if (ready.ref.confidence == FandomConfidence.PROBABLE && articlePage?.needsConfirmation != true) {
                     WikiConfirmCard(
                         accentColor = accentColor,
@@ -418,44 +428,93 @@ internal fun MediaWikiTabContent(
 @Composable
 private fun MediaWikiHeaderCard(
     ref: FandomWikiRef,
+    availableSources: List<FandomWikiRef> = listOf(ref),
+    activeSourceIndex: Int = 0,
+    onSwitchSource: ((Int) -> Unit)? = null,
     accentColor: Color,
     onOpenWiki: (() -> Unit)? = null
 ) {
     val context = LocalContext.current
     val openAction = onOpenWiki ?: { openExternal(context, FandomUrls.baseUrl(ref.wikiId)) }
+    val isWp = FandomUrls.isWikipedia(ref.wikiId)
     WikiCard {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = ref.siteName ?: ref.wikiId,
-                    color = KitsugiColors.TextPrimary,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis
-                )
-                Spacer(modifier = Modifier.height(2.dp))
-                Text(
-                    text = stringResource(R.string.fandom_media_header_subtitle),
-                    color = accentColor,
-                    style = MaterialTheme.typography.labelMedium,
-                    fontWeight = FontWeight.SemiBold
-                )
+        Column {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = ref.siteName ?: ref.wikiId,
+                        color = KitsugiColors.TextPrimary,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(
+                        text = stringResource(
+                            if (isWp) R.string.fandom_media_header_subtitle_wikipedia
+                            else R.string.fandom_media_header_subtitle
+                        ),
+                        color = accentColor,
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
+                TextButton(onClick = openAction) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Rounded.MenuBook,
+                        contentDescription = null,
+                        tint = accentColor,
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        text = stringResource(
+                            if (isWp) R.string.fandom_open_page_wikipedia
+                            else R.string.fandom_open_page
+                        ),
+                        color = accentColor,
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
             }
-            TextButton(onClick = openAction) {
-                Icon(
-                    imageVector = Icons.AutoMirrored.Rounded.MenuBook,
-                    contentDescription = null,
-                    tint = accentColor,
-                    modifier = Modifier.size(16.dp)
-                )
-                Spacer(modifier = Modifier.width(6.dp))
-                Text(
-                    text = stringResource(R.string.fandom_open_page),
-                    color = accentColor,
-                    style = MaterialTheme.typography.labelMedium,
-                    fontWeight = FontWeight.Bold
-                )
+
+            if (availableSources.size > 1 && onSwitchSource != null) {
+                Spacer(modifier = Modifier.height(10.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    availableSources.forEachIndexed { index, sourceRef ->
+                        val isSelected = index == activeSourceIndex
+                        val isSourceWp = FandomUrls.isWikipedia(sourceRef.wikiId)
+                        val sourceTitle = when {
+                            isSourceWp -> if (sourceRef.wikiId == "wikipedia.tr") stringResource(R.string.wiki_source_wikipedia_tr) else stringResource(R.string.wiki_source_wikipedia)
+                            else -> sourceRef.siteName ?: stringResource(R.string.wiki_source_fandom)
+                        }
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(
+                                    if (isSelected) accentColor.copy(alpha = 0.22f)
+                                    else KitsugiColors.Surface.copy(alpha = 0.6f)
+                                )
+                                .padding(horizontal = 12.dp, vertical = 6.dp)
+                                .clickable(
+                                    enabled = !isSelected,
+                                    onClick = { onSwitchSource(index) }
+                                )
+                        ) {
+                            Text(
+                                text = (if (isSourceWp) "📖 " else "🌐 ") + sourceTitle,
+                                color = if (isSelected) accentColor else KitsugiColors.TextSecondary,
+                                style = MaterialTheme.typography.labelMedium,
+                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
+                            )
+                        }
+                    }
+                }
             }
         }
     }
@@ -548,12 +607,14 @@ private fun MediaWikiSummaryCard(
             )
         }
         Spacer(modifier = Modifier.height(8.dp))
-        SelectionContainer {
-            Text(
-                text = shownText,
-                color = KitsugiColors.TextPrimary,
-                style = MaterialTheme.typography.bodyMedium
-            )
+        WikiCollapsibleText(text = shownText, accentColor = accentColor) {
+            SelectionContainer {
+                Text(
+                    text = shownText,
+                    color = KitsugiColors.TextPrimary,
+                    style = MaterialTheme.typography.bodyMedium
+                )
+            }
         }
     }
 }
@@ -1055,12 +1116,15 @@ private fun WikiItemSheet(
                                 fontWeight = FontWeight.Bold
                             )
                             Spacer(modifier = Modifier.height(6.dp))
-                            SelectionContainer {
-                                Text(
-                                    text = translations[key] ?: description,
-                                    color = KitsugiColors.TextPrimary,
-                                    style = MaterialTheme.typography.bodyMedium
-                                )
+                            val articleSummaryText = translations[key] ?: description
+                            WikiCollapsibleText(text = articleSummaryText, accentColor = accentColor) {
+                                SelectionContainer {
+                                    Text(
+                                        text = articleSummaryText,
+                                        color = KitsugiColors.TextPrimary,
+                                        style = MaterialTheme.typography.bodyMedium
+                                    )
+                                }
                             }
                         }
                     }

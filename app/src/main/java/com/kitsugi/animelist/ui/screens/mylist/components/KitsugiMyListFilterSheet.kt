@@ -7,11 +7,7 @@ import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.Tune
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -21,7 +17,10 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.kitsugi.animelist.R
-import com.kitsugi.animelist.ui.components.KitsugiPremiumSheet
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import com.kitsugi.animelist.ui.components.KitsugiSheetOrDialog
+import com.kitsugi.animelist.ui.components.LocalDismissAnimated
 import com.kitsugi.animelist.ui.screens.mylist.ExtraFilterRow
 import com.kitsugi.animelist.ui.screens.mylist.MyListContentTypeRow
 import com.kitsugi.animelist.ui.screens.mylist.ScoreFilterRow
@@ -31,21 +30,11 @@ import com.kitsugi.animelist.ui.screens.mylist.TypeFilterRow
 import com.kitsugi.animelist.ui.screens.mylist.YearFilterRow
 import com.kitsugi.animelist.ui.theme.KitsugiColors
 import com.kitsugi.animelist.ui.theme.LocalKitsugiAccent
-import com.kitsugi.animelist.ui.theme.LocalKitsugiAccentBrush
-import com.kitsugi.animelist.ui.theme.LocalKitsugiOnAccent
 import com.kitsugi.animelist.ui.theme.gradient.Text
 import com.kitsugi.animelist.ui.theme.gradient.background
 import com.kitsugi.animelist.ui.utils.tvClickable
 
-/**
- * 🌌 "Listem" ekranının filtre & sıralama bölümünü taşıyan yeni premium açılır panel.
- *
- * Eskiden başlığın altında satır içi (inline) açılan filtre alanı artık
- * [KitsugiPremiumSheet] üzerinde: yay fiziğiyle seken açılış, gradyan kenarlık,
- * aurora parlaması ve tema vurgusuyla uyumlu modern bölüm başlıkları.
- *
- * Filtreler anında uygulanır; "Temizle" tümünü sıfırlar, "Bitti" paneli kapatır.
- */
+/** Profile-style sheet; filters apply immediately, actions dismiss with the sheet animation. */
 @Composable
 fun KitsugiMyListFilterSheet(
     selectedStatusFilterId: String,
@@ -63,26 +52,18 @@ fun KitsugiMyListFilterSheet(
     onResetFilters: () -> Unit,
     onDismiss: () -> Unit
 ) {
-    val activeFilterCount = listOf(
-        selectedStatusFilterId,
-        selectedTypeFilterId,
-        selectedScoreFilterId,
-        selectedYearFilterId,
-        selectedExtraFilterId
-    ).count { it != "all" }
-
-    KitsugiPremiumSheet(
+    val scrollState = rememberScrollState()
+    KitsugiSheetOrDialog(
         onDismiss = onDismiss,
-        title = stringResource(R.string.mylist_filter_sheet_title),
-        icon = Icons.Rounded.Tune,
-        badgeText = if (activeFilterCount > 0) {
-            stringResource(R.string.mylist_filter_active_count, activeFilterCount)
-        } else {
-            null
-        }
+        innerColumnScrollState = scrollState
     ) {
+        val dismissAnimated = LocalDismissAnimated.current
         Column(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .verticalScroll(scrollState)
+                .padding(horizontal = 16.dp, vertical = 8.dp)
+                .padding(bottom = 24.dp),
             verticalArrangement = Arrangement.spacedBy(18.dp)
         ) {
             // ── İçerik türü hapları ──
@@ -164,16 +145,16 @@ fun KitsugiMyListFilterSheet(
                     modifier = Modifier
                         .weight(1.3f)
                         .clip(actionShape)
-                        .background(LocalKitsugiAccentBrush.current, actionShape)
-                        .tvClickable(shape = actionShape, onClick = onDismiss)
+                        .background(accentColor.copy(alpha = 0.15f), actionShape)
+                        .tvClickable(shape = actionShape, onClick = dismissAnimated)
                         .padding(vertical = 14.dp),
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
                         text = stringResource(R.string.mylist_filter_done),
-                        color = LocalKitsugiOnAccent.current,
+                        color = accentColor,
                         style = MaterialTheme.typography.bodyMedium,
-                        fontWeight = FontWeight.Black
+                        fontWeight = FontWeight.SemiBold
                     )
                 }
             }
@@ -181,30 +162,19 @@ fun KitsugiMyListFilterSheet(
     }
 }
 
-/**
- * Premium panel içi filtre bölümü: gradyan nokta + büyük harfli etiket ve
- * altına yatay kaydırılabilir hap satırı.
- */
+/** Subdued section label above horizontally scrollable filter choices. */
 @Composable
 private fun FilterSheetSection(
     title: String,
     content: @Composable ColumnScope.() -> Unit
 ) {
-    val accentBrush = LocalKitsugiAccentBrush.current
-
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            Box(
-                modifier = Modifier
-                    .size(6.dp)
-                    .clip(CircleShape)
-                    .background(accentBrush, CircleShape)
-            )
             Text(
-                text = title.uppercase(),
+                text = title,
                 color = KitsugiColors.TextMuted,
                 style = MaterialTheme.typography.labelSmall,
                 fontWeight = FontWeight.Bold

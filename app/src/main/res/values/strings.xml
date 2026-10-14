@@ -7305,6 +7305,11 @@ Eklentiler ekranından eklenti etkinleştirin.</string>
     <string name="fandom_section_legacy">Miras</string>
     <string name="fandom_section_creation">Yaratılış ve tasarım</string>
     <string name="fandom_media_header_subtitle">Fandom wiki · evren rehberi</string>
+    <string name="fandom_media_header_subtitle_wikipedia">Wikipedia · Açık Ansiklopedi</string>
+    <string name="wiki_source_fandom">Fandom Wiki</string>
+    <string name="wiki_source_wikipedia">Wikipedia</string>
+    <string name="wiki_source_wikipedia_tr">Vikipedi (TR)</string>
+    <string name="fandom_open_page_wikipedia">Vikipedi\'de aç</string>
     <string name="fandom_media_summary_title">Seri özeti</string>
     <string name="fandom_media_search_hint">Wiki\'de ara…</string>
     <string name="fandom_media_search_empty">Aramayla eşleşen sayfa bulunamadı.</string>

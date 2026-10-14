@@ -154,6 +154,26 @@ object FandomRepository {
         }
     }
 
+    suspend fun resolveAllMediaWikis(
+        context: Context,
+        query: FandomMediaQuery,
+        allowNameFallback: Boolean,
+        forceRefresh: Boolean = false
+    ): List<FandomWikiRef> {
+        val primary = resolveMediaWiki(context, query, allowNameFallback, forceRefresh) ?: return emptyList()
+        val appContext = context.applicationContext
+        val effectiveQuery = query.normalizedMediaKind()
+        val prefs = FandomWikiPrefs.state(appContext)
+        val nameAllowed = allowNameFallback && prefs.nameFallback
+        return try {
+            FandomWikiResolver(appContext) { wikiId ->
+                FandomUserChoices.isWikiRejected(appContext, effectiveQuery.cacheKey().orEmpty(), wikiId)
+            }.resolveAll(effectiveQuery, nameAllowed)
+        } catch (_: Exception) {
+            listOf(primary)
+        }.ifEmpty { listOf(primary) }
+    }
+
     private fun wikiCacheKey(mediaKey: String, nameAllowed: Boolean): String =
         "${KEY_PREFIX}wiki:v3:$mediaKey:${if (nameAllowed) "n1" else "n0"}"
 

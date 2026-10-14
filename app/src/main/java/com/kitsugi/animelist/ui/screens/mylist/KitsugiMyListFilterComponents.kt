@@ -315,7 +315,7 @@ internal fun MyListContentTypeRow(
             Box(
                 modifier = Modifier
                     .clip(RoundedCornerShape(12.dp))
-                    .background(if (isSelected) accentColor else KitsugiColors.SurfaceSoft)
+                    .background(if (isSelected) accentColor.copy(alpha = 0.15f) else KitsugiColors.SurfaceStrong.copy(alpha = 0.4f))
                     .tvClickable(shape = RoundedCornerShape(12.dp), onClick = {
                         if (id == "anime" || id == "manga") onTypeSelected(id)
                     })
@@ -323,7 +323,7 @@ internal fun MyListContentTypeRow(
             ) {
                 Text(
                     text = if (isSelected) "✓ $label" else label,
-                    color = if (isSelected) KitsugiColors.Background else KitsugiColors.TextPrimary,
+                    color = if (isSelected) accentColor else KitsugiColors.TextPrimary,
                     style = MaterialTheme.typography.labelMedium,
                     fontWeight = FontWeight.Bold
                 )
@@ -545,9 +545,9 @@ private fun ListFilterChip(
             .clip(RoundedCornerShape(999.dp))
             .background(
                 color = if (selected) {
-                    accentColor
+                    accentColor.copy(alpha = 0.15f)
                 } else {
-                    KitsugiColors.Surface
+                    KitsugiColors.SurfaceStrong.copy(alpha = 0.4f)
                 }
             )
             .tvClickable(shape = RoundedCornerShape(999.dp), onClick = onClick)
@@ -557,7 +557,7 @@ private fun ListFilterChip(
         Text(
             text = title,
             color = if (selected) {
-                KitsugiColors.Background
+                accentColor
             } else {
                 KitsugiColors.TextSecondary
             },

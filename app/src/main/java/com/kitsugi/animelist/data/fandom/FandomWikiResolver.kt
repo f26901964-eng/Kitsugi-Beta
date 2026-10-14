@@ -91,10 +91,12 @@ internal class FandomWikiResolver(
         }
 
         var foreignWikidataRef: FandomWikiRef? = null
+        var wikidataResolution: WikidataResolution? = null
         val lookups = FandomMediaIds.wikidataLookups(ids, query.isManga, query.isMovie)
         val starts = listOfNotNull(ids.wikidataId)
         if (lookups.isNotEmpty() || starts.isNotEmpty()) {
             val resolution = WikidataClient.resolveMedia(lookups, starts)
+            wikidataResolution = resolution
             if (resolution != null) {
                 pickFromResolution(resolution, overrides)?.let { pick ->
                     val source = if (pick.viaOverride) FandomMatchSource.OVERRIDE else FandomMatchSource.WIKIDATA
@@ -129,7 +131,85 @@ internal class FandomWikiResolver(
         if (allowNameFallback) {
             searchByName(evidence, query, ids)?.let { return it }
         }
+
+        // Fandom üzerinde wiki bulunamadıysa (ör. Asya dizileri, TV programları, bağımsız yapımlar):
+        // 2. açık kaynak ansiklopedi olarak Vikipedi (Wikipedia / MediaWiki) devreye girer.
+        resolveWikipediaSource(wikidataResolution, query, allowNameFallback)?.let { return it }
+
         return foreignWikidataRef
+    }
+
+    suspend fun resolveAll(rawQuery: FandomMediaQuery, allowNameFallback: Boolean): List<FandomWikiRef> {
+        val primary = resolve(rawQuery, allowNameFallback) ?: return emptyList()
+        if (FandomUrls.isWikipedia(primary.wikiId)) {
+            return listOf(primary)
+        }
+        val query = bridgeQueryByTitle(rawQuery)
+        val ids = completeIds(query)
+        val lookups = FandomMediaIds.wikidataLookups(ids, query.isManga, query.isMovie)
+        val starts = listOfNotNull(ids.wikidataId)
+        val resolution = if (lookups.isNotEmpty() || starts.isNotEmpty()) {
+            WikidataClient.resolveMedia(lookups, starts)
+        } else null
+        val wp = resolveWikipediaSource(resolution, query, allowNameFallback)
+        return if (wp != null && wp.wikiId != primary.wikiId && !isWikiRejected(wp.wikiId)) {
+            listOf(primary, wp)
+        } else {
+            listOf(primary)
+        }
+    }
+
+    private suspend fun resolveWikipediaSource(
+        resolution: WikidataResolution?,
+        query: FandomMediaQuery,
+        allowNameFallback: Boolean
+    ): FandomWikiRef? {
+        val titles = resolution?.wikipediaTitles.orEmpty()
+        val tr = titles["trwiki"]
+        val en = titles["enwiki"]
+        val prefs = FandomWikiPrefs.state(context)
+        if (prefs.preferTurkish && !tr.isNullOrBlank() && !isWikiRejected("wikipedia.tr")) {
+            val info = siteInfoCached("wikipedia.tr")
+            return FandomWikiRef(
+                wikiId = "wikipedia.tr",
+                source = FandomMatchSource.WIKIDATA,
+                confidence = FandomConfidence.CERTAIN,
+                siteName = info?.siteName ?: "Vikipedi",
+                pageTitle = tr
+            )
+        }
+        if (!en.isNullOrBlank() && !isWikiRejected("wikipedia.en")) {
+            val info = siteInfoCached("wikipedia.en")
+            return FandomWikiRef(
+                wikiId = "wikipedia.en",
+                source = FandomMatchSource.WIKIDATA,
+                confidence = FandomConfidence.CERTAIN,
+                siteName = info?.siteName ?: "Wikipedia",
+                pageTitle = en
+            )
+        }
+        if (titles.isNotEmpty()) {
+            val (key, title) = titles.entries.first()
+            val lang = key.removeSuffix("wiki").ifBlank { "en" }
+            val wikiId = "wikipedia.$lang"
+            if (!isWikiRejected(wikiId)) {
+                val info = siteInfoCached(wikiId)
+                return FandomWikiRef(
+                    wikiId = wikiId,
+                    source = FandomMatchSource.WIKIDATA,
+                    confidence = FandomConfidence.CERTAIN,
+                    siteName = info?.siteName ?: "Wikipedia",
+                    pageTitle = title
+                )
+            }
+        }
+        if (allowNameFallback) {
+            val searched = WikipediaResolver.resolve(query, preferTurkish = prefs.preferTurkish)
+            if (searched != null && !isWikiRejected(searched.wikiId)) {
+                return searched
+            }
+        }
+        return null
     }
 
     /** İngilizce ya da Türkçe (uygulama dili) wiki: yabancı dilli kök wiki'den önce gelir. */

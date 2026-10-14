@@ -53,7 +53,9 @@ class FandomMediaWikiViewModel(application: Application) : AndroidViewModel(appl
             val ref: FandomWikiRef,
             val mediaKey: String,
             val resolutionKey: String = mediaKey,
-            val generation: Long = 0L
+            val generation: Long = 0L,
+            val availableSources: List<FandomWikiRef> = listOf(ref),
+            val activeSourceIndex: Int = 0
         ) : UiState
         data object Unavailable : UiState
     }
@@ -322,22 +324,51 @@ class FandomMediaWikiViewModel(application: Application) : AndroidViewModel(appl
         }
         _state.value = UiState.Loading
         resolveJob = viewModelScope.launch {
-            val ref = try {
-                FandomRepository.resolveMediaWiki(appContext, query, allowNameFallback = true)
+            val refs = try {
+                FandomRepository.resolveAllMediaWikis(appContext, query, allowNameFallback = true)
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
                 Log.w(TAG, "Wiki çözümlenemedi: ${e.message}")
-                null
+                emptyList()
             }
             if (generation != bindingGeneration) return@launch
             val mediaKey = query.cacheKey()
-            _state.value = if (ref != null && mediaKey != null) {
-                UiState.Ready(ref, mediaKey, query.resolutionKey() ?: mediaKey, generation)
+            val primary = refs.firstOrNull()
+            _state.value = if (primary != null && mediaKey != null) {
+                UiState.Ready(
+                    ref = primary,
+                    mediaKey = mediaKey,
+                    resolutionKey = query.resolutionKey() ?: mediaKey,
+                    generation = generation,
+                    availableSources = refs,
+                    activeSourceIndex = 0
+                )
             } else {
                 UiState.Unavailable
             }
         }
+    }
+
+    /** Farklı bir wiki kaynağına geçiş yapar (ör. Fandom ↔ Wikipedia). */
+    fun switchSource(index: Int) {
+        val current = _state.value as? UiState.Ready ?: return
+        if (index !in current.availableSources.indices || index == current.activeSourceIndex) return
+        val newRef = current.availableSources[index]
+        _state.value = current.copy(
+            ref = newRef,
+            activeSourceIndex = index
+        )
+        articleJob?.cancel()
+        _article.value = ArticleState.Idle
+        summaryJob?.cancel()
+        _summary.value = BlurbState.Idle
+        guideJob?.cancel()
+        _guide.value = GuideState.Idle
+        _relatedPages.value = emptyList()
+        _selected.value = SelectedState.Closed
+        _selectedSections.value = emptyMap()
+        ensureContentLoaded()
     }
 
     /** Orijinal / çeviri geçişi: bu anahtar için orijinal metnin gösterilip gösterilmeyeceğini değiştirir. */

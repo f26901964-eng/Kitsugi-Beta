@@ -18,7 +18,7 @@ class WikidataParsersTest {
     }
 
     @Test
-    fun `entities expose fandom ids and ordered parents`() {
+    fun `entities expose fandom ids and ordered parents and sitelinks`() {
         val json = """
             {"entities":{
               "Q1":{"id":"Q1","claims":{
@@ -33,6 +33,10 @@ class WikidataParsersTest {
                   {"mainsnak":{"snaktype":"somevalue"},"rank":"normal"},
                   {"mainsnak":{"snaktype":"value","datavalue":{"value":{"numeric-id":99}}},"rank":"normal"}
                 ]
+              },
+              "sitelinks":{
+                "enwiki":{"site":"enwiki","title":"Crash Landing on You"},
+                "trwiki":{"site":"trwiki","title":"Crash Landing on You (dizi)"}
               }},
               "Q404":{"id":"Q404","missing":""}
             }}
@@ -42,6 +46,8 @@ class WikidataParsersTest {
         assertEquals(listOf("onepiece", "tr.onepiece"), q1.fandomWikiIds)
         assertEquals(listOf("onepiece:One_Piece"), q1.fandomArticleIds)
         assertEquals(listOf("Q99", "Q673"), q1.parents)
+        assertEquals("Crash Landing on You", q1.wikipediaTitles["enwiki"])
+        assertEquals("Crash Landing on You (dizi)", q1.wikipediaTitles["trwiki"])
         assertFalse(entities.containsKey("Q404"))
     }
 

@@ -25,9 +25,37 @@ object FandomUrls {
 
     data class WikiIdParts(val lang: String?, val name: String)
 
+    fun isWikipedia(wikiId: String?): Boolean {
+        val raw = wikiId?.trim()?.lowercase(Locale.ROOT) ?: return false
+        return raw == "wikipedia" ||
+            raw.startsWith("wikipedia.") ||
+            raw.startsWith("wikipedia:") ||
+            raw.startsWith("wp.") ||
+            raw.startsWith("wp:") ||
+            raw.endsWith(".wikipedia")
+    }
+
+    fun wikipediaLang(wikiId: String?): String {
+        val raw = wikiId?.trim()?.lowercase(Locale.ROOT) ?: return "en"
+        val candidate = when {
+            raw.startsWith("wikipedia.") -> raw.removePrefix("wikipedia.").ifBlank { "en" }
+            raw.startsWith("wikipedia:") -> raw.removePrefix("wikipedia:").ifBlank { "en" }
+            raw.startsWith("wp.") -> raw.removePrefix("wp.").ifBlank { "en" }
+            raw.startsWith("wp:") -> raw.removePrefix("wp:").ifBlank { "en" }
+            raw.endsWith(".wikipedia") -> raw.removeSuffix(".wikipedia").ifBlank { "en" }
+            else -> "en"
+        }
+        return if (LANG_SEGMENT.matches(candidate)) candidate else "en"
+    }
+
     /** `tr.onepiece` → (tr, onepiece); `en.` öneki kök wiki sayılır. Geçersizse null. */
     fun parse(wikiId: String?): WikiIdParts? {
-        val raw = wikiId?.trim()?.lowercase() ?: return null
+        val raw = wikiId?.trim()?.lowercase(Locale.ROOT) ?: return null
+        if (isWikipedia(raw)) {
+            val lang = wikipediaLang(raw)
+            val cleanLang = lang.takeIf { it != "en" }
+            return WikiIdParts(cleanLang, "wikipedia")
+        }
         val match = WIKI_ID.matchEntire(raw) ?: return null
         val lang = match.groupValues[1].takeIf { it.isNotEmpty() && it != "en" }
         val name = match.groupValues[2]
@@ -36,19 +64,38 @@ object FandomUrls {
     }
 
     /** Kimliği kanonik biçime getirir (`EN.Naruto` → `naruto`). Geçersizse null. */
-    fun normalize(wikiId: String?): String? = parse(wikiId)?.let { compose(it) }
+    fun normalize(wikiId: String?): String? {
+        val raw = wikiId?.trim()?.lowercase(Locale.ROOT) ?: return null
+        if (isWikipedia(raw)) {
+            val lang = wikipediaLang(raw)
+            return if (LANG_SEGMENT.matches(lang)) "wikipedia.$lang" else "wikipedia.en"
+        }
+        return parse(raw)?.let { compose(it) }
+    }
 
     fun isRoot(wikiId: String?): Boolean {
+        if (isWikipedia(wikiId)) {
+            return wikipediaLang(wikiId) == "en"
+        }
         val parts = parse(wikiId) ?: return false
         return parts.lang == null
     }
 
-    fun languageOf(wikiId: String?): String? = parse(wikiId)?.lang
+    fun languageOf(wikiId: String?): String? {
+        if (isWikipedia(wikiId)) {
+            return wikipediaLang(wikiId).takeIf { it != "en" }
+        }
+        return parse(wikiId)?.lang
+    }
 
     private fun compose(parts: WikiIdParts): String =
         if (parts.lang == null) parts.name else "${parts.lang}.${parts.name}"
 
     fun baseUrl(wikiId: String): String? {
+        if (isWikipedia(wikiId)) {
+            val lang = wikipediaLang(wikiId)
+            return "https://$lang.wikipedia.org"
+        }
         val parts = parse(wikiId) ?: return null
         return if (parts.lang == null) {
             "https://${parts.name}.fandom.com"
@@ -57,7 +104,13 @@ object FandomUrls {
         }
     }
 
-    fun apiUrl(wikiId: String): String? = baseUrl(wikiId)?.let { "$it/api.php" }
+    fun apiUrl(wikiId: String): String? {
+        if (isWikipedia(wikiId)) {
+            val lang = wikipediaLang(wikiId)
+            return "https://$lang.wikipedia.org/w/api.php"
+        }
+        return baseUrl(wikiId)?.let { "$it/api.php" }
+    }
 
     /** MediaWiki API adresi; parametreler güvenli biçimde kodlanır. */
     fun apiQuery(wikiId: String, params: List<Pair<String, String>>): String? {
@@ -123,13 +176,19 @@ object FandomUrls {
             .replace("%29", ")")
 
     /**
-     * Fandom URL'sinden wiki kimliği çıkarır.
-     *  - `https://obluda.fandom.com/`      → `obluda`
-     *  - `https://onepiece.fandom.com/tr/` → `tr.onepiece`
+     * URL'den wiki kimliği çıkarır.
+     *  - `https://obluda.fandom.com/`          → `obluda`
+     *  - `https://onepiece.fandom.com/tr/`     → `tr.onepiece`
+     *  - `https://en.wikipedia.org/wiki/X`     → `wikipedia.en`
+     *  - `https://tr.wikipedia.org/wiki/Y`     → `wikipedia.tr`
      */
     fun wikiIdFromUrl(url: String?): String? {
         val httpUrl = url?.trim()?.toHttpUrlOrNull() ?: return null
-        val host = httpUrl.host.lowercase()
+        val host = httpUrl.host.lowercase(Locale.ROOT)
+        if (host.endsWith(".wikipedia.org") || host == "wikipedia.org") {
+            val lang = host.removeSuffix(".wikipedia.org").takeIf { it.isNotEmpty() && LANG_SEGMENT.matches(it) } ?: "en"
+            return "wikipedia.$lang"
+        }
         val domain = when {
             host.endsWith(".fandom.com") -> ".fandom.com"
             host.endsWith(".wikia.com") -> ".wikia.com" // Legacy Fandom/Wikia domains redirect to the canonical host.
@@ -137,7 +196,7 @@ object FandomUrls {
         }
         val sub = host.removeSuffix(domain)
         if (sub.isEmpty() || sub.contains('.')) return null
-        val first = httpUrl.pathSegments.firstOrNull()?.lowercase().orEmpty()
+        val first = httpUrl.pathSegments.firstOrNull()?.lowercase(Locale.ROOT).orEmpty()
         val lang = first.takeIf { it.isNotEmpty() && LANG_SEGMENT.matches(it) }
         return normalize(if (lang != null) "$lang.$sub" else sub)
     }

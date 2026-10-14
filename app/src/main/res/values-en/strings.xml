@@ -7300,6 +7300,11 @@
     <string name="fandom_section_legacy">Legacy</string>
     <string name="fandom_section_creation">Creation and conception</string>
     <string name="fandom_media_header_subtitle">Fandom wiki · universe guide</string>
+    <string name="fandom_media_header_subtitle_wikipedia">Wikipedia · Open Encyclopedia</string>
+    <string name="wiki_source_fandom">Fandom Wiki</string>
+    <string name="wiki_source_wikipedia">Wikipedia</string>
+    <string name="wiki_source_wikipedia_tr">Wikipedia (TR)</string>
+    <string name="fandom_open_page_wikipedia">Open on Wikipedia</string>
     <string name="fandom_media_summary_title">Series summary</string>
     <string name="fandom_media_search_hint">Search the wiki…</string>
     <string name="fandom_media_search_empty">No pages matched your search.</string>

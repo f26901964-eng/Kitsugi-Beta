@@ -2,7 +2,7 @@ package com.kitsugi.animelist.data.fandom
 
 import org.json.JSONObject
 
-/** Bir Wikidata kaydının Fandom ile ilgili beyanları. */
+/** Bir Wikidata kaydının Fandom ve Vikipedi ile ilgili beyanları. */
 data class WikidataEntityClaims(
     val qid: String,
     /** P4073 — Fandom wiki kimliği (`jujutsu-kaisen`, `tr.onepiece`). */
@@ -10,7 +10,9 @@ data class WikidataEntityClaims(
     /** P6262 — Fandom sayfa kimliği (`jujutsu-kaisen:Satoru_Gojo`). */
     val fandomArticleIds: List<String>,
     /** Üst kayıtlar (dizi, franchise, uyarlandığı eser, önceki/sonraki sezon). */
-    val parents: List<String>
+    val parents: List<String>,
+    /** Sitelinks: `enwiki` → "Crash Landing on You", `trwiki` → "Crash Landing on You (dizi)". */
+    val wikipediaTitles: Map<String, String> = emptyMap()
 )
 
 /**
@@ -19,18 +21,20 @@ data class WikidataEntityClaims(
  * @property wikisByDepth 0 = kaydın kendisi, 1–2 = üst kayıtlar üzerinden bulunan P4073 değerleri.
  * @property articleIds   kaydın kendisindeki P6262 değerleri (yalnızca son çare olarak kullanılır).
  * @property visitedNodes gezilen üst kayıtlar (QID anahtarlı eşleme tablosu için).
+ * @property wikipediaTitles kaydın doğrudan Vikipedi dillerindeki madde başlıkları (`enwiki`, `trwiki`).
  */
 data class WikidataResolution(
     val starts: Set<String>,
     val wikisByDepth: Map<Int, List<String>>,
     val articleIds: List<String>,
-    val visitedNodes: Set<String>
+    val visitedNodes: Set<String>,
+    val wikipediaTitles: Map<String, String> = emptyMap()
 ) {
     val isEmpty: Boolean
-        get() = wikisByDepth.values.all { it.isEmpty() } && articleIds.isEmpty()
+        get() = wikisByDepth.values.all { it.isEmpty() } && articleIds.isEmpty() && wikipediaTitles.isEmpty()
 
     companion object {
-        val NONE = WikidataResolution(emptySet(), emptyMap(), emptyList(), emptySet())
+        val NONE = WikidataResolution(emptySet(), emptyMap(), emptyList(), emptySet(), emptyMap())
     }
 }
 
@@ -55,7 +59,7 @@ object WikidataParsers {
         return search.objects().mapNotNull { obj -> obj.str("title")?.takeIf { isQid(it) } }.distinct()
     }
 
-    /** `action=wbgetentities&props=claims` → QID → beyanlar. */
+    /** `action=wbgetentities&props=claims|sitelinks` → QID → beyanlar. */
     fun parseEntities(json: String?): Map<String, WikidataEntityClaims> {
         val entities = parseJsonObject(json)?.optJSONObject("entities") ?: return emptyMap()
         val result = LinkedHashMap<String, WikidataEntityClaims>()
@@ -67,12 +71,29 @@ object WikidataParsers {
             val qid = entity.str("id") ?: key
             if (!isQid(qid)) continue
             val claims = entity.optJSONObject("claims") ?: JSONObject()
+            val sitelinks = entity.optJSONObject("sitelinks")
             result[qid] = WikidataEntityClaims(
                 qid = qid,
                 fandomWikiIds = stringValues(claims, "P4073"),
                 fandomArticleIds = stringValues(claims, "P6262"),
-                parents = PARENT_PROPERTIES.flatMap { itemValues(claims, it) }.distinct().filter { it != qid }
+                parents = PARENT_PROPERTIES.flatMap { itemValues(claims, it) }.distinct().filter { it != qid },
+                wikipediaTitles = parseSitelinks(sitelinks)
             )
+        }
+        return result
+    }
+
+    private fun parseSitelinks(sitelinks: JSONObject?): Map<String, String> {
+        if (sitelinks == null) return emptyMap()
+        val result = LinkedHashMap<String, String>()
+        val keys = sitelinks.keys()
+        while (keys.hasNext()) {
+            val key = keys.next()
+            val siteObj = sitelinks.optJSONObject(key) ?: continue
+            val title = siteObj.str("title")?.trim() ?: continue
+            if (title.isNotEmpty()) {
+                result[key] = title
+            }
         }
         return result
     }

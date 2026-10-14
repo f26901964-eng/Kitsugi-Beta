@@ -75,6 +75,16 @@ internal object FandomLeadParser {
                 bestWeight = weight
             }
         }
+        if (best == null || best.isEmpty()) {
+            for (table in body.select("table.infobox, table.vevent")) {
+                val box = parseTableInfobox(table, wikiId)
+                val weight = box.allFields().size * 2 + box.images.size + (if (box.title.isNullOrBlank()) 0 else 1)
+                if (weight > bestWeight) {
+                    best = box
+                    bestWeight = weight
+                }
+            }
+        }
         return best?.takeUnless { it.isEmpty() }
     }
 
@@ -95,6 +105,62 @@ internal object FandomLeadParser {
     private fun parseAside(aside: Element, wikiId: String): FandomInfobox {
         val builder = Builder()
         walk(aside, builder, wikiId, tabLabel = null)
+        builder.flushLoose()
+        return FandomInfobox(
+            title = builder.title,
+            images = builder.images.distinctBy { it.url }.take(24),
+            groups = builder.groups.toList()
+        )
+    }
+
+    private fun parseTableInfobox(table: Element, wikiId: String): FandomInfobox {
+        val builder = Builder()
+        val rows = table.select("tr")
+        var currentGroupHeader: String? = null
+        val currentGroupFields = ArrayList<FandomInfoboxField>()
+
+        for (row in rows) {
+            val above = row.selectFirst("th.infobox-above, th.summary")
+            if (above != null && builder.title.isNullOrBlank()) {
+                builder.title = FandomHtmlText.inline(above.html()).takeIf { it.isNotBlank() }
+                continue
+            }
+            val imgEl = row.selectFirst("td.infobox-image img, td.image img, a.image img, img")
+            if (row.selectFirst("td.infobox-image") != null || (row.select("th").isEmpty() && imgEl != null)) {
+                val src = imgEl?.absUrl("src")?.ifBlank { imgEl.attr("src") }
+                val cleanUrl = FandomUrls.normalizeImageUrl(src)
+                if (cleanUrl != null) {
+                    val captionEl = row.selectFirst(".infobox-caption, .caption")
+                    val caption = captionEl?.let { FandomHtmlText.inline(it.html()) }?.takeIf { it.isNotBlank() }
+                    builder.images += FandomImage(cleanUrl, caption)
+                }
+                continue
+            }
+            val headerTh = row.selectFirst("th.infobox-header, th[colspan]")
+            if (headerTh != null && row.select("td").isEmpty()) {
+                if (currentGroupFields.isNotEmpty()) {
+                    builder.groups += FandomInfoboxGroup(currentGroupHeader, currentGroupFields.toList())
+                    currentGroupFields.clear()
+                }
+                currentGroupHeader = FandomHtmlText.inline(headerTh.html()).takeIf { it.isNotBlank() }
+                continue
+            }
+            val th = row.selectFirst("th.infobox-label, th")
+            val td = row.selectFirst("td.infobox-data, td")
+            if (th != null && td != null) {
+                val label = FandomHtmlText.inline(th.html())
+                val value = FandomHtmlText.inline(td.html())
+                if (label.isNotBlank() && value.isNotBlank()) {
+                    val field = FandomInfoboxParser.buildField(th.html(), td.html(), null, wikiId)
+                    if (field != null) {
+                        currentGroupFields += field
+                    }
+                }
+            }
+        }
+        if (currentGroupFields.isNotEmpty()) {
+            builder.groups += FandomInfoboxGroup(currentGroupHeader, currentGroupFields.toList())
+        }
         builder.flushLoose()
         return FandomInfobox(
             title = builder.title,

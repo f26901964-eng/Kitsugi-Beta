@@ -134,6 +134,39 @@ class FandomLeadParserTest {
     }
 
     @Test
+    fun `wikipedia infobox table is parsed into infobox model`() {
+        val wpTableHtml = """
+            <div class="mw-parser-output">
+              <table class="infobox ib-tv vevent">
+                <tbody>
+                  <tr><th colspan="2" class="infobox-above summary">Crash Landing on You</th></tr>
+                  <tr><td colspan="2" class="infobox-image"><a href="/wiki/File:Poster.jpg" class="image"><img src="https://upload.wikimedia.org/wikipedia/en/6/64/Crash_Landing_on_You_poster.jpg" alt="Poster"/></a><div class="infobox-caption">Promotional poster</div></td></tr>
+                  <tr><th scope="row" class="infobox-label">Hangul</th><td class="infobox-data">사랑의 불시착</td></tr>
+                  <tr><th scope="row" class="infobox-label">Genre</th><td class="infobox-data"><a href="/wiki/Romance_film" title="Romance">Romance</a><br><a href="/wiki/Comedy" title="Comedy">Comedy</a></td></tr>
+                  <tr><th scope="row" class="infobox-label">Original network</th><td class="infobox-data"><a href="/wiki/TVN_(South_Korean_TV_channel)" title="tvN">tvN</a></td></tr>
+                  <tr><th scope="row" class="infobox-label">No. of episodes</th><td class="infobox-data">16</td></tr>
+                </tbody>
+              </table>
+              <p><b>Crash Landing on You</b> is a 2019–2020 South Korean television series directed by Lee Jeong-hyo.</p>
+            </div>
+        """.trimIndent()
+        val box = FandomLeadParser.parseInfobox(wpTableHtml, "wikipedia.en")
+        assertNotNull(box)
+        assertEquals("Crash Landing on You", box!!.title)
+        assertEquals("https://upload.wikimedia.org/wikipedia/en/6/64/Crash_Landing_on_You_poster.jpg", box.images.single().url)
+        assertEquals("Promotional poster", box.images.single().caption)
+        val fields = box.allFields()
+        assertEquals("사랑의 불시착", fields.first { it.label == "Hangul" }.value)
+        assertEquals("Romance · Comedy", fields.first { it.label == "Genre" }.value)
+        assertEquals("tvN", fields.first { it.label == "Original network" }.value)
+        assertEquals("16", fields.first { it.label == "No. of episodes" }.value)
+
+        val intro = FandomLeadParser.parseIntro(wpTableHtml)
+        assertNotNull(intro)
+        assertTrue(intro!!.contains("Crash Landing on You is a 2019–2020 South Korean television series"))
+    }
+
+    @Test
     fun `page without infobox or intro is empty`() {
         assertTrue(FandomLeadParser.parse("<div class=\"mw-parser-output\"></div>", "gintama").isEmpty)
         assertTrue(FandomLeadParser.parse(null, "gintama").isEmpty)

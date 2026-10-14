@@ -697,7 +697,6 @@ fun MyListScreen(
             showAdultContent = showAdultContent,
             onStatusSelected = { newStatusId ->
                 onStatusFilterChange(newStatusId)
-                showStatusBottomSheet = false
             },
             onDismissRequest = {
                 showStatusBottomSheet = false

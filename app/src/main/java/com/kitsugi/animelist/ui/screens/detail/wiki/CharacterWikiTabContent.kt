@@ -250,12 +250,14 @@ internal fun CharacterWikiTabContent(
                     )
                 }
                 Spacer(modifier = Modifier.height(8.dp))
-                SelectionContainer {
-                    Text(
-                        text = shownDescription,
-                        color = KitsugiColors.TextPrimary,
-                        style = MaterialTheme.typography.bodyMedium
-                    )
+                WikiCollapsibleText(text = shownDescription, accentColor = accentColor) {
+                    SelectionContainer {
+                        Text(
+                            text = shownDescription,
+                            color = KitsugiColors.TextPrimary,
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                    }
                 }
             }
         }

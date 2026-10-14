@@ -133,6 +133,45 @@ class FandomUrlsTest {
     }
 
     @Test
+    fun `wikipedia urls and ids are normalized and resolved`() {
+        assertTrue(FandomUrls.isWikipedia("wikipedia.en"))
+        assertTrue(FandomUrls.isWikipedia("wikipedia.tr"))
+        assertTrue(FandomUrls.isWikipedia("wikipedia:ko"))
+        assertTrue(FandomUrls.isWikipedia("wp.ja"))
+        assertEquals("wikipedia.en", FandomUrls.normalize("wikipedia.en"))
+        assertEquals("wikipedia.tr", FandomUrls.normalize("WIKIPEDIA:TR"))
+        assertEquals("wikipedia.ko", FandomUrls.normalize("wp.ko"))
+        assertTrue(FandomUrls.isRoot("wikipedia.en"))
+        assertFalse(FandomUrls.isRoot("wikipedia.tr"))
+        assertEquals("tr", FandomUrls.languageOf("wikipedia.tr"))
+        assertNull(FandomUrls.languageOf("wikipedia.en"))
+
+        assertEquals("https://en.wikipedia.org", FandomUrls.baseUrl("wikipedia.en"))
+        assertEquals("https://tr.wikipedia.org", FandomUrls.baseUrl("wikipedia.tr"))
+        assertEquals("https://en.wikipedia.org/w/api.php", FandomUrls.apiUrl("wikipedia.en"))
+        assertEquals("https://tr.wikipedia.org/w/api.php", FandomUrls.apiUrl("wikipedia.tr"))
+        assertEquals(
+            "https://en.wikipedia.org/wiki/Crash_Landing_on_You",
+            FandomUrls.pageUrl("wikipedia.en", "Crash Landing on You")
+        )
+        assertEquals(
+            "https://tr.wikipedia.org/wiki/Squid_Game",
+            FandomUrls.pageUrl("wikipedia.tr", "Squid Game")
+        )
+
+        assertEquals("wikipedia.en", FandomUrls.wikiIdFromUrl("https://en.wikipedia.org/wiki/Crash_Landing_on_You"))
+        assertEquals("wikipedia.tr", FandomUrls.wikiIdFromUrl("https://tr.wikipedia.org/wiki/Crash_Landing_on_You_(dizi)"))
+        assertEquals(
+            "wikipedia.en" to "Crash Landing on You",
+            FandomUrls.parseArticleUrl("https://en.wikipedia.org/wiki/Crash_Landing_on_You", "wikipedia.en")
+        )
+        assertEquals(
+            "wikipedia.tr" to "Squid Game",
+            FandomUrls.parseArticleUrl("/wiki/Squid_Game", "wikipedia.tr")
+        )
+    }
+
+    @Test
     fun `withOriginalFormat only touches fandom cdn urls once`() {
         val url = "https://static.wikia.nocookie.net/w/images/a/ab/X.webp/revision/latest?cb=1"
         assertEquals("$url&format=original", FandomUrls.withOriginalFormat(url))

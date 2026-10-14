@@ -59,11 +59,15 @@ internal object WikidataClient {
         val articles = LinkedHashSet<String>()
         val visited = LinkedHashSet<String>(starts)
         val nodes = LinkedHashSet<String>()
+        val wpTitles = LinkedHashMap<String, String>()
 
         val level0 = getEntities(starts) ?: return null
         level0.values.forEach { entity ->
             addAll(wikis, 0, entity.fandomWikiIds)
             articles += entity.fandomArticleIds
+            entity.wikipediaTitles.forEach { (site, title) ->
+                if (site !in wpTitles) wpTitles[site] = title
+            }
         }
         var frontier = level0.values.flatMap { it.parents }
         for (depth in 1..2) {
@@ -75,7 +79,7 @@ internal object WikidataClient {
             level.values.forEach { entity -> addAll(wikis, depth, entity.fandomWikiIds) }
             frontier = level.values.flatMap { it.parents }
         }
-        return WikidataResolution(starts, wikis, articles.toList(), nodes)
+        return WikidataResolution(starts, wikis, articles.toList(), nodes, wpTitles)
     }
 
     private fun addAll(target: MutableMap<Int, MutableList<String>>, depth: Int, values: List<String>) {
@@ -121,7 +125,7 @@ internal object WikidataClient {
         return WikidataParsers.parseSearchQids(body)
     }
 
-    /** `wbgetentities&props=claims` (50'lik parçalar). Ağ hatasında null. */
+    /** `wbgetentities&props=claims|sitelinks` (50'lik parçalar). Ağ hatasında null. */
     suspend fun getEntities(qids: Collection<String>): Map<String, WikidataEntityClaims>? {
         val ids = qids.filter { WikidataParsers.isQid(it) }.distinct()
         if (ids.isEmpty()) return emptyMap()
@@ -130,7 +134,7 @@ internal object WikidataClient {
             val url = API.toHttpUrl().newBuilder()
                 .addQueryParameter("action", "wbgetentities")
                 .addQueryParameter("ids", chunk.joinToString("|"))
-                .addQueryParameter("props", "claims")
+                .addQueryParameter("props", "claims|sitelinks")
                 .addQueryParameter("format", "json")
                 .addQueryParameter("formatversion", "2")
                 .build()
