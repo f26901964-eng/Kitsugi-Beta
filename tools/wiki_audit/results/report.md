@@ -1,6 +1,6 @@
-# Wiki kesif denetimi - 2026-10-14 05:55 UTC
+# Wiki kesif denetimi - 2026-10-14 06:55 UTC
 
-Vaka sayisi: 138; sure: 783 sn; ag hatasi: 1 {'kaiyari.fandom.com 410': 1}
+Vaka sayisi: 138; sure: 992 sn; ag hatasi: 1 {'kaiyari.fandom.com 410': 1}
 
 ## Ozet
 
@@ -369,7 +369,7 @@ kaynak: AniList#113425 MAL#40750 Kaifuku Jutsushi no Yarinaoshi
 kaynak: AniList#170031 MAL#None Mosdwaemeogeun Nom
 - wikidata: kimlikle QID yok
 - karakter oylari: yok
-- topluluk aramasi sorgulari=['The Mean Guy', 'Mosdwaemeogeun Nom', 'Bastard', '못돼먹은 놈', '街頭幹架王', 'The Mean Guy Tharchog'] -> 16 aday: ['bastard', 'bastard-webtoon', 'thebastardexecutioner', 'voidbastards-archive', 'voidbastards', 'backwaterbastards', 'the-bstard-son-the-devil-himself', 'sweethomewebtoon', 'bad-guy', 'villains']
+- topluluk aramasi sorgulari=['The Mean Guy', 'Mosdwaemeogeun Nom', 'Bastard', '못돼먹은 놈', '街頭幹架王', 'The Mean Guy Tharchog'] -> 16 aday: ['bastard', 'bastard-webtoon', 'thebastardexecutioner', 'voidbastards-archive', 'voidbastards', 'backwaterbastards', 'the-bstard-son-the-devil-himself', 'sweethomewebtoon', 'bad-guy', 'the-bad-guys']
 - isim yolu: hepsi RED [('bastard', 0.0, 'REJECT', 'no-characters', 'main 0/1 any 0/5 native 0', 'anime', 700), ('bastard-webtoon', 0.0, 'REJECT', 'no-characters', 'main 0/1 any 0/5 native 0', 'anime', 10), ('thebastardexecutioner', 0.0, 'REJECT', 'no-characters', 'main 0/1 any 0/5 native 0', 'tv', 100), ('mightythor', 0.0, 'REJECT', 'no-characters', 'main 0/1 any 0/5 native 0', 'comics', 20000), ('sweethomewebtoon', 0.0, 'REJECT', 'no-characters', 'main 0/1 any 0/5 native 0', 'anime', 200)]
 - skorlar: [('bastard', 0.0, 'REJECT', 'no-characters', 'main 0/1 any 0/5 native 0', 'anime', 700), ('bastard-webtoon', 0.0, 'REJECT', 'no-characters', 'main 0/1 any 0/5 native 0', 'anime', 10), ('thebastardexecutioner', 0.0, 'REJECT', 'no-characters', 'main 0/1 any 0/5 native 0', 'tv', 100), ('mightythor', 0.0, 'REJECT', 'no-characters', 'main 0/1 any 0/5 native 0', 'comics', 20000), ('sweethomewebtoon', 0.0, 'REJECT', 'no-characters', 'main 0/1 any 0/5 native 0', 'anime', 200), ('the-bad-guys', 0.0, 'REJECT', 'no-characters', 'main 0/1 any 0/5 native 0', 'books', 100), ('the-good-guys-and-bad-guys', 0.0, 'REJECT', 'no-characters', 'main 0/1 any 0/5 native 0', 'books', 10), ('legends-of-thezmarr', 0.0, 'REJECT', 'no-characters', 'main 0/1 any 0/5 native 0', 'books', 10)]
 
@@ -378,7 +378,7 @@ kaynak: AniList#170031 MAL#None Mosdwaemeogeun Nom
 - baslik->AniList#170031 kopru
 - wikidata: kimlikle QID yok
 - karakter oylari: yok
-- topluluk aramasi sorgulari=['The Mean Guy', 'Mosdwaemeogeun Nom', 'Bastard', '못돼먹은 놈', 'The Mean Guy Tharchog'] -> 16 aday: ['bastard', 'bastard-webtoon', 'thebastardexecutioner', 'voidbastards-archive', 'voidbastards', 'backwaterbastards', 'the-bstard-son-the-devil-himself', 'sweethomewebtoon', 'bad-guy', 'villains']
+- topluluk aramasi sorgulari=['The Mean Guy', 'Mosdwaemeogeun Nom', 'Bastard', '못돼먹은 놈', 'The Mean Guy Tharchog'] -> 16 aday: ['bastard', 'bastard-webtoon', 'thebastardexecutioner', 'voidbastards-archive', 'voidbastards', 'backwaterbastards', 'the-bstard-son-the-devil-himself', 'sweethomewebtoon', 'bad-guy', 'the-bad-guys']
 - isim yolu: hepsi RED [('bastard', 0.0, 'REJECT', 'no-characters', 'main 0/1 any 0/5 native 0', 'anime', 700), ('bastard-webtoon', 0.0, 'REJECT', 'no-characters', 'main 0/1 any 0/5 native 0', 'anime', 10), ('thebastardexecutioner', 0.0, 'REJECT', 'no-characters', 'main 0/1 any 0/5 native 0', 'tv', 100), ('mightythor', 0.0, 'REJECT', 'no-characters', 'main 0/1 any 0/5 native 0', 'comics', 20000), ('sweethomewebtoon', 0.0, 'REJECT', 'no-characters', 'main 0/1 any 0/5 native 0', 'anime', 200)]
 - skorlar: [('bastard', 0.0, 'REJECT', 'no-characters', 'main 0/1 any 0/5 native 0', 'anime', 700), ('bastard-webtoon', 0.0, 'REJECT', 'no-characters', 'main 0/1 any 0/5 native 0', 'anime', 10), ('thebastardexecutioner', 0.0, 'REJECT', 'no-characters', 'main 0/1 any 0/5 native 0', 'tv', 100), ('mightythor', 0.0, 'REJECT', 'no-characters', 'main 0/1 any 0/5 native 0', 'comics', 20000), ('sweethomewebtoon', 0.0, 'REJECT', 'no-characters', 'main 0/1 any 0/5 native 0', 'anime', 200), ('the-bad-guys', 0.0, 'REJECT', 'no-characters', 'main 0/1 any 0/5 native 0', 'books', 100), ('the-good-guys-and-bad-guys', 0.0, 'REJECT', 'no-characters', 'main 0/1 any 0/5 native 0', 'books', 10), ('legends-of-thezmarr', 0.0, 'REJECT', 'no-characters', 'main 0/1 any 0/5 native 0', 'books', 10)]
 
