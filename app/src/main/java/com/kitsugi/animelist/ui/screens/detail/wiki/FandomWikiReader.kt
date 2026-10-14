@@ -1,9 +1,9 @@
 package com.kitsugi.animelist.ui.screens.detail.wiki
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -22,21 +22,23 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
+import androidx.compose.material.icons.automirrored.rounded.ArrowForward
+import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.BrokenImage
 import androidx.compose.material.icons.rounded.Close
+import androidx.compose.material.icons.rounded.KeyboardArrowDown
 import androidx.compose.material.icons.rounded.KeyboardArrowUp
 import androidx.compose.material.icons.rounded.Language
 import androidx.compose.material.icons.rounded.MenuBook
-import androidx.compose.material.icons.rounded.OpenInNew
 import com.kitsugi.animelist.ui.theme.gradient.CircularProgressIndicator
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -44,8 +46,14 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.mutableStateMapOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -63,15 +71,19 @@ import coil3.request.crossfade
 import com.kitsugi.animelist.R
 import com.kitsugi.animelist.data.fandom.FandomBlockKind
 import com.kitsugi.animelist.data.fandom.FandomFullPage
+import com.kitsugi.animelist.data.fandom.FandomImage
 import com.kitsugi.animelist.data.fandom.FandomRelatedPage
 import com.kitsugi.animelist.data.fandom.FandomSectionContent
 import com.kitsugi.animelist.data.fandom.FandomSectionRef
 import com.kitsugi.animelist.data.fandom.FandomSpoilerRules
-import com.kitsugi.animelist.data.fandom.FandomUrls
+import com.kitsugi.animelist.data.remote.GalleryCategory
+import com.kitsugi.animelist.data.remote.GalleryItem
 import com.kitsugi.animelist.ui.components.DisableDialogWindowForceDark
+import com.kitsugi.animelist.ui.components.KitsugiImageGalleryDialog
 import com.kitsugi.animelist.ui.theme.KitsugiColors
 import com.kitsugi.animelist.ui.theme.gradient.Icon
 import com.kitsugi.animelist.ui.utils.tvClickable
+import kotlinx.coroutines.flow.collect
 
 /**
  * Uygulama içi wiki okuyucusunun arayüzle sözleşmesi. İki farklı VM (medya & karakter)
@@ -82,15 +94,18 @@ data class FandomReaderRenderState(
     val page: FandomFullPage,
     val sections: Map<Int, FandomSectionContent>,
     val related: List<FandomRelatedPage>,
-    val loadingSection: Int? = null,
-    val failedSection: Int? = null,
-    val hasBackStack: Boolean = false
+    val loadingSections: Set<Int> = emptySet(),
+    val failedSections: Set<Int> = emptySet(),
+    val translations: Map<String, String> = emptyMap(),
+    val translatingKeys: Set<String> = emptySet(),
+    val originalKeys: Set<String> = emptySet(),
+    val preferredTranslator: String = "DEFAULT"
 )
 
 /**
- * Tam ekran uygulama içi wiki okuyucu. Tarayıcıya ATLAMAZ, aynı wiki sekmesindeki
- * kartlarla aynı renkler/şekiller kullanılır; üst çubuk + kaydırılabilir içerik +
- * İçindekiler + İlgili sayfalar + bağlantı içinden başka sayfa açma + geri yığını.
+ * Tam ekran uygulama içi wiki okuyucu. Tarayıcıya ATLAMAZ; aynı wiki sekmesindeki
+ * kartlarla aynı görsel dili kullanır. İçindekiler satırları içeriği kendi altında açar;
+ * çeviri/orijinal geçişleri, galeri, sekmeler ve ileri-geri sayfa geçmişi desteklenir.
  *
  * KRİTİK (çökme düzeltmesi): Okuyucu KENDİ penceresinde (tam ekran Dialog) çizilir.
  *
@@ -105,26 +120,39 @@ data class FandomReaderRenderState(
  *
  * Dialog penceresi her koşulda sınırlı (bounded) kısıt verir; bu yüzden okuyucu hangi
  * ekrandan açılırsa açılsın (yapım / karakter / ekip / gömülü wiki kartı) güvenlidir.
- * Geri tuşu: yığın varsa önceki wiki sayfasına döner, yığın boşsa okuyucuyu kapatır.
+ * Geri tuşu: etkin sekmenin geçmişinde geri gider; geçmiş boşsa okuyucuyu kapatır.
  */
 @Composable
 internal fun FandomWikiReaderSheet(
     state: FandomReaderRenderState?,
+    navigation: FandomReaderBrowserState = FandomReaderBrowserState.Empty,
     accentColor: Color,
     onClose: () -> Unit,
     onBack: () -> Unit,
+    onForward: () -> Unit = {},
+    onNewTab: () -> Unit = {},
+    onSwitchTab: (Long) -> Unit = {},
+    onCloseTab: (Long) -> Unit = {},
     onLoadSection: (Int) -> Unit,
     onRetrySection: (Int) -> Unit,
     onOpenLink: (String) -> Unit,
     onOpenInBrowser: () -> Unit,
-    onTranslateSummary: (() -> Unit)? = null,
-    summaryIsTranslating: Boolean = false,
+    onToggleOriginal: (String) -> Unit = {},
     modifier: Modifier = Modifier,
     /** Yüklenemeyen sayfanın başlığı; doluysa sonsuz yükleme yerine hata kartı gösterilir. */
     failedTitle: String? = null,
     onRetryFailed: (() -> Unit)? = null
 ) {
-    val hasBackStack = state?.hasBackStack == true
+    val hasBackStack = navigation.canGoBack
+    var localGalleryItems by remember { mutableStateOf(emptyList<GalleryItem>()) }
+    var localGalleryIndex by remember { mutableStateOf(0) }
+    val scrollPositions = remember { mutableStateMapOf<String, Int>() }
+    val activeScrollKey = state?.let { page ->
+        navigation.activeTabId?.let { tabId -> "$tabId:${page.wikiId}:${page.page.displayTitle}" }
+    }
+    val displayTitle = state?.page?.displayTitle
+        ?: failedTitle
+        ?: navigation.activeTab?.location?.title
 
     Dialog(
         onDismissRequest = { if (hasBackStack) onBack() else onClose() },
@@ -148,12 +176,20 @@ internal fun FandomWikiReaderSheet(
                     .windowInsetsPadding(WindowInsets.navigationBars)
             ) {
                 ReaderTopBar(
-                    title = state?.page?.displayTitle ?: failedTitle,
+                    title = displayTitle,
                     accentColor = accentColor,
-                    hasBackStack = hasBackStack,
+                    navigation = navigation,
                     onBack = onBack,
+                    onForward = onForward,
+                    onNewTab = onNewTab,
                     onClose = onClose,
                     onOpenInBrowser = onOpenInBrowser
+                )
+                ReaderTabStrip(
+                    navigation = navigation,
+                    accentColor = accentColor,
+                    onSwitchTab = onSwitchTab,
+                    onCloseTab = onCloseTab
                 )
                 when {
                     state == null && failedTitle != null -> ReaderFailed(
@@ -168,12 +204,36 @@ internal fun FandomWikiReaderSheet(
                         onLoadSection = onLoadSection,
                         onRetrySection = onRetrySection,
                         onOpenLink = onOpenLink,
-                        onTranslateSummary = onTranslateSummary,
-                        summaryIsTranslating = summaryIsTranslating
+                        onToggleOriginal = onToggleOriginal,
+                        scrollKey = activeScrollKey.orEmpty(),
+                        initialScrollPosition = activeScrollKey?.let { scrollPositions[it] } ?: 0,
+                        onScrollPositionChanged = { key, position ->
+                            scrollPositions[key] = position
+                            if (scrollPositions.size > 120) {
+                                scrollPositions.keys.firstOrNull { it != key }?.let(scrollPositions::remove)
+                            }
+                        },
+                        onOpenGallery = { items, index ->
+                            if (items.isNotEmpty()) {
+                                localGalleryItems = items
+                                localGalleryIndex = index.coerceIn(0, items.lastIndex)
+                            }
+                        }
                     )
                 }
             }
         }
+    }
+
+    // Wiki sekmelerinin hepsinde galeri açma callback'i olmayabilir (ör. TV / eklenti
+    // detayları). Böyle durumlarda okuyucunun kendi galeri penceresi devreye girer.
+    if (localGalleryItems.isNotEmpty()) {
+        KitsugiImageGalleryDialog(
+            galleryItems = localGalleryItems,
+            initialIndex = localGalleryIndex,
+            title = displayTitle ?: "Wiki",
+            onDismiss = { localGalleryItems = emptyList() }
+        )
     }
 }
 
@@ -181,8 +241,10 @@ internal fun FandomWikiReaderSheet(
 private fun ReaderTopBar(
     title: String?,
     accentColor: Color,
-    hasBackStack: Boolean,
+    navigation: FandomReaderBrowserState,
     onBack: () -> Unit,
+    onForward: () -> Unit,
+    onNewTab: () -> Unit,
     onClose: () -> Unit,
     onOpenInBrowser: () -> Unit
 ) {
@@ -190,18 +252,25 @@ private fun ReaderTopBar(
         modifier = Modifier
             .fillMaxWidth()
             .background(KitsugiColors.Surface)
-            .padding(horizontal = 8.dp, vertical = 6.dp),
+            .padding(horizontal = 6.dp, vertical = 4.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        IconButton(onClick = if (hasBackStack) onBack else onClose) {
+        IconButton(onClick = onBack, enabled = navigation.canGoBack) {
             Icon(
                 imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
-                contentDescription = stringResource(if (hasBackStack) R.string.fandom_reader_back else R.string.fandom_reader_close),
-                tint = accentColor
+                contentDescription = stringResource(R.string.fandom_reader_back),
+                tint = if (navigation.canGoBack) accentColor else KitsugiColors.TextMuted.copy(alpha = 0.45f)
+            )
+        }
+        IconButton(onClick = onForward, enabled = navigation.canGoForward) {
+            Icon(
+                imageVector = Icons.AutoMirrored.Rounded.ArrowForward,
+                contentDescription = stringResource(R.string.fandom_reader_forward),
+                tint = if (navigation.canGoForward) accentColor else KitsugiColors.TextMuted.copy(alpha = 0.45f)
             )
         }
         Text(
-            text = title ?: "Wiki",
+            text = title ?: stringResource(R.string.fandom_reader_title),
             color = KitsugiColors.TextPrimary,
             style = MaterialTheme.typography.titleMedium,
             fontWeight = FontWeight.Bold,
@@ -209,10 +278,17 @@ private fun ReaderTopBar(
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.weight(1f).padding(horizontal = 4.dp)
         )
-        IconButton(onClick = onOpenInBrowser) {
+        IconButton(onClick = onOpenInBrowser, enabled = title != null) {
             Icon(
                 imageVector = Icons.Rounded.Language,
                 contentDescription = stringResource(R.string.fandom_reader_open_browser),
+                tint = accentColor
+            )
+        }
+        IconButton(onClick = onNewTab, enabled = navigation.canOpenNewTab) {
+            Icon(
+                imageVector = Icons.Rounded.Add,
+                contentDescription = stringResource(R.string.fandom_reader_new_tab),
                 tint = accentColor
             )
         }
@@ -222,6 +298,62 @@ private fun ReaderTopBar(
                 contentDescription = stringResource(R.string.fandom_reader_close),
                 tint = KitsugiColors.TextMuted
             )
+        }
+    }
+}
+
+@Composable
+private fun ReaderTabStrip(
+    navigation: FandomReaderBrowserState,
+    accentColor: Color,
+    onSwitchTab: (Long) -> Unit,
+    onCloseTab: (Long) -> Unit
+) {
+    if (navigation.tabs.isEmpty()) return
+    LazyRow(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(KitsugiColors.Surface.copy(alpha = 0.72f))
+            .padding(horizontal = 10.dp, vertical = 6.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        items(navigation.tabs, key = { it.id }) { tab ->
+            val selected = tab.id == navigation.activeTabId
+            Row(
+                modifier = Modifier
+                    .widthIn(min = 104.dp, max = 240.dp)
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(if (selected) accentColor.copy(alpha = 0.18f) else KitsugiColors.SurfaceStrong)
+                    .border(
+                        width = 1.dp,
+                        color = if (selected) accentColor.copy(alpha = 0.60f) else KitsugiColors.SurfaceStrong,
+                        shape = RoundedCornerShape(12.dp)
+                    )
+                    .tvClickable(shape = RoundedCornerShape(12.dp)) { onSwitchTab(tab.id) }
+                    .padding(start = 12.dp, end = 4.dp, top = 2.dp, bottom = 2.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = tab.location.title,
+                    color = if (selected) accentColor else KitsugiColors.TextSecondary,
+                    style = MaterialTheme.typography.labelLarge,
+                    fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f)
+                )
+                IconButton(
+                    onClick = { onCloseTab(tab.id) },
+                    modifier = Modifier.size(30.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Rounded.Close,
+                        contentDescription = stringResource(R.string.fandom_reader_close_tab, tab.location.title),
+                        tint = if (selected) accentColor else KitsugiColors.TextMuted,
+                        modifier = Modifier.size(16.dp)
+                    )
+                }
+            }
         }
     }
 }
@@ -280,10 +412,22 @@ private fun ReaderContent(
     onLoadSection: (Int) -> Unit,
     onRetrySection: (Int) -> Unit,
     onOpenLink: (String) -> Unit,
-    onTranslateSummary: (() -> Unit)?,
-    summaryIsTranslating: Boolean
+    onToggleOriginal: (String) -> Unit,
+    scrollKey: String,
+    initialScrollPosition: Int,
+    onScrollPositionChanged: (String, Int) -> Unit,
+    onOpenGallery: (List<GalleryItem>, Int) -> Unit
 ) {
-    val scrollState = rememberScrollState()
+    val scrollState = remember(scrollKey) { ScrollState(initialScrollPosition) }
+    LaunchedEffect(scrollKey, scrollState) {
+        snapshotFlow { scrollState.value }.collect { position ->
+            onScrollPositionChanged(scrollKey, position)
+        }
+    }
+    val expandedSections = remember(scrollKey) { mutableStateListOf<Int>() }
+    val galleryItems = remember(state.wikiId, state.page, state.sections, state.related) {
+        buildReaderGalleryItems(state)
+    }
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -291,50 +435,50 @@ private fun ReaderContent(
             .padding(horizontal = 16.dp, vertical = 12.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        // Kapak + başlık/özet
-        ReaderHeaderCard(state = state, accentColor = accentColor,
-            onTranslateSummary = onTranslateSummary, summaryIsTranslating = summaryIsTranslating)
+        ReaderHeaderCard(
+            state = state,
+            galleryItems = galleryItems,
+            accentColor = accentColor,
+            onToggleOriginal = onToggleOriginal,
+            onOpenGallery = onOpenGallery
+        )
 
-        // İçindekiler
+        // Her İçindekiler satırı kendi içeriğini hemen altında açar; sayfanın en
+        // altına ayrı kartlar yığılmaz. Birden fazla bölüm aynı anda açık kalabilir.
         if (state.page.sections.isNotEmpty()) {
             ReaderContentsCard(
-                sections = state.page.sections,
-                loaded = state.sections.keys,
-                loading = state.loadingSection,
-                failed = state.failedSection,
+                state = state,
                 accentColor = accentColor,
-                onToggle = { idx ->
-                    if (!state.sections.containsKey(idx)) onLoadSection(idx)
-                }
+                expandedSections = expandedSections,
+                onToggle = { index ->
+                    if (index in expandedSections) {
+                        expandedSections.remove(index)
+                    } else {
+                        expandedSections.add(index)
+                        when {
+                            index in state.failedSections -> onRetrySection(index)
+                            index !in state.sections -> onLoadSection(index)
+                        }
+                    }
+                },
+                onRetrySection = onRetrySection,
+                onOpenLink = onOpenLink,
+                onToggleOriginal = onToggleOriginal,
+                galleryItems = galleryItems,
+                onOpenGallery = onOpenGallery
             )
         }
 
-        // Yüklü bölümler
-        state.page.sections
-            .filter { it.index in state.sections.keys || state.failedSection == it.index || state.loadingSection == it.index }
-            .sortedBy { it.index }
-            .forEach { sec ->
-                ReaderSectionCard(
-                    section = sec,
-                    content = state.sections[sec.index],
-                    isLoading = state.loadingSection == sec.index,
-                    isFailed = state.failedSection == sec.index,
-                    accentColor = accentColor,
-                    onRetry = { onRetrySection(sec.index) },
-                    onOpenLink = onOpenLink
-                )
-            }
-
-        // İlgili wiki sayfaları
         if (state.related.isNotEmpty()) {
             ReaderRelatedCard(
                 wikiId = state.wikiId,
                 related = state.related,
                 accentColor = accentColor,
+                galleryItems = galleryItems,
+                onOpenGallery = onOpenGallery,
                 onOpenPage = onOpenLink
             )
         }
-
         Spacer(modifier = Modifier.height(24.dp))
     }
 }
@@ -342,19 +486,31 @@ private fun ReaderContent(
 @Composable
 private fun ReaderHeaderCard(
     state: FandomReaderRenderState,
+    galleryItems: List<GalleryItem>,
     accentColor: Color,
-    onTranslateSummary: (() -> Unit)?,
-    summaryIsTranslating: Boolean
+    onToggleOriginal: (String) -> Unit,
+    onOpenGallery: (List<GalleryItem>, Int) -> Unit
 ) {
+    val location = FandomReaderLocation(state.wikiId, state.page.displayTitle)
+    val descriptionKey = FandomReaderTranslationKeys.description(location)
+    val translatedDescription = state.translations[descriptionKey]
+    val showingOriginal = descriptionKey in state.originalKeys
+    val description = state.page.description.orEmpty()
+    val displayDescription = translatedDescription?.takeUnless { showingOriginal } ?: description
+
     ReaderCard {
         Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top) {
             state.page.thumbnailUrl?.let { url ->
+                val imageIndex = galleryItems.indexOfFirst { it.url == url }.coerceAtLeast(0)
                 SubcomposeAsyncImage(
                     model = ImageRequest.Builder(LocalContext.current).data(url).crossfade(false).build(),
                     contentDescription = state.page.displayTitle,
                     modifier = Modifier
                         .size(width = 96.dp, height = 136.dp)
-                        .clip(RoundedCornerShape(14.dp)),
+                        .clip(RoundedCornerShape(14.dp))
+                        .tvClickable(shape = RoundedCornerShape(14.dp)) {
+                            if (galleryItems.isNotEmpty()) onOpenGallery(galleryItems, imageIndex)
+                        },
                     loading = {
                         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                             CircularProgressIndicator(Modifier.size(18.dp), color = accentColor, strokeWidth = 2.dp)
@@ -375,27 +531,26 @@ private fun ReaderHeaderCard(
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold
                 )
-                state.page.description?.let { desc ->
+                if (description.isNotBlank()) {
                     Spacer(modifier = Modifier.height(6.dp))
                     Text(
-                        text = desc,
+                        text = displayDescription,
                         color = KitsugiColors.TextSecondary,
                         style = MaterialTheme.typography.bodyMedium
                     )
-                }
-                if (onTranslateSummary != null) {
-                    Spacer(modifier = Modifier.height(8.dp))
-                    TextButton(onClick = onTranslateSummary) {
-                        Icon(
-                            imageVector = Icons.Rounded.Language,
-                            contentDescription = null,
-                            tint = accentColor,
-                            modifier = Modifier.size(16.dp)
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.End
+                    ) {
+                        WikiTranslateButton(
+                            text = description,
+                            preferredTranslator = state.preferredTranslator,
+                            accentColor = accentColor,
+                            isLoading = descriptionKey in state.translatingKeys,
+                            hasTranslation = !translatedDescription.isNullOrBlank(),
+                            showingOriginal = showingOriginal,
+                            onToggleOriginal = { onToggleOriginal(descriptionKey) }
                         )
-                        Spacer(Modifier.width(6.dp))
-                        val label = if (summaryIsTranslating) "Çevriliyor…" else "Özeti çevir"
-                        Text(label, color = accentColor, fontWeight = FontWeight.Bold,
-                            style = MaterialTheme.typography.labelLarge)
                     }
                 }
             }
@@ -405,12 +560,15 @@ private fun ReaderHeaderCard(
 
 @Composable
 private fun ReaderContentsCard(
-    sections: List<FandomSectionRef>,
-    loaded: Set<Int>,
-    loading: Int?,
-    failed: Int?,
+    state: FandomReaderRenderState,
     accentColor: Color,
-    onToggle: (Int) -> Unit
+    expandedSections: List<Int>,
+    onToggle: (Int) -> Unit,
+    onRetrySection: (Int) -> Unit,
+    onOpenLink: (String) -> Unit,
+    onToggleOriginal: (String) -> Unit,
+    galleryItems: List<GalleryItem>,
+    onOpenGallery: (List<GalleryItem>, Int) -> Unit
 ) {
     ReaderCard {
         Text(
@@ -420,39 +578,73 @@ private fun ReaderContentsCard(
             fontWeight = FontWeight.Bold
         )
         Spacer(Modifier.height(8.dp))
-        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-            sections.forEach { sec ->
-                val isLoaded = sec.index in loaded
-                val isLoading = loading == sec.index
-                val isFailed = failed == sec.index
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(10.dp))
-                        .clickable { onToggle(sec.index) }
-                        .padding(horizontal = 4.dp, vertical = 6.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Icon(
-                        imageVector = Icons.Rounded.MenuBook,
-                        contentDescription = null,
-                        tint = accentColor,
-                        modifier = Modifier.size(14.dp)
-                    )
-                    Spacer(Modifier.width(8.dp))
-                    Text(
-                        text = sec.title,
-                        color = if (isLoaded) accentColor else KitsugiColors.TextPrimary,
-                        style = MaterialTheme.typography.bodyMedium,
-                        fontWeight = if (isLoaded) FontWeight.SemiBold else FontWeight.Normal,
-                        modifier = Modifier.weight(1f)
-                    )
-                    when {
-                        isLoading -> CircularProgressIndicator(Modifier.size(14.dp), color = accentColor, strokeWidth = 2.dp)
-                        isFailed -> Text("!", color = KitsugiColors.AccentOrange, fontWeight = FontWeight.Bold)
-                        isLoaded -> Icon(
-                            Icons.Rounded.KeyboardArrowUp,
-                            contentDescription = null, tint = accentColor, modifier = Modifier.size(16.dp)
+        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            state.page.sections.forEach { section ->
+                val isExpanded = section.index in expandedSections
+                val isLoaded = section.index in state.sections
+                val isLoading = section.index in state.loadingSections
+                val isFailed = section.index in state.failedSections
+                Column {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(if (isExpanded) accentColor.copy(alpha = 0.08f) else Color.Transparent)
+                            .tvClickable(shape = RoundedCornerShape(10.dp)) { onToggle(section.index) }
+                            .padding(horizontal = 8.dp, vertical = 9.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = Icons.Rounded.MenuBook,
+                            contentDescription = null,
+                            tint = accentColor,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(Modifier.width(9.dp))
+                        Text(
+                            text = localizedSectionTitle(section.title),
+                            color = if (isExpanded || isLoaded) accentColor else KitsugiColors.TextPrimary,
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = if (isExpanded || isLoaded) FontWeight.SemiBold else FontWeight.Normal,
+                            modifier = Modifier.weight(1f)
+                        )
+                        when {
+                            isLoading -> CircularProgressIndicator(Modifier.size(15.dp), color = accentColor, strokeWidth = 2.dp)
+                            isFailed -> Text("!", color = KitsugiColors.AccentOrange, fontWeight = FontWeight.Bold)
+                        }
+                        Spacer(Modifier.width(4.dp))
+                        Icon(
+                            imageVector = if (isExpanded) Icons.Rounded.KeyboardArrowUp else Icons.Rounded.KeyboardArrowDown,
+                            contentDescription = null,
+                            tint = if (isExpanded) accentColor else KitsugiColors.TextMuted,
+                            modifier = Modifier.size(19.dp)
+                        )
+                    }
+                    AnimatedVisibility(visible = isExpanded) {
+                        ReaderSectionContent(
+                            section = section,
+                            content = state.sections[section.index],
+                            isLoading = isLoading,
+                            isFailed = isFailed,
+                            translationKey = FandomReaderTranslationKeys.section(
+                                FandomReaderLocation(state.wikiId, state.page.displayTitle), section.index
+                            ),
+                            translatedText = state.translations[FandomReaderTranslationKeys.section(
+                                FandomReaderLocation(state.wikiId, state.page.displayTitle), section.index
+                            )],
+                            isTranslating = FandomReaderTranslationKeys.section(
+                                FandomReaderLocation(state.wikiId, state.page.displayTitle), section.index
+                            ) in state.translatingKeys,
+                            showingOriginal = FandomReaderTranslationKeys.section(
+                                FandomReaderLocation(state.wikiId, state.page.displayTitle), section.index
+                            ) in state.originalKeys,
+                            preferredTranslator = state.preferredTranslator,
+                            accentColor = accentColor,
+                            onRetry = { onRetrySection(section.index) },
+                            onOpenLink = onOpenLink,
+                            onToggleOriginal = onToggleOriginal,
+                            galleryItems = galleryItems,
+                            onOpenGallery = onOpenGallery
                         )
                     }
                 }
@@ -462,35 +654,45 @@ private fun ReaderContentsCard(
 }
 
 @Composable
-private fun ReaderSectionCard(
+private fun ReaderSectionContent(
     section: FandomSectionRef,
     content: FandomSectionContent?,
     isLoading: Boolean,
     isFailed: Boolean,
+    translationKey: String,
+    translatedText: String?,
+    isTranslating: Boolean,
+    showingOriginal: Boolean,
+    preferredTranslator: String,
     accentColor: Color,
     onRetry: () -> Unit,
-    onOpenLink: (String) -> Unit
+    onOpenLink: (String) -> Unit,
+    onToggleOriginal: (String) -> Unit,
+    galleryItems: List<GalleryItem>,
+    onOpenGallery: (List<GalleryItem>, Int) -> Unit
 ) {
-    ReaderCard {
-        Text(
-            text = localizedSectionTitle(section.title),
-            color = KitsugiColors.TextPrimary,
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.Bold
-        )
-        Spacer(Modifier.height(8.dp))
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(start = 24.dp, end = 4.dp, top = 2.dp, bottom = 8.dp)
+            .clip(RoundedCornerShape(12.dp))
+            .background(KitsugiColors.SurfaceSoft)
+            .padding(12.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
         when {
-            isLoading || content == null -> {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    CircularProgressIndicator(Modifier.size(14.dp), color = accentColor, strokeWidth = 2.dp)
-                    Spacer(Modifier.width(8.dp))
-                    Text(stringResource(R.string.fandom_guide_more_loading), color = KitsugiColors.TextMuted,
-                        style = MaterialTheme.typography.bodySmall)
-                }
+            isLoading || content == null -> Row(verticalAlignment = Alignment.CenterVertically) {
+                CircularProgressIndicator(Modifier.size(15.dp), color = accentColor, strokeWidth = 2.dp)
+                Spacer(Modifier.width(8.dp))
+                Text(
+                    stringResource(R.string.fandom_guide_more_loading),
+                    color = KitsugiColors.TextMuted,
+                    style = MaterialTheme.typography.bodySmall
+                )
             }
             isFailed -> Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
-                    text = stringResource(R.string.fandom_section_error),
+                    stringResource(R.string.fandom_section_error),
                     color = KitsugiColors.TextMuted,
                     style = MaterialTheme.typography.bodySmall,
                     modifier = Modifier.weight(1f)
@@ -500,11 +702,40 @@ private fun ReaderSectionCard(
                 }
             }
             else -> {
-                content.blocks.forEach { block -> ReaderBlock(block, accentColor, onOpenLink) }
-                // Bölümdeki ilgili bağlantılar (metin içinde atıf geçen ama öne çıkarmak
-                // istediğimiz sayfalar): yatay çipler olarak.
+                val sourceText = content.plainText()
+                val showTranslated = !translatedText.isNullOrBlank() && !showingOriginal
+                if (sourceText.isNotBlank()) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.End
+                    ) {
+                        WikiTranslateButton(
+                            text = sourceText,
+                            preferredTranslator = preferredTranslator,
+                            accentColor = accentColor,
+                            isLoading = isTranslating,
+                            hasTranslation = !translatedText.isNullOrBlank(),
+                            showingOriginal = showingOriginal,
+                            onToggleOriginal = { onToggleOriginal(translationKey) }
+                        )
+                    }
+                }
+                if (showTranslated) {
+                    Text(
+                        text = translatedText.orEmpty(),
+                        color = KitsugiColors.TextPrimary,
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                    // Çeviri düz metindir; görseller ayrı blok olarak kalır ve galeriye
+                    // erişim çevrilmiş görünümde de aynı şekilde çalışır.
+                    content.blocks.filter { it.kind == FandomBlockKind.IMAGE }
+                        .forEach { block -> ReaderBlock(block, accentColor, onOpenLink, galleryItems, onOpenGallery) }
+                } else {
+                    content.blocks.forEach { block ->
+                        ReaderBlock(block, accentColor, onOpenLink, galleryItems, onOpenGallery)
+                    }
+                }
                 if (content.links.isNotEmpty() && !FandomSpoilerRules.isHiddenSection(section.title)) {
-                    Spacer(Modifier.height(8.dp))
                     ReaderLinkChips(links = content.links.take(12), accentColor = accentColor, onOpenLink = onOpenLink)
                 }
             }
@@ -516,7 +747,9 @@ private fun ReaderSectionCard(
 private fun ReaderBlock(
     block: com.kitsugi.animelist.data.fandom.FandomTextBlock,
     accentColor: Color,
-    onOpenLink: (String) -> Unit
+    onOpenLink: (String) -> Unit,
+    galleryItems: List<GalleryItem>,
+    onOpenGallery: (List<GalleryItem>, Int) -> Unit
 ) {
     when (block.kind) {
         FandomBlockKind.HEADING -> Text(
@@ -540,15 +773,16 @@ private fun ReaderBlock(
             Modifier
                 .fillMaxWidth()
                 .clip(RoundedCornerShape(10.dp))
-                .background(KitsugiColors.SurfaceSoft)
+                .background(KitsugiColors.Surface)
                 .padding(horizontal = 12.dp, vertical = 8.dp)
         ) {
             Text(block.text, color = KitsugiColors.TextSecondary,
                 style = MaterialTheme.typography.bodyMedium, fontStyle = androidx.compose.ui.text.font.FontStyle.Italic)
         }
         FandomBlockKind.IMAGE -> {
-            val img = block.image
-            if (img != null && img.url.isNotBlank()) {
+            val image = block.image
+            if (image != null && image.url.isNotBlank()) {
+                val imageIndex = galleryItems.indexOfFirst { it.url == image.url }.coerceAtLeast(0)
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -559,15 +793,18 @@ private fun ReaderBlock(
                     verticalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
                     SubcomposeAsyncImage(
-                        model = img.url,
-                        contentDescription = img.caption,
+                        model = image.url,
+                        contentDescription = image.caption,
                         modifier = Modifier
                             .fillMaxWidth()
-                            .heightIn(max = 240.dp)
-                            .clip(RoundedCornerShape(8.dp)),
+                            .heightIn(max = 260.dp)
+                            .clip(RoundedCornerShape(8.dp))
+                            .tvClickable(shape = RoundedCornerShape(8.dp)) {
+                                if (galleryItems.isNotEmpty()) onOpenGallery(galleryItems, imageIndex)
+                            },
                         contentScale = androidx.compose.ui.layout.ContentScale.Fit
                     )
-                    img.caption?.takeIf { it.isNotBlank() }?.let { caption ->
+                    image.caption?.takeIf { it.isNotBlank() }?.let { caption ->
                         Text(
                             text = caption,
                             color = KitsugiColors.TextMuted,
@@ -579,6 +816,38 @@ private fun ReaderBlock(
         }
     }
 }
+
+private fun buildReaderGalleryItems(state: FandomReaderRenderState): List<GalleryItem> = buildList {
+    state.page.thumbnailUrl?.takeIf { it.isNotBlank() }?.let { url ->
+        add(GalleryItem(url, READER_GALLERY_SOURCE, GalleryCategory.OTHER, state.page.displayTitle))
+    }
+    state.sections.toSortedMap().values.forEach { content ->
+        content.blocks.asSequence()
+            .filter { it.kind == FandomBlockKind.IMAGE }
+            .mapNotNull { it.image }
+            .filter { it.url.isNotBlank() }
+            .forEach { image -> add(image.toReaderGalleryItem()) }
+    }
+    state.related.forEach { page ->
+        page.thumbnailUrl?.takeIf { it.isNotBlank() }?.let { url ->
+            add(GalleryItem(url, READER_GALLERY_SOURCE, GalleryCategory.OTHER, page.title))
+        }
+    }
+}.distinctBy { it.url }
+
+private fun FandomImage.toReaderGalleryItem(): GalleryItem = GalleryItem(
+    url = url,
+    source = READER_GALLERY_SOURCE,
+    category = GalleryCategory.OTHER,
+    description = caption,
+    details = buildMap {
+        fileTitle?.takeIf { it.isNotBlank() }?.let { put("File", it) }
+        artist?.takeIf { it.isNotBlank() }?.let { put("Artist", it) }
+        license?.takeIf { it.isNotBlank() }?.let { put("License", it) }
+    }
+)
+
+private const val READER_GALLERY_SOURCE = "Fandom"
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -608,6 +877,8 @@ private fun ReaderRelatedCard(
     wikiId: String,
     related: List<FandomRelatedPage>,
     accentColor: Color,
+    galleryItems: List<GalleryItem>,
+    onOpenGallery: (List<GalleryItem>, Int) -> Unit,
     onOpenPage: (String) -> Unit
 ) {
     ReaderCard {
@@ -628,7 +899,15 @@ private fun ReaderRelatedCard(
         Spacer(Modifier.height(10.dp))
         LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             items(related, key = { it.title }) { page ->
-                WikiRelatedPageCard(page = page, accentColor = accentColor, onClick = { onOpenPage(page.title) })
+                WikiRelatedPageCard(
+                    page = page,
+                    accentColor = accentColor,
+                    onClick = { onOpenPage(page.title) },
+                    onImageClick = { url ->
+                        val index = galleryItems.indexOfFirst { it.url == url }
+                        if (index >= 0) onOpenGallery(galleryItems, index)
+                    }
+                )
             }
         }
     }
@@ -639,7 +918,8 @@ private fun ReaderRelatedCard(
 internal fun WikiRelatedPageCard(
     page: FandomRelatedPage,
     accentColor: Color,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    onImageClick: ((String) -> Unit)? = null
 ) {
     Column(
         modifier = Modifier
@@ -663,7 +943,15 @@ internal fun WikiRelatedPageCard(
                     model = ImageRequest.Builder(LocalContext.current).data(url).crossfade(false).build(),
                     contentDescription = page.title,
                     contentScale = androidx.compose.ui.layout.ContentScale.Crop,
-                    modifier = Modifier.fillMaxSize(),
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .then(
+                            if (onImageClick != null) {
+                                Modifier.tvClickable(shape = RoundedCornerShape(10.dp)) { onImageClick(url) }
+                            } else {
+                                Modifier
+                            }
+                        ),
                     loading = {
                         CircularProgressIndicator(Modifier.size(18.dp), color = accentColor, strokeWidth = 2.dp)
                     },

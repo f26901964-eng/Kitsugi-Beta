@@ -109,6 +109,7 @@ internal fun CharacterWikiTabSlot(
     val preferredTranslator by viewModel.preferredTranslator.collectAsState()
     val originalKeys by viewModel.originalKeys.collectAsState()
     val readerState by viewModel.reader.collectAsState()
+    val readerBrowser by viewModel.readerBrowser.collectAsState()
     val related by viewModel.relatedPages.collectAsState()
     val lastRejected by viewModel.lastRejected.collectAsState()
 
@@ -164,11 +165,15 @@ internal fun CharacterWikiTabSlot(
                         page = ready.page,
                         sections = ready.sections,
                         related = ready.related,
-                        loadingSection = ready.loadingSection,
-                        failedSection = ready.failedSection,
-                        hasBackStack = true
+                        loadingSections = ready.loadingSections,
+                        failedSections = ready.failedSections,
+                        translations = translations,
+                        translatingKeys = translating,
+                        originalKeys = originalKeys,
+                        preferredTranslator = preferredTranslator
                     )
                 },
+                navigation = readerBrowser,
                 failedTitle = readerFailedTitle,
                 onRetryFailed = readerFailedTitle?.let { failed ->
                     { viewModel.openReader(failed, pushToBackStack = false) }
@@ -176,13 +181,17 @@ internal fun CharacterWikiTabSlot(
                 accentColor = accentColor,
                 onClose = viewModel::closeReader,
                 onBack = { viewModel.readerBack() },
+                onForward = { viewModel.readerForward() },
+                onNewTab = { viewModel.newReaderTab() },
+                onSwitchTab = viewModel::switchReaderTab,
+                onCloseTab = viewModel::closeReaderTab,
+                onToggleOriginal = viewModel::toggleOriginal,
                 onLoadSection = viewModel::loadReaderSection,
                 onRetrySection = viewModel::retryReaderSection,
                 onOpenLink = viewModel::openReaderLink,
                 onOpenInBrowser = {
-                    val ready = readerReady ?: return@FandomWikiReaderSheet
-                    val title = ready.page.displayTitle
-                    val open: (String) -> Unit = { url ->
+                    val location = readerBrowser.activeTab?.location ?: return@FandomWikiReaderSheet
+                    val openUrl: (String) -> Unit = { url ->
                         try {
                             context.startActivity(
                                 android.content.Intent(android.content.Intent.ACTION_VIEW,
@@ -192,7 +201,7 @@ internal fun CharacterWikiTabSlot(
                             Toast.makeText(context, context.getString(R.string.fandom_open_failed), Toast.LENGTH_SHORT).show()
                         }
                     }
-                    open(FandomUrls.pageUrl(ready.wikiId, title))
+                    openUrl(FandomUrls.pageUrl(location.wikiId, location.title))
                 }
             )
         }

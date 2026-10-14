@@ -259,6 +259,7 @@ fun CharacterDetailPage(
                 val wikiOriginalKeys by wikiViewModel.originalKeys.collectAsState()
                 val wikiPrefs by wikiViewModel.prefs.collectAsState()
                 val wikiReaderState by wikiViewModel.reader.collectAsState()
+                val wikiReaderBrowser by wikiViewModel.readerBrowser.collectAsState()
                 val wikiRelatedPages by wikiViewModel.relatedPages.collectAsState()
                 val wikiLastRejected by wikiViewModel.lastRejected.collectAsState()
 
@@ -756,11 +757,15 @@ fun CharacterDetailPage(
                                 page = ready.page,
                                 sections = ready.sections,
                                 related = ready.related,
-                                loadingSection = ready.loadingSection,
-                                failedSection = ready.failedSection,
-                                hasBackStack = true
+                                loadingSections = ready.loadingSections,
+                                failedSections = ready.failedSections,
+                                translations = wikiTranslations,
+                                translatingKeys = wikiTranslating,
+                                originalKeys = wikiOriginalKeys,
+                                preferredTranslator = preferredTranslator
                             )
                         },
+                        navigation = wikiReaderBrowser,
                         failedTitle = readerFailedTitle,
                         onRetryFailed = readerFailedTitle?.let { failed ->
                             { wikiViewModel.openReader(failed, pushToBackStack = false) }
@@ -768,13 +773,17 @@ fun CharacterDetailPage(
                         accentColor = accentColor,
                         onClose = wikiViewModel::closeReader,
                         onBack = { wikiViewModel.readerBack() },
+                        onForward = { wikiViewModel.readerForward() },
+                        onNewTab = { wikiViewModel.newReaderTab() },
+                        onSwitchTab = wikiViewModel::switchReaderTab,
+                        onCloseTab = wikiViewModel::closeReaderTab,
+                        onToggleOriginal = wikiViewModel::toggleOriginal,
                         onLoadSection = wikiViewModel::loadReaderSection,
                         onRetrySection = wikiViewModel::retryReaderSection,
                         onOpenLink = wikiViewModel::openReaderLink,
                         onOpenInBrowser = {
-                            val ready = readerReady ?: return@FandomWikiReaderSheet
-                            val title = ready.page.displayTitle
-                            val open: (String) -> Unit = { url ->
+                            val location = wikiReaderBrowser.activeTab?.location ?: return@FandomWikiReaderSheet
+                            val openUrl: (String) -> Unit = { url ->
                                 try {
                                     context.startActivity(
                                         android.content.Intent(android.content.Intent.ACTION_VIEW,
@@ -784,7 +793,7 @@ fun CharacterDetailPage(
                                     android.widget.Toast.makeText(context, context.getString(R.string.fandom_open_failed), android.widget.Toast.LENGTH_SHORT).show()
                                 }
                             }
-                            open(FandomUrls.pageUrl(ready.wikiId, title))
+                            openUrl(FandomUrls.pageUrl(location.wikiId, location.title))
                         }
                     )
                 }

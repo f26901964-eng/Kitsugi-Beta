@@ -7522,6 +7522,10 @@
     <string name="fandom_related_pages_count">%1$d items</string>
     <string name="fandom_open_page">Fandom page</string>
     <string name="fandom_reader_back">Back</string>
+    <string name="fandom_reader_forward">Forward</string>
+    <string name="fandom_reader_new_tab">New tab</string>
+    <string name="fandom_reader_close_tab">Close tab: %1$s</string>
+    <string name="fandom_reader_title">Wiki</string>
     <string name="fandom_reader_close">Close</string>
     <string name="fandom_reader_contents">Contents</string>
     <string name="fandom_reader_open_browser">Open in browser</string>

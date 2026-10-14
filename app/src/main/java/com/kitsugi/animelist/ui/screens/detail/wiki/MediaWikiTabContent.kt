@@ -118,6 +118,7 @@ internal fun MediaWikiTabSlot(
     val prefs by viewModel.prefs.collectAsState()
     val originalKeys by viewModel.originalKeys.collectAsState()
     val readerState by viewModel.reader.collectAsState()
+    val readerBrowser by viewModel.readerBrowser.collectAsState()
     val relatedPages by viewModel.relatedPages.collectAsState()
     val lastRejected by viewModel.lastRejected.collectAsState()
     val readerRender = (readerState as? FandomMediaWikiViewModel.ReaderState.Ready)?.let { r ->
@@ -126,9 +127,12 @@ internal fun MediaWikiTabSlot(
             page = r.page,
             sections = r.sections,
             related = r.related,
-            loadingSection = r.loadingSection,
-            failedSection = r.failedSection,
-            hasBackStack = true
+            loadingSections = r.loadingSections,
+            failedSections = r.failedSections,
+            translations = translations,
+            translatingKeys = translatingKeys,
+            originalKeys = originalKeys,
+            preferredTranslator = preferredTranslator
         )
     }
     val ready = uiState as? FandomMediaWikiViewModel.UiState.Ready
@@ -185,11 +189,11 @@ internal fun MediaWikiTabSlot(
     )
 
     if (ready != null && readerState != FandomMediaWikiViewModel.ReaderState.Closed) {
-        val wikiId = ready.ref.wikiId
         val context = LocalContext.current
         val readerFailedTitle = (readerState as? FandomMediaWikiViewModel.ReaderState.Failed)?.title
         FandomWikiReaderSheet(
             state = readerRender,
+            navigation = readerBrowser,
             failedTitle = readerFailedTitle,
             onRetryFailed = readerFailedTitle?.let { failed ->
                 { viewModel.openReader(failed, pushToBackStack = false) }
@@ -197,15 +201,18 @@ internal fun MediaWikiTabSlot(
             accentColor = accentColor,
             onClose = viewModel::closeReader,
             onBack = { viewModel.readerBack() },
+            onForward = { viewModel.readerForward() },
+            onNewTab = { viewModel.newReaderTab() },
+            onSwitchTab = viewModel::switchReaderTab,
+            onCloseTab = viewModel::closeReaderTab,
+            onToggleOriginal = viewModel::toggleOriginal,
             onLoadSection = viewModel::loadReaderSection,
             onRetrySection = viewModel::retryReaderSection,
             onOpenLink = viewModel::openReaderLink,
             onOpenInBrowser = {
-                val title = (readerState as? FandomMediaWikiViewModel.ReaderState.Ready)?.page?.displayTitle
-                    ?: return@FandomWikiReaderSheet
-                openExternal(context, FandomUrls.pageUrl(wikiId, title))
-            },
-            onTranslateSummary = null
+                val location = readerBrowser.activeTab?.location ?: return@FandomWikiReaderSheet
+                openExternal(context, FandomUrls.pageUrl(location.wikiId, location.title))
+            }
         )
     }
 }

@@ -7527,6 +7527,10 @@ Eklentiler ekranından eklenti etkinleştirin.</string>
     <string name="fandom_related_pages_count">%1$d madde</string>
     <string name="fandom_open_page">Fandom sayfasını</string>
     <string name="fandom_reader_back">Geri</string>
+    <string name="fandom_reader_forward">İleri</string>
+    <string name="fandom_reader_new_tab">Yeni sekme</string>
+    <string name="fandom_reader_close_tab">Sekmeyi kapat: %1$s</string>
+    <string name="fandom_reader_title">Wiki</string>
     <string name="fandom_reader_close">Kapat</string>
     <string name="fandom_reader_contents">İçindekiler</string>
     <string name="fandom_reader_open_browser">Tarayıcıda aç</string>
