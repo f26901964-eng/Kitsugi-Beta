@@ -36,8 +36,13 @@ jobs:
         # Sabitleri (MAX_SECTION_IMAGES, JUNK_SELECTOR…) Kotlin kaynağından okur;
         # Kotlin değişince ölçüm de kendiliğinden güncellenir.
         run: |
-          python3 tools/wiki_audit/content_audit.py \
-            --out tools/wiki_audit/results --workers 2 | tee -a tools/wiki_audit/run.log
+          set -o pipefail
+          echo "=== ICERIK DENETIMI BASLIYOR ==="
+          python3 -u tools/wiki_audit/content_audit.py \
+            --out tools/wiki_audit/results --workers 2 2>&1 | tee -a tools/wiki_audit/run.log
+          echo "=== yazilan dosyalar ==="
+          ls -la tools/wiki_audit/results
+          head -32 tools/wiki_audit/results/content_report.md
       - name: Sonuçları dala işle
         if: always()
         run: |

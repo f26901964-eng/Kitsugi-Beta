@@ -43,6 +43,11 @@ import threading
 import time
 import urllib.parse
 import urllib.request
+
+# Boruya (tee) yazilirken Python blok tamponlamasi kullanir; ozet satirlari is
+# gunlugune hic dusmeyebiliyordu.
+sys.stdout.reconfigure(line_buffering=True)
+
 from html import unescape
 from html.parser import HTMLParser
 
