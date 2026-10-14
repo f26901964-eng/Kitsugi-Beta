@@ -886,7 +886,9 @@ object FandomRepository {
         var englishWikiId: String? = null
         var englishPageTitle: String? = null
 
-        if (prefs.preferTurkish && FandomUrls.languageOf(wikiId) != "tr") {
+        // Vikipedi'de dil sürümleri sekmede AYRI kaynak olarak sunulur; burada sessizce TR
+        // maddeye geçmek "Orijinal" metni değiştirirken eski çeviriyi ekranda bırakıyordu.
+        if (prefs.preferTurkish && !FandomUrls.isWikipedia(wikiId) && FandomUrls.languageOf(wikiId) != "tr") {
             val turkishLink = lookup.turkishLink
                 ?: FandomApi.lookupTitles(wikiId, listOf(englishTitle), withTurkishLink = true)[englishTitle]?.turkishLink
             if (turkishLink != null) {

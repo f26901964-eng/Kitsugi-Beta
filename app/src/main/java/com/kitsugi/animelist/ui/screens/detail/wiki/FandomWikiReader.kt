@@ -1206,8 +1206,6 @@ private fun FandomImage.toReaderGalleryItem(sourceLabel: String): GalleryItem = 
     }
 )
 
-private const val READER_GALLERY_SOURCE = "Fandom"
-
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun ReaderLinkChips(links: List<String>, accentColor: Color, onOpenLink: (String) -> Unit) {

@@ -187,8 +187,12 @@ internal class FandomWikiResolver(
         val ordered = LinkedHashMap<String, String>() // wikiId → madde başlığı
         fun add(site: String, title: String?) {
             val clean = title?.trim()?.takeIf { it.isNotEmpty() } ?: return
+            if (!site.endsWith("wiki") || site == "wiki") return
             val lang = site.removeSuffix("wiki").replace('_', '-')
             val wikiId = FandomUrls.normalize("wikipedia.$lang") ?: return
+            // `normalize` geçersiz dil kodlarını "en"e düşürür (ör. "commonswiki"): sitelink
+            // anahtarı gerçek bir dil sürümü değilse maddeyi yanlış wiki'ye bağlamayalım.
+            if (FandomUrls.wikipediaLang(wikiId) != lang) return
             ordered.putIfAbsent(wikiId, clean)
         }
         val primarySite = if (prefs.preferTurkish) "trwiki" else "enwiki"
