@@ -82,18 +82,47 @@ jobs:
         env:
           GRADLE_OPTS: -Dfile.encoding=UTF-8
 
-      - name: 🧪 Başarısız test raporlarını loga yaz
-        # Artifact/log depoları bazı ortamlardan indirilemediği için JUnit XML
-        # çıktıları (hata mesajı + yığın izi) doğrudan iş günlüğüne basılır.
+      - name: 🧪 Başarısız testleri kontrol çalışmasına yaz
+        # Artifact VE log depoları bazı ortamlardan indirilemiyor (blob.core.windows.net /
+        # results-receiver.actions.githubusercontent.com erişime kapalı). Check-run çıktısı
+        # api.github.com üzerinden okunabildiği için hata mesajları oraya da yazılır.
         if: failure()
         run: |
           shopt -s nullglob
-          for f in app/build/test-results/testFossDebugUnitTest/*.xml; do
-            if grep -q "<failure" "$f" 2>/dev/null || grep -q "<error" "$f" 2>/dev/null; then
-              echo "==================== $f"
-              cat "$f"
-            fi
-          done
+          python3 - <<'PYEOF' > /tmp/test-failures.txt
+          import glob, re, xml.etree.ElementTree as ET
+          shown = 0
+          for path in sorted(glob.glob("app/build/test-results/testFossDebugUnitTest/*.xml")):
+              try:
+                  root = ET.parse(path).getroot()
+              except Exception as exc:
+                  print(f"{path}: parse hatasi {exc}")
+                  continue
+              for case in root.iter("testcase"):
+                  for kind in ("failure", "error"):
+                      node = case.find(kind)
+                      if node is None:
+                          continue
+                      shown += 1
+                      text = (node.text or "").strip()
+                      text = re.sub(r"\s+", " ", text)[:900]
+                      print(f"[{shown}] {case.get('classname')} > {case.get('name')}")
+                      print(f"    tip: {node.get('type')} mesaj: {node.get('message')}")
+                      print(f"    {text}")
+          if shown == 0:
+              print("JUnit XML'de failure/error yok (derleme hatasi olabilir)")
+          PYEOF
+          cat /tmp/test-failures.txt
+          SUMMARY=$(head -c 5000 /tmp/test-failures.txt | tr '\n' '|')
+          jq -n --arg sha "$GITHUB_SHA" --arg s "$SUMMARY" \
+            '{name:"test-failure-detail", head_sha:$sha, status:"completed", conclusion:"neutral",
+              output:{title:"Basarisiz test ayrintisi", summary:$s}}' > /tmp/check-run-tests.json
+          curl -sS -X POST \
+            -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+            -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            "https://api.github.com/repos/${{ github.repository }}/check-runs" \
+            -d @/tmp/check-run-tests.json | head -c 200
 
       - name: 📲 APK'yı yükle
         if: success()
