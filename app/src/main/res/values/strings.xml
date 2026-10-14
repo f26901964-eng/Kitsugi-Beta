@@ -7543,6 +7543,8 @@ Eklentiler ekranından eklenti etkinleştirin.</string>
     <string name="fandom_reader_contents">İçindekiler</string>
     <string name="fandom_reader_open_browser">Tarayıcıda aç</string>
     <string name="fandom_reader_failed">Sayfa yüklenemedi</string>
+    <string name="fandom_reader_failed_hint">Bu wiki’de sayfa olmayabilir veya bağlantı geçici olarak kesilmiş olabilir.</string>
+    <string name="fandom_reader_contents_failed">İçindekiler yüklenemedi; sayfanın girişini yine de okuyabilirsin.</string>
     <string name="fandom_reader_empty">Bu sayfada gösterilecek içerik yok.</string>
     <string name="fandom_related_empty">İlgili wiki sayfası bulunamadı.</string>
     <!-- Detay > Grafikler sekmesi -->

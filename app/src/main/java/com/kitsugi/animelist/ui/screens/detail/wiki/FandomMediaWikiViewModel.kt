@@ -1098,7 +1098,7 @@ class FandomMediaWikiViewModel(application: Application) : AndroidViewModel(appl
         loadReaderLocation(location)
     }
 
-    private fun loadReaderLocation(location: FandomReaderLocation) {
+    private fun loadReaderLocation(location: FandomReaderLocation, forceRefresh: Boolean = false) {
         val ready = _state.value as? UiState.Ready ?: return
         readerJob?.cancel()
         readerSectionJobs.values.forEach { it.cancel() }
@@ -1107,7 +1107,7 @@ class FandomMediaWikiViewModel(application: Application) : AndroidViewModel(appl
         _reader.value = ReaderState.Loading
         readerJob = viewModelScope.launch {
             val page = try {
-                FandomRepository.loadFullPageMeta(appContext, location.wikiId, location.title)
+                FandomRepository.loadFullPageMeta(appContext, location.wikiId, location.title, forceRefresh)
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
@@ -1242,6 +1242,12 @@ class FandomMediaWikiViewModel(application: Application) : AndroidViewModel(appl
             target == before.activeTab?.location
         ) return
         loadReaderLocation(target)
+    }
+
+    /** Retries a failed page or TOC without adding another browser history entry. */
+    fun retryReaderPage() {
+        val location = readerBrowserController.activeLocation ?: return
+        loadReaderLocation(location, forceRefresh = true)
     }
 
     fun readerBack(): Boolean {

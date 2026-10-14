@@ -24,7 +24,7 @@ import kotlinx.serialization.json.Json
  *    Mevcut otomatik temizlik (MappingSyncWorker + StorageJanitor, 30 gün) bu kayıtları da
  *    kapsar; Room şeması değişmez. Ham HTML değil, sadeleştirilmiş JSON saklanır.
  *
- * Süreler: wiki eşleşmesi 30 gün, karakter sayfası ve bölümler 7 gün, "bulunamadı" 3 gün.
+ * Süreler: wiki eşleşmesi 30 gün, karakter sayfası ve bölümler 7 gün, "bulunamadı" 1 gün.
  * Çözümleme sırasında ağ hatası olduysa "bulunamadı" sonucu kalıcı önbelleğe yazılmaz.
  */
 object FandomRepository {
@@ -41,7 +41,7 @@ object FandomRepository {
     /** Evren rehberi çiplerinde bir seferde çekilen kategori üyesi sayısı. */
     private const val GUIDE_PAGE_SIZE = 14
     private const val BLURB_TTL_MS = 7L * DAY_MS
-    private const val NEGATIVE_TTL_MS = 3L * DAY_MS
+    private const val NEGATIVE_TTL_MS = DAY_MS
     private const val TRANSIENT_NEGATIVE_TTL_MS = 10L * 60L * 1000L
     private const val SEARCH_MEMO_TTL_MS = 5L * 60L * 1000L
 
@@ -133,6 +133,7 @@ object FandomRepository {
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
+                FandomHttp.markFailure()
                 Log.w(TAG, "Wiki çözümlemesi başarısız ($mediaKey): ${e.message}")
                 null
             }
@@ -175,7 +176,7 @@ object FandomRepository {
     }
 
     private fun wikiCacheKey(mediaKey: String, nameAllowed: Boolean): String =
-        "${KEY_PREFIX}wiki:v3:$mediaKey:${if (nameAllowed) "n1" else "n0"}"
+        "${KEY_PREFIX}wiki:v4:$mediaKey:${if (nameAllowed) "n1" else "n0"}"
 
     /**
      * "Yanlışsa bildir" (yapım sekmesi): wiki bu yapım için reddedilir, wiki eşleşme
@@ -371,29 +372,62 @@ object FandomRepository {
      * Uygulama içi wiki okuyucu için bir sayfanın üst verileri (başlık, kapak, açıklama,
      * içindekiler). Kısa ömürlü bellek önbelleği kullanır; kalıcı yazmaz.
      */
-    suspend fun loadFullPageMeta(context: Context, wikiId: String, title: String): FandomFullPage? {
-        val appContext = context.applicationContext
+    suspend fun loadFullPageMeta(
+        context: Context,
+        wikiId: String,
+        title: String,
+        forceRefresh: Boolean = false
+    ): FandomFullPage? {
         val clean = title.trim()
         if (clean.isEmpty()) return null
         val key = "${KEY_PREFIX}meta:$wikiId|${clean.lowercase()}"
         return lockFor(sectionLocks, key).withLock {
-            memory[key]?.let { memo ->
-                if (memo.expiresAt > System.currentTimeMillis()) {
-                    @Suppress("UNCHECKED_CAST")
-                    return@withLock (memo.value as? FandomFullPage)
+            val now = System.currentTimeMillis()
+            if (!forceRefresh) {
+                memory[key]?.let { memo ->
+                    if (memo.expiresAt > now) return@withLock memo.value as? FandomFullPage
+                    memory.remove(key)
                 }
-                memory.remove(key)
+            }
+            // A related-page card was already verified by a real MediaWiki page ID.
+            // Reuse its title/description/thumbnail rather than querying optional preview
+            // modules a second time. Only the table of contents requires another request.
+            val previewKey = verifiedPreviewKey(wikiId, clean)
+            val previewMemo = memory[previewKey]
+            val preview = if (previewMemo != null && previewMemo.expiresAt > now) {
+                previewMemo.value as? FandomRelatedPage
+            } else {
+                memory.remove(previewKey)
+                null
             }
             val meta = try {
-                FandomApi.pageMeta(wikiId, clean)
+                FandomApi.pageMeta(wikiId, clean, verifiedPreview = preview)
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
                 Log.w(TAG, "Sayfa meta yüklenemedi ($wikiId/$clean): ${e.message}")
                 null
             } ?: return@withLock null
-            memory[key] = Memo(meta, System.currentTimeMillis() + BLURB_TTL_MS)
+            if (meta.sectionsFailed) {
+                // A valid page whose TOC timed out is still readable (lead is loaded
+                // separately), but must not be cached for 7 days with an empty TOC.
+                rememberVerifiedPreviews(
+                    wikiId, listOf(FandomRelatedPage(meta.displayTitle, meta.description, meta.thumbnailUrl))
+                )
+            } else {
+                memory[key] = Memo(meta, System.currentTimeMillis() + BLURB_TTL_MS)
+            }
             meta
+        }
+    }
+
+    private fun verifiedPreviewKey(wikiId: String, title: String): String =
+        "${KEY_PREFIX}verified-preview:$wikiId|${title.lowercase()}"
+
+    private fun rememberVerifiedPreviews(wikiId: String, pages: List<FandomRelatedPage>) {
+        val expiresAt = System.currentTimeMillis() + SEARCH_MEMO_TTL_MS
+        pages.take(24).forEach { page ->
+            memory[verifiedPreviewKey(wikiId, page.title)] = Memo(page, expiresAt)
         }
     }
 
@@ -402,17 +436,19 @@ object FandomRepository {
      * kapak. Yalnızca oturum belleğinde tutulur.
      */
     suspend fun loadRelatedPages(context: Context, wikiId: String, titles: List<String>): List<FandomRelatedPage> {
-        val appContext = context.applicationContext
         val clean = titles.map { it.trim() }.filter { it.isNotEmpty() }.distinct()
         if (clean.isEmpty()) return emptyList()
         val key = "${KEY_PREFIX}rel:$wikiId|${clean.sorted().joinToString("|").lowercase().hashCode()}"
         memory[key]?.let { memo ->
             if (memo.expiresAt > System.currentTimeMillis()) {
                 @Suppress("UNCHECKED_CAST")
-                return (memo.value as? List<FandomRelatedPage>).orEmpty()
+                val pages = (memo.value as? List<FandomRelatedPage>).orEmpty()
+                rememberVerifiedPreviews(wikiId, pages)
+                return pages
             }
             memory.remove(key)
         }
+        val failuresBefore = FandomHttp.failureCount()
         val pages = try {
             FandomApi.pagePreviews(wikiId, clean, thumbWidth = 320)
         } catch (e: CancellationException) {
@@ -421,7 +457,10 @@ object FandomRepository {
             Log.w(TAG, "İlgili sayfalar yüklenemedi ($wikiId): ${e.message}")
             emptyList()
         }
-        memory[key] = Memo(pages, System.currentTimeMillis() + SEARCH_MEMO_TTL_MS)
+        if (pages.isNotEmpty() || FandomHttp.failureCount() == failuresBefore) {
+            memory[key] = Memo(pages, System.currentTimeMillis() + SEARCH_MEMO_TTL_MS)
+        }
+        rememberVerifiedPreviews(wikiId, pages)
         return pages
     }
 
@@ -494,7 +533,7 @@ object FandomRepository {
         val appContext = context.applicationContext
         val clean = title.trim()
         if (clean.isEmpty()) return null
-        val key = "${KEY_PREFIX}article:v1:$wikiId|${clean.lowercase()}"
+        val key = "${KEY_PREFIX}article:v2:$wikiId|${clean.lowercase()}"
         return lockFor(sectionLocks, key).withLock {
             val cached = readCached(appContext, key, positiveTtl = ARTICLE_TTL_MS) { body ->
                 json.decodeFromString(StoredArticle.serializer(), body).article
@@ -593,9 +632,12 @@ object FandomRepository {
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
+                FandomHttp.markFailure()
                 Log.w(TAG, "Yapım wiki maddesi yüklenemedi ($mediaKey/${ref.wikiId}): ${e.message}")
                 null
             }
+            // A page may be found while its TOC/lead/images fail. Do not persist such a
+            // partial positive result for seven days; let a later attempt fill the gaps.
             val transientFailure = FandomHttp.failureCount() != failuresBefore
             writeCached(
                 context = appContext,
@@ -626,7 +668,7 @@ object FandomRepository {
     }
 
     private fun mediaArticleCacheKey(mediaKey: String, wikiId: String, preferTurkish: Boolean): String =
-        "${KEY_PREFIX}media-page:v5:$mediaKey:$wikiId:${if (preferTurkish) "tr1" else "tr0"}"
+        "${KEY_PREFIX}media-page:v6:$mediaKey:$wikiId:${if (preferTurkish) "tr1" else "tr0"}"
 
     private suspend fun buildMediaArticle(
         context: Context,
@@ -843,9 +885,12 @@ object FandomRepository {
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
+                FandomHttp.markFailure()
                 Log.w(TAG, "Karakter sayfası çözümlemesi başarısız ($characterKey): ${e.message}")
                 null
             }
+            // A page may be found while its TOC/lead/images fail. Do not persist such a
+            // partial positive result for seven days; let a later attempt fill the gaps.
             val transientFailure = FandomHttp.failureCount() != failuresBefore
             writeCached(
                 context = appContext,
@@ -864,7 +909,7 @@ object FandomRepository {
     }
 
     private fun characterCacheKey(characterKey: String, prefs: FandomWikiPrefs.State): String =
-        "${KEY_PREFIX}char:v4:$characterKey:" +
+        "${KEY_PREFIX}char:v5:$characterKey:" +
             (if (prefs.preferTurkish) "tr1" else "tr0") + ":" +
             (if (prefs.nameFallback) "n1" else "n0")
 
@@ -1089,10 +1134,9 @@ object FandomRepository {
         sectionTitle: String? = null
     ): FandomSectionContent? {
         val appContext = context.applicationContext
-        // v6: kartlar (CARD), bağlantı grupları (LINK_GROUP), bağlantılı görsel hedefleri ve
-        // satır içi bağlantılar eklendi; navbox'lar artık düşmüyor. Eski (v5) kayıtlar bu
-        // yüzden geçersiz sayılır. (v5 öncesi: yüzde-kodu çözülmemiş bağlantı başlıkları.)
-        val cacheKey = "${KEY_PREFIX}sec:v6:$wikiId|$pageTitle|$index"
+        // v7: kırmızı bağlantılar ve başka wikilere ait başlıklar artık ilgili sayfa
+        // adaylarına girmez; eski bölüm bağlantıları yeniden ayrıştırılmalıdır.
+        val cacheKey = "${KEY_PREFIX}sec:v7:$wikiId|$pageTitle|$index"
         return lockFor(sectionLocks, cacheKey).withLock {
             val cached = readCached(appContext, cacheKey, positiveTtl = SECTION_TTL_MS) { body ->
                 json.decodeFromString(StoredSection.serializer(), body).content
@@ -1115,7 +1159,7 @@ object FandomRepository {
                     role = relationType,
                     language = sectionTitle?.let(FandomRelationClassifier::languageHint)
                 ),
-                links = FandomHtmlText.internalWikiLinks(html)
+                links = FandomHtmlText.internalWikiLinks(html, wikiId)
             )
             writeCached(
                 context = appContext,
@@ -1156,7 +1200,7 @@ object FandomRepository {
         val characterKey = query.cacheKey()
         FandomUserChoices.rejectPage(appContext, characterKey, page.matchedWikiId, page.matchedPageTitle)
         val keys = mutableListOf<String>()
-        listOf("tr1:n1", "tr1:n0", "tr0:n1", "tr0:n0").mapTo(keys) { "${KEY_PREFIX}char:v4:$characterKey:$it" }
+        listOf("tr1:n1", "tr1:n0", "tr0:n1", "tr0:n0").mapTo(keys) { "${KEY_PREFIX}char:v5:$characterKey:$it" }
         val mediaKey = page.mediaKey
         if (mediaKey != null && page.isWikiUnconfirmedNameMatch) {
             FandomUserChoices.rejectWiki(appContext, mediaKey, page.matchedWikiId)
@@ -1178,7 +1222,7 @@ object FandomRepository {
         val characterKey = query.cacheKey()
         FandomUserChoices.unrejectPage(appContext, characterKey, page.matchedWikiId, page.matchedPageTitle)
         val keys = mutableListOf<String>()
-        listOf("tr1:n1", "tr1:n0", "tr0:n1", "tr0:n0").mapTo(keys) { "${KEY_PREFIX}char:v4:$characterKey:$it" }
+        listOf("tr1:n1", "tr1:n0", "tr0:n1", "tr0:n0").mapTo(keys) { "${KEY_PREFIX}char:v5:$characterKey:$it" }
         val mediaKey = page.mediaKey
         if (mediaKey != null && page.isWikiUnconfirmedNameMatch) {
             FandomUserChoices.unrejectWiki(appContext, mediaKey, page.matchedWikiId)

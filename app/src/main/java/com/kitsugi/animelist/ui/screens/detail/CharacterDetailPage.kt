@@ -768,7 +768,7 @@ fun CharacterDetailPage(
                         navigation = wikiReaderBrowser,
                         failedTitle = readerFailedTitle,
                         onRetryFailed = readerFailedTitle?.let { failed ->
-                            { wikiViewModel.openReader(failed, pushToBackStack = false) }
+                            { wikiViewModel.retryReaderPage() }
                         },
                         accentColor = accentColor,
                         onClose = wikiViewModel::closeReader,
@@ -781,6 +781,7 @@ fun CharacterDetailPage(
                         onToggleOriginal = wikiViewModel::toggleOriginal,
                         onLoadSection = wikiViewModel::loadReaderSection,
                         onRetrySection = wikiViewModel::retryReaderSection,
+                        onRetryPage = wikiViewModel::retryReaderPage,
                         onOpenLink = wikiViewModel::openReaderLink,
                         onOpenInBrowser = {
                             val location = wikiReaderBrowser.activeTab?.location ?: return@FandomWikiReaderSheet

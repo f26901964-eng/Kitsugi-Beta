@@ -688,15 +688,22 @@ object FandomHtmlText {
      * (Kategori:, Dosya:, Şablon: …), bağlantı çapaları (#ref…) ve aynı başlık tekrarları
      * ayıklanır; sonuçlar görüntülenme sırasına göre döner.
      */
-    fun internalWikiLinks(html: String?): List<String> {
+    fun internalWikiLinks(html: String?, defaultWikiId: String? = null): List<String> {
         if (html.isNullOrBlank()) return emptyList()
         val body = Jsoup.parseBodyFragment(html).body()
         body.select(JUNK_SELECTOR).remove()
         val out = LinkedHashSet<String>()
         body.select("a[href]").forEach { a ->
+            if (a.hasClass("new") || a.attr("data-redlink") == "1") return@forEach
             val href = a.attr("href")
             val title = parseWikiLink(href) ?: return@forEach
             if (isSpecialNamespace(title)) return@forEach
+            // Related-page chips belong to THIS wiki. Cross-wiki links can share a
+            // title but lead to a different article (or a dead card) on the current one.
+            if (defaultWikiId != null) {
+                val target = FandomUrls.parseArticleUrl(href, defaultWikiId) ?: return@forEach
+                if (target.first != FandomUrls.normalize(defaultWikiId)) return@forEach
+            }
             val text = inline(a.text()).takeIf { it.isNotBlank() } ?: title
             // Bağlantı metni "[]" veya referans gibi işe yaramazsa atla.
             if (!text.any { it.isLetterOrDigit() }) return@forEach

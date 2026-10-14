@@ -1,5 +1,6 @@
 package com.kitsugi.animelist.data.fandom
 
+import kotlinx.coroutines.CancellationException
 import okhttp3.HttpUrl.Companion.toHttpUrl
 
 /** Fandom MediaWiki API ve topluluk araması çağrıları. */
@@ -19,7 +20,10 @@ internal object FandomApi {
                 "formatversion" to "2"
             )
         ) ?: return null
-        return FandomApiParsers.parseSiteInfo(wikiId, FandomHttp.get(url))
+        val body = FandomHttp.get(url)
+        val info = FandomApiParsers.parseSiteInfo(wikiId, body)
+        if (info == null && body != null) FandomHttp.markFailure()
+        return info
     }
 
     /**
@@ -37,29 +41,65 @@ internal object FandomApi {
         if (clean.isEmpty()) return emptyMap()
         val result = LinkedHashMap<String, FandomTitleLookup>()
         for (chunk in clean.chunked(MAX_TITLES_PER_REQUEST)) {
-            val params = mutableListOf(
-                "action" to "query",
-                "titles" to chunk.joinToString("|"),
-                "redirects" to "1",
-                "prop" to (if (withTurkishLink) "pageprops|langlinks|extracts|pageimages" else "pageprops|extracts|pageimages"),
-                "ppprop" to "infoboxes|fandomdescription|disambiguation",
-                "piprop" to "thumbnail",
-                "pithumbsize" to "480",
-                "exintro" to "1",
-                "explaintext" to "1",
-                "exchars" to "1200",
-                "format" to "json",
-                "formatversion" to "2"
-            )
-            if (withTurkishLink) {
-                params += "lllang" to "tr"
-                params += "llprop" to "url"
-            }
+            val params = titleLookupParams(wikiId, chunk.joinToString("|"), withTurkishLink)
             val url = FandomUrls.apiQuery(wikiId, params) ?: continue
-            result.putAll(FandomApiParsers.parseTitleLookups(chunk, FandomHttp.get(url)))
+            var body = FandomHttp.get(url)
+            if (body != null && !FandomApiParsers.hasValidPageQuery(body)) {
+                // Older wikis can reject pageimages/TextExtracts with HTTP 200 + JSON error.
+                // Retry the essential pageprops/redirect query before treating pages as absent.
+                val leanUrl = FandomUrls.apiQuery(
+                    wikiId, titleLookupParams(wikiId, chunk.joinToString("|"), withTurkishLink, minimal = true)
+                )
+                body = leanUrl?.let { FandomHttp.get(it) }
+                if (body == null || !FandomApiParsers.hasValidPageQuery(body)) FandomHttp.markFailure()
+            }
+            result.putAll(FandomApiParsers.parseTitleLookups(chunk, body))
         }
         return result
     }
+
+    /** TextExtracts is available on Wikipedia, not on Fandom's MediaWiki fork. Sending
+     * `prop=extracts` to Fandom can invalidate the *whole* query, even for existing pages. */
+    internal fun titleLookupParams(
+        wikiId: String,
+        titles: String,
+        withTurkishLink: Boolean,
+        minimal: Boolean = false
+    ): List<Pair<String, String>> = buildList {
+        add("action" to "query")
+        add("titles" to titles)
+        add("redirects" to "1")
+        add("prop" to buildList {
+            add("pageprops")
+            if (withTurkishLink) add("langlinks")
+            if (!minimal) add("pageimages")
+            if (!minimal && FandomUrls.isWikipedia(wikiId)) add("extracts")
+        }.joinToString("|"))
+        add("ppprop" to "infoboxes|fandomdescription|disambiguation")
+        if (!minimal) {
+            add("piprop" to "thumbnail")
+            add("pithumbsize" to "480")
+        }
+        if (!minimal && FandomUrls.isWikipedia(wikiId)) {
+            add("exintro" to "1")
+            add("explaintext" to "1")
+            add("exchars" to "1200")
+        }
+        if (withTurkishLink) {
+            add("lllang" to "tr")
+            add("llprop" to "url")
+        }
+        add("format" to "json")
+        add("formatversion" to "2")
+    }
+
+    private fun previewProps(wikiId: String): String =
+        if (FandomUrls.isWikipedia(wikiId)) "pageprops|pageimages|extracts" else "pageprops|pageimages"
+
+    private fun excerptParams(wikiId: String): List<Pair<String, String>> =
+        if (FandomUrls.isWikipedia(wikiId)) listOf(
+            "exintro" to "1", "explaintext" to "1", "exchars" to "1200"
+        ) else emptyList()
 
     /** Lead image plus the page's full MediaWiki file list and attribution metadata. */
     suspend fun pageImages(wikiId: String, title: String, maxImages: Int = 300): List<FandomImage> {
@@ -131,7 +171,10 @@ internal object FandomApi {
                 "formatversion" to "2"
             )
         ) ?: return null
-        return FandomApiParsers.parseSections(FandomHttp.get(url))
+        val body = FandomHttp.get(url)
+        val sections = FandomApiParsers.parseSections(body)
+        if (body != null && sections == null) FandomHttp.markFailure()
+        return sections
     }
 
     suspend fun sectionHtml(wikiId: String, title: String, index: Int): String? {
@@ -285,56 +328,87 @@ internal object FandomApi {
         if (clean.isEmpty()) return emptyList()
         val out = ArrayList<FandomRelatedPage>()
         for (chunk in clean.chunked(MAX_TITLES_PER_REQUEST)) {
-            val params = mutableListOf(
+            val params = listOf(
                 "action" to "query",
                 "titles" to chunk.joinToString("|"),
                 "redirects" to "1",
-                "prop" to "pageprops|pageimages",
+                "prop" to previewProps(wikiId),
                 "ppprop" to "fandomdescription|disambiguation",
                 "piprop" to "thumbnail",
                 "pithumbsize" to thumbWidth.toString(),
-                "pilimit" to chunk.size.toString(),
-                "format" to "json",
-                "formatversion" to "2"
-            )
+                "pilimit" to chunk.size.toString()
+            ) + excerptParams(wikiId) + listOf("format" to "json", "formatversion" to "2")
             val url = FandomUrls.apiQuery(wikiId, params) ?: continue
-            out += FandomApiParsers.parseRelatedPages(FandomHttp.get(url))
+            val body = FandomHttp.get(url)
+            val pages = FandomApiParsers.parseRelatedPages(body)
+            out += if (pages.isNotEmpty() || FandomApiParsers.hasValidPageQuery(body)) {
+                pages
+            } else {
+                // A wiki may reject an optional preview module. Ask MediaWiki core for
+                // actual page IDs; never turn missing/red links into clickable cards.
+                barePagePreviews(wikiId, chunk)
+            }
         }
         return out
     }
 
+    /** Core query with no optional modules; used only when a wiki rejects preview props. */
+    private suspend fun barePagePreviews(wikiId: String, titles: List<String>): List<FandomRelatedPage> {
+        val url = FandomUrls.apiQuery(wikiId, listOf(
+            "action" to "query", "titles" to titles.joinToString("|"), "redirects" to "1",
+            "format" to "json", "formatversion" to "2"
+        )) ?: return emptyList()
+        return FandomApiParsers.parseTitleLookups(titles, FandomHttp.get(url)).values
+            .filter { it.exists && !it.isDisambiguation }
+            .mapNotNull { it.resolvedTitle?.let { title -> FandomRelatedPage(title) } }
+            .distinctBy { it.title }
+    }
+
     /**
-     * Bir sayfanın uygulama içi okuyucu için tam özeti: kapak + açıklama + bölümler.
-     * Bölümler ayrı istekle (`sections(wikiId, title)`) zaten çekiliyor; bu metod
-     * thumbnail + fandomdescription döndürür ve yönlendirmeleri çözer.
+     * Reader metadata. A recently validated related-page preview avoids a second
+     * pageimages query on tap; TOC is still fetched for the canonical title.
+     * Without a preview, a failed optional-module query falls back to a core-only
+     * page-ID lookup. A truly missing page is never manufactured from a link title.
      */
-    suspend fun pageMeta(wikiId: String, title: String, thumbWidth: Int = 600): FandomFullPage? {
+    suspend fun pageMeta(
+        wikiId: String,
+        title: String,
+        thumbWidth: Int = 600,
+        verifiedPreview: FandomRelatedPage? = null
+    ): FandomFullPage? {
         val clean = title.trim()
-        if (clean.isEmpty()) return null
-        val url = FandomUrls.apiQuery(
-            wikiId,
-            listOf(
+        if (clean.isEmpty() || clean.length > 200 || clean.contains('|')) return null
+        val preview = verifiedPreview?.takeIf { it.title.equals(clean, ignoreCase = true) }
+        val hit = preview ?: run {
+            val params = listOf(
                 "action" to "query",
                 "titles" to clean,
                 "redirects" to "1",
-                "prop" to "pageprops|pageimages",
+                "prop" to previewProps(wikiId),
                 "ppprop" to "fandomdescription|disambiguation",
                 "piprop" to "thumbnail",
-                "pithumbsize" to thumbWidth.toString(),
-                "format" to "json",
-                "formatversion" to "2"
-            )
-        ) ?: return null
-        val body = FandomHttp.get(url)
-        val pages = FandomApiParsers.parseRelatedPages(body)
-        val hit = pages.firstOrNull() ?: return null
-        val sections = try { sections(wikiId, hit.title) } catch (_: Exception) { emptyList() }
+                "pithumbsize" to thumbWidth.toString()
+            ) + excerptParams(wikiId) + listOf("format" to "json", "formatversion" to "2")
+            val url = FandomUrls.apiQuery(wikiId, params) ?: return null
+            val body = FandomHttp.get(url)
+            FandomApiParsers.parseRelatedPages(body).firstOrNull()
+                ?: if (!FandomApiParsers.hasValidPageQuery(body)) barePagePreviews(wikiId, listOf(clean)).firstOrNull()
+                    else null
+        } ?: return null
+        val toc = try {
+            sections(wikiId, hit.title)
+        } catch (e: CancellationException) {
+            throw e
+        } catch (_: Exception) {
+            null // Metadata is still valid; the reader exposes a TOC retry action.
+        }
         return FandomFullPage(
             title = clean,
-            resolvedTitle = hit.title.takeIf { it.equals(clean, ignoreCase = true).not() } ?: hit.title,
+            resolvedTitle = hit.title,
             description = hit.snippet,
             thumbnailUrl = hit.thumbnailUrl,
-            sections = sections ?: emptyList()
+            sections = toc.orEmpty(),
+            sectionsFailed = toc == null
         )
     }
 }

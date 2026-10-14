@@ -69,7 +69,9 @@ object FandomApiParsers {
     }
 
     fun parseTitleLookups(requested: List<String>, json: String?): Map<String, FandomTitleLookup> {
-        val query = parseJsonObject(json)?.optJSONObject("query") ?: return emptyMap()
+        val root = parseJsonObject(json) ?: return emptyMap()
+        if (root.has("error")) return emptyMap()
+        val query = root.optJSONObject("query") ?: return emptyMap()
         val normalized = fromToMap(query.optJSONArray("normalized"))
         val redirects = fromToMap(query.optJSONArray("redirects"))
         val pagesByTitle = HashMap<String, JSONObject>()
@@ -86,10 +88,16 @@ object FandomApiParsers {
         }
         val result = LinkedHashMap<String, FandomTitleLookup>()
         for (title in requested) {
-            val normalizedTitle = normalized[title] ?: title
-            val finalTitle = redirects[normalizedTitle] ?: normalizedTitle
+            var finalTitle = normalized[title] ?: title
+            val visited = HashSet<String>()
+            while (visited.add(finalTitle)) {
+                finalTitle = redirects[finalTitle] ?: break
+            }
             val page = pagesByTitle[finalTitle]
-            val exists = page != null && !page.has("missing") && !page.has("invalid") && page.optInt("ns", 0) == 0
+            // MediaWiki v1 represents missing/invalid as an empty string; v2 uses true.
+            // A title without a real page ID must never be treated as an article.
+            val exists = page != null && !page.has("missing") && !page.has("invalid") &&
+                page.optInt("ns", -1) == 0 && page.optLong("pageid", 0L) > 0L
             val props = if (exists) page?.optJSONObject("pageprops") else null
             result[title] = FandomTitleLookup(
                 requested = title,
@@ -189,7 +197,9 @@ object FandomApiParsers {
     fun parseSections(json: String?): List<FandomSectionRef>? {
         val root = parseJsonObject(json) ?: return null
         if (root.has("error")) return null
-        val sections = root.optJSONObject("parse")?.optJSONArray("sections") ?: return emptyList()
+        // A missing `parse.sections` is an incomplete/error response, NOT an article
+        // without a TOC. Only an actual empty array means the page has no sections.
+        val sections = root.optJSONObject("parse")?.optJSONArray("sections") ?: return null
         val result = mutableListOf<FandomSectionRef>()
         // level, spoiler inheritance, hidden subtree. Hidden sections' descendants are hidden too.
         val ancestors = mutableListOf<Triple<Int, Boolean, Boolean>>()
@@ -262,7 +272,7 @@ object FandomApiParsers {
         val out = LinkedHashMap<String, Int>()
         for (page in pages.objects()) {
             val title = page.str("title") ?: continue
-            if (page.optBoolean("missing", false)) continue
+            if (page.has("missing") || page.has("invalid")) continue
             val info = page.optJSONObject("categoryinfo") ?: continue
             out[title] = info.optInt("size", 0).coerceAtLeast(0)
         }
@@ -300,8 +310,19 @@ object FandomApiParsers {
      * sayfası değil). `query.pages[]` formatversion=2 biçiminde okunur; eski biçim
      * (nesne olarak pages) için de yedek vardır.
      */
+    /** `action=query&titles` should always include pages, even for missing titles. */
+    fun hasValidPageQuery(json: String?): Boolean {
+        val root = parseJsonObject(json) ?: return false
+        if (root.has("error")) return false
+        val query = root.optJSONObject("query") ?: return false
+        return (query.optJSONArray("pages")?.length() ?: 0) > 0 ||
+            (query.optJSONObject("pages")?.length() ?: 0) > 0
+    }
+
     fun parseRelatedPages(json: String?): List<FandomRelatedPage> {
-        val query = parseJsonObject(json)?.optJSONObject("query") ?: return emptyList()
+        val root = parseJsonObject(json) ?: return emptyList()
+        if (root.has("error")) return emptyList()
+        val query = root.optJSONObject("query") ?: return emptyList()
         val pages = ArrayList<JSONObject>()
         query.optJSONArray("pages")?.let { arr -> pages += arr.objects() }
         query.optJSONObject("pages")?.let { obj ->
@@ -311,8 +332,10 @@ object FandomApiParsers {
         val out = ArrayList<FandomRelatedPage>(pages.size)
         for (page in pages) {
             val title = page.str("title") ?: continue
-            if (page.optBoolean("missing", false) || page.optBoolean("invalid", false)) continue
-            if (page.optInt("ns", 0) != 0) continue
+            // `missing: ""` (v1) and `missing: true` (v2) both mean a red link.
+            // Ghost staff/voice-actor cards used to be clickable but could never load.
+            if (page.has("missing") || page.has("invalid") || page.optLong("pageid", 0L) <= 0L) continue
+            if (page.optInt("ns", -1) != 0) continue
             val props = page.optJSONObject("pageprops")
             // Anlam ayrımı sayfaları (disambiguation) "ilgili" listesine girmesin.
             if (props?.has("disambiguation") == true) continue
@@ -321,7 +344,7 @@ object FandomApiParsers {
             out += FandomRelatedPage(
                 title = title,
                 snippet = description?.takeIf { it.isNotBlank() },
-                thumbnailUrl = thumbnail?.takeIf { it.isNotBlank() }
+                thumbnailUrl = FandomUrls.normalizeImageUrl(thumbnail)
             )
         }
         return out.distinctBy { it.title }

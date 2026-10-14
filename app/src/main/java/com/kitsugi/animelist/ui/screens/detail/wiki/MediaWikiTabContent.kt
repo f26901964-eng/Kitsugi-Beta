@@ -198,7 +198,7 @@ internal fun MediaWikiTabSlot(
             navigation = readerBrowser,
             failedTitle = readerFailedTitle,
             onRetryFailed = readerFailedTitle?.let { failed ->
-                { viewModel.openReader(failed, pushToBackStack = false) }
+                { viewModel.retryReaderPage() }
             },
             accentColor = accentColor,
             onClose = viewModel::closeReader,
@@ -211,6 +211,7 @@ internal fun MediaWikiTabSlot(
             onToggleOriginal = viewModel::toggleOriginal,
             onLoadSection = viewModel::loadReaderSection,
             onRetrySection = viewModel::retryReaderSection,
+            onRetryPage = viewModel::retryReaderPage,
             onOpenLink = viewModel::openReaderLink,
             onOpenInBrowser = {
                 val location = readerBrowser.activeTab?.location ?: return@FandomWikiReaderSheet

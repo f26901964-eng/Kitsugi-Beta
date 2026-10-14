@@ -21,7 +21,7 @@ import java.util.concurrent.atomic.AtomicInteger
  *  - Aynı anda en fazla 4 istek (toplu tarama yok; Fandom ve Wikidata'ya karşı nazik).
  *  - Dürüst User-Agent (Wikimedia kullanıcı aracısı politikası).
  *  - Ağ/sunucu hataları [failureCount] ile sayılır: çözümleme sırasında hata olduysa
- *    "bulunamadı" sonucu kalıcı önbelleğe yazılmaz (geçici kesinti 3 gün boyunca
+ *    "bulunamadı" sonucu kalıcı önbelleğe yazılmaz (geçici kesinti bir gün boyunca
  *    sekmeyi gizlemesin diye).
  */
 internal object FandomHttp {
@@ -80,6 +80,7 @@ internal object FandomHttp {
                 Log.w(TAG, "İstek başarısız: ${shorten(url)} (${e.javaClass.simpleName})")
                 null
             } catch (e: Exception) {
+                failures.incrementAndGet()
                 Log.w(TAG, "İstek hatası: ${shorten(url)} (${e.javaClass.simpleName})")
                 null
             }
