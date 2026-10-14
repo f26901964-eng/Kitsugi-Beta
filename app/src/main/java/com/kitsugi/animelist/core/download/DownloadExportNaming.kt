@@ -7,17 +7,17 @@ import android.util.Log
 import java.io.File
 
 /**
- * İndirilen bölümlerin **dışa aktarılan (public) dosya adlarının** tek kaynağı.
+ * İndirilen bölümlerin **dosya adlarının** tek kaynağı.
  *
- * `AnimeDownloader` bir bölümü indirdiğinde videoyu iki yere yazar:
- *  1. uygulama içi çalışma kopyası → `Download/Kitsugi/Video/<mediaId>/video.mp4`,
- *  2. kullanıcının dosya yöneticisinden de görebildiği dışa aktarım →
- *     `Download/Kitsugi/Video/<Başlık>_Bölüm_N.mp4` ve altyazılar
- *     `Download/Kitsugi/Video|Subtitles/<Başlık>_Bölüm_N.<dil>.<uzantı>`.
+ * Bir bölüm indirildiğinde tüm dosyalar düz bir yapıda, aynı taban adla yazılır:
+ *  - video:      `Download/Kitsugi/Video/<Başlık>_Bölüm_N.mp4`
+ *  - altyazılar: `Download/Kitsugi/Video/<Başlık>_Bölüm_N.<dil>_<isim>.<uzantı>`
+ *  - metadata:   `Download/Kitsugi/Video/<Başlık>_Bölüm_N.json`
+ *  - poster:     `Download/Kitsugi/Images/<Başlık>_Bölüm_N.jpg`
  *
- * Bu nesne olmadan ikinci ad grubu yalnızca indirme anında hesaplanıyordu; bir bölüm
- * silindiğinde (tek tek ya da toplu) bu kopyalar diskte kalıyor ve görünmez bir şişme
- * yaratıyordu. Ad üretimi ile temizlik artık aynı fonksiyonlardan beslenir.
+ * Ayrı bir çalışma klasörü ve kopyalama adımı yoktur; ad indirmeden önce bir kez üretilir
+ * ve silme akışı da aynı fonksiyonlardan beslenir. Böylece yeniden indirmede `"(1)"`
+ * yinelenen dosyalar oluşmaz, eski dosya da kalmaz.
  */
 object DownloadExportNaming {
 
@@ -33,6 +33,12 @@ object DownloadExportNaming {
         Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS),
         "Kitsugi"
     )
+
+    /** Video, altyazı ve metadata dosyalarının bulunduğu klasör (düz yapı). */
+    fun publicVideoDir(): File = File(publicRoot(), "Video")
+
+    /** Poster görsellerinin klasörü (`KitsugiImageDownloadHelper` ile ortak). */
+    fun publicImagesDir(): File = File(publicRoot(), "Images")
 
     /** Başlığı dosya adına uygun hâle getirir (boşsa "Video"). */
     fun sanitizeTitle(title: String): String =
@@ -50,14 +56,35 @@ object DownloadExportNaming {
         }
     }
 
-    /** Uzantısız taban ad (`Naruto_Bölüm_12`) — altyazı dosyaları `<taban>.<dil>.<uzantı>` olur. */
+    /** Uzantısız taban ad (`Naruto_Bölüm_12`) — diğer tüm dosyalar bu adla başlar. */
     fun exportBaseName(animeTitle: String, episode: Int): String =
         exportFileName(animeTitle, episode).removeSuffix(".mp4")
 
     /**
-     * Bir bölümün dışa aktarılmış kopyalarını (video + yanındaki altyazılar) siler.
-     * Uygulama içi `«mediaId»/` klasörüne dokunmaz — orası [com.kitsugi.animelist.core.player.OfflinePlaybackHelper]
-     * tarafından yönetilir.
+     * Altyazı dosya adı: `<taban>.<dil>_<isim>.<uzantı>` (isim boşsa `<taban>.<dil>.<uzantı>`).
+     * Dil kodu alt çizgi içermediği için okuyucu dili `_`'den önceki kısımdan ayırabilir.
+     */
+    fun subtitleFileName(baseName: String, lang: String, name: String, extension: String): String {
+        val safeLang = lang.lowercase().filter { it.isLetterOrDigit() }.ifEmpty { "en" }
+        val safeName = name.replace(ILLEGAL_CHARS, "_").trim()
+        val label = if (safeName.isBlank() || safeName.equals(safeLang, ignoreCase = true)) {
+            safeLang
+        } else {
+            "${safeLang}_$safeName"
+        }
+        return "$baseName.$label.$extension"
+    }
+
+    /** Metadata dosyası: `<taban>.json`. */
+    fun metadataFileName(baseName: String): String = "$baseName.json"
+
+    /** Poster dosyası: `<taban>.jpg`. */
+    fun posterFileName(baseName: String): String = "$baseName.jpg"
+
+    /**
+     * Bir bölümün dışa aktarılmış dosyalarını (video, altyazılar, metadata, poster) siler.
+     * Uygulama içi eski `«mediaId»/` klasörüne dokunmaz — orası
+     * [com.kitsugi.animelist.core.player.OfflinePlaybackHelper] tarafından yönetilir.
      *
      * @return silinen dosya sayısı
      */
@@ -69,26 +96,25 @@ object DownloadExportNaming {
             add(publicRoot())
             appContext.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS)?.let { add(File(it, "Kitsugi")) }
         }
-        val dirs = roots
-            .flatMap { listOf(File(it, "Video"), File(it, "Subtitles")) }
-            .filter { it.isDirectory }
 
-        var removed = 0
+        fun isSubtitleOfBase(name: String): Boolean =
+            name.startsWith("$baseName.", ignoreCase = true) &&
+                File(name).extension.lowercase() in SUBTITLE_EXTENSIONS
+
         val deletedPaths = ArrayList<String>()
-        for (dir in dirs) {
-            val files = runCatching { dir.listFiles() }.getOrNull() ?: continue
-            for (file in files) {
-                if (!file.isFile) continue
-                val isVideoCopy = file.name.equals("$baseName.mp4", ignoreCase = true)
-                val isSubtitleCopy = file.name.startsWith("$baseName.", ignoreCase = true) &&
-                    file.extension.lowercase() in SUBTITLE_EXTENSIONS
-                if (!isVideoCopy && !isSubtitleCopy) continue
-
-                val deleted = runCatching { file.delete() && !file.exists() }.getOrDefault(false)
-                if (deleted) {
-                    removed++
-                    deletedPaths += file.absolutePath
-                }
+        var removed = 0
+        for (root in roots) {
+            // Video klasörü: video + metadata + altyazılar
+            removed += deleteMatching(File(root, "Video"), deletedPaths) { name ->
+                name.equals("$baseName.mp4", ignoreCase = true) ||
+                    name.equals(metadataFileName(baseName), ignoreCase = true) ||
+                    isSubtitleOfBase(name)
+            }
+            // Eski sürümlerin ayrı Subtitles klasörü (geriye dönük temizlik)
+            removed += deleteMatching(File(root, "Subtitles"), deletedPaths) { name -> isSubtitleOfBase(name) }
+            // Poster
+            removed += deleteMatching(File(root, "Images"), deletedPaths) { name ->
+                name.equals(posterFileName(baseName), ignoreCase = true)
             }
         }
 
@@ -97,7 +123,26 @@ object DownloadExportNaming {
                 MediaScannerConnection.scanFile(appContext, deletedPaths.toTypedArray(), null, null)
             }.onFailure { Log.w(TAG, "MediaScanner güncellemesi başarısız: ${it.message}") }
         }
-        Log.i(TAG, "Dışa aktarılan kopyalar silindi: $removed dosya (taban: $baseName)")
+        Log.i(TAG, "Dışa aktarılan dosyalar silindi: $removed dosya (taban: $baseName)")
+        return removed
+    }
+
+    private inline fun deleteMatching(
+        dir: File,
+        deletedPaths: MutableList<String>,
+        predicate: (String) -> Boolean
+    ): Int {
+        if (!dir.isDirectory) return 0
+        val files = runCatching { dir.listFiles() }.getOrNull() ?: return 0
+        var removed = 0
+        for (file in files) {
+            if (!file.isFile || !predicate(file.name)) continue
+            val deleted = runCatching { file.delete() && !file.exists() }.getOrDefault(false)
+            if (deleted) {
+                removed++
+                deletedPaths += file.absolutePath
+            }
+        }
         return removed
     }
 }

@@ -15,12 +15,9 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.delay
-import android.content.ContentValues
 import android.media.MediaScannerConnection
-import android.os.Build
-import android.os.Environment
-import android.provider.MediaStore
 import okhttp3.Request
+import org.json.JSONObject
 import java.io.File
 import kotlin.coroutines.coroutineContext
 import com.kitsugi.animelist.utils.KitsugiStrings
@@ -59,9 +56,14 @@ class AnimeDownloader(private val context: Context) {
                 .ifBlank { "media" }
         }
         val mediaId = "${safeAnimeId}_ep${download.episode}"
-        val rootDir = OfflinePlaybackHelper.getDownloadsDir(context)
-        val destDir = File(rootDir, mediaId).also { it.mkdirs() }
-        val localFile = File(destDir, "video.mp4")
+
+        // Dosya adları indirmeden ÖNCE tek seferde üretilir; silme akışı da aynı adı kullanır.
+        val outFilename = DownloadExportNaming.exportFileName(download.animeTitle, download.episode)
+        val baseName = outFilename.removeSuffix(".mp4")
+        // Video doğrudan nihai konuma yazılır (Downloads/Kitsugi/Video/<Başlık>_Bölüm_N.mp4).
+        // Ayrı çalışma klasörü ve sonradan kopyalama yok → çift dosya oluşmaz.
+        val videoDir = OfflinePlaybackHelper.getDownloadsDir(context)
+        val localFile = File(videoDir, outFilename)
 
         try {
             val isHls = download.url.contains(".m3u8", ignoreCase = true)
@@ -253,62 +255,59 @@ class AnimeDownloader(private val context: Context) {
                 }
             }
 
-            if (filteredSubs.isNotEmpty()) {
-                val subsDir = File(destDir, "subs").also { it.mkdirs() }
-                for (subtitle in filteredSubs) {
-                    try {
-                        val extension = when {
-                            subtitle.url.contains(".vtt", ignoreCase = true) -> "vtt"
-                            subtitle.url.contains(".ass", ignoreCase = true) -> "ass"
-                            subtitle.url.contains(".ssa", ignoreCase = true) -> "ssa"
-                            else -> "srt"
-                        }
-                        val safeLang = subtitle.lang.lowercase().filter { it.isLetterOrDigit() }.takeIf { it.isNotEmpty() } ?: "en"
-                        // Keep spaces and parentheses for filename readability, only strip illegal characters: \ / : * ? " < > |
-                        val safeName = subtitle.name.replace(Regex("[\\\\/:*?\"<>|]"), "_")
-                        val subFile = File(subsDir, "${safeLang}_${safeName}.$extension")
-                        
-                        // Only use video request headers if the subtitle URL belongs to the same host
-                        val useHeaders = try {
-                            val subHost = java.net.URI(subtitle.url).host
-                            val videoHost = java.net.URI(download.url).host
-                            if (subHost != null && subHost.equals(videoHost, ignoreCase = true)) {
-                                download.requestHeaders
-                            } else {
-                                emptyMap()
-                            }
-                        } catch (_: Exception) {
+            // Altyazılar videonun yanına, aynı taban adla tek konuma yazılır.
+            val savedSubs = mutableListOf<File>()
+            for (subtitle in filteredSubs) {
+                val extension = when {
+                    subtitle.url.contains(".vtt", ignoreCase = true) -> "vtt"
+                    subtitle.url.contains(".ass", ignoreCase = true) -> "ass"
+                    subtitle.url.contains(".ssa", ignoreCase = true) -> "ssa"
+                    else -> "srt"
+                }
+                val subFile = File(
+                    videoDir,
+                    DownloadExportNaming.subtitleFileName(baseName, subtitle.lang, subtitle.name, extension)
+                )
+                try {
+                    // Yalnızca video ile aynı host'taysa video istek başlıklarını kullan
+                    val useHeaders = try {
+                        val subHost = java.net.URI(subtitle.url).host
+                        val videoHost = java.net.URI(download.url).host
+                        if (subHost != null && subHost.equals(videoHost, ignoreCase = true)) {
+                            download.requestHeaders
+                        } else {
                             emptyMap()
                         }
-                        
-                        downloadSubtitleFile(subtitle.url, useHeaders, subFile)
-                    } catch (e: Exception) {
-                        android.util.Log.e("AnimeDownloader", "Failed to download subtitle: ${subtitle.name}", e)
+                    } catch (_: Exception) {
+                        emptyMap()
                     }
+
+                    downloadSubtitleFile(subtitle.url, useHeaders, subFile)
+                    savedSubs += subFile
+                } catch (e: Exception) {
+                    android.util.Log.e("AnimeDownloader", "Failed to download subtitle: ${subtitle.name}", e)
+                    runCatching { subFile.delete() }
                 }
             }
 
-            // Create metadata.json for OfflinePlaybackHelper
-            val metaFile = File(destDir, "metadata.json")
-            val metaJson = """
-                {
-                  "mediaId": "$mediaId",
-                  "title": "${download.animeTitle} - Bölüm ${download.episode}",
-                  "durationMs": 0,
-                  "downloadedAtMs": ${System.currentTimeMillis()}
-                }
-            """.trimIndent()
-            metaFile.writeText(metaJson)
+            // Metadata: yalnızca video tamamlandıktan sonra yazılır (kısmi indirme listelenmez).
+            val metaFile = File(videoDir, DownloadExportNaming.metadataFileName(baseName))
+            val metaJson = JSONObject().apply {
+                put("mediaId", mediaId)
+                put("title", "${download.animeTitle} - Bölüm ${download.episode}")
+                put("durationMs", 0)
+                put("downloadedAtMs", System.currentTimeMillis())
+            }
+            metaFile.writeText(metaJson.toString(2))
 
-            // Dosya adı üretimi tek kaynaktan (silme akışları da aynı adı hesaplar).
-            val outFilename = DownloadExportNaming.exportFileName(download.animeTitle, download.episode)
-            val baseName = outFilename.removeSuffix(".mp4")
-            val subsDir = File(destDir, "subs")
-            val downloadedSubs = if (subsDir.exists()) subsDir.listFiles()?.filter { it.isFile } ?: emptyList() else emptyList()
+            // Poster: best-effort, indirme başarısını etkilemez.
+            val posterFile = File(
+                DownloadExportNaming.publicImagesDir().also { it.mkdirs() },
+                DownloadExportNaming.posterFileName(baseName)
+            )
+            downloadPosterIfAvailable(download.posterUrl, posterFile)
 
-            var finalSavedPath = localFile.absolutePath
-
-            // 1. Copy to user custom folder if set (SAF)
+            // Özel (SAF) klasör seçiliyse aynı dosyanın kopyasını oluştur; eskisini önce siler.
             val customDirUriStr = settings.videoDownloadUri
             if (customDirUriStr.isNotBlank()) {
                 try {
@@ -324,26 +323,15 @@ class AnimeDownloader(private val context: Context) {
                             }
                         }
 
-                        // Also copy subtitles to custom SAF directory
-                        downloadedSubs.forEach { subFile ->
+                        savedSubs.forEach { subFile ->
                             try {
-                                val subExt = subFile.extension.ifBlank { "srt" }
-                                val subMime = when (subExt.lowercase()) {
+                                val subMime = when (subFile.extension.lowercase()) {
                                     "ass", "ssa" -> "text/x-ass"
                                     "vtt" -> "text/vtt"
                                     else -> "application/x-subrip"
                                 }
-                                val safeLang = subFile.nameWithoutExtension.substringBefore("_", "tr")
-                                val safeName = subFile.nameWithoutExtension.substringAfter("_", "")
-                                val subLabel = if (safeName.isNotBlank() && !safeName.equals(safeLang, ignoreCase = true)) {
-                                    "${safeLang}_${safeName}"
-                                } else {
-                                    safeLang
-                                }
-                                val subOutFilename = "${baseName}.${subLabel}.${subExt}"
-
-                                customDirDoc.findFile(subOutFilename)?.delete()
-                                val subDoc = customDirDoc.createFile(subMime, subOutFilename)
+                                customDirDoc.findFile(subFile.name)?.delete()
+                                val subDoc = customDirDoc.createFile(subMime, subFile.name)
                                 subDoc?.uri?.let { subUri ->
                                     context.contentResolver.openOutputStream(subUri)?.use { subOutStream ->
                                         subFile.inputStream().use { subInStream ->
@@ -361,133 +349,39 @@ class AnimeDownloader(private val context: Context) {
                 }
             }
 
-            // 2. ALWAYS export video AND subtitles to public default directory: Downloads/Kitsugi/Video
-            try {
-                val publicDir = File(
-                    Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS),
-                    "Kitsugi/Video"
-                ).also { it.mkdirs() }
-                val publicVideoFile = File(publicDir, outFilename)
+            // Medya tarayıcıya bildir (MediaStore.insert yok: dosya zaten diskte, yinelenen kayıt oluşmaz).
+            val toScan = buildList {
+                add(localFile)
+                addAll(savedSubs)
+                if (posterFile.isFile) add(posterFile)
+            }.map { it.absolutePath }.toTypedArray()
+            MediaScannerConnection.scanFile(context, toScan, null, null)
 
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                    val values = ContentValues().apply {
-                        put(MediaStore.Downloads.DISPLAY_NAME, outFilename)
-                        put(MediaStore.Downloads.MIME_TYPE, "video/mp4")
-                        put(
-                            MediaStore.Downloads.RELATIVE_PATH,
-                            "${Environment.DIRECTORY_DOWNLOADS}/Kitsugi/Video"
-                        )
-                        put(MediaStore.Downloads.IS_PENDING, 1)
-                    }
-                    val uri = context.contentResolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, values)
-                    if (uri != null) {
-                        context.contentResolver.openOutputStream(uri)?.use { out ->
-                            localFile.inputStream().use { inStream -> inStream.copyTo(out) }
-                        }
-                        values.clear()
-                        values.put(MediaStore.Downloads.IS_PENDING, 0)
-                        context.contentResolver.update(uri, values, null, null)
-                    }
-                }
-
-                // Direct file copy / verification
-                if (!publicVideoFile.exists() || publicVideoFile.length() != localFile.length()) {
-                    runCatching { localFile.copyTo(publicVideoFile, overwrite = true) }
-                }
-
-                if (publicVideoFile.exists() && publicVideoFile.length() > 0) {
-                    finalSavedPath = publicVideoFile.absolutePath
-                    MediaScannerConnection.scanFile(context, arrayOf(publicVideoFile.absolutePath), arrayOf("video/mp4"), null)
-                }
-
-                // Export subtitles to public Downloads/Kitsugi/Video AND Downloads/Kitsugi/Subtitles
-                val publicSubDir = File(
-                    Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS),
-                    "Kitsugi/Subtitles"
-                ).also { it.mkdirs() }
-
-                downloadedSubs.forEach { subFile ->
-                    try {
-                        val subExt = subFile.extension.ifBlank { "srt" }
-                        val subMime = when (subExt.lowercase()) {
-                            "ass", "ssa" -> "text/x-ass"
-                            "vtt" -> "text/vtt"
-                            else -> "application/x-subrip"
-                        }
-                        val safeLang = subFile.nameWithoutExtension.substringBefore("_", "tr")
-                        val safeName = subFile.nameWithoutExtension.substringAfter("_", "")
-                        val subLabel = if (safeName.isNotBlank() && !safeName.equals(safeLang, ignoreCase = true)) {
-                            "${safeLang}_${safeName}"
-                        } else {
-                            safeLang
-                        }
-                        val subOutFilename = "${baseName}.${subLabel}.${subExt}"
-
-                        // MediaStore insert for Android 10+
-                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                            // 1. In Kitsugi/Video alongside video
-                            val vSubValues = ContentValues().apply {
-                                put(MediaStore.Downloads.DISPLAY_NAME, subOutFilename)
-                                put(MediaStore.Downloads.MIME_TYPE, subMime)
-                                put(
-                                    MediaStore.Downloads.RELATIVE_PATH,
-                                    "${Environment.DIRECTORY_DOWNLOADS}/Kitsugi/Video"
-                                )
-                                put(MediaStore.Downloads.IS_PENDING, 1)
-                            }
-                            val vSubUri = context.contentResolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, vSubValues)
-                            if (vSubUri != null) {
-                                context.contentResolver.openOutputStream(vSubUri)?.use { out ->
-                                    subFile.inputStream().use { inStream -> inStream.copyTo(out) }
-                                }
-                                vSubValues.clear()
-                                vSubValues.put(MediaStore.Downloads.IS_PENDING, 0)
-                                context.contentResolver.update(vSubUri, vSubValues, null, null)
-                            }
-
-                            // 2. In Kitsugi/Subtitles
-                            val sSubValues = ContentValues().apply {
-                                put(MediaStore.Downloads.DISPLAY_NAME, subOutFilename)
-                                put(MediaStore.Downloads.MIME_TYPE, subMime)
-                                put(
-                                    MediaStore.Downloads.RELATIVE_PATH,
-                                    "${Environment.DIRECTORY_DOWNLOADS}/Kitsugi/Subtitles"
-                                )
-                                put(MediaStore.Downloads.IS_PENDING, 1)
-                            }
-                            val sSubUri = context.contentResolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, sSubValues)
-                            if (sSubUri != null) {
-                                context.contentResolver.openOutputStream(sSubUri)?.use { out ->
-                                    subFile.inputStream().use { inStream -> inStream.copyTo(out) }
-                                }
-                                sSubValues.clear()
-                                sSubValues.put(MediaStore.Downloads.IS_PENDING, 0)
-                                context.contentResolver.update(sSubUri, sSubValues, null, null)
-                            }
-                        }
-
-                        // Direct file copy to public directories
-                        runCatching { subFile.copyTo(File(publicDir, subOutFilename), overwrite = true) }
-                        runCatching { subFile.copyTo(File(publicSubDir, subOutFilename), overwrite = true) }
-                        MediaScannerConnection.scanFile(
-                            context,
-                            arrayOf(File(publicDir, subOutFilename).absolutePath, File(publicSubDir, subOutFilename).absolutePath),
-                            arrayOf(subMime),
-                            null
-                        )
-                    } catch (subEx: Exception) {
-                        android.util.Log.e("AnimeDownloader", "Failed to export subtitle to public Downloads", subEx)
-                    }
-                }
-            } catch (e: Exception) {
-                android.util.Log.e("AnimeDownloader", "Failed to export video to public Downloads", e)
-            }
-
-            onStatusChanged(AnimeDownload.Status.COMPLETED, finalSavedPath)
+            onStatusChanged(AnimeDownload.Status.COMPLETED, localFile.absolutePath)
 
         } catch (e: Exception) {
             android.util.Log.e("AnimeDownloader", "Download failed", e)
             onStatusChanged(AnimeDownload.Status.ERROR, null)
+        }
+    }
+
+    /** Poster'ı `destFile`'a indirir. Hata olursa sessizce atlanır. */
+    private suspend fun downloadPosterIfAvailable(url: String?, destFile: File) {
+        if (url.isNullOrBlank() || !url.startsWith("http", ignoreCase = true)) return
+        if (destFile.isFile && destFile.length() > 0) return
+        try {
+            val request = Request.Builder().url(url).build()
+            KitsugiHttpClient.client.newCall(request).execute().use { response ->
+                if (!response.isSuccessful) return
+                val body = response.body ?: return
+                body.byteStream().use { input ->
+                    destFile.outputStream().use { output -> input.copyTo(output) }
+                }
+            }
+        } catch (e: Exception) {
+            if (e is kotlinx.coroutines.CancellationException) throw e
+            android.util.Log.w("AnimeDownloader", "Poster download skipped: ${e.message}")
+            runCatching { destFile.delete() }
         }
     }
 
