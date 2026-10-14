@@ -44,6 +44,8 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import coil.compose.AsyncImage
+import coil3.network.NetworkHeaders
+import coil3.network.httpHeaders
 import com.kitsugi.animelist.data.cloudstream.CsPluginLoader
 import com.kitsugi.animelist.data.cloudstream.CsPluginStatusTracker
 import com.kitsugi.animelist.data.cloudstream.CsStreamRunner
@@ -505,19 +507,22 @@ fun ResultItemCard(
                     // +18 UYUMU (2026-10-14): istek KitsugiNsfwImage'e verilir; bitmap-blur
                     // yolu başlıkları koruyarak dönüşümü ekler (ham görsel asla sızmaz).
                     val imageRequest = remember(imageUrl) {
-                        coil3.request.ImageRequest.Builder(context)
-                            .data(imageUrl)
-                            .addHeader(
+                        val headers = NetworkHeaders.Builder()
+                            .set(
                                 "Referer",
                                 try {
                                     val uri = android.net.Uri.parse(imageUrl)
                                     "${uri.scheme}://${uri.host}/"
                                 } catch (_: Exception) { imageUrl }
                             )
-                            .addHeader(
+                            .set(
                                 "User-Agent",
                                 "Mozilla/5.0 (Linux; Android 13) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Mobile Safari/537.36"
                             )
+                            .build()
+                        coil3.request.ImageRequest.Builder(context)
+                            .data(imageUrl)
+                            .httpHeaders(headers)
                             .build()
                     }
                     com.kitsugi.animelist.ui.components.KitsugiNsfwImage(

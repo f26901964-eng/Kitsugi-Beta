@@ -32,6 +32,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
+import coil3.network.NetworkHeaders
+import coil3.network.httpHeaders
 import com.kitsugi.animelist.data.cloudstream.CsPluginStatusTracker
 import com.kitsugi.animelist.data.cloudstream.CsStreamRunner
 import com.kitsugi.animelist.ui.theme.KitsugiColors
@@ -307,13 +309,19 @@ private fun InlineHeroBanner(
         // Poster
         if (item != null && !item.posterUrl.isNullOrBlank()) {
             val req = remember(item.posterUrl) {
+                val headers = NetworkHeaders.Builder()
+                    .set(
+                        "Referer",
+                        try {
+                            val u = android.net.Uri.parse(item.posterUrl)
+                            "${u.scheme}://${u.host}/"
+                        } catch (_: Exception) { item.posterUrl!! }
+                    )
+                    .set("User-Agent", "Mozilla/5.0 (Linux; Android 13) AppleWebKit/537.36")
+                    .build()
                 coil3.request.ImageRequest.Builder(context)
                     .data(item.posterUrl!!)
-                    .addHeader("Referer", try {
-                        val u = android.net.Uri.parse(item.posterUrl)
-                        "${u.scheme}://${u.host}/"
-                    } catch (_: Exception) { item.posterUrl!! })
-                    .addHeader("User-Agent", "Mozilla/5.0 (Linux; Android 13) AppleWebKit/537.36")
+                    .httpHeaders(headers)
                     .build()
             }
             com.kitsugi.animelist.ui.components.KitsugiNsfwImage(
