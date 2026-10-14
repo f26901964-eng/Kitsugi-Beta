@@ -1,5 +1,6 @@
 package com.kitsugi.animelist.core.update
 
+import android.content.Context
 import android.util.Log
 import com.kitsugi.animelist.BuildConfig
 import com.kitsugi.animelist.core.network.KitsugiHttpClient
@@ -27,108 +28,162 @@ class KitsugiUpdateRepository(
 
     suspend fun checkForUpdate(): Result<AppRelease?> = withContext(Dispatchers.IO) {
         runCatching {
-            val endpoints = listOf(
-                String.format(GITHUB_RELEASES_API, githubOwner, githubRepo),
-                String.format(CODEBERG_RELEASES_API, codebergOwner, codebergRepo)
-            )
-
-            var releaseJson: JSONObject? = null
-
-            for (url in endpoints) {
-                try {
-                    val request = Request.Builder()
-                        .url(url)
-                        .header("User-Agent", "KitsugiApp/${BuildConfig.VERSION_NAME}")
-                        .header("Accept", "application/json")
-                        .build()
-
-                    val response = KitsugiHttpClient.client.newCall(request).execute()
-                    if (response.isSuccessful) {
-                        val bodyString = response.body?.string()
-                        if (!bodyString.isNullOrBlank()) {
-                            releaseJson = JSONObject(bodyString)
-                            Log.d(TAG, "Successfully fetched update release info from: $url")
-                            break
-                        }
-                    } else {
-                        Log.w(TAG, "Update check failed for $url with code: ${response.code}")
-                    }
-                } catch (e: Exception) {
-                    Log.w(TAG, "Error checking update from $url: ${e.message}")
-                }
-            }
-
-            val json = releaseJson ?: return@runCatching null
+            val json = fetchLatestReleaseJson() ?: return@runCatching null
 
             val tagName = json.optString("tag_name", "").trim()
-            val releaseTitle = json.optString("name", tagName).ifEmpty { "Yeni Güncelleme" }
-            val releaseNotes = json.optString("body", "Detaylı değişiklik notu bulunmuyor.")
-            val publishedAt = formatReleaseDate(json.optString("published_at", ""))
-
             val fetchedVersionCode = parseVersionCodeFromTag(tagName, json)
-            val currentVersionCode = BuildConfig.VERSION_CODE
-            val currentVersionName = BuildConfig.VERSION_NAME
 
             val isNewer = isNewerRelease(
-                currentVersionName = currentVersionName,
+                currentVersionName = BuildConfig.VERSION_NAME,
                 fetchedTag = tagName,
-                currentVersionCode = currentVersionCode,
+                currentVersionCode = BuildConfig.VERSION_CODE,
                 fetchedVersionCode = fetchedVersionCode
             )
 
-            Log.d(TAG, "Current: $currentVersionName (code: $currentVersionCode), Fetched: $tagName (code: $fetchedVersionCode) -> isNewer: $isNewer")
+            Log.d(TAG, "Current: ${BuildConfig.VERSION_NAME} (code: ${BuildConfig.VERSION_CODE}), Fetched: $tagName (code: $fetchedVersionCode) -> isNewer: $isNewer")
 
             if (!isNewer) {
                 return@runCatching null // No newer update
             }
 
-            // Find APK asset matching the installed flavor (foss vs gms)
-            val assets = json.optJSONArray("assets") ?: JSONArray()
-            val currentFlavor = BuildConfig.FLAVOR.lowercase()
-            var downloadUrl = ""
-            var apkSize = 0L
-            var fallbackUrl = ""
-            var fallbackSize = 0L
+            buildRelease(json, requireApk = true)
+        }
+    }
 
-            for (i in 0 until assets.length()) {
-                val asset = assets.optJSONObject(i) ?: continue
-                val name = asset.optString("name", "").lowercase()
-                val url = asset.optString("browser_download_url", "")
-                val size = asset.optLong("size", 0L)
+    /**
+     * "Uygulama Hakkında → Sürüm Notları" kartı için **en son sürümün** notlarını döner.
+     *
+     * [checkForUpdate]'ten farkı:
+     *  - Yeni sürüm koşulu aranmaz: kurulu sürüm en güncel olsa da son sürümün notları gösterilir.
+     *  - APK eki zorunlu değildir; yalnızca notlar gösterileceği için indirme bağlantısı boş kalabilir.
+     *  - Sonuç [ReleaseNotesCache] ile diske yazılır ve [force] verilmedikçe önbellekten okunur;
+     *    böylece ekran her açılışta GitHub'ın kimliksiz istek sınırını (60/saat) tüketmez.
+     */
+    suspend fun latestRelease(context: Context, force: Boolean = false): Result<AppRelease?> =
+        withContext(Dispatchers.IO) {
+            runCatching {
+                if (!force) {
+                    ReleaseNotesCache.read(context)?.let { return@runCatching it }
+                }
+                val json = fetchLatestReleaseJson() ?: return@runCatching null
+                val release = buildRelease(json, requireApk = false) ?: return@runCatching null
+                ReleaseNotesCache.write(context, release)
+                release
+            }
+        }
 
-                if (name.endsWith(".apk") || asset.optString("content_type") == "application/vnd.android.package-archive") {
-                    if (fallbackUrl.isEmpty()) {
-                        fallbackUrl = url
-                        fallbackSize = size
+    /**
+     * Kurulu sürüme göre [release] daha yeni mi? Hakkında ekranındaki "Güncelleme var" rozeti
+     * bunu kullanır (güncelleme akışının karar mantığıyla aynı fonksiyon).
+     */
+    fun isNewerThanInstalled(release: AppRelease): Boolean = isNewerRelease(
+        currentVersionName = BuildConfig.VERSION_NAME,
+        fetchedTag = "v${release.versionName}",
+        currentVersionCode = BuildConfig.VERSION_CODE,
+        fetchedVersionCode = release.versionCode
+    )
+
+    /**
+     * GitHub (birincil) → Codeberg (yedek) sırasıyla en son sürümün JSON yanıtını getirir.
+     * Her iki uç nokta da başarısız olursa null döner; çağıran taraf bunu "bilgi yok" sayar.
+     */
+    private fun fetchLatestReleaseJson(): JSONObject? {
+        val endpoints = listOf(
+            String.format(GITHUB_RELEASES_API, githubOwner, githubRepo),
+            String.format(CODEBERG_RELEASES_API, codebergOwner, codebergRepo)
+        )
+
+        for (url in endpoints) {
+            try {
+                val request = Request.Builder()
+                    .url(url)
+                    .header("User-Agent", "KitsugiApp/${BuildConfig.VERSION_NAME}")
+                    .header("Accept", "application/json")
+                    .build()
+
+                val response = KitsugiHttpClient.client.newCall(request).execute()
+                if (response.isSuccessful) {
+                    val bodyString = response.body?.string()
+                    if (!bodyString.isNullOrBlank()) {
+                        Log.d(TAG, "Successfully fetched update release info from: $url")
+                        return JSONObject(bodyString)
                     }
-                    if (currentFlavor.isNotEmpty() && name.contains(currentFlavor)) {
-                        downloadUrl = url
-                        apkSize = size
-                        break
-                    }
+                } else {
+                    Log.w(TAG, "Update check failed for $url with code: ${response.code}")
+                }
+            } catch (e: Exception) {
+                Log.w(TAG, "Error checking update from $url: ${e.message}")
+            }
+        }
+        return null
+    }
+
+    /**
+     * API yanıtını [AppRelease]'e çevirir.
+     *
+     * @param requireApk true → indirilebilir APK eki yoksa null döner: kurulum yapılamayacağı
+     *   için sürüm "güncelleme var" sayılmaz. false → yalnızca sürüm notları gösterilecek
+     *   (Hakkında ekranı), bu yüzden APK aranmaz.
+     */
+    private fun buildRelease(json: JSONObject, requireApk: Boolean): AppRelease? {
+        val tagName = json.optString("tag_name", "").trim()
+        val releaseTitle = json.optString("name", tagName).ifEmpty { "Yeni Güncelleme" }
+        val releaseNotes = json.optString("body", "Detaylı değişiklik notu bulunmuyor.")
+        val publishedAt = formatReleaseDate(json.optString("published_at", ""))
+        val (downloadUrl, apkSize) = selectApkAsset(json)
+
+        if (downloadUrl.isEmpty()) {
+            if (requireApk) {
+                Log.w(TAG, "New release found ($tagName), but no valid APK asset attached.")
+                return null
+            }
+            Log.i(TAG, "$tagName sürümünde APK eki yok; yalnızca sürüm notları gösterilecek.")
+        }
+
+        return AppRelease(
+            versionCode = parseVersionCodeFromTag(tagName, json),
+            versionName = tagName.removePrefix("v"),
+            releaseTitle = releaseTitle,
+            releaseNotes = releaseNotes,
+            downloadUrl = downloadUrl,
+            apkSizeBytes = apkSize,
+            publishedAt = publishedAt
+        )
+    }
+
+    /** Yüklenen flavor'a (foss/gms) uyan APK ekini seçer; bulamazsa ilk APK'ya düşer. */
+    private fun selectApkAsset(json: JSONObject): Pair<String, Long> {
+        val assets = json.optJSONArray("assets") ?: JSONArray()
+        val currentFlavor = BuildConfig.FLAVOR.lowercase()
+        var downloadUrl = ""
+        var apkSize = 0L
+        var fallbackUrl = ""
+        var fallbackSize = 0L
+
+        for (i in 0 until assets.length()) {
+            val asset = assets.optJSONObject(i) ?: continue
+            val name = asset.optString("name", "").lowercase()
+            val url = asset.optString("browser_download_url", "")
+            val size = asset.optLong("size", 0L)
+
+            if (name.endsWith(".apk") || asset.optString("content_type") == "application/vnd.android.package-archive") {
+                if (fallbackUrl.isEmpty()) {
+                    fallbackUrl = url
+                    fallbackSize = size
+                }
+                if (currentFlavor.isNotEmpty() && name.contains(currentFlavor)) {
+                    downloadUrl = url
+                    apkSize = size
+                    break
                 }
             }
-
-            if (downloadUrl.isEmpty()) {
-                downloadUrl = fallbackUrl
-                apkSize = fallbackSize
-            }
-
-            if (downloadUrl.isEmpty()) {
-                Log.w(TAG, "New release found ($tagName), but no valid APK asset attached.")
-                return@runCatching null
-            }
-
-            AppRelease(
-                versionCode = fetchedVersionCode,
-                versionName = tagName.removePrefix("v"),
-                releaseTitle = releaseTitle,
-                releaseNotes = releaseNotes,
-                downloadUrl = downloadUrl,
-                apkSizeBytes = apkSize,
-                publishedAt = publishedAt
-            )
         }
+
+        if (downloadUrl.isEmpty()) {
+            downloadUrl = fallbackUrl
+            apkSize = fallbackSize
+        }
+        return downloadUrl to apkSize
     }
 
     private fun formatReleaseDate(isoDate: String): String {

@@ -16,6 +16,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.AutoStories
 import androidx.compose.material.icons.rounded.BugReport
 import androidx.compose.material.icons.rounded.CleaningServices
 import androidx.compose.material.icons.rounded.CloudDownload
@@ -686,6 +687,7 @@ private fun iconFor(bucket: StorageJanitor.Bucket): ImageVector = when (bucket) 
     StorageJanitor.Bucket.PREVIEWS -> Icons.Rounded.Movie
     StorageJanitor.Bucket.SUBTITLE_CACHE -> Icons.Rounded.Movie
     StorageJanitor.Bucket.DATABASE -> Icons.Rounded.Storage
+    StorageJanitor.Bucket.WIKI_CACHE -> Icons.Rounded.AutoStories
     StorageJanitor.Bucket.DIAGNOSTICS -> Icons.Rounded.BugReport
     StorageJanitor.Bucket.WEBVIEW_DATA -> Icons.Rounded.Public
     StorageJanitor.Bucket.EXTENSIONS -> Icons.Rounded.Extension
@@ -698,6 +700,7 @@ private fun iconColorFor(bucket: StorageJanitor.Bucket): Color = when (bucket) {
     StorageJanitor.Bucket.PREVIEWS -> KitsugiColors.AccentTeal
     StorageJanitor.Bucket.SUBTITLE_CACHE -> KitsugiColors.AccentYellow
     StorageJanitor.Bucket.DATABASE -> KitsugiColors.AccentIndigo
+    StorageJanitor.Bucket.WIKI_CACHE -> KitsugiColors.AccentSky
     StorageJanitor.Bucket.DIAGNOSTICS -> KitsugiColors.AccentRed
     StorageJanitor.Bucket.WEBVIEW_DATA -> KitsugiColors.AccentGreen
     StorageJanitor.Bucket.EXTENSIONS -> KitsugiColors.AccentPink

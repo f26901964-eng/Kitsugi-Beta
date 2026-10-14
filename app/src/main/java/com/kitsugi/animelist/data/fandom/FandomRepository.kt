@@ -23,6 +23,9 @@ import kotlinx.serialization.json.Json
  *  - Kalıcı: `persistent_details_cache` tablosu, `fandom:v1:` önekli anahtarlar.
  *    Mevcut otomatik temizlik (MappingSyncWorker + StorageJanitor, 30 gün) bu kayıtları da
  *    kapsar; Room şeması değişmez. Ham HTML değil, sadeleştirilmiş JSON saklanır.
+ *    Ayarlar > Depolama ekranındaki **Wiki önbelleği** kalemi bu kayıtların boyutunu
+ *    [cacheStats] ile ölçer ve [clearCache] ile kullanıcının eşleşme kararlarına
+ *    dokunmadan temizler.
  *
  * Süreler: wiki eşleşmesi 30 gün, karakter sayfası ve bölümler 7 gün, "bulunamadı" 3 gün.
  * Çözümleme sırasında ağ hatası olduysa "bulunamadı" sonucu kalıcı önbelleğe yazılmaz.
@@ -1210,6 +1213,34 @@ object FandomRepository {
         FandomUserChoices.clear(appContext)
         val dao = dao(appContext) ?: return
         runCatchingDb { dao.deleteByPrefix(KEY_PREFIX) }
+    }
+
+    /**
+     * Ayarlar > Depolama → "Wiki önbelleği → Temizle": **yalnızca** yeniden üretilebilir wiki
+     * kayıtları (madde, bilgi kutusu, karakter, bölüm, arama sonuçları) silinir.
+     *
+     * [clearAll]'dan farkı: kullanıcının "doğru / hayır yanlış" eşleşme kararları
+     * ([FandomUserChoices]) korunur; böylece kullanıcı yer açarken daha önce onayladığı
+     * wiki eşleşmelerini yeniden onaylamak zorunda kalmaz. Metinler bir sonraki açılışta
+     * ağdan yeniden çekilir (yeniden üretilebilir veri).
+     */
+    suspend fun clearCache(context: Context) {
+        val appContext = context.applicationContext
+        memory.clear()
+        val dao = dao(appContext) ?: return
+        runCatchingDb { dao.deleteByPrefix(KEY_PREFIX) }
+    }
+
+    /**
+     * Wiki önbelleğinin mantıksal boyutu: (bayt, kayıt sayısı). Depolama ekranı bunu
+     * "Wiki önbelleği" kaleminde gösterir; kalemin temizliğinden sonraki fark da bu
+     * ölçümden hesaplanır.
+     */
+    suspend fun cacheStats(context: Context): Pair<Long, Int> {
+        val dao = dao(context.applicationContext) ?: return 0L to 0
+        val bytes = runCatchingDb { dao.sizeByPrefix(KEY_PREFIX) } ?: 0L
+        val count = runCatchingDb { dao.countByPrefix(KEY_PREFIX) } ?: 0
+        return bytes to count
     }
 
     // ── Önbellek yardımcıları ────────────────────────────────────────────────

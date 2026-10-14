@@ -71,6 +71,9 @@ object KitsugiColors {
     val AccentTeal = Color(0xFF2DD4BF)
     val AccentIndigo = Color(0xFF818CF8)
 
+    /** Wiki önbelleği kalemi (Ayarlar > Depolama) gibi yeni kategoriler için açık mavi. */
+    val AccentSky = Color(0xFF38BDF8)
+
     val TextPrimary: Color
         @Composable
         get() = LocalKitsugiColors.current.textPrimary

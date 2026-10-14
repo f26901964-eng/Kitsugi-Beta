@@ -1064,6 +1064,11 @@ private fun WikiItemSheet(
                     val articleTitle = article.pageTitle
                     val description = article.description
                     val key = FandomMediaWikiViewModel.itemKey(selectedState.title)
+                    // Bu makale için uygulama içi çeviri var mı ve şu an orijinal mi gösteriliyor?
+                    // Çeviri düğmesinin hemen solundaki "Orijinal/Çeviri" düğmesi bu iki değeri kullanır.
+                    val translatedDescription = translations[key]
+                    val descriptionShowingOriginal = key in originalKeys
+                    val infoboxKey = FandomMediaWikiViewModel.articleInfoboxKey(selectedState.title)
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         verticalAlignment = Alignment.CenterVertically
@@ -1086,7 +1091,10 @@ private fun WikiItemSheet(
                             text = description,
                             preferredTranslator = preferredTranslator,
                             accentColor = accentColor,
-                            isLoading = key in translatingKeys
+                            isLoading = key in translatingKeys,
+                            hasTranslation = !translatedDescription.isNullOrBlank(),
+                            showingOriginal = descriptionShowingOriginal,
+                            onToggleOriginal = { onToggleOriginal(key) }
                         )
                         IconButton(onClick = onClose) {
                             Icon(
@@ -1104,7 +1112,9 @@ private fun WikiItemSheet(
                         translatingKeys = translatingKeys,
                         spoilerGuard = spoilerGuard,
                         accentColor = accentColor,
-                        preferredTranslator = preferredTranslator
+                        preferredTranslator = preferredTranslator,
+                        showingOriginal = infoboxKey in originalKeys,
+                        onToggleOriginal = { onToggleOriginal(infoboxKey) }
                     )
 
                     if (!description.isNullOrBlank()) {
@@ -1116,7 +1126,9 @@ private fun WikiItemSheet(
                                 fontWeight = FontWeight.Bold
                             )
                             Spacer(modifier = Modifier.height(6.dp))
-                            val articleSummaryText = translations[key] ?: description
+                            val articleSummaryText =
+                                if (descriptionShowingOriginal) description
+                                else (translatedDescription ?: description)
                             WikiCollapsibleText(text = articleSummaryText, accentColor = accentColor) {
                                 SelectionContainer {
                                     Text(
@@ -1155,18 +1167,19 @@ private fun WikiItemSheet(
                                 fontWeight = FontWeight.Bold
                             )
                             visibleSections.forEach { section ->
+                                val sectionKey = FandomMediaWikiViewModel.articleSectionKey(
+                                    selectedState.title,
+                                    section.index
+                                )
                                 ArticleSectionRow(
                                     articleTitle = selectedState.title,
                                     section = section,
                                     depth = (section.level - topLevel).coerceIn(0, 4),
                                     state = selectedSections[section.index],
-                                    translated = translations[
-                                        FandomMediaWikiViewModel.articleSectionKey(selectedState.title, section.index)
-                                    ],
-                                    translating = FandomMediaWikiViewModel.articleSectionKey(
-                                        selectedState.title,
-                                        section.index
-                                    ) in translatingKeys,
+                                    translated = translations[sectionKey],
+                                    translating = sectionKey in translatingKeys,
+                                    showingOriginal = sectionKey in originalKeys,
+                                    onToggleOriginal = { onToggleOriginal(sectionKey) },
                                     spoilerGuard = spoilerGuard,
                                     accentColor = accentColor,
                                     preferredTranslator = preferredTranslator,
@@ -1229,7 +1242,9 @@ private fun ArticleInfoboxCard(
     translatingKeys: Set<String>,
     spoilerGuard: Boolean,
     accentColor: Color,
-    preferredTranslator: String
+    preferredTranslator: String,
+    showingOriginal: Boolean = false,
+    onToggleOriginal: (() -> Unit)? = null
 ) {
     val infobox = article.infobox ?: return
     val fields = infobox.groups.flatMap { group -> group.fields.map { group.header to it } }
@@ -1237,6 +1252,13 @@ private fun ArticleInfoboxCard(
     val revealed = remember(article.wikiId, article.pageTitle) { mutableStateMapOf<Int, Boolean>() }
     var showAll by rememberSaveable(article.wikiId, article.pageTitle) { mutableStateOf(false) }
     val visibleCount = if (showAll) fields.size else minOf(fields.size, 10)
+    // Bilgi kutusunun toplu çeviri anahtarı ("item-info:<başlık>") ve alan çevirileri.
+    // Otomatik çeviri etkinse çeviri tamamlandığında bu anahtar "1" işaretiyle yazılır;
+    // bu yüzden "orijinal/çeviri" düğmesi hem işarete hem de alan çevirilerine bakar
+    // (ör. yalnızca birkaç alan çevrilebilmişse de düğme görünür).
+    val infoboxKey = FandomMediaWikiViewModel.articleInfoboxKey(keyTitle)
+    val infoboxHasTranslation = !translations[infoboxKey].isNullOrBlank() ||
+        fields.indices.any { translations.containsKey(FandomMediaWikiViewModel.articleInfoboxFieldKey(keyTitle, it)) }
 
     WikiCard {
         if (infobox.images.isNotEmpty()) {
@@ -1299,7 +1321,33 @@ private fun ArticleInfoboxCard(
                     text = sourceText,
                     preferredTranslator = preferredTranslator,
                     accentColor = accentColor,
-                    isLoading = FandomMediaWikiViewModel.articleInfoboxKey(keyTitle) in translatingKeys
+                    isLoading = infoboxKey in translatingKeys ||
+                        FandomCharacterWikiViewModel.KEY_INFOBOX in translatingKeys,
+                    hasTranslation = infoboxHasTranslation,
+                    showingOriginal = showingOriginal,
+                    onToggleOriginal = if (onToggleOriginal != null && infoboxHasTranslation) onToggleOriginal else null
+                )
+                // Karakter wiki sekmesindeki bilgi kutusuyla aynı düzen: çeviri düğmesinin
+                // sağında "bilgi kutusunu kopyala" düğmesi (görünür ve gizli alanlara saygılı).
+                val context = LocalContext.current
+                val hiddenFieldIndices = if (spoilerGuard) {
+                    fields.indices.filter { fields[it].second.spoiler && revealed[it] != true }.toSet()
+                } else {
+                    emptySet()
+                }
+                // Panoya yazılacak metin composable gövdesinde üretilir; onClick yalnızca
+                // hazır metni panoya taşır (composable çağrısı lambda içinde yapılamaz).
+                val infoboxCopyText = buildArticleInfoboxCopyText(
+                    fields = fields,
+                    visibleCount = visibleCount,
+                    translations = translations,
+                    keyTitle = keyTitle,
+                    hiddenIndices = hiddenFieldIndices,
+                    showingOriginal = showingOriginal
+                )
+                CopyIconButton(
+                    contentDescription = stringResource(R.string.fandom_copy_infobox),
+                    onClick = { copyWikiText(context, infoboxCopyText) }
                 )
             }
             var lastHeader: String? = null
@@ -1341,9 +1389,15 @@ private fun ArticleInfoboxCard(
                             )
                         }
                     } else {
+                        // "Orijinal" seçiliyken alan çevirileri gizlenir: kullanıcı düğmeye
+                        // dokunmadan önceki hâle döner, çeviri bellekte kalır.
                         Text(
-                            text = translations[FandomMediaWikiViewModel.articleInfoboxFieldKey(keyTitle, index)]
-                                ?: localizedInfoboxValue(field.value),
+                            text = if (showingOriginal) {
+                                localizedInfoboxValue(field.value)
+                            } else {
+                                translations[FandomMediaWikiViewModel.articleInfoboxFieldKey(keyTitle, index)]
+                                    ?: localizedInfoboxValue(field.value)
+                            },
                             color = KitsugiColors.TextPrimary,
                             style = MaterialTheme.typography.bodySmall,
                             fontWeight = FontWeight.SemiBold,
@@ -1365,6 +1419,44 @@ private fun ArticleInfoboxCard(
     }
 }
 
+/**
+ * Seçili wiki maddesinin bilgi kutusunu "Etiket: değer" satırları hâlinde panoya
+ * kopyalanacak metne çevirir.
+ *
+ * - Yalnızca ekranda görünen alanlar ([visibleCount]) kopyalanır: "Daha az göster" ile
+ *   katlanmış alanlar panoya taşınmaz.
+ * - Gizli (spoiler koruması açık) alanların değeri yazılmaz, `[etiket]` ile maskelenir.
+ * - "Orijinal" seçiliyken çeviriler değil wiki'nin kendi metni kopyalanır.
+ */
+@Composable
+private fun buildArticleInfoboxCopyText(
+    fields: List<Pair<String?, FandomInfoboxField>>,
+    visibleCount: Int,
+    translations: Map<String, String>,
+    keyTitle: String,
+    hiddenIndices: Set<Int>,
+    showingOriginal: Boolean
+): String {
+    val hiddenLabel = stringResource(R.string.fandom_spoiler_badge)
+    val lines = ArrayList<String>(visibleCount + 4)
+    var lastHeader: String? = null
+    fields.take(visibleCount).forEachIndexed { index, (header, field) ->
+        if (header != null && header != lastHeader) {
+            if (lines.isNotEmpty()) lines += ""
+            lines += localizedInfoboxHeader(header)
+        }
+        lastHeader = header
+        val value = when {
+            index in hiddenIndices -> "[$hiddenLabel]"
+            showingOriginal -> localizedInfoboxValue(field.value)
+            else -> translations[FandomMediaWikiViewModel.articleInfoboxFieldKey(keyTitle, index)]
+                ?: localizedInfoboxValue(field.value)
+        }
+        lines += "${localizedInfoboxLabel(field)}: $value"
+    }
+    return lines.joinToString("\n")
+}
+
 @Composable
 private fun ArticleSectionRow(
     articleTitle: String,
@@ -1376,7 +1468,9 @@ private fun ArticleSectionRow(
     spoilerGuard: Boolean,
     accentColor: Color,
     preferredTranslator: String,
-    onLoad: () -> Unit
+    onLoad: () -> Unit,
+    showingOriginal: Boolean = false,
+    onToggleOriginal: (() -> Unit)? = null
 ) {
     var expanded by rememberSaveable(articleTitle, section.index) { mutableStateOf(false) }
     var revealed by rememberSaveable(articleTitle, section.index) { mutableStateOf(false) }
@@ -1464,14 +1558,20 @@ private fun ArticleSectionRow(
                                     modifier = Modifier.fillMaxWidth(),
                                     horizontalArrangement = Arrangement.End
                                 ) {
+                                    // Detay sayfasındaki açıklama düğmesiyle aynı düzen:
+                                    // metin düğmesi → harici çeviri uygulaması, hemen solundaki
+                                    // düğme → uygulama içi çeviri ile orijinal arasında geçiş.
                                     WikiTranslateButton(
                                         text = state.content.plainText(),
                                         preferredTranslator = preferredTranslator,
                                         accentColor = accentColor,
-                                        isLoading = translating
+                                        isLoading = translating,
+                                        hasTranslation = !translated.isNullOrBlank(),
+                                        showingOriginal = showingOriginal,
+                                        onToggleOriginal = onToggleOriginal
                                     )
                                 }
-                                ArticleSectionBody(state.content, translated)
+                                ArticleSectionBody(state.content, if (showingOriginal) null else translated)
                             }
                         }
                     }

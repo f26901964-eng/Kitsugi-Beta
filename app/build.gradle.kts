@@ -1,4 +1,4 @@
-import java.util.Properties
+﻿import java.util.Properties
 
 plugins {
     alias(libs.plugins.android.application)
@@ -37,7 +37,7 @@ android {
     val bangumiClientId     = localProperties.getProperty("bangumi_client_id")     ?: "YOUR_BANGUMI_CLIENT_ID"
     val bangumiClientSecret = localProperties.getProperty("bangumi_client_secret") ?: "YOUR_BANGUMI_CLIENT_SECRET"
 
-    val appVersionName = "2.4.289"
+    val appVersionName = "2.4.290"
 
     compileSdk = 36
 

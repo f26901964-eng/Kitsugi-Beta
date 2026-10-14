@@ -560,8 +560,15 @@ private fun VersionBadge(
     }
 }
 
+/**
+ * GitHub sürüm notlarını (markdown) sadeleştirerek gösterir: başlıklar, maddeler ve
+ * ayraçlar olduğu gibi metin olarak basılmaz.
+ *
+ * Güncelleme penceresi ([KitsugiUpdateDialog]) ve "Uygulama Hakkında → Sürüm Notları"
+ * kartı (bkz. `AboutScreen`) aynı görünümü paylaşsın diye `internal`'dır.
+ */
 @Composable
-private fun CleanReleaseNotesText(notes: String) {
+internal fun CleanReleaseNotesText(notes: String) {
     val lines = notes.lines()
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
         lines.forEach { line ->
