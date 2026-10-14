@@ -20,11 +20,23 @@ object FandomHtmlText {
     private const val INLINE_SEPARATOR = " · "
 
     /**
-     * Bölüm başına görsel üst sınırı. Eski değer 24 idi ve "Galeri"/"Görünümler" gibi
-     * görsel ağırlıklı bölümlerde onlarca görsel sessizce düşüyordu; sınır korunuyor ama
-     * artık aşıldığında [FandomBlockKind.PARAGRAPH] ile "N görsel daha var" notu üretiliyor.
+     * Bölüm başına görsel üst sınırı.
+     *
+     * Canlı denetim (tools/wiki_audit/results/content_report.md, 27 sayfa): sınır 24 iken
+     * 700 görsel düşüyordu; 60'ta da 6 sayfa sınıra takıldı. `FandomApi.pageImages` aynı
+     * sayfa için 300 dosya çekebildiği için bölüm sınırı da 300'e eşitlendi. Aşıldığında
+     * sessizce düşmek yerine "N görsel daha var" notu üretilir.
      */
-    private const val MAX_SECTION_IMAGES = 60
+    private const val MAX_SECTION_IMAGES = 300
+
+    /**
+     * Bölüm başına tablo satırı üst sınırı.
+     *
+     * Canlı denetim: eski `take(150)` tek bir sayfada ("List of Canon Characters",
+     * onepiece) 1477 satırı düşürdü ve metin kapsaması %13,5'e indi. Sınır 2000'e
+     * çıkarıldı; aşan kısım için satır sayısı notu üretilir.
+     */
+    private const val MAX_TABLE_ROWS = 2_000
     private const val MAX_BLOCK_TEXT = 8_000
 
     /**
@@ -368,6 +380,14 @@ object FandomHtmlText {
         var imagesOmitted = 0
             private set
 
+        /**
+         * Fandom video yer tutucuları (`figure[data-video-key]`). Uygulama video
+         * oynatmadığı için görsel olarak çizilemez; ama sayfa "videosuz" da sayılmaz —
+         * kullanıcıya kaç video olduğu bildirilir.
+         */
+        var videoPlaceholders = 0
+            private set
+
         fun result(): List<FandomTextBlock> = out.toList()
 
         fun walk(node: Node) {
@@ -391,6 +411,13 @@ object FandomHtmlText {
          * eksik kalan satır/görsel sayısı bildirilir.
          */
         fun appendOmissionNotes() {
+            if (videoPlaceholders > 0) {
+                out += FandomTextBlock(
+                    kind = FandomBlockKind.PARAGRAPH,
+                    text = "Bu bölümde $videoPlaceholders video var (uygulama içinde oynatılamıyor; " +
+                        "tarayıcıda aç düğmesiyle izlenebilir)."
+                )
+            }
             if (tableRowsOmitted > 0) {
                 out += FandomTextBlock(
                     kind = FandomBlockKind.PARAGRAPH,
@@ -522,7 +549,7 @@ object FandomHtmlText {
          */
         private fun handleContentTable(table: Element) {
             val allRows = table.select("tr")
-            val rows = allRows.take(150)
+            val rows = allRows.take(MAX_TABLE_ROWS)
             if (rows.isEmpty()) {
                 walk(table)
                 return
@@ -588,7 +615,14 @@ object FandomHtmlText {
         private fun countImages(container: Element): Int =
             if (container.normalName() == "img") 1 else container.select("img").size
 
+        /** Fandom video yer tutucusu sayısı (`data-video-key` taşıyan öğeler). */
+        private fun countVideos(container: Element): Int {
+            val self = if (container.attr("data-video-key").isNotBlank()) 1 else 0
+            return self + container.select("[data-video-key]").size
+        }
+
         private fun emitImages(container: Element) {
+            videoPlaceholders += countVideos(container)
             if (imagesSeen >= MAX_SECTION_IMAGES || out.size >= maxBlocks) {
                 imagesOmitted += countImages(container)
                 return

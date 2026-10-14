@@ -143,29 +143,73 @@ class FandomContentCompletenessTest {
 
     // ── 4. Sessiz kırpma artık bildiriliyor ─────────────────────────────────
 
+    /**
+     * Canlı denetim: `take(150)` tek sayfada 1477 satırı düşürüp kapsama %13,5'e
+     * indirmişti. Sınır 2000'e çıkarıldı; bu test gerçekçi bir liste sayfasının
+     * (1500 satır) artık TAMAMEN geldiğini doğrular.
+     */
     @Test
-    fun `oversized tables report how many rows were omitted`() {
-        val rows = (1..170).joinToString("") { "<tr><td>$it</td><td>Bölüm $it</td></tr>" }
+    fun `long list tables are no longer truncated at 150 rows`() {
+        val rows = (1..1_500).joinToString("") { "<tr><td>$it</td><td>Karakter $it</td></tr>" }
         val html = "<table class=\"wikitable\"><tr><th>No</th><th>Ad</th></tr>$rows</table>"
         val blocks = FandomHtmlText.blocks(html)
         val bullets = blocks.filter { it.kind == BULLET }
-        assertTrue("satırlar kırpıldı", bullets.size < 171)
-        val note = blocks.last().text
-        assertTrue("kırpma notu yok: $note", note.contains("tablo satırı gösterilmedi"))
-        assertTrue("not doğru sayıyı vermeli: $note", note.contains("+21"))
+        assertEquals("1500 satır + 1 başlık satırı gelmeli", 1_501, bullets.size)
+        assertTrue(bullets.any { it.text.contains("1500") })
+        assertFalse(
+            "kırpma notu olmamalı: ${blocks.last().text}",
+            blocks.any { it.text.contains("tablo satırı gösterilmedi") }
+        )
     }
 
+    /** Sınır aşılırsa sessizce düşmek yerine kaç satır kaldığı bildirilir. */
     @Test
-    fun `gallery over the image cap reports the omitted count`() {
-        val cells = (1..70).joinToString("") {
+    fun `tables beyond the row cap report the omitted count`() {
+        val rows = (1..2_050).joinToString("") { "<tr><td>$it</td><td>Karakter $it</td></tr>" }
+        val html = "<table class=\"wikitable\"><tr><th>No</th><th>Ad</th></tr>$rows</table>"
+        val blocks = FandomHtmlText.blocks(html)
+        val note = blocks.last().text
+        assertTrue("kırpma notu yok: $note", note.contains("tablo satırı gösterilmedi"))
+        assertTrue("not doğru sayıyı vermeli: $note", note.contains("+51"))
+    }
+
+    /**
+     * Canlı denetim: sınır 24 iken 700 görsel düşüyordu. Sınır 300'e çıkarıldı;
+     * 250 görselli bir galeri artık eksiksiz gelir.
+     */
+    @Test
+    fun `large galleries are no longer truncated at 24 images`() {
+        val cells = (1..250).joinToString("") {
             "<div class=\"gallerybox\"><img src=\"https://static.wikia.nocookie.net/naruto/images/$it.png\" " +
                 "data-width=\"600\" data-height=\"800\"/><div class=\"gallerytext\">Görsel $it</div></div>"
         }
         val blocks = FandomHtmlText.blocks("<div class=\"gallery\">$cells</div>")
-        val images = blocks.count { it.kind == IMAGE }
-        assertEquals("görsel üst sınırı 60 olmalı", 60, images)
-        val note = blocks.last().text
-        assertTrue("görsel kırpma notu yok: $note", note.contains("görsel bölüm sınırına takıldı"))
+        assertEquals("250 görselin tamamı gelmeli", 250, blocks.count { it.kind == IMAGE })
+        assertFalse(blocks.any { it.text.contains("görsel bölüm sınırına takıldı") })
+    }
+
+    /** Sınır aşılırsa kaç görselin kaldığı bildirilir. */
+    @Test
+    fun `galleries beyond the image cap report the omitted count`() {
+        val cells = (1..320).joinToString("") {
+            "<div class=\"gallerybox\"><img src=\"https://static.wikia.nocookie.net/naruto/images/$it.png\" " +
+                "data-width=\"600\" data-height=\"800\"/><div class=\"gallerytext\">Görsel $it</div></div>"
+        }
+        val blocks = FandomHtmlText.blocks("<div class=\"gallery\">$cells</div>")
+        assertEquals(300, blocks.count { it.kind == IMAGE })
+        assertTrue(blocks.last().text.contains("görsel bölüm sınırına takıldı"))
+    }
+
+    /** Fandom videoları oynatılamaz ama kullanıcı "video var" bilgisini görmeli. */
+    @Test
+    fun `video placeholders are reported instead of vanishing`() {
+        val html = """
+            <p>Bölüm fragmanları aşağıda.</p>
+            <figure data-video-key="abc123"><img src="https://static.wikia.nocookie.net/v1.png"/></figure>
+            <figure data-video-key="def456"><img src="https://static.wikia.nocookie.net/v2.png"/></figure>
+        """.trimIndent()
+        val blocks = FandomHtmlText.blocks(html)
+        assertTrue(blocks.any { it.text.contains("2 video") })
     }
 
     // ── 5. Regresyon: bilinen iyi davranışlar korunuyor ─────────────────────
