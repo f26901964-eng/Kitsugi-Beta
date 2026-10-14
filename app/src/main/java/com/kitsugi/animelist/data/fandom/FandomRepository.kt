@@ -1305,6 +1305,34 @@ object FandomRepository {
         runCatchingDb { dao.deleteByPrefix(KEY_PREFIX) }
     }
 
+    /**
+     * Ayarlar > Depolama → "Wiki önbelleği → Temizle": **yalnızca** yeniden üretilebilir wiki
+     * kayıtları (madde, bilgi kutusu, karakter, bölüm, arama sonuçları) silinir.
+     *
+     * [clearAll]'dan farkı: kullanıcının "doğru / hayır yanlış" eşleşme kararları
+     * ([FandomUserChoices]) korunur; böylece kullanıcı yer açarken daha önce onayladığı
+     * wiki eşleşmelerini yeniden onaylamak zorunda kalmaz. Metinler bir sonraki açılışta
+     * ağdan yeniden çekilir (yeniden üretilebilir veri).
+     */
+    suspend fun clearCache(context: Context) {
+        val appContext = context.applicationContext
+        memory.clear()
+        val dao = dao(appContext) ?: return
+        runCatchingDb { dao.deleteByPrefix(KEY_PREFIX) }
+    }
+
+    /**
+     * Wiki önbelleğinin mantıksal boyutu: (bayt, kayıt sayısı). Depolama ekranı bunu
+     * "Wiki önbelleği" kaleminde gösterir; kalemin temizliğinden sonraki fark da bu
+     * ölçümden hesaplanır.
+     */
+    suspend fun cacheStats(context: Context): Pair<Long, Int> {
+        val dao = dao(context.applicationContext) ?: return 0L to 0
+        val bytes = runCatchingDb { dao.sizeByPrefix(KEY_PREFIX) } ?: 0L
+        val count = runCatchingDb { dao.countByPrefix(KEY_PREFIX) } ?: 0
+        return bytes to count
+    }
+
     // ── Önbellek yardımcıları ────────────────────────────────────────────────
 
     /** Önbellekte kayıt varsa (değer null = "bulunamadı" olabilir) döner; yoksa null. */

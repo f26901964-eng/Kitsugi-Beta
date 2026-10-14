@@ -692,7 +692,7 @@ private fun WikiFieldRow(
 
 /** 36 dp'lik kopyala düğmesi (açıklama kartlarındaki ile aynı ölçü). */
 @Composable
-private fun CopyIconButton(contentDescription: String, onClick: () -> Unit) {
+internal fun CopyIconButton(contentDescription: String, onClick: () -> Unit) {
     IconButton(onClick = onClick, modifier = Modifier.size(36.dp)) {
         Icon(
             imageVector = Icons.Rounded.ContentCopy,
@@ -704,7 +704,7 @@ private fun CopyIconButton(contentDescription: String, onClick: () -> Unit) {
 }
 
 /** Detay sayfalarındaki açıklama kartıyla aynı davranış: panoya yaz + kısa "kopyalandı" bildirimi. */
-private fun copyWikiText(context: android.content.Context, text: String) {
+internal fun copyWikiText(context: android.content.Context, text: String) {
     if (text.isBlank()) return
     val clipboard = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
     clipboard.setPrimaryClip(android.content.ClipData.newPlainText("fandom_wiki", text))

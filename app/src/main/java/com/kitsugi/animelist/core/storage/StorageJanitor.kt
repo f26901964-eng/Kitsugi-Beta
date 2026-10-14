@@ -9,6 +9,7 @@ import com.kitsugi.animelist.R
 import com.kitsugi.animelist.core.p2p.P2pSettingsRepository
 import com.kitsugi.animelist.core.p2p.P2pStreamingEngine
 import com.kitsugi.animelist.core.p2p.isStreaming
+import com.kitsugi.animelist.data.fandom.FandomRepository
 import com.kitsugi.animelist.data.local.KitsugiDatabase
 import com.kitsugi.animelist.data.manga.loader.MangaCache
 import kotlinx.coroutines.Dispatchers
@@ -33,6 +34,13 @@ import java.util.concurrent.atomic.AtomicBoolean
  *  1. [scan] ile her kalemin gerçek disk kullanımını ölçer (Ayarlar > Depolama ekranı),
  *  2. [clean] / [cleanAll] ile kullanıcı isteğine göre temizler,
  *  3. [runMaintenance] ile arka planda **yaş + bütçe** kurallarına göre kendiliğinden budar.
+ *
+ * ## Kalem kapsamı
+ *  - Dosya tabanlı kalemler (görsel, P2P, manga, önizleme, altyazı, teşhis, WebView, eklenti)
+ *    fiziksel dizin boyutuyla ölçülür.
+ *  - **Wiki önbelleği** (`fandom:v1:` Room kayıtları) mantıksal veri boyutuyla ölçülür;
+ *    temizliği kullanıcının eşleşme kararlarını korur ([FandomRepository.clearCache]).
+ *  - **Veritabanı önbelleği** SQLite dosyalarının disk boyutunu gösterir.
  *
  * ## Güvenlik kuralları
  *  - Hiçbir işlem ana iş parçacığında çalışmaz (tamamı `Dispatchers.IO`).
@@ -117,6 +125,10 @@ object StorageJanitor {
             "database", R.string.storage_bucket_database, R.string.storage_bucket_database_desc,
             clearable = true
         ),
+        WIKI_CACHE(
+            "wiki_cache", R.string.storage_bucket_wiki, R.string.storage_bucket_wiki_desc,
+            clearable = true
+        ),
         DIAGNOSTICS(
             "diagnostics", R.string.storage_bucket_diagnostics, R.string.storage_bucket_diagnostics_desc,
             clearable = true
@@ -176,6 +188,9 @@ object StorageJanitor {
                 Bucket.PREVIEWS -> failures += deleteChildren(previewsDir(context))
                 Bucket.SUBTITLE_CACHE -> failures += deleteChildren(subtitleCacheDir(context))
                 Bucket.DATABASE -> failures += pruneDatabase(context, ignoreAge = true)
+                // Wiki kayıtları Room tablosunda tutulur; kalemin temizliği kullanıcının
+                // "doğru/yanlış" eşleşme kararlarına dokunmaz (bkz. FandomRepository.clearCache).
+                Bucket.WIKI_CACHE -> FandomRepository.clearCache(context)
                 Bucket.DIAGNOSTICS -> failures += deleteChildren(diagnosticsDir(context))
                 Bucket.WEBVIEW_DATA -> clearWebViewData(context)
                 Bucket.EXTENSIONS -> Unit // Bilgi amaçlı; silme yok.
@@ -296,7 +311,7 @@ object StorageJanitor {
     // ─── Ölçüm yardımcıları ────────────────────────────────────────────────────
 
     /** [bucket] için (toplam bayt, dosya sayısı). */
-    private fun statsOf(context: Context, bucket: Bucket): Pair<Long, Int> = when (bucket) {
+    private suspend fun statsOf(context: Context, bucket: Bucket): Pair<Long, Int> = when (bucket) {
         Bucket.IMAGE_CACHE -> dirStats(imageCacheDir(context))
         Bucket.P2P_CACHE -> dirStats(p2pCacheDir(context))
         Bucket.MANGA_CACHE -> dirStats(mangaCacheDir(context))
@@ -305,6 +320,9 @@ object StorageJanitor {
         Bucket.DIAGNOSTICS -> dirStats(diagnosticsDir(context))
         Bucket.EXTENSIONS -> dirStats(extensionsDir(context))
         Bucket.WEBVIEW_DATA -> dirStats(webViewDir(context))
+        // Wiki önbelleği dosya değil Room kaydı olarak tutulur: diske değil **mantıksal veri
+        // boyutuna** bakılır (SQLite dosyası silmeden sonra küçülmez, bkz. DAO.sizeByPrefix).
+        Bucket.WIKI_CACHE -> runCatching { FandomRepository.cacheStats(context) }.getOrDefault(0L to 0)
         Bucket.DATABASE -> {
             val files = databaseFiles(context)
             files.sumOf { it.length() } to files.count { it.exists() }

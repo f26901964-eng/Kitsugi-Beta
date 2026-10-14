@@ -1931,6 +1931,18 @@
     <string name="inline_app_updates_72b007e">Uygulama Güncellemeleri</string>
     <string name="inline_check_for_new_versions_automatical_1803304">Yeni sürümleri otomatik veya manuel olarak kontrol edin.</string>
     <string name="inline_check_now_c288ab8">Şimdi Denetle</string>
+    <string name="about_release_notes_title">Sürüm Notları</string>
+    <string name="about_release_notes_subtitle">GitHub\'daki en son sürümün değişiklik notları</string>
+    <string name="about_release_notes_loading">Sürüm notları yükleniyor…</string>
+    <string name="about_release_notes_error">Sürüm notları alınamadı. İnternet bağlantınızı kontrol edip yeniden deneyin.</string>
+    <string name="about_release_notes_unavailable">Yayınlanmış bir sürüm notu bulunamadı.</string>
+    <string name="about_release_notes_retry">Yeniden dene</string>
+    <string name="about_release_notes_refresh">Yenile</string>
+    <string name="about_release_notes_update_available">Yeni sürüm hazır</string>
+    <string name="about_release_notes_up_to_date">Kurulu sürüm en güncel</string>
+    <string name="about_release_notes_installed">Kurulu sürüm: %1$s</string>
+    <string name="about_release_notes_published">Yayınlanma: %1$s</string>
+    <string name="about_release_notes_open_github">GitHub\'da tüm sürümler</string>
     <string name="inline_extension_updates_15cbd1c">Eklenti Güncellemeleri</string>
     <string name="inline_check_the_versions_of_video_4536a47">Depolardaki video sağlayıcı eklenti sürümlerini denetle</string>
     <string name="inline_developer_error_logs_fb50437">Geliştirici &amp; Hata Logları</string>
@@ -4869,6 +4881,8 @@ Eklentiler ekranından eklenti etkinleştirin.</string>
     <string name="storage_bucket_subtitles_desc">İndirilip açılan altyazı arşivleri</string>
     <string name="storage_bucket_database">Veritabanı önbelleği</string>
     <string name="storage_bucket_database_desc">Detay, video çözümleme ve çeviri kayıtları (30 günden eskiler otomatik atılır)</string>
+    <string name="storage_bucket_wiki">Wiki önbelleği</string>
+    <string name="storage_bucket_wiki_desc">Fandom ve Wikipedia madde, bilgi kutusu ve karakter kayıtları (30 günden eskiler otomatik atılır)</string>
     <string name="storage_bucket_diagnostics">Teşhis kayıtları</string>
     <string name="storage_bucket_diagnostics_desc">Hata raporları ve hata ayıklama günlükleri</string>
     <string name="storage_bucket_webview">Web verileri</string>

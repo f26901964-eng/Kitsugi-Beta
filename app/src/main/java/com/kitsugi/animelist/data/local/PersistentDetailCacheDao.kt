@@ -28,4 +28,20 @@ interface PersistentDetailCacheDao {
      */
     @Query("DELETE FROM persistent_details_cache WHERE cacheKey LIKE :prefix || '%'")
     suspend fun deleteByPrefix(prefix: String)
+
+    /**
+     * [prefix] ile başlayan kayıtların **mantıksal** boyutu (JSON metinlerinin toplam uzunluğu).
+     *
+     * Ayarlar > Depolama ekranındaki "Wiki önbelleği" kalemi bu ölçümü kullanır: SQLite,
+     * silme sonrası dosya boyutunu kendiliğinden küçültmediği için (VACUUM gerekir) kalemin
+     * "öncesi/sonrası" farkı ancak mantıksal veri boyutuyla anlamlı olur. Önek LIKE joker
+     * karakteri (`%`, `_`) içermemelidir.
+     */
+    @Query("SELECT COALESCE(SUM(LENGTH(detailJson)), 0) FROM persistent_details_cache WHERE cacheKey LIKE :prefix || '%'")
+    suspend fun sizeByPrefix(prefix: String): Long
+
+    /** [prefix] ile başlayan kayıt sayısı (Depolama ekranındaki "N dosya" bilgisi). */
+    @Query("SELECT COUNT(*) FROM persistent_details_cache WHERE cacheKey LIKE :prefix || '%'")
+    suspend fun countByPrefix(prefix: String): Int
 }
+
