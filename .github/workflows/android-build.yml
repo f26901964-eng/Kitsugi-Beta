@@ -82,6 +82,19 @@ jobs:
         env:
           GRADLE_OPTS: -Dfile.encoding=UTF-8
 
+      - name: 🧪 Başarısız test raporlarını loga yaz
+        # Artifact/log depoları bazı ortamlardan indirilemediği için JUnit XML
+        # çıktıları (hata mesajı + yığın izi) doğrudan iş günlüğüne basılır.
+        if: failure()
+        run: |
+          shopt -s nullglob
+          for f in app/build/test-results/testFossDebugUnitTest/*.xml; do
+            if grep -q "<failure" "$f" 2>/dev/null || grep -q "<error" "$f" 2>/dev/null; then
+              echo "==================== $f"
+              cat "$f"
+            fi
+          done
+
       - name: 📲 APK'yı yükle
         if: success()
         uses: actions/upload-artifact@v4

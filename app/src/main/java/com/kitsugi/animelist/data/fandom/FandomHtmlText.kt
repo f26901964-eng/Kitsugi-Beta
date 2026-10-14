@@ -29,13 +29,17 @@ object FandomHtmlText {
 
     /**
      * Bölüm metninden SİLİNEN yapılar: atıflar, düzenleme bağlantıları, gezinme kutuları
-     * ve bilgi kutuları. Katlanabilir içerik (`.mw-collapsible-toggle`) ve sekmeli içerik
-     * (`.wds-tabs__wrapper`) eskiden buradaydı; oysa ikisi de GERÇEK içerik taşır
-     * (yalnızca tarayıcıda katlanmış görünür). Artık korunuyorlar.
+     * ve bilgi kutuları.
+     *
+     * Katlanabilir içeriğin YALNIZCA "göster/gizle" düğmesi (`.mw-collapsible-toggle`,
+     * `.collapsible-toggle-link`) silinir — düğme etiketi içerik değildir. Sekmeli içerik
+     * (`.wds-tabs__wrapper`) ise eskiden BURADAYDI ve sekme içindeki gerçek metin tümüyle
+     * kayboluyordu; artık korunuyor.
      */
     private const val JUNK_SELECTOR =
         "sup.reference, .reference, .mw-ref, sup[id^=cite_ref], .mw-editsection, " +
-            "style, script, noscript, rt, rp, .noprint, .error, .printfooter, .mw-cite-backlink"
+            "style, script, noscript, rt, rp, .noprint, .error, .printfooter, .mw-cite-backlink, " +
+            ".mw-collapsible-toggle, .collapsible-toggle-link"
 
     private const val SECTION_JUNK_SELECTOR = JUNK_SELECTOR +
         ", ol.references, .mw-references-wrap, .references, .navbox, .navigation-box, " +
