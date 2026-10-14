@@ -7544,6 +7544,8 @@
     <string name="fandom_reader_contents">Contents</string>
     <string name="fandom_reader_open_browser">Open in browser</string>
     <string name="fandom_reader_failed">Page could not be loaded</string>
+    <string name="fandom_reader_failed_hint">The page may not exist on this wiki, or the connection may be temporarily unavailable.</string>
+    <string name="fandom_reader_contents_failed">The table of contents could not be loaded; you can still read the introduction.</string>
     <string name="fandom_reader_empty">There is nothing to display on this page.</string>
     <string name="fandom_related_empty">No related wiki pages found.</string>
     <!-- Detail > Stats tab -->

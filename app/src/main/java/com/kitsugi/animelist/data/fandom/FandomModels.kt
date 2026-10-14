@@ -239,7 +239,9 @@ data class FandomFullPage(
     val resolvedTitle: String? = null,
     val description: String? = null,
     val thumbnailUrl: String? = null,
-    val sections: List<FandomSectionRef> = emptyList()
+    val sections: List<FandomSectionRef> = emptyList(),
+    /** A failed TOC request is not the same as a page with zero sections. */
+    val sectionsFailed: Boolean = false
 ) {
     val displayTitle: String get() = resolvedTitle ?: title
 }

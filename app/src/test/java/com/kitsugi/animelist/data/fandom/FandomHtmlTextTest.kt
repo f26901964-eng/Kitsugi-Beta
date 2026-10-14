@@ -254,4 +254,19 @@ class FandomHtmlTextTest {
         assertEquals(null, FandomHtmlText.absoluteUrl("#Top", "residentevil"))
         assertEquals(null, FandomHtmlText.absoluteUrl("javascript:void(0)", "residentevil"))
     }
+    @Test
+    fun `related wiki links exclude red links and other fandom communities`() {
+        val html = """
+            <p><a class="new" href="/wiki/Tetsur%C5%8D_Araki">Tetsurō Araki</a>
+               <a data-redlink="1" href="/wiki/Yuichiro_Hayashi">Yuichiro Hayashi</a>
+               <a href="https://some-other-wiki.fandom.com/wiki/Staff">Staff</a>
+               <a href="https://attackontitan.fandom.com/wiki/Yui_Ishikawa">Yui</a>
+               <a href="/wiki/Eren_Jaeger">Eren</a></p>
+        """.trimIndent()
+        assertEquals(
+            listOf("Yui Ishikawa", "Eren Jaeger"),
+            FandomHtmlText.internalWikiLinks(html, "attackontitan")
+        )
+    }
+
 }

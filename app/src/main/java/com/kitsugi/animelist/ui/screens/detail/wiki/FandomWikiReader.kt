@@ -149,6 +149,7 @@ internal fun FandomWikiReaderSheet(
     onCloseOtherTabs: (Long) -> Unit = {},
     onLoadSection: (Int) -> Unit,
     onRetrySection: (Int) -> Unit,
+    onRetryPage: () -> Unit,
     onOpenLink: (String) -> Unit,
     onOpenInBrowser: () -> Unit,
     onToggleOriginal: (String) -> Unit = {},
@@ -210,7 +211,8 @@ internal fun FandomWikiReaderSheet(
                     state == null && failedTitle != null -> ReaderFailed(
                         title = failedTitle,
                         accentColor = accentColor,
-                        onRetry = onRetryFailed
+                        onRetry = onRetryFailed,
+                        onOpenInBrowser = onOpenInBrowser
                     )
                     state == null -> ReaderLoading(accentColor)
                     else -> ReaderContent(
@@ -218,6 +220,7 @@ internal fun FandomWikiReaderSheet(
                         accentColor = accentColor,
                         onLoadSection = onLoadSection,
                         onRetrySection = onRetrySection,
+                        onRetryPage = onRetryPage,
                         onOpenLink = onOpenLink,
                         onToggleOriginal = onToggleOriginal,
                         scrollKey = activeScrollKey.orEmpty(),
@@ -455,7 +458,12 @@ private fun ReaderTabChip(
 
 /** Okuyucu sayfası yüklenemedi: ölü sonsuz spinner yerine başlık + tekrar dene. */
 @Composable
-private fun ReaderFailed(title: String, accentColor: Color, onRetry: (() -> Unit)?) {
+private fun ReaderFailed(
+    title: String,
+    accentColor: Color,
+    onRetry: (() -> Unit)?,
+    onOpenInBrowser: () -> Unit
+) {
     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
@@ -475,6 +483,11 @@ private fun ReaderFailed(title: String, accentColor: Color, onRetry: (() -> Unit
                 color = KitsugiColors.TextMuted,
                 style = MaterialTheme.typography.bodyMedium
             )
+            Text(
+                text = stringResource(R.string.fandom_reader_failed_hint),
+                color = KitsugiColors.TextMuted,
+                style = MaterialTheme.typography.bodySmall
+            )
             if (onRetry != null) {
                 TextButton(onClick = onRetry) {
                     Text(
@@ -483,6 +496,9 @@ private fun ReaderFailed(title: String, accentColor: Color, onRetry: (() -> Unit
                         fontWeight = FontWeight.Bold
                     )
                 }
+            }
+            TextButton(onClick = onOpenInBrowser) {
+                Text(stringResource(R.string.fandom_reader_open_browser), color = accentColor)
             }
         }
     }
@@ -506,6 +522,7 @@ private fun ReaderContent(
     accentColor: Color,
     onLoadSection: (Int) -> Unit,
     onRetrySection: (Int) -> Unit,
+    onRetryPage: () -> Unit,
     onOpenLink: (String) -> Unit,
     onToggleOriginal: (String) -> Unit,
     scrollKey: String,
@@ -571,7 +588,17 @@ private fun ReaderContent(
 
         // Her İçindekiler satırı kendi içeriğini hemen altında açar; sayfanın en
         // altına ayrı kartlar yığılmaz. Birden fazla bölüm aynı anda açık kalabilir.
-        if (state.page.sections.isNotEmpty()) {
+        if (state.page.sectionsFailed) {
+            ReaderCard {
+                Text(stringResource(R.string.fandom_reader_contents),
+                    color = KitsugiColors.TextPrimary, style = MaterialTheme.typography.titleMedium)
+                Text(stringResource(R.string.fandom_reader_contents_failed),
+                    color = KitsugiColors.TextMuted, style = MaterialTheme.typography.bodyMedium)
+                TextButton(onClick = onRetryPage) {
+                    Text(stringResource(R.string.action_retry_label), color = accentColor)
+                }
+            }
+        } else if (state.page.sections.isNotEmpty()) {
             ReaderContentsCard(
                 state = state,
                 accentColor = accentColor,

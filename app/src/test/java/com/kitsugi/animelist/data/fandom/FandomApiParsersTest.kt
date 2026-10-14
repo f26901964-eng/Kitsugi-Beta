@@ -97,6 +97,8 @@ class FandomApiParsersTest {
         assertEquals(listOf(2, 2, 3, 2), sections.map { it.level })
         assertEquals(listOf(false, true, true, false), sections.map { it.spoiler })
         assertNull(FandomApiParsers.parseSections("""{"error":{"code":"missingtitle"}}"""))
+        assertNull(FandomApiParsers.parseSections("""{"parse":{"title":"A"}}"""))
+        assertEquals(emptyList<FandomSectionRef>(), FandomApiParsers.parseSections("""{"parse":{"sections":[]}}"""))
     }
 
     @Test
@@ -186,4 +188,65 @@ class FandomApiParsersTest {
         assertEquals("A grade 2 sorcerer and first-year student.", list[1].snippet)
         assertNull(list[1].thumbnailUrl)
     }
+    @Test
+    fun `legacy missing flags and pages without IDs never become clickable related cards`() {
+        // Fandom may return v1-style empty string flags even for a v2 request.
+        // This used to produce staff cards that immediately failed when opened.
+        val json = """
+            {"query":{"pages":{
+              "-1":{"ns":0,"title":"Tetsurō Araki","missing":""},
+              "-2":{"ns":0,"title":"Yuichiro Hayashi","missing":true},
+              "-3":{"ns":0,"title":"Invalid staff","invalid":""},
+              "-4":{"ns":0,"title":"No page ID"},
+              "42":{"pageid":42,"ns":0,"title":"Yui Ishikawa",
+                    "thumbnail":{"source":"//static.wikia.nocookie.net/aot/yui.jpg"}},
+              "43":{"pageid":43,"ns":0,"title":"George Wada","pageprops":{"fandomdescription":"Producer"}}
+            }}}
+        """.trimIndent()
+        val cards = FandomApiParsers.parseRelatedPages(json)
+        assertEquals(setOf("Yui Ishikawa", "George Wada"), cards.map { it.title }.toSet())
+        assertEquals("https://static.wikia.nocookie.net/aot/yui.jpg",
+            cards.first { it.title == "Yui Ishikawa" }.thumbnailUrl)
+        val lookup = FandomApiParsers.parseTitleLookups(listOf("Tetsurō Araki", "Yui Ishikawa"), json)
+        assertFalse(lookup.getValue("Tetsurō Araki").exists)
+        assertTrue(lookup.getValue("Yui Ishikawa").exists)
+        assertEquals(42L, lookup.getValue("Yui Ishikawa").pageId)
+        assertTrue(FandomApiParsers.hasValidPageQuery(json))
+        assertFalse(FandomApiParsers.hasValidPageQuery("""{"query":{"pages":[]}}"""))
+        assertFalse(FandomApiParsers.hasValidPageQuery("""{"error":{"code":"unknown_prop"}}"""))
+        assertTrue(FandomApiParsers.parseRelatedPages("""{"error":{"code":"unknown_prop"},"query":{"pages":[]}}""").isEmpty())
+    }
+
+    @Test
+    fun `title lookups follow multi-hop redirects and reject invalid pages`() {
+        val json = """
+            {"query":{"normalized":[{"from":"Tetsurō_Araki","to":"Tetsurō Araki"}],
+              "redirects":[{"from":"Tetsurō Araki","to":"Tetsuro Araki"},
+                           {"from":"Tetsuro Araki","to":"Tetsuro Araki (director)"}],
+              "pages":[{"pageid":12,"ns":0,"title":"Tetsuro Araki (director)"},
+                       {"ns":0,"title":"Phantom"},
+                       {"ns":6,"pageid":13,"title":"File:Portrait.jpg"}]}}
+        """.trimIndent()
+        val results = FandomApiParsers.parseTitleLookups(
+            listOf("Tetsurō_Araki", "Phantom", "File:Portrait.jpg"), json
+        )
+        assertEquals("Tetsuro Araki (director)", results.getValue("Tetsurō_Araki").resolvedTitle)
+        assertFalse(results.getValue("Phantom").exists)
+        assertFalse(results.getValue("File:Portrait.jpg").exists)
+    }
+
+    @Test
+    fun `fallback query only requests extracts on wikipedia`() {
+        val fandom = FandomApi.titleLookupParams("attackontitan", "Eren Jaeger", true).toMap()
+        val wikipedia = FandomApi.titleLookupParams("wikipedia.en", "Eren Jaeger", true).toMap()
+        assertFalse(fandom.getValue("prop").contains("extracts"))
+        assertFalse(fandom.containsKey("exchars"))
+        assertTrue(fandom.getValue("prop").contains("langlinks"))
+        assertTrue(wikipedia.getValue("prop").contains("extracts"))
+        assertEquals("1200", wikipedia["exchars"])
+        val lean = FandomApi.titleLookupParams("wikipedia.en", "Eren Jaeger", false, minimal = true).toMap()
+        assertEquals("pageprops", lean["prop"])
+        assertFalse(lean.containsKey("pithumbsize"))
+    }
+
 }

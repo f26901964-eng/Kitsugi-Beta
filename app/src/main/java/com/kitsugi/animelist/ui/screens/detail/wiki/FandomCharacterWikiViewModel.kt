@@ -609,7 +609,7 @@ class FandomCharacterWikiViewModel(application: Application) : AndroidViewModel(
         loadReaderLocation(location)
     }
 
-    private fun loadReaderLocation(location: FandomReaderLocation) {
+    private fun loadReaderLocation(location: FandomReaderLocation, forceRefresh: Boolean = false) {
         readerJob?.cancel()
         readerSectionJobs.values.forEach { it.cancel() }
         readerSectionJobs.clear()
@@ -617,7 +617,7 @@ class FandomCharacterWikiViewModel(application: Application) : AndroidViewModel(
         _reader.value = ReaderState.Loading
         readerJob = viewModelScope.launch {
             val meta = try {
-                FandomRepository.loadFullPageMeta(appContext, location.wikiId, location.title)
+                FandomRepository.loadFullPageMeta(appContext, location.wikiId, location.title, forceRefresh)
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
@@ -639,6 +639,9 @@ class FandomCharacterWikiViewModel(application: Application) : AndroidViewModel(
                 related = emptyList()
             )
             launchRelatedLoad(location.wikiId, meta)
+            // The lead is section 0 and is NOT included in the TOC. Without this,
+            // character/staff reader pages with no short description appear empty.
+            loadReaderSection(0)
             if (!meta.description.isNullOrBlank() && isAutoTranslateEnabled()) {
                 translate(FandomReaderTranslationKeys.description(resolvedLocation))
             }
@@ -747,6 +750,12 @@ class FandomCharacterWikiViewModel(application: Application) : AndroidViewModel(
             target == before.activeTab?.location
         ) return
         loadReaderLocation(target)
+    }
+
+    /** Retries a failed page or TOC without adding another browser history entry. */
+    fun retryReaderPage() {
+        val location = readerBrowserController.activeLocation ?: return
+        loadReaderLocation(location, forceRefresh = true)
     }
 
     fun readerBack(): Boolean {
