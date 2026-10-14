@@ -10,6 +10,11 @@ import com.kitsugi.animelist.ui.theme.gradient.Icon
 import com.kitsugi.animelist.ui.theme.gradient.LinearProgressIndicator
 import com.kitsugi.animelist.ui.theme.gradient.Text
 import com.kitsugi.animelist.ui.components.KitsugiAccountNotConnectedState
+import com.kitsugi.animelist.ui.components.stats.KitsugiStatsBarChart
+import com.kitsugi.animelist.ui.components.stats.KitsugiStatsBarEntry
+import com.kitsugi.animelist.ui.components.stats.KitsugiStatsDistributionBar
+import com.kitsugi.animelist.ui.components.stats.KitsugiStatsMetricTile
+import com.kitsugi.animelist.ui.components.stats.KitsugiStatsSegment
 
 import com.kitsugi.animelist.ui.theme.gradient.background
 import com.kitsugi.animelist.ui.theme.gradient.border
@@ -366,43 +371,22 @@ fun FilterChipItem(
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// StatCard — istatistik kart bileşeni
+// Paylaşılan profil istatistikleri — detay sayfasındaki grafik kartlarıyla aynı görünüm
 // ─────────────────────────────────────────────────────────────────────────────
 @Composable
 fun RowScope.StatCard(
     label: String,
     value: String
 ) {
-    Card(
-        modifier = Modifier.weight(1f).padding(4.dp),
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = KitsugiColors.Background)
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(12.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Text(
-                text = label,
-                color = KitsugiColors.TextMuted,
-                style = MaterialTheme.typography.labelSmall
-            )
-            Spacer(modifier = Modifier.height(4.dp))
-            Text(
-                text = value,
-                color = KitsugiColors.TextPrimary,
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Black
-            )
-        }
-    }
+    KitsugiStatsMetricTile(
+        label = label,
+        value = value,
+        icon = Icons.Rounded.BarChart,
+        modifier = Modifier.weight(1f).padding(4.dp)
+    )
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// VerticalStatsBar — dikey bar grafik (skor, yıl dağılımı vb.)
-// ─────────────────────────────────────────────────────────────────────────────
+/** Dikey skor/yıl grafiği: detail sayfasındaki tema vurgulu bar dili. */
 @Composable
 fun VerticalStatsBar(
     stats: List<Pair<String, Float>>,
@@ -412,117 +396,30 @@ fun VerticalStatsBar(
     mapColorTo: ((String) -> Color)? = null
 ) {
     if (stats.isEmpty()) return
-    val maxValue = remember(stats) { stats.maxOfOrNull { it.second } ?: 1f }.coerceAtLeast(1f)
-
-    Row(
-        modifier = modifier
-            .fillMaxWidth()
-            .horizontalScroll(rememberScrollState())
-            .padding(vertical = 6.dp),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-        verticalAlignment = Alignment.Bottom
-    ) {
-        stats.forEach { (label, value) ->
-            val barHeight = ((value / maxValue) * maxHeightDp).coerceAtLeast(4f).dp
-            val barColor = mapColorTo?.invoke(label) ?: accentColor
-
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.Bottom
-            ) {
-                Text(
-                    text = if (value % 1f == 0f) value.toInt().toString() else "%.1f".format(value),
-                    color = KitsugiColors.TextPrimary,
-                    style = MaterialTheme.typography.labelSmall,
-                    fontSize = 10.sp,
-                    fontWeight = FontWeight.Bold,
-                    modifier = Modifier.padding(bottom = 2.dp)
-                )
-                Box(
-                    modifier = Modifier
-                        .width(22.dp)
-                        .height(barHeight)
-                        .clip(RoundedCornerShape(topStart = 6.dp, topEnd = 6.dp))
-                        .background(barColor)
-                )
-                Text(
-                    text = label,
-                    color = KitsugiColors.TextMuted,
-                    style = MaterialTheme.typography.labelSmall,
-                    fontSize = 10.sp,
-                    modifier = Modifier.padding(top = 4.dp),
-                    maxLines = 1
-                )
-            }
-        }
-    }
+    KitsugiStatsBarChart(
+        items = stats.map { (label, value) ->
+            KitsugiStatsBarEntry(
+                label = label,
+                value = value,
+                color = mapColorTo?.invoke(label)
+            )
+        },
+        modifier = modifier.padding(vertical = 4.dp),
+        accentColor = accentColor,
+        maxBarHeight = maxHeightDp.dp
+    )
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// HorizontalStatsBar — yatay dağılım bar grafik
-// ─────────────────────────────────────────────────────────────────────────────
+/** Yatay kategori grafiği: accent uyumlu segmentler + yüzde/sayı açıklama chip'leri. */
 @Composable
 fun HorizontalStatsBar(
     stats: List<Triple<String, Int, Color>>,
     modifier: Modifier = Modifier
 ) {
-    if (stats.isEmpty()) return
-    val total = remember(stats) { stats.sumOf { it.second } }.coerceAtLeast(1)
-
-    Column(modifier = modifier.fillMaxWidth()) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .horizontalScroll(rememberScrollState())
-                .padding(bottom = 8.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            stats.forEach { (label, count, color) ->
-                Row(
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(12.dp))
-                        .background(KitsugiColors.SurfaceStrong)
-                        .padding(horizontal = 10.dp, vertical = 6.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .size(8.dp)
-                            .clip(CircleShape)
-                            .background(color)
-                    )
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text(
-                        text = "$count $label",
-                        color = KitsugiColors.TextPrimary,
-                        style = MaterialTheme.typography.labelMedium,
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.SemiBold
-                    )
-                }
-            }
-        }
-
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(12.dp)
-                .clip(RoundedCornerShape(6.dp))
-                .background(KitsugiColors.SurfaceStrong)
-        ) {
-            stats.forEach { (_, count, color) ->
-                val weight = count.toFloat() / total.toFloat()
-                if (weight > 0) {
-                    Box(
-                        modifier = Modifier
-                            .weight(weight)
-                            .fillMaxHeight()
-                            .background(color)
-                    )
-                }
-            }
-        }
-    }
+    KitsugiStatsDistributionBar(
+        items = stats.map { (label, count, color) -> KitsugiStatsSegment(label, count, color) },
+        modifier = modifier
+    )
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -539,26 +436,15 @@ fun SegmentedDistributionBar(
     accentColor: Color
 ) {
     if (total <= 0) return
-
-    val wPct = watching.toFloat() / total.toFloat()
-    val cPct = completed.toFloat() / total.toFloat()
-    val plPct = planned.toFloat() / total.toFloat()
-    val paPct = paused.toFloat() / total.toFloat()
-    val dPct = dropped.toFloat() / total.toFloat()
-
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(10.dp)
-            .clip(RoundedCornerShape(5.dp))
-            .background(KitsugiColors.Background)
-    ) {
-        if (wPct > 0) Box(modifier = Modifier.weight(wPct).fillMaxHeight().background(accentColor))
-        if (cPct > 0) Box(modifier = Modifier.weight(cPct).fillMaxHeight().background(KitsugiColors.AccentGreen))
-        if (plPct > 0) Box(modifier = Modifier.weight(plPct).fillMaxHeight().background(KitsugiColors.TextMuted))
-        if (paPct > 0) Box(modifier = Modifier.weight(paPct).fillMaxHeight().background(KitsugiColors.AccentOrange))
-        if (dPct > 0) Box(modifier = Modifier.weight(dPct).fillMaxHeight().background(KitsugiColors.AccentPink))
-    }
+    HorizontalStatsBar(
+        stats = listOf(
+            Triple(stringResource(R.string.profile_status_watching), watching, accentColor),
+            Triple(stringResource(R.string.profile_status_completed), completed, KitsugiColors.AccentBlue),
+            Triple(stringResource(R.string.profile_status_planned), planned, KitsugiColors.AccentIndigo),
+            Triple(stringResource(R.string.profile_status_on_hold), paused, KitsugiColors.TextMuted),
+            Triple(stringResource(R.string.profile_status_dropped), dropped, KitsugiColors.AccentRed)
+        )
+    )
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

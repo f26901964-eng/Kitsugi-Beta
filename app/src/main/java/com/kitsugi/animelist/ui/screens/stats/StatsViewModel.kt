@@ -10,6 +10,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlin.math.sqrt
 
 data class StatusStat(
     val status: WatchStatus,
@@ -23,6 +24,16 @@ data class ScoreStat(
     val percentage: Float
 )
 
+data class FormatCountStat(
+    val format: String,
+    val count: Int
+)
+
+data class YearCountStat(
+    val year: Int,
+    val count: Int
+)
+
 data class StatsUiState(
     val isLoading: Boolean = true,
     // Anime
@@ -30,13 +41,20 @@ data class StatsUiState(
     val totalEpisodesWatched: Int = 0,
     val daysWatched: Float = 0f,
     val meanScore: Float = 0f,
+    val animeScoreStandardDeviation: Float = 0f,
     val animeStatusStats: List<StatusStat> = emptyList(),
     val animeScoreStats: List<ScoreStat> = emptyList(),
+    val animeFormatStats: List<FormatCountStat> = emptyList(),
+    val animeYearStats: List<YearCountStat> = emptyList(),
     // Manga
     val totalManga: Int = 0,
     val totalChaptersRead: Int = 0,
+    val mangaMeanScore: Float = 0f,
+    val mangaScoreStandardDeviation: Float = 0f,
     val mangaStatusStats: List<StatusStat> = emptyList(),
     val mangaScoreStats: List<ScoreStat> = emptyList(),
+    val mangaFormatStats: List<FormatCountStat> = emptyList(),
+    val mangaYearStats: List<YearCountStat> = emptyList(),
     val totalFavorites: Int = 0
 )
 
@@ -72,7 +90,7 @@ class StatsViewModel(
         try {
             val all = allEntities.map { it.toDomain() }
 
-            val anime = all.filter { it.type == MediaType.Anime || it.type == MediaType.Movie }
+            val anime = all.filter { it.type == MediaType.Anime || it.type == MediaType.Movie || it.type == MediaType.TvShow }
             val manga = all.filter { it.type == MediaType.Manga }
 
             // Anime stats
@@ -83,15 +101,22 @@ class StatsViewModel(
             val meanScore = if (animeWithScore.isNotEmpty())
                 animeWithScore.mapNotNull { it.score }.average().toFloat()
             else 0f
+            val animeScoreStandardDeviation = standardDeviation(animeWithScore.mapNotNull { it.score })
 
             val animeStatusStats = buildStatusStats(anime)
             val animeScoreStats = buildScoreStats(animeWithScore)
+            val animeFormatStats = buildFormatStats(anime)
+            val animeYearStats = buildYearStats(anime)
 
             // Manga stats
             val totalChapters = manga.sumOf { it.progress }
             val mangaWithScore = manga.filter { (it.score ?: 0) > 0 }
+            val mangaMeanScore = if (mangaWithScore.isNotEmpty()) mangaWithScore.mapNotNull { it.score }.average().toFloat() else 0f
+            val mangaScoreStandardDeviation = standardDeviation(mangaWithScore.mapNotNull { it.score })
             val mangaStatusStats = buildStatusStats(manga)
             val mangaScoreStats = buildScoreStats(mangaWithScore)
+            val mangaFormatStats = buildFormatStats(manga)
+            val mangaYearStats = buildYearStats(manga)
 
             _uiState.value = StatsUiState(
                 isLoading = false,
@@ -99,17 +124,34 @@ class StatsViewModel(
                 totalEpisodesWatched = totalEpisodes,
                 daysWatched = daysWatched,
                 meanScore = meanScore,
+                animeScoreStandardDeviation = animeScoreStandardDeviation,
                 animeStatusStats = animeStatusStats,
                 animeScoreStats = animeScoreStats,
+                animeFormatStats = animeFormatStats,
+                animeYearStats = animeYearStats,
                 totalManga = manga.size,
                 totalChaptersRead = totalChapters,
+                mangaMeanScore = mangaMeanScore,
+                mangaScoreStandardDeviation = mangaScoreStandardDeviation,
                 mangaStatusStats = mangaStatusStats,
                 mangaScoreStats = mangaScoreStats,
+                mangaFormatStats = mangaFormatStats,
+                mangaYearStats = mangaYearStats,
                 totalFavorites = all.count { it.isFavorite }
             )
         } catch (e: Exception) {
             _uiState.value = _uiState.value.copy(isLoading = false)
         }
+    }
+
+    private fun standardDeviation(scores: List<Int>): Float {
+        if (scores.isEmpty()) return 0f
+        val mean = scores.average()
+        val variance = scores.sumOf { score ->
+            val delta = score - mean
+            delta * delta
+        } / scores.size
+        return sqrt(variance).toFloat()
     }
 
     private fun buildStatusStats(entries: List<com.kitsugi.animelist.model.MediaEntry>): List<StatusStat> {
@@ -137,4 +179,17 @@ class StatsViewModel(
             )
         }
     }
+
+    private fun buildFormatStats(entries: List<com.kitsugi.animelist.model.MediaEntry>): List<FormatCountStat> =
+        entries.groupingBy { it.type.name }
+            .eachCount()
+            .map { (format, count) -> FormatCountStat(format, count) }
+            .sortedByDescending { it.count }
+
+    private fun buildYearStats(entries: List<com.kitsugi.animelist.model.MediaEntry>): List<YearCountStat> =
+        entries.mapNotNull { entry -> entry.year?.takeIf { it > 0 } }
+            .groupingBy { it }
+            .eachCount()
+            .map { (year, count) -> YearCountStat(year, count) }
+            .sortedBy { it.year }
 }

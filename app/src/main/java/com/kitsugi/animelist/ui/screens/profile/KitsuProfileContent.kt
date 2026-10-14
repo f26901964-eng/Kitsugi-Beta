@@ -48,6 +48,9 @@ import com.kitsugi.animelist.ui.app.ProfileFavoriteItem
 import com.kitsugi.animelist.ui.components.KitsugiNsfwImage
 import com.kitsugi.animelist.ui.components.KitsugiPlatformLogo
 import com.kitsugi.animelist.ui.theme.KitsugiColors
+import com.kitsugi.animelist.ui.components.stats.KitsugiStatsCard
+import com.kitsugi.animelist.ui.components.stats.KitsugiStatsCardHeader
+import com.kitsugi.animelist.ui.screens.profile.tabs.DetailedProfileStatsOverview
 import com.kitsugi.animelist.utils.KitsugiTranslateUtils.openTranslator
 import kotlinx.coroutines.launch
 import androidx.compose.ui.res.stringResource
@@ -560,153 +563,127 @@ private fun KitsuStatsTab(
     state: KitsuProfileState,
     accentColor: Color
 ) {
+    var selectedMediaType by rememberSaveable {
+        mutableIntStateOf(if (state.animeOverviewStats != null || state.totalAnime > 0) 0 else 1)
+    }
+    var scoreDistType by rememberSaveable { mutableIntStateOf(0) }
+    var lengthDistType by rememberSaveable { mutableIntStateOf(0) }
+    var releaseYearDistType by rememberSaveable { mutableIntStateOf(0) }
+    var startYearDistType by rememberSaveable { mutableIntStateOf(0) }
+    val overview = if (selectedMediaType == 0) state.animeOverviewStats else state.mangaOverviewStats
+
     Column(
         modifier = Modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
+        verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        // Watch Time & Episodes Card (if available)
-        if (!state.timeSpentDaysHours.isNullOrBlank() || (state.episodesWatched != null && state.episodesWatched > 0)) {
-            Card(
-                shape = RoundedCornerShape(18.dp),
-                colors = CardDefaults.cardColors(containerColor = KitsugiColors.Surface),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp),
-                    horizontalArrangement = Arrangement.SpaceEvenly,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    if (!state.timeSpentDaysHours.isNullOrBlank()) {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Icon(
-                                imageVector = Icons.Rounded.Schedule,
-                                contentDescription = null,
-                                tint = Color(0xFFFD755C),
-                                modifier = Modifier.size(24.dp)
-                            )
-                            Spacer(modifier = Modifier.height(4.dp))
-                            Text(
-                                text = state.timeSpentDaysHours,
-                                color = KitsugiColors.TextPrimary,
-                                fontSize = 15.sp,
-                                fontWeight = FontWeight.Bold
-                            )
-                            Text(
-                                text = stringResource(R.string.izleme_suresi),
-                                color = KitsugiColors.TextMuted,
-                                fontSize = 11.sp
-                            )
+        KitsugiStatsCard {
+            KitsugiStatsCardHeader(
+                title = stringResource(R.string.profile_stats_general),
+                icon = Icons.Rounded.BarChart,
+                subtitle = "Kitsu",
+                accentColor = accentColor
+            )
+            Spacer(Modifier.height(12.dp))
+            KitsuStatsMediaSwitcher(
+                selected = selectedMediaType,
+                accentColor = accentColor,
+                onSelected = { selectedMediaType = it }
+            )
+        }
+
+        if (overview != null) {
+            DetailedProfileStatsOverview(
+                overview = overview,
+                isAnime = selectedMediaType == 0,
+                accentColor = accentColor,
+                scoreDistType = scoreDistType,
+                lengthDistType = lengthDistType,
+                releaseYearDistType = releaseYearDistType,
+                startYearDistType = startYearDistType,
+                onScoreDistTypeChange = { scoreDistType = it },
+                onLengthDistTypeChange = { lengthDistType = it },
+                onReleaseYearDistTypeChange = { releaseYearDistType = it },
+                onStartYearDistTypeChange = { startYearDistType = it }
+            )
+        } else {
+            KitsugiStatsCard {
+                KitsugiStatsCardHeader(
+                    title = stringResource(R.string.inline_library_status_6c45df9),
+                    icon = Icons.Rounded.DonutLarge,
+                    accentColor = accentColor
+                )
+                Spacer(Modifier.height(12.dp))
+                val totals = if (selectedMediaType == 0) state.totalAnime else state.totalManga
+                val statusValues = if (selectedMediaType == 0) {
+                    listOf(
+                        Triple(stringResource(R.string.profile_status_watching), state.watching, KitsugiColors.AccentGreen),
+                        Triple(stringResource(R.string.profile_status_completed), state.completed, KitsugiColors.AccentBlue),
+                        Triple(stringResource(R.string.profile_status_plan_to_watch_short), state.planned, KitsugiColors.AccentIndigo),
+                        Triple(stringResource(R.string.profile_status_on_hold), state.paused, KitsugiColors.TextMuted),
+                        Triple(stringResource(R.string.profile_status_dropped), state.dropped, KitsugiColors.AccentRed)
+                    )
+                } else emptyList()
+                if (totals > 0) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                        StatCard(stringResource(R.string.profile_stat_total_entries), totals.toString())
+                        StatCard(stringResource(R.string.profile_average_score), String.format(KitsugiStrings.locale(), "%.2f", state.avgScore))
+                        if (selectedMediaType == 0) {
+                            StatCard(stringResource(R.string.profile_stat_episodes_watched), state.episodesWatched?.toString() ?: "0")
                         }
                     }
-                    if (state.episodesWatched != null && state.episodesWatched > 0) {
-                        if (!state.timeSpentDaysHours.isNullOrBlank()) {
-                            Box(
-                                modifier = Modifier
-                                    .width(1.dp)
-                                    .height(40.dp)
-                                    .background(KitsugiColors.SurfaceStrong)
-                            )
-                        }
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Icon(
-                                imageVector = Icons.Rounded.PlayCircle,
-                                contentDescription = null,
-                                tint = accentColor,
-                                modifier = Modifier.size(24.dp)
-                            )
-                            Spacer(modifier = Modifier.height(4.dp))
-                            Text(
-                                text = stringResource(R.string.state_episodeswatched_bolum, state.episodesWatched),
-                                color = KitsugiColors.TextPrimary,
-                                fontSize = 15.sp,
-                                fontWeight = FontWeight.Bold
-                            )
-                            Text(
-                                text = stringResource(R.string.izlenen_bolumler),
-                                color = KitsugiColors.TextMuted,
-                                fontSize = 11.sp
-                            )
-                        }
-                    }
+                } else {
+                    Text(
+                        text = stringResource(R.string.istatistik_verisi_bulunamadi),
+                        color = KitsugiColors.TextMuted,
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                }
+                if (statusValues.isNotEmpty()) {
+                    Spacer(Modifier.height(12.dp))
+                    HorizontalStatsBar(statusValues)
+                }
+                if (!state.timeSpentDaysHours.isNullOrBlank()) {
+                    Spacer(Modifier.height(10.dp))
+                    Text(
+                        text = "${stringResource(R.string.izleme_suresi)} · ${state.timeSpentDaysHours}",
+                        color = KitsugiColors.TextSecondary,
+                        style = MaterialTheme.typography.bodySmall
+                    )
                 }
             }
         }
+    }
+}
 
-        // Status Distribution
-        Card(
-            shape = RoundedCornerShape(18.dp),
-            colors = CardDefaults.cardColors(containerColor = KitsugiColors.Surface),
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Column(
-                modifier = Modifier.padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(14.dp)
+@Composable
+private fun KitsuStatsMediaSwitcher(
+    selected: Int,
+    accentColor: Color,
+    onSelected: (Int) -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(14.dp))
+            .background(KitsugiColors.SurfaceStrong)
+            .padding(4.dp)
+    ) {
+        listOf(stringResource(R.string.profile_anime_entries), stringResource(R.string.profile_manga_entries)).forEachIndexed { index, label ->
+            val isSelected = selected == index
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .clip(RoundedCornerShape(11.dp))
+                    .background(if (isSelected) accentColor else Color.Transparent)
+                    .clickable { onSelected(index) }
+                    .padding(vertical = 9.dp),
+                contentAlignment = Alignment.Center
             ) {
                 Text(
-                    text = stringResource(R.string.inline_library_status_6c45df9),
-                    color = KitsugiColors.TextPrimary,
+                    text = label,
+                    color = if (isSelected) KitsugiColors.Background else KitsugiColors.TextMuted,
                     fontWeight = FontWeight.Bold,
-                    fontSize = 15.sp
-                )
-
-                // Visual progress bar
-                val total = (state.watching + state.completed + state.planned + state.paused + state.dropped).coerceAtLeast(1)
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(10.dp)
-                        .clip(RoundedCornerShape(5.dp))
-                ) {
-                    if (state.watching > 0) Box(modifier = Modifier.weight(state.watching.toFloat() / total).fillMaxHeight().background(KitsugiColors.AccentGreen))
-                    if (state.completed > 0) Box(modifier = Modifier.weight(state.completed.toFloat() / total).fillMaxHeight().background(accentColor))
-                    if (state.planned > 0) Box(modifier = Modifier.weight(state.planned.toFloat() / total).fillMaxHeight().background(KitsugiColors.AccentYellow))
-                    if (state.paused > 0) Box(modifier = Modifier.weight(state.paused.toFloat() / total).fillMaxHeight().background(KitsugiColors.AccentOrange))
-                    if (state.dropped > 0) Box(modifier = Modifier.weight(state.dropped.toFloat() / total).fillMaxHeight().background(KitsugiColors.AccentRed))
-                }
-
-                StatusRow(label = stringResource(R.string.system_status_current), count = state.watching, color = KitsugiColors.AccentGreen)
-                StatusRow(label = stringResource(R.string.tamamlandi), count = state.completed, color = accentColor)
-                StatusRow(label = stringResource(R.string.planlandi), count = state.planned, color = KitsugiColors.AccentYellow)
-                StatusRow(label = stringResource(R.string.beklemede), count = state.paused, color = KitsugiColors.AccentOrange)
-                StatusRow(label = stringResource(R.string.birakildi), count = state.dropped, color = KitsugiColors.AccentRed)
-            }
-        }
-
-        // Overall Score Card
-        Card(
-            shape = RoundedCornerShape(18.dp),
-            colors = CardDefaults.cardColors(containerColor = KitsugiColors.Surface),
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(20.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Column {
-                    Text(
-                        text = stringResource(R.string.ortalama_puan),
-                        color = KitsugiColors.TextMuted,
-                        fontSize = 13.sp
-                    )
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(
-                        text = if (state.avgScore > 0) String.format("%.2f / 10", state.avgScore) else stringResource(R.string.ui_rating_unrated),
-                        color = KitsugiColors.TextPrimary,
-                        fontSize = 22.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
-
-                Icon(
-                    imageVector = Icons.Rounded.Star,
-                    contentDescription = null,
-                    tint = KitsugiColors.AccentYellow,
-                    modifier = Modifier.size(36.dp)
+                    style = MaterialTheme.typography.labelLarge
                 )
             }
         }

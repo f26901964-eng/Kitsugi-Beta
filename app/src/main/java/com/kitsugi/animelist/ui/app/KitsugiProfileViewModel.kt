@@ -10,6 +10,8 @@ import androidx.compose.runtime.setValue
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.kitsugi.animelist.data.auth.ExternalAuthManager
+import com.kitsugi.animelist.data.auth.KitsuApiClient.KitsuLibraryEntry
+import com.kitsugi.animelist.data.auth.ShikimoriApiClient.ShikimoriRate
 import com.kitsugi.animelist.data.local.MediaEntryRepository
 import com.kitsugi.animelist.data.platform.ListPlatform
 import com.kitsugi.animelist.data.platform.PlatformErrorCatalog
@@ -1113,85 +1115,119 @@ class KitsugiProfileViewModel(application: Application) : AndroidViewModel(appli
     fun computeOverviewStatsFromEntries(entries: List<MediaEntry>, isAnime: Boolean): DetailedUserOverviewStats {
         if (entries.isEmpty()) return DetailedUserOverviewStats()
         val count = entries.size
-        val totalProgress = entries.sumOf { it.progress }
-        val daysWatched = if (isAnime) (totalProgress * 24.0 / 60.0 / 24.0) else 0.0
-        val scores = entries.mapNotNull { it.score }
+        val totalProgress = entries.sumOf { it.progress.coerceAtLeast(0) }
+        val daysWatched = if (isAnime) {
+            totalProgress * 24.0 / 60.0 / 24.0
+        } else {
+            entries.sumOf { it.volumeProgress.coerceAtLeast(0) }.toDouble()
+        }
+        val scores = entries.mapNotNull { it.score?.takeIf { score -> score > 0 } }
         val meanScore = if (scores.isNotEmpty()) scores.average() else 0.0
         val variance = if (scores.size > 1) scores.sumOf { Math.pow(it - meanScore, 2.0) } / scores.size else 0.0
         val stdDev = Math.sqrt(variance)
 
-        // Scores 1..10
-        val scoreCounts = (1..10).map { s ->
-            val matching = entries.filter { (it.score ?: 0) == s }
-            ScoreStatItem(score = s, count = matching.size, meanScore = s.toDouble())
+        fun progressMetric(list: List<MediaEntry>): Int = if (isAnime) {
+            list.sumOf { it.progress.coerceAtLeast(0) * 24 }
+        } else {
+            list.sumOf { it.progress.coerceAtLeast(0) }
         }
 
-        // Statuses
-        val statusGroup = entries.groupBy { it.status }.map { (st, list) ->
-            val label = when (st) {
+        fun averageScore(list: List<MediaEntry>): Double =
+            list.mapNotNull { it.score?.takeIf { score -> score > 0 } }.average().takeIf { it.isFinite() } ?: 0.0
+
+        val scoreCounts = (1..10).mapNotNull { score ->
+            val matching = entries.filter { it.score == score }
+            matching.takeIf { it.isNotEmpty() }?.let {
+                ScoreStatItem(
+                    score = score,
+                    count = it.size,
+                    minutesWatched = progressMetric(it),
+                    meanScore = averageScore(it)
+                )
+            }
+        }
+
+        val statusGroup = entries.groupBy { it.status }.map { (status, matching) ->
+            val label = when (status) {
                 WatchStatus.Watching -> "CURRENT"
                 WatchStatus.Completed -> "COMPLETED"
                 WatchStatus.Planned -> "PLANNING"
                 WatchStatus.Paused -> "PAUSED"
                 WatchStatus.Dropped -> "DROPPED"
-                else -> "PLANNING"
+                WatchStatus.Repeating -> "REPEATING"
             }
-            StatusStatItem(status = label, count = list.size)
+            StatusStatItem(label, matching.size, progressMetric(matching), averageScore(matching))
         }
 
-        // Formats
-        val formatGroup = entries.groupBy { it.type }.map { (tp, list) ->
-            val label = when (tp) {
+        val formatGroup = entries.groupBy { it.type }.map { (type, matching) ->
+            val label = when (type) {
                 MediaType.Anime -> "TV"
                 MediaType.Movie -> "MOVIE"
                 MediaType.TvShow -> "TV"
                 MediaType.Manga -> "MANGA"
             }
-            FormatStatItem(format = label, count = list.size)
+            FormatStatItem(label, matching.size, progressMetric(matching), averageScore(matching))
         }
 
-        val plannedCount = entries.count { it.status == WatchStatus.Planned }.toDouble()
+        val lengthGroup = entries.groupBy { it.total?.takeIf { total -> total > 0 } ?: 0 }
+            .map { (length, matching) ->
+                LengthStatItem(
+                    length = if (length > 0) length.toString() else KitsugiStrings.get(R.string.label_unknown),
+                    count = matching.size,
+                    minutesWatched = progressMetric(matching),
+                    meanScore = averageScore(matching)
+                )
+            }
+            .sortedBy { it.length.toIntOrNull() ?: Int.MAX_VALUE }
+
+        val releaseYears = entries.mapNotNull { entry -> entry.year?.takeIf { it > 0 }?.let { it to entry } }
+            .groupBy({ it.first }, { it.second })
+            .map { (year, matching) ->
+                ReleaseYearStatItem(year, matching.size, progressMetric(matching), averageScore(matching))
+            }
+            .sortedBy { it.releaseYear }
+
+        val startYears = entries.mapNotNull { entry ->
+            entry.startDate?.take(4)?.toIntOrNull()?.takeIf { it in 1900..2200 }?.let { it to entry }
+        }.groupBy({ it.first }, { it.second })
+            .map { (year, matching) ->
+                StartYearStatItem(year, matching.size, progressMetric(matching), averageScore(matching))
+            }
+            .sortedBy { it.startYear }
+
+        val plannedEntries = entries.count { it.status == WatchStatus.Planned }
+        val plannedMetric = if (isAnime) plannedEntries * 0.2 else plannedEntries.toDouble()
 
         val tagList = entries.flatMap { entry ->
-            val tagString = entry.tags
-            if (!tagString.isNullOrBlank()) {
-                tagString.split(",").map { t -> t.trim() to entry }
-            } else {
-                emptyList()
-            }
+            entry.tags.orEmpty().split(',').map { it.trim() to entry }
         }.filter { it.first.isNotBlank() }
             .groupBy { it.first }
             .map { (tag, pairs) ->
-                val itemEntries = pairs.map { it.second }
-                val sc = itemEntries.mapNotNull { it.score }
-                val avg = if (sc.isNotEmpty()) sc.average() else 0.0
-                val mins = itemEntries.sumOf { e -> e.progress * 24 }
-                val chaps = itemEntries.sumOf { e -> e.progress }
+                val matching = pairs.map { it.second }
                 RankedStatItem(
                     name = tag,
-                    count = itemEntries.size,
-                    meanScore = avg,
-                    timeSpentMinutes = if (isAnime) mins else null,
-                    chaptersRead = if (!isAnime) chaps else null
+                    count = matching.size,
+                    meanScore = averageScore(matching),
+                    timeSpentMinutes = if (isAnime) progressMetric(matching) else null,
+                    chaptersRead = if (!isAnime) progressMetric(matching) else null
                 )
-            }.sortedByDescending { it.count }
-
-        val genreList = emptyList<RankedStatItem>()
-        val studioList = emptyList<RankedStatItem>()
+            }
+            .sortedByDescending { it.count }
 
         return DetailedUserOverviewStats(
             count = count,
             episodesWatched = totalProgress,
             daysWatched = daysWatched,
-            plannedDaysOrCount = plannedCount,
+            plannedDaysOrCount = plannedMetric,
             meanScore = meanScore,
             standardDeviation = stdDev,
             scoreList = scoreCounts,
-            statusList = statusGroup,
+            lengthList = lengthGroup,
             formatList = formatGroup,
-            genreList = genreList,
-            tagList = tagList,
-            studioList = studioList
+            statusList = statusGroup,
+            releaseYearList = releaseYears,
+            startYearList = startYears,
+            tagList = tagList
         )
     }
 
@@ -1726,6 +1762,10 @@ class KitsugiProfileViewModel(application: Application) : AndroidViewModel(appli
             try {
                 val profile = com.kitsugi.animelist.data.auth.SimklImportManager.fetchUserProfile(token)
                 val watchlist = com.kitsugi.animelist.data.auth.SimklImportManager.fetchAllLists(token)
+                val simklOverview = watchlist
+                    .filter { it.type == MediaType.Anime || it.type == MediaType.TvShow || it.type == MediaType.Movie }
+                    .takeIf { it.isNotEmpty() }
+                    ?.let { computeOverviewStatsFromEntries(it, isAnime = true) }
 
                 var totalAnime = 0
                 var totalShows = 0
@@ -1829,6 +1869,8 @@ class KitsugiProfileViewModel(application: Application) : AndroidViewModel(appli
                         paused = paused,
                         dropped = dropped,
                         avgScore = avgScore,
+                        animeOverviewStats = simklOverview,
+                        mangaOverviewStats = null,
                         recentHistory = recentHistoryList
                     )
                 }
@@ -1916,6 +1958,39 @@ class KitsugiProfileViewModel(application: Application) : AndroidViewModel(appli
                 } else null
                 val episodesCount = userStats?.episodesWatched?.takeIf { it > 0 }
 
+                fun KitsuLibraryEntry.toMediaEntry(index: Int, type: MediaType): MediaEntry {
+                    val mappedStatus = when (status.lowercase()) {
+                        "current" -> WatchStatus.Watching
+                        "completed" -> WatchStatus.Completed
+                        "planned" -> WatchStatus.Planned
+                        "on_hold" -> WatchStatus.Paused
+                        "dropped" -> WatchStatus.Dropped
+                        else -> WatchStatus.Planned
+                    }
+                    return MediaEntry(
+                        id = id.toIntOrNull() ?: index,
+                        title = title,
+                        type = type,
+                        status = mappedStatus,
+                        score = ratingTwenty?.takeIf { it > 0 }?.let { (it / 2).coerceIn(1, 10) },
+                        progress = progress,
+                        total = total,
+                        source = "kitsu",
+                        year = startYear,
+                        startDate = startedAt
+                    )
+                }
+                val kitsuAnimeEntries = entries.mapIndexedNotNull { index, entry ->
+                    if (entry.animeId == null) null else entry.toMediaEntry(index, MediaType.Anime)
+                }
+                val kitsuMangaEntries = entries.mapIndexedNotNull { index, entry ->
+                    if (entry.mangaId == null) null else entry.toMediaEntry(index, MediaType.Manga)
+                }
+                val kitsuAnimeOverview = kitsuAnimeEntries.takeIf { it.isNotEmpty() }
+                    ?.let { computeOverviewStatsFromEntries(it, isAnime = true) }
+                val kitsuMangaOverview = kitsuMangaEntries.takeIf { it.isNotEmpty() }
+                    ?.let { computeOverviewStatsFromEntries(it, isAnime = false) }
+
                 _kitsuState.update {
                     it.copy(
                         isConnected = true,
@@ -1945,6 +2020,8 @@ class KitsugiProfileViewModel(application: Application) : AndroidViewModel(appli
                         avgScore = avgScore,
                         timeSpentDaysHours = timeSpentStr,
                         episodesWatched = episodesCount,
+                        animeOverviewStats = kitsuAnimeOverview,
+                        mangaOverviewStats = kitsuMangaOverview,
                         favorites = favorites,
                         libraryEntries = favList
                     )
@@ -2075,6 +2152,37 @@ class KitsugiProfileViewModel(application: Application) : AndroidViewModel(appli
 
                 val avgScore = if (scores.isNotEmpty()) scores.average() else 0.0
 
+                fun ShikimoriRate.toMediaEntry(isAnime: Boolean): MediaEntry {
+                    val mappedStatus = when (status.lowercase()) {
+                        "watching", "reading", "current" -> WatchStatus.Watching
+                        "completed" -> WatchStatus.Completed
+                        "on_hold", "on-hold", "paused" -> WatchStatus.Paused
+                        "dropped" -> WatchStatus.Dropped
+                        "rewatching", "rereading", "repeating" -> WatchStatus.Repeating
+                        else -> WatchStatus.Planned
+                    }
+                    return MediaEntry(
+                        id = id,
+                        title = title,
+                        type = if (isAnime) MediaType.Anime else MediaType.Manga,
+                        status = mappedStatus,
+                        score = score.takeIf { it > 0 },
+                        progress = if (isAnime) episodes else chapters,
+                        total = total,
+                        source = "shikimori",
+                        year = startYear,
+                        volumeProgress = volumes
+                    )
+                }
+                val shikimoriAnimeEntries = rates.filter { it.targetType.equals("Anime", ignoreCase = true) }
+                    .map { it.toMediaEntry(isAnime = true) }
+                val shikimoriMangaEntries = rates.filter { it.targetType.equals("Manga", ignoreCase = true) }
+                    .map { it.toMediaEntry(isAnime = false) }
+                val shikimoriAnimeOverview = shikimoriAnimeEntries.takeIf { it.isNotEmpty() }
+                    ?.let { computeOverviewStatsFromEntries(it, isAnime = true) }
+                val shikimoriMangaOverview = shikimoriMangaEntries.takeIf { it.isNotEmpty() }
+                    ?.let { computeOverviewStatsFromEntries(it, isAnime = false) }
+
                 _shikimoriState.update {
                     it.copy(
                         isConnected = true,
@@ -2103,6 +2211,8 @@ class KitsugiProfileViewModel(application: Application) : AndroidViewModel(appli
                         animeScoreDist = fullProfile.animeScoreDist,
                         mangaScoreDist = fullProfile.mangaScoreDist,
                         avgScore = avgScore,
+                        animeOverviewStats = shikimoriAnimeOverview,
+                        mangaOverviewStats = shikimoriMangaOverview,
                         favorites = favorites,
                         history = history,
                         recentRates = favList
@@ -2514,6 +2624,8 @@ data class KitsuProfileState(
     val avgScore: Double = 0.0,
     val timeSpentDaysHours: String? = null,
     val episodesWatched: Int? = null,
+    val animeOverviewStats: DetailedUserOverviewStats? = null,
+    val mangaOverviewStats: DetailedUserOverviewStats? = null,
     val favorites: List<ProfileFavoriteItem> = emptyList(),
     val libraryEntries: List<ProfileFavoriteItem> = emptyList()
 )
@@ -2563,6 +2675,8 @@ data class ShikimoriProfileState(
     val animeScoreDist: Map<Int, Int> = emptyMap(),
     val mangaScoreDist: Map<Int, Int> = emptyMap(),
     val avgScore: Double = 0.0,
+    val animeOverviewStats: DetailedUserOverviewStats? = null,
+    val mangaOverviewStats: DetailedUserOverviewStats? = null,
     val favorites: List<ProfileFavoriteItem> = emptyList(),
     val history: List<com.kitsugi.animelist.data.auth.ShikimoriApiClient.ShikimoriHistoryItem> = emptyList(),
     val recentRates: List<ProfileFavoriteItem> = emptyList()

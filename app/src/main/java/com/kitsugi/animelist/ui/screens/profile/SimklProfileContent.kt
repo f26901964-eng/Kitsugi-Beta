@@ -44,6 +44,9 @@ import com.kitsugi.animelist.ui.app.KitsugiProfileViewModel
 import com.kitsugi.animelist.ui.app.ProfileFavoriteItem
 import com.kitsugi.animelist.ui.app.SimklProfileState
 import com.kitsugi.animelist.ui.theme.KitsugiColors
+import com.kitsugi.animelist.ui.components.stats.KitsugiStatsCard
+import com.kitsugi.animelist.ui.components.stats.KitsugiStatsCardHeader
+import com.kitsugi.animelist.ui.screens.profile.tabs.DetailedProfileStatsOverview
 import com.kitsugi.animelist.utils.KitsugiTranslateUtils.openTranslator
 import androidx.compose.ui.res.stringResource
 import com.kitsugi.animelist.R
@@ -66,6 +69,10 @@ fun SimklProfileContent(
 ) {
     val context = LocalContext.current
     var activeTab by rememberSaveable { mutableIntStateOf(viewModel.simklActiveTab) }
+    var scoreDistType by rememberSaveable { mutableIntStateOf(0) }
+    var lengthDistType by rememberSaveable { mutableIntStateOf(0) }
+    var releaseYearDistType by rememberSaveable { mutableIntStateOf(0) }
+    var startYearDistType by rememberSaveable { mutableIntStateOf(0) }
     val coroutineScope = rememberCoroutineScope()
     val pagerState = androidx.compose.foundation.pager.rememberPagerState(
         initialPage = viewModel.simklActiveTab.coerceIn(0, 2),
@@ -395,23 +402,50 @@ fun SimklProfileContent(
                             }
                             2 -> {
                                 Column(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .clip(RoundedCornerShape(24.dp))
-                                        .background(KitsugiColors.Surface)
-                                        .padding(18.dp)
+                                    modifier = Modifier.fillMaxWidth(),
+                                    verticalArrangement = Arrangement.spacedBy(12.dp)
                                 ) {
-                                    Text(
-                                        text = stringResource(R.string.istatistikler),
-                                        color = KitsugiColors.TextPrimary,
-                                        style = MaterialTheme.typography.titleMedium,
-                                        fontWeight = FontWeight.Bold
-                                    )
-                                    Spacer(modifier = Modifier.height(12.dp))
-                                    Row(modifier = Modifier.fillMaxWidth()) {
-                                        StatCard(stringResource(R.string.profile_total_anime), state.totalAnime.toString())
-                                        StatCard(stringResource(R.string.profile_total_tv_shows), state.totalShows.toString())
-                                        StatCard(stringResource(R.string.profile_total_movies), state.totalMovies.toString())
+                                    KitsugiStatsCard {
+                                        KitsugiStatsCardHeader(
+                                            title = stringResource(R.string.istatistikler),
+                                            icon = Icons.Rounded.BarChart,
+                                            subtitle = "Simkl",
+                                            accentColor = accentColor
+                                        )
+                                    }
+                                    val overview = state.animeOverviewStats
+                                    if (overview != null) {
+                                        DetailedProfileStatsOverview(
+                                            overview = overview,
+                                            isAnime = true,
+                                            accentColor = accentColor,
+                                            scoreDistType = scoreDistType,
+                                            lengthDistType = lengthDistType,
+                                            releaseYearDistType = releaseYearDistType,
+                                            startYearDistType = startYearDistType,
+                                            onScoreDistTypeChange = { scoreDistType = it },
+                                            onLengthDistTypeChange = { lengthDistType = it },
+                                            onReleaseYearDistTypeChange = { releaseYearDistType = it },
+                                            onStartYearDistTypeChange = { startYearDistType = it }
+                                        )
+                                    } else {
+                                        KitsugiStatsCard {
+                                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                                StatCard(stringResource(R.string.profile_total_anime), state.totalAnime.toString())
+                                                StatCard(stringResource(R.string.profile_total_tv_shows), state.totalShows.toString())
+                                                StatCard(stringResource(R.string.profile_total_movies), state.totalMovies.toString())
+                                            }
+                                            Spacer(Modifier.height(12.dp))
+                                            HorizontalStatsBar(
+                                                listOf(
+                                                    Triple(stringResource(R.string.profile_status_watching), state.watching, KitsugiColors.AccentGreen),
+                                                    Triple(stringResource(R.string.profile_status_completed), state.completed, KitsugiColors.AccentBlue),
+                                                    Triple(stringResource(R.string.profile_status_plan_to_watch_short), state.planned, KitsugiColors.AccentIndigo),
+                                                    Triple(stringResource(R.string.profile_status_on_hold), state.paused, KitsugiColors.TextMuted),
+                                                    Triple(stringResource(R.string.profile_status_dropped), state.dropped, KitsugiColors.AccentRed)
+                                                )
+                                            )
+                                        }
                                     }
                                 }
                             }

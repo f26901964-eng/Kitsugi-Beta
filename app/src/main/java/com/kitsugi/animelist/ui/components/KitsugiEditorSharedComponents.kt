@@ -2,6 +2,7 @@ package com.kitsugi.animelist.ui.components
 
 import com.kitsugi.animelist.ui.theme.gradient.background
 import com.kitsugi.animelist.ui.utils.tvClickable
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -65,28 +66,41 @@ internal fun SheetRow(
     modifier: Modifier = Modifier
 ) {
     val accentColor = LocalKitsugiAccent.current
+    val rowShape = RoundedCornerShape(18.dp)
     Row(
         modifier = modifier
             .fillMaxWidth()
+            .padding(horizontal = 12.dp, vertical = 4.dp)
+            .clip(rowShape)
+            .background(KitsugiColors.Surface)
+            .border(1.dp, KitsugiColors.Border.copy(alpha = 0.25f), rowShape)
             // Do not install a disabled click target over child inputs. In particular,
             // that parent pointer node can make the tiny progress field difficult to focus.
             .then(
                 if (onClick != null) {
-                    Modifier.tvClickable(shape = RoundedCornerShape(12.dp)) { onClick() }
+                    Modifier.tvClickable(shape = rowShape) { onClick() }
                 } else {
                     Modifier
                 }
             )
-            .padding(horizontal = 16.dp, vertical = 12.dp),
+            .padding(horizontal = 14.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        com.kitsugi.animelist.ui.theme.gradient.Icon(
-            imageVector = icon,
-            contentDescription = label,
-            tint = KitsugiColors.TextSecondary,
-            modifier = Modifier.size(24.dp)
-        )
-        Spacer(modifier = Modifier.width(16.dp))
+        Box(
+            modifier = Modifier
+                .size(34.dp)
+                .clip(RoundedCornerShape(11.dp))
+                .background(accentColor.copy(alpha = 0.14f)),
+            contentAlignment = Alignment.Center
+        ) {
+            com.kitsugi.animelist.ui.theme.gradient.Icon(
+                imageVector = icon,
+                contentDescription = label,
+                tint = accentColor,
+                modifier = Modifier.size(18.dp)
+            )
+        }
+        Spacer(modifier = Modifier.width(10.dp))
 
         Column(modifier = Modifier.weight(1f)) {
             Text(

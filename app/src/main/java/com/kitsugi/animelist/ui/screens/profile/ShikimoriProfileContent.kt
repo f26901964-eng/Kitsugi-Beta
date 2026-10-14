@@ -49,6 +49,9 @@ import com.kitsugi.animelist.ui.app.ShikimoriProfileState
 import com.kitsugi.animelist.ui.components.KitsugiNsfwImage
 import com.kitsugi.animelist.ui.components.KitsugiPlatformLogo
 import com.kitsugi.animelist.ui.theme.KitsugiColors
+import com.kitsugi.animelist.ui.components.stats.KitsugiStatsCard
+import com.kitsugi.animelist.ui.components.stats.KitsugiStatsCardHeader
+import com.kitsugi.animelist.ui.screens.profile.tabs.DetailedProfileStatsOverview
 import com.kitsugi.animelist.utils.KitsugiTranslateUtils.openTranslator
 import kotlinx.coroutines.launch
 import androidx.compose.ui.res.stringResource
@@ -491,150 +494,133 @@ private fun ShikimoriStatsTab(
     state: ShikimoriProfileState,
     accentColor: Color
 ) {
+    var selectedMediaType by rememberSaveable {
+        mutableIntStateOf(if (state.animeOverviewStats != null || state.animeScoreDist.isNotEmpty()) 0 else 1)
+    }
+    var scoreDistType by rememberSaveable { mutableIntStateOf(0) }
+    var lengthDistType by rememberSaveable { mutableIntStateOf(0) }
+    var releaseYearDistType by rememberSaveable { mutableIntStateOf(0) }
+    var startYearDistType by rememberSaveable { mutableIntStateOf(0) }
+    val isAnime = selectedMediaType == 0
+    val overview = if (isAnime) state.animeOverviewStats else state.mangaOverviewStats
+
     Column(
         modifier = Modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
+        verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        // Score Distribution Card
-        val hasAnimeScores = state.animeScoreDist.isNotEmpty()
-        val hasMangaScores = state.mangaScoreDist.isNotEmpty()
-        if (hasAnimeScores || hasMangaScores) {
-            var selectedDistType by remember { mutableIntStateOf(if (hasAnimeScores) 0 else 1) }
-            val currentDist = if (selectedDistType == 0) state.animeScoreDist else state.mangaScoreDist
-            val scoreStats = (1..10).map { score ->
-                score.toString() to (currentDist[score]?.toFloat() ?: 0f)
+        KitsugiStatsCard {
+            KitsugiStatsCardHeader(
+                title = stringResource(R.string.profile_stats_general),
+                icon = Icons.Rounded.BarChart,
+                subtitle = "Shikimori",
+                accentColor = accentColor
+            )
+            Spacer(Modifier.height(12.dp))
+            ShikimoriStatsMediaSwitcher(
+                selected = selectedMediaType,
+                accentColor = accentColor,
+                onSelected = { selectedMediaType = it }
+            )
+        }
+
+        if (overview != null) {
+            DetailedProfileStatsOverview(
+                overview = overview,
+                isAnime = isAnime,
+                accentColor = accentColor,
+                scoreDistType = scoreDistType,
+                lengthDistType = lengthDistType,
+                releaseYearDistType = releaseYearDistType,
+                startYearDistType = startYearDistType,
+                onScoreDistTypeChange = { scoreDistType = it },
+                onLengthDistTypeChange = { lengthDistType = it },
+                onReleaseYearDistTypeChange = { releaseYearDistType = it },
+                onStartYearDistTypeChange = { startYearDistType = it }
+            )
+        } else {
+            val distribution = if (isAnime) state.animeScoreDist else state.mangaScoreDist
+            val scoreCount = distribution.values.sum()
+            val statusItems = if (isAnime) {
+                listOf(
+                    Triple(stringResource(R.string.profile_status_watching), state.watchingAnime, KitsugiColors.AccentGreen),
+                    Triple(stringResource(R.string.profile_status_completed), state.completedAnime, KitsugiColors.AccentBlue),
+                    Triple(stringResource(R.string.profile_status_plan_to_watch_short), state.plannedAnime, KitsugiColors.AccentIndigo),
+                    Triple(stringResource(R.string.profile_status_on_hold), state.onHoldAnime, KitsugiColors.TextMuted),
+                    Triple(stringResource(R.string.profile_status_dropped), state.droppedAnime, KitsugiColors.AccentRed)
+                )
+            } else {
+                listOf(
+                    Triple(stringResource(R.string.profile_status_reading), state.readingManga, KitsugiColors.AccentGreen),
+                    Triple(stringResource(R.string.profile_status_completed), state.completedManga, KitsugiColors.AccentBlue),
+                    Triple(stringResource(R.string.profile_status_plan_to_read_short), state.plannedManga, KitsugiColors.AccentIndigo),
+                    Triple(stringResource(R.string.profile_status_on_hold), state.onHoldManga, KitsugiColors.TextMuted),
+                    Triple(stringResource(R.string.profile_status_dropped), state.droppedManga, KitsugiColors.AccentRed)
+                )
             }
-
-            Card(
-                shape = RoundedCornerShape(18.dp),
-                colors = CardDefaults.cardColors(containerColor = KitsugiColors.Surface),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Column(
-                    modifier = Modifier.padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = stringResource(R.string.puan_dagilimi),
-                            color = KitsugiColors.TextPrimary,
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 15.sp
+            if (scoreCount > 0 || statusItems.any { it.second > 0 }) {
+                KitsugiStatsCard {
+                    KitsugiStatsCardHeader(
+                        title = if (isAnime) stringResource(R.string.anime_durum_dagilimi) else stringResource(R.string.manga_durum_dagilimi),
+                        icon = Icons.Rounded.DonutLarge,
+                        subtitle = stringResource(R.string.detail_stats_status_subtitle, statusItems.sumOf { it.second }),
+                        accentColor = accentColor
+                    )
+                    Spacer(Modifier.height(12.dp))
+                    HorizontalStatsBar(statusItems)
+                    if (scoreCount > 0) {
+                        Spacer(Modifier.height(16.dp))
+                        KitsugiStatsCardHeader(
+                            title = stringResource(R.string.puan_dagilimi),
+                            icon = Icons.Rounded.BarChart,
+                            accentColor = accentColor
                         )
-                        if (hasAnimeScores && hasMangaScores) {
-                            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                                FilterChip(
-                                    selected = selectedDistType == 0,
-                                    onClick = { selectedDistType = 0 },
-                                    label = { Text("Anime", fontSize = 12.sp) }
-                                )
-                                FilterChip(
-                                    selected = selectedDistType == 1,
-                                    onClick = { selectedDistType = 1 },
-                                    label = { Text("Manga", fontSize = 12.sp) }
-                                )
-                            }
-                        }
+                        Spacer(Modifier.height(8.dp))
+                        VerticalStatsBar((1..10).map { it.toString() to (distribution[it] ?: 0).toFloat() }, accentColor)
                     }
-
-                    VerticalStatsBar(
-                        stats = scoreStats,
-                        accentColor = accentColor,
-                        maxHeightDp = 80,
-                        mapColorTo = { scoreStr ->
-                            when (scoreStr.toIntOrNull() ?: 0) {
-                                in 1..3 -> Color(0xFFE57373)
-                                in 4..5 -> Color(0xFFFFB74D)
-                                in 6..7 -> Color(0xFFFFD54F)
-                                in 8..9 -> Color(0xFF81C784)
-                                10      -> Color(0xFF4FC3F7)
-                                else    -> accentColor
-                            }
-                        }
+                }
+            } else {
+                KitsugiStatsCard {
+                    Text(
+                        text = stringResource(R.string.istatistik_verisi_bulunamadi),
+                        color = KitsugiColors.TextMuted,
+                        style = MaterialTheme.typography.bodyMedium
                     )
                 }
             }
         }
+    }
+}
 
-        // Anime Status Breakdown
-        val totalAnime = (state.watchingAnime + state.completedAnime + state.plannedAnime + state.onHoldAnime + state.droppedAnime).coerceAtLeast(1)
-        Card(
-            shape = RoundedCornerShape(18.dp),
-            colors = CardDefaults.cardColors(containerColor = KitsugiColors.Surface),
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Column(
-                modifier = Modifier.padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(14.dp)
+@Composable
+private fun ShikimoriStatsMediaSwitcher(
+    selected: Int,
+    accentColor: Color,
+    onSelected: (Int) -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(14.dp))
+            .background(KitsugiColors.SurfaceStrong)
+            .padding(4.dp)
+    ) {
+        listOf(stringResource(R.string.profile_anime_entries), stringResource(R.string.profile_manga_entries)).forEachIndexed { index, label ->
+            val isSelected = selected == index
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .clip(RoundedCornerShape(11.dp))
+                    .background(if (isSelected) accentColor else Color.Transparent)
+                    .clickable { onSelected(index) }
+                    .padding(vertical = 9.dp),
+                contentAlignment = Alignment.Center
             ) {
                 Text(
-                    text = stringResource(R.string.anime_durum_dagilimi),
-                    color = KitsugiColors.TextPrimary,
+                    text = label,
+                    color = if (isSelected) KitsugiColors.Background else KitsugiColors.TextMuted,
                     fontWeight = FontWeight.Bold,
-                    fontSize = 15.sp
+                    style = MaterialTheme.typography.labelLarge
                 )
-
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(10.dp)
-                        .clip(RoundedCornerShape(5.dp))
-                ) {
-                    if (state.watchingAnime > 0) Box(modifier = Modifier.weight(state.watchingAnime.toFloat() / totalAnime).fillMaxHeight().background(KitsugiColors.AccentGreen))
-                    if (state.completedAnime > 0) Box(modifier = Modifier.weight(state.completedAnime.toFloat() / totalAnime).fillMaxHeight().background(accentColor))
-                    if (state.plannedAnime > 0) Box(modifier = Modifier.weight(state.plannedAnime.toFloat() / totalAnime).fillMaxHeight().background(KitsugiColors.AccentYellow))
-                    if (state.onHoldAnime > 0) Box(modifier = Modifier.weight(state.onHoldAnime.toFloat() / totalAnime).fillMaxHeight().background(KitsugiColors.AccentOrange))
-                    if (state.droppedAnime > 0) Box(modifier = Modifier.weight(state.droppedAnime.toFloat() / totalAnime).fillMaxHeight().background(KitsugiColors.AccentRed))
-                }
-
-                ShikiStatusRow(label = stringResource(R.string.watch_watching), count = state.watchingAnime, color = KitsugiColors.AccentGreen)
-                ShikiStatusRow(label = stringResource(R.string.tamamlandi), count = state.completedAnime, color = accentColor)
-                ShikiStatusRow(label = stringResource(R.string.planlandi), count = state.plannedAnime, color = KitsugiColors.AccentYellow)
-                ShikiStatusRow(label = stringResource(R.string.beklemede), count = state.onHoldAnime, color = KitsugiColors.AccentOrange)
-                ShikiStatusRow(label = stringResource(R.string.birakildi), count = state.droppedAnime, color = KitsugiColors.AccentRed)
-            }
-        }
-
-        // Manga Status Breakdown
-        val totalManga = (state.readingManga + state.completedManga + state.plannedManga + state.onHoldManga + state.droppedManga).coerceAtLeast(1)
-        Card(
-            shape = RoundedCornerShape(18.dp),
-            colors = CardDefaults.cardColors(containerColor = KitsugiColors.Surface),
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Column(
-                modifier = Modifier.padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(14.dp)
-            ) {
-                Text(
-                    text = stringResource(R.string.manga_durum_dagilimi),
-                    color = KitsugiColors.TextPrimary,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 15.sp
-                )
-
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(10.dp)
-                        .clip(RoundedCornerShape(5.dp))
-                ) {
-                    if (state.readingManga > 0) Box(modifier = Modifier.weight(state.readingManga.toFloat() / totalManga).fillMaxHeight().background(KitsugiColors.AccentGreen))
-                    if (state.completedManga > 0) Box(modifier = Modifier.weight(state.completedManga.toFloat() / totalManga).fillMaxHeight().background(accentColor))
-                    if (state.plannedManga > 0) Box(modifier = Modifier.weight(state.plannedManga.toFloat() / totalManga).fillMaxHeight().background(KitsugiColors.AccentYellow))
-                    if (state.onHoldManga > 0) Box(modifier = Modifier.weight(state.onHoldManga.toFloat() / totalManga).fillMaxHeight().background(KitsugiColors.AccentOrange))
-                    if (state.droppedManga > 0) Box(modifier = Modifier.weight(state.droppedManga.toFloat() / totalManga).fillMaxHeight().background(KitsugiColors.AccentRed))
-                }
-
-                ShikiStatusRow(label = stringResource(R.string.okunuyor), count = state.readingManga, color = KitsugiColors.AccentGreen)
-                ShikiStatusRow(label = stringResource(R.string.tamamlandi), count = state.completedManga, color = accentColor)
-                ShikiStatusRow(label = stringResource(R.string.planlandi), count = state.plannedManga, color = KitsugiColors.AccentYellow)
-                ShikiStatusRow(label = stringResource(R.string.beklemede), count = state.onHoldManga, color = KitsugiColors.AccentOrange)
-                ShikiStatusRow(label = stringResource(R.string.birakildi), count = state.droppedManga, color = KitsugiColors.AccentRed)
             }
         }
     }
