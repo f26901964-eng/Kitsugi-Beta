@@ -387,9 +387,9 @@ internal fun MediaWikiTabContent(
                 if (relatedPages.isNotEmpty()) {
                     RelatedPagesStrip(
                         title = stringResource(relatedTitleRes),
+                        listKey = "${ready.ref.wikiId}:related",
                         pages = relatedPages,
                         accentColor = accentColor,
-                        spoilerGuard = spoilerGuard,
                         onOpenItem = onOpenItem
                     )
                 }
@@ -568,9 +568,9 @@ private fun MediaWikiHeaderCard(
 @Composable
 private fun RelatedPagesStrip(
     title: String,
+    listKey: String,
     pages: List<FandomRelatedPage>,
     accentColor: Color,
-    spoilerGuard: Boolean = true,
     onOpenItem: (String) -> Unit
 ) {
     if (pages.isEmpty()) return
@@ -590,17 +590,21 @@ private fun RelatedPagesStrip(
             )
         }
         Spacer(modifier = Modifier.height(10.dp))
-        androidx.compose.foundation.lazy.LazyRow(
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            items(pages, key = { it.title }) { page ->
-                WikiRelatedPageDetailCard(
-                    page = page,
-                    accentColor = accentColor,
-                    spoilerGuard = spoilerGuard,
-                    modifier = Modifier.width(300.dp),
-                    onOpenPage = { onOpenItem(page.title) }
-                )
+        androidx.compose.runtime.key(listKey, "related-pages") {
+            val rowState = androidx.compose.foundation.lazy.rememberLazyListState()
+            androidx.compose.foundation.lazy.LazyRow(
+                state = rowState,
+                flingBehavior = com.kitsugi.animelist.ui.utils.KitsugiScrollDefaults.rememberRowSnapFling(rowState),
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                items(pages, key = { it.title }) { page ->
+                    WikiRelatedPageCard(
+                        page = page,
+                        accentColor = accentColor,
+                        onClick = { onOpenItem(page.title) }
+                    )
+                }
             }
         }
     }

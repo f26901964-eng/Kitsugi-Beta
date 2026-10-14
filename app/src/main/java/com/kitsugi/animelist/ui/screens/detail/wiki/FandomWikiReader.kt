@@ -625,6 +625,7 @@ private fun ReaderContent(
         if (state.related.isNotEmpty()) {
             ReaderRelatedCard(
                 wikiId = state.wikiId,
+                pageKey = "${state.wikiId}:${state.page.displayTitle}",
                 related = state.related,
                 accentColor = accentColor,
                 galleryItems = galleryItems,
@@ -1273,6 +1274,7 @@ private fun ReaderLinkChips(links: List<String>, accentColor: Color, onOpenLink:
 @Composable
 private fun ReaderRelatedCard(
     wikiId: String,
+    pageKey: String,
     related: List<FandomRelatedPage>,
     accentColor: Color,
     galleryItems: List<GalleryItem>,
@@ -1280,9 +1282,6 @@ private fun ReaderRelatedCard(
     onOpenPage: (String) -> Unit
 ) {
     val wikipedia = FandomUrls.isWikipedia(wikiId)
-    val actionLabel = stringResource(
-        if (wikipedia) R.string.fandom_open_page_wikipedia_page else R.string.fandom_open_page
-    )
     ReaderCard {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(
@@ -1302,124 +1301,26 @@ private fun ReaderRelatedCard(
             )
         }
         Spacer(Modifier.height(10.dp))
-        LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            items(related, key = { it.title }) { page ->
-                WikiRelatedPageDetailCard(
-                    page = page,
-                    accentColor = accentColor,
-                    modifier = Modifier.width(300.dp),
-                    onOpenPage = { onOpenPage(page.title) },
-                    onOpenImage = { url ->
-                        val index = galleryItems.indexOfFirst { it.url == url }
-                        if (index >= 0) onOpenGallery(galleryItems, index)
-                    }
-                )
+        androidx.compose.runtime.key(pageKey, "related-pages") {
+            val rowState = androidx.compose.foundation.lazy.rememberLazyListState()
+            LazyRow(
+                state = rowState,
+                flingBehavior = com.kitsugi.animelist.ui.utils.KitsugiScrollDefaults.rememberRowSnapFling(rowState),
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                items(related, key = { it.title }) { page ->
+                    WikiRelatedPageCard(
+                        page = page,
+                        accentColor = accentColor,
+                        onClick = { onOpenPage(page.title) },
+                        onImageClick = { url ->
+                            val index = galleryItems.indexOfFirst { it.url == url }
+                            if (index >= 0) onOpenGallery(galleryItems, index)
+                        }
+                    )
+                }
             }
-        }
-    }
-}
-
-/** Sekmelerde ve okuyucuda yeniden kullanılan "İlgili wiki sayfası" kartı. */
-@Composable
-internal fun WikiRelatedPageCard(
-    page: FandomRelatedPage,
-    accentColor: Color,
-    onClick: () -> Unit,
-    onImageClick: ((String) -> Unit)? = null,
-    /** Kart altındaki eylem etiketi; verilmezse "Fandom sayfası". Vikipedi'de "Vikipedi sayfası". */
-    actionLabel: String? = null
-) {
-    val resolvedActionLabel = actionLabel ?: stringResource(R.string.fandom_open_page)
-    Column(
-        modifier = Modifier
-            .width(160.dp)
-            .clip(RoundedCornerShape(14.dp))
-            .background(KitsugiColors.SurfaceStrong)
-            .tvClickable(shape = RoundedCornerShape(14.dp)) { onClick() }
-            .padding(10.dp)
-    ) {
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(96.dp)
-                .clip(RoundedCornerShape(10.dp))
-                .background(KitsugiColors.SurfaceSoft),
-            contentAlignment = Alignment.Center
-        ) {
-            val url = page.thumbnailUrl
-            if (url != null) {
-                SubcomposeAsyncImage(
-                    model = ImageRequest.Builder(LocalContext.current).data(url).crossfade(false).build(),
-                    contentDescription = page.title,
-                    contentScale = androidx.compose.ui.layout.ContentScale.Crop,
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .then(
-                            if (onImageClick != null) {
-                                Modifier.tvClickable(shape = RoundedCornerShape(10.dp)) { onImageClick(url) }
-                            } else {
-                                Modifier
-                            }
-                        ),
-                    loading = {
-                        CircularProgressIndicator(Modifier.size(18.dp), color = accentColor, strokeWidth = 2.dp)
-                    },
-                    error = { PagePlaceholder(page.title, accentColor) }
-                )
-            } else {
-                PagePlaceholder(page.title, accentColor)
-            }
-        }
-        Spacer(Modifier.height(8.dp))
-        Text(
-            text = page.title,
-            color = KitsugiColors.TextPrimary,
-            style = MaterialTheme.typography.bodyMedium,
-            fontWeight = FontWeight.SemiBold,
-            maxLines = 2,
-            overflow = TextOverflow.Ellipsis
-        )
-        page.snippet?.let { snip ->
-            Spacer(Modifier.height(2.dp))
-            Text(
-                text = snip,
-                color = KitsugiColors.TextSecondary,
-                style = MaterialTheme.typography.bodySmall,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis
-            )
-        }
-        Spacer(Modifier.height(8.dp))
-        Box(
-            modifier = Modifier
-                .clip(RoundedCornerShape(10.dp))
-                .background(accentColor.copy(alpha = 0.12f))
-                .tvClickable(shape = RoundedCornerShape(10.dp)) { onClick() }
-                .padding(horizontal = 10.dp, vertical = 6.dp)
-        ) {
-            Text(
-                text = resolvedActionLabel,
-                color = accentColor,
-                style = MaterialTheme.typography.labelLarge,
-                fontWeight = FontWeight.Bold,
-                maxLines = 1
-            )
-        }
-    }
-}
-
-@Composable
-private fun PagePlaceholder(title: String, accentColor: Color) {
-    val letter = title.trim().firstOrNull()?.uppercase() ?: "?"
-    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-        Box(
-            modifier = Modifier
-                .size(44.dp)
-                .clip(CircleShape)
-                .background(accentColor.copy(alpha = 0.18f)),
-            contentAlignment = Alignment.Center
-        ) {
-            Text(letter, color = accentColor, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
         }
     }
 }

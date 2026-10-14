@@ -215,9 +215,8 @@ internal fun CharacterWikiTabContent(
         if (page.relatedEntities.isNotEmpty()) {
             WikiRelatedEntitiesCard(
                 entities = page.relatedEntities,
+                pageKey = "${page.wikiId}:${page.pageTitle}",
                 accentColor = accentColor,
-                spoilerGuard = spoilerGuard,
-                onOpenGallery = onOpenGallery,
                 onOpenWikiLink = onOpenWikiLink,
                 onOpenWikiPage = onOpenWikiPage
             )
@@ -315,6 +314,7 @@ internal fun CharacterWikiTabContent(
 
         if (relatedPages.isNotEmpty()) {
             CharacterRelatedStrip(
+                listKey = "${page.wikiId}:${page.pageTitle}",
                 pages = relatedPages,
                 wikipedia = FandomUrls.isWikipedia(page.wikiId),
                 accentColor = accentColor,
@@ -338,6 +338,7 @@ internal fun CharacterWikiTabContent(
 
 @Composable
 private fun CharacterRelatedStrip(
+    listKey: String,
     pages: List<com.kitsugi.animelist.data.fandom.FandomRelatedPage>,
     wikipedia: Boolean,
     accentColor: Color,
@@ -363,19 +364,21 @@ private fun CharacterRelatedStrip(
             )
         }
         Spacer(Modifier.height(10.dp))
-        androidx.compose.foundation.lazy.LazyRow(
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            items(pages, key = { it.title }) { page ->
-                WikiRelatedPageCard(
-                    page = page,
-                    accentColor = accentColor,
-                    actionLabel = stringResource(
-                        if (wikipedia) R.string.fandom_open_page_wikipedia_page
-                        else R.string.fandom_open_page
-                    ),
-                    onClick = { onOpenPage(page.title) }
-                )
+        androidx.compose.runtime.key(listKey, "character-related-pages") {
+            val rowState = androidx.compose.foundation.lazy.rememberLazyListState()
+            androidx.compose.foundation.lazy.LazyRow(
+                state = rowState,
+                flingBehavior = com.kitsugi.animelist.ui.utils.KitsugiScrollDefaults.rememberRowSnapFling(rowState),
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                items(pages, key = { it.title }) { page ->
+                    WikiRelatedPageCard(
+                        page = page,
+                        accentColor = accentColor,
+                        onClick = { onOpenPage(page.title) }
+                    )
+                }
             }
         }
     }
@@ -1362,9 +1365,8 @@ private fun openExternal(context: Context, url: String) {
 @Composable
 private fun WikiRelatedEntitiesCard(
     entities: List<FandomWikiLink>,
+    pageKey: String,
     accentColor: Color,
-    spoilerGuard: Boolean = true,
-    onOpenGallery: (List<GalleryItem>, Int) -> Unit,
     onOpenWikiLink: ((FandomWikiLink) -> Unit)? = null,
     onOpenWikiPage: ((String?) -> Unit)? = null
 ) {
@@ -1408,37 +1410,34 @@ private fun WikiRelatedEntitiesCard(
                 color = accentColor,
                 style = MaterialTheme.typography.titleSmall,
                 fontWeight = FontWeight.SemiBold,
-                modifier = Modifier.padding(top = 12.dp)
+                modifier = Modifier.padding(top = 10.dp)
             )
             Text(
                 text = stringResource(R.string.fandom_related_article_count, groupEntities.size),
                 color = KitsugiColors.TextMuted,
                 style = MaterialTheme.typography.labelSmall
             )
-            LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                items(
-                    items = groupEntities,
-                    key = { entity -> "${entity.wikiId}:${entity.pageTitle}:${entity.role}:${entity.language}" }
-                ) { entity ->
-                    val category = if (role == FandomRelationType.CHARACTER) {
-                        GalleryCategory.CHARACTER
-                    } else {
-                        GalleryCategory.PERSON
+            androidx.compose.runtime.key(pageKey, role) {
+                val rowState = androidx.compose.foundation.lazy.rememberLazyListState()
+                LazyRow(
+                    state = rowState,
+                    flingBehavior = com.kitsugi.animelist.ui.utils.KitsugiScrollDefaults.rememberRowSnapFling(rowState),
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    items(
+                        items = groupEntities,
+                        key = { entity -> "${entity.wikiId}:${entity.pageTitle}:${entity.role}:${entity.language}" }
+                    ) { entity ->
+                        WikiPagePreviewCard(
+                            title = entity.label,
+                            description = entity.description ?: entity.context,
+                            thumbnailUrl = entity.imageUrl,
+                            accentColor = accentColor,
+                            onClick = { openEntityPage(entity) },
+                            subtitle = entity.language?.uppercase()
+                        )
                     }
-                    val sourceLabel = FandomUrls.displaySourceName(entity.wikiId)
-                    WikiRelatedEntityDetailCard(
-                        entity = entity,
-                        accentColor = accentColor,
-                        spoilerGuard = spoilerGuard,
-                        modifier = Modifier.width(300.dp),
-                        onOpenPage = { openEntityPage(entity) },
-                        onOpenImage = { url ->
-                            onOpenGallery(
-                                listOf(GalleryItem(url, sourceLabel, category, entity.label)),
-                                0
-                            )
-                        }
-                    )
                 }
             }
         }
