@@ -1318,6 +1318,7 @@
     <string name="pd_pinch_zoom">Çimdikleme (Pinch-to-Zoom)</string>
     <string name="pd_pinch_zoom_desc">İki parmakla yakınlaştırarak ekran modunu ayarla</string>
     <string name="pd_scroll_sens">Kaydırma Hassasiyeti: %1$sx</string>
+    <string name="slider_reset_to_default">Varsayılana sıfırla</string>
     <string name="pd_double_tap_seek">Çift Dokunma Arama Süresi</string>
     <string name="pd_double_tap_seek_desc">Ekranın sağına/soluna çift dokunulduğunda atlanacak saniye</string>
     <string name="pd_hold_speed_desc">Ekrana uzun basıldığında oynatılacak video hızı çarpanı</string>

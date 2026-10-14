@@ -36,6 +36,7 @@ import androidx.compose.material.icons.filled.BrightnessHigh
 import androidx.compose.material.icons.filled.ScreenRotation
 import androidx.compose.material.icons.filled.CropFree
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.rounded.RestartAlt
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ExperimentalMaterial3Api
 import com.kitsugi.animelist.ui.theme.gradient.FilterChip
@@ -650,6 +651,17 @@ fun MangaReaderScreen(
                         ),
                         modifier = Modifier.weight(1f).padding(horizontal = 8.dp)
                     )
+                    IconButton(
+                        onClick = { viewModel.setCustomBrightness(1.0f) },
+                        modifier = Modifier.size(40.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Rounded.RestartAlt,
+                            contentDescription = stringResource(R.string.slider_reset_to_default),
+                            tint = Color.White.copy(alpha = 0.8f),
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
                     Icon(
                         imageVector = Icons.Default.BrightnessHigh,
                         contentDescription = null,

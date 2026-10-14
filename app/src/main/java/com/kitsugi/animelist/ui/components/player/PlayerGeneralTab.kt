@@ -1,6 +1,5 @@
 package com.kitsugi.animelist.ui.components.player
 
-import com.kitsugi.animelist.ui.theme.gradient.Slider
 import com.kitsugi.animelist.ui.theme.gradient.Text
 
 import androidx.compose.ui.res.stringResource
@@ -26,6 +25,7 @@ import com.kitsugi.animelist.core.player.QualityPreference
 import com.kitsugi.animelist.ui.screens.fullscreen.components.QualityProfileDialog
 import com.kitsugi.animelist.ui.theme.KitsugiColors
 import com.kitsugi.animelist.core.player.ExternalPlayerPackages
+import com.kitsugi.animelist.ui.components.ResettableSlider
 import com.kitsugi.animelist.ui.components.KitsugiSettingsSection
 import com.kitsugi.animelist.ui.components.KitsugiSettingsListItem
 import com.kitsugi.animelist.ui.components.KitsugiSettingsSwitchItem
@@ -672,13 +672,12 @@ internal fun PlayerGeneralTab(
                         color = KitsugiColors.TextSecondary,
                         style = MaterialTheme.typography.bodySmall
                     )
-                    Slider(
+                    ResettableSlider(
                         value = gainBoostDb,
+                        defaultValue = 0f,
                         onValueChange = onGainBoostDbChanged,
                         valueRange = -10f..20f,
-                        steps = 59,
-                        colors = SliderDefaults.colors(thumbColor = accentColor, activeTrackColor = accentColor),
-                        modifier = Modifier.fillMaxWidth()
+                        steps = 59
                     )
                 }
 
@@ -702,13 +701,12 @@ internal fun PlayerGeneralTab(
                         color = KitsugiColors.TextSecondary,
                         style = MaterialTheme.typography.bodySmall
                     )
-                    Slider(
+                    ResettableSlider(
                         value = clampedDelaySeconds,
+                        defaultValue = 0f,
                         onValueChange = { onSubtitleDelayMsChanged((it * 1000).toLong()) },
                         valueRange = -10f..10f,
-                        steps = 199,
-                        colors = SliderDefaults.colors(thumbColor = accentColor, activeTrackColor = accentColor),
-                        modifier = Modifier.fillMaxWidth()
+                        steps = 199
                     )
                 }
             }
@@ -829,13 +827,12 @@ internal fun PlayerGeneralTab(
                         style = MaterialTheme.typography.bodyMedium,
                         fontWeight = FontWeight.Bold
                     )
-                    Slider(
+                    ResettableSlider(
                         value = gestureScrollSensitivity,
+                        defaultValue = 1.0f,
                         onValueChange = onGestureScrollSensitivityChanged,
                         valueRange = 0.5f..2.0f,
-                        steps = 14,
-                        colors = SliderDefaults.colors(thumbColor = accentColor, activeTrackColor = accentColor),
-                        modifier = Modifier.fillMaxWidth()
+                        steps = 14
                     )
                 }
             }
@@ -953,13 +950,12 @@ internal fun PlayerGeneralTab(
                         color = KitsugiColors.TextSecondary,
                         style = MaterialTheme.typography.bodySmall
                     )
-                    Slider(
+                    ResettableSlider(
                         value = mpvDemuxerCacheMb.toFloat(),
+                        defaultValue = 64f,
                         onValueChange = { onMpvDemuxerCacheMbChanged(it.toInt()) },
                         valueRange = 8f..256f,
-                        steps = 30,
-                        colors = SliderDefaults.colors(thumbColor = accentColor, activeTrackColor = accentColor),
-                        modifier = Modifier.fillMaxWidth()
+                        steps = 30
                     )
                 }
 
@@ -980,13 +976,12 @@ internal fun PlayerGeneralTab(
                         color = KitsugiColors.TextSecondary,
                         style = MaterialTheme.typography.bodySmall
                     )
-                    Slider(
+                    ResettableSlider(
                         value = volumeBoostCap.toFloat(),
+                        defaultValue = 200f,
                         onValueChange = { onVolumeBoostCapChanged(it.toInt()) },
                         valueRange = 100f..200f,
-                        steps = 19,
-                        colors = SliderDefaults.colors(thumbColor = accentColor, activeTrackColor = accentColor),
-                        modifier = Modifier.fillMaxWidth()
+                        steps = 19
                     )
                 }
             }

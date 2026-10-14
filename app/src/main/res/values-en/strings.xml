@@ -1318,6 +1318,7 @@
     <string name="pd_pinch_zoom">Pinch-to-Zoom</string>
     <string name="pd_pinch_zoom_desc">Adjust the screen mode by pinching with two fingers</string>
     <string name="pd_scroll_sens">Scroll Sensitivity: %1$sx</string>
+    <string name="slider_reset_to_default">Reset to default</string>
     <string name="pd_double_tap_seek">Double-Tap Seek Duration</string>
     <string name="pd_double_tap_seek_desc">Seconds skipped when double-tapping the right/left of the screen</string>
     <string name="pd_hold_speed_desc">Video speed multiplier played when the screen is long-pressed</string>

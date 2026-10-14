@@ -2,7 +2,6 @@ package com.kitsugi.animelist.ui.components
 
 import com.kitsugi.animelist.ui.theme.gradient.Icon
 import com.kitsugi.animelist.ui.theme.gradient.RadioButton
-import com.kitsugi.animelist.ui.theme.gradient.Slider
 import com.kitsugi.animelist.ui.theme.gradient.Text
 
 import com.kitsugi.animelist.ui.theme.gradient.background
@@ -1956,17 +1955,12 @@ private fun MangaReaderTab(
                     style = MaterialTheme.typography.bodySmall
                 )
                 Spacer(modifier = Modifier.height(10.dp))
-                Slider(
+                ResettableSlider(
                     value = appSettings.mangaBrightness,
+                    defaultValue = 1.0f,
                     onValueChange = onMangaBrightnessChanged,
                     valueRange = 0.1f..1.0f,
-                    steps = 8,
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = SliderDefaults.colors(
-                        thumbColor = accentColor,
-                        activeTrackColor = accentColor,
-                        inactiveTrackColor = KitsugiColors.surfaceSoft
-                    )
+                    steps = 8
                 )
             }
         }

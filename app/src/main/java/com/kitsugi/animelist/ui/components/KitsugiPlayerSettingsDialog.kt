@@ -2,7 +2,6 @@ package com.kitsugi.animelist.ui.components
 
 import com.kitsugi.animelist.ui.theme.gradient.FilterChip
 import com.kitsugi.animelist.ui.theme.gradient.Icon
-import com.kitsugi.animelist.ui.theme.gradient.Slider
 import com.kitsugi.animelist.ui.theme.gradient.Text
 
 import androidx.compose.ui.res.stringResource
@@ -650,14 +649,11 @@ fun KitsugiPlayerSettingsDialog(
                                             fontWeight = FontWeight.SemiBold
                                         )
                                         Spacer(modifier = Modifier.height(4.dp))
-                                        Slider(
+                                        ResettableSlider(
                                             value = gestureScrollSensitivity,
+                                            defaultValue = 1.0f,
                                             onValueChange = onGestureScrollSensitivityChanged,
-                                            valueRange = 0.5f..2.5f,
-                                            colors = SliderDefaults.colors(
-                                                thumbColor = accentColor,
-                                                activeTrackColor = accentColor
-                                            )
+                                            valueRange = 0.5f..2.5f
                                         )
                                     }
 
@@ -883,15 +879,12 @@ fun KitsugiPlayerSettingsDialog(
                                             fontWeight = FontWeight.SemiBold
                                         )
                                         Spacer(modifier = Modifier.height(4.dp))
-                                        Slider(
+                                        ResettableSlider(
                                             value = demuxerCache.toFloat(),
+                                            defaultValue = 64f,
                                             onValueChange = { scope.launch { settingsDataStore.setMpvDemuxerCacheMb(it.toInt()) } },
                                             valueRange = 8f..512f,
-                                            steps = 63,
-                                            colors = SliderDefaults.colors(
-                                                thumbColor = accentColor,
-                                                activeTrackColor = accentColor
-                                            )
+                                            steps = 63
                                         )
                                     }
                                 }
@@ -1085,14 +1078,11 @@ fun KitsugiPlayerSettingsDialog(
                                             fontWeight = FontWeight.SemiBold
                                         )
                                         Spacer(modifier = Modifier.height(4.dp))
-                                        Slider(
+                                        ResettableSlider(
                                             value = shadowOffset,
+                                            defaultValue = 1.5f,
                                             onValueChange = { scope.launch { settingsDataStore.setSubtitleShadowOffset(it) } },
-                                            valueRange = 0f..8f,
-                                            colors = SliderDefaults.colors(
-                                                thumbColor = accentColor,
-                                                activeTrackColor = accentColor
-                                            )
+                                            valueRange = 0f..8f
                                         )
                                     }
 
@@ -1137,14 +1127,11 @@ fun KitsugiPlayerSettingsDialog(
                                             fontWeight = FontWeight.SemiBold
                                         )
                                         Spacer(modifier = Modifier.height(4.dp))
-                                        Slider(
+                                        ResettableSlider(
                                             value = borderSize,
+                                            defaultValue = 1.5f,
                                             onValueChange = { scope.launch { settingsDataStore.setSubtitleBorderSize(it) } },
-                                            valueRange = 0f..6f,
-                                            colors = SliderDefaults.colors(
-                                                thumbColor = accentColor,
-                                                activeTrackColor = accentColor
-                                            )
+                                            valueRange = 0f..6f
                                         )
                                     }
                                 }
@@ -1415,14 +1402,11 @@ fun KitsugiPlayerSettingsDialog(
                                             fontWeight = FontWeight.SemiBold
                                         )
                                         Spacer(modifier = Modifier.height(4.dp))
-                                        Slider(
+                                        ResettableSlider(
                                             value = speakerDelayMs.toFloat(),
+                                            defaultValue = 0f,
                                             onValueChange = { onRouteDelayChanged(it.toLong(), bluetoothDelayMs, wiredDelayMs, hdmiDelayMs) },
-                                            valueRange = -1000f..1000f,
-                                            colors = SliderDefaults.colors(
-                                                thumbColor = accentColor,
-                                                activeTrackColor = accentColor
-                                            )
+                                            valueRange = -1000f..1000f
                                         )
                                     }
 
@@ -1436,14 +1420,11 @@ fun KitsugiPlayerSettingsDialog(
                                             fontWeight = FontWeight.SemiBold
                                         )
                                         Spacer(modifier = Modifier.height(4.dp))
-                                        Slider(
+                                        ResettableSlider(
                                             value = bluetoothDelayMs.toFloat(),
+                                            defaultValue = 0f,
                                             onValueChange = { onRouteDelayChanged(speakerDelayMs, it.toLong(), wiredDelayMs, hdmiDelayMs) },
-                                            valueRange = -1000f..1000f,
-                                            colors = SliderDefaults.colors(
-                                                thumbColor = accentColor,
-                                                activeTrackColor = accentColor
-                                            )
+                                            valueRange = -1000f..1000f
                                         )
                                     }
 
@@ -1457,14 +1438,11 @@ fun KitsugiPlayerSettingsDialog(
                                             fontWeight = FontWeight.SemiBold
                                         )
                                         Spacer(modifier = Modifier.height(4.dp))
-                                        Slider(
+                                        ResettableSlider(
                                             value = wiredDelayMs.toFloat(),
+                                            defaultValue = 0f,
                                             onValueChange = { onRouteDelayChanged(speakerDelayMs, bluetoothDelayMs, it.toLong(), hdmiDelayMs) },
-                                            valueRange = -1000f..1000f,
-                                            colors = SliderDefaults.colors(
-                                                thumbColor = accentColor,
-                                                activeTrackColor = accentColor
-                                            )
+                                            valueRange = -1000f..1000f
                                         )
                                     }
 
@@ -1478,14 +1456,11 @@ fun KitsugiPlayerSettingsDialog(
                                             fontWeight = FontWeight.SemiBold
                                         )
                                         Spacer(modifier = Modifier.height(4.dp))
-                                        Slider(
+                                        ResettableSlider(
                                             value = hdmiDelayMs.toFloat(),
+                                            defaultValue = 0f,
                                             onValueChange = { onRouteDelayChanged(speakerDelayMs, bluetoothDelayMs, wiredDelayMs, it.toLong()) },
-                                            valueRange = -1000f..1000f,
-                                            colors = SliderDefaults.colors(
-                                                thumbColor = accentColor,
-                                                activeTrackColor = accentColor
-                                            )
+                                            valueRange = -1000f..1000f
                                         )
                                     }
                                 }
