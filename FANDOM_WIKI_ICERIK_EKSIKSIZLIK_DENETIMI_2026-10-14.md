@@ -211,7 +211,7 @@ Yeni testlerin kilitlediği davranışlar:
 ## 5. Canlı ölçüm: düzeltme öncesi → sonrası
 
 `tools/wiki_audit/content_audit.py` GitHub Actions'ta gerçek Fandom API'sine karşı çalışır
-(27 sayfa, 8 wiki ailesi). İki ölçüm de aynı örneklem, aynı ağ koşulları, 0 ağ hatası.
+(27 sayfa, 12 wiki). İki ölçüm de aynı örneklem, aynı ağ koşulları, 0 ağ hatası.
 
 | Ölçüm | Önce (05:56 UTC) | Sonra (06:56 UTC) |
 |---|---:|---:|
