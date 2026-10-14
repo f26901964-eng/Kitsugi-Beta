@@ -1170,7 +1170,8 @@ private fun WikiItemSheet(
                                     spoilerGuard = spoilerGuard,
                                     accentColor = accentColor,
                                     preferredTranslator = preferredTranslator,
-                                    onLoad = { onLoadSection(section.index) }
+                                    onLoad = { onLoadSection(section.index) },
+                                    translations = translations
                                 )
                             }
                         }
@@ -1376,7 +1377,9 @@ private fun ArticleSectionRow(
     spoilerGuard: Boolean,
     accentColor: Color,
     preferredTranslator: String,
-    onLoad: () -> Unit
+    onLoad: () -> Unit,
+    /** Bölümün blok blok çevirileri (yapı koruyan çeviri). */
+    translations: Map<String, String> = emptyMap()
 ) {
     var expanded by rememberSaveable(articleTitle, section.index) { mutableStateOf(false) }
     var revealed by rememberSaveable(articleTitle, section.index) { mutableStateOf(false) }
@@ -1471,7 +1474,12 @@ private fun ArticleSectionRow(
                                         isLoading = translating
                                     )
                                 }
-                                ArticleSectionBody(state.content, translated)
+                                ArticleSectionBody(
+                                    content = state.content,
+                                    translated = translated,
+                                    baseKey = FandomMediaWikiViewModel.articleSectionKey(articleTitle, section.index),
+                                    translations = translations
+                                )
                             }
                         }
                     }
@@ -1482,80 +1490,100 @@ private fun ArticleSectionRow(
 }
 
 @Composable
-private fun ArticleSectionBody(content: FandomSectionContent, translated: String?) {
+private fun ArticleSectionBody(
+    content: FandomSectionContent,
+    translated: String?,
+    baseKey: String = "",
+    translations: Map<String, String> = emptyMap()
+) {
+    // YAPI KORUMASI: Blok blok çevrilen içerik, orijinaliyle AYNI çiziciden geçer. Böylece
+    // çeviri açıldığında madde işaretleri, kartlar, başlıklar ve görsel sırası değişmez;
+    // görseller metnin altına yığılmaz.
+    val translatedContent = remember(content, translations, baseKey) {
+        if (baseKey.isEmpty()) null else content.withTranslatedBlocks(baseKey, translations)
+    }
+    // Yapı bilgisi olmayan (eski önbellek) düz metin kaydı için yedek yol.
+    val flatTranslation = translated?.takeUnless {
+        it.isBlank() || WikiStructuredTranslationKeys.isCompleteMarker(it)
+    }
     SelectionContainer {
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            if (translated != null) {
-                translated.split(Regex("\\n\\s*\\n"))
-                    .map { it.trim() }
-                    .filter { it.isNotEmpty() }
-                    .forEach { paragraph ->
-                        Text(
-                            text = paragraph,
-                            color = KitsugiColors.TextPrimary,
-                            style = MaterialTheme.typography.bodyMedium
-                        )
-                    }
-                content.blocks
-                    .filter { it.kind == FandomBlockKind.IMAGE }
-                    .forEach { block -> ArticleImageBlock(block) }
-            } else {
-                content.blocks.forEach { block ->
-                    when (block.kind) {
-                        FandomBlockKind.HEADING -> Text(
-                            text = localizedSectionTitle(block.text),
-                            color = KitsugiColors.TextPrimary,
-                            style = MaterialTheme.typography.titleSmall,
-                            fontWeight = FontWeight.Bold
-                        )
-                        FandomBlockKind.PARAGRAPH -> Text(
-                            text = block.text,
-                            color = KitsugiColors.TextPrimary,
-                            style = MaterialTheme.typography.bodyMedium
-                        )
-                        FandomBlockKind.BULLET -> Row(modifier = Modifier.fillMaxWidth()) {
-                            Text("•", color = KitsugiColors.TextSecondary, modifier = Modifier.padding(end = 8.dp))
-                            Text(block.text, color = KitsugiColors.TextPrimary, modifier = Modifier.weight(1f))
-                        }
-                        FandomBlockKind.QUOTE -> Text(
-                            text = "“${block.text}”",
-                            color = KitsugiColors.TextSecondary,
-                            style = MaterialTheme.typography.bodyMedium
-                        )
-                        FandomBlockKind.IMAGE -> ArticleImageBlock(block)
-                        FandomBlockKind.CARD -> Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                            if (block.image != null) ArticleImageBlock(block)
-                            if (block.text.isNotBlank()) Text(
-                                text = block.text,
+            when {
+                translatedContent != null -> translatedContent.blocks.forEach { block -> ArticleBlock(block) }
+                flatTranslation != null -> {
+                    flatTranslation.split(Regex("\\n\\s*\\n"))
+                        .map { it.trim() }
+                        .filter { it.isNotEmpty() }
+                        .forEach { paragraph ->
+                            Text(
+                                text = paragraph,
                                 color = KitsugiColors.TextPrimary,
-                                style = MaterialTheme.typography.bodyMedium,
-                                fontWeight = FontWeight.SemiBold
-                            )
-                            block.subtitle?.takeIf { it.isNotBlank() }?.let { subtitle ->
-                                Text(
-                                    text = subtitle,
-                                    color = KitsugiColors.TextMuted,
-                                    style = MaterialTheme.typography.labelMedium
-                                )
-                            }
-                        }
-                        FandomBlockKind.LINK_GROUP -> Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                            if (block.text.isNotBlank()) Text(
-                                text = block.text,
-                                color = KitsugiColors.TextPrimary,
-                                style = MaterialTheme.typography.titleSmall,
-                                fontWeight = FontWeight.Bold
-                            )
-                            val labels = block.links.map { it.label }.filter { it.isNotBlank() }
-                            if (labels.isNotEmpty()) Text(
-                                text = labels.joinToString(" · "),
-                                color = KitsugiColors.TextSecondary,
                                 style = MaterialTheme.typography.bodyMedium
                             )
                         }
-                    }
+                    content.blocks
+                        .filter { it.kind == FandomBlockKind.IMAGE }
+                        .forEach { block -> ArticleImageBlock(block) }
                 }
+                else -> content.blocks.forEach { block -> ArticleBlock(block) }
             }
+        }
+    }
+}
+
+@Composable
+private fun ArticleBlock(block: FandomTextBlock) {
+    when (block.kind) {
+        FandomBlockKind.HEADING -> Text(
+            text = localizedSectionTitle(block.text),
+            color = KitsugiColors.TextPrimary,
+            style = MaterialTheme.typography.titleSmall,
+            fontWeight = FontWeight.Bold
+        )
+        FandomBlockKind.PARAGRAPH -> Text(
+            text = block.text,
+            color = KitsugiColors.TextPrimary,
+            style = MaterialTheme.typography.bodyMedium
+        )
+        FandomBlockKind.BULLET -> Row(modifier = Modifier.fillMaxWidth()) {
+            Text("•", color = KitsugiColors.TextSecondary, modifier = Modifier.padding(end = 8.dp))
+            Text(block.text, color = KitsugiColors.TextPrimary, modifier = Modifier.weight(1f))
+        }
+        FandomBlockKind.QUOTE -> Text(
+            text = "“${block.text}”",
+            color = KitsugiColors.TextSecondary,
+            style = MaterialTheme.typography.bodyMedium
+        )
+        FandomBlockKind.IMAGE -> ArticleImageBlock(block)
+        FandomBlockKind.CARD -> Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            if (block.image != null) ArticleImageBlock(block)
+            if (block.text.isNotBlank()) Text(
+                text = block.text,
+                color = KitsugiColors.TextPrimary,
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.SemiBold
+            )
+            block.subtitle?.takeIf { it.isNotBlank() }?.let { subtitle ->
+                Text(
+                    text = subtitle,
+                    color = KitsugiColors.TextMuted,
+                    style = MaterialTheme.typography.labelMedium
+                )
+            }
+        }
+        FandomBlockKind.LINK_GROUP -> Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            if (block.text.isNotBlank()) Text(
+                text = block.text,
+                color = KitsugiColors.TextPrimary,
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.Bold
+            )
+            val labels = block.links.map { it.label }.filter { it.isNotBlank() }
+            if (labels.isNotEmpty()) Text(
+                text = labels.joinToString(" · "),
+                color = KitsugiColors.TextSecondary,
+                style = MaterialTheme.typography.bodyMedium
+            )
         }
     }
 }

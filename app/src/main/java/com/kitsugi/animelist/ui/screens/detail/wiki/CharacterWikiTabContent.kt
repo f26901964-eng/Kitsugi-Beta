@@ -298,6 +298,7 @@ internal fun CharacterWikiTabContent(
                         onOpenLink = { linkTitle ->
                             onOpenWikiPage?.invoke(linkTitle) ?: openExternal(context, com.kitsugi.animelist.data.fandom.FandomUrls.pageUrl(page.wikiId, linkTitle))
                         },
+                        translations = translations,
                         onOpenWikiLink = onOpenWikiLink
                     )
                 }
@@ -778,7 +779,9 @@ private fun WikiSectionRow(
     onToggleOriginal: (() -> Unit)? = null,
     onOpenGallery: (List<GalleryItem>, Int) -> Unit = { _, _ -> },
     onOpenLink: (String) -> Unit = {},
-    onOpenWikiLink: ((FandomWikiLink) -> Unit)? = null
+    onOpenWikiLink: ((FandomWikiLink) -> Unit)? = null,
+    /** Bölümün blok blok çevirileri (yapı koruyan çeviri). */
+    translations: Map<String, String> = emptyMap()
 ) {
     Column(modifier = Modifier.fillMaxWidth()) {
         Row(
@@ -868,7 +871,18 @@ private fun WikiSectionRow(
                                     )
                                     CopyIconButton(
                                         contentDescription = stringResource(R.string.fandom_copy_section),
-                                        onClick = { onCopy(if (showingOriginal || translated == null) state.content.plainText() else translated) }
+                                        onClick = {
+                                            // Kopyalanan metin de yapıyı korur: madde işaretleri,
+                                            // kart sırası ve bağlantı adları orijinaldeki gibidir.
+                                            onCopy(
+                                                state.content.copyTextFor(
+                                                    baseKey = sectionKey(section.index),
+                                                    translations = translations,
+                                                    showOriginal = showingOriginal || translated == null,
+                                                    flatFallback = translated
+                                                )
+                                            )
+                                        }
                                     )
                                 }
                                 SectionBody(
@@ -876,7 +890,9 @@ private fun WikiSectionRow(
                                     translated = if (showingOriginal) null else translated,
                                     onOpenGallery = onOpenGallery,
                                     onOpenLink = onOpenLink,
-                                    onOpenWikiLink = onOpenWikiLink
+                                    onOpenWikiLink = onOpenWikiLink,
+                                    baseKey = sectionKey(section.index),
+                                    translations = translations
                                 )
                             }
                         }
@@ -893,9 +909,11 @@ private fun SectionBody(
     translated: String?,
     onOpenGallery: (List<GalleryItem>, Int) -> Unit,
     onOpenLink: (String) -> Unit = {},
-    onOpenWikiLink: ((FandomWikiLink) -> Unit)? = null
+    onOpenWikiLink: ((FandomWikiLink) -> Unit)? = null,
+    /** Bölümün blok blok çevirileri (yapı koruyan çeviri). */
+    baseKey: String = "",
+    translations: Map<String, String> = emptyMap()
 ) {
-    val context = LocalContext.current
     val galleryItems = remember(content) {
         content.blocks.mapNotNull { it.image }
             .distinctBy { it.url }
@@ -909,33 +927,45 @@ private fun SectionBody(
             }
     }
     val imageBlocks = content.blocks.filter { it.kind == FandomBlockKind.IMAGE }
+    // YAPI KORUMASI: Çevrilmiş içerik de orijinaliyle AYNI çiziciden geçer; görseller kendi
+    // konumunda kalır, madde/kart/başlık düzeni ve bağlantı etiketleri değişmez.
+    val translatedContent = remember(content, translations, baseKey) {
+        if (baseKey.isEmpty()) null else content.withTranslatedBlocks(baseKey, translations)
+    }
+    val flatTranslation = translated?.takeUnless {
+        it.isBlank() || WikiStructuredTranslationKeys.isCompleteMarker(it)
+    }
+    val openGalleryForImage: (com.kitsugi.animelist.data.fandom.FandomImage) -> Unit = { image ->
+        val index = galleryItems.indexOfFirst { it.url == image.url }.coerceAtLeast(0)
+        if (galleryItems.isNotEmpty()) onOpenGallery(galleryItems, index)
+    }
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         SelectionContainer {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                if (translated != null) {
-                    translated.split(PARAGRAPH_SPLIT)
-                        .map { it.trim() }
-                        .filter { it.isNotEmpty() }
-                        .forEach { paragraph ->
-                            Text(
-                                text = paragraph,
-                                color = KitsugiColors.TextPrimary,
-                                style = MaterialTheme.typography.bodyMedium
-                            )
-                        }
-                    imageBlocks.forEach { block ->
-                        WikiImageBlock(block) {
-                            val image = block.image ?: return@WikiImageBlock
-                            val index = galleryItems.indexOfFirst { it.url == image.url }.coerceAtLeast(0)
-                            if (galleryItems.isNotEmpty()) onOpenGallery(galleryItems, index)
+                when {
+                    translatedContent != null -> translatedContent.blocks.forEach { block ->
+                        WikiBlock(block, openGalleryForImage)
+                    }
+                    flatTranslation != null -> {
+                        flatTranslation.split(PARAGRAPH_SPLIT)
+                            .map { it.trim() }
+                            .filter { it.isNotEmpty() }
+                            .forEach { paragraph ->
+                                Text(
+                                    text = paragraph,
+                                    color = KitsugiColors.TextPrimary,
+                                    style = MaterialTheme.typography.bodyMedium
+                                )
+                            }
+                        imageBlocks.forEach { block ->
+                            WikiImageBlock(block) {
+                                val image = block.image ?: return@WikiImageBlock
+                                openGalleryForImage(image)
+                            }
                         }
                     }
-                } else {
-                    content.blocks.forEach { block ->
-                        WikiBlock(block) { image ->
-                            val index = galleryItems.indexOfFirst { it.url == image.url }.coerceAtLeast(0)
-                            if (galleryItems.isNotEmpty()) onOpenGallery(galleryItems, index)
-                        }
+                    else -> content.blocks.forEach { block ->
+                        WikiBlock(block, openGalleryForImage)
                     }
                 }
             }
