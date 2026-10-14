@@ -1,6 +1,6 @@
-# Fandom wiki ICERIK denetimi - 2026-10-14 06:56 UTC
+# Fandom wiki ICERIK denetimi - 2026-10-14 07:16 UTC
 
-Sayfa: 27 (ok 27); sure 58 sn; ag hatasi 0 
+Sayfa: 27 (ok 27); sure 56 sn; ag hatasi 0 
 
 ## Ozet
 
@@ -11,16 +11,16 @@ Sayfa: 27 (ok 27); sure 58 sn; ag hatasi 0
 | ATILAN: sablon bolumu (T-x, index Int degil) | 0 |
 | ATILAN: gizli bolum (Trivia/Galeri/...) | 32 |
 | wikitext gorsel sayisi | 194 |
-| HTML'deki <img> sayisi | 2239 |
-| Uygulamanin blok olarak aldigi gorsel | 1415 |
-| Gorsel kaybi: MAX_SECTION_IMAGES=24 | 65 |
+| HTML'deki <img> sayisi | 2238 |
+| Uygulamanin blok olarak aldigi gorsel | 1414 |
+| Gorsel kaybi: MAX_SECTION_IMAGES=300 | 65 |
 | Gorsel kaybi: 32x32 filtresi | 37 |
-| Tablo satiri kaybi: take(150) | 0 |
+| Tablo satiri kaybi: MAX_TABLE_ROWS=2000 | 0 |
 | Video yer tutucusu (hic gosterilmez) | 29 |
 | Katlanabilir blok (.mw-collapsible, toggle silinir) | 69 |
 | Sekmeli icerik (wds-tabber, wrapper silinir) | 290 |
 | Navbox (bilincli olarak silinir) | 6 |
-| maxBlocks=400'e takilan sayfa | 0 |
+| maxBlocks=4000'e takilan sayfa | 0 |
 | Infobox alani (JSON) | 98 |
 | Infobox gorseli (JSON) | 16 |
 | Arayuzde gosterilen infobox gorseli | 16 |
@@ -47,7 +47,7 @@ Sayfa: 27 (ok 27); sure 58 sn; ag hatasi 0
 | fairytail | Ivan Dreyar/Image Gallery | 3 | 0 | 0 | 0 | 115 | 57 | 0 | 0 | 0 | 0.076 |
 | fairytail | Main Page | 0 | 0 | 0 | 0 | 148 | 140 | 0 | 0 | 2 | 1.65 |
 | fairytail | Mest Gryder | 26 | 23 | 0 | 3 | 78 | 35 | 0 | 0 | 0 | 0.799 |
-| gintama | Main Page | 0 | 0 | 0 | 0 | 80 | 49 | 0 | 0 | 0 | 1.098 |
+| gintama | Main Page | 0 | 0 | 0 | 0 | 79 | 48 | 0 | 0 | 0 | 1.097 |
 | jujutsu-kaisen | Cursed Child Arc | 11 | 9 | 0 | 2 | 26 | 17 | 0 | 0 | 0 | 0.934 |
 | jujutsu-kaisen | Jujutsu Kaisen Wiki | 13 | 0 | 0 | 0 | 131 | 66 | 0 | 0 | 4 | 1.083 |
 | kimetsu-no-yaiba | Kimetsu no Yaiba Wiki | 14 | 0 | 0 | 0 | 175 | 166 | 0 | 0 | 2 | 1.173 |
