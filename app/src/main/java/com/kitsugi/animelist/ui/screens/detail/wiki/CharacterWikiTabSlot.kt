@@ -173,8 +173,7 @@ internal fun CharacterWikiTabSlot(
                         translations = translations,
                         translatingKeys = translating,
                         originalKeys = originalKeys,
-                        preferredTranslator = preferredTranslator,
-                        spoilerGuard = prefs.spoilerGuard
+                        preferredTranslator = preferredTranslator
                     )
                 },
                 navigation = readerBrowser,

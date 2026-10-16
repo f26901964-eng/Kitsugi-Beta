@@ -44,11 +44,6 @@ object FandomRepository {
     private const val NEGATIVE_TTL_MS = DAY_MS
     private const val TRANSIENT_NEGATIVE_TTL_MS = 10L * 60L * 1000L
     private const val SEARCH_MEMO_TTL_MS = 5L * 60L * 1000L
-    /**
-     * İlgili wiki sayfalarının kaç tanesi giriş bölümüyle zenginleştirilir (sekme içi tam
-     * ayrıntı). Kalan sayfalar önizleme kartı olarak kalır; sayfa sayfa istek açılmasın.
-     */
-    private const val INLINE_RELATED_PAGE_LIMIT = 12
 
     private val json = Json {
         ignoreUnknownKeys = true
@@ -472,97 +467,6 @@ object FandomRepository {
     /** Full lead text from section 0; used inline so the Wiki tab is useful before opening the reader. */
     suspend fun loadPageLeadIntro(context: Context, wikiId: String, title: String): String? =
         loadLead(context, wikiId, title)?.intro
-
-    /**
-     * "İlgili wiki sayfaları" kartlarını TAM içerikle zenginleştirir.
-     *
-     * Önizleme isteği (`pagePreviews`) yalnızca kısa açıklama + bilgi kutusu taşır; kullanıcı
-     * karakter / ekip / seslendirmen ayrıntısını görmek için sayfayı açmak zorundaydı. Bu yöntem
-     * her ilgili sayfa için giriş bölümünü (section 0) ve eksiksiz bilgi kutusunu çekip kartın
-     * profiline işler; böylece ayrıntılar doğrudan wiki sekmesinde, tek tıklamaya gerek kalmadan
-     * görünür.
-     *
-     * Ağ hatasına dayanıklıdır: başarısız sayfalar önizleme verisiyle kalır, liste boşalmaz.
-     * Zincir tepkisi (circuit breaker) açmamak için yalnızca ilk [maxPages] sayfa işlenir.
-     */
-    suspend fun enrichRelatedPagesWithLead(
-        context: Context,
-        wikiId: String,
-        pages: List<FandomRelatedPage>,
-        maxPages: Int = INLINE_RELATED_PAGE_LIMIT
-    ): List<FandomRelatedPage> {
-        if (pages.isEmpty()) return pages
-        val targets = pages.take(maxPages.coerceAtLeast(0))
-        val enriched = targets.map { page ->
-            val lead = try {
-                loadLead(context, wikiId, page.title)
-            } catch (e: CancellationException) {
-                throw e
-            } catch (e: Exception) {
-                Log.w(TAG, "İlgili sayfa girişi yüklenemedi ($wikiId/${page.title}): ${e.message}")
-                null
-            } ?: return@map page
-            mergeRelatedPageLead(page, lead)
-        }
-        // Zenginleştirilmeyen sayfalar (limit dışı kalanlar) listenin sonunda korunur.
-        return enriched + pages.drop(targets.size)
-    }
-
-    /**
-     * İlgili sayfa önizlemesini giriş bölümü verisiyle birleştirir.
-     *
-     * - Giriş metni (section 0) kısa açıklamadan daha eksiksiz olduğu için öne geçer.
-     * - Bilgi kutusunda HTML (giriş) daha fazla alan çıkarmışsa temel alınır; yalnızca
-     *   eksik kalan etiketler JSON önizlemesinden tamamlanır.
-     */
-    private fun mergeRelatedPageLead(page: FandomRelatedPage, lead: FandomLeadParser.Lead): FandomRelatedPage {
-        val existing = page.profile
-        val intro = FandomLeadParser.mergeDescription(existing?.intro ?: page.snippet, lead.intro)
-        val leadGroups = lead.infobox?.groups.orEmpty().map { group ->
-            FandomProfileGroup(
-                header = group.header,
-                fields = group.fields.map { field ->
-                    FandomProfileField(
-                        label = field.label,
-                        value = field.value,
-                        source = field.source,
-                        spoiler = field.spoiler
-                    )
-                }
-            )
-        }
-        val existingGroups = existing?.groups.orEmpty()
-        val existingByLabel = existingGroups
-            .flatMap { it.fields }
-            .associateBy { it.label.trim().lowercase() }
-        val mergedGroups = when {
-            leadGroups.isEmpty() -> existingGroups
-            existingGroups.isEmpty() -> leadGroups
-            else -> leadGroups.map { group ->
-                group.copy(
-                    fields = group.fields.map { field ->
-                        val better = existingByLabel[field.label.trim().lowercase()]
-                        if (better != null && better.value.length > field.value.length) {
-                            field.copy(value = better.value)
-                        } else {
-                            field
-                        }
-                    }
-                )
-            }
-        }
-        val images = (existing?.images.orEmpty() + lead.infobox?.images.orEmpty()).distinctBy { it.url }
-        val profile = FandomPageProfile(
-            title = lead.infobox?.title ?: existing?.title,
-            intro = intro?.takeIf { it.isNotBlank() },
-            images = images,
-            groups = mergedGroups
-        ).takeIf { it.hasDetails() }
-        return page.copy(
-            snippet = intro?.takeIf { it.isNotBlank() } ?: page.snippet,
-            profile = profile ?: existing
-        )
-    }
 
     /** Bir sayfanın kısa açıklaması (`fandomdescription`); yönlendirmeler çözülür. */
     suspend fun loadPageBlurb(context: Context, wikiId: String, title: String): FandomPageBlurb? {

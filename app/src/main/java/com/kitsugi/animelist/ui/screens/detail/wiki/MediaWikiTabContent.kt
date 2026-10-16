@@ -122,8 +122,6 @@ internal fun MediaWikiTabSlot(
     val readerBrowser by viewModel.readerBrowser.collectAsState()
     val relatedPages by viewModel.relatedPages.collectAsState()
     val lastRejected by viewModel.lastRejected.collectAsState()
-    val inlinePageState by viewModel.inlinePage.collectAsState()
-    val inlineSections by viewModel.inlineSections.collectAsState()
     val readerRender = (readerState as? FandomMediaWikiViewModel.ReaderState.Ready)?.let { r ->
         FandomReaderRenderState(
             wikiId = (uiState as? FandomMediaWikiViewModel.UiState.Ready)?.ref?.wikiId ?: "",
@@ -135,8 +133,7 @@ internal fun MediaWikiTabSlot(
             translations = translations,
             translatingKeys = translatingKeys,
             originalKeys = originalKeys,
-            preferredTranslator = preferredTranslator,
-            spoilerGuard = prefs.spoilerGuard
+            preferredTranslator = preferredTranslator
         )
     }
     val ready = uiState as? FandomMediaWikiViewModel.UiState.Ready
@@ -145,13 +142,8 @@ internal fun MediaWikiTabSlot(
         viewModel.readerBack()
     }
 
-    LaunchedEffect(uiState, articleState) {
-        if (uiState is FandomMediaWikiViewModel.UiState.Ready) {
-            viewModel.ensureContentLoaded()
-            // Madde çözüldü ama içeriği boşsa (bilgi kutusu/özet/bölüm yok) wiki'nin tam
-            // sayfası sekme içine yüklenir; kullanıcı hiçbir yere tıklamadan içeriği görür.
-            viewModel.ensureInlinePage()
-        }
+    LaunchedEffect(uiState) {
+        if (uiState is FandomMediaWikiViewModel.UiState.Ready) viewModel.ensureContentLoaded()
     }
 
     MediaWikiTabContent(
@@ -195,10 +187,6 @@ internal fun MediaWikiTabSlot(
         relatedPages = relatedPages,
         onOpenReaderHome = { viewModel.openReaderMainPage() },
         onSwitchSource = viewModel::switchSource,
-        inlinePageState = inlinePageState,
-        inlineSections = inlineSections,
-        onLoadInlineSection = viewModel::loadInlineSection,
-        onRetryInlinePage = viewModel::retryInlinePage,
         modifier = modifier
     )
 
@@ -272,12 +260,6 @@ internal fun MediaWikiTabContent(
     relatedPages: List<FandomRelatedPage> = emptyList(),
     onOpenReaderHome: (() -> Unit)? = null,
     onSwitchSource: ((Int) -> Unit)? = null,
-    /** Madde içeriği boşken sekme içinde çizilen wiki'nin tam sayfası. */
-    inlinePageState: FandomMediaWikiViewModel.InlinePageState =
-        FandomMediaWikiViewModel.InlinePageState.Idle,
-    inlineSections: Map<Int, FandomMediaWikiViewModel.ArticleSectionState> = emptyMap(),
-    onLoadInlineSection: (Int) -> Unit = {},
-    onRetryInlinePage: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val ready = uiState as? FandomMediaWikiViewModel.UiState.Ready
@@ -335,89 +317,47 @@ internal fun MediaWikiTabContent(
                     )
                 }
                 when (articleState) {
-                    is FandomMediaWikiViewModel.ArticleState.Ready -> {
-                        val article = articleState.page
-                        // Madde çözüldü ama içeriği boşsa (bilgi kutusu alanı, özet ve
-                        // bölümler yok) boş "başlık + kapak" kartı çizilmez; aşağıdaki tam
-                        // sayfa kartı içeriği getirir. İlgili maddeler (karakter/ekip/seslendirmen)
-                        // yine burada, şimdi tam ayrıntıyla gösterilir.
-                        CharacterWikiTabContent(
-                            page = article,
-                            sections = articleSections,
-                            translations = translations,
-                            translatingKeys = translatingKeys,
-                            spoilerGuard = spoilerGuard,
-                            accentColor = accentColor,
-                            onLoadSection = onLoadArticleSection,
-                            onOpenGallery = openArticleGallery,
-                            onConfirm = onConfirm,
-                            onReportWrong = onReportWrong,
-                            showNestedSections = true,
-                            initiallyShowAllFields = true,
-                            galleryCategory = GalleryCategory.OTHER,
-                            preferredTranslator = preferredTranslator,
-                            originalKeys = originalKeys,
-                            onToggleOriginal = onToggleOriginal,
-                            suppressEmptyInfobox = !article.hasWikiContent,
+                    is FandomMediaWikiViewModel.ArticleState.Ready -> CharacterWikiTabContent(
+                        page = articleState.page,
+                        sections = articleSections,
+                        translations = translations,
+                        translatingKeys = translatingKeys,
+                        spoilerGuard = spoilerGuard,
+                        accentColor = accentColor,
+                        onLoadSection = onLoadArticleSection,
+                        onOpenGallery = openArticleGallery,
+                        onConfirm = onConfirm,
+                        onReportWrong = onReportWrong,
+                        showNestedSections = true,
+                        initiallyShowAllFields = true,
+                        galleryCategory = GalleryCategory.OTHER,
+                        preferredTranslator = preferredTranslator,
+                        originalKeys = originalKeys,
+                        onToggleOriginal = onToggleOriginal,
                         // Makale bölümlerinin altındaki mavi wiki bağlantıları
                         // (Hunters, Nen, Phantom Troupe...) ve ilişkili sayfa
                         // kartları uygulama İÇİ okuyucuda açılır. Bu iki geri
                         // çağrı verilmezse CharacterWikiTabContent tarayıcıya
                         // düşüyordu (v2.4.282'de medya sekmesinde unutulmuştu).
-                            onOpenWikiPage = { title ->
-                                val clean = title?.trim().orEmpty()
-                                if (clean.isNotEmpty()) onOpenItem(clean)
-                                else onOpenReaderHome?.invoke()
-                            },
-                            onOpenWikiLink = { link -> onOpenItem(link.pageTitle) }
-                        )
-                        if (!article.hasWikiContent) {
-                            WikiInlineArticleCard(
-                                state = inlinePageState,
-                                sections = inlineSections,
-                                accentColor = accentColor,
-                                onLoadSection = onLoadInlineSection,
-                                onRetry = onRetryInlinePage,
-                                onOpenFullPage = onOpenItem,
-                                translations = translations,
-                                translatingKeys = translatingKeys,
-                                originalKeys = originalKeys,
-                                preferredTranslator = preferredTranslator,
-                                onToggleOriginal = onToggleOriginal,
-                                spoilerGuard = spoilerGuard
-                            )
-                        }
-                    }
+                        onOpenWikiPage = { title ->
+                            val clean = title?.trim().orEmpty()
+                            if (clean.isNotEmpty()) onOpenItem(clean)
+                            else onOpenReaderHome?.invoke()
+                        },
+                        onOpenWikiLink = { link -> onOpenItem(link.pageTitle) }
+                    )
                     FandomMediaWikiViewModel.ArticleState.Unavailable -> Column(
                         verticalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
-                        // Madde eşleşmese bile wiki'nin kendi sayfası sekme içine yüklenir;
-                        // kullanıcı içeriği görmek için okuyucuyu açmak zorunda kalmaz.
-                        val inlineReady = inlinePageState is FandomMediaWikiViewModel.InlinePageState.Ready
-                        if (!inlineReady) {
-                            WikiUnavailableCard(
-                                accentColor = accentColor,
-                                messageRes = R.string.fandom_media_article_unavailable,
-                                onRetry = onRetryArticle,
-                                titleRes = R.string.fandom_media_article_unavailable_title
-                            )
-                        }
-                        WikiInlineArticleCard(
-                            state = inlinePageState,
-                            sections = inlineSections,
+                        WikiUnavailableCard(
                             accentColor = accentColor,
-                            onLoadSection = onLoadInlineSection,
-                            onRetry = onRetryInlinePage,
-                            onOpenFullPage = onOpenItem,
-                            translations = translations,
-                            translatingKeys = translatingKeys,
-                            originalKeys = originalKeys,
-                            preferredTranslator = preferredTranslator,
-                            onToggleOriginal = onToggleOriginal,
-                            spoilerGuard = spoilerGuard
+                            messageRes = R.string.fandom_media_article_unavailable,
+                            onRetry = onRetryArticle,
+                            titleRes = R.string.fandom_media_article_unavailable_title
                         )
-                        // Tam sayfa da yoksa wiki ana sayfası en azından okuyucuda açılır.
-                        if (!inlineReady && onOpenReaderHome != null) {
+                        // Eşleşen madde yoksa bile wiki'nin ana sayfası (hero, öne çıkan
+                        // makaleler, kategori kartları, içerik kutuları) okuyucuda açılır.
+                        if (onOpenReaderHome != null) {
                             TextButton(onClick = onOpenReaderHome) {
                                 Text(
                                     text = stringResource(R.string.fandom_open_wiki_home),
@@ -444,28 +384,12 @@ internal fun MediaWikiTabContent(
                     )
                 }
                 if (relatedPages.isNotEmpty()) {
-                    // Her ilgili sayfa kartta TAMAMLANIR: başlık, kapak, giriş metni ve
-                    // bilgi kutusu alanları burada görünür; sayfayı açma yalnızca ikincil
-                    // eylemdir. Böylece karakter/ekip/seslendirmen ayrıntısı için
-                    // "Fandom sayfasını aç" düğmesine basmak gerekmez.
-                    WikiRelatedPagesInlineSection(
+                    RelatedPagesStrip(
                         title = stringResource(relatedTitleRes),
                         pages = relatedPages,
+                        wikiId = ready.ref.wikiId,
                         accentColor = accentColor,
-                        spoilerGuard = spoilerGuard,
-                        onOpenPage = onOpenItem,
-                        onOpenImage = { url ->
-                            openArticleGallery(
-                                listOf(
-                                    GalleryItem(
-                                        url = url,
-                                        source = FandomUrls.displaySourceName(ready.ref.wikiId),
-                                        category = GalleryCategory.OTHER
-                                    )
-                                ),
-                                0
-                            )
-                        }
+                        onOpenItem = onOpenItem
                     )
                 }
                 MediaWikiSearchCard(
@@ -632,6 +556,50 @@ private fun MediaWikiHeaderCard(
                     }
                 }
             }
+        }
+    }
+}
+
+/**
+ * "İlgili wiki sayfaları" şeridi: sola hizalı, snap-scroll'lu yatay şerit.
+ * Her kart karakter sekmesindekiyle aynı birleşik [WikiPagePreviewCard]
+ * (280 x 144 dp) kartıdır; karta dokununca uygulama içi okuyucu açılır.
+ */
+@Composable
+private fun RelatedPagesStrip(
+    title: String,
+    pages: List<FandomRelatedPage>,
+    wikiId: String,
+    accentColor: Color,
+    onOpenItem: (String) -> Unit
+) {
+    if (pages.isEmpty()) return
+    WikiCard {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                text = title,
+                color = KitsugiColors.TextPrimary,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.weight(1f)
+            )
+            Text(
+                text = stringResource(R.string.fandom_related_pages_count, pages.size),
+                color = KitsugiColors.TextMuted,
+                style = MaterialTheme.typography.labelSmall
+            )
+        }
+        Spacer(modifier = Modifier.height(10.dp))
+        WikiPreviewStripRow(
+            items = pages,
+            key = { it.title }
+        ) { page ->
+            WikiPagePreviewCard(
+                page = page,
+                wikiId = wikiId,
+                accentColor = accentColor,
+                onClick = { onOpenItem(page.title) }
+            )
         }
     }
 }
@@ -1091,187 +1059,6 @@ private fun MediaWikiFooter(
                 )
             }
         }
-    }
-}
-
-/**
- * Madde içeriği boşken wiki sekmesinde gösterilen TAM sayfa kartı.
- *
- * Yapım maddesi bazı wiki'lerde çözülür ama bilgi kutusu/özet/bölümleri ayrıştırılamaz; sekme
- * bomboş bir "başlık + kapak" kartı gösteriyordu ve kullanıcı içeriğe ulaşmak için başka
- * bir yere tıklamak zorundaydı. Bu kart wiki'nin kendi sayfasını (kapak + açıklama + giriş
- * metni + İçindekiler) doğrudan sekme içinde çizer; sayfayı okuyucuda açma yalnızca
- * ikincil eylemdir.
- */
-@Composable
-private fun WikiInlineArticleCard(
-    state: FandomMediaWikiViewModel.InlinePageState,
-    sections: Map<Int, FandomMediaWikiViewModel.ArticleSectionState>,
-    accentColor: Color,
-    onLoadSection: (Int) -> Unit,
-    onRetry: () -> Unit,
-    onOpenFullPage: ((String) -> Unit)? = null,
-    translations: Map<String, String> = emptyMap(),
-    translatingKeys: Set<String> = emptySet(),
-    originalKeys: Set<String> = emptySet(),
-    preferredTranslator: String = "DEFAULT",
-    onToggleOriginal: (String) -> Unit = {},
-    spoilerGuard: Boolean = false
-) {
-    when (state) {
-        is FandomMediaWikiViewModel.InlinePageState.Loading -> WikiCard {
-            WikiLoadingLine(accentColor)
-        }
-        is FandomMediaWikiViewModel.InlinePageState.Ready -> {
-            val page = state.page
-            val lead = state.lead
-            val leadKey = FandomMediaWikiViewModel.KEY_INLINE_LEAD
-            val translatedLead = translations[leadKey]
-            val leadShowingOriginal = leadKey in originalKeys
-            // Yapı koruyan blok çevirisi yoksa düz metin çevirisi kullanılır.
-            val flatLead = translatedLead
-                ?.takeUnless { it.isBlank() || WikiStructuredTranslationKeys.isCompleteMarker(it) }
-            WikiCard {
-                Row(verticalAlignment = Alignment.Top) {
-                    page.thumbnailUrl?.takeIf { it.isNotBlank() }?.let { url ->
-                        FandomWikiImage(
-                            url = url,
-                            width = 320,
-                            contentDescription = page.displayTitle,
-                            accentColor = accentColor,
-                            contentScale = ContentScale.Crop,
-                            modifier = Modifier
-                                .width(92.dp)
-                                .height(126.dp)
-                                .clip(RoundedCornerShape(14.dp))
-                                .background(KitsugiColors.SurfaceStrong)
-                        )
-                        Spacer(modifier = Modifier.width(14.dp))
-                    }
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = page.displayTitle,
-                            color = KitsugiColors.TextPrimary,
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold,
-                            maxLines = 2,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                        Spacer(modifier = Modifier.height(2.dp))
-                        Text(
-                            text = FandomUrls.displaySourceName(state.wikiId),
-                            color = accentColor,
-                            style = MaterialTheme.typography.labelMedium,
-                            fontWeight = FontWeight.SemiBold,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                        if (onOpenFullPage != null) {
-                            Spacer(modifier = Modifier.height(6.dp))
-                            TextButton(onClick = { onOpenFullPage(page.displayTitle) }) {
-                                Icon(
-                                    imageVector = Icons.AutoMirrored.Rounded.MenuBook,
-                                    contentDescription = null,
-                                    tint = accentColor,
-                                    modifier = Modifier.size(16.dp)
-                                )
-                                Spacer(modifier = Modifier.width(6.dp))
-                                Text(
-                                    text = stringResource(R.string.fandom_open_related_page),
-                                    color = accentColor,
-                                    style = MaterialTheme.typography.labelMedium,
-                                    fontWeight = FontWeight.Bold
-                                )
-                            }
-                        }
-                    }
-                }
-
-                page.description?.takeIf { it.isNotBlank() }?.let { description ->
-                    Spacer(modifier = Modifier.height(10.dp))
-                    SelectionContainer {
-                        Text(
-                            text = description,
-                            color = KitsugiColors.TextSecondary,
-                            style = MaterialTheme.typography.bodyMedium
-                        )
-                    }
-                }
-
-                if (lead != null && !lead.isEmpty()) {
-                    Spacer(modifier = Modifier.height(10.dp))
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.End
-                    ) {
-                        WikiTranslateButton(
-                            text = lead.plainText(),
-                            preferredTranslator = preferredTranslator,
-                            accentColor = accentColor,
-                            isLoading = leadKey in translatingKeys,
-                            hasTranslation = translations.hasWikiTranslation(leadKey),
-                            showingOriginal = leadShowingOriginal,
-                            onToggleOriginal = { onToggleOriginal(leadKey) }
-                        )
-                    }
-                    ArticleSectionBody(
-                        content = lead,
-                        translated = flatLead,
-                        baseKey = "",
-                        translations = emptyMap()
-                    )
-                }
-
-                if (page.sectionsFailed) {
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = stringResource(R.string.fandom_contents_load_failed),
-                            color = KitsugiColors.TextMuted,
-                            style = MaterialTheme.typography.bodySmall,
-                            modifier = Modifier.weight(1f)
-                        )
-                        TextButton(onClick = onRetry) {
-                            Text(
-                                text = stringResource(R.string.action_retry_label),
-                                color = accentColor,
-                                fontWeight = FontWeight.Bold
-                            )
-                        }
-                    }
-                } else if (page.sections.isNotEmpty()) {
-                    Spacer(modifier = Modifier.height(12.dp))
-                    Text(
-                        text = stringResource(R.string.fandom_contents_title),
-                        color = KitsugiColors.TextPrimary,
-                        style = MaterialTheme.typography.titleSmall,
-                        fontWeight = FontWeight.Bold
-                    )
-                    val topLevel = page.sections.minOfOrNull { it.level } ?: 0
-                    page.sections.forEach { section ->
-                        ArticleSectionRow(
-                            articleTitle = page.displayTitle,
-                            section = section,
-                            depth = (section.level - topLevel).coerceIn(0, 4),
-                            state = sections[section.index],
-                            translated = null,
-                            translating = false,
-                            spoilerGuard = spoilerGuard,
-                            accentColor = accentColor,
-                            preferredTranslator = preferredTranslator,
-                            onLoad = { onLoadSection(section.index) },
-                            translations = emptyMap(),
-                            showingOriginal = false,
-                            onToggleOriginal = null
-                        )
-                    }
-                }
-            }
-        }
-        else -> Unit
     }
 }
 
