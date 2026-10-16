@@ -1576,7 +1576,11 @@ private fun ReaderRelatedCard(
  *
  * Bölüm başlığı bir **bağlantı etiketi** değildir; satırın dokunma hedefi yine aynı
  * bölümdür. Bu yüzden başlığın çevrilmesi mavi bağlantı korumasını ihlal etmez.
+ *
+ * `@Composable`: sözlük yerelleştirmesi `stringResource` okur (yerel dil değişince satır
+ * kendiliğinden yenilenir).
  */
+@Composable
 private fun readerContentsTitle(
     state: FandomReaderRenderState,
     rowIndex: Int,
