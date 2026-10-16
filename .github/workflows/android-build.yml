@@ -67,11 +67,14 @@ jobs:
           # Eklenti güncelleme tespiti (sürüm + içerik parmak izi) ve depo ayna zinciri
           # testleri de çalıştırılır: bu mantık sessizce bozulursa kullanıcı
           # "güncellemeler görünmüyor" hatasını tekrar yaşar.
+          # Wiki okuyucu/çeviri sözleşmesi de koşar: mavi bağlantı koruması, blok yapısı
+          # ve okuma konumu çapası (bkz. ui.screens.detail.wiki testleri).
           ./gradlew :app:testFossDebugUnitTest \
             --tests 'com.kitsugi.animelist.data.remote.malweb.*' \
             --tests 'com.kitsugi.animelist.data.cloudstream.CsPluginUpdateCheckerTest' \
             --tests 'com.kitsugi.animelist.data.remote.CloudstreamRepoMirrorTest' \
             --tests 'com.kitsugi.animelist.data.fandom.*' \
+            --tests 'com.kitsugi.animelist.ui.screens.detail.wiki.*' \
             --tests 'com.kitsugi.animelist.data.remote.MdbListClientTest' \
             --tests 'com.kitsugi.animelist.data.remote.BangumiLibraryTitleHydratorTest' \
             --tests 'com.kitsugi.animelist.data.remote.BangumiSubjectTitleResolverTest' \
