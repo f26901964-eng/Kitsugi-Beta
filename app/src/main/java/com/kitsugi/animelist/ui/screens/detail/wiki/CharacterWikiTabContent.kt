@@ -12,8 +12,6 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
-import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.items
 import com.kitsugi.animelist.data.fandom.FandomRelationType
 import com.kitsugi.animelist.data.fandom.FandomWikiLink
 import androidx.compose.foundation.layout.Row
@@ -215,7 +213,6 @@ internal fun CharacterWikiTabContent(
         if (page.relatedEntities.isNotEmpty()) {
             WikiRelatedEntitiesCard(
                 entities = page.relatedEntities,
-                pageKey = "${page.wikiId}:${page.pageTitle}",
                 accentColor = accentColor,
                 onOpenWikiLink = onOpenWikiLink,
                 onOpenWikiPage = onOpenWikiPage
@@ -302,6 +299,7 @@ internal fun CharacterWikiTabContent(
                         preferredTranslator = preferredTranslator,
                         onOpenGallery = onOpenGallery,
                         gallerySource = FandomUrls.displaySourceName(page.wikiId),
+                        sourceWikiId = page.wikiId,
                         onOpenLink = { linkTitle ->
                             onOpenWikiPage?.invoke(linkTitle) ?: openExternal(context, com.kitsugi.animelist.data.fandom.FandomUrls.pageUrl(page.wikiId, linkTitle))
                         },
@@ -314,9 +312,8 @@ internal fun CharacterWikiTabContent(
 
         if (relatedPages.isNotEmpty()) {
             CharacterRelatedStrip(
-                listKey = "${page.wikiId}:${page.pageTitle}",
                 pages = relatedPages,
-                wikipedia = FandomUrls.isWikipedia(page.wikiId),
+                wikiId = page.wikiId,
                 accentColor = accentColor,
                 onOpenPage = { p ->
                     // Uygulama içi okuyucu bağlı değilse ölü düğme bırakma:
@@ -338,13 +335,15 @@ internal fun CharacterWikiTabContent(
 
 @Composable
 private fun CharacterRelatedStrip(
-    listKey: String,
     pages: List<com.kitsugi.animelist.data.fandom.FandomRelatedPage>,
-    wikipedia: Boolean,
+    wikiId: String,
     accentColor: Color,
     onOpenPage: (String) -> Unit
 ) {
     if (pages.isEmpty()) return
+    // Başlık kaynağa göre kendiliğinden güncellenir: Vikipedi/Vikipedia kaynağında
+    // "İlgili maddeler", Fandom kaynağında "İlgili wiki sayfaları".
+    val wikipedia = FandomUrls.isWikipedia(wikiId)
     WikiCard {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(
@@ -364,22 +363,16 @@ private fun CharacterRelatedStrip(
             )
         }
         Spacer(Modifier.height(10.dp))
-        androidx.compose.runtime.key(listKey, "character-related-pages") {
-            val rowState = androidx.compose.foundation.lazy.rememberLazyListState()
-            androidx.compose.foundation.lazy.LazyRow(
-                state = rowState,
-                flingBehavior = com.kitsugi.animelist.ui.utils.KitsugiScrollDefaults.rememberRowSnapFling(rowState),
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(10.dp)
-            ) {
-                items(pages, key = { it.title }) { page ->
-                    WikiRelatedPageCard(
-                        page = page,
-                        accentColor = accentColor,
-                        onClick = { onOpenPage(page.title) }
-                    )
-                }
-            }
+        WikiPreviewStripRow(
+            items = pages,
+            key = { it.title }
+        ) { relatedPage ->
+            WikiPagePreviewCard(
+                page = relatedPage,
+                wikiId = wikiId,
+                accentColor = accentColor,
+                onClick = { onOpenPage(relatedPage.title) }
+            )
         }
     }
 }
@@ -803,6 +796,8 @@ private fun WikiSectionRow(
     onOpenWikiLink: ((FandomWikiLink) -> Unit)? = null,
     /** Galeri penceresindeki kaynak adı ("Fandom" / "Vikipedi" / "Wikipedia"). */
     gallerySource: String = FANDOM_GALLERY_SOURCE,
+    /** Bölüm bağlantı kartlarındaki kaynak rozeti için sayfanın wiki kimliği. */
+    sourceWikiId: String = "",
     /** Bölümün blok blok çevirileri (yapı koruyan çeviri). */
     translations: Map<String, String> = emptyMap()
 ) {
@@ -912,6 +907,8 @@ private fun WikiSectionRow(
                                     content = state.content,
                                     translated = if (showingOriginal) null else translated,
                                     onOpenGallery = onOpenGallery,
+                                    accentColor = accentColor,
+                                    sourceWikiId = sourceWikiId,
                                     onOpenLink = onOpenLink,
                                     onOpenWikiLink = onOpenWikiLink,
                                     gallerySource = gallerySource,
@@ -932,6 +929,8 @@ private fun SectionBody(
     content: FandomSectionContent,
     translated: String?,
     onOpenGallery: (List<GalleryItem>, Int) -> Unit,
+    accentColor: Color,
+    sourceWikiId: String = "",
     onOpenLink: (String) -> Unit = {},
     onOpenWikiLink: ((FandomWikiLink) -> Unit)? = null,
     gallerySource: String = FANDOM_GALLERY_SOURCE,
@@ -997,43 +996,35 @@ private fun SectionBody(
             }
         }
         if (content.linkedEntities.isNotEmpty()) {
-            Row(
-                modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
-                horizontalArrangement = Arrangement.spacedBy(6.dp)
-            ) {
-                content.linkedEntities.forEach { link ->
-                    TextButton(onClick = {
-                        // Mavi bağlantı şeridi: hedef wiki kimliği korunarak
-                        // uygulama içi okuyucuda açılır, tarayıcıya düşmez.
+            // Bölüm tablolarından çıkan kadro/ekip/karakter bağlantıları da aynı
+            // birleşik önizleme kartıyla gösterilir: hedef wiki kimliği korunarak
+            // uygulama içi okuyucuda açılır, tarayıcıya düşmez.
+            WikiPreviewStripRow(
+                items = content.linkedEntities,
+                key = { link -> "${link.wikiId}:${link.pageTitle}:${link.role}" }
+            ) { link ->
+                WikiPagePreviewCard(
+                    entity = link,
+                    accentColor = accentColor,
+                    onClick = {
                         if (onOpenWikiLink != null) onOpenWikiLink(link)
                         else onOpenLink(link.pageTitle)
-                    }) {
-                        Text(
-                            text = link.label,
-                            color = KitsugiColors.AccentBlue,
-                            style = MaterialTheme.typography.labelMedium,
-                            maxLines = 1
-                        )
                     }
-                }
+                )
             }
         } else if (content.links.isNotEmpty()) {
-            Row(
-                modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
-                horizontalArrangement = Arrangement.spacedBy(6.dp)
-            ) {
-                content.links.forEach { linkTitle ->
-                    TextButton(onClick = {
-                        onOpenLink(linkTitle)
-                    }) {
-                        Text(
-                            text = linkTitle,
-                            color = KitsugiColors.AccentBlue,
-                            style = MaterialTheme.typography.labelMedium,
-                            maxLines = 1
-                        )
-                    }
-                }
+            WikiPreviewStripRow(
+                items = content.links,
+                key = { it }
+            ) { linkTitle ->
+                WikiPagePreviewCard(
+                    title = linkTitle,
+                    description = null,
+                    imageUrl = null,
+                    sourceLabel = FandomUrls.displaySourceName(sourceWikiId),
+                    accentColor = accentColor,
+                    onClick = { onOpenLink(linkTitle) }
+                )
             }
         }
     }
@@ -1365,7 +1356,6 @@ private fun openExternal(context: Context, url: String) {
 @Composable
 private fun WikiRelatedEntitiesCard(
     entities: List<FandomWikiLink>,
-    pageKey: String,
     accentColor: Color,
     onOpenWikiLink: ((FandomWikiLink) -> Unit)? = null,
     onOpenWikiPage: ((String?) -> Unit)? = null
@@ -1410,35 +1400,23 @@ private fun WikiRelatedEntitiesCard(
                 color = accentColor,
                 style = MaterialTheme.typography.titleSmall,
                 fontWeight = FontWeight.SemiBold,
-                modifier = Modifier.padding(top = 10.dp)
+                modifier = Modifier.padding(top = 12.dp)
             )
             Text(
                 text = stringResource(R.string.fandom_related_article_count, groupEntities.size),
                 color = KitsugiColors.TextMuted,
                 style = MaterialTheme.typography.labelSmall
             )
-            androidx.compose.runtime.key(pageKey, role) {
-                val rowState = androidx.compose.foundation.lazy.rememberLazyListState()
-                LazyRow(
-                    state = rowState,
-                    flingBehavior = com.kitsugi.animelist.ui.utils.KitsugiScrollDefaults.rememberRowSnapFling(rowState),
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
-                    items(
-                        items = groupEntities,
-                        key = { entity -> "${entity.wikiId}:${entity.pageTitle}:${entity.role}:${entity.language}" }
-                    ) { entity ->
-                        WikiPagePreviewCard(
-                            title = entity.label,
-                            description = entity.description ?: entity.context,
-                            thumbnailUrl = entity.imageUrl,
-                            accentColor = accentColor,
-                            onClick = { openEntityPage(entity) },
-                            subtitle = entity.language?.uppercase()
-                        )
-                    }
-                }
+            WikiPreviewStripRow(
+                items = groupEntities,
+                key = { entity -> "${entity.wikiId}:${entity.pageTitle}:${entity.role}:${entity.language}" }
+            ) { entity ->
+                WikiPagePreviewCard(
+                    entity = entity,
+                    accentColor = accentColor,
+                    badgeLabel = stringResource(relatedTitleRes(role)),
+                    onClick = { openEntityPage(entity) }
+                )
             }
         }
     }

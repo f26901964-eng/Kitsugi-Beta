@@ -26,7 +26,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -625,11 +624,8 @@ private fun ReaderContent(
         if (state.related.isNotEmpty()) {
             ReaderRelatedCard(
                 wikiId = state.wikiId,
-                pageKey = "${state.wikiId}:${state.page.displayTitle}",
                 related = state.related,
                 accentColor = accentColor,
-                galleryItems = galleryItems,
-                onOpenGallery = onOpenGallery,
                 onOpenPage = onOpenLink
             )
         }
@@ -1274,11 +1270,8 @@ private fun ReaderLinkChips(links: List<String>, accentColor: Color, onOpenLink:
 @Composable
 private fun ReaderRelatedCard(
     wikiId: String,
-    pageKey: String,
     related: List<FandomRelatedPage>,
     accentColor: Color,
-    galleryItems: List<GalleryItem>,
-    onOpenGallery: (List<GalleryItem>, Int) -> Unit,
     onOpenPage: (String) -> Unit
 ) {
     val wikipedia = FandomUrls.isWikipedia(wikiId)
@@ -1301,26 +1294,16 @@ private fun ReaderRelatedCard(
             )
         }
         Spacer(Modifier.height(10.dp))
-        androidx.compose.runtime.key(pageKey, "related-pages") {
-            val rowState = androidx.compose.foundation.lazy.rememberLazyListState()
-            LazyRow(
-                state = rowState,
-                flingBehavior = com.kitsugi.animelist.ui.utils.KitsugiScrollDefaults.rememberRowSnapFling(rowState),
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(10.dp)
-            ) {
-                items(related, key = { it.title }) { page ->
-                    WikiRelatedPageCard(
-                        page = page,
-                        accentColor = accentColor,
-                        onClick = { onOpenPage(page.title) },
-                        onImageClick = { url ->
-                            val index = galleryItems.indexOfFirst { it.url == url }
-                            if (index >= 0) onOpenGallery(galleryItems, index)
-                        }
-                    )
-                }
-            }
+        WikiPreviewStripRow(
+            items = related,
+            key = { it.title }
+        ) { page ->
+            WikiPagePreviewCard(
+                page = page,
+                wikiId = wikiId,
+                accentColor = accentColor,
+                onClick = { onOpenPage(page.title) }
+            )
         }
     }
 }

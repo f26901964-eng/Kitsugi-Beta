@@ -25,7 +25,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
@@ -387,8 +386,8 @@ internal fun MediaWikiTabContent(
                 if (relatedPages.isNotEmpty()) {
                     RelatedPagesStrip(
                         title = stringResource(relatedTitleRes),
-                        listKey = "${ready.ref.wikiId}:related",
                         pages = relatedPages,
+                        wikiId = ready.ref.wikiId,
                         accentColor = accentColor,
                         onOpenItem = onOpenItem
                     )
@@ -562,14 +561,15 @@ private fun MediaWikiHeaderCard(
 }
 
 /**
- * "İlgili wiki sayfaları" şeridi: yatay kaydırılabilir kartlar; her kart
- * FandomWikiReader'daki [WikiRelatedPageCard] ile aynı görsel dile sahiptir.
+ * "İlgili wiki sayfaları" şeridi: sola hizalı, snap-scroll'lu yatay şerit.
+ * Her kart karakter sekmesindekiyle aynı birleşik [WikiPagePreviewCard]
+ * (280 x 144 dp) kartıdır; karta dokununca uygulama içi okuyucu açılır.
  */
 @Composable
 private fun RelatedPagesStrip(
     title: String,
-    listKey: String,
     pages: List<FandomRelatedPage>,
+    wikiId: String,
     accentColor: Color,
     onOpenItem: (String) -> Unit
 ) {
@@ -590,22 +590,16 @@ private fun RelatedPagesStrip(
             )
         }
         Spacer(modifier = Modifier.height(10.dp))
-        androidx.compose.runtime.key(listKey, "related-pages") {
-            val rowState = androidx.compose.foundation.lazy.rememberLazyListState()
-            androidx.compose.foundation.lazy.LazyRow(
-                state = rowState,
-                flingBehavior = com.kitsugi.animelist.ui.utils.KitsugiScrollDefaults.rememberRowSnapFling(rowState),
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(10.dp)
-            ) {
-                items(pages, key = { it.title }) { page ->
-                    WikiRelatedPageCard(
-                        page = page,
-                        accentColor = accentColor,
-                        onClick = { onOpenItem(page.title) }
-                    )
-                }
-            }
+        WikiPreviewStripRow(
+            items = pages,
+            key = { it.title }
+        ) { page ->
+            WikiPagePreviewCard(
+                page = page,
+                wikiId = wikiId,
+                accentColor = accentColor,
+                onClick = { onOpenItem(page.title) }
+            )
         }
     }
 }
