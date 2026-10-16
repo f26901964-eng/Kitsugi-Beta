@@ -53,9 +53,15 @@ internal object WikiStructuredTranslationKeys {
 
     private const val SUBTITLE_SUFFIX = ":s"
 
+    /** Görsel altı açıklaması (figcaption) için çocuk anahtar son eki. */
+    private const val CAPTION_SUFFIX = ":i"
+
     fun block(baseKey: String, index: Int): String = "$baseKey$SEPARATOR$index"
 
     fun subtitle(baseKey: String, index: Int): String = "$baseKey$SEPARATOR$index$SUBTITLE_SUFFIX"
+
+    /** Görselin ALTINDAKİ yazı; görsel URL'si ve dosya adı asla çevrilmez. */
+    fun caption(baseKey: String, index: Int): String = "$baseKey$SEPARATOR$index$CAPTION_SUFFIX"
 
     fun isChildKey(key: String): Boolean = key.contains(SEPARATOR)
 
@@ -191,7 +197,21 @@ internal suspend fun translateSectionBlocks(
     val entries = LinkedHashMap<String, String>()
 
     content.blocks.forEachIndexed { index, block ->
-        if (block.kind == FandomBlockKind.IMAGE) return@forEachIndexed
+        if (block.kind == FandomBlockKind.IMAGE) {
+            // Görselin kendisi, URL'si ve dosya adı çeviriye GİTMEZ; yalnızca altındaki
+            // açıklama (figcaption) beyaz metin olduğu için çevrilir. Blok sırası ve
+            // görselin konumu değişmez.
+            val caption = block.image?.caption
+            if (!caption.isNullOrBlank() && !isTechnicalWikiValue(caption)) {
+                val translatedCaption = translateOrNull(translate, caption)
+                if (!translatedCaption.isNullOrBlank() && translatedCaption != caption) {
+                    val childKey = WikiStructuredTranslationKeys.caption(baseKey, index)
+                    entries[childKey] = translatedCaption
+                    onBlock(childKey, translatedCaption)
+                }
+            }
+            return@forEachIndexed
+        }
 
         val sourceText = block.text
         if (shouldTranslateBlockText(block) && !isTechnicalWikiValue(sourceText)) {
@@ -349,14 +369,20 @@ internal fun FandomSectionContent.withTranslatedBlocks(
     val next = blocks.mapIndexed { index, block ->
         val text = translations[WikiStructuredTranslationKeys.block(baseKey, index)]
         val subtitle = translations[WikiStructuredTranslationKeys.subtitle(baseKey, index)]
-        if (text == null && subtitle == null) {
+        val caption = translations[WikiStructuredTranslationKeys.caption(baseKey, index)]
+        val image = if (caption != null && block.image != null) {
+            block.image.copy(caption = caption)
+        } else {
+            block.image
+        }
+        if (text == null && subtitle == null && image == block.image) {
             block
         } else {
             changed = true
             FandomTextBlock(
                 kind = block.kind,
                 text = text ?: block.text,
-                image = block.image,
+                image = image,
                 href = block.href,
                 subtitle = subtitle ?: block.subtitle,
                 links = block.links

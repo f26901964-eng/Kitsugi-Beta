@@ -7592,6 +7592,8 @@ Eklentiler ekranından eklenti etkinleştirin.</string>
     <string name="translate_show_translation">Çeviri</string>
     <string name="translate_show_original">Orijinal</string>
     <string name="fandom_reader_intro">Giriş</string>
+    <string name="fandom_reader_translated_notice">Bu wiki sayfası seçili dile otomatik çevrildi</string>
+    <string name="fandom_reader_original_notice">Orijinal metin gösteriliyor</string>
     <string name="fandom_open_linked_page">Sayfayı aç</string>
     <string name="fandom_open_wiki_home">Wiki ana sayfasını aç</string>
 

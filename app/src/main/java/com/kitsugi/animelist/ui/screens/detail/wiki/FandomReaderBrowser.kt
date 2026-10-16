@@ -216,6 +216,16 @@ internal object FandomReaderTranslationKeys {
     fun section(location: FandomReaderLocation, index: Int): String =
         "reader-section:${location.wikiId}:$index:${location.title}"
 
+    /**
+     * İçindekiler satırları (bölüm başlıkları) için anahtar. Okuyucu sayfası açıldığında
+     * otomatik çeviri açıksa başlıklar TEK istekte çevrilir; satır sayısı jetonla
+     * kanıtlandığı için hiçbir satır kaymaz. Satır çevirileri bu anahtarın çocuklarıdır
+     * ([WikiStructuredTranslationKeys.block]).
+     */
+    fun contents(location: FandomReaderLocation): String =
+        "reader-toc:${location.wikiId}:${location.title}"
+
     fun isReaderKey(key: String): Boolean =
-        key.startsWith("reader-description:") || key.startsWith("reader-section:")
+        key.startsWith("reader-description:") || key.startsWith("reader-section:") ||
+            key.startsWith("reader-toc:")
 }

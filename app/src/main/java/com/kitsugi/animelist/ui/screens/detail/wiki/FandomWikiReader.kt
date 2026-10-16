@@ -46,6 +46,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
@@ -56,6 +57,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
+import androidx.compose.runtime.withFrameNanos
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -94,6 +98,7 @@ import com.kitsugi.animelist.data.remote.GalleryCategory
 import com.kitsugi.animelist.data.remote.GalleryItem
 import com.kitsugi.animelist.ui.components.DisableDialogWindowForceDark
 import com.kitsugi.animelist.ui.components.KitsugiImageGalleryDialog
+import com.kitsugi.animelist.ui.components.KitsugiOriginalToggleButton
 import com.kitsugi.animelist.ui.theme.KitsugiColors
 import com.kitsugi.animelist.ui.theme.gradient.Icon
 import com.kitsugi.animelist.ui.utils.tvClickable
@@ -156,6 +161,12 @@ internal fun FandomWikiReaderSheet(
     onOpenLink: (String) -> Unit,
     onOpenInBrowser: () -> Unit,
     onToggleOriginal: (String) -> Unit = {},
+    /**
+     * Sayfanın TAMAMI için Orijinal/Çeviri geçişi (başlık, İçindekiler ve açılmış tüm
+     * bölümler). Çeviri silinmez; "Çeviri"ye dönüldüğünde ağ isteği yapılmadan anında
+     * geri gelir ve okuma konumu korunur.
+     */
+    onSetReaderOriginal: (Boolean) -> Unit = {},
     modifier: Modifier = Modifier,
     /** Yüklenemeyen sayfanın başlığı; doluysa sonsuz yükleme yerine hata kartı gösterilir. */
     failedTitle: String? = null,
@@ -226,6 +237,7 @@ internal fun FandomWikiReaderSheet(
                         onRetryPage = onRetryPage,
                         onOpenLink = onOpenLink,
                         onToggleOriginal = onToggleOriginal,
+                        onSetReaderOriginal = onSetReaderOriginal,
                         scrollKey = activeScrollKey.orEmpty(),
                         initialScrollPosition = activeScrollKey?.let { scrollPositions[it] } ?: 0,
                         onScrollPositionChanged = { key, position ->
@@ -528,6 +540,7 @@ private fun ReaderContent(
     onRetryPage: () -> Unit,
     onOpenLink: (String) -> Unit,
     onToggleOriginal: (String) -> Unit,
+    onSetReaderOriginal: (Boolean) -> Unit,
     scrollKey: String,
     initialScrollPosition: Int,
     onScrollPositionChanged: (String, Int) -> Unit,
@@ -540,6 +553,89 @@ private fun ReaderContent(
             onScrollPositionChanged(scrollKey, position)
         }
     }
+    // ── Okuma konumu koruması ────────────────────────────────────────────────
+    // Çeviri geçişi metin uzunluğunu değiştirir; eski piksel değeri bırakılırsa kullanıcı
+    // başka bir paragrafa bakar. Geçişten önce görünümün üstündeki blok çapa alınır,
+    // geçişten sonra aynı bloğun okuma oranı geri kurulur.
+    val layoutProbe = remember(scrollKey) {
+        WikiReaderLayoutProbe { scrollState.value }
+    }
+    var pendingRestore by remember(scrollKey) { mutableStateOf<PendingReaderRestore?>(null) }
+
+    LaunchedEffect(pendingRestore, state.translations, state.originalKeys) {
+        val pending = pendingRestore ?: return@LaunchedEffect
+        // Geçiş henüz uygulanmadıysa bekle; durum değişince bu effect yeniden çalışır.
+        if (pending.translations === state.translations && pending.originalKeys === state.originalKeys) {
+            withFrameNanos { }
+            withFrameNanos { }
+            // İki kare içinde geçiş uygulanmadıysa (ör. anahtar zaten o durumdaydı) çapa
+            // bırakılır; aksi hâlde bir sonraki çeviri güncellemesinde yanlış kaydırırdı.
+            if (pendingRestore === pending) pendingRestore = null
+            return@LaunchedEffect
+        }
+        // Yeni yerleşim ölçülsün diye iki kare beklenir (ölçümler layout sırasında yazılır).
+        withFrameNanos { }
+        withFrameNanos { }
+        val newTop = layoutProbe.topOf(pending.anchor.id)
+        if (newTop != null) {
+            val target = pending.anchor.restoreScrollValue(
+                newTop = newTop,
+                newHeight = layoutProbe.heightOf(pending.anchor.id) ?: pending.anchor.height,
+                scrollValue = pending.anchorScrollValue,
+                maxScrollValue = scrollState.maxValue
+            )
+            if (target != scrollState.value) scrollState.scrollTo(target)
+        }
+        pendingRestore = null
+    }
+
+    /** Tek bir yüzeyin (bölüm/başlık) Orijinal-Çeviri geçişi; okuma konumu korunur. */
+    val anchoredToggle: (String) -> Unit = { key ->
+        layoutProbe.anchorFor(scrollState.value)?.let { captured ->
+            pendingRestore = PendingReaderRestore(
+                anchor = captured,
+                anchorScrollValue = scrollState.value,
+                translations = state.translations,
+                originalKeys = state.originalKeys
+            )
+        }
+        onToggleOriginal(key)
+    }
+
+    // ── Sayfa geneli Orijinal/Çeviri ─────────────────────────────────────────
+    // Okuyucu sayfası "özel olarak çeviriye gidip gelmeli": başlık açıklaması, İçindekiler
+    // satırları ve açılmış tüm bölümler tek dokunuşla orijinale döner, tek dokunuşla
+    // (ağ isteği olmadan, bellekteki çeviriden) çeviriye geri gelir.
+    val readerLocation = remember(state.wikiId, state.page.displayTitle) {
+        FandomReaderLocation(state.wikiId, state.page.displayTitle)
+    }
+    val readerKeys = remember(readerLocation, state.page.sections) {
+        buildSet {
+            add(FandomReaderTranslationKeys.description(readerLocation))
+            add(FandomReaderTranslationKeys.contents(readerLocation))
+            state.page.sections.forEach { section ->
+                add(FandomReaderTranslationKeys.section(readerLocation, section.index))
+            }
+        }
+    }
+    val translatedReaderKeys = readerKeys.filter { state.translations.hasWikiTranslation(it) }
+    val translatingReaderKeys = readerKeys.count { it in state.translatingKeys }
+    val pageShowingOriginal = translatedReaderKeys.isNotEmpty() &&
+        translatedReaderKeys.all { it in state.originalKeys }
+    val showTranslationBar = translatedReaderKeys.isNotEmpty() || translatingReaderKeys > 0
+
+    val pageToggle: () -> Unit = {
+        layoutProbe.anchorFor(scrollState.value)?.let { captured ->
+            pendingRestore = PendingReaderRestore(
+                anchor = captured,
+                anchorScrollValue = scrollState.value,
+                translations = state.translations,
+                originalKeys = state.originalKeys
+            )
+        }
+        onSetReaderOriginal(!pageShowingOriginal)
+    }
+
     val expandedSections = remember(scrollKey) { mutableStateListOf<Int>() }
     val galleryItems = remember(state.wikiId, state.page, state.sections, state.related) {
         buildReaderGalleryItems(state)
@@ -563,21 +659,42 @@ private fun ReaderContent(
             onDismiss = { webPageUrl = null }
         )
     }
-    CompositionLocalProvider(LocalFandomLinkOpener provides openTarget) {
+    CompositionLocalProvider(
+        LocalFandomLinkOpener provides openTarget,
+        LocalWikiReaderLayoutProbe provides layoutProbe
+    ) {
     Box(modifier = Modifier.fillMaxSize()) {
     val showReaderScrollToTop by remember { derivedStateOf { scrollState.value > 400 } }
     Column(
         modifier = Modifier
             .fillMaxSize()
+            // Okuma konumu çapası için kaydırma sütununun (görünümün) kök koordinatı;
+            // kaydırma sırasında sabit kalır, blok ölçümleri buna göre içerik koordinatına
+            // çevrilir. `verticalScroll`'dan ÖNCE bağlanır ki görünümün konumu okunsun.
+            .onGloballyPositioned { coordinates ->
+                layoutProbe.onContainerPosition(coordinates.positionInRoot().y)
+            }
             .verticalScroll(scrollState)
             .padding(horizontal = 16.dp, vertical = 12.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
+        // ── Sayfa geneli Orijinal / Çeviri şeridi ─────────────────────────────
+        // Otomatik çeviri açıkken sayfa çevrilmiş hâlde gelir; bu şerit tüm yüzeyleri
+        // (başlık, İçindekiler, açılmış bölümler) tek dokunuşla orijinale döndürür.
+        if (showTranslationBar) {
+            ReaderTranslationBar(
+                showingOriginal = pageShowingOriginal,
+                isLoading = translatingReaderKeys > 0,
+                accentColor = accentColor,
+                onToggle = pageToggle
+            )
+        }
+
         ReaderHeaderCard(
             state = state,
             galleryItems = galleryItems,
             accentColor = accentColor,
-            onToggleOriginal = onToggleOriginal,
+            onToggleOriginal = anchoredToggle,
             onOpenGallery = onOpenGallery
         )
 
@@ -588,7 +705,7 @@ private fun ReaderContent(
             galleryItems = galleryItems,
             onRetry = { onRetrySection(READER_LEAD_SECTION) },
             onOpenLink = onOpenLink,
-            onToggleOriginal = onToggleOriginal,
+            onToggleOriginal = anchoredToggle,
             onOpenGallery = onOpenGallery
         )
 
@@ -622,7 +739,7 @@ private fun ReaderContent(
                 },
                 onRetrySection = onRetrySection,
                 onOpenLink = onOpenLink,
-                onToggleOriginal = onToggleOriginal,
+                onToggleOriginal = anchoredToggle,
                 galleryItems = galleryItems,
                 onOpenGallery = onOpenGallery
             )
@@ -668,6 +785,91 @@ private fun ReaderContent(
 /** Okuyucu içindeki bağlantı hedefini sağlar; varsayılan no-op (sekme içi kullanımlar için). */
 private val LocalFandomLinkOpener = compositionLocalOf<(String) -> Unit> { { _: String -> } }
 
+/**
+ * Okuma konumu çapası için blok ölçümlerini taşır. Çeviri geçişinde konumun korunması
+ * yalnızca okuyucu içinde anlamlıdır; bu yüzden varsayılan olarak kapalıdır (null).
+ */
+private val LocalWikiReaderLayoutProbe = compositionLocalOf<WikiReaderLayoutProbe?> { null }
+
+/**
+ * Çeviri geçişi öncesi yakalanan okuma çapası. [translations]/[originalKeys] alanları
+ * "geçiş gerçekten uygulandı mı" sorusunu **kimlik** karşılaştırmasıyla yanıtlar; böylece
+ * konum düzeltmesi yeni yerleşim ölçülmeden çalışmaz.
+ */
+private class PendingReaderRestore(
+    val anchor: WikiReaderAnchor,
+    val anchorScrollValue: Int,
+    val translations: Map<String, String>,
+    val originalKeys: Set<String>
+)
+
+/**
+ * Bir bloğu/yüzeyi ölçüp okuyucuya bildirir. Sarmalayıcı yalnızca ölçüm yapar: yerleşime
+ * dokunmaz, bu yüzden blokların konumu ve düzeni birebir aynı kalır.
+ */
+@Composable
+private fun ProbeMeasured(id: String, content: @Composable () -> Unit) {
+    val probe = LocalWikiReaderLayoutProbe.current
+    if (probe == null) {
+        content()
+        return
+    }
+    // Blok ekrandan çıktığında (bölüm kapandı, yapı değişti) ölçümü bırakılır; çapa
+    // seçimi her zaman gerçekten çizilen bloklar arasından yapılır.
+    DisposableEffect(probe, id) {
+        onDispose { probe.forget(id) }
+    }
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .onGloballyPositioned { coordinates ->
+                probe.record(id, coordinates.positionInRoot().y, coordinates.size.height)
+            }
+    ) {
+        content()
+    }
+}
+
+/**
+ * Sayfa geneli Orijinal/Çeviri şeridi. Otomatik çeviri açıkken okuyucu sayfaları çevrilmiş
+ * hâlde gelir; bu şerit "çeviriye gidip gelme"yi tek dokunuşa indirir ve konum korunur.
+ */
+@Composable
+private fun ReaderTranslationBar(
+    showingOriginal: Boolean,
+    isLoading: Boolean,
+    accentColor: Color,
+    onToggle: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
+            .background(KitsugiColors.SurfaceSoft)
+            .padding(start = 12.dp, end = 6.dp, top = 6.dp, bottom = 6.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        if (isLoading) {
+            CircularProgressIndicator(Modifier.size(14.dp), color = accentColor, strokeWidth = 2.dp)
+            Spacer(Modifier.width(8.dp))
+        }
+        Text(
+            text = stringResource(
+                if (showingOriginal) R.string.fandom_reader_original_notice
+                else R.string.fandom_reader_translated_notice
+            ),
+            color = KitsugiColors.TextSecondary,
+            style = MaterialTheme.typography.labelMedium,
+            modifier = Modifier.weight(1f)
+        )
+        KitsugiOriginalToggleButton(
+            showingOriginal = showingOriginal,
+            onClick = onToggle,
+            tint = accentColor
+        )
+    }
+}
+
 /** Giriş bölümü (MediaWiki section 0). Ana sayfa için tüm içerik buradadır. */
 private const val READER_LEAD_SECTION = 0
 
@@ -703,6 +905,10 @@ private fun ReaderLeadCard(
             isFailed = isFailed,
             translationKey = key,
             translatedText = state.translations[key],
+            // Giriş bölümü (maddenin özeti) de blok blok çevrilir; bu parametre
+            // geçilmediğinde yapı korumalı çeviri hiç görünmüyor, düz metin yedeği de
+            // görselleri metnin altına yığıyordu.
+            translations = state.translations,
             isTranslating = key in state.translatingKeys,
             showingOriginal = key in state.originalKeys,
             preferredTranslator = state.preferredTranslator,
@@ -766,11 +972,18 @@ private fun ReaderHeaderCard(
                 )
                 if (description.isNotBlank()) {
                     Spacer(modifier = Modifier.height(6.dp))
-                    Text(
-                        text = displayDescription,
-                        color = KitsugiColors.TextSecondary,
-                        style = MaterialTheme.typography.bodyMedium
-                    )
+                    ProbeMeasured(
+                        id = WikiReaderLayoutProbe.surfaceId(
+                            descriptionKey,
+                            WikiReaderLayoutProbe.SURFACE_DESCRIPTION
+                        )
+                    ) {
+                        Text(
+                            text = displayDescription,
+                            color = KitsugiColors.TextSecondary,
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                    }
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.End
@@ -811,10 +1024,17 @@ private fun ReaderContentsCard(
             fontWeight = FontWeight.Bold
         )
         Spacer(Modifier.height(8.dp))
+        // İçindekiler satırları da seçili dile çevrilir: okuyucu sayfalarında kalan son
+        // İngilizce yüzey bölüm başlıklarıydı. Buradaki başlıklar bu sayfanın KENDİ
+        // bölüm adlarıdır; mavi tıklanır bağlantı etiketleri (başka sayfalara giden
+        // çipler/kartlar) hiç çevrilmez.
+        val location = FandomReaderLocation(state.wikiId, state.page.displayTitle)
+        val contentsShowingOriginal = FandomReaderTranslationKeys.contents(location) in state.originalKeys
         Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            state.page.sections.forEach { section ->
+            state.page.sections.forEachIndexed { rowIndex, section ->
                 val isExpanded = section.index in expandedSections
                 val isLoaded = section.index in state.sections
+                val sectionKey = FandomReaderTranslationKeys.section(location, section.index)
                 val isLoading = section.index in state.loadingSections
                 val isFailed = section.index in state.failedSections
                 Column {
@@ -835,7 +1055,14 @@ private fun ReaderContentsCard(
                         )
                         Spacer(Modifier.width(9.dp))
                         Text(
-                            text = localizedSectionTitle(section.title),
+                            text = readerContentsTitle(
+                                state = state,
+                                rowIndex = rowIndex,
+                                sectionIndex = section.index,
+                                rawTitle = section.title,
+                                location = location,
+                                showingOriginal = contentsShowingOriginal
+                            ),
                             color = if (isExpanded || isLoaded) accentColor else KitsugiColors.TextPrimary,
                             style = MaterialTheme.typography.bodyMedium,
                             fontWeight = if (isExpanded || isLoaded) FontWeight.SemiBold else FontWeight.Normal,
@@ -859,19 +1086,11 @@ private fun ReaderContentsCard(
                             content = state.sections[section.index],
                             isLoading = isLoading,
                             isFailed = isFailed,
-                            translationKey = FandomReaderTranslationKeys.section(
-                                FandomReaderLocation(state.wikiId, state.page.displayTitle), section.index
-                            ),
-                            translatedText = state.translations[FandomReaderTranslationKeys.section(
-                                FandomReaderLocation(state.wikiId, state.page.displayTitle), section.index
-                            )],
+                            translationKey = sectionKey,
+                            translatedText = state.translations[sectionKey],
                             translations = state.translations,
-                            isTranslating = FandomReaderTranslationKeys.section(
-                                FandomReaderLocation(state.wikiId, state.page.displayTitle), section.index
-                            ) in state.translatingKeys,
-                            showingOriginal = FandomReaderTranslationKeys.section(
-                                FandomReaderLocation(state.wikiId, state.page.displayTitle), section.index
-                            ) in state.originalKeys,
+                            isTranslating = sectionKey in state.translatingKeys,
+                            showingOriginal = sectionKey in state.originalKeys,
                             preferredTranslator = state.preferredTranslator,
                             accentColor = accentColor,
                             onRetry = { onRetrySection(section.index) },
@@ -966,8 +1185,12 @@ private fun ReaderSectionContent(
                     }
                 }
                 when {
-                    translatedContent != null -> translatedContent.blocks.forEach { block ->
-                        ReaderBlock(block, accentColor, onOpenLink, galleryItems, onOpenGallery)
+                    translatedContent != null -> translatedContent.blocks.forEachIndexed { index, block ->
+                        // Blok kimliği blok SIRASIDIR ve çeviri de aynı sırayı korur; bu
+                        // yüzden Orijinal/Çeviri geçişinde aynı blokla eşleşir.
+                        ProbeMeasured(id = WikiReaderLayoutProbe.blockId(translationKey, index)) {
+                            ReaderBlock(block, accentColor, onOpenLink, galleryItems, onOpenGallery)
+                        }
                     }
                     flatTranslation != null && !showingOriginal -> {
                         Text(
@@ -978,8 +1201,10 @@ private fun ReaderSectionContent(
                         content.blocks.filter { it.kind == FandomBlockKind.IMAGE || it.kind == FandomBlockKind.CARD }
                             .forEach { block -> ReaderBlock(block, accentColor, onOpenLink, galleryItems, onOpenGallery) }
                     }
-                    else -> content.blocks.forEach { block ->
-                        ReaderBlock(block, accentColor, onOpenLink, galleryItems, onOpenGallery)
+                    else -> content.blocks.forEachIndexed { index, block ->
+                        ProbeMeasured(id = WikiReaderLayoutProbe.blockId(translationKey, index)) {
+                            ReaderBlock(block, accentColor, onOpenLink, galleryItems, onOpenGallery)
+                        }
                     }
                 }
                 if (content.links.isNotEmpty() && !FandomSpoilerRules.isHiddenSection(section.title)) {
@@ -1337,6 +1562,47 @@ private fun ReaderRelatedCard(
             )
         }
     }
+}
+
+/**
+ * İçindekiler satırının görünen başlığı.
+ *
+ * Öncelik sırası:
+ *  1. "Orijinal" görünümü → yalnızca sözlük yerelleştirmesi ([localizedSectionTitle]).
+ *  2. Bölüm yüklüyse kendi başlığının çevirisi (satır ile içerikteki başlık birebir aynı
+ *     olsun diye).
+ *  3. İçindekiler listesinin toplu çevirisi (sayfa açılırken tek istekle gelir).
+ *  4. Sözlük yerelleştirmesi.
+ *
+ * Bölüm başlığı bir **bağlantı etiketi** değildir; satırın dokunma hedefi yine aynı
+ * bölümdür. Bu yüzden başlığın çevrilmesi mavi bağlantı korumasını ihlal etmez.
+ */
+private fun readerContentsTitle(
+    state: FandomReaderRenderState,
+    rowIndex: Int,
+    sectionIndex: Int,
+    rawTitle: String,
+    location: FandomReaderLocation,
+    showingOriginal: Boolean
+): String {
+    val localized = localizedSectionTitle(rawTitle)
+    if (showingOriginal) return localized
+
+    val blocks = state.sections[sectionIndex]?.blocks
+    val headingIndex = blocks?.indexOfFirst { it.kind == FandomBlockKind.HEADING } ?: -1
+    if (headingIndex >= 0) {
+        val headingKey = WikiStructuredTranslationKeys.block(
+            FandomReaderTranslationKeys.section(location, sectionIndex),
+            headingIndex
+        )
+        state.translations[headingKey]?.takeIf { it.isNotBlank() }?.let { return it }
+    }
+
+    val rowKey = WikiStructuredTranslationKeys.block(
+        FandomReaderTranslationKeys.contents(location),
+        rowIndex
+    )
+    return state.translations[rowKey]?.takeIf { it.isNotBlank() } ?: localized
 }
 
 @Composable

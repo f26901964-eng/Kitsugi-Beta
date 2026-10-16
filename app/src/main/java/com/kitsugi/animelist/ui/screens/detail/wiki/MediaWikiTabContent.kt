@@ -213,6 +213,8 @@ internal fun MediaWikiTabSlot(
             onRetrySection = viewModel::retryReaderSection,
             onRetryPage = viewModel::retryReaderPage,
             onOpenLink = viewModel::openReaderLink,
+            // Sayfa geneli Orijinal/Çeviri: tüm yüzeyler tek dokunuşla gidip gelir.
+            onSetReaderOriginal = viewModel::setReaderOriginal,
             onOpenInBrowser = {
                 val location = readerBrowser.activeTab?.location ?: return@FandomWikiReaderSheet
                 openExternal(context, FandomUrls.pageUrl(location.wikiId, location.title))
