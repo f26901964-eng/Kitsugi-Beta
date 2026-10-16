@@ -764,7 +764,8 @@ fun CharacterDetailPage(
                                 translations = wikiTranslations,
                                 translatingKeys = wikiTranslating,
                                 originalKeys = wikiOriginalKeys,
-                                preferredTranslator = preferredTranslator
+                                preferredTranslator = preferredTranslator,
+                                spoilerGuard = wikiPrefs.spoilerGuard
                             )
                         },
                         navigation = wikiReaderBrowser,

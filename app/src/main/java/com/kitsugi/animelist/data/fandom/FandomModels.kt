@@ -389,6 +389,18 @@ data class FandomCharacterPage(
         get() = confidence == FandomConfidence.PROBABLE
 
     /**
+     * Sekmede gösterilecek GERÇEK içerik var mı?
+     *
+     * Bilgi kutusu yalnızca kapak görseli taşıyıp hiç alan içermiyorsa, özet ve bölümler de
+     * boşsa madde bomboş bir kart olarak çizilir (ekran görüntüsündeki şikâyet). Bu durumda
+     * arayüz madde yerine wiki'nin tam sayfasını (giriş + bölümler) sekme içine yükler.
+     */
+    val hasWikiContent: Boolean
+        get() = !description.isNullOrBlank() ||
+            infobox?.allFields()?.isNotEmpty() == true ||
+            sections.isNotEmpty()
+
+    /**
      * Wiki isimle bulundu ve kesinleşmedi. Kullanıcı "yanlış" derse en olası hata wiki'nin
      * kendisidir; bu durumda wiki de o yapım için reddedilir. Kimlikle bulunan wiki asla
      * reddedilmez (yalnızca sayfa eşleşmesi reddedilir).

@@ -26,6 +26,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -111,7 +112,9 @@ data class FandomReaderRenderState(
     val translations: Map<String, String> = emptyMap(),
     val translatingKeys: Set<String> = emptySet(),
     val originalKeys: Set<String> = emptySet(),
-    val preferredTranslator: String = "DEFAULT"
+    val preferredTranslator: String = "DEFAULT",
+    /** İlgili sayfa bilgi kutularındaki spoiler alanları gizlenir. */
+    val spoilerGuard: Boolean = true
 )
 
 /**
@@ -624,9 +627,13 @@ private fun ReaderContent(
         if (state.related.isNotEmpty()) {
             ReaderRelatedCard(
                 wikiId = state.wikiId,
+                pageKey = "${state.wikiId}:${state.page.displayTitle}",
                 related = state.related,
                 accentColor = accentColor,
-                onOpenPage = onOpenLink
+                galleryItems = galleryItems,
+                onOpenGallery = onOpenGallery,
+                onOpenPage = onOpenLink,
+                spoilerGuard = state.spoilerGuard
             )
         }
         Spacer(modifier = Modifier.height(24.dp))
@@ -1270,9 +1277,13 @@ private fun ReaderLinkChips(links: List<String>, accentColor: Color, onOpenLink:
 @Composable
 private fun ReaderRelatedCard(
     wikiId: String,
+    pageKey: String,
     related: List<FandomRelatedPage>,
     accentColor: Color,
-    onOpenPage: (String) -> Unit
+    galleryItems: List<GalleryItem>,
+    onOpenGallery: (List<GalleryItem>, Int) -> Unit,
+    onOpenPage: (String) -> Unit,
+    spoilerGuard: Boolean = true
 ) {
     val wikipedia = FandomUrls.isWikipedia(wikiId)
     ReaderCard {
@@ -1294,16 +1305,28 @@ private fun ReaderRelatedCard(
             )
         }
         Spacer(Modifier.height(10.dp))
-        WikiPreviewStripRow(
-            items = related,
-            key = { it.title }
-        ) { page ->
-            WikiPagePreviewCard(
-                page = page,
-                wikiId = wikiId,
-                accentColor = accentColor,
-                onClick = { onOpenPage(page.title) }
-            )
+        // İlgili sayfalar okuyucuda da tam ayrıntıyla: giriş metni ve bilgi kutusu
+        // alanları kart içinde; sayfayı açma ikincil eylemdir.
+        androidx.compose.runtime.key(pageKey, "related-pages") {
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                related.forEach { page ->
+                    androidx.compose.runtime.key(page.title) {
+                        WikiRelatedPageDetailCard(
+                            page = page,
+                            accentColor = accentColor,
+                            spoilerGuard = spoilerGuard,
+                            onOpenPage = { onOpenPage(page.title) },
+                            onOpenImage = { url ->
+                                val index = galleryItems.indexOfFirst { it.url == url }
+                                if (index >= 0) onOpenGallery(galleryItems, index)
+                            }
+                        )
+                    }
+                }
+            }
         }
     }
 }

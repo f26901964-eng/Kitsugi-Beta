@@ -173,6 +173,12 @@ internal fun CharacterWikiTabContent(
      *  ek olarak hedef wiki de korunur. Verilmezse [onOpenWikiPage]'e düşülür. */
     onOpenWikiLink: ((FandomWikiLink) -> Unit)? = null,
     relatedPages: List<com.kitsugi.animelist.data.fandom.FandomRelatedPage> = emptyList(),
+    /**
+     * Sayfa GERÇEK içerik taşımıyorsa (bilgi kutusu alanı, özet ve bölümler boş) boş
+     * "başlık + kapak" kartı çizilmez; yapım wiki sekmesi bu durumda wiki'nin tam sayfasını
+     * sekme içine yükler. İlgili maddeler yine burada, tam ayrıntıyla gösterilir.
+     */
+    suppressEmptyInfobox: Boolean = false,
     /** Birden çok kaynak (Fandom + Vikipedi) varken kaynak çiplerinden seçimi bildirir (indeks). */
     onSwitchSource: (Int) -> Unit = {}
 ) {
@@ -193,27 +199,32 @@ internal fun CharacterWikiTabContent(
             WikiConfirmCard(accentColor = accentColor, onConfirm = onConfirm, onReject = onReportWrong)
         }
 
-        WikiInfoboxCard(
-            page = page,
-            infobox = page.infobox,
-            spoilerGuard = spoilerGuard,
-            revealed = revealed,
-            showAll = showAllFields,
-            onToggleShowAll = { showAllFields = !showAllFields },
-            accentColor = accentColor,
-            onOpenGallery = onOpenGallery,
-            galleryCategory = galleryCategory,
-            translations = translations,
-            infoboxTranslating = KEY_INFOBOX in translatingKeys,
-            preferredTranslator = preferredTranslator,
-            infoboxShowingOriginal = KEY_INFOBOX in originalKeys,
-            onToggleInfoboxOriginal = { onToggleOriginal(KEY_INFOBOX) }
-        )
+        // İçeriği olmayan sayfada boş kart çizme; sekme wiki'nin tam sayfasını gösterecek.
+        if (!(suppressEmptyInfobox && !page.hasWikiContent)) {
+            WikiInfoboxCard(
+                page = page,
+                infobox = page.infobox,
+                spoilerGuard = spoilerGuard,
+                revealed = revealed,
+                showAll = showAllFields,
+                onToggleShowAll = { showAllFields = !showAllFields },
+                accentColor = accentColor,
+                onOpenGallery = onOpenGallery,
+                galleryCategory = galleryCategory,
+                translations = translations,
+                infoboxTranslating = KEY_INFOBOX in translatingKeys,
+                preferredTranslator = preferredTranslator,
+                infoboxShowingOriginal = KEY_INFOBOX in originalKeys,
+                onToggleInfoboxOriginal = { onToggleOriginal(KEY_INFOBOX) }
+            )
+        }
 
         if (page.relatedEntities.isNotEmpty()) {
             WikiRelatedEntitiesCard(
                 entities = page.relatedEntities,
+                pageKey = "${page.wikiId}:${page.pageTitle}",
                 accentColor = accentColor,
+                spoilerGuard = spoilerGuard,
                 onOpenWikiLink = onOpenWikiLink,
                 onOpenWikiPage = onOpenWikiPage
             )
@@ -299,7 +310,6 @@ internal fun CharacterWikiTabContent(
                         preferredTranslator = preferredTranslator,
                         onOpenGallery = onOpenGallery,
                         gallerySource = FandomUrls.displaySourceName(page.wikiId),
-                        sourceWikiId = page.wikiId,
                         onOpenLink = { linkTitle ->
                             onOpenWikiPage?.invoke(linkTitle) ?: openExternal(context, com.kitsugi.animelist.data.fandom.FandomUrls.pageUrl(page.wikiId, linkTitle))
                         },
@@ -311,15 +321,24 @@ internal fun CharacterWikiTabContent(
         }
 
         if (relatedPages.isNotEmpty()) {
-            CharacterRelatedStrip(
+            // Her ilgili sayfa kartta TAMAMLANIR: başlık, kapak, giriş metni ve bilgi
+            // kutusu alanları burada görünür; sayfayı açma yalnızca ikincil eylemdir.
+            WikiRelatedPagesInlineSection(
+                title = stringResource(
+                    if (FandomUrls.isWikipedia(page.wikiId)) {
+                        R.string.fandom_related_pages_title_wikipedia
+                    } else {
+                        R.string.fandom_related_pages_title
+                    }
+                ),
                 pages = relatedPages,
-                wikiId = page.wikiId,
                 accentColor = accentColor,
-                onOpenPage = { p ->
+                spoilerGuard = spoilerGuard,
+                onOpenPage = { related ->
                     // Uygulama içi okuyucu bağlı değilse ölü düğme bırakma:
                     // son çare olarak tarayıcı (normal akışta hep bağlanır).
-                    onOpenWikiPage?.invoke(p)
-                        ?: openExternal(context, com.kitsugi.animelist.data.fandom.FandomUrls.pageUrl(page.wikiId, p))
+                    onOpenWikiPage?.invoke(related)
+                        ?: openExternal(context, FandomUrls.pageUrl(page.wikiId, related))
                 }
             )
         }
@@ -330,50 +349,6 @@ internal fun CharacterWikiTabContent(
             onReportWrong = onReportWrong,
             onOpenWikiPage = onOpenWikiPage
         )
-    }
-}
-
-@Composable
-private fun CharacterRelatedStrip(
-    pages: List<com.kitsugi.animelist.data.fandom.FandomRelatedPage>,
-    wikiId: String,
-    accentColor: Color,
-    onOpenPage: (String) -> Unit
-) {
-    if (pages.isEmpty()) return
-    // Başlık kaynağa göre kendiliğinden güncellenir: Vikipedi/Vikipedia kaynağında
-    // "İlgili maddeler", Fandom kaynağında "İlgili wiki sayfaları".
-    val wikipedia = FandomUrls.isWikipedia(wikiId)
-    WikiCard {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Text(
-                text = stringResource(
-                    if (wikipedia) R.string.fandom_related_pages_title_wikipedia
-                    else R.string.fandom_related_pages_title
-                ),
-                color = KitsugiColors.TextPrimary,
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold,
-                modifier = Modifier.weight(1f)
-            )
-            Text(
-                text = stringResource(R.string.fandom_related_pages_count, pages.size),
-                color = KitsugiColors.TextMuted,
-                style = MaterialTheme.typography.labelSmall
-            )
-        }
-        Spacer(Modifier.height(10.dp))
-        WikiPreviewStripRow(
-            items = pages,
-            key = { it.title }
-        ) { relatedPage ->
-            WikiPagePreviewCard(
-                page = relatedPage,
-                wikiId = wikiId,
-                accentColor = accentColor,
-                onClick = { onOpenPage(relatedPage.title) }
-            )
-        }
     }
 }
 
@@ -796,8 +771,6 @@ private fun WikiSectionRow(
     onOpenWikiLink: ((FandomWikiLink) -> Unit)? = null,
     /** Galeri penceresindeki kaynak adı ("Fandom" / "Vikipedi" / "Wikipedia"). */
     gallerySource: String = FANDOM_GALLERY_SOURCE,
-    /** Bölüm bağlantı kartlarındaki kaynak rozeti için sayfanın wiki kimliği. */
-    sourceWikiId: String = "",
     /** Bölümün blok blok çevirileri (yapı koruyan çeviri). */
     translations: Map<String, String> = emptyMap()
 ) {
@@ -907,8 +880,6 @@ private fun WikiSectionRow(
                                     content = state.content,
                                     translated = if (showingOriginal) null else translated,
                                     onOpenGallery = onOpenGallery,
-                                    accentColor = accentColor,
-                                    sourceWikiId = sourceWikiId,
                                     onOpenLink = onOpenLink,
                                     onOpenWikiLink = onOpenWikiLink,
                                     gallerySource = gallerySource,
@@ -929,8 +900,6 @@ private fun SectionBody(
     content: FandomSectionContent,
     translated: String?,
     onOpenGallery: (List<GalleryItem>, Int) -> Unit,
-    accentColor: Color,
-    sourceWikiId: String = "",
     onOpenLink: (String) -> Unit = {},
     onOpenWikiLink: ((FandomWikiLink) -> Unit)? = null,
     gallerySource: String = FANDOM_GALLERY_SOURCE,
@@ -996,35 +965,43 @@ private fun SectionBody(
             }
         }
         if (content.linkedEntities.isNotEmpty()) {
-            // Bölüm tablolarından çıkan kadro/ekip/karakter bağlantıları da aynı
-            // birleşik önizleme kartıyla gösterilir: hedef wiki kimliği korunarak
-            // uygulama içi okuyucuda açılır, tarayıcıya düşmez.
-            WikiPreviewStripRow(
-                items = content.linkedEntities,
-                key = { link -> "${link.wikiId}:${link.pageTitle}:${link.role}" }
-            ) { link ->
-                WikiPagePreviewCard(
-                    entity = link,
-                    accentColor = accentColor,
-                    onClick = {
+            Row(
+                modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                content.linkedEntities.forEach { link ->
+                    TextButton(onClick = {
+                        // Mavi bağlantı şeridi: hedef wiki kimliği korunarak
+                        // uygulama içi okuyucuda açılır, tarayıcıya düşmez.
                         if (onOpenWikiLink != null) onOpenWikiLink(link)
                         else onOpenLink(link.pageTitle)
+                    }) {
+                        Text(
+                            text = link.label,
+                            color = KitsugiColors.AccentBlue,
+                            style = MaterialTheme.typography.labelMedium,
+                            maxLines = 1
+                        )
                     }
-                )
+                }
             }
         } else if (content.links.isNotEmpty()) {
-            WikiPreviewStripRow(
-                items = content.links,
-                key = { it }
-            ) { linkTitle ->
-                WikiPagePreviewCard(
-                    title = linkTitle,
-                    description = null,
-                    imageUrl = null,
-                    sourceLabel = FandomUrls.displaySourceName(sourceWikiId),
-                    accentColor = accentColor,
-                    onClick = { onOpenLink(linkTitle) }
-                )
+            Row(
+                modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                content.links.forEach { linkTitle ->
+                    TextButton(onClick = {
+                        onOpenLink(linkTitle)
+                    }) {
+                        Text(
+                            text = linkTitle,
+                            color = KitsugiColors.AccentBlue,
+                            style = MaterialTheme.typography.labelMedium,
+                            maxLines = 1
+                        )
+                    }
+                }
             }
         }
     }
@@ -1356,7 +1333,9 @@ private fun openExternal(context: Context, url: String) {
 @Composable
 private fun WikiRelatedEntitiesCard(
     entities: List<FandomWikiLink>,
+    pageKey: String,
     accentColor: Color,
+    spoilerGuard: Boolean = true,
     onOpenWikiLink: ((FandomWikiLink) -> Unit)? = null,
     onOpenWikiPage: ((String?) -> Unit)? = null
 ) {
@@ -1400,23 +1379,36 @@ private fun WikiRelatedEntitiesCard(
                 color = accentColor,
                 style = MaterialTheme.typography.titleSmall,
                 fontWeight = FontWeight.SemiBold,
-                modifier = Modifier.padding(top = 12.dp)
+                modifier = Modifier.padding(top = 10.dp)
             )
             Text(
                 text = stringResource(R.string.fandom_related_article_count, groupEntities.size),
                 color = KitsugiColors.TextMuted,
                 style = MaterialTheme.typography.labelSmall
             )
-            WikiPreviewStripRow(
-                items = groupEntities,
-                key = { entity -> "${entity.wikiId}:${entity.pageTitle}:${entity.role}:${entity.language}" }
-            ) { entity ->
-                WikiPagePreviewCard(
-                    entity = entity,
-                    accentColor = accentColor,
-                    badgeLabel = stringResource(relatedTitleRes(role)),
-                    onClick = { openEntityPage(entity) }
-                )
+            // Karakter / ekip / seslendirmen maddeleri kartta TAMAMLANIR: giriş metni ve
+            // bilgi kutusu alanları burada görünür, sayfayı açmak ikincil eylemdir.
+            androidx.compose.runtime.key(pageKey, role) {
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    groupEntities.forEach { entity ->
+                        androidx.compose.runtime.key(
+                            entity.wikiId,
+                            entity.pageTitle,
+                            entity.role,
+                            entity.language
+                        ) {
+                            WikiRelatedEntityDetailCard(
+                                entity = entity,
+                                accentColor = accentColor,
+                                spoilerGuard = spoilerGuard,
+                                onOpenPage = { openEntityPage(entity) }
+                            )
+                        }
+                    }
+                }
             }
         }
     }
