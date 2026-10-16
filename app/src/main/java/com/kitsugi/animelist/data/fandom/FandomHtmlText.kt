@@ -325,7 +325,7 @@ object FandomHtmlText {
                     flushPending()
                     headingsSeen++
                     if (headingsSeen == 1 && !contentSeen) return
-                    add(FandomBlockKind.HEADING, inlineOf(element))
+                    add(FandomBlockKind.HEADING, inlineOf(element), links = anchorLinks(element, wikiId))
                 }
                 "p" -> {
                     flushPending()
@@ -352,7 +352,7 @@ object FandomHtmlText {
                     flushPending()
                     element.children().forEach { child ->
                         when (child.normalName()) {
-                            "dt" -> add(FandomBlockKind.HEADING, inlineOf(child))
+                            "dt" -> add(FandomBlockKind.HEADING, inlineOf(child), links = anchorLinks(child, wikiId))
                             "dd" -> add(FandomBlockKind.PARAGRAPH, inlineOf(child), links = anchorLinks(child, wikiId))
                             else -> walk(child)
                         }
@@ -669,8 +669,8 @@ object FandomHtmlText {
                         it.normalName() == "figure" || it.hasClass("thumb") || it.hasClass("gallery")
                     }
                     ?: container
-                val caption = imageContainer.selectFirst(".gallerytext, .thumbcaption, figcaption, .caption")
-                    ?.let(::inlineOf)
+                val captionElement = imageContainer.selectFirst(".gallerytext, .thumbcaption, figcaption, .caption")
+                val caption = captionElement?.let(::inlineOf)
                     ?.takeIf { it.isNotBlank() }
                     ?: img.attr("alt").trim().takeIf { it.isNotBlank() }
                 // Bağlantılı görsel: dokununca hedef sayfa açılır (galeri, kart, ana sayfa vitrini).
@@ -681,7 +681,8 @@ object FandomHtmlText {
                     kind = FandomBlockKind.IMAGE,
                     text = caption.orEmpty(),
                     image = fandomImage,
-                    href = href
+                    href = href,
+                    links = captionElement?.let { anchorLinks(it, wikiId) }.orEmpty()
                 )
                 imagesSeen++
                 contentSeen = true
