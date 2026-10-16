@@ -230,6 +230,18 @@ class FandomMediaWikiViewModel(application: Application) : AndroidViewModel(appl
      */
     private val translationBases = HashMap<String, String>()
 
+    /** Kaynaklar arasında gidip gelince çeviri ve Orijinal/Çeviri seçimi kaybolmasın. */
+    private data class SourceTranslationSnapshot(
+        val translations: Map<String, String>,
+        val originalKeys: Set<String>,
+        val bases: Map<String, String>
+    )
+
+    private val sourceTranslationSnapshots = HashMap<String, SourceTranslationSnapshot>()
+
+    private fun sourceTranslationKey(ref: FandomWikiRef): String =
+        "${ref.wikiId}|${ref.pageTitle.orEmpty()}"
+
     /**
      * Orijinal metne dönülmüş anahtarlar ([KEY_SUMMARY], [itemKey], [FandomCharacterWikiViewModel.KEY_DESCRIPTION], vb.).
      * Çeviri bellekte kalır; geçiş düğmesiyle tekrar gösterilebilir. Bu anahtarlar için
@@ -342,6 +354,7 @@ class FandomMediaWikiViewModel(application: Application) : AndroidViewModel(appl
         _selectedSections.value = emptyMap()
         _translations.value = emptyMap()
         translationBases.clear()
+        sourceTranslationSnapshots.clear()
         _originalKeys.value = emptySet()
         _guide.value = GuideState.Idle
         _summary.value = BlurbState.Idle
@@ -384,25 +397,32 @@ class FandomMediaWikiViewModel(application: Application) : AndroidViewModel(appl
     /**
      * Farklı bir wiki kaynağına geçiş yapar (Fandom ↔ Vikipedi; Vikipedi TR ↔ EN).
      *
-     * Kaynak değişiminde ÖNCEKİ kaynağa ait bütün türev durum düşürülür. Özellikle çeviriler:
-     * aynı anahtar ("desc") başka bir maddeyi işaret ettiği için eski çeviri ekranda kalırsa
-     * "Orijinal / Çeviri" düğmesi içeriği tamamen farklı bir metne çeviriyordu (EN Vikipedi'den
-     * TR Vikipedi'ye geçişte birebir bu oluyordu). Madde bölümleri de taşınırsa "İçindekiler"
-     * altında önceki maddenin metni görünürdü.
+     * Çeviri görünümü kaynak başına saklanır. Böylece Fandom'da "Orijinal", Vikipedi'de
+     * "Çeviri" seçilebilir; geri dönünce hem seçim hem hazır çeviri bellekte kalır. Kaynaklar
+     * aynı `desc`/`sec:0` anahtarlarını kullandığı için aktif kaynağın anlık görüntüsü dışında
+     * hiçbir kayıt UI'ya verilmez; başka maddenin çevirisi ekrana sızamaz.
      */
     fun switchSource(index: Int) {
         val current = _state.value as? UiState.Ready ?: return
         if (index !in current.availableSources.indices || index == current.activeSourceIndex) return
         val newRef = current.availableSources[index]
+        // Aktif kaynağın çevirisini ve görünüm tercihini, anahtar çakışmalarından yalıtılmış
+        // kaynak kovasına al. Devam eden işlerin kısmi sonucu kaynak değişiminden sonra yazamaz.
+        sourceTranslationSnapshots[sourceTranslationKey(current.ref)] = SourceTranslationSnapshot(
+            translations = _translations.value,
+            originalKeys = _originalKeys.value,
+            bases = translationBases.toMap()
+        )
         _state.value = current.copy(
             ref = newRef,
             activeSourceIndex = index
         )
-        // Çeviri işleri + Orijinal/Çeviri geçişleri (cancelTranslations üretimi artırır).
         cancelTranslations()
-        _translations.value = emptyMap()
-        _originalKeys.value = emptySet()
+        val restored = sourceTranslationSnapshots[sourceTranslationKey(newRef)]
+        _translations.value = restored?.translations.orEmpty()
+        _originalKeys.value = restored?.originalKeys.orEmpty()
         translationBases.clear()
+        restored?.bases?.let(translationBases::putAll)
         articleJob?.cancel()
         articleGeneration += 1
         _article.value = ArticleState.Idle
@@ -881,6 +901,18 @@ class FandomMediaWikiViewModel(application: Application) : AndroidViewModel(appl
         val reader = _reader.value as? ReaderState.Ready
         val readerLocation = reader?.let { FandomReaderLocation(ready.ref.wikiId, it.page.displayTitle) }
 
+        // Kaynak zaten hedef dilde: "çeviri" metni değiştirmez, yalnızca kafa karıştırır
+        // (Vikipedi TR maddesi + Türkçe hedef gibi). Bu kontrol yapılandırılmış bölümlerden
+        // ÖNCE yapılır; aksi hâlde düz açıklama atlanırken açılır bölüm yine çevriliyordu.
+        if (isTargetLanguageSource(ready.ref.wikiId)) {
+            translationJobs.remove(key)?.cancel()
+            translationBases.remove(key)
+            _translating.update { it - key }
+            _originalKeys.update { it - key }
+            _translations.update { it.withoutTranslation(key) }
+            return
+        }
+
         // YAPI KORUMASI: Bölüm içeriği düz metne indirilmez; blok blok çevrilip blok
         // anahtarlarına yazılır. Böylece liste/kart/başlık düzeni, görsel sırası ve
         // bağlantı hedefleri çeviri sonrasında da birebir aynı kalır.
@@ -891,16 +923,6 @@ class FandomMediaWikiViewModel(application: Application) : AndroidViewModel(appl
 
         val text = currentTextForKey(key)
         if (text.isNullOrBlank()) return
-        // Kaynak zaten hedef dilde: "çeviri" metni değiştirmez, yalnızca kafa karıştırır
-        // (Vikipedi TR maddesi + Türkçe hedef gibi). Düğme hiç çıkmaz.
-        if (isTargetLanguageSource(ready.ref.wikiId)) {
-            translationJobs.remove(key)?.cancel()
-            translationBases.remove(key)
-            _translating.update { it - key }
-            _originalKeys.update { it - key }
-            _translations.update { it - key }
-            return
-        }
         if (force) _translations.update { it - key }
         _translating.update { it + key }
         val generation = translationGeneration
@@ -1009,7 +1031,10 @@ class FandomMediaWikiViewModel(application: Application) : AndroidViewModel(appl
     private fun pruneStaleTranslations() {
         if (translationBases.isEmpty()) return
         val stale = translationBases.entries
-            .filter { (key, base) -> base != currentTextForKey(key) }
+            // null burada "içerik henüz yüklenmedi" de olabilir. Kaynağa geri dönerken
+            // açıklama özeti makaleden sonra geldiği için null'u bayat saysaydık bellekteki
+            // çeviriyi daha kendi metni yüklenmeden silerdik.
+            .filter { (key, base) -> currentTextForKey(key)?.let { it != base } == true }
             .map { it.key }
         if (stale.isEmpty()) return
         stale.forEach { translationBases.remove(it) }
