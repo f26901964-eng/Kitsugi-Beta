@@ -71,9 +71,14 @@ class WikiTranslationProtectionTest {
             translated.blocks.map { it.kind }
         )
 
-        // Görsel yerinde kalır; düz açıklaması kendi yuvasında çevrilir.
-        assertEquals(content.blocks[2].image?.url, translated.blocks[2].image?.url)
-        assertEquals("[tr] Yume Tōrō", translated.blocks[2].image?.caption)
+        // Görsel bloğu yerinde kalır: tür, sıra, URL ve dosya adı birebir aynıdır.
+        // Yalnızca altındaki beyaz metin (figcaption) çevrilir — "bu wiki sayfalarında
+        // mavi bağlantılar hariç her şey seçili dile gelir" kuralı.
+        val imageBlock = translated.blocks[2]
+        assertEquals(content.blocks[2].text, imageBlock.text)
+        assertEquals(content.blocks[2].image?.url, imageBlock.image?.url)
+        assertEquals(content.blocks[2].image?.fileTitle, imageBlock.image?.fileTitle)
+        assertEquals("[tr] Yume Tōrō", imageBlock.image?.caption)
 
         // Bağlantılar (dokunma hedefi) ve etiketleri korunur.
         val translatedParagraph = translated.blocks[1]
@@ -299,6 +304,88 @@ class WikiTranslationProtectionTest {
         assertTrue(childOnly.hasWikiTranslation("sec:0"))
         assertFalse(childOnly.hasWikiTranslation("sec:1"))
         assertTrue(mapOf("desc" to "çeviri").hasWikiTranslation("desc"))
+    }
+
+    // ------------------------------------------------- görsel altı yazısı (figcaption)
+
+    @Test
+    fun imageCaptionIsTranslatedWhileTheImageKeepsItsPlaceAndUrl() = runBlocking {
+        val baseKey = "reader-section:solo-leveling.fandom.com:1:Sung Jinwoo"
+        val content = FandomSectionContent(
+            blocks = listOf(
+                paragraph("Sung Jinwoo is the protagonist of Solo Leveling."),
+                FandomTextBlock(
+                    kind = FandomBlockKind.IMAGE,
+                    text = "Sung Jinwoo",
+                    image = FandomImage(url = "https://static.example/jinwoo.png", caption = "Sung Jinwoo in the anime")
+                ),
+                paragraph("He becomes the Shadow Monarch.")
+            )
+        )
+
+        val childKeys = ArrayList<String>()
+        val entries = translateSectionBlocks(
+            baseKey = baseKey,
+            content = content,
+            onBlock = { childKey, _ -> childKeys += childKey },
+            translate = { text -> "çeviri($text)" }
+        )
+
+        assertTrue(childKeys.any { it == WikiStructuredTranslationKeys.caption(baseKey, 1) })
+        assertTrue(entries.hasWikiTranslation(baseKey))
+
+        val restored = content.withTranslatedBlocks(baseKey, entries)
+        assertNotNull(restored)
+        // Blok sayısı, sırası ve görselin URL'si değişmez; yalnızca beyaz metinler çevrilir.
+        assertEquals(3, restored!!.blocks.size)
+        assertEquals(FandomBlockKind.IMAGE, restored.blocks[1].kind)
+        assertEquals("https://static.example/jinwoo.png", restored.blocks[1].image?.url)
+        assertEquals("çeviri(Sung Jinwoo in the anime)", restored.blocks[1].image?.caption)
+        assertEquals("çeviri(Sung Jinwoo is the protagonist of Solo Leveling.)", restored.blocks[0].text)
+    }
+
+    @Test
+    fun technicalImageCaptionsAreNotTranslated() = runBlocking {
+        val baseKey = "sec:0"
+        val content = FandomSectionContent(
+            blocks = listOf(
+                FandomTextBlock(
+                    kind = FandomBlockKind.IMAGE,
+                    text = "",
+                    image = FandomImage(url = "https://static.example/a.png", caption = "File:Jinwoo.png")
+                )
+            )
+        )
+        val entries = translateSectionBlocks(baseKey, content) { text -> "çeviri($text)" }
+        assertFalse(entries.hasWikiTranslation(baseKey))
+        assertTrue(entries.isEmpty())
+    }
+
+    // ------------------------------------------------- okuyucu (reader) anahtarları
+
+    @Test
+    fun readerKeysSeparateDescriptionSectionsAndContents() {
+        val location = FandomReaderLocation("solo-leveling.fandom.com", "Sung Jinwoo")
+        val descriptionKey = FandomReaderTranslationKeys.description(location)
+        val contentsKey = FandomReaderTranslationKeys.contents(location)
+        val sectionKey = FandomReaderTranslationKeys.section(location, 2)
+
+        assertTrue(
+            listOf(descriptionKey, contentsKey, sectionKey).all { FandomReaderTranslationKeys.isReaderKey(it) }
+        )
+        assertFalse(FandomReaderTranslationKeys.isReaderKey("sec:0"))
+
+        // İçindekiler çevirisi (satır başına çocuk anahtar) yalnızca kendi yüzeyini açar.
+        val translations = mapOf(
+            WikiStructuredTranslationKeys.block(contentsKey, 0) to "Hikâye",
+            WikiStructuredTranslationKeys.block(contentsKey, 1) to "Karakterler"
+        )
+        assertTrue(translations.hasWikiTranslation(contentsKey))
+        assertFalse(translations.hasWikiTranslation(sectionKey))
+        assertFalse(translations.hasWikiTranslation(descriptionKey))
+
+        // Geçiş "Orijinal"e alındığında içindekiler çevirisi de bırakılır.
+        assertTrue(translations.withoutTranslation(contentsKey).isEmpty())
     }
 
     @Test

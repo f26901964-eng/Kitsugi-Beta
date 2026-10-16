@@ -52,9 +52,15 @@ internal object WikiStructuredTranslationKeys {
 
     private const val SUBTITLE_SUFFIX = ":s"
 
+    /** Görsel altı açıklaması (figcaption) için çocuk anahtar son eki. */
+    private const val CAPTION_SUFFIX = ":i"
+
     fun block(baseKey: String, index: Int): String = "$baseKey$SEPARATOR$index"
 
     fun subtitle(baseKey: String, index: Int): String = "$baseKey$SEPARATOR$index$SUBTITLE_SUFFIX"
+
+    /** Görselin ALTINDAKİ yazı; görsel URL'si ve dosya adı asla çevrilmez. */
+    fun caption(baseKey: String, index: Int): String = "$baseKey$SEPARATOR$index$CAPTION_SUFFIX"
 
     fun isChildKey(key: String): Boolean = key.contains(SEPARATOR)
 
@@ -113,7 +119,23 @@ internal suspend fun translateSectionBlocks(
     val entries = LinkedHashMap<String, String>()
 
     content.blocks.forEachIndexed { index, block ->
-        val sourceText = block.translationText()
+        if (block.kind == FandomBlockKind.IMAGE) {
+            // Görselin kendisi, URL'si ve dosya adı çeviriye GİTMEZ; yalnızca altındaki
+            // açıklama (figcaption) beyaz metin olduğu için çevrilir. Blok sırası ve
+            // görselin konumu değişmez.
+            val caption = block.image?.caption
+            if (!caption.isNullOrBlank() && !isTechnicalWikiValue(caption)) {
+                val translatedCaption = translateOrNull(translate, caption)
+                if (!translatedCaption.isNullOrBlank() && translatedCaption != caption) {
+                    val childKey = WikiStructuredTranslationKeys.caption(baseKey, index)
+                    entries[childKey] = translatedCaption
+                    onBlock(childKey, translatedCaption)
+                }
+            }
+            return@forEachIndexed
+        }
+
+        val sourceText = block.text
         if (shouldTranslateBlockText(block) && !isTechnicalWikiValue(sourceText)) {
             val translated = translateBlockText(sourceText, block, translate)
             if (!translated.isNullOrBlank() && translated != sourceText) {
@@ -266,23 +288,25 @@ internal fun FandomSectionContent.withTranslatedBlocks(
     if (blocks.isEmpty() || translations.isEmpty()) return null
     var changed = false
     val next = blocks.mapIndexed { index, block ->
-        // Eski/bozuk önbellek de bağlı kart başlığını veya link etiketini değiştiremez.
         val text = translations[WikiStructuredTranslationKeys.block(baseKey, index)]
-            ?.takeIf { shouldTranslateBlockText(block) }
-            ?.takeIf { preservesWikiLinks(block.translationText(), it, block.inlineTranslationLinks()) }
         val subtitle = translations[WikiStructuredTranslationKeys.subtitle(baseKey, index)]
-            ?.takeIf { block.kind == FandomBlockKind.CARD && block.subtitle != null }
-            ?.takeIf { preservesWikiLinks(block.subtitle.orEmpty(), it, block.inlineTranslationLinks()) }
-        if (text == null && subtitle == null) {
+        val caption = translations[WikiStructuredTranslationKeys.caption(baseKey, index)]
+        val image = if (caption != null && block.image != null) {
+            block.image.copy(caption = caption)
+        } else {
+            block.image
+        }
+        if (text == null && subtitle == null && image == block.image) {
             block
         } else {
             changed = true
-            block.copy(
+            FandomTextBlock(
+                kind = block.kind,
                 text = text ?: block.text,
-                image = if (block.kind == FandomBlockKind.IMAGE && text != null) {
-                    block.image?.copy(caption = text)
-                } else block.image,
-                subtitle = subtitle ?: block.subtitle
+                image = image,
+                href = block.href,
+                subtitle = subtitle ?: block.subtitle,
+                links = block.links
             )
         }
     }

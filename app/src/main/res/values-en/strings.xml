@@ -7587,6 +7587,8 @@
     <string name="translate_show_translation">Translation</string>
     <string name="translate_show_original">Original</string>
     <string name="fandom_reader_intro">Introduction</string>
+    <string name="fandom_reader_translated_notice">This wiki page was auto-translated into your language</string>
+    <string name="fandom_reader_original_notice">Showing the original text</string>
     <string name="fandom_open_linked_page">Open page</string>
     <string name="fandom_open_wiki_home">Open wiki home page</string>
 

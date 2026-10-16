@@ -918,6 +918,13 @@ class FandomMediaWikiViewModel(application: Application) : AndroidViewModel(appl
             return
         }
 
+        // İçindekiler satırları düz metin değil, sıralı başlık listesidir: kendi
+        // yapı-korumalı akışı vardır (satır sayısı kanıtlanır, hiçbir satır kaymaz).
+        if (readerLocation != null && key == FandomReaderTranslationKeys.contents(readerLocation)) {
+            translateReaderContents(readerLocation, force)
+            return
+        }
+
         // YAPI KORUMASI: Bölüm içeriği düz metne indirilmez; blok blok çevrilip blok
         // anahtarlarına yazılır. Böylece liste/kart/başlık düzeni, görsel sırası ve
         // bağlantı hedefleri çeviri sonrasında da birebir aynı kalır.
@@ -1009,6 +1016,15 @@ class FandomMediaWikiViewModel(application: Application) : AndroidViewModel(appl
             }
             readerLocation != null && key == FandomReaderTranslationKeys.description(readerLocation) ->
                 reader?.page?.description
+            // İçindekiler: çevrilecek "metin" sıralı başlık listesidir. Kendi akışı
+            // (`translateReaderContents`) satır sayısını jetonla kanıtlar; buradaki değer
+            // yalnızca içerik parmak izi olarak kullanılır (sayfa değişince çeviri düşer).
+            readerLocation != null && key == FandomReaderTranslationKeys.contents(readerLocation) ->
+                reader?.page?.sections
+                    ?.map { it.title.trim() }
+                    ?.filter { it.isNotEmpty() }
+                    ?.takeIf { it.isNotEmpty() }
+                    ?.joinToString("\n")
             readerLocation != null -> reader?.sections?.entries?.firstOrNull { (index, _) ->
                 key == FandomReaderTranslationKeys.section(readerLocation, index)
             }?.value?.plainText()
@@ -1099,6 +1115,107 @@ class FandomMediaWikiViewModel(application: Application) : AndroidViewModel(appl
                     translationJobs.remove(boxKey)
                 }
             }
+        }
+    }
+
+    /**
+     * Okuyucu İçindekiler satırlarını TEK istekte çevirir.
+     *
+     * Satırlar `⟪§⟫` ayırıcı jetonuyla gönderilir ve dönen satır sayısı kanıtlanır; sayı
+     * tutmazsa her başlık kendi başına çevrilir. Böylece hiçbir başlık yanlış bölümün
+     * karşısına düşmez. Sonuç [FandomReaderTranslationKeys.contents] anahtarının çocukları
+     * olarak saklanır; düz metin değildir, bu yüzden panoya/başka yüzeye sızmaz.
+     */
+    private fun translateReaderContents(location: FandomReaderLocation, force: Boolean = false) {
+        val ready = _state.value as? UiState.Ready ?: return
+        val reader = _reader.value as? ReaderState.Ready ?: return
+        val key = FandomReaderTranslationKeys.contents(location)
+        if (!force && key in _translating.value) return
+        if (!force && key in _translations.value) return
+        if (!force && key in _originalKeys.value) return
+        if (isTargetLanguageSource(ready.ref.wikiId)) return
+        val titles = reader.page.sections.map { it.title.trim() }.filter { it.isNotEmpty() }
+        if (titles.isEmpty()) return
+        // İçerik parmak izi: sayfa değişir ya da başlık listesi güncellenirse
+        // [pruneStaleTranslations] bu çeviriyi düşürür (başka sayfanın satırları kalmaz).
+        translationBases[key] = titles.joinToString("\n")
+        if (force) _translations.update { it.withoutTranslation(key) }
+        _translating.update { it + key }
+        val generation = translationGeneration
+        translationJobs[key] = viewModelScope.launch {
+            try {
+                val translated = withContext(Dispatchers.IO) {
+                    translateRowsPreservingStructure(titles) { row -> translationManager.translateToTarget(row) }
+                }
+                if (generation != translationGeneration || !isCurrent(ready)) return@launch
+                val active = _reader.value as? ReaderState.Ready ?: return@launch
+                if (active.page.displayTitle != reader.page.displayTitle) return@launch
+                val additions = HashMap<String, String>()
+                translated.forEachIndexed { index, value ->
+                    if (value.isNotBlank() && value != titles[index]) {
+                        additions[WikiStructuredTranslationKeys.block(key, index)] = value
+                    }
+                }
+                if (additions.isEmpty()) {
+                    _translations.update { it.withoutTranslation(key) }
+                } else {
+                    additions[key] = WikiStructuredTranslationKeys.COMPLETE
+                    _translations.update { it + additions }
+                }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                Log.w(TAG, "İçindekiler çevirisi başarısız ($key): ${e.message}")
+            } finally {
+                if (generation == translationGeneration &&
+                    translationJobs[key] === kotlin.coroutines.coroutineContext[kotlinx.coroutines.Job]
+                ) {
+                    _translating.update { it - key }
+                    translationJobs.remove(key)
+                }
+            }
+        }
+    }
+
+    /**
+     * Okuyucu sayfasının TAMAMI için Orijinal/Çeviri geçişi.
+     *
+     * "Orijinal"e dönmek çeviriyi SİLMEZ (bellekte kalır): "Çeviri" seçildiğinde ağ isteği
+     * olmadan anında geri gelir. Orijinal modda yüklenen bölümler çevrilmemiş olacağı için
+     * çeviriye dönerken yalnızca çevirisi olmayan yüzeyler çeviriye verilir (otomatik
+     * çeviri açıksa; düğme zaten yalnızca ekranda çeviri varken görünür).
+     */
+    fun setReaderOriginal(showOriginal: Boolean) {
+        val ready = _state.value as? UiState.Ready ?: return
+        val reader = _reader.value as? ReaderState.Ready ?: return
+        val location = FandomReaderLocation(ready.ref.wikiId, reader.page.displayTitle)
+        if (location.title.isBlank()) return
+        val keys = readerTranslationKeys(location, reader)
+        if (showOriginal) {
+            _originalKeys.update { it + keys }
+            return
+        }
+        _originalKeys.update { it - keys }
+        viewModelScope.launch {
+            if (!isAutoTranslateEnabled()) return@launch
+            keys.forEach { key ->
+                if (!_translations.value.hasWikiTranslation(key)) translate(key)
+            }
+        }
+    }
+
+    /** Okuyucu sayfasındaki tüm çevrilebilir yüzeylerin anahtarları. */
+    private fun readerTranslationKeys(
+        location: FandomReaderLocation,
+        reader: ReaderState.Ready
+    ): Set<String> = buildSet {
+        add(FandomReaderTranslationKeys.description(location))
+        add(FandomReaderTranslationKeys.contents(location))
+        reader.sections.keys.forEach { index ->
+            add(FandomReaderTranslationKeys.section(location, index))
+        }
+        reader.page.sections.forEach { section ->
+            add(FandomReaderTranslationKeys.section(location, section.index))
         }
     }
 
@@ -1323,6 +1440,7 @@ class FandomMediaWikiViewModel(application: Application) : AndroidViewModel(appl
                 reader.sections.keys.sorted().forEach { index ->
                     translate(FandomReaderTranslationKeys.section(location, index), force = force)
                 }
+                translate(FandomReaderTranslationKeys.contents(location), force = force)
             }
         }
     }
@@ -1444,8 +1562,12 @@ class FandomMediaWikiViewModel(application: Application) : AndroidViewModel(appl
             // Giriş bölümü (section 0) her zaman yüklenir: makale özeti veya ana sayfanın
             // tüm modülleri (hero, öne çıkan makale, kartlar, içerik kutuları) buradan gelir.
             loadReaderSection(0)
-            if (!page.description.isNullOrBlank() && isAutoTranslateEnabled()) {
-                translate(FandomReaderTranslationKeys.description(resolvedLocation))
+            if (isAutoTranslateEnabled()) {
+                if (!page.description.isNullOrBlank()) {
+                    translate(FandomReaderTranslationKeys.description(resolvedLocation))
+                }
+                // İçindekiler satırları da seçili dile gelir; sayfa "bütün olarak" çevrilir.
+                translateReaderContents(resolvedLocation)
             }
         }
     }

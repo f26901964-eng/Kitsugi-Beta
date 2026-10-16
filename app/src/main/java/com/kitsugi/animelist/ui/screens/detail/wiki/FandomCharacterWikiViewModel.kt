@@ -19,6 +19,7 @@ import com.kitsugi.animelist.data.local.TranslationManager
 import com.kitsugi.animelist.data.remote.KitsugiCharacterDetail
 import com.kitsugi.animelist.data.remote.KitsugiStaffDetail
 import com.kitsugi.animelist.data.settings.SettingsDataStore
+import com.kitsugi.animelist.utils.KitsugiTranslatePrefs
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -410,6 +411,31 @@ class FandomCharacterWikiViewModel(application: Application) : AndroidViewModel(
         val reader = _reader.value as? ReaderState.Ready
         val readerLocation = reader?.let { FandomReaderLocation(it.wikiId, it.page.displayTitle) }
 
+        // Kaynak zaten hedef dilde: "çeviri" metni değiştirmez, yalnızca kullanıcıya iki
+        // farklı metin varmış izlenimi verir (Vikipedi TR maddesi + Türkçe hedef gibi).
+        // Yapım sekmesiyle aynı davranış; kontrol yapılandırılmış bölümlerden ÖNCE yapılır.
+        // Okuyucu bağlantıları başka bir vikiye (ör. Vikipedi TR) gidebilir; dil kontrolü
+        // gösterilen SAYFANIN vikisine göre yapılır, kök karakter sayfasına göre değil.
+        val sourceWikiId = if (FandomReaderTranslationKeys.isReaderKey(key) && readerLocation != null) {
+            readerLocation.wikiId
+        } else {
+            page.wikiId
+        }
+        if (isTargetLanguageSource(sourceWikiId)) {
+            translationJobs.remove(key)?.cancel()
+            _translating.update { it - key }
+            _originalKeys.update { it - key }
+            clearTranslation(key)
+            return
+        }
+
+        // İçindekiler satırları düz metin değil, sıralı başlık listesidir: kendi
+        // yapı-korumalı akışı vardır (satır sayısı kanıtlanır, hiçbir satır kaymaz).
+        if (readerLocation != null && key == FandomReaderTranslationKeys.contents(readerLocation)) {
+            translateReaderContents(readerLocation, force)
+            return
+        }
+
         // YAPI KORUMASI: Bölüm içeriği düz metne indirilmez; blok blok çevrilir ve blok
         // anahtarlarına yazılır. Böylece liste/kart/başlık düzeni, görsel sırası ve
         // bağlantı hedefleri çeviri sonrasında da birebir aynı kalır.
@@ -465,6 +491,116 @@ class FandomCharacterWikiViewModel(application: Application) : AndroidViewModel(
                     translationJobs.remove(key)
                 }
             }
+        }
+    }
+
+    /**
+     * Kaynağın içerik dili çeviri hedefiyle aynı mı? (Örn. Vikipedi TR maddesi + Türkçe hedef.)
+     * Aynı dildeki metni "çevirmek" içeriği değiştirmez; bu kaynaklarda uygulama içi çeviri
+     * hiç başlatılmaz (yapım wiki sekmesiyle aynı kural).
+     */
+    private fun isTargetLanguageSource(wikiId: String): Boolean {
+        val origin = if (FandomUrls.isWikipedia(wikiId)) FandomUrls.wikipediaLang(wikiId)
+        else FandomUrls.languageOf(wikiId)
+        val target = KitsugiTranslatePrefs.resolvedTarget()
+        if (origin.isNullOrBlank() || target.isBlank()) return false
+        return origin.equals(target.substringBefore('-'), ignoreCase = true)
+    }
+
+    /**
+     * Okuyucu İçindekiler satırlarını TEK istekte çevirir.
+     *
+     * Satırlar `⟪§⟫` ayırıcı jetonuyla gönderilir ve dönen satır sayısı kanıtlanır; sayı
+     * tutmazsa her başlık kendi başına çevrilir. Böylece hiçbir başlık yanlış bölümün
+     * karşısına düşmez. Sonuç [FandomReaderTranslationKeys.contents] anahtarının çocukları
+     * olarak saklanır.
+     */
+    private fun translateReaderContents(location: FandomReaderLocation, force: Boolean = false) {
+        val page = (_state.value as? UiState.Ready)?.page ?: return
+        val reader = _reader.value as? ReaderState.Ready ?: return
+        val key = FandomReaderTranslationKeys.contents(location)
+        if (!force && key in _translating.value) return
+        if (!force && key in _translations.value) return
+        if (!force && key in _originalKeys.value) return
+        if (isTargetLanguageSource(location.wikiId)) return
+        val titles = reader.page.sections.map { it.title.trim() }.filter { it.isNotEmpty() }
+        if (titles.isEmpty()) return
+        if (force) clearTranslation(key)
+        _translating.update { it + key }
+        val generation = translationGeneration
+        translationJobs[key] = viewModelScope.launch {
+            try {
+                val translated = withContext(Dispatchers.IO) {
+                    translateRowsPreservingStructure(titles) { row -> translationManager.translateToTarget(row) }
+                }
+                if (generation != translationGeneration || !isCurrent(page)) return@launch
+                val active = _reader.value as? ReaderState.Ready ?: return@launch
+                if (active.page.displayTitle != reader.page.displayTitle) return@launch
+                val additions = HashMap<String, String>()
+                translated.forEachIndexed { index, value ->
+                    if (value.isNotBlank() && value != titles[index]) {
+                        additions[WikiStructuredTranslationKeys.block(key, index)] = value
+                    }
+                }
+                if (additions.isEmpty()) {
+                    clearTranslation(key)
+                } else {
+                    additions[key] = WikiStructuredTranslationKeys.COMPLETE
+                    _translations.update { it + additions }
+                }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                Log.w(TAG, "İçindekiler çevirisi başarısız ($key): ${e.message}")
+            } finally {
+                if (generation == translationGeneration &&
+                    translationJobs[key] === kotlin.coroutines.coroutineContext[kotlinx.coroutines.Job]
+                ) {
+                    _translating.update { it - key }
+                    translationJobs.remove(key)
+                }
+            }
+        }
+    }
+
+    /**
+     * Okuyucu sayfasının TAMAMI için Orijinal/Çeviri geçişi.
+     *
+     * "Orijinal"e dönmek çeviriyi SİLMEZ (bellekte kalır): "Çeviri" seçildiğinde ağ isteği
+     * olmadan anında geri gelir. Orijinal modda yüklenen bölümler çevrilmemiş olacağı için
+     * çeviriye dönerken yalnızca çevirisi olmayan yüzeyler çeviriye verilir (otomatik
+     * çeviri açıksa).
+     */
+    fun setReaderOriginal(showOriginal: Boolean) {
+        val reader = _reader.value as? ReaderState.Ready ?: return
+        if (reader.page.displayTitle.isBlank()) return
+        val location = FandomReaderLocation(reader.wikiId, reader.page.displayTitle)
+        val keys = readerTranslationKeys(location, reader)
+        if (showOriginal) {
+            _originalKeys.update { it + keys }
+            return
+        }
+        _originalKeys.update { it - keys }
+        viewModelScope.launch {
+            if (!isAutoTranslateEnabled()) return@launch
+            keys.forEach { key ->
+                if (!_translations.value.hasWikiTranslation(key)) translate(key)
+            }
+        }
+    }
+
+    /** Okuyucu sayfasındaki tüm çevrilebilir yüzeylerin anahtarları. */
+    private fun readerTranslationKeys(
+        location: FandomReaderLocation,
+        reader: ReaderState.Ready
+    ): Set<String> = buildSet {
+        add(FandomReaderTranslationKeys.description(location))
+        add(FandomReaderTranslationKeys.contents(location))
+        reader.sections.keys.forEach { index ->
+            add(FandomReaderTranslationKeys.section(location, index))
+        }
+        reader.page.sections.forEach { section ->
+            add(FandomReaderTranslationKeys.section(location, section.index))
         }
     }
 
@@ -576,6 +712,7 @@ class FandomCharacterWikiViewModel(application: Application) : AndroidViewModel(
             reader.sections.keys.sorted().forEach { index ->
                 translate(FandomReaderTranslationKeys.section(location, index), force = force)
             }
+            translate(FandomReaderTranslationKeys.contents(location), force = force)
         }
     }
 
@@ -769,8 +906,12 @@ class FandomCharacterWikiViewModel(application: Application) : AndroidViewModel(
             // The lead is section 0 and is NOT included in the TOC. Without this,
             // character/staff reader pages with no short description appear empty.
             loadReaderSection(0)
-            if (!meta.description.isNullOrBlank() && isAutoTranslateEnabled()) {
-                translate(FandomReaderTranslationKeys.description(resolvedLocation))
+            if (isAutoTranslateEnabled()) {
+                if (!meta.description.isNullOrBlank()) {
+                    translate(FandomReaderTranslationKeys.description(resolvedLocation))
+                }
+                // İçindekiler satırları da seçili dile gelir; sayfa "bütün olarak" çevrilir.
+                translateReaderContents(resolvedLocation)
             }
         }
     }
