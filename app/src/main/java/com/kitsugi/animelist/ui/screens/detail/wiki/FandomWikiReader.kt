@@ -26,6 +26,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -46,11 +47,13 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
@@ -96,6 +99,7 @@ import com.kitsugi.animelist.ui.theme.gradient.Icon
 import com.kitsugi.animelist.ui.utils.tvClickable
 import com.kitsugi.animelist.ui.components.KitsugiWebViewDialog
 import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.launch
 
 /**
  * Uygulama içi wiki okuyucusunun arayüzle sözleşmesi. İki farklı VM (medya & karakter)
@@ -530,6 +534,7 @@ private fun ReaderContent(
     onOpenGallery: (List<GalleryItem>, Int) -> Unit
 ) {
     val scrollState = remember(scrollKey) { ScrollState(initialScrollPosition) }
+    val readerScrollScope = rememberCoroutineScope()
     LaunchedEffect(scrollKey, scrollState) {
         snapshotFlow { scrollState.value }.collect { position ->
             onScrollPositionChanged(scrollKey, position)
@@ -559,6 +564,8 @@ private fun ReaderContent(
         )
     }
     CompositionLocalProvider(LocalFandomLinkOpener provides openTarget) {
+    Box(modifier = Modifier.fillMaxSize()) {
+    val showReaderScrollToTop by remember { derivedStateOf { scrollState.value > 400 } }
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -630,6 +637,30 @@ private fun ReaderContent(
             )
         }
         Spacer(modifier = Modifier.height(24.dp))
+    }
+    // ── Yukarı hızlı kaydırma FAB'ı (tüm wiki okuyucularında tek tip) ─────────
+    androidx.compose.animation.AnimatedVisibility(
+        visible = showReaderScrollToTop,
+        enter = androidx.compose.animation.fadeIn() + androidx.compose.animation.scaleIn(),
+        exit = androidx.compose.animation.fadeOut() + androidx.compose.animation.scaleOut(),
+        modifier = Modifier
+            .align(Alignment.BottomEnd)
+            .padding(end = 20.dp, bottom = 24.dp)
+    ) {
+        androidx.compose.material3.FloatingActionButton(
+            onClick = { readerScrollScope.launch { scrollState.animateScrollTo(0) } },
+            containerColor = accentColor,
+            contentColor = Color.White,
+            shape = CircleShape,
+            modifier = Modifier.size(56.dp)
+        ) {
+            androidx.compose.material3.Icon(
+                imageVector = Icons.Rounded.KeyboardArrowUp,
+                contentDescription = null,
+                modifier = Modifier.size(30.dp)
+            )
+        }
+    }
     }
     }
 }

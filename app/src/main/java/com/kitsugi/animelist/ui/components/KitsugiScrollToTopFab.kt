@@ -2,6 +2,7 @@ package com.kitsugi.animelist.ui.components
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -12,14 +13,16 @@ import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowUpward
+import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material3.Icon
 import com.kitsugi.animelist.ui.theme.gradient.FloatingActionButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.unit.dp
 import com.kitsugi.animelist.R
 import com.kitsugi.animelist.ui.theme.LocalKitsugiAccent
@@ -28,9 +31,12 @@ import com.kitsugi.animelist.utils.ScrollVisibilityState
 import androidx.compose.ui.res.stringResource
 
 /**
- * FAB'ın sık değişen alt-bar state'ini ağır ekran composable'larından izole eder.
- * State yalnız bu küçük restart scope içinde okunur; Keşfet/Arama listesi yeniden
- * compose edilmez. Padding animasyonu da yalnız bu düğümü ölçer.
+ * Tüm ekranlarda (Keşfet, Arama, Wiki okuyucu, detay sayfaları) kullanılan tek tip
+ * "yukarı hızlı kaydırma" düğmesi.
+ *
+ * Tasarım: yuvarlak, gölgeli, accent renkli FAB; aşağı kaydırınca yumuşakça belirir,
+ * tıklayınca en üste animasyonlu kaydırır. Alt bar görünür/gizli durumuna göre konumunu
+ * otomatik ayarlar; böylece tek bir bileşen tüm ekranlarda tutarlı görünür.
  */
 @Composable
 fun KitsugiScrollToTopFab(
@@ -45,29 +51,44 @@ fun KitsugiScrollToTopFab(
     val navigationPadding = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
     val bottomPadding by animateDpAsState(
         targetValue = when {
-            isLandscape -> 16.dp
-            bottomBarVisible -> 80.dp + navigationPadding
-            else -> 16.dp + navigationPadding
+            isLandscape -> 20.dp
+            bottomBarVisible -> 88.dp + navigationPadding
+            else -> 24.dp + navigationPadding
         },
-        animationSpec = tween(200),
+        animationSpec = tween(220),
         label = "scroll_to_top_bottom_padding"
     )
     val accent = LocalKitsugiAccent.current
+    val scale by animateFloatAsState(
+        targetValue = if (visible) 1f else 0.7f,
+        animationSpec = tween(200),
+        label = "scroll_to_top_scale"
+    )
 
     AnimatedVisibility(
         visible = visible,
-        enter = fadeIn() + scaleIn(),
-        exit = fadeOut() + scaleOut(),
+        enter = fadeIn(tween(180)) + scaleIn(initialScale = 0.6f),
+        exit = fadeOut(tween(140)) + scaleOut(targetScale = 0.6f),
         modifier = modifier.padding(end = 20.dp, bottom = bottomPadding)
     ) {
         FloatingActionButton(
             onClick = onClick,
             containerColor = accent,
             contentColor = onAccentColor(accent),
-            shape = RoundedCornerShape(16.dp),
-            modifier = Modifier.size(52.dp)
+            shape = CircleShape,
+            modifier = Modifier
+                .size(56.dp)
+                .shadow(8.dp, CircleShape)
+                .graphicsLayer {
+                    scaleX = scale
+                    scaleY = scale
+                }
         ) {
-            Icon(Icons.Default.ArrowUpward, contentDescription = stringResource(R.string.yukari_cik))
+            Icon(
+                imageVector = Icons.Default.KeyboardArrowUp,
+                contentDescription = stringResource(R.string.yukari_cik),
+                modifier = Modifier.size(30.dp)
+            )
         }
     }
 }
