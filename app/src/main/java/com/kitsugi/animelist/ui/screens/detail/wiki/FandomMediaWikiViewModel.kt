@@ -1013,6 +1013,15 @@ class FandomMediaWikiViewModel(application: Application) : AndroidViewModel(appl
             }
             readerLocation != null && key == FandomReaderTranslationKeys.description(readerLocation) ->
                 reader?.page?.description
+            // İçindekiler: çevrilecek "metin" sıralı başlık listesidir. Kendi akışı
+            // (`translateReaderContents`) satır sayısını jetonla kanıtlar; buradaki değer
+            // yalnızca içerik parmak izi olarak kullanılır (sayfa değişince çeviri düşer).
+            readerLocation != null && key == FandomReaderTranslationKeys.contents(readerLocation) ->
+                reader?.page?.sections
+                    ?.map { it.title.trim() }
+                    ?.filter { it.isNotEmpty() }
+                    ?.takeIf { it.isNotEmpty() }
+                    ?.joinToString("\n")
             readerLocation != null -> reader?.sections?.entries?.firstOrNull { (index, _) ->
                 key == FandomReaderTranslationKeys.section(readerLocation, index)
             }?.value?.plainText()
@@ -1124,6 +1133,9 @@ class FandomMediaWikiViewModel(application: Application) : AndroidViewModel(appl
         if (isTargetLanguageSource(ready.ref.wikiId)) return
         val titles = reader.page.sections.map { it.title.trim() }.filter { it.isNotEmpty() }
         if (titles.isEmpty()) return
+        // İçerik parmak izi: sayfa değişir ya da başlık listesi güncellenirse
+        // [pruneStaleTranslations] bu çeviriyi düşürür (başka sayfanın satırları kalmaz).
+        translationBases[key] = titles.joinToString("\n")
         if (force) _translations.update { it.withoutTranslation(key) }
         _translating.update { it + key }
         val generation = translationGeneration
