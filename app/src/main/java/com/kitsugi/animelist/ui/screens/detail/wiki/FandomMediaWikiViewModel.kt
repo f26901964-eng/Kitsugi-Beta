@@ -901,12 +901,15 @@ class FandomMediaWikiViewModel(application: Application) : AndroidViewModel(appl
         val articleTarget = isArticleTranslationKey(key)
         val articlePage = (_article.value as? ArticleState.Ready)?.page
         val reader = _reader.value as? ReaderState.Ready
-        val readerLocation = reader?.let { FandomReaderLocation(ready.ref.wikiId, it.page.displayTitle) }
+        val readerLocation = reader?.let { FandomReaderLocation(readerBrowserController.activeLocation?.wikiId ?: ready.ref.wikiId, it.page.displayTitle) }
 
         // Kaynak zaten hedef dilde: "çeviri" metni değiştirmez, yalnızca kafa karıştırır
         // (Vikipedi TR maddesi + Türkçe hedef gibi). Bu kontrol yapılandırılmış bölümlerden
         // ÖNCE yapılır; aksi hâlde düz açıklama atlanırken açılır bölüm yine çevriliyordu.
-        if (isTargetLanguageSource(ready.ref.wikiId)) {
+        val sourceWikiId = if (FandomReaderTranslationKeys.isReaderKey(key)) {
+            readerLocation?.wikiId ?: ready.ref.wikiId
+        } else ready.ref.wikiId
+        if (isTargetLanguageSource(sourceWikiId)) {
             translationJobs.remove(key)?.cancel()
             translationBases.remove(key)
             _translating.update { it - key }
@@ -983,7 +986,7 @@ class FandomMediaWikiViewModel(application: Application) : AndroidViewModel(appl
         val ready = _state.value as? UiState.Ready ?: return null
         val articlePage = (_article.value as? ArticleState.Ready)?.page
         val reader = _reader.value as? ReaderState.Ready
-        val readerLocation = reader?.let { FandomReaderLocation(ready.ref.wikiId, it.page.displayTitle) }
+        val readerLocation = reader?.let { FandomReaderLocation(readerBrowserController.activeLocation?.wikiId ?: ready.ref.wikiId, it.page.displayTitle) }
         return when {
             key == KEY_SUMMARY -> (_summary.value as? BlurbState.Ready)?.blurb?.description
             key == FandomCharacterWikiViewModel.KEY_DESCRIPTION -> articlePage?.description
@@ -1429,7 +1432,7 @@ class FandomMediaWikiViewModel(application: Application) : AndroidViewModel(appl
         }
         val reader = _reader.value as? ReaderState.Ready
         if (reader != null) {
-            val location = FandomReaderLocation((_state.value as? UiState.Ready)?.ref?.wikiId.orEmpty(), reader.page.displayTitle)
+            val location = FandomReaderLocation(readerBrowserController.activeLocation?.wikiId.orEmpty(), reader.page.displayTitle)
             if (location.wikiId.isNotBlank() && !reader.page.description.isNullOrBlank()) {
                 translate(FandomReaderTranslationKeys.description(location), force = force)
             }

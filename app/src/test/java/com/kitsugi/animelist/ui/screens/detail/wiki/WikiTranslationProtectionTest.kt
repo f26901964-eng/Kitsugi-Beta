@@ -83,7 +83,7 @@ class WikiTranslationProtectionTest {
         // Bağlantılar (dokunma hedefi) ve etiketleri korunur.
         val translatedParagraph = translated.blocks[1]
         assertEquals(content.blocks[1].links, translatedParagraph.links)
-        assertTrue(translatedParagraph.text.startsWith("[tr] "))
+        assertTrue(translatedParagraph.text.startsWith("Yume Tōrō [tr] "))
         assertTrue(translatedParagraph.text.contains("Yume Tōrō"))
         assertTrue(translatedParagraph.text.contains("Your Name"))
 
@@ -112,28 +112,6 @@ class WikiTranslationProtectionTest {
     // ---------------------------------------------------------------- bağlantı koruması
 
     @Test
-    fun linkMaskRefusesTranslationThatLostLabels() {
-        val text = "Yume Tōrō is a song from Your Name."
-        val mask = WikiLinkLabelMask.of(
-            text,
-            listOf(
-                FandomBlockLink("Yume Tōrō", "https://wiki/Yume_Tourou"),
-                FandomBlockLink("Your Name", "https://wiki/Kimi_no_Na_wa")
-            )
-        )
-        assertTrue(mask.hasMaskedLabels)
-        assertFalse(mask.masked.contains("Yume Tōrō"))
-
-        // Jetonlar korunmuşsa çeviri geri kurulur.
-        val restored = mask.restore("⟪L0⟫ bir şarkıdır, ⟪L1⟫ filminden.")
-        assertEquals("Yume Tōrō bir şarkıdır, Your Name filminden.", restored)
-
-        // Google jetonu düşürdüyse (ya da çoğalttıysa) çeviri reddedilir.
-        assertNull(mask.restore("Yume Tōrō bir şarkıdır."))
-        assertNull(mask.restore("⟪L0⟫ ⟪L0⟫ ⟪L1⟫"))
-    }
-
-    @Test
     fun blockWithLinksTranslatesNormalSegmentsWithoutSendingLinkLabel() = runBlocking {
         val content = FandomSectionContent(
             blocks = listOf(
@@ -150,8 +128,6 @@ class WikiTranslationProtectionTest {
         val entries = translateSectionBlocks("sec:0", content) { segment ->
             requests += segment
             when {
-                // Tam cümle hızlı yolunda sağlayıcı jetonu bozsun: parça yedeği denenmeli.
-                segment.contains("⟪L") -> "jetonları düşmüş yanıt"
                 segment == "is a song from" -> "bir şarkıdır"
                 else -> "[tr] $segment"
             }
@@ -162,7 +138,7 @@ class WikiTranslationProtectionTest {
         assertEquals("Yume Tōrō bir şarkıdır Your Name.", translated!!.blocks.single().text)
         // Tıklanabilir adlar çeviri servisine hiç gönderilmez; normal metin ise gönderilir.
         assertTrue(requests.none { it.contains("Yume Tōrō") || it.contains("Your Name") })
-        assertTrue(requests.any { it.contains("is a song from") })
+        assertEquals(listOf("is a song from"), requests)
         assertEquals(content.blocks.single().links, translated.blocks.single().links)
     }
 
@@ -285,10 +261,11 @@ class WikiTranslationProtectionTest {
     }
 
     @Test
-    fun copyTextFallsBackToFlatTranslationForLegacyEntries() {
+    fun copyTextRejectsFlatTranslationWhenStructureExists() {
         val content = FandomSectionContent(blocks = listOf(paragraph("Yume Tōrō")))
         val flat = "Eski önbellekten gelen düz metin çevirisi"
-        assertEquals(flat, content.copyTextFor("sec:0", emptyMap(), showOriginal = false, flatFallback = flat))
+        assertEquals("Yume Tōrō", content.copyTextFor("sec:0", emptyMap(), showOriginal = false, flatFallback = flat))
+        assertEquals(flat, FandomSectionContent().copyTextFor("sec:0", emptyMap(), showOriginal = false, flatFallback = flat))
         assertEquals("Yume Tōrō", content.copyTextFor("sec:0", emptyMap(), showOriginal = true, flatFallback = flat))
     }
 
@@ -418,5 +395,120 @@ class WikiTranslationProtectionTest {
         assertFalse(WikiStructuredTranslationKeys.isCompleteMarker("Yume Tōrō çevirisi"))
         assertFalse(WikiStructuredTranslationKeys.isCompleteMarker(null))
         assertFalse(WikiStructuredTranslationKeys.isCompleteMarker("11"))
+    }
+
+    @Test
+    fun linkOnlyParagraphAndLinkedCardNeverCallTranslator() = runBlocking {
+        val links = listOf(FandomBlockLink("Rick", "https://wiki/Rick"), FandomBlockLink("Morty", "https://wiki/Morty"))
+        val content = FandomSectionContent(blocks = listOf(
+            paragraph("Rick · Morty", links),
+            FandomTextBlock(FandomBlockKind.CARD, "Read more", href = "https://wiki/Page")
+        ))
+        val requests = mutableListOf<String>()
+        assertTrue(translateSectionBlocks("page", content) { requests += it; "translated" }.isEmpty())
+        assertTrue(requests.isEmpty())
+    }
+
+    @Test
+    fun captionsAndSubtitlesTranslateInPlaceWithoutTranslatingTheirLinks() = runBlocking {
+        val link = FandomBlockLink("Rick", "https://wiki/Rick")
+        val content = FandomSectionContent(blocks = listOf(
+            FandomTextBlock(FandomBlockKind.IMAGE, "", image = FandomImage("https://img/1.png", "Follow Rick today"),
+                href = "https://wiki/Characters", links = listOf(link)),
+            FandomTextBlock(FandomBlockKind.CARD, "Characters", subtitle = "Follow Rick today",
+                href = "https://wiki/Characters", links = listOf(link))
+        ))
+        val requests = mutableListOf<String>()
+        val entries = translateSectionBlocks("page", content) { requests += it; "TR($it)" }
+        val result = content.withTranslatedBlocks("page", entries)!!
+        assertEquals("TR(Follow) Rick TR(today)", result.blocks[0].image?.caption)
+        assertEquals("TR(Follow) Rick TR(today)", result.blocks[1].subtitle)
+        assertEquals("Characters", result.blocks[1].text)
+        assertEquals(content.blocks.map { it.href }, result.blocks.map { it.href })
+        assertEquals(content.blocks.map { it.links }, result.blocks.map { it.links })
+        assertEquals(content.blocks.map { it.image?.url }, result.blocks.map { it.image?.url })
+        assertTrue(requests.none { it.contains("Rick") || it.contains("Characters") || it.contains("https:") })
+        assertTrue(content.wikiTranslationSourceText().contains("Follow Rick today"))
+    }
+
+    @Test
+    fun cachedTranslationsCannotOverwriteLinkedTitlesOrDropLabels() {
+        val content = FandomSectionContent(blocks = listOf(
+            paragraph("Follow Rick today", listOf(FandomBlockLink("Rick", "https://wiki/Rick"))),
+            FandomTextBlock(FandomBlockKind.CARD, "Read more", href = "https://wiki/Page")
+        ))
+        assertNull(content.withTranslatedBlocks("page", mapOf(
+            WikiStructuredTranslationKeys.block("page", 0) to "Bugün takip et",
+            WikiStructuredTranslationKeys.block("page", 1) to "Devamını oku"
+        )))
+    }
+
+    @Test
+    fun repeatedAndOverlappingLabelsKeepTheirOrderAndClickTargets() {
+        val rick = FandomBlockLink("Rick", "https://wiki/Rick")
+        val show = FandomBlockLink("Rick and Morty", "https://wiki/Show")
+        val another = FandomBlockLink("Rick", "https://wiki/Another_Rick")
+        val text = "Rick and Morty · Rick · Rick"
+        val ranges = wikiLinkRanges(text, listOf(rick, show, another))
+        assertEquals(listOf("Rick and Morty", "Rick", "Rick"), ranges.map { text.substring(it.range) })
+        assertEquals(listOf(show.url, rick.url, another.url), ranges.map { it.link.url })
+    }
+
+    @Test
+    fun labelsDoNotProtectUnrelatedLatinWordsButSupportAdjacentCjk() {
+        val ranges = wikiLinkRanges("Rickshaw Rick", listOf(FandomBlockLink("Rick", "https://wiki/Rick")))
+        assertEquals(listOf(9..12), ranges.map { it.range })
+        val cjk = wikiLinkRanges("これは東京です", listOf(FandomBlockLink("東京", "https://wiki/Tokyo")))
+        assertEquals(listOf(3..4), cjk.map { it.range })
+    }
+
+    @Test
+    fun failedAndBlankSegmentsKeepWhitespaceAndOtherSegmentsContinue() = runBlocking {
+        val content = FandomSectionContent(blocks = listOf(paragraph(
+            "Before  Rick\n after", listOf(FandomBlockLink("Rick", "https://wiki/Rick"))
+        )))
+        val entries = translateSectionBlocks("page", content) { if (it == "Before") "" else "sonra" }
+        assertEquals("Before  Rick\n sonra", content.withTranslatedBlocks("page", entries)!!.blocks.single().text)
+    }
+
+    @Test
+    fun cancellationStopsTranslationRatherThanBecomingOriginalText() = runBlocking {
+        var cancelled = false
+        try {
+            translateSectionBlocks("page", FandomSectionContent(blocks = listOf(paragraph("Some text")))) {
+                throw kotlinx.coroutines.CancellationException("page closed")
+            }
+        } catch (_: kotlinx.coroutines.CancellationException) {
+            cancelled = true
+        }
+        assertTrue(cancelled)
+    }
+
+    @Test
+    fun manyRepeatedLinksRemainProtectedWithoutTokenLimits() = runBlocking {
+        val link = FandomBlockLink("Rick", "https://wiki/Rick")
+        val original = List(40) { "Rick is here." }.joinToString(" ")
+        val content = FandomSectionContent(blocks = listOf(paragraph(original, listOf(link))))
+        val entries = translateSectionBlocks("page", content) { segment ->
+            assertFalse(segment.contains("Rick"))
+            "burada."
+        }
+        val translated = content.withTranslatedBlocks("page", entries)!!.blocks.single().text
+        assertEquals(40, wikiLinkRanges(translated, listOf(link)).size)
+    }
+
+    @Test
+    fun plainGroupAndUnlinkedCardTitlesTranslateEvenWhenChipsHaveSameLabel() = runBlocking {
+        val link = FandomBlockLink("Characters", "https://wiki/Characters")
+        val content = FandomSectionContent(blocks = listOf(
+            FandomTextBlock(FandomBlockKind.LINK_GROUP, "Characters", links = listOf(link)),
+            FandomTextBlock(FandomBlockKind.CARD, "Explore", subtitle = "See Characters", links = listOf(link))
+        ))
+        val entries = translateSectionBlocks("page", content) { "TR($it)" }
+        val result = content.withTranslatedBlocks("page", entries)!!
+        assertEquals("TR(Characters)", result.blocks[0].text)
+        assertEquals(listOf(link), result.blocks[0].links)
+        assertEquals("TR(Explore)", result.blocks[1].text)
+        assertEquals("TR(See) Characters", result.blocks[1].subtitle)
     }
 }

@@ -1157,7 +1157,7 @@ private fun ReaderSectionContent(
                 }
             }
             else -> {
-                val sourceText = content.plainText()
+                val sourceText = content.wikiTranslationSourceText()
                 // YAPI KORUMASI: Çeviri blok blok yapıldığı için aynı yapılandırılmış çizici
                 // kullanılır. Görseller kendi konumunda kalır, madde/kart/alıntı düzeni ve
                 // bağlantılar (dokunma hedefleri) orijinaldekiyle birebir aynıdır.
@@ -1165,7 +1165,7 @@ private fun ReaderSectionContent(
                     if (showingOriginal) null else content.withTranslatedBlocks(translationKey, translations)
                 }
                 // Yapı bilgisi olmayan (eski önbellek) düz metin çevirisi için yedek yol.
-                val flatTranslation = translatedText?.takeUnless {
+                val flatTranslation = translatedText?.takeIf { content.blocks.isEmpty() }?.takeUnless {
                     it.isBlank() || WikiStructuredTranslationKeys.isCompleteMarker(it)
                 }
                 if (sourceText.isNotBlank()) {
@@ -1226,7 +1226,7 @@ private fun ReaderBlock(
     val openTarget = LocalFandomLinkOpener.current
     when (block.kind) {
         FandomBlockKind.HEADING -> ReaderLinkedText(
-            text = localizedSectionTitle(block.text),
+            text = if (block.links.isEmpty()) localizedSectionTitle(block.text) else block.text,
             links = block.links,
             color = KitsugiColors.TextPrimary,
             linkColor = accentColor,
@@ -1293,8 +1293,10 @@ private fun ReaderBlock(
                         contentScale = androidx.compose.ui.layout.ContentScale.Fit
                     )
                     image.caption?.takeIf { it.isNotBlank() }?.let { caption ->
-                        Text(
+                        ReaderLinkedText(
                             text = caption,
+                            links = block.links,
+                            linkColor = accentColor,
                             color = KitsugiColors.TextMuted,
                             style = MaterialTheme.typography.labelSmall
                         )
@@ -1348,23 +1350,16 @@ private fun buildReaderLinkedText(
     openTarget: (String) -> Unit
 ): AnnotatedString = buildAnnotatedString {
     append(text)
-    var cursor = 0
-    links.forEach { link ->
-        if (link.label.isBlank() || link.url.isBlank()) return@forEach
-        var start = text.indexOf(link.label, cursor)
-        if (start < 0) start = text.indexOf(link.label)
-        if (start < 0) return@forEach
-        val end = start + link.label.length
+    wikiLinkRanges(text, links).forEach { (range, link) ->
         addLink(
             LinkAnnotation.Clickable(
                 tag = link.url,
                 styles = TextLinkStyles(SpanStyle(color = linkColor, textDecoration = TextDecoration.Underline)),
                 linkInteractionListener = { openTarget(link.url) }
             ),
-            start,
-            end
+            range.first,
+            range.last + 1
         )
-        cursor = end
     }
 }
 
@@ -1416,8 +1411,10 @@ private fun ReaderCardTile(
                 )
             }
             block.subtitle?.takeIf { it.isNotBlank() }?.let { subtitle ->
-                Text(
+                ReaderLinkedText(
                     text = subtitle,
+                    links = block.links,
+                    linkColor = accentColor,
                     color = KitsugiColors.TextMuted,
                     style = MaterialTheme.typography.labelMedium
                 )

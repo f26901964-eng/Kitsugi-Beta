@@ -1633,7 +1633,7 @@ private fun ArticleSectionRow(
                                     horizontalArrangement = Arrangement.End
                                 ) {
                                     WikiTranslateButton(
-                                        text = state.content.plainText(),
+                                        text = state.content.wikiTranslationSourceText(),
                                         preferredTranslator = preferredTranslator,
                                         accentColor = accentColor,
                                         isLoading = translating,
@@ -1671,7 +1671,7 @@ private fun ArticleSectionBody(
         if (baseKey.isEmpty()) null else content.withTranslatedBlocks(baseKey, translations)
     }
     // Yapı bilgisi olmayan (eski önbellek) düz metin kaydı için yedek yol.
-    val flatTranslation = translated?.takeUnless {
+    val flatTranslation = translated?.takeIf { content.blocks.isEmpty() }?.takeUnless {
         it.isBlank() || WikiStructuredTranslationKeys.isCompleteMarker(it)
     }
     SelectionContainer {

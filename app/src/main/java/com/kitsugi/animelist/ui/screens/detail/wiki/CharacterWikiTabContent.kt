@@ -879,7 +879,7 @@ private fun WikiSectionRow(
                                     // Detay sayfasındaki açıklama düğmesiyle aynı: her zaman ikon,
                                     // dokununca bölümün orijinal metni harici uygulamada açılır.
                                     WikiTranslateButton(
-                                        text = state.content.plainText(),
+                                        text = state.content.wikiTranslationSourceText(),
                                         preferredTranslator = preferredTranslator,
                                         accentColor = accentColor,
                                         isLoading = translating,
@@ -957,7 +957,7 @@ private fun SectionBody(
     val translatedContent = remember(content, translations, baseKey) {
         if (baseKey.isEmpty()) null else content.withTranslatedBlocks(baseKey, translations)
     }
-    val flatTranslation = translated?.takeUnless {
+    val flatTranslation = translated?.takeIf { content.blocks.isEmpty() }?.takeUnless {
         it.isBlank() || WikiStructuredTranslationKeys.isCompleteMarker(it)
     }
     val openGalleryForImage: (com.kitsugi.animelist.data.fandom.FandomImage) -> Unit = { image ->

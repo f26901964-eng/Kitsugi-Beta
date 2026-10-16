@@ -327,4 +327,29 @@ class FandomHtmlTextTest {
         assertTrue(wikipedia.any { it.contains("manga serisidir") })
     }
 
+    @Test
+    fun `image captions retain inline links separately from image destination`() {
+        val blocks = FandomHtmlText.blocks(
+            """<figure>
+                <a href="/wiki/Episodes"><img src="https://img.example/episodes.png" alt="Episodes"></a>
+                <figcaption>Watch <a href="/wiki/Rick">Rick</a> in these episodes.</figcaption>
+            </figure>""",
+            wikiId = "rickandmorty"
+        )
+        val image = blocks.single { it.kind == FandomBlockKind.IMAGE }
+        assertEquals("Watch Rick in these episodes.", image.image?.caption)
+        assertEquals("https://rickandmorty.fandom.com/wiki/Episodes", image.href)
+        assertEquals(listOf(FandomBlockLink("Rick", "https://rickandmorty.fandom.com/wiki/Rick")), image.links)
+    }
+
+    @Test
+    fun `section headings retain links for translation protection`() {
+        val blocks = FandomHtmlText.blocks(
+            """<p>Intro.</p><h3>About <a href="/wiki/Rick">Rick</a></h3>""",
+            wikiId = "rickandmorty"
+        )
+        val heading = blocks.single { it.kind == FandomBlockKind.HEADING }
+        assertEquals("About Rick", heading.text)
+        assertEquals(listOf(FandomBlockLink("Rick", "https://rickandmorty.fandom.com/wiki/Rick")), heading.links)
+    }
 }
