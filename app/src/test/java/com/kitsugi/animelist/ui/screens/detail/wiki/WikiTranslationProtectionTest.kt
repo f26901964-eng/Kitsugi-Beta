@@ -71,8 +71,14 @@ class WikiTranslationProtectionTest {
             translated.blocks.map { it.kind }
         )
 
-        // Görsel bloğu hiç değişmez (URL ve başlık aynı).
-        assertEquals(content.blocks[2], translated.blocks[2])
+        // Görsel bloğu yerinde kalır: tür, sıra, URL ve dosya adı birebir aynıdır.
+        // Yalnızca altındaki beyaz metin (figcaption) çevrilir — "bu wiki sayfalarında
+        // mavi bağlantılar hariç her şey seçili dile gelir" kuralı.
+        val imageBlock = translated.blocks[2]
+        assertEquals(content.blocks[2].text, imageBlock.text)
+        assertEquals(content.blocks[2].image?.url, imageBlock.image?.url)
+        assertEquals(content.blocks[2].image?.fileTitle, imageBlock.image?.fileTitle)
+        assertEquals("[tr] Yume Tōrō", imageBlock.image?.caption)
 
         // Bağlantılar (dokunma hedefi) ve etiketleri korunur.
         val translatedParagraph = translated.blocks[1]
