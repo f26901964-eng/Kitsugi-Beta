@@ -112,7 +112,9 @@ data class FandomReaderRenderState(
     val translations: Map<String, String> = emptyMap(),
     val translatingKeys: Set<String> = emptySet(),
     val originalKeys: Set<String> = emptySet(),
-    val preferredTranslator: String = "DEFAULT"
+    val preferredTranslator: String = "DEFAULT",
+    /** İlgili sayfa bilgi kutularındaki spoiler alanları gizlenir. */
+    val spoilerGuard: Boolean = true
 )
 
 /**
@@ -630,7 +632,8 @@ private fun ReaderContent(
                 accentColor = accentColor,
                 galleryItems = galleryItems,
                 onOpenGallery = onOpenGallery,
-                onOpenPage = onOpenLink
+                onOpenPage = onOpenLink,
+                spoilerGuard = state.spoilerGuard
             )
         }
         Spacer(modifier = Modifier.height(24.dp))
@@ -1279,7 +1282,8 @@ private fun ReaderRelatedCard(
     accentColor: Color,
     galleryItems: List<GalleryItem>,
     onOpenGallery: (List<GalleryItem>, Int) -> Unit,
-    onOpenPage: (String) -> Unit
+    onOpenPage: (String) -> Unit,
+    spoilerGuard: Boolean = true
 ) {
     val wikipedia = FandomUrls.isWikipedia(wikiId)
     ReaderCard {
@@ -1301,24 +1305,26 @@ private fun ReaderRelatedCard(
             )
         }
         Spacer(Modifier.height(10.dp))
+        // İlgili sayfalar okuyucuda da tam ayrıntıyla: giriş metni ve bilgi kutusu
+        // alanları kart içinde; sayfayı açma ikincil eylemdir.
         androidx.compose.runtime.key(pageKey, "related-pages") {
-            val rowState = androidx.compose.foundation.lazy.rememberLazyListState()
-            LazyRow(
-                state = rowState,
-                flingBehavior = com.kitsugi.animelist.ui.utils.KitsugiScrollDefaults.rememberRowSnapFling(rowState),
+            Column(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(10.dp)
+                verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                items(related, key = { it.title }) { page ->
-                    WikiRelatedPageCard(
-                        page = page,
-                        accentColor = accentColor,
-                        onClick = { onOpenPage(page.title) },
-                        onImageClick = { url ->
-                            val index = galleryItems.indexOfFirst { it.url == url }
-                            if (index >= 0) onOpenGallery(galleryItems, index)
-                        }
-                    )
+                related.forEach { page ->
+                    androidx.compose.runtime.key(page.title) {
+                        WikiRelatedPageDetailCard(
+                            page = page,
+                            accentColor = accentColor,
+                            spoilerGuard = spoilerGuard,
+                            onOpenPage = { onOpenPage(page.title) },
+                            onOpenImage = { url ->
+                                val index = galleryItems.indexOfFirst { it.url == url }
+                                if (index >= 0) onOpenGallery(galleryItems, index)
+                            }
+                        )
+                    }
                 }
             }
         }

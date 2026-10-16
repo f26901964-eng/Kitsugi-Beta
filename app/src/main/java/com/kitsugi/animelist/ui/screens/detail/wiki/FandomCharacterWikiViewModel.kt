@@ -77,6 +77,9 @@ class FandomCharacterWikiViewModel(application: Application) : AndroidViewModel(
         const val KEY_INFOBOX = "infobox"
         const val INFOBOX_FIELD_PREFIX = "ib:"
         private const val MAX_INFOBOX_FIELDS = 60
+
+        /** İlgili sayfa zenginleştirmede bir seferde yüklenen sayfa sayısı. */
+        private const val RELATED_ENRICH_CHUNK = 3
         fun sectionKey(index: Int): String = "sec:$index"
         /** Düzleştirilmiş alan sırasına (grup → alan) göre anahtar. */
         fun infoboxFieldKey(index: Int): String = "$INFOBOX_FIELD_PREFIX$index"
@@ -98,6 +101,8 @@ class FandomCharacterWikiViewModel(application: Application) : AndroidViewModel(
     private val _relatedPages = MutableStateFlow<List<FandomRelatedPage>>(emptyList())
     val relatedPages: StateFlow<List<FandomRelatedPage>> = _relatedPages.asStateFlow()
     private var relatedJob: Job? = null
+    /** İlgili sayfaları giriş bölümüyle zenginleştiren arka plan işi. */
+    private var relatedEnrichJob: Job? = null
 
     // Son reddedilen sayfa: kullanıcı "Hayır, yanlış"a bastıktan sonra sekmenin en üstünde
     // "Geri al" kartı olarak gösterilir. Farklı bir karaktere geçildiğinde düşürülür.
@@ -227,6 +232,7 @@ class FandomCharacterWikiViewModel(application: Application) : AndroidViewModel(
         readerSectionJobs.clear()
         readerRelatedJob?.cancel()
         relatedJob?.cancel()
+        relatedEnrichJob?.cancel()
         readerBrowserController.reset()
         _readerBrowser.value = FandomReaderBrowserState.Empty
         _relatedPages.value = emptyList()
@@ -270,6 +276,7 @@ class FandomCharacterWikiViewModel(application: Application) : AndroidViewModel(
         val wikiId = page.wikiId
         val pageTitle = page.pageTitle
         relatedJob?.cancel()
+        relatedEnrichJob?.cancel()
         _relatedPages.value = emptyList()
         relatedJob = viewModelScope.launch {
             val list = try {
@@ -289,7 +296,46 @@ class FandomCharacterWikiViewModel(application: Application) : AndroidViewModel(
             }
             val current = (_state.value as? UiState.Ready)?.page ?: return@launch
             if (current.wikiId == wikiId && current.pageTitle == pageTitle) {
-                _relatedPages.value = list.take(20)
+                val filtered = list.take(20)
+                _relatedPages.value = filtered
+                enrichRelatedPages(current, filtered)
+            }
+        }
+    }
+
+    /**
+     * "İlgili wiki sayfaları" kartlarını giriş bölümüyle (section 0) zenginleştirir.
+     *
+     * Kartlar önce önizleme verisiyle görünür; ardından her sayfa için giriş metni ve
+     * eksiksiz bilgi kutusu çekilerek AYNI kartın içine işlenir. Karakter / ekip /
+     * seslendirmen ayrıntısı için sayfayı açmak gerekmez. İstekler 3'erli gruplar halinde
+     * atılır ve her gruptan sonra liste güncellenir.
+     */
+    private fun enrichRelatedPages(page: FandomCharacterPage, pages: List<FandomRelatedPage>) {
+        if (pages.isEmpty()) return
+        relatedEnrichJob?.cancel()
+        relatedEnrichJob = viewModelScope.launch {
+            var current = pages
+            for (start in pages.indices step RELATED_ENRICH_CHUNK) {
+                if (!isCurrent(page)) return@launch
+                val end = minOf(start + RELATED_ENRICH_CHUNK, pages.size)
+                val enriched = try {
+                    FandomRepository.enrichRelatedPagesWithLead(
+                        appContext,
+                        page.wikiId,
+                        pages.subList(start, end).toList(),
+                        maxPages = end - start
+                    )
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    Log.w(TAG, "İlgili sayfalar zenginleştirilemedi (${page.wikiId}): ${e.message}")
+                    return@launch
+                }
+                if (!isCurrent(page)) return@launch
+                val byTitle = enriched.associateBy { it.title }
+                current = current.map { byTitle[it.title] ?: it }
+                _relatedPages.value = current
             }
         }
     }
@@ -305,6 +351,7 @@ class FandomCharacterWikiViewModel(application: Application) : AndroidViewModel(
         if (next.wikiId == current.wikiId && next.pageTitle == current.pageTitle) return
         cancelTranslations()
         relatedJob?.cancel()
+        relatedEnrichJob?.cancel()
         readerJob?.cancel()
         readerSectionJobs.values.forEach { it.cancel() }
         readerSectionJobs.clear()

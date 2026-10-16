@@ -20,6 +20,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.mutableStateMapOf
+import androidx.compose.runtime.key
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -95,6 +96,62 @@ internal fun WikiRelatedEntityDetailCard(
         onOpenImage = onOpenImage,
         modifier = modifier
     )
+}
+
+/**
+ * "İlgili wiki sayfaları" bölümünün TAM AYRINTI hâli.
+ *
+ * Kullanıcı geri bildirimi: kartlar yalnızca "Fandom sayfasını aç" düğmesi gösteriyordu;
+ * içerik/karakter/ekip/seslendirmen ayrıntısı için sayfayı açmak gerekiyordu. Bu bölüm her
+ * ilgili sayfayı [WikiRelatedPageDetailCard] ile başlık, kapak, giriş metni ve BİLGİ KUTUSU
+ * alanlarıyla birlikte dikey liste olarak çizer; sayfayı açma eylemi yalnızca ikincil
+ * düğmedir.
+ */
+@Composable
+internal fun WikiRelatedPagesInlineSection(
+    title: String,
+    pages: List<FandomRelatedPage>,
+    accentColor: Color,
+    modifier: Modifier = Modifier,
+    spoilerGuard: Boolean = true,
+    onOpenPage: (String) -> Unit,
+    onOpenImage: ((String) -> Unit)? = null
+) {
+    if (pages.isEmpty()) return
+    Column(
+        modifier = modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(18.dp))
+            .background(KitsugiColors.Surface)
+            .padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp)
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                text = title,
+                color = KitsugiColors.TextPrimary,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.weight(1f)
+            )
+            Text(
+                text = stringResource(R.string.fandom_related_pages_count, pages.size),
+                color = KitsugiColors.TextMuted,
+                style = MaterialTheme.typography.labelSmall
+            )
+        }
+        pages.forEach { page ->
+            key(page.title) {
+                WikiRelatedPageDetailCard(
+                    page = page,
+                    accentColor = accentColor,
+                    spoilerGuard = spoilerGuard,
+                    onOpenPage = { onOpenPage(page.title) },
+                    onOpenImage = onOpenImage?.let { callback -> { url -> callback(url) } }
+                )
+            }
+        }
+    }
 }
 
 @Composable

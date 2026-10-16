@@ -137,15 +137,38 @@ class FandomMediaWikiViewModel(application: Application) : AndroidViewModel(appl
         data class Failed(val title: String) : ReaderState
     }
 
+    /**
+     * Madde boş geldiğinde wiki sekmesinde gösterilen TAM sayfa (okuyucu verisi).
+     *
+     * Bazı wiki'lerde yapım maddesi çözülür ama bilgi kutusu/özet/bölümleri ayrıştırılamaz;
+     * sekme bomboş bir kart gösteriyordu. Bu durumda wiki'nin kendi ana sayfası (veya
+     * Wikidata'nın gösterdiği madde) giriş bölümüyle birlikte doğrudan sekme içine yüklenir.
+     */
+    sealed interface InlinePageState {
+        data object Idle : InlinePageState
+        data object Loading : InlinePageState
+        data class Ready(
+            val wikiId: String,
+            val page: FandomFullPage,
+            val lead: FandomSectionContent?
+        ) : InlinePageState
+        data object Unavailable : InlinePageState
+    }
+
 
     companion object {
         private const val TAG = "FandomMediaWikiVM"
         const val KEY_SUMMARY = "media:desc"
+        /** Sekme içine yüklenen tam sayfanın giriş metni çeviri anahtarı. */
+        const val KEY_INLINE_LEAD = "inline:lead"
         fun itemKey(title: String): String = "item:$title"
         fun articleSectionKey(title: String, index: Int): String = "item-sec:$index:$title"
         fun articleInfoboxKey(title: String): String = "item-info:$title"
         fun articleInfoboxFieldKey(title: String, index: Int): String = "item-if:$index:$title"
         private const val SEARCH_DEBOUNCE_MS = 350L
+
+        /** İlgili sayfa zenginleştirmede bir seferde yüklenen sayfa sayısı. */
+        private const val RELATED_ENRICH_CHUNK = 3
 
         /** "İlgili maddeler" listesine girmemesi gereken ansiklopedi iskelet sayfaları. */
         private val ENCYCLOPEDIA_BOILERPLATE_TITLES = setOf(
@@ -194,6 +217,17 @@ class FandomMediaWikiViewModel(application: Application) : AndroidViewModel(appl
     private val _reader = MutableStateFlow<ReaderState>(ReaderState.Closed)
     val reader: StateFlow<ReaderState> = _reader.asStateFlow()
 
+    /**
+     * Madde içeriği boşken sekme içinde gösterilen tam sayfa. Okuyucu açılmadan da
+     * yapımın wiki sayfasının tamamı (giriş + bölümler) bu akıştan çizilir.
+     */
+    private val _inlinePage = MutableStateFlow<InlinePageState>(InlinePageState.Idle)
+    val inlinePage: StateFlow<InlinePageState> = _inlinePage.asStateFlow()
+
+    /** [InlinePageState.Ready] sayfasının bölümleri (giriş bölümü önceden yüklenir). */
+    private val _inlineSections = MutableStateFlow<Map<Int, ArticleSectionState>>(emptyMap())
+    val inlineSections: StateFlow<Map<Int, ArticleSectionState>> = _inlineSections.asStateFlow()
+
     /** Ana sayfa için toplanmış "İlgili wiki sayfaları" kartları. */
     private val _relatedPages = MutableStateFlow<List<FandomRelatedPage>>(emptyList())
     val relatedPages: StateFlow<List<FandomRelatedPage>> = _relatedPages.asStateFlow()
@@ -211,6 +245,11 @@ class FandomMediaWikiViewModel(application: Application) : AndroidViewModel(appl
     private val readerBrowserController = FandomReaderBrowserController()
     private val _readerBrowser = MutableStateFlow(FandomReaderBrowserState.Empty)
     val readerBrowser: StateFlow<FandomReaderBrowserState> = _readerBrowser.asStateFlow()
+
+    private var inlineJob: Job? = null
+    private val inlineSectionJobs = HashMap<Int, Job>()
+    /** İlgili sayfaları giriş bölümüyle zenginleştiren arka plan işi. */
+    private var relatedEnrichJob: Job? = null
 
 
     private val _translations = MutableStateFlow<Map<String, String>>(emptyMap())
@@ -333,6 +372,12 @@ class FandomMediaWikiViewModel(application: Application) : AndroidViewModel(appl
         readerSectionJobs.clear()
         readerRelatedJob?.cancel()
         relatedJob?.cancel()
+        relatedEnrichJob?.cancel()
+        inlineJob?.cancel()
+        inlineSectionJobs.values.forEach { it.cancel() }
+        inlineSectionJobs.clear()
+        _inlinePage.value = InlinePageState.Idle
+        _inlineSections.value = emptyMap()
         readerBrowserController.reset()
         _readerBrowser.value = FandomReaderBrowserState.Empty
         _relatedPages.value = emptyList()
@@ -414,7 +459,13 @@ class FandomMediaWikiViewModel(application: Application) : AndroidViewModel(appl
         _guideMore.value = GuideMore.Idle
         _guide.value = GuideState.Idle
         relatedJob?.cancel()
+        relatedEnrichJob?.cancel()
         _relatedPages.value = emptyList()
+        inlineJob?.cancel()
+        inlineSectionJobs.values.forEach { it.cancel() }
+        inlineSectionJobs.clear()
+        _inlinePage.value = InlinePageState.Idle
+        _inlineSections.value = emptyMap()
         searchJob?.cancel()
         _searchQuery.value = ""
         _searchState.value = SearchState.Idle
@@ -553,7 +604,9 @@ class FandomMediaWikiViewModel(application: Application) : AndroidViewModel(appl
                 }
                 if (!isCurrent(ready)) return@launch
                 val main = FandomWikiResolver.siteInfoCached(ready.ref.wikiId)?.mainPage.orEmpty()
-                _relatedPages.value = pages.filter { !it.title.equals(main, ignoreCase = true) }.take(20)
+                val filtered = pages.filter { !it.title.equals(main, ignoreCase = true) }.take(20)
+                _relatedPages.value = filtered
+                enrichRelatedPages(ready, filtered)
             }
         }
     }
@@ -593,9 +646,11 @@ class FandomMediaWikiViewModel(application: Application) : AndroidViewModel(appl
             if (!isCurrent(ready)) return@launch
             val current = (_article.value as? ArticleState.Ready)?.page ?: return@launch
             if (current.wikiId != article.wikiId || current.pageTitle != article.pageTitle) return@launch
-            _relatedPages.value = pages
+            val filtered = pages
                 .filter { !it.title.equals(article.pageTitle, ignoreCase = true) }
                 .take(20)
+            _relatedPages.value = filtered
+            enrichRelatedPages(ready, filtered)
         }
     }
 
@@ -605,6 +660,164 @@ class FandomMediaWikiViewModel(application: Application) : AndroidViewModel(appl
         if (normalized.isEmpty()) return true
         if (normalized in ENCYCLOPEDIA_BOILERPLATE_TITLES) return true
         return ENCYCLOPEDIA_BOILERPLATE_PREFIXES.any { normalized.startsWith(it) }
+    }
+
+    // ── İlgili sayfaları sekme içinde tamamlama ──────────────────────────────
+
+    /**
+     * "İlgili wiki sayfaları" kartlarını giriş bölümüyle (section 0) zenginleştirir.
+     *
+     * Kartlar önce önizleme verisiyle (kısa açıklama + kapak) görünür; ardından her sayfa
+     * için giriş metni ve eksiksiz bilgi kutusu çekilerek AYNI kartın içine işlenir. Böylece
+     * karakter / ekip / seslendirmen ayrıntısı için sayfayı açmak gerekmez.
+     *
+     * İstekler 3'erli gruplar halinde atılır ve her gruptan sonra liste güncellenir; böylece
+     * kullanıcı ilk kartların dolmasını beklemeden diğerlerini görmeye başlar.
+     */
+    private fun enrichRelatedPages(ready: UiState.Ready, pages: List<FandomRelatedPage>) {
+        if (pages.isEmpty()) return
+        relatedEnrichJob?.cancel()
+        relatedEnrichJob = viewModelScope.launch {
+            var current = pages
+            for (start in pages.indices step RELATED_ENRICH_CHUNK) {
+                if (!isCurrent(ready)) return@launch
+                val end = minOf(start + RELATED_ENRICH_CHUNK, pages.size)
+                val enriched = try {
+                    FandomRepository.enrichRelatedPagesWithLead(
+                        appContext,
+                        ready.ref.wikiId,
+                        pages.subList(start, end).toList(),
+                        maxPages = end - start
+                    )
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    Log.w(TAG, "İlgili sayfalar zenginleştirilemedi (${ready.ref.wikiId}): ${e.message}")
+                    return@launch
+                }
+                if (!isCurrent(ready)) return@launch
+                val byTitle = enriched.associateBy { it.title }
+                current = current.map { byTitle[it.title] ?: it }
+                _relatedPages.value = current
+            }
+        }
+    }
+
+    // ── Madde boşken sekme içinde gösterilen tam sayfa ───────────────────────
+
+    /**
+     * Madde içeriği boşsa (bilgi kutusu alanı / özet / bölüm yok) wiki'nin tam sayfasını
+     * sekme içine yükler.
+     *
+     * Yapım maddesi bazı wiki'lerde çözülür ama içeriği ayrıştırılamaz; sekme bomboş bir
+     * "başlık + kapak" kartı gösteriyordu ve kullanıcı içeriğe ulaşmak için başka bir yere
+     * tıklamak zorundaydı. Bu yöntem madde boş kaldığında çağrılır: wiki'nin ana sayfası
+     * (veya Wikidata'nın gösterdiği madde) giriş bölümüyle birlikte yüklenir ve sekmede
+     * çizilir. Madde doluysa hiçbir şey yapmaz (madde zaten gösteriliyor).
+     */
+    fun ensureInlinePage() {
+        val ready = _state.value as? UiState.Ready ?: return
+        // Makale hâlâ çözülüyorsa bekle: boş madde ile dolu madde aynı anda istenmesin.
+        val articleState = _article.value
+        if (articleState == ArticleState.Loading || articleState == ArticleState.Idle) return
+        // Madde sekmede gösterilebilecek içerik taşıyorsa tam sayfa yedeğe gerek yok.
+        val article = (articleState as? ArticleState.Ready)?.page
+        if (article != null && article.hasWikiContent) return
+        if (_inlinePage.value != InlinePageState.Idle) return
+        _inlinePage.value = InlinePageState.Loading
+        inlineJob?.cancel()
+        inlineJob = viewModelScope.launch {
+            val title = resolveInlinePageTitle(ready)
+            if (title == null) {
+                if (isCurrent(ready)) _inlinePage.value = InlinePageState.Unavailable
+                return@launch
+            }
+            val page = try {
+                FandomRepository.loadFullPageMeta(appContext, ready.ref.wikiId, title)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                Log.w(TAG, "Wiki tam sayfası yüklenemedi (${ready.ref.wikiId}/$title): ${e.message}")
+                null
+            }
+            if (!isCurrent(ready)) return@launch
+            if (page == null) {
+                _inlinePage.value = InlinePageState.Unavailable
+                return@launch
+            }
+            val lead = try {
+                FandomRepository.loadSection(appContext, ready.ref.wikiId, page.displayTitle, 0)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                Log.w(TAG, "Wiki giriş bölümü yüklenemedi (${page.displayTitle}): ${e.message}")
+                null
+            }
+            if (!isCurrent(ready)) return@launch
+            _inlineSections.value = if (lead != null && !lead.isEmpty()) {
+                mapOf(0 to ArticleSectionState.Loaded(lead))
+            } else {
+                emptyMap()
+            }
+            _inlinePage.value = InlinePageState.Ready(ready.ref.wikiId, page, lead)
+            translateInlinePageLead()
+        }
+    }
+
+    /** Tam sayfa için başlık: Wikidata madde başlığı → wiki ana sayfası → wiki adı. */
+    private suspend fun resolveInlinePageTitle(ready: UiState.Ready): String? {
+        ready.ref.pageTitle?.takeIf { it.isNotBlank() }?.let { return it }
+        val main = FandomWikiResolver.siteInfoCached(ready.ref.wikiId)?.mainPage
+        return main?.takeIf { it.isNotBlank() } ?: ready.ref.siteName?.takeIf { it.isNotBlank() }
+    }
+
+    /** [InlinePageState.Ready] sayfasının bir bölümünü yükler (İçindekiler satırı açılınca). */
+    fun loadInlineSection(index: Int) {
+        val ready = _state.value as? UiState.Ready ?: return
+        val page = (_inlinePage.value as? InlinePageState.Ready)?.page ?: return
+        if (index == 0) return
+        val snapshot = _inlineSections.value
+        if (snapshot.containsKey(index) || inlineSectionJobs.containsKey(index)) return
+        inlineSectionJobs[index] = viewModelScope.launch {
+            _inlineSections.value = snapshot + (index to ArticleSectionState.Loading)
+            val content = try {
+                FandomRepository.loadSection(appContext, ready.ref.wikiId, page.displayTitle, index)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                Log.w(TAG, "Wiki bölümü yüklenemedi (${page.displayTitle}/$index): ${e.message}")
+                null
+            }
+            inlineSectionJobs.remove(index)
+            if (!isCurrent(ready)) return@launch
+            val state = if (content != null) ArticleSectionState.Loaded(content) else ArticleSectionState.Failed
+            _inlineSections.value = _inlineSections.value + (index to state)
+        }
+    }
+
+    /**
+     * Sekme içine yüklenen tam sayfanın giriş metnini çevirir (otomatik çeviri
+     * açıkken). Madde içeriği boşken gösterilen bu metin, diğer wiki metinleriyle
+     * aynı çeviri akşından geçer; "Orijinal" düğmesiyle geri alınabilir.
+     */
+    fun translateInlinePageLead() {
+        val ready = _state.value as? UiState.Ready ?: return
+        val lead = (_inlinePage.value as? InlinePageState.Ready)?.lead ?: return
+        if (lead.isEmpty()) return
+        viewModelScope.launch {
+            if (!isCurrent(ready) || !isAutoTranslateEnabled()) return@launch
+            translate(KEY_INLINE_LEAD)
+        }
+    }
+
+    /** Tam sayfa yüklenemediyse tekrar dener. */
+    fun retryInlinePage() {
+        inlineJob?.cancel()
+        inlineSectionJobs.values.forEach { it.cancel() }
+        inlineSectionJobs.clear()
+        _inlineSections.value = emptyMap()
+        _inlinePage.value = InlinePageState.Idle
+        ensureInlinePage()
     }
 
     /** Retry fetching the complete article without discarding the already-resolved wiki. */
@@ -617,7 +830,13 @@ class FandomMediaWikiViewModel(application: Application) : AndroidViewModel(appl
         oldArticleTranslationKeys.forEach { key -> translationJobs.remove(key)?.cancel() }
         _translating.update { it - oldArticleTranslationKeys }
         relatedJob?.cancel()
+        relatedEnrichJob?.cancel()
         _relatedPages.value = emptyList()
+        inlineJob?.cancel()
+        inlineSectionJobs.values.forEach { it.cancel() }
+        inlineSectionJobs.clear()
+        _inlinePage.value = InlinePageState.Idle
+        _inlineSections.value = emptyMap()
         _article.value = ArticleState.Loading
         _articleSections.value = emptyMap()
         translationBases.keys.filter(::isArticleTranslationKey).forEach { translationBases.remove(it) }
@@ -956,6 +1175,8 @@ class FandomMediaWikiViewModel(application: Application) : AndroidViewModel(appl
         return when {
             key == KEY_SUMMARY -> (_summary.value as? BlurbState.Ready)?.blurb?.description
             key == FandomCharacterWikiViewModel.KEY_DESCRIPTION -> articlePage?.description
+            key == KEY_INLINE_LEAD ->
+                (_inlinePage.value as? InlinePageState.Ready)?.lead?.plainText()
             key.startsWith("ib:") -> {
                 val index = key.removePrefix("ib:").toIntOrNull()
                 index?.let { articlePage?.infobox?.allFields()?.getOrNull(it)?.value }

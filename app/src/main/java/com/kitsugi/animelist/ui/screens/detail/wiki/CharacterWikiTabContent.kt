@@ -12,8 +12,6 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
-import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.items
 import com.kitsugi.animelist.data.fandom.FandomRelationType
 import com.kitsugi.animelist.data.fandom.FandomWikiLink
 import androidx.compose.foundation.layout.Row
@@ -175,6 +173,12 @@ internal fun CharacterWikiTabContent(
      *  ek olarak hedef wiki de korunur. Verilmezse [onOpenWikiPage]'e düşülür. */
     onOpenWikiLink: ((FandomWikiLink) -> Unit)? = null,
     relatedPages: List<com.kitsugi.animelist.data.fandom.FandomRelatedPage> = emptyList(),
+    /**
+     * Sayfa GERÇEK içerik taşımıyorsa (bilgi kutusu alanı, özet ve bölümler boş) boş
+     * "başlık + kapak" kartı çizilmez; yapım wiki sekmesi bu durumda wiki'nin tam sayfasını
+     * sekme içine yükler. İlgili maddeler yine burada, tam ayrıntıyla gösterilir.
+     */
+    suppressEmptyInfobox: Boolean = false,
     /** Birden çok kaynak (Fandom + Vikipedi) varken kaynak çiplerinden seçimi bildirir (indeks). */
     onSwitchSource: (Int) -> Unit = {}
 ) {
@@ -195,28 +199,32 @@ internal fun CharacterWikiTabContent(
             WikiConfirmCard(accentColor = accentColor, onConfirm = onConfirm, onReject = onReportWrong)
         }
 
-        WikiInfoboxCard(
-            page = page,
-            infobox = page.infobox,
-            spoilerGuard = spoilerGuard,
-            revealed = revealed,
-            showAll = showAllFields,
-            onToggleShowAll = { showAllFields = !showAllFields },
-            accentColor = accentColor,
-            onOpenGallery = onOpenGallery,
-            galleryCategory = galleryCategory,
-            translations = translations,
-            infoboxTranslating = KEY_INFOBOX in translatingKeys,
-            preferredTranslator = preferredTranslator,
-            infoboxShowingOriginal = KEY_INFOBOX in originalKeys,
-            onToggleInfoboxOriginal = { onToggleOriginal(KEY_INFOBOX) }
-        )
+        // İçeriği olmayan sayfada boş kart çizme; sekme wiki'nin tam sayfasını gösterecek.
+        if (!(suppressEmptyInfobox && !page.hasWikiContent)) {
+            WikiInfoboxCard(
+                page = page,
+                infobox = page.infobox,
+                spoilerGuard = spoilerGuard,
+                revealed = revealed,
+                showAll = showAllFields,
+                onToggleShowAll = { showAllFields = !showAllFields },
+                accentColor = accentColor,
+                onOpenGallery = onOpenGallery,
+                galleryCategory = galleryCategory,
+                translations = translations,
+                infoboxTranslating = KEY_INFOBOX in translatingKeys,
+                preferredTranslator = preferredTranslator,
+                infoboxShowingOriginal = KEY_INFOBOX in originalKeys,
+                onToggleInfoboxOriginal = { onToggleOriginal(KEY_INFOBOX) }
+            )
+        }
 
         if (page.relatedEntities.isNotEmpty()) {
             WikiRelatedEntitiesCard(
                 entities = page.relatedEntities,
                 pageKey = "${page.wikiId}:${page.pageTitle}",
                 accentColor = accentColor,
+                spoilerGuard = spoilerGuard,
                 onOpenWikiLink = onOpenWikiLink,
                 onOpenWikiPage = onOpenWikiPage
             )
@@ -313,16 +321,24 @@ internal fun CharacterWikiTabContent(
         }
 
         if (relatedPages.isNotEmpty()) {
-            CharacterRelatedStrip(
-                listKey = "${page.wikiId}:${page.pageTitle}",
+            // Her ilgili sayfa kartta TAMAMLANIR: başlık, kapak, giriş metni ve bilgi
+            // kutusu alanları burada görünür; sayfayı açma yalnızca ikincil eylemdir.
+            WikiRelatedPagesInlineSection(
+                title = stringResource(
+                    if (FandomUrls.isWikipedia(page.wikiId)) {
+                        R.string.fandom_related_pages_title_wikipedia
+                    } else {
+                        R.string.fandom_related_pages_title
+                    }
+                ),
                 pages = relatedPages,
-                wikipedia = FandomUrls.isWikipedia(page.wikiId),
                 accentColor = accentColor,
-                onOpenPage = { p ->
+                spoilerGuard = spoilerGuard,
+                onOpenPage = { related ->
                     // Uygulama içi okuyucu bağlı değilse ölü düğme bırakma:
                     // son çare olarak tarayıcı (normal akışta hep bağlanır).
-                    onOpenWikiPage?.invoke(p)
-                        ?: openExternal(context, com.kitsugi.animelist.data.fandom.FandomUrls.pageUrl(page.wikiId, p))
+                    onOpenWikiPage?.invoke(related)
+                        ?: openExternal(context, FandomUrls.pageUrl(page.wikiId, related))
                 }
             )
         }
@@ -333,54 +349,6 @@ internal fun CharacterWikiTabContent(
             onReportWrong = onReportWrong,
             onOpenWikiPage = onOpenWikiPage
         )
-    }
-}
-
-@Composable
-private fun CharacterRelatedStrip(
-    listKey: String,
-    pages: List<com.kitsugi.animelist.data.fandom.FandomRelatedPage>,
-    wikipedia: Boolean,
-    accentColor: Color,
-    onOpenPage: (String) -> Unit
-) {
-    if (pages.isEmpty()) return
-    WikiCard {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Text(
-                text = stringResource(
-                    if (wikipedia) R.string.fandom_related_pages_title_wikipedia
-                    else R.string.fandom_related_pages_title
-                ),
-                color = KitsugiColors.TextPrimary,
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold,
-                modifier = Modifier.weight(1f)
-            )
-            Text(
-                text = stringResource(R.string.fandom_related_pages_count, pages.size),
-                color = KitsugiColors.TextMuted,
-                style = MaterialTheme.typography.labelSmall
-            )
-        }
-        Spacer(Modifier.height(10.dp))
-        androidx.compose.runtime.key(listKey, "character-related-pages") {
-            val rowState = androidx.compose.foundation.lazy.rememberLazyListState()
-            androidx.compose.foundation.lazy.LazyRow(
-                state = rowState,
-                flingBehavior = com.kitsugi.animelist.ui.utils.KitsugiScrollDefaults.rememberRowSnapFling(rowState),
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(10.dp)
-            ) {
-                items(pages, key = { it.title }) { page ->
-                    WikiRelatedPageCard(
-                        page = page,
-                        accentColor = accentColor,
-                        onClick = { onOpenPage(page.title) }
-                    )
-                }
-            }
-        }
     }
 }
 
@@ -1367,6 +1335,7 @@ private fun WikiRelatedEntitiesCard(
     entities: List<FandomWikiLink>,
     pageKey: String,
     accentColor: Color,
+    spoilerGuard: Boolean = true,
     onOpenWikiLink: ((FandomWikiLink) -> Unit)? = null,
     onOpenWikiPage: ((String?) -> Unit)? = null
 ) {
@@ -1417,26 +1386,27 @@ private fun WikiRelatedEntitiesCard(
                 color = KitsugiColors.TextMuted,
                 style = MaterialTheme.typography.labelSmall
             )
+            // Karakter / ekip / seslendirmen maddeleri kartta TAMAMLANIR: giriş metni ve
+            // bilgi kutusu alanları burada görünür, sayfayı açmak ikincil eylemdir.
             androidx.compose.runtime.key(pageKey, role) {
-                val rowState = androidx.compose.foundation.lazy.rememberLazyListState()
-                LazyRow(
-                    state = rowState,
-                    flingBehavior = com.kitsugi.animelist.ui.utils.KitsugiScrollDefaults.rememberRowSnapFling(rowState),
+                Column(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
-                    items(
-                        items = groupEntities,
-                        key = { entity -> "${entity.wikiId}:${entity.pageTitle}:${entity.role}:${entity.language}" }
-                    ) { entity ->
-                        WikiPagePreviewCard(
-                            title = entity.label,
-                            description = entity.description ?: entity.context,
-                            thumbnailUrl = entity.imageUrl,
-                            accentColor = accentColor,
-                            onClick = { openEntityPage(entity) },
-                            subtitle = entity.language?.uppercase()
-                        )
+                    groupEntities.forEach { entity ->
+                        androidx.compose.runtime.key(
+                            entity.wikiId,
+                            entity.pageTitle,
+                            entity.role,
+                            entity.language
+                        ) {
+                            WikiRelatedEntityDetailCard(
+                                entity = entity,
+                                accentColor = accentColor,
+                                spoilerGuard = spoilerGuard,
+                                onOpenPage = { openEntityPage(entity) }
+                            )
+                        }
                     }
                 }
             }
