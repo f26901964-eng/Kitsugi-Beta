@@ -84,11 +84,12 @@ Kabul kriterleri:
 - `git diff --check` temiz.
 - TR/EN string paritesi: 7603 = 7603, fark kümesi boş; her iki dosya XML olarak geçerli.
 - Okuyucu/sekme dosyalarındaki tüm `R.string.*` başvuruları iki dilde de mevcut.
-- Arena ortamında **JVM yok** (java/javac/kotlinc bulunamadı), bu yüzden derleme ve test
-  süiti burada çalıştırılamadı. JDK'lı ortamda:
-
-```bash
-./gradlew :app:testDebugUnitTest \
-  --tests 'com.kitsugi.animelist.ui.screens.detail.wiki.*' \
-  --tests 'com.kitsugi.animelist.ui.screens.detail.wiki.WikiTranslationProtectionTest'
-```
+- Arena ortamında **JVM yok** (java/javac/kotlinc bulunamadı), bu yüzden derleme/test burada
+  değil **CI'da** doğrulandı (`android-build.yml`, arena/** push tetikler):
+  - `38950075976`: `compileFossDebugKotlin` 2 hata → `readerContentsTitle` `@Composable` yapıldı.
+  - `38951424067`: ana + test kaynak kümesi derlendi; görsel bloğu testi yeni figcaption
+    sözleşmesine göre güncellendi.
+  - `38952367447`: ✅ wiki + `data.fandom.*` testleri yeşil. Kalan kırmızılar bu işle
+    ilgisiz ve önceden kırıktı (`MalNotificationsClientTest`, `MalWebParserTest`).
+- İş akışına `--tests 'com.kitsugi.animelist.ui.screens.detail.wiki.*'` eklendi; aksi hâlde
+  bu testler derleniyor ama koşmuyordu.

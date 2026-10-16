@@ -94,19 +94,56 @@ başka vikiye gidebildiği için kontrol **gösterilen sayfanın** vikisine gör
 | `wiki/FandomCharacterWikiViewModel.kt` | aynı eklemeler + hedef dil kaynağı kontrolü |
 | `wiki/MediaWikiTabContent.kt`, `wiki/CharacterWikiTabSlot.kt`, `CharacterDetailPage.kt` | `onSetReaderOriginal` bağlantısı |
 | `res/values/strings.xml`, `res/values-en/strings.xml` | 2 yeni çift: `fandom_reader_translated_notice`, `fandom_reader_original_notice` |
-| `test/.../WikiReaderLayoutAnchorTest.kt` (yeni) | çapa/geri kurma matematiği (11 test) |
+| `test/.../WikiReaderLayoutAnchorTest.kt` (yeni) | çapa/geri kurma matematiği (13 test) |
 | `test/.../WikiTranslationProtectionTest.kt` | görsel alt yazısı + teknik değer + okuyucu anahtarı testleri |
 
 ## Doğrulama
 
+### CI (gerçek derleme + gerçek test koşumu)
+
+| Koşu | Ne oldu |
+|---|---|
+| `38949390935` | Uyarı: kurulum aşamasında NDK indirmesi bozuldu (altyapı hatası; koda dair sinyal yok) |
+| `38950075976` | `compileFossDebugKotlin` **iki gerçek hata** verdi: `readerContentsTitle` `@Composable` değildi ama `stringResource` okuyan `localizedSectionTitle`'ı çağırıyordu → düzeltildi |
+| `38951424067` | Ana kaynak derlendi ✅, test kaynak kümesi derlendi ✅, wiki testleri koştu; **tek kırmızı: `blockTranslationKeepsOrderKindsImagesAndLinks`** — test "görsel bloğu hiç değişmez" diyordu; yeni davranışta figcaption (beyaz metin) çevrilir → test yeni sözleşmeye göre güncellendi |
+| `38952367447` | ✅ **Tüm wiki testleri ve `data.fandom.*` testleri geçti.** Kalan iki kırmızı bizimle ilgisiz ve önceden de kırıktı: `MalNotificationsClientTest.acceptsOnlySameOriginNotificationContinuationUrls`, `MalWebParserTest.followsOnlyObservedSameOriginNextPageLinks` (aynı ikisi 14:58/15:52/16:11 tarihli, bu değişikliklerden ÖNCEKİ arena koşularında da kırıktı) |
+
+Koşulan yeni/güncellenen testler:
+
+- `WikiReaderLayoutAnchorTest` (13 test): ölçüm → içerik koordinatı, çapa seçimi (görünümün
+  üstünü içeren blok), boşluk durumunda alt blok, oran koruma, mesafe koruma, kırpma,
+  `clear()`, kimlik kararlılığı (`#b<index>`, `#desc`).
+- `WikiTranslationProtectionTest` eklemeleri: `imageCaptionIsTranslatedWhileTheImageKeepsItsPlaceAndUrl`,
+  `technicalImageCaptionsAreNotTranslated` (`File:Jinwoo.png` çevrilmez),
+  `readerKeysSeparateDescriptionSectionsAndContents`; ayrıca blok yapısı testi yeni
+  figcaption sözleşmesine göre güncellendi.
+- `FandomReaderBrowserTest`, `FandomImageCandidatesTest`, `FandomInfoboxLabelsTest`,
+  `FandomSectionTitlesTest` de yeşil.
+
+CI artık wiki paketini koşuyor (`android-build.yml` içine `--tests '...ui.screens.detail.wiki.*'`
+eklendi); aksi hâlde bu testler derleniyor ama hiç çalışmıyordu.
+
+### Statik kontroller
+
 - TR/EN string paritesi **7603 = 7603** (fark kümesi boş); iki dosya da XML olarak geçerli.
 - Değişen UI dosyalarındaki tüm `R.string.*` başvuruları iki dilde de mevcut (otomatik kontrol).
 - Parantez/küme parantezi dengesi ve `git diff --check` temiz.
-- **Sınırlama:** Bu ortamda JVM yok (`java`, `javac`, `kotlinc` bulunamadı), bu yüzden
-  Gradle derlemesi/birim testleri burada çalıştırılamadı. JDK'lı ortamda:
+
+### Ek düzeltmeler (CI sonrası)
+
+- `readerContentsTitle` artık `@Composable` (dil değişince satır kendiliğinden yenilenir).
+- Medya wiki VM'inde İçindekiler akışı ve içerik parmak izi: sayfa/başlık listesi değişirse
+  `pruneStaleTranslations` eski satırları düşürür.
+- Görsel bloğu sözleşmesi netleşti: tür, sıra, URL, dosya adı **değişmez**; yalnızca
+  figcaption çevrilir.
+
+### Yerel sınırlama
+
+Bu ortamda JVM yok (`java`, `javac`, `kotlinc` bulunamadı); derleme/test yukarıdaki CI
+koşularıyla doğrulandı. Yerelde tekrarlamak isteyen için:
 
 ```bash
-./gradlew :app:testDebugUnitTest --tests 'com.kitsugi.animelist.ui.screens.detail.wiki.*'
+./gradlew :app:testFossDebugUnitTest --tests 'com.kitsugi.animelist.ui.screens.detail.wiki.*'
 ```
 
 ## Bilinçli olarak çevrilmeyenler
