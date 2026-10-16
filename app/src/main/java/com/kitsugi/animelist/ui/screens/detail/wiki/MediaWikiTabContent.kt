@@ -1139,15 +1139,6 @@ private fun WikiItemSheet(
                                 fontWeight = FontWeight.SemiBold
                             )
                         }
-                        WikiTranslateButton(
-                            text = description,
-                            preferredTranslator = preferredTranslator,
-                            accentColor = accentColor,
-                            isLoading = key in translatingKeys,
-                            hasTranslation = !translatedDescription.isNullOrBlank(),
-                            showingOriginal = descriptionShowingOriginal,
-                            onToggleOriginal = { onToggleOriginal(key) }
-                        )
                         IconButton(onClick = onClose) {
                             Icon(
                                 imageVector = Icons.Rounded.Close,
@@ -1171,12 +1162,30 @@ private fun WikiItemSheet(
 
                     if (!description.isNullOrBlank()) {
                         WikiCard {
-                            Text(
-                                text = stringResource(R.string.fandom_summary_title),
-                                color = KitsugiColors.TextPrimary,
-                                style = MaterialTheme.typography.titleSmall,
-                                fontWeight = FontWeight.Bold
-                            )
+                            // Geçiş, etkilediği metnin kendi kartında durur. Önceden sayfa
+                            // başlığının yanındaydı; uzun bilgi kutusundan sonra açıklamayı
+                            // okuyan kullanıcı hangi metni değiştirdiğini göremiyordu.
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = stringResource(R.string.fandom_summary_title),
+                                    color = KitsugiColors.TextPrimary,
+                                    style = MaterialTheme.typography.titleSmall,
+                                    fontWeight = FontWeight.Bold,
+                                    modifier = Modifier.weight(1f)
+                                )
+                                WikiTranslateButton(
+                                    text = description,
+                                    preferredTranslator = preferredTranslator,
+                                    accentColor = accentColor,
+                                    isLoading = key in translatingKeys,
+                                    hasTranslation = !translatedDescription.isNullOrBlank(),
+                                    showingOriginal = descriptionShowingOriginal,
+                                    onToggleOriginal = { onToggleOriginal(key) }
+                                )
+                            }
                             Spacer(modifier = Modifier.height(6.dp))
                             val articleSummaryText =
                                 if (descriptionShowingOriginal) description
@@ -1626,7 +1635,7 @@ private fun ArticleSectionRow(
                                         preferredTranslator = preferredTranslator,
                                         accentColor = accentColor,
                                         isLoading = translating,
-                                        hasTranslation = !translated.isNullOrBlank(),
+                                        hasTranslation = translations.hasWikiTranslation(FandomMediaWikiViewModel.articleSectionKey(articleTitle, section.index)),
                                         showingOriginal = showingOriginal,
                                         onToggleOriginal = onToggleOriginal
                                     )

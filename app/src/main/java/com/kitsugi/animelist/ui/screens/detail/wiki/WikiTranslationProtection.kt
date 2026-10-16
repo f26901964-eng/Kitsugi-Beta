@@ -77,6 +77,19 @@ internal fun Map<String, String>.withoutTranslation(baseKey: String): Map<String
     filterKeys { !WikiStructuredTranslationKeys.belongsTo(it, baseKey) }
 
 /**
+ * Bir yüzeyde gerçekten uygulama içi çeviri bulunup bulunmadığını söyler.
+ *
+ * Bölüm çevirileri akış hâlinde geldiği için çocuk blok, bölümün COMPLETE işaretinden önce
+ * belleğe düşebilir. Düğmeyi yalnızca ana anahtara bağlamak bu kısa aralıkta (ve eski
+ * önbelleklerde) çevrilmiş metni gösterip "Orijinal" düğmesini gizliyordu. Her çeviri
+ * yüzeyi bu yardımcıyı kullanarak anahtar + bütün çocukları birlikte denetler.
+ */
+internal fun Map<String, String>.hasWikiTranslation(baseKey: String): Boolean =
+    entries.any { (key, value) ->
+        WikiStructuredTranslationKeys.belongsTo(key, baseKey) && value.isNotBlank()
+    }
+
+/**
  * Metin içindeki bağlantı etiketlerini çeviriye göndermeden önce jetonlarla maskeler.
  *
  * Neden: Etiketler wiki sayfa adlarıdır ("Yume Tōrō", "Your Name"…). Google Translate bunları
@@ -225,9 +238,84 @@ private suspend fun translateBlockText(
     if (block.links.isEmpty()) {
         return translateOrNull(translate, text)
     }
+
+    /*
+     * Bağlantı etiketlerini jetonla birlikte Google'a göndermiyoruz. Google bazı dillerde
+     * ⟪L0⟫ benzeri jetonları düşürüyor/değiştiriyor; eski akış bu durumda güvenlik için
+     * PARAGRAFIN TAMAMINI orijinal bırakıyordu. Wiki paragraflarının çoğu en az bir bağlantı
+     * içerdiğinden kullanıcı pratikte "otomatik çeviri çalışmıyor" görüyordu.
+     *
+     * Bunun yerine metni tıklanabilir etiket sınırlarında parçalıyoruz: etiketler sonuçta
+     * byte-byte aynı kalıyor, yalnızca aralarındaki normal metin çeviriye gidiyor. Böylece
+     * URL/dokunma aralıkları korunurken cümlenin geri kalanı her zaman normal otomatik
+     * çeviri yolundan geçiyor; geri kurulacak kırılgan bir jeton da kalmıyor.
+     */
+    // Önce cümlenin tamamını tek istekte çevir: dilbilgisi ve bağlam kalitesi daha iyidir.
+    // Sağlayıcı jetonları korursa etiketleri geri koyup hemen kullanırız. Jeton bozulursa
+    // aşağıdaki parça yolu devreye girer; artık paragrafın tümü orijinale düşmez.
     val mask = WikiLinkLabelMask.of(text, block.links)
-    val translated = translateOrNull(translate, mask.masked) ?: return null
-    return mask.restore(translated)
+    if (mask.hasMaskedLabels) {
+        val whole = translateOrNull(translate, mask.masked)
+        if (whole != null) mask.restore(whole)?.let { return it }
+    }
+
+    val protectedRanges = linkLabelRanges(text, block.links)
+    if (protectedRanges.isEmpty()) return translateOrNull(translate, text)
+
+    val result = StringBuilder(text.length)
+    var cursor = 0
+    for (range in protectedRanges) {
+        if (cursor < range.first) {
+            result.append(translateTextSegment(text.substring(cursor, range.first), translate))
+        }
+        result.append(text.substring(range.first, range.last + 1))
+        cursor = range.last + 1
+    }
+    if (cursor < text.length) {
+        result.append(translateTextSegment(text.substring(cursor), translate))
+    }
+    return result.toString().takeIf { it.isNotBlank() }
+}
+
+/** Metinde gerçekten bulunan, çakışmayan bağlantı etiketi aralıkları. */
+private fun linkLabelRanges(text: String, links: List<FandomBlockLink>): List<IntRange> {
+    val candidates = ArrayList<IntRange>()
+    links.asSequence()
+        .map { it.label }
+        .filter { it.isNotBlank() }
+        .distinct()
+        .sortedByDescending { it.length }
+        .forEach { label ->
+            var from = 0
+            while (from < text.length) {
+                val start = text.indexOf(label, from)
+                if (start < 0) break
+                val range = start until (start + label.length)
+                if (candidates.none { existing -> range.first <= existing.last && existing.first <= range.last }) {
+                    candidates += range
+                }
+                from = start + label.length
+            }
+        }
+    return candidates.sortedBy { it.first }
+}
+
+/**
+ * Bağlantı etiketleri arasındaki boşluk/noktalama parçalarını gereksiz ağ isteğine çevirmez.
+ * Çevrilebilir bir parça başarısız olursa yalnızca o parça orijinal kalır; tüm paragraf değil.
+ */
+private suspend fun translateTextSegment(
+    segment: String,
+    translate: suspend (String) -> String
+): String {
+    if (segment.isBlank() || segment.none(Char::isLetter)) return segment
+    val leading = segment.takeWhile(Char::isWhitespace)
+    val trailing = segment.takeLastWhile(Char::isWhitespace)
+    val coreEnd = segment.length - trailing.length
+    val core = segment.substring(leading.length, coreEnd)
+    if (core.isBlank()) return segment
+    val translated = translateOrNull(translate, core)?.takeIf { it.isNotBlank() } ?: core
+    return leading + translated + trailing
 }
 
 /**

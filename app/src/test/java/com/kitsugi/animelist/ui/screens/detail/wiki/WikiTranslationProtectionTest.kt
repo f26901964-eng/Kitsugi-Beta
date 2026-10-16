@@ -128,19 +128,56 @@ class WikiTranslationProtectionTest {
     }
 
     @Test
-    fun blockWithLinksStaysOriginalWhenMaskCannotBeRestored() = runBlocking {
+    fun blockWithLinksTranslatesNormalSegmentsWithoutSendingLinkLabel() = runBlocking {
         val content = FandomSectionContent(
             blocks = listOf(
                 paragraph(
                     text = "Yume Tōrō is a song from Your Name.",
-                    links = listOf(FandomBlockLink("Yume Tōrō", "https://wiki/Yume_Tourou"))
+                    links = listOf(
+                        FandomBlockLink("Yume Tōrō", "https://wiki/Yume_Tourou"),
+                        FandomBlockLink("Your Name", "https://wiki/Kimi_no_Na_wa")
+                    )
                 )
             )
         )
-        // Çeviri jetonu düşüren bir yanıt döndürüyor → blok orijinal hâliyle kalmalı.
-        val entries = translateSectionBlocks("sec:0", content) { "tamamen başka bir metin" }
-        assertTrue(entries.isEmpty())
-        assertNull(content.withTranslatedBlocks("sec:0", entries))
+        val requests = mutableListOf<String>()
+        val entries = translateSectionBlocks("sec:0", content) { segment ->
+            requests += segment
+            when {
+                // Tam cümle hızlı yolunda sağlayıcı jetonu bozsun: parça yedeği denenmeli.
+                segment.contains("⟪L") -> "jetonları düşmüş yanıt"
+                segment == "is a song from" -> "bir şarkıdır"
+                else -> "[tr] $segment"
+            }
+        }
+        val translated = content.withTranslatedBlocks("sec:0", entries)
+
+        assertNotNull(translated)
+        assertEquals("Yume Tōrō bir şarkıdır Your Name.", translated!!.blocks.single().text)
+        // Tıklanabilir adlar çeviri servisine hiç gönderilmez; normal metin ise gönderilir.
+        assertTrue(requests.none { it.contains("Yume Tōrō") || it.contains("Your Name") })
+        assertTrue(requests.any { it.contains("is a song from") })
+        assertEquals(content.blocks.single().links, translated.blocks.single().links)
+    }
+
+    @Test
+    fun failedSegmentDoesNotCancelTheRestOfLinkedParagraph() = runBlocking {
+        val content = FandomSectionContent(
+            blocks = listOf(
+                paragraph(
+                    text = "Before Link after text.",
+                    links = listOf(FandomBlockLink("Link", "https://wiki/Link"))
+                )
+            )
+        )
+        val entries = translateSectionBlocks("sec:0", content) { segment ->
+            if (segment.startsWith("Before")) throw IllegalStateException("ilk parça başarısız")
+            "sonraki metin."
+        }
+        val translated = content.withTranslatedBlocks("sec:0", entries)
+
+        assertNotNull(translated)
+        assertEquals("Before Link sonraki metin.", translated!!.blocks.single().text)
     }
 
     // ---------------------------------------------------------------- teknik değerler
@@ -276,6 +313,14 @@ class WikiTranslationProtectionTest {
         assertTrue(WikiStructuredTranslationKeys.belongsTo("sec:0", "sec:0"))
         assertTrue(WikiStructuredTranslationKeys.isChildOf(child, "sec:0"))
         assertFalse(WikiStructuredTranslationKeys.isChildOf(other, "sec:0"))
+    }
+
+    @Test
+    fun toggleAvailabilitySeesStreamingChildBeforeCompleteMarker() {
+        val childOnly = mapOf(WikiStructuredTranslationKeys.block("sec:0", 2) to "çevrilmiş")
+        assertTrue(childOnly.hasWikiTranslation("sec:0"))
+        assertFalse(childOnly.hasWikiTranslation("sec:1"))
+        assertTrue(mapOf("desc" to "çeviri").hasWikiTranslation("desc"))
     }
 
     @Test

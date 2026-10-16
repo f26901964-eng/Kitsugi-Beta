@@ -883,7 +883,7 @@ private fun WikiSectionRow(
                                         preferredTranslator = preferredTranslator,
                                         accentColor = accentColor,
                                         isLoading = translating,
-                                        hasTranslation = translated != null,
+                                        hasTranslation = translations.hasWikiTranslation(sectionKey(section.index)),
                                         showingOriginal = showingOriginal,
                                         onToggleOriginal = onToggleOriginal
                                     )

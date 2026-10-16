@@ -928,7 +928,7 @@ private fun ReaderSectionContent(
                             preferredTranslator = preferredTranslator,
                             accentColor = accentColor,
                             isLoading = isTranslating,
-                            hasTranslation = !translatedText.isNullOrBlank(),
+                            hasTranslation = translations.hasWikiTranslation(translationKey),
                             showingOriginal = showingOriginal,
                             onToggleOriginal = { onToggleOriginal(translationKey) }
                         )
