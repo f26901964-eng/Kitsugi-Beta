@@ -581,8 +581,13 @@ class FandomMediaWikiViewModel(application: Application) : AndroidViewModel(appl
     /**
      * Vikipedi kaynağında "İlgili maddeler": kaynak, wiki'nin ANA SAYFASI değil yapımın KENDİ
      * maddesidir. Anasayfa bağlantıları günün seçkin maddeleridir ("Tarım, Hukuk, Ahlat,
-     * Türkçe"…) ve yapımla hiçbir ilgisi yoktu. Maddenin giriş + ilk bölüm bağlantıları ise
-     * gerçek anlamda ilgili maddelerdir (yazar, stüdyo, uyarlama, karakterler…).
+     * Türkçe"…) ve yapımla hiçbir ilgisi yoktu.
+     *
+     * İlk denemede maddenin giriş + ilk bölüm bağlantıları olduğu gibi alınıyordu; bu da
+     * `{{Animanga lisans}}` gibi şablonların bilgi kutusunda ürettiği ÜLKE/BÖLGE
+     * bağlantılarını ("Amerika Birleşik Devletleri", "Kanada"…) ve API'nin pageid
+     * sıralamasını şeride taşıyordu. Artık adaylar gövde metninden çıkarılıp sıklık +
+     * kısa tanım süzgeciyle önem sırasına dizilir ([FandomRepository.loadWikipediaRelatedPages]).
      */
     private fun loadRelatedPagesForWikipedia(ready: UiState.Ready) {
         val article = (_article.value as? ArticleState.Ready)?.page ?: return
@@ -590,20 +595,16 @@ class FandomMediaWikiViewModel(application: Application) : AndroidViewModel(appl
         relatedJob?.cancel()
         relatedJob = viewModelScope.launch {
             val pages = try {
-                val wikiId = article.wikiId
-                val currentKey = FandomNameVariants.normalizeForCompare(article.pageTitle)
-                val titles = LinkedHashSet<String>()
-                for (idx in listOf(0, 1)) {
-                    val section = FandomRepository.loadSection(appContext, wikiId, article.pageTitle, idx)
-                    if (section != null) titles += section.links
-                }
-                val candidates = titles
-                    .filter { it.isNotBlank() && it.length <= 200 }
-                    .filterNot { FandomNameVariants.normalizeForCompare(it) == currentKey }
-                    .filterNot { title -> isEncyclopediaBoilerplatePage(title) }
-                    .take(30)
-                if (candidates.isEmpty()) emptyList()
-                else FandomRepository.loadRelatedPages(appContext, wikiId, candidates)
+                // Adaylar artık bilgi kutusu/navbox/otorite kontrolü değil GÖVDE metninden
+                // çıkarılır ve geçiş sıklığına göre önem sırasına dizilir; API'nin pageid
+                // sıralaması ve 20'li devam sınırı FandomApi.pagePreviews içinde çözülür.
+                FandomRepository.loadWikipediaRelatedPages(
+                    context = appContext,
+                    wikiId = article.wikiId,
+                    pageTitle = article.pageTitle,
+                    selfTitles = listOfNotNull(article.pageTitle, ready.ref.pageTitle),
+                    workTitles = lastQuery?.fallbackTitles.orEmpty()
+                )
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
@@ -615,6 +616,7 @@ class FandomMediaWikiViewModel(application: Application) : AndroidViewModel(appl
             if (current.wikiId != article.wikiId || current.pageTitle != article.pageTitle) return@launch
             _relatedPages.value = pages
                 .filter { !it.title.equals(article.pageTitle, ignoreCase = true) }
+                .filterNot { isEncyclopediaBoilerplatePage(it.title) }
                 .take(20)
         }
     }
@@ -1449,14 +1451,26 @@ class FandomMediaWikiViewModel(application: Application) : AndroidViewModel(appl
         readerRelatedJob?.cancel()
         readerRelatedJob = viewModelScope.launch {
             val related = try {
-                val candidates = LinkedHashSet<String>()
-                for (idx in listOf(0, 1)) {
-                    val section = FandomRepository.loadSection(appContext, wikiId, page.displayTitle, idx)
-                    if (section != null) candidates += section.links
+                if (FandomUrls.isWikipedia(wikiId)) {
+                    // Okuyucudaki şerit de aynı kuralı kullanır: Vikipedi'de bilgi kutusu
+                    // bağlantıları (ülke/bölge) ve pageid sıralaması kartlara yansımaz.
+                    FandomRepository.loadWikipediaRelatedPages(
+                        context = appContext,
+                        wikiId = wikiId,
+                        pageTitle = page.displayTitle,
+                        selfTitles = listOf(page.displayTitle),
+                        workTitles = lastQuery?.fallbackTitles.orEmpty()
+                    )
+                } else {
+                    val candidates = LinkedHashSet<String>()
+                    for (idx in listOf(0, 1)) {
+                        val section = FandomRepository.loadSection(appContext, wikiId, page.displayTitle, idx)
+                        if (section != null) candidates += section.links
+                    }
+                    val titles = candidates.take(30)
+                    if (titles.isEmpty()) emptyList()
+                    else FandomRepository.loadRelatedPages(appContext, wikiId, titles)
                 }
-                val titles = candidates.take(30)
-                if (titles.isEmpty()) emptyList()
-                else FandomRepository.loadRelatedPages(appContext, wikiId, titles)
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {

@@ -269,4 +269,62 @@ class FandomHtmlTextTest {
         )
     }
 
+    /**
+     * Canlı tr.wikipedia hatası: "Titana Saldırı" maddesinin bilgi kutusundaki
+     * `{{Animanga lisans}}` şablonu ülke/bölge bağlantısı üretiyor ve bunlar
+     * "İlgili maddeler" şeridine "Amerika Birleşik Devletleri", "Kanada" olarak düşüyordu.
+     */
+    @Test
+    fun `wikipedia body links never include infobox navbox or reference boxes`() {
+        val html = """
+            <div class="mw-parser-output">
+              <table class="infobox"><tbody><tr><th>Diğer yayımcı</th><td>
+                <a href="/wiki/Amerika_Birle%C5%9Fik_Devletleri">ABD</a>
+                <a href="/wiki/Kanada"><img src="//upload.wikimedia.org/flag.svg" alt=""></a>
+              </td></tr></tbody></table>
+              <table class="navbox"><tbody><tr><td><a href="/wiki/Anime">Anime</a></td></tr></tbody></table>
+              <div class="reflist"><ol class="references"><li><a href="/wiki/Tokyo">Tokyo</a></li></ol></div>
+              <p>Başkahraman <a href="/wiki/Eren_Yeager">Eren Yeager</a>'dır.</p>
+            </div>
+        """.trimIndent()
+        assertEquals(
+            listOf("Eren Yeager"),
+            FandomHtmlText.internalWikiLinkCounts(html, "wikipedia.tr").keys.toList()
+        )
+        // Fandom kurulumunda bu kutular gövde kabul edilir; davranış değişmemeli.
+        val fandom = FandomHtmlText.internalWikiLinkCounts(html, "attackontitan")
+        assertTrue(fandom.containsKey("Amerika Birleşik Devletleri"))
+        assertTrue(fandom.containsKey("Anime"))
+        assertTrue(fandom.containsKey("Eren Yeager"))
+    }
+
+    @Test
+    fun `image only flag links are skipped on wikipedia but kept on fandom`() {
+        val html = """
+            <p><a href="/wiki/Kanada"><img src="//upload.wikimedia.org/flag.svg" alt=""></a>
+               <a href="/wiki/Amerika_Birle%C5%9Fik_Devletleri">Amerika Birleşik Devletleri</a></p>
+        """.trimIndent()
+        assertEquals(
+            listOf("Amerika Birleşik Devletleri"),
+            FandomHtmlText.internalWikiLinkCounts(html, "wikipedia.tr").keys.toList()
+        )
+        assertEquals(
+            listOf("Kanada", "Amerika Birleşik Devletleri"),
+            FandomHtmlText.internalWikiLinkCounts(html, "attackontitan").keys.toList()
+        )
+    }
+
+    @Test
+    fun `wikipedia blocks drop infobox and navbox text`() {
+        val html = """
+            <table class="infobox"><tbody><tr><th>Yayımcı</th><td>Kodansha USA</td></tr></tbody></table>
+            <div class="navbox"><a href="/wiki/Anime">Anime</a></div>
+            <p>Titana Saldırı, Hajime Isayama'nın manga serisidir.</p>
+        """.trimIndent()
+        val wikipedia = FandomHtmlText.blocks(html, wikiId = "wikipedia.tr").map { it.text }
+        assertTrue(wikipedia.none { it.contains("Kodansha USA") })
+        assertTrue(wikipedia.none { it.contains("Anime") })
+        assertTrue(wikipedia.any { it.contains("manga serisidir") })
+    }
+
 }

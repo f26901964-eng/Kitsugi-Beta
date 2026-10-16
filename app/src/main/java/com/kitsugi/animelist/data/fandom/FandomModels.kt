@@ -221,7 +221,14 @@ data class FandomSectionContent(
     /** Linked cast/crew/character pages found in tables and lists in this section. */
     val linkedEntities: List<FandomWikiLink> = emptyList(),
     /** Bölümdeki viki içi bağlantılar (görünüm sırasıyla, tekrarsız). */
-    val links: List<String> = emptyList()
+    val links: List<String> = emptyList(),
+    /**
+     * Aynı bağlantıların gövdede kaç kez geçtiği. "İlgili maddeler" adaylarını
+     * önem sırasına dizmek için kullanılır (Vikipedi'de ülke/bölge gibi tek geçen
+     * bilgi kutusu bağlantıları, defalarca geçen karakter/stüdyo bağlantılarının
+     * önüne geçmesin).
+     */
+    val linkCounts: Map<String, Int> = emptyMap()
 ) {
     fun isEmpty(): Boolean = blocks.isEmpty() && links.isEmpty() && linkedEntities.isEmpty()
 
@@ -284,6 +291,12 @@ data class FandomRelatedPage(
     val title: String,
     val snippet: String? = null,
     val thumbnailUrl: String? = null,
+    /**
+     * Vikipedi kısa tanımı (`prop=description`, ör. "Kuzey Amerika'da bir ülke").
+     * Özet metinden çok daha kısa ve tür belirtici olduğu için "İlgili maddeler"
+     * süzgeci önce bunu okur; Fandom wikilerinde boştur.
+     */
+    val shortDescription: String? = null,
     /** Expanded profile data so important facts are visible without opening another page. */
     val profile: FandomPageProfile? = null
 )

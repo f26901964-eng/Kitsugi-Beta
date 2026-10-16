@@ -263,4 +263,31 @@ class FandomApiParsersTest {
         assertFalse(lean.containsKey("pithumbsize"))
     }
 
+    /**
+     * Canlı tr.wikipedia ölçümü (Titana Saldırı): `prop=extracts` 20 sayfada kesiliyor ve
+     * yanıt `continue` ile devam anahtarı veriyor; ayrıca `query.pages` istek sırasını değil
+     * pageid sıralamasını döndürüyor. Devam anahtarı ve başlık çözümü kaybolmamalı.
+     */
+    @Test
+    fun `related page batch keeps continuation and resolves redirect titles`() {
+        val json = """{"continue":{"excontinue":20,"continue":"||pageprops|pageimages"},""" +
+            """"query":{"normalized":[{"from":"attack on titan","to":"Attack on Titan"}],""" +
+            """"redirects":[{"from":"Attack on Titan","to":"Titana Saldırı"}],""" +
+            """"pages":[{"pageid":1757970,"ns":0,"title":"Titana Saldırı","extract":"Japon manga serisidir."}]}}"""
+        val batch = FandomApiParsers.parseRelatedPageBatch(json, "wikipedia.tr")
+        assertEquals(1, batch.pages.size)
+        assertEquals("Titana Saldırı", batch.pages.first().title)
+        assertEquals(mapOf("excontinue" to "20", "continue" to "||pageprops|pageimages"), batch.continueParams)
+        assertEquals("Titana Saldırı", FandomApiParsers.resolveTitle("attack on titan", batch.resolvedTitles))
+        assertEquals("Titana Saldırı", batch.resolvedTitles["Attack on Titan"])
+    }
+
+    @Test
+    fun `related page batch without continuation is treated as the last page`() {
+        val json = """{"query":{"pages":[{"pageid":5,"ns":0,"title":"Eren Yeager"}]}}"""
+        val batch = FandomApiParsers.parseRelatedPageBatch(json, "wikipedia.tr")
+        assertTrue(batch.continueParams.isEmpty())
+        assertEquals("Eren Yeager", batch.pages.single().title)
+    }
+
 }

@@ -11,6 +11,7 @@ import java.util.LinkedHashSet
 import com.kitsugi.animelist.data.fandom.FandomCharacterQueries
 import com.kitsugi.animelist.data.fandom.FandomCharacterQuery
 import com.kitsugi.animelist.data.fandom.FandomRepository
+import com.kitsugi.animelist.data.fandom.FandomUrls
 import com.kitsugi.animelist.data.fandom.FandomSectionContent
 import com.kitsugi.animelist.data.fandom.FandomWikiResolver
 import com.kitsugi.animelist.data.fandom.FandomWikiPrefs
@@ -273,14 +274,26 @@ class FandomCharacterWikiViewModel(application: Application) : AndroidViewModel(
         _relatedPages.value = emptyList()
         relatedJob = viewModelScope.launch {
             val list = try {
-                val titles = LinkedHashSet<String>()
-                for (idx in listOf(0, 1)) {
-                    val sec = FandomRepository.loadSection(appContext, wikiId, pageTitle, idx)
-                    if (sec != null) titles += sec.links
+                if (FandomUrls.isWikipedia(wikiId)) {
+                    // Vikipedi kişi maddelerinde bilgi kutusu (doğum yeri, milliyet, meslek)
+                    // bağlantıları "ilgili madde" sayılmaz; gövde metni + kısa tanım süzgeci
+                    // kullanılır ve maddenin kendi adı önerilmez.
+                    FandomRepository.loadWikipediaRelatedPages(
+                        context = appContext,
+                        wikiId = wikiId,
+                        pageTitle = pageTitle,
+                        selfTitles = listOf(pageTitle)
+                    )
+                } else {
+                    val titles = LinkedHashSet<String>()
+                    for (idx in listOf(0, 1)) {
+                        val sec = FandomRepository.loadSection(appContext, wikiId, pageTitle, idx)
+                        if (sec != null) titles += sec.links
+                    }
+                    if (titles.isNotEmpty()) {
+                        FandomRepository.loadRelatedPages(appContext, wikiId, titles.take(30))
+                    } else emptyList()
                 }
-                if (titles.isNotEmpty()) {
-                    FandomRepository.loadRelatedPages(appContext, wikiId, titles.take(30))
-                } else emptyList()
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
@@ -765,15 +778,26 @@ class FandomCharacterWikiViewModel(application: Application) : AndroidViewModel(
     private fun launchRelatedLoad(wikiId: String, page: FandomFullPage) {
         readerRelatedJob?.cancel()
         readerRelatedJob = viewModelScope.launch {
-            val candidates = LinkedHashSet<String>()
-            for (idx in listOf(0, 1)) {
-                val sec = FandomRepository.loadSection(appContext, wikiId, page.displayTitle, idx)
-                if (sec != null) candidates += sec.links
-            }
             val related = try {
-                val titles = candidates.take(30)
-                if (titles.isEmpty()) emptyList()
-                else FandomRepository.loadRelatedPages(appContext, wikiId, titles)
+                if (FandomUrls.isWikipedia(wikiId)) {
+                    // Vikipedi kişi maddelerinde bilgi kutusu (doğum yeri, milliyet, meslek)
+                    // bağlantıları "ilgili madde" değildir; gövde metni kullanılır.
+                    FandomRepository.loadWikipediaRelatedPages(
+                        context = appContext,
+                        wikiId = wikiId,
+                        pageTitle = page.displayTitle,
+                        selfTitles = listOf(page.displayTitle)
+                    )
+                } else {
+                    val candidates = LinkedHashSet<String>()
+                    for (idx in listOf(0, 1)) {
+                        val sec = FandomRepository.loadSection(appContext, wikiId, page.displayTitle, idx)
+                        if (sec != null) candidates += sec.links
+                    }
+                    val titles = candidates.take(30)
+                    if (titles.isEmpty()) emptyList()
+                    else FandomRepository.loadRelatedPages(appContext, wikiId, titles)
+                }
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {

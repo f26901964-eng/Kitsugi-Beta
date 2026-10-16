@@ -28,13 +28,18 @@ internal object FandomLeadParser {
 
     fun parse(html: String?, wikiId: String): Lead {
         if (html.isNullOrBlank()) return Lead()
-        return Lead(infobox = parseInfobox(html, wikiId), intro = parseIntro(html))
+        return Lead(infobox = parseInfobox(html, wikiId), intro = parseIntro(html, wikiId))
     }
 
     // ── Giriş metni ──────────────────────────────────────────────────────────
 
-    fun parseIntro(html: String?): String? {
-        val blocks = FandomHtmlText.blocks(html, maxBlocks = MAX_INTRO_BLOCKS)
+    /**
+     * @param wikiId Vikipedi'de giriş bölümünün içindeki bilgi kutusu/navbox/otorite kontrolü
+     *   gövde metni sayılmaz (bkz. `FandomHtmlText.MEDIAWIKI_JUNK_SELECTOR`); açıklama kartına
+     *   "Kodansha USA · Funimation" gibi kutu kırıntıları düşmez. Fandom davranışı aynıdır.
+     */
+    fun parseIntro(html: String?, wikiId: String? = null): String? {
+        val blocks = FandomHtmlText.blocks(html, maxBlocks = MAX_INTRO_BLOCKS, wikiId = wikiId)
         val parts = ArrayList<String>()
         var chars = 0
         for (block in blocks) {

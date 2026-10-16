@@ -318,6 +318,66 @@ object FandomApiParsers {
      * (nesne olarak pages) için de yedek vardır.
      */
     /** `action=query&titles` should always include pages, even for missing titles. */
+    /**
+     * `action=query&titles=…&prop=pageprops|pageimages|extracts` için TEK bir yanıt.
+     *
+     * Neden ayrı bir çözümleyici gerekli (canlı Vikipedi ölçümü):
+     *  - `prop=extracts` 20 sayfadan fazlasını tek istekte döndürmez; fazlası `continue`
+     *    (`excontinue=20`) ile bildirilir. Uygulama bu devam anahtarını yok saydığı için
+     *    önizlemeler sessizce yarıda kesiliyordu.
+     *  - `query.pages` dizisi istek sırasını DEĞİL, sayfa kimliğini (pageid) temel alan bir
+     *    sıralamayı döndürür. Bu yüzden "en eski" maddeler (ülkeler, "Anime", kıtalar)
+     *    şeridin başına geçiyor, yeni ve özgül maddeler (karakter, stüdyo, uyarlama)
+     *    listenin sonuna düşüyordu. Sıralamayı çağıran taraf geri kurar.
+     */
+    data class FandomRelatedPageBatch(
+        val pages: List<FandomRelatedPage> = emptyList(),
+        /** İstenen başlık → normalizasyon/yönlendirme sonrası başlık. */
+        val resolvedTitles: Map<String, String> = emptyMap(),
+        /** `continue` nesnesinin ham parametreleri (excontinue, continue…). Boşsa son sayfa. */
+        val continueParams: Map<String, String> = emptyMap()
+    )
+
+    fun parseRelatedPageBatch(json: String?, wikiId: String? = null): FandomRelatedPageBatch {
+        val root = parseJsonObject(json) ?: return FandomRelatedPageBatch()
+        val query = root.optJSONObject("query")
+        val normalized = fromToMap(query?.optJSONArray("normalized"))
+        val redirects = fromToMap(query?.optJSONArray("redirects"))
+        val resolved = LinkedHashMap<String, String>()
+        (normalized.keys + redirects.keys).forEach { from ->
+            var title = normalized[from] ?: from
+            val visited = HashSet<String>()
+            while (visited.add(title)) {
+                title = redirects[title] ?: break
+            }
+            resolved[from] = title
+        }
+        val continueParams = LinkedHashMap<String, String>()
+        root.optJSONObject("continue")?.let { cont ->
+            val keys = cont.keys()
+            while (keys.hasNext()) {
+                val key = keys.next()
+                val value = cont.opt(key)
+                if (value != null && value != JSONObject.NULL) continueParams[key] = value.toString()
+            }
+        }
+        return FandomRelatedPageBatch(
+            pages = parseRelatedPages(json, wikiId),
+            resolvedTitles = resolved,
+            continueParams = continueParams
+        )
+    }
+
+    /** İstenen başlığı normalizasyon + yönlendirme zincirinden geçirerek çözümler. */
+    fun resolveTitle(requested: String, resolvedTitles: Map<String, String>): String {
+        var title = requested
+        val visited = HashSet<String>()
+        while (visited.add(title)) {
+            title = resolvedTitles[title] ?: break
+        }
+        return title
+    }
+
     fun hasValidPageQuery(json: String?): Boolean {
         val root = parseJsonObject(json) ?: return false
         if (root.has("error")) return false
@@ -356,6 +416,7 @@ object FandomApiParsers {
                 title = title,
                 snippet = description,
                 thumbnailUrl = thumbnail?.takeIf { it.isNotBlank() },
+                shortDescription = page.str("description")?.trim()?.takeIf { it.isNotEmpty() },
                 profile = FandomPageProfile.from(infobox, description)
             )
         }

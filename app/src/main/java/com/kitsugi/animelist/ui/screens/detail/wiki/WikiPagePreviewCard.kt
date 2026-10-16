@@ -177,7 +177,12 @@ internal fun WikiPagePreviewCard(
 ) {
     WikiPagePreviewCard(
         title = page.profile?.title?.takeIf { it.isNotBlank() } ?: page.title,
-        description = page.profile?.intro?.takeIf { it.isNotBlank() } ?: page.snippet,
+        // Vikipedi'de kısa tanım ("Japon manga sanatçısı") kartın iki satırında tam
+        // görünür; uzun özet metni kesilip okunaksız olmaktan kurtulur. Fandom'da
+        // kısa tanım boş olduğu için davranış değişmez.
+        description = page.shortDescription?.takeIf { it.isNotBlank() }
+            ?: page.profile?.intro?.takeIf { it.isNotBlank() }
+            ?: page.snippet,
         imageUrl = page.thumbnailUrl?.takeIf { it.isNotBlank() }
             ?: page.profile?.images?.firstOrNull()?.url,
         sourceLabel = FandomUrls.displaySourceName(wikiId),

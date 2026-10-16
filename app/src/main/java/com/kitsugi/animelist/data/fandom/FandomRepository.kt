@@ -45,6 +45,12 @@ object FandomRepository {
     private const val TRANSIENT_NEGATIVE_TTL_MS = 10L * 60L * 1000L
     private const val SEARCH_MEMO_TTL_MS = 5L * 60L * 1000L
 
+    /** Vikipedi "İlgili maddeler" için taranan gövde bölümü sayısı (giriş + ilk bölümler). */
+    private const val RELATED_SECTION_SCAN_LIMIT = 3
+
+    /** Özet metnine göre genel madde elenince liste boşalmasın diye istenen fazla aday. */
+    private const val RELATED_FILTER_HEADROOM = 4
+
     private val json = Json {
         ignoreUnknownKeys = true
         encodeDefaults = true
@@ -462,6 +468,86 @@ object FandomRepository {
         }
         rememberVerifiedPreviews(wikiId, pages)
         return pages
+    }
+
+    /**
+     * Vikipedi "İlgili maddeler" listesi.
+     *
+     * Akış: maddenin GÖVDE bölümleri (bilgi kutusu, navbox, otorite kontrolü, kaynakça hariç)
+     * okunur → bağlantılar geçiş sıklığı + madde adı benzerliğine göre puanlanır → ülke/dil/yıl
+     * gibi her maddede geçen genel başlıklar elenir → yalnızca seçilen adaylar için önizleme
+     * (başlık + kısa özet + kapak) istenir. Sonuç, seçim sırasını korur.
+     */
+    suspend fun loadWikipediaRelatedPages(
+        context: Context,
+        wikiId: String,
+        pageTitle: String,
+        /** Maddenin kendi başlıkları (yönlendirmeler dahil): kendini önermemesi için. */
+        selfTitles: Collection<String> = emptyList(),
+        /** Yapımın bilinen adları: aynı adı taşıyan uyarlamalar üst sıraya çıkar. */
+        workTitles: Collection<String> = emptyList(),
+        limit: Int = WikipediaRelatedSelection.DEFAULT_LIMIT
+    ): List<FandomRelatedPage> {
+        if (!FandomUrls.isWikipedia(wikiId)) return emptyList()
+        val cleanTitle = pageTitle.trim()
+        if (cleanTitle.isEmpty()) return emptyList()
+        val sections = try {
+            FandomApi.sections(wikiId, cleanTitle)
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            Log.w(TAG, "Vikipedi içindekiler okunamadı ($wikiId/$cleanTitle): ${e.message}")
+            null
+        }
+        // Giriş (0) her zaman taranır; ardından içindekilerden YAPRAK bölümler seçilir.
+        // Başlığı alt başlıklardan oluşan ara bölümler ("Medya", "Anime") gövde metni
+        // içermez; onlar taranmaz.
+        val indices = mutableListOf(0)
+        val toc = sections.orEmpty()
+        toc.forEachIndexed { position, section ->
+            if (indices.size >= RELATED_SECTION_SCAN_LIMIT) return@forEachIndexed
+            val next = toc.getOrNull(position + 1)
+            val isParent = next != null && next.level > section.level
+            if (!isParent) indices += section.index
+        }
+        if (indices.size == 1) indices += listOf(1, 2)
+        val leadCounts = LinkedHashMap<String, Int>()
+        val bodyCounts = LinkedHashMap<String, Int>()
+        indices.forEachIndexed { position, index ->
+            val sectionTitle = sections?.firstOrNull { it.index == index }?.title
+            val content = try {
+                loadSection(context, wikiId, cleanTitle, index, sectionTitle)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                Log.w(TAG, "Vikipedi bölümü okunamadı ($wikiId/$cleanTitle#$index): ${e.message}")
+                null
+            } ?: return@forEachIndexed
+            if (content.linkCounts.isEmpty() && content.links.isEmpty()) return@forEachIndexed
+            val target = if (position == 0) leadCounts else bodyCounts
+            val counts = content.linkCounts.ifEmpty { content.links.associateWith { 1 } }
+            counts.forEach { (title, count) -> target[title] = (target[title] ?: 0) + count }
+        }
+        val self = LinkedHashSet<String>().apply {
+            selfTitles.forEach { title -> title.trim().takeIf { it.isNotEmpty() }?.let(::add) }
+            add(cleanTitle)
+        }
+        val candidates = WikipediaRelatedSelection.rank(
+            leadCounts = leadCounts,
+            bodyCounts = bodyCounts,
+            selfTitles = self,
+            workTitles = workTitles,
+            limit = limit + RELATED_FILTER_HEADROOM
+        )
+        if (candidates.isEmpty()) return emptyList()
+        val selfNormalized = self.map(FandomNameVariants::normalizeForCompare).toSet()
+        val pages = loadRelatedPages(context, wikiId, candidates)
+        if (pages.isEmpty()) return emptyList()
+        return pages
+            .filterNot { WikipediaRelatedSelection.looksGenericTopic(it.shortDescription, it.snippet) }
+            .filterNot { WikipediaRelatedSelection.isGenericTitle(it.title) }
+            .filterNot { page -> selfNormalized.contains(FandomNameVariants.normalizeForCompare(page.title)) }
+            .take(limit.coerceIn(1, 30))
     }
 
     /** Full lead text from section 0; used inline so the Wiki tab is useful before opening the reader. */
@@ -1187,7 +1273,9 @@ object FandomRepository {
         val appContext = context.applicationContext
         // v7: kırmızı bağlantılar ve başka wikilere ait başlıklar artık ilgili sayfa
         // adaylarına girmez; eski bölüm bağlantıları yeniden ayrıştırılmalıdır.
-        val cacheKey = "${KEY_PREFIX}sec:v7:$wikiId|$pageTitle|$index"
+        // v8: Vikipedi'de bilgi kutusu/navbox/otorite kontrolü gövde sayılmaz ve bağlantı
+        // sıklıkları (linkCounts) kaydedilir; eski bölümler yeniden ayrıştırılmalıdır.
+        val cacheKey = "${KEY_PREFIX}sec:v8:$wikiId|$pageTitle|$index"
         return lockFor(sectionLocks, cacheKey).withLock {
             val cached = readCached(appContext, cacheKey, positiveTtl = SECTION_TTL_MS) { body ->
                 json.decodeFromString(StoredSection.serializer(), body).content
@@ -1198,6 +1286,7 @@ object FandomRepository {
             val html = FandomApi.sectionHtml(wikiId, pageTitle, index) ?: return@withLock null
             val relationType = sectionTitle?.let(FandomRelationClassifier::forSection)
                 ?: FandomRelationType.RELATED
+            val linkCounts = FandomHtmlText.internalWikiLinkCounts(html, wikiId)
             val content = FandomSectionContent(
                 blocks = FandomHtmlText.blocks(
                     html = html,
@@ -1210,7 +1299,8 @@ object FandomRepository {
                     role = relationType,
                     language = sectionTitle?.let(FandomRelationClassifier::languageHint)
                 ),
-                links = FandomHtmlText.internalWikiLinks(html, wikiId)
+                links = linkCounts.keys.toList(),
+                linkCounts = linkCounts
             )
             writeCached(
                 context = appContext,

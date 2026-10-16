@@ -48,6 +48,27 @@ object FandomHtmlText {
             ".portable-infobox, aside, .wds-tabs__wrapper, .mw-collapsible-toggle, .dablink, " +
             ".hatnote, .mw-empty-elt, .reference-text"
 
+    /**
+     * MediaWiki (Vikipedi) sayfalarına özel gövde dışı kutular.
+     *
+     * Fandom'da bilgi kutusu `.portable-infobox`, gezinme kutusu `.navbox`tır; MediaWiki'de ise
+     * bilgi kutusu bir TABLO (`table.infobox`) ve yan kutular `.sidebar`/`.metadata`dır. Bunlar
+     * gövde metni değildir. Özellikle `{{Animanga lisans}}` gibi şablonlar bilgi kutusuna
+     * ÜLKE/BÖLGE bağlantısı ("Amerika Birleşik Devletleri", "Kuzey Amerika", "Türkiye"…)
+     * üretiyordu ve bu bağlantılar "İlgili maddeler" şeridine alakasız kart olarak düşüyordu.
+     * Otorite kontrolü kutusu ("Kanada (LAC)", "Japonya (NDL)", "Fransa (BNF)") de aynı
+     * şekilde sayfanın en altından sızıp "Kanada" gibi maddeleri öneriyordu.
+     */
+    private const val MEDIAWIKI_JUNK_SELECTOR =
+        ".infobox, table.infobox, .navbox, .navbox-styles, .vertical-navbox, .sidebar, .side-box, " +
+            ".metadata, .mw-authority-control, .navbox-odd, .navbox-even, .reflist, .mw-references-wrap, " +
+            "ol.references, .mw-cite-backlink, .catlinks, .mw-indicators, .mw-jump-link, .printfooter, " +
+            ".mw-collapsible-toggle, .mw-editsection, .mw-empty-elt"
+
+    /** Vikipedi sayfalarında gövde dışı kutu seçicisi; Fandom'da boş dize (davranış değişmez). */
+    private fun mediaWikiJunk(wikiId: String?): String =
+        if (FandomUrls.isWikipedia(wikiId)) ", $MEDIAWIKI_JUNK_SELECTOR" else ""
+
     private val REF_MARKERS = Regex(
         "\\[\\s*(?:\\d+|[a-z]|note\\s*\\d+|citation needed|kaynak belirtilmeli)\\s*]",
         RegexOption.IGNORE_CASE
@@ -85,10 +106,15 @@ object FandomHtmlText {
         val body = Jsoup.parseBodyFragment(html, baseUrl).body()
         body.select(
             JUNK_SELECTOR + ", .navbox, .toc, #toc, .portable-infobox, .wds-tabs__wrapper, " +
-                ".mw-editsection, .dablink, .hatnote, .wikia-gallery, .gallery, .mw-empty-elt"
+                ".mw-editsection, .dablink, .hatnote, .wikia-gallery, .gallery, .mw-empty-elt" +
+                mediaWikiJunk(defaultWikiId)
         ).remove()
         val links = body.select("a[href]").mapNotNull { anchor ->
             if (anchor.hasClass("new") || anchor.attr("data-redlink").equals("1")) return@mapNotNull null
+            // Vikipedi bilgi kutusundaki ülke bayrakları yalnızca görselden oluşur; hedef
+            // maddeyi "bağlantı" saymak ("Kanada", "Amerika Birleşik Devletleri" çipleri)
+            // sayfayla ilgisiz öneriler üretiyordu.
+            if (isImageOnlyLink(anchor, defaultWikiId)) return@mapNotNull null
             val href = anchor.absUrl("href").ifBlank { anchor.attr("href") }
             val target = FandomUrls.parseArticleUrl(href, defaultWikiId) ?: return@mapNotNull null
             val label = inline(anchor.html()).ifBlank { target.second }
@@ -183,7 +209,7 @@ object FandomHtmlText {
     fun blocks(html: String?, maxBlocks: Int = 400, wikiId: String? = null): List<FandomTextBlock> {
         if (html.isNullOrBlank()) return emptyList()
         val body = Jsoup.parseBodyFragment(html).body()
-        body.select(SECTION_JUNK_SELECTOR).remove()
+        body.select(SECTION_JUNK_SELECTOR + mediaWikiJunk(wikiId)).remove()
         val collector = BlockCollector(maxBlocks, wikiId)
         collector.walk(body)
         collector.flushPending()
@@ -688,11 +714,23 @@ object FandomHtmlText {
      * (Kategori:, Dosya:, Şablon: …), bağlantı çapaları (#ref…) ve aynı başlık tekrarları
      * ayıklanır; sonuçlar görüntülenme sırasına göre döner.
      */
-    fun internalWikiLinks(html: String?, defaultWikiId: String? = null): List<String> {
-        if (html.isNullOrBlank()) return emptyList()
+    fun internalWikiLinks(html: String?, defaultWikiId: String? = null): List<String> =
+        internalWikiLinkCounts(html, defaultWikiId).keys.toList()
+
+    /**
+     * [internalWikiLinks] ile aynı sonucu verir, ancak her başlığın gövdede kaç kez
+     * geçtiğini de döndürür. "İlgili maddeler" seçimi bu sayımla önem sırasına dizilir:
+     * bir maddede bir kez geçen bölge/ülke bağlantısı, gövdede defalarca geçen
+     * karakter/stüdyo bağlantısının önüne geçemez.
+     *
+     * Vikipedi'de bilgi kutusu/navbox/otorite kontrolü gibi tablolar gövde sayılmaz
+     * ([MEDIAWIKI_JUNK_SELECTOR]); Fandom davranışı değişmez.
+     */
+    fun internalWikiLinkCounts(html: String?, defaultWikiId: String? = null): LinkedHashMap<String, Int> {
+        if (html.isNullOrBlank()) return LinkedHashMap()
         val body = Jsoup.parseBodyFragment(html).body()
-        body.select(JUNK_SELECTOR).remove()
-        val out = LinkedHashSet<String>()
+        body.select(JUNK_SELECTOR + mediaWikiJunk(defaultWikiId)).remove()
+        val out = LinkedHashMap<String, Int>()
         body.select("a[href]").forEach { a ->
             if (a.hasClass("new") || a.attr("data-redlink") == "1") return@forEach
             val href = a.attr("href")
@@ -704,13 +742,26 @@ object FandomHtmlText {
                 val target = FandomUrls.parseArticleUrl(href, defaultWikiId) ?: return@forEach
                 if (target.first != FandomUrls.normalize(defaultWikiId)) return@forEach
             }
+            if (isImageOnlyLink(a, defaultWikiId)) return@forEach
             val text = inline(a.text()).takeIf { it.isNotBlank() } ?: title
             // Bağlantı metni "[]" veya referans gibi işe yaramazsa atla.
             if (!text.any { it.isLetterOrDigit() }) return@forEach
-            out += title
+            out[title] = (out[title] ?: 0) + 1
         }
-        return out.toList()
+        return out
     }
+
+    /**
+     * Vikipedi'de yalnızca görselden oluşan bağlantılar (bilgi kutusundaki ülke bayrakları,
+     * logo/ikon bağlantıları) gövde bağlantısı sayılmaz: metni olmadığı için etiketi
+     * hedef başlığa düşer ve "Kanada", "Amerika Birleşik Devletleri" gibi sayfayla ilgisiz
+     * öneriler doğurur. Fandom'da görselli bağlantılar başlık metnine sahip olduğundan
+     * (ör. kapak galerisi) davranış değişmez.
+     */
+    private fun isImageOnlyLink(anchor: Element, defaultWikiId: String?): Boolean =
+        FandomUrls.isWikipedia(defaultWikiId) &&
+            anchor.text().isBlank() &&
+            anchor.select("img, picture, svg").isNotEmpty()
 
     private fun parseWikiLink(href: String): String? {
         var raw = href.trim()

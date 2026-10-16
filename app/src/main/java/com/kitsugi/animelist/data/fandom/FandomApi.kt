@@ -9,6 +9,15 @@ internal object FandomApi {
     private const val COMMUNITY_SEARCH = "https://services.fandom.com/unified-search/community-search"
     private const val MAX_TITLES_PER_REQUEST = 50
 
+    /**
+     * "İlgili maddeler" kartı için özet uzunluğu. Kart 2 satır gösterir; canlı ölçümde
+     * 20 aday × 1200 karakter özet gereksiz büyük bir yanıt üretiyordu.
+     */
+    private const val RELATED_EXCERPT_CHARS = 320
+
+    /** `continue`/`excontinue` turları için güvenlik sınırı (her tur 20'ye kadar sayfa getirir). */
+    private const val MAX_PREVIEW_ROUNDS = 12
+
     suspend fun siteInfo(wikiId: String): FandomSiteInfo? {
         val url = FandomUrls.apiQuery(
             wikiId,
@@ -126,12 +135,19 @@ internal object FandomApi {
         add("formatversion" to "2")
     }
 
+    /**
+     * Önizleme modülleri. `description` yalnızca Vikipedi'de istenir: yanıt, maddenin
+     * ne olduğunu söyleyen kısa tanımı verir ("Kuzey Amerika'da bir ülke") ve "İlgili
+     * maddeler" süzgeci bunu özet metinden daha güvenilir okur. Fandom'da bu modül
+     * bulunmadığından istek reddedilmesin diye eklenmez.
+     */
     private fun previewProps(wikiId: String): String =
-        if (FandomUrls.isWikipedia(wikiId)) "pageprops|pageimages|extracts" else "pageprops|pageimages"
+        if (FandomUrls.isWikipedia(wikiId)) "pageprops|pageimages|extracts|description"
+        else "pageprops|pageimages"
 
-    private fun excerptParams(wikiId: String): List<Pair<String, String>> =
+    private fun excerptParams(wikiId: String, chars: Int = 1200): List<Pair<String, String>> =
         if (FandomUrls.isWikipedia(wikiId)) listOf(
-            "exintro" to "1", "explaintext" to "1", "exchars" to "1200"
+            "exintro" to "1", "explaintext" to "1", "exchars" to chars.toString()
         ) else emptyList()
     /** Lead image plus the page's full MediaWiki file list and attribution metadata. */
     suspend fun pageImages(wikiId: String, title: String, maxImages: Int = 300): List<FandomImage> {
@@ -349,40 +365,74 @@ internal object FandomApi {
     }
 
     /**
-     * Belirli başlıklar için önizleme (kapak + açıklama): "İlgili wiki sayfaları"
-     * ve metin içi bağlantı kartları kullanır. Tek istekte `prop=pageimages|pageprops`
-     * ile thumbnail + fandomdescription alınır.
+     * Belirli başlıklar için önizleme (kapak + açıklama): "İlgili wiki sayfaları",
+     * "İlgili maddeler" ve metin içi bağlantı kartları kullanır. Tek istekte
+     * `prop=pageimages|pageprops` ile thumbnail + fandomdescription, Vikipedi'de
+     * ayrıca özet (`extracts`) ve kısa tanım (`description`) alınır.
+     *
+     * Vikipedi'de `prop=extracts` tek istekte en çok 20 sayfa döndürür ve fazlası
+     * `continue`/`excontinue` ile bildirilir; bu yüzden devam anahtarı SONUNA KADAR
+     * tüketilir (eskiden yok sayılıyordu ve şerit sessizce yarıda kesiliyordu).
+     *
+     * Dönen liste ÇAĞIRANIN verdiği sırayı korur: MediaWiki sayfaları pageid'e göre
+     * sıraladığı için sıralama geri kurulmazsa önem sırası kaybolur.
      */
     suspend fun pagePreviews(wikiId: String, titles: List<String>, thumbWidth: Int = 320): List<FandomRelatedPage> {
         val clean = titles.map { it.trim() }
             .filter { it.isNotEmpty() && it.length <= 200 && !it.contains('|') }
             .distinct()
         if (clean.isEmpty()) return emptyList()
-        val out = ArrayList<FandomRelatedPage>()
+        val byTitle = LinkedHashMap<String, FandomRelatedPage>()
         for (chunk in clean.chunked(MAX_TITLES_PER_REQUEST)) {
-            val params = listOf(
-                "action" to "query",
-                "titles" to chunk.joinToString("|"),
-                "redirects" to "1",
-                "prop" to previewProps(wikiId),
-                "ppprop" to "infoboxes|fandomdescription|disambiguation",
-                "piprop" to "thumbnail",
-                "pithumbsize" to thumbWidth.toString(),
-                "pilimit" to chunk.size.toString()
-            ) + excerptParams(wikiId) + listOf("format" to "json", "formatversion" to "2")
-            val url = FandomUrls.apiQuery(wikiId, params) ?: continue
-            val body = FandomHttp.get(url)
-            val pages = FandomApiParsers.parseRelatedPages(body, wikiId)
-            out += if (pages.isNotEmpty() || FandomApiParsers.hasValidPageQuery(body)) {
-                pages
-            } else {
-                // A wiki may reject an optional preview module. Ask MediaWiki core for
-                // actual page IDs; never turn missing/red links into clickable cards.
-                barePagePreviews(wikiId, chunk)
-            }
+            val chunkPages = ArrayList<FandomRelatedPage>()
+            val chunkResolved = HashMap<String, String>()
+            var continueParams: Map<String, String> = emptyMap()
+            var round = 0
+            do {
+                val params = mutableListOf(
+                    "action" to "query",
+                    "titles" to chunk.joinToString("|"),
+                    "redirects" to "1",
+                    "prop" to previewProps(wikiId),
+                    "ppprop" to "infoboxes|fandomdescription|disambiguation",
+                    "piprop" to "thumbnail",
+                    "pithumbsize" to thumbWidth.toString(),
+                    "pilimit" to chunk.size.toString()
+                )
+                params += excerptParams(wikiId, RELATED_EXCERPT_CHARS)
+                if (FandomUrls.isWikipedia(wikiId)) {
+                    // `prop=extracts` tek istekte en çok 20 sayfa verir; sınırı açıkça
+                    // belirtmezsek API varsayılanı (1) yanıtı tek sayfaya indirebilir.
+                    params += "exlimit" to chunk.size.coerceAtMost(20).toString()
+                }
+                params += listOf("format" to "json", "formatversion" to "2")
+                continueParams.forEach { (key, value) -> params += key to value }
+                val url = FandomUrls.apiQuery(wikiId, params) ?: break
+                val body = FandomHttp.get(url)
+                val batch = FandomApiParsers.parseRelatedPageBatch(body, wikiId)
+                if (batch.pages.isEmpty() && !FandomApiParsers.hasValidPageQuery(body)) {
+                    // A wiki may reject an optional preview module. Ask MediaWiki core for
+                    // actual page IDs; never turn missing/red links into clickable cards.
+                    chunkPages += barePagePreviews(wikiId, chunk)
+                    break
+                }
+                chunkPages += batch.pages
+                chunkResolved.putAll(batch.resolvedTitles)
+                continueParams = batch.continueParams
+                round += 1
+            } while (continueParams.isNotEmpty() && round < MAX_PREVIEW_ROUNDS)
+            val resolvedChunk = chunk.map { title -> FandomApiParsers.resolveTitle(title, chunkResolved) }
+            // Chunk içi sıralama: çağıranın aday sırası (çözümleme sonrası başlıkla eşleşir).
+            val order = HashMap<String, Int>()
+            resolvedChunk.forEachIndexed { index, title -> order.putIfAbsent(normalizeTitle(title), index) }
+            chunkPages.sortedBy { page -> order[normalizeTitle(page.title)] ?: Int.MAX_VALUE }
+                .forEach { page -> byTitle.putIfAbsent(normalizeTitle(page.title), page) }
         }
-        return out
+        return byTitle.values.toList()
     }
+
+    private fun normalizeTitle(title: String): String =
+        FandomNameVariants.normalizeForCompare(title)
 
     /** Core query with no optional modules; used only when a wiki rejects preview props. */
     private suspend fun barePagePreviews(wikiId: String, titles: List<String>): List<FandomRelatedPage> {
@@ -390,10 +440,12 @@ internal object FandomApi {
             "action" to "query", "titles" to titles.joinToString("|"), "redirects" to "1",
             "format" to "json", "formatversion" to "2"
         )) ?: return emptyList()
-        return FandomApiParsers.parseTitleLookups(titles, FandomHttp.get(url)).values
-            .filter { it.exists && !it.isDisambiguation }
-            .mapNotNull { it.resolvedTitle?.let { title -> FandomRelatedPage(title) } }
-            .distinctBy { it.title }
+        val lookups = FandomApiParsers.parseTitleLookups(titles, FandomHttp.get(url))
+        // Çağıranın sırası korunur: MediaWiki yanıtı pageid sırasına göre gelir.
+        return titles.mapNotNull { requested ->
+            lookups[requested]?.takeIf { it.exists && !it.isDisambiguation }?.resolvedTitle
+                ?.let { FandomRelatedPage(it) }
+        }.distinctBy { it.title }
     }
 
     /**
