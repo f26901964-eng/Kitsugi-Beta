@@ -388,6 +388,16 @@ internal object KitsugiSimklDetailClient {
                 )
             } else emptyList()
 
+            val simklTags = genresList
+                .filter { it.isNotBlank() && !com.kitsugi.animelist.ui.screens.search.CanonicalFilterBridge.isOfficialAniListGenre(it) }
+                .map {
+                    KitsugiTag(
+                        name = it,
+                        isSpoiler = com.kitsugi.animelist.utils.KitsugiSpoilerRules.isIntrinsicSpoiler(it),
+                        source = "simkl"
+                    )
+                }
+
             KitsugiMediaDetail(
                 synopsis = overview,
                 genres = genresList.toTurkishGenres(),
@@ -419,7 +429,7 @@ internal object KitsugiSimklDetailClient {
                 total = if (totalEpisodes > 0) totalEpisodes else null,
                 isAdult = com.kitsugi.animelist.data.remote.SimklAdultFlags.isAdult(obj),
                 realMalId = if (realMalId > 0) realMalId else null,
-                tags = emptyList(),
+                tags = simklTags,
                 externalLinks = emptyList(),
                 streamingLinks = emptyList(),
                 streamingEpisodes = emptyList(),

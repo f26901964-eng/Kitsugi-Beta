@@ -253,6 +253,9 @@ internal object KitsugiMalDetailClient {
                 val synopsis = data.optNullableString("synopsis")?.cleanApiText()
 
                 val genres = mutableListOf<String>()
+                val themesList = mutableListOf<String>()
+                val demographicsList = mutableListOf<String>()
+                val malTags = mutableListOf<KitsugiTag>()
                 data.optJSONArray("genres")?.let { arr ->
                     for (i in 0 until arr.length()) arr.getJSONObject(i).optNullableString("name")?.let { genres.add(it) }
                 }
@@ -260,10 +263,36 @@ internal object KitsugiMalDetailClient {
                     for (i in 0 until arr.length()) arr.getJSONObject(i).optNullableString("name")?.let { genres.add(it) }
                 }
                 data.optJSONArray("themes")?.let { arr ->
-                    for (i in 0 until arr.length()) arr.getJSONObject(i).optNullableString("name")?.let { genres.add(it) }
+                    for (i in 0 until arr.length()) {
+                        val obj = arr.getJSONObject(i)
+                        val name = obj.optNullableString("name") ?: continue
+                        genres.add(name)
+                        themesList.add(name)
+                        malTags.add(
+                            KitsugiTag(
+                                id = obj.optionalPositiveInt("mal_id"),
+                                name = name,
+                                isSpoiler = KitsugiSpoilerRules.isIntrinsicSpoiler(name),
+                                source = "mal"
+                            )
+                        )
+                    }
                 }
                 data.optJSONArray("demographics")?.let { arr ->
-                    for (i in 0 until arr.length()) arr.getJSONObject(i).optNullableString("name")?.let { genres.add(it) }
+                    for (i in 0 until arr.length()) {
+                        val obj = arr.getJSONObject(i)
+                        val name = obj.optNullableString("name") ?: continue
+                        genres.add(name)
+                        demographicsList.add(name)
+                        malTags.add(
+                            KitsugiTag(
+                                id = obj.optionalPositiveInt("mal_id"),
+                                name = name,
+                                isSpoiler = KitsugiSpoilerRules.isIntrinsicSpoiler(name),
+                                source = "mal"
+                            )
+                        )
+                    }
                 }
 
                 val status = data.optNullableString("status")?.toTurkishStatus()
@@ -493,6 +522,9 @@ internal object KitsugiMalDetailClient {
                     year = year,
                     total = total,
                     isAdult = isAdult,
+                    tags = malTags,
+                    themes = themesList.toTurkishGenres(),
+                    demographics = demographicsList.toTurkishGenres(),
                     streamingLinks = streamingLinks,
                     externalLinks = externalLinks,
                     meanScore = meanScoreInt,
@@ -638,9 +670,22 @@ internal object KitsugiMalDetailClient {
             }?.toTurkishRating()
 
             val genres = mutableListOf<String>()
+            val malV2Tags = mutableListOf<KitsugiTag>()
             d.optJSONArray("genres")?.let { arr ->
                 for (i in 0 until arr.length()) {
-                    arr.optJSONObject(i)?.optNullableString("name")?.let { genres.add(it) }
+                    val gObj = arr.optJSONObject(i) ?: continue
+                    val gName = gObj.optNullableString("name") ?: continue
+                    genres.add(gName)
+                    if (!com.kitsugi.animelist.ui.screens.search.CanonicalFilterBridge.isOfficialAniListGenre(gName)) {
+                        malV2Tags.add(
+                            KitsugiTag(
+                                id = gObj.optionalPositiveInt("id"),
+                                name = gName,
+                                isSpoiler = KitsugiSpoilerRules.isIntrinsicSpoiler(gName),
+                                source = "mal"
+                            )
+                        )
+                    }
                 }
             }
 
@@ -778,6 +823,7 @@ internal object KitsugiMalDetailClient {
                 year = year,
                 total = total,
                 isAdult = isAdult,
+                tags = malV2Tags,
                 meanScore = meanScoreInt,
                 averageScore = meanScoreInt,
                 popularity = members,

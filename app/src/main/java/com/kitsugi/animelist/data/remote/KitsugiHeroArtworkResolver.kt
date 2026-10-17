@@ -211,10 +211,9 @@ object KitsugiHeroArtworkResolver {
         var sanitized = if (trimmed.startsWith("//")) "https:$trimmed" else trimmed
 
         // Bangumi API'nin /pic/cover/ görselleri her zaman dikey kapaktır, yatay backdrop değildir.
-        if (source.equals("bangumi", ignoreCase = true) ||
-            source.equals("bgm", ignoreCase = true) ||
-            sanitized.contains("bgm.tv/") && sanitized.contains("/pic/cover/")
-        ) {
+        // Check the image URL, not the item's provider. A Bangumi item can have a
+        // perfectly valid TMDB/Fanart backdrop after cross-source artwork resolution.
+        if (sanitized.contains("bgm.tv/") && sanitized.contains("/pic/cover/")) {
             return null
         }
 

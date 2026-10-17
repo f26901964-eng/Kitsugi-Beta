@@ -8,7 +8,8 @@ import org.junit.Test
 
 class AllSourcesExploreTest {
     private fun media(source: String = "anilist", id: Int = 1, type: MediaType = MediaType.Anime, adult: Boolean = false) =
-        JikanSearchResult(id, "Title $id", "", type, null, 8, adult, null, 2026, source)
+        JikanSearchResult(id, "Title $id", "", type, null, 8, adult, null, 2026, source,
+            backdropUrl = "https://example.test/backdrop_$id.jpg")
 
     private fun payload(items: List<JikanSearchResult> = listOf(media())) = ExplorePayload(
         topAnime = items, airingAnime = emptyList(), upcomingAnime = emptyList(), topManga = emptyList(),
@@ -40,7 +41,7 @@ class AllSourcesExploreTest {
 
         val heroes = allSourceHeroes(states, showAdultContent = false)
 
-        assertEquals(ExplorePlatform.sources.map { it.name.lowercase() }, heroes.map { it.source })
+        assertEquals(ExplorePlatform.sources.map { it.name.lowercase() }.toSet(), heroes.map { it.source }.toSet())
     }
 
     @Test fun movieAndTvIdsDoNotCollide() {

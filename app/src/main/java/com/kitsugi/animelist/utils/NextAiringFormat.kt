@@ -155,7 +155,7 @@ object NextAiringFormat {
             val remaining = epoch - nowEpoch
             if (remaining <= 0) return airedShortText(ep)
             val label = episodeLabel(ep)
-            val verb = if (ep == MOVIE_EPISODE) "vizyonda" else KitsugiStrings.get(R.string.yayinda_5231d5c)
+            val verb = if (ep == MOVIE_EPISODE) "vizyonda" else KitsugiStrings.get(R.string.yayinda_5231d5c).ifBlank { "yayında" }
             return "$label · ${formatDate(epoch)} · ${countdownText(remaining)} $verb"
         }
         return parsed.legacyText.orEmpty()

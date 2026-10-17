@@ -1,13 +1,48 @@
 package com.kitsugi.animelist.data.remote
 
 import com.kitsugi.animelist.model.MediaType
+import org.json.JSONArray
 import org.json.JSONObject
 import com.kitsugi.animelist.utils.*
+import java.util.concurrent.ConcurrentHashMap
 
 /**
  * AniList GraphQL API'sinden anime/manga detay bilgisini çeker ve parse eder.
  */
 internal object KitsugiAniListDetailClient {
+
+    data class AniListTagsAndAiring(
+        val aniListId: Int?,
+        val malId: Int?,
+        val tags: List<KitsugiTag>,
+        val nextAiringEpisode: String?
+    )
+
+    private val tagsAndAiringCache = ConcurrentHashMap<String, AniListTagsAndAiring>()
+
+    private fun parseAniListTags(arr: JSONArray?): List<KitsugiTag> {
+        if (arr == null || arr.length() == 0) return emptyList()
+        val tags = ArrayList<KitsugiTag>(arr.length())
+        for (i in 0 until arr.length()) {
+            val t = arr.optJSONObject(i) ?: continue
+            val tName = t.optNullableString("name") ?: continue
+            val isSpoiler = t.optBoolean("isMediaSpoiler", false) ||
+                t.optBoolean("isGeneralSpoiler", false) ||
+                KitsugiSpoilerRules.isIntrinsicSpoiler(tName)
+            tags.add(
+                KitsugiTag(
+                    name = tName,
+                    rank = t.optionalPositiveInt("rank"),
+                    isSpoiler = isSpoiler,
+                    id = t.optionalPositiveInt("id"),
+                    source = "anilist",
+                    description = t.optNullableString("description"),
+                    category = t.optNullableString("category")
+                )
+            )
+        }
+        return tags
+    }
 
     suspend fun fetchDetail(stableId: Int, mediaType: MediaType): KitsugiMediaDetail? {
         val aniListId = if (stableId >= 100_000_000) stableId - 100_000_000 else null
@@ -50,7 +85,7 @@ internal object KitsugiAniListDetailClient {
                     episodes
                     chapters
                     isAdult
-                    tags { name rank isMediaSpoiler }
+                    tags { id name description category rank isMediaSpoiler isGeneralSpoiler }
                     externalLinks { url site language type }
                     nextAiringEpisode { episode timeUntilAiring airingAt }
                     rankings { id rank type format year season allTime context }
@@ -292,19 +327,18 @@ internal object KitsugiAniListDetailClient {
             }
 
             // Tags
-            val tags = mutableListOf<KitsugiTag>()
-            media.optJSONArray("tags")?.let { arr ->
-                for (i in 0 until arr.length()) {
-                    val t = arr.getJSONObject(i)
-                    val tName = t.optNullableString("name") ?: continue
-                    tags.add(
-                        KitsugiTag(
-                            name = tName,
-                            rank = t.optionalPositiveInt("rank"),
-                            isSpoiler = t.optBoolean("isMediaSpoiler", false)
-                        )
-                    )
-                }
+            val tags = parseAniListTags(media.optJSONArray("tags"))
+            val parsedAniListId = media.optionalPositiveInt("id")
+            if (tags.isNotEmpty() || nextAiringEpisode != null) {
+                val cachedEntry = AniListTagsAndAiring(
+                    aniListId = parsedAniListId,
+                    malId = idMal,
+                    tags = tags,
+                    nextAiringEpisode = nextAiringEpisode
+                )
+                val typePrefix = if (mediaType == MediaType.Manga) "M" else "A"
+                if (parsedAniListId != null) tagsAndAiringCache["$typePrefix:al:$parsedAniListId"] = cachedEntry
+                if (idMal != null) tagsAndAiringCache["$typePrefix:mal:$idMal"] = cachedEntry
             }
 
             // Streaming Episodes
@@ -422,22 +456,121 @@ internal object KitsugiAniListDetailClient {
     }
 
     suspend fun fetchNextAiringEpisodeOnly(aniListId: Int): String? {
+        return fetchTagsAndAiringInfo(aniListId = aniListId, mediaType = MediaType.Anime)?.nextAiringEpisode
+    }
+
+    /**
+     * Diğer kaynaklardan (Bangumi, MAL/Jikan, Shikimori, Kitsu, Simkl, TMDB vb.) açılan
+     * yapımlar için AniList'in etiketlerini (`isMediaSpoiler`, `isGeneralSpoiler`, `rank`)
+     * ve yayındaki sonraki bölüm bilgisini tek hafif sorguyla çeker.
+     */
+    suspend fun fetchTagsAndAiringInfo(
+        aniListId: Int? = null,
+        malId: Int? = null,
+        searchTitle: String? = null,
+        mediaType: MediaType = MediaType.Anime
+    ): AniListTagsAndAiring? {
+        val rawAniListId = when {
+            aniListId == null || aniListId <= 0 -> null
+            aniListId >= 100_000_000 -> aniListId - 100_000_000
+            else -> aniListId
+        }?.takeIf { it > 0 }
+        val safeMalId = malId?.takeIf { it in 1..99_999_999 }
+        val cleanTitle = searchTitle?.trim()?.takeIf { it.length >= 2 }
+
+        val typePrefix = if (mediaType == MediaType.Manga) "M" else "A"
+        if (rawAniListId != null) {
+            tagsAndAiringCache["$typePrefix:al:$rawAniListId"]?.let { return it }
+        }
+        if (safeMalId != null) {
+            tagsAndAiringCache["$typePrefix:mal:$safeMalId"]?.let { return it }
+        }
+        val titleCacheKey = cleanTitle?.lowercase(java.util.Locale.ROOT)?.let { "$typePrefix:q:$it" }
+        if (titleCacheKey != null && rawAniListId == null && safeMalId == null) {
+            tagsAndAiringCache[titleCacheKey]?.let { return it }
+        }
+
+        val typeStr = when (mediaType) {
+            MediaType.Manga -> "MANGA"
+            else -> "ANIME"
+        }
+
+        val (paramDecl, filterExpr, variables) = when {
+            rawAniListId != null -> Triple(
+                "\$id: Int",
+                "id: \$id",
+                JSONObject().put("type", typeStr).put("id", rawAniListId)
+            )
+            safeMalId != null -> Triple(
+                "\$idMal: Int",
+                "idMal: \$idMal",
+                JSONObject().put("type", typeStr).put("idMal", safeMalId)
+            )
+            cleanTitle != null && (mediaType == MediaType.Anime || mediaType == MediaType.Manga) -> Triple(
+                "\$search: String",
+                "search: \$search",
+                JSONObject().put("type", typeStr).put("search", cleanTitle)
+            )
+            else -> return null
+        }
+
         val query = """
-            query (${'$'}id: Int) {
-                Media(id: ${'$'}id, type: ANIME) {
+            query (${'$'}type: MediaType, $paramDecl) {
+                Media($filterExpr, type: ${'$'}type) {
+                    id
+                    idMal
+                    title { romaji english native }
+                    synonyms
+                    tags { id name description category rank isMediaSpoiler isGeneralSpoiler }
                     nextAiringEpisode { episode timeUntilAiring airingAt }
                 }
             }
         """.trimIndent()
-        val variables = JSONObject().put("id", aniListId)
+
         val response = KitsugiApiBase.executeAniListQuery(query, variables) ?: return null
         return runCatching {
-            val root = JSONObject(response)
-            val media = root.optJSONObject("data")?.optJSONObject("Media") ?: return@runCatching null
-            val nextAiringObj = media.optJSONObject("nextAiringEpisode") ?: return@runCatching null
-            val ep = nextAiringObj.optInt("episode")
-            val airingAt = nextAiringObj.optLong("airingAt")
-            "$ep|$airingAt"
+            val media = JSONObject(response).optJSONObject("data")?.optJSONObject("Media") ?: return@runCatching null
+
+            // Yalnızca başlıkla arandıysa alakasız bir yapımın etiketlerini yapıştırmamak için başlık uyumu denetlenir.
+            if (rawAniListId == null && safeMalId == null && cleanTitle != null) {
+                val titleObj = media.optJSONObject("title")
+                val candidates = buildList {
+                    titleObj?.optNullableString("romaji")?.let { add(it) }
+                    titleObj?.optNullableString("english")?.let { add(it) }
+                    titleObj?.optNullableString("native")?.let { add(it) }
+                    media.optJSONArray("synonyms")?.let { synArr ->
+                        for (i in 0 until synArr.length()) {
+                            synArr.optString(i).takeIf { it.isNotBlank() }?.let { add(it) }
+                        }
+                    }
+                }
+                val normQuery = KitsugiSpoilerRules.normalizeLabel(cleanTitle)
+                val matches = candidates.any { cand ->
+                    val normCand = KitsugiSpoilerRules.normalizeLabel(cand)
+                    normCand.isNotEmpty() && (normCand == normQuery || normCand.contains(normQuery) || normQuery.contains(normCand))
+                }
+                if (!matches) return@runCatching null
+            }
+
+            val resolvedAlId = media.optionalPositiveInt("id")
+            val resolvedMalId = media.optionalPositiveInt("idMal")
+            val tags = parseAniListTags(media.optJSONArray("tags"))
+            val nextAiring = media.optJSONObject("nextAiringEpisode")?.let { nextObj ->
+                val ep = nextObj.optInt("episode")
+                val airingAt = nextObj.optLong("airingAt")
+                if (ep > 0 && airingAt > 0L) "$ep|$airingAt" else null
+            }
+
+            val result = AniListTagsAndAiring(
+                aniListId = resolvedAlId,
+                malId = resolvedMalId,
+                tags = tags,
+                nextAiringEpisode = nextAiring
+            )
+            if (resolvedAlId != null) tagsAndAiringCache["$typePrefix:al:$resolvedAlId"] = result
+            if (resolvedMalId != null) tagsAndAiringCache["$typePrefix:mal:$resolvedMalId"] = result
+            if (titleCacheKey != null) tagsAndAiringCache[titleCacheKey] = result
+            result
         }.getOrNull()
     }
 }

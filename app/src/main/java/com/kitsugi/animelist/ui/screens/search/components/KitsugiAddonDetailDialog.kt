@@ -336,8 +336,9 @@ private fun DetailContent(
                             }
                         }
 
-                        // Tags/Genres
+                        // Tags/Genres (doğal spoiler etiketler gizlenir)
                         val tags = loadResponse.tags
+                            ?.filterNot { com.kitsugi.animelist.utils.KitsugiSpoilerRules.isIntrinsicSpoiler(it) }
                         if (!tags.isNullOrEmpty()) {
                             FlowRow(
                                 modifier = Modifier.fillMaxWidth(),

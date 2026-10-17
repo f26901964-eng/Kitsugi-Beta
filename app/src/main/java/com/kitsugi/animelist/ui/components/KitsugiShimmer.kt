@@ -491,13 +491,14 @@ fun KitsugiShimmerHeroSection(
     val screenHeightDp = configuration.screenHeightDp
     val isLandscape = configuration.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE || screenWidthDp > screenHeightDp
 
-    val finalHeight = if (heroHeight != Dp.Unspecified) {
-        heroHeight
-    } else if (isLandscape) {
-        (screenHeightDp * 0.60f).coerceIn(210f, 265f).dp
-    } else {
-        (screenHeightDp * 0.50f).coerceIn(390f, 460f).dp
-    }
+    // Match the real carousel exactly: admitting the first verified image must not
+    // resize the first LazyColumn item and displace the shelves underneath it.
+    val finalHeight = if (heroHeight != Dp.Unspecified) heroHeight else heroBandHeightDp(
+        screenHeightDp = screenHeightDp.toFloat(),
+        isLandscape = isLandscape,
+        isTablet = minOf(screenWidthDp, screenHeightDp) >= 600,
+        isTv = com.kitsugi.animelist.ui.theme.LocalIsTvDevice.current
+    ).dp
 
     // LocalShimmerBrush varsa paylaş, yoksa kendi transition'unu oluştur
     val brush = LocalShimmerBrush.current ?: rememberKitsugiShimmerBrush()

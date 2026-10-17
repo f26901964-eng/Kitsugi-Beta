@@ -49,6 +49,7 @@ import com.kitsugi.animelist.data.remote.normalizeAiringTitle
 import com.kitsugi.animelist.model.MediaEntry
 import com.kitsugi.animelist.model.MediaType
 import com.kitsugi.animelist.ui.components.KitsugiHeroSection
+import com.kitsugi.animelist.ui.components.isHomeHeroMedia
 import com.kitsugi.animelist.ui.components.KitsugiShimmerHeroSection
 import com.kitsugi.animelist.ui.components.KitsugiErrorState
 import com.kitsugi.animelist.ui.components.KitsugiEmptyState
@@ -214,73 +215,24 @@ fun ExploreScreen(
     }
     val airingSoonTitle = stringResource(R.string.explore_airing_soon)
 
-    // Vitrin: tüm kaynak/kategori havuzundan sayısal metriklere göre seçim.
-    //  - Tümü modu: her kaynaktan en az bir temsil + skor sıralı kontenjan (12'ye kadar).
-    //  - Kaynak modu: o kaynağın tüm bölümleri (trend, yeni eklenen, manga, film...)
-    //    metrik tabanlı puanlanır; kategori tavanlarıyla çeşitlilik korunur (10'a kadar).
-    val heroItems = remember(
-        viewModel.selectedPlatform,
-        allSectionsList,
-        selectedSourceSections
-    ) {
-        if (viewModel.selectedPlatform == ExplorePlatform.ALL) {
-            allSourceHeroes(allSectionsList)
-        } else {
-            selectHeroItems(
-                sections = selectedSourceSections.filter { it.results.isNotEmpty() },
-                limit = HERO_LIMIT_SINGLE,
-                guaranteeSourceCoverage = false,
-                perCategoryCap = HERO_PER_CATEGORY_CAP
-            )
-        }
+    // The video-only hero uses one item per source/shelf in ALL, two in a selected
+    // source, plus the countdown rail. Artwork is verified before it can be displayed.
+    val heroSourceSections = if (viewModel.selectedPlatform == ExplorePlatform.ALL) allSectionsList else selectedSourceSections
+    val heroSections = remember(heroSourceSections) {
+        heroSourceSections.map { section ->
+            section.copy(results = section.results.filter(::isHomeHeroMedia))
+        }.filter { it.results.isNotEmpty() }
+    }
+    val heroAiringSoon = if (viewModel.selectedPlatform == ExplorePlatform.ALL) sharedAiringSoon else filteredAiringSoonAnime
+    LaunchedEffect(viewModel.selectedPlatform, heroSections, heroAiringSoon, viewModel.heroRefreshSeed) {
+        viewModel.prepareHomeHeroes(heroSections, heroAiringSoon, viewModel.selectedPlatform)
+    }
+    val heroItems = remember(viewModel.homeHeroItems, showAdultContent) {
+        viewModel.homeHeroItems.filter { showAdultContent || !it.isAdult }
     }
 
     val entryMap = remember(currentEntries) {
         generateExploreEntryMap(currentEntries)
-    }
-
-    // TMDB ve Fanart.tv'den çözülen en kaliteli dikey poster + yatay arka planları birleştir.
-    val displayHeroItems = remember(heroItems, viewModel.heroArtworkOverrides, viewModel.heroBackdropOverrides) {
-        val artworkOverrides = viewModel.heroArtworkOverrides
-        val backdropOverrides = viewModel.heroBackdropOverrides
-        heroItems.map { item ->
-            val identity = item.exploreIdentity()
-            val artwork = artworkOverrides[identity]
-                ?: com.kitsugi.animelist.data.remote.KitsugiHeroArtworkResolver.getCached(item)
-            val upgradedPoster = com.kitsugi.animelist.data.remote.KitsugiHeroArtworkResolver.upgradeNativePosterUrl(
-                item.imageUrl,
-                item.source
-            )
-            val sanitizedBackdrop = com.kitsugi.animelist.data.remote.KitsugiHeroArtworkResolver.sanitizeNativeBackdropUrl(
-                item.backdropUrl,
-                upgradedPoster,
-                item.source
-            )
-            val finalPoster = artwork?.bestPosterUrl?.takeIf { it.isNotBlank() } ?: upgradedPoster ?: item.imageUrl
-            val finalBackdrop = if (item.type == com.kitsugi.animelist.model.MediaType.Manga) {
-                sanitizedBackdrop
-            } else {
-                artwork?.bestBackdropUrl?.takeIf { it.isNotBlank() }
-                    ?: backdropOverrides[identity]?.takeIf { it.isNotBlank() }
-                    ?: sanitizedBackdrop
-            }
-            val resolvedTmdbId = item.tmdbId ?: artwork?.resolvedTmdbId
-            val resolvedMalId = item.realMalId ?: artwork?.resolvedMalId
-            if (finalPoster == item.imageUrl &&
-                finalBackdrop == item.backdropUrl &&
-                resolvedTmdbId == item.tmdbId &&
-                resolvedMalId == item.realMalId
-            ) {
-                item
-            } else {
-                item.copy(
-                    imageUrl = finalPoster,
-                    backdropUrl = finalBackdrop,
-                    tmdbId = resolvedTmdbId,
-                    realMalId = resolvedMalId
-                )
-            }
-        }
     }
 
     val getMediaEntry = remember(entryMap) {
@@ -307,8 +259,11 @@ fun ExploreScreen(
     }
 
     val hasCatalogContent = heroItems.isNotEmpty() ||
-        selectedSourceSections.any { it.results.isNotEmpty() } || sharedAiringSoon.isNotEmpty() || filteredAiringSoonAnime.isNotEmpty() ||
-        viewModel.simklContinueMovies.isNotEmpty() || viewModel.simklPlannedMovies.isNotEmpty() ||
+        (if (viewModel.selectedPlatform == ExplorePlatform.ALL) {
+            allSectionsList.isNotEmpty() || sharedAiringSoon.isNotEmpty()
+        } else {
+            selectedSourceSections.any { it.results.isNotEmpty() } || filteredAiringSoonAnime.isNotEmpty()
+        }) || viewModel.simklContinueMovies.isNotEmpty() || viewModel.simklPlannedMovies.isNotEmpty() ||
         viewModel.simklContinueSeries.isNotEmpty() || viewModel.simklPlannedSeries.isNotEmpty()
     val lazyListState = com.kitsugi.animelist.ui.utils.rememberRetainedLazyListState(
         contentReady = hasCatalogContent,
@@ -341,15 +296,6 @@ fun ExploreScreen(
     val scope = rememberCoroutineScope()
     val isLandscape = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
 
-    // Seçilen vitrin öğelerinde eksik arka planları TMDB'den tamamla. Kaplayan
-    // vitrin sunumunda geniş bant (yatay mod + dikey tablet vb.) her yönde bu
-    // görsellerden yararlanır; sonuçlar önbellekli olduğu için rotasyonda
-    // ek çağrı oluşmaz.
-    LaunchedEffect(displayHeroItems) {
-        if (displayHeroItems.isNotEmpty()) {
-            viewModel.enrichHeroBackdrops(displayHeroItems)
-        }
-    }
     val showFab by remember { derivedStateOf { lazyListState.firstVisibleItemIndex > 1 } }
     // PERF: hero'nun görünürlük bilgisini derivedStateOf içine al — doğrudan
     // firstVisibleItemIndex okumak her kaydırma karesinde hero'yu ve tüm
@@ -410,7 +356,8 @@ fun ExploreScreen(
                             if (heroItems.isNotEmpty()) {
                                 item(key = "explore_hero") {
                                     KitsugiHeroSection(
-                                        items = displayHeroItems,
+                                        items = heroItems,
+                                        artworkPrepared = true,
                                         alreadyInList = isAlreadyInList,
                                         onInfoClick = onOpenApiDetail,
                                         titleLanguage = titleLanguage,
@@ -422,8 +369,8 @@ fun ExploreScreen(
                                     )
                                     Spacer(modifier = Modifier.height(6.dp))
                                 }
-                            } else if (viewModel.isLoading) {
-                                item {
+                            } else if (viewModel.isLoading || viewModel.isHeroLoading) {
+                                item(key = "explore_hero") {
                                     KitsugiShimmerHeroSection()
                                     Spacer(modifier = Modifier.height(6.dp))
                                 }

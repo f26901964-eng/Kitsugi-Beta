@@ -576,26 +576,24 @@ class ApiResultDetailViewModel(application: Application) : AndroidViewModel(appl
             // MAL/AniList/TMDB birleştirmesidir; TMDB kapalı olsa bile çalışmalıdır (TMDB'ye
             // bağlı kısımlar istemcide zaten ayarı kontrol eder).
             val isBangumiResult = result.source.equals("bangumi", ignoreCase = true)
-            val enriched = if (tmdbEnabled || isBangumiResult) {
-                try {
-                    withTimeoutOrNull(enrichTimeoutMillis) {
-                        withContext(Dispatchers.IO) {
-                            apiClient.enrichDetail(
-                                source = result.source,
-                                externalId = result.malId,
-                                mediaType = result.type,
-                                detail = detail,
-                                tmdbId = result.tmdbId,
-                                realMalId = result.realMalId,
-                                title = result.title
-                            )
-                        }
+            val enriched = try {
+                withTimeoutOrNull(enrichTimeoutMillis) {
+                    withContext(Dispatchers.IO) {
+                        apiClient.enrichDetail(
+                            source = result.source,
+                            externalId = result.malId,
+                            mediaType = result.type,
+                            detail = detail,
+                            tmdbId = if (tmdbEnabled) result.tmdbId else null,
+                            realMalId = result.realMalId,
+                            title = result.title
+                        )
                     }
-                } catch (e: Exception) {
-                    Log.e(TAG, "Enrichment failed, keeping primary detail: ${e.message}")
-                    null
                 }
-            } else null
+            } catch (e: Exception) {
+                Log.e(TAG, "Enrichment failed, keeping primary detail: ${e.message}")
+                null
+            }
 
             val finalDetail = enriched ?: detail
             if (enriched != null && enriched !== detail) {

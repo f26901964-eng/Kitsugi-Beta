@@ -58,6 +58,7 @@ import com.kitsugi.animelist.utils.toFriendlySourceLabel
 import androidx.compose.foundation.layout.size
 import androidx.compose.ui.unit.sp
 import com.kitsugi.animelist.data.remote.KitsugiMediaDetail
+import com.kitsugi.animelist.data.remote.KitsugiTag
 import com.kitsugi.animelist.model.MediaType
 import com.kitsugi.animelist.ui.theme.LocalKitsugiAccent
 import com.kitsugi.animelist.ui.theme.KitsugiColors
@@ -545,45 +546,14 @@ internal fun ApiTrailerCard(
 @Composable
 internal fun ApiGenresChipRow(
     genres: List<String>,
+    tags: List<KitsugiTag> = emptyList(),
     onGenreClick: (String) -> Unit = {}
 ) {
-    val accentColor = LocalKitsugiAccent.current
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(22.dp))
-            .background(KitsugiColors.Surface)
-            .padding(16.dp)
-    ) {
-        Text(
-            text = stringResource(R.string.detail_section_genres),
-            color = KitsugiColors.TextPrimary,
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.Bold
-        )
-        Spacer(modifier = Modifier.height(10.dp))
-        FlowRow(
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            genres.forEach { genre ->
-                Box(
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(999.dp))
-                        .background(accentColor.copy(alpha = 0.15f))
-                        .tvClickable(shape = RoundedCornerShape(999.dp), onClick = { onGenreClick(genre.toEnglishGenreForSearch()) })
-                        .padding(horizontal = 12.dp, vertical = 6.dp)
-                ) {
-                    Text(
-                        text = genre.toTurkishGenre(),
-                        color = accentColor,
-                        style = MaterialTheme.typography.labelMedium,
-                        fontWeight = FontWeight.SemiBold
-                    )
-                }
-            }
-        }
-    }
+    KitsugiGenresCard(
+        genres = genres,
+        tags = tags,
+        onGenreClick = onGenreClick
+    )
 }
 
 @Composable

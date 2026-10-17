@@ -48,9 +48,9 @@ internal object TmdbMediaDetailClient {
         val typePath = if (isMovie) "movie" else "tv"
         val lang = language
 
-        // append_to_response=alternative_titles: ek ağ isteği olmadan alternatif başlıklar
-        // (TR / US / JP ...) gelir; Türkçe → İngilizce → Romaji zinciri bu veriyle kurulur.
-        val trUrl = "https://api.themoviedb.org/3/$typePath/$tmdbId?api_key=$apiKey&language=$lang&append_to_response=alternative_titles"
+        // append_to_response=alternative_titles,keywords: ek ağ isteği olmadan alternatif başlıklar
+        // (TR / US / JP ...) ve anahtar kelimeler (etiketler) gelir.
+        val trUrl = "https://api.themoviedb.org/3/$typePath/$tmdbId?api_key=$apiKey&language=$lang&append_to_response=alternative_titles,keywords"
         val enUrl = TmdbUrlUtils.englishVariant(trUrl)
 
         return try {
@@ -227,6 +227,7 @@ internal object TmdbMediaDetailClient {
             } else Pair(null, emptyList())
 
             val score100 = (rating * 10).toInt().coerceIn(0, 100)
+            val tmdbTags = if (features.useBasicInfo) extractKeywords(finalJson, isMovie) else emptyList()
 
             KitsugiMediaDetail(
                 synopsis = finalOverview,
@@ -258,7 +259,7 @@ internal object TmdbMediaDetailClient {
                 total = totalEpisodes,
                 isAdult = features.useBasicInfo && finalJson.optBoolean("adult", false),
                 realMalId = null,
-                tags = emptyList(),
+                tags = tmdbTags,
                 externalLinks = watchProviders,
                 streamingLinks = watchProviders,
                 streamingEpisodes = emptyList(),
@@ -295,6 +296,34 @@ internal object TmdbMediaDetailClient {
             out.add(item.optString("iso_3166_1", "").uppercase() to altTitle)
         }
         return out
+    }
+
+    /**
+     * `append_to_response=keywords` yanıtından TMDB anahtar kelimelerini (etiketleri) çıkarır.
+     * Film uçları `keywords`, dizi uçları `results` dizisini döndürür.
+     */
+    private fun extractKeywords(json: JSONObject?, isMovie: Boolean): List<KitsugiTag> {
+        val kwObj = json?.optJSONObject("keywords") ?: return emptyList()
+        val array = (if (isMovie) kwObj.optJSONArray("keywords") else kwObj.optJSONArray("results"))
+            ?: kwObj.optJSONArray("keywords")
+            ?: kwObj.optJSONArray("results")
+            ?: return emptyList()
+        val out = mutableListOf<KitsugiTag>()
+        for (i in 0 until array.length()) {
+            val item = array.optJSONObject(i) ?: continue
+            val name = item.optString("name", "").trim()
+            if (name.isEmpty()) continue
+            val id = item.optInt("id").takeIf { it > 0 }
+            out.add(
+                KitsugiTag(
+                    id = id,
+                    name = name,
+                    isSpoiler = com.kitsugi.animelist.utils.KitsugiSpoilerRules.isIntrinsicSpoiler(name),
+                    source = "tmdb"
+                )
+            )
+        }
+        return com.kitsugi.animelist.utils.KitsugiSpoilerRules.normalizeAndMergeTags(out)
     }
 
     suspend fun fetchMediaImages(

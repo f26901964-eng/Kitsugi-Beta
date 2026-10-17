@@ -8,6 +8,7 @@ import com.kitsugi.animelist.data.auth.BangumiApiClient
 import com.kitsugi.animelist.data.auth.BangumiApiClient.BangumiSubject
 import com.kitsugi.animelist.data.auth.BangumiAuthStore
 import com.kitsugi.animelist.model.MediaType
+import com.kitsugi.animelist.utils.KitsugiSpoilerRules
 import com.kitsugi.animelist.utils.toLatinStudioName
 import com.kitsugi.animelist.utils.localizedDistinctTags
 import com.kitsugi.animelist.utils.toLocalizedTagLabel
@@ -318,7 +319,22 @@ object KitsugiBangumiDetailClient {
                 Log.w(TAG, "Eşlik detayı alınamadı: ${e.message}")
                 null
             }
-            val merged = mergeDetail(base, companion, cross, mediaType)
+            var merged = mergeDetail(base, companion, cross, mediaType)
+            if (companion == null && (cross.aniListId != null || cross.malId != null)) {
+                val alInfo = runCatching {
+                    KitsugiAniListDetailClient.fetchTagsAndAiringInfo(
+                        aniListId = cross.aniListId,
+                        malId = cross.malId,
+                        mediaType = mediaType
+                    )
+                }.getOrNull()
+                if (alInfo != null && (alInfo.tags.isNotEmpty() || alInfo.nextAiringEpisode != null)) {
+                    merged = merged.copy(
+                        tags = KitsugiSpoilerRules.mergeTagsPreservingSpoilers(merged.tags, alInfo.tags, limit = 48),
+                        nextAiringEpisode = merged.nextAiringEpisode ?: alInfo.nextAiringEpisode
+                    )
+                }
+            }
             rememberLatinTitle(rawId, merged)
             withStudioPersonIds(merged)
         }
@@ -335,13 +351,37 @@ object KitsugiBangumiDetailClient {
                         null
                     }
                 }
-                fromMal ?: cross.aniListStableId?.let { stable ->
-                    try {
-                        KitsugiAniListDetailClient.fetchDetail(stable, mediaType)
+                if (fromMal != null) {
+                    // MAL/Jikan detayında AniList'in yapıma özel spoiler etiketleri (`isMediaSpoiler` /
+                    // `isGeneralSpoiler`) ve yüzdelik `rank` bilgisi bulunmaz; bunları AniList'ten tamamla.
+                    val alInfo = try {
+                        KitsugiAniListDetailClient.fetchTagsAndAiringInfo(
+                            aniListId = cross.aniListId,
+                            malId = cross.malId,
+                            mediaType = mediaType
+                        )
                     } catch (e: CancellationException) {
                         throw e
                     } catch (e: Exception) {
                         null
+                    }
+                    if (alInfo != null && (alInfo.tags.isNotEmpty() || alInfo.nextAiringEpisode != null)) {
+                        fromMal.copy(
+                            tags = KitsugiSpoilerRules.mergeTagsPreservingSpoilers(fromMal.tags, alInfo.tags, limit = 48),
+                            nextAiringEpisode = fromMal.nextAiringEpisode ?: alInfo.nextAiringEpisode
+                        )
+                    } else {
+                        fromMal
+                    }
+                } else {
+                    cross.aniListStableId?.let { stable ->
+                        try {
+                            KitsugiAniListDetailClient.fetchDetail(stable, mediaType)
+                        } catch (e: CancellationException) {
+                            throw e
+                        } catch (e: Exception) {
+                            null
+                        }
                     }
                 }
             }
@@ -453,9 +493,16 @@ object KitsugiBangumiDetailClient {
             isAdult = subject.nsfw,
             // Etiketler arayüz diline çevrilir ve çeviriden sonra aynı anlama gelen yazımlar
             // (催泪 / 催涙 / Duygusal) tek çipe indirgenir. Modelde orijinal değer kalır; çip
-            // aramayı orijinaliyle yapar.
+            // aramayı orijinaliyle yapar. Doğal spoiler etiketler ilk andan itibaren işaretlenir.
             tags = subject.tags.localizedDistinctTags(40)
-                .map { KitsugiTag(name = it, rank = null, isSpoiler = false, source = SOURCE) },
+                .map {
+                    KitsugiTag(
+                        name = it,
+                        rank = null,
+                        isSpoiler = KitsugiSpoilerRules.isIntrinsicSpoiler(it),
+                        source = SOURCE
+                    )
+                },
             externalLinks = links,
             pictures = emptyList(),
             meanScore = ratingScore?.let { (it * 10).toInt() },
@@ -490,20 +537,19 @@ object KitsugiBangumiDetailClient {
             return base.copy(
                 realMalId = cross.malId ?: base.realMalId,
                 tmdbId = cross.tmdbId ?: base.tmdbId,
+                tags = KitsugiSpoilerRules.applySpoilerFlags(base.tags),
                 externalLinks = links
             )
         }
         // Etiketler birleştirilirken modelde HER ZAMAN kaynağın özgün adı kalır (çipe
         // tıklandığında arama o değerle yapılır); çeviri gösterim katmanındadır. Tekilleştirme
-        // ise çevrilmiş hâline göre yapılır, böylece 京都动画 / 京阿尼 / "Kyoto Animation"
-        // üçlüsü ekranda tek çip görünür.
-        val seenTagLabels = HashSet<String>()
-        val mergedTags = (base.tags + other.tags)
-            .filter { tag ->
-                val label = tag.name.trim().toLocalizedTagLabel().trim().lowercase(Locale.ROOT)
-                label.isNotEmpty() && seenTagLabels.add(label)
-            }
-            .take(48)
+        // ise çevrilmiş hâline ve kanonik anahtara göre yapılır; eşleşen etiketlerde AniList'in
+        // `isSpoiler` ve `rank` bilgileri Bangumi etiketine aktarılır.
+        val mergedTags = KitsugiSpoilerRules.mergeTagsPreservingSpoilers(
+            primary = base.tags,
+            secondary = other.tags,
+            limit = 48
+        )
         return base.copy(
             // Özet tercihi: Bangumi açıklaması Çince/Japonca geldiyse ve eşleşen kayıtta Latin
             // (İngilizce) açıklama varsa O kullanılır — otomatik çeviri İngilizce kaynaktan

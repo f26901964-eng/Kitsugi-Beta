@@ -207,30 +207,22 @@ internal fun ExplorePayload.forSource(platform: ExplorePlatform): ExplorePayload
 }
 
 /**
- * "Tümü" modu vitrini: adaylar tüm kaynakların tüm bölümlerinden sayısal
- * metriklere (puan, üye, favori, rank + trend/yeni eklenen bonusu) göre
- * puanlanır ve [selectHeroItems] ile seçilir.
- *
- * Sözleşme: her mevcut kaynaktan en az bir temsil garanti edilir (bir
- * kaynaktan ikinci öğe seçilmeden önce diğer kaynaklar temsil edilir),
- * kalan kontenjan en yüksek skorlu adaylarla doldurulur — böylece vitrin
- * hem tüm kaynakları hem de en iyi içerikleri kapsar.
- *
- * [sections] bilinçli olarak çağırandan alınır: UI katmanı bu listeyi
- * `remember` ile önbellekler; her çağrıda yeniden üretmek (forSource kopyaları +
- * distinctBy string hesapları) Keşfet'te kare düşüşlerine neden oluyordu.
+ * ALL: one random, unique, horizontal-artwork item per available source/shelf.
+ * Missing shelves are skipped; manga/book items are rejected by media type (not by
+ * legacy *_MANGA field names, which TMDB/SIMKL also use for video shelves).
  */
 fun allSourceHeroes(
-    sections: List<ExploreSourceSection>
+    sections: List<ExploreSourceSection>,
+    airingSoon: List<JikanSearchResult> = emptyList(),
+    random: kotlin.random.Random = kotlin.random.Random.Default
 ): List<JikanSearchResult> = selectHeroItems(
     sections = sections,
-    limit = HERO_LIMIT_ALL,
-    guaranteeSourceCoverage = true,
-    perCategoryCap = HERO_PER_CATEGORY_CAP,
-    perSourceCap = HERO_PER_SOURCE_CAP
+    itemsPerSection = HERO_PER_SECTION_ALL,
+    airingSoon = airingSoon,
+    random = random
 )
 
-/** Test/uyumluluk kısayolu: bölümleri kendisi üretir. UI tarafı önbellekli [sections] kullanır. */
+/** Test/compatibility shortcut; the UI prepares artwork asynchronously before admission. */
 fun allSourceHeroes(
     states: Map<ExplorePlatform, ExploreSourceState>,
     showAdultContent: Boolean

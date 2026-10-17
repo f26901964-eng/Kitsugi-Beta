@@ -160,6 +160,7 @@ internal fun EntryDetailOverviewTab(
         if (!detail?.genres.isNullOrEmpty()) {
             EntryGenresChipRow(
                 genres = detail!!.genres,
+                tags = detail.tags,
                 onGenreClick = onGenreClick
             )
         }

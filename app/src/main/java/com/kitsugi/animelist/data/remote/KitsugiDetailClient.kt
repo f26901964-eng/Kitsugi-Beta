@@ -763,20 +763,21 @@ class KitsugiDetailClient {
         } else {
             detail
         }
-        if (externalId == null || externalId <= 0 || mediaType == MediaType.Manga) {
-            if (isBangumi && externalId != null && externalId > 0 && baseDetail !== detail) {
-                saveToRoomCache(source, mediaType, externalId, baseDetail)
-            }
-            return@withContext baseDetail
+        if (externalId == null || externalId <= 0) {
+            return@withContext baseDetail.copy(
+                tags = KitsugiSpoilerRules.applySpoilerFlags(baseDetail.tags)
+            )
         }
 
-        val currentDetail = baseDetail
+        val currentDetail = baseDetail.copy(
+            tags = KitsugiSpoilerRules.applySpoilerFlags(baseDetail.tags)
+        )
 
         // Bangumi stableId'si (500M+) gerçek MAL ID değildir; çağıranın verdiği değer süzülür.
         val safeRealMalId = if (isBangumi) KitsugiBangumiDetailClient.sanitizeMalId(realMalId) else realMalId
 
-        // TMDB zenginleştirmesi için en iyi MAL ID'yi bul
-        val simklCrossForEnrich = if (source.equals("simkl", ignoreCase = true) && externalId > 0) {
+        // TMDB zenginleştirmesi (yalnızca Manga dışı türler için)
+        val simklCrossForEnrich = if (mediaType != MediaType.Manga && source.equals("simkl", ignoreCase = true) && externalId > 0) {
             runCatching {
                 KitsugiSimklDetailClient.resolveSimklCrossIds(
                     simklId = externalId,
@@ -792,7 +793,9 @@ class KitsugiDetailClient {
             ?: simklCrossForEnrich?.malId
             ?: if (source.lowercase() == "anilist" && externalId < 100_000_000) externalId else null
 
-        var resolvedTmdbId = tmdbId ?: currentDetail.tmdbId ?: simklCrossForEnrich?.tmdbId
+        var resolvedTmdbId = if (mediaType != MediaType.Manga) {
+            tmdbId ?: currentDetail.tmdbId ?: simklCrossForEnrich?.tmdbId
+        } else null
 
         // Fallback scenario 2: Primary detail is not null, but tmdbId is missing -> Try direct TMDB search fallback by title!
         if ((resolvedTmdbId == null || resolvedTmdbId <= 0) && (mediaType == MediaType.Movie || mediaType == MediaType.TvShow)) {
@@ -808,7 +811,9 @@ class KitsugiDetailClient {
             }
         }
 
-        val trMeta = getTurkishMetadataFromTmdb(source, externalId, mediaType, resolvedTmdbId, effectiveRealMalId)
+        val trMeta = if (mediaType != MediaType.Manga) {
+            getTurkishMetadataFromTmdb(source, externalId, mediaType, resolvedTmdbId, effectiveRealMalId)
+        } else null
         var mergedDetail = if (trMeta != null) {
             val updatedSynopsis = if (!trMeta.synopsis.isNullOrBlank()) trMeta.synopsis else currentDetail.synopsis
             // Kaynak Otoritesi Kuralı (Source Authority Preservation):
@@ -816,6 +821,7 @@ class KitsugiDetailClient {
             val updatedTitle = if (!currentDetail.title.isNullOrBlank()) currentDetail.title else trMeta.title
             val updatedTitleEnglish = if (!currentDetail.titleEnglish.isNullOrBlank()) currentDetail.titleEnglish else trMeta.titleEnglish
             val updatedGenres = if (currentDetail.genres.isNotEmpty()) currentDetail.genres else trMeta.genres
+            val updatedTags = KitsugiSpoilerRules.mergeTagsPreservingSpoilers(currentDetail.tags, trMeta.tags)
             val combinedPictures = (currentDetail.pictures.orEmpty() + trMeta.pictures.orEmpty()).distinct()
             val mergedStudios = if (currentDetail.studios.isNotEmpty()) currentDetail.studios else trMeta.studios
             val mergedProducers = if (currentDetail.producers.isNotEmpty()) currentDetail.producers else trMeta.producers
@@ -827,6 +833,7 @@ class KitsugiDetailClient {
                 title = updatedTitle,
                 titleEnglish = updatedTitleEnglish,
                 genres = updatedGenres,
+                tags = updatedTags,
                 tmdbId = resolvedTmdbId ?: currentDetail.tmdbId,
                 realMalId = effectiveRealMalId ?: currentDetail.realMalId ?: trMeta.realMalId,
                 type = currentDetail.type ?: mediaType,
@@ -859,28 +866,63 @@ class KitsugiDetailClient {
             )
         }
 
-        // Eğer nextAiringEpisode hâlâ null ise AniList üzerinden çöz ve çek
-        if (mergedDetail.nextAiringEpisode == null) {
-            val malIdForResolve = when (MalJikanMediaSupport.canonicalSource(source)) {
-                "simkl" -> realMalId ?: mergedDetail.realMalId
-                "jikan", "mal" -> externalId
-                "anilist" -> if (externalId < 100_000_000) externalId else realMalId ?: mergedDetail.realMalId
-                "kitsu" -> realMalId ?: mergedDetail.realMalId
+        // Tüm kaynaklarda (MAL/Jikan, Shikimori, Kitsu, Bangumi, Simkl, TMDB vb.) AniList'teki
+        // spoiler etiketlerini (`isMediaSpoiler`, `isGeneralSpoiler`, `rank`) ve varsa
+        // `nextAiringEpisode` bilgisini çözüp birleştir.
+        val canonicalSrc = MalJikanMediaSupport.canonicalSource(source)
+        val hasAniListRankedTags = canonicalSrc == "anilist" || mergedDetail.tags.any { it.source == "anilist" }
+        val needsAniListEnrich = !hasAniListRankedTags || (mediaType != MediaType.Manga && mergedDetail.nextAiringEpisode == null)
+        if (needsAniListEnrich) {
+            val malIdForResolve = when (canonicalSrc) {
+                "simkl" -> safeRealMalId ?: mergedDetail.realMalId ?: simklCrossForEnrich?.malId
+                "jikan", "mal" -> externalId.takeIf { it in 1..99_999_999 } ?: mergedDetail.realMalId
+                "anilist" -> if (externalId < 100_000_000) externalId else safeRealMalId ?: mergedDetail.realMalId
+                "kitsu" -> safeRealMalId ?: mergedDetail.realMalId
                 "bangumi" -> mergedDetail.realMalId
                 // Shikimori kimlik uzayı MAL DEĞİLDİR — önce gerçek MAL kimliğine çözümlenir.
-                "shikimori" -> runCatching { KitsugiIdResolver.resolveMalIdFromShikimori(externalId) }.getOrNull()
-                    ?: mergedDetail.realMalId
-                "tmdb" -> realMalId ?: mergedDetail.realMalId
-                else -> null
+                "shikimori" -> mergedDetail.realMalId
+                    ?: runCatching { KitsugiIdResolver.resolveMalIdFromShikimori(externalId) }.getOrNull()
+                "tmdb" -> safeRealMalId ?: mergedDetail.realMalId
+                else -> safeRealMalId ?: mergedDetail.realMalId
             }
-            val resolvedAniListId = runCatching {
-                KitsugiIdResolver.resolveIds(malId = malIdForResolve, aniListId = null, mediaType = mediaType).aniListId
+            val kitsuRawId = if (canonicalSrc == "kitsu") KitsuIdNamespace.rawIdFromStable(externalId) else null
+            val resolvedIds = runCatching {
+                KitsugiIdResolver.resolveIds(
+                    malId = malIdForResolve,
+                    aniListId = simklCrossForEnrich?.aniListId,
+                    tmdbId = mergedDetail.tmdbId,
+                    mediaType = mediaType,
+                    kitsuId = kitsuRawId
+                )
             }.getOrNull()
-            if (resolvedAniListId != null && resolvedAniListId > 0) {
-                val nextAiring = KitsugiAniListDetailClient.fetchNextAiringEpisodeOnly(resolvedAniListId)
-                if (nextAiring != null) {
-                    mergedDetail = mergedDetail.copy(nextAiringEpisode = nextAiring)
+            val resolvedAniListId = simklCrossForEnrich?.aniListId ?: resolvedIds?.aniListId
+            val resolvedMalId = malIdForResolve ?: resolvedIds?.malId
+            val fallbackSearchTitle = if (resolvedAniListId == null && resolvedMalId == null &&
+                (mediaType == MediaType.Anime || mediaType == MediaType.Manga)
+            ) {
+                mergedDetail.titleEnglish ?: mergedDetail.titleRomaji ?: mergedDetail.title ?: title
+            } else null
+
+            val alInfo = runCatching {
+                KitsugiAniListDetailClient.fetchTagsAndAiringInfo(
+                    aniListId = resolvedAniListId,
+                    malId = resolvedMalId,
+                    searchTitle = fallbackSearchTitle,
+                    mediaType = mediaType
+                )
+            }.getOrNull()
+
+            if (alInfo != null) {
+                val enrichedTags = if (alInfo.tags.isNotEmpty()) {
+                    KitsugiSpoilerRules.mergeTagsPreservingSpoilers(mergedDetail.tags, alInfo.tags, limit = 48)
+                } else {
+                    KitsugiSpoilerRules.applySpoilerFlags(mergedDetail.tags)
                 }
+                mergedDetail = mergedDetail.copy(
+                    tags = enrichedTags,
+                    realMalId = mergedDetail.realMalId ?: alInfo.malId ?: resolvedMalId,
+                    nextAiringEpisode = mergedDetail.nextAiringEpisode ?: alInfo.nextAiringEpisode
+                )
             }
         }
 
@@ -922,7 +964,7 @@ class KitsugiDetailClient {
      */
     private fun detailCacheKey(source: String, mediaTypeStr: String, keyId: Int): String {
         val base = "${source.lowercase()}_${mediaTypeStr}_$keyId"
-        return when {
+        val versioned = when {
             // v2: Bangumi'nin English / romaji / özgün adları ayrı taşınır. Önceki
             // sürümde Çince ad ana başlığa yazıldığı için eski satırlar okunmaz.
             source.equals("bangumi", ignoreCase = true) -> "${base}_bgm2"
@@ -934,6 +976,7 @@ class KitsugiDetailClient {
             MediaTitleResolver.isLatinPreferredSource(source) -> "${base}_vl${MediaTitleResolver.VERSION}"
             else -> base
         }
+        return "${versioned}_sp1"
     }
 
     /** Birincil detay + zenginleşmiş detay ortak Room önbellek yazarı. */

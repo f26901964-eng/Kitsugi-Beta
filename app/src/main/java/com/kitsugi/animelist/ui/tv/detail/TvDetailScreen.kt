@@ -431,8 +431,10 @@ fun TvDetailScreen(
                                 lineHeight = 22.sp
                             )
 
-                            // Genres + Studios
+                            // Genres + Studios (spoiler türler vitrinde gizlenir)
+                            val detailTags = detailState?.tags.orEmpty()
                             val genres = detailState?.genres.orEmpty()
+                                .filterNot { com.kitsugi.animelist.utils.KitsugiSpoilerRules.isGenreSpoiler(it, detailTags) }
                             val studios = detailState?.studios.orEmpty().filter { it.isMain }.map { it.name }
                             if (genres.isNotEmpty() || studios.isNotEmpty()) {
                                 androidx.compose.foundation.lazy.LazyRow(

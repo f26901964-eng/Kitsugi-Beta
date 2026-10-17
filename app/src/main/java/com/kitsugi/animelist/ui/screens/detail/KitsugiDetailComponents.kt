@@ -10,7 +10,9 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -38,6 +40,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.kitsugi.animelist.R
 import com.kitsugi.animelist.utils.toLocalizedOrgName
+import com.kitsugi.animelist.utils.toTurkishGenre
+import com.kitsugi.animelist.utils.toEnglishGenreForSearch
 import com.kitsugi.animelist.data.remote.KitsugiExternalLink
 import com.kitsugi.animelist.data.remote.KitsugiStudio
 import com.kitsugi.animelist.data.remote.KitsugiTag
@@ -169,16 +173,21 @@ fun KitsugiTagsCard(
     var showSpoilers by remember { mutableStateOf(false) }
     var expanded by remember { mutableStateOf(false) }
 
-    // Çeviriden sonra aynı anlama gelen yazımlar tek çipte toplanır: Bangumi'de
-    // 京阿尼 / 京都动画 / 京都アニメーション ve "Kyoto Animation" ayrı kayıtlar olarak gelir.
+    // Çeviriden sonra aynı anlama gelen yazımlar tek çipte toplanır; kopyalardan
+    // herhangi biri spoiler ise `isSpoiler = true` ve `rank` korunur.
     val distinctTags = tags.distinctByLocalizedLabel()
+    val nonSpoilerTags = distinctTags.filter { !it.isSpoiler }
+    val spoilerTags = distinctTags.filter { it.isSpoiler }
 
-    val visibleTags = distinctTags
-        .filter { showSpoilers || !it.isSpoiler }
-        .let { if (!expanded) it.take(10) else it }
+    val visibleTags = when {
+        expanded && showSpoilers -> distinctTags
+        expanded -> nonSpoilerTags
+        showSpoilers -> nonSpoilerTags.take(10) + spoilerTags
+        else -> nonSpoilerTags.take(10)
+    }
 
-    val hasSpoilers = distinctTags.any { it.isSpoiler }
-    val hasMore = distinctTags.filter { showSpoilers || !it.isSpoiler }.size > 10
+    val hasSpoilers = spoilerTags.isNotEmpty()
+    val hasMore = nonSpoilerTags.size > 10
 
     Column(
         modifier = Modifier
@@ -290,11 +299,140 @@ private fun TagChip(tag: KitsugiTag, accentColor: Color, onClick: (() -> Unit)? 
     }
 }
 
-/** Gösterim etiketi aynı olan çipleri tekilleştirir (ilk kayıt kalır). */
-private fun List<KitsugiTag>.distinctByLocalizedLabel(): List<KitsugiTag> {
-    if (size < 2) return this
-    val seen = HashSet<String>()
-    return filter { seen.add(it.name.toLocalizedTagLabel().trim().lowercase(java.util.Locale.ROOT)) }
+/** Gösterim etiketi aynı olan çipleri tekilleştirir (`isSpoiler = true` ve `rank` korunur). */
+private fun List<KitsugiTag>.distinctByLocalizedLabel(): List<KitsugiTag> =
+    com.kitsugi.animelist.utils.KitsugiSpoilerRules.normalizeAndMergeTags(this)
+
+private data class GenreChipItem(
+    val rawGenre: String,
+    val displayLabel: String,
+    val isSpoiler: Boolean
+)
+
+/**
+ * Türler (Genres) kartı — AniList ile aynı spoiler gizleme/gösterme mantığını uygular.
+ *
+ * MAL/Jikan, Bangumi, Shikimori, Kitsu gibi kaynaklarda `genres` listesine dahil edilen
+ * alt temalar (ör. Tragedy/Trajedi, Time Loop, Survival, Reincarnation vb.) doğal spoiler
+ * olduğunda veya bu yapım için AniList'te spoiler etiketi olarak işaretlendiğinde
+ * varsayılan olarak gizlenir ve "Spoiler'ları Göster / Gizle" anahtarıyla kırmızı çip
+ * olarak açılır.
+ */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+fun KitsugiGenresCard(
+    genres: List<String>,
+    tags: List<KitsugiTag> = emptyList(),
+    onGenreClick: (String) -> Unit = {}
+) {
+    if (genres.isEmpty()) return
+    val accentColor = LocalKitsugiAccent.current
+    var showSpoilers by remember { mutableStateOf(false) }
+
+    val genreItems = remember(genres, tags) {
+        val list = ArrayList<GenreChipItem>(genres.size)
+        val indexByLabel = HashMap<String, Int>(genres.size)
+        for (raw in genres) {
+            val trimmed = raw.trim()
+            if (trimmed.isEmpty()) continue
+            val display = trimmed.toTurkishGenre().trim()
+            if (display.isEmpty()) continue
+            val key = display.lowercase(java.util.Locale.ROOT)
+            val spoiler = com.kitsugi.animelist.utils.KitsugiSpoilerRules.isGenreSpoiler(trimmed, tags)
+            val existingIdx = indexByLabel[key]
+            if (existingIdx == null) {
+                indexByLabel[key] = list.size
+                list.add(GenreChipItem(rawGenre = trimmed, displayLabel = display, isSpoiler = spoiler))
+            } else if (spoiler && !list[existingIdx].isSpoiler) {
+                list[existingIdx] = list[existingIdx].copy(isSpoiler = true)
+            }
+        }
+        list
+    }
+
+    if (genreItems.isEmpty()) return
+
+    val hasSpoilers = genreItems.any { it.isSpoiler }
+    val visibleGenres = if (showSpoilers) genreItems else genreItems.filter { !it.isSpoiler }
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(22.dp))
+            .animateDetailContentSize()
+            .background(KitsugiColors.Surface)
+            .padding(16.dp)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = stringResource(R.string.detail_section_genres),
+                color = KitsugiColors.TextPrimary,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold
+            )
+            if (hasSpoilers) {
+                Row(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(12.dp))
+                        .tvClickable(shape = RoundedCornerShape(12.dp)) { showSpoilers = !showSpoilers }
+                        .padding(horizontal = 10.dp, vertical = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Rounded.Lock,
+                        contentDescription = null,
+                        tint = KitsugiColors.TextSecondary,
+                        modifier = Modifier.size(13.dp)
+                    )
+                    Text(
+                        text = if (showSpoilers) stringResource(R.string.ui_spoiler_hide) else stringResource(R.string.ui_spoiler_show),
+                        color = KitsugiColors.TextSecondary,
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
+            }
+        }
+        if (visibleGenres.isNotEmpty()) {
+            Spacer(modifier = Modifier.height(10.dp))
+            FlowRow(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                visibleGenres.forEach { item ->
+                    val chipColor = if (item.isSpoiler) KitsugiColors.AccentRed else accentColor
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(999.dp))
+                            .background(chipColor.copy(alpha = if (item.isSpoiler) 0.10f else 0.15f))
+                            .then(
+                                if (item.isSpoiler) {
+                                    Modifier.border(0.5.dp, chipColor.copy(alpha = 0.30f), RoundedCornerShape(999.dp))
+                                } else {
+                                    Modifier
+                                }
+                            )
+                            .tvClickable(shape = RoundedCornerShape(999.dp)) {
+                                onGenreClick(item.rawGenre.toEnglishGenreForSearch())
+                            }
+                            .padding(horizontal = 12.dp, vertical = 6.dp)
+                    ) {
+                        Text(
+                            text = item.displayLabel,
+                            color = chipColor,
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
+                }
+            }
+        }
+    }
 }
 
 // ---------------------------------------------------------------------------

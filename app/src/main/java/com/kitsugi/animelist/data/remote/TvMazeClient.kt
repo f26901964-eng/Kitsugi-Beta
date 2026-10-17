@@ -81,9 +81,20 @@ object TvMazeClient {
             links.add(KitsugiExternalLink("IMDb", "https://www.imdb.com/title/$imdbId", "EN"))
         }
 
+        val tvmazeTags = genres
+            .filter { it.isNotBlank() && !com.kitsugi.animelist.ui.screens.search.CanonicalFilterBridge.isOfficialAniListGenre(it) }
+            .map {
+                KitsugiTag(
+                    name = it,
+                    isSpoiler = com.kitsugi.animelist.utils.KitsugiSpoilerRules.isIntrinsicSpoiler(it),
+                    source = "tvmaze"
+                )
+            }
+
         return KitsugiMediaDetail(
             synopsis = summary,
             genres = genres.toTurkishGenres(),
+            tags = tvmazeTags,
             status = statusVal,
             titleEnglish = name,
             titleRomaji = name,

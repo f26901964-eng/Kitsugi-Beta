@@ -2,38 +2,28 @@ package com.kitsugi.animelist.ui.screens.explore
 
 import com.kitsugi.animelist.data.remote.JikanSearchResult
 import com.kitsugi.animelist.model.MediaType
+import com.kitsugi.animelist.ui.components.homeHeroItemKey
 import com.kitsugi.animelist.ui.components.shouldShowHeroLogo
-import org.junit.Assert.assertEquals
-import org.junit.Assert.assertNull
-import org.junit.Assert.assertTrue
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withTimeout
+import org.junit.Assert.*
 import org.junit.Test
+import java.util.concurrent.atomic.AtomicInteger
+import kotlin.random.Random
 
 class HeroSelectionTest {
-
     private fun item(
         id: Int,
-        score: Int? = null,
-        rawScoreDouble: Double? = null,
-        members: Int? = null,
-        favorites: Int? = null,
-        rank: Int? = null,
         source: String = "anilist",
-        type: MediaType = MediaType.Anime
+        type: MediaType = MediaType.Anime,
+        backdrop: String? = "https://example.test/backdrop_$id.jpg"
     ) = JikanSearchResult(
-        malId = id,
-        title = "Title $id",
-        subtitle = "",
-        type = type,
-        total = null,
-        score = score,
-        isAdult = false,
-        imageUrl = "https://example.test/poster_$id.jpg",
-        year = 2026,
-        source = source,
-        members = members,
-        favorites = favorites,
-        rank = rank,
-        rawScoreDouble = rawScoreDouble
+        malId = id, title = "Title $id", subtitle = "", type = type,
+        total = null, score = 8, isAdult = false,
+        imageUrl = "https://example.test/poster_$id.jpg", year = 2026,
+        source = source, backdropUrl = backdrop
     )
 
     private fun section(
@@ -42,174 +32,220 @@ class HeroSelectionTest {
         platform: ExplorePlatform = ExplorePlatform.AniList
     ) = ExploreSourceSection(platform, category, category.name, items)
 
-    // ── Vitrin logoları ───────────────────────────────────────────────────
+    private val videoCategories = listOf(
+        ExploreCategoryType.TOP_ANIME, ExploreCategoryType.TRENDING_ANIME,
+        ExploreCategoryType.TOP_RATED_ANIME, ExploreCategoryType.AIRING_ANIME,
+        ExploreCategoryType.UPCOMING_ANIME, ExploreCategoryType.MOVIE_ANIME,
+        ExploreCategoryType.SEASONAL_ANIME, ExploreCategoryType.NEWLY_ADDED_ANIME
+    )
 
-    @Test fun artworkLogoSourcesShowTheirHeroLogosWhenTheGlobalSettingIsOff() {
-        assertTrue(shouldShowHeroLogo(item(1, source = "bangumi"), showAnimeLogos = false))
-        assertTrue(shouldShowHeroLogo(item(2, source = "simkl"), showAnimeLogos = false))
-        assertTrue(shouldShowHeroLogo(item(3, source = "shikimori"), showAnimeLogos = false))
-        assertTrue(shouldShowHeroLogo(item(4, source = "SHIKI"), showAnimeLogos = false))
-        assertEquals(false, shouldShowHeroLogo(item(5, source = "anilist"), showAnimeLogos = false))
-        assertTrue(shouldShowHeroLogo(item(6, source = "anilist"), showAnimeLogos = true))
+    @Test fun allModeSelectsOneFromEverySourceShelfWithoutTheOldTwelveItemCap() {
+        val sections = ExplorePlatform.sources.flatMap { platform ->
+            videoCategories.mapIndexed { categoryIndex, category ->
+                val base = platform.ordinal * 1000 + categoryIndex * 10
+                section(category, (1..5).map { item(base + it, platform.name.lowercase()) }, platform)
+            }
+        }
+        val heroes = allSourceHeroes(sections, random = Random(42))
+        assertEquals(sections.size, heroes.size)
+        sections.forEach { shelf -> assertEquals(1, heroes.count { hero -> hero in shelf.results }) }
     }
 
-    @Test fun mangaDoesNotRequestAnimeLogoEvenWhenTheSettingIsEnabled() {
-        assertEquals(
-            false,
-            shouldShowHeroLogo(item(1, source = "bangumi", type = MediaType.Manga), showAnimeLogos = true)
-        )
+    @Test fun selectedSourceGetsTwoFromEachAvailableShelfAndTwoFromAiringSoon() {
+        val sections = videoCategories.mapIndexed { i, category ->
+            section(category, (1..5).map { item(i * 10 + it) })
+        }
+        val soon = (101..105).map { item(it) }
+        val heroes = selectHeroItems(sections, airingSoon = soon, random = Random(7))
+        assertEquals((videoCategories.size + 1) * 2, heroes.size)
+        sections.forEach { shelf -> assertEquals(2, heroes.count { it in shelf.results }) }
+        assertEquals(2, heroes.count { it in soon })
     }
 
-    // ── Normalizasyon ──────────────────────────────────────────────────────
-
-    @Test fun qualityScoreKeepsTenScaleSources() {
-        assertEquals(0.8, qualityScore(item(1, score = 8))!!, 0.0001)
-        assertEquals(0.95, qualityScore(item(2, rawScoreDouble = 9.5))!!, 0.0001)
-        assertNull(qualityScore(item(3, score = null)))
-        assertNull(qualityScore(item(4, score = 0)))
+    @Test fun missingOrSmallShelvesDoNotBorrowSlotsFromAnUnrelatedShelf() {
+        val few = listOf(item(1))
+        val many = (11..30).map { item(it) }
+        val heroes = selectHeroItems(listOf(
+            section(ExploreCategoryType.TOP_ANIME, few),
+            section(ExploreCategoryType.TRENDING_ANIME, many),
+            section(ExploreCategoryType.UPCOMING_ANIME, emptyList())
+        ), random = Random(1))
+        assertEquals(3, heroes.size)
+        assertEquals(1, heroes.count { it in few })
+        assertEquals(2, heroes.count { it in many })
     }
 
-    @Test fun qualityScoreNormalizesHundredScaleSources() {
-        // Simkl, simklRating*10 ile 0–100 arası değer üretir (ör. 8.5 → 85).
-        assertEquals(0.85, qualityScore(item(1, source = "simkl", score = 85))!!, 0.0001)
-        assertEquals(1.0, qualityScore(item(2, source = "simkl", score = 100))!!, 0.0001)
+    @Test fun mangaManhwaAndNovelsNeverEnterEvenWithExcellentWideArtwork() {
+        val books = (1..4).map { item(it, type = MediaType.Manga).copy(score = 10) } +
+            item(5, source = "bangumi").copy(bangumiSubjectType = 1)
+        val heroes = selectHeroItems(listOf(section(ExploreCategoryType.TOP_MANGA, books)))
+        assertTrue(heroes.isEmpty())
     }
 
-    // ── Metrik ağırlıkları ─────────────────────────────────────────────────
-
-    @Test fun missingMetricsAreRedistributedNotPenalized() {
-        val onlyScore = item(1, score = 8)
-        val fullMetrics = item(
-            2, score = 8,
-            members = 5_000_000, favorites = 1_000_000, rank = 1
-        )
-        // Aynı puan; tüm metrikleri güçlü olan aday öne çıkar...
-        assertTrue(heroMetricScore(fullMetrics) > heroMetricScore(onlyScore))
-        // ...eksik metrikli aday "sıfırla cezalandırılmaz": puanı 0.8'in hemen altındadır,
-        // 0.5 gibi bir tabana çekilmez.
-        assertEquals(0.8, heroMetricScore(onlyScore), 0.0001)
-    }
-
-    @Test fun strongQualityOutranksWeakPopularityBundle() {
-        val greatShow = item(1, score = 10)
-        val weakButPopular = item(
-            2, score = 6, members = 50_000, favorites = 1_000, rank = 5_000
-        )
-        assertTrue(heroMetricScore(greatShow) > heroMetricScore(weakButPopular))
-    }
-
-    // ── Kategori bonusları ─────────────────────────────────────────────────
-
-    @Test fun trendAndNewReleasesOutrankUpcomingUnderEqualMetrics() {
-        assertTrue(
-            heroCategoryBoost(ExploreCategoryType.TRENDING_ANIME) >
-                heroCategoryBoost(ExploreCategoryType.TOP_ANIME)
-        )
-        assertTrue(
-            heroCategoryBoost(ExploreCategoryType.NEWLY_ADDED_MANGA) >
-                heroCategoryBoost(ExploreCategoryType.UPCOMING_ANIME)
-        )
-        assertTrue(
-            heroCategoryBoost(ExploreCategoryType.TOP_RATED_MANGA) >
-                heroCategoryBoost(ExploreCategoryType.PUBLISHING_MANGA)
-        )
-        assertEquals(1.12, heroCategoryBoost(ExploreCategoryType.BANGUMI_TV), 0.0001)
-        assertEquals(1.12, heroCategoryBoost(ExploreCategoryType.BANGUMI_MOVIES), 0.0001)
-        assertTrue(
-            heroCategoryBoost(ExploreCategoryType.UPCOMING_MEDIA_TMDB) <
-                heroCategoryBoost(ExploreCategoryType.TRENDING_ANIME)
-        )
-    }
-
-    // ── Seçim davranışı ────────────────────────────────────────────────────
-
-    @Test fun selectionRespectsLimitAndOpensWithStrongestCandidate() {
+    @Test fun tmdbAndSimklVideoShelvesAreNotRejectedBecauseLegacyCategorySaysManga() {
+        val tmdbTv = item(1, "tmdb", MediaType.TvShow)
+        val tmdbMovie = item(2, "tmdb", MediaType.Movie)
+        val simklAnime = item(3, "simkl")
         val sections = listOf(
-            section(ExploreCategoryType.TRENDING_ANIME, listOf(item(1, score = 6), item(2, score = 9))),
-            section(ExploreCategoryType.TOP_MANGA, listOf(item(3, score = 7, type = MediaType.Manga)))
+            section(ExploreCategoryType.TOP_MANGA, listOf(tmdbTv), ExplorePlatform.TMDB),
+            section(ExploreCategoryType.PUBLISHING_MANGA, listOf(tmdbMovie), ExplorePlatform.TMDB),
+            section(ExploreCategoryType.TRENDING_MANGA, listOf(simklAnime), ExplorePlatform.SIMKL)
         )
-        val heroes = selectHeroItems(sections, limit = 2)
+        assertEquals(setOf(tmdbTv, tmdbMovie, simklAnime), allSourceHeroes(sections).toSet())
+    }
+
+    @Test fun noPosterFallbackAndNoBlankTitleEvenIfScoresAreHigher() {
+        val valid = item(1)
+        val absent = item(2, backdrop = null).copy(score = 10)
+        val blank = item(3, backdrop = "   ")
+        val posterAsBackdrop = item(4).let { it.copy(backdropUrl = it.imageUrl) }
+        val blankTitle = item(5).copy(title = " ")
+        val heroes = selectHeroItems(listOf(section(
+            ExploreCategoryType.TOP_ANIME, listOf(valid, absent, blank, posterAsBackdrop, blankTitle)
+        )))
+        assertEquals(listOf(valid), heroes)
+    }
+
+    @Test fun knownPortraitUrlsAreNotTreatedAsBackdrops() {
+        val urls = listOf(
+            "https://lain.bgm.tv/pic/cover/l/example.jpg",
+            "https://media.kitsu.app/anime/poster_images/1/large.jpg",
+            "https://simkl.in/posters/example.jpg",
+            "https://cdn.myanimelist.net/images/anime/1/2.jpg",
+            "https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx123.jpg"
+        )
+        val heroes = selectHeroItems(listOf(section(ExploreCategoryType.TOP_ANIME,
+            urls.mapIndexed { i, url -> item(i, backdrop = url) }
+        )))
+        assertTrue(heroes.isEmpty())
+    }
+
+    @Test fun stableSeedIsReproducibleButDifferentSeedsReallyRandomize() {
+        val sections = listOf(section(ExploreCategoryType.TOP_ANIME, (1..50).map { item(it) }))
+        val first = selectHeroItems(sections, random = Random(123))
+        assertEquals(first, selectHeroItems(sections, random = Random(123)))
+        val choices = (1..20).map { seed -> selectHeroItems(sections, random = Random(seed)).map { it.malId } }.toSet()
+        assertTrue(choices.size > 5)
+    }
+
+    @Test fun sourceQuotaIsStrictEvenWithAHugeSingleShelf() {
+        val sections = listOf(section(ExploreCategoryType.TRENDING_ANIME, (1..50).map { item(it) }))
+        assertEquals(2, selectHeroItems(sections).size)
+        assertEquals(1, allSourceHeroes(sections).size)
+        assertTrue(selectHeroItems(sections, itemsPerSection = 0).isEmpty())
+    }
+
+    @Test fun overlappingShelvesUseAlternativesRatherThanRepeatOrStarveTheSmallShelf() {
+        val shared = item(1)
+        val alternate = item(2)
+        val sections = listOf(
+            HomeHeroSection("popular", listOf(shared, alternate)),
+            HomeHeroSection("trending", listOf(shared))
+        )
+        val picks = matchHomeHeroSections(sections, 1)
+        assertEquals(2, picks.size)
+        assertEquals(shared, picks.single { it.sectionKey == "trending" }.item)
+        assertEquals(alternate, picks.single { it.sectionKey == "popular" }.item)
+    }
+
+    @Test fun duplicateAcrossAllShelvesAppearsOnlyOnce() {
+        val shared = item(1)
+        val sections = videoCategories.map { section(it, listOf(shared, shared)) }
+        assertEquals(listOf(shared), selectHeroItems(sections))
+    }
+
+    @Test fun movieTvAndSourceIdentityCannotCollide() {
+        val videos = listOf(item(10, "tmdb", MediaType.Movie), item(10, "tmdb", MediaType.TvShow), item(10, "anilist"))
+        val heroes = selectHeroItems(listOf(section(ExploreCategoryType.TOP_ANIME, videos)), itemsPerSection = 3)
+        assertEquals(videos.toSet(), heroes.toSet())
+        assertEquals(3, heroes.distinctBy(::homeHeroItemKey).size)
+    }
+
+    @Test fun airingSoonIsOneSharedPoolInAllModeAndDeduplicatesAgainstOtherShelves() {
+        val shared = item(1)
+        val upcoming = item(2)
+        val sections = listOf(section(ExploreCategoryType.TOP_ANIME, listOf(shared)))
+        val heroes = allSourceHeroes(sections, airingSoon = listOf(shared, upcoming), random = Random(5))
+        assertEquals(setOf(shared, upcoming), heroes.toSet())
         assertEquals(2, heroes.size)
-        assertEquals(2, heroes.first().malId) // en yüksek puanlı aday vitrinin ilk sayfasında
     }
 
-    @Test fun selectionDeduplicatesItemThatAppearsInMultipleSections() {
-        val shared = item(1, score = 9)
-        val sections = listOf(
-            section(ExploreCategoryType.TOP_ANIME, listOf(shared)),
-            section(ExploreCategoryType.TRENDING_ANIME, listOf(shared))
-        )
-        val heroes = selectHeroItems(sections, limit = 10)
-        assertEquals(1, heroes.size)
-    }
-
-    @Test fun categoryCapsKeepSectionsMixedWhenPoolAllows() {
-        val trending = (1..10).map { item(it, score = 9) }
-        val manga = (11..20).map {
-            item(it, score = 8, type = MediaType.Manga, source = "mal")
+    @Test fun asyncPreparationFindsArtworkBeforeAdmissionAndTriesAnotherOnFailure() = runBlocking {
+        val raw = (1..8).map { item(it, backdrop = null) }
+        val prepared = resolveHomeHeroItems(listOf(HomeHeroSection("popular", raw)), 2, seed = 42) {
+            if (it.malId <= 6) null else it.copy(backdropUrl = "https://example.test/wide_${it.malId}.jpg")
         }
-        val heroes = selectHeroItems(
-            sections = listOf(
-                section(ExploreCategoryType.TRENDING_ANIME, trending),
-                section(ExploreCategoryType.TOP_MANGA, manga, platform = ExplorePlatform.MAL)
-            ),
-            limit = 6,
-            perCategoryCap = 3
-        )
-        assertEquals(6, heroes.size)
-        val trendingCount = heroes.count { it.malId <= 10 }
-        val mangaCount = heroes.count { it.malId >= 11 }
-        assertEquals(3, trendingCount)
-        assertEquals(3, mangaCount)
+        assertEquals(setOf(7, 8), prepared.map { it.malId }.toSet())
+        assertTrue(prepared.all { !it.backdropUrl.isNullOrBlank() })
+        assertTrue(prepared.all { it.tmdbId == null && it.source == "anilist" })
     }
 
-    @Test fun strictCapsNeverLeaveTheHeroShort() {
-        // Tek kategoride 10 aday var; tavan 3 ama vitrin 6 istiyor → kalan yerler dolmalı.
-        val onlyTrending = (1..10).map { item(it, score = 8) }
-        val heroes = selectHeroItems(
-            sections = listOf(section(ExploreCategoryType.TRENDING_ANIME, onlyTrending)),
-            limit = 6,
-            perCategoryCap = 3
-        )
-        assertEquals(6, heroes.size)
+    @Test fun asyncPreparationSkipsBooksAndSharesFailedLookupsAcrossShelves() = runBlocking {
+        val missing = item(1, backdrop = null)
+        val manga = item(2, type = MediaType.Manga)
+        val calls = mutableListOf<Int>()
+        val prepared = resolveHomeHeroItems(listOf(
+            HomeHeroSection("popular", listOf(missing, manga)),
+            HomeHeroSection("trending", listOf(missing, manga))
+        ), 2, seed = 8) { calls += it.malId; null }
+        assertTrue(prepared.isEmpty())
+        assertEquals(listOf(1), calls)
     }
 
-    @Test fun allModeGuaranteesEverySourceEvenWithUnbalancedScores() {
-        // Bir kaynak çok güçlü, diğerleri zayıf olsa bile her kaynak temsil edilir.
-        val states = ExplorePlatform.sources.associateWith { platform ->
-            val score = if (platform == ExplorePlatform.AniList) 10 else 4
-            val id = platform.ordinal + 1
-            ExploreSourceState(
-                ExplorePayload(
-                    topAnime = listOf(
-                        item(id, score = score, source = platform.name.lowercase())
-                    ),
-                    airingAnime = emptyList(), upcomingAnime = emptyList(), topManga = emptyList(),
-                    publishingManga = emptyList(), trendingAnime = emptyList(),
-                    movieAnime = emptyList(), seasonalAnime = emptyList()
-                )
-            )
+    @Test fun asyncPreparationBoundsConcurrentRequests() = runBlocking {
+        val active = AtomicInteger(0)
+        val maximum = AtomicInteger(0)
+        val sections = (1..10).map { HomeHeroSection("shelf_$it", listOf(item(it))) }
+        val prepared = resolveHomeHeroItems(sections, 1, seed = 3, maxConcurrent = 3) {
+            val n = active.incrementAndGet()
+            maximum.updateAndGet { old -> maxOf(old, n) }
+            delay(5)
+            active.decrementAndGet()
+            it
         }
-        val heroes = allSourceHeroes(states, showAdultContent = false)
-        assertEquals(ExplorePlatform.sources.map { it.name.lowercase() }.toSet(), heroes.map { it.source }.toSet())
-        // AniList en yüksek puanlı olduğu için listede yer alır ve güçlü adaylar öne çıkar.
-        assertEquals("anilist", heroes.first().source)
+        assertEquals(10, prepared.size)
+        assertEquals(3, maximum.get())
+        assertEquals(0, active.get())
     }
 
-    @Test fun singleSourceModeDrawsFromAllSectionsNotJustTopAnime() {
-        val sections = listOf(
-            section(ExploreCategoryType.TOP_ANIME, (1..4).map { item(it, score = 7) }),
-            section(ExploreCategoryType.TRENDING_ANIME, (5..8).map { item(it, score = 9) }),
-            section(
-                ExploreCategoryType.NEWLY_ADDED_MANGA,
-                (9..12).map { item(it, score = 6, type = MediaType.Manga) }
-            )
-        )
-        val heroes = selectHeroItems(sections, limit = HERO_LIMIT_SINGLE)
-        assertEquals(HERO_LIMIT_SINGLE, heroes.size)
-        // En yüksek puanlı trend öğeleri vitrinin başında.
-        assertTrue(heroes.take(3).all { it.malId in 5..8 })
-        // Manga, uygun şartlar altında (kategori tavanı sayesinde) listeye girer.
-        assertTrue(heroes.any { it.type == MediaType.Manga })
+    @Test fun cancellationIsNeverSwallowedAsAnArtworkMiss() = runBlocking {
+        var cancelled = false
+        try {
+            withTimeout(50) {
+                resolveHomeHeroItems(listOf(HomeHeroSection("popular", listOf(item(1)))), 1, seed = 1) {
+                    delay(1_000)
+                    it
+                }
+            }
+        } catch (_: CancellationException) {
+            cancelled = true
+        }
+        assertTrue(cancelled)
+    }
+
+    @Test fun resolverErrorsDoNotAdmitAPosterOrBreakTheRemainingShelves() = runBlocking {
+        val good = item(2)
+        val prepared = resolveHomeHeroItems(listOf(
+            HomeHeroSection("bad", listOf(item(1))), HomeHeroSection("good", listOf(good))
+        ), 1, seed = 4) {
+            if (it.malId == 1) error("unavailable source") else it
+        }
+        assertEquals(listOf(good), prepared)
+    }
+
+    @Test fun resolverCannotSilentlyReplaceProviderIdentity() = runBlocking {
+        val prepared = resolveHomeHeroItems(listOf(HomeHeroSection("popular", listOf(item(1)))), 1, seed = 1) {
+            it.copy(tmdbId = 123)
+        }
+        assertTrue(prepared.isEmpty())
+    }
+
+    @Test fun artworkLogoSourcesKeepTheirExistingPolicyAndBooksNeverRequestLogos() {
+        assertTrue(shouldShowHeroLogo(item(1, "bangumi"), showAnimeLogos = false))
+        assertTrue(shouldShowHeroLogo(item(2, "simkl"), showAnimeLogos = false))
+        assertTrue(shouldShowHeroLogo(item(3, "shikimori"), showAnimeLogos = false))
+        assertFalse(shouldShowHeroLogo(item(4), showAnimeLogos = false))
+        assertTrue(shouldShowHeroLogo(item(4), showAnimeLogos = true))
+        assertFalse(shouldShowHeroLogo(item(5, type = MediaType.Manga), showAnimeLogos = true))
     }
 }

@@ -30,13 +30,13 @@ object KitsuClient {
     private val BASE: String get() = KitsuApiHost.base
 
     suspend fun fetchAnimeDetail(kitsuIdOrSlug: String): KitsugiMediaDetail? = withContext(Dispatchers.IO) {
-        val url = "$BASE/anime/$kitsuIdOrSlug"
+        val url = "$BASE/anime/$kitsuIdOrSlug?include=categories"
         executeGet(url)
     }
 
     suspend fun fetchAnimeDetailByTitle(title: String): KitsugiMediaDetail? = withContext(Dispatchers.IO) {
         val encoded = URLEncoder.encode(title, "UTF-8")
-        val url = "$BASE/anime?filter[text]=$encoded&page[limit]=1"
+        val url = "$BASE/anime?filter[text]=$encoded&page[limit]=1&include=categories"
         executeGet(url, isArrayResponse = true)
     }
 
@@ -447,7 +447,8 @@ object KitsuClient {
                 } else {
                     root.optJSONObject("data")
                 }
-                return dataObj?.let { parseKitsuAnime(it) }
+                val includedArr = root.optJSONArray("included")
+                return dataObj?.let { parseKitsuAnime(it, includedArr) }
             }
         } catch (e: Exception) {
             Log.e(TAG, "Error fetching from Kitsu: ${e.message}", e)
@@ -455,9 +456,42 @@ object KitsuClient {
         }
     }
 
-    private fun parseKitsuAnime(data: JSONObject): KitsugiMediaDetail {
+    internal fun parseKitsuCategories(included: JSONArray?): Pair<List<String>, List<KitsugiTag>> {
+        if (included == null || included.length() == 0) return emptyList<String>() to emptyList()
+        val rawTitles = mutableListOf<String>()
+        val tags = mutableListOf<KitsugiTag>()
+        for (i in 0 until included.length()) {
+            val inc = included.optJSONObject(i) ?: continue
+            if (inc.optString("type") != "categories") continue
+            val attrs = inc.optJSONObject("attributes") ?: continue
+            val title = attrs.optString("title", "").trim()
+            if (title.isEmpty()) continue
+            val catId = inc.optString("id", "").toIntOrNull()
+            val desc = attrs.optString("description", "").takeIf { it.isNotBlank() && it != "null" }
+            rawTitles.add(title)
+            tags.add(
+                KitsugiTag(
+                    id = catId,
+                    name = title,
+                    description = desc,
+                    isSpoiler = com.kitsugi.animelist.utils.KitsugiSpoilerRules.isIntrinsicSpoiler(title),
+                    source = "kitsu"
+                )
+            )
+        }
+        val officialGenres = rawTitles.filter {
+            com.kitsugi.animelist.ui.screens.search.CanonicalFilterBridge.isOfficialAniListGenre(it)
+        }
+        val selectedGenres = (if (officialGenres.isNotEmpty()) officialGenres else rawTitles.take(8))
+            .distinct()
+        return selectedGenres.toTurkishGenres() to
+            com.kitsugi.animelist.utils.KitsugiSpoilerRules.normalizeAndMergeTags(tags)
+    }
+
+    private fun parseKitsuAnime(data: JSONObject, included: JSONArray? = null): KitsugiMediaDetail {
         val id = data.optString("id", "")
         val attributes = data.getJSONObject("attributes")
+        val (kitsuGenres, kitsuTags) = parseKitsuCategories(included)
 
         val canonicalTitle = attributes.optString("canonicalTitle", "")
         val titlesObj = attributes.optJSONObject("titles")
@@ -517,6 +551,8 @@ object KitsuClient {
 
         return KitsugiMediaDetail(
             synopsis = synopsis,
+            genres = kitsuGenres,
+            tags = kitsuTags,
             status = statusVal,
             titleEnglish = titleEnglish,
             titleRomaji = titleRomaji,

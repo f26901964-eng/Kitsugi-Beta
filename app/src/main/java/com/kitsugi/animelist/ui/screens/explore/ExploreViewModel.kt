@@ -72,11 +72,29 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
     private val sourceJobs = mutableMapOf<ExplorePlatform, Job>()
     private var requestGeneration = 0
 
+    private var heroPreparationJob: Job? = null
+    private var heroPreparationGeneration = 0
+    private val homeHeroArtworkLoader by lazy {
+        com.kitsugi.animelist.ui.components.HomeHeroArtworkLoader(getApplication())
+    }
+    private var preparedHeroSeed: Int? = null
+
+    var heroRefreshSeed by mutableIntStateOf(kotlin.random.Random.nextInt())
+        private set
+    var homeHeroItems by mutableStateOf<List<JikanSearchResult>>(emptyList())
+        private set
+    var isHeroLoading by mutableStateOf(false)
+        private set
+
     var allSourceStates by mutableStateOf<Map<ExplorePlatform, ExploreSourceState>>(emptyMap())
         private set
 
     private fun cancelLoads() {
         requestGeneration++
+        heroPreparationGeneration++
+        heroPreparationJob?.cancel()
+        isHeroLoading = false
+        heroRefreshSeed = kotlin.random.Random.nextInt()
         loadJob?.cancel()
         loadJob = null
         sourceJobs.values.forEach { it.cancel() }
@@ -183,8 +201,6 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
     /** TMDB'ye özgü "Yakında Yayında" içerikleri — ExploreCategoryType.UPCOMING_MEDIA_TMDB ile sayfalanır */
     var upcomingMediaTmdb by mutableStateOf<List<JikanSearchResult>>(initialPayload?.upcomingMediaTmdb ?: emptyList())
         private set
-
-    var heroIndex by mutableIntStateOf(0)
 
     // ── Simkl Kullanıcı Listeleri (NyanTV HomeSections.kt referans) ──────────────
     /** İzlemeye devam et — filmler (Simkl status=watching, isMovie=true) */
@@ -346,7 +362,6 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
         newlyAddedAnime = payload.newlyAddedAnime
         newlyAddedManga = payload.newlyAddedManga
         upcomingMediaTmdb = payload.upcomingMediaTmdb
-        heroIndex = 0
 
         simklContinueMovies = payload.simklContinueMovies
         simklPlannedMovies = payload.simklPlannedMovies
@@ -356,6 +371,8 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
 
     /** Platform değişiminde UI'daki eski veriyi siler, loading skeleton gösterilir. */
     private fun clearPayload() {
+        homeHeroItems = emptyList()
+        preparedHeroSeed = null
         topAnime = emptyList()
         airingAnime = emptyList()
         upcomingAnime = emptyList()
@@ -376,7 +393,6 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
         newlyAddedManga = emptyList()
         upcomingMediaTmdb = emptyList()
         // Simkl kullanıcı şeritlerini temizleme — platform değişiminde de gözüksün
-        heroIndex = 0
         errorMessage = null
         exploreErrorType = ExploreErrorType.None
     }
@@ -386,6 +402,7 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
         if (!forceRefresh && (isDataLoaded || isLoading)) return
 
         cancelLoads()
+        if (forceRefresh) homeHeroArtworkLoader.retryFailures()
         if (selectedPlatform == ExplorePlatform.ALL) {
             loadAllSources(forceRefresh)
             return
@@ -621,15 +638,6 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
     }
 
     /**
-     * Vitrin için hem en kaliteli dikey posteri hem de en kaliteli yatay arka planı
-     * TMDB + Fanart.tv üzerinden çözer.
-     */
-    private suspend fun resolveHeroBackdrop(item: JikanSearchResult): String? {
-        if (item.type == MediaType.Manga) return null
-        return com.kitsugi.animelist.data.remote.KitsugiHeroArtworkResolver.resolveArtwork(item).bestBackdropUrl
-    }
-
-    /**
      * Ortak "Yakında Yayında" (geri sayımlı) verisi.
      *
      * Kesin bölüm yayın saatleri yalnızca AniList `airingSchedules` üzerinde bulunur;
@@ -822,7 +830,7 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
         val airingSoonDeferred = async { fetchSharedAiringSoon() }
 
         // Vitrin arka planları veri yolunu BLOKE ETMEZ: eksik backdrop'lar UI tarafında
-        // ExploreViewModel.enrichHeroBackdrops() ile asenkron çözülür ve hero anında güncellenir.
+        // ExploreViewModel.prepareHomeHeroes() ile asenkron çözülür ve hero anında güncellenir.
         // (Eski davranış: payload dönmeden önce 5 × TMDB araması bekleniyordu.)
         val enrichedTopAnime = runCatching { topAnimeDeferred.await() }.getOrDefault(emptyList())
 
@@ -872,7 +880,7 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
         // Bangumi bölüm yayın saati sağlamaz → geri sayımlı şerit ortak takvim verisinden beslenir
         val airingSoonDeferred = async { fetchSharedAiringSoon() }
 
-        // Vitrin arka planları veri yolunu BLOKE ETMEZ — enrichHeroBackdrops() asenkron çözer.
+        // Vitrin arka planları veri yolunu BLOKE ETMEZ — prepareHomeHeroes() asenkron çözer.
         val enrichedTopAnime = runCatching { topAnimeDeferred.await() }.getOrDefault(emptyList())
 
         ExplorePayload(
@@ -991,7 +999,7 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
         // Shikimori bölüm yayın saati sağlamaz → geri sayımlı şerit ortak takvim verisinden beslenir
         val airingSoonDeferred = async { fetchSharedAiringSoon() }
 
-        // Vitrin arka planları veri yolunu BLOKE ETMEZ — enrichHeroBackdrops() asenkron çözer.
+        // Vitrin arka planları veri yolunu BLOKE ETMEZ — prepareHomeHeroes() asenkron çözer.
         val enrichedTopAnime = runCatching { topAnimeDeferred.await() }.getOrDefault(emptyList())
 
         ExplorePayload(
@@ -1095,7 +1103,7 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
         val rawTopAnime = runCatching { topAnimeDeferred.await() }.getOrDefault(emptyList())
 
         // Vitrin arka planları veri yolunu BLOKE ETMEZ — eksik backdrop'lar UI tarafında
-        // enrichHeroBackdrops() ile TMDB'den asenkron çözülür (önbellekli).
+        // prepareHomeHeroes() ile TMDB'den asenkron çözülür (önbellekli).
         val enrichedTopAnime = rawTopAnime
 
         val airingSoonDeferred = async {
@@ -1276,83 +1284,36 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
         )
     }
 
-
-
-    // ── Vitrin arka plan (backdrop) tamamlama ──────────────────────────────
-    // Vitrin artık tüm bölümlerden seçildiği için yüklemenin ilk 5 öğesiyle
-    // sınırlı TMDB backdrop zenginleştirmesi yetmez. Seçilen vitrin
-    // öğelerinde eksik kalan yatay arka planlar, başlık üzerinden TMDB'den
-    // tamamlanır; sonuçlar exploreIdentity anahtarıyla önbelleklenir.
-    private val heroBackdropCache = mutableMapOf<String, String>() // "" = arama sonuçsuz
-    private val heroArtworkCache = mutableMapOf<String, com.kitsugi.animelist.data.remote.KitsugiHeroArtworkResolver.HeroArtwork>()
-    private val heroBackdropInFlight = mutableSetOf<String>()
-    private var heroOverridesFlushJob: Job? = null
-
-    /** identity → backdropUrl eşlemesi (eklendiğinde hero anında güncellenir). */
-    var heroBackdropOverrides by mutableStateOf<Map<String, String>>(emptyMap())
-        private set
-
-    /** identity → tam HeroArtwork (en kaliteli dikey poster + en kaliteli yatay backdrop) eşlemesi. */
-    var heroArtworkOverrides by mutableStateOf<Map<String, com.kitsugi.animelist.data.remote.KitsugiHeroArtworkResolver.HeroArtwork>>(emptyMap())
-        private set
-
-    /**
-     * Vitrin görsel sonuçlarını toplu yayınlar. Her çözümde ayrı state yazmak (ve her seferinde
-     * tüm haritayı kopyalamak) Keşfet ekranını ~N kez yeniden kompoze edip hero logo
-     * aramasını yeniden başlatıyordu; birkaç yüz ms'lik pencerede tek yazım yeterli.
-     */
-    private fun scheduleHeroOverridesFlush() {
-        if (heroOverridesFlushJob?.isActive == true) return
-        heroOverridesFlushJob = viewModelScope.launch {
-            kotlinx.coroutines.delay(180L)
-            heroBackdropOverrides = heroBackdropCache.toMap()
-            heroArtworkOverrides = heroArtworkCache.toMap()
-        }
-    }
-
-    /**
-     * Seçilen tüm vitrin öğelerinde (Bangumi, AniList, MAL, Kitsu, Shikimori, Simkl, TMDB)
-     * hem en kaliteli dikey posteri hem de en kaliteli yatay arka planı TMDB ve Fanart.tv
-     * üzerinden çözer.
-     */
-    fun enrichHeroBackdrops(items: List<JikanSearchResult>) {
-        if (items.isEmpty()) return
-        val pending = items.filter { item ->
-            val identity = item.exploreIdentity()
-            identity !in heroArtworkCache && heroBackdropInFlight.add(identity)
-        }
-        if (pending.isEmpty()) return
-        viewModelScope.launch {
-            coroutineScope {
-                pending.forEach { item ->
-                    launch {
-                        val identity = item.exploreIdentity()
-                        val artwork = try {
-                            com.kitsugi.animelist.data.remote.KitsugiHeroArtworkResolver.resolveArtwork(item)
-                        } catch (e: CancellationException) {
-                            heroBackdropInFlight.remove(identity)
-                            throw e
-                        } catch (e: Exception) {
-                            com.kitsugi.animelist.data.remote.KitsugiHeroArtworkResolver.HeroArtwork()
-                        }
-                        heroBackdropInFlight.remove(identity)
-                        heroArtworkCache[identity] = artwork
-                        heroBackdropCache[identity] = artwork.bestBackdropUrl ?: ""
-                        scheduleHeroOverridesFlush()
-                    }
+    /** Resolve/verify artwork BEFORE selection. Recomposition and logo loads never reshuffle it. */
+    fun prepareHomeHeroes(
+        sections: List<ExploreSourceSection>,
+        airingSoon: List<JikanSearchResult>,
+        platform: ExplorePlatform
+    ) {
+        heroPreparationJob?.cancel()
+        val preparation = ++heroPreparationGeneration
+        val generation = requestGeneration
+        val seed = heroRefreshSeed
+        isHeroLoading = true
+        heroPreparationJob = viewModelScope.launch {
+            try {
+                val prepared = resolveHomeHeroItems(
+                    sections = homeHeroSections(sections, airingSoon),
+                    itemsPerSection = if (platform == ExplorePlatform.ALL) HERO_PER_SECTION_ALL else HERO_PER_SECTION_SINGLE,
+                    seed = seed,
+                    resolve = homeHeroArtworkLoader::prepare
+                )
+                currentCoroutineContext().ensureActive()
+                if (preparation == heroPreparationGeneration && generation == requestGeneration && selectedPlatform == platform) {
+                    homeHeroItems = if (preparedHeroSeed == seed) {
+                        com.kitsugi.animelist.ui.components.stableHomeHeroOrder(homeHeroItems, prepared)
+                    } else prepared
+                    preparedHeroSeed = seed
                 }
+            } finally {
+                if (preparation == heroPreparationGeneration) isHeroLoading = false
             }
         }
-    }
-
-    fun nextHero(heroCount: Int) {
-        if (heroCount == 0) return
-        heroIndex = if (heroIndex >= heroCount - 1) 0 else heroIndex + 1
-    }
-
-    fun previousHero(heroCount: Int) {
-        if (heroCount == 0) return
-        heroIndex = if (heroIndex <= 0) heroCount - 1 else heroIndex - 1
     }
 
     companion object {

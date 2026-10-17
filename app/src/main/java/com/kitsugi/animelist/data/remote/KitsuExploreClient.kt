@@ -6,6 +6,7 @@ import com.kitsugi.animelist.model.MediaType
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.Request
+import org.json.JSONArray
 import org.json.JSONObject
 import java.net.URLEncoder
 import com.kitsugi.animelist.utils.KitsugiStrings
@@ -542,7 +543,7 @@ object KitsuExploreClient {
     private suspend fun fetchMangaDetailOnce(kitsuId: String, authToken: String?): KitsugiMediaDetail? =
         withContext(Dispatchers.IO) {
             try {
-                val url = KitsuApiHost.url("/manga/$kitsuId")
+                val url = KitsuApiHost.url("/manga/$kitsuId?include=categories")
                 val builder = Request.Builder()
                     .url(url)
                     .header("Accept", "application/vnd.api+json")
@@ -556,7 +557,8 @@ object KitsuExploreClient {
                     val body = response.body?.string() ?: return@withContext null
                     val root = JSONObject(body)
                     val dataObj = root.optJSONObject("data") ?: return@withContext null
-                    parseMangaDetail(dataObj)
+                    val includedArr = root.optJSONArray("included")
+                    parseMangaDetail(dataObj, includedArr)
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "Error fetching Kitsu manga detail: ${e.message}", e)
@@ -564,9 +566,10 @@ object KitsuExploreClient {
             }
         }
 
-    private fun parseMangaDetail(data: JSONObject): KitsugiMediaDetail? {
+    private fun parseMangaDetail(data: JSONObject, included: JSONArray? = null): KitsugiMediaDetail? {
         return try {
             val attrs = data.optJSONObject("attributes") ?: return null
+            val (kitsuGenres, kitsuTags) = KitsuClient.parseKitsuCategories(included)
             val canonicalTitle = attrs.optString("canonicalTitle", "")
             val titlesObj = attrs.optJSONObject("titles")
             val titleEn = titlesObj?.optString("en", "")?.takeIf { it.isNotBlank() }
@@ -606,6 +609,8 @@ object KitsuExploreClient {
 
             KitsugiMediaDetail(
                 synopsis      = synopsis,
+                genres        = kitsuGenres,
+                tags          = kitsuTags,
                 title         = title,
                 titleEnglish  = titleEn,
                 titleJapanese = titleJa,

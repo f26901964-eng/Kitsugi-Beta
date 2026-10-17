@@ -1,234 +1,154 @@
 package com.kitsugi.animelist.ui.screens.explore
 
 import com.kitsugi.animelist.data.remote.JikanSearchResult
-import kotlin.math.ln
+import com.kitsugi.animelist.ui.components.homeHeroBackdropUrl
+import com.kitsugi.animelist.ui.components.homeHeroItemKey
+import com.kitsugi.animelist.ui.components.isHomeHeroMedia
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withPermit
+import kotlin.random.Random
+
+internal const val HERO_PER_SECTION_ALL = 1
+internal const val HERO_PER_SECTION_SINGLE = 2
+
+/** Source + shelf, not just an enum: TMDB/SIMKL reuse *_MANGA fields for film/TV shelves. */
+internal data class HomeHeroSection(val key: String, val results: List<JikanSearchResult>)
+
+internal data class HomeHeroPick(val sectionKey: String, val item: JikanSearchResult)
+
+/** The countdown rail is a real hero pool too, but is only included once in ALL mode. */
+internal fun homeHeroSections(
+    sections: List<ExploreSourceSection>,
+    airingSoon: List<JikanSearchResult> = emptyList()
+): List<HomeHeroSection> = buildList {
+    sections.forEach { section -> add(HomeHeroSection(section.key, section.results)) }
+    if (airingSoon.isNotEmpty()) add(HomeHeroSection("shared_airing_soon", airingSoon))
+}.map { section ->
+    section.copy(results = section.results.filter(::isHomeHeroMedia).distinctBy(::homeHeroItemKey))
+}.filter { it.results.isNotEmpty() }
 
 /**
- * Vitrin (hero) içerik seçim motoru.
- *
- * Seçim tamamen sayısal metriklere dayanır:
- *  - **Puan** (quality): `rawScoreDouble` / `score`. Kaynak ölçekleri farklıdır
- *    (çoğu 0–10, Simkl 0–100) — [qualityScore] 0–1 aralığına normalize eder.
- *  - **Üye / izlenme** (`members`): logaritmik normalize (5M üstü doygunluk).
- *  - **Favori** (`favorites`): logaritmik normalize (1M üstü doygunluk).
- *  - **Sıra** (`rank`): düşük rank hafif avantaj sağlar (logaritmik düşüş).
- *
- * Metriklerden herhangi biri yoksa (örn. TMDB'nin üyesi yok) ağırlık
- * mevcut metriklere yeniden dağıtılır; eksik veri ceza değildir.
- *
- * Kategori/trend bonusları [heroCategoryBoost] ile uygulanır: trend,
- * yeni eklenen ve en yüksek puanlı bölümleri hafifçe öne çıkarır; tarih
- * gelmedi (yakında) bölümleri hafifçe geride kalır. Böylece vitrin hem
- * sayısal sıralamayı hem de "trend / yeni eklenen / manga" çeşitliliğini
- * kontrollü biçimde kapsar.
+ * Assign unique titles to section slots. An augmenting path can move an earlier pick to
+ * another candidate, so an overlapping popular/trending title cannot starve a small shelf.
+ * First give every shelf one slot, then its second slot; never relax the per-shelf quota.
  */
-internal const val HERO_LIMIT_ALL = 12
-internal const val HERO_LIMIT_SINGLE = 10
-internal const val HERO_PER_CATEGORY_CAP = 3
-internal const val HERO_PER_SOURCE_CAP = 2
-
-private const val W_QUALITY = 0.40
-private const val W_POPULARITY = 0.30
-private const val W_FAVORITES = 0.20
-private const val W_RANK = 0.10
-private const val DEFAULT_METRIC_SCORE = 0.35
-private const val SECTION_POSITION_BONUS = 0.05
-private const val SECTION_POSITION_SPAN = 19.0
-private const val POPULARITY_SATURATION = 5_000_000.0
-private const val FAVORITES_SATURATION = 1_000_000.0
-
-/** 0..1 arası normalize edilmiş puan; puan verisi yoksa null. */
-internal fun qualityScore(item: JikanSearchResult): Double? {
-    val rawDouble = item.rawScoreDouble
-    if (rawDouble != null && rawDouble > 0.0) {
-        return (rawDouble / 10.0).coerceIn(0.0, 1.0)
+internal fun matchHomeHeroSections(
+    sections: List<HomeHeroSection>,
+    itemsPerSection: Int
+): List<HomeHeroPick> {
+    if (itemsPerSection <= 0) return emptyList()
+    val pools = sections.map { section ->
+        section.results.mapNotNull { item ->
+            homeHeroBackdropUrl(item)?.let { url ->
+                if (url == item.backdropUrl) item else item.copy(backdropUrl = url)
+            }
+        }.distinctBy(::homeHeroItemKey)
     }
-    val score = item.score
-    if (score != null && score > 0) {
-        // Simkl 0–100 arası saklar; diğer kaynaklar 0–10.
-        val normalized = if (score > 10) score / 100.0 else score / 10.0
-        return normalized.coerceIn(0.0, 1.0)
+    val slotSections = buildList {
+        repeat(itemsPerSection) {
+            addAll(sections.indices.sortedBy { pools[it].size })
+        }
     }
-    return null
-}
+    val owners = mutableMapOf<String, Int>()
+    val assignments = mutableMapOf<Int, JikanSearchResult>()
 
-/** 0..1 arası normalize edilmiş üye/izlenme popüleritesi. */
-internal fun membersScore(item: JikanSearchResult): Double? {
-    val members = item.members
-    if (members == null || members <= 0) return null
-    return (ln(members + 1.0) / ln(POPULARITY_SATURATION)).coerceIn(0.0, 1.0)
-}
-
-/** 0..1 arası normalize edilmiş favori (favorileme) puanı. */
-internal fun favoritesScore(item: JikanSearchResult): Double? {
-    val favorites = item.favorites
-    if (favorites == null || favorites <= 0) return null
-    return (ln(favorites + 1.0) / ln(FAVORITES_SATURATION)).coerceIn(0.0, 1.0)
-}
-
-/** 0..1 arası; rank=1 → 1.0, rank yükseldikçe logaritmik olarak düşer. */
-internal fun rankScore(item: JikanSearchResult): Double? {
-    val rank = item.rank
-    if (rank == null || rank <= 0) return null
-    return 1.0 / (1.0 + ln(rank.toDouble()))
-}
-
-/**
- * Metriklerin ağırlıklı ortalaması (0..1). Bulunmayan metrikler
- * dışlanır ve kalan ağırlıklar yeniden normalize edilir.
- * Hiçbir metrik yoksa [DEFAULT_METRIC_SCORE] döner.
- */
-internal fun heroMetricScore(item: JikanSearchResult): Double {
-    var total = 0.0
-    var weight = 0.0
-
-    fun add(part: Double, value: Double?) {
-        if (value == null) return
-        total += part * value
-        weight += part
-    }
-
-    add(W_QUALITY, qualityScore(item))
-    add(W_POPULARITY, membersScore(item))
-    add(W_FAVORITES, favoritesScore(item))
-    add(W_RANK, rankScore(item))
-
-    if (weight <= 0.0) return DEFAULT_METRIC_SCORE
-    return total / weight
-}
-
-/** Bölüm türüne göre hafif çarpan: trend/yeni/en iyi puan öne çıkar. */
-internal fun heroCategoryBoost(category: ExploreCategoryType): Double = when (category) {
-    ExploreCategoryType.TRENDING_ANIME,
-    ExploreCategoryType.TRENDING_MANGA -> 1.15
-
-    ExploreCategoryType.TOP_RATED_ANIME,
-    ExploreCategoryType.TOP_RATED_MANGA,
-    ExploreCategoryType.BANGUMI_TV,
-    ExploreCategoryType.BANGUMI_MOVIES -> 1.12
-
-    ExploreCategoryType.TOP_ANIME,
-    ExploreCategoryType.TOP_MANGA,
-    ExploreCategoryType.MANHWA_MANHUA,
-    ExploreCategoryType.NOVELS -> 1.05
-
-    ExploreCategoryType.SEASONAL_ANIME,
-    ExploreCategoryType.NEWLY_ADDED_ANIME,
-    ExploreCategoryType.NEWLY_ADDED_MANGA,
-    ExploreCategoryType.MOVIE_ANIME -> 1.10
-
-    ExploreCategoryType.AIRING_ANIME,
-    ExploreCategoryType.PUBLISHING_MANGA -> 1.00
-
-    ExploreCategoryType.UPCOMING_ANIME,
-    ExploreCategoryType.UPCOMING_MEDIA_TMDB -> 0.95
-}
-
-/** Bir adayın nihai vitrin skoru: metrik × kategori bonusu × bölüm içi konum. */
-internal fun heroCandidateScore(
-    item: JikanSearchResult,
-    category: ExploreCategoryType,
-    sectionPosition: Int
-): Double {
-    val position = sectionPosition.coerceIn(0, SECTION_POSITION_SPAN.toInt())
-    val positionBonus = 1.0 + SECTION_POSITION_BONUS *
-        (1.0 - position / SECTION_POSITION_SPAN)
-    return heroMetricScore(item) * heroCategoryBoost(category) * positionBonus
-}
-
-/** Bir bölümdeki (kaynak × kategori) aday; aynı öğenin en iyi skorlu hali korunur. */
-internal data class HeroCandidate(
-    val item: JikanSearchResult,
-    val platform: ExplorePlatform,
-    val category: ExploreCategoryType,
-    val score: Double
-)
-
-/**
- * Bölümlerden aday havuzu üretir: boş başlık atlanır, aynı öğe farklı
- * bölümlerde birden fazla kez geçebilir — en yüksek skorlu hali saklanır.
- */
-internal fun buildHeroCandidates(
-    sections: List<ExploreSourceSection>
-): List<HeroCandidate> {
-    val bestByIdentity = LinkedHashMap<String, HeroCandidate>()
-    sections.forEach { section ->
-        section.results.forEachIndexed { index, item ->
-            if (item.title.isBlank()) return@forEachIndexed
-            val candidate = HeroCandidate(
-                item = item,
-                platform = section.platform,
-                category = section.category,
-                score = heroCandidateScore(item, section.category, index)
-            )
-            val key = item.exploreIdentity()
-            val existing = bestByIdentity[key]
-            if (existing == null || candidate.score > existing.score) {
-                bestByIdentity[key] = candidate
+    fun assign(slot: Int, visited: MutableSet<String>): Boolean {
+        for (item in pools[slotSections[slot]]) {
+            val identity = homeHeroItemKey(item)
+            if (!visited.add(identity)) continue
+            val owner = owners[identity]
+            if (owner == null || assign(owner, visited)) {
+                owners[identity] = slot
+                assignments[slot] = item
+                return true
             }
         }
+        return false
     }
-    return bestByIdentity.values.toList()
+
+    slotSections.indices.forEach { assign(it, mutableSetOf()) }
+    return assignments.map { (slot, item) -> HomeHeroPick(sections[slotSections[slot]].key, item) }
 }
 
-/**
- * Vitrin için aday seçimi.
- *
- * 1. [guaranteeSourceCoverage] açıkken her kaynaktan en az bir öğe (en
- *    yüksek skorlu) garanti edilir — Tümü modunda hiçbir kaynak dışarda kalmaz.
- * 2. Skor sırasıyla kategori ([perCategoryCap]) ve kaynak ([perSourceCap])
- *    tavanları uygulanarak kontenjan doldurulur.
- * 3. Tavanlar dolduğu hâlde kontenjan varsa tavanlar esnetilir (içerik
- *    boş kalmasın).
- * 4. Son liste skor sırasına göre (kararlı) sıralanır; vitrin ilk sayfası
- *    en güçlü adayla açılır.
- */
+/** Synchronous selection for already available horizontal artwork; no score bias or global cap. */
 internal fun selectHeroItems(
     sections: List<ExploreSourceSection>,
-    limit: Int,
-    guaranteeSourceCoverage: Boolean = false,
-    perCategoryCap: Int = HERO_PER_CATEGORY_CAP,
-    perSourceCap: Int = Int.MAX_VALUE
-): List<JikanSearchResult> {
-    if (limit <= 0) return emptyList()
-    val sorted = buildHeroCandidates(sections).sortedByDescending { it.score }
-    if (sorted.isEmpty()) return emptyList()
+    itemsPerSection: Int = HERO_PER_SECTION_SINGLE,
+    airingSoon: List<JikanSearchResult> = emptyList(),
+    random: Random = Random.Default
+): List<JikanSearchResult> = matchHomeHeroSections(
+    homeHeroSections(sections, airingSoon).map { it.copy(results = it.results.shuffled(random)) },
+    itemsPerSection
+).map { it.item }.shuffled(random)
 
-    val selected = LinkedHashMap<String, HeroCandidate>()
-
-    if (guaranteeSourceCoverage) {
-        ExplorePlatform.sources.forEach { platform ->
-            if (selected.size >= limit) return@forEach
-            val best = sorted.firstOrNull { it.platform == platform } ?: return@forEach
-            selected[best.item.exploreIdentity()] = best
+/**
+ * Resolve only as many randomly chosen candidates as each shelf needs. A failed/missing
+ * backdrop tries another candidate instead of admitting its poster. Results (including
+ * misses) are shared between overlapping shelves. Network work is bounded, cancellable,
+ * and does not publish a half-prepared/reordered carousel on every image completion.
+ *
+ * [resolve] must return a decoded/verified horizontal image, or null. Keeping it injectable
+ * makes fallback, concurrency, quotas and cancellation testable without any Android/network.
+ */
+internal suspend fun resolveHomeHeroItems(
+    sections: List<HomeHeroSection>,
+    itemsPerSection: Int,
+    seed: Int,
+    maxConcurrent: Int = 3,
+    resolve: suspend (JikanSearchResult) -> JikanSearchResult?
+): List<JikanSearchResult> = coroutineScope {
+    if (itemsPerSection <= 0) return@coroutineScope emptyList()
+    require(maxConcurrent > 0)
+    val pools = sections.map { section ->
+        section.copy(
+            results = section.results.filter(::isHomeHeroMedia).distinctBy(::homeHeroItemKey)
+                .shuffled(Random(seed xor section.key.hashCode()))
+        )
+    }
+    val resolved = mutableMapOf<String, JikanSearchResult?>()
+    val semaphore = Semaphore(maxConcurrent)
+    while (true) {
+        currentCoroutineContext().ensureActive()
+        val readySections = pools.map { pool ->
+            pool.copy(results = pool.results.mapNotNull { resolved[homeHeroItemKey(it)] })
         }
-    }
-
-    fun categoryCount(candidate: HeroCandidate): Int =
-        selected.values.count { it.category == candidate.category }
-
-    fun sourceCount(candidate: HeroCandidate): Int =
-        selected.values.count { it.platform == candidate.platform }
-
-    for (candidate in sorted) {
-        if (selected.size >= limit) break
-        val key = candidate.item.exploreIdentity()
-        if (key in selected) continue
-        if (categoryCount(candidate) >= perCategoryCap) continue
-        if (sourceCount(candidate) >= perSourceCap) continue
-        selected[key] = candidate
-    }
-
-    // Tavanlar sıkıysa kontenjan boş kalmasın: tavanları esneterek tamamla.
-    if (selected.size < limit) {
-        for (candidate in sorted) {
-            if (selected.size >= limit) break
-            val key = candidate.item.exploreIdentity()
-            if (key !in selected) selected[key] = candidate
+        val picks = matchHomeHeroSections(readySections, itemsPerSection)
+        val counts = picks.groupingBy { it.sectionKey }.eachCount()
+        val pending = LinkedHashMap<String, JikanSearchResult>()
+        pools.forEach { pool ->
+            var missing = itemsPerSection - (counts[pool.key] ?: 0)
+            for (item in pool.results) {
+                if (missing <= 0) break
+                val key = homeHeroItemKey(item)
+                if (resolved.containsKey(key)) continue
+                pending[key] = item
+                missing--
+            }
         }
+        if (pending.isEmpty()) {
+            return@coroutineScope picks.map { it.item }.shuffled(Random(seed))
+        }
+        pending.map { (key, item) ->
+            async {
+                semaphore.withPermit {
+                    val ready = try {
+                        resolve(item)?.takeIf { homeHeroItemKey(it) == key && homeHeroBackdropUrl(it) != null }
+                    } catch (cancelled: CancellationException) {
+                        throw cancelled
+                    } catch (_: Exception) {
+                        null
+                    }
+                    key to ready
+                }
+            }
+        }.awaitAll().forEach { (key, item) -> resolved[key] = item }
     }
-
-    return selected.values
-        .sortedByDescending { it.score }
-        .map { it.item }
+    @Suppress("UNREACHABLE_CODE")
+    emptyList()
 }

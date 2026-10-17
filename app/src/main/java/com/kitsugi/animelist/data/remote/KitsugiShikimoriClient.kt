@@ -470,12 +470,26 @@ object KitsugiShikimoriClient {
                     }.toTurkishStatus()
 
                     val genresList = mutableListOf<String>()
+                    val shikiTags = mutableListOf<KitsugiTag>()
                     val genresArr = data.optJSONArray("genres")
                     if (genresArr != null) {
                         for (i in 0 until genresArr.length()) {
                             val gObj = genresArr.optJSONObject(i) ?: continue
                             val gName = gObj.optString("name")
-                            if (gName.isNotBlank()) genresList.add(gName)
+                            val gKind = gObj.optString("kind", "").lowercase()
+                            if (gName.isNotBlank()) {
+                                genresList.add(gName)
+                                if (gKind == "theme" || gKind == "demographic" || !com.kitsugi.animelist.ui.screens.search.CanonicalFilterBridge.isOfficialAniListGenre(gName)) {
+                                    shikiTags.add(
+                                        KitsugiTag(
+                                            id = gObj.optInt("id").takeIf { it > 0 },
+                                            name = gName,
+                                            isSpoiler = KitsugiSpoilerRules.isIntrinsicSpoiler(gName),
+                                            source = "shikimori"
+                                        )
+                                    )
+                                }
+                            }
                         }
                     }
 
@@ -624,6 +638,7 @@ object KitsugiShikimoriClient {
                         total = total,
                         isAdult = isAdult,
                         realMalId = realMalId,
+                        tags = shikiTags,
                         openings = finalOpenings,
                         endings = finalEndings,
                         externalLinks = shikiLinks,

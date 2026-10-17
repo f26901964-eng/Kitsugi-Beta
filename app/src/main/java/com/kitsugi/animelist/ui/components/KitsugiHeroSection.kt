@@ -2,117 +2,82 @@ package com.kitsugi.animelist.ui.components
 
 import android.os.Handler
 import android.os.Looper
-import com.kitsugi.animelist.model.MediaType
-import com.kitsugi.animelist.ui.theme.gradient.background
-import com.kitsugi.animelist.ui.theme.gradient.border
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.focusable
-import androidx.compose.ui.focus.onFocusChanged
-import androidx.compose.ui.input.key.onPreviewKeyEvent
-import androidx.compose.ui.input.key.key
-import androidx.compose.ui.input.key.Key
-import androidx.compose.ui.input.key.KeyEventType
-import androidx.compose.ui.input.key.type
-import com.kitsugi.animelist.ui.theme.LocalIsTv
-import com.kitsugi.animelist.ui.utils.tvClickable
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxWithConstraints
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxHeight
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsDraggedAsState
+import androidx.compose.foundation.interaction.collectIsPressedAsState
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.pager.HorizontalPager
-import androidx.compose.foundation.pager.PagerState
+import androidx.compose.foundation.pager.PagerDefaults
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
-import com.kitsugi.animelist.ui.theme.gradient.Text
-import androidx.compose.animation.core.animateDpAsState
-import androidx.compose.animation.core.tween
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.setValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.derivedStateOf
-import androidx.compose.ui.draw.alpha
-import com.kitsugi.animelist.data.remote.KitsugiEpisodeRatingsRepository
-import com.kitsugi.animelist.data.remote.KitsugiBangumiDetailClient
-import com.kitsugi.animelist.data.remote.KitsugiHeroArtworkResolver
-import com.kitsugi.animelist.data.remote.KitsugiIdResolver
-import com.kitsugi.animelist.utils.copyOnDoubleTap
-import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.unit.Dp
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
-import androidx.compose.ui.BiasAlignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.key.*
+import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
-import com.kitsugi.animelist.ui.components.KitsugiNsfwImage
+import coil3.request.ImageRequest
+import coil3.request.allowRgb565
+import coil3.request.crossfade
+import coil3.size.Precision
+import com.kitsugi.animelist.R
 import com.kitsugi.animelist.data.remote.JikanSearchResult
-import com.kitsugi.animelist.data.remote.matches
-import com.kitsugi.animelist.model.MediaEntry
-import com.kitsugi.animelist.ui.theme.LocalKitsugiAccent
+import com.kitsugi.animelist.data.remote.KitsugiBangumiDetailClient
+import com.kitsugi.animelist.data.remote.KitsugiEpisodeRatingsRepository
+import com.kitsugi.animelist.data.remote.KitsugiHeroArtworkResolver
+import com.kitsugi.animelist.data.remote.KitsugiIdResolver
 import com.kitsugi.animelist.ui.theme.KitsugiColors
 import com.kitsugi.animelist.ui.theme.LocalIsTvDevice
+import com.kitsugi.animelist.ui.theme.LocalKitsugiAccent
+import com.kitsugi.animelist.ui.theme.gradient.Text
+import com.kitsugi.animelist.ui.theme.gradient.background
+import com.kitsugi.animelist.ui.theme.gradient.border
+import com.kitsugi.animelist.ui.utils.tvClickable
 import com.kitsugi.animelist.utils.PreferenceHelpers.getDisplayTitle
+import com.kitsugi.animelist.utils.copyOnDoubleTap
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.async
-import kotlinx.coroutines.channels.Channel
-import kotlinx.coroutines.launch
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.withContext
-import kotlin.math.abs
-import kotlin.math.round
-import androidx.compose.runtime.derivedStateOf
-import androidx.compose.ui.res.stringResource
-import com.kitsugi.animelist.R
 
-// NOT: Görsel katmanlarındaki yatay paralaks (eski HERO_BACKGROUND_PARALLAX = 0.055)
-// tamamen kaldırıldı. Sebep: geçiş sırasında kaydırılan görsel, parmak bırakıldığında
-// yerine geri kayıyor ve kullanıcıya "resim sonradan yerine oturuyor" gibi görünüyordu.
-// Kalan yumuşak geçiş (crossfade) hem daha sakin hem de daha az kare yükü demek.
-private const val HERO_BACKGROUND_SCALE = 1.0f
-// Başlık/meta bloğunun paralaksı korunur: görsel sabit kalırken metin hafifçe kayar.
-private const val HERO_CONTENT_PARALLAX = 0.18f
+private val heroMainHandler by lazy(LazyThreadSafetyMode.PUBLICATION) { Handler(Looper.getMainLooper()) }
 
-/**
- * ÇÖKME ÖNLEMİ: AsyncImage onSuccess çizim evresinde tetiklenebiliyor. Doğrudan
- * callback içinde Compose state değiştirmek (özellikle bant yüksekliğini
- * etkileyen pageImageAspects/loadedImageAspect) RenderThread libhwui.so içinde
- * (fault_addr=0x20) yok edilmiş RenderNode'a erişimle SIGSEGV üretiyor.
- * State değişikliğini ana iş parçacığı kuyruğunun sonuna (yani içinde
- * bulunduğumuz kare BİTTİKTEN sonraya) bırakmak yarışı kapatır.
- */
-private val mainHandler by lazy(LazyThreadSafetyMode.PUBLICATION) { Handler(Looper.getMainLooper()) }
-private fun postAfterFrame(block: () -> Unit) {
-    mainHandler.post(block)
+// Image callbacks can run during drawing; never mutate layout/state from that frame.
+private fun postAfterHeroFrame(block: () -> Unit) {
+    heroMainHandler.post(block)
 }
-
-private fun heroItemIdentity(item: JikanSearchResult): String =
-    "${item.source.trim().lowercase()}:${item.type.name}:${item.malId}"
 
 private suspend fun fetchHeroLogo(item: JikanSearchResult): String? = try {
     val stableId = item.malId
@@ -238,125 +203,12 @@ private suspend fun fetchHeroLogo(item: JikanSearchResult): String? = try {
     null
 }
 
-// Kaynak adı etiketleri artık ortak `toFriendlySourceLabel()` üzerinden üretilir;
-// vitrin çipi `KitsugiSourceNamePill` ile tüm kaynaklarda logo+isim gösterir.
-
 /**
- * Vitrin görseli için birincil ve yedek URL sırasını belirler.
- *
- * - **Dikey ekran / dar vitrin (`aspect < 1.10` ve dikey mod — ör. dikey telefon)**:
- *   en kaliteli **dikey poster** (`posterUrl`) birincildir, `backdropUrl` yedektir.
- * - **Yatay ekran / geniş vitrin bandı (`aspect >= 1.10` veya yatay mod — ör. yatay telefon,
- *   dikey tablet geniş vitrin, yatay tablet, TV)**:
- *   anime, dizi ve filmlerde en kaliteli **yatay arka plan** (`backdropUrl`) birincildir,
- *   `posterUrl` yedektir.
- * - **Manga**: her zaman dikey kapak (`posterUrl`) birincildir.
+ * A real, keyed pager: artwork, logo and metadata are children of the SAME page.
+ * There is no invisible pager, hand-dispatched drag, stacked crossfade or content parallax.
+ * Its height depends only on device geometry, never on an item's image or loading state.
  */
-internal fun heroImageCandidates(
-    posterUrl: String?,
-    backdropUrl: String?,
-    heroWidthDp: Float,
-    heroHeightDp: Float,
-    isLandscape: Boolean,
-    mediaType: MediaType = MediaType.Anime
-): List<String> {
-    val aspect = if (heroWidthDp > 0f && heroHeightDp > 0f) {
-        heroWidthDp / heroHeightDp
-    } else if (isLandscape) {
-        16f / 9f
-    } else {
-        9f / 16f
-    }
-    val preferBackdrop = mediaType != MediaType.Manga &&
-        (aspect >= 1.10f || (isLandscape && aspect >= 0.95f))
-    return heroImageCandidates(posterUrl, backdropUrl, preferBackdrop)
-}
-
-/**
- * Aday zincirini DOĞRUDAN stabil tercihten üretir.
- *
- * Ana sayfa vitrini bandı artık gösterdiği görselin oranına göre otomatik boyutlandığı
- * için tercih, kutu ölçüsünden (döngüsel olurdu) değil ekran oranından türetilir
- * ([homeHeroPrefersBackdrop]).
- */
-internal fun heroImageCandidates(
-    posterUrl: String?,
-    backdropUrl: String?,
-    preferBackdrop: Boolean
-): List<String> {
-    val poster = KitsugiHeroArtworkResolver.upgradeNativePosterUrl(posterUrl)
-    val backdrop = KitsugiHeroArtworkResolver.sanitizeNativeBackdropUrl(backdropUrl, poster)
-    if (poster == null) return listOfNotNull(backdrop)
-    if (backdrop == null) return listOf(poster)
-    if (poster == backdrop) return listOf(backdrop)
-    return if (preferBackdrop) listOf(backdrop, poster) else listOf(poster, backdrop)
-}
-
-/**
- * Vitrin görselinin kırpma hizalaması:
- *
- * Gerçek en-boy oranı (`imageAspect`) biliniyorsa kırpma dinamik olarak hesaplanır:
- * yatayda görselin merkezine, dikeyde ise karakterlerin başını/yüzünü korumak için
- * üstten küçük bir pay (`topMargin = 5%` yatay, `2%` poster) bırakılacak şekilde odaklanır.
- *
- * Görsel kutudan daha darsa (ör. yatay arka plan dikey telefonda) yatay kırpma her iki yandan eşit
- * kaydırılır ve yatayda ortalanır. Böylece karakterlerin başı/yüzü asla üstten kesilmez,
- * aynı zamanda görsel gereğinden fazla "yukarı kaymış" görünmez.
- *
- * @param chosenIsPoster Dikey görsel mi?
- * @param heroAspect     Kutunun en-boy oranı (genişlik / yükseklik).
- * @param imageAspect    Görselin gerçek en-boy oranı; yüklenmediyse `null` (eski davranış).
- */
-internal fun heroImageAlignment(
-    chosenIsPoster: Boolean,
-    heroAspect: Float,
-    imageAspect: Float? = null
-): Alignment {
-    if (imageAspect != null && imageAspect.isFinite() && imageAspect > 0.05f &&
-        heroAspect.isFinite() && heroAspect > 0.05f
-    ) {
-        val ratio = heroAspect / imageAspect
-        return if (ratio > 1f) {
-            // Kutu görselden geniş → görselin ALT/ÜST kısmı kırpılır.
-            // Görünen yükseklik oranı: 1 / ratio
-            val visible = (1f / ratio).coerceIn(0.05f, 1f)
-            // Üstte korunacak pay: posterlerde 2%, yatay görsellerde 5%
-            val topMargin = if (chosenIsPoster) 0.02f else 0.05f
-            val bias = (topMargin + visible / 2f) - 0.5f
-            BiasAlignment(0f, bias.coerceIn(-0.36f, 0.08f))
-        } else {
-            // Kutu görselden dar → görselin SAĞ/SOL kısmı kırpılır: yatayda ortala.
-            // Posterlerde dikeyde hafif üst odak (yüzler genelde üst yarıda).
-            BiasAlignment(0f, if (chosenIsPoster) -0.10f else 0f)
-        }
-    }
-    // Gerçek oran henüz bilinmiyor → kanıtlanmış eski davranış (görsel yüklenince düzeltilir).
-    return when {
-        chosenIsPoster && heroAspect >= 1.15f -> BiasAlignment(0f, -0.25f)
-        chosenIsPoster -> BiasAlignment(0f, -0.20f)
-        heroAspect >= 1.85f -> BiasAlignment(0f, -0.32f)
-        else -> Alignment.Center
-    }
-}
-
-@Composable
-private fun HeroSourcePill(source: String) {
-    // Tüm kaynaklarda logo + dostça isim gösteren ortak çip.
-    KitsugiSourceNamePill(source = source)
-}
-
-internal data class HomeHeroLayout(
-    val isTablet: Boolean,
-    val isLandscape: Boolean,
-    val heroHeight: Dp,
-    val contentMaxWidth: Dp,
-    val contentWidthFraction: Float,
-    val contentHorizontalPadding: Dp,
-    val contentVerticalPadding: Dp,
-    val bottomFadeHeight: Dp,
-    val logoWidthFraction: Float,
-)
-
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun KitsugiHeroSection(
     items: List<JikanSearchResult>,
@@ -368,922 +220,338 @@ fun KitsugiHeroSection(
     hideScores: Boolean = false,
     showAnimeLogos: Boolean = false,
     isVisible: Boolean = true,
-    blurAdultMedia: Boolean = false
+    blurAdultMedia: Boolean = false,
+    /** Explore's admission gate has already decoded and verified these backdrop URLs. */
+    artworkPrepared: Boolean = false
 ) {
-    if (items.isEmpty()) return
-
-    val pagerState = rememberPagerState(pageCount = { items.size })
-    val coroutineScope = rememberCoroutineScope()
-    val accentColor = LocalKitsugiAccent.current
-
-    val pagerKey = remember(items) {
-        items.joinToString("|") { "${it.source}:${it.type}:${it.malId}:${it.title}" }
-    }
-
-    var logos by remember(pagerKey) { mutableStateOf<Map<String, String?>>(emptyMap()) }
-
-    LaunchedEffect(items, showAnimeLogos) {
-        if (items.none { shouldShowHeroLogo(it, showAnimeLogos) }) {
-            logos = emptyMap()
-            return@LaunchedEffect
-        }
-        val logoMap = logos.toMutableMap()
-        val maxConcurrentLogoLookups = Semaphore(3)
-
-        // Önce vitrinde açık olan öğeyi çöz; diğer kaynakların logoları, Bangumi'nin
-        // çapraz-kimlik araması sürerken paralel yüklenip tamamlandıkça gösterilebilir.
-        val priorityItems = buildList {
-            val cur = pagerState.currentPage.coerceIn(items.indices)
-            add(items[cur])
-            items.indices.filter { it != cur }.forEach { add(items[it]) }
-        }.distinctBy { heroItemIdentity(it) }
-            .filter { shouldShowHeroLogo(it, showAnimeLogos) }
-            .filter { logoMap[heroItemIdentity(it)].isNullOrBlank() }
-
-        val logoCompletions = Channel<Pair<String, String?>>(Channel.UNLIMITED)
-        val pending = priorityItems.map { item ->
-            async {
-                maxConcurrentLogoLookups.withPermit {
-                    logoCompletions.send(heroItemIdentity(item) to fetchHeroLogo(item))
-                }
+    val context = LocalContext.current
+    val videoItems = remember(items) { items.filter(::isHomeHeroMedia).distinctBy(::homeHeroItemKey) }
+    // Other callers (e.g. extension discovery) use the same strict gate, not their posters.
+    val artworkLoader = remember(context.applicationContext) { HomeHeroArtworkLoader(context) }
+    var preparedItems by remember(videoItems) { mutableStateOf<List<JikanSearchResult>>(emptyList()) }
+    var preparing by remember(videoItems) { mutableStateOf(!artworkPrepared && videoItems.isNotEmpty()) }
+    LaunchedEffect(videoItems, artworkPrepared) {
+        if (!artworkPrepared) {
+            preparing = videoItems.isNotEmpty()
+            val permits = Semaphore(3)
+            preparedItems = coroutineScope {
+                videoItems.map { item -> async { permits.withPermit { artworkLoader.prepare(item) } } }
+                    .awaitAll().filterNotNull()
             }
-        }
-
-        repeat(pending.size) {
-            val (identity, logoUrl) = logoCompletions.receive()
-            logoMap[identity] = logoUrl
-            logos = logoMap.toMap()
+            preparing = false
         }
     }
-    // TMDB + Fanart.tv üzerinden her öğe için en kaliteli dikey poster + yatay arka plan çözümü.
-    // Önbellekte varsa ilk karede (0ms) senkron olarak okunur; ekran döndürmede anında hazırdır.
-    var resolvedArtworkMap by remember(pagerKey) {
-        mutableStateOf(KitsugiHeroArtworkResolver.snapshotFor(items))
-    }
-
-    LaunchedEffect(pagerKey, pagerState.currentPage) {
-        val currentIdx = pagerState.currentPage.coerceIn(0, items.lastIndex)
-        val ordered = buildList {
-            add(items[currentIdx])
-            items.forEachIndexed { idx, item ->
-                if (idx != currentIdx) add(item)
-            }
-        }
-        for (item in ordered) {
-            val key = KitsugiHeroArtworkResolver.cacheKey(item)
-            if (resolvedArtworkMap[key] == null) {
-                launch {
-                    val resolved = runCatching {
-                        KitsugiHeroArtworkResolver.resolveArtwork(item)
-                    }.getOrNull()
-                    if (resolved != null) {
-                        resolvedArtworkMap = resolvedArtworkMap + (key to resolved)
-                    }
-                }
+    val admittedItems = remember(videoItems, preparedItems, artworkPrepared) {
+        (if (artworkPrepared) videoItems else preparedItems).mapNotNull { item ->
+            homeHeroBackdropUrl(item)?.let { url ->
+                if (url == item.backdropUrl) item else item.copy(backdropUrl = url)
             }
         }
     }
-
-    val configuration = androidx.compose.ui.platform.LocalConfiguration.current
-    val screenWidthDp = configuration.screenWidthDp
-    val screenHeightDp = configuration.screenHeightDp
-    val isLandscape = configuration.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE || screenWidthDp > screenHeightDp
-    val isTablet = if (isLandscape) screenHeightDp >= 600f else screenWidthDp >= 600f
-
-    val isTvDevice = LocalIsTvDevice.current
-    val isTv = isTvDevice
-    val layout = remember(screenWidthDp, screenHeightDp, isTv, isLandscape, isTablet) {
-        if (isTv) {
-            HomeHeroLayout(
-                isTablet = true,
-                isLandscape = true,
-                heroHeight = heroBandHeightDp(screenHeightDp.toFloat(), isLandscape = true, isTablet = true, isTv = true).dp,
-                contentMaxWidth = 640.dp,
-                contentWidthFraction = 0.54f,
-                contentHorizontalPadding = 48.dp,
-                contentVerticalPadding = 28.dp,
-                bottomFadeHeight = 150.dp,
-                logoWidthFraction = 0.5f,
-            )
-        } else if (isLandscape) {
-            if (isTablet) {
-                HomeHeroLayout(
-                    isTablet = true,
-                    isLandscape = true,
-                    heroHeight = heroBandHeightDp(screenHeightDp.toFloat(), isLandscape = true, isTablet = true, isTv = false).dp,
-                    contentMaxWidth = 560.dp,
-                    contentWidthFraction = 0.54f,
-                    contentHorizontalPadding = 32.dp,
-                    contentVerticalPadding = 18.dp,
-                    bottomFadeHeight = 120.dp,
-                    logoWidthFraction = 0.52f,
-                )
-            } else {
-                // Yatay modda telefon: yatay (16:9) kapak görselleri neredeyse kırpılmadan
-                // görünsün diye bant ekran yüksekliğinin büyük kısmını kaplar.
-                HomeHeroLayout(
-                    isTablet = false,
-                    isLandscape = true,
-                    heroHeight = heroBandHeightDp(screenHeightDp.toFloat(), isLandscape = true, isTablet = false, isTv = false).dp,
-                    contentMaxWidth = 440.dp,
-                    contentWidthFraction = 0.56f,
-                    contentHorizontalPadding = 24.dp,
-                    contentVerticalPadding = 12.dp,
-                    bottomFadeHeight = 96.dp,
-                    logoWidthFraction = 0.48f,
-                )
-            }
-        } else {
-            if (isTablet) {
-                HomeHeroLayout(
-                    isTablet = true,
-                    isLandscape = false,
-                    heroHeight = heroBandHeightDp(screenHeightDp.toFloat(), isLandscape = false, isTablet = true, isTv = false).dp,
-                    contentMaxWidth = 600.dp,
-                    contentWidthFraction = 0.88f,
-                    contentHorizontalPadding = 28.dp,
-                    contentVerticalPadding = 20.dp,
-                    bottomFadeHeight = 140.dp,
-                    logoWidthFraction = 0.56f,
-                )
-            } else {
-                HomeHeroLayout(
-                    isTablet = false,
-                    isLandscape = false,
-                    heroHeight = heroBandHeightDp(screenHeightDp.toFloat(), isLandscape = false, isTablet = false, isTv = false).dp,
-                    contentMaxWidth = 520.dp,
-                    contentWidthFraction = 1f,
-                    contentHorizontalPadding = 16.dp,
-                    contentVerticalPadding = 18.dp,
-                    bottomFadeHeight = 130.dp,
-                    logoWidthFraction = 0.62f,
-                )
-            }
-        }
+    if (admittedItems.isEmpty()) {
+        if (preparing) KitsugiShimmerHeroSection(modifier = modifier)
+        return
     }
 
-    val currentPage = pagerState.currentPage.coerceIn(items.indices)
-    // Offset her animasyon karesinde değişir. Burada offset/visibility okuyup List +
-    // HeroPageLayer üretmek tüm vitrini 60 Hz recompose ediyor ve GC baskısı yaratıyordu.
-    // Yalnız sayfa değiştiğinde üç sabit indeks oluştur; karelik değerler aşağıdaki
-    // graphicsLayer bloklarında draw/layer aşamasında okunur.
-    val visiblePageIndices = remember(currentPage, items.size) {
-        listOf(currentPage, currentPage - 1, currentPage + 1)
-            .filter { it in items.indices }
-            .distinct()
-    }
-
-    // Vitrin katmanları üst üste biner ve en üstteki katman dokunmayı ilk yakalar;
-    // graphicsLayer alfası yalnızca çizimi etkiler, hit-test'i etkilemez. Bu yüzden
-    // katmanın kendi öğesini açması yerine, tıklama anında GÖRSEL OLARAK ekranda olan
-    // (baskın) öğeyi çözüp açarız — "tıkladığım yerine sıradaki öğe açılıyor" hatası
-    // bu sayede ortadan kalkar.
-    val openVisibleHeroItem: () -> Unit = {
-        if (items.isNotEmpty()) {
-            val dominant = round(pagerState.currentPage + pagerState.currentPageOffsetFraction)
-                .toInt()
-                .coerceIn(items.indices)
-            onInfoClick(items[dominant])
-        }
-    }
-
+    // Source completions must not change page indices under a finger or during a snap.
+    var heroItems by remember { mutableStateOf(admittedItems) }
+    val config = LocalConfiguration.current
+    val isLandscape = config.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE ||
+        config.screenWidthDp > config.screenHeightDp
+    val isTablet = minOf(config.screenWidthDp, config.screenHeightDp) >= 600
+    val isTv = LocalIsTvDevice.current
+    val heroHeight = heroBandHeightDp(config.screenHeightDp.toFloat(), isLandscape, isTablet, isTv).dp
+    val horizontalPadding = if (isTv) 48.dp else if (isTablet) 28.dp else if (isLandscape) 24.dp else 16.dp
+    val contentWidthFraction = if (isLandscape || isTv) 0.56f else 1f
+    val contentMaxWidth = if (isTv) 640.dp else if (isTablet) 600.dp else 520.dp
+    val fontScale = LocalDensity.current.fontScale.coerceAtLeast(1f)
+    val titleSlotHeight = (if (isLandscape) 64.dp else 84.dp) * fontScale
+    val accent = LocalKitsugiAccent.current
+    val background = KitsugiColors.Background
+    val pagerState = rememberPagerState(pageCount = { heroItems.size })
+    val scope = rememberCoroutineScope()
+    val latestOnInfoClick by rememberUpdatedState(onInfoClick)
+    val pageInteractionSource = remember { MutableInteractionSource() }
+    val isPressed by pageInteractionSource.collectIsPressedAsState()
+    val isDragged by pagerState.interactionSource.collectIsDraggedAsState()
     var isFocused by remember { mutableStateOf(false) }
+    var isTouchDown by remember { mutableStateOf(false) }
+    val pageKeys = remember(heroItems) { heroItems.map(::homeHeroItemKey) }
+    val logoCache = remember { mutableMapOf<String, String>() }
+    val logoPermits = remember { Semaphore(3) }
+    var autoDirection by remember { mutableIntStateOf(1) }
+    LaunchedEffect(admittedItems) {
+        snapshotFlow { !pagerState.isScrollInProgress && !isDragged && !isPressed && !isTouchDown }.first { it }
+        heroItems = admittedItems
+    }
 
-    LaunchedEffect(isVisible, isFocused, pagerState.currentPage, pagerState.isScrollInProgress, items.size) {
-        if (items.size > 1 && isVisible && !isFocused && !pagerState.isScrollInProgress) {
-            delay(5000L)
-            val nextPage = (pagerState.currentPage + 1) % items.size
-            coroutineScope.launch {
-                pagerState.animateScrollToPage(nextPage)
-            }
+    fun openCurrentItem() {
+        heroItems.getOrNull(pagerState.currentPage)?.let { latestOnInfoClick(it) }
+    }
+    fun goToPage(index: Int) {
+        scope.launch {
+            pagerState.animateScrollToPage(index, animationSpec = tween(500, easing = FastOutSlowInEasing))
         }
     }
 
-    // Önde olan sayfa indeksi vitrin kutusunun DIŞINDA da gerekli: bant yüksekliği,
-    // önde olan sayfanın o an gösterdiği görselin gerçek en-boy oranını takip eder.
-    // visiblePageIndices changes when the pager settles on a new item. Keep it as a
-    // remember key: otherwise derivedStateOf retains the initial neighbor list and
-    // later hero pages have no clickable front layer (taps appear to do nothing).
-    val frontPageIndex by remember(pagerState, visiblePageIndices) {
-        derivedStateOf {
-            frontHeroPageIndex(
-                currentPage = pagerState.currentPage,
-                currentPageOffsetFraction = pagerState.currentPageOffsetFraction,
-                visiblePageIndices = visiblePageIndices
+    LaunchedEffect(isVisible, isFocused, isPressed, isTouchDown, isDragged, pagerState.settledPage, pagerState.isScrollInProgress, pageKeys) {
+        if (heroItems.size > 1 && isVisible && !isFocused && !isPressed && !isTouchDown && !isDragged && !pagerState.isScrollInProgress) {
+            delay(5_000L)
+            autoDirection = homeHeroAutoDirection(pagerState.settledPage, heroItems.size, autoDirection)
+            // Only ever travel ONE page. No last -> first multi-page rewind or boundary wrap.
+            pagerState.animateScrollToPage(
+                pagerState.settledPage + autoDirection,
+                animationSpec = tween(650, easing = FastOutSlowInEasing)
             )
         }
     }
 
-    // Sayfa başına yüklenen vitrin görselinin GERÇEK en-boy oranı (genişlik/yükseklik).
-    // Bant yüksekliği bu orandan türetilir → vitrin, gösterdiği görselin şekline
-    // (dikey poster → uzun-dar kutu, yatay arka plan → geniş-kısa bant) otomatik oturur.
-    var pageImageAspects by remember(pagerKey) { mutableStateOf<Map<Int, Float>>(emptyMap()) }
-
-    BoxWithConstraints(
-        modifier = modifier
-            .fillMaxWidth()
+    Box(
+        modifier = modifier.testTag("home_hero").fillMaxWidth().height(heroHeight).clipToBounds()
+            .pointerInput(pagerState) {
+                // Observe only: consume NOTHING and leave drag/fling entirely to Pager.
+                // A title's double-tap handler may consume its down event; even then,
+                // autoplay and source updates must wait until the finger is released.
+                awaitEachGesture {
+                    awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
+                    isTouchDown = true
+                    try {
+                        while (true) {
+                            if (awaitPointerEvent(PointerEventPass.Initial).changes.none { it.pressed }) break
+                        }
+                    } finally {
+                        isTouchDown = false
+                    }
+                }
+            }
             .then(
-                if (isTv) {
-                    Modifier
-                        .focusable()
-                        .onFocusChanged { isFocused = it.isFocused || it.hasFocus }
-                        .onPreviewKeyEvent { event ->
-                            if (event.type == KeyEventType.KeyDown) {
-                                when (event.key) {
-                                    Key.DirectionLeft -> {
-                                        if (pagerState.currentPage > 0) {
-                                            coroutineScope.launch {
-                                                pagerState.animateScrollToPage(pagerState.currentPage - 1)
-                                            }
-                                            true
-                                        } else false
-                                    }
-                                    Key.DirectionRight -> {
-                                        if (pagerState.currentPage < items.size - 1) {
-                                            coroutineScope.launch {
-                                                pagerState.animateScrollToPage(pagerState.currentPage + 1)
-                                            }
-                                            true
-                                        } else false
-                                    }
-                                    Key.DirectionCenter,
-                                    Key.Enter,
-                                    Key.NumPadEnter -> {
-                                        openVisibleHeroItem()
-                                        true
-                                    }
-                                    else -> false
-                                }
+                if (isTv) Modifier
+                    .onFocusChanged { isFocused = it.isFocused || it.hasFocus }
+                    .onPreviewKeyEvent { event ->
+                        if (event.type != KeyEventType.KeyDown) false else when (event.key) {
+                            Key.DirectionLeft -> if (pagerState.currentPage > 0) {
+                                goToPage(pagerState.currentPage - 1)
+                                true
                             } else false
+                            Key.DirectionRight -> if (pagerState.currentPage < heroItems.lastIndex) {
+                                goToPage(pagerState.currentPage + 1)
+                                true
+                            } else false
+                            Key.DirectionCenter, Key.Enter, Key.NumPadEnter -> {
+                                openCurrentItem()
+                                true
+                            }
+                            else -> false
                         }
-                } else {
-                    Modifier.homeHeroPagerGesture(
-                        pagerState = pagerState,
-                        itemCount = items.size,
-                        coroutineScope = coroutineScope
-                    )
-                }
-            )
-            .then(
-                if (isTv) {
-                    Modifier
-                        .border(
-                            width = 3.dp,
-                            color = if (isFocused) accentColor else androidx.compose.ui.graphics.Color.Transparent,
-                            shape = RoundedCornerShape(bottomStart = 28.dp, bottomEnd = 28.dp)
-                        )
-                        .clip(RoundedCornerShape(bottomStart = 28.dp, bottomEnd = 28.dp))
-                } else Modifier
-            )
-            .background(KitsugiColors.Background)
+                    }
+                    .focusable()
+                    .border(3.dp, if (isFocused) accent else Color.Transparent, RoundedCornerShape(24.dp))
+                else Modifier
+            ).background(background)
     ) {
-        // Gerçek vitrin kutusu genişliği — kaplayan kırpma ve görsel seçimi bu ene oturur.
-        val heroBoxWidthDp = maxWidth.value
-        // ── VİTRİN BANDI YÜKSEKLİĞİ (görsel şekline oturur) ───────────────────────
-        //  - DİKEY poster  → uzun-dar kutu (ekran yüksekliğinin %62'siyle sınırlı),
-        //  - YATAY arka plan → geniş-kısa bant (metin/bindirmeler sığsın diye ekran
-        //    yüksekliğinin %34'ü taban),
-        //  - YATAY mod     → mevcut ekran-duyarlı bant yüksekliği tavan kalır; yalnız
-        //    çok geniş banner'lar bandı hafifçe kısaltır (poster fallback contain
-        //    mantığı bozulmaz),
-        //  - DİKEY mod     → sabit bant (cihazın dikey bant yüksekliği).
-        // Başlık, rozetler ve gösterge çubuğu eskisi gibi görselin ÜSTÜNDE bindirilir.
-        // SARSINTI ÖNLEMİ: bant yüksekliği artık PARMAK ALTINDA değişmez.
-        // Önceden `frontPageIndex` (offset'e göre her karede değişen değer) okunuyordu;
-        // bu, sürükleme sırasında vitrinin — ve altındaki listenin — her karede yeniden
-        // ölçülmesine, dolayısıyla kaydırmada görülen "minnak sarsılmaya" yol açıyordu.
-        // `settledPage` yalnızca sayfa gerçekten oturduğunda değişir.
-        val settledPageIndex = pagerState.settledPage.coerceIn(items.indices)
-        val settledItem = items[settledPageIndex]
-        val settledArtwork = resolvedArtworkMap[KitsugiHeroArtworkResolver.cacheKey(settledItem)]
-        // Görselin GERÇEK oranı ölçülmeden önce plandan türetilen BEKLENEN oran
-        // kullanılır (poster 2:3 / yatay arka plan 16:9) → kutu ilk kareden doğru
-        // kurulur ve görsel yüklenince "sonradan yerine oturma" yaşanmaz.
-        val settledHasPoster = !settledItem.imageUrl.isNullOrBlank() ||
-            settledArtwork?.posterCandidates?.isNotEmpty() == true
-        val settledHasBackdrop = !settledItem.backdropUrl.isNullOrBlank() ||
-            settledArtwork?.backdropCandidates?.isNotEmpty() == true
-        val settledPreferBackdrop = homeHeroPrefersBackdrop(
-            screenWidthDp = screenWidthDp,
-            screenHeightDp = screenHeightDp,
-            isLandscape = layout.isLandscape,
-            mediaType = settledItem.type
-        )
-        val settledExpectedAspect = remember(
-            settledHasPoster,
-            settledHasBackdrop,
-            settledPreferBackdrop
-        ) {
-            expectedHeroAspect(
-                primaryHeroArtworkIsPoster(
-                    hasPoster = settledHasPoster,
-                    hasBackdrop = settledHasBackdrop,
-                    preferBackdrop = settledPreferBackdrop
-                )
-            )
-        }
-        val settledImageAspect = pageImageAspects[settledPageIndex] ?: settledExpectedAspect
-        val targetHeroHeightDp = homeHeroHeightDp(
-            heroWidthDp = heroBoxWidthDp,
-            screenHeightDp = screenHeightDp.toFloat(),
-            isLandscape = layout.isLandscape,
-            landscapeBandHeightDp = layout.heroHeight.value,
-            imageAspect = settledImageAspect,
-            defaultAspect = settledImageAspect,
-            // DİKEY mod: dikey poster/kapak gösteriliyorsa kutu görselin oranına
-            // KİLİTLENİR → poster kenardan kenağa, kırpılmadan ve yanlarda bulanık
-            // dolgu boşluğu olmadan tam oturur. Yatay (16:9) görselde ise eski
-            // sabit bant birebir korunur (başlık/meta/gösterge çubuğu sığsın).
-            portraitFallbackBandHeightDp = layout.heroHeight.value
-        )
-        // Oran gerçekten farklıysa (ör. ultra geniş banner) bant ANİDEN zıplamasın;
-        // kısa bir yumuşatmayla kayar (normal içerikte hedef zaten aynı → hiç oynamaz).
-        val animatedHeroHeightDp by animateDpAsState(
-            targetValue = targetHeroHeightDp.dp,
-            animationSpec = tween(durationMillis = 280),
-            label = "homeHeroBandHeight"
-        )
-        val heroHeightDp = animatedHeroHeightDp.value
-        val heroBoxHeightDp = heroHeightDp
-        // Full-bleed kararı ANİMASYONLU yükseklikten değil HEDEF yükseklikten okunur:
-        // bant yumuşak geçişle (280 ms) yerine otururken katman modu ileri geri
-        // zıplayıp titreme yapmasın.
-        val heroBoxTargetAspect = if (targetHeroHeightDp > 0f) {
-            heroBoxWidthDp / targetHeroHeightDp
-        } else {
-            1f
-        }
-        val heroWidthPx = with(LocalDensity.current) { heroBoxWidthDp.dp.toPx() }
-        val heroScrollScale = 1f
-        val heroScrollTranslationY = 0f
-
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(heroHeightDp.dp)
-        ) {
-
-            HorizontalPager(
+        HorizontalPager(
+            state = pagerState,
+            key = { page -> homeHeroItemKey(heroItems[page]) },
+            beyondViewportPageCount = 1,
+            userScrollEnabled = !isTv,
+            flingBehavior = PagerDefaults.flingBehavior(
                 state = pagerState,
-                userScrollEnabled = false,
-                modifier = Modifier
-                    .fillMaxSize()
-                    .graphicsLayer { alpha = 0.01f }
-            ) {
-                Box(modifier = Modifier.fillMaxSize())
-            }
-
-            // Hit-test düzeltmesi: görünür sayfalar (current-1, current, current+1) üst üste
-            // çizilir. alpha=0 olan komşu katmanlar görsel olarak görünmese de dokunma
-            // olaylarını yiyor ve "yanlış anime" detay sayfası açılmasına sebep oluyordu
-            // (One Piece'e tıklayınca Frieren açılması vb.). Sadece o an ÖNDE olan sayfa
-            // (offset mutlak değeri en küçük olan) tıklama alsın; diğer katmanlar
-            // pointerInput'ı kendi üstlerine kapatmasın.
-            // frontPageIndex yukarıda (vitrin kutusu dışında) türetilir: bant yüksekliği
-            // öndeki sayfanın görsel oranını takip eder.
-            visiblePageIndices.forEach { page ->
-                val rawItem = items[page]
-                val artwork = resolvedArtworkMap[KitsugiHeroArtworkResolver.cacheKey(rawItem)]
-                    ?: KitsugiHeroArtworkResolver.getCached(rawItem)
-                val item = remember(rawItem, artwork) {
-                    KitsugiHeroArtworkResolver.applyCachedOrInstant(
-                        rawItem,
-                        if (artwork != null) mapOf(KitsugiHeroArtworkResolver.cacheKey(rawItem) to artwork) else emptyMap()
-                    )
-                }
-                val displayTitle = item.getDisplayTitle(titleLanguage)
-                val isFrontPage = (page == frontPageIndex)
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .then(
-                            if (isTv || !isFrontPage) {
-                                // Komşu sayfalar (alpha=0) ve TV odak modu: katman dokunmaları
-                                // yutmasın diye clickable ekleme. TV'de Enter tuşu zaten üstteki
-                                // ana Box'ta pagerState.currentPage ile doğru öğeyi tetikliyor.
-                                Modifier
-                            } else {
-                                Modifier.tvClickable(
-                                    scaleOnFocus = false
-                                ) { openVisibleHeroItem() }
-                            }
-                        )
-                ) {
-                // Ekranın dikey/yatay boyutuna göre birincil ve yedek görsel zincirini oluştur.
-                val heroBoxAspect = if (heroBoxHeightDp > 0f) heroBoxWidthDp / heroBoxHeightDp else 1f
-                // SABİT tercih: ekran oranından türetilir (bant yüksekliği otomatik
-                // boyutlanırken değişmez) → görsel sırası yüklenme sırasında sıfırlanmaz,
-                // titreşim/döngü oluşmaz.
-                val preferBackdrop = homeHeroPrefersBackdrop(
-                    screenWidthDp = screenWidthDp,
-                    screenHeightDp = screenHeightDp,
-                    isLandscape = layout.isLandscape,
-                    mediaType = item.type
-                )
-                val heroImagePlan = remember(
-                    item.imageUrl,
-                    item.backdropUrl,
-                    artwork,
-                    preferBackdrop
-                ) {
-                    val primaryPair = heroImageCandidates(
-                        posterUrl = item.imageUrl,
-                        backdropUrl = item.backdropUrl,
-                        preferBackdrop = preferBackdrop
-                    )
-                    if (artwork == null) {
-                        primaryPair
-                    } else {
-                        val orderedExtras = if (preferBackdrop) {
-                                artwork.backdropCandidates + artwork.posterCandidates
-                            } else {
-                                artwork.posterCandidates + artwork.backdropCandidates
-                            }
-                            (primaryPair + orderedExtras).distinct()
-                        }
-                    }
-                    var heroImageIndex by remember(heroImagePlan) { mutableIntStateOf(0) }
-                    val heroImageModel = heroImagePlan.getOrNull(heroImageIndex)
-
-                    fun candidateIsPoster(model: String?): Boolean = when {
-                        model == null -> false
-                        artwork != null && model in artwork.posterCandidates && model !in artwork.backdropCandidates -> true
-                        artwork != null && model in artwork.backdropCandidates -> false
-                        else -> KitsugiHeroArtworkResolver.isLikelyVerticalUrl(
-                            url = model,
-                            posterUrl = item.imageUrl,
-                            backdropUrl = item.backdropUrl
-                        )
-                    }
-                    val chosenIsPoster = remember(heroImageModel, item.imageUrl, item.backdropUrl, artwork) {
-                        candidateIsPoster(heroImageModel)
-                    }
-                    // Bir aday YÜKLENEMEZSE (404 vb.) ölçülen oran artık geçersizdir: bant
-                    // eski poster oranına kilitli kalıp yeni yatay görseli fena kırpmasın.
-                    // Sıradaki adayın BEKLENEN oranı (poster 2:3 / arka plan 16:9) yazılır.
-                    fun advanceToNextCandidate() {
-                        if (heroImageIndex >= heroImagePlan.lastIndex) return
-                        val next = heroImagePlan.getOrNull(heroImageIndex + 1)
-                        heroImageIndex += 1
-                        postAfterFrame {
-                            pageImageAspects = pageImageAspects +
-                                (page to expectedHeroAspect(candidateIsPoster(next)))
-                        }
-                    }
-
-                    // Yüklü görselin gerçek en-boy oranı (width / height).
-                    var loadedImageAspect by remember(heroImageModel) { mutableStateOf<Float?>(null) }
-                    val isVerticalArtwork = loadedImageAspect?.let { isVerticalHeroAspect(it) } ?: chosenIsPoster
-                    val isWideShowcaseBox = isWideHeroBox(heroBoxAspect, minAspect = 1.18f)
-
-                    // DİKEY MOD + DİKEY GÖRSEL: bant yüksekliği görselin oranına kilitlendiği
-                    // için (bkz. homeHeroHeightDp dikey dalı) kutu ile görsel BİREBİR aynı
-                    // şekle gelir → poster kenardan kenağa, kırpılmadan ve iki yanda bulanık
-                    // dolgu boşluğu olmadan TAM oturur ("ekrana tam oturması").
-                    // Ölçüm henüz gelmediyse BEKLENEN oran kullanılır (poster 2:3 / arka plan
-                    // 16:9): kutu zaten bu orandan kurulduğu için ilk kare de doğrudur.
-                    val effectiveArtworkAspect = loadedImageAspect ?: expectedHeroAspect(isVerticalArtwork)
-                    val portraitFillsScreen = !layout.isLandscape &&
-                        isVerticalArtwork &&
-                        isHeroBoxFullBleed(
-                            boxAspect = heroBoxTargetAspect,
-                            imageAspect = effectiveArtworkAspect
-                        )
-
-                    // Geniş/yatay vitrin alanında (tablet yatay, tablet dikey geniş bant, telefon yatay)
-                    // dikey bir görsel gösteriliyorsa:
-                    // arkada yumuşak atmosferik katman + ön planda tam boy kesilmemiş dikey görsel gösterilir.
-                    // Dikey modda da, kutu görsele tam oturamadığında (ör. çok uzun poster tavanı
-                    // aştı) aynı çift katman korunur: poster kırpılmaz.
-                    val useDualLayerContain = isVerticalArtwork &&
-                        (isWideShowcaseBox || (!layout.isLandscape && !portraitFillsScreen))
-                    val heroAlignment = remember(isVerticalArtwork, heroBoxAspect, loadedImageAspect) {
-                        heroImageAlignment(
-                            chosenIsPoster = isVerticalArtwork,
-                            heroAspect = heroBoxAspect,
-                            imageAspect = loadedImageAspect
-                        )
-                    }
-
-                    if (!heroImageModel.isNullOrBlank()) {
-                        // Yığının EN ALT katmanı = öndeki (snap'e en yakın) sayfa.
-                        // Geçişte parlaklık düşmesini engellemek için bu katman, görseli
-                        // yüklendiği anda tam opak kalır (aşağıdaki alpha kuralı).
-                        val isStackBaseLayer = visiblePageIndices.firstOrNull() == page
-                        val layerImageReady = loadedImageAspect != null
-                        Box(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .graphicsLayer {
-                                    val offset = heroPageOffset(pagerState, page)
-                                    val visibility = (1f - abs(offset)).coerceIn(0f, 1f)
-                                    // SARSINTI ÖNLEMİ 1 — opak taban: Eskiden iki katman da
-                                    // yarı saydam olduğu için geçişin tam ortasında toplam
-                                    // opaklık %75'e düşüyor, vitrin bir an kararıp geri
-                                    // geliyordu ("minnak sarsılma"). Taban katmanı opak
-                                    // kalınca komşu sayfa onun ÜSTÜNE biner; toplam opaklık
-                                    // her zaman %100'dür.
-                                    alpha = if (isStackBaseLayer && layerImageReady) 1f else visibility
-                                    // SARSINTI ÖNLEMİ 2 — paralaks kaldırıldı: görselin kaydırma
-                                    // sırasında kayıp bırakıldığında geri kayması, "resim
-                                    // sonradan yerine oturuyor" izlenimini veriyordu. Artık
-                                    // katmanlar yalnızca yumuşak geçişle (crossfade) değişir.
-                                    translationY = heroScrollTranslationY
-                                    scaleX = HERO_BACKGROUND_SCALE * heroScrollScale
-                                    scaleY = HERO_BACKGROUND_SCALE * heroScrollScale
-                                }
-                        ) {
-                            if (useDualLayerContain) {
-                                // 1. Atmosferik arka plan dolgusu (Modifier.blur kullanmadan MIUI/HyperOS güvenli)
-                                KitsugiNsfwImage(
-                                    model = heroImageModel,
-                                    contentDescription = null,
-                                    isAdult = item.isAdult,
-                                    blurAdultMedia = blurAdultMedia,
-                                    contentScale = ContentScale.Crop,
-                                    alignment = BiasAlignment(0f, -0.20f),
-                                    modifier = Modifier
-                                        .fillMaxSize()
-                                        .alpha(0.28f)
-                                )
-                                // 2. Kesilmemiş, TAM ORTADA dikey görsel katmanı
-                                //    (manga/poster geniş yatay bantta sağa yaslanmaz; ekranın
-                                //    tam ortasında, olabildiğince büyük gösterilir)
-                                KitsugiNsfwImage(
-                                    model = heroImageModel,
-                                    contentDescription = displayTitle,
-                                    isAdult = item.isAdult,
-                                    blurAdultMedia = blurAdultMedia,
-                                    contentScale = ContentScale.Fit,
-                                    alignment = Alignment.Center,
-                                    initials = displayTitle,
-                                    highQuality = true,
-                                    onLoadingFailed = {
-                                        advanceToNextCandidate()
-                                    },
-                                    onImageAspectResolved = { ratio ->
-                                        // ÇÖKME ÖNLEMİ: state değişikliğini bir kare sonraya bırak.
-                                        postAfterFrame {
-                                            if (loadedImageAspect == null || abs((loadedImageAspect ?: ratio) - ratio) > 0.05f) {
-                                                loadedImageAspect = ratio
-                                                // Oranı vitrin geneline yayınla: bant yüksekliği
-                                                // öndeki sayfanın görsel şekline otomatik otursun.
-                                                val prevAspect = pageImageAspects[page]
-                                                if (prevAspect == null || abs(prevAspect - ratio) > 0.05f) {
-                                                    pageImageAspects = pageImageAspects + (page to ratio)
-                                                }
-                                            }
-                                        }
-                                    },
-                                    modifier = Modifier
-                                        .fillMaxSize()
-                                        .padding(
-                                            start = if (layout.isLandscape) layout.contentHorizontalPadding else 0.dp,
-                                            end = if (layout.isLandscape) layout.contentHorizontalPadding else 0.dp,
-                                            // YATAY MOD: kutu geniş olduğu için dikey poster
-                                            // yükseklikle sınırlanır. Dikey boşluk bırakılırsa
-                                            // poster bandın ortasında "havada" kalır (üst ve
-                                            // alta oturmaz). Bu yüzden yatay modda poster
-                                            // bandın TAM yüksekliğine oturur.
-                                            top = if (layout.isLandscape) 0.dp else 6.dp,
-                                            // Dikey modda altta başlık/meta bloğuna yer bırakılır
-                                            // (poster metnin arkasına gömülmesin).
-                                            bottom = if (layout.isLandscape) 0.dp else 48.dp
-                                        )
-                                )
-                            } else {
-                                // Tam ekran vitrin görseli (dikey ekranda en kaliteli dikey poster, yatay/geniş ekranda en kaliteli 16:9 backdrop)
-                                KitsugiNsfwImage(
-                                    model = heroImageModel,
-                                    contentDescription = displayTitle,
-                                    isAdult = item.isAdult,
-                                    blurAdultMedia = blurAdultMedia,
-                                    modifier = Modifier.fillMaxSize(),
-                                    contentScale = ContentScale.Crop,
-                                    alignment = heroAlignment,
-                                    highQuality = true,
-                                    onLoadingFailed = {
-                                        advanceToNextCandidate()
-                                    },
-                                    onImageAspectResolved = { ratio ->
-                                        // ÇÖKME ÖNLEMİ: state değişikliğini bir kare sonraya bırak.
-                                        postAfterFrame {
-                                            if (loadedImageAspect == null || abs((loadedImageAspect ?: ratio) - ratio) > 0.05f) {
-                                                loadedImageAspect = ratio
-                                                // Oranı vitrin geneline yayınla: bant yüksekliği
-                                                // öndeki sayfanın görsel şekline otomatik otursun.
-                                                val prevAspect = pageImageAspects[page]
-                                                if (prevAspect == null || abs(prevAspect - ratio) > 0.05f) {
-                                                    pageImageAspects = pageImageAspects + (page to ratio)
-                                                }
-                                            }
-                                        }
-                                    }
-                                )
-                            }
-                        }
-                    } else {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .graphicsLayer {
-                                    val offset = heroPageOffset(pagerState, page)
-                                    alpha = (1f - abs(offset)).coerceIn(0f, 1f)
-                                    // Görsel katmanlarındaki gibi paralaks YOK: geçiş
-                                    // sırasında kayıp geri dönme (yerine oturma) olmasın.
-                                    translationY = heroScrollTranslationY
-                                    scaleX = HERO_BACKGROUND_SCALE * heroScrollScale
-                                    scaleY = HERO_BACKGROUND_SCALE * heroScrollScale
-                                }
-                                .background(accentColor.copy(alpha = 0.18f)),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(
-                                text = displayTitle.take(2).uppercase(),
-                                color = accentColor,
-                                style = MaterialTheme.typography.displayLarge,
-                                fontWeight = FontWeight.Black
-                            )
-                        }
-                    }
+                snapAnimationSpec = tween(450, easing = FastOutSlowInEasing)
+            ),
+            modifier = Modifier.fillMaxSize()
+        ) { page ->
+            val item = heroItems[page]
+            val title = item.getDisplayTitle(titleLanguage)
+            val identity = homeHeroItemKey(item)
+            val url = requireNotNull(item.backdropUrl)
+            var logoUrl by remember(identity) { mutableStateOf<String?>(logoCache[identity]) }
+            val wantsLogo = shouldShowHeroLogo(item, showAnimeLogos)
+            LaunchedEffect(identity, wantsLogo) {
+                logoUrl = if (!wantsLogo) null else {
+                    logoCache[identity] ?: logoPermits.withPermit { fetchHeroLogo(item) }
+                        ?.takeIf { it.isNotBlank() }?.also { logoCache[identity] = it }
                 }
             }
-
-            // 1. Yalnızca yatay (landscape) modda sol taraf gölgelendirmesi
-            // (Dikey tablette sol tarafı karartmaz).
-            if (layout.isLandscape) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxHeight()
-                        .fillMaxWidth(0.50f)
-                        .align(Alignment.CenterStart)
-                        .background(
-                            Brush.horizontalGradient(
-                                0.00f to KitsugiColors.Background.copy(alpha = 0.34f),
-                                0.46f to KitsugiColors.Background.copy(alpha = 0.12f),
-                                1.00f to Color.Transparent
-                            )
-                        )
-                )
-            }
-
-            // 2. Berrak dikey scrim: görselin üst %60'lık kısmını tamamen açık ve net bırakır,
-            // yalnızca alt kısımda başlık ve meta verilerin okunurluğu için yumuşak geçiş sağlar.
-            // NOT: Görselin "karanlık/çamurlu" görünmemesi için toplam karartma hafifletildi;
-            // okunurluk yine de garanti (en altta opak zemine bağlanır).
             Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(
-                        Brush.verticalGradient(
-                            0.00f to KitsugiColors.Background.copy(alpha = 0.10f),
-                            0.10f to Color.Transparent,
-                            0.62f to Color.Transparent,
-                            0.80f to KitsugiColors.Background.copy(alpha = 0.28f),
-                            0.92f to KitsugiColors.Background.copy(alpha = 0.70f),
-                            1.00f to KitsugiColors.Background
-                        )
-                    )
-            )
-
-            Column(
-                modifier = Modifier
-                    .align(Alignment.BottomCenter)
-                    .fillMaxWidth()
-                    .padding(
-                        horizontal = layout.contentHorizontalPadding,
-                        vertical = layout.contentVerticalPadding
-                    ),
-                horizontalAlignment = Alignment.Start
+                modifier = Modifier.testTag("home_hero_page:$identity").fillMaxSize().clipToBounds().then(
+                    if (isTv) Modifier else Modifier.tvClickable(
+                        scaleOnFocus = false,
+                        interactionSource = pageInteractionSource
+                    ) { latestOnInfoClick(item) }
+                )
             ) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth(layout.contentWidthFraction)
-                        .widthIn(max = layout.contentMaxWidth),
-                    contentAlignment = Alignment.CenterStart
+                // A constant fit, from the first frame. Decoding a different aspect never
+                // changes scale/alignment/layout. Both layers share the bounded HQ request.
+                KitsugiNsfwImage(
+                    model = url,
+                    contentDescription = null,
+                    isAdult = item.isAdult,
+                    blurAdultMedia = blurAdultMedia,
+                    contentScale = ContentScale.Crop,
+                    highQuality = true,
+                    modifier = Modifier.fillMaxSize().graphicsLayer { alpha = 0.28f }
+                )
+                KitsugiNsfwImage(
+                    model = url,
+                    contentDescription = title,
+                    isAdult = item.isAdult,
+                    blurAdultMedia = blurAdultMedia,
+                    contentScale = ContentScale.Fit,
+                    alignment = if (isLandscape || isTv) Alignment.Center else Alignment.TopCenter,
+                    highQuality = true,
+                    modifier = Modifier.fillMaxSize().padding(bottom = if (isLandscape || isTv) 0.dp else 174.dp)
+                )
+                if (isLandscape || isTv) {
+                    Box(Modifier.fillMaxHeight().fillMaxWidth(0.62f).background(
+                        Brush.horizontalGradient(listOf(background.copy(alpha = 0.60f), Color.Transparent))
+                    ))
+                }
+                Box(Modifier.fillMaxSize().background(
+                    Brush.verticalGradient(
+                        0f to Color.Transparent,
+                        0.48f to Color.Transparent,
+                        0.78f to background.copy(alpha = 0.45f),
+                        1f to background
+                    )
+                ))
+                Column(
+                    modifier = Modifier.align(Alignment.BottomStart)
+                        .fillMaxWidth(contentWidthFraction).widthIn(max = contentMaxWidth)
+                        .padding(start = horizontalPadding, end = horizontalPadding, bottom = 44.dp),
+                    verticalArrangement = Arrangement.spacedBy(if (isLandscape) 4.dp else 6.dp)
                 ) {
-                    visiblePageIndices.forEach { page ->
-                        val item = items[page]
-                        val displayTitle = item.getDisplayTitle(titleLanguage)
-                        val alreadyInList = alreadyInList(item)
-                        val isFrontPageCol = (page == frontPageIndex)
-
-                        val context = LocalContext.current
-                        val copyTitleGesture = Modifier.copyOnDoubleTap(context, displayTitle) {
-                            openVisibleHeroItem()
-                        }
-
-                        Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .graphicsLayer {
-                                    val offset = heroPageOffset(pagerState, page)
-                                    alpha = (1f - abs(offset)).coerceIn(0f, 1f)
-                                    translationX = -offset * heroWidthPx * HERO_CONTENT_PARALLAX
-                                }
-                                .then(
-                                    if (isTv || !isFrontPageCol) {
-                                        // Komşu sayfaların metin/başlık katmanları (alpha=0)
-                                        // tıklamaları yutmasın; sadece öndeki sayfa detay açar.
-                                        Modifier
-                                    } else {
-                                        Modifier.tvClickable(
-                                            shape = RoundedCornerShape(12.dp),
-                                            scaleOnFocus = false
-                                        ) { openVisibleHeroItem() }
-                                    }
-                                ),
-                            horizontalAlignment = Alignment.Start
-                        ) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.Start)
-                            ) {
+                    Row(
+                        modifier = Modifier.height(28.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Text(
+                            text = stringResource(R.string.inline_featured_20f57e4), color = accent,
+                            style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Black,
+                            maxLines = 1
+                        )
+                        KitsugiSourceNamePill(source = item.source)
+                        if (alreadyInList(item)) {
+                            Box(Modifier.clip(CircleShape).background(KitsugiColors.AccentGreen.copy(alpha = 0.2f))
+                                .padding(horizontal = 8.dp, vertical = 3.dp)) {
                                 Text(
-                                    text = stringResource(R.string.inline_featured_20f57e4),
-                                    color = accentColor,
-                                    style = MaterialTheme.typography.labelMedium,
-                                    fontWeight = FontWeight.Black
-                                )
-
-                                HeroSourcePill(item.source)
-
-                                if (alreadyInList) {
-                                    Box(
-                                        modifier = Modifier
-                                            .clip(RoundedCornerShape(999.dp))
-                                            .background(KitsugiColors.AccentGreen.copy(alpha = 0.2f))
-                                            .padding(horizontal = 8.dp, vertical = 3.dp)
-                                    ) {
-                                        Text(
-                                            text = stringResource(R.string.inline_in_list_85c8d82),
-                                            color = KitsugiColors.AccentGreen,
-                                            style = MaterialTheme.typography.labelSmall,
-                                            fontWeight = FontWeight.Black
-                                        )
-                                    }
-                                }
-                            }
-
-                            Spacer(modifier = Modifier.height(if (layout.isLandscape) 4.dp else 8.dp))
-
-                            val logoUrl = if (shouldShowHeroLogo(item, showAnimeLogos)) logos[heroItemIdentity(item)] else null
-                            if (!logoUrl.isNullOrBlank()) {
-                                var logoFailed by remember(logoUrl) { mutableStateOf(false) }
-                                if (!logoFailed) {
-                                    AsyncImage(
-                                        model = logoUrl,
-                                        contentDescription = displayTitle,
-                                        modifier = Modifier
-                                            .align(Alignment.Start)
-                                            .height(if (layout.isLandscape) 56.dp else if (layout.isTablet) 86.dp else 68.dp)
-                                            .fillMaxWidth(0.85f)
-                                            .then(copyTitleGesture),
-                                        contentScale = ContentScale.Fit,
-                                        alignment = Alignment.CenterStart,
-                                        onError = {
-                                            logoFailed = true
-                                        }
-                                    )
-                                } else {
-                                    Text(
-                                        text = displayTitle,
-                                        color = KitsugiColors.TextPrimary,
-                                        style = if (layout.isLandscape) MaterialTheme.typography.titleLarge else MaterialTheme.typography.headlineMedium,
-                                        fontWeight = FontWeight.Black,
-                                        maxLines = 2,
-                                        overflow = TextOverflow.Ellipsis,
-                                        textAlign = TextAlign.Start,
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .then(copyTitleGesture)
-                                    )
-                                }
-                            } else {
-                                Text(
-                                    text = displayTitle,
-                                    color = KitsugiColors.TextPrimary,
-                                    style = if (layout.isLandscape) MaterialTheme.typography.titleLarge else MaterialTheme.typography.headlineMedium,
-                                    fontWeight = FontWeight.Black,
-                                    maxLines = 2,
-                                    overflow = TextOverflow.Ellipsis,
-                                    textAlign = TextAlign.Start,
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .then(copyTitleGesture)
-                                )
-                            }
-
-                            if (item.subtitle.isNotBlank()) {
-                                Spacer(modifier = Modifier.height(if (layout.isLandscape) 3.dp else 6.dp))
-                                Text(
-                                    text = item.subtitle,
-                                    color = KitsugiColors.TextSecondary,
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    maxLines = if (layout.isLandscape) 1 else 2,
-                                    overflow = TextOverflow.Ellipsis,
-                                    textAlign = TextAlign.Start,
-                                    modifier = Modifier.fillMaxWidth()
-                                )
-                            }
-
-                            val heroMeta = buildHeroMeta(item, scoreFormat, hideScores)
-                            if (heroMeta.isNotBlank()) {
-                                Spacer(modifier = Modifier.height(if (layout.isLandscape) 4.dp else 8.dp))
-                                Text(
-                                    text = heroMeta,
-                                    color = KitsugiColors.TextSecondary,
-                                    style = MaterialTheme.typography.bodySmall,
-                                    fontWeight = FontWeight.SemiBold,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis,
-                                    textAlign = TextAlign.Start,
-                                    modifier = Modifier.fillMaxWidth()
+                                    text = stringResource(R.string.inline_in_list_85c8d82),
+                                    color = KitsugiColors.AccentGreen,
+                                    style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Black,
+                                    maxLines = 1
                                 )
                             }
                         }
                     }
-                }
-
-                if (items.size > 1) {
-                    Spacer(modifier = Modifier.height(if (layout.isLandscape) 8.dp else 12.dp))
-                    // Vitrin gösterge çubuğu: sayısal sayaç kaldırıldı; bunun yerine etkin
-                    // sayfanın çizgisi çerçeve ile kapsanır ve kaçıncı vitrin sayfasında
-                    // olunduğunu doğrudan gösterir. Çizgiler weight(1f) ile kullanılabilir
-                    // genişliği paylaşır; telefon/tablet, yatay/dikey her ekran ölçüsünde
-                    // taşma olmadan ekrana sığar. Geniş ekranlarda ise üst sınır ile
-                    // çizgilerin aşırı uzaması engellenir.
-                    // KitsugiColors.TextPrimary @Composable getter olduğundan drawBehind
-                    // içinde değil, composition kapsamında okunup yakalanır.
-                    val indicatorFrameColor = KitsugiColors.TextPrimary
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .widthIn(max = (items.size * 34 + (items.size - 1) * 6).dp),
-                        horizontalArrangement = Arrangement.spacedBy(6.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        items.forEachIndexed { index, _ ->
-                            Box(
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .then(
-                                        if (isTv) {
-                                            Modifier
-                                        } else {
-                                            Modifier.tvClickable(
-                                                shape = CircleShape
-                                            ) {
-                                                coroutineScope.launch {
-                                                    pagerState.animateScrollToPage(index)
-                                                }
-                                            }
-                                        }
-                                    )
-                                    .height(13.dp)
-                                    .drawBehind {
-                                        // Etkin sayfanın çizgisini çerçeve ile kapsa;
-                                        // çerçeve opaklığı sayfa geçişiyle yumuşak değişir.
-                                        val frameFraction = heroPageVisibility(pagerState, index)
-                                        if (frameFraction > 0.02f) {
-                                            val strokeW = 1.5.dp.toPx()
-                                            val inset = strokeW / 2f
-                                            val w = size.width
-                                            val h = size.height
-                                            drawRoundRect(
-                                                color = indicatorFrameColor.copy(alpha = frameFraction),
-                                                topLeft = androidx.compose.ui.geometry.Offset(inset, inset),
-                                                size = androidx.compose.ui.geometry.Size(w - strokeW, h - strokeW),
-                                                cornerRadius = androidx.compose.ui.geometry.CornerRadius(h / 2f),
-                                                style = androidx.compose.ui.graphics.drawscope.Stroke(strokeW)
-                                            )
-                                        }
-                                    },
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Box(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(horizontal = 3.dp)
-                                        .clip(CircleShape)
-                                        .background(accentColor)
-                                        .graphicsLayer {
-                                            val activeFraction = heroPageVisibility(pagerState, index)
-                                            // Daha belirgin gösterge: etkin sayfa TAM opak ve kalın,
-                                            // pasif sayfalar da net seçilebilir koyulukta.
-                                            alpha = 0.30f + (0.70f * activeFraction)
-                                            // Sabit ölçü: her karede width değiştirip tüm Row'u yeniden
-                                            // ölçmek yerine GPU katmanını yatay ölçekle.
-                                            scaleX = 0.40f + (0.60f * activeFraction)
-                                            transformOrigin = androidx.compose.ui.graphics.TransformOrigin(0f, 0.5f)
-                                        }
-                                        .height(7.dp)
-                                )
-                            }
-                        }
+                    HeroTitleSlot(
+                        title = title,
+                        logoUrl = logoUrl.takeIf { wantsLogo },
+                        isLandscape = isLandscape,
+                        modifier = Modifier.fillMaxWidth().height(titleSlotHeight),
+                        onClick = { latestOnInfoClick(item) }
+                    )
+                    // Empty subtitles/ratings still reserve their slot. A logo completing,
+                    // a missing score, or a long title cannot push another page's metadata.
+                    Box(Modifier.fillMaxWidth().height(if (isLandscape) 22.dp else 40.dp)) {
+                        Text(
+                            text = item.subtitle, color = KitsugiColors.TextSecondary,
+                            style = MaterialTheme.typography.bodyMedium,
+                            maxLines = if (isLandscape) 1 else 2, overflow = TextOverflow.Ellipsis
+                        )
+                    }
+                    Box(Modifier.fillMaxWidth().height(20.dp)) {
+                        Text(
+                            text = buildHeroMeta(item, scoreFormat, hideScores), color = KitsugiColors.TextSecondary,
+                            style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.SemiBold,
+                            maxLines = 1, overflow = TextOverflow.Ellipsis
+                        )
                     }
                 }
             }
+        }
+
+        if (heroItems.size > 1) {
+            val indices = homeHeroIndicatorIndices(heroItems.size, pagerState.settledPage)
+            val frameColor = KitsugiColors.TextPrimary
+            Row(
+                modifier = Modifier.align(Alignment.BottomStart).padding(start = horizontalPadding, bottom = 16.dp)
+                    .width((indices.size * 34 + (indices.size - 1) * 6).dp),
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                indices.forEach { index ->
+                    Box(
+                        modifier = Modifier.weight(1f).height(13.dp)
+                            .then(if (isTv) Modifier else Modifier.tvClickable(shape = CircleShape) { goToPage(index) })
+                            .drawBehind {
+                                val active = heroPageVisibility(pagerState, index)
+                                if (active > 0.02f) {
+                                    val stroke = 1.5.dp.toPx()
+                                    val inset = stroke / 2f
+                                    drawRoundRect(
+                                        color = frameColor.copy(alpha = active),
+                                        topLeft = androidx.compose.ui.geometry.Offset(inset, inset),
+                                        size = androidx.compose.ui.geometry.Size(size.width - stroke, size.height - stroke),
+                                        cornerRadius = androidx.compose.ui.geometry.CornerRadius(size.height / 2f),
+                                        style = androidx.compose.ui.graphics.drawscope.Stroke(stroke)
+                                    )
+                                }
+                            },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Box(Modifier.fillMaxWidth().padding(horizontal = 3.dp).height(7.dp).clip(CircleShape)
+                            .background(accent).graphicsLayer {
+                                val active = heroPageVisibility(pagerState, index)
+                                alpha = 0.30f + 0.70f * active
+                                scaleX = 0.40f + 0.60f * active
+                            })
+                    }
+                }
+            }
+        }
+    }
+}
+
+/** Text and logo occupy exactly the same box. Until the correct logo decodes, text stays visible. */
+@Composable
+internal fun HeroTitleSlot(
+    title: String,
+    logoUrl: String?,
+    isLandscape: Boolean,
+    modifier: Modifier,
+    onClick: () -> Unit
+) {
+    val context = LocalContext.current
+    var loaded by remember(logoUrl) { mutableStateOf(false) }
+    val logoAlpha by animateFloatAsState(if (loaded) 1f else 0f, tween(180), label = "heroLogoAlpha")
+    val latestOnClick by rememberUpdatedState(onClick)
+    val onTitleTap = remember { { latestOnClick() } }
+    val copyGesture = Modifier.copyOnDoubleTap(context, title, onTitleTap)
+    Box(modifier, contentAlignment = Alignment.CenterStart) {
+        Text(
+            text = title, color = KitsugiColors.TextPrimary,
+            style = if (isLandscape) MaterialTheme.typography.titleLarge else MaterialTheme.typography.headlineMedium,
+            fontWeight = FontWeight.Black, maxLines = 2, overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.fillMaxWidth().graphicsLayer { alpha = 1f - logoAlpha }.then(copyGesture)
+        )
+        if (!logoUrl.isNullOrBlank()) {
+            val request = remember(context, logoUrl) {
+                ImageRequest.Builder(context)
+                    .data(logoUrl)
+                    .allowRgb565(false)
+                    .size(1280, 384)
+                    .precision(Precision.INEXACT)
+                    .memoryCacheKey("home-hero-logo:$logoUrl")
+                    .crossfade(false)
+                    .build()
+            }
+            AsyncImage(
+                model = request, contentDescription = title,
+                contentScale = ContentScale.Fit, alignment = Alignment.CenterStart,
+                modifier = Modifier.fillMaxSize().padding(end = 16.dp).graphicsLayer { alpha = logoAlpha }.then(copyGesture),
+                onSuccess = { postAfterHeroFrame { loaded = true } },
+                onError = { postAfterHeroFrame { loaded = false } }
+            )
         }
     }
 }

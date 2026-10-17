@@ -173,7 +173,7 @@ data class KitsugiStreamingEpisode(
 
 data class KitsugiTag(
     val name: String,
-    val rank: Int?,       // % relevance, AniList'ten gelir
+    val rank: Int? = null,       // % relevance, AniList'ten gelir
     val isSpoiler: Boolean,
     val id: Int? = null,
     val source: String = "anilist",

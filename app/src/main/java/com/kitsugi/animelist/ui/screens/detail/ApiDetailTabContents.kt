@@ -111,6 +111,7 @@ internal fun ApiDetailOverviewTab(
         if (!detail?.genres.isNullOrEmpty()) {
             ApiGenresChipRow(
                 genres = detail!!.genres,
+                tags = detail.tags,
                 onGenreClick = onGenreClick
             )
             Spacer(modifier = Modifier.height(14.dp))
