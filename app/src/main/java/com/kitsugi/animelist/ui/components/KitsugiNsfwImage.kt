@@ -22,6 +22,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import coil3.request.ImageRequest
+import coil3.request.allowHardware
 import coil3.request.transformations
 import com.kitsugi.animelist.ui.theme.LocalBlurAdultMedia
 import com.kitsugi.animelist.ui.theme.LocalKitsugiAccent
@@ -118,6 +119,14 @@ fun Modifier.safeBlur(radius: Dp, enabled: Boolean = true): Modifier {
 }
 
 /**
+ * Ambient (bulanık dekoratif) katmanın decode ölçüsü. Görsel zaten bulanık
+ * olduğu için düşük çözünürlük yeterlidir; bant genişliğine kıyasla küçük
+ * tutmak hem ağ hem bellek tasarrufu sağlar.
+ */
+private const val AMBIENT_DECODE_WIDTH_PX = 960
+private const val AMBIENT_DECODE_HEIGHT_PX = 540
+
+/**
  * Centralized NSFW-aware image composable.
  *
  * Reads [LocalBlurAdultMedia] from the composition. If the setting is enabled AND
@@ -164,7 +173,20 @@ fun KitsugiNsfwImage(
      * (gökyüzü, sakura, ışık geçişleri) bantlaşmaya yol açar. Bu mod vitrin görselini
      * tam 8-bit renkte ve sınırlı ölçüde decode eder; ayrıntılar [HeroArtworkImagePolicy].
      */
-    highQuality: Boolean = false
+    highQuality: Boolean = false,
+    /**
+     * **Ambient (dekoratif) bulanık katman.**
+     *
+     * Vitrinde görselin arkasını bulanık bir "ortam" ile doldurmak için kullanılır:
+     * keskin görsel her zaman kutuyu tamamen kaplar, art arda kalan alan ise aynı
+     * görselin bulanık kopyasıdır. Bu sayede vitrinde **hiçbir zaman** boş kutu,
+     * yarım görsel veya bulanık olmayan hayalet kopya görünmez.
+     *
+     * Bulanıklık bitmap seviyesinde (Coil `BlurTransformation`) uygulanır; cihazın
+     * GPU `RenderEffect` desteğine bağlı değildir ve `Modifier.blur` kaynaklı
+     * RenderThread çökmesi riskini taşımaz.
+     */
+    ambientBlur: Dp = Dp.Unspecified,
 ) {
     // Components that already receive the setting pass it through explicitly. Keep the
     // composition-local as a fallback (and OR it in) so nested screens cannot accidentally
@@ -180,26 +202,41 @@ fun KitsugiNsfwImage(
     val useBitmapBlur = shouldBlur && !KitsugiBlurSupport.hasRenderEffectBlur
 
     val context = LocalContext.current
+    val density = LocalDensity.current
     val isBlankModel = model == null || (model is String && model.isBlank())
+    // Ambient katman: küçük çözünürlükte decode + bitmap bulanıklığı. Zaten bulanık
+    // olduğu için çözünürlük kaybı fark edilmez; bant genişliğine kıyasla küçük
+    // bir istek yeterli (hem ağ hem bellek tasarrufu).
+    val ambientBlurPx = if (ambientBlur.isSpecified && ambientBlur > 0.dp) {
+        with(density) { ambientBlur.toPx() }.toInt().coerceIn(1, 60)
+    } else {
+        0
+    }
+    val nsfwBlurPx = if (useBitmapBlur) with(density) { blurRadius.toPx() }.toInt() else 0
+    // NSFW bulanıklığı ambient bulanıklığıyla birleşir; daha büyük yarıçap seçilir
+    // (NSFW için daha fazla bulanıklık her zaman daha güvenlidir).
+    val bitmapBlurPx = maxOf(ambientBlurPx, nsfwBlurPx)
     val imageModel: Any? = when {
         isBlankModel -> null
-        useBitmapBlur -> {
+        bitmapBlurPx > 0 -> {
             // blurRadius.dp → px dönüşümü; yoğun ekranda daha yumuşak görünür
-            val density = LocalDensity.current
-            val radiusPx = with(density) { blurRadius.toPx() }.toInt()
-            remember(model, radiusPx) {
+            remember(model, bitmapBlurPx, ambientBlurPx) {
                 // +18 UYUMU (2026-10-14): çağran taraf özel başlıklı (Referer/User-Agent)
                 // bir ImageRequest verdiyse istek kimliğini KORU — yalnızca dönüşümü ekle.
                 // Aksi halde hotlink korumalı site görselleri bitmap-blur yolunda 403 olurdu.
                 when (model) {
                     is ImageRequest -> model.newBuilder(context)
-                        .transformations(KitsugiBlurSupport.bitmapBlurTransformation(radiusPx))
+                        .transformations(KitsugiBlurSupport.bitmapBlurTransformation(bitmapBlurPx))
                         .build()
                     else -> ImageRequest.Builder(context)
                         .data(model)
-                        .size(480, 720)
+                        .size(
+                            if (ambientBlurPx > 0) AMBIENT_DECODE_WIDTH_PX else 480,
+                            if (ambientBlurPx > 0) AMBIENT_DECODE_HEIGHT_PX else 720
+                        )
                         .precision(coil3.size.Precision.INEXACT)
-                        .transformations(KitsugiBlurSupport.bitmapBlurTransformation(radiusPx))
+                        .allowHardware(false)
+                        .transformations(KitsugiBlurSupport.bitmapBlurTransformation(bitmapBlurPx))
                         .build()
                 }
             }

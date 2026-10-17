@@ -490,15 +490,23 @@ fun KitsugiShimmerHeroSection(
     val screenWidthDp = configuration.screenWidthDp
     val screenHeightDp = configuration.screenHeightDp
     val isLandscape = configuration.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE || screenWidthDp > screenHeightDp
+    val isTablet = minOf(screenWidthDp, screenHeightDp) >= 600
+    val isTv = com.kitsugi.animelist.ui.theme.LocalIsTvDevice.current
+    val fontScale = androidx.compose.ui.platform.LocalDensity.current.fontScale.coerceAtLeast(1f)
 
     // Match the real carousel exactly: admitting the first verified image must not
     // resize the first LazyColumn item and displace the shelves underneath it.
-    val finalHeight = if (heroHeight != Dp.Unspecified) heroHeight else heroBandHeightDp(
+    // Gerçek vitrinle AYNI yerleşim politikası kullanılır (HeroVitrinLayout).
+    val layout = heroVitrinLayout(
+        screenWidthDp = screenWidthDp.toFloat(),
         screenHeightDp = screenHeightDp.toFloat(),
         isLandscape = isLandscape,
-        isTablet = minOf(screenWidthDp, screenHeightDp) >= 600,
-        isTv = com.kitsugi.animelist.ui.theme.LocalIsTvDevice.current
-    ).dp
+        isTablet = isTablet,
+        isTv = isTv,
+        fontScale = fontScale
+    )
+    val finalHeight = if (heroHeight != Dp.Unspecified) heroHeight else layout.bandHeightDp.dp
+    val isStacked = layout.mode == HeroVitrinMode.STACKED
 
     // LocalShimmerBrush varsa paylaş, yoksa kendi transition'unu oluştur
     val brush = LocalShimmerBrush.current ?: rememberKitsugiShimmerBrush()
@@ -509,48 +517,47 @@ fun KitsugiShimmerHeroSection(
             .height(finalHeight)
             .background(brush),
     ) {
-        // Alt köşe içerik placeholder
+        // Dikey telefonda üstteki görsel şeridi gerçek vitrinle aynı yükseklikte.
+        if (isStacked) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(layout.artworkHeightDp.dp)
+                    .background(brush)
+            )
+        }
+        // Metin yuvası placeholder'ları: gerçek vitrinin satırlarıyla aynı sırada.
         Column(
             modifier = Modifier
-                .fillMaxSize()
-                .padding(horizontal = 20.dp, vertical = 24.dp),
-            verticalArrangement = Arrangement.Bottom,
+                .align(androidx.compose.ui.Alignment.BottomStart)
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp, bottom = 44.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
+            // Kaynak rozeti satırı
             KitsugiShimmerBlock(
                 brush = brush,
                 modifier = Modifier.width(60.dp).height(10.dp),
                 cornerRadius = 999.dp,
             )
-            Spacer(modifier = Modifier.height(10.dp))
+            // Başlık / logo yuvası
             KitsugiShimmerBlock(
                 brush = brush,
-                modifier = Modifier.fillMaxWidth(0.78f).height(28.dp),
+                modifier = Modifier.fillMaxWidth(0.78f).height(40.dp),
                 cornerRadius = 8.dp,
             )
-            Spacer(modifier = Modifier.height(8.dp))
+            // Alt başlık
             KitsugiShimmerBlock(
                 brush = brush,
                 modifier = Modifier.fillMaxWidth(0.55f).height(16.dp),
                 cornerRadius = 8.dp,
             )
-            Spacer(modifier = Modifier.height(18.dp))
-            // Buton placeholder
+            // Meta satırı
             KitsugiShimmerBlock(
                 brush = brush,
-                modifier = Modifier.width(120.dp).height(42.dp),
-                cornerRadius = 999.dp,
+                modifier = Modifier.fillMaxWidth(0.42f).height(12.dp),
+                cornerRadius = 6.dp,
             )
-            Spacer(modifier = Modifier.height(16.dp))
-            // Dot indicator placeholder
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                repeat(3) {
-                    KitsugiShimmerBlock(
-                        brush = brush,
-                        modifier = Modifier.size(8.dp),
-                        cornerRadius = 999.dp,
-                    )
-                }
-            }
         }
     }
 }
