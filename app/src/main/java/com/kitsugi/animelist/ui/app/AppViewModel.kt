@@ -26,7 +26,6 @@ import com.kitsugi.animelist.ui.screens.mylist.MY_LIST_ANILIST_TAB_INDEX
 import com.kitsugi.animelist.ui.screens.mylist.MY_LIST_SIMKL_TAB_INDEX
 import com.kitsugi.animelist.ui.screens.mylist.MY_LIST_TAB_COUNT
 import com.kitsugi.animelist.ui.screens.mylist.duplicateListMessage
-import com.kitsugi.animelist.ui.screens.mylist.migrateLegacyMyListTabIndex
 import kotlinx.coroutines.launch
 import dagger.hilt.EntryPoint
 import dagger.hilt.InstallIn
@@ -202,18 +201,23 @@ class AppViewModel : ViewModel() {
         myListYearFilterId = prefs.getString("year_filter", "all") ?: "all"
         myListExtraFilterId = prefs.getString("extra_filter", "all") ?: "all"
         myListSortId = prefs.getString("sort", "newest") ?: "newest"
-        // Eski sürümlerde sekme sırası farklıydı (5 = Tümü). Kayıtlı değeri yeni sıraya taşı.
+        // Kayıtlı sekme indeksi DOĞRUDAN geri yüklenir (mevcut sıra: 0 = Tümü … 6 = Bangumi).
+        // Eski sıra göçü (migrateLegacyMyListTabIndex) bilinçli olarak kaldırıldı: koşulsuz
+        // olarak her açılışta uygulanıyor ve son seçilen sekmeyi bir sıra kaydırıyordu
+        // (uygulama kapatılıp açılınca seçim hep değişiyordu; Bangumi 6 → "Tümü", "Tümü" →
+        // AniList, AniList → MAL …). Kayıtlar bu hatadan beri zaten güncel sıraya göre
+        // yazılıyor; geriye dönük taşımaya gerek yoktur.
         val storedTabIndex = prefs.getInt("tab_index", -1)
-        val migratedTabIndex = if (storedTabIndex < 0) {
+        val restoredTabIndex = if (storedTabIndex < 0) {
             // Yeni kurulum: hesap bağlıysa doğrudan birleşik "Tümü" kütüphanesi açılır,
             // hiç hesap yoksa bağlantı çağrısının görüneceği AniList sekmesi gösterilir.
             if (hasAnyConnectedAccount(context)) MY_LIST_ALL_TAB_INDEX else MY_LIST_ANILIST_TAB_INDEX
         } else {
-            migrateLegacyMyListTabIndex(storedTabIndex).coerceIn(0, MY_LIST_TAB_COUNT - 1)
+            storedTabIndex.coerceIn(0, MY_LIST_TAB_COUNT - 1)
         }
-        myListTabIndex = migratedTabIndex
-        if (migratedTabIndex != storedTabIndex) {
-            prefs.edit().putInt("tab_index", migratedTabIndex).apply()
+        myListTabIndex = restoredTabIndex
+        if (restoredTabIndex != storedTabIndex) {
+            prefs.edit().putInt("tab_index", restoredTabIndex).apply()
         }
     }
 

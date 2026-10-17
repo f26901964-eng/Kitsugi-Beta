@@ -310,9 +310,18 @@ fun AppRoot(
         }
     }
 
-    LaunchedEffect(Unit) {
+    // Filtreleri ve son seçili Listem sekmesini İLK kompozisyondan ÖNCE senkron geri yükle.
+    // LaunchedEffect içinde geri yükleme yarışıyordu: Listem ilk karede açılıyorsa pager
+    // varsayılan (0) sayfada kuruluyor ve settledPage etkisi kayıtlı seçimi anında geri
+    // yazıyordu — uygulama kapanıp açılınca son seçim hep kayboluyordu. SharedPreferences
+    // ve düz token okumaları ucuzdur; Keşfet/Arama/sekme geri yüklemelerindeki ilk kare
+    // "sıçrama" flash'ını da engeller. (remember bir kez çalışır; idempotenttir.)
+    remember(Unit) {
         appViewModel.loadFilters(context)
+        true
+    }
 
+    LaunchedEffect(Unit) {
         val handleDeepLinkItem = { link: com.kitsugi.animelist.core.deeplink.TvDeepLink ->
             when (link) {
                 is com.kitsugi.animelist.core.deeplink.TvDeepLink.Detail -> {

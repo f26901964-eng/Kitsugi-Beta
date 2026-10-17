@@ -197,8 +197,17 @@ fun MyListScreen(
     )
 
     // Pager page change -> notify parent
+    // İLK çalıştırmada settledPage yalnızca pager'ın kurulum anındaki sayfasıdır; bu an
+    // bir "değişiklik" DEĞİLDİR. selectedTabIndex ilk karede henüz geri yüklenmemiş olabilir
+    // (açılışta loadFilters ile yarış) ve pager 0'da kurulmuş olabilir; bu ilk anı
+    // bildirirsek kurulum değeri (0 = Tümü) updateMyListTabIndex ile geri yazılarak
+    // kullanıcının son seçimi silinirdi — uygulama her açılışta "Tümü"'ye dönerdi.
+    // Yalnızca sonraki değişiklikler, yani gerçek kullanıcı kaydırmaları raporlanır.
+    var pagerInitialPageAnnounced by remember { mutableStateOf(false) }
     LaunchedEffect(tabPagerState.settledPage) {
-        if (tabPagerState.settledPage != selectedTabIndex) {
+        if (!pagerInitialPageAnnounced) {
+            pagerInitialPageAnnounced = true
+        } else if (tabPagerState.settledPage != selectedTabIndex) {
             onTabIndexChange(tabPagerState.settledPage)
         }
     }
