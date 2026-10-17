@@ -3,8 +3,9 @@ package com.kitsugi.animelist.ui.components
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.BiasAlignment
 
-// Shared DETAIL artwork alignment. Home heroes use a fixed backdrop-only Fit layer,
-// so changing/decoding an image never changes the home carousel's geometry or crop.
+// Shared DETAIL artwork alignment. Home heroes use a fixed-height, fully cropped
+// (ContentScale.Crop) artwork strip plus a blurred ambient backdrop, so changing or
+// decoding an image never changes the home carousel's geometry or crop.
 
 /**
  * Vitrin görselinin kırpma hizalaması:
