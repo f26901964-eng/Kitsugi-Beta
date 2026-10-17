@@ -61,7 +61,8 @@ fun KitsugiRankingMediaCard(
     modifier: Modifier = Modifier,
     titleLanguage: String = "ROMAJI",
     hideScores: Boolean = false,
-    blurAdultMedia: Boolean = false
+    blurAdultMedia: Boolean = false,
+    onQuickAddClick: (() -> Unit)? = null
 ) {
     val accentColor = LocalKitsugiAccent.current
     // PERF: başlık/shape her recomp'da yeniden üretilmesin.
@@ -150,6 +151,16 @@ fun KitsugiRankingMediaCard(
                     source = result.source,
                     modifier = Modifier.align(Alignment.BottomStart)
                 )
+
+                if (onQuickAddClick != null) {
+                    KitsugiQuickAddButton(
+                        inList = alreadyInList || mediaEntry != null,
+                        onClick = onQuickAddClick,
+                        modifier = Modifier
+                            .align(Alignment.TopEnd)
+                            .padding(6.dp)
+                    )
+                }
             }
 
             Spacer(modifier = Modifier.width(14.dp))

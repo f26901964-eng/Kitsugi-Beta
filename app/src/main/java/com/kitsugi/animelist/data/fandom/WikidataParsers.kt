@@ -12,7 +12,9 @@ data class WikidataEntityClaims(
     /** Üst kayıtlar (dizi, franchise, uyarlandığı eser, önceki/sonraki sezon). */
     val parents: List<String>,
     /** Sitelinks: `enwiki` → "Crash Landing on You", `trwiki` → "Crash Landing on You (dizi)". */
-    val wikipediaTitles: Map<String, String> = emptyMap()
+    val wikipediaTitles: Map<String, String> = emptyMap(),
+    /** P345 — IMDb kimliği (`tt1234567`), küçük harf. Yoksa null. */
+    val imdbId: String? = null
 )
 
 /**
@@ -45,6 +47,7 @@ object WikidataParsers {
     val PARENT_PROPERTIES = listOf("P179", "P8345", "P144", "P361", "P155", "P156")
 
     private val QID = Regex("^Q[1-9]\\d{0,11}$")
+    private val IMDB_TITLE_ID = Regex("(?i)^tt[0-9]{5,12}$")
     private val PROPERTY = Regex("^P[1-9]\\d{0,6}$")
     private val VALUE = Regex("^[A-Za-z0-9._:/-]{1,64}$")
     private const val ENTITY_PREFIX = "http://www.wikidata.org/entity/"
@@ -77,7 +80,11 @@ object WikidataParsers {
                 fandomWikiIds = stringValues(claims, "P4073"),
                 fandomArticleIds = stringValues(claims, "P6262"),
                 parents = PARENT_PROPERTIES.flatMap { itemValues(claims, it) }.distinct().filter { it != qid },
-                wikipediaTitles = parseSitelinks(sitelinks)
+                wikipediaTitles = parseSitelinks(sitelinks),
+                imdbId = stringValues(claims, "P345")
+                    .firstOrNull { IMDB_TITLE_ID.matches(it.trim()) }
+                    ?.trim()
+                    ?.lowercase(java.util.Locale.ROOT)
             )
         }
         return result

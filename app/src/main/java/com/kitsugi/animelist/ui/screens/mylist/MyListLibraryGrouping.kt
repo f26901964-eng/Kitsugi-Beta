@@ -16,18 +16,6 @@ internal const val MY_LIST_SHIKIMORI_TAB_INDEX = 5
 internal const val MY_LIST_BANGUMI_TAB_INDEX = 6
 internal const val MY_LIST_TAB_COUNT = 7
 
-/** Eski sürümlerde "Tümü" sekmesinin index'i (0..4 = platformlar, 5 = Tümü). */
-private const val LEGACY_MY_LIST_ALL_TAB_INDEX = 5
-
-/**
- * Eski sekme sırasını yeni sıraya çevirir: 5 (Tümü) → 0, 0..4 (platformlar) → +1.
- */
-internal fun migrateLegacyMyListTabIndex(legacyIndex: Int): Int = when (legacyIndex) {
-    LEGACY_MY_LIST_ALL_TAB_INDEX -> MY_LIST_ALL_TAB_INDEX
-    in 0 until LEGACY_MY_LIST_ALL_TAB_INDEX -> legacyIndex + 1
-    else -> MY_LIST_ALL_TAB_INDEX
-}
-
 /** Verilen kaynağın hangi platform sekmesine ait olduğunu döner (Tümü için null). */
 internal fun myListTabIndexForSource(source: String): Int? = when (sourceBadgeId(source)) {
     "anilist" -> MY_LIST_ANILIST_TAB_INDEX

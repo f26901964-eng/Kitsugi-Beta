@@ -72,7 +72,8 @@ fun KitsugiExploreMediaCard(
     hideScores: Boolean = false,
     blurAdultMedia: Boolean = false,
     forceVertical: Boolean = false,
-    rankIndex: Int? = null
+    rankIndex: Int? = null,
+    onQuickAddClick: (() -> Unit)? = null
 ) {
     val accentColor = LocalKitsugiAccent.current
     // PERF: başlık/meta gibi string'ler her recomposition'da yeniden
@@ -163,6 +164,16 @@ fun KitsugiExploreMediaCard(
                                 letterSpacing = 0.5.sp
                             )
                         }
+                    }
+
+                    if (onQuickAddClick != null) {
+                        KitsugiQuickAddButton(
+                            inList = alreadyInList || mediaEntry != null,
+                            onClick = onQuickAddClick,
+                            modifier = Modifier
+                                .align(Alignment.TopEnd)
+                                .padding(6.dp)
+                        )
                     }
                 }
 
@@ -319,6 +330,16 @@ fun KitsugiExploreMediaCard(
                             )
                         }
                     }
+
+                    if (onQuickAddClick != null) {
+                        KitsugiQuickAddButton(
+                            inList = alreadyInList || mediaEntry != null,
+                            onClick = onQuickAddClick,
+                            modifier = Modifier
+                                .align(Alignment.TopEnd)
+                                .padding(6.dp)
+                        )
+                    }
                 }
 
                 Spacer(modifier = Modifier.width(14.dp))
@@ -454,6 +475,16 @@ fun KitsugiExploreMediaCard(
                                 letterSpacing = 0.5.sp
                             )
                         }
+                    }
+
+                    if (onQuickAddClick != null) {
+                        KitsugiQuickAddButton(
+                            inList = alreadyInList || mediaEntry != null,
+                            onClick = onQuickAddClick,
+                            modifier = Modifier
+                                .align(Alignment.TopEnd)
+                                .padding(6.dp)
+                        )
                     }
                 }
 

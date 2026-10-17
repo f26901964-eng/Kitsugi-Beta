@@ -462,6 +462,35 @@ class CsTitleMatcherTest {
     }
 
     @Test
+    fun unnumberedMovieQueryNeverAcceptsOnlySequelWithoutYearProof() {
+        // Kullanıcı "Avatar" (2009) izle dediğinde sitede yalnızca devam filmi (Avatar 2) varsa
+        // yanlış filmi oynatmamalı. Önceki davranış bu adayı skor eşiğinden geçiriyordu.
+        val sequelOnly = listOf(
+            createSearchResponse("Avatar 2 izle", "https://example.com/avatar-2", null, TvType.Movie)
+        )
+        assertNull(
+            "Devam filmi tek başına, numarasız film sorgusunu karşılamamalı",
+            CsTitleMatcher.findBestMatch(sequelOnly, "Avatar", emptyList(), 2009, 1, null, true)
+        )
+        assertFalse(
+            "Metadata denetimi de devam filmini yedek aday olarak kabul etmemeli",
+            CsTitleMatcher.isCandidateMetadataCompatible(
+                sequelOnly[0], "Avatar", emptyList(), 2009, 1, null, true
+            )
+        )
+
+        // Asıl film mevcutsa o seçilmeli (devam filmi sıralamada önde olsa bile).
+        val withOriginal = listOf(
+            createSearchResponse("Avatar 2 izle", "https://example.com/avatar-2", null, TvType.Movie),
+            createSearchResponse("Avatar izle", "https://example.com/avatar", 2009, TvType.Movie)
+        )
+        assertEquals(
+            "Avatar izle",
+            CsTitleMatcher.findBestMatch(withOriginal, "Avatar", emptyList(), 2009, 1, null, true)?.name
+        )
+    }
+
+    @Test
     fun movieLookupDoesNotChooseAnotherSequelOrDistantYear() {
         val results = listOf(
             createSearchResponse("Cars", "https://example.com/cars", 2006, TvType.Movie),

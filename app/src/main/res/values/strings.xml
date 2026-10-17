@@ -7813,4 +7813,8 @@ Eklentiler ekranından eklenti etkinleştirin.</string>
     <string name="fandom_ib_value_good">İyi</string>
     <string name="fandom_ib_value_evil">Kötü</string>
     <string name="fandom_ib_value_neutral">Tarafsız</string>
+    <string name="tumunu_listeye_ekle">Tümünü listeye ekle</string>
+    <string name="toplu_listeye_ekleniyor">%1$d içerik listeye ekleniyor…</string>
+    <string name="toplu_listeye_ekleme_sonuc">%1$d eklendi • %2$d zaten listede • %3$d eklenemedi</string>
+    <string name="tumu_zaten_listede">Tüm içerikler zaten listenizde.</string>
 </resources>

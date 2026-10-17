@@ -98,26 +98,33 @@ class AddonStreamClient {
                     ?.filterIsInstance<String>()
                     ?.filter { it.isNotBlank() }
                     .orEmpty()
-                val idPrefixesJson = if (idPrefixList.isEmpty()) null
-                else gson.toJson(idPrefixList)
 
-                // Parse resources array to find "stream" resource types
-                // Mirrors KitsugiTV-dev's AddonMapper resource parsing logic
+                // Stream resource: Stremio spesifikasyonuna göre ayrıştırılır (bkz. StremioStreamRouting).
+                // Kısa biçim ("stream") manifest düzeyindeki types/idPrefixes'i miras alır; tam biçim
+                // ({name, types, idPrefixes}) kendi değerlerini kullanır. Eskiden tam biçimdeki
+                // idPrefixes yok sayılıyordu ve addon'un ilan ettiği tür istek yoluna yansımıyordu.
                 @Suppress("UNCHECKED_CAST")
                 val resourcesList = manifestMap["resources"] as? List<*>
-                val streamTypes = resourcesList?.mapNotNull { res ->
-                    when (res) {
-                        is String -> if (res == "stream") "" else null // bare string resource
-                        is Map<*, *> -> {
-                            val resName = res["name"] as? String ?: return@mapNotNull null
-                            if (resName != "stream") return@mapNotNull null
-                            @Suppress("UNCHECKED_CAST")
-                            val types = (res["types"] as? List<*>)?.filterIsInstance<String>()
-                            types?.joinToString(",") ?: ""
-                        }
-                        else -> null
-                    }
-                }?.firstOrNull()
+                val manifestTypes = (manifestMap["types"] as? List<*>)
+                    ?.filterIsInstance<String>()
+                    ?.map { it.trim() }
+                    ?.filter { it.isNotEmpty() }
+                    .orEmpty()
+                val streamSpec = StremioStreamRouting.parseStreamResource(
+                    resources = resourcesList,
+                    manifestTypes = manifestTypes,
+                    manifestIdPrefixes = idPrefixList
+                )
+                // null → stream resource yok (eski davranış: tür filtresi yok)
+                // "*"  → stream var ama tür beyan edilmemiş
+                // csv  → addon'un ilan ettiği stream türleri
+                val streamTypes: String? = when {
+                    streamSpec == null -> null
+                    streamSpec.types == null -> StremioStreamRouting.ANY_TYPE
+                    else -> streamSpec.types.joinToString(",")
+                }
+                // Stream için geçerli prefix'ler: stream resource'a özgü değer varsa o, yoksa top-level.
+                val streamIdPrefixList = streamSpec?.idPrefixes ?: idPrefixList
 
                 val subtitleTypes = resourcesList?.mapNotNull { res ->
                     when (res) {
@@ -143,8 +150,9 @@ class AddonStreamClient {
                     icon = icon,
                     isEnabled = true,
                     orderIndex = 0,
-                    idPrefixes = idPrefixesJson,
-                    streamTypes = if (streamTypes == null) null else streamTypes.ifBlank { null },
+                    // Stream prefix'leri (stream resource'a özgü ya da top-level). Altyazı kodu bu alanı kullanmaz.
+                    idPrefixes = if (streamIdPrefixList.isEmpty()) null else gson.toJson(streamIdPrefixList),
+                    streamTypes = streamTypes,
                     subtitleTypes = if (subtitleTypes == null) null else subtitleTypes.ifBlank { null }
                 )
             }

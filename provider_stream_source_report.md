@@ -1,21 +1,20 @@
 # Kitsugi Provider Stream Source Discovery — L4/L5/L6 Raporu
 
-**Oluşturulma:** 2026-10-11T19:38:45.994776300
+**Oluşturulma:** 2026-10-17T13:38:23.494570800
 **Taranan provider:** 59
 
 ## Özet
 | Metrik | Sayı |
 |---|---|
-| 🔍 Arama başarılı (200 OK + embed bulundu) | 2 |
-| ✅ Arama sayfası 200 OK | 40 |
-| ❌ Arama başarısız (timeout/CF/404) | 19 |
+| 🔍 Arama başarılı (200 OK + embed bulundu) | 1 |
+| ✅ Arama sayfası 200 OK | 37 |
+| ❌ Arama başarısız (timeout/CF/404) | 22 |
 | 🔐 Cloudflare challenge (JS bypass gerekli) | 0 |
 
 ## CDN Kullanım Haritası (hangi CDN kaç provider tarafından kullanılıyor)
 
 | CDN Host | Kullanan Provider Sayısı | Provider Listesi |
 |---|---|---|
-| **Sibnet** | 1 | CizgiveDizi |
 | **YouTube** | 1 | FilmEkseni |
 
 ---
@@ -36,7 +35,7 @@
 | **Asyafanatiklerim** | `https://asyafanatiklerim.com` | — | 0 | — | ❌ Erişilemiyor |
 | **BelgeselX** | `https://belgeselx.com` | naruto | 0 | — | ⚠️ Sayfa OK, embed yok |
 | **CizgiMax** | `https://cizgimax.online` | naruto | 0 | — | ⚠️ Sayfa OK, embed yok |
-| **CizgiveDizi** | `https://cizgivedizi.com` | naruto | 1 | ❌ Sibnet | ✅ Stream Bulundu |
+| **CizgiveDizi** | `https://cizgivedizi.com` | — | 0 | — | ❌ Erişilemiyor |
 | **DDizi** | `https://www.ddizi.im` | naruto | 0 | — | ⚠️ Sayfa OK, embed yok |
 | **DiziAsia** | `https://diziasia.com` | naruto | 0 | — | ⚠️ Sayfa OK, embed yok |
 | **DiziAsya** | `https://diziasya.com` | naruto | 0 | — | ⚠️ Sayfa OK, embed yok |
@@ -48,7 +47,7 @@
 | **DiziPal** | `https://dizipal.bid` | naruto | 0 | — | ⚠️ Sayfa OK, embed yok |
 | **DiziPalOrijinal** | `https://dizipal1572.com` | naruto | 0 | — | ⚠️ Sayfa OK, embed yok |
 | **DiziPod** | `https://dizipod.com` | naruto | 0 | — | ⚠️ Sayfa OK, embed yok |
-| **DiziYo** | `https://www.diziyo.so` | naruto | 0 | — | ⚠️ Sayfa OK, embed yok |
+| **DiziYo** | `https://www.diziyo.so` | — | 0 | — | ❌ Erişilemiyor |
 | **DiziYou** | `https://www.diziyou.one` | naruto | 0 | — | ⚠️ Sayfa OK, embed yok |
 | **DizifilmORG** | `https://dizifilm.life` | naruto | 0 | — | ⚠️ Sayfa OK, embed yok |
 | **Dizilla** | `https://dizillahd.com` | naruto | 0 | — | ⚠️ Sayfa OK, embed yok |
@@ -65,16 +64,16 @@
 | **IzleAI** | `https://720pizle.ai` | — | 0 | — | ❌ Erişilemiyor |
 | **JetFilmizle** | `https://jetfilmizle.now` | naruto | 0 | — | ⚠️ Sayfa OK, embed yok |
 | **KoreanTurk** | `https://www.koreanturk.net` | — | 0 | — | ❌ Erişilemiyor |
-| **KultFilmler** | `https://kultfilmler.net` | — | 0 | — | ❌ Erişilemiyor |
+| **KultFilmler** | `https://kultfilmler.net` | naruto | 0 | — | ⚠️ Sayfa OK, embed yok |
 | **RecTV** | `https://b.prectv38.sbs` | — | 0 | — | ❌ Erişilemiyor |
-| **SeiCode** | `https://seiwatch.net` | naruto | 0 | — | ⚠️ Sayfa OK, embed yok |
+| **SeiCode** | `https://seiwatch.net` | — | 0 | — | ❌ Erişilemiyor |
 | **SelcukFlix** | `https://selcukflix.co` | naruto | 0 | — | ⚠️ Sayfa OK, embed yok |
 | **SetFilmIzle** | `https://www.setfilmizle.uk` | — | 0 | — | ❌ Erişilemiyor |
 | **SezonlukDizi** | `https://sezonlukdizi.cc` | naruto | 0 | — | ⚠️ Sayfa OK, embed yok |
 | **SinemaCX** | `https://www.sinema.gg` | naruto | 0 | — | ⚠️ Sayfa OK, embed yok |
 | **Sinezy** | `https://sinezy.to` | naruto | 0 | — | ⚠️ Sayfa OK, embed yok |
 | **TrAnimeIzle** | `https://www.tranimeizle.io` | naruto | 0 | — | ⚠️ Sayfa OK, embed yok |
-| **TrAnimeci** | `https://tranimaci.com` | naruto | 0 | — | ⚠️ Sayfa OK, embed yok |
+| **TrAnimeci** | `https://tranimaci.com` | — | 0 | — | ❌ Erişilemiyor |
 | **TrDiziIzle** | `https://www.trdiziizle.tv` | naruto | 0 | — | ⚠️ Sayfa OK, embed yok |
 | **TurkAnime** | `https://www.turkanime.co` | — | 0 | — | ❌ Erişilemiyor |
 | **WFilmizle** | `https://www.wfilmizle.pw` | — | 0 | — | ❌ Erişilemiyor |
@@ -88,9 +87,7 @@
 
 ## 🔴 Çalışmayan Video Kaynakları (embed bulundu ama CDN erişilemiyor)
 
-### CizgiveDizi (`https://cizgivedizi.com`)
-- ❌ **Sibnet** — HTTP -1 — `https://video.sibnet.ru/shell.php?videoid=${fragmanID}`
-
+_Tespit edilen tüm CDN'ler erişilebilir!_
 
 ## 🟢 Provider başına çalışan video kaynakları
 

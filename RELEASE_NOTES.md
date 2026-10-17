@@ -1,5 +1,89 @@
 # Kitsugi-Beta — Sürüm Notları / Release Notes
 
+# Kitsugi Beta v2.4.302
+
+## 🇹🇷 Türkçe
+
+### ➕ "Tümünü Gör" Sayfalarında Hızlı Listeye Ekleme Kısayolu (Grid & Liste Görünümü)
+- **Kompakt Kart Rozeti (`KitsugiQuickAddButton`):** Posterin sağ üst köşesinde (TopEnd) yer alan 30dp yuvarlak, şık ve yer kaplamayan kısayol butonu.
+- **Grid ve Liste Görünümünde Kusursuz Uyum:** `KitsugiExploreMediaCard` (grid — TV/yatay/dikey varyantları), `KitsugiRankingMediaCard` ve `DetailedSeasonalMediaCard` (liste görünümü) bileşenlerinin hepsinde aynı poster köşesinde durur; layout geometrisinde sıfır piksel kayma oluşturur.
+- **Durum Duyarlı & Düzenleme Entegrasyonu:** İçerik listede değilse tema vurgulu zemin üzerinde beyaz `+` ikonuyla doğrudan ekleme yapar (Bangumi koleksiyon akışı dahil); içerik zaten kütüphanenizde ise **yeşil zeminli tik** rozeti gösterir ve tıklandığında doğrudan düzenleme panelini açar.
+- **Android TV Desteği:** `tvClickable` ile D-pad odağı ve odak çerçevesi tam desteklenir.
+- **Başlıkta Toplu Ekleme Butonu:** Grid, liste ve sayfa kaydırılırken beliren yüzen başlıkta filtre butonunun yanına toplu ekleme ikonu (`Icons.Rounded.PlaylistAdd`) eklendi. Tek tıkla sayfadaki tüm sonuçlar listeye eklenir; liste boşken buton otomatik olarak pasifleşir.
+- **Birleşik ViewModel Mimarisi & Özet Bildirim:** `AppViewModel` içinde tekil ve toplu ekleme aynı doğrulama çekirdeğini (`insertApiSelection`) paylaşır. Toplu ekleme sonucunda ekran bildirim yağmuruna tutulmaz; tek bir özet bildirim (*"N eklendi • M zaten listede • K eklenemedi"*) sunulur.
+
+### 📌 "Listem" Kaynak Seçimi & Sekme Kalıcılığı Düzeltmesi
+- **Açılış Yarış Durumu (Race Condition) Çözüldü:** `loadFilters` çağrısı `LaunchedEffect` gecikmesinden çıkarılarak ilk kompozisyondan önce senkron çalıştırıldı. Listem ekranının pager 0 ("Tümü") değeriyle açılıp kullanıcının kayıtlı seçimini ezmesi sorunu tamamen giderildi.
+- **Koşulsuz Sıra Kayması Kaldırıldı:** Eski sürümlerden kalan `migrateLegacyMyListTabIndex` her açılışta koşulsuz çalışarak sekme indeksini bir yana kaydırıyordu; bu göç kodu kaldırılarak kullanıcının son seçtiği kaynak sekmesi (Bangumi, MAL, AniList vb.) tam olarak korunur hâle getirildi.
+
+### 🖼️ Keşfet Vitrini Nuvio Tarzı Yeniden Tasarlandı (`HeroVitrinLayout`)
+- **Her Zaman Tam Kaplama (`ContentScale.Crop`):** Vitrin görseli artık kutusuna tam oturur; oran farkından dolayı yanlarda boş kutu veya ince şerit oluşması engellendi.
+- **Dikey Telefonda Ayrılmış Bilgi Yuvası:** Üstte sabit oranlı görsel şeridi, altta başlık, logo, alt başlık ve meta satırları için ayrılmış sabit alan sunulur. Başlık ve logo hiçbir zaman görselin üzerine binmez.
+- **Bulanık Ambient Arka Plan Katmanı:** Keskin görselin altında kalan alan aynı görselin bulanık kopyasıyla doldurulur (Coil disk önbelleği kullanıldığı için ek ağ trafiği yaratmaz).
+- **Nuvio'dan Alınan Scrim'ler:** Nuvio Mobile dikey gradyanı ve Nuvio TV sol yatay gradyanı uygulanarak metin okunabilirliği her arka planda garantiye alındı.
+- **Görselden Bağımsız Geometri & Zıplamasız İskelet:** Bant yüksekliği cihaz boyutlarına ve yazı ölçeğine göre türetilir; görsel yüklenirken ekran boyutu değişmez veya zıplamaz.
+
+### 🎬 İzle & Akış (Stream) Eklenti Teşhis İyileştirmeleri
+- **Açıklayıcı Hata Mesajları:** CloudStream eklenti yükleme hatalarında genel "DEX/manifest hatası" yerine gerçek kök neden (`NoClassDefFoundError`, `ClassNotFoundException` vb.) doğrudan kartta ve "Yeniden dene" akışında gösterilir.
+- **Akış ve Başlık Eşleştirme:** `CsTitleMatcher` başlık ve yıl normalizasyonu, Stremio akış yönlendirmesi (`StremioStreamRouting`, `StremioAddonRoutes`) ve Wikidata IMDB ayrıştırıcı iyileştirmeleri yapıldı.
+
+---
+
+## 🇬🇧 English
+
+### ➕ Quick "Add to List" Shortcut in "See All" Pages (Grid & List Views)
+- **Compact Poster Badge (`KitsugiQuickAddButton`):** A sleek, non-intrusive 30dp circular action button placed at the top-right (TopEnd) corner of media posters.
+- **Flawless Parity Across Views:** Integrated identically into `KitsugiExploreMediaCard` (grid view — TV, landscape, portrait variants), `KitsugiRankingMediaCard` and `DetailedSeasonalMediaCard` (list view), taking up zero extra layout footprint.
+- **State-Aware & Edit Panel Access:** Shows a `+` badge with accent tint to add new items directly (supporting Bangumi flows); transforms into a **green checkmark badge** when already in your list, tapping it immediately opens the edit dialog.
+- **Android TV Ready:** Fully navigable via D-pad with focus highlight using `tvClickable`.
+- **Batch "Add All to List" Action:** Added a dedicated batch action button (`Icons.Rounded.PlaylistAdd`) next to the filter button in all three headers (grid, list, and floating sticky header). Adds all visible items in a single click and disables automatically when empty.
+- **Unified Architecture & Aggregated Notifications:** Single and batch addition share the same robust validation core (`insertApiSelection`) in `AppViewModel`. Displays a single clean summary notification (*"N added • M already in list • K could not be added"*) instead of spamming alerts.
+
+### 📌 "My List" Tab Selection Persistence Fix
+- **Race Condition Resolved:** `loadFilters` now executes synchronously prior to first composition, preventing the pager from initializing at 0 ("All") and overwriting user preferences.
+- **Eliminated Unconditional Tab Shift:** Removed legacy index migration that shifted the active tab index on every app launch. Your selected library source (Bangumi, MAL, AniList, etc.) is reliably preserved across app restarts.
+
+### 🖼️ Explore Showcase Redesigned (Nuvio-Style Layout - `HeroVitrinLayout`)
+- **Full Coverage (`ContentScale.Crop`):** Showcase artworks now consistently fill their frame, eliminating side pillarboxing and collapsed thin strips.
+- **Dedicated Information Slot on Phones:** Features a fixed-aspect visual band on top with a dedicated metadata/title zone below, ensuring logos and titles never obscure the artwork.
+- **Ambient Blurred Layer:** Spaces below sharp artwork are smoothly filled with a blurred copy using Coil's cache with zero bandwidth penalty.
+- **Nuvio Gradient Scrims:** Incorporates Nuvio Mobile's vertical gradient and Nuvio TV's left-hand horizontal gradient for crystal-clear readability.
+- **Device-Driven Geometry:** Container height is calculated strictly from screen geometry and font scale; loading skeletons match the final layout to prevent layout jumping.
+
+### 🎬 Stream & Plugin Diagnostic Improvements
+- **Transparent Plugin Errors:** CloudStream plugin loader now surfaces the exact root cause (`NoClassDefFoundError`, `ClassNotFoundException`, etc.) on the card and retry flows instead of a generic DEX/manifest failure.
+- **Matcher & Routing Enhancements:** Optimized `CsTitleMatcher` title/year heuristics, refined Stremio stream routing (`StremioStreamRouting`, `StremioAddonRoutes`), and improved Wikidata IMDb parsing.
+
+---
+
+# Kitsugi Beta v2.4.301
+
+## 🇹🇷 Türkçe
+
+### 🖼️ Keşfet Vitrini Yeniden Tasarlandı (Nuvio Tarzı Yerleşim)
+
+- **Kök Neden Düzeltildi:** Vitrin görseli `ContentScale.Fit` ile çok geniş bir kutuya sığdırılıyordu. Bu yüzden 16:9 bir görsel **yanlarda boş kutu** bırakıyor, 3:1 bir banner ise **ince bir şeride** düşüp gerisini bulanık olmayan düşük opaklıklı bir "hayalet kopya" ile dolduruyordu. Artık görsel **her zaman kutuyu tamamen kaplıyor** (`ContentScale.Crop`); kaynak ne olursa olsun vitrin aynı, tutarlı görünüyor.
+- **Yeni Yerleşim Politikası (`HeroVitrinLayout`):** Dikey telefonda üstte oranı sabit bir **görsel şeridi**, altta başlık/logo, alt başlık ve meta satırları için **ayrılmış sabit yuva** var. Başlık ile logo artık görselin üstüne binmiyor. Yatay mod, tablet ve TV'de ise görsel bandın tamamını kaplıyor ve metin Nuvio TV'deki gibi gradyan scim'in üzerine bindiriliyor.
+- **Bulanık Ortam Katmanı:** Keskin görselin altında kalan alan artık aynı görselin **bulanık** kopyasıyla doluyor. Boş kutu, yarım görsel veya bulanık olmayan ikinci kopya bir daha görünmüyor. Coil'in disk cache'i yalnızca URL'e göre çalıştığı için bu katman **ek internet tüketimi yapmıyor**.
+- **Nuvio'dan Alınan Scrim'ler:** Nuvio Mobile'in dikey gradyanı ve Nuvio TV'nin sol yatay gradyanı uygulandı; durum çubuğu için üstte hafif bir koyulaştırma eklendi. Metin her kaynakta okunur kalıyor.
+- **Ölçüler Görselden Bağımsız:** Bant yüksekliği, görsel şeridi ve metin yuvası yalnızca cihaz geometrisinden (ve yazı ölçeğinden) türetiliyor. Görselin oranı, yükleme durumu veya kaynak tamamlanması sayfayı kaydıramıyor; büyük yazı ölçeğinde bant gerektiği kadar büyüyor.
+- **Yükleme İskeleti Eşitlendi:** Vitrin iskeleti artık gerçek vitrinle aynı yerleşimi kullanıyor; görsel geldiğinde sayfa zıplamıyor.
+- **Dokunulmayanlar:** Otomatik geçiş, sayfa göstergeleri, logo yuvası, kaynak rozeti, TV kumanda odağı, yetişkin bulanıklığı ve kaynak kotaları aynen korundu.
+
+---
+
+## 🇬🇧 English
+
+### 🖼️ Explore Showcase Redesigned (Nuvio-Style Layout)
+
+- **Root Cause Fixed:** The showcase artwork was fitted (`ContentScale.Fit`) into a very wide box, so a 16:9 image left **empty bars on both sides** while a 3:1 banner collapsed into a **thin strip** backed by a low-opacity, unblurred "ghost copy". The artwork now **always fills its box** (`ContentScale.Crop`), so every source renders identically and consistently.
+- **New Layout Policy (`HeroVitrinLayout`):** On portrait phones the artwork occupies a fixed-aspect **strip at the top**, while the title/logo, subtitle and meta rows live in a **dedicated fixed zone below**. The title and logo no longer overlap the artwork. In landscape, on tablets and on TV the artwork fills the whole band and the metadata is layered over a gradient scrim, exactly like Nuvio TV.
+- **Blurred Ambient Layer:** The area beneath the sharp artwork is now filled with a **blurred** copy of the same image. Empty boxes, half images and unblurred duplicates are gone. Because Coil's disk cache is keyed by URL only, this layer adds **no extra network traffic**.
+- **Nuvio-Derived Scrims:** Nuvio Mobile's vertical gradient and Nuvio TV's left-hand horizontal gradient are applied, plus a subtle top scrim for the status bar. Metadata stays readable on every source.
+- **Image-Independent Geometry:** Band height, artwork strip and text zone are derived only from device geometry (and font scale). Artwork aspect, loading state or a late-arriving source can never shift the layout; with a large font scale the band grows instead of clipping.
+- **Matching Loading Skeleton:** The showcase skeleton now uses the very same layout policy, so the screen does not jump when artwork arrives.
+- **Unchanged:** Auto-advance, page indicators, the logo slot, the source pill, TV remote focus, adult-content blur and the per-source quotas all behave exactly as before.
+
 # Kitsugi Beta v2.4.300
 
 ## 🇹🇷 Türkçe

@@ -2,44 +2,17 @@ package com.kitsugi.animelist.ui.screens.stream
 
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.graphicsLayer
-import com.kitsugi.animelist.data.local.ManagedAddonEntity
 import com.kitsugi.animelist.data.repository.MeasuredStreamInfo
 import com.kitsugi.animelist.data.repository.StreamAudioKind
 import com.kitsugi.animelist.data.repository.StreamInfoResolver
 import com.kitsugi.animelist.data.repository.StreamLangInfo
 import com.kitsugi.animelist.data.repository.StreamQualityInfo
 import com.kitsugi.animelist.data.repository.StreamSource
-import com.google.gson.Gson
 import java.util.Locale
 
 /** Applies a semi-transparent graphicsLayer alpha value. */
 fun Modifier.graphicsLayerAlpha(alphaValue: Float): Modifier =
     this.then(Modifier.graphicsLayer { alpha = alphaValue })
-
-/**
- * Determines whether an addon supports streaming for the given content type and video ID,
- * based on its declared stream types and ID prefix list.
- */
-fun ManagedAddonEntity.supportsStreamResource(type: String, videoId: String): Boolean {
-    if (streamTypes == null && subtitleTypes != null) return false
-    val types = streamTypes?.split(",")?.map { it.trim() }?.filter { it.isNotBlank() }
-    if (!types.isNullOrEmpty()) {
-        val matches = types.any {
-            it.equals(type, ignoreCase = true) ||
-            (type.equals("series", ignoreCase = true) && it.equals("anime", ignoreCase = true)) ||
-            (type.equals("movie", ignoreCase = true) && (it.equals("anime", ignoreCase = true) || it.equals("animemovie", ignoreCase = true)))
-        }
-        if (!matches) return false
-    }
-    val prefixesJson = idPrefixes
-    if (!prefixesJson.isNullOrBlank()) {
-        try {
-            val prefixList = Gson().fromJson(prefixesJson, Array<String>::class.java).filter { it.isNotBlank() }
-            if (prefixList.isNotEmpty() && prefixList.none { videoId.startsWith(it) }) return false
-        } catch (_: Exception) { /* fall through */ }
-    }
-    return true
-}
 
 /**
  * Bir [StreamSource] için Debrid önbellek durumunu, yalnızca isim/başlıkta AÇIKÇA yazan

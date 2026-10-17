@@ -39,6 +39,7 @@ import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.automirrored.rounded.ListAlt
 import androidx.compose.material.icons.rounded.FilterList
 import androidx.compose.material.icons.rounded.GridView
+import androidx.compose.material.icons.rounded.PlaylistAdd
 import androidx.compose.material.icons.rounded.SearchOff
 import com.kitsugi.animelist.ui.theme.gradient.CircularProgressIndicator
 import com.kitsugi.animelist.ui.theme.gradient.Icon
@@ -127,7 +128,9 @@ fun FullScreenMediaGridPage(
     hideScores: Boolean = false,
     showAdultContent: Boolean = false,
     blurAdultMedia: Boolean = false,
-    getMediaEntry: (JikanSearchResult) -> com.kitsugi.animelist.model.MediaEntry? = { null }
+    getMediaEntry: (JikanSearchResult) -> com.kitsugi.animelist.model.MediaEntry? = { null },
+    onQuickAddToList: ((JikanSearchResult) -> Unit)? = null,
+    onAddAllToList: ((List<JikanSearchResult>) -> Unit)? = null
 ) {
     val accentColor = LocalKitsugiAccent.current
     val isTv = LocalIsTv.current
@@ -858,6 +861,23 @@ fun FullScreenMediaGridPage(
                                 fontWeight = FontWeight.Black,
                                 modifier = Modifier.weight(1f)
                             )
+                            // Toplu ekleme kısayolu — her iki görünümde de başlıkta (kompakt)
+                            if (onAddAllToList != null) {
+                                IconButton(
+                                    onClick = { onAddAllToList?.invoke(displayedResults) },
+                                    enabled = displayedResults.isNotEmpty(),
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(12.dp))
+                                        .background(KitsugiColors.Surface)
+                                ) {
+                                    Icon(
+                                        Icons.Rounded.PlaylistAdd,
+                                        contentDescription = stringResource(R.string.tumunu_listeye_ekle),
+                                        tint = accentColor
+                                    )
+                                }
+                                Spacer(modifier = Modifier.width(6.dp))
+                            }
                             // Filtre ve Sıralama Butonu (Her kategoride aktif)
                             IconButton(
                                 onClick = {
@@ -981,7 +1001,10 @@ fun FullScreenMediaGridPage(
                             hideScores = hideScores,
                             blurAdultMedia = blurAdultMedia,
                             forceVertical = !isLandscape,
-                            rankIndex = if (showRank) index + 1 else null
+                            rankIndex = if (showRank) index + 1 else null,
+                            onQuickAddClick = onQuickAddToList?.let { quickAdd ->
+                                { quickAdd(result) }
+                            }
                         )
                     }
                 }
@@ -1042,6 +1065,23 @@ fun FullScreenMediaGridPage(
                                 fontWeight = FontWeight.Black,
                                 modifier = Modifier.weight(1f)
                             )
+                            // Toplu ekleme kısayolu — her iki görünümde de başlıkta (kompakt)
+                            if (onAddAllToList != null) {
+                                IconButton(
+                                    onClick = { onAddAllToList?.invoke(displayedResults) },
+                                    enabled = displayedResults.isNotEmpty(),
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(12.dp))
+                                        .background(KitsugiColors.Surface)
+                                ) {
+                                    Icon(
+                                        Icons.Rounded.PlaylistAdd,
+                                        contentDescription = stringResource(R.string.tumunu_listeye_ekle),
+                                        tint = accentColor
+                                    )
+                                }
+                                Spacer(modifier = Modifier.width(6.dp))
+                            }
                             // Filtre ve Sıralama Butonu (Her kategoride aktif)
                             IconButton(
                                 onClick = {
@@ -1162,7 +1202,10 @@ fun FullScreenMediaGridPage(
                                 alreadyInList = alreadyInList(result),
                                 onClick = { onItemClick(result) },
                                 titleLanguage = titleLanguage,
-                                blurAdultMedia = blurAdultMedia
+                                blurAdultMedia = blurAdultMedia,
+                                onQuickAddClick = onQuickAddToList?.let { quickAdd ->
+                                    { quickAdd(result) }
+                                }
                             )
                         } else {
                             KitsugiRankingMediaCard(
@@ -1173,7 +1216,10 @@ fun FullScreenMediaGridPage(
                                 onClick = { onItemClick(result) },
                                 titleLanguage = titleLanguage,
                                 hideScores = hideScores,
-                                blurAdultMedia = blurAdultMedia
+                                blurAdultMedia = blurAdultMedia,
+                                onQuickAddClick = onQuickAddToList?.let { quickAdd ->
+                                    { quickAdd(result) }
+                                }
                             )
                         }
                     }
@@ -1234,6 +1280,23 @@ fun FullScreenMediaGridPage(
                     overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.weight(1f)
                 )
+                // Toplu ekleme kısayolu — kaydırırken de erişilebilir (şeffaf zemin)
+                if (onAddAllToList != null) {
+                    IconButton(
+                        onClick = { onAddAllToList?.invoke(displayedResults) },
+                        enabled = displayedResults.isNotEmpty(),
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(Color.Transparent)
+                    ) {
+                        Icon(
+                            Icons.Rounded.PlaylistAdd,
+                            contentDescription = stringResource(R.string.tumunu_listeye_ekle),
+                            tint = accentColor
+                        )
+                    }
+                    Spacer(modifier = Modifier.width(4.dp))
+                }
                 // Filtre ve Sıralama Butonu (Her zaman toggle'dan önce gösterilir)
                 val hasActiveFilterFloating = selectedGenreId != "ALL" || selectedSortOption != KitsugiGridSortOption.DEFAULT
                 IconButton(

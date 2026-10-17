@@ -52,7 +52,8 @@ fun DetailedSeasonalMediaCard(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     titleLanguage: String = "ROMAJI",
-    blurAdultMedia: Boolean = false
+    blurAdultMedia: Boolean = false,
+    onQuickAddClick: (() -> Unit)? = null
 ) {
     val accentColor = LocalKitsugiAccent.current
     // PERF: başlık metni her recomp'da yeniden hesaplanmasın.
@@ -161,6 +162,16 @@ fun DetailedSeasonalMediaCard(
                         modifier = Modifier.fillMaxSize(),
                         initials = displayTitle
                     )
+
+                if (onQuickAddClick != null) {
+                    KitsugiQuickAddButton(
+                        inList = alreadyInList,
+                        onClick = onQuickAddClick,
+                        modifier = Modifier
+                            .align(Alignment.TopEnd)
+                            .padding(6.dp)
+                    )
+                }
             }
 
             Spacer(modifier = Modifier.width(16.dp))

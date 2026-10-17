@@ -16,6 +16,8 @@ import com.kitsugi.animelist.data.cloudstream.CloudflareBlockException
 import com.kitsugi.animelist.data.local.KitsugiDatabase
 import com.kitsugi.animelist.data.remote.AddonStreamClient
 import com.kitsugi.animelist.data.remote.KitsugiIdResolver
+import com.kitsugi.animelist.data.remote.buildStremioStreamTasks
+import com.kitsugi.animelist.data.remote.toStreamRoute
 import com.kitsugi.animelist.model.MediaType
 import com.kitsugi.animelist.data.repository.EpisodeStreamFilter
 import com.kitsugi.animelist.data.repository.StreamSorter
@@ -92,6 +94,7 @@ class StreamViewModel(application: Application) : AndroidViewModel(application) 
         val startYear: Int?,
         val isMovie: Boolean,
         val mediaType: MediaType?,
+        val knownImdbId: String? = null,
     )
 
     @Volatile private var lastFetchParams: LastFetchParams? = null
@@ -122,15 +125,17 @@ class StreamViewModel(application: Application) : AndroidViewModel(application) 
         cs3Url: String? = null,
         cs3ApiName: String? = null,
         isMovie: Boolean = false,
-        mediaType: MediaType? = null
+        mediaType: MediaType? = null,
+        knownImdbId: String? = null
     ) {
-        val newKey = "$malId:$aniListId:$tmdbId:$bangumiId:$isMovie:${mediaType?.name}:$season:$episode:$startYear:$cs3ApiName:$cs3Url:${title.hashCode()}:${alternativeTitles.hashCode()}"
+        val newKey = "$malId:$aniListId:$tmdbId:$bangumiId:$isMovie:${mediaType?.name}:$season:$episode:$startYear:$cs3ApiName:$cs3Url:${title.hashCode()}:${alternativeTitles.hashCode()}:$knownImdbId"
 
         lastFetchParams = LastFetchParams(
             malId = malId, aniListId = aniListId, tmdbId = tmdbId, bangumiId = bangumiId,
             episode = episode, season = season, title = title,
             alternativeTitles = alternativeTitles, startYear = startYear,
             isMovie = isMovie, mediaType = mediaType,
+            knownImdbId = knownImdbId,
         )
 
         // ── Cache hit: same combination, data already present ─────────────────
@@ -169,7 +174,8 @@ class StreamViewModel(application: Application) : AndroidViewModel(application) 
                 cs3Url = cs3Url,
                 cs3ApiName = cs3ApiName,
                 isMovie = isMovie,
-                mediaType = mediaType
+                mediaType = mediaType,
+                knownImdbId = knownImdbId
             )
             isFetchInProgress = false
         }
@@ -203,6 +209,7 @@ class StreamViewModel(application: Application) : AndroidViewModel(application) 
                 episode = episode, season = season, title = title,
                 alternativeTitles = alternativeTitles, startYear = startYear,
                 isMovie = isMovie, mediaType = mediaType,
+                knownImdbId = lastFetchParams?.knownImdbId,
             ),
         )
     }
@@ -228,6 +235,15 @@ class StreamViewModel(application: Application) : AndroidViewModel(application) 
             displayName = addonDisplayName,
             params = params,
         )
+    }
+
+    /**
+     * CS eklentisi API döndürmediğinde gerçek yükleme hatasını ([CsPluginLoader.takeLastLoadError])
+     * kullanıcıya gösterir. Eskiden bu neden hiç okunmadığı için her hata aynı jenerik mesaja düşüyordu.
+     */
+    private fun csLoadFailureMessage(scraperId: String): String {
+        val cause = CsPluginLoader.takeLastLoadError(scraperId)
+        return if (cause != null) "Eklenti yüklenemedi: $cause" else "Eklenti yüklenemedi (DEX/manifest hatası)"
     }
 
     private fun rerunCsPlugin(
@@ -265,6 +281,15 @@ class StreamViewModel(application: Application) : AndroidViewModel(application) 
                 val apis = withContext(Dispatchers.IO) {
                     CsPluginLoader.loadExtension(context, csPlugin.id)
                 }
+                if (apis.isEmpty()) {
+                    CsTrace.error(csPlugin.name, "load", "Yeniden deneme: yükleme başarısız")
+                    updateAddonStateSync(
+                        dismissedDisplayName,
+                        isLoading = false,
+                        error = csLoadFailureMessage(csPlugin.id),
+                    )
+                    return@launch
+                }
                 // Tracker anahtarları api.name'le tutulur — yalnızca plugin.id temizlemek
                 // "Doğrula" sonrası tekrar denemede eklentinin hâlâ bloklu sanılmasına
                 // yol açıyordu. Bu yüzden id, eklenti adı ve yüklenen tüm api adları temizlenir.
@@ -281,13 +306,36 @@ class StreamViewModel(application: Application) : AndroidViewModel(application) 
                     updateAddonStateSync(dismissedDisplayName, isLoading = false, error = message)
                     return@launch
                 }
+                // Yeniden deneme de ana akışla AYNI kimlik dönüşümünü kullanır: ham stableId
+                // (Kitsu/AniList offset'li) CS'ye MAL/AniList olarak gitmez, çözülmüş kimlikler geçer.
+                val retryMal = malId?.takeIf { it in 1..99_999_999 }
+                val retryAniList = when {
+                    aniListId != null && aniListId >= 100_000_000 -> aniListId - 100_000_000
+                    aniListId != null && aniListId > 0 -> aniListId
+                    else -> null
+                }
+                val retryKitsu = malId?.takeIf { it >= 300_000_000 }?.let { it - 300_000_000 }
+                val retryIdsBase = KitsugiIdResolver.resolveIds(
+                    malId = retryMal,
+                    aniListId = retryAniList,
+                    tmdbId = tmdbId,
+                    mediaType = mediaType,
+                    kitsuId = retryKitsu,
+                    bangumiId = bangumiId,
+                    wikidataImdbFallback = true
+                )
+                val retryKnownImdb = params.knownImdbId?.trim()?.takeIf { Regex("tt[0-9]{5,12}").matches(it) }
+                val retryIds = if (retryKnownImdb != null) retryIdsBase.copy(imdbId = retryKnownImdb) else retryIdsBase
                 val csStreams = mutableListOf<StreamSource>()
                 for (api in compatibleApis) {
                     val streams = CsStreamRunner.getStreams(
                         api = api, title = title, alternativeTitles = alternativeTitles,
                         year = startYear, season = season, episode = episode,
-                        malId = malId, aniListId = aniListId, tmdbId = tmdbId,
-                        bangumiId = bangumiId, isMovie = isMovie, mediaType = mediaType
+                        malId = retryMal ?: retryIds.malId,
+                        aniListId = retryAniList ?: retryIds.aniListId,
+                        tmdbId = tmdbId ?: retryIds.tmdbId,
+                        bangumiId = bangumiId, isMovie = isMovie, mediaType = mediaType,
+                        preResolvedIds = retryIds
                     )
                     csStreams.addAll(streams)
                 }
@@ -295,7 +343,7 @@ class StreamViewModel(application: Application) : AndroidViewModel(application) 
                 val diagMsg = if (csStreams.isEmpty()) {
                     CsPluginStatusTracker.getErrorMessage(csPlugin.name)
                         ?: CsPluginStatusTracker.getErrorMessage(apiName)
-                        ?: if (apis.isEmpty()) "Eklenti yüklenemedi (DEX/manifest hatası)" else null
+                        ?: if (apis.isEmpty()) csLoadFailureMessage(csPlugin.id) else null
                 } else null
                 val diagCode = if (csStreams.isEmpty()) {
                     CsPluginStatusTracker.getErrorCode(csPlugin.name)
@@ -371,7 +419,8 @@ class StreamViewModel(application: Application) : AndroidViewModel(application) 
         cs3Url: String? = null,
         cs3ApiName: String? = null,
         isMovie: Boolean = false,
-        mediaType: MediaType? = null
+        mediaType: MediaType? = null,
+        knownImdbId: String? = null
     ) {
         val directUrl = cs3Url?.trim()?.takeIf { it.isNotBlank() }
         val directApiName = cs3ApiName?.trim()?.takeIf { it.isNotBlank() }
@@ -445,14 +494,18 @@ class StreamViewModel(application: Application) : AndroidViewModel(application) 
             else -> null
         }
 
+        // Detay sayfasının bildiği IMDb (tt...) çözücü sonucundan önce gelir: aynı kayıt, güvenilir kaynak.
+        val knownImdb = knownImdbId?.trim()?.takeIf { Regex("tt[0-9]{5,12}").matches(it) }
         val resolvedIds = KitsugiIdResolver.resolveIds(
             malId = realMalId,
             aniListId = realAniListId,
             tmdbId = tmdbId,
             mediaType = mediaType,
             kitsuId = kitsuNumericId,
-            bangumiId = bangumiId
-        )
+            bangumiId = bangumiId,
+            // Akış yolu: IMDb yoksa Wikidata P345 köprüsünü dene (IMDb ile sorgulanan addon'lar için).
+            wikidataImdbFallback = true
+        ).let { r -> if (knownImdb != null) r.copy(imdbId = knownImdb) else r }
         _isResolvingId.value = false
 
         val resolvedImdbId = resolvedIds.imdbId
@@ -476,39 +529,18 @@ class StreamViewModel(application: Application) : AndroidViewModel(application) 
         val kitsuVideoId = stremioLookup.kitsuVideoId
         val contentType = stremioLookup.contentType
 
-        data class StreamTask(val addonName: String, val manifestUrl: String, val videoId: String)
-
+        // ── 2. Stremio görevleri (ortak yönlendirme kuralları: StremioStreamRouting) ──────────
+        // Her addon yalnızca kabul ettiği kimlik ailesiyle sorgulanır; istek yolu addon'un
+        // ilan ettiği türü kullanır (anime-only addon → /stream/anime/...).
         val db = KitsugiDatabase.getDatabase(context)
         val addonClient = AddonStreamClient()
         val allAddons = db.managedAddonDao().getEnabledAddons()
-
-        // ── 2. Build Stremio tasks ────────────────────────────────────────────
-        val tasks = mutableListOf<StreamTask>()
-        for (addon in allAddons) {
-            val prefixesRaw = addon.idPrefixes
-            val prefixList = if (!prefixesRaw.isNullOrBlank()) {
-                try {
-                    Gson().fromJson(prefixesRaw, Array<String>::class.java).filter { it.isNotBlank() }
-                } catch (_: Exception) { emptyList() }
-            } else emptyList()
-
-            if (prefixList.isEmpty()) {
-                if (kitsuVideoId != null && addon.supportsStreamResource(contentType, kitsuVideoId))
-                    tasks += StreamTask(addon.name, addon.manifestUrl, kitsuVideoId)
-                if (imdbVideoId != null && addon.supportsStreamResource(contentType, imdbVideoId))
-                    tasks += StreamTask(addon.name, addon.manifestUrl, imdbVideoId)
-            } else {
-                val supportsKitsu = prefixList.any { it == "kitsu:" }
-                val supportsImdb  = prefixList.any { it == "tt" }
-                if (supportsKitsu && kitsuVideoId != null && addon.supportsStreamResource(contentType, kitsuVideoId)) {
-                    tasks += StreamTask(addon.name, addon.manifestUrl, kitsuVideoId)
-                    if (supportsImdb && imdbVideoId != null && addon.supportsStreamResource(contentType, imdbVideoId))
-                        tasks += StreamTask(addon.name, addon.manifestUrl, imdbVideoId)
-                } else if (supportsImdb && imdbVideoId != null && addon.supportsStreamResource(contentType, imdbVideoId)) {
-                    tasks += StreamTask(addon.name, addon.manifestUrl, imdbVideoId)
-                }
-            }
-        }
+        val tasks = buildStremioStreamTasks(
+            routes = allAddons.map { it.toStreamRoute() },
+            contentType = contentType,
+            imdbVideoId = imdbVideoId,
+            kitsuVideoId = kitsuVideoId
+        )
 
         if (tasks.isNotEmpty()) {
             val uniqueAddons = tasks.map { it.addonName }.distinct()
@@ -523,7 +555,7 @@ class StreamViewModel(application: Application) : AndroidViewModel(application) 
             val stremioJobs = tasks.map { task ->
                 launch {
                     try {
-                        val streams = addonClient.fetchStreams(task.manifestUrl, contentType, task.videoId)
+                        val streams = addonClient.fetchStreams(task.manifestUrl, task.requestType, task.videoId)
                         val sources = streams.map { item ->
                             val nameText  = item.name  ?: "Bilinmeyen Akış"
                             val titleText = item.title ?: "İsimsiz Dosya"
@@ -646,7 +678,7 @@ class StreamViewModel(application: Application) : AndroidViewModel(application) 
                                 updateAddonState(
                                     csDisplayName,
                                     isLoading = false,
-                                    error = "Eklenti yüklenemedi (DEX/manifest hatası)",
+                                    error = csLoadFailureMessage(plugin.id),
                                     errorCode = PlatformErrorCode.CloudStreamPluginUnsupported.id,
                                 )
                                 return@launch

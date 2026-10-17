@@ -8,6 +8,8 @@ import com.kitsugi.animelist.data.remote.AddonStreamClient
 import com.kitsugi.animelist.data.remote.DebridResolver
 import com.kitsugi.animelist.data.remote.KitsugiIdResolver
 import com.kitsugi.animelist.data.remote.StreamResponseItem
+import com.kitsugi.animelist.data.remote.buildStremioStreamTasks
+import com.kitsugi.animelist.data.remote.toStreamRoute
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
@@ -46,7 +48,7 @@ class AddonStreamRepository(private val context: Context) {
         isMovie: Boolean = false
     ): List<StreamSource> = coroutineScope {
         // Step 1: Resolve IMDb + Kitsu IDs in one ARM API call
-        val resolvedIds = KitsugiIdResolver.resolveIds(malId, aniListId, tmdbId)
+        val resolvedIds = KitsugiIdResolver.resolveIds(malId, aniListId, tmdbId, wikidataImdbFallback = true)
         val imdbId   = resolvedIds.imdbId
         val kitsuId  = resolvedIds.kitsuId
 
@@ -68,56 +70,16 @@ class AddonStreamRepository(private val context: Context) {
         val kitsuVideoId = stremioLookup.kitsuVideoId
         val contentType = stremioLookup.contentType
 
-        // Step 2: Build a list of (addon, videoId) pairs — each addon is queried
-        // with the video ID format it actually understands.
-        data class AddonTask(
-            val addonName: String,
-            val manifestUrl: String,
-            val videoId: String
-        )
-
+        // Step 2: Her (addon, video ID) çifti için istek görevleri. Addon hangi kimlik ailesini
+        // (kitsu / tt) kabul ediyorsa o ID ile sorgulanır ve istek yolunda addon'un KENDİ ilan ettiği
+        // tür kullanılır (ör. yalnızca "anime" ilan eden addon /stream/anime/... ile sorgulanır).
         val allAddons = addonDao.getEnabledAddons()
-        val tasks = mutableListOf<AddonTask>()
-
-        for (addon in allAddons) {
-            val prefixesRaw = addon.idPrefixes
-            val prefixList = if (!prefixesRaw.isNullOrBlank()) {
-                try {
-                    com.google.gson.Gson()
-                        .fromJson(prefixesRaw, Array<String>::class.java)
-                        .filter { it.isNotBlank() }
-                } catch (_: Exception) { emptyList() }
-            } else emptyList()
-
-            if (prefixList.isEmpty()) {
-                if (kitsuVideoId != null && addon.supportsStreamResource(contentType, kitsuVideoId)) {
-                    tasks += AddonTask(addon.name, addon.manifestUrl, kitsuVideoId)
-                }
-                if (imdbVideoId != null && addon.supportsStreamResource(contentType, imdbVideoId)) {
-                    tasks += AddonTask(addon.name, addon.manifestUrl, imdbVideoId)
-                }
-            } else {
-                val supportsKitsu = prefixList.any { it == "kitsu:" }
-                val supportsImdb  = prefixList.any { it == "tt" }
-
-                // Prefer Kitsu for addons that support it (richer anime metadata)
-                if (supportsKitsu && kitsuVideoId != null) {
-                    if (addon.supportsStreamResource(contentType, kitsuVideoId)) {
-                        tasks += AddonTask(addon.name, addon.manifestUrl, kitsuVideoId)
-                        // Also add the IMDb query for Torrentio-style addons that support both
-                        if (supportsImdb && imdbVideoId != null && prefixList.any { it == "tt" }) {
-                            if (addon.supportsStreamResource(contentType, imdbVideoId)) {
-                                tasks += AddonTask(addon.name, addon.manifestUrl, imdbVideoId)
-                            }
-                        }
-                    }
-                } else if (supportsImdb && imdbVideoId != null) {
-                    if (addon.supportsStreamResource(contentType, imdbVideoId)) {
-                        tasks += AddonTask(addon.name, addon.manifestUrl, imdbVideoId)
-                    }
-                }
-            }
-        }
+        val tasks = buildStremioStreamTasks(
+            routes = allAddons.map { it.toStreamRoute() },
+            contentType = contentType,
+            imdbVideoId = imdbVideoId,
+            kitsuVideoId = kitsuVideoId
+        )
 
         if (tasks.isEmpty()) {
             Log.w("AddonStreamRepository", "No compatible addon/ID pairs found — imdb=$imdbVideoId kitsu=$kitsuVideoId")
@@ -129,8 +91,8 @@ class AddonStreamRepository(private val context: Context) {
         // Step 3: Query all tasks in parallel
         val deferredStreams = tasks.map { task ->
             async {
-                Log.d("AddonStreamRepository", "Fetching streams: ${task.addonName} / ${task.videoId}")
-                val streams = addonClient.fetchStreams(task.manifestUrl, contentType, task.videoId)
+                Log.d("AddonStreamRepository", "Fetching streams: ${task.addonName} / ${task.requestType} / ${task.videoId}")
+                val streams = addonClient.fetchStreams(task.manifestUrl, task.requestType, task.videoId)
                 streams.map { responseItem ->
                     val nameText = responseItem.name ?: "Bilinmeyen Akış"
                     val titleText = responseItem.title ?: "İsimsiz Dosya"
@@ -343,47 +305,4 @@ fun extractTrackersFromMagnet(magnetUri: String?): List<String> {
     } catch (_: Exception) {
         emptyList()
     }
-}
-
-/**
- * Checks whether this addon can serve streams for [type] and [videoId].
- *
- * Mirrors KitsugiTV-dev's Addon.supportsStreamResource():
- * - If streamTypes is null/empty → no type filter (legacy addon, accept all)
- * - If idPrefixes is null/empty  → no prefix filter (accept all IDs)
- * - Otherwise, the requested type must be in streamTypes AND videoId must
- *   start with at least one declared prefix.
- */
-private fun com.kitsugi.animelist.data.local.ManagedAddonEntity.supportsStreamResource(
-    type: String,
-    videoId: String
-): Boolean {
-    if (streamTypes == null && subtitleTypes != null) return false
-    // Type check
-    val types = streamTypes?.split(",")?.map { it.trim() }?.filter { it.isNotBlank() }
-    if (!types.isNullOrEmpty()) {
-        val matches = types.any {
-            it.equals(type, ignoreCase = true) ||
-            (type.equals("series", ignoreCase = true) && it.equals("anime", ignoreCase = true)) ||
-            (type.equals("movie", ignoreCase = true) && (it.equals("anime", ignoreCase = true) || it.equals("animemovie", ignoreCase = true)))
-        }
-        if (!matches) return false
-    }
-
-    // ID prefix check — parse the stored JSON array (e.g. ["tt","kitsu:"])
-    val prefixesJson = idPrefixes
-    if (!prefixesJson.isNullOrBlank()) {
-        try {
-            val prefixList = com.google.gson.Gson()
-                .fromJson(prefixesJson, Array<String>::class.java)
-                .filter { it.isNotBlank() }
-            if (prefixList.isNotEmpty() && prefixList.none { videoId.startsWith(it) }) {
-                return false
-            }
-        } catch (_: Exception) {
-            // Malformed JSON — fall through and accept
-        }
-    }
-
-    return true
 }

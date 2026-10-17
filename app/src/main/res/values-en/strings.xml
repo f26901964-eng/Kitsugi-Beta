@@ -7808,4 +7808,8 @@
     <string name="fandom_ib_value_good">Good</string>
     <string name="fandom_ib_value_evil">Evil</string>
     <string name="fandom_ib_value_neutral">Neutral</string>
+    <string name="tumunu_listeye_ekle">Add all to list</string>
+    <string name="toplu_listeye_ekleniyor">Adding %1$d items to your list…</string>
+    <string name="toplu_listeye_ekleme_sonuc">%1$d added • %2$d already in list • %3$d could not be added</string>
+    <string name="tumu_zaten_listede">All items are already in your list.</string>
 </resources>

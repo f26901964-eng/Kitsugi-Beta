@@ -310,9 +310,18 @@ fun AppRoot(
         }
     }
 
-    LaunchedEffect(Unit) {
+    // Filtreleri ve son seçili Listem sekmesini İLK kompozisyondan ÖNCE senkron geri yükle.
+    // LaunchedEffect içinde geri yükleme yarışıyordu: Listem ilk karede açılıyorsa pager
+    // varsayılan (0) sayfada kuruluyor ve settledPage etkisi kayıtlı seçimi anında geri
+    // yazıyordu — uygulama kapanıp açılınca son seçim hep kayboluyordu. SharedPreferences
+    // ve düz token okumaları ucuzdur; Keşfet/Arama/sekme geri yüklemelerindeki ilk kare
+    // "sıçrama" flash'ını da engeller. (remember bir kez çalışır; idempotenttir.)
+    remember(Unit) {
         appViewModel.loadFilters(context)
+        true
+    }
 
+    LaunchedEffect(Unit) {
         val handleDeepLinkItem = { link: com.kitsugi.animelist.core.deeplink.TvDeepLink ->
             when (link) {
                 is com.kitsugi.animelist.core.deeplink.TvDeepLink.Detail -> {
@@ -1311,9 +1320,32 @@ private fun AppNavigationContent(
                         titleLanguage = appSettings.titleLanguage,
                         scoreFormat = appSettings.scoreFormat,
                         hideScores = appSettings.hideScores,
-                        showAdultContent = appSettings.showAdultContent,
-                        blurAdultMedia = appSettings.blurAdultMedia,
-                        getMediaEntry = getMediaEntry
+                        getMediaEntry = getMediaEntry,
+                        // Kart kısayolu: listede ise düzenle panelini aç, değilse tekil ekleme akışına
+                        // (AppRoot sarmalayıcısı Bangumi diyaloğunu da yönetir).
+                        onQuickAddToList = { result ->
+                            val entry = getMediaEntry(result)
+                            if (entry != null) {
+                                onEditEntry(entry)
+                            } else {
+                                onAddApiSelectionToList(ApiSearchSelection(result = result, synopsis = null))
+                            }
+                        },
+                        // Başlıktaki toplu ekleme: görünen tüm sonuçlar tek seferde eklenir;
+                        // AppViewModel tek bir özet bildirim gösterir.
+                        onAddAllToList = { results ->
+                            appViewModel.addApiSelectionsToList(
+                                selections = results.map { ApiSearchSelection(result = it, synopsis = null) },
+                                currentEntries = mediaEntries,
+                                repository = mediaRepository,
+                                isAniListConnected = authViewModel.isAniListConnected,
+                                isMalConnected = authViewModel.isMalConnected,
+                                isSimklConnected = authViewModel.isSimklConnected,
+                                isBangumiConnected = authViewModel.isBangumiConnected,
+                                isKitsuConnected = authViewModel.isKitsuConnected,
+                                isShikimoriConnected = authViewModel.isShikimoriConnected
+                            )
+                        }
                     )
                 }
             }

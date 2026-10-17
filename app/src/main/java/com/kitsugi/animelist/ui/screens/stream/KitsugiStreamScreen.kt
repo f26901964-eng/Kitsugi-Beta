@@ -110,6 +110,7 @@ fun KitsugiStreamScreen(
     isDownloadMode: Boolean = false,
     cs3Url: String? = null,
     cs3ApiName: String? = null,
+    knownImdbId: String? = null,
     onBack: () -> Unit,
     onLaunchExternalPlayer: ((input: ExternalPlayerInput, streamKey: String) -> Unit)? = null,
     onOpenHistory: (() -> Unit)? = null,
@@ -186,7 +187,7 @@ fun KitsugiStreamScreen(
     }
 
     // ── Trigger fetch — ViewModel guards against duplicate/redundant calls ────
-    LaunchedEffect(malId, aniListId, tmdbId, bangumiId, episode, season, cs3Url, cs3ApiName, isMovie, mediaType, title, startYear, alternativeTitles) {
+    LaunchedEffect(malId, aniListId, tmdbId, bangumiId, episode, season, cs3Url, cs3ApiName, isMovie, mediaType, title, startYear, alternativeTitles, knownImdbId) {
         viewModel.startFetch(
             malId             = malId,
             aniListId         = aniListId,
@@ -200,7 +201,8 @@ fun KitsugiStreamScreen(
             cs3Url            = cs3Url,
             cs3ApiName        = cs3ApiName,
             isMovie           = isMovie,
-            mediaType         = mediaType
+            mediaType         = mediaType,
+            knownImdbId       = knownImdbId
         )
     }
 
@@ -590,7 +592,8 @@ fun KitsugiStreamScreen(
                                                 cs3Url = res.cs3Url,
                                                 cs3ApiName = res.cs3ApiName,
                                                 isMovie = isMovie,
-                                                mediaType = mediaType
+                                                mediaType = mediaType,
+                                                knownImdbId = knownImdbId
                                             )
                                         }
                                         .padding(8.dp),

@@ -74,6 +74,12 @@ import kotlinx.coroutines.withContext
 
 private val heroMainHandler by lazy(LazyThreadSafetyMode.PUBLICATION) { Handler(Looper.getMainLooper()) }
 
+/**
+ * Vitrin ambient (dekoratif arka plan) katmanının bulanıklık yarıçapı.
+ * Keskin görselin arkasında kalan alanı yumuşak bir ortama çevirir.
+ */
+private val HERO_AMBIENT_BLUR = 30.dp
+
 // Image callbacks can run during drawing; never mutate layout/state from that frame.
 private fun postAfterHeroFrame(block: () -> Unit) {
     heroMainHandler.post(block)
@@ -260,11 +266,22 @@ fun KitsugiHeroSection(
         config.screenWidthDp > config.screenHeightDp
     val isTablet = minOf(config.screenWidthDp, config.screenHeightDp) >= 600
     val isTv = LocalIsTvDevice.current
-    val heroHeight = heroBandHeightDp(config.screenHeightDp.toFloat(), isLandscape, isTablet, isTv).dp
+    val fontScale = LocalDensity.current.fontScale.coerceAtLeast(1f)
+    // Tüm ölçüler cihaz geometrisinden türetilir (bkz. HeroVitrinLayout). Görselin
+    // oranı, decode durumu veya sayfa değişimi hiçbir ölçüyü kaydıramaz.
+    val layout = heroVitrinLayout(
+        screenWidthDp = config.screenWidthDp.toFloat(),
+        screenHeightDp = config.screenHeightDp.toFloat(),
+        isLandscape = isLandscape,
+        isTablet = isTablet,
+        isTv = isTv,
+        fontScale = fontScale
+    )
+    val heroHeight = layout.bandHeightDp.dp
+    val isStacked = layout.mode == HeroVitrinMode.STACKED
     val horizontalPadding = if (isTv) 48.dp else if (isTablet) 28.dp else if (isLandscape) 24.dp else 16.dp
     val contentWidthFraction = if (isLandscape || isTv) 0.56f else 1f
     val contentMaxWidth = if (isTv) 640.dp else if (isTablet) 600.dp else 520.dp
-    val fontScale = LocalDensity.current.fontScale.coerceAtLeast(1f)
     val titleSlotHeight = (if (isLandscape) 64.dp else 84.dp) * fontScale
     val accent = LocalKitsugiAccent.current
     val background = KitsugiColors.Background
@@ -380,40 +397,89 @@ fun KitsugiHeroSection(
                     ) { latestOnInfoClick(item) }
                 )
             ) {
-                // A constant fit, from the first frame. Decoding a different aspect never
-                // changes scale/alignment/layout. Both layers share the bounded HQ request.
-                KitsugiNsfwImage(
-                    model = url,
-                    contentDescription = null,
-                    isAdult = item.isAdult,
-                    blurAdultMedia = blurAdultMedia,
-                    contentScale = ContentScale.Crop,
-                    highQuality = true,
-                    modifier = Modifier.fillMaxSize().graphicsLayer { alpha = 0.28f }
-                )
+                // ── 1) AMBIENT (Nuvio yaklaşımı) ──────────────────────────────────
+                // Aynı görselin BULANIK kopyası bandın tamamını kaplar. Vitrin hiçbir
+                // zaman boş kutu, yarım görsel veya bulanık olmayan hayalet kopya
+                // göstermez; art arda kalan alan kasıtlı bir ortam gibi okunur.
+                // Coil'de disk cache anahtarı yalnızca URL'dir: bu katman ek bir indirme
+                // yapmaz, aynı baytları küçük çözünürlükte decode edip bulanıklaştırır.
+                if (isStacked) {
+                    KitsugiNsfwImage(
+                        model = url,
+                        contentDescription = null,
+                        isAdult = item.isAdult,
+                        blurAdultMedia = blurAdultMedia,
+                        contentScale = ContentScale.Crop,
+                        alignment = Alignment.TopCenter,
+                        ambientBlur = HERO_AMBIENT_BLUR,
+                        modifier = Modifier.fillMaxSize()
+                    )
+                    // Ambient katmanı koyulaştır: metin okunur kalır, renkleri kaybolmaz.
+                    // Bu örtü keskin görselin ALTINDA kalır; görselin parlaklığı korunur.
+                    Box(Modifier.fillMaxSize().background(background.copy(alpha = 0.55f)))
+                }
+                // ── 2) KESKİN GÖRSEL ─────────────────────────────────────────────
+                // Görsel kutuya TAMAMEN kaplar (Crop). Kutunun oranı cihaz
+                // geometrisinden geldiği için kırpma sabittir: 16:9 görsel neredeyse
+                // tamamen, 3:1 banner yatay ortadan kırpılmış olarak görünür. Artık
+                // "Fit" ile yükleme/kenar boşluğu yoktur.
                 KitsugiNsfwImage(
                     model = url,
                     contentDescription = title,
                     isAdult = item.isAdult,
                     blurAdultMedia = blurAdultMedia,
-                    contentScale = ContentScale.Fit,
-                    alignment = if (isLandscape || isTv) Alignment.Center else Alignment.TopCenter,
+                    contentScale = ContentScale.Crop,
+                    alignment = Alignment.TopCenter,
                     highQuality = true,
-                    modifier = Modifier.fillMaxSize().padding(bottom = if (isLandscape || isTv) 0.dp else 174.dp)
+                    modifier = if (isStacked) {
+                        Modifier.fillMaxWidth().height(layout.artworkHeightDp.dp)
+                    } else {
+                        Modifier.fillMaxSize()
+                    }
                 )
-                if (isLandscape || isTv) {
-                    Box(Modifier.fillMaxHeight().fillMaxWidth(0.62f).background(
-                        Brush.horizontalGradient(listOf(background.copy(alpha = 0.60f), Color.Transparent))
+                // ── 3) SCRIM ─────────────────────────────────────────────────────
+                // Nuvio Mobile: dikey gradyan. Nuvio TV: yatay (sol) gradyan + alt şerit.
+                if (isStacked) {
+                    // Görsel şeridinin alt kenarı metin yuvasına yumuşak geçiş yapar.
+                    val artworkFraction = (layout.artworkHeightDp / layout.bandHeightDp)
+                        .coerceIn(0.15f, 0.9f)
+                    Box(Modifier.fillMaxSize().background(
+                        Brush.verticalGradient(
+                            0f to Color.Transparent,
+                            (artworkFraction * 0.62f) to Color.Transparent,
+                            artworkFraction to background.copy(alpha = 0.32f),
+                            1f to background.copy(alpha = 0.74f)
+                        )
                     ))
+                    // Durum çubuğu için üstte hafif bir koyulaştırma.
+                    Box(Modifier.fillMaxWidth().height(48.dp).background(
+                        Brush.verticalGradient(
+                            0f to background.copy(alpha = 0.26f),
+                            1f to Color.Transparent
+                        )
+                    ))
+                } else {
+                    Box(Modifier.fillMaxSize().background(
+                        Brush.verticalGradient(
+                            0f to Color.Transparent,
+                            0.26f to Color.Transparent,
+                            0.58f to background.copy(alpha = 0.46f),
+                            0.80f to background.copy(alpha = 0.84f),
+                            1f to background
+                        )
+                    ))
+                    if (isLandscape || isTv) {
+                        Box(Modifier.fillMaxHeight().fillMaxWidth(0.62f).background(
+                            Brush.horizontalGradient(
+                                listOf(
+                                    background.copy(alpha = 0.82f),
+                                    background.copy(alpha = 0.42f),
+                                    Color.Transparent
+                                )
+                            )
+                        ))
+                    }
                 }
-                Box(Modifier.fillMaxSize().background(
-                    Brush.verticalGradient(
-                        0f to Color.Transparent,
-                        0.48f to Color.Transparent,
-                        0.78f to background.copy(alpha = 0.45f),
-                        1f to background
-                    )
-                ))
                 Column(
                     modifier = Modifier.align(Alignment.BottomStart)
                         .fillMaxWidth(contentWidthFraction).widthIn(max = contentMaxWidth)

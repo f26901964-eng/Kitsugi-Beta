@@ -8,6 +8,8 @@ import java.net.URL
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import com.kitsugi.animelist.data.fandom.WikidataClient
+import com.kitsugi.animelist.data.fandom.WikidataParsers
 import com.kitsugi.animelist.model.MediaType
 
 /**
@@ -53,11 +55,17 @@ object KitsugiIdResolver {
         tmdbId: Int? = null,
         mediaType: MediaType? = null,
         kitsuId: Int? = null,
-        bangumiId: Int? = null
+        bangumiId: Int? = null,
+        /**
+         * ARM ve TMDB IMDb vermezse Wikidata'dan (P345) IMDb kimliğini dene. Akış (stream) yolu bunu
+         * açar: IMDb ile sorgulanan Stremio addon'ları ve kimlik doğrulaması bu değere bağlı.
+         * Detay sayfaları varsayılan olarak kapalı (ek ağ gecikmesi olmasın).
+         */
+        wikidataImdbFallback: Boolean = false
     ): ResolvedIds = withContext(Dispatchers.IO) {
-        val cacheKey = "m=$malId|a=$aniListId|t=$tmdbId|mt=${mediaType?.name}|k=$kitsuId|b=$bangumiId"
+        val cacheKey = "m=$malId|a=$aniListId|t=$tmdbId|mt=${mediaType?.name}|k=$kitsuId|b=$bangumiId|wd=$wikidataImdbFallback"
         resolvedIdsCache[cacheKey]?.let { return@withContext it }
-        val result = resolveIdsUncached(malId, aniListId, tmdbId, mediaType, kitsuId, bangumiId)
+        val result = resolveIdsUncached(malId, aniListId, tmdbId, mediaType, kitsuId, bangumiId, wikidataImdbFallback)
         if (result.imdbId != null || result.kitsuId != null || result.tvdbId != null || result.tmdbId != null) {
             resolvedIdsCache[cacheKey] = result
         }
@@ -70,7 +78,8 @@ object KitsugiIdResolver {
         tmdbId: Int? = null,
         mediaType: MediaType? = null,
         kitsuId: Int? = null,
-        bangumiId: Int? = null
+        bangumiId: Int? = null,
+        wikidataImdbFallback: Boolean = false
     ): ResolvedIds = withContext(Dispatchers.IO) {
         Log.d(TAG, "Starting ID resolution: malParam=$malId, aniListParam=$aniListId, tmdbParam=$tmdbId, mediaType=$mediaType, kitsuParam=$kitsuId, bangumiParam=$bangumiId")
 
@@ -203,6 +212,18 @@ object KitsugiIdResolver {
         val finalAniList = aniListFromArm ?: lookupAniListId
         val finalMal = malFromArm ?: lookupMalId
 
+        // Son çare: Wikidata P345 (IMDb). ARM/TMDB'nin kaçırdığı anime/dizi kayıtları için köprü.
+        if (finalImdb.isNullOrBlank() && wikidataImdbFallback) {
+            finalImdb = imdbViaWikidata(
+                wikidataQid = finalWikidata,
+                malId = finalMal,
+                aniListId = finalAniList,
+                kitsuId = kitsuFromArm ?: lookupKitsuId,
+                tmdbId = finalTmdbId,
+                isMovie = mediaType == MediaType.Movie
+            )
+        }
+
         Log.d(TAG, "resolveIds complete → imdb=$finalImdb kitsu=${kitsuFromArm ?: lookupKitsuId} tmdb=$finalTmdbId anilist=$finalAniList mal=$finalMal tvdb=$finalTvdb wikidata=$finalWikidata")
         ResolvedIds(
             imdbId = finalImdb,
@@ -213,6 +234,56 @@ object KitsugiIdResolver {
             tvdbId = finalTvdb,
             wikidataId = finalWikidata
         )
+    }
+
+    /**
+     * Wikidata üzerinden IMDb (P345) çözümü. Önce bilinen QID doğrudan okunur; yoksa MAL / AniList /
+     * Kitsu / TMDB kimlikleri Wikidata'da benzersiz bir kayda eşlenir ve o kaydın P345'i alınır.
+     * Her adım ağ hatasında/çelişkide sessizce bir sonrakine geçer; hiçbiri vermezse null.
+     */
+    private suspend fun imdbViaWikidata(
+        wikidataQid: String?,
+        malId: Int?,
+        aniListId: Int?,
+        kitsuId: Int?,
+        tmdbId: Int?,
+        isMovie: Boolean
+    ): String? {
+        val qid = wikidataQid?.takeIf { WikidataParsers.isQid(it) }
+        if (qid != null) {
+            val direct = try {
+                WikidataClient.getEntities(listOf(qid))?.get(qid)?.imdbId
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                Log.w(TAG, "Wikidata QID $qid okunamadı: ${e.message}")
+                null
+            }
+            if (direct != null) return direct
+        }
+
+        val lookups = buildList {
+            if (malId != null && malId in 1..99_999_999) add("P4086" to malId.toString())
+            if (aniListId != null && aniListId > 0) add("P8729" to aniListId.toString())
+            if (kitsuId != null && kitsuId > 0) add("P11495" to kitsuId.toString())
+            if (tmdbId != null && tmdbId > 0) add((if (isMovie) "P4947" else "P4983") to tmdbId.toString())
+        }
+        for ((property, value) in lookups.take(3)) {
+            val claims = try {
+                WikidataClient.identityClaims(property, value)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                Log.w(TAG, "Wikidata $property=$value araması başarısız: ${e.message}")
+                null
+            }
+            val imdb = claims?.imdbId
+            if (imdb != null) {
+                Log.d(TAG, "IMDb Wikidata üzerinden bulundu: $property=$value → $imdb")
+                return imdb
+            }
+        }
+        return null
     }
 
     /**

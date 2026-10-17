@@ -26,7 +26,6 @@ import com.kitsugi.animelist.ui.screens.mylist.MY_LIST_ANILIST_TAB_INDEX
 import com.kitsugi.animelist.ui.screens.mylist.MY_LIST_SIMKL_TAB_INDEX
 import com.kitsugi.animelist.ui.screens.mylist.MY_LIST_TAB_COUNT
 import com.kitsugi.animelist.ui.screens.mylist.duplicateListMessage
-import com.kitsugi.animelist.ui.screens.mylist.migrateLegacyMyListTabIndex
 import kotlinx.coroutines.launch
 import dagger.hilt.EntryPoint
 import dagger.hilt.InstallIn
@@ -202,18 +201,23 @@ class AppViewModel : ViewModel() {
         myListYearFilterId = prefs.getString("year_filter", "all") ?: "all"
         myListExtraFilterId = prefs.getString("extra_filter", "all") ?: "all"
         myListSortId = prefs.getString("sort", "newest") ?: "newest"
-        // Eski sürümlerde sekme sırası farklıydı (5 = Tümü). Kayıtlı değeri yeni sıraya taşı.
+        // Kayıtlı sekme indeksi DOĞRUDAN geri yüklenir (mevcut sıra: 0 = Tümü … 6 = Bangumi).
+        // Eski sıra göçü (migrateLegacyMyListTabIndex) bilinçli olarak kaldırıldı: koşulsuz
+        // olarak her açılışta uygulanıyor ve son seçilen sekmeyi bir sıra kaydırıyordu
+        // (uygulama kapatılıp açılınca seçim hep değişiyordu; Bangumi 6 → "Tümü", "Tümü" →
+        // AniList, AniList → MAL …). Kayıtlar bu hatadan beri zaten güncel sıraya göre
+        // yazılıyor; geriye dönük taşımaya gerek yoktur.
         val storedTabIndex = prefs.getInt("tab_index", -1)
-        val migratedTabIndex = if (storedTabIndex < 0) {
+        val restoredTabIndex = if (storedTabIndex < 0) {
             // Yeni kurulum: hesap bağlıysa doğrudan birleşik "Tümü" kütüphanesi açılır,
             // hiç hesap yoksa bağlantı çağrısının görüneceği AniList sekmesi gösterilir.
             if (hasAnyConnectedAccount(context)) MY_LIST_ALL_TAB_INDEX else MY_LIST_ANILIST_TAB_INDEX
         } else {
-            migrateLegacyMyListTabIndex(storedTabIndex).coerceIn(0, MY_LIST_TAB_COUNT - 1)
+            storedTabIndex.coerceIn(0, MY_LIST_TAB_COUNT - 1)
         }
-        myListTabIndex = migratedTabIndex
-        if (migratedTabIndex != storedTabIndex) {
-            prefs.edit().putInt("tab_index", migratedTabIndex).apply()
+        myListTabIndex = restoredTabIndex
+        if (restoredTabIndex != storedTabIndex) {
+            prefs.edit().putInt("tab_index", restoredTabIndex).apply()
         }
     }
 
@@ -372,60 +376,77 @@ class AppViewModel : ViewModel() {
 
     // ── Add API selection to list ─────────────────────────────────────────────
 
-    fun addApiSelectionToList(
+    private enum class ApiInsertStatus { ADDED, DUPLICATE, FAILED }
+
+    /** [insertApiSelection] sonucu: durum + kullanıcıya gösterilecek mesaj + eklenen kayıt. */
+    private data class ApiInsertOutcome(
+        val status: ApiInsertStatus,
+        val message: String,
+        val entry: MediaEntry? = null
+    )
+
+    /**
+     * Tek bir API seçimini listeye ekler; bildirimi kendisi GÖSTERMEZ, ne olduğunu
+     * [ApiInsertOutcome] olarak döner. Tekil ekleme ([addApiSelectionToList]) ve toplu
+     * ekleme ([addApiSelectionsToList]) aynı doğrulama/çözümleme zincirini paylaşır.
+     */
+    private suspend fun insertApiSelection(
         selection: ApiSearchSelection,
         currentEntries: List<MediaEntry>,
         repository: MediaEntryRepository,
         isAniListConnected: Boolean,
         isMalConnected: Boolean,
         isSimklConnected: Boolean,
-        isBangumiConnected: Boolean = false,
-        isKitsuConnected: Boolean = false,
-        isShikimoriConnected: Boolean = false
-    ) {
+        isBangumiConnected: Boolean,
+        isKitsuConnected: Boolean,
+        isShikimoriConnected: Boolean
+    ): ApiInsertOutcome {
         val result = selection.result
 
         if (canonicalMediaSourceId(result.source) == "bangumi") {
             if (!isBangumiConnected) {
-                showSnackbarMessage("Bangumi listesine eklemek için önce Bangumi hesabını bağlamalısın.")
-                return
+                return ApiInsertOutcome(
+                    ApiInsertStatus.FAILED,
+                    "Bangumi listesine eklemek için önce Bangumi hesabını bağlamalısın."
+                )
             }
             val existingBangumiEntry = currentEntries.firstOrNull { it.matchesInSource(result) }
             if (existingBangumiEntry != null) {
-                showSnackbarMessage(duplicateListMessage(existingBangumiEntry))
-                return
+                return ApiInsertOutcome(ApiInsertStatus.DUPLICATE, duplicateListMessage(existingBangumiEntry))
             }
             val newBangumiEntry = BangumiMediaEntryFactory.fromSearchResult(result, selection.synopsis)
             if (newBangumiEntry == null) {
-                showSnackbarMessage("Bangumi kaydı için geçerli bir subject kimliği ve başlık gerekli.")
-                return
+                return ApiInsertOutcome(
+                    ApiInsertStatus.FAILED,
+                    "Bangumi kaydı için geçerli bir subject kimliği ve başlık gerekli."
+                )
             }
             val appContext = repository.context
             if (appContext == null) {
-                showSnackbarMessage("Bangumi hesabına ulaşılamadı; kayıt eklenemedi.")
-                return
+                return ApiInsertOutcome(
+                    ApiInsertStatus.FAILED,
+                    "Bangumi hesabına ulaşılamadı; kayıt eklenemedi."
+                )
             }
-            viewModelScope.launch {
-                val remoteResult = BangumiSyncManager.syncEntryToBangumi(appContext, newBangumiEntry)
-                if (remoteResult.collectionUpdated) {
-                    val stableId = remoteResult.subjectId?.let(BangumiIdNamespace::stableIdFromRaw)
-                    // Önce Bangumi koleksiyonu yazıldı; satır artık diğer kaynaklara da
-                    // yayılır (doğrulanmış MAL/AniList kimliği çözülebilirse).
-                    repository.insert(
-                        newBangumiEntry.copy(malId = stableId ?: newBangumiEntry.malId),
-                        syncExternal = true,
-                        skipBangumiWrite = true
-                    )
-                    showSnackbarMessage(
-                        (remoteResult.messages + remoteResult.errors)
-                            .joinToString(" • ")
-                            .ifBlank { "Bangumi koleksiyonuna eklendi: ${newBangumiEntry.title}" }
-                    )
-                } else {
-                    showSnackbarMessage(remoteResult.errors.joinToString(" • ").ifBlank { "Bangumi koleksiyonu güncellenemedi." })
-                }
+            val remoteResult = BangumiSyncManager.syncEntryToBangumi(appContext, newBangumiEntry)
+            if (remoteResult.collectionUpdated) {
+                val stableId = remoteResult.subjectId?.let(BangumiIdNamespace::stableIdFromRaw)
+                // Önce Bangumi koleksiyonu yazıldı; satır artık diğer kaynaklara da
+                // yayılır (doğrulanmış MAL/AniList kimliği çözülebilirse).
+                val persistedBangumi = newBangumiEntry.copy(malId = stableId ?: newBangumiEntry.malId)
+                repository.insert(persistedBangumi, syncExternal = true, skipBangumiWrite = true)
+                return ApiInsertOutcome(
+                    ApiInsertStatus.ADDED,
+                    (remoteResult.messages + remoteResult.errors)
+                        .joinToString(" • ")
+                        .ifBlank { "Bangumi koleksiyonuna eklendi: ${newBangumiEntry.title}" },
+                    persistedBangumi
+                )
             }
-            return
+            return ApiInsertOutcome(
+                ApiInsertStatus.FAILED,
+                remoteResult.errors.joinToString(" • ").ifBlank { "Bangumi koleksiyonu güncellenemedi." }
+            )
         }
 
         // En az bir kaynak bağlı olmalı — Kitsu / Shikimori / Bangumi de artık tek başına yeterli,
@@ -433,20 +454,26 @@ class AppViewModel : ViewModel() {
         val anySourceConnected = isAniListConnected || isMalConnected || isSimklConnected ||
             isKitsuConnected || isShikimoriConnected || isBangumiConnected
         if (!anySourceConnected) {
-            showSnackbarMessage(KitsugiStrings.get(R.string.listeye_eklemek_icin_en_az_bir_hesap_baglamalisin_anilist_mal_ve))
-            return
+            return ApiInsertOutcome(
+                ApiInsertStatus.FAILED,
+                KitsugiStrings.get(R.string.listeye_eklemek_icin_en_az_bir_hesap_baglamalisin_anilist_mal_ve)
+            )
         }
 
         // Film/dizi: Simkl bağlı değilse Bangumi (REAL türü) üzerinden de izlenebilir.
         if ((result.type == MediaType.TvShow || result.type == MediaType.Movie) && !isSimklConnected && !isBangumiConnected) {
-            showSnackbarMessage(KitsugiStrings.get(R.string.film_ve_dizileri_eklemek_icin_once_simkl_hesabini_baglamalisin))
-            return
+            return ApiInsertOutcome(
+                ApiInsertStatus.FAILED,
+                KitsugiStrings.get(R.string.film_ve_dizileri_eklemek_icin_once_simkl_hesabini_baglamalisin)
+            )
         }
         if (result.type == MediaType.Anime && !isAniListConnected && !isMalConnected &&
             !isKitsuConnected && !isShikimoriConnected
         ) {
-            showSnackbarMessage(KitsugiStrings.get(R.string.anime_eklemek_icin_anilist_veya_myanimelist_hesabini_baglamalisi))
-            return
+            return ApiInsertOutcome(
+                ApiInsertStatus.FAILED,
+                KitsugiStrings.get(R.string.anime_eklemek_icin_anilist_veya_myanimelist_hesabini_baglamalisi)
+            )
         }
 
         // Kaynak belirleme: unified entry'nin hangi source olacağını seç
@@ -473,94 +500,195 @@ class AppViewModel : ViewModel() {
         // kaynağın ekleme işlemini engellememeli.
         val existingEntry = currentEntries.firstOrNull { entry -> entry.matchesInSource(result) }
         if (existingEntry != null) {
-            showSnackbarMessage(duplicateListMessage(existingEntry))
-            return
+            return ApiInsertOutcome(ApiInsertStatus.DUPLICATE, duplicateListMessage(existingEntry))
         }
 
-        viewModelScope.launch {
-            // 1. ARM üzerinden cross-platform ID'leri çöz
-            val rawMalId = result.realMalId
-                ?: if (result.source.equals("jikan", ignoreCase = true) || result.source.equals("mal", ignoreCase = true))
-                    result.malId.takeIf { it in 1 until 100_000_000 }
-                else null
-            val rawAniListId = if (result.source.equals("anilist", ignoreCase = true) && result.malId >= 100_000_000)
-                result.malId - 100_000_000
+        // 1. ARM üzerinden cross-platform ID'leri çöz
+        val rawMalId = result.realMalId
+            ?: if (result.source.equals("jikan", ignoreCase = true) || result.source.equals("mal", ignoreCase = true))
+                result.malId.takeIf { it in 1 until 100_000_000 }
             else null
+        val rawAniListId = if (result.source.equals("anilist", ignoreCase = true) && result.malId >= 100_000_000)
+            result.malId - 100_000_000
+        else null
 
-            val resolvedIds = runCatching {
-                com.kitsugi.animelist.data.remote.KitsugiIdResolver.resolveIds(
-                    malId = rawMalId,
-                    aniListId = rawAniListId,
-                    tmdbId = result.tmdbId,
+        val resolvedIds = runCatching {
+            com.kitsugi.animelist.data.remote.KitsugiIdResolver.resolveIds(
+                malId = rawMalId,
+                aniListId = rawAniListId,
+                tmdbId = result.tmdbId,
+                mediaType = result.type
+            )
+        }.getOrNull()
+
+        val finalMalId = resolvedIds?.malId ?: rawMalId ?: result.malId.takeIf { it in 1 until 100_000_000 }
+        val finalTmdbId = resolvedIds?.tmdbId ?: result.tmdbId
+
+        // Çözülmüş kimliklerle ikinci kontrol: kullanıcı detay sayfasında zenginleştirme
+        // (realMalId / tmdbId) tamamlanmadan tıkladıysa ön kontrol kaçmış olabilir; bu
+        // kontrol çift kaydı engeller ve yine BULUNAN kaydı isimlendirir.
+        val resolvedProbe = result.copy(
+            realMalId = result.realMalId ?: finalMalId,
+            tmdbId = result.tmdbId ?: finalTmdbId
+        )
+        val existingAfterResolve = currentEntries.firstOrNull { entry -> entry.matchesInSource(resolvedProbe) }
+        if (existingAfterResolve != null) {
+            return ApiInsertOutcome(ApiInsertStatus.DUPLICATE, duplicateListMessage(existingAfterResolve))
+        }
+
+        // 2. Simkl bağlıysa Simkl ID'sini çöz
+        val resolvedSimklId: Int? = if (isSimklConnected) {
+            runCatching {
+                com.kitsugi.animelist.data.remote.SimklApiClient().lookupSimklId(
+                    malId = finalMalId,
+                    tmdbId = finalTmdbId,
+                    aniListId = rawAniListId ?: resolvedIds?.aniListId,
+                    title = result.titleEnglish ?: result.title,
+                    year = result.year,
                     mediaType = result.type
                 )
             }.getOrNull()
+        } else null
 
-            val finalMalId = resolvedIds?.malId ?: rawMalId ?: result.malId.takeIf { it in 1 until 100_000_000 }
-            val finalTmdbId = resolvedIds?.tmdbId ?: result.tmdbId
+        // 3. Unified MediaEntry oluştur — tüm çözümlenen ID'leri tek bir kayıtta birleştir
+        val newEntry = MediaEntry(
+            id = 0,
+            title = result.title,
+            subtitle = result.subtitle,
+            type = result.type,
+            status = WatchStatus.Planned,
+            // Yeni eklenen kayıtlar puan sıfırdan başlamalı;
+            // API metadata puanı (result.score) kullanıcının kişisel puanı değildir.
+            score = null,
+            progress = 0,
+            total = result.total,
+            isFavorite = false,
+            isAdult = result.isAdult,
+            source = primarySource,
+            // Satır kendi kaynağının kimliğini taşımaya devam eder (Kitsu 300M, Shikimori 400M
+            // aralığı); çözülen gerçek MAL ID yalnızca uzak çağrılarda kullanılır.
+            malId = when (primarySource) {
+                "kitsu" -> result.malId.takeIf { it in 300_000_001..399_999_999 }
+                    ?: finalMalId ?: result.malId.takeIf { it > 0 }
+                "shikimori" -> result.malId.takeIf { it > 0 } ?: finalMalId
+                else -> finalMalId ?: result.malId.takeIf { it > 0 }
+            },
+            imageUrl = result.imageUrl,
+            year = result.year,
+            synopsis = selection.synopsis,
+            tmdbId = finalTmdbId,
+            simklId = resolvedSimklId,
+            aniListEntryId = null, // AniList sync sonrası DB'ye yazılacak
+            titleEnglish = result.titleEnglish,
+            titleJapanese = result.titleJapanese
+        )
 
-            // Çözülmüş kimliklerle ikinci kontrol: kullanıcı detay sayfasında zenginleştirme
-            // (realMalId / tmdbId) tamamlanmadan tıkladıysa ön kontrol kaçmış olabilir; bu
-            // kontrol çift kaydı engeller ve yine BULUNAN kaydı isimlendirir.
-            val resolvedProbe = result.copy(
-                realMalId = result.realMalId ?: finalMalId,
-                tmdbId = result.tmdbId ?: finalTmdbId
+        repository.insert(newEntry)
+        return ApiInsertOutcome(
+            ApiInsertStatus.ADDED,
+            "Listeye eklendi: ${newEntry.title}",
+            newEntry
+        )
+    }
+
+    /**
+     * Tekil listeye ekleme: [insertApiSelection] sonucunu tek bir bildirim olarak gösterir.
+     */
+    fun addApiSelectionToList(
+        selection: ApiSearchSelection,
+        currentEntries: List<MediaEntry>,
+        repository: MediaEntryRepository,
+        isAniListConnected: Boolean,
+        isMalConnected: Boolean,
+        isSimklConnected: Boolean,
+        isBangumiConnected: Boolean = false,
+        isKitsuConnected: Boolean = false,
+        isShikimoriConnected: Boolean = false
+    ) {
+        viewModelScope.launch {
+            val outcome = insertApiSelection(
+                selection = selection,
+                currentEntries = currentEntries,
+                repository = repository,
+                isAniListConnected = isAniListConnected,
+                isMalConnected = isMalConnected,
+                isSimklConnected = isSimklConnected,
+                isBangumiConnected = isBangumiConnected,
+                isKitsuConnected = isKitsuConnected,
+                isShikimoriConnected = isShikimoriConnected
             )
-            val existingAfterResolve = currentEntries.firstOrNull { entry -> entry.matchesInSource(resolvedProbe) }
-            if (existingAfterResolve != null) {
-                showSnackbarMessage(duplicateListMessage(existingAfterResolve))
-                return@launch
-            }
+            showSnackbarMessage(outcome.message)
+        }
+    }
 
-            // 2. Simkl bağlıysa Simkl ID'sini çöz
-            val resolvedSimklId: Int? = if (isSimklConnected) {
-                runCatching {
-                    com.kitsugi.animelist.data.remote.SimklApiClient().lookupSimklId(
-                        malId = finalMalId,
-                        tmdbId = finalTmdbId,
-                        aniListId = rawAniListId ?: resolvedIds?.aniListId,
-                        title = result.titleEnglish ?: result.title,
-                        year = result.year,
-                        mediaType = result.type
+    /**
+     * "Tümünü gör" sayfasının toplu kısayolu: görünen tüm sonuçları sırayla listeye ekler
+     * ve TEK bir özet bildirim gösterir (kalem başına bildirim yerine).
+     *
+     * Aynı sayfada tekrar eden başlıklar da dahil olmak üzere her kalem [insertApiSelection]
+     * zincirinden geçer; eklenen kayıtlar birikir, böylece grup içinde mükerrer engellenir.
+     */
+    fun addApiSelectionsToList(
+        selections: List<ApiSearchSelection>,
+        currentEntries: List<MediaEntry>,
+        repository: MediaEntryRepository,
+        isAniListConnected: Boolean,
+        isMalConnected: Boolean,
+        isSimklConnected: Boolean,
+        isBangumiConnected: Boolean = false,
+        isKitsuConnected: Boolean = false,
+        isShikimoriConnected: Boolean = false
+    ) {
+        if (selections.isEmpty()) return
+        showSnackbarMessage(KitsugiStrings.get(R.string.toplu_listeye_ekleniyor, selections.size))
+        viewModelScope.launch {
+            var added = 0
+            var duplicated = 0
+            var failed = 0
+            var firstFailure: String? = null
+            val accumulated = currentEntries.toMutableList()
+            for (selection in selections) {
+                // Bir kalemin beklenmedik hatası (ör. DB yazım hatası) tüm toplu işlemi
+                // öldürmesin: kalem başarısız sayılır, özet yine de gösterilir.
+                val outcome = try {
+                    insertApiSelection(
+                        selection = selection,
+                        currentEntries = accumulated,
+                        repository = repository,
+                        isAniListConnected = isAniListConnected,
+                        isMalConnected = isMalConnected,
+                        isSimklConnected = isSimklConnected,
+                        isBangumiConnected = isBangumiConnected,
+                        isKitsuConnected = isKitsuConnected,
+                        isShikimoriConnected = isShikimoriConnected
                     )
-                }.getOrNull()
-            } else null
-
-            // 3. Unified MediaEntry oluştur — tüm çözümlenen ID'leri tek bir kayıtta birleştir
-            val newEntry = MediaEntry(
-                id = 0,
-                title = result.title,
-                subtitle = result.subtitle,
-                type = result.type,
-                status = WatchStatus.Planned,
-                // Yeni eklenen kayıtlar puan sıfırdan başlamalı;
-                // API metadata puanı (result.score) kullanıcının kişisel puanı değildir.
-                score = null,
-                progress = 0,
-                total = result.total,
-                isFavorite = false,
-                isAdult = result.isAdult,
-                source = primarySource,
-                // Satır kendi kaynağının kimliğini taşımaya devam eder (Kitsu 300M, Shikimori 400M
-                // aralığı); çözülen gerçek MAL ID yalnızca uzak çağrılarda kullanılır.
-                malId = when (primarySource) {
-                    "kitsu" -> result.malId.takeIf { it in 300_000_001..399_999_999 }
-                        ?: finalMalId ?: result.malId.takeIf { it > 0 }
-                    "shikimori" -> result.malId.takeIf { it > 0 } ?: finalMalId
-                    else -> finalMalId ?: result.malId.takeIf { it > 0 }
-                },
-                imageUrl = result.imageUrl,
-                year = result.year,
-                synopsis = selection.synopsis,
-                tmdbId = finalTmdbId,
-                simklId = resolvedSimklId,
-                aniListEntryId = null, // AniList sync sonrası DB'ye yazılacak
-                titleEnglish = result.titleEnglish,
-                titleJapanese = result.titleJapanese
-            )
-
-            repository.insert(newEntry)
-            showSnackbarMessage("Listeye eklendi: ${newEntry.title}")
+                } catch (e: kotlinx.coroutines.CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    ApiInsertOutcome(
+                        ApiInsertStatus.FAILED,
+                        e.message ?: KitsugiStrings.get(R.string.ui_error_generic_period)
+                    )
+                }
+                when (outcome.status) {
+                    ApiInsertStatus.ADDED -> {
+                        added += 1
+                        outcome.entry?.let { accumulated.add(it) }
+                    }
+                    ApiInsertStatus.DUPLICATE -> duplicated += 1
+                    ApiInsertStatus.FAILED -> {
+                        failed += 1
+                        if (firstFailure == null) firstFailure = outcome.message
+                    }
+                }
+            }
+            val failureMessage = firstFailure
+            val message = when {
+                added == 0 && failed > 0 -> failureMessage ?: KitsugiStrings.get(R.string.ui_error_generic_period)
+                added == 0 -> KitsugiStrings.get(R.string.tumu_zaten_listede)
+                else -> KitsugiStrings.get(R.string.toplu_listeye_ekleme_sonuc, added, duplicated, failed)
+            }
+            showSnackbarMessage(message)
         }
     }
 

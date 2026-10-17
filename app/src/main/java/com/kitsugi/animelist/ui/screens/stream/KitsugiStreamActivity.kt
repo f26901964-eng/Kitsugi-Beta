@@ -46,6 +46,7 @@ class KitsugiStreamActivity : ComponentActivity() {
         private const val EXTRA_IS_DOWNLOAD_MODE = "extra_is_download_mode"
         private const val EXTRA_CS3_URL        = "extra_cs3_url"
         private const val EXTRA_CS3_API_NAME   = "extra_cs3_api_name"
+        private const val EXTRA_IMDB_ID        = "extra_imdb_id"
 
         const val PREFS_NAME  = "KitsugiStreamPrefs"
         const val KEY_POS_PFX = "pos_"
@@ -75,7 +76,9 @@ class KitsugiStreamActivity : ComponentActivity() {
             isAutoplay: Boolean = false,
             isDownloadMode: Boolean = false,
             cs3Url: String? = null,
-            cs3ApiName: String? = null
+            cs3ApiName: String? = null,
+            /** Detay sayfasının bildiği IMDb kimliği (tt...). Yoksa stream tarafı kendi çözer. */
+            imdbId: String? = null
         ) {
             val effectiveMediaType = inferStreamMediaType(
                 mediaType = mediaType,
@@ -108,6 +111,7 @@ class KitsugiStreamActivity : ComponentActivity() {
                     putExtra(EXTRA_IS_DOWNLOAD_MODE, isDownloadMode)
                     cs3Url?.let         { putExtra(EXTRA_CS3_URL, it) }
                     cs3ApiName?.let     { putExtra(EXTRA_CS3_API_NAME, it) }
+                    imdbId?.takeIf { it.isNotBlank() }?.let { putExtra(EXTRA_IMDB_ID, it) }
                 }
             )
         }
@@ -167,6 +171,7 @@ class KitsugiStreamActivity : ComponentActivity() {
                 synonyms = currentSynonyms,
                 startYear = currentStartYear,
                 description = currentDescription,
+                imdbId = currentImdbId,
                 isAutoplay = true
             )
             finish()
@@ -184,6 +189,7 @@ class KitsugiStreamActivity : ComponentActivity() {
     private var currentIsMovie: Boolean = false
     private var currentMediaType: MediaType? = null
     private var currentBangumiId: Int? = null
+    private var currentImdbId: String? = null
     private var currentTitle: String = ""
     private var currentPosterUrl: String? = null
     private var currentTitleEnglish: String? = null
@@ -230,6 +236,7 @@ class KitsugiStreamActivity : ComponentActivity() {
         isDownloadMode      = intent.getBooleanExtra(EXTRA_IS_DOWNLOAD_MODE, false)
         currentCs3Url       = intent.getStringExtra(EXTRA_CS3_URL)
         currentCs3ApiName   = intent.getStringExtra(EXTRA_CS3_API_NAME)
+        currentImdbId       = intent.getStringExtra(EXTRA_IMDB_ID)?.takeIf { it.isNotBlank() }
 
         val castList: List<MetaCastMember> = tempCast ?: run {
             val castJson = intent.getStringExtra(EXTRA_CAST_JSON)
@@ -271,6 +278,7 @@ class KitsugiStreamActivity : ComponentActivity() {
                     isDownloadMode = isDownloadMode,
                     cs3Url = currentCs3Url,
                     cs3ApiName = currentCs3ApiName,
+                    knownImdbId = currentImdbId,
                     onBack = { finish() },
                     onLaunchExternalPlayer = { input, streamKey ->
                         currentStreamKey = streamKey

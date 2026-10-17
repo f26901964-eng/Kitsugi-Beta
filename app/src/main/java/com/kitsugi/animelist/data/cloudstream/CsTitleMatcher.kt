@@ -371,7 +371,7 @@ internal object CsTitleMatcher {
                 Log.d(TAG, "  -> Episode mismatch, rejecting '${result.name}' expected=$targetEpisode found=$resultEpisode")
                 continue
             }
-            val resultInstallment = if (isMovie == true) parseMovieInstallment(resultName) else null
+            val resultInstallment = if (isMovie == true) movieInstallmentOf(resultName) else null
             if (isMovie == true && expectedMovieInstallment != null) {
                 val installmentMismatch = resultInstallment != null && resultInstallment != expectedMovieInstallment
                 val missingInstallmentWithoutYearProof = resultInstallment == null &&
@@ -380,6 +380,14 @@ internal object CsTitleMatcher {
                     Log.d(TAG, "  -> Movie installment mismatch/unknown, rejecting '${result.name}' expected=$expectedMovieInstallment found=$resultInstallment year=$resultYear")
                     continue
                 }
+            }
+            // Ters yön: sorgu numarasız ("Avatar") ama aday numaralı ("Avatar 2"). Yıl hedefle
+            // tam eşleşmiyorsa bu bir devam filmidir; yalnızca devam filmi varsa yanlış film oynatılmasın.
+            if (isMovie == true && expectedMovieInstallment == null && resultInstallment != null &&
+                !(targetYear != null && resultYear == targetYear)
+            ) {
+                Log.d(TAG, "  -> Sequel-numbered candidate for un-numbered movie query, rejecting '${result.name}' found=$resultInstallment year=$resultYear")
+                continue
             }
             val resultForms = linkedSetOf(
                 normalizeTitleForMatch(resultName),
@@ -522,10 +530,13 @@ internal object CsTitleMatcher {
             if (actualEpisode != null && actualEpisode != targetEpisode) return false
         }
         if (isMovie == true && expectedInstallment != null) {
-            val actualInstallment = parseMovieInstallment(result.name)
+            val actualInstallment = movieInstallmentOf(result.name)
             if (actualInstallment != null && actualInstallment != expectedInstallment) return false
             if (actualInstallment == null && (targetYear == null || resultYear != targetYear)) return false
         }
+        if (isMovie == true && expectedInstallment == null && movieInstallmentOf(result.name) != null &&
+            !(targetYear != null && resultYear == targetYear)
+        ) return false
         return true
     }
 
@@ -550,7 +561,7 @@ internal object CsTitleMatcher {
 
         if (isMovie == true) {
             val expected = (listOf(mainTitle) + altTitles).mapNotNull(::parseMovieInstallment).firstOrNull()
-            val actual = parseMovieInstallment(result.name)
+            val actual = movieInstallmentOf(result.name)
             if (expected == null && actual != null) return false
             if (expected != null && actual != null && expected != actual) return false
             if (expected != null && actual == null && (targetYear == null || resultYear != targetYear)) return false
@@ -758,6 +769,13 @@ internal object CsTitleMatcher {
         ).find(normalized) ?: return null
         return match.groupValues.drop(1).firstNotNullOfOrNull { it.toIntOrNull() }
     }
+
+    /**
+     * Film devam numarası: ham başlıkta bulunamazsa site gürültüsü temizlenmiş başlıkta aranır.
+     * "Avatar 2 izle" gibi adlarda numara sonda değil, "izle" ekinden önce durur.
+     */
+    private fun movieInstallmentOf(title: String): Int? =
+        parseMovieInstallment(title) ?: parseMovieInstallment(stripTurkishSiteNoise(title))
 
     private fun parseMovieInstallment(title: String): Int? {
         val normalized = normalizeTitleForMatch(title)
