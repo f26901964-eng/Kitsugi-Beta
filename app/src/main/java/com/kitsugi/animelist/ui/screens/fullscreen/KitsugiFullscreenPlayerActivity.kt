@@ -249,6 +249,24 @@ class KitsugiFullscreenPlayerActivity : ComponentActivity() {
                         description?.let { putExtra(EXTRA_DESCRIPTION, it) }
                         putExtra(EXTRA_IS_MOVIE, isMovie)
                         putExtra(EXTRA_RESUME_POSITION, resumePositionMs)
+
+                        // Süreç ölümü (process death) sonrası Activity yeniden oluşturulursa
+                        // static `tempSubtitles` / `tempStreamSources` kaybolur. Bu yedek
+                        // JSON alanları olmadan altyazılar ve kaynak listesi sessizce
+                        // kayboluyordu. Binder sınırını aşmamak için boyut kontrolü yapılır.
+                        runCatching {
+                            val gson = com.google.gson.Gson()
+                            val subtitlesJson = gson.toJson(subtitles)
+                            if (subtitlesJson.length in 1..250_000) {
+                                putExtra(EXTRA_SUBTITLES_JSON, subtitlesJson)
+                            }
+                            val sourcesJson = gson.toJson(allSources)
+                            if (sourcesJson.length in 1..450_000) {
+                                putExtra(EXTRA_STREAM_LIST_JSON, sourcesJson)
+                            }
+                        }.onFailure {
+                            android.util.Log.w("KitsugiPlayer", "Ekstra oynatma verisi yazılamadı: ${it.message}")
+                        }
                     }
                 )
             } catch (e: Exception) {

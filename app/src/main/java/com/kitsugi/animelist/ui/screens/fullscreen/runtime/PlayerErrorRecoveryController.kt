@@ -42,9 +42,18 @@ class PlayerErrorRecoveryController(
     companion object {
         private const val MAX_RETRY = 3
         private const val RETRY_DELAY_MS = 1500L
+
+        /**
+         * Aynı hata çok kısa sürede birden fazla kez raporlanabilir (watchdog + ExoPlayer
+         * listener + MPV event'i). Bu pencere içindeki birebir aynı hata yok sayılır; aksi
+         * hâlde tek bir bozuk kaynak iki-üç motor geçişini tek seferde tetikliyordu.
+         */
+        private const val DUPLICATE_ERROR_WINDOW_MS = 1_200L
     }
 
     private var retryCount = 0
+    private var lastErrorSignature: String? = null
+    private var lastErrorAtMs = 0L
     private val _isRecovering = MutableStateFlow(false)
     val isRecovering: StateFlow<Boolean> = _isRecovering.asStateFlow()
 
@@ -70,6 +79,14 @@ class PlayerErrorRecoveryController(
      * Engine switching önce denenir, sonra kaynak değiştirme, sonra retry, sonra fatal.
      */
     fun onPlaybackError(errorCode: Int, errorMsg: String) {
+        val now = android.os.SystemClock.elapsedRealtime()
+        val signature = "$errorCode|$errorMsg"
+        if (signature == lastErrorSignature && now - lastErrorAtMs < DUPLICATE_ERROR_WINDOW_MS) {
+            Log.d(TAG, "Duplicate playback error ignored: code=$errorCode ($errorMsg)")
+            return
+        }
+        lastErrorSignature = signature
+        lastErrorAtMs = now
         Log.w(TAG, "Playback error: code=$errorCode, msg=$errorMsg, retry=$retryCount, hasFallback=$hasFallback")
 
         // ── Kodek / çözücü hataları ──────────────────────────────────────────
@@ -112,9 +129,22 @@ class PlayerErrorRecoveryController(
             if (onSwitchEngine != null) {
                 retryCount = 0
                 _isRecovering.value = false
+                // Zorunlu geçişi koordinatöre kaydet: MPV de başarısız olursa aynı motora
+                // geri dönülmesin (eskiden bu bilgi kaydedilmiyordu).
+                engineFallback.markTried(PlayerEngineType.MPV)
                 onSwitchEngine(PlayerEngineType.MPV)
                 return
             }
+        }
+
+        // MPV de kodek hatası verdiyse MEDIA3'e geri dönmek anlamsızdır (aynı çözücü
+        // yetersizliği). Doğrudan kaynak değiştirmeye geç.
+        if (isCodecFailure && currentEngine == PlayerEngineType.MPV) {
+            Log.w(TAG, "Kodek hatası MPV'de de sürdü ($errorCode) — kaynak değiştiriliyor.")
+            retryCount = 0
+            _isRecovering.value = false
+            triggerSourceFallbackOrFatal(errorCode, errorMsg)
+            return
         }
 
         // Motor kurtarma yalnızca dahili motorlar arasında (MEDIA3 ↔ MPV) yapılır.
@@ -125,11 +155,15 @@ class PlayerErrorRecoveryController(
         )
 
         if (nextEngine != null) {
-            // Engine switch is being triggered — wait for the new engine to pick up
-            Log.d(TAG, "Switching to engine $nextEngine — deferring source fallback")
-            retryCount = 0
-            _isRecovering.value = false
-            return
+            if (onSwitchEngine != null) {
+                // Engine switch is being triggered — wait for the new engine to pick up
+                Log.d(TAG, "Switching to engine $nextEngine — deferring source fallback")
+                retryCount = 0
+                _isRecovering.value = false
+                return
+            }
+            // Motor değiştirme kanalı yoksa (ör. eski çağrı yolu) boş yere beklemeyelim.
+            Log.w(TAG, "Fallback engine $nextEngine istendi ancak onSwitchEngine bağlı değil")
         }
         // nextEngine == null means engineFallback.onFatalError was called → handled by listener
     }
@@ -137,9 +171,27 @@ class PlayerErrorRecoveryController(
     private fun triggerSourceFallbackOrFatal(errorCode: Int, errorMsg: String) {
         if (hasFallback) {
             onFallback()
-        } else {
-            onFatal(errorCode, "Yayın kaynağı okunamadı ($errorCode). Lütfen farklı bir kaynak seçin.")
+            return
         }
+        if (retryCount < MAX_RETRY) {
+            retryCount++
+            _isRecovering.value = true
+            Log.w(TAG, "Aynı kaynak yeniden deneniyor ($retryCount/$MAX_RETRY)")
+            showToastOnMain("Oynatma yeniden deneniyor ($retryCount/$MAX_RETRY)…")
+            scope.launch {
+                delay(RETRY_DELAY_MS)
+                // Bu arada kaynak değişmiş olabilir; o durumda retry yapma.
+                if (hasFallback) {
+                    onFallback()
+                } else {
+                    onRetry(retryCount)
+                }
+            }
+            return
+        }
+        retryCount = 0
+        _isRecovering.value = false
+        onFatal(errorCode, "Yayın kaynağı okunamadı ($errorCode). Lütfen farklı bir kaynak seçin.")
     }
 
     /** Oynatma başarılı olduğunda retry sayacını ve engine fallback durumunu sıfırla */
@@ -151,12 +203,14 @@ class PlayerErrorRecoveryController(
         _isRecovering.value = false
     }
 
-    /** Fallback kaynak mevcut mu (PlayerSourceController ile iletişim için) */
+    /** Fallback kaynak mevcut mu (VM kaynak listesi tarafından güncellenir). */
     var hasFallback: Boolean = false
 
     /** Controller durumunu ve engine fallback sayacını sıfırla (yeni medya açıldığında) */
     fun reset() {
         retryCount = 0
+        lastErrorSignature = null
+        lastErrorAtMs = 0L
         _isRecovering.value = false
         engineFallback.reset()
     }

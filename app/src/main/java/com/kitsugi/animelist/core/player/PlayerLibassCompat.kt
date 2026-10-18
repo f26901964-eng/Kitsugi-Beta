@@ -69,6 +69,13 @@ internal fun ExoPlayer.Builder.buildWithAssSupportCompat(
 
 internal fun ExoPlayer.getAssHandlerCompat(): AssHandler? = assHandlersByPlayer[this]
 
+/**
+ * Oynatıcı serbest bırakılırken statik handler kaydını temizler.
+ */
+internal fun ExoPlayer.clearAssHandlerCompat() {
+    assHandlersByPlayer.remove(this)
+}
+
 @OptIn(UnstableApi::class)
 private class CompatAssSubtitleParserFactory(
     private val assHandler: AssHandler

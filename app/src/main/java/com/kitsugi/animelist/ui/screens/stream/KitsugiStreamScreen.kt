@@ -219,6 +219,13 @@ fun KitsugiStreamScreen(
             }
             val resumePositionMs = historyEntry?.positionMs ?: 0L
             val streamKey = (source.infoHash ?: resolvedUrl).hashCode().toString()
+            // `indexOf` referans eşitliğine dayanır. Kaynak listesi filtre/sıralama sonrası
+            // yeniden üretildiğinde -1 dönebiliyor; bu durumda oynatıcıda kaynak indeksi -1
+            // kalıyor ve "kaynak değiştir" çalışmıyordu. İçerik eşleşmesiyle yedekle.
+            val resolvedSourceIndex = allStreams.indexOf(source).takeIf { it >= 0 }
+                ?: allStreams.indexOfFirst {
+                    it.addonName == source.addonName && it.url == source.url
+                }
 
             // ── İzleme geçmişine kaydet ─────────────────────────────────────
             com.kitsugi.animelist.data.local.WatchHistoryManager.record(
@@ -250,7 +257,7 @@ fun KitsugiStreamScreen(
                         audioUrl = source.externalAudioUrl,
                         title = context.getString(R.string.title_bolum_episode, title, episode), headers = source.requestHeaders,
                         subtitles = source.subtitles, allSources = allStreams,
-                        currentSourceIndex = allStreams.indexOf(source),
+                        currentSourceIndex = resolvedSourceIndex,
                         malId = malId, aniListId = aniListId, tmdbId = tmdbId, season = season, episode = episode,
                         animeTitle = title, posterUrl = posterUrl,
                         titleEnglish = titleEnglish, titleRomaji = titleRomaji, titleNative = titleNative,
@@ -275,7 +282,7 @@ fun KitsugiStreamScreen(
                             audioUrl = source.externalAudioUrl,
                             title = context.getString(R.string.title_bolum_episode, title, episode), headers = source.requestHeaders,
                             subtitles = source.subtitles, allSources = allStreams,
-                            currentSourceIndex = allStreams.indexOf(source),
+                            currentSourceIndex = resolvedSourceIndex,
                             malId = malId, aniListId = aniListId, tmdbId = tmdbId, season = season, episode = episode,
                             animeTitle = title, posterUrl = posterUrl,
                             titleEnglish = titleEnglish, titleRomaji = titleRomaji, titleNative = titleNative,

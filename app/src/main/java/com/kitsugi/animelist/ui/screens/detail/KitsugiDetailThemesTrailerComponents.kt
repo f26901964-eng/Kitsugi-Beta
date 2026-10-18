@@ -228,7 +228,20 @@ fun ThemePlayerContainer(
         val appSettings = appSettingsState.value
         val safeSettings = remember(appSettings) { appSettings ?: com.kitsugi.animelist.data.settings.AppSettings() }
 
-        var activeEngineType by remember(url) { mutableStateOf(PlayerEngineType.MEDIA3) }
+        // Kullanıcı tercihi "MPV" ise satır içi oynatıcı da MPV ile başlar.
+        // (Eskiden tercih yok sayılıp her zaman Media3 başlatılıyor, MPV'ye ancak hata
+        // sonrası geçiliyordu.)
+        // Ayarlar yüklenmeden varsayılan "MPV"ye düşmeyelim: tercih okunana kadar Media3,
+        // tercih geldiğinde motor bir kez yeniden seçilir.
+        var activeEngineType by remember(url, appSettings?.playerPreference) {
+            mutableStateOf(
+                if (appSettings?.playerPreference.equals("MPV", ignoreCase = true)) {
+                    PlayerEngineType.MPV
+                } else {
+                    PlayerEngineType.MEDIA3
+                }
+            )
+        }
         val playerEngine = remember(context, activeEngineType, url) {
             when (activeEngineType) {
                 PlayerEngineType.MPV -> MpvPlayerEngine(context, safeSettings)
@@ -236,7 +249,7 @@ fun ThemePlayerContainer(
             }
         }
 
-        var isPlayingState by remember { mutableStateOf(true) }
+        var isPlayingState by remember { mutableStateOf(false) }
         var currentPosition by remember { mutableStateOf(0L) }
         var duration by remember { mutableStateOf(0L) }
         val engineTypeForPlayer = activeEngineType

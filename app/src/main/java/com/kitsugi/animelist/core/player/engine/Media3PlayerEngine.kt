@@ -30,6 +30,7 @@ import androidx.media3.extractor.ts.TsExtractor
 import androidx.media3.ui.PlayerView
 import androidx.media3.ui.CaptionStyleCompat
 import com.kitsugi.animelist.R
+import com.kitsugi.animelist.core.player.AudioDelayProcessor
 import com.kitsugi.animelist.core.player.BitrateAwareLoadControl
 import com.kitsugi.animelist.core.player.ParallelRangeDataSource
 import com.kitsugi.animelist.core.player.DolbyVisionBaseLayerPolicy
@@ -55,6 +56,7 @@ import java.util.Locale
 
 import com.kitsugi.animelist.core.player.buildWithAssSupportCompat
 import com.kitsugi.animelist.core.player.getAssHandlerCompat
+import com.kitsugi.animelist.core.player.clearAssHandlerCompat
 
 @OptIn(androidx.media3.common.util.UnstableApi::class)
 class Media3PlayerEngine(
@@ -97,7 +99,17 @@ class Media3PlayerEngine(
     private val gainAudioProcessor = com.kitsugi.animelist.core.player.GainAudioProcessor().apply {
         setGainDb(settings.defaultAudioBoost * 6f)
     }
+    /**
+     * Gerçek ses gecikmesi (lip-sync). Media3'te yerleşik bir API olmadığı için PCM hattında
+     * sessizlik ekleyip/örnek atlayarak uygulanır. Paneldeki "Ses gecikmesi" artık no-op değil.
+     */
+    private val audioDelayProcessor = AudioDelayProcessor().apply {
+        setDelayMs(settings.defaultAudioDelayMs)
+    }
     private var currentAspectMode: com.kitsugi.animelist.core.player.PlayerAspectMode = com.kitsugi.animelist.core.player.PlayerAspectMode.ORIGINAL
+
+    /** Kullanıcının seçtiği anlık hız; yeni kaynak hazırlığında sıfırlanmasın. */
+    private var currentPlaybackSpeed: Float = settings.playerSpeed.coerceIn(0.25f, 4.0f)
 
     // ── T1.13: Diagnostics & Analytics ───────────────────────────────────────
     private val mediaSourceFactory = PlayerMediaSourceFactory(context, settings)
@@ -135,6 +147,15 @@ class Media3PlayerEngine(
         
     override val isSubtitleDisabled: Boolean
         get() = exoPlayer?.trackSelectionParameters?.disabledTrackTypes?.contains(C.TRACK_TYPE_TEXT) ?: true
+
+    // Media3'te altyazı zaman kaydırma / hız / renk filtresi yerleşik değildir.
+    // UI bu bayraklarla MPV'ye geçiş yapar; böylece paneldeki kontroller no-op kalmaz.
+    override val supportsSubtitleDelay: Boolean get() = false
+    override val supportsNegativeSubtitleDelay: Boolean get() = false
+    override val supportsSecondarySubtitleDelay: Boolean get() = false
+    override val supportsSubtitleSpeed: Boolean get() = false
+    override val supportsVideoFilters: Boolean get() = false
+    override val supportsNegativeAudioDelay: Boolean get() = false
 
     private var currentAddonName: String? = null
     private var isCsSource: Boolean = false
@@ -516,7 +537,7 @@ class Media3PlayerEngine(
                     val caps = androidx.media3.exoplayer.audio.AudioCapabilities.getCapabilities(context)
                     return androidx.media3.exoplayer.audio.DefaultAudioSink.Builder(context)
                         .setAudioCapabilities(caps)
-                        .setAudioProcessors(arrayOf(gainAudioProcessor))
+                        .setAudioProcessors(arrayOf(gainAudioProcessor, audioDelayProcessor))
                         .setEnableFloatOutput(enableFloatOutput)
                         .setEnableAudioTrackPlaybackParams(enableAudioTrackPlaybackParams)
                         .build()
@@ -673,8 +694,7 @@ class Media3PlayerEngine(
         var stripDvRpuEnabled: Boolean = false
         var effectiveExtractorsFactory: ExtractorsFactory = DefaultExtractorsFactory()
         var mediaItem: MediaItem = MediaItem.fromUri(Uri.parse(videoUrl))
-        var dataSourceFactoryForMainThread: androidx.media3.datasource.DataSource.Factory? = null
-        var mergingSourceForMainThread: MergingMediaSource? = null
+        var mediaSourceForMainThread: androidx.media3.exoplayer.source.MediaSource? = null
 
 
         withContext(Dispatchers.IO) {
@@ -805,20 +825,23 @@ class Media3PlayerEngine(
 
             // ── T1.13: Delegate media source creation to PlayerMediaSourceFactory ──
             // All DataSource / ExtractorFactory / MergingMediaSource logic lives there.
-            val builtSource = mediaSourceFactory.create(
-                videoUrl         = videoUrl,
-                audioUrl         = audioUrl,
-                headers          = headers,
-                subtitles        = subtitles,
-                isCS             = isCS,
-                addonName        = addonName,
-                streamTitle      = streamTitle,
-                qualityValue     = qualityValue,
+            // ÖNEMLİ: MediaSource yalnızca BİR kez üretilir ve ana thread'de aynen kullanılır.
+            // Eskiden burada üretilen kaynak (MergingMediaSource değilse) atılıp main thread'de
+            // ikinci kez üretiliyordu. Bu; CS interceptor'ının, OkHttp istemcisinin ve altyazı
+            // konfigürasyonunun iki kez kurulmasına, ayrıca hazırlanan MediaSource'un çöp
+            // toplanmasına yol açıyordu.
+            mediaSourceForMainThread = mediaSourceFactory.create(
+                videoUrl          = videoUrl,
+                audioUrl          = audioUrl,
+                headers           = headers,
+                subtitles         = subtitles,
+                isCS              = isCS,
+                addonName         = addonName,
+                streamTitle       = streamTitle,
+                qualityValue      = qualityValue,
                 extractorsFactory = effectiveExtractorsFactory,
+                mediaItemOverride = mediaItem,
             )
-            // Wrap into the existing two-path variable so the Main-thread block below works unchanged
-            mergingSourceForMainThread = builtSource as? MergingMediaSource
-            dataSourceFactoryForMainThread = null
         }
 
         // ── ExoPlayer çağrıları MUTLAKA Main thread'de yapılmalı ────────────────
@@ -827,9 +850,8 @@ class Media3PlayerEngine(
             player.stop()
             player.clearMediaItems()
 
-            // T1.13: builtSource is always non-null after factory.create()
-            // Re-build from factory if the IO block produced a plain MediaSource (not MergingMediaSource)
-            val sourceToSet = mergingSourceForMainThread
+            // IO bloğunda hazırlanan kaynak aynen kullanılır; yeniden üretilmez.
+            val sourceToSet = mediaSourceForMainThread
                 ?: mediaSourceFactory.create(
                     videoUrl          = videoUrl,
                     audioUrl          = audioUrl,
@@ -840,10 +862,11 @@ class Media3PlayerEngine(
                     streamTitle       = streamTitle,
                     qualityValue      = qualityValue,
                     extractorsFactory = effectiveExtractorsFactory,
+                    mediaItemOverride = mediaItem,
                 )
             player.setMediaSource(sourceToSet)
 
-            player.playbackParameters = androidx.media3.common.PlaybackParameters(settings.playerSpeed)
+            player.playbackParameters = androidx.media3.common.PlaybackParameters(currentPlaybackSpeed)
             player.playWhenReady = true
             player.prepare()
             if (startPositionMs > 0L) {
@@ -872,8 +895,10 @@ class Media3PlayerEngine(
     }
 
     override fun setPlaybackSpeed(speed: Float) {
+        val safeSpeed = speed.coerceIn(0.25f, 4.0f)
+        currentPlaybackSpeed = safeSpeed
         runOnMainThread {
-            exoPlayer?.playbackParameters = androidx.media3.common.PlaybackParameters(speed)
+            exoPlayer?.playbackParameters = androidx.media3.common.PlaybackParameters(safeSpeed)
         }
     }
 
@@ -898,9 +923,12 @@ class Media3PlayerEngine(
     }
 
     override fun setAudioDelay(delayMs: Long) {
-        audioDelayMs = delayMs
-        // Best effort / no-op warning
-        Log.w(TAG, "Audio delay of $delayMs ms requested but not supported natively in Media3 wrapper.")
+        // Negatif değer (sesi öne alma) Media3 PCM hattında desteklenmez; 0'a sabitlenir.
+        // UI bu durumda MPV motoruna geçiş önerir (supportsNegativeAudioDelay = false).
+        val applied = delayMs.coerceAtLeast(0L)
+        audioDelayMs = applied
+        audioDelayProcessor.setDelayMs(applied)
+        Log.d(TAG, "Audio delay applied: requested=$delayMs ms, effective=$applied ms")
     }
 
     override fun setSubtitleStyle(style: SubtitleStyleSettings) {
@@ -1038,6 +1066,84 @@ class Media3PlayerEngine(
                 .buildUpon()
                 .setTrackTypeDisabled(C.TRACK_TYPE_TEXT, true)
                 .build()
+        }
+    }
+
+    /**
+     * Media3 için ekran görüntüsü desteği.
+     *
+     * `trailer_player_view.xml` `surface_type=texture_view` kullandığı için kare,
+     * [android.view.TextureView.getBitmap] ile doğrudan alınabilir (SurfaceView'de bu mümkün
+     * değildir ve PixelCopy ana thread'de senkron çalışmaz). İsteğe bağlı olarak altyazı
+     * katmanları da aynı bitmap'e çizilir.
+     */
+    override fun takeScreenshot(cachePath: String, showSubtitles: Boolean): java.io.InputStream? {
+        if (android.os.Looper.myLooper() != android.os.Looper.getMainLooper()) {
+            Log.w(TAG, "takeScreenshot must be called on the main thread")
+            return null
+        }
+        val pv = playerView ?: return null
+        val texture = pv.videoSurfaceView as? android.view.TextureView
+        if (texture == null) {
+            Log.w(TAG, "Screenshot skipped: video surface is not a TextureView")
+            return null
+        }
+        val frame = runCatching { texture.bitmap }.getOrNull() ?: run {
+            Log.w(TAG, "Screenshot skipped: TextureView bitmap is not available yet")
+            return null
+        }
+        val output = frame.copy(android.graphics.Bitmap.Config.ARGB_8888, true) ?: frame
+
+        if (showSubtitles) {
+            runCatching { drawSubtitleOverlays(pv, texture, output) }
+                .onFailure { Log.w(TAG, "Subtitle overlay could not be drawn: ${it.message}") }
+        }
+
+        val dir = java.io.File(cachePath)
+        if (!dir.exists()) dir.mkdirs()
+        val file = java.io.File(dir, "kitsugi_media3_screenshot_${System.currentTimeMillis()}.png")
+        val written = runCatching {
+            file.outputStream().use { stream ->
+                output.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, stream)
+            }
+        }.getOrDefault(false)
+
+        if (output !== frame) output.recycle()
+        frame.recycle()
+
+        if (!written) {
+            Log.e(TAG, "Screenshot could not be written to $file")
+            return null
+        }
+        return file.inputStream()
+    }
+
+    private fun drawSubtitleOverlays(
+        pv: PlayerView,
+        texture: android.view.TextureView,
+        target: android.graphics.Bitmap
+    ) {
+        if (texture.width <= 0 || texture.height <= 0) return
+        val canvas = android.graphics.Canvas(target)
+        val textureLocation = IntArray(2)
+        texture.getLocationInWindow(textureLocation)
+        val scaleX = target.width.toFloat() / texture.width.toFloat()
+        val scaleY = target.height.toFloat() / texture.height.toFloat()
+
+        listOfNotNull(pv.subtitleView, assSubtitleView).forEach { overlay ->
+            if (overlay.visibility != View.VISIBLE || overlay.width <= 0 || overlay.height <= 0) {
+                return@forEach
+            }
+            val location = IntArray(2)
+            overlay.getLocationInWindow(location)
+            canvas.save()
+            canvas.scale(scaleX, scaleY)
+            canvas.translate(
+                (location[0] - textureLocation[0]).toFloat(),
+                (location[1] - textureLocation[1]).toFloat()
+            )
+            overlay.draw(canvas)
+            canvas.restore()
         }
     }
 
@@ -1197,6 +1303,9 @@ class Media3PlayerEngine(
     override fun release() {
         runOnMainThread {
             exoPlayer?.let { player ->
+                // ASS handler kaydı statik map'te tutuluyor; motor kapanırken bırakılmazsa
+                // bayat handler kaydı kalır.
+                runCatching { player.clearAssHandlerCompat() }
                 player.removeListener(playerListener)
                 player.stop()
                 player.clearMediaItems()

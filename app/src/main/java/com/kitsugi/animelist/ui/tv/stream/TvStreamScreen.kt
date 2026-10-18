@@ -115,6 +115,10 @@ fun TvStreamScreen(
     var selectedAddonFilter by remember { mutableStateOf<String?>(null) }
     var resolvingSource by remember { mutableStateOf<StreamSource?>(null) }
     var resolvingError by remember { mutableStateOf<String?>(null) }
+    // "Her zaman sor" tercihi TV'de yok sayılıyordu: diyalog açılmadan sessizce yerleşik
+    // oynatıcıya düşülüyordu. Artık gerçek bir seçim diyaloğu gösterilir.
+    var pendingAskPlay by remember { mutableStateOf<Pair<StreamSource, String>?>(null) }
+    var rememberAskChoice by remember { mutableStateOf(false) }
     var activeStreamJob by remember { mutableStateOf<kotlinx.coroutines.Job?>(null) }
     val cancelResolving = {
         activeStreamJob?.cancel()
@@ -173,6 +177,12 @@ fun TvStreamScreen(
         { source: StreamSource, resolvedUrl: String, engine: String ->
             val streamKey = (source.infoHash ?: resolvedUrl).hashCode().toString()
             val resumePositionMs = streamPrefs.getLong("pos_$streamKey", 0L)
+            // Referans eşitliği tutmadığında kaynak indeksi -1 kalıyor ve oynatıcı içinde
+            // kaynak değiştirme devre dışı kalıyordu; içerikle eşleştir.
+            val resolvedSourceIndex = allStreams.indexOf(source).takeIf { it >= 0 }
+                ?: allStreams.indexOfFirst {
+                    it.addonName == source.addonName && it.url == source.url
+                }
             if (engine == "EXTERNAL" && onLaunchExternalPlayer != null) {
                 val input = ExternalPlayerLauncher.createInput(
                     url = resolvedUrl,
@@ -190,7 +200,7 @@ fun TvStreamScreen(
                     headers = source.requestHeaders,
                     subtitles = source.subtitles ?: emptyList(),
                     allSources = allStreams,
-                    currentSourceIndex = allStreams.indexOf(source),
+                    currentSourceIndex = resolvedSourceIndex,
                     malId = args.malId,
                     aniListId = args.aniListId,
                     tmdbId = args.tmdbId,
@@ -213,7 +223,11 @@ fun TvStreamScreen(
     val handlePlayStream = remember(appSettings, launchPlayer) {
         { source: StreamSource, resolvedUrl: String ->
             val engine = appSettings.playerPreference
-            launchPlayer(source, resolvedUrl, engine)
+            if (engine == "ASK") {
+                pendingAskPlay = source to resolvedUrl
+            } else {
+                launchPlayer(source, resolvedUrl, engine)
+            }
         }
     }
 
@@ -531,6 +545,68 @@ fun TvStreamScreen(
                         TextButton(onClick = { resolvingError = null }) {
                             Text(stringResource(R.string.action_ok), color = accentColor, fontWeight = FontWeight.Bold)
                         }
+                    }
+                }
+            }
+        }
+
+        // "Her zaman sor" oynatıcı seçimi (TV)
+        pendingAskPlay?.let { (source, resolvedUrl) ->
+            com.kitsugi.animelist.ui.tv.components.TvDialog(
+                onDismiss = { pendingAskPlay = null },
+                title = "Oynatıcı Seç",
+                width = 420.dp
+            ) {
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    Text(
+                        text = "Bu bölümü hangi oynatıcıda açmak istersiniz?",
+                        color = KitsugiColors.TextSecondary,
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        TextButton(
+                            onClick = {
+                                if (rememberAskChoice) {
+                                    scope.launch { dataStore.setPlayerPreference("INTERNAL") }
+                                }
+                                pendingAskPlay = null
+                                launchPlayer(source, resolvedUrl, "INTERNAL")
+                            }
+                        ) {
+                            Text("Dahili Oynatıcı", color = accentColor, fontWeight = FontWeight.Bold)
+                        }
+                        TextButton(
+                            onClick = {
+                                if (rememberAskChoice) {
+                                    scope.launch { dataStore.setPlayerPreference("EXTERNAL") }
+                                }
+                                pendingAskPlay = null
+                                launchPlayer(source, resolvedUrl, "EXTERNAL")
+                            }
+                        ) {
+                            Text("Harici Oynatıcı", color = accentColor, fontWeight = FontWeight.Bold)
+                        }
+                    }
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Checkbox(
+                            checked = rememberAskChoice,
+                            onCheckedChange = { rememberAskChoice = it }
+                        )
+                        Text(
+                            text = "Seçimimi hatırla",
+                            color = KitsugiColors.TextSecondary,
+                            style = MaterialTheme.typography.labelMedium
+                        )
                     }
                 }
             }

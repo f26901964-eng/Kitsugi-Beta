@@ -65,17 +65,57 @@ fun SubtitleDelayPanel(
         var secondaryDelay by remember { mutableIntStateOf(currentSecondaryDelayMs) }
         var speed by remember { mutableFloatStateOf(currentSpeed) }
 
-        LaunchedEffect(speed) {
-            if (speed in 0.1f..10f) onSpeedChanged(speed)
+        // İlk kompozisyonda callback tetiklenmesini engelle: aksi hâlde panel açılır
+        // açılmaz değerler "değişmiş" sayılıp motora yeniden yazılıyordu.
+        var lastAppliedPrimary by remember { mutableIntStateOf(currentSubtitleDelayMs) }
+        var lastAppliedSecondary by remember { mutableIntStateOf(currentSecondaryDelayMs) }
+        var lastAppliedSpeed by remember { mutableFloatStateOf(currentSpeed) }
+
+        // Birincil/ikincil seçimi değiştiğinde kaydırıcıyı o türün GERÇEK değeriyle eşle.
+        // (Eskiden "İkincil" seçilse bile kaydırıcı birincil değeri gösteriyordu.)
+        LaunchedEffect(affectedSubtitle, currentSubtitleDelayMs, currentSecondaryDelayMs) {
+            when (affectedSubtitle) {
+                SubtitleDelayType.Primary -> delay = currentSubtitleDelayMs
+                SubtitleDelayType.Secondary -> secondaryDelay = currentSecondaryDelayMs
+                SubtitleDelayType.Both -> {
+                    delay = currentSubtitleDelayMs
+                    secondaryDelay = currentSecondaryDelayMs
+                }
+            }
         }
 
-        LaunchedEffect(delay, secondaryDelay) {
+        LaunchedEffect(speed) {
+            if (speed in 0.1f..10f && speed != lastAppliedSpeed) {
+                lastAppliedSpeed = speed
+                onSpeedChanged(speed)
+            }
+        }
+
+        LaunchedEffect(delay, secondaryDelay, affectedSubtitle) {
             when (affectedSubtitle) {
-                SubtitleDelayType.Primary -> onSubDelayChanged(delay)
-                SubtitleDelayType.Secondary -> onSecondaryDelayChanged(secondaryDelay)
+                SubtitleDelayType.Primary -> {
+                    if (delay != lastAppliedPrimary) {
+                        lastAppliedPrimary = delay
+                        onSubDelayChanged(delay)
+                    }
+                }
+                SubtitleDelayType.Secondary -> {
+                    if (secondaryDelay != lastAppliedSecondary) {
+                        lastAppliedSecondary = secondaryDelay
+                        onSecondaryDelayChanged(secondaryDelay)
+                    }
+                }
                 SubtitleDelayType.Both -> {
-                    onSubDelayChanged(delay)
-                    onSecondaryDelayChanged(delay)
+                    // "İkisi Birden" seçiliyken ikincil değer birincile eşitlenir; eski kod
+                    // ikincil callback'ini yine de ikincil (eski) değerle çağırıyordu.
+                    val changed = delay != lastAppliedPrimary || delay != lastAppliedSecondary
+                    if (changed) {
+                        lastAppliedPrimary = delay
+                        lastAppliedSecondary = delay
+                        secondaryDelay = delay
+                        onSubDelayChanged(delay)
+                        onSecondaryDelayChanged(delay)
+                    }
                 }
             }
         }

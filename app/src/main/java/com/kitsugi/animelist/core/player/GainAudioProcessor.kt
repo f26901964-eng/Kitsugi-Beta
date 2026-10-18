@@ -54,6 +54,7 @@ class GainAudioProcessor : BaseAudioProcessor() {
                     val clamped = boosted.coerceIn(Short.MIN_VALUE.toInt(), Short.MAX_VALUE.toInt()).toShort()
                     outputBuffer.putShort(clamped)
                 }
+                while (inputBuffer.hasRemaining()) outputBuffer.put(inputBuffer.get())
             }
             C.ENCODING_PCM_FLOAT -> {
                 val floatsCount = remaining / 4
@@ -63,6 +64,47 @@ class GainAudioProcessor : BaseAudioProcessor() {
                     val clamped = boosted.coerceIn(-1.0f, 1.0f)
                     outputBuffer.putFloat(clamped)
                 }
+                while (inputBuffer.hasRemaining()) outputBuffer.put(inputBuffer.get())
+            }
+            C.ENCODING_PCM_8BIT -> {
+                // 8-bit PCM işaretsizdir (0..255, merkez 128).
+                val bytesCount = remaining
+                for (i in 0 until bytesCount) {
+                    val unsigned = inputBuffer.get().toInt() and 0xFF
+                    val centered = (unsigned - 128) * linearGain
+                    val clamped = centered.toInt().coerceIn(-128, 127)
+                    outputBuffer.put((clamped + 128).toByte())
+                }
+            }
+            C.ENCODING_PCM_24BIT -> {
+                // 24-bit little-endian, işaretli.
+                val frames = remaining / 3
+                for (i in 0 until frames) {
+                    val b0 = inputBuffer.get().toInt() and 0xFF
+                    val b1 = inputBuffer.get().toInt() and 0xFF
+                    val b2 = inputBuffer.get().toInt() and 0xFF
+                    var sample = b0 or (b1 shl 8) or (b2 shl 16)
+                    if (sample and 0x800000 != 0) sample = sample or -0x1000000
+                    val amplified = (sample * linearGain)
+                        .toInt()
+                        .coerceIn(-8_388_608, 8_388_607)
+                    outputBuffer.put((amplified and 0xFF).toByte())
+                    outputBuffer.put(((amplified shr 8) and 0xFF).toByte())
+                    outputBuffer.put(((amplified shr 16) and 0xFF).toByte())
+                }
+                // Kare sınırına uymayan artık baytları aynen taşı.
+                while (inputBuffer.hasRemaining()) outputBuffer.put(inputBuffer.get())
+            }
+            C.ENCODING_PCM_32BIT -> {
+                val frames = remaining / 4
+                for (i in 0 until frames) {
+                    val sample = inputBuffer.int
+                    val amplified = (sample.toDouble() * linearGain)
+                        .coerceIn(Int.MIN_VALUE.toDouble(), Int.MAX_VALUE.toDouble())
+                        .toInt()
+                    outputBuffer.putInt(amplified)
+                }
+                while (inputBuffer.hasRemaining()) outputBuffer.put(inputBuffer.get())
             }
             else -> {
                 outputBuffer.put(inputBuffer)

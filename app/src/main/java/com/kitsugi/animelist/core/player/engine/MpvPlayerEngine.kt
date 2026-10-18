@@ -12,6 +12,7 @@ import `is`.xyz.mpv.MPV
 import `is`.xyz.mpv.MPVNode
 import com.kitsugi.animelist.data.local.KitsugiDatabase
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.launch
 
@@ -32,9 +33,28 @@ class MpvPlayerEngine(
 
     private val TAG = "MpvPlayerEngine"
     private val listeners = mutableListOf<PlayerEngine.Listener>()
+
+    /**
+     * Motor yaşam döngüsüne bağlı kapsam. Eskiden [createVideoView] içinde her seferinde
+     * `CoroutineScope(Dispatchers.Main)` oluşturuluyor ve hiç iptal edilmiyordu; motor
+     * serbest bırakılsa bile script kurulumu çalışmaya devam ediyordu. Artık tek kapsam var
+     * ve [release] içinde iptal ediliyor.
+     */
+    private val engineScope = kotlinx.coroutines.CoroutineScope(
+        kotlinx.coroutines.SupervisorJob() + Dispatchers.Main
+    )
     internal var mpvView: KitsugiMpvSurfaceView? = null
 
     override val engineType: PlayerEngineType = PlayerEngineType.MPV
+
+    // MPV (libmpv) altyazı gecikmesi, negatif gecikme, ikincil altyazı, altyazı hızı ve
+    // renk filtrelerinin tamamını destekler.
+    override val supportsSubtitleDelay: Boolean get() = true
+    override val supportsNegativeSubtitleDelay: Boolean get() = true
+    override val supportsSecondarySubtitleDelay: Boolean get() = true
+    override val supportsSubtitleSpeed: Boolean get() = true
+    override val supportsVideoFilters: Boolean get() = true
+    override val supportsNegativeAudioDelay: Boolean get() = true
     override var currentState: PlayerEngine.State = PlayerEngine.State.IDLE
         private set
 
@@ -70,7 +90,7 @@ class MpvPlayerEngine(
         private set
 
     /** İkincil altyazı gecikme değeri (saniye cinsinden MPV'ye iletilir) */
-    var secondarySubtitleDelayMs: Long = settings.secondarySubtitleDelayMs
+    override var secondarySubtitleDelayMs: Long = settings.secondarySubtitleDelayMs
         private set
 
     /** MPV donanım çözücü türü - hwdec-current gözleminden okunur */
@@ -216,13 +236,14 @@ class MpvPlayerEngine(
     override fun play() {
         mpvView?.setPaused(false)
         isPlaying = true
-        updateState(PlayerEngine.State.READY)
+        // Dosya henüz yüklenmediyse READY yaymak buffering göstergesini erken kapatıyordu.
+        if (fileLoaded) updateState(PlayerEngine.State.READY)
     }
 
     override fun pause() {
         mpvView?.setPaused(true)
         isPlaying = false
-        updateState(PlayerEngine.State.READY)
+        if (fileLoaded) updateState(PlayerEngine.State.READY)
     }
 
     override fun seekTo(positionMs: Long) {
@@ -274,10 +295,32 @@ class MpvPlayerEngine(
     }
 
     /** İkincil altyazı gecikmesini ayarla */
-    fun setSecondarySubtitleDelay(delayMs: Long) {
+    override fun setSecondarySubtitleDelay(delayMs: Long) {
         secondarySubtitleDelayMs = delayMs
         runCatching {
             mpvView?.mpv?.setPropertyDouble("secondary-sub-delay", delayMs / 1000.0)
+        }
+    }
+
+    /** Altyazı hızı (mpv: sub-speed). 1.0 = normal. */
+    override fun setSubtitleSpeed(speed: Float) {
+        val safeSpeed = speed.coerceIn(0.1f, 10f)
+        runCatching {
+            mpvView?.mpv?.setPropertyDouble("sub-speed", safeSpeed.toDouble())
+        }.onFailure {
+            Log.w(TAG, "sub-speed uygulanamadı: ${it.message}")
+        }
+    }
+
+    /** Video renk filtreleri (mpv: brightness/contrast/saturation/gamma/hue, -100..100). */
+    override fun setVideoFilters(values: Map<String, Int>) {
+        if (values.isEmpty()) return
+        values.forEach { (property, value) ->
+            runCatching {
+                mpvView?.mpv?.setPropertyInt(property, value.coerceIn(-100, 100))
+            }.onFailure {
+                Log.w(TAG, "Video filtresi uygulanamadı ($property=$value): ${it.message}")
+            }
         }
     }
 
@@ -417,7 +460,7 @@ class MpvPlayerEngine(
                         addAndSelectExternalSubtitle(sub.url, sub.name, sub.lang)
                     }
                     applySecondarySubtitle(this)
-                    kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.Main).launch {
+                    engineScope.launch {
                         setupCustomButtons()
                     }
                     isPlaying = true
@@ -428,6 +471,8 @@ class MpvPlayerEngine(
     }
 
     override fun release() {
+        // Motor kapanırken bekleyen script/custom-button kurulum coroutine'leri de iptal edilir.
+        engineScope.cancel()
         runCatching { mpvView?.mpv?.removeObserver(this) }
         runCatching { mpvView?.releasePlayer() }
         mpvView = null
@@ -828,12 +873,20 @@ class MpvPlayerEngine(
             return null
         }
 
-        val tempFile = java.io.File(filename).takeIf { it.exists() } ?: return null
+        // `screenshot-to-file` mpv tarafında asenkron çalışır; dosya hemen oluşmayabilir.
+        var waitedMs = 0
+        while (!java.io.File(filename).exists() && waitedMs < 800) {
+            Thread.sleep(20L)
+            waitedMs += 20
+        }
+        val tempFile = java.io.File(filename).takeIf { it.exists() } ?: run {
+            Log.w(TAG, "Screenshot file was not created within ${waitedMs}ms")
+            return null
+        }
         val newFile = java.io.File("$cachePath/mpv_screenshot.png")
 
         newFile.delete()
-        tempFile.renameTo(newFile)
-        return newFile.takeIf { it.exists() }?.inputStream()
+        return if (tempFile.renameTo(newFile)) newFile.inputStream() else tempFile.inputStream()
     }
 
     private suspend fun setupCustomButtons() {

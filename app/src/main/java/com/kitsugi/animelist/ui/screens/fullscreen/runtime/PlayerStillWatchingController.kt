@@ -19,7 +19,9 @@ import kotlinx.coroutines.launch
  * @param scope ViewModel'in viewModelScope'u
  */
 class PlayerStillWatchingController(
-    private val scope: CoroutineScope
+    private val scope: CoroutineScope,
+    /** Geri sayım sıfıra indiğinde çağrılır; oynatma duraklatılır. */
+    private val onPromptTimedOut: () -> Unit = {}
 ) {
     private val TAG = "StillWatchingCtrl"
 
@@ -39,6 +41,7 @@ class PlayerStillWatchingController(
 
     private var sessionRules = PlayerAutoplaySessionRules(sessionLimit = 0)
     private var countdownJob: Job? = null
+    private var timeoutNotified: Boolean = false
 
     // ── Public API ────────────────────────────────────────────────────────────
 
@@ -58,6 +61,20 @@ class PlayerStillWatchingController(
             startCountdown()
             Log.d(TAG, "Playback tick: inactivity threshold reached ($thresholdMinutes min) — prompt triggered")
         }
+    }
+
+    /**
+     * Prompt'u dışarıdan (autoplay kuralları, UI vb.) hemen açar.
+     * Eski kod yalnızca [onEpisodeCompleted] yolundan açıyordu ve AutoplayController bu
+     * metodu hiç çağırmıyordu; sonuç: "hâlâ izliyor musunuz?" uyarısı hiç görünmüyordu.
+     */
+    fun showPromptNow(seconds: Int = promptSeconds) {
+        promptSeconds = seconds.coerceAtLeast(5)
+        timeoutNotified = false
+        showPrompt = true
+        countdownSec = promptSeconds
+        startCountdown()
+        Log.d(TAG, "Prompt triggered externally — countdown=${promptSeconds}s")
     }
 
     /**
@@ -81,6 +98,7 @@ class PlayerStillWatchingController(
      */
     fun onConfirmed() {
         countdownJob?.cancel()
+        timeoutNotified = false
         resetGating()
         sessionRules.resetSession()
         showPrompt = false
@@ -93,6 +111,7 @@ class PlayerStillWatchingController(
      */
     fun onDismissed() {
         countdownJob?.cancel()
+        timeoutNotified = false
         showPrompt = false
         countdownSec = null
         Log.d(TAG, "Dismissed — playback should pause")
@@ -136,7 +155,11 @@ class PlayerStillWatchingController(
                 } else if (current <= 1) {
                     countdownSec = 0
                     showPrompt = true // prompt still visible until user acts
-                    Log.d(TAG, "Countdown expired — pause requested")
+                    if (!timeoutNotified) {
+                        timeoutNotified = true
+                        Log.d(TAG, "Countdown expired — pausing playback")
+                        onPromptTimedOut()
+                    }
                     break
                 } else {
                     countdownSec = current - 1

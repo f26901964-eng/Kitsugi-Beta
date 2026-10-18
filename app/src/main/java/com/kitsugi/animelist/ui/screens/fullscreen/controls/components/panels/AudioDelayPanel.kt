@@ -45,9 +45,22 @@ fun AudioDelayPanel(
         val delayControlCard = createRef()
 
         var delay by remember { mutableIntStateOf(currentAudioDelayMs) }
+        // Panel her açıldığında ilk kompozisyonda onDelayChanged çağrılıyordu; bu,
+        // kullanıcı hiçbir şey yapmadan varsayılan gecikmeyi yeniden yazıyordu.
+        var lastAppliedDelay by remember { mutableIntStateOf(currentAudioDelayMs) }
+
+        LaunchedEffect(currentAudioDelayMs) {
+            if (currentAudioDelayMs != lastAppliedDelay) {
+                delay = currentAudioDelayMs
+                lastAppliedDelay = currentAudioDelayMs
+            }
+        }
 
         LaunchedEffect(delay) {
-            onDelayChanged(delay.toLong())
+            if (delay != lastAppliedDelay) {
+                lastAppliedDelay = delay
+                onDelayChanged(delay.toLong())
+            }
         }
 
         DelayCard(

@@ -37,6 +37,20 @@ interface PlayerEngine {
     val isSubtitleDisabled: Boolean
     val activeStreamInfo: StreamInfoData
 
+    // ── Motor yetenekleri (özellik kapıları) ─────────────────────────────────
+    // UI, desteklenmeyen bir kontrolü sessizce "no-op" bırakmak yerine bu bayraklara
+    // bakarak motor değiştirebilir veya kontrolü gizleyebilir. Varsayılanlar Media3'tür;
+    // MPV bu değerlerin tamamını destekler.
+    val supportsSubtitleDelay: Boolean get() = false
+    val supportsNegativeSubtitleDelay: Boolean get() = false
+    val supportsSecondarySubtitleDelay: Boolean get() = false
+    val supportsSubtitleSpeed: Boolean get() = false
+    val supportsVideoFilters: Boolean get() = false
+    val supportsNegativeAudioDelay: Boolean get() = false
+
+    /** İkincil altyazı gecikmesi (ms). Yalnızca destekleyen motorlarda anlamlıdır. */
+    val secondarySubtitleDelayMs: Long get() = 0L
+
     fun addListener(listener: Listener)
     fun removeListener(listener: Listener)
 
@@ -64,6 +78,18 @@ interface PlayerEngine {
     fun setVolume(volume: Float)
     fun setSubtitleDelay(delayMs: Long)
     fun setAudioDelay(delayMs: Long)
+
+    /** İkincil altyazı gecikmesi — varsayılan olarak desteklenmez. */
+    fun setSecondarySubtitleDelay(delayMs: Long) {}
+
+    /** Altyazı hızı (ör. 1.0 = normal). Varsayılan olarak desteklenmez. */
+    fun setSubtitleSpeed(speed: Float) {}
+
+    /**
+     * Video renk filtreleri. Anahtar MPV özellik adıdır (brightness/saturation/contrast/
+     * gamma/hue), değer -100..100 aralığındadır. Desteklemeyen motorlarda no-op.
+     */
+    fun setVideoFilters(values: Map<String, Int>) {}
     fun setSubtitleStyle(style: SubtitleStyleSettings)
     fun setResizeMode(resizeMode: Int) // Matches AspectRatioFrameLayout.RESIZE_MODE_*
     fun setAspectMode(mode: com.kitsugi.animelist.core.player.PlayerAspectMode)

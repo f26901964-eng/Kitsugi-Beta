@@ -220,6 +220,17 @@ class KitsugiPlayerViewModel(application: Application) : AndroidViewModel(applic
         _activeEngineType.value = to
     }
 
+    /**
+     * UI, seçili motorda desteklenmeyen bir özellik istediğinde (altyazı gecikmesi, altyazı
+     * hızı, renk filtresi, negatif ses gecikmesi) motoru MPV'ye geçirir. Konum korunur;
+     * yeni motor kaldığı yerden devam eder.
+     */
+    fun switchEngineForFeature(to: PlayerEngineType) {
+        if (to == PlayerEngineType.EXTERNAL) return
+        if (_activeEngineType.value == to) return
+        onEngineSwitched(to)
+    }
+
     /** Motor değişiminden kalan devam konumunu bir kez tüketir. */
     fun takePendingResumeAfterEngineSwitch(): Long? {
         val value = pendingResumeAfterEngineSwitchMs
@@ -1081,7 +1092,7 @@ class KitsugiPlayerViewModel(application: Application) : AndroidViewModel(applic
     }
 
     /**
-     * v2.4.258: Kaynak değişimi (dublaj ↔ orijinal, sunucu değişimi) artık KALDIĞI YERDEN devam eder.
+     * v2.4.258 / v2.4.303: Kaynak değişimi (dublaj ↔ orijinal, sunucu değişimi) artık KALDIĞI YERDEN devam eder.
      * Eskiden yeni URL 0. saniyeden başlıyordu; sitenin kendi oynatıcısındaki gibi sorunsuz geçiş için
      * mevcut konum [pendingSourceSwitchResumeMs] içinde saklanır ve yeni kaynak hazırlanırken alınır.
      */
@@ -1109,7 +1120,81 @@ class KitsugiPlayerViewModel(application: Application) : AndroidViewModel(applic
         _currentSourceIndex.value = index
         _currentAddonName.value = stream.addonName
         _playbackSource.value = TrailerPlaybackSource(videoUrl = resolvedUrl, audioUrl = stream.externalAudioUrl)
+        // Kaynak değişti: motor fallback zinciri ve retry sayacı yeni kaynak için sıfırlanır.
+        // (Eskiden bu sıfırlama yapılmıyor, ilk kaynakta tükenen zincir yüzünden yeni kaynakta
+        // MPV'ye geçiş hiç denenmiyordu.)
+        orchestrator.errorRecovery.hasFallback = _currentStreamSources.value.size > 1
+        orchestrator.errorRecovery.reset()
         fetchAutoSubtitles()
+    }
+
+    /**
+     * Hata ekranındaki "Tekrar dene" için: kaynağı yeniden çözümler.
+     *
+     * Eskiden yalnızca aynı URL ile `playEpisode` çağrılıyordu; süresi dolmuş
+     * imzalı/tek kullanımlık eklenti linkleri bu yüzden tekrar tekrar aynı hatayı
+     * veriyordu. Burada URL yeniden üretilir; değişmezse motor aynı URL ile
+     * mevcut konumdan yeniden hazırlanır.
+     */
+    fun retryCurrentSource() {
+        val source = _currentStreamSources.value.getOrNull(_currentSourceIndex.value)
+        if (source == null) {
+            _hasError.value = true
+            _errorDetails.value = "Kaynak bilgisi bulunamadı. Bölümü kapatıp yeniden açın."
+            return
+        }
+        viewModelScope.launch {
+            _isLoading.value = true
+            _hasError.value = false
+            _errorDetails.value = null
+            try {
+                val repository = AddonStreamRepository(context)
+                val resolved = try {
+                    kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                        repository.resolveStreamUrl(source)
+                    }
+                } catch (e: kotlinx.coroutines.CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    Log.e("KitsugiPlayerViewModel", "retryCurrentSource: çözümleme hatası: ${e.message}")
+                    null
+                }
+                if (resolved.isNullOrBlank()) {
+                    _hasError.value = true
+                    _errorDetails.value = "Kaynak yeniden çözümlenemedi. Farklı bir kaynak seçin."
+                    return@launch
+                }
+                val headers = source.requestHeaders ?: emptyMap()
+                _currentHeaders.value = headers
+                _currentSubtitles.value = source.subtitles ?: emptyList()
+                _currentAddonName.value = source.addonName
+                orchestrator.errorRecovery.hasFallback = _currentStreamSources.value.size > 1
+                orchestrator.errorRecovery.reset()
+                if (resolved != _currentVideoUrl.value) {
+                    _currentAudioUrl.value = null
+                    _currentVideoUrl.value = resolved
+                    _playbackSource.value = TrailerPlaybackSource(videoUrl = resolved, audioUrl = null)
+                } else {
+                    activeEngine?.prepare(
+                        videoUrl = resolved,
+                        audioUrl = _currentAudioUrl.value,
+                        headers = headers,
+                        subtitles = _currentSubtitles.value,
+                        startPositionMs = activeEngine?.currentPosition ?: 0L,
+                        addonName = _currentAddonName.value
+                    )
+                }
+                fetchAutoSubtitles()
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                Log.e("KitsugiPlayerViewModel", "retryCurrentSource: yeniden hazırlama hatası", e)
+                _hasError.value = true
+                _errorDetails.value = "Kaynak yeniden hazırlanamadı: ${e.localizedMessage}"
+            } finally {
+                _isLoading.value = false
+            }
+        }
     }
 
     /**
@@ -1187,6 +1272,8 @@ class KitsugiPlayerViewModel(application: Application) : AndroidViewModel(applic
                     }
 
                     _playbackSource.value = TrailerPlaybackSource(videoUrl = resolvedUrl, audioUrl = null)
+                    // Yeni kaynak = yeni fallback oturumu.
+                    orchestrator.errorRecovery.reset()
                     onSwitched(resolvedUrl, target)
                     Log.d("KitsugiPlayerViewModel", "tryNextSource: '${target.addonName}' kaynağına geçildi")
                 } else {
@@ -1220,28 +1307,46 @@ class KitsugiPlayerViewModel(application: Application) : AndroidViewModel(applic
     private val _bingeCountdownSec = MutableStateFlow(10)
     val bingeCountdownSec: StateFlow<Int> = _bingeCountdownSec.asStateFlow()
 
+    /**
+     * Scrobble oturumu bölüm başına BİR kez başlatılır.
+     *
+     * Eskiden hem [setActiveEngine] hem de `onSourceReady` çağrılıyordu. Motor geri dönüşü
+     * (MEDIA3→MPV) veya kaynak değişimi her seferinde `onEpisodeStarted` çağırıp
+     * `scrobbled=false` yapıyor, %80'de bir kez yapılması gereken AniList güncellemesi
+     * aynı bölüm için tekrar tekrar tetiklenebiliyordu.
+     */
+    private var scrobbleSessionKey: String? = null
+
+    private fun startScrobbleSessionIfNeeded(engine: com.kitsugi.animelist.core.player.engine.PlayerEngine?) {
+        val episode = _currentEpisode.value
+        val mediaKey = malId ?: aniListId ?: animeTitle.hashCode()
+        val key = "$mediaKey:$episode"
+        if (key == scrobbleSessionKey) return
+        scrobbleSessionKey = key
+        viewModelScope.launch {
+            val db = KitsugiDatabase.getDatabase(context)
+            val entryEntity = malId?.let { db.mediaEntryDao().getByMalId(it) }
+                ?: aniListId?.let { db.mediaEntryDao().getById(it) }
+            val mediaEntry = entryEntity?.toDomain() ?: com.kitsugi.animelist.model.MediaEntry(
+                id = aniListId ?: 0,
+                title = animeTitle,
+                subtitle = "",
+                type = com.kitsugi.animelist.model.MediaType.Anime,
+                status = com.kitsugi.animelist.model.WatchStatus.Watching,
+                score = null,
+                progress = episode,
+                total = null,
+                malId = malId,
+                titleEnglish = titleEnglish
+            )
+            orchestrator.scrobble.onEpisodeStarted(mediaEntry, episode, engine?.duration ?: 0L)
+        }
+    }
+
     fun setActiveEngine(engine: com.kitsugi.animelist.core.player.engine.PlayerEngine?) {
         this.activeEngine = engine
         if (engine != null) {
-            // Trigger scrobble onEpisodeStarted
-            viewModelScope.launch {
-                val db = KitsugiDatabase.getDatabase(context)
-                val entryEntity = malId?.let { db.mediaEntryDao().getByMalId(it) }
-                    ?: aniListId?.let { db.mediaEntryDao().getById(it) }
-                val mediaEntry = entryEntity?.toDomain() ?: com.kitsugi.animelist.model.MediaEntry(
-                    id = aniListId ?: 0,
-                    title = animeTitle,
-                    subtitle = "",
-                    type = com.kitsugi.animelist.model.MediaType.Anime,
-                    status = com.kitsugi.animelist.model.WatchStatus.Watching,
-                    score = null,
-                    progress = _currentEpisode.value,
-                    total = null,
-                    malId = malId,
-                    titleEnglish = titleEnglish
-                )
-                orchestrator.scrobble.onEpisodeStarted(mediaEntry, _currentEpisode.value, engine.duration)
-            }
+            startScrobbleSessionIfNeeded(engine)
         }
     }
 
@@ -1251,62 +1356,23 @@ class KitsugiPlayerViewModel(application: Application) : AndroidViewModel(applic
     val orchestrator: com.kitsugi.animelist.ui.screens.fullscreen.runtime.PlayerRuntimeOrchestrator = com.kitsugi.animelist.ui.screens.fullscreen.runtime.PlayerRuntimeOrchestrator(
         scope = viewModelScope,
         context = context,
-        onSourceReady = { url, audio, headers, source, title ->
-            _currentVideoUrl.value = url
-            _currentAudioUrl.value = audio
-            _currentHeaders.value = headers
-            _currentAddonName.value = source.addonName
-            _currentTitle.value = title
-            _playbackSource.value = TrailerPlaybackSource(videoUrl = url, audioUrl = audio)
-            fetchAutoSubtitles()
-            // Re-trigger scrobble onEpisodeStarted when new source is ready
-            activeEngine?.let { engine ->
-                viewModelScope.launch {
-                    val db = KitsugiDatabase.getDatabase(context)
-                    val entryEntity = malId?.let { db.mediaEntryDao().getByMalId(it) }
-                        ?: aniListId?.let { db.mediaEntryDao().getById(it) }
-                    val mediaEntry = entryEntity?.toDomain() ?: com.kitsugi.animelist.model.MediaEntry(
-                        id = aniListId ?: 0,
-                        title = animeTitle,
-                        subtitle = "",
-                        type = com.kitsugi.animelist.model.MediaType.Anime,
-                        status = com.kitsugi.animelist.model.WatchStatus.Watching,
-                        score = null,
-                        progress = _currentEpisode.value,
-                        total = null,
-                        malId = malId,
-                        titleEnglish = titleEnglish
-                    )
-                    orchestrator.scrobble.onEpisodeStarted(mediaEntry, _currentEpisode.value, engine.duration)
-                }
-            }
-        },
-        onAfrRequired = { url, headers, mode, resolution ->
-            viewModelScope.launch {
-                runAfrPreflightIfEnabled(
-                    context = context,
-                    activity = null,
-                    url = url,
-                    headers = headers,
-                    frameRateMatchingMode = mode,
-                    resolutionMatchingEnabled = resolution
-                )
-            }
-        },
-        getEngine = { activeEngine },
         getAniListToken = { com.kitsugi.animelist.data.auth.ExternalAuthManager.getAniListToken(context) },
         onRetry = { attempt ->
             viewModelScope.launch {
                 activeEngine?.let { engine ->
                     _currentVideoUrl.value?.let { url ->
-                        engine.prepare(
-                            videoUrl = url,
-                            audioUrl = _currentAudioUrl.value,
-                            headers = _currentHeaders.value,
-                            subtitles = _currentSubtitles.value,
-                            startPositionMs = engine.currentPosition,
-                            addonName = _currentAddonName.value
-                        )
+                        runCatching {
+                            engine.prepare(
+                                videoUrl = url,
+                                audioUrl = _currentAudioUrl.value,
+                                headers = _currentHeaders.value,
+                                subtitles = _currentSubtitles.value,
+                                startPositionMs = engine.currentPosition,
+                                addonName = _currentAddonName.value
+                            )
+                        }.onFailure {
+                            Log.e("KitsugiPlayerViewModel", "onRetry prepare hatası (deneme $attempt)", it)
+                        }
                     }
                 }
             }
@@ -1334,7 +1400,17 @@ class KitsugiPlayerViewModel(application: Application) : AndroidViewModel(applic
             }
         },
         onShowStillWatching = {
-            // Managed by StillWatchingController state
+            // AutoplayController "still watching" kararı verdiğinde controller'ın prompt'unu
+            // gerçekten aç. Eskiden burada yalnızca yorum vardı; UI hiçbir zaman uyarı
+            // göstermiyor, oturum limiti sessizce yok sayılıyordu.
+            viewModelScope.launch {
+                val settings = SettingsDataStore(context).settingsFlow.first()
+                orchestrator.stillWatching.applySettings(settings)
+                orchestrator.stillWatching.showPromptNow()
+            }
+        },
+        onStillWatchingTimeout = {
+            activeEngine?.pause()
         },
         onShowEndPrompt = {
             activeEngine?.pause()
@@ -1688,6 +1764,8 @@ class KitsugiPlayerViewModel(application: Application) : AndroidViewModel(applic
      */
     fun onStillWatchingConfirmed() {
         orchestrator.stillWatching.onConfirmed()
+        // Geri sayım bittiğinde oynatma duraklatılmıştı; kullanıcı onaylayınca devam et.
+        activeEngine?.play()
     }
 
     /**
@@ -1696,6 +1774,7 @@ class KitsugiPlayerViewModel(application: Application) : AndroidViewModel(applic
      */
     fun onStillWatchingDismissed() {
         orchestrator.stillWatching.onDismissed()
+        activeEngine?.pause()
     }
 
     /**

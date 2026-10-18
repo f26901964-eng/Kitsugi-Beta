@@ -109,7 +109,12 @@ class PlayerMediaSourceFactory(
             val subConfigs = subtitles.map { sub ->
                 val mime = guessSubtitleMimeType(sub.url)
                 val resolvedUrl = if (sub.url.startsWith("/")) "file://${sub.url}" else sub.url
+                // Kimlik (id) ZORUNLU: Media3PlayerEngine, harici altyazıyı dahili
+                // altyazıdan ayırırken `format.id == sub.url` karşılaştırması yapıyor.
+                // Bu alan olmadan "harici Türkçe altyazı önceliği" ve kullanıcı seçimi
+                // yanlış eşleşiyordu.
                 MediaItem.SubtitleConfiguration.Builder(Uri.parse(resolvedUrl))
+                    .setId(sub.url)
                     .setMimeType(mime)
                     .setLanguage(sub.lang)
                     .setLabel(sub.name)
@@ -226,17 +231,32 @@ class PlayerMediaSourceFactory(
         streamTitle: String?,
         qualityValue: Int?,
         extractorsFactory: ExtractorsFactory,
+        /** Engine tarafında (altyazı kimlikleri / yerel MIME tespiti ile) hazırlanmış MediaItem. */
+        mediaItemOverride: MediaItem? = null,
     ): MediaSource {
-        val mediaItem = buildMediaItem(videoUrl, subtitles)
+        val mediaItem = mediaItemOverride ?: buildMediaItem(videoUrl, subtitles)
 
         // YouTube-style dual-stream (video + audio)
         val activeExtractorsFactory = customExtractorsFactory ?: extractorsFactory
         if (!audioUrl.isNullOrBlank()) {
             Log.d(TAG, "Building MergingMediaSource (YouTube/dual-stream)")
-            val factory = DefaultMediaSourceFactory(
-                YoutubeChunkedDataSourceFactory(),
-                activeExtractorsFactory
-            )
+            // ÖNEMLİ: Ses parçası da VİDEO ile aynı DataSource/başlık zincirini kullanmalı.
+            // Eskiden burada koşulsuz YoutubeChunkedDataSourceFactory kullanılıyordu; CS
+            // kaynaklarında Referer/Cookie/UA ve video interceptor'ı ses isteğine hiç
+            // uygulanmıyor, ses 403 alınca görüntü sessiz kalıyordu.
+            val dsFactory = if (!isCS && headers.isEmpty()) {
+                YoutubeChunkedDataSourceFactory()
+            } else {
+                buildDataSourceFactory(
+                    addonName    = addonName,
+                    headers      = headers,
+                    videoUrl     = videoUrl,
+                    streamTitle  = streamTitle,
+                    isCS         = isCS,
+                    qualityValue = qualityValue
+                )
+            }
+            val factory = DefaultMediaSourceFactory(dsFactory, activeExtractorsFactory)
             customSubtitleParserFactory?.let {
                 factory.setSubtitleParserFactory(it)
             }

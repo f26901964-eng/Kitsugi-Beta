@@ -80,6 +80,14 @@ class PlayerFallbackCoordinator(
     /** Kaç fallback denemesi yapıldığını döndürür */
     val attemptCount: Int get() = attempts
 
+    /** Bir motorun bu oturumda zaten denendiğini bildirir (ör. kodek hatasında zorunlu MPV geçişi). */
+    fun wasTried(engine: PlayerEngineType): Boolean = engine in triedEngines
+
+    /** Dışarıdan yapılan zorunlu motor geçişini kaydeder; aynı motora geri dönüşü engeller. */
+    fun markTried(engine: PlayerEngineType) {
+        triedEngines += engine
+    }
+
     // ── Statik yardımcı (geriye dönük uyumluluk) ──────────────────────────────
 
     companion object {

@@ -3,8 +3,6 @@ package com.kitsugi.animelist.ui.screens.fullscreen.runtime
 import android.content.Context
 import android.util.Log
 import kotlinx.coroutines.CoroutineScope
-import com.kitsugi.animelist.data.repository.StreamSource
-import com.kitsugi.animelist.data.settings.FrameRateMatchingMode
 import com.kitsugi.animelist.core.player.engine.PlayerEngineType
 
 /**
@@ -16,7 +14,6 @@ import com.kitsugi.animelist.core.player.engine.PlayerEngineType
  * - [stillWatching]  → StillWatching prompt + binge session kuralları
  * - [audio]          → Ses rotası tespiti + route-bazlı gecikme uygulama
  * - [skip]           → AniSkip + AnimeSkip zaman damgası yükleme
- * - [source]         → Kaynak listesi, manuel / otomatik kaynak değiştirme
  * - [errorRecovery]  → Engine + source fallback, retry zinciri
  *
  * ViewModel bu orchestrator'ı init bloğunda oluşturur ve tüm
@@ -25,11 +22,6 @@ import com.kitsugi.animelist.core.player.engine.PlayerEngineType
 class PlayerRuntimeOrchestrator(
     private val scope: CoroutineScope,
     private val context: Context,
-    /** Yeni kaynak hazır olduğunda VM'e bildirim gönderilir. */
-    onSourceReady: (url: String, audio: String?, headers: Map<String, String>, source: StreamSource, title: String) -> Unit,
-    /** AFR preflight tetiklemesi için VM'e delege edilir. */
-    onAfrRequired: (url: String, headers: Map<String, String>, mode: FrameRateMatchingMode, resolution: Boolean) -> Unit,
-    getEngine: () -> com.kitsugi.animelist.core.player.engine.PlayerEngine? = { null },
     getAniListToken: () -> String? = { null },
     onRetry: (attempt: Int) -> Unit = {},
     onFallback: () -> Unit = {},
@@ -37,6 +29,8 @@ class PlayerRuntimeOrchestrator(
     onAutoPlayNext: () -> Unit = {},
     onLoop: () -> Unit = {},
     onShowStillWatching: () -> Unit = {},
+    /** "Hâlâ izliyor musunuz?" geri sayımı bittiğinde çağrılır (oynatmayı duraklat). */
+    onStillWatchingTimeout: () -> Unit = {},
     onShowEndPrompt: () -> Unit = {},
     onCountdownTick: (remaining: Int) -> Unit = {},
     /** Called when a playback error triggers an engine switch (MEDIA3 → MPV). */
@@ -51,19 +45,13 @@ class PlayerRuntimeOrchestrator(
     // ── Controller instances ───────────────────────────────────────────────────
 
     val stillWatching: PlayerStillWatchingController =
-        PlayerStillWatchingController(scope)
+        PlayerStillWatchingController(scope, onPromptTimedOut = onStillWatchingTimeout)
 
     val audio: PlayerAudioController =
         PlayerAudioController(scope, context)
 
     val skip: PlayerSkipController =
         PlayerSkipController(scope, context)
-
-    val source: PlayerSourceController =
-        PlayerSourceController(scope, context, onSourceReady, onAfrRequired)
-
-    val track: PlayerTrackController =
-        PlayerTrackController(scope, getEngine)
 
     val errorRecovery: PlayerErrorRecoveryController =
         PlayerErrorRecoveryController(

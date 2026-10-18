@@ -128,6 +128,8 @@ fun GestureHandler(
             .pointerInput(areControlsLocked, isSheetOrPanelOrDialogShown) {
                 detectTapGestures(
                     onTap = {
+                        // "Hâlâ izliyor musunuz?" sayacı kullanıcı etkileşimiyle sıfırlanır.
+                        viewModel.onUserInteraction()
                         if (isSheetOrPanelOrDialogShown) {
                             viewModel.showSheet(KitsugiSheets.None)
                             viewModel.showPanel(com.kitsugi.animelist.ui.screens.fullscreen.KitsugiPanels.None)
@@ -137,6 +139,7 @@ fun GestureHandler(
                         }
                     },
                     onDoubleTap = {
+                        viewModel.onUserInteraction()
                         if (areControlsLocked || isDoubleTapSeeking || isSheetOrPanelOrDialogShown) return@detectTapGestures
                         if (it.x > size.width * 3 / 5) {
                             if (!isSeekingForwards) viewModel.updateSeekAmount(0)
