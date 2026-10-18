@@ -2530,7 +2530,8 @@ object CsStreamRunner {
                                     qualityValue   = getQualityValue(link.quality),
                                     subtitles      = emptyList(),
                                     thumbnailUrl   = thumbnailUrl,
-                                    isAdultContent = ADULT_PLUGINS.contains(providerName)
+                                    isAdultContent = ADULT_PLUGINS.contains(providerName),
+                                    externalAudioUrl = link.audioTracks.firstOrNull()?.url?.takeIf { it.isNotBlank() }
                                 )
                             )
                         }
@@ -3065,7 +3066,8 @@ object CsStreamRunner {
                                         qualityValue = getQualityValue(link.quality),
                                         subtitles    = emptyList(),
                                         thumbnailUrl = posterUrl,
-                                        isAdultContent = ADULT_PLUGINS.contains(api.name)
+                                        isAdultContent = ADULT_PLUGINS.contains(api.name),
+                                        externalAudioUrl = link.audioTracks.firstOrNull()?.url?.takeIf { it.isNotBlank() }
                                 )
                                 streams.add(newStream)
                                 partialSink?.add(newStream)

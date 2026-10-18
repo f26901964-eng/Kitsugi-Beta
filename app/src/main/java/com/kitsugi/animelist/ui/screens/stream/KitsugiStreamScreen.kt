@@ -245,6 +245,7 @@ fun KitsugiStreamScreen(
                 if (engine == "exoplayer") {
                     KitsugiFullscreenPlayerActivity.startWithStreamUrls(
                         context = context, videoUrl = resolvedUrl,
+                        audioUrl = source.externalAudioUrl,
                         title = context.getString(R.string.title_bolum_episode, title, episode), headers = source.requestHeaders,
                         subtitles = source.subtitles, allSources = allStreams,
                         currentSourceIndex = allStreams.indexOf(source),
@@ -269,6 +270,7 @@ fun KitsugiStreamScreen(
                     } else {
                         KitsugiFullscreenPlayerActivity.startWithStreamUrls(
                             context = context, videoUrl = resolvedUrl,
+                            audioUrl = source.externalAudioUrl,
                             title = context.getString(R.string.title_bolum_episode, title, episode), headers = source.requestHeaders,
                             subtitles = source.subtitles, allSources = allStreams,
                             currentSourceIndex = allStreams.indexOf(source),

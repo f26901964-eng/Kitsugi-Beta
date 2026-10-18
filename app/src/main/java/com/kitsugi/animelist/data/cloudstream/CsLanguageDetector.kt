@@ -17,11 +17,17 @@ internal object CsLanguageDetector {
      * @return BCP-47 dil kodu ("tr", "en" vb.)
      */
     fun detectLanguageCode(lang: String): String {
-        val lower = lang.lowercase(Locale.ROOT)
+        val lower = lang.trim().lowercase(Locale.ROOT)
+        // v2.4.258: Eskiden "contains(\"tr\")" ve bilinmeyen her dil için "tr" dönüyordu; bu yüzden
+        // Almanca / Arapça / Orijinal gibi altyazılar Türkçe etiketlenip Türkçe tercihine karışıyordu.
         return when {
-            lower.contains("tr") || lower.contains("turk") || lower.contains("türk") -> "tr"
-            lower.contains("en") || lower.contains("eng") -> "en"
-            else -> "tr" // Turkish anime sites default to Turkish
+            lower == "tr" || lower == "tur" || lower.startsWith("turk") ||
+                lower.startsWith("türk") || lower.startsWith("tür") -> "tr"
+            lower == "en" || lower == "eng" || lower.startsWith("engl") -> "en"
+            // Türk sitelerindeki "Altyazı" / "Dublaj" etiketleri Türkçe kaynaktır
+            lower.contains("altyaz") || lower.contains("dublaj") -> "tr"
+            lower.isBlank() -> "und"
+            else -> "und" // Bilinmeyen dil: Türkçe varsayılmaz; ad (name) yine de gösterilir
         }
     }
 }

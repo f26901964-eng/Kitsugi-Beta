@@ -1030,7 +1030,7 @@ class KitsugiPlayerViewModel(application: Application) : AndroidViewModel(applic
                 if (resolvedUrl != null) {
                     _currentEpisode.value = targetEp
                     _currentVideoUrl.value = resolvedUrl
-                    _currentAudioUrl.value = null
+                    _currentAudioUrl.value = targetStream.externalAudioUrl
                     _currentHeaders.value = targetStream.requestHeaders ?: emptyMap()
                     _currentSubtitles.value = targetStream.subtitles ?: emptyList()
                     _currentTitle.value = KitsugiStrings.get(R.string.title_bolum_episode, animeTitle, targetEp)
@@ -1059,7 +1059,7 @@ class KitsugiPlayerViewModel(application: Application) : AndroidViewModel(applic
                         )
                     }
 
-                    _playbackSource.value = TrailerPlaybackSource(videoUrl = resolvedUrl, audioUrl = null)
+                    _playbackSource.value = TrailerPlaybackSource(videoUrl = resolvedUrl, audioUrl = targetStream.externalAudioUrl)
 
                     if (sameProviderStream == null) {
                         onAlternativeRequired()
@@ -1080,6 +1080,19 @@ class KitsugiPlayerViewModel(application: Application) : AndroidViewModel(applic
         playEpisode(_currentEpisode.value + 1, activity, onAlternativeRequired, onResolutionFailed)
     }
 
+    /**
+     * v2.4.258: Kaynak değişimi (dublaj ↔ orijinal, sunucu değişimi) artık KALDIĞI YERDEN devam eder.
+     * Eskiden yeni URL 0. saniyeden başlıyordu; sitenin kendi oynatıcısındaki gibi sorunsuz geçiş için
+     * mevcut konum [pendingSourceSwitchResumeMs] içinde saklanır ve yeni kaynak hazırlanırken alınır.
+     */
+    private var pendingSourceSwitchResumeMs: Long? = null
+
+    fun takePendingSourceSwitchResume(): Long? {
+        val value = pendingSourceSwitchResumeMs
+        pendingSourceSwitchResumeMs = null
+        return value
+    }
+
     fun changeStreamSource(index: Int, stream: StreamSource, resolvedUrl: String) {
         PlayerLogger.logSourceChange(
             context   = context,
@@ -1088,13 +1101,14 @@ class KitsugiPlayerViewModel(application: Application) : AndroidViewModel(applic
             newUrl    = resolvedUrl,
             title     = _currentTitle.value
         )
+        pendingSourceSwitchResumeMs = activeEngine?.currentPosition?.takeIf { it > 0L }
         _currentVideoUrl.value = resolvedUrl
-        _currentAudioUrl.value = null
+        _currentAudioUrl.value = stream.externalAudioUrl
         _currentHeaders.value = stream.requestHeaders ?: emptyMap()
         _currentSubtitles.value = stream.subtitles ?: emptyList()
         _currentSourceIndex.value = index
         _currentAddonName.value = stream.addonName
-        _playbackSource.value = TrailerPlaybackSource(videoUrl = resolvedUrl, audioUrl = null)
+        _playbackSource.value = TrailerPlaybackSource(videoUrl = resolvedUrl, audioUrl = stream.externalAudioUrl)
         fetchAutoSubtitles()
     }
 
