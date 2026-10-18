@@ -2492,7 +2492,7 @@ object CsStreamRunner {
                         subtitleCallback = { sub ->
                             subtitleCallback(
                                 SubtitleInput(
-                                    url  = sub.url,
+                                    url  = normalizeCsSubtitleUrl(sub.url),
                                     name = sub.lang,
                                     lang = sub.langTag ?: detectLanguageCode(sub.lang)
                                 )
@@ -2995,7 +2995,7 @@ object CsStreamRunner {
                             Log.d(TAG, "[${api.name}] Altyazı: ${subtitleFile.lang} → ${subtitleFile.url}")
                             subtitleList.add(
                                 SubtitleInput(
-                                    url = subtitleFile.url,
+                                    url = normalizeCsSubtitleUrl(subtitleFile.url),
                                     name = subtitleFile.lang,
                                     lang = subtitleFile.langTag ?: detectLanguageCode(subtitleFile.lang)
                                 )
@@ -4144,3 +4144,13 @@ object CsStreamRunner {
         loadAndExtractStreams(api, searchResponse, season, episode, isResolvedMovie)
     }
 }
+
+/**
+ * HDFilmCehennemi eklentisi göreli altyazı yollarının sonuna `/` ekliyor
+ * (`"${mainUrl}${subFile}/"`). Dosya uzantılı altyazılarda bu sonek dosyayı
+ * bulunamaz hale getirir; uzantıdan sonraki sondaki `/` kaldırılır.
+ */
+private val CS_SUB_TRAILING_SLASH_REGEX = Regex("""\.(vtt|srt|ass|ssa|webvtt)/$""", RegexOption.IGNORE_CASE)
+
+internal fun normalizeCsSubtitleUrl(url: String): String =
+    if (CS_SUB_TRAILING_SLASH_REGEX.containsMatchIn(url)) url.trimEnd('/') else url
