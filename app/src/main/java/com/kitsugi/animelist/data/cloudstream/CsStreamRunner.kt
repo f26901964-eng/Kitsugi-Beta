@@ -2310,6 +2310,49 @@ object CsStreamRunner {
     }
 
     /**
+     * Bir sayfa/akış adresinin origin'ini (`scheme://host[:port]`) döndürür.
+     * Çözümlenemezse null.
+     */
+    internal fun originOfUrl(url: String?): String? {
+        if (url.isNullOrBlank()) return null
+        return try {
+            val uri = java.net.URI(url.trim())
+            val host = uri.host?.takeIf { it.isNotBlank() } ?: return null
+            val scheme = uri.scheme?.takeIf { it.isNotBlank() } ?: "https"
+            val port = if (uri.port > 0 && uri.port != 80 && uri.port != 443) ":${uri.port}" else ""
+            "$scheme://$host$port"
+        } catch (_: Exception) {
+            null
+        }
+    }
+
+    /**
+     * Embed/oynatıcı sayfasının origin'ini `Origin` + `Referer` olarak başlıklara işler.
+     *
+     * NEDEN (2026-10-18 kök neden): Türkçe CDN'ler (playmix.uno / closeload / rapidrame)
+     * isteği **embed sayfasının origin'ine** göre doğruluyor. Uygulama bu başlığı
+     * doldurmadığında CDN isteği reddediyordu — FilmMakinesi eklentisinin kendi kaydı:
+     * "Origin embed sunucusuna sabit; eksik kalınca uygulama onu playmix.uno yapıyor ve
+     * yayın 5004 ile düşüyordu." Sonuç: kaynak listeleniyor ama oynatıcı hata veriyordu.
+     *
+     * Kural: çağıranın açıkça verdiği `Origin`/`Referer` ASLA ezilmez; yalnızca eksikse
+     * embed origin'i ile doldurulur.
+     */
+    internal fun applyEmbedOriginHeaders(
+        headers: MutableMap<String, String>,
+        embedPageUrl: String?
+    ): MutableMap<String, String> {
+        val origin = originOfUrl(embedPageUrl) ?: return headers
+        if (!headers.keys.any { it.equals("origin", ignoreCase = true) }) {
+            headers["Origin"] = origin
+        }
+        if (!headers.keys.any { it.equals("referer", ignoreCase = true) }) {
+            headers["Referer"] = "$origin/"
+        }
+        return headers
+    }
+
+    /**
      * Derin taramada bulunan medya adayını hafif bir HTTP isteğiyle doğrular.
      *
      * Oynatıcıya HTML sayfası göndermek "oynatıcı hata veriyor" şikâyetinin en büyük
@@ -2329,6 +2372,9 @@ object CsStreamRunner {
                         com.lagradost.cloudstream3.network.CloudflareKiller.UNIFIED_USER_AGENT
                     )
                     .addHeader("Referer", pageUrl)
+                    // CDN'ler embed origin'ini de doğruluyor; eksikse 5004/403 dönüyor ve
+                    // çalışan aday "ölü" sayılıp kaynak listesi boş kalıyordu.
+                    .apply { originOfUrl(pageUrl)?.let { addHeader("Origin", it) } }
                     .addHeader("Accept", "*/*")
                     .build()
 
@@ -2694,6 +2740,9 @@ object CsStreamRunner {
                 // 3a) Yanıtın kendisi medya ise (uzantısız HLS/MP4 CDN'leri) → doğrudan kabul et.
                 if (isMediaContentType(fetched.contentType)) {
                     val selfHeaders = rawHeaders.toMutableMap()
+                    // Referer/Origin: sayfanın KENDİ origin'i önceliklidir (CDN bunu doğrular),
+                    // provider sitesi değil.
+                    applyEmbedOriginHeaders(selfHeaders, resolvedUrl)
                     if (!selfHeaders.keys.any { it.equals("referer", ignoreCase = true) }) {
                         selfHeaders["Referer"] = referer.ifBlank { resolvedUrl }
                     }
@@ -2758,6 +2807,8 @@ object CsStreamRunner {
                             continue
                         }
                         val scannedHeaders = rawHeaders.toMutableMap()
+                        // Adayın bulunduğu sayfanın origin'i: CDN doğrulaması buna bakıyor.
+                        applyEmbedOriginHeaders(scannedHeaders, resolvedUrl)
                         if (!scannedHeaders.keys.any { it.equals("referer", ignoreCase = true) }) {
                             scannedHeaders["Referer"] = resolvedUrl
                         }
@@ -2817,6 +2868,7 @@ object CsStreamRunner {
                         val sniffedUrl = sniff.url
                         if (sniffedUrl != null) {
                             val sniffHeaders = sniff.headers.toMutableMap()
+                            applyEmbedOriginHeaders(sniffHeaders, resolvedUrl)
                             if (!sniffHeaders.keys.any { it.equals("referer", ignoreCase = true) }) {
                                 sniffHeaders["Referer"] = resolvedUrl
                             }
