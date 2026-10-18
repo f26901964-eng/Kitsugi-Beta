@@ -33,6 +33,25 @@ class PlayerHlsDetectionTest {
         assertFalse(PlayerMediaSourceFactory.isHlsUrl("https://cdn.example.com/video.mp4?sig=abc"))
     }
 
+    /**
+     * v2.4.304 regresyon testi: '/hls/' gibi ZAYIF yol belirteçleri progressive uzantı
+     * kontrolünden SONRA koşmalı. closeload/rapidrame CDN'lerinin '/hls/.../1080p.mp4'
+     * biçimindeki düz dosyaları aksi halde HLS MIME'ı ile ExoPlayer'a verilip çözülemiyordu.
+     */
+    @Test
+    fun progressiveMp4_underHlsPath_isNotHls() {
+        assertFalse(PlayerMediaSourceFactory.isHlsUrl("https://cdn.playmix.uno/hls/04c0b9/1080p.mp4"))
+        assertFalse(PlayerMediaSourceFactory.isHlsUrl("https://srv.closeload.top/hls/x/film.mp4?token=abc"))
+        assertFalse(PlayerMediaSourceFactory.isHlsUrl("https://n1.rapidrame.com/hls/a/b/720p.mkv"))
+    }
+
+    @Test
+    fun extensionlessManifests_onHlsPaths_stayHls() {
+        assertTrue(PlayerMediaSourceFactory.isHlsUrl("https://closeload.top/hls/abc123/"))
+        assertTrue(PlayerMediaSourceFactory.isHlsUrl("https://playmix.uno/hls/abc/master.txt"))
+        assertTrue(PlayerMediaSourceFactory.isHlsUrl("https://rapidrame.com/playlist/x/"))
+    }
+
     @Test
     fun blankUrl_isNotHls() {
         assertFalse(PlayerMediaSourceFactory.isHlsUrl(""))

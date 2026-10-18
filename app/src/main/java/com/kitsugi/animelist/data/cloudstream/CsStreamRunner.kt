@@ -3233,6 +3233,18 @@ object CsStreamRunner {
                                         .url(url)
                                         .method("HEAD", null)
                                         .addHeader("User-Agent", com.lagradost.cloudstream3.network.CloudflareKiller.UNIFIED_USER_AGENT)
+                                    // v2.4.304: doğrulamaya kaynağın TÜM başlıkları verilir
+                                    // (Origin dahil). closeload/rapidrame CDN'leri Origin'i
+                                    // kontrol eder; yalnız Referer ile atılan HEAD yanlış
+                                    // kodla dönüp çalışan kaynağı "ölü" gösterebiliyordu.
+                                    stream.requestHeaders?.forEach { (key, value) ->
+                                        if (!key.equals("User-Agent", ignoreCase = true) &&
+                                            !key.equals("Referer", ignoreCase = true) &&
+                                            value.isNotBlank()
+                                        ) {
+                                            requestBuilder.addHeader(key, value)
+                                        }
+                                    }
                                     if (!referer.isNullOrBlank()) {
                                         requestBuilder.addHeader("Referer", referer)
                                     }
@@ -3258,7 +3270,14 @@ object CsStreamRunner {
                                         405, 501 -> true   // HEAD desteklenmiyor, GET ile açılır
                                         429 -> true        // Rate limit, geçici
                                         in 500..599 -> true // Sunucu hatası, geçici olabilir
-                                        404, 410 -> false  // Dosya yok
+                                        410 -> false  // Kalici olarak gitmus — olu
+                                        404 -> {
+                                            // v2.4.304: bazi CDN'ler imzali playlist/video URL'lerine
+                                            // HEAD'de 404 doner ama GET calisir (closeload/rapidrame
+                                            // ailesinde gozlendi). Kaynagi dusurmeden once GET dene.
+                                            Log.d(TAG, "[${api.name}] HEAD 404 dondu, GET ile deneniyor: ${url.take(60)}")
+                                            tryGetRangeValidation(url, referer)
+                                        }
                                         400 -> {
                                             // 400 Bad Request — bazı CDN'ler HEAD'e 400 döner ama GET çalışır.
                                             Log.d(TAG, "[${api.name}] HEAD 400 döndü, GET ile deneniyor: ${url.take(60)}")

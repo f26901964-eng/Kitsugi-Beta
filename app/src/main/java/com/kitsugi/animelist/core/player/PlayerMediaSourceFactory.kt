@@ -334,25 +334,31 @@ class PlayerMediaSourceFactory(
                 clean.substringBefore('?')
             }
 
-            // 1) Kesin HLS belirteçleri (playlist adı / m3u8 yolu). Yol içinde .mp4 geçse bile
-            //    bunlar önceliklidir: FilmMakinesi / CloseLoad 'hls/...mp4/master.txt' yapısı.
+            // 1) KESİN HLS belirteçleri (manifest adı / m3u8 yolu). Bunlar her şeyden
+            //    öncedir: FilmMakinesi / CloseLoad 'hls/...mp4/master.txt' yapısı.
             if (clean.contains(".m3u8") || clean.contains("m3u8") ||
-                clean.contains("/hls/") || clean.contains("/hls") ||
                 clean.contains("master.txt") || clean.contains("playlist.txt") ||
                 clean.contains("video.txt") || clean.contains("tracks.txt") ||
-                clean.contains("vidmixi.com/list") || clean.contains("vidmixi.com/m3u") ||
+                clean.contains("vidmixi.com/list") || clean.contains("vidmixi.com/m3u")) {
+                return true
+            }
+
+            // 2) v2.4.258 + v2.4.304: Yol bir DOĞRUDAN progressive dosyaya bitiyorsa
+            //    (.mp4/.mkv/.webm/.avi/.m4v) HLS DEĞİLDİR. v2.4.304'e kadar '/hls/' gibi
+            //    ZAYIF yol belirteçleri bu kontrolden ÖNCE koşuyordu; closeload / rapidrame
+            //    CDN'lerinin '/hls/.../1080p.mp4' biçimindeki düz dosyaları yine HLS MIME'ı
+            //    ile (application/x-mpegURL) ExoPlayer'a veriliyor ve çözülemiyordu.
+            //    Sıralama: kesin manifest → progressive uzantı → zayıf yol/host belirteçleri.
+            if (PROGRESSIVE_PATH_REGEX.containsMatchIn(path)) return false
+
+            // 3) Zayıf HLS yol belirteçleri (uzantısız manifest verebilirler)
+            if (clean.contains("/hls/") || clean.contains("/hls") ||
                 clean.contains("/m3u8/") || clean.contains("/playlist/") ||
                 clean.contains("/hls-vod/")) {
                 return true
             }
 
-            // 2) v2.4.258: Yol bir DOĞRUDAN progressive dosyaya bitiyorsa (.mp4/.mkv/.webm/.avi/.m4v)
-            //    HLS DEĞİLDİR. Eskiden aşağıdaki host listesi bu kontrolden ÖNCE çalıştığı için
-            //    closeload / rapidrame / hdfilmcehennemi / filmmakinesi üzerindeki düz MP4'ler
-            //    HLS MIME ile (application/x-mpegURL) oynatıcıya veriliyor, ExoPlayer çözemiyordu.
-            if (PROGRESSIVE_PATH_REGEX.containsMatchIn(path)) return false
-
-            // 3) Bilinen HLS üreten host / CDN'ler (uzantısız manifest verebilirler)
+            // 4) Bilinen HLS üreten host / CDN'ler (uzantısız manifest verebilirler)
             if (clean.contains("vidmixi") || clean.contains("dosyaload") ||
                 clean.contains("playmix.uno") || clean.contains("playmix") ||
                 clean.contains("closeload") || clean.contains("rapidrame") ||
@@ -365,12 +371,6 @@ class PlayerMediaSourceFactory(
                 clean.contains("hdplayersystem") || clean.contains("imagestoo") ||
                 clean.contains("pichive") || clean.contains("dizilla")) {
                 return true
-            }
-
-            // 4) Sorgu parametreli progressive dosyalar (ör. video.mp4?token=...)
-            if (clean.contains(".mp4?") || clean.contains(".mkv?") ||
-                clean.contains(".webm?") || clean.contains(".avi?")) {
-                return false
             }
 
             // 5) Olası akış yolları
