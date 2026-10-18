@@ -9,19 +9,57 @@
 
 ## 0. Özet
 
-İki **ayrı** kök neden üst üste binmişti. Birincisi eklenti deposunda, ikincisi uygulamada:
+**Dört** kök neden üst üste binmişti. İkisi uygulamada, ikisi eklenti deposunda:
 
-| # | Katman | Kök neden | Belirti |
-|---|---|---|---|
-| **KN-A** | Eklenti (`.cs3`) | `linkTypeFor()` else dalında `INFER_TYPE!!` → **her zaman NullPointerException** | Eklenti link üretemiyor → 0 kaynak / oynatıcı hata |
-| **KN-B** | Uygulama (`CsStreamRunner`) | Kurtarma yolları aday adresi **provider origin'i** ile doğruluyor; CDN ise **embed origin'i** istiyor | Bulunan akış "ölü" sayılıp eleniyor → yine 0 kaynak |
+| # | Katman | Kök neden | Belirti | Durum |
+|---|---|---|---|---|
+| **KN-D** | Uygulama (MPV motoru) | `tls-verify=yes` + `tls-ca-file=<filesDir>/cacert.pem` — o dosya **hiçbir zaman oluşturulmuyordu** → CA paketi boş → **her HTTPS el sıkışması başarısız** | Varsayılan motorda (`playerPreference = "MPV"`) **hiçbir kaynak** oynamıyor, kod 9001 | ✅ **DÜZELTİLDİ** |
+| **KN-A** | Eklenti (`.cs3`) | `linkTypeFor()` else dalında `INFER_TYPE!!` → **her zaman NullPointerException** | Eklenti link üretemiyor → 0 kaynak | ⚠️ yama hazır, push yetkisi yok |
+| **KN-B** | Uygulama (`CsStreamRunner`) | Kurtarma yolları aday adresi **provider origin'i** ile doğruluyor; CDN ise **embed origin'i** istiyor | Bulunan akış "ölü" sayılıp eleniyor | ✅ **DÜZELTİLDİ** |
+| **KN-C** | Uygulama (`CsStreamSanitizer`) | `httpshttp://…` gibi bozuk adres oynatıcıya kadar gidiyordu | "Kaynak görünüyor ama oynatmıyor" | ✅ **DÜZELTİLDİ** |
 
-KN-A asıl nedendir. KN-B, KN-A yüzünden devreye geren yedeğin de çalışmamasının nedenidir —
-yani uygulama "kendi kendini kurtarma" şansını da kaybediyordu.
+**KN-D, "ne yaparsak yapalım oynatılmıyor" ifadesinin doğrudan karşılığıdır:** kaynak listesi
+dolu gelse bile varsayılan motor hiçbir HTTPS akışı açamıyordu. KN-A ise bu iki kaynağın
+zaten 0 link üretmesine yol açıyordu. İkisi birlikte tam kara deliği oluşturuyordu.
 
 ---
 
-## 1. KN-A — `INFER_TYPE!!` her zaman NPE fırlatır
+## 1. KN-D — MPV'de TLS doğrulaması var olmayan CA dosyasına bağlıydı
+
+**KN-D — MPV motorunda TLS doğrulaması var olmayan bir CA dosyasına bağlıydı (TÜM kaynaklar ölü)**
+
+`AppSettings.playerPreference` varsayılanı `"MPV"` → uygulamanın ANA oynatma yolu dahili libmpv.
+`KitsugiMpvSurfaceView.initOptions()` şunu yapıyordu:
+
+    tls-verify  = yes
+    tls-ca-file = <filesDir>/cacert.pem
+
+`cacert.pem` HİÇBİR ZAMAN oluşturulmuyordu:
+- `app/src/main/assets` içinde `.pem` dosyası yok (yalnızca companion/fandom/plugins + logo/splash)
+- `Utils.copyAssets(context)` mpv-android'in kendi asset'lerini kopyalar, CA paketi üretmez
+- depoda bu dosyayı yazan/indiren başka hiçbir kod yolu yok (`grep -rn cacert` → tek satır: bu ayar)
+
+mpv, `tls-ca-file` ile açıkça verilen yolu yüklemeye çalışır; dosya yoksa CA paketi BOŞ kalır ve
+`tls-verify=yes` ile yapılan **her HTTPS el sıkışması** başarısız olur. Türkçe CDN'lerin tamamı
+HTTPS (rapidrame, playmix.uno, closeload, vmeas, vmnow, hdplayersystem) olduğu için MPV'de
+**hiçbir kaynak** açılmıyordu → kod 9001 "MPV dosyayı açamadı" → MEDIA3'e düşüyor, o da tutmazsa
+kullanıcı "oynatıcı hata veriyor" görüyordu.
+
+Karşılaştırma (kanıt): Media3 yolu `CsVideoInterceptorFactory.buildClient(ignoreSSL = true)`
+kullanıyor — trust-all `X509TrustManager` + `hostnameVerifier { _, _ -> true }`. O dosyanın kendi
+yorumu: *"NeonSpor gibi geçersiz/süresi dolmuş SSL sertifikası kullanan Türkçe yayın
+sunucularından kaynaklanan SSLHandshakeException hatalarını engeller."* Yani bu kaynaklar için
+sertifika doğrulaması bilinçli olarak ZATEN kapatılmıştı; MPV yolu buna uymuyordu. İki motor
+aynı politika değildi — asimetri hatası.
+
+Düzeltme: politika saf bir fonksiyona çıkarıldı (`mpvTlsOptions(caFilePath)` +
+`applyMpvTlsOptions`) ve kural sabitlendi: **doğrulama yalnızca gerçekten var olan bir CA
+dosyası gösterilebildiğinde açılır.** CA yokken `tls-verify=no`, `tls-ca-file` hiç yazılmaz.
+`MpvTlsPolicyTest` bunu kilitliyor.
+
+---
+
+## 2. KN-A — `INFER_TYPE!!` her zaman NPE fırlatır
 
 ### Kanıt
 
@@ -115,7 +153,7 @@ private fun isFragmentUrl(url: String): Boolean
 
 ---
 
-## 2. KN-B — Uygulama, kurtarma yolunda yanlış origin gönderiyordu
+## 3. KN-B — Uygulama, kurtarma yolunda yanlış origin gönderiyordu
 
 FilmMakinesi eklentisinin kendi kodundaki kayıt bunu açıkça belgeliyor:
 
@@ -154,7 +192,7 @@ CDN token'ı o başlıklara bağlı. Yalnızca eksikse embed sayfasının origin
 
 ---
 
-## 3. Üçüncü katman — bozuk adres oynatıcıya hiç ulaşmasın
+## 4. Üçüncü katman — bozuk adres oynatıcıya hiç ulaşmasın
 
 Eklentilerin `substringAfter("https")` kısayolu `httpshttp://…` üretiyordu
 (v53/v63 bunu düzeltti ama eski eklenti sürümleri hâlâ kurulu olabilir). Böyle bir adres
@@ -176,12 +214,14 @@ oynatıcıyı yine çökertir.
 
 ---
 
-## 4. Değişen dosyalar
+## 5. Değişen dosyalar
 
 ### Uygulama (`Kitsugi-Beta`, bu dal)
 
 | Dosya | Ne |
 |---|---|
+| `core/player/engine/KitsugiMpvSurfaceView.kt` | **KN-D**: `tls-verify=no`, bozuk `tls-ca-file` kaldırıldı; politika `mpvTlsOptions`/`applyMpvTlsOptions` olarak dışarı alındı |
+| `app/src/test/.../core/player/engine/MpvTlsPolicyTest.kt` | YENİ — KN-D regresyonu (11 test) |
 | `data/cloudstream/CsStreamRunner.kt` | `originOfUrl`, `applyEmbedOriginHeaders` (KN-B); `verifyMediaCandidate` + 3 kurtarma yoluna `Origin` |
 | `data/cloudstream/CsStreamSanitizer.kt` | `isBrokenStreamUrl` + `sanitize` adım 0 (§3) |
 | `app/src/test/.../data/cloudstream/CsEmbedOriginHeadersTest.kt` | YENİ — KN-B regresyonu |
@@ -203,7 +243,7 @@ Commit: `ef99469` — yerel dal `arena/084e7315-kitsugi-plugins` içinde hazır.
 
 ---
 
-## 5. ⚠️ Senin yapman gereken tek şey
+## 6. ⚠️ Senin yapman gereken tek şey
 
 Bu oturumun GitHub token'ı **yalnızca `Kitsugi-Beta` deposuna yazabiliyor**;
 `Kitsugi-Plugins`'e push 403 verdi. Eklenti düzeltmesi bu yüzden yayınlanamadı.
@@ -245,7 +285,7 @@ Beklenen:
 
 ---
 
-## 6. Doğrulama durumu
+## 7. Doğrulama durumu
 
 - Uygulama tarafı: statik doğrulama (bu sandbox'ta JDK / Android SDK / Gradle yok,
   `apt` deposu ve `api.adoptium.net` erişilemez → derleme yapılamadı).
@@ -267,7 +307,7 @@ Senin makinende:
 
 ---
 
-## 7. Bilinen sınırlar / açık riskler
+## 8. Bilinen sınırlar / açık riskler
 
 1. **Eklenti yayınlanana kadar düzelme yok.** KN-A eklenti tarafında; uygulama tek başına
    bu iki kaynağı çalıştırmaz. (§5)

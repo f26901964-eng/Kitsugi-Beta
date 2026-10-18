@@ -622,8 +622,22 @@ class KitsugiMpvSurfaceView @JvmOverloads constructor(
         mpv.setOptionString("hwdec-codecs", "h264,hevc,mpeg4,mpeg2video,vp8,vp9,av1")
         mpv.setOptionString("ao", "audiotrack,opensles")
         mpv.setOptionString("audio-set-media-role", "yes")
-        mpv.setOptionString("tls-verify", "yes")
-        mpv.setOptionString("tls-ca-file", "${context.filesDir.path}/cacert.pem")
+
+        // ── KÖK NEDEN DÜZELTMESİ (2026-10-18): HTTPS akışların TAMAMI MPV'de ölüydü ──
+        // Eski kod `tls-verify = yes` + `tls-ca-file = filesDir/cacert.pem` veriyordu.
+        // O cacert.pem HİÇBİR ZAMAN oluşturulmuyordu (assets'te .pem yok, copyAssets CA
+        // paketi üretmez, depoda dosyayı yazan başka kod yolu yok). mpv açıkça verilen
+        // CA yolunu yükleyemeyince CA paketi boş kalıyor ve doğrulama AÇIK olduğu için
+        // HER HTTPS el sıkışması başarısız oluyordu. Türkçe CDN'lerin tamamı HTTPS
+        // (rapidrame, playmix.uno, closeload, vmeas, vmnow, hdplayersystem) olduğundan
+        // MPV'de hiçbir kaynak açılmıyordu → kod 9001 "MPV dosyayı açamadı".
+        // playerPreference varsayılanı "MPV" olduğu için bu, ANA oynatma yoluydu.
+        //
+        // Yeni davranış Media3 yolu ile aynı politika: CsVideoInterceptorFactory
+        // buildClient(ignoreSSL = true) → trust-all TrustManager + hostnameVerifier true
+        // ("geçersiz/süresi dolmuş SSL sertifikalı Türkçe yayın sunucuları" gerekçesiyle).
+        // Ayrıntı ve kural: [mpvTlsOptions]. Gerçek bir cacert.pem assets'e eklenip
+        // filesDir'e kopyalanırsa doğrulama orada yeniden açılabilir.
         mpv.setOptionString("input-default-bindings", "yes")
         mpv.setOptionString("demuxer-max-bytes", "${64 * 1024 * 1024}")
         mpv.setOptionString("demuxer-max-back-bytes", "${64 * 1024 * 1024}")
@@ -839,4 +853,53 @@ internal fun resolveAspectScale(mode: AspectMode, viewAspect: Float, videoAspect
             }
         }
     }
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+//  MPV TLS politikası — 2026-10-18 kök neden düzeltmesi
+// ══════════════════════════════════════════════════════════════════════════════
+
+/**
+ * mpv'nin TLS seçeneklerini döndürür: `List<Pair<mpv-seçenek-adı, değer>>`.
+ *
+ * NEDEN VAR (kök neden): `initOptions` eskiden `tls-verify` seçeneğini `yes`,
+ * `tls-ca-file` seçeneğini de `filesDir/cacert.pem` olarak ayarlıyordu.
+ * `filesDir/cacert.pem` **hiçbir zaman oluşturulmuyordu** (assets'te `.pem` yok,
+ * `Utils.copyAssets` CA paketi üretmez, depoda bu dosyayı yazan başka kod yolu yok).
+ * mpv `tls-ca-file` ile açıkça verilen yolu yüklemeye çalışır; dosya yoksa CA paketi
+ * boş kalır ve `tls-verify=yes` ile yapılan **her HTTPS el sıkışması** başarısız olur.
+ * Türkçe kaynakların tamamı HTTPS (rapidrame, playmix.uno, closeload, vmeas, vmnow,
+ * hdplayersystem …) olduğu için MPV motorunda hiçbir kaynak açılmıyordu →
+ * "MPV dosyayı açamadı" (kod 9001). `playerPreference` varsayılanı `"MPV"` olduğundan
+ * bu, uygulamanın ANA oynatma yoluydu.
+ *
+ * KURAL: Sertifika doğrulaması YALNIZCA gerçekten var olan bir CA dosyası
+ * gösterilebildiğinde açılır. Dosya yokken `tls-verify=yes` vermek tüm HTTPS
+ * akışları sessizce öldürür — bu yüzden doğrulama kapatılır ve `tls-ca-file`
+ * hiç ayarlanmaz.
+ *
+ * Bu, Media3 yolunun zaten uyguladığı politikanın aynısıdır:
+ * `CsVideoInterceptorFactory.buildClient(ignoreSSL = true)` → trust-all
+ * `X509TrustManager` + `hostnameVerifier { _, _ -> true }` ("geçersiz/süresi dolmuş
+ * SSL sertifikası kullanan Türkçe yayın sunucuları" gerekçesiyle).
+ *
+ * @param caFilePath Gerçekten diskte var olan bir CA paketi yolu; yoksa `null`.
+ */
+internal fun mpvTlsOptions(caFilePath: String?): List<Pair<String, String>> =
+    if (caFilePath.isNullOrBlank()) {
+        listOf("tls-verify" to "no")
+    } else {
+        listOf("tls-verify" to "yes", "tls-ca-file" to caFilePath)
+    }
+
+/**
+ * [mpvTlsOptions] çıktısını mpv'ye uygular.
+ *
+ * @param setter mpv seçenek yazıcı (ör. `{ name, value -> mpv.setOptionString(name, value) }`)
+ */
+internal fun applyMpvTlsOptions(
+    caFilePath: String? = null,
+    setter: (String, String) -> Unit
+) {
+    mpvTlsOptions(caFilePath).forEach { (name, value) -> setter(name, value) }
 }
