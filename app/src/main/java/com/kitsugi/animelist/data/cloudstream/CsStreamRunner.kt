@@ -2163,6 +2163,7 @@ object CsStreamRunner {
                clean.contains("turkanime.tv/embed") || // TurkAnime AES embed player
                clean.contains("turkanime.co/embed") || // TurkAnime AES embed player (eski domain)
                clean.contains("closeload.top") ||     // CloseLoad (Türkiye CDN)
+               clean.contains("closeload.filmmakinesi.to") || // FilmMakinesi CloseLoad (upstream v60)
                clean.contains("gstore.one") ||        // GStore (Türkiye CDN)
                clean.contains("trstx.org") ||         // TRsTX (Türkiye CDN)
                clean.contains("chillx.top") ||        // Chillx embed

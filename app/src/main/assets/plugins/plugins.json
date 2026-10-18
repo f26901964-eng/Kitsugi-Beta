@@ -83,26 +83,26 @@
     "name": "AnimeAV"
   },
   {
-    "iconUrl": "https://www.google.com/s2/favicons?domain=animecix.net&sz=%size%",
+    "iconUrl": "https://anm.cx/favicon.ico",
+    "fileHash": "sha256-50a21f81e9826a2ef1dc7659ec1fce4d7d32d5158ac184009cecf043276acf96",
     "apiVersion": 1,
     "repositoryUrl": "https://github.com/f26901964-eng/Kitsugi-Plugins",
+    "fileSize": 24823,
     "status": 1,
     "language": "tr",
     "authors": [
       "keyiflerolsun",
+      "inatchii",
       "JustRelaxable"
     ],
     "tvTypes": [
       "Anime"
     ],
-    "version": 21,
+    "version": 23,
     "internalName": "AnimeciX",
     "description": "AnimeciX, animeleri keşfedebileceğiniz ve animeler hakkında her şeyi öğrenebileceğiniz bir paylaşım platformudur.",
-    "url": "https://raw.githubusercontent.com/f26901964-eng/Kitsugi-Plugins/builds/prebuilt/AnimeciX.cs3",
-    "name": "AnimeciX",
-    "fileSize": 24512,
-    "fileHash": "sha256-b5677e95dd7326a40d6a73e375c881fb4f44e7715deeb11b81ea992ffaf8d569",
-    "pluginClassName": "com.keyiflerolsun.AnimeciXPlugin"
+    "url": "https://raw.githubusercontent.com/f26901964-eng/Kitsugi-Plugins/builds/AnimeciX.cs3",
+    "name": "AnimeciX"
   },
   {
     "url": "https://raw.githubusercontent.com/f26901964-eng/Kitsugi-Plugins/builds/prebuilt/Animeler.cs3",
@@ -237,27 +237,27 @@
     "pluginClassName": "com.byayzen.AnimPowPlugin"
   },
   {
-    "url": "https://raw.githubusercontent.com/f26901964-eng/Kitsugi-Plugins/builds/prebuilt/Anizium.cs3",
+    "fileHash": "sha256-8ae8ce4c9e53f6c95530d0ffb8070c8469f4c1d8ea93247f2ef28d6dc7e351fb",
+    "apiVersion": 1,
+    "repositoryUrl": "https://github.com/f26901964-eng/Kitsugi-Plugins",
+    "fileSize": 80371,
     "status": 1,
-    "version": 25,
-    "name": "Anizium",
-    "internalName": "Anizium",
     "authors": [
       "kerimmkirac",
-      "ByAyzen"
+      "ByAyzen",
+      "keyiflerolsun"
     ],
+    "version": 25,
+    "internalName": "Anizium",
+    "url": "https://raw.githubusercontent.com/f26901964-eng/Kitsugi-Plugins/builds/Anizium.cs3",
+    "name": "Anizium",
     "description": "Anizium ile dünyada ilk ve tek 4K Türkçe dublaj platformunda anime keyfini yaşa. En yeni animeleri İngilizce altyazı ve dublaj seçenekleriyle 1080p ve 4K kalitesinde HD izle.",
-    "fileSize": 80403,
-    "repositoryUrl": "https://github.com/f26901964-eng/Kitsugi-Plugins",
-    "language": "tr",
+    "iconUrl": "https://anizium.co/assets/images/logo.png",
     "tvTypes": [
       "AnimeMovie",
       "Anime"
     ],
-    "iconUrl": "https://anizium.co/assets/images/logo.png",
-    "apiVersion": 1,
-    "fileHash": "sha256-441e39141c6eb12ecffa28f9912b779090fa95f9176e2e535fc3e3089599c524",
-    "pluginClassName": "com.kerimmkirac.AniziumPlugin"
+    "language": "tr"
   },
   {
     "iconUrl": "https://www.google.com/s2/favicons?domain=anizm.net&sz=%size%",
@@ -1332,26 +1332,28 @@
     "pluginClassName": "com.nikyokki.FilmKovasiPlugin"
   },
   {
-    "url": "https://raw.githubusercontent.com/f26901964-eng/Kitsugi-Plugins/builds/prebuilt/FilmMakinesi.cs3",
-    "status": 1,
-    "version": 58,
-    "name": "FilmMakinesi",
-    "internalName": "FilmMakinesi",
-    "authors": [
-      "keyiflerolsun",
-      "usdogu"
-    ],
-    "description": "Film Makinesi, en yeni ve en güncel filmleri sitemizde full HD kalite farkı ile izleyebilirsiniz. HD film izle denildiğinde akla gelen en kaliteli film izleme sitesi.",
-    "fileSize": 19565,
-    "repositoryUrl": "https://github.com/f26901964-eng/Kitsugi-Plugins",
-    "language": "tr",
-    "tvTypes": [
-      "Movie"
-    ],
-    "iconUrl": "https://www.google.com/s2/favicons?domain=filmmakinesi.film&sz=%size%",
+    "iconUrl": "https://t3.gstatic.com/faviconV2?client=SOCIAL&type=FAVICON&fallback_opts=TYPE,SIZE,URL&url=https://filmmakinesi.tv&size=128",
+    "fileHash": "sha256-3054bbd21502b06908d236ec68c90a1a20a7502cf6b5a37b5254bb9a7a06b704",
     "apiVersion": 1,
-    "fileHash": "sha256-f1b72cf907cfa26aaf9d51e8e01fc0c334bc20b0442036e17127c45d78e5345b",
-    "pluginClassName": "com.keyiflerolsun.FilmMakinesiPlugin"
+    "repositoryUrl": "https://github.com/f26901964-eng/Kitsugi-Plugins",
+    "fileSize": 29019,
+    "status": 1,
+    "language": "tr",
+    "authors": [
+      "kraptor",
+      "usdogu",
+      "nikyokki",
+      "keyiflerolsun"
+    ],
+    "tvTypes": [
+      "Movie",
+      "TvSeries"
+    ],
+    "version": 60,
+    "internalName": "FilmMakinesi",
+    "description": "Film Makinesi, en yeni ve en güncel filmleri sitemizde full HD kalite farkı ile izleyebilirsiniz. HD film izle denildiğinde akla gelen en kaliteli film izleme sitesi.",
+    "url": "https://raw.githubusercontent.com/f26901964-eng/Kitsugi-Plugins/builds/FilmMakinesi.cs3",
+    "name": "FilmMakinesi"
   },
   {
     "iconUrl": "https://filmmirasim.ktb.gov.tr/favicon-r.png",
@@ -1655,27 +1657,27 @@
     "pluginClassName": "com.keyiflerolsun.GolgeTVPlugin"
   },
   {
-    "url": "https://raw.githubusercontent.com/f26901964-eng/Kitsugi-Plugins/builds/prebuilt/HDFilmCehennemi.cs3",
+    "iconUrl": "https://www.google.com/s2/favicons?sz=128&domain=http://hdfilmcehennemi.nl",
+    "fileHash": "sha256-6f21355a9b4d17150d7f75482c00feaa8f253c06be63ed5d83d87a5b86e3b472",
+    "apiVersion": 1,
+    "repositoryUrl": "https://github.com/f26901964-eng/Kitsugi-Plugins",
+    "fileSize": 38513,
     "status": 1,
-    "version": 48,
-    "name": "HDFilmCehennemi",
-    "internalName": "HDFilmCehennemi",
+    "language": "tr",
     "authors": [
+      "kraptor",
       "hexated",
       "keyiflerolsun"
     ],
-    "description": "Türkiye'nin en hızlı hd film izleme sitesi",
-    "fileSize": 29285,
-    "repositoryUrl": "https://github.com/f26901964-eng/Kitsugi-Plugins",
-    "language": "tr",
     "tvTypes": [
       "Movie",
       "TvSeries"
     ],
-    "iconUrl": "https://www.google.com/s2/favicons?domain=hdfilmcehennemi.com&sz=%size%",
-    "apiVersion": 1,
-    "fileHash": "sha256-9bdccf24e693632ae5c8e244a16555956ac2a81f494b2b743913d87be8645a58",
-    "pluginClassName": "com.keyiflerolsun.HDFilmCehennemiPlugin"
+    "version": 50,
+    "internalName": "HDFilmCehennemi",
+    "description": "HDFilmCehennemi - Türkiye'nin en hızlı hd film izleme sitesi. Tek ve gerçek HDFilmCehennemi sitesi.",
+    "url": "https://raw.githubusercontent.com/f26901964-eng/Kitsugi-Plugins/builds/HDFilmCehennemi.cs3",
+    "name": "HDFilmCehennemi"
   },
   {
     "iconUrl": "https://www.google.com/s2/favicons?domain=www.hdfilmcehennemi2.nl&sz=%size%",
