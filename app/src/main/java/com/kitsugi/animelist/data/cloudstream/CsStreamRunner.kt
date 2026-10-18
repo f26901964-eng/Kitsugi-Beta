@@ -102,7 +102,7 @@ object CsStreamRunner {
      *  çöpe gidiyordu. 75 sn'ye çıkarıldı; yine de zaman aşımı olursa kısmi sonuçlar
      *  (partialSink) kurtarılıp döndürülür. Eklentiler paralel çalıştığı için kartlar
      *  doldukça güncellenir; bu artış kullanıcıyı bekletmez. */
-    private const val PROVIDER_TIMEOUT_MS = 75_000L
+    private const val PROVIDER_TIMEOUT_MS = 100_000L  // v2.4.258: 75 → 100 sn (search 20 + load 15 + loadLinks 60 + embed)
 
     // ─── Derin embed çözümleme (Aşama 3/4) sabitleri ──────────────────────────
     /** iframe/AES zincirinin izin verilen en fazla derinliği (sonsuz döngü koruması). */
@@ -2981,7 +2981,10 @@ object CsStreamRunner {
                 // v2.4.239: eski davranış CF_PROTECTED için provider bütçesinin (o zaman 120s)
                 // tamamını loadLinks'e veriyordu; provider bütçesi 240s'ye çıkınca loadLinks'in
                 // zinciri tek başına kilitlememesi için ayrı aşama bütçesi (CF_STAGE_TIMEOUT_MS) kullanılır.
-                val loadLinksTimeoutMs = stageTimeoutMs(api, 25_000L)
+                // v2.4.258: 25 sn → 60 sn. HDFilmCehennemi / FilmMakinesi gibi eklentiler her sunucu/
+                // iframe için SIRAYLA istek atıyor (video API → iframe → m3u8). 25 sn dolunca kalan
+                // kaynaklar hiç gelmiyordu ("iki kaynak yerine bir tane / hiç biri" belirtisi).
+                val loadLinksTimeoutMs = stageTimeoutMs(api, 60_000L)
                 withTimeoutOrNull(loadLinksTimeoutMs) {
                     api.loadLinks(
                         data = episodeData,
