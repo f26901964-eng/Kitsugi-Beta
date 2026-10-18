@@ -1,0 +1,35 @@
+From b680348da52a0798f027fa0d9a36c0540774b07d Mon Sep 17 00:00:00 2001
+From: Arena Agent <agent@arena.ai>
+Date: Sun, 18 Oct 2026 20:35:18 +0000
+Subject: [PATCH] fix(filmmakinesi): rapidrame/rplayer iframe'lerini CloseLoad
+ cozucusune yonlendir
+
+DUAL Rapid dugmesi simdiki haliyle sifir link uretiyordu: loadExtractor bu
+host'lari tanimiyor. CloseLoad cozuucusu (dc_ desifre + master.txt varyant
+secimi + origin sabitleme) zaten host-bagimsiz calisiyor.
+
+Not: .cs3 bu sandbox'ta derlenemedi (maven erisimi yok); cihazlardaki acigi
+Kitsugi-Beta v2.4.304'deki uygulama yerlesik extractor'lari kapatiyor.
+---
+ .../src/main/kotlin/com/keyiflerolsun/FilmMakinesi.kt        | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/FilmMakinesi/src/main/kotlin/com/keyiflerolsun/FilmMakinesi.kt b/FilmMakinesi/src/main/kotlin/com/keyiflerolsun/FilmMakinesi.kt
+index 7531dff..dcbbe3c 100644
+--- a/FilmMakinesi/src/main/kotlin/com/keyiflerolsun/FilmMakinesi.kt
++++ b/FilmMakinesi/src/main/kotlin/com/keyiflerolsun/FilmMakinesi.kt
+@@ -415,7 +415,10 @@ private fun Element.toSearchResult(): SearchResponse? {
+             Log.d("FLMM", "Processing URL: $url")
+             // ! CloseLoad referer'ı embed adresinin kendi host'undan alır.
+             val referer = (originOf(url) ?: mainUrl).trimEnd('/') + "/"
+-            if (url.contains("closeload")) {
++            // ! 2026-10-18: Rapid kaynaklari (rapidrame.* / rplayer.*) da CloseLoad ile ayni
++            // ! JWPlayer "dc_" sifreli aileden; loadExtractor'a birakilirsa hicbir eklenti
++            // ! bu host'lari tanimadigi icin "DUAL Rapid" dugmesi sifir link uretiyordu.
++            if (url.contains("closeload") || url.contains("rapidrame") || url.contains("rplayer")) {
+                 CloseLoad().getUrl(url, referer, subtitleCallback, wrapped)
+             } else {
+                 loadExtractor(url, referer, subtitleCallback, wrapped)
+-- 
+2.39.5
+

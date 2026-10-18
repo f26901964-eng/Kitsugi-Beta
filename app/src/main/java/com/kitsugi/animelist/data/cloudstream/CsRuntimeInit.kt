@@ -253,6 +253,14 @@ object CsRuntimeInit {
             app.baseClient = insecureOkHttpClient
             insecureApp.baseClient = insecureOkHttpClient
 
+            // v2.4.304: Close/Rapid (closeload.*, rapidrame.*, rplayer.*) CDN ailesi için
+            // uygulama yerleşik extractor'ları kaydet. HDFilmCehennemi ve FilmMakinesi aynı
+            // iki gömülü kaynaktan besleniyor; eklentiler bayat kaldığında veya eklentinin
+            // hiç bilmediği host'larda (örn. FilmMakinesi "DUAL Rapid") oynatma zinciri
+            // bundan sonra eklenti sürümünden bağımsız çalışır. Eklentiler sonradan kayıt
+            // olup kendi host'larında öncelik almaya devam eder.
+            com.kitsugi.animelist.data.cloudstream.extractors.KitsugiCdnJwExtractor.registerAll()
+
             val extractorsCount = extractorApis.size
             android.util.Log.d(
                 "CsRuntimeInit",
