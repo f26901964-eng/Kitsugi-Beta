@@ -22,7 +22,18 @@ class CsLanguageDetectorTest {
     @Test
     fun unknownLanguages_are_notTurkish() {
         assertEquals("und", CsLanguageDetector.detectLanguageCode("Deutsch"))
-        assertEquals("und", CsLanguageDetector.detectLanguageCode("Arabic"))
+        assertEquals("und", CsLanguageDetector.detectLanguageCode("Orijinal"))
         assertEquals("und", CsLanguageDetector.detectLanguageCode(""))
+    }
+
+    @Test
+    fun turkishNamedLanguages_mapToIsoCodes() {
+        // Türk sitelerinde/Anizium'da altyazı adları Türkçe yazılır; "İ" ve "ç/ı" harfleri dahil.
+        assertEquals("en", CsLanguageDetector.detectLanguageCode("İngilizce"))
+        assertEquals("de", CsLanguageDetector.detectLanguageCode("Almanca"))
+        assertEquals("fr", CsLanguageDetector.detectLanguageCode("Fransızca"))
+        assertEquals("it", CsLanguageDetector.detectLanguageCode("İtalyanca"))
+        assertEquals("zh", CsLanguageDetector.detectLanguageCode("Çince"))
+        assertEquals("ar", CsLanguageDetector.detectLanguageCode("Arapça"))
     }
 }
