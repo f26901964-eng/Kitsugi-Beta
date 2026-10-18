@@ -1,14 +1,14 @@
 {
   "_comment": "Kitsugi Eklenti Domain Listesi — GitHub Actions + AI tarafından otomatik güncellenir.",
   "_format": "eklentiAdi (küçük harf) → güncel ana URL",
-  "_updated": "2026-10-17 03:16 UTC",
+  "_updated": "2026-10-18 03:16 UTC",
   "_stats": {
-    "total": 83,
+    "total": 81,
     "added": 0,
-    "removed": 0,
+    "removed": 2,
     "changed": 0,
     "ai_assisted": 0,
-    "blocked": 152
+    "blocked": 153
   },
   "domains": {
     "animecix": "https://animecix.tv",
@@ -40,7 +40,6 @@
     "diziyou": "https://www.diziyou.one",
     "dramaizle": "https://dramaflix.net/tr",
     "exxen": "https://www.exxen.com",
-    "f1fullraces": "https://fullraces.com",
     "filmekseni": "https://filmekseni.vip",
     "filmizleilk": "https://www.filmizleilk.com",
     "filmkovasi": "https://filmkovasi.com",
@@ -49,7 +48,6 @@
     "fullhdfilm": "https://hdfilm.us",
     "fullhdfilmizlede": "https://fullhdfilmizlede.net",
     "fullhdfilmizlesene": "https://www.fullhdfilmizlesene.now",
-    "fullraces": "https://fullraces.com",
     "hdfilmcehennemi": "https://www.hdfilmcehennemi.biz",
     "hdfilmcehennemi2": "https://www.hdfilmcehennemi2.biz",
     "hdfilmdelisi": "https://hdfilmdelisi.one",
@@ -147,6 +145,7 @@
     "freepornvideos",
     "freeuseporn",
     "fullhdfilmi̇zlede",
+    "fullraces",
     "fyptt",
     "girlsswallowed",
     "gnulahd",
