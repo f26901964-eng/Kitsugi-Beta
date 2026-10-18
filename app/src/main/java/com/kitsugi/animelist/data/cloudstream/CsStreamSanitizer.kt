@@ -47,6 +47,16 @@ object CsStreamSanitizer {
     /** HLS/DASH parça (fragment) uzantıları — tek başına oynatılabilir akış DEĞİL. */
     private val FRAGMENT_EXTENSIONS = listOf(".ts", ".m4s", ".cmfv", ".cmfa", ".aac", ".vtt", ".key")
 
+    /**
+     * Bozuk/çift şema önekleri. Eklentilerin `substringAfter("https")` gibi kısayolları
+     * `httpshttp://…` üretiyor; böyle bir adres oynatıcıya verildiğinde ExoPlayer şemayı
+     * çözemeyip anında hata veriyor ("kaynak var ama oynatmıyor" şikâyetinin bir kolu).
+     */
+    private val BROKEN_SCHEME_PREFIXES = listOf("httpshttp://", "httpshttps://", "httphttps://")
+
+    /** Adresin herhangi bir yerinde çift şema kalıntısı. */
+    private val BROKEN_SCHEME_REGEX = Regex("""https?https?://""", RegexOption.IGNORE_CASE)
+
     /** Parça adı kalıpları: seg-1, segment01, chunk3, frag_00042, 00042.ts ... */
     private val FRAGMENT_NAME_REGEX = Regex(
         """(^|[^a-z0-9])(seg|segment|chunk|frag|part|fragment|slice)[-_]?\d{1,6}([^a-z0-9]|$)""",
@@ -55,6 +65,27 @@ object CsStreamSanitizer {
 
     /** Yalnızca sayıdan oluşan parça dosyaları: 1234567.ts (HLS segmentleri böyledir). */
     private val NUMERIC_FRAGMENT_REGEX = Regex("""^\d{3,}(-\d+)?$""")
+
+    /**
+     * URL, oynatıcıya verildiğinde **kesin** hata üretecek kadar bozuk mu?
+     *
+     * Kapsam: çift/bozuk şema, şemasız adres, host'u çözümlenemeyen adres.
+     * Kasıtlı olarak dar tutuldu — yalnızca kanıtı açık olanlar elenir, çünkü çalışan
+     * bir kaynağı yanlışlıkla elemek kullanıcı için daha büyük bir kayıptır.
+     */
+    fun isBrokenStreamUrl(url: String?): Boolean {
+        val raw = url?.trim().orEmpty()
+        if (raw.isEmpty()) return true
+        val lower = raw.lowercase(Locale.ROOT)
+        if (BROKEN_SCHEME_PREFIXES.any { lower.startsWith(it) }) return true
+        if (BROKEN_SCHEME_REGEX.containsMatchIn(lower)) return true
+        if (!lower.startsWith("http://") && !lower.startsWith("https://")) return true
+        return try {
+            java.net.URI(raw).host.isNullOrBlank()
+        } catch (_: Exception) {
+            true
+        }
+    }
 
     private fun hostOf(url: String): String = try {
         java.net.URI(url).host?.lowercase(Locale.ROOT)?.removePrefix("www.").orEmpty()
@@ -131,9 +162,29 @@ object CsStreamSanitizer {
         val dropped = ArrayList<String>()
         var droppedCount = 0
 
-        // 1) Reklam ve tek başına parça elemeleri
-        val afterAds = ArrayList<StreamSource>(streams.size)
+        // 0) Bozuk adres elemesi — oynatıcıya asla verilmemesi gerekenler.
+        //    Bunlar "kaynak var ama hata veriyor" şikâyetinin doğrudan nedeni;
+        //    elenmezse aşağıdaki hiçbir doğrulama onları kurtaramaz.
+        val afterBroken = ArrayList<StreamSource>(streams.size)
         for (stream in streams) {
+            val url = stream.url
+            if (!url.isNullOrBlank() && isBrokenStreamUrl(url)) {
+                dropped += "bozuk adres (çift şema / host yok): ${url.take(90)}"
+                droppedCount++
+                continue
+            }
+            afterBroken += stream
+        }
+        if (afterBroken.isEmpty() && streams.isNotEmpty()) {
+            // TÜM kaynaklar bozuk adres: geri dönmek oynatıcıyı yine çökertir.
+            Log.w(TAG, "[$providerName] Tüm kaynaklar bozuk adres — oynatılabilir kaynak yok.")
+            dropped.take(6).forEach { CsTrace.info(providerName, "sanitize", it) }
+            return emptyList<StreamSource>() to droppedCount
+        }
+
+        // 1) Reklam ve tek başına parça elemeleri
+        val afterAds = ArrayList<StreamSource>(afterBroken.size)
+        for (stream in afterBroken) {
             if (isLikelyAdStream(stream.title, stream.url) || isLikelyAdStream(stream.name, stream.url)) {
                 dropped += "reklam/bahis: ${stream.url.orEmpty().take(90)}"
                 droppedCount++

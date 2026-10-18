@@ -56,4 +56,30 @@ class PlayerHlsDetectionTest {
     fun blankUrl_isNotHls() {
         assertFalse(PlayerMediaSourceFactory.isHlsUrl(""))
     }
+
+    /**
+     * 2026-10-18 tanı raporundan GERÇEK adresler (HDFilmCehennemi 54 / FilmMakinesi 64).
+     * Eklenti `INFER_TYPE!!` NPE'si nedeniyle bu adresleri hiç bildiremiyordu; eklenti
+     * düzeltmesinden sonra oynatıcının bunları doğru MIME ile alması gerekiyor.
+     */
+    @Test
+    fun realTurkishCdnStreams_areClassifiedCorrectly() {
+        // HDFilmCehennemi → rapidrame (token'lı master playlist)
+        assertTrue(
+            PlayerMediaSourceFactory.isHlsUrl(
+                "https://s427.rapidrame.com/hls2/01/00026/mf1zpcyt94wa_,l,n,.urlset/master.m3u8" +
+                    "?t=Ttu573_nmiYJ&s=1785632745&e=14400&f=133662&i=0.0&sp=0&n=lozcj87"
+            )
+        )
+        // FilmMakinesi → CloseLoad / playmix master.txt
+        assertTrue(
+            PlayerMediaSourceFactory.isHlsUrl("https://playmix.uno/hls/abc123def456/master.txt?s=1&d=")
+        )
+        // master.txt sonrası seçilen gerçek varyant
+        assertTrue(
+            PlayerMediaSourceFactory.isHlsUrl("https://box-1093-w.vmeas.cloud/hls/x.urlset/index-v1-a1.m3u8")
+        )
+        // Uzantısız ama bilinen HLS CDN'i → progressive sayılıp Range ile parçalanmamalı
+        assertTrue(PlayerMediaSourceFactory.isHlsUrl("https://rapidrame.com/e/lozcj87hjrh6fuof"))
+    }
 }
