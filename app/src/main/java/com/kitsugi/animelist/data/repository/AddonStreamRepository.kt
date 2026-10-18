@@ -247,7 +247,12 @@ data class StreamSource(
      * stream listesindeki thumbnail/artwork blur’lanır.
      * `showAdultContent = true` iken bile blur uygulaması bu flag ile kontrol edilir.
      */
-    val isAdultContent: Boolean = false
+    val isAdultContent: Boolean = false,
+    /**
+     * CS eklentisinin bildirdiği AYRI ses akışı (ExtractorLink.audioTracks). Video ile birlikte
+     * oynatıcıda ses parçası olarak eklenir (dublaj / orijinal ses ayrı akışsa). Yoksa null.
+     */
+    val externalAudioUrl: String? = null
 ) : java.io.Serializable {
     val isTorrent: Boolean
         get() = !infoHash.isNullOrBlank() || url.isMagnetLink() || url.isTorrentSchemeUrl()

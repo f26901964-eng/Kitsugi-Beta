@@ -827,7 +827,9 @@ fun KitsugiFullscreenPlayerScreen(
                     val activeSource = currentStreamSources.getOrNull(currentSourceIndex)
                     // Yedek motora geçişte hata veren motorun konumundan devam et (yeni motor 0'dan başlamasın).
                     val switchedResumeMs = viewModel.takePendingResumeAfterEngineSwitch()
-                    val startPos = if (safeVideoUrl == lastPreparedUrl) {
+                    // v2.4.258: kaynak değişiminde (dublaj ↔ orijinal) konum korunur.
+                    val sourceSwitchResumeMs = viewModel.takePendingSourceSwitchResume()
+                    val startPos = sourceSwitchResumeMs ?: if (safeVideoUrl == lastPreparedUrl) {
                         switchedResumeMs ?: playerEngine.currentPosition
                     } else {
                         0L

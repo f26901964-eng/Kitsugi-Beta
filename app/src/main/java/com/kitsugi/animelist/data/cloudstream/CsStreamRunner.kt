@@ -102,7 +102,7 @@ object CsStreamRunner {
      *  çöpe gidiyordu. 75 sn'ye çıkarıldı; yine de zaman aşımı olursa kısmi sonuçlar
      *  (partialSink) kurtarılıp döndürülür. Eklentiler paralel çalıştığı için kartlar
      *  doldukça güncellenir; bu artış kullanıcıyı bekletmez. */
-    private const val PROVIDER_TIMEOUT_MS = 75_000L
+    private const val PROVIDER_TIMEOUT_MS = 100_000L  // v2.4.258: 75 → 100 sn (search 20 + load 15 + loadLinks 60 + embed)
 
     // ─── Derin embed çözümleme (Aşama 3/4) sabitleri ──────────────────────────
     /** iframe/AES zincirinin izin verilen en fazla derinliği (sonsuz döngü koruması). */
@@ -2163,6 +2163,7 @@ object CsStreamRunner {
                clean.contains("turkanime.tv/embed") || // TurkAnime AES embed player
                clean.contains("turkanime.co/embed") || // TurkAnime AES embed player (eski domain)
                clean.contains("closeload.top") ||     // CloseLoad (Türkiye CDN)
+               clean.contains("closeload.filmmakinesi.to") || // FilmMakinesi CloseLoad (upstream v60)
                clean.contains("gstore.one") ||        // GStore (Türkiye CDN)
                clean.contains("trstx.org") ||         // TRsTX (Türkiye CDN)
                clean.contains("chillx.top") ||        // Chillx embed
@@ -2491,7 +2492,7 @@ object CsStreamRunner {
                         subtitleCallback = { sub ->
                             subtitleCallback(
                                 SubtitleInput(
-                                    url  = sub.url,
+                                    url  = normalizeCsSubtitleUrl(sub.url),
                                     name = sub.lang,
                                     lang = sub.langTag ?: detectLanguageCode(sub.lang)
                                 )
@@ -2530,7 +2531,8 @@ object CsStreamRunner {
                                     qualityValue   = getQualityValue(link.quality),
                                     subtitles      = emptyList(),
                                     thumbnailUrl   = thumbnailUrl,
-                                    isAdultContent = ADULT_PLUGINS.contains(providerName)
+                                    isAdultContent = ADULT_PLUGINS.contains(providerName),
+                                    externalAudioUrl = link.audioTracks.firstOrNull()?.url?.takeIf { it.isNotBlank() }
                                 )
                             )
                         }
@@ -2981,7 +2983,10 @@ object CsStreamRunner {
                 // v2.4.239: eski davranış CF_PROTECTED için provider bütçesinin (o zaman 120s)
                 // tamamını loadLinks'e veriyordu; provider bütçesi 240s'ye çıkınca loadLinks'in
                 // zinciri tek başına kilitlememesi için ayrı aşama bütçesi (CF_STAGE_TIMEOUT_MS) kullanılır.
-                val loadLinksTimeoutMs = stageTimeoutMs(api, 25_000L)
+                // v2.4.258: 25 sn → 60 sn. HDFilmCehennemi / FilmMakinesi gibi eklentiler her sunucu/
+                // iframe için SIRAYLA istek atıyor (video API → iframe → m3u8). 25 sn dolunca kalan
+                // kaynaklar hiç gelmiyordu ("iki kaynak yerine bir tane / hiç biri" belirtisi).
+                val loadLinksTimeoutMs = stageTimeoutMs(api, 60_000L)
                 withTimeoutOrNull(loadLinksTimeoutMs) {
                     api.loadLinks(
                         data = episodeData,
@@ -2990,7 +2995,7 @@ object CsStreamRunner {
                             Log.d(TAG, "[${api.name}] Altyazı: ${subtitleFile.lang} → ${subtitleFile.url}")
                             subtitleList.add(
                                 SubtitleInput(
-                                    url = subtitleFile.url,
+                                    url = normalizeCsSubtitleUrl(subtitleFile.url),
                                     name = subtitleFile.lang,
                                     lang = subtitleFile.langTag ?: detectLanguageCode(subtitleFile.lang)
                                 )
@@ -3062,7 +3067,8 @@ object CsStreamRunner {
                                         qualityValue = getQualityValue(link.quality),
                                         subtitles    = emptyList(),
                                         thumbnailUrl = posterUrl,
-                                        isAdultContent = ADULT_PLUGINS.contains(api.name)
+                                        isAdultContent = ADULT_PLUGINS.contains(api.name),
+                                        externalAudioUrl = link.audioTracks.firstOrNull()?.url?.takeIf { it.isNotBlank() }
                                 )
                                 streams.add(newStream)
                                 partialSink?.add(newStream)
@@ -4138,3 +4144,13 @@ object CsStreamRunner {
         loadAndExtractStreams(api, searchResponse, season, episode, isResolvedMovie)
     }
 }
+
+/**
+ * HDFilmCehennemi eklentisi göreli altyazı yollarının sonuna `/` ekliyor
+ * (`"${mainUrl}${subFile}/"`). Dosya uzantılı altyazılarda bu sonek dosyayı
+ * bulunamaz hale getirir; uzantıdan sonraki sondaki `/` kaldırılır.
+ */
+private val CS_SUB_TRAILING_SLASH_REGEX = Regex("""\.(vtt|srt|ass|ssa|webvtt)/$""", RegexOption.IGNORE_CASE)
+
+internal fun normalizeCsSubtitleUrl(url: String): String =
+    if (CS_SUB_TRAILING_SLASH_REGEX.containsMatchIn(url)) url.trimEnd('/') else url
