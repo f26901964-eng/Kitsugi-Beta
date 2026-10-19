@@ -27,7 +27,8 @@ class PlayerScrobbleController(
     private val context: Context,
     private val getAniListToken: () -> String?,
     private val onScrobbleSuccess: (mediaId: Int, episode: Int) -> Unit = { _, _ -> },
-    private val onScrobbleFail: (reason: String) -> Unit = {}
+    private val onScrobbleFail: (reason: String) -> Unit = {},
+    private val scrobbleThreshold: Float = com.kitsugi.animelist.core.player.ScrobblePolicy.DEFAULT_THRESHOLD
 ) {
     private val TAG = "ScrobbleController"
 
@@ -37,6 +38,11 @@ class PlayerScrobbleController(
     private var durationMs: Long = 0L
     private var scrobbled: Boolean = false
     private var scrobbleJob: Job? = null
+
+    /** Mutable threshold so callers can update it at runtime (Aniyomi parity). */
+    @Volatile
+    var threshold: Float = scrobbleThreshold
+        set(value) { field = value.coerceIn(0f, 1f) }
 
     /** Yeni bölüm başladığında çağrılır */
     fun onEpisodeStarted(entry: MediaEntry, episode: Int, durationMs: Long) {
@@ -59,8 +65,8 @@ class PlayerScrobbleController(
         }
         if (scrobbled || this.durationMs <= 0L) return
         val progress = positionMs.toFloat() / this.durationMs.toFloat()
-        // %80 eşiği aşıldığında scrobble et
-        if (progress >= 0.80f) {
+        // Aniyomi varsayılanı %85; kullanıcı tercihi threshold ile değiştirilebilir.
+        if (com.kitsugi.animelist.core.player.ScrobblePolicy.shouldScrobble(progress, threshold)) {
             scrobble()
         }
     }

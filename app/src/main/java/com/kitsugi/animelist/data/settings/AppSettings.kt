@@ -104,6 +104,7 @@ data class AppSettings(
     // AniSkip: Anime intro/outro zaman damgalarını otomatik çekme
     val aniSkipEnabled: Boolean = true,
     val aniSkipAutoSkip: Boolean = false,
+    val aniSkipDisableOnChapters: Boolean = false,
     // AnimeSkip: anime-skip.com için geliştirici anahtarı ve client ID
     val animeSkipClientId: String = "",
     // Açıklama Otomatik Çevirisi: Türkçe veri bulunamazsa Google Translate devreye girer

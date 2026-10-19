@@ -163,6 +163,7 @@ class SettingsDataStore(
         // AniSkip intro/outro atlama
         val AniSkipEnabled = booleanPreferencesKey("aniskip_enabled")
         val AniSkipAutoSkip = booleanPreferencesKey("aniskip_auto_skip")
+        val AniSkipDisableOnChapters = booleanPreferencesKey("aniskip_disable_on_chapters")
         val AnimeSkipClientId = stringPreferencesKey("animeskip_client_id")
         // Açıklama Otomatik Çevirisi
         val AutoTranslateEnabled = booleanPreferencesKey("auto_translate_enabled")
@@ -472,6 +473,7 @@ class SettingsDataStore(
                     fanartTvEnabled = preferences[Keys.FanartTvEnabled] ?: true,
                     aniSkipEnabled = preferences[Keys.AniSkipEnabled] ?: true,
                     aniSkipAutoSkip = preferences[Keys.AniSkipAutoSkip] ?: false,
+                    aniSkipDisableOnChapters = preferences[Keys.AniSkipDisableOnChapters] ?: false,
                     animeSkipClientId = preferences[Keys.AnimeSkipClientId] ?: "",
                     autoTranslateEnabled = preferences[Keys.AutoTranslateEnabled] ?: false,
                     preferredTranslator = preferences[Keys.PreferredTranslator] ?: "DEFAULT",
@@ -1096,6 +1098,12 @@ class SettingsDataStore(
     suspend fun setAniSkipAutoSkip(autoSkip: Boolean) {
         context.settingsDataStore.edit { preferences ->
             preferences[Keys.AniSkipAutoSkip] = autoSkip
+        }
+    }
+
+    suspend fun setAniSkipDisableOnChapters(enabled: Boolean) {
+        context.settingsDataStore.edit { preferences ->
+            preferences[Keys.AniSkipDisableOnChapters] = enabled
         }
     }
 

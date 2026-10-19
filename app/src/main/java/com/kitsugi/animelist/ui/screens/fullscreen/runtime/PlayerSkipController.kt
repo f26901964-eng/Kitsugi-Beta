@@ -63,7 +63,7 @@ class PlayerSkipController(
      */
     private var loadJob: kotlinx.coroutines.Job? = null
     private var loadGeneration = 0L
-    fun loadIntervals(malId: Int, episode: Int) {
+    fun loadIntervals(malId: Int, episode: Int, hasChapters: Boolean = false, disableOnChapters: Boolean = false) {
         val generation = ++loadGeneration
         loadJob?.cancel()
         _skipIntervals.value = emptyList()
@@ -72,6 +72,12 @@ class PlayerSkipController(
             try {
                 val settings = SettingsDataStore(context).settingsFlow.first()
                 if (!settings.aniSkipEnabled) {
+                    _skipIntervals.value = emptyList()
+                    _autoSkipEnabled.value = false
+                    return@launch
+                }
+                val disable = disableOnChapters || settings.aniSkipDisableOnChapters
+                if (com.kitsugi.animelist.core.player.AniSkipPolicy.shouldDisableOnChapters(hasChapters, disable)) {
                     _skipIntervals.value = emptyList()
                     _autoSkipEnabled.value = false
                     return@launch
@@ -89,10 +95,7 @@ class PlayerSkipController(
                 if (generation != loadGeneration) return@launch
 
                 // AnimeSkip öncelikli, AniSkip aynı type'da zaten varsa atlanır
-                val merged = mutableListOf<SkipInterval>()
-                merged.addAll(animeList)
-                val covered = animeList.map { it.type }.toSet()
-                aniList.filterNot { it.type in covered }.forEach { merged.add(it) }
+                val merged = com.kitsugi.animelist.core.player.AniSkipPolicy.mergeIntervals(aniList, animeList)
 
                 Log.d(TAG, "Loaded: AniSkip=${aniList.size}, AnimeSkip=${animeList.size}, merged=${merged.size}")
                 _skipIntervals.value = merged
