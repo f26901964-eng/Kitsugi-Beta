@@ -75,6 +75,13 @@ internal class MpvAudioFocusController(
 
     fun userPaused() { resumeOnGain = false }
 
+    /** Kullanıcı pause bastığında MPV'nin ses odakını bırakır; diğer medya uygulamaları ses alabilir. */
+    fun abandonFocus() {
+        resumeOnGain = false
+        focused = false
+        manager.abandonAudioFocusRequest(request)
+    }
+
     fun release() {
         resumeOnGain = false
         if (registered) runCatching { app.unregisterReceiver(receiver) }

@@ -56,6 +56,9 @@ class MangaPage(
     // Pages retain identity while downloads run. StateFlow suppresses equal lists;
     // Compose must observe the status itself, not a shallow copy of that list.
     var status: MangaPageStatus by mutableStateOf(status)
+
+    /** Yerel arşiv dosyası yolu (ZIP/CBZ/RAR içindeki sayfa) — null ise normal HTTP akışı. */
+    var archivePath: String? = null
 }
 
 /**

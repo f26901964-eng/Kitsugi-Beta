@@ -262,7 +262,7 @@ class MpvPlayerEngine(
     }
 
     override fun pause() {
-        focusController?.userPaused()
+        focusController?.abandonFocus()
         setPlaying(false)
     }
 
@@ -773,6 +773,13 @@ class MpvPlayerEngine(
         option("af", if (channels == com.kitsugi.animelist.ui.screens.fullscreen.AudioChannels.ReverseStereo) channels.value else "")
         option("cache", "yes")
         option("network-timeout", "30")
+
+        // TLS / CA güven zinciri — Asla trust-all yok.
+        // AndroidCAStore'dan PEM'e çıkarılan CA paketi MPV'ye tls-ca-file olarak verilir.
+        val caFile = com.kitsugi.animelist.core.player.MpvTrustStore.install(context)
+        applyMpvTlsOptions(caFile.absolutePath) { name, value ->
+            option(name, value)
+        }
     }
 
     /** İkincil altyazı seçimini MPV'ye uygula */

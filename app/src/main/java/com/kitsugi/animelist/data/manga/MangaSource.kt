@@ -51,6 +51,13 @@ interface MangaSource {
     val engineType: ExtensionEngine get() = ExtensionEngine.UNKNOWN
 
     /**
+     * Bu kaynağın yerel arşiv dosyası (ZIP/CBZ/RAR) üzerinden manga sunuyor olup olmadığını
+     * işaret eder. true ise MangaPageLoaderV2/WebReader archive yolunu kullanır;
+     * false (varsayılan) ise normal HTTP/HTTPS scraping akışı devam eder.
+     */
+    val isArchive: Boolean get() = false
+
+    /**
      * Sitedeki en güncel / popüler mangaların listesini döndürür.
      * Sayfalama için [page] parametresi kullanılır (1'den başlar).
      */

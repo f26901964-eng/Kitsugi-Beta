@@ -30,6 +30,8 @@ class MangaPageLoaderV2(
     val cache: MangaCache,
     var preloadAhead: Int = 3,
     var keepBehind: Int = 1,
+    /** Yerel ZIP/CBZ arşiv dosyası — null ise normal HTTP scraping akışı devam eder. */
+    val archiveFile: java.io.File? = null,
 ) {
     companion object {
         private const val TAG = "MangaPageLoaderV2"
@@ -55,6 +57,27 @@ class MangaPageLoaderV2(
             try {
                 resetQueue()
                 _pages.value = emptyList()
+
+                if (archiveFile != null) {
+                    val archiveLoader = ArchivePageLoader(context, archiveFile)
+                    val entryNames = archiveLoader.loadPageList()
+                    if (entryNames.isEmpty()) throw java.io.IOException("Arşivde sayfa bulunamadı")
+                    _pages.value = entryNames.mapIndexed { index, entryName ->
+                        com.kitsugi.animelist.data.manga.MangaPage(
+                            index = index,
+                            url = entryName
+                        ).apply {
+                            archivePath = entryName
+                        }
+                    }
+                    val elapsed = System.currentTimeMillis() - t0
+                    sourceStateStore.recordOperationSuccess(source, "pages", elapsed)
+                    MangaLogger.logPageList(context, source.name, chapter.name,
+                        success = true, pageCount = entryNames.size, elapsedMs = elapsed)
+                    Log.d(TAG, "${chapter.name}: ${entryNames.size} sayfa alındı (${elapsed}ms) [archive]")
+                    return@withContext
+                }
+
                 val fetched = kotlinx.coroutines.withTimeoutOrNull(45_000L) {
                     source.fetchPageList(chapter)
                 } ?: throw java.io.IOException("Bölüm sayfaları alınırken zaman aşımı")
@@ -139,6 +162,20 @@ class MangaPageLoaderV2(
 
     private suspend fun loadPageInternal(page: MangaPage) {
         if (page.status == MangaPageStatus.Ready) return
+
+        if (page.archivePath != null && archiveFile != null) {
+            val archiveLoader = ArchivePageLoader(context, archiveFile)
+            val stream = archiveLoader.loadPage(page.archivePath!!)
+            if (stream != null) {
+                page.stream = { stream }
+                page.status = MangaPageStatus.Ready
+                Log.v(TAG, "Archive page ready [${page.index}]: ${page.archivePath}")
+                return
+            }
+            page.status = MangaPageStatus.Error
+            Log.e(TAG, "Archive page error [${page.index}]: ${page.archivePath}")
+            return
+        }
 
         semaphore.withPermit {
             val t0 = System.currentTimeMillis()
