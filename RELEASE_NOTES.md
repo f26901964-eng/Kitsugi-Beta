@@ -1,5 +1,19 @@
 # Kitsugi-Beta — Sürüm Notları / Release Notes
 
+# Kitsugi Beta v2.4.310
+
+## 🇹🇷 Türkçe
+
+### 🔍 Son Eksik: GET Doğrulamaya Origin Eklendi + Tam Plugin Denetimi (v2.4.310)
+
+**Denetim:** Tüm eklenti akışı tarandı — `domain_fixes.json` (filmmakinesi.to / hdfilmcehennemi.nl doğru), `plugins.json` (FM 66 / HDC 56 = canlı builds’teki son yayımlı), `PlayerMediaSourceFactory`/`CsStreamRunner` Origin fix’leri, `KitsugiCdnJwExtractor` bayat-fallback kesmesi, `HEAD` doğrulaması Origin’li iken `GET Range` doğrulaması hâlâ sadece `Referer` gönderiyordu.
+
+**Fix:** `tryGetRangeValidation` artık `Origin` de gönderiyor (`originOfUrl(referer)`). Böylece `playmix.uno`/`closeload` gibi Origin doğrulayan CDN’lerde `HEAD 404 → GET 404` sahte “ölü” kararı düzeliyor; gerçekten canlı link “ölü” diye elenmeyecek.
+
+**Doğrulama:** `adb logcat -s CsTrace CsStreamRunner | grep -E "HEAD|GET Range|Origin"` — artık iki istek de Origin’li.
+
+---
+
 # Kitsugi Beta v2.4.309
 
 ## 🇹🇷 Türkçe

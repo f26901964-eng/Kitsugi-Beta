@@ -2992,10 +2992,11 @@ object CsStreamRunner {
             val requestBuilder = okhttp3.Request.Builder()
                 .url(url)
                 .get()
-                .addHeader("Range", "bytes=0-0")  // Sadece ilk byte
+                .addHeader("Range", "bytes=0-0")
                 .addHeader("User-Agent", com.lagradost.cloudstream3.network.CloudflareKiller.UNIFIED_USER_AGENT)
             if (!referer.isNullOrBlank()) {
                 requestBuilder.addHeader("Referer", referer)
+                originOfUrl(referer)?.let { requestBuilder.addHeader("Origin", it) }
             }
             val response = com.kitsugi.animelist.core.network.KitsugiHttpClient.client
                 .newCall(requestBuilder.build()).execute()
