@@ -32,6 +32,9 @@ object PlayerPipHelper {
     // Broadcast action'ları — Activity'nin BroadcastReceiver'ı bu action'ları dinler
     const val ACTION_PLAY      = "com.kitsugi.animelist.pip.PLAY"
     const val ACTION_PAUSE     = "com.kitsugi.animelist.pip.PAUSE"
+    const val ACTION_SKIP_PREVIOUS = "com.kitsugi.animelist.pip.SKIP_PREVIOUS"
+    const val ACTION_SKIP_FORWARD = "com.kitsugi.animelist.pip.SKIP_FORWARD"
+    private val aspects = java.util.WeakHashMap<Activity, Rational>()
     const val ACTION_SKIP_NEXT = "com.kitsugi.animelist.pip.SKIP_NEXT"
 
     private const val REQUEST_PLAY      = 100
@@ -60,13 +63,14 @@ object PlayerPipHelper {
         activity: Activity,
         playerEngine: PlayerEngine?,
         isPlaying: Boolean = true,
-        hasNext: Boolean = false
+        hasNext: Boolean = false,
+        hasPrevious: Boolean = false
     ): Boolean {
         return try {
             val builder = PictureInPictureParams.Builder()
 
             // Video aspect ratio
-            val rational = buildRational(playerEngine)
+            val rational = buildRational(activity, playerEngine)
             builder.setAspectRatio(rational)
 
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
@@ -76,7 +80,7 @@ object PlayerPipHelper {
 
             // API 26+: RemoteActions ekle
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                val actions = buildRemoteActions(activity, isPlaying, hasNext)
+                val actions = buildRemoteActions(activity, isPlaying, hasNext, hasPrevious)
                 builder.setActions(actions)
             }
 
@@ -96,11 +100,12 @@ object PlayerPipHelper {
         activity: Activity,
         playerEngine: PlayerEngine?,
         isPlaying: Boolean = true,
-        hasNext: Boolean = false
+        hasNext: Boolean = false,
+        hasPrevious: Boolean = false
     ): Boolean {
         if (!isPipSupported(activity)) return false
         return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            enterPip(activity, playerEngine, isPlaying, hasNext)
+            enterPip(activity, playerEngine, isPlaying, hasNext, hasPrevious)
         } else false
     }
 
@@ -113,12 +118,13 @@ object PlayerPipHelper {
         activity: Activity,
         playerEngine: PlayerEngine?,
         isPlaying: Boolean,
-        hasNext: Boolean = false
+        hasNext: Boolean = false,
+        hasPrevious: Boolean = false
     ) {
         try {
             val builder = PictureInPictureParams.Builder()
-                .setAspectRatio(buildRational(playerEngine))
-                .setActions(buildRemoteActions(activity, isPlaying, hasNext))
+                .setAspectRatio(buildRational(activity, playerEngine))
+                .setActions(buildRemoteActions(activity, isPlaying, hasNext, hasPrevious))
 
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
                 builder.setSeamlessResizeEnabled(true)
@@ -138,10 +144,11 @@ object PlayerPipHelper {
         activity: Activity,
         playerEngine: PlayerEngine?,
         isPlaying: Boolean,
-        hasNext: Boolean = false
+        hasNext: Boolean = false,
+        hasPrevious: Boolean = false
     ) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            updatePipActions(activity, playerEngine, isPlaying, hasNext)
+            updatePipActions(activity, playerEngine, isPlaying, hasNext, hasPrevious)
         }
     }
 
@@ -155,18 +162,32 @@ object PlayerPipHelper {
 
     // ── Private Helpers ───────────────────────────────────────────────────────
 
-    private fun buildRational(playerEngine: PlayerEngine?): Rational {
-        // İlerleyen fazlarda StreamInfoData'dan videoWidth/Height okunacak
-        return Rational(16, 9)
+    private fun buildRational(activity: Activity, playerEngine: PlayerEngine?): Rational {
+        val info = runCatching { playerEngine?.activeStreamInfo }.getOrNull()
+        val width = info?.videoWidth ?: 0
+        val height = info?.videoHeight ?: 0
+        if (width > 0 && height > 0) {
+            val ratio = (width.toDouble() / height).coerceIn(1.0 / 2.39, 2.39)
+            aspects[activity] = Rational((ratio * 10000).toInt(), 10000)
+        }
+        return aspects[activity] ?: Rational(16, 9)
     }
 
     @RequiresApi(Build.VERSION_CODES.O)
     private fun buildRemoteActions(
         activity: Activity,
         isPlaying: Boolean,
-        hasNext: Boolean
+        hasNext: Boolean,
+        hasPrevious: Boolean = false
     ): List<RemoteAction> {
         val actions = mutableListOf<RemoteAction>()
+        val previous = PendingIntent.getBroadcast(activity, 103,
+            Intent(if (hasPrevious) ACTION_SKIP_PREVIOUS else ACTION_SKIP_FORWARD).setPackage(activity.packageName),
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
+        actions.add(RemoteAction(Icon.createWithResource(activity,
+            if (hasPrevious) android.R.drawable.ic_media_previous else android.R.drawable.ic_media_ff),
+            if (hasPrevious) "Önceki bölüm" else "10 saniye ileri",
+            if (hasPrevious) "Önceki bölüm" else "10 saniye ileri", previous))
 
         // Play / Pause aksiyonu
         if (isPlaying) {

@@ -13,6 +13,7 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
 import com.kitsugi.animelist.ui.theme.gradient.Text
 import androidx.compose.material3.TextButton
+import kotlinx.coroutines.launch
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -35,11 +36,36 @@ fun ScreenshotSheet(
     onSetAsArt: (ArtType, (() -> InputStream)) -> Unit,
     onShare: (() -> InputStream) -> Unit,
     onSave: (() -> InputStream) -> Unit,
-    takeScreenshot: (String, Boolean) -> InputStream?,
+    takeScreenshot: suspend (String, Boolean) -> InputStream?,
     onDismissRequest: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     var setArtTypeAs: ArtType? by remember { mutableStateOf(null) }
+    val scope = androidx.compose.runtime.rememberCoroutineScope()
+    val context = androidx.compose.ui.platform.LocalContext.current
+    var capturing by remember { mutableStateOf(false) }
+    fun capture(action: (() -> InputStream) -> Unit) {
+        if (capturing) return
+        capturing = true
+        scope.launch {
+            try {
+                val stream = takeScreenshot(cachePath, showSubtitles)
+                if (stream == null) {
+                    android.widget.Toast.makeText(context, "Ekran görüntüsü alınamadı", android.widget.Toast.LENGTH_SHORT).show()
+                } else {
+                    val bytes = stream.use { input ->
+                        kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { input.readBytes() }
+                    }
+                    action { java.io.ByteArrayInputStream(bytes) }
+                }
+            } catch (error: kotlinx.coroutines.CancellationException) {
+                throw error
+            } catch (error: Exception) {
+                android.util.Log.e("ScreenshotSheet", "Screenshot failed", error)
+                android.widget.Toast.makeText(context, "Ekran görüntüsü alınamadı", android.widget.Toast.LENGTH_SHORT).show()
+            } finally { capturing = false }
+        }
+    }
 
     PlayerSheet(
         onDismissRequest = onDismissRequest,
@@ -81,11 +107,7 @@ fun ScreenshotSheet(
                     title = stringResource(R.string.paylas),
                     icon = Icons.Outlined.Share,
                     onClick = {
-                        val stream = takeScreenshot(cachePath, showSubtitles)
-                        if (stream != null) {
-                            onShare { stream }
-                            onDismissRequest()
-                        }
+                        capture { image -> onShare(image); onDismissRequest() }
                     },
                 )
                 ActionButton(
@@ -93,11 +115,7 @@ fun ScreenshotSheet(
                     title = stringResource(R.string.kaydet),
                     icon = Icons.Outlined.Save,
                     onClick = {
-                        val stream = takeScreenshot(cachePath, showSubtitles)
-                        if (stream != null) {
-                            onSave { stream }
-                            onDismissRequest()
-                        }
+                        capture { image -> onSave(image); onDismissRequest() }
                     },
                 )
             }
@@ -132,12 +150,11 @@ fun ScreenshotSheet(
             confirmButton = {
                 TextButton(onClick = {
                     val artType = setArtTypeAs!!
-                    val stream = takeScreenshot(cachePath, showSubtitles)
-                    if (stream != null) {
-                        onSetAsArt(artType) { stream }
+                    capture { image ->
+                        onSetAsArt(artType, image)
+                        setArtTypeAs = null
+                        onDismissRequest()
                     }
-                    setArtTypeAs = null
-                    onDismissRequest()
                 }) {
                     Text(stringResource(R.string.action_yes))
                 }

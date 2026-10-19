@@ -369,11 +369,26 @@ fun KitsugiFullscreenPlayerScreen(
                 bold = appSettings.subtitleBold,
                 outlineEnabled = appSettings.subtitleOutlineEnabled
             )
+            subtitleSpeed = appSettings.subtitleSpeed
+            videoFilterValues = runCatching {
+                val json = org.json.JSONObject(appSettings.videoFiltersJson)
+                KitsugiVideoFilters.entries.associateWith { json.optInt(it.mpvProperty, 0).coerceIn(-100, 100) }
+            }.getOrDefault(emptyMap())
+            subtitleDelayMs = appSettings.subtitleDelayMs
             audioDelayMs = appSettings.defaultAudioDelayMs
             audioBoostLevel = appSettings.defaultAudioBoost
             secondarySubtitleDelayMs = appSettings.secondarySubtitleDelayMs
             currentAspectMode = runCatching { com.kitsugi.animelist.core.player.PlayerAspectMode.valueOf(appSettings.aspectMode) }.getOrDefault(com.kitsugi.animelist.core.player.PlayerAspectMode.ORIGINAL)
             isSettingsLoaded = true
+        }
+    }
+
+    LaunchedEffect(videoFilterValues, isSettingsLoaded) {
+        if (isSettingsLoaded) {
+            delay(400)
+            val json = org.json.JSONObject()
+            videoFilterValues.forEach { (filter, value) -> json.put(filter.mpvProperty, value) }
+            dataStore.setVideoFiltersJson(json.toString())
         }
     }
 
@@ -570,6 +585,12 @@ fun KitsugiFullscreenPlayerScreen(
                     }
                 }
 
+                LaunchedEffect(playerEngine, safeSettings) {
+                    (playerEngine as? MpvPlayerEngine)?.updateSettings(safeSettings)
+                }
+
+                LaunchedEffect(playerEngine, skipIntervals) { viewModel.updateSkipChapters(skipIntervals) }
+
                 // Seçili motor bir özelliği desteklemiyorsa (altyazı gecikmesi/hızı, renk
                 // filtreleri, negatif ses gecikmesi) kontrolü sessizce yutmuyoruz: MPV
                 // motoruna geçiyoruz. Konum korunur, yeni motor kaldığı yerden devam eder.
@@ -592,6 +613,8 @@ fun KitsugiFullscreenPlayerScreen(
                         override fun onPipPlay() { viewModel.play() }
                         override fun onPipPause() { viewModel.pause() }
                         override fun onPipSkipNext() { playNextEpisode() }
+                        override fun onPipSkipPrevious() { viewModel.changeEpisode(true) }
+                        override fun onPipSkipForward() { viewModel.seekBy(10000) }
                     }
                     fullscreenActivity?.setPipPlayerCallback(bridge)
                     onDispose { fullscreenActivity?.setPipPlayerCallback(null) }
@@ -627,6 +650,7 @@ fun KitsugiFullscreenPlayerScreen(
                     )
                 }
 
+                var secondarySubtitleId by remember(playerEngine) { mutableStateOf(-1) }
                 var currentPosition by remember { mutableStateOf(0L) }
                 var duration by remember { mutableStateOf(0L) }
                 // Motor hazır olana kadar "oynatılıyor" varsayımı yanlıştı: ilk karede
@@ -638,14 +662,17 @@ fun KitsugiFullscreenPlayerScreen(
 
                 // PiP RemoteAction ikonlarının (Oynat/Duraklat) ve medya bildiriminin
                 // oynatma durumuyla senkron kalması için.
-                LaunchedEffect(isPlayingState, currentEpisode, currentTitle) {
+                LaunchedEffect(playerEngine, isPlayingState, currentEpisode, currentTitle, currentPosition, playbackSpeed, streamInfoData) {
                     fullscreenActivity?.updateMediaSession(
                         title = currentTitle.ifBlank { title },
                         episode = currentEpisode,
                         isPlaying = isPlayingState,
                         positionMs = currentPosition,
                         durationMs = duration,
-                        hasNext = episodesList.any { (it.episodeNumber ?: 0) > currentEpisode }
+                        hasNext = episodesList.any { (it.episodeNumber ?: 0) > currentEpisode },
+                        hasPrevious = currentEpisode > 1,
+                        playbackSpeed = playbackSpeed,
+                        engine = playerEngine
                     )
                 }
                 var isEngineReady by remember(mediaIdForHistory, currentEpisode, currentAddonName) { mutableStateOf(false) }
@@ -680,13 +707,15 @@ fun KitsugiFullscreenPlayerScreen(
                     }
                 }
 
-                // Periodic Progress and Room DB Position Saver
-                LaunchedEffect(playerEngine, isPlayingState, mediaIdForHistory, currentEpisode, currentAddonName) {
-                    if (isPlayingState) {
+                // Poll metadata/cache even while paused; save history only during playback.
+                LaunchedEffect(playerEngine, mediaIdForHistory, currentEpisode, currentAddonName) {
+                    run {
                         while (true) {
                             currentPosition = playerEngine.currentPosition
                             duration = playerEngine.duration.coerceAtLeast(0L)
-                            if (currentPosition > 0L) {
+                            isPlayingState = playerEngine.isPlaying
+                            viewModel.updateReadAhead(playerEngine.bufferedPosition / 1000)
+                            if (currentPosition > 0L && playerEngine.isPlaying) {
                                 viewModel.saveProgress(
                                     mediaId = mediaIdForHistory,
                                     episode = currentEpisode,
@@ -754,6 +783,24 @@ fun KitsugiFullscreenPlayerScreen(
                     Log.d("KitsugiPlayerDebug", "playerEngine DisposableEffect initialized")
                     viewModel.setActiveEngine(playerEngine)
                     val listener = object : PlayerEngine.Listener {
+                        override fun onPlayingChanged(isPlaying: Boolean) {
+                            isPlayingState = isPlaying
+                            viewModel.updatePlayerState(playerEngine.currentState, isPlaying)
+                        }
+                        override fun onPositionChanged(positionMs: Long, durationMs: Long) {
+                            currentPosition = positionMs
+                            duration = durationMs
+                            viewModel.onPositionChanged(positionMs, durationMs, playerEngine.isPlaying)
+                        }
+                        override fun onBufferedPositionChanged(positionMs: Long) {
+                            viewModel.updateReadAhead(positionMs / 1000)
+                        }
+                        override fun onChaptersChanged(items: List<com.kitsugi.animelist.core.player.PlayerChapter>) {
+                            viewModel.setMediaChapters(items)
+                        }
+                        override fun onSecondarySubtitleChanged(trackId: Int) {
+                            secondarySubtitleId = trackId
+                        }
                         override fun onStateChanged(state: PlayerEngine.State) {
                             Log.d("KitsugiPlayerDebug", "onStateChanged: state=$state, isPlaying=${playerEngine.isPlaying}")
                             isPlayingState = playerEngine.isPlaying
@@ -940,7 +987,7 @@ fun KitsugiFullscreenPlayerScreen(
                         .focusRequester(mainFocusRequester)
                         .focusable()
                         .onPreviewKeyEvent { event ->
-                            if (event.type != KeyEventType.KeyDown) return@onPreviewKeyEvent false
+                            if (event.type != KeyEventType.KeyDown) return@onPreviewKeyEvent playerEngine.handleKey(event.nativeKeyEvent)
                             
                             if (event.key == Key.Back || event.key == Key.Escape) {
                                 return@onPreviewKeyEvent when {
@@ -997,7 +1044,7 @@ fun KitsugiFullscreenPlayerScreen(
                                     viewModel.showControls()
                                     true
                                 }
-                                else -> false
+                                else -> playerEngine.handleKey(event.nativeKeyEvent)
                             }
                         }
                         .pointerInput(playerEngine, safeSettings, isInPipMode) {
@@ -1213,11 +1260,9 @@ fun KitsugiFullscreenPlayerScreen(
                         onOpenPanel = { panel -> viewModel.showPanel(panel) },
                         currentSpeed = playbackSpeed,
                         onSpeedChange = { speed ->
-                            viewModel.setPlaybackSpeed(speed)
+                            viewModel.setPlaybackSpeed(speed, persist = false)
                         },
-                        onSetSpeedAsDefault = { speed ->
-                            viewModel.setPlaybackSpeed(speed)
-                        },
+                        onSetSpeedAsDefault = { speed -> viewModel.setPlaybackSpeed(speed, persist = true) },
                         currentChapter = currentChapter,
                         chapters = chapters,
                         onSeekToChapter = { seg ->
@@ -1231,6 +1276,12 @@ fun KitsugiFullscreenPlayerScreen(
                             )
                         },
                         selectedSubtitleIndex = if (isSubtitleDisabled) -1 else textTrackOptions.indexOfFirst { it.isSelected },
+                        selectedSecondarySubtitleIndex = textTrackOptions.indexOfFirst { it.trackIndex == secondarySubtitleId },
+                        supportsSecondarySubtitles = playerEngine.supportsSecondarySubtitles,
+                        onSelectSecondarySubtitle = { idx ->
+                            val id = textTrackOptions.getOrNull(idx)?.trackIndex ?: -1
+                            playerEngine.selectSecondarySubtitle(if (id == secondarySubtitleId) -1 else id)
+                        },
                         onSelectSubtitle = { idx ->
                             if (idx == -99) {
                                 playerEngine.disableSubtitles()
@@ -1238,7 +1289,10 @@ fun KitsugiFullscreenPlayerScreen(
                                 textTrackOptions.getOrNull(idx)?.let { playerEngine.selectTrack(it) }
                             }
                         },
-                        onAddSubtitleFile = { subtitlesPicker.launch(arrayOf("*/*")) },
+                        onAddSubtitleFile = {
+                            if (playerEngine.supportsExternalTracks) subtitlesPicker.launch(arrayOf("*/*"))
+                            else switchToMpvForFeature("Harici altyazı ekleme")
+                        },
                         subtitleInputs = currentSubtitles,
                         onDownloadSubtitle = { subtitle -> viewModel.downloadSubtitleToStorage(subtitle) },
                         audioTrackLabels = audioTrackOptions.map { it.label },
@@ -1263,7 +1317,10 @@ fun KitsugiFullscreenPlayerScreen(
                                 }
                             }
                         },
-                        onAddAudioFile = { audioPicker.launch(arrayOf("*/*")) },
+                        onAddAudioFile = {
+                            if (playerEngine.supportsExternalTracks) audioPicker.launch(arrayOf("*/*"))
+                            else switchToMpvForFeature("Harici ses ekleme")
+                        },
                         streamSources = currentStreamSources,
                         selectedSourceIndex = currentSourceIndex,
                         onSelectSource = { idx ->
@@ -1294,9 +1351,15 @@ fun KitsugiFullscreenPlayerScreen(
                         selectedDecoder = viewModel.currentDecoder.collectAsState().value,
                         onSelectDecoder = { dec -> viewModel.updateDecoder(dec) },
                         statisticsPage = statisticsPage,
-                        onSelectStatisticsPage = { page -> viewModel.updateStatisticsPage(page) },
+                        onSelectStatisticsPage = { page ->
+                            if (activeEngineType != PlayerEngineType.MPV) switchToMpvForFeature("Oynatıcı istatistikleri")
+                            viewModel.updateStatisticsPage(page)
+                        },
                         audioChannels = audioChannels,
-                        onSelectAudioChannels = { ch -> viewModel.updateAudioChannels(ch) },
+                        onSelectAudioChannels = { ch ->
+                            if (activeEngineType != PlayerEngineType.MPV) switchToMpvForFeature("Ses kanal düzeni")
+                            viewModel.updateAudioChannels(ch)
+                        },
                         isLocalSource = viewModel.isLocalSource,
                         // Gömülü (MKV içi) altyazılar VM'in dış altyazı listesinde görünmez;
                         // yerel parça listesi boş değilse de altyazı vardır.
@@ -1342,6 +1405,7 @@ fun KitsugiFullscreenPlayerScreen(
                             }
                             subtitleDelayMs = delay.toLong()
                             playerEngine.setSubtitleDelay(delay.toLong())
+                            scope.launch { dataStore.setSubtitleDelayMs(delay.toLong()) }
                         },
                         onSecondarySubDelayChanged = { delay ->
                             if (!playerEngine.supportsSecondarySubtitleDelay) {
@@ -1349,6 +1413,7 @@ fun KitsugiFullscreenPlayerScreen(
                             }
                             secondarySubtitleDelayMs = delay.toLong()
                             playerEngine.setSecondarySubtitleDelay(delay.toLong())
+                            scope.launch { dataStore.setSecondarySubtitleDelayMs(delay.toLong()) }
                         },
                         onSubSpeedChanged = { speed ->
                             if (speed != 1f && !playerEngine.supportsSubtitleSpeed) {
@@ -1356,6 +1421,7 @@ fun KitsugiFullscreenPlayerScreen(
                             }
                             subtitleSpeed = speed
                             playerEngine.setSubtitleSpeed(speed)
+                            scope.launch { dataStore.setSubtitleSpeed(speed) }
                         },
                         filterValues = videoFilterValues,
                         onFilterChange = { filter, value ->

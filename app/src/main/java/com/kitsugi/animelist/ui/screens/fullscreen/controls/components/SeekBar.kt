@@ -21,6 +21,7 @@ import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -57,10 +58,27 @@ fun SeekbarWithTimers(
     durationTimerOnCLick: () -> Unit,
     chapters: ImmutableList<Segment>,
     modifier: Modifier = Modifier,
+    previewImage: android.graphics.Bitmap? = null,
+    previewPosition: Float? = null,
 ) {
+    androidx.compose.foundation.layout.Column(modifier = modifier) {
+        if (previewPosition != null) {
+            androidx.compose.foundation.layout.Column(
+                modifier = Modifier.align(Alignment.CenterHorizontally),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                previewImage?.let { bitmap ->
+                    androidx.compose.foundation.Image(
+                        bitmap = bitmap.asImageBitmap(), contentDescription = "Video önizlemesi",
+                        modifier = Modifier.width(160.dp).height(90.dp)
+                    )
+                }
+                Text(prettyTime(previewPosition.toInt()), color = Color.White)
+            }
+        }
     val clickEvent = LocalPlayerButtonsClickEvent.current
     Row(
-        modifier = modifier.height(48.dp),
+        modifier = Modifier.height(48.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(4.dp),
     ) {
@@ -86,7 +104,7 @@ fun SeekbarWithTimers(
                         persistentListOf(Segment("", 0f)) + it
                     } else {
                         it
-                    } + it
+                    }
                 },
             modifier = Modifier.weight(1f),
             colors = SeekerDefaults.seekerColors(
@@ -106,6 +124,7 @@ fun SeekbarWithTimers(
             modifier = Modifier.width(80.dp),
         )
     }
+}
 }
 
 @Composable

@@ -33,6 +33,22 @@ class KitsugiMpvSurfaceView @JvmOverloads constructor(
 ) : BaseMPVView(context, attrs) {
 
     private var initialized = false
+    private var caFile: java.io.File? = null
+    private val contentDescriptors = mutableMapOf<String, android.os.ParcelFileDescriptor>()
+
+    private fun resolveUrl(url: String): String {
+        val uri = android.net.Uri.parse(url)
+        if (uri.scheme != "content") return url
+        val descriptor = contentDescriptors.getOrPut(url) {
+            requireNotNull(context.contentResolver.openFileDescriptor(uri, "r")) { "Unable to open content URI" }
+        }
+        return "fd://${descriptor.fd}"
+    }
+
+    private fun loadMedia(url: String, startOption: String?) {
+        val version = mpv.getPropertyString("mpv-version") ?: ""
+        mpv.command(*MpvPlaybackPolicy.loadfile(resolveUrl(url), startOption, version))
+    }
     private var hasQueuedInitialMedia = false
     private var lastMediaRequestKey: String? = null
     private var pendingInitialMediaUrl: String? = null
@@ -53,6 +69,13 @@ class KitsugiMpvSurfaceView @JvmOverloads constructor(
 
     fun ensureInitialized() {
         if (initialized) return
+        caFile = com.kitsugi.animelist.core.player.MpvTrustStore.install(context)
+        val scripts = java.io.File(context.filesDir, "scripts").apply { mkdirs() }
+        // Generated handlers are rebuilt from Room, never auto-load an old copy.
+        java.io.File(scripts, "custombuttons.lua").delete()
+        context.assets.open("mpv/aniyomi.lua").use { source ->
+            java.io.File(scripts, "aniyomi.lua").outputStream().use { source.copyTo(it) }
+        }
         Utils.copyAssets(context)
         initialize(
             configDir = context.filesDir.path,
@@ -61,45 +84,22 @@ class KitsugiMpvSurfaceView @JvmOverloads constructor(
         initialized = true
     }
 
-    fun setMedia(url: String, headers: Map<String, String>, startPositionMs: Long = 0L) {
+    fun setMedia(url: String, headers: Map<String, String>, startPositionMs: Long = 0L, forceReload: Boolean = false) {
         ensureInitialized()
         val requestKey = buildMediaRequestKey(url = url, headers = headers) +
             "#start=${startPositionMs.coerceAtLeast(0L)}"
-        if (hasQueuedInitialMedia && requestKey == lastMediaRequestKey) {
+        if (!forceReload && hasQueuedInitialMedia && requestKey == lastMediaRequestKey) {
             return
         }
         applyHeaders(headers)
-        val startOption = startPositionMs
-            .takeIf { it > 0L }
-            ?.let { String.format(Locale.US, "start=%.3f", it / 1000.0) }
-        if (startOption != null && holder.surface?.isValid == true) {
-            ensureSurfaceAttachedIfAlreadyAvailable()
-            mpv.command("loadfile", url, "replace", startOption)
-            hasQueuedInitialMedia = true
-            pendingInitialMediaUrl = null
-            pendingInitialStartOption = null
-        } else if (startOption != null) {
-            pendingInitialMediaUrl = url
-            pendingInitialStartOption = startOption
-            hasQueuedInitialMedia = true
-        } else if (hasQueuedInitialMedia) {
-            pendingInitialMediaUrl = null
-            pendingInitialStartOption = null
-            if (holder.surface?.isValid == true) {
-                ensureSurfaceAttachedIfAlreadyAvailable()
-                mpv.command("loadfile", url, "replace")
-            } else {
-                playFile(url)
-            }
-        } else {
-            pendingInitialMediaUrl = null
-            pendingInitialStartOption = null
-            playFile(url)
-            ensureSurfaceAttachedIfAlreadyAvailable()
-            hasQueuedInitialMedia = true
-        }
-        lastMediaRequestKey = requestKey
         applyDefaultTrackSelectionForNewLoad()
+        pendingInitialMediaUrl = url
+        pendingInitialStartOption = startPositionMs.takeIf { it > 0L }
+            ?.let { String.format(Locale.US, "start=%.3f", it / 1000.0) }
+        hasQueuedInitialMedia = true
+        // Own the pending queue; BaseMPVView.playFile could retain an older request.
+        if (holder.surface?.isValid == true) ensureSurfaceAttachedIfAlreadyAvailable()
+        lastMediaRequestKey = requestKey
         scheduleAspectModeRefresh(resetRetryCount = true)
     }
 
@@ -111,9 +111,9 @@ class KitsugiMpvSurfaceView @JvmOverloads constructor(
             pendingInitialMediaUrl = null
             pendingInitialStartOption = null
             if (startOption != null) {
-                mpv.command("loadfile", url, "replace", startOption)
+                loadMedia(url, startOption)
             } else {
-                mpv.command("loadfile", url, "replace")
+                loadMedia(url, null)
             }
         } else {
             runCatching {
@@ -123,21 +123,7 @@ class KitsugiMpvSurfaceView @JvmOverloads constructor(
     }
 
     fun setMediaUsingLoadfile(url: String, headers: Map<String, String>) {
-        ensureInitialized()
-        val requestKey = buildMediaRequestKey(url = url, headers = headers)
-        applyHeaders(headers)
-        pendingInitialMediaUrl = null
-        pendingInitialStartOption = null
-        if (holder.surface?.isValid == true) {
-            ensureSurfaceAttachedIfAlreadyAvailable()
-            mpv.command("loadfile", url, "replace")
-        } else {
-            playFile(url)
-        }
-        hasQueuedInitialMedia = true
-        lastMediaRequestKey = requestKey
-        applyDefaultTrackSelectionForNewLoad()
-        scheduleAspectModeRefresh(resetRetryCount = true)
+        setMedia(url, headers, forceReload = true)
     }
 
     private fun ensureSurfaceAttachedIfAlreadyAvailable() {
@@ -526,7 +512,8 @@ class KitsugiMpvSurfaceView @JvmOverloads constructor(
 
         val selectedAudioTrackId = mpv.getPropertyString("aid")?.toIntOrNull()
             ?: mpv.getPropertyInt("current-tracks/audio/id")
-        val selectedSubtitleTrackId = mpv.getPropertyString("sid")?.toIntOrNull()
+        val rawSubtitleId = mpv.getPropertyString("sid")
+        val selectedSubtitleTrackId = if (rawSubtitleId == "no") -1 else rawSubtitleId?.toIntOrNull()
             ?: mpv.getPropertyInt("current-tracks/sub/id")
 
         val audioTracks = mutableListOf<MpvTrack>()
@@ -554,7 +541,7 @@ class KitsugiMpvSurfaceView @JvmOverloads constructor(
             }
             val selected = when (type) {
                 "audio" -> (selectedAudioTrackId != null && selectedAudioTrackId == id) || selectedByFlag
-                "sub" -> (selectedSubtitleTrackId != null && selectedSubtitleTrackId == id) || selectedByFlag
+                "sub" -> selectedSubtitleTrackId?.let { it == id } ?: selectedByFlag
                 else -> selectedByFlag
             }
 
@@ -600,6 +587,8 @@ class KitsugiMpvSurfaceView @JvmOverloads constructor(
         removeCallbacks(aspectReapplyRunnable)
         runCatching { destroy() }
             .onFailure { Log.w(TAG, "Failed to destroy libmpv view cleanly: ${it.message}") }
+        contentDescriptors.values.forEach { runCatching { it.close() } }
+        contentDescriptors.clear()
         initialized = false
         hasQueuedInitialMedia = false
         lastMediaRequestKey = null
@@ -608,7 +597,15 @@ class KitsugiMpvSurfaceView @JvmOverloads constructor(
     }
 
     override fun initOptions() {
+        mpv.setOptionString("pause", "yes")
+        mpv.setOptionString("config", "yes")
+        val userFiles = context.getSharedPreferences("kitsugi_prefs", Context.MODE_PRIVATE)
+            .getBoolean("mpv_user_files_enabled", true)
+        mpv.setOptionString("load-scripts", if (userFiles) "yes" else "no")
         mpv.setOptionString("profile", "fast")
+        mpv.setOptionString("ytdl", "no")
+        // Match Aniyomi's AV1 film-grain workaround (mpv issue #14651).
+        mpv.setOptionString("vd-lavc-film-grain", "cpu")
         setVo("gpu")
         mpv.setOptionString("gpu-context", "android")
         mpv.setOptionString("opengl-es", "yes")
@@ -623,21 +620,8 @@ class KitsugiMpvSurfaceView @JvmOverloads constructor(
         mpv.setOptionString("ao", "audiotrack,opensles")
         mpv.setOptionString("audio-set-media-role", "yes")
 
-        // ── KÖK NEDEN DÜZELTMESİ (2026-10-18): HTTPS akışların TAMAMI MPV'de ölüydü ──
-        // Eski kod `tls-verify = yes` + `tls-ca-file = filesDir/cacert.pem` veriyordu.
-        // O cacert.pem HİÇBİR ZAMAN oluşturulmuyordu (assets'te .pem yok, copyAssets CA
-        // paketi üretmez, depoda dosyayı yazan başka kod yolu yok). mpv açıkça verilen
-        // CA yolunu yükleyemeyince CA paketi boş kalıyor ve doğrulama AÇIK olduğu için
-        // HER HTTPS el sıkışması başarısız oluyordu. Türkçe CDN'lerin tamamı HTTPS
-        // (rapidrame, playmix.uno, closeload, vmeas, vmnow, hdplayersystem) olduğundan
-        // MPV'de hiçbir kaynak açılmıyordu → kod 9001 "MPV dosyayı açamadı".
-        // playerPreference varsayılanı "MPV" olduğu için bu, ANA oynatma yoluydu.
-        //
-        // Yeni davranış Media3 yolu ile aynı politika: CsVideoInterceptorFactory
-        // buildClient(ignoreSSL = true) → trust-all TrustManager + hostnameVerifier true
-        // ("geçersiz/süresi dolmuş SSL sertifikalı Türkçe yayın sunucuları" gerekçesiyle).
-        // Ayrıntı ve kural: [mpvTlsOptions]. Gerçek bir cacert.pem assets'e eklenip
-        // filesDir'e kopyalanırsa doğrulama orada yeniden açılabilir.
+        // libmpv cannot consume AndroidCAStore directly. Never disable TLS verification.
+        applyMpvTlsOptions(caFile?.absolutePath) { name, value -> mpv.setOptionString(name, value) }
         mpv.setOptionString("input-default-bindings", "yes")
         mpv.setOptionString("demuxer-max-bytes", "${64 * 1024 * 1024}")
         mpv.setOptionString("demuxer-max-back-bytes", "${64 * 1024 * 1024}")
@@ -758,23 +742,6 @@ class KitsugiMpvSurfaceView @JvmOverloads constructor(
     }
 }
 
-data class MpvTrackSnapshot(
-    val audioTracks: List<MpvTrack>,
-    val subtitleTracks: List<MpvTrack>
-)
-
-data class MpvTrack(
-    val id: Int,
-    val type: String,
-    val name: String,
-    val language: String?,
-    val codec: String?,
-    val channelCount: Int?,
-    val isSelected: Boolean,
-    val isForced: Boolean,
-    val isExternal: Boolean
-)
-
 internal data class AspectScale(val scaleX: Float, val scaleY: Float)
 
 internal fun aspectModeNeedsVideoAspect(mode: AspectMode): Boolean {
@@ -853,53 +820,4 @@ internal fun resolveAspectScale(mode: AspectMode, viewAspect: Float, videoAspect
             }
         }
     }
-}
-
-// ══════════════════════════════════════════════════════════════════════════════
-//  MPV TLS politikası — 2026-10-18 kök neden düzeltmesi
-// ══════════════════════════════════════════════════════════════════════════════
-
-/**
- * mpv'nin TLS seçeneklerini döndürür: `List<Pair<mpv-seçenek-adı, değer>>`.
- *
- * NEDEN VAR (kök neden): `initOptions` eskiden `tls-verify` seçeneğini `yes`,
- * `tls-ca-file` seçeneğini de `filesDir/cacert.pem` olarak ayarlıyordu.
- * `filesDir/cacert.pem` **hiçbir zaman oluşturulmuyordu** (assets'te `.pem` yok,
- * `Utils.copyAssets` CA paketi üretmez, depoda bu dosyayı yazan başka kod yolu yok).
- * mpv `tls-ca-file` ile açıkça verilen yolu yüklemeye çalışır; dosya yoksa CA paketi
- * boş kalır ve `tls-verify=yes` ile yapılan **her HTTPS el sıkışması** başarısız olur.
- * Türkçe kaynakların tamamı HTTPS (rapidrame, playmix.uno, closeload, vmeas, vmnow,
- * hdplayersystem …) olduğu için MPV motorunda hiçbir kaynak açılmıyordu →
- * "MPV dosyayı açamadı" (kod 9001). `playerPreference` varsayılanı `"MPV"` olduğundan
- * bu, uygulamanın ANA oynatma yoluydu.
- *
- * KURAL: Sertifika doğrulaması YALNIZCA gerçekten var olan bir CA dosyası
- * gösterilebildiğinde açılır. Dosya yokken `tls-verify=yes` vermek tüm HTTPS
- * akışları sessizce öldürür — bu yüzden doğrulama kapatılır ve `tls-ca-file`
- * hiç ayarlanmaz.
- *
- * Bu, Media3 yolunun zaten uyguladığı politikanın aynısıdır:
- * `CsVideoInterceptorFactory.buildClient(ignoreSSL = true)` → trust-all
- * `X509TrustManager` + `hostnameVerifier { _, _ -> true }` ("geçersiz/süresi dolmuş
- * SSL sertifikası kullanan Türkçe yayın sunucuları" gerekçesiyle).
- *
- * @param caFilePath Gerçekten diskte var olan bir CA paketi yolu; yoksa `null`.
- */
-internal fun mpvTlsOptions(caFilePath: String?): List<Pair<String, String>> =
-    if (caFilePath.isNullOrBlank()) {
-        listOf("tls-verify" to "no")
-    } else {
-        listOf("tls-verify" to "yes", "tls-ca-file" to caFilePath)
-    }
-
-/**
- * [mpvTlsOptions] çıktısını mpv'ye uygular.
- *
- * @param setter mpv seçenek yazıcı (ör. `{ name, value -> mpv.setOptionString(name, value) }`)
- */
-internal fun applyMpvTlsOptions(
-    caFilePath: String? = null,
-    setter: (String, String) -> Unit
-) {
-    mpvTlsOptions(caFilePath).forEach { (name, value) -> setter(name, value) }
 }

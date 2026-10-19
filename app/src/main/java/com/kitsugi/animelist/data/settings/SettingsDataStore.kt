@@ -61,6 +61,14 @@ class SettingsDataStore(
     }
 
     private object Keys {
+        val SubtitleSpeed = floatPreferencesKey("player_parity_subtitleSpeed")
+        val VideoFiltersJson = stringPreferencesKey("player_parity_videoFiltersJson")
+        val SpeedPresets = stringPreferencesKey("player_parity_speedPresets")
+        val PreferredAudioLanguages = stringPreferencesKey("player_parity_preferredAudioLanguages")
+        val SubtitleWhitelist = stringPreferencesKey("player_parity_subtitleWhitelist")
+        val SubtitleBlacklist = stringPreferencesKey("player_parity_subtitleBlacklist")
+        val AudioPitchCorrection = booleanPreferencesKey("player_parity_audioPitchCorrection")
+
         val SelectedThemeId = stringPreferencesKey("selected_theme_id")
         val ShowAdultContent = booleanPreferencesKey("show_adult_content")
         val BlurAdultMedia = booleanPreferencesKey("blur_adult_media")
@@ -552,6 +560,13 @@ class SettingsDataStore(
                     syncEnabledShikimori = preferences[Keys.SyncEnabledShikimori] ?: true,
                     syncEnabledBangumi = preferences[Keys.SyncEnabledBangumi] ?: true,
                     // ─── MPV Gelişmiş Ayarları
+                    subtitleSpeed = preferences[Keys.SubtitleSpeed] ?: 1f,
+                    videoFiltersJson = preferences[Keys.VideoFiltersJson] ?: "{}",
+                    speedPresets = preferences[Keys.SpeedPresets] ?: "0.25,0.5,0.75,1,1.25,1.5,1.75,2,2.5,3,3.5,4",
+                    preferredAudioLanguages = preferences[Keys.PreferredAudioLanguages] ?: "tr,ja,en",
+                    subtitleWhitelist = preferences[Keys.SubtitleWhitelist] ?: "",
+                    subtitleBlacklist = preferences[Keys.SubtitleBlacklist] ?: "",
+                    audioPitchCorrection = preferences[Keys.AudioPitchCorrection] ?: true,
                     mpvGpuRenderer = preferences[Keys.MpvGpuRenderer] ?: "gpu",
                     mpvHwdecMode = preferences[Keys.MpvHwdecMode] ?: "auto-safe",
                     mpvDebandMode = preferences[Keys.MpvDebandMode] ?: "none",
@@ -1735,4 +1750,34 @@ class SettingsDataStore(
     suspend fun setDownloadNewUnseenEpisodesOnly(enabled: Boolean) {
         context.settingsDataStore.edit { it[Keys.DownloadNewUnseenEpisodesOnly] = enabled }
     }
+    suspend fun setSubtitleSpeed(value: Float) {
+        context.settingsDataStore.edit { it[Keys.SubtitleSpeed] = value }
+    }
+
+    suspend fun setVideoFiltersJson(value: String) {
+        context.settingsDataStore.edit { it[Keys.VideoFiltersJson] = value }
+    }
+
+    suspend fun setSpeedPresets(value: String) {
+        context.settingsDataStore.edit { it[Keys.SpeedPresets] = value }
+    }
+
+    suspend fun setPreferredAudioLanguages(value: String) {
+        context.settingsDataStore.edit { it[Keys.PreferredAudioLanguages] = value }
+    }
+
+    suspend fun setSubtitleWhitelist(value: String) {
+        context.settingsDataStore.edit { it[Keys.SubtitleWhitelist] = value }
+    }
+
+    suspend fun setSubtitleBlacklist(value: String) {
+        context.settingsDataStore.edit { it[Keys.SubtitleBlacklist] = value }
+    }
+
+    suspend fun setAudioPitchCorrection(value: Boolean) {
+        context.settingsDataStore.edit { it[Keys.AudioPitchCorrection] = value }
+    }
+
+
+
 }

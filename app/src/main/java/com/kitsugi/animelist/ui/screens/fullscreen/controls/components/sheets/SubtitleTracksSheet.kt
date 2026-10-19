@@ -41,6 +41,9 @@ fun SubtitleTracksSheet(
     tracks: List<SubtitleTrackInfo>,
     selectedIndices: List<Int>,
     onSelect: (Int) -> Unit,
+    selectedSecondaryIndex: Int = -1,
+    supportsSecondary: Boolean = false,
+    onSelectSecondary: (Int) -> Unit = {},
     onAddSubtitleFile: () -> Unit,
     onOpenSubtitleSettings: () -> Unit,
     onOpenSubtitleDelay: () -> Unit,
@@ -121,6 +124,13 @@ fun SubtitleTracksSheet(
                 } else null)
             } else null
 
+            if (supportsSecondary) {
+                TextButton(onClick = { onSelectSecondary(track.id) },
+                    enabled = track.id == -99 || track.id !in selectedIndices) {
+                    Text(if (track.id == selectedSecondaryIndex) "İkinci altyazı: seçili ✓"
+                        else if (track.id == -99) "İkinci altyazıyı kapat" else "İkinci altyazı olarak seç")
+                }
+            }
             SubtitleTrackRow(
                 title = if (track.id == -99) track.label else buildTrackTitle(track),
                 selected = if (allSelected.contains(track.id)) 0 else -1,

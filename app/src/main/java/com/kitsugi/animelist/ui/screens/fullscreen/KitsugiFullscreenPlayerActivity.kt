@@ -60,15 +60,20 @@ class KitsugiFullscreenPlayerActivity : ComponentActivity() {
     /** Son bilinen oynatma durumu — PiP'e geçerken RemoteAction ikonlarını doğru kurmak için. */
     private var lastKnownIsPlaying = false
     private var lastKnownHasNext = false
+    private var lastKnownHasPrevious = false
+    private var pipEngine: com.kitsugi.animelist.core.player.engine.PlayerEngine? = null
 
     interface PipPlayerCallback {
         fun onPipPlay()
         fun onPipPause()
         fun onPipSkipNext()
+        fun onPipSkipPrevious() {}
+        fun onPipSkipForward() {}
     }
 
     fun setPipPlayerCallback(callback: PipPlayerCallback?) {
         pipPlayerCallback = callback
+        if (callback == null) pipEngine = null
     }
 
     private val pipBroadcastReceiver = object : BroadcastReceiver() {
@@ -77,6 +82,8 @@ class KitsugiFullscreenPlayerActivity : ComponentActivity() {
                 PlayerPipHelper.ACTION_PLAY -> invokePipAction { it.onPipPlay() }
                 PlayerPipHelper.ACTION_PAUSE -> invokePipAction { it.onPipPause() }
                 PlayerPipHelper.ACTION_SKIP_NEXT -> invokePipAction { it.onPipSkipNext() }
+                PlayerPipHelper.ACTION_SKIP_PREVIOUS -> invokePipAction { it.onPipSkipPrevious() }
+                PlayerPipHelper.ACTION_SKIP_FORWARD -> invokePipAction { it.onPipSkipForward() }
             }
         }
     }
@@ -101,7 +108,9 @@ class KitsugiFullscreenPlayerActivity : ComponentActivity() {
                 override fun onPipPause() = viewModel.pause()
                 // "Sonraki bölüm" akışı ekran tarafındaki çözümleyiciye bağlıdır; köprü
                 // yokken güvenli bir karşılığı olmadığı için bilinçli olarak no-op.
-                override fun onPipSkipNext() = Unit
+                override fun onPipSkipNext() = viewModel.changeEpisode(false)
+                override fun onPipSkipPrevious() = viewModel.changeEpisode(true)
+                override fun onPipSkipForward() = viewModel.seekBy(10000)
             }
             action(fallback)
         }
@@ -318,6 +327,8 @@ class KitsugiFullscreenPlayerActivity : ComponentActivity() {
             addAction(PlayerPipHelper.ACTION_PLAY)
             addAction(PlayerPipHelper.ACTION_PAUSE)
             addAction(PlayerPipHelper.ACTION_SKIP_NEXT)
+            addAction(PlayerPipHelper.ACTION_SKIP_PREVIOUS)
+            addAction(PlayerPipHelper.ACTION_SKIP_FORWARD)
         }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             registerReceiver(pipBroadcastReceiver, filter, RECEIVER_NOT_EXPORTED)
@@ -426,7 +437,9 @@ class KitsugiFullscreenPlayerActivity : ComponentActivity() {
             title = animeTitle.ifBlank { title },
             onPlay = { invokePipAction { it.onPipPlay() } },
             onPause = { invokePipAction { it.onPipPause() } },
-            onSkipNext = { invokePipAction { it.onPipSkipNext() } }
+            onSkipNext = { invokePipAction { it.onPipSkipNext() } },
+            onSkipPrevious = { invokePipAction { it.onPipSkipPrevious() } },
+            onSeek = { viewModel.seekTo(it) }
         ).also { helper ->
             helper.setMetadata(
                 title = animeTitle.ifBlank { title },
@@ -541,12 +554,13 @@ class KitsugiFullscreenPlayerActivity : ComponentActivity() {
 
     override fun onUserLeaveHint() {
         super.onUserLeaveHint()
-        if (isPipEnabled) {
+        if (isPipEnabled && lastKnownIsPlaying) {
             PlayerPipHelper.enterPipSafe(
                 this,
-                null,
+                pipEngine,
                 isPlaying = lastKnownIsPlaying,
-                hasNext = lastKnownHasNext
+                hasNext = lastKnownHasNext,
+                hasPrevious = lastKnownHasPrevious
             )
         }
     }
@@ -598,15 +612,20 @@ class KitsugiFullscreenPlayerActivity : ComponentActivity() {
         isPlaying: Boolean,
         positionMs: Long,
         durationMs: Long,
-        hasNext: Boolean = false
+        hasNext: Boolean = false,
+        hasPrevious: Boolean = false,
+        playbackSpeed: Float = 1f,
+        engine: com.kitsugi.animelist.core.player.engine.PlayerEngine? = null
     ) {
+        pipEngine = engine
+        lastKnownHasPrevious = hasPrevious
         lastKnownIsPlaying = isPlaying
         lastKnownHasNext = hasNext
         val helper = mediaSessionHelper ?: return
         helper.setMetadata(title = title, subtitle = KitsugiStrings.get(R.string.inline_episode_1_s_dc662be, episode), durationMs = durationMs)
-        helper.updatePlaybackState(isPlaying = isPlaying, positionMs = positionMs, hasNext = hasNext)
+        helper.updatePlaybackState(isPlaying = isPlaying, positionMs = positionMs, hasNext = hasNext, hasPrevious = hasPrevious, playbackSpeed = playbackSpeed)
         if (isPipEnabled && Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            PlayerPipHelper.updatePipActions(this, null, isPlaying, hasNext)
+            PlayerPipHelper.updatePipActions(this, engine, isPlaying, hasNext, hasPrevious)
         }
     }
 

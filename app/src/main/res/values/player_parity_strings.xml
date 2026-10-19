@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="player_parity_options">Gelişmiş oynatma seçenekleri</string>
+    <string name="player_audio_languages">Ses dilleri (öncelik sırasıyla: tr,ja,en)</string>
+    <string name="player_subtitle_whitelist">Öncelikli altyazı adları (virgülle ayırın)</string>
+    <string name="player_subtitle_blacklist">Dışlanan altyazı adları (virgülle ayırın)</string>
+    <string name="player_subtitle_font">Altyazı yazı tipi</string>
+    <string name="player_pitch_correction">Ses perdesini koru</string>
+    <string name="player_ass_override">ASS stilini geçersiz kıl</string>
+    <string name="player_font_scale">Altyazı ölçeği: %1$.2fx</string>
+    <string name="player_sub_position">Altyazı konumu: %1$d</string>
+    <string name="player_border_style">Altyazı kenarlık stili</string>
+</resources>

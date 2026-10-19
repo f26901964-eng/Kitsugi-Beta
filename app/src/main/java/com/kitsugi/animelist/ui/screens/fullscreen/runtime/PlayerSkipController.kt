@@ -12,6 +12,8 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 
 /**
  * T1.6 – PlayerSkipController
@@ -59,8 +61,13 @@ class PlayerSkipController(
     /**
      * Belirtilen bölüm için AniSkip + AnimeSkip zaman damgalarını yükler.
      */
+    private var loadJob: kotlinx.coroutines.Job? = null
+    private var loadGeneration = 0L
     fun loadIntervals(malId: Int, episode: Int) {
-        scope.launch {
+        val generation = ++loadGeneration
+        loadJob?.cancel()
+        _skipIntervals.value = emptyList()
+        loadJob = scope.launch {
             _isLoading.value = true
             try {
                 val settings = SettingsDataStore(context).settingsFlow.first()
@@ -78,6 +85,9 @@ class PlayerSkipController(
                 val aniList   = runCatching { aniSkipDeferred.await() }.getOrElse { emptyList() }
                 val animeList = runCatching { animeSkipDeferred.await() }.getOrElse { emptyList() }
 
+                currentCoroutineContext().ensureActive()
+                if (generation != loadGeneration) return@launch
+
                 // AnimeSkip öncelikli, AniSkip aynı type'da zaten varsa atlanır
                 val merged = mutableListOf<SkipInterval>()
                 merged.addAll(animeList)
@@ -86,11 +96,13 @@ class PlayerSkipController(
 
                 Log.d(TAG, "Loaded: AniSkip=${aniList.size}, AnimeSkip=${animeList.size}, merged=${merged.size}")
                 _skipIntervals.value = merged
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
             } catch (e: Exception) {
                 Log.e(TAG, "Error loading skip intervals", e)
                 _skipIntervals.value = emptyList()
             } finally {
-                _isLoading.value = false
+                if (generation == loadGeneration) _isLoading.value = false
             }
         }
     }

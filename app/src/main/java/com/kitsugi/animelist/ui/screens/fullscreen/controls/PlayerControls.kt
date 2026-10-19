@@ -156,6 +156,33 @@ fun PlayerControls(
     // Sabit skip-intro süresi (SharedPrefs'ten, varsayılan 85sn)
     val introSkipLength = remember { viewModel.getAnimeSkipIntroLength() }
 
+    // Generate lazily on the first drag; disk decode never runs on the UI thread.
+    val previewUrl by viewModel.currentVideoUrl.collectAsState()
+    val previewHeaders by viewModel.currentHeaders.collectAsState()
+    val previewGenerator = remember(previewUrl, previewHeaders, settings.previewSeekbarEnabled) {
+        previewUrl?.takeIf { settings.previewSeekbarEnabled && it.isNotBlank() }?.let {
+            com.kitsugi.animelist.ui.screens.fullscreen.components.PreviewGenerator(context, it, previewHeaders)
+        }
+    }
+    var previewPosition by remember(previewUrl) { mutableStateOf<Float?>(null) }
+    var previewImage by remember(previewUrl) { mutableStateOf<android.graphics.Bitmap?>(null) }
+    androidx.compose.runtime.DisposableEffect(previewGenerator) {
+        onDispose { previewGenerator?.release() }
+    }
+    LaunchedEffect(previewGenerator, previewPosition, durationMs) {
+        previewImage = null
+        val position = previewPosition ?: return@LaunchedEffect
+        val generator = previewGenerator ?: return@LaunchedEffect
+        if (durationMs <= 0L) return@LaunchedEffect
+        generator.start(durationMs)
+        while (true) {
+            previewImage = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                generator.getPreviewImage((position * 1000f / durationMs).coerceIn(0f, 1f))
+            }
+            delay(250)
+        }
+    }
+
     // Chapters as Segment list for seekbar
     val seekSegments = remember(chapters) {
         chapters.map { it.toSegment() }.toImmutableList()
@@ -391,11 +418,7 @@ fun PlayerControls(
             MiddlePlayerControls(
                 hasPrevious       = hasPrevious,
                 onSkipPrevious    = {
-                    viewModel.playNextEpisode(
-                        activity              = null,
-                        onAlternativeRequired = {},
-                        onResolutionFailed    = {}
-                    )
+                    viewModel.changeEpisode(previous = true)
                     resetTimer()
                 },
                 isLoading         = isLoading,
@@ -438,11 +461,18 @@ fun PlayerControls(
                     verticalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
                     SeekbarWithTimers(
-                        position             = posMs / 1000f,
+                        position             = previewPosition ?: (posMs / 1000f),
                         duration             = (durationMs / 1000f).coerceAtLeast(0f),
                         readAheadValue       = viewModel.readAhead.collectAsState().value,
-                        onValueChange        = { viewModel.seekTo((it * 1000f).toLong()) },
-                        onValueChangeFinished = { resetTimer() },
+                        onValueChange        = { previewPosition = it },
+                        onValueChangeFinished = {
+                            previewPosition?.let { viewModel.seekTo((it * 1000f).toLong()) }
+                            previewPosition = null
+                            previewImage = null
+                            resetTimer()
+                        },
+                        previewImage = previewImage,
+                        previewPosition = previewPosition,
                         timersInverted       = Pair(false, false),
                         positionTimerOnClick  = {},
                         durationTimerOnCLick  = {},

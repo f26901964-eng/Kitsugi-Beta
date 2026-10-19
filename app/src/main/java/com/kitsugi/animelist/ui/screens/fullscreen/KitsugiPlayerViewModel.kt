@@ -85,6 +85,7 @@ class KitsugiPlayerViewModel(application: Application) : AndroidViewModel(applic
     private val _primaryButtonTitle = MutableStateFlow("")
     val primaryButtonTitle: StateFlow<String> = _primaryButtonTitle.asStateFlow()
 
+    private var transientPlaybackSpeed: Float? = null
     private val _playbackSpeed = MutableStateFlow(1f)
     val playbackSpeed: StateFlow<Float> = _playbackSpeed.asStateFlow()
 
@@ -103,7 +104,7 @@ class KitsugiPlayerViewModel(application: Application) : AndroidViewModel(applic
         }
         viewModelScope.launch {
             appSettings.collect { settings ->
-                _playbackSpeed.value = settings.playerSpeed
+                _playbackSpeed.value = transientPlaybackSpeed ?: settings.playerSpeed
             }
         }
     }
@@ -399,16 +400,9 @@ class KitsugiPlayerViewModel(application: Application) : AndroidViewModel(applic
     val statisticsPage: StateFlow<Int> = _statisticsPage.asStateFlow()
 
     fun updateStatisticsPage(page: Int) {
-        val previousPage = _statisticsPage.value
-        _statisticsPage.value = page
-        // Aniyomi parity: toggle stats overlay when switching between off (0) and on states
-        if ((page == 0) xor (previousPage == 0)) {
-            activeEngine?.executeCommand(arrayOf("script-binding", "stats/display-stats-toggle"))
-        }
-        if (page != 0) {
-            activeEngine?.executeCommand(arrayOf("script-binding", "stats/display-page-$page"))
-        }
-        viewModelScope.launch { dataStore.setPlayerStatisticsPage(page) }
+        _statisticsPage.value = page.coerceIn(0, 5)
+        (activeEngine as? com.kitsugi.animelist.core.player.engine.MpvPlayerEngine)?.setStatisticsPage(_statisticsPage.value)
+        viewModelScope.launch { dataStore.setPlayerStatisticsPage(_statisticsPage.value) }
     }
 
     private val _audioChannels = MutableStateFlow(AudioChannels.Auto)
@@ -454,8 +448,31 @@ class KitsugiPlayerViewModel(application: Application) : AndroidViewModel(applic
     private val _chapters = MutableStateFlow<List<com.kitsugi.animelist.ui.screens.fullscreen.controls.components.IndexedSegment>>(emptyList())
     val chapters: StateFlow<List<com.kitsugi.animelist.ui.screens.fullscreen.controls.components.IndexedSegment>> = _chapters.asStateFlow()
 
+    private var mediaChapters = emptyList<com.kitsugi.animelist.core.player.PlayerChapter>()
+    private var skipChapters = emptyList<com.kitsugi.animelist.core.player.PlayerChapterRange>()
+
+    fun setMediaChapters(chapters: List<com.kitsugi.animelist.core.player.PlayerChapter>) {
+        mediaChapters = chapters
+        rebuildChapters()
+    }
+
+    fun updateSkipChapters(intervals: List<com.kitsugi.animelist.data.remote.SkipInterval>) {
+        skipChapters = intervals.map {
+            com.kitsugi.animelist.core.player.PlayerChapterRange(it.type, (it.startTime * 1000).toLong(), (it.endTime * 1000).toLong())
+        }
+        rebuildChapters()
+    }
+
+    private fun rebuildChapters() {
+        val merged = com.kitsugi.animelist.core.player.mergePlayerChapters(mediaChapters, skipChapters, _duration.value)
+        updateChapters(merged.mapIndexed { index, chapter ->
+            com.kitsugi.animelist.ui.screens.fullscreen.controls.components.IndexedSegment(chapter.title, chapter.positionMs / 1000f, index = index)
+        })
+    }
+
     fun updateChapters(chapterList: List<com.kitsugi.animelist.ui.screens.fullscreen.controls.components.IndexedSegment>) {
-        _chapters.value = chapterList
+        _chapters.value = chapterList.sortedBy { it.start }.distinctBy { it.start }
+        updateChapter(_chapters.value.lastOrNull { it.start <= _pos.value / 1000f } ?: _chapters.value.firstOrNull())
     }
 
     private val _currentChapter = MutableStateFlow<com.kitsugi.animelist.ui.screens.fullscreen.controls.components.IndexedSegment?>(null)
@@ -1386,6 +1403,8 @@ class KitsugiPlayerViewModel(application: Application) : AndroidViewModel(applic
     fun setActiveEngine(engine: com.kitsugi.animelist.core.player.engine.PlayerEngine?) {
         this.activeEngine = engine
         if (engine != null) {
+            _audioChannels.value = appSettings.value.audioChannels
+            _statisticsPage.value = appSettings.value.playerStatisticsPage
             startScrobbleSessionIfNeeded(engine)
         }
     }
@@ -1494,6 +1513,7 @@ class KitsugiPlayerViewModel(application: Application) : AndroidViewModel(applic
     fun onPositionChanged(positionMs: Long, durationMs: Long, isPlaying: Boolean) {
         _pos.value = positionMs
         _duration.value = durationMs
+        updateChapter(_chapters.value.lastOrNull { it.start <= positionMs / 1000f } ?: _chapters.value.firstOrNull())
         orchestrator.scrobble.onPositionUpdate(positionMs, durationMs)
         orchestrator.stillWatching.onPlaybackTick(positionMs, isPlaying)
     }
@@ -1518,10 +1538,12 @@ class KitsugiPlayerViewModel(application: Application) : AndroidViewModel(applic
         _pos.value = positionMs
     }
 
-    fun setPlaybackSpeed(speed: Float) {
-        _playbackSpeed.value = speed
-        activeEngine?.setPlaybackSpeed(speed)
-        viewModelScope.launch { dataStore.setPlayerSpeed(speed) }
+    fun setPlaybackSpeed(speed: Float, persist: Boolean = true) {
+        val safe = speed.takeIf { it.isFinite() }?.coerceIn(0.1f, 6f) ?: 1f
+        transientPlaybackSpeed = if (persist) null else safe
+        _playbackSpeed.value = safe
+        activeEngine?.setPlaybackSpeed(safe)
+        if (persist) viewModelScope.launch { dataStore.setPlayerSpeed(safe) }
     }
 
     fun setAutoPlay(enabled: Boolean) {
@@ -1902,34 +1924,45 @@ class KitsugiPlayerViewModel(application: Application) : AndroidViewModel(applic
     val isLocalSource: Boolean
         get() = _currentVideoUrl.value?.let { !it.startsWith("http://") && !it.startsWith("https://") } ?: true
 
-    fun takeScreenshot(cachePath: String, showSubtitles: Boolean): java.io.InputStream? {
+    suspend fun takeScreenshot(cachePath: String, showSubtitles: Boolean): java.io.InputStream? {
         return activeEngine?.takeScreenshot(cachePath, showSubtitles)
     }
 
     fun saveImage(imageStream: () -> java.io.InputStream, timePos: Int?) {
         viewModelScope.launch {
             try {
-                val timeStr = timePos?.let { formatMs(it.toLong()) } ?: System.currentTimeMillis().toString()
-                val filename = "Kitsugi_${animeTitle}_${timeStr.replace(":", "-")}.png"
-                val resolver = context.contentResolver
-                val contentValues = android.content.ContentValues().apply {
-                    put(android.provider.MediaStore.MediaColumns.DISPLAY_NAME, filename)
-                    put(android.provider.MediaStore.MediaColumns.MIME_TYPE, "image/png")
-                    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
-                        put(android.provider.MediaStore.MediaColumns.RELATIVE_PATH, android.os.Environment.DIRECTORY_PICTURES + "/Kitsugi")
-                    }
-                }
-                val uri = resolver.insert(android.provider.MediaStore.Images.Media.EXTERNAL_CONTENT_URI, contentValues)
-                if (uri != null) {
-                    resolver.openOutputStream(uri)?.use { out ->
-                        imageStream().use { input ->
-                            input.copyTo(out)
+                val filename = withContext(kotlinx.coroutines.Dispatchers.IO) {
+                    val timeStr = timePos?.let { formatMs(it.toLong()) } ?: System.currentTimeMillis().toString()
+                    val safeTitle = animeTitle.replace(Regex("[^\\p{L}\\p{N} ._-]"), "_").take(100)
+                    val name = "Kitsugi_${safeTitle}_${timeStr.replace(":", "-")}.png"
+                    val resolver = context.contentResolver
+                    val values = android.content.ContentValues().apply {
+                        put(android.provider.MediaStore.MediaColumns.DISPLAY_NAME, name)
+                        put(android.provider.MediaStore.MediaColumns.MIME_TYPE, "image/png")
+                        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
+                            put(android.provider.MediaStore.MediaColumns.RELATIVE_PATH, android.os.Environment.DIRECTORY_PICTURES + "/Kitsugi")
+                            put(android.provider.MediaStore.MediaColumns.IS_PENDING, 1)
                         }
                     }
-                    Toast.makeText(context, KitsugiStrings.get(R.string.ekran_goruntusu_kaydedildi_x, filename), Toast.LENGTH_LONG).show()
-                } else {
-                    Toast.makeText(context, KitsugiStrings.get(R.string.ekran_goruntusu_kaydedilemedi), Toast.LENGTH_SHORT).show()
+                    val uri = resolver.insert(android.provider.MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values)
+                        ?: error("MediaStore insert failed")
+                    try {
+                        val output = resolver.openOutputStream(uri) ?: error("MediaStore stream unavailable")
+                        output.use { out -> imageStream().use { it.copyTo(out) } }
+                        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
+                            resolver.update(uri, android.content.ContentValues().apply {
+                                put(android.provider.MediaStore.MediaColumns.IS_PENDING, 0)
+                            }, null, null)
+                        }
+                    } catch (error: Exception) {
+                        resolver.delete(uri, null, null)
+                        throw error
+                    }
+                    name
                 }
+                Toast.makeText(context, KitsugiStrings.get(R.string.ekran_goruntusu_kaydedildi_x, filename), Toast.LENGTH_LONG).show()
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
             } catch (e: Exception) {
                 Log.e("PlayerViewModel", "saveImage failed", e)
                 Toast.makeText(context, KitsugiStrings.get(R.string.kaydetme_basarisiz_x, e.localizedMessage), Toast.LENGTH_SHORT).show()
@@ -1940,30 +1973,28 @@ class KitsugiPlayerViewModel(application: Application) : AndroidViewModel(applic
     fun shareImage(imageStream: () -> java.io.InputStream, timePos: Int?) {
         viewModelScope.launch {
             try {
-                val cacheDir = java.io.File(context.cacheDir, "shared_images").apply { mkdirs() }
-                val tempFile = java.io.File(cacheDir, "mpv_screenshot_share.png")
-                tempFile.outputStream().use { out ->
-                    imageStream().use { input ->
-                        input.copyTo(out)
+                val uri = withContext(kotlinx.coroutines.Dispatchers.IO) {
+                    val dir = java.io.File(context.cacheDir, "shared_images").apply { mkdirs() }
+                    val file = java.io.File.createTempFile("screenshot_${timePos ?: 0}_", ".png", dir)
+                    try {
+                        file.outputStream().use { out -> imageStream().use { it.copyTo(out) } }
+                        androidx.core.content.FileProvider.getUriForFile(context, "com.kitsugi.animelist.fileprovider", file)
+                    } catch (error: Exception) {
+                        file.delete()
+                        throw error
                     }
                 }
-
-                val uri = androidx.core.content.FileProvider.getUriForFile(
-                    context,
-                    "com.kitsugi.animelist.fileprovider",
-                    tempFile
-                )
-
                 val intent = Intent(Intent.ACTION_SEND).apply {
                     type = "image/png"
                     putExtra(Intent.EXTRA_STREAM, uri)
+                    clipData = android.content.ClipData.newRawUri("Screenshot", uri)
                     addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
                 }
-                
-                val chooser = Intent.createChooser(intent, "Ekran Görüntüsünü Paylaş").apply {
+                context.startActivity(Intent.createChooser(intent, "Ekran Görüntüsünü Paylaş").apply {
                     addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                }
-                context.startActivity(chooser)
+                })
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
             } catch (e: Exception) {
                 Log.e("PlayerViewModel", "shareImage failed", e)
                 Toast.makeText(context, KitsugiStrings.get(R.string.paylasim_basarisiz_x, e.localizedMessage), Toast.LENGTH_SHORT).show()
@@ -2155,6 +2186,18 @@ class KitsugiPlayerViewModel(application: Application) : AndroidViewModel(applic
                     "pause" -> pause()
                     "unpause" -> play()
                     "pauseunpause" -> if (activeEngine?.isPlaying == true) pause() else play()
+                }
+            }
+            "seek_by", "seek_to", "seek_by_with_text", "seek_to_with_text" -> {
+                val parts = data.split("|", limit = 2)
+                val seconds = parts[0].toIntOrNull()
+                if (seconds != null) {
+                    val text = parts.getOrNull(1)
+                    if (property.substringAfterLast("/").startsWith("seek_by")) {
+                        seekByWithText(seconds, text)
+                    } else {
+                        seekToWithText(seconds, text)
+                    }
                 }
             }
             "toggle_button" -> {

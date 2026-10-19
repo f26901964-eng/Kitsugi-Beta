@@ -23,11 +23,16 @@ interface PlayerEngine {
         fun onTracksChanged(audioTracks: List<TrackOption>, subtitleTracks: List<TrackOption>)
         fun onVideoSizeChanged(width: Int, height: Int, unappliedRotationDegrees: Int, pixelWidthHeightRatio: Float) {}
         fun onEngineEvent(property: String, value: String) {}
+        fun onPlayingChanged(isPlaying: Boolean) {}
+        fun onBufferedPositionChanged(positionMs: Long) {}
+        fun onChaptersChanged(chapters: List<com.kitsugi.animelist.core.player.PlayerChapter>) {}
+        fun onSecondarySubtitleChanged(trackId: Int) {}
     }
 
     val engineType: PlayerEngineType
     val currentState: State
     val currentPosition: Long
+    val bufferedPosition: Long get() = currentPosition
     val duration: Long
     val isPlaying: Boolean
     val currentSpeed: Float
@@ -41,6 +46,10 @@ interface PlayerEngine {
     // UI, desteklenmeyen bir kontrolü sessizce "no-op" bırakmak yerine bu bayraklara
     // bakarak motor değiştirebilir veya kontrolü gizleyebilir. Varsayılanlar Media3'tür;
     // MPV bu değerlerin tamamını destekler.
+    val supportsExternalTracks: Boolean get() = false
+    val supportsSecondarySubtitles: Boolean get() = false
+    val selectedSecondarySubtitleId: Int get() = -1
+    fun selectSecondarySubtitle(trackId: Int) {}
     val supportsSubtitleDelay: Boolean get() = false
     val supportsNegativeSubtitleDelay: Boolean get() = false
     val supportsSecondarySubtitleDelay: Boolean get() = false
@@ -94,6 +103,7 @@ interface PlayerEngine {
     fun setResizeMode(resizeMode: Int) // Matches AspectRatioFrameLayout.RESIZE_MODE_*
     fun setAspectMode(mode: com.kitsugi.animelist.core.player.PlayerAspectMode)
 
+    fun handleKey(event: android.view.KeyEvent): Boolean = false
     fun selectTrack(trackOption: TrackOption)
     fun disableSubtitles()
 
@@ -110,7 +120,7 @@ interface PlayerEngine {
     /**
      * Takes a screenshot of the video.
      */
-    fun takeScreenshot(cachePath: String, showSubtitles: Boolean): java.io.InputStream? = null
+    suspend fun takeScreenshot(cachePath: String, showSubtitles: Boolean): java.io.InputStream? = null
 
     /**
      * Executes an arbitrary engine command (e.g. MPV script-message).

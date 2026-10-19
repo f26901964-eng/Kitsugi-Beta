@@ -40,7 +40,8 @@ class PlayerMediaSessionHelper(
     private val onPlay: () -> Unit = {},
     private val onPause: () -> Unit = {},
     private val onSkipNext: () -> Unit = {},
-    private val onSkipPrevious: () -> Unit = {}
+    private val onSkipPrevious: () -> Unit = {},
+    private val onSeek: (Long) -> Unit = {}
 ) {
 
     companion object {
@@ -73,6 +74,7 @@ class PlayerMediaSessionHelper(
                 Log.d(TAG, "MediaSession: onSkipToPrevious")
                 this@PlayerMediaSessionHelper.onSkipPrevious()
             }
+            override fun onSeekTo(pos: Long) { this@PlayerMediaSessionHelper.onSeek(pos.coerceAtLeast(0L)) }
             override fun onStop() {
                 Log.d(TAG, "MediaSession: onStop")
                 this@PlayerMediaSessionHelper.onPause()

@@ -61,6 +61,9 @@ fun PlayerSheetsHost(
     subtitleTracks: List<SubtitleTrackInfo> = emptyList(),
     selectedSubtitleIndex: Int = -1,
     onSelectSubtitle: (Int) -> Unit = {},
+    selectedSecondarySubtitleIndex: Int = -1,
+    supportsSecondarySubtitles: Boolean = false,
+    onSelectSecondarySubtitle: (Int) -> Unit = {},
     onAddSubtitleFile: () -> Unit = {},
     /** Oynatıcıdaki SubtitleInput listesi — altyazı başına indirme butonu için */
     subtitleInputs: List<com.kitsugi.animelist.core.player.SubtitleInput> = emptyList(),
@@ -95,7 +98,7 @@ fun PlayerSheetsHost(
     onSetAsArt: (ArtType, (() -> InputStream)) -> Unit = { _, _ -> },
     onSaveScreenshot: (() -> InputStream) -> Unit = {},
     onShareScreenshot: (() -> InputStream) -> Unit = {},
-    takeScreenshot: (String, Boolean) -> InputStream? = { _, _ -> null },
+    takeScreenshot: suspend (String, Boolean) -> InputStream? = { _, _ -> null },
 
     customButtons: List<CustomButton> = emptyList(),
     onClickCustomButton: (CustomButton) -> Unit = {},
@@ -168,6 +171,9 @@ fun PlayerSheetsHost(
                     SubtitleTracksSheet(
                         tracks = subtitleTracks,
                         selectedIndices = selectedIndices,
+                        selectedSecondaryIndex = selectedSecondarySubtitleIndex,
+                        supportsSecondary = supportsSecondarySubtitles,
+                        onSelectSecondary = onSelectSecondarySubtitle,
                         onSelect = onSelectSubtitle,
                         onAddSubtitleFile = onAddSubtitleFile,
                         onOpenSubtitleSettings = { onOpenPanel(KitsugiPanels.SubtitleSettings) },

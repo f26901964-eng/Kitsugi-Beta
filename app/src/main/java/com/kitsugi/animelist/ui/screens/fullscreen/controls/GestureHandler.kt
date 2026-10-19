@@ -172,7 +172,7 @@ fun GestureHandler(
                             tryAwaitRelease()
                             if (isLongPressing) {
                                 isLongPressing = false
-                                viewModel.setPlaybackSpeed(previousSpeed)
+                                viewModel.setPlaybackSpeed(previousSpeed, persist = false)
                             }
                             interactionSource.emit(PressInteraction.Release(press))
                         } else {
@@ -181,7 +181,7 @@ fun GestureHandler(
                             tryAwaitRelease()
                             if (isLongPressing) {
                                 isLongPressing = false
-                                viewModel.setPlaybackSpeed(previousSpeed)
+                                viewModel.setPlaybackSpeed(previousSpeed, persist = false)
                             }
                         }
                     },
@@ -193,7 +193,7 @@ fun GestureHandler(
                             // Save current speed BEFORE activating hold, so we can restore it on release
                             previousSpeed = viewModel.playbackSpeed.value
                             val holdSpeed = settings.holdSpeedMultiplier
-                            viewModel.setPlaybackSpeed(holdSpeed)
+                            viewModel.setPlaybackSpeed(holdSpeed, persist = false)
                         }
                     },
                 )

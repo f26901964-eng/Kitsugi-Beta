@@ -28,11 +28,11 @@ import kotlinx.coroutines.launch
  */
 class MpvPlayerEngine(
     private val context: Context,
-    private val settings: AppSettings
+    private var settings: AppSettings
 ) : PlayerEngine, MPV.EventObserver {
 
     private val TAG = "MpvPlayerEngine"
-    private val listeners = mutableListOf<PlayerEngine.Listener>()
+    private val listeners = java.util.concurrent.CopyOnWriteArrayList<PlayerEngine.Listener>()
 
     /**
      * Motor yaşam döngüsüne bağlı kapsam. Eskiden [createVideoView] içinde her seferinde
@@ -43,12 +43,44 @@ class MpvPlayerEngine(
     private val engineScope = kotlinx.coroutines.CoroutineScope(
         kotlinx.coroutines.SupervisorJob() + Dispatchers.Main
     )
+    private var released = false
+    @Volatile private var loadGeneration = 0L
+    private var ducked = false
+    private var customButtonsLoaded = false
+    private var statisticsPageApplied = 0
+    private var focusController: com.kitsugi.animelist.core.player.MpvAudioFocusController? = null
+    private fun audioFocus(): com.kitsugi.animelist.core.player.MpvAudioFocusController =
+        focusController ?: com.kitsugi.animelist.core.player.MpvAudioFocusController(
+            context, { isPlaying }, { setPlaying(false) }, { setPlaying(true) },
+            { value -> ducked = value; setVolume(_currentVolume) }, { pause() }
+        ).also { focusController = it }
+
+    private fun onMain(block: () -> Unit) {
+        val generationAtDispatch = loadGeneration
+        if (released) return
+        if (android.os.Looper.myLooper() == android.os.Looper.getMainLooper()) block()
+        else engineScope.launch(Dispatchers.Main.immediate) { if (!released && generationAtDispatch == loadGeneration) block() }
+    }
+
+    private fun setPlaying(value: Boolean) {
+        mpvView?.setPaused(!value)
+        if (isPlaying != value) {
+            isPlaying = value
+            listeners.forEach { it.onPlayingChanged(value) }
+        }
+        checkBufferingState()
+    }
+
     internal var mpvView: KitsugiMpvSurfaceView? = null
 
     override val engineType: PlayerEngineType = PlayerEngineType.MPV
 
     // MPV (libmpv) altyazı gecikmesi, negatif gecikme, ikincil altyazı, altyazı hızı ve
     // renk filtrelerinin tamamını destekler.
+    override val supportsExternalTracks: Boolean get() = true
+    override val supportsSecondarySubtitles: Boolean get() = true
+    override val selectedSecondarySubtitleId: Int get() = secondarySubtitleTrackId
+    override fun selectSecondarySubtitle(trackId: Int) = selectSecondarySubtitleTrack(trackId)
     override val supportsSubtitleDelay: Boolean get() = true
     override val supportsNegativeSubtitleDelay: Boolean get() = true
     override val supportsSecondarySubtitleDelay: Boolean get() = true
@@ -59,6 +91,9 @@ class MpvPlayerEngine(
         private set
 
     override var currentPosition: Long = 0L
+        private set
+
+    override var bufferedPosition: Long = 0L
         private set
 
     override var duration: Long = 0L
@@ -127,13 +162,8 @@ class MpvPlayerEngine(
     private var fileLoaded: Boolean = false
     /** Bu medya yükleme döngüsü için oynatıcı hatası zaten bildirildi mi? */
     private var errorReportedForLoad: Boolean = false
-    /**
-     * loadfile(replace) ile değiştirilen ÖNCEKİ dosyanın END_FILE olaylarını atlamak için sayaç.
-     * Bunlar yeni medyanın hatası değildir; atlanmazsa sahte hata → sahte motor değişimi olur.
-     */
-    private var staleEndFileEvents: Int = 0
-    /** Son yüklenen medyanın anahtarı (url + headers + başlangıç konumu); setMedia ile aynı koşul. */
-    private var lastLoadKey: String? = null
+    /** Ignore the previous file's terminal event until START_FILE of the replacement. */
+    private var awaitingStartFile = false
     /** Ayrı ses akışı (audioUrl) eklendi mi? true ise MPV'nin ses otomatik seçimi ezilmez. */
     private var hasExternalAudio: Boolean = false
     /** Harici altyazılar beklenmeden de ilk seçim yapılsın diye zorlanmış değerlendirme. */
@@ -144,6 +174,7 @@ class MpvPlayerEngine(
     private val observedProps = mapOf(
         "time-pos"          to MPV.mpvFormat.MPV_FORMAT_DOUBLE,
         "duration"          to MPV.mpvFormat.MPV_FORMAT_DOUBLE,
+        "demuxer-cache-time" to MPV.mpvFormat.MPV_FORMAT_DOUBLE,
         "pause"             to MPV.mpvFormat.MPV_FORMAT_FLAG,
         "paused-for-cache"  to MPV.mpvFormat.MPV_FORMAT_FLAG,
         "core-idle"         to MPV.mpvFormat.MPV_FORMAT_FLAG,
@@ -155,15 +186,14 @@ class MpvPlayerEngine(
         "speed"             to MPV.mpvFormat.MPV_FORMAT_DOUBLE,
         "volume"            to MPV.mpvFormat.MPV_FORMAT_DOUBLE,
         "sub-visibility"    to MPV.mpvFormat.MPV_FORMAT_FLAG,
-        "sid"               to MPV.mpvFormat.MPV_FORMAT_INT64,
-        "secondary-sid"     to MPV.mpvFormat.MPV_FORMAT_INT64,
-        "aid"               to MPV.mpvFormat.MPV_FORMAT_INT64,
+        "sid"               to MPV.mpvFormat.MPV_FORMAT_STRING,
+        "secondary-sid"     to MPV.mpvFormat.MPV_FORMAT_STRING,
+        "aid"               to MPV.mpvFormat.MPV_FORMAT_STRING,
         "hwdec-current"     to MPV.mpvFormat.MPV_FORMAT_STRING,
         "video-params/w"    to MPV.mpvFormat.MPV_FORMAT_INT64,
         "video-params/h"    to MPV.mpvFormat.MPV_FORMAT_INT64,
-        "user-data/aniyomi" to MPV.mpvFormat.MPV_FORMAT_STRING,
         "user-data/current-anime/intro-length" to MPV.mpvFormat.MPV_FORMAT_INT64
-    )
+    ) + MpvPlaybackPolicy.scriptProperties.associateWith { MPV.mpvFormat.MPV_FORMAT_STRING }
 
     override val activeStreamInfo: StreamInfoData
         get() {
@@ -172,7 +202,7 @@ class MpvPlayerEngine(
             val vw = runCatching { mpvView?.mpv?.getPropertyInt("video-params/w") }.getOrNull()
             val vh = runCatching { mpvView?.mpv?.getPropertyInt("video-params/h") }.getOrNull()
             val fps = runCatching { mpvView?.mpv?.getPropertyDouble("estimated-vf-fps") }.getOrNull()
-            val bitrate = runCatching { mpvView?.mpv?.getPropertyInt("file-size") }.getOrNull()
+            val bitrate = runCatching { mpvView?.mpv?.getPropertyInt("video-bitrate") }.getOrNull()
             return StreamInfoData(
                 addonName = currentAddonName ?: "Dahili",
                 streamName = "MPV",
@@ -221,29 +251,19 @@ class MpvPlayerEngine(
         if (view != null) {
             applyInitOptions(view)
             beginLoad(videoUrl, audioUrl, headers, startPositionMs)
-            view.setMedia(videoUrl, headers, startPositionMs)
-            applyExternalAudio(view, audioUrl)
-            view.applySubtitleLanguagePreferences(settings.preferredSubtitleLanguages, null)
-            subtitles.forEach { sub ->
-                view.addAndSelectExternalSubtitle(sub.url, sub.name, sub.lang)
-            }
-            applySecondarySubtitle(view)
+            view.setMedia(videoUrl, headers, startPositionMs, forceReload = true)
             setupCustomButtons()
-            isPlaying = true
         }
     }
 
     override fun play() {
-        mpvView?.setPaused(false)
-        isPlaying = true
-        // Dosya henüz yüklenmediyse READY yaymak buffering göstergesini erken kapatıyordu.
-        if (fileLoaded) updateState(PlayerEngine.State.READY)
+        if (mpvView == null) return
+        if (audioFocus().request()) setPlaying(true)
     }
 
     override fun pause() {
-        mpvView?.setPaused(true)
-        isPlaying = false
-        if (fileLoaded) updateState(PlayerEngine.State.READY)
+        focusController?.userPaused()
+        setPlaying(false)
     }
 
     override fun seekTo(positionMs: Long) {
@@ -270,21 +290,14 @@ class MpvPlayerEngine(
     }
 
     override fun setVolume(volume: Float) {
-        _currentVolume = volume
-        if (volume > 1.0f) {
-            // Boost modu — MPV volume-max sınırına göre ölçekle
-            val cap = settings.volumeBoostCap.coerceIn(100, 200)
-            val boostedVol = (volume * 100.0).coerceIn(100.0, cap.toDouble())
-            runCatching {
-                mpvView?.mpv?.setPropertyInt("volume-max", cap)
-                mpvView?.mpv?.setPropertyDouble("volume", boostedVol)
-            }
-        } else {
-            runCatching {
-                mpvView?.mpv?.setPropertyDouble("volume", (volume * 100.0).coerceIn(0.0, 100.0))
-            }
-            mpvView?.applyAudioAmplificationDb(0)
+        val cap = settings.volumeBoostCap.coerceIn(100, 200)
+        _currentVolume = MpvPlaybackPolicy.volume(volume, cap)
+        runCatching {
+            mpvView?.mpv?.setPropertyInt("volume-max", cap)
+            mpvView?.mpv?.setPropertyDouble("volume", _currentVolume * 100.0 * if (ducked) 0.5 else 1.0)
         }
+        // Do not applyAudioAmplificationDb(0) here: it writes volume=100 and
+        // undoes normal volume adjustments, including mute.
     }
 
     override fun setSubtitleDelay(delayMs: Long) {
@@ -326,7 +339,14 @@ class MpvPlayerEngine(
 
     /** İkincil altyazı parça ID'sini seç; -1 = kapat */
     fun selectSecondarySubtitleTrack(trackId: Int) {
+        if (trackId >= 0 && mpvView?.mpv?.getPropertyString("sid")?.toIntOrNull() == trackId) return
+        initialSelectionDone = true
+        selectionForced = true
         secondarySubtitleTrackId = trackId
+        if (trackId >= 0) {
+            mpvView?.mpv?.setPropertyBoolean("sub-visibility", true)
+            _isSubtitleDisabled = false
+        }
         runCatching {
             if (trackId == -1) {
                 mpvView?.mpv?.setPropertyString("secondary-sid", "no")
@@ -343,32 +363,46 @@ class MpvPlayerEngine(
         }
     }
 
+    private var activeSubtitleStyle = SubtitleStyleSettings()
+
+    fun setStatisticsPage(page: Int) {
+        val safe = page.coerceIn(0, 5)
+        if ((statisticsPageApplied == 0) != (safe == 0))
+            executeCommand(arrayOf("script-binding", "stats/display-stats-toggle"))
+        if (safe != 0) executeCommand(arrayOf("script-binding", "stats/display-page-$safe"))
+        statisticsPageApplied = safe
+    }
+
+    fun updateSettings(value: AppSettings) {
+        settings = value
+        mpvView?.let { applyInitOptions(it) }
+        setSubtitleStyle(activeSubtitleStyle)
+        if (fileLoaded) setStatisticsPage(settings.playerStatisticsPage)
+    }
+
     override fun setSubtitleStyle(style: SubtitleStyleSettings) {
-        mpvView?.applySubtitleStyle(style)
-        // Gelişmiş stil özellikleri (Aniyomi'den uyarlama)
-        runCatching {
-            val mpv = mpvView?.mpv ?: return@runCatching
-            // İtalik
-            if (style.bold || settings.subtitleItalic) {
-                mpv.setPropertyString("sub-ass-override", "force")
-            }
-            // Hizalama
-            val alignCode = when (settings.subtitleJustification) {
-                "left"  -> "7"
-                "right" -> "9"
-                else    -> "8" // center (üst orta)
-            }
-            mpv.setPropertyString("sub-align-x", when (settings.subtitleJustification) {
-                "left"  -> "left"
-                "right" -> "right"
-                else    -> "center"
-            })
-            // Gölge
-            if (settings.subtitleShadowOffset > 0f) {
-                mpv.setPropertyDouble("sub-shadow-offset", settings.subtitleShadowOffset.toDouble())
-            }
-            // Kenarlık kalınlığı
-            mpv.setPropertyDouble("sub-border-size", settings.subtitleBorderSize.toDouble())
+        activeSubtitleStyle = style
+        val view = mpvView ?: return
+        val options = mapOf(
+            "sub-font" to settings.subtitleFont.ifBlank { "Sans Serif" },
+            "sub-font-size" to "55",
+            "sub-scale" to ((style.size / 20.0) * settings.subtitleFontScale).coerceIn(0.1, 10.0).toString(),
+            "sub-bold" to if (style.bold) "yes" else "no",
+            "sub-italic" to if (settings.subtitleItalic) "yes" else "no",
+            "sub-color" to String.format(java.util.Locale.US, "#%08X", style.textColor),
+            "sub-back-color" to String.format(java.util.Locale.US, "#%08X", settings.subtitleBackgroundColor),
+            "sub-border-color" to String.format(java.util.Locale.US, "#%08X", settings.subtitleBorderColor),
+            "sub-border-size" to if (style.outlineEnabled) settings.subtitleBorderSize.toString() else "0",
+            "sub-border-style" to settings.subtitleBorderStyle,
+            "sub-shadow-offset" to if (style.outlineEnabled) settings.subtitleShadowOffset.toString() else "0",
+            "sub-pos" to (settings.subtitlePos - style.verticalOffset / 5.0).coerceIn(0.0, 150.0).toString(),
+            "sub-justify" to settings.subtitleJustification,
+            "sub-ass-justify" to if (settings.subtitleOverrideAss) "yes" else "no",
+            "sub-ass-override" to if (settings.subtitleOverrideAss) "force" else "no"
+        )
+        options.forEach { (name, value) ->
+            runCatching { view.mpv.setPropertyString(name, value) }
+                .onFailure { Log.w(TAG, "Subtitle option $name: ${it.message}") }
         }
     }
 
@@ -398,6 +432,39 @@ class MpvPlayerEngine(
         mpvView?.applyAspectMode(mpvAspectMode)
     }
 
+    override fun handleKey(event: android.view.KeyEvent): Boolean {
+        if (mpvView == null || android.view.KeyEvent.isModifierKey(event.keyCode) ||
+            event.action == android.view.KeyEvent.ACTION_MULTIPLE) return false
+        val key = when (event.keyCode) {
+            android.view.KeyEvent.KEYCODE_DPAD_LEFT -> "LEFT"
+            android.view.KeyEvent.KEYCODE_DPAD_RIGHT -> "RIGHT"
+            android.view.KeyEvent.KEYCODE_DPAD_UP -> "UP"
+            android.view.KeyEvent.KEYCODE_DPAD_DOWN -> "DOWN"
+            android.view.KeyEvent.KEYCODE_ENTER -> "ENTER"
+            android.view.KeyEvent.KEYCODE_SPACE -> "SPACE"
+            android.view.KeyEvent.KEYCODE_TAB -> "TAB"
+            android.view.KeyEvent.KEYCODE_DEL -> "BS"
+            android.view.KeyEvent.KEYCODE_FORWARD_DEL -> "DEL"
+            android.view.KeyEvent.KEYCODE_PAGE_UP -> "PGUP"
+            android.view.KeyEvent.KEYCODE_PAGE_DOWN -> "PGDWN"
+            else -> {
+                val code = event.unicodeChar
+                if (!event.isPrintingKey || code == 0 || code and android.view.KeyCharacterMap.COMBINING_ACCENT != 0) return false
+                String(Character.toChars(code))
+            }
+        }
+        if (event.repeatCount > 0) return true
+        val modifiers = buildList {
+            if (event.isShiftPressed) add("shift")
+            if (event.isCtrlPressed) add("ctrl")
+            if (event.isAltPressed) add("alt")
+            if (event.isMetaPressed) add("meta")
+            add(key)
+        }.joinToString("+")
+        executeCommand(arrayOf(if (event.action == android.view.KeyEvent.ACTION_DOWN) "keydown" else "keyup", modifiers))
+        return true
+    }
+
     override fun selectTrack(trackOption: TrackOption) {
         var applied = true
         // KULLANICI elle seçti → ilk otomatik parça seçimi bir daha devreye girmemeli.
@@ -410,6 +477,7 @@ class MpvPlayerEngine(
         if (trackOption.groupIndex == 0) {
             applied = mpvView?.selectAudioTrackById(trackOption.trackIndex) ?: false
         } else if (trackOption.groupIndex == 1) {
+            if (trackOption.trackIndex == secondarySubtitleTrackId) selectSecondarySubtitleTrack(-1)
             applied = mpvView?.selectSubtitleTrackById(trackOption.trackIndex) ?: false
             _isSubtitleDisabled = false
         }
@@ -431,6 +499,9 @@ class MpvPlayerEngine(
     }
 
     override fun disableSubtitles() {
+        initialSelectionDone = true
+        selectionForced = true
+        selectSecondarySubtitleTrack(-1)
         mpvView?.disableSubtitles()
         _isSubtitleDisabled = true
         updateTracks()
@@ -439,6 +510,7 @@ class MpvPlayerEngine(
     override fun createVideoView(context: Context): View {
         if (mpvView == null) {
             mpvView = KitsugiMpvSurfaceView(context).apply {
+                this@MpvPlayerEngine.mpvView = this
                 ensureInitialized()
 
                 // Tüm gözlenen özellikleri tek seferinde kaydet (Aniyomi modeli)
@@ -454,16 +526,9 @@ class MpvPlayerEngine(
                 if (!pendingUrl.isNullOrBlank()) {
                     beginLoad(pendingUrl, pendingAudioUrl, pendingHeaders, pendingStartPositionMs)
                     setMedia(pendingUrl, pendingHeaders, pendingStartPositionMs)
-                    applyExternalAudio(this, pendingAudioUrl)
-                    applySubtitleLanguagePreferences(settings.preferredSubtitleLanguages, null)
-                    pendingSubtitles.forEach { sub ->
-                        addAndSelectExternalSubtitle(sub.url, sub.name, sub.lang)
-                    }
-                    applySecondarySubtitle(this)
                     engineScope.launch {
                         setupCustomButtons()
                     }
-                    isPlaying = true
                 }
             }
         }
@@ -472,6 +537,10 @@ class MpvPlayerEngine(
 
     override fun release() {
         // Motor kapanırken bekleyen script/custom-button kurulum coroutine'leri de iptal edilir.
+        released = true
+        loadGeneration++
+        focusController?.release()
+        focusController = null
         engineScope.cancel()
         runCatching { mpvView?.mpv?.removeObserver(this) }
         runCatching { mpvView?.releasePlayer() }
@@ -481,19 +550,21 @@ class MpvPlayerEngine(
 
     // ──── MPV.EventObserver callbacks ────────────────────────────────────────
 
-    override fun eventProperty(property: String) {
+    override fun eventProperty(property: String) = onMain {
         when (property) {
-            "track-list", "chapter-list" -> updateTracks()
+            "track-list" -> updateTracks()
+            "chapter-list" -> updateChapters()
         }
     }
 
-    override fun eventProperty(property: String, value: Boolean) {
+    override fun eventProperty(property: String, value: Boolean) = onMain {
         when (property) {
             "pause" -> {
-                isPlaying = !value
-                if (!isSeeking) {
-                    updateState(PlayerEngine.State.READY)
+                if (isPlaying != !value) {
+                    isPlaying = !value
+                    listeners.forEach { it.onPlayingChanged(isPlaying) }
                 }
+                checkBufferingState()
             }
             "paused-for-cache" -> {
                 pausedForCache = value
@@ -512,7 +583,7 @@ class MpvPlayerEngine(
                 }
             }
             "eof-reached" -> {
-                if (value) {
+                if (value && !awaitingStartFile) {
                     Log.d(TAG, "eof-reached=true → State.ENDED")
                     updateState(PlayerEngine.State.ENDED)
                 }
@@ -523,16 +594,24 @@ class MpvPlayerEngine(
         }
     }
 
-    override fun eventProperty(property: String, value: Double) {
+    override fun eventProperty(property: String, value: Double) = onMain {
         when (property) {
             "time-pos" -> {
+                if (awaitingStartFile) return@onMain
                 val posMs = (value * 1000).toLong().coerceAtLeast(0L)
                 if (posMs != currentPosition) {
                     currentPosition = posMs
                     notifyPositionChanged()
                 }
             }
+            "demuxer-cache-time" -> {
+                if (value.isFinite()) {
+                    bufferedPosition = (value * 1000).toLong().coerceAtLeast(0)
+                    listeners.forEach { it.onBufferedPositionChanged(bufferedPosition) }
+                }
+            }
             "duration" -> {
+                if (awaitingStartFile) return@onMain
                 val durMs = (value * 1000).toLong().coerceAtLeast(0L)
                 if (durMs != duration) {
                     duration = durMs
@@ -551,7 +630,7 @@ class MpvPlayerEngine(
         }
     }
 
-    override fun eventProperty(property: String, value: Long) {
+    override fun eventProperty(property: String, value: Long) = onMain {
         when (property) {
             "sid" -> {
                 // Primary subtitle track ID güncellendi — track listesini yenile
@@ -567,43 +646,71 @@ class MpvPlayerEngine(
             "video-params/w", "video-params/h" -> {
                 // Video boyutları değişti — streamInfo güncellenecek
             }
-            "chapter" -> {
-                // Bölüm değişimi bildirimi
-            }
+            "chapter" -> updateChapters()
             "user-data/current-anime/intro-length" -> {
                 listeners.forEach { it.onEngineEvent(property, value.toString()) }
             }
         }
     }
 
-    override fun eventProperty(property: String, value: String) {
+    override fun eventProperty(property: String, value: String) = onMain {
         when (property) {
             "hwdec-current" -> {
                 activeHwdecMode = value
                 Log.d(TAG, "hwdec-current=$value")
             }
-            "user-data/aniyomi" -> {
-                listeners.forEach { it.onEngineEvent(property, value) }
+            "sid", "aid" -> updateTracks()
+            "secondary-sid" -> {
+                secondarySubtitleTrackId = value.toIntOrNull() ?: -1
+                listeners.forEach { it.onSecondarySubtitleChanged(secondarySubtitleTrackId) }
+            }
+            in MpvPlaybackPolicy.scriptProperties -> {
+                if (value.isNotEmpty()) listeners.forEach { it.onEngineEvent(property, value) }
             }
         }
     }
 
     override fun eventProperty(property: String, value: MPVNode) {}
 
-    override fun event(eventId: Int, data: MPVNode) {
+    override fun event(eventId: Int, data: MPVNode) = onMain {
         when (eventId) {
+            MPV.mpvEvent.MPV_EVENT_START_FILE -> {
+                awaitingStartFile = false
+                fileLoaded = false
+            }
             MPV.mpvEvent.MPV_EVENT_FILE_LOADED -> {
+                if (awaitingStartFile) return@onMain
                 Log.d(TAG, "MPV_EVENT_FILE_LOADED")
                 fileLoaded = true
-                updateState(PlayerEngine.State.READY)
+                setPlaying(audioFocus().request())
+                updateChapters()
+                // The surface may not have existed when prepare queued loadfile.
+                // Add tracks only once the new file is actually open (not to the old file).
+                mpvView?.let { view ->
+                    streamTitle?.takeIf { it.isNotBlank() }?.let {
+                        view.mpv.setPropertyString("force-media-title", it)
+                        view.mpv.setPropertyString("user-data/current-anime/episode-title", it)
+                    }
+                    applyExternalAudio(view, pendingAudioUrl)
+                    view.applySubtitleLanguagePreferences(settings.preferredSubtitleLanguages, null)
+                    pendingSubtitles.forEach { sub ->
+                        view.addAndSelectExternalSubtitle(sub.url, sub.name, sub.lang)
+                    }
+                    applySecondarySubtitle(view)
+                }
+                setSubtitleStyle(activeSubtitleStyle)
+                setStatisticsPage(settings.playerStatisticsPage)
+                checkBufferingState()
                 updateTracks()
                 // Harici altyazılar bazen geç eklenir; kısa bir gecikmeden sonra seçimi zorla.
-                android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
-                    if (!initialSelectionDone) {
+                val generation = loadGeneration
+                engineScope.launch {
+                    kotlinx.coroutines.delay(1500L)
+                    if (!released && generation == loadGeneration && !initialSelectionDone) {
                         selectionForced = true
                         updateTracks()
                     }
-                }, 1500L)
+                }
             }
             MPV.mpvEvent.MPV_EVENT_END_FILE -> {
                 Log.d(TAG, "MPV_EVENT_END_FILE")
@@ -619,89 +726,72 @@ class MpvPlayerEngine(
      * GPU renderer, hwdec, debanding, demuxer cache, volume-max gibi gelişmiş ayarlar.
      */
     private fun applyInitOptions(view: KitsugiMpvSurfaceView) {
-        runCatching {
-            val mpv = view.mpv
-
-            // GPU renderer backend
-            mpv.setPropertyString("gpu-api", "opengl")
-            mpv.setPropertyString("vo", settings.mpvGpuRenderer.ifBlank { "gpu" })
-            mpv.setPropertyDouble("speed", _currentSpeed.toDouble())
-
-            // Donanım kod çözme
-            mpv.setPropertyString("hwdec", settings.mpvHwdecMode.ifBlank { "auto-safe" })
-
-            // Debanding
-            when (settings.mpvDebandMode) {
-                "cpu" -> {
-                    mpv.setPropertyString("deband", "yes")
-                    mpv.setPropertyString("deband-iterations", "1")
-                }
-                "gpu" -> {
-                    mpv.setPropertyString("deband", "yes")
-                }
-                else -> {
-                    mpv.setPropertyString("deband", "no")
-                }
-            }
-
-            // YUV420P format zorlama (eski donanım uyumu)
-            if (settings.mpvForceYuv420p) {
-                mpv.setPropertyString("vf", "format=yuv420p")
-            }
-
-            // Demuxer önbellek limiti
-            if (settings.mpvDemuxerCacheMb > 0) {
-                mpv.setPropertyString(
-                    "demuxer-max-bytes",
-                    "${settings.mpvDemuxerCacheMb}MiB"
-                )
-                mpv.setPropertyString(
-                    "demuxer-max-back-bytes",
-                    "${(settings.mpvDemuxerCacheMb / 4).coerceAtLeast(8)}MiB"
-                )
-            }
-
-            // Volume-max sınırı (ses güçlendirme için)
-            mpv.setPropertyInt("volume-max", settings.volumeBoostCap.coerceIn(100, 200))
-
-            // Ağ önbelleği — akış sürtünmesini azaltır
-            mpv.setPropertyString("cache", "yes")
-            mpv.setPropertyString("network-timeout", "30")
-        }.onFailure {
-            Log.w(TAG, "applyInitOptions hata: ${it.message}")
+        // Isolate writes: an unavailable option in a libmpv build must not prevent
+        // speed, decoder, cache and volume settings from being applied.
+        fun option(name: String, value: String) {
+            runCatching { view.mpv.setPropertyString(name, value) }
+                .onFailure { Log.w(TAG, "MPV option $name could not be applied: ${it.message}") }
         }
+        option("vo", settings.mpvGpuRenderer.ifBlank { "gpu" })
+        option("speed", _currentSpeed.toString())
+        option("hwdec", settings.mpvHwdecMode.ifBlank { "auto-safe" })
+        option("deband", if (settings.mpvDebandMode == "gpu") "yes" else "no")
+        option("vf", MpvPlaybackPolicy.videoFilters(settings.mpvDebandMode, settings.mpvForceYuv420p))
+        if (settings.mpvDemuxerCacheMb > 0) {
+            option("demuxer-max-bytes", "${settings.mpvDemuxerCacheMb}MiB")
+            option("demuxer-max-back-bytes", "${(settings.mpvDemuxerCacheMb / 4).coerceAtLeast(8)}MiB")
+        }
+        option("volume-max", settings.volumeBoostCap.coerceIn(100, 200).toString())
+        option("alang", settings.preferredAudioLanguages)
+        option("audio-pitch-correction", if (settings.audioPitchCorrection) "yes" else "no")
+        val channels = settings.audioChannels
+        option("audio-channels", if (channels == com.kitsugi.animelist.ui.screens.fullscreen.AudioChannels.ReverseStereo) "stereo" else channels.value)
+        option("af", if (channels == com.kitsugi.animelist.ui.screens.fullscreen.AudioChannels.ReverseStereo) channels.value else "")
+        option("cache", "yes")
+        option("network-timeout", "30")
     }
 
     /** İkincil altyazı seçimini MPV'ye uygula */
     private fun applySecondarySubtitle(view: KitsugiMpvSurfaceView) {
-        val trackId = settings.secondarySubtitleTrackId
-        if (trackId != -1) {
-            runCatching {
-                view.mpv.setPropertyInt("secondary-sid", trackId)
-            }
+        view.mpv.setPropertyString("secondary-sid", "no")
+        view.mpv.setPropertyDouble("secondary-sub-delay", secondarySubtitleDelayMs / 1000.0)
+    }
+
+    private fun updateChapters() {
+        val view = mpvView ?: return
+        val chapters = (0 until (view.mpv.getPropertyInt("chapter-list/count") ?: 0).coerceIn(0, 10000)).mapNotNull { i ->
+            val seconds = view.mpv.getPropertyDouble("chapter-list/$i/time") ?: return@mapNotNull null
+            if (!seconds.isFinite()) return@mapNotNull null
+            com.kitsugi.animelist.core.player.PlayerChapter(
+                view.mpv.getPropertyString("chapter-list/$i/title") ?: "Chapter ${i + 1}",
+                (seconds * 1000).toLong()
+            )
         }
-        val delayMs = settings.secondarySubtitleDelayMs
-        if (delayMs != 0L) {
-            runCatching {
-                view.mpv.setPropertyDouble("secondary-sub-delay", delayMs / 1000.0)
-            }
-        }
+        val normalized = com.kitsugi.animelist.core.player.PlayerChapterPolicy.normalize(chapters, duration)
+        listeners.forEach { it.onChaptersChanged(normalized) }
     }
 
     /** Yeni bir medya yüklenmeden önce yükleme durumunu hazırlar. */
     private fun beginLoad(url: String, audioUrl: String?, headers: Map<String, String>, startPositionMs: Long) {
-        // setMedia yalnızca bu anahtar değiştiğinde loadfile çağırır; aynı mantığı burada kullanıyoruz.
-        val key = "$url|${headers.hashCode()}|${startPositionMs.coerceAtLeast(0L)}"
-        val isNewLoad = key != lastLoadKey
-        if (isNewLoad) {
-            // Önceki dosya hâlâ açıksa, replace nedeniyle gelecek END_FILE'ı atla.
-            if (fileLoaded) staleEndFileEvents++
-            fileLoaded = false
-            errorReportedForLoad = false
-            selectionForced = false
-            initialSelectionDone = false
+        // Every explicit prepare is a real load, including retry of the exact same URL.
+        loadGeneration++
+        awaitingStartFile = true
+        fileLoaded = false
+        errorReportedForLoad = false
+        selectionForced = false
+        initialSelectionDone = false
+        currentPosition = startPositionMs.coerceAtLeast(0L)
+        duration = 0L
+        bufferedPosition = 0L
+        pausedForCache = false
+        coreIdle = false
+        isSeeking = false
+        secondarySubtitleTrackId = -1
+        listeners.forEach {
+            it.onChaptersChanged(emptyList())
+            it.onBufferedPositionChanged(0)
+            it.onSecondarySubtitleChanged(-1)
         }
-        lastLoadKey = key
         hasExternalAudio = !audioUrl.isNullOrBlank()
     }
 
@@ -721,11 +811,9 @@ class MpvPlayerEngine(
      * böylece yedek dahili oynatıcıya (MEDIA3) geçebilir.
      */
     private fun handleEndFile() {
-        if (staleEndFileEvents > 0) {
-            staleEndFileEvents--
-            Log.d(TAG, "Önceki dosyanın END_FILE olayı atlandı (kalan=$staleEndFileEvents)")
-            return
-        }
+        // mpv orders END_FILE(old) before START_FILE(new). An old END_FILE while
+        // the replacement is queued must not fail the new request, even if old never loaded.
+        if (awaitingStartFile || released) return
         val wasLoaded = fileLoaded
         fileLoaded = false
         val reachedEof = runCatching { mpvView?.mpv?.getPropertyBoolean("eof-reached") == true }
@@ -753,12 +841,13 @@ class MpvPlayerEngine(
     }
 
     private fun checkBufferingState() {
-        val view = mpvView ?: return
-        val isBuffering = pausedForCache || (coreIdle && isPlaying)
-        if (isBuffering) {
-            updateState(PlayerEngine.State.BUFFERING)
-        } else if (currentState == PlayerEngine.State.BUFFERING && !isSeeking) {
+        // An initial pause=false notification does not mean a file has loaded.
+        // Nor may a pause event overwrite ENDED while keep-open holds the last frame.
+        if (!fileLoaded || currentState == PlayerEngine.State.ENDED) return
+        if (MpvPlaybackPolicy.isReady(fileLoaded, pausedForCache, coreIdle, isPlaying, isSeeking)) {
             updateState(PlayerEngine.State.READY)
+        } else {
+            updateState(PlayerEngine.State.BUFFERING)
         }
     }
 
@@ -804,17 +893,12 @@ class MpvPlayerEngine(
             val preferredLangs = settings.preferredSubtitleLanguages
                 .split(",").map { it.trim().lowercase() }.filter { it.isNotEmpty() }
 
-            // ── Ses: Türkçe önce, sonra tercih listesi (ayrı ses akışı varsa dokunulmaz) ──
-            val currentlySelectedAudio = snapshot.audioTracks.firstOrNull { it.isSelected }
-            val isSelectedAudioTurkish = currentlySelectedAudio != null &&
-                com.kitsugi.animelist.core.player.PlayerSubtitleUtils.isTurkish(currentlySelectedAudio.language, currentlySelectedAudio.name)
-            if (!isSelectedAudioTurkish && !hasExternalAudio) {
-                val bestAudio = com.kitsugi.animelist.core.player.PlayerSubtitleUtils
-                    .findBestMpvAudioTrack(snapshot.audioTracks, preferredLangs)
-                if (bestAudio != null && currentlySelectedAudio?.id != bestAudio.id) {
-                    Log.i(TAG, "Auto-selecting audio track: ${bestAudio.name} (id=${bestAudio.id})")
-                    view.selectAudioTrackById(bestAudio.id)
+            val audioLanguages = settings.preferredAudioLanguages.split(",").map { it.trim() }.filter { it.isNotEmpty() }
+            if (!hasExternalAudio) {
+                val bestAudio = audioLanguages.firstNotNullOfOrNull { lang ->
+                    snapshot.audioTracks.firstOrNull { com.kitsugi.animelist.core.player.PlayerSubtitleUtils.matchesTrackLanguage(it.language, it.name, lang) }
                 }
+                if (bestAudio != null && !bestAudio.isSelected) view.selectAudioTrackById(bestAudio.id)
             }
 
             // ── Altyazı: Tek ortak politika (SubtitleSelectionPolicy) — Media3 ile birebir aynı ──
@@ -824,8 +908,13 @@ class MpvPlayerEngine(
                 val isSelectedTurkishSource = currentlySelectedSub != null &&
                     !currentlySelectedSub.isExternal &&
                     com.kitsugi.animelist.core.player.PlayerSubtitleUtils.isTurkish(currentlySelectedSub.language, currentlySelectedSub.name)
-                if (!isSelectedTurkishSource) {
-                    val candidates = snapshot.subtitleTracks.map { track ->
+                if (!isSelectedTurkishSource || settings.subtitleBlacklist.isNotBlank() || settings.subtitleWhitelist.isNotBlank()) {
+                    val denied = settings.subtitleBlacklist.split(",").map { it.trim() }.filter { it.isNotEmpty() }
+                    val favored = settings.subtitleWhitelist.split(",").map { it.trim() }.filter { it.isNotEmpty() }
+                    val candidates = snapshot.subtitleTracks
+                        .filterNot { track -> denied.any { track.name.contains(it, ignoreCase = true) } }
+                        .sortedByDescending { track -> favored.any { track.name.contains(it, ignoreCase = true) } }
+                        .map { track ->
                         com.kitsugi.animelist.core.player.SubtitleSelectionPolicy.Candidate(
                             item = track,
                             lang = track.language,
@@ -861,7 +950,12 @@ class MpvPlayerEngine(
         )
     }
 
-    override fun takeScreenshot(cachePath: String, showSubtitles: Boolean): java.io.InputStream? {
+    override suspend fun takeScreenshot(cachePath: String, showSubtitles: Boolean): java.io.InputStream? =
+        kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+            captureScreenshot(cachePath, showSubtitles)
+        }
+
+    private fun captureScreenshot(cachePath: String, showSubtitles: Boolean): java.io.InputStream? {
         val view = mpvView ?: return null
         val filename = cachePath + "/${System.currentTimeMillis()}_mpv_screenshot_tmp.png"
         val subtitleFlag = if (showSubtitles) "subtitles" else "video"
@@ -883,16 +977,20 @@ class MpvPlayerEngine(
             Log.w(TAG, "Screenshot file was not created within ${waitedMs}ms")
             return null
         }
-        val newFile = java.io.File("$cachePath/mpv_screenshot.png")
+        val newFile = java.io.File("$cachePath/mpv_screenshot_${java.util.UUID.randomUUID()}.png")
 
         newFile.delete()
         return if (tempFile.renameTo(newFile)) newFile.inputStream() else tempFile.inputStream()
     }
 
     private suspend fun setupCustomButtons() {
+        if (customButtonsLoaded) return
+        customButtonsLoaded = true
         withContext(Dispatchers.IO) {
             runCatching {
                 val db = KitsugiDatabase.getDatabase(context)
+                if (!context.getSharedPreferences("kitsugi_prefs", Context.MODE_PRIVATE)
+                        .getBoolean("mpv_user_files_enabled", true)) return@runCatching
                 val buttons = db.customButtonDao().getAll()
                 if (buttons.isEmpty()) return@runCatching
                 val primaryButtonId = buttons.firstOrNull { it.isFavorite }?.id ?: 0L
@@ -909,7 +1007,7 @@ class MpvPlayerEngine(
                             end
                         """.trimIndent()
                     )
-                    append("\n")
+                    append("\nlocal aniyomi = require('aniyomi')\n")
                     buttons.forEach { button ->
                         append(
                             """

@@ -31,7 +31,7 @@ class PreviewGenerator(
     private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
     private var extractJob: Job? = null
 
-    private val urlHash = md5(videoUrl)
+    private val urlHash = md5(videoUrl + headers.toSortedMap().toString())
     private val cacheDir = File(File(context.filesDir, "previews"), urlHash)
 
     private var durationMs: Long = 0L
@@ -77,10 +77,12 @@ class PreviewGenerator(
                 
                 val retriever = MediaMetadataRetriever()
                 try {
-                    if (headers.isNotEmpty() && Build.VERSION.SDK_INT >= Build.VERSION_CODES.ICE_CREAM_SANDWICH) {
-                        retriever.setDataSource(videoUrl, headers)
-                    } else {
-                        retriever.setDataSource(videoUrl)
+                    val uri = android.net.Uri.parse(videoUrl)
+                    when (uri.scheme?.lowercase()) {
+                        "content" -> retriever.setDataSource(context, uri)
+                        "http", "https" -> retriever.setDataSource(videoUrl, headers)
+                        "file" -> retriever.setDataSource(uri.path)
+                        else -> retriever.setDataSource(videoUrl)
                     }
 
                     // Verify duration from media details if possible

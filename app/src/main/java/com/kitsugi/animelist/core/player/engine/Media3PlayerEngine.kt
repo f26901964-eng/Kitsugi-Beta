@@ -124,6 +124,8 @@ class Media3PlayerEngine(
     override var currentState: PlayerEngine.State = PlayerEngine.State.IDLE
         private set
         
+    override val bufferedPosition: Long get() = exoPlayer?.bufferedPosition ?: 0L
+
     override val currentPosition: Long
         get() = exoPlayer?.currentPosition ?: 0L
         
@@ -229,6 +231,7 @@ class Media3PlayerEngine(
             // Compose UI never updates, making the pause/stop button appear broken.
             Log.d(TAG, "onIsPlayingChanged: isPlaying=$isPlaying state=$currentState")
             analytics.onPlayingChanged(isPlaying)
+            listeners.forEach { it.onPlayingChanged(isPlaying) }
             listeners.forEach { it.onStateChanged(currentState) }
         }
 
@@ -397,14 +400,11 @@ class Media3PlayerEngine(
                 }
 
                 // Hiçbir ses seçili değilse VEYA (kullanıcı henüz elle seçmediyse ve Türkçe ses bulunabilir durumdaysa):
-                if (currentlySelectedAudio == null || (!userSelectedAudioTrack && !initialAudioSelectionDone && !isSelectedAudioTurkish)) {
-                    val preferredLangs = settings.preferredSubtitleLanguages
+                if (currentlySelectedAudio == null || (!userSelectedAudioTrack && !initialAudioSelectionDone)) {
+                    val preferredLangs = settings.preferredAudioLanguages
                         .split(",").map { it.trim().lowercase() }.filter { it.isNotEmpty() }
 
-                    val preferredAudio = audioOptions.find { opt ->
-                        val format = opt.group.getTrackFormat(opt.trackIndex)
-                        com.kitsugi.animelist.core.player.PlayerSubtitleUtils.isTurkish(format.language, format.label)
-                    } ?: run {
+                    val preferredAudio = run {
                         var found: TrackOption? = null
                         for (lang in preferredLangs) {
                             found = audioOptions.find { opt ->
@@ -470,7 +470,7 @@ class Media3PlayerEngine(
                                 }
                     }
 
-                    if (currentSatisfiesPolicy) {
+                    if (currentSatisfiesPolicy && settings.subtitleWhitelist.isBlank() && settings.subtitleBlacklist.isBlank()) {
                         // Hedefe ulaşıldı — artık otomatik seçim devreye girmez.
                         autoSubtitleSelectionSettled = true
                     } else {
@@ -484,7 +484,8 @@ class Media3PlayerEngine(
                                 isExternal = isExternalTrack(opt),
                             )
                         }
-                        val bestSub = com.kitsugi.animelist.core.player.SubtitleSelectionPolicy.pick(candidates, preferredLangs)
+                        val bestSub = com.kitsugi.animelist.core.player.SubtitleSelectionPolicy.pick(candidates, preferredLangs,
+                            settings.subtitleWhitelist.split(","), settings.subtitleBlacklist.split(","))
                         if (bestSub != null) {
                             // Sınırlı yeniden deneme: override'ın bir sonraki onTracksChanged'e
                             // yansıması gerekir; yansımazsa sonsuz döngü yerine pes edilir.
@@ -596,7 +597,7 @@ class Media3PlayerEngine(
                     expandedTextLangs.add(lang)
                 }
             }
-            val preferredAudioLangs = listOf("tr", "tur", "en", "eng", "ja", "jpn", "zxx", "und")
+            val preferredAudioLangs = settings.preferredAudioLanguages.split(",").map { it.trim() }.filter { it.isNotEmpty() }
             val localSelector = androidx.media3.exoplayer.trackselection.DefaultTrackSelector(context).apply {
                 parameters = buildUponParameters()
                     .setPreferredAudioLanguages(*preferredAudioLangs.toTypedArray())
@@ -931,7 +932,9 @@ class Media3PlayerEngine(
         val safeSpeed = speed.coerceIn(0.25f, 4.0f)
         currentPlaybackSpeed = safeSpeed
         runOnMainThread {
-            exoPlayer?.playbackParameters = androidx.media3.common.PlaybackParameters(safeSpeed)
+            exoPlayer?.playbackParameters = androidx.media3.common.PlaybackParameters(
+                safeSpeed, if (settings.audioPitchCorrection) 1f else safeSpeed
+            )
         }
     }
 
@@ -1110,45 +1113,38 @@ class Media3PlayerEngine(
      * değildir ve PixelCopy ana thread'de senkron çalışmaz). İsteğe bağlı olarak altyazı
      * katmanları da aynı bitmap'e çizilir.
      */
-    override fun takeScreenshot(cachePath: String, showSubtitles: Boolean): java.io.InputStream? {
-        if (android.os.Looper.myLooper() != android.os.Looper.getMainLooper()) {
-            Log.w(TAG, "takeScreenshot must be called on the main thread")
-            return null
+    override suspend fun takeScreenshot(cachePath: String, showSubtitles: Boolean): java.io.InputStream? {
+        var output: android.graphics.Bitmap? = null
+        try {
+            // Only TextureView and subtitle drawing require the UI thread. Encoding does not.
+            kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main.immediate) {
+                output = captureScreenshotFrame(showSubtitles)
+            }
+            val frame = output ?: return null
+            return kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                java.io.ByteArrayOutputStream().use { bytes ->
+                    if (frame.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, bytes)) {
+                        java.io.ByteArrayInputStream(bytes.toByteArray())
+                    } else null
+                }
+            }
+        } finally {
+            // Also releases a frame captured immediately before coroutine cancellation.
+            output?.recycle()
         }
-        val pv = playerView ?: return null
-        val texture = pv.videoSurfaceView as? android.view.TextureView
-        if (texture == null) {
-            Log.w(TAG, "Screenshot skipped: video surface is not a TextureView")
-            return null
-        }
-        val frame = runCatching { texture.bitmap }.getOrNull() ?: run {
-            Log.w(TAG, "Screenshot skipped: TextureView bitmap is not available yet")
-            return null
-        }
-        val output = frame.copy(android.graphics.Bitmap.Config.ARGB_8888, true) ?: frame
+    }
 
+    private fun captureScreenshotFrame(showSubtitles: Boolean): android.graphics.Bitmap? {
+        val pv = playerView ?: return null
+        val texture = pv.videoSurfaceView as? android.view.TextureView ?: return null
+        val frame = runCatching { texture.bitmap }.getOrNull() ?: return null
+        val output = frame.copy(android.graphics.Bitmap.Config.ARGB_8888, true) ?: frame
+        if (output !== frame) frame.recycle()
         if (showSubtitles) {
             runCatching { drawSubtitleOverlays(pv, texture, output) }
                 .onFailure { Log.w(TAG, "Subtitle overlay could not be drawn: ${it.message}") }
         }
-
-        val dir = java.io.File(cachePath)
-        if (!dir.exists()) dir.mkdirs()
-        val file = java.io.File(dir, "kitsugi_media3_screenshot_${System.currentTimeMillis()}.png")
-        val written = runCatching {
-            file.outputStream().use { stream ->
-                output.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, stream)
-            }
-        }.getOrDefault(false)
-
-        if (output !== frame) output.recycle()
-        frame.recycle()
-
-        if (!written) {
-            Log.e(TAG, "Screenshot could not be written to $file")
-            return null
-        }
-        return file.inputStream()
+        return output
     }
 
     private fun drawSubtitleOverlays(

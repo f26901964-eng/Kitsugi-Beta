@@ -40,23 +40,29 @@ object SubtitleSelectionPolicy {
     /**
      * Adaylar arasından politikaya göre en iyi altyazıyı seçer. Eşleşme yoksa null döner.
      */
-    fun <T> pick(candidates: List<Candidate<T>>, preferredLangs: List<String>): T? {
-        if (candidates.isEmpty()) return null
+    fun <T> pick(candidates: List<Candidate<T>>, preferredLangs: List<String>,
+                 whitelist: List<String> = emptyList(), blacklist: List<String> = emptyList()): T? {
+        val allowed = candidates.filterNot { candidate ->
+            blacklist.filter { it.isNotBlank() }.any { candidate.label.orEmpty().contains(it.trim(), ignoreCase = true) }
+        }.sortedByDescending { candidate ->
+            whitelist.filter { it.isNotBlank() }.any { candidate.label.orEmpty().contains(it.trim(), ignoreCase = true) }
+        }
+        if (allowed.isEmpty()) return null
 
         fun isTr(c: Candidate<T>) = PlayerSubtitleUtils.isTurkish(c.lang, c.label)
 
         // 1. Videonun içindeki Türkçe
-        candidates.firstOrNull { !it.isExternal && isTr(it) }?.let { return it.item }
+        allowed.firstOrNull { !it.isExternal && isTr(it) }?.let { return it.item }
         // 2. Harici Türkçe
-        candidates.firstOrNull { it.isExternal && isTr(it) }?.let { return it.item }
+        allowed.firstOrNull { it.isExternal && isTr(it) }?.let { return it.item }
 
         // 3. Diğer tercih dilleri (tr zaten yukarıda ele alındı)
         for (lang in effectiveLanguages(preferredLangs)) {
             if (PlayerSubtitleUtils.matchesLanguageCode(lang, "tr")) continue
-            candidates.firstOrNull {
+            allowed.firstOrNull {
                 !it.isExternal && PlayerSubtitleUtils.matchesTrackLanguage(it.lang, it.label, lang)
             }?.let { return it.item }
-            candidates.firstOrNull {
+            allowed.firstOrNull {
                 it.isExternal && PlayerSubtitleUtils.matchesTrackLanguage(it.lang, it.label, lang)
             }?.let { return it.item }
         }

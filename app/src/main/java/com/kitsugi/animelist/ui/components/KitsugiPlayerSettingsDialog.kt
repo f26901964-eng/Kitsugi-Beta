@@ -1757,6 +1757,11 @@ fun KitsugiPlayerSettingsDialog(
                             contentPadding = PaddingValues(16.dp)
                         ) {
                             item {
+                                appSettings?.let { settings ->
+                                    com.kitsugi.animelist.ui.components.player.PlayerParityOptions(settings, settingsDataStore)
+                                }
+                            }
+                            item {
                                 KitsugiSettingsSection(title = stringResource(R.string.pd_user_mpv_files)) {
                                     val prefs = remember(context) { context.getSharedPreferences("kitsugi_prefs", Context.MODE_PRIVATE) }
                                     var userFilesEnabled by remember {

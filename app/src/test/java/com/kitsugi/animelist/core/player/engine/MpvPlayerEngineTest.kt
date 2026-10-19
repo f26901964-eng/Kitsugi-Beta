@@ -20,7 +20,7 @@ class MpvPlayerEngineTest {
     @Before
     fun setUp() {
         mockContext = mock()
-        mockSettings = mock()
+        mockSettings = AppSettings()
         engine = MpvPlayerEngine(mockContext, mockSettings)
     }
 
@@ -43,8 +43,8 @@ class MpvPlayerEngineTest {
         // pause = true -> isPlaying should become false
         engine.eventProperty("pause", true)
         assertFalse(engine.isPlaying)
-        assertEquals(PlayerEngine.State.READY, engine.currentState)
-        verify(listener).onStateChanged(PlayerEngine.State.READY)
+        // Initial MPV pause notifications arrive before FILE_LOADED.
+        assertEquals(PlayerEngine.State.IDLE, engine.currentState)
 
         // pause = false -> isPlaying should become true
         engine.eventProperty("pause", false)
@@ -88,4 +88,37 @@ class MpvPlayerEngineTest {
         engine.eventProperty("sub-visibility", true)
         assertFalse(engine.isSubtitleDisabled)
     }
+    @Test
+    fun testScriptLeafEventsReachListener() {
+        val listener = mock<PlayerEngine.Listener>()
+        engine.addListener(listener)
+        engine.eventProperty("user-data/aniyomi/show_text", "Merhaba")
+        verify(listener).onEngineEvent("user-data/aniyomi/show_text", "Merhaba")
+    }
+
+    @Test
+    fun testDisabledSecondaryTrackStringResetsId() {
+        engine.eventProperty("secondary-sid", "12")
+        assertEquals(12, engine.secondarySubtitleTrackId)
+        engine.eventProperty("secondary-sid", "no")
+        assertEquals(-1, engine.secondarySubtitleTrackId)
+    }
+
+    @Test
+    fun testVolumeStateIsClampedWithoutAView() {
+        engine.setVolume(0f)
+        assertEquals(0f, engine.currentVolume, 0f)
+        engine.setVolume(-2f)
+        assertEquals(0f, engine.currentVolume, 0f)
+        engine.setVolume(100f)
+        assertTrue(engine.currentVolume <= 2f)
+    }
+
+    @Test
+    fun testPauseCannotReplaceEndedState() {
+        engine.eventProperty("eof-reached", true)
+        engine.eventProperty("pause", true)
+        assertEquals(PlayerEngine.State.ENDED, engine.currentState)
+    }
+
 }

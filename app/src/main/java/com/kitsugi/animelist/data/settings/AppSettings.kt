@@ -221,6 +221,13 @@ data class AppSettings(
     val syncEnabledBangumi: Boolean = false,
     // ─── MPV Gelişmiş Oynatıcı Ayarları (Aniyomi'den uyarlama) ───────────────
     /** MPV GPU render backend: "gpu" (varsayılan) veya "gpu-next" */
+    val subtitleSpeed: Float = 1f,
+    val videoFiltersJson: String = "{}",
+    val speedPresets: String = "0.25,0.5,0.75,1,1.25,1.5,1.75,2,2.5,3,3.5,4",
+    val preferredAudioLanguages: String = "tr,ja,en",
+    val subtitleWhitelist: String = "",
+    val subtitleBlacklist: String = "",
+    val audioPitchCorrection: Boolean = true,
     val mpvGpuRenderer: String = "gpu",
     /** Donanım kod çözme modu: "auto", "auto-safe", "no" */
     val mpvHwdecMode: String = "auto-safe",
