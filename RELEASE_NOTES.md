@@ -1,5 +1,53 @@
 # Kitsugi-Beta — Sürüm Notları / Release Notes
 
+# Kitsugi Beta v2.4.307
+
+## 🇹🇷 Türkçe
+
+### 🎬 HDFilmCehennemi & FilmMakinesi Oynatıcı Hatası — İki Taraflı Kök Neden Düzeltmesi (v2.4.307)
+
+**Şikâyet:** HDFilmCehennemi ve FilmMakinesi'nden gelen iki kaynak (Close `closeload.*` ve Rapid `rapidrame.*` / `rplayer.*`) listede **görünüyor** ama üzerine tıklayınca oynatıcı anında `oynatıcı hatası` veriyor.
+
+**Kök nedenler (ikisi üst üste):**
+
+1. **Eklenti tarafı — gömülü manifest bayat (KN-E):** APK içine gömülü `assets/plugins/plugins.json` FilmMakinesi `v62` / HDFilmCehennemi `v52` diyordu; oysa canlı `builds` deposu `v66` / `v56` ile yeni `.cs3` (INFER_TYPE düzeltmeli, `isTsSegment` daraltması, `master.txt` varyant seçimi) sunuyor. Çevrimdışı veya ilk kurulumda cihaz bayat `.cs3` ile kalıyor; eski `INFER_TYPE!!` varyantları sessizce NPE yutuyor veya `Referer` yalnızca `mainUrl`'e sabitleniyordu.
+2. **Uygulama tarafı — Origin başlığı yanlış (KN-U):** `PlayerMediaSourceFactory.buildDataSourceFactory` ve `CsStreamRunner`'ın doğrudan medya ile fallback kolları `Origin` başlığını doldurmuyor veya `videoHost` (`https://playmix.uno`, `https://s427.rapidrame.com`) ile dolduruyordu. Oysa bu CDN'ler `Origin`'i **embed sayfasının origin'ine** (`https://closeload.filmmakinesi.to`, `https://rapidrame.com`) göre doğrular; yanlış Origin → CDN 403/5004 → ExoPlayer HTML'i HLS sanıp `ParserException` → oynatıcı hatası. `CsStreamRunner`'ın `fallbackStream` dalı ise `Origin`'i tamamen boş bırakıyordu.
+
+**Düzeltme (uygulama):**
+
+- `PlayerMediaSourceFactory`: `Origin` artık `Referer`'ın origin'inden türetiliyor (`originOfUrl`), yalnızca Referer yoksa video host fallback; `Referer` fallback'i de `provider.mainUrl` öncelikli. Böylece embed origin'i korunur, videoHost ile ezilmez.
+- `CsStreamRunner` (direkt medya kolu): `Referer` tamamlandıktan sonra `Origin` eksikse `Referer` veya `cleanUrl` origin'inden dolduruluyor.
+- `CsStreamRunner` (fallback embed → medya): `Origin` artık `referer`/`clean` origin'inden ekleniyor; `httpshttp://` gibi bozuk şemalar `CsStreamSanitizer` Adım 0'da elenmeye devam ediyor.
+- `CsStreamSanitizer.isBrokenStreamUrl` + `PlayerMediaSourceFactory.isHlsUrl` sıralaması (kesin manifest → progressive → zayıf host) korunuyor; `master.txt`/`playlist.txt` HLS olarak zorlanır.
+
+**Düzeltme (eklenti):**
+
+- Canlı `builds` deposu zaten `FilmMakinesi v66` (`47441 B`, `sha256-0da3db3d...`) ve `HDFilmCehennemi v56` (`72972 B`, `sha256-62d1abaf...`) ile INFER düzeltmesini içerir. Bu sürümde gömülü `plugins.json` o canlı değerlerle **senkronlandı**; çevrimdışı kurulumda bile güncel `.cs3` kurulur, güncelleme denetimi `CsPluginUpdateChecker` (version **veya** hash farkı) ile tetiklenir.
+
+**Doğrulama:**
+
+- `adb logcat -s CsStreamRunner PlayerMediaSourceFactory CsTrace HDCH Kekik_CloseLoad | grep -E "Origin|Referer|link »|HEAD"` → `Origin: https://closeload...` / `https://rapidrame.com` satırları provider değil embed host'u göstermeli; `HEAD ✅ 200` ve `Building standard MediaSource: https://...master.m3u8` sonrası `PlayerError` görülmemeli.
+- Eklentiler ekranında FilmMakinesi `66` ve HDFilmCehennemi `56` sürümü **güncelle** olarak listelenmeli (hash senkronu sayesinde aynı sürüm numarasında bile içerik farkı tespit edilir).
+
+---
+
+## 🇬🇧 English (v2.4.307)
+
+### 🎬 HDFilmCehennemi & FilmMakinesi Player Error — Two-Sided Root Fix
+
+**Symptom:** Two sources from HDFilmCehennemi & FilmMakinesi (Close `closeload.*` and Rapid `rapidrame.*`/`rplayer.*`) **appear** in the list but tapping them instantly shows `player error`.
+
+**Root causes (stacked):**
+
+1. **Addon side — stale embedded manifest (KN-E):** Bundled `assets/plugins/plugins.json` advertised FilmMakinesi `v62` / HDFilmCehennemi `v52`; live `builds` already serves `v66`/`v56` with INFER_TYPE fix and tight `isTsSegment`. Offline/fresh installs stayed on stale `.cs3`.
+2. **App side — wrong Origin header (KN-U):** `PlayerMediaSourceFactory` and `CsStreamRunner` either omitted `Origin` or set it to the **video host** (`playmix.uno`, `s427.rapidrame.com`). These CDNs validate against the **embed origin** (`closeload.filmmakinesi.to`, `rapidrame.com`); wrong Origin → 403/5004 → ExoPlayer parser error.
+
+**Fix (app):** Derive `Origin` from `Referer`'s origin (not video host), fill missing `Referer`/`Origin` in direct and fallback branches, keep `isBrokenStreamUrl` & `isHlsUrl` hierarchy.
+
+**Fix (addon):** Embedded `plugins.json` synced to live `v66`/`v56` hashes (47441 B / 72972 B); offline installs now get the fixed `.cs3` and `CsPluginUpdateChecker` detects content hash drift.
+
+---
+
 # Kitsugi Beta v2.4.306
 
 ## 🇹🇷 Türkçe

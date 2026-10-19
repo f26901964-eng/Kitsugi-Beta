@@ -1333,10 +1333,10 @@
   },
   {
     "iconUrl": "https://t3.gstatic.com/faviconV2?client=SOCIAL&type=FAVICON&fallback_opts=TYPE,SIZE,URL&url=https://filmmakinesi.tv&size=128",
-    "fileHash": "sha256-ebe8f84d3e5e97e13cdbcb0f50c3d28a4ffe86f16be428f10864495be47f3605",
+    "fileHash": "sha256-0da3db3d559501865b85a3f0d82dd1e01e1351f472a1b285cbb1f606489f979a",
     "apiVersion": 1,
     "repositoryUrl": "https://github.com/f26901964-eng/Kitsugi-Plugins",
-    "fileSize": 35792,
+    "fileSize": 47441,
     "status": 1,
     "language": "tr",
     "authors": [
@@ -1349,7 +1349,7 @@
       "Movie",
       "TvSeries"
     ],
-    "version": 62,
+    "version": 66,
     "internalName": "FilmMakinesi",
     "description": "Film Makinesi, en yeni ve en güncel filmleri sitemizde full HD kalite farkı ile izleyebilirsiniz. HD film izle denildiğinde akla gelen en kaliteli film izleme sitesi.",
     "url": "https://raw.githubusercontent.com/f26901964-eng/Kitsugi-Plugins/builds/FilmMakinesi.cs3",
@@ -1658,10 +1658,10 @@
   },
   {
     "iconUrl": "https://www.google.com/s2/favicons?sz=128&domain=http://hdfilmcehennemi.nl",
-    "fileHash": "sha256-336f411a86ab7014aeab8b374254ca7f4896799b8941aceec211a679326983e7",
+    "fileHash": "sha256-62d1abafc0ba0e24d769e7990bb4712ffad622e52b05cae742cf52bde606805c",
     "apiVersion": 1,
     "repositoryUrl": "https://github.com/f26901964-eng/Kitsugi-Plugins",
-    "fileSize": 48914,
+    "fileSize": 72972,
     "status": 1,
     "language": "tr",
     "authors": [
@@ -1673,7 +1673,7 @@
       "Movie",
       "TvSeries"
     ],
-    "version": 52,
+    "version": 56,
     "internalName": "HDFilmCehennemi",
     "description": "HDFilmCehennemi - Türkiye'nin en hızlı hd film izleme sitesi. Tek ve gerçek HDFilmCehennemi sitesi.",
     "url": "https://raw.githubusercontent.com/f26901964-eng/Kitsugi-Plugins/builds/HDFilmCehennemi.cs3",

@@ -180,11 +180,21 @@ class PlayerMediaSourceFactory(
         val effectiveHeaders = headers.toMutableMap()
         val videoHost = runCatching { Uri.parse(videoUrl).host }.getOrNull()
         if (!effectiveHeaders.keys.any { it.equals("referer", ignoreCase = true) }) {
-            val fallbackRef = if (!videoHost.isNullOrBlank()) "https://$videoHost/" else provider?.mainUrl ?: "https://google.com"
+            // Önce provider ana URL'i (filmmakinesi.to, hdfilmcehennemi.nl) dene; yoksa video host'una düş.
+            val fallbackRef = provider?.mainUrl?.let { it.trimEnd('/') + "/" }
+                ?: if (!videoHost.isNullOrBlank()) "https://$videoHost/" else "https://google.com"
             effectiveHeaders["Referer"] = fallbackRef
         }
-        if (!effectiveHeaders.keys.any { it.equals("origin", ignoreCase = true) } && !videoHost.isNullOrBlank()) {
-            effectiveHeaders["Origin"] = "https://$videoHost"
+        if (!effectiveHeaders.keys.any { it.equals("origin", ignoreCase = true) }) {
+            // Origin, Referer'ın origin'inden türetilir (CDN'ler embed origin'i doğrular).
+            // Referer yoksa video host fallback.
+            val refererVal = effectiveHeaders.entries.firstOrNull { it.key.equals("referer", ignoreCase = true) }?.value
+            val originFromReferer = refererVal?.let { originOfUrl(it) }
+            val originFromVideoHost = if (!videoHost.isNullOrBlank()) "https://$videoHost" else null
+            val origin = originFromReferer ?: originFromVideoHost ?: provider?.mainUrl?.let { originOfUrl(it) }
+            if (!origin.isNullOrBlank()) {
+                effectiveHeaders["Origin"] = origin
+            }
         }
         if (!effectiveHeaders.keys.any { it.equals("user-agent", ignoreCase = true) }) {
             effectiveHeaders["User-Agent"] = com.lagradost.cloudstream3.network.CloudflareKiller.UNIFIED_USER_AGENT
@@ -381,5 +391,23 @@ class PlayerMediaSourceFactory(
 
         /** Yolun sonu doğrudan bir progressive video dosyası uzantısıysa eşleşir. */
         private val PROGRESSIVE_PATH_REGEX = Regex("""\.(mp4|mkv|webm|avi|m4v)$""")
+
+        /**
+         * URL'nin origin'ini (`scheme://host[:port]`) döndürür. Çözümlenemezse null.
+         * CsStreamRunner.originOfUrl ile aynı mantık — oynatıcı katında da CDN Origin
+         * doğrulaması için embed Referer'dan türetme gerekiyor.
+         */
+        internal fun originOfUrl(url: String?): String? {
+            if (url.isNullOrBlank()) return null
+            return try {
+                val uri = java.net.URI(url.trim())
+                val host = uri.host?.takeIf { it.isNotBlank() } ?: return null
+                val scheme = uri.scheme?.takeIf { it.isNotBlank() } ?: "https"
+                val port = if (uri.port > 0 && uri.port != 80 && uri.port != 443) ":${uri.port}" else ""
+                "$scheme://$host$port"
+            } catch (_: Exception) {
+                null
+            }
+        }
     }
 }
