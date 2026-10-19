@@ -44,6 +44,7 @@ fun PlayerPanelsHost(
     // SubtitleSettings
     subtitleStyle: SubtitleStyleSettings = SubtitleStyleSettings(),
     onSubtitleStyleChange: (SubtitleStyleSettings) -> Unit = {},
+    reduceMotion: Boolean = false,
 
     modifier: Modifier = Modifier,
 ) {
@@ -53,8 +54,12 @@ fun PlayerPanelsHost(
         contentAlignment = Alignment.CenterEnd,
         contentKey = { it.name },
         transitionSpec = {
-            (fadeIn() + slideInHorizontally { it / 3 })
-                .togetherWith(fadeOut() + slideOutHorizontally { it / 2 })
+            if (reduceMotion) {
+                fadeIn().togetherWith(fadeOut())
+            } else {
+                (fadeIn() + slideInHorizontally { it / 3 })
+                    .togetherWith(fadeOut() + slideOutHorizontally { it / 2 })
+            }
         },
         modifier = modifier,
     ) { currentPanel ->

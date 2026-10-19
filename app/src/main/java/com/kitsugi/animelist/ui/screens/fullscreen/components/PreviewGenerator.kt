@@ -37,10 +37,20 @@ class PreviewGenerator(
     private var durationMs: Long = 0L
     private var totalFrames: Int = 0
     private var stepMs: Long = 0L
+    @Volatile private var requestedIndex: Int = 0
 
     // In-memory cache of decoded Bitmaps
     private var images = Array<Bitmap?>(0) { null }
     private var isInitialized = false
+
+    private fun isUnsupportedAdaptiveOrLocalStream(url: String): Boolean {
+        val lower = url.lowercase()
+        return lower.contains(".m3u8") ||
+            lower.contains(".mpd") ||
+            lower.contains(".ism") ||
+            lower.contains("127.0.0.1") ||
+            lower.contains("localhost")
+    }
 
     init {
         if (!cacheDir.exists()) {
@@ -51,6 +61,10 @@ class PreviewGenerator(
     fun start(playerDurationMs: Long) {
         if (playerDurationMs <= 0) return
         if (isInitialized) return
+        if (isUnsupportedAdaptiveOrLocalStream(videoUrl)) {
+            isInitialized = true
+            return
+        }
 
         durationMs = playerDurationMs
         // Calculate number of frames to extract: every 10s, but bounded between 10 and MAX_PREVIEWS
@@ -92,15 +106,22 @@ class PreviewGenerator(
                         stepMs = durationMs / totalFrames
                     }
 
-                    for (i in 0 until totalFrames) {
-                        if (!isActive) break
+                    val completed = BooleanArray(totalFrames) { idx ->
+                        val f = File(cacheDir, "$idx.jpg")
+                        f.exists() && f.length() > 0
+                    }
+                    var consecutiveFailures = 0
 
-                        val frameFile = File(cacheDir, "$i.jpg")
-                        if (frameFile.exists() && frameFile.length() > 0) {
-                            continue
-                        }
+                    while (isActive) {
+                        // Prioritize extracting the frame closest to the user's current drag target
+                        val target = requestedIndex.coerceIn(0, totalFrames - 1)
+                        val nextIdx = (0 until totalFrames)
+                            .filter { !completed[it] }
+                            .minByOrNull { kotlin.math.abs(it - target) }
+                            ?: break
 
-                        val timeUs = (i * stepMs) * 1000L
+                        val frameFile = File(cacheDir, "$nextIdx.jpg")
+                        val timeUs = (nextIdx * stepMs) * 1000L
                         val bitmap = try {
                             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
                                 retriever.getScaledFrameAtTime(
@@ -124,19 +145,23 @@ class PreviewGenerator(
                             null
                         }
 
+                        completed[nextIdx] = true
                         if (bitmap != null) {
-                            // Save to cache dir
+                            consecutiveFailures = 0
                             try {
                                 FileOutputStream(frameFile).use { out ->
                                     bitmap.compress(Bitmap.CompressFormat.JPEG, 70, out)
                                 }
                             } catch (e: Exception) {
-                                Log.e(TAG, "Failed to save frame $i to cache", e)
+                                Log.e(TAG, "Failed to save frame $nextIdx to cache", e)
                             }
-
-                            // Keep in-memory if near start, or recycle to save memory
-                            // This bitmap was never exposed to UI, so recycling here is safe
                             bitmap.recycle()
+                        } else {
+                            consecutiveFailures++
+                            if (consecutiveFailures >= 4) {
+                                Log.w(TAG, "Aborting preview extraction after $consecutiveFailures consecutive failures")
+                                break
+                            }
                         }
                     }
                 } finally {
@@ -154,6 +179,7 @@ class PreviewGenerator(
     fun getPreviewImage(fraction: Float): Bitmap? {
         if (!isInitialized || totalFrames <= 0) return null
         val idx = (fraction * totalFrames).toInt().coerceIn(0, totalFrames - 1)
+        requestedIndex = idx
 
         synchronized(images) {
             // 1. Check in-memory cache

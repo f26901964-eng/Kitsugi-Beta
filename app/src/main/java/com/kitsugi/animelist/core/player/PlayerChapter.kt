@@ -11,6 +11,59 @@ object PlayerChapterPolicy {
 
     fun currentIndex(chapters: List<PlayerChapter>, positionMs: Long): Int =
         chapters.indexOfLast { it.positionMs <= positionMs }
+
+    /**
+     * Parses Vorbis / Matroska chapter timestamp ("HH:MM:SS.mmm" or "MM:SS.mmm") to milliseconds.
+     */
+    fun parseTimestampMs(raw: String): Long? {
+        val trimmed = raw.trim()
+        if (trimmed.isEmpty()) return null
+        val parts = trimmed.split(":")
+        if (parts.size !in 2..3) return null
+        val hours = if (parts.size == 3) parts[0].toLongOrNull() ?: return null else 0L
+        val minutes = parts[parts.size - 2].toLongOrNull() ?: return null
+        val secParts = parts.last().split(".")
+        val seconds = secParts[0].toLongOrNull() ?: return null
+        val millis = if (secParts.size > 1) {
+            secParts[1].take(3).padEnd(3, '0').toLongOrNull() ?: 0L
+        } else 0L
+        if (hours < 0 || minutes !in 0..59 || seconds !in 0..59 || millis < 0) return null
+        return ((hours * 3600L + minutes * 60L + seconds) * 1000L) + millis
+    }
+
+    /**
+     * Parses Vorbis comment key-value pairs (CHAPTER001=00:01:30.000, CHAPTER001NAME=Opening)
+     * into normalized [PlayerChapter] entries.
+     */
+    fun parseVorbisComments(comments: List<Pair<String, String>>): List<PlayerChapter> {
+        if (comments.isEmpty()) return emptyList()
+        val timeByPrefix = linkedMapOf<String, Long>()
+        val nameByPrefix = linkedMapOf<String, String>()
+        val chapterKeyRegex = Regex("""^CHAPTER(\d+)$""", RegexOption.IGNORE_CASE)
+        val chapterNameRegex = Regex("""^CHAPTER(\d+)NAME$""", RegexOption.IGNORE_CASE)
+        for ((rawKey, rawVal) in comments) {
+            val key = rawKey.trim()
+            val timeMatch = chapterKeyRegex.matchEntire(key)
+            if (timeMatch != null) {
+                val id = timeMatch.groupValues[1]
+                val ms = parseTimestampMs(rawVal)
+                if (ms != null) timeByPrefix[id] = ms
+                continue
+            }
+            val nameMatch = chapterNameRegex.matchEntire(key)
+            if (nameMatch != null) {
+                val id = nameMatch.groupValues[1]
+                val title = rawVal.trim()
+                if (title.isNotEmpty()) nameByPrefix[id] = title
+            }
+        }
+        return timeByPrefix.entries.mapIndexed { idx, (id, ms) ->
+            PlayerChapter(
+                title = nameByPrefix[id] ?: "Chapter ${idx + 1}",
+                positionMs = ms
+            )
+        }
+    }
 }
 
 /** Source/AniSkip intervals can be merged without depending on Compose or an engine. */

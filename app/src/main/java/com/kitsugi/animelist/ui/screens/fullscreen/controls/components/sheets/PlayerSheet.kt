@@ -19,6 +19,8 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -46,6 +48,11 @@ fun PlayerSheet(
         }
     }
 
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val store = androidx.compose.runtime.remember(context) { com.kitsugi.animelist.data.settings.SettingsDataStore(context.applicationContext) }
+    val settings by store.settingsFlow.collectAsState(initial = com.kitsugi.animelist.data.settings.AppSettings())
+    val sheetAlpha = com.kitsugi.animelist.core.player.PlayerUiPolicy.panelAlpha(settings.panelOpacity)
+
     val sheetSurface = com.kitsugi.animelist.ui.screens.fullscreen.playerSurfaceColor()
     val sheetAccent = com.kitsugi.animelist.ui.theme.KitsugiColors.Accent
     androidx.compose.material3.MaterialTheme(
@@ -66,7 +73,7 @@ fun PlayerSheet(
                 .navigationBarsPadding()
                 .widthIn(max = 600.dp), // landscape/tablet genişlik sınırı
             shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp),
-            color = sheetSurface.copy(alpha = 0.95f),
+            color = sheetSurface.copy(alpha = sheetAlpha),
             contentColor = Color.White,
         ) {
             Column(

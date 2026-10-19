@@ -112,6 +112,10 @@ fun PlayerSheetsHost(
     audioChannels: AudioChannels = AudioChannels.Auto,
     onSelectAudioChannels: (AudioChannels) -> Unit = {},
 
+    // External Video Player handoff
+    onOpenExternalPlayer: (() -> Unit)? = null,
+    reduceMotion: Boolean = false,
+
     modifier: Modifier = Modifier,
 ) {
     val isVisible = sheetShown != KitsugiSheets.None
@@ -138,8 +142,8 @@ fun PlayerSheetsHost(
         // Slide-up sheet container
         AnimatedVisibility(
             visible = isVisible,
-            enter = slideInVertically(initialOffsetY = { it }) + fadeIn(),
-            exit = slideOutVertically(targetOffsetY = { it }) + fadeOut(),
+            enter = if (reduceMotion) fadeIn() else slideInVertically(initialOffsetY = { it }) + fadeIn(),
+            exit = if (reduceMotion) fadeOut() else slideOutVertically(targetOffsetY = { it }) + fadeOut(),
             modifier = Modifier.align(Alignment.BottomCenter),
         ) {
             when (sheetShown) {
@@ -227,6 +231,7 @@ fun PlayerSheetsHost(
                         onSelectStatisticsPage = onSelectStatisticsPage,
                         audioChannels = audioChannels,
                         onSelectAudioChannels = onSelectAudioChannels,
+                        onOpenExternalPlayer = onOpenExternalPlayer,
                     )
                 }
 

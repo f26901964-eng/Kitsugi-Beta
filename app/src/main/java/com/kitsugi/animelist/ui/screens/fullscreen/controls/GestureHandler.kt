@@ -143,14 +143,12 @@ fun GestureHandler(
                         if (areControlsLocked || isDoubleTapSeeking || isSheetOrPanelOrDialogShown) return@detectTapGestures
                         if (it.x > size.width * 3 / 5) {
                             if (!isSeekingForwards) viewModel.updateSeekAmount(0)
-                            viewModel.handleRightDoubleTap()
-                            isDoubleTapSeeking = true
+                            isDoubleTapSeeking = viewModel.handleRightDoubleTap()
                         } else if (it.x < size.width * 2 / 5) {
                             if (isSeekingForwards) viewModel.updateSeekAmount(0)
-                            viewModel.handleLeftDoubleTap()
-                            isDoubleTapSeeking = true
+                            isDoubleTapSeeking = viewModel.handleLeftDoubleTap()
                         } else {
-                            viewModel.handleCenterDoubleTap()
+                            isDoubleTapSeeking = viewModel.handleCenterDoubleTap()
                         }
                     },
                     onPress = {
@@ -232,7 +230,9 @@ fun GestureHandler(
                             .coerceIn(-startingPositionSec.toInt(), (durSec - startingPositionSec).toInt())
                     )
                     viewModel.seekTo((newPosSec * 1000f).toLong())
-                    viewModel.showSeekBar()
+                    if (settings.showSeekBarOnGesture) {
+                        viewModel.showSeekBar()
+                    }
                 }
             }
             // ── Vertical volume / brightness ─────────────────────────────────

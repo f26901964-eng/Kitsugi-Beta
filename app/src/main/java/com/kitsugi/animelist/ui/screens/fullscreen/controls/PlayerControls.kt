@@ -1,4 +1,4 @@
-﻿package com.kitsugi.animelist.ui.screens.fullscreen.controls
+package com.kitsugi.animelist.ui.screens.fullscreen.controls
 import com.kitsugi.animelist.ui.screens.fullscreen.playerSurfaceColor
 import com.kitsugi.animelist.ui.components.KitsugiButton
 
@@ -86,6 +86,7 @@ fun PlayerControls(
     onBackClick: () -> Unit,
     onRotateClick: () -> Unit,
     onAspectClick: () -> Unit,
+    onOpenExternalPlayer: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
 ) {
     // ── Collect all state from ViewModel ──────────────────────────────────────
@@ -122,8 +123,13 @@ fun PlayerControls(
     val playbackSpeed     by viewModel.playbackSpeed.collectAsState()
     val context           = LocalContext.current
 
-    val showLoadingCircle = isLoading || isLoadingEpisode ||
-            playerState is PlaybackState.Buffering
+    val showLoadingCircle = settings.showLoadingCircle && (
+        isLoading || isLoadingEpisode || playerState is PlaybackState.Buffering
+    )
+    val seekBarShown by viewModel.seekBarShown.collectAsState()
+    val gestureSeekAmount by viewModel.gestureSeekAmount.collectAsState()
+    val reduceMotion = settings.reducePlayerMotion
+    val panelAlpha = com.kitsugi.animelist.core.player.PlayerUiPolicy.panelAlpha(settings.panelOpacity)
 
     // Formatted title respecting settings
     val mediaTitle = remember(currentTitle, settings.showPlayerTitle, settings.titleLimitType) {
@@ -140,16 +146,54 @@ fun PlayerControls(
 
     // Skip-intro button text (AniSkip aralığı varsa dinamik, yoksa null)
     val currentPosSec = posMs / 1000f
-    val skipIntroText = remember(skipIntervals, currentPosSec) {
+    val activeSkipInterval = remember(skipIntervals, currentPosSec) {
         skipIntervals.firstOrNull { interval ->
             currentPosSec >= interval.startTime && currentPosSec < interval.endTime
-        }?.let { interval ->
-            when (interval.type) {
+        }
+    }
+    var netflixSkipCountdownSec by remember(activeSkipInterval) { mutableStateOf<Int?>(null) }
+    var dismissedSkipInterval by remember { mutableStateOf<com.kitsugi.animelist.data.remote.SkipInterval?>(null) }
+    LaunchedEffect(
+        activeSkipInterval,
+        settings.aniSkipAutoSkip,
+        settings.enableNetflixStyleIntroSkip,
+        settings.waitingTimeIntroSkip,
+        paused
+    ) {
+        val interval = activeSkipInterval
+        if (interval == null || interval == dismissedSkipInterval || !settings.aniSkipAutoSkip || !settings.enableNetflixStyleIntroSkip) {
+            netflixSkipCountdownSec = null
+            return@LaunchedEffect
+        }
+        val waitSec = settings.waitingTimeIntroSkip.coerceIn(1, 30)
+        for (elapsed in 0..waitSec) {
+            val remaining = com.kitsugi.animelist.core.player.PlayerUiPolicy.computeSkipCountdownRemainingSec(
+                autoSkipEnabled = settings.aniSkipAutoSkip,
+                netflixStyleEnabled = settings.enableNetflixStyleIntroSkip,
+                waitingTimeSec = waitSec,
+                elapsedInIntervalSec = elapsed
+            )
+            netflixSkipCountdownSec = remaining
+            if (remaining != null && remaining <= 0) {
+                viewModel.seekTo((interval.endTime * 1000f).toLong())
+                netflixSkipCountdownSec = null
+                break
+            }
+            while (paused) delay(200)
+            delay(1000)
+        }
+    }
+
+    val skipIntroText = remember(activeSkipInterval, netflixSkipCountdownSec) {
+        activeSkipInterval?.let { interval ->
+            val baseLabel = when (interval.type) {
                 "intro" -> "Giriş'i Atla"
                 "outro" -> "Bitişi Atla"
                 "recap" -> "Özeti Atla"
                 else    -> "Atla"
             }
+            val countdown = netflixSkipCountdownSec
+            if (countdown != null && countdown > 0) "$baseLabel (${countdown}s)" else baseLabel
         }
     }
 
@@ -190,9 +234,10 @@ fun PlayerControls(
 
     // ── Hide-controls timer (Aniyomi LaunchedEffect pattern) ─────────────────
     var resetTimerTrigger by remember { mutableStateOf(0) }
-    LaunchedEffect(controlsShown, paused, resetTimerTrigger, controlsResetTrigger) {
+    val hideDelayMs = com.kitsugi.animelist.core.player.PlayerUiPolicy.clampOsdHideDelayMs(settings.playerTimeToDisappearMs)
+    LaunchedEffect(controlsShown, paused, resetTimerTrigger, controlsResetTrigger, hideDelayMs) {
         if (controlsShown && !paused) {
-            delay(CONTROLS_HIDE_DELAY_MS)
+            delay(hideDelayMs)
             viewModel.hideControls()
         }
     }
@@ -291,7 +336,7 @@ fun PlayerControls(
                 mpvVolume = mpvVolume,
                 range = 0..viewModel.maxVolume,
                 boostRange = if (settings.volumeBoostCap - 100 > 0) 0..(settings.volumeBoostCap - 100) else null,
-                displayAsPercentage = false,
+                displayAsPercentage = settings.displayVolumeAsPercentage,
             )
         }
 
@@ -356,8 +401,8 @@ fun PlayerControls(
             // ── Top bar ───────────────────────────────────────────────────────
             AnimatedVisibility(
                 visible  = areControlsVisible,
-                enter    = slideInVertically { -it } + fadeIn(),
-                exit     = slideOutVertically { -it } + fadeOut(),
+                enter    = if (reduceMotion) fadeIn() else slideInVertically { -it } + fadeIn(),
+                exit     = if (reduceMotion) fadeOut() else slideOutVertically { -it } + fadeOut(),
                 modifier = Modifier
                     .fillMaxWidth()
                     .align(Alignment.TopCenter)
@@ -410,6 +455,7 @@ fun PlayerControls(
                             viewModel.showPanel(com.kitsugi.animelist.ui.screens.fullscreen.KitsugiPanels.VideoFilters)
                             resetTimer()
                         },
+                        onOpenExternalClick  = onOpenExternalPlayer,
                     )
                 }
             }
@@ -427,7 +473,7 @@ fun PlayerControls(
                 areControlsLocked = areControlsLocked,
                 showLoadingCircle = showLoadingCircle,
                 paused            = paused,
-                gestureSeekAmount = null,
+                gestureSeekAmount = gestureSeekAmount,
                 onPlayPauseClick  = {
                     viewModel.togglePlay()
                     resetTimer()
@@ -447,10 +493,11 @@ fun PlayerControls(
             )
 
             // ── Bottom bar ────────────────────────────────────────────────────
+            val showGestureSeekBarOnly = !areControlsVisible && seekBarShown && gestureSeekAmount != null && settings.showSeekBarOnGesture
             AnimatedVisibility(
-                visible  = areControlsVisible,
-                enter    = slideInVertically { it } + fadeIn(),
-                exit     = slideOutVertically { it } + fadeOut(),
+                visible  = areControlsVisible || showGestureSeekBarOnly,
+                enter    = if (reduceMotion) fadeIn() else slideInVertically { it } + fadeIn(),
+                exit     = if (reduceMotion) fadeOut() else slideOutVertically { it } + fadeOut(),
                 modifier = Modifier
                     .fillMaxWidth()
                     .align(Alignment.BottomCenter)
@@ -473,13 +520,17 @@ fun PlayerControls(
                         },
                         previewImage = previewImage,
                         previewPosition = previewPosition,
-                        timersInverted       = Pair(false, false),
+                        timersInverted       = Pair(false, settings.invertDurationTimer),
                         positionTimerOnClick  = {},
-                        durationTimerOnCLick  = {},
+                        durationTimerOnCLick  = {
+                            viewModel.toggleInvertDurationTimer()
+                            resetTimer()
+                        },
                         chapters             = seekSegments,
                         modifier             = Modifier.fillMaxWidth()
                     )
 
+                    if (areControlsVisible) {
                     Spacer(modifier = Modifier.height(4.dp))
 
                     Row(
@@ -506,7 +557,7 @@ fun PlayerControls(
                                 viewModel.showSheet(sheet)
                                 resetTimer()
                             },
-                            showChapters        = chapters.isNotEmpty()
+                            showChapters        = settings.showCurrentChapter && chapters.isNotEmpty()
                         )
                         BottomRightPlayerControls(
                             customButton         = customButton,
@@ -533,6 +584,7 @@ fun PlayerControls(
                                 viewModel.seekTo(posMs + introSkipLength * 1000L)
                                 resetTimer()
                             },
+                            enableSkipIntro      = settings.enableSkipIntro,
                             isPipAvailable       = settings.pipEnabled,
                             onAspectClick        = {
                                 onAspectClick()
@@ -552,7 +604,35 @@ fun PlayerControls(
                             }
                         )
                     }
+                    }
                 }
+            }
+        }
+
+        // ── Floating Skip Intro button when OSD is hidden ─────────────────────
+        AnimatedVisibility(
+            visible  = !areControlsVisible && !areControlsLocked && settings.enableSkipIntro && skipIntroText != null && activeSkipInterval != dismissedSkipInterval,
+            enter    = fadeIn(),
+            exit     = fadeOut(),
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .padding(bottom = 32.dp, end = 24.dp)
+        ) {
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                com.kitsugi.animelist.ui.screens.fullscreen.controls.components.FilledControlsButton(
+                    text = skipIntroText ?: "Atla",
+                    onClick = {
+                        activeSkipInterval?.let { interval ->
+                            viewModel.seekTo((interval.endTime * 1000f).toLong())
+                        }
+                    },
+                    onLongClick = {
+                        dismissedSkipInterval = activeSkipInterval
+                    }
+                )
             }
         }
 
@@ -568,7 +648,7 @@ fun PlayerControls(
             Card(
                 shape  = androidx.compose.foundation.shape.RoundedCornerShape(12.dp),
                 colors = CardDefaults.cardColors(
-                    containerColor = playerSurfaceColor(0.92f),
+                    containerColor = playerSurfaceColor(panelAlpha),
                     contentColor = Color.White
                 ),
                 elevation = CardDefaults.cardElevation(defaultElevation = 8.dp),

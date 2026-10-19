@@ -351,9 +351,10 @@ class MpvPlayerEngine(
             if (trackId == -1) {
                 mpvView?.mpv?.setPropertyString("secondary-sid", "no")
             } else {
-                mpvView?.mpv?.setPropertyInt("secondary-sid", trackId)
+                mpvView?.mpv?.setPropertyString("secondary-sid", trackId.toString())
             }
         }
+        listeners.forEach { it.onSecondarySubtitleChanged(secondarySubtitleTrackId) }
     }
 
     override fun setAudioDelay(delayMs: Long) {
@@ -440,13 +441,36 @@ class MpvPlayerEngine(
             android.view.KeyEvent.KEYCODE_DPAD_RIGHT -> "RIGHT"
             android.view.KeyEvent.KEYCODE_DPAD_UP -> "UP"
             android.view.KeyEvent.KEYCODE_DPAD_DOWN -> "DOWN"
-            android.view.KeyEvent.KEYCODE_ENTER -> "ENTER"
+            android.view.KeyEvent.KEYCODE_ENTER, android.view.KeyEvent.KEYCODE_NUMPAD_ENTER -> "ENTER"
             android.view.KeyEvent.KEYCODE_SPACE -> "SPACE"
             android.view.KeyEvent.KEYCODE_TAB -> "TAB"
             android.view.KeyEvent.KEYCODE_DEL -> "BS"
             android.view.KeyEvent.KEYCODE_FORWARD_DEL -> "DEL"
+            android.view.KeyEvent.KEYCODE_INSERT -> "INS"
+            android.view.KeyEvent.KEYCODE_MOVE_HOME -> "HOME"
+            android.view.KeyEvent.KEYCODE_MOVE_END -> "END"
             android.view.KeyEvent.KEYCODE_PAGE_UP -> "PGUP"
             android.view.KeyEvent.KEYCODE_PAGE_DOWN -> "PGDWN"
+            android.view.KeyEvent.KEYCODE_ESCAPE -> "ESC"
+            android.view.KeyEvent.KEYCODE_F1 -> "F1"
+            android.view.KeyEvent.KEYCODE_F2 -> "F2"
+            android.view.KeyEvent.KEYCODE_F3 -> "F3"
+            android.view.KeyEvent.KEYCODE_F4 -> "F4"
+            android.view.KeyEvent.KEYCODE_F5 -> "F5"
+            android.view.KeyEvent.KEYCODE_F6 -> "F6"
+            android.view.KeyEvent.KEYCODE_F7 -> "F7"
+            android.view.KeyEvent.KEYCODE_F8 -> "F8"
+            android.view.KeyEvent.KEYCODE_F9 -> "F9"
+            android.view.KeyEvent.KEYCODE_F10 -> "F10"
+            android.view.KeyEvent.KEYCODE_F11 -> "F11"
+            android.view.KeyEvent.KEYCODE_F12 -> "F12"
+            android.view.KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE -> "PLAYPAUSE"
+            android.view.KeyEvent.KEYCODE_MEDIA_PLAY -> "PLAY"
+            android.view.KeyEvent.KEYCODE_MEDIA_PAUSE -> "PAUSE"
+            android.view.KeyEvent.KEYCODE_MEDIA_NEXT -> "NEXT"
+            android.view.KeyEvent.KEYCODE_MEDIA_PREVIOUS -> "PREV"
+            android.view.KeyEvent.KEYCODE_MEDIA_FAST_FORWARD -> "FORWARD"
+            android.view.KeyEvent.KEYCODE_MEDIA_REWIND -> "REWIND"
             else -> {
                 val code = event.unicodeChar
                 if (!event.isPrintingKey || code == 0 || code and android.view.KeyCharacterMap.COMBINING_ACCENT != 0) return false
@@ -753,7 +777,8 @@ class MpvPlayerEngine(
 
     /** İkincil altyazı seçimini MPV'ye uygula */
     private fun applySecondarySubtitle(view: KitsugiMpvSurfaceView) {
-        view.mpv.setPropertyString("secondary-sid", "no")
+        val sidValue = if (secondarySubtitleTrackId >= 0) secondarySubtitleTrackId.toString() else "no"
+        view.mpv.setPropertyString("secondary-sid", sidValue)
         view.mpv.setPropertyDouble("secondary-sub-delay", secondarySubtitleDelayMs / 1000.0)
     }
 

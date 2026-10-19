@@ -37,6 +37,23 @@ class KitsugiFullscreenPlayerActivity : ComponentActivity() {
 
     private val viewModel: KitsugiPlayerViewModel by viewModels()
     private var isPipEnabled = true
+    private var isPipOnExitEnabled = true
+    private var showSystemStatusBar = false
+    private var playerFullscreenCutout = true
+    private var preferredExternalPlayerPkg: String = ""
+
+    private val externalPlayerResultLauncher = registerForActivityResult(
+        com.kitsugi.animelist.core.player.ExternalPlayerResultContract()
+    ) { result ->
+        handedOffToExternalPlayer = false
+        if (result != null) {
+            viewModel.onExternalPlayerResult(
+                positionMs = result.positionMs,
+                durationMs = result.durationMs,
+                endedByUser = result.endedByUser
+            )
+        }
+    }
 
     // ── T2.3: MediaSession + PiP BroadcastReceiver ────────────────────────────
     private var mediaSessionHelper: PlayerMediaSessionHelper? = null
@@ -132,10 +149,52 @@ class KitsugiFullscreenPlayerActivity : ComponentActivity() {
      */
     private fun applyImmersiveMode() {
         runCatching {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                val attrs = window.attributes
+                attrs.layoutInDisplayCutoutMode = if (playerFullscreenCutout) {
+                    WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
+                } else {
+                    WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_NEVER
+                }
+                window.attributes = attrs
+            }
             WindowInsetsControllerCompat(window, window.decorView).apply {
-                hide(WindowInsetsCompat.Type.systemBars())
+                if (showSystemStatusBar) {
+                    show(WindowInsetsCompat.Type.statusBars())
+                    hide(WindowInsetsCompat.Type.navigationBars())
+                } else {
+                    hide(WindowInsetsCompat.Type.systemBars())
+                }
                 systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
             }
+        }
+    }
+
+    internal fun launchExternalForResult(
+        videoUrl: String,
+        title: String,
+        positionMs: Long,
+        headers: Map<String, String>?,
+        subtitles: List<SubtitleInput>?,
+        preferredPackage: String?
+    ): Boolean {
+        val pkg = preferredPackage?.takeIf { it.isNotBlank() } ?: preferredExternalPlayerPkg.takeIf { it.isNotBlank() }
+        return try {
+            handedOffToExternalPlayer = true
+            externalPlayerResultLauncher.launch(
+                ExternalPlayerLauncher.createInput(
+                    url              = videoUrl,
+                    title            = title,
+                    headers          = headers,
+                    resumePositionMs = positionMs,
+                    subtitles        = subtitles,
+                    preferredPackage = pkg
+                )
+            )
+            true
+        } catch (_: Exception) {
+            handedOffToExternalPlayer = false
+            false
         }
     }
 
@@ -290,15 +349,33 @@ class KitsugiFullscreenPlayerActivity : ComponentActivity() {
             title: String,
             positionMs: Long,
             headers: Map<String, String>? = null,
-            subtitles: List<SubtitleInput>? = null
+            subtitles: List<SubtitleInput>? = null,
+            preferredPackage: String? = null
         ) {
+            val playerActivity = context as? KitsugiFullscreenPlayerActivity
+            val effectivePkg = preferredPackage?.takeIf { it.isNotBlank() }
+                ?: playerActivity?.preferredExternalPlayerPkg?.takeIf { it.isNotBlank() }
+
+            if (playerActivity != null && playerActivity.launchExternalForResult(
+                    videoUrl         = videoUrl,
+                    title            = title,
+                    positionMs       = positionMs,
+                    headers          = headers,
+                    subtitles        = subtitles,
+                    preferredPackage = effectivePkg
+                )
+            ) {
+                return
+            }
+
             val launched = ExternalPlayerLauncher.launch(
                 context          = context,
                 url              = videoUrl,
                 title            = title,
                 headers          = headers,
                 resumePositionMs = positionMs,
-                subtitles        = subtitles
+                subtitles        = subtitles,
+                preferredPackage = effectivePkg
             )
             if (!launched) {
                 try {
@@ -313,7 +390,7 @@ class KitsugiFullscreenPlayerActivity : ComponentActivity() {
             }
             // Harici oynatıcıya devredildi: bu Activity artık "mini pencere kapatıldı" diye
             // sonlandırılmamalı (kullanıcı geri döndüğünde yerinde bulsun).
-            (context as? KitsugiFullscreenPlayerActivity)?.handedOffToExternalPlayer = true
+            playerActivity?.handedOffToExternalPlayer = true
         }
     }
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -416,6 +493,13 @@ class KitsugiFullscreenPlayerActivity : ComponentActivity() {
         lifecycleScope.launch {
             SettingsDataStore(applicationContext).settingsFlow.collectLatest { settings ->
                 isPipEnabled = settings.pipEnabled
+                isPipOnExitEnabled = settings.pipOnExit
+                val barChanged = showSystemStatusBar != settings.showSystemStatusBar ||
+                    playerFullscreenCutout != settings.playerFullscreenCutout
+                showSystemStatusBar = settings.showSystemStatusBar
+                playerFullscreenCutout = settings.playerFullscreenCutout
+                preferredExternalPlayerPkg = settings.preferredExternalPlayerPackage
+                if (barChanged) applyImmersiveMode()
             }
         }
 
@@ -554,7 +638,7 @@ class KitsugiFullscreenPlayerActivity : ComponentActivity() {
 
     override fun onUserLeaveHint() {
         super.onUserLeaveHint()
-        if (isPipEnabled && lastKnownIsPlaying) {
+        if (isPipEnabled && isPipOnExitEnabled && lastKnownIsPlaying && !handedOffToExternalPlayer) {
             PlayerPipHelper.enterPipSafe(
                 this,
                 pipEngine,

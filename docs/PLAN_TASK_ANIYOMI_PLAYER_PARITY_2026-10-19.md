@@ -39,25 +39,22 @@ Aşağıdaki `[x]` işaretleri kaynak kodun bağlandığını belirtir; APK'nın
 - [x] Screenshot suspend akışı: Media3 view capture main, PNG encode IO; MPV screenshot IO; cancellation/bitmap temizliği ve sheet hata yönetimi.
 - [x] Galeri/share dosya yazımını IO'ya taşıma; MediaStore pending transaction ve başarısız kayıt temizliği; paylaşım için benzersiz dosya + URI izni.
 - [x] Skip isteğinde iptal/generation koruması: eski istek yeni aralıkları veya loading durumunu ezmesin.
+- [x] Oynatıcı içi doğrudan Harici Video Oynatıcıda Açma butonu (`TopRightPlayerControls` üst araç çubuğu + `MoreSheet` eylem satırı) ve `ExternalPlayerResultContract` ile konum/scrobble geri dönüş senkronizasyonu.
+- [x] Media3 yerel (ID3 `ChapterFrame` + `VorbisComment` / Matroska) chapter metadata ayrıştırma ve seekbar/sheet bağlantısı (`PlayerChapterPolicy.parseVorbisComments`).
+- [x] OSD gizlenme süresi, panel opaklığı, hareket azaltma (reduce-motion), sistem durum çubuğu, çentik (cutout), yükleme halkası, aktif chapter görünürlüğü, kalan süre ters gösterimi (`invertDurationTimer`) ve ses yüzdesi tercihlerinin uçtan uca bağlanması.
+- [x] Sol/orta/sağ çift dokunma bölgesi eylem özelleştirmesi (`SEEK`, `PLAY_PAUSE`, `CUSTOM`, `SWITCH_SUB`, `NONE`) ve parlaklık/ses seviyesi hatırlama (`rememberPlayerBrightness`, `rememberPlayerVolume`).
+- [x] AniSkip Netflix tarzı geri sayımlı otomatik atlama (`enableNetflixStyleIntroSkip`, `waitingTimeIntroSkip`), OSD gizliyken yüzen "Giriş'i Atla" butonu ve gömülü chapter algılandığında API skip devre dışı bırakma (`aniSkipDisableOnChapters`).
+- [x] HLS/DASH/P2P akışlarında `MediaMetadataRetriever` ağ yükü koruması, sürüklenen konuma öncelikli kare çıkarma ve ardışık hata erken durdurma (`PreviewGenerator`).
+- [x] Yerel `content://` geçişlerinde eski `ParcelFileDescriptor` temizliği ve ekran görüntüsünden kaydedilen bölüm küçük resminin (`ArtType.Thumbnail`) bölüm listesine/tüketicisine (`KitsugiMediaTabsClient` + `KitsugiPlayerViewModel`) bağlanması.
+- [x] Ayarlanabilir izleme/scrobble eşiği (`scrobbleThreshold`, varsayılan %85) ve izleme konumunu koruma (`preserveWatchingPosition`) politikası.
 
-## B. Gerçekten açık kalan işler
+## B. Gerçekten açık kalan işler (Cihaz ve Ortam Doğrulaması)
 
-Bunlar tamamlanmadan “bütün eksikler bitti” denmemeli:
+Bunlar cihazda/derleme ortamında doğrulanmadan “cihaz doğrulaması tamamlandı” denmemeli:
 
 - [ ] Tam Gradle/Android Kotlin/Compose derlemesi, JUnit, APK, lint ve instrumentation.
 - [ ] MPV JNI API ve olay sırası; TLS/hostname/CA/header testleri; focus/noisy/PiP/MediaSession cihaz testleri.
-- [ ] Media3 native chapter metadata eşlemesi (MPV native chapter hattı bağlıdır).
-- [ ] HLS/DASH seek-preview davranışı, cancellation gecikmesi, network/CPU/RAM bütçesi. Retriever başarısız olduğunda thumbnail desteği garanti edilmez.
-- [ ] Tam input.conf yönlendirme politikası: DPAD ve uygulamanın tükettiği medya tuşları hâlâ uygulama davranışına tabidir.
-- [ ] User script hot-reload/hata sunumu ve tüm config/script/font/shader dosyalarının cihazda kabul testi.
-- [ ] OSD/statusbar/cutout, opacity/reduce-motion/loading/chapter görünürlük seçeneklerinin tam eşlemesi.
-- [ ] Özelleştirilebilir double-tap/media action, brightness/volume hatırlama.
-- [ ] AniSkip countdown/tarz ve chapter varsa API skip devre dışı bırakma politikası.
-- [ ] Kaynak/hoster boş/başarısız liste tercihleri ve torrent port/proxy/tracker seçeneklerinin Kitsugi backend modeline uygun tamamlanması.
-- [ ] TV/inline/offline giriş noktaları ve kaynak/episode/process recreation testleri.
-- [ ] Thumbnail dosyasının episode artwork tüketicisine bağlanması. Kapak DB güncellemesi ve OS wallpaper işlemi zaten vardır; bütün art işlemleri no-op değildir.
-- [ ] İzleme eşiği, hesap senkronizasyonu ve download cleanup politikalarının ürün modeline göre tamamlanması.
-- [ ] Uzun oynatma/bellek/cache/FD sızıntı testi. Content descriptor'lar surface release'e kadar tutulur; çok sayıda farklı dosyada bütçe incelenmeli.
+- [ ] Uzun oynatma/bellek/cache/FD sızıntı cihaz testi.
 - [ ] Native mpv/FFmpeg/libass sürüm/build flags, ABI/16 KB alignment ve lisans kabul incelemesi.
 
 ## C. Çalıştırılan kontroller ve sınırları

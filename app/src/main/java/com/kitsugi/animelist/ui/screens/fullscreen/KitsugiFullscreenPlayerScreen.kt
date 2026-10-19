@@ -379,6 +379,13 @@ fun KitsugiFullscreenPlayerScreen(
             audioBoostLevel = appSettings.defaultAudioBoost
             secondarySubtitleDelayMs = appSettings.secondarySubtitleDelayMs
             currentAspectMode = runCatching { com.kitsugi.animelist.core.player.PlayerAspectMode.valueOf(appSettings.aspectMode) }.getOrDefault(com.kitsugi.animelist.core.player.PlayerAspectMode.ORIGINAL)
+            val initialOrientation = when (appSettings.defaultPlayerOrientation) {
+                "SENSOR_LANDSCAPE" -> ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
+                "SENSOR_PORTRAIT" -> ActivityInfo.SCREEN_ORIENTATION_SENSOR_PORTRAIT
+                else -> ActivityInfo.SCREEN_ORIENTATION_FULL_SENSOR
+            }
+            screenOrientationState = initialOrientation
+            activity?.requestedOrientation = initialOrientation
             isSettingsLoaded = true
         }
     }
@@ -987,9 +994,8 @@ fun KitsugiFullscreenPlayerScreen(
                         .focusRequester(mainFocusRequester)
                         .focusable()
                         .onPreviewKeyEvent { event ->
-                            if (event.type != KeyEventType.KeyDown) return@onPreviewKeyEvent playerEngine.handleKey(event.nativeKeyEvent)
-                            
                             if (event.key == Key.Back || event.key == Key.Escape) {
+                                if (event.type != KeyEventType.KeyDown) return@onPreviewKeyEvent true
                                 return@onPreviewKeyEvent when {
                                     panelShown != KitsugiPanels.None || sheetShown != KitsugiSheets.None || dialogShown != KitsugiDialogs.None -> {
                                         viewModel.showPanel(KitsugiPanels.None)
@@ -1013,8 +1019,19 @@ fun KitsugiFullscreenPlayerScreen(
                             if (panelShown != KitsugiPanels.None || sheetShown != KitsugiSheets.None || dialogShown != KitsugiDialogs.None) return@onPreviewKeyEvent false
                             
                             if (controlsShown) {
-                                viewModel.showControls() // Reset timer
+                                if (event.type == KeyEventType.KeyDown) viewModel.showControls() // Reset timer
                                 return@onPreviewKeyEvent false
+                            }
+
+                            val isNavOrSelectKey = event.key == Key.DirectionCenter ||
+                                event.key == Key.Enter ||
+                                event.key == Key.DirectionLeft ||
+                                event.key == Key.DirectionRight ||
+                                event.key == Key.DirectionUp ||
+                                event.key == Key.DirectionDown
+
+                            if (event.type != KeyEventType.KeyDown) {
+                                return@onPreviewKeyEvent if (isNavOrSelectKey) true else playerEngine.handleKey(event.nativeKeyEvent)
                             }
                             
                             when (event.key) {
@@ -1082,6 +1099,63 @@ fun KitsugiFullscreenPlayerScreen(
 
                     // Legacy gesture progress bars and overlays removed (GestureHandler & PlayerControls manage overlays)
 
+                    val openExternalPlayerAction: (() -> Unit)? = if (!currentVideoUrl.isNullOrBlank()) {
+                        {
+                            val urlVal = currentVideoUrl
+                            if (!urlVal.isNullOrBlank()) {
+                                val resumeMs = playerEngine.currentPosition.takeIf { it > 0L }
+                                    ?: currentPosition.takeIf { it > 0L }
+                                    ?: (savedPos ?: 0L)
+                                playerEngine.pause()
+                                if (resumeMs > 0L && duration > 0L) {
+                                    viewModel.saveProgress(
+                                        mediaId = mediaIdForHistory,
+                                        episode = currentEpisode,
+                                        lastPositionMs = resumeMs,
+                                        durationMs = duration,
+                                        addonName = currentAddonName
+                                    )
+                                    com.kitsugi.animelist.data.local.WatchHistoryManager.updateProgress(
+                                        animeId = mediaIdForHistory.toString(),
+                                        episode = currentEpisode,
+                                        positionMs = resumeMs,
+                                        durationMs = duration
+                                    )
+                                }
+                                PlayerLogger.logExternalPlayerLaunch(
+                                    context   = context,
+                                    url       = urlVal,
+                                    addonName = currentAddonName,
+                                    title     = currentTitle,
+                                    manual    = true
+                                )
+                                KitsugiFullscreenPlayerActivity.launchExternalPlayer(
+                                    context          = context,
+                                    videoUrl         = urlVal,
+                                    title            = currentTitle.ifBlank { title },
+                                    positionMs       = resumeMs,
+                                    headers          = currentHeaders,
+                                    subtitles        = currentSubtitles,
+                                    preferredPackage = safeSettings.preferredExternalPlayerPackage.takeIf { it.isNotBlank() }
+                                )
+                            }
+                        }
+                    } else null
+
+                    var lastPipToastEpisode by remember { mutableStateOf(currentEpisode) }
+                    LaunchedEffect(currentEpisode, isInPipMode, safeSettings.pipEpisodeToasts) {
+                        if (currentEpisode != lastPipToastEpisode) {
+                            lastPipToastEpisode = currentEpisode
+                            if (isInPipMode && safeSettings.pipEpisodeToasts) {
+                                Toast.makeText(
+                                    context,
+                                    KitsugiStrings.get(R.string.inline_episode_1_s_dc662be, currentEpisode),
+                                    Toast.LENGTH_SHORT
+                                ).show()
+                            }
+                        }
+                    }
+
                     // Centralized OSD controls (Aniyomi style)
                     if (!isInPipMode) {
                         PlayerControls(
@@ -1117,11 +1191,12 @@ fun KitsugiFullscreenPlayerScreen(
                                 }
                                 aspectFeedback = text
                             },
+                            onOpenExternalPlayer = openExternalPlayerAction,
                             modifier = Modifier.fillMaxSize()
                         )
                     }
 
-                    // AniSkip Auto-Skip logic
+                    // AniSkip Auto-Skip logic (immediate mode; Netflix countdown mode is handled in PlayerControls)
                     run {
                         val positionSec = currentPosition / 1000L
                         val activeSkip = skipIntervals.firstOrNull { interval ->
@@ -1129,8 +1204,8 @@ fun KitsugiFullscreenPlayerScreen(
                             positionSec < interval.endTime.toLong()
                         }
                         if (activeSkip != null) {
-                            LaunchedEffect(activeSkip) {
-                                if (aniSkipAutoSkip) {
+                            LaunchedEffect(activeSkip, aniSkipAutoSkip, safeSettings.enableNetflixStyleIntroSkip) {
+                                if (aniSkipAutoSkip && !safeSettings.enableNetflixStyleIntroSkip) {
                                     playerEngine.seekTo((activeSkip.endTime * 1000).toLong())
                                 }
                             }
@@ -1372,6 +1447,8 @@ fun KitsugiFullscreenPlayerScreen(
                         onSaveScreenshot = { stream -> viewModel.saveImage(stream, playerEngine.currentPosition.toInt()) },
                         onShareScreenshot = { stream -> viewModel.shareImage(stream, playerEngine.currentPosition.toInt()) },
                         takeScreenshot = { path, showSubs -> viewModel.takeScreenshot(path, showSubs) },
+                        onOpenExternalPlayer = openExternalPlayerAction,
+                        reduceMotion = safeSettings.reducePlayerMotion,
                         modifier = Modifier.fillMaxSize()
                     )
 
@@ -1379,6 +1456,7 @@ fun KitsugiFullscreenPlayerScreen(
                     PlayerPanelsHost(
                         panelShown = panelShown,
                         onDismissRequest = { viewModel.showPanel(KitsugiPanels.None) },
+                        reduceMotion = safeSettings.reducePlayerMotion,
                         currentAudioDelayMs = audioDelayMs.toInt(),
                         onAudioDelayChanged = { delay ->
                             if (delay < 0L && !playerEngine.supportsNegativeAudioDelay) {

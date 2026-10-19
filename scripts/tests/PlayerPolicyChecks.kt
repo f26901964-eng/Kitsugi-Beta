@@ -106,5 +106,38 @@ fun main() {
         check(SubtitleSelectionPolicy.pick(listOf(candidate("de", "deu", "German"),
             candidate("en", "eng", "English")), listOf("en", "de")) == "en")
     }
+    test("Vorbis/Matroska chapter timestamp parsing and comment pairing") {
+        check(PlayerChapterPolicy.parseTimestampMs("00:01:30.250") == 90_250L)
+        check(PlayerChapterPolicy.parseTimestampMs("02:05") == 125_000L)
+        check(PlayerChapterPolicy.parseTimestampMs("invalid") == null)
+        val chapters = PlayerChapterPolicy.parseVorbisComments(
+            listOf(
+                "CHAPTER001" to "00:00:00.000",
+                "CHAPTER001NAME" to "Prologue",
+                "CHAPTER002" to "00:01:30.500",
+                "CHAPTER002NAME" to "Opening"
+            )
+        )
+        check(chapters == listOf(PlayerChapter("Prologue", 0L), PlayerChapter("Opening", 90_500L)))
+    }
+    test("scrobble threshold policy and clamping") {
+        check(!ScrobblePolicy.shouldScrobble(0.84f))
+        check(ScrobblePolicy.shouldScrobble(0.85f))
+        check(!ScrobblePolicy.shouldScrobble(Float.NaN))
+    }
+    test("AniSkip chapter disable policy") {
+        check(AniSkipPolicy.shouldDisableOnChapters(hasChapters = true, disableOnChaptersSetting = true))
+        check(!AniSkipPolicy.shouldDisableOnChapters(hasChapters = false, disableOnChaptersSetting = true))
+        check(!AniSkipPolicy.shouldDisableOnChapters(hasChapters = true, disableOnChaptersSetting = false))
+    }
+    test("OSD timeout, panel opacity, and Netflix-style skip countdown policy") {
+        check(PlayerUiPolicy.clampOsdHideDelayMs(500) == 1000L)
+        check(PlayerUiPolicy.clampOsdHideDelayMs(5000) == 5000L)
+        check(PlayerUiPolicy.panelAlpha(95) == 0.95f)
+        check(PlayerUiPolicy.computeSkipCountdownRemainingSec(true, true, 5, 2) == 3)
+        check(PlayerUiPolicy.computeSkipCountdownRemainingSec(true, false, 5, 2) == 0)
+        check(PlayerUiPolicy.computeSkipCountdownRemainingSec(false, true, 5, 2) == null)
+        check(DoubleTapGestureAction.fromString("PLAY_PAUSE", DoubleTapGestureAction.SEEK) == DoubleTapGestureAction.PLAY_PAUSE)
+    }
     println("$count player policy checks passed (real production Kotlin; not Android/JNI/device tests).")
 }

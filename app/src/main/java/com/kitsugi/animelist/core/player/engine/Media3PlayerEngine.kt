@@ -540,6 +540,55 @@ class Media3PlayerEngine(
                 }
             }
 
+            // Extract native chapters from track metadata (ID3 ChapterFrame / VorbisComment)
+            val extractedChapters = mutableListOf<com.kitsugi.animelist.core.player.PlayerChapter>()
+            val vorbisPairs = mutableListOf<Pair<String, String>>()
+            tracks.groups.forEach { group ->
+                for (i in 0 until group.length) {
+                    val metadata = group.getTrackFormat(i).metadata ?: continue
+                    for (entryIdx in 0 until metadata.length()) {
+                        when (val entry = metadata.get(entryIdx)) {
+                            is androidx.media3.extractor.metadata.id3.ChapterFrame -> {
+                                var title: String? = null
+                                for (subIdx in 0 until entry.subFrameCount) {
+                                    val sub = entry.getSubFrame(subIdx)
+                                    if (sub is androidx.media3.extractor.metadata.id3.TextInformationFrame &&
+                                        sub.id.equals("TIT2", ignoreCase = true)
+                                    ) {
+                                        title = sub.values.firstOrNull()?.takeIf { it.isNotBlank() }
+                                        if (title != null) break
+                                    }
+                                }
+                                val startMs = entry.startTimeMs.toLong()
+                                if (startMs >= 0L) {
+                                    extractedChapters.add(
+                                        com.kitsugi.animelist.core.player.PlayerChapter(
+                                            title = title ?: entry.chapterId.takeIf { it.isNotBlank() } ?: "Chapter ${extractedChapters.size + 1}",
+                                            positionMs = startMs
+                                        )
+                                    )
+                                }
+                            }
+                            is androidx.media3.extractor.metadata.vorbis.VorbisComment -> {
+                                vorbisPairs.add(entry.key to entry.value)
+                            }
+                        }
+                    }
+                }
+            }
+            if (vorbisPairs.isNotEmpty()) {
+                extractedChapters.addAll(
+                    com.kitsugi.animelist.core.player.PlayerChapterPolicy.parseVorbisComments(vorbisPairs)
+                )
+            }
+            if (extractedChapters.isNotEmpty()) {
+                val normalizedChapters = com.kitsugi.animelist.core.player.PlayerChapterPolicy.normalize(
+                    extractedChapters,
+                    duration
+                )
+                listeners.forEach { it.onChaptersChanged(normalizedChapters) }
+            }
+
             listeners.forEach { it.onTracksChanged(audioOptions, textOptions) }
         }
     }
@@ -714,6 +763,9 @@ class Media3PlayerEngine(
         this.userSelectedTextTrack = false
         this.autoSubtitleSelectionSettled = false
         this.autoSubtitleAttemptCount = 0
+        runOnMainThread {
+            listeners.forEach { it.onChaptersChanged(emptyList()) }
+        }
 
         // ── T1.13: Start diagnostics & analytics session ──────────────────────
         val sessionId = java.util.UUID.randomUUID().toString().take(8)

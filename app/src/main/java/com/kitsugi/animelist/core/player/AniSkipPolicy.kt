@@ -1,9 +1,7 @@
 package com.kitsugi.animelist.core.player
 
-import com.kitsugi.animelist.data.remote.SkipInterval
-
 /**
- * Pure policy helpers for AniSkip integration.
+ * Pure policy helpers for AniSkip integration (SDK-independent).
  *
  * - Whether AniSkip should be disabled when the video already contains chapters
  *   (Aniyomi: "Disable AniSkip if video already contains chapters").
@@ -14,18 +12,22 @@ object AniSkipPolicy {
      * AniSkip should be skipped entirely when the user opted to disable it on
      * chaptered videos and the video actually has chapters.
      */
-    fun shouldDisableOnChapters(hasChapters: Boolean, disableOnChapters: Boolean): Boolean =
-        disableOnChapters && hasChapters
+    fun shouldDisableOnChapters(hasChapters: Boolean, disableOnChaptersSetting: Boolean): Boolean =
+        disableOnChaptersSetting && hasChapters
 
     /**
      * Merge AniSkip intervals with AnimeSkip intervals. AnimeSkip takes priority
      * for a given segment type; AniSkip fills the gaps.
      */
-    fun mergeIntervals(aniList: List<SkipInterval>, animeList: List<SkipInterval>): List<SkipInterval> {
-        val merged = mutableListOf<SkipInterval>()
+    fun <T> mergeIntervals(
+        aniList: List<T>,
+        animeList: List<T>,
+        typeOf: (T) -> String
+    ): List<T> {
+        val merged = mutableListOf<T>()
         merged.addAll(animeList)
-        val covered = animeList.map { it.type }.toSet()
-        aniList.filterNot { it.type in covered }.forEach { merged.add(it) }
+        val covered = animeList.map(typeOf).toSet()
+        aniList.filterNot { typeOf(it) in covered }.forEach { merged.add(it) }
         return merged
     }
 }

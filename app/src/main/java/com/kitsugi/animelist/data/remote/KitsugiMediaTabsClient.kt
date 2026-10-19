@@ -114,9 +114,9 @@ class KitsugiMediaTabsClient {
                             )
                         }
                     }
-                    return@withContext paddedList
+                    return@withContext applyLocalCustomThumbnails(context, effectiveId, realMalId, paddedList)
                 }
-                return@withContext list
+                return@withContext applyLocalCustomThumbnails(context, effectiveId, realMalId, list)
             }
 
             // Shikimori: kimlik uzayı MAL'dan farklı olabilir. Bölüm listesi ve TMDB
@@ -159,7 +159,7 @@ class KitsugiMediaTabsClient {
                     // Simkl için önce realMalId varsa Jikan'dan çek (anime)
                     if (realMalId != null && realMalId > 0) {
                         val jList = fetchEpisodesFromJikan(realMalId)
-                        if (jList.isNotEmpty()) return@withContext jList
+                        if (jList.isNotEmpty()) return@withContext applyLocalCustomThumbnails(context, effectiveId, realMalId, jList)
                     }
                     emptyList()
                 }
@@ -367,9 +367,48 @@ class KitsugiMediaTabsClient {
                         )
                     }
                 }
-                resultList
+                applyLocalCustomThumbnails(context, effectiveId, realMalId, resultList)
             } else {
-                list
+                applyLocalCustomThumbnails(context, effectiveId, realMalId, list)
+            }
+        }
+    }
+
+    private suspend fun applyLocalCustomThumbnails(
+        context: Context?,
+        externalId: Int,
+        realMalId: Int?,
+        episodes: List<KitsugiStreamingEpisode>
+    ): List<KitsugiStreamingEpisode> {
+        if (context == null || episodes.isEmpty()) return episodes
+        val thumbDir = java.io.File(context.applicationContext.filesDir, "thumbnails")
+        if (!thumbDir.exists()) return episodes
+
+        val candidatePrefixes = linkedSetOf<String>()
+        candidatePrefixes.add(externalId.toString())
+        if (realMalId != null && realMalId > 0) {
+            candidatePrefixes.add(realMalId.toString())
+            candidatePrefixes.add("mal_$realMalId")
+        }
+        runCatching {
+            val db = KitsugiDatabase.getDatabase(context.applicationContext)
+            val entry = db.mediaEntryDao().getByMalId(externalId)
+                ?: (if (realMalId != null) db.mediaEntryDao().getByMalId(realMalId) else null)
+                ?: db.mediaEntryDao().getById(externalId)
+            if (entry != null) {
+                candidatePrefixes.add(entry.id.toString())
+            }
+        }
+
+        return episodes.map { ep ->
+            val epNum = ep.episodeNumber ?: return@map ep
+            val localFile = candidatePrefixes.firstNotNullOfOrNull { prefix ->
+                java.io.File(thumbDir, "${prefix}_${epNum}.png").takeIf { it.exists() && it.length() > 0 }
+            }
+            if (localFile != null) {
+                ep.copy(thumbnail = "file://${localFile.absolutePath}")
+            } else {
+                ep
             }
         }
     }

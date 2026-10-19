@@ -88,6 +88,7 @@ class KitsugiPlayerViewModel(application: Application) : AndroidViewModel(applic
     private var transientPlaybackSpeed: Float? = null
     private val _playbackSpeed = MutableStateFlow(1f)
     val playbackSpeed: StateFlow<Float> = _playbackSpeed.asStateFlow()
+    private var initialPlayerPrefsRestored = false
 
     init {
         viewModelScope.launch {
@@ -105,6 +106,28 @@ class KitsugiPlayerViewModel(application: Application) : AndroidViewModel(applic
         viewModelScope.launch {
             appSettings.collect { settings ->
                 _playbackSpeed.value = transientPlaybackSpeed ?: settings.playerSpeed
+                orchestrator.scrobble.threshold = settings.scrobbleThreshold
+                if (!initialPlayerPrefsRestored) {
+                    initialPlayerPrefsRestored = true
+                    _audioChannels.value = settings.audioChannels
+                    _statisticsPage.value = settings.playerStatisticsPage
+                    _screenshotShowSubtitles.value = settings.screenshotSubtitles
+                    _currentDecoder.value = Decoder.entries.firstOrNull { it.value == settings.mpvHwdecMode } ?: Decoder.Auto
+                    if (settings.rememberPlayerBrightness && settings.playerBrightnessValue >= -0.75f) {
+                        currentBrightness.value = settings.playerBrightnessValue
+                    }
+                    if (settings.rememberPlayerVolume && settings.playerVolumeValue >= 0f) {
+                        val savedVol = settings.playerVolumeValue.toInt().coerceIn(0, maxVolume)
+                        runCatching {
+                            audioManager.setStreamVolume(
+                                android.media.AudioManager.STREAM_MUSIC,
+                                savedVol,
+                                0
+                            )
+                            currentVolume.value = savedVol
+                        }
+                    }
+                }
             }
         }
     }
@@ -453,6 +476,12 @@ class KitsugiPlayerViewModel(application: Application) : AndroidViewModel(applic
 
     fun setMediaChapters(chapters: List<com.kitsugi.animelist.core.player.PlayerChapter>) {
         mediaChapters = chapters
+        if (chapters.isNotEmpty()) {
+            orchestrator.skip.onMediaChaptersDetected(true)
+            if (appSettings.value.aniSkipDisableOnChapters) {
+                skipChapters = emptyList()
+            }
+        }
         rebuildChapters()
     }
 
@@ -505,24 +534,58 @@ class KitsugiPlayerViewModel(application: Application) : AndroidViewModel(applic
         seekText.value = text
     }
 
-    fun handleLeftDoubleTap() {
-        isSeekingForwards.value = false
-        val step = appSettings.value.doubleTapSeekSeconds
-        val newAmount = doubleTapSeekAmount.value - step
-        doubleTapSeekAmount.value = newAmount
-        seekBy(-step * 1000L)
+    fun handleLeftDoubleTap(): Boolean {
+        val action = com.kitsugi.animelist.core.player.DoubleTapGestureAction.fromString(
+            appSettings.value.leftDoubleTapGesture,
+            com.kitsugi.animelist.core.player.DoubleTapGestureAction.SEEK
+        )
+        return executeDoubleTapAction(action, forward = false)
     }
 
-    fun handleRightDoubleTap() {
-        isSeekingForwards.value = true
-        val step = appSettings.value.doubleTapSeekSeconds
-        val newAmount = doubleTapSeekAmount.value + step
-        doubleTapSeekAmount.value = newAmount
-        seekBy(step * 1000L)
+    fun handleRightDoubleTap(): Boolean {
+        val action = com.kitsugi.animelist.core.player.DoubleTapGestureAction.fromString(
+            appSettings.value.rightDoubleTapGesture,
+            com.kitsugi.animelist.core.player.DoubleTapGestureAction.SEEK
+        )
+        return executeDoubleTapAction(action, forward = true)
     }
 
-    fun handleCenterDoubleTap() {
-        togglePlay()
+    fun handleCenterDoubleTap(): Boolean {
+        val action = com.kitsugi.animelist.core.player.DoubleTapGestureAction.fromString(
+            appSettings.value.centerDoubleTapGesture,
+            com.kitsugi.animelist.core.player.DoubleTapGestureAction.PLAY_PAUSE
+        )
+        return executeDoubleTapAction(action, forward = true)
+    }
+
+    private fun executeDoubleTapAction(
+        action: com.kitsugi.animelist.core.player.DoubleTapGestureAction,
+        forward: Boolean
+    ): Boolean {
+        return when (action) {
+            com.kitsugi.animelist.core.player.DoubleTapGestureAction.SEEK -> {
+                isSeekingForwards.value = forward
+                val step = appSettings.value.doubleTapSeekSeconds
+                val delta = if (forward) step else -step
+                val newAmount = doubleTapSeekAmount.value + delta
+                doubleTapSeekAmount.value = newAmount
+                seekBy(delta * 1000L)
+                true
+            }
+            com.kitsugi.animelist.core.player.DoubleTapGestureAction.PLAY_PAUSE -> {
+                togglePlay()
+                false
+            }
+            com.kitsugi.animelist.core.player.DoubleTapGestureAction.CUSTOM -> {
+                _primaryButton.value?.let { executeCustomButton(it) }
+                false
+            }
+            com.kitsugi.animelist.core.player.DoubleTapGestureAction.SWITCH_SUB -> {
+                activeEngine?.executeCommand(arrayOf("cycle", "sub"))
+                false
+            }
+            com.kitsugi.animelist.core.player.DoubleTapGestureAction.NONE -> false
+        }
     }
 
     fun seekBy(offsetMs: Long) {
@@ -541,6 +604,9 @@ class KitsugiPlayerViewModel(application: Application) : AndroidViewModel(applic
             0,
         )
         currentVolume.value = newVolume
+        if (appSettings.value.rememberPlayerVolume) {
+            viewModelScope.launch { dataStore.setPlayerVolumeValue(newVolume.toFloat()) }
+        }
     }
 
     fun changeMPVVolumeTo(volume: Int) {
@@ -549,11 +615,20 @@ class KitsugiPlayerViewModel(application: Application) : AndroidViewModel(applic
     }
 
     fun changeBrightnessTo(brightness: Float) {
-        currentBrightness.value = brightness.coerceIn(-0.75f, 1f)
+        val clamped = brightness.coerceIn(-0.75f, 1f)
+        currentBrightness.value = clamped
+        if (appSettings.value.rememberPlayerBrightness) {
+            viewModelScope.launch { dataStore.setPlayerBrightnessValue(clamped) }
+        }
         val activity = context.findActivity() ?: return
         val params = activity.window.attributes
         params.screenBrightness = brightness.coerceIn(0f, 1f)
         activity.window.attributes = params
+    }
+
+    fun toggleInvertDurationTimer() {
+        val next = !appSettings.value.invertDurationTimer
+        viewModelScope.launch { dataStore.setInvertDurationTimer(next) }
     }
 
     fun getSystemBrightness(): Float {
@@ -1614,7 +1689,12 @@ class KitsugiPlayerViewModel(application: Application) : AndroidViewModel(applic
     }
 
     fun loadSkipIntervals(targetMalId: Int, targetEpisode: Int) {
-        orchestrator.skip.loadIntervals(targetMalId, targetEpisode)
+        orchestrator.skip.loadIntervals(
+            malId = targetMalId,
+            episode = targetEpisode,
+            hasChapters = mediaChapters.isNotEmpty(),
+            disableOnChapters = appSettings.value.aniSkipDisableOnChapters
+        )
     }
 
     fun fetchAutoSubtitles() {
@@ -1873,6 +1953,7 @@ class KitsugiPlayerViewModel(application: Application) : AndroidViewModel(applic
     }
 
     suspend fun getSavedPosition(mediaId: Int, episode: Int, addonName: String? = null): Long {
+        if (!appSettings.value.preserveWatchingPosition) return 0L
         return try {
             val progress = historyRepository.getProgress(mediaId, episode)
             if (progress != null && (addonName == null || progress.addonName == addonName)) {
@@ -1893,6 +1974,7 @@ class KitsugiPlayerViewModel(application: Application) : AndroidViewModel(applic
         durationMs: Long,
         addonName: String? = null
     ) {
+        if (!appSettings.value.preserveWatchingPosition) return
         if (lastPositionMs <= 0L || durationMs <= 0L) return
         viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
             try {
@@ -1909,6 +1991,38 @@ class KitsugiPlayerViewModel(application: Application) : AndroidViewModel(applic
         }
     }
 
+    /**
+     * Harici video oynatıcıdan (MX Player, VLC, mpv-android, Just Player vb.) dönüldüğünde
+     * izleme konumunu ve tamamlanma durumunu iç geçmişe ve scrobble denetleyicisine eşitler.
+     */
+    fun onExternalPlayerResult(positionMs: Long, durationMs: Long?, endedByUser: Boolean) {
+        val effectiveDuration = (durationMs?.takeIf { it > 0L } ?: _duration.value).coerceAtLeast(positionMs)
+        if (positionMs > 0L) {
+            seekTo(positionMs)
+            if (effectiveDuration > 0L) {
+                val mediaId = getResolveMediaId()
+                val ep = _currentEpisode.value
+                saveProgress(
+                    mediaId = mediaId,
+                    episode = ep,
+                    lastPositionMs = positionMs,
+                    durationMs = effectiveDuration,
+                    addonName = _currentAddonName.value
+                )
+                com.kitsugi.animelist.data.local.WatchHistoryManager.updateProgress(
+                    animeId = mediaId.toString(),
+                    episode = ep,
+                    positionMs = positionMs,
+                    durationMs = effectiveDuration
+                )
+                orchestrator.scrobble.onPositionUpdate(positionMs, effectiveDuration)
+            }
+        }
+        if (!endedByUser && effectiveDuration > 0L) {
+            onEpisodeEnded(effectiveDuration, effectiveDuration)
+        }
+    }
+
     // ─── Screenshot and Art Management ──────────────────────────────────────────
 
     private val _screenshotShowSubtitles = MutableStateFlow(true)
@@ -1916,6 +2030,7 @@ class KitsugiPlayerViewModel(application: Application) : AndroidViewModel(applic
 
     fun toggleScreenshotShowSubtitles(show: Boolean) {
         _screenshotShowSubtitles.value = show
+        viewModelScope.launch { dataStore.setScreenshotSubtitles(show) }
     }
 
     val hasSubTracks: StateFlow<Boolean> = _currentSubtitles.map { it.isNotEmpty() }
@@ -2009,7 +2124,7 @@ class KitsugiPlayerViewModel(application: Application) : AndroidViewModel(applic
                 ?: aniListId?.let { db.mediaEntryDao().getById(it) }
                 ?: db.mediaEntryDao().getAll().firstOrNull { it.title.equals(animeTitle, ignoreCase = true) }
 
-            if (entryEntity == null) {
+            if (entryEntity == null && artType == ArtType.Cover) {
                 withContext(kotlinx.coroutines.Dispatchers.Main) {
                     Toast.makeText(context, KitsugiStrings.get(R.string.resmi_ayarlamak_icin_once_bu_animeyi_kutuphanenize_eklemelisiniz), Toast.LENGTH_LONG).show()
                 }
@@ -2019,13 +2134,14 @@ class KitsugiPlayerViewModel(application: Application) : AndroidViewModel(applic
             try {
                 when (artType) {
                     ArtType.Cover -> {
+                        val entry = entryEntity ?: return@launch
                         val dir = java.io.File(context.filesDir, "covers").apply { mkdirs() }
-                        val file = java.io.File(dir, "${entryEntity.id}.png")
+                        val file = java.io.File(dir, "${entry.id}.png")
                         file.outputStream().use { out ->
                             imageStream().use { input -> input.copyTo(out) }
                         }
                         // Update in DB
-                        val updated = entryEntity.copy(imageUrl = "file://${file.absolutePath}")
+                        val updated = entry.copy(imageUrl = "file://${file.absolutePath}")
                         db.mediaEntryDao().update(updated)
                         withContext(kotlinx.coroutines.Dispatchers.Main) {
                             Toast.makeText(context, KitsugiStrings.get(R.string.kapak_resmi_guncellendi), Toast.LENGTH_SHORT).show()
@@ -2043,9 +2159,20 @@ class KitsugiPlayerViewModel(application: Application) : AndroidViewModel(applic
                     }
                     ArtType.Thumbnail -> {
                         val dir = java.io.File(context.filesDir, "thumbnails").apply { mkdirs() }
-                        val file = java.io.File(dir, "${entryEntity.id}_${_currentEpisode.value}.png")
+                        val ep = _currentEpisode.value
+                        val primaryKey = entryEntity?.id ?: getResolveMediaId()
+                        val file = java.io.File(dir, "${primaryKey}_${ep}.png")
                         file.outputStream().use { out ->
                             imageStream().use { input -> input.copyTo(out) }
+                        }
+                        malId?.let { mId ->
+                            if (mId != primaryKey) {
+                                runCatching { file.copyTo(java.io.File(dir, "mal_${mId}_${ep}.png"), overwrite = true) }
+                            }
+                        }
+                        val localThumbUri = "file://${file.absolutePath}"
+                        _episodesList.value = _episodesList.value.map { item ->
+                            if (item.episodeNumber == ep) item.copy(thumbnail = localThumbUri) else item
                         }
                         withContext(kotlinx.coroutines.Dispatchers.Main) {
                             Toast.makeText(context, KitsugiStrings.get(R.string.kucuk_resim_guncellendi), Toast.LENGTH_SHORT).show()

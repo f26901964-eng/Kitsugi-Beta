@@ -37,6 +37,11 @@ class KitsugiMpvSurfaceView @JvmOverloads constructor(
     private val contentDescriptors = mutableMapOf<String, android.os.ParcelFileDescriptor>()
 
     private fun resolveUrl(url: String): String {
+        // Close descriptors from previous media URLs so multi-episode playback never leaks FDs.
+        val staleKeys = contentDescriptors.keys.filter { it != url }
+        staleKeys.forEach { key ->
+            contentDescriptors.remove(key)?.let { pfd -> runCatching { pfd.close() } }
+        }
         val uri = android.net.Uri.parse(url)
         if (uri.scheme != "content") return url
         val descriptor = contentDescriptors.getOrPut(url) {
@@ -71,6 +76,17 @@ class KitsugiMpvSurfaceView @JvmOverloads constructor(
         if (initialized) return
         caFile = com.kitsugi.animelist.core.player.MpvTrustStore.install(context)
         val scripts = java.io.File(context.filesDir, "scripts").apply { mkdirs() }
+        java.io.File(context.filesDir, "script-opts").mkdirs()
+        java.io.File(context.filesDir, "shaders").mkdirs()
+        java.io.File(context.filesDir, "fonts").mkdirs()
+        // Sync user-edited mpv.conf and input.conf before libmpv reads configDir
+        val prefs = context.getSharedPreferences("kitsugi_prefs", Context.MODE_PRIVATE)
+        prefs.getString("mpv_conf_content", null)?.let { conf ->
+            runCatching { java.io.File(context.filesDir, "mpv.conf").writeText(conf) }
+        }
+        prefs.getString("mpv_input_conf_content", null)?.let { inputConf ->
+            runCatching { java.io.File(context.filesDir, "input.conf").writeText(inputConf) }
+        }
         // Generated handlers are rebuilt from Room, never auto-load an old copy.
         java.io.File(scripts, "custombuttons.lua").delete()
         context.assets.open("mpv/aniyomi.lua").use { source ->

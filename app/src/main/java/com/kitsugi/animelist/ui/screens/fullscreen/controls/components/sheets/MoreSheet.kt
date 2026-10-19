@@ -18,6 +18,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.OpenInNew
 import androidx.compose.material.icons.filled.KeyboardAlt
 import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material.icons.outlined.Schedule
@@ -71,6 +72,7 @@ fun MoreSheet(
     onSelectStatisticsPage: (Int) -> Unit = {},
     audioChannels: AudioChannels = AudioChannels.Auto,
     onSelectAudioChannels: (AudioChannels) -> Unit = {},
+    onOpenExternalPlayer: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
 ) {
     PlayerSheet(
@@ -127,6 +129,20 @@ fun MoreSheet(
                         ) {
                             Icon(imageVector = Icons.Default.Tune, contentDescription = null)
                             Text(text = stringResource(R.string.filtreler))
+                        }
+                    }
+                    if (onOpenExternalPlayer != null) {
+                        TextButton(onClick = {
+                            onDismissRequest()
+                            onOpenExternalPlayer()
+                        }) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                            ) {
+                                Icon(imageVector = Icons.AutoMirrored.Filled.OpenInNew, contentDescription = null)
+                                Text(text = stringResource(R.string.player_btn_external))
+                            }
                         }
                     }
                 }

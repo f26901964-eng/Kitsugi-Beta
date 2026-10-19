@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.OpenInNew
 import androidx.compose.material.icons.filled.Audiotrack
 import androidx.compose.material.icons.filled.HighQuality
 import androidx.compose.material.icons.filled.MoreVert
@@ -28,6 +29,7 @@ fun TopRightPlayerControls(
     isEpisodeOnline: Boolean?,
     onMoreClick: () -> Unit,
     onMoreLongClick: () -> Unit,
+    onOpenExternalClick: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
 ) {
     Row(
@@ -59,6 +61,14 @@ fun TopRightPlayerControls(
                 icon = Icons.Default.HighQuality,
                 onClick = onQualityClick,
                 onLongClick = onQualityClick,
+                horizontalSpacing = 8.dp,
+            )
+        }
+        if (onOpenExternalClick != null) {
+            ControlsButton(
+                icon = Icons.AutoMirrored.Filled.OpenInNew,
+                onClick = onOpenExternalClick,
+                onLongClick = onOpenExternalClick,
                 horizontalSpacing = 8.dp,
             )
         }

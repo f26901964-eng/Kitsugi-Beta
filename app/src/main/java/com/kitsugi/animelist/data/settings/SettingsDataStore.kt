@@ -286,6 +286,32 @@ class SettingsDataStore(
         val PreciseSeeking = booleanPreferencesKey("precise_seeking")
         val AudioChannelsConfig = stringPreferencesKey("pref_audio_channels_config")
         val PlayerStatisticsPage = intPreferencesKey("pref_player_statistics_page")
+        val ScrobbleThreshold = floatPreferencesKey("pref_scrobble_threshold")
+        val ShowLoadingCircle = booleanPreferencesKey("pref_show_loading_circle")
+        val ShowCurrentChapter = booleanPreferencesKey("pref_show_current_chapter")
+        val PlayerTimeToDisappearMs = intPreferencesKey("pref_player_time_to_disappear_ms")
+        val PanelOpacity = intPreferencesKey("pref_panel_opacity")
+        val ReducePlayerMotion = booleanPreferencesKey("pref_reduce_player_motion")
+        val ShowSystemStatusBar = booleanPreferencesKey("pref_show_system_status_bar")
+        val PlayerFullscreenCutout = booleanPreferencesKey("pref_player_fullscreen_cutout")
+        val InvertDurationTimer = booleanPreferencesKey("pref_invert_duration_timer")
+        val DisplayVolumeAsPercentage = booleanPreferencesKey("pref_display_volume_as_percentage")
+        val ShowSeekBarOnGesture = booleanPreferencesKey("pref_show_seek_bar_on_gesture")
+        val RememberPlayerBrightness = booleanPreferencesKey("pref_remember_player_brightness")
+        val PlayerBrightnessValue = floatPreferencesKey("pref_player_brightness_value")
+        val RememberPlayerVolume = booleanPreferencesKey("pref_remember_player_volume")
+        val PlayerVolumeValue = floatPreferencesKey("pref_player_volume_value")
+        val LeftDoubleTapGesture = stringPreferencesKey("pref_left_double_tap_gesture")
+        val CenterDoubleTapGesture = stringPreferencesKey("pref_center_double_tap_gesture")
+        val RightDoubleTapGesture = stringPreferencesKey("pref_right_double_tap_gesture")
+        val EnableSkipIntro = booleanPreferencesKey("pref_enable_skip_intro")
+        val EnableNetflixStyleIntroSkip = booleanPreferencesKey("pref_enable_netflix_style_intro_skip")
+        val WaitingTimeIntroSkip = intPreferencesKey("pref_waiting_time_intro_skip")
+        val ScreenshotSubtitles = booleanPreferencesKey("pref_screenshot_subtitles")
+        val PreserveWatchingPosition = booleanPreferencesKey("pref_preserve_watching_position")
+        val DefaultPlayerOrientation = stringPreferencesKey("pref_default_player_orientation")
+        val PipEpisodeToasts = booleanPreferencesKey("pref_pip_episode_toasts")
+        val PipOnExit = booleanPreferencesKey("pref_pip_on_exit")
 
         // ─── Yeni İndirme Ayarları (Aniyomi Uyumlu) ──────────────────────────────────
         val DownloadOnlyOverWifi = booleanPreferencesKey("pref_download_only_over_wifi_key")
@@ -601,6 +627,32 @@ class SettingsDataStore(
                         AudioChannels.valueOf(preferences[Keys.AudioChannelsConfig] ?: "AutoSafe")
                     }.getOrDefault(AudioChannels.AutoSafe),
                     playerStatisticsPage = preferences[Keys.PlayerStatisticsPage] ?: 0,
+                    scrobbleThreshold = (preferences[Keys.ScrobbleThreshold] ?: 0.85f).coerceIn(0.1f, 1.0f),
+                    showLoadingCircle = preferences[Keys.ShowLoadingCircle] ?: true,
+                    showCurrentChapter = preferences[Keys.ShowCurrentChapter] ?: true,
+                    playerTimeToDisappearMs = (preferences[Keys.PlayerTimeToDisappearMs] ?: 5000).coerceIn(1000, 30000),
+                    panelOpacity = (preferences[Keys.PanelOpacity] ?: 95).coerceIn(40, 100),
+                    reducePlayerMotion = preferences[Keys.ReducePlayerMotion] ?: false,
+                    showSystemStatusBar = preferences[Keys.ShowSystemStatusBar] ?: false,
+                    playerFullscreenCutout = preferences[Keys.PlayerFullscreenCutout] ?: true,
+                    invertDurationTimer = preferences[Keys.InvertDurationTimer] ?: false,
+                    displayVolumeAsPercentage = preferences[Keys.DisplayVolumeAsPercentage] ?: true,
+                    showSeekBarOnGesture = preferences[Keys.ShowSeekBarOnGesture] ?: true,
+                    rememberPlayerBrightness = preferences[Keys.RememberPlayerBrightness] ?: false,
+                    playerBrightnessValue = preferences[Keys.PlayerBrightnessValue] ?: -1f,
+                    rememberPlayerVolume = preferences[Keys.RememberPlayerVolume] ?: false,
+                    playerVolumeValue = preferences[Keys.PlayerVolumeValue] ?: -1f,
+                    leftDoubleTapGesture = preferences[Keys.LeftDoubleTapGesture] ?: "SEEK",
+                    centerDoubleTapGesture = preferences[Keys.CenterDoubleTapGesture] ?: "PLAY_PAUSE",
+                    rightDoubleTapGesture = preferences[Keys.RightDoubleTapGesture] ?: "SEEK",
+                    enableSkipIntro = preferences[Keys.EnableSkipIntro] ?: true,
+                    enableNetflixStyleIntroSkip = preferences[Keys.EnableNetflixStyleIntroSkip] ?: false,
+                    waitingTimeIntroSkip = (preferences[Keys.WaitingTimeIntroSkip] ?: 5).coerceIn(1, 30),
+                    screenshotSubtitles = preferences[Keys.ScreenshotSubtitles] ?: true,
+                    preserveWatchingPosition = preferences[Keys.PreserveWatchingPosition] ?: true,
+                    defaultPlayerOrientation = preferences[Keys.DefaultPlayerOrientation] ?: "SENSOR_LANDSCAPE",
+                    pipEpisodeToasts = preferences[Keys.PipEpisodeToasts] ?: true,
+                    pipOnExit = preferences[Keys.PipOnExit] ?: true,
                     downloadOnlyOverWifi = preferences[Keys.DownloadOnlyOverWifi] ?: true,
                     downloadSpeedLimit = preferences[Keys.DownloadSpeedLimit] ?: 0,
                     saveChaptersAsCBZ = preferences[Keys.SaveChaptersAsCBZ] ?: true,
@@ -1786,6 +1838,107 @@ class SettingsDataStore(
         context.settingsDataStore.edit { it[Keys.AudioPitchCorrection] = value }
     }
 
+    suspend fun setScrobbleThreshold(value: Float) {
+        context.settingsDataStore.edit { it[Keys.ScrobbleThreshold] = value.coerceIn(0.1f, 1.0f) }
+    }
 
+    suspend fun setShowLoadingCircle(value: Boolean) {
+        context.settingsDataStore.edit { it[Keys.ShowLoadingCircle] = value }
+    }
 
+    suspend fun setShowCurrentChapter(value: Boolean) {
+        context.settingsDataStore.edit { it[Keys.ShowCurrentChapter] = value }
+    }
+
+    suspend fun setPlayerTimeToDisappearMs(value: Int) {
+        context.settingsDataStore.edit { it[Keys.PlayerTimeToDisappearMs] = value.coerceIn(1000, 30000) }
+    }
+
+    suspend fun setPanelOpacity(value: Int) {
+        context.settingsDataStore.edit { it[Keys.PanelOpacity] = value.coerceIn(40, 100) }
+    }
+
+    suspend fun setReducePlayerMotion(value: Boolean) {
+        context.settingsDataStore.edit { it[Keys.ReducePlayerMotion] = value }
+    }
+
+    suspend fun setShowSystemStatusBar(value: Boolean) {
+        context.settingsDataStore.edit { it[Keys.ShowSystemStatusBar] = value }
+    }
+
+    suspend fun setPlayerFullscreenCutout(value: Boolean) {
+        context.settingsDataStore.edit { it[Keys.PlayerFullscreenCutout] = value }
+    }
+
+    suspend fun setInvertDurationTimer(value: Boolean) {
+        context.settingsDataStore.edit { it[Keys.InvertDurationTimer] = value }
+    }
+
+    suspend fun setDisplayVolumeAsPercentage(value: Boolean) {
+        context.settingsDataStore.edit { it[Keys.DisplayVolumeAsPercentage] = value }
+    }
+
+    suspend fun setShowSeekBarOnGesture(value: Boolean) {
+        context.settingsDataStore.edit { it[Keys.ShowSeekBarOnGesture] = value }
+    }
+
+    suspend fun setRememberPlayerBrightness(value: Boolean) {
+        context.settingsDataStore.edit { it[Keys.RememberPlayerBrightness] = value }
+    }
+
+    suspend fun setPlayerBrightnessValue(value: Float) {
+        context.settingsDataStore.edit { it[Keys.PlayerBrightnessValue] = value }
+    }
+
+    suspend fun setRememberPlayerVolume(value: Boolean) {
+        context.settingsDataStore.edit { it[Keys.RememberPlayerVolume] = value }
+    }
+
+    suspend fun setPlayerVolumeValue(value: Float) {
+        context.settingsDataStore.edit { it[Keys.PlayerVolumeValue] = value }
+    }
+
+    suspend fun setLeftDoubleTapGesture(value: String) {
+        context.settingsDataStore.edit { it[Keys.LeftDoubleTapGesture] = value }
+    }
+
+    suspend fun setCenterDoubleTapGesture(value: String) {
+        context.settingsDataStore.edit { it[Keys.CenterDoubleTapGesture] = value }
+    }
+
+    suspend fun setRightDoubleTapGesture(value: String) {
+        context.settingsDataStore.edit { it[Keys.RightDoubleTapGesture] = value }
+    }
+
+    suspend fun setEnableSkipIntro(value: Boolean) {
+        context.settingsDataStore.edit { it[Keys.EnableSkipIntro] = value }
+    }
+
+    suspend fun setEnableNetflixStyleIntroSkip(value: Boolean) {
+        context.settingsDataStore.edit { it[Keys.EnableNetflixStyleIntroSkip] = value }
+    }
+
+    suspend fun setWaitingTimeIntroSkip(value: Int) {
+        context.settingsDataStore.edit { it[Keys.WaitingTimeIntroSkip] = value.coerceIn(1, 30) }
+    }
+
+    suspend fun setScreenshotSubtitles(value: Boolean) {
+        context.settingsDataStore.edit { it[Keys.ScreenshotSubtitles] = value }
+    }
+
+    suspend fun setPreserveWatchingPosition(value: Boolean) {
+        context.settingsDataStore.edit { it[Keys.PreserveWatchingPosition] = value }
+    }
+
+    suspend fun setDefaultPlayerOrientation(value: String) {
+        context.settingsDataStore.edit { it[Keys.DefaultPlayerOrientation] = value }
+    }
+
+    suspend fun setPipEpisodeToasts(value: Boolean) {
+        context.settingsDataStore.edit { it[Keys.PipEpisodeToasts] = value }
+    }
+
+    suspend fun setPipOnExit(value: Boolean) {
+        context.settingsDataStore.edit { it[Keys.PipOnExit] = value }
+    }
 }

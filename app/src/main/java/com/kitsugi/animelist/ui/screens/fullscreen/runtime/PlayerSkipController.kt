@@ -95,7 +95,11 @@ class PlayerSkipController(
                 if (generation != loadGeneration) return@launch
 
                 // AnimeSkip öncelikli, AniSkip aynı type'da zaten varsa atlanır
-                val merged = com.kitsugi.animelist.core.player.AniSkipPolicy.mergeIntervals(aniList, animeList)
+                val merged = com.kitsugi.animelist.core.player.AniSkipPolicy.mergeIntervals(
+                    aniList = aniList,
+                    animeList = animeList,
+                    typeOf = { it.type }
+                )
 
                 Log.d(TAG, "Loaded: AniSkip=${aniList.size}, AnimeSkip=${animeList.size}, merged=${merged.size}")
                 _skipIntervals.value = merged
@@ -106,6 +110,27 @@ class PlayerSkipController(
                 _skipIntervals.value = emptyList()
             } finally {
                 if (generation == loadGeneration) _isLoading.value = false
+            }
+        }
+    }
+
+    /**
+     * Gömülü medya chapter'ları yüklendiğinde çağrılır; eğer kullanıcı
+     * "chapter varsa AniSkip'i devre dışı bırak" seçtiyse mevcut aralıkları temizler.
+     */
+    fun onMediaChaptersDetected(hasChapters: Boolean) {
+        if (!hasChapters) return
+        scope.launch {
+            val settings = SettingsDataStore(context).settingsFlow.first()
+            if (com.kitsugi.animelist.core.player.AniSkipPolicy.shouldDisableOnChapters(
+                    hasChapters = true,
+                    disableOnChaptersSetting = settings.aniSkipDisableOnChapters
+                )
+            ) {
+                loadJob?.cancel()
+                _skipIntervals.value = emptyList()
+                _autoSkipEnabled.value = false
+                Log.d(TAG, "Native chapters present & aniSkipDisableOnChapters=true → cleared skip intervals")
             }
         }
     }
