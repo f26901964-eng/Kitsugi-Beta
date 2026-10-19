@@ -1,4 +1,4 @@
-﻿package com.kitsugi.animelist.ui.screens.fullscreen.components
+package com.kitsugi.animelist.ui.screens.fullscreen.components
 import com.kitsugi.animelist.ui.theme.gradient.CircularProgressIndicator
 import com.kitsugi.animelist.ui.components.KitsugiButton
 
@@ -24,7 +24,12 @@ import com.kitsugi.animelist.ui.theme.gradient.border
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.ui.draw.clip
 import androidx.compose.material.icons.rounded.PlayArrow
+import androidx.compose.material.icons.rounded.ContentCopy
 import com.kitsugi.animelist.ui.utils.tvClickable
+import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.AnnotatedString
+import android.widget.Toast
 
 // ─────────────────────────────────────────────────────────────
 // Full-screen loading spinner
@@ -130,6 +135,38 @@ fun PlayerErrorView(
                 style = MaterialTheme.typography.bodyMedium,
                 textAlign = androidx.compose.ui.text.style.TextAlign.Center
             )
+            // Hata yakalayici: detay metni secilebilir + kopyala butonu (kullanici nedenini gorsun)
+            if (!message.isNullOrBlank()) {
+                val clipboard = LocalClipboardManager.current
+                val ctx = LocalContext.current
+                Spacer(modifier = Modifier.height(4.dp))
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    // Detay metnini secilebilir yap (kullanici uzun basip kopyalayabilir)
+                    androidx.compose.foundation.text.selection.SelectionContainer {
+                        Text(
+                            text = message,
+                            color = Color.White.copy(alpha = 0.55f),
+                            style = MaterialTheme.typography.bodySmall,
+                            modifier = Modifier.weight(1f, fill = false)
+                        )
+                    }
+                    IconButton(onClick = {
+                        clipboard.setText(AnnotatedString(message))
+                        Toast.makeText(ctx, "Hata detayi kopyalandi", Toast.LENGTH_SHORT).show()
+                    }) {
+                        Icon(Icons.Rounded.ContentCopy, contentDescription = "Kopyala", tint = Color.White.copy(alpha = 0.7f), modifier = Modifier.size(18.dp))
+                    }
+                }
+                Text(
+                    text = "Detay Ayarlar > Tani Raporu'na da yazildi",
+                    color = Color.White.copy(alpha = 0.35f),
+                    style = MaterialTheme.typography.labelSmall,
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                )
+            }
             Spacer(modifier = Modifier.height(8.dp))
             FlowRow(
                 horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterHorizontally),

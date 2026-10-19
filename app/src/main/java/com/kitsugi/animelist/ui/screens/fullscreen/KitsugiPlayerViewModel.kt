@@ -586,9 +586,49 @@ class KitsugiPlayerViewModel(application: Application) : AndroidViewModel(applic
         }
     }
 
-    /** Hata oluştuğunda PlayerState.Error'a geç */
+    /** Hata olustugunda PlayerState.Error'a gec - URL/host ve ipucu ile zengin mesaj */
     fun setPlayerError(errorCode: Int, errorMsg: String) {
-        _playerState.value = PlaybackState.Error(errorMessage = errorMsg, errorCode = errorCode)
+        val enriched = enrichPlayerError(errorCode, errorMsg, _currentVideoUrl.value, _currentAddonName.value)
+        _playerState.value = PlaybackState.Error(errorMessage = enriched.display, errorCode = errorCode)
+        _errorDetails.value = enriched.details
+        try {
+            com.kitsugi.animelist.data.cloudstream.diag.CsTrace.error(
+                _currentAddonName.value ?: "Player", "playback",
+                "PlayerError code=" + errorCode.toString() + " msg=" + errorMsg.take(200) + " url=" + (_currentVideoUrl.value?.take(100) ?: "-"), null
+            )
+        } catch (_: Exception) {}
+    }
+
+    private data class EnrichedError(val display: String, val details: String)
+
+    private fun enrichPlayerError(errorCode: Int, rawMsg: String, url: String?, addon: String?): EnrichedError {
+        val host = runCatching { java.net.URI(url ?: "").host }.getOrNull()
+        val shortUrl = url?.take(110) ?: "--"
+        val httpCode = Regex("Response code:\\s*(\\d{3})").find(rawMsg)?.groupValues?.get(1)
+        val hint = when {
+            rawMsg.contains("403") || httpCode == "403" -> "IPUCU 403: Kaynak erisime kapali. VPN deneyin veya baska kaynak secin. (Origin/Referer hatasiysa appi guncelleyin)"
+            rawMsg.contains("404") || httpCode == "404" -> "IPUCU 404: Bu kaynak artik yok/silindi. Baska kaynak deneyin."
+            rawMsg.contains("5004") -> "IPUCU 5004: CDN Origin dogrulamasi basarisiz. Uygulama v2.4.307+ olmali - guncelleyin, olmazsa VPN deneyin."
+            rawMsg.contains("UnrecognizedInputFormat") -> "IPUCU Format hatasi: Sunucu HLS yerine HTML dondurdu. Kaynak bozuk olabilir - baska kaynak deneyin."
+            rawMsg.contains("Source error") && rawMsg.contains("Unable to connect") -> "IPUCU Baglanti hatasi: Internet/CF korumasi. Biraz bekleyip tekrar deneyin."
+            errorCode in 4000..4005 || rawMsg.contains("Decoder") -> "IPUCU Kodek hatasi: Bu cihaz formati cozemiyor. MPV motoru otomatik denenecek."
+            else -> null
+        }
+        val display = buildString {
+            append(rawMsg.take(300))
+            if (hint != null) append("\n\n" + hint)
+        }
+        val details = buildString {
+            append("Kaynak: " + (addon ?: "bilinmeyen") + "\n")
+            if (host != null) append("Host: " + host + "\n")
+            append("URL: " + shortUrl + "\n")
+            append("Hata kodu: " + errorCode)
+            if (httpCode != null) append(" (HTTP " + httpCode + ")")
+            append("\nMesaj: " + rawMsg.take(400) + "\n")
+            if (hint != null) append("\n" + hint + "\n")
+            append("\n-- Bu detay Kopyala ile alinip paylasilabilir. Ayarlar > Tani Raporu'ndan tam log da alinabilir.")
+        }
+        return EnrichedError(display, details)
     }
 
     private val _detectedFrameRateRaw = MutableStateFlow(0f)
@@ -1380,15 +1420,21 @@ class KitsugiPlayerViewModel(application: Application) : AndroidViewModel(applic
         onFallback = {
             tryNextSource(activity = null) { _, _ -> }
         },
-        onFatal = { errorCode, errorMsg ->
+                onFatal = { errorCode, errorMsg ->
             _hasError.value = true
+            val enriched = enrichPlayerError(errorCode, errorMsg, _currentVideoUrl.value, _currentAddonName.value)
             _errorDetails.value = buildString {
                 append(KitsugiStrings.get(R.string.oynatma_hatasi))
-                append(": $errorMsg")
-                append("\n\nKaynak: ${_currentAddonName.value ?: "bilinmeyen"}")
-                append("\nHata kodu: $errorCode")
-                append("\n\nTüm kaynaklar ve oynatıcılar denendi. Farklı bir kaynak seçebilir veya harici oynatıcıda açabilirsiniz.")
+                append(": " + enriched.display + "\n\n")
+                append(enriched.details)
+                append("\n\nTum kaynaklar ve oynaticilar denendi. Farkli bir kaynak secebilir veya harici oynaticida acabilirsiniz.")
             }
+            try {
+                com.kitsugi.animelist.data.cloudstream.diag.CsTrace.error(
+                    _currentAddonName.value ?: "Player", "fatal",
+                    "Fatal code=" + errorCode.toString() + " msg=" + errorMsg.take(200) + " url=" + (_currentVideoUrl.value?.take(100) ?: "-"), null
+                )
+            } catch (_: Exception) {}
         },
         onAutoPlayNext = {
             playNextEpisode(activity = null, onAlternativeRequired = {}, onResolutionFailed = {})

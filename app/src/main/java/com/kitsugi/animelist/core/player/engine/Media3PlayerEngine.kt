@@ -255,11 +255,44 @@ class Media3PlayerEngine(
         }
 
         override fun onPlayerError(error: PlaybackException) {
-            Log.e(TAG, "ExoPlayer error code: ${error.errorCode}", error)
-            diagnostics.onPlaybackError(error.errorCode, error.localizedMessage)
+            val detailed = buildDetailedPlaybackMessage(error)
+            Log.e(TAG, "ExoPlayer error code=${error.errorCode} name=${runCatching { error.errorCodeName }.getOrNull()} msg=$detailed url=${videoUrl?.take(110)}", error)
+            try {
+                CsTrace.error("Player", "playback", "ExoPlayer code=${error.errorCode} msg=$detailed url=${videoUrl?.take(100)} host=${runCatching { java.net.URI(videoUrl ?: "").host }.getOrNull()}", error)
+            } catch (_: Exception) {}
+            diagnostics.onPlaybackError(error.errorCode, detailed)
             diagnostics.dump()
             listeners.forEach {
-                it.onPlaybackError(error.errorCode, error.localizedMessage ?: "Oynatma hatası", error)
+                it.onPlaybackError(error.errorCode, detailed, error)
+            }
+        }
+
+        private fun buildDetailedPlaybackMessage(error: PlaybackException): String {
+            val base = error.localizedMessage?.takeIf { it.isNotBlank() } ?: "Oynatma hatası"
+            val codeName = runCatching { error.errorCodeName }.getOrNull() ?: "CODE_${error.errorCode}"
+            val httpCode = Regex("""Response code:\s*(\d{3})""").find(base)?.groupValues?.get(1)
+                ?: Regex("""Response code:\s*(\d{3})""").find(error.cause?.message ?: "")?.groupValues?.get(1)
+            val causeChain = generateSequence(error.cause as Throwable?) { it.cause }
+                .joinToString(" → ") { "${it.javaClass.simpleName}: ${it.message?.take(120)}" }
+                .takeIf { it.isNotBlank() }
+            val hint = when {
+                httpCode == "403" || base.contains("403") -> " (403 Erişim reddedildi — kaynak engelli/VPN gerekebilir, Origin/Referer kontrol et)"
+                httpCode == "404" -> " (404 Kaynak kaldırılmış)"
+                httpCode?.startsWith("5") == true -> " (Sunucu hatası $httpCode)"
+                base.contains("5004") -> " (CDN 5004 — Origin/Referer hatası, app güncelle)"
+                base.contains("UnrecognizedInputFormat") || base.contains("None of the available extractors") -> " (Format tanınamadı — HLS/MP4 ayrımı hatası olabilir)"
+                error.errorCode in 4000..4005 -> " (Kodek çözücü hatası — MPV denenebilir)"
+                else -> ""
+            }
+            return buildString {
+                append(base)
+                append(" [kod $codeName")
+                if (httpCode != null) append("/HTTP $httpCode")
+                append("$hint]")
+                if (causeChain != null) append("\nNeden: $causeChain")
+                videoUrl?.let { append("\nURL: ${it.take(110)}") }
+                // Host ipucu: closeload / rapidrame gibi bilinen CDN’lerde teşhis kolaylaşsın
+                runCatching { java.net.URI(videoUrl ?: "").host } .getOrNull()?.let { h -> append("\nHost: $h") }
             }
         }
 

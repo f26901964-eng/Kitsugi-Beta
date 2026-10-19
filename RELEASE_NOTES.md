@@ -1,5 +1,27 @@
 # Kitsugi-Beta — Sürüm Notları / Release Notes
 
+# Kitsugi Beta v2.4.308
+
+## 🇹🇷 Türkçe
+
+### 🛡️ Hata Yakalayıcı — Artık Neden Düştüğünü Göreceksin (v2.4.308)
+
+**Şikâyet:** “Hata alıyorum ama **neyden** aldığımı bilemiyorum — eklentiler susuyor, oynatıcı sadece ‘oynatıcı hatası’ diyor.”
+
+**Ne yapıldı:**
+- **Extractor hata yakalayıcı (app yerleşik):** `KitsugiCdnJwExtractor` artık her hatayı `CsTrace.error` + `Log.e` ile **stacktrace’li** yazıyor; boş HTML / boş master listesi bile `warn` olarak düşüyor. Close → `Kekik_CloseLoad` + `HDCH`, Rapid/Rplayer → `Rapidrame` + `HDCH` tag’lerine de aynadan yazıldığı için `adb logcat -s HDCH Kekik_CloseLoad Rapidrame` filtren direkt yakalıyor.
+- **CsStreamRunner:** `loadExtractor` timeout/hata yolları `CsTrace`’e ve alias tag’e yazıyor; hata mesajı artık URL’li (`url=…90`) ve cause’lu.
+- **Oynatıcı:** `Media3PlayerEngine.onPlayerError` artık sadece kod değil **HTTP kodu + cause zinciri + URL + host + ipucu** içeren detaylı mesaj üretiyor (403→VPN önerisi, 5004→app güncelle, kodek→MPV). Bu mesaj `CsTrace` ve `Diagnostics`’e de düşüyor.
+- **Ekranda görünür:** `PlayerErrorView` artık hatayı **seçilebilir metin + Kopyala butonu** ile gösteriyor; “Ayarlar > Tanı Raporu’na yazıldı” notu var. `ViewModel.setPlayerError` / `onFatal` zengin detay (Kaynak/Host/URL/Hata kodu/İpucu) üretiyor.
+
+**Nasıl doğrulanır:**
+```
+adb logcat -s CsTrace Player KitsugiCdnJwExtractor Media3PlayerEngine CS_SEARCH_ERR HDCH Kekik_CloseLoad Rapidrame | grep -E "HATA|extract|master|Origin|5004|403"
+```
+Oynatıcı hatası ekranında artık tek satır değil, altta kopyalanabilir detay olacak. `Ayarlar > Eklenti Tanı > Canlı İzleme Raporunu Paylaş` ile de tam log alınabilir.
+
+---
+
 # Kitsugi Beta v2.4.307
 
 ## 🇹🇷 Türkçe

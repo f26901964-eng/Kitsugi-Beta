@@ -61,6 +61,12 @@ class KitsugiCdnJwExtractor(
 
         try {
             val html = app.get(url, headers = pageHeaders).text
+            if (html.isBlank()) {
+                val msg = "[$name] boş HTML — embed sayfası boş döndü (403/CF?) url=${url.take(90)} origin=$origin"
+                Log.w(TAG, msg)
+                com.kitsugi.animelist.data.cloudstream.diag.CsTrace.warn(name, "extract", msg)
+                mirrorToAliasTags("extract", msg, null)
+            }
 
             // 1) JS deşifre algoritması
             var realUrl = decryptNative(html)
@@ -87,8 +93,12 @@ class KitsugiCdnJwExtractor(
                     }
                 )
                 Log.d(TAG, "[$name] çözüldü → ${streamUrl.take(110)}")
+                com.kitsugi.animelist.data.cloudstream.diag.CsTrace.info(name, "extract", "çözüldü → ${streamUrl.take(110)} (kaynak=${url.take(70)})")
             } else {
-                Log.w(TAG, "[$name] gerçek URL bulunamadı/deşifre edilemedi: ${url.take(90)}")
+                val msg = "[$name] gerçek URL bulunamadı/deşifre edilemedi: url=${url.take(90)} origin=$origin htmlLen=${html.length}"
+                Log.w(TAG, msg)
+                com.kitsugi.animelist.data.cloudstream.diag.CsTrace.warn(name, "extract", msg)
+                mirrorToAliasTags("extract", msg, null)
             }
 
             // Altyazılar (JWPlayer tracks bloğu). for-döngüsü: newSubtitleFile suspend.
@@ -97,7 +107,7 @@ class KitsugiCdnJwExtractor(
             }
         } catch (e: Exception) {
             if (e is kotlinx.coroutines.CancellationException) throw e
-            Log.e(TAG, "[$name] hata: ${e.message}")
+            reportExtractorError(stage = "extract", url = url, referer = referer, origin = origin, error = e)
         }
     }
 
@@ -109,8 +119,23 @@ class KitsugiCdnJwExtractor(
         if (!playlistUrl.contains("master.txt") && !playlistUrl.contains(".m3u8")) return null
         return try {
             val listText = app.get(playlistUrl, headers = headers).text
-            val chosen = pickVariant(listText, playlistUrl) ?: return null
+            if (listText.isBlank()) {
+                val msg = "[$name] master listesi boş döndü (403?) url=${playlistUrl.take(110)}"
+                Log.w(TAG, msg)
+                com.kitsugi.animelist.data.cloudstream.diag.CsTrace.warn(name, "master", msg)
+                mirrorToAliasTags("master", msg, null)
+                return null
+            }
+            val chosen = pickVariant(listText, playlistUrl)
+            if (chosen == null) {
+                val msg = "[$name] master varyant seçilemedi — liste parse edilemedi url=${playlistUrl.take(110)} ilkSatır=${listText.lineSequence().firstOrNull()?.take(80)}"
+                Log.w(TAG, msg)
+                com.kitsugi.animelist.data.cloudstream.diag.CsTrace.warn(name, "master", msg)
+                mirrorToAliasTags("master", msg, null)
+                return null
+            }
             Log.d(TAG, "[$name] master listesi çözüldü: $chosen")
+            com.kitsugi.animelist.data.cloudstream.diag.CsTrace.info(name, "master", "çözüldü: $chosen")
             // Oynatıcının Origin/Referer'ı liste host'u değil GERÇEK yayın host'u olmalı.
             val streamOrigin = originOf(chosen)
             val streamHeaders = if (streamOrigin != null && streamOrigin != originOf(playlistUrl)) {
@@ -121,8 +146,36 @@ class KitsugiCdnJwExtractor(
             chosen to streamHeaders
         } catch (e: Exception) {
             if (e is kotlinx.coroutines.CancellationException) throw e
-            Log.e(TAG, "[$name] master listesi açılamadı: ${e.message}")
+            reportExtractorError(stage = "master", url = playlistUrl, referer = headers["Referer"], origin = headers["Origin"], error = e)
             null
+        }
+    }
+
+    // ── Hata yakalayıcı — tüm extractor hataları buradan tek formatta loglanır ──────
+    private fun reportExtractorError(stage: String, url: String, referer: String?, origin: String?, error: Throwable) {
+        val shortUrl = url.take(100)
+        val head = "[$name] HATA stage=$stage url=$shortUrl ref=${referer?.take(60)} origin=$origin | ${error.javaClass.simpleName}: ${error.message}"
+        Log.e(TAG, head, error)
+        com.kitsugi.animelist.data.cloudstream.diag.CsTrace.error(name, stage, head, error)
+        mirrorToAliasTags(stage, head, error)
+        // Ayrıca player loguna yaz — kullanıcı Ayarlar > Log'dan görebilsin
+        try {
+            val causeChain = generateSequence(error as Throwable) { it.cause }.joinToString(" → ") { "${it.javaClass.simpleName}: ${it.message}" }.take(300)
+            Log.e("PlayerDiagnostics", "Extractor hata zinciri: $causeChain", error)
+        } catch (_: Exception) {}
+    }
+
+    private fun mirrorToAliasTags(stage: String, message: String, error: Throwable?) {
+        // Kullanıcı log'u HDCH / Kekik_CloseLoad / Rapidrame ile filtreliyor — o tag'lerde de görünsün
+        val aliases = when {
+            name.contains("Close", ignoreCase = true) -> listOf("Kekik_CloseLoad", "HDCH")
+            name.contains("Rapid", ignoreCase = true) || name.contains("Rplayer", ignoreCase = true) -> listOf("Rapidrame", "HDCH")
+            else -> emptyList()
+        }
+        for (alias in aliases) {
+            if (error != null) Log.e(alias, message, error) else Log.w(alias, message)
+            if (error != null) com.kitsugi.animelist.data.cloudstream.diag.CsTrace.error(alias, stage, message, error)
+            else com.kitsugi.animelist.data.cloudstream.diag.CsTrace.warn(alias, stage, message)
         }
     }
 
