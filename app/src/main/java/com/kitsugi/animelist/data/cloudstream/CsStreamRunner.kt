@@ -3103,6 +3103,17 @@ object CsStreamRunner {
                                         headers["Referer"] = if (!urlHost.isNullOrBlank()) "https://$urlHost/" else providerReferer
                                     }
                                 }
+                                // Origin, Referer'dan türetilir — CDN'ler (closeload/rapidrame/playmix.uno)
+                                // embed origin'i doğrular; eksik kalınca 5004 ile düşürüyor.
+                                if (!headers.keys.any { it.equals("origin", ignoreCase = true) }) {
+                                    val refVal = headers.entries.firstOrNull { it.key.equals("referer", ignoreCase = true) }?.value
+                                    val originFromRef = refVal?.let { originOfUrl(it) }
+                                    val originFromUrl = originOfUrl(cleanUrl)
+                                    val origin = originFromRef ?: originFromUrl
+                                    if (!origin.isNullOrBlank()) {
+                                        headers["Origin"] = origin
+                                    }
+                                }
                                 if (!headers.keys.any { it.equals("user-agent", ignoreCase = true) }) {
                                     headers["User-Agent"] = com.lagradost.cloudstream3.network.CloudflareKiller.UNIFIED_USER_AGENT
                                 }
@@ -3193,6 +3204,9 @@ object CsStreamRunner {
                         com.kitsugi.animelist.data.cloudstream.embed.EmbedMediaScanner.looksLikeMediaUrl(clean)
                     if (!obviouslyHtml && looksPlayable) {
                         Log.w(TAG, "[${api.name}] Extractor çözemedi — medya URL'si olduğu için ekleniyor: $clean")
+                        // CDN'ler embed origin'i doğrular; fallback'te bile Origin eklenmeli
+                        // (closeload/rapidrame/playmix.uno 5004 hatası).
+                        val fallbackOrigin = originOfUrl(referer) ?: originOfUrl(clean) ?: referer
                         val fallbackStream = StreamSource(
                                 addonName      = api.name,
                                 name           = "${api.name} • $linkName",
@@ -3202,6 +3216,7 @@ object CsStreamRunner {
                                 fileIndex      = null,
                                 requestHeaders = mapOf(
                                     "Referer"    to referer,
+                                    "Origin"     to fallbackOrigin,
                                     "User-Agent" to com.lagradost.cloudstream3.network.CloudflareKiller.UNIFIED_USER_AGENT
                                 ),
                                 isCS           = true,
