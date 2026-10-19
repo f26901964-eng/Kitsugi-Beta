@@ -1,5 +1,23 @@
 # Kitsugi-Beta — Sürüm Notları / Release Notes
 
+# Kitsugi Beta v2.4.309
+
+## 🇹🇷 Türkçe
+
+### 🔧 Ölü Link Kesildi — Artık 404 Sahte Kaynak Oynatıcıya Gitmiyor (v2.4.309)
+
+**Şikâyet:** HDFilmCehennemi/FilmMakinesi’nden gelen `playmix.uno/.../master.txt` linki `HEAD 404` dönüyor ama uygulama yine de oynatıcıya atıp `MPV 9001` hatası veriyordu. Log’da `bad base-64 / Native deşifre başarısız` görünüyordu.
+
+**Kök neden:** Embed sayfasındaki `dc_` şifreli blok değişmiş (yeni `eval` paketleme). `decryptNative` patlayınca eski kod `contentUrl`/regex fallback’ine düşüp bayat, artık CDN’de olmayan URL’yi kaynak diye üretiyordu. Doğrulama da `Tüm streamler dead → false positive olabilir → orijinaller döndürülüyor` diye aynı ölü linki geri veriyordu.
+
+**Fix (uygulama yerleşik extractor):**
+- `KitsugiCdnJwExtractor`: `dc_` bloğu varsa ama çözülemezse **bayat `contentUrl` fallback’i atlanıyor**, sadece sayfada açık `.m3u8`/master varsa o deneniyor, yoksa kaynak üretilmiyor + `CsTrace.warn` + `HDCH/Kekik_CloseLoad/Rapidrame` aynalama. Base64 url-safe (`-`/`_`) ve padding fix’i eklendi.
+- `CsStreamRunner`: `HEAD 404 + GET 404` ile doğrulanmış ölü linkler artık `false positive` diye geri verilmiyor; `verifiedStreams` boş kalıp “kaynak yok” raporlanıyor, oynatıcıya sahte link gitmiyor. Timeout/belirsiz durumda eski iyimser fallback korunuyor.
+
+**Sonuç:** Artık `HEAD 404` veren sahte link ekranda `MPV 9001` yerine **doğrulama sonrası elenen** kaynak olarak görünmeyecek; kullanıcı boş liste + Tanı Raporu’nda `crypted block çözülemedi` uyarısını görecek. Gerçek şifre çözümü için tam `eval/dc_` script’i gerektiğinde ayrıca güncellenecek.
+
+---
+
 # Kitsugi Beta v2.4.308
 
 ## 🇹🇷 Türkçe

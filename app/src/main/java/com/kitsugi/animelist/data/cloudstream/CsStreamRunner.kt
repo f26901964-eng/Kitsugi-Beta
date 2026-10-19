@@ -3391,12 +3391,22 @@ object CsStreamRunner {
             Log.w(TAG, "[${api.name}] ${deadStreams.size} dead stream düşürüldü, ${verifiedStreams.size} aktif stream kaldı.")
         }
 
-        // Eğer tüm stream'ler dead çıktıysa (false positive önlemi), orijinalleri döndür
+        // Eger tum stream'ler dead ciktiysa: gercekten olu mu false positive mi ayirt et
         val verifiedFinal = if (verifiedStreams.isEmpty() && streams.isNotEmpty()) {
-            Log.w(TAG, "[${api.name}] Tüm streamler dead çıktı — false positive olabilir, orijinaller döndürülüyor.")
-            streams
+            // toCheck = dogrudan medya (HEAD ile denenenler), passThrough = embed vb. dogrulanmayanlar
+            // Eger toCheck'teki HER sey dead olarak isaretlendiyse (HEAD 404 + GET 404) -> gercekten olu, oynaticiya atma
+            // Sadece timeout/ag hatasi nedeniyle bos kaldiysa eski davranis gibi orijinalleri dondur
+            val trulyDead = deadStreams.isNotEmpty() && toCheck.size == deadStreams.size && toCheck.isNotEmpty()
+            if (trulyDead) {
+                Log.w(TAG, "[${api.name}] Tum streamler dead cikti - HEAD/GET 404 ile dogrulandi, gercekten olu (sahte link degil), bos donuluyor")
+                com.kitsugi.animelist.data.cloudstream.diag.CsTrace.warn(api.name, "verify", "Tum streamler HEAD 404 ile olu - kaynak yok, player'a gonderilmiyor")
+                verifiedStreams // bos
+            } else {
+                Log.w(TAG, "[${api.name}] Tum streamler dead cikti - false positive olabilir, orijinaller donduruluyor.")
+                streams
+            }
         } else {
-            // Kalite değerine göre sırala (yüksek kalite önce), null qualityValue 0 kabul et
+            // Kalite degerine gore sirala (yuksek kalite once), null qualityValue 0 kabul et
             verifiedStreams.sortedByDescending { it.qualityValue ?: 0 }
         }
 
