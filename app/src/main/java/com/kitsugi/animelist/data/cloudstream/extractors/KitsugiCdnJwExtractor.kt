@@ -68,15 +68,30 @@ class KitsugiCdnJwExtractor(
                 mirrorToAliasTags("extract", msg, null)
             }
 
-            // 1) JS deşifre algoritması
+            // 1) JS desifre algoritmasi - dc_ bloklu sayfada bayat fallback'e dusme
+            val hasEncryptedBlock = html.contains("dc_") && html.contains("<script")
             var realUrl = decryptNative(html)
-
-            // 2) JSON-LD contentUrl (şifresiz yayınlayan varyantlar)
             if (realUrl.isNullOrBlank()) {
-                realUrl = CONTENT_URL_REGEX.find(html)?.groupValues?.get(1)?.replace("\\/", "/")
+                if (hasEncryptedBlock) {
+                    val msg = "[$name] sifreli blok var ama cozulemedi - bayat contentUrl/master fallback'i atlaniyor (404 sahte link uretmemek icin) url=${url.take(90)}"
+                    Log.w(TAG, msg)
+                    com.kitsugi.animelist.data.cloudstream.diag.CsTrace.warn(name, "extract", msg)
+                    mirrorToAliasTags("extract", msg, null)
+                    realUrl = M3U8_REGEX.find(html)?.value ?: MASTER_TXT_REGEX.find(html)?.value
+                    if (!realUrl.isNullOrBlank()) {
+                        Log.d(TAG, "[$name] sifreli cozum yok ama sayfada acik HLS bulundu -> $realUrl")
+                    } else {
+                        Log.w(TAG, "[$name] sifreli cozum yok ve acik HLS de yok - kaynak uretilmiyor url=${url.take(90)}")
+                        com.kitsugi.animelist.data.cloudstream.diag.CsTrace.warn(name, "extract", "crypted block cozulemedi, acik HLS yok - bos donuluyor url=${url.take(90)}")
+                        mirrorToAliasTags("extract", "crypted block cozulemedi, bos", null)
+                    }
+                } else {
+                    realUrl = CONTENT_URL_REGEX.find(html)?.groupValues?.get(1)?.replace("\\/", "/")
+                    if (realUrl.isNullOrBlank()) {
+                        realUrl = MASTER_TXT_REGEX.find(html)?.value ?: M3U8_REGEX.find(html)?.value
+                    }
+                }
             }
-
-            // 3) master.txt / .m3u8 doğrudan akış linki
             if (realUrl.isNullOrBlank()) {
                 realUrl = MASTER_TXT_REGEX.find(html)?.value ?: M3U8_REGEX.find(html)?.value
             }
@@ -397,12 +412,13 @@ class KitsugiCdnJwExtractor(
                     when (op) {
                         "reverse" -> result = result.reversed()
                         "atob" -> {
-                            var padded = result
+                            var padded = result.replace('-', '+').replace('_', '/')
                             while (padded.length % 4 != 0) padded += "="
-                            result = String(
-                                java.util.Base64.getDecoder().decode(padded),
-                                Charsets.ISO_8859_1
-                            )
+                            result = try {
+                                String(java.util.Base64.getDecoder().decode(padded), Charsets.ISO_8859_1)
+                            } catch (_: Exception) {
+                                String(java.util.Base64.getUrlDecoder().decode(padded), Charsets.ISO_8859_1)
+                            }
                         }
                         "rot" -> {
                             val rot = StringBuilder()
