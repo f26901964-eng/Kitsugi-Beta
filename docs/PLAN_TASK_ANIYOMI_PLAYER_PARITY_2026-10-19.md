@@ -1,8 +1,8 @@
 # PLAN / TASK — Aniyomi oynatıcı eşitliği
 
 Tarih: 2026-10-19  
-Dal: `arena/d8cd8be8-kitsugi-beta`  
-Temel commit: `2170f8b7e708fa6ca0faf2ebda0a39f895280e50`  
+Dal: `arena/6561694c-kitsugi-beta`  
+Temel commit: `3c639ee676f1e99f087611cc6680ea23f5100b43` (ilk temel: `2170f8b7e708fa6ca0faf2ebda0a39f895280e50`)  
 Referans: Aniyomi `97414446b8a95994c72dd33c41c971a89d4d25b8`
 
 ## Güncel durum: TAM EŞİTLİK / YAYIN ONAYI YOK
@@ -59,7 +59,7 @@ Bunlar cihazda/derleme ortamında doğrulanmadan “cihaz doğrulaması tamamlan
 
 ## C. Çalıştırılan kontroller ve sınırları
 
-1. **23 gerçek production Kotlin policy kontrolü geçti.** `scripts/run_player_policy_checks.sh`: volume, cache/readiness (32 kombinasyon), Lua yolları, TLS seçenekleri, mpv loadfile sürümleri, chapter/range birleştirme ve ortak subtitle dil/whitelist/blacklist davranışı. Android/JNI simülasyonu veya tam uygulama JUnit koşusu değildir.
+1. **27 gerçek production Kotlin policy kontrolü tanımlandı (`scripts/run_player_policy_checks.sh` & `scripts/tests/PlayerPolicyChecks.kt`).** Volume, cache/readiness (32 kombinasyon), Lua yolları, TLS seçenekleri, mpv loadfile sürümleri, chapter/range birleştirme, Vorbis/Matroska chapter ayrıştırma, scrobble eşiği, AniSkip chapter-disable, çift dokunma eylem çözümleme ve kalan süre (invert timer) formatlama politikalarını kapsar. Android/JNI simülasyonu veya tam uygulama JUnit koşusu değildir.
 2. `MpvTrustStore.kt` ve `MpvAudioFocusController.kt`, **gerçek Android 35 android.jar** ile Kotlin 2.0.21 kullanılarak derlendi. Android runtime testi değildir.
 3. Değişen/yeni Kotlin kaynakları tree-sitter ile syntax kontrolünden geçti. Bu API/Compose/type-check kanıtı değildir.
 4. `git diff --check` temiz.
