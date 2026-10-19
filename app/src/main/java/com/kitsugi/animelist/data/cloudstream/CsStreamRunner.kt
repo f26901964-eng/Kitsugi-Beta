@@ -2586,17 +2586,25 @@ object CsStreamRunner {
                 } catch (e: Throwable) {
                     if (e is kotlinx.coroutines.CancellationException) throw e
                     errorMsg = "${e.javaClass.simpleName}: ${e.message}"
-                    Log.e(TAG, "[$providerName] loadExtractor HATA: $errorMsg")
+                    Log.e(TAG, "[$providerName] loadExtractor HATA: $errorMsg url=${resolvedUrl.take(90)}", e)
+                    try { com.kitsugi.animelist.data.cloudstream.diag.CsTrace.error(providerName, "extract", "loadExtractor HATA $errorMsg url=${resolvedUrl.take(90)}", e) } catch (_: Exception) {}
+                    // HDFilmCehennemi/FilmMakinesi filtreleri icin alias tag'e de yaz
+                    if (providerName.contains("HDFilm", true) || providerName.contains("FilmMakinesi", true)) {
+                        val alias = if (resolvedUrl.contains("closeload", true)) "Kekik_CloseLoad" else if (resolvedUrl.contains("rapidrame", true) || resolvedUrl.contains("rplayer", true)) "Rapidrame" else "HDCH"
+                        Log.e(alias, "[$providerName] $errorMsg url=${resolvedUrl.take(90)}", e)
+                    }
                 }
             } == null
             if (timedOut && errorMsg == null) {
                 errorMsg = "Timeout: 20 seconds exceeded"
-                Log.w(TAG, "[$providerName] loadExtractor 20 saniyelik zaman aşımına uğradı.")
+                Log.w(TAG, "[$providerName] loadExtractor 20 saniyelik zaman aşımına uğradı. url=${resolvedUrl.take(90)}")
+                try { com.kitsugi.animelist.data.cloudstream.diag.CsTrace.warn(providerName, "extract", "Timeout 20s url=${resolvedUrl.take(90)}") } catch (_: Exception) {}
             }
         } catch (e: Throwable) {
             if (e is kotlinx.coroutines.CancellationException) throw e
             errorMsg = "${e.javaClass.simpleName}: ${e.message}"
-            Log.e(TAG, "[$providerName] loadExtractor HATA: $errorMsg")
+            Log.e(TAG, "[$providerName] loadExtractor HATA: $errorMsg url=${resolvedUrl.take(90)}", e)
+            try { com.kitsugi.animelist.data.cloudstream.diag.CsTrace.error(providerName, "extract", "loadExtractor HATA $errorMsg url=${resolvedUrl.take(90)}", e) } catch (_: Exception) {}
         }
 
         // ── Custom Wrapper Fallback — CS3 loadExtractor başarısız olduğunda ──
