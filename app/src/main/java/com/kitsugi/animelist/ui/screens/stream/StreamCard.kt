@@ -107,7 +107,9 @@ fun StreamCard(
     // Fullscreen thumbnail preview using the app's standard image gallery dialog
     if (showImageDialog && !source.thumbnailUrl.isNullOrBlank()) {
         KitsugiImageGalleryDialog(
-            imageUrls = listOf(source.thumbnailUrl!!),
+            // `!!` yerine null güvenli: thumbnailUrl bu satır ile üstteki kontrol
+            // arasında değişirse çökme olmasın.
+            imageUrls = listOfNotNull(source.thumbnailUrl),
             initialIndex = 0,
             title = source.name,
             onDismiss = { showImageDialog = false }

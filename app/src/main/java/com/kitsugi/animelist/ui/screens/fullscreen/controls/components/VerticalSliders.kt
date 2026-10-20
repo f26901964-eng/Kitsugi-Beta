@@ -42,11 +42,19 @@ import androidx.compose.ui.unit.dp
 import java.text.NumberFormat
 import kotlin.math.roundToInt
 
-private fun percentage(value: Float, range: ClosedFloatingPointRange<Float>): Float =
-    ((value - range.start) / (range.endInclusive - range.start)).coerceIn(0f, 1f)
+// Sıfır genişlikli aralıkta (ör. ses üst sınırı 0 dönen cihazlarda `0..0`)
+// bölme 0/0 = NaN üretiyordu; `coerceIn` NaN'ı ayıklamadığı için oran doğrudan
+// `animateFloatAsState` / `fillMaxHeight(NaN)` içine giriyor ve düzen ölçüsü
+// geçersiz olduğu için IllegalArgumentException ile çökme oluşuyordu.
+private fun percentage(value: Float, range: ClosedFloatingPointRange<Float>): Float {
+    val span = range.endInclusive - range.start
+    return if (span <= 0f) 0f else ((value - range.start) / span).coerceIn(0f, 1f)
+}
 
-private fun percentage(value: Int, range: ClosedRange<Int>): Float =
-    ((value - range.start).toFloat() / (range.endInclusive - range.start)).coerceIn(0f, 1f)
+private fun percentage(value: Int, range: ClosedRange<Int>): Float {
+    val span = range.endInclusive - range.start
+    return if (span <= 0) 0f else ((value - range.start).toFloat() / span).coerceIn(0f, 1f)
+}
 
 @Composable
 fun VerticalSlider(

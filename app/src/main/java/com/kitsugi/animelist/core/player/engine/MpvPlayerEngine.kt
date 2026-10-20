@@ -55,6 +55,34 @@ class MpvPlayerEngine(
             { value -> ducked = value; setVolume(_currentVolume) }, { pause() }
         ).also { focusController = it }
 
+    /**
+     * Parça listesi (track-list) güncellemelerini tek seferde toplar.
+     *
+     * SORUN: mpv her özellik yazımında (`sid`, `aid`, `slang`, harici altyazı ekleme...)
+     * ayrı bir `track-list` değişim olayı tetikliyor; her olay da `readTrackSnapshot()`
+     * ile onlarca JNI özellik sorgusu yapıyordu. Dosya yüklenirken bu olaylar
+     * zincirleme patlıyor (logcat'te aynı milisaniyede ~7 tam anlık görüntü) ve ana
+     * iş parçacığını 1 saniyeden uzun süre bloke ediyordu ("PerfMonitor longMsg
+     * wall=1222ms" kayıtları bu yüzden).
+     *
+     * ÇÖZÜM: güncelleme istekleri aynı Looper turunda birleştirilir (coalesce);
+     * böylece N olay için N yerine 1 anlık görüntü okunur.
+     */
+    private val mainHandler = android.os.Handler(android.os.Looper.getMainLooper())
+    @Volatile private var tracksUpdatePending = false
+    private val tracksUpdateRunnable = Runnable {
+        tracksUpdatePending = false
+        performUpdateTracks()
+    }
+
+    /** Parça listesini yenilemek için TERCİH EDİLEN yol — istekleri birleştirir. */
+    private fun scheduleUpdateTracks() {
+        if (released) return
+        if (tracksUpdatePending) return
+        tracksUpdatePending = true
+        mainHandler.post(tracksUpdateRunnable)
+    }
+
     private fun onMain(block: () -> Unit) {
         val generationAtDispatch = loadGeneration
         if (released) return
@@ -513,12 +541,12 @@ class MpvPlayerEngine(
                 "Ses/altyazı parçası uygulanamadı: ${trackOption.label} (id=${trackOption.trackIndex})"
             )
         }
-        updateTracks()
+        scheduleUpdateTracks()
         // mpv özelliği asenkron uygular; kısa bir gecikmeyle listede GERÇEK seçimi tazele
         // (aksi hâlde arayüz eski seçimi göstermeye devam ediyor ve "hiçbir şey değişmiyor"
         // izlenimi doğuyordu).
         android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
-            updateTracks()
+            scheduleUpdateTracks()
         }, 350L)
     }
 
@@ -528,7 +556,7 @@ class MpvPlayerEngine(
         selectSecondarySubtitleTrack(-1)
         mpvView?.disableSubtitles()
         _isSubtitleDisabled = true
-        updateTracks()
+        scheduleUpdateTracks()
     }
 
     override fun createVideoView(context: Context): View {
@@ -563,6 +591,10 @@ class MpvPlayerEngine(
         // Motor kapanırken bekleyen script/custom-button kurulum coroutine'leri de iptal edilir.
         released = true
         loadGeneration++
+        // Bekleyen birleştirilmiş parça listesi güncellemesi varsa iptal et:
+        // aksi hâlde serbest bırakılmış mpv örneğine JNI üzerinden erişilebilir.
+        runCatching { mainHandler.removeCallbacks(tracksUpdateRunnable) }
+        tracksUpdatePending = false
         focusController?.release()
         focusController = null
         engineScope.cancel()
@@ -576,7 +608,7 @@ class MpvPlayerEngine(
 
     override fun eventProperty(property: String) = onMain {
         when (property) {
-            "track-list" -> updateTracks()
+            "track-list" -> scheduleUpdateTracks()
             "chapter-list" -> updateChapters()
         }
     }
@@ -656,16 +688,11 @@ class MpvPlayerEngine(
 
     override fun eventProperty(property: String, value: Long) = onMain {
         when (property) {
-            "sid" -> {
-                // Primary subtitle track ID güncellendi — track listesini yenile
-                updateTracks()
-            }
+            // "sid" ve "aid" MPV_FORMAT_STRING olarak gözleniyor (observedProps) →
+            // aşağıdaki String overload'unda işlenir. Burada da yakalanmaları aynı
+            // değişiklik için parça listesini iki kez yenilemeye yol açıyordu.
             "secondary-sid" -> {
                 secondarySubtitleTrackId = value.toInt()
-            }
-            "aid" -> {
-                // Audio track ID güncellendi
-                updateTracks()
             }
             "video-params/w", "video-params/h" -> {
                 // Video boyutları değişti — streamInfo güncellenecek
@@ -683,7 +710,7 @@ class MpvPlayerEngine(
                 activeHwdecMode = value
                 Log.d(TAG, "hwdec-current=$value")
             }
-            "sid", "aid" -> updateTracks()
+            "sid", "aid" -> scheduleUpdateTracks()
             "secondary-sid" -> {
                 secondarySubtitleTrackId = value.toIntOrNull() ?: -1
                 listeners.forEach { it.onSecondarySubtitleChanged(secondarySubtitleTrackId) }
@@ -725,14 +752,14 @@ class MpvPlayerEngine(
                 setSubtitleStyle(activeSubtitleStyle)
                 setStatisticsPage(settings.playerStatisticsPage)
                 checkBufferingState()
-                updateTracks()
+                scheduleUpdateTracks()
                 // Harici altyazılar bazen geç eklenir; kısa bir gecikmeden sonra seçimi zorla.
                 val generation = loadGeneration
                 engineScope.launch {
                     kotlinx.coroutines.delay(1500L)
                     if (!released && generation == loadGeneration && !initialSelectionDone) {
                         selectionForced = true
-                        updateTracks()
+                        scheduleUpdateTracks()
                     }
                 }
             }
@@ -887,7 +914,9 @@ class MpvPlayerEngine(
         listeners.forEach { it.onPositionChanged(currentPosition, duration) }
     }
 
-    private fun updateTracks() {
+    private fun performUpdateTracks() {
+        // Motor serbest bırakıldıysa mpv artık yok — JNI çağrısı yapılmaz.
+        if (released) return
         val view = mpvView ?: return
         val snapshot = view.readTrackSnapshot()
         val dummyGroup = createDummyGroup()
