@@ -46,6 +46,15 @@ fun SkipIntroButton(
     val shouldShow = visible && remainingSec > 0
     val accentColor = LocalKitsugiAccent.current
 
+    // durationSeconds 0 gelirse (veya kalan süre beklenmedik biçimde hedefi aşarsa)
+    // bölme 0/NaN/1'in üzerinde bir oran üretir; Modifier.fillMaxWidth geçersiz
+    // oran değerinde IllegalArgumentException atarak çökmeye yol açıyordu.
+    val countdownFraction = if (durationSeconds > 0) {
+        (remainingSec.toFloat() / durationSeconds.toFloat()).coerceIn(0f, 1f)
+    } else {
+        0f
+    }
+
     AnimatedVisibility(
         visible = shouldShow,
         enter = fadeIn(tween(250)) + scaleIn(initialScale = 0.8f),
@@ -89,7 +98,7 @@ fun SkipIntroButton(
                 ) {
                     Box(
                         modifier = Modifier
-                            .fillMaxWidth(remainingSec.toFloat() / durationSeconds.toFloat())
+                            .fillMaxWidth(countdownFraction)
                             .height(3.dp)
                             .background(accentColor)
                     )

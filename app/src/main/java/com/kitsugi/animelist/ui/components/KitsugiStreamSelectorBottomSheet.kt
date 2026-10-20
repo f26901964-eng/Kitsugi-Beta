@@ -339,7 +339,7 @@ fun KitsugiStreamSelectorBottomSheet(
                                 verticalArrangement = Arrangement.Center
                             ) {
                                 Text(
-                                    text = errorMessage!!,
+                                    text = errorMessage ?: "",
                                     color = KitsugiColors.AccentRed,
                                     fontSize = 13.sp,
                                     fontWeight = FontWeight.Medium,
@@ -466,7 +466,7 @@ fun KitsugiStreamSelectorBottomSheet(
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
                         Text(
-                            text = errorMessage!!,
+                            text = errorMessage ?: "",
                             color = KitsugiColors.AccentRed,
                             fontSize = 14.sp,
                             fontWeight = FontWeight.Medium,

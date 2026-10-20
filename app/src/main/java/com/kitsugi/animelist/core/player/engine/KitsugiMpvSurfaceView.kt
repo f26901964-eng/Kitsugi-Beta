@@ -549,9 +549,17 @@ class KitsugiMpvSurfaceView @JvmOverloads constructor(
                 ?.takeIf { it.isNotBlank() }
             val selectedByFlag = mpv.getPropertyBoolean("track-list/$i/selected") == true
             val external = mpv.getPropertyBoolean("track-list/$i/external") == true
-            val channelCount = mpv.getPropertyInt("track-list/$i/demux-channel-count")
-                ?: mpv.getPropertyInt("track-list/$i/audio-channels")
-                ?: mpv.getPropertyInt("track-list/$i/channels")
+            // Kanal sayısı yalnızca SES parçalarında tanımlıdır.
+            // Eski kod bu üç sorguyu video ve altyazı parçaları için de yapıyordu:
+            // her biri libmpv'de "property not found" üretip logcat'i sel ile
+            // dolduruyor ve parça başına 3 boş JNI çağrısı (ana iş parçacığında)
+            // harcıyordu. Artık yalnızca audio parçalarında, 2 sorguyla okunuyor.
+            val channelCount = if (type == "audio") {
+                mpv.getPropertyInt("track-list/$i/demux-channel-count")
+                    ?: mpv.getPropertyInt("track-list/$i/audio-channels")
+            } else {
+                null
+            }
             val forced = (mpv.getPropertyBoolean("track-list/$i/forced") == true) || listOfNotNull(title, language).any {
                 it.contains("forced", ignoreCase = true)
             }

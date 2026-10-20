@@ -861,17 +861,22 @@ class KitsugiPlayerViewModel(application: Application) : AndroidViewModel(applic
                 }
                 _currentVideoUrl.value != null -> {
                     val settings = SettingsDataStore(context).settingsFlow.first()
-                    viewModelScope.launch {
-                        runAfrPreflightIfEnabled(
-                            context = context,
-                            activity = activity,
-                            url = _currentVideoUrl.value!!,
-                            headers = _currentHeaders.value,
-                            frameRateMatchingMode = settings.frameRateMatchingMode,
-                            resolutionMatchingEnabled = settings.resolutionMatchingEnabled
-                        )
+                    // Yerel kopya: `when` koşulu ile kullanım arasında akış (StateFlow)
+                    // başka bir coroutine tarafından null'a çekilirse `!!` çökme üretiyordu.
+                    val resolvedVideoUrl = _currentVideoUrl.value
+                    if (resolvedVideoUrl != null) {
+                        viewModelScope.launch {
+                            runAfrPreflightIfEnabled(
+                                context = context,
+                                activity = activity,
+                                url = resolvedVideoUrl,
+                                headers = _currentHeaders.value,
+                                frameRateMatchingMode = settings.frameRateMatchingMode,
+                                resolutionMatchingEnabled = settings.resolutionMatchingEnabled
+                            )
+                        }
+                        _playbackSource.value = TrailerPlaybackSource(videoUrl = resolvedVideoUrl, audioUrl = _currentAudioUrl.value)
                     }
-                    _playbackSource.value = TrailerPlaybackSource(videoUrl = _currentVideoUrl.value!!, audioUrl = _currentAudioUrl.value)
                     _isLoading.value = false
                 }
                 else -> {
@@ -1180,8 +1185,9 @@ class KitsugiPlayerViewModel(application: Application) : AndroidViewModel(applic
                     _currentSourceIndex.value = streams.indexOf(targetStream)
                     _currentAddonName.value = targetStream.addonName
                     // AniSkip: yeni bölüm için zaman damgalarını yeniden yükle
-                    if (malId != null) {
-                        loadSkipIntervals(malId!!, targetEp)
+                    val skipMalId = malId
+                    if (skipMalId != null) {
+                        loadSkipIntervals(skipMalId, targetEp)
                     }
                     
                     fetchAutoSubtitles()
