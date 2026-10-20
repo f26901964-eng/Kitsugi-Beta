@@ -26,6 +26,8 @@ fun KitsugiAnimatedDeleteButton(
     onDelete: () -> Unit,
     modifier: Modifier = Modifier,
     size: Dp = 36.dp,
+    expandedWidth: Dp = 92.dp,
+    requireConfirm: Boolean = false,
     contentDescription: String? = null
 ) {
     IconButton(
