@@ -1312,16 +1312,21 @@ class Media3PlayerEngine(
                 } else {
                     CaptionStyleCompat.EDGE_TYPE_NONE
                 }
-                // Bold + Italic kombinasyonu icin dogru Typeface
-                val typeface = when {
-                    currentSubtitleStyle.bold && currentSubtitleStyle.italic -> android.graphics.Typeface.create(android.graphics.Typeface.DEFAULT, android.graphics.Typeface.BOLD_ITALIC)
-                    currentSubtitleStyle.bold -> android.graphics.Typeface.DEFAULT_BOLD
-                    currentSubtitleStyle.italic -> android.graphics.Typeface.create(android.graphics.Typeface.DEFAULT, android.graphics.Typeface.ITALIC)
-                    else -> android.graphics.Typeface.DEFAULT
+                // Font family + Bold + Italic kombinasyonu (Aniyomi: sub-font)
+                val baseFamily = when (currentSubtitleStyle.font.lowercase().trim()) {
+                    "serif" -> android.graphics.Typeface.SERIF
+                    "monospace", "mono" -> android.graphics.Typeface.MONOSPACE
+                    else -> try { android.graphics.Typeface.create(currentSubtitleStyle.font, android.graphics.Typeface.NORMAL) } catch (_: Exception) { android.graphics.Typeface.DEFAULT }
                 }
+                val styleFlags = when {
+                    currentSubtitleStyle.bold && currentSubtitleStyle.italic -> android.graphics.Typeface.BOLD_ITALIC
+                    currentSubtitleStyle.bold -> android.graphics.Typeface.BOLD
+                    currentSubtitleStyle.italic -> android.graphics.Typeface.ITALIC
+                    else -> android.graphics.Typeface.NORMAL
+                }
+                val typeface = try { android.graphics.Typeface.create(baseFamily, styleFlags) } catch (_: Exception) { baseFamily }
                 // Arka plan ve kenar renkleri artik style'dan geliyor (Aniyomi paritesi)
                 val windowColor = currentSubtitleStyle.backgroundColor.takeIf { it != 0 } ?: android.graphics.Color.TRANSPARENT
-                // windowColor seffaf degilse arka plan kutusu olarak goster, yoksa seffaf
                 val captionStyle = CaptionStyleCompat(
                     currentSubtitleStyle.textColor,
                     windowColor,
@@ -1331,22 +1336,25 @@ class Media3PlayerEngine(
                     typeface
                 )
                 subtitleView.setStyle(captionStyle)
+                // fontSize (1..200, default 55) + fontScale (0.2..5) + size fallback
+                val baseFontSize = currentSubtitleStyle.fontSize.takeIf { it in 1..200 } ?: 55
+                val effectiveScale = currentSubtitleStyle.fontScale.takeIf { it in 0.1f..5f } ?: 1f
+                // fontSize 55 ~ 16sp esdeger; 55 = 16sp taban alinir
+                val baseSp = (baseFontSize / 55f * 16f).coerceIn(6f, 48f)
                 subtitleView.setFixedTextSize(
                     TypedValue.COMPLEX_UNIT_SP,
-                    currentSubtitleStyle.size.toFloat()
+                    (baseSp * effectiveScale).coerceIn(6f, 64f)
                 )
-                // Altyazı, videonun ölçeklendirmesinden BAĞIMSIZ konumlanır (aşağıdaki
-                // detachSubtitleViewFromContentFrame açıklamasına bakın). Ayrıca her zaman
-                // aynı varsayılan alt boşluğu kullanır; "Doldur/Sığdır/16:9" gibi görüntü
-                // modları altyazının yerini ve genişliğini artık değiştirmez.
-                subtitleView.setBottomPaddingFraction(SUBTITLE_BOTTOM_PADDING_FRACTION)
-                
+                // sub-pos (0..150): 100 = varsayilan alt konum, 0 = en ust
+                // pos degerini bottomPaddingFraction'a cevir: pos 100 -> 0.08, pos 50 -> 0.45, pos 0 -> ~0.85
+                val posFraction = if (currentSubtitleStyle.pos in 0..150) {
+                    ((150 - currentSubtitleStyle.pos) / 150f * 0.78f + 0.08f).coerceIn(0.02f, 0.92f)
+                } else SUBTITLE_BOTTOM_PADDING_FRACTION
+                subtitleView.setBottomPaddingFraction(posFraction)
+                // shadowOffset >0 ise edgeType zaten OUTLINE, ek gölge gerekmez (Media3 sinirli)
+                // verticalOffset: kullanici dikey ince ayari (-200..200)
                 val density = context.resources.displayMetrics.density
                 val requested = -currentSubtitleStyle.verticalOffset.toFloat() * density
-                // Kullanıcı "Dikey Konum" kaydırıcısını eksiye çektiğinde altyazı görünür
-                // alanın dışına (alt barın arkasına / ekran dışına) itilebiliyordu. Çeviri
-                // miktarını altyazı alanının içine sabitliyoruz: alt kenarda 4dp pay kalır,
-                // üstte ise tüm alanı kaplayacak kadar ötelenemez.
                 val subHeight = subtitleView.height.takeIf { it > 0 }
                     ?: (pv.height.takeIf { it > 0 } ?: 0)
                 val marginPx = 4f * density

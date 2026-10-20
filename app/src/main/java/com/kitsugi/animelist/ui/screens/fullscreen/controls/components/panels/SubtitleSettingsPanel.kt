@@ -569,11 +569,25 @@ private fun FontDropdown(
     onFontSelected: (String) -> Unit,
 ) {
     var expanded by remember { mutableStateOf(false) }
+    val context = androidx.compose.ui.platform.LocalContext.current
     val fonts = remember {
-        listOf(
+        val builtIn = listOf(
             "Sans Serif", "Serif", "Monospace", "Arial", "Noto Sans", "Roboto",
             "Ubuntu", "Open Sans", "Lato", "Oswald", "PT Sans", "Source Sans Pro"
         )
+        // Aniyomi paritesi: cihazdaki TTF/OTF fontlarini tara (varsa)
+        val scanned = try {
+            val dirs = listOfNotNull(
+                context.filesDir?.let { java.io.File(it, "fonts") },
+                context.getExternalFilesDir(null)?.let { java.io.File(it, "fonts") }
+            )
+            dirs.flatMap { dir ->
+                if (dir.exists() && dir.isDirectory) {
+                    dir.listFiles { f -> f.isFile && (f.name.endsWith(".ttf", true) || f.name.endsWith(".otf", true)) }?.map { it.nameWithoutExtension } ?: emptyList()
+                } else emptyList()
+            }.distinct()
+        } catch (_: Exception) { emptyList() }
+        (builtIn + scanned).distinct()
     }
     Column {
         Text("Yazı tipi", style = MaterialTheme.typography.bodySmall, color = Color.White.copy(alpha = 0.8f))

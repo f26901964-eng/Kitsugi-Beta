@@ -317,6 +317,15 @@ class SettingsDataStore(
         val DefaultPlayerOrientation = stringPreferencesKey("pref_default_player_orientation")
         val PipEpisodeToasts = booleanPreferencesKey("pref_pip_episode_toasts")
         val PipOnExit = booleanPreferencesKey("pref_pip_on_exit")
+        // ─── Advanced mpv conf/input (Aniyomi AdvancedPlayerPreferences paritesi) ──
+        val MpvConf = stringPreferencesKey("pref_mpv_conf")
+        val MpvInput = stringPreferencesKey("pref_mpv_input")
+        val MpvUserFilesEnabled = booleanPreferencesKey("mpv_scripts")
+        // ─── Media gesture mapping (Aniyomi GesturePreferences) ──────────────────
+        val MediaPreviousGesture = stringPreferencesKey("pref_media_previous")
+        val MediaPlayPauseGesture = stringPreferencesKey("pref_media_playpause")
+        val MediaNextGesture = stringPreferencesKey("pref_media_next")
+        val DefaultIntroLength = intPreferencesKey("pref_default_intro_length")
 
         // ─── Yeni İndirme Ayarları (Aniyomi Uyumlu) ──────────────────────────────────
         val DownloadOnlyOverWifi = booleanPreferencesKey("pref_download_only_over_wifi_key")
@@ -661,6 +670,13 @@ class SettingsDataStore(
                     defaultPlayerOrientation = preferences[Keys.DefaultPlayerOrientation] ?: "SENSOR_LANDSCAPE",
                     pipEpisodeToasts = preferences[Keys.PipEpisodeToasts] ?: true,
                     pipOnExit = preferences[Keys.PipOnExit] ?: true,
+                    mpvConf = preferences[Keys.MpvConf] ?: "",
+                    mpvInput = preferences[Keys.MpvInput] ?: "",
+                    mpvUserFilesEnabled = preferences[Keys.MpvUserFilesEnabled] ?: false,
+                    mediaPreviousGesture = preferences[Keys.MediaPreviousGesture] ?: "SWITCH",
+                    mediaPlayPauseGesture = preferences[Keys.MediaPlayPauseGesture] ?: "PLAY_PAUSE",
+                    mediaNextGesture = preferences[Keys.MediaNextGesture] ?: "SWITCH",
+                    defaultIntroLength = preferences[Keys.DefaultIntroLength] ?: 85,
                     downloadOnlyOverWifi = preferences[Keys.DownloadOnlyOverWifi] ?: true,
                     downloadSpeedLimit = preferences[Keys.DownloadSpeedLimit] ?: 0,
                     saveChaptersAsCBZ = preferences[Keys.SaveChaptersAsCBZ] ?: true,
@@ -1969,5 +1985,33 @@ class SettingsDataStore(
 
     suspend fun setPipOnExit(value: Boolean) {
         context.settingsDataStore.edit { it[Keys.PipOnExit] = value }
+    }
+
+    suspend fun setMpvConf(value: String) {
+        context.settingsDataStore.edit { it[Keys.MpvConf] = value }
+    }
+
+    suspend fun setMpvInput(value: String) {
+        context.settingsDataStore.edit { it[Keys.MpvInput] = value }
+    }
+
+    suspend fun setMpvUserFilesEnabled(value: Boolean) {
+        context.settingsDataStore.edit { it[Keys.MpvUserFilesEnabled] = value }
+    }
+
+    suspend fun setMediaPreviousGesture(value: String) {
+        context.settingsDataStore.edit { it[Keys.MediaPreviousGesture] = value }
+    }
+
+    suspend fun setMediaPlayPauseGesture(value: String) {
+        context.settingsDataStore.edit { it[Keys.MediaPlayPauseGesture] = value }
+    }
+
+    suspend fun setMediaNextGesture(value: String) {
+        context.settingsDataStore.edit { it[Keys.MediaNextGesture] = value }
+    }
+
+    suspend fun setDefaultIntroLength(value: Int) {
+        context.settingsDataStore.edit { it[Keys.DefaultIntroLength] = value.coerceIn(5, 300) }
     }
 }
