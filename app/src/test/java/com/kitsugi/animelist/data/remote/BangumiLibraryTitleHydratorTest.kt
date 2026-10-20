@@ -136,4 +136,137 @@ class BangumiLibraryTitleHydratorTest {
         assertEquals(listOf(1234), requests.map { it.rawId })
         assertEquals("這いよれ! ニャル子さん", requests.first().nativeTitle)
     }
+
+    // ── v2.4.315: dil kademeleri + ilerleme garantisi ─────────────────────────
+    // Kullanıcı bildirimi: başlık dili İngilizce iken 717 kayıtlı Bangumi listesi kalıcı
+    // olarak Japonca/Çince görünüyordu. Köklerden biri, "yalnızca romaji" satırların
+    // İngilizce bulunamadıkça kuyruğun başında kalıp tüm bütçeyi tüketmesiydi. Artık
+    // CJK gösterim (LATIN eksik) her zaman önden gider; İngilizce zenginleştirme ayrı
+    // ve yalnızca ENGLISH diline ait bir kademedir.
+
+    @Test
+    fun pendingRequests_latinTierComesBeforeEnglishEnrichment() {
+        val (latin, enrichment) = BangumiLibraryTitleHydrator.pendingRequestsByNeed(
+            listOf(
+                // Romaji var, ayrı İngilizce yok → zenginleştirme.
+                entity(
+                    id = 1,
+                    title = "Shingeki no Kyojin",
+                    titleJapanese = "進撃の巨人",
+                    malId = BangumiIdNamespace.stableIdFromRaw(111)
+                ),
+                // Hiç Latin yok → LATIN kademesi (önce bu düzeltilmeli).
+                entity(
+                    id = 2,
+                    title = "デュラララ!!",
+                    titleJapanese = "デュラララ!!",
+                    malId = BangumiIdNamespace.stableIdFromRaw(222)
+                )
+            ),
+            titleLanguage = "ENGLISH"
+        )
+
+        assertEquals(listOf(222), latin.map { it.rawId })
+        assertEquals(listOf(111), enrichment.map { it.rawId })
+        // Birleşik liste de aynı önceliği korur.
+        val combined = BangumiLibraryTitleHydrator.pendingRequests(
+            listOf(
+                entity(
+                    id = 1,
+                    title = "Shingeki no Kyojin",
+                    titleJapanese = "進撃の巨人",
+                    malId = BangumiIdNamespace.stableIdFromRaw(111)
+                ),
+                entity(
+                    id = 2,
+                    title = "デュラララ!!",
+                    titleJapanese = "デュラララ!!",
+                    malId = BangumiIdNamespace.stableIdFromRaw(222)
+                )
+            ),
+            titleLanguage = "ENGLISH"
+        )
+        assertEquals(listOf(222, 111), combined.map { it.rawId })
+    }
+
+    @Test
+    fun pendingRequests_romajiOnlyIsCompleteForRomajiButEnrichmentForEnglish() {
+        val rows = listOf(
+            entity(id = 1, title = "Shingeki no Kyojin", titleJapanese = "進撃の巨人")
+        )
+
+        // ROMAJI gösterimi zaten Latin → ağ isteği yapılmaz (eski sürüm burada sonsuza
+        // dek İngilizce arıyordu ve kuyruğu tıkıyordu).
+        assertTrue(BangumiLibraryTitleHydrator.pendingRequests(rows, titleLanguage = "ROMAJI").isEmpty())
+        // ENGLISH için ayrı İngilizce ad fırsatçı kademede aranır.
+        assertEquals(
+            listOf(1234),
+            BangumiLibraryTitleHydrator.pendingRequests(rows, titleLanguage = "ENGLISH").map { it.rawId }
+        )
+    }
+
+    @Test
+    fun pendingRequests_nativeLanguageStillGetsLatinTierWithoutEnrichment() {
+        // NATIVE gösterimi özgün adı okur; ama Latin varyantlar yine de tamamlanır ki
+        // kullanıcı dili sonradan İng/Romaji yaparsa veri hazır olsun.
+        val (latin, enrichment) = BangumiLibraryTitleHydrator.pendingRequestsByNeed(
+            listOf(
+                entity(
+                    id = 1,
+                    title = "デュラララ!!",
+                    titleJapanese = "デュラララ!!",
+                    malId = BangumiIdNamespace.stableIdFromRaw(222)
+                ),
+                entity(
+                    id = 2,
+                    title = "Shingeki no Kyojin",
+                    titleJapanese = "進撃の巨人",
+                    malId = BangumiIdNamespace.stableIdFromRaw(111)
+                )
+            ),
+            titleLanguage = "NATIVE"
+        )
+
+        assertEquals(listOf(222), latin.map { it.rawId })
+        assertTrue(enrichment.isEmpty())
+    }
+
+    @Test
+    fun pendingRequests_largeLibraryIsNeverTruncatedAtSelectionTime() {
+        // 717 kayıtlı gerçek kütüphane gibi: seçim aşamasında hiçbir kırpma olmamalı;
+        // dilimleme çalıştırma aşamasında yapılır ve her satır sırasını alır.
+        val rows = (1..250).map { index ->
+            entity(
+                id = index,
+                title = "進撃の巨人$index",
+                titleJapanese = "進撃の巨人$index",
+                malId = BangumiIdNamespace.stableIdFromRaw(10_000 + index)
+            )
+        }
+
+        val (latin, _) = BangumiLibraryTitleHydrator.pendingRequestsByNeed(rows, titleLanguage = "ENGLISH")
+
+        assertEquals(250, latin.size)
+    }
+
+    @Test
+    fun pendingRequests_importPlaceholderEntersLatinTierForInfoboxLookup() {
+        // Kısa subject gelmediğinde içe aktarım "Bangumi #<id>" yazar. Latin görünümlü
+        // olmasına rağmen gerçek ad değildir; kimlikle infobox okunabildiği için boş
+        // arama terimiyle LATIN kademesine girer.
+        val rawId = 777
+        val (latin, _) = BangumiLibraryTitleHydrator.pendingRequestsByNeed(
+            listOf(
+                entity(
+                    id = 1,
+                    title = "Bangumi #$rawId",
+                    malId = BangumiIdNamespace.stableIdFromRaw(rawId)
+                )
+            ),
+            titleLanguage = "ENGLISH"
+        )
+
+        assertEquals(listOf(rawId), latin.map { it.rawId })
+        assertEquals("", latin.single().nativeTitle)
+    }
 }

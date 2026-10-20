@@ -31,7 +31,9 @@ import com.kitsugi.animelist.data.auth.BangumiAuthManager
 import com.kitsugi.animelist.data.auth.BangumiAuthStore
 import com.kitsugi.animelist.data.auth.BangumiImportManager
 import com.kitsugi.animelist.data.auth.BangumiSyncManager
+import com.kitsugi.animelist.data.local.KitsugiDatabase
 import com.kitsugi.animelist.data.local.MediaEntryRepository
+import com.kitsugi.animelist.data.remote.BangumiLibraryTitleHydrator
 import com.kitsugi.animelist.data.settings.SettingsDataStore
 import com.kitsugi.animelist.model.MediaEntry
 import com.kitsugi.animelist.model.MediaType
@@ -1877,6 +1879,9 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                     updateProgress(context.getString(R.string.cross_sync_vm_verifying_platform_list, "Bangumi"), context.getString(R.string.cross_sync_vm_latest_server_list), processed = 0, total = 0, unit = "")
                     runSyncCatching { repository.smartImport("bangumi", BangumiImportManager.fetchAllLists(context, bangumiToken!!), allowDelete = false) }
                         .onFailure { logEvent("Bangumi", context.getString(R.string.cross_sync_log_local_update_failed, it.message ?: context.getString(R.string.cross_sync_vm_unknown_error)), isError = true, details = it.crossSyncDiagnostic(context)) }
+                    // Doğrulama aktarımından sonra eksik Latin/İngilizce adları tamamla
+                    // (çapraz senkron beklenmez; tarama arka planda, kilitle sıralanarak çalışır).
+                    launchBangumiTitleHydration()
                 }
 
                 kotlinx.coroutines.currentCoroutineContext().ensureActive()
@@ -2230,6 +2235,30 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
         )
     }
 
+    /**
+     * Bangumi kütüphane satırlarının eksik Latin/İngilizce adlarını arka planda tamamlar.
+     *
+     * Bangumi koleksiyon ucu yalnızca özgün adı döndürür; satırlar böyle yazılırsa "Listem",
+     * başlık dili İngilizce/Romaji seçili olsa bile Japonca/Çince ad gösterir. Tarama
+     * [BangumiLibraryTitleHydrator] kilidiyle sıraya girer (Listem açılış taramasıyla
+     * çakışmaz) ve sonuçları veritabanına yazdığı için liste Room akışıyla kendiliğinden
+     * seçili dile döner. Çağıran iş (içe aktarım / çapraz senkron) beklenmez.
+     */
+    private fun launchBangumiTitleHydration() {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val language = runCatching {
+                    SettingsDataStore(context).settingsFlow.first().titleLanguage
+                }.getOrDefault("ENGLISH")
+                BangumiLibraryTitleHydrator.hydrate(KitsugiDatabase.getDatabase(context), language)
+            } catch (cancelled: kotlinx.coroutines.CancellationException) {
+                throw cancelled
+            } catch (error: Exception) {
+                android.util.Log.w("AuthViewModel", "Bangumi başlık tamamlama atlandı: ${error.message}")
+            }
+        }
+    }
+
     /** Bangumi koleksiyonunu (想看/在看/看过) Kitsugi kütüphanesine içe aktarır. */
     fun importBangumiList(repository: MediaEntryRepository) {
         if (isBangumiImportRunning) return
@@ -2253,6 +2282,11 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                 }
                 if (importResult.isSuccess) {
                     onShowMessage?.invoke(context.getString(R.string.account_sync_import_success, importedEntries.size, "Bangumi"))
+                    // Koleksiyon satırları yalnızca özgün (Japonca/Çince) adla gelir.
+                    // Aktarım biter bitmez Latin/İngilizce adları tamamla; aksi halde
+                    // tarama yalnızca Listem ViewModel'i yaratıldığında çalıştığı için
+                    // yeni satırlar uygulama kapanıp açılana dek CJK adla kalıyordu.
+                    launchBangumiTitleHydration()
                 } else {
                     onShowMessage?.invoke(
                         context.getString(R.string.account_sync_import_save_failed, "Bangumi", importResult.exceptionOrNull()?.message ?: context.getString(R.string.account_sync_unknown_error))

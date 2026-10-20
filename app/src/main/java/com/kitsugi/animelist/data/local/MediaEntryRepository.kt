@@ -6,6 +6,7 @@ import com.kitsugi.animelist.data.auth.ExternalListSyncManager
 import com.kitsugi.animelist.model.MediaEntry
 import com.kitsugi.animelist.model.MediaType
 import kotlinx.coroutines.Dispatchers
+import com.kitsugi.animelist.utils.PreferenceHelpers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.conflate
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -130,7 +131,11 @@ class MediaEntryRepository(
                 // taşımıyor; güncel kayıt `isAdult = false` getirse bile AniList/MAL gibi
                 // birinci elden bilgilendirilmiş satırın işaretini silmek bulanıklığı
                 // kaybeder (rapor: "Simkl listesinde 18+ blur uygulanmıyor").
-                updates[match.id] = imported.copy(
+                // Çözülmüş başlıklar da GERİ ALINMAZ: Bangumi koleksiyon ucu yalnızca özgün
+                // (Japonca/Çince) adı döndürdüğü için her yeniden içe aktarım, daha önce
+                // tamamlanmış Latin/İngilizce adları CJK adla eziyordu — liste, başlık dili
+                // İngilizce seçili olsa bile yeniden Japonca/Çinceye dönüyordu (v2.4.315).
+                updates[match.id] = preserveResolvedTitles(match, imported).copy(
                     id = match.id,
                     isAdult = imported.isAdult || match.isAdult
                 ).toEntity()
@@ -525,6 +530,47 @@ internal fun List<MediaEntryEntity>.withCrossSourceAdultFlags(): List<MediaEntry
             entry.copy(isAdult = true)
         } else entry
     }
+}
+
+/**
+ * İçe aktarım güncellemesinde **çözülmüş başlıkları korur** (`smartImport` güncelleme kolu).
+ *
+ * Başlık dili sözleşmesi kütüphane satırında üç varyantla yaşar: `title` (romaji/Latin ana
+ * ad), `titleEnglish`, `titleJapanese` (özgün ad). Bazı liste uçları her seferinde yalnızca
+ * özgün adı getirir — Bangumi koleksiyon ucu (`name` / `name_cn`, infobox yok) bunun tipik
+ * örneğidir ve İngilizce/romaji adlar sonradan
+ * [com.kitsugi.animelist.data.remote.BangumiLibraryTitleHydrator] ile tamamlanır.
+ * İçe aktarım satırı körü körüne yazılırsa tamamlanmış her ad bir sonraki senkronda CJK ada
+ * geri döner ve seçili başlık dili (örn. İngilizce) kalıcı olarak yok sayılırdı.
+ *
+ * Kurallar (yalnızca yükseltme var, geriletme yok):
+ * - `title`: gelen ad CJK iken mevcut ad Latin ise mevcut korunur; gelen Latin ad her
+ *   zaman kazanır (kaynak düzeltmesi olabilir); boş gelen ad mevcutla değiştirilmez.
+ * - `titleEnglish`: Latin bir İngilizce ad gelmedikçe mevcut korunur.
+ * - `titleJapanese`: gelen özgün ad önceliklidir; yoksa mevcut, o da yoksa gelen CJK ana
+ *   başlık özgün ad olarak saklanır (sonraki çözümlemelerin arama terimi kaybolmaz).
+ */
+internal fun preserveResolvedTitles(existing: MediaEntryEntity, imported: MediaEntry): MediaEntry {
+    val importedTitle = imported.title.trim()
+    val existingTitle = existing.title.trim()
+    val title = when {
+        importedTitle.isEmpty() -> existing.title
+        PreferenceHelpers.hasCjkCharacters(importedTitle) &&
+            PreferenceHelpers.isLatinText(existingTitle) &&
+            !existingTitle.startsWith("Bangumi #") -> existing.title
+        else -> imported.title
+    }
+    val titleEnglish = imported.titleEnglish?.takeIf { PreferenceHelpers.isLatinText(it) }
+        ?: existing.titleEnglish
+        ?: imported.titleEnglish
+    val titleJapanese = imported.titleJapanese?.takeIf { it.isNotBlank() }
+        ?: existing.titleJapanese?.takeIf { it.isNotBlank() }
+        ?: importedTitle.takeIf { PreferenceHelpers.hasCjkCharacters(it) }
+    return imported.copy(
+        title = title,
+        titleEnglish = titleEnglish,
+        titleJapanese = titleJapanese
+    )
 }
 
 /**

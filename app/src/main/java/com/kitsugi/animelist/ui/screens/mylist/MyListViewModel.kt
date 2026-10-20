@@ -11,9 +11,11 @@ import com.kitsugi.animelist.model.WatchStatus
 import com.kitsugi.animelist.data.auth.ExternalAuthManager
 import com.kitsugi.animelist.data.remote.BangumiIdNamespace
 import com.kitsugi.animelist.data.remote.BangumiLibraryTitleHydrator
+import com.kitsugi.animelist.data.settings.SettingsDataStore
 import com.kitsugi.animelist.model.MediaType
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.receiveAsFlow
@@ -81,13 +83,31 @@ class MyListViewModel(application: Application) : AndroidViewModel(application) 
             AdultFlagBackfillMigration.runIfNeeded(context, dao)
         }
 
-        // Bangumi koleksiyonundan içe aktarılan satırlar YALNIZCA özgün (Japonca) adla gelir;
-        // kullanıcı "Başlık Dili" olarak Romaji/İngilizce seçtiğinde liste CJK adla çiziliyordu.
-        // Latin adları arka planda tamamla (önce önbellek, sonra subject infobox'ı / AniList).
-        // Sonuç veritabanına yazıldığı için bir sonraki açılışta hiçbir iş kalmaz.
+        // Bangumi koleksiyonundan içe aktarılan satırlar YALNIZCA özgün (Japonca/Çince)
+        // adla gelir; kullanıcı "Başlık Dili" olarak İng/Romaji seçtiğinde liste CJK adla
+        // çiziliyordu. Latin adları arka planda tamamla (önce önbellek, sonra AniList /
+        // subject infobox'ı). Sonuç veritabanına yazıldığı için bir sonraki açılışta iş kalmaz.
+        // NOT: Bu tek başına yetmez — içe aktarım init'ten SONRA biterse yeni satırlar bu
+        // taramayı kaçırır. Bu yüzden aktarım sonrası AuthViewModel ve başlık dili
+        // değişiminde ekran da aynı taramayı tetikler (bkz. refreshBangumiTitles).
+        refreshBangumiTitles()
+    }
+
+    /**
+     * Bangumi satırlarının Latin/İngilizce ad tamamlama taramasını (yeniden) başlatır.
+     *
+     * @param titleLanguage güncel başlık dili; `null` ise ayardan okunur. Dil yalnızca
+     *        İngilizce zenginleştirme kademesini etkiler — CJK gösterimi düzelten LATIN
+     *        kademesi her dilde çalışır, böylece dil sonradan değişse bile veri hazırdır.
+     *        Taramalar tamamlayıcıdaki kilitle sıraya girer; üst üste çağrı güvenlidir.
+     */
+    fun refreshBangumiTitles(titleLanguage: String? = null) {
         viewModelScope.launch(Dispatchers.IO) {
             try {
-                BangumiLibraryTitleHydrator.hydrate(KitsugiDatabase.getDatabase(context))
+                val language = titleLanguage
+                    ?: runCatching { SettingsDataStore(context).settingsFlow.first().titleLanguage }
+                        .getOrDefault("ENGLISH")
+                BangumiLibraryTitleHydrator.hydrate(KitsugiDatabase.getDatabase(context), language)
             } catch (cancelled: kotlinx.coroutines.CancellationException) {
                 throw cancelled
             } catch (error: Exception) {
