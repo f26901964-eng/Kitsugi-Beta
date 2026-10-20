@@ -74,6 +74,9 @@ jobs:
             --tests 'com.kitsugi.animelist.data.fandom.*' \
             --tests 'com.kitsugi.animelist.data.remote.MdbListClientTest' \
             --tests 'com.kitsugi.animelist.data.remote.BangumiLibraryTitleHydratorTest' \
+            --tests 'com.kitsugi.animelist.data.local.MediaEntryRepositoryTitlePreservationTest' \
+            --tests 'com.kitsugi.animelist.data.auth.BangumiImportTitlesTest' \
+            --tests 'com.kitsugi.animelist.utils.BangumiDisplayTitleLanguageTest' \
             --tests 'com.kitsugi.animelist.data.remote.BangumiSubjectTitleResolverTest' \
             --tests 'com.kitsugi.animelist.data.remote.BangumiTitleCacheTest' \
             --tests 'com.kitsugi.animelist.data.remote.KitsugiBangumiDetailClientTest' \

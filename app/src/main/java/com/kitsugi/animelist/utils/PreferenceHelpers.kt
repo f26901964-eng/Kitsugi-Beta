@@ -113,17 +113,27 @@ object PreferenceHelpers {
      * ve [BangumiTitleCache]'e yazılır; burada yalnızca bellek içi önbellek okunur —
      * ekran bekletilmez, ağ isteği yapılmaz.
      *
-     * @param resolved mevcut alanlardan çözülen ad — Latin alfabeli ve boş değilse
-     *        önbelleğe hiç bakılmaz (önbellek yalnızca eksik durumu tamamlar).
+     * @param resolved mevcut alanlardan çözülen ad. Seçili dili DB alanları zaten
+     *        karşılıyorsa önbelleğe hiç bakılmaz (önbellek yalnızca eksiği tamamlar):
+     *        `ENGLISH` için karşılama ölçütü, gösterimin gerçek (Latin) `titleEnglish`
+     *        alanından gelmesidir — romaji yedeği gösteriliyorsa önbellekteki ayrı
+     *        İngilizce ad kazanır. Diğer Latin dillerde (ROMAJI) Latin gösterim yeterlidir.
      */
     private fun MediaEntry.bangumiCachedTitleOrNull(titleLanguage: String, resolved: String): String? {
         val wantsLatin = !titleLanguage.equals("NATIVE", ignoreCase = true) &&
             !titleLanguage.equals("JAPANESE_STAFF", ignoreCase = true)
         if (!wantsLatin) return null
-        if (resolved.isNotBlank() && !hasCjkCharacters(resolved)) return null
+        val satisfiedByFields = if (titleLanguage.equals("ENGLISH", ignoreCase = true)) {
+            !titleEnglish.isNullOrBlank() && isLatinText(titleEnglish)
+        } else {
+            resolved.isNotBlank() && !hasCjkCharacters(resolved)
+        }
+        if (satisfiedByFields) return null
         if (!BangumiIdNamespace.SOURCE.equals(source.trim(), ignoreCase = true)) return null
         val rawId = BangumiIdNamespace.rawIdOrNull(malId) ?: return null
-        return BangumiTitleCache.localizedTitleFor(rawId, title, titleLanguage)
+        val cached = BangumiTitleCache.localizedTitleFor(rawId, title, titleLanguage) ?: return null
+        // Önbellek adayı hâlihazırda gösterilen adın aynısıysa (örn. romaji) dokunma.
+        return cached.takeIf { !it.equals(resolved, ignoreCase = true) }
     }
 
     fun JikanSearchResult.getDisplayTitle(titleLanguage: String): String {

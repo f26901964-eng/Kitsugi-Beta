@@ -158,6 +158,13 @@ fun MyListScreen(
         }
     }
 
+    // Başlık dili değişince (örn. Romaji → İng) Bangumi satırlarının o dile ait eksik
+    // varyantları tamamlansın; ViewModel yeniden yaratılmadığı için init taraması yetmez.
+    // İlk kompozisyonda da çalışır ama taramalar kilitle sıraya girer, mükerrer iş olmaz.
+    LaunchedEffect(appSettings.titleLanguage) {
+        viewModel.refreshBangumiTitles(appSettings.titleLanguage)
+    }
+
     val entries by viewModel.entriesFlow.collectAsState()
 
     // Save positions separately from LazyListState: an empty/loading list can clamp its

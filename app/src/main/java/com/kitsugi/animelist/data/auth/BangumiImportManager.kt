@@ -3,7 +3,9 @@ package com.kitsugi.animelist.data.auth
 import android.content.Context
 import android.util.Log
 import com.kitsugi.animelist.data.remote.BangumiIdNamespace
+import com.kitsugi.animelist.data.remote.BangumiLocalizedName
 import com.kitsugi.animelist.data.remote.BangumiNameLocalizer
+import com.kitsugi.animelist.data.remote.BangumiTitleCache
 import com.kitsugi.animelist.model.MediaEntry
 import com.kitsugi.animelist.model.MediaType
 import kotlinx.coroutines.Dispatchers
@@ -38,6 +40,43 @@ object BangumiImportManager {
         val nickname: String,
         val avatarUrl: String?
     )
+
+    /** İçe aktarım satırının başlık üçlüsü: ana (romaji/Latin) ad, İngilizce ad, özgün ad. */
+    internal data class BangumiImportTitles(
+        val title: String,
+        val titleEnglish: String?,
+        val titleJapanese: String?
+    )
+
+    /**
+     * Kısa subject adlarını kalıcı Latin ad önbelleğiyle birleştirir.
+     *
+     * Başlık dili sözleşmesi (bkz. `BangumiLibraryTitleHydrator`): kütüphane satırında
+     * `title` romaji/Latin ana adı, `titleEnglish` gerçek İngilizce adı, `titleJapanese`
+     * özgün adı tutar; gösterim seçili dile göre bu üçlüden seçilir. Koleksiyon ucu
+     * infobox döndürmediğinden [localized] çoğu zaman yalnızca özgün adı taşır — önbellekte
+     * daha önce çözülmüş bir karşılık varsa satır ilk andan itibaren dile uygun yazılır.
+     * Önbellekte yoksa davranış eskisiyle aynıdır; eksik, içe aktarım sonrası çalışan
+     * tamamlayıcıyla giderilir. Ağ/DB'ye dokunmayan saf fonksiyondur (birim testiyle doğrulanır).
+     */
+    internal fun resolveImportTitles(
+        localized: BangumiLocalizedName?,
+        cached: BangumiTitleCache.LatinTitles?,
+        fallbackTitle: String
+    ): BangumiImportTitles {
+        val cachedRomaji = cached?.romaji?.trim()?.takeIf {
+            com.kitsugi.animelist.utils.PreferenceHelpers.isLatinText(it)
+        }
+        val cachedEnglish = cached?.english?.trim()?.takeIf {
+            com.kitsugi.animelist.utils.PreferenceHelpers.isLatinText(it)
+        }
+        return BangumiImportTitles(
+            title = cachedRomaji ?: cachedEnglish ?: localized?.display ?: fallbackTitle,
+            titleEnglish = cachedEnglish ?: localized?.english,
+            titleJapanese = localized?.native
+                ?: cached?.native?.trim()?.takeIf { it.isNotEmpty() }
+        )
+    }
 
     /** Giriş sonrası profil özeti (ayarlar ekranındaki kart için). */
     suspend fun fetchUserProfile(token: String): BangumiUserProfile = withContext(Dispatchers.IO) {
@@ -82,6 +121,11 @@ object BangumiImportManager {
             )
         val collections = fetchCollectionsWithRetry(context, token, effectiveUsername, subjectType)
         Log.i(TAG, "Bangumi içe aktarma: ${collections.size} koleksiyon kaydı çekildi")
+        // Daha önce herhangi bir ekranda çözülmüş Latin/İngilizce adlar kalıcı önbellekte
+        // durur; satırları yazarken kullan ki liste ilk çizimden itibaren seçili başlık
+        // diline uysun. Önbellek henüz yüklenmediyse bu adım en iyi çabadır — eksikler içe
+        // aktarım sonrası çalışan BangumiLibraryTitleHydrator ile tamamlanır.
+        BangumiTitleCache.warmUp()
 
         val adultSubjectIds = if (resolveAdult && collections.isNotEmpty()) {
             resolveNsfwSubjectIds(token, collections.take(maxAdultLookups).map { it.subjectId })
@@ -103,7 +147,14 @@ object BangumiImportManager {
             val isBookSubject = collection.subjectType == BangumiApiClient.SubjectType.BOOK
             // Koleksiyon yanıtı kısa subject döndürür; eldeki English/romaji/özgün alanları
             // kaybetmeden sakla ki Listem ekranı da Başlık Dili ayarına uyabilsin.
+            // Kısa subject'te infobox olmadığından English/romaji çoğu zaman boştur; daha
+            // önce çözülmüş adlar kalıcı önbellekten anında tamamlanır.
             val localizedTitle = slim?.let { BangumiNameLocalizer.entity(it.name, it.nameCn) }
+            val importTitles = resolveImportTitles(
+                localized = localizedTitle,
+                cached = BangumiTitleCache.get(collection.subjectId),
+                fallbackTitle = "Bangumi #${collection.subjectId}"
+            )
 
             // İlerleme: kitap条目'larında `ep_status` güvenilirdir.动画条目'larında sunucu,
             // bölüm işaretlerinden (`打格子`) tamamlanma oranını hesaplar ve aynı alanda tutar.
@@ -112,10 +163,10 @@ object BangumiImportManager {
 
             MediaEntry(
                 id = 0,
-                title = localizedTitle?.display ?: "Bangumi #${collection.subjectId}",
+                title = importTitles.title,
                 subtitle = BangumiIdNamespace.SOURCE,
-                titleEnglish = localizedTitle?.english,
-                titleJapanese = localizedTitle?.native,
+                titleEnglish = importTitles.titleEnglish,
+                titleJapanese = importTitles.titleJapanese,
                 imageUrl = BangumiApiClient.absoluteImageUrl(slim?.images?.poster) ?: "",
                 type = mediaType,
                 status = BangumiSyncManager.bangumiStatusToWatchStatus(collection.type),
