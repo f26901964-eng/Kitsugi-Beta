@@ -39,6 +39,9 @@ class KitsugiAiringCalendarViewModel : ViewModel() {
 
     private var lastLoadedSource: String? = null
 
+    /** Son BAŞARILI yüklemenin zamanı — TTL kontrolü için (2026-10-21). */
+    private var lastLoadedAtMs: Long = 0L
+
     /**
      * Uçuştaki önceki isteği iptal etmek için Job referansı.
      * Race condition önleme: init yerine LaunchedEffect(preferredSource) başlatır.
@@ -51,7 +54,13 @@ class KitsugiAiringCalendarViewModel : ViewModel() {
     private var loadJob: Job? = null
 
     fun loadSchedule(accessToken: String? = null, preferredSource: String? = null, force: Boolean = false) {
-        if (!force && lastLoadedSource == preferredSource && weekSchedule.isNotEmpty()) return
+        // TTL (2026-10-21): Eskiden veri bir kez geldiyse ekran her açılışta onu
+        // kullanıyordu; gün/hafta değişince bayat takvim gösteriliyordu. Artık aynı
+        // kaynak için 10 dakika içinde tekrar açılışta ağa çıkılmaz, sonrasında
+        // arka planda tazelenir (eski veri ekranda kalır, boş ekran görünmez).
+        val freshEnough = weekSchedule.isNotEmpty() &&
+            (System.currentTimeMillis() - lastLoadedAtMs) < SCHEDULE_TTL_MS
+        if (!force && lastLoadedSource == preferredSource && freshEnough) return
 
         // Önceki uçuştaki isteği iptal et — race condition önlemek için kritik
         loadJob?.cancel()
@@ -64,6 +73,7 @@ class KitsugiAiringCalendarViewModel : ViewModel() {
                 val schedule = client.fetchWeeklySchedule(accessToken, preferredSource)
                 weekSchedule.clear()
                 weekSchedule.putAll(schedule)
+                lastLoadedAtMs = System.currentTimeMillis()
                 hasLoaded = true
             } catch (e: CancellationException) {
                 throw e
@@ -94,4 +104,9 @@ class KitsugiAiringCalendarViewModel : ViewModel() {
 
     /** Haftada yayın olan gün sayısı (rozet için) */
     fun totalAiringCount(): Int = weekSchedule.values.sumOf { it.size }
+
+    private companion object {
+        /** Başarılı bir takvim 10 dakika boyunca taze sayılır (ekran yeniden açılışında). */
+        const val SCHEDULE_TTL_MS = 10 * 60 * 1000L
+    }
 }
