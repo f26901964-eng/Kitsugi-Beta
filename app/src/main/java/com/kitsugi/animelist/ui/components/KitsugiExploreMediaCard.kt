@@ -167,12 +167,12 @@ fun KitsugiExploreMediaCard(
                     }
 
                     if (onQuickAddClick != null) {
+                        // Köşeye yapışık rozet: padding yok, posterin kendi clip'i köşeyi kıvar.
                         KitsugiQuickAddButton(
                             inList = alreadyInList || mediaEntry != null,
                             onClick = onQuickAddClick,
-                            modifier = Modifier
-                                .align(Alignment.TopEnd)
-                                .padding(6.dp)
+                            modifier = Modifier.align(Alignment.TopEnd),
+                            size = 28.dp
                         )
                     }
                 }
@@ -335,9 +335,8 @@ fun KitsugiExploreMediaCard(
                         KitsugiQuickAddButton(
                             inList = alreadyInList || mediaEntry != null,
                             onClick = onQuickAddClick,
-                            modifier = Modifier
-                                .align(Alignment.TopEnd)
-                                .padding(6.dp)
+                            modifier = Modifier.align(Alignment.TopEnd),
+                            size = 26.dp
                         )
                     }
                 }
@@ -481,9 +480,8 @@ fun KitsugiExploreMediaCard(
                         KitsugiQuickAddButton(
                             inList = alreadyInList || mediaEntry != null,
                             onClick = onQuickAddClick,
-                            modifier = Modifier
-                                .align(Alignment.TopEnd)
-                                .padding(6.dp)
+                            modifier = Modifier.align(Alignment.TopEnd),
+                            size = 28.dp
                         )
                     }
                 }

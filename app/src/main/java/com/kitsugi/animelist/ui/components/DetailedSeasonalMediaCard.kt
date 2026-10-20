@@ -167,9 +167,9 @@ fun DetailedSeasonalMediaCard(
                     KitsugiQuickAddButton(
                         inList = alreadyInList,
                         onClick = onQuickAddClick,
-                        modifier = Modifier
-                            .align(Alignment.TopEnd)
-                            .padding(6.dp)
+                        modifier = Modifier.align(Alignment.TopEnd),
+                        size = 24.dp,
+                        cornerRadius = 9.dp
                     )
                 }
             }

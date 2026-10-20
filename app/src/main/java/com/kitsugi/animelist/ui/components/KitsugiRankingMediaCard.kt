@@ -153,12 +153,13 @@ fun KitsugiRankingMediaCard(
                 )
 
                 if (onQuickAddClick != null) {
+                    // Liste kartında poster küçük: rozet köşeye yapışık ve daha kompakt.
                     KitsugiQuickAddButton(
                         inList = alreadyInList || mediaEntry != null,
                         onClick = onQuickAddClick,
-                        modifier = Modifier
-                            .align(Alignment.TopEnd)
-                            .padding(6.dp)
+                        modifier = Modifier.align(Alignment.TopEnd),
+                        size = 24.dp,
+                        cornerRadius = 9.dp
                     )
                 }
             }
