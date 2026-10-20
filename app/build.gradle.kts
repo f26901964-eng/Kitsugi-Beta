@@ -37,7 +37,7 @@ android {
     val bangumiClientId     = localProperties.getProperty("bangumi_client_id")     ?: "YOUR_BANGUMI_CLIENT_ID"
     val bangumiClientSecret = localProperties.getProperty("bangumi_client_secret") ?: "YOUR_BANGUMI_CLIENT_SECRET"
 
-    val appVersionName = "2.4.319"
+    val appVersionName = "2.4.320"
 
     compileSdk = 36
 
