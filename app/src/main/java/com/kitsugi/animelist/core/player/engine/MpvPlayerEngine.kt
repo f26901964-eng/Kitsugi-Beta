@@ -412,22 +412,35 @@ class MpvPlayerEngine(
     override fun setSubtitleStyle(style: SubtitleStyleSettings) {
         activeSubtitleStyle = style
         val view = mpvView ?: return
+        // Aniyomi paritesi: tüm tipografi/renk/diğer ayarlar doğrudan SubtitleStyleSettings'ten gelir.
+        val effectiveFont = style.font.takeIf { it.isNotBlank() } ?: settings.subtitleFont.ifBlank { "Sans Serif" }
+        val effectiveFontSize = style.fontSize.takeIf { it in 1..200 } ?: 55
+        val effectiveScale = style.fontScale.takeIf { it in 0.1f..10f } ?: ((style.size / 20.0f) * settings.subtitleFontScale).coerceIn(0.1f, 10f)
+        val effectiveBorderSize = style.borderSize.takeIf { it in 0..100 } ?: settings.subtitleBorderSize.toInt()
+        val effectiveBorderStyle = style.borderStyle.takeIf { it.isNotBlank() } ?: settings.subtitleBorderStyle
+        val effectiveShadowOffset = style.shadowOffset.takeIf { it in 0..100 } ?: settings.subtitleShadowOffset.toInt()
+        val effectiveBackgroundColor = style.backgroundColor
+        val effectiveBorderColor = style.borderColor
+        val effectivePos = style.pos.takeIf { it in 0..150 } ?: settings.subtitlePos
+        val finalPos = (effectivePos - style.verticalOffset / 5.0).coerceIn(0.0, 150.0)
+        val effectiveJustification = style.justification.takeIf { it.isNotBlank() } ?: settings.subtitleJustification
+        val effectiveOverrideAss = style.overrideAss || settings.subtitleOverrideAss
         val options = mapOf(
-            "sub-font" to settings.subtitleFont.ifBlank { "Sans Serif" },
-            "sub-font-size" to "55",
-            "sub-scale" to ((style.size / 20.0) * settings.subtitleFontScale).coerceIn(0.1, 10.0).toString(),
+            "sub-font" to effectiveFont,
+            "sub-font-size" to effectiveFontSize.toString(),
+            "sub-scale" to effectiveScale.toString(),
             "sub-bold" to if (style.bold) "yes" else "no",
-            "sub-italic" to if (settings.subtitleItalic) "yes" else "no",
+            "sub-italic" to if (style.italic) "yes" else "no",
             "sub-color" to String.format(java.util.Locale.US, "#%08X", style.textColor),
-            "sub-back-color" to String.format(java.util.Locale.US, "#%08X", settings.subtitleBackgroundColor),
-            "sub-border-color" to String.format(java.util.Locale.US, "#%08X", settings.subtitleBorderColor),
-            "sub-border-size" to if (style.outlineEnabled) settings.subtitleBorderSize.toString() else "0",
-            "sub-border-style" to settings.subtitleBorderStyle,
-            "sub-shadow-offset" to if (style.outlineEnabled) settings.subtitleShadowOffset.toString() else "0",
-            "sub-pos" to (settings.subtitlePos - style.verticalOffset / 5.0).coerceIn(0.0, 150.0).toString(),
-            "sub-justify" to settings.subtitleJustification,
-            "sub-ass-justify" to if (settings.subtitleOverrideAss) "yes" else "no",
-            "sub-ass-override" to if (settings.subtitleOverrideAss) "force" else "no"
+            "sub-back-color" to String.format(java.util.Locale.US, "#%08X", effectiveBackgroundColor),
+            "sub-border-color" to String.format(java.util.Locale.US, "#%08X", effectiveBorderColor),
+            "sub-border-size" to if (style.outlineEnabled) effectiveBorderSize.toString() else "0",
+            "sub-border-style" to effectiveBorderStyle,
+            "sub-shadow-offset" to if (style.outlineEnabled) effectiveShadowOffset.toString() else "0",
+            "sub-pos" to finalPos.toString(),
+            "sub-justify" to effectiveJustification,
+            "sub-ass-justify" to if (effectiveOverrideAss) "yes" else "no",
+            "sub-ass-override" to if (effectiveOverrideAss) "force" else "no"
         )
         options.forEach { (name, value) ->
             runCatching { view.mpv.setPropertyString(name, value) }

@@ -367,7 +367,20 @@ fun KitsugiFullscreenPlayerScreen(
                 size = appSettings.defaultSubtitleSize,
                 textColor = appSettings.defaultSubtitleColor,
                 bold = appSettings.subtitleBold,
-                outlineEnabled = appSettings.subtitleOutlineEnabled
+                outlineEnabled = appSettings.subtitleOutlineEnabled,
+                italic = appSettings.subtitleItalic,
+                font = appSettings.subtitleFont,
+                fontSize = 55, // MPV default, persisted via subtitleFontScale/pos but we init from 55
+                borderSize = appSettings.subtitleBorderSize.toInt().coerceIn(0, 10),
+                borderStyle = appSettings.subtitleBorderStyle,
+                shadowOffset = appSettings.subtitleShadowOffset.toInt().coerceIn(0, 10),
+                justification = appSettings.subtitleJustification,
+                backgroundColor = appSettings.subtitleBackgroundColor,
+                borderColor = appSettings.subtitleBorderColor,
+                fontScale = appSettings.subtitleFontScale,
+                pos = appSettings.subtitlePos,
+                overrideAss = appSettings.subtitleOverrideAss,
+                verticalOffset = 0
             )
             subtitleSpeed = appSettings.subtitleSpeed
             videoFilterValues = runCatching {
@@ -1553,6 +1566,17 @@ fun KitsugiFullscreenPlayerScreen(
                                 dataStore.setDefaultSubtitleColor(style.textColor)
                                 dataStore.setSubtitleBold(style.bold)
                                 dataStore.setSubtitleOutlineEnabled(style.outlineEnabled)
+                                dataStore.setSubtitleItalic(style.italic)
+                                dataStore.setSubtitleFont(style.font)
+                                dataStore.setSubtitleBorderStyle(style.borderStyle)
+                                dataStore.setSubtitleBorderSize(style.borderSize.toFloat())
+                                dataStore.setSubtitleShadowOffset(style.shadowOffset.toFloat())
+                                dataStore.setSubtitleJustification(style.justification)
+                                dataStore.setSubtitleBackgroundColor(style.backgroundColor)
+                                dataStore.setSubtitleBorderColor(style.borderColor)
+                                dataStore.setSubtitleFontScale(style.fontScale)
+                                dataStore.setSubtitlePos(style.pos)
+                                dataStore.setSubtitleOverrideAss(style.overrideAss)
                             }
                         },
                         modifier = Modifier.align(Alignment.CenterEnd)
