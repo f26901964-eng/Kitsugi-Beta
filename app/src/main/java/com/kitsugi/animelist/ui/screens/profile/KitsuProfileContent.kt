@@ -157,15 +157,11 @@ fun KitsuProfileContent(
                             .clip(CircleShape)
                             .background(KitsugiColors.Background.copy(alpha = 0.6f))
                             .clickable {
-                                val url = "https://kitsu.app/users/${state.name}"
-                                val sendIntent = android.content.Intent().apply {
-                                    action = android.content.Intent.ACTION_SEND
-                                    putExtra(android.content.Intent.EXTRA_TEXT, url)
-                                    type = "text/plain"
-                                }
-                                val shareIntent = android.content.Intent.createChooser(sendIntent, KitsugiStrings.get(R.string.profili_paylas))
-                                shareIntent.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
-                                context.startActivity(shareIntent)
+                                com.kitsugi.animelist.utils.ShareUtils.shareText(
+                                    context,
+                                    state.name,
+                                    com.kitsugi.animelist.utils.ShareUtils.buildProfileUrl("kitsu", state.name)
+                                )
                             },
                         contentAlignment = Alignment.Center
                     ) {

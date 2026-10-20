@@ -271,8 +271,9 @@ internal fun DetailHero(
 
                     // Paylaş butonu
                     val shareAction: () -> Unit = onShareClick ?: {
-                        val mediaId = entry.malId ?: entry.id
-                        val url = ShareUtils.buildMediaUrl(entry.source, mediaId, entry.type)
+                        // Kimlik yoksa `entry.id` (yerel veritabanı satırı) ASLA kullanılmaz;
+                        // çözülemezse bağlantısız paylaşılır.
+                        val url = ShareUtils.buildMediaUrl(entry)
                         ShareUtils.shareText(context, entry.title, url)
                     }
                     Box(

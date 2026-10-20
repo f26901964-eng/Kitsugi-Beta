@@ -322,7 +322,7 @@ internal fun CharacterDetailLeftPanel(
                         contentAlignment = Alignment.Center
                     ) {
                         IconButton(onClick = {
-                            val url = com.kitsugi.animelist.utils.ShareUtils.buildCharacterUrl(source, characterId)
+                            val url = com.kitsugi.animelist.utils.ShareUtils.buildCharacterUrl(source, characterId, detail.name)
                             com.kitsugi.animelist.utils.ShareUtils.shareText(context, detail.name, url)
                         }) {
                             Icon(
@@ -636,7 +636,7 @@ internal fun CharacterPortraitHeroSection(
                     contentAlignment = Alignment.Center
                 ) {
                     IconButton(onClick = {
-                        val url = com.kitsugi.animelist.utils.ShareUtils.buildCharacterUrl(source, characterId)
+                        val url = com.kitsugi.animelist.utils.ShareUtils.buildCharacterUrl(source, characterId, detail.name)
                         com.kitsugi.animelist.utils.ShareUtils.shareText(context, detail.name, url)
                     }) {
                         Icon(Icons.Rounded.Share, contentDescription = stringResource(R.string.action_share), tint = KitsugiColors.TextPrimary)
@@ -745,7 +745,7 @@ internal fun CharacterDetailStickyHeader(
                     KitsugiGalleryIconButton(onClick = { onGalleryOpen(galleryItems, 0) }, accentColor = accentColor)
                 }
                 IconButton(onClick = {
-                    val url = com.kitsugi.animelist.utils.ShareUtils.buildCharacterUrl(source, characterId)
+                    val url = com.kitsugi.animelist.utils.ShareUtils.buildCharacterUrl(source, characterId, detail.name)
                     com.kitsugi.animelist.utils.ShareUtils.shareText(context, detail.name, url)
                 }) {
                     Icon(Icons.Rounded.Share, contentDescription = stringResource(R.string.action_share), tint = KitsugiColors.TextSecondary)

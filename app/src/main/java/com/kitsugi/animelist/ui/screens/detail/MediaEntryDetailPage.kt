@@ -440,8 +440,7 @@ fun MediaEntryDetailPage(
             },
             floatingHeaderActions = {
                 IconButton(onClick = {
-                    val mediaId = displayEntry.malId ?: displayEntry.id
-                    val url = com.kitsugi.animelist.utils.ShareUtils.buildMediaUrl(displayEntry.source, mediaId, displayEntry.type)
+                    val url = com.kitsugi.animelist.utils.ShareUtils.buildMediaUrl(displayEntry)
                     com.kitsugi.animelist.utils.ShareUtils.shareText(context, displayEntry.title, url)
                 }) {
                     Icon(
@@ -760,10 +759,8 @@ fun MediaEntryDetailPage(
 
 
 
-internal fun buildExternalUrl(entry: MediaEntry): String? {
-    val id = entry.malId ?: return null
-    return com.kitsugi.animelist.utils.ShareUtils.buildExternalMediaUrl(entry.source, id, type = entry.type)
-}
+internal fun buildExternalUrl(entry: MediaEntry): String? =
+    com.kitsugi.animelist.utils.ShareUtils.buildMediaUrl(entry)
 
 internal fun progressUnit(entry: MediaEntry): String {
     return when (entry.type) {

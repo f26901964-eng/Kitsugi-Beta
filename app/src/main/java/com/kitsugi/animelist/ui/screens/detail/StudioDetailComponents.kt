@@ -183,7 +183,7 @@ internal fun StudioHeroHeader(
                     contentAlignment = Alignment.Center
                 ) {
                     IconButton(onClick = {
-                        val url = com.kitsugi.animelist.utils.ShareUtils.buildStudioUrl(source, detail.id)
+                        val url = com.kitsugi.animelist.utils.ShareUtils.buildStudioUrl(source, detail.id, detail.name.toLocalizedOrgName())
                         com.kitsugi.animelist.utils.ShareUtils.shareText(context, detail.name.toLocalizedOrgName(), url)
                     }) {
                         Icon(
@@ -456,7 +456,7 @@ internal fun StudioDetailLeftPanel(
                         contentAlignment = Alignment.Center
                     ) {
                         IconButton(onClick = {
-                            val url = com.kitsugi.animelist.utils.ShareUtils.buildStudioUrl(source, studioId)
+                            val url = com.kitsugi.animelist.utils.ShareUtils.buildStudioUrl(source, studioId, detail.name.toLocalizedOrgName())
                             com.kitsugi.animelist.utils.ShareUtils.shareText(context, detail.name.toLocalizedOrgName(), url)
                         }) {
                             Icon(

@@ -645,10 +645,8 @@ private fun DetailPill(
     }
 }
 
-private fun buildExternalUrl(entry: MediaEntry): String? {
-    val id = entry.malId ?: return null
-    return com.kitsugi.animelist.utils.ShareUtils.buildExternalMediaUrl(entry.source, id, type = entry.type)
-}
+private fun buildExternalUrl(entry: MediaEntry): String? =
+    com.kitsugi.animelist.utils.ShareUtils.buildMediaUrl(entry)
 
 private fun statusColor(status: WatchStatus): Color {
     return when (status) {

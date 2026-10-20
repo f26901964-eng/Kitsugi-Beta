@@ -705,7 +705,7 @@ private fun StudioDetailSuccessContent(
                         KitsugiGalleryIconButton(onClick = onOpenGallery, accentColor = accentColor)
                     }
                     IconButton(onClick = {
-                        val url = com.kitsugi.animelist.utils.ShareUtils.buildStudioUrl(source, detail.id)
+                        val url = com.kitsugi.animelist.utils.ShareUtils.buildStudioUrl(source, detail.id, detail.name.toLocalizedOrgName())
                         com.kitsugi.animelist.utils.ShareUtils.shareText(context, detail.name.toLocalizedOrgName(), url)
                     }) {
                         Icon(Icons.Rounded.Share, contentDescription = stringResource(R.string.action_share), tint = KitsugiColors.TextSecondary)

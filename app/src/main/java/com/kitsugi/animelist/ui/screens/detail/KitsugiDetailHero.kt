@@ -391,8 +391,18 @@ fun KitsugiDetailHero(
                             if (onShareClick != null) {
                                 onShareClick()
                             } else {
-                                val mediaType = if (typeLabel.contains("MANGA", ignoreCase = true)) com.kitsugi.animelist.model.MediaType.Manga else com.kitsugi.animelist.model.MediaType.Anime
-                                val url = com.kitsugi.animelist.utils.ShareUtils.buildMediaUrl(source, 0, mediaType)
+                                // Kimlik bilgisi burada yok: sayfanın kendi kaydından
+                                // (artworkItem) çözülür. `0` gibi sahte kimlikle URL üretilmez;
+                                // çözülemezse başlık bağlantısız paylaşılır (404 link yok).
+                                val url = artworkItem?.let { item ->
+                                    com.kitsugi.animelist.utils.ShareLinks.mediaUrl(
+                                        source = item.source,
+                                        storedId = item.malId,
+                                        type = item.type,
+                                        tmdbId = item.tmdbId,
+                                        realMalId = item.realMalId
+                                    )
+                                }
                                 com.kitsugi.animelist.utils.ShareUtils.shareText(context, title, url)
                             }
                         }) {
