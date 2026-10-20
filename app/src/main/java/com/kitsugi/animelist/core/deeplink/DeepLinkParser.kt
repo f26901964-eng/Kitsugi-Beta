@@ -62,7 +62,7 @@ sealed interface TvDeepLink {
     ) : TvDeepLink
 }
 
-private const val SCHEME = "Kitsugianimelist"
+private const val SCHEME = "kitsugianimelist"
 private const val VERSION_V1 = "v1"
 
 object DeepLinkParser {

@@ -32,6 +32,7 @@ class FileLoggingTreeTest {
     @Test
     fun `test file log writing`() {
         FileLoggingTree.d("TestTag", "Hello logging world!")
+        FileLoggingTree.flush()
         val logFile = FileLoggingTree.getLogFile(mockContext)
         assertTrue(logFile.exists())
         val text = logFile.readText()
@@ -42,6 +43,7 @@ class FileLoggingTreeTest {
     fun `test clear logs`() {
         FileLoggingTree.i("TestTag", "Initial line")
         FileLoggingTree.clearLogs(mockContext)
+        FileLoggingTree.flush()
         val text = FileLoggingTree.getLogFile(mockContext).readText()
         assertTrue(text.contains("Kitsugi Debug Log Dosyası Temizlendi"))
         assertFalse(text.contains("Initial line"))
@@ -64,6 +66,7 @@ class FileLoggingTreeTest {
         
         // Log one more message, which should trigger rotation
         FileLoggingTree.w("TestTag", "Rotated warning message")
+        FileLoggingTree.flush()
         
         // The file size should now be reduced (approx half or less)
         assertTrue(logFile.length() < 5 * 1024 * 1024L)

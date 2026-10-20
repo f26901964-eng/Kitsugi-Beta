@@ -85,6 +85,13 @@ object FileLoggingTree {
 
     fun getLogFilePath(context: Context): String = getOrCreateLogFile(context).absolutePath
 
+    fun flush() {
+        val future = logExecutor.submit { /* flush drain */ }
+        try {
+            future.get(2, java.util.concurrent.TimeUnit.SECONDS)
+        } catch (_: Exception) {}
+    }
+
     @Synchronized
     fun clearLogs(context: Context) {
         logExecutor.execute {
