@@ -30,10 +30,21 @@ import com.kitsugi.animelist.utils.isTechnicalTranslationValue
  *
  *  - [translateSectionBlocks]: bölümü **blok blok** çevirir; her blok kendi anahtarına
  *    yazılır. Böylece Google'ın satır birleştirmesi yapıyı bozamaz.
- *  - Bağlantı etiketleri çeviriye gönderilmez; yalnızca aralarındaki düz metin
- *    çevrilir. Bağlantı sırası ve etiketleri sağlayıcının yanıtından bağımsız korunur.
+ *  - **Mavi (bağlantı) metinler de çevrilir** — ama asla sağlayıcının insafına bırakılmaz:
+ *    her bağlantı etiketi `⟦L2⟧Etiket⟦/2⟧` biçiminde bir **yuva** ile sarılır. Sağlayıcı
+ *    cümleyi tek parça hâlinde çevirir (böylece "678 articles" + "ve" gibi boşluksuz
+ *    birleşmeler olmaz), etiket tam olarak aynı konumda kalır, URL hiç gönderilmez.
+ *  - Jetonlar bozulursa (sağlayıcı bir yuvayı düşürürse) **güvenli yedeğe** düşülür: metin
+ *    parça parça çevrilir, etiketler orijinal kalır — bağlantı yine kopmaz.
+ *  - Çevrilmiş etiketler blok anahtarının çocuğu olarak saklanır
+ *    ([WikiStructuredTranslationKeys.link]) ve [withTranslatedBlocks] bunları
+ *    `FandomBlockLink.label` alanına geri yazar; `url` **hiç değişmez**. Metin çevrilmiş
+ *    etiketi taşırken bağlantı listesinin orijinal etiketi taşıması, mavi alanların
+ *    tıklanabilirliğini kaybetmesi demek olurdu.
  *  - [withTranslatedBlocks]: çevrilmiş metinleri orijinal blok **sırasına ve türüne**
- *    geri oturtur; görsel/kart/bağlantı alanları aynen korunur.
+ *    geri oturtur; görsel/kart/bağlantı alanları aynen korunur. Bağlantı çözülemeyecekse
+ *    (eski önbellek, kopuk çeviri) o bloğun çevirisi reddedilir — kırık mavi metin yerine
+ *    orijinal gösterilir.
  *  - [isTechnicalWikiValue]: URL, dosya adı, `File:` ad alanı gibi teknik değerler
  *    çeviriye hiç gönderilmez.
  *  - [translateRowsPreservingStructure]: çok satırlı (bilgi kutusu) çevirilerde satır
@@ -55,12 +66,23 @@ internal object WikiStructuredTranslationKeys {
     /** Görsel altı açıklaması (figcaption) için çocuk anahtar son eki. */
     private const val CAPTION_SUFFIX = ":i"
 
+    /** Satır içi (mavi) bağlantı etiketinin çevirisi için çocuk anahtar son eki. */
+    private const val LINK_SUFFIX = ":l"
+
     fun block(baseKey: String, index: Int): String = "$baseKey$SEPARATOR$index"
 
     fun subtitle(baseKey: String, index: Int): String = "$baseKey$SEPARATOR$index$SUBTITLE_SUFFIX"
 
     /** Görselin ALTINDAKİ yazı; görsel URL'si ve dosya adı asla çevrilmez. */
     fun caption(baseKey: String, index: Int): String = "$baseKey$SEPARATOR$index$CAPTION_SUFFIX"
+
+    /**
+     * Bloğun [FandomTextBlock.links] listesindeki [linkIndex]. sıradaki bağlantının
+     * **çevrilmiş etiketi**. Dokunma hedefi (`url`) bu anahtarda tutulmaz: URL zaten
+     * blok verisindedir ve çeviriye hiç gönderilmez.
+     */
+    fun link(baseKey: String, index: Int, linkIndex: Int): String =
+        "$baseKey$SEPARATOR$index$LINK_SUFFIX$linkIndex"
 
     fun isChildKey(key: String): Boolean = key.contains(SEPARATOR)
 
@@ -95,19 +117,34 @@ internal fun Map<String, String>.hasWikiTranslation(baseKey: String): Boolean =
     }
 
 /**
+ * Tek bir bloğun çeviri sonucu.
+ *
+ * [text] çevrilmiş metindir; mavi (bağlantı) etiketleri **tam olarak kendi konumunda**
+ * çevrilmiş hâlde gelir. [linkLabels] ise "blok bağlantı listesindeki sıra → çevrilmiş
+ * etiket" eşlemesidir. Bu eşleme kalıcılaştırılmazsa metin çevrilmiş etiketi taşırken
+ * `links` listesi orijinal etiketi taşır ve mavi alanlar tıklanamaz hâle gelir.
+ */
+internal data class WikiTranslatedBlockText(
+    val text: String,
+    val linkLabels: Map<Int, String> = emptyMap()
+)
+
+/**
  * Bir bölümün bloklarını **tek tek** çevirir ve blok anahtarına göre sonuçları döner.
  *
- * Kurallar (hepsi "yapı bozulmasın" hedefine hizmet eder):
+ * Kurallar (hepsi "yapı bozulmasın, bağlantı kopmasın" hedefine hizmet eder):
  *  - Görsel URL'leri ve konumları korunur; açıklamaları yerinde çevrilir.
  *  - Bağlantı çipleri ([FandomBlockKind.LINK_GROUP]) yalnızca başlık metniyle çevrilir;
- *    çip etiketleri sayfa adıdır, orijinal kalır.
- *  - Kart başlığı bir sayfaya bağlanıyorsa ([FandomTextBlock.href] dolu) çevrilmez;
- *    yalnızca alt satırdaki bağlantı dışı metin (tarih vb.) çevrilir.
- *  - Bağlantı içeren paragraflarda yalnızca bağlantılar arasındaki yazılar çevrilir.
+ *    çip etiketleri sayfa adıdır, orijinal kalır (kart başlığıyla aynı kural).
+ *  - Satır içi (mavi) bağlantı etiketleri de çevrilir; konumları ve dokunma hedefleri
+ *    korunur. Çeviri metni ile `links` etiketleri **birlikte** yazılır.
+ *  - Kart başlığı bir sayfaya bağlanıyorsa ([FandomTextBlock.href] dolu) sayfa adı olarak
+ *    kalır; yalnızca gerçek cümle görünümlü başlıklar çevrilir (ana sayfa kartları).
  *  - Teknik değerler (URL, dosya adı, `File:` ad alanı) hiç gönderilmez.
  *
- * @param onBlock her blok tamamlandığında çağrılır (akan UI güncellemesi için):
- *   (çocuk anahtar, çevrilmiş değer).
+ * @param onBlock her çocuk değer tamamlandığında çağrılır (akan UI güncellemesi için):
+ *   (çocuk anahtar, çevrilmiş değer). Bağlantı etiketleri metinden ÖNCE yayınlanır ki
+ *   metin göründüğü ilk karede mavi alanlar zaten tıklanabilir olsun.
  */
 internal suspend fun translateSectionBlocks(
     baseKey: String,
@@ -119,17 +156,35 @@ internal suspend fun translateSectionBlocks(
     val entries = LinkedHashMap<String, String>()
 
     content.blocks.forEachIndexed { index, block ->
+        // Blok başına TEK etiket haritası: metin, alt satır ve görsel açıklaması aynı
+        // bağlantı için aynı çevrilmiş etiketi taşımalı, yoksa `links` listesi bunlardan
+        // birini bulamaz ve mavi alan tıklanabilirliğini kaybeder.
+        val blockLabels = LinkedHashMap<Int, String>()
+
+        fun publishLabels(labels: Map<Int, String>) {
+            labels.forEach { (linkIndex, label) ->
+                if (label.isBlank() || blockLabels[linkIndex] == label) return@forEach
+                blockLabels[linkIndex] = label
+                val linkKey = WikiStructuredTranslationKeys.link(baseKey, index, linkIndex)
+                entries[linkKey] = label
+                onBlock(linkKey, label)
+            }
+        }
+
         if (block.kind == FandomBlockKind.IMAGE) {
             // Görselin kendisi, URL'si ve dosya adı çeviriye GİTMEZ; yalnızca altındaki
             // açıklama (figcaption) beyaz metin olduğu için çevrilir. Blok sırası ve
-            // görselin konumu değişmez.
+            // görselin konumu değişmez. Açıklama mavi bağlantı içeriyorsa o etiket de
+            // yerinde çevrilir (yuvalı akış).
             val caption = block.image?.caption
             if (!caption.isNullOrBlank() && !isTechnicalWikiValue(caption)) {
-                val translatedCaption = translateOrNull(translate, caption)
-                if (!translatedCaption.isNullOrBlank() && translatedCaption != caption) {
-                    val childKey = WikiStructuredTranslationKeys.caption(baseKey, index)
-                    entries[childKey] = translatedCaption
-                    onBlock(childKey, translatedCaption)
+                translateBlockText(caption, block, translate)?.let { translated ->
+                    publishLabels(translated.linkLabels)
+                    if (translated.text.isNotBlank() && translated.text != caption) {
+                        val childKey = WikiStructuredTranslationKeys.caption(baseKey, index)
+                        entries[childKey] = translated.text
+                        onBlock(childKey, translated.text)
+                    }
                 }
             }
             return@forEachIndexed
@@ -137,21 +192,30 @@ internal suspend fun translateSectionBlocks(
 
         val sourceText = block.text
         if (shouldTranslateBlockText(block) && !isTechnicalWikiValue(sourceText)) {
-            val translated = translateBlockText(sourceText, block, translate)
-            if (!translated.isNullOrBlank() && translated != sourceText) {
-                val childKey = WikiStructuredTranslationKeys.block(baseKey, index)
-                entries[childKey] = translated
-                onBlock(childKey, translated)
+            translateBlockText(sourceText, block, translate)?.let { translated ->
+                publishLabels(translated.linkLabels)
+                if (translated.text.isNotBlank() && translated.text != sourceText) {
+                    val childKey = WikiStructuredTranslationKeys.block(baseKey, index)
+                    entries[childKey] = translated.text
+                    onBlock(childKey, translated.text)
+                }
             }
         }
 
         val subtitle = block.subtitle
         if (block.kind == FandomBlockKind.CARD && !subtitle.isNullOrBlank() && !isTechnicalWikiValue(subtitle)) {
-            val translatedSubtitle = translateBlockText(subtitle, block, translate)
-            if (!translatedSubtitle.isNullOrBlank() && translatedSubtitle != subtitle) {
-                val childKey = WikiStructuredTranslationKeys.subtitle(baseKey, index)
-                entries[childKey] = translatedSubtitle
-                onBlock(childKey, translatedSubtitle)
+            translateBlockText(
+                text = subtitle,
+                block = block,
+                translate = translate,
+                preferredLabels = blockLabels
+            )?.let { translated ->
+                publishLabels(translated.linkLabels)
+                if (translated.text.isNotBlank() && translated.text != subtitle) {
+                    val childKey = WikiStructuredTranslationKeys.subtitle(baseKey, index)
+                    entries[childKey] = translated.text
+                    onBlock(childKey, translated.text)
+                }
             }
         }
     }
@@ -160,58 +224,72 @@ internal suspend fun translateSectionBlocks(
 }
 
 /**
- * Kart başlığı bir wiki sayfasına bağlıysa orijinal kalır: başlık, dokunma hedefinin
- * (URL) okunabilir adıdır. Kullanıcı çevrilmiş adı görüp başka bir sayfaya gitmesin.
+ * Kart başlığı bir sayfaya bağlıysa **sayfa adı** olarak kalır: başlık, dokunma hedefinin
+ * okunabilir adıdır. Ancak Fandom ana sayfalarındaki kartlarda başlık gerçek bir cümledir
+ * ("This wiki is dedicated to everything related to…"); bunlar çevrilmediğinde sayfada
+ * yarım kalmış İngilizce paragraf kalıyordu. Cümle görünümlü kart başlığı çevrilir,
+ * `href` yine korunur.
  */
 private fun shouldTranslateBlockText(block: FandomTextBlock): Boolean {
     if (block.kind != FandomBlockKind.CARD) return true
-    return block.href.isNullOrBlank()
+    if (block.href.isNullOrBlank()) return true
+    return block.text.looksLikeSentence()
 }
+
+/** Sayfa adı mı, cümle mi? Cümleler uzun ve çok kelimelidir; kısa adlar olduğu gibi kalır. */
+private fun String.looksLikeSentence(): Boolean {
+    val trimmed = trim()
+    if (trimmed.length >= 80) return true
+    if (trimmed.count { it == ' ' } >= 8) return true
+    return trimmed.endsWith("!") || trimmed.endsWith("?") || trimmed.endsWith("…")
+}
+
+// --------------------------------------------------------------- yuvalı (mavi) çeviri
 
 /**
- * Bağlantı içeren metinlerde etiketleri koruyarak çevirir.
- * Etiketler ve sıraları asla sağlayıcıya emanet edilmez.
+ * Bağlantı etiketlerini çeviriye "yuvalı" göndermek için kullanılan jetonlar:
+ * `⟦L2⟧Shido⟦/2⟧`. Sağlayıcı cümleyi bir bütün olarak çevirir, etiket tam olarak aynı
+ * konumda kalır, URL hiç gönderilmez. Tek istek yeter: hem cümle hem etiket çevrilir.
+ *
+ * Jetonlar bilinçli olarak `⟪…⟫` biçiminde DEĞİL: çeviri altyapısı yanıt sonundaki
+ * tanınmayan `⟪…⟫` jetonlarını temizler, `⟦…⟧` biçimi o temizlikten etkilenmez.
  */
-private suspend fun translateBlockText(
-    text: String,
-    block: FandomTextBlock,
-    translate: suspend (String) -> String
-): String? {
-    val links = block.inlineTranslationLinks()
-    if (links.isEmpty()) {
-        return translateOrNull(translate, text)
-    }
+private const val LINK_MARK_OPEN = "⟦L"
+private const val LINK_MARK_END = "⟦/"
+private const val LINK_MARK_CLOSE = "⟧"
 
-    // Bir cümleyi jetonlarla topluca çevirmek etiketlerin yer değiştirmesine yol açabilir.
-    // Yalnızca etiketler ARASINDAKİ metni çevir; bağlantıları kendi yuvalarında tut.
-    val protectedRanges = linkLabelRanges(text, links)
-    if (protectedRanges.isEmpty()) return translateOrNull(translate, text)
+private fun linkOpenMark(slot: Int): String = "$LINK_MARK_OPEN$slot$LINK_MARK_CLOSE"
 
-    val result = StringBuilder(text.length)
-    var cursor = 0
-    for (range in protectedRanges) {
-        if (cursor < range.first) {
-            result.append(translateTextSegment(text.substring(cursor, range.first), translate))
-        }
-        result.append(text.substring(range.first, range.last + 1))
-        cursor = range.last + 1
-    }
-    if (cursor < text.length) {
-        result.append(translateTextSegment(text.substring(cursor), translate))
-    }
-    return result.toString().takeIf { it.isNotBlank() }
-}
+private fun linkCloseMark(slot: Int): String = "$LINK_MARK_END$slot$LINK_MARK_CLOSE"
 
-/** Çevirici ve çizici aynı, çakışmayan bağlantı sınırlarını kullanır. */
-internal data class WikiLinkRange(val range: IntRange, val link: FandomBlockLink)
+private fun linkOpenRegex(slot: Int): Regex = Regex("""⟦\s*L\s*$slot\s*⟧""")
+
+private fun linkCloseRegex(slot: Int): Regex = Regex("""⟦\s*/\s*$slot\s*⟧""")
+
+/** Yanıtta kalan (bozulmuş) jetonlar: kullanıcı asla `⟦L0⟧` görmemeli. */
+private val LEFTOVER_LINK_MARK = Regex("""⟦\s*/?\s*L?\s*\d+\s*⟧""")
+
+/** Yuva yer tutucusu; etiketler çeviri yanıtından ayrıştırıldıktan sonra geri yazılır. */
+private const val SLOT_MARK = "\u0001"
+
+private fun slotPlaceholder(slot: Int): String = "$SLOT_MARK$slot$SLOT_MARK"
+
+/** Bir bağlantının metindeki yeri + hangi bağlantıya gittiği. */
+internal data class WikiLinkRange(
+    val range: IntRange,
+    val link: FandomBlockLink,
+    /** [FandomTextBlock.links] içindeki sıra; çevrilmiş etiket anahtarı bununla yazılır. */
+    val linkIndex: Int = -1
+)
 
 internal fun wikiLinkRanges(text: String, links: List<FandomBlockLink>): List<WikiLinkRange> {
     val candidates = ArrayList<WikiLinkRange>()
     links.asSequence()
-        .filter { it.label.isNotBlank() && it.url.isNotBlank() }
-        .groupBy { it.label }
+        .withIndex()
+        .filter { it.value.label.isNotBlank() && it.value.url.isNotBlank() }
+        .groupBy { it.value.label }
         .entries.sortedByDescending { it.key.length }
-        .forEach { (label, targets) ->
+        .forEach { (label, indexed) ->
             var occurrence = 0
             var from = 0
             while (from < text.length) {
@@ -223,9 +301,10 @@ internal fun wikiLinkRanges(text: String, links: List<FandomBlockLink>): List<Wi
                 val leftBoundary = start == 0 || !label.first().isLatinWordChar() || !text[start - 1].isLatinWordChar()
                 val rightBoundary = end == text.length || !label.last().isLatinWordChar() || !text[end].isLatinWordChar()
                 if (leftBoundary && rightBoundary && candidates.none {
-                    range.first <= it.range.last && it.range.first <= range.last
-                }) {
-                    candidates += WikiLinkRange(range, targets[occurrence.coerceAtMost(targets.lastIndex)])
+                        range.first <= it.range.last && it.range.first <= range.last
+                    }) {
+                    val target = indexed[occurrence.coerceAtMost(indexed.lastIndex)]
+                    candidates += WikiLinkRange(range, target.value, target.index)
                     occurrence++
                 }
                 from = end
@@ -238,8 +317,154 @@ internal fun wikiLinkRanges(text: String, links: List<FandomBlockLink>): List<Wi
 private fun Char.isLatinWordChar(): Boolean =
     isDigit() || Character.UnicodeScript.of(code) == Character.UnicodeScript.LATIN
 
-private fun linkLabelRanges(text: String, links: List<FandomBlockLink>): List<IntRange> =
-    wikiLinkRanges(text, links).map { it.range }
+/**
+ * Blok metnini çevirir; bağlantı varsa etiketleri **yuva** içinde gönderir.
+ *
+ * Dönen metin her zaman blok sırasına uyar. Etiketlerin çevrilmiş hâli
+ * ([WikiTranslatedBlockText.linkLabels]) çağıran tarafından kalıcılaştırılır.
+ *
+ * [preferredLabels] bir blokta daha önce (ör. başlık metninde) çevrilmiş etiketleri taşır;
+ * aynı `links` listesini paylaşan alt satır da bu etiketleri kullanır ki tek bir bağlantı
+ * için iki farklı çeviri oluşmasın.
+ */
+private suspend fun translateBlockText(
+    text: String,
+    block: FandomTextBlock,
+    translate: suspend (String) -> String,
+    preferredLabels: Map<Int, String> = emptyMap()
+): WikiTranslatedBlockText? {
+    val links = block.inlineTranslationLinks()
+    if (links.isEmpty()) {
+        return translateOrNull(translate, text)?.let { WikiTranslatedBlockText(it) }
+    }
+
+    val ranges = wikiLinkRanges(text, links)
+    if (ranges.isEmpty()) {
+        return translateOrNull(translate, text)?.let { WikiTranslatedBlockText(it) }
+    }
+
+    // TEK istek: cümle + etiketler birlikte. Böylece "678 articles" + "ve" gibi parça
+    // parça çeviriden doğan boşluksuz birleşmeler olmaz ve ek etiket isteği gerekmez.
+    val marked = markLinkSpans(text, ranges)
+    val translatedMarked = translateOrNull(translate, marked) ?: return null
+
+    val parsed = parseLinkSpans(translatedMarked, ranges.size)
+        // Jetonlar bozulduysa güvenli yedek: parçaları ayrı ayrı çevir, etiketleri orijinal
+        // bırak. Kırık bağlantı göstermektense mavi metin çevrilmeden kalır.
+        ?: return translateLinkedSegments(text, ranges, translate)
+
+    var out = parsed.text
+    val labels = LinkedHashMap<Int, String>()
+    parsed.slotLabels.forEach { (slot, providerLabel) ->
+        val range = ranges[slot]
+        val linkIndex = if (range.linkIndex >= 0) range.linkIndex else block.links.indexOf(range.link)
+        val label = preferredLabels[linkIndex]?.takeIf { it.isNotBlank() }
+            ?: providerLabel.takeIf { it.isNotBlank() }
+            ?: range.link.label
+        if (linkIndex >= 0) labels[linkIndex] = label
+        out = out.replace(slotPlaceholder(slot), label)
+    }
+
+    if (labels.isEmpty()) {
+        return WikiTranslatedBlockText(out)
+    }
+    // Yalnızca gerçekten değişen etiketler saklanır; orijinaliyle aynı kalan etiket
+    // gereksiz anahtar üretmez.
+    val changedLabels = labels.filterKeys { linkIndex ->
+        block.links.getOrNull(linkIndex)?.label != labels[linkIndex]
+    }
+    return WikiTranslatedBlockText(out, changedLabels)
+}
+
+/** Metindeki bağlantı etiketlerini `⟦L0⟧Etiket⟦/0⟧` yuvalarına çevirir. */
+private fun markLinkSpans(text: String, ranges: List<WikiLinkRange>): String {
+    val builder = StringBuilder(text.length + ranges.size * 8)
+    var cursor = 0
+    ranges.forEachIndexed { slot, range ->
+        builder.append(text, cursor, range.range.first)
+        builder.append(linkOpenMark(slot))
+        builder.append(text, range.range.first, range.range.last + 1)
+        builder.append(linkCloseMark(slot))
+        cursor = range.range.last + 1
+    }
+    builder.append(text, cursor, text.length)
+    return builder.toString()
+}
+
+private class ParsedLinkSpans(
+    /** Yuvaların yerine [slotPlaceholder] konmuş metin (yuva sırasıyla). */
+    val text: String,
+    /** Yuva → sağlayıcının döndürdüğü etiket metni. */
+    val slotLabels: Map<Int, String>
+)
+
+/**
+ * Çevrilmiş metindeki yuvaları çözer.
+ *
+ * Her yuva **tam olarak bir kez** açılıp kapanmalı ve yuvalar üst üste binmemelidir. Aksi
+ * hâlde `null` döner: eksik/kaymış bir jetonla devam etmek, bir bağlantının cümlenin
+ * tamamını yutmasına (ya da metnin bir bölümünün kaybolmasına) yol açabilir. Bu durumda
+ * güvenli yedeğe düşülür.
+ */
+private fun parseLinkSpans(marked: String, slotCount: Int): ParsedLinkSpans? {
+    if (slotCount <= 0) return ParsedLinkSpans(marked.replace(LEFTOVER_LINK_MARK, ""), emptyMap())
+
+    val slots = ArrayList<IntArray>(slotCount) // [openStart, openEnd, closeStart, closeEnd, slot]
+    for (slot in 0 until slotCount) {
+        val openMatch = linkOpenRegex(slot).findAll(marked).toList()
+        val closeMatch = linkCloseRegex(slot).findAll(marked).toList()
+        if (openMatch.size != 1 || closeMatch.size != 1) return null
+        val open = openMatch.first()
+        val close = closeMatch.first()
+        if (close.range.first <= open.range.last) return null
+        slots += intArrayOf(open.range.first, open.range.last + 1, close.range.first, close.range.last + 1, slot)
+    }
+
+    slots.sortBy { it[0] }
+    var cursor = 0
+    val builder = StringBuilder(marked.length)
+    val labels = LinkedHashMap<Int, String>()
+    for (slot in slots) {
+        val openStart = slot[0]
+        val openEnd = slot[1]
+        val closeStart = slot[2]
+        val closeEnd = slot[3]
+        val slotIndex = slot[4]
+        if (openStart < cursor || closeStart < openEnd) return null
+        builder.append(marked, cursor, openStart)
+        val label = marked.substring(openEnd, closeStart).trim()
+        builder.append(slotPlaceholder(slotIndex))
+        labels[slotIndex] = label
+        cursor = closeEnd
+    }
+    builder.append(marked, cursor, marked.length)
+    return ParsedLinkSpans(builder.toString().replace(LEFTOVER_LINK_MARK, ""), labels)
+}
+
+/**
+ * GÜVENLİ YEDEK yol: bağlantı etiketlerine dokunmadan yalnızca **etiketler arasındaki**
+ * metni çevirir. Jetonlar bozulduğunda kullanılır; mavi metin orijinal dilinde kalır ama
+ * konumu, dokunma hedefi ve cümle yapısı korunur.
+ */
+private suspend fun translateLinkedSegments(
+    text: String,
+    ranges: List<WikiLinkRange>,
+    translate: suspend (String) -> String
+): WikiTranslatedBlockText? {
+    val result = StringBuilder(text.length)
+    var cursor = 0
+    for (range in ranges) {
+        if (cursor < range.range.first) {
+            result.append(translateTextSegment(text.substring(cursor, range.range.first), translate))
+        }
+        result.append(text.substring(range.range))
+        cursor = range.range.last + 1
+    }
+    if (cursor < text.length) {
+        result.append(translateTextSegment(text.substring(cursor), translate))
+    }
+    return result.toString().takeIf { it.isNotBlank() }?.let { WikiTranslatedBlockText(it) }
+}
 
 /**
  * Bağlantı etiketleri arasındaki boşluk/noktalama parçalarını gereksiz ağ isteğine çevirmez.
@@ -277,9 +502,13 @@ private suspend fun translateOrNull(
 /**
  * Çevrilmiş blok metinlerini **orijinal yapıya** geri oturtur.
  *
- * Blok sayısı, tür sırası, görseller, kartlar, `href` ve bağlantı listeleri birebir korunur;
- * yalnızca metin alanları değişir. Hiçbir blok için çeviri yoksa `null` döner (çağıran
- * orijinal içeriği çizer).
+ * Blok sayısı, tür sırası, görseller, kartlar, `href` ve bağlantı **URL'leri** birebir
+ * korunur; yalnızca metin alanları ve bağlantıların görünen etiketleri değişir. Hiçbir
+ * blok için çeviri yoksa `null` döner (çağıran orijinal içeriği çizer).
+ *
+ * Ekran okuyucu/önbellek güvenliği: bir bloğun çevrilmiş metni kendi bağlantılarını
+ * çözemiyorsa (eski önbellek, kopuk çeviri) o yüzeyin çevirisi **reddedilir**; mavi alanlar
+ * tıklanamaz hâle gelmez.
  */
 internal fun FandomSectionContent.withTranslatedBlocks(
     baseKey: String,
@@ -288,44 +517,87 @@ internal fun FandomSectionContent.withTranslatedBlocks(
     if (blocks.isEmpty() || translations.isEmpty()) return null
     var changed = false
     val next = blocks.mapIndexed { index, block ->
-        val text = translations[WikiStructuredTranslationKeys.block(baseKey, index)]
-        val subtitle = translations[WikiStructuredTranslationKeys.subtitle(baseKey, index)]
-        val caption = translations[WikiStructuredTranslationKeys.caption(baseKey, index)]
-        val image = if (caption != null && block.image != null) {
-            block.image.copy(caption = caption)
+        val rawText = translations[WikiStructuredTranslationKeys.block(baseKey, index)]
+        val rawSubtitle = translations[WikiStructuredTranslationKeys.subtitle(baseKey, index)]
+        val rawCaption = translations[WikiStructuredTranslationKeys.caption(baseKey, index)]
+
+        // Mavi metinlerin çevrilmiş etiketleri: yalnızca `label` değişir, `url` asla.
+        val relinked = block.links.mapIndexed { linkIndex, link ->
+            val translatedLabel = translations[WikiStructuredTranslationKeys.link(baseKey, index, linkIndex)]
+                ?.takeIf { it.isNotBlank() }
+            if (translatedLabel == null || translatedLabel == link.label) link else link.copy(label = translatedLabel)
+        }
+
+        val translatedText = rawText?.takeIf { candidate ->
+            shouldTranslateBlockText(block) &&
+                !isTechnicalWikiValue(candidate) &&
+                keepsLinks(block.text, candidate, block.links, relinked)
+        }
+        val translatedSubtitle = rawSubtitle?.takeIf { candidate ->
+            !isTechnicalWikiValue(candidate) && keepsLinks(block.subtitle, candidate, block.links, relinked)
+        }
+        val translatedCaption = rawCaption?.takeIf { candidate ->
+            block.image != null && !isTechnicalWikiValue(candidate) &&
+                keepsLinks(block.image?.caption, candidate, block.links, relinked)
+        }
+        val image = if (translatedCaption != null) {
+            block.image?.copy(caption = translatedCaption)
         } else {
             block.image
         }
-        if (text == null && subtitle == null && image == block.image) {
+        // Etiket çevirisi yalnızca gerçekten uygulanan bir yüzey varsa devreye girer;
+        // aksi hâlde orijinal (çevrilmemiş) metin kendi etiketini kaybederdi.
+        val appliedAny = translatedText != null || translatedSubtitle != null || translatedCaption != null
+        val links = if (appliedAny) relinked else block.links
+
+        if (translatedText == null && translatedSubtitle == null &&
+            image == block.image && links == block.links
+        ) {
             block
         } else {
             changed = true
             FandomTextBlock(
                 kind = block.kind,
-                text = text ?: block.text,
+                text = translatedText ?: block.text,
                 image = image,
                 href = block.href,
-                subtitle = subtitle ?: block.subtitle,
-                links = block.links
+                subtitle = translatedSubtitle ?: block.subtitle,
+                links = links
             )
         }
     }
     return if (changed) copy(blocks = next) else null
 }
 
-// LINK_GROUP bağlantıları başlığın içinde değil, ayrı çiplerde çizilir.
+/**
+ * Bir yüzeyin (paragraf / alt satır / görsel açıklaması) mavi bağlantıları çeviriden
+ * sonra da bulunabiliyor mu?
+ *
+ * Yalnızca **orijinal metinde gerçekten bağlantı varsa** denetim yapılır: bağlantısı
+ * olmayan yüzeyler serbestçe çevrilir. Orijinalde bağlantı varken çevrilmiş metinde hiç
+ * bağlantı bulunamıyorsa o çeviri reddedilir — kırık/tıklanamaz mavi metin göstermektense
+ * orijinal gösterilir.
+ */
+private fun keepsLinks(
+    original: String?,
+    candidate: String,
+    originalLinks: List<FandomBlockLink>,
+    translatedLinks: List<FandomBlockLink>
+): Boolean {
+    if (originalLinks.isEmpty() || original.isNullOrBlank()) return true
+    if (wikiLinkRanges(original, originalLinks).isEmpty()) return true
+    if (candidate.isBlank()) return false
+    return wikiLinkRanges(candidate, translatedLinks).isNotEmpty()
+}
+
+// LINK_GROUP bağlantıları başlığın içinde değil, ayrı çiplerde çizilir; çip etiketleri
+// sayfa adıdır ve kart başlığıyla aynı kurala uyar (orijinal kalır).
 private fun FandomTextBlock.inlineTranslationLinks(): List<FandomBlockLink> =
     if (kind == FandomBlockKind.LINK_GROUP) emptyList() else links
 
 /** IMAGE metni eski kayıtlarda boş olabilir; çizicinin gösterdiği açıklamayı kullan. */
 private fun FandomTextBlock.translationText(): String =
     if (kind == FandomBlockKind.IMAGE) image?.caption ?: text else text
-
-private fun preservesWikiLinks(source: String, translated: String, links: List<FandomBlockLink>): Boolean {
-    if (translated.isBlank()) return false
-    fun labels(text: String) = linkLabelRanges(text, links).map { text.substring(it) }
-    return labels(source) == labels(translated)
-}
 
 /** Görselden oluşan bir bölümde de çeviri/orijinal düğmesi görünür olmalı. */
 internal fun FandomSectionContent.wikiTranslationSourceText(): String =
