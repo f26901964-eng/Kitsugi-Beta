@@ -41,6 +41,9 @@ import androidx.compose.material.icons.automirrored.rounded.Launch
 import androidx.compose.material.icons.rounded.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -103,8 +106,8 @@ fun StreamScreenContent(
     val isLandscape = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
 
     // ── Local Search & Tag Filtering State ─────────────────────────────────────
-    var searchQuery by remember { mutableStateOf("") }
-    var selectedTagFilter by remember { mutableStateOf<String?>(null) }
+    var searchQuery by rememberSaveable { mutableStateOf("") }
+    var selectedTagFilter by rememberSaveable { mutableStateOf<String?>(null) }
 
     val sortedAddonStates = remember(addonStates) {
         addonStates.sortedWith(
@@ -114,7 +117,7 @@ fun StreamScreenContent(
     }
 
     // ── Real-time Synchronized Stream & Addon Filtering ─────────────────────────
-    val filteredAddonStates = remember(sortedAddonStates, selectedAddonFilter, searchQuery, selectedTagFilter) {
+    val matchingAddonStates = remember(sortedAddonStates, selectedAddonFilter, searchQuery, selectedTagFilter) {
         val query = searchQuery.trim().lowercase()
         val tag = selectedTagFilter?.lowercase()
 
@@ -155,6 +158,7 @@ fun StreamScreenContent(
                         langInfo.subtitleLanguages.isNotEmpty()
                     "dublaj" -> langType == StreamLangType.DUB || langType == StreamLangType.DUAL
                     "1080p" -> qualityInfo.height != null && qualityInfo.height >= 1080
+                    "2160p" -> qualityInfo.height != null && qualityInfo.height >= 2160
                     "720p" -> qualityInfo.height == 720
                     "debrid" -> stream.infoHash != null || stream.url?.contains("magnet") == true
                     else -> true
@@ -171,11 +175,20 @@ fun StreamScreenContent(
         }
     }
 
+    var qualitySort by rememberSaveable { mutableStateOf(false) }
+    val filteredAddonStates = remember(matchingAddonStates, qualitySort) {
+        if (!qualitySort) matchingAddonStates else matchingAddonStates.map { state ->
+            state.copy(streams = state.streams.sortedByDescending {
+                resolveStreamQuality(it, StreamProbe.cached(it.url)).height ?: -1
+            })
+        }
+    }
     val totalFilteredStreamsCount = remember(filteredAddonStates) {
         filteredAddonStates.sumOf { it.streams.size }
     }
-    val hasActiveFilter = searchQuery.isNotBlank() || selectedTagFilter != null
+    val hasActiveFilter = searchQuery.isNotBlank() || selectedTagFilter != null || selectedAddonFilter != null
 
+    CompositionLocalProvider(LocalStreamSort provides StreamSortState(qualitySort) { qualitySort = !qualitySort }) {
     Box(modifier = Modifier.fillMaxSize().background(KitsugiColors.Background)) {
         if (!posterUrl.isNullOrBlank()) {
             AsyncImage(
@@ -385,6 +398,7 @@ fun StreamScreenContent(
         }
     }
 }
+}
 
 @Composable
 private fun PlayerPickerCard(icon: @Composable () -> Unit, label: String, sub: String, accentColor: Color, onClick: () -> Unit) {
@@ -452,9 +466,10 @@ private fun StreamSearchBar(
         )
 
         val tags = listOf(
-            stringResource(R.string.bangumi_tag_subtitles) to stringResource(R.string.altyazi),
+            "altyazı" to stringResource(R.string.altyazi),
             "Dublaj" to "🎙️ Dublaj",
-            "1080p" to "✨ 1080p",
+            "2160p" to "4K",
+            "1080p" to "1080p+",
             "720p" to "🎬 720p",
             "debrid" to "⚡ Debrid"
         )
@@ -503,7 +518,7 @@ private fun FilteredEmptyState(
         Column(
             modifier = Modifier.fillMaxWidth().padding(24.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(10.dp)
+            verticalArrangement = Arrangement.spacedBy(6.dp)
         ) {
             Icon(
                 imageVector = Icons.Rounded.SearchOff,
@@ -567,9 +582,11 @@ private fun LandscapeLayout(
         Column(
             modifier = Modifier
                 .fillMaxHeight()
-                .weight(0.32f)
+                .widthIn(min = 240.dp, max = 300.dp)
+                .fillMaxWidth(0.34f)
+                .verticalScroll(rememberScrollState())
                 .background(KitsugiColors.Surface.copy(alpha = 0.2f))
-                .padding(16.dp),
+                .padding(12.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
@@ -623,24 +640,6 @@ private fun LandscapeLayout(
                 }
             }
 
-            Box(
-                modifier = Modifier
-                    .weight(1f, fill = false)
-                    .aspectRatio(2f / 3f)
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(KitsugiColors.SurfaceStrong)
-            ) {
-                if (!posterUrl.isNullOrBlank()) {
-                    AsyncImage(
-                        model = posterUrl, contentDescription = title,
-                        contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize()
-                    )
-                } else {
-                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        Icon(Icons.Rounded.Movie, null, tint = KitsugiColors.TextMuted, modifier = Modifier.size(36.dp))
-                    }
-                }
-            }
 
             Column(
                 modifier = Modifier.fillMaxWidth(),
@@ -668,49 +667,17 @@ private fun LandscapeLayout(
                 )
                 imdbId?.let { ImdbBadge(it) }
             }
+            StreamSearchBar(searchQuery, onQueryChange, selectedTagFilter, onTagSelect, accentColor)
+            AddonChipsRow(addonStates, allStreams, selectedAddonFilter, searchQuery, accentColor, onAddonFilterChange)
         }
 
-        // Right Column: Scrollable LazyColumn with Search, Sticky Addon Chips, and Streams
+        // Results retain their own scroll position while the control rail stays accessible.
         LazyColumn(
             state = listState,
-            modifier = Modifier
-                .fillMaxHeight()
-                .weight(0.68f)
-                .padding(horizontal = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp),
-            contentPadding = PaddingValues(top = 12.dp, bottom = 32.dp)
+            modifier = Modifier.fillMaxHeight().weight(1f).padding(horizontal = 12.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp),
+            contentPadding = PaddingValues(top = 12.dp, bottom = 24.dp)
         ) {
-            // Item 1: Search Bar & Quick Tags
-            item(key = "land_search_bar") {
-                StreamSearchBar(
-                    searchQuery = searchQuery,
-                    onQueryChange = onQueryChange,
-                    selectedTagFilter = selectedTagFilter,
-                    onTagSelect = onTagSelect,
-                    accentColor = accentColor
-                )
-            }
-
-            // Sticky Header: Addon Chips Row
-            stickyHeader(key = "land_addon_chips_sticky") {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .background(KitsugiColors.Background.copy(alpha = 0.95f))
-                        .padding(vertical = 4.dp)
-                ) {
-                    AddonChipsRow(
-                        addonStates = addonStates,
-                        allStreams = allStreams,
-                        selectedAddonFilter = selectedAddonFilter,
-                        searchQuery = searchQuery,
-                        accentColor = accentColor,
-                        onFilterChange = onAddonFilterChange
-                    )
-                    HorizontalDivider(color = KitsugiColors.SurfaceStrong.copy(alpha = 0.5f))
-                }
-            }
-
             // Content Items (Streams / Skeleton / Empty state / Error state)
             when {
                 isResolvingId -> {
@@ -784,7 +751,7 @@ private fun PortraitLayout(
         LazyColumn(
             state = listState,
             modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp),
             contentPadding = PaddingValues(bottom = 32.dp)
         ) {
             // Item 1: Top Navigation Header (Initial view)
@@ -842,32 +809,6 @@ private fun PortraitLayout(
                         ) {
                             Icon(Icons.Rounded.Search, "Manuel Arama", tint = KitsugiColors.TextSecondary, modifier = Modifier.size(18.dp))
                         }
-                    }
-                }
-            }
-
-            // Item 2: Poster Card
-            item(key = "poster_card") {
-                Row(
-                    modifier = Modifier.fillMaxWidth().background(KitsugiColors.Surface.copy(alpha = 0.2f), RoundedCornerShape(12.dp)).padding(12.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Box(modifier = Modifier.size(width = 60.dp, height = 90.dp).clip(RoundedCornerShape(8.dp)).background(KitsugiColors.SurfaceStrong)) {
-                        if (!posterUrl.isNullOrBlank()) AsyncImage(model = posterUrl, contentDescription = title, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
-                        else Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Icon(Icons.Rounded.Movie, null, tint = KitsugiColors.TextMuted, modifier = Modifier.size(24.dp)) }
-                    }
-                    Spacer(Modifier.width(16.dp))
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(title, color = KitsugiColors.TextPrimary, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Bold, maxLines = 2, overflow = TextOverflow.Ellipsis)
-                        Spacer(Modifier.height(4.dp))
-                        Text(
-                            if (isMovie) {
-                                if (isDownloadMode) stringResource(R.string.ui2_movie_download) else stringResource(R.string.bangumi_tag_movie)
-                            } else {
-                                if (isDownloadMode) stringResource(R.string.ui2_stream_download_season_episode, season, episode) else stringResource(R.string.ui2_stream_season_episode, season, episode)
-                            },
-                            color = KitsugiColors.TextSecondary, style = MaterialTheme.typography.bodyMedium
-                        )
                     }
                 }
             }
@@ -989,6 +930,7 @@ private fun PortraitLayout(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun AddonChipsRow(
     addonStates: List<AddonFetchState>,
@@ -998,48 +940,124 @@ private fun AddonChipsRow(
     accentColor: Color,
     onFilterChange: (String?) -> Unit
 ) {
-    val query = searchQuery.trim().lowercase()
-    val visibleAddonStates = remember(addonStates, query) {
-        if (query.isBlank()) addonStates
-        else addonStates.filter { state ->
-            state.addonName.lowercase().contains(query) ||
-            state.streams.any { stream ->
-                stream.name.lowercase().contains(query) ||
-                stream.title.lowercase().contains(query) ||
-                detectStreamLang(stream).label.lowercase().contains(query)
+    var showPicker by remember { mutableStateOf(false) }
+    var addonQuery by remember { mutableStateOf("") }
+    val loadingCount = addonStates.count { it.isLoading }
+    val readyCount = addonStates.count { it.streams.isNotEmpty() }
+    Column(Modifier.fillMaxWidth().padding(vertical = 6.dp)) {
+        Surface(
+            onClick = { showPicker = true },
+            shape = RoundedCornerShape(14.dp),
+            color = KitsugiColors.SurfaceStrong,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Rounded.Tune, null, tint = accentColor)
+                Spacer(Modifier.width(10.dp))
+                Column(Modifier.weight(1f)) {
+                    Text(selectedAddonFilter ?: stringResource(R.string.stream_all_sources),
+                        color = KitsugiColors.TextPrimary, fontWeight = FontWeight.SemiBold,
+                        maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    Text(stringResource(R.string.stream_source_summary, readyCount, addonStates.size, allStreams.size),
+                        color = KitsugiColors.TextSecondary, style = MaterialTheme.typography.labelSmall)
+                }
+                if (loadingCount > 0) {
+                    CircularProgressIndicator(Modifier.size(18.dp), color = accentColor, strokeWidth = 2.dp)
+                    Spacer(Modifier.width(8.dp))
+                }
+                Icon(Icons.Rounded.ExpandMore, stringResource(R.string.stream_choose_source), tint = accentColor)
+            }
+        }
+        val sort = LocalStreamSort.current
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            TextButton(onClick = sort.toggle, modifier = Modifier.weight(1f)) {
+                Icon(Icons.Rounded.Sort, null, modifier = Modifier.size(16.dp), tint = accentColor)
+                Spacer(Modifier.width(6.dp))
+                Text(stringResource(if (sort.byQuality) R.string.stream_sort_quality else R.string.stream_sort_default),
+                    color = accentColor, style = MaterialTheme.typography.labelSmall)
+            }
+        if (selectedAddonFilter != null) {
+            TextButton(onClick = { onFilterChange(null) }) {
+                Text(stringResource(R.string.stream_all_sources), color = accentColor)
+            }
+        }
+        }
+    }
+    if (showPicker) {
+        ModalBottomSheet(
+            onDismissRequest = { showPicker = false },
+            containerColor = KitsugiColors.Background
+        ) {
+            Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
+                Text(stringResource(R.string.stream_choose_source), color = KitsugiColors.TextPrimary,
+                    style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                Spacer(Modifier.height(12.dp))
+                OutlinedTextField(
+                    value = addonQuery, onValueChange = { addonQuery = it }, singleLine = true,
+                    placeholder = { Text(stringResource(R.string.stream_search_addons)) },
+                    leadingIcon = { Icon(Icons.Rounded.Search, null) },
+                    trailingIcon = {
+                        if (addonQuery.isNotEmpty()) IconButton(onClick = { addonQuery = "" }) {
+                            Icon(Icons.Rounded.Close, stringResource(R.string.temizle))
+                        }
+                    },
+                    modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(14.dp),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedTextColor = KitsugiColors.TextPrimary,
+                        unfocusedTextColor = KitsugiColors.TextPrimary,
+                        focusedBorderColor = accentColor)
+                )
+                val visible = remember(addonStates, addonQuery) {
+                    addonStates.filter { it.addonName.contains(addonQuery.trim(), ignoreCase = true) }
+                }
+                LazyColumn(
+                    modifier = Modifier.fillMaxWidth().heightIn(max = 440.dp),
+                    contentPadding = PaddingValues(vertical = 12.dp)
+                ) {
+                    item(key = "all") {
+                        SourcePickerRow(stringResource(R.string.stream_all_sources),
+                            stringResource(R.string.stream_video_count, allStreams.size),
+                            selectedAddonFilter == null, accentColor) {
+                            onFilterChange(null); showPicker = false
+                        }
+                    }
+                    items(visible, key = { it.addonName }) { state ->
+                        val status = when {
+                            state.isLoading -> stringResource(R.string.stream_source_loading)
+                            state.requiresVerification -> stringResource(R.string.stream_source_verify)
+                            state.error != null -> stringResource(R.string.stream_source_error)
+                            else -> stringResource(R.string.stream_video_count, state.streams.size)
+                        }
+                        SourcePickerRow(state.addonName, status,
+                            selectedAddonFilter == state.addonName, accentColor) {
+                            onFilterChange(state.addonName); showPicker = false
+                        }
+                    }
+                    if (visible.isEmpty()) item {
+                        Text(stringResource(R.string.stream_no_addon_match),
+                            modifier = Modifier.padding(16.dp), color = KitsugiColors.TextSecondary)
+                    }
+                }
             }
         }
     }
+}
 
-    if (visibleAddonStates.isNotEmpty()) {
-        LazyRow(
-            contentPadding = PaddingValues(horizontal = 4.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            modifier = Modifier.padding(bottom = 6.dp)
-        ) {
-            item {
-                AddonStatusChip(
-                    state = AddonFetchState(
-                        addonName = if (query.isBlank()) "Tümü" else "Arama (${visibleAddonStates.sumOf { it.streams.size }})",
-                        manifestUrl = "",
-                        isLoading = false,
-                        streams = allStreams
-                    ),
-                    accentColor = accentColor,
-                    isSelected = selectedAddonFilter == null,
-                    onClick = { onFilterChange(null) }
-                )
+@Composable
+private fun SourcePickerRow(
+    name: String, status: String, selected: Boolean, accentColor: Color, onClick: () -> Unit
+) {
+    Surface(onClick = onClick, shape = RoundedCornerShape(12.dp),
+        color = if (selected) accentColor.copy(alpha = 0.12f) else Color.Transparent,
+        modifier = Modifier.fillMaxWidth()) {
+        Row(Modifier.padding(horizontal = 12.dp, vertical = 14.dp),
+            verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f)) {
+                Text(name, color = KitsugiColors.TextPrimary, fontWeight = FontWeight.SemiBold,
+                    maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(status, color = KitsugiColors.TextSecondary, style = MaterialTheme.typography.bodySmall)
             }
-            // Key verilmezse her yeniden compose'da çipler yeniden kuruluyor ve LazyRow
-            // animasyon/yeniden kullanım durumunu kaybediyordu.
-            items(visibleAddonStates, key = { it.addonName }) { addonState ->
-                AddonStatusChip(
-                    state = addonState,
-                    accentColor = accentColor,
-                    isSelected = selectedAddonFilter == addonState.addonName,
-                    onClick = { onFilterChange(if (selectedAddonFilter == addonState.addonName) null else addonState.addonName) }
-                )
-            }
+            if (selected) Icon(Icons.Rounded.Check, null, tint = accentColor)
         }
     }
 }
@@ -1051,3 +1069,6 @@ private fun ImdbBadge(imdbId: String) {
     }
 }
 
+
+private data class StreamSortState(val byQuality: Boolean, val toggle: () -> Unit)
+private val LocalStreamSort = compositionLocalOf { StreamSortState(false) {} }

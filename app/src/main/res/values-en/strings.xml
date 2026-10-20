@@ -7838,4 +7838,22 @@
     <string name="listeye_eklendi_isim">Added to list: %1$s</string>
     <string name="izliyor_olarak_eklendi">Added as Watching: %1$s</string>
     <string name="izlendi_olarak_eklendi">Added as Completed: %1$s</string>
+
+    <!-- Stream source picker -->
+    <string name="stream_all_sources">All sources</string>
+    <string name="stream_choose_source">Choose a source</string>
+    <string name="stream_search_addons">Search add-ons</string>
+    <string name="stream_source_summary">%1$d/%2$d add-ons found results · %3$d videos</string>
+    <string name="stream_video_count">%1$d videos</string>
+    <string name="stream_source_loading">Searching for streams…</string>
+    <string name="stream_source_verify">Verification required</string>
+    <string name="stream_source_error">Source error · select for details</string>
+    <string name="stream_no_addon_match">No matching add-ons.</string>
+    <string name="stream_details">Details</string>
+    <string name="stream_lang_dub">Dubbed</string>
+    <string name="stream_lang_sub">Subtitled</string>
+    <string name="stream_lang_dual">Dual audio</string>
+    <string name="stream_cached">Cached</string>
+    <string name="stream_sort_quality">Quality: highest first</string>
+    <string name="stream_sort_default">Sort: source order</string>
 </resources>

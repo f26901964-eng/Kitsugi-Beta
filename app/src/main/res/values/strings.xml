@@ -7843,4 +7843,22 @@ Eklentiler ekranından eklenti etkinleştirin.</string>
     <string name="listeye_eklendi_isim">Listeye eklendi: %1$s</string>
     <string name="izliyor_olarak_eklendi">İzliyor olarak eklendi: %1$s</string>
     <string name="izlendi_olarak_eklendi">İzledim olarak eklendi: %1$s</string>
+
+    <!-- Stream source picker -->
+    <string name="stream_all_sources">Tüm kaynaklar</string>
+    <string name="stream_choose_source">Kaynak seç</string>
+    <string name="stream_search_addons">Eklentilerde ara</string>
+    <string name="stream_source_summary">%1$d/%2$d eklenti sonuç buldu · %3$d video</string>
+    <string name="stream_video_count">%1$d video</string>
+    <string name="stream_source_loading">Kaynaklar aranıyor…</string>
+    <string name="stream_source_verify">Doğrulama gerekiyor</string>
+    <string name="stream_source_error">Kaynak hatası · ayrıntılar için seç</string>
+    <string name="stream_no_addon_match">Bu isimde eklenti bulunamadı.</string>
+    <string name="stream_details">Ayrıntılar</string>
+    <string name="stream_lang_dub">Dublaj</string>
+    <string name="stream_lang_sub">Altyazılı</string>
+    <string name="stream_lang_dual">Çift dil</string>
+    <string name="stream_cached">Önbellekte</string>
+    <string name="stream_sort_quality">Kalite: yüksekten düşüğe</string>
+    <string name="stream_sort_default">Sıralama: kaynak sırası</string>
 </resources>

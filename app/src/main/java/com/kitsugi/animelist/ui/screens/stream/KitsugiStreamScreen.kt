@@ -146,7 +146,7 @@ fun KitsugiStreamScreen(
     // ── Race condition guard: her yeni stream seçiminde öncekini iptal et ──────
     var activeStreamJob by remember { mutableStateOf<kotlinx.coroutines.Job?>(null) }
 
-    var selectedAddonFilter by remember { mutableStateOf<String?>(null) }
+    var selectedAddonFilter by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf<String?>(null) }
     var resolvingSource     by remember { mutableStateOf<StreamSource?>(null) }
     var resolvingError      by remember { mutableStateOf<String?>(null) }
     var pendingPlayAction   by remember { mutableStateOf<PendingPlayAction?>(null) }

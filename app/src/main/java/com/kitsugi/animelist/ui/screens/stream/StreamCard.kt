@@ -31,6 +31,8 @@ import androidx.compose.material.icons.rounded.Download
 import androidx.compose.material.icons.rounded.Movie
 import androidx.compose.material.icons.rounded.ZoomIn
 import androidx.compose.material.icons.rounded.Close
+import androidx.compose.material.icons.rounded.ExpandLess
+import androidx.compose.material.icons.rounded.ExpandMore
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import coil3.compose.AsyncImage
@@ -102,295 +104,64 @@ fun StreamCard(
     val size = remember(source, measured) { resolveStreamSizeLabel(source, measured) }
     val cacheState = remember(source) { getCacheState(source) }
 
-    var showImageDialog by remember { mutableStateOf(false) }
-
-    // Fullscreen thumbnail preview using the app's standard image gallery dialog
-    if (showImageDialog && !source.thumbnailUrl.isNullOrBlank()) {
-        KitsugiImageGalleryDialog(
-            // `!!` yerine null güvenli: thumbnailUrl bu satır ile üstteki kontrol
-            // arasında değişirse çökme olmasın.
-            imageUrls = listOfNotNull(source.thumbnailUrl),
-            initialIndex = 0,
-            title = source.name,
-            onDismiss = { showImageDialog = false }
-        )
-    }
-
+    var expanded by androidx.compose.runtime.saveable.rememberSaveable(source.url, source.name) { mutableStateOf(false) }
     Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .tvClickable(shape = RoundedCornerShape(16.dp), onClick = onClick),
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = KitsugiColors.SurfaceStrong.copy(alpha = 0.5f)
-        )
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(14.dp),
+        colors = CardDefaults.cardColors(containerColor = KitsugiColors.Surface)
     ) {
-        BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
-            val isCompact = maxWidth < 400.dp
-            val imgWidth = if (isCompact) 95.dp else 115.dp
-            val imgHeight = if (isCompact) 135.dp else 162.dp
-
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(12.dp),
-                verticalAlignment = Alignment.Top,
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                // ── Thumbnail (optional, poster style) ───────────────────
-                if (!source.thumbnailUrl.isNullOrBlank()) {
-                    val blurAdultMedia = LocalBlurAdultMedia.current
-                    val isClickable = !(blurAdultMedia && source.isAdultContent)
-                    Box(
-                        modifier = Modifier
-                            .width(imgWidth)
-                            .height(imgHeight)
-                            .clip(RoundedCornerShape(10.dp))
-                            .background(KitsugiColors.Surface)
-                            .clickable(enabled = isClickable) { showImageDialog = true }
-                    ) {
-                        KitsugiNsfwImage(
-                            model = source.thumbnailUrl,
-                            contentDescription = source.name,
-                            isAdult = source.isAdultContent,
-                            modifier = Modifier.fillMaxSize()
-                        )
-                        // Subtle bottom gradient
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(30.dp)
-                                .align(Alignment.BottomCenter)
-                                .background(
-                                    Brush.verticalGradient(
-                                        listOf(Color.Transparent, Color.Black.copy(alpha = 0.6f))
-                                    )
-                                )
-                        )
-
-                    }
+        Column(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text(source.name, color = KitsugiColors.TextPrimary,
+                        style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold,
+                        maxLines = 2, overflow = TextOverflow.Ellipsis)
+                    Text(source.addonName, color = accentColor,
+                        style = MaterialTheme.typography.labelSmall, maxLines = 1,
+                        overflow = TextOverflow.Ellipsis)
                 }
-
-                // ── Text column (weight=1f, stacked vertically for responsiveness) ──
-                Column(
-                    modifier = Modifier
-                        .weight(1f)
-                        .align(Alignment.Top)
-                ) {
-                    // Badge row
-                    FlowRow(
-                        horizontalArrangement = Arrangement.spacedBy(5.dp),
-                        verticalArrangement = Arrangement.spacedBy(4.dp),
-                        modifier = Modifier.padding(bottom = 6.dp)
-                    ) {
-                        // ── Kalite rozeti ───────────────────────────────────
-                        // Yalnızca gerçekten bilinen kalite gösterilir. Bilinmiyorsa
-                        // "Kalite ?" yazılır; uydurma bir değer (eski "400p" / "1080p (HD)") basılmaz.
-                        val qualityHeight = qualityInfo.height ?: 0
-                        val qualityColor = when {
-                            !qualityInfo.isKnown -> KitsugiColors.TextMuted
-                            qualityHeight >= 2160 -> KitsugiColors.AccentRed
-                            qualityHeight >= 1080 -> KitsugiColors.AccentBlue
-                            qualityHeight >= 720  -> KitsugiColors.AccentGreen
-                            else -> KitsugiColors.AccentOrange
-                        }
-                        val qualityText = when {
-                            qualityInfo.isKnown && qualityInfo.isAdaptive -> "${qualityInfo.label} · oto"
-                            qualityInfo.isKnown -> qualityInfo.label.orEmpty()
-                            qualityInfo.isAdaptive -> "Oto (HLS)"
-                            else -> "Kalite ?"
-                        }
-                        StreamBadge(
-                            text = qualityText,
-                            color = qualityColor,
-                            bgAlpha = if (qualityInfo.isKnown) 0.15f else 0.08f,
-                            bgColor = qualityColor,
-                            isVerified = qualityInfo.origin == StreamInfoOrigin.MEASURED
-                        )
-
-                        // ── Dil rozeti — yalnızca kanıt varsa ───────────────
-                        val langText = when (langInfo.kind) {
-                            StreamAudioKind.DUB  -> "🎙️ Dublaj"
-                            StreamAudioKind.SUB  -> "💬 Altyazılı"
-                            StreamAudioKind.DUAL -> "🌐 Çift dil"
-                            StreamAudioKind.UNKNOWN -> null
-                        }
-                        val langColor = when (langInfo.kind) {
-                            StreamAudioKind.DUB  -> KitsugiColors.AccentOrange
-                            StreamAudioKind.SUB  -> KitsugiColors.AccentBlue
-                            StreamAudioKind.DUAL -> KitsugiColors.AccentPurple
-                            StreamAudioKind.UNKNOWN -> KitsugiColors.TextMuted
-                        }
-                        if (langText != null) {
-                            StreamBadge(
-                                text = langText,
-                                color = langColor,
-                                bgAlpha = 0.15f,
-                                bgColor = langColor,
-                                isVerified = langInfo.origin == StreamInfoOrigin.MEASURED ||
-                                    langInfo.origin == StreamInfoOrigin.PROVIDER
-                            )
-                        }
-
-                        // Gerçekten tespit edilen ses dilleri (HLS EXT-X-MEDIA)
-                        if (langInfo.audioLanguages.isNotEmpty()) {
-                            StreamBadge(
-                                text = "🔊 " + langInfo.audioLanguages.joinToString("/"),
-                                color = KitsugiColors.AccentOrange,
-                                bgAlpha = 0.12f,
-                                bgColor = KitsugiColors.AccentOrange,
-                                isVerified = true
-                            )
-                        }
-
-                        // Kaynağın gerçekten verdiği altyazı dosyaları
-                        if (langInfo.subtitleLanguages.isNotEmpty()) {
-                            StreamBadge(
-                                text = "CC " + langInfo.subtitleLanguages.joinToString("/"),
-                                color = KitsugiColors.AccentBlue,
-                                bgAlpha = 0.12f,
-                                bgColor = KitsugiColors.AccentBlue,
-                                isVerified = true
-                            )
-                        }
-
-                        StreamBadge(
-                            text = source.addonName,
-                            color = KitsugiColors.AccentPurple,
-                            bgAlpha = 0.10f,
-                            bgColor = KitsugiColors.AccentPurple
-                        )
-
-                        // Only show Cache State badge if it is a torrent/debrid stream (saves space!)
-                        val isTorrent = source.isTorrent
-                        if (isTorrent) {
-                            val (cacheText, cacheColor) = when (cacheState) {
-                                DebridCacheState.CACHED     -> "Önbellekte"    to KitsugiColors.AccentGreen
-                                DebridCacheState.NOT_CACHED -> "İndirilecek"   to KitsugiColors.AccentOrange
-                                DebridCacheState.P2P        -> "Torrent (P2P)" to KitsugiColors.AccentBlue
-                            }
-                            StreamBadge(text = cacheText, color = cacheColor, bgAlpha = 0.15f, bgColor = cacheColor)
-                        }
-
-                        if (!size.isNullOrBlank()) {
-                            Text(
-                                text = size,
-                                color = KitsugiColors.TextMuted,
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                modifier = Modifier.align(Alignment.CenterVertically),
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
-                        }
-                    }
-
-                    // Source name (Sitenin asıl yayın adı)
-                    Text(
-                        text = source.name,
-                        color = Color.White,
-                        fontSize = 15.sp,
-                        fontWeight = FontWeight.ExtraBold,
-                        maxLines = 2,
-                        overflow = TextOverflow.Ellipsis
-                    )
-
-                    // Clean video source details label (filename or hosting domain)
-                    val sourceLabel = remember(source) { getCleanVideoSourceLabel(source) }
-                    if (sourceLabel.isNotBlank()) {
-                        Spacer(modifier = Modifier.height(4.dp))
-                        Box(
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(6.dp))
-                                .background(KitsugiColors.Surface.copy(alpha = 0.5f))
-                                .border(
-                                    width = 1.dp,
-                                    color = KitsugiColors.SurfaceStrong.copy(alpha = 0.8f),
-                                    shape = RoundedCornerShape(6.dp)
-                                )
-                                .padding(horizontal = 8.dp, vertical = 4.dp)
-                        ) {
-                            Text(
-                                text = sourceLabel,
-                                color = KitsugiColors.TextSecondary,
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.Medium,
-                                maxLines = 2,
-                                overflow = TextOverflow.Ellipsis
-                            )
-                        }
-                    }
-
-                    // Action buttons inside column for compact screens
-                    if (isCompact) {
-                        Spacer(modifier = Modifier.height(10.dp))
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            IconButton(
-                                onClick = onDownloadClick,
-                                modifier = Modifier.size(36.dp)
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Rounded.Download,
-                                    contentDescription = stringResource(R.string.indir),
-                                    tint = KitsugiColors.TextSecondary,
-                                    modifier = Modifier.size(22.dp)
-                                )
-                            }
-
-                            Box(
-                                modifier = Modifier
-                                    .size(36.dp)
-                                    .clip(RoundedCornerShape(18.dp))
-                                    .background(accentColor.copy(alpha = 0.1f)),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Rounded.PlayArrow,
-                                    contentDescription = stringResource(R.string.oynat),
-                                    tint = accentColor,
-                                    modifier = Modifier.size(20.dp)
-                                )
-                            }
-                        }
-                    }
+                IconButton(onClick = onClick, modifier = Modifier.size(48.dp)
+                    .clip(RoundedCornerShape(16.dp)).background(accentColor.copy(alpha = 0.14f))) {
+                    Icon(Icons.Rounded.PlayArrow, stringResource(R.string.oynat), tint = accentColor)
                 }
-
-                // Action buttons on the right for wide screens
-                if (!isCompact) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(6.dp),
-                        modifier = Modifier.align(Alignment.CenterVertically)
-                    ) {
-                        IconButton(
-                            onClick = onDownloadClick,
-                            modifier = Modifier.size(36.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Rounded.Download,
-                                contentDescription = stringResource(R.string.indir),
-                                tint = KitsugiColors.TextSecondary,
-                                modifier = Modifier.size(22.dp)
-                                )
-                            }
-
-                        Box(
-                            modifier = Modifier
-                                .size(36.dp)
-                                .clip(RoundedCornerShape(18.dp))
-                                .background(accentColor.copy(alpha = 0.1f)),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                imageVector = Icons.Rounded.PlayArrow,
-                                contentDescription = stringResource(R.string.oynat),
-                                tint = accentColor,
-                                modifier = Modifier.size(20.dp)
-                            )
-                        }
+            }
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Row(Modifier.weight(1f).clickable { expanded = !expanded }.padding(vertical = 8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
+                    StreamBadge(qualityInfo.label ?: if (qualityInfo.isAdaptive) "HLS" else "—",
+                        accentColor, 0.12f, accentColor,
+                        qualityInfo.origin == StreamInfoOrigin.MEASURED)
+                    Text(when (langInfo.kind) {
+                        StreamAudioKind.DUB -> stringResource(R.string.stream_lang_dub)
+                        StreamAudioKind.SUB -> stringResource(R.string.stream_lang_sub)
+                        StreamAudioKind.DUAL -> stringResource(R.string.stream_lang_dual)
+                        else -> stringResource(R.string.stream_details)
+                    }, color = KitsugiColors.TextSecondary, style = MaterialTheme.typography.labelSmall,
+                        maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false))
+                    Icon(if (expanded) androidx.compose.material.icons.Icons.Rounded.ExpandLess
+                        else androidx.compose.material.icons.Icons.Rounded.ExpandMore,
+                        stringResource(R.string.stream_details), tint = KitsugiColors.TextMuted,
+                        modifier = Modifier.size(18.dp))
+                }
+                IconButton(onClick = onDownloadClick, modifier = Modifier.size(48.dp)) {
+                    Icon(Icons.Rounded.Download, stringResource(R.string.indir), tint = KitsugiColors.TextSecondary)
+                }
+            }
+            androidx.compose.animation.AnimatedVisibility(visible = expanded) {
+                Column(Modifier.fillMaxWidth().padding(bottom = 8.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Text(getCleanVideoSourceLabel(source), color = KitsugiColors.TextSecondary,
+                        style = MaterialTheme.typography.bodySmall, maxLines = 3, overflow = TextOverflow.Ellipsis)
+                    FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        if (langInfo.audioLanguages.isNotEmpty()) StreamBadge(
+                            "Audio " + langInfo.audioLanguages.joinToString("/"), accentColor, 0.1f, accentColor, true)
+                        if (langInfo.subtitleLanguages.isNotEmpty()) StreamBadge(
+                            "CC " + langInfo.subtitleLanguages.joinToString("/"), accentColor, 0.1f, accentColor, true)
+                        if (!size.isNullOrBlank()) StreamBadge(size, KitsugiColors.TextSecondary, 0.1f, accentColor)
+                        if (source.isTorrent) StreamBadge(when(cacheState) {
+                            DebridCacheState.CACHED -> stringResource(R.string.stream_cached)
+                            DebridCacheState.NOT_CACHED -> "Debrid"
+                            DebridCacheState.P2P -> "P2P"
+                        }, accentColor, 0.1f, accentColor)
                     }
                 }
             }

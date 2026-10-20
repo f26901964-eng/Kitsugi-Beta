@@ -59,6 +59,20 @@ fun LazyListScope.renderStreamResultsItems(
                 StreamSkeletonCard(addonName = addonState.addonName)
             }
         } else if (addonState.streams.isNotEmpty()) {
+            item(key = "group_${addonState.addonName}") {
+                Row(Modifier.fillMaxWidth().padding(top = 8.dp, bottom = 2.dp),
+                    verticalAlignment = Alignment.CenterVertically) {
+                    androidx.compose.material3.Text(addonState.addonName,
+                        color = KitsugiColors.TextSecondary,
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        maxLines = 1,
+                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f))
+                    androidx.compose.material3.Text(addonState.streams.size.toString(),
+                        color = accentColor, style = MaterialTheme.typography.labelMedium)
+                }
+            }
             addonState.streams.forEachIndexed { idx, source ->
                 val itemKey = "${addonIdx}_${addonState.addonName}_$idx"
                 item(key = itemKey) {
