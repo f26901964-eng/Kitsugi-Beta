@@ -1,0 +1,1085 @@
+[
+  {
+    "key": "bangumi_producer_aniplex",
+    "role": "producer",
+    "tr": "Aniplex",
+    "en": "Aniplex",
+    "status": "existing:aniplex",
+    "labels": [
+      "アニプレックス",
+      "Aniplex"
+    ]
+  },
+  {
+    "key": "bangumi_producer_adk",
+    "role": "producer",
+    "tr": "ADK",
+    "en": "ADK",
+    "status": "new",
+    "labels": [
+      "ADKエムズ",
+      "ADK Emotions",
+      "ADK"
+    ]
+  },
+  {
+    "key": "bangumi_producer_asmik_ace",
+    "role": "producer",
+    "tr": "Asmik Ace",
+    "en": "Asmik Ace",
+    "status": "new",
+    "labels": [
+      "アスミック・エース",
+      "アスミック"
+    ]
+  },
+  {
+    "key": "bangumi_producer_ascii_media_works",
+    "role": "producer",
+    "tr": "ASCII Media Works",
+    "en": "ASCII Media Works",
+    "status": "new",
+    "labels": [
+      "アスキー・メディアワークス",
+      "ASCII・MediaWorks"
+    ]
+  },
+  {
+    "key": "bangumi_producer_avex_pictures",
+    "role": "producer",
+    "tr": "Avex Pictures",
+    "en": "Avex Pictures",
+    "status": "new",
+    "labels": [
+      "エイベックス・ピクチャーズ",
+      "avex pictures",
+      "エイベックス"
+    ]
+  },
+  {
+    "key": "bangumi_producer_bandai_namco_pictures",
+    "role": "producer",
+    "tr": "Bandai Namco Pictures",
+    "en": "Bandai Namco Pictures",
+    "status": "new",
+    "labels": [
+      "バンダイナムコピクチャーズ",
+      "BN Pictures",
+      "BNP"
+    ]
+  },
+  {
+    "key": "bangumi_producer_bandai_namco_filmworks",
+    "role": "producer",
+    "tr": "Bandai Namco Filmworks",
+    "en": "Bandai Namco Filmworks",
+    "status": "new",
+    "labels": [
+      "バンダイナムコフィルムワークス",
+      "Bandai Namco Arts",
+      "バンダイナムコアーツ"
+    ]
+  },
+  {
+    "key": "bangumi_producer_bandai_visual",
+    "role": "producer",
+    "tr": "Bandai Visual",
+    "en": "Bandai Visual",
+    "status": "existing:bandai",
+    "labels": [
+      "バンダイビジュアル",
+      "Bandai"
+    ]
+  },
+  {
+    "key": "bangumi_producer_bilibili",
+    "role": "producer",
+    "tr": "bilibili",
+    "en": "bilibili",
+    "status": "existing:bilibili",
+    "labels": [
+      "哔哩哔哩",
+      "嗶哩嗶哩",
+      "B站",
+      "Bilibili"
+    ]
+  },
+  {
+    "key": "bangumi_producer_bushiroad",
+    "role": "producer",
+    "tr": "Bushiroad",
+    "en": "Bushiroad",
+    "status": "new",
+    "labels": [
+      "ブシロード",
+      "Bushi Road"
+    ]
+  },
+  {
+    "key": "bangumi_producer_cbc",
+    "role": "producer",
+    "tr": "CBC",
+    "en": "CBC",
+    "status": "new",
+    "labels": [
+      "中部日本放送",
+      "CBCテレビ"
+    ]
+  },
+  {
+    "key": "bangumi_producer_cmc_media",
+    "role": "producer",
+    "tr": "CMC Media",
+    "en": "CMC Media",
+    "status": "new",
+    "labels": [
+      "中影年年"
+    ]
+  },
+  {
+    "key": "bangumi_producer_cygames",
+    "role": "producer",
+    "tr": "Cygames",
+    "en": "Cygames",
+    "status": "new",
+    "labels": [
+      "サイゲームズ"
+    ]
+  },
+  {
+    "key": "bangumi_producer_dentsu",
+    "role": "producer",
+    "tr": "Dentsu",
+    "en": "Dentsu",
+    "status": "new",
+    "labels": [
+      "電通",
+      "Dentsu"
+    ]
+  },
+  {
+    "key": "bangumi_producer_disney_plus",
+    "role": "producer",
+    "tr": "Disney+",
+    "en": "Disney+",
+    "status": "new",
+    "labels": [
+      "ディズニープラス",
+      "Disney Plus",
+      "Disney+"
+    ]
+  },
+  {
+    "key": "bangumi_producer_enterbrain",
+    "role": "producer",
+    "tr": "Enterbrain",
+    "en": "Enterbrain",
+    "status": "new",
+    "labels": [
+      "エンターブレイン"
+    ]
+  },
+  {
+    "key": "bangumi_producer_frontier_works",
+    "role": "producer",
+    "tr": "Frontier Works",
+    "en": "Frontier Works",
+    "status": "new",
+    "labels": [
+      "フロンティアワークス"
+    ]
+  },
+  {
+    "key": "bangumi_producer_gaga",
+    "role": "producer",
+    "tr": "GAGA",
+    "en": "GAGA",
+    "status": "new",
+    "labels": [
+      "ギャガ",
+      "GAGA"
+    ]
+  },
+  {
+    "key": "bangumi_producer_genco",
+    "role": "producer",
+    "tr": "Genco",
+    "en": "Genco",
+    "status": "new",
+    "labels": [
+      "ジェンコ"
+    ]
+  },
+  {
+    "key": "bangumi_producer_gentosha",
+    "role": "producer",
+    "tr": "Gentosha",
+    "en": "Gentosha",
+    "status": "new",
+    "labels": [
+      "幻冬舎"
+    ]
+  },
+  {
+    "key": "bangumi_producer_glovision",
+    "role": "producer",
+    "tr": "Glovision",
+    "en": "Glovision",
+    "status": "new",
+    "labels": [
+      "グロービジョン"
+    ]
+  },
+  {
+    "key": "bangumi_producer_good_smile_company",
+    "role": "producer",
+    "tr": "Good Smile Company",
+    "en": "Good Smile Company",
+    "status": "new",
+    "labels": [
+      "グッドスマイルカンパニー",
+      "GSC"
+    ]
+  },
+  {
+    "key": "bangumi_producer_hakusensha",
+    "role": "producer",
+    "tr": "Hakusensha",
+    "en": "Hakusensha",
+    "status": "new",
+    "labels": [
+      "白泉社"
+    ]
+  },
+  {
+    "key": "bangumi_producer_happinet",
+    "role": "producer",
+    "tr": "Happinet",
+    "en": "Happinet",
+    "status": "new",
+    "labels": [
+      "ハピネット"
+    ]
+  },
+  {
+    "key": "bangumi_producer_houbunsha",
+    "role": "producer",
+    "tr": "Houbunsha",
+    "en": "Houbunsha",
+    "status": "new",
+    "labels": [
+      "芳文社"
+    ]
+  },
+  {
+    "key": "bangumi_producer_ichijinsha",
+    "role": "producer",
+    "tr": "Ichijinsha",
+    "en": "Ichijinsha",
+    "status": "new",
+    "labels": [
+      "一迅社"
+    ]
+  },
+  {
+    "key": "bangumi_producer_iqiyi",
+    "role": "producer",
+    "tr": "iQIYI",
+    "en": "iQIYI",
+    "status": "existing:iqiyi",
+    "labels": [
+      "爱奇艺",
+      "愛奇藝",
+      "iqiyi"
+    ]
+  },
+  {
+    "key": "bangumi_producer_kadokawa",
+    "role": "producer",
+    "tr": "KADOKAWA",
+    "en": "KADOKAWA",
+    "status": "existing:kadokawa",
+    "labels": [
+      "角川",
+      "角川書店",
+      "Kadokawa",
+      "カドカワ",
+      "KADOKAWA CORPORATION"
+    ]
+  },
+  {
+    "key": "bangumi_producer_king_amusement_creative",
+    "role": "producer",
+    "tr": "King Amusement Creative",
+    "en": "King Amusement Creative",
+    "status": "new",
+    "labels": [
+      "キングアミューズメントクリエイティブ",
+      "KAC"
+    ]
+  },
+  {
+    "key": "bangumi_producer_king_records",
+    "role": "producer",
+    "tr": "King Records",
+    "en": "King Records",
+    "status": "new",
+    "labels": [
+      "キングレコード"
+    ]
+  },
+  {
+    "key": "bangumi_producer_klockworx",
+    "role": "producer",
+    "tr": "Klockworx",
+    "en": "Klockworx",
+    "status": "existing:klockworx",
+    "labels": [
+      "クロックワークス"
+    ]
+  },
+  {
+    "key": "bangumi_producer_kodansha",
+    "role": "producer",
+    "tr": "Kodansha",
+    "en": "Kodansha",
+    "status": "existing:kodansha",
+    "labels": [
+      "講談社",
+      "KODANSHA"
+    ]
+  },
+  {
+    "key": "bangumi_producer_konami",
+    "role": "producer",
+    "tr": "Konami",
+    "en": "Konami",
+    "status": "new",
+    "labels": [
+      "コナミ",
+      "KONAMI"
+    ]
+  },
+  {
+    "key": "bangumi_producer_level5",
+    "role": "producer",
+    "tr": "Level-5",
+    "en": "Level-5",
+    "status": "new",
+    "labels": [
+      "レベルファイブ",
+      "Level5"
+    ]
+  },
+  {
+    "key": "bangumi_producer_libre",
+    "role": "producer",
+    "tr": "Libre",
+    "en": "Libre",
+    "status": "new",
+    "labels": [
+      "リブレ"
+    ]
+  },
+  {
+    "key": "bangumi_producer_mages",
+    "role": "producer",
+    "tr": "MAGES.",
+    "en": "MAGES.",
+    "status": "new",
+    "labels": [
+      "MAGES",
+      "5pb.",
+      "5pb"
+    ]
+  },
+  {
+    "key": "bangumi_producer_mag_garden",
+    "role": "producer",
+    "tr": "Mag Garden",
+    "en": "Mag Garden",
+    "status": "new",
+    "labels": [
+      "マッグガーデン"
+    ]
+  },
+  {
+    "key": "bangumi_producer_marvelous",
+    "role": "producer",
+    "tr": "Marvelous",
+    "en": "Marvelous",
+    "status": "new",
+    "labels": [
+      "マーベラス"
+    ]
+  },
+  {
+    "key": "bangumi_producer_mbs",
+    "role": "producer",
+    "tr": "MBS",
+    "en": "MBS",
+    "status": "new",
+    "labels": [
+      "毎日放送",
+      "Mainichi Broadcasting",
+      "MBS毎日放送"
+    ]
+  },
+  {
+    "key": "bangumi_producer_media_factory",
+    "role": "producer",
+    "tr": "Media Factory",
+    "en": "Media Factory",
+    "status": "new",
+    "labels": [
+      "メディアファクトリー",
+      "MF"
+    ]
+  },
+  {
+    "key": "bangumi_producer_movic",
+    "role": "producer",
+    "tr": "Movic",
+    "en": "Movic",
+    "status": "new",
+    "labels": [
+      "ムービック"
+    ]
+  },
+  {
+    "key": "bangumi_producer_nbcuniversal",
+    "role": "producer",
+    "tr": "NBCUniversal Entertainment Japan",
+    "en": "NBCUniversal Entertainment Japan",
+    "status": "new",
+    "labels": [
+      "NBCユニバーサル・エンターテイメント",
+      "ジェネオン・ユニバーサル・エンタテイメント",
+      "ジェネオン",
+      "Geneon",
+      "Geneon Entertainment"
+    ]
+  },
+  {
+    "key": "bangumi_producer_netflix",
+    "role": "producer",
+    "tr": "Netflix",
+    "en": "Netflix",
+    "status": "existing:netflix",
+    "labels": [
+      "Netflix",
+      "网飞",
+      "網飛",
+      "奈飞"
+    ]
+  },
+  {
+    "key": "bangumi_producer_nhk",
+    "role": "producer",
+    "tr": "NHK",
+    "en": "NHK",
+    "status": "existing:nhk",
+    "labels": [
+      "NHK",
+      "日本广播协会",
+      "日本放送協会"
+    ]
+  },
+  {
+    "key": "bangumi_producer_nhk_enterprises",
+    "role": "producer",
+    "tr": "NEP",
+    "en": "NHK Enterprises",
+    "status": "new",
+    "labels": [
+      "NHKエンタープライズ",
+      "NEP"
+    ]
+  },
+  {
+    "key": "bangumi_producer_nichion",
+    "role": "producer",
+    "tr": "Nippon Columbia",
+    "en": "Nippon Columbia",
+    "status": "new",
+    "labels": [
+      "日本コロムビア",
+      "コロムビア"
+    ]
+  },
+  {
+    "key": "bangumi_producer_nippon_tv",
+    "role": "producer",
+    "tr": "Nippon TV",
+    "en": "Nippon TV",
+    "status": "existing:ntv",
+    "labels": [
+      "日本テレビ",
+      "日本テレビ放送網",
+      "NTV",
+      "日テレ"
+    ]
+  },
+  {
+    "key": "bangumi_producer_nintendo",
+    "role": "producer",
+    "tr": "Nintendo",
+    "en": "Nintendo",
+    "status": "new",
+    "labels": [
+      "任天堂",
+      "Nintendo"
+    ]
+  },
+  {
+    "key": "bangumi_producer_nippon_eiga_sha",
+    "role": "producer",
+    "tr": "Nippon Eiga-sha",
+    "en": "Nippon Eiga-sha",
+    "status": "pending",
+    "labels": [
+      "日本映画社"
+    ]
+  },
+  {
+    "key": "bangumi_producer_pony_canyon",
+    "role": "producer",
+    "tr": "Pony Canyon",
+    "en": "Pony Canyon",
+    "status": "new",
+    "labels": [
+      "ポニーキャニオン",
+      "PONY CANYON",
+      "PonyCanyon"
+    ]
+  },
+  {
+    "key": "bangumi_producer_production_ig",
+    "role": "producer",
+    "tr": "Production I.G",
+    "en": "Production I.G",
+    "status": "existing:production_ig",
+    "labels": [
+      "プロダクション・アイジー",
+      "Production I.G"
+    ]
+  },
+  {
+    "key": "bangumi_producer_pokemon",
+    "role": "producer",
+    "tr": "The Pokémon Company",
+    "en": "The Pokémon Company",
+    "status": "existing:pokemon",
+    "labels": [
+      "ポケモン",
+      "ポケットモンスター",
+      "The Pokemon Company"
+    ]
+  },
+  {
+    "key": "bangumi_producer_sega",
+    "role": "producer",
+    "tr": "SEGA",
+    "en": "SEGA",
+    "status": "new",
+    "labels": [
+      "セガ",
+      "SEGA"
+    ]
+  },
+  {
+    "key": "bangumi_producer_shochiku",
+    "role": "producer",
+    "tr": "Shochiku",
+    "en": "Shochiku",
+    "status": "existing:shochiku",
+    "labels": [
+      "松竹",
+      "SHOCHIKU"
+    ]
+  },
+  {
+    "key": "bangumi_producer_shogakukan",
+    "role": "producer",
+    "tr": "Shogakukan",
+    "en": "Shogakukan",
+    "status": "existing:shogakukan",
+    "labels": [
+      "小学館",
+      "SHOGAKUKAN"
+    ]
+  },
+  {
+    "key": "bangumi_producer_shogakukan_shueisha_productions",
+    "role": "producer",
+    "tr": "ShoPro",
+    "en": "Shogakukan-Shueisha Productions",
+    "status": "new",
+    "labels": [
+      "小学館集英社プロダクション",
+      "ShoPro"
+    ]
+  },
+  {
+    "key": "bangumi_producer_shueisha",
+    "role": "producer",
+    "tr": "Shueisha",
+    "en": "Shueisha",
+    "status": "existing:shueisha",
+    "labels": [
+      "集英社",
+      "SHUEISHA"
+    ]
+  },
+  {
+    "key": "bangumi_producer_shinchosha",
+    "role": "producer",
+    "tr": "Shinchosha",
+    "en": "Shinchosha",
+    "status": "new",
+    "labels": [
+      "新潮社"
+    ]
+  },
+  {
+    "key": "bangumi_producer_showgate",
+    "role": "producer",
+    "tr": "Showgate",
+    "en": "Showgate",
+    "status": "new",
+    "labels": [
+      "ショウゲート"
+    ]
+  },
+  {
+    "key": "bangumi_producer_sony_music",
+    "role": "producer",
+    "tr": "Sony Music Entertainment",
+    "en": "Sony Music Entertainment",
+    "status": "new",
+    "labels": [
+      "ソニー・ミュージックエンタテインメント",
+      "Sony Music",
+      "SME"
+    ]
+  },
+  {
+    "key": "bangumi_producer_sotsu",
+    "role": "producer",
+    "tr": "Sotsu",
+    "en": "Sotsu",
+    "status": "new",
+    "labels": [
+      "創通",
+      "Sotsu Agency"
+    ]
+  },
+  {
+    "key": "bangumi_producer_square_enix",
+    "role": "producer",
+    "tr": "Square Enix",
+    "en": "Square Enix",
+    "status": "new",
+    "labels": [
+      "スクウェア・エニックス",
+      "スクエニ",
+      "SQUARE ENIX"
+    ]
+  },
+  {
+    "key": "bangumi_producer_starchild",
+    "role": "producer",
+    "tr": "Starchild Records",
+    "en": "Starchild Records",
+    "status": "new",
+    "labels": [
+      "スターチャイルドレコード",
+      "スターチャイルド"
+    ]
+  },
+  {
+    "key": "bangumi_producer_tencent",
+    "role": "producer",
+    "tr": "Tencent",
+    "en": "Tencent",
+    "status": "new",
+    "labels": [
+      "腾讯",
+      "騰訊",
+      "Tencent"
+    ]
+  },
+  {
+    "key": "bangumi_producer_tencent_video",
+    "role": "producer",
+    "tr": "Tencent Video",
+    "en": "Tencent Video",
+    "status": "existing:tencent_video",
+    "labels": [
+      "腾讯视频",
+      "騰訊視頻",
+      "TencentVideo"
+    ]
+  },
+  {
+    "key": "bangumi_producer_toho",
+    "role": "producer",
+    "tr": "TOHO",
+    "en": "TOHO",
+    "status": "existing:toho",
+    "labels": [
+      "東宝",
+      "Toho",
+      "東宝映像事業部"
+    ]
+  },
+  {
+    "key": "bangumi_producer_toho_animation",
+    "role": "producer",
+    "tr": "TOHO animation",
+    "en": "TOHO animation",
+    "status": "new",
+    "labels": [
+      "東宝アニメーション",
+      "TOHO animation"
+    ]
+  },
+  {
+    "key": "bangumi_producer_tohokushinsha",
+    "role": "producer",
+    "tr": "Tohokushinsha",
+    "en": "Tohokushinsha",
+    "status": "new",
+    "labels": [
+      "東北新社"
+    ]
+  },
+  {
+    "key": "bangumi_producer_tokuma_shoten",
+    "role": "producer",
+    "tr": "Tokuma Shoten",
+    "en": "Tokuma Shoten",
+    "status": "new",
+    "labels": [
+      "徳間書店"
+    ]
+  },
+  {
+    "key": "bangumi_producer_tv_tokyo",
+    "role": "producer",
+    "tr": "TV TOKYO",
+    "en": "TV TOKYO",
+    "status": "existing:tv_tokyo",
+    "labels": [
+      "テレビ東京",
+      "TV Tokyo"
+    ]
+  },
+  {
+    "key": "bangumi_producer_tv_tokyo_media",
+    "role": "producer",
+    "tr": "TV Tokyo Media Net",
+    "en": "TV Tokyo Media Net",
+    "status": "new",
+    "labels": [
+      "テレビ東京メディアネット"
+    ]
+  },
+  {
+    "key": "bangumi_producer_wowow",
+    "role": "producer",
+    "tr": "WOWOW",
+    "en": "WOWOW",
+    "status": "new",
+    "labels": [
+      "WOWOW",
+      "ワウワウ"
+    ]
+  },
+  {
+    "key": "bangumi_producer_youku",
+    "role": "producer",
+    "tr": "Youku",
+    "en": "Youku",
+    "status": "existing:youku",
+    "labels": [
+      "优酷",
+      "優酷",
+      "YOUKU"
+    ]
+  },
+  {
+    "key": "bangumi_producer_akita_shoten",
+    "role": "producer",
+    "tr": "Akita Shoten",
+    "en": "Akita Shoten",
+    "status": "new",
+    "labels": [
+      "秋田書店"
+    ]
+  },
+  {
+    "key": "bangumi_producer_futabasha",
+    "role": "producer",
+    "tr": "Futabasha",
+    "en": "Futabasha",
+    "status": "new",
+    "labels": [
+      "双葉社"
+    ]
+  },
+  {
+    "key": "bangumi_producer_flyingdog",
+    "role": "producer",
+    "tr": "FlyingDog",
+    "en": "FlyingDog",
+    "status": "new",
+    "labels": [
+      "フライングドッグ",
+      "Flying Dog"
+    ]
+  },
+  {
+    "key": "bangumi_producer_lantis",
+    "role": "producer",
+    "tr": "Lantis",
+    "en": "Lantis",
+    "status": "existing:lantis",
+    "labels": [
+      "ランティス"
+    ]
+  },
+  {
+    "key": "bangumi_producer_aniplex_of_america",
+    "role": "producer",
+    "tr": "Aniplex of America",
+    "en": "Aniplex of America",
+    "status": "new",
+    "labels": [
+      "Aniplex of America"
+    ]
+  },
+  {
+    "key": "bangumi_producer_asahi_broad",
+    "role": "producer",
+    "tr": "Asahi Broadcasting",
+    "en": "Asahi Broadcasting",
+    "status": "new",
+    "labels": [
+      "朝日放送グループホールディングス"
+    ]
+  },
+  {
+    "key": "bangumi_producer_nagoya_tv",
+    "role": "producer",
+    "tr": "Nagoya TV",
+    "en": "Nagoya TV",
+    "status": "new",
+    "labels": [
+      "名古屋テレビ",
+      "メ～テレ",
+      "Nagoya Broadcasting Network"
+    ]
+  },
+  {
+    "key": "bangumi_producer_yomiuri_tv",
+    "role": "producer",
+    "tr": "Yomiuri TV",
+    "en": "Yomiuri TV",
+    "status": "new",
+    "labels": [
+      "読売テレビ",
+      "ytv",
+      "読売テレビ放送"
+    ]
+  },
+  {
+    "key": "bangumi_producer_kansai_tv",
+    "role": "producer",
+    "tr": "Kansai TV",
+    "en": "Kansai TV",
+    "status": "new",
+    "labels": [
+      "関西テレビ",
+      "KTV",
+      "関西テレビ放送"
+    ]
+  },
+  {
+    "key": "bangumi_producer_wowow_abc",
+    "role": "producer",
+    "tr": "ABC Animation",
+    "en": "ABC Animation",
+    "status": "new",
+    "labels": [
+      "ABCアニメーション"
+    ]
+  },
+  {
+    "key": "bangumi_producer_bambino",
+    "role": "producer",
+    "tr": "Studio Bambino",
+    "en": "Studio Bambino",
+    "status": "new",
+    "labels": [
+      "スタジオバンビーノ",
+      "Bambino"
+    ]
+  },
+  {
+    "key": "bangumi_producer_typhoon_graphics",
+    "role": "producer",
+    "tr": "Typhoon Graphics",
+    "en": "Typhoon Graphics",
+    "status": "new",
+    "labels": [
+      "タイフーン・グラフィックス"
+    ]
+  },
+  {
+    "key": "bangumi_producer_dmm_pictures",
+    "role": "producer",
+    "tr": "DMM pictures",
+    "en": "DMM pictures",
+    "status": "new",
+    "labels": [
+      "DMM pictures",
+      "DMMピクチャーズ"
+    ]
+  },
+  {
+    "key": "bangumi_producer_dmm_music",
+    "role": "producer",
+    "tr": "DMM music",
+    "en": "DMM music",
+    "status": "new",
+    "labels": [
+      "DMMミュージック"
+    ]
+  },
+  {
+    "key": "bangumi_producer_ponoc",
+    "role": "producer",
+    "tr": "Studio Ponoc",
+    "en": "Studio Ponoc",
+    "status": "new",
+    "labels": [
+      "スタジオポノック"
+    ]
+  },
+  {
+    "key": "bangumi_producer_bilibili_co",
+    "role": "producer",
+    "tr": "bilibili",
+    "en": "bilibili",
+    "status": "existing:bilibili",
+    "labels": [
+      "哔哩哔哩影业",
+      "bilibili影业"
+    ]
+  },
+  {
+    "key": "bangumi_producer_young_animation",
+    "role": "producer",
+    "tr": "Young Animation",
+    "en": "Young Animation",
+    "status": "new",
+    "labels": [
+      "ヤング・アニメーション"
+    ]
+  },
+  {
+    "key": "bangumi_producer_tbs",
+    "role": "producer",
+    "tr": "TBS",
+    "en": "TBS",
+    "status": "new",
+    "labels": [
+      "TBS",
+      "TBSテレビ",
+      "东京放送",
+      "東京放送",
+      "TBS TV"
+    ]
+  },
+  {
+    "key": "bangumi_producer_committee_kosaka_high",
+    "role": "producer",
+    "tr": "光坂高校演劇部",
+    "en": "Kōsaka High School Drama Club",
+    "status": "new",
+    "labels": [
+      "光坂高校演劇部",
+      "Kousaka High School Drama Club"
+    ]
+  },
+  {
+    "key": "bangumi_producer_committee_ghost_shell",
+    "role": "producer",
+    "tr": "攻殻機動隊製作委員会",
+    "en": "Ghost in the Shell Production Committee",
+    "status": "new",
+    "labels": [
+      "攻殻機動隊製作委員会",
+      "攻壳机动队制作委员会",
+      "Ghost in the Shell Production Committee"
+    ]
+  },
+  {
+    "key": "bangumi_producer_bandai_namco_ent",
+    "role": "producer",
+    "tr": "Bandai Namco Entertainment",
+    "en": "Bandai Namco Entertainment",
+    "status": "new",
+    "labels": [
+      "バンダイナムコエンターテインメント",
+      "Bandai Namco Entertainment",
+      "バンダイナムコ"
+    ]
+  },
+  {
+    "key": "bangumi_producer_victor_ent",
+    "role": "producer",
+    "tr": "Victor Entertainment",
+    "en": "Victor Entertainment",
+    "status": "new",
+    "labels": [
+      "ビクターエンタテインメント",
+      "Victor Entertainment",
+      "Victor"
+    ]
+  },
+  {
+    "key": "bangumi_producer_rika_davis",
+    "role": "producer",
+    "tr": "Rika Davis",
+    "en": "Rika Davis",
+    "status": "new",
+    "labels": [
+      "Rika Davis"
+    ]
+  },
+  {
+    "key": "bangumi_producer_tanaka_wataru",
+    "role": "producer",
+    "tr": "田中渉",
+    "en": "Wataru Tanaka",
+    "status": "new",
+    "labels": [
+      "田中渉",
+      "Wataru Tanaka"
+    ]
+  },
+  {
+    "key": "bangumi_producer_osawa_masahiko",
+    "role": "producer",
+    "tr": "大澤雅彦",
+    "en": "Masahiko Osawa",
+    "status": "new",
+    "labels": [
+      "大澤雅彦",
+      "Masahiko Osawa",
+      "大沢雅彦"
+    ]
+  }
+]

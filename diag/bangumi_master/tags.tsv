@@ -150,3 +150,25 @@ bangumi_tag_tearjerker	Duygusal	Tearjerker	existing:tearjerker	催淚
 bangumi_tag_kyoto_animation	Kyoto Animation	Kyoto Animation	existing:kyoto_animation	京都
 bangumi_tag_after_story	After Story	After Story	new	AS;After Story;アフターストーリー
 bangumi_tag_sequel	Devam	Sequel	existing:sequel	続編
+bangumi_tag_kenshin	Kenshin	Kenshin	new	剣心;剑心
+bangumi_tag_rurouni_kenshin	Rurouni Kenshin	Rurouni Kenshin	new	浪客剣心;るろうに剣心;るるうに剣心;Rurouni Kenshin
+bangumi_tag_tsuiokuhen	Tsuiokuhen	Tsuiokuhen	new	追忆篇;追憶篇;Tsuiokuhen
+bangumi_tag_yukishiro_tomoe	Yukishiro Tomoe	Yukishiro Tomoe	new	雪代巴;Yukishiro Tomoe
+bangumi_tag_cross_scar	Cross Scar	Cross Scar	new	十字伤;十字傷;Cross Scar
+bangumi_tag_furuhashi_kazuhiro	Kazuhiro Furuhashi	Kazuhiro Furuhashi	new	古桥一浩;古橋一浩;Kazuhiro Furuhashi;Furuhashi Kazuhiro
+bangumi_tag_meiji_restoration	Meiji Restorasyonu	Meiji Restoration	new	明治维新;明治維新;Meiji Restoration
+bangumi_tag_bakumatsu	Bakumatsu	Bakumatsu	new	幕末;Bakumatsu
+bangumi_tag_battosai	Battosai	Battosai	new	拔刀斋;拔刀齋;Battosai
+bangumi_tag_hiten_mitsurugi	Hiten Mitsurugi-ryu	Hiten Mitsurugi-ryu	new	飞天御剑流;飛天御劍流;Hiten Mitsurugi-ryu;飛天御剣流
+bangumi_tag_shinsengumi_tag	Shinsengumi	Shinsengumi	new	新选组;新選組;新撰組;Shinsengumi;shinsengumi
+bangumi_tag_watsuki_nobuhiro	Nobuhiro Watsuki	Nobuhiro Watsuki	new	和月伸宏;Watsuki Nobuhiro;Nobuhiro Watsuki
+bangumi_tag_bushi_tag	Bushi	Bushi	new	bushi;Bushi;武士
+bangumi_tag_bakumatsu_tag2	Bakumatsu	Bakumatsu	new	bakumatsu;Bakumatsu
+bangumi_tag_ishin_shishi	Ishin Shishi	Ishin Shishi	new	ishin shishi;Ishin Shishi
+bangumi_tag_meiji_period	Meiji Dönemi	Meiji Period	new	meiji period;Meiji Period
+bangumi_tag_exile_tag	Exile	Exile	new	exile;Exile
+bangumi_tag_gangs	Çeteler	Gangs	new	Gangs;GANGS;Gans
+bangumi_tag_rehabilitation	Rehabilitasyon	Rehabilitation	new	Rehabilitation;Rehabilitasyon;rehabilitation
+bangumi_tag_work	İş	Work	new	Work;İş;work
+bangumi_tag_school_club	Okul Kulübü	School Club	new	School Club;Okul Kulübü;school club
+bangumi_tag_trains_tag	Trenler	Trains	new	Trains;trains

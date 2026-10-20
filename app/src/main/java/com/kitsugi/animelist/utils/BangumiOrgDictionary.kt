@@ -6,7 +6,7 @@ import java.util.Locale
  * Bangumi şirket adları sözlüğü — **stüdyo / yapımcı / yayıncı ağ / yayımcı / dergi**.
  *
  * ⚠ **ÜRETİLMİŞ DOSYA — elle düzenlemeyin.**
- * Kaynak: `diag/bangumi_master/orgs.tsv` → `python3 diag/bangumi_master/gen_bangumi_master.py`
+ * Kaynak: `diag/bangumi_vault/vault.json` (exhaustive) + `diag/bangumi_master/orgs.tsv` → `python3 diag/bangumi_vault/scripts/vault_to_dictionaries.py`
  *
  * Bangumi infobox'ında şirket adları CJK (Japonca/Çince) ya da Latin gelir
  * (`京都アニメーション`, `BONES`, `木棉花` ...). Bu sözlük, gelen adı bir `bangumi_*` dil
@@ -1040,6 +1040,36 @@ Yokohama Animation Lab|bangumi_studio_yokohama_animation_lab|Yokohama Animation 
 Zero-G|bangumi_studio_zero_g|Zero-G
 ゼクシス|bangumi_studio_zexcs|ZEXCS
 ZEXCS|bangumi_studio_zexcs|ZEXCS
+TBS|bangumi_producer_tbs|TBS
+TBSテレビ|bangumi_producer_tbs|TBS
+东京放送|bangumi_producer_tbs|TBS
+東京放送|bangumi_producer_tbs|TBS
+TBS TV|bangumi_producer_tbs|TBS
+光坂高校演劇部|bangumi_producer_committee_kosaka_high|Kōsaka High School Drama Club
+Kousaka High School Drama Club|bangumi_producer_committee_kosaka_high|Kōsaka High School Drama Club
+Kōsaka High School Drama Club|bangumi_producer_committee_kosaka_high|Kōsaka High School Drama Club
+攻殻機動隊製作委員会|bangumi_producer_committee_ghost_shell|Ghost in the Shell Production Committee
+攻壳机动队制作委员会|bangumi_producer_committee_ghost_shell|Ghost in the Shell Production Committee
+Ghost in the Shell Production Committee|bangumi_producer_committee_ghost_shell|Ghost in the Shell Production Committee
+バンダイナムコエンターテインメント|bangumi_producer_bandai_namco_ent|Bandai Namco Entertainment
+Bandai Namco Entertainment|bangumi_producer_bandai_namco_ent|Bandai Namco Entertainment
+バンダイナムコ|bangumi_producer_bandai_namco_ent|Bandai Namco Entertainment
+ビクターエンタテインメント|bangumi_producer_victor_ent|Victor Entertainment
+Victor Entertainment|bangumi_producer_victor_ent|Victor Entertainment
+Victor|bangumi_producer_victor_ent|Victor Entertainment
+Rika Davis|bangumi_producer_rika_davis|Rika Davis
+田中渉|bangumi_producer_tanaka_wataru|Wataru Tanaka
+Wataru Tanaka|bangumi_producer_tanaka_wataru|Wataru Tanaka
+大澤雅彦|bangumi_producer_osawa_masahiko|Masahiko Osawa
+Masahiko Osawa|bangumi_producer_osawa_masahiko|Masahiko Osawa
+大沢雅彦|bangumi_producer_osawa_masahiko|Masahiko Osawa
+渡瀬悠宇パーフェクトワールド ふしぎ遊戯|bangumi_publisher_watase_perfect|Watase Yuu Perfect World: Fushigi Yuugi
+Watase Yuu Perfect World|bangumi_publisher_watase_perfect|Watase Yuu Perfect World: Fushigi Yuugi
+Watase Yuu Perfect World: Fushigi Yuugi|bangumi_publisher_watase_perfect|Watase Yuu Perfect World: Fushigi Yuugi
+日本アニメ音楽出版|bangumi_publisher_nihon_anime_music|Nihon Anime Music Publishing
+Nihon Anime Music Shuppan|bangumi_publisher_nihon_anime_music|Nihon Anime Music Publishing
+Nihon Anime Music Publishing|bangumi_publisher_nihon_anime_music|Nihon Anime Music Publishing
+MBS TRUTH|bangumi_network_mbs_truth|MBS TRUTH
 """
 
     /** `etiket|anahtar|küresel ad` satırları, tembel olarak ayrıştırılır. */

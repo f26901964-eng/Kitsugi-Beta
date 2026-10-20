@@ -1,0 +1,267 @@
+[
+  {
+    "key": "bangumi_publisher_kadokawa",
+    "role": "publisher",
+    "tr": "KADOKAWA",
+    "en": "KADOKAWA",
+    "status": "existing:kadokawa",
+    "labels": [
+      "角川書店",
+      "角川",
+      "Kadokawa Shoten"
+    ]
+  },
+  {
+    "key": "bangumi_publisher_shueisha",
+    "role": "publisher",
+    "tr": "Shueisha",
+    "en": "Shueisha",
+    "status": "existing:shueisha",
+    "labels": [
+      "集英社"
+    ]
+  },
+  {
+    "key": "bangumi_publisher_kodansha",
+    "role": "publisher",
+    "tr": "Kodansha",
+    "en": "Kodansha",
+    "status": "existing:kodansha",
+    "labels": [
+      "講談社"
+    ]
+  },
+  {
+    "key": "bangumi_publisher_shogakukan",
+    "role": "publisher",
+    "tr": "Shogakukan",
+    "en": "Shogakukan",
+    "status": "existing:shogakukan",
+    "labels": [
+      "小学館"
+    ]
+  },
+  {
+    "key": "bangumi_publisher_hakusensha",
+    "role": "publisher",
+    "tr": "Hakusensha",
+    "en": "Hakusensha",
+    "status": "new",
+    "labels": [
+      "白泉社"
+    ]
+  },
+  {
+    "key": "bangumi_publisher_akita_shoten",
+    "role": "publisher",
+    "tr": "Akita Shoten",
+    "en": "Akita Shoten",
+    "status": "new",
+    "labels": [
+      "秋田書店"
+    ]
+  },
+  {
+    "key": "bangumi_publisher_futabasha",
+    "role": "publisher",
+    "tr": "Futabasha",
+    "en": "Futabasha",
+    "status": "new",
+    "labels": [
+      "双葉社"
+    ]
+  },
+  {
+    "key": "bangumi_publisher_houbunsha",
+    "role": "publisher",
+    "tr": "Houbunsha",
+    "en": "Houbunsha",
+    "status": "new",
+    "labels": [
+      "芳文社"
+    ]
+  },
+  {
+    "key": "bangumi_publisher_shinchosha",
+    "role": "publisher",
+    "tr": "Shinchosha",
+    "en": "Shinchosha",
+    "status": "new",
+    "labels": [
+      "新潮社"
+    ]
+  },
+  {
+    "key": "bangumi_publisher_square_enix",
+    "role": "publisher",
+    "tr": "Square Enix",
+    "en": "Square Enix",
+    "status": "new",
+    "labels": [
+      "スクウェア・エニックス"
+    ]
+  },
+  {
+    "key": "bangumi_publisher_ichijinsha",
+    "role": "publisher",
+    "tr": "Ichijinsha",
+    "en": "Ichijinsha",
+    "status": "new",
+    "labels": [
+      "一迅社"
+    ]
+  },
+  {
+    "key": "bangumi_publisher_gentosha",
+    "role": "publisher",
+    "tr": "Gentosha",
+    "en": "Gentosha",
+    "status": "new",
+    "labels": [
+      "幻冬舎"
+    ]
+  },
+  {
+    "key": "bangumi_publisher_tokuma_shoten",
+    "role": "publisher",
+    "tr": "Tokuma Shoten",
+    "en": "Tokuma Shoten",
+    "status": "new",
+    "labels": [
+      "徳間書店"
+    ]
+  },
+  {
+    "key": "bangumi_publisher_libre",
+    "role": "publisher",
+    "tr": "Libre",
+    "en": "Libre",
+    "status": "new",
+    "labels": [
+      "リブレ",
+      "リブレ出版"
+    ]
+  },
+  {
+    "key": "bangumi_publisher_mag_garden",
+    "role": "publisher",
+    "tr": "Mag Garden",
+    "en": "Mag Garden",
+    "status": "new",
+    "labels": [
+      "マッグガーデン"
+    ]
+  },
+  {
+    "key": "bangumi_publisher_coamix",
+    "role": "publisher",
+    "tr": "Coamix",
+    "en": "Coamix",
+    "status": "new",
+    "labels": [
+      "コアミックス"
+    ]
+  },
+  {
+    "key": "bangumi_publisher_takeshobo",
+    "role": "publisher",
+    "tr": "Takeshobo",
+    "en": "Takeshobo",
+    "status": "new",
+    "labels": [
+      "竹書房"
+    ]
+  },
+  {
+    "key": "bangumi_publisher_nihonbungeisha",
+    "role": "publisher",
+    "tr": "Nihonbungeisha",
+    "en": "Nihonbungeisha",
+    "status": "new",
+    "labels": [
+      "日本文芸社"
+    ]
+  },
+  {
+    "key": "bangumi_publisher_shonen_gahosha",
+    "role": "publisher",
+    "tr": "Shonen Gahosha",
+    "en": "Shonen Gahosha",
+    "status": "new",
+    "labels": [
+      "少年画報社"
+    ]
+  },
+  {
+    "key": "bangumi_publisher_kobunsha",
+    "role": "publisher",
+    "tr": "Kobunsha",
+    "en": "Kobunsha",
+    "status": "new",
+    "labels": [
+      "光文社"
+    ]
+  },
+  {
+    "key": "bangumi_publisher_home_sha",
+    "role": "publisher",
+    "tr": "Home Sha",
+    "en": "Home Sha",
+    "status": "new",
+    "labels": [
+      "ホーム社"
+    ]
+  },
+  {
+    "key": "bangumi_publisher_ascii_media_works",
+    "role": "publisher",
+    "tr": "ASCII Media Works",
+    "en": "ASCII Media Works",
+    "status": "new",
+    "labels": [
+      "アスキー・メディアワークス"
+    ]
+  },
+  {
+    "key": "bangumi_publisher_enterbrain",
+    "role": "publisher",
+    "tr": "Enterbrain",
+    "en": "Enterbrain",
+    "status": "new",
+    "labels": [
+      "エンターブレイン"
+    ]
+  },
+  {
+    "key": "bangumi_publisher_media_factory",
+    "role": "publisher",
+    "tr": "Media Factory",
+    "en": "Media Factory",
+    "status": "new",
+    "labels": [
+      "メディアファクトリー"
+    ]
+  },
+  {
+    "key": "bangumi_publisher_watase_perfect",
+    "role": "publisher",
+    "tr": "渡瀬悠宇パーフェクトワールド ふしぎ遊戯",
+    "en": "Watase Yuu Perfect World: Fushigi Yuugi",
+    "status": "new",
+    "labels": [
+      "渡瀬悠宇パーフェクトワールド ふしぎ遊戯",
+      "Watase Yuu Perfect World"
+    ]
+  },
+  {
+    "key": "bangumi_publisher_nihon_anime_music",
+    "role": "publisher",
+    "tr": "日本アニメ音楽出版",
+    "en": "Nihon Anime Music Publishing",
+    "status": "new",
+    "labels": [
+      "日本アニメ音楽出版",
+      "Nihon Anime Music Shuppan"
+    ]
+  }
+]

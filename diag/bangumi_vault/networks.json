@@ -1,0 +1,1111 @@
+[
+  {
+    "key": "bangumi_network_nhk",
+    "role": "network",
+    "tr": "NHK",
+    "en": "NHK",
+    "status": "existing:nhk",
+    "labels": [
+      "NHK総合",
+      "NHK教育",
+      "NHK-G",
+      "NHK-E"
+    ]
+  },
+  {
+    "key": "bangumi_network_tbs",
+    "role": "network",
+    "tr": "TBS",
+    "en": "TBS",
+    "status": "existing:tbs",
+    "labels": [
+      "TBS",
+      "TBSテレビ",
+      "东京放送",
+      "東京放送",
+      "TBS TV"
+    ]
+  },
+  {
+    "key": "bangumi_network_tvasahi",
+    "role": "network",
+    "tr": "TV Asahi",
+    "en": "TV Asahi",
+    "status": "existing:tv_asahi",
+    "labels": [
+      "テレビ朝日",
+      "朝日电视台",
+      "朝日電視台",
+      "ANB",
+      "tv asahi"
+    ]
+  },
+  {
+    "key": "bangumi_network_fuji_tv",
+    "role": "network",
+    "tr": "Fuji TV",
+    "en": "Fuji Television",
+    "status": "existing:fuji_tv",
+    "labels": [
+      "フジテレビ",
+      "フジテレビジョン",
+      "富士电视台",
+      "富士電視台",
+      "Fuji Television"
+    ]
+  },
+  {
+    "key": "bangumi_network_ntv",
+    "role": "network",
+    "tr": "NTV",
+    "en": "Nippon TV",
+    "status": "existing:ntv",
+    "labels": [
+      "日本テレビ",
+      "日本电视台",
+      "日本電視台",
+      "日テレ",
+      "Nippon TV"
+    ]
+  },
+  {
+    "key": "bangumi_network_tv_tokyo",
+    "role": "network",
+    "tr": "TV Tokyo",
+    "en": "TV Tokyo",
+    "status": "existing:tv_tokyo",
+    "labels": [
+      "テレビ東京",
+      "东京电视台",
+      "東京電視台",
+      "TX",
+      "TV TOKYO"
+    ]
+  },
+  {
+    "key": "bangumi_network_tokyo_mx",
+    "role": "network",
+    "tr": "TOKYO MX",
+    "en": "TOKYO MX",
+    "status": "new",
+    "labels": [
+      "TOKYO MX",
+      "东京都会电视台",
+      "東京都會電視台",
+      "MX",
+      "東京MX"
+    ]
+  },
+  {
+    "key": "bangumi_network_bs11",
+    "role": "network",
+    "tr": "BS11",
+    "en": "BS11",
+    "status": "new",
+    "labels": [
+      "BS11",
+      "日本BS放送"
+    ]
+  },
+  {
+    "key": "bangumi_network_at_x",
+    "role": "network",
+    "tr": "AT-X",
+    "en": "AT-X",
+    "status": "new",
+    "labels": [
+      "AT-X",
+      "ATX"
+    ]
+  },
+  {
+    "key": "bangumi_network_wowow",
+    "role": "network",
+    "tr": "WOWOW",
+    "en": "WOWOW",
+    "status": "new",
+    "labels": [
+      "WOWOW",
+      "ワウワウ"
+    ]
+  },
+  {
+    "key": "bangumi_network_bs_tbs",
+    "role": "network",
+    "tr": "BS-TBS",
+    "en": "BS-TBS",
+    "status": "new",
+    "labels": [
+      "BS-TBS",
+      "BS-i",
+      "BS-i／BS-TBS"
+    ]
+  },
+  {
+    "key": "bangumi_network_bs_fuji",
+    "role": "network",
+    "tr": "BS Fuji",
+    "en": "BS Fuji",
+    "status": "new",
+    "labels": [
+      "BSフジ",
+      "BS富士"
+    ]
+  },
+  {
+    "key": "bangumi_network_bs_asahi",
+    "role": "network",
+    "tr": "BS Asahi",
+    "en": "BS Asahi",
+    "status": "new",
+    "labels": [
+      "BS朝日"
+    ]
+  },
+  {
+    "key": "bangumi_network_bs_ntv",
+    "role": "network",
+    "tr": "BS Nittele",
+    "en": "BS Nittele",
+    "status": "new",
+    "labels": [
+      "BS日テレ",
+      "BS日本テレビ"
+    ]
+  },
+  {
+    "key": "bangumi_network_bs_tv_tokyo",
+    "role": "network",
+    "tr": "BS TV Tokyo",
+    "en": "BS TV Tokyo",
+    "status": "new",
+    "labels": [
+      "BSテレ東",
+      "BSジャパン"
+    ]
+  },
+  {
+    "key": "bangumi_network_animax",
+    "role": "network",
+    "tr": "Animax",
+    "en": "Animax",
+    "status": "new",
+    "labels": [
+      "アニマックス",
+      "Animax"
+    ]
+  },
+  {
+    "key": "bangumi_network_kids_station",
+    "role": "network",
+    "tr": "Kids Station",
+    "en": "Kids Station",
+    "status": "new",
+    "labels": [
+      "キッズステーション"
+    ]
+  },
+  {
+    "key": "bangumi_network_mbs",
+    "role": "network",
+    "tr": "MBS",
+    "en": "MBS",
+    "status": "new",
+    "labels": [
+      "毎日放送",
+      "MBS毎日放送",
+      "Mainichi Broadcasting"
+    ]
+  },
+  {
+    "key": "bangumi_network_abc",
+    "role": "network",
+    "tr": "ABC",
+    "en": "ABC",
+    "status": "new",
+    "labels": [
+      "朝日放送",
+      "ABCテレビ",
+      "朝日放送テレビ",
+      "Asahi Broadcasting"
+    ]
+  },
+  {
+    "key": "bangumi_network_cbc",
+    "role": "network",
+    "tr": "CBC",
+    "en": "CBC",
+    "status": "new",
+    "labels": [
+      "中部日本放送",
+      "CBCテレビ"
+    ]
+  },
+  {
+    "key": "bangumi_network_rkb",
+    "role": "network",
+    "tr": "RKB",
+    "en": "RKB",
+    "status": "new",
+    "labels": [
+      "RKB毎日放送",
+      "RKB Mainichi Broadcasting"
+    ]
+  },
+  {
+    "key": "bangumi_network_sbs_jp",
+    "role": "network",
+    "tr": "SBS",
+    "en": "SBS",
+    "status": "new",
+    "labels": [
+      "静岡放送",
+      "SBS静岡放送"
+    ]
+  },
+  {
+    "key": "bangumi_network_mro",
+    "role": "network",
+    "tr": "MRO",
+    "en": "MRO",
+    "status": "new",
+    "labels": [
+      "北陸放送"
+    ]
+  },
+  {
+    "key": "bangumi_network_rkk",
+    "role": "network",
+    "tr": "RKK",
+    "en": "RKK",
+    "status": "new",
+    "labels": [
+      "熊本放送"
+    ]
+  },
+  {
+    "key": "bangumi_network_hbc",
+    "role": "network",
+    "tr": "HBC",
+    "en": "HBC",
+    "status": "new",
+    "labels": [
+      "北海道放送"
+    ]
+  },
+  {
+    "key": "bangumi_network_tbc",
+    "role": "network",
+    "tr": "TBC",
+    "en": "TBC",
+    "status": "new",
+    "labels": [
+      "東北放送"
+    ]
+  },
+  {
+    "key": "bangumi_network_sbc",
+    "role": "network",
+    "tr": "SBC",
+    "en": "SBC",
+    "status": "new",
+    "labels": [
+      "信越放送"
+    ]
+  },
+  {
+    "key": "bangumi_network_rsk",
+    "role": "network",
+    "tr": "RSK",
+    "en": "RSK",
+    "status": "new",
+    "labels": [
+      "RSK山陽放送",
+      "山陽放送"
+    ]
+  },
+  {
+    "key": "bangumi_network_rcc",
+    "role": "network",
+    "tr": "RCC",
+    "en": "RCC",
+    "status": "new",
+    "labels": [
+      "中国放送"
+    ]
+  },
+  {
+    "key": "bangumi_network_rnc",
+    "role": "network",
+    "tr": "RNC",
+    "en": "RNC",
+    "status": "new",
+    "labels": [
+      "西日本放送"
+    ]
+  },
+  {
+    "key": "bangumi_network_fbs",
+    "role": "network",
+    "tr": "FBS",
+    "en": "FBS",
+    "status": "new",
+    "labels": [
+      "福岡放送"
+    ]
+  },
+  {
+    "key": "bangumi_network_ytv",
+    "role": "network",
+    "tr": "ytv",
+    "en": "Yomiuri TV",
+    "status": "new",
+    "labels": [
+      "読売テレビ",
+      "ytv",
+      "読売テレビ放送"
+    ]
+  },
+  {
+    "key": "bangumi_network_ctv",
+    "role": "network",
+    "tr": "CTV",
+    "en": "CTV",
+    "status": "new",
+    "labels": [
+      "中京テレビ",
+      "中京テレビ放送"
+    ]
+  },
+  {
+    "key": "bangumi_network_ktv",
+    "role": "network",
+    "tr": "KTV",
+    "en": "Kansai TV",
+    "status": "new",
+    "labels": [
+      "関西テレビ",
+      "関西テレビ放送"
+    ]
+  },
+  {
+    "key": "bangumi_network_thk",
+    "role": "network",
+    "tr": "THK",
+    "en": "THK",
+    "status": "new",
+    "labels": [
+      "東海テレビ",
+      "東海テレビ放送"
+    ]
+  },
+  {
+    "key": "bangumi_network_sdt",
+    "role": "network",
+    "tr": "SDT",
+    "en": "SDT",
+    "status": "new",
+    "labels": [
+      "静岡第一テレビ"
+    ]
+  },
+  {
+    "key": "bangumi_network_tvk",
+    "role": "network",
+    "tr": "tvk",
+    "en": "tvk",
+    "status": "new",
+    "labels": [
+      "テレビ神奈川",
+      "tvk"
+    ]
+  },
+  {
+    "key": "bangumi_network_chiba_tv",
+    "role": "network",
+    "tr": "Chiba TV",
+    "en": "Chiba TV",
+    "status": "new",
+    "labels": [
+      "チバテレビ",
+      "千葉テレビ"
+    ]
+  },
+  {
+    "key": "bangumi_network_teletama",
+    "role": "network",
+    "tr": "Teletama",
+    "en": "Teletama",
+    "status": "new",
+    "labels": [
+      "テレ玉",
+      "テレビ埼玉"
+    ]
+  },
+  {
+    "key": "bangumi_network_sun_tv",
+    "role": "network",
+    "tr": "SUN-TV",
+    "en": "SUN-TV",
+    "status": "new",
+    "labels": [
+      "サンテレビ",
+      "サンテレビジョン"
+    ]
+  },
+  {
+    "key": "bangumi_network_kbs_kyoto",
+    "role": "network",
+    "tr": "KBS Kyoto",
+    "en": "KBS Kyoto",
+    "status": "new",
+    "labels": [
+      "KBS京都",
+      "KBS京都放送"
+    ]
+  },
+  {
+    "key": "bangumi_network_mie_tv",
+    "role": "network",
+    "tr": "Mie TV",
+    "en": "Mie TV",
+    "status": "new",
+    "labels": [
+      "三重テレビ"
+    ]
+  },
+  {
+    "key": "bangumi_network_tvq",
+    "role": "network",
+    "tr": "TVQ",
+    "en": "TVQ",
+    "status": "new",
+    "labels": [
+      "TVQ九州放送"
+    ]
+  },
+  {
+    "key": "bangumi_network_tva",
+    "role": "network",
+    "tr": "TV Aichi",
+    "en": "TV Aichi",
+    "status": "new",
+    "labels": [
+      "テレビ愛知"
+    ]
+  },
+  {
+    "key": "bangumi_network_tvo",
+    "role": "network",
+    "tr": "TV Osaka",
+    "en": "TV Osaka",
+    "status": "new",
+    "labels": [
+      "テレビ大阪"
+    ]
+  },
+  {
+    "key": "bangumi_network_d_anime_store",
+    "role": "network",
+    "tr": "dアニメストア",
+    "en": "d Anime Store",
+    "status": "new",
+    "labels": [
+      "dアニメストア",
+      "dアニメストア for Prime Video"
+    ]
+  },
+  {
+    "key": "bangumi_network_abema",
+    "role": "network",
+    "tr": "ABEMA",
+    "en": "ABEMA",
+    "status": "new",
+    "labels": [
+      "ABEMA",
+      "アベマ",
+      "AbemaTV"
+    ]
+  },
+  {
+    "key": "bangumi_network_u_next",
+    "role": "network",
+    "tr": "U-NEXT",
+    "en": "U-NEXT",
+    "status": "new",
+    "labels": [
+      "U-NEXT",
+      "ユーネクスト"
+    ]
+  },
+  {
+    "key": "bangumi_network_hulu_jp",
+    "role": "network",
+    "tr": "Hulu",
+    "en": "Hulu",
+    "status": "new",
+    "labels": [
+      "Hulu",
+      "フール"
+    ]
+  },
+  {
+    "key": "bangumi_network_niconico",
+    "role": "network",
+    "tr": "Niconico",
+    "en": "Niconico",
+    "status": "new",
+    "labels": [
+      "ニコニコ動画",
+      "niconico",
+      "ニコニコ",
+      "niconico动画"
+    ]
+  },
+  {
+    "key": "bangumi_network_bandai_channel",
+    "role": "network",
+    "tr": "Bandai Channel",
+    "en": "Bandai Channel",
+    "status": "new",
+    "labels": [
+      "バンダイチャンネル",
+      "Bandai Ch."
+    ]
+  },
+  {
+    "key": "bangumi_network_gyao",
+    "role": "network",
+    "tr": "GYAO!",
+    "en": "GYAO!",
+    "status": "new",
+    "labels": [
+      "GYAO!",
+      "GYAO",
+      "ギャオ"
+    ]
+  },
+  {
+    "key": "bangumi_network_fod",
+    "role": "network",
+    "tr": "FOD",
+    "en": "FOD",
+    "status": "new",
+    "labels": [
+      "FOD",
+      "フジテレビオンデマンド"
+    ]
+  },
+  {
+    "key": "bangumi_network_tver",
+    "role": "network",
+    "tr": "TVer",
+    "en": "TVer",
+    "status": "new",
+    "labels": [
+      "TVer",
+      "ティーバー"
+    ]
+  },
+  {
+    "key": "bangumi_network_prime_video",
+    "role": "network",
+    "tr": "Prime Video",
+    "en": "Prime Video",
+    "status": "existing:amazon_prime",
+    "labels": [
+      "Amazon Prime Video",
+      "亚马逊 Prime",
+      "亞馬遜 Prime",
+      "Amazonプライム・ビデオ",
+      "Amazon Video"
+    ]
+  },
+  {
+    "key": "bangumi_network_bilibili",
+    "role": "network",
+    "tr": "bilibili",
+    "en": "bilibili",
+    "status": "existing:bilibili",
+    "labels": [
+      "哔哩哔哩",
+      "嗶哩嗶哩",
+      "B站",
+      "Bilibili"
+    ]
+  },
+  {
+    "key": "bangumi_network_iqiyi",
+    "role": "network",
+    "tr": "iQIYI",
+    "en": "iQIYI",
+    "status": "existing:iqiyi",
+    "labels": [
+      "爱奇艺",
+      "愛奇藝"
+    ]
+  },
+  {
+    "key": "bangumi_network_tencent_video",
+    "role": "network",
+    "tr": "Tencent Video",
+    "en": "Tencent Video",
+    "status": "existing:tencent_video",
+    "labels": [
+      "腾讯视频",
+      "騰訊視頻"
+    ]
+  },
+  {
+    "key": "bangumi_network_youku",
+    "role": "network",
+    "tr": "Youku",
+    "en": "Youku",
+    "status": "existing:youku",
+    "labels": [
+      "优酷",
+      "優酷"
+    ]
+  },
+  {
+    "key": "bangumi_network_mango_tv",
+    "role": "network",
+    "tr": "Mango TV",
+    "en": "Mango TV",
+    "status": "new",
+    "labels": [
+      "芒果TV",
+      "芒果tv"
+    ]
+  },
+  {
+    "key": "bangumi_network_cctv",
+    "role": "network",
+    "tr": "CCTV",
+    "en": "CCTV",
+    "status": "existing:cctv",
+    "labels": [
+      "央视",
+      "央視",
+      "中国中央电视台",
+      "中國中央電視台"
+    ]
+  },
+  {
+    "key": "bangumi_network_hunan_tv",
+    "role": "network",
+    "tr": "Hunan TV",
+    "en": "Hunan TV",
+    "status": "new",
+    "labels": [
+      "湖南卫视",
+      "湖南衛視"
+    ]
+  },
+  {
+    "key": "bangumi_network_zhejiang_tv",
+    "role": "network",
+    "tr": "Zhejiang TV",
+    "en": "Zhejiang TV",
+    "status": "new",
+    "labels": [
+      "浙江卫视",
+      "浙江衛視"
+    ]
+  },
+  {
+    "key": "bangumi_network_dragon_tv",
+    "role": "network",
+    "tr": "Dragon TV",
+    "en": "Dragon TV",
+    "status": "new",
+    "labels": [
+      "东方卫视",
+      "東方衛視"
+    ]
+  },
+  {
+    "key": "bangumi_network_jiangsu_tv",
+    "role": "network",
+    "tr": "Jiangsu TV",
+    "en": "Jiangsu TV",
+    "status": "new",
+    "labels": [
+      "江苏卫视",
+      "江蘇衛視"
+    ]
+  },
+  {
+    "key": "bangumi_network_beijing_tv",
+    "role": "network",
+    "tr": "Beijing TV",
+    "en": "Beijing TV",
+    "status": "new",
+    "labels": [
+      "北京卫视",
+      "北京衛視"
+    ]
+  },
+  {
+    "key": "bangumi_network_guangdong_tv",
+    "role": "network",
+    "tr": "Guangdong TV",
+    "en": "Guangdong TV",
+    "status": "new",
+    "labels": [
+      "广东卫视",
+      "廣東衛視"
+    ]
+  },
+  {
+    "key": "bangumi_network_muse",
+    "role": "network",
+    "tr": "Muse Communication",
+    "en": "Muse Communication",
+    "status": "new",
+    "labels": [
+      "木棉花",
+      "Muse木棉花",
+      "MUSE"
+    ]
+  },
+  {
+    "key": "bangumi_network_ttv",
+    "role": "network",
+    "tr": "TTV",
+    "en": "TTV",
+    "status": "new",
+    "labels": [
+      "台视",
+      "台視",
+      "台湾电视",
+      "台灣電視"
+    ]
+  },
+  {
+    "key": "bangumi_network_ctv_tw",
+    "role": "network",
+    "tr": "CTV",
+    "en": "CTV",
+    "status": "new",
+    "labels": [
+      "中视",
+      "中視",
+      "中国电视",
+      "中國電視"
+    ]
+  },
+  {
+    "key": "bangumi_network_ftv",
+    "role": "network",
+    "tr": "FTV",
+    "en": "FTV",
+    "status": "new",
+    "labels": [
+      "民视",
+      "民視",
+      "民间全民电视",
+      "民間全民電視"
+    ]
+  },
+  {
+    "key": "bangumi_network_gtv",
+    "role": "network",
+    "tr": "GTV",
+    "en": "GTV",
+    "status": "new",
+    "labels": [
+      "八大电视",
+      "八大電視",
+      "GTV"
+    ]
+  },
+  {
+    "key": "bangumi_network_tvb",
+    "role": "network",
+    "tr": "TVB",
+    "en": "TVB",
+    "status": "new",
+    "labels": [
+      "无线电视",
+      "無線電視",
+      "翡翠台",
+      "Jade"
+    ]
+  },
+  {
+    "key": "bangumi_network_viutv",
+    "role": "network",
+    "tr": "ViuTV",
+    "en": "ViuTV",
+    "status": "new",
+    "labels": [
+      "ViuTV"
+    ]
+  },
+  {
+    "key": "bangumi_network_kbs",
+    "role": "network",
+    "tr": "KBS",
+    "en": "KBS",
+    "status": "new",
+    "labels": [
+      "KBS",
+      "韩国广播公司",
+      "韓國廣播公司",
+      "Korean Broadcasting System"
+    ]
+  },
+  {
+    "key": "bangumi_network_mbc_kr",
+    "role": "network",
+    "tr": "MBC",
+    "en": "MBC",
+    "status": "new",
+    "labels": [
+      "MBC",
+      "文化广播",
+      "文化廣播",
+      "Munhwa Broadcasting"
+    ]
+  },
+  {
+    "key": "bangumi_network_sbs_kr",
+    "role": "network",
+    "tr": "SBS",
+    "en": "SBS",
+    "status": "new",
+    "labels": [
+      "SBS",
+      "SBS首尔放送",
+      "SBS首爾放送",
+      "Seoul Broadcasting System"
+    ]
+  },
+  {
+    "key": "bangumi_network_tooniverse",
+    "role": "network",
+    "tr": "Tooniverse",
+    "en": "Tooniverse",
+    "status": "new",
+    "labels": [
+      "Tooniverse",
+      "투니버스"
+    ]
+  },
+  {
+    "key": "bangumi_network_aniplus",
+    "role": "network",
+    "tr": "Aniplus",
+    "en": "Aniplus",
+    "status": "new",
+    "labels": [
+      "ANIPLUS",
+      "애니플러스"
+    ]
+  },
+  {
+    "key": "bangumi_network_netflix",
+    "role": "network",
+    "tr": "Netflix",
+    "en": "Netflix",
+    "status": "existing:netflix",
+    "labels": [
+      "Netflix",
+      "网飞",
+      "網飛",
+      "奈飞"
+    ]
+  },
+  {
+    "key": "bangumi_network_crunchyroll",
+    "role": "network",
+    "tr": "Crunchyroll",
+    "en": "Crunchyroll",
+    "status": "existing:crunchyroll",
+    "labels": [
+      "Crunchyroll",
+      "CR"
+    ]
+  },
+  {
+    "key": "bangumi_network_disney_plus",
+    "role": "network",
+    "tr": "Disney+",
+    "en": "Disney+",
+    "status": "new",
+    "labels": [
+      "Disney+",
+      "ディズニープラス",
+      "Disney Plus"
+    ]
+  },
+  {
+    "key": "bangumi_network_hbo_max",
+    "role": "network",
+    "tr": "Max",
+    "en": "Max",
+    "status": "new",
+    "labels": [
+      "HBO Max",
+      "HBO",
+      "Max"
+    ]
+  },
+  {
+    "key": "bangumi_network_hulu",
+    "role": "network",
+    "tr": "Hulu",
+    "en": "Hulu",
+    "status": "new",
+    "labels": [
+      "Hulu",
+      "HULU"
+    ]
+  },
+  {
+    "key": "bangumi_network_apple_tv",
+    "role": "network",
+    "tr": "Apple TV+",
+    "en": "Apple TV+",
+    "status": "new",
+    "labels": [
+      "Apple TV+",
+      "Apple TV Plus"
+    ]
+  },
+  {
+    "key": "bangumi_network_cartoon_network",
+    "role": "network",
+    "tr": "Cartoon Network",
+    "en": "Cartoon Network",
+    "status": "new",
+    "labels": [
+      "Cartoon Network",
+      "卡通频道",
+      "カートゥーンネットワーク"
+    ]
+  },
+  {
+    "key": "bangumi_network_adult_swim",
+    "role": "network",
+    "tr": "Adult Swim",
+    "en": "Adult Swim",
+    "status": "new",
+    "labels": [
+      "Adult Swim",
+      "アダルトスイム"
+    ]
+  },
+  {
+    "key": "bangumi_network_disney_channel",
+    "role": "network",
+    "tr": "Disney Channel",
+    "en": "Disney Channel",
+    "status": "new",
+    "labels": [
+      "Disney Channel",
+      "迪士尼频道",
+      "ディズニーチャンネル"
+    ]
+  },
+  {
+    "key": "bangumi_network_nickelodeon",
+    "role": "network",
+    "tr": "Nickelodeon",
+    "en": "Nickelodeon",
+    "status": "new",
+    "labels": [
+      "Nickelodeon",
+      "尼克儿童频道",
+      "ニコロデオン"
+    ]
+  },
+  {
+    "key": "bangumi_network_bbc",
+    "role": "network",
+    "tr": "BBC",
+    "en": "BBC",
+    "status": "new",
+    "labels": [
+      "BBC",
+      "英国广播公司",
+      "英國廣播公司"
+    ]
+  },
+  {
+    "key": "bangumi_network_itv",
+    "role": "network",
+    "tr": "ITV",
+    "en": "ITV",
+    "status": "new",
+    "labels": [
+      "ITV"
+    ]
+  },
+  {
+    "key": "bangumi_network_channel4",
+    "role": "network",
+    "tr": "Channel 4",
+    "en": "Channel 4",
+    "status": "new",
+    "labels": [
+      "Channel 4",
+      "第4频道"
+    ]
+  },
+  {
+    "key": "bangumi_network_youtube",
+    "role": "network",
+    "tr": "YouTube",
+    "en": "YouTube",
+    "status": "new",
+    "labels": [
+      "YouTube",
+      "ユーチューブ",
+      "油管"
+    ]
+  },
+  {
+    "key": "bangumi_network_tubi",
+    "role": "network",
+    "tr": "Tubi",
+    "en": "Tubi",
+    "status": "new",
+    "labels": [
+      "Tubi"
+    ]
+  },
+  {
+    "key": "bangumi_network_roku",
+    "role": "network",
+    "tr": "The Roku Channel",
+    "en": "The Roku Channel",
+    "status": "new",
+    "labels": [
+      "Roku Channel",
+      "The Roku Channel"
+    ]
+  },
+  {
+    "key": "bangumi_network_peacock",
+    "role": "network",
+    "tr": "Peacock",
+    "en": "Peacock",
+    "status": "new",
+    "labels": [
+      "Peacock",
+      "Peacock TV"
+    ]
+  },
+  {
+    "key": "bangumi_network_mbs_truth",
+    "role": "network",
+    "tr": "MBS TRUTH",
+    "en": "MBS TRUTH",
+    "status": "new",
+    "labels": [
+      "MBS TRUTH"
+    ]
+  }
+]

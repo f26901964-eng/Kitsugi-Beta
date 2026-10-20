@@ -1,0 +1,25 @@
+[
+  {
+    "key": "bangumi_producer_committee_kosaka_high",
+    "role": "producer",
+    "tr": "光坂高校演劇部",
+    "en": "Kōsaka High School Drama Club",
+    "status": "new",
+    "labels": [
+      "光坂高校演劇部",
+      "Kousaka High School Drama Club"
+    ]
+  },
+  {
+    "key": "bangumi_producer_committee_ghost_shell",
+    "role": "producer",
+    "tr": "攻殻機動隊製作委員会",
+    "en": "Ghost in the Shell Production Committee",
+    "status": "new",
+    "labels": [
+      "攻殻機動隊製作委員会",
+      "攻壳机动队制作委员会",
+      "Ghost in the Shell Production Committee"
+    ]
+  }
+]

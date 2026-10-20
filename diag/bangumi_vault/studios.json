@@ -1,0 +1,1465 @@
+[
+  {
+    "key": "bangumi_studio_a1_pictures",
+    "role": "studio",
+    "tr": "A-1 Pictures",
+    "en": "A-1 Pictures",
+    "status": "existing:a1_pictures",
+    "labels": [
+      "A-1 Pictures",
+      "A-1",
+      "A1社",
+      "エー・ワン・ピクチャーズ"
+    ]
+  },
+  {
+    "key": "bangumi_studio_acg",
+    "role": "studio",
+    "tr": "ACG",
+    "en": "ACG",
+    "status": "new",
+    "labels": [
+      "ACG动漫制作",
+      "ACG動漫製作"
+    ]
+  },
+  {
+    "key": "bangumi_studio_aic",
+    "role": "studio",
+    "tr": "AIC",
+    "en": "Anime International Company",
+    "status": "new",
+    "labels": [
+      "AIC",
+      "アニメインターナショナルカンパニー",
+      "アニメインターナショナル"
+    ]
+  },
+  {
+    "key": "bangumi_studio_arms",
+    "role": "studio",
+    "tr": "ARMS",
+    "en": "ARMS",
+    "status": "new",
+    "labels": [
+      "ARMS",
+      "アームズ"
+    ]
+  },
+  {
+    "key": "bangumi_studio_asahi_production",
+    "role": "studio",
+    "tr": "Asahi Production",
+    "en": "Asahi Production",
+    "status": "new",
+    "labels": [
+      "Asahi Production"
+    ]
+  },
+  {
+    "key": "bangumi_studio_asread",
+    "role": "studio",
+    "tr": "Asread",
+    "en": "Asread",
+    "status": "new",
+    "labels": [
+      "アスリード"
+    ]
+  },
+  {
+    "key": "bangumi_studio_axsiz",
+    "role": "studio",
+    "tr": "AXsiZ",
+    "en": "AXsiZ",
+    "status": "new",
+    "labels": [
+      "アクシーズ"
+    ]
+  },
+  {
+    "key": "bangumi_studio_bee_train",
+    "role": "studio",
+    "tr": "Bee Train",
+    "en": "Bee Train",
+    "status": "new",
+    "labels": [
+      "BEE TRAIN",
+      "ビィートレイン"
+    ]
+  },
+  {
+    "key": "bangumi_studio_bibury",
+    "role": "studio",
+    "tr": "Bibury Animation Studios",
+    "en": "Bibury Animation Studios",
+    "status": "new",
+    "labels": [
+      "ビバリーアニメーションスタジオ",
+      "Bibury"
+    ]
+  },
+  {
+    "key": "bangumi_studio_bones",
+    "role": "studio",
+    "tr": "BONES",
+    "en": "BONES",
+    "status": "existing:bones_studio",
+    "labels": [
+      "ボンズ",
+      "骨头社",
+      "Bones"
+    ]
+  },
+  {
+    "key": "bangumi_studio_brain_s_base",
+    "role": "studio",
+    "tr": "Brain's Base",
+    "en": "Brain's Base",
+    "status": "new",
+    "labels": [
+      "ブレインズ・ベース",
+      "ブレインズベース"
+    ]
+  },
+  {
+    "key": "bangumi_studio_bridge",
+    "role": "studio",
+    "tr": "Bridge",
+    "en": "Bridge",
+    "status": "new",
+    "labels": [
+      "ブリッジ"
+    ]
+  },
+  {
+    "key": "bangumi_studio_c2c",
+    "role": "studio",
+    "tr": "C2C",
+    "en": "C2C",
+    "status": "new",
+    "labels": [
+      "C2C"
+    ]
+  },
+  {
+    "key": "bangumi_studio_c_station",
+    "role": "studio",
+    "tr": "C-Station",
+    "en": "C-Station",
+    "status": "new",
+    "labels": [
+      "シーステイション"
+    ]
+  },
+  {
+    "key": "bangumi_studio_cloverworks",
+    "role": "studio",
+    "tr": "CloverWorks",
+    "en": "CloverWorks",
+    "status": "existing:cloverworks",
+    "labels": [
+      "Clover Works",
+      "クローバーワークス",
+      "CLOVERWORKS"
+    ]
+  },
+  {
+    "key": "bangumi_studio_colorido",
+    "role": "studio",
+    "tr": "Studio Colorido",
+    "en": "Studio Colorido",
+    "status": "new",
+    "labels": [
+      "スタジオコロリド"
+    ]
+  },
+  {
+    "key": "bangumi_studio_comet",
+    "role": "studio",
+    "tr": "Studio Comet",
+    "en": "Studio Comet",
+    "status": "new",
+    "labels": [
+      "スタジオコメット",
+      "studio COMET"
+    ]
+  },
+  {
+    "key": "bangumi_studio_connect",
+    "role": "studio",
+    "tr": "Connect",
+    "en": "Connect",
+    "status": "new",
+    "labels": [
+      "コネクト"
+    ]
+  },
+  {
+    "key": "bangumi_studio_creators_in_pack",
+    "role": "studio",
+    "tr": "Creators in Pack",
+    "en": "Creators in Pack",
+    "status": "new",
+    "labels": [
+      "クリエイターズインパック"
+    ]
+  },
+  {
+    "key": "bangumi_studio_cygamespictures",
+    "role": "studio",
+    "tr": "CygamesPictures",
+    "en": "CygamesPictures",
+    "status": "new",
+    "labels": [
+      "サイゲームズピクチャーズ",
+      "Cygames Pictures"
+    ]
+  },
+  {
+    "key": "bangumi_studio_david_production",
+    "role": "studio",
+    "tr": "David Production",
+    "en": "David Production",
+    "status": "existing:david_production",
+    "labels": [
+      "ダビプロ",
+      "デイヴィッドプロダクション",
+      "David Production"
+    ]
+  },
+  {
+    "key": "bangumi_studio_deen",
+    "role": "studio",
+    "tr": "Studio Deen",
+    "en": "Studio Deen",
+    "status": "existing:studio_deen",
+    "labels": [
+      "スタジオディーン",
+      "スタジオDEEN",
+      "ディーン",
+      "DEEN"
+    ]
+  },
+  {
+    "key": "bangumi_studio_diomedea",
+    "role": "studio",
+    "tr": "Diomedéa",
+    "en": "Diomedéa",
+    "status": "existing:diomedea",
+    "labels": [
+      "ディオメディア",
+      "Diomedea"
+    ]
+  },
+  {
+    "key": "bangumi_studio_dle",
+    "role": "studio",
+    "tr": "DLE",
+    "en": "DLE",
+    "status": "new",
+    "labels": [
+      "ディー・エル・イー"
+    ]
+  },
+  {
+    "key": "bangumi_studio_doga_kobo",
+    "role": "studio",
+    "tr": "Doga Kobo",
+    "en": "Doga Kobo",
+    "status": "existing:doga_kobo",
+    "labels": [
+      "動画工房",
+      "Doga Kobo"
+    ]
+  },
+  {
+    "key": "bangumi_studio_dream_force",
+    "role": "studio",
+    "tr": "Dream Force",
+    "en": "Dream Force",
+    "status": "new",
+    "labels": [
+      "ドリームフォース",
+      "ドリーム・フォース"
+    ]
+  },
+  {
+    "key": "bangumi_studio_egg_firm",
+    "role": "studio",
+    "tr": "egg firm",
+    "en": "egg firm",
+    "status": "new",
+    "labels": [
+      "エッグファーム",
+      "Egg Firm"
+    ]
+  },
+  {
+    "key": "bangumi_studio_elle",
+    "role": "studio",
+    "tr": "Studio Elle",
+    "en": "Studio Elle",
+    "status": "new",
+    "labels": [
+      "スタジオエル"
+    ]
+  },
+  {
+    "key": "bangumi_studio_emt2",
+    "role": "studio",
+    "tr": "EMT²",
+    "en": "EMT²",
+    "status": "new",
+    "labels": [
+      "EMTスクエアード",
+      "EMT2"
+    ]
+  },
+  {
+    "key": "bangumi_studio_engi",
+    "role": "studio",
+    "tr": "ENGI",
+    "en": "ENGI",
+    "status": "new",
+    "labels": [
+      "エンギー"
+    ]
+  },
+  {
+    "key": "bangumi_studio_fanworks",
+    "role": "studio",
+    "tr": "Fanworks",
+    "en": "Fanworks",
+    "status": "new",
+    "labels": [
+      "ファンワークス"
+    ]
+  },
+  {
+    "key": "bangumi_studio_fantasia",
+    "role": "studio",
+    "tr": "Studio Fantasia",
+    "en": "Studio Fantasia",
+    "status": "new",
+    "labels": [
+      "スタジオファンタジア"
+    ]
+  },
+  {
+    "key": "bangumi_studio_feel",
+    "role": "studio",
+    "tr": "feel.",
+    "en": "feel.",
+    "status": "new",
+    "labels": [
+      "feel.",
+      "フィール",
+      "FEEL"
+    ]
+  },
+  {
+    "key": "bangumi_studio_felix_film",
+    "role": "studio",
+    "tr": "Felix Film",
+    "en": "Felix Film",
+    "status": "new",
+    "labels": [
+      "フェリックスフィルム"
+    ]
+  },
+  {
+    "key": "bangumi_studio_flad",
+    "role": "studio",
+    "tr": "Studio Flad",
+    "en": "Studio Flad",
+    "status": "new",
+    "labels": [
+      "スタジオフラッド"
+    ]
+  },
+  {
+    "key": "bangumi_studio_flat",
+    "role": "studio",
+    "tr": "Flat Studio",
+    "en": "Flat Studio",
+    "status": "new",
+    "labels": [
+      "フラットスタジオ",
+      "FlatStudio"
+    ]
+  },
+  {
+    "key": "bangumi_studio_frontline",
+    "role": "studio",
+    "tr": "Frontline",
+    "en": "Frontline",
+    "status": "new",
+    "labels": [
+      "フロントライン"
+    ]
+  },
+  {
+    "key": "bangumi_studio_gaina",
+    "role": "studio",
+    "tr": "Gaina",
+    "en": "Gaina",
+    "status": "new",
+    "labels": [
+      "ガイナ",
+      "GAINA"
+    ]
+  },
+  {
+    "key": "bangumi_studio_gainax",
+    "role": "studio",
+    "tr": "GAINAX",
+    "en": "GAINAX",
+    "status": "existing:gainax",
+    "labels": [
+      "ガイナックス",
+      "ガンックス",
+      "Gainax"
+    ]
+  },
+  {
+    "key": "bangumi_studio_gallop",
+    "role": "studio",
+    "tr": "Gallop",
+    "en": "Gallop",
+    "status": "new",
+    "labels": [
+      "ぎゃろっぷ"
+    ]
+  },
+  {
+    "key": "bangumi_studio_geek_toys",
+    "role": "studio",
+    "tr": "GEEK TOYS",
+    "en": "GEEK TOYS",
+    "status": "new",
+    "labels": [
+      "ジークトゥイズ"
+    ]
+  },
+  {
+    "key": "bangumi_studio_gemba",
+    "role": "studio",
+    "tr": "GEMBA",
+    "en": "GEMBA",
+    "status": "new",
+    "labels": [
+      "ゲンバ"
+    ]
+  },
+  {
+    "key": "bangumi_studio_gohan",
+    "role": "studio",
+    "tr": "Studio Gohan",
+    "en": "Studio Gohan",
+    "status": "pending",
+    "labels": [
+      "スタジオごはん"
+    ]
+  },
+  {
+    "key": "bangumi_studio_gokumi",
+    "role": "studio",
+    "tr": "Studio Gokumi",
+    "en": "Studio Gokumi",
+    "status": "new",
+    "labels": [
+      "スタジオゴクミ"
+    ]
+  },
+  {
+    "key": "bangumi_studio_gonzo",
+    "role": "studio",
+    "tr": "GONZO",
+    "en": "GONZO",
+    "status": "new",
+    "labels": [
+      "ゴンゾ"
+    ]
+  },
+  {
+    "key": "bangumi_studio_gohands",
+    "role": "studio",
+    "tr": "GoHands",
+    "en": "GoHands",
+    "status": "new",
+    "labels": [
+      "ゴーハンズ"
+    ]
+  },
+  {
+    "key": "bangumi_studio_graphinica",
+    "role": "studio",
+    "tr": "Graphinica",
+    "en": "Graphinica",
+    "status": "new",
+    "labels": [
+      "グラフィニカ"
+    ]
+  },
+  {
+    "key": "bangumi_studio_hal_film_maker",
+    "role": "studio",
+    "tr": "Hal Film Maker",
+    "en": "Hal Film Maker",
+    "status": "new",
+    "labels": [
+      "ハルフィルムメーカー"
+    ]
+  },
+  {
+    "key": "bangumi_studio_haoliners",
+    "role": "studio",
+    "tr": "Haoliners Animation",
+    "en": "Haoliners Animation",
+    "status": "new",
+    "labels": [
+      "绘梦动画",
+      "繪夢動畫",
+      "绘梦",
+      "Haoliners"
+    ]
+  },
+  {
+    "key": "bangumi_studio_hoods",
+    "role": "studio",
+    "tr": "Hoods Entertainment",
+    "en": "Hoods Entertainment",
+    "status": "new",
+    "labels": [
+      "フーズエンタテインメント"
+    ]
+  },
+  {
+    "key": "bangumi_studio_huanshi",
+    "role": "studio",
+    "tr": "YHKT Entertainment",
+    "en": "YHKT Entertainment",
+    "status": "new",
+    "labels": [
+      "幻维数码",
+      "幻維數碼"
+    ]
+  },
+  {
+    "key": "bangumi_studio_ig",
+    "role": "studio",
+    "tr": "Production I.G",
+    "en": "Production I.G",
+    "status": "existing:production_ig",
+    "labels": [
+      "プロダクション・アイジー",
+      "プロダクションIG",
+      "Production.IG",
+      "ProductionI.G",
+      "IG社",
+      "I.G",
+      "Production IG"
+    ]
+  },
+  {
+    "key": "bangumi_studio_ims",
+    "role": "studio",
+    "tr": "Production IMS",
+    "en": "Production IMS",
+    "status": "new",
+    "labels": [
+      "プロダクションアイムス"
+    ]
+  },
+  {
+    "key": "bangumi_studio_jc_staff",
+    "role": "studio",
+    "tr": "J.C.Staff",
+    "en": "J.C.Staff",
+    "status": "existing:jc_staff",
+    "labels": [
+      "J.C.STAFF",
+      "ジェーシースタッフ",
+      "JC社"
+    ]
+  },
+  {
+    "key": "bangumi_studio_kai",
+    "role": "studio",
+    "tr": "Studio Kai",
+    "en": "Studio Kai",
+    "status": "new",
+    "labels": [
+      "スタジオカイ"
+    ]
+  },
+  {
+    "key": "bangumi_studio_khara",
+    "role": "studio",
+    "tr": "khara",
+    "en": "khara",
+    "status": "new",
+    "labels": [
+      "カラー",
+      "スタジオカラー",
+      "Khara",
+      "studio khara"
+    ]
+  },
+  {
+    "key": "bangumi_studio_kinema_citrus",
+    "role": "studio",
+    "tr": "KINEMA CITRUS",
+    "en": "KINEMA CITRUS",
+    "status": "existing:kinema_citrus",
+    "labels": [
+      "キネマシトラス",
+      "Kinema Citrus"
+    ]
+  },
+  {
+    "key": "bangumi_studio_kyoto_animation",
+    "role": "studio",
+    "tr": "Kyoto Animation",
+    "en": "Kyoto Animation",
+    "status": "existing:kyoto_animation",
+    "labels": [
+      "京都アニメーション",
+      "京都动画",
+      "京都動画",
+      "京都動畫",
+      "京阿尼",
+      "京アニ",
+      "KyoAni",
+      "Kyoto Animation",
+      "京都"
+    ]
+  },
+  {
+    "key": "bangumi_studio_lan",
+    "role": "studio",
+    "tr": "LAN Studio",
+    "en": "LAN Studio",
+    "status": "new",
+    "labels": [
+      "岚山动画",
+      "嵐山動畫"
+    ]
+  },
+  {
+    "key": "bangumi_studio_landq",
+    "role": "studio",
+    "tr": "LandQ Studios",
+    "en": "LandQ Studios",
+    "status": "new",
+    "labels": [
+      "ランドクォースタジオ"
+    ]
+  },
+  {
+    "key": "bangumi_studio_layduce",
+    "role": "studio",
+    "tr": "Lay-duce",
+    "en": "Lay-duce",
+    "status": "new",
+    "labels": [
+      "レイデュース"
+    ]
+  },
+  {
+    "key": "bangumi_studio_lerche",
+    "role": "studio",
+    "tr": "Lerche",
+    "en": "Lerche",
+    "status": "new",
+    "labels": [
+      "ラルケ",
+      "Lerche"
+    ]
+  },
+  {
+    "key": "bangumi_studio_lidenfilms",
+    "role": "studio",
+    "tr": "LIDENFILMS",
+    "en": "LIDENFILMS",
+    "status": "new",
+    "labels": [
+      "ライデンフィルム",
+      "Liden Films",
+      "ライデン"
+    ]
+  },
+  {
+    "key": "bangumi_studio_live",
+    "role": "studio",
+    "tr": "Studio Live",
+    "en": "Studio Live",
+    "status": "new",
+    "labels": [
+      "スタジオ・ライブ"
+    ]
+  },
+  {
+    "key": "bangumi_studio_m2",
+    "role": "studio",
+    "tr": "Studio M2",
+    "en": "Studio M2",
+    "status": "new",
+    "labels": [
+      "スタジオM2",
+      "StudioM2"
+    ]
+  },
+  {
+    "key": "bangumi_studio_madhouse",
+    "role": "studio",
+    "tr": "Madhouse",
+    "en": "Madhouse",
+    "status": "existing:madhouse",
+    "labels": [
+      "マッドハウス",
+      "疯房子",
+      "Mad House"
+    ]
+  },
+  {
+    "key": "bangumi_studio_magic_bus",
+    "role": "studio",
+    "tr": "Magic Bus",
+    "en": "Magic Bus",
+    "status": "new",
+    "labels": [
+      "マジックバス"
+    ]
+  },
+  {
+    "key": "bangumi_studio_maho_film",
+    "role": "studio",
+    "tr": "Maho Film",
+    "en": "Maho Film",
+    "status": "new",
+    "labels": [
+      "マーホーフィルム"
+    ]
+  },
+  {
+    "key": "bangumi_studio_mappa",
+    "role": "studio",
+    "tr": "MAPPA",
+    "en": "MAPPA",
+    "status": "existing:mappa",
+    "labels": [
+      "MAPPA",
+      "マッパ"
+    ]
+  },
+  {
+    "key": "bangumi_studio_millepensee",
+    "role": "studio",
+    "tr": "Millepensee",
+    "en": "Millepensee",
+    "status": "new",
+    "labels": [
+      "ミルパンセ"
+    ]
+  },
+  {
+    "key": "bangumi_studio_mother",
+    "role": "studio",
+    "tr": "Studio MOTHER",
+    "en": "Studio MOTHER",
+    "status": "new",
+    "labels": [
+      "スタジオマザー"
+    ]
+  },
+  {
+    "key": "bangumi_studio_mouse",
+    "role": "studio",
+    "tr": "Mouse",
+    "en": "Mouse",
+    "status": "pending",
+    "labels": [
+      "スタジオ・ムー",
+      "スタジオムー",
+      "Mouse"
+    ]
+  },
+  {
+    "key": "bangumi_studio_mushi_production",
+    "role": "studio",
+    "tr": "Mushi Production",
+    "en": "Mushi Production",
+    "status": "new",
+    "labels": [
+      "虫プロダクション",
+      "虫プロ"
+    ]
+  },
+  {
+    "key": "bangumi_studio_nagomu",
+    "role": "studio",
+    "tr": "Studio Nagomu",
+    "en": "Studio Nagomu",
+    "status": "pending",
+    "labels": [
+      "なごみ"
+    ]
+  },
+  {
+    "key": "bangumi_studio_naz",
+    "role": "studio",
+    "tr": "NAZ",
+    "en": "NAZ",
+    "status": "new",
+    "labels": [
+      "NAZ"
+    ]
+  },
+  {
+    "key": "bangumi_studio_nippon_animation",
+    "role": "studio",
+    "tr": "Nippon Animation",
+    "en": "Nippon Animation",
+    "status": "existing:japan",
+    "labels": [
+      "日本アニメーション",
+      "日本动画"
+    ]
+  },
+  {
+    "key": "bangumi_studio_nomad",
+    "role": "studio",
+    "tr": "Nomad",
+    "en": "Nomad",
+    "status": "new",
+    "labels": [
+      "ノマド"
+    ]
+  },
+  {
+    "key": "bangumi_studio_nut",
+    "role": "studio",
+    "tr": "Nut",
+    "en": "Nut",
+    "status": "new",
+    "labels": [
+      "ナット"
+    ]
+  },
+  {
+    "key": "bangumi_studio_olm",
+    "role": "studio",
+    "tr": "OLM",
+    "en": "OLM",
+    "status": "new",
+    "labels": [
+      "オー・エル・エム",
+      "OLM"
+    ]
+  },
+  {
+    "key": "bangumi_studio_orange",
+    "role": "studio",
+    "tr": "Orange",
+    "en": "Orange",
+    "status": "new",
+    "labels": [
+      "オレンジ",
+      "Orange (CG)"
+    ]
+  },
+  {
+    "key": "bangumi_studio_p9",
+    "role": "studio",
+    "tr": "Project No.9",
+    "en": "Project No.9",
+    "status": "new",
+    "labels": [
+      "プロジェクトナンバーナイン",
+      "Project No9",
+      "project No.9",
+      "プロジェクトNo.9"
+    ]
+  },
+  {
+    "key": "bangumi_studio_pa_works",
+    "role": "studio",
+    "tr": "P.A.Works",
+    "en": "P.A.Works",
+    "status": "existing:pa_works",
+    "labels": [
+      "P.A.WORKS",
+      "PA社",
+      "PAワークス",
+      "ピーエーワークス"
+    ]
+  },
+  {
+    "key": "bangumi_studio_passione",
+    "role": "studio",
+    "tr": "Passione",
+    "en": "Passione",
+    "status": "new",
+    "labels": [
+      "パッショーネ"
+    ]
+  },
+  {
+    "key": "bangumi_studio_pierrot",
+    "role": "studio",
+    "tr": "Studio Pierrot",
+    "en": "Studio Pierrot",
+    "status": "existing:pierrot",
+    "labels": [
+      "ぴえろ",
+      "小丑社",
+      "Pierrot"
+    ]
+  },
+  {
+    "key": "bangumi_studio_pierrot_plus",
+    "role": "studio",
+    "tr": "Studio Pierrot PLUS",
+    "en": "Studio Pierrot PLUS",
+    "status": "new",
+    "labels": [
+      "ぴえろプラス",
+      "ぴえろplus"
+    ]
+  },
+  {
+    "key": "bangumi_studio_pine_jam",
+    "role": "studio",
+    "tr": "Pine Jam",
+    "en": "Pine Jam",
+    "status": "new",
+    "labels": [
+      "パインジャム"
+    ]
+  },
+  {
+    "key": "bangumi_studio_platinum_vision",
+    "role": "studio",
+    "tr": "Platinum Vision",
+    "en": "Platinum Vision",
+    "status": "new",
+    "labels": [
+      "プラチナビジョン"
+    ]
+  },
+  {
+    "key": "bangumi_studio_ponoc",
+    "role": "studio",
+    "tr": "Studio Ponoc",
+    "en": "Studio Ponoc",
+    "status": "new",
+    "labels": [
+      "スタジオポノック"
+    ]
+  },
+  {
+    "key": "bangumi_studio_pra",
+    "role": "studio",
+    "tr": "PRA",
+    "en": "PRA",
+    "status": "new",
+    "labels": [
+      "プラネット",
+      "Planet"
+    ]
+  },
+  {
+    "key": "bangumi_studio_production_ig",
+    "role": "studio",
+    "tr": "Production I.G",
+    "en": "Production I.G",
+    "status": "existing:production_ig",
+    "labels": [
+      "プロダクション・アイジー",
+      "IG"
+    ]
+  },
+  {
+    "key": "bangumi_studio_production_plus_h",
+    "role": "studio",
+    "tr": "Production +h.",
+    "en": "Production +h.",
+    "status": "new",
+    "labels": [
+      "プロダクション+h.",
+      "プロダクション・プラス・エイチ"
+    ]
+  },
+  {
+    "key": "bangumi_studio_production_reed",
+    "role": "studio",
+    "tr": "Production Reed",
+    "en": "Production Reed",
+    "status": "new",
+    "labels": [
+      "プロダクションリード"
+    ]
+  },
+  {
+    "key": "bangumi_studio_revootoot",
+    "role": "studio",
+    "tr": "Revootoot",
+    "en": "Revootoot",
+    "status": "pending",
+    "labels": [
+      "レヴォトゥート"
+    ]
+  },
+  {
+    "key": "bangumi_studio_rikka",
+    "role": "studio",
+    "tr": "Studio Rikka",
+    "en": "Studio Rikka",
+    "status": "new",
+    "labels": [
+      "スタジオ六花"
+    ]
+  },
+  {
+    "key": "bangumi_studio_sanzigen",
+    "role": "studio",
+    "tr": "SANZIGEN",
+    "en": "SANZIGEN",
+    "status": "new",
+    "labels": [
+      "サンジゲン"
+    ]
+  },
+  {
+    "key": "bangumi_studio_satelight",
+    "role": "studio",
+    "tr": "Satelight",
+    "en": "Satelight",
+    "status": "new",
+    "labels": [
+      "サテライト"
+    ]
+  },
+  {
+    "key": "bangumi_studio_science_saru",
+    "role": "studio",
+    "tr": "Science SARU",
+    "en": "Science SARU",
+    "status": "new",
+    "labels": [
+      "サイエンスSARU",
+      "サイエンスサル"
+    ]
+  },
+  {
+    "key": "bangumi_studio_seven_arcs",
+    "role": "studio",
+    "tr": "Seven Arcs",
+    "en": "Seven Arcs",
+    "status": "new",
+    "labels": [
+      "セブンアークス"
+    ]
+  },
+  {
+    "key": "bangumi_studio_seven_arcs_pictures",
+    "role": "studio",
+    "tr": "Seven Arcs Pictures",
+    "en": "Seven Arcs Pictures",
+    "status": "new",
+    "labels": [
+      "セブンアークスピクチャーズ"
+    ]
+  },
+  {
+    "key": "bangumi_studio_shaft",
+    "role": "studio",
+    "tr": "SHAFT",
+    "en": "SHAFT",
+    "status": "existing:shaft_studio",
+    "labels": [
+      "シャフト"
+    ]
+  },
+  {
+    "key": "bangumi_studio_shin_ei",
+    "role": "studio",
+    "tr": "Shin-Ei Animation",
+    "en": "Shin-Ei Animation",
+    "status": "new",
+    "labels": [
+      "シンエイ動画"
+    ]
+  },
+  {
+    "key": "bangumi_studio_shuka",
+    "role": "studio",
+    "tr": "Shuka",
+    "en": "Shuka",
+    "status": "new",
+    "labels": [
+      "シュカ"
+    ]
+  },
+  {
+    "key": "bangumi_studio_signpost",
+    "role": "studio",
+    "tr": "Signpost",
+    "en": "Signpost",
+    "status": "pending",
+    "labels": [
+      "Signpost"
+    ]
+  },
+  {
+    "key": "bangumi_studio_silver_link",
+    "role": "studio",
+    "tr": "Silver Link",
+    "en": "Silver Link",
+    "status": "existing:silver_link",
+    "labels": [
+      "シルバーリンク",
+      "SILVER LINK."
+    ]
+  },
+  {
+    "key": "bangumi_studio_staple",
+    "role": "studio",
+    "tr": "Staple Entertainment",
+    "en": "Staple Entertainment",
+    "status": "pending",
+    "labels": [
+      "スタープルエンタテインメント"
+    ]
+  },
+  {
+    "key": "bangumi_studio_sunrise",
+    "role": "studio",
+    "tr": "Sunrise",
+    "en": "Sunrise",
+    "status": "existing:sunrise_studio",
+    "labels": [
+      "サンライズ",
+      "日升",
+      "日昇",
+      "日升动画",
+      "日昇動画"
+    ]
+  },
+  {
+    "key": "bangumi_studio_synergy_sp",
+    "role": "studio",
+    "tr": "SynergySP",
+    "en": "SynergySP",
+    "status": "new",
+    "labels": [
+      "シナジーエスピー",
+      "Synergy SP"
+    ]
+  },
+  {
+    "key": "bangumi_studio_tatsunoko",
+    "role": "studio",
+    "tr": "Tatsunoko Production",
+    "en": "Tatsunoko Production",
+    "status": "new",
+    "labels": [
+      "タツノコプロ",
+      "タツノコ"
+    ]
+  },
+  {
+    "key": "bangumi_studio_tear",
+    "role": "studio",
+    "tr": "Tear Studio",
+    "en": "Tear Studio",
+    "status": "new",
+    "labels": [
+      "ティアスタジオ"
+    ]
+  },
+  {
+    "key": "bangumi_studio_telecom",
+    "role": "studio",
+    "tr": "Telecom Animation Film",
+    "en": "Telecom Animation Film",
+    "status": "new",
+    "labels": [
+      "テレコム・アニメーションフィルム",
+      "テレコムアニメーション"
+    ]
+  },
+  {
+    "key": "bangumi_studio_toei_animation",
+    "role": "studio",
+    "tr": "Toei Animation",
+    "en": "Toei Animation",
+    "status": "existing:toei_animation",
+    "labels": [
+      "東映アニメーション",
+      "东映动画",
+      "東映動畫",
+      "東映"
+    ]
+  },
+  {
+    "key": "bangumi_studio_tms",
+    "role": "studio",
+    "tr": "TMS Entertainment",
+    "en": "TMS Entertainment",
+    "status": "new",
+    "labels": [
+      "トムス・エンタテインメント",
+      "東京ムービー",
+      "TMS",
+      "東京ムービー新社"
+    ]
+  },
+  {
+    "key": "bangumi_studio_tnk",
+    "role": "studio",
+    "tr": "TNK",
+    "en": "TNK",
+    "status": "new",
+    "labels": [
+      "ティー・エヌ・ケー"
+    ]
+  },
+  {
+    "key": "bangumi_studio_trigger",
+    "role": "studio",
+    "tr": "TRIGGER",
+    "en": "TRIGGER",
+    "status": "existing:trigger_studio",
+    "labels": [
+      "トリガー",
+      "扳机社",
+      "トリガー社",
+      "Trigger"
+    ]
+  },
+  {
+    "key": "bangumi_studio_triangle_staff",
+    "role": "studio",
+    "tr": "Triangle Staff",
+    "en": "Triangle Staff",
+    "status": "new",
+    "labels": [
+      "トライアングルスタッフ"
+    ]
+  },
+  {
+    "key": "bangumi_studio_troyca",
+    "role": "studio",
+    "tr": "TROYCA",
+    "en": "TROYCA",
+    "status": "new",
+    "labels": [
+      "トロイカ"
+    ]
+  },
+  {
+    "key": "bangumi_studio_tyo_animations",
+    "role": "studio",
+    "tr": "TYO Animations",
+    "en": "TYO Animations",
+    "status": "new",
+    "labels": [
+      "TYOアニメーションズ"
+    ]
+  },
+  {
+    "key": "bangumi_studio_ufotable",
+    "role": "studio",
+    "tr": "ufotable",
+    "en": "ufotable",
+    "status": "existing:ufotable",
+    "labels": [
+      "ユーフォテーブル",
+      "幽浮社",
+      "飞碟社",
+      "飛碟社",
+      "ufotable"
+    ]
+  },
+  {
+    "key": "bangumi_studio_vega",
+    "role": "studio",
+    "tr": "Vega Entertainment",
+    "en": "Vega Entertainment",
+    "status": "new",
+    "labels": [
+      "ベガエンタテイメント"
+    ]
+  },
+  {
+    "key": "bangumi_studio_voln",
+    "role": "studio",
+    "tr": "Studio VOLN",
+    "en": "Studio VOLN",
+    "status": "new",
+    "labels": [
+      "スタジオヴォルン"
+    ]
+  },
+  {
+    "key": "bangumi_studio_wao_world",
+    "role": "studio",
+    "tr": "WAO World",
+    "en": "WAO World",
+    "status": "new",
+    "labels": [
+      "ワオワールド"
+    ]
+  },
+  {
+    "key": "bangumi_studio_white_fox",
+    "role": "studio",
+    "tr": "WHITE FOX",
+    "en": "WHITE FOX",
+    "status": "existing:white_fox",
+    "labels": [
+      "WHITE FOX",
+      "白狐社",
+      "WHITEFOX"
+    ]
+  },
+  {
+    "key": "bangumi_studio_wit",
+    "role": "studio",
+    "tr": "WIT STUDIO",
+    "en": "WIT STUDIO",
+    "status": "existing:wit_studio",
+    "labels": [
+      "ウィットスタジオ",
+      "霸权社",
+      "Wit Studio"
+    ]
+  },
+  {
+    "key": "bangumi_studio_xebec",
+    "role": "studio",
+    "tr": "XEBEC",
+    "en": "XEBEC",
+    "status": "new",
+    "labels": [
+      "ゼクシズ",
+      "XEBEC"
+    ]
+  },
+  {
+    "key": "bangumi_studio_yokohama_animation_lab",
+    "role": "studio",
+    "tr": "Yokohama Animation Lab",
+    "en": "Yokohama Animation Lab",
+    "status": "new",
+    "labels": [
+      "横浜アニメーションラボ"
+    ]
+  },
+  {
+    "key": "bangumi_studio_zero_g",
+    "role": "studio",
+    "tr": "Zero-G",
+    "en": "Zero-G",
+    "status": "new",
+    "labels": [
+      "ゼロジー"
+    ]
+  },
+  {
+    "key": "bangumi_studio_zexcs",
+    "role": "studio",
+    "tr": "ZEXCS",
+    "en": "ZEXCS",
+    "status": "new",
+    "labels": [
+      "ゼクシス"
+    ]
+  },
+  {
+    "key": "bangumi_studio_dr_movie",
+    "role": "studio",
+    "tr": "DR Movie",
+    "en": "DR Movie",
+    "status": "new",
+    "labels": [
+      "DR MOVIE",
+      "DR무비"
+    ]
+  },
+  {
+    "key": "bangumi_studio_mir",
+    "role": "studio",
+    "tr": "Studio Mir",
+    "en": "Studio Mir",
+    "status": "new",
+    "labels": [
+      "스튜디오 미르",
+      "Studio MIR"
+    ]
+  },
+  {
+    "key": "bangumi_studio_roosterteeth",
+    "role": "studio",
+    "tr": "Rooster Teeth",
+    "en": "Rooster Teeth",
+    "status": "new",
+    "labels": [
+      "Rooster Teeth"
+    ]
+  },
+  {
+    "key": "bangumi_studio_pixar",
+    "role": "studio",
+    "tr": "Pixar",
+    "en": "Pixar",
+    "status": "existing:pixar",
+    "labels": [
+      "ピクサー",
+      "皮克斯",
+      "皮克斯动画工作室",
+      "Pixar Animation Studios"
+    ]
+  },
+  {
+    "key": "bangumi_studio_dreamworks",
+    "role": "studio",
+    "tr": "DreamWorks Animation",
+    "en": "DreamWorks Animation",
+    "status": "new",
+    "labels": [
+      "梦工厂",
+      "梦工厂动画",
+      "夢工廠",
+      "DreamWorks"
+    ]
+  },
+  {
+    "key": "bangumi_studio_disney",
+    "role": "studio",
+    "tr": "Walt Disney Animation",
+    "en": "Walt Disney Animation",
+    "status": "existing:disney",
+    "labels": [
+      "迪士尼",
+      "迪斯尼",
+      "ウォルト・ディズニー",
+      "Disney"
+    ]
+  },
+  {
+    "key": "bangumi_studio_warner_bros",
+    "role": "studio",
+    "tr": "Warner Bros.",
+    "en": "Warner Bros.",
+    "status": "new",
+    "labels": [
+      "ワーナー・ブラザース",
+      "华纳兄弟",
+      "華納兄弟",
+      "Warner Bros"
+    ]
+  }
+]

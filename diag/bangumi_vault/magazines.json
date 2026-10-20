@@ -1,0 +1,226 @@
+[
+  {
+    "key": "bangumi_magazine_weekly_shonen_jump",
+    "role": "magazine",
+    "tr": "Weekly Shonen Jump",
+    "en": "Weekly Shonen Jump",
+    "status": "new",
+    "labels": [
+      "週刊少年ジャンプ",
+      "周刊少年JUMP",
+      "ジャンプ"
+    ]
+  },
+  {
+    "key": "bangumi_magazine_weekly_shonen_magazine",
+    "role": "magazine",
+    "tr": "Weekly Shonen Magazine",
+    "en": "Weekly Shonen Magazine",
+    "status": "new",
+    "labels": [
+      "週刊少年マガジン",
+      "周刊少年Magazine"
+    ]
+  },
+  {
+    "key": "bangumi_magazine_weekly_shonen_sunday",
+    "role": "magazine",
+    "tr": "Weekly Shonen Sunday",
+    "en": "Weekly Shonen Sunday",
+    "status": "new",
+    "labels": [
+      "週刊少年サンデー",
+      "周刊少年Sunday"
+    ]
+  },
+  {
+    "key": "bangumi_magazine_monthly_shonen_magazine",
+    "role": "magazine",
+    "tr": "Monthly Shonen Magazine",
+    "en": "Monthly Shonen Magazine",
+    "status": "new",
+    "labels": [
+      "月刊少年マガジン"
+    ]
+  },
+  {
+    "key": "bangumi_magazine_hana_to_yume",
+    "role": "magazine",
+    "tr": "Hana to Yume",
+    "en": "Hana to Yume",
+    "status": "new",
+    "labels": [
+      "花とゆめ",
+      "花与梦"
+    ]
+  },
+  {
+    "key": "bangumi_magazine_lala",
+    "role": "magazine",
+    "tr": "LaLa",
+    "en": "LaLa",
+    "status": "new",
+    "labels": [
+      "LaLa",
+      "ララ"
+    ]
+  },
+  {
+    "key": "bangumi_magazine_margaret",
+    "role": "magazine",
+    "tr": "Margaret",
+    "en": "Margaret",
+    "status": "new",
+    "labels": [
+      "マーガレット"
+    ]
+  },
+  {
+    "key": "bangumi_magazine_bessatsu_shonen_magazine",
+    "role": "magazine",
+    "tr": "Bessatsu Shonen Magazine",
+    "en": "Bessatsu Shonen Magazine",
+    "status": "new",
+    "labels": [
+      "別冊少年マガジン"
+    ]
+  },
+  {
+    "key": "bangumi_magazine_jump_sq",
+    "role": "magazine",
+    "tr": "Jump SQ",
+    "en": "Jump SQ",
+    "status": "new",
+    "labels": [
+      "ジャンプSQ",
+      "Jump SQ."
+    ]
+  },
+  {
+    "key": "bangumi_magazine_ultra_jump",
+    "role": "magazine",
+    "tr": "Ultra Jump",
+    "en": "Ultra Jump",
+    "status": "new",
+    "labels": [
+      "ウルトラジャンプ"
+    ]
+  },
+  {
+    "key": "bangumi_magazine_young_jump",
+    "role": "magazine",
+    "tr": "Young Jump",
+    "en": "Young Jump",
+    "status": "new",
+    "labels": [
+      "ヤングジャンプ",
+      "週刊ヤングジャンプ"
+    ]
+  },
+  {
+    "key": "bangumi_magazine_young_animal",
+    "role": "magazine",
+    "tr": "Young Animal",
+    "en": "Young Animal",
+    "status": "new",
+    "labels": [
+      "ヤングアニマル"
+    ]
+  },
+  {
+    "key": "bangumi_magazine_comic_alive",
+    "role": "magazine",
+    "tr": "Comic Alive",
+    "en": "Comic Alive",
+    "status": "new",
+    "labels": [
+      "月刊コミックアライブ",
+      "コミックアライブ"
+    ]
+  },
+  {
+    "key": "bangumi_magazine_dengeki_maoh",
+    "role": "magazine",
+    "tr": "Dengeki Maoh",
+    "en": "Dengeki Maoh",
+    "status": "new",
+    "labels": [
+      "電撃マ王",
+      "電撃マオウ"
+    ]
+  },
+  {
+    "key": "bangumi_magazine_comic_flapper",
+    "role": "magazine",
+    "tr": "Comic Flapper",
+    "en": "Comic Flapper",
+    "status": "new",
+    "labels": [
+      "コミックフラッパー"
+    ]
+  },
+  {
+    "key": "bangumi_magazine_manga_time_kirara",
+    "role": "magazine",
+    "tr": "Manga Time Kirara",
+    "en": "Manga Time Kirara",
+    "status": "new",
+    "labels": [
+      "まんがタイムきらら",
+      "Manga Time Kirara"
+    ]
+  },
+  {
+    "key": "bangumi_magazine_gangan",
+    "role": "magazine",
+    "tr": "Gangan",
+    "en": "Gangan",
+    "status": "new",
+    "labels": [
+      "ガンガン",
+      "月刊少年ガンガン"
+    ]
+  },
+  {
+    "key": "bangumi_magazine_shonen_champion",
+    "role": "magazine",
+    "tr": "Weekly Shonen Champion",
+    "en": "Weekly Shonen Champion",
+    "status": "new",
+    "labels": [
+      "週刊少年チャンピオン"
+    ]
+  },
+  {
+    "key": "bangumi_magazine_comic_zero_sum",
+    "role": "magazine",
+    "tr": "Monthly Comic Zero-Sum",
+    "en": "Monthly Comic Zero-Sum",
+    "status": "new",
+    "labels": [
+      "月刊コミックZERO-SUM",
+      "コミックZERO-SUM"
+    ]
+  },
+  {
+    "key": "bangumi_magazine_comic_beam",
+    "role": "magazine",
+    "tr": "Comic Beam",
+    "en": "Comic Beam",
+    "status": "new",
+    "labels": [
+      "コミックビーム"
+    ]
+  },
+  {
+    "key": "bangumi_magazine_afternoon",
+    "role": "magazine",
+    "tr": "Afternoon",
+    "en": "Afternoon",
+    "status": "new",
+    "labels": [
+      "アフタヌーン",
+      "月刊アフタヌーン"
+    ]
+  }
+]

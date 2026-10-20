@@ -1,0 +1,27 @@
+{
+    "version": "1.0.0",
+    "date": "2026-10-20",
+    "drive_folder_id": "1pZAOYsAnMjveNK6grdXjqV9IDM1TFaJp",
+    "drive_folder_url": "https://drive.google.com/drive/folders/1pZAOYsAnMjveNK6grdXjqV9IDM1TFaJp",
+    "source Master": "diag/bangumi_master (376 orgs + 168 tags TSV + 1041 vault tags exhaustive)",
+    "vault_counts": {
+        "studios": 134,
+        "producers": 98,
+        "networks": 97,
+        "publishers": 26,
+        "magazines": 21,
+        "committees": 2,
+        "tags": 1041,
+        "genres": 65,
+        "total": 1417
+    },
+    "pending_translations": 129,
+    "last_harvest": "2026-10-20T20:25+03:00",
+    "harvest_coverage": "exhaustive (all infobox keys + all tag sources)",
+    "policy": "no_fabricated_translation: committee/person names kept as-is; only descriptive tags translated",
+    "sync": {
+        "local_to_drive": "scripts/sync_to_drive.py --push",
+        "drive_to_local": "scripts/sync_to_drive.py --pull",
+        "vault_to_strings": "scripts/vault_to_strings.py"
+    }
+}
