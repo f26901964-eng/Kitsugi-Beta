@@ -26,7 +26,10 @@ object PlayerAspectScaleUtils {
         return when (mode) {
             PlayerAspectMode.ORIGINAL -> "no"
             PlayerAspectMode.FIT -> "no"
-            PlayerAspectMode.FILL -> "yes"
+            // "Doldur" = esnetme. mpv'de `video-aspect-override` yalnızca "no" veya
+            // "X:Y" kabul eder; burada "yes" göndermek geçersiz değerdi (mpv sessizce
+            // yok sayıyordu). Esnetme `video-scale-x/y` ile yapılır.
+            PlayerAspectMode.FILL -> "no"
             PlayerAspectMode.ZOOM -> "no"
             PlayerAspectMode.CROP_16_9 -> "16:9"
             PlayerAspectMode.CROP_4_3 -> "4:3"
