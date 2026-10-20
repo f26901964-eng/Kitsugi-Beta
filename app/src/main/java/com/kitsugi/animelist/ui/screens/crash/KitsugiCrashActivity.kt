@@ -341,8 +341,8 @@ class KitsugiCrashActivity : ComponentActivity() {
                                         try {
                                             val filesToShare = ArrayList<android.net.Uri>()
 
-                                            suspend fun addFileIfExists(file: File) {
-                                                if (file.exists() && file.length() > 0) {
+                                            suspend fun addFileIfExists(file: File?) {
+                                                if (file != null && file.exists() && file.length() > 0) {
                                                     try {
                                                         val uri = androidx.core.content.FileProvider.getUriForFile(
                                                             context, "com.kitsugi.animelist.fileprovider", file

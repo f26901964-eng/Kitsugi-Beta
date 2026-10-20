@@ -119,7 +119,7 @@ class KitsugiSplashActivity : AppCompatActivity() {
             // uygulama açılmamazlık etmesin, doğrudan ana ekrana geçilir.
             runCatching {
                 if (settings.splashAnimationEnabled) {
-                    com.kitsugi.animelist.core.diagnostics.StartupStage.mark(this, "Splash → startAnimatedSplash")
+                    com.kitsugi.animelist.core.diagnostics.StartupStage.mark(this@KitsugiSplashActivity, "Splash → startAnimatedSplash")
                     startAnimatedSplash(settings)
                 } else {
                     // Animasyon ve ses kapalı → direkt ana sayfaya geç
