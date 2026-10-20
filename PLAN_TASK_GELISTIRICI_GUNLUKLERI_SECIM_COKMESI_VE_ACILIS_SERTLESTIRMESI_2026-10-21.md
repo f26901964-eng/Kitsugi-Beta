@@ -69,3 +69,16 @@ PLAN_TASK_GELISTIRICI_GUNLUKLERI_SECIM_COKMESI_VE_ACILIS_SERTLESTIRMESI_2026-10-
   cihaz testine bırakıldı (kullanıcı talebi).
 - Tüm init sarmalamaları `runCatching` ile yapıldı; başarısız alt sistem yalnızca kendisi devre dışı
   kalır, uygulama açılmaya devam eder.
+
+## 7. Birleştirme (merge) notu — 2026-10-21
+
+Bu çalışma hazırlanırken `main` iki commit ilerledi (takvim "ilk açılışta boş" düzeltmesi, `85be627`
+ve `3d8d6ed`). Dallar `63ced48` merge commit'i ile birleştirildi:
+
+- **Çakışma yalnızca belgelerdeydi:** `RELEASE_NOTES.md` ve `release_notes_v2.4.321.md`. İki taraf da
+  aynı sürüm numarasını (2.4.321) açtığı için aynı başlık altında **tek v2.4.321 bölümü** oluşturuldu:
+  önce çökme/açılış düzeltmeleri, ardından takvim düzeltmesi (TR ve EN).
+- **Kod çakışması yok:** bu çalışmanın dokunduğu 9 Kotlin/Kotlin DSL dosyası ile takvim düzeltmesinin
+  dosyaları ayrık; otomatik birleşti.
+- `appVersionName` iki tarafta da `2.4.321` olduğu için ek sürüm artırımı gerekmedi.
+- PR #17 bu birleştirmeden sonra **MERGEABLE / CLEAN** durumda.
