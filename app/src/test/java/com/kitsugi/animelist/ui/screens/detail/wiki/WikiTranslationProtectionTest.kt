@@ -92,7 +92,7 @@ class WikiTranslationProtectionTest {
         // için markdown jetonları çıkarılmış, etiketler TAM olarak eski yerinde kalmıştır.
         val translatedParagraph = translated.blocks[1]
         assertEquals(content.blocks[1].links, translatedParagraph.links)
-        assertEquals("[tr] Yume Tōrō is a song from Your Name.", translatedParagraph.text)
+        assertEquals("[tr] Yume Tōrō is a song from the Your Name film.", translatedParagraph.text)
         assertTrue(translatedParagraph.text.contains("Yume Tōrō"))
         assertTrue(translatedParagraph.text.contains("Your Name"))
 
@@ -677,6 +677,6 @@ class WikiTranslationProtectionTest {
         assertEquals("TR(Characters)", result.blocks[0].text)
         assertEquals(listOf(link), result.blocks[0].links)
         assertEquals("TR(Explore)", result.blocks[1].text)
-        assertEquals("TR(See) Characters", result.blocks[1].subtitle)
+        assertEquals("TR(See Characters)", result.blocks[1].subtitle)
     }
 }
