@@ -21,6 +21,9 @@ Bu sürüm, başlık dili **İngilizce** seçili olmasına rağmen Bangumi liste
 - **Gösterim Yedeği Düzeltmesi (`PreferenceHelpers`):**
   - İngilizce seçiliyken romaji yedeği gösteriliyorsa önbellekteki ayrı İngilizce ad öncelik kazanır.
 
+### 🐞 Oynatıcı Panelinde Null-Safety Güçlendirmesi (`DelayCard`)
+- `DelayCard` içindeki ses/altyazı gecikme ayarında kalan potansiyel güvensiz `!!` referansları ve döngü koşulu güvenli yerel sabitlere (`startedAt`, `direction`) taşınarak olası NPE riskleri tamamen temizlendi.
+
 ### 🧪 Birim Testleri
 - `BangumiLibraryTitleHydratorTest`: Kademe önceliği, dile göre tamamlama tanımı, büyük kütüphanede kırpma olmaması ve yer tutucu başlıklar doğrulandı.
 - `MediaEntryRepositoryTitlePreservationTest`: Yeniden aktarımda çözülmüş başlıkların korunması doğrulandı.
@@ -48,6 +51,9 @@ This release addresses the issue where titles in the Bangumi list were displayed
   - Enriched freshly imported Bangumi entries directly with cached Latin titles, ensuring correct titles on initial render.
 - **Title Fallback Hierarchy (`PreferenceHelpers`):**
   - Ensured that when English is preferred and a romaji fallback is active, any resolved English title takes precedence.
+
+### 🐞 Video Player Panel Null-Safety Hardening (`DelayCard`)
+- Replaced unsafe `!!` force unwraps and loop variables in `DelayCard` (audio/subtitle delay adjustment) with immutable local bindings (`startedAt`, `direction`), eliminating potential null pointer risks.
 
 ### 🧪 Unit Tests
 - `BangumiLibraryTitleHydratorTest`: Verified tiered stages, language criteria, and large library coverage.
