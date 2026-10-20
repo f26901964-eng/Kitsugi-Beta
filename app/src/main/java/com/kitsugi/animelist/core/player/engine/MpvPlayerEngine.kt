@@ -813,6 +813,26 @@ class MpvPlayerEngine(
         option("af", if (channels == com.kitsugi.animelist.ui.screens.fullscreen.AudioChannels.ReverseStereo) channels.value else "")
         option("cache", "yes")
         option("network-timeout", "30")
+        // Aniyomi paritesi: ek MPV init secenekleri
+        option("profile", "fast")
+        option("ytdl", "no")
+        option("keep-open", "yes")
+        option("input-default-bindings", "yes")
+        option("vd-lavc-film-grain", "cpu")
+        option("msg-level", "all=warn")
+        runCatching {
+            val screenshotDir = android.os.Environment.getExternalStoragePublicDirectory(android.os.Environment.DIRECTORY_PICTURES)
+            screenshotDir.mkdirs()
+            view.mpv.setPropertyString("screenshot-directory", screenshotDir.path)
+        }
+        // Aniyomi VideoFilters: tum filtreler baslangicta uygulanir (brightness/saturation/contrast/gamma/hue)
+        runCatching {
+            val json = org.json.JSONObject(settings.videoFiltersJson)
+            com.kitsugi.animelist.ui.screens.fullscreen.KitsugiVideoFilters.entries.forEach { filter ->
+                val v = json.optInt(filter.mpvProperty, 0)
+                if (v != 0) view.mpv.setPropertyInt(filter.mpvProperty, v.coerceIn(-100, 100))
+            }
+        }
 
         // TLS / CA güven zinciri — Asla trust-all yok.
         // AndroidCAStore'dan PEM'e çıkarılan CA paketi MPV'ye tls-ca-file olarak verilir.
