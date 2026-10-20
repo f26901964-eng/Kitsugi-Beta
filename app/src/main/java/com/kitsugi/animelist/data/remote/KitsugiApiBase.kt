@@ -117,6 +117,9 @@ object KitsugiApiBase {
     // 429 sonrası global bekleme üst sınırı: Retry-After değeri ne olursa olsun
     // cooldown en fazla bu kadar uzar; süre dolmadan yeni AniList isteği gönderilmez.
     private const val ANILIST_RATE_LIMIT_COOLDOWN_CAP_MS = 30_000L
+    // Bu süreden kısa cooldown'lar fail-fast etmek yerine beklenir: takvim gibi
+    // "açılışta veri bekleyen" ekranlar boş/hata göstermesin (2026-10-21).
+    private const val ANILIST_SHORT_COOLDOWN_WAIT_MS = 8_000L
     private val aniListMutex = Mutex()
     private var lastAniListRequestTime: Long = 0L
 
@@ -300,13 +303,27 @@ object KitsugiApiBase {
     suspend fun executeAniListQuery(query: String, variables: JSONObject, accessToken: String? = null): String? {
         // 429 cooldown aktifse ağa hiç çıkma; çağıran tarafa hızlıca null dön.
         // Böylece rate-limit sırasında UI/bellek üzerinde retry fırtınası estirilmez.
+        //
+        // GÜNCELLEME (2026-10-21): "Yayın takvimi ilk açılışta boş geliyor" şikâyetinin
+        // ikinci ayağı buydu — Keşfet ekranı AniList kotasını doldurunca takvim açılışında
+        // cooldown aktif oluyor, istek hiç gönderilmeden null dönüyor ve takvim sessizce
+        // boş kalıyordu. Artık KISA cooldown'lar (min. cooldown 5 sn) beklenip istek
+        // gerçekten gönderilir; uzun cooldown'da fail-fast davranışı korunur.
         val cooldownRemainingMs = anilistRateLimitedUntil - System.currentTimeMillis()
         if (cooldownRemainingMs > 0L) {
-            android.util.Log.w(
-                "KitsugiApiBase",
-                "AniList 429 cooldown aktif (${cooldownRemainingMs}ms kaldı) — istek gönderilmedi"
-            )
-            return null
+            if (cooldownRemainingMs <= ANILIST_SHORT_COOLDOWN_WAIT_MS) {
+                android.util.Log.w(
+                    "KitsugiApiBase",
+                    "AniList 429 cooldown kısa (${cooldownRemainingMs}ms) — bekleyip istek gönderilecek"
+                )
+                delay(cooldownRemainingMs)
+            } else {
+                android.util.Log.w(
+                    "KitsugiApiBase",
+                    "AniList 429 cooldown aktif (${cooldownRemainingMs}ms kaldı) — istek gönderilmedi"
+                )
+                return null
+            }
         }
 
         val requestBody = JSONObject()
