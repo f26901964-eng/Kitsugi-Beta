@@ -113,9 +113,13 @@ object CrossSyncIdentityGuard {
         .filterNot { tok -> tok.all { it.isDigit() } }
         .toSet()
 
-    /** Primary and English titles only; secondary Japanese aliases can be shared by different works. */
+    /** Görünen + İngilizce + özgün Japonca başlıklar (bkz. aşağıdaki not). */
     fun aliasesOf(entry: MediaEntry): List<String> =
-        listOfNotNull(entry.title, entry.titleEnglish)
+        // titleJapanese ŞART: Bangumi satırlarında görünen başlık çoğu zaman Çince (name_cn),
+        // İngilizce başlık da çoğu zaman yoktur; satırın taşıdığı tek ortak başlık özgün
+        // Japonca addır. O dahil edilmediğinde MAL/AniList kimlik doğrulaması Bangumi
+        // kökenli kayıtlarda neredeyse her zaman düşüyor ve canlı yayılım sessizce atlanıyordu.
+        listOfNotNull(entry.title, entry.titleEnglish, entry.titleJapanese)
             .map { it.trim() }
             .filter { it.isNotEmpty() }
             .distinct()

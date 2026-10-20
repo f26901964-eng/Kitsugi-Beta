@@ -131,7 +131,8 @@ object ExternalListSyncManager {
                         token = aniListToken,
                         entry = remoteEntry,
                         advancedScores = advancedScores,
-                        context = context
+                        context = context,
+                        knownAniListMediaId = identity.aniListId
                     )
                 }.onSuccess { remoteId ->
                     if (remoteId != null && remoteId > 0) {
@@ -158,9 +159,15 @@ object ExternalListSyncManager {
 
                 // AniList favori durumu senkronizasyonu
                 runSyncCatching {
-                    val remoteFav = AniListSyncManager.getAniListMediaFavoriteStatus(aniListToken, remoteEntry, context)
+                    val remoteFav = AniListSyncManager.getAniListMediaFavoriteStatus(
+                        aniListToken, remoteEntry, context, knownAniListMediaId = identity.aniListId
+                    )
                     if (remoteFav != null && remoteFav != entry.isFavorite) {
-                        check(AniListSyncManager.toggleAniListFavourite(aniListToken, remoteEntry, context)) {
+                        check(
+                            AniListSyncManager.toggleAniListFavourite(
+                                aniListToken, remoteEntry, context, knownAniListMediaId = identity.aniListId
+                            )
+                        ) {
                             context.getString(R.string.account_sync_anilist_update_unconfirmed)
                         }
                         true
@@ -278,13 +285,21 @@ object ExternalListSyncManager {
                 outcomes["Shikimori"] = OUTCOME_NOT_CONNECTED
             } else if (!CrossSyncPolicy.supportsShikimori(entry.type) || !allowFanOut) {
                 outcomes["Shikimori"] = if (allowFanOut) OUTCOME_SKIPPED_TYPE else OUTCOME_SKIPPED_IDENTITY
-            } else if (realMalId == null) {
+            } else if (realMalId == null && identity.shikimoriId == null) {
                 outcomes["Shikimori"] = OUTCOME_SKIPPED_IDENTITY
                 skipped.add(context.getString(R.string.account_sync_shikimori_id_not_found, entry.title))
             } else {
+                // Shikimori'nin kendi satırı: MAL kimliği bu tur çözülemese bile satırın kendi
+                // target_id'si Shikimori yazması için yeterlidir (kendi kaynağına güncelleme
+                // MAL çözümüne bağlı olmamalı). Çapraz satırlarda hedef yine MAL kimliğidir.
+                val shikimoriEntry = if (realMalId == null) {
+                    remoteEntry.copy(malId = identity.shikimoriId)
+                } else {
+                    remoteEntry
+                }
                 runSyncCatching {
                     PlatformRateLimiter.acquire("shikimori")
-                    ShikimoriSyncManager.syncEntryToShikimori(context, remoteEntry)
+                    ShikimoriSyncManager.syncEntryToShikimori(context, shikimoriEntry)
                 }.onSuccess { shikiResult ->
                     when {
                         shikiResult.errors.isEmpty() -> {

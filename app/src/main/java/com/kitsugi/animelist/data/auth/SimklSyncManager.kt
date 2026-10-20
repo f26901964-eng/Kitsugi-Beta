@@ -318,8 +318,12 @@ object SimklSyncManager {
             if (entry.malId != null && entry.malId >= 300_000_000) entry.malId - 300_000_000 else entry.malId
         } else null
 
-        // Simkl ID yoksa ve malId/tmdbId de yoksa o zaman başlığa göre Simkl ID çözümlenir
-        if ((simklId == null || simklId <= 0) && realMalId == null && entry.tmdbId == null) {
+        // Simkl ID yoksa HER durumda çözülür (kimliklerle birebir sorgu en güvenilir yoldur).
+        // Eski koşul tersine çalışıyordu: yalnızca MAL/TMDB kimliği YOKKEN arama yapılıyor,
+        // kimlik varken simklId boş kalıyordu. Aşağıdaki bölüm ilerlemesi ve puan adımları
+        // effectiveSimklId > 0 istediği için çapraz eşitlemede Simkl'e yalnızca durum gidiyor,
+        // kullanıcının seçtiği bölüm ve puan sessizce düşüyordu.
+        if (simklId == null || simklId <= 0) {
             val resolvedId = simklApiClient.lookupSimklId(
                 malId = realMalId,
                 tmdbId = entry.tmdbId,
@@ -330,9 +334,18 @@ object SimklSyncManager {
             )
             if (resolvedId != null && resolvedId > 0) {
                 simklId = resolvedId
-                runCatching {
-                    val dao = com.kitsugi.animelist.data.local.KitsugiDatabase.getDatabase(context).mediaEntryDao()
-                    dao.update(entry.copy(simklId = resolvedId).toEntity())
+                // Geri yazım HER ZAMAN güncel DB satırı üzerinden yapılır: çağıran taraf
+                // (ExternalListSyncManager) buraya malId alanı gerçek MAL kimliğiyle
+                // değiştirilmiş geçici bir kopya verebilir; o kopyayı olduğu gibi yazmak
+                // satırın kendi kaynak kimliğini (ör. Kitsu 300M stableId) eziyordu.
+                if (entry.id > 0) {
+                    runCatching {
+                        val dao = com.kitsugi.animelist.data.local.KitsugiDatabase.getDatabase(context).mediaEntryDao()
+                        val current = dao.getById(entry.id)
+                        if (current != null && (current.simklId == null || current.simklId <= 0)) {
+                            dao.update(current.copy(simklId = resolvedId))
+                        }
+                    }
                 }
             }
         }
@@ -349,43 +362,51 @@ object SimklSyncManager {
         val messages = mutableListOf<String>()
         val errors = mutableListOf<String>()
 
-        // 1. Listeye ekle / durumu güncelle (POST /sync/add-to-list)
-        runCatching {
-            simklApiClient.addToList(
-                token = token,
-                simklId = effectiveSimklId,
-                type = type,
-                status = simklStatus,
-                malId = realMalId,
-                tmdbId = entry.tmdbId,
-                aniListId = aniListId,
-                kitsuId = rawKitsuId,
-                title = entry.titleEnglish?.takeIf { it.isNotBlank() } ?: entry.title,
-                year = entry.year
-            )
-        }.onSuccess { success ->
-            if (success) messages.add(context.getString(R.string.simkl_sync_list_updated, entry.title))
-            else errors.add(context.getString(R.string.simkl_sync_list_update_failed, entry.title))
-        }.onFailure { e ->
-            errors.add(context.getString(R.string.simkl_sync_add_error, e.message ?: context.getString(R.string.account_sync_unknown_error)))
-            Log.e(TAG, "syncEntryToSimkl addToList hatası", e)
-        }
+        // Sıra (toplu hatla aynı): geçmiş/puan yazımları Simkl'de liste durumunu
+        // değiştirebildiği için istenen durum EN SON uygulanır. Eski sıra durumu önce
+        // yazıyordu; bölüm işaretlemesi kaydı Simkl'de yeniden "watching"e çekebiliyordu.
 
-        // 2. Bölüm ilerlemesini güncelle — sadece dizi/anime için ve geçerli simklId varsa
+        // 1. Bölüm ilerlemesi (yalnızca anime): 1..N bölümlerin tamamı işaretlenir.
+        // Eski canlı hat `S01E<N>` uyduruyordu — toplu hattın özellikle yasakladığı biçim;
+        // anime kayıtlarında reddediliyor ya da yanlış bölüm işaretleniyordu. Dizi (TV)
+        // ilerlemesi sezon kataloğu olmadan gönderilmez (toplu hatla aynı kural, sessiz atlama).
         val progress = entry.progress
-        if (progress > 0 && entry.type != MediaType.Movie && effectiveSimklId > 0) {
+        if (progress > 0 && entry.type == MediaType.Anime) {
             runCatching {
-                simklApiClient.updateEpisodeProgress(token, effectiveSimklId, season = 1, episode = progress)
-            }.onSuccess { success ->
-                if (success) messages.add(context.getString(R.string.simkl_sync_episode_progress_updated, progress))
-                else errors.add(context.getString(R.string.simkl_sync_episode_progress_failed))
+                simklApiClient.historyBatchReceipt(
+                    token,
+                    listOf(
+                        SimklApiClient.SimklBatchEntry(
+                            type = "anime",
+                            status = simklStatus,
+                            simklId = effectiveSimklId,
+                            malId = realMalId,
+                            tmdbId = null,
+                            aniListId = aniListId,
+                            kitsuId = rawKitsuId,
+                            title = entry.titleEnglish?.takeIf { it.isNotBlank() } ?: entry.title,
+                            year = entry.year,
+                            progress = progress,
+                            titleMatchingAllowed = effectiveSimklId > 0 || realMalId != null
+                        )
+                    )
+                )
+            }.onSuccess { historyRes ->
+                when {
+                    historyRes.isSuccess ->
+                        messages.add(context.getString(R.string.simkl_sync_episode_progress_updated, progress))
+                    historyRes.transportFailed ->
+                        errors.add(context.getString(R.string.simkl_sync_episode_progress_failed))
+                    else ->
+                        errors.add(context.getString(R.string.simkl_sync_episode_progress_failed))
+                }
             }.onFailure { e ->
                 errors.add(context.getString(R.string.simkl_sync_episode_progress_error, e.message ?: context.getString(R.string.account_sync_unknown_error)))
-                Log.e(TAG, "syncEntryToSimkl updateEpisodeProgress hatası", e)
+                Log.e(TAG, "syncEntryToSimkl bölüm geçmişi hatası", e)
             }
         }
 
-        // 3. Puanı Simkl'e yaz (POST /sync/ratings)
+        // 2. Puanı Simkl'e yaz (POST /sync/ratings)
         val score = entry.score
         if (score != null && score > 0 && effectiveSimklId > 0) {
             val normalizedRating = if (score > 10) {
@@ -409,6 +430,30 @@ object SimklSyncManager {
             }.onFailure { e ->
                 Log.w(TAG, "Simkl removeRating uyarısı: ${e.message}")
             }
+        }
+
+        // 3. İstenen liste durumu EN SON uygulanır (POST /sync/add-to-list): yukarıdaki
+        // geçmiş/puan yazımları Simkl'de durumu değiştirebildiğinden kullanıcının seçtiği
+        // durum son sözü söyler (toplu hatla aynı sıra).
+        runCatching {
+            simklApiClient.addToList(
+                token = token,
+                simklId = effectiveSimklId,
+                type = type,
+                status = simklStatus,
+                malId = realMalId,
+                tmdbId = entry.tmdbId,
+                aniListId = aniListId,
+                kitsuId = rawKitsuId,
+                title = entry.titleEnglish?.takeIf { it.isNotBlank() } ?: entry.title,
+                year = entry.year
+            )
+        }.onSuccess { success ->
+            if (success) messages.add(context.getString(R.string.simkl_sync_list_updated, entry.title))
+            else errors.add(context.getString(R.string.simkl_sync_list_update_failed, entry.title))
+        }.onFailure { e ->
+            errors.add(context.getString(R.string.simkl_sync_add_error, e.message ?: context.getString(R.string.account_sync_unknown_error)))
+            Log.e(TAG, "syncEntryToSimkl addToList hatası", e)
         }
 
         SyncResult(messages = messages, errors = errors)

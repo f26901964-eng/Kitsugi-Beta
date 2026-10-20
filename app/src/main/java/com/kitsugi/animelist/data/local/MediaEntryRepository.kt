@@ -38,6 +38,8 @@ class MediaEntryRepository(
         val newId = dao.insert(entryWithTime.copy(id = 0).toEntity())
         // DB'de oluşan gerçek id ile sync yap (AniList entryId geri yazımı doğru entity'yi yakalar)
         val persistedEntry = dao.getById(newId.toInt())?.toDomain() ?: entryWithTime.copy(id = newId.toInt())
+        // Aynı yapımın başka kaynaklardaki yerel satırları da aynı kullanıcı değerlerini alsın.
+        mirrorUserFieldsToSiblings(persistedEntry)
         if (syncExternal) syncEntryIfPossible(persistedEntry, skipBangumiWrite = skipBangumiWrite)
     }
 
@@ -192,6 +194,9 @@ class MediaEntryRepository(
             entryWithTime.toEntity()
         )
 
+        // Kardeş satırlar (aynı yapımın diğer kaynak kopyaları) anında aynı değerleri görür.
+        mirrorUserFieldsToSiblings(entryWithTime)
+
         if (syncExternal) {
             syncEntryIfPossible(entryWithTime, advancedScores, skipBangumiWrite)
         }
@@ -200,7 +205,12 @@ class MediaEntryRepository(
     suspend fun deleteById(id: Int, syncExternal: Boolean = true) {
         val entry = dao.getById(id)?.toDomain()
 
+        // Uzak silme zaten tüm kaynaklara yayılıyor; aynı yapımın yerel kardeş satırları da
+        // silinir, yoksa silinen kayıt diğer kaynak sekmelerinde hayalet gibi kalıyordu.
+        val siblingIds = entry?.let { findSiblingRows(it).map { sibling -> sibling.id } }.orEmpty()
+
         dao.deleteById(id)
+        siblingIds.forEach { siblingId -> dao.deleteById(siblingId) }
 
         if (syncExternal && entry != null) {
             syncDeleteIfPossible(entry)
@@ -229,6 +239,85 @@ class MediaEntryRepository(
         val ctx = context ?: return 0
         val queueDao = pendingSyncDao ?: return 0
         return PendingSyncDrainer.drain(ctx, queueDao)
+    }
+
+    // ────────────────────────────────────────────────
+    // Kardeş satır tutarlılığı (aynı yapım, farklı kaynak kopyaları)
+    // ────────────────────────────────────────────────
+
+    /** Bir satırın kimlik kümesi: kendi alanı + kalıcı çapraz kimlik önbelleği (ağ yok). */
+    private fun resolvedIdsFor(appContext: Context, row: MediaEntry): com.kitsugi.animelist.data.auth.CrossProviderIds {
+        val decoded = com.kitsugi.animelist.data.auth.CrossProviderIds.decode(
+            storedId = row.malId,
+            source = row.source,
+            type = row.type,
+            entrySimklId = row.simklId,
+            entryTmdbId = row.tmdbId
+        )
+        val key = com.kitsugi.animelist.data.auth.CrossProviderIds.cacheKey(
+            type = row.type,
+            storedId = row.malId,
+            title = row.title,
+            titleEnglish = row.titleEnglish,
+            year = row.year,
+            source = row.source
+        )
+        val cached = com.kitsugi.animelist.data.auth.CrossProviderIdentityCache.read(appContext, key)?.ids
+        return decoded.mergedWith(cached)
+    }
+
+    /**
+     * [entry] ile aynı yapımı gösteren diğer yerel satırlar. Eşleşme yalnızca doğrulanmış
+     * kimlik kesişimiyle olur (aynı tür + ortak MAL/AniList/Kitsu/Shikimori/Bangumi/Simkl
+     * kimliği; film/dizide TMDB de). Başlık benzerliği asla kullanılmaz.
+     */
+    private suspend fun findSiblingRows(entry: MediaEntry): List<MediaEntry> {
+        val appContext = context ?: return emptyList()
+        if (entry.id <= 0) return emptyList()
+        val entryIds = resolvedIdsFor(appContext, entry)
+        if (entryIds.isEmpty && entry.aniListEntryId == null) return emptyList()
+        val includeTmdb = entry.type == MediaType.Movie || entry.type == MediaType.TvShow
+        return dao.getAll()
+            .map { it.toDomain() }
+            .filter { other ->
+                other.id != entry.id && other.type == entry.type &&
+                    (
+                        (entry.aniListEntryId != null && entry.aniListEntryId == other.aniListEntryId) ||
+                            resolvedIdsFor(appContext, other).sharesAnyIdWith(entryIds, includeTmdb = includeTmdb)
+                        )
+            }
+    }
+
+    /**
+     * Kullanıcı değerlerini (durum/puan/ilerleme/tarih/not/etiket/favori/gizlilik/tekrar)
+     * kardeş satırlara yerel olarak yansıtır. Kimlik/başlık/görsel alanlarına dokunulmaz;
+     * uzak eşitleme ayrıca çalışır (bu yalnızca yerel önbellek tutarlılığıdır).
+     */
+    private suspend fun mirrorUserFieldsToSiblings(entry: MediaEntry) {
+        runSyncCatching {
+            findSiblingRows(entry).forEach { sibling ->
+                dao.update(
+                    sibling.copy(
+                        status = entry.status,
+                        score = entry.score,
+                        progress = entry.progress,
+                        volumeProgress = entry.volumeProgress,
+                        startDate = entry.startDate,
+                        endDate = entry.endDate,
+                        notes = entry.notes,
+                        tags = entry.tags,
+                        isFavorite = entry.isFavorite,
+                        isPrivate = entry.isPrivate,
+                        isHiddenFromStatusLists = entry.isHiddenFromStatusLists,
+                        priority = entry.priority,
+                        isRepeating = entry.isRepeating,
+                        repeatCount = entry.repeatCount,
+                        repeatValue = entry.repeatValue,
+                        updatedAt = entry.updatedAt
+                    ).toEntity()
+                )
+            }
+        }
     }
 
     // ────────────────────────────────────────────────

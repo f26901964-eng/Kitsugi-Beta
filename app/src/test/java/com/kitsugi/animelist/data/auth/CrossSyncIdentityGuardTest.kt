@@ -1,5 +1,8 @@
 package com.kitsugi.animelist.data.auth
 
+import com.kitsugi.animelist.model.MediaEntry
+import com.kitsugi.animelist.model.MediaType
+import com.kitsugi.animelist.model.WatchStatus
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -28,6 +31,34 @@ class CrossSyncIdentityGuardTest {
     fun differentSeasonNumbersAreNeverRelated() {
         assertFalse(CrossSyncIdentityGuard.titlesVariantRelated("Re:Zero Part 2", "Re:Zero Part 3"))
         assertFalse(CrossSyncIdentityGuard.titlesVariantRelated("86 Part 2", "86: Eighty Six"))
+    }
+
+    @Test
+    fun aliasesIncludeNativeJapaneseTitle() {
+        // Bangumi satırı: görünen başlık Çince, İngilizce yok; kimlik doğrulamasının tutunacağı
+        // tek ortak başlık özgün Japonca ad. aliasesOf onu içermezse Bangumi kökenli kayıtların
+        // MAL/AniList doğrulaması (ve dolayısıyla canlı yayılımı) neredeyse hep düşüyordu.
+        val entry = MediaEntry(
+            id = 1,
+            title = "命运石之门",
+            type = MediaType.Anime,
+            status = WatchStatus.Watching,
+            score = null,
+            progress = 3,
+            total = 24,
+            source = "bangumi",
+            malId = 500_010_380,
+            titleEnglish = null,
+            titleJapanese = "シュタインズ・ゲート"
+        )
+        val aliases = CrossSyncIdentityGuard.aliasesOf(entry)
+        assertTrue(aliases.contains("シュタインズ・ゲート"))
+        assertTrue(
+            CrossSyncIdentityGuard.titlesAreIdentityEquivalent(
+                aliases,
+                listOf("Steins;Gate", "シュタインズ・ゲート")
+            )
+        )
     }
 
     @Test

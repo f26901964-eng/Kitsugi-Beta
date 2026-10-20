@@ -11,10 +11,8 @@ import com.kitsugi.animelist.data.local.MediaEntryBackup
 import com.kitsugi.animelist.data.local.MediaEntryRepository
 import com.kitsugi.animelist.data.remote.ApiSearchSelection
 import com.kitsugi.animelist.data.remote.BangumiMediaEntryFactory
-import com.kitsugi.animelist.data.remote.BangumiIdNamespace
 import com.kitsugi.animelist.data.remote.canonicalMediaSourceId
 import com.kitsugi.animelist.data.remote.matchesInSource
-import com.kitsugi.animelist.data.auth.BangumiSyncManager
 import com.kitsugi.animelist.data.settings.SettingsDataStore
 import com.kitsugi.animelist.model.MediaEntry
 import com.kitsugi.animelist.model.MediaType
@@ -421,31 +419,22 @@ class AppViewModel : ViewModel() {
                     "Bangumi kaydı için geçerli bir subject kimliği ve başlık gerekli."
                 )
             }
-            val appContext = repository.context
-            if (appContext == null) {
+            if (repository.context == null) {
                 return ApiInsertOutcome(
                     ApiInsertStatus.FAILED,
                     "Bangumi hesabına ulaşılamadı; kayıt eklenemedi."
                 )
             }
-            val remoteResult = BangumiSyncManager.syncEntryToBangumi(appContext, newBangumiEntry)
-            if (remoteResult.collectionUpdated) {
-                val stableId = remoteResult.subjectId?.let(BangumiIdNamespace::stableIdFromRaw)
-                // Önce Bangumi koleksiyonu yazıldı; satır artık diğer kaynaklara da
-                // yayılır (doğrulanmış MAL/AniList kimliği çözülebilirse).
-                val persistedBangumi = newBangumiEntry.copy(malId = stableId ?: newBangumiEntry.malId)
-                repository.insert(persistedBangumi, syncExternal = true, skipBangumiWrite = true)
-                return ApiInsertOutcome(
-                    ApiInsertStatus.ADDED,
-                    (remoteResult.messages + remoteResult.errors)
-                        .joinToString(" • ")
-                        .ifBlank { "Bangumi koleksiyonuna eklendi: ${newBangumiEntry.title}" },
-                    persistedBangumi
-                )
-            }
+            // Diğer kaynaklarla aynı hat: kayıt önce yerele yazılır, canlı eşitleme Bangumi
+            // dahil altı kaynağa birden yayar. Eski akış önce Bangumi'ye yazıp başarısızlıkta
+            // kaydı hiç eklemiyordu (token/kapsam/ağ hatasında ekleme tümüyle kayboluyordu);
+            // artık başarısız yazımlar bekleyen senkron kuyruğunda yeniden denenir ve sonuç
+            // repository geri çağrısıyla kullanıcıya bildirilir.
+            repository.insert(newBangumiEntry, syncExternal = true)
             return ApiInsertOutcome(
-                ApiInsertStatus.FAILED,
-                remoteResult.errors.joinToString(" • ").ifBlank { "Bangumi koleksiyonu güncellenemedi." }
+                ApiInsertStatus.ADDED,
+                "Listeye eklendi: ${newBangumiEntry.title}",
+                newBangumiEntry
             )
         }
 

@@ -91,7 +91,8 @@ object MyListIdentityCrosswalk {
                 storedId = entry.malId,
                 title = entry.title,
                 titleEnglish = entry.titleEnglish,
-                year = entry.year
+                year = entry.year,
+                source = entry.source
             )
         )
     }.getOrNull()?.ids

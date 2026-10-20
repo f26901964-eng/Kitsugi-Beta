@@ -8,7 +8,6 @@ import com.kitsugi.animelist.data.local.KitsugiDatabase
 import com.kitsugi.animelist.model.MediaEntry
 import com.kitsugi.animelist.model.WatchStatus
 import com.kitsugi.animelist.data.auth.ExternalAuthManager
-import com.kitsugi.animelist.data.auth.BangumiSyncManager
 import com.kitsugi.animelist.data.remote.BangumiIdNamespace
 import com.kitsugi.animelist.data.remote.BangumiLibraryTitleHydrator
 import com.kitsugi.animelist.model.MediaType
@@ -172,31 +171,23 @@ class MyListViewModel(application: Application) : AndroidViewModel(application) 
     }
 
     /**
-     * Bangumi liste ekranından ekleme/düzenleme: önce kullanıcının kendi Bangumi koleksiyonuna
-     * yazılır, sonra aynı içerik doğrulanmış kimlikle diğer bağlı kaynaklara yayılır
-     * (AniList · MAL · Simkl · Kitsu · Shikimori). Kimlik çözülemezse yalnızca Bangumi kalır.
+     * Bangumi liste ekranından ekleme/düzenleme: diğer kaynaklarla aynı hat kullanılır —
+     * kayıt önce yerele yazılır, sonra canlı eşitleme Bangumi dahil altı kaynağa birden
+     * yayılır (AniList · MAL · Simkl · Kitsu · Shikimori · Bangumi).
+     *
+     * Eski akış önce Bangumi'ye yazıyor, başarısız olursa kaydı yerele bile kaydetmiyordu:
+     * kullanıcının seçtiği durum/puan/tarih/bölüm kayboluyor ve hiçbir kaynağa gidilmiyordu.
+     * Artık senkron sonucu repository geri çağrısıyla (_syncMessages) bildirilir; başarısız
+     * yazımlar bekleyen senkron kuyruğunda yeniden denenir.
      */
     fun saveBangumiEntry(entry: MediaEntry, isNew: Boolean) {
         viewModelScope.launch {
-            val result = BangumiSyncManager.syncEntryToBangumi(
-                context,
-                entry.copy(source = BangumiIdNamespace.SOURCE)
-            )
-            if (result.collectionUpdated) {
-                val stableId = result.subjectId?.let(BangumiIdNamespace::stableIdFromRaw)
-                val persisted = entry.copy(
-                    source = BangumiIdNamespace.SOURCE,
-                    malId = stableId ?: entry.malId
-                )
-                if (isNew) {
-                    repository.insert(persisted.copy(id = 0), syncExternal = true, skipBangumiWrite = true)
-                } else {
-                    repository.update(persisted, syncExternal = true, skipBangumiWrite = true)
-                }
+            val persisted = entry.copy(source = BangumiIdNamespace.SOURCE)
+            if (isNew) {
+                repository.insert(persisted.copy(id = 0), syncExternal = true)
+            } else {
+                repository.update(persisted, syncExternal = true)
             }
-            val message = (result.messages + result.errors).joinToString(" • ")
-                .ifBlank { "Bangumi koleksiyonu güncellenemedi." }
-            _syncMessages.send(message)
         }
     }
 

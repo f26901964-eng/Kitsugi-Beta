@@ -41,7 +41,9 @@ object MalSyncManager {
 
         val postData = buildString {
             append("status=${URLEncoder.encode(entry.status.toMalStatus(entry.type), "UTF-8")}")
-            append("&score=${entry.score ?: 0}")
+            // MAL puanı 0..10 ister; eski satırlarda 0..100 ölçekli değer kalmışsa ham gönderim
+            // tüm PATCH'i 400 ile düşürüyordu (diğer yöneticilerle aynı normalizasyon).
+            append("&score=${SyncScores.tenPoint(entry.score) ?: 0}")
             append("&$progressKey=${entry.progress}")
 
             val startDate = entry.startDate

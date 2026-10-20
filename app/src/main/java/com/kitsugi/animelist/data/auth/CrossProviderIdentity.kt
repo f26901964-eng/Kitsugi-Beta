@@ -54,6 +54,21 @@ data class CrossProviderIds(
     fun withVia(idName: String, source: String): CrossProviderIds =
         copy(via = via + (idName to source))
 
+    /**
+     * İki kimlik kümesi aynı yapımı gösteriyor mu? Yalnızca AYNI uzayda eşit ve dolu bir
+     * kimlik çifti kanıt sayılır (başlık benzerliği asla). Yerel kardeş satırların
+     * (aynı yapımın farklı kaynaklardaki kopyaları) bulunmasında kullanılır.
+     */
+    fun sharesAnyIdWith(other: CrossProviderIds, includeTmdb: Boolean = true): Boolean =
+        (malId != null && malId == other.malId) ||
+            (aniListId != null && aniListId == other.aniListId) ||
+            (kitsuId != null && kitsuId == other.kitsuId) ||
+            (shikimoriId != null && shikimoriId == other.shikimoriId) ||
+            (bangumiSubjectId != null && bangumiSubjectId == other.bangumiSubjectId) ||
+            // TMDB kimliği anime/mangada sezonları tek dizide toplar; orada kanıt sayılmaz.
+            (includeTmdb && tmdbId != null && tmdbId == other.tmdbId) ||
+            (simklId != null && simklId == other.simklId)
+
     /** Bu kayıtta dolu olan değerleri korur, boş olanları [other] ile doldurur. */
     fun mergedWith(other: CrossProviderIds?): CrossProviderIds {
         if (other == null) return this
@@ -138,9 +153,20 @@ data class CrossProviderIds(
         ): CrossProviderIds {
             val simklFromRow = entrySimklId?.takeIf { it > 0 }
             val tmdbFromRow = entryTmdbId?.takeIf { it > 0 }
+            val normalizedSource = normalizeSource(source)
             if (type != MediaType.Anime && type != MediaType.Manga) {
-                // Film/dizi satırlarında malId alanı anlamlı değildir (TMDB/Simkl kimlik uzayı çakışır).
-                return CrossProviderIds(tmdbId = tmdbFromRow, simklId = simklFromRow)
+                // Film/dizi satırlarında malId alanı MAL kimliği değildir (TMDB/Simkl kimlik uzayı
+                // çakışır). Ancak Bangumi film/dizi satırının subject kimliği KORUNUR: yoksa
+                // Bangumi çapraz köprüsü hiç çalışamıyor ve içerik Simkl'e yayılamıyordu.
+                val bangumiForVideo = storedId?.let { id ->
+                    BangumiIdNamespace.rawIdFromStable(id)
+                        ?: id.takeIf { normalizedSource == "bangumi" && it in REAL_MAL_MIN..REAL_MAL_MAX }
+                }
+                return CrossProviderIds(
+                    tmdbId = tmdbFromRow,
+                    simklId = simklFromRow,
+                    bangumiSubjectId = bangumiForVideo?.takeIf { it > 0 }
+                )
             }
 
             var aniListId: Int? = null
@@ -151,8 +177,25 @@ data class CrossProviderIds(
             val via = mutableMapOf<String, String>()
 
             storedId?.let { id ->
-                val normalizedSource = normalizeSource(source)
                 when {
+                    // 100M altı değer, satırın KAYNAĞINA göre yorumlanır (MediaIdentity.keys ile
+                    // birebir aynı sözleşme): Shikimori içe aktarması ham `target_id` yazar, eski
+                    // Kitsu/Bangumi satırları da ham kimlik taşıyabilir. Bunlar MAL kimliği SAYILMAZ;
+                    // eski decode hepsini MAL saydığı için Shikimori satırlarında MAL çözümleme
+                    // adımı hiç çalışmıyor, eski Bangumi satırlarında ise subject_id yanlışlıkla
+                    // MAL kimliği gibi kullanılıp yayılım kapısı sahte kimlikle açılıyordu.
+                    id in REAL_MAL_MIN..REAL_MAL_MAX && normalizedSource == "shikimori" -> {
+                        shikimoriId = id
+                        via["shikimori"] = "kayit"
+                    }
+                    id in REAL_MAL_MIN..REAL_MAL_MAX && normalizedSource == "bangumi" -> {
+                        bangumiSubjectId = id
+                        via["bangumi"] = "kayit"
+                    }
+                    id in REAL_MAL_MIN..REAL_MAL_MAX && normalizedSource == "kitsu" -> {
+                        kitsuId = id
+                        via["kitsu"] = "kayit"
+                    }
                     id in REAL_MAL_MIN..REAL_MAL_MAX -> via["mal"] = "kayit"
                     normalizedSource == "anilist" && id in ANILIST_STABLE_MIN..ANILIST_STABLE_MAX -> {
                         aniListId = id - ANILIST_OFFSET
@@ -183,8 +226,14 @@ data class CrossProviderIds(
                 }
             }
 
+            // Gerçek MAL kimliği yalnızca MAL kimlik uzayını kullanan kaynaklarda (<100M ham
+            // değer) geçerlidir; Shikimori/Bangumi/Kitsu ham değerleri yukarıda kendi alanlarına
+            // yerleştirildi, burada MAL sayılmazlar.
+            val decodedMalId = realMalIdOf(storedId)?.takeIf {
+                normalizedSource !in setOf("shikimori", "bangumi", "kitsu")
+            }
             return CrossProviderIds(
-                malId = realMalIdOf(storedId),
+                malId = decodedMalId,
                 aniListId = aniListId?.takeIf { it > 0 },
                 kitsuId = kitsuId?.takeIf { it > 0 },
                 shikimoriId = shikimoriId?.takeIf { it > 0 },
@@ -195,17 +244,34 @@ data class CrossProviderIds(
             )
         }
 
-        /** Bir yapımın kararlı önbellek anahtarı — satır hangi kaynaktan gelirse gelsin aynı olmalı. */
+        /**
+         * Bir yapımın kararlı önbellek anahtarı — satır hangi kaynaktan gelirse gelsin aynı olmalı.
+         *
+         * [source] verilirse 100M altı ham değerler [decode] ile aynı kuralla yorumlanır:
+         * Shikimori/Bangumi/Kitsu ham kimlikleri "mal:" uzayına YAZILMAZ (eski anahtar, aynı
+         * sayıdaki bambaşka bir MAL yapımının çözülmüş kimliğini bu satıra yapıştırabiliyordu).
+         */
         fun cacheKey(
             type: MediaType?,
             storedId: Int?,
             title: String?,
             titleEnglish: String?,
-            year: Int?
+            year: Int?,
+            source: String? = null
         ): String {
+            val normalizedSource = normalizeSource(source)
             val namespaceKey = storedId?.let { id ->
                 when {
+                    id in REAL_MAL_MIN..REAL_MAL_MAX && normalizedSource == "shikimori" -> "shikimori:$id"
+                    id in REAL_MAL_MIN..REAL_MAL_MAX && normalizedSource == "bangumi" -> "bangumi:$id"
+                    id in REAL_MAL_MIN..REAL_MAL_MAX && normalizedSource == "kitsu" -> "kitsu:$id"
                     id in REAL_MAL_MIN..REAL_MAL_MAX -> "mal:$id"
+                    // AniList (100M..299M) ile Simkl (150M..249M) pencereleri örtüşür; kaynak
+                    // biliniyorsa ayrım onunla yapılır (kaynak bilinmiyorsa eski sıra korunur).
+                    normalizedSource == "anilist" && id in ANILIST_STABLE_MIN..ANILIST_STABLE_MAX ->
+                        "anilist:${id - ANILIST_OFFSET}"
+                    normalizedSource == "simkl" && id in SIMKL_STABLE_MIN..SIMKL_STABLE_MAX ->
+                        "simkl:${id - SIMKL_OFFSET}"
                     id in SIMKL_STABLE_MIN..SIMKL_STABLE_MAX -> "simkl:${id - SIMKL_OFFSET}"
                     id in ANILIST_STABLE_MIN..ANILIST_STABLE_MAX -> "anilist:${id - ANILIST_OFFSET}"
                     KitsuIdNamespace.rawIdFromStable(id) != null -> "kitsu:${KitsuIdNamespace.rawIdFromStable(id)}"
@@ -268,11 +334,12 @@ object CrossSyncPolicy {
      *
      * Eskiden Bangumi satırları **hiç** yayılmazdı (`subject_id` başka kaynaklarda anlamsız).
      * Artık kimlik, Bangumi çapraz eşleştirme katmanının (AniList/Jikan yıl+başlık ağırlıklı
-     * eşleşmesi) çözdüğü doğrulanmış MAL/AniList kimliğinden geliyorsa yayılır; çözülemezse
-     * yalnızca Bangumi'ye yazılır — yanlış yapımı başka bir listeye eklememek için.
+     * eşleşmesi) çözdüğü doğrulanmış bir kimlikten (MAL/AniList/Kitsu ya da film/dizide
+     * TMDB/Simkl) geliyorsa yayılır; çözülemezse yalnızca Bangumi'ye yazılır — yanlış yapımı
+     * başka bir listeye eklememek için. Her kaynak bloğu kendi kimliğini ayrıca denetler.
      */
     fun allowFanOut(isBangumiRow: Boolean, ids: CrossProviderIds): Boolean =
-        !isBangumiRow || ids.malId != null || ids.aniListId != null
+        !isBangumiRow || ids.hasAnimeMangaIdentity || ids.hasVideoIdentity
 
     /**
      * Yalnızca "atlandı" (kimlik çözülemedi) varsa işlem yeniden denenmez.
@@ -316,7 +383,8 @@ object CrossProviderIdentityResolver {
             storedId = entry.malId,
             title = entry.title,
             titleEnglish = entry.titleEnglish,
-            year = entry.year
+            year = entry.year,
+            source = entry.source
         )
         val cached = CrossProviderIdentityCache.read(context, cacheKey)
         val ids = decoded.mergedWith(cached?.ids)
@@ -515,11 +583,19 @@ object CrossProviderIdentityResolver {
         }
 
         // 6) Son çare: MAL kataloğunda sıkı başlık araması (tek ve net eşleşme).
+        // Adaylar sırayla denenir: Bangumi satırında İngilizce çoğu zaman yoktur ve görünen
+        // başlık Çince olabilir; Jikan'da net eşleşme verecek alan özgün Japonca başlıktır.
         if (ids.malId == null && connected.mal && CrossSyncPolicy.supportsMal(entry.type)) {
-            val searchTitle = entry.titleEnglish?.takeIf { it.isNotBlank() } ?: entry.title.takeIf { it.isNotBlank() }
-            if (!searchTitle.isNullOrBlank()) {
+            val searchTitles = listOfNotNull(entry.titleEnglish, entry.titleJapanese, entry.title)
+                .map { it.trim() }
+                .filter { it.isNotBlank() }
+                .distinct()
+            for (searchTitle in searchTitles) {
                 val jikanMal = runSyncCatching { malIdFromStrictJikanSearch(entry, searchTitle) }.getOrNull()
-                if (jikanMal != null) ids = ids.copy(malId = jikanMal).withVia("mal", "Jikan başlık araması")
+                if (jikanMal != null) {
+                    ids = ids.copy(malId = jikanMal).withVia("mal", "Jikan başlık araması")
+                    break
+                }
             }
         }
 
