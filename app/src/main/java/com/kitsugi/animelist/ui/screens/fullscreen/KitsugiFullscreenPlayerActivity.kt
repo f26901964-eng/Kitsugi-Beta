@@ -390,7 +390,7 @@ class KitsugiFullscreenPlayerActivity : ComponentActivity() {
             } catch (t: Throwable) {
                 android.util.Log.e("KitsugiPlayer", "Oynatıcı başlatılırken hata oluştu: ${t.javaClass.simpleName}: ${t.message}", t)
                 android.widget.Toast.makeText(context, KitsugiStrings.get(R.string.oynatici_baslatilamadi_x, t.message ?: t.javaClass.simpleName), android.widget.Toast.LENGTH_LONG).show()
-                false
+                return false
             }
         }
 
