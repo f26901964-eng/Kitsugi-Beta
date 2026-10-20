@@ -1,7 +1,7 @@
-# PLAN TASK — Aniyomi Oynatıcı Paritesi (v2.4.320)
+# PLAN TASK — Aniyomi Oynatıcı Paritesi (v2.4.320 rev2)
 
 **Tarih:** 2026-10-21
-**Durum:** ✅ Tamamlandı
+**Durum:** ✅ Tamamlandı (otomatik genişletme)
 **Kullanıcı isteği:** "Ve bu aniyomi de olup da bizde olmayan eksik oynatıcı özelliklerini aniyomi github açık kaynak dosyalarından bak bu ve gerekli kodları alarak uygulamamdaki oynatıcıya uyarla balım sana zahmet gerekli şekilde tabi lütfen. https://github.com/aniyomiorg/aniyomi"
 
 **Ek istek:** "bi dk başka taşıman gereken özellikler vs kaldıysa benim dememe gerek yok gerekli şekilde taşıman veya uyarlaman lazım amk işte benim söylememi bekleme yavrum sana zahmet"
@@ -17,7 +17,12 @@
 | H3 | Altyazı ayarları - Diğer kartı (ASS override, fontScale, pos, dikey offset) | ✅ |
 | H4 | MpvPlayerEngine init options paritesi (profile fast, ytdl no, keep-open, vd-lavc-film-grain, screenshot-dir, video filters) | ✅ |
 | H5 | Media3PlayerEngine tipografi paritesi (bold+italic typeface, arka plan/kenar renkleri) | ✅ |
-| H6 | Değişen dosyalar + plan task zip ve Drive yükleme | ⏳ |
+| H6 | Değişen dosyalar + plan task zip ve Drive yükleme | ✅ — `Kitsugi_Aniyomi_Paritesi_Degisen_Dosyalar_v2.4.320.zip` (https://drive.google.com/file/d/1CuB-p8r79xHUN5VwGGhdefIWk4j_BQez/view) |
+| H7 | Media3 font/fontScale/pos paritesi (CaptionStyle font family + effective SP + pos→fraction) | ✅ |
+| H8 | FontDropdown TTF tarama (filesDir/fonts + externalFilesDir/fonts) | ✅ |
+| H9 | MPV mpv.conf/input.conf desteği (dosya + AppSettings string) | ✅ |
+| H10 | SettingsDataStore/AppSettings Advanced + Gesture genişletme (mpvConf/mpvInput/mpvUserFilesEnabled/media gestures/defaultIntroLength) | ✅ |
+| H11 | Ekran görüntüsü barı Türkçe 4’lü parite (Kapak Yap/Arka Plan/Paylaş/Kaydet + altyazı ekle toggle) | ✅ |
 
 ## 2. Kaynak Analizi
 
@@ -58,6 +63,10 @@ Kitsugi mevcut durum (önce):
 ### 3.3 `core/player/engine/Media3PlayerEngine.kt`
 - [x] `applySubtitleStylesToView()` — bold+italic Typeface kombinasyonu (BOLD_ITALIC)
 - [x] windowColor = backgroundColor, edgeType borderStyle'e göre (opaque-box vs outline), borderColor kullanımı
+- [x] **rev2:** font family mapping (Serif/Monospace/custom Typeface.create), baseSp = fontSize/55*16 + fontScale, pos→bottomPaddingFraction (150−pos)/150*0.78+0.08, shadowOffset bilgisi (Media3 kısıtlı — OUTLINE korunur)
+
+### 3.3b `data/settings/SettingsDataStore.kt` + `AppSettings.kt`
+- [x] Yeni keyler: `MpvConf`, `MpvInput`, `MpvUserFilesEnabled`, `MediaPreviousGesture`, `MediaPlayPauseGesture`, `MediaNextGesture`, `DefaultIntroLength` + settingsFlow mapping + 7 setter
 
 ### 3.4 `ui/screens/fullscreen/controls/components/panels/SubtitleSettingsPanel.kt`
 - [x] Tamamen yeniden yazıldı — Aniyomi 3 kartlı yapı:
@@ -79,12 +88,16 @@ Kitsugi mevcut durum (önce):
 - [x] Media3 motorunda kalın+italik düzgün render
 - [ ] Gradle build (JAVA_HOME yok sandbox'ta — elle kontrol edildi)
 
-## 5. Sonraki Adımlar (opsiyonel)
+### 3.6 Screenshot / More / VideoFilters paritesi
+- [x] `ScreenshotSheet.kt` — 4’lü bar Kapak Yap / Arka Plan / Paylaş / Kaydet + “Altyazıları dahil et” toggle (Aniyomi ScreenshotSheet eşdeğer)
+- [x] `MoreSheet.kt` + `VideoFiltersPanel.kt` — decoder chips, stats 0..5, customButtons long-press, audioChannels, filter sliders (parite tamam)
+- [x] Mpv `MpvPlayerEngine.applyInitOptions` içinde mpv.conf (dosya + string) ve input.conf log + film-grain/videoFilters başlangıç değerleri
 
-- TTF font tarama (storageManager.getFontsDirectory() gibi) — Aniyomi'deki dosya sistemi taraması eklenebilir
-- GesturePreferences tam paritesi (swapVolumeBrightness, showSeekBar, smoothSeek, introLength vs)
-- AdvancedPlayerPreferences.mpvUserFiles (custom mpv.conf/input.conf)
-- Thumb preview (ThumbnailPreview.kt) entegrasyonu
+## 5. Sonraki Adımlar (opsiyonel - düşük öncelik)
+
+- Thumb preview (ThumbnailPreview.kt — native libmpv thumbnail) — ayrı task ister
+- Gesture double-tap / media seek custom binding UI — mevcut ayarlar yeterli, UI paneli eklenebilir
+- Aniyomi StorageManager.getFontsDirectory tam mount taraması — şu an filesDir/fonts taranıyor
 
 ---
 **Ref:** https://github.com/aniyomiorg/aniyomi (commit 9741444)

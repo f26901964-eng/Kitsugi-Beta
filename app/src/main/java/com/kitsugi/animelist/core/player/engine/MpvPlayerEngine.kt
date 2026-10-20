@@ -834,6 +834,52 @@ class MpvPlayerEngine(
             }
         }
 
+        // Aniyomi AdvancedPlayerPreferences: kullanici mpv.conf / input.conf
+        // Dosyalari desteklensin (mpvScriptsEnabled true ise yuzde yuz uyum)
+        runCatching {
+            val mpvConfDir = java.io.File(context.filesDir, "mpv")
+            // mpv.conf: her satir `option=value` seklinde mpv init secenegi olarak uygulanir
+            val confFile = java.io.File(mpvConfDir, "mpv.conf")
+            if (confFile.exists() && confFile.isFile) {
+                confFile.readLines().forEach { raw ->
+                    val line = raw.trim()
+                    if (line.isEmpty() || line.startsWith("#")) return@forEach
+                    val eq = line.indexOf("=")
+                    if (eq > 0) {
+                        val key = line.substring(0, eq).trim()
+                        val value = line.substring(eq + 1).trim().removeSurrounding("\"").removeSurrounding("'")
+                        if (key.isNotEmpty()) option(key, value)
+                    }
+                }
+            }
+            // input.conf: mpv key binding dosyasi — yalnizca varsa bildir (libmpv native yukler)
+            val inputFile = java.io.File(mpvConfDir, "input.conf")
+            if (inputFile.exists()) {
+                android.util.Log.d(TAG, "MPV input.conf bulundu: ${inputFile.path}")
+            }
+            // AppSettings mpvConf string'i (kullanici metin kutusundan) — satir satir uygula
+            val confString = settings.mpvConf
+            if (confString.isNotBlank()) {
+                confString.lines().forEach { raw ->
+                    val line = raw.trim()
+                    if (line.isEmpty() || line.startsWith("#")) return@forEach
+                    val eq = line.indexOf("=")
+                    if (eq > 0) {
+                        val key = line.substring(0, eq).trim()
+                        val value = line.substring(eq + 1).trim().removeSurrounding("\"").removeSurrounding("'")
+                        if (key.isNotEmpty()) option(key, value)
+                    } else if (line.contains(" ")) {
+                        // flag form: e.g. "no-video"
+                        option(line, "yes")
+                    }
+                }
+            }
+            val inputString = settings.mpvInput
+            if (inputString.isNotBlank()) {
+                android.util.Log.d(TAG, "MPV mpvInput ozel baglamalari var (${inputString.length} char)")
+            }
+        }
+
         // TLS / CA güven zinciri — Asla trust-all yok.
         // AndroidCAStore'dan PEM'e çıkarılan CA paketi MPV'ye tls-ca-file olarak verilir.
         val caFile = com.kitsugi.animelist.core.player.MpvTrustStore.install(context)

@@ -312,6 +312,15 @@ data class AppSettings(
     val defaultPlayerOrientation: String = "SENSOR_LANDSCAPE",
     val pipEpisodeToasts: Boolean = true,
     val pipOnExit: Boolean = true,
+    // ─── Advanced mpv conf/input (Aniyomi) ────────────────────────────────────
+    val mpvConf: String = "",
+    val mpvInput: String = "",
+    val mpvUserFilesEnabled: Boolean = false,
+    // ─── Media gesture mapping (Aniyomi GesturePreferences) ───────────────────
+    val mediaPreviousGesture: String = "SWITCH",
+    val mediaPlayPauseGesture: String = "PLAY_PAUSE",
+    val mediaNextGesture: String = "SWITCH",
+    val defaultIntroLength: Int = 85,
     // ─── Yeni İndirme Ayarları (Aniyomi Uyumlu) ──────────────────────────────────
     val downloadOnlyOverWifi: Boolean = true,
     val downloadSpeedLimit: Int = 0,
