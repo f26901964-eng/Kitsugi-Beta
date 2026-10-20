@@ -585,10 +585,10 @@ fun ApiResultDetailPage(
                     }, accentColor = accentColor)
                 }
                 IconButton(onClick = {
+                    // Bağlantı çözülemezse de paylaşım açılır; başlık bağlantısız gider
+                    // (kullanıcıya 404 bir adres göndermekten iyidir).
                     val url = buildExternalUrl(displayResult)
-                    if (!url.isNullOrBlank()) {
-                        com.kitsugi.animelist.utils.ShareUtils.shareText(context, displayResult.title, url)
-                    }
+                    com.kitsugi.animelist.utils.ShareUtils.shareText(context, displayResult.title, url)
                 }) {
                     Icon(
                         imageVector = Icons.Rounded.Share,
@@ -1123,7 +1123,13 @@ fun ApiResultDetailPage(
  * - Diğer     → null
  */
 private fun buildExternalUrl(result: JikanSearchResult): String? {
-    return com.kitsugi.animelist.utils.ShareUtils.buildExternalMediaUrl(result.source, result.malId, result.tmdbId, result.type)
+    return com.kitsugi.animelist.utils.ShareLinks.mediaUrl(
+        source = result.source,
+        storedId = result.malId,
+        type = result.type,
+        tmdbId = result.tmdbId,
+        realMalId = result.realMalId
+    )
 }
 
 // buildMalCrossUrl: artık kullanılmıyor (platform-specific buton mantığı buildExternalUrl'e taşındı)

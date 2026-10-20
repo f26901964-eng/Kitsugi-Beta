@@ -80,11 +80,12 @@ fun ApiDetailLeftPanel(
     val context = LocalContext.current
     val uriHandler = LocalUriHandler.current
     val accentColor = LocalKitsugiAccent.current
-    val externalUrl = com.kitsugi.animelist.utils.ShareUtils.buildExternalMediaUrl(
-        displayResult.source,
-        displayResult.malId,
-        displayResult.tmdbId,
-        displayResult.type
+    val externalUrl = com.kitsugi.animelist.utils.ShareLinks.mediaUrl(
+        source = displayResult.source,
+        storedId = displayResult.malId,
+        type = displayResult.type,
+        tmdbId = displayResult.tmdbId,
+        realMalId = displayResult.realMalId
     )
 
     KitsugiDetailHero(
@@ -108,6 +109,21 @@ fun ApiDetailLeftPanel(
         isAdult = displayResult.isAdult,
         onBackClick = onBackClick,
         blurAdultMedia = blurAdultMedia,
+        onShareClick = {
+            // Kaynak + kimlik çözümlemesi tek yerde: ShareLinks (bkz. ShareLinks.kt).
+            val shareUrl = com.kitsugi.animelist.utils.ShareLinks.mediaUrl(
+                source = displayResult.source,
+                storedId = displayResult.malId,
+                type = displayResult.type,
+                tmdbId = displayResult.tmdbId,
+                realMalId = displayResult.realMalId
+            )
+            com.kitsugi.animelist.utils.ShareUtils.shareText(
+                context,
+                displayResult.getDisplayTitle(titleLanguage),
+                shareUrl
+            )
+        },
         onPosterClick = { clickedUrl, clickedCategory ->
             val selection = selectHeroArtworkInGallery(
                 galleryItems = galleryItems,

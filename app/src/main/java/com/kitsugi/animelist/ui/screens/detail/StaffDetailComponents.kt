@@ -315,7 +315,7 @@ internal fun StaffDetailLeftPanel(
                         contentAlignment = Alignment.Center
                     ) {
                         IconButton(onClick = {
-                            val url = com.kitsugi.animelist.utils.ShareUtils.buildStaffUrl(source, staffId)
+                            val url = com.kitsugi.animelist.utils.ShareUtils.buildStaffUrl(source, staffId, detail.name)
                             com.kitsugi.animelist.utils.ShareUtils.shareText(context, detail.name, url)
                         }) {
                             Icon(
@@ -669,7 +669,7 @@ internal fun StaffPortraitHeroSection(
                     contentAlignment = Alignment.Center
                 ) {
                     IconButton(onClick = {
-                        val url = com.kitsugi.animelist.utils.ShareUtils.buildStaffUrl(source, staffId)
+                        val url = com.kitsugi.animelist.utils.ShareUtils.buildStaffUrl(source, staffId, detail.name)
                         com.kitsugi.animelist.utils.ShareUtils.shareText(context, detail.name, url)
                     }) {
                         Icon(
@@ -793,7 +793,7 @@ internal fun StaffDetailStickyHeader(
                     }, accentColor = accentColor)
                 }
                 IconButton(onClick = {
-                    val url = com.kitsugi.animelist.utils.ShareUtils.buildStaffUrl(source, staffId)
+                    val url = com.kitsugi.animelist.utils.ShareUtils.buildStaffUrl(source, staffId, detail.name)
                     com.kitsugi.animelist.utils.ShareUtils.shareText(context, detail.name, url)
                 }) {
                     Icon(
