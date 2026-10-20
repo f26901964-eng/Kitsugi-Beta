@@ -80,17 +80,43 @@ Kimse aynı kaynakları yeniden taramaz — tüm bağlam bu dosyadadır.
 
 ### e) Yeni ajanı BAŞLATMA KOMUTU (kullanıcı bunu yapıştırır — başka şeye gerek yok)
 
-> `diag/bangumi_vault/PROGRESS.md` dosyasını oku — Bangumi VAULT çeviri işinin devir
-> teslim dosyasıdır. (1) Bölüm 0'daki kurulumu izle: `verify_vault.py` sağlık kontrolü
-> ✅ olmalı; veri dosyaları yoksa Bölüm 0b'deki tabloyla Drive'dan indir. (2) Bölüm 5'teki
-> ilk ☐ kutucuğundaki chunk'ı yap (karar ver → `apply_map.py` → `vault_to_strings.py` →
-> `verify_vault.py`). (3) Bitince tik at (☐→☑), Bölüm 2 tablosunu güncelle, PROGRESS.md +
-> progress.json + karar dosyalarını Drive'a yükle, commit + push + PR aç.
-> Kurallar: global karşılık varsa kullan; yoksa TR+EN çevir; bilinmeyen CJK'ya
-> romanizasyon uydurma (as_is kalır); SKIP girdileri dil dosyasına girmez.
+Yeni Arena oturumunda, yeni dal açıldığında **birebir şu metni** yapıştır:
 
-Kısa sürüm: **\"PROGRESS.md'yi oku, Bölüm 0 kurulumunu yap, Bölüm 5'teki sıradaki
-chunk'ı bitir.\"** — bu kadar.
+> `diag/bangumi_vault/PROGRESS.md` dosyasını oku — Bangumi VAULT çeviri işinin devir
+> teslim dosyasıdır; hiçbir şeyi sıfırdan araştırma, her şey orada yazılı.
+>
+> **(0) Dal:** Chunk 001+002 **PR #16**'da (dal `arena/2419075a-kitsugi-beta`), hâlâ
+> `main`'de YOK. O dalın 17 dosyasını kendi dalına port et
+> (`git fetch origin arena/2419075a-kitsugi-beta` → `git checkout FETCH_HEAD -- <dosyalar>`),
+> yoksa chunk 001+002 işini baştan yaparsın. Detay: Bölüm 0a.
+>
+> **(1) Kurulum:** Bölüm 0b tablosuyla veri dosyalarını Drive klasöründen indir
+> (`1pZAOYsAnMjveNK6grdXjqV9IDM1TFaJp`, ~74 MB; `download_file` paralel çağrılarla).
+> Drive'daki vault JSON'ları **yalnız chunk 001 damgalıdır** → indirdikten sonra
+> **mutlaka** `python3 diag/bangumi_vault/scripts/apply_map.py` çalıştır (chunk 002
+> kararlarını damgalar, kayıpsız). Sonra `verify_vault.py` **✅** olmalı
+> (beklenen: `2242 bangumi_* anahtar, 855 vault kaydı, 1171 map satırı, 121284 damga`).
+>
+> **(2) İş:** Bölüm 5'teki **ilk ☐** kutucuğundaki chunk'ı yap: karar ver →
+> `apply_map.py` → `vault_to_strings.py` → `verify_vault.py`. Karar kalıpları için
+> "Chunk 002 karar şablonu" bölümünü (6 adım) birebir kullan.
+>
+> **(3) Kapanış (Bölüm 8):** tik at (☐→☑), Bölüm 2 tablosunu güncelle, PROGRESS.md +
+> progress.json + karar dosyalarını Drive'a yükle (aynı ad varsa `delete_file`+`upload_file`),
+> `verify_bangumi_master.py` + `gen_bangumi_master.py --check` + `git diff --quiet` ile CI'yı
+> yerelde simüle et, commit + push + PR aç.
+>
+> **Kurallar:** global karşılık varsa kullan; yoksa TR+EN çevir; bilinmeyen CJK'ya
+> romanizasyon **uydurma** (`as_is` kalır); SKIP girdileri dil dosyasına **girmez**.
+> **Yasak:** `gen_bangumi_master.py`'yi `--check` olmadan çalıştırma (711 VAULT satırını siler,
+> Bölüm 7 ⚠).
+
+Kısa sürüm (dosya zaten çalışma alanında ve damgalıysa yeterli):
+**"`diag/bangumi_vault/PROGRESS.md`'yi oku, Bölüm 0 kurulumunu yap, Bölüm 5'teki sıradaki
+☐ chunk'ı bitir, Bölüm 8 kapanış listesini uygula."**
+
+Sıradaki chunk: **003 — etiket count 100–199 (491 kayıt)**. Beklenen durum chunk 003
+bittiğinde: `translations_pending` 63.448 → ~62.957.
 
 ---
 
