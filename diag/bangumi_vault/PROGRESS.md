@@ -50,6 +50,20 @@ Kimse aynı kaynakları yeniden taramaz — tüm bağlam bu dosyadadır.
    decisions/canon.tsv, decisions/map_chunk_*.tsv, decisions/org_global_names.tsv
 4. `git add` + commit (yalnız script/karar/PROGRESS + uygulama dosyaları)
 
+### e) Yeni ajanı BAŞLATMA KOMUTU (kullanıcı bunu yapıştırır — başka şeye gerek yok)
+
+> `diag/bangumi_vault/PROGRESS.md` dosyasını oku — Bangumi VAULT çeviri işinin devir
+> teslim dosyasıdır. (1) Bölüm 0'daki kurulumu izle: `verify_vault.py` sağlık kontrolü
+> ✅ olmalı; veri dosyaları yoksa Bölüm 0b'deki tabloyla Drive'dan indir. (2) Bölüm 5'teki
+> ilk ☐ kutucuğundaki chunk'ı yap (karar ver → `apply_map.py` → `vault_to_strings.py` →
+> `verify_vault.py`). (3) Bitince tik at (☐→☑), Bölüm 2 tablosunu güncelle, PROGRESS.md +
+> progress.json + karar dosyalarını Drive'a yükle, commit + push + PR aç.
+> Kurallar: global karşılık varsa kullan; yoksa TR+EN çevir; bilinmeyen CJK'ya
+> romanizasyon uydurma (as_is kalır); SKIP girdileri dil dosyasına girmez.
+
+Kısa sürüm: **\"PROGRESS.md'yi oku, Bölüm 0 kurulumunu yap, Bölüm 5'teki sıradaki
+chunk'ı bitir.\"** — bu kadar.
+
 ---
 
 ## 1. İşin amacı (kullanıcı talebi)
