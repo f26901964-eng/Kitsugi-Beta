@@ -2,11 +2,10 @@ package com.kitsugi.animelist.ui.screens.detail
 
 import android.content.Intent
 import android.net.Uri
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -72,7 +71,8 @@ internal fun ApiDetailOverviewTab(
     onToggleSynopsisOriginal: (() -> Unit)? = null
 ) {
     Column(
-        modifier = Modifier.padding(horizontal = 0.dp, vertical = 14.dp)
+        modifier = Modifier.padding(horizontal = 0.dp, vertical = 14.dp),
+        verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
         ApiSynopsisCard(
             synopsis = displaySynopsis,
@@ -85,15 +85,11 @@ internal fun ApiDetailOverviewTab(
             onToggleOriginal = onToggleSynopsisOriginal
         )
 
-
         if (detail != null) {
-            Spacer(modifier = Modifier.height(14.dp))
             DetailOverviewStatsCard(detail = detail)
         }
 
-        Spacer(modifier = Modifier.height(14.dp))
-
-        // MDBList external ratings
+        // MDBList external ratings — boşken (gizliyken) otomatik atlanır, komşu kartlar arası boşluk korunur
         ApiMdbListRatingCard(
             ratings = mdbListRatings,
             isLoading = mdbListLoading,
@@ -114,7 +110,6 @@ internal fun ApiDetailOverviewTab(
                 tags = detail.tags,
                 onGenreClick = onGenreClick
             )
-            Spacer(modifier = Modifier.height(14.dp))
         }
 
         if (detail != null && (detail.studios.isNotEmpty() || detail.producers.isNotEmpty() || detail.networks.isNotEmpty() || detail.serializations.isNotEmpty())) {
@@ -152,7 +147,6 @@ internal fun ApiDetailOverviewTab(
                 onProducerClick = studioChipClick,
                 onNetworkClick = studioChipClick
             )
-            Spacer(modifier = Modifier.height(14.dp))
         }
 
         if (!detail?.tags.isNullOrEmpty()) {
@@ -160,7 +154,6 @@ internal fun ApiDetailOverviewTab(
                 tags = detail!!.tags,
                 onTagClick = onTagClick
             )
-            Spacer(modifier = Modifier.height(14.dp))
         }
 
         if (detail != null) {
@@ -171,7 +164,6 @@ internal fun ApiDetailOverviewTab(
                 onSearchQuery = onSearchQuery,
                 onSeasonClick = onSearchBySeason
             )
-            Spacer(modifier = Modifier.height(14.dp))
         }
 
         if (detail != null && (detail.streamingLinks.isNotEmpty() || detail.externalLinks.isNotEmpty())) {
@@ -179,7 +171,6 @@ internal fun ApiDetailOverviewTab(
                 streamingLinks = detail.streamingLinks,
                 externalLinks = detail.externalLinks
             )
-            Spacer(modifier = Modifier.height(14.dp))
         }
 
     }
