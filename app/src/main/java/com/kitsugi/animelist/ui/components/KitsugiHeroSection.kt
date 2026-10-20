@@ -293,7 +293,6 @@ fun KitsugiHeroSection(
     val isDragged by pagerState.interactionSource.collectIsDraggedAsState()
     var isFocused by remember { mutableStateOf(false) }
     var isTouchDown by remember { mutableStateOf(false) }
-    val pageKeys = remember(heroItems) { heroItems.map(::homeHeroItemKey) }
     val logoCache = remember { mutableMapOf<String, String>() }
     val logoPermits = remember { Semaphore(3) }
     var autoDirection by remember { mutableIntStateOf(1) }
@@ -311,15 +310,48 @@ fun KitsugiHeroSection(
         }
     }
 
-    LaunchedEffect(isVisible, isFocused, isPressed, isTouchDown, isDragged, pagerState.settledPage, pagerState.isScrollInProgress, pageKeys) {
-        if (heroItems.size > 1 && isVisible && !isFocused && !isPressed && !isTouchDown && !isDragged && !pagerState.isScrollInProgress) {
-            delay(5_000L)
-            autoDirection = homeHeroAutoDirection(pagerState.settledPage, heroItems.size, autoDirection)
-            // Only ever travel ONE page. No last -> first multi-page rewind or boundary wrap.
-            pagerState.animateScrollToPage(
-                pagerState.settledPage + autoDirection,
-                animationSpec = tween(650, easing = FastOutSlowInEasing)
-            )
+    // ── Otomatik kaydırma: son etkileşimden 5 sn sonra bir sonraki sayfa ────
+    // KÖK NEDEN (eski bug): effect anahtarlarında pagerState.isScrollInProgress
+    // (ve settledPage) vardı. animateScrollToPage başlar başlamaz isScrollInProgress
+    // true oluyor, anahtar değiştiği için LaunchedEffect İPTAL ediliyor ve animasyon
+    // daha ilk karelerde ölüyordu → vitrin kendi kendine hiç kayamıyordu.
+    // Yeni sürüm: yalnızca kararlı girdilere (sayfa sayısı, görünürlük) bağlı tek
+    // bir döngü. Pager/etkileşim durumu döngü içinde OKUNUR, asla anahtar yapılmaz;
+    // kullanıcı dokunur, sürükler veya sayfa değiştirirse 5 sn'lik sayaç sıfırlanır.
+    val heroItemCount = heroItems.size
+    LaunchedEffect(heroItemCount, isVisible) {
+        if (heroItemCount <= 1 || !isVisible) return@LaunchedEffect
+        var lastSettledPage = pagerState.settledPage
+        while (true) {
+            var idleMs = 0L
+            while (idleMs < HERO_AUTOPLAY_DELAY_MS) {
+                delay(HERO_AUTOPLAY_TICK_MS)
+                val settled = pagerState.settledPage
+                val interacting = isPressed || isDragged || isTouchDown || isFocused ||
+                    pagerState.isScrollInProgress
+                if (interacting || settled != lastSettledPage) {
+                    lastSettledPage = settled
+                    idleMs = 0L
+                } else {
+                    idleMs += HERO_AUTOPLAY_TICK_MS
+                }
+            }
+            val current = pagerState.settledPage.coerceIn(0, heroItemCount - 1)
+            autoDirection = homeHeroAutoDirection(current, heroItemCount, autoDirection)
+            if (autoDirection != 0) {
+                try {
+                    // Only ever travel ONE page. No last -> first multi-page rewind or boundary wrap.
+                    pagerState.animateScrollToPage(
+                        current + autoDirection,
+                        animationSpec = tween(650, easing = FastOutSlowInEasing)
+                    )
+                } catch (cancelled: CancellationException) {
+                    // Kullanıcı animasyonu yarıda ele geçirmiş olabilir; yalnızca
+                    // bu effect gerçekten iptal edildiyse çık.
+                    currentCoroutineContext().ensureActive()
+                }
+            }
+            lastSettledPage = pagerState.settledPage
         }
     }
 
@@ -380,7 +412,17 @@ fun KitsugiHeroSection(
             val item = heroItems[page]
             val title = item.getDisplayTitle(titleLanguage)
             val identity = homeHeroItemKey(item)
-            val url = requireNotNull(item.backdropUrl)
+            val backdrop = requireNotNull(item.backdropUrl)
+            // Ekran geometrisine göre otomatik görsel türü: dikey telefon bandı dardır
+            // ve yatay backdrop sığmaz; sayfanın yüksek çözünürlüklü POSTERİ bandı tam
+            // kaplar. Poster yüklenemez veya decode edilince gerçekten dikey çıkmazsa
+            // sayfa kendi kendine backdrop şeridine döner (geri çağrılar aşağıda).
+            // Yatay/TV/tablette her zaman yatay backdrop kullanılır.
+            val posterCandidate = homeHeroPosterUrl(item)
+            var posterUsable by remember(posterCandidate) { mutableStateOf(posterCandidate != null) }
+            var posterAspect by remember(posterCandidate) { mutableStateOf<Float?>(null) }
+            val usePoster = layout.prefersPoster && posterCandidate != null && posterUsable
+            val sharpUrl = if (usePoster) posterCandidate!! else backdrop
             var logoUrl by remember(identity) { mutableStateOf<String?>(logoCache[identity]) }
             val wantsLogo = shouldShowHeroLogo(item, showAnimeLogos)
             LaunchedEffect(identity, wantsLogo) {
@@ -403,9 +445,9 @@ fun KitsugiHeroSection(
                 // göstermez; art arda kalan alan kasıtlı bir ortam gibi okunur.
                 // Coil'de disk cache anahtarı yalnızca URL'dir: bu katman ek bir indirme
                 // yapmaz, aynı baytları küçük çözünürlükte decode edip bulanıklaştırır.
-                if (isStacked) {
+                if (isStacked && !usePoster) {
                     KitsugiNsfwImage(
-                        model = url,
+                        model = backdrop,
                         contentDescription = null,
                         isAdult = item.isAdult,
                         blurAdultMedia = blurAdultMedia,
@@ -423,15 +465,42 @@ fun KitsugiHeroSection(
                 // geometrisinden geldiği için kırpma sabittir: 16:9 görsel neredeyse
                 // tamamen, 3:1 banner yatay ortadan kırpılmış olarak görünür. Artık
                 // "Fit" ile yükleme/kenar boşluğu yoktur.
+                // Dikey posterde bant tam kaplanır; odak üst yarıda (yüzler kesilmez)
+                // ve gerçek poster oranı decode olunca kırpma buna göre inceltilir.
                 KitsugiNsfwImage(
-                    model = url,
+                    model = sharpUrl,
                     contentDescription = title,
                     isAdult = item.isAdult,
                     blurAdultMedia = blurAdultMedia,
                     contentScale = ContentScale.Crop,
-                    alignment = Alignment.TopCenter,
+                    alignment = if (usePoster) {
+                        heroImageAlignment(
+                            chosenIsPoster = true,
+                            heroAspect = layout.bandAspect,
+                            imageAspect = posterAspect
+                        )
+                    } else {
+                        Alignment.TopCenter
+                    },
                     highQuality = true,
-                    modifier = if (isStacked) {
+                    onLoadingFailed = if (usePoster) {
+                        { postAfterHeroFrame { posterUsable = false } }
+                    } else {
+                        null
+                    },
+                    onImageAspectResolved = if (usePoster) {
+                        { aspect ->
+                            postAfterHeroFrame {
+                                posterAspect = aspect
+                                // "Poster" gerçekten dikey değilse yanıltıcı etiketlenmiş
+                                // demektir: sayfayı backdrop şeridine geri çevir.
+                                if (!isVerticalHomeHeroPosterAspect(aspect)) posterUsable = false
+                            }
+                        }
+                    } else {
+                        null
+                    },
+                    modifier = if (isStacked && !usePoster) {
                         Modifier.fillMaxWidth().height(layout.artworkHeightDp.dp)
                     } else {
                         Modifier.fillMaxSize()
@@ -439,7 +508,7 @@ fun KitsugiHeroSection(
                 )
                 // ── 3) SCRIM ─────────────────────────────────────────────────────
                 // Nuvio Mobile: dikey gradyan. Nuvio TV: yatay (sol) gradyan + alt şerit.
-                if (isStacked) {
+                if (isStacked && !usePoster) {
                     // Görsel şeridinin alt kenarı metin yuvasına yumuşak geçiş yapar.
                     val artworkFraction = (layout.artworkHeightDp / layout.bandHeightDp)
                         .coerceIn(0.15f, 0.9f)
@@ -468,6 +537,16 @@ fun KitsugiHeroSection(
                             1f to background
                         )
                     ))
+                    if (usePoster) {
+                        // Dikey posterde görsel durum çubuğunun altına kadar uzanır:
+                        // saat/pil simgeleri açık renkli posterlerde de okunur kalsın.
+                        Box(Modifier.fillMaxWidth().height(48.dp).background(
+                            Brush.verticalGradient(
+                                0f to background.copy(alpha = 0.26f),
+                                1f to Color.Transparent
+                            )
+                        ))
+                    }
                     if (isLandscape || isTv) {
                         Box(Modifier.fillMaxHeight().fillMaxWidth(0.62f).background(
                             Brush.horizontalGradient(
@@ -537,12 +616,20 @@ fun KitsugiHeroSection(
         }
 
         if (heroItems.size > 1) {
-            val indices = homeHeroIndicatorIndices(heroItems.size, pagerState.settledPage)
+            // Bar sayısı = gerçek içerik sayısı (kayan pencere YOK). Yuvalar satırı
+            // eşit paylaşır; içerik çoğaldıkça barlar incelir ama sayı asla eksik
+            // gösterilmez. Satır genişliği ekran geometrisinden hesaplanır.
+            val indices = homeHeroIndicatorIndices(heroItems.size)
+            val spacingDp = heroIndicatorSpacingDp(heroItems.size)
+            val rowWidthDp = heroIndicatorRowWidthDp(
+                itemCount = heroItems.size,
+                availableWidthDp = layout.screenWidthDp - horizontalPadding.value * 2f
+            )
             val frameColor = KitsugiColors.TextPrimary
             Row(
                 modifier = Modifier.align(Alignment.BottomStart).padding(start = horizontalPadding, bottom = 16.dp)
-                    .width((indices.size * 34 + (indices.size - 1) * 6).dp),
-                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    .width(rowWidthDp.dp),
+                horizontalArrangement = Arrangement.spacedBy(spacingDp.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 indices.forEach { index ->
