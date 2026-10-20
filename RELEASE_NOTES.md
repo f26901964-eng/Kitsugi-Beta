@@ -42,6 +42,14 @@ Video yüklenirken ekranın ortasında görünen yüklenme animasyonunun etrafı
 - **Zenginleştirilmiş küre hacmi:** 3 dönen plazma odağı, beyaz-sıcak akkor merkez, cam highlight ve kenar vinyeti ile tüm katmanlar daire içinde kalır; dışarıya ışıma taşmaz.
 - **Tüm uygulama genelinde aktif:** Oynatıcı ortası, tam ekran yüklenme, arama, listeler, sheet'ler, giriş pencereleri, pull-to-refresh, TV ve manga ekranlarının tamamında kusursuz dairesel animasyon.
 
+### 🗑️ İndirmeler: Altyazı Silme İyileştirmesi (Hızlı Silme & Anında UI Tepkisi)
+
+İndirilen altyazıların silinmesindeki hantal animasyonlar kaldırıldı ve art arda hızlı silme durumunda dosyanın ekranda asılı kalması bug'ı düzeltildi. Ayrıntılı plan: `PLAN_TASK_ALTYAZI_SILME_ANIMASYON_VE_HIZLI_SILME_FIX_2026-10-21.md`.
+
+- **Animasyonsuz, tek tıkla silme (`KitsugiAnimatedDeleteButton`):** İki aşamalı genişleyen kapsül onayı, renk geçişi ve 3.5 saniye bekleme kaldırıldı; yerini doğrudan tek dokunuşla silen kompakt kırmızı çöp kutusu ikonuna bıraktı.
+- **Anında UI reaktivitesi & İyimser Güncelleme (`DownloadsScreen`):** Silinen altyazı listeden saniyesinde filtrelenerek görsel olarak anında kaldırılır (`mutableStateOf` + `LaunchedEffect`).
+- **Geri alma (Rollback) güvencesi:** Dosya sistemi silme işlemi herhangi bir sebeple başarısız olursa öğe otomatik olarak listeye geri eklenir.
+
 ### 🧪 Birim Testleri
 - `WikiTranslationProtectionTest`: Mavi etiketlerin yerinde çevrilmesi, URL'lerin hiç değişmemesi, jeton bozulduğunda güvenli yedeğe düşülmesi, etiket anahtarlarının metinden önce akması, 40 tekrarlı bağlantıda tek istek, cümle görünümlü kart başlığının çevrilip kısa sayfa adının çevrilmemesi doğrulandı (34 test tamamı başarılı).
 - `DeepLinkTest` & `FileLoggingTreeTest`: Derin bağlantı şema ayrıştırması ve asenkron log flush desteği doğrulandı.
@@ -87,6 +95,14 @@ Fixes the issue where buffering/loading orbs rendered an outer **orange square f
 - **Accurate box sizing:** Inner canvas binds directly to measured constraints, so `Modifier.size(80.dp)` renders a true 80 dp orb.
 - **Volumetric plasma look:** 3 orbiting plasma lobes, a white-hot core, glass highlight and subtle vignette keep all radiance strictly inside the orb boundary.
 - **System-wide coverage:** Consistent across video player, fullscreen loading, lists, modal sheets, login dialogs, pull-to-refresh, TV, and manga views.
+
+### 🗑️ Downloads: Subtitle Deletion Overhaul (Instant Deletion & Reactive UI)
+
+Eliminated sluggish animations during subtitle removal and fixed the race condition where rapidly deleted subtitles remained visible on screen. Detailed plan: `PLAN_TASK_ALTYAZI_SILME_ANIMASYON_VE_HIZLI_SILME_FIX_2026-10-21.md`.
+
+- **Direct Single-Tap Deletion (`KitsugiAnimatedDeleteButton`):** Removed the expanding capsule animation, color shifts, and 3.5-second timeout in favor of an instant single-tap icon button.
+- **Optimistic UI Updates (`DownloadsScreen`):** Deleted subtitles disappear instantly from the view (`mutableStateOf` + `LaunchedEffect`), followed by a background disk scan for sync.
+- **Safe Rollback:** Automatically restores the item in the list if underlying file deletion fails.
 
 ### 🧪 Unit Tests
 - `WikiTranslationProtectionTest`: Verified in-place label translation, invariant URLs, slot recovery fallback, pre-flight label key emissions, single request on 40 links, and sentence vs title card discrimination (all 34 tests passing).

@@ -151,22 +151,21 @@ fun DownloadsScreen(
         }
     }
 
-    val allSubtitles by produceState(
-        initialValue = emptyList<DownloadedSubtitleItem>(),
-        key1 = completedDownloadsKey,
-        key2 = refreshSubsTrigger
-    ) {
+    // FIX: Hızlı silme durumunda state güncelleme sorunu - produceState yerine mutableStateOf
+    // kullanıyoruz. Silme sonrası anında listeden kaldırarak UI'ın hemen güncellenmesini sağlıyoruz.
+    var allSubtitles by remember { mutableStateOf(emptyList<DownloadedSubtitleItem>()) }
+    
+    LaunchedEffect(completedDownloadsKey, refreshSubsTrigger) {
         val currentDownloadsSnapshot = AnimeDownloadManager.downloads.value
-        value = withContext(Dispatchers.IO) {
+        allSubtitles = withContext(Dispatchers.IO) {
             loadAllDownloadedSubtitles(context, currentDownloadsSnapshot)
         }
     }
 
-    val allImages by produceState(
-        initialValue = emptyList<DownloadedImageItem>(),
-        key1 = refreshImagesTrigger
-    ) {
-        value = withContext(Dispatchers.IO) {
+    var allImages by remember { mutableStateOf(emptyList<DownloadedImageItem>()) }
+    
+    LaunchedEffect(refreshImagesTrigger) {
+        allImages = withContext(Dispatchers.IO) {
             loadAllDownloadedImages(context)
         }
     }
@@ -409,13 +408,19 @@ fun DownloadsScreen(
                                     openFolderInFileManager(context, subItem.file.parentFile ?: subItem.file)
                                 },
                                 onDelete = {
+                                    // FIX: Hızlı silme bug'ı - Anında listeden kaldır, sonra arka planda tam yenileme yap
+                                    allSubtitles = allSubtitles.filter { it.file.absolutePath != subItem.file.absolutePath }
                                     scope.launch {
                                         val deleted = withContext(Dispatchers.IO) {
                                             subItem.file.exists() && subItem.file.delete()
                                         }
                                         if (deleted) {
                                             Toast.makeText(context, KitsugiStrings.get(R.string.altyazi_silindi_x, subItem.title), Toast.LENGTH_SHORT).show()
+                                            // Arka planda tam listeyi de yenile (tutarlılık için)
                                             refreshSubsTrigger++
+                                        } else {
+                                            // Silme başarısızsa, öğeyi geri ekle
+                                            allSubtitles = allSubtitles + subItem
                                         }
                                     }
                                 }
