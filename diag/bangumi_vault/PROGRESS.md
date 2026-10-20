@@ -2,7 +2,8 @@
 
 > **Bu dosya devir teslim dosyasıdır.** Yeni bir dal/şube işi buradan devralır.
 > Son güncelleme: **2026-10-21** · Chunk **001 + 002** tamamlandı, uygulamaya işlendi.
-> Chunk 001 PR'ı: https://github.com/f26901964-eng/Kitsugi-Beta/pull/15 (**hâlâ AÇIK, merge edilmedi**)
+> Chunk 002 PR'ı: https://github.com/f26901964-eng/Kitsugi-Beta/pull/16 (**bu dal — chunk 001'i de taşır**)
+> Chunk 001 PR'ı: https://github.com/f26901964-eng/Kitsugi-Beta/pull/15 (hâlâ AÇIK; #16 merge edilirse kapatılabilir)
 > Drive klasörü: https://drive.google.com/drive/folders/1pZAOYsAnMjveNK6grdXjqV9IDM1TFaJp
 
 ---
