@@ -45,3 +45,10 @@ __pycache__/
 
 # İndirilen çökme raporları (3 MB+, repoya girmez)
 /google_drive/
+
+# Bangumi VAULT veri depoları (Drive ile senkron; repo'da yalnızca script/karar/ilerleme tutulur)
+/diag/bangumi_vault/*.json
+/diag/bangumi_vault/*.tsv
+/diag/bangumi_vault/VAULT_README.md
+# worklist.py çıktısı yeniden üretilebilir ara dosyadır (tam liste 63k satır → repo şişmesi)
+/diag/bangumi_vault/worklists/
