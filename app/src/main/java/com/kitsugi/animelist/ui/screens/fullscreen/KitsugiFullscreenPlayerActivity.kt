@@ -74,6 +74,13 @@ class KitsugiFullscreenPlayerActivity : ComponentActivity() {
      */
     private var handedOffToExternalPlayer = false
 
+    /**
+     * v2.4.319: onCreate yarıda kalırsa (beklenmeyen bir çalışma zamanı hatası) süreç
+     * öldürülmesin diye kurulum try/catch ile sarılır. Bu bayraklar, kısmi kurulum
+     * durumunda onDestroy'un kaydedilmemiş bir receiver'ı kaldırmaya çalışmasını engeller.
+     */
+    private var pipReceiverRegistered = false
+
     /** Son bilinen oynatma durumu — PiP'e geçerken RemoteAction ikonlarını doğru kurmak için. */
     private var lastKnownIsPlaying = false
     private var lastKnownHasNext = false
@@ -256,6 +263,13 @@ class KitsugiFullscreenPlayerActivity : ComponentActivity() {
             )
         }
 
+        /**
+         * Oynatıcıyı başlatır.
+         *
+         * @return true → Activity başlatıldı. false → başlatılamadı (sebep loglandı ve
+         *         kullanıcıya toast ile söylendi). Çağıran ekran bu durumda kendi
+         *         hata diyaloğunu gösterebilir; eskiden hata sessizce yutuluyordu.
+         */
         fun startWithStreamUrls(
             context: Context,
             videoUrl: String,
@@ -283,7 +297,7 @@ class KitsugiFullscreenPlayerActivity : ComponentActivity() {
             cs3Url: String? = null,
             cs3ApiName: String? = null,
             resumePositionMs: Long = 0L
-        ) {
+        ): Boolean {
             tempSubtitles = subtitles
             tempStreamSources = allSources
             tempCast = cast
@@ -321,15 +335,22 @@ class KitsugiFullscreenPlayerActivity : ComponentActivity() {
                         // Süreç ölümü (process death) sonrası Activity yeniden oluşturulursa
                         // static `tempSubtitles` / `tempStreamSources` kaybolur. Bu yedek
                         // JSON alanları olmadan altyazılar ve kaynak listesi sessizce
-                        // kayboluyordu. Binder sınırını aşmamak için boyut kontrolü yapılır.
+                        // kayboluyordu.
+                        //
+                        // BINDER SINIRI (v2.4.319): Önceki eşikler (250 KB + 450 KB karakter)
+                        // tek başına ~1,4 MB'lık bir Intent üretebiliyordu; Binder işlem başına
+                        // ~1 MB sınırı olduğu için `startActivity` "TransactionTooLargeException"
+                        // ile düşüyor ve video hiç açılmıyordu. 125 kaynaklı listelerde bu eşiğe
+                        // çok yaklaşılıyordu. Artık toplam yedek veri 96 KB ile sınırlı ve
+                        // normal (süreç yaşıyor) yol statik referansla çalışır.
                         runCatching {
                             val gson = com.google.gson.Gson()
                             val subtitlesJson = gson.toJson(subtitles)
-                            if (subtitlesJson.length in 1..250_000) {
+                            if (subtitlesJson.length in 1..48_000) {
                                 putExtra(EXTRA_SUBTITLES_JSON, subtitlesJson)
                             }
                             val sourcesJson = gson.toJson(allSources)
-                            if (sourcesJson.length in 1..450_000) {
+                            if (sourcesJson.length in 1..96_000) {
                                 putExtra(EXTRA_STREAM_LIST_JSON, sourcesJson)
                             }
                         }.onFailure {
@@ -337,12 +358,51 @@ class KitsugiFullscreenPlayerActivity : ComponentActivity() {
                         }
                     }
                 )
-            } catch (e: Exception) {
-                android.util.Log.e("KitsugiPlayer", "Oynatıcı başlatılırken hata oluştu: ${e.message}", e)
-                android.widget.Toast.makeText(context, KitsugiStrings.get(R.string.oynatici_baslatilamadi_x, e.message), android.widget.Toast.LENGTH_LONG).show()
+                return true
+            } catch (e: android.os.TransactionTooLargeException) {
+                // Çok büyük kaynak listesi / altyazı: yedek JSON'ları at ve sadece temel
+                // veriyle yeniden dene. Oynatma çalışır, "kaynak değiştir" listesi boş kalır.
+                android.util.Log.e("KitsugiPlayer", "Intent çok büyük (TransactionTooLargeException); yedek veri olmadan yeniden deneniyor", e)
+                return runCatching {
+                    context.startActivity(
+                        Intent(context, KitsugiFullscreenPlayerActivity::class.java).apply {
+                            tempStreamSources = emptyList()
+                            tempSubtitles = emptyList()
+                            tempCast = emptyList()
+                            putExtra(EXTRA_VIDEO_URL, videoUrl)
+                            putExtra(EXTRA_AUDIO_URL, audioUrl)
+                            putExtra(EXTRA_TITLE, title)
+                            putExtra(EXTRA_CURRENT_INDEX, -1)
+                            putExtra(EXTRA_SEASON, season)
+                            putExtra(EXTRA_EPISODE, episode)
+                            putExtra(EXTRA_ANIME_TITLE, animeTitle)
+                            putExtra(EXTRA_IS_MOVIE, isMovie)
+                            putExtra(EXTRA_RESUME_POSITION, resumePositionMs)
+                            posterUrl?.let { putExtra(EXTRA_POSTER_URL, it) }
+                        }
+                    )
+                    true
+                }.getOrElse {
+                    android.util.Log.e("KitsugiPlayer", "Yedek başlatma da başarısız: ${it.message}", it)
+                    android.widget.Toast.makeText(context, KitsugiStrings.get(R.string.oynatici_baslatilamadi_x, it.message ?: it.javaClass.simpleName), android.widget.Toast.LENGTH_LONG).show()
+                    false
+                }
+            } catch (t: Throwable) {
+                android.util.Log.e("KitsugiPlayer", "Oynatıcı başlatılırken hata oluştu: ${t.javaClass.simpleName}: ${t.message}", t)
+                android.widget.Toast.makeText(context, KitsugiStrings.get(R.string.oynatici_baslatilamadi_x, t.message ?: t.javaClass.simpleName), android.widget.Toast.LENGTH_LONG).show()
+                false
             }
         }
 
+        /**
+         * Harici oynatıcıya devreder.
+         *
+         * @return true → gerçekten bir oynatıcı açıldı (Activity'den çıkmak güvenli).
+         *         false → hiçbir şey açılamadı. v2.4.319: Önceden dönüş değeri yoktu ve
+         *         çağıran taraf her durumda `onBack()` yapıyordu; harici oynatıcı kurulu
+         *         değilse oynatıcı ekranı kapanıyor, kullanıcı "video açılmadı, geri
+         *         attı" görüyordu. Artık başarısızlıkta ekran açık kalır ve sebep söylenir.
+         */
         fun launchExternalPlayer(
             context: Context,
             videoUrl: String,
@@ -351,7 +411,7 @@ class KitsugiFullscreenPlayerActivity : ComponentActivity() {
             headers: Map<String, String>? = null,
             subtitles: List<SubtitleInput>? = null,
             preferredPackage: String? = null
-        ) {
+        ): Boolean {
             val playerActivity = context as? KitsugiFullscreenPlayerActivity
             val effectivePkg = preferredPackage?.takeIf { it.isNotBlank() }
                 ?: playerActivity?.preferredExternalPlayerPkg?.takeIf { it.isNotBlank() }
@@ -365,7 +425,8 @@ class KitsugiFullscreenPlayerActivity : ComponentActivity() {
                     preferredPackage = effectivePkg
                 )
             ) {
-                return
+                playerActivity.handedOffToExternalPlayer = true
+                return true
             }
 
             val launched = ExternalPlayerLauncher.launch(
@@ -378,26 +439,78 @@ class KitsugiFullscreenPlayerActivity : ComponentActivity() {
                 preferredPackage = effectivePkg
             )
             if (!launched) {
-                try {
+                val fallbackWorked = try {
                     context.startActivity(
                         Intent(Intent.ACTION_VIEW, Uri.parse(videoUrl)).apply {
                             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                         }
                     )
+                    true
                 } catch (_: Exception) {
                     Toast.makeText(context, KitsugiStrings.get(R.string.harici_oynatici_baslatilamadi), Toast.LENGTH_SHORT).show()
+                    false
+                }
+                if (!fallbackWorked) {
+                    playerActivity?.handedOffToExternalPlayer = false
+                    return false
                 }
             }
             // Harici oynatıcıya devredildi: bu Activity artık "mini pencere kapatıldı" diye
             // sonlandırılmamalı (kullanıcı geri döndüğünde yerinde bulsun).
             playerActivity?.handedOffToExternalPlayer = true
+            return true
         }
     }
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        // T1.8: KeepAliveService start
-        com.kitsugi.animelist.core.player.KeepAliveService.start(this)
+        // ── v2.4.319: Oynatıcı kurulumu asla süreci düşürmemeli ─────────────────
+        // Şikâyet: "İzle'ye basınca video açılmıyor, uygulama ana sayfaya atıyor;
+        // çökmüş gibi oluyor." Kurulum sırasında fırlayan (Intent çözümleme, servis
+        // başlatma, tema/Compose, viewModel init) herhangi bir istisna yakalanmadan
+        // ana thread'e kaçtığında Android süreci öldürüyordu; kullanıcı bunu
+        // "ana sayfaya atma" olarak görüyordu. Artık hata kullanıcıya söylenir ve
+        // Activity düzgünce kapanır (stream ekranına geri döner).
+        val bootResult = runCatching { bootstrapPlayer(savedInstanceState) }
+        if (bootResult.isFailure) {
+            val failure = bootResult.exceptionOrNull()
+            android.util.Log.e("KitsugiPlayer", "Oynatıcı kurulumu başarısız: ${failure?.javaClass?.simpleName}: ${failure?.message}", failure)
+            runCatching {
+                Toast.makeText(
+                    this,
+                    KitsugiStrings.get(
+                        R.string.stream_play_failed_body,
+                        failure?.message ?: (failure?.javaClass?.simpleName ?: "?")
+                    ),
+                    Toast.LENGTH_LONG
+                ).show()
+            }
+            finish()
+        }
+    }
+
+    /**
+     * Oynatıcının gerçek kurulumu. [onCreate] bunu try/catch ile çağırır; burada
+     * fırlayan her hata kullanıcıya gösterilir, süreç öldürülmez.
+     */
+    private fun bootstrapPlayer(savedInstanceState: Bundle?) {
+        // Intent verisi yoksa oynatıcı boş açılmasın: sebebi söyle ve kapan.
+        val hasVideoId = !intent.getStringExtra(EXTRA_VIDEO_ID).isNullOrBlank()
+        val hasVideoUrl = !intent.getStringExtra(EXTRA_VIDEO_URL).isNullOrBlank()
+        if (!hasVideoId && !hasVideoUrl) {
+            android.util.Log.e("KitsugiPlayer", "Oynatıcı veri olmadan açıldı (videoId/videoUrl yok)")
+            Toast.makeText(
+                this,
+                KitsugiStrings.get(R.string.stream_play_failed_body, "videoUrl/videoId yok"),
+                Toast.LENGTH_LONG
+            ).show()
+            finish()
+            return
+        }
+
+        // T1.8: KeepAliveService start — FGS kısıtları istisna atabildiği için korunur.
+        runCatching { com.kitsugi.animelist.core.player.KeepAliveService.start(this) }
+            .onFailure { android.util.Log.w("KitsugiPlayer", "KeepAliveService başlatılamadı: ${it.message}") }
 
         // T2.3: PiP BroadcastReceiver kaydı
         val filter = IntentFilter().apply {
@@ -413,6 +526,7 @@ class KitsugiFullscreenPlayerActivity : ComponentActivity() {
             @Suppress("UnspecifiedRegisterReceiverFlag")
             registerReceiver(pipBroadcastReceiver, filter)
         }
+        pipReceiverRegistered = true
         WindowCompat.setDecorFitsSystemWindows(window, false)
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         applyImmersiveMode()
@@ -729,8 +843,11 @@ class KitsugiFullscreenPlayerActivity : ComponentActivity() {
         // T2.3: MediaSession temizliği
         mediaSessionHelper?.release()
         mediaSessionHelper = null
-        unregisterReceiver(pipBroadcastReceiver)
+        if (pipReceiverRegistered) {
+            runCatching { unregisterReceiver(pipBroadcastReceiver) }
+            pipReceiverRegistered = false
+        }
         // T1.8: KeepAliveService stop
-        com.kitsugi.animelist.core.player.KeepAliveService.stop(this)
+        runCatching { com.kitsugi.animelist.core.player.KeepAliveService.stop(this) }
     }
 }

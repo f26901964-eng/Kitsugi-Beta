@@ -7861,4 +7861,17 @@ Eklentiler ekranından eklenti etkinleştirin.</string>
     <string name="stream_cached">Önbellekte</string>
     <string name="stream_sort_quality">Kalite: yüksekten düşüğe</string>
     <string name="stream_sort_default">Sıralama: kaynak sırası</string>
+    <!-- v2.4.319: Video kaynak kartları / üst bar -->
+    <string name="stream_action_downloads">İndirmeler</string>
+    <string name="stream_action_history">İzleme geçmişi</string>
+    <string name="stream_action_manual_search">Manuel arama</string>
+    <string name="stream_tag_sub">Altyazı</string>
+    <string name="stream_tag_dub">Dublaj</string>
+    <string name="stream_results_summary">%1$d video · %2$d kaynak</string>
+    <string name="stream_filter_clear">Filtreleri temizle</string>
+    <string name="stream_filter_empty_title">Sonuç bulunamadı</string>
+    <string name="stream_filter_empty_desc">kriterlerine uygun video akışı yok.</string>
+    <string name="stream_play_failed_title">Oynatıcı açılamadı</string>
+    <string name="stream_play_failed_generic">Oynatıcı açılamadı. Başka bir kaynak deneyin veya tekrar deneyin.</string>
+    <string name="stream_play_failed_body">Video başlatılamadı: %1$s</string>
 </resources>
