@@ -1,5 +1,63 @@
 # Kitsugi-Beta — Sürüm Notları / Release Notes
 
+# Kitsugi Beta v2.4.319
+
+## 🇹🇷 Türkçe
+
+### ⭕ Yüklenme Animasyonu Artık Her Yerde Tam Yuvarlak
+
+Video yüklenirken ekranın ortasında görünen yüklenme animasyonunun etrafında
+**turuncu kare çerçeve** ve içinde **ikinci bir kare** vardı. Animasyonun kendi
+bileşeni (`KitsugiPlasmaLoader`) kare dolgu (`drawRect`) ve kenarlık
+(`Modifier.border`) kullandığı için, kırpma katmanının devre dışı kaldığı
+yerlerde (oynatıcı ortası, tam ekran yüklenme, düşük bellek/bazı cihazlar)
+kare çerçeve ortaya çıkıyordu.
+
+- **Kare çizim tamamen kaldırıldı:** gövde artık `drawRect` değil tek bir
+  `drawCircle` ile çiziliyor.
+- **Ekstra çember / kenarlık kaldırıldı:** `Modifier.border(...)` çağrısı
+  silindi; animasyonun etrafında ne kare ne de ikinci bir halka var.
+- **Çift kırpma güvencesi:** kutu, genişlik/yükseklik farklı olsa bile her zaman
+  tam daire kesen özel bir şekille (`PlasmaOrbShape`) kırpılıyor. Böylece
+  `CircleShape`'ın oval üretme ihtimali de ortadan kalktı.
+- **Boyut düzeltmesi:** iç `Canvas` artık ölçülen kutuya göre çiziyor; çağıran
+  `Modifier.size(80.dp)` verdiğinde küre gerçekten 80 dp oluyor (eskiden kutu ile
+  çizim farklı boyutlarda kalıp ortada küçük bir kare oluşuyordu).
+- **Görünüm iyileştirmesi:** üç dönen plazma odağı, beyaz-sıcak merkez, cam
+  highlight ve kenar vinyeti ile küre daha hacimli; tüm katmanlar daire içinde
+  kaldığı için dışarıya ışıma/taşma yok.
+- Animasyonun kullanıldığı **tüm ekranlar** aynı bileşeni paylaştığı için
+  (oynatıcı, tam ekran yüklenme, arama, liste, sheet'ler, giriş pencereleri,
+  pull-to-refresh, TV ekranları, manga) düzeltme her yerde geçerli.
+
+---
+
+## 🇬🇧 English
+
+### ⭕ Loading Animation Is Now Perfectly Round Everywhere
+
+The loading animation shown in the middle of the screen while a video is
+buffering rendered a **square orange frame** around the orb plus a **second
+square** inside it. Because the component (`KitsugiPlasmaLoader`) filled its
+body with `drawRect` and outlined it with `Modifier.border`, any situation where
+the clip layer was dropped (player center, fullscreen loading, low-memory
+devices) exposed the rectangle.
+
+- **Rectangles removed:** the body is a single `drawCircle`, never `drawRect`.
+- **Extra ring removed:** the `Modifier.border(...)` call is gone — no square
+  frame and no secondary ring around the orb.
+- **Double clip guarantee:** the box is clipped with a dedicated shape
+  (`PlasmaOrbShape`) that always cuts a perfect circle, even on non-square
+  boxes (no ellipse from `CircleShape`).
+- **Size fix:** the inner canvas now draws to the measured box, so
+  `Modifier.size(80.dp)` really yields an 80 dp orb.
+- **Look:** three orbiting plasma lobes, a white-hot center, a glass highlight
+  and an edge vignette keep the orb volumetric while everything stays inside
+  the circle.
+- Because every screen shares this component, the fix applies **everywhere**
+  (player, fullscreen loading, search, lists, sheets, login dialogs,
+  pull-to-refresh, TV screens, manga).
+
 # Kitsugi Beta v2.4.318
 
 ## 🇹🇷 Türkçe
