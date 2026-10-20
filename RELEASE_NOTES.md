@@ -1,56 +1,53 @@
 # Kitsugi-Beta — Sürüm Notları / Release Notes
 
-# Kitsugi Beta v2.4.321
+# Kitsugi Beta v2.4.322
 
 ## 🇹🇷 Türkçe
 
-### 🛠️ Açılış / Çökme Düzeltmeleri (kararlılık sürümü)
+### 🛠️ Geliştirici Günlükleri Seçim Çökmesi & Açılış Sertleştirmesi
 
-Bu sürüm, gönderilen çökme raporundaki **kesin kök nedeni** düzeltir ve "uygulama açılmıyor" şikâyetlerinin
-tekrar kör kalmaması için teşhis zincirini onarır.
+Bu sürüm, gönderilen çökme raporundaki **kesin kök nedeni** (`NoSuchElementException: Cannot find value for key 1`) düzeltir ve açılış zincirini olası çökme veya sistem sonlandırmalarına karşı tam izole eder. Ayrıntılı analiz: `KOK_NEDEN_RAPORU_GELISTIRICI_GUNLUKLERI_SECIM_COKMESI_2026-10-21.md` ve `PLAN_TASK_GELISTIRICI_GUNLUKLERI_SECIM_COKMESI_VE_ACILIS_SERTLESTIRMESI_2026-10-21.md`.
 
-- **Geliştirici Günlükleri metin seçimi çökmesi (kök neden) kaldırıldı**
-  - Hata: `java.util.NoSuchElementException: Cannot find value for key N`
-    (`SelectionManager.getSelectionLayout` → `MultiWidgetSelectionDelegateKt.getDirectionById`)
-  - Sebep: `SelectionContainer { LazyColumn { ... } }` kalıbı. Lazy liste öğeleri kaydırılınca
-    kompozisyondan düşüyor; Compose'un seçim yöneticisi sürükleme sırasında hâlâ o öğenin
-    `selectableId`'sini arıyor ve uygulamayı öldürüyordu. (Upstream: compose-multiplatform-core#3480,
-    Compose 1.7.x'te açık.)
-  - Çözüm: Seçim kapsamı her günlük satırının **kendi içine** alındı. Her `SelectionContainer`
-    tek bir `Text` barındırdığı için kaybolabilecek çoklu seçim kaydı oluşmuyor. Uzun basıp
-    satır seçme/kopyalama çalışmaya devam ediyor.
-  - Etki: Hakkında → Geliştirici Günlükleri, Ayarlar → Geliştirici günlükleri ve çökme raporu kartı.
+- **Geliştirici Günlükleri metin seçimi çökmesi giderildi (`DeveloperLogsDialog.kt`):**
+  - **Hata:** `java.util.NoSuchElementException: Cannot find value for key N` (`SelectionManager.getSelectionLayout` -> `MultiWidgetSelectionDelegateKt.getDirectionById`).
+  - **Kök Neden:** `SelectionContainer { LazyColumn { ... } }` deseni. `LazyColumn` satırları kaydırılınca kompozisyondan düşüyor, Compose seçim yöneticisi serbest bırakılan öğenin kimliğini ararken süreci düşürüyordu.
+  - **Çözüm:** Seçim kapsamı her günlük satırının kendi içine alındı. Artık her `SelectionContainer` tek bir `Text` barındırıyor, çoklu seçim kaybolması ve çökme riski tamamen ortadan kalktı. Satır kopyalama ve seçme eksiksiz çalışmaya devam eder.
+- **Çökme uyarısı artık her açılışta tekrar etmiyor (`MainActivity.kt`):**
+  - "Beklenmedik Kapanma Tespit Edildi" diyaloğu kapatıldığında "okundu" işaretleniyor; eski raporun her uygulama açılışında ekrana gelmesi engellendi. Dosya tabanlı sessiz kapanma uyarılarına 7 gün tazelik sınırı getirildi.
+- **En taze çökme raporu paylaşımı (`KitsugiCrashLogger.kt` & `KitsugiCrashActivity.kt`):**
+  - `ensureCrashLogFile` artık her zaman `readCrashLog()` ile en güncel logu üretir; eski `crash_log.txt` arşivi ezilmez, paylaşılan rapor her zaman en taze çökme kanıtını içerir.
+- **Açılış aşaması izleme mekanizması (`StartupStage.kt`):**
+  - Başlangıç adımları (`filesDir/startup_stage.txt`) anlık takip edilir; ana ekran ilk kareyi çizince silinir. UI'dan önce süreç ölürse son çalışan init adımı rapora kaydedilir.
+- **Açılış zinciri izolasyonu (`KitsugiApplication.kt` & `KitsugiSplashActivity.kt`):**
+  - İndirme yöneticisi, izleme geçmişi, DNS, P2P motoru vb. tüm alt sistem init'leri `runCatching` ile korumaya alındı; bir sistemdeki hata tüm uygulamanın açılışını engellemez.
+  - Açılış animasyonu ve prefetch çağrıları korumaya alındı.
 
-- **Çökme uyarısı artık her açılışta tekrar etmiyor**
-  - "Beklenmedik Kapanma Tespit Edildi" diyaloğu geri tuşuyla / dışına dokunarak kapatıldığında
-    "okundu" işaretlenmiyordu; bu yüzden uygulama **her açılışta** aynı eski raporla karşınıza
-    geliyordu. Kullanıcı bunu "uygulama açılmıyor / çöküyor" olarak yaşıyordu.
-  - Artık her kapanış okundu sayılır. Rapor dosyaları silinmez; Geliştirici Günlükleri'nden ve
-    Hakkında ekranındaki rapor kartından erişilebilir.
-  - Dosya tabanlı "sessiz kapanma" uyarılarına 7 gün tazelik sınırı getirildi.
+---
 
-- **Paylaşılan çökme raporu artık eskisi değil, EN YENİSİ**
-  - `ensureCrashLogFile` yalnızca "dosya var mı?" diye bakıyordu: `crash_log.txt` günler önceki bir
-    Java çökmesini tutarken daha yeni bir sessiz kapanma (native/SIGSEGV/LMKD) olabiliyordu. Bu yüzden
-    "Hata dosyasını paylaş" hep aynı **eski** raporu gönderiyordu (indirdiğiniz dosyaların " (31)"
-    olması bundandır).
-  - Artık paylaşılan dosya her zaman `readCrashLog()` çıktısı: en yeni Java çökmesi / sessiz kapanma /
-    native iz / başlatma aşaması arasından en tazesi seçilir. `crash_log.txt` arşivi ezilmez.
+## 🇬🇧 English
 
-- **"Uygulama açılmadan çöküyor" için kalıcı teşhis: açılış aşaması izi**
-  - `Application.attachBaseContext`, `onCreate`, Splash, MainActivity ve her alt sistem init'i
-    `filesDir/startup_stage.txt` dosyasına "buradayım" yazıyor. Ana ekran ilk kareyi çizince siliniyor.
-  - Süreç ana ekran açılamadan ölürse (native çökme, class-load hatası, sistem kill — Java handler'ın
-    hiç çalışmadığı durumlar) bu dosya rapora "son çalışan init adımı" olarak ekleniyor. Bir daha
-    körlemesine tahmin yok.
+### 🛠️ Developer Logs Selection Crash & Startup Hardening
 
-- **Açılış zinciri artık izole**
-  - `AnimeDownloadManager`, `WatchHistoryManager`, `FileLoggingTree`, `CsTrace`,
-    `KitsugiEpisodeRatingsRepository`, `P2pSettingsRepository`, `P2pStreamingEngine`, `DnsManager`
-    ve bellek bekçisi init'leri `runCatching` içine alındı. Biri hata verirse uygulama açılmamazlık
-    etmiyor; hata loglanıyor, ilgili alt sistem devre dışı kalıyor.
-  - Splash'taki `ExploreViewModel.prefetch` (super.onCreate'ten ÖNCE çalışıyordu) ve açılış
-    animasyonu da korumaya alındı; animasyon/WebView patlarsa doğrudan ana ekrana geçilir.
+Resolves the exact root cause (`NoSuchElementException: Cannot find value for key 1`) from diagnostic crash logs and insulates the startup lifecycle against aborts. Detailed analysis in `KOK_NEDEN_RAPORU_GELISTIRICI_GUNLUKLERI_SECIM_COKMESI_2026-10-21.md` and `PLAN_TASK_GELISTIRICI_GUNLUKLERI_SECIM_COKMESI_VE_ACILIS_SERTLESTIRMESI_2026-10-21.md`.
+
+- **Resolved Text Selection Crash in Developer Logs (`DeveloperLogsDialog.kt`):**
+  - **Root Cause:** `SelectionContainer { LazyColumn { ... } }` pattern. When lazy items were scrolled out of view, Compose's `SelectionManager` failed to find evicted selectable IDs (`getDirectionById`), throwing `NoSuchElementException`.
+  - **Fix:** Confined `SelectionContainer` into each individual log row. Long-press text selection and copying remain intact without layout leaks.
+- **Persistent Crash Dialog Resolved (`MainActivity.kt`):**
+  - Crash notices are marked as read on dismissal; stale dialogs will not repeatedly prompt on every cold start. Imposed a 7-day expiration on silent file-based notices.
+- **Fresh Crash Log Export (`KitsugiCrashLogger.kt` & `KitsugiCrashActivity.kt`):**
+  - `ensureCrashLogFile` now captures the freshest diagnostic dump (`readCrashLog()`) instead of serving stale historical archives.
+- **Startup Stage Tracing (`StartupStage.kt`):**
+  - Logs progressive initialization steps to `filesDir/startup_stage.txt`. Cleared on first frame render; if a pre-UI death occurs, the fatal stage is captured in the error report.
+- **Isolated Initialization Chain (`KitsugiApplication.kt` & `KitsugiSplashActivity.kt`):**
+  - Subsystems (Downloads, Watch History, DNS, P2P engine) are wrapped in `runCatching` so isolated startup exceptions cannot block app launch.
+  - Splash prefetch and animations are safely guarded.
+
+---
+
+# Kitsugi Beta v2.4.321
+
+## 🇹🇷 Türkçe
 
 ### 🗓️ Haftalık Yayın Takvimi: "İlk Açılışta Boş Geliyor" Kök Nedeni Düzeltildi
 
@@ -67,24 +64,6 @@ Takvim hangi kaynak seçili olursa olsun (AniList, MAL, TMDB, Kitsu, Shikimori, 
 ---
 
 ## 🇬🇧 English
-
-### 🛠️ Startup / Crash Fixes (stability release)
-
-- **Fixed the root cause of the Developer Logs text-selection crash**: `SelectionContainer` was
-  wrapping a `LazyColumn`, so scrolled-out items got disposed while the selection manager still
-  referenced their `selectableId` → `NoSuchElementException: Cannot find value for key N`
-  (`MultiWidgetSelectionDelegateKt.getDirectionById`). Selection is now scoped per log line
-  (one selectable per container). Upstream: compose-multiplatform-core#3480.
-- **Crash recovery dialog no longer reappears on every launch**: dismissing it by back/outside tap
-  now marks the crash as read (report files are preserved and remain accessible).
-- **Shared crash report is always the freshest evidence**: the old code reused `crash_log.txt` even
-  when a newer silent/native exit report existed, so users kept sending the same stale report
-  (hence the " (31)" duplicate filenames). `ensureCrashLogFile` now materialises `readCrashLog()`.
-- **Startup stage tracer**: every init step writes to `filesDir/startup_stage.txt`; the file is
-  cleared after the first UI frame. If the process dies before the UI appears, the report now shows
-  the last executed startup step.
-- **Isolated startup initialisers**: download/history/log/ratings/P2P/DNS/memory initialisers,
-  splash prefetch and splash animation can no longer prevent the app from opening.
 
 ### 🗓️ Weekly Airing Calendar: "Empty on First Open" Root Cause Fixed
 
@@ -1975,6 +1954,7 @@ Expanded Fandom Wiki integration to cater to diverse article structures, includi
 - **Unified Loading Language:** Replaced 52 circular progress spinners across 40 files with the unified glowing plasma orb (`KitsugiPlasmaLoader`).
 - **Compact Draw Path & 32-Step Color Quantization:** Added a lightweight draw path for spinners <= 30 dp and quantized the color cycle to 32 steps to minimize churn and protect the RenderThread and garbage collector.
 
+
 ---
 
 # Kitsugi-Beta v2.4.278
@@ -3350,6 +3330,7 @@ Detay sayfasındaki akıllı oran mantığı Keşfet ana sayfasındaki vitrine t
 - **Resource Symmetry & Cleanups:** Added 436 symmetric string entries across both `values/strings.xml` and `values-en/strings.xml`. Fixed 58 Turkish entries that previously leaked into English resources, and corrected "Çinçe" to "Çince Konuşulan Bölge".
 - **Harness & Verification:** Added `BangumiMasterDictionaryTest` JUnit suite and `verify_bangumi_master.py` validator ensuring zero ambiguous role conflicts and 1:1 TSV parity.
 
+
 ---
 
 ## 🇹🇷 Türkçe (v2.4.245)
@@ -3369,6 +3350,7 @@ Detay sayfasındaki akıllı oran mantığı Keşfet ana sayfasındaki vitrine t
 - **Active Frame Indicator (`drawBehind`):** Introduced a rounded boundary frame wrapping the active page line. Frame opacity animates smoothly based on page scroll offset (`heroPageVisibility`) directly in the draw phase without recomposing layouts.
 - **Fully Responsive Bar:** Indicator lines now evenly distribute width using `Modifier.weight(1f)`. Combined with `fillMaxWidth` and responsive `widthIn(max)`, the indicator perfectly scales across portrait/landscape phones and tablets without overflowing or stretching excessively on large screens.
 - **Draw Phase Optimization:** Cleanly captures theme color getters (`indicatorFrameColor`) within the composition scope prior to `drawBehind` canvas execution.
+
 
 ---
 
@@ -3416,6 +3398,7 @@ Detay sayfasındaki akıllı oran mantığı Keşfet ana sayfasındaki vitrine t
 ### 🔄 4. Profile Error Screen 'Retry' Action
 - **Interactive Retry (`KitsugiProfileScreen.kt` / `ProfileSharedComponents.kt`):** Added an explicit Retry button on profile error cards to quickly re-fetch state without navigating away.
 - **Rate Limit Messages:** Refined AniList HTTP 429 explanations with dedicated bilingual catalog strings.
+
 
 ---
 
