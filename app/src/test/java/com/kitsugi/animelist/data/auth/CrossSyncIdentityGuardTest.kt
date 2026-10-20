@@ -31,6 +31,34 @@ class CrossSyncIdentityGuardTest {
     }
 
     @Test
+    fun aliasesIncludeNativeJapaneseTitle() {
+        // Bangumi satırı: görünen başlık Çince, İngilizce yok; kimlik doğrulamasının tutunacağı
+        // tek ortak başlık özgün Japonca ad. aliasesOf onu içermezse Bangumi kökenli kayıtların
+        // MAL/AniList doğrulaması (ve dolayısıyla canlı yayılımı) neredeyse hep düşüyordu.
+        val entry = MediaEntry(
+            id = 1,
+            title = "命运石之门",
+            type = MediaType.Anime,
+            status = WatchStatus.Watching,
+            score = null,
+            progress = 3,
+            total = 24,
+            source = "bangumi",
+            malId = 500_010_380,
+            titleEnglish = null,
+            titleJapanese = "シュタインズ・ゲート"
+        )
+        val aliases = CrossSyncIdentityGuard.aliasesOf(entry)
+        assertTrue(aliases.contains("シュタインズ・ゲート"))
+        assertTrue(
+            CrossSyncIdentityGuard.titlesAreIdentityEquivalent(
+                aliases,
+                listOf("Steins;Gate", "シュタインズ・ゲート")
+            )
+        )
+    }
+
+    @Test
     fun genuinelyDifferentTitlesStillRejected() {
         // Kitsu'daki yanlış MAL eşlemesi (Koi wo Shita no wa ↔ Koe no Katachi Specials): yazma durmalı.
         assertFalse(

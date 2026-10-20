@@ -83,13 +83,11 @@ object KitsugiIdResolver {
     ): ResolvedIds = withContext(Dispatchers.IO) {
         Log.d(TAG, "Starting ID resolution: malParam=$malId, aniListParam=$aniListId, tmdbParam=$tmdbId, mediaType=$mediaType, kitsuParam=$kitsuId, bangumiParam=$bangumiId")
 
-        if (mediaType == MediaType.Manga) {
-            Log.d(TAG, "Manga yapımları ARM API'de yer almaz; alakasız anime eşleştirmelerini önlemek için ARM sorgusu atlanıyor.")
-            return@withContext ResolvedIds(malId = malId, aniListId = aniListId, kitsuId = kitsuId)
-        }
-
         // Bangumi's 500M stable IDs are not MAL IDs and ARM has no Bangumi namespace.
         // Resolve Bangumi through its cached, title/year-aware cross-reference layer first.
+        // NOT: Bu köprü manga erken dönüşünden ÖNCE çalışmalı — eskiden dönüş köprüden önce
+        // olduğu için Bangumi kitap/manga satırları MAL/AniList kimliği hiç çözemiyor ve
+        // diğer kaynaklara asla yayılamıyordu.
         val bangumiCrossIds = if (
             bangumiId != null && bangumiId > 0 &&
             malId == null && aniListId == null && tmdbId == null && kitsuId == null
@@ -111,6 +109,19 @@ object KitsugiIdResolver {
         val lookupAniListId = aniListId ?: bangumiCrossIds?.aniListId?.takeIf { it > 0 }
         val lookupTmdbId = tmdbId ?: bangumiCrossIds?.tmdbId?.takeIf { it > 0 }
         val lookupKitsuId = kitsuId ?: bangumiCrossIds?.kitsuId?.takeIf { it > 0 }
+
+        if (mediaType == MediaType.Manga) {
+            // Manga ARM'da yer almaz; Bangumi köprüsünün çözdüğü kimlikler aynen döner.
+            Log.d(TAG, "Manga yapımları ARM API'de yer almaz; alakasız anime eşleştirmelerini önlemek için ARM sorgusu atlanıyor.")
+            return@withContext ResolvedIds(
+                malId = lookupMalId,
+                aniListId = lookupAniListId,
+                kitsuId = lookupKitsuId,
+                tmdbId = lookupTmdbId,
+                imdbId = bangumiCrossIds?.imdbId,
+                tvdbId = bangumiCrossIds?.tvdbId
+            )
+        }
 
         var armJson: JSONObject? = null
         val isNonAnime = mediaType == MediaType.Movie || mediaType == MediaType.TvShow

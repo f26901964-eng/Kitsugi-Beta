@@ -75,7 +75,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.kitsugi.animelist.data.auth.ExternalAuthManager
-import com.kitsugi.animelist.data.auth.BangumiSyncManager
 import com.kitsugi.animelist.data.local.MediaEntryBackup
 import com.kitsugi.animelist.data.local.MediaEntryRepository
 import com.kitsugi.animelist.data.local.NetworkMonitor
@@ -1057,45 +1056,24 @@ fun AppRoot(
                     isHiddenFromStatusLists = isHiddenFromStatusLists
                 )
                 if (isBangumiEntry) {
+                    // Diğer kaynaklarla AYNI hat: önce yerele yaz, sonra ExternalListSyncManager
+                    // Bangumi dahil altı kaynağa birden yaysın. Eski akış önce Bangumi'ye yazıp
+                    // başarısızlıkta (token/kapsam/ağ) kaydı yerele bile kaydetmiyordu — kullanıcının
+                    // seçtiği durum/puan/tarih/bölüm tümüyle kayboluyor, diğer kaynaklara da
+                    // hiç gidilmiyordu. Artık başarısız yazımlar bekleyen senkron kuyruğuna girer.
+                    val persistedEntry = updatedEntry.copy(
+                        source = com.kitsugi.animelist.data.remote.BangumiIdNamespace.SOURCE
+                    )
                     coroutineScope.launch {
-                        val remoteResult = BangumiSyncManager.syncEntryToBangumi(
-                            context.applicationContext,
-                            updatedEntry.copy(source = com.kitsugi.animelist.data.remote.BangumiIdNamespace.SOURCE)
-                        )
-                        if (remoteResult.collectionUpdated) {
-                            val stableId = remoteResult.subjectId?.let {
-                                com.kitsugi.animelist.data.remote.BangumiIdNamespace.stableIdFromRaw(it)
-                            }
-                            val persistedEntry = updatedEntry.copy(
-                                source = com.kitsugi.animelist.data.remote.BangumiIdNamespace.SOURCE,
-                                malId = stableId ?: updatedEntry.malId
-                            )
-                            // Bangumi'ye yazıldı → aynı içerik doğrulanmış kimlikle diğer
-                            // bağlı kaynaklara da yayılır (Bangumi yazması tekrarlanmaz).
-                            if (addBangumiMembership) {
-                                mediaRepository.insert(
-                                    persistedEntry.copy(id = 0),
-                                    syncExternal = true,
-                                    skipBangumiWrite = true
-                                )
-                            } else {
-                                mediaRepository.update(
-                                    persistedEntry,
-                                    syncExternal = true,
-                                    skipBangumiWrite = true
-                                )
-                            }
-                            editingEntry = null
-                            editingSourceHint = null
-                            isAddingBangumiEntry = false
-                            val resultMessage = (remoteResult.messages + remoteResult.errors).joinToString(" • ")
-                            if (resultMessage.isNotBlank()) appViewModel.showSnackbarMessage(resultMessage)
+                        if (addBangumiMembership) {
+                            mediaRepository.insert(persistedEntry.copy(id = 0), syncExternal = true)
                         } else {
-                            appViewModel.showSnackbarMessage(
-                                remoteResult.errors.joinToString(" • ").ifBlank { "Bangumi koleksiyonu güncellenemedi." }
-                            )
+                            mediaRepository.update(persistedEntry, syncExternal = true)
                         }
                     }
+                    editingEntry = null
+                    editingSourceHint = null
+                    isAddingBangumiEntry = false
                 } else {
                     coroutineScope.launch { mediaRepository.update(updatedEntry, advancedScores = advancedScores) }
                     editingEntry = null

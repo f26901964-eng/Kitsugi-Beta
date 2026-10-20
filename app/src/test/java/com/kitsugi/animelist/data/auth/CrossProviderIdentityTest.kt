@@ -162,6 +162,70 @@ class CrossProviderIdentityTest {
     }
 
     @Test
+    fun rawProviderIdsBelow100MAreNeverDecodedAsMal() {
+        // Shikimori içe aktarması ham target_id yazar; eski Kitsu/Bangumi satırları da ham
+        // kimlik taşıyabilir. Bunlar MAL sayılırsa çözümleyici MAL adımını atlıyor ve
+        // (Bangumi'de) subject_id sahte MAL kimliği gibi kullanılıp yayılım kapısı açılıyordu.
+        val shikimori = CrossProviderIds.decode(storedId = 5114, source = "shikimori", type = MediaType.Anime)
+        assertEquals(5114, shikimori.shikimoriId)
+        assertNull("Shikimori ham target_id MAL kimliği değildir", shikimori.malId)
+
+        val bangumi = CrossProviderIds.decode(storedId = 35_658, source = "bangumi", type = MediaType.Anime)
+        assertEquals(35_658, bangumi.bangumiSubjectId)
+        assertNull("Bangumi ham subject_id MAL kimliği değildir", bangumi.malId)
+        assertFalse(CrossSyncPolicy.allowFanOut(isBangumiRow = true, ids = bangumi))
+
+        val kitsu = CrossProviderIds.decode(storedId = 12_345, source = "kitsu", type = MediaType.Anime)
+        assertEquals(12_345, kitsu.kitsuId)
+        assertNull(kitsu.malId)
+    }
+
+    @Test
+    fun bangumiMovieRowKeepsSubjectIdForCrossResolution() {
+        val movie = CrossProviderIds.decode(storedId = 500_035_658, source = "bangumi", type = MediaType.Movie)
+        assertEquals(35_658, movie.bangumiSubjectId)
+        assertNull(movie.malId)
+    }
+
+    @Test
+    fun cacheKeyUsesSourceNamespaceForRawIds() {
+        val shikimori = CrossProviderIds.cacheKey(MediaType.Anime, 5114, "FMA", null, 2009, source = "shikimori")
+        val bangumi = CrossProviderIds.cacheKey(MediaType.Anime, 5114, "FMA", null, 2009, source = "bangumi")
+        val mal = CrossProviderIds.cacheKey(MediaType.Anime, 5114, "FMA", null, 2009, source = "mal")
+        assertEquals("Anime:shikimori:5114", shikimori)
+        assertEquals("Anime:bangumi:5114", bangumi)
+        assertEquals("Anime:mal:5114", mal)
+    }
+
+    @Test
+    fun cacheKeyDisambiguatesOverlapBySourceWhenKnown() {
+        val aniList = CrossProviderIds.cacheKey(MediaType.Anime, 150_000_001, "X", null, 2020, source = "anilist")
+        val simkl = CrossProviderIds.cacheKey(MediaType.Anime, 150_000_001, "X", null, 2020, source = "simkl")
+        assertEquals("Anime:anilist:50000001", aniList)
+        assertEquals("Anime:simkl:1", simkl)
+    }
+
+    @Test
+    fun sharesAnyIdRequiresSameNamespaceMatch() {
+        val a = CrossProviderIds(malId = 21, aniListId = 57_123)
+        assertTrue(a.sharesAnyIdWith(CrossProviderIds(aniListId = 57_123, kitsuId = 99)))
+        assertTrue(a.sharesAnyIdWith(CrossProviderIds(malId = 21)))
+        assertFalse(a.sharesAnyIdWith(CrossProviderIds(malId = 22, aniListId = 1)))
+        // Aynı sayı farklı uzayda eşleşme sayılmaz.
+        assertFalse(a.sharesAnyIdWith(CrossProviderIds(kitsuId = 21)))
+        // TMDB anime/mangada kanıt değil (sezonlar tek TMDB dizisinde toplanır).
+        val animeRow = CrossProviderIds(tmdbId = 603)
+        assertFalse(animeRow.sharesAnyIdWith(CrossProviderIds(tmdbId = 603), includeTmdb = false))
+        assertTrue(animeRow.sharesAnyIdWith(CrossProviderIds(tmdbId = 603), includeTmdb = true))
+    }
+
+    @Test
+    fun bangumiVideoRowFansOutWithTmdbIdentity() {
+        val ids = CrossProviderIds(bangumiSubjectId = 35_658, tmdbId = 603)
+        assertTrue(CrossSyncPolicy.allowFanOut(isBangumiRow = true, ids = ids))
+    }
+
+    @Test
     fun skippedSourcesAreFinalButErrorsAreRetryable() {
         assertFalse(CrossSyncPolicy.shouldRetry(errors = emptyList(), skipped = listOf("Kitsu eşleşmesi yok")))
         assertTrue(CrossSyncPolicy.shouldRetry(errors = listOf("HTTP 500"), skipped = emptyList()))

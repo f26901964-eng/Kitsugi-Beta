@@ -23,7 +23,13 @@ object AniListSyncManager {
         token: String,
         entry: MediaEntry,
         advancedScores: List<Double>? = null,
-        context: Context
+        context: Context,
+        /**
+         * Çapraz kimlik katmanının ([CrossProviderIdentityResolver]) önceden çözdüğü AniList
+         * medya kimliği. Verilmezse eski zincir (yerel kimlik → MAL `idMal` → ARM) çalışır.
+         * Verilse bile yazmadan önce [verifyAniListMediaIdentity] ile doğrulanır.
+         */
+        knownAniListMediaId: Int? = null
     ): Int? {
         require(entry.type == MediaType.Anime || entry.type == MediaType.Manga) {
             context.getString(R.string.account_sync_anilist_type_unsupported)
@@ -31,13 +37,25 @@ object AniListSyncManager {
         val existingEntryId: Int? = entry.aniListEntryId?.takeIf { it > 0 }
 
         val mediaId: Int? = if (existingEntryId == null) {
-            resolveAniListMediaId(token = token, entry = entry, context = context)
+            // Önceden çözülmüş kimlik önce denenir: Bangumi köprüsü bu kimliği AniList'in kendi
+            // kataloğunda başlık+yıl puanlamasıyla bulmuş olabilir; buna rağmen yerel zincir
+            // (MAL doğrulaması, Jikan başlıkları) aynı kaydı Çince görünen başlık yüzünden
+            // reddedebiliyordu ve çözülmüş kimlik çöpe gidiyordu. Doğrulama yine yapılır.
+            val verifiedKnownId = knownAniListMediaId?.takeIf { it > 0 }?.takeIf { candidate ->
+                val mediaTypeGql = if (entry.type == MediaType.Manga) "MANGA" else "ANIME"
+                verifyAniListMediaIdentity(
+                    token, candidate, mediaTypeGql, entry,
+                    CrossSyncIdentityGuard.aliasesOf(entry), context
+                )
+            }
+            verifiedKnownId ?: resolveAniListMediaId(token = token, entry = entry, context = context)
         } else {
             val verifiedMediaId = resolveAniListMediaIdForEntry(
                 token = token,
                 entryId = existingEntryId,
                 entry = entry,
-                context = context
+                context = context,
+                knownAniListMediaId = knownAniListMediaId
             ) ?: error(context.getString(R.string.account_sync_anilist_entry_identity_mismatch, entry.title))
             // Existing list-entry IDs are only mutation handles. Verify the attached media before
             // updating status, progress, score, or other fields.
@@ -148,9 +166,12 @@ object AniListSyncManager {
     fun getAniListMediaFavoriteStatus(
         token: String,
         entry: MediaEntry,
-        context: Context
+        context: Context,
+        knownAniListMediaId: Int? = null
     ): Boolean? {
-        val aniListMediaId: Int = resolveAniListMediaId(token = token, entry = entry, context = context) ?: return null
+        val aniListMediaId: Int = knownAniListMediaId?.takeIf { it > 0 }
+            ?: resolveAniListMediaId(token = token, entry = entry, context = context)
+            ?: return null
 
         val query = """
             query (${'$'}id: Int) {
@@ -180,9 +201,11 @@ object AniListSyncManager {
     fun toggleAniListFavourite(
         token: String,
         entry: MediaEntry,
-        context: Context
+        context: Context,
+        knownAniListMediaId: Int? = null
     ): Boolean {
-        val aniListMediaId: Int? = resolveAniListMediaId(token = token, entry = entry, context = context)
+        val aniListMediaId: Int? = knownAniListMediaId?.takeIf { it > 0 }
+            ?: resolveAniListMediaId(token = token, entry = entry, context = context)
 
         if (aniListMediaId == null) return false
 
@@ -285,7 +308,8 @@ object AniListSyncManager {
         token: String,
         entryId: Int,
         entry: MediaEntry,
-        context: Context
+        context: Context,
+        knownAniListMediaId: Int? = null
     ): Int? = runSyncCatching {
         if (entryId <= 0) return@runSyncCatching null
         val query = """
@@ -312,7 +336,11 @@ object AniListSyncManager {
         val mediaId = listEntry.optJSONObject("media")?.optInt("id", 0)?.takeIf { it > 0 }
             ?: return@runSyncCatching null
         if (listEntry.optInt("mediaId", 0) != mediaId) return@runSyncCatching null
-        val expectedMediaId = resolveAniListMediaId(token, entry, context) ?: return@runSyncCatching null
+        // Liste kaydının bağlı olduğu medya, çapraz katmanın çözdüğü kimlikle de doğrulanabilir;
+        // yerel zincir başlık/yıl katılıkları yüzünden aynı medyayı bulamayabiliyordu.
+        val expectedMediaId = knownAniListMediaId?.takeIf { it > 0 }
+            ?: resolveAniListMediaId(token, entry, context)
+            ?: return@runSyncCatching null
         mediaId.takeIf { it == expectedMediaId }
     }.getOrNull()
 
@@ -908,12 +936,11 @@ object AniListSyncManager {
     }
 
     private fun String?.toAniListFuzzyDate(): JSONObject? {
-        if (this.isNullOrBlank()) {
-            return JSONObject()
-                .put("year", 0)
-                .put("month", 0)
-                .put("day", 0)
-        }
+        // Boş tarih = değişken hiç gönderilmez. Eskiden {0,0,0} gönderiliyordu; AniList bunu
+        // "tarihi temizle" olarak uygular — yerel satırda tarih yokken yapılan her eşitleme
+        // (ör. Bangumi satırından yayılım) AniList'teki başlangıç/bitiş tarihlerini sessizce
+        // siliyordu. MAL/Kitsu hatlarıyla aynı kural: boş alan uzaktaki değeri ezmez.
+        if (this.isNullOrBlank()) return null
 
         val parts = split("-")
         if (parts.size != 3) return null
