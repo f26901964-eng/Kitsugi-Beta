@@ -268,21 +268,16 @@ def main():
 
     # translation_pending.tsv üret (Drive'a yüklenecek)
     pending_path = VAULT_DIR / "translations_pending.tsv"
-    # vault'ta TR==EN olan tagler = çevrilmeyi bekleyenler
-    pending = [(k,tr,en) for k,tr,en,role in deduped if role=="tag" and tr==en and tr and tr[0].isupper()]
-    # ama şirket adlarında TR=EN normal, onları alma
-    # sadece anilist taglerinden gelenler pending
     header = "key\tTR\tEN\trole\tlabels\tstatus\n"
-    # vault'tan role tag olanlar ve tr==en
     rows = []
     vault = json.loads((VAULT_DIR / "vault.json").read_text(encoding="utf-8"))
-    # pending detection: anilist_tags içinde ve henüz çevrilmemiş
-    for t in vault.get("anilist_tags", []):
-        k = "bangumi_tag_" + re.sub(r"[^a-z0-9]+","_", t.lower()).strip("_")
-        # eğer vault_to_strings'te tr==en ise pending
-        for kk,tr,en,role in deduped:
-            if kk==k and tr==en:
-                rows.append(f"{k}\t{tr}\t{en}\ttag\t{t}\tpending_translation")
+    # Tüm vault tag'lerinde TR==EN olanlar pending (Betimleyici tagler; org isimleri zaten TR==EN ama role tag olanlar)
+    for t in vault.get("tags", []):
+        tr = t.get("tr","")
+        en = t.get("en","")
+        if tr == en and tr:
+            # Org'lar için TR==EN normal, onları alma — sadece tag'ler
+            rows.append(f"{t['key']}\t{tr}\t{en}\ttag\t{';'.join(t.get('labels',[]))}\tpending_translation")
     pending_path.write_text(header + "\n".join(rows), encoding="utf-8")
     print(f"Pending translations: {len(rows)} -> {pending_path}")
 
