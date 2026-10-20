@@ -219,7 +219,6 @@ internal fun ApiDetailEpisodesTab(
 ) {
     val context = LocalContext.current
     val uriHandler = LocalUriHandler.current
-    val downloads by com.kitsugi.animelist.data.local.AnimeDownloadManager.downloads.collectAsState()
 
     val streamMalId = streamIds.malId
     val streamAniListId = streamIds.aniListId
@@ -237,7 +236,7 @@ internal fun ApiDetailEpisodesTab(
         onEpisodeClick = { episode ->
             val epNum = episode.episodeNumber
             if (epNum != null && epNum > 0) {
-                val completedDownload = downloads.find {
+                val completedDownload = com.kitsugi.animelist.data.local.AnimeDownloadManager.downloads.value.find {
                     it.animeId == currentAnimeId &&
                     it.episode == epNum &&
                     (it.season == (targetSeason ?: 1) || it.season == (episode.seasonNumber ?: 1)) &&

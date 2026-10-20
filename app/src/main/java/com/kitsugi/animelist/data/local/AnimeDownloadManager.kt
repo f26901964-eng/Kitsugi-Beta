@@ -24,6 +24,9 @@ object AnimeDownloadManager {
     @Volatile
     private var localWriteBeforeLoad = false
 
+    @Volatile
+    private var lastProgressEmitTimeMs = 0L
+
     fun init(context: Context) {
         store = AnimeDownloadStore(context.applicationContext)
         // PERF: Önceden bu satır Application.onCreate içinde (ana iş parçacığında) Gson ile
@@ -44,7 +47,11 @@ object AnimeDownloadManager {
         // Disk okuması hâlâ sürüyorsa, gelen eski liste bu yerel değişikliğin üzerine yazmasın.
         localWriteBeforeLoad = true
         _downloads.value = list
-        store.saveDownloads(list)
+        if (::store.isInitialized) {
+            ioScope.launch {
+                runCatching { store.saveDownloads(list) }
+            }
+        }
     }
 
     fun addDownload(
@@ -118,25 +125,28 @@ object AnimeDownloadManager {
         val current = _downloads.value.filterNot { it.animeId == animeId && it.episode == episode }
         saveAndEmit(current)
 
-        try {
-            val mediaId = "${animeId}_ep$episode"
-            com.kitsugi.animelist.core.player.OfflinePlaybackHelper.deleteDownload(context, mediaId)
-        } catch (e: Exception) {
-            e.printStackTrace()
-        }
-
-        // Video, altyazı, metadata ve poster (Download/Kitsugi/Video|Subtitles|Images) dahil
-        // dışa aktarılan tüm dosyalar temizlenir; aksi hâlde bölüm "silinmiş" görünürken
-        // dosya diskte kalıp yer kaplamaya devam ediyordu.
-        if (record != null) {
+        val appContext = context.applicationContext
+        ioScope.launch {
             try {
-                com.kitsugi.animelist.core.download.DownloadExportNaming.deleteExports(
-                    context = context,
-                    animeTitle = record.animeTitle,
-                    episode = episode
-                )
+                val mediaId = "${animeId}_ep$episode"
+                com.kitsugi.animelist.core.player.OfflinePlaybackHelper.deleteDownload(appContext, mediaId)
             } catch (e: Exception) {
                 e.printStackTrace()
+            }
+
+            // Video, altyazı, metadata ve poster (Download/Kitsugi/Video|Subtitles|Images) dahil
+            // dışa aktarılan tüm dosyalar temizlenir; aksi hâlde bölüm "silinmiş" görünürken
+            // dosya diskte kalıp yer kaplamaya devam ediyordu.
+            if (record != null) {
+                try {
+                    com.kitsugi.animelist.core.download.DownloadExportNaming.deleteExports(
+                        context = appContext,
+                        animeTitle = record.animeTitle,
+                        episode = episode
+                    )
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                }
             }
         }
     }
@@ -150,7 +160,11 @@ object AnimeDownloadManager {
         // Disk okuması hâlâ sürüyorsa eski liste geri yazmasın.
         localWriteBeforeLoad = true
         _downloads.value = emptyList()
-        runCatching { store.saveDownloads(emptyList()) }
+        if (::store.isInitialized) {
+            ioScope.launch {
+                runCatching { store.saveDownloads(emptyList()) }
+            }
+        }
         runCatching {
             context.stopService(
                 Intent(context, com.kitsugi.animelist.core.download.AnimeDownloadService::class.java)
@@ -159,7 +173,21 @@ object AnimeDownloadManager {
     }
 
     fun updateProgress(animeId: String, episode: Int, progress: Int, downloadedBytes: Long, totalBytes: Long, downloadedSegments: Int = 0) {
-        val current = _downloads.value.map {
+        val currentList = _downloads.value
+        val existing = currentList.firstOrNull { it.animeId == animeId && it.episode == episode } ?: return
+        if (existing.progress == progress &&
+            existing.downloadedBytes == downloadedBytes &&
+            existing.totalBytes == totalBytes &&
+            existing.downloadedSegments == downloadedSegments
+        ) {
+            return
+        }
+        val now = android.os.SystemClock.elapsedRealtime()
+        if (progress < 100 && existing.progress == progress && now - lastProgressEmitTimeMs < 200L) {
+            return
+        }
+        lastProgressEmitTimeMs = now
+        val current = currentList.map {
             if (it.animeId == animeId && it.episode == episode) {
                 it.copy(
                     progress = progress,

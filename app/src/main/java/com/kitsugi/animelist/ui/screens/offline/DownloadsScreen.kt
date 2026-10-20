@@ -53,7 +53,9 @@ import com.kitsugi.animelist.ui.screens.fullscreen.KitsugiFullscreenPlayerActivi
 import com.kitsugi.animelist.ui.theme.KitsugiColors
 import com.kitsugi.animelist.utils.KitsugiImageDownloadHelper
 import com.kitsugi.animelist.ui.theme.LocalKitsugiAccent
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -62,9 +64,27 @@ import androidx.compose.ui.res.stringResource
 import com.kitsugi.animelist.R
 import com.kitsugi.animelist.utils.KitsugiStrings
 
+private val WHITESPACE_REGEX = Regex("\\s+")
+private val NON_ALPHANUM_REGEX = Regex("[^a-z0-9]")
+private val EP_SUBTITLE_REGEX = Regex("""^(.*?)\s*-\s*Bölüm\s*(\d+)(?:\.([a-zA-Z0-9_ -]+))?$""", RegexOption.IGNORE_CASE)
+private val DOT_SUBTITLE_REGEX = Regex("""^(.*?)\.([a-zA-Z0-9_ -]+)$""")
+private val TRAILING_TIMESTAMP_REGEX = Regex("_\\d{13}$")
+private val MULTI_UNDERSCORE_REGEX = Regex("_+")
+private val COMPANION_SUB_EXTS = setOf("srt", "ass", "ssa", "vtt")
+
+private fun resolveSafeAnimeId(animeId: String, animeTitle: String): String =
+    animeId.ifBlank {
+        animeTitle.lowercase(Locale.ROOT)
+            .replace(NON_ALPHANUM_REGEX, "_")
+            .trim('_')
+            .take(30)
+            .ifBlank { "media" }
+    }
+
 /**
  * Model representing any downloaded subtitle on disk (standalone or episode-bound).
  */
+@Immutable
 data class DownloadedSubtitleItem(
     val title: String,
     val language: String,
@@ -81,6 +101,7 @@ data class DownloadedSubtitleItem(
  * Model representing a downloaded gallery image on disk.
  * Images are saved by [KitsugiImageDownloadHelper] into Downloads/Kitsugi/Images.
  */
+@Immutable
 data class DownloadedImageItem(
     val file: File,
     val title: String,          // Parsed from filename (e.g. "Kitsugi_Naruto_...")
@@ -94,6 +115,7 @@ data class DownloadedImageItem(
  * İndirilen resimleri içerik adına (anime / dizi / film) göre gruplar.
  * Başlık olarak en güncel kaydın adı, bölüm olarak o içeriğin resimleri gösterilir.
  */
+@Immutable
 data class DownloadedImageGroup(
     val displayName: String,
     val items: List<DownloadedImageItem>
@@ -101,7 +123,7 @@ data class DownloadedImageGroup(
 
 /** Gruplama anahtarı: büyük/küçük harf ve boşluk farklarını dengeler. */
 private fun normalizeImageGroupKey(title: String): String =
-    title.trim().lowercase(Locale.ROOT).replace(Regex("\\s+"), " ")
+    title.trim().lowercase(Locale.ROOT).replace(WHITESPACE_REGEX, " ")
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -117,12 +139,36 @@ fun DownloadsScreen(
     var refreshSubsTrigger by remember { mutableIntStateOf(0) }
     var refreshImagesTrigger by remember { mutableIntStateOf(0) }
 
-    val allSubtitles = remember(downloads, refreshSubsTrigger) {
-        loadAllDownloadedSubtitles(context, downloads)
+    // PERF: İndirme ilerlerken (downloadedBytes/progress değişirken) altyazı disk taramasını
+    // her karede ana iş parçacığında tekrar çalıştırma! Yalnızca tamamlanan indirmelerin
+    // listesi değiştiğinde veya manuel yenilemede Dispatchers.IO üzerinde tara.
+    val completedDownloadsKey by remember {
+        derivedStateOf {
+            downloads.asSequence()
+                .filter { it.status == AnimeDownload.Status.COMPLETED }
+                .map { "${it.animeId}_${it.episode}_${it.localPath}" }
+                .toList()
+        }
     }
 
-    val allImages = remember(refreshImagesTrigger) {
-        loadAllDownloadedImages(context)
+    val allSubtitles by produceState(
+        initialValue = emptyList<DownloadedSubtitleItem>(),
+        key1 = completedDownloadsKey,
+        key2 = refreshSubsTrigger
+    ) {
+        val currentDownloadsSnapshot = AnimeDownloadManager.downloads.value
+        value = withContext(Dispatchers.IO) {
+            loadAllDownloadedSubtitles(context, currentDownloadsSnapshot)
+        }
+    }
+
+    val allImages by produceState(
+        initialValue = emptyList<DownloadedImageItem>(),
+        key1 = refreshImagesTrigger
+    ) {
+        value = withContext(Dispatchers.IO) {
+            loadAllDownloadedImages(context)
+        }
     }
 
     Column(
@@ -247,45 +293,49 @@ fun DownloadsScreen(
                             download = download,
                             accentColor = accentColor,
                             onPlay = {
-                                val safeAnimeId = download.animeId.ifBlank {
-                                    download.animeTitle.lowercase().replace(Regex("[^a-z0-9]"), "_").trim('_').take(30).ifBlank { "media" }
-                                }
-                                val mediaId = "${safeAnimeId}_ep${download.episode}"
-                                val localMedia = OfflinePlaybackHelper.getLocalMedia(context, mediaId)
-                                val params = localMedia?.let { OfflinePlaybackHelper.buildPlayerParams(it) }
-                                if (params != null) {
-                                    KitsugiFullscreenPlayerActivity.startWithStreamUrls(
-                                        context = context,
-                                        videoUrl = params.videoUri,
-                                        title = params.title,
-                                        headers = params.headers,
-                                        subtitles = params.subtitles
-                                    )
-                                } else {
-                                    download.localPath?.let { path ->
-                                        val videoFile = File(path)
-                                        val parentDir = videoFile.parentFile
-                                        val baseName = videoFile.nameWithoutExtension
-                                        val companionSubs = if (parentDir != null && parentDir.exists()) {
-                                            parentDir.listFiles()?.filter { f ->
-                                                f.isFile && f.name.startsWith("$baseName.") && f.extension.lowercase() in listOf("srt", "ass", "ssa", "vtt")
-                                            }?.map { subFile ->
-                                                val lang = subFile.nameWithoutExtension.removePrefix(baseName).trim('.', '_')
-                                                com.kitsugi.animelist.core.player.SubtitleInput(
-                                                    url = "file://${subFile.absolutePath}",
-                                                    name = lang.ifBlank { KitsugiStrings.get(R.string.bangumi_tag_subtitles) },
-                                                    lang = lang.ifBlank { "tr" }
-                                                )
-                                            } ?: emptyList()
-                                        } else emptyList()
-
+                                scope.launch {
+                                    val safeAnimeId = resolveSafeAnimeId(download.animeId, download.animeTitle)
+                                    val mediaId = "${safeAnimeId}_ep${download.episode}"
+                                    val params = withContext(Dispatchers.IO) {
+                                        val localMedia = OfflinePlaybackHelper.getLocalMedia(context, mediaId)
+                                        localMedia?.let { OfflinePlaybackHelper.buildPlayerParams(it) }
+                                    }
+                                    if (params != null) {
                                         KitsugiFullscreenPlayerActivity.startWithStreamUrls(
                                             context = context,
-                                            videoUrl = "file://$path",
-                                            title = KitsugiStrings.get(R.string.title_bolum_episode, download.animeTitle, download.episode),
-                                            headers = emptyMap(),
-                                            subtitles = companionSubs
+                                            videoUrl = params.videoUri,
+                                            title = params.title,
+                                            headers = params.headers,
+                                            subtitles = params.subtitles
                                         )
+                                    } else {
+                                        download.localPath?.let { path ->
+                                            val companionSubs = withContext(Dispatchers.IO) {
+                                                val videoFile = File(path)
+                                                val parentDir = videoFile.parentFile
+                                                val baseName = videoFile.nameWithoutExtension
+                                                if (parentDir != null && parentDir.exists()) {
+                                                    parentDir.listFiles()?.filter { f ->
+                                                        f.isFile && f.name.startsWith("$baseName.") && f.extension.lowercase() in COMPANION_SUB_EXTS
+                                                    }?.map { subFile ->
+                                                        val lang = subFile.nameWithoutExtension.removePrefix(baseName).trim('.', '_')
+                                                        com.kitsugi.animelist.core.player.SubtitleInput(
+                                                            url = "file://${subFile.absolutePath}",
+                                                            name = lang.ifBlank { KitsugiStrings.get(R.string.bangumi_tag_subtitles) },
+                                                            lang = lang.ifBlank { "tr" }
+                                                        )
+                                                    } ?: emptyList()
+                                                } else emptyList()
+                                            }
+
+                                            KitsugiFullscreenPlayerActivity.startWithStreamUrls(
+                                                context = context,
+                                                videoUrl = "file://$path",
+                                                title = KitsugiStrings.get(R.string.title_bolum_episode, download.animeTitle, download.episode),
+                                                headers = emptyMap(),
+                                                subtitles = companionSubs
+                                            )
+                                        }
                                     }
                                 }
                             },
@@ -300,9 +350,7 @@ fun DownloadsScreen(
                                 refreshSubsTrigger++
                             },
                             onOpenFolder = {
-                                val safeAnimeId = download.animeId.ifBlank {
-                                    download.animeTitle.lowercase().replace(Regex("[^a-z0-9]"), "_").trim('_').take(30).ifBlank { "media" }
-                                }
+                                val safeAnimeId = resolveSafeAnimeId(download.animeId, download.animeTitle)
                                 val mediaId = "${safeAnimeId}_ep${download.episode}"
                                 val targetDir = download.localPath?.let { File(it).parentFile }
                                     ?: File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS), "Kitsugi/Video").takeIf { it.exists() }
@@ -361,10 +409,14 @@ fun DownloadsScreen(
                                     openFolderInFileManager(context, subItem.file.parentFile ?: subItem.file)
                                 },
                                 onDelete = {
-                                    if (subItem.file.exists()) {
-                                        subItem.file.delete()
-                                        Toast.makeText(context, KitsugiStrings.get(R.string.altyazi_silindi_x, subItem.title), Toast.LENGTH_SHORT).show()
-                                        refreshSubsTrigger++
+                                    scope.launch {
+                                        val deleted = withContext(Dispatchers.IO) {
+                                            subItem.file.exists() && subItem.file.delete()
+                                        }
+                                        if (deleted) {
+                                            Toast.makeText(context, KitsugiStrings.get(R.string.altyazi_silindi_x, subItem.title), Toast.LENGTH_SHORT).show()
+                                            refreshSubsTrigger++
+                                        }
                                     }
                                 }
                             )
@@ -401,18 +453,24 @@ fun DownloadedImagesTab(
     var galleryInitialIndex by remember { mutableIntStateOf(0) }
 
     // İndirilen resimler içerik adına (anime / dizi / film) göre gruplanır.
-    // Gruplar en yeni indirmenin tarihine göre sıralanır.
-    val groups = remember(images) {
-        images
-            .groupBy { normalizeImageGroupKey(it.title) }
-            .map { (_, list) ->
-                DownloadedImageGroup(
-                    displayName = list.maxByOrNull { it.lastModified }?.title?.trim()
-                        ?.ifBlank { KitsugiStrings.get(R.string.downloads_unknown_content) } ?: KitsugiStrings.get(R.string.downloads_unknown_content),
-                    items = list.sortedByDescending { it.lastModified }
-                )
+    // Gruplar en yeni indirmenin tarihine göre sıralanır (arka planda hesaplanır).
+    val groups by produceState(initialValue = emptyList<DownloadedImageGroup>(), key1 = images) {
+        if (images.isEmpty()) {
+            value = emptyList()
+        } else {
+            value = withContext(Dispatchers.Default) {
+                images
+                    .groupBy { normalizeImageGroupKey(it.title) }
+                    .map { (_, list) ->
+                        DownloadedImageGroup(
+                            displayName = list.maxByOrNull { it.lastModified }?.title?.trim()
+                                ?.ifBlank { KitsugiStrings.get(R.string.downloads_unknown_content) } ?: KitsugiStrings.get(R.string.downloads_unknown_content),
+                            items = list.sortedByDescending { it.lastModified }
+                        )
+                    }
+                    .sortedByDescending { g -> g.items.maxOfOrNull { it.lastModified } ?: 0L }
             }
-            .sortedByDescending { g -> g.items.maxOfOrNull { it.lastModified } ?: 0L }
+        }
     }
 
     // Açılan galeri: yalnızca ilgili grubun resimleri gösterilir.
@@ -577,35 +635,44 @@ fun DownloadedImagesTab(
                         )
                     }
                 }
-                // ── Grup resimleri ──
-                item(key = "group_grid_${group.displayName}") {
-                    FlowRow(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(10.dp),
-                        verticalArrangement = Arrangement.spacedBy(10.dp)
-                    ) {
-                        group.items.forEachIndexed { index, img ->
-                            DownloadedImageCard(
-                                item = img,
-                                accentColor = accentColor,
-                                modifier = Modifier.width(160.dp),
-                                onClick = {
-                                    galleryInitialIndex = index
-                                    galleryGroup = group
-                                },
-                                onOpenFolder = {
-                                    openFolderInFileManager(context, img.file.parentFile ?: img.file)
-                                },
-                                onDelete = {
-                                    if (img.file.exists()) {
-                                        img.file.delete()
-                                        // Index'ten de düş — istenirse resim tekrar indirilebilir
-                                        KitsugiImageDownloadHelper.unmarkImageDownloadedByFileName(context, img.file.name)
-                                        Toast.makeText(context, KitsugiStrings.get(R.string.downloads_image_deleted, img.title), Toast.LENGTH_SHORT).show()
-                                        onRefresh()
+                // ── Grup resimleri (LazyColumn'da satır bazlı tembel yükleme: 269+ resimde tek FlowRow donmasını önler) ──
+                val chunkedItems = group.items.chunked(4)
+                chunkedItems.forEachIndexed { chunkIndex, chunk ->
+                    item(key = "group_grid_${group.displayName}_$chunkIndex") {
+                        FlowRow(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(10.dp),
+                            verticalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            chunk.forEachIndexed { inChunkIndex, img ->
+                                val globalIndex = chunkIndex * 4 + inChunkIndex
+                                DownloadedImageCard(
+                                    item = img,
+                                    accentColor = accentColor,
+                                    modifier = Modifier.width(160.dp),
+                                    onClick = {
+                                        galleryInitialIndex = globalIndex
+                                        galleryGroup = group
+                                    },
+                                    onOpenFolder = {
+                                        openFolderInFileManager(context, img.file.parentFile ?: img.file)
+                                    },
+                                    onDelete = {
+                                        tabScope.launch {
+                                            val deleted = withContext(Dispatchers.IO) {
+                                                if (img.file.exists() && img.file.delete()) {
+                                                    KitsugiImageDownloadHelper.unmarkImageDownloadedByFileName(context, img.file.name)
+                                                    true
+                                                } else false
+                                            }
+                                            if (deleted) {
+                                                Toast.makeText(context, KitsugiStrings.get(R.string.downloads_image_deleted, img.title), Toast.LENGTH_SHORT).show()
+                                                onRefresh()
+                                            }
+                                        }
                                     }
-                                }
-                            )
+                                )
+                            }
                         }
                     }
                 }
@@ -749,31 +816,48 @@ fun DownloadItemRow(
     val context = LocalContext.current
     var isExpanded by remember { mutableStateOf(true) }
 
-    val safeAnimeId = download.animeId.ifBlank {
-        download.animeTitle.lowercase().replace(Regex("[^a-z0-9]"), "_").trim('_').take(30).ifBlank { "media" }
+    val mediaId = remember(download.animeId, download.animeTitle, download.episode) {
+        "${resolveSafeAnimeId(download.animeId, download.animeTitle)}_ep${download.episode}"
     }
-    val mediaId = "${safeAnimeId}_ep${download.episode}"
-    val localMedia = remember(download) { OfflinePlaybackHelper.getLocalMedia(context, mediaId) }
-    val companionSubs = remember(download.localPath) {
-        download.localPath?.let { path ->
-            val vFile = File(path)
-            val pDir = vFile.parentFile
-            val bName = vFile.nameWithoutExtension
-            if (pDir != null && pDir.exists()) {
-                pDir.listFiles()?.filter { f ->
-                    f.isFile && f.name.startsWith("$bName.") && f.extension.lowercase() in listOf("srt", "ass", "ssa", "vtt")
-                }?.map { subFile ->
-                    val lang = subFile.nameWithoutExtension.removePrefix(bName).trim('.', '_')
-                    OfflinePlaybackHelper.LocalSubtitle(
-                        language = lang.ifBlank { "tr" },
-                        label = subFile.nameWithoutExtension,
-                        uri = "file://${subFile.absolutePath}"
-                    )
-                } ?: emptyList()
-            } else emptyList()
-        } ?: emptyList()
+
+    // PERF: İndirme sürerken (DOWNLOADING) her progress/byte artışında ana iş parçacığında
+    // disk taraması (OfflinePlaybackHelper.getLocalMedia + listFiles) yapılmasını önle!
+    // Altyazı ve metadata yalnızca indirme tamamlandığında (veya localPath oluştuğunda) IO'da okunur.
+    val localSubs by produceState(
+        initialValue = emptyList<OfflinePlaybackHelper.LocalSubtitle>(),
+        key1 = mediaId,
+        key2 = download.status,
+        key3 = download.localPath
+    ) {
+        if (download.status != AnimeDownload.Status.COMPLETED && download.localPath.isNullOrBlank()) {
+            value = emptyList()
+        } else {
+            value = withContext(Dispatchers.IO) {
+                val localMedia = OfflinePlaybackHelper.getLocalMedia(context, mediaId)
+                if (!localMedia?.subtitles.isNullOrEmpty()) {
+                    localMedia?.subtitles.orEmpty()
+                } else {
+                    download.localPath?.let { path ->
+                        val vFile = File(path)
+                        val pDir = vFile.parentFile
+                        val bName = vFile.nameWithoutExtension
+                        if (pDir != null && pDir.exists()) {
+                            pDir.listFiles()?.filter { f ->
+                                f.isFile && f.name.startsWith("$bName.") && f.extension.lowercase() in COMPANION_SUB_EXTS
+                            }?.map { subFile ->
+                                val lang = subFile.nameWithoutExtension.removePrefix(bName).trim('.', '_')
+                                OfflinePlaybackHelper.LocalSubtitle(
+                                    language = lang.ifBlank { "tr" },
+                                    label = subFile.nameWithoutExtension,
+                                    uri = "file://${subFile.absolutePath}"
+                                )
+                            } ?: emptyList()
+                        } else emptyList()
+                    } ?: emptyList()
+                }
+            }
+        }
     }
-    val localSubs = if (localMedia?.subtitles.isNullOrEmpty()) companionSubs else localMedia?.subtitles ?: emptyList()
 
     Column(
         modifier = Modifier
@@ -1192,8 +1276,7 @@ fun SubtitleCardItem(
 
 private fun parseSubtitleFileInfo(nameWithoutExt: String): Triple<String?, Int?, String> {
     // Örnek: "Solo Leveling - Bölüm 3.tr" veya "Solo Leveling - Bölüm 3.tr_Türkçe"
-    val epRegex = Regex("""^(.*?)\s*-\s*Bölüm\s*(\d+)(?:\.([a-zA-Z0-9_ -]+))?$""", RegexOption.IGNORE_CASE)
-    val epMatch = epRegex.find(nameWithoutExt)
+    val epMatch = EP_SUBTITLE_REGEX.find(nameWithoutExt)
     if (epMatch != null) {
         val anime = epMatch.groupValues[1].trim()
         val ep = epMatch.groupValues[2].toIntOrNull()
@@ -1202,8 +1285,7 @@ private fun parseSubtitleFileInfo(nameWithoutExt: String): Triple<String?, Int?,
     }
 
     // Örnek: "Spirited Away.tr"
-    val dotRegex = Regex("""^(.*?)\.([a-zA-Z0-9_ -]+)$""")
-    val dotMatch = dotRegex.find(nameWithoutExt)
+    val dotMatch = DOT_SUBTITLE_REGEX.find(nameWithoutExt)
     if (dotMatch != null) {
         val anime = dotMatch.groupValues[1].trim()
         val lang = dotMatch.groupValues[2].substringBefore("_").trim()
@@ -1224,15 +1306,19 @@ fun loadAllDownloadedSubtitles(
     downloads: List<AnimeDownload>
 ): List<DownloadedSubtitleItem> {
     val results = mutableListOf<DownloadedSubtitleItem>()
+    val seenPaths = HashSet<String>()
+    val seenNames = HashSet<String>()
     val subExtensions = setOf("srt", "ass", "ssa", "vtt", "ttml")
+    val downloadsByMediaId = downloads.associateBy { "${it.animeId}_ep${it.episode}" }
 
     // 1. Episode-bound subtitles
     val downloadedMediaList = OfflinePlaybackHelper.listDownloadedMedia(context)
     downloadedMediaList.forEach { media ->
-        val matchingDownload = downloads.firstOrNull { "${it.animeId}_ep${it.episode}" == media.mediaId }
+        val matchingDownload = downloadsByMediaId[media.mediaId]
         media.subtitles.forEach { sub ->
             val subFile = File(sub.uri.removePrefix("file://"))
-            if (subFile.exists() && subFile.isFile) {
+            if (subFile.exists() && subFile.isFile && seenPaths.add(subFile.absolutePath)) {
+                seenNames.add(subFile.name)
                 results.add(
                     DownloadedSubtitleItem(
                         title = sub.label,
@@ -1258,8 +1344,9 @@ fun loadAllDownloadedSubtitles(
     for (publicDir in publicDirsToScan) {
         try {
             if (publicDir.exists()) {
-                publicDir.listFiles()?.filter { it.isFile && it.extension.lowercase() in subExtensions }?.forEach { f ->
-                    if (results.none { it.file.absolutePath == f.absolutePath }) {
+                publicDir.listFiles()?.forEach { f ->
+                    if (f.isFile && f.extension.lowercase() in subExtensions && seenPaths.add(f.absolutePath)) {
+                        seenNames.add(f.name)
                         val (parsedAnime, parsedEp, parsedLang) = parseSubtitleFileInfo(f.nameWithoutExtension)
                         results.add(
                             DownloadedSubtitleItem(
@@ -1284,8 +1371,9 @@ fun loadAllDownloadedSubtitles(
     try {
         val cacheSubDir = File(context.cacheDir, "subtitles")
         if (cacheSubDir.exists()) {
-            cacheSubDir.listFiles()?.filter { it.isFile && it.extension.lowercase() in subExtensions }?.forEach { f ->
-                if (results.none { it.file.name == f.name }) {
+            cacheSubDir.listFiles()?.forEach { f ->
+                if (f.isFile && f.extension.lowercase() in subExtensions && seenNames.add(f.name)) {
+                    seenPaths.add(f.absolutePath)
                     val (parsedAnime, parsedEp, parsedLang) = parseSubtitleFileInfo(f.nameWithoutExtension)
                     results.add(
                         DownloadedSubtitleItem(
@@ -1321,6 +1409,7 @@ fun loadAllDownloadedImages(context: Context): List<DownloadedImageItem> {
         "jpg", "jpeg", "png", "webp", "gif", "avif", "heic", "heif", "bmp", "tiff"
     )
     val results = mutableListOf<DownloadedImageItem>()
+    val seenPaths = HashSet<String>()
     val dirsToScan = listOfNotNull(
         File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS), "Kitsugi/Images"),
         File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS), "Kitsugi"),   // legacy
@@ -1332,24 +1421,28 @@ fun loadAllDownloadedImages(context: Context): List<DownloadedImageItem> {
     for (dir in dirsToScan) {
         try {
             if (!dir.exists()) continue
-            dir.listFiles()?.filter { f ->
-                f.isFile &&
-                f.extension.lowercase() in imageExtensions &&
-                f.name.startsWith("Kitsugi_") &&
-                results.none { it.file.absolutePath == f.absolutePath }
-            }?.forEach { f ->
-                // Title: strip "Kitsugi_" prefix and trailing timestamp+extension
-                // (birden fazla alt çizgiyi tek boşluğa indir — Unicode içerik adları düzgün görünsün)
-                val rawName = f.nameWithoutExtension.removePrefix("Kitsugi_")
-                val title = rawName.replace(Regex("_\\d{13}$"), "").replace(Regex("_+"), " ").trim()
-                results.add(
-                    DownloadedImageItem(
-                        file = f,
-                        title = title.ifBlank { f.nameWithoutExtension },
-                        fileSizeBytes = f.length(),
-                        lastModified = f.lastModified()
+            dir.listFiles()?.forEach { f ->
+                if (f.isFile &&
+                    f.name.startsWith("Kitsugi_") &&
+                    f.extension.lowercase() in imageExtensions &&
+                    seenPaths.add(f.absolutePath)
+                ) {
+                    // Title: strip "Kitsugi_" prefix and trailing timestamp+extension
+                    // (birden fazla alt çizgiyi tek boşluğa indir — Unicode içerik adları düzgün görünsün)
+                    val rawName = f.nameWithoutExtension.removePrefix("Kitsugi_")
+                    val title = rawName
+                        .replace(TRAILING_TIMESTAMP_REGEX, "")
+                        .replace(MULTI_UNDERSCORE_REGEX, " ")
+                        .trim()
+                    results.add(
+                        DownloadedImageItem(
+                            file = f,
+                            title = title.ifBlank { f.nameWithoutExtension },
+                            fileSizeBytes = f.length(),
+                            lastModified = f.lastModified()
+                        )
                     )
-                )
+                }
             }
         } catch (_: Exception) {}
     }

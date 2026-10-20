@@ -39,7 +39,7 @@ class AnimeDownloadService : Service() {
         private const val CHANNEL_ID    = "anime_downloads_channel"
         private const val NOTIFICATION_ID = 10002
 
-        /** Fetch the poster bitmap synchronously (call from IO thread). */
+        /** Fetch the poster bitmap synchronously (call from IO thread), downscaled for notifications. */
         fun loadPosterBitmap(url: String?): Bitmap? {
             if (url.isNullOrBlank()) return null
             return runCatching {
@@ -47,7 +47,18 @@ class AnimeDownloadService : Service() {
                     it.connectTimeout = 5_000
                     it.readTimeout    = 5_000
                 }
-                BitmapFactory.decodeStream(connection.inputStream)
+                val raw = connection.inputStream.use { BitmapFactory.decodeStream(it) } ?: return@runCatching null
+                val maxDim = 384
+                if (raw.width > maxDim || raw.height > maxDim) {
+                    val scale = maxDim.toFloat() / maxOf(raw.width, raw.height).toFloat()
+                    val targetW = (raw.width * scale).toInt().coerceAtLeast(1)
+                    val targetH = (raw.height * scale).toInt().coerceAtLeast(1)
+                    val scaled = Bitmap.createScaledBitmap(raw, targetW, targetH, true)
+                    if (scaled !== raw) raw.recycle()
+                    scaled
+                } else {
+                    raw
+                }
             }.getOrNull()
         }
     }

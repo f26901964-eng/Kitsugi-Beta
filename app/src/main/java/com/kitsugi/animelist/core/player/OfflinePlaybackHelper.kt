@@ -35,6 +35,7 @@ object OfflinePlaybackHelper {
     private const val DOWNLOADS_DIR = "Kitsugi_downloads"
     private val VIDEO_EXTENSIONS = setOf("mp4", "mkv", "avi", "webm", "ts", "m2ts")
     private val SUBTITLE_EXTENSIONS = setOf("srt", "vtt", "ass", "ssa")
+    private val WHITESPACE_REGEX = Regex("\\s+")
 
     // ── Data classes ──────────────────────────────────────────────────────────
 
@@ -104,12 +105,15 @@ object OfflinePlaybackHelper {
         val primaryRoot = getDownloadsDir(context)
         val legacyCacheRoot = File(context.cacheDir, DOWNLOADS_DIR)
 
-        val primaryDirs = if (primaryRoot.exists()) primaryRoot.listFiles()?.filter { it.isDirectory }.orEmpty() else emptyList()
+        val primaryEntries = if (primaryRoot.exists()) primaryRoot.listFiles()?.toList().orEmpty() else emptyList()
+        val primaryDirs = primaryEntries.filter { it.isDirectory }
         val legacyDirs = if (legacyCacheRoot.exists()) legacyCacheRoot.listFiles()?.filter { it.isDirectory }.orEmpty() else emptyList()
 
         val allDirs = (primaryDirs + legacyDirs).distinctBy { it.name }
         val legacy = allDirs.mapNotNull { dir -> readLocalMedia(dir) }
-        val flat = flatVideoFiles(primaryRoot).mapNotNull { readFlatMedia(primaryRoot, it) }
+        val flat = flatVideoFilesFromEntries(primaryEntries).mapNotNull { video ->
+            readFlatMedia(primaryRoot, video, primaryEntries)
+        }
 
         return (legacy + flat)
             .distinctBy { it.mediaId }
@@ -121,15 +125,31 @@ object OfflinePlaybackHelper {
      * Dosya yoksa `null` döner.
      */
     fun getLocalMedia(context: Context, mediaId: String): LocalMedia? {
-        val primaryDir = File(getDownloadsDir(context), mediaId)
-        if (primaryDir.exists()) return readLocalMedia(primaryDir)
+        val primaryRoot = getDownloadsDir(context)
+        val primaryDir = File(primaryRoot, mediaId)
+        if (primaryDir.isDirectory) return readLocalMedia(primaryDir)
 
         val legacyDir = File(File(context.cacheDir, DOWNLOADS_DIR), mediaId)
-        if (legacyDir.exists()) return readLocalMedia(legacyDir)
+        if (legacyDir.isDirectory) return readLocalMedia(legacyDir)
 
-        return flatVideoFiles(getDownloadsDir(context))
-            .mapNotNull { readFlatMedia(getDownloadsDir(context), it) }
-            .firstOrNull { it.mediaId == mediaId }
+        val primaryEntries = if (primaryRoot.isDirectory) primaryRoot.listFiles()?.toList().orEmpty() else emptyList()
+        for (video in flatVideoFilesFromEntries(primaryEntries)) {
+            val base = video.nameWithoutExtension
+            val metadata = readFlatMetadata(File(primaryRoot, "$base.json"))
+            val resolvedId = metadata?.mediaId?.takeIf { it.isNotBlank() } ?: base
+            if (resolvedId == mediaId) {
+                return LocalMedia(
+                    mediaId        = resolvedId,
+                    title          = metadata?.title?.takeIf { it.isNotBlank() } ?: base,
+                    videoUri       = "file://${video.absolutePath}",
+                    subtitles      = readFlatSubtitles(primaryRoot, base, primaryEntries),
+                    fileSizeBytes  = video.length(),
+                    downloadedAtMs = metadata?.downloadedAtMs?.takeIf { it > 0 } ?: video.lastModified(),
+                    durationMs     = metadata?.durationMs ?: 0L,
+                )
+            }
+        }
+        return null
     }
 
     /**
@@ -243,20 +263,25 @@ object OfflinePlaybackHelper {
      * Düz yerleşimde bir videonun yanındaki altyazıları bulur: `<taban>.<dil>_<isim>.<uzantı>`.
      * Önek nokta ile birlikte kontrol edilir; böylece `Bölüm_1` araması `Bölüm_12` altyazılarını almaz.
      */
-    private fun readFlatSubtitles(root: File, baseName: String): List<LocalSubtitle> {
-        return root.listFiles()
-            ?.filter {
-                it.isFile && it.name.startsWith("$baseName.") &&
+    private fun readFlatSubtitles(
+        root: File,
+        baseName: String,
+        cachedEntries: List<File>? = null
+    ): List<LocalSubtitle> {
+        val entries = cachedEntries ?: root.listFiles()?.toList().orEmpty()
+        val prefix = "$baseName."
+        return entries
+            .filter {
+                it.isFile && it.name.startsWith(prefix) &&
                     it.extension.lowercase() in SUBTITLE_EXTENSIONS
             }
-            ?.map { file -> toLocalSubtitle(file, file.nameWithoutExtension.removePrefix("$baseName.")) }
-            ?: emptyList()
+            .map { file -> toLocalSubtitle(file, file.nameWithoutExtension.removePrefix(prefix)) }
     }
 
     /** `<dil>_<isim>` biçimindeki ad için dil ve etiket çıkarır. */
     private fun toLocalSubtitle(file: File, name: String): LocalSubtitle {
         val lang = name.substringBefore("_", "en")
-        val rest = name.substringAfter("_", "").replace("_", " ").trim().replace(Regex("\\s+"), " ")
+        val rest = name.substringAfter("_", "").replace("_", " ").trim().replace(WHITESPACE_REGEX, " ")
         val label = if (rest.isNotEmpty()) rest else when (lang) {
             "tr" -> KitsugiStrings.get(R.string.pd_lang_tr)
             "en" -> "İngilizce"
@@ -269,23 +294,32 @@ object OfflinePlaybackHelper {
     /** Düz yerleşimdeki video dosyaları (yalnızca yanında metadata `.json` dosyası olanlar). */
     private fun flatVideoFiles(root: File): List<File> {
         if (!root.isDirectory) return emptyList()
-        return root.listFiles()
-            ?.filter {
-                it.isFile && it.extension.lowercase() in VIDEO_EXTENSIONS &&
-                    File(root, "${it.nameWithoutExtension}.json").isFile
-            }
-            ?: emptyList()
+        val entries = root.listFiles()?.toList().orEmpty()
+        return flatVideoFilesFromEntries(entries)
+    }
+
+    private fun flatVideoFilesFromEntries(entries: List<File>): List<File> {
+        if (entries.isEmpty()) return emptyList()
+        val fileNames = entries.asSequence().filter { it.isFile }.mapTo(HashSet()) { it.name }
+        return entries.filter {
+            it.isFile && it.extension.lowercase() in VIDEO_EXTENSIONS &&
+                "${it.nameWithoutExtension}.json" in fileNames
+        }
     }
 
     /** Düz yerleşimdeki bir videoyu [LocalMedia]'ya çevirir. */
-    private fun readFlatMedia(root: File, video: File): LocalMedia? {
+    private fun readFlatMedia(
+        root: File,
+        video: File,
+        cachedEntries: List<File>? = null
+    ): LocalMedia? {
         val base = video.nameWithoutExtension
         val metadata = readFlatMetadata(File(root, "$base.json"))
         return LocalMedia(
             mediaId        = metadata?.mediaId?.takeIf { it.isNotBlank() } ?: base,
             title          = metadata?.title?.takeIf { it.isNotBlank() } ?: base,
             videoUri       = "file://${video.absolutePath}",
-            subtitles      = readFlatSubtitles(root, base),
+            subtitles      = readFlatSubtitles(root, base, cachedEntries),
             fileSizeBytes  = video.length(),
             downloadedAtMs = metadata?.downloadedAtMs?.takeIf { it > 0 } ?: video.lastModified(),
             durationMs     = metadata?.durationMs ?: 0L,

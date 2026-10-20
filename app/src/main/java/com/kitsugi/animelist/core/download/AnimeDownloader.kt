@@ -139,20 +139,33 @@ class AnimeDownloader(private val context: Context) {
                 val hasFile = localFile.exists() && localFile.length() > 0
                 val startSegmentIndex = if (hasFile) download.downloadedSegments else 0
                 val appendMode = startSegmentIndex > 0 && hasFile
-                
-                java.io.FileOutputStream(localFile, appendMode).use { outputStream ->
+                var bytesDownloaded = if (appendMode) localFile.length() else 0L
+                var lastProgressEmitMs = 0L
+                var lastReportedProgress = -1
+
+                java.io.BufferedOutputStream(java.io.FileOutputStream(localFile, appendMode), 64 * 1024).use { outputStream ->
                     if (startSegmentIndex == 0 && initSegmentUrl != null) {
-                        downloadSegmentToStream(initSegmentUrl!!, download.requestHeaders, outputStream)
+                        bytesDownloaded += downloadSegmentToStream(initSegmentUrl!!, download.requestHeaders, outputStream)
                     }
                     val totalSegments = segments.size
                     for (index in startSegmentIndex until totalSegments) {
                         coroutineContext.ensureActive()
                         val segmentUrl = segments[index]
-                        downloadSegmentToStream(segmentUrl, download.requestHeaders, outputStream)
-                        
+                        bytesDownloaded += downloadSegmentToStream(segmentUrl, download.requestHeaders, outputStream)
+
                         val progress = (100 * (index + 1) / totalSegments).coerceIn(0, 100)
-                        onProgress(progress, localFile.length(), 0L, index + 1)
+                        val now = android.os.SystemClock.elapsedRealtime()
+                        val isFinalSegment = index + 1 == totalSegments
+                        if (isFinalSegment ||
+                            now - lastProgressEmitMs >= 250L ||
+                            (progress != lastReportedProgress && now - lastProgressEmitMs >= 100L)
+                        ) {
+                            lastProgressEmitMs = now
+                            lastReportedProgress = progress
+                            onProgress(progress, bytesDownloaded, 0L, index + 1)
+                        }
                     }
+                    outputStream.flush()
                 }
             } else {
                 // Direct file download
@@ -400,22 +413,23 @@ class AnimeDownloader(private val context: Context) {
         url: String,
         headers: Map<String, String>,
         outputStream: java.io.OutputStream
-    ) = withContext(Dispatchers.IO) {
+    ): Long = withContext(Dispatchers.IO) {
         var lastException: Exception? = null
         for (attempt in 1..3) {
             try {
                 val requestBuilder = Request.Builder().url(url)
                 headers.forEach { (k, v) -> requestBuilder.header(k, v) }
+                var copiedBytes = 0L
                 KitsugiHttpClient.client.newCall(requestBuilder.build()).execute().use { response ->
                     if (!response.isSuccessful) {
                         throw Exception("Failed to download segment: ${response.code} ${response.message}")
                     }
                     val body = response.body ?: throw Exception("Empty segment body")
                     body.byteStream().use { inputStream ->
-                        inputStream.copyTo(outputStream)
+                        copiedBytes = inputStream.copyTo(outputStream, 64 * 1024)
                     }
                 }
-                return@withContext // Success!
+                return@withContext copiedBytes // Success!
             } catch (e: Exception) {
                 if (e is kotlinx.coroutines.CancellationException) throw e
                 lastException = e
@@ -464,22 +478,43 @@ class AnimeDownloader(private val context: Context) {
                     val appendMode = isRange && existingLength > 0
                     
                     body.byteStream().use { inputStream ->
-                        java.io.FileOutputStream(localFile, appendMode).use { outputStream ->
-                            val buffer = ByteArray(8192)
+                        java.io.BufferedOutputStream(java.io.FileOutputStream(localFile, appendMode), 64 * 1024).use { outputStream ->
+                            val buffer = ByteArray(64 * 1024)
                             var bytesRead: Int
                             var bytesDownloaded = if (appendMode) existingLength else 0L
-                            
+                            var lastProgressEmitMs = 0L
+                            var lastReportedProgress = -1
+                            var lastReportedBytes = -1L
+
                             while (inputStream.read(buffer).also { bytesRead = it } != -1) {
                                 coroutineContext.ensureActive()
                                 outputStream.write(buffer, 0, bytesRead)
                                 bytesDownloaded += bytesRead
-                                
+
                                 val progress = if (totalBytes > 0) {
                                     (100 * bytesDownloaded / totalBytes).toInt().coerceIn(0, 100)
                                 } else {
                                     0
                                 }
-                                onProgress(progress, bytesDownloaded, totalBytes)
+                                val now = android.os.SystemClock.elapsedRealtime()
+                                if (now - lastProgressEmitMs >= 250L ||
+                                    (progress != lastReportedProgress && now - lastProgressEmitMs >= 100L)
+                                ) {
+                                    lastProgressEmitMs = now
+                                    lastReportedProgress = progress
+                                    lastReportedBytes = bytesDownloaded
+                                    onProgress(progress, bytesDownloaded, totalBytes)
+                                }
+                            }
+                            outputStream.flush()
+
+                            val finalProgress = if (totalBytes > 0) {
+                                (100 * bytesDownloaded / totalBytes).toInt().coerceIn(0, 100)
+                            } else {
+                                100
+                            }
+                            if (bytesDownloaded != lastReportedBytes || finalProgress != lastReportedProgress) {
+                                onProgress(finalProgress, bytesDownloaded, totalBytes)
                             }
                         }
                     }

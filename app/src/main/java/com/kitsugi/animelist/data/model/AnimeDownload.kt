@@ -1,5 +1,8 @@
 package com.kitsugi.animelist.data.model
 
+import androidx.compose.runtime.Immutable
+
+@Immutable
 data class AnimeDownload(
     val animeId: String,
     val animeTitle: String,
@@ -11,11 +14,11 @@ data class AnimeDownload(
     /** HTTP request headers to use when downloading (e.g. Cookie, Referer, User-Agent from CS3 addons). */
     val requestHeaders: Map<String, String> = emptyMap(),
     val subtitles: List<com.kitsugi.animelist.core.player.SubtitleInput> = emptyList(),
-    var status: Status = Status.QUEUE,
-    var progress: Int = 0,
-    var totalBytes: Long = 0L,
-    var downloadedBytes: Long = 0L,
-    var localPath: String? = null,
+    val status: Status = Status.QUEUE,
+    val progress: Int = 0,
+    val totalBytes: Long = 0L,
+    val downloadedBytes: Long = 0L,
+    val localPath: String? = null,
     val createdAt: Long = System.currentTimeMillis(),
     val downloadedSegments: Int = 0,
     val malId: Int? = null,
@@ -33,3 +36,4 @@ data class AnimeDownload(
         PAUSED
     }
 }
+
