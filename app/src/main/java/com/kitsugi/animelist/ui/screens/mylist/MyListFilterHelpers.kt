@@ -69,15 +69,6 @@ internal fun filterMyListEntries(
             if (normalizedQuery.isBlank()) {
                 true
             } else {
-                val normQueryMatch = normQuery.length >= 2 && (
-                    com.kitsugi.animelist.model.MediaIdentity.normalizedTitle(entry.title).contains(normQuery) ||
-                        entry.titleEnglish?.let {
-                            com.kitsugi.animelist.model.MediaIdentity.normalizedTitle(it).contains(normQuery)
-                        } == true ||
-                        entry.titleJapanese?.let {
-                            com.kitsugi.animelist.model.MediaIdentity.normalizedTitle(it).contains(normQuery)
-                        } == true
-                )
                 entry.title.lowercase().contains(normalizedQuery) ||
                     entry.titleEnglish?.lowercase()?.contains(normalizedQuery) == true ||
                     entry.titleJapanese?.lowercase()?.contains(normalizedQuery) == true ||
@@ -87,7 +78,21 @@ internal fun filterMyListEntries(
                     entry.source.lowercase().contains(normalizedQuery) ||
                     entry.year?.toString()?.contains(normalizedQuery) == true ||
                     entry.malId?.toString()?.contains(normalizedQuery) == true ||
-                    normQueryMatch ||
+                    // PERF: normalize edilmiş (NFKC + regex) başlık eşleşmesi eskiden her
+                    // satır için ÖNDEN hesaplanıyordu; her tuş vuruşunda listenin tamamı
+                    // için 3 normalizasyon ana iş parçacığında çalışıyordu. `||` zinkesini
+                    // sona aldım: yalnızca ucuz `contains` denetimlerinin hiçbiri
+                    // eşleşmezse hesaplanır. Sıra değişimi sonucu değiştirmez (tümü yan
+                    // etkisiz boole ifadeleri).
+                    (normQuery.length >= 2 && (
+                        com.kitsugi.animelist.model.MediaIdentity.normalizedTitle(entry.title).contains(normQuery) ||
+                            entry.titleEnglish?.let {
+                                com.kitsugi.animelist.model.MediaIdentity.normalizedTitle(it).contains(normQuery)
+                            } == true ||
+                            entry.titleJapanese?.let {
+                                com.kitsugi.animelist.model.MediaIdentity.normalizedTitle(it).contains(normQuery)
+                            } == true
+                        )) ||
                     // AniHyou paritesi: "Fuzzy arama kullan" — yazım hatası/kısaltma toleransı
                     (
                         com.kitsugi.animelist.data.settings.KitsugiContentPrefs.fuzzySearchEnabled && (
@@ -120,11 +125,23 @@ internal fun applySort(
     entries: List<MediaEntry>,
     sortId: String
 ): List<MediaEntry> {
+    if (entries.size < 2) return entries
+
+    // PERF: Kotlin `sortedBy(selector)` seçiciyi HER karşılaştırmada çağırır — başlık
+    // sıralarında bu, O(n log n) adet `lowercase()` String tahsisi demektir (1000+ kayıtta
+    // her veri değişiminde on binlerce gereksiz tahsis). Birincil anahtar başlık olan iki
+    // dal için anahtarları satır başına bir kez hesapla (Schwartzian transform).
+    fun sortedByTitleKey(descending: Boolean): List<MediaEntry> {
+        val decorated = entries.map { entry -> entry to entry.title.lowercase() }
+        val sorted = if (descending) decorated.sortedByDescending { it.second } else decorated.sortedBy { it.second }
+        return sorted.asSequence().map { it.first }.toList()
+    }
+
     return when (sortId) {
         "newest" -> entries.sortedByDescending { it.id }
         "oldest" -> entries.sortedBy { it.id }
-        "title" -> entries.sortedBy { it.title.lowercase() }
-        "title_desc" -> entries.sortedByDescending { it.title.lowercase() }
+        "title" -> sortedByTitleKey(descending = false)
+        "title_desc" -> sortedByTitleKey(descending = true)
         "score" -> entries.sortedWith(
             compareByDescending<MediaEntry> { it.score ?: -1 }.thenBy { it.title.lowercase() }
         )

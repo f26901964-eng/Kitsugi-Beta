@@ -17,6 +17,11 @@ object MediaIdentity {
      * The source is part of the ID namespace. In particular, Shikimori `target_id` is a
      * Shikimori ID, not a MAL ID, even when its numeric value happens to be below 100 million.
      */
+    // PERF: keys() her tablo emisyonunda satır başına çağrılır; aşağıdaki sabit koleksiyonlar
+    // eskiden çağrı başına yeniden tahsis ediliyordu (2000 satır × emisyon = binlerce
+    // gereksiz küme/liste tahsisi → GC baskısı).
+    private val identityCapableTypes: List<MediaType> = listOf(MediaType.Anime, MediaType.Manga)
+
     fun keys(entry: MediaEntry): Set<String> = buildSet {
         val prefix = entry.type.name
         val source = canonicalSource(entry.source)
@@ -24,7 +29,7 @@ object MediaIdentity {
             when {
                 source == "shikimori" && id in 1..99_999_999 -> add("$prefix:shikimori:$id")
                 source == "bangumi" && id in 1..99_999_999 -> add("$prefix:bangumi:$id")
-                id in 1..99_999_999 && isRealMalIdSource(source) && entry.type in listOf(MediaType.Anime, MediaType.Manga) ->
+                id in 1..99_999_999 && isRealMalIdSource(source) && entry.type in identityCapableTypes ->
                     add("$prefix:mal:$id")
                 id in 100_000_001..299_999_999 && source == "anilist" -> add("$prefix:anilist:${id - 100_000_000}")
                 id in 300_000_001..399_999_999 && source == "kitsu" -> add("$prefix:kitsu:${id - 300_000_000}")
@@ -96,8 +101,10 @@ object MediaIdentity {
         return entry.malId?.takeIf { it in 100_000_001..299_999_999 }?.minus(100_000_000)
     }
 
+    private val realMalIdSources: Set<String> = setOf("mal", "simkl", "anilist", "manual")
+
     private fun isRealMalIdSource(source: String): Boolean =
-        source in setOf("mal", "simkl", "anilist", "manual")
+        source in realMalIdSources
 
     fun normalizedTitle(title: String): String = Normalizer.normalize(title, Normalizer.Form.NFKC)
         .lowercase(Locale.ROOT).replace(nonIdentityCharacters, "")
