@@ -7,12 +7,27 @@ data class SubtitleStyleSettings(
     val size: Int = 16,
     val textColor: Int = 0xFFFFFFFF.toInt(),
     val bold: Boolean = false,
+    val italic: Boolean = false,
     val outlineEnabled: Boolean = true,
     val outlineColor: Int = 0xFF000000.toInt(),
     val verticalOffset: Int = 0,
     val preferredLanguage: String? = null,
     val secondaryPreferredLanguage: String? = null,
-    val showOnlyPreferredLanguages: Boolean = false
+    val showOnlyPreferredLanguages: Boolean = false,
+    // ── Aniyomi paritesi: Tipografi ──────────────────────────────────────────
+    val font: String = "Sans Serif",
+    val fontSize: Int = 55,
+    val borderSize: Int = 3,
+    val borderStyle: String = "outline-and-shadow",
+    val shadowOffset: Int = 0,
+    val justification: String = "center",
+    // ── Renkler ───────────────────────────────────────────────────────────────
+    val backgroundColor: Int = 0x00000000,
+    val borderColor: Int = 0xFF000000.toInt(),
+    // ── Diğer ────────────────────────────────────────────────────────────────
+    val fontScale: Float = 1f,
+    val pos: Int = 100,
+    val overrideAss: Boolean = false,
 )
 
 enum class PlayerExitReason {

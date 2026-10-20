@@ -1304,22 +1304,30 @@ class Media3PlayerEngine(
                 subtitleView.setApplyEmbeddedFontSizes(false)
                 
                 val edgeType = if (currentSubtitleStyle.outlineEnabled) {
-                    CaptionStyleCompat.EDGE_TYPE_OUTLINE
+                    when (currentSubtitleStyle.borderStyle) {
+                        "opaque-box" -> CaptionStyleCompat.EDGE_TYPE_OUTLINE
+                        "background-box" -> CaptionStyleCompat.EDGE_TYPE_DROP_SHADOW
+                        else -> CaptionStyleCompat.EDGE_TYPE_OUTLINE
+                    }
                 } else {
                     CaptionStyleCompat.EDGE_TYPE_NONE
                 }
-                val typeface = if (currentSubtitleStyle.bold) {
-                    android.graphics.Typeface.DEFAULT_BOLD
-                } else {
-                    android.graphics.Typeface.DEFAULT
+                // Bold + Italic kombinasyonu icin dogru Typeface
+                val typeface = when {
+                    currentSubtitleStyle.bold && currentSubtitleStyle.italic -> android.graphics.Typeface.create(android.graphics.Typeface.DEFAULT, android.graphics.Typeface.BOLD_ITALIC)
+                    currentSubtitleStyle.bold -> android.graphics.Typeface.DEFAULT_BOLD
+                    currentSubtitleStyle.italic -> android.graphics.Typeface.create(android.graphics.Typeface.DEFAULT, android.graphics.Typeface.ITALIC)
+                    else -> android.graphics.Typeface.DEFAULT
                 }
-                
+                // Arka plan ve kenar renkleri artik style'dan geliyor (Aniyomi paritesi)
+                val windowColor = currentSubtitleStyle.backgroundColor.takeIf { it != 0 } ?: android.graphics.Color.TRANSPARENT
+                // windowColor seffaf degilse arka plan kutusu olarak goster, yoksa seffaf
                 val captionStyle = CaptionStyleCompat(
                     currentSubtitleStyle.textColor,
-                    android.graphics.Color.TRANSPARENT,
+                    windowColor,
                     android.graphics.Color.TRANSPARENT,
                     edgeType,
-                    android.graphics.Color.BLACK,
+                    currentSubtitleStyle.borderColor.takeIf { it != 0 } ?: android.graphics.Color.BLACK,
                     typeface
                 )
                 subtitleView.setStyle(captionStyle)
