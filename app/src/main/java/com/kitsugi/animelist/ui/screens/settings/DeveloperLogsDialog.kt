@@ -463,18 +463,31 @@ fun DeveloperLogsDialog(
                         }
                         else -> {
                             val listState = rememberLazyListState()
-                            SelectionContainer {
-                                LazyColumn(
-                                    state = listState,
-                                    modifier = Modifier
-                                        .fillMaxSize()
-                                        .then(
-                                            // Satır kaydırma kapalıysa yatay kaydırma; açıksa satırlar ekrana sığar.
-                                            if (wrapLines) Modifier else Modifier.horizontalScroll(rememberScrollState())
-                                        ),
-                                    verticalArrangement = Arrangement.spacedBy(2.dp)
-                                ) {
-                                    items(filteredLines) { line ->
+                            // ── SEÇİM KAPSAMI HER SATIRIN İÇİNDE ────────────────────────────────
+                            // DİKKAT: `SelectionContainer { LazyColumn { ... } }` YAZILMAZ!
+                            // Lazy liste öğeleri ekran dışına kaydığında kompozisyondan düşer.
+                            // Compose'un SelectionManager'ı sürükleme sırasında hâlâ o öğenin
+                            // selectableId'sini arar ve şu ölümcül hatayı fırlatır:
+                            //   java.util.NoSuchElementException: Cannot find value for key N
+                            //   at MultiWidgetSelectionDelegateKt.getDirectionById
+                            //   at SelectionManager.getSelectionLayout
+                            // (Upstream: compose-multiplatform-core#3480, "SelectionContainer +
+                            //  lazy list anchor disposed" hatası — Compose 1.7.x'te hâlâ açık.)
+                            // Çözüm: seçim kapsamı her satırın KENDİ içine alınır. Böylece her
+                            // SelectionContainer tek bir Text barındırır; kaybolabilecek çoklu
+                            // selectable kaydı oluşmaz. Uzun basıp satır seçme/kopyalama çalışır.
+                            LazyColumn(
+                                state = listState,
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .then(
+                                        // Satır kaydırma kapalıysa yatay kaydırma; açıksa satırlar ekrana sığar.
+                                        if (wrapLines) Modifier else Modifier.horizontalScroll(rememberScrollState())
+                                    ),
+                                verticalArrangement = Arrangement.spacedBy(2.dp)
+                            ) {
+                                items(filteredLines) { line ->
+                                    SelectionContainer {
                                         Text(
                                             text = line,
                                             color = logLevelColor(line),

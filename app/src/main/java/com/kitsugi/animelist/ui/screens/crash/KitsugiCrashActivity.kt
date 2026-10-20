@@ -368,7 +368,12 @@ class KitsugiCrashActivity : ComponentActivity() {
                                             addFileIfExists(infoFile)
 
                                             // 2. Son çökme raporu
-                                            addFileIfExists(KitsugiCrashLogger.getCrashLogFile(context))
+                                            // ensureCrashLogFile: en YENİ kanıtı (Java çökmesi /
+                                            // sessiz kapanma / native iz / başlatma aşaması)
+                                            // seçip paylaşılabilir tek dosya üretir. Eskiden
+                                            // getCrashLogFile kullanılıyordu ve günler önceki
+                                            // rapor gönderilebiliyordu.
+                                            addFileIfExists(KitsugiCrashLogger.ensureCrashLogFile(context))
 
                                             // 3. Çökme geçmişi
                                             addFileIfExists(KitsugiCrashLogger.getCrashHistoryFile(context))

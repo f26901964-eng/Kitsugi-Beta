@@ -59,6 +59,9 @@ class KitsugiApplication : Application(), SingletonImageLoader.Factory {
         // Çökme yakalayıcı burada kurulur; çünkü ContentProvider'lar (Hilt, WorkManager,
         // tachiyomi/cloudstream init) Application.onCreate'ten ÖNCE çalışır ve orada oluşan
         // çökmeler daha önce hiçbir rapora girmiyordu.
+        // Açılış aşaması izi ilk satırda yazılır: süreç buradan sonra ölürse rapor
+        // "attachBaseContext" aşamasında olduğunu söyler.
+        try { com.kitsugi.animelist.core.diagnostics.StartupStage.mark(base, "attachBaseContext") } catch (_: Throwable) {}
         try { com.kitsugi.animelist.core.diagnostics.KitsugiCrashHandler.install(base) } catch (_: Throwable) {}
         try { com.kitsugi.animelist.core.diagnostics.KitsugiSessionSupervisor.install(base) } catch (_: Throwable) {}
         // Dil dosyası metinlerinin Composable olmayan bağlamlardan (ViewModel,
@@ -112,26 +115,45 @@ class KitsugiApplication : Application(), SingletonImageLoader.Factory {
         instance = this
         super.onCreate()
 
+        // ── Açılış aşaması izi ────────────────────────────────────────────────────────
+        // Aşağıdaki her adım diske "buradayım" yazar. Uygulama ana ekranı açamadan
+        // ölürse (native/SIGSEGV, class-load, sistem kill) Java handler devreye giremez;
+        // o zaman bu dosya tek kanıttır. MainActivity ilk kareyi çizince silinir.
+        com.kitsugi.animelist.core.diagnostics.StartupStage.mark(this, "Application.onCreate")
+
         // Only the main process may register vault listeners and persistent WorkManager jobs.
+        com.kitsugi.animelist.core.diagnostics.StartupStage.mark(this, "LinkedAccountVault.startAutoBackup")
         runCatching { com.kitsugi.animelist.data.account.LinkedAccountVault.startAutoBackup(this) }
+        com.kitsugi.animelist.core.diagnostics.StartupStage.mark(this, "KitsugiAccountRepository.startSettingsObserver")
         runCatching { com.kitsugi.animelist.data.account.KitsugiAccountRepository.startSettingsObserver(this) }
 
         // ── Bellek koruması ───────────────────────────────────────────────────────────
         // Gezindikçe şişen bellek önbellekleri, heap tavanına yaklaşınca sistem uyarısını
         // beklemeden 15 sn'de bir kontrol edilip küçültülür (bkz. KitsugiMemoryGuard).
-        startMemoryWatchdog()
+        com.kitsugi.animelist.core.diagnostics.StartupStage.mark(this, "startMemoryWatchdog")
+        runCatching { startMemoryWatchdog() }
 
-        // Initialize AnimeDownloadManager
-        com.kitsugi.animelist.data.local.AnimeDownloadManager.init(this)
+        // ── Alt sistem init'leri: HER BİRİ İZOLE ──────────────────────────────────────
+        // KURAL: Bu çağrılardan biri patlarsa uygulama AÇILMAMAZLIK ETMEZ; hata loglanır,
+        // ilgili alt sistem devre dışı kalır, kullanıcı ana ekranı görür. Eskiden burada
+        // try/catch yoktu: örneğin bozuk bir indirme kaydı/DB açılışı `Application.onCreate`
+        // içinde istisna atınca süreç ana ekran çizilmeden ölüyor ve kullanıcı yalnızca
+        // (varsa) ESKİ çökme raporunu görebiliyordu.
+        com.kitsugi.animelist.core.diagnostics.StartupStage.mark(this, "AnimeDownloadManager.init")
+        runCatching { com.kitsugi.animelist.data.local.AnimeDownloadManager.init(this) }
+            .onFailure { android.util.Log.e("KitsugiApplication", "AnimeDownloadManager.init hatası: ${it.message}", it) }
 
-        // Initialize WatchHistoryManager
-        com.kitsugi.animelist.data.local.WatchHistoryManager.init(this)
+        com.kitsugi.animelist.core.diagnostics.StartupStage.mark(this, "WatchHistoryManager.init")
+        runCatching { com.kitsugi.animelist.data.local.WatchHistoryManager.init(this) }
+            .onFailure { android.util.Log.e("KitsugiApplication", "WatchHistoryManager.init hatası: ${it.message}", it) }
 
-        // Initialize custom FileLoggingTree
-        com.kitsugi.animelist.core.diagnostics.FileLoggingTree.init(this)
+        com.kitsugi.animelist.core.diagnostics.StartupStage.mark(this, "FileLoggingTree.init")
+        runCatching { com.kitsugi.animelist.core.diagnostics.FileLoggingTree.init(this) }
+            .onFailure { android.util.Log.e("KitsugiApplication", "FileLoggingTree.init hatası: ${it.message}", it) }
 
         // CS eklenti canlı izleyicisi (kalıcı trace + paylaşılabilir rapor)
-        try { com.kitsugi.animelist.data.cloudstream.diag.CsTrace.init(this) } catch (_: Throwable) {}
+        com.kitsugi.animelist.core.diagnostics.StartupStage.mark(this, "CsTrace.init")
+        runCatching { com.kitsugi.animelist.data.cloudstream.diag.CsTrace.init(this) }
 
         // KitsugiCrashLogger'a başlatma zamanını bildir
         com.kitsugi.animelist.core.diagnostics.KitsugiCrashLogger.KitsugiApplication_LaunchTime = APP_LAUNCH_TIME
@@ -139,7 +161,8 @@ class KitsugiApplication : Application(), SingletonImageLoader.Factory {
         // ── Çökme yakalayıcı ─────────────────────────────────────────────────────────
         // attachBaseContext() içinde ZATEN kuruldu (provider/erken init çökmelerini de
         // yakalayabilmek için). Burada yalnızca garantiye alıyoruz.
-        com.kitsugi.animelist.core.diagnostics.KitsugiCrashHandler.install(this)
+        com.kitsugi.animelist.core.diagnostics.StartupStage.mark(this, "KitsugiCrashHandler.install(re)")
+        runCatching { com.kitsugi.animelist.core.diagnostics.KitsugiCrashHandler.install(this) }
 
         // Ana Looper'ın içine ikinci bir Looper.loop() KESİNLİKLE kurma.
         // Önceki "Cockroach" yaklaşımı ActivityThread'in gerçek mesaj döngüsünü kalıcı
@@ -155,21 +178,33 @@ class KitsugiApplication : Application(), SingletonImageLoader.Factory {
         // logcat Android Studio/adb üzerinden, yalnız ilgili tag'lerle toplanmalıdır.
 
         // Initialize ratings repository room cache context
-        KitsugiEpisodeRatingsRepository.init(this)
+        com.kitsugi.animelist.core.diagnostics.StartupStage.mark(this, "KitsugiEpisodeRatingsRepository.init")
+        runCatching { KitsugiEpisodeRatingsRepository.init(this) }
+            .onFailure { android.util.Log.e("KitsugiApplication", "RatingsRepository.init hatası: ${it.message}", it) }
 
         // Bangumi Latin başlık önbelleğini arka planda belleğe al (disk okuması IO kapsamında).
         // "Listem", Bangumi profili ve listeler ilk çizimde kullanıcının seçtiği başlık diline
         // uyabilsin diye önbellek hazır tutulur; hiçbir ağ isteği yapılmaz.
+        com.kitsugi.animelist.core.diagnostics.StartupStage.mark(this, "BangumiTitleCache.warmUp")
         runCatching { com.kitsugi.animelist.data.remote.BangumiTitleCache.warmUp() }
 
         // Initialize P2P Torrent Engine & Settings
-        com.kitsugi.animelist.core.p2p.P2pSettingsRepository.initialize(this)
-        com.kitsugi.animelist.core.p2p.P2pStreamingEngine.initialize(this)
+        com.kitsugi.animelist.core.diagnostics.StartupStage.mark(this, "P2pSettingsRepository.initialize")
+        runCatching { com.kitsugi.animelist.core.p2p.P2pSettingsRepository.initialize(this) }
+            .onFailure { android.util.Log.e("KitsugiApplication", "P2pSettingsRepository hatası: ${it.message}", it) }
+        com.kitsugi.animelist.core.diagnostics.StartupStage.mark(this, "P2pStreamingEngine.initialize")
+        runCatching { com.kitsugi.animelist.core.p2p.P2pStreamingEngine.initialize(this) }
+            .onFailure { android.util.Log.e("KitsugiApplication", "P2pStreamingEngine hatası: ${it.message}", it) }
 
         // T4-11: Initialize DNS Over HTTPS resolver without blocking main thread.
         // DnsManager starts with default=0 immediately; the real persisted value is applied
         // asynchronously once the DataStore flow emits its first value.
-        com.kitsugi.animelist.core.network.DnsManager.init(this, 0)
+        com.kitsugi.animelist.core.diagnostics.StartupStage.mark(this, "DnsManager.init")
+        runCatching { com.kitsugi.animelist.core.network.DnsManager.init(this, 0) }
+            .onFailure { android.util.Log.e("KitsugiApplication", "DnsManager.init hatası: ${it.message}", it) }
+
+        // Buraya geldiysek tüm kritik init'ler denendi; UI hâlâ çizilmedi.
+        com.kitsugi.animelist.core.diagnostics.StartupStage.mark(this, "Application.onCreate tamamlandı (UI bekleniyor)")
         applicationScope.launch {
             try {
                 val dataStore = com.kitsugi.animelist.data.settings.SettingsDataStore(this@KitsugiApplication)
