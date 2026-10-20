@@ -2,7 +2,53 @@
 
 > **Bu dosya devir teslim dosyasıdır.** Yeni bir dal/şube işi buradan devralır.
 > Son güncelleme: **2026-07-08** · Chunk **001** tamamlandı, uygulamaya işlendi.
+> PR: https://github.com/f26901964-eng/Kitsugi-Beta/pull/15 (merge edildiyse `main`'de)
 > Drive klasörü: https://drive.google.com/drive/folders/1pZAOYsAnMjveNK6grdXjqV9IDM1TFaJp
+
+---
+
+## 0. YENİ DAL / YENİ ORTAM KURULUMU — ÖNCE BURAYI OKU
+
+Yeni bir dalda işe başlayan ajan SIFIRDAN araştırma yapmaz; şu sırayı izler:
+
+### a) Dal kurulumu (KRİTİK)
+- Chunk 001 işi commit `5c13f8e` dal `arena/a3fae7fe-kitsugi-beta` üzerinde ve **PR #15**'te.
+- **Yeni dalı `main`'den açmadan ÖNCE PR #15'i merge edin** (veya yeni dalı
+  `arena/a3fae7fe-kitsugi-beta`'dan türetin). Aksi hâlde chunk 001 (strings +
+  sözlükler + kararlar) yeni dala GİRMEZ ve iş tekrarlanır.
+
+### b) Veri restorasyonu (yalnız çalışma alanı boşsa)
+Vault JSON'ları bilerek git'e girmez (`.gitignore`). Dosyalar çalışma alanında
+varsа (`diag/bangumi_vault/*.json`) bu adımı ATLA. Yoksa Drive'dan indir:
+
+| Drive dosyası | Hedef |
+|---|---|
+| tags.json, studios.json, producers.json, publishers.json, magazines.json, networks.json, committees.json, vault.json, manifest.json, genres.json | `diag/bangumi_vault/` |
+| translations_pending.tsv, translations_done.tsv, progress.json | `diag/bangumi_vault/` |
+| canon.tsv, map_chunk_001_tags.tsv, map_chunk_001_orgs.tsv, org_global_names.tsv | `diag/bangumi_vault/decisions/` |
+| PROGRESS.md | `diag/bangumi_vault/` |
+
+Drive'daki JSON'lar karar alanlarıyla (`decision/canon/string_key/chunk`) **damgalıdır**.
+Elinizde damgasız (orijinal) kopya varsa tek komutla damgalanır:
+
+```bash
+python3 diag/bangumi_vault/scripts/apply_map.py    # map_chunk_*.tsv + canon.tsv → JSON'lara kararları işler (idempotent)
+```
+
+### c) Sağlık kontrolü (her oturum başında 1 komut)
+```bash
+python3 diag/bangumi_vault/scripts/verify_vault.py   # ✅ TÜM KONTROLLER GEÇTİ beklenir
+```
+Sonuç temizse kaldığı yerden devam et: **Bölüm 5'teki ilk ☐ kutucuğu** sıradaki iştir.
+Kimse aynı kaynakları yeniden taramaz — tüm bağlam bu dosyadadır.
+
+### d) Biten her chunk'ta (yeni dal bunu okuyarak devralır)
+1. `apply_map.py --check` + `apply_map.py` → `vault_to_strings.py` → `verify_vault.py`
+2. Bu dosyada Bölüm 2 tablosunu güncelle, Bölüm 5'te ☐ → ☑ işaretle
+3. Drive'a şunları yükle (aynı adla geçerse `delete_file` + `upload_file`):
+   PROGRESS.md, progress.json, translations_pending.tsv, translations_done.tsv,
+   decisions/canon.tsv, decisions/map_chunk_*.tsv, decisions/org_global_names.tsv
+4. `git add` + commit (yalnız script/karar/PROGRESS + uygulama dosyaları)
 
 ---
 
@@ -84,18 +130,23 @@ python3 scripts/verify_vault.py
 işler, `translations_done.tsv` yazar, `translations_pending.tsv`'i düşer,
 `progress.json` günceller. `vault_to_strings.py` idempotenttir.
 
-## 5. Sıradaki chunk'lar (önerilen plan)
+## 5. Sıradaki chunk'lar (tikli liste — ☐ = yapılacak, ☑ = bitti)
 
-| Chunk | Kapsam | Tahmini kayıt |
-|-------|--------|---------------|
-| 002 | tag count 200–499 | ~230 |
-| 003 | tag count 100–199 | ~330 |
-| 004 | org count 20–99 (tüm roller) | ~1.200 |
-| 005+ | tag count 20–99, sonra kuyruk; org 1–19; committees/üretici kişileri | binlerce |
+- [x] **Chunk 001** — etiket count≥500 (174) + kurum count≥100 (700) → uygulamaya işlendi ✅
+- [ ] **Chunk 002 — SIRADAKİ İŞ.** Etiketler count 200–499 (~230 kayıt).
+  Nasıl: `python3 scripts/worklist.py --dump tag 300` → ilk 230 kararsız etiket
+  (count≤499) elle karar → `canon.tsv` + `map_chunk_002_tags.tsv` → pipeline (Bölüm 0d).
+- [ ] **Chunk 003** — etiketler count 100–199 (~330 kayıt), aynı yöntem.
+- [ ] **Chunk 004** — kurumlar count 20–99 (tüm roller, ~1.200 kayıt).
+  `python3 scripts/draft_org_map.py --chunk 004 --min-count 20` taslak üretir;
+  `org_global_names.tsv` yeni tanınan adlarla zenginleştirilip gözden geçirilir.
+- [ ] **Chunk 005+** — etiket count 20–99, sonra kuyruk; kurum 1–19;
+  committees (1.229) + üretici kişileri (`as_is`/bilinen romanizasyonlar).
+- [ ] **Final** — kalan `translations_pending.tsv` tükendi mi? `verify_vault.py` ✅?
+  PROGRESS.md + Drive + PR güncelle.
 
-Her chunk aynı pipeline'ı izler; `draft_org_map.py` bilgi tabanı
-(`decisions/org_global_names.tsv`) yeni tanınan adlarla **zenginleştirilerek** sürdürülür.
-Bilinmeyen kişi/kurumlar `as_is` kalır (kural: romanizasyon uydurulmaz).
+Her chunk aynı pipeline'ı izler (Bölüm 0d). Bilinmeyen kişi/kurumlar `as_is` kalır
+(kural: romanizasyon uydurulmaz).
 
 ## 6. Bilinçli kararlar / notlar
 
