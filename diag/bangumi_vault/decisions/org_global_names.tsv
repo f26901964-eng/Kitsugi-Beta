@@ -1,0 +1,396 @@
+# Bangumi VAULT — kurum/kişi global ad bilgi tabanı (chunk 001)
+# Biçim: ham_ad <TAB> latin_ad <TAB> canon_id <TAB> not
+#   canon_id boşsa slug(latin_ad) kullanılır; doluysa MEVCUT string anahtarına birleşimdir.
+#   latin_ad = küresel/resmî ad (global karşılık). Bilinmeyen kişiler/kurumlar BURAYA GİRMEZ
+#   (uydurma romanizasyon yok — onlar as_is kalır).
+# ── STÜDYOLAR / OYUN ŞİRKETLERİ ───────────────────────────────────────────────
+MADHOUSE	Madhouse	madhouse	(→ mevcut bangumi_studio_madhouse)
+CAPCOM	Capcom	capcom
+科乐美	Konami	konami	(Çince adı)
+KONAMI	Konami	konami
+SEGA	SEGA	sega
+世嘉	SEGA	sega	(Çince adı)
+アパタイト	Apatite	apatite
+オトメイト	Otomate	otomate
+ティーレックス	T-Rex	t_rex
+スクウェア	Square	square
+アイディアファクトリー	Idea Factory	idea_factory
+トムス	TMS Entertainment	tms	(→ mevcut bangumi_studio_tms)
+ALICESOFT	ALICESOFT	alicesoft
+日本一ソフトウェア	Nippon Ichi Software	nippon_ichi_software
+卡普空	Capcom	capcom	(Çince adı)
+アトリエさくら	Atelier Sakura	atelier_sakura
+Norn	Norn	norn
+Waffle	Waffle	waffle
+エニックス	Enix	enix
+ハドソン	Hudson Soft	hudson_soft
+香港電視廣播有限公司	TVB	tvb
+ディーゼルマイン	Dieselmine	dieselmine
+アトリエかぐや	Atelier Kaguya	atelier_kaguya
+日本ファルコム	Nihon Falcom	nihon_falcom
+アトラス	Atlus	atlus
+戯画	Giga	giga
+BLACK LiLiTH	BLACK Lilith	black_lilith
+任天堂情報開発本部	Nintendo EAD	nintendo_ead
+バンダイナムコエンターテインメント	Bandai Namco Entertainment	bandai_namco_entertainment
+万代南梦宫娱乐	Bandai Namco Entertainment	bandai_namco_entertainment	(Çince adı)
+PoRO	PoRO	poro
+Walt Disney Animation Studios	Walt Disney Animation	disney	(→ mevcut bangumi_studio_disney)
+CLOCKUP	CLOCKUP	clockup
+STUDIO 4℃	Studio 4°C	studio_4c
+亜細亜堂	Ajia-do	ajia_do
+エルフ	elf	elf
+任天堂	Nintendo	nintendo
+SNK	SNK	snk
+ガスト	Gust	gust
+ILLUSION	Illusion	illusion
+パンプキン	Pumpkin	pumpkin
+Front Wing	Front Wing	front_wing
+KID	KID	kid
+diomedéa	Diomedéa	diomedea	(→ mevcut bangumi_studio_diomedea)
+5pb.	5pb.	5pb
+ω-force	ω-Force	omega_force
+softhouse-seal	Softhouse-Seal	softhouse_seal
+Design Factory	Design Factory	design_factory
+SEEC inc.	SEEC	seec
+Disney Television Animation	Disney Television Animation	disney_television_animation
+Tinker Bell	Tinker Bell	tinker_bell
+Guilty	Guilty	guilty
+Warner Bros. Animation	Warner Bros. Animation	warner_bros_animation
+Ubisoft Entertainment	Ubisoft Entertainment	ubisoft_entertainment
+Electronic Arts	Electronic Arts	electronic_arts
+HPS Simulations	HPS Simulations	hps_simulations
+Liar-soft	Liar-soft	liar_soft
+Miel	Miel	miel
+U･Me SOFT	U-Me SOFT	u_me_soft
+Mju:z	Mju:z	mju_z
+# ── YAPIMCILAR (şirket) ───────────────────────────────────────────────────────
+上海美术电影制片厂	Shanghai Animation Film Studio	shanghai_animation_film_studio
+東映	Toei Animation	toei_animation	(→ mevcut studio anahtarıyla aynı marka; rol bazlı kanon)
+東映アニメーション	Toei Animation	toei_animation
+サンライズ	Sunrise	sunrise	(→ mevcut bangumi_studio_sunrise)
+AT-X	AT-X	at_x
+ピンクパイナップル	Pink Pineapple	pink_pineapple
+フジテレビ	Fuji TV	fuji_tv	(→ mevcut bangumi_network_fuji_tv)
+テレビ朝日	TV Asahi	tv_asahi	(→ mevcut bangumi_network_tv_asahi)
+博報堂DYミュージック&ピクチャーズ	Hakuhodo DY Music & Pictures	hakuhodo_dy_music_pictures
+Walt Disney Pictures	Walt Disney Pictures	walt_disney_pictures
+バンダイ	Bandai	bandai
+HBO	HBO	hbo
+バニラ	Vanilla	vanilla
+企鹅影视	Tencent Penguin Pictures	tencent_penguin_pictures
+日本BS放送	NHK BS	nhk_bs	(→ mevcut bangumi_network_nhk? kontrol — yoksa yeni)
+TOKYO MX	TOKYO MX	tokyo_mx
+Crunchyroll	Crunchyroll	crunchyroll
+ワーナー ブラザース ジャパン	Warner Bros. Japan	warner_bros_japan
+円谷プロダクション	Tsuburaya Productions	tsuburaya_productions
+AIC	AIC	aic	(→ mevcut bangumi_studio_aic)
+寿門堂	Jumondou	jumondou
+REDALiCE	REDALiCE	redalice
+Milky	Milky	milky
+C2C	C2C	c2c
+角川メディアハウス	Kadokawa Media House	kadokawa_media_house
+腾讯动漫	Tencent Animation & Comics	tencent_animation_comics
+ソニー	Sony	sony
+博報堂DYメディアパートナーズ	Hakuhodo DY Media Partners	hakuhodo_dy_media_partners
+J.C.STAFF	J.C.Staff	jc_staff	(→ mevcut bangumi_studio_jc_staff)
+BLADE	BLADE	blade
+A.P.P.P.	A.P.P.P.	a_p_p_p
+survive MORE	survive MORE	survive_more
+@OZ	@OZ	oz
+阅文集团	China Literature	china_literature
+PoRO	PoRO	poro
+HBO电视网	HBO	hbo	(aynı kurum)
+XEBEC	XEBEC	xebec
+DR MOVIE	DR MOVIE	dr_movie
+BONES	BONES	bones	(→ mevcut bangumi_studio_bones)
+NAS	NAS	nas
+Hommarju	Hommarju	hommarju
+Media Bank	Media Bank	media_bank
+Warner Bros. Entertainment	Warner Bros. Entertainment	warner_bros_entertainment
+MADHOUSE	Madhouse	madhouse	(prodüktör kopyası)
+マジックバス	Magic Bus	magic_bus
+ぴえろ	Studio Pierrot	pierrot	(→ mevcut bangumi_studio_pierrot)
+SHAFT	SHAFT	shaft_studio	(→ mevcut bangumi_studio_shaft)
+読売広告社	Yomiko Advertising	yomiko_advertising
+バップ	VAP	vap
+メディアワークス	MediaWorks	mediaworks
+SILVER LINK.	Silver Link	silver_link	(→ mevcut bangumi_studio_silver_link)
+動画工房	Doga Kobo	doga_kobo	(→ mevcut bangumi_studio_doga_kobo)
+# ── YAPIMCILAR (kişi — yalnızca yerleşik Latin adı bilinenler) ────────────────
+丸山正雄	Masao Maruyama	masao_maruyama
+岩上敦宏	Atsuhiro Iwagami	atsuhiro_iwagami
+勝股英夫	Hideo Katsumata	hideo_katsumata
+南雅彦	Masahiko Minami	masahiko_minami
+諏訪道彦	Michihiko Suwa	michihiko_suwa
+大月俊倫	Toshimitsu Otsuki	toshimitsu_otsuki
+石川光久	Mitsuhisa Ishikawa	mitsuhisa_ishikawa
+志倉千代丸	Chiyomaru Shikura	chiyomaru_shikura
+近藤光	Hikaru Kondo	hikaru_kondo
+和田丈嗣	Takeshi Wada	takeshi_wada
+木谷高明	Takaaki Kimitani	takaaki_kimitani
+大塚学	Manabu Otsuka	manabu_otsuka
+大田圭二	Keiji Ota	keiji_ota
+山本幸治	Koji Yamamoto	koji_yamamoto
+山上仁志	Hitoshi Yamagami	hitoshi_yamagami
+松倉友二	Yuji Matsukura	yuji_matsukura
+川村明廣	Hirokazu Kawamura	hirokazu_kawamura
+真木太郎	Taro Maki	taro_maki
+大澤信博	Nobuhiro Osawa	nobuhiro_osawa
+李旎	Ni Li	ni_li
+安田猛	Takeshi Yasuda	takeshi_yasuda
+久保田光俊	Mitsutoshi Kubota	mitsutoshi_kubota
+森山敦	Atsunori Moriyama	atsunori_moriyama
+夏目公一朗	Koichiro Natsume	koichiro_natsume
+中山信宏	Nobuhiro Nakayama	nobuhiro_nakayama
+斎藤滋	Shigeru Saito	shigeru_saito
+菊池剛	Tsuyoshi Kikuchi	tsuyoshi_kikuchi
+山崎明日香	Asuka Yamazaki	asuka_yamazaki
+櫻井優香	Yuka Sakurai	yuka_sakurai
+丸山博雄	Hiroo Maruyama	hiroo_maruyama
+# ── YAYIN AĞLARI ──────────────────────────────────────────────────────────────
+NBC	NBC	nbc
+CBS	CBS	cbs
+FOX	FOX	fox
+とちぎテレビ	Tochigi TV	tochigi_tv
+群馬テレビ	Gunma TV	gunma_tv
+NHK BSプレミアム	NHK BS Premium	nhk_bs_premium
+テレビ北海道	TV Hokkaido	tv_hokkaido
+水曜ミステリー９	Wednesday Mystery 9	wednesday_mystery_9
+テレビ東京系	TV Tokyo	tv_tokyo	(→ mevcut bangumi_network_tv_tokyo)
+テレビせとうち	TV Setouchi	tv_setouchi
+フジテレビ系	Fuji TV	fuji_tv	(→ mevcut bangumi_network_fuji_tv)
+# ── YAYINCILAR ────────────────────────────────────────────────────────────────
+ランティス	Lantis	lantis
+東立出版社	Tongli	tongli
+东立出版社	Tongli	tongli	(Çince sadeleşmiş)
+東立	Tongli	tongli
+アスキー	ASCII	ascii
+ASCII媒体工作室	ASCII Media Works	ascii_media_works	(Çince yerelleştirme)
+アスキーメディアワークス	ASCII Media Works	ascii_media_works
+讲谈社	Kodansha	kodansha	(→ mevcut bangumi_publisher_kodansha)
+富士見書房	Fujimi Shobo	fujimi_shobo
+富士见书房	Fujimi Shobo	fujimi_shobo	(Çince)
+キングレコード	King Records	king_records
+ポニーキャニオン	Pony Canyon	pony_canyon
+波丽佳音	Pony Canyon	pony_canyon	(Çince adı)
+小学馆	Shogakukan	shogakukan	(→ mevcut bangumi_publisher_shogakukan)
+ビクターエンタテインメント	Victor Entertainment	victor_entertainment
+アルファポリス	AlphaPolis	alphapolis
+フロンティアワークス	Frontier Works	frontier_works
+日本コロムビア	Nippon Columbia	nippon_columbia
+日本哥伦比亚	Nippon Columbia	nippon_columbia	(Çince adı)
+コアマガジン	Core Magazine	core_magazine
+新書館	Shinshokan	shinshokan
+新书馆	Shinshokan	shinshokan	(Çince)
+ワニマガジン社	Wani Magazine	wani_magazine
+Aniplex	Aniplex	aniplex
+安尼普	Aniplex	aniplex	(Çince adı)
+アニプレックス	Aniplex	aniplex
+青文出版社	Chingwin Publishing	chingwin_publishing
+ホビージャパン	Hobby Japan	hobby_japan
+茜新社	Akane Shinsha	akane_shinsha
+台灣角川	Kadokawa Taiwan	kadokawa_taiwan
+台湾角川	Kadokawa Taiwan	kadokawa_taiwan
+角川書店(角川グループパブリッシング)	Kadokawa Shoten	kadokawa_shoten
+角川书店	Kadokawa Shoten	kadokawa_shoten	(Çince)
+角川グループパブリッシング	Kadokawa Group Publishing	kadokawa_group_publishing
+角川スニーカー文庫	Kadokawa Sneaker Bunko	kadokawa_sneaker_bunko
+富士見ファンタジア文庫	Fujimi Fantasia Bunko	fujimi_fantasia_bunko
+電撃文庫	Dengeki Bunko	dengeki_bunko
+MF文庫J	MF Bunko J	mf_bunko_j
+祥伝社	Shodensha	shodensha
+Rejet	Rejet	rejet
+Rejet株式会社	Rejet	rejet
+海王社	Kaiosha	kaiosha
+尖端出版	Sharp Point Press	sharp_point_press
+尖端	Sharp Point Press	sharp_point_press
+台湾尖端	Sharp Point Press	sharp_point_press
+幻冬舎コミックス	Gentosha Comics	gentosha_comics
+オーバーラップ	Overlap	overlap
+SBクリエイティブ	SB Creative	sb_creative
+長鴻出版社	Ever Glory Publishing	ever_glory_publishing
+长鸿出版社	Ever Glory Publishing	ever_glory_publishing	(Çince)
+キルタイムコミュニケーション	Kill Time Communication	kill_time_communication
+フライングドッグ	Flying DOG	flying_dog
+flying DOG	Flying DOG	flying_dog
+MEDIA FACTORY	Media Factory	media_factory
+ティームエンタテインメント	Team Entertainment	team_entertainment
+エイベックス	Avex	avex
+NBCユニバーサル	NBCUniversal	nbcuniversal
+NBCユニバーサル・エンターテイメント	NBCUniversal Entertainment Japan	nbcuniversal_entertainment_japan
+NBC环球娱乐 日本	NBCUniversal Entertainment Japan	nbcuniversal_entertainment_japan	(Çince)
+ジーオーティー	GOT	got
+avex pictures	Avex Pictures	avex_pictures
+avex trax	Avex Trax	avex_trax
+SME Records	SME Records	sme_records
+史克威尔·艾尼克斯	Square Enix	square_enix	(→ mevcut bangumi_publisher_square_enix)
+ムービック	Movic	movic
+ユニバーサルミュージック	Universal Music Japan	universal_music_japan
+avex trax	Avex Trax	avex_trax
+ぶんか社	Bunkasha	bunkasha
+エンジェル出版	Angel Publishing	angel_publishing
+エグジットチューンズ	EXIT TUNES	exit_tunes
+EXIT TUNES	EXIT TUNES	exit_tunes
+秋田书店	Akita Shoten	akita_shoten
+5pb.	5pb.	5pb
+実業之日本社	Jitsugyo no Nihon Sha	jitsugyo_no_nihon_sha
+ハーパーコリンズ	HarperCollins	harpercollins
+SEGA	SEGA	sega
+SBクリエイティブ	SB Creative	sb_creative
+ソフトバンククリエイティブ	SoftBank Creative	softbank_creative
+软银创造公司	SoftBank Creative	softbank_creative	(Çince)
+バンダイナムコエンターテインメント	Bandai Namco Entertainment	bandai_namco_entertainment
+バップ	VAP	vap
+双叶社	Futabasha	futabasha
+CAPCOM	Capcom	capcom
+enterbrain	Enterbrain	enterbrain
+KONAMI	Konami	konami
+STAR CHILD	Star Child	star_child
+エピックレコードジャパン	Epic Records Japan	epic_records_japan
+Sony Music Records	Sony Music Records	sony_music_records
+索尼音乐唱片	Sony Music Records	sony_music_records	(Çince)
+ミュージックレイン	Music Rain	music_rain
+Sony Interactive Entertainment	Sony Interactive Entertainment	sony_interactive_entertainment
+索尼互动娱乐	Sony Interactive Entertainment	sony_interactive_entertainment	(Çince)
+玉皇朝	Jade Dynasty	jade_dynasty
+ジェネオン	Geneon	geneon
+ジェネオンエンタテインメント	Geneon	geneon
+宝島社	Takarajimasha	takarajimasha
+パラダイム	Paradigm	paradigm
+ワニブックス	Wani Books	wani_books
+Electronic Arts	Electronic Arts	electronic_arts
+ビブロス	Biblos	biblos
+主婦の友社	Shufu no Tomo Sha	shufu_no_tomo_sha
+竹书房	Takeshobo	takeshobo
+台灣東販	Tohan Taiwan	tohan_taiwan
+台湾东贩出版社	Tohan Taiwan	tohan_taiwan	(Çince)
+早川書房	Hayakawa Shobo	hayakawa_shobo
+Sony Music Associated Records	Sony Music Associated Records	sony_music_associated_records
+コーエー	Koei	koei
+コーエーテクモホールディングス	Koei Tecmo Holdings	koei_tecmo_holdings
+TOブックス	TO Books	to_books
+Frontier Works	Frontier Works	frontier_works
+徳間ジャパンコミュニケーションズ	Tokuma Japan Communications	tokuma_japan_communications
+徳間書店	Tokuma Shoten	tokuma_shoten
+德间书店	Tokuma Shoten	tokuma_shoten	(Çince)
+コロムビアミュージックエンタテインメント	Columbia Music Entertainment	columbia_music_entertainment
+フランス書院	France Shoin	france_shoin
+TOHO animation RECORDS	TOHO animation RECORDS	toho_animation_records
+太田出版	Ohta Publishing	ohta_publishing
+朝日新聞出版	Asahi Shimbun Publications	asahi_shimbun_publications
+TOY'S FACTORY	Toy's Factory	toy_s_factory
+湖南美术出版社	Hunan Fine Arts Publishing House	hunan_fine_arts_publishing_house
+ほるぷ出版	Holp Shuppan	holp_shuppan
+SACRA MUSIC	SACRA MUSIC	sacra_music
+インターチャネル	Interchannel	interchannel
+Key Sounds Label	Key Sounds Label	key_sounds_label
+ブシロードミュージック	Bushiroad Music	bushiroad_music
+少年画报社	Shonen Gahosha	shonen_gahosha
+EMI Music Japan	EMI Music Japan	emi_music_japan
+日本ファルコム	Nihon Falcom	nihon_falcom
+서울문화사	Seoul Munhwasa	seoul_munhwasa
+小学館クリエイティブ	Shogakukan Creative	shogakukan_creative
+ジャイブ	Jive	jive
+マイクロマガジン社	Micro Magazine	micro_magazine
+コナミデジタルエンタテインメント	Konami Digital Entertainment	konami_digital_entertainment
+マーベラス	Marvelous	marvelous
+主婦と生活社	Shufu to Seikatsu Sha	shufu_to_seikatsu_sha
+Xbox Game Studios	Xbox Game Studios	xbox_game_studios
+キューンミュージック	Ki/oon Music	kioon_music
+アリオラジャパン	Ariola Japan	ariola_japan
+ワーナー ブラザース ジャパン	Warner Bros. Japan	warner_bros_japan
+幽闭サテライト	Yuuhei Satellite	yuuhei_satellite
+腾讯游戏	Tencent Games	tencent_games
+デフスターレコーズ	Defstar Records	defstar_records
+東宝	Toho	toho
+PHP研究所	PHP Institute	php_institute
+GIZA studio	GIZA studio	giza_studio
+Alstroemeria Records	Alstroemeria Records	alstroemeria_records
+文藝春秋	Bungeishunju	bungeishunju
+rhythm zone	rhythm zone	rhythm_zone
+I've	I've	i_ve
+ハピネット	Happinet	happinet
+Activision	Activision	activision
+Atari	Atari	atari
+Ubisoft Entertainment	Ubisoft Entertainment	ubisoft_entertainment
+Sekai Project	Sekai Project	sekai_project
+Diverse System	Diverse System	diverse_system
+ディースリー	D3 Publisher	d3_publisher
+二見書房	Futami Shobo	futami_shobo
+一二三書房	Hifumi Shobo	hifumi_shobo
+中央公論新社	Chuokoron Shinsha	chuokoron_shinsha
+A-Sketch	A-Sketch	a_sketch
+honeybee	honeybee	honeybee
+DIVEII Entertainment	DIVEII Entertainment	diveii_entertainment
+TAMUSIC	TAMUSIC	tamusic
+KRE	KRE	kre
+DiGiTAL WiNG	DiGiTAL WiNG	digital_wing
+EastNewSound	EastNewSound	eastnewsound
+EM2 Record	EM2 Record	em2_record
+DC Comics	DC Comics	dc_comics
+ALICESOFT	ALICESOFT	alicesoft
+ERJ	ERJ	erj
+EMIミュージック	EMI Music	emi_music
+SMR	SMR	smr
+milky chain	milky chain	milky_chain
+# ── DERGİLER / WEB YAYINLARI ──────────────────────────────────────────────────
+小説家になろう	Shosetsuka ni Narou	shosetsuka_ni_narou
+成为小说家吧	Shosetsuka ni Narou	shosetsuka_ni_narou	(Çince adı)
+ガンガンONLINE	Gangan Online	gangan_online
+まんがタイムきららMAX	Manga Time Kirara MAX	manga_time_kirara_max
+Naver Webtoon	Naver Webtoon	naver_webtoon
+コミックウォーカー	Comic Walker	comic_walker
+Lezhin Comics	Lezhin Comics	lezhin_comics
+まんがタイムきららキャラット	Manga Time Kirara Carat	manga_time_kirara_carat
+まんがタイムきららフォワード	Manga Time Kirara Forward	manga_time_kirara_forward
+月刊コミック電撃大王	Monthly Comic Dengeki Daioh	monthly_comic_dengeki_daioh
+ヤングガンガン	Young Gangan	young_gangan
+少年ジャンプ＋	Shonen Jump Plus	shonen_jump_plus
+ニコニコ静画	Niconico Seiga	niconico_seiga
+周刊少年Jump	Weekly Shonen Jump	weekly_shonen_jump	(→ mevcut bangumi_magazine_weekly_shonen_jump)
+ビッグコミックスピリッツ	Big Comic Spirits	big_comic_spirits
+周刊BIG COMIC SPIRITS	Big Comic Spirits	big_comic_spirits
+週刊ヤングマガジン	Weekly Young Magazine	weekly_young_magazine
+kakaopage	KakaoPage	kakaopage
+快看漫画	Kuaikan Comics	kuaikan_comics
+月刊少年エース	Monthly Shonen Ace	monthly_shonen_ace
+comico	comico	comico
+モーニング	Morning	morning
+なかよし	Nakayoshi	nakayoshi
+ヤングエース	Young Ace	young_ace
+ハルタ	Harta	harta
+ベツコミ	Betsucomi	betsucomi
+アルファポリス電網浮遊都市	Denmou Fuyu Toshi	denmou_fuyu_toshi
+AlphaPolis 电网浮游都市	Denmou Fuyu Toshi	denmou_fuyu_toshi	(Çince adı)
+プチコミック	Petit Comic	petit_comic
+月刊Asuka	Monthly Asuka	monthly_asuka
+コミック百合姫	Comic Yuri Hime	comic_yuri_hime
+イブニング	Evening	evening
+りぼん	Ribon	ribon
+月刊ドラゴンエイジ	Monthly Dragon Age	monthly_dragon_age
+pixivコミック	pixiv Comics	pixiv_comics
+チャンピオンRED	Champion RED	champion_red
+Cheese!	Cheese!	cheese
+月刊Comic REX	Monthly Comic REX	monthly_comic_rex
+周刊YOUNG JUMP	Young Jump	young_jump	(→ mevcut bangumi_magazine_young_jump)
+Sho-Comi	Sho-Comi	sho_comi
+デザート	Dessert	dessert
+ビッグコミックスペリオール	Big Comic Superior	big_comic_superior
+マンガUP！	Manga UP!	manga_up
+月刊コミックキューン	Monthly Comic Cune	monthly_comic_cune
+腾讯动漫	Tencent Animation & Comics	tencent_animation_comics
+ARIA	ARIA	aria
+月刊コンプエース	Monthly Comp Ace	monthly_comp_ace
+good!アフタヌーン	good! Afternoon	good_afternoon
+月刊バーズ	Monthly Birz	monthly_birz
+ヤングキングアワーズ	Young King OURs	young_king_ours
+マガジンSPECIAL	Magazine Special	magazine_special
+漫画アクション	Manga Action	manga_action
+TOPTOON	TOPTOON	toptoon
+別冊フレンド	Bessatsu Friend	bessatsu_friend
+別冊マーガレット	Bessatsu Margaret	bessatsu_margaret
+月刊少年シリウス	Monthly Shonen Sirius	monthly_shonen_sirius
+月刊少年Ace	Monthly Shonen Ace	monthly_shonen_ace
+B's-LOG COMIC	B's-LOG COMIC	b_s_log_comic
+周刊少年Champion	Weekly Shonen Champion	weekly_shonen_champion	(→ mevcut bangumi_magazine_shonen_champion)
