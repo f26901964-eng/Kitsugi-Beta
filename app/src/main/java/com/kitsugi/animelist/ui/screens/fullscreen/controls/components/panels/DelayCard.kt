@@ -95,20 +95,23 @@ fun DelayCard(
                 // True = heard→spotted (audio forward), false = spotted→heard (audio backward)
                 var isDirectionPositive by remember { mutableStateOf<Boolean?>(null) }
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    var timerStart by remember { mutableStateOf<Long?>(null) }
                     var finalDelay by remember { mutableIntStateOf(delay) }
 
+                    // `!!` kullanılmıyor: yön ve başlangıç zamanı yerel kopyalarda tutuluyor.
+                    // Effect, isDirectionPositive her değiştiğinde yeniden başlar; bu yüzden
+                    // yerel `direction` coroutine boyunca sabittir ve null olamaz.
                     LaunchedEffect(isDirectionPositive) {
-                        if (isDirectionPositive == null) {
+                        val direction = isDirectionPositive
+                        if (direction == null) {
                             onDelayChange(finalDelay)
                             return@LaunchedEffect
                         }
                         finalDelay = delay
-                        timerStart = System.currentTimeMillis()
+                        val startedAt = System.currentTimeMillis()
                         val startingDelay = finalDelay
-                        while (isDirectionPositive != null && timerStart != null) {
-                            val elapsed = System.currentTimeMillis() - timerStart!!
-                            finalDelay = startingDelay + (if (isDirectionPositive!!) elapsed else -elapsed).toInt()
+                        while (true) {
+                            val elapsed = System.currentTimeMillis() - startedAt
+                            finalDelay = startingDelay + (if (direction) elapsed else -elapsed).toInt()
                             delay(20)
                         }
                     }
