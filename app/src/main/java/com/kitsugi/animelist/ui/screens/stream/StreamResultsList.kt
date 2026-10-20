@@ -47,6 +47,8 @@ fun LazyListScope.renderStreamResultsItems(
     onOpenSettings: (() -> Unit)? = null,
     /** v2.4.256: CloudStream eklentisini yalnızca o eklenti için yeniden çalıştırır. */
     onRetryPlugin: ((addonName: String) -> Unit)? = null,
+    /** v2.4.319: Eklenti kapağı yoksa kart görseli olarak kullanılacak medya posteri. */
+    posterFallbackUrl: String? = null,
     /**
      * Listenin kendi durumu. Verilirse ölçüm (ağ isteği) YALNIZCA görüş alanındaki kartlar
      * için başlatılır; null ise tüm kartlar ölçebilir (eski davranış).
@@ -60,18 +62,11 @@ fun LazyListScope.renderStreamResultsItems(
             }
         } else if (addonState.streams.isNotEmpty()) {
             item(key = "group_${addonState.addonName}") {
-                Row(Modifier.fillMaxWidth().padding(top = 8.dp, bottom = 2.dp),
-                    verticalAlignment = Alignment.CenterVertically) {
-                    androidx.compose.material3.Text(addonState.addonName,
-                        color = KitsugiColors.TextSecondary,
-                        style = MaterialTheme.typography.labelMedium,
-                        fontWeight = FontWeight.SemiBold,
-                        maxLines = 1,
-                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
-                        modifier = Modifier.weight(1f))
-                    androidx.compose.material3.Text(addonState.streams.size.toString(),
-                        color = accentColor, style = MaterialTheme.typography.labelMedium)
-                }
+                StreamGroupHeader(
+                    addonName = addonState.addonName,
+                    streamCount = addonState.streams.size,
+                    accentColor = accentColor
+                )
             }
             addonState.streams.forEachIndexed { idx, source ->
                 val itemKey = "${addonIdx}_${addonState.addonName}_$idx"
@@ -94,6 +89,7 @@ fun LazyListScope.renderStreamResultsItems(
                         accentColor = accentColor,
                         onClick     = { onStreamSelected(source) },
                         onDownloadClick = { onDownloadSelected(source) },
+                        posterFallbackUrl = posterFallbackUrl,
                         probeEnabled = shouldProbe
                     )
                 }
@@ -132,12 +128,13 @@ fun StreamResultsList(
     onDownloadSelected: (StreamSource) -> Unit,
     onVerifyPlugin: ((addonName: String) -> Unit)? = null,
     onOpenSettings: (() -> Unit)? = null,
-    onRetryPlugin: ((addonName: String) -> Unit)? = null
+    onRetryPlugin: ((addonName: String) -> Unit)? = null,
+    posterFallbackUrl: String? = null
 ) {
     val listState = androidx.compose.foundation.lazy.rememberLazyListState()
     LazyColumn(
         state = listState,
-        verticalArrangement = Arrangement.spacedBy(10.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
         contentPadding = PaddingValues(bottom = 32.dp)
     ) {
         renderStreamResultsItems(
@@ -148,6 +145,7 @@ fun StreamResultsList(
             onVerifyPlugin = onVerifyPlugin,
             onOpenSettings = onOpenSettings,
             onRetryPlugin = onRetryPlugin,
+            posterFallbackUrl = posterFallbackUrl,
             listState = listState
         )
     }
@@ -252,6 +250,54 @@ private fun StreamErrorCard(
     }
 }
 
+/**
+ * Eklenti grubu başlığı: vurgu renkli dikey çubuk + eklenti adı + canlı video sayacı.
+ * v2.4.319: önceki sürümdeki düz metin satırı yerine görsel hiyerarşi eklendi.
+ */
+@Composable
+fun StreamGroupHeader(
+    addonName: String,
+    streamCount: Int,
+    accentColor: Color
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(top = 10.dp, bottom = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        Box(
+            modifier = Modifier
+                .width(3.dp)
+                .height(14.dp)
+                .clip(RoundedCornerShape(2.dp))
+                .background(accentColor)
+        )
+        androidx.compose.material3.Text(
+            text = addonName,
+            color = KitsugiColors.TextPrimary,
+            style = MaterialTheme.typography.labelLarge,
+            fontWeight = FontWeight.Bold,
+            maxLines = 1,
+            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+            modifier = Modifier.weight(1f, fill = false)
+        )
+        Box(
+            modifier = Modifier
+                .clip(RoundedCornerShape(999.dp))
+                .background(accentColor.copy(alpha = 0.14f))
+                .padding(horizontal = 8.dp, vertical = 2.dp)
+        ) {
+            androidx.compose.material3.Text(
+                text = streamCount.toString(),
+                color = accentColor,
+                style = MaterialTheme.typography.labelSmall,
+                fontWeight = FontWeight.Bold
+            )
+        }
+        Spacer(Modifier.weight(1f))
+    }
+}
+
 @Composable
 fun SettingsShortcutCard(
     accentColor: Color,
@@ -306,47 +352,71 @@ fun StreamSkeletonCard(addonName: String) {
         label = "skelAlpha"
     )
 
+    // v2.4.319: İskelet, gerçek kartın (74×104 görsel + metin sütunu) düzenini taklit eder;
+    // yükleme bittiğinde liste sıçramaz.
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(
-            containerColor = KitsugiColors.SurfaceStrong.copy(alpha = alpha)
+            containerColor = KitsugiColors.Surface.copy(alpha = alpha)
         )
     ) {
-        Column(
-            modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+        Row(
+            modifier = Modifier.padding(8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
         ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            Box(
+                modifier = Modifier
+                    .width(74.dp)
+                    .height(104.dp)
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(KitsugiColors.SurfaceStrong.copy(alpha = 0.8f))
+            )
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(7.dp)
             ) {
                 Box(
                     modifier = Modifier
-                        .size(60.dp, 16.dp)
+                        .fillMaxWidth(0.85f)
+                        .height(16.dp)
                         .clip(RoundedCornerShape(4.dp))
-                        .background(KitsugiColors.Surface.copy(alpha = 0.5f))
+                        .background(KitsugiColors.SurfaceStrong.copy(alpha = 0.8f))
                 )
                 Box(
                     modifier = Modifier
-                        .size(80.dp, 16.dp)
+                        .fillMaxWidth(0.5f)
+                        .height(12.dp)
                         .clip(RoundedCornerShape(4.dp))
-                        .background(KitsugiColors.Surface.copy(alpha = 0.3f))
+                        .background(KitsugiColors.SurfaceStrong.copy(alpha = 0.55f))
                 )
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Box(
+                        modifier = Modifier
+                            .size(38.dp, 16.dp)
+                            .clip(RoundedCornerShape(6.dp))
+                            .background(KitsugiColors.SurfaceStrong.copy(alpha = 0.7f))
+                    )
+                    Box(
+                        modifier = Modifier
+                            .size(56.dp, 16.dp)
+                            .clip(RoundedCornerShape(6.dp))
+                            .background(KitsugiColors.SurfaceStrong.copy(alpha = 0.5f))
+                    )
+                    Box(
+                        modifier = Modifier
+                            .size(46.dp, 16.dp)
+                            .clip(RoundedCornerShape(6.dp))
+                            .background(KitsugiColors.SurfaceStrong.copy(alpha = 0.4f))
+                    )
+                }
             }
             Box(
                 modifier = Modifier
-                    .fillMaxWidth(0.7f)
-                    .height(18.dp)
-                    .clip(RoundedCornerShape(4.dp))
-                    .background(KitsugiColors.Surface.copy(alpha = 0.5f))
-            )
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth(0.4f)
-                    .height(14.dp)
-                    .clip(RoundedCornerShape(4.dp))
-                    .background(KitsugiColors.Surface.copy(alpha = 0.3f))
+                    .size(46.dp)
+                    .clip(RoundedCornerShape(23.dp))
+                    .background(KitsugiColors.SurfaceStrong.copy(alpha = 0.7f))
             )
         }
     }

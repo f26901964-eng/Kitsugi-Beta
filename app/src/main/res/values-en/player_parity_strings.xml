@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- v2.4.319: TR tarafındaki player_parity_strings.xml dosyasının İngilizce karşılığı.
+         Bu anahtarlar yalnızca TR kaynaklarında olduğu için yerelleştirme eşlik denetimi
+         (scripts/check_localization_resource_parity.py) hata veriyordu. -->
+    <string name="player_parity_options">Advanced playback options</string>
+    <string name="player_audio_languages">Audio languages (by priority: tr,ja,en)</string>
+    <string name="player_subtitle_whitelist">Preferred subtitle names (comma separated)</string>
+    <string name="player_subtitle_blacklist">Excluded subtitle names (comma separated)</string>
+    <string name="player_subtitle_font">Subtitle font</string>
+    <string name="player_pitch_correction">Preserve pitch</string>
+    <string name="player_ass_override">Override ASS style</string>
+    <string name="player_font_scale">Subtitle scale: %1$.2fx</string>
+    <string name="player_sub_position">Subtitle position: %1$d</string>
+    <string name="player_border_style">Subtitle border style</string>
+</resources>

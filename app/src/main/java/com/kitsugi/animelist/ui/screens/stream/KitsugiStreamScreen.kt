@@ -151,6 +151,11 @@ fun KitsugiStreamScreen(
     var resolvingError      by remember { mutableStateOf<String?>(null) }
     var pendingPlayAction   by remember { mutableStateOf<PendingPlayAction?>(null) }
     var showSettingsDialog  by remember { mutableStateOf(false) }
+    /**
+     * v2.4.319: Oynatıcı başlatılamazsa kullanıcıya SEBEBİ gösterilir. Önceden hata
+     * sessizce yutuluyor, ekran hiçbir şey yapmıyormuş gibi görünüyordu.
+     */
+    var playbackStartError by remember { mutableStateOf<String?>(null) }
 
     val allStreams = remember(addonStates, appSettings.qualityProfileJson) {
         val rawList = addonStates.flatMap { it.streams }
@@ -228,31 +233,39 @@ fun KitsugiStreamScreen(
                 }
 
             // ── İzleme geçmişine kaydet ─────────────────────────────────────
-            com.kitsugi.animelist.data.local.WatchHistoryManager.record(
-                com.kitsugi.animelist.data.model.WatchHistoryEntry(
-                    animeId = watchHistoryAnimeId,
-                    animeTitle = title,
-                    posterUrl = source.thumbnailUrl.takeIf { !it.isNullOrBlank() } ?: posterUrl,
-                    episode = episode,
-                    season = season,
-                    isMovie = isMovie,
-                    quality = source.quality,
-                    source = source.addonName,
-                    malId = malId,
-                    aniListId = aniListId,
-                    tmdbId = tmdbId,
-                    streamUrl = resolvedUrl,
-                    streamHeaders = source.requestHeaders,
-                    streamTitle = source.title,
-                    streamName = source.name,
-                    cs3Url = cs3Url,
-                    cs3ApiName = cs3ApiName
+            // Geçmiş yazımı oynatmayı ASLA engellemez: disk/veri hatası fırlatırsa
+            // yutulur, video yine açılır. (Önceden bu çağrı try bloğunun DIŞINDAYDI;
+            // burada fırlayan bir istisna "izle'ye basınca uygulama kapanıyor"
+            // şikâyetinin doğrudan sebebi olabiliyordu.)
+            runCatching {
+                com.kitsugi.animelist.data.local.WatchHistoryManager.record(
+                    com.kitsugi.animelist.data.model.WatchHistoryEntry(
+                        animeId = watchHistoryAnimeId,
+                        animeTitle = title,
+                        posterUrl = source.thumbnailUrl.takeIf { !it.isNullOrBlank() } ?: posterUrl,
+                        episode = episode,
+                        season = season,
+                        isMovie = isMovie,
+                        quality = source.quality,
+                        source = source.addonName,
+                        malId = malId,
+                        aniListId = aniListId,
+                        tmdbId = tmdbId,
+                        streamUrl = resolvedUrl,
+                        streamHeaders = source.requestHeaders,
+                        streamTitle = source.title,
+                        streamName = source.name,
+                        cs3Url = cs3Url,
+                        cs3ApiName = cs3ApiName
+                    )
                 )
-            )
+            }.onFailure { e ->
+                Log.w("KitsugiStreamScreen", "İzleme geçmişi yazılamadı (oynatma devam ediyor): ${e.message}", e)
+            }
 
             try {
                 if (engine == "exoplayer") {
-                    KitsugiFullscreenPlayerActivity.startWithStreamUrls(
+                    val started = KitsugiFullscreenPlayerActivity.startWithStreamUrls(
                         context = context, videoUrl = resolvedUrl,
                         audioUrl = source.externalAudioUrl,
                         title = context.getString(R.string.title_bolum_episode, title, episode), headers = source.requestHeaders,
@@ -268,6 +281,7 @@ fun KitsugiStreamScreen(
                         cs3ApiName = cs3ApiName,
                         resumePositionMs = resumePositionMs
                     )
+                    if (!started) playbackStartError = KitsugiStrings.get(R.string.stream_play_failed_generic)
                 } else {
                     if (onLaunchExternalPlayer != null) {
                         val input = ExternalPlayerLauncher.createInput(
@@ -277,7 +291,7 @@ fun KitsugiStreamScreen(
                         )
                         onLaunchExternalPlayer(input, streamKey)
                     } else {
-                        KitsugiFullscreenPlayerActivity.startWithStreamUrls(
+                        val started = KitsugiFullscreenPlayerActivity.startWithStreamUrls(
                             context = context, videoUrl = resolvedUrl,
                             audioUrl = source.externalAudioUrl,
                             title = context.getString(R.string.title_bolum_episode, title, episode), headers = source.requestHeaders,
@@ -293,11 +307,12 @@ fun KitsugiStreamScreen(
                             cs3ApiName = cs3ApiName,
                             resumePositionMs = resumePositionMs
                         )
+                        if (!started) playbackStartError = KitsugiStrings.get(R.string.stream_play_failed_generic)
                     }
                 }
-            } catch (e: Exception) {
+            } catch (e: Throwable) {
                 Log.e("KitsugiStreamScreen", "Oynatıcı başlatılamadı: ${e.message}", e)
-                android.widget.Toast.makeText(context, KitsugiStrings.get(R.string.oynatici_baslatilamadi_x, e.message), android.widget.Toast.LENGTH_LONG).show()
+                android.widget.Toast.makeText(context, KitsugiStrings.get(R.string.oynatici_baslatilamadi_x, e.message ?: e.javaClass.simpleName), android.widget.Toast.LENGTH_LONG).show()
             }
         }
     }
@@ -450,6 +465,27 @@ fun KitsugiStreamScreen(
                     executeStreamResolution(pending, isDl)
                 }
             }
+        )
+    }
+
+    // ── Oynatıcı başlatma hatası ──────────────────────────────────────────────
+    playbackStartError?.let { message ->
+        AlertDialog(
+            onDismissRequest = { playbackStartError = null },
+            title = {
+                Text(
+                    stringResource(R.string.stream_play_failed_title),
+                    color = KitsugiColors.TextPrimary,
+                    fontWeight = FontWeight.Bold
+                )
+            },
+            text = { Text(message, color = KitsugiColors.TextSecondary) },
+            confirmButton = {
+                TextButton(onClick = { playbackStartError = null }) {
+                    Text(stringResource(R.string.action_ok), color = accentColor)
+                }
+            },
+            containerColor = KitsugiColors.Surface
         )
     }
 

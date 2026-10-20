@@ -7856,4 +7856,17 @@
     <string name="stream_cached">Cached</string>
     <string name="stream_sort_quality">Quality: highest first</string>
     <string name="stream_sort_default">Sort: source order</string>
+    <!-- v2.4.319: Stream cards / top bar -->
+    <string name="stream_action_downloads">Downloads</string>
+    <string name="stream_action_history">Watch history</string>
+    <string name="stream_action_manual_search">Manual search</string>
+    <string name="stream_tag_sub">Subtitled</string>
+    <string name="stream_tag_dub">Dubbed</string>
+    <string name="stream_results_summary">%1$d videos · %2$d sources</string>
+    <string name="stream_filter_clear">Clear filters</string>
+    <string name="stream_filter_empty_title">No results</string>
+    <string name="stream_filter_empty_desc">criteria returned no video streams.</string>
+    <string name="stream_play_failed_title">Player could not start</string>
+    <string name="stream_play_failed_generic">The player could not start. Try another source or retry.</string>
+    <string name="stream_play_failed_body">Playback could not start: %1$s</string>
 </resources>

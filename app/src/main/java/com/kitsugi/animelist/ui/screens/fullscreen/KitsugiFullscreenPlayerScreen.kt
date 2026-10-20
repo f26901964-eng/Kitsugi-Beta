@@ -506,7 +506,7 @@ fun KitsugiFullscreenPlayerScreen(
                                 title     = currentTitle,
                                 manual    = true
                             )
-                            KitsugiFullscreenPlayerActivity.launchExternalPlayer(
+                            val launched = KitsugiFullscreenPlayerActivity.launchExternalPlayer(
                                 context = context,
                                 videoUrl = urlVal,
                                 title = currentTitle,
@@ -514,7 +514,16 @@ fun KitsugiFullscreenPlayerScreen(
                                 headers = currentHeaders,
                                 subtitles = currentSubtitles
                             )
-                            onBack()
+                            // v2.4.319: Harici oynatıcı açılamadıysa ekranı KAPATMA.
+                            if (launched) {
+                                onBack()
+                            } else {
+                                Toast.makeText(
+                                    context,
+                                    KitsugiStrings.get(R.string.harici_oynatici_baslatilamadi),
+                                    Toast.LENGTH_LONG
+                                ).show()
+                            }
                         }
                     },
                     onRetry = { viewModel.retryCurrentSource() },
@@ -583,7 +592,7 @@ fun KitsugiFullscreenPlayerScreen(
                                 title     = currentTitle,
                                 manual    = false
                             )
-                            KitsugiFullscreenPlayerActivity.launchExternalPlayer(
+                            val launched = KitsugiFullscreenPlayerActivity.launchExternalPlayer(
                                 context = context,
                                 videoUrl = urlVal,
                                 title = currentTitle,
@@ -591,7 +600,16 @@ fun KitsugiFullscreenPlayerScreen(
                                 headers = currentHeaders,
                                 subtitles = currentSubtitles
                             )
-                            onBack()
+                            // v2.4.319: Harici oynatıcı açılamadıysa ekranı KAPATMA.
+                            if (launched) {
+                                onBack()
+                            } else {
+                                Toast.makeText(
+                                    context,
+                                    KitsugiStrings.get(R.string.harici_oynatici_baslatilamadi),
+                                    Toast.LENGTH_LONG
+                                ).show()
+                            }
                         }
                     }
                 }

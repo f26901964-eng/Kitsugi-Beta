@@ -2,6 +2,24 @@
 
 ## 🇹🇷 Türkçe
 
+### 🎬 Video Kaynak Ekranı: Görselli Kartlar, Akan Üst Bar & Oynatma Başlatma Düzeltmeleri
+
+Video kaynak seçim ekranı (`KitsugiStreamScreen`) görselli kartlar, her zaman görünür ayrıntılar, yumuşak kayan üst bar ve oynatmanın sessizce çökmesini önleyen 5 katmanlı sertleştirme ile yeniden yapılandırıldı. Ayrıntılı analiz: `PLAN_TASK_STREAM_GORSEL_KART_AKAN_UST_BAR_2026-10-21.md` ve `docs/STREAM_SELECTION_UX.md`.
+
+- **Görselli kartlar (Dikey + Yatay aynı düzen):**
+  - Her kartta solda sabit 74×104 dp (2:3) kapak görseli yer alır (`thumbnailUrl` -> poster -> gradyan + film ikonu; boş kutu kalmaz).
+  - Yetişkin içerik bulanıklığı (`KitsugiNsfwImage`) tam uyumlu korunur.
+- **Ayrıntılar her zaman görünür:** Kalite, ses/altyazı türü, ses ve altyazı dilleri, dosya boyutu, Debrid/P2P durumu ve kaynak host'u tek bakışta görünür; v2.4.318'deki "Ayrıntılar" akordiyonu kaldırılarak tüm bilgilere doğrudan erişim sağlandı.
+- **Yumuşak üst bar:** Başlık barı `NestedScrollConnection` + `graphicsLayer` ile parmak hareketine birebir bağlı olarak yumuşakça gizlenip geri gelir; liste zıplamaları önlendi. Yatayda sol ray da üst bar ile uyumlu akar.
+- **Daha az dokunuş:** Kartın herhangi bir yerine dokunmak videoyu doğrudan başlatır; sağda 46 dp yuvarlak oynat ve altındaki indir butonu netleştirildi.
+- **"İzle'ye basınca video açılmıyor / ana sayfaya atıyor" düzeltmeleri:**
+  - **Binder taşması (TransactionTooLargeException):** Oynatıcıya giden Intent verisi 96 KB'a sınırlandı; taşma durumunda yedeksiz otomatik yeniden deneme eklendi.
+  - **Oynatıcı kurulumu korundu:** `KitsugiFullscreenPlayerActivity.onCreate` try/catch ile sarıldı; veri hatası olursa süreç ölmez, kullanıcıya hata bildirilip düzgün biçimde kaynak ekranına dönülür.
+  - **İzleme geçmişi hatasız:** `WatchHistoryManager.record` çağrısı `runCatching` içine alındı; geçmiş yazımı çökme yaratmaz.
+  - **Sessiz hata sonlandırıldı:** `startWithStreamUrls` artık `Boolean` döner; başlatılamazsa stream ekranında "Oynatıcı açılamadı" diyaloğu gösterilir.
+  - **Harici oynatıcı koruması:** Harici oynatıcı açılamadığında tam ekran oynatıcı erkenden kapanmaz, kullanıcıya toast ile bildirilir.
+- **Yerelleştirme:** Eksik `values-en/player_parity_strings.xml` eklenerek string parity denetimi temizlendi.
+
 ### 🎬 Görüntü Modu ("Doldur" / "Yakınlaştır") Alt Yazıyı Artık Etkilemiyor
 
 "Doldur" veya "Yakınlaştır" seçildiğinde harici altyazıların video ile birlikte esnemesi, büyümesi ve ekranın altına taşması sorunu kökten çözüldü. Alt yazı katmanı video ölçeklendirmesinden tamamen ayrıldı. Ayrıntılı analiz: `COZUM_RAPORU_ALT_YAZI_GORUNTU_MODU_2026-10-21.md`.
@@ -48,13 +66,29 @@ Video yüklenirken ekranın ortasında görünen yüklenme animasyonunun etrafı
 - **Anında UI reaktivitesi & İyimser Güncelleme (`DownloadsScreen`):** Silinen altyazı listeden saniyesinde filtrelenerek görsel olarak anında kaldırılır (`mutableStateOf` + `LaunchedEffect`).
 - **Geri alma (Rollback) güvencesi:** Dosya sistemi silme işlemi herhangi bir sebeple başarısız olursa öğe otomatik olarak listeye geri eklenir.
 
-### 🧪 Birim Testleri
+### 🧪 Birim Testleri & Altyapı
 - `WikiTranslationProtectionTest`: Mavi etiketlerin yerinde çevrilmesi, URL'lerin hiç değişmemesi, jeton bozulduğunda güvenli yedeğe düşülmesi, etiket anahtarlarının metinden önce akması, 40 tekrarlı bağlantıda tek istek, cümle görünümlü kart başlığının çevrilip kısa sayfa adının çevrilmemesi doğrulandı (34 test tamamı başarılı).
 - `DeepLinkTest` & `FileLoggingTreeTest`: Derin bağlantı şema ayrıştırması ve asenkron log flush desteği doğrulandı.
 
 ---
 
 ## 🇬🇧 English
+
+### 🎬 Stream Selection Screen: Thumbnail Cards, Smooth Top Bar & Playback Crash Hardening
+
+Redesigned the stream selection interface (`KitsugiStreamScreen`) with permanent 74×104 dp visual cards, instantly readable audio/subtitle details, a smooth scrolling header, and multi-layered crash hardening against player launch failures. Detailed specifications in `PLAN_TASK_STREAM_GORSEL_KART_AKAN_UST_BAR_2026-10-21.md` and `docs/STREAM_SELECTION_UX.md`.
+
+- **Visual Thumbnail Cards (Unified portrait & landscape layout):** Fixed 74×104 dp (2:3) cover image on the left (`thumbnailUrl` -> media poster -> accent gradient + film icon fallback; no blank boxes). Adult content blur (`KitsugiNsfwImage`) fully preserved.
+- **All Details Always Visible:** Video quality, audio/subtitle tracks, languages, file size, Debrid/P2P badges, and host source are immediately visible; removed the cumbersome accordion from v2.4.318.
+- **Smooth Translating Header:** Top bar scrolls smoothly using `NestedScrollConnection` and `graphicsLayer` (translation + alpha), eliminating sticky header list jumping. Left control rail smoothly syncs in landscape.
+- **Fewer Taps:** Tapping anywhere on the stream card triggers immediate playback; dedicated 46 dp play circle and download buttons provided.
+- **"Watch opens nothing / kicks to home screen" hardening:**
+  - **Binder Overflow Protection:** Stream intent extra payload capped at 96 KB with automatic fallback retry without extras on `TransactionTooLargeException`.
+  - **Guarded Player Bootstrap:** `KitsugiFullscreenPlayerActivity.onCreate` wrapped in robust try/catch blocks; fatal errors display informative UI and return cleanly to the stream picker instead of killing the process.
+  - **Safe History Logging:** `WatchHistoryManager.record` wrapped in `runCatching` so disk write errors cannot abort playback.
+  - **Failure Transparency:** `startWithStreamUrls` returns `Boolean`, presenting a clear error dialog if player intent cannot be resolved.
+  - **External Player Safety:** Fullscreen player does not prematurely dismiss when external player launch fails.
+- **Localization:** Added missing `values-en/player_parity_strings.xml` for full string parity.
 
 ### 🎬 Aspect Modes ("Fill" / "Zoom") No Longer Distort Subtitles
 
@@ -102,6 +136,6 @@ Eliminated sluggish animations during subtitle removal and fixed the race condit
 - **Optimistic UI Updates (`DownloadsScreen`):** Deleted subtitles disappear instantly from the view (`mutableStateOf` + `LaunchedEffect`), followed by a background disk scan for sync.
 - **Safe Rollback:** Automatically restores the item in the list if underlying file deletion fails.
 
-### 🧪 Unit Tests
+### 🧪 Unit Tests & Infrastructure
 - `WikiTranslationProtectionTest`: Verified in-place label translation, invariant URLs, slot recovery fallback, pre-flight label key emissions, single request on 40 links, and sentence vs title card discrimination (all 34 tests passing).
 - `DeepLinkTest` & `FileLoggingTreeTest`: Verified deep-link URI scheme resolution and thread-safe file logging flush.
