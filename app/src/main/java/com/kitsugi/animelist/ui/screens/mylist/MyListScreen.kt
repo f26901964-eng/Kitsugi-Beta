@@ -107,13 +107,13 @@ internal data class CombinedMyListLibrary(
 }
 
 /**
- * [IntArray] için açık Saver: IntArray Serializable olsa da varsayılan AutoSaver'ın
- * Bundle uyumluluk denetimine güvenmemek için Liste biçiminde saklar (kesin Bundle-güvenli).
+ * [IntArray] için açık Saver: IntArray, Android Bundle tarafından yerel olarak desteklenir
+ * (putIntArray). copyOf ile saklanarak mutasyondan yalıtılır.
  */
-private val MyListTabPositionSaver: androidx.compose.runtime.saveable.Saver<IntArray, List<Int>> =
-    androidx.compose.runtime.saveable.listSaver(
-        save = { it.toList() },
-        restore = { it.toIntArray() }
+private val MyListTabPositionSaver: androidx.compose.runtime.saveable.Saver<IntArray, IntArray> =
+    androidx.compose.runtime.saveable.Saver(
+        save = { it.copyOf() },
+        restore = { it.copyOf() }
     )
 
 @Composable
