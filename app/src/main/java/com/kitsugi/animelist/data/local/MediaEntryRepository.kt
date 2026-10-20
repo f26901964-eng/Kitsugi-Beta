@@ -5,8 +5,11 @@ import android.content.Context
 import com.kitsugi.animelist.data.auth.ExternalListSyncManager
 import com.kitsugi.animelist.model.MediaEntry
 import com.kitsugi.animelist.model.MediaType
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.conflate
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.flowOn
 
 class MediaEntryRepository(
     private val dao: MediaEntryDao,
@@ -14,11 +17,24 @@ class MediaEntryRepository(
     val context: Context? = null,
     private val onExternalSyncMessage: ((String) -> Unit)? = null
 ) {
+    /**
+     * PERF (2026-10-20): [withCrossSourceAdultFlags] tüm tabloyu entity→domain'e çevirip
+     * satır başına kimlik anahtarları hesaplar; büyük kütüphanelerde onlarca-milisaniyelik
+     * iştir. Eski sürüm bu işi TOPLAYICI iş parçacığında (stateIn(viewModelScope) → Main)
+     * çalıştırıyordu: hesap senkronu/kayit yazımı sırasında her tablo değişimi ana iş
+     * parçacığını kilitliyor ve Listem/Keşfet donuyordu. Artık hesap [Dispatchers.Default]
+     * üzerinde yapılır; [distinctUntilChanged] içerik değişmemiş emisyonları eler ve
+     * [conflate] ardışık yazım patlamalarında (ör. +18 geri yazma turu satır satır günceller)
+     * yalnızca EN GÜNCEL anlık görüntünün işlenmesini garanti eder.
+     */
     val entriesFlow: Flow<List<MediaEntry>> = kotlinx.coroutines.flow.flow {
         dao.observeAll().collect { entities ->
             emit(entities.withCrossSourceAdultFlags())
         }
     }
+        .distinctUntilChanged()
+        .conflate()
+        .flowOn(Dispatchers.Default)
 
 
     /**
@@ -492,14 +508,20 @@ class MediaEntryRepository(
 internal fun List<MediaEntryEntity>.withCrossSourceAdultFlags(): List<MediaEntry> {
     if (isEmpty()) return emptyList()
     val domains = map { it.toDomain() }
+    // PERF: kimlik anahtarlarını satır başına BİR kez hesapla. Eski sürüm yetişkin satırlar
+    // için bir, yetişkin bayrağı eksik her satır için iki kez hesaplıyordu (bayrak
+    // yayarken + kontrol ederken); 2000 satırlık kütüphanede emisyon başına binlerce
+    // gereksiz MediaIdentity.keys çağrısı anlamına geliyordu.
+    if (domains.none { it.isAdult }) return domains
+    val keysByRow = domains.map { entry -> com.kitsugi.animelist.model.MediaIdentity.keys(entry) }
     val adultKeys = HashSet<String>()
-    domains.forEach { entry ->
-        if (entry.isAdult) adultKeys += com.kitsugi.animelist.model.MediaIdentity.keys(entry)
+    domains.forEachIndexed { index, entry ->
+        if (entry.isAdult) adultKeys += keysByRow[index]
     }
     if (adultKeys.isEmpty()) return domains
-    return domains.map { entry ->
+    return domains.mapIndexed { index, entry ->
         if (entry.isAdult) entry
-        else if (com.kitsugi.animelist.model.MediaIdentity.keys(entry).any { it in adultKeys }) {
+        else if (keysByRow[index].any { it in adultKeys }) {
             entry.copy(isAdult = true)
         } else entry
     }

@@ -47,6 +47,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -84,9 +85,36 @@ import androidx.compose.foundation.gestures.LocalBringIntoViewSpec
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.runtime.CompositionLocalProvider
 import com.kitsugi.animelist.ui.utils.KitsugiScrollDefaults
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import androidx.compose.ui.res.stringResource
 import com.kitsugi.animelist.R
+
+/**
+ * "Tümü" (birleşik kütüphane) sekmesinin tek seferde, arka planda üretilen sonucu.
+ * Dört alanın birlikte üretilip yayınlanması, aradaki karelerde eski liste + yeni rozet
+ * gibi uyuşmayan ara görünüm oluşmasını imkânsız kılar.
+ */
+internal data class CombinedMyListLibrary(
+    val items: List<MyListLibraryItem>,
+    val entries: List<MediaEntry>,
+    val sourceBadgesByEntryId: Map<Int, List<String>>
+) {
+    companion object {
+        val EMPTY = CombinedMyListLibrary(emptyList(), emptyList(), emptyMap())
+    }
+}
+
+/**
+ * [IntArray] için açık Saver: IntArray Serializable olsa da varsayılan AutoSaver'ın
+ * Bundle uyumluluk denetimine güvenmemek için Liste biçiminde saklar (kesin Bundle-güvenli).
+ */
+private val MyListTabPositionSaver: androidx.compose.runtime.saveable.Saver<IntArray, List<Int>> =
+    androidx.compose.runtime.saveable.listSaver(
+        save = { it.toList() },
+        restore = { it.toIntArray() }
+    )
 
 @Composable
 fun MyListScreen(
@@ -162,11 +190,29 @@ fun MyListScreen(
 
     // Save positions separately from LazyListState: an empty/loading list can clamp its
     // index to zero before the library finishes loading when returning from a detail page.
-    var savedTabIndices by rememberSaveable {
-        mutableStateOf(List(MY_LIST_TAB_COUNT) { if (it == selectedTabIndex) initialScrollIndex else 0 })
+    //
+    // PERF (2026-10-20): bu konumlar bilinçli olarak OKUNABİLİR Compose state'i DEĞİLDİR.
+    // Eski sürüm MutableState<List<Int>> tutuyordu ve kaydırmanın HER karesinde iki liste
+    // tahsis edip state yazıyordu; yazı, bu değerleri kompozisyonda okuyan tek kapsam
+    // (bu ekran gövdesi) geçersiz kılıyordu → başlık, sekme çubuğu, tüm pager sayfaları ve
+    // görünür kartlar HER KAREDE yeniden kompoze oluyordu. Hesaplar bağlanıp liste uzayınca
+    // kaydırma/tıklama kilitleniyordu (geri besleme döngüsü — AppViewModel'deki
+    // myListScrollIndex için aynı hata daha önce düzeltilmişti, bu yerel kopya atlanmıştı).
+    // Düz IntArray: yazım hiçbir kompozisyonu geçersiz kılmaz; rememberSaveable sayesinde
+    // süreç ölümünde/detay dönüşünde saklanır.
+    val savedTabIndices = rememberSaveable(saver = MyListTabPositionSaver) {
+        IntArray(MY_LIST_TAB_COUNT).also { positions ->
+            if (selectedTabIndex in 0 until MY_LIST_TAB_COUNT) {
+                positions[selectedTabIndex] = initialScrollIndex
+            }
+        }
     }
-    var savedTabOffsets by rememberSaveable {
-        mutableStateOf(List(MY_LIST_TAB_COUNT) { if (it == selectedTabIndex) initialScrollOffset else 0 })
+    val savedTabOffsets = rememberSaveable(saver = MyListTabPositionSaver) {
+        IntArray(MY_LIST_TAB_COUNT).also { positions ->
+            if (selectedTabIndex in 0 until MY_LIST_TAB_COUNT) {
+                positions[selectedTabIndex] = initialScrollOffset
+            }
+        }
     }
     var restoredTabs by remember { mutableStateOf(emptySet<Int>()) }
 
@@ -249,22 +295,33 @@ fun MyListScreen(
     // başlıkları hiç eşmez ve aynı yapım "Tümü" sekmesinde ikinci bir kart olur (1502/786
     // şişkinliğinin kök nedeni). Çapraz eşitlemenin çözüp kalıcı yazdığı kimlik köprüsü
     // burada okunur — ağa çıkılmaz.
-    var combinedIdentityExtras by remember {
-        mutableStateOf<Map<Int, Set<String>>>(emptyMap())
+    //
+    // PERF (2026-10-20): kimlik köprüsü + gruplama (groupMyListEntries: satır başına kimlik
+    // anahtarları + union-find birleştirme) + rozet/entry haritaları TEK bir arka plan
+    // hesabında üretilir. Eski sürüm bunu kompozisyon içinde senkron (ana iş parçacığında)
+    // yapıyordu: her veritabanı emisyonu (senkron yazımları, kardeş satır aynalama, +18
+    // geri yazma…) 1000+ kayıtta Listem'i yüzlerce ms kilitliyordu. Sonuç yayınlanana
+    // kadar önceki değer gösterilir (produceState davranışı), ilk hesaplamaya kadar liste
+    // boş görünür.
+    val combinedLibrary by produceState(viewModel.cachedCombinedLibrary, entriesAfterAdultFilter) {
+        val entriesForLibrary = entriesAfterAdultFilter
+        val appContext = context.applicationContext
+        value = withContext(Dispatchers.Default) {
+            val extras = MyListIdentityCrosswalk.build(appContext, entriesForLibrary)
+            val items = groupMyListEntries(entriesForLibrary, extras)
+            CombinedMyListLibrary(
+                items = items,
+                entries = items.map { it.entry },
+                sourceBadgesByEntryId = items.associate { it.entry.id to it.sourceIds }
+            )
+        }.also { computed ->
+            // Detay dönüşünde ilk karede eski sonuç hazır olsun diye ViewModel'de sakla.
+            viewModel.rememberCombinedLibrary(computed)
+        }
     }
-    LaunchedEffect(entriesAfterAdultFilter) {
-        combinedIdentityExtras = MyListIdentityCrosswalk.build(context, entriesAfterAdultFilter)
-    }
-
-    val allLibraryItems = remember(entriesAfterAdultFilter, combinedIdentityExtras) {
-        groupMyListEntries(entriesAfterAdultFilter, combinedIdentityExtras)
-    }
-    val allLibraryEntries = remember(allLibraryItems) {
-        allLibraryItems.map { it.entry }
-    }
-    val allSourceBadgesByEntryId = remember(allLibraryItems) {
-        allLibraryItems.associate { it.entry.id to it.sourceIds }
-    }
+    val allLibraryItems = combinedLibrary.items
+    val allLibraryEntries = combinedLibrary.entries
+    val allSourceBadgesByEntryId = combinedLibrary.sourceBadgesByEntryId
 
     val selectedTabEntries = remember(
         entriesAfterAdultFilter,
@@ -513,7 +570,18 @@ fun MyListScreen(
                 // A loading/empty LazyColumn would otherwise reset the saved index to zero.
                 LaunchedEffect(pageTabIndex, pageEntries.isNotEmpty()) {
                     if (pageEntries.isNotEmpty() && pageTabIndex !in restoredTabs) {
-                        pageScrollState.scrollToItem(savedTabIndices[pageTabIndex], savedTabOffsets[pageTabIndex])
+                        val savedIndex = savedTabIndices[pageTabIndex]
+                        val savedOffset = savedTabOffsets[pageTabIndex]
+                        // LazyListState.Saver konumu kendisi geri yüklediyse (detay dönüşü,
+                        // süreç ölümü) dokunma; yalnızca boş liste yüzünden sıfıra
+                        // kelepçelenmiş kayıp bir konumu kurtar. Koşulsuz scrollToItem,
+                        // Saver'ın doğru restore ettiği sekmeleri başa çekebilirdi.
+                        val alreadyAtSaved = pageScrollState.firstVisibleItemIndex == savedIndex &&
+                                pageScrollState.firstVisibleItemScrollOffset == savedOffset
+                        val hasSavedPosition = savedIndex > 0 || savedOffset > 0
+                        if (!alreadyAtSaved && hasSavedPosition) {
+                            pageScrollState.scrollToItem(savedIndex, savedOffset)
+                        }
                         restoredTabs = restoredTabs + pageTabIndex
                     }
                 }
@@ -521,8 +589,12 @@ fun MyListScreen(
                     snapshotFlow { pageScrollState.firstVisibleItemIndex to pageScrollState.firstVisibleItemScrollOffset }
                         .collect { (index, offset) ->
                             if (pageTabIndex in restoredTabs && pageEntries.isNotEmpty()) {
-                                savedTabIndices = savedTabIndices.toMutableList().also { it[pageTabIndex] = index }
-                                savedTabOffsets = savedTabOffsets.toMutableList().also { it[pageTabIndex] = offset }
+                                // PERF: düz IntArray yazımı — Compose state yazımı DEĞİL.
+                                // Eski sürüm burada her kaydırma karesinde iki MutableList
+                                // tahsis edip MutableState yazıyordu; bu da tüm ekranın
+                                // her karede yeniden kompoze olmasını tetikliyordu.
+                                savedTabIndices[pageTabIndex] = index
+                                savedTabOffsets[pageTabIndex] = offset
                             }
                         }
                 }

@@ -904,16 +904,21 @@ fun MyListContentPage(
         } else {
             val useGlobalSearchResults = searchQuery.isNotBlank() && selectedTabIndex != MY_LIST_ALL_TAB_INDEX
             val displayEntries = if (pageTabIndex == selectedTabIndex || useGlobalSearchResults) visibleEntries else pageEntries
+            // PERF: aktif olmayan pager sayfası için durum gruplaması her yeniden
+            // kompozisyonda yeniden hesaplanıyordu (kompozisyon sırasında 6 × tam liste
+            // taraması — kaydırma jesti sırasında komşu sayfalar da kompoze olur).
             val displayGrouped = if (pageTabIndex == selectedTabIndex || useGlobalSearchResults) {
                 groupedVisibleEntries
             } else {
-                val statusOrder = listOf(
-                    WatchStatus.Watching, WatchStatus.Repeating, WatchStatus.Planned,
-                    WatchStatus.Paused, WatchStatus.Dropped, WatchStatus.Completed
-                )
-                statusOrder.map { status ->
-                    status to pageEntries.filter { it.status == status }
-                }.filter { it.second.isNotEmpty() }
+                remember(pageEntries) {
+                    val statusOrder = listOf(
+                        WatchStatus.Watching, WatchStatus.Repeating, WatchStatus.Planned,
+                        WatchStatus.Paused, WatchStatus.Dropped, WatchStatus.Completed
+                    )
+                    statusOrder.map { status ->
+                        status to pageEntries.filter { it.status == status }
+                    }.filter { it.second.isNotEmpty() }
+                }
             }
 
             LazyColumn(

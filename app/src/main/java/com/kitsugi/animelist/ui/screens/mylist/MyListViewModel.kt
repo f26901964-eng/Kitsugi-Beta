@@ -48,6 +48,22 @@ class MyListViewModel(application: Application) : AndroidViewModel(application) 
         initialValue = emptyList()
     )
 
+    /**
+     * Birleşik kütüphane ("Tümü" sekmesi) hesabının SON sonucu (UI önbelleği).
+     *
+     * PERF: gruplama artık arka planda hesaplanıp yayınlanıyor; detay sayfasına gidilip
+     * dönüldüğünde ekran yeniden kompoze olurken sonuç hazır olsun ki liste bir-iki kare
+     * boşalıp dolmasın. Girdi değişince MyListScreen hesabı yeniden koşturup bunu günceller;
+     * eski veri en fazla bir kare görünür (kullanıcının son gördüğü listedir).
+     */
+    // internal: [CombinedMyListLibrary] internal bir tip; public üye internal tipi gösteremez.
+    internal var cachedCombinedLibrary: CombinedMyListLibrary = CombinedMyListLibrary.EMPTY
+        private set
+
+    internal fun rememberCombinedLibrary(value: CombinedMyListLibrary) {
+        cachedCombinedLibrary = value
+    }
+
     init {
         // Bozuk Simkl subtitle'larını ve kaynak etiketlerini tek seferlik onar
         viewModelScope.launch {
