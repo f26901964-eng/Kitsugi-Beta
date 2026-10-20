@@ -1050,6 +1050,12 @@ class Media3PlayerEngine(
                 }
             }
             pv.resizeMode = currentResizeMode
+            // Görüntü modu değiştiğinde altyazının içerik çerçevesine geri dönmediğinden
+            // emin ol (Media3 bazı sürümlerde alt yazı görünümünü yeniden ebeveynler) ve
+            // konumunu pencereye göre tazele. Kullanıcı raporu (2026-10-21): "Doldur"
+            // seçilince harici altyazı video ile birlikte büyüyüp ekran altına taşıyordu.
+            detachSubtitleViewFromContentFrame(pv)
+            applySubtitleStylesToView()
         }
     }
 

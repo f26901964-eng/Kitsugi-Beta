@@ -68,6 +68,11 @@ class KitsugiMpvSurfaceView @JvmOverloads constructor(
     private var userSelectedAudioId: Int? = null
     private var currentAspectMode: AspectMode = AspectMode.ORIGINAL
     private var pendingAspectRetryCount = 0
+    /** En son uygulanan görüntü ölçeği (view ölçeği DEĞİL, mpv video-scale-x/y). */
+    private var appliedVideoScaleX = 1.0f
+    private var appliedVideoScaleY = 1.0f
+    /** Altyazı çizim alanı pencereye sabitlendi mi? null = henüz uygulanmadı. */
+    private var subtitleAreaPinnedToWindow: Boolean? = null
     private val aspectReapplyRunnable = Runnable {
         applyAspectModeInternal(currentAspectMode, allowRetry = true)
     }
@@ -300,8 +305,8 @@ class KitsugiMpvSurfaceView @JvmOverloads constructor(
             viewAspect = viewAspect,
             videoAspect = videoAspect
         )
-        scaleX = scale.scaleX
-        scaleY = scale.scaleY
+        applyVideoScale(scale)
+        applySubtitleWindowPolicy(scale)
         if (
             allowRetry &&
             aspectModeNeedsVideoAspect(mode) &&
@@ -309,6 +314,78 @@ class KitsugiMpvSurfaceView @JvmOverloads constructor(
         ) {
             scheduleAspectModeRefresh(resetRetryCount = false)
         }
+    }
+
+    /**
+     * Görüntü modunu (Doldur / Yakınlaştır / 16:9 / 4:3 / Orijinal) mpv tarafında uygular.
+     *
+     * NEDEN VIEW ÖLÇEĞİ DEĞİL (2026-10-21 kullanıcı raporu):
+     * Eskiden burada `View.scaleX/scaleY` atanıyordu. Bir `SurfaceView` ölçeklendiğinde
+     * yüzeyin TAMAMI (video + mpv'nin çizdiği altyazı/OSD katmanı) birlikte büyüyordu.
+     * Kullanıcı "Doldur" seçtiğinde altyazı da video ile birlikte esniyor, büyüyor ve
+     * view merkezden ölçeklendiği için alt satırlar ekranın altına taşıyordu.
+     *
+     * Artık yalnızca video katmanı ölçeklenir (`video-scale-x`/`video-scale-y`); altyazı
+     * yerleşimi [applySubtitleWindowPolicy] ile pencere sınırlarına sabitlenir. Böylece
+     * harici/gömülü altyazılar görüntü modundan bağımsız kalır.
+     */
+    private fun applyVideoScale(scale: AspectScale) {
+        // Kalıntı view ölçeği varsa (eski davranış) mutlaka sıfırla: aksi hâlde altyazı
+        // bir kez daha ölçeklenir.
+        if (super.getScaleX() != 1.0f) super.setScaleX(1.0f)
+        if (super.getScaleY() != 1.0f) super.setScaleY(1.0f)
+
+        if (!initialized) return
+        val targetX = scale.scaleX.coerceIn(MIN_VIDEO_SCALE, MAX_VIDEO_SCALE)
+        val targetY = scale.scaleY.coerceIn(MIN_VIDEO_SCALE, MAX_VIDEO_SCALE)
+        if (kotlin.math.abs(targetX - appliedVideoScaleX) < 0.001f &&
+            kotlin.math.abs(targetY - appliedVideoScaleY) < 0.001f
+        ) {
+            return
+        }
+        appliedVideoScaleX = targetX
+        appliedVideoScaleY = targetY
+        runCatching {
+            mpv.setPropertyDouble("video-scale-x", targetX.toDouble())
+            mpv.setPropertyDouble("video-scale-y", targetY.toDouble())
+        }.onFailure {
+            Log.w(TAG, "Video ölçeği uygulanamadı (${it.message})")
+        }
+    }
+
+    /**
+     * Altyazı çizim alanını (libass OSD alanı) pencereye sabitler.
+     *
+     * mpv'de `sub-use-margins` / `sub-ass-force-margins` açıkken libass, çizim alanını
+     * "pencereden videoya kalan boşluk" olarak hesaplar. Video pencereyi taşıyorsa
+     * (Doldur / Yakınlaştır / 16:9 / 4:3 → `video-scale > 1`) bu boşluk NEGATİF olur;
+     * libass alanı pencereden büyük sanıp alt yazıyı ekranın altına yerleştirir.
+     * Video taştığında margin'leri kapatıp çizim alanını tam pencere yapıyoruz; altyazı
+     * böylece görüntü modu ne olursa olsun ekran içinde ve aynı boyutta kalır.
+     * Video pencereye sığdığında eski davranış (altyazı video alanı içinde) korunur.
+     */
+    private fun applySubtitleWindowPolicy(scale: AspectScale) {
+        if (!initialized) return
+        val videoOverflowsWindow = scale.scaleX > 1.001f || scale.scaleY > 1.001f
+        if (subtitleAreaPinnedToWindow == videoOverflowsWindow) return
+        subtitleAreaPinnedToWindow = videoOverflowsWindow
+        val marginsValue = if (videoOverflowsWindow) "no" else "yes"
+        runCatching {
+            mpv.setPropertyString("sub-use-margins", marginsValue)
+            mpv.setPropertyString("sub-ass-force-margins", marginsValue)
+            // Yazı boyutu videoya değil pencereye göre ölçeklensin: esnetilen görüntüde
+            // altyazı da büyümesin.
+            mpv.setPropertyString("sub-scale-by-window", "yes")
+            mpv.setPropertyString("sub-scale-with-window", "yes")
+            mpv.setPropertyString("sub-ass-scale-with-window", "no")
+        }.onFailure {
+            Log.w(TAG, "Altyazı alanı politikası uygulanamadı (${it.message})")
+        }
+        Log.d(
+            TAG,
+            "Altyazı çizim alanı: ${if (videoOverflowsWindow) "pencereye sabitlendi" else "video alanına bağlı"} " +
+                "(scale=${scale.scaleX}x${scale.scaleY})"
+        )
     }
 
     private fun scheduleAspectModeRefresh(resetRetryCount: Boolean) {
@@ -639,6 +716,12 @@ class KitsugiMpvSurfaceView @JvmOverloads constructor(
         mpv.setOptionString("sub-font", "Roboto")
         mpv.setOptionString("sub-use-margins", "yes")
         mpv.setOptionString("sub-ass-force-margins", "yes")
+        // Altyazı yazı boyutu pencereye göre ölçeklenir; video esnetildiğinde (Doldur /
+        // Yakınlaştır) altyazının da büyümesini engeller. Margin'ler görüntü moduna göre
+        // applySubtitleWindowPolicy() içinde açılıp kapanır.
+        mpv.setOptionString("sub-scale-by-window", "yes")
+        mpv.setOptionString("sub-scale-with-window", "yes")
+        mpv.setOptionString("sub-ass-scale-with-window", "no")
         mpv.setOptionString("hwdec", hardwareDecodeMode.toMpvHwdecValue())
         mpv.setOptionString("hwdec-codecs", "h264,hevc,mpeg4,mpeg2video,vp8,vp9,av1")
         mpv.setOptionString("ao", "audiotrack,opensles")
@@ -728,21 +811,24 @@ class KitsugiMpvSurfaceView @JvmOverloads constructor(
     private fun readVideoAspectRatio(): Float? {
         if (!initialized) return null
 
+        // ÖNEMLİ: Önce `video-params/*` (kaynak video) okunur. `video-out-params/*` çıkış
+        // katmanını yansıtır ve uyguladığımız `video-scale-x/y` değerlerinden etkilenebilir;
+        // oradan okumak "Doldur" modunda ölçeğin kendi kendini büyütmesine yol açıyordu.
         val directAspect = runCatching {
-            mpv.getPropertyDouble("video-out-params/aspect")
-                ?: mpv.getPropertyDouble("video-params/aspect")
+            mpv.getPropertyDouble("video-params/aspect")
+                ?: mpv.getPropertyDouble("video-out-params/aspect")
         }.getOrNull()
         if (directAspect != null && directAspect > 0.0) {
             return directAspect.toFloat()
         }
 
         val width = runCatching {
-            mpv.getPropertyInt("video-out-params/dw")
-                ?: mpv.getPropertyInt("video-params/w")
+            mpv.getPropertyInt("video-params/w")
+                ?: mpv.getPropertyInt("video-out-params/dw")
         }.getOrNull() ?: return null
         val height = runCatching {
-            mpv.getPropertyInt("video-out-params/dh")
-                ?: mpv.getPropertyInt("video-params/h")
+            mpv.getPropertyInt("video-params/h")
+                ?: mpv.getPropertyInt("video-out-params/dh")
         }.getOrNull() ?: return null
         if (width <= 0 || height <= 0) return null
 
@@ -755,6 +841,8 @@ class KitsugiMpvSurfaceView @JvmOverloads constructor(
         private const val MPV_MAX_VOLUME_PERCENT = 400.0
         private const val ASPECT_RETRY_DELAY_MS = 120L
         private const val MAX_ASPECT_RETRY_COUNT = 10
+        private const val MIN_VIDEO_SCALE = 0.1f
+        private const val MAX_VIDEO_SCALE = 10.0f
         private const val AUDIO_AMPLIFICATION_MIN_DB = 0
         private const val AUDIO_AMPLIFICATION_MAX_DB = 10
         private const val SUBTITLE_VERTICAL_OFFSET_MIN = -20
