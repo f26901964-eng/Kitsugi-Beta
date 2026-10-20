@@ -1,5 +1,6 @@
 package com.kitsugi.animelist.data.settings
 
+import com.kitsugi.animelist.model.WatchStatus
 import org.json.JSONObject
 
 /**
@@ -11,7 +12,8 @@ import org.json.JSONObject
  * uçucu önbellek. [com.kitsugi.animelist.utils.KitsugiTranslatePrefs] ile aynı desen.
  *
  * Kapsam: staffNameLanguage, scoreStep, separatedListStyle, showLowPriority,
- * priorityColorsJson, fuzzySearchEnabled, separateNovelsManga.
+ * priorityColorsJson, fuzzySearchEnabled, separateNovelsManga,
+ * autoDateOnStatusChange, autoProgressOnComplete, defaultAddStatus.
  */
 object KitsugiContentPrefs {
     @Volatile
@@ -42,6 +44,21 @@ object KitsugiContentPrefs {
     var separateNovelsManga: Boolean = false
         private set
 
+    /** Liste ekleme otomasyonu: duruma göre otomatik başlangıç/bitiş tarihi. */
+    @Volatile
+    var autoDateOnStatusChange: Boolean = true
+        private set
+
+    /** Liste ekleme otomasyonu: "Tamamlandı"da ilerlemeyi toplam bölüme tamamla. */
+    @Volatile
+    var autoProgressOnComplete: Boolean = true
+        private set
+
+    /** Hızlı eklemede kullanılacak varsayılan durum: `PLANNED` / `WATCHING` / `COMPLETED`. */
+    @Volatile
+    var defaultAddStatus: String = "PLANNED"
+        private set
+
     fun update(settings: AppSettings) {
         staffNameLanguage = settings.staffNameLanguage
         scoreStep = settings.scoreStep.toFloatOrNull()?.takeIf { it > 0f } ?: 1f
@@ -50,6 +67,19 @@ object KitsugiContentPrefs {
         priorityColorsJson = settings.priorityColorsJson
         fuzzySearchEnabled = settings.fuzzySearchEnabled
         separateNovelsManga = settings.separateNovelsManga
+        autoDateOnStatusChange = settings.autoDateOnStatusChange
+        autoProgressOnComplete = settings.autoProgressOnComplete
+        defaultAddStatus = settings.defaultAddStatus
+    }
+
+    /**
+     * [defaultAddStatus] dizesinin [WatchStatus] karşılığı.
+     * Bilinmeyen/bozuk değerlerde güvenli taraf: [WatchStatus.Planned].
+     */
+    fun defaultAddStatusValue(): WatchStatus = when (defaultAddStatus) {
+        "WATCHING"  -> WatchStatus.Watching
+        "COMPLETED" -> WatchStatus.Completed
+        else        -> WatchStatus.Planned
     }
 
     /**

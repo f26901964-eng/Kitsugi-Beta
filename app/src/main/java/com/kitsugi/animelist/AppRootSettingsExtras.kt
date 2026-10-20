@@ -53,6 +53,13 @@ internal fun SettingsContext.buildSettingsParams() =
             onPriorityColorsChanged = { onPriorityColorsChanged(it) },
             onFuzzySearchEnabledChanged = { onFuzzySearchEnabledChanged(it) },
             onSeparateNovelsMangaChanged = { onSeparateNovelsMangaChanged(it) },
+            // ─── Liste ekleme otomasyonları ────────────────────────────────
+            autoDateOnStatusChange = appSettings.autoDateOnStatusChange,
+            onAutoDateOnStatusChangeChanged = { onAutoDateOnStatusChangeChanged(it) },
+            autoProgressOnComplete = appSettings.autoProgressOnComplete,
+            onAutoProgressOnCompleteChanged = { onAutoProgressOnCompleteChanged(it) },
+            defaultAddStatus = appSettings.defaultAddStatus,
+            onDefaultAddStatusSelected = { onDefaultAddStatusSelected(it) },
             themeMode = appSettings.themeMode,
             onThemeModeSelected = { onThemeModeSelected(it) },
             amoledBlack = appSettings.amoledBlack,
@@ -827,6 +834,52 @@ internal fun SettingsContext.onPriorityColorsChanged(json: String) {
     coroutineScope.launch {
         settingsDataStore.setPriorityColorsJson(json)
         appViewModel.showSnackbarMessage(if (json.isBlank()) KitsugiStrings.get(R.string.oncelik_renkleri_varsayilana_dondu) else KitsugiStrings.get(R.string.oncelik_renkleri_guncellendi))
+    }
+}
+
+/**
+ * Liste ekleme otomasyonu: duruma göre otomatik başlangıç/bitiş tarihi.
+ * Kapatıldığında düzenleyici hiçbir tarihi kendiliğinden doldurmaz — tamamen elle kalır.
+ */
+internal fun SettingsContext.onAutoDateOnStatusChangeChanged(enabled: Boolean) {
+    coroutineScope.launch {
+        settingsDataStore.setAutoDateOnStatusChange(enabled)
+        appViewModel.showSnackbarMessage(
+            if (enabled) KitsugiStrings.get(R.string.otomatik_tarih_acildi)
+            else KitsugiStrings.get(R.string.otomatik_tarih_kapatildi)
+        )
+    }
+}
+
+/**
+ * Liste ekleme otomasyonu: "Tamamlandı"ya çekilince ilerlemenin toplam bölüme
+ * tamamlanması (AniList paritesi). Toplam bölüm bilinmeyen kayıtlarda etkisizdir.
+ */
+internal fun SettingsContext.onAutoProgressOnCompleteChanged(enabled: Boolean) {
+    coroutineScope.launch {
+        settingsDataStore.setAutoProgressOnComplete(enabled)
+        appViewModel.showSnackbarMessage(
+            if (enabled) KitsugiStrings.get(R.string.otomatik_ilerleme_acildi)
+            else KitsugiStrings.get(R.string.otomatik_ilerleme_kapatildi)
+        )
+    }
+}
+
+/**
+ * Hızlı ekleme (kart üzerindeki "+" rozeti) için varsayılan kayıt durumu.
+ * "İzliyorum" seçildiğinde otomatik tarih kuralı da devreye girer: yapım doğrudan
+ * bugünün başlangıç tarihiyle, panel açılmadan listeye girer.
+ */
+internal fun SettingsContext.onDefaultAddStatusSelected(status: String) {
+    coroutineScope.launch {
+        settingsDataStore.setDefaultAddStatus(status)
+        appViewModel.showSnackbarMessage(
+            when (status) {
+                "WATCHING"  -> KitsugiStrings.get(R.string.varsayilan_durum_izliyorum)
+                "COMPLETED" -> KitsugiStrings.get(R.string.varsayilan_durum_izledim)
+                else        -> KitsugiStrings.get(R.string.varsayilan_durum_izleyecegim)
+            }
+        )
     }
 }
 

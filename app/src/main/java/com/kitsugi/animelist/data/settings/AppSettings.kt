@@ -44,6 +44,16 @@ data class AppSettings(
     val fuzzySearchEnabled: Boolean = true,
     // AniHyou'dan: Romanları (NOVEL) mangalardan ayrı raf/bölümde göster
     val separateNovelsManga: Boolean = false,
+    // ─── Liste ekleme otomasyonları (durum → tarih / ilerleme) ─────────────────
+    // "İzliyorum"a (veya "Tekrar İzliyorum"a) çekildiğinde başlangıç tarihinin
+    // otomatik olarak bugüne doldurulması. Dolu tarihler asla ezilmez.
+    val autoDateOnStatusChange: Boolean = true,
+    // "Tamamlandı"ya çekildiğinde bitiş tarihi bugüne doldurulur ve toplam bölüm
+    // biliniyorsa ilerleme toplam değere tamamlanır (AniList paritesi).
+    val autoProgressOnComplete: Boolean = true,
+    // Hızlı ekleme (kart üzerindeki "+" rozeti) için varsayılan kayıt durumu.
+    // Değerler: "PLANNED" (İzleyeceğim) / "WATCHING" (İzliyorum) / "COMPLETED" (İzledim).
+    val defaultAddStatus: String = "PLANNED",
     // MoeList'ten: Puanları gizle
     val hideScores: Boolean = false,
     val showAnimeLogos: Boolean = false,

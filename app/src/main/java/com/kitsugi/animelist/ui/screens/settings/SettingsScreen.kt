@@ -897,6 +897,7 @@ private fun SettingsPreferencesContent(
         general.kitsuNotificationsEnabled, general.shikimoriNotificationsEnabled, general.notificationInterval,
         general.staffNameLanguage, general.scoreStep, general.separatedListStyle, general.showLowPriority,
         general.priorityColorsJson, general.fuzzySearchEnabled, general.separateNovelsManga,
+        general.autoDateOnStatusChange, general.autoProgressOnComplete, general.defaultAddStatus,
         integrations.tmdbLanguage
     ) {
         com.kitsugi.animelist.data.settings.AppSettings(
@@ -923,6 +924,9 @@ private fun SettingsPreferencesContent(
             priorityColorsJson = general.priorityColorsJson,
             fuzzySearchEnabled = general.fuzzySearchEnabled,
             separateNovelsManga = general.separateNovelsManga,
+            autoDateOnStatusChange = general.autoDateOnStatusChange,
+            autoProgressOnComplete = general.autoProgressOnComplete,
+            defaultAddStatus = general.defaultAddStatus,
             hideScores = general.hideScores,
             autoTranslateEnabled = integrations.autoTranslateEnabled,
             preferredTranslator = integrations.preferredTranslator,
@@ -973,6 +977,9 @@ private fun SettingsPreferencesContent(
         onPriorityColorsChanged = general.onPriorityColorsChanged,
         onFuzzySearchEnabledChanged = general.onFuzzySearchEnabledChanged,
         onSeparateNovelsMangaChanged = general.onSeparateNovelsMangaChanged,
+        onAutoDateOnStatusChangeChanged = general.onAutoDateOnStatusChangeChanged,
+        onAutoProgressOnCompleteChanged = general.onAutoProgressOnCompleteChanged,
+        onDefaultAddStatusSelected = general.onDefaultAddStatusSelected,
         onOpenCustomListsEditor = { showCustomListsEditor = true },
         onAutoTranslateEnabledChanged = integrations.onAutoTranslateEnabledChanged,
         onPreferredTranslatorSelected = integrations.onPreferredTranslatorSelected,

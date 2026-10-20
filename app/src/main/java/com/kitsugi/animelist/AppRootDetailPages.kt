@@ -17,7 +17,6 @@ import com.kitsugi.animelist.data.remote.ApiSearchSelection
 import com.kitsugi.animelist.data.remote.matches
 import com.kitsugi.animelist.data.remote.matchesInSource
 import com.kitsugi.animelist.data.remote.firstMatchingInSource
-import com.kitsugi.animelist.model.WatchStatus
 import com.kitsugi.animelist.data.settings.AppSettings
 import com.kitsugi.animelist.data.local.MediaEntryRepository
 import com.kitsugi.animelist.data.local.MangaMappingEntity
@@ -316,16 +315,28 @@ fun AppRootDetailPages(
                                 mediaRepository.update(updatedEntry)
                             }
                         } else {
-                            // Auto-insert as Planned + favorited for non-library entries
+                            // Auto-insert as favorited for non-library entries.
+                            // Durum, Ayarlar'daki "Listeye eklerken varsayılan durum"
+                            // tercihinden gelir; otomatik tarih kuralı da aynı şekilde
+                            // uygulanır (yeni kayıt = durum değişti).
                             val result = selection.result
+                            val defaultStatus = com.kitsugi.animelist.data.settings.KitsugiContentPrefs.defaultAddStatusValue()
+                            val auto = com.kitsugi.animelist.model.EntryAutoRules.resolveOnStatusChange(
+                                status = defaultStatus,
+                                startDate = null,
+                                endDate = null,
+                                progress = 0,
+                                total = result.total,
+                                statusChanged = true
+                            )
                             val newEntry = com.kitsugi.animelist.model.MediaEntry(
                                 id = 0,
                                 title = result.title,
                                 subtitle = result.subtitle,
                                 type = result.type,
-                                status = WatchStatus.Planned,
+                                status = defaultStatus,
                                 score = result.score,
-                                progress = 0,
+                                progress = auto.progress,
                                 total = result.total,
                                 isFavorite = true,
                                 isAdult = result.isAdult,
@@ -334,6 +345,8 @@ fun AppRootDetailPages(
                                 imageUrl = result.imageUrl,
                                 year = result.year,
                                 synopsis = selection.synopsis,
+                                startDate = auto.startDate,
+                                endDate = auto.endDate,
                                 tmdbId = result.tmdbId,
                                 titleEnglish = result.titleEnglish,
                                 titleJapanese = result.titleJapanese

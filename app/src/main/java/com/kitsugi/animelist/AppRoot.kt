@@ -93,6 +93,7 @@ import com.kitsugi.animelist.data.remote.canonicalMediaSourceId
 import com.kitsugi.animelist.data.remote.BangumiMediaEntryFactory
 import com.kitsugi.animelist.data.settings.AppSettings
 import com.kitsugi.animelist.data.settings.SettingsDataStore
+import com.kitsugi.animelist.model.EntryAutoRules
 import com.kitsugi.animelist.model.MediaEntry
 import com.kitsugi.animelist.model.MediaType
 import com.kitsugi.animelist.model.WatchStatus
@@ -740,8 +741,6 @@ fun AppRoot(
     }
 
     fun incrementEntryProgress(entry: MediaEntry) {
-        val today = SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date())
-
         val nextProgress = if (entry.total != null) {
             (entry.progress + 1).coerceAtMost(entry.total)
         } else {
@@ -756,23 +755,22 @@ fun AppRoot(
             entry.status
         }
 
-        val autoStartDate = if (entry.status == WatchStatus.Planned && entry.startDate.isNullOrBlank()) {
-            today
-        } else {
-            entry.startDate
-        }
-
-        val autoEndDate = if (nextStatus == WatchStatus.Completed && entry.endDate.isNullOrBlank()) {
-            today
-        } else {
-            entry.endDate
-        }
+        // Aynı kural motoru: "İzlemeye başla" anında başlangıç tarihi bugüne dolar,
+        // son bölüme gelindiğinde durum Tamamlandı'ya çekilip bitiş tarihi yazılır.
+        val auto = EntryAutoRules.resolveOnStatusChange(
+            status = nextStatus,
+            startDate = entry.startDate,
+            endDate = entry.endDate,
+            progress = nextProgress,
+            total = entry.total,
+            statusChanged = nextStatus != entry.status
+        )
 
         val updatedEntry = entry.copy(
-            progress = nextProgress,
+            progress = auto.progress,
             status = nextStatus,
-            startDate = autoStartDate,
-            endDate = autoEndDate
+            startDate = auto.startDate,
+            endDate = auto.endDate
         )
 
         coroutineScope.launch {
@@ -1026,25 +1024,32 @@ fun AppRoot(
                 val entry = editingEntry ?: return@AppDialogHost
                 val addBangumiMembership = isAddingBangumiEntry
                 val isBangumiEntry = canonicalMediaSourceId(entry.source) == "bangumi"
-                val today = SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date())
-                val resolvedStartDate = if (startDate.isNullOrBlank() &&
-                    (status == WatchStatus.Watching || status == WatchStatus.Completed) &&
-                    entry.startDate.isNullOrBlank()) today else startDate
-                val resolvedEndDate = if (endDate.isNullOrBlank() &&
-                    status == WatchStatus.Completed &&
-                    entry.endDate.isNullOrBlank()) today else endDate
+                // Durum → tarih/ilerleme otomasyonu (tek kural motoru: EntryAutoRules).
+                // Düzenleyici paneli bu kuralları canlı olarak zaten uygular; buradaki
+                // çözümleme, panelin atlandığı ya da tarihin elle temizlendiği durumlar
+                // için son bir güvenlik ağıdır. Dolu tarihler asla ezilmez.
+                val auto = EntryAutoRules.resolveOnStatusChange(
+                    status = status,
+                    startDate = startDate,
+                    endDate = endDate,
+                    progress = progress,
+                    total = total,
+                    // Sadece durum gerçekten değiştiyse ilerleme tamamlanır; kullanıcı
+                    // "Tamamlandı" bir kaydın sadece puanını düzenliyorsa ilerleme aynı kalır.
+                    statusChanged = status != entry.status
+                )
                 val updatedEntry = entry.copy(
                     title = title,
                     subtitle = if (subtitle.isBlank()) KitsugiStrings.get(R.string.manuel_eklenen_icerik) else subtitle,
                     type = type,
                     status = status,
                     isAdult = isAdult,
-                    progress = progress,
+                    progress = auto.progress,
                     total = total,
                     score = score,
                     isFavorite = isFavorite,
-                    startDate = resolvedStartDate,
-                    endDate = resolvedEndDate,
+                    startDate = auto.startDate,
+                    endDate = auto.endDate,
                     notes = notes,
                     tags = tags,
                     priority = priority ?: 0,

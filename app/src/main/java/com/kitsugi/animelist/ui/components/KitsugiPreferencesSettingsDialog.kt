@@ -34,6 +34,9 @@ import androidx.compose.material.icons.rounded.Translate
 import androidx.compose.material.icons.rounded.Tablet
 import androidx.compose.material.icons.rounded.Movie
 import androidx.compose.material.icons.rounded.ViewList
+import androidx.compose.material.icons.rounded.PlaylistAddCheck
+import androidx.compose.material.icons.rounded.Event
+import androidx.compose.material.icons.rounded.DoneAll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -90,6 +93,10 @@ fun KitsugiPreferencesSettingsDialog(
     onPriorityColorsChanged: (String) -> Unit = {},
     onFuzzySearchEnabledChanged: (Boolean) -> Unit = {},
     onSeparateNovelsMangaChanged: (Boolean) -> Unit = {},
+    // ─── Liste ekleme otomasyonları (durum → tarih / ilerleme) ──────────────
+    onAutoDateOnStatusChangeChanged: (Boolean) -> Unit = {},
+    onAutoProgressOnCompleteChanged: (Boolean) -> Unit = {},
+    onDefaultAddStatusSelected: (String) -> Unit = {},
     onOpenCustomListsEditor: () -> Unit = {},
     onAutoTranslateEnabledChanged: (Boolean) -> Unit,
     onPreferredTranslatorSelected: (String) -> Unit = {},
@@ -229,6 +236,9 @@ fun KitsugiPreferencesSettingsDialog(
                         onPriorityColorsChanged = onPriorityColorsChanged,
                         onFuzzySearchEnabledChanged = onFuzzySearchEnabledChanged,
                         onSeparateNovelsMangaChanged = onSeparateNovelsMangaChanged,
+                        onAutoDateOnStatusChangeChanged = onAutoDateOnStatusChangeChanged,
+                        onAutoProgressOnCompleteChanged = onAutoProgressOnCompleteChanged,
+                        onDefaultAddStatusSelected = onDefaultAddStatusSelected,
                         onOpenCustomListsEditor = onOpenCustomListsEditor,
                         onAutoTranslateEnabledChanged = onAutoTranslateEnabledChanged,
                         onPreferredTranslatorSelected = onPreferredTranslatorSelected,
@@ -687,6 +697,10 @@ private fun ListScoreTab(
     onPriorityColorsChanged: (String) -> Unit = {},
     onFuzzySearchEnabledChanged: (Boolean) -> Unit = {},
     onSeparateNovelsMangaChanged: (Boolean) -> Unit = {},
+    // ─── Liste ekleme otomasyonları (durum → tarih / ilerleme) ──────────────
+    onAutoDateOnStatusChangeChanged: (Boolean) -> Unit = {},
+    onAutoProgressOnCompleteChanged: (Boolean) -> Unit = {},
+    onDefaultAddStatusSelected: (String) -> Unit = {},
     onOpenCustomListsEditor: () -> Unit = {},
     onAutoTranslateEnabledChanged: (Boolean) -> Unit,
     onPreferredTranslatorSelected: (String) -> Unit = {},
@@ -724,6 +738,10 @@ private fun ListScoreTab(
     val priorityColorsJson = appSettings.priorityColorsJson
     val fuzzySearchEnabled = appSettings.fuzzySearchEnabled
     val separateNovelsManga = appSettings.separateNovelsManga
+    // ─── Liste ekleme otomasyonları ───────────────────────────────────────
+    val autoDateOnStatusChange = appSettings.autoDateOnStatusChange
+    val autoProgressOnComplete = appSettings.autoProgressOnComplete
+    val defaultAddStatus = appSettings.defaultAddStatus
 
     val staffNameLanguageOptions = listOf(
         KitsugiChoiceOption(id = "ROMAJI", title = "Romaji", description = ""),
@@ -734,6 +752,12 @@ private fun ListScoreTab(
     val scoreStepOptions = listOf(
         KitsugiChoiceOption(id = "1", title = "1", description = stringResource(R.string.tam_sayi_adimlar_1_2_3)),
         KitsugiChoiceOption(id = "0.5", title = "0,5", description = stringResource(R.string.yarim_puan_adimlar_7_5_8_8_5))
+    )
+
+    val defaultAddStatusOptions = listOf(
+        KitsugiChoiceOption(id = "PLANNED", title = stringResource(R.string.watch_planned), description = KitsugiStrings.get(R.string.varsayilan_durum_secenek_planlandi_desc)),
+        KitsugiChoiceOption(id = "WATCHING", title = stringResource(R.string.watch_watching), description = KitsugiStrings.get(R.string.varsayilan_durum_secenek_izliyorum_desc)),
+        KitsugiChoiceOption(id = "COMPLETED", title = stringResource(R.string.watch_completed), description = KitsugiStrings.get(R.string.varsayilan_durum_secenek_tamamlandi_desc))
     )
 
     val listLayoutOptions = listOf(
@@ -1572,6 +1596,7 @@ private fun ListScoreTab(
         // LİSTE DAVRANIŞI (AniHyou paritesi) — tüm kaynaklara uygulanan liste ayarları
         KitsugiSettingsSection(title = KitsugiStrings.get(R.string.liste)) {
             var showPriorityColorsDialog by remember { mutableStateOf(false) }
+            var showDefaultAddStatusMenu by remember { mutableStateOf(false) }
             var priorityEditLevel by remember { mutableStateOf<Int?>(null) }
             var priorityColorInput by remember { mutableStateOf("") }
 
@@ -1604,6 +1629,66 @@ private fun ListScoreTab(
                 icon = Icons.Rounded.PlaylistAdd,
                 iconColor = accentColor,
                 onClick = onOpenCustomListsEditor
+            )
+
+            KitsugiSettingsDivider()
+
+            // ─── Liste ekleme otomasyonları ────────────────────────────────
+            // Hızlı ekleme (+ rozeti) hangi durumla girsin? "İzliyorum" seçilirse
+            // otomatik tarih kuralı da devreye girer: yapım bugünün tarihiyle,
+            // düzenleyici paneli açılmadan doğrudan listeye yazılır.
+            KitsugiSettingsListItem(
+                title = KitsugiStrings.get(R.string.varsayilan_ekleme_durumu),
+                description = KitsugiStrings.get(R.string.varsayilan_ekleme_durumu_desc),
+                value = defaultAddStatusOptions.find { it.id == defaultAddStatus }?.title
+                    ?: defaultAddStatusOptions.first().title,
+                icon = Icons.Rounded.PlaylistAddCheck,
+                iconColor = accentColor,
+                onClick = { showDefaultAddStatusMenu = true }
+            )
+            KitsugiDropdownMenu(
+                expanded = showDefaultAddStatusMenu,
+                onDismissRequest = { showDefaultAddStatusMenu = false },
+                dialogTitle = KitsugiStrings.get(R.string.varsayilan_ekleme_durumu)
+            ) {
+                defaultAddStatusOptions.forEach { opt ->
+                    KitsugiDropdownItem(
+                        text = opt.title,
+                        selected = opt.id == defaultAddStatus,
+                        onClick = {
+                            onDefaultAddStatusSelected(opt.id)
+                            showDefaultAddStatusMenu = false
+                        }
+                    )
+                }
+            }
+
+            KitsugiSettingsDivider()
+
+            KitsugiSettingsSwitchItem(
+                title = KitsugiStrings.get(R.string.otomatik_tarih_doldur),
+                description = if (autoDateOnStatusChange)
+                    KitsugiStrings.get(R.string.otomatik_tarih_doldur_desc_on)
+                else
+                    KitsugiStrings.get(R.string.otomatik_tarih_doldur_desc_off),
+                icon = Icons.Rounded.Event,
+                iconColor = accentColor,
+                checked = autoDateOnStatusChange,
+                onCheckedChange = onAutoDateOnStatusChangeChanged
+            )
+
+            KitsugiSettingsDivider()
+
+            KitsugiSettingsSwitchItem(
+                title = KitsugiStrings.get(R.string.otomatik_ilerleme_tamamla),
+                description = if (autoProgressOnComplete)
+                    KitsugiStrings.get(R.string.otomatik_ilerleme_tamamla_desc_on)
+                else
+                    KitsugiStrings.get(R.string.otomatik_ilerleme_tamamla_desc_off),
+                icon = Icons.Rounded.DoneAll,
+                iconColor = accentColor,
+                checked = autoProgressOnComplete,
+                onCheckedChange = onAutoProgressOnCompleteChanged
             )
 
             KitsugiSettingsDivider()

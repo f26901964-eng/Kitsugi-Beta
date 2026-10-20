@@ -105,6 +105,11 @@ class SettingsDataStore(
         val FuzzySearchEnabled = booleanPreferencesKey("fuzzy_search_enabled")
         // AniHyou'dan uyarlama: roman/manga ayrımı
         val SeparateNovelsManga = booleanPreferencesKey("separate_novels_manga")
+        // Liste ekleme otomasyonları: duruma göre otomatik tarih / otomatik ilerleme
+        val AutoDateOnStatusChange = booleanPreferencesKey("auto_date_on_status_change")
+        val AutoProgressOnComplete = booleanPreferencesKey("auto_progress_on_complete")
+        // Hızlı ekleme (kart "+" rozeti) için varsayılan durum: PLANNED / WATCHING / COMPLETED
+        val DefaultAddStatus = stringPreferencesKey("default_add_status")
         // MoeList'ten uyarlama: puanları gizle
         val HideScores = booleanPreferencesKey("hide_scores")
         val ShowAnimeLogos = booleanPreferencesKey("show_anime_logos")
@@ -447,6 +452,9 @@ class SettingsDataStore(
                     priorityColorsJson = preferences[Keys.PriorityColorsJson] ?: "",
                     fuzzySearchEnabled = preferences[Keys.FuzzySearchEnabled] ?: true,
                     separateNovelsManga = preferences[Keys.SeparateNovelsManga] ?: false,
+                    autoDateOnStatusChange = preferences[Keys.AutoDateOnStatusChange] ?: true,
+                    autoProgressOnComplete = preferences[Keys.AutoProgressOnComplete] ?: true,
+                    defaultAddStatus = preferences[Keys.DefaultAddStatus] ?: "PLANNED",
                     hideScores = preferences[Keys.HideScores] ?: false,
                     showAnimeLogos = preferences[Keys.ShowAnimeLogos] ?: false,
                     playerPreference = preferences[Keys.PlayerPreference] ?: "MPV",
@@ -912,6 +920,27 @@ class SettingsDataStore(
     suspend fun setSeparateNovelsManga(separate: Boolean) {
         context.settingsDataStore.edit { preferences ->
             preferences[Keys.SeparateNovelsManga] = separate
+        }
+    }
+
+    // Liste ekleme otomasyonu: duruma göre otomatik başlangıç/bitiş tarihi
+    suspend fun setAutoDateOnStatusChange(enabled: Boolean) {
+        context.settingsDataStore.edit { preferences ->
+            preferences[Keys.AutoDateOnStatusChange] = enabled
+        }
+    }
+
+    // Liste ekleme otomasyonu: "Tamamlandı"da ilerlemeyi toplam bölüme tamamla
+    suspend fun setAutoProgressOnComplete(enabled: Boolean) {
+        context.settingsDataStore.edit { preferences ->
+            preferences[Keys.AutoProgressOnComplete] = enabled
+        }
+    }
+
+    // Hızlı eklemede kullanılacak varsayılan durum (PLANNED / WATCHING / COMPLETED)
+    suspend fun setDefaultAddStatus(status: String) {
+        context.settingsDataStore.edit { preferences ->
+            preferences[Keys.DefaultAddStatus] = status
         }
     }
 

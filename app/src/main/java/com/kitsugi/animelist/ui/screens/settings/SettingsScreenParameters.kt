@@ -51,6 +51,16 @@ data class GeneralSettings(
     val onFuzzySearchEnabledChanged: (Boolean) -> Unit = {},
     val separateNovelsManga: Boolean = false,
     val onSeparateNovelsMangaChanged: (Boolean) -> Unit = {},
+    // ─── Liste ekleme otomasyonları (durum → tarih / ilerleme) ──────────────
+    // "İzliyorum"a çekince başlangıç tarihini bugüne doldur (dolu tarih ezilmez)
+    val autoDateOnStatusChange: Boolean = true,
+    val onAutoDateOnStatusChangeChanged: (Boolean) -> Unit = {},
+    // "Tamamlandı"ya çekince bitiş tarihi bugün + ilerleme toplam bölüme tamamlanır
+    val autoProgressOnComplete: Boolean = true,
+    val onAutoProgressOnCompleteChanged: (Boolean) -> Unit = {},
+    // Hızlı ekleme (+ rozeti) için varsayılan durum: PLANNED / WATCHING / COMPLETED
+    val defaultAddStatus: String = "PLANNED",
+    val onDefaultAddStatusSelected: (String) -> Unit = {},
     val onOpenCustomListsEditor: () -> Unit = {},
     val onThemeSelected: (String) -> Unit,
     val onAdultContentChanged: (Boolean) -> Unit,

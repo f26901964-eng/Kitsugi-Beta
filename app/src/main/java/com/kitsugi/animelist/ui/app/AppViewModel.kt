@@ -14,6 +14,8 @@ import com.kitsugi.animelist.data.remote.BangumiMediaEntryFactory
 import com.kitsugi.animelist.data.remote.canonicalMediaSourceId
 import com.kitsugi.animelist.data.remote.matchesInSource
 import com.kitsugi.animelist.data.settings.SettingsDataStore
+import com.kitsugi.animelist.data.settings.KitsugiContentPrefs
+import com.kitsugi.animelist.model.EntryAutoRules
 import com.kitsugi.animelist.model.MediaEntry
 import com.kitsugi.animelist.model.MediaType
 import com.kitsugi.animelist.model.WatchStatus
@@ -28,9 +30,9 @@ import kotlinx.coroutines.launch
 import dagger.hilt.EntryPoint
 import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
-import dagger.hilt.android.EntryPointAccessors
 import com.kitsugi.animelist.utils.KitsugiStrings
 import com.kitsugi.animelist.R
+import dagger.hilt.android.EntryPointAccessors
 
 @EntryPoint
 @InstallIn(SingletonComponent::class)
@@ -540,16 +542,32 @@ class AppViewModel : ViewModel() {
         } else null
 
         // 3. Unified MediaEntry oluştur — tüm çözümlenen ID'leri tek bir kayıtta birleştir
+        //
+        // Varsayılan ekleme durumu (Ayarlar → Tercihler → Liste). Kullanıcı
+        // "İzliyorum"u seçtiyse otomatik tarih kuralı da devreye girer: yapım,
+        // düzenleyici paneli hiç açılmadan bugünün başlangıç tarihiyle listeye girer.
+        val defaultStatus = KitsugiContentPrefs.defaultAddStatusValue()
+        val auto = EntryAutoRules.resolveOnStatusChange(
+            status = defaultStatus,
+            startDate = null,
+            endDate = null,
+            progress = 0,
+            total = result.total,
+            // Yeni kayıt: durum "değişti" sayılır → varsayılan durum "İzledim" ise
+            // ilerleme doğrudan toplam bölüme yazılır.
+            statusChanged = true
+        )
+
         val newEntry = MediaEntry(
             id = 0,
             title = result.title,
             subtitle = result.subtitle,
             type = result.type,
-            status = WatchStatus.Planned,
+            status = defaultStatus,
             // Yeni eklenen kayıtlar puan sıfırdan başlamalı;
             // API metadata puanı (result.score) kullanıcının kişisel puanı değildir.
             score = null,
-            progress = 0,
+            progress = auto.progress,
             total = result.total,
             isFavorite = false,
             isAdult = result.isAdult,
@@ -565,6 +583,8 @@ class AppViewModel : ViewModel() {
             imageUrl = result.imageUrl,
             year = result.year,
             synopsis = selection.synopsis,
+            startDate = auto.startDate,
+            endDate = auto.endDate,
             tmdbId = finalTmdbId,
             simklId = resolvedSimklId,
             aniListEntryId = null, // AniList sync sonrası DB'ye yazılacak
@@ -575,7 +595,14 @@ class AppViewModel : ViewModel() {
         repository.insert(newEntry)
         return ApiInsertOutcome(
             ApiInsertStatus.ADDED,
-            "Listeye eklendi: ${newEntry.title}",
+            KitsugiStrings.get(
+                when (defaultStatus) {
+                    WatchStatus.Watching  -> R.string.izliyor_olarak_eklendi
+                    WatchStatus.Completed -> R.string.izlendi_olarak_eklendi
+                    else                  -> R.string.listeye_eklendi_isim
+                },
+                newEntry.title
+            ),
             newEntry
         )
     }

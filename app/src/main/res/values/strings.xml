@@ -7817,4 +7817,30 @@ Eklentiler ekranından eklenti etkinleştirin.</string>
     <string name="toplu_listeye_ekleniyor">%1$d içerik listeye ekleniyor…</string>
     <string name="toplu_listeye_ekleme_sonuc">%1$d eklendi • %2$d zaten listede • %3$d eklenemedi</string>
     <string name="tumu_zaten_listede">Tüm içerikler zaten listenizde.</string>
+
+    <!-- Liste ekleme otomasyonları (durum → tarih / ilerleme) -->
+    <string name="date_chip_today">Bugün</string>
+    <string name="date_chip_yesterday">Dün</string>
+    <string name="bitis_tarihi_baslangictan_once_uyari">Bitiş tarihi başlangıç tarihinden önce olamaz.</string>
+    <string name="otomatik_tarih_doldur">Duruma göre tarihi otomatik doldur</string>
+    <string name="otomatik_tarih_doldur_desc_on">İzliyorum veya Tamamlandı seçildiğinde tarih satırı anında bugün olarak dolar. Dolu tarihler değişmez.</string>
+    <string name="otomatik_tarih_doldur_desc_off">Tarihler tamamen elle girilir, hiçbir tarih kendiliğinden yazılmaz.</string>
+    <string name="otomatik_ilerleme_tamamla">Tamamlandı seçilince ilerlemeyi tamamla</string>
+    <string name="otomatik_ilerleme_tamamla_desc_on">Toplam bölüm biliniyorsa ilerleme otomatik olarak son bölüme çekilir.</string>
+    <string name="otomatik_ilerleme_tamamla_desc_off">İlerleme elle girilir, durum değişince dokunulmaz.</string>
+    <string name="varsayilan_ekleme_durumu">Listeye eklerken varsayılan durum</string>
+    <string name="varsayilan_ekleme_durumu_desc">Kart üzerindeki artı rozeti yapımı hangi durumla listeye atsın.</string>
+    <string name="varsayilan_durum_secenek_planlandi_desc">Sessizce İzleyeceğim olarak ekler.</string>
+    <string name="varsayilan_durum_secenek_izliyorum_desc">Bugünün tarihiyle İzliyorum olarak ekler.</string>
+    <string name="varsayilan_durum_secenek_tamamlandi_desc">Bugünün tarihiyle İzledim olarak ekler.</string>
+    <string name="otomatik_tarih_acildi">Otomatik tarih doldurma açıldı.</string>
+    <string name="otomatik_tarih_kapatildi">Otomatik tarih doldurma kapatıldı.</string>
+    <string name="otomatik_ilerleme_acildi">Otomatik ilerleme tamamlama açıldı.</string>
+    <string name="otomatik_ilerleme_kapatildi">Otomatik ilerleme tamamlama kapatıldı.</string>
+    <string name="varsayilan_durum_izliyorum">Hızlı ekleme artık İzliyorum olarak ekliyor.</string>
+    <string name="varsayilan_durum_izledim">Hızlı ekleme artık İzledim olarak ekliyor.</string>
+    <string name="varsayilan_durum_izleyecegim">Hızlı ekleme artık İzleyeceğim olarak ekliyor.</string>
+    <string name="listeye_eklendi_isim">Listeye eklendi: %1$s</string>
+    <string name="izliyor_olarak_eklendi">İzliyor olarak eklendi: %1$s</string>
+    <string name="izlendi_olarak_eklendi">İzledim olarak eklendi: %1$s</string>
 </resources>

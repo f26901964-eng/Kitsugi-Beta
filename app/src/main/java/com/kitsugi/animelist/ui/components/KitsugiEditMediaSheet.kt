@@ -80,6 +80,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.kitsugi.animelist.model.MediaEntry
 import com.kitsugi.animelist.model.MediaType
+import com.kitsugi.animelist.model.EntryAutoRules
 import com.kitsugi.animelist.model.WatchStatus
 import com.kitsugi.animelist.ui.theme.LocalKitsugiAccent
 import com.kitsugi.animelist.ui.theme.KitsugiColors
@@ -188,12 +189,29 @@ fun KitsugiEditMediaSheet(
     val isManual     = !isAniList && !isMal && !isSimkl && !isKitsu && !isShikimori && !isBangumi
 
     // ── State ──────────────────────────────────────────────────────────────
+    // Otomatik tarih/ilerleme kuralı panel açılır açılmaz uygulanır: böylece
+    // "İzliyorum" bir kaydın başlangıç tarihi boşsa kullanıcı satırda zaten
+    // bugünün tarihini görür. (Eskiden yalnızca Kaydet'e basılınca, sessizce
+    // yazılıyordu; kullanıcı neyin gittiğini hiç görmüyordu.)
+    val autoOnOpen = remember(editorEntryKey) {
+        EntryAutoRules.resolveOnStatusChange(
+            status = initialEntry?.status ?: WatchStatus.Planned,
+            startDate = initialEntry?.startDate,
+            endDate = initialEntry?.endDate,
+            progress = initialEntry?.progress ?: 0,
+            total = initialEntry?.total,
+            // Panel açılışında durum değişmedi: yalnızca EKSİK tarihler doldurulur,
+            // kullanıcının ilerlemesine asla dokunulmaz.
+            statusChanged = false
+        )
+    }
+
     var title      by rememberSaveable(editorEntryKey) { mutableStateOf(initialEntry?.title.orEmpty()) }
     var subtitle   by rememberSaveable(editorEntryKey) { mutableStateOf(initialEntry?.subtitle.orEmpty()) }
     var selectedType by rememberSaveable(editorEntryKey) { mutableStateOf(initialEntry?.type ?: MediaType.Anime) }
     var selectedStatus by rememberSaveable(editorEntryKey) { mutableStateOf(initialEntry?.status ?: WatchStatus.Planned) }
     var isAdult    by rememberSaveable(editorEntryKey) { mutableStateOf(initialEntry?.isAdult ?: false) }
-    var progressText by rememberSaveable(editorEntryKey) { mutableStateOf(initialEntry?.progress?.toString() ?: "0") }
+    var progressText by rememberSaveable(editorEntryKey) { mutableStateOf(autoOnOpen.progress.toString()) }
     var totalText  by rememberSaveable(editorEntryKey) { mutableStateOf(initialEntry?.total?.toString().orEmpty()) }
 
     var scoreRaw   by rememberSaveable(editorEntryKey) {
@@ -213,8 +231,8 @@ fun KitsugiEditMediaSheet(
     }
 
     var isFavorite     by rememberSaveable(editorEntryKey) { mutableStateOf(initialEntry?.isFavorite ?: false) }
-    var startDateText  by rememberSaveable(editorEntryKey) { mutableStateOf(initialEntry?.startDate.orEmpty()) }
-    var endDateText    by rememberSaveable(editorEntryKey) { mutableStateOf(initialEntry?.endDate.orEmpty()) }
+    var startDateText  by rememberSaveable(editorEntryKey) { mutableStateOf(autoOnOpen.startDate.orEmpty()) }
+    var endDateText    by rememberSaveable(editorEntryKey) { mutableStateOf(autoOnOpen.endDate.orEmpty()) }
     var notes          by rememberSaveable(editorEntryKey) { mutableStateOf(initialEntry?.notes.orEmpty()) }
     var tags           by rememberSaveable(editorEntryKey) { mutableStateOf(initialEntry?.tags.orEmpty()) }
     var priority       by rememberSaveable(editorEntryKey) { mutableIntStateOf(initialEntry?.priority ?: 0) }
@@ -324,6 +342,12 @@ fun KitsugiEditMediaSheet(
     }
     val normalizedStart = startDateText.trim().takeIf { it.isValidDateOrBlank() }
     val normalizedEnd   = endDateText.trim().takeIf { it.isValidDateOrBlank() }
+    // Bitiş tarihinin başlangıçtan önce seçilmesi. Biçim sabit uzunlukta ve sıfır
+    // dolgulu (yyyy-MM-dd) olduğu için dize karşılaştırması kronolojiktir.
+    val dateOrderError = !EntryAutoRules.isBlankDate(startDateText) &&
+        !EntryAutoRules.isBlankDate(endDateText) &&
+        startDateText.isValidDateOrBlank() && endDateText.isValidDateOrBlank() &&
+        endDateText < startDateText
     val canSave = (isManual && title.isNotBlank() || !isManual) &&
             startDateText.trim().isValidDateOrBlank() &&
             endDateText.trim().isValidDateOrBlank()
@@ -547,7 +571,26 @@ fun KitsugiEditMediaSheet(
                                     color = if (selected) accentColor else KitsugiColors.Border,
                                     shape = RoundedCornerShape(20.dp)
                                 )
-                                .tvClickable(shape = RoundedCornerShape(20.dp)) { selectedStatus = status }
+                                .tvClickable(shape = RoundedCornerShape(20.dp)) {
+                                    if (selectedStatus != status) {
+                                        // Durum → tarih/ilerleme otomasyonu ANINDA uygulanır:
+                                        // kullanıcı "İzliyorum"a basar basmaz başlangıç tarihi
+                                        // bugün olarak dolar ve satırda görünür; isterse "X" ile
+                                        // temizleyebilir. Dolu tarihler asla ezilmez.
+                                        val auto = EntryAutoRules.resolveOnStatusChange(
+                                            status = status,
+                                            startDate = startDateText,
+                                            endDate = endDateText,
+                                            progress = parsedProgress,
+                                            total = parsedTotal,
+                                            statusChanged = true
+                                        )
+                                        selectedStatus = status
+                                        startDateText = auto.startDate.orEmpty()
+                                        endDateText = auto.endDate.orEmpty()
+                                        if (auto.progress != parsedProgress) progressText = auto.progress.toString()
+                                    }
+                                }
                                 .padding(horizontal = 14.dp, vertical = 8.dp),
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(6.dp)
@@ -748,16 +791,35 @@ fun KitsugiEditMediaSheet(
                 // ── Dates ──────────────────────────────────────────────────
                 SheetRow(
                     icon = Icons.Rounded.CalendarToday, label = stringResource(R.string.baslangic_tarihi),
-                    value = startDateText.ifBlank { "Tarih Seçilmemiş" },
+                    value = startDateText.ifBlank { stringResource(R.string.tarih_secilmemis) },
                     onClick = { selectDate(startDateText) { startDateText = it } },
                     onClearClick = if (startDateText.isNotBlank()) { { startDateText = "" } } else null
                 )
+                DateQuickChips(
+                    onToday = { startDateText = EntryAutoRules.today() },
+                    onYesterday = { startDateText = EntryAutoRules.yesterday() },
+                    onClear = if (startDateText.isNotBlank()) { { startDateText = "" } } else null
+                )
                 SheetRow(
                     icon = Icons.Rounded.EventAvailable, label = stringResource(R.string.bitis_tarihi),
-                    value = endDateText.ifBlank { "Tarih Seçilmemiş" },
+                    value = endDateText.ifBlank { stringResource(R.string.tarih_secilmemis) },
                     onClick = { selectDate(endDateText) { endDateText = it } },
                     onClearClick = if (endDateText.isNotBlank()) { { endDateText = "" } } else null
                 )
+                DateQuickChips(
+                    onToday = { endDateText = EntryAutoRules.today() },
+                    onYesterday = { endDateText = EntryAutoRules.yesterday() },
+                    onClear = if (endDateText.isNotBlank()) { { endDateText = "" } } else null
+                )
+                if (dateOrderError) {
+                    Text(
+                        text = stringResource(R.string.bitis_tarihi_baslangictan_once_uyari),
+                        color = KitsugiColors.AccentRed,
+                        style = MaterialTheme.typography.bodySmall,
+                        fontWeight = FontWeight.Medium,
+                        modifier = Modifier.padding(horizontal = 20.dp, vertical = 4.dp)
+                    )
+                }
 
                 HorizontalDivider(color = KitsugiColors.Border, modifier = Modifier.padding(horizontal = 16.dp))
 
@@ -1216,3 +1278,52 @@ fun KitsugiCustomListsSelectionDialog(
     }
 }
 
+/**
+ * Tarih satırının hemen altındaki kompakt hızlı kısayollar: **Bugün**, **Dün**, **Temizle**.
+ *
+ * Tarih seçiminin %90'ı "bugün" ya da "dün" olduğu için her seferinde takvim
+ * açtırmamak amaçlanıyor. Çipler yalnızca ilgili satırı etkiler; temizleme çipi
+ * tarih boşken gösterilmez (sürekli yer kaplayan ölü bir düğme olmasın).
+ */
+@Composable
+private fun DateQuickChips(
+    onToday: () -> Unit,
+    onYesterday: () -> Unit,
+    onClear: (() -> Unit)?,
+    modifier: Modifier = Modifier
+) {
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(horizontal = 24.dp, vertical = 2.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        DateQuickChip(text = stringResource(R.string.date_chip_today), onClick = onToday)
+        DateQuickChip(text = stringResource(R.string.date_chip_yesterday), onClick = onYesterday)
+        if (onClear != null) {
+            DateQuickChip(text = stringResource(R.string.temizle), onClick = onClear)
+        }
+    }
+}
+
+@Composable
+private fun DateQuickChip(text: String, onClick: () -> Unit) {
+    val accentColor = LocalKitsugiAccent.current
+    val shape = RoundedCornerShape(50)
+    Box(
+        modifier = Modifier
+            .clip(shape)
+            .background(KitsugiColors.SurfaceSoft)
+            .border(width = 1.dp, color = KitsugiColors.Border, shape = shape)
+            .tvClickable(shape = shape, onClick = onClick)
+            .padding(horizontal = 12.dp, vertical = 6.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            text = text,
+            color = accentColor,
+            style = MaterialTheme.typography.labelMedium,
+            fontWeight = FontWeight.SemiBold
+        )
+    }
+}

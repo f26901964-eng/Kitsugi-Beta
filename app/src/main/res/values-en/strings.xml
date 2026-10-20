@@ -7812,4 +7812,30 @@
     <string name="toplu_listeye_ekleniyor">Adding %1$d items to your list…</string>
     <string name="toplu_listeye_ekleme_sonuc">%1$d added • %2$d already in list • %3$d could not be added</string>
     <string name="tumu_zaten_listede">All items are already in your list.</string>
+
+    <!-- List add automations (status to date / progress) -->
+    <string name="date_chip_today">Today</string>
+    <string name="date_chip_yesterday">Yesterday</string>
+    <string name="bitis_tarihi_baslangictan_once_uyari">The finish date cannot be earlier than the start date.</string>
+    <string name="otomatik_tarih_doldur">Auto-fill dates by status</string>
+    <string name="otomatik_tarih_doldur_desc_on">Picking Watching or Completed instantly fills the date row with today. Existing dates are never overwritten.</string>
+    <string name="otomatik_tarih_doldur_desc_off">Dates are entered manually; nothing is filled in automatically.</string>
+    <string name="otomatik_ilerleme_tamamla">Complete progress when set to Completed</string>
+    <string name="otomatik_ilerleme_tamamla_desc_on">When the episode count is known, progress jumps to the final episode.</string>
+    <string name="otomatik_ilerleme_tamamla_desc_off">Progress is entered manually and is never touched.</string>
+    <string name="varsayilan_ekleme_durumu">Default status when adding</string>
+    <string name="varsayilan_ekleme_durumu_desc">Which status the plus badge on a poster should use.</string>
+    <string name="varsayilan_durum_secenek_planlandi_desc">Adds quietly as Plan to Watch.</string>
+    <string name="varsayilan_durum_secenek_izliyorum_desc">Adds as Watching with today as the start date.</string>
+    <string name="varsayilan_durum_secenek_tamamlandi_desc">Adds as Completed with today as the finish date.</string>
+    <string name="otomatik_tarih_acildi">Automatic date filling enabled.</string>
+    <string name="otomatik_tarih_kapatildi">Automatic date filling disabled.</string>
+    <string name="otomatik_ilerleme_acildi">Automatic progress completion enabled.</string>
+    <string name="otomatik_ilerleme_kapatildi">Automatic progress completion disabled.</string>
+    <string name="varsayilan_durum_izliyorum">Quick add now defaults to Watching.</string>
+    <string name="varsayilan_durum_izledim">Quick add now defaults to Completed.</string>
+    <string name="varsayilan_durum_izleyecegim">Quick add now defaults to Plan to Watch.</string>
+    <string name="listeye_eklendi_isim">Added to list: %1$s</string>
+    <string name="izliyor_olarak_eklendi">Added as Watching: %1$s</string>
+    <string name="izlendi_olarak_eklendi">Added as Completed: %1$s</string>
 </resources>

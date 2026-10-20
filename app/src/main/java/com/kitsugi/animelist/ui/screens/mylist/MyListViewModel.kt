@@ -5,6 +5,7 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.kitsugi.animelist.data.local.MediaEntryRepository
 import com.kitsugi.animelist.data.local.KitsugiDatabase
+import com.kitsugi.animelist.model.EntryAutoRules
 import com.kitsugi.animelist.model.MediaEntry
 import com.kitsugi.animelist.model.WatchStatus
 import com.kitsugi.animelist.data.auth.ExternalAuthManager
@@ -124,8 +125,6 @@ class MyListViewModel(application: Application) : AndroidViewModel(application) 
     }
 
     fun incrementEntryProgress(entry: MediaEntry) {
-        val today = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US).format(java.util.Date())
-
         val nextProgress = if (entry.total != null) {
             (entry.progress + 1).coerceAtMost(entry.total)
         } else {
@@ -140,23 +139,23 @@ class MyListViewModel(application: Application) : AndroidViewModel(application) 
             entry.status
         }
 
-        val autoStartDate = if (entry.status == WatchStatus.Planned && entry.startDate.isNullOrBlank()) {
-            today
-        } else {
-            entry.startDate
-        }
-
-        val autoEndDate = if (nextStatus == WatchStatus.Completed && entry.endDate.isNullOrBlank()) {
-            today
-        } else {
-            entry.endDate
-        }
+        // Ortak kural motoru (EntryAutoRules): "İzlemeye başla" anında başlangıç tarihi
+        // bugüne dolar, son bölüme gelindiğinde bitiş tarihi yazılır. Listem ekranındaki
+        // +1 kısayolu da artık düzenleyiciyle birebir aynı davranıyor.
+        val auto = EntryAutoRules.resolveOnStatusChange(
+            status = nextStatus,
+            startDate = entry.startDate,
+            endDate = entry.endDate,
+            progress = nextProgress,
+            total = entry.total,
+            statusChanged = nextStatus != entry.status
+        )
 
         val updatedEntry = entry.copy(
-            progress = nextProgress,
+            progress = auto.progress,
             status = nextStatus,
-            startDate = autoStartDate,
-            endDate = autoEndDate
+            startDate = auto.startDate,
+            endDate = auto.endDate
         )
 
         viewModelScope.launch {
