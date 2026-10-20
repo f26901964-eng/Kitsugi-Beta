@@ -31,8 +31,20 @@ Wiki açılır sayfalarında otomatik çevirinin **mavi/bağlantı metinlerini a
 - **Cümle görünümlü kart başlıkları:** Ana sayfa kartlarındaki cümle niteliğindeki başlıklar çevrilirken `href` korunur.
 - **Görsel altı yazıları (figcaption):** Açıklamalardaki mavi bağlantılar da aynı yuvalı akıştan geçer.
 
+### ⭕ Yüklenme Animasyonu Artık Her Yerde Tam Yuvarlak
+
+Video yüklenirken ekranın ortasında görünen yüklenme animasyonunun etrafında **turuncu kare çerçeve** ve içinde **ikinci bir kare** görünmesi sorunu kökten çözüldü. Ayrıntılı analiz: `YUKLENME_ANIMASYONU_YUVARLAK_FIX_RAPORU_2026-10-21.md`.
+
+- **Kare çizim tamamen kaldırıldı:** Gövde artık `drawRect` değil tek bir `drawCircle` ile çiziliyor.
+- **Ekstra çember / kenarlık kaldırıldı:** `Modifier.border(...)` çağrısı silindi; animasyonun etrafında kare çerçeve veya yapay halka oluşmaz.
+- **Çift kırpma güvencesi:** Kutu, genişlik/yükseklik farklı olsa dahi her zaman tam daire kesen özel `PlasmaOrbShape` ile kırpılıyor; ovalleşme veya kare sızması engellendi.
+- **Doğru boyutlama:** İç `Canvas` artık ölçülen kutu boyutuna göre çiziyor; dışarıdan verilen `Modifier.size(80.dp)` ile küre tam olarak 80 dp çizilir.
+- **Zenginleştirilmiş küre hacmi:** 3 dönen plazma odağı, beyaz-sıcak akkor merkez, cam highlight ve kenar vinyeti ile tüm katmanlar daire içinde kalır; dışarıya ışıma taşmaz.
+- **Tüm uygulama genelinde aktif:** Oynatıcı ortası, tam ekran yüklenme, arama, listeler, sheet'ler, giriş pencereleri, pull-to-refresh, TV ve manga ekranlarının tamamında kusursuz dairesel animasyon.
+
 ### 🧪 Birim Testleri
 - `WikiTranslationProtectionTest`: Mavi etiketlerin yerinde çevrilmesi, URL'lerin hiç değişmemesi, jeton bozulduğunda güvenli yedeğe düşülmesi, etiket anahtarlarının metinden önce akması, 40 tekrarlı bağlantıda tek istek, cümle görünümlü kart başlığının çevrilip kısa sayfa adının çevrilmemesi doğrulandı (34 test tamamı başarılı).
+- `DeepLinkTest` & `FileLoggingTreeTest`: Derin bağlantı şema ayrıştırması ve asenkron log flush desteği doğrulandı.
 
 ---
 
@@ -65,8 +77,20 @@ Fixes three separate breakages caused by auto-translation skipping **blue / link
 - **Sentence-like linked card titles are translated:** Fandom main-page card sentences are translated while `href` is preserved; short page titles stay untouched.
 - **Figure captions (figcaption):** Blue link text in image captions is translated in place through the same slot pipeline.
 
+### ⭕ Loading Animation Is Now Perfectly Round Everywhere
+
+Fixes the issue where buffering/loading orbs rendered an outer **orange square frame** and an inner **secondary square** instead of a seamless circle. Detailed report in `YUKLENME_ANIMASYONU_YUVARLAK_FIX_RAPORU_2026-10-21.md`.
+
+- **Rectangles removed:** The body is rendered with a single `drawCircle`, eliminating all `drawRect` logic.
+- **Extra border removed:** Removed `Modifier.border(...)`; no square outlines or artificial secondary rings.
+- **Guaranteed circle clipping:** Enforced `PlasmaOrbShape` ensuring a flawless circle is clipped even on rectangular containers.
+- **Accurate box sizing:** Inner canvas binds directly to measured constraints, so `Modifier.size(80.dp)` renders a true 80 dp orb.
+- **Volumetric plasma look:** 3 orbiting plasma lobes, a white-hot core, glass highlight and subtle vignette keep all radiance strictly inside the orb boundary.
+- **System-wide coverage:** Consistent across video player, fullscreen loading, lists, modal sheets, login dialogs, pull-to-refresh, TV, and manga views.
+
 ### 🧪 Unit Tests
 - `WikiTranslationProtectionTest`: Verified in-place label translation, invariant URLs, slot recovery fallback, pre-flight label key emissions, single request on 40 links, and sentence vs title card discrimination (all 34 tests passing).
+- `DeepLinkTest` & `FileLoggingTreeTest`: Verified deep-link URI scheme resolution and thread-safe file logging flush.
 
 ---
 
