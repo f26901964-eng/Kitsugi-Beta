@@ -18,9 +18,29 @@ Bu sürüm, bir kaynaktan (örn. Bangumi) eklenen veya düzenlenen kaydın seçi
 - **AniList Tarih Koruma & MAL Puan Normalizasyonu:** Yerel satırda tarih boşken AniList üzerindeki başlangıç/bitiş tarihlerinin sessizce silinmesi önlendi. MAL için 0..100 puan aralığı 1..10 ölçeğine normalize edilerek 400 Bad Request hataları giderildi.
 - **Kardeş Satırların Anında Eşitlenmesi:** Bir kaynak sekmesinde yapılan düzenleme veya silme işlemi aynı yapıma ait diğer kaynak sekmelerine ve "Tümü" görünümüne yerelde anında yansıtılır (`MediaEntryRepository.kt`).
 
+### ⚡ Liste Ekleme Otomasyonları: Durum → Tarih / İlerleme (`EntryAutoRules`)
+
+**İstenen davranış artık varsayılan:** Hangi kaynaktan eklenirse eklensin (AniList, MyAnimeList, Simkl, Kitsu, Shikimori, Bangumi, TMDB veya eklenti), bir yapım **"İzliyorum"a çekildiği anda başlangıç tarihi bugün olarak dolar** — hem de gözünüzün önünde.
+
+- **Tek Kural Motoru (`model/EntryAutoRules.kt`):** Tüm yollar artık aynı motoru çağırıyor — canlı düzenleyici, kaydetme anı, hızlı ekleme (`+` rozeti) ve bölüm artırımı.
+- **Anında Geri Bildirim:** Durum hapına basar basmaz tarih satırı bugünün tarihiyle dolar; istemezseniz `X` ile tek dokunuşta temizleyebilirsiniz.
+- **Kural Tablosu:**
+  | Durum | Başlangıç | Bitiş | İlerleme |
+  |-------|-----------|-------|----------|
+  | İzliyorum / Tekrar İzliyorum | boşsa → bugün | — | — |
+  | Tamamlandı | boşsa → bugün | boşsa → bugün | durum değiştiyse → toplam bölüm |
+  | İzleyeceğim / Beklemede / Bırakıldı | — | — | — |
+- **Veri Kaybı Koruması:** Dolu bir tarih **asla** üzerine yazılmaz. "İzliyorum"dan "İzleyeceğim"e geri dönüp tekrar "İzliyorum" yapsanız bile ilk tarih korunur.
+- **`statusChanged` Koruması:** İlerlemenin otomatik tamamlanması yalnızca durum gerçekten değiştiğinde tetiklenir. Zaten "Tamamlandı" olan bir kaydın sadece puanını düzenlerseniz ilerlemenize dokunulmaz.
+- **Yeni Ayarlar (Ayarlar → Tercihler → Liste):**
+  - **Listeye eklerken varsayılan durum:** Hızlı ekleme (`+` rozeti) yapımı hangi durumla listeye atsın? *İzleyeceğim* (varsayılan) / *İzliyorum* / *İzledim*. "İzliyorum" seçilirse yapım **hiç panel açılmadan**, bugünün başlangıç tarihiyle doğrudan listeye girer.
+  - **Duruma göre tarihi otomatik doldur** (açık) & **Tamamlandı seçilince ilerlemeyi tamamla** (açık).
+- **Düzenleyici Paneli:** **Bugün**, **Dün** ve **Temizle** hızlı çipleri, bitiş tarihi başlangıçtan önce seçilirse kırmızı uyarı, yerelleştirilmiş "Tarih Seçilmemiş" metni ve 3 yeni ayar arama kaydı.
+
 ### 🧪 Birim Testleri
 - `CrossProviderIdentityTest`: Ham Shikimori/Bangumi/Kitsu kimlik izolasyonu, Bangumi subject koruması, kaynak önbellek anahtarları ve kardeş satır kimlik kesişimleri test edildi.
 - `CrossSyncIdentityGuardTest`: Özgün Japonca başlığın kimlik eşdeğerliğinde kullanımı doğrulandı.
+- `EntryAutoRulesTest`: Durum bazlı başlangıç/bitiş tarihi doldurma, dolu tarih koruması ve durum değişimine bağlı ilerleme tamamlama test edildi.
 
 ---
 
@@ -40,9 +60,27 @@ This release resolves the issue where anime/manga items added or edited from one
 - **AniList Date Protection & MAL Rating Normalization:** Prevented null local dates from clearing remote start/finish dates on AniList. Normalized 0..100 ratings to the 1..10 scale for MyAnimeList.
 - **Immediate Sibling Tab Synchronization:** Mutations made on one provider tab instantly update sibling entries across all provider tabs and the unified "All" feed (`MediaEntryRepository.kt`).
 
+### ⚡ List-Add Automations: Status → Date / Progress (`EntryAutoRules`)
+
+**The requested behaviour is now the default:** whichever source an item comes from (AniList, MyAnimeList, Simkl, Kitsu, Shikimori, Bangumi, TMDB or an addon), the moment you set it to **Watching the start date fills in with today** — visibly, right in front of you.
+
+- **Single Rule Engine (`model/EntryAutoRules.kt`):** Every path now calls the same engine — live editor, save handler, quick add (`+` badge) and episode increment.
+- **Instant Feedback:** Tapping a status pill immediately fills the date row with today; clear it again with a single tap on `X`.
+- **Rule Table:**
+  | Status | Start | Finish | Progress |
+  |--------|-------|--------|----------|
+  | Watching / Repeating | if empty → today | — | — |
+  | Completed | if empty → today | if empty → today | on status change → total |
+  | Planned / Paused / Dropped | — | — | — |
+- **Data-loss Guard:** Existing dates are never overwritten. Switching Watching → Planned → Watching again keeps the original date.
+- **`statusChanged` Guard:** Progress auto-completion only fires when the status actually changed.
+- **New Settings (Settings → Preferences → List):** Default status when adding, auto-fill dates by status, and auto-complete progress on Completed.
+- **Editor Sheet Comfort Improvements:** Today / Yesterday / Clear chips, date order warning, localized string labels, and 3 settings search entries.
+
 ### 🧪 Unit Tests
 - `CrossProviderIdentityTest`: Validates non-MAL ID parsing, Bangumi movie subject preservation, namespaced cache keys, and cross-row identity matching.
 - `CrossSyncIdentityGuardTest`: Verifies Japanese title matching in canonical equivalence checks.
+- `EntryAutoRulesTest`: Verifies status-driven date auto-fill, non-overwrite protection, and status change progress completion.
 
 ---
 
