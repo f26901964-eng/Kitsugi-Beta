@@ -91,9 +91,13 @@ fun SeekbarWithTimers(
             },
             modifier = Modifier.width(80.dp),
         )
+        // Medya henüz yüklenirken duration 0 gelir. `range = 0f..0f` (sıfır genişlik)
+        // Seeker içinde (value - start) / (end - start) ile 0'a bölme → sonsuz/NaN
+        // değer üretip düzen ölçülerini bozabiliyordu. Süre en az 1 sn gibi ele alınır.
+        val safeDuration = if (duration > 0f) duration else 1f
         Seeker(
-            value = position.coerceIn(0f, duration),
-            range = 0f..duration,
+            value = position.coerceIn(0f, safeDuration),
+            range = 0f..safeDuration,
             onValueChange = onValueChange,
             onValueChangeFinished = onValueChangeFinished,
             readAheadValue = readAheadValue,

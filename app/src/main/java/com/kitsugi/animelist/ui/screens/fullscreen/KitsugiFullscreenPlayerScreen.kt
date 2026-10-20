@@ -390,6 +390,17 @@ fun KitsugiFullscreenPlayerScreen(
         }
     }
 
+    // ── Çökme teşhisi: "son ekran" izi ───────────────────────────────────────
+    // Oynatıcı ayrı bir Activity'de çalıştığı için AppRoot içindeki ekran izleyici
+    // burayı hiç görmüyordu; çökme raporlarında "SON BİLİNEN EKRAN: baslangic"
+    // yazıyor ve hatanın nerede olduğu anlaşılamıyordu.
+    LaunchedEffect(currentTitle, currentEpisode, currentVideoUrl) {
+        runCatching {
+            com.kitsugi.animelist.core.diagnostics.KitsugiSessionSupervisor
+                .noteScreen("Oynatıcı: $currentTitle (Bölüm $currentEpisode)")
+        }
+    }
+
     LaunchedEffect(videoFilterValues, isSettingsLoaded) {
         if (isSettingsLoaded) {
             delay(400)

@@ -137,8 +137,11 @@ fun ScreenshotSheet(
         }
     }
 
-    if (setArtTypeAs != null) {
-        val artName = when (setArtTypeAs!!) {
+    // Yerel kopya: AlertDialog içerik lambda'ları ertelenmiş bestelenir; bu sırada
+    // setArtTypeAs null'a dönerse `!!` NullPointerException atıyordu.
+    val artTypeCandidate = setArtTypeAs
+    if (artTypeCandidate != null) {
+        val artName = when (artTypeCandidate) {
             ArtType.Cover -> "Kapak Resmi"
             ArtType.Background -> "Duvar Kağıdı"
             ArtType.Thumbnail -> "Küçük Resim"
@@ -149,7 +152,7 @@ fun ScreenshotSheet(
             text = { Text(stringResource(R.string.inline_are_you_sure_you_want_0ccf9e8, artName)) },
             confirmButton = {
                 TextButton(onClick = {
-                    val artType = setArtTypeAs!!
+                    val artType = artTypeCandidate
                     capture { image ->
                         onSetAsArt(artType, image)
                         setArtTypeAs = null

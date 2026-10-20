@@ -183,7 +183,11 @@ fun PauseOverlay(
             }
 
             // Cast Member Detail Dialog
-            if (selectedCastMember != null) {
+            // `!!` yerine yerel kopya: AlertDialog içerik lambda'ları ertelenmiş
+            // bestelenir; bu sırada selectedCastMember null'a dönerse eski kod
+            // NullPointerException atıyordu.
+            val castMember = selectedCastMember
+            if (castMember != null) {
                 val accentColor = LocalKitsugiAccent.current
                 AlertDialog(
                     onDismissRequest = { selectedCastMember = null },
@@ -193,7 +197,7 @@ fun PauseOverlay(
                     shape = RoundedCornerShape(20.dp),
                     title = {
                         Text(
-                            text = selectedCastMember!!.name,
+                            text = castMember.name,
                             color = KitsugiColors.TextPrimary,
                             fontWeight = FontWeight.Bold,
                             fontSize = 18.sp
@@ -205,10 +209,10 @@ fun PauseOverlay(
                             horizontalArrangement = Arrangement.spacedBy(16.dp),
                             modifier = Modifier.fillMaxWidth()
                         ) {
-                            if (!selectedCastMember!!.photo.isNullOrBlank()) {
+                            if (!castMember.photo.isNullOrBlank()) {
                                 AsyncImage(
-                                    model = selectedCastMember!!.photo,
-                                    contentDescription = selectedCastMember!!.name,
+                                    model = castMember.photo,
+                                    contentDescription = castMember.name,
                                     modifier = Modifier
                                         .size(100.dp, 140.dp)
                                         .clip(RoundedCornerShape(10.dp)),
@@ -216,7 +220,7 @@ fun PauseOverlay(
                                 )
                             }
                             Column {
-                                if (!selectedCastMember!!.character.isNullOrBlank()) {
+                                if (!castMember.character.isNullOrBlank()) {
                                     Text(
                                         text = "Karakter:",
                                         color = KitsugiColors.TextMuted,
@@ -224,7 +228,7 @@ fun PauseOverlay(
                                         fontSize = 12.sp
                                     )
                                     Text(
-                                        text = selectedCastMember!!.character!!,
+                                        text = castMember.character ?: "",
                                         color = KitsugiColors.TextPrimary,
                                         fontWeight = FontWeight.SemiBold,
                                         fontSize = 15.sp
