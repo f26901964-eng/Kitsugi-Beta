@@ -134,6 +134,22 @@ jobs:
         if: failure()
         run: |
           SUMMARY=$(grep -nE "^e: |FAILED|Execution failed|error:|Caused by|What went wrong|Compilation error|> Task .*(FAILED|failed)" build.log 2>/dev/null | tail -n 80 | cut -c1-400 | tr '\n' '|')
+          # Birim testi assertion ayrintisi (expected/actual) konsola yazilmaz; JUnit XML
+          # raporundan cekip ozete ekle (artifact indirme bazi ortamlarda engelli oldugu icin).
+          TESTDETAIL=$(python3 - <<'PYEOF' 2>/dev/null | tail -n 40 | cut -c1-600 | tr '\n' '|'
+          import glob, xml.etree.ElementTree as ET
+          for path in glob.glob("app/build/test-results/**/TEST-*.xml", recursive=True):
+              try:
+                  root = ET.parse(path).getroot()
+              except Exception:
+                  continue
+              for case in root.iter("testcase"):
+                  for fail in list(case.iter("failure")) + list(case.iter("error")):
+                      msg = (fail.get("message") or "").strip().replace("\n", " ")
+                      print(f"{case.get('classname')} > {case.get('name')}: {msg}")
+          PYEOF
+          )
+          if [ -n "$TESTDETAIL" ]; then SUMMARY="${SUMMARY}||TEST-DETAIL|${TESTDETAIL}"; fi
           if [ -z "$SUMMARY" ]; then SUMMARY=$(tail -c 2000 build.log 2>/dev/null | tr '\n' '|'); fi
           if [ -z "$SUMMARY" ]; then SUMMARY="build.log bulunamadi"; fi
           jq -n --arg sha "$GITHUB_SHA" --arg s "$SUMMARY" \
