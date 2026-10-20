@@ -10,6 +10,10 @@ Kontroller:
   4. string_key başına tekil tr/en (birleşen kayıtlar çelişmemeli).
   5. translations_pending.tsv içinde kararlı key bulunmaması.
   6. sözlük RAW satırlarında gölgeleme (aynı etiket iki ayrı anahtara gitmemeli).
+  7. TERS YÖN: her map_chunk_*.tsv satırının kararı vault JSON'larına damgalanmış mı.
+     (1-6 yalnız vault→strings yönüne bakar; bu yüzden damgasız/eski bir vault kopyası
+     sessizce geçiyordu. Drive'dan taze indirilen JSON'lar chunk geride kalabiliyor →
+     `apply_map.py` çalıştırılana dek bu kontrol kırılır. 2026-10-21'de eklendi.)
 
 Çıkış: 0 = temiz, 1 = hata.
 """
@@ -118,6 +122,39 @@ if pending.exists():
     if overlap:
         errors.append(f"translations_pending içinde kararlı key: {overlap[:8]}")
 
+# 7) TERS YÖN: map_chunk_*.tsv kararları vault JSON'larına damgalanmış mı?
+# (yalnız kategori dosyaları değil, vault.json arşiv kopyaları da denetlenir —
+#  apply_map.py kararı TÜM kopyalara yazar)
+stamp_idx: dict[str, list[tuple[str, dict]]] = {}
+for role, fn in ROLE_FILES.items():
+    with (VAULT / fn).open(encoding="utf-8") as f:
+        for r in json.load(f):
+            stamp_idx.setdefault(r["key"], []).append((fn, r))
+_archive = VAULT / "vault.json"
+if _archive.exists():
+    with _archive.open(encoding="utf-8") as f:
+        _arch = json.load(f)
+    for _bucket in ("orgs", "tags"):
+        for r in _arch.get(_bucket, []):
+            stamp_idx.setdefault(r["key"], []).append(("vault.json", r))
+
+stale: list[str] = []
+for path in sorted((VAULT / "decisions").glob("map_chunk_*.tsv")):
+    for raw in path.read_text(encoding="utf-8").splitlines():
+        if not raw.strip() or raw.lstrip().startswith("#"):
+            continue
+        parts = raw.split("\t")
+        key, cid = parts[0], parts[1]
+        for src, rec in stamp_idx.get(key, []):
+            if cid == "SKIP":
+                if rec.get("decision") != "skip":
+                    stale.append(f"{key} ({src}): SKIP beklenir, decision={rec.get('decision')!r}")
+            elif rec.get("canon") != cid:
+                stale.append(f"{key} ({src}): canon={rec.get('canon')!r} beklenen {cid!r}")
+if stale:
+    errors.append(f"vault JSON'ları kararlardan GERİDE: {len(stale)} damga uyuşmazlığı "
+                  f"→ apply_map.py çalıştırılmalı (ör. {stale[0]})")
+
 # 6) RAW gölgeleme
 org_src = ORG_DICT.read_text(encoding="utf-8")
 m = re.search(r'private const val RAW = """\n(.*?)"""', org_src, re.S)
@@ -141,4 +178,5 @@ if errors:
         print(f"  ... +{len(errors) - 40}")
     sys.exit(1)
 print(f"✅ TÜM KONTROLLER GEÇTİ — {len(tr_keys)} bangumi_* anahtar, "
-      f"{len(string_tr)} vault kaydı, {len(map_keys)} map satırı")
+      f"{len(string_tr)} vault kaydı, {len(map_keys)} map satırı, "
+      f"{len(stamp_idx)} damga denetlendi")

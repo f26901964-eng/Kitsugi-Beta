@@ -43,11 +43,25 @@ varsа (`diag/bangumi_vault/*.json`) bu adımı ATLA. Yoksa Drive'dan indir:
 Drive kopyası chunk sonunda yenilenir.
 
 Drive'daki JSON'lar karar alanlarıyla (`decision/canon/string_key/chunk`) **damgalıdır**.
-Elinizde damgasız (orijinal) kopya varsa tek komutla damgalanır:
+⚠ **2026-10-21 durumu**: Drive'daki vault JSON'ları yalnız **chunk 001** damgası taşır
+(chunk 002'de güncellenmedi — 74 MB'lık yeniden yükleme; Bölüm 0d listesinde de yok).
+Yeni ortamda restorasyondan sonra **mutlaka** şunu çalıştır:
 
 ```bash
-python3 diag/bangumi_vault/scripts/apply_map.py    # map_chunk_*.tsv + canon.tsv → JSON'lara kararları işler (idempotent)
+python3 diag/bangumi_vault/scripts/apply_map.py    # tüm chunk'ların kararlarını JSON'lara damgalar (idempotent)
+python3 diag/bangumi_vault/scripts/verify_vault.py # ✅ beklenir
 ```
+
+`apply_map.py` tüm chunk'ların kararlarını (001 + 002 + …) yeniden damgalar, yani Drive
+kopyası ne kadar eski olursa olsun **tek çalıştırmada** güncel duruma gelir. Damgasız
+(orijinal) kopya için de aynı komut yeterlidir.
+
+✅ **2026-10-21'de kanıtlandı**: chunk 002 damgaları 594 kopya kayıttan silinip `apply_map.py`
+çalıştırıldı → 8 vault JSON'ının **8'i de bayt bayt eski hâline döndü** (round-trip kayıpsız),
+`translations_pending.tsv` 63.448 → 63.448 (mükerrer düşme yok).
+
+Not: `apply_map.py --check` bu durumu **yakalamaz** (yalnız map→canon tutarlılığına bakar).
+Yakalayan şey `verify_vault.py`'nin 7. kontrolüdür (aşağıda).
 
 ### c) Sağlık kontrolü (her oturum başında 1 komut)
 ```bash
@@ -151,7 +165,7 @@ Uygulama çıktıları (`verify_vault.py` + `verify_bangumi_master.py` ile doğr
 
 ```
 python3 diag/bangumi_vault/scripts/verify_vault.py
-✅ TÜM KONTROLLER GEÇTİ — 2242 bangumi_* anahtar, 855 vault kaydı, 1171 map satırı
+✅ TÜM KONTROLLER GEÇTİ — 2242 bangumi_* anahtar, 855 vault kaydı, 1171 map satırı, 121284 damga denetlendi
 ```
 
 | Rol | Toplam | Kararlı | SKIP |
@@ -332,11 +346,18 @@ Her chunk aynı pipeline'ı izler (Bölüm 0d). Bilinmeyen kişi/kurumlar `as_is
   Sebep: `vault_to_strings.py` **yalnız ekler/günceller, silmez** → canon_id/string_key
   yeniden adlandırılırsa eski anahtar dil dosyasında ve sözlükte **artık** kalır
   (`verify_vault.py` bunu YAKALAMAZ çünkü yalnız vault→strings yönünü denetler).
-- **Chunk 002'de yapılan iki araç düzeltmesi** (davranış iyileştirmesi, geriye dönük uyumlu):
+- **Chunk 002'de yapılan üç araç düzeltmesi** (davranış iyileştirmesi, geriye dönük uyumlu):
   1. `scripts/worklist.py` — tüm kurum rolleri artık **tek** `orgs_pending.tsv`'de
      toplanıyor. Önceki sürüm her rolde dosyanın üzerine yazıyordu → yalnız son rol
      (committee, 1 kayıt) kalıyor, 3.081 kurum kayboluyordu.
-  2. `diag/bangumi_master/verify_bangumi_master.py` — çok-rollü kurum adları artık
+  2. `scripts/verify_vault.py` — **7. kontrol (TERS YÖN) eklendi**: her `map_chunk_*.tsv`
+     satırının kararı vault JSON'larına (kategori dosyaları + `vault.json` arşiv kopyaları)
+     damgalanmış mı denetlenir. Önceden 1-6. kontroller yalnız **vault→strings** yönüne
+     bakıyordu, bu yüzden damgası eksik/eski bir vault **sessizce ✅ geçiyordu**
+     (kanıt: chunk 002 damgaları silindiğinde eski sürüm ✅ verdi, yeni sürüm
+     "594 damga uyuşmazlığı → apply_map.py çalıştırılmalı" dedi). Çıktı artık damga
+     sayısını da basar: `… 1171 map satırı, 121284 damga denetlendi`.
+  3. `diag/bangumi_master/verify_bangumi_master.py` — çok-rollü kurum adları artık
      **dil dosyasından** da çözülüyor. Chunk 001'in RAW tekilleştirmesi 4 anahtarın
      (`bangumi_studio_ponoc`, `bangumi_producer_bilibili`, `bangumi_producer_cbc`,
      `bangumi_producer_disney_plus`) tüm satırlarını ikizine kaptırmıştı; doğrulayıcı
@@ -351,7 +372,7 @@ Her chunk aynı pipeline'ı izler (Bölüm 0d). Bilinmeyen kişi/kurumlar `as_is
 Chunk 002 için durumu (2026-10-21) → her satır **✅ tamam**:
 
 - [x] `apply_map.py --check` temiz (879 canon · 1.171 map · 998 canon + 173 skip)
-- [x] `verify_vault.py` ✅ (2.242 `bangumi_*` anahtar · 855 vault kaydı · 1.171 map satırı)
+- [x] `verify_vault.py` ✅ (2.242 `bangumi_*` anahtar · 855 vault kaydı · 1.171 map satırı · 121.284 damga)
 - [x] `verify_bangumi_master.py` ✅ (1.724 eşleme · GERÇEK çakışma 0) — **yeni adım**
 - [x] CI üreteç denetimi: `gen_bangumi_master.py --check` sonrası `git diff --quiet` temiz
 - [x] `strings.xml` XML olarak geçerli, `bangumi_*` anahtarlarında **yinelenen yok**,
