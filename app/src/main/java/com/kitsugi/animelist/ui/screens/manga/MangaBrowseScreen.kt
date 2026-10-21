@@ -289,6 +289,7 @@ fun MangaBrowseScreen(
                                 count     = st.mangas.size,
                                 isLoading = st.isLoading,
                                 error     = st.error,
+                                errorCode = st.errorCode,
                                 isSelected = selFilter?.stableSourceKey() == st.source.stableSourceKey(),
                                 accent    = accentColor,
                                 isAll     = false,
@@ -468,7 +469,8 @@ fun MangaBrowseScreen(
 @Composable
 fun MangaChip(
     label: String, count: Int, isLoading: Boolean, error: String?,
-    isSelected: Boolean, accent: Color, isAll: Boolean, onClick: () -> Unit
+    isSelected: Boolean, accent: Color, isAll: Boolean, onClick: () -> Unit,
+    errorCode: String? = null
 ) {
     val inf = rememberInfiniteTransition(label = "p")
     val pulse by inf.animateFloat(
@@ -504,6 +506,14 @@ fun MangaChip(
             style = MaterialTheme.typography.labelMedium,
             fontWeight = if (isSelected || count > 0) FontWeight.Bold else FontWeight.Normal
         )
+        if (error != null && errorCode != null) {
+            Text(
+                errorCode,
+                color = Color.Red.copy(alpha = 0.8f),
+                style = MaterialTheme.typography.labelSmall,
+                fontWeight = FontWeight.Bold
+            )
+        }
     }
 }
 

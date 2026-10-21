@@ -184,6 +184,10 @@ fun MangaReaderScreen(
                         fontSize = 14.sp,
                         textAlign = androidx.compose.ui.text.style.TextAlign.Center
                     )
+                    uiState.pagesErrorCode?.let { code ->
+                        Spacer(Modifier.height(10.dp))
+                        com.kitsugi.animelist.ui.components.errors.PlatformErrorExplanationBlock(code = code)
+                    }
                     Spacer(Modifier.height(24.dp))
                     KitsugiButton(
                         onClick = { viewModel.retryLoadPages() },

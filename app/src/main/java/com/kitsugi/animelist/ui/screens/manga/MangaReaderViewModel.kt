@@ -68,7 +68,9 @@ class MangaReaderViewModel(
         val isLoadingChapters: Boolean = false,
         val error: String? = null,
         val isLoadingPages: Boolean = false,
-        val pagesError: String? = null
+        val pagesError: String? = null,
+        /** Sayfa yükleme hatasının manga kaynak kodu (KTS-SRC-...). */
+        val pagesErrorCode: String? = null
     )
 
     private val _uiState = MutableStateFlow(UiState(currentChapter = initialChapter))
@@ -251,7 +253,7 @@ class MangaReaderViewModel(
     private fun restoreProgress(chapter: MangaChapter) {
         pageListJob?.cancel()
         pageListJob = viewModelScope.launch {
-            _uiState.update { it.copy(isLoadingPages = true, pagesError = null) }
+            _uiState.update { it.copy(isLoadingPages = true, pagesError = null, pagesErrorCode = null) }
             val saved = dao.getProgress(chapter.url)
             val pageIndex = if (saved != null && !saved.isCompleted) saved.lastPageIndex else 0
             _uiState.update { it.copy(currentPageIndex = pageIndex) }
@@ -276,7 +278,7 @@ class MangaReaderViewModel(
                 }
             } catch (e: Exception) {
                 if (e is kotlinx.coroutines.CancellationException) kotlinx.coroutines.currentCoroutineContext().ensureActive()
-                _uiState.update { it.copy(isLoadingPages = false, pagesError = e.localizedMessage ?: e.message ?: "Sayfalar yüklenirken bir hata oluştu.") }
+                _uiState.update { it.copy(isLoadingPages = false, pagesError = e.localizedMessage ?: e.message ?: "Sayfalar yüklenirken bir hata oluştu.", pagesErrorCode = SourceFailureClassifier.classifyCode(e)) }
             }
         }
     }

@@ -100,6 +100,10 @@ fun MangaScreen(
                 message = viewModel.errorMessage.orEmpty(),
                 onRetryClick = { viewModel.loadData(forceRefresh = true) }
             )
+            viewModel.errorCode?.let { code ->
+                Spacer(modifier = Modifier.height(8.dp))
+                com.kitsugi.animelist.ui.components.errors.PlatformErrorExplanationBlock(code = code)
+            }
         }
 
         Spacer(modifier = Modifier.height(22.dp))

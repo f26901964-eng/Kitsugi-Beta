@@ -1,6 +1,7 @@
 package com.kitsugi.animelist.ui.screens.manga
 
 import androidx.lifecycle.ViewModel
+import com.kitsugi.animelist.data.manga.SourceFailureClassifier
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.kitsugi.animelist.data.manga.stableSourceKey
@@ -29,6 +30,8 @@ data class MangaSourceFetchState(
     val isLoading: Boolean = false,
     val mangas: List<MangaDetails> = emptyList(),
     val error: String? = null,
+    /** Kaynağın manga hata kodu (KTS-SRC-...); hata yoksa null. */
+    val errorCode: String? = null,
     val currentPage: Int = 1,
     val hasNextPage: Boolean = true
 )
@@ -197,7 +200,7 @@ class MangaBrowseViewModel(private val repository: MangaSourceRepository) : View
 
     private fun patchState(key: String, loading: Boolean, mangas: List<MangaDetails>, error: String?, page: Int = 1, hasNext: Boolean = true) {
         _ui.update { s ->
-            s.copy(sourceStates = s.sourceStates.map { if (it.source.stableSourceKey() == key) it.copy(isLoading = loading, mangas = mangas, error = error, currentPage = page, hasNextPage = hasNext) else it })
+            s.copy(sourceStates = s.sourceStates.map { if (it.source.stableSourceKey() == key) it.copy(isLoading = loading, mangas = mangas, error = error, errorCode = if (error == null) null else it.errorCode, currentPage = page, hasNextPage = hasNext) else it })
         }
     }
 
@@ -253,7 +256,7 @@ class MangaBrowseViewModel(private val repository: MangaSourceRepository) : View
                 _ui.update { s ->
                     s.copy(sourceStates = s.sourceStates.map {
                         if (it.source.stableSourceKey() == source.stableSourceKey()) {
-                            it.copy(isLoading = false, error = e.message ?: "Hata", hasNextPage = false)
+                            it.copy(isLoading = false, error = e.message ?: "Hata", errorCode = SourceFailureClassifier.classifyCode(e), hasNextPage = false)
                         } else it
                     })
                 }

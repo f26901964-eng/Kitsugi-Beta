@@ -205,6 +205,7 @@ fun MangaDetailScreen(
                             color = KitsugiColors.TextSecondary,
                             fontSize = 13.sp
                         )
+                        uiState.errorCode?.let { code -> com.kitsugi.animelist.ui.components.errors.PlatformErrorExplanationBlock(code = code) }
                         Spacer(Modifier.height(12.dp))
                         KitsugiButton(
                             onClick = { viewModel.loadChapters() }

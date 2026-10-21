@@ -11,7 +11,6 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONObject
-import java.util.concurrent.TimeUnit
 
 /**
  * SIMKL Entegrasyon – TV/CLI PIN Akışı
@@ -45,10 +44,9 @@ class SimklAuthManager(
         private const val MAX_POLL_DURATION_MS = 5 * 60 * 1000L  // 5 dakika
     }
 
-    private val httpClient = OkHttpClient.Builder()
-        .connectTimeout(15, TimeUnit.SECONDS)
-        .readTimeout(15, TimeUnit.SECONDS)
-        .build()
+    /** Paylaşılan istemci: HTTP hataları platform hata kayıt defterine (KTS-SMK) iletilir. */
+    private val httpClient: OkHttpClient
+        get() = com.kitsugi.animelist.core.network.KitsugiHttpClient.client
 
     // ── 1. Cihaz kodu / PIN al ───────────────────────────────────────────────
 
