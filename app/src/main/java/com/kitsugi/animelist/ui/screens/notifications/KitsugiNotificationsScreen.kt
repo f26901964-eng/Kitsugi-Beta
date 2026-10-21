@@ -65,6 +65,7 @@ import com.kitsugi.animelist.ui.theme.KitsugiColors
 import com.kitsugi.animelist.ui.theme.LocalKitsugiAccent
 import com.kitsugi.animelist.ui.utils.tvClickable
 import kotlinx.coroutines.launch
+import com.kitsugi.animelist.data.remote.malweb.MalNotificationCategory
 import com.kitsugi.animelist.utils.KitsugiStrings
 
 // ─── Platform seçimi ──────────────────────────────────────────────────────────
@@ -450,43 +451,59 @@ fun KitsugiNotificationsScreen(
                 }
 
                 // ──────────────── Page 1: MAL ────────────────
-                1 -> SourceNotifPage(
-                    state = malState,
-                    // Keep the native feed visible; website-session repair is routed through the shared account connection.
-                    isConnected = true,
-                    loginRequiredMessage = stringResource(R.string.notif_login_required_mal),
-                    emptyMessage = stringResource(R.string.notif_empty_no_notifications),
-                    accentColor = accentColor,
-                    listState = malListState,
-                    onUserProfileClick = onUserProfileClick,
-                    malWebSessionTitle = stringResource(
-                        when {
-                            malState.malAccountMismatch -> R.string.notif_mal_account_mismatch_action
-                            malState.requiresMalWebLogin || !isMalConnected -> R.string.notif_mal_web_connect
-                            else -> R.string.notif_mal_web_refresh
-                        }
-                    ),
-                    malWebSessionHint = when {
-                        malState.malAccountMismatch -> stringResource(
-                            R.string.notif_mal_account_mismatch_hint,
-                            malState.malOAuthUsername ?: "—",
-                            malState.malWebUsername ?: "—"
+                1 -> {
+                    val malCategory by viewModel.malCategory.collectAsState()
+                    val malCounts = remember(malState.items, malCategory) { viewModel.getMalCategoryCounts() }
+                    Column(modifier = Modifier.fillMaxSize()) {
+                        MalFilterHeader(
+                            selectedCategory = malCategory,
+                            counts = malCounts,
+                            accentColor = accentColor,
+                            onCategorySelected = { cat -> viewModel.setMalFilter(cat) }
                         )
-                        malState.requiresMalWebLogin || !isMalConnected -> stringResource(R.string.notif_mal_web_login_hint)
-                        else -> stringResource(R.string.notif_mal_web_refresh_hint)
-                    },
-                    onMalWebSessionAction = {
-                        if (malState.malAccountMismatch || malState.requiresMalWebLogin || !isMalConnected) {
-                            onOpenMalAccountSettings()
-                        } else {
-                            viewModel.loadMal(mediaEntries)
-                        }
-                    },
-                    onItemClick = { notif -> openMalNotification(notif) },
-                    // Daha eski bildirimler varsa kaydırdıkça gelir.
-                    hasMore = malState.hasMore,
-                    onLoadMore = { viewModel.loadMalMore() }
-                )
+                        SourceNotifPage(
+                            state = malState,
+                            // Keep the native feed visible; website-session repair is routed through the shared account connection.
+                            isConnected = true,
+                            loginRequiredMessage = stringResource(R.string.notif_login_required_mal),
+                            emptyMessage = if (malCategory == MalNotificationCategory.ALL) {
+                                stringResource(R.string.notif_empty_no_notifications)
+                            } else {
+                                stringResource(R.string.mal_notif_filter_empty)
+                            },
+                            accentColor = accentColor,
+                            listState = malListState,
+                            onUserProfileClick = onUserProfileClick,
+                            malWebSessionTitle = stringResource(
+                                when {
+                                    malState.malAccountMismatch -> R.string.notif_mal_account_mismatch_action
+                                    malState.requiresMalWebLogin || !isMalConnected -> R.string.notif_mal_web_connect
+                                    else -> R.string.notif_mal_web_refresh
+                                }
+                            ),
+                            malWebSessionHint = when {
+                                malState.malAccountMismatch -> stringResource(
+                                    R.string.notif_mal_account_mismatch_hint,
+                                    malState.malOAuthUsername ?: "—",
+                                    malState.malWebUsername ?: "—"
+                                )
+                                malState.requiresMalWebLogin || !isMalConnected -> stringResource(R.string.notif_mal_web_login_hint)
+                                else -> stringResource(R.string.notif_mal_web_refresh_hint)
+                            },
+                            onMalWebSessionAction = {
+                                if (malState.malAccountMismatch || malState.requiresMalWebLogin || !isMalConnected) {
+                                    onOpenMalAccountSettings()
+                                } else {
+                                    viewModel.loadMal(mediaEntries)
+                                }
+                            },
+                            onItemClick = { notif -> openMalNotification(notif) },
+                            // Daha eski bildirimler varsa kaydırdıkça gelir.
+                            hasMore = malState.hasMore,
+                            onLoadMore = { viewModel.loadMalMore() }
+                        )
+                    }
+                }
 
                 // ──────────────── Page 2: TMDB & Simkl ────────────────
                 2 -> SourceNotifPage(
@@ -1123,7 +1140,92 @@ private fun AniListFilterHeader(
     }
 }
 
+// ─── MAL Alt Filtre Header (myanimelist.net/notification sol menüsü) ─────────
+
+@Composable
+private fun MalFilterHeader(
+    selectedCategory: MalNotificationCategory,
+    counts: Map<MalNotificationCategory, Int>,
+    accentColor: Color,
+    onCategorySelected: (MalNotificationCategory) -> Unit
+) {
+    val scrollState = rememberScrollState()
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(KitsugiColors.Background)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Row(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(22.dp))
+                    .background(KitsugiColors.Surface)
+                    .horizontalScroll(scrollState)
+                    .padding(4.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                MalNotificationCategory.entries.forEach { cat ->
+                    val active = selectedCategory == cat
+                    val count = counts[cat] ?: 0
+                    // Web'de 0 olan kategoriler de gösterilir — kullanıcı tüm filtrelerin varlığını görür
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(22.dp))
+                            .background(if (active) accentColor else Color.Transparent)
+                            .tvClickable(shape = RoundedCornerShape(22.dp)) { onCategorySelected(cat) }
+                            .padding(horizontal = 14.dp, vertical = 7.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            Text(
+                                text = stringResource(cat.labelResId),
+                                color = if (active) KitsugiColors.Background else KitsugiColors.TextSecondary,
+                                fontSize = 12.sp,
+                                fontWeight = if (active) FontWeight.Bold else FontWeight.Normal,
+                                maxLines = 1
+                            )
+                            if (count > 0) {
+                                Box(
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(10.dp))
+                                        .background(
+                                            if (active) KitsugiColors.Background.copy(alpha = 0.22f)
+                                            else accentColor.copy(alpha = 0.15f)
+                                        )
+                                        .padding(horizontal = 6.dp, vertical = 1.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(
+                                        text = count.toString(),
+                                        color = if (active) KitsugiColors.Background else accentColor,
+                                        fontSize = 10.sp,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        HorizontalDivider(
+            color = KitsugiColors.SurfaceStrong.copy(alpha = 0.5f),
+            modifier = Modifier.fillMaxWidth()
+        )
+    }
+}
+
 // ─── Bildirim Satır Kartı ─────────────────────────────────────────────────────
+
 
 @Composable
 private fun NotifItemRow(

@@ -7871,6 +7871,22 @@ Eklentiler ekranından eklenti etkinleştirin.</string>
     <string name="stream_filter_clear">Filtreleri temizle</string>
     <string name="stream_filter_empty_title">Sonuç bulunamadı</string>
     <string name="stream_filter_empty_desc">kriterlerine uygun video akışı yok.</string>
+    <!-- ── MAL Bildirim Filtreleri (myanimelist.net/notification sol menü) ── -->
+    <string name="mal_notif_filter_all">Tümü</string>
+    <string name="mal_notif_filter_related">Yeni Bağlantılı Anime</string>
+    <string name="mal_notif_filter_airing">Yayında</string>
+    <string name="mal_notif_filter_friend">Arkadaşlık İstekleri</string>
+    <string name="mal_notif_filter_profile">Profil Yorumları</string>
+    <string name="mal_notif_filter_blog">Blog Yorumları</string>
+    <string name="mal_notif_filter_forum_quote">Forum Alıntıları</string>
+    <string name="mal_notif_filter_mention">Bahsetmeler</string>
+    <string name="mal_notif_filter_watched">Takip Konuları</string>
+    <string name="mal_notif_filter_club">Kulüp Mesajları</string>
+    <string name="mal_notif_filter_payment">Ödeme</string>
+    <string name="mal_notif_filter_empty">Bu kategoride bildirim yok</string>
+    <string name="mal_notif_count_badge">%1$d</string>
+    <string name="mal_notif_filter_hint">Kategoriye göre filtrele — soldaki MAL menüsüyle aynı</string>
+
     <string name="stream_play_failed_title">Oynatıcı açılamadı</string>
     <string name="stream_play_failed_generic">Oynatıcı açılamadı. Başka bir kaynak deneyin veya tekrar deneyin.</string>
     <string name="stream_play_failed_body">Video başlatılamadı: %1$s</string>
