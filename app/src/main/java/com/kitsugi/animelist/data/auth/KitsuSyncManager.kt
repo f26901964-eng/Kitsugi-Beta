@@ -257,10 +257,20 @@ object KitsuSyncManager {
 
     /**
      * Kitsu kütüphanesinden kaydı siler.
+     *
+     * Medya kimliği [syncEntryToKitsu] ile AYNI güvenilirlik zincirinden çözülür (bilinen
+     * kimlik → yerel eşleme önbelleği → Kitsu mappings → ARM → sıkı başlık araması). Eski
+     * davranış yalnızca satırın kendi namespace'ini ve MAL önbelleğini kontrol ediyordu;
+     * çapraz eşitlemede [CrossProviderIdentityResolver]'ın çözdüğü Kitsu kimliği yok sayılıyor
+     * ve "medya kimliği bulunamadı" bir **hata** olarak raporlanıyordu — silme işlemi haksız
+     * yere "Çevrimdışı kaydedildi" kuyruğuna düşüyordu.
+     *
+     * @param knownKitsuMediaId Çapraz kimlik katmanının önceden çözdüğü Kitsu medya kimliği.
      */
     suspend fun deleteEntryFromKitsu(
         context: Context,
-        entry: MediaEntry
+        entry: MediaEntry,
+        knownKitsuMediaId: Int? = null
     ): SyncResult = withContext(Dispatchers.IO) {
         if (entry.type != MediaType.Anime && entry.type != MediaType.Manga) {
             return@withContext SyncResult(emptyList(), listOf(context.getString(R.string.account_sync_service_anime_manga_only)))
@@ -272,26 +282,32 @@ object KitsuSyncManager {
         }
 
         val isAnime = entry.type != MediaType.Manga
-        // Kitsu kimlik alanı her zaman offset'li stableId taşır; eski kayıtlarda gerçek
-        // MAL ID durabiliyor → eşleme önbelleği üzerinden çözülür.
-        var kitsuMediaId: Int? = KitsuIdNamespace.realMalIdOf(entry.malId)?.let {
-            ExternalAuthManager.getKitsuMediaIdForMal(context, it, isAnime)
-        }
-        KitsuIdNamespace.rawIdFromStable(entry.malId)?.let { kitsuMediaId = it }
 
-        val existingEntryId = if (kitsuMediaId != null) {
-            val userId = ExternalAuthManager.getKitsuUserId(context) ?: error(context.getString(R.string.account_sync_kitsu_user_id_missing))
-            KitsuApiClient.findLibraryEntryId(token, userId, kitsuMediaId, isAnime)
-        } else null
+        val resolved = resolveKitsuMediaId(context, entry, knownKitsuMediaId, isAnime)
+        if (resolved == null) {
+            // Eşleştirilemedi: katalogda karşılığı olmayan ya da hiçbir güvenilir kimlikle
+            // bulunamayan kayıt. Hata değil atlandı — kuyrukta yeniden denenmeyecek.
+            return@withContext SyncResult(
+                messages = emptyList(),
+                errors = listOf(context.getString(R.string.account_sync_media_id_not_found, "Kitsu")),
+                unresolvedMedia = true
+            )
+        }
+        val kitsuMediaId = resolved.id
+
+        val userId = ExternalAuthManager.getKitsuUserId(context)
+            ?: error(context.getString(R.string.account_sync_kitsu_user_id_missing))
+        val existingEntryId = KitsuApiClient.findLibraryEntryId(token, userId, kitsuMediaId, isAnime)
 
         if (existingEntryId != null) {
             val success = KitsuApiClient.deleteLibraryEntry(token, existingEntryId)
-            if (success) ExternalAuthManager.removeKitsuLibraryEntryId(context, kitsuMediaId!!, isAnime)
+            if (success) ExternalAuthManager.removeKitsuLibraryEntryId(context, kitsuMediaId, isAnime)
             if (success) SyncResult(messages = listOf(context.getString(R.string.account_sync_entry_deleted, "Kitsu", entry.title)))
             else SyncResult(messages = emptyList(), errors = listOf(context.getString(R.string.account_sync_entry_delete_failed, "Kitsu")))
         } else {
-            if (kitsuMediaId != null) SyncResult(messages = listOf(context.getString(R.string.account_sync_entry_already_missing, "Kitsu", entry.title)))
-            else SyncResult(messages = emptyList(), errors = listOf(context.getString(R.string.account_sync_media_id_not_found, "Kitsu")))
+            // Medya bulunuyor ama kullanıcının kütüphanesinde kayıt yok: silme zaten amaca
+            // ulaştı (idempotent başarı sayılır).
+            SyncResult(messages = listOf(context.getString(R.string.account_sync_entry_already_missing, "Kitsu", entry.title)))
         }
     }
 }

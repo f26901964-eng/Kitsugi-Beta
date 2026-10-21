@@ -69,6 +69,42 @@ object SimklSyncManager {
         else             -> "shows"
     }
 
+    /**
+     * Yayılımın kullanacağı gerçek MAL kimliği: önce çapraz kimlik katmanının DOĞRULANMIŞ
+     * sonucu ([knownMalId]), yoksa satırın kendi `malId` alanı KAYNAK uzayına göre yorumlanır.
+     *
+     * Neden aralık kontrolü (`0 < id < 100M`) yetmiyor: (a) eski Kitsu/Bangumi ham kimlikleri ve
+     * film/dizi satırlarındaki TMDB uzay değerleri aynı aralığa düşüp MAL sanılabiliyor;
+     * (b) tersine, çapraz eşitlemenin çözdüğü gerçek MAL değeri `source = "shikimori"` gibi
+     * kaynaklara sahip geçici kopyaya yazılıyor ve saf [CrossProviderIds.decode] bunu kaynağın
+     * kendi ham kimliği sanıp MAL'i **düşürüyordu**. İkisi de yanlış: ilki yanlış yapıma yazar,
+     * ikincisi doğru yazımı atlar. bkz. [CrossProviderIds.decode].
+     */
+    private fun realMalIdOf(entry: MediaEntry, knownMalId: Int? = null): Int? =
+        CrossProviderIds.realMalIdOf(knownMalId) ?: CrossProviderIds.decode(
+            storedId = entry.malId,
+            source = entry.source,
+            type = entry.type,
+            entrySimklId = entry.simklId,
+            entryTmdbId = entry.tmdbId
+        ).malId
+
+    /**
+     * Simkl'e gönderilecek Kitsu kimliği: 300M stableId penceresi (300_000_001..399_999_999)
+     * ya da eski Kitsu satırlarının ham (<100M) kimliği. Eski canlı kontrol `>= 300M` idi;
+     * Shikimori (400M) stableId'leri de bu aralığa girip `id - 300M` ile SAHTE Kitsu kimliğine
+     * dönüyordu → Simkl her yazmada `not_found` üretiyordu (toplu hatta 2026-10-07'de
+     * düzeltilen aynı hata canlı hatta kalmıştı).
+     */
+    private fun rawKitsuIdOf(entry: MediaEntry): Int? {
+        val stored = entry.malId ?: return null
+        return when {
+            stored in 300_000_001..399_999_999 -> stored - 300_000_000
+            entry.source == "kitsu" && stored in 1..99_999_999 -> stored
+            else -> null
+        }
+    }
+
     // ── Toplu Senkronizasyon (Batch Sync) ──────────────────────────────────────────
 
     /**
@@ -102,6 +138,11 @@ object SimklSyncManager {
                 unsupportedTitles.add(entry.displayTitle(context))
                 return@mapNotNull null
             }
+            // Ham kütüphane satırlarında (kopya DEĞİL) eski aralık kuralı korunur: Shikimori
+            // importu MAL uzayındaki target_id'yi ham yazar (<100M) ve toplu hat bu değeri
+            // Simkl'e `ids.mal` olarak göndermelidir; [CrossProviderIds.decode] ise kaynak
+            // duyarlılığı gereği onu shikimori sayar. Canlı hat, çapraz kimlik kopyalarıyla
+            // çalıştığı için [realMalIdOf] (knownMalId + decode) kullanır.
             val realMalId = entry.malId?.takeIf { entry.type == MediaType.Anime && it > 0 && it < 100_000_000 }
             val aniListId = if (entry.source == "anilist" && entry.malId != null && entry.malId >= 100_000_000 && entry.malId < 300_000_000) {
                 entry.malId - 100_000_000
@@ -302,7 +343,14 @@ object SimklSyncManager {
      */
     suspend fun syncEntryToSimkl(
         context: Context,
-        entry: MediaEntry
+        entry: MediaEntry,
+        /**
+         * Çapraz kimlik katmanının ([CrossProviderIdentityResolver]) önceden çözdüğü gerçek MAL
+         * kimliği. Verildiğinde satırın kaynak uzayına göre yeniden yorumlanmaz — özellikle
+         * `source = "shikimori"` vb. satırların çözülmüş MAL kopyası ham kimlik sanılıp
+         * düşürülmesin. bkz. [realMalIdOf].
+         */
+        knownMalId: Int? = null
     ): SyncResult = withContext(Dispatchers.IO) {
         val token = ExternalAuthManager.getSimklToken(context)
         if (token.isNullOrBlank()) {
@@ -310,13 +358,11 @@ object SimklSyncManager {
         }
 
         var simklId = entry.simklId
-        val realMalId = entry.malId?.takeIf { it > 0 && it < 100_000_000 }
+        val realMalId = realMalIdOf(entry, knownMalId)
         val aniListId = if (entry.source == "anilist" && entry.malId != null && entry.malId >= 100_000_000 && entry.malId < 300_000_000) {
             entry.malId - 100_000_000
         } else null
-        val rawKitsuId = if (entry.source == "kitsu" || (entry.malId != null && entry.malId >= 300_000_000)) {
-            if (entry.malId != null && entry.malId >= 300_000_000) entry.malId - 300_000_000 else entry.malId
-        } else null
+        val rawKitsuId = rawKitsuIdOf(entry)
 
         // Simkl ID yoksa HER durumda çözülür (kimliklerle birebir sorgu en güvenilir yoldur).
         // Eski koşul tersine çalışıyordu: yalnızca MAL/TMDB kimliği YOKKEN arama yapılıyor,
@@ -350,9 +396,14 @@ object SimklSyncManager {
             }
         }
 
-        // Eğer simklId, malId ve tmdbId'nin hiçbiri yoksa senkronize edilemez
+        // Hiçbir kimlik yoksa senkronize edilemez — hata değil, güvenli atlama:
+        // katalog eşleşmesi üretilemeden yazma denemesi Retry kuyruğunu şişirir.
         if ((simklId == null || simklId <= 0) && realMalId == null && (entry.tmdbId == null || entry.tmdbId <= 0)) {
-            return@withContext SyncResult(messages = emptyList(), errors = listOf(context.getString(R.string.account_sync_missing_external_ids, entry.title)))
+            return@withContext SyncResult(
+                messages = emptyList(),
+                errors = listOf(context.getString(R.string.account_sync_missing_external_ids, entry.title)),
+                unresolvedMedia = true
+            )
         }
 
         val effectiveSimklId = simklId ?: 0
@@ -361,6 +412,7 @@ object SimklSyncManager {
         val simklStatus = watchStatusToSimkl(entry.status, entry.type)
         val messages = mutableListOf<String>()
         val errors = mutableListOf<String>()
+        var unresolvedMedia = false
 
         // Sıra (toplu hatla aynı): geçmiş/puan yazımları Simkl'de liste durumunu
         // değiştirebildiği için istenen durum EN SON uygulanır. Eski sıra durumu önce
@@ -434,29 +486,61 @@ object SimklSyncManager {
 
         // 3. İstenen liste durumu EN SON uygulanır (POST /sync/add-to-list): yukarıdaki
         // geçmiş/puan yazımları Simkl'de durumu değiştirebildiğinden kullanıcının seçtiği
-        // durum son sözü söyler (toplu hatla aynı sıra).
+        // durum son sözü söyler (toplu hatla aynı sıra). Makbuz ayrıştırılır: `not_found`
+        // (medya Simkl kataloğunda yok) hata değil atlamadır; yalnızca taşıma/HTTP
+        // başarısızlıkları gerçek hatadır ve yeniden denemeyi haklı çıkarır.
         runCatching {
-            simklApiClient.addToList(
+            simklApiClient.addToListBatchDetailed(
                 token = token,
-                simklId = effectiveSimklId,
-                type = type,
-                status = simklStatus,
-                malId = realMalId,
-                tmdbId = entry.tmdbId,
-                aniListId = aniListId,
-                kitsuId = rawKitsuId,
-                title = entry.titleEnglish?.takeIf { it.isNotBlank() } ?: entry.title,
-                year = entry.year
+                entries = listOf(
+                    SimklApiClient.SimklBatchEntry(
+                        type = type,
+                        status = simklStatus,
+                        simklId = effectiveSimklId,
+                        malId = realMalId,
+                        tmdbId = entry.tmdbId,
+                        aniListId = aniListId,
+                        kitsuId = rawKitsuId,
+                        title = entry.titleEnglish?.takeIf { it.isNotBlank() } ?: entry.title,
+                        year = entry.year,
+                        titleMatchingAllowed = type != "anime" || effectiveSimklId > 0 || realMalId != null
+                    )
+                )
             )
-        }.onSuccess { success ->
-            if (success) messages.add(context.getString(R.string.simkl_sync_list_updated, entry.title))
-            else errors.add(context.getString(R.string.simkl_sync_list_update_failed, entry.title))
+        }.onSuccess { receipt ->
+            when {
+                receipt.isSuccess ->
+                    messages.add(context.getString(R.string.simkl_sync_list_updated, entry.title))
+                receipt.transportFailed ->
+                    errors.add(
+                        listOfNotNull(
+                            context.getString(R.string.simkl_sync_list_update_failed, entry.title),
+                            receipt.errorMessage?.takeIf { it.isNotBlank() }
+                        ).joinToString(" — ")
+                    )
+                else -> {
+                    // Kimlik/katalog eksiği: aynı başlık/yıl ile Simkl'e güvenle yazılamaz.
+                    unresolvedMedia = true
+                    errors.add(context.getString(R.string.account_sync_media_id_not_found, "Simkl"))
+                }
+            }
         }.onFailure { e ->
             errors.add(context.getString(R.string.simkl_sync_add_error, e.message ?: context.getString(R.string.account_sync_unknown_error)))
             Log.e(TAG, "syncEntryToSimkl addToList hatası", e)
         }
 
-        SyncResult(messages = messages, errors = errors)
+        // Katalog eşleşmesi üretilemediyse yukarıdaki geçmiş/puan "başarısızlıkları" da aynı
+        // kök nedenin (medya Simkl'de yok) belirtileridir: atlanan gerekçeye katılır, hata
+        // kuyruğuna girmez. Kuyrukta olduğu sürece her açılışta aynı "hata" yeniden üretiliyordu.
+        return@withContext if (unresolvedMedia) {
+            SyncResult(
+                messages = messages,
+                errors = errors.distinct(),
+                unresolvedMedia = true
+            )
+        } else {
+            SyncResult(messages = messages, errors = errors)
+        }
     }
 
     /**
@@ -465,7 +549,9 @@ object SimklSyncManager {
      */
     suspend fun deleteEntryFromSimkl(
         context: Context,
-        entry: MediaEntry
+        entry: MediaEntry,
+        /** [syncEntryToSimkl] ile aynı: doğrulanmış çapraz MAL kimliği silmeye de taşınır. */
+        knownMalId: Int? = null
     ): SyncResult = withContext(Dispatchers.IO) {
         val token = ExternalAuthManager.getSimklToken(context)
         if (token.isNullOrBlank()) {
@@ -473,7 +559,7 @@ object SimklSyncManager {
         }
 
         var simklId = entry.simklId
-        val realMalId = entry.malId?.takeIf { it > 0 && it < 100_000_000 }
+        val realMalId = realMalIdOf(entry, knownMalId)
         val aniListId = if (entry.source == "anilist" && entry.malId != null && entry.malId >= 100_000_000 && entry.malId < 300_000_000) {
             entry.malId - 100_000_000
         } else null
@@ -493,16 +579,20 @@ object SimklSyncManager {
         }
 
         if (simklId == null || simklId <= 0) {
-            return@withContext SyncResult(messages = emptyList(), errors = listOf(context.getString(R.string.account_sync_media_id_not_found, "Simkl")))
+            // Aramada da bulunamadı: kayıt Simkl kataloğunda eşleştirilemedi — güvenli
+            // atlama (hata değil), aksi halde bekleyen-senkron kuyruğunda sonsuza kadar döner.
+            return@withContext SyncResult(
+                messages = emptyList(),
+                errors = listOf(context.getString(R.string.account_sync_media_id_not_found, "Simkl")),
+                unresolvedMedia = true
+            )
         }
 
         val type = mediaTypeToSimklType(entry.type)
         val messages = mutableListOf<String>()
         val errors = mutableListOf<String>()
 
-        val rawKitsuId = if (entry.source == "kitsu" || (entry.malId != null && entry.malId >= 300_000_000)) {
-            if (entry.malId != null && entry.malId >= 300_000_000) entry.malId - 300_000_000 else entry.malId
-        } else null
+        val rawKitsuId = rawKitsuIdOf(entry)
 
         runCatching {
             simklApiClient.removeFromList(
@@ -587,7 +677,15 @@ object SimklSyncManager {
         /** Human-readable titles Simkl echoed back as `not_found` for the list write. */
         val unmatchedTitles: List<String> = emptyList(),
         /** TV shows whose aggregate episode count cannot be mapped to Simkl seasons. */
-        val unsupportedProgressTitles: List<String> = emptyList()
+        val unsupportedProgressTitles: List<String> = emptyList(),
+        /**
+         * Kayıt Simkl kataloğunda hiç yok ya da hiçbir güvenilir kimlikle (Simkl/MAL/TMDB)
+         * eşleştirilemedi. Bu bir API hatası değil, güvenli atlamadır: çağıran taraf kaydı
+         * "hata" sayıp bekleyen-senkron kuyruğuna yazmamalıdır (bkz. Kitsu/Bangumi
+         * `unresolvedMedia`/`unresolvedSubject` sözleşmeleri). [errors] bu durumda gerekçe
+         * metinlerini taşır.
+         */
+        val unresolvedMedia: Boolean = false
     ) {
         val isSuccess: Boolean get() = errors.isEmpty()
         val hasWarnings: Boolean get() = warnings.isNotEmpty() || (messages.isNotEmpty() && errors.isNotEmpty())

@@ -16,6 +16,17 @@ import okhttp3.RequestBody.Companion.toRequestBody
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
 
 object MalSyncManager {
+    /**
+     * MAL `start_date`/`finish_date` yalnızca TAM tarih kabul eder (`yyyy-MM-dd`).
+     * Eksik/parsiyel tarih (ör. "2016" ya da "2016-05", bazı içe aktarımlardan
+     * sızmış olabilir) tüm PATCH'i 400 ile düşürür → eşitleme "hata" sayılıp
+     * kuyruğa giriyordu. Biçimi uymayan tarih GÖNDERİLMEZ (uzak değer korunur),
+     * uyuşmayan alan için yazma yapılmaz.
+     */
+    private val fullIsoDate = Regex("""\d{4}-\d{2}-\d{2}""")
+
+    private fun String?.sendableDate(): String? = this?.takeIf { fullIsoDate.matches(it) }
+
     fun updateMalEntry(
         token: String,
         entry: MediaEntry,
@@ -46,12 +57,12 @@ object MalSyncManager {
             append("&score=${SyncScores.tenPoint(entry.score) ?: 0}")
             append("&$progressKey=${entry.progress}")
 
-            val startDate = entry.startDate
+            val startDate = entry.startDate.sendableDate()
             if (startDate != null) {
                 append("&start_date=${URLEncoder.encode(startDate, "UTF-8")}")
             }
 
-            val endDate = entry.endDate
+            val endDate = entry.endDate.sendableDate()
             if (endDate != null) {
                 append("&finish_date=${URLEncoder.encode(endDate, "UTF-8")}")
             }

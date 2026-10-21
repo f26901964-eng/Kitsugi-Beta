@@ -1584,7 +1584,7 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                                 // Shikimori'de eksik -> EKLE! (kimlik güvencesinden geçti)
                                 com.kitsugi.animelist.data.auth.PlatformRateLimiter.acquire("shikimori")
                                 val target = mergedEntry.copy(malId = guardedMalId ?: realMalId)
-                                val outcome = runSyncCatching { ShikimoriSyncManager.syncEntryToShikimori(context, target) }
+                                val outcome = runSyncCatching { ShikimoriSyncManager.syncEntryToShikimori(context, target, knownMalId = realMalId) }
                                 val res = outcome.getOrNull()
                                 if (res != null && res.errors.isEmpty()) {
                                     statsMap["Shikimori"] = statsMap["Shikimori"]!!.let { it.copy(addedCount = it.addedCount + 1) }
@@ -1603,7 +1603,7 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                                 if (needsUpdate) {
                                     com.kitsugi.animelist.data.auth.PlatformRateLimiter.acquire("shikimori")
                                     val target = mergedEntry.copy(malId = realMalId)
-                                    val outcome = runSyncCatching { ShikimoriSyncManager.syncEntryToShikimori(context, target) }
+                                    val outcome = runSyncCatching { ShikimoriSyncManager.syncEntryToShikimori(context, target, knownMalId = realMalId) }
                                     val res = outcome.getOrNull()
                                     if (res != null && res.errors.isEmpty()) {
                                         statsMap["Shikimori"] = statsMap["Shikimori"]!!.let { it.copy(updatedCount = it.updatedCount + 1) }

@@ -22,6 +22,14 @@ import com.kitsugi.animelist.data.local.toEntity
  * kısa devre yapıyordu) ya da "kimlik çözülemedi" şeklinde **hata** sayıldığı için
  * bekleme kuyruğunu sonsuza kadar şişiriyordu. Artık kimlik tek yerden gelir
  * ([CrossProviderIdentityResolver]) ve çözülemeyen kaynak hata değil **atlandı** sayılır.
+ *
+ * Güncelleme YOLU kadar silme yolu da tam kimlikle çalışır: silme kimlik çözümünde de
+ * (doğrulanmış eşleşmelerle) ağa çıkılır; aksi halde daha önce hiç yayılmamış satırlar
+ * yalnızca kendi kaynağından silinir, diğer kaynaklarda hayalet kayıt kalırdı. Tüm
+ * yöneticilerin `unresolvedMedia`/`unresolvedSubject` işaretleri EKLEME ve SİLME
+ * yollarında aynı biçimde yorumlanır: gerekçe `skipped` listesine girer, `errors` değil —
+ * yalnızca gerçek hatalar bekleyen-senkron kuyruğuna ve "Çevrimdışı kaydedildi"
+ * bildirimine yol açar.
  */
 object ExternalListSyncManager {
     /** Kaynak başına sonuç etiketleri (raporda ve özet mesajda gösterilir). */
@@ -226,14 +234,23 @@ object ExternalListSyncManager {
             } else {
                 runSyncCatching {
                     PlatformRateLimiter.acquire("simkl")
-                    SimklSyncManager.syncEntryToSimkl(context, remoteEntry)
+                    SimklSyncManager.syncEntryToSimkl(context, remoteEntry, knownMalId = identity.malId)
                 }.onSuccess { simklResult ->
-                    if (simklResult.isSuccess) {
-                        syncedSources.add("Simkl")
-                        outcomes["Simkl"] = OUTCOME_SYNCED
-                    } else {
-                        outcomes["Simkl"] = OUTCOME_FAILED
-                        errors.addAll(simklResult.errors)
+                    when {
+                        simklResult.isSuccess -> {
+                            syncedSources.add("Simkl")
+                            outcomes["Simkl"] = OUTCOME_SYNCED
+                        }
+                        // Katalog eşleşmesi üretilemedi (medya Simkl'de yok / kimlik yok):
+                        // hata değil atlandı — "Çevrimdışı kaydedildi" kuyruğuna düşmemeli.
+                        simklResult.unresolvedMedia -> {
+                            outcomes["Simkl"] = OUTCOME_SKIPPED_IDENTITY
+                            skipped.addAll(simklResult.errors)
+                        }
+                        else -> {
+                            outcomes["Simkl"] = OUTCOME_FAILED
+                            errors.addAll(simklResult.errors)
+                        }
                     }
                 }.onFailure { error ->
                     outcomes["Simkl"] = OUTCOME_FAILED
@@ -299,7 +316,7 @@ object ExternalListSyncManager {
                 }
                 runSyncCatching {
                     PlatformRateLimiter.acquire("shikimori")
-                    ShikimoriSyncManager.syncEntryToShikimori(context, shikimoriEntry)
+                    ShikimoriSyncManager.syncEntryToShikimori(context, shikimoriEntry, knownMalId = identity.malId)
                 }.onSuccess { shikiResult ->
                     when {
                         shikiResult.errors.isEmpty() -> {
@@ -416,6 +433,23 @@ object ExternalListSyncManager {
             val syncEnabledShikimori = settings?.syncEnabledShikimori ?: true
             val syncEnabledBangumi = settings?.syncEnabledBangumi ?: true
 
+            val aniListToken = ExternalAuthManager.getAniListToken(context)
+            val malToken = ExternalAuthManager.getOrRefreshMalToken(context)
+            val simklToken = ExternalAuthManager.getSimklToken(context)
+            val kitsuToken = ExternalAuthManager.getKitsuToken(context)
+            val shikimoriToken = ExternalAuthManager.getOrRefreshShikimoriToken(context)
+            val bangumiToken = if (syncEnabledBangumi) BangumiAuthStore.getValidToken(context) else null
+
+            // Kimlik araması yalnızca BAĞLI kaynaklar için yapılır (eşitleme ile aynı kural).
+            val connectedSources = ConnectedSources(
+                aniList = syncEnabledAniList && !aniListToken.isNullOrBlank(),
+                mal = syncEnabledMal && !malToken.isNullOrBlank(),
+                kitsu = syncEnabledKitsu && !kitsuToken.isNullOrBlank(),
+                shikimori = syncEnabledShikimori && !shikimoriToken.isNullOrBlank(),
+                simkl = syncEnabledSimkl && !simklToken.isNullOrBlank(),
+                bangumi = !bangumiToken.isNullOrBlank()
+            )
+
             val isBangumiRow = canonicalMediaSourceId(entry.source) == BangumiIdNamespace.SOURCE
             val fallbackIdentity = CrossProviderIds.decode(
                 storedId = entry.malId,
@@ -424,23 +458,24 @@ object ExternalListSyncManager {
                 entrySimklId = entry.simklId,
                 entryTmdbId = entry.tmdbId
             )
-            // Silmede yanlış yapıma dokunmamak için ağ araması YAPILMAZ: yalnızca satırın
-            // kendi kimliği ve daha önce çözülmüş kalıcı eşlemeler kullanılır.
+            // Silme de tıpkı güncelleme gibi DOĞRULANMIŞ kimlikle çalışır: satır ilk kez
+            // siliniyorsa (daha önce hiç yayılmamış içe aktarım satırı gibi) kimlik daha önce
+            // çözülmemiş olabilir ve eski "ağ araması yok" kuralı yalnızca satırın kendi
+            // kaynağından silinmesine izin veriyor, diğer kaynaklarda hayalet kayıt kalıyordu.
+            // Güvenlik, güncellemeyle AYNI korumadadır: [CrossProviderIdentityResolver] yalnızca
+            // doğrulanmış eşleşmeler döndürür; çözülemeyen alan `null` kalır ve o kaynak atlanır.
             val identity = runSyncCatching {
-                CrossProviderIdentityResolver.resolve(context, entry, allowNetwork = false)
+                CrossProviderIdentityResolver.resolve(
+                    context, entry,
+                    allowNetwork = true,
+                    connected = connectedSources
+                )
             }.getOrNull()?.mergedWith(fallbackIdentity) ?: fallbackIdentity
             val allowFanOut = CrossSyncPolicy.allowFanOut(isBangumiRow, identity)
             if (isBangumiRow && !allowFanOut) {
                 skipped.add(context.getString(R.string.account_sync_fanout_blocked_bangumi))
             }
             val remoteEntry = withResolvedIds(entry, identity)
-
-            val aniListToken = ExternalAuthManager.getAniListToken(context)
-            val malToken = ExternalAuthManager.getOrRefreshMalToken(context)
-            val simklToken = ExternalAuthManager.getSimklToken(context)
-            val kitsuToken = ExternalAuthManager.getKitsuToken(context)
-            val shikimoriToken = ExternalAuthManager.getOrRefreshShikimoriToken(context)
-            val bangumiToken = if (syncEnabledBangumi) BangumiAuthStore.getValidToken(context) else null
 
             val realMalId = identity.malId
             val isAnimeOrManga = entry.type == MediaType.Anime || entry.type == MediaType.Manga
@@ -457,8 +492,15 @@ object ExternalListSyncManager {
                     deletedSources.add("AniList")
                     outcomes["AniList"] = OUTCOME_SYNCED
                 }.onFailure { error ->
-                    outcomes["AniList"] = OUTCOME_FAILED
-                    errors.add(context.getString(R.string.account_sync_delete_error, "AniList", error.message ?: context.getString(R.string.account_sync_unknown_error)))
+                    val detail = error.message ?: context.getString(R.string.account_sync_unknown_error)
+                    // Medya kimliği çözülemedi → atlandı (yeniden deneme faydasız).
+                    if (detail == context.getString(R.string.account_sync_anilist_media_id_unresolved)) {
+                        outcomes["AniList"] = OUTCOME_SKIPPED_IDENTITY
+                        skipped.add(detail)
+                    } else {
+                        outcomes["AniList"] = OUTCOME_FAILED
+                        errors.add(context.getString(R.string.account_sync_delete_error, "AniList", detail))
+                    }
                 }
             } else {
                 outcomes["AniList"] = deleteGateOutcome(syncEnabledAniList, !aniListToken.isNullOrBlank(), isAnimeOrManga && allowFanOut)
@@ -489,14 +531,22 @@ object ExternalListSyncManager {
             if (syncEnabledSimkl && !simklToken.isNullOrBlank() && entry.type != MediaType.Manga && allowFanOut) {
                 runSyncCatching {
                     PlatformRateLimiter.acquire("simkl")
-                    SimklSyncManager.deleteEntryFromSimkl(context, remoteEntry)
+                    SimklSyncManager.deleteEntryFromSimkl(context, remoteEntry, knownMalId = identity.malId)
                 }.onSuccess { simklResult ->
-                    if (simklResult.isSuccess) {
-                        deletedSources.add("Simkl")
-                        outcomes["Simkl"] = OUTCOME_SYNCED
-                    } else {
-                        outcomes["Simkl"] = OUTCOME_FAILED
-                        errors.addAll(simklResult.errors)
+                    when {
+                        simklResult.isSuccess -> {
+                            deletedSources.add("Simkl")
+                            outcomes["Simkl"] = OUTCOME_SYNCED
+                        }
+                        // Kimlik/katalog eşleşmesi üretilemedi: hata değil, güvenli atlama.
+                        simklResult.unresolvedMedia -> {
+                            outcomes["Simkl"] = OUTCOME_SKIPPED_IDENTITY
+                            skipped.addAll(simklResult.errors)
+                        }
+                        else -> {
+                            outcomes["Simkl"] = OUTCOME_FAILED
+                            errors.addAll(simklResult.errors)
+                        }
                     }
                 }.onFailure { error ->
                     outcomes["Simkl"] = OUTCOME_FAILED
@@ -509,14 +559,28 @@ object ExternalListSyncManager {
             if (syncEnabledKitsu && !kitsuToken.isNullOrBlank() && isAnimeOrManga && allowFanOut) {
                 runSyncCatching {
                     PlatformRateLimiter.acquire("kitsu")
-                    KitsuSyncManager.deleteEntryFromKitsu(context, remoteEntry)
+                    KitsuSyncManager.deleteEntryFromKitsu(
+                        context = context,
+                        entry = remoteEntry,
+                        // Çapraz kimlik katmanının çözdüğü Kitsu medya kimliği silmeye de taşınır;
+                        // eski davranış yalnızca satırın namespace'ine bakıyordu ve bu kimlik
+                        // yok sayılıyordu ("Kitsu: hata").
+                        knownKitsuMediaId = identity.kitsuId
+                    )
                 }.onSuccess { kitsuResult ->
-                    if (kitsuResult.errors.isEmpty()) {
-                        deletedSources.add("Kitsu")
-                        outcomes["Kitsu"] = OUTCOME_SYNCED
-                    } else {
-                        outcomes["Kitsu"] = OUTCOME_FAILED
-                        errors.addAll(kitsuResult.errors)
+                    when {
+                        kitsuResult.errors.isEmpty() -> {
+                            deletedSources.add("Kitsu")
+                            outcomes["Kitsu"] = OUTCOME_SYNCED
+                        }
+                        kitsuResult.unresolvedMedia -> {
+                            outcomes["Kitsu"] = OUTCOME_SKIPPED_IDENTITY
+                            skipped.addAll(kitsuResult.errors)
+                        }
+                        else -> {
+                            outcomes["Kitsu"] = OUTCOME_FAILED
+                            errors.addAll(kitsuResult.errors)
+                        }
                     }
                 }.onFailure { error ->
                     outcomes["Kitsu"] = OUTCOME_FAILED
@@ -526,24 +590,43 @@ object ExternalListSyncManager {
                 outcomes["Kitsu"] = deleteGateOutcome(syncEnabledKitsu, !kitsuToken.isNullOrBlank(), isAnimeOrManga && allowFanOut)
             }
 
-            if (syncEnabledShikimori && !shikimoriToken.isNullOrBlank() && isAnimeOrManga && allowFanOut) {
+            val shikimoriHasTarget = realMalId != null || identity.shikimoriId != null
+            if (syncEnabledShikimori && !shikimoriToken.isNullOrBlank() && isAnimeOrManga && allowFanOut && shikimoriHasTarget) {
                 runSyncCatching {
                     PlatformRateLimiter.acquire("shikimori")
-                    ShikimoriSyncManager.deleteEntryFromShikimori(context, remoteEntry)
+                    ShikimoriSyncManager.deleteEntryFromShikimori(context, remoteEntry, knownMalId = identity.malId)
                 }.onSuccess { shikiResult ->
-                    if (shikiResult.errors.isEmpty()) {
-                        deletedSources.add("Shikimori")
-                        outcomes["Shikimori"] = OUTCOME_SYNCED
-                    } else {
-                        outcomes["Shikimori"] = OUTCOME_SKIPPED_IDENTITY
-                        skipped.addAll(shikiResult.errors)
+                    when {
+                        shikiResult.errors.isEmpty() -> {
+                            deletedSources.add("Shikimori")
+                            outcomes["Shikimori"] = OUTCOME_SYNCED
+                        }
+                        // Doğrulanmış hedef çözülemedi: atlandı. Diğer hatalar (ör. silme
+                        // reddedildi) gerçek hatadır ve yeniden denenmelidir — eski davranış
+                        // tüm hataları "atlandı" saydığı için gerçek başarısızlıklar
+                        // kuyruğa hiç girmiyordu.
+                        shikiResult.unresolvedMedia -> {
+                            outcomes["Shikimori"] = OUTCOME_SKIPPED_IDENTITY
+                            skipped.addAll(shikiResult.errors)
+                        }
+                        else -> {
+                            outcomes["Shikimori"] = OUTCOME_FAILED
+                            errors.addAll(shikiResult.errors)
+                        }
                     }
                 }.onFailure { error ->
                     outcomes["Shikimori"] = OUTCOME_FAILED
                     errors.add(context.getString(R.string.account_sync_delete_error, "Shikimori", error.message ?: context.getString(R.string.account_sync_unknown_error)))
                 }
             } else {
-                outcomes["Shikimori"] = deleteGateOutcome(syncEnabledShikimori, !shikimoriToken.isNullOrBlank(), isAnimeOrManga && allowFanOut)
+                outcomes["Shikimori"] = deleteGateOutcome(
+                    syncEnabledShikimori,
+                    !shikimoriToken.isNullOrBlank(),
+                    isAnimeOrManga && allowFanOut && shikimoriHasTarget
+                )
+                if (!shikimoriHasTarget && syncEnabledShikimori && !shikimoriToken.isNullOrBlank() && isAnimeOrManga) {
+                    skipped.add(context.getString(R.string.account_sync_shikimori_id_not_found, entry.title))
+                }
             }
 
             if (syncEnabledBangumi && !bangumiToken.isNullOrBlank() && BangumiSyncManager.supportsMediaType(entry.type)) {
@@ -555,12 +638,21 @@ object ExternalListSyncManager {
                         knownSubjectId = identity.bangumiSubjectId
                     )
                 }.onSuccess { bangumiResult ->
-                    if (bangumiResult.errors.isEmpty()) {
-                        deletedSources.add("Bangumi")
-                        outcomes["Bangumi"] = OUTCOME_SYNCED
-                    } else {
-                        outcomes["Bangumi"] = OUTCOME_SKIPPED_IDENTITY
-                        skipped.addAll(bangumiResult.errors)
+                    when {
+                        bangumiResult.errors.isEmpty() -> {
+                            deletedSources.add("Bangumi")
+                            outcomes["Bangumi"] = OUTCOME_SYNCED
+                        }
+                        // subject eşleşmesi üretilemedi: atlandı. Gerçek yazım hataları
+                        // (ör. ağ/HTTP) hâlâ yeniden denenmelidir — eşitleme yoluyla aynı.
+                        bangumiResult.unresolvedSubject -> {
+                            outcomes["Bangumi"] = OUTCOME_SKIPPED_IDENTITY
+                            skipped.addAll(bangumiResult.errors)
+                        }
+                        else -> {
+                            outcomes["Bangumi"] = OUTCOME_FAILED
+                            errors.addAll(bangumiResult.errors)
+                        }
                     }
                 }.onFailure { error ->
                     outcomes["Bangumi"] = OUTCOME_FAILED
