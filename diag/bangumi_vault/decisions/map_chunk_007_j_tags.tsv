@@ -1,0 +1,1044 @@
+# Bangumi VAULT — chunk 007_j · ETİKET haritası (count 0–0 · 1041 kayıt)
+# Biçim: vault_key <TAB> canon_id|SKIP <TAB> not
+# Kişisel raf/puan, tarih/dönem, gürültü ve belirsiz kısaltmalar SKIP; bilinmeyen CJK adlar as_is.
+bangumi_tag_3d_cg	3d_cg	seed tag
+bangumi_tag_4_koma	4koma	tags.tsv:4koma
+bangumi_tag_4koma	4koma	seed tag
+bangumi_tag_a1_pictures	a1_pictures	seed tag
+bangumi_tag_a_silent_voice	a_silent_voice	seed tag
+bangumi_tag_abuse	abuse	seed tag
+bangumi_tag_academy	academy	seed tag
+bangumi_tag_achromatic	achromatic	latin global ad
+bangumi_tag_achronological_order	achronological_order	latin global ad
+bangumi_tag_acrobatics	acrobatics	latin global ad
+bangumi_tag_acting	acting	latin global ad
+bangumi_tag_action	action	seed tag
+bangumi_tag_action_comedy	action_comedy	seed tag
+bangumi_tag_adaptation	adaptation	seed tag
+bangumi_tag_adoption	adoption	seed tag
+bangumi_tag_adventure	adventure	seed tag
+bangumi_tag_advertisement	advertisement	latin global ad
+bangumi_tag_africa	africa	seed tag
+bangumi_tag_after_story	after_story	seed tag
+bangumi_tag_afterlife	afterlife	seed tag
+bangumi_tag_age_gap	age_gap	seed tag
+bangumi_tag_age_regression	age_regression	latin global ad
+bangumi_tag_agender	agender	latin global ad
+bangumi_tag_agriculture	agriculture	seed tag
+bangumi_tag_ahead_of_its_time	ahead_of_its_time	seed tag
+bangumi_tag_ahegao	ahegao	seed tag
+bangumi_tag_ai_companion	ai_companion	seed tag
+bangumi_tag_ai_kayano	ai_kayano	seed tag
+bangumi_tag_airsoft	airsoft	latin global ad
+bangumi_tag_aka_akasaka	aka_akasaka	seed tag
+bangumi_tag_aki_toyosaki	aki_toyosaki	seed tag
+bangumi_tag_akio_otsuka	akio_otsuka	seed tag
+bangumi_tag_akira_ishida	akira_ishida	seed tag
+bangumi_tag_akira_toriyama	akira_toriyama	seed tag
+bangumi_tag_akiyuki_shinbo	akiyuki_shinbo	seed tag
+bangumi_tag_album	album	seed tag
+bangumi_tag_alchemy	alchemy	seed tag
+bangumi_tag_aliens	aliens	seed tag
+bangumi_tag_all_ages	all_ages	seed tag
+bangumi_tag_alternate_universe	alternate_universe	latin global ad
+bangumi_tag_amazon_prime	amazon_prime	seed tag
+bangumi_tag_ambient_music	ambient_music	seed tag
+bangumi_tag_amnesia	amnesia	seed tag
+bangumi_tag_anachronism	anachronism	latin global ad
+bangumi_tag_ancient_china	ancient_china	seed tag
+bangumi_tag_angels	angels	seed tag
+bangumi_tag_animals	animals	seed tag
+bangumi_tag_animation	animation	seed tag
+bangumi_tag_animation_quality	animation_quality	seed tag
+bangumi_tag_anime_adaptation	anime_adaptation	seed tag
+bangumi_tag_anime_industry	anime_industry	seed tag
+bangumi_tag_aniplex	aniplex	seed tag
+bangumi_tag_anisong	anisong	seed tag
+bangumi_tag_anohana	anohana	seed tag
+bangumi_tag_anthology	anthology	seed tag
+bangumi_tag_anthropomorphic	anthropomorphic	seed tag
+bangumi_tag_anti_hero	anti_hero	seed tag
+bangumi_tag_aoi_yuuki	aoi_yuuki	seed tag
+bangumi_tag_apocalypse	apocalypse	seed tag
+bangumi_tag_archery	archery	latin global ad
+bangumi_tag_area_canada	area_canada	seed tag
+bangumi_tag_area_chinese_speaking	area_chinese_speaking	seed tag
+bangumi_tag_area_czech	area_czech	seed tag
+bangumi_tag_area_malaysia	area_malaysia	seed tag
+bangumi_tag_area_new_zealand	area_new_zealand	seed tag
+bangumi_tag_arranged_marriage	arranged_marriage	seed tag
+bangumi_tag_arrangement	arrangement	seed tag
+bangumi_tag_art	art	seed tag
+bangumi_tag_art_house	art_house	seed tag
+bangumi_tag_artbook	artbook	seed tag
+bangumi_tag_arthouse_film	arthouse_film	seed tag
+bangumi_tag_artificial_intelligence	artificial_intelligence	seed tag
+bangumi_tag_asexual	asexual	latin global ad
+bangumi_tag_asia	asia	seed tag
+bangumi_tag_assassin	assassin	seed tag
+bangumi_tag_assassins	assassins	latin global ad
+bangumi_tag_astronomy	astronomy	tags.tsv:astronomy
+bangumi_tag_asuka_langley	asuka_langley	seed tag
+bangumi_tag_athletics	athletics	latin global ad
+bangumi_tag_atsuko_tanaka	atsuko_tanaka	seed tag
+bangumi_tag_attack_on_titan	attack_on_titan	seed tag
+bangumi_tag_augmented_reality	augmented_reality	latin global ad
+bangumi_tag_autobiographical	autobiographical	latin global ad
+bangumi_tag_autumn	autumn	seed tag
+bangumi_tag_avant_garde	avant_garde	seed tag
+bangumi_tag_aviation	aviation	latin global ad
+bangumi_tag_award_winning	award_winning	seed tag
+bangumi_tag_aya_hirano	aya_hirano	seed tag
+bangumi_tag_ayana_taketatsu	ayana_taketatsu	seed tag
+bangumi_tag_ayane_sakura	ayane_sakura	seed tag
+bangumi_tag_baby	baby	seed tag
+bangumi_tag_bad_animation	bad_animation	seed tag
+bangumi_tag_bad_ending	bad_ending	seed tag
+bangumi_tag_bakemonogatari	bakemonogatari	seed tag
+bangumi_tag_bakumatsu	cjk_dc120c	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_bakumatsu_tag2	bakumatsu	latin global ad
+bangumi_tag_band	band	seed tag
+bangumi_tag_bandai	bandai	seed tag
+bangumi_tag_bandai_namco	bandai_namco	seed tag
+bangumi_tag_baseball	baseball	seed tag
+bangumi_tag_basketball	basketball	seed tag
+bangumi_tag_bath	bath	latin global ad
+bangumi_tag_batou	batou	seed tag
+bangumi_tag_battle_royale	battle_royale	latin global ad
+bangumi_tag_battosai	cjk_05fbe9	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_beach_episode	beach_episode	seed tag
+bangumi_tag_beautiful_art	beautiful_art	seed tag
+bangumi_tag_beautiful_scenery	beautiful_scenery	seed tag
+bangumi_tag_behind_the_scenes	behind_the_scenes	seed tag
+bangumi_tag_betrayal	betrayal	seed tag
+bangumi_tag_bilibili	bilibili	seed tag
+bangumi_tag_binge_worthy	binge_worthy	seed tag
+bangumi_tag_biographical	biographical	latin global ad
+bangumi_tag_biography	biography	seed tag
+bangumi_tag_bisexual	bisexual	latin global ad
+bangumi_tag_bl	bl	seed tag
+bangumi_tag_board_game	board_game	seed tag
+bangumi_tag_body_horror	body_horror	latin global ad
+bangumi_tag_body_swapping	body_swapping	latin global ad
+bangumi_tag_bones_studio	bones_studio	seed tag
+bangumi_tag_bonus_footage	bonus_footage	seed tag
+bangumi_tag_book	book	seed tag
+bangumi_tag_botched_ending	botched_ending	seed tag
+bangumi_tag_box_office_hit	box_office_hit	seed tag
+bangumi_tag_box_set	box_set	seed tag
+bangumi_tag_boxing	combat_sports	tags.tsv:combat_sports
+bangumi_tag_boys_love	bl	tags.tsv:bl
+bangumi_tag_broken_family	broken_family	seed tag
+bangumi_tag_bromance	bromance	seed tag
+bangumi_tag_bullying	bullying	seed tag
+bangumi_tag_bunko	bunko	seed tag
+bangumi_tag_bushi_tag	samurai	tags.tsv:samurai
+bangumi_tag_butler	butler	seed tag
+bangumi_tag_calligraphy	calligraphy	latin global ad
+bangumi_tag_cancelled	cancelled	seed tag
+bangumi_tag_cannibalism	cannibalism	latin global ad
+bangumi_tag_card_battle	genre_card_battle	tags.tsv:genre_card_battle
+bangumi_tag_card_game	card_game	seed tag
+bangumi_tag_cars	cars	latin global ad
+bangumi_tag_cat	cat	seed tag
+bangumi_tag_catharsis	catharsis	seed tag
+bangumi_tag_cctv	cctv	seed tag
+bangumi_tag_censorship	censorship	seed tag
+bangumi_tag_centaur	centaur	latin global ad
+bangumi_tag_cgi	cgi	latin global ad
+bangumi_tag_character_design	character_design	seed tag
+bangumi_tag_character_driven	character_driven	seed tag
+bangumi_tag_character_song	character_song	seed tag
+bangumi_tag_cherry_blossom	cherry_blossom	seed tag
+bangumi_tag_chess	chess	seed tag
+bangumi_tag_childcare	childcare	seed tag
+bangumi_tag_childhood_friends	childhood_friends	seed tag
+bangumi_tag_childhood_memory	childhood_memory	seed tag
+bangumi_tag_childish	childish	seed tag
+bangumi_tag_chimera	chimera	latin global ad
+bangumi_tag_china	china	seed tag
+bangumi_tag_chinese_drama	chinese_drama	seed tag
+bangumi_tag_chiyomaru_shikura	chiyomaru_shikura	seed tag
+bangumi_tag_christmas	christmas	seed tag
+bangumi_tag_chunibyo	chunibyo	seed tag
+bangumi_tag_chunibyo_series	chunibyo_series	seed tag
+bangumi_tag_chuunibyou	chunibyo	tags.tsv:chunibyo
+bangumi_tag_circus	circus	seed tag
+bangumi_tag_city	city	seed tag
+bangumi_tag_civil_war	civil_war	seed tag
+bangumi_tag_clamp	clamp	seed tag
+bangumi_tag_clannad_series	clannad_series	seed tag
+bangumi_tag_classic	classic	seed tag
+bangumi_tag_classic_literature	classic_literature	seed tag
+bangumi_tag_classical_music	classical_music	seed tag
+bangumi_tag_clone	clones	tags.tsv:clones
+bangumi_tag_clones	clones	seed tag
+bangumi_tag_cloverworks	cloverworks	seed tag
+bangumi_tag_club_activity	club_activity	seed tag
+bangumi_tag_cm	cm	seed tag
+bangumi_tag_co_production	co_production	seed tag
+bangumi_tag_coastal	coastal	latin global ad
+bangumi_tag_code_geass	code_geass	seed tag
+bangumi_tag_cohabitation	cohabitation	seed tag
+bangumi_tag_colony	colony	latin global ad
+bangumi_tag_combat_sports	combat_sports	seed tag
+bangumi_tag_comedy	comedy	seed tag
+bangumi_tag_comedy_drama	comedy_drama	seed tag
+bangumi_tag_comic_book	comic_book	seed tag
+bangumi_tag_comic_strip	comic_strip	seed tag
+bangumi_tag_coming_of_age	coming_of_age	seed tag
+bangumi_tag_compilation	compilation	seed tag
+bangumi_tag_completed	completed	seed tag
+bangumi_tag_composer	composer	seed tag
+bangumi_tag_confession	confession	seed tag
+bangumi_tag_conspiracy	conspiracy	seed tag
+bangumi_tag_contract	contract	seed tag
+bangumi_tag_controversial	controversial	seed tag
+bangumi_tag_cosmic_horror	cosmic_horror	latin global ad
+bangumi_tag_cosplay	cosplay	seed tag
+bangumi_tag_countryside	countryside	seed tag
+bangumi_tag_cowboy_bebop	cowboy_bebop	seed tag
+bangumi_tag_cozy	cozy	seed tag
+bangumi_tag_creative_premise	creative_premise	seed tag
+bangumi_tag_crime	crime	seed tag
+bangumi_tag_cross_scar	cjk_bd15b4	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_crossdressing	crossdressing	seed tag
+bangumi_tag_crossover	crossover	seed tag
+bangumi_tag_crunchyroll	crunchyroll	seed tag
+bangumi_tag_cult	cult	seed tag
+bangumi_tag_cultivation	cultivation	seed tag
+bangumi_tag_cultural_impact	cultural_impact	seed tag
+bangumi_tag_cute	cute	seed tag
+bangumi_tag_cyberpunk	cyberpunk	seed tag
+bangumi_tag_cyborg	cyborg	latin global ad
+bangumi_tag_cycling	cycling	seed tag
+bangumi_tag_daisuke_aramaki	daisuke_aramaki	seed tag
+bangumi_tag_daisuke_ono	daisuke_ono	seed tag
+bangumi_tag_dance	dance	seed tag
+bangumi_tag_dancing	dancing_tag	latin global ad
+bangumi_tag_dark	dark	seed tag
+bangumi_tag_dark_and_brutal	dark_and_brutal	seed tag
+bangumi_tag_dark_comedy	dark_comedy	seed tag
+bangumi_tag_dark_fantasy	dark_fantasy	seed tag
+bangumi_tag_date	date	seed tag
+bangumi_tag_david_production	david_production	seed tag
+bangumi_tag_dc_comics	dc_comics	seed tag
+bangumi_tag_death	death	seed tag
+bangumi_tag_death_game	death_game	seed tag
+bangumi_tag_death_note_series	death_note_series	seed tag
+bangumi_tag_debut_work	debut_work	seed tag
+bangumi_tag_delinquents	delinquents	seed tag
+bangumi_tag_demon_slayer	demon_slayer	seed tag
+bangumi_tag_demons	demons	seed tag
+bangumi_tag_denpa	denpa	seed tag
+bangumi_tag_depressing	depressing	seed tag
+bangumi_tag_desert	desert	latin global ad
+bangumi_tag_detective	detective	seed tag
+bangumi_tag_detective_conan	detective_conan	seed tag
+bangumi_tag_detective_team	detective_team	seed tag
+bangumi_tag_digimon	digimon	seed tag
+bangumi_tag_dinosaurs	dinosaurs	seed tag
+bangumi_tag_diomedea	diomedea	seed tag
+bangumi_tag_director_tag	director_tag	seed tag
+bangumi_tag_disability	disability	latin global ad
+bangumi_tag_disappearance	disappearance	seed tag
+bangumi_tag_disaster	disaster	seed tag
+bangumi_tag_disney	disney	seed tag
+bangumi_tag_dissociative_identities	dissociative_identities	latin global ad
+bangumi_tag_documentary	documentary	seed tag
+bangumi_tag_documentary_style	documentary_style	seed tag
+bangumi_tag_dog	dog	seed tag
+bangumi_tag_doga_kobo	doga_kobo	seed tag
+bangumi_tag_doraemon	doraemon	seed tag
+bangumi_tag_dormitory	dormitory	seed tag
+bangumi_tag_doujin	doujin	seed tag
+bangumi_tag_dragon	dragon	seed tag
+bangumi_tag_dragon_ball	dragon_ball	seed tag
+bangumi_tag_dragons	dragons_tag	latin global ad
+bangumi_tag_drama	drama	seed tag
+bangumi_tag_drama_adaptation	drama_adaptation	seed tag
+bangumi_tag_drama_series	drama_series	seed tag
+bangumi_tag_drawing	drawing	latin global ad
+bangumi_tag_dream	dream	seed tag
+bangumi_tag_drinking	drinking	seed tag
+bangumi_tag_drugs	drugs	seed tag
+bangumi_tag_dubbing	dubbing	seed tag
+bangumi_tag_dullahan	dullahan	latin global ad
+bangumi_tag_dungeon	dungeon	seed tag
+bangumi_tag_dwarf	dwarf	seed tag
+bangumi_tag_dystopia	dystopia	seed tag
+bangumi_tag_ecchi	ecchi	seed tag
+bangumi_tag_economics	economics	latin global ad
+bangumi_tag_eddo	eddo	latin global ad
+bangumi_tag_educational	educational	seed tag
+bangumi_tag_eiichiro_oda	eiichiro_oda	seed tag
+bangumi_tag_elderly	elderly_people	tags.tsv:elderly_people
+bangumi_tag_electronic_music	electronic_music	seed tag
+bangumi_tag_elf	elf	seed tag
+bangumi_tag_ending_theme	ending_theme	seed tag
+bangumi_tag_ensemble_cast	ensemble_cast	seed tag
+bangumi_tag_environment	environment	seed tag
+bangumi_tag_environmental	environmental	latin global ad
+bangumi_tag_epidemic	epidemic	seed tag
+bangumi_tag_episodic	episodic	seed tag
+bangumi_tag_era_heisei	era_heisei	seed tag
+bangumi_tag_era_meiji	era_meiji	seed tag
+bangumi_tag_era_reiwa	era_reiwa	seed tag
+bangumi_tag_era_showa	era_showa	seed tag
+bangumi_tag_era_taisho	era_taisho	seed tag
+bangumi_tag_ero_guro	ero_guro	latin global ad
+bangumi_tag_erotic	erotic	seed tag
+bangumi_tag_escape	escape	seed tag
+bangumi_tag_espionage	espionage	latin global ad
+bangumi_tag_esports	esports	seed tag
+bangumi_tag_estranged_family	estranged_family	latin global ad
+bangumi_tag_europe	europe	seed tag
+bangumi_tag_evangelion	evangelion	seed tag
+bangumi_tag_exile_tag	exile_tag	latin global ad
+bangumi_tag_exorcism	exorcism	seed tag
+bangumi_tag_experimental	experimental	seed tag
+bangumi_tag_face_slapping	face_slapping	seed tag
+bangumi_tag_fairy	fairy_tag	latin global ad
+bangumi_tag_fairy_tale	fairy_tale	seed tag
+bangumi_tag_fake_relationship	fake_relationship	seed tag
+bangumi_tag_family	family	seed tag
+bangumi_tag_family_life	family_life	latin global ad
+bangumi_tag_fan_work	fan_work	seed tag
+bangumi_tag_fanservice	fanservice	seed tag
+bangumi_tag_fantasy	fantasy	seed tag
+bangumi_tag_fashion	fashion_tag	latin global ad
+bangumi_tag_fast_pace	fast_pace	seed tag
+bangumi_tag_fate_series	fate_series	seed tag
+bangumi_tag_feel_trip	feel_trip	seed tag
+bangumi_tag_female_audience	female_audience	seed tag
+bangumi_tag_female_harem	female_harem	seed tag
+bangumi_tag_female_lead	female_lead	seed tag
+bangumi_tag_female_protagonist	female_protagonist	seed tag
+bangumi_tag_femboy	femboy	latin global ad
+bangumi_tag_festival	festival	seed tag
+bangumi_tag_festival_winner	festival_winner	seed tag
+bangumi_tag_figure	figure	seed tag
+bangumi_tag_firearms	firearms	seed tag
+bangumi_tag_first_love	first_love	seed tag
+bangumi_tag_fishing	fishing	seed tag
+bangumi_tag_five_cm	five_cm	seed tag
+bangumi_tag_folk_music	folk_music	seed tag
+bangumi_tag_folklore	folklore	seed tag
+bangumi_tag_food	food	seed tag
+bangumi_tag_football	football_tag	latin global ad
+bangumi_tag_forbidden_love	forbidden_love	seed tag
+bangumi_tag_foreign	foreign	latin global ad
+bangumi_tag_foreshadowing	foreshadowing	seed tag
+bangumi_tag_found_family	adoption	tags.tsv:adoption
+bangumi_tag_fox	fox	seed tag
+bangumi_tag_france	france	seed tag
+bangumi_tag_friendship	friendship	seed tag
+bangumi_tag_fugitive	fugitive	latin global ad
+bangumi_tag_fuji_tv	fuji_tv	seed tag
+bangumi_tag_fujiko_fujio	fujiko_fujio	seed tag
+bangumi_tag_full_cgi	full_cgi	latin global ad
+bangumi_tag_full_color	full_color	seed tag
+bangumi_tag_full_metal_panic	full_metal_panic	seed tag
+bangumi_tag_fullmetal_alchemist	fullmetal_alchemist	seed tag
+bangumi_tag_fumiaki_maruto	fumiaki_maruto	seed tag
+bangumi_tag_furuhashi_kazuhiro	cjk_d817c2	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_fuse_author	fuse_author	seed tag
+bangumi_tag_future	future	seed tag
+bangumi_tag_gacha	gacha	seed tag
+bangumi_tag_gainax	gainax	seed tag
+bangumi_tag_galgame	galgame	seed tag
+bangumi_tag_galgame_adaptation	galgame_adaptation	seed tag
+bangumi_tag_gambling	gambling	seed tag
+bangumi_tag_game	game	seed tag
+bangumi_tag_game_act	game_act	seed tag
+bangumi_tag_game_adaptation	game_adaptation	seed tag
+bangumi_tag_game_adv	game_adv	seed tag
+bangumi_tag_game_ftg	game_ftg	seed tag
+bangumi_tag_game_mmo	game_mmo	seed tag
+bangumi_tag_game_rcg	game_rcg	seed tag
+bangumi_tag_game_rpg	game_rpg	seed tag
+bangumi_tag_game_rts	game_rts	seed tag
+bangumi_tag_game_slg	game_slg	seed tag
+bangumi_tag_game_spg	game_spg	seed tag
+bangumi_tag_game_stg	game_stg	seed tag
+bangumi_tag_game_strategy	game_strategy	seed tag
+bangumi_tag_gangs	gangs	latin global ad
+bangumi_tag_gap_moe	gap_moe	seed tag
+bangumi_tag_garden_of_words	garden_of_words	seed tag
+bangumi_tag_gege_akutami	gege_akutami	seed tag
+bangumi_tag_gen_urobuchi	gen_urobuchi	seed tag
+bangumi_tag_gender_bender	gender_bender	seed tag
+bangumi_tag_gender_bending	gender_bending	latin global ad
+bangumi_tag_genius	genius	seed tag
+bangumi_tag_genki	genki	seed tag
+bangumi_tag_genocide	genocide	seed tag
+bangumi_tag_genre_arpg	genre_arpg	seed tag
+bangumi_tag_genre_card_battle	genre_card_battle	seed tag
+bangumi_tag_genre_casual	genre_casual	seed tag
+bangumi_tag_genre_crpg	genre_crpg	seed tag
+bangumi_tag_genre_dbg	genre_dbg	seed tag
+bangumi_tag_genre_drpg	genre_drpg	seed tag
+bangumi_tag_genre_edu	genre_edu	seed tag
+bangumi_tag_genre_fps	genre_fps	seed tag
+bangumi_tag_genre_jrpg	genre_jrpg	seed tag
+bangumi_tag_genre_moba	genre_moba	seed tag
+bangumi_tag_genre_platform	genre_platform	seed tag
+bangumi_tag_genre_puz	genre_puz	seed tag
+bangumi_tag_genre_rac	genre_rac	seed tag
+bangumi_tag_genre_roguelike	genre_roguelike	seed tag
+bangumi_tag_genre_rtt	genre_rtt	seed tag
+bangumi_tag_genre_sandbox	genre_sandbox	seed tag
+bangumi_tag_genre_sim	genre_sim	seed tag
+bangumi_tag_genre_srpg	genre_srpg	seed tag
+bangumi_tag_genre_tps	genre_tps	seed tag
+bangumi_tag_genre_vn	genre_vn	seed tag
+bangumi_tag_germany	germany	seed tag
+bangumi_tag_ghibli	ghibli	seed tag
+bangumi_tag_ghost	ghost	seed tag
+bangumi_tag_ghost_in_the_shell	ghost_in_the_shell	seed tag
+bangumi_tag_gl	gl	seed tag
+bangumi_tag_goblin	goblin	seed tag
+bangumi_tag_gods	gods	seed tag
+bangumi_tag_good_work	good_work	seed tag
+bangumi_tag_gore	gore	seed tag
+bangumi_tag_goro_miyazaki	goro_miyazaki	seed tag
+bangumi_tag_goro_taniguchi	goro_taniguchi	seed tag
+bangumi_tag_gourmet	gourmet	seed tag
+bangumi_tag_graduation	graduation	seed tag
+bangumi_tag_grandparents	grandparents	seed tag
+bangumi_tag_graphic_novel	graphic_novel	seed tag
+bangumi_tag_great_soundtrack	great_soundtrack	seed tag
+bangumi_tag_guild	guild	seed tag
+bangumi_tag_gundam	gundam	seed tag
+bangumi_tag_guns	guns	latin global ad
+bangumi_tag_gyaru	gyaru	seed tag
+bangumi_tag_hajime_isayama	hajime_isayama	seed tag
+bangumi_tag_hajime_kamoshida	hajime_kamoshida	seed tag
+bangumi_tag_halloween	halloween	seed tag
+bangumi_tag_happy_ending	happy_ending	seed tag
+bangumi_tag_harem	harem	seed tag
+bangumi_tag_harem_life	harem_life	seed tag
+bangumi_tag_haruhi_character	haruhi_character	seed tag
+bangumi_tag_haruhi_disappearance	haruhi_disappearance	seed tag
+bangumi_tag_haruhi_melancholy	haruhi_melancholy	seed tag
+bangumi_tag_haruka_tomatsu	haruka_tomatsu	seed tag
+bangumi_tag_hayao_miyazaki	hayao_miyazaki	seed tag
+bangumi_tag_healing	healing	seed tag
+bangumi_tag_healing_work	healing_work	seed tag
+bangumi_tag_heist	heist	seed tag
+bangumi_tag_heist_team	heist_team	seed tag
+bangumi_tag_henshin	henshin	latin global ad
+bangumi_tag_hentai	hentai	seed tag
+bangumi_tag_heterosexual	heterosexual	seed tag
+bangumi_tag_hiatus	hiatus	seed tag
+bangumi_tag_hideaki_anno	hideaki_anno	seed tag
+bangumi_tag_hideaki_sorachi	hideaki_sorachi	seed tag
+bangumi_tag_high_stakes_game	high_stakes_game	seed tag
+bangumi_tag_hikaru_midorikawa	hikaru_midorikawa	seed tag
+bangumi_tag_hikikomori	hikikomori	seed tag
+bangumi_tag_hip_hop	hip_hop	seed tag
+bangumi_tag_hiromu_arakawa	hiromu_arakawa	seed tag
+bangumi_tag_hiroshi_kamiya	hiroshi_kamiya	seed tag
+bangumi_tag_hiroyuki_imaishi	hiroyuki_imaishi	seed tag
+bangumi_tag_hiroyuki_sawano	hiroyuki_sawano	seed tag
+bangumi_tag_historical	historical	seed tag
+bangumi_tag_hiten_mitsurugi	cjk_37624f	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_homage	homage	seed tag
+bangumi_tag_homeless	homeless	latin global ad
+bangumi_tag_hong_kong_region	hong_kong_region	seed tag
+bangumi_tag_hongkong_drama	hongkong_drama	seed tag
+bangumi_tag_horror	horror	seed tag
+bangumi_tag_horror_comedy	horror_comedy	seed tag
+bangumi_tag_horse	horse	seed tag
+bangumi_tag_hot_spring	hot_spring	seed tag
+bangumi_tag_hyouka	hyouka	seed tag
+bangumi_tag_hype	hype	seed tag
+bangumi_tag_ichiro_okouchi	ichiro_okouchi	seed tag
+bangumi_tag_iconic_scene	iconic_scene	seed tag
+bangumi_tag_idiot_character	idiot_character	seed tag
+bangumi_tag_idol	idol	seed tag
+bangumi_tag_idol_life	idol_life	seed tag
+bangumi_tag_illustration	illustration	seed tag
+bangumi_tag_immortality	immortality	seed tag
+bangumi_tag_independent_work	independent_work	seed tag
+bangumi_tag_infinite_flow	infinite_flow	seed tag
+bangumi_tag_insert_song	insert_song	seed tag
+bangumi_tag_inspirational	inspirational	seed tag
+bangumi_tag_instrumental	instrumental	seed tag
+bangumi_tag_introvert	introvert	seed tag
+bangumi_tag_iqiyi	iqiyi	seed tag
+bangumi_tag_isao_takahata	isao_takahata	seed tag
+bangumi_tag_isekai	isekai	seed tag
+bangumi_tag_ishin_shishi	ishin_shishi	latin global ad
+bangumi_tag_island	island	seed tag
+bangumi_tag_italy	italy	seed tag
+bangumi_tag_itsuki_koizumi	itsuki_koizumi	seed tag
+bangumi_tag_iyashikei	iyashikei_work	tags.tsv:iyashikei_work
+bangumi_tag_iyashikei_work	iyashikei_work	seed tag
+bangumi_tag_japan	japan	seed tag
+bangumi_tag_japanese_ancient	japanese_ancient	seed tag
+bangumi_tag_japanese_drama	japanese_drama	seed tag
+bangumi_tag_jazz	jazz	seed tag
+bangumi_tag_jc_staff	jc_staff	seed tag
+bangumi_tag_joe_hisaishi	joe_hisaishi	seed tag
+bangumi_tag_josei	josei	seed tag
+bangumi_tag_jujutsu_kaisen	jujutsu_kaisen	seed tag
+bangumi_tag_jukki_hanada	jukki_hanada	seed tag
+bangumi_tag_jun_maeda	jun_maeda	seed tag
+bangumi_tag_junji_ito	junji_ito	seed tag
+bangumi_tag_k_on	k_on	seed tag
+bangumi_tag_kadokawa	kadokawa	seed tag
+bangumi_tag_kaiju	kaiju	seed tag
+bangumi_tag_kana_hanazawa	kana_hanazawa	seed tag
+bangumi_tag_katsuhiro_otomo	katsuhiro_otomo	seed tag
+bangumi_tag_kazuya_tsurumaki	kazuya_tsurumaki	seed tag
+bangumi_tag_keiichi_hara	keiichi_hara	seed tag
+bangumi_tag_keiichi_sigsawa	keiichi_sigsawa	seed tag
+bangumi_tag_kemonomimi	kemonomimi	seed tag
+bangumi_tag_kenji_kamiyama	kenji_kamiyama	seed tag
+bangumi_tag_kenji_kawai	kenji_kawai	seed tag
+bangumi_tag_kenshin	cjk_36862b	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_kensuke_ushio	kensuke_ushio	seed tag
+bangumi_tag_kentaro_miura	kentaro_miura	seed tag
+bangumi_tag_key_studio	key_studio	seed tag
+bangumi_tag_kids	kids	seed tag
+bangumi_tag_kinema_citrus	kinema_citrus	seed tag
+bangumi_tag_kinoko_nasu	kinoko_nasu	seed tag
+bangumi_tag_klockworx	klockworx	seed tag
+bangumi_tag_knight	knight	seed tag
+bangumi_tag_kodansha	kodansha	seed tag
+bangumi_tag_kohei_tanaka	kohei_tanaka	seed tag
+bangumi_tag_koichi_yamadera	koichi_yamadera	seed tag
+bangumi_tag_korea	korea	seed tag
+bangumi_tag_korean_drama	korean_drama	seed tag
+bangumi_tag_koyoharu_gotouge	koyoharu_gotouge	seed tag
+bangumi_tag_kunihiko_ikuhara	kunihiko_ikuhara	seed tag
+bangumi_tag_kuudere	kuudere	seed tag
+bangumi_tag_kyon	kyon	seed tag
+bangumi_tag_kyoto_animation	kyoto_animation	seed tag
+bangumi_tag_lantis	lantis	seed tag
+bangumi_tag_laughing_man	laughing_man	seed tag
+bangumi_tag_legal	legal	seed tag
+bangumi_tag_legendary_episode	legendary_episode	seed tag
+bangumi_tag_lelouch	lelouch	seed tag
+bangumi_tag_levi_ackerman	levi_ackerman	seed tag
+bangumi_tag_lgbt	lgbt	seed tag
+bangumi_tag_library	library	seed tag
+bangumi_tag_life	life	seed tag
+bangumi_tag_light_hearted	light_hearted	seed tag
+bangumi_tag_light_novel	light_novel	seed tag
+bangumi_tag_light_novel_adaptation	light_novel_adaptation	seed tag
+bangumi_tag_light_yagami	light_yagami	seed tag
+bangumi_tag_live_action	live_action	seed tag
+bangumi_tag_live_concert	live_concert	seed tag
+bangumi_tag_locked_room	locked_room	seed tag
+bangumi_tag_long_series	long_series	seed tag
+bangumi_tag_love_polygon	love_polygon	seed tag
+bangumi_tag_love_triangle	love_triangle	seed tag
+bangumi_tag_lucky_star	lucky_star	seed tag
+bangumi_tag_lyrics	lyrics	seed tag
+bangumi_tag_maaya_sakamoto	maaya_sakamoto	seed tag
+bangumi_tag_maaya_uchida	maaya_uchida	seed tag
+bangumi_tag_madhouse	madhouse	seed tag
+bangumi_tag_madoka_magica	madoka_magica	seed tag
+bangumi_tag_mafia	mafia	seed tag
+bangumi_tag_magazine	magazine	seed tag
+bangumi_tag_magic	magic	seed tag
+bangumi_tag_magic_school	magic_school	seed tag
+bangumi_tag_magical_girl	magical_girl	seed tag
+bangumi_tag_mahjong	mahjong	seed tag
+bangumi_tag_maids	maids	latin global ad
+bangumi_tag_makoto_shinkai	makoto_shinkai	seed tag
+bangumi_tag_male_audience	male_audience	seed tag
+bangumi_tag_male_lead	male_lead	seed tag
+bangumi_tag_male_protagonist	male_protagonist	seed tag
+bangumi_tag_mamoru_hosoda	mamoru_hosoda	seed tag
+bangumi_tag_mamoru_miyano	mamoru_miyano	seed tag
+bangumi_tag_mamoru_oshii	mamoru_oshii	seed tag
+bangumi_tag_manga	manga	seed tag
+bangumi_tag_manga_adaptation	manga_adaptation	seed tag
+bangumi_tag_manga_industry	manga_industry	seed tag
+bangumi_tag_manhua	manhua	seed tag
+bangumi_tag_manhwa	manhwa	seed tag
+bangumi_tag_mappa	mappa	seed tag
+bangumi_tag_mari_okada	mari_okada	seed tag
+bangumi_tag_marriage	marriage	seed tag
+bangumi_tag_martial_arts	martial_arts	seed tag
+bangumi_tag_martial_arts_tournament	martial_arts_tournament	seed tag
+bangumi_tag_martial_master	martial_master	seed tag
+bangumi_tag_marvel	marvel	seed tag
+bangumi_tag_masaaki_yuasa	masaaki_yuasa	seed tag
+bangumi_tag_masamune_shirow	masamune_shirow	seed tag
+bangumi_tag_masaru_yokoyama	masaru_yokoyama	seed tag
+bangumi_tag_masashi_kishimoto	masashi_kishimoto	seed tag
+bangumi_tag_masterpiece	masterpiece	seed tag
+bangumi_tag_mature	mature	latin global ad
+bangumi_tag_mecha	mecha	seed tag
+bangumi_tag_media_mix	media_mix	seed tag
+bangumi_tag_medical	medical	seed tag
+bangumi_tag_medieval	medieval	seed tag
+bangumi_tag_megumi_hayashibara	megumi_hayashibara	seed tag
+bangumi_tag_meiji_period	meiji_period	latin global ad
+bangumi_tag_meiji_restoration	cjk_f1bc88	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_memory	memory	seed tag
+bangumi_tag_memory_manipulation	memory_manipulation	latin global ad
+bangumi_tag_mental_illness	mental_illness	seed tag
+bangumi_tag_meta	meta	seed tag
+bangumi_tag_meta_humor	meta_humor	seed tag
+bangumi_tag_metal_music	metal_music	seed tag
+bangumi_tag_middle_east	middle_east	seed tag
+bangumi_tag_miko	miko	seed tag
+bangumi_tag_mikuru_asahina	mikuru_asahina	seed tag
+bangumi_tag_military	military	seed tag
+bangumi_tag_military_sci_fi	military_sci_fi	seed tag
+bangumi_tag_mind_bending	mind_bending	seed tag
+bangumi_tag_minori_chihara	minori_chihara	seed tag
+bangumi_tag_mixed_gender_harem	mixed_gender_harem	latin global ad
+bangumi_tag_miyuki_sawashiro	miyuki_sawashiro	seed tag
+bangumi_tag_mmorpg	mmorpg	seed tag
+bangumi_tag_mobile_game	mobile_game	seed tag
+bangumi_tag_modern_day	modern_day	seed tag
+bangumi_tag_moe	moe	seed tag
+bangumi_tag_moe_goddess	moe_goddess	seed tag
+bangumi_tag_monogatari	monogatari	seed tag
+bangumi_tag_monogatari_series	monogatari_series	seed tag
+bangumi_tag_monster	monster	seed tag
+bangumi_tag_monster_girl	monster_girl	seed tag
+bangumi_tag_mopeds	mopeds	latin global ad
+bangumi_tag_motion_comic	motion_comic	seed tag
+bangumi_tag_motoko_kusanagi	motoko_kusanagi	seed tag
+bangumi_tag_motorcycle	motorcycle	seed tag
+bangumi_tag_motorcycles	motorcycles	latin global ad
+bangumi_tag_movie	movie	seed tag
+bangumi_tag_multi_perspective	multi_perspective	seed tag
+bangumi_tag_music	music	seed tag
+bangumi_tag_music_video	music_video	seed tag
+bangumi_tag_musical	musical	seed tag
+bangumi_tag_must_watch	must_watch	seed tag
+bangumi_tag_mystery	mystery	seed tag
+bangumi_tag_mythology	mythology	seed tag
+bangumi_tag_nagaru_tanigawa	nagaru_tanigawa	seed tag
+bangumi_tag_nana_mizuki	nana_mizuki	seed tag
+bangumi_tag_naoki_urasawa	naoki_urasawa	seed tag
+bangumi_tag_naoko_yamada	naoko_yamada	seed tag
+bangumi_tag_narration	narration	seed tag
+bangumi_tag_naruto_series	naruto_series	seed tag
+bangumi_tag_nature	nature	seed tag
+bangumi_tag_necromancy	necromancy	seed tag
+bangumi_tag_netflix	netflix	seed tag
+bangumi_tag_new_year	new_year	seed tag
+bangumi_tag_nhk	nhk	seed tag
+bangumi_tag_ninja	ninjas	tags.tsv:ninjas
+bangumi_tag_ninjas	ninjas	seed tag
+bangumi_tag_nisio_isin	nisio_isin	seed tag
+bangumi_tag_no_dialogue	no_dialogue	tags.tsv:no_dialogue
+bangumi_tag_noir	noir	seed tag
+bangumi_tag_noir_detective	noir_detective	seed tag
+bangumi_tag_non_linear	non_linear	seed tag
+bangumi_tag_nostalgia	nostalgia	seed tag
+bangumi_tag_novel	novel	seed tag
+bangumi_tag_novel_adaptation	novel_adaptation	seed tag
+bangumi_tag_ntr	ntr	seed tag
+bangumi_tag_ntv	ntv	seed tag
+bangumi_tag_nudity	nudity	seed tag
+bangumi_tag_oad	oad	seed tag
+bangumi_tag_occult	occult	seed tag
+bangumi_tag_office_lady	office_lady	latin global ad
+bangumi_tag_office_romance	office_romance	seed tag
+bangumi_tag_office_worker	office_worker	seed tag
+bangumi_tag_ojou_sama	ojou_sama	latin global ad
+bangumi_tag_one_piece	one_piece	seed tag
+bangumi_tag_ongoing	ongoing	seed tag
+bangumi_tag_open_ending	open_ending	seed tag
+bangumi_tag_opening_theme	opening_theme	seed tag
+bangumi_tag_origa_singer	origa_singer	seed tag
+bangumi_tag_original	original	seed tag
+bangumi_tag_original_work	original_work	seed tag
+bangumi_tag_orphan	orphan	seed tag
+bangumi_tag_orthodox	orthodox	seed tag
+bangumi_tag_osamu_dezaki	osamu_dezaki	seed tag
+bangumi_tag_osamu_tezuka	osamu_tezuka	seed tag
+bangumi_tag_oscar_bait	oscar_bait	seed tag
+bangumi_tag_otaku_culture	otaku_culture	seed tag
+bangumi_tag_otaku_lead	otaku_lead	seed tag
+bangumi_tag_other	other	seed tag
+bangumi_tag_otome	otome	seed tag
+bangumi_tag_outdoor	outdoor	seed tag
+bangumi_tag_ova	ova	seed tag
+bangumi_tag_overrated	overrated	seed tag
+bangumi_tag_pa_works	pa_works	seed tag
+bangumi_tag_pandemic	pandemic	latin global ad
+bangumi_tag_parallel_world	parallel_world	seed tag
+bangumi_tag_parenting	parenting	seed tag
+bangumi_tag_parody	parody	seed tag
+bangumi_tag_part_time_job	part_time_job	seed tag
+bangumi_tag_past	past	seed tag
+bangumi_tag_performing_arts	performing_arts	seed tag
+bangumi_tag_pets	pets	seed tag
+bangumi_tag_philosophy	philosophy	seed tag
+bangumi_tag_photobook	photobook	seed tag
+bangumi_tag_photography	photography	seed tag
+bangumi_tag_picture_book	picture_book	seed tag
+bangumi_tag_pierrot	pierrot	seed tag
+bangumi_tag_pilot	pilot	seed tag
+bangumi_tag_pirate	pirate	seed tag
+bangumi_tag_pirates	pirates	latin global ad
+bangumi_tag_pixar	pixar	seed tag
+bangumi_tag_platform_3ds	platform_3ds	seed tag
+bangumi_tag_platform_android	platform_android	seed tag
+bangumi_tag_platform_arcade	platform_arcade	seed tag
+bangumi_tag_platform_console	platform_console	seed tag
+bangumi_tag_platform_handheld	platform_handheld	seed tag
+bangumi_tag_platform_ios	platform_ios	seed tag
+bangumi_tag_platform_pc	platform_pc	seed tag
+bangumi_tag_platform_ps3	platform_ps3	seed tag
+bangumi_tag_platform_ps4	platform_ps4	seed tag
+bangumi_tag_platform_ps5	platform_ps5	seed tag
+bangumi_tag_platform_psp	platform_psp	seed tag
+bangumi_tag_platform_psv	platform_psv	seed tag
+bangumi_tag_platform_switch	platform_switch	seed tag
+bangumi_tag_platform_xbox	platform_xbox	seed tag
+bangumi_tag_platform_xbox_one	platform_xbox_one	seed tag
+bangumi_tag_plot_driven	plot_driven	seed tag
+bangumi_tag_plot_twist	plot_twist	seed tag
+bangumi_tag_pokemon	pokemon	seed tag
+bangumi_tag_police	police	seed tag
+bangumi_tag_politics	politics	seed tag
+bangumi_tag_polyamorous	polyamorous	seed tag
+bangumi_tag_polygamy	polygamy	seed tag
+bangumi_tag_pop_music	pop_music	seed tag
+bangumi_tag_popular	popular	seed tag
+bangumi_tag_post_apocalyptic	post_apocalyptic	seed tag
+bangumi_tag_poverty	poverty	seed tag
+bangumi_tag_power_fantasy	power_fantasy	seed tag
+bangumi_tag_pregnancy	pregnancy	seed tag
+bangumi_tag_prequel	prequel	seed tag
+bangumi_tag_primarily_adult_cast	primarily_adult_cast	seed tag
+bangumi_tag_primarily_child_cast	primarily_child_cast	seed tag
+bangumi_tag_primarily_female_cast	primarily_female_cast	seed tag
+bangumi_tag_primarily_male_cast	primarily_male_cast	seed tag
+bangumi_tag_primarily_teen_cast	primarily_teen_cast	seed tag
+bangumi_tag_princess	princess	seed tag
+bangumi_tag_prison	prison	seed tag
+bangumi_tag_production_ig	production_ig	seed tag
+bangumi_tag_production_tag	production_tag	seed tag
+bangumi_tag_profound	profound	seed tag
+bangumi_tag_psycho_pass	psycho_pass	seed tag
+bangumi_tag_psychological	psychological	seed tag
+bangumi_tag_psychological_horror	psychological_horror	seed tag
+bangumi_tag_psychological_thriller	psychological_thriller	seed tag
+bangumi_tag_pure_moe	pure_moe	seed tag
+bangumi_tag_puzzle	puzzle	seed tag
+bangumi_tag_pv	pv	seed tag
+bangumi_tag_racing	racing	seed tag
+bangumi_tag_radio_drama	radio_drama	seed tag
+bangumi_tag_rain	rain	seed tag
+bangumi_tag_real_robot	real_robot	seed tag
+bangumi_tag_reality_show	reality_show	seed tag
+bangumi_tag_reboot	reboot	seed tag
+bangumi_tag_recap	recap	seed tag
+bangumi_tag_redemption	redemption	seed tag
+bangumi_tag_rehabilitation	rehabilitation	latin global ad
+bangumi_tag_rei_ayanami	rei_ayanami	seed tag
+bangumi_tag_reiko_yoshida	reiko_yoshida	seed tag
+bangumi_tag_reincarnation	reincarnation	seed tag
+bangumi_tag_reki_kawahara	reki_kawahara	seed tag
+bangumi_tag_religion	religion	seed tag
+bangumi_tag_remake	remake	seed tag
+bangumi_tag_remastered	remastered	seed tag
+bangumi_tag_restricted	restricted	seed tag
+bangumi_tag_revenge	revenge	seed tag
+bangumi_tag_reverse_harem	reverse_harem	seed tag
+bangumi_tag_revolution	revolution	seed tag
+bangumi_tag_rewatch_value	rewatch_value	seed tag
+bangumi_tag_rhythm_game	rhythm_game	seed tag
+bangumi_tag_rie_kugimiya	rie_kugimiya	seed tag
+bangumi_tag_rivals	rivals	seed tag
+bangumi_tag_rnb	rnb	seed tag
+bangumi_tag_robot	robot	seed tag
+bangumi_tag_robots	robots	latin global ad
+bangumi_tag_rock	rock	seed tag
+bangumi_tag_romance	romance	seed tag
+bangumi_tag_romantic_comedy	romantic_comedy	seed tag
+bangumi_tag_royalty	royalty	seed tag
+bangumi_tag_ruins	ruins	seed tag
+bangumi_tag_rumiko_takahashi	rumiko_takahashi	seed tag
+bangumi_tag_rural	rural	latin global ad
+bangumi_tag_rurouni_kenshin	rurouni_kenshin	seed tag
+bangumi_tag_russia	russia	seed tag
+bangumi_tag_saber_character	saber_character	seed tag
+bangumi_tag_sacrifice	sacrifice	seed tag
+bangumi_tag_samurai	samurai	seed tag
+bangumi_tag_saori_hayami	saori_hayami	seed tag
+bangumi_tag_satire	satire	seed tag
+bangumi_tag_satoru_kousaki	satoru_kousaki	seed tag
+bangumi_tag_satoshi_kon	satoshi_kon	seed tag
+bangumi_tag_school	school	seed tag
+bangumi_tag_school_club	school_club	latin global ad
+bangumi_tag_school_festival	school_festival	seed tag
+bangumi_tag_school_life	school_life	seed tag
+bangumi_tag_sci_fi	sci_fi	seed tag
+bangumi_tag_sci_fi_horror	sci_fi_horror	seed tag
+bangumi_tag_script_tag	script_tag	seed tag
+bangumi_tag_sea	sea	seed tag
+bangumi_tag_seasons	seasons	seed tag
+bangumi_tag_secret_organization	secret_organization	seed tag
+bangumi_tag_section_nine	section_nine	seed tag
+bangumi_tag_seiji_mizushima	seiji_mizushima	seed tag
+bangumi_tag_seinen	seinen	seed tag
+bangumi_tag_sekai_kei	sekai_kei	seed tag
+bangumi_tag_sequel	sequel	seed tag
+bangumi_tag_serialization	serialization	seed tag
+bangumi_tag_serialized	serialized	seed tag
+bangumi_tag_serious	serious	seed tag
+bangumi_tag_setting_design	setting_design	seed tag
+bangumi_tag_setting_material	setting_material	seed tag
+bangumi_tag_sexual_content	sexual_content	seed tag
+bangumi_tag_shaft_studio	shaft_studio	seed tag
+bangumi_tag_shinichiro_watanabe	shinichiro_watanabe	seed tag
+bangumi_tag_shinji_ikari	shinji_ikari	seed tag
+bangumi_tag_shinji_orito	shinji_orito	seed tag
+bangumi_tag_shinsengumi	shinsengumi	latin global ad
+bangumi_tag_shinsengumi_tag	cjk_5acfc9	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_ships	ships	latin global ad
+bangumi_tag_shiro_sagisu	shiro_sagisu	seed tag
+bangumi_tag_shochiku	shochiku	seed tag
+bangumi_tag_shogakukan	shogakukan	seed tag
+bangumi_tag_shoji_kawamori	shoji_kawamori	seed tag
+bangumi_tag_short_film	short_film	seed tag
+bangumi_tag_short_series	short_series	seed tag
+bangumi_tag_short_story	short_story	seed tag
+bangumi_tag_shoujo	shoujo	seed tag
+bangumi_tag_shounen	shounen	seed tag
+bangumi_tag_showbiz	showbiz	seed tag
+bangumi_tag_shrine	shrine	seed tag
+bangumi_tag_shueisha	shueisha	seed tag
+bangumi_tag_siblings	siblings	seed tag
+bangumi_tag_side_story	side_story	seed tag
+bangumi_tag_silver_link	silver_link	seed tag
+bangumi_tag_simulcast	simulcast	seed tag
+bangumi_tag_singer	singer	seed tag
+bangumi_tag_single	single	seed tag
+bangumi_tag_single_female_lead	single_female_lead	seed tag
+bangumi_tag_single_male_lead	single_male_lead	seed tag
+bangumi_tag_single_parent	single_parent	seed tag
+bangumi_tag_skating	skating	seed tag
+bangumi_tag_sky	sky	seed tag
+bangumi_tag_slapstick	slapstick	seed tag
+bangumi_tag_slapstick_comedy	slapstick_comedy	seed tag
+bangumi_tag_slavery	slavery	seed tag
+bangumi_tag_slice_of_life	slice_of_life	seed tag
+bangumi_tag_slice_of_life_comedy	slice_of_life_comedy	seed tag
+bangumi_tag_slime	slime	seed tag
+bangumi_tag_slow_burn	slow_burn	seed tag
+bangumi_tag_slow_pace	slow_pace	seed tag
+bangumi_tag_smoking	smoking	seed tag
+bangumi_tag_snow	snow	seed tag
+bangumi_tag_soccer	soccer	seed tag
+bangumi_tag_social_issues	social_issues	seed tag
+bangumi_tag_social_realism	social_realism	seed tag
+bangumi_tag_sora_amamiya	sora_amamiya	seed tag
+bangumi_tag_sos_brigade	sos_brigade	seed tag
+bangumi_tag_sound_direction	sound_direction	seed tag
+bangumi_tag_sound_euphonium	sound_euphonium	seed tag
+bangumi_tag_soundtrack	soundtrack	seed tag
+bangumi_tag_space	space	seed tag
+bangumi_tag_space_battle	space_battle	seed tag
+bangumi_tag_space_opera	space_opera	seed tag
+bangumi_tag_spain	spain	seed tag
+bangumi_tag_special	special	seed tag
+bangumi_tag_spin_off	spin_off	seed tag
+bangumi_tag_spirit	spirit	seed tag
+bangumi_tag_spirited_away	spirited_away	seed tag
+bangumi_tag_sports	sports	seed tag
+bangumi_tag_spring	spring	seed tag
+bangumi_tag_spy	spy	seed tag
+bangumi_tag_spy_family	spy_family	seed tag
+bangumi_tag_stage_play	stage_play	seed tag
+bangumi_tag_staging	staging	seed tag
+bangumi_tag_steampunk	steampunk	seed tag
+bangumi_tag_steins_gate	steins_gate	seed tag
+bangumi_tag_stop_motion	stop_motion	seed tag
+bangumi_tag_story_driven	story_driven	seed tag
+bangumi_tag_storyboard_tag	storyboard_tag	seed tag
+bangumi_tag_streamer	streamer	seed tag
+bangumi_tag_streaming	streaming	seed tag
+bangumi_tag_strong_protagonist	strong_protagonist	seed tag
+bangumi_tag_strong_worldbuilding	strong_worldbuilding	seed tag
+bangumi_tag_student_council	student_council	seed tag
+bangumi_tag_student_film	student_film	seed tag
+bangumi_tag_studio_bind	studio_bind	seed tag
+bangumi_tag_studio_deen	studio_deen	seed tag
+bangumi_tag_subtitles	subtitles	seed tag
+bangumi_tag_succubus	succubus	seed tag
+bangumi_tag_sui_ishida	sui_ishida	seed tag
+bangumi_tag_suicide	suicide	seed tag
+bangumi_tag_sumire_uesaka	sumire_uesaka	seed tag
+bangumi_tag_summer	summer	seed tag
+bangumi_tag_sunao_katabuchi	sunao_katabuchi	seed tag
+bangumi_tag_sunrise_studio	sunrise_studio	seed tag
+bangumi_tag_super_power	super_power	seed tag
+bangumi_tag_super_robot	super_robot	seed tag
+bangumi_tag_superhero	superhero	seed tag
+bangumi_tag_supernatural	supernatural	seed tag
+bangumi_tag_survival	survival	seed tag
+bangumi_tag_swimming	swimming	seed tag
+bangumi_tag_sword_art_online	sword_art_online	seed tag
+bangumi_tag_swordplay	swordplay	seed tag
+bangumi_tag_system	system	seed tag
+bangumi_tag_tachikoma	tachikoma	seed tag
+bangumi_tag_taiwan	taiwan	seed tag
+bangumi_tag_taiwanese_drama	taiwanese_drama	seed tag
+bangumi_tag_takahiro_omori	takahiro_omori	seed tag
+bangumi_tag_takahiro_sakurai	takahiro_sakurai	seed tag
+bangumi_tag_takashi_takeuchi	takashi_takeuchi	seed tag
+bangumi_tag_takehiko_inoue	takehiko_inoue	seed tag
+bangumi_tag_takeshi_obata	takeshi_obata	seed tag
+bangumi_tag_taku_iwasaki	taku_iwasaki	seed tag
+bangumi_tag_tanks	tanks	latin global ad
+bangumi_tag_tappei_nagatsuki	tappei_nagatsuki	seed tag
+bangumi_tag_tatsuki_fujimoto	tatsuki_fujimoto	seed tag
+bangumi_tag_tatsuya_ishihara	tatsuya_ishihara	seed tag
+bangumi_tag_tatsuya_oishi	tatsuya_oishi	seed tag
+bangumi_tag_tatsuyuki_nagai	tatsuyuki_nagai	seed tag
+bangumi_tag_tbs	tbs	seed tag
+bangumi_tag_teacher	teacher	seed tag
+bangumi_tag_tearjerker	tearjerker	seed tag
+bangumi_tag_teens_love	teens_love	latin global ad
+bangumi_tag_tencent_video	tencent_video	seed tag
+bangumi_tag_tennis	tennis	seed tag
+bangumi_tag_terrorism	terrorism	latin global ad
+bangumi_tag_tetsuro_araki	tetsuro_araki	seed tag
+bangumi_tag_thai_drama	thai_drama	seed tag
+bangumi_tag_thailand	thailand	seed tag
+bangumi_tag_the_major	the_major	seed tag
+bangumi_tag_theme_budaixi	theme_budaixi	seed tag
+bangumi_tag_theme_children	theme_children	seed tag
+bangumi_tag_theme_song	theme_song	seed tag
+bangumi_tag_threesome	threesome	seed tag
+bangumi_tag_thriller	thriller	seed tag
+bangumi_tag_time_loop	time_loop	seed tag
+bangumi_tag_time_manipulation	time_manipulation	latin global ad
+bangumi_tag_time_travel	time_travel	seed tag
+bangumi_tag_tite_kubo	tite_kubo	seed tag
+bangumi_tag_toei_animation	toei_animation	seed tag
+bangumi_tag_togusa	togusa	seed tag
+bangumi_tag_toho	toho	seed tag
+bangumi_tag_tokusatsu	tokusatsu	seed tag
+bangumi_tag_tomohiko_ito	tomohiko_ito	seed tag
+bangumi_tag_tomokazu_sugita	tomokazu_sugita	seed tag
+bangumi_tag_torture	torture	latin global ad
+bangumi_tag_toshio_suzuki	toshio_suzuki	seed tag
+bangumi_tag_totoro	totoro	seed tag
+bangumi_tag_tournament	tournament	seed tag
+bangumi_tag_toy_adaptation	toy_adaptation	seed tag
+bangumi_tag_toy_promo	toy_promo	seed tag
+bangumi_tag_track_and_field	track_and_field	seed tag
+bangumi_tag_traditional_animation	traditional_animation	seed tag
+bangumi_tag_tragedy	tragedy	seed tag
+bangumi_tag_train	train	seed tag
+bangumi_tag_trains	trains	latin global ad
+bangumi_tag_trains_tag	trains	latin global ad
+bangumi_tag_transfer_student	transfer_student	seed tag
+bangumi_tag_transgender	transgender	latin global ad
+bangumi_tag_travel	travel	seed tag
+bangumi_tag_triads	triads	latin global ad
+bangumi_tag_trigger_studio	trigger_studio	seed tag
+bangumi_tag_trilogy	trilogy	seed tag
+bangumi_tag_tsugumi_ohba	tsugumi_ohba	seed tag
+bangumi_tag_tsuiokuhen	cjk_d4e6ff	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_tsundere	tsundere	seed tag
+bangumi_tag_tsutomu_mizushima	tsutomu_mizushima	seed tag
+bangumi_tag_tsutomu_nihei	tsutomu_nihei	seed tag
+bangumi_tag_tv	tv	seed tag
+bangumi_tag_tv_asahi	tv_asahi	seed tag
+bangumi_tag_tv_tokyo	tv_tokyo	seed tag
+bangumi_tag_twins	twins	seed tag
+bangumi_tag_type_moon	type_moon	seed tag
+bangumi_tag_type_moon_works	type_moon_works	seed tag
+bangumi_tag_ufotable	ufotable	seed tag
+bangumi_tag_uk	uk	seed tag
+bangumi_tag_uncut	uncut	seed tag
+bangumi_tag_undead	undead	seed tag
+bangumi_tag_underdog	underdog	seed tag
+bangumi_tag_underrated	underrated	seed tag
+bangumi_tag_unfinished	unfinished	seed tag
+bangumi_tag_unrequited_love	unrequited_love	seed tag
+bangumi_tag_urban	city	tags.tsv:city
+bangumi_tag_urban_fantasy	urban_fantasy	seed tag
+bangumi_tag_usa	usa	seed tag
+bangumi_tag_utaite	utaite	seed tag
+bangumi_tag_valentines	valentines	seed tag
+bangumi_tag_vampire	vampire	seed tag
+bangumi_tag_vampire_hunter	vampire_hunter	seed tag
+bangumi_tag_variety_show	variety_show	seed tag
+bangumi_tag_video_games	video_games	ingilizce-birebir
+bangumi_tag_vikings	vikings	latin global ad
+bangumi_tag_villain	villain	seed tag
+bangumi_tag_villainess	villainess	seed tag
+bangumi_tag_violence	violence	seed tag
+bangumi_tag_virtual_reality	virtual_reality	seed tag
+bangumi_tag_virtual_world	virtual_reality	tags.tsv:virtual_reality
+bangumi_tag_visual_novel	visual_novel	seed tag
+bangumi_tag_vocaloid	vocaloid	seed tag
+bangumi_tag_voice_actor	voice_actor	seed tag
+bangumi_tag_voice_cast	voice_cast	seed tag
+bangumi_tag_volleyball	volleyball	seed tag
+bangumi_tag_voting	voting	seed tag
+bangumi_tag_vr_game	vr_game	seed tag
+bangumi_tag_vtuber	vtuber	seed tag
+bangumi_tag_wandering_ronin	wandering_ronin	seed tag
+bangumi_tag_war	war	ingilizce-birebir
+bangumi_tag_war_crimes	war_crimes	seed tag
+bangumi_tag_wataru_watari	wataru_watari	seed tag
+bangumi_tag_watsuki_nobuhiro	cjk_cfc588	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_web	web	seed tag
+bangumi_tag_web_novel	web_novel	seed tag
+bangumi_tag_web_novel_adaptation	web_novel_adaptation	seed tag
+bangumi_tag_webtoon	webtoon	seed tag
+bangumi_tag_werewolf	werewolf	seed tag
+bangumi_tag_western	western	seed tag
+bangumi_tag_western_animation	western_animation	seed tag
+bangumi_tag_western_movie	western_movie	seed tag
+bangumi_tag_western_series	western_series	seed tag
+bangumi_tag_white_fox	white_fox	seed tag
+bangumi_tag_winter	winter	seed tag
+bangumi_tag_wit_studio	wit_studio	seed tag
+bangumi_tag_witch	witch	seed tag
+bangumi_tag_wizard	wizard	seed tag
+bangumi_tag_work	work	latin global ad
+bangumi_tag_workplace	workplace	seed tag
+bangumi_tag_worldbuilding	worldbuilding	seed tag
+bangumi_tag_wrestling	wrestling	latin global ad
+bangumi_tag_writing	writing	seed tag
+bangumi_tag_wuxia	wuxia	seed tag
+bangumi_tag_xianxia	xianxia	seed tag
+bangumi_tag_yandere	yandere	seed tag
+bangumi_tag_yaoi	yaoi	tags.tsv:yaoi
+bangumi_tag_yasuhiro_takemoto	yasuhiro_takemoto	seed tag
+bangumi_tag_yasuhiro_yoshiura	yasuhiro_yoshiura	seed tag
+bangumi_tag_yasuhisa_hara	yasuhisa_hara	seed tag
+bangumi_tag_yokai	yokai	seed tag
+bangumi_tag_yoko_hikasa	yoko_hikasa	seed tag
+bangumi_tag_yoko_kanno	yoko_kanno	seed tag
+bangumi_tag_yoshiaki_kawajiri	yoshiaki_kawajiri	seed tag
+bangumi_tag_yoshihiro_togashi	yoshihiro_togashi	seed tag
+bangumi_tag_yoshiji_kigami	yoshiji_kigami	seed tag
+bangumi_tag_yoshiki_tanaka	yoshiki_tanaka	seed tag
+bangumi_tag_yoshiyuki_sadamoto	yoshiyuki_sadamoto	seed tag
+bangumi_tag_yoshiyuki_tomino	yoshiyuki_tomino	seed tag
+bangumi_tag_youku	youku	seed tag
+bangumi_tag_your_lie_in_april	your_lie_in_april	seed tag
+bangumi_tag_your_name	your_name	seed tag
+bangumi_tag_youth	youth	seed tag
+bangumi_tag_yuichi_nakamura	yuichi_nakamura	seed tag
+bangumi_tag_yuki_hayashi	yuki_hayashi	seed tag
+bangumi_tag_yuki_kaji	yuki_kaji	seed tag
+bangumi_tag_yuki_kajiura	yuki_kajiura	seed tag
+bangumi_tag_yuki_nagato	yuki_nagato	seed tag
+bangumi_tag_yukishiro_tomoe	cjk_ac8775	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_yuko_goto	yuko_goto	seed tag
+bangumi_tag_yuri	yuri	seed tag
+bangumi_tag_yutaka_yamamoto	yutaka_yamamoto	seed tag
+bangumi_tag_yuyuko_takemiya	yuyuko_takemiya	seed tag
+bangumi_tag_zombie	zombie	seed tag
