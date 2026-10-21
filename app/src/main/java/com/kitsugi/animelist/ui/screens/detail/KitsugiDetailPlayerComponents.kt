@@ -44,7 +44,6 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
-import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -69,7 +68,6 @@ import com.kitsugi.animelist.core.player.engine.MpvPlayerEngine
 import androidx.compose.runtime.collectAsState
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withTimeoutOrNull
 import androidx.compose.ui.res.stringResource
 import com.kitsugi.animelist.R
@@ -187,18 +185,17 @@ fun KitsugiYouTubePlayer(
         val appSettings = appSettingsState.value
         val safeSettings = remember(appSettings) { appSettings ?: com.kitsugi.animelist.data.settings.AppSettings() }
 
-        // The configured engine remains the first attempt; either engine now has a bounded
-        // startup window and the other engine is tried once if the stream stalls or errors.
-        var activeEngineType by remember(videoId, appSettings?.playerPreference) {
+        // YouTube's signed Googlevideo/HLS URLs must use Media3's dedicated request policy,
+        // just like the fullscreen player. MPV remains a one-time fallback if Media3 fails.
+        var activeEngineType by remember(videoId) {
             mutableStateOf(
-                if (appSettings?.playerPreference.equals("MPV", ignoreCase = true)) {
-                    PlayerEngineType.MPV
-                } else {
-                    PlayerEngineType.MEDIA3
-                }
+                initialInlineEngineType(
+                    configuredPreference = appSettings?.playerPreference,
+                    isYouTubeSource = true
+                )
             )
         }
-        var didTryAlternateEngine by remember(videoId, appSettings?.playerPreference) { mutableStateOf(false) }
+        var didTryAlternateEngine by remember(videoId) { mutableStateOf(false) }
         val playerEngine = remember(context, activeEngineType, videoId) {
             when (activeEngineType) {
                 PlayerEngineType.MPV -> MpvPlayerEngine(context, safeSettings)
@@ -287,12 +284,18 @@ fun KitsugiYouTubePlayer(
                         false
                     } else {
                         playerEngine.play()
-                        snapshotFlow { playerState }.first { it.isInlinePlaybackReady() }
+                        // READY alone is not enough: a player may be prepared yet remain black
+                        // at 00:00 / 00:00. Require real timeline progress so the alternate
+                        // engine fallback also catches a stalled-but-READY YouTube stream.
+                        while (!hasInlinePlaybackProgress(playerEngine.currentState, playerEngine.currentPosition)) {
+                            if (!resumedState.value) return@withTimeoutOrNull false
+                            delay(250L)
+                        }
                         true
                     }
                 }
                 if (reachedReady == null) {
-                    switchToAlternateEngine(attemptedEngine, "startup timeout (${INLINE_PLAYER_START_TIMEOUT_MS}ms)")
+                    switchToAlternateEngine(attemptedEngine, "no playback progress within ${INLINE_PLAYER_START_TIMEOUT_MS}ms")
                 }
             } catch (e: CancellationException) {
                 // The player can be disposed while prepare or network IO is in flight.

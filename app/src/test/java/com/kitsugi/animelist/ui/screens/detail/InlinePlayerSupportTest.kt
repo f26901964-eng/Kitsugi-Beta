@@ -15,10 +15,24 @@ class InlinePlayerSupportTest {
     }
 
     @Test
-    fun readyAndEndedStatesTerminateInlineStartupWait() {
-        assertTrue(PlayerEngine.State.READY.isInlinePlaybackReady())
-        assertTrue(PlayerEngine.State.ENDED.isInlinePlaybackReady())
-        assertFalse(PlayerEngine.State.IDLE.isInlinePlaybackReady())
-        assertFalse(PlayerEngine.State.BUFFERING.isInlinePlaybackReady())
+    fun youtubeInlinePlaybackUsesMedia3BeforeMpvRegardlessOfGeneralPreference() {
+        assertEquals(PlayerEngineType.MEDIA3, initialInlineEngineType("MPV", isYouTubeSource = true))
+        assertEquals(PlayerEngineType.MEDIA3, initialInlineEngineType("MEDIA3", isYouTubeSource = true))
     }
+
+    @Test
+    fun directInlineVideosKeepConfiguredEnginePreference() {
+        assertEquals(PlayerEngineType.MPV, initialInlineEngineType("MPV", isYouTubeSource = false))
+        assertEquals(PlayerEngineType.MEDIA3, initialInlineEngineType("MEDIA3", isYouTubeSource = false))
+        assertEquals(PlayerEngineType.MEDIA3, initialInlineEngineType(null, isYouTubeSource = false))
+    }
+
+    @Test
+    fun preparedButStalledPlayerDoesNotCountAsStarted() {
+        assertFalse(hasInlinePlaybackProgress(PlayerEngine.State.READY, 0L))
+        assertFalse(hasInlinePlaybackProgress(PlayerEngine.State.BUFFERING, 0L))
+        assertTrue(hasInlinePlaybackProgress(PlayerEngine.State.READY, 1L))
+        assertTrue(hasInlinePlaybackProgress(PlayerEngine.State.ENDED, 0L))
+    }
+
 }

@@ -719,13 +719,16 @@ object KitsugiBangumiDetailClient {
     private data class Match(val aniListId: Int?, val malId: Int?, val score: Int)
 
     private fun searchQueries(subject: BangumiSubject): List<String> {
-        val aliases = subject.infobox["别名"].orEmpty() + subject.infobox["英文名"].orEmpty()
-        val latinAlias = aliases.firstOrNull { isMostlyLatin(it) && it.any { c -> c.isLetter() } }
-        return listOfNotNull(subject.name, latinAlias, subject.nameCn)
-            .map { sanitizeQuery(it) }
+        // Bangumi infobox may contain several English/alternate names (sometimes under localized
+        // keys). Previously only the first Latin alias was queried, so TMDB often never saw the
+        // title it actually indexes (e.g. a localized name preceding the English title).
+        val aliases = subject.infobox.values.flatten()
+        val preferred = aliases.filter { isMostlyLatin(it) && it.any(Char::isLetter) }
+        return (preferred + listOf(subject.name, subject.nameCn) + aliases)
+            .map(::sanitizeQuery)
             .filter { it.length >= 2 }
             .distinct()
-            .take(3)
+            .take(8)
     }
 
     internal fun sanitizeQuery(text: String): String =
@@ -739,7 +742,7 @@ object KitsugiBangumiDetailClient {
             .filter { it.isLetterOrDigit() }
 
     private fun subjectTitleSet(subject: BangumiSubject): Set<String> =
-        (listOf(subject.name, subject.nameCn) + subject.infobox["别名"].orEmpty() + subject.infobox["英文名"].orEmpty())
+        (listOf(subject.name, subject.nameCn) + subject.infobox.values.flatten())
             .map { normalizeTitle(it) }
             .filter { it.length >= 2 }
             .toSet()
