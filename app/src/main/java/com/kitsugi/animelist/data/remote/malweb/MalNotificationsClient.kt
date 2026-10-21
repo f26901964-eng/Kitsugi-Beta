@@ -25,8 +25,10 @@ import org.jsoup.Jsoup
  * is deliberately not sent here: it is not a MAL website session.
  */
 internal object MalNotificationsClient {
-    private const val NOTIFICATIONS_URL = "https://myanimelist.net/notification"
+    const val NOTIFICATIONS_URL = "https://myanimelist.net/notification"
     private const val MAL_HOME_URL = "https://myanimelist.net/"
+    /** MAL tipik olarak sayfa başına 20 bildirim döndürür — 45 toplam (All) buna uyar. */
+    const val PAGE_SIZE = 20
     private val json = Json { ignoreUnknownKeys = true }
 
     /** `window.MAL.notification = { ... }` ataması. */
@@ -99,6 +101,7 @@ internal object MalNotificationsClient {
         val animeTitle: String?,
         val animeMediaType: String?,
         val animeUrl: String?,
+        val animeImageUrl: String? = null,
         val senderName: String?,
         val senderProfileUrl: String?,
         val pageUrl: String?,
@@ -130,7 +133,7 @@ internal object MalNotificationsClient {
                 .firstOrNull()
 
         val imageUrl: String?
-            get() = sequenceOf(friendImageUrl, commentUserImageUrl)
+            get() = sequenceOf(friendImageUrl, commentUserImageUrl, animeImageUrl)
                 .filterNotNull()
                 .mapNotNull { MalNotificationsClient.normalizeMalUrl(it) }
                 .firstOrNull()
@@ -212,7 +215,7 @@ internal object MalNotificationsClient {
         fun normalizedTargetUrl(): String? = targetUrl
     }
 
-    data class RelatedAnime(val title: String, val url: String?)
+    data class RelatedAnime(val title: String, val url: String?, val imageUrl: String? = null)
 
     suspend fun fetch(cookieHeader: String): Feed = withContext(Dispatchers.IO) {
         // Çerez adına göre karar verilmez: MAL'ın hangi çerezle "giriş yapılmış" saydığını
@@ -221,6 +224,17 @@ internal object MalNotificationsClient {
             throw MalWebSessionRequiredException("MAL web oturumu gerekli")
         }
         fetchPage(cookieHeader, NOTIFICATIONS_URL, page = 1)
+    }
+
+    /**
+     * Belirli bir URL ile sayfa çeker — kategori filtresi veya offset'li sayfalama için.
+     * URL mutlaka [normalizeNotificationPageUrl] tarafından doğrulanmalıdır.
+     */
+    suspend fun fetchWithUrl(cookieHeader: String, url: String, page: Int = 1): Feed = withContext(Dispatchers.IO) {
+        if (cookieHeader.isBlank()) throw MalWebSessionRequiredException("MAL web oturumu gerekli")
+        val safeUrl = normalizeNotificationPageUrl(url)
+            ?: throw MalNotificationsFetchException("MAL bildirim URL'si geçersiz: $url")
+        fetchPage(cookieHeader, safeUrl, page)
     }
 
     /**
@@ -233,12 +247,25 @@ internal object MalNotificationsClient {
      * No OAuth bearer token is sent to the website; the shared WebView cookie jar supplies the
      * website session.
      */
+    /**
+     * Uç nokta geçmişi: kategori parametresi veya offset'li URL için aşırı yük.
+     * Geriye dönük uyumlu — mevcut ViewModel çağrıları çalışmaya devam eder.
+     */
     suspend fun fetchMore(
         context: Context,
         cookieHeader: String,
         page: Int,
         nextPageUrl: String? = null,
         knownIds: Set<String>
+    ): Feed? = fetchMore(context, cookieHeader, page, nextPageUrl, knownIds, category = null)
+
+    suspend fun fetchMore(
+        context: Context,
+        cookieHeader: String,
+        page: Int,
+        nextPageUrl: String? = null,
+        knownIds: Set<String>,
+        category: MalNotificationCategory? = null
     ): Feed? = withContext(Dispatchers.IO) {
         if (cookieHeader.isBlank()) return@withContext null
         var sessionError: MalWebSessionRequiredException? = null
@@ -257,7 +284,21 @@ internal object MalNotificationsClient {
             if (feed?.items?.any { it.id !in knownIds } == true) return@withContext feed
         }
 
-        // No guessed query parameters: let the first-party frontend run its actual continuation.
+        // Tahmin edilebilir offset denemesi — MAL'ın "View more" XHR'i offset parametresi kullanır.
+        // Yalnızca güvenli aynı-kaynak URL üretilir; başarısız olursa sessizce WebView'e düşer.
+        val offsetGuessUrl = runCatching {
+            val offset = (page - 1) * PAGE_SIZE
+            val catParam = category?.webParam?.let { "category=$it&" } ?: ""
+            normalizeNotificationPageUrl("$NOTIFICATIONS_URL?${catParam}offset=$offset")
+        }.getOrNull()
+        if (offsetGuessUrl != null) {
+            val offsetFeed = try {
+                fetchPage(cookieHeader, offsetGuessUrl, page)
+            } catch (_: Exception) { null }
+            if (offsetFeed?.items?.any { it.id !in knownIds } == true) return@withContext offsetFeed
+        }
+
+        // No guessed query parameters beyond offset: let the first-party frontend run its actual continuation.
         val browserFeed = MalNotificationsWebPager.fetch(context, page)
         if (browserFeed.items.any { it.id !in knownIds }) return@withContext browserFeed
         if (browserFeed.hasNextPage) {
@@ -393,7 +434,7 @@ internal object MalNotificationsClient {
             page = page,
             // Without a server contract, an item-bearing feed is a continuation hint only;
             // the caller still requires unseen IDs before appending or advancing the page.
-            hasNextPage = explicitHasNext ?: (browserHasNextOverride ?: (embeddedNextUrl != null || items.isNotEmpty())),
+            hasNextPage = explicitHasNext ?: (browserHasNextOverride ?: (embeddedNextUrl != null || items.size >= PAGE_SIZE)),
             nextPageUrl = embeddedNextUrl
         )
     }
@@ -571,9 +612,20 @@ internal object MalNotificationsClient {
         val animeItems = (this["animes"] as? JsonArray).orEmpty().mapNotNull { entry ->
             val item = entry.asObjectOrNull() ?: return@mapNotNull null
             val title = item.string("title")?.takeIf(String::isNotBlank) ?: return@mapNotNull null
-            RelatedAnime(title, item.string("url"))
+            RelatedAnime(title, item.string("url"), item.string("imageUrl") ?: item.string("image_url") ?: item.string("picture"))
         }
         if (type.equals("on_air", ignoreCase = true) && animeItems.isEmpty()) return null
+        // MAL bildirim JSON'unda anime görseli farklı anahtarlarda gelebilir: imageUrl / image_url / images.jpg.image_url
+        val animeImage = anime?.let {
+            it.string("imageUrl")
+                ?: it.string("image_url")
+                ?: it.string("picture")
+                ?: (it["images"] as? JsonObject)?.let { imgs ->
+                    (imgs["jpg"] as? JsonObject)?.string("image_url")
+                        ?: (imgs["webp"] as? JsonObject)?.string("image_url")
+                }
+                ?: animeItems.firstOrNull()?.imageUrl
+        }
         return Notification(
             id = id,
             typeIdentifier = type,
@@ -587,6 +639,7 @@ internal object MalNotificationsClient {
             animeTitle = anime?.string("title"),
             animeMediaType = anime?.string("mediaType"),
             animeUrl = anime?.string("url"),
+            animeImageUrl = animeImage,
             senderName = string("senderName"),
             senderProfileUrl = string("senderProfileUrl"),
             pageUrl = string("pageUrl"),
