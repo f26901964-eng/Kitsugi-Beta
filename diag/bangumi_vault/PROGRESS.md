@@ -17,7 +17,11 @@
 Yeni bir dalda işe başlayan ajan SIFIRDAN araştırma yapmaz; şu sırayı izler:
 
 ### a) Dal kurulumu (KRİTİK)
-- Chunk 001 işi commit `5c13f8e` dal `arena/a3fae7fe-kitsugi-beta` üzerinde ve **PR #15**'te
+- **Güncel durum (2026-10-21):** chunk 001 + 002 + 003 + **004a**'nın tamamı dal
+  `arena/6131dd54-kitsugi-beta` · **PR #20**'de (son commit `067b368`); hiçbiri `main`'de YOK.
+  **Yeni dal bu commit'ten açılır** ve `origin/main` üzerine merge edilir (bu dal `main`'in
+  2.4.321–324 sürümünü zaten içerir).
+- Eski kaynaklar: Chunk 001 işi commit `5c13f8e` dal `arena/a3fae7fe-kitsugi-beta` üzerinde ve **PR #15**'te
   (2026-10-21 itibarıyla PR #15 **merge edilmemiş**, `main`'de YOK).
 - Chunk 002 işi dal `arena/2419075a-kitsugi-beta` üzerinde; o dal chunk 001'i de **taşır**
   (PR #15'in 17 dosyası birebir port edildi) → yeni dalı bu daldan türetmek en kolayı.
@@ -90,42 +94,55 @@ Kimse aynı kaynakları yeniden taramaz — tüm bağlam bu dosyadadır.
 
 Yeni Arena oturumunda, yeni dal açıldığında **birebir şu metni** yapıştır:
 
-> `diag/bangumi_vault/PROGRESS.md` dosyasını oku — Bangumi VAULT çeviri işinin devir
-> teslim dosyasıdır; hiçbir şeyi sıfırdan araştırma, her şey orada yazılı.
+> `diag/bangumi_vault/PROGRESS.md` dosyasını oku — Bangumi VAULT kurum/etiket çeviri işinin
+> devir teslim dosyasıdır; hiçbir şeyi sıfırdan araştırma, her şey orada yazılı.
 >
-> **(0) Dal:** Chunk 001+002 **PR #16**'da; Chunk 003 bu dalın **PR #18**'inde
-> (`arena/6cb51a64-kitsugi-beta`) tamamlandı; bu chunk'lar henüz `main`'de değil.
-> Yeni bir daldan devam ediyorsan chunk 003 dosyalarını PR #18'den, chunk 001+002
-> dosyalarını #16'dan port et; hiçbiri için araştırmayı baştan yapma. Ayrıntı: Bölüm 0a.
+> **(0) Dal (KRİTİK):** Chunk 001 + 002 + 003 + **004a** çalışması **PR #20**'de, dal
+> `arena/6131dd54-kitsugi-beta` (son commit `067b368`); bu iş henüz `main`'de YOK.
+> Yeni dalı **`main`'den DEĞİL, bu dalın HEAD'inden** aç (`git reset --hard 067b368` ya da
+> o commit'ten yeni dal) ve `origin/main`'i üzerine merge et — aksi hâlde chunk 001–004a
+> (strings + sözlükler + kararlar) yeni dala girmez ve iş tekrarlanır. Ayrıntı: Bölüm 0a.
+> Hiçbir chunk'ı yeniden araştırma/üretme.
 >
 > **(1) Kurulum:** Bölüm 0b tablosuyla veri dosyalarını Drive klasöründen indir
-> (`1pZAOYsAnMjveNK6grdXjqV9IDM1TFaJp`, ~74 MB; `download_file` paralel çağrılarla).
-> Drive'daki vault JSON'ları **yalnız chunk 001 damgalıdır** → indirdikten sonra
-> **mutlaka** `python3 diag/bangumi_vault/scripts/apply_map.py` çalıştır (chunk 002 + 003
-> kararlarını damgalar, kayıpsız). Sonra `verify_vault.py` **✅** olmalı
-> (beklenen: `2491 bangumi_* anahtar, 1089 vault kaydı, 1662 map satırı, 121284 damga`).
+> (`1pZAOYsAnMjveNK6grdXjqV9IDM1TFaJp`, ~74 MB; `download_file` paralel çağrılarla,
+> `google_drive/` içine yazar, içeriği bağlama dökmez). `decisions/*.tsv` git'te zaten var.
+> Drive'daki vault JSON'ları **yalnız chunk 001 damgalıdır** → indirdikten sonra **mutlaka**
+> `python3 diag/bangumi_vault/scripts/apply_map.py` çalıştır (`--check` DEĞİL; chunk 002+003+004a
+> kararlarını damgalar, kayıpsız). Sonra `verify_vault.py` ✅ olmalı:
+> **`2948 bangumi_* anahtar, 1568 vault kaydı, 2229 map satırı, 121284 damga`**.
 >
-> **(2) İş:** Bölüm 5'teki **ilk ☐** kutucuğundaki chunk'ı yap: karar ver →
-> `apply_map.py` → `vault_to_strings.py` → `verify_vault.py`. Karar kalıpları için
-> "Chunk 002 karar şablonu" bölümünü (6 adım) birebir kullan.
+> **(2) İş:** Bölüm 5'teki **ilk ☐** kutucuğu = **Chunk 004b — kurum count 35–59 (1.000 kayıt)**.
+> Sıra: `python3 diag/bangumi_vault/scripts/draft_org_map.py --chunk 004b --min-count 35 --max-count 59`
+> → taslağı gözden geçir, `org_global_names.tsv`'ye **yalnız resmî Latin adı bilinen** kurum/kişileri
+> ekle → `apply_map.py --check && apply_map.py` → `vault_to_strings.py` → `verify_vault.py`.
+> Karar kalıpları için "Chunk 002 karar şablonu"nu (6 adım) ve Bölüm 2e'yi (chunk 004a örneği) kullan.
 >
-> **(3) Kapanış (Bölüm 8):** tik at (☐→☑), Bölüm 2 tablosunu güncelle, PROGRESS.md +
-> progress.json + karar dosyalarını Drive'a yükle (aynı ad varsa `delete_file`+`upload_file`),
+> **(3) Kapanış (Bölüm 8):** tik at (☐→☑), Bölüm 2 tablosunu + kümülatif sayıları güncelle,
+> PROGRESS.md + progress.json + karar dosyalarını (canon.tsv, org_global_names.tsv,
+> map_chunk_004b_orgs.tsv) Drive'a yükle (aynı ad varsa `delete_file` + `upload_file`),
 > `verify_bangumi_master.py` + `gen_bangumi_master.py --check` + `git diff --quiet` ile CI'yı
-> yerelde simüle et, commit + push + PR aç.
+> yerelde simüle et, commit + push + PR aç (yeni PR'ın numarasını PROGRESS.md'ye yaz).
 >
-> **Kurallar:** global karşılık varsa kullan; yoksa TR+EN çevir; bilinmeyen CJK'ya
-> romanizasyon **uydurma** (`as_is` kalır); SKIP girdileri dil dosyasına **girmez**.
-> **Yasak:** `gen_bangumi_master.py`'yi `--check` olmadan çalıştırma (711 VAULT satırını siler,
+> **Kurallar:** global karşılık varsa kullan; yoksa TR+EN çevir; bilinmeyen CJK'ya romanizasyon
+> **uydurma** (`as_is` kalır); kişi adlarında yalnız resmî Latin yazımı bilinenler `global`;
+> SKIP girdileri dil dosyasına **girmez**.
+> **Yasak:** `gen_bangumi_master.py`'yi `--check` olmadan çalıştırma (VAULT RAW satırlarını siler,
 > Bölüm 7 ⚠).
+> **Kapsam dışı:** CI'daki `MalWebParserTest` / `MalNotificationsClientTest` hataları Bangumi işiyle
+> ilgisiz; MAL koduna dokunma (kullanıcı istemedikçe).
+> **Not:** ortamda JDK/kotlinc kurulu gelmez; yerel Kotlin derlemesi yoksa `verify_bangumi_master.py`
+> + `gen --check` + RAW parça bayt denetimi (her parça < 50.000 modified-UTF-8 bayt) yeterlidir;
+> asıl derleme CI'da koşar.
 
 Kısa sürüm (dosya zaten çalışma alanında ve damgalıysa yeterli):
 **"`diag/bangumi_vault/PROGRESS.md`'yi oku, Bölüm 0 kurulumunu yap, Bölüm 5'teki sıradaki
-☐ chunk'ı bitir, Bölüm 8 kapanış listesini uygula."**
+☐ chunk'ı (004b) bitir, Bölüm 8 kapanış listesini uygula."**
 
-Sıradaki chunk: **004b — kurum count 35–59 (1.000 kayıt)**. Chunk 004a (kurum count 60–99)
-tamamlandı; `translations_pending.tsv` 62.957 satır (kurum kayıtları pending'te yok).
-Chunk 004 üç parçaya bölündü: **004a 60–99 ✓**, **004b 35–59 (1.000)**, **004c 20–34 (1.515)**.
+Sıradaki chunk: **004b — kurum count 35–59 (1.000 kayıt: studio 210, producer 362, publisher 288,
+magazine 116, network 24)**. Chunk 004a (60–99 · 567 kayıt) tamamlandı; `translations_pending.tsv`
+62.957 satır (kurum kayıtları pending'te yok). Chunk 004 üç parçaya bölündü:
+**004a 60–99 ✓**, **004b 35–59 (1.000)**, **004c 20–34 (1.515)**.
 
 ---
 
