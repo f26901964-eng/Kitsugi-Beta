@@ -1,5 +1,7 @@
 package com.kitsugi.animelist.data.remote.malweb
 
+import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
+
 import android.content.Context
 import com.kitsugi.animelist.core.network.KitsugiHttpClient
 import kotlinx.coroutines.Dispatchers
@@ -426,14 +428,21 @@ internal object MalNotificationsClient {
 
     internal fun normalizeNotificationPageUrl(raw: String?): String? = runCatching {
         if (raw.isNullOrBlank()) return@runCatching null
-        val base = java.net.URI(NOTIFICATIONS_URL)
-        val target = base.resolve(raw.trim())
-        val host = target.host?.lowercase() ?: return@runCatching null
-        val path = target.path.orEmpty()
+        val base = NOTIFICATIONS_URL.toHttpUrlOrNull() ?: return@runCatching null
+        val trimmed = raw.trim()
+        // Reject explicit username/password authority or non-default port before resolution.
+        if (trimmed.contains('@') && trimmed.substringBefore('?').substringBefore('#').contains("://")) {
+            val rawCheck = java.net.URI(trimmed)
+            if (rawCheck.userInfo != null) return@runCatching null
+        }
+        val target = base.resolve(trimmed) ?: return@runCatching null
+        val host = target.host.lowercase()
+        val path = target.encodedPath
         val isNotificationPath = path.equals("/notification", ignoreCase = true) ||
             path.startsWith("/notification/", ignoreCase = true)
         if (!target.scheme.equals("https", ignoreCase = true) ||
-            target.userInfo != null || (target.port != -1 && target.port != 443) ||
+            target.username.isNotEmpty() || target.password.isNotEmpty() ||
+            target.port != 443 ||
             (host != "myanimelist.net" && host != "www.myanimelist.net") ||
             !isNotificationPath
         ) return@runCatching null

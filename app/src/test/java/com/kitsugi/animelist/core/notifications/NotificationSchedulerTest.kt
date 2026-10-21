@@ -1,6 +1,7 @@
 package com.kitsugi.animelist.core.notifications
 
 import com.kitsugi.animelist.data.settings.AppSettings
+import com.kitsugi.animelist.data.settings.IntegrationsAndNotificationsSettings
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -10,7 +11,9 @@ class NotificationSchedulerTest {
     fun globalAiringNotificationsRequireAtLeastOneLinkedAccount() {
         assertFalse(
             shouldScheduleNotificationWork(
-                settings = AppSettings(airingNotificationsEnabled = true),
+                settings = AppSettings(
+                    integrations = IntegrationsAndNotificationsSettings(airingNotificationsEnabled = true)
+                ),
                 accounts = NotificationAccountLinks(
                     aniList = false,
                     mal = false,
@@ -27,7 +30,9 @@ class NotificationSchedulerTest {
     fun globalAiringNotificationsCanUseAnyLinkedSupportedAccount() {
         assertTrue(
             shouldScheduleNotificationWork(
-                settings = AppSettings(airingNotificationsEnabled = true),
+                settings = AppSettings(
+                    integrations = IntegrationsAndNotificationsSettings(airingNotificationsEnabled = true)
+                ),
                 accounts = NotificationAccountLinks(
                     aniList = false,
                     mal = false,
@@ -44,7 +49,9 @@ class NotificationSchedulerTest {
     fun sourceNotificationRequiresItsOwnLinkedAccount() {
         assertFalse(
             shouldScheduleNotificationWork(
-                settings = AppSettings(simklNotificationsEnabled = true),
+                settings = AppSettings(
+                    integrations = IntegrationsAndNotificationsSettings(simklNotificationsEnabled = true)
+                ),
                 accounts = NotificationAccountLinks(
                     aniList = false,
                     mal = false,
@@ -61,7 +68,9 @@ class NotificationSchedulerTest {
     fun linkedSourceNotificationSchedulesWork() {
         assertTrue(
             shouldScheduleNotificationWork(
-                settings = AppSettings(kitsuNotificationsEnabled = true),
+                settings = AppSettings(
+                    integrations = IntegrationsAndNotificationsSettings(kitsuNotificationsEnabled = true)
+                ),
                 accounts = NotificationAccountLinks(
                     aniList = false,
                     mal = false,

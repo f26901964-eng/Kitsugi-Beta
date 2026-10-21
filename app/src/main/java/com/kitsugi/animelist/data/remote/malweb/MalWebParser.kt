@@ -1,5 +1,7 @@
 package com.kitsugi.animelist.data.remote.malweb
 
+import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
+
 import org.jsoup.Jsoup
 import org.jsoup.nodes.Document
 import org.jsoup.nodes.Element
@@ -756,30 +758,32 @@ object MalWebParser {
      * The returned value is a same-origin path + query suitable for the next on-device request.
      */
     fun nextPagePath(html: String, currentPath: String): String? = runCatching {
-        val current = java.net.URI(MAL_BASE).resolve(currentPath)
-        if (!isSafeMalUri(current)) return@runCatching null
+        val baseUrl = MAL_BASE.toHttpUrlOrNull() ?: return@runCatching null
+        val current = baseUrl.resolve(currentPath.trim()) ?: return@runCatching null
+        if (!isSafeMalHttpUrl(current)) return@runCatching null
 
         val document = Jsoup.parse(html, current.toString())
-        val currentQuery = current.rawQuery.orEmpty()
+        val currentQuery = current.encodedQuery.orEmpty()
         val next = document.select("a[href]").firstNotNullOfOrNull { link ->
             if (!isNextPageLink(link)) return@firstNotNullOfOrNull null
-            val href = link.attr("href").takeIf { it.isNotBlank() } ?: return@firstNotNullOfOrNull null
-            val candidate = current.resolve(href)
+            val href = link.attr("href").trim().takeIf { it.isNotEmpty() } ?: return@firstNotNullOfOrNull null
+            val candidate = current.resolve(href) ?: return@firstNotNullOfOrNull null
             candidate.takeIf {
-                isSafeMalUri(it) &&
-                    it.rawPath == current.rawPath &&
-                    it.rawQuery.orEmpty() != currentQuery
+                isSafeMalHttpUrl(it) &&
+                    it.encodedPath == current.encodedPath &&
+                    it.encodedQuery.orEmpty() != currentQuery
             }
         } ?: return@runCatching null
 
-        next.rawPath + next.rawQuery?.let { "?$it" }.orEmpty()
+        next.encodedPath + next.encodedQuery?.let { "?$it" }.orEmpty()
     }.getOrNull()
 
-    private fun isSafeMalUri(uri: java.net.URI): Boolean {
-        val host = uri.host?.lowercase(Locale.US)
-        return uri.scheme.equals("https", ignoreCase = true) &&
+    private fun isSafeMalHttpUrl(url: okhttp3.HttpUrl): Boolean {
+        val host = url.host.lowercase(Locale.US)
+        return url.scheme.equals("https", ignoreCase = true) &&
             (host == "myanimelist.net" || host == "www.myanimelist.net") &&
-            uri.userInfo == null && (uri.port == -1 || uri.port == 443)
+            url.username.isEmpty() && url.password.isEmpty() &&
+            url.port == 443
     }
 
     private fun isNextPageLink(element: Element): Boolean {

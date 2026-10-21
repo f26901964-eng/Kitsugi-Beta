@@ -19,6 +19,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
 import com.kitsugi.animelist.data.settings.AppSettings
 import com.kitsugi.animelist.data.settings.SettingsDataStore
+import com.kitsugi.animelist.data.settings.ThemeAndAppUiSettings
 import com.kitsugi.animelist.ui.screens.explore.ExploreViewModel
 
 /**
@@ -100,12 +101,22 @@ class KitsugiSplashActivity : AppCompatActivity() {
                 } ?: run {
                     val anim = splashPrefs.getBoolean("splash_animation_enabled", true)
                     val sound = splashPrefs.getBoolean("splash_sound_enabled", true)
-                    AppSettings(splashAnimationEnabled = anim, splashSoundEnabled = sound)
+                    AppSettings(
+                        themeUi = ThemeAndAppUiSettings(
+                            splashAnimationEnabled = anim,
+                            splashSoundEnabled = sound
+                        )
+                    )
                 }
-            } catch (_: Exception) {
+            } catch (_: Throwable) {
                 val anim = splashPrefs.getBoolean("splash_animation_enabled", true)
                 val sound = splashPrefs.getBoolean("splash_sound_enabled", true)
-                AppSettings(splashAnimationEnabled = anim, splashSoundEnabled = sound)
+                AppSettings(
+                    themeUi = ThemeAndAppUiSettings(
+                        splashAnimationEnabled = anim,
+                        splashSoundEnabled = sound
+                    )
+                )
             }
 
             runCatching {

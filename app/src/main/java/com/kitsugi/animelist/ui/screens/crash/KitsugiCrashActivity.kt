@@ -243,9 +243,29 @@ class KitsugiCrashActivity : ComponentActivity() {
                         Spacer(Modifier.height(10.dp))
 
                         // ── Rapor Metin Alanı ─────────────────────────────────────────────
+                        // Kopyala / Paylaş / İndirilenler'e Kaydet tam metni (displayText) kullanır;
+                        // ekrandaki tekil Text bileşeni ise GL_MAX_TEXTURE_SIZE ve 700ms StaticLayout
+                        // takılmasını önlemek için en fazla 48 KB önizleme çizer.
                         val displayText = when (selectedTab) {
                             1 -> historyText ?: "Geçmiş yükleniyor..."
                             else -> crashReport
+                        }
+                        val renderedText = remember(displayText) {
+                            val maxPreviewChars = 48_000
+                            if (displayText.length <= maxPreviewChars) {
+                                displayText
+                            } else {
+                                val half = maxPreviewChars / 2
+                                buildString(maxPreviewChars + 256) {
+                                    append(displayText.substring(0, half))
+                                    append("\n\n════════════════════════════════════════════════════════════\n")
+                                    append("[... Ekran akıcılığı için ")
+                                    append(displayText.length - maxPreviewChars)
+                                    append(" karakter gizlendi — Kopyala / Paylaş / Gönder TAM metni içerir ...]\n")
+                                    append("════════════════════════════════════════════════════════════\n\n")
+                                    append(displayText.substring(displayText.length - half))
+                                }
+                            }
                         }
 
                         Surface(
@@ -258,7 +278,7 @@ class KitsugiCrashActivity : ComponentActivity() {
                         ) {
                             SelectionContainer {
                                 Text(
-                                    text = displayText,
+                                    text = renderedText,
                                     color = if (selectedTab == 0) KitsugiColors.AccentRed.copy(alpha = 0.85f)
                                             else KitsugiColors.TextSecondary,
                                     fontFamily = FontFamily.Monospace,

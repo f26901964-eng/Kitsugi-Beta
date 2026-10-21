@@ -359,6 +359,30 @@ object KitsugiSessionSupervisor {
             PostMortem("SEBEP BULUNAMADI (logcat okunamadı)", "", false)
         }
 
+        // Yalnızca ÖNCEKİ SÜRECE (prevPid) veya onun oturum aralığına ait taze native çökme izini al.
+        // Önceki sürümlerdeki O_APPEND kaynaklı bayat native_crash.txt dosyaları bu kontrol sonunda
+        // temizlenir; böylece günler önceki SIGSEGV izi yeni raporlara asla yapışmaz.
+        val matchedNativeTrace = try {
+            NativeCrashBridge.readRecentNativeCrash(
+                context = ctx,
+                maxAgeMs = NativeCrashBridge.UNCLEAN_TRACE_MAX_AGE_MS,
+                expectedPid = prevPid,
+                sessionStartMs = started,
+                sessionEndMs = lastAlive
+            )
+        } catch (_: Throwable) {
+            null
+        }
+        try {
+            val nf = NativeCrashBridge.nativeCrashFile(ctx)
+            if (nf.exists()) {
+                val meta = NativeCrashBridge.parseLatestNativeCrash(nf.readText())
+                if (meta?.pid != Process.myPid()) {
+                    NativeCrashBridge.clearNativeCrash(ctx)
+                }
+            }
+        } catch (_: Throwable) {}
+
         val report = buildString {
             appendLine("╔══════════════════════════════════════════════════════════════╗")
             appendLine("║   KİTSUGİ — TEMİZ OLMAYAN KAPANMA (SESSİZ ÇÖKME) RAPORU")
@@ -372,8 +396,6 @@ object KitsugiSessionSupervisor {
                 appendLine("▶ YAŞAM SÜRESİ  : ${(lastAlive - started) / 1000} sn")
             }
             appendLine("▶ ARKA PLAN MI? : ${if (wasForeground) "HAYIR (uygulama ÖN PLANDAYDI → gerçek çökme)" else "EVET (arka planda sistem tarafından kapatıldı olabilir)"}")
-            // Oturum anlık görüntüsü ("screen") yalnızca periyodik heartbeat'te yazılır; en son ekran
-            // geçişi ise eylem izinde kayıtlıdır. Bu yüzden önce eylem izindeki son ekranı kullan.
             val crumbScreen = breadcrumbLastScreen(ctx)
             appendLine(
                 "▶ SON EKRAN     : ${crumbScreen ?: screen}" +
@@ -391,18 +413,15 @@ object KitsugiSessionSupervisor {
                 appendLine(postMortem.lines)
                 appendLine()
             }
-            appendLine("───────────────────────────────────────────────────────────────")
-            appendLine("NOT: Bu rapor, Java istisnası OLMAYAN çökmeler (native SIGSEGV/SIGABRT,")
-            appendLine("     LMKD/OOM kill, ANR sonrası öldürme) için üretilir. Bu tür çökmelerde")
-            appendLine("     Java UncaughtExceptionHandler ÇALIŞMAZ — bu yüzden daha önce hiçbir")
-            appendLine("     çökme raporu göremiyordunuz.")
+            if (!matchedNativeTrace.isNullOrBlank()) {
+                appendLine("▶ NATIVE ÇÖKME İZİ (pid=$prevPid)")
+                appendLine(matchedNativeTrace)
+                appendLine()
+            }
             appendLine("═══════════════════════════════════════════════════════════════")
         }
 
-        // Kullanıcı ekranı yalnızca ön planda öldüyse veya kanıt (ANR/native/lmkd) varsa gösterilir.
-        // Arka planda sistem tarafından kapatılan normal durumlar kullanıcıyı rahatsız ETMEZ;
-        // yalnızca geçmişe yazılır.
-        val shouldSurface = wasForeground || postMortem.looksLikeCrash
+        val shouldSurface = wasForeground || postMortem.looksLikeCrash || !matchedNativeTrace.isNullOrBlank()
 
         try {
             if (shouldSurface) {
@@ -431,7 +450,7 @@ object KitsugiSessionSupervisor {
         }
     }
 
-    private data class PostMortem(val headline: String, val lines: String, val looksLikeCrash: Boolean)
+    internal data class PostMortem(val headline: String, val lines: String, val looksLikeCrash: Boolean)
 
     /**
      * Ölü sürecin izini logcat arabelleğinden kazar.
@@ -451,13 +470,37 @@ object KitsugiSessionSupervisor {
 
         val all = (crashBuffer + "\n" + raw).lines()
         val pkg = try { ctx.packageName } catch (_: Throwable) { "com.kitsugi.animelist" }
+        val result = analyzePostMortemLines(
+            all = all,
+            pkg = pkg,
+            prevPid = prevPid,
+            started = started,
+            lastAlive = lastAlive,
+            nowMs = System.currentTimeMillis(),
+            lastScreenName = lastScreen
+        )
 
-        // Yalnızca ÇÖKEN sürecin (prevPid) ve oturum penceresinin satırları değerlendirilir.
-        // Eskiden ilk "Fatal signal" satırı tamponun HERHANGİ bir yerinden alınıyordu; bu yüzden
-        // rapor, günler önce başka bir sürecin çökmesini "ölüm sebebi" olarak gösteriyordu.
-        val nowMs = System.currentTimeMillis()
+        try {
+            if (result.lines.isNotBlank()) {
+                File(ctx.filesDir, POSTMORTEM_LOGCAT).writeText(
+                    "=== Ölüm Sonrası Logcat Kanıtları (pid=$prevPid) ===\n" + result.lines
+                )
+            }
+        } catch (_: Throwable) {}
+
+        return result
+    }
+
+    internal fun analyzePostMortemLines(
+        all: List<String>,
+        pkg: String,
+        prevPid: Int,
+        started: Long,
+        lastAlive: Long,
+        nowMs: Long = System.currentTimeMillis(),
+        lastScreenName: String = "bilinmiyor"
+    ): PostMortem {
         val windowStart = if (started > 0L) started - 30_000L else Long.MIN_VALUE
-        // Öldürme satırları (lmkd/am_kill) kalp atışından dakikalar sonra yazılabilir; pencere geniş tutulur.
         val windowEnd = if (lastAlive > 0L) lastAlive + 15L * 60_000L else Long.MAX_VALUE
 
         val relevant = ArrayList<String>()
@@ -465,19 +508,32 @@ object KitsugiSessionSupervisor {
         var anr: String? = null
         var lmkd: String? = null
         var javaOom: String? = null
+        var javaFatalHeader: String? = null
+        var javaFatalDetail: String? = null
+        var captureFatalLinesRemaining = 0
         var amKill: String? = null
 
         all.forEach { line ->
             val timeMs = logcatTimeMs(line, nowMs)
             if (timeMs != null && (timeMs < windowStart || timeMs > windowEnd)) return@forEach
 
-            // logcat threadtime: "MM-dd HH:mm:ss.SSS PID TID PRIO TAG: mesaj" — PID sütunu çöken süreçtir.
             val matchesPid = line.contains(" $prevPid ") || line.contains(",$prevPid,") ||
                     line.contains("($prevPid)") || line.contains("pid=$prevPid")
-            // DEBUG/tombstone ve libc satırları süreci "pid: N" veya "pid N (" biçiminde de adlandırır.
             val namesPid = matchesPid || line.contains("pid: $prevPid") || line.contains("pid $prevPid (")
             val mentionsPkg = line.contains(pkg)
             val isAnrLine = mentionsPkg && (line.contains("ANR in") || line.contains("PID: $prevPid"))
+
+            if (matchesPid && line.contains("FATAL EXCEPTION:") && javaFatalHeader == null) {
+                javaFatalHeader = line
+                captureFatalLinesRemaining = 4
+            } else if (captureFatalLinesRemaining > 0 && matchesPid) {
+                captureFatalLinesRemaining--
+                val payload = line.substringAfter("AndroidRuntime:", "").trim()
+                if (payload.isNotEmpty() && !payload.startsWith("Process:") && !payload.startsWith("at ") && javaFatalDetail == null) {
+                    javaFatalDetail = payload
+                    captureFatalLinesRemaining = 0
+                }
+            }
 
             if (namesPid && (line.contains("Fatal signal") || line.contains("exiting due to SIG_DFL handler")) &&
                 nativeCrash == null
@@ -501,24 +557,22 @@ object KitsugiSessionSupervisor {
         }
 
         val headline = when {
-            nativeCrash != null -> "NATIVE ÇÖKME (SIGSEGV/SIGABRT/SIGBUS — Java istisnası yok)\n  ${nativeCrash!!.trim()}\n  → Ham yerel iz raporun sonundaki \"NATIVE ÇÖKME İZİ\" bölümünde; adresler /proc/self/maps ile çözülür. Native kütüphane (oynatıcı/decoder/GPU) ya da JNI katmanı çöktü."
-            anr != null -> "ANR (UYGULAMA YANIT VERMEDİ) — ana iş parçacığı kilitlendi, sistem süreci öldürdü\n  ${anr!!.trim()}\n  → Son ekran: $lastScreen"
-            lmkd != null -> "BELLEK YETERSİZLİĞİ (LMKD / düşük bellek nedeniyle sistem öldürdü)\n  ${lmkd!!.trim()}\n  → Görsel/bellek yükü çok yüksek."
+            nativeCrash != null -> "NATIVE ÇÖKME (SIGSEGV/SIGABRT/SIGBUS — Java istisnası yok)\n  ${nativeCrash!!.trim()}\n  → Native kütüphane (oynatıcı/decoder/GPU) ya da JNI katmanı çöktü."
             javaOom != null -> "JAVA OutOfMemoryError (bellek tükendi)\n  ${javaOom!!.trim()}"
+            javaFatalHeader != null -> buildString {
+                append("JAVA / ART FATAL HATA (${javaFatalDetail ?: javaFatalHeader!!.trim()})")
+                append("\n  ${javaFatalHeader!!.trim()}")
+                if (!javaFatalDetail.isNullOrBlank()) append("\n  $javaFatalDetail")
+            }
+            anr != null -> "ANR (UYGULAMA YANIT VERMEDİ) — ana iş parçacığı kilitlendi, sistem süreci öldürdü\n  ${anr!!.trim()}\n  → Son ekran: $lastScreenName"
+            lmkd != null -> "BELLEK YETERSİZLİĞİ (LMKD / düşük bellek nedeniyle sistem öldürdü)\n  ${lmkd!!.trim()}\n  → Görsel/bellek yükü çok yüksek."
             amKill != null -> "SİSTEM TARAFINDAN ÖLDÜRÜLDÜ\n  ${amKill!!.trim()}"
             else -> "SEBEP BULUNAMADI (sessiz SIGKILL olabilir — örn. kullanıcı geri tuşuyla kapatma, " +
                     "arka plan kısıtlaması veya log arabelleği dolmuş olabilir)"
         }
 
-        val looksLikeCrash = nativeCrash != null || anr != null || lmkd != null || javaOom != null || amKill != null
-
-        try {
-            if (relevant.isNotEmpty()) {
-                File(ctx.filesDir, POSTMORTEM_LOGCAT).writeText(
-                    "=== Ölüm Sonrası Logcat Kanıtları (pid=$prevPid) ===\n" + relevant.joinToString("\n")
-                )
-            }
-        } catch (_: Throwable) {}
+        val looksLikeCrash = nativeCrash != null || javaFatalHeader != null || anr != null ||
+            lmkd != null || javaOom != null || amKill != null
 
         return PostMortem(headline, relevant.joinToString("\n"), looksLikeCrash)
     }

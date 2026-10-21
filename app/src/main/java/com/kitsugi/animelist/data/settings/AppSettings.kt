@@ -2,11 +2,19 @@ package com.kitsugi.animelist.data.settings
 
 import com.kitsugi.animelist.ui.screens.fullscreen.AudioChannels
 
-data class AppSettings(
-    val selectedThemeId: String = "mint",
-    val showAdultContent: Boolean = false,
-    val blurAdultMedia: Boolean = false,
-    val selectedListLayoutId: String = "comfortable",
+/**
+ * Uygulama ayarları grup modelleri ve birleşik [AppSettings] cephesi.
+ *
+ * MİMARİ KORUMA (Dalvik DEX `3rc` 255-Yazmaç Sınırı):
+ * Dalvik `invoke-direct/range` ve `invoke-static/range` buyruklarındaki yazmaç sayacı (`AA`)
+ * 8-bit işaretsiz tamsayıdır (`0..255`). Tek bir `data class` yapıcısında ~240+ alan bulunduğunda
+ * Kotlin'in ürettiği sentetik varsayılan yapıcı ve `copy$default` metodu 255 yazmaç sınırını aşar
+ * (`261 & 0xFF == 5`) ve Android ART `java.lang.VerifyError` fırlatarak uygulamayı açılış anında
+ * çökertir. Alanlar 8 alt gruba ayrılarak her yapıcının yazmaç sayısı < 50'de tutulur, tüm 248
+ * özellik ise `AppSettings` üzerinde sıfır ek bellekli hesaplanan `val` olarak korunur.
+ */
+
+data class ProfileAndListSettings(
     val profileName: String = "Profilim",
     val listTitle: String = "Anime & Manga Listem",
     val anilistUsername: String = "",
@@ -26,61 +34,184 @@ data class AppSettings(
     val bangumiProfileImageUri: String = "",
     val profileImageUri: String = "",
     val bannerImageUri: String = "",
-    // AniHyou'dan: Başlık dili tercihi (Romaji / İngilizce / Japonca)
     val titleLanguage: String = "ROMAJI",
-    // AniHyou'dan: Puanlama formatı (POINT_10 / POINT_100 / POINT_5 / POINT_3)
     val scoreFormat: String = "POINT_10",
-    // AniHyou'dan: Puanlama adımları ("1" veya "0.5") — puan girişi/stepper hassasiyeti
     val scoreStep: String = "1",
-    // AniHyou'dan: Ekip & karakter adı dili (ROMAJI / ENGLISH / NATIVE)
     val staffNameLanguage: String = "ROMAJI",
-    // AniHyou'dan: Ayrılmış liste tarzı (durum başlıklı gruplar); false = düz liste
     val separatedListStyle: Boolean = true,
-    // AniHyou'dan: Düşük öncelikli (0) girişlerde öncelik rozetini göster
     val showLowPriority: Boolean = false,
-    // AniHyou'dan: Öncelik seviyesi renk tohumları — JSON {"0":argb,"1":argb,"2":argb}; boş = varsayılan palet
     val priorityColorsJson: String = "",
-    // AniHyou'dan: Fuzzy arama (yazım hataları, sıra bozukluğu ve kısaltmalar)
     val fuzzySearchEnabled: Boolean = true,
-    // AniHyou'dan: Romanları (NOVEL) mangalardan ayrı raf/bölümde göster
     val separateNovelsManga: Boolean = false,
-    // ─── Liste ekleme otomasyonları (durum → tarih / ilerleme) ─────────────────
-    // "İzliyorum"a (veya "Tekrar İzliyorum"a) çekildiğinde başlangıç tarihinin
-    // otomatik olarak bugüne doldurulması. Dolu tarihler asla ezilmez.
     val autoDateOnStatusChange: Boolean = true,
-    // "Tamamlandı"ya çekildiğinde bitiş tarihi bugüne doldurulur ve toplam bölüm
-    // biliniyorsa ilerleme toplam değere tamamlanır (AniList paritesi).
     val autoProgressOnComplete: Boolean = true,
-    // Hızlı ekleme (kart üzerindeki "+" rozeti) için varsayılan kayıt durumu.
-    // Değerler: "PLANNED" (İzleyeceğim) / "WATCHING" (İzliyorum) / "COMPLETED" (İzledim).
     val defaultAddStatus: String = "PLANNED",
-    // MoeList'ten: Puanları gizle
     val hideScores: Boolean = false,
     val showAnimeLogos: Boolean = false,
+    val accountBackupEnabled: Boolean = true,
+    val accountSearchSyncEnabled: Boolean = true,
+    val accountNotificationSyncEnabled: Boolean = true,
+    val syncEnabledAnilist: Boolean = false,
+    val syncEnabledMal: Boolean = false,
+    val syncEnabledSimkl: Boolean = false,
+    val syncEnabledKitsu: Boolean = false,
+    val syncEnabledShikimori: Boolean = false,
+    val syncEnabledBangumi: Boolean = false
+)
+
+data class ThemeAndAppUiSettings(
+    val selectedThemeId: String = "mint",
+    val showAdultContent: Boolean = false,
+    val blurAdultMedia: Boolean = false,
+    val selectedListLayoutId: String = "comfortable",
+    val selectedHomeLayoutId: String = "classic",
+    val themeMode: String = "FOLLOW_SYSTEM",
+    val amoledBlack: Boolean = false,
+    val cardFramesEnabled: Boolean = false,
+    val customAccentColor: Int = 0,
+    val customAccentColor2: Int = 0,
+    val customAccentGradientAngle: Int = 135,
+    val defaultTab: String = "LAST_USED",
+    val lastUsedTab: String = "Explore",
+    val appLanguage: String = "system",
+    val fixedNavBar: Boolean = false,
+    val searchHistoryEnabled: Boolean = true,
+    val splashAnimationEnabled: Boolean = true,
+    val splashSoundEnabled: Boolean = true,
+    val autoUpdateCheckEnabled: Boolean = true
+)
+
+data class PlayerPlaybackSettings(
     val playerPreference: String = "MPV",
     val isAutoplayEnabled: Boolean = true,
     val skipIntroDurationSec: Int = 5,
+    val defaultAudioBoost: Float = 0.0f,
+    val defaultAudioDelayMs: Long = 0L,
+    val minBufferMs: Int = 15_000,
+    val maxBufferMs: Int = 45_000,
+    val bufferForPlaybackMs: Int = 3_500,
+    val bufferForPlaybackAfterRebufferMs: Int = 8_000,
+    val backBufferDurationMs: Int = 0,
+    val frameRateMatchingMode: FrameRateMatchingMode = FrameRateMatchingMode.OFF,
+    val resolutionMatchingEnabled: Boolean = false,
+    val decoderPriority: Int = 0,
+    val dv7HandlingMode: Dv7HandlingMode = Dv7HandlingMode.AUTO,
+    val stripHdr10PlusSei: Boolean = false,
+    val aspectMode: String = "ORIGINAL",
+    val gainBoostDb: Float = 0f,
+    val pipEnabled: Boolean = true,
+    val audioDelayPerRouteJson: String = "{}",
+    val qualityProfileJson: String = "",
+    val stillWatchingEnabled: Boolean = true,
+    val stillWatchingThresholdMinutes: Int = 90,
+    val postPlayMode: String = "AUTO_PLAY_NEXT",
+    val autoplaySessionLimit: Int = 0,
+    val parallelRangeEnabled: Boolean = false,
+    val previewSeekbarEnabled: Boolean = true,
+    val preferredExternalPlayerPackage: String = "",
+    val showPlayerTitle: Boolean = true
+)
+
+data class PlayerOverlaySettings(
+    val showPlayerResolution: Boolean = true,
+    val showMediaInfo: Boolean = true,
+    val titleLimitType: String = "NONE",
+    val liveHelperEnabled: Boolean = false,
+    val enableAssExtractor: Boolean = false,
+    val sleepTimerSeconds: Int = 0,
+    val volumeBoostCap: Int = 200,
+    val audioChannels: AudioChannels = AudioChannels.AutoSafe,
+    val playerStatisticsPage: Int = 0,
+    val playerSpeed: Float = 1.0f,
+    val scrobbleThreshold: Float = 0.85f,
+    val showLoadingCircle: Boolean = true,
+    val showCurrentChapter: Boolean = true,
+    val playerTimeToDisappearMs: Int = 5000,
+    val panelOpacity: Int = 95,
+    val reducePlayerMotion: Boolean = false,
+    val showSystemStatusBar: Boolean = false,
+    val playerFullscreenCutout: Boolean = true,
+    val invertDurationTimer: Boolean = false,
+    val displayVolumeAsPercentage: Boolean = true,
+    val rememberPlayerBrightness: Boolean = false,
+    val playerBrightnessValue: Float = -1f,
+    val rememberPlayerVolume: Boolean = false,
+    val playerVolumeValue: Float = -1f,
+    val preserveWatchingPosition: Boolean = true,
+    val defaultPlayerOrientation: String = "SENSOR_LANDSCAPE",
+    val pipEpisodeToasts: Boolean = true,
+    val pipOnExit: Boolean = true
+)
+
+data class MpvAndSubtitleSettings(
     val defaultSubtitleSize: Int = 16,
     val defaultSubtitleColor: Int = 0xFFFFFFFF.toInt(),
     val subtitleBold: Boolean = false,
     val subtitleOutlineEnabled: Boolean = true,
-    val defaultAudioBoost: Float = 0.0f,
-    val defaultAudioDelayMs: Long = 0L,
-    val minBufferMs: Int = 20_000,
-    val maxBufferMs: Int = 50_000,
-    val bufferForPlaybackMs: Int = 3_500,
-    val bufferForPlaybackAfterRebufferMs: Int = 8_000,
-    val backBufferDurationMs: Int = 0,
-    val mangaReadingMode: String = "RightToLeft",
-    val mangaColorFilter: String = "Normal",
-    val mangaFitMode: String = "FitScreen",
-    val mangaBrightness: Float = 1.0f,
+    val subtitleDelayMs: Long = 0L,
+    val preferredSubtitleLanguages: String = "tr",
+    val addonSubtitleStartupMode: String = "PREFERRED_ONLY",
+    val subtitleSpeed: Float = 1f,
+    val videoFiltersJson: String = "{}",
+    val speedPresets: String = "0.25,0.5,0.75,1,1.25,1.5,1.75,2,2.5,3,3.5,4",
+    val preferredAudioLanguages: String = "tr,ja,en",
+    val subtitleWhitelist: String = "",
+    val subtitleBlacklist: String = "",
+    val audioPitchCorrection: Boolean = true,
+    val mpvGpuRenderer: String = "gpu",
+    val mpvHwdecMode: String = "auto-safe",
+    val mpvDebandMode: String = "none",
+    val mpvForceYuv420p: Boolean = false,
+    val mpvDemuxerCacheMb: Int = 64,
+    val secondarySubtitleTrackId: Int = -1,
+    val secondarySubtitleDelayMs: Long = 0L,
+    val subtitleItalic: Boolean = false,
+    val subtitleJustification: String = "center",
+    val subtitleBackgroundColor: Int = 0,
+    val subtitleShadowOffset: Float = 1.5f,
+    val subtitleBorderColor: Int = 0xFF000000.toInt(),
+    val subtitleBorderSize: Float = 1.5f,
+    val subtitleFont: String = "Sans Serif",
+    val subtitleBorderStyle: String = "outline-and-shadow",
+    val subtitleFontScale: Float = 1.0f,
+    val subtitlePos: Int = 100,
+    val subtitleOverrideAss: Boolean = false,
+    val screenshotSubtitles: Boolean = true,
+    val mpvConf: String = "",
+    val mpvInput: String = "",
+    val mpvUserFilesEnabled: Boolean = false
+)
+
+data class GestureAndSkipSettings(
+    val aniSkipEnabled: Boolean = true,
+    val aniSkipAutoSkip: Boolean = false,
+    val aniSkipDisableOnChapters: Boolean = false,
+    val animeSkipClientId: String = "",
+    val gestureVolumeEnabled: Boolean = true,
+    val gestureBrightnessEnabled: Boolean = true,
+    val gestureZoomEnabled: Boolean = true,
+    val gestureScrollSensitivity: Float = 1.0f,
+    val doubleTapSeekSeconds: Int = 10,
+    val holdSpeedMultiplier: Float = 2.0f,
+    val swipeVolumeBrightnessSides: Boolean = true,
+    val horizontalSeekGestureEnabled: Boolean = true,
+    val preciseSeeking: Boolean = false,
+    val showSeekBarOnGesture: Boolean = true,
+    val leftDoubleTapGesture: String = "SEEK",
+    val centerDoubleTapGesture: String = "PLAY_PAUSE",
+    val rightDoubleTapGesture: String = "SEEK",
+    val enableSkipIntro: Boolean = true,
+    val enableNetflixStyleIntroSkip: Boolean = false,
+    val waitingTimeIntroSkip: Int = 5,
+    val mediaPreviousGesture: String = "SWITCH",
+    val mediaPlayPauseGesture: String = "PLAY_PAUSE",
+    val mediaNextGesture: String = "SWITCH",
+    val defaultIntroLength: Int = 85
+)
+
+data class IntegrationsAndNotificationsSettings(
     val dnsChoice: Int = 0,
-    // GitHub Vekil Sunucu: raw.githubusercontent.com URL'lerini jsDelivr CDN üzerinden yönlendirir.
-    // ISS engellerine karşı eklenti/repo güncellemelerini güvenilir kılar.
     val useGithubProxy: Boolean = false,
-    // ─── Harici API Entegrasyonları ──────────────────────────────────────────
-    // TMDB: Kullanıcı kendi API anahtarını girebilir; boşsa dahili anahtar kullanılır
     val tmdbEnabled: Boolean = true,
     val tmdbUserApiKey: String = "",
     val tmdbModernHomeEnabled: Boolean = true,
@@ -97,7 +228,6 @@ data class AppSettings(
     val tmdbUseTrailers: Boolean = true,
     val tmdbUseMoreLikeThis: Boolean = true,
     val tmdbUseCollections: Boolean = true,
-    // MDBList: Çoklu platform puan zenginleştirme (IMDb, RT, Metacritic, vb.)
     val mdbListApiKey: String = "",
     val mdbListEnabled: Boolean = false,
     val mdbListShowImdb: Boolean = true,
@@ -107,221 +237,29 @@ data class AppSettings(
     val mdbListShowLetterboxd: Boolean = false,
     val mdbListShowTmdb: Boolean = false,
     val mdbListShowTrakt: Boolean = false,
-    // Fanart.tv: Yüksek kaliteli logo/artwork kaynağı (TVDB ID bazlı)
-    // Proje API anahtarı: https://fanart.tv/get-an-api-key/ adresinden alınır
     val fanartTvApiKey: String = "",
     val fanartTvEnabled: Boolean = true,
-    // AniSkip: Anime intro/outro zaman damgalarını otomatik çekme
-    val aniSkipEnabled: Boolean = true,
-    val aniSkipAutoSkip: Boolean = false,
-    val aniSkipDisableOnChapters: Boolean = false,
-    // AnimeSkip: anime-skip.com için geliştirici anahtarı ve client ID
-    val animeSkipClientId: String = "",
-    // Açıklama Otomatik Çevirisi: Türkçe veri bulunamazsa Google Translate devreye girer
     val autoTranslateEnabled: Boolean = false,
     val preferredTranslator: String = "DEFAULT",
     val translateSourceLanguage: String = "auto",
     val translateTargetLanguage: String = "tr",
-    // TV ana sayfa yerleşim düzeni (classic / modern / grid)
-    val selectedHomeLayoutId: String = "classic",
-    // AFR (Auto Frame Rate) ayarları
-    val frameRateMatchingMode: FrameRateMatchingMode = FrameRateMatchingMode.OFF,
-    val resolutionMatchingEnabled: Boolean = false,
-    val decoderPriority: Int = 0, // 0 = Hardware only, 1 = Software fallback, 2 = Software preferred
-    // ─── Dolby Vision / HDR ─────────────────────────────────────────────────
-    // DV7 → DV8.1 dönüşüm modu (AUTO = cihaz capability'sine göre karar verilir)
-    val dv7HandlingMode: Dv7HandlingMode = Dv7HandlingMode.AUTO,
-    // HDR10+ SEI NAL mesajlarını HEVC bitstream'inden sıyırır
-    val stripHdr10PlusSei: Boolean = false,
-    val themeMode: String = "FOLLOW_SYSTEM",
-    val amoledBlack: Boolean = false,
-    // Kart çerçeveleri (neon degrade kenarlık) açık/kapalı — Varsayılan olarak kapalıdır
-    val cardFramesEnabled: Boolean = false,
-    val customAccentColor: Int = 0,
-    /** Özel vurgu gradyanının bitiş rengi (0 = gradyan yok, düz renk). */
-    val customAccentColor2: Int = 0,
-    /** Özel vurgu gradyanı açısı (derece, 0 = soldan sağa, 90 = yukarıdan aşağıya). */
-    val customAccentGradientAngle: Int = 135,
-    val defaultTab: String = "LAST_USED",
-    val lastUsedTab: String = "Explore",
-    val appLanguage: String = "system",
-    // ─── Kitsugi Hesabı: yedek/eşitleme anahtarları ─────────────────────────
-    // Girişte hepsi OTOMATİK açıktır; kullanıcı elle kapatabilir (cihaz yereldir,
-    // cloudKeys içinde olmadıkları için buluta gönderilmezler).
-    val accountBackupEnabled: Boolean = true,
-    val accountSearchSyncEnabled: Boolean = true,
-    val accountNotificationSyncEnabled: Boolean = true,
-    val fixedNavBar: Boolean = false,
-    val aspectMode: String = "ORIGINAL",
-    val gainBoostDb: Float = 0f,
-    val subtitleDelayMs: Long = 0L,
-    val preferredSubtitleLanguages: String = "tr",
-    val addonSubtitleStartupMode: String = "PREFERRED_ONLY",
-    // ─── Gesture Ayarları (T2.1 + T2.7) ────────────────────────────────────
-    val gestureVolumeEnabled: Boolean = true,
-    val gestureBrightnessEnabled: Boolean = true,
-    val gestureZoomEnabled: Boolean = true,
-    /** Dikey swipe hassasiyeti — 0.5 (yavaş) … 2.0 (hızlı). Task_050 TASK_DOSYASI referans. */
-    val gestureScrollSensitivity: Float = 1.0f,
-    val doubleTapSeekSeconds: Int = 10,
-    val holdSpeedMultiplier: Float = 2.0f,
-    /** true = sol el ses, sağ el parlaklık (varsayılan); false = taraflar yer değiştirir */
-    val swipeVolumeBrightnessSides: Boolean = true,
-    /** true = yatay kaydırma ile seeking aktif */
-    val horizontalSeekGestureEnabled: Boolean = true,
-    /** true = seeking esnasında hassas (kare kare) mod; false = hızlı seek */
-    val preciseSeeking: Boolean = false,
-    // ─── PIP (T2.3) ─────────────────────────────────────────────────────────
-    val pipEnabled: Boolean = true,
-    // ─── Ses Rotası Gecikmesi (T1.3) ─────────────────────────────────────────
-    val audioDelayPerRouteJson: String = "{}",
-    // ─── Kalite Profili (T2.4) ───────────────────────────────────────────────
-    val qualityProfileJson: String = "",
-    // ─── Yayın Takvimi Bildirimleri (T3.3) ──────────────────────────────────
-    // true = "İzliyorum" listesindeki animeler yayınlandığında bildirim gönder
     val airingNotificationsEnabled: Boolean = false,
     val aniListNotificationsEnabled: Boolean = false,
     val malNotificationsEnabled: Boolean = false,
     val simklNotificationsEnabled: Boolean = false,
     val kitsuNotificationsEnabled: Boolean = false,
     val shikimoriNotificationsEnabled: Boolean = false,
-    val notificationInterval: Int = 180, // Dakika bazında
-    val searchHistoryEnabled: Boolean = true,
-    // ─── T1.7 – StillWatching + PostPlayMode + AutoplaySessionRules ──────────
-    /** true = N dakika hareketsizlik sonrası "Hâlâ izliyor musun?" sorusu gelir */
-    val stillWatchingEnabled: Boolean = true,
-    /** Kaç dakika hareketsizlik sonrası StillWatching prompt tetiklenir */
-    val stillWatchingThresholdMinutes: Int = 90,
-    /** Sonraki bölüm oynatma modu: MANUAL, AUTO_PLAY_NEXT, BINGE_PROMPT */
-    val postPlayMode: String = "AUTO_PLAY_NEXT",
-    /** 0 = sınırsız; N = N bölüm art arda izlenince StillWatching prompt */
-    val autoplaySessionLimit: Int = 0,
-    // ─── T1.9 – Paralel Aralık İndirme (ParallelRangeDataSource) ─────────────
-    /** true = MKV/MP4 progressive içerik için çok bağlantılı chunk indirme aktif */
-    val parallelRangeEnabled: Boolean = false,
-    // ─── T2.2 – Önizleme Seekbar (Preview Seekbar) ───────────────────────────
-    val previewSeekbarEnabled: Boolean = true,
-    // ─── T2.5 – Harici Oynatıcı Tercihi ──────────────────────────────────────
-    val preferredExternalPlayerPackage: String = "",
-    // ─── T2.6 – Oynatıcı Başlık / Medya Bilgisi Görünürlüğü (CloudStream) ───
-    /** true = oynatma sırasında üst başlık overlay görünür */
-    val showPlayerTitle: Boolean = true,
-    /** true = video çözünürlüğü (örn: 1080p) overlay'de gösterilir */
-    val showPlayerResolution: Boolean = true,
-    /** true = codec / bitrate / fps detay paneli açılabilir */
-    val showMediaInfo: Boolean = true,
-    /** NONE = tam başlık, LIMIT_20 = 20 karakter, LIMIT_40 = 40 karakter */
-    val titleLimitType: String = "NONE",
-    // ─── T1.15 – Canlı Yayın (LiveHelper) ───────────────────────────────────
-    /** true = LiveHelper / LiveManager aktif; false = canlı yayınlar normal VOD gibi oynatılır */
-    val liveHelperEnabled: Boolean = false,
-    // ─── T1.10 – Libass / ASS Extractor (Opsiyonel, riskli) ─────────────────
-    /** true = KitsugiAssMatroskaExtractor DefaultExtractorsFactory'e eklenir; false = Media3 fallback */
-    val enableAssExtractor: Boolean = false,
-    val splashAnimationEnabled: Boolean = true,
-    val splashSoundEnabled: Boolean = true,
-    val autoUpdateCheckEnabled: Boolean = true,
+    val notificationInterval: Int = 180
+)
+
+data class DownloadAndMangaSettings(
+    val mangaReadingMode: String = "RightToLeft",
+    val mangaColorFilter: String = "Normal",
+    val mangaFitMode: String = "FitScreen",
+    val mangaBrightness: Float = 1.0f,
     val customImageDownloadUri: String = "",
     val videoDownloadUri: String = "",
     val downloaderPreference: String = "INTERNAL",
-    val syncEnabledAnilist: Boolean = false,
-    val syncEnabledMal: Boolean = false,
-    val syncEnabledSimkl: Boolean = false,
-    val syncEnabledKitsu: Boolean = false,
-    val syncEnabledShikimori: Boolean = false,
-    val syncEnabledBangumi: Boolean = false,
-    // ─── MPV Gelişmiş Oynatıcı Ayarları (Aniyomi'den uyarlama) ───────────────
-    /** MPV GPU render backend: "gpu" (varsayılan) veya "gpu-next" */
-    val subtitleSpeed: Float = 1f,
-    val videoFiltersJson: String = "{}",
-    val speedPresets: String = "0.25,0.5,0.75,1,1.25,1.5,1.75,2,2.5,3,3.5,4",
-    val preferredAudioLanguages: String = "tr,ja,en",
-    val subtitleWhitelist: String = "",
-    val subtitleBlacklist: String = "",
-    val audioPitchCorrection: Boolean = true,
-    val mpvGpuRenderer: String = "gpu",
-    /** Donanım kod çözme modu: "auto", "auto-safe", "no" */
-    val mpvHwdecMode: String = "auto-safe",
-    /** Video debanding: "none", "cpu", "gpu" */
-    val mpvDebandMode: String = "none",
-    /** true = YUV420P format zorla (eski donanım uyumu için) */
-    val mpvForceYuv420p: Boolean = false,
-    /** MPV demuxer maksimum önbellek boyutu (MB) — 0 = sınırsız */
-    val mpvDemuxerCacheMb: Int = 64,
-    // ─── İkincil Altyazı (Secondary Subtitle) ────────────────────────────────
-    /** Etkin ikincil altyazı parça ID'si; -1 = kapalı */
-    val secondarySubtitleTrackId: Int = -1,
-    /** İkincil altyazı gecikme süresi (ms) */
-    val secondarySubtitleDelayMs: Long = 0L,
-    // ─── Altyazı Gelişmiş Stil (Aniyomi'den uyarlama) ────────────────────────
-    /** true = altyazı italik */
-    val subtitleItalic: Boolean = false,
-    /** Altyazı hizalama: "left", "center", "right" */
-    val subtitleJustification: String = "center",
-    /** Altyazı arka plan rengi (ARGB Int); 0 = şeffaf */
-    val subtitleBackgroundColor: Int = 0,
-    /** Altyazı gölge offseti (dp); 0 = gölge yok */
-    val subtitleShadowOffset: Float = 1.5f,
-    /** Altyazı kenarlık rengi (ARGB Int) */
-    val subtitleBorderColor: Int = 0xFF000000.toInt(),
-    /** Altyazı kenarlık kalınlığı (dp) */
-    val subtitleBorderSize: Float = 1.5f,
-    /** Altyazı yazı tipi adı; boş = "Sans Serif" */
-    val subtitleFont: String = "Sans Serif",
-    /** Altyazı kenarlık stili: "outline-and-shadow", "opaque-box", "background-box" */
-    val subtitleBorderStyle: String = "outline-and-shadow",
-    /** Altyazı ölçeği (sub-scale); 1.0 = varsayılan */
-    val subtitleFontScale: Float = 1.0f,
-    /** Altyazı dikey konumu (sub-pos); 100 = alt */
-    val subtitlePos: Int = 100,
-    /** ASS/SSA altyazı geçersizleştirme (sub-ass-override force) */
-    val subtitleOverrideAss: Boolean = false,
-    // ─── Uyku Zamanlayıcısı (Sleep Timer) ────────────────────────────────────
-    /** Uyku zamanlayıcısı kalan saniye; 0 = kapalı */
-    val sleepTimerSeconds: Int = 0,
-    // ─── Ses Boost Sınırı ─────────────────────────────────────────────────────
-    /** MPV volume-max değeri (yüzde) — 100–200 arası */
-    val volumeBoostCap: Int = 200,
-    val audioChannels: AudioChannels = AudioChannels.AutoSafe,
-    val playerStatisticsPage: Int = 0,
-    val playerSpeed: Float = 1.0f,
-    // ─── Aniyomi Oynatıcı Arayüz ve Davranış Paritesi ─────────────────────────
-    val scrobbleThreshold: Float = 0.85f,
-    val showLoadingCircle: Boolean = true,
-    val showCurrentChapter: Boolean = true,
-    val playerTimeToDisappearMs: Int = 5000,
-    val panelOpacity: Int = 95,
-    val reducePlayerMotion: Boolean = false,
-    val showSystemStatusBar: Boolean = false,
-    val playerFullscreenCutout: Boolean = true,
-    val invertDurationTimer: Boolean = false,
-    val displayVolumeAsPercentage: Boolean = true,
-    val showSeekBarOnGesture: Boolean = true,
-    val rememberPlayerBrightness: Boolean = false,
-    val playerBrightnessValue: Float = -1f,
-    val rememberPlayerVolume: Boolean = false,
-    val playerVolumeValue: Float = -1f,
-    val leftDoubleTapGesture: String = "SEEK",
-    val centerDoubleTapGesture: String = "PLAY_PAUSE",
-    val rightDoubleTapGesture: String = "SEEK",
-    val enableSkipIntro: Boolean = true,
-    val enableNetflixStyleIntroSkip: Boolean = false,
-    val waitingTimeIntroSkip: Int = 5,
-    val screenshotSubtitles: Boolean = true,
-    val preserveWatchingPosition: Boolean = true,
-    val defaultPlayerOrientation: String = "SENSOR_LANDSCAPE",
-    val pipEpisodeToasts: Boolean = true,
-    val pipOnExit: Boolean = true,
-    // ─── Advanced mpv conf/input (Aniyomi) ────────────────────────────────────
-    val mpvConf: String = "",
-    val mpvInput: String = "",
-    val mpvUserFilesEnabled: Boolean = false,
-    // ─── Media gesture mapping (Aniyomi GesturePreferences) ───────────────────
-    val mediaPreviousGesture: String = "SWITCH",
-    val mediaPlayPauseGesture: String = "PLAY_PAUSE",
-    val mediaNextGesture: String = "SWITCH",
-    val defaultIntroLength: Int = 85,
-    // ─── Yeni İndirme Ayarları (Aniyomi Uyumlu) ──────────────────────────────────
     val downloadOnlyOverWifi: Boolean = true,
     val downloadSpeedLimit: Int = 0,
     val saveChaptersAsCBZ: Boolean = true,
@@ -345,11 +283,268 @@ data class AppSettings(
     val externalDownloaderSelection: String = "",
     val downloadNewUnreadChaptersOnly: Boolean = false,
     val downloadNewUnseenEpisodesOnly: Boolean = false,
-    // ── Altyazı İndirme Dil Filtresi ──────────────────────────────────────────
-    // Otomatik indirme sırasında hangi dillerde altyazı çekileceğini belirler.
-    // ISO 639-1 kodları, virgülle ayrılmış (örn: "tr,en"). Varsayılan: "tr"
     val subtitleDownloadLanguages: String = "tr"
 )
+
+data class AppSettings(
+    val profile: ProfileAndListSettings = ProfileAndListSettings(),
+    val themeUi: ThemeAndAppUiSettings = ThemeAndAppUiSettings(),
+    val playback: PlayerPlaybackSettings = PlayerPlaybackSettings(),
+    val playerUi: PlayerOverlaySettings = PlayerOverlaySettings(),
+    val mpvSubtitle: MpvAndSubtitleSettings = MpvAndSubtitleSettings(),
+    val gestures: GestureAndSkipSettings = GestureAndSkipSettings(),
+    val integrations: IntegrationsAndNotificationsSettings = IntegrationsAndNotificationsSettings(),
+    val downloads: DownloadAndMangaSettings = DownloadAndMangaSettings()
+) {
+    val selectedThemeId: String get() = themeUi.selectedThemeId
+    val showAdultContent: Boolean get() = themeUi.showAdultContent
+    val blurAdultMedia: Boolean get() = themeUi.blurAdultMedia
+    val selectedListLayoutId: String get() = themeUi.selectedListLayoutId
+    val profileName: String get() = profile.profileName
+    val listTitle: String get() = profile.listTitle
+    val anilistUsername: String get() = profile.anilistUsername
+    val anilistProfileImageUri: String get() = profile.anilistProfileImageUri
+    val anilistBannerImageUri: String get() = profile.anilistBannerImageUri
+    val malUsername: String get() = profile.malUsername
+    val malProfileImageUri: String get() = profile.malProfileImageUri
+    val malBannerImageUri: String get() = profile.malBannerImageUri
+    val simklUsername: String get() = profile.simklUsername
+    val simklProfileImageUri: String get() = profile.simklProfileImageUri
+    val simklBannerImageUri: String get() = profile.simklBannerImageUri
+    val kitsuUsername: String get() = profile.kitsuUsername
+    val kitsuProfileImageUri: String get() = profile.kitsuProfileImageUri
+    val shikimoriUsername: String get() = profile.shikimoriUsername
+    val shikimoriProfileImageUri: String get() = profile.shikimoriProfileImageUri
+    val bangumiUsername: String get() = profile.bangumiUsername
+    val bangumiProfileImageUri: String get() = profile.bangumiProfileImageUri
+    val profileImageUri: String get() = profile.profileImageUri
+    val bannerImageUri: String get() = profile.bannerImageUri
+    val titleLanguage: String get() = profile.titleLanguage
+    val scoreFormat: String get() = profile.scoreFormat
+    val scoreStep: String get() = profile.scoreStep
+    val staffNameLanguage: String get() = profile.staffNameLanguage
+    val separatedListStyle: Boolean get() = profile.separatedListStyle
+    val showLowPriority: Boolean get() = profile.showLowPriority
+    val priorityColorsJson: String get() = profile.priorityColorsJson
+    val fuzzySearchEnabled: Boolean get() = profile.fuzzySearchEnabled
+    val separateNovelsManga: Boolean get() = profile.separateNovelsManga
+    val autoDateOnStatusChange: Boolean get() = profile.autoDateOnStatusChange
+    val autoProgressOnComplete: Boolean get() = profile.autoProgressOnComplete
+    val defaultAddStatus: String get() = profile.defaultAddStatus
+    val hideScores: Boolean get() = profile.hideScores
+    val showAnimeLogos: Boolean get() = profile.showAnimeLogos
+    val playerPreference: String get() = playback.playerPreference
+    val isAutoplayEnabled: Boolean get() = playback.isAutoplayEnabled
+    val skipIntroDurationSec: Int get() = playback.skipIntroDurationSec
+    val defaultSubtitleSize: Int get() = mpvSubtitle.defaultSubtitleSize
+    val defaultSubtitleColor: Int get() = mpvSubtitle.defaultSubtitleColor
+    val subtitleBold: Boolean get() = mpvSubtitle.subtitleBold
+    val subtitleOutlineEnabled: Boolean get() = mpvSubtitle.subtitleOutlineEnabled
+    val defaultAudioBoost: Float get() = playback.defaultAudioBoost
+    val defaultAudioDelayMs: Long get() = playback.defaultAudioDelayMs
+    val minBufferMs: Int get() = playback.minBufferMs
+    val maxBufferMs: Int get() = playback.maxBufferMs
+    val bufferForPlaybackMs: Int get() = playback.bufferForPlaybackMs
+    val bufferForPlaybackAfterRebufferMs: Int get() = playback.bufferForPlaybackAfterRebufferMs
+    val backBufferDurationMs: Int get() = playback.backBufferDurationMs
+    val mangaReadingMode: String get() = downloads.mangaReadingMode
+    val mangaColorFilter: String get() = downloads.mangaColorFilter
+    val mangaFitMode: String get() = downloads.mangaFitMode
+    val mangaBrightness: Float get() = downloads.mangaBrightness
+    val dnsChoice: Int get() = integrations.dnsChoice
+    val useGithubProxy: Boolean get() = integrations.useGithubProxy
+    val tmdbEnabled: Boolean get() = integrations.tmdbEnabled
+    val tmdbUserApiKey: String get() = integrations.tmdbUserApiKey
+    val tmdbModernHomeEnabled: Boolean get() = integrations.tmdbModernHomeEnabled
+    val tmdbEnrichContinueWatching: Boolean get() = integrations.tmdbEnrichContinueWatching
+    val tmdbLanguage: String get() = integrations.tmdbLanguage
+    val tmdbUseArtwork: Boolean get() = integrations.tmdbUseArtwork
+    val tmdbUseBasicInfo: Boolean get() = integrations.tmdbUseBasicInfo
+    val tmdbUseDetails: Boolean get() = integrations.tmdbUseDetails
+    val tmdbUseReleaseDates: Boolean get() = integrations.tmdbUseReleaseDates
+    val tmdbUseCredits: Boolean get() = integrations.tmdbUseCredits
+    val tmdbUseProductions: Boolean get() = integrations.tmdbUseProductions
+    val tmdbUseNetworks: Boolean get() = integrations.tmdbUseNetworks
+    val tmdbUseEpisodes: Boolean get() = integrations.tmdbUseEpisodes
+    val tmdbUseTrailers: Boolean get() = integrations.tmdbUseTrailers
+    val tmdbUseMoreLikeThis: Boolean get() = integrations.tmdbUseMoreLikeThis
+    val tmdbUseCollections: Boolean get() = integrations.tmdbUseCollections
+    val mdbListApiKey: String get() = integrations.mdbListApiKey
+    val mdbListEnabled: Boolean get() = integrations.mdbListEnabled
+    val mdbListShowImdb: Boolean get() = integrations.mdbListShowImdb
+    val mdbListShowTomatoes: Boolean get() = integrations.mdbListShowTomatoes
+    val mdbListShowAudience: Boolean get() = integrations.mdbListShowAudience
+    val mdbListShowMetacritic: Boolean get() = integrations.mdbListShowMetacritic
+    val mdbListShowLetterboxd: Boolean get() = integrations.mdbListShowLetterboxd
+    val mdbListShowTmdb: Boolean get() = integrations.mdbListShowTmdb
+    val mdbListShowTrakt: Boolean get() = integrations.mdbListShowTrakt
+    val fanartTvApiKey: String get() = integrations.fanartTvApiKey
+    val fanartTvEnabled: Boolean get() = integrations.fanartTvEnabled
+    val aniSkipEnabled: Boolean get() = gestures.aniSkipEnabled
+    val aniSkipAutoSkip: Boolean get() = gestures.aniSkipAutoSkip
+    val aniSkipDisableOnChapters: Boolean get() = gestures.aniSkipDisableOnChapters
+    val animeSkipClientId: String get() = gestures.animeSkipClientId
+    val autoTranslateEnabled: Boolean get() = integrations.autoTranslateEnabled
+    val preferredTranslator: String get() = integrations.preferredTranslator
+    val translateSourceLanguage: String get() = integrations.translateSourceLanguage
+    val translateTargetLanguage: String get() = integrations.translateTargetLanguage
+    val selectedHomeLayoutId: String get() = themeUi.selectedHomeLayoutId
+    val frameRateMatchingMode: FrameRateMatchingMode get() = playback.frameRateMatchingMode
+    val resolutionMatchingEnabled: Boolean get() = playback.resolutionMatchingEnabled
+    val decoderPriority: Int get() = playback.decoderPriority
+    val dv7HandlingMode: Dv7HandlingMode get() = playback.dv7HandlingMode
+    val stripHdr10PlusSei: Boolean get() = playback.stripHdr10PlusSei
+    val themeMode: String get() = themeUi.themeMode
+    val amoledBlack: Boolean get() = themeUi.amoledBlack
+    val cardFramesEnabled: Boolean get() = themeUi.cardFramesEnabled
+    val customAccentColor: Int get() = themeUi.customAccentColor
+    val customAccentColor2: Int get() = themeUi.customAccentColor2
+    val customAccentGradientAngle: Int get() = themeUi.customAccentGradientAngle
+    val defaultTab: String get() = themeUi.defaultTab
+    val lastUsedTab: String get() = themeUi.lastUsedTab
+    val appLanguage: String get() = themeUi.appLanguage
+    val accountBackupEnabled: Boolean get() = profile.accountBackupEnabled
+    val accountSearchSyncEnabled: Boolean get() = profile.accountSearchSyncEnabled
+    val accountNotificationSyncEnabled: Boolean get() = profile.accountNotificationSyncEnabled
+    val fixedNavBar: Boolean get() = themeUi.fixedNavBar
+    val aspectMode: String get() = playback.aspectMode
+    val gainBoostDb: Float get() = playback.gainBoostDb
+    val subtitleDelayMs: Long get() = mpvSubtitle.subtitleDelayMs
+    val preferredSubtitleLanguages: String get() = mpvSubtitle.preferredSubtitleLanguages
+    val addonSubtitleStartupMode: String get() = mpvSubtitle.addonSubtitleStartupMode
+    val gestureVolumeEnabled: Boolean get() = gestures.gestureVolumeEnabled
+    val gestureBrightnessEnabled: Boolean get() = gestures.gestureBrightnessEnabled
+    val gestureZoomEnabled: Boolean get() = gestures.gestureZoomEnabled
+    val gestureScrollSensitivity: Float get() = gestures.gestureScrollSensitivity
+    val doubleTapSeekSeconds: Int get() = gestures.doubleTapSeekSeconds
+    val holdSpeedMultiplier: Float get() = gestures.holdSpeedMultiplier
+    val swipeVolumeBrightnessSides: Boolean get() = gestures.swipeVolumeBrightnessSides
+    val horizontalSeekGestureEnabled: Boolean get() = gestures.horizontalSeekGestureEnabled
+    val preciseSeeking: Boolean get() = gestures.preciseSeeking
+    val pipEnabled: Boolean get() = playback.pipEnabled
+    val audioDelayPerRouteJson: String get() = playback.audioDelayPerRouteJson
+    val qualityProfileJson: String get() = playback.qualityProfileJson
+    val airingNotificationsEnabled: Boolean get() = integrations.airingNotificationsEnabled
+    val aniListNotificationsEnabled: Boolean get() = integrations.aniListNotificationsEnabled
+    val malNotificationsEnabled: Boolean get() = integrations.malNotificationsEnabled
+    val simklNotificationsEnabled: Boolean get() = integrations.simklNotificationsEnabled
+    val kitsuNotificationsEnabled: Boolean get() = integrations.kitsuNotificationsEnabled
+    val shikimoriNotificationsEnabled: Boolean get() = integrations.shikimoriNotificationsEnabled
+    val notificationInterval: Int get() = integrations.notificationInterval
+    val searchHistoryEnabled: Boolean get() = themeUi.searchHistoryEnabled
+    val stillWatchingEnabled: Boolean get() = playback.stillWatchingEnabled
+    val stillWatchingThresholdMinutes: Int get() = playback.stillWatchingThresholdMinutes
+    val postPlayMode: String get() = playback.postPlayMode
+    val autoplaySessionLimit: Int get() = playback.autoplaySessionLimit
+    val parallelRangeEnabled: Boolean get() = playback.parallelRangeEnabled
+    val previewSeekbarEnabled: Boolean get() = playback.previewSeekbarEnabled
+    val preferredExternalPlayerPackage: String get() = playback.preferredExternalPlayerPackage
+    val showPlayerTitle: Boolean get() = playback.showPlayerTitle
+    val showPlayerResolution: Boolean get() = playerUi.showPlayerResolution
+    val showMediaInfo: Boolean get() = playerUi.showMediaInfo
+    val titleLimitType: String get() = playerUi.titleLimitType
+    val liveHelperEnabled: Boolean get() = playerUi.liveHelperEnabled
+    val enableAssExtractor: Boolean get() = playerUi.enableAssExtractor
+    val splashAnimationEnabled: Boolean get() = themeUi.splashAnimationEnabled
+    val splashSoundEnabled: Boolean get() = themeUi.splashSoundEnabled
+    val autoUpdateCheckEnabled: Boolean get() = themeUi.autoUpdateCheckEnabled
+    val customImageDownloadUri: String get() = downloads.customImageDownloadUri
+    val videoDownloadUri: String get() = downloads.videoDownloadUri
+    val downloaderPreference: String get() = downloads.downloaderPreference
+    val syncEnabledAnilist: Boolean get() = profile.syncEnabledAnilist
+    val syncEnabledMal: Boolean get() = profile.syncEnabledMal
+    val syncEnabledSimkl: Boolean get() = profile.syncEnabledSimkl
+    val syncEnabledKitsu: Boolean get() = profile.syncEnabledKitsu
+    val syncEnabledShikimori: Boolean get() = profile.syncEnabledShikimori
+    val syncEnabledBangumi: Boolean get() = profile.syncEnabledBangumi
+    val subtitleSpeed: Float get() = mpvSubtitle.subtitleSpeed
+    val videoFiltersJson: String get() = mpvSubtitle.videoFiltersJson
+    val speedPresets: String get() = mpvSubtitle.speedPresets
+    val preferredAudioLanguages: String get() = mpvSubtitle.preferredAudioLanguages
+    val subtitleWhitelist: String get() = mpvSubtitle.subtitleWhitelist
+    val subtitleBlacklist: String get() = mpvSubtitle.subtitleBlacklist
+    val audioPitchCorrection: Boolean get() = mpvSubtitle.audioPitchCorrection
+    val mpvGpuRenderer: String get() = mpvSubtitle.mpvGpuRenderer
+    val mpvHwdecMode: String get() = mpvSubtitle.mpvHwdecMode
+    val mpvDebandMode: String get() = mpvSubtitle.mpvDebandMode
+    val mpvForceYuv420p: Boolean get() = mpvSubtitle.mpvForceYuv420p
+    val mpvDemuxerCacheMb: Int get() = mpvSubtitle.mpvDemuxerCacheMb
+    val secondarySubtitleTrackId: Int get() = mpvSubtitle.secondarySubtitleTrackId
+    val secondarySubtitleDelayMs: Long get() = mpvSubtitle.secondarySubtitleDelayMs
+    val subtitleItalic: Boolean get() = mpvSubtitle.subtitleItalic
+    val subtitleJustification: String get() = mpvSubtitle.subtitleJustification
+    val subtitleBackgroundColor: Int get() = mpvSubtitle.subtitleBackgroundColor
+    val subtitleShadowOffset: Float get() = mpvSubtitle.subtitleShadowOffset
+    val subtitleBorderColor: Int get() = mpvSubtitle.subtitleBorderColor
+    val subtitleBorderSize: Float get() = mpvSubtitle.subtitleBorderSize
+    val subtitleFont: String get() = mpvSubtitle.subtitleFont
+    val subtitleBorderStyle: String get() = mpvSubtitle.subtitleBorderStyle
+    val subtitleFontScale: Float get() = mpvSubtitle.subtitleFontScale
+    val subtitlePos: Int get() = mpvSubtitle.subtitlePos
+    val subtitleOverrideAss: Boolean get() = mpvSubtitle.subtitleOverrideAss
+    val sleepTimerSeconds: Int get() = playerUi.sleepTimerSeconds
+    val volumeBoostCap: Int get() = playerUi.volumeBoostCap
+    val audioChannels: AudioChannels get() = playerUi.audioChannels
+    val playerStatisticsPage: Int get() = playerUi.playerStatisticsPage
+    val playerSpeed: Float get() = playerUi.playerSpeed
+    val scrobbleThreshold: Float get() = playerUi.scrobbleThreshold
+    val showLoadingCircle: Boolean get() = playerUi.showLoadingCircle
+    val showCurrentChapter: Boolean get() = playerUi.showCurrentChapter
+    val playerTimeToDisappearMs: Int get() = playerUi.playerTimeToDisappearMs
+    val panelOpacity: Int get() = playerUi.panelOpacity
+    val reducePlayerMotion: Boolean get() = playerUi.reducePlayerMotion
+    val showSystemStatusBar: Boolean get() = playerUi.showSystemStatusBar
+    val playerFullscreenCutout: Boolean get() = playerUi.playerFullscreenCutout
+    val invertDurationTimer: Boolean get() = playerUi.invertDurationTimer
+    val displayVolumeAsPercentage: Boolean get() = playerUi.displayVolumeAsPercentage
+    val showSeekBarOnGesture: Boolean get() = gestures.showSeekBarOnGesture
+    val rememberPlayerBrightness: Boolean get() = playerUi.rememberPlayerBrightness
+    val playerBrightnessValue: Float get() = playerUi.playerBrightnessValue
+    val rememberPlayerVolume: Boolean get() = playerUi.rememberPlayerVolume
+    val playerVolumeValue: Float get() = playerUi.playerVolumeValue
+    val leftDoubleTapGesture: String get() = gestures.leftDoubleTapGesture
+    val centerDoubleTapGesture: String get() = gestures.centerDoubleTapGesture
+    val rightDoubleTapGesture: String get() = gestures.rightDoubleTapGesture
+    val enableSkipIntro: Boolean get() = gestures.enableSkipIntro
+    val enableNetflixStyleIntroSkip: Boolean get() = gestures.enableNetflixStyleIntroSkip
+    val waitingTimeIntroSkip: Int get() = gestures.waitingTimeIntroSkip
+    val screenshotSubtitles: Boolean get() = mpvSubtitle.screenshotSubtitles
+    val preserveWatchingPosition: Boolean get() = playerUi.preserveWatchingPosition
+    val defaultPlayerOrientation: String get() = playerUi.defaultPlayerOrientation
+    val pipEpisodeToasts: Boolean get() = playerUi.pipEpisodeToasts
+    val pipOnExit: Boolean get() = playerUi.pipOnExit
+    val mpvConf: String get() = mpvSubtitle.mpvConf
+    val mpvInput: String get() = mpvSubtitle.mpvInput
+    val mpvUserFilesEnabled: Boolean get() = mpvSubtitle.mpvUserFilesEnabled
+    val mediaPreviousGesture: String get() = gestures.mediaPreviousGesture
+    val mediaPlayPauseGesture: String get() = gestures.mediaPlayPauseGesture
+    val mediaNextGesture: String get() = gestures.mediaNextGesture
+    val defaultIntroLength: Int get() = gestures.defaultIntroLength
+    val downloadOnlyOverWifi: Boolean get() = downloads.downloadOnlyOverWifi
+    val downloadSpeedLimit: Int get() = downloads.downloadSpeedLimit
+    val saveChaptersAsCBZ: Boolean get() = downloads.saveChaptersAsCBZ
+    val splitTallImages: Boolean get() = downloads.splitTallImages
+    val numberOfDownloads: Int get() = downloads.numberOfDownloads
+    val removeAfterMarkedAsRead: Boolean get() = downloads.removeAfterMarkedAsRead
+    val removeAfterReadSlots: Int get() = downloads.removeAfterReadSlots
+    val removeBookmarkedChapters: Boolean get() = downloads.removeBookmarkedChapters
+    val downloadFillermarkedItems: Boolean get() = downloads.downloadFillermarkedItems
+    val removeExcludeCategories: Set<String> get() = downloads.removeExcludeCategories
+    val removeExcludeAnimeCategories: Set<String> get() = downloads.removeExcludeAnimeCategories
+    val downloadNewEpisodes: Boolean get() = downloads.downloadNewEpisodes
+    val downloadNewChapters: Boolean get() = downloads.downloadNewChapters
+    val downloadNewEpisodeCategories: Set<String> get() = downloads.downloadNewEpisodeCategories
+    val downloadNewChapterCategories: Set<String> get() = downloads.downloadNewChapterCategories
+    val downloadNewEpisodeCategoriesExclude: Set<String> get() = downloads.downloadNewEpisodeCategoriesExclude
+    val downloadNewChapterCategoriesExclude: Set<String> get() = downloads.downloadNewChapterCategoriesExclude
+    val autoDownloadWhileWatching: Int get() = downloads.autoDownloadWhileWatching
+    val autoDownloadWhileReading: Int get() = downloads.autoDownloadWhileReading
+    val useExternalDownloader: Boolean get() = downloads.useExternalDownloader
+    val externalDownloaderSelection: String get() = downloads.externalDownloaderSelection
+    val downloadNewUnreadChaptersOnly: Boolean get() = downloads.downloadNewUnreadChaptersOnly
+    val downloadNewUnseenEpisodesOnly: Boolean get() = downloads.downloadNewUnseenEpisodesOnly
+    val subtitleDownloadLanguages: String get() = downloads.subtitleDownloadLanguages
+}
 
 enum class FrameRateMatchingMode {
     OFF,
@@ -359,12 +554,6 @@ enum class FrameRateMatchingMode {
 
 /**
  * Dolby Vision Profile 7 stream'lerinin nasıl işleneceğini belirler.
- *
- * AUTO: [DolbyVisionBaseLayerPolicy] cihaz HDR + codec kabiliyetine göre karar verir.
- * OFF: Native DV7 pass-through (destekleyen ekran/deşifreleyici gerekir).
- * DV81_LIBDOVI: libdovi JNI köprüsü üzerinden DV7 → DV8.1'e runtime dönüşüm.
- * HDR10_BASE_LAYER: RPU NAL'larını HEVC bitstream'inden sıyır; HDR10 base layer kalır.
- * STRIP_DV: Tüm DV RPU/EL NAL'larını sıyır; düz SDR/HDR10 çıktısı.
  */
 enum class Dv7HandlingMode {
     AUTO,

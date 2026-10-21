@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.media3.extractor.ExtractorsFactory
 import androidx.media3.extractor.text.SubtitleParser
 import com.kitsugi.animelist.data.settings.AppSettings
+import com.kitsugi.animelist.data.settings.PlayerOverlaySettings
 import org.junit.Assert.assertNotNull
 import org.junit.Test
 import org.mockito.Mockito.mock
@@ -13,7 +14,7 @@ class AssExtractorIntegrationTest {
     @Test
     fun testConfigureSubtitleParsingAppliesFactories() {
         val context = mock(Context::class.java)
-        val settings = AppSettings(enableAssExtractor = true)
+        val settings = AppSettings(playerUi = PlayerOverlaySettings(enableAssExtractor = true))
         val factory = PlayerMediaSourceFactory(context, settings)
 
         val customExtractorsFactory = mock(ExtractorsFactory::class.java)
