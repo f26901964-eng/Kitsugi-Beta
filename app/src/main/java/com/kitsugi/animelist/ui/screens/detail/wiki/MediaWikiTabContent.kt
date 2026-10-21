@@ -1163,6 +1163,12 @@ private fun WikiItemSheet(
                     )
 
                     if (!description.isNullOrBlank()) {
+                        // Tam çeviri haritası blok akışı boyunca sürekli değişir; tarama
+                        // yalnızca harita değiştikçe çalışır (otomatik çeviri + kaydırma
+                        // kasıntısını önlemek için).
+                        val descriptionHasTranslation = remember(translations, key) {
+                            translations.hasWikiTranslation(key)
+                        }
                         WikiCard {
                             // Geçiş, etkilediği metnin kendi kartında durur. Önceden sayfa
                             // başlığının yanındaydı; uzun bilgi kutusundan sonra açıklamayı
@@ -1183,7 +1189,7 @@ private fun WikiItemSheet(
                                     preferredTranslator = preferredTranslator,
                                     accentColor = accentColor,
                                     isLoading = key in translatingKeys,
-                                    hasTranslation = translations.hasWikiTranslation(key),
+                                    hasTranslation = descriptionHasTranslation,
                                     showingOriginal = descriptionShowingOriginal,
                                     onToggleOriginal = { onToggleOriginal(key) }
                                 )
@@ -1628,16 +1634,24 @@ private fun ArticleSectionRow(
                                     style = MaterialTheme.typography.bodySmall
                                 )
                             } else {
+                                // Bölüm bazlı alt harita: başka bölümlerin çevirisi akarken
+                                // bu bölümün çizicisi (withTranslatedBlocks + buton taraması)
+                                // yeniden hesaplanmaz; yalnızca bu bölüm değiştiğinde çalışır.
+                                val sectionBaseKey = FandomMediaWikiViewModel.articleSectionKey(articleTitle, section.index)
+                                val sectionTranslations = remember(translations, sectionBaseKey) {
+                                    translations.wikiTranslationsFor(sectionBaseKey)
+                                }
+                                val sourceText = remember(state.content) { state.content.wikiTranslationSourceText() }
                                 Row(
                                     modifier = Modifier.fillMaxWidth(),
                                     horizontalArrangement = Arrangement.End
                                 ) {
                                     WikiTranslateButton(
-                                        text = state.content.wikiTranslationSourceText(),
+                                        text = sourceText,
                                         preferredTranslator = preferredTranslator,
                                         accentColor = accentColor,
                                         isLoading = translating,
-                                        hasTranslation = translations.hasWikiTranslation(FandomMediaWikiViewModel.articleSectionKey(articleTitle, section.index)),
+                                        hasTranslation = sectionTranslations.hasWikiTranslation(sectionBaseKey),
                                         showingOriginal = showingOriginal,
                                         onToggleOriginal = onToggleOriginal
                                     )
@@ -1645,8 +1659,8 @@ private fun ArticleSectionRow(
                                 ArticleSectionBody(
                                     content = state.content,
                                     translated = if (showingOriginal) null else translated,
-                                    baseKey = if (showingOriginal) "" else FandomMediaWikiViewModel.articleSectionKey(articleTitle, section.index),
-                                    translations = if (showingOriginal) emptyMap() else translations
+                                    baseKey = if (showingOriginal) "" else sectionBaseKey,
+                                    translations = if (showingOriginal) emptyMap() else sectionTranslations
                                 )
                             }
                         }

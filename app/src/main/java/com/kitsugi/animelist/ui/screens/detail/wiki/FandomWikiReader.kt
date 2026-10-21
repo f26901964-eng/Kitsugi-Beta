@@ -51,10 +51,10 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
-import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.withFrameNanos
@@ -175,7 +175,12 @@ internal fun FandomWikiReaderSheet(
     val hasBackStack = navigation.canGoBack
     var localGalleryItems by remember { mutableStateOf(emptyList<GalleryItem>()) }
     var localGalleryIndex by remember { mutableStateOf(0) }
-    val scrollPositions = remember { mutableStateMapOf<String, Int>() }
+    // Kaydırma konumları BİLEŞİM (snapshot) state'i DEĞİLDİR: `snapshotFlow` konumu her
+    // kaydırma karesinde yazar ve `initialScrollPosition` bileşimde okunur; harita state
+    // olsaydı sayfa OKUYUCU HER KAREDE yeniden bileşim girer, otomatik çeviri açıkken
+    // (çeviri taramaları + blok yeniden çizimi) bu kaydırmayla birleşip gözle görülür
+    // kasıntıya yol açardı. Konumlar yalnızca sekme değişiminde okunur; düz HashMap yeterli.
+    val scrollPositions = remember { HashMap<String, Int>() }
     val activeScrollKey = state?.let { page ->
         navigation.activeTabId?.let { tabId -> "$tabId:${page.wikiId}:${page.page.displayTitle}" }
     }
@@ -618,8 +623,16 @@ private fun ReaderContent(
             }
         }
     }
-    val translatedReaderKeys = readerKeys.filter { state.translations.hasWikiTranslation(it) }
-    val translatingReaderKeys = readerKeys.count { it in state.translatingKeys }
+    // ── Çeviri durumundan türetilen değerler ──────────────────────────────────
+    // Bu taramalar tam çeviri haritasını (blok akışı boyunca sürekli değişen) her
+    // bileşimde dolaşıyordu; otomatik çeviri açıkken kaydırmayla birleşince kasıntı
+    // üretiyordu. Yalnızca harita kimliği/değişimi değiştikçe yeniden hesaplanır.
+    val translatedReaderKeys = remember(state.translations, readerKeys) {
+        readerKeys.filter { state.translations.hasWikiTranslation(it) }
+    }
+    val translatingReaderKeys = remember(state.translatingKeys, readerKeys) {
+        readerKeys.count { it in state.translatingKeys }
+    }
     val pageShowingOriginal = translatedReaderKeys.isNotEmpty() &&
         translatedReaderKeys.all { it in state.originalKeys }
     val showTranslationBar = translatedReaderKeys.isNotEmpty() || translatingReaderKeys > 0
@@ -642,10 +655,21 @@ private fun ReaderContent(
     }
     var webPageUrl by remember(scrollKey) { mutableStateOf<String?>(null) }
     // Every HTTP(S) link stays inside the app, including File/Category/Help and other wikis.
-    val openTarget: (String) -> Unit = { url ->
-        FandomUrls.readerLinkTarget(url, state.wikiId, state.page.displayTitle)?.let { target ->
-            val articleTitle = target.articleTitle
-            if (articleTitle != null) onOpenLink(articleTitle) else webPageUrl = target.url
+    //
+    // performans: açıcı kimliği her bileşimde YENİDEN oluşturulursa `LocalFandomLinkOpener`
+    // değeri değişir ve okuyucudaki TÜM mavi metinler (`ReaderLinkedText`) geçersizleşip
+    // AnnotatedString'lerini yeniden kurar — otomatik çeviri akarken her çeviri güncellemesi
+    // tüm metinleri yeniden ölçtü. Kimlik, sayfaya (scrollKey = sekme+wiki+başlık) bağlı
+    // `remember` ile sabitlenir; güncel değerler `rememberUpdatedState` ile okunur.
+    val latestOnOpenLink by rememberUpdatedState(onOpenLink)
+    val pageWikiId = state.wikiId
+    val pageDisplayTitle = state.page.displayTitle
+    val openTarget: (String) -> Unit = remember(scrollKey, pageWikiId, pageDisplayTitle) {
+        { url: String ->
+            FandomUrls.readerLinkTarget(url, pageWikiId, pageDisplayTitle)?.let { target ->
+                val articleTitle = target.articleTitle
+                if (articleTitle != null) latestOnOpenLink(articleTitle) else webPageUrl = target.url
+            }
         }
     }
     webPageUrl?.let { url ->
@@ -1157,12 +1181,21 @@ private fun ReaderSectionContent(
                 }
             }
             else -> {
-                val sourceText = content.wikiTranslationSourceText()
+                // ── Bölüm bazlı çeviri alt haritası ──────────────────────────────
+                // Tam `translations` haritası her blok akışında değişir; bu bölümün
+                // çizicisi tam haritayı `remember` anahtarı alırsa BAŞKA bölümlerin
+                // çevirisi gelirken de tüm bloklar yeniden hesaplanır ve otomatik
+                // çeviri + kaydırma birleşince sayfa kasar. Alt harita yapısal eşitlik
+                // koruduğu için yalnızca BU bölümün çevirisi değiştiğinde yeniden hesaplanır.
+                val sectionTranslations = remember(translations, translationKey) {
+                    translations.wikiTranslationsFor(translationKey)
+                }
+                val sourceText = remember(content) { content.wikiTranslationSourceText() }
                 // YAPI KORUMASI: Çeviri blok blok yapıldığı için aynı yapılandırılmış çizici
                 // kullanılır. Görseller kendi konumunda kalır, madde/kart/alıntı düzeni ve
                 // bağlantılar (dokunma hedefleri) orijinaldekiyle birebir aynıdır.
-                val translatedContent = remember(content, translations, translationKey, showingOriginal) {
-                    if (showingOriginal) null else content.withTranslatedBlocks(translationKey, translations)
+                val translatedContent = remember(content, sectionTranslations, translationKey, showingOriginal) {
+                    if (showingOriginal) null else content.withTranslatedBlocks(translationKey, sectionTranslations)
                 }
                 // Yapı bilgisi olmayan (eski önbellek) düz metin çevirisi için yedek yol.
                 val flatTranslation = translatedText?.takeIf { content.blocks.isEmpty() }?.takeUnless {
@@ -1178,7 +1211,7 @@ private fun ReaderSectionContent(
                             preferredTranslator = preferredTranslator,
                             accentColor = accentColor,
                             isLoading = isTranslating,
-                            hasTranslation = translations.hasWikiTranslation(translationKey),
+                            hasTranslation = sectionTranslations.hasWikiTranslation(translationKey),
                             showingOriginal = showingOriginal,
                             onToggleOriginal = { onToggleOriginal(translationKey) }
                         )
@@ -1337,8 +1370,13 @@ private fun ReaderLinkedText(
         Text(text = text, color = color, style = style, fontWeight = fontWeight, modifier = modifier)
         return
     }
-    val annotated = remember(text, links, linkColor, openTarget) {
-        buildReaderLinkedText(text, links, linkColor, openTarget)
+    // AnnotatedString yalnızca METİN + BAĞLANTILAR değişince yeniden kurulur. Bağlantı
+    // açıcısının kimliği (bileşimde tazelendikçe) anahtar olursa otomatik çeviri akarken
+    // her güncellemede TÜM mavi metinler yeniden çizilir ve sayfa kaydırmada kasar.
+    // Açıcı, tıklama anında `rememberUpdatedState` üzerinden okunur.
+    val latestOpenTarget by rememberUpdatedState(openTarget)
+    val annotated = remember(text, links, linkColor) {
+        buildReaderLinkedText(text, links, linkColor) { url -> latestOpenTarget(url) }
     }
     Text(text = annotated, color = color, style = style, fontWeight = fontWeight, modifier = modifier)
 }

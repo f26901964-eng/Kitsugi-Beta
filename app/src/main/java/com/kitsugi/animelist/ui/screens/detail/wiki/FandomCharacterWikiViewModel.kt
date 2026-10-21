@@ -660,7 +660,9 @@ class FandomCharacterWikiViewModel(application: Application) : AndroidViewModel(
                             // "çevrildi/orijinal" düğmesi ilk blokla birlikte doğru duruma geçsin.
                             if (isAlive()) {
                                 _translations.update {
-                                    it + (childKey to value) + (key to WikiStructuredTranslationKeys.COMPLETE)
+                                    // Tek harita kopyası: akış sırasında her blok için iki
+                                    // tam kopya yerine bir kopya (büyük önbelleklerde GC baskısını düşürür).
+                                    it + (mapOf(childKey to value, key to WikiStructuredTranslationKeys.COMPLETE))
                                 }
                             }
                         }
@@ -670,7 +672,7 @@ class FandomCharacterWikiViewModel(application: Application) : AndroidViewModel(
                 if (entries.isEmpty()) {
                     clearTranslation(key)
                 } else {
-                    _translations.update { it + entries + (key to WikiStructuredTranslationKeys.COMPLETE) }
+                    _translations.update { it + (entries + (key to WikiStructuredTranslationKeys.COMPLETE)) }
                 }
             } catch (e: CancellationException) {
                 throw e

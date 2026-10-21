@@ -871,6 +871,14 @@ private fun WikiSectionRow(
                                     style = MaterialTheme.typography.bodySmall
                                 )
                             } else {
+                                // Bölüm bazlı alt harita: başka bölümlerin çevirisi akarken
+                                // bu bölümün çizicisi (withTranslatedBlocks + buton taraması)
+                                // yeniden hesaplanmaz; yalnızca bu bölüm değiştiğinde çalışır.
+                                val sectionBaseKey = sectionKey(section.index)
+                                val sectionTranslations = remember(translations, sectionBaseKey) {
+                                    translations.wikiTranslationsFor(sectionBaseKey)
+                                }
+                                val sourceText = remember(state.content) { state.content.wikiTranslationSourceText() }
                                 Row(
                                     modifier = Modifier.fillMaxWidth(),
                                     horizontalArrangement = Arrangement.End,
@@ -879,11 +887,11 @@ private fun WikiSectionRow(
                                     // Detay sayfasındaki açıklama düğmesiyle aynı: her zaman ikon,
                                     // dokununca bölümün orijinal metni harici uygulamada açılır.
                                     WikiTranslateButton(
-                                        text = state.content.wikiTranslationSourceText(),
+                                        text = sourceText,
                                         preferredTranslator = preferredTranslator,
                                         accentColor = accentColor,
                                         isLoading = translating,
-                                        hasTranslation = translations.hasWikiTranslation(sectionKey(section.index)),
+                                        hasTranslation = sectionTranslations.hasWikiTranslation(sectionBaseKey),
                                         showingOriginal = showingOriginal,
                                         onToggleOriginal = onToggleOriginal
                                     )
@@ -894,8 +902,8 @@ private fun WikiSectionRow(
                                             // kart sırası ve bağlantı adları orijinaldeki gibidir.
                                             onCopy(
                                                 state.content.copyTextFor(
-                                                    baseKey = sectionKey(section.index),
-                                                    translations = translations,
+                                                    baseKey = sectionBaseKey,
+                                                    translations = sectionTranslations,
                                                     showOriginal = showingOriginal || translated == null,
                                                     flatFallback = translated
                                                 )
@@ -912,8 +920,8 @@ private fun WikiSectionRow(
                                     onOpenLink = onOpenLink,
                                     onOpenWikiLink = onOpenWikiLink,
                                     gallerySource = gallerySource,
-                                    baseKey = sectionKey(section.index),
-                                    translations = translations
+                                    baseKey = sectionBaseKey,
+                                    translations = sectionTranslations
                                 )
                             }
                         }
