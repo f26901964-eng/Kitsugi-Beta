@@ -5842,6 +5842,9 @@
     <string name="pf_err_anl_2007_title">AniList record missing</string>
     <string name="pf_err_anl_2007_why">The matched AniList media id may have been deleted or merged into another entry.</string>
     <string name="pf_err_anl_2007_fix">Search and re-match the title.</string>
+    <string name="pf_err_anl_2008_title">AniList API temporarily disabled</string>
+    <string name="pf_err_anl_2008_why">AniList temporarily shuts down its GraphQL API during severe server stability incidents (HTTP 403/503 + \"temporarily disabled\"). Nothing is wrong with your account, permissions, or connection.</string>
+    <string name="pf_err_anl_2008_fix">Wait for AniList to recover; the app applies an automatic cooldown and falls back to alternative sources where supported.</string>
     <string name="pf_err_mal_3001_title">Jikan quota exceeded</string>
     <string name="pf_err_mal_3001_why">Jikan (the community API serving MAL data) is limited to 3 requests/second and 60 requests/minute. It returns 429 when the quota is used up.</string>
     <string name="pf_err_mal_3001_fix">Wait; the app applies the quota cooldown automatically.</string>
@@ -6654,6 +6657,7 @@
     <string name="profile_error_http_status">HTTP %1$d</string>
     <string name="profile_error_icon_description">Platform error</string>
     <string name="pf_err_anl_2002_profile_short">AniList temporarily limited requests. Wait a minute, then try again.</string>
+    <string name="pf_err_anl_2008_profile_short">The AniList API is temporarily disabled due to server stability issues. Please try again in a few minutes.</string>
 
     <!-- English Localization Completion — Hardcoded Strings (2026-10-11) -->
     <string name="account_auto_sync_title">%1$s Auto-Sync</string>

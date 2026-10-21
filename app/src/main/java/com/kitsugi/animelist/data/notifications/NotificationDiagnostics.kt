@@ -141,6 +141,11 @@ object NotificationDiagnostics {
             val errors = json?.optJSONArray("errors")
             if (errors != null && errors.length() > 0) {
                 val message = errors.optJSONObject(0)?.optString("message").orEmpty()
+                val isServiceDown = com.kitsugi.animelist.data.remote.KitsugiApiBase
+                    .extractAniListServiceDownMessage(message) != null
+                if (isServiceDown) {
+                    com.kitsugi.animelist.data.remote.KitsugiApiBase.recordAniListServiceDown(message, status)
+                }
                 return Row(
                     source = "AniList",
                     connected = true,
@@ -148,9 +153,13 @@ object NotificationDiagnostics {
                     ok = false,
                     httpStatus = status,
                     durationMs = duration,
-                    detail = "API hata döndürdü",
+                    detail = if (isServiceDown) "AniList API geçici olarak devre dışı" else "API hata döndürdü",
                     error = message.ifBlank { "Bilinmeyen GraphQL hatası" },
-                    hint = "Token süresi dolmuş olabilir; Ayarlar > Platformlar'dan yeniden giriş yapın."
+                    hint = if (isServiceDown) {
+                        "AniList sunucuları kararlılık sorunları nedeniyle geçici olarak kapalı; hesabınızda bir sorun yok."
+                    } else {
+                        "Token süresi dolmuş olabilir; Ayarlar > Platformlar'dan yeniden giriş yapın."
+                    }
                 )
             }
 

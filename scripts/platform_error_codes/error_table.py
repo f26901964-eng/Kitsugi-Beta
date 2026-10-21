@@ -314,6 +314,15 @@ CODES = [
             "The matched AniList media id may have been deleted or merged into another entry.",
             "Search and re-match the title."),
     ),
+    dict(
+        key="anl_2008", platform=ANILIST, severity="ERROR", retryable=True,
+        tr=("AniList API geçici olarak devre dışı",
+            "AniList sunucuları ciddi kararlılık sorunları yaşadığında GraphQL API'si sunucu tarafında geçici olarak kapatılır (HTTP 403/503 + \"temporarily disabled\"). Sorun hesabınızdan, izinlerinizden veya internetinizden kaynaklanmaz.",
+            "AniList servisi normale dönene kadar bekleyin; uygulama bu sürede otomatik soğuma uygular ve desteklenen ekranlarda yedek kaynaklara geçer."),
+        en=("AniList API temporarily disabled",
+            "AniList temporarily shuts down its GraphQL API during severe server stability incidents (HTTP 403/503 + \"temporarily disabled\"). Nothing is wrong with your account, permissions, or connection.",
+            "Wait for AniList to recover; the app applies an automatic cooldown and falls back to alternative sources where supported."),
+    ),
 
     # ═══════════════════ MyAnimeList / Jikan (MAL-30xx) ═══════════════════
     dict(

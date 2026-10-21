@@ -5844,6 +5844,9 @@ Eklentiler ekranından eklenti etkinleştirin.</string>
     <string name="pf_err_anl_2007_title">AniList kaydı bulunamadı</string>
     <string name="pf_err_anl_2007_why">Eşleşen AniList medya kimliği silinmiş veya başka bir kayıtla birleştirilmiş olabilir.</string>
     <string name="pf_err_anl_2007_fix">İçeriği yeniden arayıp eşleştirin.</string>
+    <string name="pf_err_anl_2008_title">AniList API geçici olarak devre dışı</string>
+    <string name="pf_err_anl_2008_why">AniList sunucuları ciddi kararlılık sorunları yaşadığında GraphQL API\'si sunucu tarafında geçici olarak kapatılır (HTTP 403/503 + \"temporarily disabled\"). Sorun hesabınızdan, izinlerinizden veya internetinizden kaynaklanmaz.</string>
+    <string name="pf_err_anl_2008_fix">AniList servisi normale dönene kadar bekleyin; uygulama bu sürede otomatik soğuma uygular ve desteklenen ekranlarda yedek kaynaklara geçer.</string>
     <string name="pf_err_mal_3001_title">Jikan kotası aşıldı</string>
     <string name="pf_err_mal_3001_why">Jikan (MAL verisini sunan topluluk API\'si) saniyede 3, dakikada 60 istekle sınırlı. Kota dolduğunda 429 döner.</string>
     <string name="pf_err_mal_3001_fix">Bekleyin; kota soğuması uygulama tarafından otomatik uygulanır.</string>
@@ -6659,6 +6662,7 @@ Eklentiler ekranından eklenti etkinleştirin.</string>
     <string name="profile_error_http_status">HTTP %1$d</string>
     <string name="profile_error_icon_description">Platform hatası</string>
     <string name="pf_err_anl_2002_profile_short">AniList istekleri geçici olarak sınırladı. Bir dakika bekleyip yeniden deneyin.</string>
+    <string name="pf_err_anl_2008_profile_short">AniList API\'si sunucu kararlılık sorunları nedeniyle geçici olarak devre dışı bırakıldı. Birkaç dakika sonra yeniden deneyin.</string>
 
     <!-- İngilizce Dil Tamamlama — Hardcoded Metinler (2026-10-11) -->
     <string name="account_auto_sync_title">%1$s Otomatik Eşitleme</string>

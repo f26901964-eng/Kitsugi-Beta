@@ -664,11 +664,19 @@ class KitsugiUserProfileViewModel(application: Application) : AndroidViewModel(a
                 requestBuilder.header("Authorization", "Bearer $token")
             }
 
-            val response = client.newCall(requestBuilder.build()).execute()
-            if (!response.isSuccessful) {
-                throw Exception("HTTP ${response.code}: ${response.message}")
+            com.kitsugi.animelist.core.network.KitsugiHttpClient.aniListClient.newCall(requestBuilder.build()).execute().use { response ->
+                val bodyText = runCatching { response.body?.string() }.getOrNull()
+                com.kitsugi.animelist.data.remote.KitsugiApiBase
+                    .extractAniListServiceDownMessage(bodyText)
+                    ?.let { downMsg ->
+                        throw com.kitsugi.animelist.data.remote.KitsugiApiBase
+                            .recordAniListServiceDown(downMsg, response.code)
+                    }
+                if (!response.isSuccessful) {
+                    throw Exception("HTTP ${response.code}: ${response.message}")
+                }
+                bodyText ?: throw Exception(KitsugiStrings.get(R.string.profile_empty_response))
             }
-            response.body?.string() ?: throw Exception(KitsugiStrings.get(R.string.profile_empty_response))
         }
     }
 }

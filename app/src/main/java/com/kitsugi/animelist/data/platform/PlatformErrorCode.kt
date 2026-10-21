@@ -328,6 +328,15 @@ enum class PlatformErrorCode(
         fixRes = R.string.pf_err_anl_2007_fix,
         retryable = false
     ),
+    ANL_2008(
+        code = "KTS-ANL-2008",
+        platform = ListPlatform.ANILIST,
+        severity = PlatformErrorSeverity.ERROR,
+        titleRes = R.string.pf_err_anl_2008_title,
+        whyRes = R.string.pf_err_anl_2008_why,
+        fixRes = R.string.pf_err_anl_2008_fix,
+        retryable = true
+    ),
 
     // ── MyAnimeList + Jikan ──
     MAL_3001(

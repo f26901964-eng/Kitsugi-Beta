@@ -87,4 +87,54 @@ class PlatformFailureRegistryTest {
         assertEquals(PlatformErrorCode.COM_1005, code)
         assertEquals(PlatformErrorCode.COM_1005, PlatformFailureRegistry.latest("simkl")?.code)
     }
+
+    @Test
+    fun anilistServiceDownIsClassifiedAsAnl2008EvenOnHttp403OrGenericPlatform() {
+        val downEx = com.kitsugi.animelist.data.remote.AniListServiceDownException(
+            "AniList API geçici olarak devre dışı: The AniList API has been temporarily disabled due to severe stability issues."
+        )
+        assertEquals(
+            PlatformErrorCode.ANL_2008,
+            PlatformErrorCatalog.classify(
+                platform = ListPlatform.ANILIST,
+                error = downEx,
+                httpCode = 403,
+            )
+        )
+        assertEquals(
+            PlatformErrorCode.ANL_2008,
+            PlatformErrorCatalog.classify(error = downEx)
+        )
+    }
+
+    @Test
+    fun emptyOrUnclassifiedFollowUpReportDoesNotOverwriteFreshConcreteFailure() {
+        PlatformFailureRegistry.report(
+            platformLabel = "anilist",
+            httpCode = 403,
+            rawMessage = "AniList API geçici olarak devre dışı: The AniList API has been temporarily disabled due to severe stability issues.",
+        )
+        assertEquals(PlatformErrorCode.ANL_2008, PlatformFailureRegistry.latest("AniList")?.code)
+
+        // Üst katman boş hata (null) veya belirsiz sarmalayıcı bildirse bile ANL_2008 korunur.
+        assertEquals(PlatformErrorCode.ANL_2008, PlatformFailureRegistry.reportAndResolve("AniList", null))
+        assertEquals(
+            PlatformErrorCode.ANL_2008,
+            PlatformFailureRegistry.reportAndResolve("AniList", RuntimeException("AniList bildirim isteği yanıtsız kaldı"))
+        )
+    }
+
+    @Test
+    fun extractAniListServiceDownMessageParsesGraphQlOutagePayload() {
+        val json403 = """{"data":null,"errors":[{"message":"The AniList API has been temporarily disabled due to severe stability issues.","status":403}]}"""
+        assertEquals(
+            "The AniList API has been temporarily disabled due to severe stability issues.",
+            com.kitsugi.animelist.data.remote.KitsugiApiBase.extractAniListServiceDownMessage(json403)
+        )
+        assertNull(
+            com.kitsugi.animelist.data.remote.KitsugiApiBase.extractAniListServiceDownMessage(
+                """{"errors":[{"message":"Invalid token","status":401}]}"""
+            )
+        )
+    }
 }

@@ -1248,13 +1248,19 @@ class KitsugiProfileViewModel(application: Application) : AndroidViewModel(appli
                 .header("Authorization", "Bearer $token")
                 .build()
 
-            client.newCall(request).execute().use { response ->
+            com.kitsugi.animelist.core.network.KitsugiHttpClient.aniListClient.newCall(request).execute().use { response ->
+                val bodyText = runCatching { response.body?.string() ?: "" }.getOrDefault("")
+                com.kitsugi.animelist.data.remote.KitsugiApiBase
+                    .extractAniListServiceDownMessage(bodyText)
+                    ?.let { downMsg ->
+                        throw com.kitsugi.animelist.data.remote.KitsugiApiBase
+                            .recordAniListServiceDown(downMsg, response.code)
+                    }
                 if (!response.isSuccessful) {
-                    // Keep the response body out of exceptions and user-facing state; it may be raw JSON.
-                    response.body?.close()
+                    // Keep raw JSON payloads out of user-facing exceptions when it's a normal HTTP error.
                     throw PlatformHttpException(response.code, "AniList profile request failed")
                 }
-                response.body?.string() ?: ""
+                bodyText
             }
         }
     }

@@ -49,6 +49,9 @@ object PlatformFailureRegistry {
         if (error is kotlinx.coroutines.CancellationException) return null
         val platform = ListPlatform.fromLabel(platformLabel)
         if (platform == ListPlatform.GENERIC) return null
+        if (error == null && httpCode == null && rawMessage.isNullOrBlank()) {
+            return latest(platformLabel)?.code
+        }
         return record(platform, error, httpCode, rawMessage)
     }
 
@@ -120,16 +123,28 @@ object PlatformFailureRegistry {
         httpCode: Int?,
         rawMessage: String?,
     ): PlatformErrorCode {
+        val now = System.currentTimeMillis()
         val code = PlatformErrorCatalog.classify(
             platform = platform,
             error = error,
             httpCode = httpCode,
             rawMessage = rawMessage,
         )
+        // Ağ katmanının kaydettiği somut HTTP/platform kodunu üst katmandaki sarmalanmış
+        // belirsiz (COM_1020) hata ile ezme; taze somut tanı her zaman daha değerlidir.
+        if (code == PlatformErrorCode.COM_1020) {
+            val existing = latestByPlatform[platform]
+            if (existing != null &&
+                existing.code != PlatformErrorCode.COM_1020 &&
+                now - existing.atMillis <= DEFAULT_MAX_AGE_MS
+            ) {
+                return existing.code
+            }
+        }
         latestByPlatform[platform] = Failure(
             code = code,
             rawReason = rawMessage?.takeIf { it.isNotBlank() } ?: error?.message,
-            atMillis = System.currentTimeMillis(),
+            atMillis = now,
         )
         return code
     }
