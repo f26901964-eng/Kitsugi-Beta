@@ -153,3 +153,11 @@ notlarını oku; sırf sayı tamamlamak için tahminî romanizasyon/çeviri yapm
 Güncel main tabanına taşınan bu devamın PR'ı **#31**'dir:
 https://github.com/f26901964-eng/Kitsugi-Beta/pull/31. Eski PR #30, farklı sabit olmayan head dalında
 (`arena/e29a309c-kitsugi-beta`) açık kaldı; bu oturumun kod değişikliği #31'de.
+
+### 007_b ek devamı (2026-10-21)
+
+İkinci tag batch'inde count 18→16 aralığından üç net kavram daha çevrildi:
+`轮奸` → Toplu Tecavüz / Gang Rape, `剧情性` → Olay Örgüsü Odaklı / Plot-Driven,
+`❀一般向け` → Genel Kitleye Yönelik / General Audience. `canon.tsv`, translations ledger ve
+vault/strings sözlüğü senkron; zincir yeşil ve yeni XML ID yok. Kalan 007_b–007_i CJK `as_is`
+sayısı 43.310; count 15'ten devam et, özel adları ve fandom jargonunu çevirme.

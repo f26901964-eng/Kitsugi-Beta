@@ -1126,3 +1126,18 @@ ilerletildi; PR #30 başlığı/HEAD'i ayrı `arena/e29a309c-kitsugi-beta` dalı
 
 PR #30 (`arena/e29a309c-kitsugi-beta`) açık bırakıldı. Güncel main tabanındaki bu port ve yeni
 batch'ler için aktif dal üzerinden **PR #31** açıldı: https://github.com/f26901964-eng/Kitsugi-Beta/pull/31.
+
+## 2l) 009 serisi devam — tag 007b batch 002 (2026-10-21)
+
+Count azalan sırada 007_b'den üç açık kavram işlendi; hepsi yerinde `origin=new` güncellemesi,
+yeni XML ID yok:
+- `轮奸` → **Toplu Tecavüz / Gang Rape** (açık içerik kavramı).
+- `剧情性` → **Olay Örgüsü Odaklı / Plot-Driven**.
+- `❀一般向け` → **Genel Kitleye Yönelik / General Audience**.
+
+Batch dosyası `worklists/009_decisions_007b_tags_002.tsv`; zorunlu mirror-repair ayrı repair
+worklist'iyle çalıştırıldı (ayna satırı farkı yok). Apply-map → strings → vault → MASTER → gen
+`--check` → meta coverage zinciri tamamı yeşil; son sayılar değişmedi:
+106580 / 106335 / 121284 / 121284, MASTER 0 çakışma ve TR/EN 112812 simetrik, coverage 158/158.
+`translations_done.tsv` üç mevcut satırda güncellendi; pending 0. 007_b–007_i havuzunda
+kalan CJK `as_is`: **43.310** (hedef/kota değil; adlar ve fandom jargonu korunur).
