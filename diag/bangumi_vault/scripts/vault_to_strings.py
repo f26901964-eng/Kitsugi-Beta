@@ -206,8 +206,15 @@ def build_block(items: list[tuple[str, str]]) -> str:
     return "\n".join(lines)
 
 
+_STRING_LINE_RE = re.compile(r'^(\s*<string name="([^"]+)">)(.*?)(</string>\s*)$')
+
+
 def patch_strings(source: str, values: dict[str, str]) -> tuple[str, int, int]:
-    """VAULT bloğunu yazar/günceller. (yeni kaynak, eklenen, güncellenen)"""
+    """VAULT bloğunu yazar/günceller. (yeni kaynak, eklenen, güncellenen)
+
+    Blok içeriğini tek geçişte satır satır ayrıştırarak günceller — her `<string>`
+    için ayrı ayrı regex derlenip çalıştırılmaz (büyük bloklarda O(N·M) patlar).
+    """
     present = set(re.findall(r'<string name="([^"]+)"', source))
     added = updated = 0
 
@@ -215,18 +222,29 @@ def patch_strings(source: str, values: dict[str, str]) -> tuple[str, int, int]:
         start = source.index(BLOCK_MARKER)
         end = source.index("</resources>", start)
         block = source[start:end]
-        for name, value in values.items():
-            pat = re.compile(r'(<string name="%s">)(.*?)(</string>)' % re.escape(name))
-            m = pat.search(block)
-            if m and m.group(2) != xml_escape(value):
-                block = block[:m.start()] + m.group(1) + xml_escape(value) + m.group(3) + block[m.end():]
-                updated += 1
-        new_items = [(n, v) for n, v in values.items() if n not in present]
-        insert = build_block(new_items)
+        new_lines: list[str] = []
+        in_block = True
+        seen_block_keys: set[str] = set()
+        # Bloğu satır satır dolaş; yalnız name values'de varsa değerini değiştir
+        for line in block.split("\n"):
+            m = _STRING_LINE_RE.match(line)
+            if m:
+                open_tag, name, val, close_tag = m.group(1), m.group(2), m.group(3), m.group(4)
+                seen_block_keys.add(name)
+                if name in values:
+                    want = xml_escape(values[name])
+                    if val != want:
+                        line = f"{open_tag}{want}{close_tag}"
+                        updated += 1
+            new_lines.append(line)
+        # Eksik (blokta olmayan) yeni anahtarları bloğun sonuna ekle
+        new_items = [(n, v) for n, v in values.items() if n not in seen_block_keys]
         added = len(new_items)
-        if insert:
-            block = block.rstrip("\n") + "\n" + insert
-        return source[:start] + block + source[end:], added, updated
+        if new_items:
+            tail = "\n".join(new_lines).rstrip("\n")
+            new_lines = (tail + "\n" + build_block(new_items) + "\n").split("\n")
+        rebuilt_block = "\n".join(new_lines)
+        return source[:start] + rebuilt_block + source[end:], added, updated
 
     new_items = [(n, values[n]) for n in sorted(values) if n not in present]
     added = len(new_items)
@@ -254,6 +272,9 @@ print(f"strings.xml: TR +{a1} / ~{u1} | EN +{a2} / ~{u2}")
 # ── 3) BangumiTagDictionary.kt ───────────────────────────────────────────────
 
 
+_TAG_G_LINE_RE = re.compile(r'^(?P<indent>\s*)g\("(?P<cid>[a-z0-9_]+)",(?P<body>.*)\)\s*,?\s*$')
+
+
 def patch_tag_dict(source: str) -> tuple[str, int, int]:
     added_groups = added_labels = 0
     known = set(re.findall(r'\bg\("([a-z0-9_]+)"', source))
@@ -263,22 +284,37 @@ def patch_tag_dict(source: str) -> tuple[str, int, int]:
     # falls back to this group's TR/EN values. Keep tag entries separate from
     # org entries so a cross-role string_key cannot suppress the tag group.
 
-    # (a) mevcut gruplara etiket ekle
-    for cid in sorted(tag_entries):
-        e = tag_entries[cid]
-        if cid not in known:
-            continue
-        pat = re.compile(r'^(?P<indent>\s*)g\("%s",(?P<body>.*)\)\s*,?\s*$' % re.escape(cid), re.M)
-        m = pat.search(source)
-        if not m:
-            continue
-        body = m.group("body")
-        have = set(re.findall(r'"([^"]*)"', body))
-        extra = [l for l in e["labels"] if l not in have]
-        if extra:
-            appended = "".join(', "%s"' % kotlin_escape(l) for l in extra)
-            source = source[:m.end("body")].rstrip() + appended + source[m.end("body"):]
-            added_labels += len(extra)
+    # (a) mevcut gruplara etiket ekle — TEK GEÇİŞTE satır satır (N×regex yerine)
+    pending = {cid: e for cid, e in tag_entries.items() if cid in known}
+    if pending:
+        out_lines = []
+        for line in source.split("\n"):
+            m = _TAG_G_LINE_RE.match(line)
+            if m and m.group("cid") in pending:
+                cid = m.group("cid")
+                e = pending[cid]
+                # body alanı, açılıştaki iki argümandan ("tr", "en") sonraki ", "lab""ları içerir
+                body = m.group("body")
+                # Mevcut etiketleri saymak için body içindeki tüm "..." parçalarını al
+                have = set(re.findall(r'"((?:[^"\\]|\\.)*)"', body))
+                extra = [l for l in e["labels"] if l not in have]
+                if extra:
+                    appended = "".join(', "%s"' % kotlin_escape(l) for l in extra)
+                    # body sonuna ekle; `body` kapanış `)`'dan önceki kısımdır
+                    # m.end("body") body'nin son byte'ını, yani `)`'dan hemen öncesini gösterir
+                    # Satır orijinali üzerinden konum hesapla:
+                    body_start = m.start("body")
+                    body_end_in_line = m.end("body")
+                    # Body kapanan parantezden hemen önce biter ama regex `\)`'ı tüketmediği
+                    # için body'in sonuna ekleyip orijinal `)`'ı korumalıyız.
+                    # Ancak `(?P<body>.*)` greedy `)`'dan önce durur, dolayısıyla body sonu
+                    # `)`'ın tam başlangıcıdır.
+                    line = (line[:body_end_in_line].rstrip()
+                            + appended
+                            + line[body_end_in_line:])
+                    added_labels += len(extra)
+            out_lines.append(line)
+        source = "\n".join(out_lines)
 
     # (b) yeni gruplar (canon id'si sözlükte olmayanlar)
     new_lines = []
