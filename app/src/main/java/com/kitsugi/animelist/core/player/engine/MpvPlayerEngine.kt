@@ -48,6 +48,10 @@ class MpvPlayerEngine(
     private var ducked = false
     private var customButtonsLoaded = false
     private var statisticsPageApplied = 0
+    /** Konum bildirimlerini 4 Hz'e indiren damga (bkz. [notifyPositionChanged]). */
+    private var lastPositionNotifyAtMs = 0L
+    /** Görüntü çıkışını (vo) kuran ağır init seçenekleri yalnızca bir kez uygulanır. */
+    private var initOptionsApplied = false
     private var focusController: com.kitsugi.animelist.core.player.MpvAudioFocusController? = null
     private fun audioFocus(): com.kitsugi.animelist.core.player.MpvAudioFocusController =
         focusController ?: com.kitsugi.animelist.core.player.MpvAudioFocusController(
@@ -115,6 +119,18 @@ class MpvPlayerEngine(
     override val supportsSubtitleSpeed: Boolean get() = true
     override val supportsVideoFilters: Boolean get() = true
     override val supportsNegativeAudioDelay: Boolean get() = true
+
+    /**
+     * MPV'de ses açılırken video parçasının hiç seçilmemesi sessiz bir hatadır: ses devam
+     * eder, süre ilerler, ekran siyah kalır. Küçük oynatıcı bekçisi bunu görebilsin diye
+     * seçili video parçası durumu doğrudan libmpv'den okunur.
+     */
+    override val hasVideoTrack: Boolean
+        get() {
+            if (released) return false
+            val view = mpvView ?: return false
+            return runCatching { view.isVideoOutputActiveNow() }.getOrDefault(false)
+        }
     override var currentState: PlayerEngine.State = PlayerEngine.State.IDLE
         private set
 
@@ -309,7 +325,7 @@ class MpvPlayerEngine(
             mpvView?.seekToMs(positionMs)
         }
         currentPosition = positionMs
-        notifyPositionChanged()
+        notifyPositionChanged(force = true)
     }
 
     override fun setPlaybackSpeed(speed: Float) {
@@ -684,7 +700,7 @@ class MpvPlayerEngine(
                 val durMs = (value * 1000).toLong().coerceAtLeast(0L)
                 if (durMs != duration) {
                     duration = durMs
-                    notifyPositionChanged()
+                    notifyPositionChanged(force = true)
                 }
             }
             "speed" -> {
@@ -796,21 +812,40 @@ class MpvPlayerEngine(
             runCatching { view.mpv.setPropertyString(name, value) }
                 .onFailure { Log.w(TAG, "MPV option $name could not be applied: ${it.message}") }
         }
-        option("vo", settings.mpvGpuRenderer.ifBlank { "gpu" })
+        // ── Her yüklemede güvenle yeniden uygulanabilenler ────────────────────
+        // Ayarlar kullanıcı tarafından değiştirilebildiği için bunlar her prepare'da
+        // tazelenir; hiçbiri görüntü çıkışını yeniden kurmaz.
         option("speed", _currentSpeed.toString())
-        option("hwdec", settings.mpvHwdecMode.ifBlank { "auto-safe" })
         option("deband", if (settings.mpvDebandMode == "gpu") "yes" else "no")
         option("vf", MpvPlaybackPolicy.videoFilters(settings.mpvDebandMode, settings.mpvForceYuv420p))
-        if (settings.mpvDemuxerCacheMb > 0) {
-            option("demuxer-max-bytes", "${settings.mpvDemuxerCacheMb}MiB")
-            option("demuxer-max-back-bytes", "${(settings.mpvDemuxerCacheMb / 4).coerceAtLeast(8)}MiB")
-        }
         option("volume-max", settings.volumeBoostCap.coerceIn(100, 200).toString())
         option("alang", settings.preferredAudioLanguages)
         option("audio-pitch-correction", if (settings.audioPitchCorrection) "yes" else "no")
         val channels = settings.audioChannels
         option("audio-channels", if (channels == com.kitsugi.animelist.ui.screens.fullscreen.AudioChannels.ReverseStereo) "stereo" else channels.value)
         option("af", if (channels == com.kitsugi.animelist.ui.screens.fullscreen.AudioChannels.ReverseStereo) channels.value else "")
+        // Aniyomi VideoFilters: tum filtreler baslangicta uygulanir (brightness/saturation/contrast/gamma/hue)
+        runCatching {
+            val json = org.json.JSONObject(settings.videoFiltersJson)
+            com.kitsugi.animelist.ui.screens.fullscreen.KitsugiVideoFilters.entries.forEach { filter ->
+                val v = json.optInt(filter.mpvProperty, 0)
+                if (v != 0) view.mpv.setPropertyInt(filter.mpvProperty, v.coerceIn(-100, 100))
+            }
+        }
+
+        // ── Görüntü/ses çıkışını kuranlar: YALNIZCA BİR KEZ ───────────────────
+        // `vo` çalışma anında yazıldığında libmpv video çıkışını baştan kurar. Bu blok
+        // hem createVideoView hem prepare() tarafından çağrıldığı için her videoda VO iki
+        // kez kuruluyordu; bu da küçük oynatıcı açılırken siyah kare / ilk saniyelerde
+        // donma olarak görünüyordu. Motor ömrü boyunca bir kez uygulanır.
+        if (initOptionsApplied) return
+        initOptionsApplied = true
+        option("vo", settings.mpvGpuRenderer.ifBlank { "gpu" })
+        option("hwdec", settings.mpvHwdecMode.ifBlank { "auto-safe" })
+        if (settings.mpvDemuxerCacheMb > 0) {
+            option("demuxer-max-bytes", "${settings.mpvDemuxerCacheMb}MiB")
+            option("demuxer-max-back-bytes", "${(settings.mpvDemuxerCacheMb / 4).coerceAtLeast(8)}MiB")
+        }
         option("cache", "yes")
         option("network-timeout", "30")
         // Aniyomi paritesi: ek MPV init secenekleri
@@ -824,14 +859,6 @@ class MpvPlayerEngine(
             val screenshotDir = android.os.Environment.getExternalStoragePublicDirectory(android.os.Environment.DIRECTORY_PICTURES)
             screenshotDir.mkdirs()
             view.mpv.setPropertyString("screenshot-directory", screenshotDir.path)
-        }
-        // Aniyomi VideoFilters: tum filtreler baslangicta uygulanir (brightness/saturation/contrast/gamma/hue)
-        runCatching {
-            val json = org.json.JSONObject(settings.videoFiltersJson)
-            com.kitsugi.animelist.ui.screens.fullscreen.KitsugiVideoFilters.entries.forEach { filter ->
-                val v = json.optInt(filter.mpvProperty, 0)
-                if (v != 0) view.mpv.setPropertyInt(filter.mpvProperty, v.coerceIn(-100, 100))
-            }
         }
 
         // Aniyomi AdvancedPlayerPreferences: kullanici mpv.conf / input.conf
@@ -931,6 +958,8 @@ class MpvPlayerEngine(
             it.onSecondarySubtitleChanged(-1)
         }
         hasExternalAudio = !audioUrl.isNullOrBlank()
+        lastPositionNotifyAtMs = 0L
+        notifyPositionChanged(force = true)
     }
 
     /** Ayrı ses akışını (audioUrl) MPV'ye ses parçası olarak ekler ve seçer. */
@@ -990,6 +1019,21 @@ class MpvPlayerEngine(
     }
 
     private fun notifyPositionChanged() {
+        notifyPositionChanged(force = false)
+    }
+
+    /**
+     * MPV, `time-pos` özelliğini her karede değiştirir; dinleyicilere olduğu gibi
+     * iletildiğinde küçük (inline) oynatıcı saniyede ~60 kez Compose durumu yazıyor,
+     * bu da detay sayfasını kaydırırken görünen "kasıyor / donuyor" tablosunun ana
+     * kaynağı oluyordu. Arayüz için 4 Hz yeterlidir; seek ve yükleme gibi anlık
+     * geri bildirim gereken yerler [force] = true ile anında iletilir.
+     */
+    private fun notifyPositionChanged(force: Boolean) {
+        if (released) return
+        val now = android.os.SystemClock.elapsedRealtime()
+        if (!force && now - lastPositionNotifyAtMs < POSITION_NOTIFY_INTERVAL_MS) return
+        lastPositionNotifyAtMs = now
         listeners.forEach { it.onPositionChanged(currentPosition, duration) }
     }
 
@@ -1181,6 +1225,11 @@ class MpvPlayerEngine(
         runCatching {
             mpvView?.mpv?.command(*command)
         }
+    }
+
+    private companion object {
+        /** Konum dinleyicilerine gönderim aralığı — arayüz için 4 Hz yeterli. */
+        const val POSITION_NOTIFY_INTERVAL_MS = 250L
     }
 }
 

@@ -13,4 +13,47 @@
     <string name="player_font_scale">Subtitle scale: %1$.2fx</string>
     <string name="player_sub_position">Subtitle position: %1$d</string>
     <string name="player_border_style">Subtitle border style</string>
+
+    <!-- Grouped advanced player settings -->
+    <string name="player_advanced_audio">Audio and language</string>
+    <string name="player_advanced_pitch">Preserve audio pitch</string>
+    <string name="player_advanced_border_outline">Outline and shadow</string>
+    <string name="player_advanced_border_opaque">Opaque box</string>
+    <string name="player_advanced_border_background">Background box</string>
+    <string name="player_advanced_subtitles">Subtitle preferences</string>
+    <string name="player_advanced_ass">Override ASS style</string>
+    <string name="player_advanced_hide_time">Hide controls after: %1$d s</string>
+    <string name="player_advanced_opacity">Panel / menu opacity: %1$d%%</string>
+    <string name="player_advanced_appearance">Appearance and controls</string>
+    <string name="player_advanced_loading">Show loading indicator</string>
+    <string name="player_advanced_chapter">Show current chapter title</string>
+    <string name="player_advanced_remaining">Show remaining time (-MM:SS)</string>
+    <string name="player_advanced_volume">Show volume as a percentage</string>
+    <string name="player_advanced_seek">Show seek bar during gestures</string>
+    <string name="player_advanced_motion">Reduce player motion</string>
+    <string name="player_advanced_status">Show system status bar</string>
+    <string name="player_advanced_cutout">Use display cutout area</string>
+    <string name="player_advanced_scrobble">Mark as watched at: %1$d%%</string>
+    <string name="player_advanced_memory">Playback and memory</string>
+    <string name="player_advanced_position">Remember playback position</string>
+    <string name="player_advanced_brightness">Remember brightness</string>
+    <string name="player_advanced_remember_volume">Remember volume</string>
+    <string name="player_advanced_pip">Picture in picture (PiP)</string>
+    <string name="player_advanced_pip_toasts">Show episode change notifications in PiP</string>
+    <string name="player_advanced_pip_exit">Enter PiP when going home</string>
+    <string name="player_advanced_skip_wait">Auto-skip countdown: %1$d s</string>
+    <string name="player_advanced_skipping">Intro skipping</string>
+    <string name="player_advanced_skip_button">Show skip intro button</string>
+    <string name="player_advanced_skip_chapters">Disable AniSkip when embedded chapters exist</string>
+    <string name="player_advanced_skip_auto">Auto-skip with countdown</string>
+    <string name="player_advanced_gesture_seek">Seek</string>
+    <string name="player_advanced_gesture_play">Play / pause</string>
+    <string name="player_advanced_gesture_custom">Custom button</string>
+    <string name="player_advanced_gesture_sub">Switch subtitles</string>
+    <string name="player_advanced_gesture_none">Off</string>
+    <string name="player_advanced_gestures">Double-tap gestures</string>
+    <string name="player_advanced_tap_left">Left area</string>
+    <string name="player_advanced_tap_center">Center area</string>
+    <string name="player_advanced_tap_right">Right area</string>
+    <string name="player_advanced_not_set">Not set</string>
 </resources>

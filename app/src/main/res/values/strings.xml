@@ -6822,6 +6822,12 @@ Eklentiler ekranından eklenti etkinleştirin.</string>
     <string name="downloads_image_deleted">Image deleted: %1$s</string>
     <string name="downloads_image_items_count">%1$d images</string>
     <string name="downloads_images_count">Resimler (%1$d)</string>
+    <string name="downloads_delete_group_title">Tüm resimler silinsin mi?</string>
+    <string name="downloads_delete_group_message">Bu içeriğe ait %1$d indirilmiş resim kalıcı olarak silinecek.</string>
+    <string name="downloads_delete_confirm_prompt">Silmek için sistem onayı gerekiyor…</string>
+    <string name="downloads_delete_cancelled">Silme iptal edildi.</string>
+    <string name="downloads_delete_permission_needed">Bu dosya yalnızca sistem onayıyla silinebilir; izin verilmedi.</string>
+    <string name="downloads_subtitle_delete_failed">Altyazı silinemedi: %1$s</string>
     <string name="downloads_images_delete_failed">Could not delete images.</string>
     <string name="downloads_images_deleted">%1$d images deleted.</string>
     <string name="downloads_open_folder_chooser">Klasörü dosya yöneticisiyle aç</string>

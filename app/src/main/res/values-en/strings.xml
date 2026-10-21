@@ -6817,6 +6817,12 @@
     <string name="downloads_image_deleted">Image deleted: %1$s</string>
     <string name="downloads_image_items_count">%1$d images</string>
     <string name="downloads_images_count">Images (%1$d)</string>
+    <string name="downloads_delete_group_title">Delete all images?</string>
+    <string name="downloads_delete_group_message">%1$d downloaded images for this title will be permanently deleted.</string>
+    <string name="downloads_delete_confirm_prompt">System confirmation is required to delete…</string>
+    <string name="downloads_delete_cancelled">Deletion cancelled.</string>
+    <string name="downloads_delete_permission_needed">This file can only be deleted with system confirmation; permission was not granted.</string>
+    <string name="downloads_subtitle_delete_failed">Could not delete subtitle: %1$s</string>
     <string name="downloads_images_delete_failed">Could not delete images.</string>
     <string name="downloads_images_deleted">%1$d images deleted.</string>
     <string name="downloads_open_folder_chooser">Open folder with a file manager</string>

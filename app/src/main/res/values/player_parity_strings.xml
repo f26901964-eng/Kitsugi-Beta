@@ -10,4 +10,47 @@
     <string name="player_font_scale">Altyazı ölçeği: %1$.2fx</string>
     <string name="player_sub_position">Altyazı konumu: %1$d</string>
     <string name="player_border_style">Altyazı kenarlık stili</string>
+
+    <!-- Grouped advanced player settings -->
+    <string name="player_advanced_audio">Ses ve dil</string>
+    <string name="player_advanced_pitch">Ses perdesini koru</string>
+    <string name="player_advanced_border_outline">Kenarlık ve gölge</string>
+    <string name="player_advanced_border_opaque">Opak kutu</string>
+    <string name="player_advanced_border_background">Arka plan kutusu</string>
+    <string name="player_advanced_subtitles">Altyazı tercihleri</string>
+    <string name="player_advanced_ass">ASS stilini geçersiz kıl</string>
+    <string name="player_advanced_hide_time">Kontrolleri gizleme süresi: %1$d sn</string>
+    <string name="player_advanced_opacity">Panel / menü opaklığı: %1$d%%</string>
+    <string name="player_advanced_appearance">Görünüm ve kontroller</string>
+    <string name="player_advanced_loading">Yükleme halkasını göster</string>
+    <string name="player_advanced_chapter">Aktif bölüm başlığını göster</string>
+    <string name="player_advanced_remaining">Kalan süreyi ters göster (-DK:SN)</string>
+    <string name="player_advanced_volume">Ses seviyesini yüzde olarak göster</string>
+    <string name="player_advanced_seek">Kaydırırken ilerleme çubuğunu göster</string>
+    <string name="player_advanced_motion">Oynatıcı animasyonlarını azalt</string>
+    <string name="player_advanced_status">Sistem durum çubuğunu göster</string>
+    <string name="player_advanced_cutout">Çentik alanını kullan</string>
+    <string name="player_advanced_scrobble">İzlendi işaretleme eşiği: %1$d%%</string>
+    <string name="player_advanced_memory">İzleme ve hatırlama</string>
+    <string name="player_advanced_position">İzleme konumunu hatırla</string>
+    <string name="player_advanced_brightness">Son parlaklık değerini hatırla</string>
+    <string name="player_advanced_remember_volume">Son ses seviyesini hatırla</string>
+    <string name="player_advanced_pip">Resim içinde resim (PiP)</string>
+    <string name="player_advanced_pip_toasts">PiP bölüm geçiş bildirimi</string>
+    <string name="player_advanced_pip_exit">Ana ekrana dönerken otomatik PiP</string>
+    <string name="player_advanced_skip_wait">Otomatik atlama bekleme süresi: %1$d sn</string>
+    <string name="player_advanced_skipping">Giriş atlama</string>
+    <string name="player_advanced_skip_button">Giriş atlama butonunu göster</string>
+    <string name="player_advanced_skip_chapters">Gömülü bölümler varsa AniSkip’i devre dışı bırak</string>
+    <string name="player_advanced_skip_auto">Geri sayımlı otomatik atlama</string>
+    <string name="player_advanced_gesture_seek">Sar</string>
+    <string name="player_advanced_gesture_play">Oynat / duraklat</string>
+    <string name="player_advanced_gesture_custom">Özel buton</string>
+    <string name="player_advanced_gesture_sub">Altyazı değiştir</string>
+    <string name="player_advanced_gesture_none">Kapalı</string>
+    <string name="player_advanced_gestures">Çift dokunma hareketleri</string>
+    <string name="player_advanced_tap_left">Sol bölge</string>
+    <string name="player_advanced_tap_center">Orta bölge</string>
+    <string name="player_advanced_tap_right">Sağ bölge</string>
+    <string name="player_advanced_not_set">Belirtilmedi</string>
 </resources>

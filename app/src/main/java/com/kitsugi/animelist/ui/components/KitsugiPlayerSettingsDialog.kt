@@ -6,6 +6,7 @@ import com.kitsugi.animelist.ui.theme.gradient.Text
 
 import androidx.compose.ui.res.stringResource
 import com.kitsugi.animelist.R
+import com.kitsugi.animelist.ui.components.player.playerParityOptions
 import com.kitsugi.animelist.ui.components.KitsugiButton
 
 import android.content.Context
@@ -1756,10 +1757,8 @@ fun KitsugiPlayerSettingsDialog(
                             verticalArrangement = Arrangement.spacedBy(8.dp),
                             contentPadding = PaddingValues(16.dp)
                         ) {
-                            item {
-                                appSettings?.let { settings ->
-                                    com.kitsugi.animelist.ui.components.player.PlayerParityOptions(settings, settingsDataStore)
-                                }
+                            appSettings?.let { settings ->
+                                playerParityOptions(settings, settingsDataStore, scope)
                             }
                             item {
                                 KitsugiSettingsSection(title = stringResource(R.string.pd_user_mpv_files)) {

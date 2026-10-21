@@ -3,6 +3,7 @@ package com.kitsugi.animelist.core.storage
 import android.content.Context
 import android.content.Intent
 import android.media.MediaScannerConnection
+import android.net.Uri
 import android.os.Environment
 import android.util.Log
 import androidx.annotation.StringRes
@@ -78,6 +79,19 @@ object DownloadStorage {
         val failures: Int,
         /** Silme engellendi/hata verdi ise kullanıcıya gösterilecek açıklama. */
         val message: String? = null
+    )
+
+    /**
+     * Tek bir dosya silme sonucu (İndirilenler ekranındaki tekli silmeler).
+     *
+     * @param deleted     Dosya(lar) diskten gerçekten kalktı mı?
+     * @param message     Başarısızlık nedeni (kullanıcıya gösterilir).
+     * @param consentUris Android 11+ sistem onayı gereken MediaStore kayıtları.
+     */
+    data class SingleDeleteResult(
+        val deleted: Boolean,
+        val message: String? = null,
+        val consentUris: List<Uri> = emptyList()
     )
 
     // ─── Ölçüm ─────────────────────────────────────────────────────────────────
@@ -210,6 +224,108 @@ object DownloadStorage {
         return CleanResult(freed, removed, failures)
     }
 
+    // ─── Tekli silme (İndirilenler ekranı) ────────────────────────────────────
+
+    /**
+     * **Tek bir** indirilmiş altyazıyı siler.
+     *
+     * Altyazılar Android 10+ üzerinde `MediaStore.Downloads` ile
+     * `Download/Kitsugi/Subtitles` klasörüne yazıldığı için `File.delete()` sessizce
+     * başarısız oluyordu (Scoped Storage). Burada:
+     *  1. Aynı ada sahip **tüm** kopyalar bulunur (indirilenler, video klasörü, uygulama
+     *     dış klasörü ve `cacheDir/subtitles`),
+     *  2. Her kopya önce `File.delete()` ile, olmazsa MediaStore kaydı (ad + göreli klasör)
+     *     üzerinden `ContentResolver.delete` ile silinir,
+     *  3. Sonuç doğrulanır ([SingleDeleteResult.deleted]) — böylece arayüz "sildim" diyip
+     *     listeyi boşuna tazelemez.
+     */
+    suspend fun deleteSubtitle(context: Context, file: File): SingleDeleteResult =
+        withContext(Dispatchers.IO) {
+            val appContext = context.applicationContext
+            val fileName = file.name
+            val extension = file.extension.lowercase()
+            if (fileName.isBlank() || extension !in SUBTITLE_EXTENSIONS) {
+                return@withContext SingleDeleteResult(
+                    deleted = false,
+                    message = appContext.getString(R.string.image_file_delete_failed)
+                )
+            }
+
+            val copies = subtitleCopies(appContext, fileName)
+            var removedAny = false
+            var failure: String? = null
+            var consentUris = emptyList<Uri>()
+            val deletedPaths = ArrayList<String>()
+
+            copies.forEach { copy ->
+                if (!copy.exists()) return@forEach
+                val size = runCatching { copy.length() }.getOrDefault(0L)
+                // 1) Doğrudan dosya silme (uygulama klasörleri + eski Android sürümleri).
+                val direct = runCatching { copy.delete() && !copy.exists() }.getOrDefault(false)
+                if (direct) {
+                    // Doğrudan silme sonrası MediaStore'da hayalet satır kalmasın.
+                    runCatching {
+                        MediaStoreFileDeleter.deleteByName(
+                            context = appContext,
+                            fileName = fileName,
+                            mode = MediaStoreFileDeleter.Mode.SUBTITLE,
+                            relativePath = MediaStoreFileDeleter.relativePathOf(copy)
+                        )
+                    }
+                    removedAny = true
+                    deletedPaths += copy.absolutePath
+                    Log.d(TAG, "Altyazı silindi ($size B): ${copy.absolutePath}")
+                    return@forEach
+                }
+                // 2) MediaStore kaydı üzerinden silme (Scoped Storage).
+                val outcome = MediaStoreFileDeleter.deleteByName(
+                    context = appContext,
+                    fileName = fileName,
+                    mode = MediaStoreFileDeleter.Mode.SUBTITLE,
+                    relativePath = MediaStoreFileDeleter.relativePathOf(copy)
+                )
+                if (outcome.deleted) {
+                    removedAny = true
+                    deletedPaths += copy.absolutePath
+                }
+                if (outcome.foreignUris.isNotEmpty()) {
+                    consentUris = (consentUris + outcome.foreignUris).distinct()
+                }
+                if (copy.exists()) {
+                    failure = outcome.message
+                        ?: appContext.getString(R.string.image_delete_failed_storage, copy.name)
+                }
+            }
+
+            if (deletedPaths.isNotEmpty()) notifyMediaRemoved(appContext, deletedPaths)
+
+            val stillExists = subtitleCopies(appContext, fileName).any { it.exists() }
+            when {
+                !stillExists -> SingleDeleteResult(deleted = true)
+                consentUris.isNotEmpty() -> SingleDeleteResult(
+                    deleted = false,
+                    message = failure ?: appContext.getString(R.string.image_file_delete_foreign),
+                    consentUris = consentUris
+                )
+                removedAny -> SingleDeleteResult(deleted = true)
+                else -> SingleDeleteResult(
+                    deleted = false,
+                    message = failure ?: appContext.getString(R.string.image_delete_file_failed, fileName)
+                )
+            }
+        }
+
+    /**
+     * Aynı ada sahip altyazı kopyaları: tüm video/altyazı kökleri + `cacheDir/subtitles`.
+     * (`SUB`/`ASS` gibi dosyalar kullanıcı isteğiyle yalnızca o ada sahip kopyalardan silinir.)
+     */
+    private fun subtitleCopies(context: Context, fileName: String): List<File> = buildList {
+        subtitleRoots(context).forEach { root ->
+            walkFiles(root).forEach { f -> if (f.name == fileName) add(f) }
+        }
+        add(File(File(context.cacheDir, "subtitles"), fileName))
+    }.distinctBy { it.absolutePath }.filter { it.exists() }
+
     // ─── Altyazı silme ─────────────────────────────────────────────────────────
 
     /**
@@ -223,7 +339,16 @@ object DownloadStorage {
 
         filesIn(subtitleRoots(context), SUBTITLE_EXTENSIONS).forEach { file ->
             val size = file.length()
-            if (deleteFile(file)) {
+            val direct = deleteFile(file)
+            val deleted = direct || MediaStoreFileDeleter
+                .deleteByName(
+                    context = context,
+                    fileName = file.name,
+                    mode = MediaStoreFileDeleter.Mode.SUBTITLE,
+                    relativePath = MediaStoreFileDeleter.relativePathOf(file)
+                )
+                .deleted
+            if (deleted) {
                 removed++
                 freed += size
             } else {
