@@ -1,10 +1,10 @@
 # Bangumi VAULT — İlerleme / Devam Planı
 
 > **Bu dosya devir teslim dosyasıdır.** Yeni bir dal/şube işi buradan devralır.
-> Son güncelleme: **2026-10-21** · Chunk **001 + 002 + 003 + 004a…c + 005a…c + 006 (etiket 20–99)** tamamlandı, uygulamaya işlendi.
-> **GÜNCEL DEVİR (006 sonrası):** dal **`arena/8a37df7c-kitsugi-beta`**; **PR #25**: https://github.com/f26901964-eng/Kitsugi-Beta/pull/25 (006, merge edilmedi).
-> **Sıradaki iş: 007 (etiket count <20 · 59.510)** + count=0 kurum kuyruğu (**376**). Etiket 20–99 bandında **0 kararsız** kaldı.
-> Sağlık hedefi: **52.219 bangumi_* anahtar · 51.104 vault kaydı · 61.398 map · 121.284 damga**.
+> Son güncelleme: **2026-10-21** · **S1–S3 Classpath TSV Mimari Geçişi + Chunk 008 (376 count=0 kurum) + 838 CJK Canon Düzeltmesi + Chunk 007 (`007_a`–`007_j` · 59.510 etiket)** TAMAMLANDI (%100).
+> **GÜNCEL DAL:** **`arena/b4827842-kitsugi-beta`** (`main` `v2.4.331` tabanlı; 3 resource shard modülü + `-Xss16m` korundu).
+> **Sıradaki iş: YOK (`translations_pending.tsv = 0` satır · kararsız kurum = `0` · kararsız etiket = `0`).**
+> **Güncel Otorite Sağlık Hedefi:** **`52.219 bangumi_* anahtar · 106.335 vault kaydı · 121.284 map satırı · 121.284 damga`** (`tags.tsv`: **58.338 grup**, `orgs.tsv`: **52.474 satır**, `strings.xml`: **TR 58.398 · EN 58.398** — Android 65.535 DEX ve JVM constant pool sınırı aşılmadan sıfır yeni XML ID ile tamamlandı).
 > Aşağıdaki eski PR/dal açıklamaları TARİHÇEDİR; başka dala geçme/reset yapma.
 > Chunk 005b, aynı dalda olduğu için **PR #23** içinde taşınıyor (005a ile birlikte):
 > https://github.com/f26901964-eng/Kitsugi-Beta/pull/23
@@ -1248,3 +1248,26 @@ Chunk 002 için durumu (2026-10-21) → her satır **✅ tamam**:
 
 Sonraki chunk'lar için aynı liste geçerli; `gen_bangumi_master.py`'yi **`--check` olmadan
 çalıştırma** (Bölüm 7 ⚠).
+
+
+---
+
+## S1–S3 Mimari Geçişi + Chunk 008 + Chunk 007 (`007_a`–`007_j`) Kapanış Özeti — 2026-10-21
+
+### 1. S1–S3 Classpath TSV Veri Deposu Geçişi
+- `BangumiTagDictionary.kt` ve `BangumiOrgDictionary.kt` içindeki dev sabit diziler kaldırılarak `app/src/main/resources/bangumi/tags.tsv` (**58.338 grup**) ve `app/src/main/resources/bangumi/orgs.tsv` (**52.474 eşleme satırı**) classpath kaynaklarına taşındı (`TagStore` + `OrgStore`, Context bağımsız, hem APK hem JVM test uyumlu).
+- `strings.xml` (app + 3 shard modülü) toplam **TR 58.398 · EN 58.398** kayıtta tutularak Android `R.string` 65.535 DEX sınırı ve JVM 65.535 constant-pool sınırı %100 korundu.
+- `vault_to_strings.py`, `verify_vault.py`, `verify_bangumi_master.py` ve `gen_bangumi_master.py` eşzamanlı güncellendi; `gradle.properties`, `bangumi-master.yml` ve `android-build.yml` içinde `-Xss16m` yığın ayarı sabitlendi.
+
+### 2. Chunk 008 (`count=0` Kurum Kuyruğu · 376 Kayıt) & CJK Sızıntı Temizliği
+- `canon.tsv` içindeki önceki chunk'lardan kalan **838 CJK sızıntısı** resmî global adlara ve Türkçe/İngilizce kavram karşılıklarına yerinde güncellendi (yeni XML ID eklenmeden).
+- `map_chunk_008_orgs.tsv`: **376 kayıt** (**366 kararlı canon + 10 SKIP**, MASTER pending ve `BangumiMasterDictionaryTest.kt` `assertNull` kilitleri tam korundu).
+
+### 3. Chunk 007 (`007_a` → `007_j` · 59.510 Etiket)
+- 10 bant sırayla (`007_a` [225], `007_b` [1.179], `007_c` [1.892], `007_d` [2.253], `007_e` [2.373], `007_f` [4.437], `007_g` [4.275], `007_h` [8.666], `007_i` [33.169], `007_j` [1.041]) ayrı map dosyaları (`map_chunk_007_a_tags.tsv` … `map_chunk_007_j_tags.tsv`) ve her bant sonunda tam doğrulama zinciriyle işlendi.
+- **Nihai Doğrulama Çıktıları:**
+  - `verify_vault.py`: `✅ TÜM KONTROLLER GEÇTİ — 52219 bangumi_* anahtar, 106335 vault kaydı, 121284 map satırı, 121284 damga denetlendi`
+  - `verify_bangumi_master.py`: `✅ Tüm kontroller geçti` (`GERÇEK çakışma 0`, `TR 58398 · EN 58398`)
+  - `gen_bangumi_master.py --check`: `+0 grup, +0 etiket`, `TR +0, EN +0`
+  - `check_test_expectations.py`: `23/23` uyumlu · `check_bangumi_meta_tag_coverage.py`: `158/158` eksiksiz · `unittest`: `30/30 OK`
+  - `translations_pending.tsv`: **0 satır** · `translations_done.tsv`: **121.284 satır**.

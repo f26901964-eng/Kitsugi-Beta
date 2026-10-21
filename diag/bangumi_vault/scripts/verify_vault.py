@@ -66,10 +66,12 @@ tag_groups = {row[0]: (row[1], row[2]) for row in tag_rows if len(row) >= 3}
 org_rows = build_org_store.parse_store(ORG_STORE.read_text(encoding="utf-8"))
 errors.extend(f"orgs.tsv: {e}" for e in build_org_store.validate(org_rows))
 org_by_key: dict[str, tuple[str, str]] = {}
+org_by_label: dict[str, tuple[str, str]] = {}
 for row in org_rows:
     if len(row) >= 3:
         tr_cell = row[3] if len(row) >= 4 else row[2]
         org_by_key.setdefault(row[1], (tr_cell, row[2]))
+        org_by_label.setdefault(row[0], (tr_cell, row[2]))
 
 # 2-4) vault → strings + veri depoları
 string_tr: dict[str, str] = {}
@@ -103,7 +105,9 @@ for role, fn in ROLE_FILES.items():
             errors.append(f"{sk}: strings.xml EN değeri vault ile eşleşmiyor "
                           f"({'xml=' + en_vals[sk]!r} vs {'vault=' + e!r})")
         if rec_role != "tag" and sk not in tr_vals and sk not in org_by_key:
-            errors.append(f"{sk}: kararlı kurum ne strings.xml'de ne orgs.tsv'de var (vault_to_strings çalıştırılmalı)")
+            lbls = rec.get("labels") or []
+            if not any(org_by_label.get(lbl) == (t, e) for lbl in lbls):
+                errors.append(f"{sk}: kararlı kurum ne strings.xml'de ne orgs.tsv'de var (vault_to_strings çalıştırılmalı)")
 
 for cid, (t, e) in tag_values.items():
     tag_key = f"bangumi_tag_{cid}"

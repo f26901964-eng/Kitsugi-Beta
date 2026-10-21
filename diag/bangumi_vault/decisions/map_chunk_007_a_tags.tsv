@@ -1,0 +1,228 @@
+# Bangumi VAULT — chunk 007_a · ETİKET haritası (count 19–999999 · 225 kayıt)
+# Biçim: vault_key <TAB> canon_id|SKIP <TAB> not
+# Kişisel raf/puan, tarih/dönem, gürültü ve belirsiz kısaltmalar SKIP; bilinmeyen CJK adlar as_is.
+bangumi_tag_2006_04	SKIP	SKIP: salt sayı / sembol
+bangumi_tag_2007_02	SKIP	SKIP: salt sayı / sembol
+bangumi_tag_2008_07	SKIP	SKIP: salt sayı / sembol
+bangumi_tag_2008_09	SKIP	SKIP: salt sayı / sembol
+bangumi_tag_2008_11	SKIP	SKIP: salt sayı / sembol
+bangumi_tag_2012_01	SKIP	SKIP: salt sayı / sembol
+bangumi_tag_2015_04	SKIP	SKIP: salt sayı / sembol
+bangumi_tag_2021_06	SKIP	SKIP: salt sayı / sembol
+bangumi_tag_2021_09	SKIP	SKIP: salt sayı / sembol
+bangumi_tag_2021_10_2	SKIP	SKIP: salt sayı / sembol
+bangumi_tag_2021_1_2	SKIP	SKIP: tarih / etkinlik / raf damgası
+bangumi_tag_2kgames	2k_games	canon(publisher):2k_games
+bangumi_tag_70_3	SKIP	SKIP: salt sayı / sembol
+bangumi_tag_amaterasrecords	amateras_records	canon(publisher):amateras_records
+bangumi_tag_animated_movies	animated_movies	latin global ad
+bangumi_tag_avex_trax	avex_trax	canon(publisher):avex_trax
+bangumi_tag_basara_3	sengoku_basara	tags.tsv:sengoku_basara
+bangumi_tag_blackbutterfly	blackbutterfly	canon(publisher):blackbutterfly
+bangumi_tag_blcd_2	blcd	tags.tsv:blcd
+bangumi_tag_brit_pop	brit_pop	latin global ad
+bangumi_tag_cartoonnetwork	cartoon_network	canon(network):cartoon_network
+bangumi_tag_cjk_01110a	treasure_hunting	lexicon:treasure_hunting
+bangumi_tag_cjk_050d83	kaede_kouchi	lexicon:kaede_kouchi
+bangumi_tag_cjk_051e6c	single_player_game	lexicon:single_player_game
+bangumi_tag_cjk_056529	rei_yasuda	lexicon:rei_yasuda
+bangumi_tag_cjk_0650a0	anju_inami	lexicon:anju_inami
+bangumi_tag_cjk_07a36b	SKIP	SKIP: kişisel raf / sürüm notu
+bangumi_tag_cjk_07f7bb	cjk_07f7bb	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_0849d4	tamayura	lexicon:tamayura
+bangumi_tag_cjk_08b8e1	SKIP	SKIP: kişisel durum / gürültü
+bangumi_tag_cjk_096241	cjk_096241	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_0a9d9f	phantasy_star	lexicon:phantasy_star
+bangumi_tag_cjk_0c6021	yusuke_kishi	lexicon:yusuke_kishi
+bangumi_tag_cjk_111005	aika_yoshioka	lexicon:aika_yoshioka
+bangumi_tag_cjk_13611a	samurai_warriors	lexicon:samurai_warriors
+bangumi_tag_cjk_138bf7	ryo_takahashi	lexicon:ryo_takahashi
+bangumi_tag_cjk_140cf1	hitoshi_ashinano	lexicon:hitoshi_ashinano
+bangumi_tag_cjk_151487	fushigi_yuugi	lexicon:fushigi_yuugi
+bangumi_tag_cjk_15d03b	group_leader_captain	lexicon:group_leader_captain
+bangumi_tag_cjk_188d8d	cjk_188d8d	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_18c774	norio_wakamoto	tags.tsv:norio_wakamoto
+bangumi_tag_cjk_1be905	yuji_matsuyama	lexicon:yuji_matsuyama
+bangumi_tag_cjk_1e8668	gakuto_coda	lexicon:gakuto_coda
+bangumi_tag_cjk_1f8ebb	haruhi_character	lexicon:haruhi_suzumiya_series
+bangumi_tag_cjk_202f42	legend_of_heroes_tear_of_vermilion	lexicon:legend_of_heroes_tear_of_vermilion
+bangumi_tag_cjk_20c810	serialized_tag	lexicon:serialized
+bangumi_tag_cjk_254863	astro_boy	lexicon:astro_boy
+bangumi_tag_cjk_25900d	the_legend_of_qin	lexicon:the_legend_of_qin
+bangumi_tag_cjk_2678d3	ryota_kosawa	lexicon:ryota_kosawa
+bangumi_tag_cjk_2a0ec2	cjk_2a0ec2	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_2d5c98	naomi_ohzora	lexicon:naomi_ohzora
+bangumi_tag_cjk_309932	akiyuki_tateyama	lexicon:akiyuki_tateyama
+bangumi_tag_cjk_35242c	SKIP	SKIP: kişisel durum / gürültü
+bangumi_tag_cjk_38d533	tatsuya_fujiwara	lexicon:tatsuya_fujiwara
+bangumi_tag_cjk_394b65	SKIP	SKIP: kişisel durum / gürültü
+bangumi_tag_cjk_3a47d0	range_murata	lexicon:range_murata
+bangumi_tag_cjk_3a56aa	ayu_watanabe	lexicon:ayu_watanabe
+bangumi_tag_cjk_3db93a	toshiro_masuda	tags.tsv:toshiro_masuda
+bangumi_tag_cjk_3ecd8f	ryo_azuki	lexicon:ryo_azuki
+bangumi_tag_cjk_3f99f4	kentaro_sakaguchi	lexicon:kentaro_sakaguchi
+bangumi_tag_cjk_42ee6c	cjk_42ee6c	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_43c41f	mikage_kasuga	lexicon:mikage_kasuga
+bangumi_tag_cjk_461721	hiromi_mizutani	lexicon:hiromi_mizutani
+bangumi_tag_cjk_462fd9	the_big_bang_theory	lexicon:the_big_bang_theory
+bangumi_tag_cjk_46da3b	natsumi_eguchi	lexicon:natsumi_eguchi
+bangumi_tag_cjk_4989d2	hikari_mitsushima	lexicon:hikari_mitsushima
+bangumi_tag_cjk_49a633	gun_manga	lexicon:gun_manga
+bangumi_tag_cjk_4a7a66	masumi_asano	lexicon:masumi_asano
+bangumi_tag_cjk_4ca041	cjk_4ca041	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_4f3038	rena_ryuugu	lexicon:rena_ryuugu
+bangumi_tag_cjk_502110	mana_ashida	lexicon:mana_ashida
+bangumi_tag_cjk_519cfd	naoshi_arakawa	lexicon:naoshi_arakawa
+bangumi_tag_cjk_54166d	hiroyuki_oshima	lexicon:hiroyuki_oshima
+bangumi_tag_cjk_594d64	cjk_594d64	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_595aec	huge_breasts	lexicon:huge_breasts
+bangumi_tag_cjk_5ae44f	nijigasaki_idol_club	lexicon:nijigasaki_idol_club
+bangumi_tag_cjk_5c2846	cjk_5c2846	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_5c504d	cjk_5c504d	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_5cd56a	cjk_5cd56a	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_5d09b1	shuhei_nomura	lexicon:shuhei_nomura
+bangumi_tag_cjk_621098	shosuke_tanihara	lexicon:shosuke_tanihara
+bangumi_tag_cjk_644c5c	cjk_644c5c	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_657942	cjk_657942	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_662e05	ui_miyazaki	lexicon:ui_miyazaki
+bangumi_tag_cjk_66d386	SKIP	SKIP: kırpılmış kişisel yorum
+bangumi_tag_cjk_691f41	cjk_691f41	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_6aea98	season_2	lexicon:season_2
+bangumi_tag_cjk_6cb478	cjk_6cb478	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_6dbf47	ryoko_ono	lexicon:ryoko_ono
+bangumi_tag_cjk_6eb838	cjk_6eb838	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_70e404	SKIP	SKIP: kişisel raf / sürüm notu
+bangumi_tag_cjk_73830f	action_rpg	lexicon:action_rpg
+bangumi_tag_cjk_7c1b4f	nanao	lexicon:nanao
+bangumi_tag_cjk_7e0185	asami_tachibana	lexicon:asami_tachibana
+bangumi_tag_cjk_83596b	takumi_nakazawa	lexicon:takumi_nakazawa
+bangumi_tag_cjk_860007	a_song_of_ice_and_fire	lexicon:a_song_of_ice_and_fire
+bangumi_tag_cjk_8a3f8e	SKIP	SKIP: tek karakter belirsiz CJK
+bangumi_tag_cjk_8e1d54	haruka_chisuga	lexicon:haruka_chisuga
+bangumi_tag_cjk_92e99a	yoshiko_sakakibara	lexicon:yoshiko_sakakibara
+bangumi_tag_cjk_98c9d1	cjk_98c9d1	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_9993a3	sherlock_holmes	lexicon:sherlock_holmes
+bangumi_tag_cjk_99cc55	game_related	lexicon:game_related
+bangumi_tag_cjk_9a29c4	nanpai_sanshu	lexicon:nanpai_sanshu
+bangumi_tag_cjk_9a3576	makoto_yasumura	lexicon:makoto_yasumura
+bangumi_tag_cjk_9b9e9f	short_work	lexicon:short_work
+bangumi_tag_cjk_9f8445	pony_canyon	lexicon:pony_canyon
+bangumi_tag_cjk_9f8ea6	hayato_ichihara	lexicon:hayato_ichihara
+bangumi_tag_cjk_a439d1	atsuko_enomoto	lexicon:atsuko_enomoto
+bangumi_tag_cjk_ab539c	go_ikeyamada	tags.tsv:go_ikeyamada
+bangumi_tag_cjk_ab5cb1	haruka_shiraishi	lexicon:haruka_shiraishi
+bangumi_tag_cjk_ac81c6	hiroko_kasahara	lexicon:hiroko_kasahara
+bangumi_tag_cjk_ae0750	toru_shiwasu	lexicon:toru_shiwasu
+bangumi_tag_cjk_af280d	cjk_5a2b8a	tags.tsv:cjk_5a2b8a
+bangumi_tag_cjk_afdeac	norimitsu_kaiho	lexicon:norimitsu_kaiho
+bangumi_tag_cjk_b0a65d	kazuma_horie	lexicon:kazuma_horie
+bangumi_tag_cjk_b10627	keisuke_fujikawa	lexicon:keisuke_fujikawa
+bangumi_tag_cjk_b10cec	kanon_wakeshima	lexicon:kanon_wakeshima
+bangumi_tag_cjk_b1c7bb	demon_majin	lexicon:demon_majin
+bangumi_tag_cjk_b6f1f7	momoko_koda	lexicon:momoko_koda
+bangumi_tag_cjk_b7612b	SKIP	SKIP: tek karakter belirsiz CJK
+bangumi_tag_cjk_b7ef0c	izumi_tsubaki	lexicon:izumi_tsubaki
+bangumi_tag_cjk_b8e7c7	another_world	lexicon:another_world
+bangumi_tag_cjk_babfda	shinya_murata	lexicon:shinya_murata
+bangumi_tag_cjk_bb0921	console_game	lexicon:console_game
+bangumi_tag_cjk_bba716	haruki_murakami	lexicon:haruki_murakami
+bangumi_tag_cjk_bddae0	suzuko_mimori	lexicon:suzuko_mimori
+bangumi_tag_cjk_c193ec	makoto_sanda	tags.tsv:makoto_sanda
+bangumi_tag_cjk_c26c59	humanity_has_declined	lexicon:humanity_has_declined
+bangumi_tag_cjk_c81816	nana_eikura	lexicon:nana_eikura
+bangumi_tag_cjk_c8cba8	tsuta_suzuki	tags.tsv:tsuta_suzuki
+bangumi_tag_cjk_cb20ff	rokugen_alice	lexicon:rokugen_alice
+bangumi_tag_cjk_ccea5d	cjk_ccea5d	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_cda9a9	touhou_project	lexicon:touhou_project
+bangumi_tag_cjk_cdb6fc	warner_bros	lexicon:warner_bros
+bangumi_tag_cjk_d01ad1	shobunkan	lexicon:shobunkan
+bangumi_tag_cjk_d25718	junji_majima	tags.tsv:junji_majima
+bangumi_tag_cjk_d317e9	asuna_yuuki	lexicon:asuna_yuuki
+bangumi_tag_cjk_d35041	cjk_d35041	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_d4479b	keita_haga	lexicon:keita_haga
+bangumi_tag_cjk_d5af94	asaka_singer	lexicon:asaka_singer
+bangumi_tag_cjk_d6e07d	SKIP	SKIP: kişisel raf / sürüm notu
+bangumi_tag_cjk_dabece	yoko_maekawa	lexicon:yoko_maekawa
+bangumi_tag_cjk_dcd1c1	cjk_dcd1c1	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_de88ba	cjk_de88ba	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_dea948	daruma_matsuura	lexicon:daruma_matsuura
+bangumi_tag_cjk_df5050	bakuman	lexicon:bakuman
+bangumi_tag_cjk_e04b4f	cjk_e04b4f	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_e07094	ei_aoki	lexicon:ei_aoki
+bangumi_tag_cjk_e07956	nura	tags.tsv:nura
+bangumi_tag_cjk_e0977a	daichi_sorayomi	lexicon:daichi_sorayomi
+bangumi_tag_cjk_e149d2	shotaro_ishinomori	lexicon:shotaro_ishinomori
+bangumi_tag_cjk_e26f89	shinji_kawada	tags.tsv:shinji_kawada
+bangumi_tag_cjk_e42cf7	kotaro_uchikoshi	tags.tsv:kotaro_uchikoshi
+bangumi_tag_cjk_e603cb	nanae_chrono	lexicon:nanae_chrono
+bangumi_tag_cjk_e7557b	taiko	lexicon:taiko
+bangumi_tag_cjk_ea94fb	gen_hoshino	lexicon:gen_hoshino
+bangumi_tag_cjk_ec5c60	mother_and_daughter_tag	lexicon:mother_and_daughter
+bangumi_tag_cjk_ec8a87	hiromi_tsuru	lexicon:hiromi_tsuru
+bangumi_tag_cjk_ecddb5	kento_kaku	lexicon:kento_kaku
+bangumi_tag_cjk_ee74a0	kou_fumizuki	lexicon:kou_fumizuki
+bangumi_tag_cjk_ff0ce0	combination_fusion	lexicon:combination_fusion
+bangumi_tag_connect	connect	canon(studio):connect_2
+bangumi_tag_dice	dice	canon(publisher):dice
+bangumi_tag_distance	distance	latin global ad
+bangumi_tag_dual_tail	dual_tail	canon(studio):dual_tail
+bangumi_tag_emo	emo	canon(publisher):emo
+bangumi_tag_ensemblestars	ensemble_stars	tags.tsv:ensemble_stars
+bangumi_tag_etp	etp	latin global ad
+bangumi_tag_evancall	evan_call	latin global ad
+bangumi_tag_feng	feng	canon(publisher):feng
+bangumi_tag_flowers	monthly_flowers	lexicon:monthly_flowers
+bangumi_tag_gero	gero	latin global ad
+bangumi_tag_gintama	gintama	tags.tsv:gintama
+bangumi_tag_halo	halo	latin global ad
+bangumi_tag_imageepoch	imageepoch	canon(studio):imageepoch
+bangumi_tag_jam	jam	canon(publisher):jam_69023ec476
+bangumi_tag_jazzy_hiphop	jazzy_hiphop	latin global ad
+bangumi_tag_jojo_3	jojo_bizarre_adventure	tags.tsv:jojo_bizarre_adventure
+bangumi_tag_jpop_2	jpop	tags.tsv:jpop
+bangumi_tag_k_4	cjk_60cce7	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_kenta	kenta	latin global ad
+bangumi_tag_kof	kof	latin global ad
+bangumi_tag_loundraw	loundraw	latin global ad
+bangumi_tag_lovelive_5	love_live	tags.tsv:love_live
+bangumi_tag_magicbus	magic_bus	canon(producer):magic_bus
+bangumi_tag_mihoyo	mihoyo	canon(publisher):mihoyo
+bangumi_tag_mikimoto	rin_mikimoto	lexicon:rin_mikimoto
+bangumi_tag_minato_p	minato_ryuuseip	lexicon:minato_ryuuseip
+bangumi_tag_mio	mio	canon(studio):mio_2
+bangumi_tag_monster_2	monster	tags.tsv:monster
+bangumi_tag_one_2	one	tags.tsv:one
+bangumi_tag_otome_18	otome_18	latin global ad
+bangumi_tag_ovaoad	ova_oad	tags.tsv:ova_oad
+bangumi_tag_porori	porori	canon(producer):porori
+bangumi_tag_potage	potage	canon(studio):potage
+bangumi_tag_pve	pve	latin global ad
+bangumi_tag_q_2	q_taro_hanamizawa	lexicon:q_taro_hanamizawa
+bangumi_tag_reborn	katekyo_hitman_reborn	lexicon:katekyo_hitman_reborn
+bangumi_tag_scej	scej	canon(publisher):scej
+bangumi_tag_speed	speed	canon(publisher):speed
+bangumi_tag_studio_ghibli	ghibli	tags.tsv:studio_ghibli
+bangumi_tag_tag_209e25	kare_pillow_series	lexicon:kare_pillow_series
+bangumi_tag_tag_45c6a1	azur_lane	lexicon:azur_lane
+bangumi_tag_tag_5058f1	SKIP	SKIP: salt sayı / sembol
+bangumi_tag_tag_5359f6	pretty_rhythm	lexicon:pretty_rhythm
+bangumi_tag_tag_59a190	cjk_59a190	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_tag_5d16d1	cjk_5d16d1	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_tag_5dfde4	tamekou	lexicon:tamekou
+bangumi_tag_tag_720eed	kenji_saito	lexicon:kenji_saito
+bangumi_tag_tag_724688	shirabii	lexicon:shirabii
+bangumi_tag_tag_7d6bde	satoi	lexicon:satoi
+bangumi_tag_tag_7d96e5	rintaro	lexicon:rintaro
+bangumi_tag_tag_99fb8f	overlap	lexicon:overlap
+bangumi_tag_tag_a3119b	original_soundtrack	lexicon:original_soundtrack
+bangumi_tag_tag_acde79	cjk_acde79	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_tag_c13be8	nano_singer	lexicon:nano_singer
+bangumi_tag_tag_c7fe79	yuuyu	lexicon:yuuyu
+bangumi_tag_tag_d5806b	natsuki_tanihara	lexicon:natsuki_tanihara
+bangumi_tag_tag_d7e2ab	yumi_kakazu	lexicon:yumi_kakazu
+bangumi_tag_toa	toa	latin global ad
+bangumi_tag_wendybell	wendybell	canon(studio):wendybell
+bangumi_tag_whitealbum	white_album	tags.tsv:white_album
+bangumi_tag_wug	wug	tags.tsv:wug
+bangumi_tag_xboxseriesx_s	xboxseriesx_s	latin global ad
+bangumi_tag_zytokine	zytokine	canon(publisher):zytokine

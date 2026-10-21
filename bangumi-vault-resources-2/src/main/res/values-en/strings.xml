@@ -109,7 +109,7 @@
     <string name="bangumi_magazine_cjk_00f388">別冊小説新潮</string>
     <string name="bangumi_magazine_cjk_014206">あにまるパラダイス</string>
     <string name="bangumi_magazine_cjk_0192ae">アワーズライト</string>
-    <string name="bangumi_magazine_cjk_01a58d">读卖新闻</string>
+    <string name="bangumi_magazine_cjk_01a58d">Yomiuri Shimbun</string>
     <string name="bangumi_magazine_cjk_021365">オメガバース プロジェクト</string>
     <string name="bangumi_magazine_cjk_02d67b">ラザ</string>
     <string name="bangumi_magazine_cjk_0507ae">マンガよもんが</string>
@@ -134,7 +134,7 @@
     <string name="bangumi_magazine_cjk_0c0094">ビッグコミックス</string>
     <string name="bangumi_magazine_cjk_0c1328">キトラ(</string>
     <string name="bangumi_magazine_cjk_0c3c77">プチアップル</string>
-    <string name="bangumi_magazine_cjk_0d567a">電撃「マ)王</string>
+    <string name="bangumi_magazine_cjk_0d567a">Dengeki Maoh</string>
     <string name="bangumi_magazine_cjk_0d940a">別館月マガ(</string>
     <string name="bangumi_magazine_cjk_0db2ce">文芸ポスト (揭载)</string>
     <string name="bangumi_magazine_cjk_0f43fa">的旧名</string>
@@ -211,7 +211,7 @@
     <string name="bangumi_magazine_cjk_3c5786">コミックバーガー → コミックバーズ</string>
     <string name="bangumi_magazine_cjk_3d0b3c">マンガ★ゲット</string>
     <string name="bangumi_magazine_cjk_3d25be">イノセント</string>
-    <string name="bangumi_magazine_cjk_3d4abe">コミックビーム(</string>
+    <string name="bangumi_magazine_cjk_3d4abe">Comic Beam</string>
     <string name="bangumi_magazine_cjk_3d5197">コミックアイズ</string>
     <string name="bangumi_magazine_cjk_3d8a34">コミックゲーメスト</string>
     <string name="bangumi_magazine_cjk_3dd272">小学館の学年別学習雑誌 小学三年生</string>
@@ -539,7 +539,7 @@
     <string name="bangumi_magazine_comic_beast">COMIC快楽天BEAST</string>
     <string name="bangumi_magazine_comic_blade_avaru">月刊Comic Blade Avaru</string>
     <string name="bangumi_magazine_comic_bull">COMIC BULL</string>
-    <string name="bangumi_magazine_comic_bunch_4">周刊Comic Bunch</string>
+    <string name="bangumi_magazine_comic_bunch_4">Weekly Comic Bunch</string>
     <string name="bangumi_magazine_comic_crimson_3">COMIC Crimson → マーガレット</string>
     <string name="bangumi_magazine_comic_gun">Comic Gun</string>
     <string name="bangumi_magazine_comic_heaven_2">コミックヘヴン Comic Heaven</string>
@@ -623,7 +623,7 @@
     <string name="bangumi_magazine_jin_f9c2a70c0e">时代剧漫画 刃-JIN-</string>
     <string name="bangumi_magazine_jump_10">少年周刊JUMP</string>
     <string name="bangumi_magazine_jump_7">少年JUMP周刊</string>
-    <string name="bangumi_magazine_jump_9">週刊少年Jump</string>
+    <string name="bangumi_magazine_jump_9">Weekly Shonen Jump</string>
     <string name="bangumi_magazine_jump_cross">JUMP cross</string>
     <string name="bangumi_magazine_jump_sq_2">ジャンプスクエア JUMP SQ</string>
     <string name="bangumi_magazine_jumpcomics">ジャンプコミックス JUMPCOMICS</string>
@@ -740,7 +740,7 @@
     <string name="bangumi_magazine_special_16">ボニータspecial → きらら16 → ミステリーボニータ</string>
     <string name="bangumi_magazine_special_2">週刊少年マガジン→マガジンSPECIAL</string>
     <string name="bangumi_magazine_sq">ジャンプSQクラウン</string>
-    <string name="bangumi_magazine_sq_2">ジャンプSQ.</string>
+    <string name="bangumi_magazine_sq_2">Jump SQ</string>
     <string name="bangumi_magazine_sq_4">ジャンプSQ.(ジャンプスクエア)</string>
     <string name="bangumi_magazine_strange_creators_of_outer_worl">東方外來韋編 Strange Creators of Outer World.</string>
     <string name="bangumi_magazine_suivre">À Suivre</string>
@@ -768,11 +768,11 @@
     <string name="bangumi_magazine_web_55">潮WEB 〜ことばの力は時代を開く〜</string>
     <string name="bangumi_magazine_web_56">WEBコミックガム</string>
     <string name="bangumi_magazine_web_60">ゴラクエッグ (Webゴラク)</string>
-    <string name="bangumi_magazine_web_61">WEBコミック ぜにょん</string>
+    <string name="bangumi_magazine_web_61">Web Comic Zenyon</string>
     <string name="bangumi_magazine_web_62">Webスピカ</string>
     <string name="bangumi_magazine_web_63">WEBデンプレコミック(コミックウォーカー)</string>
     <string name="bangumi_magazine_web_72">webメフィスト</string>
-    <string name="bangumi_magazine_web_73">ヤンマガweb</string>
+    <string name="bangumi_magazine_web_73">YanMaga Web</string>
     <string name="bangumi_magazine_web_75">Webコミック幻蔵</string>
     <string name="bangumi_magazine_web_76">幻蔵→Webスピカ</string>
     <string name="bangumi_magazine_web_77">電撃大王WEBコミック</string>
@@ -811,7 +811,7 @@
     <string name="bangumi_network_2001_2005_pbs_kids_us">2001–2005); PBS Kids (US</string>
     <string name="bangumi_network_2015_present_rai_yoyo">2015–present); Rai YoYo</string>
     <string name="bangumi_network_2020">哔哩哔哩(2020小宇宙新星计划)</string>
-    <string name="bangumi_network_21_12">新潟テレビ 21</string>
+    <string name="bangumi_network_21_12">Niigata TV 21</string>
     <string name="bangumi_network_22_3">水曜22時連続ドラマ</string>
     <string name="bangumi_network_24_10">木ドラ24</string>
     <string name="bangumi_network_24_9">24時間テレビ</string>
@@ -871,7 +871,7 @@
     <string name="bangumi_network_bs11_etc">テレ玉 BS11 etc.</string>
     <string name="bangumi_network_bs_10">BSフヅ</string>
     <string name="bangumi_network_bs_12">BSミステリー</string>
-    <string name="bangumi_network_bs_15">BS フジ</string>
+    <string name="bangumi_network_bs_15">BS Fuji</string>
     <string name="bangumi_network_bs_20">BSフジ開局20周年記念特別番組</string>
     <string name="bangumi_network_bs_24">BS富士电视台</string>
     <string name="bangumi_network_bs_9">BSテレビ</string>
@@ -881,7 +881,7 @@
     <string name="bangumi_network_canal_4">Canal 4</string>
     <string name="bangumi_network_cbbc_1986_2002">CBBC (1986-2002)</string>
     <string name="bangumi_network_cbbc_bbc_hd">CBBC BBC HD</string>
-    <string name="bangumi_network_cbc_3">CBC テレビ</string>
+    <string name="bangumi_network_cbc_3">CBC</string>
     <string name="bangumi_network_cbc_television">CBC Television</string>
     <string name="bangumi_network_cbeebies_2003_present_united_k">CBeebies (2003-present) (United Kingdom)</string>
     <string name="bangumi_network_cbs_broadcasting">CBS Broadcasting</string>
@@ -902,7 +902,7 @@
     <string name="bangumi_network_cjk_027fbf">中視主頻道</string>
     <string name="bangumi_network_cjk_04925c">テレビ朝日系全国ネット</string>
     <string name="bangumi_network_cjk_05acf5">南宁</string>
-    <string name="bangumi_network_cjk_060890">テレビ静岡</string>
+    <string name="bangumi_network_cjk_060890">TV Shizuoka</string>
     <string name="bangumi_network_cjk_0609e2">オリジナルドラマ</string>
     <string name="bangumi_network_cjk_0623ca">アニマックス他</string>
     <string name="bangumi_network_cjk_06afe2">广东电视台嘉佳卡通</string>
@@ -918,7 +918,7 @@
     <string name="bangumi_network_cjk_1260b5">フィーチャー</string>
     <string name="bangumi_network_cjk_138e8b">アニメワン</string>
     <string name="bangumi_network_cjk_14d7ac">山东齐鲁</string>
-    <string name="bangumi_network_cjk_14da01">テレビ新広島</string>
+    <string name="bangumi_network_cjk_14da01">TV Shin Hiroshima</string>
     <string name="bangumi_network_cjk_1517ee">东京广播公司</string>
     <string name="bangumi_network_cjk_1533fa">澳門廣播電視股份有限公司</string>
     <string name="bangumi_network_cjk_1545bc">ビデオパス</string>
@@ -954,7 +954,7 @@
     <string name="bangumi_network_cjk_3a8e51">カンテレドラマらぼ</string>
     <string name="bangumi_network_cjk_3bd817">中央电视台综合频道 中国大陆</string>
     <string name="bangumi_network_cjk_3c8202">江苏电视台少儿频道</string>
-    <string name="bangumi_network_cjk_3f2255">福島テレビ</string>
+    <string name="bangumi_network_cjk_3f2255">FTV</string>
     <string name="bangumi_network_cjk_41624c">年末時代劇スペシャル</string>
     <string name="bangumi_network_cjk_425d57">哈哈少儿 等</string>
     <string name="bangumi_network_cjk_43c251">搜狐视频→腾讯视频</string>
@@ -977,12 +977,12 @@
     <string name="bangumi_network_cjk_5bbee8">金曜深夜枠</string>
     <string name="bangumi_network_cjk_5bc7e9">鹿児島テレビ放送</string>
     <string name="bangumi_network_cjk_5cb999">新动漫</string>
-    <string name="bangumi_network_cjk_5cd4f8">カートゥーン ネットワーク</string>
+    <string name="bangumi_network_cjk_5cd4f8">Cartoon Network</string>
     <string name="bangumi_network_cjk_5d1412">山东台齐鲁频道</string>
     <string name="bangumi_network_cjk_5dc666">ワンセグ２</string>
     <string name="bangumi_network_cjk_616308">朝日放送 テレビ朝日</string>
     <string name="bangumi_network_cjk_6415c6">央视戏曲</string>
-    <string name="bangumi_network_cjk_655834">テレビ愛媛</string>
+    <string name="bangumi_network_cjk_655834">TV Ehime</string>
     <string name="bangumi_network_cjk_671c0d">日语</string>
     <string name="bangumi_network_cjk_67933d">連続テレビ小説スペシャルドラマ</string>
     <string name="bangumi_network_cjk_67fdfd">南方少儿</string>
@@ -1010,7 +1010,7 @@
     <string name="bangumi_network_cjk_859217">広島発地域ドラマ</string>
     <string name="bangumi_network_cjk_87df19">トゥーン</string>
     <string name="bangumi_network_cjk_8842d5">ラジオ関西</string>
-    <string name="bangumi_network_cjk_88e551">ＴＢＳ系列</string>
+    <string name="bangumi_network_cjk_88e551">TBS Network</string>
     <string name="bangumi_network_cjk_895e38">千葉電視台等</string>
     <string name="bangumi_network_cjk_8ab654">スターチャンネル</string>
     <string name="bangumi_network_cjk_8ad70e">中央电视台综合频道 中国香港</string>
@@ -1026,18 +1026,18 @@
     <string name="bangumi_network_cjk_97fc3b">河南都市频道</string>
     <string name="bangumi_network_cjk_980839">杭州少儿</string>
     <string name="bangumi_network_cjk_99ecc4">上海哈哈少儿频道</string>
-    <string name="bangumi_network_cjk_9d0ff7">迪士尼</string>
+    <string name="bangumi_network_cjk_9d0ff7">Walt Disney Animation</string>
     <string name="bangumi_network_cjk_9fd6aa">厦门电视台</string>
     <string name="bangumi_network_cjk_a090de">Интер</string>
     <string name="bangumi_network_cjk_a0953d">美国有线电视网</string>
     <string name="bangumi_network_cjk_a1656c">江苏。最迟安徽。</string>
-    <string name="bangumi_network_cjk_a19d63">テレビ熊本</string>
+    <string name="bangumi_network_cjk_a19d63">TV Kumamoto</string>
     <string name="bangumi_network_cjk_a29589">无线电视翡翠台；超级电视台</string>
     <string name="bangumi_network_cjk_a44dc3">浙江</string>
     <string name="bangumi_network_cjk_a4818f">广东嘉佳卡通</string>
     <string name="bangumi_network_cjk_a9528e">卡酷动画</string>
     <string name="bangumi_network_cjk_a9e116">日テレプラス</string>
-    <string name="bangumi_network_cjk_aaa4da">秋田テレビ</string>
+    <string name="bangumi_network_cjk_aaa4da">Akita TV</string>
     <string name="bangumi_network_cjk_aaee9f">中国大陆-华娱卫视</string>
     <string name="bangumi_network_cjk_ac7722">浙江电视台少儿频道</string>
     <string name="bangumi_network_cjk_ae75fc">江苏卫视 上星</string>
@@ -1211,9 +1211,9 @@
     <string name="bangumi_network_nhk_2_3">衛星アニメ劇場 NHK衛星第2テレビジョン</string>
     <string name="bangumi_network_nhk_2_4">NHK衛星第2テレビ</string>
     <string name="bangumi_network_nhk_2_5">NHK卫星第2频道</string>
-    <string name="bangumi_network_nhk_9">nhk総合</string>
+    <string name="bangumi_network_nhk_9">NHK</string>
     <string name="bangumi_network_nhk_bs8k">NHK BS8K</string>
-    <string name="bangumi_network_nhk_bs_4">NHK-BSプレミアム</string>
+    <string name="bangumi_network_nhk_bs_4">NHK BS Premium</string>
     <string name="bangumi_network_nhk_e_3">NHK E</string>
     <string name="bangumi_network_nhk_world">NHK WORLD</string>
     <string name="bangumi_network_nick_3">NICK儿童频道 首播</string>
@@ -1250,7 +1250,7 @@
     <string name="bangumi_network_sat_1">SAT.1</string>
     <string name="bangumi_network_sbc_2">SBC 信越放送</string>
     <string name="bangumi_network_sbs_2">静岡放送 SBS ほか</string>
-    <string name="bangumi_network_sbs_5">SBS 静岡放送</string>
+    <string name="bangumi_network_sbs_5">SBS</string>
     <string name="bangumi_network_sbs_plus">韩国SBS Plus有线台</string>
     <string name="bangumi_network_shizuoka_asahi_television">Shizuoka Asahi Television</string>
     <string name="bangumi_network_show_2">金曜ロードSHOW!特別ドラマ企画</string>
@@ -1631,7 +1631,7 @@
     <string name="bangumi_producer_brs_on_tv">BRS on TV</string>
     <string name="bangumi_producer_bryan_cranston">Bryan Cranston</string>
     <string name="bangumi_producer_bs12">BS12 トゥエルビ</string>
-    <string name="bangumi_producer_bs_3_54d58b440d">BSジャパン</string>
+    <string name="bangumi_producer_bs_3_54d58b440d">BS TV Tokyo</string>
     <string name="bangumi_producer_bud_yorkin_productions">Bud Yorkin Productions</string>
     <string name="bangumi_producer_c2">C2プレパラート</string>
     <string name="bangumi_producer_c9">C9</string>
@@ -2807,7 +2807,7 @@
     <string name="bangumi_producer_cjk_3d4ecd">武寒青</string>
     <string name="bangumi_producer_cjk_3d5171">蔡晨颖</string>
     <string name="bangumi_producer_cjk_3d788f">中村恵子</string>
-    <string name="bangumi_producer_cjk_3d829d">綾倉盟</string>
+    <string name="bangumi_producer_cjk_3d829d">Mei Ayakura</string>
     <string name="bangumi_producer_cjk_3d9b86">清水桃</string>
     <string name="bangumi_producer_cjk_3da509">真保安一郎</string>
     <string name="bangumi_producer_cjk_3da6fb">丁小平</string>
@@ -2821,7 +2821,7 @@
     <string name="bangumi_producer_cjk_3e3423">細川慶胤</string>
     <string name="bangumi_producer_cjk_3e4b15">佐藤豊</string>
     <string name="bangumi_producer_cjk_3e4b3c">王攀</string>
-    <string name="bangumi_producer_cjk_3e7381">里见哲朗</string>
+    <string name="bangumi_producer_cjk_3e7381">Tetsuro Satomi</string>
     <string name="bangumi_producer_cjk_3e7c50">田汨</string>
     <string name="bangumi_producer_cjk_3e863e">洛尔 比尔</string>
     <string name="bangumi_producer_cjk_3e8963">網野コハク</string>
@@ -3674,7 +3674,7 @@
     <string name="bangumi_producer_cjk_6eb267">朱万林</string>
     <string name="bangumi_producer_cjk_6eb833">新里英之</string>
     <string name="bangumi_producer_cjk_6eba36">钟丽珍</string>
-    <string name="bangumi_producer_cjk_6ebfb5">芳文社)</string>
+    <string name="bangumi_producer_cjk_6ebfb5">Houbunsha</string>
     <string name="bangumi_producer_cjk_6ec644">ブシロード ウルトラスーパーピクチャーズ</string>
     <string name="bangumi_producer_cjk_6ecb39">王珊</string>
     <string name="bangumi_producer_cjk_6ece1a">统括制片人 海老根愛</string>
@@ -3810,7 +3810,7 @@
     <string name="bangumi_producer_cjk_76d992">マップ</string>
     <string name="bangumi_producer_cjk_76dcc8">亿匠堂</string>
     <string name="bangumi_producer_cjk_76e69c">水口美香</string>
-    <string name="bangumi_producer_cjk_76f817">鹫尾天</string>
+    <string name="bangumi_producer_cjk_76f817">Takashi Washio</string>
     <string name="bangumi_producer_cjk_770eb1">柴田勝</string>
     <string name="bangumi_producer_cjk_772416">ぴぎー</string>
     <string name="bangumi_producer_cjk_772d17">西野智也</string>
@@ -3821,7 +3821,7 @@
     <string name="bangumi_producer_cjk_7766ba">易大可</string>
     <string name="bangumi_producer_cjk_777166">池田亮太</string>
     <string name="bangumi_producer_cjk_778454">萩原敏雄</string>
-    <string name="bangumi_producer_cjk_779cda">東海テレビ</string>
+    <string name="bangumi_producer_cjk_779cda">THK</string>
     <string name="bangumi_producer_cjk_77a227">碧陽学園生徒会</string>
     <string name="bangumi_producer_cjk_77a2bc">金井隆治</string>
     <string name="bangumi_producer_cjk_77af7f">ミコット</string>
@@ -3972,7 +3972,7 @@
     <string name="bangumi_producer_cjk_7f1306">神鹰氏族</string>
     <string name="bangumi_producer_cjk_7f165e">尾上太基</string>
     <string name="bangumi_producer_cjk_7f2cb3">内田勝</string>
-    <string name="bangumi_producer_cjk_7f4860">詩月カオリ</string>
+    <string name="bangumi_producer_cjk_7f4860">Kaori Utatsuki</string>
     <string name="bangumi_producer_cjk_7f66be">八田正宣</string>
     <string name="bangumi_producer_cjk_7f9030">鳥羽聡</string>
     <string name="bangumi_producer_cjk_7fd554">吴若妍</string>
@@ -4129,7 +4129,7 @@
     <string name="bangumi_producer_cjk_88685f">曹震刚</string>
     <string name="bangumi_producer_cjk_887276">近貞博</string>
     <string name="bangumi_producer_cjk_88c90a">濱洲英喜</string>
-    <string name="bangumi_producer_cjk_88cd6a">读卖广告社</string>
+    <string name="bangumi_producer_cjk_88cd6a">Yomiko Advertising</string>
     <string name="bangumi_producer_cjk_88ef2b">山科翔太郎</string>
     <string name="bangumi_producer_cjk_891079">制作挺括：尾崎雅之</string>
     <string name="bangumi_producer_cjk_89194f">批把島しゆう太</string>
@@ -4290,7 +4290,7 @@
     <string name="bangumi_producer_cjk_93b23b">白矢たつき</string>
     <string name="bangumi_producer_cjk_93b419">升沢逹也</string>
     <string name="bangumi_producer_cjk_93b681">吉田剛志</string>
-    <string name="bangumi_producer_cjk_93cdbb">熊本放送</string>
+    <string name="bangumi_producer_cjk_93cdbb">RKK</string>
     <string name="bangumi_producer_cjk_93df68">西山泰弘</string>
     <string name="bangumi_producer_cjk_93ec9d">めと</string>
     <string name="bangumi_producer_cjk_93ffff">佐々木大地</string>
@@ -4443,13 +4443,13 @@
     <string name="bangumi_producer_cjk_9c1bf9">平松正樹</string>
     <string name="bangumi_producer_cjk_9c26f7">藤村駿</string>
     <string name="bangumi_producer_cjk_9c7f46">李莉</string>
-    <string name="bangumi_producer_cjk_9c8817">アニプレックス(</string>
+    <string name="bangumi_producer_cjk_9c8817">Aniplex</string>
     <string name="bangumi_producer_cjk_9c93c9">楠千亜紀</string>
     <string name="bangumi_producer_cjk_9c9ab3">王忠玲</string>
     <string name="bangumi_producer_cjk_9cac40">大和ミュージアム</string>
     <string name="bangumi_producer_cjk_9cb1b9">松川美苗</string>
     <string name="bangumi_producer_cjk_9cce67">夏凉</string>
-    <string name="bangumi_producer_cjk_9cdc84">絵梦株式会社</string>
+    <string name="bangumi_producer_cjk_9cdc84">Haoliners</string>
     <string name="bangumi_producer_cjk_9ceb05">刘豫斌</string>
     <string name="bangumi_producer_cjk_9cf6b7">沈培峰</string>
     <string name="bangumi_producer_cjk_9cfe9f">刘芳</string>
@@ -4703,7 +4703,7 @@
     <string name="bangumi_producer_cjk_aa723a">林志勇</string>
     <string name="bangumi_producer_cjk_aa7cb1">三浦和也</string>
     <string name="bangumi_producer_cjk_aa8af4">佐藤良隆</string>
-    <string name="bangumi_producer_cjk_aaa447">テレビ朝日：</string>
+    <string name="bangumi_producer_cjk_aaa447">TV Asahi</string>
     <string name="bangumi_producer_cjk_aaa497">電通テック</string>
     <string name="bangumi_producer_cjk_aae505">水野健太郎</string>
     <string name="bangumi_producer_cjk_aae508">田头伸哉</string>
@@ -4731,7 +4731,7 @@
     <string name="bangumi_producer_cjk_ac4da3">徐梦鸽</string>
     <string name="bangumi_producer_cjk_ac5006">温绍伦</string>
     <string name="bangumi_producer_cjk_ac534b">森田葉純</string>
-    <string name="bangumi_producer_cjk_ac5df7">ピーエーワークス</string>
+    <string name="bangumi_producer_cjk_ac5df7">P.A.Works</string>
     <string name="bangumi_producer_cjk_ac654f">中島瑞木</string>
     <string name="bangumi_producer_cjk_ac6cf6">高橋秀雄</string>
     <string name="bangumi_producer_cjk_ac6d3f">竹下健一</string>
@@ -4958,7 +4958,7 @@
     <string name="bangumi_producer_cjk_b85d88">上海天幕星映文化传媒有限公司</string>
     <string name="bangumi_producer_cjk_b8776c">小出真佐樹</string>
     <string name="bangumi_producer_cjk_b89334">佐藤明</string>
-    <string name="bangumi_producer_cjk_b8af2c">东映エージエンシー</string>
+    <string name="bangumi_producer_cjk_b8af2c">Toei Agency</string>
     <string name="bangumi_producer_cjk_b8ca7d">士郎正宗</string>
     <string name="bangumi_producer_cjk_b8d16c">暮狩新聞部</string>
     <string name="bangumi_producer_cjk_b8d7f1">ゆかりのそらと</string>
@@ -5081,7 +5081,7 @@
     <string name="bangumi_producer_cjk_bef284">メルヘン社</string>
     <string name="bangumi_producer_cjk_bef79b">肖恩</string>
     <string name="bangumi_producer_cjk_bef9c8">春田克典</string>
-    <string name="bangumi_producer_cjk_befad4">スタジオファンタジア</string>
+    <string name="bangumi_producer_cjk_befad4">Studio Fantasia</string>
     <string name="bangumi_producer_cjk_bf0317">闫立严</string>
     <string name="bangumi_producer_cjk_bf0eb4">徐泽星</string>
     <string name="bangumi_producer_cjk_bf1b83">セイカ</string>
@@ -5150,7 +5150,7 @@
     <string name="bangumi_producer_cjk_c2b7ac">佐藤竜雄</string>
     <string name="bangumi_producer_cjk_c2e825">サダユキ</string>
     <string name="bangumi_producer_cjk_c30933">福嶋更一郎</string>
-    <string name="bangumi_producer_cjk_c32284">網石遊戲</string>
+    <string name="bangumi_producer_cjk_c32284">Netmarble</string>
     <string name="bangumi_producer_cjk_c32f1a">武内直子</string>
     <string name="bangumi_producer_cjk_c33d24">和久井健</string>
     <string name="bangumi_producer_cjk_c35bfc">深眠少女</string>
@@ -5400,7 +5400,7 @@
     <string name="bangumi_producer_cjk_d0eb94">青木信也</string>
     <string name="bangumi_producer_cjk_d114a5">柴貴正</string>
     <string name="bangumi_producer_cjk_d12e6d">小野義徳→松本脩平 冠军版</string>
-    <string name="bangumi_producer_cjk_d1340f">中京テレビ</string>
+    <string name="bangumi_producer_cjk_d1340f">CTV</string>
     <string name="bangumi_producer_cjk_d14d55">大野雅義</string>
     <string name="bangumi_producer_cjk_d16aed">李政载</string>
     <string name="bangumi_producer_cjk_d1880d">岩田松雄</string>
@@ -5695,7 +5695,7 @@
     <string name="bangumi_producer_cjk_dfa31c">山田聖也</string>
     <string name="bangumi_producer_cjk_dfaf26">青木由美菜</string>
     <string name="bangumi_producer_cjk_dfc249">久保田正明</string>
-    <string name="bangumi_producer_cjk_dfcf9f">志仓千代丸</string>
+    <string name="bangumi_producer_cjk_dfcf9f">Chiyomaru Shikura</string>
     <string name="bangumi_producer_cjk_dfe5b0">高橋史典 ケイファクトリー</string>
     <string name="bangumi_producer_cjk_e01942">池田拓也</string>
     <string name="bangumi_producer_cjk_e03e59">孙晓燕</string>
@@ -5728,7 +5728,7 @@
     <string name="bangumi_producer_cjk_e157f3">村上敬</string>
     <string name="bangumi_producer_cjk_e17d1b">方駿釗</string>
     <string name="bangumi_producer_cjk_e183c0">雪仁</string>
-    <string name="bangumi_producer_cjk_e190a3">泽野弘之</string>
+    <string name="bangumi_producer_cjk_e190a3">Hiroyuki Sawano</string>
     <string name="bangumi_producer_cjk_e1988c">高桥尚子</string>
     <string name="bangumi_producer_cjk_e19c90">小林有衣子</string>
     <string name="bangumi_producer_cjk_e1b160">马灿森</string>
@@ -6033,7 +6033,7 @@
     <string name="bangumi_producer_cjk_f36d8a">風野健治</string>
     <string name="bangumi_producer_cjk_f39388">杨柳柳</string>
     <string name="bangumi_producer_cjk_f399c4">稲垣竜一郎</string>
-    <string name="bangumi_producer_cjk_f3ac5d">コアミックス</string>
+    <string name="bangumi_producer_cjk_f3ac5d">Coamix</string>
     <string name="bangumi_producer_cjk_f3aeac">宋毅文</string>
     <string name="bangumi_producer_cjk_f3b419">南里幸</string>
     <string name="bangumi_producer_cjk_f3ba62">王薇</string>
@@ -6056,7 +6056,7 @@
     <string name="bangumi_producer_cjk_f485b2">鈴井ナルミ</string>
     <string name="bangumi_producer_cjk_f48afd">創通 当時</string>
     <string name="bangumi_producer_cjk_f49d25">湯田敏史</string>
-    <string name="bangumi_producer_cjk_f4b16f">アスミックエース</string>
+    <string name="bangumi_producer_cjk_f4b16f">Asmik Ace</string>
     <string name="bangumi_producer_cjk_f4d533">車田正美</string>
     <string name="bangumi_producer_cjk_f4feb4">癒月</string>
     <string name="bangumi_producer_cjk_f504a9">最上頌平</string>
@@ -6219,7 +6219,7 @@
     <string name="bangumi_producer_cjk_fe061e">周志毅</string>
     <string name="bangumi_producer_cjk_fe07f7">林涌 总</string>
     <string name="bangumi_producer_cjk_fe2677">桑原丈弥 秋元孝之</string>
-    <string name="bangumi_producer_cjk_fe2c88">姚壮宪</string>
+    <string name="bangumi_producer_cjk_fe2c88">Yao Zhuangxian</string>
     <string name="bangumi_producer_cjk_fe3562">麻武新</string>
     <string name="bangumi_producer_cjk_fe43b2">佐藤優樹</string>
     <string name="bangumi_producer_cjk_fe6116">朱珍珍 执行制片人</string>
@@ -6761,7 +6761,7 @@
     <string name="bangumi_producer_dreamer_work">Dreamer-Work</string>
     <string name="bangumi_producer_drop_2">动画制片人：稲村努 drop</string>
     <string name="bangumi_producer_dx_music">袁大巍@Dx Music</string>
-    <string name="bangumi_producer_dy_3">博報堂DYミュージック＆ピクチャーズ</string>
+    <string name="bangumi_producer_dy_3">Hakuhodo DY Music &amp; Pictures</string>
     <string name="bangumi_producer_dy_4">博报堂DY媒体合作伙伴</string>
     <string name="bangumi_producer_dylan_clark">Dylan Clark</string>
     <string name="bangumi_producer_dystopia_interactive">Dystopia Interactive</string>
@@ -7899,7 +7899,7 @@
     <string name="bangumi_publisher_cinemaware">Cinemaware</string>
     <string name="bangumi_publisher_cj_2_ae251a0c96">CJ</string>
     <string name="bangumi_publisher_cjk_00320e">ビーズログ文庫アリス</string>
-    <string name="bangumi_publisher_cjk_00e5ba">角川春树事务所</string>
+    <string name="bangumi_publisher_cjk_00e5ba">Kadokawa Haruki Corporation</string>
     <string name="bangumi_publisher_cjk_00ee71">*筑摩書房</string>
     <string name="bangumi_publisher_cjk_017e74">大田</string>
     <string name="bangumi_publisher_cjk_01ab01">童年时影视文化 天津 有限公司</string>
@@ -7920,7 +7920,7 @@
     <string name="bangumi_publisher_cjk_060f9d">科学普及出版社</string>
     <string name="bangumi_publisher_cjk_062dc6">ディーエムエムミュージックアストロボイス</string>
     <string name="bangumi_publisher_cjk_0711d4">群言出版社</string>
-    <string name="bangumi_publisher_cjk_07b239">岩波书店</string>
+    <string name="bangumi_publisher_cjk_07b239">Iwanami Shoten</string>
     <string name="bangumi_publisher_cjk_07d4b2">ウルトラ</string>
     <string name="bangumi_publisher_cjk_0816a4">上海声像电子(中国大陆)</string>
     <string name="bangumi_publisher_cjk_08c855">*湖北長江出版集團</string>
@@ -8026,7 +8026,7 @@
     <string name="bangumi_publisher_cjk_251f01">鬼ヶ島レコーズ</string>
     <string name="bangumi_publisher_cjk_2576a9">단글</string>
     <string name="bangumi_publisher_cjk_25c5c2">*双葉社</string>
-    <string name="bangumi_publisher_cjk_2731e9">中央公论社</string>
+    <string name="bangumi_publisher_cjk_2731e9">Chuokoron-sha</string>
     <string name="bangumi_publisher_cjk_275917">しゃぼん玉レコード</string>
     <string name="bangumi_publisher_cjk_2782a6">三采文化</string>
     <string name="bangumi_publisher_cjk_27a784">あまつぶ</string>
@@ -8107,7 +8107,7 @@
     <string name="bangumi_publisher_cjk_3b1b18">三ツ星☆リストランテ</string>
     <string name="bangumi_publisher_cjk_3ba1d6">くるみ舎</string>
     <string name="bangumi_publisher_cjk_3bcf26">* 富士見書房</string>
-    <string name="bangumi_publisher_cjk_3bf4c7">晋遊舍</string>
+    <string name="bangumi_publisher_cjk_3bf4c7">Shinyusha</string>
     <string name="bangumi_publisher_cjk_3c4456">*コンパス</string>
     <string name="bangumi_publisher_cjk_3cfa0e">山水高校雑音部</string>
     <string name="bangumi_publisher_cjk_3d0aa4">幻楽工房</string>
@@ -8186,7 +8186,7 @@
     <string name="bangumi_publisher_cjk_521a1a">メディアワークス;角川書店</string>
     <string name="bangumi_publisher_cjk_52e9c7">陕西师范大学出版社</string>
     <string name="bangumi_publisher_cjk_5307d4">宇鱼牧场漫画设计工作室</string>
-    <string name="bangumi_publisher_cjk_532149">日本广播协会</string>
+    <string name="bangumi_publisher_cjk_532149">NHK</string>
     <string name="bangumi_publisher_cjk_53da8d">リバーヒルソフト</string>
     <string name="bangumi_publisher_cjk_550938">星海社文庫</string>
     <string name="bangumi_publisher_cjk_5518bb">游戏橘子 港台</string>
@@ -8230,7 +8230,7 @@
     <string name="bangumi_publisher_cjk_5ef086">マーケティング)</string>
     <string name="bangumi_publisher_cjk_6019e6">韩)</string>
     <string name="bangumi_publisher_cjk_607c17">文圃堂</string>
-    <string name="bangumi_publisher_cjk_6087db">東贩</string>
+    <string name="bangumi_publisher_cjk_6087db">Tohan</string>
     <string name="bangumi_publisher_cjk_60a1ee">深圳市创梦天地科技有限公司</string>
     <string name="bangumi_publisher_cjk_60a9fb">オシリス文庫</string>
     <string name="bangumi_publisher_cjk_60d67d">とんかつぺんぎん</string>
@@ -8243,7 +8243,7 @@
     <string name="bangumi_publisher_cjk_62a3c7">新浪</string>
     <string name="bangumi_publisher_cjk_62ac0e">スターノベル</string>
     <string name="bangumi_publisher_cjk_63046a">新天地</string>
-    <string name="bangumi_publisher_cjk_630775">ソニーミュージックディストリビューション</string>
+    <string name="bangumi_publisher_cjk_630775">Sony Music Distribution</string>
     <string name="bangumi_publisher_cjk_6313b8">中文版</string>
     <string name="bangumi_publisher_cjk_632030">ユーザーエンタテインメント</string>
     <string name="bangumi_publisher_cjk_634efb">中影数字电影发展 北京 有限公司</string>
@@ -8273,7 +8273,7 @@
     <string name="bangumi_publisher_cjk_68fca2">ソニーグループ株式会社</string>
     <string name="bangumi_publisher_cjk_690f37">三栄書房</string>
     <string name="bangumi_publisher_cjk_69194a">角川书店；长鸿出版社</string>
-    <string name="bangumi_publisher_cjk_69ad9f">长鴻出版社</string>
+    <string name="bangumi_publisher_cjk_69ad9f">Ever Glory Publishing</string>
     <string name="bangumi_publisher_cjk_69bc26">*巴哈姆特</string>
     <string name="bangumi_publisher_cjk_69dbc5">仙台戦隊みくれんじゃー</string>
     <string name="bangumi_publisher_cjk_6ac8ae">カクバリズム</string>
@@ -8348,7 +8348,7 @@
     <string name="bangumi_publisher_cjk_7db0ee">晶合时代</string>
     <string name="bangumi_publisher_cjk_7db674">*缪思</string>
     <string name="bangumi_publisher_cjk_7de0df">コミック編集部</string>
-    <string name="bangumi_publisher_cjk_7e415c">ギャガ</string>
+    <string name="bangumi_publisher_cjk_7e415c">GAGA</string>
     <string name="bangumi_publisher_cjk_7ec985">ドゥワチャライ久</string>
     <string name="bangumi_publisher_cjk_7efa8c">鲜鲜文化</string>
     <string name="bangumi_publisher_cjk_7f0711">王玮</string>
@@ -8383,7 +8383,7 @@
     <string name="bangumi_publisher_cjk_873418">実業之日本社文庫</string>
     <string name="bangumi_publisher_cjk_87efc8">ロッキング オン</string>
     <string name="bangumi_publisher_cjk_882cd3">*メディアワークス</string>
-    <string name="bangumi_publisher_cjk_891f17">人民文學出版社</string>
+    <string name="bangumi_publisher_cjk_891f17">People\'s Literature Publishing House</string>
     <string name="bangumi_publisher_cjk_892f3f">インプレスジャパン</string>
     <string name="bangumi_publisher_cjk_89b674">思潮社</string>
     <string name="bangumi_publisher_cjk_89b981">なんとかかんとか</string>
@@ -8427,7 +8427,7 @@
     <string name="bangumi_publisher_cjk_93ec4c">亦听</string>
     <string name="bangumi_publisher_cjk_94037c">游龙在线 中国大陆</string>
     <string name="bangumi_publisher_cjk_9430b2">あくたむし</string>
-    <string name="bangumi_publisher_cjk_94ac82">远流</string>
+    <string name="bangumi_publisher_cjk_94ac82">Yuan-Liou</string>
     <string name="bangumi_publisher_cjk_957d8b">祥伝社オンブルーコミックス刊</string>
     <string name="bangumi_publisher_cjk_965c52">武士道传媒</string>
     <string name="bangumi_publisher_cjk_965e5c">スクリプト</string>
@@ -8440,7 +8440,7 @@
     <string name="bangumi_publisher_cjk_985853">ソフトバンク パブリッシング</string>
     <string name="bangumi_publisher_cjk_987f1e">春秋出版</string>
     <string name="bangumi_publisher_cjk_991c18">ネクスト</string>
-    <string name="bangumi_publisher_cjk_9921fd">ＭＦ文庫Ｊ</string>
+    <string name="bangumi_publisher_cjk_9921fd">MF Bunko J</string>
     <string name="bangumi_publisher_cjk_99b472">ウェーブ</string>
     <string name="bangumi_publisher_cjk_99c33a">腾影影视</string>
     <string name="bangumi_publisher_cjk_99ff18">あいすとちょこ</string>
@@ -8461,7 +8461,7 @@
     <string name="bangumi_publisher_cjk_9f1d69">お人形になりたい。</string>
     <string name="bangumi_publisher_cjk_9f2fcd">紅心辣椒</string>
     <string name="bangumi_publisher_cjk_9f402b">風雲時代</string>
-    <string name="bangumi_publisher_cjk_9f88a6">バンダイナムコフィルムワークス</string>
+    <string name="bangumi_publisher_cjk_9f88a6">Bandai Namco Filmworks</string>
     <string name="bangumi_publisher_cjk_9fbea6">メタモル出版</string>
     <string name="bangumi_publisher_cjk_9fdd05">ボーイズソフトウェア</string>
     <string name="bangumi_publisher_cjk_9fdd91">ビオ</string>
@@ -8476,7 +8476,7 @@
     <string name="bangumi_publisher_cjk_a25661">读书</string>
     <string name="bangumi_publisher_cjk_a2ccf8">サンマーク出版</string>
     <string name="bangumi_publisher_cjk_a2d675">北大路書房</string>
-    <string name="bangumi_publisher_cjk_a314a7">大诚社</string>
+    <string name="bangumi_publisher_cjk_a314a7">Taiseisha</string>
     <string name="bangumi_publisher_cjk_a32444">株式会社神奇宝贝</string>
     <string name="bangumi_publisher_cjk_a3346a">嘉樂製作發行有限公司 (香港)</string>
     <string name="bangumi_publisher_cjk_a35405">陥落乙女インフェルノ</string>
@@ -8616,12 +8616,12 @@
     <string name="bangumi_publisher_cjk_cb3277">刻刻音樂館</string>
     <string name="bangumi_publisher_cjk_cb6dd1">学习研究会</string>
     <string name="bangumi_publisher_cjk_cbc2de">高寶書版</string>
-    <string name="bangumi_publisher_cjk_cbeea8">台灣尖端</string>
+    <string name="bangumi_publisher_cjk_cbeea8">Sharp Point Press</string>
     <string name="bangumi_publisher_cjk_cbf331">中国铁道出版社</string>
     <string name="bangumi_publisher_cjk_cc6097">エース(アスミック</string>
     <string name="bangumi_publisher_cjk_cc6f0b">中国至公出版社</string>
     <string name="bangumi_publisher_cjk_cc8000">映画「柳川堀割物語」配給委員会</string>
-    <string name="bangumi_publisher_cjk_cc9f78">梦工厂</string>
+    <string name="bangumi_publisher_cjk_cc9f78">DreamWorks Animation</string>
     <string name="bangumi_publisher_cjk_ccb63d">アクアムンダアンドアソシエイツ</string>
     <string name="bangumi_publisher_cjk_ccd4d6">*中央公論新社</string>
     <string name="bangumi_publisher_cjk_cd107a">广东雅恒影视文化传播有限公司</string>
@@ -8639,7 +8639,7 @@
     <string name="bangumi_publisher_cjk_d13162">ユニバーサル ミュージック アーティスツ</string>
     <string name="bangumi_publisher_cjk_d1abd9">東京漫画社マーブルコミックス</string>
     <string name="bangumi_publisher_cjk_d1c7cc">湖南少年儿童出版社→山东画报出版社</string>
-    <string name="bangumi_publisher_cjk_d23bfc">ガガガ文库</string>
+    <string name="bangumi_publisher_cjk_d23bfc">Gagaga Bunko</string>
     <string name="bangumi_publisher_cjk_d27176">ワークスコーポレーション</string>
     <string name="bangumi_publisher_cjk_d2a3a2">中国妇女出版社</string>
     <string name="bangumi_publisher_cjk_d2b224">朝华出版社</string>
@@ -8694,7 +8694,7 @@
     <string name="bangumi_publisher_cjk_ddb6be">영현</string>
     <string name="bangumi_publisher_cjk_de1837">ダイナミックプロ</string>
     <string name="bangumi_publisher_cjk_de1dce">ソルブレイド</string>
-    <string name="bangumi_publisher_cjk_de2e5b">電擊文庫</string>
+    <string name="bangumi_publisher_cjk_de2e5b">Dengeki Bunko</string>
     <string name="bangumi_publisher_cjk_de37a4">甘肃少年儿童出版社</string>
     <string name="bangumi_publisher_cjk_de5087">上海电影股份</string>
     <string name="bangumi_publisher_cjk_de8696">集英社漫画文庫</string>
@@ -8738,7 +8738,7 @@
     <string name="bangumi_publisher_cjk_e877ac">天津动漫堂艺术发展有限公司</string>
     <string name="bangumi_publisher_cjk_e87962">華源</string>
     <string name="bangumi_publisher_cjk_e8b11a">拳头游戏</string>
-    <string name="bangumi_publisher_cjk_e8d252">电撃文库</string>
+    <string name="bangumi_publisher_cjk_e8d252">Dengeki Bunko</string>
     <string name="bangumi_publisher_cjk_e90b36">柚音色堂</string>
     <string name="bangumi_publisher_cjk_e9467d">(国际)</string>
     <string name="bangumi_publisher_cjk_e98d8a">ケータイ小説文庫―野いちご</string>
@@ -8870,7 +8870,7 @@
     <string name="bangumi_publisher_dc_comics_english">DC Comics (English)</string>
     <string name="bangumi_publisher_dc_vertigo">DC-Vertigo</string>
     <string name="bangumi_publisher_dead_space_zombies">dead space zombies</string>
-    <string name="bangumi_publisher_dear_2">新書館 Dear＋</string>
+    <string name="bangumi_publisher_dear_2">Dear+</string>
     <string name="bangumi_publisher_dearest">DearesT</string>
     <string name="bangumi_publisher_decca_records">Decca Records</string>
     <string name="bangumi_publisher_decode">残響decode</string>
@@ -10485,7 +10485,7 @@
     <string name="bangumi_studio_cjk_285ea2">青岛一步到位动漫设计有限公司</string>
     <string name="bangumi_studio_cjk_28aaf4">龍が如くスタジオ (</string>
     <string name="bangumi_studio_cjk_28c4c0">雪月花ソフトウェア</string>
-    <string name="bangumi_studio_cjk_2918a6">中国中央电视台</string>
+    <string name="bangumi_studio_cjk_2918a6">CCTV</string>
     <string name="bangumi_studio_cjk_2950c1">あんにゅい堂</string>
     <string name="bangumi_studio_cjk_29a305">华吉冠</string>
     <string name="bangumi_studio_cjk_29ac9b">タイガープロ</string>
@@ -10534,7 +10534,7 @@
     <string name="bangumi_studio_cjk_31ad99">青梅制作所</string>
     <string name="bangumi_studio_cjk_31af62">成都龙游天下</string>
     <string name="bangumi_studio_cjk_31fbc2">秦雪</string>
-    <string name="bangumi_studio_cjk_322fa7">江苏卫视</string>
+    <string name="bangumi_studio_cjk_322fa7">Jiangsu TV</string>
     <string name="bangumi_studio_cjk_326806">漫禾文化</string>
     <string name="bangumi_studio_cjk_32a7ed">さむいそら</string>
     <string name="bangumi_studio_cjk_32c261">霍尔果斯联瑞影业有限公司</string>
@@ -10763,7 +10763,7 @@
     <string name="bangumi_studio_cjk_61de55">孭织</string>
     <string name="bangumi_studio_cjk_62a48c">隠蜜工房</string>
     <string name="bangumi_studio_cjk_6325fa">七政游戏</string>
-    <string name="bangumi_studio_cjk_634a11">新海诚</string>
+    <string name="bangumi_studio_cjk_634a11">Makoto Shinkai</string>
     <string name="bangumi_studio_cjk_6384c6">アスラフィルム</string>
     <string name="bangumi_studio_cjk_63d2cd">どっ恋ソフト</string>
     <string name="bangumi_studio_cjk_64002e">九龍尼亞有限公司</string>
@@ -11204,7 +11204,7 @@
     <string name="bangumi_studio_cjk_c2c6b9">烏菜木市奇譚</string>
     <string name="bangumi_studio_cjk_c2e9c6">にゅう工房</string>
     <string name="bangumi_studio_cjk_c2f035">弥弥尔工作室</string>
-    <string name="bangumi_studio_cjk_c39a7a">湖南卫视</string>
+    <string name="bangumi_studio_cjk_c39a7a">Hunan TV</string>
     <string name="bangumi_studio_cjk_c41594">深蓝制作组</string>
     <string name="bangumi_studio_cjk_c41eeb">フォーティーファイブ</string>
     <string name="bangumi_studio_cjk_c4237c">＋１</string>
@@ -11234,7 +11234,7 @@
     <string name="bangumi_studio_cjk_c97726">(旨味まづ)</string>
     <string name="bangumi_studio_cjk_c992a9">张兴远</string>
     <string name="bangumi_studio_cjk_c9a2fd">沙漏工作室</string>
-    <string name="bangumi_studio_cjk_c9ccbd">爱奇艺</string>
+    <string name="bangumi_studio_cjk_c9ccbd">iQIYI</string>
     <string name="bangumi_studio_cjk_c9e0d1">姫宮夕日(同人)</string>
     <string name="bangumi_studio_cjk_c9ec15">ストラトス</string>
     <string name="bangumi_studio_cjk_ca0471">概ソフト</string>
@@ -12201,7 +12201,7 @@
     <string name="bangumi_studio_nexon_2">韩国NEXON</string>
     <string name="bangumi_studio_nexon_gt">NEXON GT</string>
     <string name="bangumi_studio_nge">NGE)</string>
-    <string name="bangumi_studio_nhk_a585b11d8e">NHKエンタープライズ</string>
+    <string name="bangumi_studio_nhk_a585b11d8e">NHK Enterprises</string>
     <string name="bangumi_studio_nhk_educational">NHK Educational</string>
     <string name="bangumi_studio_nhn">NHNブラックピック</string>
     <string name="bangumi_studio_nicken">新田健士 NICKEN</string>
@@ -12610,7 +12610,7 @@
     <string name="bangumi_studio_strikes">STRIKES</string>
     <string name="bangumi_studio_striking_distance_studios">Striking Distance Studios</string>
     <string name="bangumi_studio_stronger">STRONGER</string>
-    <string name="bangumi_studio_studio">Studio五组</string>
+    <string name="bangumi_studio_studio">Studio Gokumi</string>
     <string name="bangumi_studio_studio_12">studioオルカ</string>
     <string name="bangumi_studio_studio_3">STUDIOねこぱんち</string>
     <string name="bangumi_studio_studio_397">Studio 397</string>
@@ -13088,7 +13088,7 @@
     <string name="bangumi_tag_kentaro_haneda">Kentaro Haneda</string>
     <string name="bangumi_tag_rozen_maiden">Rozen Maiden</string>
     <string name="bangumi_tag_shinya_saito">Shinya Saito</string>
-    <string name="bangumi_tag_cjk_01f3ef">御影瑛路</string>
+    <string name="bangumi_tag_cjk_01f3ef">Eiji Mikage</string>
     <string name="bangumi_tag_toritsu_mizusho">Toritsu Mizusho!</string>
     <string name="bangumi_tag_sahomi_koyama">Sahomi Koyama</string>
     <string name="bangumi_tag_mayumi_azuma">Mayumi Azuma</string>
@@ -13108,7 +13108,7 @@
     <string name="bangumi_tag_hiroshi_abe">Hiroshi Abe</string>
     <string name="bangumi_tag_yasunori_matsumoto">Yasunori Matsumoto</string>
     <string name="bangumi_tag_koji_wada">Koji Wada</string>
-    <string name="bangumi_tag_cjk_0f230b">三浦祥朗</string>
+    <string name="bangumi_tag_cjk_0f230b">Hiroaki Miura</string>
     <string name="bangumi_tag_junji_nishimura">Junji Nishimura</string>
     <string name="bangumi_tag_moe_trash">Moe Trash</string>
     <string name="bangumi_tag_setting_materials">Setting Materials</string>
@@ -13148,11 +13148,11 @@
     <string name="bangumi_tag_atsushi_ohkubo">Atsushi Ohkubo</string>
     <string name="bangumi_tag_satoru_yuiga">Satoru Yuiga</string>
     <string name="bangumi_tag_a_certain_magical_index">A Certain Magical Index</string>
-    <string name="bangumi_tag_cjk_1cdcb3">奥井康介</string>
+    <string name="bangumi_tag_cjk_1cdcb3">Kosuke Okui</string>
     <string name="bangumi_tag_yellow_tanabe">Yellow Tanabe</string>
     <string name="bangumi_tag_south_park">South Park</string>
     <string name="bangumi_tag_katsuhisa_kigitsu">Katsuhisa Kigitsu</string>
-    <string name="bangumi_tag_cjk_1ea56a">佐藤純一</string>
+    <string name="bangumi_tag_cjk_1ea56a">Junichi Sato</string>
     <string name="bangumi_tag_mio_tennoji">Mio Tennoji</string>
     <string name="bangumi_tag_ai_hasukawa">Ai Hasukawa</string>
     <string name="bangumi_tag_mitsutoshi_shimabukuro">Mitsutoshi Shimabukuro</string>
@@ -13171,7 +13171,7 @@
     <string name="bangumi_tag_yamato_nase">Yamato Nase</string>
     <string name="bangumi_tag_blast_of_tempest">Blast of Tempest</string>
     <string name="bangumi_tag_cjk_25daba">河豚屋</string>
-    <string name="bangumi_tag_cjk_2909ec">有葉</string>
+    <string name="bangumi_tag_cjk_2909ec">Alpha (Aruha)</string>
     <string name="bangumi_tag_haruka_minami">Haruka Minami</string>
     <string name="bangumi_tag_rurouni_kenshin">Rurouni Kenshin</string>
     <string name="bangumi_tag_harvest_moon">Harvest Moon</string>
@@ -13188,7 +13188,7 @@
     <string name="bangumi_tag_valkyrie">Valkyrie</string>
     <string name="bangumi_tag_simulation">Simulation</string>
     <string name="bangumi_tag_extracted_animation">Extracted Animation</string>
-    <string name="bangumi_tag_cjk_323129">本名ワコウ</string>
+    <string name="bangumi_tag_cjk_323129">Wakou Honna</string>
     <string name="bangumi_tag_coop_game">Co-op</string>
     <string name="bangumi_tag_ai_maeda">Ai Maeda</string>
     <string name="bangumi_tag_yozaburo_kanari">Yozaburo Kanari</string>
@@ -13196,7 +13196,7 @@
     <string name="bangumi_tag_mami_koyama">Mami Koyama</string>
     <string name="bangumi_tag_cjk_3638ea">本庄りえ</string>
     <string name="bangumi_tag_yoshito_usui">Yoshito Usui</string>
-    <string name="bangumi_tag_cjk_36e304">时代漫画</string>
+    <string name="bangumi_tag_cjk_36e304">Period Manga</string>
     <string name="bangumi_tag_sho_sakurai">Sho Sakurai</string>
     <string name="bangumi_tag_cjk_37e449">不知火つばさ</string>
     <string name="bangumi_tag_yuko_sanpei">Yuko Sanpei</string>
@@ -13234,7 +13234,7 @@
     <string name="bangumi_tag_kosuke_fujishima">Kosuke Fujishima</string>
     <string name="bangumi_tag_sayuri_yahagi">Sayuri Yahagi</string>
     <string name="bangumi_tag_tetris">Tetris</string>
-    <string name="bangumi_tag_cjk_472194">水城雪可奈</string>
+    <string name="bangumi_tag_cjk_472194">Setona Mizushiro</string>
     <string name="bangumi_tag_haruko_kumota">Haruko Kumota</string>
     <string name="bangumi_tag_yuki_shimizu">Yuki Shimizu</string>
     <string name="bangumi_tag_tomohiro_matsu">Tomohiro Matsu</string>
@@ -13257,8 +13257,8 @@
     <string name="bangumi_tag_yuko_takeuchi">Yuko Takeuchi</string>
     <string name="bangumi_tag_shiwasu_no_okina">Shiwasu no Okina</string>
     <string name="bangumi_tag_kei_tanaka">Kei Tanaka</string>
-    <string name="bangumi_tag_cjk_52a8c4">女神</string>
-    <string name="bangumi_tag_cjk_52aae3">有肉</string>
+    <string name="bangumi_tag_cjk_52a8c4">Goddess</string>
+    <string name="bangumi_tag_cjk_52aae3">Smut</string>
     <string name="bangumi_tag_villainess">Villainess</string>
     <string name="bangumi_tag_game_theme_song">Game Theme Song</string>
     <string name="bangumi_tag_shuhei_mutsuki">Shuhei Mutsuki</string>
@@ -13290,7 +13290,7 @@
     <string name="bangumi_tag_nobutoshi_canna">Nobutoshi Canna</string>
     <string name="bangumi_tag_dr_slump">Dr. Slump</string>
     <string name="bangumi_tag_hiromi_sato">Hiromi Sato</string>
-    <string name="bangumi_tag_cjk_6284a5">白发魔女</string>
+    <string name="bangumi_tag_cjk_6284a5">White-Haired Witch</string>
     <string name="bangumi_tag_cjk_62c063">瓶邪</string>
     <string name="bangumi_tag_hiroyuki_maezawa">Hiroyuki Maezawa</string>
     <string name="bangumi_tag_sagu_aoyama">Sagu Aoyama</string>
@@ -13321,7 +13321,7 @@
     <string name="bangumi_tag_seiji_kikuchi">Seiji Kikuchi</string>
     <string name="bangumi_tag_tokyo_ghoul">Tokyo Ghoul</string>
     <string name="bangumi_tag_dynasty_warriors">Dynasty Warriors</string>
-    <string name="bangumi_tag_cjk_71c417">乳袋</string>
+    <string name="bangumi_tag_cjk_71c417">Boob Socks</string>
     <string name="bangumi_tag_gagharv">Gagharv Trilogy</string>
     <string name="bangumi_tag_tomoko_kawakami">Tomoko Kawakami</string>
     <string name="bangumi_tag_show_hayami">Show Hayami</string>
@@ -13336,7 +13336,7 @@
     <string name="bangumi_tag_kenji_oiwa">Kenji Oiwa</string>
     <string name="bangumi_tag_ryotaro_okijayu">Ryotaro Okiayu</string>
     <string name="bangumi_tag_danmachi">Is It Wrong to Try to Pick Up Girls in a Dungeon?</string>
-    <string name="bangumi_tag_cjk_7a5c67">一本道</string>
+    <string name="bangumi_tag_cjk_7a5c67">Linear Plot</string>
     <string name="bangumi_tag_mami_kawada">Mami Kawada</string>
     <string name="bangumi_tag_sei_takekawa">Sei Takekawa</string>
     <string name="bangumi_tag_hiro_yuuki">Hiro Yuuki</string>
@@ -13351,7 +13351,7 @@
     <string name="bangumi_tag_neneko_narasaki">Neneko Narasaki</string>
     <string name="bangumi_tag_maya_miyazaki">Maya Miyazaki</string>
     <string name="bangumi_tag_cjk_8685b0">天野晴</string>
-    <string name="bangumi_tag_cjk_868f04">夏海公司</string>
+    <string name="bangumi_tag_cjk_868f04">Koji Natsumi</string>
     <string name="bangumi_tag_cheerful">Cheerful</string>
     <string name="bangumi_tag_yoshitoshi_abe">Yoshitoshi ABe</string>
     <string name="bangumi_tag_multiplatform">Multiplatform</string>
@@ -13448,7 +13448,7 @@
     <string name="bangumi_tag_kunihiko_ryo">Kunihiko Ryo</string>
     <string name="bangumi_tag_modoru_motoni">Modoru Motoni</string>
     <string name="bangumi_tag_cjk_b85f75">織音</string>
-    <string name="bangumi_tag_cjk_b9286c">市川量也</string>
+    <string name="bangumi_tag_cjk_b9286c">Kazuya Ichikawa</string>
     <string name="bangumi_tag_nakige">Nakige</string>
     <string name="bangumi_tag_beautiful_girl">Beautiful Girl</string>
     <string name="bangumi_tag_makoto_sasakura">Makoto Sasakura</string>
@@ -13456,13 +13456,13 @@
     <string name="bangumi_tag_nobuyuki_abe">Nobuyuki Abe</string>
     <string name="bangumi_tag_kara_no_kyoukai">Kara no Kyoukai</string>
     <string name="bangumi_tag_takagi_san">Teasing Master Takagi-san</string>
-    <string name="bangumi_tag_cjk_be084a">紀律部隊</string>
+    <string name="bangumi_tag_cjk_be084a">Uniformed Services</string>
     <string name="bangumi_tag_mayday">Mayday</string>
     <string name="bangumi_tag_cjk_beee4d">かぶとまる蝶子</string>
     <string name="bangumi_tag_ryo_yoshizawa">Ryo Yoshizawa</string>
     <string name="bangumi_tag_yurika_kubo">Yurika Kubo</string>
     <string name="bangumi_tag_katsuhisa_namase">Katsuhisa Namase</string>
-    <string name="bangumi_tag_cjk_bf2c13">皇帝</string>
+    <string name="bangumi_tag_cjk_bf2c13">Emperor</string>
     <string name="bangumi_tag_revue_starlight">Revue Starlight</string>
     <string name="bangumi_tag_wasurenagusa">Wasurenagusa</string>
     <string name="bangumi_tag_natsumi_itsuki">Natsumi Itsuki</string>
@@ -13502,7 +13502,7 @@
     <string name="bangumi_tag_kamikaze_douga">Kamikaze Douga</string>
     <string name="bangumi_tag_lynn_okamoto">Lynn Okamoto</string>
     <string name="bangumi_tag_cjk_d108fe">かわい有美子</string>
-    <string name="bangumi_tag_cjk_d14c67">米光亮</string>
+    <string name="bangumi_tag_cjk_d14c67">Ryo Yonemitsu</string>
     <string name="bangumi_tag_kenshi_hirokane">Kenshi Hirokane</string>
     <string name="bangumi_tag_kimi_ni_todoke">Kimi ni Todoke</string>
     <string name="bangumi_tag_masataka_kubota">Masataka Kubota</string>
@@ -13519,7 +13519,7 @@
     <string name="bangumi_tag_ditama_bow">Ditama Bow</string>
     <string name="bangumi_tag_keigo_hoashi">Keigo Hoashi</string>
     <string name="bangumi_tag_cjk_dbfdca">桜賀めい</string>
-    <string name="bangumi_tag_cjk_dc5616">上古</string>
+    <string name="bangumi_tag_cjk_dc5616">Ancient Era</string>
     <string name="bangumi_tag_mobile_suit_gundam">Mobile Suit Gundam</string>
     <string name="bangumi_tag_rhythm">Rhythm</string>
     <string name="bangumi_tag_classical">Classical</string>
@@ -13649,7 +13649,7 @@
     <string name="bangumi_tag_m">{M}</string>
     <string name="bangumi_tag_m2">M2</string>
     <string name="bangumi_tag_masochist">Masochist</string>
-    <string name="bangumi_tag_m_a_o">M・A・O</string>
+    <string name="bangumi_tag_m_a_o">M·A·O</string>
     <string name="bangumi_tag_main_theme">Main_Theme</string>
     <string name="bangumi_tag_mario">MARIO</string>
     <string name="bangumi_tag_may">May</string>
@@ -13725,7 +13725,7 @@
     <string name="bangumi_tag_applique">Applique</string>
     <string name="bangumi_tag_sakae_esuno">Sakae Esuno</string>
     <string name="bangumi_tag_aikatsu_stars">Aikatsu Stars!</string>
-    <string name="bangumi_tag_cjk_3c4304">マリン</string>
+    <string name="bangumi_tag_cjk_3c4304">Marine Entertainment</string>
     <string name="bangumi_tag_digimon_adventure">Digimon Adventure</string>
     <string name="bangumi_tag_cjk_4db6c8">あさみほとり</string>
     <string name="bangumi_tag_ensemble_stars">Ensemble Stars!</string>

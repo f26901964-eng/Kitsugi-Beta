@@ -94,6 +94,25 @@ jobs:
       - name: 🤖 Gradle kur + önbellek
         uses: gradle/actions/setup-gradle@v4
 
+      - name: ⚙️ CI bellek ayarları
+        run: |
+          if [ ! -f /swapfile ]; then
+            sudo dd if=/dev/zero of=/swapfile bs=1M count=6144 status=none
+            sudo chmod 600 /swapfile
+            sudo mkswap /swapfile
+          fi
+          sudo swapon /swapfile || echo "swapon atlandı"
+          mkdir -p ~/.gradle
+          cat > ~/.gradle/gradle.properties << 'EOP'
+          org.gradle.jvmargs=-Xmx4g -Xms1g -Xss16m -XX:+UseG1GC -Dfile.encoding=UTF-8
+          org.gradle.workers.max=1
+          org.gradle.parallel=true
+          org.gradle.daemon=true
+          org.gradle.caching=true
+          kotlin.daemon.jvmargs=-Xmx4g -Xms1g -Xss16m -XX:+UseG1GC
+          kotlin.compiler.execution.strategy=daemon
+          EOP
+
       - name: 🧪 BangumiMasterDictionaryTest
         run: |
           chmod +x gradlew
