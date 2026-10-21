@@ -1164,3 +1164,44 @@ Havuz sayısı artık canlı `tags.json` taramasıyla tanımlanıyor: 007_b–00
 ve TR alanında Han/Kana CJK kod noktası olan **43.185** kayıt. Önceki 43.310/43.313 yaklaşık
 sayımı farklı kesit/metrik kullandığından bu tanım baz alındı; sayı kota değildir. Özel adlar ve
 fandom jargonu `as_is` kalır.
+
+## 2n) 009 serisi devam — producer 006 kaynak doğrulaması + tag 007b batch 004 (2026-10-21)
+
+1. **Producer 006 bağımsız/resmî kaynak doğrulaması (`worklists/009_decisions_006_producers_rev.tsv`):**
+   - `青柳昌行` (`cjk_d62d1f`) → **Masayuki Aoyagi**: KADOKAWA Group resmî yönetici profili
+     (`group.kadokawa.co.jp/global/company/officer/masayuki_aoyagi.html`) ve KADOKAWA/KanColle
+     resmî CD kitapçık jenerikleri (KA2C-0009, KA2C-0013, KA2C-0016) ile doğrulandı; korundu.
+   - `渡辺繁` (`cjk_f82404`) → **Shigeru Watanabe**: Bandai Visual / Emotion resmî CD kitapçık
+     jenerikleri (*Ghost in the Shell* BVCR-729, *Change!! Getter Robot* BCBA-2857) ve Wikidata
+     Q62601586 (`わたなべ しげる`) ile doğrulandı; korundu.
+   - `落越友則` (`cjk_82cd54`) → **Tomonori Ochikoshi**: Sony Music Group CloverWorks Inc. resmî
+     kurumsal sayfası (`sme.co.jp/en/company/groupcompanies/anx/clw/`) ve Aniplex resmî CD
+     kitapçık jenerikleri (SVWC-7291, SVWC-7554~5) ile doğrulandı; korundu.
+   - `森下勝司` (`cjk_31ad3b`) → `Katsushi Morishita`: **doğrulanamadı** — Production I.G resmî
+     röportaj sayfası (`production-ig.co.jp`, `もりした・かつじ`) ve OLM Inc. resmî yönetim kurulu
+     sayfası (`olm.co.jp/about`, `MORISHITA, Katsuji`) `Katsuji` okunuşunu verirken ikincil
+     kaynaklarda `Katsushi`/`Katsuji` çelişkisi bulunduğundan `Katsushi Morishita` kaldırıldı;
+     kayıt `apply_009_batch.py --mirror-repair` ile Japonca **`森下勝司` (`as_is`)** durumuna
+     döndürüldü, `org_global_names.tsv` ve `BangumiOrgDictionary.kt` RAW listesinden çıkarıldı.
+
+2. **Tag 007_b count-15 tamamlayıcı batch 004 (`worklists/009_decisions_007b_tags_004.tsv`):**
+   Count 15'teki kalan açık kavramlar ve `org_global_names.tsv` / `canon.tsv`'de mevcut kesin
+   resmî Latin adlar yerinde güncellendi (7 satır, yeni XML ID yok):
+   - `別冊花とゆめ` (`cjk_1b3e03`) → **Bessatsu Hana to Yume / Bessatsu Hana to Yume** (`global`)
+   - `朱夏` (`cjk_3793dc`) → **Shuka / Shuka** (`global`)
+   - `星海社` (`cjk_38fa71`) → **Seikaisha / Seikaisha** (`global`)
+   - `ファンタジア文庫` (`cjk_be565a`) → **Fantasia Bunko / Fantasia Bunko** (`global`)
+   - `シーズウェア` (`cjk_ba1c79`) → **C's ware / C's ware** (`global`)
+   - `未上映` (`cjk_221417`) → **Gösterime Girmedi / Not Yet Screened** (`new`)
+   - `神画风` (`cjk_86d5f8`) → **Muhteşem Çizim Tarzı / Superb Art Style** (`new`)
+
+3. **Doğrulama ve senkron:**
+   - Zorunlu `--mirror-repair` her iki batch'te çalıştırıldı (0 ikiz-engelli, 0 ayna farkı).
+   - `translations_done.tsv` üzerinde 8 mevcut satır güncellendi; `translations_pending.tsv` 0.
+   - `apply_map.py --check` + `apply_map.py` ✅ · `vault_to_strings.py` ✅ · `verify_vault.py` ✅
+     **106580 anahtar / 106335 vault kaydı / 121284 map satırı / 121284 damga** ·
+     `verify_bangumi_master.py` ✅ **52606 org eşleme, gerçek çakışma 0, TR/EN 112812 simetrik** ·
+     `gen_bangumi_master.py --check` ✅ · `check_bangumi_meta_tag_coverage.py` ✅ **158/158**.
+   - Canlı `tags.json` CJK `as_is` aday havuzu (007_b–007_i): **43.178** (kota değildir).
+   - Aktif Arena oturum dalı: `arena/284d08ba-kitsugi-beta`.
+

@@ -174,3 +174,27 @@ Havuzun güncel ve açık tanımı: tags.json'da chunk 007_b–007_i, `decision=
 CJK kod noktası olan **43.185** kayıt (önceki 43.310/43.313 sayıları farklı kesit/metrikten
 kalmıştı). Bu bir kota değil. Count-15'te sıradaki adaylarda yalnız net kavramı ve kesin resmî
 Latin adı işle; kalan özel adlar/fandom jargonu as_is.
+
+### Producer 006 kaynak doğrulaması ve 007_b batch 004 devamı (2026-10-21)
+
+- **Producer 006 doğrulaması (`worklists/009_decisions_006_producers_rev.tsv`):**
+  `青柳昌行` → Masayuki Aoyagi (KADOKAWA resmî yönetici sayfası & CD kitapçıkları),
+  `渡辺繁` → Shigeru Watanabe (Bandai Visual / Emotion resmî CD kitapçıkları) ve
+  `落越友則` → Tomonori Ochikoshi (Sony Music Group / CloverWorks resmî kurumsal sayfası)
+  resmî kaynaklardan doğrulandı. `森下勝司` (`cjk_31ad3b`) için `Katsushi Morishita` yazımı
+  doğrulanamadı (Production I.G ve OLM resmî sayfaları `もりした・かつじ` / `MORISHITA, Katsuji`
+  verirken ikincil kaynaklarda `Katsushi`/`Katsuji` çelişkisi mevcut); kayıt Japonca `森下勝司`
+  (`as_is`) durumuna döndürüldü ve `org_global_names.tsv` ile `BangumiOrgDictionary.kt` RAW
+  listesinden çıkarıldı.
+- **007_b count-15 batch 004 (`worklists/009_decisions_007b_tags_004.tsv`):**
+  Count 15'teki 7 kayıt yerinde güncellendi (yeni XML ID yok):
+  `別冊花とゆめ` → Bessatsu Hana to Yume (`global`), `朱夏` → Shuka (`global`),
+  `星海社` → Seikaisha (`global`), `ファンタジア文庫` → Fantasia Bunko (`global`),
+  `シーズウェア` → C's ware (`global`), `未上映` → Gösterime Girmedi / Not Yet Screened (`new`),
+  `神画风` → Muhteşem Çizim Tarzı / Superb Art Style (`new`).
+- Sağlık zinciri yeşil: 106580 anahtar / 106335 vault / 121284 map / 121284 damga; MASTER 52606
+  org eşleme, gerçek çakışma 0, TR/EN 112812 simetrik; `gen_bangumi_master.py --check` temiz;
+  meta-tag coverage 158/158. Canlı 007_b–007_i CJK `as_is` aday havuzu: **43.178** (kota değil).
+  Sıradaki adım: `007_c` count 14'ten itibaren count azalan sırada açık kavramlar ve kesin
+  resmî Latin adlar.
+

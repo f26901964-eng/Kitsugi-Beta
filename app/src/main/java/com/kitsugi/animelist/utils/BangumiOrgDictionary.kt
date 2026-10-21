@@ -52697,7 +52697,6 @@ WillPlus|bangumi_tag_willplus|WillPlus
 Willplus|bangumi_tag_willplus|WillPlus
 榊原ゆい|bangumi_tag_yui_sakakibara|Yui Sakakibara
 Yui Sakakibara|bangumi_tag_yui_sakakibara|Yui Sakakibara
-Katsushi Morishita|bangumi_producer_cjk_31ad3b|Katsushi Morishita
 Tomonori Ochikoshi|bangumi_producer_cjk_82cd54|Tomonori Ochikoshi
 Masayuki Aoyagi|bangumi_producer_cjk_d62d1f|Masayuki Aoyagi
 Shigeru Watanabe|bangumi_producer_cjk_f82404|Shigeru Watanabe

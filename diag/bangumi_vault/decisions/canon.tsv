@@ -252,7 +252,7 @@ cjk_2bad7e	producer	工藤大丈	工藤大丈	as_is		bilinmeyen CJK — as_is (u
 cjk_2d3ccb	producer	黒須信彦	黒須信彦	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
 cjk_2d9de8	producer	Studio Elle	Studio Elle	global		global/TR-EN düzeltmesi (スタジオエル)
 cjk_2ed9ac	producer	小林宏之	小林宏之	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
-cjk_31ad3b	producer	Katsushi Morishita	Katsushi Morishita	global		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+cjk_31ad3b	producer	森下勝司	森下勝司	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
 cjk_36af9d	producer	太布尚弘	太布尚弘	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
 cjk_40a111	producer	田﨑勝也	田﨑勝也	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
 cjk_46ff03	producer	吉田小陰	吉田小陰	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
@@ -57137,14 +57137,14 @@ honey_and_clover	tag	Honey and Clover	Honey and Clover	global	蜂蜜与四叶草
 cjk_1900cf	tag	伊藤美纪	伊藤美纪	as_is		as_is: doğrulanmamış CJK özel ad
 cjk_19e4dd	tag	戸田恵子	戸田恵子	as_is		as_is: doğrulanmamış CJK özel ad
 norway	tag	Norveç	Norway	new	挪威	lexicon:norway
-cjk_1b3e03	tag	別冊花とゆめ	別冊花とゆめ	as_is		as_is: doğrulanmamış CJK özel ad
+cjk_1b3e03	tag	Bessatsu Hana to Yume	Bessatsu Hana to Yume	global		as_is: doğrulanmamış CJK özel ad
 silver_spoon	tag	Silver Spoon	Silver Spoon	global	银之匙	lexicon:silver_spoon
 susumu_hirasawa	tag	Susumu Hirasawa	Susumu Hirasawa	global	平沢進	lexicon:susumu_hirasawa
 cjk_1db30a	tag	大谷祐貴	大谷祐貴	as_is		as_is: doğrulanmamış CJK özel ad
 cjk_1f3049	tag	遠山えま	遠山えま	as_is		as_is: doğrulanmamış CJK özel ad
 cjk_204770	tag	境宗久	境宗久	as_is		as_is: doğrulanmamış CJK özel ad
 borderline_content_novel	tag	Sınırda İçerik Romanı	Borderline Content Novel	new	擦边球小说	morfoloji:seri+sonek
-cjk_221417	tag	未上映	未上映	as_is		as_is: doğrulanmamış CJK özel ad
+cjk_221417	tag	Gösterime Girmedi	Not Yet Screened	new		as_is: doğrulanmamış CJK özel ad
 cjk_224375	tag	畠山守	畠山守	as_is		as_is: doğrulanmamış CJK özel ad
 cjk_236174	tag	番組	番組	as_is		as_is: doğrulanmamış CJK özel ad
 tohru_fujisawa	tag	Tohru Fujisawa	Tohru Fujisawa	global	藤沢とおる	lexicon:tohru_fujisawa
@@ -57161,9 +57161,9 @@ hard_scifi	tag	Sert Bilim Kurgu	Hard Sci-Fi	new	硬科幻	lexicon:hard_scifi
 cjk_35a6fd	tag	西形まい	西形まい	as_is		as_is: doğrulanmamış CJK özel ad
 cjk_374456	tag	霜月遥	霜月遥	as_is		as_is: doğrulanmamış CJK özel ad
 we_were_there	tag	We Were There	We Were There	global	僕等がいた	lexicon:we_were_there
-cjk_3793dc	tag	朱夏	朱夏	as_is		as_is: doğrulanmamış CJK özel ad
+cjk_3793dc	tag	Shuka	Shuka	global		as_is: doğrulanmamış CJK özel ad
 cjk_385a38	tag	千葉直樹	千葉直樹	as_is		as_is: doğrulanmamış CJK özel ad
-cjk_38fa71	tag	星海社	星海社	as_is		as_is: doğrulanmamış CJK özel ad
+cjk_38fa71	tag	Seikaisha	Seikaisha	global		as_is: doğrulanmamış CJK özel ad
 cjk_391729	tag	横田守	横田守	as_is		as_is: doğrulanmamış CJK özel ad
 cjk_39bec1	tag	折笠爱	折笠爱	as_is		as_is: doğrulanmamış CJK özel ad
 cjk_40796c	tag	山本美月	山本美月	as_is		as_is: doğrulanmamış CJK özel ad
@@ -57235,7 +57235,7 @@ cjk_837394	tag	内田有纪	内田有纪	as_is		as_is: doğrulanmamış CJK öze
 cjk_857062	tag	江南	江南	as_is		as_is: doğrulanmamış CJK özel ad
 cjk_867757	tag	山本優	山本優	as_is		as_is: doğrulanmamış CJK özel ad
 tetsuya_komuro	tag	Tetsuya Komuro	Tetsuya Komuro	global	小室哲哉	lexicon:tetsuya_komuro
-cjk_86d5f8	tag	神画风	神画风	as_is		as_is: doğrulanmamış CJK özel ad
+cjk_86d5f8	tag	Muhteşem Çizim Tarzı	Superb Art Style	new		as_is: doğrulanmamış CJK özel ad
 cjk_872738	tag	小畑友紀	小畑友紀	as_is		as_is: doğrulanmamış CJK özel ad
 god_eater	tag	God Eater	God Eater	global	噬神者	lexicon:god_eater
 cjk_88b148	tag	小俣真一	小俣真一	as_is		as_is: doğrulanmamış CJK özel ad
@@ -57272,7 +57272,7 @@ fumihiko_tachiki	tag	Fumihiko Tachiki	Fumihiko Tachiki	global	立木文彦	lexic
 cjk_bb86ac	tag	水原薫	水原薫	as_is		as_is: doğrulanmamış CJK özel ad
 cjk_bc2e3b	tag	菱田正和	菱田正和	as_is		as_is: doğrulanmamış CJK özel ad
 cjk_bdb4ad	tag	松岡由貴	松岡由貴	as_is		as_is: doğrulanmamış CJK özel ad
-cjk_be565a	tag	ファンタジア文庫	ファンタジア文庫	as_is		as_is: doğrulanmamış CJK özel ad
+cjk_be565a	tag	Fantasia Bunko	Fantasia Bunko	global		as_is: doğrulanmamış CJK özel ad
 cjk_c04e92	tag	唯々月たすく	唯々月たすく	as_is		as_is: doğrulanmamış CJK özel ad
 sugaru_miaki	tag	Sugaru Miaki	Sugaru Miaki	global	三秋縋	lexicon:sugaru_miaki
 cjk_c39bc4	tag	本多真梨子	本多真梨子	as_is		as_is: doğrulanmamış CJK özel ad
@@ -57372,7 +57372,7 @@ cjk_9ae650	tag	やしきん	やしきん	as_is		as_is: doğrulanmamış CJK öze
 cjk_9bf264	tag	トジツキハジメ	トジツキハジメ	as_is		as_is: doğrulanmamış CJK özel ad
 cjk_9fabb5	tag	ななかまい	ななかまい	as_is		as_is: doğrulanmamış CJK özel ad
 cjk_b3dc7f	tag	みちのくアタミ	みちのくアタミ	as_is		as_is: doğrulanmamış CJK özel ad
-cjk_ba1c79	tag	シーズウェア	シーズウェア	as_is		as_is: doğrulanmamış CJK özel ad
+cjk_ba1c79	tag	C's ware	C's ware	global		as_is: doğrulanmamış CJK özel ad
 cjk_c17229	tag	あかほりさとる	あかほりさとる	as_is		as_is: doğrulanmamış CJK özel ad
 cjk_c1cca8	tag	おさむらいさん	おさむらいさん	as_is		as_is: doğrulanmamış CJK özel ad
 cjk_c5153f	tag	サマミヤアカザ	サマミヤアカザ	as_is		as_is: doğrulanmamış CJK özel ad
