@@ -57,3 +57,15 @@ Neden `androidx.room.r.g(Object)` da aynı hatayla patladı?
 4. **`KitsugiSessionSupervisor.kt` — `FATAL EXCEPTION` Varken `"SEBEP BULUNAMADI"` Yazması:** Logcat kanıt satırlarında `E AndroidRuntime: FATAL EXCEPTION` ve `java.lang.VerifyError` bulunmasına rağmen post-mortem başlık yalnızca native/ANR/LMKD aradığı için `"SEBEP BULUNAMADI"` üretiyordu. `JAVA / ART FATAL HATA` ayrıştırıcısı eklendi.
 5. **`KitsugiCrashActivity.kt` — 2,27 MB Metinde `StaticLayout` / GPU Doku Sınırı Tehlikesi:** Tam metin Kopyala / Paylaş / İndirilenler'e Kaydet için korunurken ekrandaki `Text` önizlemesi 48 KB ile sınırlandırıldı.
 6. **`MalWebParser.kt` & `MalNotificationsClient.kt` — JDK RFC 2396 `URI.resolve("?p=2")` Hatası:** `java.net.URI("https://myanimelist.net/profile/TestUser/reviews").resolve("?p=2")` ifadesi `/reviews` segmentini düşürerek hem üretimde MAL sayfalamasını hem de CI birim testlerini kırıyordu; RFC 3986 uyumlu `okhttp3.HttpUrl` ile düzeltildi.
+
+---
+
+## 4. Gerçek Derleme, Birim Testi ve İkili DEX (`classes*.dex`) Doğrulama Kanıtı
+
+GitHub Actions üzerinde gerçek Android SDK 36 + NDK 27 + KSP + Kotlin 2.0.21 + R8 küçültme/birleştirme hattı (`Run #39522953145`) çalıştırılmış ve derlenen APK'ların içindeki **tüm `classes*.dex` dosyalarındaki her tekil Dalvik makine buyruğu** `scripts/verify_apk_dex_bytecode.py` ile denetlenmiştir:
+
+- **Birim Testleri (`:app:testFossDebugUnitTest`):** `AppSettingsAndCrashDiagnosticsGuardTest`, `SettingsMigrationTest`, `MalWebParserTest`, `MalNotificationsClientTest` dahil tüm test paketleri **%100 başarılı**.
+- **Debug APK (`app/build/outputs/apk/foss/debug/Kitsugi-Beta-v2.4.324-foss.apk`):**
+  - `22` DEX dosyası · **`403.978` metot gövdesi** · **`11.105.952` Dalvik buyruğu** tek tek doğrulandı → En yüksek argüman yazmacı: **`176 / 255`**, **`VerifyError = 0`**.
+- **R8 Release APK (`app/build/outputs/apk/foss/release/Kitsugi-Beta-v2.4.324-foss.apk`):**
+  - `5` DEX dosyası (`classes.dex` .. `classes5.dex`) · **`251.589` metot gövdesi** · **`7.155.291` Dalvik buyruğu** tek tek doğrulandı → En yüksek argüman yazmacı: **`176 / 255`**, **`VerifyError = 0`**.
