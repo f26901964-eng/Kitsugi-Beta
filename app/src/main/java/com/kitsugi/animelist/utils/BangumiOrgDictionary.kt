@@ -52700,6 +52700,26 @@ Yui Sakakibara|bangumi_tag_yui_sakakibara|Yui Sakakibara
 Tomonori Ochikoshi|bangumi_producer_cjk_82cd54|Tomonori Ochikoshi
 Masayuki Aoyagi|bangumi_producer_cjk_d62d1f|Masayuki Aoyagi
 Shigeru Watanabe|bangumi_producer_cjk_f82404|Shigeru Watanabe
+Monthly Wings|bangumi_magazine_cjk_7ab80f|Monthly Wings
+Yuri Hime Comics|bangumi_magazine_cjk_8e8fa7|Yuri Hime Comics
+Weekly Morning|bangumi_magazine_cjk_d179ae|Weekly Morning
+Shonen Gangan|bangumi_magazine_gangan_3|Shonen Gangan
+Dengeki Comics NEXT|bangumi_magazine_next_2|Dengeki Comics NEXT
+Yasutaka Nakata|bangumi_producer_cjk_4d6da4|Yasutaka Nakata
+Satoshi Yaginuma|bangumi_producer_cjk_563ea2|Satoshi Yaginuma
+Ryo Mizuno|bangumi_producer_cjk_6d852e|Ryo Mizuno
+Romeo Tanaka|bangumi_producer_cjk_7f2cdc|Romeo Tanaka
+Shinji Takamatsu|bangumi_producer_cjk_86bf04|Shinji Takamatsu
+Naotaka Hayashi|bangumi_producer_cjk_87b65d|Naotaka Hayashi
+Akiko Shikata|bangumi_producer_cjk_9bf5f8|Akiko Shikata
+Kotaro Uchikoshi|bangumi_producer_cjk_a25018|Kotaro Uchikoshi
+Negi Haruba|bangumi_producer_cjk_e5c795|Negi Haruba
+Hiroshi Seko|bangumi_producer_cjk_eb9272|Hiroshi Seko
+Maiko Iuchi|bangumi_producer_cjk_edbaff|Maiko Iuchi
+Tatsuya Kato|bangumi_producer_cjk_f2aca0|Tatsuya Kato
+SCA-Ji|bangumi_producer_sca|SCA-Ji
+DMZJ|bangumi_publisher_cjk_75a8f1|DMZJ
+NetEase|bangumi_publisher_cjk_f396b4|NetEase
 """
     ).joinToString("")
 

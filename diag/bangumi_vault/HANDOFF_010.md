@@ -198,3 +198,32 @@ Latin adı işle; kalan özel adlar/fandom jargonu as_is.
   Sıradaki adım: `007_c` count 14'ten itibaren count azalan sırada açık kavramlar ve kesin
   resmî Latin adlar.
 
+### Çapraz rol ve etiket kapsamlı tarama batch 008 (2026-10-21)
+
+- `worklists/009_decisions_008_comprehensive.tsv` ile **196 kanonik karar** (`apply_009_batch.py
+  --mirror-repair`, 0 ikiz-engelli, yeni XML ID 0) yerinde uygulandı:
+  - **Kurum & yapımcı `global` (23):** `magazine` 6 (`RIDIBOOKS`, `Dengeki Comics NEXT`,
+    `Monthly Wings`, `Yuri Hime Comics`, `Weekly Morning`, `Shonen Gangan`), `publisher` 3
+    (`CIEL`, `DMZJ`, `NetEase`), `studio` 1 (`Cocktail Soft`), `producer` 13 (`Yasutaka Nakata`,
+    `Romeo Tanaka`, `Naotaka Hayashi`, `SCA-Ji`, `Satoshi Yaginuma`, `Ryo Mizuno`,
+    `Shinji Takamatsu`, `Akiko Shikata`, `Kotaro Uchikoshi`, `Negi Haruba`, `Hiroshi Seko`,
+    `Maiko Iuchi`, `Tatsuya Kato`).
+  - **Tag `global` (114):** `007_b`–`007_g` aralığında `org_global_names.tsv` ile %100 eşleşen 96
+    CJK kurum/dergi/yayınevi/stüdyo/kişi etiketi + 18 bitişik/varyant Latin stüdyo ve marka etiketi
+    (`LIDENFILMS`, `Warner Bros. Animation`, `Studio Comet`, `Telecom Animation Film`,
+    `project No.9`, `Hoods Entertainment`, `CoMix Wave Films`, `TYO Animations`, `Group TAC`,
+    `Polygon Pictures`, `Purple software`, `Lump of Sugar`, `Hal Film Maker`, `FromSoftware`,
+    `Studio 3Hz`, `07th Expansion`, `20th Television`, `Arc System Works`).
+  - **Tag `new` (59):** `007_c`–`007_g` aralığından 46 açık CJK kavram etiketi (`延期`, `默片`,
+    `澳剧`, `哥特萝莉`, `家庭伦理`, `初心者向`, `音乐美`, `狼人杀`, `冷战`, `轻喜剧`, `平行宇宙`,
+    `误解系`, `自然纪录片`, `卡牌收集类`, `海战`, `港片`, `一战`, `杀手题材`, `复仇剧`, `伪推理`,
+    `自然主义`, `光枪射击`, `日式奇幻`, `北欧神话`, `本格推理`, `童话风`, `伪纪录片`, `科普纪录片`,
+    `挪威剧`, `低龄向`, `web短片`, `商战`, `默剧`, `木偶动画`, `木偶剧`, `哥特风`, `英伦风`,
+    `逐帧动画`, `爱尔兰剧`, `历史纪录片`, `新加坡剧`, `游戏宣传片`, `北美动画`, `人文纪录片`,
+    `虚无主义`, `TV短片`) + `tr==en` kalmış 13 İngilizce kavram/tür/müzik etiketi (`IndieAnime`,
+    `melodic-death`, `Tactical_shooter`, `symphonic`, `Alternative_rock`, `electronica`,
+    `Main_Theme`, `TVdrama`, `acoustic`, `Souls-like`, `WRPG`, `Indie_pop`, `Indie_rock`).
+- Sağlık zinciri yeşil: 106580 anahtar / 106335 vault / 121284 map / 121284 damga; MASTER **52626**
+  org eşleme, gerçek çakışma 0, TR/EN 112812 simetrik; `gen_bangumi_master.py --check` temiz;
+  meta-tag coverage 158/158. Canlı 007_b–007_i CJK `as_is` aday havuzu: **43.022** (kota değil).
+

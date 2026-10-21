@@ -1205,3 +1205,100 @@ fandom jargonu `as_is` kalır.
    - Canlı `tags.json` CJK `as_is` aday havuzu (007_b–007_i): **43.178** (kota değildir).
    - Aktif Arena oturum dalı: `arena/284d08ba-kitsugi-beta`.
 
+## 2o) 009 serisi devam — çapraz rol (`magazine`, `publisher`, `studio`, `producer`) ve `tag` (`007_b`–`007_g` + `tr==en`) kapsamlı batch 008 (2026-10-21)
+
+Tüm rollerde (`magazine`, `publisher`, `studio`, `producer`, `network`, `tag`) `as_is` veya
+`tr==en` kalmış kayıtlar `org_global_names.tsv` bilgi tabanı, MASTER sözlükleri ve tam-eşleşmeli
+kavram sözlüğüyle tarandı; ikiz çakışması (`tr_twins` / `en_twins`) oluşturmayan **196 kanonik
+karar** (`worklists/009_decisions_008_comprehensive.tsv`) `apply_009_batch.py --mirror-repair` ile
+yerinde uygulandı (yeni XML ID **0**):
+
+1. **Kurum ve Yapımcı Resmî Global Adlar (`23` satır, `origin=global`):**
+   - **`magazine` (6):** `ridibooks_2` → **RIDIBOOKS**, `next_2` (`電撃コミックスNEXT`) →
+     **Dengeki Comics NEXT**, `cjk_7ab80f` (`月刊ウィングス`) → **Monthly Wings**, `cjk_8e8fa7`
+     (`百合姫コミックス`) → **Yuri Hime Comics**, `cjk_d179ae` (`週刊モーニング`) → **Weekly Morning**,
+     `gangan_3` (`少年GANGAN`) → **Shonen Gangan**.
+   - **`publisher` (3):** `ciel` → **CIEL**, `cjk_75a8f1` (`动漫之家`) → **DMZJ**, `cjk_f396b4`
+     (`网易`) → **NetEase**.
+   - **`studio` (1):** `cjk_72beb8` (`カクテル・ソフト`) → **Cocktail Soft**.
+   - **`producer` (13):** `cjk_4d6da4` (`中田ヤスタカ`) → **Yasutaka Nakata**, `cjk_7f2cdc`
+     (`田中ロミオ`) → **Romeo Tanaka**, `cjk_87b65d` (`林直孝`) → **Naotaka Hayashi**, `sca`
+     (`SCA-自`) → **SCA-Ji**, `cjk_563ea2` (`八木沼悟志`) → **Satoshi Yaginuma**, `cjk_6d852e`
+     (`水野良`) → **Ryo Mizuno**, `cjk_86bf04` (`高松信司`) → **Shinji Takamatsu**, `cjk_9bf5f8`
+     (`志方あきこ`) → **Akiko Shikata**, `cjk_a25018` (`打越鋼太郎`) → **Kotaro Uchikoshi**,
+     `cjk_e5c795` (`春場ねぎ`) → **Negi Haruba**, `cjk_eb9272` (`瀬古浩司`) → **Hiroshi Seko**,
+     `cjk_edbaff` (`井内舞子`) → **Maiko Iuchi**, `cjk_f2aca0` (`加藤達也`) → **Tatsuya Kato**.
+
+2. **Etiket (`role=tag`) Resmî Global Adlar (`114` satır, `origin=global`):**
+   - **CJK kurum/dergi/yayınevi/stüdyo/kişi etiketleri (`96` satır, `007_b`–`007_g`):**
+     `Overlap Bunko`, `Wani Books`, `France Shoin`, `Niconico Seiga`, `Minato Soft`,
+     `Shinji Mikami`, `Shoeisha`, `Nippon Columbia`, `Manga Time Kirara Carat`, `Unison Shift`,
+     `Kazuki Nakashima`, `Naoya Shimokawa`, `Satoru Akahori`, `Monthly Comic Cune`,
+     `Monthly Princess`, `Kuaikan Comics`, `Dengeki Maoh`, `Kadokawa Bunko`,
+     `Hironobu Sakaguchi`, `Seasun Games`, `Takarajimasha`, `Tencent Animation & Comics`,
+     `Kachidoki Studio`, `Karin Entertainment`, `Manga Time Kirara MAX`, `Himeya Soft`,
+     `JVC Entertainment`, `Silky's SAKURA`, `Silky's Plus`, `Psikyo`, `Kadokawa Games`,
+     `Jitsugyo no Nihon Sha`, `Bessatsu Friend`, `Akihiro Hino`, `Actas`, `Bunkasha`,
+     `Chingwin Publishing`, `Light Chaser Animation Studios`, `Holp Shuppan`, `Bishoujo Bunko`,
+     `Tudou`, `Heluo Studio`, `Hidetaka Miyazaki`, `Jive`, `Dessert`, `Bessatsu Shojo Comic`,
+     `Perfect World`, `Ichijinsha Bunko`, `Weekly Shojo Comic`, `Ever Glory Publishing`,
+     `Monthly Shonen Sirius`, `ARMS`, `East Press`, `Monthly Morning Two`,
+     `Monthly Comic @Bunch`, `Bungeishunju`, `Masao Maruyama`, `Weekly Comic Bunch`,
+     `Chuokoron Shinsha`, `Gallop`, `Columbia Music Entertainment`, `Evening`, `Sanzigen`,
+     `Bandai Namco Entertainment`, `Fukkan.com`, `Genkosha`, `Jump Kai`, `Sharp Point Press`,
+     `Kadokawa Taiwan`, `Young Animal Arashi`, `Media Works Bunko`, `Katsura Hashino`,
+     `Monthly Comic Zenon`, `Asuka Shinsha`, `Monthly Young Magazine`, `Monthly Dragon Age`,
+     `Super Dash Bunko`, `Shincho Bunko nex`, `Jump SQ.19`, `Cycomi`,
+     `Yamaha Music Communications`, `Kodansha Box`, `Jade Dynasty`, `Kindai Mahjong`,
+     `TV Aichi`, `Onsen`, `XD Network`, `Monthly Shonen Jump`, `Manga Action`,
+     `Monthly Spirits`, `Nippon Cultural Broadcasting`, `Seibido Publishing`, `Eiji Tsuburaya`,
+     `Gakken Holdings`, `Monthly Hero's`, `Weekly Manga Times`.
+   - **Latin bitişik/varyant stüdyo ve marka etiketleri (`18` satır):**
+     `LIDENFILMS`, `Warner Bros. Animation`, `Studio Comet`, `Telecom Animation Film`,
+     `project No.9`, `Hoods Entertainment`, `CoMix Wave Films`, `TYO Animations`, `Group TAC`,
+     `Polygon Pictures`, `Purple software`, `Lump of Sugar`, `Hal Film Maker`, `FromSoftware`,
+     `Studio 3Hz`, `07th Expansion`, `20th Television`, `Arc System Works`.
+
+3. **Etiket (`role=tag`) Kavram / Tür / Biçim Çevirileri (`59` satır, `origin=new`):**
+   - **CJK açık kavramlar (`46` satır, `007_c`–`007_g`):**
+     `延期` (Ertelendi / Postponed), `默片` (Sessiz Film / Silent Film), `澳剧` (Avustralya Dizisi /
+     Australian Drama), `哥特萝莉` (Gotik Lolita / Gothic Lolita), `家庭伦理` (Aile Etiği / Family
+     Ethics), `初心者向` (Yeni Başlayanlara Yönelik / Beginner-Friendly), `音乐美` (Güzel Müzik /
+     Beautiful Music), `狼人杀` (Kurt Adam Oyunu / Werewolf Game), `冷战` (Soğuk Savaş / Cold War),
+     `轻喜剧` (Hafif Komedi / Light Comedy), `平行宇宙` (Paralel Evren / Parallel Universe),
+     `误解系` (Yanlış Anlaşılma Komedisi / Misunderstanding Comedy), `自然纪录片` (Doğa Belgeseli /
+     Nature Documentary), `卡牌收集类` (Kart Koleksiyonu / Card Collection), `海战` (Deniz Savaşı /
+     Naval Warfare), `港片` (Hong Kong Filmi / Hong Kong Film), `一战` (I. Dünya Savaşı / World
+     War I), `杀手题材` (Suikastçı Temalı / Hitman Theme), `复仇剧` (İntikam Draması / Revenge
+     Drama), `伪推理` (Sözde Polisiye / Pseudo-Mystery), `自然主义` (Natüralizm / Naturalism),
+     `光枪射击` (Işık Tabancası Nişancı / Light Gun Shooter), `日式奇幻` (Japon Usulü Fantazi /
+     Japanese-Style Fantasy), `北欧神话` (İskandinav Mitolojisi / Norse Mythology), `本格推理`
+     (Klasik Kurallı Polisiye (Honkaku) / Orthodox Mystery (Honkaku)), `童话风` (Masalsı Tarz /
+     Fairy-Tale Style), `伪纪录片` (Sahte Belgesel (Mockumentary) / Mockumentary), `科普纪录片`
+     (Popüler Bilim Belgeseli / Popular Science Documentary), `挪威剧` (Norveç Dizisi / Norwegian
+     Drama), `低龄向` (Küçük Yaş Grubuna Yönelik / For Young Children), `web短片` (Web Kısa Filmi /
+     Web Short), `商战` (Ticaret Savaşı / Corporate Warfare), `默剧` (Pandomim / Mime), `木偶动画`
+     (Kukla Animasyonu / Puppet Animation), `木偶剧` (Kukla Oyunu / Puppetry), `哥特风` (Gotik
+     Tarz / Gothic Style), `英伦风` (İngiliz Tarzı / British Style), `逐帧动画` (Kare Kare
+     Animasyon / Frame-by-Frame Animation), `爱尔兰剧` (İrlanda Dizisi / Irish Drama), `历史纪录片`
+     (Tarih Belgeseli / Historical Documentary), `新加坡剧` (Singapur Dizisi / Singaporean Drama),
+     `游戏宣传片` (Oyun Tanıtım Videosu / Game Promotional Video), `北美动画` (Kuzey Amerika
+     Animasyonu / North American Animation), `人文纪录片` (Beşerî Bilimler Belgeseli / Humanities
+     Documentary), `虚无主义` (Nihilizm / Nihilism), `TV短片` (TV Kısa Filmi / TV Short).
+   - **İngilizce (`tr==en`) kalmış kavram/tür/müzik etiketleri (`13` satır):**
+     `IndieAnime` (Bağımsız Anime / Indie Anime), `melodic-death` (Melodik Death Metal / Melodic
+     Death Metal), `Tactical_shooter` (Taktiksel Nişancı / Tactical Shooter), `symphonic`
+     (Senfonik / Symphonic), `Alternative_rock` (Alternatif Rock / Alternative Rock), `electronica`
+     (Elektronika / Electronica), `Main_Theme` (Ana Tema Müziği / Main Theme), `TVdrama` (TV Dizisi /
+     TV Drama), `acoustic` (Akustik / Acoustic), `Souls-like` (Souls Benzeri / Souls-like), `WRPG`
+     (Batı Tarzı RYO / Western RPG), `Indie_pop` (Bağımsız Pop / Indie Pop), `Indie_rock`
+     (Bağımsız Rock / Indie Rock).
+
+4. **Doğrulama çıktıları:**
+   - `verify_vault.py`: ✅ **106580 anahtar / 106335 vault kaydı / 121284 map satırı / 121284 damga**
+   - `verify_bangumi_master.py`: ✅ **52626 org eşleme (+20), gerçek çakışma 0, TR/EN 112812 simetrik**
+   - `gen_bangumi_master.py --check`: ✅ temiz (`+0 grup, +0 etiket, +0 kayıt`)
+   - `check_bangumi_meta_tag_coverage.py`: ✅ **158/158**
+   - Canlı `tags.json` CJK `as_is` aday havuzu (007_b–007_i): **43.022** (kota değildir).
+
+
