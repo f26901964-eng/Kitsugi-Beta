@@ -65,12 +65,30 @@ CHECKS = [
     ("TMDB", "data/remote/TmdbMediaDetailClient.kt", "keywords", "extractKeywords", "anahtar kelimeler (etiket)"),
 ]
 
-# Çapraz kaynak toplayıcı: hangi kaynaklardan veri çekildiği
+# Çapraz kaynak toplayıcı: hangi kaynaklardan veri çekildiği (hepsi aynı havuzda birleşir)
 CROSS_SOURCES = [
     ("Jikan", "fetchJikan"),
     ("AniList", "fetchTagsAndAiringInfo"),
     ("Shikimori", "fetchShikimori"),
     ("Kitsu", "fetchKitsu"),
+    ("Bangumi", "fetchBangumi"),
+    ("TMDB", "fetchTmdb"),
+]
+
+# Birleştirme tavanları — "sayısal olarak az geldi" geri dönmesin diye alt sınırlar.
+# (dosya, kodda aranan imza, en az değer, açıklama)
+LIMIT_CHECKS = [
+    ("data/remote/KitsugiTaxonomyMerge.kt", "fun mergeGenres(", 160, "tür tavanı"),
+    ("data/remote/KitsugiTaxonomyMerge.kt", "fun mergeTags(", 600, "etiket tavanı"),
+    ("data/remote/KitsugiTaxonomyMerge.kt", "fun mergeOrgs(", 256, "kurum tavanı"),
+    ("utils/KitsugiSpoilerRules.kt", "fun mergeTagsPreservingSpoilers(", 400, "spoiler korumalı birleştirme"),
+    ("data/remote/KitsugiBangumiDetailClient.kt", "subject.tags.localizedDistinctTags(", 400, "Bangumi etiket tavanı"),
+]
+
+# Kurum listesini eksilten çağrılar yasak (yalnızca tanımı kalabilir).
+FORBIDDEN_CALLS = [
+    ("dropProducersThatAreStudios(", "data/remote/KitsugiTaxonomyMerge.kt",
+     "yapımcı listesinden stüdyoları siliyor — kurum eksiltir"),
 ]
 
 
@@ -98,6 +116,29 @@ def main() -> int:
     for name, marker in CROSS_SOURCES:
         if marker not in cross_text:
             missing.append(f"Çapraz kaynak:{name} ({marker})")
+
+    # ── Tavan denetimi ────────────────────────────────────────────────────────
+    for rel, signature, minimum, desc in LIMIT_CHECKS:
+        path = SRC / rel
+        if rel not in cache:
+            cache[rel] = path.read_text(encoding="utf-8") if path.exists() else ""
+        text = cache[rel]
+        idx = text.find(signature)
+        window = text[idx: idx + 400] if idx >= 0 else ""
+        found = [int(n) for n in __import__("re").findall(r"limit(?::\s*Int)?\s*=\s*(\d+)", window)]
+        found += [int(n) for n in __import__("re").findall(r"localizedDistinctTags\((\d+)\)", window)]
+        if not found or max(found) < minimum:
+            missing.append(f"{desc}: {rel} beklenen ≥{minimum}, bulunan {found or 'yok'}")
+
+    # ── Yasaklı kurum eleme çağrıları ─────────────────────────────────────────
+    for needle, allowed_rel, desc in FORBIDDEN_CALLS:
+        for rel in cache:
+            if needle in cache[rel]:
+                occurrences = cache[rel].count(needle)
+                # tanım satırı: "fun <needle>" — tek çağrı hakkı yalnızca tanım dosyasında
+                definitions = cache[rel].count("fun " + needle)
+                if occurrences - definitions > 0 and not rel.endswith(allowed_rel):
+                    missing.append(f"{desc}: {rel}")
 
     # Matris
     sources = ["AniList", "MAL/Jikan", "Bangumi", "Shikimori", "Kitsu", "Simkl", "TMDB"]

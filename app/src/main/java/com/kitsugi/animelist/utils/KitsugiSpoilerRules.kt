@@ -320,7 +320,7 @@ object KitsugiSpoilerRules {
     fun mergeTagsPreservingSpoilers(
         primary: List<KitsugiTag>,
         secondary: List<KitsugiTag>,
-        limit: Int = 48
+        limit: Int = 400
     ): List<KitsugiTag> {
         if (primary.isEmpty() && secondary.isEmpty()) return emptyList()
         val combined = normalizeAndMergeTags(primary + secondary)

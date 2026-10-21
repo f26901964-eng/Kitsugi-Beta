@@ -289,7 +289,7 @@ fun isUntranslatedCjkTag(value: String): Boolean = isUnresolvedForeignLabel(valu
  *
  * Modelde orijinal değer kalır; çipe tıklanınca arama o değerle yapılır.
  */
-fun List<String>.localizedDistinctTags(limit: Int = 48): List<String> {
+fun List<String>.localizedDistinctTags(limit: Int = 200): List<String> {
     if (isEmpty()) return emptyList()
     val result = ArrayList<String>(minOf(size, limit))
     val seen = HashSet<String>()

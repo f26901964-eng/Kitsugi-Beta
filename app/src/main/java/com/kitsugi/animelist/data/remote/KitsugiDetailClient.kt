@@ -840,6 +840,9 @@ class KitsugiDetailClient {
         } else {
             detail
         }
+        // Bangumi zenginleştirmesi gerçekten çalıştıysa altı kaynağın tamamı orada toplandı;
+        // aşağıdaki toplama tekrarlanmaz (20 sn bütçesi ikiye bölünmesin).
+        val bangumiEnriched = isBangumi && baseDetail !== detail
         if (externalId == null || externalId <= 0) {
             return@withContext baseDetail.copy(
                 tags = KitsugiSpoilerRules.applySpoilerFlags(baseDetail.tags)
@@ -905,9 +908,11 @@ class KitsugiDetailClient {
             // şirketleri/kanalları tek listede. Aynı kurum Latin adına göre tekilleşir;
             // kimliği olan (tıklanabilir) kayıt tercih edilir.
             val mergedStudios = KitsugiTaxonomyMerge.mergeOrgs(currentDetail.studios, trMeta.studios)
-            val mergedProducers = KitsugiTaxonomyMerge.dropProducersThatAreStudios(
-                KitsugiTaxonomyMerge.mergeOrgs(currentDetail.producers, trMeta.producers),
-                mergedStudios
+            // Rol duyarlı birleştirme: TMDB şirketi aynı zamanda MAL stüdyosu olsa da
+            // yapımcı kaydı korunur (kurum hiçbir rolde eksik kalmaz).
+            val mergedProducers = KitsugiTaxonomyMerge.mergeOrgs(
+                currentDetail.producers,
+                trMeta.producers
             )
             val mergedNetworks = KitsugiTaxonomyMerge.mergeOrgs(currentDetail.networks, trMeta.networks)
             val mergedRating = if (!currentDetail.rating.isNullOrBlank()) currentDetail.rating else trMeta.rating
@@ -1003,7 +1008,7 @@ class KitsugiDetailClient {
 
         if (alInfo != null) {
             val enrichedTags = if (alInfo.tags.isNotEmpty()) {
-                KitsugiSpoilerRules.mergeTagsPreservingSpoilers(mergedDetail.tags, alInfo.tags, limit = 96)
+                KitsugiSpoilerRules.mergeTagsPreservingSpoilers(mergedDetail.tags, alInfo.tags, limit = 600)
             } else {
                 KitsugiSpoilerRules.applySpoilerFlags(mergedDetail.tags)
             }
@@ -1022,11 +1027,22 @@ class KitsugiDetailClient {
         // birleşim alınıyor: Bangumi'nin Çince etiketleri + MAL türleri + AniList etiketleri
         // + TMDB anahtar kelimeleri + AniList stüdyoları tek listede toplanıyor.
         // Zaman tavanlıdır; geciken kaynak atlanır ve sayfa asıl veriyle açılır.
-        mergedDetail = runCatching {
+        // Bangumi sayfasında bu toplama zaten `KitsugiBangumiDetailClient.enrich` içinde
+        // yapıldı (6 kaynak). İkinci kez çağırmak 20 sn'lik bütçeyi ikiye böler.
+        mergedDetail = if (bangumiEnriched) mergedDetail else runCatching {
             val taxonomy = KitsugiTaxonomySources.collect(
                 malId = resolvedMalId ?: mergedDetail.realMalId,
                 aniListId = resolvedAniListId,
-                mediaType = mediaType
+                mediaType = mediaType,
+                tmdbId = mergedDetail.tmdbId,
+                titles = listOf(
+                    mergedDetail.title,
+                    mergedDetail.titleEnglish,
+                    mergedDetail.titleRomaji,
+                    mergedDetail.titleNative,
+                    title
+                ) + mergedDetail.synonyms,
+                year = mergedDetail.year
             )
             val withAniList = if (alInfo != null && (alInfo.genres.isNotEmpty() || alInfo.studios.isNotEmpty())) {
                 KitsugiTaxonomyMerge.mergeDetail(
@@ -1054,10 +1070,9 @@ class KitsugiDetailClient {
         // yapımcı listesinde zaten stüdyo olan kurumlar tekrar etmez.
         mergedDetail = runCatching {
             val studios = KitsugiTaxonomyMerge.normalizeOrgNames(mergedDetail.studios)
-            val producers = KitsugiTaxonomyMerge.dropProducersThatAreStudios(
-                KitsugiTaxonomyMerge.normalizeOrgNames(mergedDetail.producers),
-                studios
-            )
+            // Rol duyarlı tekilleştirme: stüdyo listesinde görünen bir şirket
+            // yapımcı listesinden SİLİNMEZ (bkz. KitsugiTaxonomyMerge.orgDedupKey).
+            val producers = KitsugiTaxonomyMerge.normalizeOrgNames(mergedDetail.producers)
             mergedDetail.copy(
                 studios = studios,
                 producers = producers,
@@ -1065,6 +1080,15 @@ class KitsugiDetailClient {
                 serializations = KitsugiTaxonomyMerge.normalizeOrgNames(mergedDetail.serializations)
             )
         }.getOrDefault(mergedDetail)
+
+        // Cihaz doğrulaması: birleşik sonuçtaki gerçek sayılar (kaynak başına dağılım
+        // KitsugiTaxonomySources tarafından ayrıca basılır).
+        android.util.Log.d(
+            "KitsugiDetailClient",
+            "Birleşik taksonomi: tür=${mergedDetail.genres.size} etiket=${mergedDetail.tags.size} " +
+                "stüdyo=${mergedDetail.studios.size} yapımcı=${mergedDetail.producers.size} " +
+                "kanal=${mergedDetail.networks.size} dergi=${mergedDetail.serializations.size}"
+        )
 
         val isKitsuSource = source.lowercase() == "kitsu"
         val keyId = if (isKitsuSource) {

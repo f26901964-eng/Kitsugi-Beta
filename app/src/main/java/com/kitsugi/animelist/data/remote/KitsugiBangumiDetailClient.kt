@@ -79,6 +79,9 @@ object KitsugiBangumiDetailClient {
     /** MAL/AniList/TMDB eşlik detayı için süre tavanı. */
     private const val COMPANION_TIMEOUT_MS = 7_000L
 
+    /** Bangumi sayfasında ek kaynaklar (Shikimori · Kitsu · TMDB) için bütçe. */
+    private const val EXTRA_TAXONOMY_TIMEOUT_MS = 4_500L
+
     /** İlişki/öneri başlık zenginleştirmesi için kayıt ve toplam süre tavanları. */
     private const val RELATION_TITLE_TIMEOUT_MS = 8_000L
     private const val RELATION_TITLE_BATCH_TIMEOUT_MS = 9_000L
@@ -330,10 +333,43 @@ object KitsugiBangumiDetailClient {
                 }.getOrNull()
                 if (alInfo != null && (alInfo.tags.isNotEmpty() || alInfo.nextAiringEpisode != null)) {
                     merged = merged.copy(
-                        tags = KitsugiSpoilerRules.mergeTagsPreservingSpoilers(merged.tags, alInfo.tags, limit = 96),
+                        tags = KitsugiSpoilerRules.mergeTagsPreservingSpoilers(merged.tags, alInfo.tags, limit = 600),
                         nextAiringEpisode = merged.nextAiringEpisode ?: alInfo.nextAiringEpisode
                     )
                 }
+            }
+            // Kalan kaynaklar (Shikimori · Kitsu · TMDB) da aynı havuza katılır: böylece
+            // Bangumi sayfası, MAL/AniList sayfasıyla **aynı** tür/etiket/kurum kümesini
+            // gösterir. Bangumi'nin kendi verisi zaten elde olduğu için yeniden aranmaz.
+            // Ek toplama, 20 sn'lik zenginleştirme bütçesini aşmasın diye ayrıca tavanlanır:
+            // Bangumi'nin kendi verisi + MAL/AniList birleşimi zaten yukarıda tamamlandı.
+            val extra = runCatching {
+                withTimeoutOrNull(EXTRA_TAXONOMY_TIMEOUT_MS) {
+                    KitsugiTaxonomySources.collect(
+                    malId = cross.malId,
+                    aniListId = cross.aniListId,
+                    mediaType = mediaType,
+                    tmdbId = merged.tmdbId ?: cross.tmdbId,
+                    titles = listOf(
+                        merged.title,
+                        merged.titleEnglish,
+                        merged.titleRomaji,
+                        merged.titleNative,
+                        base.title
+                    ) + merged.synonyms,
+                    year = merged.year,
+                    includeBangumi = false
+                    )
+                }
+            }.getOrNull()
+            if (extra != null && !extra.isEmpty) {
+                merged = KitsugiTaxonomyMerge.mergeDetail(merged, extra.toDetail())
+                Log.d(
+                    TAG,
+                    "Bangumi + tüm kaynaklar: tür=${merged.genres.size} etiket=${merged.tags.size} " +
+                        "stüdyo=${merged.studios.size} yapımcı=${merged.producers.size} " +
+                        "kanal=${merged.networks.size} dergi=${merged.serializations.size}"
+                )
             }
             rememberLatinTitle(rawId, merged)
             withStudioPersonIds(merged)
@@ -367,7 +403,7 @@ object KitsugiBangumiDetailClient {
                     }
                     if (alInfo != null && (alInfo.tags.isNotEmpty() || alInfo.nextAiringEpisode != null)) {
                         fromMal.copy(
-                            tags = KitsugiSpoilerRules.mergeTagsPreservingSpoilers(fromMal.tags, alInfo.tags, limit = 96),
+                            tags = KitsugiSpoilerRules.mergeTagsPreservingSpoilers(fromMal.tags, alInfo.tags, limit = 600),
                             nextAiringEpisode = fromMal.nextAiringEpisode ?: alInfo.nextAiringEpisode
                         )
                     } else {
@@ -509,7 +545,7 @@ object KitsugiBangumiDetailClient {
             // Etiketler arayüz diline çevrilir ve çeviriden sonra aynı anlama gelen yazımlar
             // (催泪 / 催涙 / Duygusal) tek çipe indirgenir. Modelde orijinal değer kalır; çip
             // aramayı orijinaliyle yapar. Doğal spoiler etiketler ilk andan itibaren işaretlenir.
-            tags = subject.tags.localizedDistinctTags(40)
+            tags = subject.tags.localizedDistinctTags(400)
                 .map {
                     KitsugiTag(
                         name = it,
@@ -563,7 +599,7 @@ object KitsugiBangumiDetailClient {
         val mergedTags = KitsugiSpoilerRules.mergeTagsPreservingSpoilers(
             primary = base.tags,
             secondary = other.tags,
-            limit = 96
+            limit = 600
         )
         // ── Tür / kurum birleşimi (yerine koyma DEĞİL) ──────────────────────────
         // Bangumi'nin kendi türleri ve infobox kurumları (动画制作 / 製作 / 播放电视台 /
@@ -575,11 +611,10 @@ object KitsugiBangumiDetailClient {
         val mergedStudios = KitsugiTaxonomyMerge.normalizeOrgNames(
             KitsugiTaxonomyMerge.mergeOrgs(base.studios, other.studios)
         )
-        val mergedProducers = KitsugiTaxonomyMerge.dropProducersThatAreStudios(
-            KitsugiTaxonomyMerge.normalizeOrgNames(
-                KitsugiTaxonomyMerge.mergeOrgs(base.producers, other.producers)
-            ),
-            mergedStudios
+        // Rol duyarlı birleştirme: Bangumi infobox'ında hem 动画制作 hem 製作 altında
+        // geçen şirket iki rolde de korunur (eskiden yapımcı kaydı siliniyordu).
+        val mergedProducers = KitsugiTaxonomyMerge.normalizeOrgNames(
+            KitsugiTaxonomyMerge.mergeOrgs(base.producers, other.producers)
         )
         val mergedNetworks = KitsugiTaxonomyMerge.normalizeOrgNames(
             KitsugiTaxonomyMerge.mergeOrgs(base.networks, other.networks)
@@ -627,8 +662,8 @@ object KitsugiBangumiDetailClient {
             nextAiringEpisode = other.nextAiringEpisode ?: base.nextAiringEpisode,
             favorites = other.favorites ?: base.favorites,
             popularityRank = other.popularityRank ?: base.popularityRank,
-            themes = KitsugiTaxonomyMerge.mergeGenres(base.themes, other.themes, limit = 12),
-            demographics = KitsugiTaxonomyMerge.mergeGenres(base.demographics, other.demographics, limit = 8),
+            themes = KitsugiTaxonomyMerge.mergeGenres(base.themes, other.themes, limit = 64),
+            demographics = KitsugiTaxonomyMerge.mergeGenres(base.demographics, other.demographics, limit = 32),
             serializations = mergedSerializations,
             networks = mergedNetworks,
             authors = other.authors.ifEmpty { base.authors },
@@ -2224,7 +2259,7 @@ object KitsugiBangumiDetailClient {
      * (çip arayüz diline çevirir), yinelenen yazımlar atılır.
      */
     internal fun metaGenres(metaTags: List<String>): List<String> =
-        metaTags.localizedDistinctTags(12)
+        metaTags.localizedDistinctTags(64)
 
     /**
      * İki açıklama adayından gösterilecek olanı seçer.

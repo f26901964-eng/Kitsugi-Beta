@@ -33,27 +33,29 @@ import java.net.URL
  *  • **Kiril/Çince sızıntısı yok.** Kurum adları Latin ada çevrilir; tür/etiketler
  *    gösterim katmanında çözülür.
  *
- * Toplanan kaynaklar (hepsi MAL kimliğinden erişilebilir):
+ * Toplanan kaynaklar — **altısı da paralel** çalışır, hepsi birleşime katılır:
  *  • **MAL/Jikan** — `genres`, `explicit_genres`, `themes`, `demographics`,
  *    `studios`, `producers`, `licensors`
  *  • **AniList** — `genres`, `tags` (spoiler/rank dahil), `studios` (isMain dahil)
  *  • **Shikimori** — `genres` (`kind`: genre/theme/demographic) + `studios`
  *  • **Kitsu** — `categories` + `animeProductions.producer` (rol: studio/producer/licensor)
+ *  • **Bangumi** — başlık eşleşmesiyle bulunan `subject`: `tags` + infobox kurumları
+ *    (动画制作 · 製作 · 製作委員会 · 制作協力 · レーベル · 配給 · 播放电视台 · 掲載誌)
+ *  • **TMDB** — `genres`, `keywords` (etiket), `production_companies` (stüdyo+yapımcı),
+ *    TV'de `networks` (kanal)
  *
- * Kapsam notu: **Simkl** API'si kurum (stüdyo/yapımcı) alanı yayınlamaz, yalnızca tür
- * listesi verir; bu yüzden buraya eklenmez (sayfa Simkl'den açıldığında kendi türleri
- * zaten gelir). **TMDB** zenginleştirmesi [KitsugiDetailClient.enrichDetail] içinde ayrı
- * yürür (yapım şirketleri + kanallar + anahtar kelimeler).
+ * **Simkl** yalnızca tür listesi yayınlar (stüdyo/yapımcı alanı yok); kurum katkısı
+ * olmadığı için buraya eklenmez, sayfa Simkl'den açıldığında kendi türleri zaten gelir.
  */
 internal object KitsugiTaxonomySources {
 
     private const val TAG = "KitsugiTaxonomySources"
 
     /** Ağ katmanı için makul toplam tavan — detay sayfasının 20 sn'lik zenginleştirme bütçesinin içinde. */
-    private const val TOTAL_TIMEOUT_MS = 6_000L
+    private const val TOTAL_TIMEOUT_MS = 8_000L
 
     /** Tek kaynak için üst sınır. */
-    private const val SOURCE_TIMEOUT_MS = 4_500L
+    private const val SOURCE_TIMEOUT_MS = 5_500L
 
     private val REAL_MAL_ID = 1..99_999_999
 
@@ -112,11 +114,23 @@ internal object KitsugiTaxonomySources {
     suspend fun collect(
         malId: Int? = null,
         aniListId: Int? = null,
-        mediaType: MediaType = MediaType.Anime
+        mediaType: MediaType = MediaType.Anime,
+        tmdbId: Int? = null,
+        titles: List<String?> = emptyList(),
+        year: Int? = null,
+        /** Bangumi sayfası açılırken kendi verisi zaten elde: gereksiz arama yapılmaz. */
+        includeBangumi: Boolean = true
     ): Slice {
         val safeMalId = malId?.takeIf { it in REAL_MAL_ID }
         val safeAniListId = aniListId?.takeIf { it > 0 }
-        if (safeMalId == null && safeAniListId == null) return Slice()
+        val safeTmdbId = tmdbId?.takeIf { it > 0 }
+        val cleanTitles = titles.mapNotNull { it?.trim()?.takeIf { t -> t.length >= 2 } }
+            .distinct()
+        if (safeMalId == null && safeAniListId == null &&
+            (safeTmdbId == null || mediaType == MediaType.Manga) && cleanTitles.isEmpty()
+        ) {
+            return Slice()
+        }
 
         val slice = withTimeoutOrNull(TOTAL_TIMEOUT_MS) {
             coroutineScope {
@@ -154,11 +168,26 @@ internal object KitsugiTaxonomySources {
                         runCatching { fetchKitsu(safeMalId, mediaType) }.getOrNull()
                     }
                 }
+                // Bangumi ve TMDB başlık/kimlik üzerinden çözülür; ikisi de kurum
+                // (stüdyo/yapımcı/kanal/dergi) katkısı yapar.
+                val bangumi = async(Dispatchers.IO) {
+                    if (!includeBangumi) return@async null
+                    withTimeoutOrNull(SOURCE_TIMEOUT_MS) {
+                        runCatching { fetchBangumi(cleanTitles, year, mediaType) }.getOrNull()
+                    }
+                }
+                val tmdb = async(Dispatchers.IO) {
+                    withTimeoutOrNull(SOURCE_TIMEOUT_MS) {
+                        runCatching { fetchTmdb(safeTmdbId, mediaType) }.getOrNull()
+                    }
+                }
                 val parts = linkedMapOf(
                     "jikan" to jikan.await(),
                     "anilist" to aniList.await(),
                     "shikimori" to shikimori.await(),
-                    "kitsu" to kitsu.await()
+                    "kitsu" to kitsu.await(),
+                    "bangumi" to bangumi.await(),
+                    "tmdb" to tmdb.await()
                 )
                 if (parts.values.all { it == null }) return@coroutineScope null
                 // Kaynak bazlı sayaç: cihaz günlüğünde hangi kaynağın ne kadar veri
@@ -456,6 +485,188 @@ internal object KitsugiTaxonomySources {
             producers = producers + licensors,
             demographics = demographics,
             themes = themes
+        )
+    }
+
+    // ── Bangumi (başlık eşleşmesi) ─────────────────────────────────────────────
+
+    /**
+     * Bangumi'yi **başlık eşleşmesiyle** bulur ve infobox kurumlarını okur.
+     *
+     * Bangumi, kurum verisi en zengin kaynaktır (动画制作 · 製作 · 製作委員会 · 制作協力 ·
+     * レーベル · 配給 · 播放电视台 · 掲載誌). Ancak MAL kimliğiyle doğrudan açılmaz;
+     * bu yüzden başlık aranır ve **normalize edilmiş tam başlık eşleşmesi** (varsa yıl
+     * toleransı ±1) doğrulanmadan veri kullanılmaz — yanlış yapımın etiketleri yapışmasın.
+     */
+    private suspend fun fetchBangumi(
+        titles: List<String>,
+        year: Int?,
+        mediaType: MediaType
+    ): Slice? {
+        if (titles.isEmpty()) return null
+        val typeId = if (mediaType == MediaType.Manga) 1 else 2
+        val hits = LinkedHashMap<Int, com.kitsugi.animelist.data.auth.BangumiApiClient.BangumiSubject>()
+        for (title in titles.take(3)) {
+            val query = runCatching { KitsugiBangumiDetailClient.sanitizeQuery(title) }.getOrNull()
+            if (query.isNullOrBlank() || query.length < 2) continue
+            val page = runCatching {
+                com.kitsugi.animelist.data.auth.BangumiApiClient.searchSubjects(
+                    keyword = query,
+                    types = listOf(typeId),
+                    limit = 8
+                )
+            }.getOrNull() ?: continue
+            page.data.forEach { hits[it.id] = it }
+            if (hits.isNotEmpty()) break
+        }
+        if (hits.isEmpty()) return null
+
+        val wanted = titles
+            .map { KitsugiBangumiDetailClient.normalizeTitle(it) }
+            .filter { it.length >= 2 }
+            .toHashSet()
+        if (wanted.isEmpty()) return null
+
+        val subject = hits.values.firstOrNull { candidate ->
+            val names = listOf(candidate.name, candidate.nameCn)
+                .map { KitsugiBangumiDetailClient.normalizeTitle(it) }
+                .filter { it.length >= 2 }
+            val titleOk = names.any { it in wanted }
+            val yearOk = if (year == null || candidate.date == null) {
+                true
+            } else {
+                val found = Regex("\\d{4}").find(candidate.date)?.value?.toIntOrNull()
+                found == null || Math.abs(found - year) <= 1
+            }
+            titleOk && yearOk
+        } ?: return null
+
+        val full = runCatching { KitsugiBangumiDetailClient.loadSubject(subject.id) }.getOrNull()
+            ?: subject
+        val detail = runCatching {
+            KitsugiBangumiDetailClient.buildNativeDetail(full, mediaType)
+        }.getOrNull() ?: return null
+
+        if (detail.tags.isEmpty() && detail.studios.isEmpty() &&
+            detail.producers.isEmpty() && detail.networks.isEmpty()
+        ) {
+            return null
+        }
+        return Slice(
+            genres = detail.genres,
+            tags = detail.tags,
+            studios = detail.studios,
+            producers = detail.producers,
+            networks = detail.networks,
+            serializations = detail.serializations,
+            themes = detail.themes,
+            demographics = detail.demographics
+        )
+    }
+
+    // ── TMDB ───────────────────────────────────────────────────────────────────
+
+    /**
+     * TMDB detayından tür, anahtar kelime (etiket), yapım şirketleri (stüdyo + yapımcı)
+     * ve TV kanallarını okur.
+     *
+     * `production_companies` ilk kaydı **stüdyo**, kalanı **yapımcı** rolündedir; `tv`
+     * tarafında `networks` kanal olarak eklenir. Manga için TMDB çağrılmaz.
+     */
+    private suspend fun fetchTmdb(tmdbId: Int?, mediaType: MediaType): Slice? {
+        if (tmdbId == null || tmdbId <= 0) return null
+        if (mediaType == MediaType.Manga) return null
+        val apiKey = runCatching { TmdbApiClient.getActiveApiKey() }.getOrNull().orEmpty()
+        if (apiKey.isBlank()) return null
+        val isMovie = mediaType == MediaType.Movie
+        val path = if (isMovie) "movie" else "tv"
+        val url = "https://api.themoviedb.org/3/$path/$tmdbId" +
+            "?api_key=$apiKey&language=tr-TR&append_to_response=keywords"
+        val body = KitsugiApiBase.executeGetRequestResilient(URL(url)) ?: return null
+        val root = runCatching { JSONObject(body) }.getOrNull() ?: return null
+
+        val genres = mutableListOf<String>()
+        root.optJSONArray("genres")?.let { arr ->
+            for (i in 0 until arr.length()) {
+                val name = arr.optJSONObject(i)?.optString("name", "").orEmpty().trim()
+                if (name.isNotEmpty()) genres.add(name)
+            }
+        }
+
+        val tags = mutableListOf<KitsugiTag>()
+        val keywordArray = root.optJSONObject("keywords")?.let { kw ->
+            kw.optJSONArray("keywords") ?: kw.optJSONArray("results")
+        }
+        keywordArray?.let { arr ->
+            for (i in 0 until arr.length()) {
+                val name = arr.optJSONObject(i)?.optString("name", "").orEmpty().trim()
+                if (name.isEmpty()) continue
+                tags.add(
+                    KitsugiTag(
+                        id = arr.optJSONObject(i)?.let { obj -> obj.optInt("id", 0).takeIf { it > 0 } },
+                        name = name,
+                        isSpoiler = KitsugiSpoilerRules.isIntrinsicSpoiler(name),
+                        source = "tmdb"
+                    )
+                )
+            }
+        }
+
+        val studios = mutableListOf<KitsugiStudio>()
+        val producers = mutableListOf<KitsugiStudio>()
+        root.optJSONArray("production_companies")?.let { arr ->
+            for (i in 0 until arr.length()) {
+                val obj = arr.optJSONObject(i) ?: continue
+                val name = obj.optString("name", "").trim()
+                if (name.isEmpty()) continue
+                val logo = obj.optString("logo_path", "").trim()
+                studios.add(
+                    KitsugiStudio(
+                        id = obj.optInt("id", 0).takeIf { it > 0 } ?: 0,
+                        name = name,
+                        isMain = i == 0,
+                        source = "tmdb",
+                        role = if (i == 0) StudioRole.STUDIO else StudioRole.PRODUCER,
+                        imageUrl = if (logo.isNotEmpty()) "https://image.tmdb.org/t/p/w200$logo" else null
+                    )
+                )
+            }
+        }
+        // İlk şirket stüdyodur; kalanı yapımcı listesine taşınır (aynı kayıt iki rolde kalır).
+        if (studios.size > 1) {
+            producers.addAll(studios.drop(1).map { it.copy(role = StudioRole.PRODUCER) })
+            studios.subList(1, studios.size).clear()
+        }
+
+        val networks = mutableListOf<KitsugiStudio>()
+        root.optJSONArray("networks")?.let { arr ->
+            for (i in 0 until arr.length()) {
+                val obj = arr.optJSONObject(i) ?: continue
+                val name = obj.optString("name", "").trim()
+                if (name.isEmpty()) continue
+                networks.add(
+                    KitsugiStudio(
+                        id = obj.optInt("id", 0).takeIf { it > 0 } ?: 0,
+                        name = name,
+                        isMain = false,
+                        source = "tmdb",
+                        role = StudioRole.NETWORK
+                    )
+                )
+            }
+        }
+
+        if (genres.isEmpty() && tags.isEmpty() && studios.isEmpty() &&
+            producers.isEmpty() && networks.isEmpty()
+        ) {
+            return null
+        }
+        return Slice(
+            genres = genres.distinct(),
+            tags = KitsugiSpoilerRules.normalizeAndMergeTags(tags),
+            studios = studios,
+            producers = producers,
+            networks = networks
         )
     }
 

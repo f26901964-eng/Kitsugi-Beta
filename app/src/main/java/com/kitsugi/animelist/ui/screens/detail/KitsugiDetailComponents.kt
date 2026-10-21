@@ -60,14 +60,22 @@ fun KitsugiStudiosCard(
     onStudioClick: (KitsugiStudio) -> Unit,
     onProducerClick: (KitsugiStudio) -> Unit,
     networks: List<KitsugiStudio> = emptyList(),
-    onNetworkClick: (KitsugiStudio) -> Unit = onProducerClick
+    onNetworkClick: (KitsugiStudio) -> Unit = onProducerClick,
+    /** Dergi / yayınevi kayıtları. Ayrı bölümde gösterilir; `networks`e karıştırılmaz. */
+    serializations: List<KitsugiStudio> = emptyList(),
+    onSerializationClick: (KitsugiStudio) -> Unit = onNetworkClick
 ) {
     // Gösterimde adı temizlenince boşalan kayıtlar (kaomoji/infobox artığı) çizilmez:
     // `sanitizeOrgName()` böyle adlar için boş döner — bkz. toLocalizedOrgName().
     val visibleStudios = studios.filter { it.name.toLocalizedOrgName().isNotBlank() }
     val visibleProducers = producers.filter { it.name.toLocalizedOrgName().isNotBlank() }
     val visibleNetworks = networks.filter { it.name.toLocalizedOrgName().isNotBlank() }
-    if (visibleStudios.isEmpty() && visibleProducers.isEmpty() && visibleNetworks.isEmpty()) return
+    val visibleSerials = serializations.filter { it.name.toLocalizedOrgName().isNotBlank() }
+    if (visibleStudios.isEmpty() && visibleProducers.isEmpty() &&
+        visibleNetworks.isEmpty() && visibleSerials.isEmpty()
+    ) {
+        return
+    }
     val accentColor = LocalKitsugiAccent.current
 
     // Manga ayrıntılarında yazar/dergi/yayıncı kayıtları bu kartın listelerini kullanır;
@@ -86,10 +94,14 @@ fun KitsugiStudiosCard(
             stringResource(R.string.detail_section_publishers)
         else -> stringResource(R.string.detail_section_producers)
     }
-    val networksLabel = when {
-        visibleNetworks.all { it.role == com.kitsugi.animelist.data.remote.StudioRole.MAGAZINE } ->
+    val networksLabel = stringResource(R.string.detail_section_networks)
+    // Dergi / yayınevi bölümü: tek rolde geliyorsa o adı, karışıksa genel başlığı kullanır.
+    val serialsLabel = when {
+        visibleSerials.all { it.role == com.kitsugi.animelist.data.remote.StudioRole.MAGAZINE } ->
             stringResource(R.string.detail_section_magazines)
-        else -> stringResource(R.string.detail_section_networks)
+        visibleSerials.all { it.role == com.kitsugi.animelist.data.remote.StudioRole.PUBLISHER } ->
+            stringResource(R.string.detail_section_publishers)
+        else -> stringResource(R.string.detail_section_serials)
     }
 
     Column(
@@ -140,6 +152,24 @@ fun KitsugiStudiosCard(
                 }
             }
         }
+        if (visibleSerials.isNotEmpty()) {
+            SectionLabel(serialsLabel)
+            FlowRow(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                visibleSerials.forEach { serial ->
+                    KitsugiChip(
+                        text = serial.name.toLocalizedOrgName(),
+                        color = accentColor,
+                        solid = false,
+                        onClick = if (serial.name.isNotBlank()) {
+                            { onSerializationClick(serial) }
+                        } else null
+                    )
+                }
+            }
+        }
         if (visibleNetworks.isNotEmpty()) {
             SectionLabel(networksLabel)
             FlowRow(
@@ -166,6 +196,9 @@ fun KitsugiStudiosCard(
 // ---------------------------------------------------------------------------
 //  Etiketler (Tags) - Spoiler toggle + daha fazla expander
 // ---------------------------------------------------------------------------
+/** Daraltılmış görünümde gösterilen etiket sayısı. Genişletilince tümü listelenir. */
+private const val VISIBLE_TAG_COUNT = 30
+
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun KitsugiTagsCard(
@@ -187,12 +220,12 @@ fun KitsugiTagsCard(
     val visibleTags = when {
         expanded && showSpoilers -> distinctTags
         expanded -> nonSpoilerTags
-        showSpoilers -> nonSpoilerTags.take(10) + spoilerTags
-        else -> nonSpoilerTags.take(10)
+        showSpoilers -> nonSpoilerTags.take(VISIBLE_TAG_COUNT) + spoilerTags
+        else -> nonSpoilerTags.take(VISIBLE_TAG_COUNT)
     }
 
     val hasSpoilers = spoilerTags.isNotEmpty()
-    val hasMore = nonSpoilerTags.size > 10
+    val hasMore = nonSpoilerTags.size > VISIBLE_TAG_COUNT
 
     Column(
         modifier = Modifier

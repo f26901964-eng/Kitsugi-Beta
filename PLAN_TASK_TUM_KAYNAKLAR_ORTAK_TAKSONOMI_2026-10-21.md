@@ -1,4 +1,4 @@
-# PLAN & TASK — Tüm kaynaklar için ortak tür / etiket / kurum katmanı (v2.4.337)
+# PLAN & TASK — Tüm kaynaklar için ortak tür / etiket / kurum katmanı (v2.4.338)
 
 **Tarih:** 2026-10-21 · **Dal:** `arena/a610f459-kitsugi-beta` · **Taban:** `971abf1`
 **Kök neden raporu:** [KOK_NEDEN_RAPORU_TUR_ETIKET_KURUM_EKSIKLERI_2026-10-21.md](KOK_NEDEN_RAPORU_TUR_ETIKET_KURUM_EKSIKLERI_2026-10-21.md)
@@ -170,3 +170,31 @@ sayfa asıl detayla açılmaya devam eder. Sonuç `DetailCache` + Room'a yazıl�
 - `diag/taxonomy_master/worklist.tsv`
 - `diag/taxonomy_master/README.md`
 - `Kitsugi_Ortak_Taksonomi_v2.4.337.patch` (tam diff)
+
+---
+
+## 8) Üçüncü tur işleri (v2.4.338) — tavanlar, rol bütünlüğü, 6 kaynak
+
+| # | İş | Durum | Dosya |
+|---|---|---|---|
+| T25 | Bangumi etiket tavanı 40 → 400, tür 12 → 64 | ✅ | `KitsugiBangumiDetailClient` |
+| T26 | Birleşik tavanlar: tür 160 · etiket 600 · kurum 256 · tema 64 · hedef kitle 32 | ✅ | `KitsugiTaxonomyMerge`, `KitsugiSpoilerRules` |
+| T27 | `dropProducersThatAreStudios` kaldırıldı (kurum rolden dolayı silinmiyor) | ✅ | `KitsugiTaxonomyMerge`, `KitsugiDetailClient`, `KitsugiBangumiDetailClient` |
+| T28 | Tekilleştirme anahtarı rol duyarlı (`rol + ad`) | ✅ | `KitsugiTaxonomyMerge.orgDedupKey` |
+| T29 | Çapraz toplayıcıya **Bangumi** (normalize başlık + yıl ±1) ve **TMDB** eklendi | ✅ | `KitsugiTaxonomySources.fetchBangumi/fetchTmdb` |
+| T30 | Bangumi sayfaları da aynı havuzu kullanıyor (`includeBangumi=false`) | ✅ | `KitsugiBangumiDetailClient.enrich` |
+| T31 | Etiket kartı daraltılmış görünümü 10 → 30 | ✅ | `KitsugiDetailComponents` |
+| T32 | Dergi/yayınevi için ayrı bölüm + `detail_section_serials` (TR/EN) | ✅ | `KitsugiDetailComponents`, `ApiDetailTabContents`, `EntryDetailTabContents`, `strings.xml` |
+| T33 | MAL lisans verenleri `LICENSOR` rolünde | ✅ | `KitsugiMalDetailClient` |
+| T34 | Denetim: 6 çapraz kaynak + tavan alt sınırları + kurum eleme yasağı | ✅ | `scripts/audit_taxonomy_sources.py` |
+| T35 | Cihaz teşhisi: kaynak bazlı + birleşik sayaç logları | ✅ | `KitsugiTaxonomySources`, `KitsugiDetailClient`, `KitsugiBangumiDetailClient` |
+
+### Yeni kabul ölçütleri
+
+| # | Senaryo | Beklenen |
+|---|---|---|
+| D8 | 100+ etiketli bir Bangumi yapımı | Etiket kartında genişletince **en az 100** çip (eskiden 40) |
+| D9 | MAPPA yapımı bir anime (MAL) | MAPPA **hem** Stüdyolar **hem** Yapımcılar altında görünür |
+| D10 | TV dizisi (TMDB) | Kanallar ayrı bölümde; dergi/yayınevi varsa **“Dergi / Yayın”** başlığı altında |
+| D11 | Aynı yapım MAL ve Bangumi'den açılır | Tür/etiket/kurum kümeleri **aynı** (6 kaynak ortak havuz) |
+| D12 | Logcat | `Kaynak bazlı:` satırında 6 kaynak; `Birleşik taksonomi:` nihai sayılar |

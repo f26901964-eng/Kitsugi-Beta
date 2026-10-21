@@ -5248,6 +5248,7 @@ Eklentiler ekranından eklenti etkinleştirin.</string>
     <string name="detail_section_authors">Yazarlar</string>
     <string name="detail_section_publishers">Yayıncılar</string>
     <string name="detail_section_magazines">Dergiler</string>
+    <string name="detail_section_serials">Dergi / Yayın</string>
     <string name="detail_section_tags">Etiketler</string>
     <string name="detail_section_streaming">Yayınlayan platformlar</string>
     <string name="detail_section_external">Harici bağlantılar</string>

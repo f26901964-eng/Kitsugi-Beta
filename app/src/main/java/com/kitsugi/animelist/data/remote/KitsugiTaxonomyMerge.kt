@@ -43,7 +43,7 @@ internal object KitsugiTaxonomyMerge {
     fun mergeGenres(
         primary: List<String>,
         vararg extras: List<String>,
-        limit: Int = 48
+        limit: Int = 160
     ): List<String> {
         if (primary.isEmpty() && extras.all { it.isEmpty() }) return emptyList()
         val result = ArrayList<String>(limit)
@@ -75,7 +75,7 @@ internal object KitsugiTaxonomyMerge {
      *   `Повседневность` + `Slice of Life` + `日常` tek etiket olur.
      * - `limit` aşımında spoiler etiketleri kesilmez.
      */
-    fun mergeTags(vararg groups: List<KitsugiTag>, limit: Int = 96): List<KitsugiTag> {
+    fun mergeTags(vararg groups: List<KitsugiTag>, limit: Int = 600): List<KitsugiTag> {
         if (groups.all { it.isEmpty() }) return emptyList()
         var merged = emptyList<KitsugiTag>()
         for (group in groups) {
@@ -96,7 +96,7 @@ internal object KitsugiTaxonomyMerge {
      * Aynı ad iki kaynakta görünüyorsa **kimliği (`id > 0`) ve görseli olan** kayıt seçilir;
      * böylece stüdyo çipine tıklanınca gerçek stüdyo sayfası açılır.
      */
-    fun mergeOrgs(vararg groups: List<KitsugiStudio>, limit: Int = 64): List<KitsugiStudio> {
+    fun mergeOrgs(vararg groups: List<KitsugiStudio>, limit: Int = 256): List<KitsugiStudio> {
         if (groups.all { it.isEmpty() }) return emptyList()
         val result = ArrayList<KitsugiStudio>(limit)
         val indexByKey = HashMap<String, Int>(limit * 2)
@@ -123,9 +123,13 @@ internal object KitsugiTaxonomyMerge {
     /**
      * Yapımcı listesinden, stüdyo listesinde **zaten bulunan** kurumları çıkarır.
      *
-     * MAL ve TMDB aynı şirketi hem `studios` hem `producers` altında döndürebiliyor
-     * (ör. MAPPA, BONES); detay sayfasında iki kez görünmemeli.
+     * **Kullanılmıyor.** Bu eleme kurum verisini eksiltiyordu: aynı şirket hem
+     * `studios` hem `producers` altında geldiğinde yapımcı kaydı siliniyor, böylece
+     * "Yapımcılar" listesi olduğundan az görünüyordu. Roller artık
+     * [orgDedupKey] içinde ayrıştırıldığı için aynı kurum her rolde korunur.
+     * Yalnızca eski çağrıların derlenmesi için tutulur.
      */
+    @Deprecated("Kurum verisini eksiltiyor; roller orgDedupKey ile ayrıştırılıyor.")
     fun dropProducersThatAreStudios(
         producers: List<KitsugiStudio>,
         studios: List<KitsugiStudio>
@@ -136,8 +140,19 @@ internal object KitsugiTaxonomyMerge {
         return producers.filter { orgDedupKey(it) !in studioKeys }
     }
 
-    /** Kurum tekilleştirme anahtarı: yerelleştirilmiş ad (rol hariç), boşluk/noktalama sadeleştirilmiş. */
-    fun orgDedupKey(org: KitsugiStudio): String = orgDedupKey(org.name)
+    /**
+     * Kurum tekilleştirme anahtarı: **rol + yerelleştirilmiş ad**, boşluk/noktalama
+     * sadeleştirilmiş.
+     *
+     * Rol anahtara dahildir çünkü aynı şirket birden fazla rolde geçebilir
+     * (stüdyo + yapımcı + lisans veren). Rolü anahtardan çıkarmak, sonraki rolün
+     * ilk kayda yutulmasına ve kurumun listeden düşmesine yol açıyordu.
+     */
+    fun orgDedupKey(org: KitsugiStudio): String {
+        val base = orgDedupKey(org.name)
+        if (base.isEmpty()) return ""
+        return org.role.name.lowercase(Locale.ROOT) + "|" + base
+    }
 
     /** Ad üzerinden kurum tekilleştirme anahtarı. */
     fun orgDedupKey(rawName: String?): String {
@@ -177,22 +192,23 @@ internal object KitsugiTaxonomyMerge {
     fun mergeDetail(
         primary: KitsugiMediaDetail,
         secondary: KitsugiMediaDetail?,
-        genresLimit: Int = 48,
-        tagsLimit: Int = 96
+        genresLimit: Int = 160,
+        tagsLimit: Int = 600
     ): KitsugiMediaDetail {
         if (secondary == null) return primary
 
         val mergedGenres = mergeGenres(primary.genres, secondary.genres, limit = genresLimit)
         val mergedTags = mergeTags(primary.tags, secondary.tags, limit = tagsLimit)
         val mergedStudios = mergeOrgs(primary.studios, secondary.studios)
-        val mergedProducers = dropProducersThatAreStudios(
-            mergeOrgs(primary.producers, secondary.producers),
-            mergedStudios
-        )
+        // Aynı şirket hem stüdyo hem yapımcı olabilir (ör. MAPPA). Eskiden
+        // `dropProducersThatAreStudios` bu kaydı yapımcılardan SİLİYORDU; bu yüzden
+        // iki rolde geçen kurumlar "kayıp" görünüyordu. Artık tekilleştirme rol
+        // duyarlıdır: kurum her rolünde ayrı kayıt olarak korunur.
+        val mergedProducers = mergeOrgs(primary.producers, secondary.producers)
         val mergedNetworks = mergeOrgs(primary.networks, secondary.networks)
         val mergedSerializations = mergeOrgs(primary.serializations, secondary.serializations)
-        val mergedDemographics = mergeGenres(primary.demographics, secondary.demographics, limit = 12)
-        val mergedThemes = mergeGenres(primary.themes, secondary.themes, limit = 24)
+        val mergedDemographics = mergeGenres(primary.demographics, secondary.demographics, limit = 32)
+        val mergedThemes = mergeGenres(primary.themes, secondary.themes, limit = 64)
 
         if (mergedGenres == primary.genres &&
             mergedTags == primary.tags &&

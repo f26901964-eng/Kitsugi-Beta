@@ -231,3 +231,48 @@ tamamı **HEAD'de de aynı** (dil bilgisi kısıtı, bizim değişikliğimiz de�
 sandbox'ta çalıştırılamadı (JDK yok). Cihaz/CI koşumu ve `TaxonomyLabelsTest` (24 test) CI'ya
 bırakıldı; testlerin **beklediği değerler** sözlükten Python ile yeniden üretilerek tek tek
 doğrulandı (79 resmî tür, `Экшен`→`Aksiyon`, `«СЁДЗЁ»`→`Shōjo`, MAL kimlikleri).
+
+---
+
+## 7) Üçüncü tur (v2.4.338) — “hâlâ az geliyor” geri bildiriminin kök nedenleri
+
+İkinci turda kaynaklar eklendi, ama **sayılar hâlâ düşük çıkıyordu**. Bu turda ölçülebilir
+nedenler tek tek kapatıldı:
+
+| # | Kök neden | Kanıt (kod) | Düzeltme |
+|---|---|---|---|
+| **KN-11** | Bangumi'nin **tüm etiketleri 40'ta kesiliyordu** — en zengin kaynak fiilen devre dışıydı | `subject.tags.localizedDistinctTags(40)` (BangumiDetailClient:512) | **400** |
+| **KN-12** | Bangumi türleri 12'de, birleşik tür 48'de, etiket 96'da, kurum 64'te kesiliyordu | `metaGenres` → 12; `mergeGenres(48)`, `mergeTags(96)`, `mergeOrgs(64)` | 64 / **160** / **600** / **256** |
+| **KN-13** | **Kurumlar rolden dolayı siliniyordu**: aynı şirket stüdyo ise yapımcı listeden çıkarılıyordu (MAPPA, BONES …) | `dropProducersThatAreStudios` — 3 çağrı (mergeDetail, enrichDetail ×2, Bangumi mergeDetail) | Çağrılar kaldırıldı, `@Deprecated` + CI yasağı |
+| **KN-14** | Tekilleştirme anahtarı **rol içermiyordu**: aynı ad farklı rolde (yapımcı + lisans veren) tek kayda yutuluyordu | `orgDedupKey(org) = orgDedupKey(org.name)` | `rol + ad` |
+| **KN-15** | Çapraz toplayıcı **4 kaynaktı**; **Bangumi ve TMDB** yalnızca kendi sayfalarında çalışıyordu | `collect()` → jikan/anilist/shikimori/kitsu | **6 kaynak**: + Bangumi (başlık eşleşmesi) + TMDB |
+| **KN-16** | Bangumi sayfaları Shikimori/Kitsu/TMDB verisi **almıyordu** (asimetri) | `KitsugiBangumiDetailClient.enrich` yalnız MAL/AniList/TMDB | `collect(includeBangumi=false)` ile aynı havuz |
+| **KN-17** | Etiket kartı daraltılmış görünümde **yalnızca 10 etiket** gösteriyordu | `nonSpoilerTags.take(10)` | **30** (genişletince tümü) |
+| **KN-18** | Dergi/yayınevi kayıtları “Yayıncı Ağlar” bölümüne karışıyordu | `networks = detail.networks + detail.serializations` | Ayrı **“Dergi / Yayın”** bölümü |
+| **KN-19** | MAL lisans verenleri `PRODUCER` rolündeydi | `StudioRole.PRODUCER` (licensors) | `StudioRole.LICENSOR` |
+
+### Somut beklenti (aynı yapım, 6 kaynak birleşik)
+
+| Alan | v2.4.337 (tipik) | v2.4.338 (tipik) |
+|---|---|---|
+| Tür | 8–12 | 12–18 |
+| Etiket | 35–60 | **90–200** |
+| Stüdyo | 1–2 | 2–4 |
+| Yapımcı | 3–8 | 8–20 |
+| Kanal | 0–2 | 2–6 |
+| Dergi | 0–1 | 0–2 |
+
+Sayılar yapıma göre değişir; kritik olan **hiçbir kaynağın verisinin tavan veya rol elemesiyle
+düşmemesi**. Cihazda `KitsugiDetailClient: Birleşik taksonomi: …` satırıyla doğrulanır.
+
+### Doğrulama (üçüncü tur)
+
+```
+audit_taxonomy_sources.py --strict  → 28 alan · 7 kaynak · 6 çapraz kaynak · eksik yok
+check_taxonomy_master.py            → 114 sözlük girişi, 79 resmî tür, 0 uyarı
+sync_taxonomy_tag_strings.py --check / sync_bangumi_tag_strings.py --check → güncel
+check_localization_resource_parity.py → 17.795 string + 4 dizi (TR/EN eşit)
+gen_bangumi_master.py --check       → 365 org satırı, sözlük yazılmadı (güvenli mod)
+check_bangumi_meta_tag_coverage.py  → 158 resmî meta etiket, 0 eksik
+ktcheck (tree-sitter-kotlin)        → değişen tüm .kt dosyaları temiz
+```
