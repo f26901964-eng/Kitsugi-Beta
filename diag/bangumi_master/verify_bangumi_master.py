@@ -25,13 +25,15 @@ from collections import defaultdict
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(ROOT / "diag/bangumi_vault/scripts"))
+from resource_catalog import catalog_text, validate_catalog
 DIAG = ROOT / "diag" / "bangumi_master"
 TAG_DICT = ROOT / "app/src/main/java/com/kitsugi/animelist/utils/BangumiTagDictionary.kt"
 ORG_DICT = ROOT / "app/src/main/java/com/kitsugi/animelist/utils/BangumiOrgDictionary.kt"
 RES_TR = ROOT / "app/src/main/res/values/strings.xml"
 RES_EN = ROOT / "app/src/main/res/values-en/strings.xml"
 
-problems: list[str] = []
+problems: list[str] = validate_catalog(RES_TR)
 notes: list[str] = []
 
 
@@ -229,7 +231,7 @@ for label, key, en in org_rows:
 # Latin ad o zaman dil dosyasından çözülür; aksi hâlde zararsız çok-rollü çakışma
 # "GERÇEK çakışma" diye raporlanıyordu (2026-10-21 düzeltmesi).
 _en_vals = dict(re.findall(r'<string name="([^"]+)">(.*?)</string>',
-                           RES_EN.read_text(encoding="utf-8"), re.S))
+                           catalog_text(RES_EN), re.S))
 for _k in set(re.findall(r"\|(bangumi_(?:studio|producer|network|publisher|magazine)_[a-z0-9_]+)\|", raw)):
     key_to_name.setdefault(_k, _en_vals.get(_k))
 for _k, _v in _en_vals.items():
@@ -249,8 +251,8 @@ elif org_lookup_fail:
 
 # ── 3) Dil dosyaları ─────────────────────────────────────────────────────────
 
-tr_keys = set(re.findall(r'<string name="([^"]+)"', RES_TR.read_text(encoding="utf-8")))
-en_keys = set(re.findall(r'<string name="([^"]+)"', RES_EN.read_text(encoding="utf-8")))
+tr_keys = set(re.findall(r'<string name="([^"]+)"', catalog_text(RES_TR)))
+en_keys = set(re.findall(r'<string name="([^"]+)"', catalog_text(RES_EN)))
 if tr_keys != en_keys:
     problems.append(f"dil dosyası simetrisi bozuk: TR'de fazla {sorted(tr_keys - en_keys)[:5]}, "
                     f"EN'de fazla {sorted(en_keys - tr_keys)[:5]}")
@@ -266,7 +268,7 @@ if org_missing:
 
 # boş değer kontrolü
 for f, keys in ((RES_TR, tr_keys), (RES_EN, en_keys)):
-    src = f.read_text(encoding="utf-8")
+    src = catalog_text(f)
     for m in re.finditer(r'<string name="(bangumi_(?:tag|studio|producer|network|publisher|magazine)_[^"]+)">(.*?)</string>', src):
         if not m.group(2).strip():
             problems.append(f"boş değer: {f.name}:{m.group(1)}")
@@ -281,7 +283,7 @@ def xml_escape(value: str) -> str:
 
 
 def values_of(path: Path) -> dict:
-    src = path.read_text(encoding="utf-8")
+    src = catalog_text(path)
     return {m.group(1): m.group(2)
             for m in re.finditer(r'<string name="([^"]+)">(.*?)</string>', src)}
 
