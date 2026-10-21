@@ -31,6 +31,7 @@ import unicodedata
 from pathlib import Path
 
 from android_strings import unescape
+from resource_catalog import catalog_text
 from org_name_resolver import NameResolver
 
 VAULT = Path(__file__).resolve().parents[1]
@@ -279,9 +280,9 @@ def load_knowledge() -> dict[str, tuple[str, str]]:
 
 def load_strings_orgs() -> dict[str, tuple[str, str]]:
     tr = dict(re.findall(r'<string name="(bangumi_(?:org|tag|studio|producer|network|publisher|magazine)_[^"]+)">(.*?)</string>',
-                         RES_TR.read_text(encoding="utf-8")))
+                         catalog_text(RES_TR)))
     en = dict(re.findall(r'<string name="(bangumi_(?:org|tag|studio|producer|network|publisher|magazine)_[^"]+)">(.*?)</string>',
-                         RES_EN.read_text(encoding="utf-8")))
+                         catalog_text(RES_EN)))
     return {k: (unescape(v), unescape(en.get(k, v))) for k, v in tr.items()
             if not k.startswith("bangumi_tag_") or v == en.get(k, v)}
 

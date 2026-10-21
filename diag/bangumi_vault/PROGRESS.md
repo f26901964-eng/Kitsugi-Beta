@@ -2,7 +2,7 @@
 
 > **Bu dosya devir teslim dosyasıdır.** Yeni bir dal/şube işi buradan devralır.
 > Son güncelleme: **2026-10-21** · Chunk **001 + 002 + 003 + 004a + 004b + 004c + 005a + 005b + 005c_a + 005c_b + 005c_c** tamamlandı, uygulamaya işlendi.
-> **GÜNCEL DEVİR (005c sonrası):** dal `arena/06f200e9-kitsugi-beta`; PR hazırlanıyor.
+> **GÜNCEL DEVİR (005c sonrası):** dal `arena/06f200e9-kitsugi-beta`; **PR #24**: https://github.com/f26901964-eng/Kitsugi-Beta/pull/24.
 > **Sıradaki iş: 006 (etiket 20–99).** Kurum count 1–4 bandında **0 kararsız** kayıt kaldı.
 > Sağlık hedefi: **49.561 bangumi_* anahtar · 48.382 vault kaydı · 57.371 map · 121.284 damga**.
 > Aşağıdaki eski PR/dal açıklamaları TARİHÇEDİR; başka dala geçme/reset yapma.
@@ -531,9 +531,9 @@ hiçbir eski değeri **yinelenmedi** (denetim: yeni 3.641 anahtarın tamamı ben
 (`火曜21時枠`, `土ドラ`, `土曜ドラマ24`, `テレビ東京系6局`), yayın sürümü artefaktı
 (`マイクロマガジン社; A5版`, `少年画報社; B6判サイズコミックス版`, `増刊号`).
 
-### 2j) CHUNK 005c_a + 005c_b + 005c_c (TAMAM ✓ · 2026-10-21)
+### 2j) CHUNK 005c_a + 005c_b + 005c_c (TAMAM ✓ · 2026-10-21 · PR #24)
 
-Dal: `arena/06f200e9-kitsugi-beta` · PR hazırlanıyor. Ön inceleme tamamlandı;
+Dal: `arena/06f200e9-kitsugi-beta` · **PR #24**: https://github.com/f26901964-eng/Kitsugi-Beta/pull/24. Ön inceleme tamamlandı;
 önceki karantinadaki taslakların yerini git'teki nihai map dosyaları aldı.
 
 | Alt bant | Count | Kararlı | SKIP | Map |
@@ -551,6 +551,18 @@ Dal: `arena/06f200e9-kitsugi-beta` · PR hazırlanıyor. Ön inceleme tamamland�
 | magazine | 2.907 | 99 |
 | network | 1.836 | 47 |
 
+- **CI'da bulunan gerçek ölçek sınırı:** ilk commit `030f88e` üzerinde sözlüklerin
+  `kotlinc` adımı geçti fakat Android resource link `ClassTooLargeException: R$string`
+  verdi. Bu hata bilinen test hatası DEĞİLDİR. Çözüm: önceki **17.471** string app'te,
+  yeni **38.269** string üç kaynak-only Android library modülünde tutulur:
+  `bangumi-vault-resources-{1,2,3}/src/main/res/{values,values-en}/strings.xml`.
+  Modül başına **12.646 / 12.915 / 12.708** anahtar; `android.nonTransitiveRClass=true`
+  zorunludur. Adlar/değerler ve Android merged-resource kimlikleri korunur; çalışma
+  zamanında mevcut `getIdentifier(..., context.packageName)` yolu değişmez.
+  `tools:keep="@string/bangumi_*"` release shrinker'ın dinamik adları silmesini önler.
+  `resource_catalog.py` tüm TR/EN modüllerini birleştirerek yazıcı, draft, vault/master
+  doğrulayıcı ve audit'e sunar; modül kapasitesi/ikiz/ad alanı/Gradle bağlantısı denetlenir.
+  Android resource link için yeni CI sonucu aşağıdaki kapanış notunda izlenir.
 - TR ve EN'ye **38.269'ar yeni anahtar**; toplam **55.740 / 55.740**. Önceki
   **17.471** kaynağın görüntülenen değerleri korundu. Eski dört `@` önekli değerde yalnız
   Android kaçışı eklendi (`@OZ`, `@vitamin`, `@N-Factory`, `@can beat` → `\@...`);
@@ -578,11 +590,12 @@ Dal: `arena/06f200e9-kitsugi-beta` · PR hazırlanıyor. Ön inceleme tamamland�
 - Komite önekli kimi key'ler gerçekte studio/publisher/magazine rolündedir: rol JSON'un
   `role` alanından alınır, key'in `producer` önekinden türetilmez. Önceki chunk'lar değişmedi.
 - **Koruyucular:** `--min-count` artık CLI'da zorunlu; var olan map taslağı sessizce
-  ezilemez. `android_strings.py`, `org_name_resolver.py`, `audit_org_chunk.py` ve **13 birim
+  ezilemez. `android_strings.py`, `org_name_resolver.py`, `audit_org_chunk.py` ve **18 birim
   testi** eklendi. Audit: kapsam + gerçek rol + hedef TR/EN + SKIP + eski değer + normalize ikiz.
 - Vault/master/generator `--check` geçti; generator yazmasız **+0 / ~0** verdi.
   RAW **66 parça**, en büyük **49.999** modified-UTF-8 bayt (**<50.000**).
-  Yerel JDK/kotlinc derlemesi yapılmadı; gerçek Android/Kotlin derlemesi CI sorumluluğundadır.
+  Yerel JDK/kotlinc yoktur; sözlüklerin kotlinc derlemesi ilk CI koşusunda geçti.
+  Android resource-link düzeltmesi için yeni CI sonucu beklenir.
 - Ham JSON yedeği yalnız bu ortamda `/home/user/.cache/bangumi_raw/` konumundadır.
   Yeni ortamda Drive ham JSONlarını indir + git kararlarıyla `apply_map.py` çalıştır;
   git karar dosyaları Drive'dan üstündür. `google_drive/` repoda bırakılmadı.
@@ -606,6 +619,8 @@ python3 diag/bangumi_vault/scripts/verify_vault.py
 
 Roller JSON `role` alanına göre sayılır (komite önekli çapraz-rol kayıtlar dâhil).
 Canon **53.244**, bilgi tabanı **2.198**, done **57.371** veri satırı.
+Drive’daki önceki **11.951** done satırı bayt içeriği korunarak yeni **45.420** satır eklendi;
+`progress.json` tarihsel metadata/özetleri korunup güncel statü/sonraki iş/sayaçları yenilendi.
 `translations_pending.tsv`: **62.957 veri satırı + 1 başlık = 62.958 fiziksel satır**;
 kurumlar bu pending tablosunda olmadığı için 005c ile sayı düşmez.
 
@@ -893,11 +908,11 @@ RAW sınırı **49.999** tutulur; tam 50.000'e izin veren eski üst sınır dara
 ### 005c kapanış (2026-10-21)
 - [x] Üç alt bant işlendi; count 1–4 kararsız 0; önceki chunk'lar yeniden işlenmedi.
 - [x] Vault + master + generator `--check` + XML + normalize ikiz / hedef / SKIP audit geçti.
-- [x] 13 birim testi ve map ezme / zorunlu min-count / boş damgalı bant koruyucuları geçti.
+- [x] 18 birim testi ve map ezme / zorunlu min-count / boş damgalı bant koruyucuları geçti.
 - [x] RAW 66 parça; her parça <50.000 modified-UTF-8 bayt.
 - [x] Bölüm 2j, 2d, 5, 6 ve yeni-oturum talimatları güncellendi.
 - [ ] Drive kapanış dosyaları güncellendi.
-- [ ] Commit + kendi oturum dalına push + yeni PR; PR numarası devir dosyasına işlendi.
+- [x] Commit + `arena/06f200e9-kitsugi-beta` dalına push + PR #24; numara başlık/2j’ye işlendi.
 - [ ] Commit sonrası `git diff --quiet` / `git diff --cached --quiet` temiz.
 
 

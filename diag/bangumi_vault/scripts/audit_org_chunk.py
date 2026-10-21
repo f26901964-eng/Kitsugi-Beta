@@ -13,6 +13,7 @@ import xml.etree.ElementTree as ET
 from pathlib import Path
 from org_name_resolver import normalize_name
 from android_strings import unescape
+from resource_catalog import catalog_text, validate_catalog
 
 ROOT = Path(__file__).resolve().parents[3]
 VAULT = ROOT / 'diag/bangumi_vault'
@@ -26,12 +27,12 @@ def strings(text):
 
 
 def audit(chunks, baseline):
-    errors = []
+    errors = validate_catalog(ROOT / 'app/src/main/res/values/strings.xml')
     langs = {}
     old_langs = {}
     for lang in ('values', 'values-en'):
         path = f'app/src/main/res/{lang}/strings.xml'
-        current = strings((ROOT / path).read_text())
+        current = strings(catalog_text(ROOT / path))
         old = strings(subprocess.check_output(['git', 'show', f'{baseline}:{path}'],
                                               cwd=ROOT, text=True))
         for k, v in old.items():
