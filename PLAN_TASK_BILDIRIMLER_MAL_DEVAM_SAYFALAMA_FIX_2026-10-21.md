@@ -68,15 +68,16 @@
 ## Değişen / Eklenen Dosyalar Listesi
 
 1. `app/build.gradle.kts`
-2. `app/src/main/java/com/kitsugi/animelist/data/notifications/NotificationArchiveStore.kt`
-3. `app/src/main/java/com/kitsugi/animelist/data/remote/malweb/MalNotificationWebEndpoints.kt`
-4. `app/src/main/java/com/kitsugi/animelist/data/remote/malweb/MalNotificationsClient.kt`
-5. `app/src/main/java/com/kitsugi/animelist/data/remote/malweb/MalNotificationsWebPager.kt`
-6. `app/src/main/java/com/kitsugi/animelist/ui/screens/notifications/KitsugiNotificationsScreen.kt`
-7. `app/src/main/java/com/kitsugi/animelist/ui/screens/notifications/KitsugiNotificationsViewModel.kt`
-8. `app/src/test/java/com/kitsugi/animelist/data/notifications/NotificationArchiveStoreTest.kt`
-9. `app/src/test/java/com/kitsugi/animelist/data/remote/malweb/MalNotificationsClientTest.kt`
-10. `RELEASE_NOTES.md`
-11. `release_notes_v2.4.335.md`
-12. `PLAN_TASK_BILDIRIMLER_MAL_DEVAM_SAYFALAMA_FIX_2026-10-21.md`
-13. `KOK_NEDEN_RAPORU_BILDIRIMLER_MAL_DEVAM_SAYFALAMA_2026-10-21.md`
+2. `app/src/main/java/com/kitsugi/animelist/core/player/engine/MpvPlayerEngine.kt` *(ilk `time-pos` bildiriminin `lastPositionNotifyAtMs = 0L` başlangıç değeri yüzünden düşmesi düzeltildi)*
+3. `app/src/main/java/com/kitsugi/animelist/data/notifications/NotificationArchiveStore.kt`
+4. `app/src/main/java/com/kitsugi/animelist/data/remote/malweb/MalNotificationWebEndpoints.kt`
+5. `app/src/main/java/com/kitsugi/animelist/data/remote/malweb/MalNotificationsClient.kt`
+6. `app/src/main/java/com/kitsugi/animelist/data/remote/malweb/MalNotificationsWebPager.kt`
+7. `app/src/main/java/com/kitsugi/animelist/ui/screens/notifications/KitsugiNotificationsScreen.kt`
+8. `app/src/main/java/com/kitsugi/animelist/ui/screens/notifications/KitsugiNotificationsViewModel.kt`
+9. `app/src/test/java/com/kitsugi/animelist/data/notifications/NotificationArchiveStoreTest.kt`
+10. `app/src/test/java/com/kitsugi/animelist/data/remote/malweb/MalNotificationsClientTest.kt`
+11. `RELEASE_NOTES.md`
+12. `release_notes_v2.4.335.md`
+13. `PLAN_TASK_BILDIRIMLER_MAL_DEVAM_SAYFALAMA_FIX_2026-10-21.md`
+14. `KOK_NEDEN_RAPORU_BILDIRIMLER_MAL_DEVAM_SAYFALAMA_2026-10-21.md`

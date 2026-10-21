@@ -1612,50 +1612,89 @@ class KitsugiNotificationsViewModel(application: Application) : AndroidViewModel
             .trim()
 }
 
+private val MAL_MONTH_INDEX = mapOf(
+    "jan" to 0, "feb" to 1, "mar" to 2, "apr" to 3,
+    "may" to 4, "jun" to 5, "jul" to 6, "aug" to 7,
+    "sep" to 8, "sept" to 8, "oct" to 9, "nov" to 10, "dec" to 11
+)
+
+private val MAL_DISPLAY_DATE_REGEX = Regex(
+    """^([A-Za-z]{3,4})\.?\s+(\d{1,2})(?:,\s*(\d{4}))?(?:,?\s+(\d{1,2}):(\d{2})\s*([AaPp][Mm]))?$"""
+)
+
+private val MAL_RELATIVE_AGO_REGEX = Regex(
+    """^(\d+)\s+(second|minute|hour|day)s?\s+ago$""",
+    RegexOption.IGNORE_CASE
+)
+
 /**
  * Parses MAL's US-English display timestamps when `createdAt` epoch seconds are omitted
- * (for example `"Dec 20, 2025 11:49 PM"` or current-year `"Jan 2, 8:03 PM"`).
+ * (for example `"Dec 20, 2025 11:49 PM"`, current-year `"Jan 2, 8:03 PM"`, or `"3 hours ago"`).
+ * Avoids `SimpleDateFormat` so JDK 17+ CLDR `\u202F` narrow-nbsp and device locales never break parsing.
  */
 internal fun parseMalDisplayTimestampMs(
     raw: String?,
     nowMs: Long = System.currentTimeMillis()
 ): Long? {
-    val clean = raw?.replace(Regex("\\s+"), " ")?.trim()?.takeIf(String::isNotEmpty) ?: return null
-    val withYearPatterns = listOf("MMM d, yyyy h:mm a", "MMM d, yyyy")
-    for (pattern in withYearPatterns) {
-        val parsed = runCatching {
-            SimpleDateFormat(pattern, Locale.US).apply { isLenient = false }.parse(clean)?.time
-        }.getOrNull()
-        if (parsed != null) return parsed
+    val clean = raw
+        ?.replace('\u00A0', ' ')
+        ?.replace('\u202F', ' ')
+        ?.replace(Regex("\\s+"), " ")
+        ?.trim()
+        ?.takeIf(String::isNotEmpty)
+        ?: return null
+
+    MAL_RELATIVE_AGO_REGEX.matchEntire(clean)?.let { rel ->
+        val amount = rel.groupValues[1].toLongOrNull() ?: return null
+        val unitMs = when (rel.groupValues[2].lowercase(Locale.ROOT)) {
+            "second" -> 1_000L
+            "minute" -> 60_000L
+            "hour" -> 3_600_000L
+            "day" -> 86_400_000L
+            else -> return null
+        }
+        return nowMs - amount * unitMs
     }
 
-    val yearFmt = SimpleDateFormat("yyyy", Locale.US)
-    val refYear = yearFmt.format(Date(nowMs)).toIntOrNull() ?: return null
-    val noYearPatterns = listOf("MMM d, h:mm a" to "MMM d yyyy h:mm a", "MMM d" to "MMM d yyyy")
-    for ((_, fullPattern) in noYearPatterns) {
-        val parts = clean.split(',', limit = 2)
-        val candidate = if (parts.size == 2) {
-            "${parts[0].trim()} $refYear ${parts[1].trim()}"
-        } else {
-            "$clean $refYear"
-        }
-        val parsed = runCatching {
-            SimpleDateFormat(fullPattern, Locale.US).apply { isLenient = false }.parse(candidate)?.time
-        }.getOrNull()
-        if (parsed != null) {
-            // If assuming the current calendar year lands far in the future, fall back to refYear - 1.
-            if (parsed > nowMs + 7L * 24 * 3600_000L) {
-                val prevCandidate = if (parts.size == 2) {
-                    "${parts[0].trim()} ${refYear - 1} ${parts[1].trim()}"
-                } else {
-                    "$clean ${refYear - 1}"
-                }
-                return runCatching {
-                    SimpleDateFormat(fullPattern, Locale.US).apply { isLenient = false }.parse(prevCandidate)?.time
-                }.getOrNull() ?: parsed
-            }
-            return parsed
+    val match = MAL_DISPLAY_DATE_REGEX.matchEntire(clean) ?: return null
+    val month = MAL_MONTH_INDEX[match.groupValues[1].lowercase(Locale.ROOT)] ?: return null
+    val day = match.groupValues[2].toIntOrNull()?.takeIf { it in 1..31 } ?: return null
+    val explicitYear = match.groupValues[3].takeIf(String::isNotEmpty)?.toIntOrNull()
+    val rawHour = match.groupValues[4].takeIf(String::isNotEmpty)?.toIntOrNull()
+    val minute = match.groupValues[5].takeIf(String::isNotEmpty)?.toIntOrNull() ?: 0
+    val amPm = match.groupValues[6].lowercase(Locale.ROOT)
+
+    val hour24 = if (rawHour == null) {
+        0
+    } else {
+        if (rawHour !in 1..12 || minute !in 0..59) return null
+        when (amPm) {
+            "pm" -> if (rawHour == 12) 12 else rawHour + 12
+            "am" -> if (rawHour == 12) 0 else rawHour
+            else -> return null
         }
     }
-    return null
+
+    val utc = java.util.TimeZone.getTimeZone("UTC")
+    fun buildEpochMs(year: Int): Long? = runCatching {
+        java.util.Calendar.getInstance(utc).apply {
+            isLenient = false
+            clear()
+            set(year, month, day, hour24, minute, 0)
+            set(java.util.Calendar.MILLISECOND, 0)
+        }.timeInMillis
+    }.getOrNull()
+
+    if (explicitYear != null) {
+        return buildEpochMs(explicitYear)
+    }
+
+    val refYear = java.util.Calendar.getInstance(utc).apply { timeInMillis = nowMs }
+        .get(java.util.Calendar.YEAR)
+    val candidate = buildEpochMs(refYear) ?: return null
+    return if (candidate > nowMs + 7L * 24 * 3600_000L) {
+        buildEpochMs(refYear - 1) ?: candidate
+    } else {
+        candidate
+    }
 }
