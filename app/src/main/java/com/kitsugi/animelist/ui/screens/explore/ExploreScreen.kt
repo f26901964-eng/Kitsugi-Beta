@@ -6,6 +6,7 @@
 package com.kitsugi.animelist.ui.screens.explore
 
 import com.kitsugi.animelist.ui.theme.gradient.FloatingActionButton
+import com.kitsugi.animelist.ui.components.PlatformErrorExplanationBlock
 import com.kitsugi.animelist.ui.theme.gradient.Icon
 import com.kitsugi.animelist.ui.theme.gradient.Text
 
@@ -583,6 +584,10 @@ fun ExploreScreen(
                                                 else -> null
                                             }
                                         )
+                                        viewModel.platformErrorCode?.let { code ->
+                                            Spacer(modifier = Modifier.height(8.dp))
+                                            PlatformErrorExplanationBlock(code = code, tint = KitsugiColors.AccentRed)
+                                        }
                                     }
                                 }
                             }

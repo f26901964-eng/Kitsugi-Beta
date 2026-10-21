@@ -1,6 +1,8 @@
 package com.kitsugi.animelist.ui.components
 
 import com.kitsugi.animelist.ui.theme.gradient.CircularProgressIndicator
+import com.kitsugi.animelist.data.platform.PlatformErrorCode
+import com.kitsugi.animelist.data.platform.PlatformFailureRegistry
 import android.content.Intent
 import android.net.Uri
 import android.view.ViewGroup
@@ -71,6 +73,7 @@ fun KitsugiOAuthWebViewDialog(
     var progress by remember { mutableIntStateOf(0) }
     var isLoading by remember { mutableStateOf(true) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
+    var platformErrorCode by remember { mutableStateOf<PlatformErrorCode?>(null) }
 
     val serviceHost = when (serviceName.lowercase()) {
         "mal" -> "myanimelist.net"
@@ -106,6 +109,7 @@ fun KitsugiOAuthWebViewDialog(
             onDismiss()
         } catch (e: Exception) {
             errorMessage = e.message ?: KitsugiStrings.get(R.string.auth_url_olusturulamadi)
+            platformErrorCode = PlatformFailureRegistry.reportAndResolve(serviceName, e)
         }
     }
 
@@ -114,6 +118,7 @@ fun KitsugiOAuthWebViewDialog(
             authUrl = ExternalAuthManager.getAuthUrlAndPrepare(context, serviceName)
         } catch (e: Exception) {
             errorMessage = e.message ?: KitsugiStrings.get(R.string.auth_url_olusturulamadi)
+            platformErrorCode = PlatformFailureRegistry.reportAndResolve(serviceName, e)
             onError(errorMessage ?: KitsugiStrings.get(R.string.hata))
         }
     }
@@ -201,12 +206,17 @@ fun KitsugiOAuthWebViewDialog(
                         shape = RoundedCornerShape(12.dp),
                         colors = CardDefaults.cardColors(containerColor = KitsugiColors.AccentRed.copy(alpha = 0.15f))
                     ) {
-                        Text(
-                            text = errorMessage ?: "",
-                            color = KitsugiColors.AccentRed,
-                            style = MaterialTheme.typography.bodySmall,
-                            modifier = Modifier.padding(12.dp)
-                        )
+                        Column(modifier = Modifier.padding(12.dp)) {
+                            Text(
+                                text = errorMessage ?: "",
+                                color = KitsugiColors.AccentRed,
+                                style = MaterialTheme.typography.bodySmall
+                            )
+                            platformErrorCode?.let { code ->
+                                Spacer(modifier = Modifier.height(8.dp))
+                                PlatformErrorCodeChip(code = code)
+                            }
+                        }
                     }
                 }
 
@@ -308,6 +318,10 @@ fun KitsugiOAuthWebViewDialog(
                                             // değildir ve yukarıda işlenmiş yönlendirmelerdir.
                                             if (failingUrl.startsWith("malapp://") || failingUrl.startsWith("intent:")) return
                                             errorMessage = KitsugiStrings.get(R.string.sayfa_yuklenemedi_x, error?.description)
+                                        platformErrorCode = PlatformFailureRegistry.report(
+                                            platformLabel = serviceName,
+                                            rawMessage = error?.description?.toString(),
+                                        ) ?: PlatformErrorCode.COM_1020
                                         }
                                     }
 

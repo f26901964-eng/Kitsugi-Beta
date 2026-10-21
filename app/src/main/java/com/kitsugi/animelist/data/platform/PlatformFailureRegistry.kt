@@ -75,6 +75,31 @@ object PlatformFailureRegistry {
         return failure.takeIf { now - it.atMillis <= maxAgeMs }
     }
 
+    /**
+     * Bir istisnayı bildirir ve kullanıcıya gösterilecek kodu döndürür.
+     * İptal istisnalarında yeni kayıt yapılmaz; bilinmeyen durumda [PlatformErrorCode.COM_1020].
+     */
+    fun reportAndResolve(platformLabel: String?, error: Throwable?): PlatformErrorCode {
+        if (error is kotlinx.coroutines.CancellationException) return PlatformErrorCode.COM_1020
+        report(platformLabel, error = error)
+        return currentOrUnknown(platformLabel)
+    }
+
+    /**
+     * Kaynağın son güncel kodu; yoksa [PlatformErrorCode.COM_1020].
+     * Kaynak hata fırlatmadan boş döndüğünde (istemci içinde yutulan hatalar) kullanılır.
+     */
+    fun currentOrUnknown(platformLabel: String?): PlatformErrorCode =
+        latest(platformLabel)?.code ?: PlatformErrorCode.COM_1020
+
+    /** [sinceMillis] anından beri her kaynağın son başarısızlık kodu (kaynak → kod). */
+    fun failuresSince(sinceMillis: Long): Map<ListPlatform, PlatformErrorCode> =
+        latestByPlatform.filterValues { it.atMillis >= sinceMillis }.mapValues { it.value.code }
+
+    /** [sinceMillis] anından beri kaydedilen en son başarısızlık. */
+    fun mostRecentSince(sinceMillis: Long): Failure? =
+        latestByPlatform.values.filter { it.atMillis >= sinceMillis }.maxByOrNull { it.atMillis }
+
     /** Test ve oturum sıfırlama için. */
     fun clear() {
         latestByPlatform.clear()

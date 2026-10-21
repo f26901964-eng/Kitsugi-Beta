@@ -25,6 +25,8 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.CoroutineScope
 import org.json.JSONObject
 import com.kitsugi.animelist.data.settings.SettingsDataStore
+import com.kitsugi.animelist.data.platform.PlatformErrorCode
+import com.kitsugi.animelist.data.platform.PlatformFailureRegistry
 import com.kitsugi.animelist.utils.KitsugiStrings
 import com.kitsugi.animelist.R
 
@@ -498,10 +500,10 @@ object ExternalAuthManager {
                         addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                     })
                 }
-                else -> onError("Bilinmeyen servis: $serviceName")
+                else -> onError(authFailureMessage(serviceName, "Bilinmeyen servis: $serviceName"))
             }
         } catch (e: Exception) {
-            onError("Yetkilendirme URL oluÅŸturma hatasÄ±: ${e.message}")
+            onError(authFailureMessage(serviceName, "Yetkilendirme URL oluÅŸturma hatasÄ±: ${e.message}"))
         }
     }
 
@@ -518,7 +520,7 @@ object ExternalAuthManager {
         if ((uri.scheme == "aniyomi" || uri.scheme == "kitsugi") && uri.host == "shikimori-auth") {
             val code = uri.getQueryParameter("code")
             if (code == null) {
-                val error = uri.getQueryParameter("error") ?: "Shikimori yetkilendirme iptal edildi"
+                val error = authFailureMessage("shikimori", uri.getQueryParameter("error") ?: "Shikimori yetkilendirme iptal edildi")
                 clearShikimoriPendingRedirectUri(context)
                 onError(error)
                 _authEvents.tryEmit(AuthEvent.Error(error))
@@ -538,7 +540,7 @@ object ExternalAuthManager {
         if ((uri.scheme == "kitsugi" || uri.scheme == "aniyomi") && uri.host == "bangumi-auth") {
             val bangumiCode = uri.getQueryParameter("code")
             if (bangumiCode == null) {
-                val error = uri.getQueryParameter("error") ?: "Bangumi yetkilendirme iptal edildi"
+                val error = authFailureMessage("bangumi", uri.getQueryParameter("error") ?: "Bangumi yetkilendirme iptal edildi")
                 BangumiAuthStore.clearPendingRedirectUri(context)
                 onError(error)
                 _authEvents.tryEmit(AuthEvent.Error(error))
@@ -561,7 +563,7 @@ object ExternalAuthManager {
         val code = uri.getQueryParameter("code")
         if (code == null) {
             val error = uri.getQueryParameter("error")
-            val message = "Yetkilendirme hatasÄ±: $error"
+            val message = authFailureMessage("mal", "Yetkilendirme hatasÄ±: $error")
             onError(message)
             _authEvents.tryEmit(AuthEvent.Error(message))
             return
@@ -664,7 +666,7 @@ object ExternalAuthManager {
                     onSuccess("shikimori")
                 }
             }.onFailure { err ->
-                val msg = err.message ?: "Shikimori token değişimi başarısız"
+                val msg = authFailureMessage("shikimori", err.message ?: "Shikimori token değişimi başarısız", error = err)
                 withContext(Dispatchers.Main) {
                     onError(msg)
                     _authEvents.tryEmit(AuthEvent.Error(msg))
@@ -701,12 +703,12 @@ object ExternalAuthManager {
                         onSuccess()
                     } else {
                         prefs(context).edit().remove(KEY_SIMKL_CODE_VERIFIER).apply()
-                        onError("Simkl token deÄŸiÅŸimi baÅŸarÄ±sÄ±z: ${response.code} - ${response.body?.string().orEmpty()}")
+                        onError(authFailureMessage("simkl", "Simkl token deÄŸiÅŸimi baÅŸarÄ±sÄ±z: ${response.code} - ${response.body?.string().orEmpty()}", httpCode = response.code))
                     }
                 }
             } catch (e: Exception) {
                 prefs(context).edit().remove(KEY_SIMKL_CODE_VERIFIER).apply()
-                onError("Simkl token exception: ${e.message}")
+                onError(authFailureMessage("simkl", "Simkl token exception: ${e.message}", error = e))
             }
         }
     }
@@ -795,7 +797,7 @@ object ExternalAuthManager {
                             .remove(KEY_ANILIST_CODE_VERIFIER)
                             .apply()
 
-                        onError("AniList token deÄŸiÅŸimi baÅŸarÄ±sÄ±z: ${response.code} - $errorResponse")
+                        onError(authFailureMessage("anilist", "AniList token deÄŸiÅŸimi baÅŸarÄ±sÄ±z: ${response.code} - $errorResponse", httpCode = response.code))
                     }
                 }
             } catch (e: Exception) {
@@ -803,7 +805,7 @@ object ExternalAuthManager {
                     .remove(KEY_ANILIST_CODE_VERIFIER)
                     .apply()
 
-                onError("AniList token deÄŸiÅŸimi exception: ${e.message}")
+                onError(authFailureMessage("anilist", "AniList token deÄŸiÅŸimi exception: ${e.message}", error = e))
             }
         }
     }
@@ -859,13 +861,13 @@ object ExternalAuthManager {
                         if (errorResponse.contains("invalid_client", ignoreCase = true) ||
                             response.code == 401
                         ) {
-                            onError(
+                            onError(authFailureMessage("mal",
                                 "MAL istemci kimliği (client_id) reddedildi. Bu sürümde kullanılan MAL " +
                                     "API anahtarı geçersiz. Geliştirici: myanimelist.net/apiconfig üzerinden " +
                                     "kendi uygulamanızı oluşturup local.properties içine mal_client_id olarak ekleyin."
-                            )
+                            ))
                         } else {
-                            onError("MAL token değişimi başarısız: ${response.code} - $errorResponse")
+                            onError(authFailureMessage("mal", "MAL token değişimi başarısız: ${response.code} - $errorResponse", httpCode = response.code))
                         }
                     }
                 }
@@ -874,7 +876,7 @@ object ExternalAuthManager {
                     .remove(KEY_MAL_CODE_VERIFIER)
                     .apply()
 
-                onError("MAL token deÄŸiÅŸimi exception: ${e.message}")
+                onError(authFailureMessage("mal", "MAL token deÄŸiÅŸimi exception: ${e.message}", error = e))
             }
         }
     }
@@ -1023,9 +1025,9 @@ object ExternalAuthManager {
                     if (response.isSuccessful) {
                         val json = JSONObject(response.body?.string().orEmpty())
                         onSuccess(json.getString("user_code"), json.getString("verification_url"))
-                    } else onError("Simkl PIN alÄ±namadÄ±: ${response.code}")
+                    } else onError(authFailureMessage("simkl", "Simkl PIN alÄ±namadÄ±: ${response.code}", httpCode = response.code))
                 }
-            } catch (e: Exception) { onError("Simkl PIN hatasÄ±: ${e.message}") }
+            } catch (e: Exception) { onError(authFailureMessage("simkl", "Simkl PIN hatasÄ±: ${e.message}", error = e)) }
         }
     }
 
@@ -1050,10 +1052,10 @@ object ExternalAuthManager {
                                 .remove("simkl_session_expired")
                                 .apply()
                             onSuccess()
-                        } else onError("Token bulunamadÄ±.")
-                    } else onError("DoÄŸrulama henÃ¼z tamamlanmadÄ±: ${response.code}")
+                        } else onError(authFailureMessage("simkl", "Token bulunamadÄ±."))
+                    } else onError(authFailureMessage("simkl", "DoÄŸrulama henÃ¼z tamamlanmadÄ±: ${response.code}", httpCode = response.code))
                 }
-            } catch (e: Exception) { onError("DoÄŸrulama hatasÄ±: ${e.message}") }
+            } catch (e: Exception) { onError(authFailureMessage("simkl", "DoÄŸrulama hatasÄ±: ${e.message}", error = e)) }
         }
     }
 
@@ -1074,6 +1076,26 @@ object ExternalAuthManager {
     /** Bangumi oturumu düştü (refresh token geçersiz) — arayüz bağlantıyı kapatır. */
     fun emitBangumiSessionExpired() {
         _authEvents.tryEmit(AuthEvent.SessionExpired("bangumi"))
+    }
+
+    /**
+     * Auth hatasını platform hata koduyla üretir ve kayda geçirir.
+     * Kod mesaja eklenir (örn. "... (KTS-SMK-8001)"); toast, giriş diyalogu ve
+     * AuthEvent aynı kodu gösterir.
+     */
+    private fun authFailureMessage(
+        platformLabel: String,
+        message: String,
+        httpCode: Int? = null,
+        error: Throwable? = null,
+    ): String {
+        val code = PlatformFailureRegistry.report(
+            platformLabel = platformLabel,
+            error = error,
+            httpCode = httpCode,
+            rawMessage = message,
+        ) ?: PlatformErrorCode.COM_1020
+        return "$message (${code.code})"
     }
 
     private fun prefs(context: Context): SharedPreferences {

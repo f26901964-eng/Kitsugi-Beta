@@ -1,6 +1,7 @@
 package com.kitsugi.animelist.ui.screens.explore
 
 import androidx.compose.foundation.lazy.itemsIndexed
+import com.kitsugi.animelist.ui.components.PlatformErrorExplanationBlock
 import androidx.compose.foundation.lazy.grid.itemsIndexed
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
@@ -874,7 +875,8 @@ private fun AiringTimeText(
 @Composable
 internal fun AiringErrorState(
     message: String,
-    onRetry: () -> Unit
+    onRetry: () -> Unit,
+    platformErrorCode: com.kitsugi.animelist.data.platform.PlatformErrorCode? = null,
 ) {
     Column(
         modifier = Modifier
@@ -902,6 +904,10 @@ internal fun AiringErrorState(
             style = MaterialTheme.typography.bodySmall,
             color = KitsugiColors.TextSecondary
         )
+        platformErrorCode?.let { code ->
+            Spacer(modifier = Modifier.height(12.dp))
+            PlatformErrorExplanationBlock(code = code, tint = KitsugiColors.AccentRed)
+        }
         Spacer(modifier = Modifier.height(20.dp))
         Box(
             modifier = Modifier

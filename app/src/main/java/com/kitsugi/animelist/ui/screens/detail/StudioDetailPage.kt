@@ -1,5 +1,7 @@
 package com.kitsugi.animelist.ui.screens.detail
 
+import com.kitsugi.animelist.data.platform.PlatformErrorCode
+import com.kitsugi.animelist.ui.components.PlatformErrorExplanationBlock
 import com.kitsugi.animelist.ui.utils.rememberKitsugiGridColumns
 import androidx.compose.runtime.CompositionLocalProvider
 import com.kitsugi.animelist.ui.components.LocalKitsugiGalleryLoading
@@ -102,7 +104,10 @@ import com.kitsugi.animelist.R
 
 sealed interface StudioDetailState {
     object Loading : StudioDetailState
-    data class Error(val message: String) : StudioDetailState
+    data class Error(
+        val message: String,
+        val platformErrorCode: com.kitsugi.animelist.data.platform.PlatformErrorCode? = null,
+    ) : StudioDetailState
     data class Success(val detail: com.kitsugi.animelist.data.remote.KitsugiStudioDetail) : StudioDetailState
 }
 
@@ -191,6 +196,15 @@ fun StudioDetailPage(
                             style = MaterialTheme.typography.bodyLarge,
                             fontWeight = FontWeight.Bold
                         )
+
+                        currentState.platformErrorCode?.let { code ->
+                            Spacer(modifier = Modifier.height(12.dp))
+                            PlatformErrorExplanationBlock(
+                                code = code,
+                                tint = KitsugiColors.AccentRed,
+                                modifier = Modifier.padding(horizontal = 8.dp),
+                            )
+                        }
                         Spacer(modifier = Modifier.height(16.dp))
                         TextButton(
                             onClick = {

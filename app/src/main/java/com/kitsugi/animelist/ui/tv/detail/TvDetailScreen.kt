@@ -31,6 +31,7 @@ import kotlinx.coroutines.delay
 import androidx.compose.runtime.*
 import androidx.compose.runtime.withFrameNanos
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.kitsugi.animelist.ui.components.PlatformErrorExplanationBlock
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.blur
@@ -116,6 +117,7 @@ fun TvDetailScreen(
 
     val detailState by viewModel.detailState.collectAsStateWithLifecycle()
     val detailLoading by viewModel.detailLoading.collectAsStateWithLifecycle()
+    val detailErrorCode by viewModel.detailErrorCode.collectAsStateWithLifecycle()
     val translatedSynopsis by viewModel.translatedSynopsis.collectAsStateWithLifecycle()
     val charactersState by viewModel.charactersState.collectAsStateWithLifecycle()
     val staffState by viewModel.staffState.collectAsStateWithLifecycle()
@@ -347,7 +349,8 @@ fun TvDetailScreen(
                 logoUrl = logoUrl,
                 isAdult = displayResult.isAdult,
                 source = displayResult.source,
-                onBackClick = onBackClick
+                onBackClick = onBackClick,
+                platformErrorCode = detailErrorCode
             )
         } else {
             val mainLazyListState = rememberLazyListState()
@@ -366,6 +369,19 @@ fun TvDetailScreen(
                     ),
                     verticalArrangement = Arrangement.spacedBy(KitsugiTvTokens.Spacing.rowGap)
                 ) {
+                    // --- Kaynak hatası: detay alınamadığında kod ve açıklama ---
+                    if (detailState == null) {
+                        detailErrorCode?.let { code ->
+                            item {
+                                PlatformErrorExplanationBlock(
+                                    code = code,
+                                    tint = KitsugiColors.AccentRed,
+                                    modifier = Modifier.fillMaxWidth(0.65f)
+                                )
+                            }
+                        }
+                    }
+
                     // --- Hero Section ---
                     item {
                         Column(

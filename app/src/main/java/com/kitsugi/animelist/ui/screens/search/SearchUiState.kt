@@ -103,6 +103,10 @@ data class SearchUiState(
     val hasNextPage: Boolean = true,
     val hasSearched: Boolean = false,
     val errorMessage: String? = null,
+    /** Tüm aramanın başarısız olduğu durumda platform hata kodu. */
+    val platformErrorCode: com.kitsugi.animelist.data.platform.PlatformErrorCode? = null,
+    /** Bu aramada hata veren kaynaklar (kaynak → platform hata kodu). */
+    val sourceErrorCodes: Map<com.kitsugi.animelist.data.platform.ListPlatform, com.kitsugi.animelist.data.platform.PlatformErrorCode> = emptyMap(),
     val isFilterSheetOpen: Boolean = false,
     val showMoreFilters: Boolean = true,
 
