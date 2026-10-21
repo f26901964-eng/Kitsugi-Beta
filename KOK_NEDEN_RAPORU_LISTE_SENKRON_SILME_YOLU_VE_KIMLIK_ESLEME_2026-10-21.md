@@ -272,6 +272,14 @@ string-template hatası, yeni hata yok).
 10. **Bangumi "silme" semantiği belirsiz**: v0 DELETE koleksiyonu kaydı DROPPED'a düşürüyor
     olabilir (tam silme web-özel) — "silindi" mesajı bu gerçeği gizliyor olabilir.
     (`06_BANGUMI.md` §4)
+11. **Bangumi spesifik write-bütçesi yok**: topluluk ölçümü ~3 koleksiyon-yazımı/dk + ilerleme
+    ~10/10dk (bangumi.tv/group/417148) → büyük içe-aktarma 429 yiyebilir; sayı doğrudan
+    teyit edilmeden sabitlenmedi (genel 450ms throttle + 429-kuyruk var).
+12. **Shikimori 403-token varyantı** (Oca-2026 kulüp raporu): cookie'li istemcilerde süresi-dolmuş
+    token 401 yerine 403 — Kitsugi Bearer-only (düşük risk), üretimde izlenecek.
+13. **AniList finale-otomatik-tamamlama** kaynak-çelişkisi (2018 changelog vs 2026 geliştiriciler):
+    otomatik-tamamlama eklenmedi, yerel-otorite korundu.
+    Ayrıntı: `ARASTIRMA_KAYNAK_SENKRON/09_KENDI_VERITABANINA_YAZMA_HATALARI.md` + `10_YAZMA_SEMANTIGI_MATRISI.md` (tur-2).
 
 ---
 
