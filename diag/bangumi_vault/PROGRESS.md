@@ -1271,3 +1271,20 @@ Sonraki chunk'lar için aynı liste geçerli; `gen_bangumi_master.py`'yi **`--ch
   - `gen_bangumi_master.py --check`: `+0 grup, +0 etiket`, `TR +0, EN +0`
   - `check_test_expectations.py`: `23/23` uyumlu · `check_bangumi_meta_tag_coverage.py`: `158/158` eksiksiz · `unittest`: `30/30 OK`
   - `translations_pending.tsv`: **0 satır** · `translations_done.tsv`: **121.284 satır**.
+
+---
+
+## 009 Serisi Toplu İş 001-005 (2026-10-21, Arena devralma sonrası)
+
+- **Kapsam:** `as_is`/CJK + `tr==en` kuyruğu; network → magazine → studio → publisher → tag kavram süpürmesi (count azalan).
+- **Yeni araç:** `scripts/apply_009_batch.py` — karar TSV uygulayıcı (ikiz-değer koruması + MASTER kilit filtresi) ve `--mirror-repair` modu (cross-role ayna TR/EN senkronu).
+- **Sonuçlar (uygulanan/ikiz-engelli/kilitli):**
+  - 001 network: 65/14/0 (XTV, HBC, Tokyo MX, iQiyi, BTV, CCTV-14 …)
+  - 002 magazine: 33/15/0 (Young Magazine, Manga Life, Rakuen Le Paradis …) + `轻小说` → **Hafif Roman / Light Novel** (origin=new kavram)
+  - 003 studio: 10/5/0 (Vasoon, Rocen Digital, Colored Pencil, Valkyria, Fuguriya …)
+  - 004 publisher: 13/7/0 (Hifumi Shobo, Diao ye Zong, Pizuya's Cell, 556mm, xi-on, Gakken Holdings …)
+  - 005 tag: 24/7/1 — TR==EN kavram Türkçeleştirme (`tankobon`→Manga Cildi, `oped`→Açılış+Kapanış, `sengoku_period`→Sengoku Dönemi, `4koma`→Dört Kareli Manga …) + CJK sözlük eşleşmeleri (`孤独`→Yalnızlık, `総集編`→Derleme Bölüm, `拟人化`→Kişileştirme …)
+- **canon.tsv değişimi:** tam **172 satır**, tamamı `009:` notlu; sütun biçimi korundu.
+- **Etkiler:** strings.xml **+0 yeni ID** (TR ~62 / EN ~57 yerinde değer), orgs.tsv **+52 satır** (52.603), tags.tsv +0 grup.
+- **Doğrulama (tam zincir, 2 kez):** verify_vault `✅ 52219 anahtar · 106335 kayıt · 121284 map` · verify_bangumi_master `✅ 58441/58441` · gen `--check` `+0/+0` · beklenti `23/23` · meta `158/158` · unittest `30/30 OK`.
+- **Sıradaki kuyruklar:** tag CJK kavram sözlüğü sürüm 2 (43.341 değer; çoğunluk kişi/seri → `as_is` kalır), producer kişi adları (çoğunluk `as_is`), tag TR==EN dip tarama.
