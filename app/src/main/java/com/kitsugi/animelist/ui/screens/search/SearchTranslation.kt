@@ -422,6 +422,11 @@ object SearchTranslation {
         getLocalizedStringFromResource("staff_role", cleaned)?.let { return it }
         // Bangumi Çince/Japonca etiketleri (dil dosyası + statik harita)
         cleaned.toLocalizedBangumiTagOrNull()?.let { return it }
+        // Shikimori (Rusça) tür/etiketleri — `taxonomy_tag_*` override'ı varsa o kullanılır.
+        com.kitsugi.animelist.utils.RussianTaxonomyDictionary.entryFor(cleaned)?.let { entry ->
+            com.kitsugi.animelist.utils.taxonomyStringOverride(entry.key)?.let { return it }
+            return entry.turkish
+        }
 
         val exact = englishToTurkish[cleaned]
         if (exact != null) return exact
@@ -435,6 +440,8 @@ object SearchTranslation {
         if (englishToTurkish.containsKey(cleaned)) return cleaned
         // Bangumi Çince/Japonca etiket → İngilizce arama terimi
         com.kitsugi.animelist.utils.bangumiTagEnglishOrNull(cleaned)?.let { return it }
+        // Shikimori (Rusça) etiket → İngilizce arama terimi
+        com.kitsugi.animelist.utils.RussianTaxonomyDictionary.entryFor(cleaned)?.let { return it.english }
         val lower = cleaned.lowercase()
         aliases[lower]?.let { return it }
         turkishToEnglish[lower]?.let { return it }
@@ -450,6 +457,11 @@ object SearchTranslation {
         getLocalizedStringFromResource("staff_role", cleaned)?.let { return it }
         // Bangumi Çince/Japonca etiketleri (dil dosyası + statik harita)
         cleaned.toLocalizedBangumiTagOrNull()?.let { return it }
+        // Shikimori (Rusça) tür/etiketleri
+        com.kitsugi.animelist.utils.RussianTaxonomyDictionary.entryFor(cleaned)?.let { entry ->
+            com.kitsugi.animelist.utils.taxonomyStringOverride(entry.key)?.let { return it }
+            return if (isTurkish()) entry.turkish else entry.english
+        }
         if (!isTurkish()) return translateToEnglishForSearch(cleaned)
 
         val exact = englishToTurkish[cleaned]

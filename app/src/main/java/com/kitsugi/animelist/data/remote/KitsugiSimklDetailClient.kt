@@ -398,6 +398,33 @@ internal object KitsugiSimklDetailClient {
                     )
                 }
 
+            // ── Kurum: Simkl `network` (dizi/anime yayın kanalı) ───────────────
+            // Simkl stüdyo/yapımcı **yayınlamaz** (API'de alan yok) ama `network`
+            // alanını döndürür. Daha önce hiç okunmuyordu → Simkl kaynaklı
+            // sayfalarda kanal listesi boştu.
+            val simklNetworks = mutableListOf<KitsugiStudio>()
+            fun addSimklNetwork(rawName: String?) {
+                val name = rawName?.trim().orEmpty()
+                if (name.isEmpty() || name == "null") return
+                if (simklNetworks.any { it.name.equals(name, ignoreCase = true) }) return
+                simklNetworks.add(
+                    KitsugiStudio(
+                        id = 0,
+                        name = name,
+                        isMain = false,
+                        source = "simkl",
+                        role = StudioRole.NETWORK
+                    )
+                )
+            }
+            addSimklNetwork(obj.optString("network", ""))
+            obj.optJSONArray("networks")?.let { arr ->
+                for (i in 0 until arr.length()) {
+                    val item = arr.optJSONObject(i)
+                    addSimklNetwork(if (item != null) item.optString("name", "") else arr.optString(i, ""))
+                }
+            }
+
             KitsugiMediaDetail(
                 synopsis = overview,
                 genres = genresList.toTurkishGenres(),
@@ -406,6 +433,7 @@ internal object KitsugiSimklDetailClient {
                 sourceMaterial = null,
                 studios = emptyList(),
                 producers = emptyList(),
+                networks = simklNetworks,
                 rating = if (ratingScore > 0.0) ratingScore.toString() else null,
                 broadcast = null,
                 episodeDuration = if (runtime > 0) "$runtime min".toTurkishDuration() else null,

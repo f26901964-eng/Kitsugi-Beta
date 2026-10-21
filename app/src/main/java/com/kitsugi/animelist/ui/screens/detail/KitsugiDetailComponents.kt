@@ -60,31 +60,48 @@ fun KitsugiStudiosCard(
     onStudioClick: (KitsugiStudio) -> Unit,
     onProducerClick: (KitsugiStudio) -> Unit,
     networks: List<KitsugiStudio> = emptyList(),
-    onNetworkClick: (KitsugiStudio) -> Unit = onProducerClick
+    onNetworkClick: (KitsugiStudio) -> Unit = onProducerClick,
+    /** Dergi / yayınevi kayıtları. Ayrı bölümde gösterilir; `networks`e karıştırılmaz. */
+    serializations: List<KitsugiStudio> = emptyList(),
+    onSerializationClick: (KitsugiStudio) -> Unit = onNetworkClick
 ) {
-    if (studios.isEmpty() && producers.isEmpty() && networks.isEmpty()) return
+    // Gösterimde adı temizlenince boşalan kayıtlar (kaomoji/infobox artığı) çizilmez:
+    // `sanitizeOrgName()` böyle adlar için boş döner — bkz. toLocalizedOrgName().
+    val visibleStudios = studios.filter { it.name.toLocalizedOrgName().isNotBlank() }
+    val visibleProducers = producers.filter { it.name.toLocalizedOrgName().isNotBlank() }
+    val visibleNetworks = networks.filter { it.name.toLocalizedOrgName().isNotBlank() }
+    val visibleSerials = serializations.filter { it.name.toLocalizedOrgName().isNotBlank() }
+    if (visibleStudios.isEmpty() && visibleProducers.isEmpty() &&
+        visibleNetworks.isEmpty() && visibleSerials.isEmpty()
+    ) {
+        return
+    }
     val accentColor = LocalKitsugiAccent.current
 
     // Manga ayrıntılarında yazar/dergi/yayıncı kayıtları bu kartın listelerini kullanır;
     // başlıklar role göre doğru etiketi gösterir (örn. "Stüdyolar" yerine "Yazarlar").
     val studiosLabel = when {
-        studios.all { it.role == com.kitsugi.animelist.data.remote.StudioRole.AUTHOR } ->
+        visibleStudios.all { it.role == com.kitsugi.animelist.data.remote.StudioRole.AUTHOR } ->
             stringResource(R.string.detail_section_authors)
-        studios.all { it.role == com.kitsugi.animelist.data.remote.StudioRole.PUBLISHER } ->
+        visibleStudios.all { it.role == com.kitsugi.animelist.data.remote.StudioRole.PUBLISHER } ->
             stringResource(R.string.detail_section_publishers)
         else -> stringResource(R.string.detail_section_studios)
     }
     val producersLabel = when {
-        producers.all { it.role == com.kitsugi.animelist.data.remote.StudioRole.MAGAZINE } ->
+        visibleProducers.all { it.role == com.kitsugi.animelist.data.remote.StudioRole.MAGAZINE } ->
             stringResource(R.string.detail_section_magazines)
-        producers.all { it.role == com.kitsugi.animelist.data.remote.StudioRole.PUBLISHER } ->
+        visibleProducers.all { it.role == com.kitsugi.animelist.data.remote.StudioRole.PUBLISHER } ->
             stringResource(R.string.detail_section_publishers)
         else -> stringResource(R.string.detail_section_producers)
     }
-    val networksLabel = when {
-        networks.all { it.role == com.kitsugi.animelist.data.remote.StudioRole.MAGAZINE } ->
+    val networksLabel = stringResource(R.string.detail_section_networks)
+    // Dergi / yayınevi bölümü: tek rolde geliyorsa o adı, karışıksa genel başlığı kullanır.
+    val serialsLabel = when {
+        visibleSerials.all { it.role == com.kitsugi.animelist.data.remote.StudioRole.MAGAZINE } ->
             stringResource(R.string.detail_section_magazines)
-        else -> stringResource(R.string.detail_section_networks)
+        visibleSerials.all { it.role == com.kitsugi.animelist.data.remote.StudioRole.PUBLISHER } ->
+            stringResource(R.string.detail_section_publishers)
+        else -> stringResource(R.string.detail_section_serials)
     }
 
     Column(
@@ -95,13 +112,13 @@ fun KitsugiStudiosCard(
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        if (studios.isNotEmpty()) {
+        if (visibleStudios.isNotEmpty()) {
             SectionLabel(studiosLabel)
             FlowRow(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                studios.forEach { studio ->
+                visibleStudios.forEach { studio ->
                     KitsugiChip(
                         // Ad TR/EN dil dosyasından gelir (bangumi_studio_*); eşleşmeyen
                         // ad (komite vb.) Latin/orijinal hâliyle kalır — bkz. MASTER 2026-10-11.
@@ -117,13 +134,13 @@ fun KitsugiStudiosCard(
                 }
             }
         }
-        if (producers.isNotEmpty()) {
+        if (visibleProducers.isNotEmpty()) {
             SectionLabel(producersLabel)
             FlowRow(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                producers.forEach { producer ->
+                visibleProducers.forEach { producer ->
                     KitsugiChip(
                         text = producer.name.toLocalizedOrgName(),
                         color = accentColor,
@@ -135,13 +152,31 @@ fun KitsugiStudiosCard(
                 }
             }
         }
-        if (networks.isNotEmpty()) {
+        if (visibleSerials.isNotEmpty()) {
+            SectionLabel(serialsLabel)
+            FlowRow(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                visibleSerials.forEach { serial ->
+                    KitsugiChip(
+                        text = serial.name.toLocalizedOrgName(),
+                        color = accentColor,
+                        solid = false,
+                        onClick = if (serial.name.isNotBlank()) {
+                            { onSerializationClick(serial) }
+                        } else null
+                    )
+                }
+            }
+        }
+        if (visibleNetworks.isNotEmpty()) {
             SectionLabel(networksLabel)
             FlowRow(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                networks.forEach { network ->
+                visibleNetworks.forEach { network ->
                     KitsugiChip(
                         text = network.name.toLocalizedOrgName(),
                         color = accentColor,
@@ -161,6 +196,9 @@ fun KitsugiStudiosCard(
 // ---------------------------------------------------------------------------
 //  Etiketler (Tags) - Spoiler toggle + daha fazla expander
 // ---------------------------------------------------------------------------
+/** Daraltılmış görünümde gösterilen etiket sayısı. Genişletilince tümü listelenir. */
+private const val VISIBLE_TAG_COUNT = 30
+
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun KitsugiTagsCard(
@@ -182,12 +220,12 @@ fun KitsugiTagsCard(
     val visibleTags = when {
         expanded && showSpoilers -> distinctTags
         expanded -> nonSpoilerTags
-        showSpoilers -> nonSpoilerTags.take(10) + spoilerTags
-        else -> nonSpoilerTags.take(10)
+        showSpoilers -> nonSpoilerTags.take(VISIBLE_TAG_COUNT) + spoilerTags
+        else -> nonSpoilerTags.take(VISIBLE_TAG_COUNT)
     }
 
     val hasSpoilers = spoilerTags.isNotEmpty()
-    val hasMore = nonSpoilerTags.size > 10
+    val hasMore = nonSpoilerTags.size > VISIBLE_TAG_COUNT
 
     Column(
         modifier = Modifier

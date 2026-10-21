@@ -1,5 +1,21 @@
 # Kitsugi-Beta — Sürüm Notları / Release Notes
 
+# Kitsugi Beta v2.4.341 — Arama taksonomi kataloğu / Search taxonomy catalog
+
+TR: Arama filtresi artık 114 tür, 1.325 etiket ve 9.457 Latin kurum adını ortak
+katalogdan okur. TR/EN/Rusça alias arama, kurum rol seçimi ve son seçimler
+hazır. **Kurumun kaynak sonuçlarını süzmesi henüz etkin değil (T55–T60);**
+arayüz bunu açıkça bildirir. Ayrıntılar: `release_notes_v2.4.341.md`.
+
+EN: Search facets now use a generated catalog with 114 genres, 1,325 tags,
+and 9,457 Latin organization names. Turkish/English/Russian aliases and role
+picker are available. **Provider-side organization filtering is not active
+until T55–T60**; the UI discloses this. See `release_notes_v2.4.341.md`.
+
+v2.4.340 kurum/etiket Latin ad notları: `release_notes_v2.4.340.md`.
+
+---
+
 # Kitsugi Beta v2.4.338
 
 ## 🇹🇷 Türkçe

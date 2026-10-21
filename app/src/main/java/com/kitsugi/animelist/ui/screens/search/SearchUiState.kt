@@ -2,6 +2,7 @@ package com.kitsugi.animelist.ui.screens.search
 
 import com.kitsugi.animelist.data.remote.JikanSearchResult
 import com.kitsugi.animelist.model.MediaType
+import com.kitsugi.animelist.utils.TaxonomyOrgRole
 import com.kitsugi.animelist.ui.screens.search.composables.KitsugiCountryOfOrigin
 import com.kitsugi.animelist.ui.screens.search.composables.KitsugiMediaFormat
 import com.kitsugi.animelist.ui.screens.search.composables.KitsugiMediaSeason
@@ -133,6 +134,7 @@ data class SearchUiState(
     val genres: List<String> = emptyList(),
     val excludedGenres: List<String> = emptyList(),
     val tags: List<String> = emptyList(),
+    val organizations: List<OrgFilter> = emptyList(),
 
     // ── AniHyou-style chip filters (AniList-only) ──────────────────────────
     val selectedFormats: List<KitsugiMediaFormat> = emptyList(),
@@ -166,11 +168,11 @@ data class SearchUiState(
     val effectiveSortApiValue: String get() =
         if (isSortDescending) sortSearch.descApiValue else sortSearch.ascApiValue
 
-    /** True if any filter besides the default sort is active */
-    val hasFiltersApplied: Boolean get() = activeFilterCount > 0
+    /** Organization selection is preview-only until the provider capability mapping is shipped. */
+    val hasFiltersApplied: Boolean get() = activeFilterCount > organizations.size
 
     val activeFilterCount: Int get() {
-        return when (selectedEngine) {
+        return organizations.size + when (selectedEngine) {
             SearchSourceEngine.ALL -> {
                 var c = 0
                 if (genres.isNotEmpty()) c += genres.size
@@ -221,6 +223,7 @@ data class SearchUiState(
         genres = genres,
         excludedGenres = excludedGenres,
         tags = tags,
+        organizations = organizations,
         minYear = startYear,
         maxYear = endYear,
         season = season?.apiValue,
@@ -248,6 +251,9 @@ enum class SearchPlatform(val label: String) {
     CS3("Eklentiler")
 }
 
+/** One catalog organization, identified by stable key and role (not by translated name). */
+data class OrgFilter(val role: TaxonomyOrgRole, val canonicalKey: String)
+
 /**
  * Legacy filter bag kept for backward compatibility with JikanApiClient
  * and the existing executeSearchForQuery logic.
@@ -263,7 +269,8 @@ data class SearchFilters(
     val season: String? = null,
     val minScore: Int? = null,
     val maxScore: Int? = null,
-    val sort: String? = "POPULARITY_DESC"
+    val sort: String? = "POPULARITY_DESC",
+    val organizations: List<OrgFilter> = emptyList()
 ) {
     fun isDefault(): Boolean =
         format == null &&
@@ -271,6 +278,7 @@ data class SearchFilters(
         genres.isEmpty() &&
         excludedGenres.isEmpty() &&
         tags.isEmpty() &&
+        organizations.isEmpty() &&
         minYear == null &&
         maxYear == null &&
         season == null &&
