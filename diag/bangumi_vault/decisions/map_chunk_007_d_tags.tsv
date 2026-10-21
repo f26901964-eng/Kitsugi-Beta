@@ -1,0 +1,2256 @@
+# Bangumi VAULT — chunk 007_d · ETİKET haritası (count 8–10 · 2253 kayıt)
+# Biçim: vault_key <TAB> canon_id|SKIP <TAB> not
+# Kişisel raf/puan, tarih/dönem, gürültü ve belirsiz kısaltmalar SKIP; bilinmeyen CJK adlar as_is.
+bangumi_tag_07_ghost	07_ghost	latin global ad
+bangumi_tag_111	SKIP	SKIP: salt sayı / sembol
+bangumi_tag_130cm	130cm	canon(studio):130cm
+bangumi_tag_13_10	SKIP	SKIP: tarih / etkinlik / raf damgası
+bangumi_tag_15x	15x	latin global ad
+bangumi_tag_1940	SKIP	SKIP: salt sayı / sembol
+bangumi_tag_1948	SKIP	SKIP: salt sayı / sembol
+bangumi_tag_1952	SKIP	SKIP: salt sayı / sembol
+bangumi_tag_1968_2	SKIP	SKIP: tarih / etkinlik / raf damgası
+bangumi_tag_1970	SKIP	SKIP: salt sayı / sembol
+bangumi_tag_1983_2	SKIP	SKIP: tarih / etkinlik / raf damgası
+bangumi_tag_1989_4	cjk_4f9822	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_1999_12	SKIP	SKIP: tarih / etkinlik / raf damgası
+bangumi_tag_2000_12	SKIP	SKIP: salt sayı / sembol
+bangumi_tag_2001_04	SKIP	SKIP: salt sayı / sembol
+bangumi_tag_2001_12	SKIP	SKIP: salt sayı / sembol
+bangumi_tag_2002_09	SKIP	SKIP: salt sayı / sembol
+bangumi_tag_2003_03	SKIP	SKIP: salt sayı / sembol
+bangumi_tag_2005_11	SKIP	SKIP: salt sayı / sembol
+bangumi_tag_2005_6_2	SKIP	SKIP: tarih / etkinlik / raf damgası
+bangumi_tag_2005_8_2	SKIP	SKIP: tarih / etkinlik / raf damgası
+bangumi_tag_2006_02	SKIP	SKIP: salt sayı / sembol
+bangumi_tag_2006_07	SKIP	SKIP: salt sayı / sembol
+bangumi_tag_2006_10_3	SKIP	SKIP: salt sayı / sembol
+bangumi_tag_2006_8_2	SKIP	SKIP: tarih / etkinlik / raf damgası
+bangumi_tag_2007_4	cjk_25c9b5	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_2007_8	SKIP	SKIP: tarih / etkinlik / raf damgası
+bangumi_tag_2008_12_2	SKIP	SKIP: tarih / etkinlik / raf damgası
+bangumi_tag_2014_5_2	SKIP	SKIP: tarih / etkinlik / raf damgası
+bangumi_tag_201604	SKIP	SKIP: salt sayı / sembol
+bangumi_tag_2017_06	SKIP	SKIP: salt sayı / sembol
+bangumi_tag_2019_3_2	SKIP	SKIP: tarih / etkinlik / raf damgası
+bangumi_tag_2019_8_2	SKIP	SKIP: tarih / etkinlik / raf damgası
+bangumi_tag_3_4	persona_3	lexicon:persona_3
+bangumi_tag_490	SKIP	SKIP: salt sayı / sembol
+bangumi_tag_85_89_2	cjk_ef62c7	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_90_2	SKIP	SKIP: salt sayı / sembol
+bangumi_tag_95	SKIP	SKIP: salt sayı / sembol
+bangumi_tag_9nine	9nine	latin global ad
+bangumi_tag_a_p	cjk_1b8be3	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_akabeko	akabeko	latin global ad
+bangumi_tag_aldnoah_zero	aldnoah_zero	latin global ad
+bangumi_tag_alice_2	alice	tags.tsv:alice
+bangumi_tag_all_time	all_time	canon(studio):all_time
+bangumi_tag_ask	ask	latin global ad
+bangumi_tag_avg_3	horror_adventure	lexicon:horror_adventure
+bangumi_tag_azusa	azusa	latin global ad
+bangumi_tag_b_la_fleck_and_the_flecktones	bela_fleck_and_the_flecktones	latin global ad
+bangumi_tag_bart_howard	bart_howard	latin global ad
+bangumi_tag_biburyanimationstudios	bibury_animation_studios	canon(studio):bibury_animation_studios
+bangumi_tag_bigcomicoriginal	big_comic_original	canon(magazine):cjk_3f14af
+bangumi_tag_blackisle	black_isle	latin global ad
+bangumi_tag_bldrama	bl_drama	tags.tsv:bl_drama
+bangumi_tag_bump_of_chicken	bump_of_chicken	tags.tsv:bump_of_chicken
+bangumi_tag_c69	SKIP	SKIP: tarih / etkinlik / raf damgası
+bangumi_tag_canaan	canaan	latin global ad
+bangumi_tag_chien	chien	canon(studio):chien
+bangumi_tag_citypop	citypop	latin global ad
+bangumi_tag_cjk_000824	cjk_000824	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_0038be	cjk_0038be	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_0101da	cjk_0101da	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_01be8c	cjk_01be8c	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_01cfe5	cjk_01cfe5	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_02278b	cjk_02278b	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_0362a2	cjk_0362a2	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_0363fe	cjk_0363fe	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_036963	cjk_036963	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_03ec1a	cjk_03ec1a	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_046b75	cjk_046b75	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_048805	cjk_048805	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_04f984	cjk_04f984	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_05aa24	cjk_05aa24	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_05b3c7	tenwen_kadokawa	lexicon:kadokawa_light_novel
+bangumi_tag_cjk_05ba36	cjk_05ba36	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_063a3d	cjk_063a3d	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_063e30	cjk_063e30	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_07d94b	cjk_07d94b	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_098d70	nine_volumes	lexicon:nine_volumes_complete
+bangumi_tag_cjk_0ab0bc	cjk_0ab0bc	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_0ba910	cjk_0ba910	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_0f160e	cjk_0f160e	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_0f2ef6	cjk_0f2ef6	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_0f5b7a	cjk_0f5b7a	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_102893	cjk_102893	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_106a46	cjk_106a46	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_12575a	cjk_12575a	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_14eb8e	cjk_14eb8e	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_168097	cjk_168097	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_168152	SKIP	SKIP: tek karakter belirsiz CJK
+bangumi_tag_cjk_170be5	cjk_170be5	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_187fcf	cjk_187fcf	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_194e92	cjk_194e92	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_1971e8	cjk_1971e8	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_1a03d4	cjk_1a03d4	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_1b4def	cjk_1b4def	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_1b7718	cjk_1b7718	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_1b77d4	cjk_1b77d4	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_1c3f4f	cjk_1c3f4f	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_1c4921	cjk_1c4921	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_1cba06	cjk_1cba06	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_1cd03e	wataru_yoshizumi	tags.tsv:wataru_yoshizumi
+bangumi_tag_cjk_1d44ec	command_and_conquer_red_alert	lexicon:command_and_conquer_red_alert
+bangumi_tag_cjk_1d4da1	cjk_1d4da1	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_1e3921	cjk_1e3921	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_1f847b	cjk_1f847b	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_216125	cjk_216125	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_21c839	cjk_21c839	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_2251c1	cjk_2251c1	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_22eb75	cjk_22eb75	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_23da12	the_avengers	lexicon:the_avengers
+bangumi_tag_cjk_24970f	quantum_mechanics	lexicon:quantum_mechanics
+bangumi_tag_cjk_2600a7	cjk_2600a7	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_271aac	cjk_271aac	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_2729e2	cjk_2729e2	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_27b7ea	cjk_27b7ea	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_28301f	cjk_28301f	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_287196	cjk_287196	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_28793b	cjk_28793b	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_292597	cjk_292597	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_298175	cjk_298175	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_2a2536	cjk_2a2536	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_2a4663	hunter_x_hunter_tag	lexicon:hunter_x_hunter
+bangumi_tag_cjk_2a62fe	cjk_2a62fe	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_2b200e	cjk_2b200e	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_2c7bc0	cjk_2c7bc0	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_2cacaf	seven_deadly_sins	lexicon:the_seven_deadly_sins
+bangumi_tag_cjk_2cd647	nyaruko	lexicon:nyaruko
+bangumi_tag_cjk_2cfdf2	cjk_2cfdf2	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_2ea3d1	super_robot	lexicon:super_robot
+bangumi_tag_cjk_3010b5	cjk_3010b5	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_306a2a	cjk_306a2a	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_307594	cjk_307594	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_30b23f	cjk_30b23f	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_311292	cjk_311292	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_31f4a2	cjk_31f4a2	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_32de32	card_game	tags.tsv:card_game
+bangumi_tag_cjk_34e546	cjk_34e546	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_357586	cjk_357586	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_357f8c	cjk_357f8c	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_35b32e	cjk_35b32e	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_35dd4a	cjk_35dd4a	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_364272	cjk_364272	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_366ae5	cjk_366ae5	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_36a020	cjk_36a020	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_38a053	cjk_38a053	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_39021a	cjk_39021a	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_3a436e	cjk_3a436e	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_3a80d6	cjk_3a80d6	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_3af37b	cjk_3af37b	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_3b0d79	life_and_death	tags.tsv:life_and_death
+bangumi_tag_cjk_3b1a00	cjk_3b1a00	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_3b2af0	cjk_3b2af0	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_3bbaa3	cjk_3bbaa3	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_3beca7	cjk_3beca7	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_3cb915	cjk_3cb915	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_3ceb0f	cjk_3ceb0f	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_3e31d0	rintaro	lexicon:rintaro
+bangumi_tag_cjk_3ef2f2	cjk_3ef2f2	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_3f0052	cjk_3f0052	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_3f8a23	cjk_3f8a23	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_409044	xenoblade_chronicles	lexicon:xenoblade_chronicles
+bangumi_tag_cjk_4109fa	cjk_4109fa	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_4181fa	cjk_4181fa	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_42afce	cjk_42afce	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_42b84d	cjk_42b84d	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_430831	cjk_430831	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_4320f1	cjk_4320f1	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_43bfa9	highschool_of_the_dead	lexicon:highschool_of_the_dead
+bangumi_tag_cjk_44dd09	cjk_44dd09	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_450d8e	cjk_450d8e	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_453f9b	cjk_453f9b	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_45ef97	cjk_45ef97	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_462d52	cjk_462d52	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_471d6b	cjk_471d6b	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_47b2f3	cjk_47b2f3	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_47c76a	cjk_47c76a	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_48a984	cjk_48a984	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_4a5bfc	cjk_4a5bfc	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_4b1a34	cjk_4b1a34	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_4b576d	cjk_4b576d	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_4c0422	cjk_4c0422	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_4c8356	cjk_4c8356	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_4d890d	dark_oriented	lexicon:dark_oriented
+bangumi_tag_cjk_4dd8ad	cjk_4dd8ad	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_4e129b	cjk_4e129b	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_4e4d6e	cjk_4e4d6e	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_4efd0f	scarlet_weather_rhapsody	lexicon:scarlet_weather_rhapsody
+bangumi_tag_cjk_4f7c13	cjk_4f7c13	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_502f22	cjk_502f22	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_50b041	flawed_quirky	lexicon:flawed_quirky
+bangumi_tag_cjk_510778	cjk_510778	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_5427af	general_literature	lexicon:general_literature
+bangumi_tag_cjk_563e15	cjk_563e15	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_56c82d	a_song_of_ice_and_fire	tags.tsv:a_song_of_ice_and_fire
+bangumi_tag_cjk_56f641	cjk_56f641	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_5710ec	blood_blockade_battlefront	lexicon:blood_blockade_battlefront
+bangumi_tag_cjk_58e739	cjk_58e739	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_59580d	cjk_59580d	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_59ae9e	cjk_59ae9e	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_5d671f	cjk_5d671f	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_5db9f3	cjk_5db9f3	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_5dec1d	SKIP	SKIP: tek karakter belirsiz CJK
+bangumi_tag_cjk_5e855a	cjk_5e855a	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_5f612f	cjk_5f612f	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_5fd154	cjk_5fd154	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_6112ee	cjk_6112ee	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_615c31	cjk_615c31	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_619cfe	cjk_619cfe	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_61c756	cjk_61c756	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_63709d	cjk_63709d	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_641a71	cjk_641a71	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_658c4c	cjk_658c4c	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_65e49b	cjk_65e49b	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_65f85b	cjk_65f85b	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_6697ac	cjk_6697ac	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_66aba6	cjk_66aba6	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_677429	cjk_677429	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_68c1fc	cjk_68c1fc	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_693b3a	cjk_693b3a	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_699f92	cjk_699f92	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_69bc80	cjk_69bc80	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_6a3b76	cjk_6a3b76	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_6aca83	cjk_6aca83	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_6b2e11	cjk_6b2e11	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_6b904a	cjk_6b904a	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_6bb954	cjk_6bb954	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_6c9648	cjk_6c9648	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_6edbd9	cjk_6edbd9	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_6f2799	cjk_6f2799	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_6f7558	sakura_wars	lexicon:sakura_wars
+bangumi_tag_cjk_734894	cjk_734894	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_74fab5	character_song	lexicon:character_song_track
+bangumi_tag_cjk_752ff6	side_scrolling_action	lexicon:side_scrolling_action
+bangumi_tag_cjk_756025	guilty_gear	lexicon:guilty_gear
+bangumi_tag_cjk_760570	vanillaware	lexicon:vanillaware
+bangumi_tag_cjk_7633ea	cjk_7633ea	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_77076e	cjk_77076e	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_77eee5	cjk_77eee5	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_790164	cjk_790164	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_7a7e43	cjk_7a7e43	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_7afb75	cjk_7afb75	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_7b1bc0	cjk_7b1bc0	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_7b3ebc	cjk_7b3ebc	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_7bbd13	cjk_7bbd13	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_7c18cd	atsumi_tanezaki	lexicon:atsumi_tanezaki
+bangumi_tag_cjk_7cdeed	cjk_7cdeed	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_7d415e	cjk_7d415e	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_7e7ed6	cjk_7e7ed6	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_7ec8ce	cjk_7ec8ce	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_7f4a9f	cjk_7f4a9f	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_7f8d8e	cjk_7f8d8e	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_7fb8e9	cjk_7fb8e9	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_7fc470	cjk_7fc470	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_7fd49e	cjk_7fd49e	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_809f02	late_night_slot	lexicon:late_night_slot
+bangumi_tag_cjk_80ad32	cjk_80ad32	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_80c8ba	cjk_80c8ba	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_80e8bd	cjk_80e8bd	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_81740f	cjk_81740f	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_8198a0	cjk_8198a0	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_826008	cjk_826008	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_85aac8	cjk_85aac8	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_85f523	cjk_85f523	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_86442d	cjk_86442d	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_86cad3	cjk_86cad3	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_879a5f	SKIP	SKIP: tek karakter belirsiz CJK
+bangumi_tag_cjk_8840c3	cjk_8840c3	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_8866f5	cjk_8866f5	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_88ac37	cjk_88ac37	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_897716	cjk_897716	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_89c17d	cjk_89c17d	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_89c8db	SKIP	SKIP: tek karakter belirsiz CJK
+bangumi_tag_cjk_89e464	idle_game	lexicon:idle_game
+bangumi_tag_cjk_8c5149	cjk_8c5149	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_8d0d93	tencent_games	lexicon:tencent_games
+bangumi_tag_cjk_8d0fcc	kaori_fukuhara	tags.tsv:kaori_fukuhara
+bangumi_tag_cjk_8d4f1e	cjk_8d4f1e	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_8e1a06	cjk_8e1a06	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_8ef6e6	cjk_8ef6e6	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_8f5d6f	cjk_8f5d6f	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_8f75e4	motoi_sakuraba	lexicon:motoi_sakuraba
+bangumi_tag_cjk_8fc677	sokoban	lexicon:sokoban
+bangumi_tag_cjk_8fdfff	cjk_8fdfff	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_904ae9	cjk_904ae9	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_904ca3	cjk_904ca3	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_91355e	cjk_91355e	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_91d662	cjk_3a77aa	tags.tsv:cjk_d3a061
+bangumi_tag_cjk_92e580	cjk_92e580	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_93c9fb	a_certain_magical_index	lexicon:magical_index
+bangumi_tag_cjk_940709	kanon_wakeshima	tags.tsv:kanon_wakeshima
+bangumi_tag_cjk_94a4da	cjk_94a4da	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_950cc7	cjk_950cc7	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_95388c	cjk_95388c	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_95780b	cjk_95780b	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_974e5d	cjk_974e5d	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_98d53b	cjk_98d53b	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_9916cb	cjk_9916cb	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_993f1b	cjk_993f1b	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_99bd1b	cjk_99bd1b	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_9b3b28	cjk_9b3b28	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_9bd212	cjk_9bd212	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_9d37c9	cjk_9d37c9	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_9ea0ec	cjk_9ea0ec	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_9ea3f7	cjk_9ea3f7	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_9fec02	cjk_9fec02	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_a03dad	cjk_a03dad	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_a043f1	cjk_a043f1	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_a09118	cjk_a09118	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_a0b6b2	cjk_a0b6b2	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_a1d685	cjk_a1d685	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_a21c93	cjk_a21c93	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_a26976	cjk_a26976	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_a39984	azumi_asakura	tags.tsv:azumi_asakura
+bangumi_tag_cjk_a40e4f	cjk_a40e4f	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_a5ac60	cjk_a5ac60	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_a65437	cjk_a65437	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_a6b826	dr_stone	lexicon:dr_stone
+bangumi_tag_cjk_a7282b	cjk_a7282b	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_a7548a	cjk_a7548a	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_a7581e	cjk_a7581e	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_a7f554	game_of_thrones	lexicon:game_of_thrones
+bangumi_tag_cjk_a8dd1e	cjk_a8dd1e	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_a98711	cjk_a98711	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_a9a8ac	cjk_a9a8ac	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_aa0493	nanase_nishino	lexicon:nanase_nishino
+bangumi_tag_cjk_aa60ac	juu_ayakura	tags.tsv:juu_ayakura
+bangumi_tag_cjk_aae5fa	cjk_aae5fa	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_aaed8d	cjk_aaed8d	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_ab5c35	cjk_ab5c35	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_abe759_2	anohana	lexicon:anohana
+bangumi_tag_cjk_ac683e	cjk_ac683e	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_ac9665	cjk_ac9665	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_ad04a1	cjk_ad04a1	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_ae0396	cjk_ae0396	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_aef60f	cjk_aef60f	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_afb5b2	soseki_natsume	lexicon:soseki_natsume
+bangumi_tag_cjk_afe83b	captain_tsubasa	lexicon:captain_tsubasa
+bangumi_tag_cjk_b07d02	china	tags.tsv:china
+bangumi_tag_cjk_b1ef56	cjk_b1ef56	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_b27802	cjk_b27802	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_b3088e	the_witcher	lexicon:the_witcher
+bangumi_tag_cjk_b43d74	SKIP	SKIP: tek karakter belirsiz CJK
+bangumi_tag_cjk_b4a074	cjk_b4a074	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_b5cd7a	cjk_b5cd7a	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_b5f83f	cjk_b5f83f	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_b6092a	page_manga	lexicon:page_manga
+bangumi_tag_cjk_b61921	cjk_b61921	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_b6249a	cjk_b6249a	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_b6421e	maiden_heart	lexicon:maiden_heart
+bangumi_tag_cjk_b73741	cjk_b73741	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_b7b310	cjk_b7b310	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_b8dcfa	cjk_b8dcfa	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_b8df7e	cjk_b8df7e	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_b92efc	hokkaido	lexicon:hokkaido
+bangumi_tag_cjk_b94cb2	cjk_b94cb2	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_b94d50	cjk_b94d50	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_b96824	cjk_b96824	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_bacd75	cjk_bacd75	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_bba26e	cjk_bba26e	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_bbb334	cjk_bbb334	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_bc0bde	high_score_girl	lexicon:high_score_girl
+bangumi_tag_cjk_bcbab5	cjk_bcbab5	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_bd6e00	dual_male_leads	lexicon:dual_male_leads
+bangumi_tag_cjk_bd7910	cjk_bd7910	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_bdc80c	cjk_bdc80c	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_bdd588	cjk_bdd588	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_be5498	cyberpunk	tags.tsv:cyberpunk
+bangumi_tag_cjk_bf54f8	cjk_bf54f8	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_c08702	horror_puzzle	lexicon:horror_puzzle
+bangumi_tag_cjk_c11b77	cjk_c11b77	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_c20c7f	cjk_c20c7f	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_c34e92	SKIP	SKIP: tek karakter belirsiz CJK
+bangumi_tag_cjk_c46a02	cjk_c46a02	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_c4883f	cjk_c4883f	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_c4dce5	cjk_c4dce5	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_c60ff2	cjk_c60ff2	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_c6577c	cjk_c6577c	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_c6d72d	cjk_c6d72d	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_c76d92	cjk_c76d92	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_c79fb8	cjk_c79fb8	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_c876d8	SKIP	SKIP: tek karakter belirsiz CJK
+bangumi_tag_cjk_c99fa1	cjk_c99fa1	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_cb14d9	cjk_cb14d9	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_cb4cd7	cjk_cb4cd7	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_cc552a	cjk_cc552a	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_cc877f	cjk_cc877f	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_cd6320	cjk_cd6320	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_cd683b	cjk_cd683b	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_d11a25	cjk_d11a25	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_d149ca	cjk_d149ca	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_d1a92e	cjk_d1a92e	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_d1ae5e	cjk_d1ae5e	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_d278e2	witch_priestess	lexicon:witch_priestess
+bangumi_tag_cjk_d2f7bc	cjk_d2f7bc	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_d3ae7b	cjk_d3ae7b	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_d3fa90	cjk_d3fa90	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_d47adb	cjk_d47adb	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_d4f3ef	cjk_d4f3ef	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_d53f8b	cjk_d53f8b	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_d5d958	cjk_d5d958	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_d67aa4	cjk_d67aa4	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_d67fe3	cjk_d67fe3	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_d6d3da	cjk_d6d3da	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_d7f7d3	sora_tokui	tags.tsv:sora_tokui
+bangumi_tag_cjk_d8df9a	cjk_d8df9a	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_d9eb0d	cjk_d9eb0d	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_da5f18	cjk_da5f18	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_da96ab	cjk_da96ab	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_da9c37	cjk_da9c37	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_db3c40	cjk_db3c40	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_db3cc6	ryoko_kui	lexicon:ryoko_kui
+bangumi_tag_cjk_db9b92	glasses	tags.tsv:glasses
+bangumi_tag_cjk_dbae8c	cjk_dbae8c	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_dc2a13	mei_nagano	lexicon:mei_nagano
+bangumi_tag_cjk_dcd35b	story_within_story	lexicon:story_within_story
+bangumi_tag_cjk_dde1df	cjk_dde1df	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_ddf9b9	masterpiece	tags.tsv:masterpiece
+bangumi_tag_cjk_de36b9	cjk_de36b9	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_df0fa3	cjk_df0fa3	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_df21bb	cjk_df21bb	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_df959e	yokai_manga	lexicon:yokai_manga
+bangumi_tag_cjk_e03533	cjk_e03533	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_e035a8	cjk_e035a8	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_e0947a	cjk_e0947a	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_e0d467	cjk_e0d467	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_e1531b	cjk_e1531b	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_e15328	sui_ishida	lexicon:sui_ishida_author
+bangumi_tag_cjk_e218b6	cjk_e218b6	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_e2d8a2	cjk_e2d8a2	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_e36d39	sadness	lexicon:sadness
+bangumi_tag_cjk_e39691	cjk_e39691	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_e3a5ec	cjk_e3a5ec	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_e3ca43	cjk_e3ca43	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_e445ee	cjk_e445ee	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_e500df	cjk_e500df	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_e55bfa	cjk_e55bfa	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_e5b49e	cjk_e5b49e	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_e5e413	cjk_e5e413	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_e5fac1	cjk_e5fac1	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_e6b4fe	cjk_e6b4fe	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_e6c4d8	cjk_e6c4d8	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_e76f61	psychological_portrayal	lexicon:psychological_portrayal
+bangumi_tag_cjk_e7e0ef	cjk_e7e0ef	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_e7f676	cjk_e7f676	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_e8574c	chinese_animation	lexicon:chinese_animation
+bangumi_tag_cjk_e8cade	gakuto_mikumo	tags.tsv:gakuto_mikumo
+bangumi_tag_cjk_e9a58b	cjk_e9a58b	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_e9cfde	cjk_e9cfde	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_ebe4f6	cjk_ebe4f6	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_edd004	sugaru_miaki	lexicon:sugaru_miaki
+bangumi_tag_cjk_ee7ac9	cjk_ee7ac9	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_f002b1	cjk_f002b1	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_f06ace	cjk_f06ace	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_f06f13	astronaut	lexicon:astronaut
+bangumi_tag_cjk_f071f9	yuma_uchida	tags.tsv:yuma_uchida
+bangumi_tag_cjk_f099b5	cjk_f099b5	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_f11815	korean_webtoon	lexicon:korean_webtoon
+bangumi_tag_cjk_f150b5	theatrical_idol	lexicon:theatrical_idol
+bangumi_tag_cjk_f2180a	cjk_f2180a	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_f224c2	cjk_f224c2	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_f37756	chorus_choir	lexicon:chorus_choir
+bangumi_tag_cjk_f39695	hanasaku_iroha	lexicon:hanasaku_iroha
+bangumi_tag_cjk_f396ef	soul_land_douluo_dalu	lexicon:soul_land_douluo_dalu
+bangumi_tag_cjk_f3a3ac	country_personification	lexicon:country_personification
+bangumi_tag_cjk_f4a56b	astronomy	lexicon:astronomy
+bangumi_tag_cjk_f549eb	cjk_f549eb	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_f57a84	shin_honkaku	lexicon:shin_honkaku
+bangumi_tag_cjk_f5b4ef	cjk_f5b4ef	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_f5e6ee	epic_drama	lexicon:epic_drama
+bangumi_tag_cjk_f794a7	horimiya	lexicon:horimiya
+bangumi_tag_cjk_fa0485	cjk_fa0485	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_fa67eb	cjk_fa67eb	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_facf14	cjk_facf14	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_fb1cf3	cjk_fb1cf3	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_fbf965	cjk_fbf965	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_fc1744	cjk_fc1744	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_fc9bc2	cjk_fc9bc2	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_fd1b7a	jp_fr_coproduction	lexicon:jp_fr_coproduction
+bangumi_tag_cjk_fd20d3	cjk_fd20d3	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_fe5bb7	lesbian	lexicon:lesbian
+bangumi_tag_cjk_feb68c	cjk_feb68c	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_fef3bf	cjk_fef3bf	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_fefa7c	high_school	lexicon:high_school
+bangumi_tag_claire	claire	latin global ad
+bangumi_tag_concert	concert	latin global ad
+bangumi_tag_crystalia	crystalia	canon(studio):crystalia
+bangumi_tag_csi	csi	canon(network):csi
+bangumi_tag_cyberphase	cyber_phase	canon(publisher):cyber_phase
+bangumi_tag_cygamespictures	cygamespictures	canon(producer):cygamespictures
+bangumi_tag_d3publisher	d3_publisher	canon(publisher):cjk_6def4d
+bangumi_tag_dd2	dd2	latin global ad
+bangumi_tag_dean	dean	latin global ad
+bangumi_tag_dear	dear	canon(magazine):dear
+bangumi_tag_df	tag_b98f83	canon(producer):df
+bangumi_tag_digimon_frontier	digimon_frontier	latin global ad
+bangumi_tag_dj_okawari	dj_okawari	canon(producer):dj_okawari
+bangumi_tag_dreamworks	dreamworks	tags.tsv:dreamworks
+bangumi_tag_dsgame	dsgame	canon(publisher):dsgame
+bangumi_tag_ed1	ed1	latin global ad
+bangumi_tag_ed2	ed2	latin global ad
+bangumi_tag_ed6	ed6	latin global ad
+bangumi_tag_empress	empress	canon(studio):empress
+bangumi_tag_erogos	erogos	canon(producer):erogos
+bangumi_tag_escaflowne	escaflowne	latin global ad
+bangumi_tag_evan_call	evan_call	tags.tsv:evan_call
+bangumi_tag_ever17	ever17	latin global ad
+bangumi_tag_felixfilm	felixfilm	canon(studio):felixfilm
+bangumi_tag_flowers_2	flowers	canon(magazine):flowers_4
+bangumi_tag_furry_2	furry	latin global ad
+bangumi_tag_ganganjoker	cjk_ede453	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_h2so4	h2so4	latin global ad
+bangumi_tag_h_p	h_p	latin global ad
+bangumi_tag_heat_soft	heat_soft	canon(studio):heat_soft
+bangumi_tag_honeyworks_2	honeyworks	tags.tsv:honeyworks
+bangumi_tag_hulotte	hulotte	canon(publisher):hulotte
+bangumi_tag_i_wish	i_wish	latin global ad
+bangumi_tag_ichigo	ichigo	latin global ad
+bangumi_tag_infinity_2	infinity	canon(publisher):infinity
+bangumi_tag_irem	irem	canon(publisher):irem
+bangumi_tag_kag	kag	latin global ad
+bangumi_tag_kate	kate	canon(producer):kate
+bangumi_tag_kicco	kicco	latin global ad
+bangumi_tag_king	cjk_ff55df	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_kk	tag_16e4ef	latin global ad
+bangumi_tag_lamento_2	lamento	latin global ad
+bangumi_tag_lasah	lasah	latin global ad
+bangumi_tag_lime	lime	canon(studio):lime
+bangumi_tag_maria	ma_ri_a	latin global ad
+bangumi_tag_mariofamily	mario_family	latin global ad
+bangumi_tag_maruta	maruta	latin global ad
+bangumi_tag_maxis	maxis	canon(studio):maxis
+bangumi_tag_melodic	melodic	latin global ad
+bangumi_tag_miko_2	miko	tags.tsv:miko
+bangumi_tag_milet	milet	latin global ad
+bangumi_tag_mimia_cute	mimia_cute	canon(producer):mimia_cute
+bangumi_tag_mizuki	mizuki	latin global ad
+bangumi_tag_monolith	monolith	latin global ad
+bangumi_tag_moresoft	moresoft	latin global ad
+bangumi_tag_mosaic_wav	mosaic_wav	canon(publisher):mosaic_wav
+bangumi_tag_nekoworks	neko_works	canon(publisher):neko_works
+bangumi_tag_niki	niki	latin global ad
+bangumi_tag_obsidian	obsidian	latin global ad
+bangumi_tag_ona	web	tags.tsv:web
+bangumi_tag_ost_3	anime_ost	tags.tsv:anime_ost
+bangumi_tag_oster	oster	latin global ad
+bangumi_tag_parlophone	parlophone	canon(publisher):parlophone
+bangumi_tag_r_o_n_2	ron_utaite	tags.tsv:ron_utaite
+bangumi_tag_rayark	rayark	latin global ad
+bangumi_tag_redjuice	redjuice	latin global ad
+bangumi_tag_relife	re_life	latin global ad
+bangumi_tag_reol	reol	latin global ad
+bangumi_tag_ro	tag_f5b15f	latin global ad
+bangumi_tag_robico	robico	latin global ad
+bangumi_tag_rockman	rockman	latin global ad
+bangumi_tag_rougeetnoir	rougeet_noir	latin global ad
+bangumi_tag_ruf	ruf_tag	latin global ad
+bangumi_tag_ryunosuke	ryunosuke	latin global ad
+bangumi_tag_songs	songs	ingilizce-birebir
+bangumi_tag_storyof365days	storyof365days	latin global ad
+bangumi_tag_stray_dogs	cjk_f7b2e6	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_studioghiblirecords	studio_ghibli_records	canon(publisher):studio_ghibli_records
+bangumi_tag_synagi	synagi	latin global ad
+bangumi_tag_tag_00a55d	cjk_00a55d	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_tag_049596	cjk_049596	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_tag_0cc768	tsukumizu	lexicon:tsukumizu
+bangumi_tag_tag_0dadb5	chihayafuru	lexicon:chihayafuru
+bangumi_tag_tag_15a291	cjk_15a291	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_tag_17e152	cjk_17e152	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_tag_186946	cjk_186946	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_tag_2702b3	cjk_2702b3	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_tag_2c5f8e	cjk_2c5f8e	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_tag_324b73	cjk_324b73	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_tag_3dca40	cjk_3dca40	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_tag_3ef83f	bakuman	lexicon:bakuman
+bangumi_tag_tag_417def	cjk_417def	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_tag_47612c	cjk_47612c	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_tag_4ed8a0	cjk_4ed8a0	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_tag_508953	cjk_508953	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_tag_52defa	cjk_52defa	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_tag_5ba4f9	cjk_5ba4f9	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_tag_674f11	cjk_674f11	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_tag_696cc5	cjk_696cc5	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_tag_6f4800	ben_to	lexicon:ben_to
+bangumi_tag_tag_71be6c	cjk_71be6c	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_tag_745a5e	cjk_745a5e	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_tag_761809	cjk_761809	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_tag_7655b8	cjk_7655b8	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_tag_7c628d	cjk_7c628d	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_tag_7c7118	cjk_7c7118	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_tag_87db92	cjk_87db92	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_tag_907c17	cjk_907c17	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_tag_92ea98	cjk_92ea98	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_tag_9651f5	cjk_9651f5	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_tag_9c06ef	cjk_9c06ef	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_tag_9ef899	cjk_9ef899	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_tag_a3a713	cjk_a3a713	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_tag_a3a8e5	cjk_a3a8e5	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_tag_a551b0	cjk_a551b0	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_tag_a97331	cjk_a97331	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_tag_afe59e	cjk_afe59e	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_tag_c72d77	cjk_c72d77	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_tag_dda480	cjk_dda480	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_tag_e2bad9	cjk_e2bad9	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_tag_edf471	cjk_edf471	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_tag_f384a5	cjk_f384a5	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_tag_fb429a	cjk_fb429a	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_tag_fc849f	cjk_fc849f	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_tag_fd314c	cjk_fd314c	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_tak_sk	tak_sk	latin global ad
+bangumi_tag_tcj	cjk_255870	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_theater	theater	latin global ad
+bangumi_tag_thetimewalkers	the_time_walkers	latin global ad
+bangumi_tag_tog	tog	latin global ad
+bangumi_tag_tokyo_7th	cjk_a9ce79	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_tolove_2	cjk_5d792c	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_touhou_2	touhou_project	tags.tsv:touhou_project
+bangumi_tag_tugeneko	tugeneko	latin global ad
+bangumi_tag_type_90	type_90	latin global ad
+bangumi_tag_versus	versusii	latin global ad
+bangumi_tag_victor_entertaiment	victor_entertaiment	latin global ad
+bangumi_tag_vivienne	vivienne	latin global ad
+bangumi_tag_vlove25	vlove25	latin global ad
+bangumi_tag_whitesoft	white_soft	canon(studio):white_soft
+bangumi_tag_working_3	working	latin global ad
+bangumi_tag_x_8	cjk_d53452	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_y0c1e	y0c1e	latin global ad
+bangumi_tag_yellow_zebra	yellow_zebra	canon(publisher):yellow_zebra
+bangumi_tag_00_5	cjk_aad6c0	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_12_10	cjk_0c7bbb	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_1936_2	SKIP	SKIP: tarih / etkinlik / raf damgası
+bangumi_tag_1937	SKIP	SKIP: salt sayı / sembol
+bangumi_tag_1941	SKIP	SKIP: salt sayı / sembol
+bangumi_tag_1962	SKIP	SKIP: salt sayı / sembol
+bangumi_tag_1973_2	SKIP	SKIP: tarih / etkinlik / raf damgası
+bangumi_tag_2000_10_3	SKIP	SKIP: salt sayı / sembol
+bangumi_tag_2000_7	SKIP	SKIP: tarih / etkinlik / raf damgası
+bangumi_tag_2001_03	SKIP	SKIP: salt sayı / sembol
+bangumi_tag_2001_10	SKIP	SKIP: salt sayı / sembol
+bangumi_tag_2001_11_2	SKIP	SKIP: salt sayı / sembol
+bangumi_tag_2002_10_3	SKIP	SKIP: tarih / etkinlik / raf damgası
+bangumi_tag_2003_5	cjk_3de669	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_2004_01	SKIP	SKIP: salt sayı / sembol
+bangumi_tag_2004_08	SKIP	SKIP: salt sayı / sembol
+bangumi_tag_2006_08	SKIP	SKIP: salt sayı / sembol
+bangumi_tag_2007_01	SKIP	SKIP: salt sayı / sembol
+bangumi_tag_2009_3	SKIP	SKIP: tarih / etkinlik / raf damgası
+bangumi_tag_2009_9	SKIP	SKIP: tarih / etkinlik / raf damgası
+bangumi_tag_2010_12_2	SKIP	SKIP: tarih / etkinlik / raf damgası
+bangumi_tag_2010_5_2	SKIP	SKIP: tarih / etkinlik / raf damgası
+bangumi_tag_2010_6_2	SKIP	SKIP: tarih / etkinlik / raf damgası
+bangumi_tag_2010_8	SKIP	SKIP: tarih / etkinlik / raf damgası
+bangumi_tag_2013_11_2	SKIP	SKIP: tarih / etkinlik / raf damgası
+bangumi_tag_2017_03	SKIP	SKIP: salt sayı / sembol
+bangumi_tag_2017_ova_oad	cjk_ae52ca	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_2019_web_sp	cjk_82d315	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_3dh	3dh	latin global ad
+bangumi_tag_765pro	765pro	latin global ad
+bangumi_tag_9_nine	9_nine	latin global ad
+bangumi_tag_abalonekiss	abalone_kiss	canon(studio):abalone_kiss
+bangumi_tag_akko	akko	latin global ad
+bangumi_tag_atsuko	atsuko	latin global ad
+bangumi_tag_bang_dream_2	bang_dream	tags.tsv:bang_dream
+bangumi_tag_bau	bau	latin global ad
+bangumi_tag_bbc_hd	bbc_hd	canon(network):bbc_hd
+bangumi_tag_beethoven	beethoven	latin global ad
+bangumi_tag_benjamin_anderson	benjamin_anderson	latin global ad
+bangumi_tag_bj	tag_ddd70b	latin global ad
+bangumi_tag_black	black	canon(studio):black
+bangumi_tag_blame	blame	latin global ad
+bangumi_tag_blazblue	blazblue	latin global ad
+bangumi_tag_blood_2	blood	tags.tsv:blood
+bangumi_tag_boa	boa	latin global ad
+bangumi_tag_boichi	boichi	latin global ad
+bangumi_tag_brains_base	brains_base	tags.tsv:brains_base
+bangumi_tag_bungie	bungie	canon(studio):bungie
+bangumi_tag_cg_9	cjk_c59061	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_chaos_r	chaos_r	canon(studio):chaos_r
+bangumi_tag_chiba	chiba	latin global ad
+bangumi_tag_chokkaku	chokkaku	latin global ad
+bangumi_tag_cjk_00f33d	enka	lexicon:enka
+bangumi_tag_cjk_011c9e	cjk_011c9e	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_01679a	cjk_01679a	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_018b9e	cjk_018b9e	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_024cc9	cjk_024cc9	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_03574e	SKIP	SKIP: kişisel durum / gürültü
+bangumi_tag_cjk_038f76	cjk_038f76	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_03ac60	cjk_03ac60	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_041e23	cjk_041e23	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_0464c6	light_novel_volumes	tags.tsv:ln_volumes
+bangumi_tag_cjk_0477da	the_lord_of_the_rings	lexicon:the_lord_of_the_rings
+bangumi_tag_cjk_04c9e3	cjk_04c9e3	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_0619ab	cjk_0619ab	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_0821ee	cjk_0821ee	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_0957fe	female_pov	lexicon:female_pov
+bangumi_tag_cjk_09dd96	cjk_09dd96	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_09ede5	cjk_09ede5	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_0a60ac	SKIP	SKIP: tek karakter belirsiz CJK
+bangumi_tag_cjk_0d22c5	yhkt_entertainment	lexicon:yhkt_entertainment
+bangumi_tag_cjk_0dc1a9	yasuhiro_imagawa	lexicon:yasuhiro_imagawa
+bangumi_tag_cjk_0e5d8c	cjk_0e5d8c	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_0eb2dd	cjk_0eb2dd	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_0fc79a	takanori_nishikawa	tags.tsv:takanori_nishikawa
+bangumi_tag_cjk_10679f	cjk_10679f	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_10aa5e	cjk_10aa5e	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_10dfa9	cjk_10dfa9	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_114a8f	cjk_114a8f	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_116221	cjk_116221	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_11ba2c	cjk_11ba2c	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_11e923	cjk_11e923	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_123eb5	cjk_123eb5	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_124bc7	keiji_fujiwara	tags.tsv:keiji_fujiwara
+bangumi_tag_cjk_13124f	cjk_13124f	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_13a87f	cjk_13a87f	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_149eed	cjk_149eed	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_14ceb8	cjk_14ceb8	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_15814e	cjk_15814e	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_15d845	bakuman	lexicon:bakuman
+bangumi_tag_cjk_15d978	anime_theme_song	lexicon:anime_theme_song
+bangumi_tag_cjk_175943	cjk_175943	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_19b48c	cjk_19b48c	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_1a4473	cjk_1a4473	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_1b021c	cjk_1b021c	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_1b75dd	cjk_1b75dd	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_1bb219	cjk_1bb219	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_1cb2c6	kosuke_fujishima	tags.tsv:kosuke_fujishima
+bangumi_tag_cjk_1cdb83	cjk_1cdb83	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_1d637b	cjk_1d637b	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_1df262	cjk_1df262	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_1ec57a	cjk_1ec57a	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_1f99d2	twelve_kingdoms	tags.tsv:twelve_kingdoms
+bangumi_tag_cjk_1fa9ae	cjk_1fa9ae	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_209eac	cjk_209eac	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_20c0c2	cjk_20c0c2	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_2158dc	chihayafuru	lexicon:chihayafuru
+bangumi_tag_cjk_226483	cjk_226483	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_22961f	cjk_22961f	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_230bea	cjk_230bea	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_232714	robotics_notes	lexicon:robotics_notes
+bangumi_tag_cjk_233174	cjk_233174	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_23ccc0	first_person_pov	lexicon:first_person_pov
+bangumi_tag_cjk_23f9a5	cjk_23f9a5	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_2407bf	cjk_2407bf	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_24407b	cjk_24407b	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_24d9c5	cjk_24d9c5	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_256bb7	SKIP	SKIP: tek karakter belirsiz CJK
+bangumi_tag_cjk_258ed3	cjk_258ed3	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_25c3f9	cjk_25c3f9	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_25c471	cjk_25c471	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_2603c2	cjk_2603c2	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_26eec3	cjk_26eec3	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_280297	cjk_280297	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_289869	SKIP	SKIP: tek karakter belirsiz CJK
+bangumi_tag_cjk_291837	SKIP	SKIP: tek karakter belirsiz CJK
+bangumi_tag_cjk_29b066	cjk_29b066	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_2a5176	kill_la_kill	lexicon:kill_la_kill
+bangumi_tag_cjk_2a926a	cjk_2a926a	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_2a990a	cjk_2a990a	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_2c3bf3	cjk_2c3bf3	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_2c55b6	cjk_2c55b6	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_2cb6ff	cjk_2cb6ff	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_2cb85d	cjk_2cb85d	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_2d4c0e	cjk_2d4c0e	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_2df757	cjk_2df757	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_2e0bfd	cjk_2e0bfd	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_2eaaeb	cjk_2eaaeb	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_2ec03b	cjk_2ec03b	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_2eed77	cjk_2eed77	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_2fce29	cjk_2fce29	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_2fea16	greek_mythology	lexicon:greek_mythology
+bangumi_tag_cjk_308e17	cjk_308e17	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_310fbe	non_combat	lexicon:non_combat
+bangumi_tag_cjk_313789	cjk_313789	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_323c9f	final_chapter	lexicon:final_chapter
+bangumi_tag_cjk_336bca	SKIP	SKIP: tek karakter belirsiz CJK
+bangumi_tag_cjk_33e94c	hayakawa_publishing	lexicon:hayakawa_publishing
+bangumi_tag_cjk_348c57	cjk_348c57	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_365b7d	arakawa_under_the_bridge	lexicon:arakawa_under_the_bridge
+bangumi_tag_cjk_3664e0	ma_boyong	lexicon:ma_boyong
+bangumi_tag_cjk_376da1	cjk_376da1	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_37a694	cjk_37a694	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_37acd0	cjk_37acd0	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_37aedc	cjk_37aedc	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_37e7c4	cjk_37e7c4	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_381108	cjk_381108	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_391b8f	SKIP	SKIP: tek karakter belirsiz CJK
+bangumi_tag_cjk_3a1755	train_man	lexicon:train_man
+bangumi_tag_cjk_3a5608	mythology_inspired	lexicon:mythology_inspired
+bangumi_tag_cjk_3b55ff	cjk_3b55ff	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_3cb30e	cjk_3cb30e	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_3dd9bc	epic	tags.tsv:epic
+bangumi_tag_cjk_3e104a	kono_light_novel_ga_sugoi	tags.tsv:kono_light_novel_ga_sugoi
+bangumi_tag_cjk_3e233b	cjk_3e233b	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_3e716e	cjk_3e716e	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_3f5001	cjk_3f5001	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_3f728e	cjk_3f728e	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_40c5a6	classic_adaptation	lexicon:classic_adaptation
+bangumi_tag_cjk_4145d4	english_language	lexicon:english_language
+bangumi_tag_cjk_41732b	cjk_41732b	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_418291	cjk_418291	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_4242d9	cjk_4242d9	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_42b7cb	cjk_42b7cb	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_44edd4	cjk_44edd4	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_457bb7	cjk_457bb7	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_464b0d	haruhi_melancholy	tags.tsv:haruhi_melancholy
+bangumi_tag_cjk_465f40	cjk_465f40	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_47c3c3	cjk_47c3c3	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_481eb8	cjk_481eb8	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_49084e	cjk_49084e	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_4a5b76	cjk_4a5b76	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_4a9186	cjk_4a9186	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_4aae14	finland	lexicon:finland
+bangumi_tag_cjk_4bd1ec	cjk_4bd1ec	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_4c2824	cjk_4c2824	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_4dd529	cjk_4dd529	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_4def76	russian_drama	lexicon:russian_drama
+bangumi_tag_cjk_4e1c17	cjk_4e1c17	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_4e68fc	cjk_4e68fc	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_4e8b20	cjk_4e8b20	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_4ea1bc	depressing_dark	lexicon:depressing_dark
+bangumi_tag_cjk_4f51f5	cjk_4f51f5	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_4fc102	cjk_4fc102	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_4fe128	madness_denpa	lexicon:madness_denpa
+bangumi_tag_cjk_508c0a	cjk_508c0a	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_5123c4	cjk_5123c4	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_51fde1	cjk_51fde1	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_524f2e	cjk_524f2e	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_544232	cjk_544232	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_547a1a	cjk_547a1a	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_55a1e4	cjk_55a1e4	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_55c056	cjk_55c056	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_568024	cjk_568024	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_56a7fa	cjk_56a7fa	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_5712be	cjk_5712be	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_57e525	cjk_57e525	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_581b8d	obsidian_entertainment	lexicon:obsidian_entertainment
+bangumi_tag_cjk_59c3cf	cjk_59c3cf	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_5a2c47	kemonomimi_girl	lexicon:kemonomimi_girl
+bangumi_tag_cjk_5aa3aa	cjk_5aa3aa	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_5aaa16	cjk_5aaa16	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_5b5ca4	cjk_5b5ca4	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_5b94aa	three_kingdoms_tag	lexicon:three_kingdoms
+bangumi_tag_cjk_5e5a14	cjk_5e5a14	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_5ea821	cjk_5ea821	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_5f8edc	cjk_5f8edc	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_5fae03	cjk_5fae03	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_60471d	feature_film	lexicon:feature_film
+bangumi_tag_cjk_622d14	cjk_622d14	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_62938a	cjk_62938a	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_629d07	cjk_629d07	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_62fdf4	cjk_9b2e5f	tags.tsv:cjk_9b2e5f
+bangumi_tag_cjk_638d04	cjk_638d04	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_64408f	go_board_game	lexicon:go_board_game
+bangumi_tag_cjk_645a59	cjk_645a59	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_645f1e	madness	tags.tsv:madness
+bangumi_tag_cjk_649316	cjk_649316	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_6562e3	cjk_6562e3	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_66120c	close_male_friends	lexicon:close_male_friends
+bangumi_tag_cjk_662c8c	idiot_couple	lexicon:idiot_couple
+bangumi_tag_cjk_668764	jp_kr_coproduction	lexicon:jp_kr_coproduction
+bangumi_tag_cjk_67a416	cjk_67a416	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_67e5f8	cjk_67e5f8	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_68a25c	cjk_68a25c	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_69b96e	cjk_69b96e	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_69d9b0	cjk_69d9b0	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_6a25c0	cjk_6a25c0	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_6a7c4a	japanese_film	tags.tsv:japanese_film
+bangumi_tag_cjk_6aa979	cjk_6aa979	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_6bc260	cjk_6bc260	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_6cb9da	cjk_6cb9da	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_6dd241	sakura_tange	tags.tsv:sakura_tange
+bangumi_tag_cjk_6ffc28	home_gardening	lexicon:home_gardening
+bangumi_tag_cjk_708bef	hyouka	lexicon:hyouka
+bangumi_tag_cjk_718ebd	cjk_718ebd	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_72cb10	cjk_72cb10	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_72e7be	cjk_72e7be	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_7317de	cjk_7317de	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_74811d	cjk_74811d	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_761b3b	cjk_761b3b	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_763cee	cjk_763cee	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_76a0eb	cjk_76a0eb	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_76e773	cjk_76e773	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_775ba1	black_lagoon	lexicon:black_lagoon
+bangumi_tag_cjk_77d8a0	cjk_77d8a0	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_780821	cjk_780821	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_781ed6	cjk_781ed6	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_791bef	brotherly_love	lexicon:brotherly_love
+bangumi_tag_cjk_79411a	cjk_79411a	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_79757a	cjk_79757a	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_798e69	cjk_798e69	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_79cb45	cjk_79cb45	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_7a5c6f	kyushu	lexicon:kyushu
+bangumi_tag_cjk_7ae280	cjk_7ae280	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_7b3b7d	cjk_7b3b7d	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_7b7291	cjk_7b7291	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_7ccf10	cjk_7ccf10	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_7d3998	ashita_no_joe	lexicon:ashita_no_joe
+bangumi_tag_cjk_7dd425	cjk_7dd425	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_7ead16	cjk_7ead16	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_7ef4df	cjk_7ef4df	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_7ef9dc	cjk_7ef9dc	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_7f1d4e	cjk_7f1d4e	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_7f6857	cjk_7f6857	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_7f85d5	yusei_matsui	tags.tsv:yusei_matsui
+bangumi_tag_cjk_807b62	cjk_807b62	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_80aaad	cjk_80aaad	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_80d747	single_volume_complete	lexicon:single_volume_complete
+bangumi_tag_cjk_819247	hiroaki_sakurai	tags.tsv:hiroaki_sakurai
+bangumi_tag_cjk_8238b9	cjk_8238b9	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_829e3a	cjk_829e3a	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_82b0ce	command_and_conquer_red_alert	lexicon:command_and_conquer_red_alert
+bangumi_tag_cjk_831aac	cjk_831aac	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_83a6f4	dual_pov	lexicon:dual_pov
+bangumi_tag_cjk_83c3c1	cjk_83c3c1	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_846952	yuki_kajiura	tags.tsv:yuki_kajiura
+bangumi_tag_cjk_852395	cjk_852395	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_856219	cjk_856219	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_868956	cjk_868956	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_86ca7c	cjk_86ca7c	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_871ed3	hyouka_classic_lit_club_tag	lexicon:hyouka_classic_lit_club
+bangumi_tag_cjk_88b19a	cjk_88b19a	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_88bf48	cjk_88bf48	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_896149	magazine_compilation	lexicon:magazine_compilation
+bangumi_tag_cjk_89b8a4	cjk_89b8a4	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_8a32e7	cjk_8a32e7	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_8a4381	cjk_8a4381	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_8bec68	cjk_8bec68	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_8c1820	cjk_8c1820	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_8cb0c4	cjk_8cb0c4	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_8cf977	mo_xiang_tong_xiu	lexicon:mo_xiang_tong_xiu
+bangumi_tag_cjk_8d4481	yu_shiina	tags.tsv:yu_shiina
+bangumi_tag_cjk_8d86a2	SKIP	SKIP: tek karakter belirsiz CJK
+bangumi_tag_cjk_8e7417	cjk_8e7417	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_8e9a24	SKIP	SKIP: tek karakter belirsiz CJK
+bangumi_tag_cjk_8f73bc	cjk_8f73bc	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_8ff158	cjk_8ff158	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_90a2b9	side_scrolling	tags.tsv:side_scrolling
+bangumi_tag_cjk_928d4a	modern_warfare	lexicon:modern_warfare
+bangumi_tag_cjk_937a48	hideki_kamiya	lexicon:hideki_kamiya
+bangumi_tag_cjk_93cfc1	office_workplace	lexicon:office_workplace
+bangumi_tag_cjk_93d087	cjk_93d087	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_940599	cjk_940599	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_94597f	cjk_94597f	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_94a417	cjk_94a417	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_94a58c	cjk_94a58c	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_969a47	cjk_969a47	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_96c8dd	fallout	lexicon:fallout
+bangumi_tag_cjk_96f154	cjk_96f154	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_971243	cjk_971243	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_973134	cjk_973134	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_97e547	cjk_97e547	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_97e963	cjk_97e963	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_97f41c	cjk_97f41c	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_97f676	cjk_97f676	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_9831c4	cjk_9831c4	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_98716f	cjk_98716f	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_9891f9	cjk_9891f9	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_9a7770	cjk_9a7770	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_9b7e62	cjk_9b7e62	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_9bd820	cjk_9bd820	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_9c193f	four_great_classics	lexicon:four_great_classics
+bangumi_tag_cjk_9c4b55	cjk_9c4b55	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_9d0406	cjk_9d0406	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_9d2d1f	cjk_9d2d1f	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_9d35a2	music_manga	lexicon:music_manga
+bangumi_tag_cjk_9d572a	cjk_9d572a	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_9d60d9	cjk_9d60d9	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_9e3102	baseball	lexicon:baseball
+bangumi_tag_cjk_9e69e6	cjk_9e69e6	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_9eaae8	cjk_9eaae8	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_9f50cc	avant_garde	tags.tsv:avant_garde
+bangumi_tag_cjk_9f9508	cjk_9f9508	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_9fe3ef	cjk_9fe3ef	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_a14f12	cjk_a14f12	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_a1e0ba	cjk_a1e0ba	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_a2166d	cjk_a2166d	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_a26e77	cjk_a26e77	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_a27bc3	solo_album	lexicon:solo_album
+bangumi_tag_cjk_a2b240	cjk_a2b240	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_a2dee9	cjk_a2dee9	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_a3e7e9	cjk_a3e7e9	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_a43f9b	cjk_a43f9b	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_a46855	cjk_a46855	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_a57d0e	yuzo_koshiro	lexicon:yuzo_koshiro
+bangumi_tag_cjk_a5b52b	cjk_a5b52b	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_a60593	cjk_a60593	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_a607f5	cjk_a607f5	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_a63151	cjk_a63151	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_a67af4	honoka_kousaka	lexicon:honoka_kousaka
+bangumi_tag_cjk_a82035	cjk_a82035	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_a84b0c	bondage_shibari	lexicon:bondage_shibari
+bangumi_tag_cjk_a89644	cjk_a89644	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_a8e544	cjk_a8e544	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_a90cc1	cjk_a90cc1	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_a95188	tokyo_mangasha	tags.tsv:tokyo_mangasha
+bangumi_tag_cjk_a96144	restraint	lexicon:restraint
+bangumi_tag_cjk_a99a63	senshado	lexicon:senshado
+bangumi_tag_cjk_a9a777	cjk_a9a777	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_aa0a62	cjk_aa0a62	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_aab6e2	tang_jia_san_shao	lexicon:tang_jia_san_shao
+bangumi_tag_cjk_ab9363	cjk_ab9363	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_abb21c	cjk_abb21c	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_abb501	golden_time	lexicon:golden_time
+bangumi_tag_cjk_ac8abc	cjk_ac8abc	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_ad7871	cjk_ad7871	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_ae8819	cjk_ae8819	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_aee5f7	cjk_aee5f7	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_aff59c	cjk_aff59c	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_b0d63c	cjk_b0d63c	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_b13c15	cjk_b13c15	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_b174c6	cjk_b174c6	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_b1d919	seiyuu_event	lexicon:seiyuu_event
+bangumi_tag_cjk_b3661a	masashi_hamauzu	lexicon:masashi_hamauzu
+bangumi_tag_cjk_b459fa	cjk_b459fa	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_b4ef85	cjk_b4ef85	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_b55f1a	cjk_b55f1a	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_b591dd	cjk_b591dd	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_b614db	cjk_b614db	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_b65b96	cjk_b65b96	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_b6ebab	cjk_b6ebab	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_b71615	cjk_b71615	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_b7c91a	cjk_b7c91a	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_b8464d	elderly_people	lexicon:elderly_people
+bangumi_tag_cjk_b88dff	cjk_b88dff	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_b893fc	cjk_b893fc	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_b89c22	cjk_b89c22	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_b8a593	father_marriage_trope	lexicon:father_marriage_trope
+bangumi_tag_cjk_b9aa79	cjk_b9aa79	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_ba686b	story_music	lexicon:story_music
+bangumi_tag_cjk_bb2f26	cjk_bb2f26	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_bb2fdb	little_witch_academia	lexicon:little_witch_academia
+bangumi_tag_cjk_bc5f82	akira_amemiya	lexicon:akira_amemiya
+bangumi_tag_cjk_bd2143	cjk_bd2143	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_bd61d9	cjk_bd61d9	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_bd864c	cjk_bd864c	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_beb360	iori_nomizu	tags.tsv:iori_nomizu
+bangumi_tag_cjk_bee274	cjk_bee274	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_c2516d	cjk_c2516d	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_c25d95	cjk_c25d95	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_c28593	cjk_c28593	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_c3097a	SKIP	SKIP: kişisel durum / gürültü
+bangumi_tag_cjk_c35aec	cn_kr_coproduction	lexicon:cn_kr_coproduction
+bangumi_tag_cjk_c483c7	cjk_c483c7	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_c50293	cjk_c50293	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_c71875	cjk_c71875	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_c87dc6	cjk_c87dc6	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_c89efd	cjk_c89efd	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_c8e6ef	cjk_c8e6ef	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_c953a2	cjk_c953a2	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_ca284b	cjk_ca284b	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_cb5aa8	cjk_cb5aa8	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_cb809b	cjk_cb809b	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_cbfb38	cjk_cbfb38	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_cc10e0	cjk_cc10e0	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_cc6de7	cjk_cc6de7	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_cd2589	cjk_cd2589	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_cd2f25	cjk_cd2f25	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_cd6c3a	claymore	lexicon:claymore
+bangumi_tag_cjk_cdc67f	cjk_cdc67f	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_cf3837	the_kings_avatar	lexicon:the_kings_avatar
+bangumi_tag_cjk_d09314	cjk_d09314	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_d0b4e3	cjk_d0b4e3	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_d1977a	cjk_d1977a	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_d1ab65	cjk_d1ab65	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_d1d60b	cjk_d1d60b	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_d1f601	cjk_d1f601	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_d22fb6	cjk_d22fb6	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_d27934	cjk_d27934	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_d281df	cjk_d281df	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_d2a7f4	cjk_d2a7f4	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_d300d2	cjk_d300d2	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_d3948c	uma_musume	lexicon:uma_musume
+bangumi_tag_cjk_d48cf2	cjk_d48cf2	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_d4cc2d	cjk_d4cc2d	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_d52d12	cjk_d52d12	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_d61268	cjk_d61268	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_d63677	cjk_d63677	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_d7056a	hyakka_seiran	lexicon:hyakka_seiran
+bangumi_tag_cjk_d70d43	cjk_d70d43	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_d854dc	cjk_d854dc	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_d8c759	cjk_d8c759	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_d90074	cjk_d90074	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_d91541	nisemonogatari	lexicon:nisemonogatari
+bangumi_tag_cjk_d97fc0	cjk_d97fc0	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_da094d	cjk_da094d	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_da8026	cjk_da8026	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_da9a0c	rakugo	lexicon:rakugo
+bangumi_tag_cjk_dabc43	cjk_dabc43	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_db4186	black_mirror	lexicon:black_mirror
+bangumi_tag_cjk_dc946b	netherlands	lexicon:netherlands
+bangumi_tag_cjk_dd33c0	cjk_dd33c0	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_dd38bb	SKIP	SKIP: kişisel durum / gürültü
+bangumi_tag_cjk_df34fc	cjk_df34fc	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_e02b62	cjk_e02b62	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_e0f69d	cjk_e0f69d	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_e1115a	avatar_the_last_airbender	lexicon:avatar_the_last_airbender
+bangumi_tag_cjk_e11797	cjk_e11797	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_e1dfbb	cjk_e1dfbb	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_e235f8	cjk_e235f8	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_e2d30a	super_mario	lexicon:super_mario
+bangumi_tag_cjk_e33414	cjk_e33414	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_e363b2	cjk_e363b2	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_e3f644	working_adult	lexicon:working_adult
+bangumi_tag_cjk_e44b20	warcraft	lexicon:warcraft
+bangumi_tag_cjk_e46fec	cjk_e46fec	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_e4a833	yoko_taro	lexicon:yoko_taro
+bangumi_tag_cjk_e50a25	cjk_e50a25	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_e51651	cjk_e51651	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_e577f0	cjk_e577f0	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_e5bcb1	cjk_e5bcb1	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_e77018	cjk_e77018	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_e78289	cjk_e78289	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_e7aeee	cjk_e7aeee	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_e83bf5	ecology	lexicon:ecology
+bangumi_tag_cjk_e90580	cjk_e90580	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_e93e9c	puzzle	tags.tsv:puzzle
+bangumi_tag_cjk_ea2b0a	cjk_ea2b0a	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_ea90f2	cjk_ea90f2	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_eadf74	cjk_eadf74	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_ebe411	cjk_ebe411	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_ed4b98	cjk_ed4b98	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_ed71f3	cjk_ed71f3	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_ed8bd4	dragon_knight	lexicon:dragon_knight
+bangumi_tag_cjk_ed96f1	soji_shimada	tags.tsv:soji_shimada
+bangumi_tag_cjk_ef461c	heterochromia	lexicon:heterochromia
+bangumi_tag_cjk_ef647a	cjk_ef647a	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_ef88e8	cjk_ef88e8	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_efb241	SKIP	SKIP: kişisel durum / gürültü
+bangumi_tag_cjk_f00133	india	lexicon:india
+bangumi_tag_cjk_f010a0	cjk_f010a0	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_f0b094	hiromi_igarashi	tags.tsv:hiromi_igarashi
+bangumi_tag_cjk_f102af	cjk_f102af	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_f1a515	cjk_f1a515	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_f1ca70	cjk_f1ca70	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_f2cbcd	cjk_f2cbcd	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_f2f2bf	cjk_f2f2bf	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_f369b5	fist_of_the_north_star	lexicon:fist_of_the_north_star
+bangumi_tag_cjk_f3d823	cjk_f3d823	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_f41f4f	cjk_f41f4f	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_f45782	SKIP	SKIP: tek karakter belirsiz CJK
+bangumi_tag_cjk_f47721	cjk_f47721	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_f4c8ae	cjk_f4c8ae	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_f4f2a2	cjk_f4f2a2	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_f52635	cjk_f52635	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_f651c8	cjk_f651c8	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_f6ba3a	cjk_f6ba3a	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_f72c1e	SKIP	SKIP: kişisel durum / gürültü
+bangumi_tag_cjk_f780c3	cjk_f780c3	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_f782e0	cjk_f782e0	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_f8f5b3	cjk_f8f5b3	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_f99f61	fujoshi	lexicon:fujoshi
+bangumi_tag_cjk_fa0acc	cjk_fa0acc	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_fa35d5	cjk_fa35d5	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_fb83e1	cjk_fb83e1	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_fbbd6f	cjk_fbbd6f	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_fc13f6	cjk_fc13f6	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_fc6a5d	cjk_fc6a5d	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_fcc153	cjk_fcc153	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_fd32a7	cjk_fd32a7	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_fd87f6	cjk_fd87f6	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_fe82fc	cjk_fe82fc	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_fe8af5	cjk_fe8af5	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_feed6a	iceland	lexicon:iceland
+bangumi_tag_cjk_ff3b12	cjk_ff3b12	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_clannad	clannad_series	tags.tsv:clannad_series
+bangumi_tag_clover	clover	canon(studio):clover
+bangumi_tag_comico	comico	canon(magazine):comico
+bangumi_tag_cordelia	cordelia	canon(publisher):cordelia_2
+bangumi_tag_crown	crown	latin global ad
+bangumi_tag_custom_udon	custom_udon	canon(producer):custom_udon
+bangumi_tag_d_p	d_p	latin global ad
+bangumi_tag_dark_2	dark	tags.tsv:dark
+bangumi_tag_deathnote	death_note_series	tags.tsv:death_note_series
+bangumi_tag_digital	digital	tags.tsv:digital
+bangumi_tag_donna_burke	donna_burke	latin global ad
+bangumi_tag_drb	drb	latin global ad
+bangumi_tag_dvd_3	dvd	canon(publisher):dvd
+bangumi_tag_dwarfsoft	dwarfsoft	canon(studio):dwarfsoft
+bangumi_tag_dx	cjk_e38b99	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_earthmind	earthmind	latin global ad
+bangumi_tag_faber	faber	latin global ad
+bangumi_tag_fd_4	side_story_fandisc	lexicon:side_story_fandisc
+bangumi_tag_ff7	ff7	latin global ad
+bangumi_tag_freebirdgames	freebird_games	canon(publisher):freebird_games
+bangumi_tag_frontier	cjk_74f0f9	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_fsn	fsn	latin global ad
+bangumi_tag_g_2	cjk_72132a	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_g_6	cjk_19449b	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_g_j	g_j_tag	latin global ad
+bangumi_tag_galgame_4	cjk_635bc6	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_gearbox	gearbox	canon(studio):gearbox
+bangumi_tag_genostudio	geno_studio	canon(producer):geno_studio
+bangumi_tag_gg_2	tag_86d8d9	latin global ad
+bangumi_tag_got	got	canon(publisher):got
+bangumi_tag_graphicnovel	graphic_novel	tags.tsv:graphic_novel
+bangumi_tag_greysanatomy	greys_anatomy	latin global ad
+bangumi_tag_himesuz	himesuz	latin global ad
+bangumi_tag_hiroshi	hiroshi	latin global ad
+bangumi_tag_holicworks	holicworks	canon(publisher):holicworks_2
+bangumi_tag_horror_2	horror	tags.tsv:horror
+bangumi_tag_indie_game	indie_game	tags.tsv:indie_game
+bangumi_tag_infinitestratos	infinite_stratos	latin global ad
+bangumi_tag_itori	itori	latin global ad
+bangumi_tag_iwgp	iwgp	latin global ad
+bangumi_tag_j_ment	j_ment	latin global ad
+bangumi_tag_j_r_b	j_r_b	latin global ad
+bangumi_tag_jam_project_2	jamproject	tags.tsv:jamproject
+bangumi_tag_jazz_hiphop	jazz_hiphop	latin global ad
+bangumi_tag_jump_4	weekly_shonen_jump	tags.tsv:weekly_shonen_jump
+bangumi_tag_katsu	katsu	canon(producer):katsu
+bangumi_tag_kon_k	kon_k	latin global ad
+bangumi_tag_lair_soft	lair_soft	latin global ad
+bangumi_tag_lego	lego	latin global ad
+bangumi_tag_liella	liella	latin global ad
+bangumi_tag_little	little	canon(publisher):little
+bangumi_tag_lost	lost	latin global ad
+bangumi_tag_lotus_juice	lotus_juice	latin global ad
+bangumi_tag_loversonly	loversonly	latin global ad
+bangumi_tag_lovesolfege_2	love_solfege	canon(publisher):love_solfege
+bangumi_tag_m3_2	tag_f1c6eb	canon(publisher):m3
+bangumi_tag_m3_39	SKIP	SKIP: tarih / etkinlik / raf damgası
+bangumi_tag_m_3	cjk_dc7172	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_m_de_pink	m_de_pink	canon(studio):m_de_pink
+bangumi_tag_mabinogi	mabinogi	latin global ad
+bangumi_tag_mahofilm	maho_film	canon(producer):maho_film
+bangumi_tag_man_with_a_mission	man_with_a_mission	latin global ad
+bangumi_tag_mediafactory	media_factory	tags.tsv:media_factory
+bangumi_tag_meis_clauson	meis_clauson	latin global ad
+bangumi_tag_melodic_rock	melodic_rock	latin global ad
+bangumi_tag_metal	metal_music	tags.tsv:metal_music
+bangumi_tag_meteor	meteor	canon(studio):meteor
+bangumi_tag_mme	mme	canon(publisher):mme
+bangumi_tag_moonstone_cherry	moonstone_cherry	canon(studio):moonstone_cherry
+bangumi_tag_mori	mori	latin global ad
+bangumi_tag_mtjj	mtjj	latin global ad
+bangumi_tag_muvluv_2	muv_luv	tags.tsv:muv_luv
+bangumi_tag_n_c	n_c	latin global ad
+bangumi_tag_naki	naki	latin global ad
+bangumi_tag_naver	naver	canon(magazine):naver
+bangumi_tag_ncis	ncis	latin global ad
+bangumi_tag_nem	nem	latin global ad
+bangumi_tag_new_age_2	new_age_tag	latin global ad
+bangumi_tag_newgame_2	new_game	latin global ad
+bangumi_tag_no_6_2	cjk_f3d7ca	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_norn9	norn9	latin global ad
+bangumi_tag_note_2	note	canon(magazine):note
+bangumi_tag_nut	nut	canon(producer):nut
+bangumi_tag_oasis	cjk_34cdc2	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_official_dism	cjk_40ffed	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_oneroom	one_room	latin global ad
+bangumi_tag_op_4	cjk_6ca78f	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_orange_jam	orangejam	canon(publisher):orange_jam
+bangumi_tag_oresama	oresama	latin global ad
+bangumi_tag_p3k	p3k	latin global ad
+bangumi_tag_p_4	cjk_df5702	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_parasol	parasol	canon(studio):parasol
+bangumi_tag_peach_pit_2	peachpit	latin global ad
+bangumi_tag_poison	poison	canon(studio):poison
+bangumi_tag_progressive	progressive	latin global ad
+bangumi_tag_radixmobanimation	radix_mobanimation	canon(studio):radix_mobanimation
+bangumi_tag_rasmus	rasmus	latin global ad
+bangumi_tag_redrop	re_drop	latin global ad
+bangumi_tag_remedios	remedios	latin global ad
+bangumi_tag_reversible	reversible	latin global ad
+bangumi_tag_rie_fu	rie_fu	latin global ad
+bangumi_tag_robot_2	robot	tags.tsv:robot
+bangumi_tag_root	root	canon(studio):root
+bangumi_tag_s_10	SKIP	SKIP: tek karakter
+bangumi_tag_santamonica	santa_monica	latin global ad
+bangumi_tag_seed_2	cjk_a5bc2e	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_sherlock	sherlock	latin global ad
+bangumi_tag_shinycolor	shinycolor	latin global ad
+bangumi_tag_simulation	genre_sim	tags.tsv:simulation
+bangumi_tag_sk	tag_41d6ad	latin global ad
+bangumi_tag_sp_10	cjk_5ada16	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_sp_time	sp_time	canon(publisher):sp_time
+bangumi_tag_steam_2	SKIP	SKIP: tarih / etkinlik / raf damgası
+bangumi_tag_steins	steins_tag	latin global ad
+bangumi_tag_steve_conte	steve_conte	latin global ad
+bangumi_tag_sting	sting	canon(studio):sting
+bangumi_tag_sune	sune	latin global ad
+bangumi_tag_tag_01a40d	cjk_01a40d	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_tag_07ab84	kill_la_kill	lexicon:kill_la_kill
+bangumi_tag_tag_0c8da0	cjk_0c8da0	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_tag_13323e	cjk_13323e	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_tag_191a54	cjk_191a54	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_tag_1a1ee2	cjk_1a1ee2	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_tag_1b5d7a	cjk_1b5d7a	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_tag_1d7ee7	cjk_1d7ee7	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_tag_2a3e2e	cjk_2a3e2e	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_tag_2af07a	cjk_2af07a	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_tag_2b19b6	cjk_2b19b6	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_tag_2f43b4	SKIP	SKIP: kişisel durum / gürültü
+bangumi_tag_tag_3315b0	cjk_3315b0	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_tag_336d5e	SKIP	SKIP: kişisel durum / gürültü
+bangumi_tag_tag_3609f9	SKIP	SKIP: kişisel durum / gürültü
+bangumi_tag_tag_3a6cc4	namori	lexicon:namori
+bangumi_tag_tag_3d4da0	cjk_3d4da0	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_tag_40acad	cjk_40acad	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_tag_48031c	cjk_48031c	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_tag_485421	cjk_485421	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_tag_5091d4	uta_no_prince_sama	lexicon:uta_no_prince_sama
+bangumi_tag_tag_5098c5	cjk_5098c5	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_tag_5197c4	cjk_5197c4	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_tag_52334f	cjk_52334f	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_tag_54b542	cjk_54b542	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_tag_55f667	cjk_55f667	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_tag_58e6bb	cjk_58e6bb	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_tag_59e21e	cjk_59e21e	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_tag_5dfff8	cjk_5dfff8	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_tag_62c08d	cjk_62c08d	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_tag_764f27	cjk_764f27	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_tag_81197c	SKIP	SKIP: salt sayı / sembol
+bangumi_tag_tag_8260a1	cjk_8260a1	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_tag_8300e4	kakifly	lexicon:kakifly
+bangumi_tag_tag_8a323a	cjk_8a323a	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_tag_9ff26d	cjk_9ff26d	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_tag_a269dc	akira	lexicon:akira
+bangumi_tag_tag_a6b7dd	cjk_a6b7dd	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_tag_a880c7	SKIP	SKIP: salt sayı / sembol
+bangumi_tag_tag_a958ab	cjk_a958ab	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_tag_af1085	cjk_af1085	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_tag_b40167	cjk_b40167	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_tag_bd7a86	cjk_bd7a86	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_tag_c29b0c	cjk_c29b0c	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_tag_c2eb06	cjk_c2eb06	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_tag_c88b20	turn_a_gundam	lexicon:turn_a_gundam
+bangumi_tag_tag_c8cb6c	cjk_c8cb6c	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_tag_cdaf2c	cjk_cdaf2c	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_tag_db1fbd	cjk_db1fbd	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_tag_ead59d	cjk_ead59d	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_tag_f13109	cjk_f13109	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_tag_f5841d	chobits_tag	lexicon:chobits
+bangumi_tag_tag_f74e6c	cjk_f74e6c	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_tag_f78f76	cjk_f78f76	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_tag_f87e8f	cjk_f87e8f	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_tag_fd5c08	cjk_fd5c08	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_tag_fdf344	k_on	tags.tsv:k_on
+bangumi_tag_tag_fe690a	natsuki_kizu	lexicon:natsuki_kizu
+bangumi_tag_tb	tag_ff8844	latin global ad
+bangumi_tag_technorch	technorch	latin global ad
+bangumi_tag_tenkla	tenkla	latin global ad
+bangumi_tag_tobi	tobi	latin global ad
+bangumi_tag_transarts	trans_arts	canon(studio):trans_arts
+bangumi_tag_two_mix	two_mix	latin global ad
+bangumi_tag_typemoon_2	type_moon	tags.tsv:type_moon
+bangumi_tag_ufo_3	cjk_c69af6	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_unisonshift_blossom	unisonshift_blossom	latin global ad
+bangumi_tag_unlucky_morpheus	unlucky_morpheus	canon(publisher):unlucky_morpheus
+bangumi_tag_vip	cjk_3b770a	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_vivid	vi_vi_d	latin global ad
+bangumi_tag_vs_5	cjk_13b3b8	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_walkthrough	walkthrough_tag	latin global ad
+bangumi_tag_wincest	wincest	latin global ad
+bangumi_tag_wondercorona	wondercorona	latin global ad
+bangumi_tag_worldpg	worldpg	latin global ad
+bangumi_tag_wow	wow	latin global ad
+bangumi_tag_x_x	cjk_68c5c0	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_yoco	yoco	latin global ad
+bangumi_tag_yoshi_wo	yoshiwo	latin global ad
+bangumi_tag_yostarpictures	yostar_pictures	canon(producer):yostar_pictures
+bangumi_tag_ze	cjk_ca9a25	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_ze_2	tag_38e8d0	latin global ad
+bangumi_tag_zexal	zexal	latin global ad
+bangumi_tag_zone	zone	canon(studio):zone
+bangumi_tag_10mo	10mo	latin global ad
+bangumi_tag_11_9	cjk_3ab5c2	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_123	SKIP	SKIP: salt sayı / sembol
+bangumi_tag_15	cjk_367ee9	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_18_6	cjk_565234	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_1935_2	SKIP	SKIP: tarih / etkinlik / raf damgası
+bangumi_tag_1951	SKIP	SKIP: salt sayı / sembol
+bangumi_tag_1953	SKIP	SKIP: salt sayı / sembol
+bangumi_tag_1960	SKIP	SKIP: salt sayı / sembol
+bangumi_tag_1961	SKIP	SKIP: salt sayı / sembol
+bangumi_tag_1972_3	SKIP	SKIP: tarih / etkinlik / raf damgası
+bangumi_tag_2000_04	SKIP	SKIP: salt sayı / sembol
+bangumi_tag_2000_09	SKIP	SKIP: salt sayı / sembol
+bangumi_tag_2001_05	SKIP	SKIP: salt sayı / sembol
+bangumi_tag_2001_10_2	SKIP	SKIP: tarih / etkinlik / raf damgası
+bangumi_tag_2001_4_2	SKIP	SKIP: tarih / etkinlik / raf damgası
+bangumi_tag_2002_04	SKIP	SKIP: salt sayı / sembol
+bangumi_tag_2002_4_2	SKIP	SKIP: tarih / etkinlik / raf damgası
+bangumi_tag_2003_01_2	SKIP	SKIP: salt sayı / sembol
+bangumi_tag_2004_1	SKIP	SKIP: tarih / etkinlik / raf damgası
+bangumi_tag_2004_12_2	SKIP	SKIP: tarih / etkinlik / raf damgası
+bangumi_tag_2005_05	SKIP	SKIP: salt sayı / sembol
+bangumi_tag_2006_9	cjk_7e0324	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_2007_9	cjk_94795f	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_2008_11_2	SKIP	SKIP: tarih / etkinlik / raf damgası
+bangumi_tag_200x_2	n_200x	tags.tsv:n_200x
+bangumi_tag_2010_3_2	SKIP	SKIP: tarih / etkinlik / raf damgası
+bangumi_tag_2010_5	cjk_b0d882	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_2010_9_2	SKIP	SKIP: tarih / etkinlik / raf damgası
+bangumi_tag_2011_3_2	SKIP	SKIP: tarih / etkinlik / raf damgası
+bangumi_tag_2011_9_2	SKIP	SKIP: tarih / etkinlik / raf damgası
+bangumi_tag_2012_2_2	SKIP	SKIP: tarih / etkinlik / raf damgası
+bangumi_tag_2012_3	SKIP	SKIP: tarih / etkinlik / raf damgası
+bangumi_tag_2013_2_2	SKIP	SKIP: tarih / etkinlik / raf damgası
+bangumi_tag_201510	SKIP	SKIP: salt sayı / sembol
+bangumi_tag_2017_5_2	SKIP	SKIP: tarih / etkinlik / raf damgası
+bangumi_tag_2018_6	SKIP	SKIP: tarih / etkinlik / raf damgası
+bangumi_tag_2019_6	SKIP	SKIP: tarih / etkinlik / raf damgası
+bangumi_tag_2020_3_2	SKIP	SKIP: tarih / etkinlik / raf damgası
+bangumi_tag_2021_08	SKIP	SKIP: salt sayı / sembol
+bangumi_tag_2021_4_2	SKIP	SKIP: tarih / etkinlik / raf damgası
+bangumi_tag_2c	cjk_da2fbc	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_2h	tag_21719d	latin global ad
+bangumi_tag_3d_5	cjk_d1973b	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_3d_x	cjk_39f6b0	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_3r2	3r2	latin global ad
+bangumi_tag_40_p	cjk_e39ede	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_40k_2	cjk_66936b	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_81_2	cjk_b6bb29	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_8ja	8ja	latin global ad
+bangumi_tag_90_4	cjk_dbe9b4	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_94	SKIP	SKIP: salt sayı / sembol
+bangumi_tag_abalone_kiss	abalone_kiss	canon(studio):abalone_kiss
+bangumi_tag_action_2	cjk_e550d4	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_activeplanets	active_planets	canon(producer):active_planets
+bangumi_tag_adv_6	cjk_281afd	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_ali_project	ali_project	tags.tsv:ali_project
+bangumi_tag_alice	alice_series	morfoloji:seri+sonek
+bangumi_tag_alice_alice	alice_alice	latin global ad
+bangumi_tag_alstroemeria	alstroemeria	latin global ad
+bangumi_tag_alternative_2	alternative	latin global ad
+bangumi_tag_altima	altima	latin global ad
+bangumi_tag_ana	cjk_394162	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_angel_beats	angel_beats	latin global ad
+bangumi_tag_anglebeats	anglebeats	latin global ad
+bangumi_tag_apricot	apricot	canon(publisher):cjk_36cd34
+bangumi_tag_argonauts	argonauts	canon(studio):argonauts
+bangumi_tag_artmic	artmic	canon(studio):artmic
+bangumi_tag_atv	atv	canon(network):atv_2
+bangumi_tag_azu	azu	latin global ad
+bangumi_tag_b_2	tag_308bb3	latin global ad
+bangumi_tag_bassy	bassy	canon(publisher):bassy
+bangumi_tag_bibi	bi_bi	latin global ad
+bangumi_tag_bigcomicspirits_2	big_comic_spirits	tags.tsv:big_comic_spirits
+bangumi_tag_bizcrown	bizcrown	canon(publisher):bizcrown
+bangumi_tag_bl2010	bl2010	latin global ad
+bangumi_tag_blueberry_yogurt	blueberry_yogurt	canon(publisher):blueberry_yogurt
+bangumi_tag_breakerz	breakerz	latin global ad
+bangumi_tag_buono	buono	latin global ad
+bangumi_tag_c67	SKIP	SKIP: tarih / etkinlik / raf damgası
+bangumi_tag_c_shu_nie	co_shu_nie	latin global ad
+bangumi_tag_carmine	carmine	canon(studio):carmine
+bangumi_tag_chamber_pop	chamber_pop	latin global ad
+bangumi_tag_chocochip	chocochip	latin global ad
+bangumi_tag_chuable	chuable	latin global ad
+bangumi_tag_chun	chun	latin global ad
+bangumi_tag_ciel	ciel	canon(magazine):ciel
+bangumi_tag_citrus_2	citrus	canon(studio):citrus
+bangumi_tag_cj	cjk_55bdca	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_0021cd	cjk_0021cd	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_00e195	cjk_00e195	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_012df9	cjk_012df9	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_015702	cjk_015702	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_01ae88	cjk_01ae88	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_01b3a8	cjk_01b3a8	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_01b902	yutaka_mizushima	tags.tsv:yutaka_mizushima
+bangumi_tag_cjk_01c2ed	cjk_01c2ed	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_01dd90	cjk_01dd90	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_01eecf	cjk_01eecf	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_023411	cjk_023411	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_034da9	kei_sazane	tags.tsv:kei_sazane
+bangumi_tag_cjk_035c22	cjk_035c22	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_041c8a	cjk_041c8a	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_043baa	cjk_043baa	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_04c271	cjk_04c271	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_056f0c	cjk_056f0c	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_066ff2	cjk_066ff2	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_06df9d	cjk_06df9d	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_070471	cjk_070471	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_0757ed	cjk_0757ed	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_075d70	otome_anime	morfoloji:kök+sonek
+bangumi_tag_cjk_07cec2	cjk_07cec2	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_07f8dc	shoujo_novel	morfoloji:kök+sonek
+bangumi_tag_cjk_084089	cjk_084089	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_08cd6b	cjk_08cd6b	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_09f3c3	cjk_09f3c3	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_0a538a	movie	tags.tsv:movie
+bangumi_tag_cjk_0a6473	cjk_0a6473	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_0a8233	cjk_0a8233	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_0b34cb	cjk_0b34cb	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_0bccce	cjk_0bccce	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_0c58ca	cjk_0c58ca	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_0c8f73	cjk_0c8f73	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_0c9d89	mai_kuraki	tags.tsv:mai_kuraki
+bangumi_tag_cjk_0cb9fe	cjk_0cb9fe	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_0d6399	cjk_0d6399	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_0d931b	cjk_0d931b	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_0dfb79	cjk_0dfb79	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_0e3fa6	cjk_0e3fa6	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_0e5bac	cjk_0e5bac	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_0fad55	cjk_0fad55	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_0fb126	cjk_0fb126	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_0fdf0d	cjk_0fdf0d	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_104b48	cjk_104b48	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_117199	cjk_117199	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_11a045	cjk_11a045	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_133724	cjk_133724	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_1339cf	cjk_1339cf	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_138e70	cjk_138e70	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_13c65c	cjk_13c65c	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_14243f	cjk_14243f	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_14447d	cjk_14447d	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_148470	cjk_148470	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_14cc01	cjk_14cc01	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_150dc3	cjk_150dc3	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_1566fe	cjk_1566fe	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_15a769	cjk_15a769	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_161f1d	cjk_161f1d	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_163e10	cjk_163e10	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_178502	cjk_178502	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_17a018	cjk_17a018	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_18927c	cjk_18927c	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_19164b	cjk_19164b	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_19ecc3	cjk_19ecc3	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_1b0772	cjk_1b0772	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_1bad5b	cjk_1bad5b	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_1e099c	cjk_1e099c	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_1e4eb0	cjk_1e4eb0	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_1eefcc	cjk_1eefcc	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_1f1f27	cjk_1f1f27	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_1f3062	cjk_1f3062	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_1f7b71	cjk_1f7b71	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_1fb7fc	cjk_1fb7fc	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_21108d	cjk_21108d	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_220e8c	cjk_220e8c	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_224f71	cjk_224f71	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_22d35e	cjk_22d35e	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_23648d	cjk_23648d	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_247417	cjk_247417	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_247c73	cjk_247c73	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_2493ad	cjk_2493ad	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_25a081	cjk_25a081	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_260bf4	cjk_260bf4	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_261e9f	cjk_261e9f	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_261ea5	cjk_261ea5	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_26acfd	cjk_26acfd	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_26f701	cjk_26f701	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_273be8	cjk_273be8	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_27708a	cjk_27708a	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_27a552	cjk_27a552	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_281e45	cjk_281e45	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_289c06	cjk_289c06	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_290d42	cjk_290d42	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_291fe8	cjk_291fe8	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_2a5643	cjk_2a5643	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_2a8766	bunko_edition	lexicon:bunko_edition
+bangumi_tag_cjk_2afefa	cjk_2afefa	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_2bb4b4	cjk_2bb4b4	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_2bc15e	hajime_kikuchi	tags.tsv:hajime_kikuchi
+bangumi_tag_cjk_2d2ea5	other_novel	morfoloji:seri+sonek
+bangumi_tag_cjk_2f17f1	cjk_2f17f1	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_2f7f31	cjk_2f7f31	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_301b0c	cjk_301b0c	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_306ddc	cjk_306ddc	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_310401	cjk_310401	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_315c20	cjk_315c20	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_3163c8	cjk_3163c8	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_317aa0	cjk_317aa0	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_317ee9	cjk_317ee9	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_319dbf	cjk_319dbf	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_31e2d5	cjk_31e2d5	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_31e3c9	cjk_31e3c9	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_31fb53	cjk_31fb53	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_3200eb	cjk_3200eb	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_32c8c5	cjk_32c8c5	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_33589e	cjk_33589e	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_33b1c4	cjk_33b1c4	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_33b8d9	cjk_33b8d9	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_33f06b	cjk_33f06b	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_340c7d	cjk_340c7d	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_34c41b	cjk_34c41b	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_352806	cjk_352806	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_357c35	cjk_357c35	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_35e69f	cjk_35e69f	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_368142	cjk_368142	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_36eae9	cjk_36eae9	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_370cf8	cjk_370cf8	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_37e9c7	cjk_37e9c7	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_381547	cjk_381547	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_385905	cjk_385905	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_3863d6	cjk_3863d6	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_3875f8	cjk_3875f8	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_39469d	cjk_39469d	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_397469	cjk_397469	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_39ef70	cjk_39ef70	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_3a4b93	cjk_3a4b93	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_3a8e8c	cjk_3a8e8c	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_3ae4e8	cjk_3ae4e8	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_3ba1bf	cjk_3ba1bf	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_3c9e8f	cjk_3c9e8f	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_3e242f	cjk_3e242f	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_3f198e	cjk_3f198e	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_3f2fd6	cjk_3f2fd6	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_3f4934	cjk_3f4934	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_3f7b07	cjk_3f7b07	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_3fab45	cjk_3fab45	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_3ff3be	cjk_3ff3be	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_40e9a6	cjk_40e9a6	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_4151a4	cjk_4151a4	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_428700	cjk_428700	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_429921	mariya_ise	tags.tsv:mariya_ise
+bangumi_tag_cjk_42b60a	cjk_42b60a	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_42b6d2	cjk_42b6d2	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_43dfd7	cjk_43dfd7	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_440080	cjk_440080	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_442728	cjk_442728	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_455aa1	cjk_455aa1	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_45fde9	cjk_45fde9	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_464a52	cjk_464a52	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_465c00	cjk_465c00	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_467dc0	cjk_467dc0	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_46d513	cjk_46d513	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_4716bd	ryoka_yuzuki	tags.tsv:ryoka_yuzuki
+bangumi_tag_cjk_479aa6	cjk_479aa6	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_48bf60	cjk_48bf60	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_48e45d	cjk_48e45d	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_49ac6e	cjk_49ac6e	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_49b874	cjk_49b874	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_49c5af	cjk_49c5af	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_4a2647	cjk_4a2647	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_4a6534	cjk_4a6534	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_4a9568	cjk_4a9568	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_4bf400	cjk_4bf400	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_4c30f4	cjk_4c30f4	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_4ce1b4	cjk_4ce1b4	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_4d0a12	cjk_4d0a12	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_4d1b07	cjk_4d1b07	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_4de141	koei	tags.tsv:koei
+bangumi_tag_cjk_4e16d7	cjk_4e16d7	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_4e17f7	cjk_4e17f7	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_4e4bfe	cjk_4e4bfe	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_4e89b7	cjk_4e89b7	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_4e949d	cjk_4e949d	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_4ee74e	cjk_4ee74e	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_4f2440	cjk_4f2440	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_4f8e0b	cjk_4f8e0b	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_4fc3a8	cjk_4fc3a8	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_50057f	cjk_50057f	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_506386	cjk_506386	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_5074e0	cjk_5074e0	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_511a08	cjk_511a08	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_5190e5	cjk_5190e5	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_5210b7	cjk_5210b7	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_52d642	cjk_52d642	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_52efe1	SKIP	SKIP: tarih / etkinlik / raf damgası
+bangumi_tag_cjk_5367be	cjk_5367be	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_54ca2a	cjk_54ca2a	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_552d01	cjk_552d01	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_5696e5	cjk_5696e5	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_569b17	cjk_569b17	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_5774dd	cjk_5774dd	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_57f354	cjk_57f354	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_587c08	cjk_587c08	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_58b7fc	cjk_58b7fc	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_58cb13	cjk_58cb13	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_58d755	cjk_58d755	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_59b805	cjk_59b805	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_59e54a	yoko_shimomura	tags.tsv:yoko_shimomura
+bangumi_tag_cjk_5a58a4	cjk_5a58a4	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_5ae605	cjk_5ae605	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_5c1543	cjk_5c1543	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_5daa46	cjk_5daa46	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_5e0924	cjk_5e0924	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_5e5269	reina_ueda	tags.tsv:reina_ueda
+bangumi_tag_cjk_5f82cd	cjk_5f82cd	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_619eb5	cjk_619eb5	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_61d161	cjk_61d161	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_6225af	cjk_6225af	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_63a199	cjk_63a199	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_63cdea	maki_usami	tags.tsv:maki_usami
+bangumi_tag_cjk_64127d	cjk_64127d	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_645f54	cjk_645f54	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_6550b3	cjk_6550b3	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_65af33	cjk_65af33	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_65c88d	cjk_65c88d	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_65f6ed	cjk_65f6ed	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_6672c9	cjk_6672c9	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_66741e	cjk_66741e	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_66e59f	cjk_66e59f	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_67098a	cjk_67098a	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_67b195	cjk_67b195	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_67f1f7	cjk_67f1f7	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_68ea31	cjk_68ea31	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_68eb79	master_and_servant	lexicon:master_and_servant
+bangumi_tag_cjk_69ab8e	cjk_69ab8e	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_69f389	cjk_69f389	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_6aa3ff	cjk_6aa3ff	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_6ad2a1	cjk_6ad2a1	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_6b8001	cjk_6b8001	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_6c590d	cjk_6c590d	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_6c8be2	cjk_6c8be2	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_6d05c4	cjk_6d05c4	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_6d34cd	cjk_6d34cd	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_6db645	cjk_6db645	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_6ee131	cjk_6ee131	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_6f359c	cjk_6f359c	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_701e80	cjk_701e80	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_7121b0	cjk_7121b0	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_71ad91	cjk_71ad91	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_72e0fe	cjk_72e0fe	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_72f4aa	cjk_72f4aa	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_72f5b6	cjk_72f5b6	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_7368a8	cjk_7368a8	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_737cc6	cjk_737cc6	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_73886d	cjk_73886d	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_73ee5f	cjk_73ee5f	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_74fd2f	cjk_74fd2f	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_758f13	cjk_758f13	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_76c7d7	cjk_76c7d7	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_76ef98	cjk_76ef98	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_7833ee	cjk_7833ee	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_78685d	cjk_78685d	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_7894fa	cjk_7894fa	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_78bf6a	cjk_78bf6a	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_797a67	cjk_797a67	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_79982e	masterpiece	tags.tsv:masterpiece
+bangumi_tag_cjk_7a1e05	cjk_7a1e05	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_7a817d	cjk_7a817d	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_7ae929	cjk_7ae929	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_7bf951	cjk_7bf951	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_7c432b	cjk_7c432b	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_7c9e2e	cjk_7c9e2e	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_7cf727	cjk_7cf727	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_7d26ad	cjk_7d26ad	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_7eb79c	cjk_7eb79c	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_7edac6	cjk_7edac6	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_7f07b2	cjk_7f07b2	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_7ffeab	cjk_7ffeab	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_81e4fa	cjk_81e4fa	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_8204bf	cjk_8204bf	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_822bda	cjk_822bda	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_82a9a2	cjk_82a9a2	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_82be21	cjk_82be21	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_82de17	cjk_82de17	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_82f18f	cjk_82f18f	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_8346e2	cjk_8346e2	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_839f28	cjk_839f28	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_83aeb5	cjk_83aeb5	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_83b4c0	cjk_83b4c0	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_83f2a5	cjk_83f2a5	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_8433fa	SKIP	SKIP: kişisel durum / gürültü
+bangumi_tag_cjk_8448c2	cjk_8448c2	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_8459d7	cjk_8459d7	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_864584	cjk_864584	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_8654de	cjk_8654de	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_869708	cjk_869708	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_870718	cjk_870718	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_873779	cjk_873779	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_87bc83	cjk_87bc83	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_87d70d	cjk_87d70d	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_87e20c	cjk_87e20c	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_893ade	cjk_893ade	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_898b86	cjk_898b86	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_8994a5	cjk_8994a5	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_8a2e8e	cjk_8a2e8e	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_8a4a9d	cjk_8a4a9d	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_8b1698	cjk_8b1698	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_8b3607	cjk_8b3607	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_8bad51	cjk_8bad51	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_8cc0cc	cjk_8cc0cc	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_8d7804	cjk_8d7804	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_8e0d34	cjk_8e0d34	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_8e4bfb	cjk_8e4bfb	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_8ef5db	cjk_8ef5db	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_8f2b1b	cjk_8f2b1b	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_8f446a	cjk_8f446a	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_9040c2	cjk_9040c2	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_907727	cjk_907727	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_91ae20	cjk_91ae20	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_91e55a	cjk_91e55a	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_924a50	cjk_924a50	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_924d47	cjk_924d47	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_926620	cjk_926620	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_928ba0	cjk_928ba0	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_92b93c	cjk_92b93c	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_92f7a4	cjk_92f7a4	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_930244	SKIP	SKIP: tek karakter belirsiz CJK
+bangumi_tag_cjk_93e741	cjk_93e741	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_93fa80	cjk_93fa80	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_944bac	cjk_944bac	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_94fb75	cjk_94fb75	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_95a4e9	cjk_95a4e9	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_967e51	cjk_967e51	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_96adb0	cjk_96adb0	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_96bec8	cjk_96bec8	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_97669a	cjk_97669a	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_976922	cjk_976922	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_9797bf	cjk_9797bf	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_97ae3e	cjk_97ae3e	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_9852ed	cjk_9852ed	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_9862bb	nisemonogatari	lexicon:nisemonogatari
+bangumi_tag_cjk_98ba57	cjk_98ba57	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_98da84	cjk_98da84	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_999360	cjk_999360	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_99d209	cjk_99d209	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_9a2b69	cjk_9a2b69	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_9a3cf3	cjk_9a3cf3	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_9a542a	cjk_9a542a	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_9a57d7	cjk_9a57d7	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_9ad97e	cjk_9ad97e	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_9b06dd	cjk_9b06dd	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_9b5f1c	cjk_9b5f1c	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_9c2bd2	cjk_9c2bd2	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_9d61f3	cjk_9d61f3	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_9e48c7	cjk_9e48c7	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_9e4e08	cjk_9e4e08	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_9eeedd	cjk_9eeedd	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_9f5253	cjk_9f5253	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_9f912e	cjk_9f912e	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_9f97ed	cjk_9f97ed	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_9ff43b	cjk_9ff43b	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_a08122	cjk_a08122	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_a0a6b2	cjk_a0a6b2	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_a165f0	cjk_a165f0	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_a1869f	cjk_a1869f	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_a192c5	cjk_a192c5	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_a1bf27	cjk_a1bf27	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_a303d5	cjk_a303d5	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_a33f5d	cjk_a33f5d	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_a567bd	cjk_a567bd	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_a5a9fb	cjk_a5a9fb	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_a5b606	cjk_a5b606	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_a65962	cjk_a65962	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_a6be25	cjk_a6be25	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_a6dcbd	cjk_a6dcbd	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_a75910	cjk_a75910	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_a7ae80	cjk_a7ae80	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_a7da6e	cjk_a7da6e	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_a869cc	cjk_a869cc	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_a92592	cjk_a92592	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_a95f60	cjk_a95f60	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_aa0059	cjk_aa0059	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_aa3a58	cjk_aa3a58	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_aafd0d	cjk_aafd0d	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_ac2c8f	SKIP	SKIP: tek karakter belirsiz CJK
+bangumi_tag_cjk_ac654d	cjk_ac654d	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_ac67f8	cjk_ac67f8	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_ac97ae	cjk_ac97ae	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_ad4026	cjk_ad4026	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_ae4f81	cjk_ae4f81	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_ae710a	cjk_ae710a	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_aee926	cjk_aee926	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_af3f6a	cjk_af3f6a	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_afab44	cjk_afab44	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_b0d767	cjk_b0d767	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_b166f0	cjk_b166f0	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_b18322	cjk_b18322	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_b27eda	kazuya_takase	tags.tsv:kazuya_takase
+bangumi_tag_cjk_b2d2b4	cjk_b2d2b4	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_b37d02	cjk_b37d02	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_b3e3ca	natsuhiko_kyogoku	tags.tsv:natsuhiko_kyogoku
+bangumi_tag_cjk_b4d7a0	cjk_b4d7a0	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_b51431	cjk_b51431	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_b5347e	cjk_b5347e	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_b5f8aa	cjk_b5f8aa	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_b6d062	cjk_b6d062	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_b74d61	cjk_b74d61	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_b871e2	cjk_b871e2	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_b8ee33	cjk_b8ee33	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_b9b193	harry_potter	tags.tsv:harry_potter
+bangumi_tag_cjk_ba027e	cjk_ba027e	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_ba5ce2	cjk_ba5ce2	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_bb5993	cjk_bb5993	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_bb67df	cjk_bb67df	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_bb953f	cjk_bb953f	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_bbc31c	cjk_bbc31c	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_bbe7d2	cjk_bbe7d2	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_bc1770	cjk_bc1770	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_bc452a	cjk_bc452a	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_bcbfe2	cjk_bcbfe2	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_bcda6f	cjk_bcda6f	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_bd609a	takaya_kagami	tags.tsv:takaya_kagami
+bangumi_tag_cjk_bd62c7	cjk_bd62c7	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_bd908a	cjk_bd908a	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_bf1a39	cjk_bf1a39	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_c01f6e	cjk_c01f6e	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_c0871a	cjk_c0871a	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_c0e7fa	cjk_c0e7fa	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_c192b2	cjk_c192b2	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_c20b99	cjk_c20b99	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_c5259c	cjk_c5259c	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_c65c80	cjk_c65c80	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_c6c952	cjk_c6c952	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_c718f1	cjk_c718f1	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_c78a54	cjk_c78a54	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_c790d2	cjk_c790d2	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_c92b4b	cjk_c92b4b	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_c97137	cjk_c97137	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_c9e25e	cjk_c9e25e	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_ca9cbc	cjk_ca9cbc	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_cb2363	cjk_cb2363	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_cc47bc	cjk_cc47bc	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_cd2d69	cjk_cd2d69	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_cd70f9	cjk_cd70f9	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_cd999a	cjk_cd999a	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_cdb998	cjk_cdb998	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_cdbd16	cjk_cdbd16	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_cde7e9	cjk_cde7e9	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_ce69db	cjk_ce69db	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_ce7d1f	cjk_ce7d1f	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_ce99ef	cjk_ce99ef	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_ce9b31	cjk_ce9b31	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_ceb618	cjk_ceb618	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_cec5c0	cjk_cec5c0	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_cf637e	cjk_cf637e	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_cf882d	cjk_cf882d	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_cfcf86	cjk_cfcf86	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_d00bc2	cjk_d00bc2	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_d066c5	cjk_d066c5	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_d27495	cjk_d27495	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_d2f14a	cjk_d2f14a	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_d33a5a	cjk_d33a5a	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_d3739f	cjk_d3739f	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_d40d9c	cjk_d40d9c	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_d46b70	cjk_d46b70	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_d49c9b	cjk_d49c9b	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_d4c67d	cjk_d4c67d	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_d4e60d	cjk_d4e60d	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_d55044	cjk_d55044	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_d57d80	cjk_d57d80	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_d6d46e	cjk_d6d46e	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_d768fc	cjk_d768fc	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_d79bf2	cjk_d79bf2	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_d7cc64	cjk_d7cc64	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_d86567	cjk_d86567	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_d93e12	cjk_d93e12	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_d96000	cjk_d96000	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_d96d37	cjk_d96d37	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_d96df7	cjk_d96df7	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_da5f10	cjk_da5f10	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_dac01f	cjk_dac01f	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_db751d	cjk_db751d	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_dbb2fd	twilight_frontier	tags.tsv:twilight_frontier
+bangumi_tag_cjk_dbc006	cjk_dbc006	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_dbc937	cjk_dbc937	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_dbd808	cjk_dbd808	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_dcea42	cjk_dcea42	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_dd93ef	cjk_dd93ef	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_ded8fe	cjk_ded8fe	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_dee964	cjk_dee964	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_df9ca5	cjk_df9ca5	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_dffe26	cjk_dffe26	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_e0841d	cjk_e0841d	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_e09671	cjk_e09671	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_e0ccf3	cjk_e0ccf3	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_e1d025	cjk_e1d025	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_e1f3b9	cjk_e1f3b9	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_e20d37	cjk_e20d37	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_e276a6	cjk_e276a6	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_e2e417	cjk_e2e417	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_e2f3ae	cjk_e2f3ae	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_e36a8b	cjk_e36a8b	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_e4061e	cjk_e4061e	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_e4842f	cjk_e4842f	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_e4cea4	cjk_e4cea4	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_e4dd3d	shiro_hamaguchi	tags.tsv:shiro_hamaguchi
+bangumi_tag_cjk_e59954	cjk_e59954	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_e5a1d0	cjk_e5a1d0	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_e68f80	cjk_e68f80	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_e69a20	cjk_e69a20	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_e7405c	cjk_e7405c	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_e786c4	cjk_e786c4	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_e81bd3	cjk_e81bd3	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_e838cd	cjk_e838cd	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_e87c12	cjk_e87c12	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_e8dc13	cjk_e8dc13	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_e8eb6d	cjk_e8eb6d	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_e8f030	season_4	morfoloji:sezon
+bangumi_tag_cjk_e929c3	cjk_e929c3	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_e93ef8	cjk_e93ef8	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_e974de	cjk_e974de	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_ea1472	cjk_ea1472	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_eccbd8	cjk_eccbd8	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_ed3e67	cjk_ed3e67	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_edde2f	cjk_edde2f	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_ef2bb1	cjk_ef2bb1	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_f02abe	cjk_f02abe	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_f03908	cjk_f03908	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_f17aef	cjk_f17aef	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_f1f7ee	cjk_f1f7ee	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_f20384	cjk_f20384	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_f26760	cjk_f26760	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_f26eed	cjk_f26eed	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_f389c2	violence_aesthetics	tags.tsv:violence_aesthetics
+bangumi_tag_cjk_f3f3f7	cjk_f3f3f7	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_f46890	cjk_f46890	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_f4cf04	cjk_f4cf04	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_f532ce	cjk_f532ce	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_f54a31	cjk_f54a31	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_f56051	cjk_f56051	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_f5ac87	cjk_f5ac87	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_f603ea	makoto_uezu	tags.tsv:makoto_uezu
+bangumi_tag_cjk_f64e07	cjk_f64e07	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_f6851b	cjk_f6851b	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_f6cd66	ace_attorney_series	morfoloji:seri+sonek
+bangumi_tag_cjk_f6d12c	cjk_f6d12c	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_f6dd7e	cjk_f6dd7e	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_f78a04	cjk_f78a04	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_f7925f	cjk_f7925f	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_f7b7f5	cjk_f7b7f5	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_f8c2c3	cjk_f8c2c3	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_f8c9a2	cjk_f8c9a2	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_f915fa	cjk_f915fa	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_f9df56	cjk_f9df56	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_faf0ee	cjk_faf0ee	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_fb57ba	cjk_fb57ba	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_fb6c9a	cjk_fb6c9a	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_fb81e5	cjk_fb81e5	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_fb846c	cjk_fb846c	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_fb87ea	cjk_fb87ea	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_fba73a	cjk_fba73a	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_fbab0d	cjk_fbab0d	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_fbdd19	cjk_fbdd19	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_fc1f54	cjk_fc1f54	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_fccc09	cjk_fccc09	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_fd9bce	cjk_fd9bce	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_fd9ee2	cjk_fd9ee2	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_ff626c	cjk_ff626c	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_ff6415	cjk_ff6415	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_ff75fe	cjk_ff75fe	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_cjk_ffbc93	cjk_ffbc93	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_code_000	code_000	latin global ad
+bangumi_tag_cookie	cookie	canon(magazine):cookie
+bangumi_tag_crytek	crytek	canon(studio):crytek
+bangumi_tag_cutlass	cutlass	latin global ad
+bangumi_tag_cv_2	cjk_8006e8	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_d	cjk_6cf527	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_dancewithdevils	dance_with_devils	latin global ad
+bangumi_tag_days_4	days	canon(producer):days_4
+bangumi_tag_deen	deen	latin global ad
+bangumi_tag_demetori	demetori	canon(publisher):demetori
+bangumi_tag_dexter	dexter	latin global ad
+bangumi_tag_digimon_savers	digimon_savers	latin global ad
+bangumi_tag_dimensionw	dimensionw	latin global ad
+bangumi_tag_discovery_2	discovery	tags.tsv:discovery
+bangumi_tag_djcd	djcd	latin global ad
+bangumi_tag_do_as_infinity	do_as_infinity	latin global ad
+bangumi_tag_e	cjk_5db718	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_ebi	ebi	latin global ad
+bangumi_tag_eden	eden	canon(magazine):eden
+bangumi_tag_etoiles	etoiles	canon(studio):etoiles
+bangumi_tag_eve_2	eve	canon(producer):eve
+bangumi_tag_every_little_thing	every_little_thing	latin global ad
+bangumi_tag_exit	ex_it	canon(studio):ex_it
+bangumi_tag_f_8	cjk_b56e93	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_fallout	fallout	latin global ad
+bangumi_tag_fault	fault	latin global ad
+bangumi_tag_ff13	ff13	latin global ad
+bangumi_tag_firebomber	fire_bomber	latin global ad
+bangumi_tag_galette	galette	canon(studio):galette
+bangumi_tag_gdm	gdm	latin global ad
+bangumi_tag_george_lucas	george_lucas	canon(producer):george_lucas
+bangumi_tag_glace	glace	canon(publisher):glace
+bangumi_tag_glee	glee	latin global ad
+bangumi_tag_gunslingergirl	gunslinger_girl	latin global ad
+bangumi_tag_h_g	tag_c2dbc5	latin global ad
+bangumi_tag_hack_3	hack_series	morfoloji:seri+sonek
+bangumi_tag_herencia	herencia	canon(studio):herencia
+bangumi_tag_ilovepet	ilovepet	latin global ad
+bangumi_tag_ivory	ivory	canon(studio):ivory
+bangumi_tag_jakazid	jakazid	canon(producer):jakazid
+bangumi_tag_jc	tag_f66667	latin global ad
+bangumi_tag_jojo_4	jojo_bizarre_adventure	lexicon:jojos_bizarre_adventure
+bangumi_tag_ka	cjk_9fe2a6	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_kakao	kakao	latin global ad
+bangumi_tag_kana_boon	kana_boon	latin global ad
+bangumi_tag_karory	karory	latin global ad
+bangumi_tag_kaya8	kaya8	latin global ad
+bangumi_tag_kenzsoft	kenzsoft	canon(studio):kenzsoft
+bangumi_tag_key_sounds_label	key_sounds_label	canon(publisher):key_sounds_label
+bangumi_tag_kh	tag_fd7030	latin global ad
+bangumi_tag_khara_2	khara	tags.tsv:khara
+bangumi_tag_kimimaru	kimimaru	latin global ad
+bangumi_tag_koeda	ko_eda	canon(studio):ko_eda
+bangumi_tag_kokomi	kokomi	latin global ad
+bangumi_tag_kylee	kylee	latin global ad
+bangumi_tag_lapintrack	lapin_track	canon(producer):lapin_track
+bangumi_tag_laplacian	laplacian	canon(publisher):laplacian
+bangumi_tag_littlebusters	littlebusters	latin global ad
+bangumi_tag_littlewitch	littlewitch	canon(studio):littlewitch
+bangumi_tag_lose	lose	canon(publisher):lose
+bangumi_tag_love	love_tag	latin global ad
+bangumi_tag_love_4	cjk_3537fe	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_lovelive_superstar	lovelive_superstar	latin global ad
+bangumi_tag_lunasoft	luna_soft	canon(studio):luna_soft
+bangumi_tag_m3_40	SKIP	SKIP: tarih / etkinlik / raf damgası
+bangumi_tag_m3_46	SKIP	SKIP: tarih / etkinlik / raf damgası
+bangumi_tag_m_s_c	m_s_c	canon(studio):m_s_c
+bangumi_tag_max_3	cjk_cdcabe	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_may_n_2	mayn	latin global ad
+bangumi_tag_mayu	mayu	latin global ad
+bangumi_tag_media_vision	media_vision	canon(studio):media_vision
+bangumi_tag_michi	michi	latin global ad
+bangumi_tag_miku_2	cjk_c5501b	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_milkychain	milky_chain	canon(publisher):milky_chain
+bangumi_tag_minmi	minmi	latin global ad
+bangumi_tag_mirai	mirai	canon(studio):mirai
+bangumi_tag_na_ga	na_ga	latin global ad
+bangumi_tag_naoe	naoe	latin global ad
+bangumi_tag_narcissu	narcissu	latin global ad
+bangumi_tag_nekonekosoft	nekoneko_soft	tags.tsv:nekoneko_soft
+bangumi_tag_nexus	nexus	canon(producer):nexus
+bangumi_tag_nichijou	cjk_e0a811	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_nico_touches_the_walls	nico_touches_the_walls	latin global ad
+bangumi_tag_night	night	latin global ad
+bangumi_tag_no_my	no_my	latin global ad
+bangumi_tag_novectacle	novectacle	canon(publisher):novectacle
+bangumi_tag_oasis_2	oasis	latin global ad
+bangumi_tag_okawari	okawari	latin global ad
+bangumi_tag_one_room	one_room_tag	latin global ad
+bangumi_tag_oneokrock	oneokrock	latin global ad
+bangumi_tag_oo	cjk_64bcce	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_orchestra	orchestra	latin global ad
+bangumi_tag_osu_2	osu	latin global ad
+bangumi_tag_otaku	otaku	latin global ad
+bangumi_tag_otome_sub	otome_sub	latin global ad
+bangumi_tag_overlord_2	overlord	tags.tsv:overlord
+bangumi_tag_oxt	oxt	latin global ad
+bangumi_tag_p19	p19	latin global ad
+bangumi_tag_peacemaker	cjk_7fc95d	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_persona4	persona4	latin global ad
+bangumi_tag_petshop_of_horrors	petshop_of_horrors	latin global ad
+bangumi_tag_phoenixentertainment	phoenix_entertainment	canon(studio):phoenix_entertainment
+bangumi_tag_pieinthesky	pie_in_the_sky	canon(studio):pie_in_the_sky
+bangumi_tag_pil	pil	canon(studio):pil
+bangumi_tag_pixar_animation_studios	pixar_animation_studios	latin global ad
+bangumi_tag_primula	primula	canon(publisher):primula
+bangumi_tag_princes	princes	latin global ad
+bangumi_tag_printemps	printemps	latin global ad
+bangumi_tag_prototype	prototype	canon(publisher):prototype
+bangumi_tag_punk	punk	latin global ad
+bangumi_tag_puzzlebox	puzzlebox	canon(studio):puzzlebox
+bangumi_tag_r18_3	cjk_3ed0bc	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_re_take	re_take	latin global ad
+bangumi_tag_s_4	cjk_985aae	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_s_8	cjk_dfa802	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_s_e_n_s_2	s_e_n_s_tag	latin global ad
+bangumi_tag_s_h	s_h	latin global ad
+bangumi_tag_salyu	salyu	latin global ad
+bangumi_tag_sam	sam	latin global ad
+bangumi_tag_samfree	samfree	latin global ad
+bangumi_tag_sc_2	tag_6a65ed	latin global ad
+bangumi_tag_scott_matthew	scott_matthew	latin global ad
+bangumi_tag_sd	tag_38f99a	latin global ad
+bangumi_tag_se_2	cjk_43a571	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_sepher	sepher	latin global ad
+bangumi_tag_shining	shining	latin global ad
+bangumi_tag_shoegazing	shoegazing	latin global ad
+bangumi_tag_shorts	shorts	latin global ad
+bangumi_tag_sims	sims	canon(publisher):sims
+bangumi_tag_smap	smap	latin global ad
+bangumi_tag_song_2	cjk_06491a	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_soundtrackgame	soundtrack_game	ingilizce-birebir
+bangumi_tag_sp_4	cjk_9aa375	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_st_silver	st_silver	canon(studio):st_silver
+bangumi_tag_starz	starz	canon(network):starz
+bangumi_tag_summerpockets	summer_pockets	latin global ad
+bangumi_tag_supernova	supernova	latin global ad
+bangumi_tag_switching	switching	latin global ad
+bangumi_tag_sync_art	sync_art	latin global ad
+bangumi_tag_syun	syun	latin global ad
+bangumi_tag_t_4	cjk_bf864d	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_tag_027450	cjk_027450	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_tag_081caf	cjk_081caf	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_tag_09b8c5	cjk_09b8c5	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_tag_0f9cfe	cjk_0f9cfe	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_tag_10c187	cjk_10c187	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_tag_1dc612	cjk_1dc612	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_tag_1fc1e0	cjk_1fc1e0	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_tag_210035	cjk_210035	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_tag_229901	cjk_229901	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_tag_23092b	cjk_23092b	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_tag_2764b2	cjk_2764b2	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_tag_282e7a	cjk_282e7a	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_tag_2aa5eb	cjk_2aa5eb	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_tag_2c3050	cjk_2c3050	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_tag_36578f	cjk_36578f	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_tag_411c90	cjk_411c90	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_tag_484da7	cjk_484da7	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_tag_4c3730	cjk_4c3730	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_tag_4d4ed9	cjk_4d4ed9	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_tag_512fce	cjk_512fce	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_tag_55369b	cjk_55369b	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_tag_5877fe	cjk_5877fe	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_tag_5a533f	cjk_5a533f	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_tag_6556a1	cjk_6556a1	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_tag_6bee4f	cjk_6bee4f	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_tag_6cf028	cjk_6cf028	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_tag_6f8f50	cjk_6f8f50	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_tag_7122cc	cjk_7122cc	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_tag_72f9a9	cjk_72f9a9	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_tag_783ed8	cjk_783ed8	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_tag_7882df	cjk_7882df	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_tag_795e51	cjk_795e51	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_tag_869848	cjk_869848	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_tag_93f5b6	cjk_93f5b6	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_tag_9697ab	cjk_9697ab	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_tag_985ce2	cjk_985ce2	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_tag_99aeae	cjk_99aeae	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_tag_9b8d52	cjk_9b8d52	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_tag_9d281a	cjk_9d281a	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_tag_a63c51	cjk_a63c51	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_tag_b4e5b1	cjk_b4e5b1	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_tag_bc8d91	cjk_bc8d91	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_tag_bcdc28	ozel_drama	orgs.tsv:bangumi_network_cjk_bcdc28
+bangumi_tag_tag_c11b49	cjk_c11b49	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_tag_c6457a	cjk_c6457a	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_tag_ca49df	cjk_ca49df	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_tag_ca87c4	cjk_ca87c4	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_tag_d1106b	cjk_d1106b	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_tag_d1e061	cjk_d1e061	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_tag_d2f01b	cjk_d2f01b	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_tag_da1f37	cjk_da1f37	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_tag_db84ad	cjk_db84ad	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_tag_e84c45	cjk_e84c45	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_tag_eb65eb	cjk_eb65eb	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_tag_ef7af1	cjk_ef7af1	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_tag_f4c3d7	cjk_f4c3d7	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_tag_f9756f	cjk_f9756f	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_tag_fa39ab	cjk_fa39ab	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_tag_fb5ccd	cjk_fb5ccd	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_taritari	taritari	latin global ad
+bangumi_tag_tcp	tcp	latin global ad
+bangumi_tag_te	cjk_c1bfe1	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_team_bitters	cjk_3a8bab	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_thanatos	thanatos	canon(producer):thanatos
+bangumi_tag_the_cw	the_cw	canon(network):the_cw
+bangumi_tag_tmd	cjk_bde85a	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_toi8	toi8	latin global ad
+bangumi_tag_treyarch	treyarch	canon(studio):treyarch
+bangumi_tag_trip_hop_2	trip_hop	latin global ad
+bangumi_tag_uqholder	uqholder	latin global ad
+bangumi_tag_uru	uru	latin global ad
+bangumi_tag_vivy	vivy	latin global ad
+bangumi_tag_vm20	vm20	latin global ad
+bangumi_tag_wag	wag	latin global ad
+bangumi_tag_watchman	watchman	latin global ad
+bangumi_tag_whisper	whisper	latin global ad
+bangumi_tag_words	words	latin global ad
+bangumi_tag_x_2	cjk_c21ee5	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_x_ss	cjk_e2c375	as_is: doğrulanmamış CJK özel ad
+bangumi_tag_xeno_2	xeno	latin global ad
+bangumi_tag_xxxholic_2	xxxholic	tags.tsv:xxxholic
+bangumi_tag_xyz	xyz	canon(studio):xyz_2
+bangumi_tag_y_futa	y_futa	latin global ad
+bangumi_tag_yondervoice	yonder_voice	canon(publisher):yonder_voice
+bangumi_tag_yuri_xchange	yuri_xchange	latin global ad
+bangumi_tag_zakk	zakk	latin global ad
+bangumi_tag_zizzstudio	zizz_studio	canon(publisher):zizz_studio
