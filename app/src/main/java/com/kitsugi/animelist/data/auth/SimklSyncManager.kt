@@ -182,6 +182,7 @@ object SimklSyncManager {
                     title = effectiveTitle,
                     year = entry.year,
                     progress = entry.progress,
+                    total = entry.total,
                     score = entry.score,
                     titleMatchingAllowed = !isAnime || hasSafeAnimeIdentity
                 )
@@ -439,6 +440,7 @@ object SimklSyncManager {
                             title = entry.titleEnglish?.takeIf { it.isNotBlank() } ?: entry.title,
                             year = entry.year,
                             progress = progress,
+                            total = entry.total,
                             titleMatchingAllowed = effectiveSimklId > 0 || realMalId != null
                         )
                     )
@@ -561,6 +563,10 @@ object SimklSyncManager {
         }
 
         var simklId = entry.simklId
+        // Hayalet-koruma: id ÖNCEDEN bağlandıysa kayıt kullanıcının Simkl listesindeydi;
+        // bu silmede yeni çözülen id'ye dropped taşımak hiç listeye konmamış öğeye
+        // sahte satır yaratabilirdi — yalnız önceden bağlılarda uygulanır.
+        val linkedBeforeDelete = (entry.simklId ?: 0) > 0
         val realMalId = realMalIdOf(entry, knownMalId)
         val aniListId = if (entry.source == "anilist" && entry.malId != null && entry.malId >= 100_000_000 && entry.malId < 300_000_000) {
             entry.malId - 100_000_000
@@ -612,6 +618,55 @@ object SimklSyncManager {
         }.onFailure { e ->
             errors.add(context.getString(R.string.simkl_sync_entry_delete_error, e.message ?: context.getString(R.string.account_sync_unknown_error)))
             Log.e(TAG, "deleteEntryFromSimkl hatası", e)
+        }
+
+        // 2/3 Puan temizliği — resmî POST /sync/ratings/remove. 4xx "zaten puan yok"
+        // sessiz; taşıma/5xx hata olarak kuyruğa döner ki puan-silme kaybolmasın
+        // (senkron-puan yolundaki aynı kural).
+        runCatching {
+            simklApiClient.removeRating(token, simklId, entry.type)
+        }.onSuccess { ok ->
+            if (!ok) Log.w(TAG, "deleteEntryFromSimkl: removeRating sonucu=false (4xx olabilir)")
+        }.onFailure { e ->
+            Log.e(TAG, "deleteEntryFromSimkl removeRating hatası", e)
+            errors.add(context.getString(R.string.simkl_sync_rating_error, e.message ?: context.getString(R.string.account_sync_unknown_error)))
+        }
+
+        // 3/3 Kalan liste-durumu → DROPPED: resmî "listeden tam-silme" ucu yok (API);
+        // ekosistem standardı (MALSync vb.) silmeyi dropped'a taşımaktır. İlerleme ve
+        // puan yukarıda temizlendi; burada kalan satırın durumu kapatılır. Yalnız
+        // linkedBeforeDelete (hayalet-koruma). Makbuz: taşıma hatası yeniden denesin,
+        // not_found sessiz atlasın (id bulunduysa bu da nadir).
+        if (linkedBeforeDelete) {
+            runCatching {
+                simklApiClient.addToListBatchDetailed(
+                    token = token,
+                    entries = listOf(
+                        SimklApiClient.SimklBatchEntry(
+                            type = type,
+                            status = "dropped",
+                            simklId = simklId,
+                            malId = realMalId,
+                            tmdbId = entry.tmdbId,
+                            aniListId = aniListId,
+                            kitsuId = rawKitsuId,
+                            titleMatchingAllowed = false
+                        )
+                    )
+                )
+            }.onSuccess { receipt ->
+                when {
+                    receipt.isSuccess -> Log.i(TAG, "deleteEntryFromSimkl: kayıt dropped'a taşındı")
+                    receipt.transportFailed -> {
+                        Log.e(TAG, "deleteEntryFromSimkl: dropped taşıması başarısız=${receipt.errorMessage}")
+                        errors.add(context.getString(R.string.simkl_sync_entry_delete_failed))
+                    }
+                    else -> Log.i(TAG, "deleteEntryFromSimkl: dropped atlandı (not_found vb.)")
+                }
+            }.onFailure { e ->
+                Log.e(TAG, "deleteEntryFromSimkl dropped hatası", e)
+                errors.add(context.getString(R.string.simkl_sync_entry_delete_error, e.message ?: context.getString(R.string.account_sync_unknown_error)))
+            }
         }
 
         SyncResult(messages = messages, errors = errors)

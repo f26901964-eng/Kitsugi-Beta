@@ -257,11 +257,11 @@ string-template hatası, yeni hata yok).
 5. **MAL'de toplam-bölüm doğrulaması kanıtı yok** (araştırıldı): spekülatif clamp eklenmedi;
    kanıtlanmış tek sınır Kitsu 422'si korumalı.
 6. `CrossSyncEntryFactory`'nin üretim çağıranı yok (yalnız testleri var) — silinmedi.
-7. **Simkl: watchlist'ten tam API-silme yok** — resmi uç web-özel; uygulama
-   `POST /sync/history/remove` + `POST /sync/ratings/remove` kullanır (gerçek uçlar),
-   öğe 0-ilerlemeyle eski status'ünde kalabilir. `add-to-list→dropped` alternatifi
-   (topluluk workaround'u) yan-etki riskiyle ertelendi → kullanıcı kararı.
-   (`ARASTIRMA_KAYNAK_SENKRON/05_SIMKL.md` §3)
+7. ~~Simkl: watchlist'ten tam API-silme yok~~ **→ GİDERİLDİ (bu tur, en-iyi-mevcut)**:
+   silme yoluna `ratings/remove` **+ korumalı `dropped` taşıması** eklendi; hayalet-koruma:
+   id bu silmede yeni çözüldüyse taşıma yok. Tam-silme ucu API'de hâlâ yok (imkânsız),
+   kalan satır-durumu kapatılır → "sildim geri geldi" en-son-çare kapatıldı.
+   (`ARASTIRMA_KAYNAK_SENKRON/05_SIMKL.md` §3 + bu tur kodu)
 8. ~~Shikimori domain-fallback uygulanmadı~~ **→ GİDERİLDİ (bu tur)**: `executeShikimori` erişim-hatasında .io→.one→.tv aday geçişi + çalışan-domain önbelleği; `KitsugiIdResolver` aday döngüsü; `.tv` bütçesi. Eski madde:: `.io` bugünkü kullanım; `.tv` adayı yalnız
    zayıf kaynaklardan (mirror sitesi) doğrulandı — tek-gerçek ilan edilmeden aday-listesi
    eklenmeyecek. `KitsugiIdResolver` `.io`'ya sabit. TR'de `.io` çalışıyor; risk
@@ -272,9 +272,10 @@ string-template hatası, yeni hata yok).
 10. **Bangumi "silme" semantiği belirsiz**: v0 DELETE koleksiyonu kaydı DROPPED'a düşürüyor
     olabilir (tam silme web-özel) — "silindi" mesajı bu gerçeği gizliyor olabilir.
     (`06_BANGUMI.md` §4)
-11. **Bangumi spesifik write-bütçesi yok**: topluluk ölçümü ~3 koleksiyon-yazımı/dk + ilerleme
-    ~10/10dk (bangumi.tv/group/417148) → büyük içe-aktarma 429 yiyebilir; sayı doğrudan
-    teyit edilmeden sabitlenmedi (genel 450ms throttle + 429-kuyruk var).
+11. **Bangumi write-bütçesi — KARAR: kod eklenmedi (gerekçeli)**: topluluk ölçümü ~3/dk
+    resmi değil; temkinli sayı bile iddiayı karşılamazken (3/dk ≈ 20sn aralık) yavaşlatma
+    kullanıcıyı üzen şey olurdu. Mevcut 450ms + 429/503→kuyruk düzeni korunuyor; doğru sayı
+    Bangumi'den doğrulanınca A11 kapanır. (09.md §F1)
 12. **Shikimori 403-token varyantı** (Oca-2026 kulüp raporu): cookie'li istemcilerde süresi-dolmuş
     token 401 yerine 403 — Kitsugi Bearer-only (düşük risk), üretimde izlenecek.
 13. **AniList finale-otomatik-tamamlama** kaynak-çelişkisi (2018 changelog vs 2026 geliştiriciler):
@@ -282,10 +283,15 @@ string-template hatası, yeni hata yok).
     Ayrıntı: `ARASTIRMA_KAYNAK_SENKRON/09_KENDI_VERITABANINA_YAZMA_HATALARI.md` + `10_YAZMA_SEMANTIGI_MATRISI.md` (tur-2).
 14. ~~Simkl per-second limit koruması yok~~ **→ GİDERİLDİ (bu tur)**: `awaitSimklRateLimit` — GET≥120ms, POST≥1000ms (20 çağrı noktası). Eski madde: (resmi 10 GET/sn + 1 POST/sn; POST aşımı throtle-bloğu,
     sürekli aşım uyarı-sız askıya alma; `api.simkl.com` host-bütçesi yok) → sertleştirme adayı.
-15. **Simkl AUTH V1→V2 göçü**: V1 ~Nisan 2027'de emekli (V2 = yeni client_id + PKCE S256);
-    Kitsugi hâlâ V1 (`oauth/token`/`oauth/pin`). V1 günlük kota tüm kullanıcıların ortak havuzu.
-16. **Bölüm-clamp kural seti** (ani-gui #264 sınıflandırması) delilsiz eklenmedi — Açık-5 ile aynı
-    karar noktası. Ayrıntı: `11_BIRINCI_EL_RESMI_DOKUMANLAR.md` + `12_KOPYALAR_ID_VE_BOLUM_ESLEME.md` (tur-3).
+15. **Simkl V1→V2 — HAZIRLIK TAMAM**: 8 adımlı göç planı `13_SIMKL_V2_GOC_PLANI.md`
+    (kayıt=KULLANICI hesabıyla, PKCE şablonu=MAL, premium_only 200+error ayrıştırıcı,
+    test listesi). Kod = client_id kaydı sonrası; hedef 2026 sonu (V1 ölümü ~Nisan 2027).
+    V1 günlük kota ortak havuzu → V2'de kullanıcı-başına iner.
+16. ~~Bölüm-clamp eklenmedi~~ **→ GİDERİLDİ (bu tur, kısmi-kasıtlı)**: `total` **kesin
+    biliniyorsa** `min(progress,total)` — Simkl `historyBatchReceipt` (tekil+toplu hattı
+    kapsar), Shikimori, Bangumi. Bilinmeyorsa dokunulmaz (veri kaybı yok); asla-geri-alma
+    round-3'tten var; Kitsu 422-on-squeeze + MAL pre-clamp zaten korumalı; AniList
+    toleranslı → dokunulmadı. Ayrıntı: `11_…` + `12_…` (tur-3).
 
 ---
 

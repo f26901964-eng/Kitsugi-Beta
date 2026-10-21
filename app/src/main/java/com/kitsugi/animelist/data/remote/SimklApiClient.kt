@@ -956,6 +956,8 @@ class SimklApiClient(
     data class SimklBatchEntry(
         val type: String, // "anime", "movies", "shows"
         val status: String,
+        /** Bilinen toplam bölüm — history gönderiminde kırpma (A16/ani-gui #264); null = bilinmiyor, dokunulmaz. */
+        val total: Int? = null,
         val simklId: Int = 0,
         val malId: Int? = null,
         val tmdbId: Int? = null,
@@ -1185,7 +1187,14 @@ class SimklApiClient(
         token: String,
         entries: List<SimklBatchEntry>
     ): SimklBatchResponse = withContext(Dispatchers.IO) {
-        val filtered = entries.filter { it.progress > 0 }
+        // ani-gui #264 (A16): bilinen toplam varsa ve ilerleme onu aşıyorsa toplama
+        // sıkıştır (Simkl sayı-üstü izlemeyi reddedebilir); toplam bilinmiyorsa dokunulmaz.
+        val filtered = entries.filter { it.progress > 0 }.map { e ->
+            val knownTotal = e.total
+            if (knownTotal != null && knownTotal > 0 && e.progress > knownTotal) {
+                e.copy(progress = knownTotal)
+            } else e
+        }
         if (filtered.isEmpty()) return@withContext SimklBatchResponse(isSuccess = true)
         // A TV aggregate count cannot be mapped to seasons without an episode catalogue.
         // Never invent S01E<total>. Report unsupported progress instead of corrupting history.

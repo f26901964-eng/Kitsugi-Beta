@@ -113,7 +113,9 @@ object ShikimoriSyncManager {
             if (s > 10) kotlin.math.round(s / 10.0).toInt().coerceIn(0, 10)
             else s.coerceIn(0, 10)
         } ?: 0
-        val progress = entry.progress ?: 0
+        // ani-gui #264 (A16): bilinen toplam varsa ilerleme onu aşıyorsa sıkıştır;
+        // toplam bilinmiyorsa (null) olduğu gibi gönderilir — veri kaybı yok.
+        val progress = kotlin.math.minOf(entry.progress, entry.total?.takeIf { it > 0 } ?: Int.MAX_VALUE)
 
         val messages = mutableListOf<String>()
         val errors = mutableListOf<String>()
