@@ -49,7 +49,7 @@ class MpvPlayerEngine(
     private var customButtonsLoaded = false
     private var statisticsPageApplied = 0
     /** Konum bildirimlerini 4 Hz'e indiren damga (bkz. [notifyPositionChanged]). */
-    private var lastPositionNotifyAtMs = 0L
+    private var lastPositionNotifyAtMs = -1L
     /** Görüntü çıkışını (vo) kuran ağır init seçenekleri yalnızca bir kez uygulanır. */
     private var initOptionsApplied = false
     private var focusController: com.kitsugi.animelist.core.player.MpvAudioFocusController? = null
@@ -958,7 +958,7 @@ class MpvPlayerEngine(
             it.onSecondarySubtitleChanged(-1)
         }
         hasExternalAudio = !audioUrl.isNullOrBlank()
-        lastPositionNotifyAtMs = 0L
+        lastPositionNotifyAtMs = -1L
         notifyPositionChanged(force = true)
     }
 
@@ -1032,7 +1032,7 @@ class MpvPlayerEngine(
     private fun notifyPositionChanged(force: Boolean) {
         if (released) return
         val now = android.os.SystemClock.elapsedRealtime()
-        if (!force && now - lastPositionNotifyAtMs < POSITION_NOTIFY_INTERVAL_MS) return
+        if (!force && lastPositionNotifyAtMs >= 0L && now - lastPositionNotifyAtMs < POSITION_NOTIFY_INTERVAL_MS) return
         lastPositionNotifyAtMs = now
         listeners.forEach { it.onPositionChanged(currentPosition, duration) }
     }

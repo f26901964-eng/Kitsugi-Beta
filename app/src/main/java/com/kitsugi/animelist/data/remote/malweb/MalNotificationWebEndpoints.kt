@@ -198,7 +198,8 @@ internal object MalNotificationWebEndpoints {
         page: Int,
         nextPageUrl: String?,
         knownIds: Set<String>,
-        category: MalNotificationCategory? = null
+        category: MalNotificationCategory? = null,
+        batchSize: Int? = null
     ): MalNotificationsClient.Feed? =
         MalNotificationsClient.fetchMore(
             context = context,
@@ -206,6 +207,7 @@ internal object MalNotificationWebEndpoints {
             page = page,
             nextPageUrl = nextPageUrl,
             knownIds = knownIds,
-            category = category
+            category = category,
+            batchSize = batchSize
         )
 }

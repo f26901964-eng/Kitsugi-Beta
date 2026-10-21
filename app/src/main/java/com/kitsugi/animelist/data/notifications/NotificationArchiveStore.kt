@@ -99,13 +99,21 @@ object NotificationArchiveStore {
     /**
      * Bir kaynağın yeni canlı listesini arşive birleştirir (arka planda).
      * Çağran tarafı sonucunu beklemez; akışta gecikme yaratmaz.
+     *
+     * @param retainOldWhere Verilirse eski arşiv kayıtlarından yalnızca koşulu sağlayanlar
+     *   korunur (ör. gerçek MAL web akışı aktifken eski takvim yedek kayıtlarının temizlenmesi).
      */
-    fun mergeSourceAsync(ctx: Context, source: String, fresh: List<ArchivedNotif>) {
-        if (fresh.isEmpty()) return
+    fun mergeSourceAsync(
+        ctx: Context,
+        source: String,
+        fresh: List<ArchivedNotif>,
+        retainOldWhere: ((ArchivedNotif) -> Boolean)? = null
+    ) {
+        if (fresh.isEmpty() && retainOldWhere == null) return
         val owner = KitsugiAccountRepository.currentUserId()
         ioScope.launch {
             try {
-                mutex.withLock { mergeLocked(ctx, source, fresh) }
+                mutex.withLock { mergeLocked(ctx, source, fresh, retainOldWhere) }
                 // The previous caller launched an upload before this asynchronous write
                 // finished, repeatedly backing up the PREVIOUS archive instead.
                 KitsugiAccountRepository.onNotificationArchiveChanged(ctx, owner)
@@ -143,9 +151,16 @@ object NotificationArchiveStore {
 
     // ── Dosya içi yardımcıları (mutex ile çağrılır) ──────────────────────────
 
-    private suspend fun mergeLocked(ctx: Context, source: String, fresh: List<ArchivedNotif>) {
+    private suspend fun mergeLocked(
+        ctx: Context,
+        source: String,
+        fresh: List<ArchivedNotif>,
+        retainOldWhere: ((ArchivedNotif) -> Boolean)? = null
+    ) {
         val current = readLocked(ctx)
-        val merged = mergeLists(current.sources[source].orEmpty(), fresh)
+        val existing = current.sources[source].orEmpty()
+        val filteredExisting = if (retainOldWhere != null) existing.filter(retainOldWhere) else existing
+        val merged = mergeLists(filteredExisting, fresh)
         writeLocked(ctx, current.copy(sources = current.sources + (source to merged)))
     }
 
