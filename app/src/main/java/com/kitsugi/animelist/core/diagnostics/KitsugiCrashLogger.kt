@@ -29,6 +29,8 @@ import com.kitsugi.animelist.R
 object KitsugiCrashLogger {
 
     private const val CRASH_LOG_FILE     = "crash_log.txt"
+    /** Paylaşım kartına verilen, her zaman EN YENİ kanıtı içeren rapor dosyası. */
+    private const val SHARE_REPORT_FILE  = "Kitsugi_Crash_Report.txt"
     private const val CRASH_HISTORY_FILE = "crash_history.txt"
     private const val LOGCAT_CRASH_FILE  = "logcat_at_crash.txt"
     private const val PENDING_FLAG_FILE  = "crash_pending.flag"
@@ -314,20 +316,34 @@ object KitsugiCrashLogger {
             val primaryTime = lastModified(primary)
             val uncleanTime = lastModified(unclean)
 
-            // Hangisi daha yeniyse onu göster: Java çökmesi mi, sessiz ölüm mü?
-            if (uncleanTime > 0 && uncleanTime >= primaryTime) {
-                val text = unclean.readText()
-                val nativeTrace = NativeCrashBridge.readRecentNativeCrash(context, NativeCrashBridge.UNCLEAN_TRACE_MAX_AGE_MS)
-                if (!nativeTrace.isNullOrBlank()) "$text\n\n▶ NATIVE ÇÖKME İZİ\n$nativeTrace" else text
-            } else if (primaryTime > 0) {
-                val text = primary.readText()
-                val nativeTrace = NativeCrashBridge.readRecentNativeCrash(context)
-                if (!nativeTrace.isNullOrBlank()) "$text\n\n▶ NATIVE ÇÖKME İZİ\n$nativeTrace" else text
-            } else {
-                val nativeTrace = NativeCrashBridge.readRecentNativeCrash(context, NativeCrashBridge.UNCLEAN_TRACE_MAX_AGE_MS)
-                if (!nativeTrace.isNullOrBlank()) "▶ NATIVE ÇÖKME İZİ\n$nativeTrace"
-                else "Henüz çökme kaydı bulunamadı."
+            // Açılış aşaması izi: SADECE uygulama ana ekranı açılamadan öldüyse doludur.
+            // "Uygulama açılmadan çöküyor" vakasında asıl kanıt bu bloktur.
+            val stageBlock = StartupStage.reportBlock(context)
+
+            val body = when {
+                // Hangisi daha yeniyse onu göster: Java çökmesi mi, sessiz ölüm mü?
+                uncleanTime > 0 && uncleanTime >= primaryTime -> {
+                    val text = unclean.readText()
+                    val nativeTrace = NativeCrashBridge.readRecentNativeCrash(context, NativeCrashBridge.UNCLEAN_TRACE_MAX_AGE_MS)
+                    if (!nativeTrace.isNullOrBlank()) "$text\n\n▶ NATIVE ÇÖKME İZİ\n$nativeTrace" else text
+                }
+                primaryTime > 0 -> {
+                    val text = primary.readText()
+                    val nativeTrace = NativeCrashBridge.readRecentNativeCrash(context)
+                    if (!nativeTrace.isNullOrBlank()) "$text\n\n▶ NATIVE ÇÖKME İZİ\n$nativeTrace" else text
+                }
+                stageBlock.isNotBlank() ->
+                    "▶ UYGULAMA ANA EKRAN AÇILMADAN KAPANDI\n" +
+                        "(Bu sürüm için kayıtlı Java çökme raporu yok — sessiz/native ölüm.\n" +
+                        " Aşağıdaki başlatma aşaması izi son çalışan init adımını gösterir.)"
+                else -> {
+                    val nativeTrace = NativeCrashBridge.readRecentNativeCrash(context, NativeCrashBridge.UNCLEAN_TRACE_MAX_AGE_MS)
+                    if (!nativeTrace.isNullOrBlank()) "▶ NATIVE ÇÖKME İZİ\n$nativeTrace"
+                    else "Henüz çökme kaydı bulunamadı."
+                }
             }
+
+            if (stageBlock.isBlank()) body else "$body\n$stageBlock"
         } catch (_: Throwable) { "Crash log okunamadı." }
     }
 
@@ -381,13 +397,37 @@ object KitsugiCrashLogger {
      */
     fun ensureCrashLogFile(context: Context): File? {
         return try {
-            val file = File(context.filesDir, CRASH_LOG_FILE)
-            if (!file.exists() || file.length() == 0L) {
-                val report = readCrashLog(context)
-                if (report.isBlank()) return null
-                file.writeText(report)
+            val primary = File(context.filesDir, CRASH_LOG_FILE)
+            val unclean = KitsugiSessionSupervisor.uncleanExitReportFile(context)
+
+            val primaryTime = lastModified(primary)
+            val uncleanTime = lastModified(unclean)
+
+            // ── BAYAT RAPOR TUZAĞI (düzeltildi) ─────────────────────────────────────
+            // Eski kod yalnızca "dosya var mı?" diye bakıyordu. crash_log.txt günler
+            // önceki bir Java çökmesini tutarken daha YENİ bir sessiz kapanma
+            // (unclean_exit.txt + native iz + başlatma aşaması) olabiliyordu. Bu yüzden
+            // "Hata dosyasını paylaş" her seferinde ESKİ raporu gönderiyor, yeni çökme
+            // hiçbir zaman bize ulaşmıyordu.
+            // KURAL: paylaşılan dosya her zaman `readCrashLog()` çıktısıdır; o fonksiyon
+            // en yeni kaynağı (unclean/native/stage) kendisi seçer.
+            val primaryIsStale = uncleanTime > primaryTime
+            val primaryUsable = primary.exists() && primary.length() > 0L
+
+            if (primaryUsable && !primaryIsStale && StartupStage.read(context) == null) {
+                // Durum net: taze Java çökme raporu var, daha yeni sessiz ölüm yok.
+                return primary
             }
-            file
+
+            val report = readCrashLog(context)
+            if (report.isBlank() || report == "Henüz çökme kaydı bulunamadı.") {
+                return primary.takeIf { it.exists() && it.length() > 0L }
+            }
+
+            // Paylaşım için ayrı dosya: crash_log.txt (Java çökmesi arşivi) EZİLMEZ.
+            val shareFile = File(context.filesDir, SHARE_REPORT_FILE)
+            shareFile.writeText(report)
+            shareFile.takeIf { it.exists() && it.length() > 0L }
         } catch (_: Throwable) { null }
     }
 
@@ -442,10 +482,19 @@ object KitsugiCrashLogger {
                 }
             }
             if (File(context.filesDir, PENDING_FLAG_FILE).let { it.exists() && it.length() > 0 }) {
-                return true
+                val time = lastModified(File(context.filesDir, PENDING_FLAG_FILE))
+                if (time <= 0L || System.currentTimeMillis() - time < 7L * 24 * 60 * 60 * 1000) {
+                    return true
+                }
             }
             if (KitsugiSessionSupervisor.hasUncleanExitReport(context)) {
-                return true
+                // Dosya tabanlı kontrol de yaşa bakmalı: aylar önceki bir sessiz kapanma
+                // raporu silinmeden kaldıysa uygulama her açılışta "beklenmedik kapanma"
+                // uyarısı gösteriyordu. 7 günden eski iz artık rahatsız etmez.
+                val time = lastModified(KitsugiSessionSupervisor.uncleanExitReportFile(context))
+                if (time <= 0L || System.currentTimeMillis() - time < 7L * 24 * 60 * 60 * 1000) {
+                    return true
+                }
             }
             false
         } catch (_: Throwable) { false }

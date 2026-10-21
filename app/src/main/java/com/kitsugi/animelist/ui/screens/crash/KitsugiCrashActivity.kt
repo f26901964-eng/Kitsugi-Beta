@@ -341,8 +341,8 @@ class KitsugiCrashActivity : ComponentActivity() {
                                         try {
                                             val filesToShare = ArrayList<android.net.Uri>()
 
-                                            suspend fun addFileIfExists(file: File) {
-                                                if (file.exists() && file.length() > 0) {
+                                            suspend fun addFileIfExists(file: File?) {
+                                                if (file != null && file.exists() && file.length() > 0) {
                                                     try {
                                                         val uri = androidx.core.content.FileProvider.getUriForFile(
                                                             context, "com.kitsugi.animelist.fileprovider", file
@@ -368,7 +368,12 @@ class KitsugiCrashActivity : ComponentActivity() {
                                             addFileIfExists(infoFile)
 
                                             // 2. Son çökme raporu
-                                            addFileIfExists(KitsugiCrashLogger.getCrashLogFile(context))
+                                            // ensureCrashLogFile: en YENİ kanıtı (Java çökmesi /
+                                            // sessiz kapanma / native iz / başlatma aşaması)
+                                            // seçip paylaşılabilir tek dosya üretir. Eskiden
+                                            // getCrashLogFile kullanılıyordu ve günler önceki
+                                            // rapor gönderilebiliyordu.
+                                            addFileIfExists(KitsugiCrashLogger.ensureCrashLogFile(context))
 
                                             // 3. Çökme geçmişi
                                             addFileIfExists(KitsugiCrashLogger.getCrashHistoryFile(context))

@@ -1,9 +1,11 @@
 package com.kitsugi.animelist.data.remote
 
 import com.kitsugi.animelist.utils.MediaTitleResolver
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
+import java.io.IOException
 import java.util.Calendar
 
 /**
@@ -18,10 +20,39 @@ class KitsugiAiringCalendarClient {
                 "tmdb" -> fetchTmdbWeeklySchedule()
                 // "Tümü" keşfet modu: haftalık takvim tüm kaynakların BİRLEŞİMİ —
                 // AniList bölüm takvimi + TMDB vizyon/bölüm tarihleri tek takvimde.
-                "all" -> mergeWeeklySchedules(
-                    fetchAniListWeeklySchedule(accessToken),
-                    fetchTmdbWeeklySchedule()
-                )
+                //
+                // DÜZELTME (2026-10-21): Birleşim modunda tek kaynağın hatası tüm takvimi
+                // düşürmemeli. Her kaynak ayrı denenir; en az biri veri döndürürse kısmi
+                // takvim gösterilir. İKİSİ de boş döner ve en az biri hata verdiyse hata
+                // yukarı fırlatılır → ekran "bugün yayın yok" yalanı yerine
+                // "yüklenemedi + Yeniden dene" gösterir.
+                "all" -> {
+                    var anilistError: Throwable? = null
+                    var tmdbError: Throwable? = null
+                    // Tipler açıkça yazılır: catch dalındaki emptyMap() aksi halde
+                    // Map<Nothing, Nothing> olarak çıkarımlanıp birleştirmeye uymazdı.
+                    val anilist: Map<Int, List<AiringEntry>> = try {
+                        fetchAniListWeeklySchedule(accessToken)
+                    } catch (e: CancellationException) {
+                        throw e
+                    } catch (e: Throwable) {
+                        anilistError = e
+                        emptyMap()
+                    }
+                    val tmdb: Map<Int, List<AiringEntry>> = try {
+                        fetchTmdbWeeklySchedule()
+                    } catch (e: CancellationException) {
+                        throw e
+                    } catch (e: Throwable) {
+                        tmdbError = e
+                        emptyMap()
+                    }
+                    if (anilist.isEmpty() && tmdb.isEmpty()) {
+                        val failure = anilistError ?: tmdbError
+                        if (failure != null) throw failure
+                    }
+                    mergeWeeklySchedules(anilist, tmdb)
+                }
                 else -> fetchAniListWeeklySchedule(accessToken)
             }
         }
@@ -30,7 +61,10 @@ class KitsugiAiringCalendarClient {
     /** AniList `airingSchedules` haftalık takvimi (eski varsayılan davranış). */
     private suspend fun fetchAniListWeeklySchedule(accessToken: String?): Map<Int, List<AiringEntry>> {
         val (weekStart, weekEnd) = currentWeekRange()
-        val rawEntries = fetchAiringSchedule(weekStart, weekEnd, accessToken)
+        // Haftalık takvim ekranı boş/hata ayrımını yapabilsin diye ilk sayfa hatası
+        // yutulmaz: 429 cooldown ya da ağ hatası sessizce "boş harita"ya dönüşünce
+        // kullanıcı "bugün yayın yok" sanıyordu (asıl şikâyet buydu).
+        val rawEntries = fetchAiringSchedule(weekStart, weekEnd, accessToken, failOnFirstPageError = true)
         return rawEntries
             .filter { it.airingAt in weekStart..weekEnd }
             .groupBy { it.dayOfWeek }
@@ -89,20 +123,33 @@ class KitsugiAiringCalendarClient {
         // Yeni davranış: discover/tv'nin `air_date` filtresi "o gün bölümü yayınlanan dizileri"
         // verir → haftanın her günü için ayrı sorgu yapılıp kayıt gerçek yayı gününe yerleştirilir.
         // TMDB bölüm numarası vermediği için episode = -1 (bilinmiyor) işaretlenir.
+        // DÜZELTME (2026-10-21): Önceden her isteğin hatası parseTmdbList içinde
+        // yutuluyordu → API anahtarı/ağ sorununda takvim sessizce BOŞ görünüyordu
+        // ("bugün yayın yok" sanılıyordu). Artık başarılı istek sayısı tutulur;
+        // 8 isteğin hiçbiri başarılı olamazsa hata fırlatılır (ekran Yeniden Dene gösterir).
+        var successfulRequests = 0
         for (offset in 0..6) {
             val dayCal = (weekStartCal.clone() as Calendar).apply { add(Calendar.DAY_OF_YEAR, offset) }
             val dateStr = sdf.format(dayCal.time)
             val tvUrl = "https://api.themoviedb.org/3/discover/tv?api_key=$apiKey&language=$language" +
                 "&air_date.gte=$dateStr&air_date.lte=$dateStr&sort_by=popularity.desc" +
                 "&include_null_first_air_dates=false&page=1"
-            parseTmdbList(tvUrl, isMovie = false, scheduleMap = scheduleMap, overrideDate = dateStr, overrideEpisode = -1)
+            if (parseTmdbList(tvUrl, isMovie = false, scheduleMap = scheduleMap, overrideDate = dateStr, overrideEpisode = -1)) {
+                successfulRequests++
+            }
         }
 
         // Bu hafta vizyona giren filmler — kendi vizyon günlerine yerleştirilir.
         val movieUrl = "https://api.themoviedb.org/3/discover/movie?api_key=$apiKey&language=$language" +
             "&primary_release_date.gte=$weekStartStr&primary_release_date.lte=$weekEndStr" +
             "&sort_by=primary_release_date.asc&page=1"
-        parseTmdbList(movieUrl, isMovie = true, scheduleMap = scheduleMap)
+        if (parseTmdbList(movieUrl, isMovie = true, scheduleMap = scheduleMap)) {
+            successfulRequests++
+        }
+
+        if (successfulRequests == 0) {
+            throw IOException("TMDB yayın takvimi alınamadı (API anahtarı veya ağ hatası).")
+        }
 
         return scheduleMap.mapValues { (_, list) -> list.toList() }
     }
@@ -121,11 +168,11 @@ class KitsugiAiringCalendarClient {
         outList: MutableList<AiringEntry>? = null,
         overrideDate: String? = null,
         overrideEpisode: Int? = null
-    ) {
+    ): Boolean {
         try {
-            val responseText = KitsugiApiBase.executeGetRequest(java.net.URL(urlStr)) ?: return
+            val responseText = KitsugiApiBase.executeGetRequest(java.net.URL(urlStr)) ?: return false
             val root = JSONObject(responseText)
-            val results = root.optJSONArray("results") ?: return
+            val results = root.optJSONArray("results") ?: return false
             // Türkçe başlık yoksa İngilizce'ye düşmek için aynı sayfanın en-US başlık haritası
             val enTitlesMap = fetchEnglishTitleMapIfNeeded(results, isMovie, urlStr)
             for (i in 0 until results.length()) {
@@ -196,8 +243,13 @@ class KitsugiAiringCalendarClient {
                     }
                 }
             }
+            // true = istek atıldı ve JSON ayrıştırıldı (sonuç boş olabilir).
+            // false = ağ/API anahtarı hatası → haftalık takvimde "hiç sonuç yok" ile
+            // "istek başarısız" ayırt edilebilsin.
+            return true
         } catch (e: Exception) {
             android.util.Log.e("AiringCalendarClient", "parseTmdbList error: ${e.message}", e)
+            return false
         }
     }
 
@@ -405,7 +457,8 @@ class KitsugiAiringCalendarClient {
     private suspend fun fetchAiringSchedule(
         airingAtGreater: Long,
         airingAtLesser: Long,
-        accessToken: String?
+        accessToken: String?,
+        failOnFirstPageError: Boolean = false
     ): List<AiringEntry> {
         val allEntries = mutableListOf<AiringEntry>()
         var page = 1
@@ -420,8 +473,27 @@ class KitsugiAiringCalendarClient {
                 query = QUERY,
                 variables = variables,
                 accessToken = accessToken
-            ) ?: break
+            )
+            if (responseText == null) {
+                // GÜNCELLEME (2026-10-21): null "veri yok" demek DEĞİL; AniList 429
+                // cooldown'ı veya ağ hatası demek. Haftalık takvimde ilk sayfa
+                // alınamadıysa sessizce boş takvim döndürmek yerine hata fırlatılır
+                // (ekran "yüklenemedi + yeniden dene" gösterir). Sonraki sayfalar
+                // alınamazsa eldeki kısmi veri korunur.
+                if (failOnFirstPageError && page == 1) {
+                    throw IOException("AniList yayın takvimi alınamadı (ağ hatası veya hız sınırı).")
+                }
+                break
+            }
             val (entries, nextPage) = parseResponse(responseText)
+            // AniList bazı hız sınırı/servis hatalarını HTTP 200 + `errors` gövdesiyle
+            // döndürür. Bu durumda "veri yok" ile "istek başarısız" ayrımı gövdeden
+            // yapılır; aksi halde takvim yine sessizce boş görünürdü.
+            if (failOnFirstPageError && page == 1 && entries.isEmpty() &&
+                responseText.contains("\"errors\"")
+            ) {
+                throw IOException("AniList yayın takvimi isteği hata döndürdü (hız sınırı / servis hatası).")
+            }
             allEntries.addAll(entries)
             hasNextPage = nextPage && entries.isNotEmpty()
             page++

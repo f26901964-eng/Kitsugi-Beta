@@ -72,18 +72,78 @@ class HomeHeroPolicyTest {
         assertNotEquals(homeHeroItemKey(a.copy(cs3Url = "https://site/a")), homeHeroItemKey(a.copy(cs3Url = "https://site/b")))
     }
 
-    @Test fun indicatorsAreBoundedAndAlwaysIncludeTheActivePage() {
-        for (count in listOf(1, 2, 7, 18, 70)) {
-            for (page in 0 until count) {
-                val window = homeHeroIndicatorIndices(count, page)
-                assertEquals(minOf(count, 7), window.size)
-                assertTrue(page in window)
-                assertTrue(window.all { it in 0 until count })
-                assertEquals(window.sorted().distinct(), window)
-            }
+    @Test fun indicatorsAlwaysMatchTheRealItemCount() {
+        // Vitrin barı içerik sayısını birebir göstermeli: kayan pencere/kısaltma yok.
+        for (count in listOf(0, 1, 2, 7, 18, 70)) {
+            val indices = homeHeroIndicatorIndices(count)
+            assertEquals(count, indices.size)
+            assertEquals((0 until count).toList(), indices)
         }
-        assertTrue(homeHeroIndicatorIndices(0, 0).isEmpty())
-        assertTrue(homeHeroIndicatorIndices(4, 0, windowSize = 0).isEmpty())
+        assertTrue(homeHeroIndicatorIndices(0).isEmpty())
+        assertTrue(homeHeroIndicatorIndices(-3).isEmpty())
+    }
+
+    @Test fun indicatorRowFitsTheAvailableWidthAndKeepsNaturalWidthWhenFew() {
+        // Az içerikte doğal (yuva hedefi) genişlik; çok içerikte satır kullanılabilir
+        // genişliği aşmaz — barlar incelir ama bar sayısı gerçek sayıya eşit kalır.
+        val available = 360f - 32f
+        assertEquals(4 * HERO_INDICATOR_SLOT_DP + 3 * 6f, heroIndicatorRowWidthDp(4, available), 0.01f)
+        assertEquals(available, heroIndicatorRowWidthDp(18, available), 0.01f)
+        assertEquals(available, heroIndicatorRowWidthDp(70, available), 0.01f)
+        assertEquals(0f, heroIndicatorRowWidthDp(0, available), 0.01f)
+        assertTrue(heroIndicatorSpacingDp(4) > heroIndicatorSpacingDp(18))
+        assertTrue(heroIndicatorSpacingDp(18) >= heroIndicatorSpacingDp(70))
+    }
+
+    @Test fun portraitPosterIsUpgradedToItsHighestResolutionVariant() {
+        val tmdb = item(1).copy(
+            source = "tmdb",
+            imageUrl = "https://image.tmdb.org/t/p/w500/poster.jpg",
+            backdropUrl = "https://image.tmdb.org/t/p/w1280/wide.jpg"
+        )
+        assertEquals("https://image.tmdb.org/t/p/original/poster.jpg", homeHeroPosterUrl(tmdb))
+        val bangumi = item(2).copy(
+            source = "bangumi",
+            imageUrl = "https://lain.bgm.tv/pic/cover/c/example.jpg",
+            backdropUrl = "https://image.tmdb.org/t/p/w1280/wide.jpg"
+        )
+        assertEquals("https://lain.bgm.tv/pic/cover/l/example.jpg", homeHeroPosterUrl(bangumi))
+        val aniList = item(3).copy(
+            source = "anilist",
+            imageUrl = "https://s4.anilist.co/file/anilistcdn/media/anime/cover/medium/bx123.jpg",
+            backdropUrl = "https://s4.anilist.co/file/anilistcdn/media/anime/banner/123.jpg"
+        )
+        assertEquals(
+            "https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx123.jpg",
+            homeHeroPosterUrl(aniList)
+        )
+    }
+
+    @Test fun posterSharingTheBackdropIdentityIsNotAPoster() {
+        val same = item(1).copy(
+            imageUrl = "https://image.tmdb.org/t/p/w500/art.jpg",
+            backdropUrl = "https://image.tmdb.org/t/p/original/art.jpg"
+        )
+        assertNull(homeHeroPosterUrl(same))
+        assertNull(homeHeroPosterUrl(item(1).copy(imageUrl = null)))
+        assertNull(homeHeroPosterUrl(item(1).copy(imageUrl = "file:///poster.jpg")))
+    }
+
+    @Test fun verticalPosterDimensionsAreCheckedAsStrictlyAsBackdrops() {
+        assertTrue(isVerticalHomeHeroPoster(1000, 1500))
+        assertFalse(isVerticalHomeHeroPoster(1920, 1080))
+        assertFalse(isVerticalHomeHeroPoster(1000, 1000))
+        assertFalse(isVerticalHomeHeroPoster(0, 0))
+        assertTrue(isVerticalHomeHeroPosterAspect(2f / 3f))
+        assertFalse(isVerticalHomeHeroPosterAspect(16f / 9f))
+        assertFalse(isVerticalHomeHeroPosterAspect(1f))
+        assertFalse(isVerticalHomeHeroPosterAspect(Float.NaN))
+        assertFalse(isVerticalHomeHeroPosterAspect(0f))
+    }
+
+    @Test fun autoplayWaitsFiveSecondsBetweenPages() {
+        assertEquals(5_000L, HERO_AUTOPLAY_DELAY_MS)
+        assertTrue(HERO_AUTOPLAY_TICK_MS in 1..HERO_AUTOPLAY_DELAY_MS)
     }
 
     @Test fun autoplayNeverRewindsAcrossTheWholeCarouselAtAnEdge() {

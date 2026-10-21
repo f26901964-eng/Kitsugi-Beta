@@ -57,6 +57,10 @@ class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         setTheme(R.style.Theme_KitsugiAnimeList)
         super.onCreate(savedInstanceState)
+        // Açılış aşaması izi: süreç ilk Compose karesi çizilmeden ölürse rapor bunu gösterir.
+        runCatching {
+            com.kitsugi.animelist.core.diagnostics.StartupStage.mark(this, "MainActivity.onCreate")
+        }
         enableEdgeToEdge()
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
             runCatching { window.decorView.isForceDarkAllowed = false }
@@ -86,6 +90,12 @@ class MainActivity : AppCompatActivity() {
                 ) {
                     KitsugiPermissionRequester()
 
+                    // İlk kare çizildi → uygulama gerçekten açıldı. "Açılmadan çöküyor"
+                    // teşhis izini temizle; bundan sonraki çökmeler normal rapora düşer.
+                    androidx.compose.runtime.LaunchedEffect(Unit) {
+                        com.kitsugi.animelist.core.diagnostics.StartupStage.clear(applicationContext)
+                    }
+
                     // Çökme kontrolü ANA THREAD'DE DOSYA OKUMASIN (eski hâli arayüzü kilitliyordu).
                     var showCrashRecovery by androidx.compose.runtime.remember {
                         androidx.compose.runtime.mutableStateOf(false)
@@ -108,7 +118,22 @@ class MainActivity : AppCompatActivity() {
 
                     if (showCrashRecovery) {
                         com.kitsugi.animelist.ui.components.KitsugiCrashRecoveryDialog(
-                            onDismiss = { showCrashRecovery = false }
+                            onDismiss = {
+                                showCrashRecovery = false
+                                // ── HER KAPANIŞ "OKUNDU" SAYILIR ──────────────────────────
+                                // Eski davranış: yalnızca diyalogdaki belirli butonlar
+                                // markCrashAsRead çağırıyordu. Kullanıcı geri tuşuyla ya da
+                                // dışına dokunarak kapattığında bayrak temizlenmiyor, bu
+                                // yüzden "Beklenmedik Kapanma" ekranı HER AÇILIŞTA tekrar
+                                // geliyor ve hep aynı ESKİ rapor gösteriliyordu. Kullanıcı
+                                // bunu "uygulama açılmıyor / çöküyor" olarak yaşıyordu.
+                                // Rapor dosyaları SİLİNMEZ; Geliştirici Günlükleri ve
+                                // Hakkında > çökme raporu kartından hâlâ erişilebilir.
+                                runCatching {
+                                    com.kitsugi.animelist.core.diagnostics.KitsugiCrashLogger
+                                        .markCrashAsRead(applicationContext)
+                                }
+                            }
                         )
                     }
 

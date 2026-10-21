@@ -29,11 +29,14 @@ package com.kitsugi.animelist.ui.components
  * geometrisinden türetilir, görselden değil. Metin için ayrılmış sabit yuva
  * vardır ve metin görselin üstüne binmez.
  *
- *  - [HeroVitrinMode.STACKED] — dikey telefon: üstte oran sabit **görsel
- *    şeridi**, altta metin için ayrılmış yuva. Görsel asla yüklemez, asla
- *    kutu bırakmaz.
- *  - [HeroVitrinMode.OVERLAY] — yatay / TV / tablet: görsel bandın tamamını
- *    kaplar, metin Nuvio'daki gibi gradyan scrim'in üstüne bindirilir.
+ *  - [HeroVitrinMode.STACKED] — dikey telefon: bant dardır (en-boy < 1). Sayfanın
+ *    kullanılabilir **posteri** varsa poster bandın tamamını kaplar ve metin
+ *    scrim üzerine bindirilir ([HeroVitrinLayout.prefersPoster]); yatay bir
+ *    görsel dar banda sığmadığı için poster otomatik seçilir. Posteri olmayan
+ *    sayfalarda backdrop üstteki sabit oranlı şeritte, metin alttaki yuvasında
+ *    gösterilir.
+ *  - [HeroVitrinMode.OVERLAY] — yatay / TV / tablet: yatay backdrop bandın
+ *    tamamını kaplar, metin Nuvio'daki gibi gradyan scrim'in üstüne bindirilir.
  *
  * Band yüksekliği, görsel şeridi yüksekliği ve metin yuvası **yalnızca cihaz
  * geometrisinden** türetilir. Görselin oranı, decode durumu veya sayfa değişimi
@@ -55,12 +58,25 @@ internal data class HeroVitrinLayout(
     val artworkHeightDp: Float,
     val textZoneHeightDp: Float,
     val mode: HeroVitrinMode,
-    val screenWidthDp: Float
+    val screenWidthDp: Float,
+    /** Bant kareden uzunsa (dikey telefon) yatay görsel sığmaz → poster tam kaplama gösterilir. */
+    val prefersPoster: Boolean
 ) {
     /** Görsel şeridinin kutu oranı (genişlik / yükseklik). */
     val artworkAspect: Float
         get() = if (artworkHeightDp > 0f) screenWidthDp / artworkHeightDp else HERO_ARTWORK_ASPECT
+
+    /** Bandın tamamının en-boy oranı (genişlik / bant yüksekliği). */
+    val bandAspect: Float
+        get() = if (bandHeightDp > 0f) screenWidthDp / bandHeightDp else HERO_ARTWORK_ASPECT
 }
+
+/**
+ * Bant en-boy oranı bu değerin altındaysa (kareden uzun) yatay bir backdrop banda
+ * sığmaz; bunun yerine dikey poster seçilir. Dikey telefon bantları ≈0.75–0.85
+ * aralığındadır; yatay/tablet/TV bantları hep 1'in üzerindedir.
+ */
+internal const val HERO_POSTER_BAND_MAX_ASPECT = 1.0f
 
 /** Sinematik görsel şeridi oranı (16:9). */
 internal const val HERO_ARTWORK_ASPECT = 16f / 9f
@@ -129,11 +145,18 @@ internal fun heroVitrinLayout(
     } else {
         band
     }
+    // Ekran geometrisine göre otomatik görsel türü: dar ve uzun bantta yatay
+    // görsel sığmaz, o yüzden dikey poster tercih edilir. Yalnızca STACKED
+    // (dikey telefon) geometrisinde geçerlidir; tablet dikeyi geniş banda sahip
+    // olduğu için OVERLAY'de yatay görselde kalır.
+    val prefersPoster = mode == HeroVitrinMode.STACKED && band > 0f &&
+        (screenWidthDp / band) < HERO_POSTER_BAND_MAX_ASPECT
     return HeroVitrinLayout(
         bandHeightDp = band,
         artworkHeightDp = artwork,
         textZoneHeightDp = textZone,
         mode = mode,
-        screenWidthDp = screenWidthDp
+        screenWidthDp = screenWidthDp,
+        prefersPoster = prefersPoster
     )
 }

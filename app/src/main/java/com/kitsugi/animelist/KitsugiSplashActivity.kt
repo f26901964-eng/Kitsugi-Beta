@@ -50,10 +50,21 @@ class KitsugiSplashActivity : AppCompatActivity() {
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
-        // Prefetch Discovery data in parallel immediately at startup
-        ExploreViewModel.prefetch(applicationContext)
+        // Prefetch Discovery data in parallel immediately at startup.
+        // DİKKAT: Bu çağrı super.onCreate()'ten ÖNCE çalışır. Burada bir istisna fırlarsa
+        // Activity hiç oluşmaz ve kullanıcı için uygulama "açılmadan çöküyor" olur.
+        // Prefetch yalnızca bir hız optimizasyonudur; asla açılışı engellememeli.
+        runCatching {
+            com.kitsugi.animelist.core.diagnostics.StartupStage.mark(this, "Splash.onCreate → ExploreViewModel.prefetch")
+            ExploreViewModel.prefetch(applicationContext)
+        }.onFailure {
+            android.util.Log.w("KitsugiSplash", "Keşfet ön-yükleme atlandı: ${it.message}", it)
+        }
 
         super.onCreate(savedInstanceState)
+        runCatching {
+            com.kitsugi.animelist.core.diagnostics.StartupStage.mark(this, "Splash.onCreate (görünüm hazırlanıyor)")
+        }
 
         // Tam ekran — status bar ve navigation bar gizli
         window.setFlags(
@@ -104,11 +115,19 @@ class KitsugiSplashActivity : AppCompatActivity() {
                     .apply()
             }
 
-            if (settings.splashAnimationEnabled) {
-                startAnimatedSplash(settings)
-            } else {
-                // Animasyon ve ses kapalı → direkt ana sayfaya geç
-                navigateToMain(instant = true)
+            // Açılış animasyonu bir "süs"tür: WebView/MediaPlayer bu cihazda patlarsa
+            // uygulama açılmamazlık etmesin, doğrudan ana ekrana geçilir.
+            runCatching {
+                if (settings.splashAnimationEnabled) {
+                    com.kitsugi.animelist.core.diagnostics.StartupStage.mark(this@KitsugiSplashActivity, "Splash → startAnimatedSplash")
+                    startAnimatedSplash(settings)
+                } else {
+                    // Animasyon ve ses kapalı → direkt ana sayfaya geç
+                    navigateToMain(instant = true)
+                }
+            }.onFailure {
+                android.util.Log.e("KitsugiSplash", "Açılış animasyonu başlatılamadı, ana ekrana geçiliyor: ${it.message}", it)
+                runCatching { navigateToMain(instant = true) }
             }
         }
     }

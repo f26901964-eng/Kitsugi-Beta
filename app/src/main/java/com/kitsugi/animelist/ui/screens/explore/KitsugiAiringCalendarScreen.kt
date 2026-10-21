@@ -54,9 +54,22 @@ fun KitsugiAiringCalendarScreen(
     // +18 UYUMU (2026-10-14): yayın takvimi de göster/gizle sözleşmesine uyar —
     // yetişkin (isAdult) kayıtlar ayar kapalıyken gün raflarında listelenmez.
     val showAdultContent = com.kitsugi.animelist.ui.theme.LocalShowAdultContent.current
-    val filteredScheduleMap = remember(viewModel.weekSchedule, showOnlyMyList, currentEntries, showAdultContent) {
+    // ── KRİTİK DÜZELTME (2026-10-21) — "takvim ilk açılışta boş" ────────────────
+    // `weekSchedule` bir SnapshotStateMap ve YERİNDE güncelleniyor
+    // (ViewModel: clear() + putAll()). Map referansı hiç değişmediği için
+    // remember(viewModel.weekSchedule, …) anahtarı Compose tarafından "değişmedi"
+    // sayılıyordu (aynı örnek → referans eşitliği). Sonuç: ilk açılışta, veri henüz
+    // gelmeden hesaplanan BOŞ harita önbelleğe alınıyor; ağdan veri gelip
+    // `weekSchedule` dolduktan sonra bile remember eski boş sonucu döndürüyordu.
+    // Ekran yalnızca yeniden kurulduğunda (geri çıkıp tekrar girince) boş olmayan
+    // map ile yeniden hesaplandığı için veri "ikinci/üçüncü açılışta" görünüyordu.
+    // Çözüm: haritanın içerik kopyasını (toMap) anahtar olarak kullanmak; bu hem
+    // snapshot okuması kaydeder (veri gelince recomposition) hem de içerik
+    // değiştiğinde remember'ı geçersiz kılar.
+    val scheduleSnapshot = viewModel.weekSchedule.toMap()
+    val filteredScheduleMap = remember(scheduleSnapshot, showOnlyMyList, currentEntries, showAdultContent) {
         val base = if (showOnlyMyList) {
-            viewModel.weekSchedule.mapValues { (_, entries) ->
+            scheduleSnapshot.mapValues { (_, entries) ->
                 entries.filter { entry ->
                     currentEntries.any { me ->
                         (entry.malId != null && me.malId == entry.malId) ||
@@ -66,7 +79,9 @@ fun KitsugiAiringCalendarScreen(
                 }
             }
         } else {
-            viewModel.weekSchedule
+            // Canlı map yerine kopya kullanılır: remember sonucu yalnızca anahtarlara
+            // (scheduleSnapshot) bağlı kalsın, arka planda map değişip eski sonuç dönmesin.
+            scheduleSnapshot
         }
         base.mapValues { (_, entries) -> entries.filter { showAdultContent || !it.isAdult } }
     }

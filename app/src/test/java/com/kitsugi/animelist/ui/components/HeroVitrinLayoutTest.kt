@@ -12,9 +12,10 @@ import org.junit.Test
  * görünmesinin kök nedeni, görselin sabit bir kutuya `ContentScale.Fit` ile
  * sığdırılmasıydı. Yeni politika:
  *
- *  - Dikey telefonda görsel **üstte kendi şeridinde** tam kaplar (Crop), metin
- *    altta kendi yuvasında durur → görsel asla yüklemez, metin asla görselin
- *    üstüne binmez.
+ *  - Dikey telefonda bant dardır (en-boy < 1): sayfanın posteri varsa **poster
+ *    bandı tam kaplar** ve metin scrim üzerinde durur; poster yoksa backdrop
+ *    üstte kendi şeridinde tam kaplar (Crop), metin altta kendi yuvasında durur
+ *    → görsel asla yüklemez, bant asla boş kalmaz.
  *  - Yatay / TV / tablet modunda görsel bandın tamamını kaplar, metin Nuvio'daki
  *    gibi gradyan scrim'in üzerine bindirilir.
  *
@@ -47,6 +48,24 @@ class HeroVitrinLayoutTest {
         )
         assertTrue(layout.artworkHeightDp > 0f)
         assertTrue(layout.textZoneHeightDp > 0f)
+    }
+
+    @Test
+    fun portraitPhoneBandsPreferPosterArtwork() {
+        val layout = phonePortrait()
+        // Dikey telefon bandı kareden uzundur: yatay backdrop sığmaz → poster.
+        assertTrue("bandAspect=${layout.bandAspect}", layout.bandAspect < 1f)
+        assertTrue(layout.prefersPoster)
+        // Diğer geometrilerde bant geniştir: yatay backdrop sığar, poster seçilmez.
+        val landscape = heroVitrinLayout(851f, 393f, isLandscape = true, isTablet = false, isTv = false)
+        val tv = heroVitrinLayout(1920f, 1080f, isLandscape = true, isTablet = false, isTv = true)
+        val tablet = heroVitrinLayout(800f, 1280f, isLandscape = false, isTablet = true, isTv = false)
+        for (other in listOf(landscape, tv, tablet)) {
+            assertTrue(!other.prefersPoster)
+            assertTrue(other.bandAspect > 1f)
+        }
+        // Küçük dikey telefonda da poster tercihi geçerli.
+        assertTrue(phonePortrait(widthDp = 360f, heightDp = 640f).prefersPoster)
     }
 
     @Test
