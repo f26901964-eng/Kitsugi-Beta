@@ -2,7 +2,7 @@
 
 > **Bu dosya devir teslim dosyasıdır.** Yeni bir dal/şube işi buradan devralır.
 > Son güncelleme: **2026-10-21** · Chunk **001 + 002 + 003 + 004a + 004b** tamamlandı, uygulamaya işlendi.
-> Chunk 004b PR'ı: _(bu satır PR açıldıktan sonra doldurulur — dal `arena/fbf31f34-kitsugi-beta`)_
+> Chunk 004b PR'ı: https://github.com/f26901964-eng/Kitsugi-Beta/pull/21 (**dal `arena/fbf31f34-kitsugi-beta`; chunk 001+002+003+004a'yı da taşır, `main` v2.4.326 ile birleşik**)
 > Chunk 004a PR'ı: https://github.com/f26901964-eng/Kitsugi-Beta/pull/20 (**dal `arena/6131dd54-kitsugi-beta`; chunk 001+002+003'ü de taşır**)
 > Chunk 003 PR'ı: https://github.com/f26901964-eng/Kitsugi-Beta/pull/18 (dal `arena/6cb51a64-kitsugi-beta`)
 > ⚠ `main` bu dalın tabanından sonra ilerledi (2.4.321–324); yeni dal **`origin/main` ile birleştirilmiş** hâlde
@@ -19,11 +19,11 @@ Yeni bir dalda işe başlayan ajan SIFIRDAN araştırma yapmaz; şu sırayı izl
 
 ### a) Dal kurulumu (KRİTİK)
 - **Güncel durum (2026-10-21, chunk 004b sonrası):** chunk 001 + 002 + 003 + **004a + 004b**'nin
-  tamamı dal `arena/fbf31f34-kitsugi-beta` üzerinde (chunk 004b PR'ı; `origin/main` 4ef8714/v2.4.326
+  tamamı dal `arena/fbf31f34-kitsugi-beta` · **PR #21** üzerinde (`origin/main` 4ef8714/v2.4.326
   merge edilmiş). Hiçbiri `main`'de YOK. Yeni oturum dalı `main`'den açıldıysa dosyalar gelmez →
   Bölüm 0e'deki **iki komutla** (explicit refspec + `git reset --hard`) kendi dalına çek.
 - Önceki kaynak: chunk 001–004a işi dal `arena/6131dd54-kitsugi-beta` · **PR #20**'de
-  (HEAD `1bc9cbd`; chunk 004b bunun üzerine kuruludur).
+  (HEAD `1bc9cbd`; chunk 004b bunun üzerine kuruludur). PR #21 bunların tümünü taşır.
 - Eski kaynaklar: Chunk 001 işi commit `5c13f8e` dal `arena/a3fae7fe-kitsugi-beta` üzerinde ve **PR #15**'te
   (2026-10-21 itibarıyla PR #15 **merge edilmemiş**, `main`'de YOK).
 - Chunk 002 işi dal `arena/2419075a-kitsugi-beta` üzerinde; o dal chunk 001'i de **taşır**
@@ -101,7 +101,7 @@ Yeni Arena oturumunda, yeni dal açıldığında **birebir şu metni** yapışt�
 > devir teslim dosyasıdır; hiçbir şeyi sıfırdan araştırma, her şey orada yazılı.
 >
 > **(0) Dal (KRİTİK — yeni checkout'ta dosyalar YOKSA önce bunu yap):** Chunk 001 + 002 + 003 + **004a**
-> çalışmasının tamamı **dal `arena/fbf31f34-kitsugi-beta`** üzerinde (chunk 004b PR'ı)
+> çalışmasının tamamı **PR #21**'de, dal `arena/fbf31f34-kitsugi-beta` üzerinde
 > (**dal ucunu al**, sabit SHA'ya bağlanma).
 > Dal, `origin/main` 9ea3b46 üzerine merge edilmiş hâldedir; bu iş henüz `main`'de YOK.
 > Yeni oturumun dalı sabittir (ör. `arena/1b45adfd-kitsugi-beta`) ve `main`'den açıldıysa
@@ -117,7 +117,7 @@ Yeni Arena oturumunda, yeni dal açıldığında **birebir şu metni** yapışt�
 > Bu dal `main`'in 2.4.326 sürümünü (MAL URL düzeltmeleri dâhil) zaten içerir; ayrıca
 > `git merge origin/main` gerekmez. Dal **adını değiştirme**; yalnız kendi dalının içeriğini
 > bu uca eşitle. Doğrulama: `ls diag/bangumi_vault/PROGRESS.md` görünmeli,
-> `git log --oneline -1` chunk 004b PR ucunu göstermeli. Hiçbir chunk'ı yeniden araştırma/üretme.
+> `git log --oneline -1` PR #21 ucunu göstermeli. Hiçbir chunk'ı yeniden araştırma/üretme.
 > `git reset --hard` kullanmak istemiyorsan alternatif: `git merge --ff-only` çalışmazsa
 > `git checkout refs/remotes/origin/arena/fbf31f34-kitsugi-beta -- .` + `git commit`.
 >
