@@ -225,6 +225,22 @@ Dokunulmayan (bilerek): `CrossSyncIdentityGuard` (decode/cacheKey sözleşmesi v
 
 ---
 
+## Ekosistem araştırması — altı kaynağın uygulama-geneli neden kırılgan (2026-10-21)
+
+`ARASTIRMA_KAYNAK_SENKRON/` klasöründe8 dosyalık, forum/Reddit/GitHub-issue/resmi-doküman
+kaynaklı kapsamlı araştırma. Ana bulgular: AniList'in **fiili limiti 30/dk** (doküman 90) +
+2026-09-10 ve 2026-10-21 403-disable olayları; MAL 2018 süresiz-kapatma ve 2024 `/v2`
+bloklaması; `kitsu.app`-`kitsu.io` domain karmaşası; Shikimori domain rotasyonu (Rusya
+Ocak-2026 engelleri); Simkl **20 sn yazma kilidi** + **watchlist-silme endpoint'inin yokluğu**
+(var-olmayan yola 200-null); Bangumi Cloudflare-503 (bangumi/api#50); MALSync wiki itirafı
+("başka sync aracı veriyi bozdu → sil yeniden ekle"). Sentez ve 14 nedenle eşleme:
+`08_SISTEMIK_NEDENLER_VE_KITSUGI.md`.
+
+Bu araştırmadan çıkan **kod eylemi**: `BangumiApiClient` içinde `api.bgm.tv` için 450 ms
+minimum istek aralığı (5 çağrı noktasına `awaitBangumiThrottle()`) — Cloudflare-503 sınıfına
+karşı. tree-sitter: değişiklik öncesi/sonrası hata kümaları birebir aynı (2 önceden-var
+string-template hatası, yeni hata yok).
+
 ## Açık liste — bilinçli olarak kalanlar (gizlenmeyen sınırlar)
 
 1. **Derleme/CI testi bu ortamda koşulamadı** (JVM/Gradle yok): tree-sitter sözdizimi +
@@ -241,6 +257,21 @@ Dokunulmayan (bilerek): `CrossSyncIdentityGuard` (decode/cacheKey sözleşmesi v
 5. **MAL'de toplam-bölüm doğrulaması kanıtı yok** (araştırıldı): spekülatif clamp eklenmedi;
    kanıtlanmış tek sınır Kitsu 422'si korumalı.
 6. `CrossSyncEntryFactory`'nin üretim çağıranı yok (yalnız testleri var) — silinmedi.
+7. **Simkl: watchlist'ten tam API-silme yok** — resmi uç web-özel; uygulama
+   `POST /sync/history/remove` + `POST /sync/ratings/remove` kullanır (gerçek uçlar),
+   öğe 0-ilerlemeyle eski status'ünde kalabilir. `add-to-list→dropped` alternatifi
+   (topluluk workaround'u) yan-etki riskiyle ertelendi → kullanıcı kararı.
+   (`ARASTIRMA_KAYNAK_SENKRON/05_SIMKL.md` §3)
+8. **Shikimori domain-fallback uygulanmadı**: `.io` bugünkü kullanım; `.tv` adayı yalnız
+   zayıf kaynaklardan (mirror sitesi) doğrulandı — tek-gerçek ilan edilmeden aday-listesi
+   eklenmeyecek. `KitsugiIdResolver` `.io`'ya sabit. TR'de `.io` çalışıyor; risk
+   ağırlıklı Rusya/engelli-ülkeler. (`04_SHIKIMORI.md`)
+9. **Kitsu host doğrulaması**: uygulama `kitsu.app`, resmi dokümanlar `kitsu.io`
+   (EverythingBox #330); ikisi de erişilebilirken fallback eklenmedi → kanonik-host
+   teyidi bekliyor. (`03_KITSU.md` §1)
+10. **Bangumi "silme" semantiği belirsiz**: v0 DELETE koleksiyonu kaydı DROPPED'a düşürüyor
+    olabilir (tam silme web-özel) — "silindi" mesajı bu gerçeği gizliyor olabilir.
+    (`06_BANGUMI.md` §4)
 
 ---
 
@@ -277,3 +308,5 @@ Dokunulmayan (bilerek): `CrossSyncIdentityGuard` (decode/cacheKey sözleşmesi v
    bekleyen-senkron kuyruğu yalnız gerçek ağ/HTTP hatalarında büyümelidir.
 3. (İsteğe bağlı) `rawKitsuIdOf`/`shikimoriTargetIdOf` için saf yardımcı seviyesinde birim test —
    yardımcılar şu an `private`; yalnız test için `internal` yapılmaları tartışılabilir.
+4. Ekosistem araştırması kalanları: Simkl tam-çıkış kararı (açık madde 7), Shikimori/Kitsu
+   domain teyidi (8-9), Bangumi silme-semantiği teyidi (10) — `ARASTIRMA_KAYNAK_SENKRON/`.

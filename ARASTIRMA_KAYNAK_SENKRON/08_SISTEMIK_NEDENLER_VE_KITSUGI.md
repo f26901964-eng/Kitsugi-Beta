@@ -1,0 +1,43 @@
+# Sentez — Ekosistem Neden "Yarım Yamalak"? + Kitsugi'nin Karşılığı (2026-10-21)
+
+## A. Sekiz sistemik neden (araştırma dosyalarındaki kanıtların özeti)
+
+| # | Neden | Kanıt (dosya) | Gerçek hayatta ne yapar? |
+|---|---|---|---|
+| 1 | **Rate limit resmen yazılmamış / yanlı yazılmış** | AniList doküman 90, canlı 30/dk (01); MAL limiti spec'te yok, ~1/sn (02); Bangumi sayı yok (06); Shikimori ~5/sn topluluk ölçümü (04) | Uygulama büyüyünce 429 → sync'ler sessiz yarım kalır |
+| 2 | **API'nin kendisi kapanır / IP bloğu** | AniList 403-disable olayları 2026-09-10 ve 2026-10-21 (01); MAL 2018 süresiz kapatma + 2024 `/v2` bloğu (02); AniList elle IP bloğu | "Uygulama bozuldu" sanılır; o gün hiçbir istemci yazamaz |
+| 3 | **Token ömrü/refresh çöküşü** | AniList refresh-yok ~1 yıl (01); Mihon çıkış-giriş döngüsü (07); MAL 2018 account-lock dalgası (02) | Haftalarca "bağlı ama yazmıyor" |
+| 4 | **6 ayrı veritabanı, aynı anime farklı** | Cinemeta→MAL bölüm-sırası faciası (07); Nuvio #1526; Taiga sezon-sakıştırmalar | Yanlış bölüme ilerleme yazılır; duplicate kayıtlar |
+| 5 | **Tam-silme endpoint'i yok** | Simkl watchlist-silme web-özel, var-olmayan yola 200-null (05); Bangumi silme-memnuniyetsizliği (06); MAL DELETE 404 paterni | **Kullanıcının en çok yandığı şey: sildim, geri geldi** |
+| 6 | **Uygulamalar birbirinin verisini bozar** | MALSync wiki "diğer sync aracı bozdu → sil yeniden ekle" (07); Taiga→Kitsu→MAL tarih-ezme (07); Silo #2426 geri-gelen silmeler (07) | İki uygulama kullanana liste savaşı |
+| 7 | **Yanıt formatı tuzakları** | AniList 429 → Cloudflare HTML (01); Simkl var-olmayan uç 200-null (05); Simkl custom-list DELETE 200-ama-silmez (05) | İstemci "başarılı" sanır, hiçbir şey olmaz |
+| 8 | **Domain rotasyonu / mirror** | Shikimori .me→.one→.io→(.tv) + Rusya engelleri (04); kitsu.app/kitsu.io karmaşası (03); Bangumi mirror 404 bug'ı Kazumi (06) | Ülke-ölçeğinde / sürüm-ölçeğinde tam kopma |
+
+Ek olarak ekosistemin yapısal gerçeği: **AniList'in fiili limiti yıllardır 30/dk ve bilerek degraded** (01) — yani "herkesin sync'i tarihsel olarak yarım", çünkü hiçbir istemci bu değişken zemine güvenle oturamıyor.
+
+## B. Kitsugi'nin bu nedenlere karşı NE YAPTIĞI (round 1-5 + bu tur)
+
+| Neden | Kitsugi koruması | Durum |
+|---|---|---|
+| 1 Rate limit | `KitsugiApiBase`: host-bütçeleri (450ms/80dk), Jikan ayrı gateway, 429→`Retry-After` global cooldown, 5xx retryAfterMs; AniList'te **30/dk fiili limiti bilerek** kodlanmış (L876) + 1-120sn bekleme | ✓ |
+| 2 API kapanışı | HTTP hatası → `SyncResult.errors` → **bekleyen-senkron kuyruğu** (oturumda 5 deneme bütçesi) → API dönünce boşaltılır; offline kapısı (NetworkMonitor) ile "çevrimdışı kaydedildi" ayrımı | ✓ |
+| 3 Token | Her sağlayıcıda 401/403 ayrımı, Shikimori scope-hatası (`ShikimoriScopeException`), MAL/AniList/Bangumi ayrı auth store | ✓ |
+| 4 ID haritası | `CrossProviderIdentity` + `persistNewlyResolvedIds` (malId/simklId/tmdbId geri-yazımı), `KitsugiIdResolver` (ARM+Shikimori+TMDB), AniList 100M-offset şeması, Bangumi lokal mapping cache | ✓ |
+| 5 Silme | MAL `DELETE` (404 sessiz), Shikimori rateId-silme + history temizliği, Simkl `history/remove` + `ratings/remove` (gerçek uçlar!), Bangumi DROPPED+rate0, AniList medya-silme; k14: yerel silmede **stale bekleyen-işler temizlenir** | ✓ / **Simkl watchlist-tam-çıkış = açık madde A1** |
+| 6 Çakışan araçlar | Yerel kayıt = tek-otorite (local-first); puan-null→remote-temizleme bilinçli "yerel hakim"; sıralı yazım (Simkl: history→ratings→**status en son** = kullanıcı isteği kazanır) | ✓ |
+| 7 Sahte-başarı | `checkResponseAndThrow` + status-kod ayrımı her istemcide; Simkl'de 200-null uçlara güven yok (yalnızca dokümante uçlar); outcomes tablosu: sync/skip/hata ayrık raporlanır | ✓ |
+| 8 Domain | Shikimori redirect-header tuzağı elle çözümlü (`executeShikimori`); resmi host kullanımı (Bangumi `api.bgm.tv`, mirror yok) | Kısmi / **açık maddeler A2-A4** |
+
+## C. AÇIK LİSTE — bu araştırmadan çıkan ve bilinçli kalanlar
+
+| # | Açık madde | Gerekçe / karar noktası |
+|---|---|---|
+| **A1** | **Simkl'de watchlist'ten tam API-silme yok** | Resmi uç yok (web-özel); `history/remove` + `ratings/remove` uygulanıyor, öğe 0-ilerlemeyle eski status'ünde kalabilir. Topluluk workaround'u (`add-to-list→dropped`) yan-etki riskiyle (hiçlistedehil dropped yaratma) uygulanmadı — kullanıcı kararı bekliyor. (05.md §3) |
+| **A2** | Shikimori `BASE_URL` hâlâ `.io`; **`.tv` adayı/otomatik domain-fallback yok**; `KitsugiIdResolver` L386 `.io'ya` sabit; `.tv` host-bütçesi yok | `.tv` iddiası kaynak-zayıf (mirror sitesi); uygulama planı hazır (aday-listesi + son-çalışan-domain saklama + reachability'de geçiş) ama tek-gerçek-domain ilan edilmeden uygulanmamalı. Türkiye'de `.io` çalışıyor; risk ağırlıklı Rusya/engelli-ülkeler. |
+| **A3** | **Kitsu `kitsu.app` vs resmi doküman `kitsu.io`** — fallback yok (03.md §1) | EverythingBox #330 gibi doğrulamalar var; iki host da bugün çalışıyor olabilir → hangisinin-kanonik olduğu resmi-kaynakla teyit edilmeli, sonra aday-listesi eklenmeli. |
+| **A4** | Bangumi DELETE-koleksiyonunun sitedeki "tam silme" ile eşdeğerliği belirsiz (DROPPED'a düşebilir) | v0 semantiki + üçüncü-parti istemcilerde "silme yok" notları (06.md §4) — Bangumi'de "silindi" mesajı "DROPPED'a taşındı" gerçeğini gizliyor olabilir. |
+| **A5** | CI derleme/test kapsamı (eski açık madde) | Sandbox'ta java/gradle yok; tree-sitter + grep denetimi. |
+| **A6** | (eski) bulk sync kuyrukta değil; deleteAll yerel-only; import-vs-pending çakışmasında kullanıcı niyeti kazanır; MAL clamp delilsiz-atlandı; `CrossSyncEntryFactory` prod-ölü | Round-5 Açık Liste aynen geçerli. |
+
+## D. Araştırmanın doğrudan uygulamaya yansıyan EYLEMİ (bu tur)
+1. **`api.bgm.tv` host-bütçesi** → `KitsugiApiBase` hostBudgets'a eklendi (Bangumi GET'leri bu sisteme giriyor; Cloudflare-503 sınıfına karşı 450ms/60-dk aralık + 429'da ortak geri çekilme). Gerekçe: 06.md §1-2.
