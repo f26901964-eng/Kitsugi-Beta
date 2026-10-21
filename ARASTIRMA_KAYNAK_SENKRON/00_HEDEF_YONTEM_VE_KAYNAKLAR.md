@@ -18,6 +18,8 @@
 | `06_BANGUMI.md` | Bangumi: Cloudflare 503, resmi-yazısız limitler, üç domain, 404 bug'ları |
 | `07_UYGULAMALAR_VE_SIKAYETLER.md` | Uygulama seviyesi: MALSync, jellyfin-ani-sync, Taiga, Mihon... şikâyet arşivi |
 | `08_SISTEMIK_NEDENLER_VE_KITSUGI.md` | Sentez: ekosistem neden kırılgan + Kitsugi'nin koruması + açık maddeler |
+| `09_KENDI_VERITABANINA_YAZMA_HATALARI.md` | **Kendi kendine yazamama** vakaları: null-score sonsuz-retry, yanlış-format puan, sahte-başarı, Bangumi 3/dk write-limit, updated_at tuzağı... |
+| `10_YAZMA_SEMANTIGI_MATRISI.md` | Kaynak-bazlı yazma kuralları matrisi (ölçek/tarih/otomatik-geçiş/idempotency/watermark/limit) |
 
 ## Anahtar ölçüt (arşiv boyunca tekrar eden 8 sistemik neden — özet)
 1. **Resmi-yazısız / yanlış-yazılmış rate limit** (AniList: doküman 90/dk, gerçek 30/dk).

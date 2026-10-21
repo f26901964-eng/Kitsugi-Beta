@@ -38,6 +38,9 @@ Ek olarak ekosistemin yapısal gerçeği: **AniList'in fiili limiti yıllardır 
 | **A4** | Bangumi DELETE-koleksiyonunun sitedeki "tam silme" ile eşdeğerliği belirsiz (DROPPED'a düşebilir) | v0 semantiki + üçüncü-parti istemcilerde "silme yok" notları (06.md §4) — Bangumi'de "silindi" mesajı "DROPPED'a taşındı" gerçeğini gizliyor olabilir. |
 | **A5** | CI derleme/test kapsamı (eski açık madde) | Sandbox'ta java/gradle yok; tree-sitter + grep denetimi. |
 | **A6** | (eski) bulk sync kuyrukta değil; deleteAll yerel-only; import-vs-pending çakışmasında kullanıcı niyeti kazanır; MAL clamp delilsiz-atlandı; `CrossSyncEntryFactory` prod-ölü | Round-5 Açık Liste aynen geçerli. |
+| **A11** | **Bangumi spesifik write-bütçesi yok**: topluluk ölçümü ~3 koleksiyon-yazımı/dk + ilerleme ~10/10dk (bangumi.tv/group/417148) → büyük içe-aktarma Bangumi'de 429 yiyebilir. Genel 450ms throttle + 429-kuyruk var; **spesifik yazma-aralığı ölçülmedi/eklenmedi** | Doğru sayı doğrudan Bangumi'den teyit edilemeden (yalnız topluluk ölçümü) sabitlenmeyecek; 09.md §F1 |
+| **A12** | Shikimori'de süresi-dolmuş token'ın **401 yerine 403** geldiği cookie varyantı biliniyor (Oca-2026 kulüp raporu) | Kitsugi Bearer-only → düşük risk; `getCurrentUser` 401'i ele alıyor; 403-scope/sessiz-kuyruk davranışı üretimde izlenecek (09.md §D1) |
+| **A13** | AniList'te finale kendiliğinden COMPLETED yazımı **kaynak-çelişkili** (2018 changelog vs 2026 geliştiriciler) | Kitsugi yerel-durumu olduğu gibi gönderir (yerel=otorite); otomatik-tamamlama EKLENMEDİ, kullanıcı niyeti bozulmasın (09.md §A8) |
 
 ## D. Araştırmanın doğrudan uygulamaya yansıyan EYLEMİ (bu tur)
 1. **`api.bgm.tv` host-bütçesi** → `KitsugiApiBase` hostBudgets'a eklendi (Bangumi GET'leri bu sisteme giriyor; Cloudflare-503 sınıfına karşı 450ms/60-dk aralık + 429'da ortak geri çekilme). Gerekçe: 06.md §1-2.
