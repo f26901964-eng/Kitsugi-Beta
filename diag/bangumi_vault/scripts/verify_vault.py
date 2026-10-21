@@ -23,6 +23,7 @@ import json
 import re
 import sys
 from pathlib import Path
+from android_strings import unescape
 
 VAULT = Path(__file__).resolve().parents[1]
 ROOT = VAULT.parents[1]
@@ -56,9 +57,6 @@ tr_vals = dict(re.findall(r'<string name="(bangumi_[^"]+)">(.*?)</string>', tr_s
 en_vals = dict(re.findall(r'<string name="(bangumi_[^"]+)">(.*?)</string>', en_src))
 
 
-def unescape(v: str) -> str:
-    return (v.replace("\\'", "'").replace('\\"', '"')
-             .replace("&lt;", "<").replace("&gt;", ">").replace("&amp;", "&"))
 
 
 # 2-4) vault → strings

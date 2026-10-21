@@ -22,6 +22,7 @@ import json
 import re
 import sys
 from pathlib import Path
+from android_strings import escape as xml_escape
 
 VAULT = Path(__file__).resolve().parents[1]
 ROOT = VAULT.parents[1]
@@ -47,17 +48,11 @@ ROLE_FILES = {
 KEEP_DECISIONS = {"global", "translated", "as_is", "existing"}
 
 
-def xml_escape(value: str) -> str:
-    out = value.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
-    out = out.replace("'", "\\'").replace('"', '\\"')
-    return out
-
-
 def kotlin_escape(value: str) -> str:
     return value.replace("$", "${'$'}")
 
 
-MAX_KOTLIN_CONSTANT_MUTF8_BYTES = 50_000
+MAX_KOTLIN_CONSTANT_MUTF8_BYTES = 49_999
 
 
 def kotlin_mutf8_length(value: str) -> int:
