@@ -565,6 +565,7 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
             val cached = allSourceStates[platform]?.payload
             val needsFetch = forceRefresh || allSourceStates[platform]?.isCached == true || cached?.hasCatalogContent() != true
             val state = loadExploreSource(
+                platformLabel = platform.label,
                 cached = cached,
                 forceRefresh = needsFetch,
                 fetch = { fetchPlatform(platform, allowFallback = false).forSource(platform) },

@@ -1,6 +1,8 @@
 package com.kitsugi.animelist.ui.screens.notifications
 
 import android.app.Application
+import com.kitsugi.animelist.data.platform.PlatformFailureRegistry
+import com.kitsugi.animelist.data.platform.PlatformErrorCode
 import android.content.Context
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
@@ -102,12 +104,14 @@ data class NotifUiState(
     val items: List<NotifItem> = emptyList(),
     val isLoading: Boolean = false,
     val error: String? = null,
+    val errorCode: PlatformErrorCode? = null,
     val hasMore: Boolean = true,
     val page: Int = 1,
     /** MAL sayfası açık bir next URL sunduysa, güvenli aynı-kaynak bağlantısı. */
     val nextPageUrl: String? = null,
     /** Daha eski MAL bildirimlerini yükleme hatası; mevcut kartlar korunur ve yeniden denenebilir. */
     val loadMoreError: String? = null,
+    val loadMoreErrorCode: PlatformErrorCode? = null,
     /** Kullanıcıya gösterilecek kaynak açıklaması veya geçici akış uyarısı. */
     val notice: String? = null,
     /** MAL's private website feed requires a first-party WebView session cookie. */
@@ -127,7 +131,8 @@ data class NotifUiState(
 data class NotifDiagnosticsUiState(
     val isRunning: Boolean = false,
     val rows: List<NotificationDiagnostics.Row> = emptyList(),
-    val error: String? = null
+    val error: String? = null,
+    val errorCode: PlatformErrorCode? = null
 )
 
 // ─── ViewModel ───────────────────────────────────────────────────────────────
@@ -195,7 +200,8 @@ class KitsugiNotificationsViewModel(application: Application) : AndroidViewModel
             } catch (e: Exception) {
                 _diagnostics.value = NotifDiagnosticsUiState(
                     isRunning = false,
-                    error = e.message ?: e.javaClass.simpleName
+                    error = e.message ?: e.javaClass.simpleName,
+                    errorCode = com.kitsugi.animelist.data.platform.PlatformErrorCatalog.classify(error = e)
                 )
             }
         }
@@ -341,7 +347,7 @@ class KitsugiNotificationsViewModel(application: Application) : AndroidViewModel
             } catch (e: Exception) {
                 stateFlow.value = stateFlow.value.copy(
                     isLoading = false,
-                    error = ctx.getString(R.string.notif_error_load, e.message ?: e.javaClass.simpleName)
+                    error = ctx.getString(R.string.notif_error_load, e.message ?: e.javaClass.simpleName), errorCode = com.kitsugi.animelist.data.platform.PlatformFailureRegistry.reportAndResolve("anilist", e)
                 )
             }
         }
@@ -521,7 +527,7 @@ class KitsugiNotificationsViewModel(application: Application) : AndroidViewModel
                 android.util.Log.e("KitsugiNotif", "MAL fallback load failed: ${e.message}", e)
                 _mal.value = _mal.value.copy(
                     isLoading = false,
-                    error = ctx.getString(R.string.notif_error_load, e.message ?: e.javaClass.simpleName),
+                    error = ctx.getString(R.string.notif_error_load, e.message ?: e.javaClass.simpleName), errorCode = com.kitsugi.animelist.data.platform.PlatformFailureRegistry.reportAndResolve("mal", e),
                     requiresMalWebLogin = !attemptedWithCookie ||
                         webFeedError is MalWebSessionRequiredException
                 )
@@ -644,7 +650,8 @@ class KitsugiNotificationsViewModel(application: Application) : AndroidViewModel
                 _mal.value = current.copy(
                     isLoading = false,
                     hasMore = true,
-                    loadMoreError = ctx.getString(R.string.notif_mal_load_more_failed)
+                    loadMoreError = ctx.getString(R.string.notif_mal_load_more_failed),
+                    loadMoreErrorCode = com.kitsugi.animelist.data.platform.PlatformFailureRegistry.reportAndResolve("mal", e)
                 )
             }
         }
@@ -998,7 +1005,7 @@ class KitsugiNotificationsViewModel(application: Application) : AndroidViewModel
                 android.util.Log.e("KitsugiNotif", "Simkl load failed: ${e.message}", e)
                 _tmdbSimkl.value = NotifUiState(
                     isLoading = false,
-                    error = ctx.getString(R.string.notif_error_load, e.message ?: e.javaClass.simpleName)
+                    error = ctx.getString(R.string.notif_error_load, e.message ?: e.javaClass.simpleName), errorCode = com.kitsugi.animelist.data.platform.PlatformFailureRegistry.reportAndResolve("simkl", e)
                 )
             }
         }
@@ -1113,7 +1120,7 @@ class KitsugiNotificationsViewModel(application: Application) : AndroidViewModel
                 android.util.Log.e("KitsugiNotif", "Kitsu load failed: ${e.message}", e)
                 _kitsu.value = NotifUiState(
                     isLoading = false,
-                    error = ctx.getString(R.string.notif_error_load, e.message ?: e.javaClass.simpleName)
+                    error = ctx.getString(R.string.notif_error_load, e.message ?: e.javaClass.simpleName), errorCode = com.kitsugi.animelist.data.platform.PlatformFailureRegistry.reportAndResolve("kitsu", e)
                 )
             }
         }
@@ -1287,7 +1294,7 @@ class KitsugiNotificationsViewModel(application: Application) : AndroidViewModel
                 android.util.Log.e("KitsugiNotif", "Bangumi load failed: ${e.message}", e)
                 _bangumi.value = NotifUiState(
                     isLoading = false,
-                    error = ctx.getString(R.string.notif_error_load, e.message ?: e.javaClass.simpleName)
+                    error = ctx.getString(R.string.notif_error_load, e.message ?: e.javaClass.simpleName), errorCode = com.kitsugi.animelist.data.platform.PlatformFailureRegistry.reportAndResolve("bangumi", e)
                 )
             }
         }
@@ -1382,7 +1389,7 @@ class KitsugiNotificationsViewModel(application: Application) : AndroidViewModel
                 android.util.Log.e("KitsugiNotif", "Shikimori load failed: ${e.message}", e)
                 _shikimori.value = NotifUiState(
                     isLoading = false,
-                    error = ctx.getString(R.string.notif_error_load, e.message ?: e.javaClass.simpleName)
+                    error = ctx.getString(R.string.notif_error_load, e.message ?: e.javaClass.simpleName), errorCode = com.kitsugi.animelist.data.platform.PlatformFailureRegistry.reportAndResolve("shikimori", e)
                 )
             }
         }

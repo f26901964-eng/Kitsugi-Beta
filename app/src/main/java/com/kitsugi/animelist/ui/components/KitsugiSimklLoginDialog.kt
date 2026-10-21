@@ -51,7 +51,9 @@ fun KitsugiSimklLoginDialog(
     pinCode: String,
     verificationUrl: String,
     isPolling: Boolean,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
+    errorMessage: String? = null,
+    platformErrorCode: com.kitsugi.animelist.data.platform.PlatformErrorCode? = null
 ) {
     val context = LocalContext.current
     val clipboard = LocalClipboardManager.current
@@ -135,6 +137,21 @@ fun KitsugiSimklLoginDialog(
                             style = MaterialTheme.typography.bodySmall,
                             color = KitsugiColors.TextSecondary
                         )
+                    }
+                    Spacer(modifier = Modifier.height(12.dp))
+                }
+
+                // Hata: mesaj ve platform hata kodu (KTS-SMK-...)
+                if (!errorMessage.isNullOrBlank()) {
+                    Text(
+                        text = errorMessage,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = KitsugiColors.AccentRed,
+                        textAlign = TextAlign.Center
+                    )
+                    platformErrorCode?.let { code ->
+                        Spacer(modifier = Modifier.height(8.dp))
+                        PlatformErrorCodeChip(code = code)
                     }
                     Spacer(modifier = Modifier.height(12.dp))
                 }

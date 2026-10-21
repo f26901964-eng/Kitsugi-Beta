@@ -1,6 +1,8 @@
 package com.kitsugi.animelist.ui.screens.profile
 
 import androidx.lifecycle.ViewModel
+import com.kitsugi.animelist.data.platform.PlatformErrorCode
+import com.kitsugi.animelist.data.platform.PlatformFailureRegistry
 import androidx.lifecycle.viewModelScope
 import com.kitsugi.animelist.data.remote.KitsugiApiBase
 import com.kitsugi.animelist.data.remote.cleanApiText
@@ -51,7 +53,8 @@ data class UserMediaListItem(
 data class UserMediaListUiState(
     val isLoading: Boolean = true,
     val items: List<UserMediaListItem> = emptyList(),
-    val error: String? = null
+    val error: String? = null,
+    val errorCode: PlatformErrorCode? = null
 )
 
 /**
@@ -98,7 +101,8 @@ class KitsugiUserMediaListViewModel : ViewModel() {
                     _uiState.value = UserMediaListUiState(
                         isLoading = false,
                         items = emptyList(),
-                        error = KitsugiStrings.get(R.string.profile_user_load_failed)
+                        error = KitsugiStrings.get(R.string.profile_user_load_failed),
+                        errorCode = PlatformFailureRegistry.currentOrUnknown("anilist")
                     )
                     return@supervisorScope
                 }
@@ -115,7 +119,8 @@ class KitsugiUserMediaListViewModel : ViewModel() {
                 _uiState.value = UserMediaListUiState(
                     isLoading = false,
                     items = baseItems,
-                    error = partialError
+                    error = partialError,
+                    errorCode = if (partialError != null) PlatformFailureRegistry.currentOrUnknown("anilist") else null
                 )
 
                 val favoriteIds = favoritesRequest.await()

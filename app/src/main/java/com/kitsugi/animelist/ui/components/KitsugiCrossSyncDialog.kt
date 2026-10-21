@@ -311,7 +311,7 @@ fun KitsugiCrossSyncDialog(
                             compact = true
                         )
                         if (looksStalled) StalledBanner()
-                        if (!state.errorMessage.isNullOrBlank()) ErrorBanner(state.errorMessage)
+                        if (!state.errorMessage.isNullOrBlank()) ErrorBanner(state.errorMessage, state.errorCode)
                         PlatformStatsSection(state = state, layoutAsGrid = true)
                         ActionButtons(
                             state = state,
@@ -366,7 +366,7 @@ fun KitsugiCrossSyncDialog(
                         compact = false
                     )
                     if (looksStalled) StalledBanner()
-                    if (!state.errorMessage.isNullOrBlank()) ErrorBanner(state.errorMessage)
+                    if (!state.errorMessage.isNullOrBlank()) ErrorBanner(state.errorMessage, state.errorCode)
                     PlatformStatsSection(state = state, layoutAsGrid = false)
                     LogHeader(
                         state = state,
@@ -643,21 +643,29 @@ private fun StalledBanner() {
 }
 
 @Composable
-private fun ErrorBanner(message: String) {
+private fun ErrorBanner(
+    message: String,
+    code: com.kitsugi.animelist.data.platform.PlatformErrorCode? = null
+) {
     Surface(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(10.dp),
         color = ERROR_COLOR.copy(alpha = 0.08f),
         border = BorderStroke(1.dp, ERROR_COLOR.copy(alpha = 0.3f))
     ) {
-        Text(
-            text = stringResource(R.string.hata_x, message),
-            modifier = Modifier.padding(10.dp),
-            style = MaterialTheme.typography.bodySmall,
-            color = ERROR_COLOR,
-            maxLines = 4,
-            overflow = TextOverflow.Ellipsis
-        )
+        Column(modifier = Modifier.padding(10.dp)) {
+            Text(
+                text = stringResource(R.string.hata_x, message),
+                style = MaterialTheme.typography.bodySmall,
+                color = ERROR_COLOR,
+                maxLines = 4,
+                overflow = TextOverflow.Ellipsis
+            )
+            code?.let {
+                Spacer(modifier = Modifier.height(6.dp))
+                PlatformErrorCodeChip(code = it)
+            }
+        }
     }
 }
 

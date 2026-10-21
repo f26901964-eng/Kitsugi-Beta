@@ -6,6 +6,7 @@
 package com.kitsugi.animelist.ui.screens.profile
 
 import android.content.res.Configuration
+import com.kitsugi.animelist.ui.components.PlatformErrorCodeChip
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.tween
@@ -367,6 +368,7 @@ fun KitsugiUserMediaListScreen(
                                 color = colors.textMuted,
                                 style = MaterialTheme.typography.bodyMedium
                             )
+                            state.errorCode?.let { code -> PlatformErrorCodeChip(code = code) }
                             Box(
                                 modifier = Modifier
                                     .clip(RoundedCornerShape(14.dp))
@@ -417,6 +419,12 @@ fun KitsugiUserMediaListScreen(
                                     style = MaterialTheme.typography.bodySmall,
                                     modifier = Modifier.padding(start = 4.dp, bottom = 8.dp)
                                 )
+                                state.errorCode?.let { code ->
+                                    PlatformErrorCodeChip(
+                                        code = code,
+                                        modifier = Modifier.padding(start = 4.dp, bottom = 8.dp)
+                                    )
+                                }
                             }
                         }
 

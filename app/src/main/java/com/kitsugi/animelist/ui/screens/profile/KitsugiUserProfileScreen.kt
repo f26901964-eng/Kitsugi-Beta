@@ -6,6 +6,8 @@
 package com.kitsugi.animelist.ui.screens.profile
 
 import com.kitsugi.animelist.ui.theme.gradient.Icon
+import com.kitsugi.animelist.data.platform.PlatformErrorCode
+import com.kitsugi.animelist.ui.components.PlatformErrorCodeChip
 import com.kitsugi.animelist.ui.theme.gradient.Text
 
 import android.content.res.Configuration
@@ -195,6 +197,24 @@ fun KitsugiUserProfileScreen(
                         .padding(horizontal = if (isLandscape) 18.dp else 16.dp),
                     verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
+                    // ── Yükleme / işlem hatası: mesaj ve platform hata kodu ──
+                    state.error?.let { errorText ->
+                        item {
+                            Column(
+                                modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                Text(
+                                    text = errorText,
+                                    color = KitsugiColors.TextMuted,
+                                    style = MaterialTheme.typography.bodyMedium
+                                )
+                                state.errorCode?.let { code -> PlatformErrorCodeChip(code = code) }
+                            }
+                        }
+                    }
+
                     // ── Banner + avatar header ────────────────────────────
                     item {
                         UserProfileHeaderCard(

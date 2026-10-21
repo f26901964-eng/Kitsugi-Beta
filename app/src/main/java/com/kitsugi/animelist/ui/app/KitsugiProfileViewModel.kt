@@ -1,6 +1,8 @@
 package com.kitsugi.animelist.ui.app
 
 import com.kitsugi.animelist.data.remote.JikanGateway
+import com.kitsugi.animelist.data.platform.PlatformErrorCode
+import com.kitsugi.animelist.data.platform.PlatformFailureRegistry
 import android.app.Application
 import android.content.Context
 import androidx.compose.runtime.getValue
@@ -518,7 +520,7 @@ class KitsugiProfileViewModel(application: Application) : AndroidViewModel(appli
             } catch (e: Exception) {
                 val errorCode = PlatformErrorCatalog.classify(platform = ListPlatform.ANILIST, error = e)
                 val userMessage = PlatformErrorCatalog.conciseBilingual(context, errorCode)
-                _aniListState.update { it.copy(isLoading = false, error = userMessage) }
+                _aniListState.update { it.copy(isLoading = false, error = userMessage, errorCode = errorCode) }
             }
         }
     }
@@ -1370,7 +1372,8 @@ class KitsugiProfileViewModel(application: Application) : AndroidViewModel(appli
                 }
 
             } catch (e: Exception) {
-                _malState.update { it.copy(isLoading = false, error = KitsugiStrings.get(R.string.profile_mal_load_failed)) }
+                val failureCode = PlatformFailureRegistry.reportAndResolve("mal", e)
+                _malState.update { it.copy(isLoading = false, error = KitsugiStrings.get(R.string.profile_mal_load_failed), errorCode = failureCode) }
             }
         }
     }
@@ -1909,7 +1912,8 @@ class KitsugiProfileViewModel(application: Application) : AndroidViewModel(appli
                     )
                 }
             } catch (e: Exception) {
-                _simklState.update { it.copy(isLoading = false, error = KitsugiStrings.get(R.string.profile_simkl_load_failed)) }
+                val failureCode = PlatformFailureRegistry.reportAndResolve("simkl", e)
+                _simklState.update { it.copy(isLoading = false, error = KitsugiStrings.get(R.string.profile_simkl_load_failed), errorCode = failureCode) }
             }
         }
     }
@@ -2062,11 +2066,13 @@ class KitsugiProfileViewModel(application: Application) : AndroidViewModel(appli
                 }
             } catch (e: Exception) {
                 android.util.Log.e("ProfileViewModel", "Kitsu profile fetch failed: ${e.message}")
+                val failureCode = PlatformFailureRegistry.reportAndResolve("kitsu", e)
                 _kitsuState.update {
                     it.copy(
                         isConnected = true,
                         isLoading = false,
-                        error = KitsugiStrings.get(R.string.profile_load_failed)
+                        error = KitsugiStrings.get(R.string.profile_load_failed),
+                        errorCode = failureCode
                     )
                 }
             }
@@ -2118,8 +2124,9 @@ class KitsugiProfileViewModel(application: Application) : AndroidViewModel(appli
             } catch (e: kotlinx.coroutines.CancellationException) {
                 throw e
             } catch (e: Exception) {
+                val failureCode = PlatformFailureRegistry.reportAndResolve("bangumi", e)
                 _bangumiState.update {
-                    it.copy(isLoading = false, error = KitsugiStrings.get(R.string.profile_bangumi_load_failed))
+                    it.copy(isLoading = false, error = KitsugiStrings.get(R.string.profile_bangumi_load_failed), errorCode = failureCode)
                 }
             }
         }
@@ -2254,11 +2261,13 @@ class KitsugiProfileViewModel(application: Application) : AndroidViewModel(appli
                 }
             } catch (e: Exception) {
                 android.util.Log.e("ProfileViewModel", "Shikimori profile fetch failed: ${e.message}")
+                val failureCode = PlatformFailureRegistry.reportAndResolve("shikimori", e)
                 _shikimoriState.update {
                     it.copy(
                         isConnected = true,
                         isLoading = false,
-                        error = KitsugiStrings.get(R.string.profile_load_failed)
+                        error = KitsugiStrings.get(R.string.profile_load_failed),
+                        errorCode = failureCode
                     )
                 }
             }
@@ -2442,6 +2451,7 @@ data class AniListProfileState(
     val isConnected: Boolean = false,
     val isLoading: Boolean = false,
     val error: String? = null,
+    val errorCode: PlatformErrorCode? = null,
     val userId: Int? = null,
     val name: String = "",
     val avatarUrl: String? = null,
@@ -2479,6 +2489,7 @@ data class MalProfileState(
     val isConnected: Boolean = false,
     val isLoading: Boolean = false,
     val error: String? = null,
+    val errorCode: PlatformErrorCode? = null,
     val name: String = "",
     val avatarUrl: String? = null,
     val location: String = "",
@@ -2616,6 +2627,7 @@ data class SimklProfileState(
     val isConnected: Boolean = false,
     val isLoading: Boolean = false,
     val error: String? = null,
+    val errorCode: PlatformErrorCode? = null,
     val name: String = "",
     val avatarUrl: String? = null,
     val joinedAt: String? = null,
@@ -2641,6 +2653,7 @@ data class KitsuProfileState(
     val isConnected: Boolean = false,
     val isLoading: Boolean = false,
     val error: String? = null,
+    val errorCode: PlatformErrorCode? = null,
     val id: String = "",
     val name: String = "",
     val avatarUrl: String? = null,
@@ -2676,6 +2689,7 @@ data class BangumiProfileState(
     val isConnected: Boolean = false,
     val isLoading: Boolean = false,
     val error: String? = null,
+    val errorCode: PlatformErrorCode? = null,
     val userId: Long = 0L,
     val userName: String = "",
     val nickname: String = "",
@@ -2693,6 +2707,7 @@ data class ShikimoriProfileState(
     val isConnected: Boolean = false,
     val isLoading: Boolean = false,
     val error: String? = null,
+    val errorCode: PlatformErrorCode? = null,
     val id: Int = 0,
     val name: String = "",
     val avatarUrl: String? = null,
