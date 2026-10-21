@@ -2,7 +2,7 @@
 
 > **Bu dosya devir teslim dosyasıdır.** Yeni bir dal/şube işi buradan devralır.
 > Son güncelleme: **2026-10-21** · Chunk **001 + 002 + 003 + 004a…c + 005a…c + 006 (etiket 20–99)** tamamlandı, uygulamaya işlendi.
-> **GÜNCEL DEVİR (006 sonrası):** dal **`arena/8a37df7c-kitsugi-beta`**; PR **#25** (006) — numara kapanışta işlenir.
+> **GÜNCEL DEVİR (006 sonrası):** dal **`arena/8a37df7c-kitsugi-beta`**; **PR #25**: https://github.com/f26901964-eng/Kitsugi-Beta/pull/25 (006, merge edilmedi).
 > **Sıradaki iş: 007 (etiket count <20 · 59.510)** + count=0 kurum kuyruğu (**376**). Etiket 20–99 bandında **0 kararsız** kaldı.
 > Sağlık hedefi: **52.219 bangumi_* anahtar · 51.104 vault kaydı · 61.398 map · 121.284 damga**.
 > Aşağıdaki eski PR/dal açıklamaları TARİHÇEDİR; başka dala geçme/reset yapma.
