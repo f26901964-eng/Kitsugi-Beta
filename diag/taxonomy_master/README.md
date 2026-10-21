@@ -56,7 +56,7 @@ python3 scripts/check_localization_resource_parity.py
 `status = EKSIK` ile sona eklenir. Çeviri ekibi bu dosyayı düzeltip sözlüğe işler;
 dil dosyası override'ı sayesinde kod değişikliği **gerekmez**.
 
-Bu dosya Google Drive'a yüklenir (`Kitsugi_Ortak_Taksonomi_v2.4.337.zip` içinde).
+Bu dosya Google Drive'a yüklenir (`Kitsugi_Ortak_Taksonomi_v2.4.339.zip` içinde).
 
 ## Yeni dil ekleme
 

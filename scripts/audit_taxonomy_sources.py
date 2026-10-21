@@ -37,6 +37,10 @@ CHECKS = [
     ("MAL/Jikan", "data/remote/KitsugiMalDetailClient.kt", "serializations", '"serializations"', "dergiler"),
     ("MAL/Jikan", "data/remote/KitsugiMalDetailClient.kt", "publishers", '"publishers"', "yayıncılar (manga)"),
     ("MAL/Jikan", "data/remote/KitsugiMalDetailClient.kt", "authors", '"authors"', "yazarlar (manga)"),
+    ("MAL/Jikan", "data/remote/KitsugiTaxonomySources.kt", "serializations", '"serializations"', "dergi (çapraz toplayıcı)"),
+    ("MAL/Jikan", "data/remote/KitsugiTaxonomySources.kt", "publishers", '"publishers"', "yayınevi (çapraz toplayıcı)"),
+    ("Shikimori", "data/remote/KitsugiTaxonomySources.kt", "licensors", '"licensors"', "lisans veren (çapraz toplayıcı)"),
+    ("Simkl", "data/remote/KitsugiTaxonomySources.kt", "network", '"network"', "kanal (çapraz toplayıcı)"),
 
     # ── Bangumi ─────────────────────────────────────────────────────────────
     ("Bangumi", "data/remote/KitsugiBangumiDetailClient.kt", "动画制作", "动画制作", "stüdyo (infobox)"),
@@ -50,6 +54,8 @@ CHECKS = [
     ("Shikimori", "data/remote/KitsugiShikimoriClient.kt", "genres", '"genres"', "türler (Rusça)"),
     ("Shikimori", "data/remote/KitsugiShikimoriClient.kt", "kind", "kind", "genre/theme/demographic ayrımı"),
     ("Shikimori", "data/remote/KitsugiShikimoriClient.kt", "studios", '"studios"', "stüdyolar"),
+    ("Shikimori", "data/remote/KitsugiShikimoriClient.kt", "licensors", '"licensors"', "lisans verenler"),
+    ("Shikimori", "data/remote/KitsugiShikimoriClient.kt", "publishers", '"publishers"', "yayınevleri (manga)"),
 
     # ── Kitsu ───────────────────────────────────────────────────────────────
     ("Kitsu", "data/remote/KitsuClient.kt", "categories", "categories", "kategoriler (tür + etiket)"),
@@ -57,6 +63,7 @@ CHECKS = [
 
     # ── Simkl ───────────────────────────────────────────────────────────────
     ("Simkl", "data/remote/KitsugiSimklDetailClient.kt", "genres", '"genres"', "türler"),
+    ("Simkl", "data/remote/KitsugiSimklDetailClient.kt", "network", '"network"', "yayın kanalı"),
 
     # ── TMDB ────────────────────────────────────────────────────────────────
     ("TMDB", "data/remote/TmdbMediaDetailClient.kt", "genres", '"genres"', "türler"),
@@ -73,6 +80,7 @@ CROSS_SOURCES = [
     ("Kitsu", "fetchKitsu"),
     ("Bangumi", "fetchBangumi"),
     ("TMDB", "fetchTmdb"),
+    ("Simkl", "fetchSimkl"),
 ]
 
 # Birleştirme tavanları — "sayısal olarak az geldi" geri dönmesin diye alt sınırlar.

@@ -276,3 +276,42 @@ gen_bangumi_master.py --check       → 365 org satırı, sözlük yazılmadı (
 check_bangumi_meta_tag_coverage.py  → 158 resmî meta etiket, 0 eksik
 ktcheck (tree-sitter-kotlin)        → değişen tüm .kt dosyaları temiz
 ```
+
+---
+
+## 8) Dördüncü tur (v2.4.339) — API sözleşmesi ↔ kod denetimi
+
+Bu turda yedi kaynağın **API yanıt alanları** koda karşı tek tek okundu. Dört gerçek eksik
+bulundu; hepsi "alan var, kod okumuyor" tipindeydi.
+
+| # | Kaynak | Bulgu | Kanıt | Düzeltme |
+|---|---|---|---|---|
+| **KN-20** | Shikimori | `licensors` (anime) ve `publishers` (manga) **hiç okunmuyordu** → lisans veren/yayınevi listesi her zaman boş | `fetchDetail` yalnız `genres` + `studios` okuyordu | `parseShikimoriOrgArray()` (string **ve** nesne dizisi) + detay + çapraz toplayıcı |
+| **KN-21** | Simkl | `studios = emptyList()` **sabitti**; `network` alanı yok sayılıyordu | `KitsugiSimklDetailClient` 406–408 | `network` / `networks` → Kanal; Simkl **7. çapraz kaynak** oldu |
+| **KN-22** | MAL/Jikan | Manga `serializations` (dergi) ve `publishers` (yayınevi) çapraz toplayıcıda okunmuyordu | `fetchJikan` yalnız studios/producers/licensors | İkisi `fetchJikan`'e eklendi |
+| **KN-23** | Kitsu | Manga detayı `mangaProductions` ilişkisini **istemiyordu** | `include=categories` | `categories,mangaProductions.producer` + 400 yedeği |
+
+### Kaynak başına kurum katkısı (v2.4.339)
+
+| Kaynak | Stüdyo | Yapımcı | Lisans | Yayıncı | Kanal | Dergi |
+|---|---|---|---|---|---|---|
+| AniList | ✔ | — | — | — | — | — |
+| MAL/Jikan | ✔ | ✔ | ✔ | ✔ (manga) | — | ✔ (manga) |
+| Bangumi | ✔ | ✔ | — | ✔ (manga) | ✔ | ✔ |
+| Shikimori | ✔ | — | ✔ | ✔ (manga) | — | — |
+| Kitsu | ✔ | ✔ | ✔ | ✔ | ✔ | ✔ |
+| TMDB | ✔ | ✔ | — | — | ✔ | — |
+| Simkl | — | — | — | — | ✔ | — |
+
+Hiçbir kaynakta "API alanı var ama kod okumuyor" durumu kalmadı; denetim bunu **35 alan +
+7 çapraz kaynak** ile zorunlu kılıyor.
+
+### Doğrulama (dördüncü tur)
+
+```
+audit_taxonomy_sources.py --strict  → 35 alan · 7 kaynak · 7 çapraz kaynak · eksik yok
+check_taxonomy_master.py            → 114 sözlük girişi, 79 resmî tür, 0 uyarı
+sync_taxonomy_tag_strings.py --check / sync_bangumi_tag_strings.py --check → güncel
+check_localization_resource_parity.py → 17.795 string + 4 dizi
+ktcheck (tree-sitter-kotlin)        → değişen tüm .kt dosyaları temiz
+```

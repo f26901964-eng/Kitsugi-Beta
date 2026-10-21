@@ -1,51 +1,57 @@
 # Kaynak Kapsama Raporu — tür / etiket / kurum
 
-**Sürüm:** v2.4.338 · **Tarih:** 2026-10-21 · **Doğrulayan:** `scripts/audit_taxonomy_sources.py --strict`
+**Sürüm:** v2.4.339 · **Tarih:** 2026-10-21 · **Doğrulayan:** `scripts/audit_taxonomy_sources.py --strict`
 
 Bu rapor, desteklenen **yedi detay kaynağının** her biri için hangi alanların okunduğunu,
-çapraz toplayıcının hangi **altı kaynağı** paralel çağırdığını ve hangi tavanların geçerli
+çapraz toplayıcının hangi **yedi kaynağı** paralel çağırdığını ve hangi tavanların geçerli
 olduğunu gösterir. Denetim kodu tarar: bir alan veya tavan sessizce düşerse CI kırılır.
 
 ---
 
 ## 1) Kapsama matrisi
 
-| Kaynak | Tür | Etiket | Stüdyo | Yapımcı | Kanal | Yayıncı | Dergi |
-|---|---|---|---|---|---|---|---|
-| **AniList** | `genres` | `tags` (rank + spoiler) | `studios` (`isMain` dahil, hepsi) | — | — | — | — |
-| **MAL/Jikan** | `genres`, `explicit_genres` | `themes`, `demographics` | `studios` | `producers`, `licensors` (`LICENSOR`) | — | `publishers` (manga) | `serializations` |
-| **Bangumi** | 类型 (meta etiketler) | `tags` (**400'e kadar**) | 动画制作 · アニメーション制作 | 製作 · 製作委員会 · 制作協力 · 音楽制作 · レーベル · 配給 | 播放电视台 · 放送局 | 出版社 | 连载杂志 · 掲載誌 |
-| **Shikimori** | `genres` (`kind=genre`) | `kind=theme` / `demographic` | `studios` | — | — | — | — |
-| **Kitsu** | `categories` | `categories` | `animeProductions` (`role=studio`) | `role=producer` / `licensor` | `role=network` | `role=publisher` | `role=magazine` |
-| **Simkl** | `genres` | `genres` | — *(API vermiyor)* | — | — | — | — |
-| **TMDB** | `genres` | `keywords` | `production_companies[0]` | `production_companies[1…]` | `networks` | — | — |
+| Kaynak | Tür | Etiket | Stüdyo | Yapımcı | Lisans | Yayıncı | Kanal | Dergi |
+|---|---|---|---|---|---|---|---|---|
+| **AniList** | `genres` | `tags` (rank + spoiler) | `studios` (isMain dahil, hepsi) | — | — | — | — | — |
+| **MAL/Jikan** | `genres`, `explicit_genres` | `themes`, `demographics` | `studios` | `producers` | `licensors` | `publishers` (manga) | — | `serializations` |
+| **Bangumi** | 类型 (meta etiketler) | `tags` (400'e kadar) | 动画制作 · アニメーション制作 | 製作 · 製作委員会 · 制作協力 · 音楽制作 · レーベル · 配給 | — | 出版社 (manga) | 播放电视台 · 放送局 | 连载杂志 · 掲載誌 |
+| **Shikimori** | `genres` (`kind=genre`) | `kind=theme` / `demographic` | `studios` | — | **`licensors`** | **`publishers`** (manga) | — | — |
+| **Kitsu** | `categories` | `categories` | `animeProductions` (`role=studio`) | `role=producer` | `role=licensor` | `role=publisher` | `role=network` | `role=magazine` |
+| **TMDB** | `genres` | `keywords` | `production_companies[0]` | `production_companies[1…]` | — | — | `networks` | — |
+| **Simkl** | `genres` | `genres` | — *(API vermiyor)* | — *(API vermiyor)* | — | — | **`network`** | — |
 
-**Neden Simkl'de kurum yok:** Simkl API'si (`/{type}/{id}?extended=full`) yalnızca `genres`,
-`ids`, `ratings` gibi alanlar döndürür; stüdyo/yapımcı alanı **yayınlamaz**. Simkl'den açılan
-sayfalar bu açığı çapraz toplayıcıdan (MAL + AniList + Shikimori + Kitsu + Bangumi + TMDB) kapatır.
+**v2.4.339'da kapatılan son boşluklar**
+
+| Kaynak | Eksik olan | Nasıl düzeltildi |
+|---|---|---|
+| Shikimori | `licensors`, `publishers` hiç okunmuyordu | `parseShikimoriOrgArray()` — hem string hem nesne dizisi |
+| Simkl | `network` okunmuyordu, `studios` sabit boştu | `network` + `networks` → Kanal |
+| MAL/Jikan | manga `serializations`, `publishers` çapraz toplayıcıda yoktu | `fetchJikan` içine eklendi |
+| Kitsu | manga `mangaProductions` istenmiyordu | `include=categories,mangaProductions.producer` + 400 yedeği |
 
 ---
 
-## 2) Çapraz toplayıcı — **6 kaynak, tek havuz**
+## 2) Çapraz toplayıcı — **7 kaynak, tek havuz**
 
-`KitsugiTaxonomySources.collect()` her detay açılışında altı servisi **paralel** sorgular
+`KitsugiTaxonomySources.collect()` her detay açılışında yedi servisi **paralel** sorgular
 (kaynak başına 5,5 sn, toplam 8 sn tavan):
 
 | Kaynak | Getirilen | Kimlik çözümü |
 |---|---|---|
-| Jikan | genres · explicit_genres · themes · demographics · studios · producers · licensors | MAL kimliği |
+| Jikan | genres · explicit_genres · themes · demographics · studios · producers · licensors · serializations · publishers | MAL kimliği |
 | AniList | genres · tags (rank, spoiler) · studios (isMain) | AniList/MAL kimliği |
-| Shikimori | genres (`kind`) · studios | MAL kimliği + `myanimelist_id` doğrulaması |
+| Shikimori | genres (`kind`) · studios · licensors · publishers | MAL kimliği + `myanimelist_id` doğrulaması |
 | Kitsu | categories · productions (rol) | `mappings` → `myanimelist/{anime,manga}` |
-| **Bangumi** | tags + infobox kurumları | **normalize tam başlık** + yıl ±1 |
-| **TMDB** | genres · keywords · production_companies · networks | TMDB kimliği |
+| Bangumi | tags + infobox kurumları | **normalize tam başlık** + yıl ±1 |
+| TMDB | genres · keywords · production_companies · networks | TMDB kimliği |
+| **Simkl** | genres · network | başlık araması + normalize eşleşme (+ yıl ±1) |
 
 Cihaz günlüğünde kaynak bazlı sayaç basılır:
 
 ```
 KitsugiTaxonomySources: Kaynak bazlı: jikan=5t/12e/4k | anilist=4t/38e/2k |
-shikimori=6t/9e/1k | kitsu=6t/4e/3k | bangumi=5t/120e/9k | tmdb=4t/15e/7k
-Taksonomi toplandı: tür=12 etiket=185 stüdyo=4 yapımcı=14
+shikimori=6t/9e/3k | kitsu=6t/4e/3k | bangumi=5t/120e/9k | tmdb=4t/15e/7k | simkl=6t/0e/1k
+Taksonomi toplandı: tür=12 etiket=185 stüdyo=4 yapımcı=16
 ```
 
 `yok` = o kaynakta kimlik/başlık çözülemedi; diğerleri etkilenmez.
@@ -55,9 +61,9 @@ yani sayfanın hangi kaynaktan açıldığı sonucu değiştirmez.
 
 ---
 
-## 3) Tavanlar (v2.4.338)
+## 3) Tavanlar (v2.4.339)
 
-| Alan | v2.4.337 | v2.4.338 |
+| Alan | v2.4.337 | v2.4.339 |
 |---|---|---|
 | Bangumi etiketleri | 40 | **400** |
 | Bangumi türleri | 12 | **64** |
@@ -79,14 +85,16 @@ Bu değerlerin altına inilmesi `audit_taxonomy_sources.py` tarafından **hata**
 3. **Kimliği olan kayıt tercih edilir** — aynı kurum iki kaynakta geçiyorsa tıklanabilir olan
    (MAL/AniList/Bangumi person-id) korunur.
 4. **Kiril/Çince sızıntısı yok**: `toLocalizedOrgName` → sözlük; sözlükte yoksa Latin harflerine
-   çevrilir; kaomoji/infobox artığı adlar (`っ´Д`)っゼロ式の家`) gösterilmez.
-5. **Dergi/yayınevi ayrı bölüm**: "Yayıncı Ağlar" ile karışmaz.
+   çevrilir; kaomoji/infobox artığı adlar gösterilmez.
+5. **Dergi/yayınevi ayrı bölüm**: "Yayıncı Ağlar" ile karışmaz. Yayınevleri `PUBLISHER`,
+   dergiler `MAGAZINE` rolündedir.
 
 ---
 
 ## 5) Otomatik denetimin kapsadığı üç eksen
 
-1. **Alan kapsaması** — 28 alan + 6 çapraz kaynak.
+1. **Alan kapsaması** — **35 alan** + **7 çapraz kaynak** (Shikimori licensors/publishers,
+   Simkl network, MAL manga serializations/publishers dahil).
 2. **Tavan alt sınırları** — tür ≥160, etiket ≥600, kurum ≥256, Bangumi etiketi ≥400.
 3. **Kurum eksilten çağrı yasağı** — `dropProducersThatAreStudios` geri gelirse CI kırılır.
 
@@ -104,8 +112,9 @@ TMDB        keywords                  ✔ okundu
   Kitsu      ✔
   Bangumi    ✔
   TMDB       ✔
+  Simkl      ✔
 
-Toplam 28 alan denetlendi · 7 kaynak
+Toplam 35 alan denetlendi · 7 kaynak
 TÜM KAYNAKLAR BEKLENEN ALANLARI OKUYOR — eksik yok.
 ```
 
@@ -115,6 +124,6 @@ TÜM KAYNAKLAR BEKLENEN ALANLARI OKUYOR — eksik yok.
 
 1. `adb logcat -s KitsugiTaxonomySources KitsugiDetailClient KitsugiBangumiDetailClient`
 2. Aynı yapımı iki farklı kaynaktan açın (MAL ve Bangumi). **Tür/etiket/kurum listeleri aynı
-   olmalı** — çünkü ikisi de aynı altı kaynağı birleştiriyor.
+   olmalı** — çünkü ikisi de aynı yedi kaynağı birleştiriyor.
 3. `KitsugiDetailClient: Birleşik taksonomi: …` satırı nihai sayıları verir.
 4. Etiket sayısı beklediğinizden düşükse ilgili kaynağın `yok` yazıp yazmadığına bakın.

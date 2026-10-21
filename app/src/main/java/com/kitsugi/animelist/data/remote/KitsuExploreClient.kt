@@ -543,23 +543,28 @@ object KitsuExploreClient {
     private suspend fun fetchMangaDetailOnce(kitsuId: String, authToken: String?): KitsugiMediaDetail? =
         withContext(Dispatchers.IO) {
             try {
-                val url = KitsuApiHost.url("/manga/$kitsuId?include=categories")
-                val builder = Request.Builder()
-                    .url(url)
-                    .header("Accept", "application/vnd.api+json")
-                    .header("Content-Type", "application/vnd.api+json")
-                    .header("User-Agent", "Kitsugi/1.0 (Android)")
-                if (authToken != null) builder.header("Authorization", "Bearer $authToken")
-                val request = builder.build()
-
-                KitsugiHttpClient.client.newCall(request).execute().use { response ->
-                    if (!response.isSuccessful) return@withContext null
-                    val body = response.body?.string() ?: return@withContext null
-                    val root = JSONObject(body)
-                    val dataObj = root.optJSONObject("data") ?: return@withContext null
-                    val includedArr = root.optJSONArray("included")
-                    parseMangaDetail(dataObj, includedArr)
+                // Manga yapım ilişkisi (`mangaProductions`) da istenir: yayınevi ve dergi
+                // bilgisi yalnızca bu ilişkiden gelir. Uç reddederse (400) ilişkisiz
+                // isteğe düşülür — sayfa hiç açılmaz hâle gelmesin.
+                fun load(include: String): KitsugiMediaDetail? {
+                    val url = KitsuApiHost.url("/manga/$kitsuId?include=$include")
+                    val builder = Request.Builder()
+                        .url(url)
+                        .header("Accept", "application/vnd.api+json")
+                        .header("Content-Type", "application/vnd.api+json")
+                        .header("User-Agent", "Kitsugi/1.0 (Android)")
+                    if (authToken != null) builder.header("Authorization", "Bearer $authToken")
+                    return KitsugiHttpClient.client.newCall(builder.build()).execute().use { response ->
+                        if (!response.isSuccessful) return null
+                        val body = response.body?.string() ?: return null
+                        val root = JSONObject(body)
+                        val dataObj = root.optJSONObject("data") ?: return null
+                        val includedArr = root.optJSONArray("included")
+                        parseMangaDetail(dataObj, includedArr)
+                    }
                 }
+
+                load("categories,mangaProductions.producer") ?: load("categories")
             } catch (e: Exception) {
                 Log.e(TAG, "Error fetching Kitsu manga detail: ${e.message}", e)
                 null

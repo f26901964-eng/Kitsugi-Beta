@@ -1,4 +1,4 @@
-# PLAN & TASK — Tüm kaynaklar için ortak tür / etiket / kurum katmanı (v2.4.338)
+# PLAN & TASK — Tüm kaynaklar için ortak tür / etiket / kurum katmanı (v2.4.339)
 
 **Tarih:** 2026-10-21 · **Dal:** `arena/a610f459-kitsugi-beta` · **Taban:** `971abf1`
 **Kök neden raporu:** [KOK_NEDEN_RAPORU_TUR_ETIKET_KURUM_EKSIKLERI_2026-10-21.md](KOK_NEDEN_RAPORU_TUR_ETIKET_KURUM_EKSIKLERI_2026-10-21.md)
@@ -162,18 +162,18 @@ sayfa asıl detayla açılmaya devam eder. Sonuç `DetailCache` + Room'a yazıl�
 
 ## 7) Drive paketi
 
-`Kitsugi_Ortak_Taksonomi_v2.4.337.zip` içeriği:
+`Kitsugi_Ortak_Taksonomi_v2.4.339.zip` içeriği:
 
 - `PLAN_TASK_TUM_KAYNAKLAR_ORTAK_TAKSONOMI_2026-10-21.md`
 - `KOK_NEDEN_RAPORU_TUR_ETIKET_KURUM_EKSIKLERI_2026-10-21.md`
-- `release_notes_v2.4.337.md`
+- `release_notes_v2.4.339.md`
 - `diag/taxonomy_master/worklist.tsv`
 - `diag/taxonomy_master/README.md`
-- `Kitsugi_Ortak_Taksonomi_v2.4.337.patch` (tam diff)
+- `Kitsugi_Ortak_Taksonomi_v2.4.339.patch` (tam diff)
 
 ---
 
-## 8) Üçüncü tur işleri (v2.4.338) — tavanlar, rol bütünlüğü, 6 kaynak
+## 8) Üçüncü tur işleri (v2.4.339) — tavanlar, rol bütünlüğü, 6 kaynak
 
 | # | İş | Durum | Dosya |
 |---|---|---|---|
@@ -198,3 +198,27 @@ sayfa asıl detayla açılmaya devam eder. Sonuç `DetailCache` + Room'a yazıl�
 | D10 | TV dizisi (TMDB) | Kanallar ayrı bölümde; dergi/yayınevi varsa **“Dergi / Yayın”** başlığı altında |
 | D11 | Aynı yapım MAL ve Bangumi'den açılır | Tür/etiket/kurum kümeleri **aynı** (6 kaynak ortak havuz) |
 | D12 | Logcat | `Kaynak bazlı:` satırında 6 kaynak; `Birleşik taksonomi:` nihai sayılar |
+
+---
+
+## 9) Dördüncü tur işleri (v2.4.339) — kaynak kaynak son boşluklar
+
+| # | İş | Durum | Dosya |
+|---|---|---|---|
+| T36 | Shikimori `licensors` + `publishers` ayrıştırma (string/nesne) | ✅ | `KitsugiShikimoriClient` |
+| T37 | Shikimori kurumları detay + çapraz toplayıcıya bağlandı | ✅ | `KitsugiShikimoriClient`, `KitsugiTaxonomySources` |
+| T38 | Simkl `network` → Kanal; `studios` sabit boş kaldırıldı | ✅ | `KitsugiSimklDetailClient` |
+| T39 | Simkl çapraz toplayıcıya eklendi (başlık + normalize eşleşme) | ✅ | `KitsugiTaxonomySources.fetchSimkl` |
+| T40 | Jikan manga `serializations` + `publishers` çapraz toplayıcıda | ✅ | `KitsugiTaxonomySources.fetchJikan` |
+| T41 | Kitsu manga `mangaProductions` isteği + 400 yedeği | ✅ | `KitsuExploreClient` |
+| T42 | Denetim 28 → **35 alan**, 4 → **7 çapraz kaynak** | ✅ | `scripts/audit_taxonomy_sources.py` |
+
+### Yeni kabul ölçütleri
+
+| # | Senaryo | Beklenen |
+|---|---|---|
+| D13 | Shikimori kaynaklı anime | Lisans verenler bölümü dolu (Rusça değil, Latin) |
+| D14 | Simkl kaynaklı dizi/anime | Kanal bölümü dolu |
+| D15 | MAL kaynaklı manga | Dergiler bölümü dolu |
+| D16 | Kitsu kaynaklı manga | Yayınevi/dergi görünüyor |
+| D17 | `audit --strict` | 35 alan + 7 çapraz kaynak, eksik yok |

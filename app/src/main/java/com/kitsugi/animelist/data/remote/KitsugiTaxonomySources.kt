@@ -43,9 +43,9 @@ import java.net.URL
  *    (动画制作 · 製作 · 製作委員会 · 制作協力 · レーベル · 配給 · 播放电视台 · 掲載誌)
  *  • **TMDB** — `genres`, `keywords` (etiket), `production_companies` (stüdyo+yapımcı),
  *    TV'de `networks` (kanal)
+ *  • **Simkl** — `genres` + `network` (yayın kanalı). Stüdyo/yapımcı alanı yayınlamaz.
  *
- * **Simkl** yalnızca tür listesi yayınlar (stüdyo/yapımcı alanı yok); kurum katkısı
- * olmadığı için buraya eklenmez, sayfa Simkl'den açıldığında kendi türleri zaten gelir.
+ * Toplam **yedi kaynak** paralel çalışır ve hepsi tek havuzda birleşir.
  */
 internal object KitsugiTaxonomySources {
 
@@ -181,13 +181,20 @@ internal object KitsugiTaxonomySources {
                         runCatching { fetchTmdb(safeTmdbId, mediaType) }.getOrNull()
                     }
                 }
+                // Simkl: tür + `network` (kanal). Stüdyo/yapımcı alanı yok.
+                val simkl = async(Dispatchers.IO) {
+                    withTimeoutOrNull(SOURCE_TIMEOUT_MS) {
+                        runCatching { fetchSimkl(cleanTitles, year, mediaType) }.getOrNull()
+                    }
+                }
                 val parts = linkedMapOf(
                     "jikan" to jikan.await(),
                     "anilist" to aniList.await(),
                     "shikimori" to shikimori.await(),
                     "kitsu" to kitsu.await(),
                     "bangumi" to bangumi.await(),
-                    "tmdb" to tmdb.await()
+                    "tmdb" to tmdb.await(),
+                    "simkl" to simkl.await()
                 )
                 if (parts.values.all { it == null }) return@coroutineScope null
                 // Kaynak bazlı sayaç: cihaz günlüğünde hangi kaynağın ne kadar veri
@@ -283,11 +290,24 @@ internal object KitsugiTaxonomySources {
             }
         }
 
-        if (genres.isEmpty() && studios.isEmpty()) return null
+        // Lisans verenler (anime) ve yayınevleri (manga) — Shikimori'nin kurum alanları.
+        val licensors = KitsugiShikimoriClient.parseShikimoriOrgArray(
+            data.optJSONArray("licensors"),
+            StudioRole.LICENSOR
+        )
+        val publishers = KitsugiShikimoriClient.parseShikimoriOrgArray(
+            data.optJSONArray("publishers"),
+            StudioRole.PUBLISHER
+        )
+        val producerOrgs = (licensors + publishers)
+            .filter { org -> studios.none { it.name.equals(org.name, ignoreCase = true) } }
+
+        if (genres.isEmpty() && studios.isEmpty() && producerOrgs.isEmpty()) return null
         return Slice(
             genres = genres.distinct(),
             tags = KitsugiSpoilerRules.normalizeAndMergeTags(tags),
             studios = studios,
+            producers = producerOrgs,
             themes = themes.distinct(),
             demographics = demographics.distinct()
         )
@@ -477,12 +497,19 @@ internal object KitsugiTaxonomySources {
         val producers = readOrgs("producers", StudioRole.PRODUCER)
             .filter { candidate -> studios.none { it.name.equals(candidate.name, ignoreCase = true) } }
         val licensors = readOrgs("licensors", StudioRole.LICENSOR)
+        // Manga tarafı: MAL/Jikan `serializations` (dergi), `publishers` (yayınevi) ve
+        // `authors` (yazar) döndürür. Bunlar daha önce çapraz toplayıcıda okunmuyordu;
+        // MAL kaynaklı manga sayfalarında dergi/yayınevi listesi boş kalıyordu.
+        val serializations = readOrgs("serializations", StudioRole.MAGAZINE)
+        val publishers = readOrgs("publishers", StudioRole.PUBLISHER)
 
         return Slice(
             genres = genres.distinct(),
             tags = KitsugiSpoilerRules.normalizeAndMergeTags(tags),
             studios = studios,
-            producers = producers + licensors,
+            // Yayınevleri "Yayıncılar"da, dergiler "Dergiler"de görünür (rol ayrımı korunur).
+            producers = producers + licensors + publishers,
+            serializations = serializations,
             demographics = demographics,
             themes = themes
         )
@@ -561,6 +588,108 @@ internal object KitsugiTaxonomySources {
             serializations = detail.serializations,
             themes = detail.themes,
             demographics = detail.demographics
+        )
+    }
+
+    // ── Simkl ──────────────────────────────────────────────────────────────────
+
+    /**
+     * Simkl'den tür ve **yayın kanalını** (`network`) okur.
+     *
+     * Simkl API'si stüdyo/yapımcı alanı yayınlamaz, bu yüzden kurum katkısı yalnızca
+     * kanaldır. Kimlik, başlık aramasıyla bulunur; **normalize başlık eşleşmesi**
+     * (ve varsa yıl toleransı ±1) doğrulanmadan veri kullanılmaz.
+     */
+    private suspend fun fetchSimkl(
+        titles: List<String>,
+        year: Int?,
+        mediaType: MediaType
+    ): Slice? {
+        if (titles.isEmpty() || mediaType == MediaType.Manga) return null
+        val type = when (mediaType) {
+            MediaType.Movie -> "movie"
+            MediaType.TvShow -> "tv"
+            else -> "anime"
+        }
+        val wanted = titles
+            .map { KitsugiSpoilerRules.normalizeLabel(it) }
+            .filter { it.length >= 3 }
+            .toHashSet()
+        if (wanted.isEmpty()) return null
+
+        val hits = runCatching {
+            SimklApiClient().search(titles.first(), type = type, limit = 6)
+        }.getOrNull()
+        if (hits.isNullOrEmpty()) return null
+
+        val hit = hits.firstOrNull { candidate ->
+            val norm = KitsugiSpoilerRules.normalizeLabel(candidate.title)
+            val titleOk = norm.isNotEmpty() &&
+                (norm in wanted || wanted.any { w -> norm.contains(w) || w.contains(norm) })
+            val candidateYear = candidate.year
+            val targetYear = year
+            val yearOk = if (targetYear == null || candidateYear == null) {
+                true
+            } else {
+                Math.abs(candidateYear - targetYear) <= 1
+            }
+            titleOk && yearOk
+        } ?: return null
+
+        // Simkl arama sonucunda `malId` alanı Simkl kimliğini taşır (MAL kimliği `realMalId`).
+        val simklId = hit.malId
+        if (simklId <= 0) return null
+        val obj = KitsugiSimklDetailClient.fetchSimklRawJson(simklId, mediaType) ?: return null
+
+        val genres = mutableListOf<String>()
+        obj.optJSONArray("genres")?.let { arr ->
+            for (i in 0 until arr.length()) {
+                val name = arr.optString(i, "").trim()
+                if (name.isNotEmpty()) genres.add(name)
+            }
+        }
+
+        val tags = genres
+            .filter {
+                !com.kitsugi.animelist.ui.screens.search.CanonicalFilterBridge
+                    .isOfficialAniListGenre(it)
+            }
+            .map {
+                KitsugiTag(
+                    name = it,
+                    isSpoiler = KitsugiSpoilerRules.isIntrinsicSpoiler(it),
+                    source = "simkl"
+                )
+            }
+
+        val networks = mutableListOf<KitsugiStudio>()
+        fun addNetwork(rawName: String?) {
+            val name = rawName?.trim().orEmpty()
+            if (name.isEmpty() || name == "null") return
+            if (networks.any { it.name.equals(name, ignoreCase = true) }) return
+            networks.add(
+                KitsugiStudio(
+                    id = 0,
+                    name = name,
+                    isMain = false,
+                    source = "simkl",
+                    role = StudioRole.NETWORK
+                )
+            )
+        }
+        addNetwork(obj.optString("network", ""))
+        obj.optJSONArray("networks")?.let { arr ->
+            for (i in 0 until arr.length()) {
+                val item = arr.optJSONObject(i)
+                addNetwork(if (item != null) item.optString("name", "") else arr.optString(i, ""))
+            }
+        }
+
+        if (genres.isEmpty() && networks.isEmpty()) return null
+        return Slice(
+            genres = genres.distinct(),
+            tags = KitsugiSpoilerRules.normalizeAndMergeTags(tags),
+            networks = networks
         )
     }
 

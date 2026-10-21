@@ -532,6 +532,22 @@ object KitsugiShikimoriClient {
                         }
                     }
 
+                    // ── Lisans verenler / yayınevleri ──────────────────────────
+                    // Shikimori `licensors` DÜZ STRING dizisidir (bazı kayıtlarda nesne),
+                    // `publishers` (manga) ise nesne dizisidir. İkisi de kurumdur; daha önce
+                    // hiç okunmuyordu → Shikimori kaynaklı sayfalarda lisans veren/yayıncı
+                    // listesi boş görünüyordu. Rusça adlar Latin harflerine çevrilir.
+                    val shikiLicensors = parseShikimoriOrgArray(
+                        data.optJSONArray("licensors"),
+                        StudioRole.LICENSOR
+                    )
+                    val shikiPublishers = parseShikimoriOrgArray(
+                        data.optJSONArray("publishers"),
+                        StudioRole.PUBLISHER
+                    )
+                    val shikiProdOrgs = (shikiLicensors + shikiPublishers)
+                        .filter { org -> studiosList.none { it.name.equals(org.name, ignoreCase = true) } }
+
                     // NOT: Shikimori ID'si MAL ID'si DEĞİLDİR! Eski kod `myanimelist_id`
                     // alanı boşken buraya Shikimori ID'sini yazıyordu; sonuç: Shikimori
                     // kaydı MAL ID sanılıp alakasız yapımların puanı/bölümü/afişi çekiliyordu.
@@ -649,6 +665,8 @@ object KitsugiShikimoriClient {
                         isAdult = isAdult,
                         realMalId = realMalId,
                         tags = shikiTags,
+                        producers = shikiProdOrgs,
+                        serializations = shikiPublishers,
                         openings = finalOpenings,
                         endings = finalEndings,
                         externalLinks = shikiLinks,
@@ -660,6 +678,39 @@ object KitsugiShikimoriClient {
                 null
             }
         }
+
+    /**
+     * Shikimori'nin `licensors` / `publishers` dizisini kurum listesine çevirir.
+     *
+     * Dizi elemanları **düz string** (`"licensors": ["Crunchyroll"]`) veya **nesne**
+     * (`{"id":1,"name":"Kodansha"}`) olabilir; ikisi de desteklenir. Kiril adlar
+     * [toLatinStudioName] ile Latin harflerine çevrilir (ekranda Rusça görünmez).
+     */
+    internal fun parseShikimoriOrgArray(
+        arr: org.json.JSONArray?,
+        role: StudioRole,
+        source: String = "shikimori"
+    ): List<KitsugiStudio> {
+        if (arr == null || arr.length() == 0) return emptyList()
+        val out = ArrayList<KitsugiStudio>(arr.length())
+        for (i in 0 until arr.length()) {
+            val item = arr.optJSONObject(i)
+            val raw = if (item != null) item.optString("name", "") else arr.optString(i, "")
+            val name = raw.trim()
+            if (name.isEmpty() || name == "null") continue
+            val id = item?.let { obj -> obj.optInt("id", 0).takeIf { value -> value > 0 } } ?: 0
+            out.add(
+                KitsugiStudio(
+                    id = id,
+                    name = name.toLatinStudioName(),
+                    isMain = role == StudioRole.STUDIO,
+                    source = source,
+                    role = role
+                )
+            )
+        }
+        return out.distinctBy { it.name.lowercase(java.util.Locale.ROOT) }
+    }
 
     suspend fun fetchShikimoriVideos(animeId: Int): List<Pair<String, KitsugiTheme>> = withContext(Dispatchers.IO) {
         if (animeId <= 0) return@withContext emptyList()
