@@ -24,6 +24,7 @@ import androidx.core.content.FileProvider
 import androidx.documentfile.provider.DocumentFile
 import com.kitsugi.animelist.R
 import com.kitsugi.animelist.core.network.KitsugiHttpClient
+import com.kitsugi.animelist.core.storage.MediaStoreFileDeleter
 import com.kitsugi.animelist.data.settings.SettingsDataStore
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -538,8 +539,14 @@ object KitsugiImageDownloadHelper {
         data object Success : GalleryDeleteOutcome
         /** Silinecek bir şey yok (hiç indirilmemiş ya da dosya zaten gitmiş). */
         data object NothingToDelete : GalleryDeleteOutcome
-        /** Sistem onayı gerekiyor (bizim oluşturmadığımız MediaStore kaydı). */
-        data class RequiresSystemConsent(val message: String) : GalleryDeleteOutcome
+        /**
+         * Sistem onayı gerekiyor (bizim oluşturmadığımız MediaStore kaydı).
+         * [uris] Android 11+ `MediaStore.createDeleteRequest` çağrısında kullanılır.
+         */
+        data class RequiresSystemConsent(
+            val message: String,
+            val uris: List<Uri> = emptyList()
+        ) : GalleryDeleteOutcome
         /** Silme denemesi hata ile sonuçlandı. */
         data class Failed(val message: String) : GalleryDeleteOutcome
     }
@@ -633,6 +640,101 @@ object KitsugiImageDownloadHelper {
                 GalleryDeleteOutcome.Failed(e.localizedMessage ?: appContext.getString(R.string.source_unknown))
             }
         }
+
+    /**
+     * İndirilen bir görsel **dosyasını** (elinde `File` olan çağıranlar için) güvenilir
+     * şekilde siler. İndirilenler ekranındaki tekli/grup silmeleri buradan geçer.
+     *
+     * Sıra:
+     *  1. Index kayıtları (MediaStore `content://` ya da kullanıcının seçtiği SAF klasörü)
+     *  2. Aynı adı taşıyan tüm yerel kopyalar (İndirilenler / Resimler / uygulama klasörü)
+     *  3. `File.delete()` Scoped Storage'da reddederse `MediaStore` kaydı ad + göreli
+     *     klasörle bulunup `ContentResolver` üzerinden silinir.
+     *
+     * Hiçbir adım sessizce yutulmaz: sonuç her zaman bir [GalleryDeleteOutcome] olarak
+     * döner, böylece arayüz kullanıcıya "silinemedi" geri bildirimini gösterebilir.
+     */
+    suspend fun deleteImageFile(context: Context, file: File): GalleryDeleteOutcome =
+        withContext(Dispatchers.IO) {
+            val appContext = context.applicationContext
+            val fileName = file.name
+            if (fileName.isBlank()) return@withContext GalleryDeleteOutcome.NothingToDelete
+            try {
+                var deletedAny = false
+                var consentUris = emptyList<Uri>()
+                var lastFailure: String? = null
+
+                // 1) Index'teki kayıtlar: MediaStore URI'si veya SAF klasörü üzerinden sil.
+                val records = synchronized(indexLock) {
+                    loadIndex(appContext).filterValues { it.fileName == fileName }
+                }
+                records.forEach { (url, record) ->
+                    when (val outcome = deleteDownloadedRecord(appContext, url, record)) {
+                        is GalleryDeleteOutcome.Success -> deletedAny = true
+                        is GalleryDeleteOutcome.RequiresSystemConsent ->
+                            consentUris = (consentUris + outcome.uris).distinct()
+                        is GalleryDeleteOutcome.Failed -> lastFailure = outcome.message
+                        GalleryDeleteOutcome.NothingToDelete -> Unit
+                    }
+                }
+
+                // 2) Disk üzerindeki tüm kopyalar (index kaydı olmayanlar dahil).
+                val copies = imageCopies(appContext, file)
+                copies.forEach { copy ->
+                    if (!copy.exists()) return@forEach
+                    when (val outcome = deleteLocalFile(appContext, copy)) {
+                        is GalleryDeleteOutcome.Success -> deletedAny = true
+                        is GalleryDeleteOutcome.RequiresSystemConsent ->
+                            consentUris = (consentUris + outcome.uris).distinct()
+                        is GalleryDeleteOutcome.Failed -> lastFailure = outcome.message
+                        GalleryDeleteOutcome.NothingToDelete -> Unit
+                    }
+                }
+
+                // 3) Kayıt defterini temizle → "indirildi" rozeti kalksın, tekrar indirilebilsin.
+                if (deletedAny) unmarkImageDownloadedByFileName(appContext, fileName)
+
+                val stillThere = imageCopies(appContext, file).any { it.exists() }
+                // Dosyalar gittiyse MediaStore'da hayalet satır kalmasın (tek sorgu).
+                if (!stillThere || deletedAny) purgeMediaStoreRow(appContext, file)
+                when {
+                    !stillThere -> GalleryDeleteOutcome.Success
+                    consentUris.isNotEmpty() -> GalleryDeleteOutcome.RequiresSystemConsent(
+                        lastFailure ?: appContext.getString(R.string.image_file_delete_foreign),
+                        consentUris
+                    )
+                    deletedAny -> GalleryDeleteOutcome.Success
+                    else -> GalleryDeleteOutcome.Failed(
+                        lastFailure
+                            ?: appContext.getString(R.string.image_delete_file_failed, fileName)
+                    )
+                }
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
+            } catch (e: Throwable) {
+                Log.w(TAG, "deleteImageFile hatası (${file.absolutePath}): ${e.message}")
+                GalleryDeleteOutcome.Failed(
+                    e.localizedMessage ?: appContext.getString(R.string.image_file_delete_failed)
+                )
+            }
+        }
+
+    /** Aynı ada sahip tüm indirilmiş görsel kopyaları (verilen dosya dahil). */
+    private fun imageCopies(context: Context, file: File): List<File> {
+        val candidates = buildList {
+            add(file)
+            imageDirectories(context).forEach { dir -> add(File(dir, file.name)) }
+        }
+        return candidates.distinctBy { it.absolutePath }.filter { it.exists() }
+    }
+
+    /**
+     * Android 11+ için sistem silme onayı üretir. Uygulamanın sahibi olmadığı (ör. uygulama
+     * yeniden kurulduğunda eski UID ile oluşturulmuş) kayıtlar ancak kullanıcı onayıyla
+     * silinebilir; bu IntentSender `StartIntentSenderForResult` ile başlatılmalıdır.
+     */
+    fun systemDeleteRequestSender(context: Context, uris: List<Uri>): android.content.IntentSender? =
+        MediaStoreFileDeleter.systemDeleteRequestSender(context.applicationContext, uris)
 
     // ─────────────────────────────────────────────────────────────────────────
     // Public API — depolama yönetimi (Ayarlar > Depolama)
@@ -1140,12 +1242,39 @@ object KitsugiImageDownloadHelper {
             notifyMediaDeleted(context, file.absolutePath)
             return GalleryDeleteOutcome.Success
         }
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q &&
-            deleteViaMediaStoreByPath(context, file.absolutePath)
-        ) {
-            return GalleryDeleteOutcome.Success
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            // File API reddetti → kaydı ad + göreli klasörle bulup ContentResolver ile sil.
+            val outcome = MediaStoreFileDeleter.deleteByName(
+                context = context,
+                fileName = file.name,
+                mode = MediaStoreFileDeleter.Mode.IMAGE,
+                relativePath = MediaStoreFileDeleter.relativePathOf(file)
+            )
+            if (outcome.deleted && !file.exists()) {
+                notifyMediaDeleted(context, file.absolutePath)
+                return GalleryDeleteOutcome.Success
+            }
+            if (outcome.foreignUris.isNotEmpty()) {
+                return GalleryDeleteOutcome.RequiresSystemConsent(
+                    context.getString(R.string.image_file_delete_foreign),
+                    outcome.foreignUris
+                )
+            }
         }
         return GalleryDeleteOutcome.Failed(context.getString(R.string.image_delete_failed_storage, file.name))
+    }
+
+    /** Dosya doğrudan silindikten sonra kalan MediaStore satırını (varsa) temizler. */
+    private fun purgeMediaStoreRow(context: Context, file: File) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) return
+        runCatching {
+            MediaStoreFileDeleter.deleteByName(
+                context = context,
+                fileName = file.name,
+                mode = MediaStoreFileDeleter.Mode.IMAGE,
+                relativePath = MediaStoreFileDeleter.relativePathOf(file)
+            )
+        }
     }
 
     /** MediaStore/SAF content:// kaydını siler. */
@@ -1228,41 +1357,18 @@ object KitsugiImageDownloadHelper {
 
     /**
      * Scoped Storage'ta doğrudan `File.delete()` reddedilebilir; o zaman dosyanın
-     * MediaStore kaydını yoluyla bulup Resolver üzerinden sileriz.
+     * MediaStore kaydını adı + göreli klasörüyle bulup Resolver üzerinden sileriz.
+     * (`DATA` sütununa dayalı arama Android 11+'da güvenilir değil.)
      */
     private fun deleteViaMediaStoreByPath(context: Context, absolutePath: String): Boolean {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) return false
-        val resolver = context.contentResolver
-        return try {
-            var deleted = false
-            arrayOf(
-                MediaStore.Downloads.EXTERNAL_CONTENT_URI,
-                MediaStore.Images.Media.EXTERNAL_CONTENT_URI
-            ).forEach { collection ->
-                if (deleted) return@forEach
-                runCatching {
-                    resolver.query(
-                        collection,
-                        arrayOf(MediaStore.MediaColumns._ID),
-                        "${MediaStore.MediaColumns.DATA} = ?",
-                        arrayOf(absolutePath),
-                        null
-                    )?.use { cursor ->
-                        val idColumn = cursor.getColumnIndexOrThrow(MediaStore.MediaColumns._ID)
-                        while (cursor.moveToNext()) {
-                            val rowUri = android.content.ContentUris.withAppendedId(collection, cursor.getLong(idColumn))
-                            if (runCatching { resolver.delete(rowUri, null, null) > 0 }.getOrDefault(false)) {
-                                deleted = true
-                            }
-                        }
-                    }
-                }
-            }
-            if (deleted) notifyMediaDeleted(context, absolutePath)
-            deleted
-        } catch (_: Throwable) {
-            false
-        }
+        val outcome = MediaStoreFileDeleter.deleteByPath(
+            context = context,
+            absolutePath = absolutePath,
+            mode = MediaStoreFileDeleter.Mode.IMAGE
+        )
+        if (outcome.deleted) notifyMediaDeleted(context, absolutePath)
+        return outcome.deleted
     }
 
     /** Silinen dosyayı medya tarifinden düşür (galeri uygulamaları "ölmüş" kare göstermesin). */

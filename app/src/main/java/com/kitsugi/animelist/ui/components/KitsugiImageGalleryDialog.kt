@@ -5,7 +5,10 @@ import com.kitsugi.animelist.ui.theme.gradient.Text
 
 import android.content.res.Configuration
 import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.IntentSenderRequest
 import androidx.activity.result.contract.ActivityResultContracts
+import android.app.Activity
+import android.net.Uri
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -260,6 +263,26 @@ fun KitsugiImageGalleryDialog(
     var pendingDeleteUrls by remember { mutableStateOf<List<String>?>(null) }
     var isDeleting by remember { mutableStateOf(false) }
 
+    // Scoped Storage: uygulamanın sahibi olmadığı MediaStore kayıtları (ör. uygulama
+    // yeniden kurulduktan sonra kalan eski görseller) yalnızca sistem onayıyla silinir.
+    var pendingConsentUrls by remember { mutableStateOf<List<String>>(emptyList()) }
+    val systemConsentLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.StartIntentSenderForResult()
+    ) { result ->
+        val urls = pendingConsentUrls
+        pendingConsentUrls = emptyList()
+        if (result.resultCode == Activity.RESULT_OK) {
+            KitsugiImageDownloadHelper.refreshDownloadedUrls(context)
+            if (urls.isNotEmpty()) onItemsDeleted(urls)
+        } else {
+            android.widget.Toast.makeText(
+                context,
+                context.getString(R.string.downloads_delete_cancelled),
+                android.widget.Toast.LENGTH_SHORT
+            ).show()
+        }
+    }
+
     LaunchedEffect(currentDeleteUrl, downloadedUrls, allowDelete) {
         if (!allowDelete || currentDeleteUrl.isNullOrBlank()) {
             canDeleteCurrent = false
@@ -284,14 +307,31 @@ fun KitsugiImageGalleryDialog(
             scope.launch {
                 var deleted = 0
                 var lastError: String? = null
+                val consentUris = mutableListOf<Uri>()
+                var consentRequested = false
                 urls.forEach { url ->
                     when (val outcome = KitsugiImageDownloadHelper.deleteImageForUrl(context, url)) {
                         is KitsugiImageDownloadHelper.GalleryDeleteOutcome.Success -> deleted++
                         is KitsugiImageDownloadHelper.GalleryDeleteOutcome.Failed ->
                             lastError = outcome.message
-                        is KitsugiImageDownloadHelper.GalleryDeleteOutcome.RequiresSystemConsent ->
+                        is KitsugiImageDownloadHelper.GalleryDeleteOutcome.RequiresSystemConsent -> {
                             lastError = outcome.message
+                            consentUris += outcome.uris
+                        }
                         KitsugiImageDownloadHelper.GalleryDeleteOutcome.NothingToDelete -> Unit
+                    }
+                }
+                // Silinemeyenler yalnızca sistem onayı bekliyorsa onay diyaloğunu aç.
+                if (consentUris.isNotEmpty()) {
+                    val sender = KitsugiImageDownloadHelper.systemDeleteRequestSender(
+                        context,
+                        consentUris.distinct()
+                    )
+                    if (sender != null) {
+                        pendingConsentUrls = urls
+                        consentRequested = runCatching {
+                            systemConsentLauncher.launch(IntentSenderRequest.Builder(sender).build())
+                        }.isSuccess
                     }
                 }
                 // İndirme rozetleri ve indeks zaten güncellendi; galeriyi tazeleriz.
@@ -308,6 +348,8 @@ fun KitsugiImageGalleryDialog(
                             android.widget.Toast.LENGTH_SHORT
                         ).show()
                     }
+                    // Sistem onayı açıldıysa ayrıca hata toast'ı gösterme.
+                    consentRequested -> Unit
                     lastError != null ->
                         android.widget.Toast.makeText(context, lastError, android.widget.Toast.LENGTH_LONG).show()
                     else ->

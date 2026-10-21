@@ -4,6 +4,7 @@ import com.kitsugi.animelist.ui.theme.gradient.Icon
 import com.kitsugi.animelist.ui.theme.gradient.LinearProgressIndicator
 import com.kitsugi.animelist.ui.theme.gradient.Text
 
+import android.app.Activity
 import android.app.DownloadManager
 import android.content.ClipData
 import android.content.ClipboardManager
@@ -38,9 +39,13 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.IntentSenderRequest
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.FileProvider
 import coil3.compose.AsyncImage
 import com.kitsugi.animelist.core.player.OfflinePlaybackHelper
+import com.kitsugi.animelist.core.storage.DownloadStorage
 import com.kitsugi.animelist.data.local.AnimeDownloadManager
 import com.kitsugi.animelist.data.model.AnimeDownload
 import com.kitsugi.animelist.data.remote.GalleryCategory
@@ -167,6 +172,137 @@ fun DownloadsScreen(
     LaunchedEffect(refreshImagesTrigger) {
         allImages = withContext(Dispatchers.IO) {
             loadAllDownloadedImages(context)
+        }
+    }
+
+    // ── SİLME: sistem onayı köprüsü ───────────────────────────────────────────
+    // Android 11+ Scoped Storage'da uygulamanın sahibi olmadığı MediaStore kayıtları
+    // (ör. uygulama yeniden kurulduğunda eski UID ile oluşturulmuş görseller/altyazılar)
+    // yalnızca MediaStore.createDeleteRequest onayıyla silinebilir. Onay sonrası liste
+    // tazelenir; iptal edilirse kullanıcı bilgilendirilir.
+    val systemConsentLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.StartIntentSenderForResult()
+    ) { result ->
+        if (result.resultCode == Activity.RESULT_OK) {
+            refreshSubsTrigger++
+            refreshImagesTrigger++
+        } else {
+            Toast.makeText(
+                context,
+                KitsugiStrings.get(R.string.downloads_delete_cancelled),
+                Toast.LENGTH_SHORT
+            ).show()
+        }
+    }
+
+    val requestSystemDelete: (List<Uri>) -> Unit = { uris ->
+        val sender = runCatching {
+            KitsugiImageDownloadHelper.systemDeleteRequestSender(context, uris)
+        }.getOrNull()
+        val launched = sender != null && runCatching {
+            systemConsentLauncher.launch(IntentSenderRequest.Builder(sender).build())
+        }.isSuccess
+        if (!launched) {
+            Toast.makeText(
+                context,
+                KitsugiStrings.get(R.string.downloads_delete_permission_needed),
+                Toast.LENGTH_LONG
+            ).show()
+        }
+    }
+
+    // ── SİLME: altyazı (tekli) ────────────────────────────────────────────────
+    // Eski akış `File.delete()` çağırıyordu; MediaStore ile yazılan .srt/.ass dosyaları
+    // Scoped Storage'da silinmediği için kart tazelenince geri geliyordu. Artık silme
+    // DownloadStorage üzerinden (dosya + MediaStore kaydı + tüm kopyalar) yapılıyor.
+    val deleteSubtitleItem: (DownloadedSubtitleItem) -> Unit = { item ->
+        val removedPath = item.file.absolutePath
+        allSubtitles = allSubtitles.filter { it.file.absolutePath != removedPath }
+        scope.launch {
+            val result = DownloadStorage.deleteSubtitle(context, item.file)
+            when {
+                result.deleted -> Toast.makeText(
+                    context,
+                    KitsugiStrings.get(R.string.altyazi_silindi_x, item.title),
+                    Toast.LENGTH_SHORT
+                ).show()
+
+                result.consentUris.isNotEmpty() -> {
+                    allSubtitles = (allSubtitles + item)
+                        .distinctBy { it.file.absolutePath }
+                        .sortedByDescending { it.lastModified }
+                    Toast.makeText(
+                        context,
+                        KitsugiStrings.get(R.string.downloads_delete_confirm_prompt),
+                        Toast.LENGTH_LONG
+                    ).show()
+                    requestSystemDelete(result.consentUris)
+                }
+
+                else -> {
+                    allSubtitles = (allSubtitles + item)
+                        .distinctBy { it.file.absolutePath }
+                        .sortedByDescending { it.lastModified }
+                    Toast.makeText(
+                        context,
+                        result.message
+                            ?: KitsugiStrings.get(R.string.downloads_subtitle_delete_failed, item.title),
+                        Toast.LENGTH_LONG
+                    ).show()
+                }
+            }
+            refreshSubsTrigger++
+        }
+    }
+
+    // ── SİLME: görseller (tekli kart + grup) ──────────────────────────────────
+    // Kart üzerindeki silme önceden `file.delete()` idi → Scoped Storage'da sessizce
+    // başarısız oluyordu ve hiçbir geri bildirim gösterilmiyordu. Artık her dosya
+    // KitsugiImageDownloadHelper.deleteImageFile ile (index + MediaStore + kopyalar)
+    // silinir, sonuç kullanıcıya bildirilir ve liste her durumda tazelenir.
+    val deleteImageFiles: (List<File>) -> Unit = { files ->
+        if (files.isNotEmpty()) {
+            val paths = files.map { it.absolutePath }.toSet()
+            // İyimser güncelleme: kartlar anında kaybolsun (silme başarısızsa liste tazelenir).
+            allImages = allImages.filterNot { it.file.absolutePath in paths }
+            scope.launch {
+                var deleted = 0
+                var consentUris = emptyList<Uri>()
+                var failure: String? = null
+                withContext(Dispatchers.IO) {
+                    files.forEach { file ->
+                        when (val outcome = KitsugiImageDownloadHelper.deleteImageFile(context, file)) {
+                            is KitsugiImageDownloadHelper.GalleryDeleteOutcome.Success -> deleted++
+                            is KitsugiImageDownloadHelper.GalleryDeleteOutcome.RequiresSystemConsent ->
+                                consentUris = (consentUris + outcome.uris).distinct()
+                            is KitsugiImageDownloadHelper.GalleryDeleteOutcome.Failed ->
+                                failure = outcome.message
+                            KitsugiImageDownloadHelper.GalleryDeleteOutcome.NothingToDelete -> Unit
+                        }
+                    }
+                }
+                when {
+                    consentUris.isNotEmpty() -> {
+                        Toast.makeText(
+                            context,
+                            KitsugiStrings.get(R.string.downloads_delete_confirm_prompt),
+                            Toast.LENGTH_LONG
+                        ).show()
+                        requestSystemDelete(consentUris)
+                    }
+                    deleted > 0 -> Toast.makeText(
+                        context,
+                        KitsugiStrings.get(R.string.downloads_images_deleted, deleted),
+                        Toast.LENGTH_SHORT
+                    ).show()
+                    else -> Toast.makeText(
+                        context,
+                        failure ?: KitsugiStrings.get(R.string.downloads_images_delete_failed),
+                        Toast.LENGTH_LONG
+                    ).show()
+                }
+                refreshImagesTrigger++
+            }
         }
     }
 
@@ -407,23 +543,7 @@ fun DownloadsScreen(
                                 onOpenFolder = {
                                     openFolderInFileManager(context, subItem.file.parentFile ?: subItem.file)
                                 },
-                                onDelete = {
-                                    // FIX: Hızlı silme bug'ı - Anında listeden kaldır, sonra arka planda tam yenileme yap
-                                    allSubtitles = allSubtitles.filter { it.file.absolutePath != subItem.file.absolutePath }
-                                    scope.launch {
-                                        val deleted = withContext(Dispatchers.IO) {
-                                            subItem.file.exists() && subItem.file.delete()
-                                        }
-                                        if (deleted) {
-                                            Toast.makeText(context, KitsugiStrings.get(R.string.altyazi_silindi_x, subItem.title), Toast.LENGTH_SHORT).show()
-                                            // Arka planda tam listeyi de yenile (tutarlılık için)
-                                            refreshSubsTrigger++
-                                        } else {
-                                            // Silme başarısızsa, öğeyi geri ekle
-                                            allSubtitles = allSubtitles + subItem
-                                        }
-                                    }
-                                }
+                                onDelete = { deleteSubtitleItem(subItem) }
                             )
                         }
                     }
@@ -435,7 +555,8 @@ fun DownloadsScreen(
                     DownloadedImagesTab(
                         images = allImages,
                         accentColor = accentColor,
-                        onRefresh = { refreshImagesTrigger++ }
+                        onRefresh = { refreshImagesTrigger++ },
+                        onDeleteImages = deleteImageFiles
                     )
                 }
             }
@@ -450,12 +571,14 @@ fun DownloadsScreen(
 fun DownloadedImagesTab(
     images: List<DownloadedImageItem>,
     accentColor: Color,
-    onRefresh: () -> Unit
+    onRefresh: () -> Unit,
+    onDeleteImages: (List<File>) -> Unit = {}
 ) {
     val context = LocalContext.current
-    val tabScope = rememberCoroutineScope()
     var galleryGroup by remember { mutableStateOf<DownloadedImageGroup?>(null) }
     var galleryInitialIndex by remember { mutableIntStateOf(0) }
+    // Grup silme onayı (yanlışlıkla 15-20 resmi tek dokunuşta silmeyi önler).
+    var groupPendingDelete by remember { mutableStateOf<DownloadedImageGroup?>(null) }
 
     // İndirilen resimler içerik adına (anime / dizi / film) göre gruplanır.
     // Gruplar en yeni indirmenin tarihine göre sıralanır (arka planda hesaplanır).
@@ -606,34 +729,10 @@ fun DownloadedImagesTab(
                                 fontWeight = FontWeight.Bold
                             )
                         }
-                        // Grup bazlı silme: bu içeriğin indirilmiş TÜM resimleri tek
-                        // dokunuşla kaldırılır (iki aşamalı onay — yanlışlıkla silme yok).
+                        // Grup bazlı silme: onay penceresi çıkar, onaylanırsa bu içeriğin
+                        // indirilmiş TÜM resimleri silinir (tek yerde: deleteImageFiles).
                         KitsugiAnimatedDeleteButton(
-                            onDelete = {
-                                val files = group.items.map { it.file }
-                                tabScope.launch {
-                                    var deleted = 0
-                                    files.forEach { file ->
-                                        val outcome = KitsugiImageDownloadHelper.deleteImageForUrl(
-                                            context,
-                                            "file://" + file.absolutePath
-                                        )
-                                        if (outcome is KitsugiImageDownloadHelper.GalleryDeleteOutcome.Success) deleted++
-                                        else if (file.exists()) runCatching { file.delete() }
-                                    }
-                                    if (deleted > 0) {
-                                        galleryGroup = null
-                                        deletedPaths = emptySet()
-                                    }
-                                    Toast.makeText(
-                                        context,
-                                        if (deleted > 0) KitsugiStrings.get(R.string.downloads_images_deleted, deleted)
-                                        else KitsugiStrings.get(R.string.downloads_images_delete_failed),
-                                        Toast.LENGTH_SHORT
-                                    ).show()
-                                    onRefresh()
-                                }
-                            },
+                            onDelete = { groupPendingDelete = group },
                             size = 26.dp,
                             expandedWidth = 78.dp,
                             contentDescription = stringResource(R.string.bu_icerigin_tum_indirilen_resimlerini_sil)
@@ -663,18 +762,10 @@ fun DownloadedImagesTab(
                                         openFolderInFileManager(context, img.file.parentFile ?: img.file)
                                     },
                                     onDelete = {
-                                        tabScope.launch {
-                                            val deleted = withContext(Dispatchers.IO) {
-                                                if (img.file.exists() && img.file.delete()) {
-                                                    KitsugiImageDownloadHelper.unmarkImageDownloadedByFileName(context, img.file.name)
-                                                    true
-                                                } else false
-                                            }
-                                            if (deleted) {
-                                                Toast.makeText(context, KitsugiStrings.get(R.string.downloads_image_deleted, img.title), Toast.LENGTH_SHORT).show()
-                                                onRefresh()
-                                            }
-                                        }
+                                        // Tekli silme de aynı sağlam akıştan geçer: Scoped Storage'da
+                                        // `File.delete()` başarısız olduğunda MediaStore kaydı üzerinden
+                                        // silinir ve kullanıcıya sonuç bildirilir.
+                                        onDeleteImages(listOf(img.file))
                                     }
                                 )
                             }
@@ -683,6 +774,45 @@ fun DownloadedImagesTab(
                 }
             }
         }
+    }
+
+    // ── Grup silme onayı ─────────────────────────────────────────────────────
+    groupPendingDelete?.let { group ->
+        AlertDialog(
+            onDismissRequest = { groupPendingDelete = null },
+            containerColor = KitsugiColors.SurfaceSoft,
+            title = {
+                Text(
+                    text = stringResource(R.string.downloads_delete_group_title),
+                    color = KitsugiColors.TextPrimary,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 16.sp
+                )
+            },
+            text = {
+                Text(
+                    text = stringResource(R.string.downloads_delete_group_message, group.items.size),
+                    color = KitsugiColors.TextSecondary,
+                    fontSize = 13.sp
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    val files = group.items.map { it.file }
+                    groupPendingDelete = null
+                    galleryGroup = null
+                    deletedPaths = emptySet()
+                    onDeleteImages(files)
+                }) {
+                    Text(stringResource(R.string.action_delete), color = KitsugiColors.AccentRed)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { groupPendingDelete = null }) {
+                    Text(stringResource(R.string.vazgec), color = KitsugiColors.TextSecondary)
+                }
+            }
+        )
     }
 }
 
