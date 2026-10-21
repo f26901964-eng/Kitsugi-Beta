@@ -1,7 +1,11 @@
 package com.kitsugi.animelist.data.remote
 
 import com.kitsugi.animelist.model.MediaType
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
@@ -910,12 +914,12 @@ class AniListSearchClient(
         showAdultContent: Boolean
     ): Map<String, List<JikanSearchResult>> = withContext(Dispatchers.IO) {
         val out = java.util.concurrent.ConcurrentHashMap<String, List<JikanSearchResult>>(shelves.size)
-        kotlinx.coroutines.coroutineScope {
+        coroutineScope {
             shelves.chunked(EXPLORE_BATCH_SIZE).map { chunk ->
-                kotlinx.coroutines.async {
+                async {
                     val chunkResult = try {
                         fetchExploreShelfChunk(chunk, showAdultContent)
-                    } catch (e: kotlinx.coroutines.CancellationException) {
+                    } catch (e: CancellationException) {
                         throw e
                     } catch (e: AniListServiceDownException) {
                         throw e
@@ -946,7 +950,7 @@ class AniListSearchClient(
                         }
                     }
                 }
-            }.forEach { it.await() }
+            }.awaitAll()
         }
         out
     }

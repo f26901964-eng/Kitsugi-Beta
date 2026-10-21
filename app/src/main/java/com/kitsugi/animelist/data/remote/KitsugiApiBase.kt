@@ -5,6 +5,10 @@ import com.kitsugi.animelist.data.auth.ExternalAuthManager
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.jsonArray
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
 import org.json.JSONArray
 import org.json.JSONObject
 import java.net.HttpURLConnection
@@ -180,11 +184,8 @@ object KitsugiApiBase {
     fun extractAniListServiceDownMessage(bodyOrMessage: String?): String? {
         if (bodyOrMessage.isNullOrBlank()) return null
         val jsonMsg = runCatching {
-            val root = JSONObject(bodyOrMessage)
-            val errors = root.optJSONArray("errors")
-            if (errors != null && errors.length() > 0) {
-                errors.optJSONObject(0)?.optString("message")
-            } else null
+            val errors = Json.parseToJsonElement(bodyOrMessage).jsonObject["errors"]?.jsonArray
+            errors?.firstOrNull()?.jsonObject?.get("message")?.jsonPrimitive?.content
         }.getOrNull()
         val candidate = jsonMsg?.takeIf { it.isNotBlank() } ?: bodyOrMessage
         return if (
