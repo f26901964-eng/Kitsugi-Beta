@@ -69,6 +69,52 @@ fun KitsugiTranslateIconButton(
     enabled: Boolean = !isLoading
 ) {
     val resolvedDescription = contentDescription ?: stringResource(R.string.action_translate)
+
+    IconButton(
+        onClick = onClick,
+        enabled = enabled,
+        modifier = modifier
+    ) {
+        Box(contentAlignment = Alignment.Center, modifier = Modifier.size(ringSize)) {
+            if (isLoading) {
+                // Nabız (pulse) animasyonu yalnızca yüklenirken VE yalnızca kendi küçük
+                // alt ağacında çalışır: eski yapıda sonsuz transition her butonda (boşta
+                // bile) sürekli kare üretiyor, okuma yapan butonun TÜM scope'u her karede
+                // yenileniyordu — otomatik çeviri açıkken sayfa kaydırmada kasıyordu.
+                PulsingLoadingTranslateIcon(
+                    tint = tint,
+                    icon = icon,
+                    contentDescription = resolvedDescription,
+                    iconSize = iconSize,
+                    ringSize = ringSize,
+                    strokeWidth = strokeWidth
+                )
+            } else {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = resolvedDescription,
+                    tint = tint,
+                    modifier = Modifier.size(iconSize)
+                )
+            }
+        }
+    }
+}
+
+/**
+ * Yüklenirken nabız atan çeviri ikonu + dönen halka. Ayrı bir composable olmasının
+ * nedeni: `pulseAlpha` okuması bu küçük scope'u her karede yeniler; butonun üst scope'u
+ * (parametre karşılaştırması, enabled, vb.) kare boyunca atlanır.
+ */
+@Composable
+private fun PulsingLoadingTranslateIcon(
+    tint: Color,
+    icon: ImageVector,
+    contentDescription: String?,
+    iconSize: Dp,
+    ringSize: Dp,
+    strokeWidth: Dp
+) {
     val transition = rememberInfiniteTransition(label = "translateLoadingTransition")
     val pulseAlpha by transition.animateFloat(
         initialValue = 0.30f,
@@ -79,29 +125,20 @@ fun KitsugiTranslateIconButton(
         ),
         label = "translateLoadingPulse"
     )
-
-    IconButton(
-        onClick = onClick,
-        enabled = enabled,
-        modifier = modifier
-    ) {
-        Box(contentAlignment = Alignment.Center, modifier = Modifier.size(ringSize)) {
-            Icon(
-                imageVector = icon,
-                contentDescription = resolvedDescription,
-                tint = tint,
-                modifier = Modifier
-                    .size(iconSize)
-                    .alpha(if (isLoading) pulseAlpha * 0.6f else 1f)
-            )
-            if (isLoading) {
-                CircularProgressIndicator(
-                    modifier = Modifier.size(ringSize),
-                    color = tint,
-                    strokeWidth = strokeWidth
-                )
-            }
-        }
+    Box(contentAlignment = Alignment.Center, modifier = Modifier.size(ringSize)) {
+        Icon(
+            imageVector = icon,
+            contentDescription = contentDescription,
+            tint = tint,
+            modifier = Modifier
+                .size(iconSize)
+                .alpha(pulseAlpha * 0.6f)
+        )
+        CircularProgressIndicator(
+            modifier = Modifier.size(ringSize),
+            color = tint,
+            strokeWidth = strokeWidth
+        )
     }
 }
 

@@ -323,6 +323,49 @@ class WikiTranslationProtectionTest {
         assertTrue(mapOf("desc" to "çeviri").hasWikiTranslation("desc"))
     }
 
+    /**
+     * Bölüm bazlı alt harita (performans sözleşmesi): çiziciler tam çeviri haritası yerine
+     * yalnızca kendi bölümünün anahtarlarını alır. Alt harita diğer bölümlerin anahtarlarını
+     * İÇERMEZ ve aynı kaynaktan üretilen iki alt harita **yapısal olarak eşittir** — Compose
+     * `remember` anahtarı böylece başka bölümlerin çevirisi akarken yeniden hesaplama tetiklemez.
+     */
+    @Test
+    fun wikiTranslationsForScopesToOneSectionWithStructuralEquality() {
+        val child = WikiStructuredTranslationKeys.block("sec:0", 1)
+        val otherChild = WikiStructuredTranslationKeys.block("sec:1", 1)
+        val map = mapOf(
+            "sec:0" to WikiStructuredTranslationKeys.COMPLETE,
+            child to "çevrilmiş blok",
+            otherChild to "başka bölüm",
+            "desc" to "açıklama"
+        )
+
+        val scoped = map.wikiTranslationsFor("sec:0")
+        assertEquals(setOf("sec:0", child), scoped.keys)
+        assertTrue(scoped.hasWikiTranslation("sec:0"))
+        assertFalse(scoped.hasWikiTranslation("sec:1"))
+
+        // Yapısal eşitlik: harita içeriği aynı kaldıkça kimlik değişse de eşittir
+        // (remember anahtarlarının atlaması bu eşitliğe dayanır).
+        val rebuilt = LinkedHashMap(map).apply { put("sec:0", WikiStructuredTranslationKeys.COMPLETE) }
+        assertEquals(scoped, rebuilt.wikiTranslationsFor("sec:0"))
+
+        // Çeviri olmayan bölüm ve boş harita: tarama yok, sonuç boş.
+        assertTrue(map.wikiTranslationsFor("sec:9").isEmpty())
+        assertTrue(emptyMap<String, String>().wikiTranslationsFor("sec:0").isEmpty())
+    }
+
+    /** Yer tutucu birleştirmeyen `isChildOf` aynı sözleşmeyi korur (ayrıca tahsisatsızdır). */
+    @Test
+    fun childKeyCheckMatchesSeparatorBoundary() {
+        val base = "reader-section:solo-leveling.fandom.com:0"
+        assertTrue(WikiStructuredTranslationKeys.isChildOf(WikiStructuredTranslationKeys.block(base, 7), base))
+        assertFalse(WikiStructuredTranslationKeys.isChildOf(base, base))
+        // "sec:0" tabanı "sec:01" gibi daha uzun bir anahtarın çocuğu SANILMAMALI.
+        assertFalse(WikiStructuredTranslationKeys.isChildOf("sec:01", "sec:0"))
+        assertFalse(WikiStructuredTranslationKeys.isChildOf("sec:0-extra", "sec:0"))
+    }
+
     // ------------------------------------------------- görsel altı yazısı (figcaption)
 
     @Test

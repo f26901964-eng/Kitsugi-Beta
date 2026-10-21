@@ -86,7 +86,19 @@ internal object WikiStructuredTranslationKeys {
 
     fun isChildKey(key: String): Boolean = key.contains(SEPARATOR)
 
-    fun isChildOf(key: String, baseKey: String): Boolean = key.startsWith(baseKey + SEPARATOR)
+    /**
+     * [key], [baseKey] bölümünün blok çocuklarından biri mi?
+     *
+     * Yer tutucu birleştirme (`baseKey + SEPARATOR`) YAPILMAZ: bu yöntem her çağrída
+     * yeni String üretir ve `hasWikiTranslation` gibi taramalar harita boyunca her
+     * girişte birleştirme yaptığı için otomatik çeviri akarken çöp (GC) baskısı ve
+     * ana bileşim (recomposition) gecikmesi oluşuyordu. İki `startsWith` aynı sözleşmeyi
+     * sıfır tahsisatla korur.
+     */
+    fun isChildOf(key: String, baseKey: String): Boolean =
+        key.length > baseKey.length &&
+            key.startsWith(baseKey) &&
+            key.startsWith(SEPARATOR, baseKey.length)
 
     /** Anahtar, verilen bölümün kendisi ya da blok çocuklarından biri mi? */
     fun belongsTo(key: String, baseKey: String): Boolean = key == baseKey || isChildOf(key, baseKey)
@@ -115,6 +127,22 @@ internal fun Map<String, String>.hasWikiTranslation(baseKey: String): Boolean =
     entries.any { (key, value) ->
         WikiStructuredTranslationKeys.belongsTo(key, baseKey) && value.isNotBlank()
     }
+
+/**
+ * Yalnızca [baseKey] bölümünün çeviri anahtarlarını (kendisi + blok çocukları) içeren
+ * alt haritayı döner.
+ *
+ * ÇİZİCİ PERFORMANS SÖZLEŞMESİ: Okuyucu/sekmelerde `translations` haritasının tamamı her
+ * blok çevirisi akışında değişir. Çiziciler tam haritayı `remember` anahtarı olarak
+ * kullanırsa başka bir bölümün çevirisi gelirken de TÜM bölümler yeniden hesaplanır.
+ * Bu alt harita **yapısal eşitlik** korur: o bölümün çevirisi değişmediyse harita da
+ * eşittir ve `remember` önbellekli sonucu geri verir — yalnızca değişen bölüm yeniden
+ * hesaplanır. Tarama maliyeti ayrıca O(tam harita) yerine O(bölüm) ile sınırlı kalır.
+ */
+internal fun Map<String, String>.wikiTranslationsFor(baseKey: String): Map<String, String> {
+    if (isEmpty() || baseKey.isEmpty()) return emptyMap()
+    return filterKeys { WikiStructuredTranslationKeys.belongsTo(it, baseKey) }
+}
 
 /**
  * Tek bir bloğun çeviri sonucu.
