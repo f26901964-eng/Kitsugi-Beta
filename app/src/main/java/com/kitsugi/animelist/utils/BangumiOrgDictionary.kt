@@ -26,8 +26,9 @@ import java.util.Locale
  */
 internal object BangumiOrgDictionary {
 
-    private const val RAW = """
-アフタヌーン|bangumi_magazine_afternoon|Afternoon
+    // JVM CONSTANT_Utf8 strings cap at 65,535 modified-UTF-8 bytes; chunks stay below 50,000.
+    private val RAW = listOf(
+        """アフタヌーン|bangumi_magazine_afternoon|Afternoon
 月刊アフタヌーン|bangumi_magazine_afternoon|Afternoon
 Afternoon|bangumi_magazine_afternoon|Afternoon
 別冊少年マガジン|bangumi_magazine_bessatsu_shonen_magazine|Bessatsu Shonen Magazine
@@ -995,7 +996,8 @@ Cheese!|bangumi_magazine_cheese|Cheese!
 腾讯网动漫频道|bangumi_magazine_cjk_b57822|腾讯网动漫频道
 月刊コロコロコミック|bangumi_magazine_cjk_b6e71c|月刊コロコロコミック
 起点中文网|bangumi_magazine_cjk_b87547|起点中文网
-週刊ヤングサンデー|bangumi_magazine_cjk_ba5ea8|週刊ヤングサンデー
+""",
+        """週刊ヤングサンデー|bangumi_magazine_cjk_ba5ea8|週刊ヤングサンデー
 シルフ|bangumi_magazine_cjk_c3fa7a|シルフ
 マンガワン|bangumi_magazine_cjk_c4e80d|マンガワン
 月刊少年天狼星|bangumi_magazine_cjk_e2097f|月刊少年天狼星
@@ -1761,6 +1763,7 @@ KOEI|bangumi_publisher_koei|Koei
 Ubisoft|bangumi_publisher_ubisoft_entertainment|Ubisoft Entertainment
 TMSEntertainment|bangumi_studio_tms|TMS Entertainment
 """
+    ).joinToString("")
 
     /** `etiket|anahtar|küresel ad` satırları, tembel olarak ayrıştırılır. */
     private val rows: List<Triple<String, String, String>> by lazy {

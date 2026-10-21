@@ -370,7 +370,7 @@ Her chunk aynı pipeline'ı izler (Bölüm 0d). Bilinmeyen kişi/kurumlar `as_is
   (`read_file_text` BÜYÜK dosyalarda KULLANMA — tüm içeriği bağlama basar.)
   Dosya değiştirmek = `delete_file` + `upload_file`; indirdikten sonra `google_drive/`
   klasörünü sil (`.gitignore`'da zaten).
-- Kotlin derleyici yok; doğrulama `verify_vault.py` + `verify_bangumi_master.py` + CI ile.
+- Ortamda JDK/kotlinc varsayılan olarak kurulu değil; CI hata ayıklaması için geçici JDK 17 + Kotlin 2.4.21 kurularak `compile_check.sh` yerelde çalıştırıldı.
 - **Repo boyutu uyarısı**: vault JSON'ları git'e girmez (`.gitignore`). İleride
   benzer yığınlar `zip → Drive/R2` olarak saklanmalı; repo yalnız script + karar
   dosyalarını tutar. Chunk 002'de `worklists/` da `.gitignore`'a alındı: tam iş listesi
@@ -379,10 +379,11 @@ Her chunk aynı pipeline'ı izler (Bölüm 0d). Bilinmeyen kişi/kurumlar `as_is
 - Master RAW'da 91 yinelenen etiket temizlendi (2026-07-08); davranış değişmedi
   (byLabel ilk yazım kazanır).
 - ⚠ **`gen_bangumi_master.py` VAULT satırlarını SİLER (ÇÖZÜLMEDİ).** Üreteç
-  `BangumiOrgDictionary.kt`'yi şablondan **baştan yazar** (`%RAW%` ← yalnız `orgs.tsv`),
+  `BangumiOrgDictionary.kt`'yi şablondan **baştan yazar** (`%RAW_CHUNKS%` ← yalnız `orgs.tsv`),
   yani `--check` olmadan çalıştırılırsa VAULT'un eklediği **720 RAW satırı kaybolur**
-  (1.733 → 1.013). CI'daki `Üreteç güncellik denetimi` adımı `--check` ile çalıştığı ve
-  `--check` yazmadığı için **CI şu an YEŞİL**; tehlike yalnız elle çalıştırmada.
+  (1.733 → 1.013). CI'daki `Üreteç güncellik denetimi` adımı `--check` ile çalışır ve
+  yazma yapmaz; ancak bu mod çıktıyla karşılaştırma yapmadığından gerçek bir güncellik
+  denetimi değildir. Tehlike normal çalıştırmada sürer.
   Önerilen kalıcı çözüm: üreteci, anahtarı `orgs.tsv`'de olmayan mevcut RAW satırlarını
   koruyacak şekilde yamamak (sahiplik kuralı) — bu chunk'ta kapsam dışı bırakıldı.
   **Kural: `gen_bangumi_master.py`'yi `--check` olmadan ÇALIŞTIRMA.**
@@ -440,6 +441,20 @@ Chunk 003 için durumu (2026-10-21) → her satır **✅ tamam**:
       decisions/canon.tsv, map_chunk_001_orgs.tsv, map_chunk_001_tags.tsv,
       map_chunk_002_tags.tsv, map_chunk_003_tags.tsv, org_global_names.tsv
 - [x] Git commit + push + PR #18 açıldı (`arena/6cb51a64-kitsugi-beta`; https://github.com/f26901964-eng/Kitsugi-Beta/pull/18)
+
+### PR #18 CI takip — 2026-10-21
+
+- Önceki Actions run `39521496766`: `verify` geçti; `compile-and-test`, kotlinc adımında
+  başarısız oldu. Yerel tekrar kök nedeni verdi: `BangumiOrgDictionary.kt` içindeki 1.733
+  satırlık tek `RAW` sabiti JVM class-file modified-UTF-8 sınırını aşıyordu. Hata Chunk 003'e
+  özgü değil; Chunk 002 sonrası 1.724 satırda da sınır aşılmıştı.
+- Kalıcı düzeltme: RAW, 50.000 modified-UTF-8 baytı aşmayan parçalara bölünür ve çalışma
+  anında birleştirilir. MASTER üreteci ve VAULT RAW yazıcısı aynı biçimi üretir; iki doğrulayıcı
+  ve `vault_to_strings.py` yeni biçimi okuyup yazar. VAULT verileri/kararları değişmedi.
+- Yerel doğrulama (Drive JSON'ları yeniden damgalandıktan sonra): `apply_map.py --check`,
+  `vault_to_strings.py --check`, `verify_vault.py`, `verify_bangumi_master.py`,
+  `gen_bangumi_master.py --check` ve JDK 17 + Kotlin 2.4.21 ile `compile_check.sh` geçti.
+  Düzeltme push edildikten sonra GitHub Actions sonucu güncellenecek.
 
 Chunk 002 için durumu (2026-10-21) → her satır **✅ tamam**:
 

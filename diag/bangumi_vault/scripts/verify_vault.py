@@ -180,10 +180,20 @@ if stale:
 
 # 6) RAW gölgeleme
 org_src = ORG_DICT.read_text(encoding="utf-8")
-m = re.search(r'private const val RAW = """\n(.*?)"""', org_src, re.S)
+raw_decl = re.search(r'private val RAW = listOf\((.*?)\)\.joinToString\(""\)', org_src, re.S)
+if raw_decl:
+    raw_chunks = re.findall(r'"""(.*?)"""', raw_decl.group(1), re.S)
+    raw_body = "".join(raw_chunks)
+else:
+    legacy = re.search(r'private const val RAW = """\n?(.*?)"""', org_src, re.S)
+    raw_body = legacy.group(1) if legacy else None
+if raw_body is None:
+    errors.append("BangumiOrgDictionary RAW bloğu bulunamadı")
+else:
+    raw_body = raw_body.replace("${'$'}", "$")
 seen_label: dict[str, str] = {}
-if m:
-    for line in m.group(1).splitlines():
+if raw_body is not None:
+    for line in raw_body.splitlines():
         parts = line.split("|")
         if len(parts) != 3:
             errors.append(f"RAW bozuk satır: {line[:60]}")
@@ -192,6 +202,7 @@ if m:
         if lab in seen_label and seen_label[lab] != key:
             errors.append(f"RAW gölgeleme: {lab!r} → {seen_label[lab]} ve {key}")
         seen_label.setdefault(lab, key)
+
 
 if errors:
     print(f"❌ {len(errors)} hata:")

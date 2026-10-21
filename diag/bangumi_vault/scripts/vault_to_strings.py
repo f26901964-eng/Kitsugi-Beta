@@ -57,6 +57,61 @@ def kotlin_escape(value: str) -> str:
     return value.replace("$", "${'$'}")
 
 
+MAX_KOTLIN_CONSTANT_MUTF8_BYTES = 50_000
+
+
+def kotlin_mutf8_length(value: str) -> int:
+    size = 0
+    for char in value:
+        codepoint = ord(char)
+        if codepoint == 0:
+            size += 2
+        elif codepoint <= 0x7F:
+            size += 1
+        elif codepoint <= 0x7FF:
+            size += 2
+        elif codepoint <= 0xFFFF:
+            size += 3
+        else:
+            size += 6
+    return size
+
+
+def render_kotlin_raw_chunks(lines: list[str]) -> str:
+    chunks: list[list[str]] = []
+    current: list[str] = []
+    current_size = 0
+    for line in lines:
+        if '"""' in line:
+            raise SystemExit("org etiketi Kotlin üç-tırnaklı ham metin sınırlayıcısını içeriyor")
+        line_size = kotlin_mutf8_length(line + "\n")
+        if line_size > MAX_KOTLIN_CONSTANT_MUTF8_BYTES:
+            raise SystemExit("tek bir RAW satırı Kotlin sabit dizgesi sınırını aşıyor")
+        if current and current_size + line_size > MAX_KOTLIN_CONSTANT_MUTF8_BYTES:
+            chunks.append(current)
+            current = []
+            current_size = 0
+        current.append(line)
+        current_size += line_size
+    if current:
+        chunks.append(current)
+    return ",\n".join('        """' + "\n".join(chunk) + "\n" + '"""' for chunk in chunks)
+
+
+def extract_raw_declaration(source: str):
+    declaration = re.search(
+        r'private val RAW = listOf\((.*?)\)\.joinToString\(""\)', source, re.S)
+    if declaration:
+        chunks = re.findall(r'"""(.*?)"""', declaration.group(1), re.S)
+        if not chunks:
+            raise SystemExit("RAW listesinde Kotlin metin parçacığı bulunamadı")
+        return declaration, chunks
+    legacy = re.search(r'private const val RAW = """(.*?)"""', source, re.S)
+    if legacy:
+        return legacy, [legacy.group(1)]
+    raise SystemExit("RAW bloğu bulunamadı")
+
+
 # ── 1) Kararlı kayıtları topla ────────────────────────────────────────────────
 
 # canon alias'ları: (rol, canon_id) → aliases
@@ -269,12 +324,11 @@ print(f"BangumiTagDictionary: +{ag} grup, +{al} etiket")
 # ── 4) BangumiOrgDictionary.kt RAW ────────────────────────────────────────────
 
 org_src = ORG_DICT.read_text(encoding="utf-8")
-raw_match = re.search(r'private const val RAW = """\n(.*?)"""', org_src, re.S)
-if not raw_match:
-    raise SystemExit("RAW bloğu bulunamadı")
-raw_body = raw_match.group(1)
+raw_match, raw_chunks = extract_raw_declaration(org_src)
+raw_body = "".join(raw_chunks)
+raw_values = raw_body.replace("${'$'}", "$")
 have_labels = set()
-for line in raw_body.splitlines():
+for line in raw_values.splitlines():
     parts = line.split("|")
     if len(parts) == 3:
         have_labels.add(parts[0])
@@ -292,7 +346,13 @@ for key in sorted(entries):
         have_labels.add(label)
         new_raw.append(f"{kotlin_escape(label)}|{key}|{kotlin_escape(e['en'])}")
 if new_raw:
-    org_src = org_src[:raw_match.end(1)] + "\n".join(new_raw) + "\n" + org_src[raw_match.end(1):]
+    raw_lines = [line for line in raw_body.splitlines() if line] + new_raw
+    new_decl = (
+        "private val RAW = listOf(\n"
+        + render_kotlin_raw_chunks(raw_lines)
+        + "\n    ).joinToString(\"\")"
+    )
+    org_src = org_src[:raw_match.start()] + new_decl + org_src[raw_match.end():]
 print(f"BangumiOrgDictionary: +{len(new_raw)} satır")
 
 # ── 5) Yaz ────────────────────────────────────────────────────────────────────
