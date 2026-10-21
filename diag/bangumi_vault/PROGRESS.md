@@ -98,8 +98,9 @@ Yeni Arena oturumunda, yeni dal açıldığında **birebir şu metni** yapışt�
 > devir teslim dosyasıdır; hiçbir şeyi sıfırdan araştırma, her şey orada yazılı.
 >
 > **(0) Dal (KRİTİK — yeni checkout'ta dosyalar YOKSA önce bunu yap):** Chunk 001 + 002 + 003 + **004a**
-> çalışmasının tamamı **PR #20**'de, dal `arena/6131dd54-kitsugi-beta`, **HEAD `4a2dedb`**
-> (`origin/main` 9ea3b46 üzerine merge edilmiş hâlde); bu iş henüz `main`'de YOK.
+> çalışmasının tamamı **PR #20**'de, dal `arena/6131dd54-kitsugi-beta`
+> (**dal ucunu al**, sabit SHA'ya bağlanma; bu dosyanın yazıldığı an: `c0934e1`).
+> Dal, `origin/main` 9ea3b46 üzerine merge edilmiş hâldedir; bu iş henüz `main`'de YOK.
 > Yeni oturumun dalı sabittir (ör. `arena/1b45adfd-kitsugi-beta`) ve `main`'den açıldıysa
 > `diag/bangumi_vault/` **boş gelir**. O zaman **kendi oturum dalında** şu iki komutu çalıştır
 > (fetch refspec kısıtlı olabilir, bu yüzden açık `src:dst` biçimi şart):
@@ -107,13 +108,15 @@ Yeni Arena oturumunda, yeni dal açıldığında **birebir şu metni** yapışt�
 > ```bash
 > git fetch --no-tags origin \
 >   refs/heads/arena/6131dd54-kitsugi-beta:refs/remotes/origin/arena/6131dd54-kitsugi-beta
-> git reset --hard refs/remotes/origin/arena/6131dd54-kitsugi-beta   # → 4a2dedb
+> git reset --hard refs/remotes/origin/arena/6131dd54-kitsugi-beta
 > ```
 >
 > Bu dal `main`'in 2.4.321–325 sürümünü (MAL URL düzeltmeleri dâhil) zaten içerir; ayrıca
-> `git merge origin/main` gerekmez. Dalı **değiştirme**; yalnız kendi dalının içeriğini bu
-> commit'e eşitle. Doğrulama: `ls diag/bangumi_vault/PROGRESS.md` görünmeli ve
-> `git log --oneline -1` → `4a2dedb`. Hiçbir chunk'ı yeniden araştırma/üretme.
+> `git merge origin/main` gerekmez. Dal **adını değiştirme**; yalnız kendi dalının içeriğini
+> bu uca eşitle. Doğrulama: `ls diag/bangumi_vault/PROGRESS.md` görünmeli,
+> `git log --oneline -1` PR #20 ucunu göstermeli. Hiçbir chunk'ı yeniden araştırma/üretme.
+> `git reset --hard` kullanmak istemiyorsan alternatif: `git merge --ff-only` çalışmazsa
+> `git checkout refs/remotes/origin/arena/6131dd54-kitsugi-beta -- .` + `git commit`.
 >
 > **(1) Kurulum:** Bölüm 0b tablosuyla veri dosyalarını Drive klasöründen indir
 > (`1pZAOYsAnMjveNK6grdXjqV9IDM1TFaJp`, ~74 MB; `download_file` paralel çağrılarla,
