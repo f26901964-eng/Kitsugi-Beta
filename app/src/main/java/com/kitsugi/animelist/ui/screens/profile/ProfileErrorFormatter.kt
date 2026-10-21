@@ -37,6 +37,12 @@ internal fun classifyProfileError(rawMessage: String?): ProfileErrorSummary {
         ?.toIntOrNull()
 
     val kind = when {
+        normalized.contains("temporarily disabled") ||
+            normalized.contains("stability issues") ||
+            normalized.contains("servis kesintisi") ||
+            (normalized.contains("anilist") && normalized.contains("devre d")) ->
+            ProfileErrorKind.SERVER
+
         statusCode == 429 || normalized.contains("too many requests") ||
             normalized.contains("rate limit") || normalized.contains("rate-limit") ->
             ProfileErrorKind.RATE_LIMIT

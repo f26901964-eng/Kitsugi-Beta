@@ -232,7 +232,12 @@ class KitsugiAniListNotificationClient {
             }
 
             runCatching {
-                val response = KitsugiApiBase.executeAniListQuery(query, variables, accessToken)
+                val response = KitsugiApiBase.executeAniListQuery(
+                    query = query,
+                    variables = variables,
+                    accessToken = accessToken,
+                    throwOnServiceDown = true
+                )
                     ?: throw AniListNotificationException(
                         "AniList bildirim isteği yanıtsız kaldı (ağ/sunucu hatası)."
                     )

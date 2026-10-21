@@ -410,9 +410,12 @@ class KitsugiAiringCalendarClient {
                 }
             }
             // TMDB varyantı zaten limit'li döner; AniList varyantı tam listedir.
+            // AniList geçici kesintideyken boş listeyi önbelleğe yazma; servis dönünce hemen dolsun.
             val stored = if (preferredSource == "tmdb") fresh else fresh.take(50)
-            synchronized(upcomingLock) {
-                upcomingCache[cacheKey] = UpcomingCacheEntry(stored, System.currentTimeMillis() + UPCOMING_CACHE_TTL_MS)
+            if (stored.isNotEmpty() || preferredSource == "tmdb" || !KitsugiApiBase.isAniListUnavailableNow()) {
+                synchronized(upcomingLock) {
+                    upcomingCache[cacheKey] = UpcomingCacheEntry(stored, System.currentTimeMillis() + UPCOMING_CACHE_TTL_MS)
+                }
             }
             owned.complete(stored)
             return stored.take(limit)
@@ -472,7 +475,8 @@ class KitsugiAiringCalendarClient {
             val responseText = KitsugiApiBase.executeAniListQuery(
                 query = QUERY,
                 variables = variables,
-                accessToken = accessToken
+                accessToken = accessToken,
+                throwOnServiceDown = failOnFirstPageError && page == 1
             )
             if (responseText == null) {
                 // GÜNCELLEME (2026-10-21): null "veri yok" demek DEĞİL; AniList 429

@@ -38,6 +38,24 @@ object KitsugiHttpClient {
             .build()
     }
 
+    /**
+     * AniList GraphQL istemcisi: [RetryInterceptor] YOK ve sıkı zaman tavanı uygulanır.
+     *
+     * Neden: Ana [client] içindeki [RetryInterceptor] (3 deneme) ile [KitsugiApiBase]
+     * yeniden deneme döngüsü (4 deneme) üst üste binip tek sorguda 12 gerçek HTTP
+     * denemesine ve 90 sn'ye varan kuyruk kilitlenmesine yol açıyordu. AniList kota,
+     * soğuma ve yeniden deneme yönetimi tek noktadan ([KitsugiApiBase]) yapılır.
+     */
+    val aniListClient: OkHttpClient by lazy {
+        client.newBuilder()
+            .connectTimeout(10, TimeUnit.SECONDS)
+            .readTimeout(12, TimeUnit.SECONDS)
+            .writeTimeout(12, TimeUnit.SECONDS)
+            .callTimeout(15, TimeUnit.SECONDS)
+            .apply { interceptors().removeAll { it is RetryInterceptor } }
+            .build()
+    }
+
     val client: OkHttpClient by lazy {
         OkHttpClient.Builder()
             .dns(IPv4FirstDns())

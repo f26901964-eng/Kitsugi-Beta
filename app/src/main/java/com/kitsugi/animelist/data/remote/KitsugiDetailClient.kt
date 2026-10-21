@@ -378,7 +378,43 @@ class KitsugiDetailClient {
                             if (malId != null && malId > 0) KitsugiMalDetailClient.fetchDetail(malId, mediaType) else null
                         }
                 }
-                "anilist" -> KitsugiAniListDetailClient.fetchDetail(extId, mediaType)
+                "anilist" -> {
+                    val primaryAniList = KitsugiAniListDetailClient.fetchDetail(extId, mediaType)
+                    if (primaryAniList != null) {
+                        primaryAniList
+                    } else {
+                        val knownMalId = realMalId?.takeIf { it in 1..99_999_999 }
+                            ?: extId.takeIf { it in 1..99_999_999 }
+                        val rawAniListId = if (extId >= 100_000_000) extId - 100_000_000 else null
+                        var fallbackDetail: KitsugiMediaDetail? = knownMalId?.let {
+                            KitsugiMalDetailClient.fetchDetail(it, mediaType)
+                        }
+                        if (fallbackDetail == null && mediaType != MediaType.Manga && rawAniListId != null) {
+                            val cross = runCatching {
+                                KitsugiIdResolver.resolveIds(
+                                    malId = knownMalId,
+                                    aniListId = rawAniListId,
+                                    mediaType = mediaType
+                                )
+                            }.getOrNull()
+                            if (cross?.malId != null && cross.malId > 0) {
+                                fallbackDetail = KitsugiMalDetailClient.fetchDetail(cross.malId, mediaType)
+                            }
+                            if (fallbackDetail == null && cross?.kitsuId != null && cross.kitsuId > 0) {
+                                fallbackDetail = KitsuIdNamespace.stableIdFromRaw(cross.kitsuId)?.let { stableKitsuId ->
+                                    KitsuExploreClient.fetchDetailByStableId(stableKitsuId, mediaType)
+                                }
+                            }
+                            if (fallbackDetail == null && cross?.tmdbId != null && cross.tmdbId > 0) {
+                                fallbackDetail = TmdbApiClient().fetchMediaDetail(
+                                    cross.tmdbId,
+                                    mediaType == MediaType.Movie
+                                )
+                            }
+                        }
+                        fallbackDetail
+                    }
+                }
                 // Bangumi: yerel (v0 + p1) veri; MAL/AniList/TMDB ile birleştirme enrichDetail'de.
                 "bangumi" -> KitsugiBangumiDetailClient.fetchDetail(extId, mediaType)
                 // Kitsu keşfet fallback öğeleri: stableId = kitsuId + 300_000_000
@@ -546,7 +582,9 @@ class KitsugiDetailClient {
                         android.util.Log.d("KitsugiDetailClient", "AniList/MAL detail returned null. Trying Kitsu fallback.")
                         val kitsuId = if (db != null) {
                             val resolvedEntity = if (source.lowercase() == "anilist") {
-                                db.mediaMetaCacheDao().getByAniListId(extId)
+                                val rawAniId = if (extId >= 100_000_000) extId - 100_000_000 else extId
+                                db.mediaMetaCacheDao().getByAniListId(rawAniId)
+                                    ?: db.mediaMetaCacheDao().getByAniListId(extId)
                             } else {
                                 db.mediaMetaCacheDao().getByMalId(extId)
                             }
@@ -580,6 +618,20 @@ class KitsugiDetailClient {
                                     finalDetail = KitsugiMalDetailClient.fetchDetail(matched.malId, mediaType)
                                 }
                             }
+                        }
+                    } else if (mediaType == MediaType.Manga) {
+                        // Manga / Manhwa Fallback: Jikan (MAL) başlık eşleşmesi → Kitsu manga yedeği
+                        android.util.Log.d("KitsugiDetailClient", "AniList/MAL manga detail returned null. Trying MAL/Kitsu manga fallback.")
+                        val knownMalId = realMalId?.takeIf { it in 1..99_999_999 }
+                        if (knownMalId != null) {
+                            finalDetail = KitsugiMalDetailClient.fetchDetail(knownMalId, MediaType.Manga)
+                        }
+                        if (finalDetail == null && !title.isNullOrBlank()) {
+                            finalDetail = fetchMalDetailByTitle(title, MediaType.Manga)
+                        }
+                        if (finalDetail == null && !title.isNullOrBlank()) {
+                            finalDetail = fetchKitsuDetailByTitle(title, MediaType.Manga)
+                            detailFromKitsuFallback = finalDetail != null
                         }
                     }
                 }
@@ -721,6 +773,31 @@ class KitsugiDetailClient {
             "MAL başlık yedeği: '$query' → MAL ${match.malId} ('${match.title}')"
         )
         return KitsugiMalDetailClient.fetchDetail(match.malId, mediaType)
+    }
+
+    /**
+     * Kitsu başlık araması (özellikle MAL'de kaydı olmayan Manhwa/Webtoon ve AniList kesintileri için).
+     * Yalnızca sıkı başlık doğrulamasından geçen ilk yapım kabul edilir.
+     */
+    private suspend fun fetchKitsuDetailByTitle(title: String?, mediaType: MediaType): KitsugiMediaDetail? {
+        val query = title?.trim().orEmpty()
+        if (query.isBlank()) return null
+        val candidates = runCatching {
+            KitsuExploreClient.searchAnime(query, mediaType, limit = 8)
+        }.getOrNull().orEmpty()
+        if (candidates.isEmpty()) return null
+        val match = candidates.firstOrNull { candidate ->
+            com.kitsugi.animelist.data.auth.CrossSyncIdentityGuard.titlesLookRelated(
+                listOfNotNull(candidate.title, candidate.titleEnglish, candidate.titleJapanese),
+                listOf(query),
+                strict = true
+            )
+        } ?: return null
+        android.util.Log.d(
+            "KitsugiDetailClient",
+            "Kitsu başlık yedeği: '$query' → Kitsu ${match.malId} ('${match.title}')"
+        )
+        return KitsuExploreClient.fetchDetailByStableId(match.malId, mediaType)
     }
 
     /**

@@ -1,7 +1,11 @@
 package com.kitsugi.animelist.data.remote
 
 import com.kitsugi.animelist.model.MediaType
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
@@ -909,30 +913,44 @@ class AniListSearchClient(
         shelves: List<ExploreShelfSpec>,
         showAdultContent: Boolean
     ): Map<String, List<JikanSearchResult>> = withContext(Dispatchers.IO) {
-        val out = HashMap<String, List<JikanSearchResult>>(shelves.size)
-        for (chunk in shelves.chunked(EXPLORE_BATCH_SIZE)) {
-            val chunkResult = runCatching { fetchExploreShelfChunk(chunk, showAdultContent) }.getOrNull()
-            if (chunkResult != null) {
-                out.putAll(chunkResult)
-            } else {
-                // Öbek toplu sorguda patladıysa bu raflar eski tekil yoldan gelsin.
-                for (spec in chunk) {
-                    out[spec.alias] = runCatching {
-                        requestAniList(
-                            mediaType = spec.mediaType,
-                            search = null,
-                            status = spec.status,
-                            sort = spec.sort,
-                            perPage = 20,
-                            format = spec.format,
-                            season = spec.season,
-                            seasonYear = spec.seasonYear,
-                            page = 1,
-                            showAdultContent = showAdultContent
-                        )
-                    }.getOrDefault(emptyList())
+        val out = java.util.concurrent.ConcurrentHashMap<String, List<JikanSearchResult>>(shelves.size)
+        coroutineScope {
+            shelves.chunked(EXPLORE_BATCH_SIZE).map { chunk ->
+                async {
+                    val chunkResult = try {
+                        fetchExploreShelfChunk(chunk, showAdultContent)
+                    } catch (e: CancellationException) {
+                        throw e
+                    } catch (e: AniListServiceDownException) {
+                        throw e
+                    } catch (_: Throwable) {
+                        null
+                    }
+                    if (chunkResult != null) {
+                        out.putAll(chunkResult)
+                    } else if (!KitsugiApiBase.isAniListUnavailableNow()) {
+                        // Yalnızca şema/alias kaynaklı tekil bir hata varsa tekil yoldan tamamla;
+                        // sunucu kapalı/429/gateway kesintisinde 14 ayrı istek fırtınası başlatma!
+                        for (spec in chunk) {
+                            if (KitsugiApiBase.isAniListUnavailableNow()) break
+                            out[spec.alias] = runCatching {
+                                requestAniList(
+                                    mediaType = spec.mediaType,
+                                    search = null,
+                                    status = spec.status,
+                                    sort = spec.sort,
+                                    perPage = 20,
+                                    format = spec.format,
+                                    season = spec.season,
+                                    seasonYear = spec.seasonYear,
+                                    page = 1,
+                                    showAdultContent = showAdultContent
+                                )
+                            }.getOrDefault(emptyList())
+                        }
+                    }
                 }
-            }
+            }.awaitAll()
         }
         out
     }
@@ -968,7 +986,8 @@ class AniListSearchClient(
         val responseText = KitsugiApiBase.executeAniListQuery(
             query = query,
             variables = JSONObject(),
-            accessToken = accessToken
+            accessToken = accessToken,
+            throwOnServiceDown = true
         ) ?: throw IllegalStateException("AniList boş yanıt")
 
         val root = JSONObject(responseText)

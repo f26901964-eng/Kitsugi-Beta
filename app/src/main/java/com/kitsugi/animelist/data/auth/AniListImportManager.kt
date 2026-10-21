@@ -324,13 +324,27 @@ object AniListImportManager {
             .build()
 
         try {
-            com.kitsugi.animelist.core.network.KitsugiHttpClient.client.newCall(request).execute().use { response ->
+            com.kitsugi.animelist.core.network.KitsugiHttpClient.aniListClient.newCall(request).execute().use { response ->
                 if (!response.isSuccessful) {
                     val errorText = response.body?.string().orEmpty()
+                    com.kitsugi.animelist.data.remote.KitsugiApiBase
+                        .extractAniListServiceDownMessage(errorText)
+                        ?.let { downMsg ->
+                            val down = com.kitsugi.animelist.data.remote.KitsugiApiBase
+                                .recordAniListServiceDown(downMsg, response.code)
+                            throw IllegalStateException(down.message, down)
+                        }
                     throw IllegalStateException("AniList API hatası: ${response.code} $errorText")
                 }
 
                 val body = response.body?.string().orEmpty()
+                com.kitsugi.animelist.data.remote.KitsugiApiBase
+                    .extractAniListServiceDownMessage(body)
+                    ?.let { downMsg ->
+                        val down = com.kitsugi.animelist.data.remote.KitsugiApiBase
+                            .recordAniListServiceDown(downMsg, 503)
+                        throw IllegalStateException(down.message, down)
+                    }
                 val errors = JSONObject(body).optJSONArray("errors")
                 require(errors == null || errors.length() == 0) { "AniList GraphQL liste okuma hatası: $errors" }
                 return body

@@ -434,7 +434,7 @@ internal object MalNotificationsClient {
             page = page,
             // Without a server contract, an item-bearing feed is a continuation hint only;
             // the caller still requires unseen IDs before appending or advancing the page.
-            hasNextPage = explicitHasNext ?: (browserHasNextOverride ?: (embeddedNextUrl != null || items.size >= PAGE_SIZE)),
+            hasNextPage = explicitHasNext ?: (browserHasNextOverride ?: (embeddedNextUrl != null || items.isNotEmpty())),
             nextPageUrl = embeddedNextUrl
         )
     }

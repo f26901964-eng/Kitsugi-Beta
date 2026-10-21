@@ -880,7 +880,7 @@ object AniListSyncManager {
         while (true) {
             attempt++
             try {
-                com.kitsugi.animelist.core.network.KitsugiHttpClient.client.newCall(request).execute().use { response ->
+                com.kitsugi.animelist.core.network.KitsugiHttpClient.aniListClient.newCall(request).execute().use { response ->
                     if (response.code == 429) {
                         val retrySec = response.header("Retry-After")?.toLongOrNull()?.coerceIn(1L, 120L) ?: 60L
                         kotlinx.coroutines.runBlocking {
@@ -896,6 +896,13 @@ object AniListSyncManager {
                     }
                     if (!response.isSuccessful) {
                         val errorText = response.body?.string().orEmpty().take(300)
+                        com.kitsugi.animelist.data.remote.KitsugiApiBase
+                            .extractAniListServiceDownMessage(errorText)
+                            ?.let { downMsg ->
+                                val down = com.kitsugi.animelist.data.remote.KitsugiApiBase
+                                    .recordAniListServiceDown(downMsg, response.code)
+                                throw IllegalStateException(down.message, down)
+                            }
                         throw IllegalStateException(
                             context?.getString(R.string.account_sync_api_error, "AniList", response.code, errorText)
                                 ?: "AniList API hatası: ${response.code} $errorText"
@@ -903,6 +910,13 @@ object AniListSyncManager {
                     }
 
                     val responseText = response.body?.string() ?: ""
+                    com.kitsugi.animelist.data.remote.KitsugiApiBase
+                        .extractAniListServiceDownMessage(responseText)
+                        ?.let { downMsg ->
+                            val down = com.kitsugi.animelist.data.remote.KitsugiApiBase
+                                .recordAniListServiceDown(downMsg, 503)
+                            throw IllegalStateException(down.message, down)
+                        }
                     val errors = JSONObject(responseText).optJSONArray("errors")
                     if (errors != null && errors.length() > 0) {
                         throw IllegalStateException(errors.toString())

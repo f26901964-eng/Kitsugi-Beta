@@ -52,6 +52,22 @@ class ProfileErrorFormatterTest {
     }
 
     @Test
+    fun anilistTemporaryApiShutdownIsClassifiedAsServerNotPermission() {
+        assertEquals(
+            ProfileErrorKind.SERVER,
+            classifyProfileError(
+                "HTTP 403: The AniList API has been temporarily disabled due to severe stability issues."
+            ).kind
+        )
+        assertEquals(
+            ProfileErrorKind.SERVER,
+            classifyProfileError(
+                "TR — AniList API'si sunucu kararlılık sorunları nedeniyle geçici olarak devre dışı bırakıldı."
+            ).kind
+        )
+    }
+
+    @Test
     fun unrecognizedErrorsUseTheSafeGenericMessage() {
         val summary = classifyProfileError("Unexpected provider response: {large raw payload}")
 

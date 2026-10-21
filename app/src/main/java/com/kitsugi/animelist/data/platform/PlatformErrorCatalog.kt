@@ -144,11 +144,13 @@ object PlatformErrorCatalog {
         }
 
         ListPlatform.ANILIST -> when {
+            isAniListServiceDownText(t) -> PlatformErrorCode.ANL_2008
             t.contains("too many requests") || http == 429 || t.contains("429") ||
                 t.contains("hız sınırı") || t.contains("rate limit") -> PlatformErrorCode.ANL_2002
             t.contains("score format") || t.contains("puan format") -> PlatformErrorCode.ANL_2006
             t.contains("private") || t.contains("gizli") -> PlatformErrorCode.ANL_2005
-            http == 500 || t.contains("500") || t.contains("internal server error") ->
+            (http != null && http in 500..599) || t.contains("500") || t.contains("502") ||
+                t.contains("503") || t.contains("504") || t.contains("internal server error") ->
                 PlatformErrorCode.ANL_2003
             http == 401 || t.contains("401") -> PlatformErrorCode.ANL_2004
             else -> null
@@ -186,7 +188,17 @@ object PlatformErrorCatalog {
         else -> null
     }
 
+    private fun isAniListServiceDownText(t: String): Boolean =
+        t.contains("anilistservicedown") ||
+            t.contains("temporarily disabled") ||
+            t.contains("stability issues") ||
+            t.contains("servis kesintisi") ||
+            (t.contains("anilist") && t.contains("devre d"))
+
     private fun keywordMatch(t: String): PlatformErrorCode? = when {
+        // ── AniList sunucu şalteri (platform GENERIC geçilse bile yakala) ───
+        isAniListServiceDownText(t) -> PlatformErrorCode.ANL_2008
+
         // ── Ağ / taşıma ─────────────────────────────────────────────────────
         t.contains("unable to resolve host") || t.contains("unknownhost") ||
             t.contains("no address associated with hostname") -> PlatformErrorCode.COM_1002
@@ -294,6 +306,11 @@ object PlatformErrorCatalog {
         if (code == PlatformErrorCode.ANL_2002) {
             val tr = localizedContext(context, "tr").getString(R.string.pf_err_anl_2002_profile_short)
             val en = localizedContext(context, "en").getString(R.string.pf_err_anl_2002_profile_short)
+            return "TR — $tr\nEN — $en"
+        }
+        if (code == PlatformErrorCode.ANL_2008) {
+            val tr = localizedContext(context, "tr").getString(R.string.pf_err_anl_2008_profile_short)
+            val en = localizedContext(context, "en").getString(R.string.pf_err_anl_2008_profile_short)
             return "TR — $tr\nEN — $en"
         }
         val tr = localized(context, code, "tr")

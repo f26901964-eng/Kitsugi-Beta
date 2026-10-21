@@ -1213,6 +1213,7 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Throwable) {
+                serviceError.compareAndSet(null, e)
                 null
             }
         }
@@ -1220,6 +1221,9 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
         fun shelf(alias: String, fallback: suspend () -> List<JikanSearchResult>) = async {
             val batch = shelfBatch.await()
             batch?.get(alias)?.let { return@async it }
+            if (serviceError.get() != null || com.kitsugi.animelist.data.remote.KitsugiApiBase.isAniListUnavailableNow()) {
+                return@async emptyList()
+            }
             fallback()
         }
 
@@ -1271,6 +1275,9 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
         if (allowFallback && (serviceError.get() != null || isAniListEmpty)) {
             android.util.Log.w("ExploreViewModel", "AniList veri vermedi veya servis hatası (boş=$isAniListEmpty) → Kitsu fallback")
             return@supervisorScope loadKitsuData()
+        }
+        if (!allowFallback && isAniListEmpty) {
+            serviceError.get()?.let { throw it }
         }
 
         // Kısmi boşlukları Kitsu ile tamamla
