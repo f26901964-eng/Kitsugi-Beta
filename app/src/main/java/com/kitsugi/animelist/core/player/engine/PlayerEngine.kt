@@ -42,6 +42,21 @@ interface PlayerEngine {
     val isSubtitleDisabled: Boolean
     val activeStreamInfo: StreamInfoData
 
+    /**
+     * Şu anda gerçekten seçili/çözülen bir video parçası var mı?
+     *
+     * Ses ve görüntü ayrı akışlardan geldiğinde (imzalı YouTube adaptif akışları) ya da
+     * cihazın çözemediği bir video kodeği geldiğinde (ör. AnimeThemes'in VP9 `.webm`
+     * dosyaları) oynatıcı hata vermez: ses çalmaya devam eder, zaman çizgisi ilerler ama
+     * video parçası hiç seçilmez. Sonuç "sesi var, görüntüsü yok" durumudur ve
+     * [State.READY] olduğu için hiçbir yedek motor devreye girmez.
+     *
+     * Bu bayrak, çağıran tarafın (küçük oynatıcı bekçisi) bu durumu yakalayıp diğer
+     * motora geçebilmesi için vardır. Varsayılan `true`'dur: bilinmeyen/uygulanmamış
+     * motorlar yanlış yere yedek geçiş tetiklemez.
+     */
+    val hasVideoTrack: Boolean get() = true
+
     // ── Motor yetenekleri (özellik kapıları) ─────────────────────────────────
     // UI, desteklenmeyen bir kontrolü sessizce "no-op" bırakmak yerine bu bayraklara
     // bakarak motor değiştirebilir veya kontrolü gizleyebilir. Varsayılanlar Media3'tür;

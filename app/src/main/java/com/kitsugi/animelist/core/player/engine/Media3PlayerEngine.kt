@@ -80,10 +80,41 @@ class Media3PlayerEngine(
 
         /** Parça seçiminin uygulanıp uygulanmadığını kontrol etmeden önce beklenecek süre. */
         const val TRACK_SELECTION_VERIFY_DELAY_MS = 450L
+
+        /** Zaman çizgisi bildirim aralığı (4 Hz). */
+        const val POSITION_TICK_INTERVAL_MS = 250L
     }
 
     private val TAG = "Media3PlayerEngine"
     private val mainHandler = android.os.Handler(android.os.Looper.getMainLooper())
+    @Volatile private var released = false
+
+    /**
+     * Zaman çizgisi darbesi. Media3 konum değişimlerini `Player.Listener` üzerinden
+     * bildirmediği için detay sayfasındaki küçük oynatıcı sayacı 00:00'da donmuş
+     * görünüyordu. Saniyede dört bildirim sayaç ve ilerleme çubuğu için fazlasıyla
+     * yeterlidir; 60 Hz'lik bir akış ana iş parçacığını ve Compose'u boğardı.
+     */
+    private val positionTickRunnable = object : Runnable {
+        override fun run() {
+            if (released) return
+            val player = exoPlayer ?: return
+            if (!player.isPlaying) return
+            val positionMs = player.currentPosition.coerceAtLeast(0L)
+            val durationMs = player.duration.coerceAtLeast(0L)
+            listeners.forEach { it.onPositionChanged(positionMs, durationMs) }
+            mainHandler.postDelayed(this, POSITION_TICK_INTERVAL_MS)
+        }
+    }
+
+    private fun startPositionTicker() {
+        mainHandler.removeCallbacks(positionTickRunnable)
+        mainHandler.postDelayed(positionTickRunnable, POSITION_TICK_INTERVAL_MS)
+    }
+
+    private fun stopPositionTicker() {
+        mainHandler.removeCallbacks(positionTickRunnable)
+    }
     private fun runOnMainThread(block: () -> Unit) {
         if (android.os.Looper.myLooper() == android.os.Looper.getMainLooper()) {
             block()
@@ -134,6 +165,22 @@ class Media3PlayerEngine(
         
     override val isPlaying: Boolean
         get() = exoPlayer?.isPlaying ?: false
+
+    /**
+     * Seçili video parçası var mı?
+     *
+     * Ses ve görüntü ayrı akışlardan geldiğinde (imzalı YouTube adaptif akışları) ya da
+     * cihazın çözemediği bir video kodeği geldiğinde (ör. AnimeThemes'in VP9 `.webm`
+     * dosyaları) Media3 hata ÜRETMEZ: parça seçici video parçasını atlar, ses çalmaya
+     * devam eder, süre ilerler. Kullanıcı bunu "sesi var ama görüntüsü yok" olarak görür.
+     * Küçük oynatıcı bekçisi bu bayrakla durumu yakalayıp diğer motora geçer.
+     */
+    override val hasVideoTrack: Boolean
+        get() = exoPlayer?.currentTracks
+            ?.groups
+            ?.any { group ->
+                group.type == androidx.media3.common.C.TRACK_TYPE_VIDEO && group.isSelected
+            } == true
         
     override val currentSpeed: Float
         get() = exoPlayer?.playbackParameters?.speed ?: settings.playerSpeed
@@ -231,6 +278,7 @@ class Media3PlayerEngine(
             // Compose UI never updates, making the pause/stop button appear broken.
             Log.d(TAG, "onIsPlayingChanged: isPlaying=$isPlaying state=$currentState")
             analytics.onPlayingChanged(isPlaying)
+            if (isPlaying) startPositionTicker() else stopPositionTicker()
             listeners.forEach { it.onPlayingChanged(isPlaying) }
             listeners.forEach { it.onStateChanged(currentState) }
         }
@@ -1404,6 +1452,8 @@ class Media3PlayerEngine(
     }
 
     override fun release() {
+        released = true
+        stopPositionTicker()
         runOnMainThread {
             exoPlayer?.let { player ->
                 // ASS handler kaydı statik map'te tutuluyor; motor kapanırken bırakılmazsa

@@ -206,6 +206,9 @@ fun KitsugiYouTubePlayer(
         var isPlayingState by remember(videoId) { mutableStateOf(false) }
         var currentPosition by remember(videoId) { mutableStateOf(0L) }
         var duration by remember(videoId) { mutableStateOf(0L) }
+        // İlk kare göründükten sonra ara bellek dalgalanmaları yükleme animasyonunu
+        // yeniden göstermemeli; aksi hâlde akıcı oynayan video "donuyor" gibi görünüyor.
+        var hasStartedPlayback by remember(videoId) { mutableStateOf(false) }
         var playerState by remember(playerEngine) { mutableStateOf(PlayerEngine.State.IDLE) }
         val engineTypeForPlayer = activeEngineType
         val resumedState = rememberInlinePlayerResumed()
@@ -243,6 +246,7 @@ fun KitsugiYouTubePlayer(
                     if (released) return
                     currentPosition = positionMs
                     duration = durationMs
+                    if (positionMs > 0L) hasStartedPlayback = true
                 }
 
                 override fun onTracksChanged(
@@ -296,6 +300,19 @@ fun KitsugiYouTubePlayer(
                 }
                 if (reachedReady == null) {
                     switchToAlternateEngine(attemptedEngine, "no playback progress within ${INLINE_PLAYER_START_TIMEOUT_MS}ms")
+                    return@LaunchedEffect
+                }
+                if (!reachedReady) return@LaunchedEffect
+
+                // Ses çalarken video parçası hiç seçilmemiş olabilir (cihazın çözemediği
+                // kodek ya da 403 dönen imzalı YouTube video akışı). Media3 bu durumda
+                // hata üretmediği için ekran siyah kalır; bekçi diğer motora geçer.
+                val audioOnly = waitForInlineVideoTrack(
+                    engine = playerEngine,
+                    isResumed = { resumedState.value }
+                )
+                if (audioOnly && attemptedEngine == activeEngineType) {
+                    switchToAlternateEngine(attemptedEngine, "audio-only playback (no video track selected)")
                 }
             } catch (e: CancellationException) {
                 // The player can be disposed while prepare or network IO is in flight.
@@ -345,7 +362,7 @@ fun KitsugiYouTubePlayer(
                     },
                     modifier = Modifier.fillMaxSize()
                 )
-                if (playerState == PlayerEngine.State.BUFFERING) {
+                if (playerState == PlayerEngine.State.BUFFERING && !hasStartedPlayback) {
                     Box(
                         modifier = Modifier.fillMaxSize(),
                         contentAlignment = Alignment.Center

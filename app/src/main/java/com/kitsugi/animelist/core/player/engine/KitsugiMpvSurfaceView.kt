@@ -220,6 +220,22 @@ class KitsugiMpvSurfaceView @JvmOverloads constructor(
         return !vid.isNullOrBlank() && !vid.equals("no", ignoreCase = true)
     }
 
+    /**
+     * Görüntü gerçekten ekrana çıkıyor mu?
+     *
+     * [hasVideoTrackSelectedNow] yalnızca parçanın seçili olduğunu söyler. Android'de
+     * video çıkışı (VO) kurulamazsa mpv sesi çalmaya devam eder ama hiç kare üretmez;
+     * kullanıcı bunu "sesi var, görüntüsü yok" olarak görür. `vo-configured` özelliği
+     * tam bu durumu ayırt eder. Özellik okunamazsa yanlış yedek geçişi yapmamak için
+     * `true` (görüntü var) kabul edilir.
+     */
+    fun isVideoOutputActiveNow(): Boolean {
+        if (!initialized) return false
+        if (!hasVideoTrackSelectedNow()) return false
+        val configured = runCatching { mpv.getPropertyBoolean("vo-configured") }.getOrNull()
+        return configured ?: true
+    }
+
     fun setPlaybackSpeed(speed: Float) {
         if (!initialized) return
         mpv.setPropertyDouble("speed", speed.toDouble())

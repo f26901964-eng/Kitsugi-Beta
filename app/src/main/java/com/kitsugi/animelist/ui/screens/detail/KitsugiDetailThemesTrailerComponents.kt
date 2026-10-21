@@ -216,6 +216,10 @@ fun ThemePlayerContainer(
     var isPlayerError by remember(url) { mutableStateOf(false) }
     var isPlayerLoading by remember(url) { mutableStateOf(true) }
     var retryTrigger by remember(url) { mutableStateOf(0) }
+    // İlk kare göründükten sonra ara bellek dalgalanmaları yükleme animasyonunu
+    // tekrar tekrar açıp kapatmamalı: video oynarken üstünde beliren halka,
+    // akıcı bir akışı bile "donuyor" gibi gösteriyordu.
+    var hasStartedPlayback by remember(url) { mutableStateOf(false) }
 
     val videoId = remember(url) { extractYouTubeId(url) }
 
@@ -287,6 +291,7 @@ fun ThemePlayerContainer(
                     if (released) return
                     currentPosition = positionMs
                     duration = durationMs
+                    if (positionMs > 0L) hasStartedPlayback = true
                 }
 
                 override fun onTracksChanged(
@@ -339,6 +344,19 @@ fun ThemePlayerContainer(
                 }
                 if (reachedReady == null) {
                     switchToAlternateEngine(attemptedEngine, "no playback progress within ${INLINE_PLAYER_START_TIMEOUT_MS}ms")
+                    return@LaunchedEffect
+                }
+                if (!reachedReady) return@LaunchedEffect
+
+                // Doğrudan OP/ED dosyaları çoğunlukla VP9 `.webm`. Cihazın VP9 çözücüsü
+                // yoksa Media3 hata vermez; ses çalar, görüntü hiç gelmez. MPV yazılım
+                // çözücüyle aynı dosyayı oynatabildiği için bekçi motoru değiştirir.
+                val audioOnly = waitForInlineVideoTrack(
+                    engine = playerEngine,
+                    isResumed = { resumedState.value }
+                )
+                if (audioOnly && attemptedEngine == activeEngineType) {
+                    switchToAlternateEngine(attemptedEngine, "audio-only playback (no video track selected)")
                 }
             } catch (e: CancellationException) {
                 // Closing or replacing this row cancels prepare; do not trigger a false fallback.
@@ -440,7 +458,7 @@ fun ThemePlayerContainer(
                     )
                 }
                 
-                if (isPlayerLoading) {
+                if (isPlayerLoading && !hasStartedPlayback) {
                     CircularProgressIndicator(color = accentColor)
                 }
             }

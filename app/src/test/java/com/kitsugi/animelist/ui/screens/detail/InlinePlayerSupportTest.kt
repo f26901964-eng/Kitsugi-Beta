@@ -35,4 +35,49 @@ class InlinePlayerSupportTest {
         assertTrue(hasInlinePlaybackProgress(PlayerEngine.State.ENDED, 0L))
     }
 
+    @Test
+    fun audioOnlyPlaybackIsNotDetectedDuringTheGracePeriod() {
+        // Video parçası henüz seçilmemiş olabilir: ses başladı diye hemen motor değişmemeli.
+        assertFalse(
+            audioOnlyPlaybackDetected(
+                elapsedMs = INLINE_AUDIO_ONLY_GRACE_MS - 1_000L,
+                state = PlayerEngine.State.READY,
+                positionMs = 3_500L,
+                hasVideoTrack = false
+            )
+        )
+    }
+
+    @Test
+    fun audioOnlyPlaybackIsDetectedWhenTimelineAdvancesWithoutVideo() {
+        assertTrue(
+            audioOnlyPlaybackDetected(
+                elapsedMs = INLINE_AUDIO_ONLY_GRACE_MS,
+                state = PlayerEngine.State.READY,
+                positionMs = 6_200L,
+                hasVideoTrack = false
+            )
+        )
+    }
+
+    @Test
+    fun healthyVideoPlaybackNeverTriggersTheAudioOnlyGuard() {
+        assertFalse(
+            audioOnlyPlaybackDetected(
+                elapsedMs = INLINE_AUDIO_ONLY_GRACE_MS * 3,
+                state = PlayerEngine.State.READY,
+                positionMs = 20_000L,
+                hasVideoTrack = true
+            )
+        )
+        // Ses ilerlemiyorsa (hâlâ 0 ms) tanı konmaz; bu ayrı bir bekleme durumudur.
+        assertFalse(
+            audioOnlyPlaybackDetected(
+                elapsedMs = INLINE_AUDIO_ONLY_GRACE_MS * 3,
+                state = PlayerEngine.State.BUFFERING,
+                positionMs = 0L,
+                hasVideoTrack = false
+            )
+        )
+    }
 }
