@@ -166,6 +166,32 @@ class SimklApiClient(
     private val clientMap: Map<String, String>? = null
 ) {
     private val client = com.kitsugi.animelist.core.network.KitsugiHttpClient.client
+
+    // ── Resmî saniyelik limitler (api.simkl.org/resources/rate-limits) ─────────
+    // 10 GET/sn ve 1 POST/sn (client_id + kullanıcı token'ı). GET aşımı 429;
+    // POST aşımı token/client_id'i GEÇİCİ THROTLE-BLOĞUNA alır, tekrarlayan
+    // aşım bloğu uzatır; sürekli aşım uyarı-sız askıya almaya kadar gider.
+    // Gönderim öncesi aralık burada zorlanır; günlük kota/429 kuyruk olarak işlenir.
+    private val simklRateLock = Any()
+    private var lastSimklGetAt = 0L
+    private var lastSimklPostAt = 0L
+    private fun awaitSimklRateLimit(request: Request) {
+        val waitMs = synchronized(simklRateLock) {
+            val now = android.os.SystemClock.elapsedRealtime()
+            if (request.method == "GET") {
+                val earliest = lastSimklGetAt + 120L
+                lastSimklGetAt = if (earliest > now) earliest else now
+                earliest - now
+            } else {
+                val earliest = lastSimklPostAt + 1000L
+                lastSimklPostAt = if (earliest > now) earliest else now
+                earliest - now
+            }
+        }
+        if (waitMs > 0) {
+            runCatching { Thread.sleep(waitMs) }
+        }
+    }
     // T3-01: BuildConfig'den alınır
     private val clientId get() = com.kitsugi.animelist.BuildConfig.SIMKL_CLIENT_ID
     private val requiredQueryParams
@@ -228,6 +254,7 @@ class SimklApiClient(
         val request = jsonRequest(url)
 
         return try {
+            awaitSimklRateLimit(request)
             client.newCall(request).execute().use { response ->
                 if (!response.isSuccessful) {
                     android.util.Log.e("SimklApiClient", "search $endpoint HTTP ${response.code}")
@@ -318,6 +345,7 @@ class SimklApiClient(
         val cdnUrl = "https://data.simkl.in/discover/trending/$cdnType/${periodKey}_500.json?$requiredQueryParams"
         val request = jsonRequest(cdnUrl)
         try {
+            awaitSimklRateLimit(request)
             client.newCall(request).execute().use { response ->
                 if (!response.isSuccessful) return@withContext emptyList()
                 val responseText = response.body?.string().orEmpty()
@@ -387,6 +415,7 @@ class SimklApiClient(
         val url = "https://api.simkl.com/$safeType/genres/$path?$requiredQueryParams&page=${page.coerceAtLeast(1)}&limit=$limit"
         val request = jsonRequest(url)
         try {
+            awaitSimklRateLimit(request)
             client.newCall(request).execute().use { response ->
                 if (!response.isSuccessful) return@withContext emptyList()
                 val responseText = response.body?.string().orEmpty()
@@ -420,6 +449,7 @@ class SimklApiClient(
         val url = "https://api.simkl.com/$safeType/genres/$path?$requiredQueryParams&page=$safePage&limit=$safeLimit"
         val request = jsonRequest(url)
         try {
+            awaitSimklRateLimit(request)
             client.newCall(request).execute().use { response ->
                 if (!response.isSuccessful) return@withContext emptyList()
                 parseSimklArray(response.body?.string().orEmpty(), safeType, safeLimit)
@@ -447,6 +477,7 @@ class SimklApiClient(
         val url = "https://api.simkl.com/$safeType/premieres/$safePremiere?$requiredQueryParams&page=$safePage&limit=$safeLimit"
         val request = jsonRequest(url)
         try {
+            awaitSimklRateLimit(request)
             client.newCall(request).execute().use { response ->
                 if (!response.isSuccessful) return@withContext emptyList()
                 parseSimklArray(response.body?.string().orEmpty(), safeType, safeLimit)
@@ -463,6 +494,7 @@ class SimklApiClient(
         val url = "https://api.simkl.com/$safeType/airing?$requiredQueryParams&sort=rank"
         val request = jsonRequest(url)
         try {
+            awaitSimklRateLimit(request)
             client.newCall(request).execute().use { response ->
                 if (!response.isSuccessful) return@withContext emptyList()
                 parseSimklArray(response.body?.string().orEmpty(), safeType, Int.MAX_VALUE)
@@ -532,6 +564,7 @@ class SimklApiClient(
         val request = jsonRequest(cdnUrl)
 
         try {
+            awaitSimklRateLimit(request)
             client.newCall(request).execute().use { response ->
                 if (!response.isSuccessful) {
                     android.util.Log.e("SimklApiClient", "getTrending $cdnType HTTP ${response.code}")
@@ -609,6 +642,7 @@ class SimklApiClient(
             .build()
 
         try {
+            awaitSimklRateLimit(request)
             client.newCall(request).execute().use { response ->
                 if (!response.isSuccessful) return@withContext emptyList()
                 val responseText = response.body?.string().orEmpty()
@@ -660,6 +694,7 @@ class SimklApiClient(
             .build()
 
         try {
+            awaitSimklRateLimit(request)
             client.newCall(request).execute().use { response ->
                 if (!response.isSuccessful) return@withContext emptyList()
                 val responseText = response.body?.string().orEmpty()
@@ -772,6 +807,7 @@ class SimklApiClient(
             .build()
 
         try {
+            awaitSimklRateLimit(request)
             client.newCall(request).execute().use { response ->
                 checkResponseAndThrow(response)
                 response.isSuccessful
@@ -801,6 +837,7 @@ class SimklApiClient(
             .build()
 
         try {
+            awaitSimklRateLimit(request)
             client.newCall(request).execute().use { response ->
                 checkResponseAndThrow(response)
                 if (!response.isSuccessful) return@withContext emptyList()
@@ -874,6 +911,7 @@ class SimklApiClient(
             .header("Accept", "application/json")
             .build()
         try {
+            awaitSimklRateLimit(request)
             client.newCall(request).execute().use { response ->
                 if (!response.isSuccessful) return@withContext emptyList()
                 val responseText = response.body?.string().orEmpty()
@@ -918,6 +956,8 @@ class SimklApiClient(
     data class SimklBatchEntry(
         val type: String, // "anime", "movies", "shows"
         val status: String,
+        /** Bilinen toplam bölüm — history gönderiminde kırpma (A16/ani-gui #264); null = bilinmiyor, dokunulmaz. */
+        val total: Int? = null,
         val simklId: Int = 0,
         val malId: Int? = null,
         val tmdbId: Int? = null,
@@ -1068,6 +1108,7 @@ class SimklApiClient(
                 .build()
 
             try {
+                awaitSimklRateLimit(request)
                 val callResult = client.newCall(request).execute().use { response ->
                     checkResponseAndThrow(response)
                     if (response.code == 429) {
@@ -1146,7 +1187,14 @@ class SimklApiClient(
         token: String,
         entries: List<SimklBatchEntry>
     ): SimklBatchResponse = withContext(Dispatchers.IO) {
-        val filtered = entries.filter { it.progress > 0 }
+        // ani-gui #264 (A16): bilinen toplam varsa ve ilerleme onu aşıyorsa toplama
+        // sıkıştır (Simkl sayı-üstü izlemeyi reddedebilir); toplam bilinmiyorsa dokunulmaz.
+        val filtered = entries.filter { it.progress > 0 }.map { e ->
+            val knownTotal = e.total
+            if (knownTotal != null && knownTotal > 0 && e.progress > knownTotal) {
+                e.copy(progress = knownTotal)
+            } else e
+        }
         if (filtered.isEmpty()) return@withContext SimklBatchResponse(isSuccess = true)
         // A TV aggregate count cannot be mapped to seasons without an episode catalogue.
         // Never invent S01E<total>. Report unsupported progress instead of corrupting history.
@@ -1298,6 +1346,7 @@ class SimklApiClient(
             .build()
 
         try {
+            awaitSimklRateLimit(request)
             client.newCall(request).execute().use { response ->
                 checkResponseAndThrow(response)
                 response.isSuccessful
@@ -1322,6 +1371,7 @@ class SimklApiClient(
             .build()
 
         try {
+            awaitSimklRateLimit(request)
             client.newCall(request).execute().use { response ->
                 checkResponseAndThrow(response)
                 if (!response.isSuccessful) null
@@ -1380,6 +1430,7 @@ class SimklApiClient(
             .build()
 
         try {
+            awaitSimklRateLimit(request)
             client.newCall(request).execute().use { response ->
                 checkResponseAndThrow(response)
                 when {
@@ -1425,6 +1476,7 @@ class SimklApiClient(
             .build()
 
         try {
+            awaitSimklRateLimit(request)
             client.newCall(request).execute().use { response ->
                 checkResponseAndThrow(response)
                 response.isSuccessful
@@ -1462,11 +1514,25 @@ class SimklApiClient(
             .build()
 
         try {
+            awaitSimklRateLimit(request)
             client.newCall(request).execute().use { response ->
                 checkResponseAndThrow(response)
-                response.isSuccessful
+                when {
+                    response.isSuccessful -> true
+                    // 4xx: örn. silinecek puan zaten yok (404) — yeniden denemek anlamsız,
+                    // kuyruğu şişirmemek için "sessiz başarısız".
+                    response.code in 400..499 -> false
+                    // 5xx: sunucu hatası — "puan silme" işleminin KAYBOLMAMASI için
+                    // fırlatılır; çağıran taraf hataya/kuyruğa alır.
+                    else -> throw java.io.IOException("HTTP ${response.code}")
+                }
             }
         } catch (e: com.kitsugi.animelist.data.repository.SimklAuthException) {
+            throw e
+        } catch (e: java.io.IOException) {
+            // Çevrimdışı/timeout gibi taşıma hataları da false'a çevrilmez: false yalnız
+            // 4xx için döndürülür; burada yeniden denenebilir hata olarak yayılır —
+            // aksi halde kullanıcının "puanı sil" işlemi sessizce kaybolurdu.
             throw e
         } catch (e: Exception) {
             false
@@ -1494,6 +1560,7 @@ class SimklApiClient(
         val request = Request.Builder().url(url).header("Accept", "application/json").build()
 
         try {
+            awaitSimklRateLimit(request)
             client.newCall(request).execute().use { response ->
                 if (!response.isSuccessful) return@withContext emptyList()
                 val jsonArray = JSONArray(response.body?.string().orEmpty())
@@ -1617,6 +1684,7 @@ class SimklApiClient(
             .header("User-Agent", "KitsugiApp/2.4")
             .build()
         return try {
+            awaitSimklRateLimit(request)
             client.newCall(request).execute().use { response ->
                 if (!response.isSuccessful) return null
                 val text = response.body?.string().orEmpty()

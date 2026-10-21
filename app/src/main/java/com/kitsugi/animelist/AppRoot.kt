@@ -562,7 +562,9 @@ fun AppRoot(
         launch {
             networkMonitor.isOnlineFlow.collect { isOnline ->
                 if (isOnline) {
-                    val count = mediaRepository.drainPendingQueue()
+                    // Bağlantı (geri) geldi: yeniden deneme bütçesi tazelenir — 5 denemeyi
+                    // aşmış, "asla denenmeyecek" duruma düşmüş işler de bu oturumda kurtarılır.
+                    val count = mediaRepository.drainPendingQueue(freshBudget = true)
                     if (count > 0) {
                         appViewModel.showSnackbarMessage(KitsugiStrings.get(R.string.cevrimdisi_kaydedilen_x_islem_senkronize_edildi, count))
                     }

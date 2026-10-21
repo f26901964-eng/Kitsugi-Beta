@@ -113,7 +113,9 @@ object BangumiSyncManager {
 
         val status = watchStatusToBangumi(entry.status)
         val rate = toBangumiRate(entry.score)
-        val progress = entry.progress
+        // ani-gui #264 (A16): bilinen toplam varsa ilerleme onu aşıyorsa sıkıştır
+        // (Bangumi ep/fen-count kontrolüne takılmasın); bilinmiyorsa dokunulmaz.
+        val progress = kotlin.math.minOf(entry.progress, entry.total?.takeIf { it > 0 } ?: Int.MAX_VALUE)
         val messages = mutableListOf<String>()
         val errors = mutableListOf<String>()
 

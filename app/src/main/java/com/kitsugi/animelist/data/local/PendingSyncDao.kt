@@ -23,6 +23,19 @@ interface PendingSyncDao {
     @Query("UPDATE pending_syncs SET retryCount = retryCount + 1 WHERE id = :id")
     suspend fun incrementRetry(id: Int)
 
+    /**
+     * Yeniden deneme bütçesini sıfırlar (bağlantı geri geldiğinde / uygulama açıldığında).
+     * `retryCount >= 5` olan kayıtlar sonsuza kadar donmasın diye: 5 deneme bir oturum
+     * için caydırıcıdır, bir sonraki bağlantı/oturum için taze bütçe verilir — kullanıcı
+     * niyeti asla kalıcı olarak kaybolmaz.
+     */
+    @Query("UPDATE pending_syncs SET retryCount = 0")
+    suspend fun resetRetries()
+
+    /** Tüm kuyruğu temizler (tüm listeyi silme / yedek geri yükleme_REPLACE sonrası bayat işler). */
+    @Query("DELETE FROM pending_syncs")
+    suspend fun clearAll()
+
     @Query("SELECT COUNT(*) FROM pending_syncs")
     suspend fun count(): Int
 }

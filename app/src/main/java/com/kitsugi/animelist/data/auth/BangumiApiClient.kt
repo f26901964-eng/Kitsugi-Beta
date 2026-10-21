@@ -146,6 +146,27 @@ object BangumiApiClient {
 
     private val httpClient get() = KitsugiHttpClient.metadataClient
 
+    /**
+     * `api.bgm.tv` Cloudflare DDoS korumasına karşı minimum istek aralığı.
+     * Bangumi resmi bir rate limit yayımlamıyor; hızlı ardışık istekler 503'e
+     * düşebiliyor (bangumi/api#50). Topluluk pratiği 200ms–1.1s; 450ms seçildi
+     * (KitsugiApiBase'teki Shikimori bütçesiyle hizalı). 429 dönerse
+     * BangumiSyncManager ayırımını ayrıca yapar ve raporlar.
+     */
+    private val bangumiThrottleLock = Any()
+    private var lastBangumiRequestAt = 0L
+    private fun awaitBangumiThrottle() {
+        val waitMs = synchronized(bangumiThrottleLock) {
+            val now = android.os.SystemClock.elapsedRealtime()
+            val earliest = lastBangumiRequestAt + 450L
+            lastBangumiRequestAt = if (earliest > now) earliest else now
+            earliest - now
+        }
+        if (waitMs > 0) {
+            runCatching { Thread.sleep(waitMs) }
+        }
+    }
+
     // ── Modeller ─────────────────────────────────────────────────────────────
 
     /** `条目类型` (SubjectType): 1=书籍, 2=动画, 3=音乐, 4=游戏, 6=三次元. (`5` yok.) */
@@ -458,6 +479,7 @@ object BangumiApiClient {
      * 204 (gövdesiz başarı) ve boş gövde `null` olarak döner.
      */
     private fun execute(request: Request): String? {
+        awaitBangumiThrottle()
         httpClient.newCall(request).execute().use { response ->
             val body = response.body?.string().orEmpty()
             if (response.isSuccessful) {
@@ -603,6 +625,7 @@ object BangumiApiClient {
             .header("Accept", "application/json")
             .post(form)
             .build()
+        awaitBangumiThrottle()
         httpClient.newCall(request).execute().use { response ->
             val body = response.body?.string().orEmpty()
             if (!response.isSuccessful) throw parseError(response.code, body)
@@ -633,6 +656,7 @@ object BangumiApiClient {
             .header("Accept", "application/json")
             .post(form)
             .build()
+        awaitBangumiThrottle()
         httpClient.newCall(request).execute().use { response ->
             val body = response.body?.string().orEmpty()
             if (!response.isSuccessful) throw parseError(response.code, body)
@@ -648,6 +672,7 @@ object BangumiApiClient {
             .header("User-Agent", USER_AGENT)
             .post(form)
             .build()
+        awaitBangumiThrottle()
         httpClient.newCall(request).execute().use { response ->
             val body = response.body?.string().orEmpty()
             if (!response.isSuccessful) throw parseError(response.code, body)
@@ -2043,6 +2068,7 @@ object BangumiApiClient {
                 .get()
                 .bangumiHeaders(null)
                 .build()
+            awaitBangumiThrottle()
             httpClient.newCall(request).execute().use { response ->
                 response.isSuccessful || response.code == 404 || response.code == 400
             }

@@ -1,6 +1,8 @@
 package com.kitsugi.animelist.data.auth
 
 import android.util.Log
+import android.content.Context
+import com.kitsugi.animelist.KitsugiApplication
 import com.kitsugi.animelist.core.network.KitsugiHttpClient
 import com.kitsugi.animelist.data.remote.KitsugiApiBase
 import com.kitsugi.animelist.data.remote.ShikimoriPosterResolver
@@ -33,6 +35,12 @@ object ShikimoriApiClient {
      */
     private const val BASE_URL = "https://shikimori.io"
     private const val LEGACY_BASE_URL = "https://shikimori.one"
+    /** Güncel-domain iddiası (2026; zayıf kaynaklı) — aday olarak denenir, tek-gerçek sayılmaz. */
+    private const val MODERN_BASE_URL = "https://shikimori.tv"
+    /** Erişim kısıtı/kapanan ayna karşısında sırayla denenecek domainler. */
+    private val DOMAIN_CANDIDATES = listOf(BASE_URL, LEGACY_BASE_URL, MODERN_BASE_URL)
+    private const val DOMAIN_PREFS = "shikimori_domain_v1"
+    private const val DOMAIN_PREF_KEY = "active_base_url"
     private const val USER_AGENT = "KitsugiApp/2.4 (Android)"
     private val JSON_MEDIA_TYPE = "application/json".toMediaTypeOrNull()
 
@@ -53,6 +61,47 @@ object ShikimoriApiClient {
             .build()
     }
 
+    // ── Domain dayanıklılığı (Shikimori domain rotasyonu kroniktir) ─────────────
+
+    /** Son başarılı domain'i saklar; erişim engeli/kapanışından sonra açılışta önceliklidir. */
+    private fun rememberWorkingBaseUrl(base: String) {
+        runCatching {
+            val context = KitsugiApplication.getInstance()?.applicationContext ?: return
+            val prefs = context.getSharedPreferences(DOMAIN_PREFS, Context.MODE_PRIVATE)
+            if (prefs.getString(DOMAIN_PREF_KEY, null) != base) {
+                prefs.edit().putString(DOMAIN_PREF_KEY, base).apply()
+            }
+        }
+    }
+
+    /** Öncelikli taban adresi: son çalışan domain, yoksa ilk aday (.io). */
+    internal fun preferredBaseUrl(): String {
+        val saved = runCatching {
+            KitsugiApplication.getInstance()?.applicationContext
+                ?.getSharedPreferences(DOMAIN_PREFS, Context.MODE_PRIVATE)
+                ?.getString(DOMAIN_PREF_KEY, null)
+        }.getOrNull()
+        return saved?.takeIf { it.startsWith("https://shikimori") } ?: BASE_URL
+    }
+
+    /** Dayanıklılık sırası: tercih edilen domain en başta, kalan adaylar ardışık. */
+    internal fun baseUrlCandidates(): List<String> {
+        val preferred = preferredBaseUrl()
+        return listOf(preferred) + DOMAIN_CANDIDATES.filter { it != preferred }
+    }
+
+    /** Bağlantı/DNS/TLS katmanı hatası mı (erişim kısıtı dahil) — HTTP durum kodları değil. */
+    private fun isReachabilityFailure(t: Throwable): Boolean {
+        if (t is java.net.UnknownHostException || t is java.net.ConnectException ||
+            t is java.net.SocketTimeoutException || t is javax.net.ssl.SSLException
+        ) return true
+        val message = t.message?.lowercase() ?: return false
+        return message.contains("unable to resolve host") || message.contains("failed to connect") ||
+            message.contains("connection refused") || message.contains("connection reset") ||
+            message.contains("connection timed out") || message.contains("network is unreachable") ||
+            message.contains("software caused connection abort")
+    }
+
     /**
      * Shikimori isteklerini çalıştırır. Sunucu yönlendirme (301/302/303/307/308)
      * döndürürse, isteği orijinal Authorization header'ı korunarak yeni adrese
@@ -61,8 +110,25 @@ object ShikimoriApiClient {
     internal fun executeShikimori(request: Request, maxHops: Int = 3): Response {
         var current = request
         var hops = 0
+        val triedHosts = mutableSetOf(current.url.host)
         while (true) {
-            val response = shikimoriHttpClient.newCall(current).execute()
+            val response = try {
+                shikimoriHttpClient.newCall(current).execute()
+            } catch (e: java.io.IOException) {
+                // Erişilemiyor (DNS/TLS/bağlantı — ülke-ölçeği kısıt dahil):
+                // Shikimori domain adayları arasında sırayla geç.
+                if (!isReachabilityFailure(e)) throw e
+                val nextBase = baseUrlCandidates().firstOrNull { candidate ->
+                    val h = candidate.removePrefix("https://")
+                    h.isNotEmpty() && h !in triedHosts
+                } ?: throw e
+                val nextHost = nextBase.removePrefix("https://")
+                current = current.newBuilder()
+                    .url(current.url.newBuilder().host(nextHost).build())
+                    .build()
+                triedHosts += nextHost
+                continue
+            }
             if (response.code in 300..399 && hops < maxHops) {
                 val location = response.header("Location")
                 if (!location.isNullOrBlank()) {
@@ -79,6 +145,9 @@ object ShikimoriApiClient {
                         continue
                     }
                 }
+            }
+            if (response.isSuccessful && current.url.host.startsWith("shikimori")) {
+                rememberWorkingBaseUrl("https://" + current.url.host)
             }
             return response
         }
@@ -176,7 +245,8 @@ object ShikimoriApiClient {
     }
 
     /** Shikimori OAuth uygulamaları yönetim sayfası (Redirect URI ayarları burada yapılır). */
-    const val APPLICATIONS_URL = "$BASE_URL/oauth/applications"
+    val APPLICATIONS_URL: String
+        get() = "${preferredBaseUrl()}/oauth/applications"
 
     /**
      * Shikimori üzerinde önceden doldurulmuş yeni OAuth uygulama oluşturma URL'si (gelişmiş kullanıcılar için).
@@ -185,7 +255,7 @@ object ShikimoriApiClient {
         val encodedUri = java.net.URLEncoder.encode(DEEP_LINK_REDIRECT_URI, "UTF-8")
         // Kişisel bildirimler (GET /api/users/:id/messages) için "messages" izni gerekir;
         // kullanıcının kendi uygulamasını oluştururken iki izni de ön-dolduruyoruz.
-        return "$BASE_URL/oauth/applications/new?application%5Bname%5D=Kitsugi&application%5Bredirect_uri%5D=$encodedUri&application%5Bscopes%5D=user_rates%20messages"
+        return "${preferredBaseUrl()}/oauth/applications/new?application%5Bname%5D=Kitsugi&application%5Bredirect_uri%5D=$encodedUri&application%5Bscopes%5D=user_rates%20messages"
     }
 
     /**
@@ -218,7 +288,7 @@ object ShikimoriApiClient {
         val effectiveClientId = clientId.trim().ifBlank { DEFAULT_CLIENT_ID }
         val effectiveRedirect = redirectUri.trim().ifBlank { DEFAULT_REDIRECT_URI }
         val encodedUri = java.net.URLEncoder.encode(effectiveRedirect, "UTF-8")
-        return "$BASE_URL/oauth/authorize?client_id=$effectiveClientId&redirect_uri=$encodedUri&response_type=code&scope=$scopes"
+        return "${preferredBaseUrl()}/oauth/authorize?client_id=$effectiveClientId&redirect_uri=$encodedUri&response_type=code&scope=$scopes"
     }
 
     /**
@@ -295,7 +365,7 @@ object ShikimoriApiClient {
             .add("redirect_uri", redirectUri)
             .build()
 
-        val urlsToTry = listOf(OAUTH_TOKEN_URL, "$LEGACY_BASE_URL/oauth/token")
+        val urlsToTry = baseUrlCandidates().map { "$it/oauth/token" }
         var lastErr: Exception? = null
 
         for (tokenUrl in urlsToTry) {
@@ -396,7 +466,7 @@ object ShikimoriApiClient {
             .add("refresh_token", refreshToken)
             .build()
 
-        val urlsToTry = listOf(OAUTH_TOKEN_URL, "$LEGACY_BASE_URL/oauth/token")
+        val urlsToTry = baseUrlCandidates().map { "$it/oauth/token" }
         var lastErr: Exception? = null
 
         for (tokenUrl in urlsToTry) {
@@ -971,7 +1041,7 @@ object ShikimoriApiClient {
             .get()
             .build()
 
-        KitsugiHttpClient.client.newCall(request).execute().use { response ->
+        executeShikimori(request).use { response ->
             if (response.code == 401 || response.code == 403) {
                 throw ShikimoriScopeException(
                     "Shikimori 'messages' izni yok (HTTP ${response.code})"
@@ -1001,7 +1071,7 @@ object ShikimoriApiClient {
                             ?: linked?.optString("russian")?.takeIf { it.isNotBlank() },
                         targetImageUrl = ShikimoriPosterResolver.absoluteUrl(rawImg),
                         targetUrl = linked?.optString("url")?.takeIf { it.isNotBlank() }?.let {
-                            if (it.startsWith("http")) it else "$BASE_URL$it"
+                            if (it.startsWith("http")) it else "${preferredBaseUrl()}$it"
                         },
                         fromNickname = from?.optString("nickname")?.takeIf { it.isNotBlank() },
                         fromAvatarUrl = ShikimoriPosterResolver.absoluteUrl(
@@ -1030,7 +1100,7 @@ object ShikimoriApiClient {
             .build()
 
         runCatching {
-            KitsugiHttpClient.client.newCall(request).execute().use { response ->
+            executeShikimori(request).use { response ->
                 if (response.code == 401 || response.code == 403) {
                     throw ShikimoriScopeException("Shikimori 'messages' izni yok (HTTP ${response.code})")
                 }

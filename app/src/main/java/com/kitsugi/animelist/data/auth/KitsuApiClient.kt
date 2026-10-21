@@ -10,6 +10,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.Request
+import okhttp3.Response
 import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONArray
 import org.json.JSONObject
@@ -22,6 +23,34 @@ import com.kitsugi.animelist.R
  * ve kütüphane kayıtlarını ekleme/güncelleme/silme işlemlerini yönetir.
  */
 object KitsuApiClient {
+    /**
+     * `kitsu.app` (uygulama kodu) ↔ `kitsu.io` (resmi doküman hostu) erişim dönüşümlü
+     * denenir: tek host ölüyse/kısıtlandıyken sağlayıcı tamamen ölmesin
+     * (EverythingBox #330 sınıfı risk). Yalnız erişim katmanı hatalarında devreye girer.
+     */
+    private fun executeWithHostFallback(request: Request): Response {
+        return try {
+            KitsugiHttpClient.client.newCall(request).execute()
+        } catch (e: java.io.IOException) {
+            val alt = when (request.url.host) {
+                "kitsu.app" -> "kitsu.io"
+                "kitsu.io" -> "kitsu.app"
+                else -> null
+            }
+            val reachable = e is java.net.UnknownHostException || e is java.net.ConnectException ||
+                e is java.net.SocketTimeoutException || e is javax.net.ssl.SSLException ||
+                (e.message?.lowercase()?.let { msg ->
+                    msg.contains("unable to resolve host") || msg.contains("failed to connect") ||
+                        msg.contains("connection refused") || msg.contains("connection timed out") ||
+                        msg.contains("connection reset")
+                } == true)
+            if (alt == null || !reachable) throw e
+            val swapped = request.newBuilder()
+                .url(request.url.newBuilder().host(alt).build())
+                .build()
+            KitsugiHttpClient.client.newCall(swapped).execute()
+        }
+    }
     private const val TAG = "KitsuApiClient"
 
     // Açık kaynak standart Kitsu OAuth kimlik bilgileri (Tachiyomi / Aniyomi referansı)
@@ -149,7 +178,7 @@ object KitsuApiClient {
             .post(formBody)
             .build()
 
-        KitsugiHttpClient.client.newCall(request).execute().use { response ->
+        executeWithHostFallback(request).use { response ->
             val body = response.body?.string().orEmpty()
             if (!response.isSuccessful) {
                 val errorType = runCatching { JSONObject(body).optString("error", "") }.getOrDefault("")
@@ -185,7 +214,7 @@ object KitsuApiClient {
             .get()
             .build()
 
-        KitsugiHttpClient.client.newCall(request).execute().use { response ->
+        executeWithHostFallback(request).use { response ->
             val body = response.body?.string().orEmpty()
             if (!response.isSuccessful) throw Exception("Kullanıcı bilgisi alınamadı (${response.code})")
             val data = JSONObject(body).getJSONArray("data")
@@ -212,7 +241,7 @@ object KitsuApiClient {
             .get()
             .build()
 
-        KitsugiHttpClient.client.newCall(request).execute().use { response ->
+        executeWithHostFallback(request).use { response ->
             val body = response.body?.string().orEmpty()
             if (!response.isSuccessful) throw Exception("Kitsu profil bilgisi alınamadı (${response.code})")
             val data = JSONObject(body).getJSONArray("data")
@@ -276,7 +305,7 @@ object KitsuApiClient {
                 .get()
                 .build()
 
-            val fetchedCount = KitsugiHttpClient.client.newCall(request).execute().use { response ->
+            val fetchedCount = executeWithHostFallback(request).use { response ->
                 check(response.isSuccessful) { "Kitsu liste okuma hatası: HTTP ${response.code} (offset=$offset)" }
                 val body = response.body?.string().orEmpty()
                 val json = JSONObject(body)
@@ -476,7 +505,7 @@ object KitsuApiClient {
         while (attempt < 3) {
             attempt++
             PlatformRateLimiter.acquire("kitsu")
-            val outcome: Result<String?>? = KitsugiHttpClient.client.newCall(request).execute().use { response ->
+            val outcome: Result<String?>? = executeWithHostFallback(request).use { response ->
                 val body = response.body?.string().orEmpty()
                 when {
                     response.code == 429 -> {
@@ -582,7 +611,7 @@ object KitsuApiClient {
                 .post(payload.toString().toRequestBody(JSON_MEDIA_TYPE))
                 .build()
 
-            lastResult = KitsugiHttpClient.client.newCall(request).execute().use { response ->
+            lastResult = executeWithHostFallback(request).use { response ->
                 val body = response.body?.string().orEmpty()
                 when {
                     response.code == 429 -> {
@@ -626,7 +655,7 @@ object KitsuApiClient {
             .addHeader("User-Agent", "KitsugiApp/2.4")
             .build()
         try {
-            KitsugiHttpClient.client.newCall(request).execute().use { response ->
+            executeWithHostFallback(request).use { response ->
                 if (response.code == 429) PlatformRateLimiter.notifyRateLimited("kitsu")
                 if (!response.isSuccessful) return@use null
                 val body = response.body?.string()
@@ -697,7 +726,7 @@ object KitsuApiClient {
                 .patch(payload.toString().toRequestBody(JSON_MEDIA_TYPE))
                 .build()
 
-            lastResult = KitsugiHttpClient.client.newCall(request).execute().use { response ->
+            lastResult = executeWithHostFallback(request).use { response ->
                 val body = response.body?.string().orEmpty()
                 when {
                     response.code == 429 -> {
@@ -735,7 +764,7 @@ object KitsuApiClient {
             .delete()
             .build()
 
-        KitsugiHttpClient.client.newCall(request).execute().use { response ->
+        executeWithHostFallback(request).use { response ->
             response.isSuccessful || response.code == 404
         }
     }
@@ -761,7 +790,7 @@ object KitsuApiClient {
             attempt++
             PlatformRateLimiter.acquire("kitsu")
             val outcome = runCatching {
-                KitsugiHttpClient.client.newCall(request).execute().use { response ->
+                executeWithHostFallback(request).use { response ->
                     if (response.code == 429) {
                         PlatformRateLimiter.notifyRateLimited("kitsu")
                         return@use null
@@ -840,7 +869,7 @@ object KitsuApiClient {
         val request = builder.get().build()
 
         runCatching {
-            KitsugiHttpClient.client.newCall(request).execute().use { response ->
+            executeWithHostFallback(request).use { response ->
                 if (response.code == 429) {
                     PlatformRateLimiter.notifyRateLimited("kitsu")
                     return@use null
@@ -951,7 +980,7 @@ object KitsuApiClient {
             .build()
 
         runCatching {
-            KitsugiHttpClient.client.newCall(request).execute().use { response ->
+            executeWithHostFallback(request).use { response ->
                 if (!response.isSuccessful) return@use null
                 val body = response.body?.string().orEmpty()
                 val json = JSONObject(body)
@@ -993,7 +1022,7 @@ object KitsuApiClient {
             .build()
 
         runCatching {
-            KitsugiHttpClient.client.newCall(request).execute().use { response ->
+            executeWithHostFallback(request).use { response ->
                 if (!response.isSuccessful) return@use emptyList()
                 val body = response.body?.string().orEmpty()
                 val json = JSONObject(body)
@@ -1036,7 +1065,7 @@ object KitsuApiClient {
             .build()
         PlatformRateLimiter.acquire("kitsu")
         runCatching {
-            KitsugiHttpClient.client.newCall(request).execute().use { response ->
+            executeWithHostFallback(request).use { response ->
                 if (response.code == 429) {
                     PlatformRateLimiter.notifyRateLimited("kitsu")
                     return@use null
