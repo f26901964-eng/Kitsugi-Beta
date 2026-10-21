@@ -2,7 +2,7 @@
 
 > **Bu dosya devir teslim dosyasıdır.** Yeni bir dal/şube işi buradan devralır.
 > Son güncelleme: **2026-10-21** · Chunk **001 + 002 + 003 + 004a + 004b + 004c + 005a** tamamlandı, uygulamaya işlendi.
-> Chunk 005a PR'ı: bu chunk'ın PR'ı `arena/1e0c5ecd-kitsugi-beta` dalından açıldı (numarası Bölüm 2h'de).
+> Chunk 005a PR'ı: https://github.com/f26901964-eng/Kitsugi-Beta/pull/23 (dal `arena/1e0c5ecd-kitsugi-beta`).
 > Chunk 004c PR'ı: https://github.com/f26901964-eng/Kitsugi-Beta/pull/22 — **`main`'e MERGE EDİLDİ** (2026-10-21).
 > Dal `arena/c54b58d5-kitsugi-beta`; chunk 001+002+003+004a+004b+004c'nin tamamını taşır. Artık yeni dal
 > `main`'den açıldığında tüm dosyalar **hazır gelir** (fetch/reset gerekmez).
@@ -438,6 +438,8 @@ Araç değişiklikleri (geriye dönük uyumlu):
 
 ### 2h) CHUNK 005a (TAMAM ✓ · 2026-10-21) — kurum count 10–19
 
+PR: https://github.com/f26901964-eng/Kitsugi-Beta/pull/23 (dal `arena/1e0c5ecd-kitsugi-beta`)
+
 | Rol | Kararlı | SKIP | Toplam |
 |---|---:|---:|---:|
 | studio | 708 | 13 | 721 |
@@ -805,7 +807,8 @@ Chunk 005a için durumu (2026-10-21) → her satır **✅ tamam**:
 - [x] Drive'a yüklendi: PROGRESS.md, progress.json, decisions/canon.tsv,
       decisions/map_chunk_005a_orgs.tsv, decisions/org_global_names.tsv,
       translations_done.tsv, translations_pending.tsv
-- [x] Git commit + push (dal `arena/1e0c5ecd-kitsugi-beta`) + PR açıldı (numarası Bölüm 2h'de)
+- [x] Git commit + push (dal `arena/1e0c5ecd-kitsugi-beta`) + PR #23 açıldı
+      (https://github.com/f26901964-eng/Kitsugi-Beta/pull/23)
 - [ ] **Not (yerel derleme):** bu oturumda JDK/kotlinc kurulu değildi; `compile_check.sh`
       çalıştırılamadı. Kotlin tarafı yalnız `verify_bangumi_master.py` + `gen --check` +
       RAW parça bayt denetimiyle doğrulandı; asıl derleme CI'da (kotlinc adımı) koşar.
