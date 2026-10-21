@@ -96,6 +96,31 @@ enum class ListPlatform(
             } ?: GENERIC
         }
 
+        /** Alan adı → platform eşlemesi (ağ isteği hatalarını doğru kaynağa bağlamak için). */
+        private val HOST_SUFFIXES: List<Pair<String, ListPlatform>> = listOf(
+            "anilist.co" to ListPlatform.ANILIST,
+            "jikan.moe" to ListPlatform.MAL,
+            "myanimelist.net" to ListPlatform.MAL,
+            "kitsu.io" to ListPlatform.KITSU,
+            "kitsu.app" to ListPlatform.KITSU,
+            "shikimori.one" to ListPlatform.SHIKIMORI,
+            "shikimori.me" to ListPlatform.SHIKIMORI,
+            "bgm.tv" to ListPlatform.BANGUMI,
+            "bangumi.tv" to ListPlatform.BANGUMI,
+            "themoviedb.org" to ListPlatform.TMDB,
+            "simkl.com" to ListPlatform.SIMKL,
+            "simkl.in" to ListPlatform.SIMKL,
+        )
+
+        /** İstek ana bilgisayarından (`api.simkl.com`) platform bulur; tanınmıyorsa [GENERIC]. */
+        fun fromHost(host: String?): ListPlatform {
+            val normalized = host?.trim()?.lowercase(Locale.ROOT)?.trimEnd('.').orEmpty()
+            if (normalized.isEmpty()) return GENERIC
+            return HOST_SUFFIXES.firstOrNull { (domain, _) ->
+                normalized == domain || normalized.endsWith(".$domain")
+            }?.second ?: GENERIC
+        }
+
         /** `KTS-MAL-3001` → [MAL]. */
         fun fromErrorCode(code: String?): ListPlatform {
             val prefix = code?.trim()?.uppercase(Locale.ROOT)

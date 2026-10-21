@@ -42,6 +42,7 @@ class TmdbApiClient(
         .writeTimeout(8, TimeUnit.SECONDS)
         .followRedirects(true)
         .followSslRedirects(true)
+        .addInterceptor(com.kitsugi.animelist.core.network.PlatformFailureInterceptor())
         .build()
     // Most call sites use TmdbApiClient() and are not rebuilt when preferences change.
     // Resolve the shared active key here so personal keys work consistently throughout the app.

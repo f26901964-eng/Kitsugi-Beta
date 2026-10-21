@@ -30,6 +30,8 @@ import com.kitsugi.animelist.utils.PreferenceHelpers.getDisplayTitle
 import androidx.compose.runtime.remember
 import coil3.request.ImageRequest
 import coil3.request.crossfade
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Arrangement
 
 @Composable
 fun RecommendationsTabContent(
@@ -43,17 +45,23 @@ fun RecommendationsTabContent(
             DetailRecommendationsLoadingSkeleton(itemCount = 4)
         }
         is DetailTabState.Error -> {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 24.dp),
-                contentAlignment = Alignment.Center
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                Text(
-                    text = stringResource(R.string.inline_an_error_occurred_while_loading_76418da),
-                    color = KitsugiColors.AccentRed,
-                    style = MaterialTheme.typography.bodyMedium
-                )
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 24.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = stringResource(R.string.inline_an_error_occurred_while_loading_76418da),
+                        color = KitsugiColors.AccentRed,
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                }
+                DetailTabErrorCodeChip(platformErrorCode = state.platformErrorCode)
             }
         }
         is DetailTabState.Success -> {

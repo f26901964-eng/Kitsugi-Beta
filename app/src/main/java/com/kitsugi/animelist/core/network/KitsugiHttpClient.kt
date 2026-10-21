@@ -86,6 +86,8 @@ object KitsugiHttpClient {
                     chain.proceed(reqBuilder.build())
                 }
             )
+            // En içte: her deneme (RetryInterceptor dahil) için gerçek HTTP kodunu görür.
+            .addInterceptor(PlatformFailureInterceptor())
             .build()
     }
 }

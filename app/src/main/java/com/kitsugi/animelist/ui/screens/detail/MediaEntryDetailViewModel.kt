@@ -1,5 +1,7 @@
 package com.kitsugi.animelist.ui.screens.detail
 
+import com.kitsugi.animelist.data.platform.PlatformErrorCode
+import com.kitsugi.animelist.data.platform.PlatformFailureRegistry
 import android.app.Application
 import android.util.Log
 import androidx.lifecycle.AndroidViewModel
@@ -76,6 +78,18 @@ class MediaEntryDetailViewModel(application: Application) : AndroidViewModel(app
 
     private val _detailLoading = MutableStateFlow(true)
     val detailLoading: StateFlow<Boolean> = _detailLoading.asStateFlow()
+
+    /**
+     * Detay alınamadığında kaynağın `KTS-…` hata kodu (yoksa null). Başarılı detayda sıfırlanır;
+     * yeniden denemede son hata yüklenme ekranında görünmeye devam eder.
+     */
+    private val _detailErrorCode = MutableStateFlow<PlatformErrorCode?>(null)
+    val detailErrorCode: StateFlow<PlatformErrorCode?> = _detailErrorCode.asStateFlow()
+
+    /** Sekme hatası için kaynağın son `KTS-…` kodu; bilinmiyorsa genel sınıflandırılamayan kod. */
+    private fun tabFailureCode(source: String): com.kitsugi.animelist.data.platform.PlatformErrorCode =
+        com.kitsugi.animelist.data.platform.PlatformFailureRegistry.latest(source)?.code
+            ?: com.kitsugi.animelist.data.platform.PlatformErrorCode.COM_1020
 
     private val _synopsisState = MutableStateFlow<SynopsisState>(SynopsisState.Loading)
     val synopsisState: StateFlow<SynopsisState> = _synopsisState.asStateFlow()
@@ -321,6 +335,7 @@ class MediaEntryDetailViewModel(application: Application) : AndroidViewModel(app
 
         _detailState.value = cachedDetail
         _detailLoading.value = cachedDetail == null
+        if (cachedDetail != null) _detailErrorCode.value = null
 
         _synopsisState.value = when {
             cachedSynopsisTranslation != null -> SynopsisState.Success(cachedSynopsisTranslation)
@@ -520,6 +535,7 @@ class MediaEntryDetailViewModel(application: Application) : AndroidViewModel(app
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "Exception during apiClient.fetchDetail: ${e.message}", e)
+                PlatformFailureRegistry.report(entry.source, error = e)
                 null
             }
             if (fetched != null) {
@@ -533,6 +549,13 @@ class MediaEntryDetailViewModel(application: Application) : AndroidViewModel(app
 
         _detailState.value = detail
         _detailLoading.value = false
+        _detailErrorCode.value = if (detail == null) {
+            // Kaynak tarafında (HTTP / istisna) bildirilmiş güncel bir neden varsa onu, yoksa
+            // genel "sınıflandırılamayan hata" kodunu göster; hata sessizce yutulmasın.
+            PlatformFailureRegistry.latest(entry.source)?.code ?: PlatformErrorCode.COM_1020
+        } else {
+            null
+        }
         val expectedFetchKey = currentFetchKey
 
         if (detail != null) {
@@ -1297,7 +1320,7 @@ class MediaEntryDetailViewModel(application: Application) : AndroidViewModel(app
                                     title = resolvedTitle
                                 )
                             } ?: run {
-                                _charactersState.value = DetailTabState.Error
+                                _charactersState.value = DetailTabState.Error(tabFailureCode(entry.source))
                                 return@launch
                             }
                             val result = fetched.value
@@ -1322,7 +1345,7 @@ class MediaEntryDetailViewModel(application: Application) : AndroidViewModel(app
                                     realMalId = effectiveRealMalId
                                 )
                             } ?: run {
-                                _staffState.value = DetailTabState.Error
+                                _staffState.value = DetailTabState.Error(tabFailureCode(entry.source))
                                 return@launch
                             }
                             val result = fetched.value
@@ -1348,7 +1371,7 @@ class MediaEntryDetailViewModel(application: Application) : AndroidViewModel(app
                                     title = entry.title
                                 )
                             } ?: run {
-                                _recommendationsState.value = DetailTabState.Error
+                                _recommendationsState.value = DetailTabState.Error(tabFailureCode(entry.source))
                                 return@launch
                             }
                             val result = fetched.value
@@ -1374,7 +1397,7 @@ class MediaEntryDetailViewModel(application: Application) : AndroidViewModel(app
                                     title = entry.title
                                 )
                             } ?: run {
-                                _relationsState.value = DetailTabState.Error
+                                _relationsState.value = DetailTabState.Error(tabFailureCode(entry.source))
                                 return@launch
                             }
                             val result = fetched.value
@@ -1396,7 +1419,7 @@ class MediaEntryDetailViewModel(application: Application) : AndroidViewModel(app
                                     tmdbId = tmdbId
                                 )
                             } ?: run {
-                                _statsState.value = DetailTabState.Error
+                                _statsState.value = DetailTabState.Error(tabFailureCode(entry.source))
                                 return@launch
                             }
                             val result = fetched.value
@@ -1423,7 +1446,7 @@ class MediaEntryDetailViewModel(application: Application) : AndroidViewModel(app
                                     realMalId = effectiveRealMalId
                                 )
                             } ?: run {
-                                _reviewsState.value = DetailTabState.Error
+                                _reviewsState.value = DetailTabState.Error(tabFailureCode(entry.source))
                                 return@launch
                             }
                             val result = fetched.value
@@ -1451,7 +1474,7 @@ class MediaEntryDetailViewModel(application: Application) : AndroidViewModel(app
                                     tmdbId = tmdbId
                                 )
                             } ?: run {
-                                _episodesState.value = DetailTabState.Error
+                                _episodesState.value = DetailTabState.Error(tabFailureCode(entry.source))
                                 return@launch
                             }
                             val result = fetched.value
@@ -1465,13 +1488,13 @@ class MediaEntryDetailViewModel(application: Application) : AndroidViewModel(app
             } catch (e: Exception) {
                 Log.e(TAG, "Error loading tab data for index $tabIndex: ${e.message}", e)
                 when (tabIndex) {
-                    2 -> _charactersState.value = DetailTabState.Error
-                    3 -> _staffState.value = DetailTabState.Error
-                    4 -> _recommendationsState.value = DetailTabState.Error
-                    5 -> _relationsState.value = DetailTabState.Error
-                    6 -> _statsState.value = DetailTabState.Error
-                    7 -> _reviewsState.value = DetailTabState.Error
-                    8 -> _episodesState.value = DetailTabState.Error
+                    2 -> _charactersState.value = DetailTabState.Error(tabFailureCode(entry.source))
+                    3 -> _staffState.value = DetailTabState.Error(tabFailureCode(entry.source))
+                    4 -> _recommendationsState.value = DetailTabState.Error(tabFailureCode(entry.source))
+                    5 -> _relationsState.value = DetailTabState.Error(tabFailureCode(entry.source))
+                    6 -> _statsState.value = DetailTabState.Error(tabFailureCode(entry.source))
+                    7 -> _reviewsState.value = DetailTabState.Error(tabFailureCode(entry.source))
+                    8 -> _episodesState.value = DetailTabState.Error(tabFailureCode(entry.source))
                 }
             }
         }

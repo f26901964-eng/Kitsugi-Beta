@@ -68,12 +68,18 @@ fun StatsTabContent(
             DetailStatsLoadingSkeleton()
         }
         is DetailTabState.Error -> {
-            Text(
-                text = if (isTurkish) stringResource(R.string.ui_statistics_load_failed) else "Failed to load statistics.",
-                color = KitsugiColors.AccentRed,
-                style = MaterialTheme.typography.bodyMedium,
-                modifier = Modifier.padding(vertical = 16.dp)
-            )
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Text(
+                    text = if (isTurkish) stringResource(R.string.ui_statistics_load_failed) else "Failed to load statistics.",
+                    color = KitsugiColors.AccentRed,
+                    style = MaterialTheme.typography.bodyMedium,
+                    modifier = Modifier.padding(vertical = 16.dp)
+                )
+                DetailTabErrorCodeChip(platformErrorCode = state.platformErrorCode)
+            }
         }
         is DetailTabState.Success -> {
             val stats = state.data

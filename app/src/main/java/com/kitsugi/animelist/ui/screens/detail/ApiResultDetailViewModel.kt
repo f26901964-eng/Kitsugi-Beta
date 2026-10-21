@@ -72,6 +72,18 @@ class ApiResultDetailViewModel(application: Application) : AndroidViewModel(appl
     private val _detailState = MutableStateFlow<KitsugiMediaDetail?>(null)
     val detailState: StateFlow<KitsugiMediaDetail?> = _detailState.asStateFlow()
 
+    /**
+     * Detay alınamadığında kaynağın `KTS-…` hata kodu (yoksa null). Başarılı detayda sıfırlanır;
+     * yeniden denemede son hata yüklenme ekranında görünmeye devam eder.
+     */
+    private val _detailErrorCode = MutableStateFlow<com.kitsugi.animelist.data.platform.PlatformErrorCode?>(null)
+    val detailErrorCode: StateFlow<com.kitsugi.animelist.data.platform.PlatformErrorCode?> = _detailErrorCode.asStateFlow()
+
+    /** Sekme hatası için kaynağın son `KTS-…` kodu; bilinmiyorsa genel sınıflandırılamayan kod. */
+    private fun tabFailureCode(source: String): com.kitsugi.animelist.data.platform.PlatformErrorCode =
+        com.kitsugi.animelist.data.platform.PlatformFailureRegistry.latest(source)?.code
+            ?: com.kitsugi.animelist.data.platform.PlatformErrorCode.COM_1020
+
     private val _detailLoading = MutableStateFlow(true)
     val detailLoading: StateFlow<Boolean> = _detailLoading.asStateFlow()
 
@@ -539,6 +551,7 @@ class ApiResultDetailViewModel(application: Application) : AndroidViewModel(appl
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "Exception during apiClient.fetchPrimaryDetail: ${e.message}", e)
+                com.kitsugi.animelist.data.platform.PlatformFailureRegistry.report(result.source, error = e)
                 null
             }
             if (fetched != null) {
@@ -548,6 +561,12 @@ class ApiResultDetailViewModel(application: Application) : AndroidViewModel(appl
         }
 
         _detailState.value = detail
+        _detailErrorCode.value = if (detail == null) {
+            com.kitsugi.animelist.data.platform.PlatformFailureRegistry.latest(result.source)?.code
+                ?: com.kitsugi.animelist.data.platform.PlatformErrorCode.COM_1020
+        } else {
+            null
+        }
         val expectedFetchKey = currentFetchKey
         val autoTranslate = settings?.autoTranslateEnabled ?: false
 
@@ -981,7 +1000,7 @@ class ApiResultDetailViewModel(application: Application) : AndroidViewModel(appl
                                     title = resolvedTitle
                                 )
                             } ?: run {
-                                _charactersState.value = DetailTabState.Error
+                                _charactersState.value = DetailTabState.Error(tabFailureCode(result.source))
                                 return@launch
                             }
                             val data = fetched.value
@@ -1004,7 +1023,7 @@ class ApiResultDetailViewModel(application: Application) : AndroidViewModel(appl
                                     realMalId = effectiveRealMalId
                                 )
                             } ?: run {
-                                _staffState.value = DetailTabState.Error
+                                _staffState.value = DetailTabState.Error(tabFailureCode(result.source))
                                 return@launch
                             }
                             val data = fetched.value
@@ -1028,7 +1047,7 @@ class ApiResultDetailViewModel(application: Application) : AndroidViewModel(appl
                                     title = result.title
                                 )
                             } ?: run {
-                                _recommendationsState.value = DetailTabState.Error
+                                _recommendationsState.value = DetailTabState.Error(tabFailureCode(result.source))
                                 return@launch
                             }
                             val data = fetched.value
@@ -1052,7 +1071,7 @@ class ApiResultDetailViewModel(application: Application) : AndroidViewModel(appl
                                     title = result.title
                                 )
                             } ?: run {
-                                _relationsState.value = DetailTabState.Error
+                                _relationsState.value = DetailTabState.Error(tabFailureCode(result.source))
                                 return@launch
                             }
                             val data = fetched.value
@@ -1072,7 +1091,7 @@ class ApiResultDetailViewModel(application: Application) : AndroidViewModel(appl
                                     tmdbId = if (tmdbEnabled) tmdbId else null
                                 )
                             } ?: run {
-                                _statsState.value = DetailTabState.Error
+                                _statsState.value = DetailTabState.Error(tabFailureCode(result.source))
                                 return@launch
                             }
                             val data = fetched.value
@@ -1097,7 +1116,7 @@ class ApiResultDetailViewModel(application: Application) : AndroidViewModel(appl
                                     realMalId = effectiveRealMalId
                                 )
                             } ?: run {
-                                _reviewsState.value = DetailTabState.Error
+                                _reviewsState.value = DetailTabState.Error(tabFailureCode(result.source))
                                 return@launch
                             }
                             val data = fetched.value
@@ -1128,7 +1147,7 @@ class ApiResultDetailViewModel(application: Application) : AndroidViewModel(appl
                                     tmdbId = if (tmdbEnabled && useEpisodes) tmdbId else null
                                 )
                             } ?: run {
-                                _episodesState.value = DetailTabState.Error
+                                _episodesState.value = DetailTabState.Error(tabFailureCode(result.source))
                                 return@launch
                             }
                             val data = fetched.value
@@ -1145,13 +1164,13 @@ class ApiResultDetailViewModel(application: Application) : AndroidViewModel(appl
             } catch (e: Exception) {
                 Log.e(TAG, "Error loading tab data for index $tabIndex: ${e.message}", e)
                 when (tabIndex) {
-                    2 -> _charactersState.value = DetailTabState.Error
-                    3 -> _staffState.value = DetailTabState.Error
-                    4 -> _recommendationsState.value = DetailTabState.Error
-                    5 -> _relationsState.value = DetailTabState.Error
-                    6 -> _statsState.value = DetailTabState.Error
-                    TAB_REVIEWS -> _reviewsState.value = DetailTabState.Error
-                    TAB_EPISODES -> _episodesState.value = DetailTabState.Error
+                    2 -> _charactersState.value = DetailTabState.Error(tabFailureCode(result.source))
+                    3 -> _staffState.value = DetailTabState.Error(tabFailureCode(result.source))
+                    4 -> _recommendationsState.value = DetailTabState.Error(tabFailureCode(result.source))
+                    5 -> _relationsState.value = DetailTabState.Error(tabFailureCode(result.source))
+                    6 -> _statsState.value = DetailTabState.Error(tabFailureCode(result.source))
+                    TAB_REVIEWS -> _reviewsState.value = DetailTabState.Error(tabFailureCode(result.source))
+                    TAB_EPISODES -> _episodesState.value = DetailTabState.Error(tabFailureCode(result.source))
                 }
             }
         }

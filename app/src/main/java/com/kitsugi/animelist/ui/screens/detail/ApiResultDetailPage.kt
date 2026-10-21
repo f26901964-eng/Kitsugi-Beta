@@ -229,6 +229,7 @@ fun ApiResultDetailPage(
     // Collect states from ViewModel
     val detailState by viewModel.detailState.collectAsState()
     val detailLoading by viewModel.detailLoading.collectAsState()
+    val detailErrorCode by viewModel.detailErrorCode.collectAsState()
     val translatedSynopsis by viewModel.translatedSynopsis.collectAsState()
     val showSynopsisOriginal by viewModel.showSynopsisOriginal.collectAsState()
     val logoUrl by viewModel.logoUrl.collectAsState()
@@ -509,14 +510,16 @@ fun ApiResultDetailPage(
                     isAdult = displayResult.isAdult,
                     blurAdultMedia = blurAdultMedia,
                     source = displayResult.source,
-                    onBackClick = onBackClick
+                    onBackClick = onBackClick,
+                    platformErrorCode = detailErrorCode,
                 )
             },
             errorScreen = {
                 DataUnavailableScreen(
                     title = displayResult.title,
                     onBackClick = onBackClick,
-                    onRetryClick = { viewModel.loadResult(result, showAnimeLogos) }
+                    onRetryClick = { viewModel.loadResult(result, showAnimeLogos) },
+                    platformErrorCode = detailErrorCode,
                 )
             },
             leftPanel = { lpFocus, tbFocus ->

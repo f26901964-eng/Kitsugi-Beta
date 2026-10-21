@@ -42,6 +42,8 @@ import com.kitsugi.animelist.R
 import com.kitsugi.animelist.utils.toTurkishCharacterRole
 import com.kitsugi.animelist.utils.toLocalizedStaffRole
 import com.kitsugi.animelist.utils.toTurkishLanguage
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Arrangement
 
 @Composable
 fun CharactersTabContent(
@@ -112,12 +114,18 @@ fun CharactersTabContent(
             DetailCharactersLoadingSkeleton(itemCount = 4)
         }
         is DetailTabState.Error -> {
-            Text(
-                text = stringResource(R.string.detail_characters_load_error),
-                color = KitsugiColors.AccentRed,
-                style = MaterialTheme.typography.bodyMedium,
-                modifier = Modifier.padding(vertical = 16.dp)
-            )
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Text(
+                    text = stringResource(R.string.detail_characters_load_error),
+                    color = KitsugiColors.AccentRed,
+                    style = MaterialTheme.typography.bodyMedium,
+                    modifier = Modifier.padding(vertical = 16.dp)
+                )
+                DetailTabErrorCodeChip(platformErrorCode = state.platformErrorCode)
+            }
         }
         is DetailTabState.Success -> {
             val list = remember(state.data, staffNameLanguage) {
@@ -470,12 +478,18 @@ fun StaffTabContent(
             DetailStaffLoadingSkeleton(itemCount = 5)
         }
         is DetailTabState.Error -> {
-            Text(
-                text = stringResource(R.string.detail_staff_load_error),
-                color = KitsugiColors.AccentRed,
-                style = MaterialTheme.typography.bodyMedium,
-                modifier = Modifier.padding(vertical = 16.dp)
-            )
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Text(
+                    text = stringResource(R.string.detail_staff_load_error),
+                    color = KitsugiColors.AccentRed,
+                    style = MaterialTheme.typography.bodyMedium,
+                    modifier = Modifier.padding(vertical = 16.dp)
+                )
+                DetailTabErrorCodeChip(platformErrorCode = state.platformErrorCode)
+            }
         }
         is DetailTabState.Success -> {
             val list = remember(state.data, staffNameLanguage) {

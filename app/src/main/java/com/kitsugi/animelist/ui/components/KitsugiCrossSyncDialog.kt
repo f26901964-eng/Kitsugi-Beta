@@ -1215,9 +1215,13 @@ private fun LogItemRow(log: CrossSyncLogEntry) {
  * cihazın aktif diline göre okunur — bu yüzden ek çeviri katmanı gerekmez.
  */
 @Composable
-internal fun PlatformErrorExplanationBlock(code: PlatformErrorCode, tint: Color) {
+internal fun PlatformErrorExplanationBlock(
+    code: PlatformErrorCode,
+    tint: Color,
+    modifier: Modifier = Modifier,
+) {
     Column(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(6.dp))
             .background(tint.copy(alpha = 0.08f))

@@ -202,6 +202,7 @@ fun MediaEntryDetailPage(
     // Collect states from ViewModel
     val detailState by viewModel.detailState.collectAsState()
     val detailLoading by viewModel.detailLoading.collectAsState()
+    val detailErrorCode by viewModel.detailErrorCode.collectAsState()
     val mangaMapping by viewModel.mangaMapping.collectAsState()
     val synopsisState by viewModel.synopsisState.collectAsState()
     val translatedSynopsis by viewModel.translatedSynopsis.collectAsState()
@@ -399,14 +400,16 @@ fun MediaEntryDetailPage(
                     isAdult = displayEntry.isAdult,
                     blurAdultMedia = blurAdultMedia,
                     source = displayEntry.source,
-                    onBackClick = onBackClick
+                    onBackClick = onBackClick,
+                    platformErrorCode = detailErrorCode,
                 )
             },
             errorScreen = {
                 DataUnavailableScreen(
                     title = displayEntry.title,
                     onBackClick = onBackClick,
-                    onRetryClick = { viewModel.loadEntry(displayEntry, showAnimeLogos, forceRefresh = true) }
+                    onRetryClick = { viewModel.loadEntry(displayEntry, showAnimeLogos, forceRefresh = true) },
+                    platformErrorCode = detailErrorCode,
                 )
             },
             leftPanel = { lpFocus, tbFocus ->

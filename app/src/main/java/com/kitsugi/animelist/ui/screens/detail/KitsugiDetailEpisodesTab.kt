@@ -120,17 +120,23 @@ fun EpisodesTabContent(
             }
         }
         is DetailTabState.Error -> {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(200.dp),
-                contentAlignment = Alignment.Center
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                Text(
-                    text = stringResource(R.string.inline_an_error_occurred_while_loading_6facab0),
-                    color = KitsugiColors.TextSecondary,
-                    style = MaterialTheme.typography.bodyMedium
-                )
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(200.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = stringResource(R.string.inline_an_error_occurred_while_loading_6facab0),
+                        color = KitsugiColors.TextSecondary,
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                }
+                DetailTabErrorCodeChip(platformErrorCode = state.platformErrorCode)
             }
         }
         else -> Unit
