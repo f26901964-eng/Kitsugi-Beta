@@ -54290,7 +54290,7 @@ faylan	tag	Faylan	Faylan	global	飛蘭	resmî/global ad
 cr_sg	tag	Cr.Sg.	Cr.Sg.	as_is		Latin/CJK ad korundu (uydurma romanizasyon yok)
 dos	tag	DOS	DOS	as_is		Latin/CJK ad korundu (uydurma romanizasyon yok)
 i7	tag	i7	i7	as_is		Latin/CJK ad korundu (uydurma romanizasyon yok)
-innocentgrey	tag	InnocentGrey	InnocentGrey	as_is		Latin/CJK ad korundu (uydurma romanizasyon yok)
+innocentgrey	tag	Innocent Grey	Innocent Grey	global		Latin/CJK ad korundu (uydurma romanizasyon yok)
 monthly_gangan_joker	tag	Monthly Gangan Joker	Monthly Gangan Joker	global	月刊ガンガンJOKER	resmî/global ad
 moro	tag	moro	moro	as_is		Latin/CJK ad korundu (uydurma romanizasyon yok)
 nes	tag	NES	NES	as_is		Latin/CJK ad korundu (uydurma romanizasyon yok)
@@ -55169,7 +55169,7 @@ d_gray_man	tag	D.Gray-man	D.Gray-man	as_is		Latin/CJK ad korundu (uydurma romani
 donbo	tag	donbo	donbo	as_is		Latin/CJK ad korundu (uydurma romanizasyon yok)
 growth	tag	Growth	Growth	as_is		Latin/CJK ad korundu (uydurma romanizasyon yok)
 hentaianime	tag	HentaiAnime	HentaiAnime	as_is		Latin/CJK ad korundu (uydurma romanizasyon yok)
-hoyo_mix	tag	HOYO-MiX	HOYO-MiX	as_is		Latin/CJK ad korundu (uydurma romanizasyon yok)
+hoyo_mix	tag	HOYO-MiX	HOYO-MiX	global		Latin/CJK ad korundu (uydurma romanizasyon yok)
 hxh	tag	HXH	HXH	as_is		Latin/CJK ad korundu (uydurma romanizasyon yok)
 kyo	tag	kyo	kyo	as_is		Latin/CJK ad korundu (uydurma romanizasyon yok)
 mbs_truth	tag	MBS_Truth	MBS_Truth	as_is		Latin/CJK ad korundu (uydurma romanizasyon yok)
@@ -56851,8 +56851,8 @@ cjk_86ac29	tag	キューンレコード	キューンレコード	as_is		as_is: d
 cjk_86fa62	tag	うたの☆プリンスさまっ♪マジ	うたの☆プリンスさまっ♪マジ	as_is		as_is: doğrulanmamış CJK özel ad
 cjk_89e72a	tag	あおいれびん	あおいれびん	as_is		as_is: doğrulanmamış CJK özel ad
 cjk_9b3974	tag	ドリルムラタ	ドリルムラタ	as_is		as_is: doğrulanmamış CJK özel ad
-cjk_a9eca8	tag	スパイク・チュンソフト	スパイク・チュンソフト	as_is		as_is: doğrulanmamış CJK özel ad
-cjk_d3eb8d	tag	アクアプラス	アクアプラス	as_is		as_is: doğrulanmamış CJK özel ad
+cjk_a9eca8	tag	Spike Chunsoft	Spike Chunsoft	global		as_is: doğrulanmamış CJK özel ad
+cjk_d3eb8d	tag	Aquaplus	Aquaplus	global		as_is: doğrulanmamış CJK özel ad
 cjk_e1c65e	tag	おおしたこうた	おおしたこうた	as_is		as_is: doğrulanmamış CJK özel ad
 cjk_fccbfe	tag	あきばじろぉ	あきばじろぉ	as_is		as_is: doğrulanmamış CJK özel ad
 tag_5b79c4	tag	TH	TH	global		latin global ad
@@ -57174,7 +57174,7 @@ minnan_hokkien	tag	Minnan / Hokkien Çincesi	Hokkien / Minnan	new	闽南语	lexi
 cjk_468799	tag	宝野アリカ	宝野アリカ	as_is		as_is: doğrulanmamış CJK özel ad
 cjk_469997	tag	传勇传	传勇传	as_is		as_is: doğrulanmamış CJK özel ad
 cjk_4758f4	tag	棺姬嘉依卡	棺姬嘉依卡	as_is		as_is: doğrulanmamış CJK özel ad
-cjk_47dd2f	tag	动视	动视	as_is		as_is: doğrulanmamış CJK özel ad
+cjk_47dd2f	tag	Activision	Activision	global		as_is: doğrulanmamış CJK özel ad
 cjk_491c85	tag	说谎的男孩与坏掉的女孩	说谎的男孩与坏掉的女孩	as_is		as_is: doğrulanmamış CJK özel ad
 cjk_49489e	tag	かるま龍狼	かるま龍狼	as_is		as_is: doğrulanmamış CJK özel ad
 rising_of_the_shield_hero	tag	The Rising of the Shield Hero	The Rising of the Shield Hero	global	盾之勇者成名录	lexicon:rising_of_the_shield_hero
@@ -57212,7 +57212,7 @@ cjk_710f38	tag	須田悦弘	須田悦弘	as_is		as_is: doğrulanmamış CJK öze
 sequel_part	tag	Devam Yapımı	Sequel	new	续篇	lexicon:sequel_part
 high_freedom	tag	Yüksek Özgürlük	Open-Ended Gameplay	new	高自由度	lexicon:high_freedom
 siren	tag	Siren	Siren	new	塞壬	lexicon:siren
-cjk_733395	tag	好画风	好画风	as_is		as_is: doğrulanmamış CJK özel ad
+cjk_733395	tag	İyi Çizim Tarzı	Good Art Style	new		as_is: doğrulanmamış CJK özel ad
 cjk_75f0ea	tag	瑞智士記	瑞智士記	as_is		as_is: doğrulanmamış CJK özel ad
 talk_show_standup	tag	Talk Show / Stand-up	Talk Show	new	脱口秀	lexicon:talk_show_standup
 cjk_761446	tag	羽鳥風画	羽鳥風画	as_is		as_is: doğrulanmamış CJK özel ad
@@ -57305,7 +57305,7 @@ cjk_e69842	tag	鳥海永行	鳥海永行	as_is		as_is: doğrulanmamış CJK öze
 cjk_e9247f	tag	宮川彬良	宮川彬良	as_is		as_is: doğrulanmamış CJK özel ad
 cjk_e98274	tag	魔怔	魔怔	as_is		as_is: doğrulanmamış CJK özel ad
 cjk_edb7d1	tag	私屋カヲル	私屋カヲル	as_is		as_is: doğrulanmamış CJK özel ad
-cjk_edf6d6	tag	无节操	无节操	as_is		as_is: doğrulanmamış CJK özel ad
+cjk_edf6d6	tag	Utanmaz	Shameless	new		as_is: doğrulanmamış CJK özel ad
 my_little_monster	tag	My Little Monster	My Little Monster	global	邻座的怪同学	lexicon:my_little_monster
 cjk_eeb0b5	tag	红玉伊月	红玉伊月	as_is		as_is: doğrulanmamış CJK özel ad
 cjk_f18f73	tag	湯浅篤	湯浅篤	as_is		as_is: doğrulanmamış CJK özel ad

@@ -161,3 +161,16 @@ https://github.com/f26901964-eng/Kitsugi-Beta/pull/31. Eski PR #30, farklı sabi
 `❀一般向け` → Genel Kitleye Yönelik / General Audience. `canon.tsv`, translations ledger ve
 vault/strings sözlüğü senkron; zincir yeşil ve yeni XML ID yok. Kalan 007_b–007_i CJK `as_is`
 sayısı 43.310; count 15'ten devam et, özel adları ve fandom jargonunu çevirme.
+
+### 007_b count-15 devamı (2026-10-21)
+
+Batch 003'te 7 kayıt yerinde güncellendi: Aquaplus, Spike Chunsoft, Activision, HOYO-MiX ve
+Innocent Grey resmî Latin karşılıkları; `好画风` → İyi Çizim Tarzı / Good Art Style;
+`无节操` → Utanmaz / Shameless. Dosya: `worklists/009_decisions_007b_tags_003.tsv`.
+Zorunlu mirror-repair temiz; yeni XML ID yok. Sağlık zinciri yeşil: 106580 / 106335 / 121284 /
+121284, 52607 org, conflict 0, TR/EN 112812 simetrik, 158/158 coverage.
+
+Havuzun güncel ve açık tanımı: tags.json'da chunk 007_b–007_i, `decision=as_is`, TR alanında
+CJK kod noktası olan **43.185** kayıt (önceki 43.310/43.313 sayıları farklı kesit/metrikten
+kalmıştı). Bu bir kota değil. Count-15'te sıradaki adaylarda yalnız net kavramı ve kesin resmî
+Latin adı işle; kalan özel adlar/fandom jargonu as_is.

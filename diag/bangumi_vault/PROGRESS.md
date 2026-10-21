@@ -1141,3 +1141,26 @@ worklist'iyle çalıştırıldı (ayna satırı farkı yok). Apply-map → strin
 106580 / 106335 / 121284 / 121284, MASTER 0 çakışma ve TR/EN 112812 simetrik, coverage 158/158.
 `translations_done.tsv` üç mevcut satırda güncellendi; pending 0. 007_b–007_i havuzunda
 kalan CJK `as_is`: **43.310** (hedef/kota değil; adlar ve fandom jargonu korunur).
+
+## 2m) 009 serisi devam — tag 007b batch 003 (2026-10-21)
+
+Count azalan sırayı koruyarak 007_b'deki açık global adlar ve iki net betimleyici kavram yerinde
+uygulandı (7 satır, yeni XML ID yok):
+- `アクアプラス` → **Aquaplus / Aquaplus** (`global`; `org_global_names.tsv` ile eşleşti).
+- `スパイク・チュンソフト` → **Spike Chunsoft / Spike Chunsoft** (`global`; mevcut resmî Latin adı).
+- `动视` → **Activision / Activision** (`global`; mevcut `org_global_names.tsv` karşılığı).
+- `□HOYO-MiX` → **HOYO-MiX / HOYO-MiX** (`global`; mevcut resmi yapımcı yazımı).
+- `Innocent_Grey` → **Innocent Grey / Innocent Grey** (`global`; resmi Latin marka boşluğu düzeltildi).
+- `好画风` → **İyi Çizim Tarzı / Good Art Style** (`new`).
+- `无节操` → **Utanmaz / Shameless** (`new`).
+
+Batch `worklists/009_decisions_007b_tags_003.tsv` ile uygulandı; mandatory `--mirror-repair`
+0 ayna farkı buldu. `translations_done.tsv`'de yedi mevcut satır güncellendi. `apply_map.py`
++ `vault_to_strings.py` + `verify_vault.py` + MASTER verifier + generator `--check` + meta
+coverage zinciri yeşil: 106580 key / 106335 vault / 121284 map ve damga; 52607 org mapping,
+gerçek çakışma 0, TR/EN 112812 simetrik, coverage 158/158.
+
+Havuz sayısı artık canlı `tags.json` taramasıyla tanımlanıyor: 007_b–007_i içinde `decision=as_is`
+ve TR alanında Han/Kana CJK kod noktası olan **43.185** kayıt. Önceki 43.310/43.313 yaklaşık
+sayımı farklı kesit/metrik kullandığından bu tanım baz alındı; sayı kota değildir. Özel adlar ve
+fandom jargonu `as_is` kalır.
