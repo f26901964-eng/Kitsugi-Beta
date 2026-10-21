@@ -1443,6 +1443,7 @@ private val studioLatinNameMap = mapOf(
     "梦工厂动画" to "DreamWorks Animation",
     "漫威" to "Marvel",
     "DC漫画" to "DC Comics",
+    "コミックス・ウェーブ・フィルム" to "CoMix Wave Films",
     "CJ ENM" to "CJ ENM"
 )
 
@@ -1470,7 +1471,10 @@ fun String.toLocalizedOrgName(): String {
     if (key != null && (isTurkish() || isEnglish())) {
         getStringResourceByName(key)?.takeIf { it.isNotBlank() }?.let { return it }
     }
-    return BangumiOrgDictionary.latinNameFor(cleaned) ?: toLatinStudioName()
+    val turkish = isTurkish()
+    return BangumiOrgDictionary.localizedNameFor(cleaned, turkish)
+        ?: BangumiOrgDictionary.localizedNameFor(toLatinStudioName(), turkish)
+        ?: toLatinStudioName()
 }
 
 /**
@@ -1480,13 +1484,15 @@ fun String.toLocalizedOrgName(): String {
 fun String.toLocalizedOrgNameOrNull(): String? {
     val cleaned = this.trim()
     if (cleaned.isEmpty()) return null
+    val turkish = isTurkish()
     val key = BangumiOrgDictionary.resourceKeyFor(cleaned)
         ?: BangumiOrgDictionary.resourceKeyFor(toLatinStudioName())
-        ?: return BangumiOrgDictionary.latinNameFor(cleaned)
+        ?: return BangumiOrgDictionary.localizedNameFor(cleaned, turkish)
     if (isTurkish() || isEnglish()) {
         getStringResourceByName(key)?.takeIf { it.isNotBlank() }?.let { return it }
     }
-    return BangumiOrgDictionary.latinNameFor(cleaned)
+    return BangumiOrgDictionary.localizedNameFor(cleaned, turkish)
+        ?: BangumiOrgDictionary.latinNameFor(cleaned)
 }
 
 /**

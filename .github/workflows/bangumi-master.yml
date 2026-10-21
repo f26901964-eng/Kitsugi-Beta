@@ -16,14 +16,18 @@ on:
       - 'app/src/main/java/com/kitsugi/animelist/utils/BangumiOrgDictionary.kt'
       - 'app/src/main/java/com/kitsugi/animelist/utils/BangumiTagDictionary.kt'
       - 'app/src/main/java/com/kitsugi/animelist/utils/KitsugiTranslations.kt'
+      - 'app/src/main/resources/bangumi/**'
       - 'app/src/main/res/values/strings.xml'
       - 'app/src/main/res/values-en/strings.xml'
+      - 'bangumi-vault-resources-*/**'
       - 'app/src/test/java/com/kitsugi/animelist/utils/BangumiMasterDictionaryTest.kt'
       - '.github/workflows/bangumi-master.yml'
   pull_request:
     paths:
       - 'diag/bangumi_master/**'
       - 'app/src/main/java/com/kitsugi/animelist/utils/Bangumi*Dictionary.kt'
+      - 'app/src/main/resources/bangumi/**'
+      - 'bangumi-vault-resources-*/**'
       - '.github/workflows/bangumi-master.yml'
   workflow_dispatch:
 
