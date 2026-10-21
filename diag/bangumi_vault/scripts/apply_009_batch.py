@@ -1,236 +1,242 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""
-Bangumi VAULT — 009 serisi batch karar uygulayıcısı.
+"""HANDOFF_009 parti uygulayıcısı — `clean_cjk_canon_and_chunk008.py` kalıbı.
 
-Amaç: canon.tsv'deki MEVCUT satırların yerinde tr/en/origin alanlarını
-güncellemek (yeni satır eklemez; cid silmez/değiştirmez; XML ID YASAK).
+Girdi: worklists/009_decisions_XXX.tsv (başlık satırı `#` ile başlar)
+    rol <TAB> cid <TAB> beklenen_eski_tr <TAB> yeni_tr <TAB> yeni_en <TAB> origin
 
-Girdi TSV (UTF-8, tab-ayrık, başlık satırı yok):
-    rol <TAB> cid <TAB> eski_tr <TAB> yeni_tr <TAB> yeni_en <TAB> origin
-
-Davranış:
-  1. canon.tsv'de (role, cid) arar.
-  2. Eski TR değeri eşleşmiyorsa İKİZ-ENGELLİ olarak raporlar (değişiklik
-     başka bir batch'te uygulanmış ya da bir başkası tarafından sahip çıkılmış).
-  3. Eşleşiyorsa tr = yeni_tr, en = yeni_en, origin = yeni_origin yazar.
-  4. Aliases/sütun sayısını ORİJİNALDEKİ gibi korur (birebir yazar, rstrip YAPMAZ,
-     boş son sekme varsa da korur).
-  5. Aynı adlı rapor dosyasını yanına yazar (worklists/009_decisions_XXX_report.tsv).
-
---mirror-repair modu:
-  Ayna satırları = başka roldeki canon satırının col-8 `string_key` alanı
-  `bangumi_<rol>_<cid>` formunda olanlar; onların da tr/en'i eşitlenir.
-  MASTER kilitli satırları atlar (tags.tsv ve orgs.tsv'den okur); `bangumi_org_*`
-  anahtarlı cross-role referansları atlar (MASTER sahipli).
+Kurallar (devir metni §3, §4):
+  * canon.tsv satırı YERİNDE güncellenir (cid silinmez/değiştirilmez, satır sayısı sabit).
+  * origin alanı {global, new} — `as_is` yalnızca eski değer olarak doğrulanır.
+  * İkiz değer koruması: (rol, tr.lower, en.lower) başka bir canon satırına veya
+    strings.xml bangumi anahtarına aitse yazım ENGELLENİR (raporlanır).
+  * MASTER kilit tuşları (diag/bangumi_master/tags.tsv + orgs.tsv) ASLA yazılmaz.
+  * Beklenen eski TR, canon'daki satırın geçerli TR'siyle birebir eşleşmezse satır
+    atlanır ve raporlanır (yanlış hedef yazımı önlenir).
+  * 8. alan (cross-role string_key) taşıyan satırlar ancak açık ikiz yoksa yazılır;
+    not alanına eski değer eklenir (izlenebilirlik).
 """
 from __future__ import annotations
 
-import argparse
-import csv
+import re
 import sys
+import unicodedata
 from pathlib import Path
 
 VAULT = Path(__file__).resolve().parents[1]
 ROOT = VAULT.parents[1]
 DEC = VAULT / "decisions"
-CANON_PATH = DEC / "canon.tsv"
-MASTER_TAGS = ROOT / "diag/bangumi_master/tags.tsv"
+WORK = VAULT / "worklists"
 MASTER_ORGS = ROOT / "diag/bangumi_master/orgs.tsv"
+MASTER_TAGS = ROOT / "diag/bangumi_master/tags.tsv"
+
+sys.path.insert(0, str(VAULT / "scripts"))
+from android_strings import unescape  # noqa: E402
+from resource_catalog import catalog_text, resource_paths  # noqa: E402
+
+RES_TR = ROOT / "app/src/main/res/values/strings.xml"
+RES_EN = ROOT / "app/src/main/res/values-en/strings.xml"
+
+VALID_ORIGINS = {"global", "new", "existing", "as_is"}
 
 
-def load_master_lock() -> set[tuple[str, str]]:
-    """MASTER tarafından sahiplenilen (rol, cid) kümesi — TR/EN'leri kilitli."""
-    locked: set[tuple[str, str]] = set()
-    # tags.tsv 'new' olanlar VAULT'a aittir; 'existing:<key>' olanlar MASTER sahipli
-    if MASTER_TAGS.exists():
-        for raw in MASTER_TAGS.read_text(encoding="utf-8").splitlines():
+def load_locked_master_keys() -> set[str]:
+    locked: set[str] = set()
+    for p in (MASTER_ORGS, MASTER_TAGS):
+        for raw in p.read_text(encoding="utf-8").splitlines():
             if not raw.strip() or raw.lstrip().startswith("#"):
                 continue
-            parts = raw.split("\t")
-            if len(parts) < 4:
-                continue
-            key, tr, en, status = parts[0], parts[1], parts[2], parts[3]
-            cid = key[len("bangumi_tag_"):] if key.startswith("bangumi_tag_") else key
-            if status.startswith("existing:"):
-                # master bu satırı başka bir mevcut gruba bağlar — kilitli
-                locked.add(("tag", cid))
-            elif status == "new":
-                # 'new' master satırlarının TR/EN'i MASTER belirler; kilitli
-                locked.add(("tag", cid))
-    # orgs.tsv 'o(...)' başlıkları RAW döneminde boş — yine de 'bangumi_org_*'
-    # col-8 referansları atlanacak (mirror-repair sırasında prefix ile denetlenir).
+            locked.add(raw.split("\t")[0])
     return locked
 
 
-def parse_canon_lines(text: str):
-    """Canon'u (yorum/boş satırlar dahil) koruyarak dönüştürmek için çizgi çizgi oku."""
-    lines = text.split("\n")
-    # split trailing '\n' produces an empty trailing entry; preserve by tracking
-    return lines
+def norm_val(text: str) -> str:
+    return unicodedata.normalize("NFKC", text or "").strip().lower()
 
 
-def serialize_rows(lines, rows_map, mirror_map, header_line_map):
-    """lines dizisini satır satır dolaş, (rol,cid) → dict eşleşmelerine göre
-    tr/en/origin alanlarını (3,4,5) güncelle. lines içindeki ilk eşleşme hedef
-    canon satırı; yorum/boş satırlar dokunulmadan kalır."""
-    updated = 0
-    blocked = []
-    for i, line in enumerate(lines):
-        if not line or line.lstrip().startswith("#"):
+def main(decisions_path: Path, dry_run: bool = False) -> int:
+    locked = load_locked_master_keys()
+
+    # strings.xml (tüm kaynaklar: app + shard) rol -> {(trl,enl) -> {cidler}}
+    tr_xml = {k: unescape(v) for k, v in re.findall(
+        r'<string name="([^"]+)">(.*?)</string>', catalog_text(RES_TR))}
+    en_xml = {k: unescape(v) for k, v in re.findall(
+        r'<string name="([^"]+)">(.*?)</string>', catalog_text(RES_EN))}
+    val_owner: dict[tuple[str, str, str], set[str]] = {}
+    for k, tv in tr_xml.items():
+        if not k.startswith("bangumi_"):
             continue
-        parts = line.split("\t")
-        if len(parts) < 5:
+        parts = k.split("_", 2)
+        if len(parts) < 3:
             continue
-        cid, role = parts[0], parts[1]
-        key = (role, cid)
-        target = rows_map.get(key)
-        if target is None:
+        role, cid = parts[1], parts[2]
+        ev = en_xml.get(k, tv)
+        val_owner.setdefault((role, norm_val(tv), norm_val(ev)), set()).add(cid)
+
+    # canon.tsv satırlarını oku (yorumlar ve sıra korunur)
+    canon_lines = (DEC / "canon.tsv").read_text(encoding="utf-8").splitlines()
+    canon_by_rc: dict[tuple[str, str], list[str]] = {}
+    for raw in canon_lines:
+        if not raw.strip() or raw.lstrip().startswith("#"):
             continue
-        # eski_tr eşleşme denetimi
-        eski = parts[2]
-        if eski != target["old_tr"] and not target.get("_force"):
-            blocked.append((role, cid, eski, target["old_tr"], target["new_tr"]))
+        p = raw.split("\t")
+        while len(p) < 8:
+            p.append("")
+        canon_by_rc[(p[1], p[0])] = p
+    for (role, cid), p in canon_by_rc.items():
+        val_owner.setdefault((role, norm_val(p[2]), norm_val(p[3])), set()).add(cid)
+
+    # Kararları oku
+    rows = [r for r in decisions_path.read_text(encoding="utf-8").splitlines()
+            if r.strip() and not r.lstrip().startswith("#")]
+
+    applied, blocked, stale, locked_rows, not_found = 0, [], [], [], []
+    applied_set: set[tuple[str, str]] = set()
+    for raw in rows:
+        p = raw.split("\t")
+        if len(p) != 6:
+            raise SystemExit(f"bozuk karar satırı (6 alan beklenirdi): {raw!r}")
+        role, cid, old_tr, ntr, nen, origin = [x.strip() for x in p]
+        if origin not in VALID_ORIGINS:
+            raise SystemExit(f"geçersiz origin {origin!r}: {raw!r}")
+        cur = canon_by_rc.get((role, cid))
+        if cur is None:
+            not_found.append(f"{role}/{cid}: canon satırı yok")
             continue
-        # tr = yeni_tr, en = yeni_en, origin = yeni_origin (alan 3,4,5)
-        parts[2] = target["new_tr"]
-        parts[3] = target["new_en"]
-        parts[4] = target["new_origin"]
-        lines[i] = "\t".join(parts)
-        updated += 1
-        # mirror update: diğer rollerde col-8 bu (role,cid)'ye işaret eden satırlar
-        if key in mirror_map:
-            for mi in mirror_map[key]:
-                if mi == i:
-                    continue
-                mparts = lines[mi].split("\t")
-                if len(mparts) < 8:
-                    continue
-                mparts[2] = target["new_tr"]
-                mparts[3] = target["new_en"]
-                # origin mirror'da değişmez
-                lines[mi] = "\t".join(mparts)
-    return updated, blocked
-
-
-def load_canon_mirror_index(lines):
-    """Her satırı (rol,cid) → index olarak dizinle. Ayrıca col-8 `string_key`
-    alanını okuyup hangi (role,cid) için ayna referans olduğunu bul
-    (string_key='bangumi_<target_role>_<target_cid>')."""
-    primary: dict[tuple[str, str], int] = {}
-    mirror: dict[tuple[str, str], list[int]] = {}
-    for i, line in enumerate(lines):
-        if not line or line.lstrip().startswith("#"):
+        if f"bangumi_{role}_{cid}" in locked:
+            locked_rows.append(f"{role}/{cid}: MASTER kilitli ({cur[2]})")
             continue
-        parts = line.split("\t")
-        if len(parts) < 5:
+        if (role, cid) in applied_set:
+            not_found.append(f"{role}/{cid}: aynı partide mükerrer karar")
             continue
-        cid, role = parts[0], parts[1]
-        # primary index: ilk görülen (rol,cid) asıl satır
-        if (role, cid) not in primary:
-            primary[(role, cid)] = i
-        # col-8 mirror
-        if len(parts) >= 8 and parts[7].startswith("bangumi_"):
-            sk = parts[7]
-            # format: bangumi_<target_role>_<target_cid>
-            rest = sk[len("bangumi_"):]
-            if "_" in rest:
-                tr_role, tr_cid = rest.split("_", 1)
-                # cross-role org → org anahtarıysa atla (mirror-repair kilit)
-                if tr_role != "org":
-                    mirror.setdefault((tr_role, tr_cid), []).append(i)
-    return primary, mirror
+        if cur[2] != old_tr:
+            stale.append(f"{role}/{cid}: beklenen TR {old_tr!r} != canon {cur[2]!r}")
+            continue
+        owners = val_owner.get((role, norm_val(ntr), norm_val(nen)), set()) - {cid}
+        if owners:
+            blocked.append(f"{role}/{cid}: '{ntr}' değeri zaten {sorted(owners)} sahibinde (ikiz engellendi)")
+            continue
+        # uygula
+        prev_tr, prev_origin = cur[2], cur[4]
+        cur[2], cur[3], cur[4] = ntr, nen, origin
+        tag = f"009:{origin} ({prev_origin}: {prev_tr})"
+        cur[6] = f"{cur[6]} | {tag}" if cur[6].strip() else tag
+        val_owner.setdefault((role, norm_val(ntr), norm_val(nen)), set()).add(cid)
+        applied_set.add((role, cid))
+        applied += 1
 
+    # Günlük: aynı rolde TR sütununda hâlâ CJK + aynı hedefe yazılan çakışma kontrolü burada biter
+    out_lines = []
+    for raw in canon_lines:
+        if not raw.strip() or raw.lstrip().startswith("#"):
+            out_lines.append(raw)
+            continue
+        p = raw.split("\t")
+        cur = canon_by_rc[(p[1], p[0])]
+        # ÖNEMLİ: orijinal sütun sayısını koru (7 veya 8) — boş 8. sütun ekleme,
+        # HEAD'deki sondaki-sekme biçimini de birebir sürdür (kozmetik diff üretme)
+        out_lines.append("\t".join(cur[: len(p)]))
+    if not dry_run:
+        (DEC / "canon.tsv").write_text("\n".join(out_lines) + "\n", encoding="utf-8")
 
-def apply(worklist: Path, mirror: bool, dry: bool = False):
-    canon_text = CANON_PATH.read_text(encoding="utf-8")
-    lines = parse_canon_lines(canon_text)
-    primary_idx, mirror_idx = load_canon_mirror_index(lines)
-    locked = load_master_lock()
-
-    # worklist oku
-    decisions = []
-    with worklist.open(encoding="utf-8") as f:
-        for raw in f:
-            raw = raw.rstrip("\n")
-            if not raw or raw.lstrip().startswith("#"):
-                continue
-            p = raw.split("\t")
-            if len(p) != 6:
-                print(f"  ⚠ {worklist.name}: 6 sütun beklenir → {raw[:80]}", file=sys.stderr)
-                continue
-            role, cid, old_tr, new_tr, new_en, new_origin = p
-            if new_origin not in {"global", "new", "existing", "as_is"}:
-                print(f"  ⚠ origin geçersiz: {new_origin} ({role},{cid})", file=sys.stderr)
-                continue
-            if (role, cid) in locked:
-                print(f"  🔒 kilitli (MASTER) → atla: ({role},{cid})", file=sys.stderr)
-                continue
-            if (role, cid) not in primary_idx:
-                print(f"  ❌ canon'da yok: ({role},{cid})", file=sys.stderr)
-                continue
-            decisions.append({
-                "role": role, "cid": cid, "old_tr": old_tr,
-                "new_tr": new_tr, "new_en": new_en, "new_origin": new_origin,
-            })
-
-    if not decisions:
-        print("işlenecek karar yok.")
-        return 0
-
-    # rows_map: primary (role,cid) → decision
-    rows_map: dict[tuple[str, str], dict] = {}
-    for d in decisions:
-        key = (d["role"], d["cid"])
-        rows_map[key] = d
-
-    # mirror map: (role,cid) → list of line indices whose col-8 points here
-    effective_mirror = mirror_idx if mirror else {}
-
-    updated, blocked = serialize_rows(lines, rows_map, effective_mirror, {})
-
-    # rapor
-    report_path = worklist.with_name(worklist.stem + "_report.tsv")
-    with report_path.open("w", encoding="utf-8") as f:
-        f.write("# rol\tcid\told_tr\tnew_tr\tnew_en\tnew_origin\tdurum\n")
-        for d in decisions:
-            key = (d["role"], d["cid"])
-            status = "uygulandı"
-            for b in blocked:
-                if b[0] == d["role"] and b[1] == d["cid"]:
-                    status = f"ikiz-engelli bulundu={b[2]!r}"
-                    break
-            f.write(f"{d['role']}\t{d['cid']}\t{d['old_tr']}\t{d['new_tr']}\t{d['new_en']}\t{d['new_origin']}\t{status}\n")
-
-    print(f"uygulanan: {updated} · ikiz-engelli: {len(blocked)} · rapor: {report_path.name}")
-    if blocked:
-        for role, cid, cur, expected, wanted in blocked[:10]:
-            print(f"  🔁 ikiz-engelli ({role},{cid}): mevcut={cur!r} beklenen={expected!r}")
-        if len(blocked) > 10:
-            print(f"  ... +{len(blocked) - 10}")
-
-    if dry or not updated:
-        return 0
-
-    new_text = "\n".join(lines)
-    if new_text == canon_text:
-        print("değişiklik yok; yazılmadı.")
-        return 0
-    CANON_PATH.write_text(new_text, encoding="utf-8")
-    print(f"canon.tsv güncellendi → {CANON_PATH}")
+    WORK.mkdir(parents=True, exist_ok=True)
+    report = WORK / f"{decisions_path.stem}_report.tsv"
+    with report.open("w", encoding="utf-8") as f:
+        f.write(f"# {decisions_path.name} — uygulama raporu\n")
+        f.write(f"# uygulanan: {applied} · ikiz-engelli: {len(blocked)} · bayat-hedef: {len(stale)} "
+                f"· kilitli: {len(locked_rows)} · bulunamadı/mükerrer: {len(not_found)}\n")
+        for line in blocked + stale + locked_rows + not_found:
+            f.write(line + "\n")
+    print(f"uygulanan: {applied}")
+    for label, bucket in (("ikiz-engelli", blocked), ("bayat-hedef", stale),
+                          ("kilitli", locked_rows), ("bulunamadı/mükerrer", not_found)):
+        if bucket:
+            print(f"{label}: {len(bucket)}")
+            for line in bucket[:12]:
+                print(f"  - {line}")
+    print(f"rapor: {report.name}")
     return 0
 
 
-def main():
-    ap = argparse.ArgumentParser()
-    ap.add_argument("worklist", nargs="?", help="worklists/009_decisions_XXX.tsv")
-    ap.add_argument("--mirror-repair", action="store_true", help="aynı değerdeki col-8 ayna satırlarını da eşitle")
-    ap.add_argument("--dry-run", action="store_true", help="canon.tsv'ye yazmadan raporla")
-    args = ap.parse_args()
-    if not args.worklist:
-        ap.error("worklist gerekli")
-    return apply(Path(args.worklist), mirror=args.mirror_repair, dry=args.dry_run)
+CROSS_KEY_RE = re.compile(r"^bangumi_([a-z]+)_(.+)$")
+
+
+def mirror_repair() -> int:
+    """8. alanı cross-role string_key olan canon satırlarının TR/EN aynalarını onarır.
+
+    cross-role satır hedef (rol, cid) canon'u bulunur; hedefin TR/EN'i ile satırın
+    TR/EN'i farklıysa satır hedefe senkronlanır (origin `existing` korunur, nota eklenir).
+    MASTER kilitli satırlar ve hedefi canon'da olmayan satırlar atlanıp raporlanır.
+    """
+    locked = load_locked_master_keys()
+    canon_lines = (DEC / "canon.tsv").read_text(encoding="utf-8").splitlines()
+    canon_by_rc: dict[tuple[str, str], list[str]] = {}
+    for raw in canon_lines:
+        if not raw.strip() or raw.lstrip().startswith("#"):
+            continue
+        p = raw.split("\t")
+        while len(p) < 8:
+            p.append("")
+        canon_by_rc[(p[1], p[0])] = p
+
+    synced, skipped, missing = 0, [], []
+    for (role, cid), p in list(canon_by_rc.items()):
+        fk = p[7].strip()
+        if not fk:
+            continue
+        m = CROSS_KEY_RE.match(fk)
+        if not m:
+            continue
+        trole, tcid = m.group(1), m.group(2)
+        target = canon_by_rc.get((trole, tcid))
+        if target is None:
+            missing.append(f"{role}/{cid}: hedef {fk} canon'da yok")
+            continue
+        if f"bangumi_{role}_{cid}" in locked:
+            skipped.append(f"{role}/{cid}: MASTER kilitli")
+            continue
+        if (p[2], p[3]) != (target[2], target[3]):
+            p[2], p[3] = target[2], target[3]
+            tag = f"009:mirror ({fk})"
+            if tag not in p[6]:
+                p[6] = f"{p[6]} | {tag}" if p[6].strip() else tag
+            synced += 1
+
+    out_lines = []
+    for raw in canon_lines:
+        if not raw.strip() or raw.lstrip().startswith("#"):
+            out_lines.append(raw)
+            continue
+        p = raw.split("\t")
+        cur = canon_by_rc[(p[1], p[0])]
+        out_lines.append("\t".join(cur[: len(p)]))  # orijinal sütun sayısını koru
+    (DEC / "canon.tsv").write_text("\n".join(out_lines) + "\n", encoding="utf-8")
+    print(f"cross-role ayna senkronu: {synced}")
+    if skipped:
+        print(f"kilitli (atlandı): {len(skipped)}")
+    if missing:
+        print(f"hedefi olmayan (atlandı, ilk 10):")
+        for line in missing[:10]:
+            print(f"  - {line}")
+        print(f"  ... toplam {len(missing)}")
+    return 0
 
 
 if __name__ == "__main__":
-    raise SystemExit(main())
+    import argparse
+    ap = argparse.ArgumentParser()
+    ap.add_argument("worklist", nargs="?", help="worklists/009_decisions_XXX.tsv")
+    ap.add_argument("--mirror-repair", action="store_true", help="cross-role col-8 ayna satırlarını da eşitle")
+    ap.add_argument("--dry-run", action="store_true", help="canon.tsv'ye yazmadan raporla")
+    args = ap.parse_args()
+    if args.mirror_repair and not args.worklist:
+        raise SystemExit(mirror_repair())
+    if not args.worklist:
+        ap.error("kullanım: apply_009_batch.py [--dry-run] [--mirror-repair] <worklist> | --mirror-repair")
+    wl = Path(args.worklist)
+    if not wl.exists() and (VAULT / wl).exists():
+        wl = VAULT / wl
+    rc = main(wl, dry_run=args.dry_run)
+    if rc == 0 and args.mirror_repair and not args.dry_run:
+        rc = mirror_repair()
+    raise SystemExit(rc)

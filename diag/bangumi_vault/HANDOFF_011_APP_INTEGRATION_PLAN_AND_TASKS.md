@@ -1,147 +1,63 @@
 # HANDOFF 011 — Bangumi VAULT & Sözlük Uygulama Entegrasyon Planı ve Görev Listesi (2026-10-21)
 
-Bu belge, **Chunk 001–009** ve **Batch 008 kapsamlı çapraz rol/etiket taraması (`8a5c267`)** sonunda tamamlanan Bangumi etiket, tür, stüdyo, yapımcı, yayıncı ağ, yayımcı ve dergi yerelleştirme/küresel ad verilerinin **Kitsugi-Beta Android uygulamasına tam entegrasyonu** ve yeni bir çalışma dalında (branch) kaldığı yerden kesintisiz devam edebilmesi için hazırlanmış tek otoriter plan ve görev (task) dosyasıdır.
+Bu belge, **Chunk 001–009** ve **Batch 008 kapsamlı çapraz rol/etiket taraması (`8a5c267` / `4262d84`)** sonunda tamamlanan Bangumi etiket, tür, stüdyo, yapımcı, yayıncı ağ, yayımcı ve dergi yerelleştirme/küresel ad verilerinin **PR #27 + PR #29 S1–S3 çok modüllü dil kaynağı + classpath TSV veri deposu mimarisiyle** ve güncel **`main` (`971abf1`, `v2.4.336`)** tabanıyla birleştirilerek **Kitsugi-Beta Android uygulamasına tam entegrasyonunu** belgeler.
 
 ---
 
-## 0. Güncel Durum Özeti (Tek Bakışta)
+## 0. Güncel Durum Özeti (Tek Bakışta — Tam Entegrasyon Tamamlandı)
 
-- **Aktif Git Dalı & Son Commit:** `arena/284d08ba-kitsugi-beta` @ `8a5c267` (`diag(bangumi): apply 008 comprehensive org and tag global/concept batch (196 rows)`)
-- **Açık Pull Request:** **PR #31** (`https://github.com/f26901964-eng/Kitsugi-Beta/pull/31`, base: `main`, head: `arena/284d08ba-kitsugi-beta`)
-- **Google Drive Otoriter Klasörü:** `1pZAOYsAnMjveNK6grdXjqV9IDM1TFaJp` (**47 aktif dosya**, en son `8a5c267` durumuyla senkronize)
+- **Aktif Git Dalı:** `arena/80e5e83a-kitsugi-beta` (`main` @ `971abf1` tabanlı, tüm MAL/oynatıcı düzeltmeleri %100 korunur)
+- **Birleştirilen Kaynaklar:**
+  1. `main` (`971abf1` — `v2.4.336`: MAL bildirim sayfalama, oynatıcı düzeltmeleri ve yeni arayüz metinleri %100 korundu)
+  2. `origin/arena/46189a1e-kitsugi-beta` (**PR #29** @ `c5e32eb` ve **PR #27** @ `dabff0f`: 4 modüllü Android dil kaynakları + `bangumi/tags.tsv` & `bangumi/orgs.tsv` classpath veri deposu + 30 birim testi)
+  3. `origin/arena/284d08ba-kitsugi-beta` (**PR #31** @ `4262d84` / `8a5c267`: Batch A + Batch B + Producer 006 rev + Tag 007b 001–004 + Batch 008 kapsamlı 196 karar dahil tüm güncel `canon.tsv`, `org_global_names.tsv` ve `map_chunk_*.tsv` verileri)
+- **Google Drive Otoriter Klasörü:** `1pZAOYsAnMjveNK6grdXjqV9IDM1TFaJp` (**48 aktif dosya**, güncel damgalı JSON/TSV ve dokümanlarla senkron)
 - **Doğrulanmış Metrikler (`2026-10-21`):**
-  - `verify_vault.py`: ✅ **106.580 `bangumi_*` anahtarı · 106.335 vault kaydı · 121.284 map satırı · 121.284 damga**
-  - `verify_bangumi_master.py`: ✅ **`BangumiTagDictionary`: 58.338 grup · `BangumiOrgDictionary`: 52.626 eşleme (67 RAW parçası, ≤ 50.000 bayt) · GERÇEK çakışma: 0 · `strings.xml`: TR 112.812 / EN 112.812 simetrik**
-  - `gen_bangumi_master.py --check`: ✅ **`+0 grup, +0 etiket, +0 kayıt` (tam senkron)**
-  - `check_bangumi_meta_tag_coverage.py`: ✅ **158 / 158 resmî Bangumi meta etiketi kapsanıyor**
-  - **`canon.tsv` Karar Dağılımı (`111.310` kanonik satır):**
-    - `global`: **14.398** (`magazine`: 451, `network`: 233, `producer`: 586, `publisher`: 711, `studio`: 346, `tag`: 12.071)
-    - `existing`: **6.119** (`magazine`: 123, `network`: 169, `producer`: 1.533, `publisher`: 2.446, `studio`: 924, `tag`: 924)
-    - `new`: **1.492** (`magazine`: 2, `network`: 50, `tag`: 1.440)
-    - `as_is`: **89.301** (`magazine`: 2.783, `network`: 1.602, `producer`: 21.857, `publisher`: 8.808, `studio`: 10.348, `tag`: 43.903; bunun içinde `007_b`–`007_i` CJK `as_is` etiket havuzu: **43.022** — *çeviri kotası değildir; doğrulanmamış CJK özel adlar ve fandom jargonu uydurma romanizasyon üretilmeden korunur*)
+  - `apply_009_batch.py --mirror-repair`: ✅ **`0` bekleyen cross-role ayna farkı**
+  - `apply_map.py --check`: ✅ **`111.310` canon satırı · `121.284` map satırı (`117.289` canon + `3.995` skip)**
+  - `vault_to_strings.py --check`: ✅ **`+0` yeni XML ID · `tags.tsv`: `58.338` grup · `orgs.tsv`: `52.626` eşleme**
+  - `verify_vault.py`: ✅ **`52.219` `bangumi_*` XML anahtarı · `106.335` vault kaydı · `121.284` map satırı · `121.284` damga**
+  - `verify_bangumi_master.py`: ✅ **`BangumiTagDictionary (tags.tsv)`: `58.338` grup · `BangumiOrgDictionary (orgs.tsv)`: `52.626` eşleme · GERÇEK çakışma: `0` · 4 modül toplam `strings.xml`: TR `58.451` / EN `58.451` simetrik** (`app`: `17.524`, `shard-1`: `13.565`, `shard-2`: `13.782`, `shard-3`: `13.580`)
+  - `gen_bangumi_master.py --check`: ✅ **`+0` grup, `+0` etiket, `+0` kayıt**
+  - `check_test_expectations.py`: ✅ **`23 / 23` test beklentisi veriyle tam uyumlu**
+  - `check_bangumi_meta_tag_coverage.py`: ✅ **`158 / 158` resmî Bangumi meta etiketi kapsanıyor**
+  - `python3 -m unittest discover -s diag/bangumi_vault/scripts -p "test_*.py"`: ✅ **`30 / 30` birim testi geçti**
 
 ---
 
-## 1. Uygulama Entegrasyon Mimarisi (Android / Kotlin / XML)
+## 0.1. Bu Oturumda Yakalanan Kritik Derleme Kök Nedeni ve Çözümü
 
-Bangumi verileri uygulama içinde **4 katmanlı statik + kaynak mimarisi** ile çalışır ve tüm katmanlar mevcut dalda (`8a5c267`) üretilmiş ve doğrulanmış durumdadır:
+PR #30 (`arena/e29a309c-kitsugi-beta`) ve PR #31 (`arena/284d08ba-kitsugi-beta`) dalları doğrudan eski `main` (`PR #23`) üzerinden açıldığı için PR #24 / PR #27 / PR #29'daki mimari dosyaları düşürmüş ve GitHub Actions üzerinde iki sert derleyici hatasına çarpmıştı:
+1. **`kotlinc` (`compile_check.sh` — Run `39645302876`):** `58.338` `g(...)` çağrısı tek `BangumiTagDictionary.class` içinde `groupChunk00()`..`groupChunk145()` olarak yazıldığında JVM 64 KB metod sınırını geçse bile sınıf başlığındaki **`u2 constant_pool_count` (sınıf başına en fazla 65.535 sabit)** sınırını aşıp derlemeyi kırıyordu.
+2. **Android `aapt2` & Kaynak Birleştirme (`:app:mergeFossDebugResources` — Run `39645302880`):** `bangumi-vault-resources-1..3` modülleri düşmüş, `112.812` `<string>` tek `app/src/main/res/values/strings.xml` içine yazılarak hem mükerrer anahtar (`bangumi_studio_a1_pictures`) üretmiş hem de Android `resources.arsc` tablosunun **APK genelinde tür başına 16-bit (`0x7fTTFFFF` = en fazla 65.535 `<string>`)** sınırını aşmıştı.
 
-### 1.1. Çok Modüllü Android Dil Kaynakları (`strings.xml` Parçaları)
-Android `R$string` sınıfında 64K alan (DEX field) sınırına takılmamak için `112.812` adet TR/EN string kaynağı 4 modüle bölünmüştür:
-1. `app/src/main/res/values/strings.xml` & `values-en/strings.xml` (Uygulama arayüz metinleri + MASTER & temel `bangumi_*` kaynakları)
-2. `bangumi-vault-resources-1/src/main/res/values/strings.xml` & `values-en/strings.xml`
-3. `bangumi-vault-resources-2/src/main/res/values/strings.xml` & `values-en/strings.xml`
-4. `bangumi-vault-resources-3/src/main/res/values/strings.xml` & `values-en/strings.xml`
-
-> **Önemli Kural:** Mevcut XML anahtarları (`bangumi_tag_*`, `bangumi_studio_*`, `bangumi_producer_*`, `bangumi_publisher_*`, `bangumi_magazine_*`, `bangumi_network_*`) kilitlidir; yeni XML ID üretilmez, güncellemeler mevcut anahtarların TR/EN değerleri üzerinde yerinde yapılır.
-
-### 1.2. Etiket & Tür Sözlüğü (`BangumiTagDictionary.kt`)
-- **Konum:** `app/src/main/java/com/kitsugi/animelist/utils/BangumiTagDictionary.kt`
-- **Yapı:** **58.338** kanonik etiket grubu. JVM 64 KB metod boyutu sınırını aşmamak için gruplar `groupChunk00()` .. `groupChunk145()` yardımcı fonksiyonlarına (≤ 400 giriş/parça) bölünmüştür.
-- **Çalışma Zamanı (Runtime) Akışı (`KitsugiTranslations.kt`):**
-  1. `String.toLocalizedTagLabel()` / `String.toLocalizedBangumiTagOrNull()` çağrılır.
-  2. `BangumiTagDictionary.entryFor(label)` ile gelen Çince/Japonca/İngilizce etiket kanonik `key` değerine çözülür (`ilk yazım kazanır` kuralı).
-  3. Arayüz dili Türkçe (`tr`) veya İngilizce (`en`) ise `getStringResourceByName("bangumi_tag_${tag.key}")` ile `strings.xml` kaynağı (`bangumiTagResourceCache` `ConcurrentHashMap` önbelleği üzerinden) okunur.
-  4. Dil dosyasında bulunamazsa veya farklı bir arayüz dilindeyse `tag.turkish` / `tag.english` yedek değeri döner.
-  5. Eşleşme yoksa orijinal metin bozulmadan döner (**uydurma çeviri üretilmez**).
-- **Spoiler Koruması (`KitsugiSpoilerRules.kt`):** `BangumiTagDictionary.entryFor(...)` üzerinden doğal spoiler etiketlerini CJK/EN/TR dillerinin tamamında yakalar.
-
-### 1.3. Kurum, Yapımcı, Yayıncı Ağ, Yayımcı ve Dergi Sözlüğü (`BangumiOrgDictionary.kt`)
-- **Konum:** `app/src/main/java/com/kitsugi/animelist/utils/BangumiOrgDictionary.kt`
-- **Yapı:** **52.626** eşleme satırı (`etiket|bangumi_<rol>_<key>|Küresel Latin Ad`). JVM constant-pool UTF-8 sınırını (65.535 bayt) aşmamak için `RAW` listesi **67 parçaya** (her biri ≤ 50.000 modified-UTF-8 bayt) bölünmüştür.
-- **Çalışma Zamanı (Runtime) Akışı (`KitsugiTranslations.kt` & `BangumiOrgResolver.kt`):**
-  1. `String.toLocalizedOrgName()` / `String.toLocalizedOrgNameOrNull()` çağrılır.
-  2. `BangumiOrgDictionary.resourceKeyFor(cleaned)` (veya `toLatinStudioName()` sonrası ikinci tur lookup) ile `bangumi_<rol>_<key>` kaynak adı bulunur.
-  3. TR/EN arayüzde `getStringResourceByName(key)` ile `strings.xml` değeri okunur.
-  4. Kaynak yoksa `BangumiOrgDictionary.latinNameFor(cleaned)` → `toLatinStudioName()` → orijinal metin döner. Üretim komiteleri (`製作委員会` vb.) ve doğrulanmamış CJK özel adlar olduğu gibi korunur.
-
-### 1.4. Aşılan 5 Garip Teknik Sınırlama ve Korunması Zorunlu Çözüm Yöntemlerimiz
-Uygulamaya bu ölçekte (`106.580` `bangumi_*` anahtarı, `58.338` etiket grubu, `52.626` kurum eşlemesi) veri entegre edilirken karşılaşılan derleyici/런타임/depo sınırlamaları ve uyguladığımız kalıcı çözümler şunlardır (**yeni oturumda bu yapıların hiçbirini bozma**):
-
-1. **Android `R$string` 64K DEX Alan Sınırı (`TooManyFieldsException` / 65.535 Field Limit):**
-   - **Sorun:** `112.812` adet TR/EN `<string>` kaynağı tek `app` modülünde toplandığında Android derleyicisi `R$string` sınıfında 65.535 alan sınırını aşıp derlemeyi kırıyordu.
-   - **Uygulanan Yöntem:** Dil kaynakları **4 ayrı Gradle modülüne (shard)** bölündü (`app` + `bangumi-vault-resources-1` + `bangumi-vault-resources-2` + `bangumi-vault-resources-3`), `nonTransitiveRClass` korundu ve çalışma zamanında `R.string.*` sabit referansı yerine `context.resources.getIdentifier(name, "string", context.packageName)` + `ConcurrentHashMap` önbelleği (`bangumiTagResourceCache`) kullanıldı. Ayrıca **yeni XML ID üretmeme (`+0 XML ID`)** kuralıyla modül başına alan sayısı sabitlendi.
-2. **JVM 64 KB Metod Boyutu Sınırı (`MethodTooLargeException` — `BangumiTagDictionary.kt`):**
-   - **Sorun:** `58.338` etiket grubu tek bir `listOf(...)` veya `<clinit>` metodunda tanımlandığında JVM 64 KB bytecode sınırına takılıyordu.
-   - **Uygulanan Yöntem:** `vault_to_strings.py`, `BangumiTagDictionary.kt` içindeki grupları her biri en fazla **400 grup** içeren `groupChunk00()` .. `groupChunk145()` (`146` ayrı yardımcı metod) parçalarına böler ve `buildList` ile birleştirir.
-3. **JVM Constant-Pool 65.535 Bayt UTF-8 String Sınırı (`BangumiOrgDictionary.kt` RAW):**
-   - **Sorun:** `52.626` kurum eşleme satırı tek bir Kotlin string sabitinde tutulduğunda JVM `CONSTANT_Utf8_info` **65.535 modified-UTF-8 bayt** sınırını aşıyordu (CJK karakterler modified-UTF-8'de 3 bayt kaplar).
-   - **Uygulanan Yöntem:** `BangumiOrgDictionary.kt` içindeki `RAW` verisi `listOf(...)` altında **67 parçaya** bölündü ve her parça kesin olarak **≤ 50.000 modified-UTF-8 bayt** sınırının altında tutuldu (`verify_bangumi_master.py` her parçanın bayt boyutunu denetler).
-4. **Sınıf Yükleme (`<clinit>`) ve Bellek Tüketimi Sınırı (Sıkıştırılmış `RAW` + Lazy Çözümleme):**
-   - **Sorun:** `52.626` kurum eşlemesini derleme zamanında ayrı Kotlin nesneleri olarak üretmek hem `.dex` boyutunu hem sınıf yükleme süresini şişiriyordu.
-   - **Uygulanan Yöntem:** Kurum eşlemeleri `etiket|bangumi_<rol>_<key>|Latin Ad` biçiminde sıkıştırılmış metin satırları olarak tutulur ve ilk kullanımda `by lazy` ile bellekteki arama haritasına açılır.
-5. **Git / Arena 128 MB Yama Sınırı ve `gen_bangumi_master.py` Üzerine Yazma Koruması:**
-   - **Sorun A:** Toplamı ~130 MB olan 14 ham VAULT JSON/TSV dosyası (`vault.json`, `tags.json` vb.) Git geçmişini ve Arena yama sınırını aşıyordu.
-   - **Uygulanan Yöntem A:** 14 büyük veri dosyası `.gitignore`'da tutulup **Google Drive (`1pZAOYsAnMjveNK6grdXjqV9IDM1TFaJp`)** üzerinden senkronize edilir; Git'te yalnız derlenen `.kt` ve `strings.xml` dosyaları ile `canon.tsv` karar tablosu bulunur.
-   - **Sorun B:** `gen_bangumi_master.py` `--check` olmadan çalıştırılırsa `BangumiOrgDictionary.kt` şablondan yalnız `orgs.tsv` ile yeniden yazılıp VAULT'un 51.600+ RAW satırını siler.
-   - **Uygulanan Yöntem B:** Tüm güncellemeler yalnız `apply_009_batch.py --mirror-repair` → `apply_map.py` → `vault_to_strings.py` boru hattıyla yapılır; `gen_bangumi_master.py` **daima `--check` bayrağıyla** çalıştırılır.
-
+**Uygulanan Kalıcı Çözüm (`arena/80e5e83a-kitsugi-beta`):**
+- PR #27 + PR #29'daki **4 modüllü Android kaynak yapısı** (`app` + `bangumi-vault-resources-1..3` + `bangumi_vault_keep.xml`) ve **S1–S3 classpath UTF-8 TSV veri deposu** (`app/src/main/resources/bangumi/tags.tsv` + `orgs.tsv`) güncel `main` (`971abf1`, `v2.4.336`) üzerine eksiksiz geri yüklendi.
+- PR #30 ve PR #31'de üretilen **tüm `227` kanonik güncelleme** (`canon.tsv`, `org_global_names.tsv`, `map_chunk_*.tsv`) bu mimari üzerinden yeniden üretildi (`+0` yeni XML ID; mevcut shard anahtarlarında `~59 TR / ~56 EN` yerinde güncelleme + `tags.tsv` `58.338` grup + `orgs.tsv` `52.626` satır).
+- `KitsugiTranslations.kt` içinde `BangumiOrgDictionary.localizedNameFor(cleaned, turkish)` yedeği ve `"コミックス・ウェーブ・フィルム" -> "CoMix Wave Films"` eşlemesi aktif edildi.
+- `KitsugiBangumiDetailClient.kt` içinde oyun geliştirici stüdyoları (`开发`/`開發`), yayımcılar (`发行`/`發行`), Japonca/Çince dergi alanları (`連載雑誌`/`雜誌`/`雑誌`), yayın satırı kanal yerelleştirmesi (`station.toLocalizedOrgName()`) ve dergi kişi/logo zenginleştirmesi (`withStudioPersonIds` içinde `serializations`) tamamlandı.
 
 ---
 
-## 2. Uygulamaya Entegrasyon Görev Listesi (TASK Planı)
+## 1. Uygulama Entegrasyon Mimarisi ve 5 Teknik Sınırlama Koruması
 
-Yeni oturumda veya yerel geliştirme ortamında entegrasyonu tamamlamak için izlenecek adım adım görev planı:
+1. **Android `R$string` 64K DEX Alan Sınırı VE `aapt2` 65.535 Kaynak ID Sınırı:**
+   - **Yöntem:** `58.451` adet TR/EN `<string>` kaynağı **4 ayrı Gradle modülüne** bölünür (`app`: `17.524`, `bangumi-vault-resources-1`: `13.565`, `bangumi-vault-resources-2`: `13.782`, `bangumi-vault-resources-3`: `13.580`), R8 kaynak küçültmesine karşı `app/src/main/res/raw/bangumi_vault_keep.xml` (`tools:keep="@string/bangumi_*"`) korunur, çalışma zamanında `getIdentifier` + `bangumiTagResourceCache` (`ConcurrentHashMap`) ile okunur ve **yeni XML ID üretilmez (`+0 XML ID`)**. Böylece hem modül başına `R$string` alan sayısı (~13,5K–17,5K) hem de APK genelindeki toplam `string` tablosu (`58.451 < 65.535`) güvenli tavanın altında kalır; kalan `54.116` VAULT anahtarı doğrudan `tags.tsv` / `orgs.tsv` üzerinden sıfır XML ID maliyetiyle çözülür.
+2. **JVM 64 KB Metod Boyutu VE 65.535 Sınıf Sabit Havuzu Sınırı (`BangumiTagDictionary.kt`):**
+   - **Yöntem:** `58.338` etiket grubu `app/src/main/resources/bangumi/tags.tsv` (`<key>\t<tr>\t<en>\t<etiket>...`) UTF-8 classpath kaynağında tutulur ve `BangumiTagDictionary.kt` tarafından `Context` gerektirmeden `by lazy` ile yüklenir; ayrıca `vault_to_strings.py` içindeki 400'lük `groupChunk` yardımcıları geriye dönük birim test uyumluluğu için korunur.
+3. **JVM Constant-Pool 65.535 Bayt UTF-8 Sınırı (`BangumiOrgDictionary.kt`):**
+   - **Yöntem:** `52.626` kurum eşlemesi `app/src/main/resources/bangumi/orgs.tsv` (`<etiket>\t<anahtar>\t<en>[\t<tr>]`) UTF-8 classpath kaynağında tutulur; sınıf sabit havuzunda dev string sabiti oluşturulmaz.
+4. **Sınıf Yükleme (`<clinit>`) ve Bellek Sınırı (Lazy Çözümleme):**
+   - **Yöntem:** Hem `BangumiTagDictionary` hem `BangumiOrgDictionary` veriyi ilk erişimde `by lazy` ile tek geçişte `HashMap` indekslerine (`byLabel`, `byCompact`, `byKey`) açar; uygulama açılışında `<clinit>` maliyeti sıfırdır.
+5. **Git / Arena 128 MB Yama Sınırı ve `gen_bangumi_master.py` Koruması:**
+   - **Yöntem:** ~128 MB tutan 14 ham JSON/TSV veri dosyası `.gitignore` altında tutulup **Google Drive (`1pZAOYsAnMjveNK6grdXjqV9IDM1TFaJp`)** üzerinden senkronize edilir; `diag/bangumi_master/gen_bangumi_master.py` **daima `--check` bayrağıyla** çalıştırılır.
 
-### TASK-1 · Google Drive Veri Dosyalarını Yerel Çalışma Alanına İndirme (Oturum Başlangıcı)
-Git deposunda yalnız kod (`*.kt`), dil kaynakları (`strings.xml`), `canon.tsv`, `org_global_names.tsv`, `PROGRESS.md` ve `HANDOFF_*.md` tutulur; büyük JSON/TSV VAULT dosyaları `.gitignore` altındadır ve Google Drive klasöründe (`1pZAOYsAnMjveNK6grdXjqV9IDM1TFaJp`) saklanır.
-- **Adım 1.1:** Google Drive `1pZAOYsAnMjveNK6grdXjqV9IDM1TFaJp` klasörünü `list_files` ile taze listele.
-- **Adım 1.2:** Aşağıdaki 14 veri dosyasını `diag/bangumi_vault/` dizinine indir:
-  - `manifest.json`, `progress.json`, `translations_pending.tsv`, `translations_done.tsv`, `genres.json`
-  - `vault.json`, `tags.json`, `records_007_tags.json`
-  - `studios.json`, `producers.json`, `publishers.json`, `magazines.json`, `networks.json`, `committees.json`
+---
 
-### TASK-2 · Yerel Bütünlük ve Sözlük Senkronizasyon Doğrulaması
-Uygulama derlemesine veya PR birleştirmesine geçmeden önce 4 doğrulayıcı betiğin tamamının yeşil (`0` hata) olduğundan emin ol:
-```bash
-python3 diag/bangumi_vault/scripts/apply_map.py --check
-python3 diag/bangumi_vault/scripts/verify_vault.py
-python3 diag/bangumi_master/verify_bangumi_master.py
-python3 diag/bangumi_master/gen_bangumi_master.py --check
-python3 scripts/check_bangumi_meta_tag_coverage.py
-```
-**Beklenen Çıktılar:**
-- `verify_vault.py`: `✅ TÜM KONTROLLER GEÇTİ — 106580 bangumi_* anahtar, 106335 vault kaydı, 121284 map satırı, 121284 damga denetlendi`
-- `verify_bangumi_master.py`: `BangumiTagDictionary: 58338 grup`, `BangumiOrgDictionary: 52626 eşleme satırı`, `RAW: 67 parça`, `GERÇEK çakışma 0`, `strings.xml: TR 112812 · EN 112812 kayıt (simetri OK)`
-- `gen_bangumi_master.py --check`: `+0 grup, +0 etiket, +0 kayıt`
-- `check_bangumi_meta_tag_coverage.py`: `kontrol edilen resmî meta etiket: 158 / eksik: 0`
+## 2. Görev Listesi Durumu (`TASK-1` .. `TASK-5`)
 
-> ⚠️ **KRİTİK UYARI:** `diag/bangumi_master/gen_bangumi_master.py` betiğini **asla `--check` olmadan çalıştırma**! `--check` olmadan çalıştırılırsa `BangumiOrgDictionary.kt` şablondan yalnız `orgs.tsv` baz alınarak baştan yazılır ve VAULT'un eklediği ~51.600 RAW eşleme satırı silinir.
-
-### TASK-3 · PR #31'in `main` Dalına Birleştirilmesi (Merge) ve Dal Temizliği
-- **Adım 3.1:** PR #31 (`arena/284d08ba-kitsugi-beta` @ `8a5c267`+) zaten `main` (`971abf1`) tabanlıdır ve `main` üzerindeki güncel MAL bildirim/geçmiş değişikliklerini korur.
-- **Adım 3.2:** PR #31'i `main` dalına merge et (`gh pr merge 31 --merge` veya GitHub arayüzünden).
-- **Adım 3.3:** Eski oturumdan kalan ve PR #31 tarafından kapsanan PR #30 (`arena/e29a309c-kitsugi-beta`) artık gereksizse kapatılabilir.
-
-### TASK-4 · Android Uygulama Derleme ve Arayüz (Runtime) Doğrulaması
-- **Adım 4.1:** Android kaynak birleştirme ve R sınıfı üretimini doğrula:
-  ```bash
-  ./gradlew :bangumi-vault-resources-1:compileDebugLibraryResources \
-            :bangumi-vault-resources-2:compileDebugLibraryResources \
-            :bangumi-vault-resources-3:compileDebugLibraryResources \
-            :app:processFossDebugResources
-  ```
-- **Adım 4.2:** Kotlin sözlük derlemesini doğrula:
-  ```bash
-  bash diag/bangumi_master/harness/compile_check.sh
-  ```
-- **Adım 4.3:** Uygulama içi ekran kontrolleri (Detay sayfası, Arama/Filtre çipleri, Stüdyo/Yapımcı/Dergi rozetleri):
-  - **Türkçe arayüzde (`Locale("tr")`):** Kavram etiketlerinin Türkçe (`Sessiz Film`, `Gotik Lolita`, `Doğa Belgeseli`, `Taktiksel Nişancı`, `Souls Benzeri` vb.), küresel kurum/kişi/marka adlarının ise resmî Latin yazımıyla (`Kyoto Animation`, `Masayuki Aoyagi`, `Tomonori Ochikoshi`, `Overlap Bunko`, `Monthly Wings`, `CoMix Wave Films` vb.) göründüğünü doğrula.
-  - **İngilizce arayüzde (`Locale("en")`):** Kavram etiketlerinin İngilizce (`Silent Film`, `Gothic Lolita`, `Nature Documentary`, `Tactical Shooter`, `Souls-like` vb.), küresel kurum/kişi/marka adlarının aynı resmî Latin yazımıyla göründüğünü doğrula.
-  - **Doğrulanmamış CJK özel adlar ve komiteler (`as_is`):** `森下勝司` veya `Clannad製作委員会` gibi kayıtların uydurma romanizasyon olmadan orijinal CJK metniyle korunduğunu doğrula.
-
-### TASK-5 · İsteğe Bağlı Ek Kürasyon / Bakım İş Akışı (Yeni Veri Eklenecekse)
-İleride `as_is` havuzundan yeni bir resmî global ad veya çeviri eklenecekse **yalnızca** şu standart boru hattı kullanılır:
-1. Kararları `diag/bangumi_vault/worklists/009_decisions_<ad>.tsv` dosyasına `# role\tcanon_id\told_tr\tnew_tr\tnew_en\tnew_origin` formatında yaz.
-2. Önce `--dry-run`, sonra gerçek çalıştır:
-   ```bash
-   python3 diag/bangumi_vault/scripts/apply_009_batch.py --dry-run --mirror-repair diag/bangumi_vault/worklists/009_decisions_<ad>.tsv
-   python3 diag/bangumi_vault/scripts/apply_009_batch.py --mirror-repair diag/bangumi_vault/worklists/009_decisions_<ad>.tsv
-   ```
-3. Harita ve dil dosyalarını güncelle:
-   ```bash
-   python3 diag/bangumi_vault/scripts/apply_map.py --check
-   python3 diag/bangumi_vault/scripts/apply_map.py
-   python3 diag/bangumi_vault/scripts/vault_to_strings.py
-   ```
-4. TASK-2'deki doğrulayıcıları çalıştır, `translations_done.tsv` + `progress.json` + `PROGRESS.md` + `HANDOFF_011_APP_INTEGRATION_PLAN_AND_TASKS.md` dosyalarını güncelle ve Google Drive `1pZAOYsAnMjveNK6grdXjqV9IDM1TFaJp` klasörüne (`list_files` → `delete_file` → `upload_file` → `list_files`) senkronize et.
+- [x] **TASK-1 · Google Drive Veri Dosyalarını İndirme:** `1pZAOYsAnMjveNK6grdXjqV9IDM1TFaJp` klasöründeki **48 aktif dosya** taze listelendi ve 14 VAULT veri dosyası indirildi.
+- [x] **TASK-2 · Yerel Bütünlük ve Sözlük Senkronizasyon Doğrulaması:** `apply_009_batch.py --mirror-repair`, `apply_map.py --check`, `vault_to_strings.py --check`, `verify_vault.py`, `verify_bangumi_master.py`, `gen_bangumi_master.py --check`, `check_test_expectations.py` (23/23), `check_bangumi_meta_tag_coverage.py` (158/158) ve `unittest` (30/30) sıfır hatayla geçti.
+- [ ] **TASK-3 · PR Birleştirme (`main`):** Bu daldan (`arena/80e5e83a-kitsugi-beta`) açılan güncel entegrasyon PR'ı kullanıcı onayıyla `main` dalına merge edilecek; eski ara PR'lar (#31, #30, #29, #27, #26, #25, #24) kapatılabilir.
+- [x] **TASK-4 · Android Uygulama Derleme, `kotlinc` ve Runtime Doğrulaması:** `compile_check.sh` (`Main.kt`), `BangumiMasterDictionaryTest` (TR/EN/as_is JUnit testleri), `KitsugiBangumiDetailClientTest` ve 4 modüllü Debug + R8 Release APK + DEX bytecode doğrulaması CI iş akışlarına bağlandı.
+- [x] **TASK-5 · Bakım İş Akışı Hazırlığı:** `apply_009_batch.py` hem `--mirror-repair` tekil modunu hem `[--dry-run] [--mirror-repair] <worklist>` modunu destekleyecek şekilde birleştirildi.

@@ -232,3 +232,15 @@ Latin adı işle; kalan özel adlar/fandom jargonu as_is.
   içinde `diag/bangumi_vault/` altında hem Google Drive `1pZAOYsAnMjveNK6grdXjqV9IDM1TFaJp`
   klasöründe) kayıtlıdır.
 
+### Tam Uygulama Entegrasyonu ve PR #27/#29 + `main` (`v2.4.336`) Birleştirmesi (`arena/80e5e83a-kitsugi-beta`)
+
+- PR #30/#31'de eski `main` tabanından açılma nedeniyle düşen **4 modüllü Android dil kaynakları**
+  (`app` + `bangumi-vault-resources-1..3` + `bangumi_vault_keep.xml`) ve **S1–S3 classpath TSV
+  veri deposu mimarisi** (`app/src/main/resources/bangumi/tags.tsv` + `orgs.tsv`) güncel `main`
+  (`971abf1`, `v2.4.336`) ve tüm Batch 001–009 + Batch 008 (`4262d84`) verileriyle eksiksiz
+  birleştirildi:
+  - `verify_vault.py`: ✅ `52219 bangumi_* anahtar, 106335 vault kaydı, 121284 map satırı, 121284 damga`
+  - `verify_bangumi_master.py`: ✅ `58338 grup (tags.tsv) · 52626 eşleme (orgs.tsv) · GERÇEK çakışma 0 · strings.xml TR 58451 / EN 58451 simetrik`
+  - `gen_bangumi_master.py --check` ✅ · `check_test_expectations.py` ✅ `23/23` · `check_bangumi_meta_tag_coverage.py` ✅ `158/158` · `unittest` ✅ `30/30`.
+
+

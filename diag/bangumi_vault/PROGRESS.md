@@ -1301,4 +1301,11 @@ yerinde uygulandı (yeni XML ID **0**):
    - `check_bangumi_meta_tag_coverage.py`: ✅ **158/158**
    - Canlı `tags.json` CJK `as_is` aday havuzu (007_b–007_i): **43.022** (kota değildir).
 
+## 2p) Tam Uygulama Entegrasyonu — `main` (`v2.4.336`) + PR #27/#29 S1–S3 Mimarisi + Batch 008 Birleşimi (`arena/80e5e83a-kitsugi-beta` · 2026-10-21)
+
+- PR #30/PR #31'de düşen **4 Gradle dil modülü** (`app` + `bangumi-vault-resources-1..3` + `bangumi_vault_keep.xml`) ve **S1–S3 classpath TSV veri depoları** (`app/src/main/resources/bangumi/tags.tsv` + `orgs.tsv`), güncel `main` (`971abf1`, `v2.4.336`) ve Batch 001–009 + Batch 008 (`4262d84`) kararlarının tamamıyla birleştirildi (`+0` yeni XML ID; hiçbir çeviri/global ad kaybı yok).
+- `KitsugiTranslations.kt` (`localizedNameFor` + `コミックス・ウェーブ・フィルム` → `CoMix Wave Films`) ve `KitsugiBangumiDetailClient.kt` (oyun geliştiricileri `开发`/`開發`, yayımcılar `发行`/`發行`, Japonca/Çince dergiler `連載雑誌`/`雜誌`/`雑誌`, yayın istasyonu yerelleştirmesi ve dergi ID/logo zenginleştirmesi) tamamlandı; `Main.kt`, `BangumiMasterDictionaryTest` ve `KitsugiBangumiDetailClientTest` ile TR/EN/`as_is` çalışma zamanı doğrulaması eklendi.
+- Doğrulama zinciri: `verify_vault.py` ✅ (`52.219` XML anahtarı · `106.335` vault kaydı · `121.284` map · `121.284` damga) · `verify_bangumi_master.py` ✅ (`58.338` grup · `52.626` org eşleme · çakışma `0` · `strings.xml` TR `58.451` / EN `58.451`) · `gen_bangumi_master.py --check` ✅ · `check_test_expectations.py` ✅ `23/23` · `check_bangumi_meta_tag_coverage.py` ✅ `158/158` · `unittest` ✅ `30/30`.
+
+
 

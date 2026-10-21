@@ -1,0 +1,225 @@
+0	SKIP				SKIP: salt sayı / sembol
+1	SKIP				SKIP: salt sayı / sembol
+2	SKIP				SKIP: salt sayı / sembol
+3	SKIP				SKIP: salt sayı / sembol
+4	SKIP				SKIP: salt sayı / sembol
+5	SKIP				SKIP: salt sayı / sembol
+6	SKIP				SKIP: salt sayı / sembol
+7	SKIP				SKIP: salt sayı / sembol
+8	SKIP				SKIP: salt sayı / sembol
+9	SKIP				SKIP: salt sayı / sembol
+10	SKIP				SKIP: tarih / etkinlik / raf damgası
+11	2k_games	2K Games	2K Games	existing	tags.tsv:2k_games
+12	SKIP				SKIP: salt sayı / sembol
+13	amateras_records	Amateras Records	Amateras Records	existing	tags.tsv:amateras_records
+14	animated_movies	Animated.Movies	Animated.Movies	existing	tags.tsv:animated_movies
+15	avex_trax	Avex Trax	Avex Trax	existing	tags.tsv:avex_trax
+16	sengoku_basara	Sengoku Basara	Sengoku Basara	existing	tags.tsv:sengoku_basara
+17	blackbutterfly	BlackButterfly	BlackButterfly	existing	tags.tsv:blackbutterfly
+18	blcd	BLCD	BLCD	existing	tags.tsv:blcd
+19	brit_pop	Brit-Pop	Brit-Pop	existing	tags.tsv:brit_pop
+20	cartoon_network	Cartoon Network	Cartoon Network	existing	tags.tsv:cartoon_network
+21	treasure_hunting	Hazine Avı	Treasure Hunting	existing	tags.tsv:treasure_hunting
+22	kaede_kouchi	Kaede Kouchi	Kaede Kouchi	existing	tags.tsv:kaede_kouchi
+23	single_player_game	Tek Oyunculu Oyun	Single-Player Game	existing	tags.tsv:single_player_game
+24	rei_yasuda	Rei Yasuda	Rei Yasuda	existing	tags.tsv:rei_yasuda
+25	anju_inami	Anju Inami	Anju Inami	existing	tags.tsv:anju_inami
+26	SKIP				SKIP: kişisel raf / sürüm notu
+27	cjk_07f7bb	村上凛	村上凛	as_is	as_is: doğrulanmamış CJK özel ad
+28	tamayura	Tamayura	Tamayura	existing	tags.tsv:tamayura
+29	SKIP				SKIP: kişisel durum / gürültü
+30	cjk_096241	やまなか正之	やまなか正之	as_is	as_is: doğrulanmamış CJK özel ad
+31	phantasy_star	Phantasy Star	Phantasy Star	existing	tags.tsv:phantasy_star
+32	yusuke_kishi	Yusuke Kishi	Yusuke Kishi	existing	tags.tsv:yusuke_kishi
+33	aika_yoshioka	Aika Yoshioka	Aika Yoshioka	existing	tags.tsv:aika_yoshioka
+34	samurai_warriors	Samurai Warriors	Samurai Warriors	existing	tags.tsv:samurai_warriors
+35	ryo_takahashi	Ryo Takahashi	Ryo Takahashi	existing	tags.tsv:ryo_takahashi
+36	hitoshi_ashinano	Hitoshi Ashinano	Hitoshi Ashinano	existing	tags.tsv:hitoshi_ashinano
+37	fushigi_yuugi	Fushigi Yuugi	Fushigi Yuugi	existing	tags.tsv:fushigi_yuugi
+38	group_leader_captain	Lider / Kaptan	Leader / Captain	existing	tags.tsv:group_leader_captain
+39	cjk_188d8d	ゼロの者	ゼロの者	as_is	as_is: doğrulanmamış CJK özel ad
+40	norio_wakamoto	Norio Wakamoto	Norio Wakamoto	existing	tags.tsv:norio_wakamoto
+41	yuji_matsuyama	Yuji Matsuyama	Yuji Matsuyama	existing	tags.tsv:yuji_matsuyama
+42	gakuto_coda	Gakuto Coda	Gakuto Coda	existing	tags.tsv:gakuto_coda
+43	haruhi_character	Haruhi Suzumiya	Haruhi Suzumiya	existing	tags.tsv:haruhi_character
+44	legend_of_heroes_tear_of_vermilion	The Legend of Heroes: Tear of Vermilion	The Legend of Heroes: Tear of Vermilion	existing	tags.tsv:legend_of_heroes_tear_of_vermilion
+45	serialized_tag	Seri Hâline Getirilmiş	Serialized	existing	tags.tsv:serialized_tag
+46	astro_boy	Astro Boy	Astro Boy	existing	tags.tsv:astro_boy
+47	the_legend_of_qin	The Legend of Qin	The Legend of Qin	existing	tags.tsv:the_legend_of_qin
+48	ryota_kosawa	Ryota Kosawa	Ryota Kosawa	existing	tags.tsv:ryota_kosawa
+49	cjk_2a0ec2	御影	御影	as_is	as_is: doğrulanmamış CJK özel ad
+50	naomi_ohzora	Naomi Ohzora	Naomi Ohzora	existing	tags.tsv:naomi_ohzora
+51	akiyuki_tateyama	Akiyuki Tateyama	Akiyuki Tateyama	existing	tags.tsv:akiyuki_tateyama
+52	SKIP				SKIP: kişisel durum / gürültü
+53	tatsuya_fujiwara	Tatsuya Fujiwara	Tatsuya Fujiwara	existing	tags.tsv:tatsuya_fujiwara
+54	SKIP				SKIP: kişisel durum / gürültü
+55	range_murata	Range Murata	Range Murata	existing	tags.tsv:range_murata
+56	ayu_watanabe	Ayu Watanabe	Ayu Watanabe	existing	tags.tsv:ayu_watanabe
+57	toshiro_masuda	Toshiro Masuda	Toshiro Masuda	existing	tags.tsv:toshiro_masuda
+58	ryo_azuki	Ryo Azuki	Ryo Azuki	existing	tags.tsv:ryo_azuki
+59	kentaro_sakaguchi	Kentaro Sakaguchi	Kentaro Sakaguchi	existing	tags.tsv:kentaro_sakaguchi
+60	cjk_42ee6c	板場広し	板場広し	as_is	as_is: doğrulanmamış CJK özel ad
+61	mikage_kasuga	Mikage Kasuga	Mikage Kasuga	existing	tags.tsv:mikage_kasuga
+62	hiromi_mizutani	Hiromi Mizutani	Hiromi Mizutani	existing	tags.tsv:hiromi_mizutani
+63	the_big_bang_theory	The Big Bang Theory	The Big Bang Theory	existing	tags.tsv:the_big_bang_theory
+64	natsumi_eguchi	Natsumi Eguchi	Natsumi Eguchi	existing	tags.tsv:natsumi_eguchi
+65	hikari_mitsushima	Hikari Mitsushima	Hikari Mitsushima	existing	tags.tsv:hikari_mitsushima
+66	gun_manga	Ateşli Silah Mangası	Gun Manga	existing	tags.tsv:gun_manga
+67	masumi_asano	Masumi Asano	Masumi Asano	existing	tags.tsv:masumi_asano
+68	cjk_4ca041	鷹山誠一	鷹山誠一	as_is	as_is: doğrulanmamış CJK özel ad
+69	rena_ryuugu	Rena Ryuugu	Rena Ryuugu	existing	tags.tsv:rena_ryuugu
+70	mana_ashida	Mana Ashida	Mana Ashida	existing	tags.tsv:mana_ashida
+71	naoshi_arakawa	Naoshi Arakawa	Naoshi Arakawa	existing	tags.tsv:naoshi_arakawa
+72	hiroyuki_oshima	Hiroyuki Oshima	Hiroyuki Oshima	existing	tags.tsv:hiroyuki_oshima
+73	cjk_594d64	和狸ナオ	和狸ナオ	as_is	as_is: doğrulanmamış CJK özel ad
+74	huge_breasts	Büyük Göğüsler	Huge Breasts	existing	tags.tsv:huge_breasts
+75	nijigasaki_idol_club	Nijigasaki High School Idol Club	Nijigasaki High School Idol Club	existing	tags.tsv:nijigasaki_idol_club
+76	cjk_5c2846	北別府ニカ	北別府ニカ	as_is	as_is: doğrulanmamış CJK özel ad
+77	cjk_5c504d	北沢きょう	北沢きょう	as_is	as_is: doğrulanmamış CJK özel ad
+78	cjk_5cd56a	奋斗吧！系统工程师	奋斗吧！系统工程师	as_is	as_is: doğrulanmamış CJK özel ad
+79	shuhei_nomura	Shuhei Nomura	Shuhei Nomura	existing	tags.tsv:shuhei_nomura
+80	shosuke_tanihara	Shosuke Tanihara	Shosuke Tanihara	existing	tags.tsv:shosuke_tanihara
+81	cjk_644c5c	右京	右京	as_is	as_is: doğrulanmamış CJK özel ad
+82	cjk_657942	新井理生	新井理生	as_is	as_is: doğrulanmamış CJK özel ad
+83	ui_miyazaki	Ui Miyazaki	Ui Miyazaki	existing	tags.tsv:ui_miyazaki
+84	SKIP				SKIP: kırpılmış kişisel yorum
+85	cjk_691f41	野宮あゆみ	野宮あゆみ	as_is	as_is: doğrulanmamış CJK özel ad
+86	season_2	2. Sezon	Season 2	existing	tags.tsv:season_2
+87	cjk_6cb478	彩景でりこ	彩景でりこ	as_is	as_is: doğrulanmamış CJK özel ad
+88	ryoko_ono	Ryoko Ono	Ryoko Ono	existing	tags.tsv:ryoko_ono
+89	cjk_6eb838	菊池達也	菊池達也	as_is	as_is: doğrulanmamış CJK özel ad
+90	SKIP				SKIP: kişisel raf / sürüm notu
+91	action_rpg	Aksiyon RYO	Action RPG	existing	tags.tsv:action_rpg
+92	nanao	Nanao	Nanao	existing	tags.tsv:nanao
+93	asami_tachibana	Asami Tachibana	Asami Tachibana	existing	tags.tsv:asami_tachibana
+94	takumi_nakazawa	Takumi Nakazawa	Takumi Nakazawa	existing	tags.tsv:takumi_nakazawa
+95	a_song_of_ice_and_fire	Buz ve Ateşin Şarkısı	A Song of Ice and Fire	existing	tags.tsv:a_song_of_ice_and_fire
+96	SKIP				SKIP: tek karakter belirsiz CJK
+97	haruka_chisuga	Haruka Chisuga	Haruka Chisuga	existing	tags.tsv:haruka_chisuga
+98	yoshiko_sakakibara	Yoshiko Sakakibara	Yoshiko Sakakibara	existing	tags.tsv:yoshiko_sakakibara
+99	cjk_98c9d1	麻生ミツ晃	麻生ミツ晃	as_is	as_is: doğrulanmamış CJK özel ad
+100	sherlock_holmes	Sherlock Holmes	Sherlock Holmes	existing	tags.tsv:sherlock_holmes
+101	game_related	Oyun Bağlantılı Yapım	Game-Related	existing	tags.tsv:game_related
+102	nanpai_sanshu	Nanpai Sanshu	Nanpai Sanshu	existing	tags.tsv:nanpai_sanshu
+103	makoto_yasumura	Makoto Yasumura	Makoto Yasumura	existing	tags.tsv:makoto_yasumura
+104	short_work	Kısa Yapım	Short Work	existing	tags.tsv:short_work
+105	pony_canyon	Pony Canyon	Pony Canyon	existing	tags.tsv:pony_canyon
+106	hayato_ichihara	Hayato Ichihara	Hayato Ichihara	existing	tags.tsv:hayato_ichihara
+107	atsuko_enomoto	Atsuko Enomoto	Atsuko Enomoto	existing	tags.tsv:atsuko_enomoto
+108	go_ikeyamada	Go Ikeyamada	Go Ikeyamada	existing	tags.tsv:go_ikeyamada
+109	haruka_shiraishi	Haruka Shiraishi	Haruka Shiraishi	existing	tags.tsv:haruka_shiraishi
+110	hiroko_kasahara	Hiroko Kasahara	Hiroko Kasahara	existing	tags.tsv:hiroko_kasahara
+111	toru_shiwasu	Toru Shiwasu	Toru Shiwasu	existing	tags.tsv:toru_shiwasu
+112	cjk_5a2b8a	Yuuka Kotorii	Yuuka Kotorii	existing	tags.tsv:cjk_5a2b8a
+113	norimitsu_kaiho	Norimitsu Kaiho	Norimitsu Kaiho	existing	tags.tsv:norimitsu_kaiho
+114	kazuma_horie	Kazuma Horie	Kazuma Horie	existing	tags.tsv:kazuma_horie
+115	keisuke_fujikawa	Keisuke Fujikawa	Keisuke Fujikawa	existing	tags.tsv:keisuke_fujikawa
+116	kanon_wakeshima	Kanon Wakeshima	Kanon Wakeshima	existing	tags.tsv:kanon_wakeshima
+117	demon_majin	İblis / Majin	Majin / Demon	existing	tags.tsv:demon_majin
+118	momoko_koda	Momoko Koda	Momoko Koda	existing	tags.tsv:momoko_koda
+119	SKIP				SKIP: tek karakter belirsiz CJK
+120	izumi_tsubaki	Izumi Tsubaki	Izumi Tsubaki	existing	tags.tsv:izumi_tsubaki
+121	another_world	Başka Dünya	Another World	existing	tags.tsv:another_world
+122	shinya_murata	Shinya Murata	Shinya Murata	existing	tags.tsv:shinya_murata
+123	console_game	Konsol Oyunu	Console Game	existing	tags.tsv:console_game
+124	haruki_murakami	Haruki Murakami	Haruki Murakami	existing	tags.tsv:haruki_murakami
+125	suzuko_mimori	Suzuko Mimori	Suzuko Mimori	existing	tags.tsv:suzuko_mimori
+126	makoto_sanda	Makoto Sanda	Makoto Sanda	existing	tags.tsv:makoto_sanda
+127	humanity_has_declined	Humanity Has Declined	Humanity Has Declined	existing	tags.tsv:humanity_has_declined
+128	nana_eikura	Nana Eikura	Nana Eikura	existing	tags.tsv:nana_eikura
+129	tsuta_suzuki	Tsuta Suzuki	Tsuta Suzuki	existing	tags.tsv:tsuta_suzuki
+130	rokugen_alice	Rokugen Alice	Rokugen Alice	existing	tags.tsv:rokugen_alice
+131	cjk_ccea5d	松岡なつき	松岡なつき	as_is	as_is: doğrulanmamış CJK özel ad
+132	touhou_project	Touhou Project	Touhou Project	existing	tags.tsv:touhou_project
+133	warner_bros	Warner Bros.	Warner Bros.	existing	tags.tsv:warner_bros
+134	shobunkan	Shobunkan	Shobunkan	existing	tags.tsv:shobunkan
+135	junji_majima	Junji Majima	Junji Majima	existing	tags.tsv:junji_majima
+136	asuna_yuuki	Asuna	Asuna	existing	tags.tsv:asuna_yuuki
+137	cjk_d35041	隣人	隣人	as_is	as_is: doğrulanmamış CJK özel ad
+138	keita_haga	Keita Haga	Keita Haga	existing	tags.tsv:keita_haga
+139	asaka_singer	Asaka	Asaka	existing	tags.tsv:asaka_singer
+140	SKIP				SKIP: kişisel raf / sürüm notu
+141	yoko_maekawa	Yoko Maekawa	Yoko Maekawa	existing	tags.tsv:yoko_maekawa
+142	cjk_dcd1c1	湯町駆	湯町駆	as_is	as_is: doğrulanmamış CJK özel ad
+143	cjk_de88ba	恩赐游戏	恩赐游戏	as_is	as_is: doğrulanmamış CJK özel ad
+144	daruma_matsuura	Daruma Matsuura	Daruma Matsuura	existing	tags.tsv:daruma_matsuura
+145	bakuman	Bakuman.	Bakuman.	existing	tags.tsv:bakuman
+146	cjk_e04b4f	月見草平	月見草平	as_is	as_is: doğrulanmamış CJK özel ad
+147	ei_aoki	Ei Aoki	Ei Aoki	existing	tags.tsv:ei_aoki
+148	nura	Nura: Rise of the Yokai Clan	Nura: Rise of the Yokai Clan	existing	tags.tsv:nura
+149	daichi_sorayomi	Daichi Sorayomi	Daichi Sorayomi	existing	tags.tsv:daichi_sorayomi
+150	shotaro_ishinomori	Shotaro Ishinomori	Shotaro Ishinomori	existing	tags.tsv:shotaro_ishinomori
+151	shinji_kawada	Shinji Kawada	Shinji Kawada	existing	tags.tsv:shinji_kawada
+152	kotaro_uchikoshi	Kotaro Uchikoshi	Kotaro Uchikoshi	existing	tags.tsv:kotaro_uchikoshi
+153	nanae_chrono	Nanae Chrono	Nanae Chrono	existing	tags.tsv:nanae_chrono
+154	taiko	Taiko Davulu	Taiko	existing	tags.tsv:taiko
+155	gen_hoshino	Gen Hoshino	Gen Hoshino	existing	tags.tsv:gen_hoshino
+156	mother_and_daughter_tag	Anne ve Kız	Mother & Daughter	existing	tags.tsv:mother_and_daughter_tag
+157	hiromi_tsuru	Hiromi Tsuru	Hiromi Tsuru	existing	tags.tsv:hiromi_tsuru
+158	kento_kaku	Kento Kaku	Kento Kaku	existing	tags.tsv:kento_kaku
+159	kou_fumizuki	Kou Fumizuki	Kou Fumizuki	existing	tags.tsv:kou_fumizuki
+160	combination_fusion	Birleşme (Kombinasyon)	Combination	existing	tags.tsv:combination_fusion
+161	connect	CONNECT	CONNECT	existing	tags.tsv:connect
+162	dice	DICE	DICE	existing	tags.tsv:dice
+163	distance	DISTANCE	DISTANCE	existing	tags.tsv:distance
+164	dual_tail	Dual Tail	Dual Tail	existing	tags.tsv:dual_tail
+165	emo	Emo	Emo	existing	tags.tsv:emo
+166	ensemble_stars	Ensemble Stars!	Ensemble Stars!	existing	tags.tsv:ensemble_stars
+167	etp	ETP	ETP	existing	tags.tsv:etp
+168	evan_call	Evan Call	Evan Call	existing	tags.tsv:evan_call
+169	feng	feng	feng	existing	tags.tsv:feng
+170	monthly_flowers	Monthly Flowers	Monthly Flowers	existing	tags.tsv:monthly_flowers
+171	gero	gero	gero	existing	tags.tsv:gero
+172	gintama	Gintama	Gintama	existing	tags.tsv:gintama
+173	halo	halo	halo	existing	tags.tsv:halo
+174	imageepoch	imageepoch	imageepoch	existing	tags.tsv:imageepoch
+175	jam	Jam	Jam	existing	tags.tsv:jam
+176	jazzy_hiphop	Jazzy-HipHop	Jazzy-HipHop	existing	tags.tsv:jazzy_hiphop
+177	jojo_bizarre_adventure	JoJo's Bizarre Adventure	JoJo's Bizarre Adventure	existing	tags.tsv:jojo_bizarre_adventure
+178	jpop	J-Pop	J-Pop	existing	tags.tsv:jpop
+179	cjk_60cce7	K子	K子	as_is	as_is: doğrulanmamış CJK özel ad
+180	kenta	kenta	kenta	existing	tags.tsv:kenta
+181	kof	KOF	KOF	existing	tags.tsv:kof
+182	loundraw	loundraw	loundraw	existing	tags.tsv:loundraw
+183	love_live	Love Live!	Love Live!	existing	tags.tsv:love_live
+184	magic_bus	Magic Bus	Magic Bus	existing	tags.tsv:magic_bus
+185	mihoyo	miHoYo	miHoYo	existing	tags.tsv:mihoyo
+186	rin_mikimoto	Rin Mikimoto	Rin Mikimoto	existing	tags.tsv:rin_mikimoto
+187	minato_ryuuseip	minato	minato	existing	tags.tsv:minato_ryuuseip
+188	mio	MIO	MIO	existing	tags.tsv:mio
+189	monster	Canavar	Monster	existing	tags.tsv:monster
+190	one	One	One	existing	tags.tsv:one
+191	otome_18	|Otome:18|	|Otome:18|	existing	tags.tsv:otome_18
+192	ova_oad	OVA ve OAD	OVA & OAD	existing	tags.tsv:ova_oad
+193	porori	porori	porori	existing	tags.tsv:porori
+194	potage	Potage	Potage	existing	tags.tsv:potage
+195	pve	PVE	PVE	existing	tags.tsv:pve
+196	q_taro_hanamizawa	Q-taro Hanamizawa	Q-taro Hanamizawa	existing	tags.tsv:q_taro_hanamizawa
+197	katekyo_hitman_reborn	Katekyo Hitman Reborn!	Katekyo Hitman Reborn!	existing	tags.tsv:katekyo_hitman_reborn
+198	scej	SCEJ	SCEJ	existing	tags.tsv:scej
+199	speed	SPEED	SPEED	existing	tags.tsv:speed
+200	ghibli	Studio Ghibli	Studio Ghibli	existing	tags.tsv:ghibli
+201	kare_pillow_series	Kare Pillow Serisi	Kare Pillow Series	existing	tags.tsv:kare_pillow_series
+202	azur_lane	Azur Lane	Azur Lane	existing	tags.tsv:azur_lane
+203	SKIP				SKIP: salt sayı / sembol
+204	pretty_rhythm	Pretty Rhythm	Pretty Rhythm	existing	tags.tsv:pretty_rhythm
+205	cjk_59a190	なかひろ	なかひろ	as_is	as_is: doğrulanmamış CJK özel ad
+206	cjk_5d16d1	ヤマイ	ヤマイ	as_is	as_is: doğrulanmamış CJK özel ad
+207	tamekou	Tamekou	Tamekou	existing	tags.tsv:tamekou
+208	kenji_saito	Kenji Saito	Kenji Saito	existing	tags.tsv:kenji_saito
+209	shirabii	Shirabii	Shirabii	existing	tags.tsv:shirabii
+210	satoi	Satoi	Satoi	existing	tags.tsv:satoi
+211	rintaro	Rintaro	Rintaro	existing	tags.tsv:rintaro
+212	overlap	Overlap	Overlap	existing	tags.tsv:overlap
+213	original_soundtrack	Orijinal Film Müziği	Original Soundtrack	existing	tags.tsv:original_soundtrack
+214	cjk_acde79	ねこにゃん	ねこにゃん	as_is	as_is: doğrulanmamış CJK özel ad
+215	nano_singer	nano	nano	existing	tags.tsv:nano_singer
+216	yuuyu	Yuuyu	Yuuyu	existing	tags.tsv:yuuyu
+217	natsuki_tanihara	Natsuki Tanihara	Natsuki Tanihara	existing	tags.tsv:natsuki_tanihara
+218	yumi_kakazu	Yumi Kakazu	Yumi Kakazu	existing	tags.tsv:yumi_kakazu
+219	toa	TOA	TOA	existing	tags.tsv:toa
+220	wendybell	WendyBell	WendyBell	existing	tags.tsv:wendybell
+221	white_album	White Album	White Album	existing	tags.tsv:white_album
+222	wug	WUG!	WUG!	existing	tags.tsv:wug
+223	xboxseriesx_s	XboxSeriesX|S	XboxSeriesX|S	existing	tags.tsv:xboxseriesx_s
+224	zytokine	ZYTOKINE	ZYTOKINE	existing	tags.tsv:zytokine
