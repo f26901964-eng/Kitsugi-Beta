@@ -244,22 +244,30 @@ class MediaEntryRepository(
 
     suspend fun deleteAll() {
         dao.deleteAll()
+        // Tüm liste temizlendi: kuyrukta bayat UPDATE/DELETE işi kalırsa eski yerel
+        // kopyalar uzaklara geri yazılmış (dirilmiş) olurdu — kullanıcı niyeti: hepsi gitsin.
+        runSyncCatching { pendingSyncDao?.clearAll() }
     }
 
     suspend fun replaceAll(entries: List<MediaEntry>) {
         val now = System.currentTimeMillis() / 1000L
         val entities = entries.map { it.copy(id = 0, updatedAt = it.updatedAt.takeIf { value -> value > 0 } ?: now).toEntity() }
         dao.replaceAllTransaction(entities)
+        // Yedek geri yükleme_REPLACE: önceden başarısız olmuş bayat işler, TAZE veriyi
+        // eski yerel kopyayla ezerek geri sürerdi — kuyruk temizlenir.
+        runSyncCatching { pendingSyncDao?.clearAll() }
     }
 
     /**
      * Bekleyen kuyruğu boşaltır. AppViewModel.init'ten çağrılır.
+     * @param freshBudget true ise yeniden deneme sayaçları önce sıfırlanır
+     * (bağlantı geri geldiğinde çağrılır; 5 denemeyi aşmış işler kalıcı donmasın).
      * @return Başarıyla gönderilen işlem sayısı
      */
-    suspend fun drainPendingQueue(): Int {
+    suspend fun drainPendingQueue(freshBudget: Boolean = false): Int {
         val ctx = context ?: return 0
         val queueDao = pendingSyncDao ?: return 0
-        return PendingSyncDrainer.drain(ctx, queueDao)
+        return PendingSyncDrainer.drain(ctx, queueDao, freshBudget = freshBudget)
     }
 
     // ────────────────────────────────────────────────

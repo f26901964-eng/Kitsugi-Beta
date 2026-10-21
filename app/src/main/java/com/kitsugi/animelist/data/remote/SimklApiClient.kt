@@ -1464,9 +1464,22 @@ class SimklApiClient(
         try {
             client.newCall(request).execute().use { response ->
                 checkResponseAndThrow(response)
-                response.isSuccessful
+                when {
+                    response.isSuccessful -> true
+                    // 4xx: örn. silinecek puan zaten yok (404) — yeniden denemek anlamsız,
+                    // kuyruğu şişirmemek için "sessiz başarısız".
+                    response.code in 400..499 -> false
+                    // 5xx: sunucu hatası — "puan silme" işleminin KAYBOLMAMASI için
+                    // fırlatılır; çağıran taraf hataya/kuyruğa alır.
+                    else -> throw java.io.IOException("HTTP ${response.code}")
+                }
             }
         } catch (e: com.kitsugi.animelist.data.repository.SimklAuthException) {
+            throw e
+        } catch (e: java.io.IOException) {
+            // Çevrimdışı/timeout gibi taşıma hataları da false'a çevrilmez: false yalnız
+            // 4xx için döndürülür; burada yeniden denenebilir hata olarak yayılır —
+            // aksi halde kullanıcının "puanı sil" işlemi sessizce kaybolurdu.
             throw e
         } catch (e: Exception) {
             false

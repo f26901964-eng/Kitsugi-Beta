@@ -44,6 +44,9 @@ offset'leri) dikkate almıyordu.
 | 8 | Bangumi silmede **tüm** hatalar "atlandı" sayılıyordu | Gerçek yazım hataları (ağ/HTTP) kuyruğa hiç girmiyordu | `unresolvedSubject` ayrımı: kimlik eksiği = atlandı, yazım hatası = hata |
 | 9 | Çevrimdışı kimlik denemesi **olumsuz önbellek** yazıyordu | Ağ adımı düşse bile `resolveUncached` normal dönüyor, eksik kayıt yazılıp **6 saatlik soğuma** başlıyordu → bağlantı gelince kuyruktaki yeniden deneme bile kimliksiz kalıyor, yayılım kalıcı kayboluyordu | `resolve()`: çevrimdışıysa ağ denemesi yok, önbellek yazımı yok (bağlantıda ilk denemede çözülür) |
 | 10 | Çevrimdışı eklenen **Bangumi satırında** hiçbir yazar çalışmıyor ama hata da üretilmiyor | `allowFanOut` kapalıyken altı kaynak da "atlanır" → `errors` boş → kuyruk boş → Bangumi satırı bir daha **hiç** yayılmaz | Çevrimdışı + fanout kapalıyken `errors`'a `account_sync_offline_identity_pending` → "Çevrimdışı kaydedildi" + kuyruk → `isOnlineFlow` bağlantıyla otomatik drain |
+| 11 | Kuyrukta **5 denemeyi aşan işler bir daha hiç denenmiyordu** | Uzun çevrimdışı kalmış/5 kez başarısız olmuş ekleme-güncelleme-silme işi DB'de sonsuza kadar donuyor, işlem **kalıcı kayboluyordu** (entity sözü "bağlantı gelince yeniden denenir" idi ama kod öyle yapmıyordu) | `resetRetries()` + bağlantı geldiğinde `drainPendingQueue(freshBudget = true)`: oturum başına taze 5 deneme — iş asla donmaz, silinmez |
+| 12 | `deleteAll`/`replaceAll` (liste temizleme / yedek geri yükleme) **kuyruğu temizlemiyordu** | Bayat UPDATE işi, silinen/üzerine yazılan kayıtları uzaklara **geri diriltir** ya da taze yedeği eski kopyayla ezerek geri sürerdi | `clearAll()`: iki akışta da kuyruk temizlenir |
+| 13 | Simkl `removeRating` **taşıma/5xx hatalarını `false`'a gizliyordu** ve çağrıda yalnız log'lanıyordu | Çevrimdışıyken "puanı sil" işlemi sessizce kayboluyordu (kuyruğa hiç girmiyordu) | `removeRating`: taşıma/5xx → fırlat → `errors` → kuyruk; yalnız 4xx (zaten puan yok) sessiz |
 
 ---
 
@@ -171,6 +174,31 @@ yazmamak için); (c) ağ/429/5xx → geçici hata + otomatik yeniden deneme (kuy
 
 ---
 
+## Koruma mekanizması envanteri (işlem × kaynak)
+
+Kullanıcı isteği: ekleme/güncelleme/silme + tüm alanlar (durum, bölüm, puan, tarih, not,
+etiket) **her kaynakta** korumalı olsun, hiçbir işlem yok olmasın. Mevcut + bu sürümde eklenen:
+
+| Koruma | Ne korur | Kapsam |
+|---|---|---|
+| **Bekleyen-senkron kuyruğu**: hata → kayıt → açılış/bağlantıda otomatik drain; **yeni: taze bütçe** (k11) | Ağ/5xx/429/401 kaynaklı her ekle/güncelle/sil | 6 kaynak, tüm alanlar |
+| **Yeniden deneme asla donmaz** (k11) + **bayat iş üretmez** (k12) | İşin kalıcı kaybı / silinenin dirilmesi / yedeğin ezilmesi | kuyruk altyapısı |
+| **Alan süzgeçleri**: Kitsu 422→uzunluk koruması+tekrar yazım; MAL parsriyel tarih (`sendableDate`); AniList `{0,0,0}` boş tarih gönderilmez; Bangumi not≤380/etiket kuralı süzgeci; Shikimori yalnız dolu alanlar (boş uzak değeri ezmek); puan ölçek dönüşümleri (10/20/100) | Alan bazlı 400/422 → tüm PATCH'in düşmesi; yanlış değer yazımı | ilgili her kaynak |
+| **Kimlik yok = atlandı, ağ hatası = hata** (k2) | Kuyruk şişmesi ve tersi: işlemin sessiz kaybı | 6 kaynak |
+| **Taşıma hatası asla `false`'a çevrilmez** (k13: Simkl puan silme) | "Puanı sil" işleminin kaybolması | Simkl |
+| **Idempotent silme** ("zaten silinmiş" = başarı) + silmede ağla kimlik çözümü | Tekrarlı silmede hata; hayalet kayıt | Kitsu/Shikimori/Simkl/Bangumi/AniList |
+| **Sıralı Simkl yazımı**: geçmiş → puan → **durum en son** | Durumun geri ezilmesi | Simkl |
+| **429/kimlik yenileme**: `PlatformRateLimiter`, Bangumi 401→token yenileme, Simkl outbox backoff, MAL/Shikimori 401→yeniden bağlanma sinyali | Anlık API aşırı yükü/kimlik düşüşü | ilgili kaynaklar |
+| **Kardeş satır aynası** (yerel) + **çapraz kimlik kalıcılığı** (bir kez çözülen kalır) | Yerel tutarsızlık + tekrar tekrar ağ taraması | yerel/6 kaynak |
+| **Çevrimdışı**: kimlik önbelleği zehirlenmez (k9), Bangumi satırı kuyruğa girer (k10) | Çevrimdışı eklenenin kaybı | 6 kaynak |
+
+**Araştırılıp yapılmayanlar:** MAL'nin `num_watched_episodes` için toplam bölüm doğrulaması
+yaptığına dair kayıt bulunamadı (kaynak: resmi olmayan API spesifikasyonları — tam sayı serbest);
+Kitsu'daki gibi kanıtlanmış tek platform sınırı (422 `cannot exceed length`) zaten korumalı.
+Kanıtlanmamış sınır için spekülatif clamp eklenmedi.
+
+---
+
 ## Değişen dosyalar
 
 | Dosya | Değişiklik |
@@ -183,9 +211,15 @@ yazmamak için); (c) ağ/429/5xx → geçici hata + otomatik yeniden deneme (kuy
 | `data/auth/CrossProviderIdentity.kt` | `resolve()`: çevrimdışı ağ denemesi/olumsuz önbellek yazımı yok (6 saatlik soğuma zehirlenmesi kalktı) |
 | `ui/app/AuthViewModel.kt` | Toplu Shikimori çağrılarına `knownMalId = realMalId` |
 | `res/values/strings.xml` | `account_sync_offline_identity_pending` |
+| `data/local/PendingSyncDao.kt` | `resetRetries()` (taze yeniden deneme bütçesi), `clearAll()` |
+| `data/local/PendingSyncDrainer.kt` | `drain(freshBudget)` — bağlantı dönüşünde sayaç sıfırla |
+| `data/local/MediaEntryRepository.kt` | `drainPendingQueue(freshBudget)`; `deleteAll`/`replaceAll` kuyruğu temizler |
+| `AppRoot.kt` | `isOnlineFlow` → `drainPendingQueue(freshBudget = true)` |
+| `data/remote/SimklApiClient.kt` | `removeRating`: taşıma/5xx fırlatır (kuyruk), 4xx sessiz |
+| `data/auth/SimklSyncManager.kt` | `removeRating` başarısızlığı → `errors` (kuyruğa girer) |
 
 Dokunulmayan (bilerek): `CrossSyncIdentityGuard` (decode/cacheKey sözleşmesi v2.4.312'de oturdu),
-`CrossSyncReportFormatter`, `PendingSyncDrainer`, `MediaEntryRepository`.
+`CrossSyncReportFormatter`, `MediaEntryRepository`'nin başarı/hata sözleşmesi (k11–k12 hariç).
 
 ---
 

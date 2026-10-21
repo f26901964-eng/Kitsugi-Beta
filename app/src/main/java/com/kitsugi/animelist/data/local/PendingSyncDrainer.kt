@@ -57,17 +57,21 @@ object PendingSyncDrainer {
     /**
      * Kuyruktaki tüm bekleyen işlemleri dener.
      * Başarılı olanları siler, başarısız olanların retryCount'unu artırır.
-     * MAX_RETRIES'a ulaşan kayıtları silmeden bekletir.
+     * MAX_RETRIES'a ulaşan kayıtlar oturum içinde silmeden bekletilir;
+     * [freshBudget] verildiğinde (bağlantı geri geldiğinde) sayaçlar sıfırlanır ve
+     * işler yeniden tam deneme hakkına kavuşur — kullanıcı niyeti asla donmaz.
      *
      * @return Başarıyla gönderilen işlem sayısı
      */
     suspend fun drain(
         context: Context,
-        dao: PendingSyncDao
+        dao: PendingSyncDao,
+        freshBudget: Boolean = false
     ): Int = withContext(Dispatchers.IO) {
         // Exhausted jobs remain inspectable/recoverable; never silently delete user intent.
         if (!drainMutex.tryLock()) return@withContext 0
         try {
+        if (freshBudget) dao.resetRetries()
         val pending = dao.getAll().filter { it.retryCount < MAX_RETRIES }
         if (pending.isEmpty()) return@withContext 0
 

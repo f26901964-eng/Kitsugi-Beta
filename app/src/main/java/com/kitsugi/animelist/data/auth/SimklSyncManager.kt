@@ -476,11 +476,13 @@ object SimklSyncManager {
                 Log.e(TAG, "syncEntryToSimkl setRating hatası", e)
             }
         } else if ((score == null || score == 0) && effectiveSimklId > 0) {
-            // Puan silinmişse kaldır
+            // Puan silinmişse kaldır. Yalnız 4xx (zaten puan yok) sessiz sayılır;
+            // taşıma/5xx/401 hataları kuyruğa girer ki "puanı sil" işlemi kaybolmasın.
             runCatching {
                 simklApiClient.removeRating(token, effectiveSimklId, entry.type)
             }.onFailure { e ->
-                Log.w(TAG, "Simkl removeRating uyarısı: ${e.message}")
+                Log.e(TAG, "Simkl removeRating hatası", e)
+                errors.add(context.getString(R.string.simkl_sync_rating_error, e.message ?: context.getString(R.string.account_sync_unknown_error)))
             }
         }
 
