@@ -1021,6 +1021,35 @@ class FandomCharacterWikiViewModel(application: Application) : AndroidViewModel(
     fun retryReaderSection(index: Int) = loadReaderSection(index)
 
     /**
+     * WebView içinde DOKUNULAN wiki bağlantısını yeni sekmede açar (Chrome davranışı).
+     * `true` → yeni sekme açıldı (WebView gezinmeyi iptal eder); `false` → mevcut sekmede
+     * normal gezinme (makale olmayan sayfa, aynı sayfa veya 12 sekme sınırı).
+     */
+    fun openReaderWebLink(url: String): Boolean {
+        val rootPage = (_state.value as? UiState.Ready)?.page ?: return false
+        val active = readerBrowserController.activeLocation
+        val activeWiki = active?.wikiId ?: rootPage.wikiId
+        // Yalnızca DÜZ makale bağlantıları sekme olur; çapa/diff/action/Special vb. aynı
+        // sekmede yüklenir (sekme kimliği yok, aksi hâlde bilgi kaybı olurdu).
+        val resolved = FandomUrls.readerLinkTarget(url, activeWiki, active?.title.orEmpty())
+            ?: return false
+        resolved.articleTitle ?: return false
+        val parsed = FandomUrls.parseArticleUrl(resolved.url, activeWiki) ?: return false
+        val location = FandomReaderLocation(parsed.first, parsed.second)
+        if (active != null && active.wikiId.equals(location.wikiId, ignoreCase = true) &&
+            active.title.replace('_', ' ').trim()
+                .equals(location.title.replace('_', ' ').trim(), ignoreCase = true)
+        ) return false
+        if (readerBrowserController.snapshot.tabs.size >= FandomReaderBrowserController.MAX_TABS) {
+            return false
+        }
+        val target = readerBrowserController.openInNewTab(location) ?: return false
+        _readerBrowser.value = readerBrowserController.snapshot
+        loadReaderLocation(target)
+        return true
+    }
+
+    /**
      * İlgili sayfa kartı / metin içi bağlantı: Chrome/Brave gibi aktif sekmenin hemen
      * sağında YENİ sekmede açılır (kaynak sayfa yerinde kalır). Aynı sayfa zaten açık
      * bir sekmedeyse ona geçilir; sekme sınırı doluysa bağlantı ölü doğmasın diye aktif

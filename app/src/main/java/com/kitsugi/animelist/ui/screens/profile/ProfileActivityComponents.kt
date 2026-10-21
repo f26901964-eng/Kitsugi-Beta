@@ -25,8 +25,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.*
 import androidx.compose.material3.*
-import com.kitsugi.animelist.ui.components.KitsugiDropdownMenu
-import com.kitsugi.animelist.ui.components.KitsugiMenuItem
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -123,8 +121,6 @@ fun ActivityCard(
     onLikeClick: ((activityId: Int) -> Unit)? = null,
     onDeleteClick: ((activityId: Int) -> Unit)? = null
 ) {
-    var showMenu by remember { mutableStateOf(false) }
-
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -165,38 +161,18 @@ fun ActivityCard(
                 }
 
                 if (onDeleteClick != null) {
-                    Box {
-                        IconButton(
-                            onClick = { showMenu = true },
-                            modifier = Modifier.size(28.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Rounded.MoreVert,
-                                contentDescription = stringResource(R.string.secenekler),
-                                tint = KitsugiColors.TextMuted,
-                                modifier = Modifier.size(18.dp)
-                            )
-                        }
-                        KitsugiDropdownMenu(
-                            expanded = showMenu,
-                            onDismissRequest = { showMenu = false }
-                        ) {
-                            KitsugiMenuItem(
-                                text = { Text(stringResource(R.string.action_delete), color = KitsugiColors.AccentRed, fontSize = 13.sp, fontWeight = FontWeight.Bold) },
-                                leadingIcon = {
-                                    Icon(
-                                        imageVector = Icons.Rounded.Delete,
-                                        contentDescription = null,
-                                        tint = KitsugiColors.AccentRed,
-                                        modifier = Modifier.size(16.dp)
-                                    )
-                                },
-                                onClick = {
-                                    showMenu = false
-                                    activity.id.toIntOrNull()?.let { id -> onDeleteClick.invoke(id) }
-                                }
-                            )
-                        }
+                    // Tek dokunuşla sil: açılır panel yok. Onay penceresi çağrı
+                    // yerinde (KitsugiProfileScreen) gösterilir.
+                    IconButton(
+                        onClick = { activity.id.toIntOrNull()?.let { id -> onDeleteClick.invoke(id) } },
+                        modifier = Modifier.size(30.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Rounded.DeleteOutline,
+                            contentDescription = stringResource(R.string.action_delete),
+                            tint = KitsugiColors.AccentRed.copy(alpha = 0.85f),
+                            modifier = Modifier.size(18.dp)
+                        )
                     }
                 }
             }

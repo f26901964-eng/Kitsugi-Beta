@@ -31,6 +31,7 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.selects.select
 import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
@@ -80,28 +81,67 @@ object KitsugiBangumiDetailClient {
     /** MAL/AniList/TMDB eşlik detayı için süre tavanı. */
     private const val COMPANION_TIMEOUT_MS = 7_000L
 
-    /** İlişki/öneri başlık zenginleştirmesi için kayıt ve toplam süre tavanları. */
-    private const val RELATION_TITLE_TIMEOUT_MS = 8_000L
-    private const val RELATION_TITLE_BATCH_TIMEOUT_MS = 9_000L
-
     /** İlişki listeleri 100'e kadar çıkar; başlık varyantlarını listenin büyük bölümünde doldur. */
     private const val RELATION_TITLE_ENRICH_LIMIT = 64
 
-    /** Liste uçlarında varyantı olmayan kişi/karakterler için doğrudan Bangumi infobox yedeği. */
-    private const val ENTITY_NAME_LOOKUP_LIMIT = 60
-    private const val ENTITY_NAME_LOOKUP_TIMEOUT_MS = 3_500L
-    private const val ENTITY_NAME_BATCH_TIMEOUT_MS = 6_500L
+    /**
+     * Liste uçlarında varyantı olmayan kişi/karakterler için doğrudan Bangumi infobox yedeği.
+     *
+     * Eski değer 60'tı: tek sekme açılışında 60 ayrı `/p1/characters|persons` isteği
+     * üretiyor, 450 ms'lik eski kuyrukla birlikte dakikalar sürüyordu. Artık AniList ad
+     * köprüsü ilk geçişi yapar; buradaki infobox yedeği yalnızca köprüde bulunamayanlar
+     * için sınırlı sayıda çalışır. Sonuç diskte kalıcıdır ([BangumiEntityNameStore]),
+     * bir sonraki açılışta hiç istek yapılmaz.
+     */
+    private const val ENTITY_NAME_LOOKUP_LIMIT = 32
+    private const val ENTITY_NAME_LOOKUP_TIMEOUT_MS = 3_000L
+    private const val ENTITY_NAME_BATCH_TIMEOUT_MS = 8_000L
     private const val ENTITY_NAME_CACHE_TTL_MS = 6 * 60 * 60 * 1000L
-    private const val ENTITY_NAME_NEGATIVE_CACHE_TTL_MS = 10 * 60 * 60 * 1000L
+    /**
+     * Bulunamayan ad için olumsuz önbellek süresi.
+     *
+     * Eski değer 10 saatti: `next.bgm.tv` birkaç dakikalığına erişilemez olduğunda
+     * tüm karakter/ekip adları **10 saat boyunca** Japonca kalıyordu (kullanıcı raporu:
+     * "dil seçeneğine uymuyor"). v0 yedeği artık p1 ile paralel denendiği için geçici
+     * bir kesinti kalıcı olumsuz kayda dönüşmez; süre 2 saate indirildi.
+     */
+    private const val ENTITY_NAME_NEGATIVE_CACHE_TTL_MS = 2 * 60 * 60 * 1000L
     private val enrichmentRequestSemaphore = Semaphore(8)
+
+    /** p1 çağrısı başına süre tavanı (ana OkHttp istemcisi 14 sn'de zaten kesiyor). */
+    private const val P1_CALL_TIMEOUT_MS = 8_000L
+
+    /** Başarısız p1 yolu bu süre boyunca yeniden denenmez (ağ hatası fırtınasını engeller). */
+    private const val P1_FAILURE_BACKOFF_MS = 60_000L
+
+    /** Üst üste bu kadar p1 ağ hatasından sonra kısa devre devreye girer. */
+    private const val P1_BREAKER_THRESHOLD = 4
+
+    /** Kısa devre süresi: bu süre boyunca p1 hiç denenmez, v0 yedekleri kullanılır. */
+    private const val P1_BREAKER_COOLDOWN_MS = 90_000L
+
+    /** Eşzamanlı p1 istekleri için bağımsız kapsam (çağıran iptal etse de istek tamamlanır). */
+    private val p1Scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+
+    /** `path|query` → uçuştaki istek. Aynı sekme verisi iki yerden istenirse tek HTTP gider. */
+    private val p1InFlight = ConcurrentHashMap<String, Deferred<JSONObject?>>()
+
+    /** Başarısız yol → yeniden deneme zamanı. */
+    private val p1RetryAfter = ConcurrentHashMap<String, Long>()
+
+    @Volatile
+    private var p1ConsecutiveFailures = 0
+
+    @Volatile
+    private var p1BreakerUntil = 0L
 
     /**
      * Stüdyo/şirket adı → Bangumi kurum条目 kimliği (`/v0/search/persons`, `type = 2` 公司).
      * Detay sayfasındaki çiplerin tıklanabilmesi için gerekir; bulunamayan adlar `0` ile
      * işaretlenir ve tekrar tekrar aranmaz.
      */
-    private const val STUDIO_LOOKUP_LIMIT = 24
-    private const val STUDIO_LOOKUP_BATCH_TIMEOUT_MS = 10_000L
+    private const val STUDIO_LOOKUP_LIMIT = 8
+    private const val STUDIO_LOOKUP_BATCH_TIMEOUT_MS = 5_000L
 
     /** Kurum adı araması: aynı ada sahip çok kayıt olabildiğinden ilk 5 yetersiz kalıyordu. */
     private const val STUDIO_SEARCH_LIMIT = 10
@@ -120,6 +160,14 @@ object KitsugiBangumiDetailClient {
     )
 
     private val entityNameCache = BoundedCache<String, EntityNameCacheEntry>("bangumi.entityName", 1000)
+
+    /**
+     * Aynı karakter/kişi iki sekmede (Karakterler + Ekip + karakter detayı) aynı anda
+     * istenirse tek HTTP isteği yapılmasını sağlayan tek-uçuş haritası. Çağıranın süresi
+     * dolsa bile istek kendi kapsamında tamamlanır ve sonuç kalıcı önbelleğe yazılır.
+     */
+    private val entityLoadScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    private val entityInFlight = ConcurrentHashMap<String, Deferred<BangumiLocalizedName?>>()
 
     /** Bulunamayan eşleşmeler için olumsuz önbellek süresi (tekrar tekrar arama yapılmasın). */
     private const val CROSS_MISS_TTL_MS = 20 * 60 * 1000L
@@ -182,21 +230,100 @@ object KitsugiBangumiDetailClient {
     }
 
     /**
-     * `next.bgm.tv/p1` GET. Önce anonim denenir (herkese açık uçlar); sonuç yoksa ve oturum varsa
-     * token ile bir kez daha denenir (NSFW条目 yalnızca yetkili hesaplara görünür).
+     * `next.bgm.tv/p1` GET — **tek uçuş**, süre tavanlı ve kısa devreli.
+     *
+     * Davranış:
+     *  - Önce anonim denenir (herkese açık uçlar); **yalnızca** 401/403 alınırsa token ile bir
+     *    kez daha denenir. 404/5xx/ağ hatasında ikinci istek atılmaz.
+     *  - Aynı `path+query` için eşzamanlı çağrılar tek HTTP isteğini paylaşır (Karakterler,
+     *    Ekip ve ana detay aynı anda istese bile).
+     *  - Her istek [P1_CALL_TIMEOUT_MS] ile sınırlıdır; çağıran iptal olsa bile paylaşılan
+     *    istek kendi kapsamında tamamlanır.
+     *  - Üst üste [P1_BREAKER_THRESHOLD] ağ hatası olursa [P1_BREAKER_COOLDOWN_MS] boyunca p1
+     *    hiç denenmez; sekmeler v0 yedeklerine anında düşer. `next.bgm.tv` erişilemezken her
+     *    sekmenin ayrı ayrı 14 sn beklemesi uygulamayı dakikalarca kilitliyordu.
      */
     private suspend fun p1(path: String, query: Map<String, String?> = emptyMap()): JSONObject? {
-        suspend fun call(token: String?): JSONObject? = try {
-            BangumiApiClient.getRaw(path, query, token = token, next = true)?.let { JSONObject(it) }
-        } catch (e: CancellationException) {
-            throw e
-        } catch (e: Exception) {
-            Log.w(TAG, "p1 $path başarısız: ${e.message}")
+        val key = buildString {
+            append(path)
+            query.toSortedMap().forEach { (k, v) ->
+                if (!v.isNullOrBlank()) append('|').append(k).append('=').append(v)
+            }
+        }
+        val now = System.currentTimeMillis()
+        if (now < p1BreakerUntil) return null
+        val retryAt = p1RetryAfter[key] ?: 0L
+        if (now < retryAt) return null
+
+        val existing = p1InFlight[key]
+        val deferred = existing ?: p1Scope.async {
+            var failed = false
+            val body = try {
+                withTimeoutOrNull(P1_CALL_TIMEOUT_MS) { p1Fetch(path, query) }
+                    ?: run { failed = true; null }
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (error: Exception) {
+                Log.w(TAG, "p1 $path başarısız: ${error.message}")
+                failed = true
+                null
+            } finally {
+                p1InFlight.remove(key)
+            }
+            if (failed) markP1Failure(key) else resetP1Failures()
+            body
+        }.also { p1InFlight[key] = it }
+
+        return try {
+            deferred.await()
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (_: Exception) {
             null
         }
-        call(null)?.let { return it }
+    }
+
+    /** p1 isteğinin kendisi: anonim çağrı + yalnızca yetki hatasında token'lı tekrar. */
+    private suspend fun p1Fetch(path: String, query: Map<String, String?>): JSONObject? {
+        suspend fun call(token: String?): String? =
+            BangumiApiClient.getRaw(path, query, token = token, next = true)
+
+        var needsAuthRetry = false
+        try {
+            call(null)?.let { return JSONObject(it) }
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (e: BangumiApiClient.BangumiApiException) {
+            Log.w(TAG, "p1 $path başarısız: ${e.message}")
+            if (!e.isUnauthorized && !e.isForbidden) return null
+            needsAuthRetry = true
+        }
+        if (!needsAuthRetry) return null
+
         val token = tokenOrNull() ?: return null
-        return call(token)
+        return try {
+            call(token)?.let { JSONObject(it) }
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (e: Exception) {
+            Log.w(TAG, "p1 $path oturumlu deneme başarısız: ${e.message}")
+            null
+        }
+    }
+
+    private fun markP1Failure(key: String) {
+        p1RetryAfter[key] = System.currentTimeMillis() + P1_FAILURE_BACKOFF_MS
+        val failures = p1ConsecutiveFailures + 1
+        p1ConsecutiveFailures = failures
+        if (failures >= P1_BREAKER_THRESHOLD) {
+            p1BreakerUntil = System.currentTimeMillis() + P1_BREAKER_COOLDOWN_MS
+            p1ConsecutiveFailures = 0
+            Log.w(TAG, "next.bgm.tv erişilemiyor; ${P1_BREAKER_COOLDOWN_MS / 1000} sn boyunca v0 yedekleri kullanılacak")
+        }
+    }
+
+    private fun resetP1Failures() {
+        if (p1ConsecutiveFailures != 0) p1ConsecutiveFailures = 0
     }
 
     /** `GET /v0/subjects/{id}` (önbellekli). */
@@ -253,6 +380,25 @@ object KitsugiBangumiDetailClient {
         englishAliases = englishAliases,
         romajiAliases = romajiAliases
     )
+
+    /**
+     * Kalıcı ad deposundaki (varsa) Latin karşılığı, p1 kısa nesnesinden gelen adla birleştirir.
+     * Ağ isteği YAPMAZ: daha önce çözülmüş bir karakter/seslendirmenin adı, sekme ilk
+     * boyandığında bile Latin görünür. Böylece "her açılışta kanji → sonra Latin" titremesi
+     * yaşanmaz ve seçili ad dili kararlı biçimde uygulanır.
+     */
+    private fun BangumiLocalizedName.withStoredName(kind: String, id: Int): BangumiLocalizedName {
+        if (id <= 0) return this
+        val stored = BangumiEntityNameStore.get(kind, id) ?: return this
+        return BangumiLocalizedName(
+            display = stored.romaji ?: stored.english ?: display,
+            english = english ?: stored.english,
+            romaji = romaji ?: stored.romaji,
+            native = native ?: stored.native,
+            chinese = chinese ?: stored.chinese,
+            alternatives = alternatives
+        )
+    }
 
     // ═════════════════════════════════════════════════════════════════════════
     // 1) ANA DETAY (Bangumi-yerel) — sayfayı hemen açar
@@ -1025,7 +1171,7 @@ object KitsugiBangumiDetailClient {
             val actors = item.optJSONArray("casts").objects().mapNotNull { cast ->
                 val person = cast.optJSONObject("person") ?: return@mapNotNull null
                 val personId = person.optInt("id", 0).takeIf { it > 0 } ?: return@mapNotNull null
-                val personName = person.localizedName()
+                val personName = person.localizedName().withStoredName("persons", personId)
                 KitsugiVoiceActor(
                     id = personId,
                     name = personName.display,
@@ -1037,7 +1183,7 @@ object KitsugiBangumiDetailClient {
                     englishName = personName.english
                 )
             }.distinctBy { it.id }
-            val characterName = character.localizedName()
+            val characterName = character.localizedName().withStoredName("characters", id)
             KitsugiCharacter(
                 id = id,
                 name = characterName.display,
@@ -1073,7 +1219,7 @@ object KitsugiBangumiDetailClient {
                 .take(3)
                 .joinToString(", ")
                 .ifBlank { "Staff" }
-            val staffName = staff.localizedName()
+            val staffName = staff.localizedName().withStoredName("persons", id)
             KitsugiStaff(
                 id = id,
                 name = staffName.display,
@@ -1093,11 +1239,16 @@ object KitsugiBangumiDetailClient {
     /** AniList kapsamı dışındaki ya da CJK adı kalmış Bangumi karakterlerini infobox'tan tamamlar. */
     suspend fun enrichCharacterNamesFromBangumi(characters: List<KitsugiCharacter>): List<KitsugiCharacter> {
         if (characters.isEmpty()) return characters
+        // Sıra önemli: sorgu bütçesi ([ENTITY_NAME_LOOKUP_LIMIT]) sınırlıdır. Önce tüm
+        // KARAKTERLER, sonra seslendirmenler sorulur; aksi hâlde ilk karakterin 5 seslendirmeni
+        // bütçeyi tüketip ekrandaki diğer karakterler kanji kalıyordu.
         val lookups = buildList {
             characters.forEach { character ->
                 if (needsLatinName(character.name, character.romanizedName, character.englishName)) {
                     add(EntityNameLookup("characters", character.id))
                 }
+            }
+            characters.forEach { character ->
                 character.voiceActors.forEach { actor ->
                     if (needsLatinName(actor.name, actor.romanizedName, actor.englishName)) {
                         add(EntityNameLookup("persons", actor.id))
@@ -1108,18 +1259,36 @@ object KitsugiBangumiDetailClient {
         val names = fetchEntityLocalizedNames(lookups)
         return characters.map { character ->
             val characterName = names[EntityNameLookup("characters", character.id).cacheKey]
+            val localizedCharacterName = localizedDisplay(character.name, characterName)
+            val romanized = usableLatinName(character.romanizedName) ?: characterName?.romaji
+            val english = usableLatinName(character.englishName) ?: characterName?.english
+            val (displayName, nativeName) = normalizeLatinName(
+                localizedCharacterName,
+                romanized,
+                english,
+                character.nativeName ?: characterName?.native
+            )
             character.copy(
-                name = localizedDisplay(character.name, characterName),
-                romanizedName = usableLatinName(character.romanizedName) ?: characterName?.romaji,
-                nativeName = character.nativeName ?: characterName?.native,
-                englishName = usableLatinName(character.englishName) ?: characterName?.english,
+                name = displayName,
+                romanizedName = romanized,
+                nativeName = nativeName,
+                englishName = english,
                 voiceActors = character.voiceActors.map { actor ->
                     val actorName = names[EntityNameLookup("persons", actor.id).cacheKey]
+                    val localizedActorName = localizedDisplay(actor.name, actorName)
+                    val actorRomanized = usableLatinName(actor.romanizedName) ?: actorName?.romaji
+                    val actorEnglish = usableLatinName(actor.englishName) ?: actorName?.english
+                    val (actorDisplay, actorNative) = normalizeLatinName(
+                        localizedActorName,
+                        actorRomanized,
+                        actorEnglish,
+                        actor.nativeName ?: actorName?.native
+                    )
                     actor.copy(
-                        name = localizedDisplay(actor.name, actorName),
-                        romanizedName = usableLatinName(actor.romanizedName) ?: actorName?.romaji,
-                        nativeName = actor.nativeName ?: actorName?.native,
-                        englishName = usableLatinName(actor.englishName) ?: actorName?.english
+                        name = actorDisplay,
+                        romanizedName = actorRomanized,
+                        nativeName = actorNative,
+                        englishName = actorEnglish
                     )
                 }
             )
@@ -1135,11 +1304,20 @@ object KitsugiBangumiDetailClient {
         val names = fetchEntityLocalizedNames(lookups)
         return actors.map { actor ->
             val localized = names[EntityNameLookup("persons", actor.id).cacheKey]
+            val localizedName = localizedDisplay(actor.name, localized)
+            val romanized = usableLatinName(actor.romanizedName) ?: localized?.romaji
+            val english = usableLatinName(actor.englishName) ?: localized?.english
+            val (displayName, nativeName) = normalizeLatinName(
+                localizedName,
+                romanized,
+                english,
+                actor.nativeName ?: localized?.native
+            )
             actor.copy(
-                name = localizedDisplay(actor.name, localized),
-                romanizedName = usableLatinName(actor.romanizedName) ?: localized?.romaji,
-                nativeName = actor.nativeName ?: localized?.native,
-                englishName = usableLatinName(actor.englishName) ?: localized?.english
+                name = displayName,
+                romanizedName = romanized,
+                nativeName = nativeName,
+                englishName = english
             )
         }
     }
@@ -1153,11 +1331,20 @@ object KitsugiBangumiDetailClient {
         val names = fetchEntityLocalizedNames(lookups)
         return staff.map { member ->
             val localized = names[EntityNameLookup("persons", member.id).cacheKey]
+            val localizedName = localizedDisplay(member.name, localized)
+            val romanized = usableLatinName(member.romanizedName) ?: localized?.romaji
+            val english = usableLatinName(member.englishName) ?: localized?.english
+            val (displayName, nativeName) = normalizeLatinName(
+                localizedName,
+                romanized,
+                english,
+                member.nativeName ?: localized?.native
+            )
             member.copy(
-                name = localizedDisplay(member.name, localized),
-                romanizedName = usableLatinName(member.romanizedName) ?: localized?.romaji,
-                nativeName = member.nativeName ?: localized?.native,
-                englishName = usableLatinName(member.englishName) ?: localized?.english
+                name = displayName,
+                romanizedName = romanized,
+                nativeName = nativeName,
+                englishName = english
             )
         }
     }
@@ -1177,7 +1364,9 @@ object KitsugiBangumiDetailClient {
     suspend fun enrichStaffDetailNames(
         detail: KitsugiStaffDetail,
         background: Boolean = false,
-        cacheOnly: Boolean = false
+        cacheOnly: Boolean = false,
+        listMode: Boolean = false,
+        tabMode: Boolean = false
     ): KitsugiStaffDetail {
         if (detail.characterRoles.isEmpty() && detail.mediaWorks.isEmpty()) return detail
 
@@ -1198,7 +1387,13 @@ object KitsugiBangumiDetailClient {
                 BangumiSubjectTitleResolver.Request.fromRow(work.mediaId, work.mediaTitle, work.mediaType)?.let(::add)
             }
         }
-        val subjectTitles = BangumiSubjectTitleResolver.resolve(titleRequests, background, cacheOnly)
+        val subjectTitles = BangumiSubjectTitleResolver.resolve(
+            titleRequests,
+            background,
+            cacheOnly,
+            listMode,
+            tabMode
+        )
 
         // 3) Karakter rollerini zenginleştir
         val enrichedRoles = detail.characterRoles.map { role ->
@@ -1250,13 +1445,21 @@ object KitsugiBangumiDetailClient {
     suspend fun enrichCharacterDetailNames(
         detail: KitsugiCharacterDetail,
         background: Boolean = false,
-        cacheOnly: Boolean = false
+        cacheOnly: Boolean = false,
+        listMode: Boolean = false,
+        tabMode: Boolean = false
     ): KitsugiCharacterDetail {
         if (detail.mediaAppearances.isEmpty()) return detail
         val titleRequests = detail.mediaAppearances.mapNotNull { appearance ->
             BangumiSubjectTitleResolver.Request.fromRow(appearance.mediaId, appearance.title, appearance.mediaType)
         }
-        val subjectTitles = BangumiSubjectTitleResolver.resolve(titleRequests, background, cacheOnly)
+        val subjectTitles = BangumiSubjectTitleResolver.resolve(
+            titleRequests,
+            background,
+            cacheOnly,
+            listMode,
+            tabMode
+        )
         val enriched = detail.mediaAppearances.map { appearance ->
             val rawSubjectId = BangumiIdNamespace.rawIdOrNull(appearance.mediaId)
             val latin = rawSubjectId?.let { subjectTitles[it] } ?: return@map appearance
@@ -1280,6 +1483,30 @@ object KitsugiBangumiDetailClient {
 
     private fun localizedDisplay(original: String, localized: BangumiLocalizedName?): String =
         localized?.display?.takeIf { usableLatinName(it) != null } ?: original
+
+    /**
+     * Ana ad alanı (`name`) CJK kaldıysa Latin varyantı oraya yazar.
+     *
+     * Arayüzün birçok yeri (arama, çip etiketleri, çapraz kaynak eşleştirmesi, liste
+     * başlıkları) [CJK] adı doğrudan kullanır; yalnızca `romanizedName`/`englishName`
+     * alanlarını doldurmak bu ekranlarda Japonca ad gösterilmesine yol açıyordu.
+     * Özgün ad [nativeName] alanında korunur, böylece NATIVE tercihi bozulmaz.
+     */
+    private fun latinDisplayName(original: String, romanized: String?, english: String?): String {
+        if (!PreferenceHelpers.hasCjkCharacters(original)) return original
+        return usableLatinName(romanized) ?: usableLatinName(english) ?: original
+    }
+
+    /** Karakter/VA/ekip satırı için `name` + `nativeName` alanlarını tutarlı hâle getirir. */
+    private fun normalizeLatinName(
+        original: String,
+        romanized: String?,
+        english: String?,
+        native: String?
+    ): Pair<String, String?> = Pair(
+        latinDisplayName(original, romanized, english),
+        native ?: original.takeIf { PreferenceHelpers.hasCjkCharacters(it) }
+    )
 
     private suspend fun fetchEntityLocalizedNames(
         requested: List<EntityNameLookup>
@@ -1308,35 +1535,111 @@ object KitsugiBangumiDetailClient {
         resolved.toMap()
     }
 
+    /**
+     * Tek bir karakter/kişi için Latin ad çözer. Sıra:
+     *  1. Kalıcı disk önbelleği ([BangumiEntityNameStore]) — uygulama yeniden açıldığında
+     *     ağ isteği yapılmaz.
+     *  2. Bellek önbelleği (olumlu/olumsuz TTL).
+     *  3. `/p1/characters|persons/{id}` infobox'ı — **tek uçuş**: aynı kayıt iki sekmede
+     *     (ör. Karakterler + Ekip) aynı anda istenirse tek HTTP isteği yapılır.
+     */
     private suspend fun loadEntityLocalizedName(lookup: EntityNameLookup): BangumiLocalizedName? {
+        BangumiEntityNameStore.get(lookup.kind, lookup.id)?.let { return it }
         val now = System.currentTimeMillis()
         entityNameCache[lookup.cacheKey]?.let { cached ->
             val ttl = if (cached.name == null) ENTITY_NAME_NEGATIVE_CACHE_TTL_MS else ENTITY_NAME_CACHE_TTL_MS
             if (now - cached.cachedAtMs < ttl) return cached.name
         }
-        val root = try {
-            p1("/${lookup.kind}/${lookup.id}")
+
+        val existing = entityInFlight[lookup.cacheKey]
+        val deferred = existing ?: entityLoadScope.async {
+            try {
+                fetchEntityLocalizedName(lookup)
+            } finally {
+                entityInFlight.remove(lookup.cacheKey)
+            }
+        }.also { entityInFlight[lookup.cacheKey] = it }
+        return try {
+            deferred.await()
         } catch (cancelled: CancellationException) {
             throw cancelled
         } catch (_: Exception) {
             null
         }
+    }
+
+    private suspend fun fetchEntityLocalizedName(lookup: EntityNameLookup): BangumiLocalizedName? {
+        val now = System.currentTimeMillis()
+        val root = loadEntityRoot(lookup)
         val localized = root?.let {
             val native = it.strOrNull("name")
             val chinese = it.strOrNull("nameCn") ?: it.strOrNull("name_cn")
-            BangumiNameLocalizer.entityFromInfobox(native, chinese, parseP1Infobox(it.optJSONArray("infobox")))
+            // p1 `values` / v0 `value` biçimlerinin ikisini de oku (birleşik harita).
+            val infobox = parseP1Infobox(it.optJSONArray("infobox")) +
+                BangumiApiClient.parseInfobox(it.optJSONArray("infobox"))
+            BangumiNameLocalizer.entityFromInfobox(native, chinese, infobox)
         }?.takeIf { usableLatinName(it.romaji) != null || usableLatinName(it.english) != null }
         if (entityNameCache.size > 512) entityNameCache.clear()
         entityNameCache[lookup.cacheKey] = EntityNameCacheEntry(localized, now)
+        BangumiEntityNameStore.put(lookup.kind, lookup.id, localized)
         return localized
     }
 
-    /** İlişkili yapımlar (`/p1/subjects/{id}/relations`). */
-    suspend fun fetchRelations(stableOrRawId: Int, mediaType: MediaType): List<KitsugiRelation> =
+    /**
+     * Karakter/kişi infobox'ını **v0 ve p1'den paralel** ister; ilk yanıt veren kazanır.
+     *
+     * Neden yarış: `next.bgm.tv/p1` beta bir host; bazı ağlarda 8 sn tavanına kadar
+     * bekliyor ya da hiç yanıt vermiyor. v0 (`api.bgm.tv/characters|persons/{id}`) aynı
+     * infobox'ı döner ve genellikle 300-600 ms'de yanıtlar. Sekmelerde 30+ varlık için
+     * sırayla 8 sn beklemek "adlar hiç gelmiyor" demekti. İki istek paralel gittiği için
+     * toplam gecikme **yavaş olanın değil, hızlı olanın** süresidir; kaybeden istek iptal
+     * edilir (jeton kovasında gereksiz kredi tüketmez).
+     */
+    private suspend fun loadEntityRoot(lookup: EntityNameLookup): JSONObject? = coroutineScope {
+        val fromV0 = async { runCatching { loadEntityFromV0(lookup) }.getOrNull() }
+        val fromP1 = async { runCatching { p1("/${lookup.kind}/${lookup.id}") }.getOrNull() }
+        val first = select<Pair<Boolean, JSONObject?>> {
+            fromV0.onAwait { true to it }
+            fromP1.onAwait { false to it }
+        }
+        if (first.second != null) {
+            if (first.first) fromP1.cancel() else fromV0.cancel()
+            return@coroutineScope first.second
+        }
+        // İlk yanıt boştu (ör. v0 404): diğerini bekle.
+        if (first.first) fromP1.await() else fromV0.await()
+    }
+
+    /** p1 erişilemezse v0 karakter/kişi kaydı (aynı infobox, farklı JSON biçimi). */
+    private suspend fun loadEntityFromV0(lookup: EntityNameLookup): JSONObject? = try {
+        when (lookup.kind) {
+            "characters" -> BangumiApiClient.getCharacter(lookup.id)
+            "persons" -> BangumiApiClient.getPerson(lookup.id)
+            else -> null
+        }
+    } catch (cancelled: CancellationException) {
+        throw cancelled
+    } catch (_: Exception) {
+        null
+    }
+
+    /**
+     * İlişkili yapımlar (`/p1/subjects/{id}/relations`).
+     *
+     * @param enrichTitles `false` → liste **hemen** ham (kanji) başlıklarla döner; Latin
+     *        başlıklar ayrı bir arka plan geçişinde [enrichRelationListTitles] ile eklenir.
+     *        Detay sekmesi böylece AniList/Bangumi aramasını beklemez.
+     */
+    suspend fun fetchRelations(
+        stableOrRawId: Int,
+        mediaType: MediaType,
+        enrichTitles: Boolean = true
+    ): List<KitsugiRelation> =
         withContext(Dispatchers.IO) {
             val rawId = rawIdOf(stableOrRawId) ?: return@withContext emptyList()
             val root = p1("/subjects/$rawId/relations", mapOf("limit" to "100")) ?: return@withContext emptyList()
-            enrichRelationTitles(parseRelations(root))
+            val parsed = parseRelations(root)
+            if (enrichTitles) enrichRelationListTitles(parsed) else parsed
         }
 
     /** `/p1/subjects/{id}/relations` yanıtı → ilişkili yapımlar. */
@@ -1349,11 +1652,16 @@ object KitsugiBangumiDetailClient {
         }.distinctBy { it.malId }
 
     /** Öneriler (`/p1/subjects/{id}/recs`; sunucu en fazla 10 kayıt verir). */
-    suspend fun fetchRecommendations(stableOrRawId: Int, mediaType: MediaType): List<KitsugiRelation> =
+    suspend fun fetchRecommendations(
+        stableOrRawId: Int,
+        mediaType: MediaType,
+        enrichTitles: Boolean = true
+    ): List<KitsugiRelation> =
         withContext(Dispatchers.IO) {
             val rawId = rawIdOf(stableOrRawId) ?: return@withContext emptyList()
             val root = p1("/subjects/$rawId/recs", mapOf("limit" to "10")) ?: return@withContext emptyList()
-            enrichRelationTitles(parseRecommendations(root))
+            val parsed = parseRecommendations(root)
+            if (enrichTitles) enrichRelationListTitles(parsed) else parsed
         }
 
     /**
@@ -1370,57 +1678,52 @@ object KitsugiBangumiDetailClient {
      * ve İngilizce adı mevcut olan kayıtlar ekranda Çince kalıyordu. Tek bir kayıt isteği
      * başarısızsa ya da gecikirse ilgili kayıt orijinal haliyle döner.
      */
-    private suspend fun enrichRelationTitles(relations: List<KitsugiRelation>): List<KitsugiRelation> {
+    internal suspend fun enrichRelationListTitles(relations: List<KitsugiRelation>): List<KitsugiRelation> {
         if (relations.isEmpty()) return relations
 
         val cached = relations.map { relation -> withCachedLatinTitle(relation) }
         val pending = cached.filter { needsLatinTitle(it) }.take(RELATION_TITLE_ENRICH_LIMIT)
         if (pending.isEmpty()) return cached
 
-        val enriched = ConcurrentHashMap<Int, KitsugiRelation>()
-        withTimeoutOrNull(RELATION_TITLE_BATCH_TIMEOUT_MS) {
-            coroutineScope {
-                pending.map { relation ->
-                    async(Dispatchers.IO) {
-                        val localizedRelation = try {
-                            enrichmentRequestSemaphore.withPermit {
-                                withTimeoutOrNull(RELATION_TITLE_TIMEOUT_MS) {
-                                    val raw = BangumiIdNamespace.rawIdFromStable(relation.malId)
-                                        ?: return@withTimeoutOrNull relation
-                                    val subject = loadSubject(raw) ?: return@withTimeoutOrNull relation
-                                    val localized = BangumiNameLocalizer.subject(
-                                        subject.name,
-                                        subject.nameCn,
-                                        subject.infobox
-                                    )
-                                    BangumiTitleCache.put(
-                                        rawId = raw,
-                                        romaji = localized.romaji,
-                                        english = localized.english,
-                                        native = localized.native
-                                    )
-                                    if (localized.romaji == null && localized.english == null) {
-                                        return@withTimeoutOrNull relation
-                                    }
-                                    relation.copy(
-                                        title = localized.display.ifBlank { relation.title },
-                                        titleEnglish = localized.english ?: relation.titleEnglish,
-                                        titleJapanese = localized.native ?: relation.titleJapanese,
-                                        titleRomaji = localized.romaji ?: relation.titleRomaji
-                                    )
-                                } ?: relation
-                            }
-                        } catch (cancelled: CancellationException) {
-                            throw cancelled
-                        } catch (_: Exception) {
-                            relation
-                        }
-                        enriched[relation.malId] = localizedRelation
-                    }
-                }.awaitAll()
-            }
+        // Tek tek `/v0/subjects/{id}` çekmek yerine ortak çözümleyici: kalıcı önbellek +
+        // AniList toplu araması. Eskiden 64 kayıt için 64 ayrı Bangumi isteği gidiyor,
+        // 9 saniyelik bütçe dolunca liste yarısı Japonca kalıyordu.
+        val requests = pending.mapNotNull { relation ->
+            val raw = BangumiIdNamespace.rawIdFromStable(relation.malId) ?: return@mapNotNull null
+            BangumiSubjectTitleResolver.Request(
+                rawId = raw,
+                nativeTitle = relation.titleJapanese ?: relation.title,
+                mediaType = relation.mediaType,
+                subjectType = relation.bangumiSubjectType
+            )
         }
-        return cached.map { relation -> enriched[relation.malId] ?: relation }
+        if (requests.isEmpty()) return cached
+
+        val resolved = try {
+            // `tabMode`: AniList toplu araması + sınırlı infobox yedeği. Sekme açılışında
+            // onlarca `/v0/subjects/{id}` isteği üretmeden tüm ilişkiler çözülür.
+            BangumiSubjectTitleResolver.resolve(requests, tabMode = true)
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (error: Exception) {
+            Log.w(TAG, "İlişki başlıkları çözümlenemedi: ${error.message}")
+            emptyMap()
+        }
+        if (resolved.isEmpty()) return cached
+
+        return cached.map { relation ->
+            val raw = BangumiIdNamespace.rawIdFromStable(relation.malId) ?: return@map relation
+            val latin = resolved[raw] ?: return@map relation
+            val display = usableLatinName(latin.romaji)
+                ?: usableLatinName(latin.english)
+                ?: return@map relation
+            relation.copy(
+                title = display,
+                titleEnglish = relation.titleEnglish ?: latin.english,
+                titleJapanese = relation.titleJapanese ?: latin.native,
+                titleRomaji = relation.titleRomaji ?: latin.romaji
+            )
+        }
     }
 
     /** Başlıkta Latin bir karşılık biliniyorsa ilişki kaydına işler. */
@@ -1796,21 +2099,45 @@ object KitsugiBangumiDetailClient {
             }
         }
 
-    /** p1 infobox: `[{key, values:[{k?, v}]}]`. */
+    /**
+     * p1 infobox: `[{key, values:[{k?, v}]}]`.
+     *
+     * `k` **alt alan adıdır**: `别名` üst anahtarının altında `英文名`, `罗马字`, `日文名`,
+     * `纯假名` gibi gerçek alanlar bulunur. Eski kod yalnızca `v` değerini okuyup alt anahtarı
+     * attığı için İngilizce/romaji ad hiçbir zaman `英文名`/`罗马字` alanından gelmiyordu.
+     * Artık alt anahtar da haritaya yazılır; `BangumiNameLocalizer` bu alanları doğrudan görür.
+     */
     internal fun parseP1Infobox(array: JSONArray?): Map<String, List<String>> {
-        val result = linkedMapOf<String, List<String>>()
+        val result = linkedMapOf<String, MutableList<String>>()
+
+        fun add(key: String?, value: String?) {
+            val cleanKey = key?.trim().orEmpty()
+            val cleanValue = value?.trim().orEmpty()
+            if (cleanKey.isEmpty() || cleanValue.isEmpty()) return
+            val bucket = result.getOrPut(cleanKey) { mutableListOf() }
+            if (!bucket.contains(cleanValue)) bucket += cleanValue
+        }
+
         for (entry in array.objects()) {
             val key = entry.strOrNull("key") ?: continue
-            val raw = entry.opt("values")
-            val values = when (raw) {
-                is JSONArray -> (0 until raw.length()).mapNotNull { index ->
-                    val item = raw.optJSONObject(index)
-                    (if (item != null) item.strOrNull("v") else raw.optString(index).trim().takeIf { it.isNotEmpty() })
+            when (val raw = entry.opt("values")) {
+                is JSONArray -> {
+                    for (index in 0 until raw.length()) {
+                        val item = raw.optJSONObject(index)
+                        val value = if (item != null) {
+                            item.strOrNull("v")
+                        } else {
+                            raw.optString(index).trim().takeIf { it.isNotEmpty() }
+                        } ?: continue
+                        add(key, value)
+                        val subKey = item?.strOrNull("k")
+                        if (subKey != null && !subKey.equals(key, ignoreCase = true)) {
+                            add(subKey, value)
+                        }
+                    }
                 }
-                is String -> listOf(raw.trim())
-                else -> emptyList()
-            }.filter { it.isNotBlank() }
-            if (values.isNotEmpty()) result[key] = values
+                is String -> add(key, raw)
+            }
         }
         return result
     }

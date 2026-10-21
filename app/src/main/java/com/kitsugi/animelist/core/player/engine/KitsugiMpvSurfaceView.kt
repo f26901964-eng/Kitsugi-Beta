@@ -236,6 +236,21 @@ class KitsugiMpvSurfaceView @JvmOverloads constructor(
         return configured ?: true
     }
 
+    /**
+     * Görüntü çıkışı kurulu VE yüzey gerçekten görünür/geçerli mi?
+     *
+     * `vo-configured` yalnızca mpv'nin video çıkışını kurduğunu söyler; karenin ekranda
+     * görünen bir yüzeye gittiğini garanti etmez. SurfaceView, Compose'un kırpılmış
+     * (`clipToBounds`) veya ölçüsü animasyonla değişen bir kabında 0×0 kalırsa/pencereden
+     * düşerse mpv sesi çalmaya devam eder, kare üretmez — kullanıcı "ses var, görüntü yok"
+     * görür ve eski bekçi bunu yakalayamaz. Bu kontrol o boşluğu kapatır.
+     */
+    fun hasVisibleVideoSurface(): Boolean {
+        if (!initialized) return false
+        if (!isShown || width <= 0 || height <= 0) return false
+        return runCatching { holder.surface?.isValid == true }.getOrDefault(false)
+    }
+
     fun setPlaybackSpeed(speed: Float) {
         if (!initialized) return
         mpv.setPropertyDouble("speed", speed.toDouble())

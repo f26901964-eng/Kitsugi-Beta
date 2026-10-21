@@ -1,17 +1,17 @@
 # Kitsugi CS Plugin Live Diagnostics — Tam Rapor
 
-**Oluşturulma:** 2026-10-11T19:43:37.333388600
-**Toplam probe edilen eklenti:** 540
+**Oluşturulma:** 2026-10-22T01:11:07.261510700
+**Toplam probe edilen eklenti:** 539
 
 ## Özet
 | Metrik | Sayı |
 |---|---|
-| ✅ CS3 İndirilebilir | 506 |
+| ✅ CS3 İndirilebilir | 505 |
 | ❌ CS3 Erişilemiyor | 34 |
 | 🟢 Site 200 OK | 56 |
-| ⚠️ Cloudflare Korumalı | 88 |
+| ⚠️ Cloudflare Korumalı | 90 |
 | 🚨 WAF Engeli | 4 |
-| ❓ Domain Bilinmiyor | 427 |
+| ❓ Domain Bilinmiyor | 426 |
 
 ---
 
@@ -42,7 +42,7 @@
 | **AsyaAnimeleri** | Anime | ❌404 | `https://asyaanimeleri.top` | 200 | ⚠️ | - | [CS3:404] [CF] |
 | **AsyaFanatiklerim** | AsianDrama | ✅200 | _bilinmiyor_ | N/A | - | - |  |
 | **AsyaFilmIzlesene** | Movie | ✅200 | _bilinmiyor_ | N/A | - | - |  |
-| **AsyaMinik** | AsianDrama | ❌404 | `https://asyaminik.com` | -1 | - | - | [CS3:404] DNS failed |
+| **AsyaMinik** | AsianDrama | ❌404 | `https://asyaminik.com` | -1 | - | - | [CS3:404] Conn error: Remote host terminated the handshake |
 | **AsyaWatch** | AsianDrama | ❌404 | `https://asyawatch.com` | 200 | ⚠️ | - | [CS3:404] [CF] |
 | **BadTv** | NSFW | ✅200 | _bilinmiyor_ | N/A | - | - |  |
 | **BasketballReplays** | Live | ✅200 | _bilinmiyor_ | N/A | - | - |  |
@@ -74,13 +74,13 @@
 | **DiziFilmSiteleri** | Movie, TvSeries, Anime, AsianDrama, Cartoon | ✅200 | _bilinmiyor_ | N/A | - | - |  |
 | **DiziGom** | Movie | ✅200 | _bilinmiyor_ | N/A | - | - |  |
 | **DiziKorea** | AsianDrama | ❌404 | `https://dizikorea3.com` | 200 | ⚠️ | - | [CS3:404] [CF] |
-| **DiziLife** | Movie, TvSeries | ✅200 | `https://dizi73.life` | 301 | ⚠️ | - | [CF] [→https://dizi77.life/] |
+| **DiziLife** | Movie, TvSeries | ✅200 | `https://dizi73.life` | 301 | ⚠️ | - | [CF] [→https://dizi81.life/] |
 | **DiziMag** | TvSeries | ✅200 | _bilinmiyor_ | N/A | - | - |  |
-| **DiziMom** | TvSeries | ❌404 | `https://www.dizimom.rest` | 301 | ⚠️ | - | [CS3:404] [CF] [→https://www.dizimom.cafe/] |
+| **DiziMom** | TvSeries | ❌404 | `https://www.dizimom.rest` | 301 | ⚠️ | - | [CS3:404] [CF] [→https://www.dizidad.com/] |
 | **DiziPal** | TvSeries, Movie | ✅200 | `https://dizipal.bid` | 301 | ⚠️ | - | [CF] [→https://dizipal3008.com/] |
 | **DiziPalOriginal** | TvSeries, Movie | ✅200 | `https://dizipal.bid` | 301 | ⚠️ | - | [CF] [→https://dizipal3008.com/] |
 | **DiziPalOrijinal** | TvSeries | ✅200 | `https://dizipal1572.com` | 301 | ⚠️ | - | [CF] [→https://dizipal1577.com/] |
-| **DiziYo** | TvSeries | ✅200 | `https://www.diziyo.so` | 303 | ⚠️ | - | [CF] [→https://www.diziyo.so:443/login.php] |
+| **DiziYo** | TvSeries | ✅200 | `https://www.diziyo.so` | -1 | - | - | DNS failed |
 | **DiziYou** | TvSeries | ❌404 | `https://www.diziyou.one` | 200 | ⚠️ | - | [CS3:404] [CF] |
 | **Dizigecesi** | Movie, TvSeries | ✅200 | _bilinmiyor_ | N/A | - | - |  |
 | **Dizilla** | TvSeries | ❌404 | `https://dizillahd.com` | 301 | ⚠️ | - | [CS3:404] [CF] [→https://dizilla.one/] |
@@ -123,7 +123,7 @@
 | **FreePornVideos** | NSFW | ✅200 | _bilinmiyor_ | N/A | - | - |  |
 | **FreeUsePorn** | NSFW | ✅200 | _bilinmiyor_ | N/A | - | - |  |
 | **Full4kizle** | Movie, AsianDrama | ✅200 | _bilinmiyor_ | N/A | - | - |  |
-| **FullHDFilm** | Movie, TvSeries | ✅200 | `https://fullhdfilm.pro` | 200 | - | - |  |
+| **FullHDFilm** | Movie, TvSeries | ✅200 | `https://fullhdfilm.pro` | 429 | - | - |  |
 | **FullHDFilmizlesene** | Movie | ❌404 | `https://www.fullhdfilmizlesene.mx` | 301 | ⚠️ | - | [CS3:404] [CF] [→https://www.fullhdfilmizlesene.now/] |
 | **FullHDFilmİzlede** | Movie | ✅200 | _bilinmiyor_ | N/A | - | - |  |
 | **FullPorner** | NSFW | ✅200 | _bilinmiyor_ | N/A | - | - |  |
@@ -174,7 +174,7 @@
 | **Koredizi** | AsianDrama | ✅200 | _bilinmiyor_ | N/A | - | - |  |
 | **KraptorPlus** | TvSeries, Movie, Anime, Cartoon, AsianDrama, AnimeMovie | ✅200 | _bilinmiyor_ | N/A | - | - |  |
 | **Krmzy** | TvSeries | ✅200 | _bilinmiyor_ | N/A | - | - |  |
-| **KultFilmler** | Movie, TvSeries | ❌404 | `https://kultfilmler.net` | -1 | - | - | [CS3:404] Conn error: timeout |
+| **KultFilmler** | Movie, TvSeries | ❌404 | `https://kultfilmler.net` | 200 | ⚠️ | - | [CS3:404] [CF] |
 | **Latanime** | Movie | ✅200 | _bilinmiyor_ | N/A | - | - |  |
 | **LayarKaca** | Movie, TvSeries | ✅200 | _bilinmiyor_ | N/A | - | - |  |
 | **LiveCamRips** | NSFW | ✅200 | _bilinmiyor_ | N/A | - | - |  |
@@ -324,7 +324,7 @@
 | **Ddizi** | TvSeries | ✅200 | `https://www.ddizi.im` | 301 | ⚠️ | - | [CF] [→https://www.ddizi.tel/] |
 | **DiziBox** | TvSeries | ✅200 | `https://www.dizibox.live` | 403 | ⚠️ | 🚨 | [CF] [WAF] |
 | **DiziKorea** | AsianDrama | ✅200 | `https://dizikorea3.com` | 200 | ⚠️ | - | [CF] |
-| **DiziMom** | TvSeries | ✅200 | `https://www.dizimom.rest` | 301 | ⚠️ | - | [CF] [→https://www.dizimom.cafe/] |
+| **DiziMom** | TvSeries | ✅200 | `https://www.dizimom.rest` | 301 | ⚠️ | - | [CF] [→https://www.dizidad.com/] |
 | **DiziPal** | TvSeries, Movie | ✅200 | `https://dizipal.bid` | 301 | ⚠️ | - | [CF] [→https://dizipal3008.com/] |
 | **DiziPalOriginal** | TvSeries, Movie | ✅200 | `https://dizipal.bid` | 301 | ⚠️ | - | [CF] [→https://dizipal3008.com/] |
 | **DiziPod** | TvSeries, Movie | ✅200 | `https://dizipod.com` | 200 | ⚠️ | - | [CF] |
@@ -332,13 +332,13 @@
 | **Dizilla** | TvSeries | ✅200 | `https://dizillahd.com` | 301 | ⚠️ | - | [CF] [→https://dizilla.one/] |
 | **FilmMakinesi** | Movie | ✅200 | `https://filmmakinesi.to` | 200 | ⚠️ | - | [CF] |
 | **FilmModu** | Movie | ✅200 | `https://www.filmmodu.one` | 200 | ⚠️ | - | [CF] |
-| **FullHDFilm** | Movie, TvSeries | ✅200 | `https://fullhdfilm.pro` | 200 | - | - |  |
+| **FullHDFilm** | Movie, TvSeries | ✅200 | `https://fullhdfilm.pro` | 429 | - | - |  |
 | **FullHDFilmizlesene** | Movie | ✅200 | `https://www.fullhdfilmizlesene.mx` | 301 | ⚠️ | - | [CF] [→https://www.fullhdfilmizlesene.now/] |
 | **HDFilmCehennemi** | Movie, TvSeries | ✅200 | `https://www.hdfilmcehennemi.nl` | 200 | ⚠️ | - | [CF] |
 | **HDFilmDelisi** | Movie, TvSeries | ✅200 | `https://hdfilmdelisi.one` | 200 | ⚠️ | - | [CF] |
 | **InatBox** | Movie, TvSeries, Live | ✅200 | _bilinmiyor_ | N/A | - | - |  |
 | **JetFilmizle** | Movie | ✅200 | `https://jetfilmizle.now` | 200 | ⚠️ | - | [CF] |
-| **KultFilmler** | Movie, TvSeries | ✅200 | `https://kultfilmler.net` | -1 | - | - | Conn error: timeout |
+| **KultFilmler** | Movie, TvSeries | ✅200 | `https://kultfilmler.net` | 200 | ⚠️ | - | [CF] |
 | **RareFilmm** | Movie | ✅200 | _bilinmiyor_ | N/A | - | - |  |
 | **RecTV** | Movie, Live, TvSeries | ✅200 | `https://b.prectv38.sbs` | -1 | - | - | DNS failed |
 | **SelcukFlix** | Movie, TvSeries | ✅200 | `https://selcukflix.co` | 301 | ⚠️ | - | [CF] [→https://selcukflix.com/] |
@@ -392,7 +392,7 @@
 | **TVGarden** | Live | ✅200 | _bilinmiyor_ | N/A | - | - |  |
 | **WatchWrestling** | Live | ✅200 | _bilinmiyor_ | N/A | - | - |  |
 | **Wcoflix** | Anime, Cartoon | ✅200 | _bilinmiyor_ | N/A | - | - |  |
-| **Yablom** | Movie | ✅200 | _bilinmiyor_ | N/A | - | - |  |
+| **Yablom** | Movie, TvSeries, Documentary | ✅200 | _bilinmiyor_ | N/A | - | - |  |
 | **YoTurkish** | TvSeries | ✅200 | _bilinmiyor_ | N/A | - | - |  |
 
 ---
@@ -413,7 +413,7 @@
 | **DiziGom** | Movie | ✅200 | _bilinmiyor_ | N/A | - | - |  |
 | **DiziKorea** | AsianDrama | ✅200 | `https://dizikorea3.com` | 200 | ⚠️ | - | [CF] |
 | **DiziMag** | TvSeries | ✅200 | _bilinmiyor_ | N/A | - | - |  |
-| **DiziMom** | TvSeries | ✅200 | `https://www.dizimom.rest` | 301 | ⚠️ | - | [CF] [→https://www.dizimom.cafe/] |
+| **DiziMom** | TvSeries | ✅200 | `https://www.dizimom.rest` | 301 | ⚠️ | - | [CF] [→https://www.dizidad.com/] |
 | **DiziPal** | TvSeries, Movie | ✅200 | `https://dizipal.bid` | 301 | ⚠️ | - | [CF] [→https://dizipal3008.com/] |
 | **DiziYou** | TvSeries | ✅200 | `https://www.diziyou.one` | 200 | ⚠️ | - | [CF] |
 | **Dizilla** | TvSeries | ✅200 | `https://dizillahd.com` | 301 | ⚠️ | - | [CF] [→https://dizilla.one/] |
@@ -422,7 +422,7 @@
 | **FilmMakinesi** | Movie | ✅200 | `https://filmmakinesi.to` | 200 | ⚠️ | - | [CF] |
 | **FilmModu** | Movie | ✅200 | `https://www.filmmodu.one` | 200 | ⚠️ | - | [CF] |
 | **Filmİzlesene** | Movie | ✅200 | _bilinmiyor_ | N/A | - | - |  |
-| **FullHDFilm** | Movie, TvSeries | ✅200 | `https://fullhdfilm.pro` | 200 | - | - |  |
+| **FullHDFilm** | Movie, TvSeries | ✅200 | `https://fullhdfilm.pro` | 429 | - | - |  |
 | **FullHDFilmizlesene** | Movie | ✅200 | `https://www.fullhdfilmizlesene.mx` | 301 | ⚠️ | - | [CF] [→https://www.fullhdfilmizlesene.now/] |
 | **FullHDFilmİzlede** | Movie | ✅200 | _bilinmiyor_ | N/A | - | - |  |
 | **HDFilmCehennemi** | Movie, TvSeries | ✅200 | `https://www.hdfilmcehennemi.nl` | 200 | ⚠️ | - | [CF] |
@@ -431,7 +431,7 @@
 | **HDFilmSitesi** | Movie | ✅200 | _bilinmiyor_ | N/A | - | - |  |
 | **JetFilmizle** | Movie | ✅200 | `https://jetfilmizle.now` | 200 | ⚠️ | - | [CF] |
 | **KoreanTurk** | AsianDrama | ✅200 | `https://www.koreanturk.net` | 522 | ⚠️ | - | [CF] |
-| **KultFilmler** | Movie, TvSeries | ✅200 | `https://kultfilmler.net` | -1 | - | - | Conn error: timeout |
+| **KultFilmler** | Movie, TvSeries | ✅200 | `https://kultfilmler.net` | 200 | ⚠️ | - | [CF] |
 | **RecTV** | Movie, Live, TvSeries | ✅200 | `https://b.prectv38.sbs` | -1 | - | - | DNS failed |
 | **RoketDizi** | TvSeries | ✅200 | _bilinmiyor_ | N/A | - | - |  |
 | **SelcukFlix** | Movie, TvSeries | ✅200 | `https://selcukflix.co` | 301 | ⚠️ | - | [CF] [→https://selcukflix.com/] |
@@ -463,7 +463,7 @@
 
 ---
 
-## 📦 Kraptor123 / Cs-GizliKeyif (110 eklenti)
+## 📦 Kraptor123 / Cs-GizliKeyif (109 eklenti)
 
 | Eklenti | TV Türleri | CS3 | Site URL | Site Kodu | CF | WAF | Açıklama |
 |---|---|---|---|---|---|---|---|
@@ -487,7 +487,6 @@
 | **DirtyShip** | NSFW | ✅200 | _bilinmiyor_ | N/A | - | - |  |
 | **Doeda** | NSFW | ✅200 | _bilinmiyor_ | N/A | - | - |  |
 | **DoedaOrijinal** | NSFW | ✅200 | _bilinmiyor_ | N/A | - | - |  |
-| **Domlepen** | NSFW | ✅200 | _bilinmiyor_ | N/A | - | - |  |
 | **EFukt** | NSFW | ✅200 | _bilinmiyor_ | N/A | - | - |  |
 | **EPorner** | NSFW | ✅200 | _bilinmiyor_ | N/A | - | - |  |
 | **EffedUpMovies** | NSFW | ✅200 | _bilinmiyor_ | N/A | - | - |  |

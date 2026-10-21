@@ -400,18 +400,26 @@ object SearchTranslation {
     // ─────────────────────────────────────────────────────────────────────────
 
     fun String.normalizeToResourceKey(): String {
-        return this.lowercase()
+        // ROOT yerel: Türkçe "I" harfi "ı"ya dönüşüp `genre_*`/`tag_*` anahtarlarını bozuyordu.
+        return this.lowercase(java.util.Locale.ROOT)
             .replace(Regex("[^a-z0-9_]"), "_")
             .replace(Regex("__+"), "_")
             .trim('_')
     }
 
+    /**
+     * `genre_*` / `tag_*` / `staff_role_*` dil dosyası karşılığı.
+     *
+     * Uygulamada ~40.000 `bangumi_*` dizesi bulunduğu için `getIdentifier` pahalıdır
+     * (kaynak tablosunun tamamı taranır). Sonuç [cachedStringResourceByName] ile
+     * önbelleğe alınır — bulunmayanlar da önbelleğe yazılır. Önceden Keşfet'teki her
+     * kartın her etiketi için üç ayrı tarama yapılıyor, Bangumi şeritleri dakikalarca
+     * bekliyordu. Çince/Japonca etiketlerde türetilen anahtar boş olur; hiç aranmaz.
+     */
     private fun getLocalizedStringFromResource(prefix: String, label: String): String? {
-        val context = com.kitsugi.animelist.KitsugiApplication.getInstance() ?: return null
         val normalized = label.normalizeToResourceKey()
-        val key = "${prefix}_$normalized"
-        val resId = context.resources.getIdentifier(key, "string", context.packageName)
-        return if (resId != 0) context.getString(resId) else null
+        if (normalized.isEmpty()) return null
+        return com.kitsugi.animelist.utils.cachedStringResourceByName("${prefix}_$normalized")
     }
 
     fun translateToTurkishForDisplay(label: String): String {

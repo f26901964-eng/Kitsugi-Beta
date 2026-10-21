@@ -5,10 +5,18 @@ import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Row
+import com.kitsugi.animelist.ui.theme.gradient.background
+import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Restore
 import androidx.compose.material.icons.rounded.Translate
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -172,6 +180,45 @@ fun KitsugiOriginalToggleButton(
             color = tint,
             style = MaterialTheme.typography.labelMedium,
             fontWeight = FontWeight.Bold
+        )
+    }
+}
+
+/**
+ * Profil kartlarındaki başlık satırı gibi dar alanlar için kompakt
+ * orijinal/çeviri geçiş çipi. [KitsugiOriginalToggleButton] ile aynı sözleşmeyi
+ * kullanır; yalnızca daha küçük yazı ve sıkı iç boşlukla çizilir.
+ */
+@Composable
+fun KitsugiOriginalToggleChip(
+    showingOriginal: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    tint: Color = LocalKitsugiAccent.current
+) {
+    Row(
+        modifier = modifier
+            .clip(androidx.compose.foundation.shape.RoundedCornerShape(999.dp))
+            .background(tint.copy(alpha = 0.14f))
+            .clickable(onClick = onClick)
+            .padding(horizontal = 8.dp, vertical = 3.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(
+            imageVector = if (showingOriginal) Icons.Rounded.Translate else Icons.Rounded.Restore,
+            contentDescription = null,
+            tint = tint,
+            modifier = Modifier.size(12.dp)
+        )
+        Spacer(modifier = Modifier.width(4.dp))
+        Text(
+            text = stringResource(
+                if (showingOriginal) R.string.translate_show_translation else R.string.translate_show_original
+            ),
+            color = tint,
+            style = MaterialTheme.typography.labelSmall,
+            fontWeight = FontWeight.Bold,
+            maxLines = 1
         )
     }
 }

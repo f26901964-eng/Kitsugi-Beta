@@ -123,11 +123,20 @@ internal fun WikiOriginalPage(
     onExternalLink: (String) -> Unit,
     onBlockedLink: () -> Unit,
     onUseReader: () -> Unit,
+    /**
+     * WebView içinde dokunulan wiki bağlantısı için "yeni sekmede aç" isteği.
+     * `true` dönerse navigasyon iptal edilir (yeni sekme açıldı); `false` dönerse bağlantı
+     * mevcut sekmede normal şekilde yüklenir.
+     */
+    onOpenLinkInNewTab: (String) -> Boolean = { false },
+    /** Üst şeritteki `⋮` menüsünden sayfa araçları sayfasını açan köprü. */
+    toolsController: WikiPageToolsController? = null,
     modifier: Modifier = Modifier
 ) {
     val currentLocationChanged by rememberUpdatedState(onLocationChanged)
     val currentExternalLink by rememberUpdatedState(onExternalLink)
     val currentBlockedLink by rememberUpdatedState(onBlockedLink)
+    val currentOpenLinkInNewTab by rememberUpdatedState(onOpenLinkInNewTab)
     val lifecycle = LocalLifecycleOwner.current.lifecycle
     val context = LocalContext.current.applicationContext
     val store = remember(context) { SettingsDataStore(context) }
@@ -185,6 +194,7 @@ internal fun WikiOriginalPage(
 
     Column(modifier) {
         WikiPageTools(session, preferences, assets, config, savingPreference || preferenceReadFailed, preferenceFailed,
+            controller = toolsController,
             onSaveAppearance = { mode, zoom ->
                 scope.launch {
                     savingPreference = true
@@ -199,22 +209,23 @@ internal fun WikiOriginalPage(
                         savingPreference = false
                     }
                 }
-            }
-        ) {
-            scope.launch {
-                savingPreference = true
-                try {
-                    store.setWikiAdBlockEnabled(host, !config.blockAds)
-                    preferenceFailed = false
-                } catch (e: CancellationException) {
-                    throw e
-                } catch (_: Exception) {
-                    preferenceFailed = true
-                } finally {
-                    savingPreference = false
+            },
+            onToggleAds = {
+                scope.launch {
+                    savingPreference = true
+                    try {
+                        store.setWikiAdBlockEnabled(host, !config.blockAds)
+                        preferenceFailed = false
+                    } catch (e: CancellationException) {
+                        throw e
+                    } catch (_: Exception) {
+                        preferenceFailed = true
+                    } finally {
+                        savingPreference = false
+                    }
                 }
             }
-        }
+        )
         WikiFindBar(session)
         if (preferenceReadFailed) {
             Text(stringResource(R.string.wiki_tools_preferences_failed), modifier = Modifier.padding(horizontal = 12.dp),
@@ -352,7 +363,21 @@ internal fun WikiOriginalPage(
                                 override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
                                     if (!request.isForMainFrame) return false
                                     return when (WikiOriginalPagePolicy.destination(request.url.toString())) {
-                                        WikiOriginalPagePolicy.Destination.WIKI -> false
+                                        // 2026-10-21: kullanıcı dokunuşuyla gelen wiki bağlantıları
+                                        // YENİ SEKMEDE açılır (Chrome davranışı). Aynı belge içi
+                                        // çapalar (#bölüm) ve JS/form yönlendirmeleri yerinde kalır;
+                                        // aksi hâlde her otomatik yönlendirme sekme üretirdi.
+                                        WikiOriginalPagePolicy.Destination.WIKI -> {
+                                            val target = request.url.toString()
+                                            val currentDocument = view.url?.substringBefore('#')
+                                            val destinationDocument = target.substringBefore('#')
+                                            when {
+                                                !request.hasGesture() -> false
+                                                currentDocument != null &&
+                                                    currentDocument == destinationDocument -> false
+                                                else -> currentOpenLinkInNewTab(target)
+                                            }
+                                        }
                                         WikiOriginalPagePolicy.Destination.EXTERNAL -> {
                                             if (request.hasGesture()) currentExternalLink(request.url.toString())
                                             else currentBlockedLink()

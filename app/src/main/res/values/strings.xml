@@ -6936,7 +6936,7 @@ Eklentiler ekranından eklenti etkinleştirin.</string>
     <string name="profile_followers">Takipçiler</string>
     <string name="profile_followers_count">Takipçiler (%1$d)</string>
     <string name="profile_following">Takip Edilen</string>
-    <string name="profile_following_button">Takip Ediliyorsun</string>
+    <string name="profile_following_button">Takiptesin</string>
     <string name="profile_following_count">Takip Edilen (%1$d)</string>
     <string name="profile_follows_you">Sizi takip ediyor</string>
     <string name="profile_gender_female">Kadın</string>
@@ -17717,6 +17717,11 @@ Eklentiler ekranından eklenti etkinleştirin.</string>
     <string name="wiki_ads_on">Reklam engeli: açık (%1$d)</string>
     <string name="wiki_ads_off">Reklam engeli: kapalı (%1$d)</string>
     <string name="wiki_tools_info">Sayfa araçları hakkında</string>
+    <string name="wiki_page_tools">Sayfa araçları</string>
+    <string name="wiki_tools_translate_title">Çeviri</string>
+    <string name="wiki_tools_ad_block_title">Reklam engeli</string>
+    <string name="wiki_tools_ad_block_blocked">%1$d istek engellendi</string>
+    <string name="wiki_tools_status_title">Sayfa durumu</string>
     <string name="wiki_dom_translating">Google → %1$s · Çevriliyor… (%2$d metin)</string>
     <string name="wiki_dom_translated">Google → %1$s · %2$d metin çevrildi</string>
     <string name="wiki_dom_partial">Bazı metinler çevrilemedi. Orijinalleri korundu.</string>
@@ -17747,4 +17752,14 @@ Eklentiler ekranından eklenti etkinleştirin.</string>
     <string name="wiki_find_next">Sonraki eşleşme</string>
     <string name="wiki_find_close">Sayfada aramayı kapat</string>
     <string name="wiki_find_matches">%1$d / %2$d eşleşme</string>
+    <!-- v2.4.337: kompakt wiki şeridi ve video oynatıcı hata durumu -->
+    <string name="wiki_more_actions">Diğer işlemler</string>
+    <string name="wiki_tools_translate_on">Çeviri açık</string>
+    <string name="wiki_tools_translate_off">Çevir</string>
+    <string name="wiki_ads_short_on">%1$d engellendi</string>
+    <string name="wiki_ads_short_active">Engel açık</string>
+    <string name="wiki_ads_short_off">Engel kapalı</string>
+    <string name="inline_video_unsupported_title">Bu video uygulama içinde oynatılamadı</string>
+    <string name="inline_video_unsupported_body">Bu biçim bu cihazda çözülemiyor olabilir. Tam ekran oynatıcı bu dosyayı yazılım çözücüyle açabilir.</string>
+    <string name="inline_open_fullscreen">Tam ekranda aç</string>
 </resources>

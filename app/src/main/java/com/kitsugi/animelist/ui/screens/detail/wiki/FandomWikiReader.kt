@@ -1,12 +1,12 @@
 package com.kitsugi.animelist.ui.screens.detail.wiki
 
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.foundation.horizontalScroll
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.runtime.key
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.material3.FilterChip
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.AlertDialog
 import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.background
@@ -42,13 +42,18 @@ import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.automirrored.rounded.ArrowForward
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.BrokenImage
+import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.KeyboardArrowDown
 import androidx.compose.material.icons.rounded.KeyboardArrowUp
 import androidx.compose.material.icons.rounded.Language
+import androidx.compose.material.icons.rounded.MoreVert
+import androidx.compose.material.icons.rounded.OpenInNew
+import androidx.compose.material.icons.rounded.Refresh
+import androidx.compose.material.icons.rounded.Web
 import androidx.compose.material.icons.rounded.MenuBook
+import androidx.compose.material.icons.rounded.Tune
 import com.kitsugi.animelist.ui.theme.gradient.CircularProgressIndicator
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -151,6 +156,13 @@ data class FandomReaderRenderState(
  * Dialog penceresi her koşulda sınırlı (bounded) kısıt verir; bu yüzden okuyucu hangi
  * ekrandan açılırsa açılsın (yapım / karakter / ekip / gömülü wiki kartı) güvenlidir.
  * Geri tuşu: etkin sekmenin geçmişinde geri gider; geçmiş boşsa okuyucuyu kapatır.
+ *
+ * ÜST ŞERİT (2026-10-21, ikinci tur): görünür tek denetim grubu sekme şerididir. Mod
+ * seçimi, geri/ileri, yenile, masaüstü düzeni, sayfa araçları (çeviri + reklam engeli),
+ * tarayıcıda aç, yeni sekme ve kapat — hepsi sağ köşedeki `⋮` menüsündedir.
+ *
+ * BAĞLANTILAR: özgün WebView'de dokunulan düz makale bağlantıları, kaynak sayfa yerinde
+ * kalacak şekilde aktif sekmenin hemen sağında YENİ sekmede açılır (Chrome davranışı).
  */
 @Composable
 internal fun FandomWikiReaderSheet(
@@ -168,6 +180,12 @@ internal fun FandomWikiReaderSheet(
     onRetrySection: (Int) -> Unit,
     onRetryPage: () -> Unit,
     onOpenLink: (String) -> Unit,
+    /**
+     * WebView içinde dokunulan wiki bağlantısı. `true` dönerse bağlantı yeni sekmede
+     * açılmıştır ve WebView aynı sayfada gezinmeyi iptal eder; `false` dönerse mevcut
+     * sekmede normal gezinme sürer (makale olmayan sayfalar, 12 sekme sınırı vb.).
+     */
+    onOpenLinkInNewTab: (String) -> Boolean = { false },
     onOpenInBrowser: () -> Unit,
     onToggleOriginal: (String) -> Unit = {},
     /**
@@ -184,6 +202,9 @@ internal fun FandomWikiReaderSheet(
     onRetryFailed: (() -> Unit)? = null
 ) {
     var originalLayout by rememberSaveable { mutableStateOf(true) }
+    // Sayfa araçları artık görünür bir satır değil: üst şeritteki `⋮` menüsünden açılan
+    // tek bir sayfa. Menü, bu controller üzerinden WebView tarafına sinyal gönderir.
+    val pageToolsController = remember { WikiPageToolsController() }
     val webSessions = remember { HashMap<Long, WikiOriginalSession>() }
     // A fresh tab copies the exact document URL (including fragment/query), not just
     // its article title. Do not copy the source tab's WebView or back/forward history.
@@ -224,6 +245,25 @@ internal fun FandomWikiReaderSheet(
     }
     val goForward: () -> Unit = {
         if (webForward) webSession?.view?.goForward() else onForward()
+    }
+    // Menüden "Özgün sayfa": okuyucu aynı sekmede başka bir belgeye gitmişse, eski WebView
+    // oturumunu yanlışlıkla geri yüklememek için konum karşılaştırması yapılır.
+    val switchToOriginal: () -> Unit = {
+        if (!originalLayout && tab != null && webSession != null) {
+            val saved = FandomUrls.parseArticleUrl(webSession.url, tab.location.wikiId)
+            if (saved != (tab.location.wikiId to tab.location.title)) {
+                webSession.history = null
+                webSession.url = FandomUrls.pageUrl(tab.location.wikiId, tab.location.title)
+                webSession.title = null
+                webSession.scrollX = 0
+                webSession.scrollY = 0
+                webSession.canGoBack = false
+                webSession.canGoForward = false
+            }
+        }
+        if (tab != null) webSession?.readerLocation = tab.location
+        originalLayout = true
+        onSetWebMode(true)
     }
     val openWebUrl: (String) -> Unit = { url ->
         if (WikiOriginalPagePolicy.destination(url) != WikiOriginalPagePolicy.Destination.BLOCKED) {
@@ -277,32 +317,6 @@ internal fun FandomWikiReaderSheet(
                     .windowInsetsPadding(WindowInsets.navigationBars)
                     .imePadding()
             ) {
-                ReaderTopBar(
-                    title = displayTitle,
-                    accentColor = accentColor,
-                    navigation = navigation,
-                    onBack = goBack,
-                    onForward = goForward,
-                    canGoBack = hasBackStack,
-                    canGoForward = webForward || navigation.canGoForward,
-                    onNewTab = {
-                        if (originalLayout && webSession != null) {
-                            pendingWebDuplicate[0] = WikiOriginalSession(webSession.url, webSession.readerLocation).also {
-                                it.desktop = webSession.desktop
-                                it.title = webSession.title
-                                it.translationOverride = webSession.translationOverride
-                                it.lastTranslationPreferenceKey = webSession.lastTranslationPreferenceKey
-                                it.translationDocumentUrl = webSession.translationDocumentUrl
-                            }
-                        }
-                        onNewTab()
-                    },
-                    onClose = onClose,
-                    onOpenInBrowser = {
-                        if (originalLayout && webSession != null) openWebUrl(webSession.url)
-                        else onOpenInBrowser()
-                    }
-                )
                 ReaderTabStrip(
                     navigation = if (originalLayout) navigation.copy(tabs = navigation.tabs.map { item ->
                         webSessions[item.id]?.title?.takeIf { it.isNotBlank() }?.let { title ->
@@ -312,61 +326,44 @@ internal fun FandomWikiReaderSheet(
                     accentColor = accentColor,
                     onSwitchTab = onSwitchTab,
                     onCloseTab = onCloseTab,
-                    onCloseOtherTabs = onCloseOtherTabs
-                )
-                Row(
-                    modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState())
-                        .padding(horizontal = 10.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    FilterChip(
-                        selected = originalLayout,
-                        onClick = {
-                            // The native reader may have navigated in the same tab since
-                            // this WebView was saved. Do not restore an unrelated document.
-                            if (!originalLayout && tab != null && webSession != null) {
-                                val saved = FandomUrls.parseArticleUrl(webSession.url, tab.location.wikiId)
-                                if (saved != (tab.location.wikiId to tab.location.title)) {
-                                    webSession.history = null
-                                    webSession.url = FandomUrls.pageUrl(tab.location.wikiId, tab.location.title)
-                                    webSession.title = null
-                                    webSession.scrollX = 0
-                                    webSession.scrollY = 0
-                                    webSession.canGoBack = false
-                                    webSession.canGoForward = false
+                    onCloseOtherTabs = onCloseOtherTabs,
+                    onNewTab = onNewTab,
+                    trailing = {
+                        ReaderBrowserMenu(
+                            hasPage = displayTitle != null,
+                            webMode = originalLayout,
+                            desktopMode = webSession?.desktop == true,
+                            onBack = goBack,
+                            onForward = goForward,
+                            onReload = { webSession?.reload() },
+                            onToggleDesktop = { webSession?.let { it.setDesktopMode(!it.desktop) } },
+                            onNewTab = {
+                                if (originalLayout && webSession != null) {
+                                    pendingWebDuplicate[0] = WikiOriginalSession(webSession.url, webSession.readerLocation).also {
+                                        it.desktop = webSession.desktop
+                                        it.title = webSession.title
+                                        it.translationOverride = webSession.translationOverride
+                                        it.lastTranslationPreferenceKey = webSession.lastTranslationPreferenceKey
+                                        it.translationDocumentUrl = webSession.translationDocumentUrl
+                                    }
                                 }
-                            }
-                            if (tab != null) webSession?.readerLocation = tab.location
-                            originalLayout = true
-                            onSetWebMode(true)
-                        },
-                        label = { Text(stringResource(R.string.wiki_original_page)) }
-                    )
-                    FilterChip(
-                        selected = !originalLayout,
-                        onClick = useReader,
-                        label = { Text(stringResource(R.string.wiki_simple_reader)) }
-                    )
-                    if (originalLayout && webSession != null) {
-                        FilterChip(
-                            selected = webSession.desktop,
-                            onClick = { webSession.setDesktopMode(!webSession.desktop) },
-                            label = { Text(stringResource(if (webSession.desktop)
-                                R.string.wiki_desktop_layout else R.string.wiki_mobile_layout)) }
+                                onNewTab()
+                            },
+                            onClose = onClose,
+                            onOpenInBrowser = {
+                                if (originalLayout && webSession != null) openWebUrl(webSession.url)
+                                else onOpenInBrowser()
+                            },
+                            onSelectOriginal = switchToOriginal,
+                            onSelectReader = useReader,
+                            onOpenPageTools = { pageToolsController.open() },
+                            canGoBack = hasBackStack,
+                            canGoForward = webForward || navigation.canGoForward,
+                            canOpenNewTab = navigation.canOpenNewTab
                         )
-                        TextButton(onClick = webSession::reload) { Text(stringResource(R.string.yenile)) }
                     }
-                }
-                if (originalLayout && webSession != null) {
-                    Text(
-                        text = stringResource(R.string.wiki_original_hint,
-                            android.net.Uri.parse(webSession.url).host.orEmpty()),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = KitsugiColors.TextSecondary,
-                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp)
-                    )
-                }
+                )
+                WikiChromeHairline()
                 when {
                     originalLayout && webSession != null && tab != null -> key(tab.id) {
                         WikiOriginalPage(
@@ -388,6 +385,8 @@ internal fun FandomWikiReaderSheet(
                                     android.widget.Toast.LENGTH_SHORT).show()
                             },
                             onUseReader = useReader,
+                            onOpenLinkInNewTab = onOpenLinkInNewTab,
+                            toolsController = pageToolsController,
                             modifier = Modifier.weight(1f).fillMaxWidth()
                         )
                     }
@@ -455,80 +454,177 @@ internal fun FandomWikiReaderSheet(
     }
 }
 
+/**
+ * Tarayıcının TEK menüsü: sağ köşedeki `⋮`.
+ *
+ * 2026-10-21 (ikinci tur): başlık çubuğu tamamen kaldırıldı. Kullanıcı "hepsini üç noktaya
+ * taşı, sadece sekme kısmı kalsın" dedi; o yüzden geri/ileri, mod seçimi, çeviri, reklam
+ * engeli, masaüstü düzeni, yenile, sayfa araçları, tarayıcıda aç, yeni sekme ve kapat
+ * burada. Ekranda görünür kalan tek denetim grubu sekme şeridi. Hiçbir işlev kaybolmadı.
+ */
 @Composable
-private fun ReaderTopBar(
-    title: String?,
-    accentColor: Color,
-    navigation: FandomReaderBrowserState,
+private fun ReaderBrowserMenu(
+    hasPage: Boolean,
+    webMode: Boolean,
+    desktopMode: Boolean,
     onBack: () -> Unit,
     onForward: () -> Unit,
     onNewTab: () -> Unit,
     onClose: () -> Unit,
     onOpenInBrowser: () -> Unit,
-    canGoBack: Boolean = navigation.canGoBack,
-    canGoForward: Boolean = navigation.canGoForward
+    onToggleDesktop: () -> Unit,
+    onReload: () -> Unit,
+    onSelectOriginal: () -> Unit,
+    onSelectReader: () -> Unit,
+    onOpenPageTools: () -> Unit,
+    canGoBack: Boolean = false,
+    canGoForward: Boolean = false,
+    canOpenNewTab: Boolean = true
 ) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(KitsugiColors.Surface)
-            .padding(horizontal = 6.dp, vertical = 4.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        IconButton(onClick = onBack, enabled = canGoBack) {
-            Icon(
-                imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
-                contentDescription = stringResource(R.string.fandom_reader_back),
-                tint = if (canGoBack) accentColor else KitsugiColors.TextMuted.copy(alpha = 0.45f)
-            )
-        }
-        IconButton(onClick = onForward, enabled = canGoForward) {
-            Icon(
-                imageVector = Icons.AutoMirrored.Rounded.ArrowForward,
-                contentDescription = stringResource(R.string.fandom_reader_forward),
-                tint = if (canGoForward) accentColor else KitsugiColors.TextMuted.copy(alpha = 0.45f)
-            )
-        }
-        Text(
-            text = title ?: stringResource(R.string.fandom_reader_title),
-            color = KitsugiColors.TextPrimary,
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.Bold,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.weight(1f).padding(horizontal = 4.dp)
+    var showMenu by remember { mutableStateOf(false) }
+    Box {
+        WikiIconAction(
+            icon = Icons.Rounded.MoreVert,
+            contentDescription = stringResource(R.string.wiki_more_actions),
+            tint = KitsugiColors.TextSecondary,
+            onClick = { showMenu = true }
         )
-        IconButton(onClick = onOpenInBrowser, enabled = title != null) {
-            Icon(
-                imageVector = Icons.Rounded.Language,
-                contentDescription = stringResource(R.string.fandom_reader_open_browser),
-                tint = accentColor
+        DropdownMenu(
+            expanded = showMenu,
+            onDismissRequest = { showMenu = false },
+            containerColor = KitsugiColors.Surface
+        ) {
+            // ── Gezinme ──────────────────────────────────────────────────────
+            ReaderMenuItem(
+                label = stringResource(R.string.fandom_reader_back),
+                icon = Icons.AutoMirrored.Rounded.ArrowBack,
+                enabled = canGoBack,
+                onClick = { showMenu = false; onBack() }
             )
-        }
-        IconButton(onClick = onNewTab, enabled = navigation.canOpenNewTab) {
-            Icon(
-                imageVector = Icons.Rounded.Add,
-                contentDescription = stringResource(R.string.fandom_reader_new_tab),
-                tint = accentColor
+            ReaderMenuItem(
+                label = stringResource(R.string.fandom_reader_forward),
+                icon = Icons.AutoMirrored.Rounded.ArrowForward,
+                enabled = canGoForward,
+                onClick = { showMenu = false; onForward() }
             )
-        }
-        IconButton(onClick = onClose) {
-            Icon(
-                imageVector = Icons.Rounded.Close,
-                contentDescription = stringResource(R.string.fandom_reader_close),
-                tint = KitsugiColors.TextMuted
+            ReaderMenuDivider()
+            // ── Görünüm modu ─────────────────────────────────────────────
+            ReaderMenuItem(
+                label = stringResource(R.string.wiki_original_page),
+                icon = Icons.Rounded.Language,
+                checked = webMode,
+                onClick = { showMenu = false; onSelectOriginal() }
+            )
+            ReaderMenuItem(
+                label = stringResource(R.string.wiki_simple_reader),
+                icon = Icons.Rounded.MenuBook,
+                checked = !webMode,
+                onClick = { showMenu = false; onSelectReader() }
+            )
+            if (webMode) {
+                ReaderMenuDivider()
+                // ── Sayfa araçları (çeviri, reklam engeli, görünüm…) ─────
+                ReaderMenuItem(
+                    label = stringResource(R.string.wiki_page_tools),
+                    icon = Icons.Rounded.Tune,
+                    onClick = { showMenu = false; onOpenPageTools() }
+                )
+                ReaderMenuItem(
+                    label = stringResource(
+                        if (desktopMode) R.string.wiki_mobile_layout
+                        else R.string.wiki_desktop_layout
+                    ),
+                    icon = Icons.Rounded.Web,
+                    onClick = { showMenu = false; onToggleDesktop() }
+                )
+                ReaderMenuItem(
+                    label = stringResource(R.string.yenile),
+                    icon = Icons.Rounded.Refresh,
+                    onClick = { showMenu = false; onReload() }
+                )
+            }
+            ReaderMenuDivider()
+            // ── Tarayıcı eylemleri ───────────────────────────────────────
+            ReaderMenuItem(
+                label = stringResource(R.string.fandom_reader_open_browser),
+                icon = Icons.Rounded.OpenInNew,
+                enabled = hasPage,
+                onClick = { showMenu = false; onOpenInBrowser() }
+            )
+            ReaderMenuItem(
+                label = stringResource(R.string.fandom_reader_new_tab),
+                icon = Icons.Rounded.Add,
+                enabled = canOpenNewTab,
+                onClick = { showMenu = false; onNewTab() }
+            )
+            ReaderMenuItem(
+                label = stringResource(R.string.fandom_reader_close),
+                icon = Icons.Rounded.Close,
+                onClick = { showMenu = false; onClose() }
             )
         }
     }
 }
 
+/**
+ * `⋮` menüsündeki tek satır. Tüm okuyucu komutları aynı görsel dilde: 18 dp ikon,
+ * tek satır etiket ve seçili modda sağda onay işareti.
+ */
+@Composable
+private fun ReaderMenuItem(
+    label: String,
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    enabled: Boolean = true,
+    checked: Boolean = false,
+    onClick: () -> Unit
+) {
+    DropdownMenuItem(
+        text = {
+            Text(
+                text = label,
+                color = if (enabled) KitsugiColors.TextPrimary else KitsugiColors.TextMuted,
+                style = MaterialTheme.typography.bodyMedium
+            )
+        },
+        leadingIcon = {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                tint = if (enabled) KitsugiColors.TextSecondary
+                else KitsugiColors.TextMuted.copy(alpha = 0.5f),
+                modifier = Modifier.size(18.dp)
+            )
+        },
+        trailingIcon = if (checked) {
+            {
+                Icon(
+                    imageVector = Icons.Rounded.Check,
+                    contentDescription = null,
+                    tint = KitsugiColors.TextPrimary,
+                    modifier = Modifier.size(17.dp)
+                )
+            }
+        } else null,
+        enabled = enabled,
+        onClick = onClick
+    )
+}
+
+@Composable
+private fun ReaderMenuDivider() {
+    HorizontalDivider(
+        color = KitsugiColors.Border.copy(alpha = 0.4f),
+        thickness = 1.dp
+    )
+}
+
 /** Sekmelerin en dar hâli; bunun altına sığılmazsa şerit yatay kaydırılır (Chrome davranışı). */
-private val READER_TAB_MIN_WIDTH = 88.dp
+private val READER_TAB_MIN_WIDTH = 84.dp
 
 /** Az sekme varken bir sekmenin genişleyebileceği üst sınır; artan alan boş kalır. */
-private val READER_TAB_MAX_WIDTH = 220.dp
+private val READER_TAB_MAX_WIDTH = 208.dp
 private val READER_TAB_SPACING = 6.dp
-private val READER_TAB_HEIGHT = 38.dp
+private val READER_TAB_HEIGHT = 32.dp
 
 /**
  * Chrome/Brave tarzı sekme şeridi:
@@ -546,62 +642,113 @@ private fun ReaderTabStrip(
     accentColor: Color,
     onSwitchTab: (Long) -> Unit,
     onCloseTab: (Long) -> Unit,
-    onCloseOtherTabs: (Long) -> Unit = {}
+    onCloseOtherTabs: (Long) -> Unit = {},
+    onNewTab: () -> Unit = {},
+    /** Şeridin sağ köşesine yaslanan eylem(ler): `⋮` menüsü. */
+    trailing: @Composable () -> Unit = {}
 ) {
-    if (navigation.tabs.isEmpty()) return
-    BoxWithConstraints(
+    // Şerit HER ZAMAN görünür (tek sekmede de) ve tarayıcıda görünür kalan TEK denetim
+    // grubudur. Yeni sekme `+` şeridin sonunda; kalan tüm komutlar sağ köşedeki `⋮`'de.
+    Row(
         modifier = Modifier
             .fillMaxWidth()
-            .background(KitsugiColors.Surface.copy(alpha = 0.72f))
-            .padding(start = 10.dp, end = 10.dp, top = 6.dp)
+            .background(KitsugiColors.Surface)
+            .padding(start = 10.dp, end = 2.dp, top = 3.dp, bottom = 5.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(READER_TAB_SPACING)
     ) {
-        val count = navigation.tabs.size
-        val equalWidth = (maxWidth - READER_TAB_SPACING * (count - 1)) / count
-        if (equalWidth >= READER_TAB_MIN_WIDTH) {
-            // Hepsi ekrana sığıyor: eşit paylaş (gerekirse üst sınırda bırak).
-            Row(horizontalArrangement = Arrangement.spacedBy(READER_TAB_SPACING)) {
-                navigation.tabs.forEach { tab ->
-                    ReaderTabChip(
-                        title = tab.location.title,
-                        selected = tab.id == navigation.activeTabId,
+        BoxWithConstraints(modifier = Modifier.weight(1f)) {
+            val count = navigation.tabs.size.coerceAtLeast(1)
+            // `+` kare bir çip; sekme genişliklerini hesaplarken yerini baştan ayır.
+            val newTabSlot = READER_TAB_HEIGHT
+            val equalWidth = (maxWidth - newTabSlot - READER_TAB_SPACING * count) / count
+            if (equalWidth >= READER_TAB_MIN_WIDTH) {
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(READER_TAB_SPACING),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    navigation.tabs.forEach { tab ->
+                        ReaderTabChip(
+                            title = tab.location.title,
+                            selected = tab.id == navigation.activeTabId,
+                            accentColor = accentColor,
+                            showClose = true,
+                            onClick = { onSwitchTab(tab.id) },
+                            onClose = { onCloseTab(tab.id) },
+                            onLongClick = { onCloseOtherTabs(tab.id) },
+                            modifier = if (equalWidth > READER_TAB_MAX_WIDTH) {
+                                Modifier.width(READER_TAB_MAX_WIDTH)
+                            } else {
+                                Modifier.weight(1f)
+                            }
+                        )
+                    }
+                    ReaderNewTabChip(
+                        enabled = navigation.canOpenNewTab,
                         accentColor = accentColor,
-                        showClose = tab.id == navigation.activeTabId || equalWidth >= 132.dp,
-                        onClick = { onSwitchTab(tab.id) },
-                        onClose = { onCloseTab(tab.id) },
-                        onLongClick = { onCloseOtherTabs(tab.id) },
-                        modifier = if (equalWidth > READER_TAB_MAX_WIDTH) {
-                            Modifier.width(READER_TAB_MAX_WIDTH)
-                        } else {
-                            Modifier.weight(1f)
-                        }
+                        onClick = onNewTab
                     )
                 }
-            }
-        } else {
-            // Sığmıyor: sabit dar genişlik + yatay kaydırma; aktif sekme görünür tutulur.
-            val listState = androidx.compose.foundation.lazy.rememberLazyListState()
-            val activeIndex = navigation.tabs.indexOfFirst { it.id == navigation.activeTabId }
-            LaunchedEffect(navigation.activeTabId, navigation.tabs.size) {
-                if (activeIndex >= 0) listState.animateScrollToItem(activeIndex)
-            }
-            LazyRow(
-                state = listState,
-                horizontalArrangement = Arrangement.spacedBy(READER_TAB_SPACING)
-            ) {
-                items(navigation.tabs, key = { it.id }) { tab ->
-                    ReaderTabChip(
-                        title = tab.location.title,
-                        selected = tab.id == navigation.activeTabId,
-                        accentColor = accentColor,
-                        showClose = tab.id == navigation.activeTabId,
-                        onClick = { onSwitchTab(tab.id) },
-                        onClose = { onCloseTab(tab.id) },
-                        onLongClick = { onCloseOtherTabs(tab.id) },
-                        modifier = Modifier.width(READER_TAB_MIN_WIDTH)
-                    )
+            } else {
+                // Sığmıyor: sabit dar genişlik + yatay kaydırma; aktif sekme görünür tutulur.
+                val listState = androidx.compose.foundation.lazy.rememberLazyListState()
+                val activeIndex = navigation.tabs.indexOfFirst { it.id == navigation.activeTabId }
+                LaunchedEffect(navigation.activeTabId, navigation.tabs.size) {
+                    if (activeIndex >= 0) listState.animateScrollToItem(activeIndex)
+                }
+                LazyRow(
+                    state = listState,
+                    horizontalArrangement = Arrangement.spacedBy(READER_TAB_SPACING),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    items(navigation.tabs, key = { it.id }) { tab ->
+                        ReaderTabChip(
+                            title = tab.location.title,
+                            selected = tab.id == navigation.activeTabId,
+                            accentColor = accentColor,
+                            showClose = true,
+                            onClick = { onSwitchTab(tab.id) },
+                            onClose = { onCloseTab(tab.id) },
+                            onLongClick = { onCloseOtherTabs(tab.id) },
+                            modifier = Modifier.width(READER_TAB_MIN_WIDTH)
+                        )
+                    }
+                    item {
+                        ReaderNewTabChip(
+                            enabled = navigation.canOpenNewTab,
+                            accentColor = accentColor,
+                            onClick = onNewTab
+                        )
+                    }
                 }
             }
         }
+        trailing()
+    }
+}
+
+/** Sekme şeridinin sonundaki `+`: yeni sekme (Chrome/Brave düzeni). */
+@Composable
+private fun ReaderNewTabChip(
+    enabled: Boolean,
+    accentColor: Color,
+    onClick: () -> Unit
+) {
+    val shape = RoundedCornerShape(10.dp)
+    Box(
+        modifier = Modifier
+            .size(READER_TAB_HEIGHT)
+            .clip(shape)
+            .background(KitsugiColors.SurfaceSoft.copy(alpha = 0.7f))
+            .tvClickable(enabled = enabled, shape = shape, onClick = onClick),
+        contentAlignment = Alignment.Center
+    ) {
+        Icon(
+            imageVector = Icons.Rounded.Add,
+            contentDescription = stringResource(R.string.fandom_reader_new_tab),
+            tint = if (enabled) accentColor else KitsugiColors.TextMuted.copy(alpha = 0.4f),
+            modifier = Modifier.size(16.dp)
+        )
     }
 }
 
@@ -643,15 +790,20 @@ private fun ReaderTabChip(
             modifier = Modifier.weight(1f)
         )
         if (showClose) {
-            IconButton(
-                onClick = onClose,
-                modifier = Modifier.size(28.dp)
+            // Material `IconButton` 48 dp'lik dokunma hedefi ekleyip 32 dp'lik sekme
+            // şeridinin ölçüsünü bozuyordu; 22 dp daire yeterli ve şerit içinde kalıyor.
+            Box(
+                modifier = Modifier
+                    .size(22.dp)
+                    .clip(CircleShape)
+                    .tvClickable(shape = CircleShape, onClick = onClose),
+                contentAlignment = Alignment.Center
             ) {
                 Icon(
                     imageVector = Icons.Rounded.Close,
                     contentDescription = stringResource(R.string.fandom_reader_close_tab, title),
                     tint = if (selected) accentColor else KitsugiColors.TextMuted,
-                    modifier = Modifier.size(15.dp)
+                    modifier = Modifier.size(13.dp)
                 )
             }
         }

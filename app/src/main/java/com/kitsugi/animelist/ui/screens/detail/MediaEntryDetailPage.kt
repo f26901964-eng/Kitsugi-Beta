@@ -156,6 +156,8 @@ fun MediaEntryDetailPage(
     onSearchByTag: (com.kitsugi.animelist.data.remote.KitsugiTag) -> Unit = {},
     onSearchBySeason: (com.kitsugi.animelist.ui.screens.search.DetailSeasonMetadata) -> Unit = {},
     titleLanguage: String = "ROMAJI",
+    /** Kişi/karakter adı dili — başlık dilinden bağımsız ayar (bkz. [ApiResultDetailPage]). */
+    staffNameLanguage: String = com.kitsugi.animelist.data.settings.KitsugiContentPrefs.staffNameLanguage,
     scoreFormat: String = "POINT_10",
     hideScores: Boolean = false,
     showAnimeLogos: Boolean = false,
@@ -633,8 +635,8 @@ fun MediaEntryDetailPage(
                             KitsugiMediaVideosTab(detail = detailState, mediaTitle = displayEntry.title)
                         }
                     }
-                    3 -> CharactersTabContent(state = charactersState, onCharacterClick = onCharacterClick, onStaffClick = onStaffClick, onMediaClick = onMediaClick, titleLanguage = titleLanguage)
-                    4 -> StaffTabContent(state = staffState, onStaffClick = onStaffClick, titleLanguage = titleLanguage)
+                    3 -> CharactersTabContent(state = charactersState, onCharacterClick = onCharacterClick, onStaffClick = onStaffClick, onMediaClick = onMediaClick, titleLanguage = titleLanguage, staffNameLanguage = staffNameLanguage)
+                    4 -> StaffTabContent(state = staffState, onStaffClick = onStaffClick, titleLanguage = titleLanguage, staffNameLanguage = staffNameLanguage)
                     5 -> RecommendationsTabContent(state = recommendationsState, titleLanguage = titleLanguage, blurAdultMedia = blurAdultMedia, onRecommendationClick = { rel ->
                         val typeLabel = context.getString(rel.mediaType.labelRes())
                         onRelationClick(JikanSearchResult(

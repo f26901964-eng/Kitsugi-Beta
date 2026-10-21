@@ -38,6 +38,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -356,12 +357,20 @@ fun KitsugiYouTubePlayer(
             }
         ) {
             Box(modifier = Modifier.fillMaxSize()) {
-                AndroidView(
-                    factory = { ctx ->
-                        playerEngine.createVideoView(ctx)
-                    },
-                    modifier = Modifier.fillMaxSize()
-                )
+                // KRİTİK: `AndroidView`'ın `factory`'si yalnızca düğüm ilk oluşturulurken
+                // çalışır. Yedek motor devreye girdiğinde `playerEngine` değişiyor ama
+                // aynı konumdaki AndroidView eski (artık serbest bırakılmış) motorun
+                // görünümünü tutmaya devam ediyordu: yeni motorun hiç yüzeyi olmuyor,
+                // ses çalıyor ve ekran siyah kalıyordu. `key(playerEngine)` düğümü yeni
+                // motorla yeniden kurar; her motor kendi görünümünü alır.
+                key(playerEngine) {
+                    AndroidView(
+                        factory = { ctx ->
+                            playerEngine.createVideoView(ctx)
+                        },
+                        modifier = Modifier.fillMaxSize()
+                    )
+                }
                 if (playerState == PlayerEngine.State.BUFFERING && !hasStartedPlayback) {
                     Box(
                         modifier = Modifier.fillMaxSize(),
@@ -495,9 +504,13 @@ fun KitsugiPlayerGestureWrapper(
             }
         }
 
-        // Ortadaki oynat / duraklat düğmesi
+        // Ortadaki oynat / duraklat düğmesi.
+        // Oynarken gizli kalır: videonun ortasında sürekli duran büyük "duraklat"
+        // simgesi hem görüntüyü kapatıyor hem de ucuz duruyordu. Duraklatınca
+        // (veya kontroller açıkken duraklatılmışsa) ortaya gelir; oynatırken kontrol
+        // çubuğundaki düğme kullanılır.
         AnimatedVisibility(
-            visible = showControls,
+            visible = showControls && !isPlaying,
             modifier = Modifier.align(Alignment.Center),
             enter = fadeIn(animationSpec = tween(150)),
             exit = fadeOut(animationSpec = tween(200))

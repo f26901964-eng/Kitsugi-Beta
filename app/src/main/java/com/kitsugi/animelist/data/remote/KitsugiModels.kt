@@ -208,6 +208,8 @@ data class KitsugiCharacter(
     // Canlı çekim (animasyon olmayan) dizi/film karakterleri: detay sayfası
     // AniList/MAL/Kitsu araması yerine doğrudan TMDB/Simkl verisiyle açılır.
     val isRealMediaRole: Boolean = false,
+    // TMDB jeneriğinde "(voice)" / "(seslendirme)" olarak işaretlenmiş seslendirme rolü mü?
+    val isVoiceRole: Boolean = false,
     val romanizedName: String? = null,
     val nativeName: String? = null,
     val englishName: String? = null
@@ -482,7 +484,10 @@ fun MediaEntry.matches(result: JikanSearchResult): Boolean {
 
 private fun MediaEntry.matchesProviderIdentity(result: JikanSearchResult): Boolean =
     matchesProviderId(result.malId, result.source) ||
-        (canonicalMediaSourceId(source) == "simkl" && simklId != null && simklId == result.malId)
+        (canonicalMediaSourceId(source) == "simkl" && (
+            (simklId != null && simklId == result.malId) ||
+            (result.realMalId != null && malId != null && malId == result.realMalId)
+        ))
 
 private fun MediaEntry.matchesProviderId(mediaId: Int, mediaSource: String): Boolean {
     if (canonicalMediaSourceId(source) != canonicalMediaSourceId(mediaSource)) return false

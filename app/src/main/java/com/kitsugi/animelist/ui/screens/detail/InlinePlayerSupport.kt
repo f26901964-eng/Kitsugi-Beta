@@ -12,9 +12,13 @@ internal fun PlayerEngineType.alternateInlineEngine(): PlayerEngineType = when (
 }
 
 /**
- * YouTube's extracted, signed Googlevideo streams use the Media3-specific request/data-source
- * policy. Keep Media3 as the inline first choice for these URLs (matching fullscreen playback),
- * while preserving the user's engine preference for ordinary direct OP/ED files.
+ * YouTube'un çıkarılmış imzalı Googlevideo akışları Media3'ün istek/veri kaynağı politikasını
+ * gerektirir. Bu adreslerde küçük oynatıcı Media3 ile başlar (tam ekranla aynı yol).
+ *
+ * NOT: Doğrudan OP/ED dosyaları bu fonksiyonu artık kullanmıyor; onlar
+ * [initialCompactThemeEngineType] üzerinden Media3 ile başlar (cihazda VP9 çözücüsü yoksa
+ * doğrudan MPV). Bu fonksiyon yalnızca YouTube inline akışı ve mevcut çağrı yerleriyle
+ * geriye dönük uyumluluk için genel tercih eşlemesini korur.
  */
 internal fun initialInlineEngineType(
     configuredPreference: String?,
@@ -25,9 +29,56 @@ internal fun initialInlineEngineType(
     else -> PlayerEngineType.MEDIA3
 }
 
+/**
+ * Kompakt (detay sayfası içindeki) tema oynatıcısı her zaman Media3 ile başlar.
+ *
+ * NEDEN (2026-10-21 saha raporu): aynı sayfada fragman (Media3 + TextureView) sorunsuz
+ * oynarken OP/ED videoları sesli ama siyah kalıyordu. Fark motordu: varsayılan ayar
+ * "MPV" olduğu için OP/ED satırları MPV'nin SurfaceView'ını kullanıyordu. SurfaceView,
+ * Compose'un kırpılmış/ölçüsü animasyonla değişen kabında (kart `clip()` +
+ * `animateDetailContentSize()`) görünür bir yüzeye bağlanamıyor; mpv sesi çalıyor,
+ * kare üretmiyor. Media3'ün PlayerView'ı TextureView kullandığı için aynı kabın içinde
+ * doğru çiziliyor ve tam ekran oynatıcıyla aynı motoru kullanıyor.
+ *
+ * Kullanıcının genel motor tercihi tam ekranda korunur; kompakt oynatıcıda Media3
+ * başarısız olursa MPV yalnızca bir kez yedek olarak denenir.
+ */
+internal fun initialCompactThemeEngineType(url: String? = null): PlayerEngineType {
+    // AnimeThemes açılış/kapanış dosyaları çoğunlukla VP9 `.webm`. Cihazda VP9 çözücüsü
+    // yoksa Media3 sesi çalar ama hiç kare üretmez; bekçi 6. saniyede MPV'ye geçene kadar
+    // kullanıcı siyah ekran görür. Çözücü yokluğu ÖNCEDEN bilinebildiği için doğrudan
+    // MPV (yazılım çözücü) ile başlanır — altı saniyelik siyah ekran tamamen atlanır.
+    val looksWebm = url?.contains(".webm", ignoreCase = true) == true
+    if (looksWebm && !deviceHasVideoDecoder(VP9_MIME)) return PlayerEngineType.MPV
+    return PlayerEngineType.MEDIA3
+}
+
+private const val VP9_MIME = "video/x-vnd.on2.vp9"
+
+/**
+ * Cihazda verilen MIME türü için bir çözücü kayıtlı mı?
+ *
+ * Bilinmeyen/okunamayan durumda `true` döner: yanlışlıkla MPV'ye düşmek yerine Media3
+ * ile başlanır (Media3 render edemezse bekçi zaten motoru değiştirir).
+ */
+private fun deviceHasVideoDecoder(mime: String): Boolean = runCatching {
+    android.media.MediaCodecList(android.media.MediaCodecList.REGULAR_CODECS).codecInfos.any { info ->
+        !info.isEncoder && info.supportedTypes.any { it.equals(mime, ignoreCase = true) }
+    }
+}.getOrDefault(true)
+
 /** READY only means prepared; it does not prove that inline playback actually advanced. */
 internal fun hasInlinePlaybackProgress(state: PlayerEngine.State, positionMs: Long): Boolean =
     state == PlayerEngine.State.ENDED || positionMs > 0L
+
+/**
+ * Kare gerçekten ekranda mı? Seçili video parçası TEK BAŞINA yetmez:
+ * Media3'te çözücü kare üretmese de `currentTracks` parçayı seçili gösterir; MPV'de
+ * `vo-configured` yüzeyin görünür olduğunu garanti etmez. Bu yüzden hem parça hem
+ * "kare çizildi" bilgisi birlikte okunur.
+ */
+internal fun inlineVideoVisible(engine: PlayerEngine): Boolean =
+    engine.hasVideoTrack && engine.hasRenderedVideoFrame
 
 /**
  * Sessiz "sesi var, görüntüsü yok" durumunu yakalamak için tanınan süre.
@@ -50,9 +101,9 @@ internal fun audioOnlyPlaybackDetected(
     elapsedMs: Long,
     state: PlayerEngine.State,
     positionMs: Long,
-    hasVideoTrack: Boolean
+    hasVisibleVideo: Boolean
 ): Boolean = elapsedMs >= INLINE_AUDIO_ONLY_GRACE_MS &&
-    hasVideoTrack.not() &&
+    hasVisibleVideo.not() &&
     hasInlinePlaybackProgress(state, positionMs)
 
 
@@ -72,9 +123,12 @@ internal suspend fun waitForInlineVideoTrack(
     val startedAt = android.os.SystemClock.elapsedRealtime()
     while (true) {
         if (!isResumed()) return false
-        if (engine.hasVideoTrack) return false
+        if (inlineVideoVisible(engine)) return false
         if (!engine.isPlaying) {
-            // Kullanıcı duraklattı: hüküm vermeden bekle.
+            // Kullanıcı duraklattı: hüküm vermeden bekle. Bekçi yine de sonsuza kadar
+            // yaşamamalı (ekran kapanıp cihaz uykuya geçebilir); 30 sn sonra sessizce çık.
+            val pausedFor = android.os.SystemClock.elapsedRealtime() - startedAt
+            if (pausedFor > graceMs + 24_000L) return false
             kotlinx.coroutines.delay(pollMs)
             continue
         }
@@ -83,7 +137,7 @@ internal suspend fun waitForInlineVideoTrack(
                 elapsedMs = elapsedMs,
                 state = engine.currentState,
                 positionMs = engine.currentPosition,
-                hasVideoTrack = engine.hasVideoTrack
+                hasVisibleVideo = inlineVideoVisible(engine)
             )) {
             return true
         }

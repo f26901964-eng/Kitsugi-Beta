@@ -90,6 +90,14 @@ class Media3PlayerEngine(
     @Volatile private var released = false
 
     /**
+     * İlk video karesi gerçekten çizildi mi? [Player.Listener.onRenderedFirstFrame] ile
+     * işaretlenir; her yeni medyada sıfırlanır. `currentTracks` video parçasını seçili
+     * gösterse bile çözücü kare üretemiyorsa bu bayrak `false` kalır ve küçük oynatıcı
+     * sessiz "sesi var, görüntüsü yok" durumunu yakalayıp yedek motora geçebilir.
+     */
+    @Volatile private var renderedFirstVideoFrame = false
+
+    /**
      * Zaman çizgisi darbesi. Media3 konum değişimlerini `Player.Listener` üzerinden
      * bildirmediği için detay sayfasındaki küçük oynatıcı sayacı 00:00'da donmuş
      * görünüyordu. Saniyede dört bildirim sayaç ve ilerleme çubuğu için fazlasıyla
@@ -181,6 +189,16 @@ class Media3PlayerEngine(
             ?.any { group ->
                 group.type == androidx.media3.common.C.TRACK_TYPE_VIDEO && group.isSelected
             } == true
+
+    /**
+     * Seçilen video parçası için en az bir kare çizildi mi?
+     *
+     * Yalnızca [hasVideoTrack]'e güvenmek, çözücüsü olmayan (ör. VP9) bir dosyada
+     * "parça seçili ama ekran siyah" durumunu kaçırıyordu. Media3 ilk kareyi
+     * `onRenderedFirstFrame` ile bildirir; bu bayrak o ana kadar `false` kalır.
+     */
+    override val hasRenderedVideoFrame: Boolean
+        get() = renderedFirstVideoFrame
         
     override val currentSpeed: Float
         get() = exoPlayer?.playbackParameters?.speed ?: settings.playerSpeed
@@ -271,6 +289,10 @@ class Media3PlayerEngine(
         )
 
     private val playerListener = object : Player.Listener {
+        override fun onRenderedFirstFrame() {
+            renderedFirstVideoFrame = true
+        }
+
         override fun onIsPlayingChanged(isPlaying: Boolean) {
             // CRITICAL: This is the correct callback for play/pause transitions in ExoPlayer/Media3.
             // onPlaybackStateChanged does NOT fire when the user pauses — only this callback does.
@@ -1000,6 +1022,8 @@ class Media3PlayerEngine(
                 )
             player.setMediaSource(sourceToSet)
 
+            // Yeni medya: önceki dosyanın "ilk kare çizildi" bilgisi taşınmamalı.
+            renderedFirstVideoFrame = false
             player.playbackParameters = androidx.media3.common.PlaybackParameters(currentPlaybackSpeed)
             player.playWhenReady = true
             player.prepare()
@@ -1453,6 +1477,7 @@ class Media3PlayerEngine(
 
     override fun release() {
         released = true
+        renderedFirstVideoFrame = false
         stopPositionTicker()
         runOnMainThread {
             exoPlayer?.let { player ->

@@ -96,8 +96,10 @@ fun CharactersTabContent(
             if (full.size > sheetVoiceActors.size) {
                 sheetVoiceActors = full.map { va ->
                     va.copy(
+                        // Seslendirmen adları da "personel adı dili" ayarına uyar; başlık
+                        // dili bu adları etkilememeli (tutarsızlık raporu).
                         name = displayPersonName(
-                            va.name, va.romanizedName, va.nativeName, titleLanguage, va.englishName
+                            va.name, va.romanizedName, va.nativeName, staffNameLanguage, va.englishName
                         )
                     )
                 }

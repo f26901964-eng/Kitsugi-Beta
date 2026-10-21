@@ -408,6 +408,7 @@ class CharacterDetailViewModel(application: Application) : AndroidViewModel(appl
                 source = source,
                 detail = detail,
                 requestedName = name,
+                isRealMediaRole = isRealMediaRole,
                 expectedFetchKey = expectedFetchKey
             )
         } else if (currentFetchKey == expectedFetchKey && _state.value !is CharacterDetailState.Success) {
@@ -446,6 +447,7 @@ class CharacterDetailViewModel(application: Application) : AndroidViewModel(appl
         source: String,
         detail: KitsugiCharacterDetail,
         requestedName: String?,
+        isRealMediaRole: Boolean = false,
         expectedFetchKey: String
     ) {
         if (currentFetchKey != expectedFetchKey) return
@@ -494,7 +496,8 @@ class CharacterDetailViewModel(application: Application) : AndroidViewModel(appl
                 // Karakterin kimliği (MAL/AniList) biliniyorsa ya da sayfa adı doğrulanmış bir
                 // TMDB rolünden açıldıysa tek kelimeli adlar ("Nobita", "Doraemon") da aday
                 // kabul edilir; katı kural bu karakterlerin galerisini tamamen boş bırakıyordu.
-                allowSingleTokenNames = aniListId != null || malId != null
+                allowSingleTokenNames = aniListId != null || malId != null ||
+                    canonical == "tmdb" || !requestedName.isNullOrBlank()
             )
         }.getOrDefault(emptyList())
 
@@ -508,6 +511,18 @@ class CharacterDetailViewModel(application: Application) : AndroidViewModel(appl
                 }
             }
         }.distinctBy { it.url }
+
+        val bestPortrait = items.firstOrNull()?.url
+        if (!bestPortrait.isNullOrBlank()) {
+            if (!isRealMediaRole) {
+                names.forEach { alias -> DetailCache.propagateCharacterPortrait(alias, bestPortrait) }
+            }
+            if (detail.imageUrl.isNullOrBlank() && currentFetchKey == expectedFetchKey) {
+                val upgraded = detail.copy(imageUrl = bestPortrait)
+                _state.value = CharacterDetailState.Success(upgraded)
+                DetailCache.putCharacterDetail(source, characterId, upgraded, lastCharacterCacheIdentity)
+            }
+        }
 
         if (currentFetchKey == expectedFetchKey) _galleryItems.value = items
     }
@@ -562,7 +577,9 @@ class CharacterDetailViewModel(application: Application) : AndroidViewModel(appl
     private fun warmBangumiCharacterTitles(detail: KitsugiCharacterDetail) {
         viewModelScope.launch {
             val updated = withContext(Dispatchers.IO) {
-                runCatching { KitsugiBangumiDetailClient.enrichCharacterDetailNames(detail, background = true) }
+                runCatching {
+                    KitsugiBangumiDetailClient.enrichCharacterDetailNames(detail, tabMode = true)
+                }
                     .getOrNull()
             } ?: return@launch
             if (updated == detail) return@launch

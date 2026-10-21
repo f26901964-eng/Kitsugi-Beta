@@ -1,5 +1,100 @@
 # Kitsugi-Beta — Sürüm Notları / Release Notes
 
+# Kitsugi Beta v2.4.340
+
+## 🇹🇷 Türkçe
+
+### ⚡ Bangumi Performansı — "Veri 5 Dakika Gelmiyor" Kök Düzeltmesi
+- **4,5 dk'lık gecikmenin kaynağı çözüldü:** Bangumi isteği başına 450 ms rezervasyon yapan eski hız sınırlayıcı saati ileriye taşıyordu. Yerine **5 istek/sn + 5 patlama** jeton kovası (token bucket) getirildi; iptal edilen istekler kredi tüketmez.
+- **Fail-fast Bangumi HTTP istemcisi:** 10/12/12 sn + 14 sn toplam tavan, gereksiz yeniden denemeler kaldırıldı.
+- **İstek seli sonlandırıldı:** Keşfet, arama şeritleri ve kütüphane artık liste modunda çalışır; yüzlerce tekil istek yerine kalıcı önbellek ve tek AniList toplu araması kullanılır.
+- **p1 (`next.bgm.tv`) dayanıklılığı:** Tek uçuş (single-flight) paylaşımı, 8 sn tavan, 60 sn geri çekilme ve 4 ağ hatasında devre kesici.
+
+### 🌐 Dil Seçeneği Artık Her Yerde Uygulanıyor
+- **Sekmelerde aşamalı boyama:** Karakterler, Ekip, Öneriler ve İlişkiler sekmeleri ham veriyi anında gösterir; Latin isim ve başlıklar arka planda çözülerek dinamik olarak güncellenir.
+- **Önbellekten açılan sekmeler de zenginleştirilir:** Önbellekteki Japonca/kanji listeler sekmeye her girişte Latin karşılıklarıyla tamamlanır.
+- **Karakter ve kişi adları kalıcı önbellekte:** `bangumi_entity_names_v1` deposu ile çözülen adlar diske kaydedilir; oturumlar ve yapımlar arasında tekrar ağ isteği yapılmaz.
+- **Karakter/kişi adı çözümü yarış modunda:** v0 API ve p1 eşzamanlı sorgulanır; ilk yanıt veren kullanılır, yavaş kalan iptal edilir.
+- **getIdentifier fırtınası bitti:** ~40.000 `bangumi_*` kaynak dizesi ve görev etiketleri önbellekli taranır; `Locale.ROOT` ile Türkçe `I/ı` uyumsuzlukları giderildi.
+
+### 🎭 TMDB Karakter Portreleri & Biyografi Çevirileri
+- TMDB kredilerinde anime karakterleri için doğru görsel ataması sağlandı; seslendirme sanatçısı görselinin karakter portresi sanılması önlendi.
+- Biyografi ve HTML içerik çevirilerinde güvenli ayrıştırma ve otomatik dil uyarlaması pekiştirildi.
+
+---
+
+## 🇬🇧 English
+
+### ⚡ Bangumi Performance — Root Cause Fix for Delays
+- **4.5-minute delay eliminated:** Replaced the legacy reservation limiter with a **5 req/s + 5 burst** token bucket; cancelled requests no longer drain credit.
+- **Fail-fast Bangumi HTTP client:** 10/12/12 s + 14 s call timeout with zero redundant retries.
+- **Request storm eliminated:** Explore, search rails, and library hydration operate in list mode with persistent caching and batched AniList lookups.
+- **p1 (`next.bgm.tv`) resilience:** Single-flight per path, 8 s timeout ceiling, backoff on failure, and circuit breaker.
+
+### 🌐 Universal Language Preference & Progressive Tab Painting
+- **Instant tab rendering:** Characters, Staff, Recommendations, and Relations display raw data instantly, while Latin names/titles resolve asynchronously in the background.
+- **Persistent name cache (`bangumi_entity_names_v1`):** Resolved Latin names are stored on disk and reused across media entries and restarts.
+- **Raced name resolution:** Queries v0 and p1 in parallel, using the fastest response and cancelling the slower request.
+- **Optimized resource lookups:** Eliminated thread contention in `getIdentifier` scans and secured keys against locale-specific casing (`Locale.ROOT`).
+
+### 🎭 TMDB Character Portraits & Content Translation
+- Fixed TMDB credits enrichment for anime titles, ensuring character portraits match without falling back to voice actor imagery.
+- Improved biography translation formatting and HTML parsing stability across detail tabs.
+
+---
+
+# Kitsugi Beta v2.4.339
+
+## 🇹🇷 Türkçe
+
+### 🎭 TMDB Karakter Görselleri, ARM v2 & Çoklu Kaynak Yedek Zinciri
+- **ARM v2 Uç Noktası & Önbellek Zehirlenmesi (`KitsugiIdResolver.kt`, `KitsugiEpisodeRatingsRepository.kt`):** `arm.haglund.dev` üzerinde `HTTP 400 Bad Request` dönen `/api/v2/ids?source=themoviedb` sorgusu yerine resmî sözleşmeye uygun `/api/v2/themoviedb?id=`, `/api/v2/thetvdb?id=`, `/api/v2/imdb?id=` ve Simkl `POST /api/v2/ids` uç noktalarına geçildi. `MOVIE` ile `TV` kayıtları ayrıştırılarak ID çakışması önlendi; Wikidata (`P4086/P8729/P11495/P12095`) köprüsü eklendi ve önbellek zehirlenmesi giderildi.
+- **Seslendirmen Kopya Görsellerinin Temizlenmesi (`TmdbCreditsClient.kt`, `KitsugiCharacterClient.kt`):** TV dizilerinde seslendirmen fotoğraflarının karakter portresi olarak atanması engellendi. Karakterler sekmesi, detay yüklemesinden önce açılsa bile seslendirme sinyalleriyle zenginleştirilerek gerçek kurgusal portrelerle doldurulur.
+- **Çoklu Kaynak Yedek Zinciri & Doraemon Seri Filmleri:** AniList kesintilerinde Jikan, hızlı Shikimori `/roles`, Kitsu, Bangumi, Simkl ve Fandom paralel yedek zinciri devreye alınır. Seri filmlerindeki ilk 8 popüler yapım elemesi ve tek kelimeli isimlerin düşürülmesi hatası düzeltildi; karakter detayında yüklenen görseller sekme önbelleğine geri yayılır.
+
+### 🗑️ Aktivite Silme: Açılır Panel Kaldırıldı
+- **Tek dokunuş silme (`ProfileActivityComponents.kt`):** Kendi AniList profilindeki aktivite kartlarında üç nokta (⋮) düğmesi ve tek satırlık "Sil" açılır menüsü kaldırıldı. Yerine doğrudan, kartın sağ üstünde duran kırmızı çöp kutusu düğmesi getirildi.
+- **Onay korundu:** Düğme, çağrı yerindeki mevcut `KitsugiConfirmDialog` penceresini açar; kazara silme koruması aynen korunur.
+
+### 🌐 Kullanıcı Biyografilerinde Otomatik Çeviri (Wiki Mantığı)
+- **Ortak altyapı (`KitsugiAutoTranslation.kt`, `KitsugiHtmlTranslation.kt`):** Wiki çeviri kuralları profillere taşındı: ayar açıksa çeviri uygulama içinde yapılır ve bellekte tutulur. Çeviri ikonu nabız animasyonu gösterir ve kompakt "Orijinal / Çeviri" çipi sunulur.
+- **HTML güvenli çeviri:** Biyografi HTML'i yalnızca metin düğümleri üzerinden çevrilir. Etiketler, resimler ve bağlantılar korunur; `<script>`, `<code>` bloklarına dokunulmaz.
+- **Kapsam:** AniList, Kitsu, Shikimori, Simkl ve MAL profilleri; WebView yeniden yaratılmadan güncellenir.
+- **Takip butonu metni (`profile_following_button`):** Yanlış anlam veren "Takip Ediliyorsun" yerine doğru "Takiptesin" yapıldı.
+
+### 🏷️ Listem Rozetleri: Köşelere Yapışık ve Kompakt
+- **Poster köşe rozetleri (`KitsugiMediaEntryCard.kt`):** Durum ve puan rozetleri posterin köşelerine tam yapışık yerleştirildi (`TopEndCornerShape` / `BottomEndCornerShape`).
+- **Kompakt stil:** 9sp etiket boyutu, daraltılmış iç boşluk, taşmaları önleyen `widthIn(max = 108.dp)` sınırı.
+
+### 📖 Kompakt Wiki Araç Çubuğu & Oynatıcı Fallback
+- **Kompakt Wiki Çubuğu (`WikiPageTools.kt`, `WikiChromeComponents.kt`):** Çeviri ve reklam engeli durumu tek satırlık modern araç çubuğunda gösterilir; sayfa görünümü rahatlatıldı.
+- **Satır İçi Video Oynatıcı Fallback (`InlinePlayerSupport.kt`):** Detay/Fragman bölümünde cihaz donanımının çözemediği kodeklerle karşılaşıldığında tam ekran yazılımsal oynatıcıya geçiş kartı sunulur.
+
+---
+
+## 🇬🇧 English
+
+### 🎭 TMDB Character Portraits, ARM v2 & Multi-Source Fallback Chain
+- **ARM v2 Endpoint & Cache Poisoning (`KitsugiIdResolver.kt`, `KitsugiEpisodeRatingsRepository.kt`):** Replaced `/api/v2/ids?source=themoviedb` (which returned `HTTP 400 Bad Request`) with the official ARM endpoints `/api/v2/themoviedb?id=`, `/api/v2/thetvdb?id=`, `/api/v2/imdb?id=`, and Simkl `POST /api/v2/ids`. Differentiated `MOVIE` from `TV` records to prevent ID collision; integrated Wikidata (`P4086/P8729/P11495/P12095`) bridge and resolved cache poisoning.
+- **Voice Actor Duplicate Image Cleanup (`TmdbCreditsClient.kt`, `KitsugiCharacterClient.kt`):** Prevented actor portrait propagation into character slots for TV series. The characters tab populates genuine fictional character artwork even when opened prior to media detail resolution.
+- **Multi-Source Fallback & Franchise Fixes:** Activated parallel fallbacks via Jikan, fast Shikimori `/roles`, Kitsu, Bangumi, Simkl, and Fandom during AniList downtime. Fixed franchise filters dropping single-word character names (e.g. *Doraemon*) beyond the top 8 popular titles; cached character portraits backpropagate to the tab view.
+
+### 🗑️ Activity Delete: Direct Action Button
+- **One-tap delete (`ProfileActivityComponents.kt`):** Removed the redundant three-dot menu on personal AniList profile activities in favor of a direct red trash button, preserving the confirmation dialog.
+
+### 🌐 User Bio Automatic Translation
+- **Shared infrastructure (`KitsugiAutoTranslation.kt`, `KitsugiHtmlTranslation.kt`):** Brings wiki-style in-memory translation, pulsing indicators, and compact original/translated chips to user biographies across AniList, Kitsu, Shikimori, Simkl, and MAL without destroying WebView instances.
+- **Follow button fix:** Corrected Turkish label from "Takip Ediliyorsun" to "Takiptesin" (Following).
+
+### 🏷️ My List Badges: Corner-Glued & Compact
+- **Flush corner placement (`KitsugiMediaEntryCard.kt`):** Status and score badges clip tightly to poster corners with compact 9sp typography and single-line constraints.
+
+### 📖 Compact Wiki Toolbar & Player Fallback
+- **Streamlined Wiki Bar (`WikiPageTools.kt`, `WikiChromeComponents.kt`):** Unified translation and ad blocking indicators into a clean single-row bar.
+- **Inline Video Player Fallback (`InlinePlayerSupport.kt`):** Provides a seamless one-tap card to open high-profile or unsupported video codecs directly in the fullscreen player.
+
+---
+
 # Kitsugi Beta v2.4.338
 
 ## 🇹🇷 Türkçe

@@ -57,6 +57,24 @@ interface PlayerEngine {
      */
     val hasVideoTrack: Boolean get() = true
 
+    /**
+     * Video karesi GERÇEKTEN çizildi mi?
+     *
+     * [hasVideoTrack] yalnızca "video parçası seçildi" der; seçilen parçanın kare
+     * ürettiğini garanti etmez. İki gerçek durum bunu ayırır:
+     *
+     *  - Media3: video parçası seçilir, ancak çözücü kare üretmezse (ör. VP9 desteği
+     *    olmayan donanım) PlayerView siyah kalır; `currentTracks` yine de seçili döner.
+     *  - MPV: `vo-configured` görüntü çıkışının KURULDUĞUNU söyler, karenin görünür bir
+     *    yüzeye gittiğini söylemez. SurfaceView Compose'un kırpılmış/animasyonlu bir
+     *    kabında 0×0 kalırsa ses çalar, görüntü gelmez.
+     *
+     * Bu yüzden küçük oynatıcının sessiz "ses var, görüntü yok" bekçisi HER İKİ bayrağı
+     * birlikte okur. Varsayılan [hasVideoTrack]'tir: bilinmeyen/uygulanmamış motorlar
+     * yanlış yedek geçişi tetiklemez.
+     */
+    val hasRenderedVideoFrame: Boolean get() = hasVideoTrack
+
     // ── Motor yetenekleri (özellik kapıları) ─────────────────────────────────
     // UI, desteklenmeyen bir kontrolü sessizce "no-op" bırakmak yerine bu bayraklara
     // bakarak motor değiştirebilir veya kontrolü gizleyebilir. Varsayılanlar Media3'tür;

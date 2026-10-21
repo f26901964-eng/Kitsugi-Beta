@@ -17712,6 +17712,11 @@
     <string name="wiki_ads_on">Ad blocking: on (%1$d)</string>
     <string name="wiki_ads_off">Ad blocking: off (%1$d)</string>
     <string name="wiki_tools_info">About page tools</string>
+    <string name="wiki_page_tools">Page tools</string>
+    <string name="wiki_tools_translate_title">Translation</string>
+    <string name="wiki_tools_ad_block_title">Ad blocking</string>
+    <string name="wiki_tools_ad_block_blocked">%1$d requests blocked</string>
+    <string name="wiki_tools_status_title">Page status</string>
     <string name="wiki_dom_translating">Google → %1$s · Translating… (%2$d texts)</string>
     <string name="wiki_dom_translated">Google → %1$s · %2$d texts translated</string>
     <string name="wiki_dom_partial">Some texts could not be translated. Their originals were kept.</string>
@@ -17742,4 +17747,14 @@
     <string name="wiki_find_next">Next match</string>
     <string name="wiki_find_close">Close find in page</string>
     <string name="wiki_find_matches">%1$d / %2$d matches</string>
+    <!-- v2.4.337: compact wiki bar and video player fallback -->
+    <string name="wiki_more_actions">More actions</string>
+    <string name="wiki_tools_translate_on">Translation on</string>
+    <string name="wiki_tools_translate_off">Translate</string>
+    <string name="wiki_ads_short_on">%1$d blocked</string>
+    <string name="wiki_ads_short_active">Ad block on</string>
+    <string name="wiki_ads_short_off">Ad block off</string>
+    <string name="inline_video_unsupported_title">This video could not be played inline</string>
+    <string name="inline_video_unsupported_body">This format may not be decodable on this device. The fullscreen player can open this file with software decoding.</string>
+    <string name="inline_open_fullscreen">Open in fullscreen</string>
 </resources>

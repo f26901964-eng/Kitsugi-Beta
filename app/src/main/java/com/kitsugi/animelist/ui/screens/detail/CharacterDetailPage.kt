@@ -799,6 +799,7 @@ fun CharacterDetailPage(
                         onRetrySection = wikiViewModel::retryReaderSection,
                         onRetryPage = wikiViewModel::retryReaderPage,
                         onOpenLink = wikiViewModel::openReaderLink,
+                        onOpenLinkInNewTab = wikiViewModel::openReaderWebLink,
                         // Sayfa geneli Orijinal/Çeviri: tüm yüzeyler tek dokunuşla gidip gelir.
                         onSetReaderOriginal = wikiViewModel::setReaderOriginal,
                         onSetWebMode = wikiViewModel::setReaderWebMode,

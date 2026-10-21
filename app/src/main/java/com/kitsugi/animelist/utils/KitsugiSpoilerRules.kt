@@ -133,12 +133,15 @@ object KitsugiSpoilerRules {
     fun normalizeLabel(raw: String?): String {
         if (raw.isNullOrBlank()) return ""
         return raw
+            .replace('İ', 'i')
+            .replace('I', 'ı')
             .replace(WRAPPER_REGEX, " ")
             .replace('_', ' ')
             .replace('-', ' ')
             .replace(WHITESPACE_REGEX, " ")
             .trim()
             .lowercase(Locale.ROOT)
+            .replace("\u0307", "")
     }
 
     /**
