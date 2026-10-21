@@ -47,7 +47,7 @@ import android.content.Context
  *  3. Offset ve kategori parametrelerini şeffaf bir şekilde yönetir,
  *  4. Her fonksiyonun ne işe yaradığını ve hangi MAL sayfa yapısına dayandığını belgeler.
  */
-object MalNotificationWebEndpoints {
+internal object MalNotificationWebEndpoints {
 
     // ── Temel URL'ler ─────────────────────────────────────────────────────────
 
