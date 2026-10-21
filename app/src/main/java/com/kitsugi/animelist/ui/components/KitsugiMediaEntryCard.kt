@@ -22,6 +22,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Add
@@ -42,6 +43,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import coil3.compose.AsyncImage
 import com.kitsugi.animelist.model.MediaEntry
 import com.kitsugi.animelist.model.MediaType
@@ -524,12 +526,11 @@ private fun LargeMediaEntryCard(
                         initialsStyle = MaterialTheme.typography.displaySmall
                     )
 
-                    StatusPill(
+                    PosterCornerTag(
                         text = entry.status.localizedLabel(),
-                        color = statusColor,
-                        modifier = Modifier
-                            .align(Alignment.TopEnd)
-                            .padding(8.dp)
+                        tint = statusColor,
+                        shape = TopEndCornerShape,
+                        modifier = Modifier.align(Alignment.TopEnd)
                     )
                     KitsugiSourceBadge(
                         source = entry.source,
@@ -852,8 +853,7 @@ private fun PosterView(
             Box(
                 modifier = Modifier
                     .align(Alignment.TopEnd)
-                    .padding(4.dp)
-                    .clip(RoundedCornerShape(6.dp))
+                    .clip(TopEndCornerShape)
                     .background(priorityBg)
                     .padding(horizontal = 5.dp, vertical = 2.dp)
             ) {
@@ -876,9 +876,15 @@ private fun PosterView(
             initialsStyle = MaterialTheme.typography.titleLarge
         )
 
-        // Platform kaynak rozeti — sol alt
+        // Platform kaynak rozeti — sol alt köşeye yapışık; küçük posterlerde
+        // küçültülür ki görseli gereğinden fazla kaplamasın.
         KitsugiSourceBadge(
             source = entry.source,
+            size = when {
+                width <= 56 -> 16.dp
+                width <= 76 -> 18.dp
+                else -> 22.dp
+            },
             modifier = Modifier.align(Alignment.BottomStart)
         )
     }
@@ -927,12 +933,12 @@ private fun LargePosterView(
             initialsStyle = MaterialTheme.typography.displaySmall
         )
 
-        StatusPill(
+        // Durum rozeti — sağ üst köşeye yapışık, görseli kaplamayan kompakt kapsül
+        PosterCornerTag(
             text = entry.status.localizedLabel(),
-            color = statusColor,
-            modifier = Modifier
-                .align(Alignment.TopEnd)
-                .padding(12.dp)
+            tint = statusColor,
+            shape = TopEndCornerShape,
+            modifier = Modifier.align(Alignment.TopEnd)
         )
 
         // Platform kaynak rozeti — sol alt
@@ -1221,6 +1227,50 @@ private fun MinimalistMediaEntryCard(
     }
 }
 
+// ─── Poster köşe rozetleri ──────────────────────────────────────────────────
+
+/** Sağ üst köşeye tam oturan rozet biçimi: dış köşe düz, iç köşeler yumuşak. */
+private val TopEndCornerShape = RoundedCornerShape(
+    topStart = 6.dp, topEnd = 0.dp, bottomStart = 6.dp, bottomEnd = 6.dp
+)
+
+/** Sağ alt köşeye tam oturan rozet biçimi. */
+private val BottomEndCornerShape = RoundedCornerShape(
+    topStart = 6.dp, topEnd = 6.dp, bottomStart = 6.dp, bottomEnd = 0.dp
+)
+
+/**
+ * Poster köşelerine **yapışık** kompakt rozet: küçük yazı, sıkı iç boşluk ve
+ * yarı saydam koyu zemin. [shape] posterin o köşesine oturacak biçimde düz
+ * bırakılır; böylece rozet görselin üzerinde yüzüyormuş gibi durmaz, köşenin
+ * kendisiyle bütünleşir ve görseli minimum kaplar.
+ */
+@Composable
+private fun PosterCornerTag(
+    text: String,
+    tint: Color,
+    modifier: Modifier = Modifier,
+    shape: RoundedCornerShape = RoundedCornerShape(6.dp)
+) {
+    Box(
+        modifier = modifier
+            .widthIn(max = 108.dp)
+            .clip(shape)
+            .background(Color.Black.copy(alpha = 0.66f))
+            .padding(horizontal = 6.dp, vertical = 3.dp)
+    ) {
+        Text(
+            text = text,
+            color = tint,
+            style = MaterialTheme.typography.labelSmall,
+            fontSize = 9.sp,
+            fontWeight = FontWeight.Bold,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
+        )
+    }
+}
+
 // ─── 2-Sütun Grid Poster Kartı ──────────────────────────────────────────────
 
 @OptIn(ExperimentalFoundationApi::class)
@@ -1277,46 +1327,50 @@ private fun PosterGridMediaEntryCard(
                 initialsStyle = MaterialTheme.typography.titleLarge
             )
 
-            StatusPill(
-                text = entry.status.localizedLabel(),
-                color = statusColor,
-                modifier = Modifier
-                    .align(Alignment.TopEnd)
-                    .padding(5.dp)
-            )
-
-            // Platform kaynak rozeti — sol alt köşe
-            KitsugiSourceBadge(
-                source = entry.source,
-                modifier = Modifier.align(Alignment.BottomStart)
-            )
-
-            // Puan rozeti — SAĞ alt köşe (gizlenmemişse ve puan varsa)
-            if (!hideScores && (entry.score ?: 0) > 0) {
-                ScorePill(
-                    score = entry.getDisplayScore(scoreFormat, hideScores),
-                    scoreFormat = scoreFormat,
-                    modifier = Modifier.align(Alignment.BottomEnd).padding(5.dp)
-                )
-            }
-
-            // Favori yıldızı — sol üst köşe
+            // ─── Köşe rozetleri ─────────────────────────────────────────────
+            // Rozetler posterin köşelerine TAM yapışık durur ve görselin üzerini
+            // minimum kaplar. Sıra: sol üst = favori, sağ üst = durum,
+            // sol alt = kaynak, sağ alt = puan.
             if (entry.isFavorite) {
                 Box(
                     modifier = Modifier
                         .align(Alignment.TopStart)
-                        .padding(5.dp)
-                        .clip(RoundedCornerShape(7.dp))
+                        .clip(RoundedCornerShape(topStart = 0.dp, topEnd = 6.dp, bottomStart = 6.dp, bottomEnd = 6.dp))
                         .background(accentColor)
-                        .padding(horizontal = 5.dp, vertical = 2.dp)
+                        .padding(horizontal = 5.dp, vertical = 3.dp)
                 ) {
                     Text(
                         text = "★",
                         color = KitsugiColors.OnAccent,
                         style = MaterialTheme.typography.labelSmall,
+                        fontSize = 9.sp,
                         fontWeight = FontWeight.Black
                     )
                 }
+            }
+
+            // Durum rozeti — üst sağ köşeye tam yapışık
+            PosterCornerTag(
+                text = entry.status.localizedLabel(),
+                tint = statusColor,
+                shape = TopEndCornerShape,
+                modifier = Modifier.align(Alignment.TopEnd)
+            )
+
+            // Platform kaynak rozeti — sol alt köşe (köşeye tam yapışık)
+            KitsugiSourceBadge(
+                source = entry.source,
+                modifier = Modifier.align(Alignment.BottomStart)
+            )
+
+            // Puan rozeti — sağ alt köşe
+            if (!hideScores && (entry.score ?: 0) > 0) {
+                PosterCornerTag(
+                    text = "★ ${entry.getDisplayScore(scoreFormat, hideScores)}",
+                    tint = KitsugiColors.AccentYellow,
+                    shape = BottomEndCornerShape,
+                    modifier = Modifier.align(Alignment.BottomEnd)
+                )
             }
         }
 

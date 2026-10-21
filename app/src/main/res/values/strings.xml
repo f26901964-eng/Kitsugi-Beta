@@ -6945,7 +6945,7 @@ Eklentiler ekranından eklenti etkinleştirin.</string>
     <string name="profile_followers">Takipçiler</string>
     <string name="profile_followers_count">Takipçiler (%1$d)</string>
     <string name="profile_following">Takip Edilen</string>
-    <string name="profile_following_button">Takip Ediliyorsun</string>
+    <string name="profile_following_button">Takiptesin</string>
     <string name="profile_following_count">Takip Edilen (%1$d)</string>
     <string name="profile_follows_you">Sizi takip ediyor</string>
     <string name="profile_gender_female">Kadın</string>
