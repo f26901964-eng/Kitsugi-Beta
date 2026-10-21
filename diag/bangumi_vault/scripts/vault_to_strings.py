@@ -22,6 +22,8 @@ import json
 import re
 import sys
 from pathlib import Path
+from android_strings import escape as xml_escape
+from resource_catalog import resource_paths, new_resource_path
 
 VAULT = Path(__file__).resolve().parents[1]
 ROOT = VAULT.parents[1]
@@ -47,17 +49,11 @@ ROLE_FILES = {
 KEEP_DECISIONS = {"global", "translated", "as_is", "existing"}
 
 
-def xml_escape(value: str) -> str:
-    out = value.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
-    out = out.replace("'", "\\'").replace('"', '\\"')
-    return out
-
-
 def kotlin_escape(value: str) -> str:
     return value.replace("$", "${'$'}")
 
 
-MAX_KOTLIN_CONSTANT_MUTF8_BYTES = 50_000
+MAX_KOTLIN_CONSTANT_MUTF8_BYTES = 49_999
 
 
 def kotlin_mutf8_length(value: str) -> int:
@@ -245,11 +241,30 @@ for cid, e in tag_entries.items():
             raise SystemExit(f"{tag_key}: cross-role/tag kaynağında çelişkili {lang.upper()} değeri")
         values[tag_key] = value
 
-tr_src = RES_TR.read_text(encoding="utf-8")
-en_src = RES_EN.read_text(encoding="utf-8")
-tr_src, a1, u1 = patch_strings(tr_src, tr_vals)
-en_src, a2, u2 = patch_strings(en_src, en_vals)
-print(f"strings.xml: TR +{a1} / ~{u1} | EN +{a2} / ~{u2}")
+resource_outputs = {}
+resource_changes = []
+for app_file, values in ((RES_TR, tr_vals), (RES_EN, en_vals)):
+    sources = {p: p.read_text(encoding="utf-8") for p in resource_paths(app_file)}
+    owners = {}
+    for path, source in sources.items():
+        for key in re.findall(r'<string name="([^"]+)"', source):
+            if key in owners:
+                raise SystemExit(f"yinelenen modüller arası kaynak: {key}")
+            owners[key] = path
+    grouped = {p: {} for p in sources}
+    for key, value in values.items():
+        target = owners.get(key) or new_resource_path(app_file, key)
+        grouped[target][key] = value
+    added = updated = 0
+    for path, source in sources.items():
+        rendered, a, u = patch_strings(source, grouped[path])
+        resource_outputs[path] = rendered
+        added += a
+        updated += u
+    resource_changes.append((added, updated))
+(a1, u1), (a2, u2) = resource_changes
+print(f"strings.xml (app + shards): TR +{a1} / ~{u1} | EN +{a2} / ~{u2}")
+
 
 # ── 3) BangumiTagDictionary.kt ───────────────────────────────────────────────
 
@@ -358,8 +373,8 @@ print(f"BangumiOrgDictionary: +{len(new_raw)} satır")
 # ── 5) Yaz ────────────────────────────────────────────────────────────────────
 
 if not CHECK:
-    RES_TR.write_text(tr_src, encoding="utf-8")
-    RES_EN.write_text(en_src, encoding="utf-8")
+    for path, source in resource_outputs.items():
+        path.write_text(source, encoding="utf-8")
     TAG_DICT.write_text(tag_src, encoding="utf-8")
     ORG_DICT.write_text(org_src, encoding="utf-8")
     print("yazıldı.")

@@ -23,6 +23,8 @@ import json
 import re
 import sys
 from pathlib import Path
+from android_strings import unescape
+from resource_catalog import catalog_text
 
 VAULT = Path(__file__).resolve().parents[1]
 ROOT = VAULT.parents[1]
@@ -39,8 +41,8 @@ ROLE_FILES = {
 KEEP = {"global", "translated", "as_is", "existing"}
 errors: list[str] = []
 
-tr_src = RES_TR.read_text(encoding="utf-8")
-en_src = RES_EN.read_text(encoding="utf-8")
+tr_src = catalog_text(RES_TR)
+en_src = catalog_text(RES_EN)
 
 # 1) simetri
 tr_keys = set(re.findall(r'<string name="(bangumi_[^"]+)"', tr_src))
@@ -56,9 +58,6 @@ tr_vals = dict(re.findall(r'<string name="(bangumi_[^"]+)">(.*?)</string>', tr_s
 en_vals = dict(re.findall(r'<string name="(bangumi_[^"]+)">(.*?)</string>', en_src))
 
 
-def unescape(v: str) -> str:
-    return (v.replace("\\'", "'").replace('\\"', '"')
-             .replace("&lt;", "<").replace("&gt;", ">").replace("&amp;", "&"))
 
 
 # 2-4) vault → strings

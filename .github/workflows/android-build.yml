@@ -8,6 +8,11 @@ on:
     branches: ['arena/**']
     paths:
       - 'app/**'
+      - 'bangumi-vault-resources-*/**'
+      - 'gradle/libs.versions.toml'
+      - 'settings.gradle.kts'
+      - 'build.gradle.kts'
+      - 'gradle.properties'
       - 'supabase/**'
       - 'scripts/account-tests/**'
       - '.github/workflows/android-build.yml'
