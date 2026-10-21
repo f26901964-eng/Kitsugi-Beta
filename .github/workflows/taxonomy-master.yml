@@ -15,6 +15,7 @@ on:
     paths:
       - 'diag/taxonomy_master/**'
       - 'scripts/check_taxonomy_master.py'
+      - 'scripts/audit_taxonomy_sources.py'
       - 'scripts/sync_taxonomy_tag_strings.py'
       - 'scripts/sync_bangumi_tag_strings.py'
       - 'app/src/main/java/com/kitsugi/animelist/utils/RussianTaxonomyDictionary.kt'
@@ -28,6 +29,7 @@ on:
   pull_request:
     paths:
       - 'scripts/check_taxonomy_master.py'
+      - 'scripts/audit_taxonomy_sources.py'
       - 'app/src/main/java/com/kitsugi/animelist/utils/RussianTaxonomyDictionary.kt'
       - 'app/src/main/java/com/kitsugi/animelist/utils/KitsugiTaxonomyLabels.kt'
       - 'app/src/main/java/com/kitsugi/animelist/data/remote/KitsugiTaxonomy*.kt'
@@ -50,6 +52,11 @@ jobs:
       - name: 🔎 Taksonomi sözlüğü (K1–K9)
         run: |
           python3 scripts/check_taxonomy_master.py --worklist --json
+
+      - name: 🧭 Kaynak kapsama matrisi
+        run: |
+          # Her kaynak tür/etiket/kurum alanlarını okumaya devam ediyor mu?
+          python3 scripts/audit_taxonomy_sources.py --strict
 
       - name: ♻️ Üreteç güncellik denetimi (--check)
         run: |

@@ -570,6 +570,7 @@ object KitsuExploreClient {
         return try {
             val attrs = data.optJSONObject("attributes") ?: return null
             val (kitsuGenres, kitsuTags) = KitsuClient.parseKitsuCategories(included)
+            val (kitsuStudios, kitsuProducers) = KitsuClient.parseKitsuProductions(included)
             val canonicalTitle = attrs.optString("canonicalTitle", "")
             val titlesObj = attrs.optJSONObject("titles")
             val titleEn = titlesObj?.optString("en", "")?.takeIf { it.isNotBlank() }
@@ -611,6 +612,8 @@ object KitsuExploreClient {
                 synopsis      = synopsis,
                 genres        = kitsuGenres,
                 tags          = kitsuTags,
+                studios       = kitsuStudios,
+                producers     = kitsuProducers,
                 title         = title,
                 titleEnglish  = titleEn,
                 titleJapanese = titleJa,

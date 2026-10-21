@@ -330,7 +330,7 @@ object KitsugiBangumiDetailClient {
                 }.getOrNull()
                 if (alInfo != null && (alInfo.tags.isNotEmpty() || alInfo.nextAiringEpisode != null)) {
                     merged = merged.copy(
-                        tags = KitsugiSpoilerRules.mergeTagsPreservingSpoilers(merged.tags, alInfo.tags, limit = 48),
+                        tags = KitsugiSpoilerRules.mergeTagsPreservingSpoilers(merged.tags, alInfo.tags, limit = 96),
                         nextAiringEpisode = merged.nextAiringEpisode ?: alInfo.nextAiringEpisode
                     )
                 }
@@ -367,7 +367,7 @@ object KitsugiBangumiDetailClient {
                     }
                     if (alInfo != null && (alInfo.tags.isNotEmpty() || alInfo.nextAiringEpisode != null)) {
                         fromMal.copy(
-                            tags = KitsugiSpoilerRules.mergeTagsPreservingSpoilers(fromMal.tags, alInfo.tags, limit = 48),
+                            tags = KitsugiSpoilerRules.mergeTagsPreservingSpoilers(fromMal.tags, alInfo.tags, limit = 96),
                             nextAiringEpisode = fromMal.nextAiringEpisode ?: alInfo.nextAiringEpisode
                         )
                     } else {
@@ -429,7 +429,12 @@ object KitsugiBangumiDetailClient {
         // ── Stüdyo / yapımcı / kanal ─────────────────────────────────────────
         // Stüdyo/şirket adları infobox'ta Japonca/Çince gelir — Latin ada çevrilir
         // (örn. 京都アニメーション → Kyoto Animation); bilinmeyenler olduğu gibi kalır.
-        val studioNames = splitCompanies(values("动画制作", "動畫製作", "动画制作公司", "アニメーション制作", "制作", "制作公司"))
+        val studioNames = splitCompanies(
+            values(
+                "动画制作", "動畫製作", "动画制作公司", "動畫製作公司", "アニメーション制作",
+                "アニメーション製作", "アニメ制作", "制作", "制作公司", "製作公司", "制作スタジオ"
+            )
+        )
             .map { it.toLatinStudioName() }
         val studios = studioNames
             .map { KitsugiStudio(id = 0, name = it, isMain = true, source = SOURCE, role = StudioRole.STUDIO) }
@@ -438,16 +443,26 @@ object KitsugiBangumiDetailClient {
                 .map { it.toLatinStudioName() }
                 .map { KitsugiStudio(id = 0, name = it, isMain = true, source = SOURCE, role = StudioRole.PUBLISHER) }
         } else {
-            splitCompanies(values("製作", "出品", "发行", "製作委员会", "制作委员会"))
+            // Yapım/dağıtım/lisans kurumları: komite, dağıtıcı, müzik yapımı ve plak şirketi
+            // ayrı anahtarlarda gelir; hepsi "Yapımcılar" altında toplanır (rol: PRODUCER).
+            splitCompanies(
+                valuesAll(
+                    "製作", "出品", "发行", "發行", "发行公司", "製作委员会", "制作委员会",
+                    "製作委員會", "制作協力", "製作協力", "音楽制作", "音乐制作", "音樂製作",
+                    "レーベル", "厂牌", "廠牌", "配給", "配给", "プロデュース"
+                )
+            )
                 .map { it.toLatinStudioName() }
                 .filter { name -> studioNames.none { it.equals(name, ignoreCase = true) } }
                 .map { KitsugiStudio(id = 0, name = it, isMain = false, source = SOURCE, role = StudioRole.PRODUCER) }
         }
-        val networks = splitNetworks(valuesAll("播放电视台", "播放電視台", "其他电视台", "其他電視台"))
+        val networks = splitNetworks(
+            valuesAll("播放电视台", "播放電視台", "其他电视台", "其他電視台", "放送局", "テレビ局")
+        )
             .map { it.toLatinStudioName() }
             .distinct()
             .map { KitsugiStudio(id = 0, name = it, isMain = false, source = SOURCE, role = StudioRole.NETWORK) }
-        val serializations = splitCompanies(values("连载杂志", "連載雜誌", "杂志"))
+        val serializations = splitCompanies(values("连载杂志", "連載雜誌", "杂志", "雑誌", "掲載誌", "連載", "杂志社"))
             .map { it.toLatinStudioName() }
             .distinct()
             .map { KitsugiStudio(id = 0, name = it, isMain = true, source = SOURCE, role = StudioRole.MAGAZINE) }
@@ -548,7 +563,7 @@ object KitsugiBangumiDetailClient {
         val mergedTags = KitsugiSpoilerRules.mergeTagsPreservingSpoilers(
             primary = base.tags,
             secondary = other.tags,
-            limit = 48
+            limit = 96
         )
         // ── Tür / kurum birleşimi (yerine koyma DEĞİL) ──────────────────────────
         // Bangumi'nin kendi türleri ve infobox kurumları (动画制作 / 製作 / 播放电视台 /

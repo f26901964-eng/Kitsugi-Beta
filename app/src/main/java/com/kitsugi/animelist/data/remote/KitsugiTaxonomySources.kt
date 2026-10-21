@@ -10,6 +10,7 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import org.json.JSONObject
+import java.net.URL
 
 /**
  * **Detay sayfası tür / etiket / kurum toplayıcısı.**
@@ -32,9 +33,17 @@ import org.json.JSONObject
  *  • **Kiril/Çince sızıntısı yok.** Kurum adları Latin ada çevrilir; tür/etiketler
  *    gösterim katmanında çözülür.
  *
- * Kapsam notu: Simkl ve Kitsu detay uçları **kendi kimliklerini** ister; MAL/AniList
- * kimliğinden geri çözüm ucuz değildir. Bu kaynaklar **açılan sayfanın kaynağı olduklarında**
- * kendi verilerini zaten sağlar; burada ek olarak AniList + MAL/Jikan birleşimi toplanır.
+ * Toplanan kaynaklar (hepsi MAL kimliğinden erişilebilir):
+ *  • **MAL/Jikan** — `genres`, `explicit_genres`, `themes`, `demographics`,
+ *    `studios`, `producers`, `licensors`
+ *  • **AniList** — `genres`, `tags` (spoiler/rank dahil), `studios` (isMain dahil)
+ *  • **Shikimori** — `genres` (`kind`: genre/theme/demographic) + `studios`
+ *  • **Kitsu** — `categories` + `animeProductions.producer` (rol: studio/producer/licensor)
+ *
+ * Kapsam notu: **Simkl** API'si kurum (stüdyo/yapımcı) alanı yayınlamaz, yalnızca tür
+ * listesi verir; bu yüzden buraya eklenmez (sayfa Simkl'den açıldığında kendi türleri
+ * zaten gelir). **TMDB** zenginleştirmesi [KitsugiDetailClient.enrichDetail] içinde ayrı
+ * yürür (yapım şirketleri + kanallar + anahtar kelimeler).
  */
 internal object KitsugiTaxonomySources {
 
@@ -133,19 +142,236 @@ internal object KitsugiTaxonomySources {
                         }.getOrNull()
                     }
                 }
-                val jikanSlice = jikan.await()
-                val aniListSlice = aniList.await()
-                when {
-                    jikanSlice == null -> aniListSlice ?: Slice()
-                    aniListSlice == null -> jikanSlice
-                    else -> jikanSlice.plus(aniListSlice)
+                // Shikimori ve Kitsu kendi kimlik uzaylarını kullanır; MAL kimliğinden
+                // deterministik çözüm yapılır (Shikimori yanıtı doğrulanır, Kitsu `mappings`).
+                val shikimori = async(Dispatchers.IO) {
+                    withTimeoutOrNull(SOURCE_TIMEOUT_MS) {
+                        runCatching { fetchShikimori(safeMalId, mediaType) }.getOrNull()
+                    }
                 }
+                val kitsu = async(Dispatchers.IO) {
+                    withTimeoutOrNull(SOURCE_TIMEOUT_MS) {
+                        runCatching { fetchKitsu(safeMalId, mediaType) }.getOrNull()
+                    }
+                }
+                val parts = linkedMapOf(
+                    "jikan" to jikan.await(),
+                    "anilist" to aniList.await(),
+                    "shikimori" to shikimori.await(),
+                    "kitsu" to kitsu.await()
+                )
+                if (parts.values.all { it == null }) return@coroutineScope null
+                // Kaynak bazlı sayaç: cihaz günlüğünde hangi kaynağın ne kadar veri
+                // verdiği görülebilsin (teşhis ve regresyon takibi).
+                Log.d(
+                    TAG,
+                    "Kaynak bazlı: " + parts.entries.joinToString(" | ") { (name, part) ->
+                        if (part == null) "$name=yok"
+                        else "$name=${part.genres.size}t/${part.tags.size}e/" +
+                            "${part.studios.size + part.producers.size}k"
+                    }
+                )
+                parts.values.filterNotNull()
+                    .fold(Slice()) { acc, part -> if (acc.isEmpty) part else acc.plus(part) }
             }
         }
         if (slice == null || slice.isEmpty) return Slice()
         Log.d(TAG, "Taksonomi toplandı: tür=${slice.genres.size} etiket=${slice.tags.size} " +
             "stüdyo=${slice.studios.size} yapımcı=${slice.producers.size}")
         return slice
+    }
+
+    // ── Shikimori (Rusça) ──────────────────────────────────────────────────────
+
+    /**
+     * Shikimori detayından tür ve stüdyo bilgisini okur.
+     *
+     * **Kimlik güvenliği:** Shikimori kimliği MAL kimliği değildir. İstek MAL kimliğiyle
+     * yapılır (Shikimori veritabanı MAL'dan türediği için çoğu kayıtta aynıdır) ve yanıttaki
+     * `myanimelist_id` farklıysa **veri kullanılmaz** — yanlış yapımın türleri yapışmasın.
+     *
+     * `kind` alanı korunur: `genre` → tür, `theme` → tema etiketi, `demographic` → hedef kitle.
+     * Rusça adlar gösterim katmanında çözülür (`RussianTaxonomyDictionary`).
+     */
+    private suspend fun fetchShikimori(malId: Int?, mediaType: MediaType): Slice? {
+        if (malId == null) return null
+        val endpoint = if (mediaType == MediaType.Manga) "mangas" else "animes"
+        val body = KitsugiApiBase.executeGetRequestResilient(
+            URL("https://shikimori.io/api/$endpoint/$malId")
+        ) ?: return null
+        val data = runCatching { JSONObject(body) }.getOrNull() ?: return null
+
+        val realMalId = data.optInt("myanimelist_id", 0)
+        if (realMalId > 0 && realMalId != malId) return null
+
+        val genres = mutableListOf<String>()
+        val themes = mutableListOf<String>()
+        val demographics = mutableListOf<String>()
+        val tags = mutableListOf<KitsugiTag>()
+
+        data.optJSONArray("genres")?.let { arr ->
+            for (i in 0 until arr.length()) {
+                val obj = arr.optJSONObject(i) ?: continue
+                val name = obj.optString("name", "").trim()
+                if (name.isEmpty()) continue
+                when (obj.optString("kind", "").lowercase()) {
+                    "theme" -> {
+                        themes.add(name)
+                        genres.add(name)
+                    }
+                    "demographic" -> {
+                        demographics.add(name)
+                        genres.add(name)
+                    }
+                    else -> genres.add(name)
+                }
+                tags.add(
+                    KitsugiTag(
+                        id = obj.optInt("id", 0).takeIf { it > 0 },
+                        name = name,
+                        isSpoiler = KitsugiSpoilerRules.isIntrinsicSpoiler(name),
+                        source = "shikimori"
+                    )
+                )
+            }
+        }
+
+        val studios = mutableListOf<KitsugiStudio>()
+        data.optJSONArray("studios")?.let { arr ->
+            for (i in 0 until arr.length()) {
+                val obj = arr.optJSONObject(i) ?: continue
+                val name = obj.optString("name", "").trim()
+                if (name.isEmpty()) continue
+                studios.add(
+                    KitsugiStudio(
+                        id = obj.optInt("id", 0).takeIf { it > 0 } ?: 0,
+                        name = name.toLatinStudioName(),
+                        isMain = true,
+                        source = "shikimori",
+                        role = StudioRole.STUDIO
+                    )
+                )
+            }
+        }
+
+        if (genres.isEmpty() && studios.isEmpty()) return null
+        return Slice(
+            genres = genres.distinct(),
+            tags = KitsugiSpoilerRules.normalizeAndMergeTags(tags),
+            studios = studios,
+            themes = themes.distinct(),
+            demographics = demographics.distinct()
+        )
+    }
+
+    // ── Kitsu ──────────────────────────────────────────────────────────────────
+
+    /**
+     * Kitsu detayından kategori ve **yapım şirketlerini** okur.
+     *
+     * Kitsu, MAL kimliğini `mappings` tablosuyla deterministik olarak çözer
+     * ([com.kitsugi.animelist.data.auth.KitsuApiClient.lookupKitsuIdByExternalMapping]).
+     * Kurumlar `animeProductions.producer` ilişkisinden gelir; `role` alanı
+     * `studio` / `producer` / `licensor` olarak korunur. Bu katman olmadan Kitsu kaynaklı
+     * sayfalarda **hiç stüdyo görünmüyordu**.
+     */
+    private suspend fun fetchKitsu(malId: Int?, mediaType: MediaType): Slice? {
+        if (malId == null) return null
+        val isManga = mediaType == MediaType.Manga
+        val site = if (isManga) "myanimelist/manga" else "myanimelist/anime"
+        val kitsuId = runCatching {
+            com.kitsugi.animelist.data.auth.KitsuApiClient
+                .lookupKitsuIdByExternalMapping(site, malId)
+        }.getOrNull() ?: return null
+        if (kitsuId <= 0) return null
+
+        val endpoint = if (isManga) "manga" else "anime"
+        val base = "${KitsuApiHost.base}/$endpoint/$kitsuId"
+        // Manga tarafında yapım ilişkisi garanti değil: kategori ile başla, anime ise
+        // yapım şirketlerini de iste; uç reddederse (400) ilişkisiz isteğe düşülür.
+        val withProductions = if (isManga) {
+            "$base?include=categories,mangaProductions.producer"
+        } else {
+            "$base?include=categories,animeProductions.producer"
+        }
+        val body = KitsugiApiBase.executeGetRequestResilient(URL(withProductions))
+            ?: KitsugiApiBase.executeGetRequestResilient(URL("$base?include=categories"))
+            ?: return null
+        val root = runCatching { JSONObject(body) }.getOrNull() ?: return null
+        val included = root.optJSONArray("included") ?: return null
+
+        val genres = mutableListOf<String>()
+        val tags = mutableListOf<KitsugiTag>()
+        val studios = mutableListOf<KitsugiStudio>()
+        val producers = mutableListOf<KitsugiStudio>()
+
+        // 1) Kategoriler (tür + etiket)
+        val producerNames = HashMap<String, Pair<String, String>>()   // id -> (name, role)
+        val producerRefs = mutableListOf<Pair<String, String>>()      // (producerId, role)
+
+        for (i in 0 until included.length()) {
+            val inc = included.optJSONObject(i) ?: continue
+            val type = inc.optString("type", "")
+            val attrs = inc.optJSONObject("attributes")
+            when (type) {
+                "categories" -> {
+                    val title = attrs?.optString("title", "")?.trim().orEmpty()
+                    if (title.isEmpty()) continue
+                    genres.add(title)
+                    tags.add(
+                        KitsugiTag(
+                            id = inc.optString("id", "").toIntOrNull(),
+                            name = title,
+                            isSpoiler = KitsugiSpoilerRules.isIntrinsicSpoiler(title),
+                            source = "kitsu"
+                        )
+                    )
+                }
+                "animeProductions", "mangaProductions" -> {
+                    val role = attrs?.optString("role", "").orEmpty().trim()
+                    val producerId = inc.optJSONObject("relationships")
+                        ?.optJSONObject("producer")
+                        ?.optJSONObject("data")
+                        ?.optString("id", "")
+                        .orEmpty()
+                    if (producerId.isNotEmpty()) producerRefs.add(producerId to role)
+                }
+                "producers" -> {
+                    val name = attrs?.optString("name", "")?.trim().orEmpty()
+                    if (name.isEmpty()) continue
+                    producerNames[inc.optString("id", "")] = name to ""
+                }
+            }
+        }
+
+        // 2) Yapım şirketleri (rol bilgisiyle)
+        for ((producerId, role) in producerRefs) {
+            val name = producerNames[producerId]?.first ?: continue
+            val studioRole = when (role.lowercase()) {
+                "studio" -> StudioRole.STUDIO
+                "licensor" -> StudioRole.LICENSOR
+                "publisher" -> StudioRole.PUBLISHER
+                "magazine" -> StudioRole.MAGAZINE
+                "network" -> StudioRole.NETWORK
+                else -> StudioRole.PRODUCER
+            }
+            val org = KitsugiStudio(
+                id = producerId.toIntOrNull() ?: 0,
+                name = name.toLatinStudioName(),
+                isMain = studioRole == StudioRole.STUDIO,
+                source = "kitsu",
+                role = studioRole
+            )
+            if (studioRole == StudioRole.STUDIO) studios.add(org) else producers.add(org)
+        }
+
+        if (genres.isEmpty() && studios.isEmpty() && producers.isEmpty()) return null
+        return Slice(
+            genres = genres.distinct(),
+            tags = KitsugiSpoilerRules.normalizeAndMergeTags(tags),
+            studios = studios,
+            producers = producers
+        )
     }
 
     // ── MAL / Jikan ────────────────────────────────────────────────────────────

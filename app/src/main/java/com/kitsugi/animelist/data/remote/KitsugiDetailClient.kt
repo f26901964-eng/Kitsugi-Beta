@@ -1003,7 +1003,7 @@ class KitsugiDetailClient {
 
         if (alInfo != null) {
             val enrichedTags = if (alInfo.tags.isNotEmpty()) {
-                KitsugiSpoilerRules.mergeTagsPreservingSpoilers(mergedDetail.tags, alInfo.tags, limit = 48)
+                KitsugiSpoilerRules.mergeTagsPreservingSpoilers(mergedDetail.tags, alInfo.tags, limit = 96)
             } else {
                 KitsugiSpoilerRules.applySpoilerFlags(mergedDetail.tags)
             }

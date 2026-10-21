@@ -82,12 +82,30 @@ sayfa asıl detayla açılmaya devam eder. Sonuç `DetailCache` + Room'a yazıl�
 | `.github/workflows/taxonomy-master.yml` | CI: sözlük denetimi, üreteç `--check`, TR/EN paritesi, `TaxonomyLabelsTest` |
 | `diag/taxonomy_master/README.md` | Sözlük çalışma akışı (Drive'a yükleme dahil) |
 
+### Kaynak kapsama matrisi
+
+| Kaynak | Tür | Etiket | Stüdyo | Yapımcı | Kanal | Yayıncı | Dergi |
+|---|---|---|---|---|---|---|---|
+| AniList | ✔ `genres` | ✔ `tags` | ✔ `studios` | — | — | — | — |
+| MAL/Jikan | ✔ `genres` | ✔ `themes`/`demographics` | ✔ | ✔ `producers`/`licensors` | — | ✔ (manga) | ✔ |
+| Bangumi | ✔ | ✔ `tags` | ✔ 动画制作 | ✔ 製作/委員会/協力/レーベル | ✔ 播放电视台 | ✔ 出版社 | ✔ 连载杂志 |
+| Shikimori | ✔ `genres` | ✔ theme/demographic | ✔ `studios` | — | — | — | — |
+| Kitsu | ✔ `categories` | ✔ `categories` | ✔ `animeProductions` | ✔ rol=producer | ✔ rol=network | ✔ rol=publisher | ✔ rol=magazine |
+| Simkl | ✔ `genres` | ✔ | — | — | — | — | — |
+| TMDB | ✔ `genres` | ✔ `keywords` | ✔ şirket[0] | ✔ şirket[1…] | ✔ `networks` | — | — |
+
+Çapraz toplayıcı (`KitsugiTaxonomySources`): **Jikan + AniList + Shikimori + Kitsu** paralel
+(Simkl kurum API'si yayınlamadığı, TMDB zenginleştirmesi ayrı yürüdüğü için hariç).
+
 ### Değişen
 
 | Dosya | Değişiklik |
 |---|---|
 | `KitsugiTranslations.kt` | `toTurkishGenre` / `toLocalizedTagLabel` tek çözümleyiciye bağlandı; `taxonomyStringOverride`, `englishTaxonomyName`, `englishTaxonomyToTurkish`; `localizedDistinctTags` CJK'yı gizler; kurum adı Kiril transliterasyonu + `sanitizeOrgName()` |
 | `KitsugiDetailComponents.kt` | Stüdyo/yapımcı/kanal kartı: adı temizlenince boşalan kayıtlar çizilmez; başlıklar görünür listeye göre seçilir |
+| `KitsuClient.kt` · `KitsuExploreClient.kt` | `animeProductions`/`mangaProductions` ilişkisi + rol eşlemesi (studio/producer/licensor/publisher/magazine/network) |
+| `KitsugiShikimoriClient.kt` | `kind` ayrımı → `genres` / `themes` / `demographics` |
+| `scripts/audit_taxonomy_sources.py` | 28 alan + 4 çapraz kaynak kapsama denetimi (`--strict`) |
 | `KitsugiTaxonomyLabels` ile birlikte `KitsugiSpoilerRules.canonicalTagKey` | Rusça anahtar önceliği (`Экшен` ≡ `Action`) |
 | `KitsugiAniListDetailClient.kt` | `AniListTagsAndAiring` + `genres` + `studios`; GraphQL sorgusu genişletildi |
 | `KitsugiDetailClient.kt` | Tür/kurum zenginleştirmesi birleştirmeye çevrildi; çapraz kimlik çözümü AniList kapısından çıkarıldı; taksonomi toplama + normalleştirme eklendi |
@@ -118,6 +136,12 @@ sayfa asıl detayla açılmaya devam eder. Sonuç `DetailCache` + Room'a yazıl�
 - [x] T15 — `area_chinese_speaking` yazım hatası ve dil dosyası eşitlemesi
 - [x] T16 — `taxonomy-master` CI iş akışı + tree-sitter sözdizimi doğrulaması
 - [x] T18 — `gen_bangumi_master.py` güvenlik freni (orgs.tsv 365 satır ↔ sözlük 11.693 satır)
+- [x] T19 — Kitsu `animeProductions`/`mangaProductions` (stüdyo/yapımcı/yayıncı/dergi)
+- [x] T20 — Shikimori `kind` ayrımı (genre/theme/demographic)
+- [x] T21 — Bangumi ek infobox kurum anahtarları (制作協力, 音楽制作, レーベル, 配給, 掲載誌 …)
+- [x] T22 — Birleştirme tavanları: tür 48 · etiket 96 · kurum 64
+- [x] T23 — Çapraz toplayıcıya Shikimori + Kitsu eklendi (4 kaynak paralel)
+- [x] T24 — `scripts/audit_taxonomy_sources.py` kapsama denetimi + CI adımı
 - [ ] T17 — CI'da `./gradlew test` + cihazda TR/EN/RU arayüzlü duman testi (bu sandbox'ta JDK yok)
 
 ---

@@ -158,6 +158,39 @@ yarısından azsa sözlük **yazılmaz** (uyarı basılır, diğer üretimler de
 küçültme için `--force` gerekir. `orgs.tsv` mevcut sözlükten yeniden türetilene kadar bu fren
 açık kalmalı.
 
+### KN-10 — Kaynak başına **kurum alanları** eksik okunuyordu (ikinci tur)
+
+Kullanıcı geri bildirimi: “tüm kaynaklara ait tüm kurum/tür/etiket — bu kadar az olamaz.”
+Yeniden denetimde dört somut eksik bulundu:
+
+| Kaynak | Bulgu | Etki |
+|---|---|---|
+| **Kitsu** | `animeProductions.producer` ilişkisi **hiç istenmiyordu** (`include=categories` yalnız) | Kitsu kaynaklı her sayfada stüdyo/yapımcı **tamamen boş** |
+| **Kitsu (manga)** | `mangaProductions` ilişkisi yok | Manga sayfalarında yayıncı/dergi yok |
+| **Shikimori** | `genres[].kind` okunuyor ama **ayrıştırılmıyordu** | theme/demographic bilgisi kayboluyor, filtreler yanlış çalışıyor |
+| **Bangumi** | Infobox'ta yalnız 6 anahtar okunuyordu | `制作協力`, `音楽制作`, `レーベル`, `配給`, `掲載誌` gibi kurumlar hiç gelmiyordu |
+| **Birleştirici** | `mergeOrgs` **24**, `mergeGenres` **24**, `mergeTags` **48** ile sınırlıydı | 24'ten fazla kurumu olan yapımlarda (uzun seriler, komiteler) veri **kesiliyordu** |
+| **Çapraz toplayıcı** | Yalnızca **Jikan + AniList** sorgulanıyordu | Shikimori/Kitsu'de olup MAL'da olmayan stüdyo ve etiketler hiçbir sayfaya girmiyordu |
+
+### Çözüm — kaynak kapsama matrisi (v2.4.337 sonrası)
+
+| Kaynak | Tür | Etiket | Stüdyo | Yapımcı | Kanal | Yayıncı | Dergi |
+|---|---|---|---|---|---|---|---|
+| AniList | `genres` | `tags` (rank + spoiler) | `studios` (isMain dahil) | — | — | — | — |
+| MAL/Jikan | `genres`, `explicit_genres` | `themes`, `demographics` | `studios` | `producers`, `licensors` | — | `publishers` (manga) | `serializations` |
+| Bangumi | meta etiketler | `tags` | 动画制作 | 製作 · 製作委員会 · 制作協力 · 音楽制作 · レーベル · 配給 | 播放电视台 · 放送局 | 出版社 | 连载杂志 · 掲載誌 |
+| Shikimori | `genres` (`kind=genre`) | `genres` (`kind=theme/demographic`) | `studios` | — | — | — | — |
+| Kitsu | `categories` | `categories` | `animeProductions` (`role=studio`) | `role=producer` | `role=network` | `role=publisher` | `role=magazine` |
+| Simkl | `genres` | `genres` (resmî olmayan) | — *(API vermiyor)* | — | — | — | — |
+| TMDB | `genres` | `keywords` | `production_companies[0]` | `production_companies[1…]` | `networks` | — | — |
+
+**Çapraz toplayıcı** artık **dört** kaynağı paralel sorgular: MAL/Jikan · AniList · Shikimori ·
+Kitsu. Cihaz günlüğünde kaynak bazlı sayaç basılır (`jikan=… | anilist=… | shikimori=… | kitsu=…`),
+böylece hangi kaynağın ne kadar veri verdiği görülebilir.
+
+Yeni denetim: `scripts/audit_taxonomy_sources.py --strict` — 28 alanı ve 4 çapraz kaynağı
+denetler; bir alan refactor sırasında düşerse CI kırılır.
+
 ## 3) Çözüm özeti
 
 | Kök neden | Çözüm | Dosya |
@@ -173,6 +206,7 @@ açık kalmalı.
 | KN-7 | `sanitizeOrgName()`: tırnak artefaktı, `;` sonrası baskı notu ve kaomoji ayıklanır; boşalan kayıtlar hem modelde hem `KitsugiStudiosCard` içinde çizilmez | `KitsugiTranslations.kt`, `KitsugiDetailComponents.kt` |
 | KN-8 | Sözlük değeri `Çince` olarak düzeltildi, dil dosyası eşitlendi | `BangumiTagDictionary.kt`, `values/strings.xml` |
 | KN-9 | Üreteç güvenlik freni: sözlük %50'den fazla küçülecekse yazılmaz (`--force` ile aşılır) | `diag/bangumi_master/gen_bangumi_master.py` |
+| KN-10 | Kitsu yapım ilişkisi + Shikimori `kind` ayrımı + Bangumi ek infobox anahtarları + birleştirme tavanları (48/96/64) + Shikimori & Kitsu çapraz toplama | `KitsuClient`, `KitsuExploreClient`, `KitsugiShikimoriClient`, `KitsugiBangumiDetailClient`, `KitsugiTaxonomyMerge`, `KitsugiTaxonomySources` |
 
 ---
 

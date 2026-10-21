@@ -22,7 +22,13 @@
 - **Kurum adındaki çöp temizlendi (`sanitizeOrgName`):** Bangumi infobox'ından gelen `"""アフタヌーン`, `芳文社; B6版` gibi artıklar ve `っ´Д`)っゼロ式の家` gibi kaomoji “yayıncı” çipleri artık gösterilmiyor. Gerçek kısa adlar (`CR`, `MX`, `B站`) korunuyor; stüdyo/yapımcı/kanal kartı boşalan kayıtları hiç çizmiyor.
 - **Sözlük yazım hatası düzeltildi:** `area_chinese_speaking` → “Çince Konuşulan Bölge” (`Çinçe` yazımı dil dosyasına da yansımıştı); MASTER doğrulaması yeniden yeşil.
 - **Üreteç güvenlik freni:** `gen_bangumi_master.py` yazma modu, kurum sözlüğünü `orgs.tsv`'den (365 satır) yeniden kurarken commit'li 11.693 satırı 1.125 satıra düşürebiliyordu. Artık sözlük %50'den fazla küçülecekse **yazılmıyor** (uyarı basılıyor, `--force` ile aşılabiliyor).
-- **Doğrulama:** yeni `scripts/check_taxonomy_master.py` (K1–K9 denetimi) + `diag/taxonomy_master/worklist.tsv` + `TaxonomyLabelsTest` (24 birim test) + `.github/workflows/taxonomy-master.yml`. Dil dosyası eşitliği (17.794 string / 17.637 benzersiz kayıt), Bangumi MASTER doğrulaması ve iki üretecin idempotentliği yeşil; değişen Kotlin dosyaları `tree-sitter-kotlin` ile sözdizimi denetiminden geçti.
+- **Her kaynaktan kurum verisi eksiksiz toplanıyor (yeni tur):**
+  - **Kitsu**: `animeProductions` / `mangaProductions` ilişkisi eklendi — Kitsu kaynaklı sayfalarda stüdyo, yapımcı, yayıncı ve dergi **artık görünüyor** (rol eşlemesi: `studio` · `producer` · `licensor` · `publisher` · `magazine` · `network`).
+  - **Shikimori**: `genres[].kind` ayrımı korunuyor (`genre` → tür, `theme` → tema, `demographic` → hedef kitle).
+  - **Bangumi**: infobox'ta okunan kurum anahtarları genişletildi — `制作協力`, `音楽制作`, `レーベル`, `配給`, `発行`, `掲載誌`, `放送局` gibi alanlar da toplanıyor.
+  - **Çapraz toplayıcı 4 kaynağa çıktı**: MAL/Jikan + AniList + **Shikimori** + **Kitsu** paralel çalışıyor; cihaz günlüğünde kaynak bazlı sayaç basılıyor (`jikan=… | anilist=… | shikimori=… | kitsu=…`).
+  - **Tavanlar yükseltildi**: tür 24 → **48**, etiket 48 → **96**, kurum 24 → **64**. Uzun serilerde ve kalabalık yapım komitelerinde veri kesilmiyor.
+- **Doğrulama:** yeni `scripts/check_taxonomy_master.py` (K1–K9 denetimi) + `diag/taxonomy_master/worklist.tsv` + `TaxonomyLabelsTest` (24 birim test) + `.github/workflows/taxonomy-master.yml` + `scripts/audit_taxonomy_sources.py` (28 field checks). Dil dosyası eşitliği (17.794 string / 17.637 benzersiz kayıt), Bangumi MASTER doğrulaması ve iki üretecin idempotentliği yeşil; değişen Kotlin dosyaları `tree-sitter-kotlin` ile sözdizimi denetiminden geçti.
 
 ---
 
@@ -43,4 +49,10 @@
 - **Organisation-name junk removed (`sanitizeOrgName`):** infobox artefacts (`"""アフタヌーン`, `芳文社; B6版`) and kaomoji “publishers” such as `っ´Д`)っゼロ式の家` no longer render; genuine short names (`CR`, `MX`, `B站`) are preserved and the studios card skips entries that sanitise to empty.
 - **Dictionary typo fixed:** `area_chinese_speaking` → “Çince Konuşulan Bölge”.
 - **Generator safety brake:** `gen_bangumi_master.py` write mode could shrink the organisation dictionary from 11,693 rows to 1,125 by rebuilding it from a 365-row `orgs.tsv`. It now refuses to write when the new dictionary would be less than half the existing one (`--force` overrides).
+- **Every source now contributes its full organisation data:**
+  - **Kitsu**: the `animeProductions` / `mangaProductions` relationship was never requested — Kitsu-sourced pages had **no studios at all**. It is now parsed with role mapping (`studio` · `producer` · `licensor` · `publisher` · `magazine` · `network`).
+  - **Shikimori**: `genres[].kind` is preserved (`genre` → genre, `theme` → theme, `demographic` → demographic).
+  - **Bangumi**: more infobox organisation keys are read (`制作協力`, `音楽制作`, `レーベル`, `配給`, `掲載誌`, `放送局` …).
+  - **Cross-source collector now queries four services in parallel**: MAL/Jikan + AniList + **Shikimori** + **Kitsu**, with a per-source counter in logcat.
+  - **Caps raised**: genres 24 → **48**, tags 48 → **96**, organisations 24 → **64**.
 - **Verification:** new `scripts/check_taxonomy_master.py` (K1–K9), `diag/taxonomy_master/worklist.tsv`, `TaxonomyLabelsTest` (24 unit tests) and `.github/workflows/taxonomy-master.yml`; locale parity (17,794 strings / 17,637 unique keys), Bangumi MASTER verification and generator idempotency are green, and every changed Kotlin file parses cleanly with `tree-sitter-kotlin`.

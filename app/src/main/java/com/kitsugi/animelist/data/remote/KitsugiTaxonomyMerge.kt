@@ -43,7 +43,7 @@ internal object KitsugiTaxonomyMerge {
     fun mergeGenres(
         primary: List<String>,
         vararg extras: List<String>,
-        limit: Int = 24
+        limit: Int = 48
     ): List<String> {
         if (primary.isEmpty() && extras.all { it.isEmpty() }) return emptyList()
         val result = ArrayList<String>(limit)
@@ -75,7 +75,7 @@ internal object KitsugiTaxonomyMerge {
      *   `Повседневность` + `Slice of Life` + `日常` tek etiket olur.
      * - `limit` aşımında spoiler etiketleri kesilmez.
      */
-    fun mergeTags(vararg groups: List<KitsugiTag>, limit: Int = 48): List<KitsugiTag> {
+    fun mergeTags(vararg groups: List<KitsugiTag>, limit: Int = 96): List<KitsugiTag> {
         if (groups.all { it.isEmpty() }) return emptyList()
         var merged = emptyList<KitsugiTag>()
         for (group in groups) {
@@ -96,7 +96,7 @@ internal object KitsugiTaxonomyMerge {
      * Aynı ad iki kaynakta görünüyorsa **kimliği (`id > 0`) ve görseli olan** kayıt seçilir;
      * böylece stüdyo çipine tıklanınca gerçek stüdyo sayfası açılır.
      */
-    fun mergeOrgs(vararg groups: List<KitsugiStudio>, limit: Int = 24): List<KitsugiStudio> {
+    fun mergeOrgs(vararg groups: List<KitsugiStudio>, limit: Int = 64): List<KitsugiStudio> {
         if (groups.all { it.isEmpty() }) return emptyList()
         val result = ArrayList<KitsugiStudio>(limit)
         val indexByKey = HashMap<String, Int>(limit * 2)
@@ -177,8 +177,8 @@ internal object KitsugiTaxonomyMerge {
     fun mergeDetail(
         primary: KitsugiMediaDetail,
         secondary: KitsugiMediaDetail?,
-        genresLimit: Int = 24,
-        tagsLimit: Int = 48
+        genresLimit: Int = 48,
+        tagsLimit: Int = 96
     ): KitsugiMediaDetail {
         if (secondary == null) return primary
 
@@ -191,8 +191,8 @@ internal object KitsugiTaxonomyMerge {
         )
         val mergedNetworks = mergeOrgs(primary.networks, secondary.networks)
         val mergedSerializations = mergeOrgs(primary.serializations, secondary.serializations)
-        val mergedDemographics = mergeGenres(primary.demographics, secondary.demographics, limit = 8)
-        val mergedThemes = mergeGenres(primary.themes, secondary.themes, limit = 12)
+        val mergedDemographics = mergeGenres(primary.demographics, secondary.demographics, limit = 12)
+        val mergedThemes = mergeGenres(primary.themes, secondary.themes, limit = 24)
 
         if (mergedGenres == primary.genres &&
             mergedTags == primary.tags &&

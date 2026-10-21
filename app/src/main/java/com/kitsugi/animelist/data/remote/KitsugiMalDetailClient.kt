@@ -467,7 +467,9 @@ internal object KitsugiMalDetailClient {
                             val obj = arr.getJSONObject(i)
                             val id = obj.optInt("mal_id")
                             val name = obj.optNullableString("name")
-                            if (!name.isNullOrBlank()) producers.add(KitsugiStudio(id = id, name = name, isMain = false, source = "jikan", role = StudioRole.PRODUCER, imageUrl = studioImageUrl(obj)))
+                            // Lisans verenler yapımcıdan ayrı rolde tutulur: tekilleştirme ve
+                            // "Yapımcılar" listesindeki karışıklık buna göre çözülür.
+                            if (!name.isNullOrBlank()) producers.add(KitsugiStudio(id = id, name = name, isMain = false, source = "jikan", role = StudioRole.LICENSOR, imageUrl = studioImageUrl(obj)))
                         }
                     }
                 }

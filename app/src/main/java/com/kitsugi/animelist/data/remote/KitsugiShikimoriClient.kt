@@ -470,6 +470,10 @@ object KitsugiShikimoriClient {
                     }.toTurkishStatus()
 
                     val genresList = mutableListOf<String>()
+                    // `kind` alanı Shikimori'nin kendi sınıflandırmasıdır: theme/demographic
+                    // ayrımı korunur (birleştirme ve filtre bu alanları ayrı kullanır).
+                    val shikiThemes = mutableListOf<String>()
+                    val shikiDemographics = mutableListOf<String>()
                     val shikiTags = mutableListOf<KitsugiTag>()
                     val genresArr = data.optJSONArray("genres")
                     if (genresArr != null) {
@@ -479,6 +483,10 @@ object KitsugiShikimoriClient {
                             val gKind = gObj.optString("kind", "").lowercase()
                             if (gName.isNotBlank()) {
                                 genresList.add(gName)
+                                when (gKind) {
+                                    "theme" -> shikiThemes.add(gName)
+                                    "demographic" -> shikiDemographics.add(gName)
+                                }
                                 if (gKind == "theme" || gKind == "demographic" || !com.kitsugi.animelist.ui.screens.search.CanonicalFilterBridge.isOfficialAniListGenre(gName)) {
                                     shikiTags.add(
                                         KitsugiTag(
@@ -619,6 +627,8 @@ object KitsugiShikimoriClient {
                         type = if (mediaType == MediaType.Manga) MediaType.Manga
                                else kindToMediaType(data.optString("kind", "tv")),
                         genres = genresList.toTurkishGenres(),
+                        themes = shikiThemes.distinct().toTurkishGenres(),
+                        demographics = shikiDemographics.distinct().toTurkishGenres(),
                         status = statusStr,
                         studios = studiosList,
                         rating = rating,
