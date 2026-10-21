@@ -269,8 +269,97 @@ print(f"strings.xml (app + shards): TR +{a1} / ~{u1} | EN +{a2} / ~{u2}")
 # ── 3) BangumiTagDictionary.kt ───────────────────────────────────────────────
 
 
+
+# ── groups listesi: tek dev `listOf` yerine parçalı fonksiyonlar ──────────────
+# JVM'de bir metodun bytecode'u 64 KB ile sınırlıdır. 3.000+ `g(...)` çağrısı tek
+# initializer'da bu sınırı aşacağı için girişler `groupChunkNN()` fonksiyonlarına
+# bölünür; `groups` bunları birleştirir. Davranış birebir aynı kalır (sıra korunur).
+GROUP_CHUNK_SIZE = 400
+GROUPS_HEAD_RE = re.compile(r'(?m)^    private val groups: List<Group> = listOf\(\n')
+GROUPS_CHUNK_RE = re.compile(r'(?m)^    private fun groupChunk(\d+)\(\): List<Group> = listOf\(\n')
+
+
+def chunk_group_lines(lines: list[str], size: int = GROUP_CHUNK_SIZE) -> list[list[str]]:
+    chunks: list[list[str]] = []
+    current: list[str] = []
+    count = 0
+    for line in lines:
+        if not line.strip():
+            continue
+        current.append(line)
+        if line.lstrip().startswith('g("'):
+            count += 1
+            if count == size:
+                chunks.append(current)
+                current, count = [], 0
+    if any(l.lstrip().startswith('g("') for l in current):
+        chunks.append(current)
+    return chunks
+
+
+def render_group_chunk(index: int, lines: list[str]) -> str:
+    body: list[str] = []
+    for line in lines:
+        text = line.rstrip()
+        if text.lstrip().startswith('g("'):
+            text = text.rstrip(",")
+        body.append(text)
+    for i, text in enumerate(body):
+        if not text.lstrip().startswith('g("'):
+            continue
+        if any(l.lstrip().startswith('g("') for l in body[i + 1:]):
+            text += ","
+        body[i] = text
+    return (f"    private fun groupChunk{index:02d}(): List<Group> = listOf(\n"
+            + "\n".join(body) + "\n    )\n")
+
+
+def ensure_group_chunks(source: str) -> str:
+    """Tek `listOf` bloğunu parçalı fonksiyonlara çevirir (idempotent)."""
+    if GROUPS_CHUNK_RE.search(source):
+        return source
+    head = GROUPS_HEAD_RE.search(source)
+    if not head:
+        raise SystemExit("groups listesi başlığı bulunamadı")
+    end = source.index("\n    )", head.end())
+    body = source[head.end():end]
+    chunks = chunk_group_lines(body.splitlines())
+    if not chunks:
+        raise SystemExit("groups listesi boş")
+    calls = " +\n        ".join(f"groupChunk{i + 1:02d}()" for i in range(len(chunks)))
+    rendered = "".join(render_group_chunk(i + 1, c) for i, c in enumerate(chunks))
+    tail_marker = "\n    )\n"
+    if source[end:end + len(tail_marker)] != tail_marker:
+        raise SystemExit("groups listesi kapanışı beklenen biçimde değil")
+    new_head = "    private val groups: List<Group> =\n        " + calls + "\n\n"
+    return source[:head.start()] + new_head + rendered + source[end + len(tail_marker):]
+
+
+def count_chunk_entries(lines: list[str]) -> int:
+    return sum(1 for l in lines if l.lstrip().startswith('g("'))
+
+
+def rerender_group_chunks(source: str, size: int = GROUP_CHUNK_SIZE) -> str:
+    """Parçalı listeyi tekrar dengeler (yeni girişler son parçayı şişirdiğinde)."""
+    matches = list(GROUPS_CHUNK_RE.finditer(source))
+    if not matches:
+        raise SystemExit("groupChunk fonksiyonu bulunamadı")
+    lines: list[str] = []
+    for m in matches:
+        close = source.index("\n    )", m.end())
+        lines.extend([l for l in source[m.end():close].splitlines() if l.strip()])
+    chunks = chunk_group_lines(lines, size)
+    calls = " +\n        ".join(f"groupChunk{i + 1:02d}()" for i in range(len(chunks)))
+    rendered = "".join(render_group_chunk(i + 1, c) for i, c in enumerate(chunks))
+    first, last = matches[0], matches[-1]
+    last_close = source.index("\n    )\n", last.end()) + len("\n    )\n")
+    head = "    private val groups: List<Group> =\n        " + calls + "\n\n"
+    return source[:first.start()] + head + rendered + source[last_close:]
+
+
 def patch_tag_dict(source: str) -> tuple[str, int, int]:
     added_groups = added_labels = 0
+    source = ensure_group_chunks(source)
     known = set(re.findall(r'\bg\("([a-z0-9_]+)"', source))
 
     # Tag UI lookup is independent of the shared organization string_key:
@@ -295,7 +384,7 @@ def patch_tag_dict(source: str) -> tuple[str, int, int]:
             source = source[:m.end("body")].rstrip() + appended + source[m.end("body"):]
             added_labels += len(extra)
 
-    # (b) yeni gruplar (canon id'si sözlükte olmayanlar)
+    # (b) yeni gruplar (canon id'si sözlükte olmayanlar) — son parçaya eklenir
     new_lines = []
     for cid in sorted(tag_entries):
         e = tag_entries[cid]
@@ -316,19 +405,26 @@ def patch_tag_dict(source: str) -> tuple[str, int, int]:
     if not new_lines:
         return source, added_groups, added_labels
 
-    if TAG_VAULT_MARKER in source:
-        idx = source.index(TAG_VAULT_MARKER) + len(TAG_VAULT_MARKER)
-        source = source[:idx] + "\n" + ",\n".join(new_lines) + "," + source[idx:]
-    else:
-        match = re.search(r'^\s{4}\)\s*$', source, re.M)
-        if not match:
-            raise SystemExit("groups listesinin kapanışı bulunamadı")
-        head = source[:match.start()]
-        stripped = head.rstrip()
-        if not stripped.endswith(","):
-            head = stripped + ",\n"
-        block = "        " + TAG_VAULT_MARKER + "\n" + ",\n".join(new_lines)
-        source = head + "\n" + block + "\n" + source[match.start():]
+    chunks = list(GROUPS_CHUNK_RE.finditer(source))
+    if not chunks:
+        raise SystemExit("groupChunk fonksiyonu bulunamadı")
+    last = chunks[-1]
+    close = source.index("\n    )", last.end())
+    body = source[last.end():close]
+    text = body.rstrip()
+    if text and not text.endswith(","):
+        text += ","
+    marker = "" if TAG_VAULT_MARKER in source else "        " + TAG_VAULT_MARKER + "\n"
+    source = (source[:last.end()] + text + "\n" + marker
+              + ",\n".join(new_lines) + "\n" + source[close + 1:])
+    # parça boyutu korunur: son parça 400 girişi aşarsa tüm liste yeniden dengelenir
+    chunks = list(GROUPS_CHUNK_RE.finditer(source))
+    sizes = []
+    for m in chunks:
+        body_end = source.index("\n    )", m.end())
+        sizes.append(count_chunk_entries(source[m.end():body_end].splitlines()))
+    if sizes and max(sizes) > GROUP_CHUNK_SIZE:
+        source = rerender_group_chunks(source)
     return source, added_groups, added_labels
 
 

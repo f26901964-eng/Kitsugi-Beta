@@ -52249,6 +52249,26 @@ WillPlus|bangumi_tag_willplus|WillPlus
 Willplus|bangumi_tag_willplus|WillPlus
 榊原ゆい|bangumi_tag_yui_sakakibara|Yui Sakakibara
 Yui Sakakibara|bangumi_tag_yui_sakakibara|Yui Sakakibara
+暗荣|bangumi_publisher_koei|Koei
+Nintendo_Switch|bangumi_tag_platform_switch|Nintendo Switch
+vocaloid|bangumi_tag_vocaloid|Vocaloid
+FrontierWorks|bangumi_producer_frontier_works|Frontier Works
+上美|bangumi_producer_shanghai_animation_film_studio|Shanghai Animation Film Studio
+capcom|bangumi_publisher_capcom|Capcom
+卡婊|bangumi_publisher_capcom|Capcom
+暗耻|bangumi_publisher_koei|Koei
+SQUARE_ENIX|bangumi_publisher_square_enix|Square Enix
+SQUARE.ENIX|bangumi_publisher_square_enix|Square Enix
+东京Movie新社|bangumi_studio_tms|TMS Entertainment
+TMS_Entertainment|bangumi_studio_tms|TMS Entertainment
+轻音|bangumi_tag_k_on|K-On!
+k-on|bangumi_tag_k_on|K-On!
+K-ON!|bangumi_tag_k_on|K-On!
+けいおん！|bangumi_tag_k_on|K-On!
+けいおん!|bangumi_tag_k_on|K-On!
+谷山纪章|bangumi_tag_kisho_taniyama|Kisho Taniyama
+NintendoSwitch|bangumi_tag_platform_switch|Nintendo Switch
+泛Vocaloid|bangumi_tag_vocaloid|Vocaloid
 """
     ).joinToString("")
 
