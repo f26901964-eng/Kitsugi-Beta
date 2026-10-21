@@ -435,21 +435,22 @@ object KitsugiBangumiDetailClient {
         val studios = studioNames
             .map { KitsugiStudio(id = 0, name = it, isMain = true, source = SOURCE, role = StudioRole.STUDIO) }
         val producers = if (mediaType == MediaType.Manga) {
-            splitCompanies(values("出版社", "出版", "发行", "發行"))
+            splitCompanies(valuesAll("出版社", "出版", "发行", "發行"))
                 .map { it.toLatinStudioName() }
                 .distinct()
                 .map { KitsugiStudio(id = 0, name = it, isMain = true, source = SOURCE, role = StudioRole.PUBLISHER) }
         } else {
-            splitCompanies(values("製作", "出品", "发行", "發行", "製作委员会", "制作委员会", "製作委員会"))
+            splitCompanies(valuesAll("製作", "出品", "发行", "發行", "製作委员会", "制作委员会", "製作委員会"))
                 .map { it.toLatinStudioName() }
                 .filter { name -> studioNames.none { it.equals(name, ignoreCase = true) } }
+                .distinct()
                 .map { KitsugiStudio(id = 0, name = it, isMain = false, source = SOURCE, role = StudioRole.PRODUCER) }
         }
         val networks = splitNetworks(valuesAll("播放电视台", "播放電視台", "其他电视台", "其他電視台"))
             .map { it.toLatinStudioName() }
             .distinct()
             .map { KitsugiStudio(id = 0, name = it, isMain = false, source = SOURCE, role = StudioRole.NETWORK) }
-        val serializations = splitCompanies(values("连载杂志", "連載雜誌", "連載雑誌", "杂志", "雜誌", "雑誌"))
+        val serializations = splitCompanies(valuesAll("连载杂志", "連載雜誌", "連載雑誌", "杂志", "雜誌", "雑誌"))
             .map { it.toLatinStudioName() }
             .distinct()
             .map { KitsugiStudio(id = 0, name = it, isMain = true, source = SOURCE, role = StudioRole.MAGAZINE) }

@@ -707,26 +707,40 @@ class KitsugiBangumiDetailClientTest {
 
     @Test
     fun buildNativeDetail_mapsVaultPublisherMagazineAndBroadcastStation() {
-        val mangaSubject = subject(name = "テスト漫画", platform = "漫画", eps = 0).copy(
-            type = BangumiApiClient.SubjectType.BOOK,
-            infobox = mapOf(
-                "出版社" to listOf("新書館"),
-                "發行" to listOf("オーバーラップ文庫"),
-                "連載雑誌" to listOf("月刊ウィングス")
+        val prevLocale = java.util.Locale.getDefault()
+        try {
+            val mangaSubject = subject(name = "テスト漫画", platform = "漫画", eps = 0).copy(
+                type = BangumiApiClient.SubjectType.BOOK,
+                infobox = mapOf(
+                    "出版社" to listOf("新書館"),
+                    "發行" to listOf("オーバーラップ文庫"),
+                    "連載雑誌" to listOf("月刊ウィングス")
+                )
             )
-        )
-        val mangaDetail = KitsugiBangumiDetailClient.buildNativeDetail(mangaSubject, MediaType.Manga)
-        assertTrue(mangaDetail.producers.any { it.name == "Overlap Bunko" && it.role == StudioRole.PUBLISHER })
-        assertEquals(listOf("Monthly Wings"), mangaDetail.serializations.map { it.name })
-        assertEquals(listOf(StudioRole.MAGAZINE), mangaDetail.serializations.map { it.role })
+            val mangaDetail = KitsugiBangumiDetailClient.buildNativeDetail(mangaSubject, MediaType.Manga)
+            assertTrue(mangaDetail.producers.any { it.name == "Shinshokan" && it.role == StudioRole.PUBLISHER })
+            assertTrue(mangaDetail.producers.any { it.name == "Overlap Bunko" && it.role == StudioRole.PUBLISHER })
+            assertEquals(listOf("Monthly Wings"), mangaDetail.serializations.map { it.name })
+            assertEquals(listOf(StudioRole.MAGAZINE), mangaDetail.serializations.map { it.role })
 
-        val animeSubject = subject().copy(
-            infobox = mapOf(
-                "放送星期" to listOf("星期六"),
-                "播放电视台" to listOf("フジテレビ")
+            val animeSubject = subject().copy(
+                infobox = mapOf(
+                    "放送星期" to listOf("星期六"),
+                    "播放电视台" to listOf("フジテレビ")
+                )
             )
-        )
-        val animeDetail = KitsugiBangumiDetailClient.buildNativeDetail(animeSubject, MediaType.Anime)
-        assertEquals("Saturdays (Fuji Television)", animeDetail.broadcast)
+            java.util.Locale.setDefault(java.util.Locale.ENGLISH)
+            assertEquals(
+                "Saturdays (Fuji Television)",
+                KitsugiBangumiDetailClient.buildNativeDetail(animeSubject, MediaType.Anime).broadcast
+            )
+            java.util.Locale.setDefault(java.util.Locale.forLanguageTag("tr"))
+            assertEquals(
+                "Cumartesi (Fuji TV)",
+                KitsugiBangumiDetailClient.buildNativeDetail(animeSubject, MediaType.Anime).broadcast
+            )
+        } finally {
+            java.util.Locale.setDefault(prevLocale)
+        }
     }
 }
