@@ -143,7 +143,19 @@ static size_t CaptureBacktrace(void** buffer, size_t max_frames) {
 
 // /proc/self/maps dökümü: ham adresleri (ör. 0x7f5a109550) hangi .so dosyasının hangi ofsetine
 // denk geldiğine çevirmek için gerekir (addr2line / ndk-stack ile ÇEVRİMDIŞI çözüm).
-// Yalnızca open/read/write/close kullanır → async-signal-safe.
+// Yalnızca dosya/modül destekli satırlar ('/', "[vdso]", "[stack]") yazılır; binlerce boş anonim
+// guard sayfası atlanarak rapor boyutu 2+ MB yerine ~15 KB'ta tutulur.
+// Yalnızca open/read/write/close kullanır → async-signal-safe (malloc yok).
+bool should_keep_map_line(const char* line, size_t len) {
+    for (size_t i = 0; i < len; ++i) {
+        if (line[i] == '/') return true;
+    }
+    if (strstr(line, "[vdso]") != nullptr || strstr(line, "[stack") != nullptr) {
+        return true;
+    }
+    return false;
+}
+
 void write_proc_maps(int out_fd) {
     static const char kBegin[] = "=== PROC MAPS (/proc/self/maps) ===\n";
     static const char kEnd[] = "=== END PROC MAPS ===\n";
@@ -151,10 +163,45 @@ void write_proc_maps(int out_fd) {
     int maps_fd = open("/proc/self/maps", O_RDONLY | O_CLOEXEC);
     if (maps_fd >= 0) {
         char chunk[4096];
+        char line_buf[1024];
+        size_t line_len = 0;
+        bool line_has_slash = false;
+        unsigned long long skipped_anon = 0;
         for (;;) {
             ssize_t n = read(maps_fd, chunk, sizeof(chunk));
             if (n <= 0) break;
-            write_all(out_fd, chunk, static_cast<size_t>(n));
+            for (ssize_t i = 0; i < n; ++i) {
+                char c = chunk[i];
+                if (c == '/') line_has_slash = true;
+                if (line_len + 1 < sizeof(line_buf)) {
+                    line_buf[line_len++] = c;
+                }
+                if (c == '\n') {
+                    line_buf[line_len] = '\0';
+                    if (line_has_slash || should_keep_map_line(line_buf, line_len)) {
+                        write_all(out_fd, line_buf, line_len);
+                    } else {
+                        ++skipped_anon;
+                    }
+                    line_len = 0;
+                    line_has_slash = false;
+                }
+            }
+        }
+        if (line_len > 0) {
+            line_buf[line_len] = '\0';
+            if (line_has_slash || should_keep_map_line(line_buf, line_len)) {
+                write_all(out_fd, line_buf, line_len);
+                write_all(out_fd, "\n", 1);
+            }
+        }
+        if (skipped_anon > 0) {
+            char summary[96];
+            size_t s = 0;
+            append_str(summary, sizeof(summary), &s, "# omitted_anonymous_regions=");
+            append_ulong(summary, sizeof(summary), &s, skipped_anon);
+            append_str(summary, sizeof(summary), &s, "\n");
+            write_all(out_fd, summary, s);
         }
         close(maps_fd);
     } else {
@@ -172,7 +219,10 @@ void write_native_report(int sig, siginfo_t* info, const void* ucontext_ptr) {
     append_str(path, sizeof(path), &p, g_dir);
     append_str(path, sizeof(path), &p, "/native_crash.txt");
 
-    int fd = open(path, O_WRONLY | O_CREAT | O_APPEND, 0600);
+    // O_TRUNC ZORUNLU: O_APPEND kullanıldığında haftalar önceki native çökmeler ve dev
+    // /proc/self/maps dökümleri aynı dosyada birikerek 2+ MB boyuta ulaşıyor ve sonraki
+    // oturumlardaki Java çökmelerine bayat iz olarak yapışıyordu.
+    int fd = open(path, O_WRONLY | O_CREAT | O_TRUNC, 0600);
     if (fd < 0) return;
 
     char buf[1536];

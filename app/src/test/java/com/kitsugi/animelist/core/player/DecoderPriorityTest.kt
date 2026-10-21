@@ -1,6 +1,7 @@
 package com.kitsugi.animelist.core.player
 
 import com.kitsugi.animelist.data.settings.AppSettings
+import com.kitsugi.animelist.data.settings.PlayerPlaybackSettings
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
@@ -15,7 +16,7 @@ class DecoderPriorityTest {
 
     @Test
     fun testDecoderPriorityCustomValue() {
-        val settings = AppSettings(decoderPriority = 2)
+        val settings = AppSettings(playback = PlayerPlaybackSettings(decoderPriority = 2))
         // Verify custom decoder priority is set correctly
         assertEquals(2, settings.decoderPriority)
     }

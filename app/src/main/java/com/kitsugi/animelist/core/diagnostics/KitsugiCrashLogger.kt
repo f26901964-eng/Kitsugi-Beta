@@ -218,9 +218,12 @@ object KitsugiCrashLogger {
             File(context.filesDir, CRASH_LOG_FILE).writeText(report)
         } catch (_: Throwable) {}
 
-        // 2. Native çökme izi varsa yanına kopyala (tek dosyada toplu kanıt)
+        // 2. Yalnızca BU SÜRECE (aynı PID) ait native çökme izi varsa yanına kopyala
         try {
-            val nativeTrace = NativeCrashBridge.readRecentNativeCrash(context)
+            val nativeTrace = NativeCrashBridge.readRecentNativeCrash(
+                context = context,
+                expectedPid = android.os.Process.myPid()
+            )
             if (!nativeTrace.isNullOrBlank()) {
                 File(context.filesDir, CRASH_LOG_FILE).appendText(
                     "\n\n▶ SON NATIVE ÇÖKME İZİ\n$nativeTrace\n"
@@ -271,32 +274,48 @@ object KitsugiCrashLogger {
 
     /**
      * Çökme anında logcat anlık görüntüsünü yakalar ve dosyaya yazar.
-     * Sert zaman aşımı vardır; çökme ekranının açılmasını geciktirmez.
+     * Yeterli okuma penceresi (1500 ms) ve boş çıktı yedeği sayesinde 73 baytlık boş başlık dosyası oluşmaz.
      */
-    fun captureLogcatSync(context: Context) {
+    fun captureLogcatSync(context: Context, fallbackReport: String? = null) {
         var process: java.lang.Process? = null
         try {
             process = Runtime.getRuntime().exec(
-                arrayOf("logcat", "-d", "-t", MAX_LOGCAT_LINES.toString(), "-v", "time", "*:W")
+                arrayOf("logcat", "-b", "main,system,crash", "-d", "-t", MAX_LOGCAT_LINES.toString(), "-v", "threadtime", "*:W")
             )
             val output = StringBuilder()
             output.appendLine("=== Çökme Anı Logcat (Son $MAX_LOGCAT_LINES Satır) — ${nowText()} ===")
+            var capturedLines = 0
 
             val readerThread = Thread {
                 try {
                     BufferedReader(InputStreamReader(process.inputStream)).useLines { lines ->
                         lines.forEach { line ->
-                            if (output.length < 400_000) output.appendLine(line)
+                            if (output.length < 400_000) {
+                                output.appendLine(line)
+                                capturedLines++
+                            }
                         }
                     }
                 } catch (_: Throwable) {}
             }
             readerThread.isDaemon = true
             readerThread.start()
-            readerThread.join(400)
+            readerThread.join(1_500)
             try { process.destroy() } catch (_: Throwable) {}
 
-            File(context.filesDir, LOGCAT_CRASH_FILE).writeText(output.toString())
+            val targetFile = File(context.filesDir, LOGCAT_CRASH_FILE)
+            if (capturedLines == 0) {
+                // Eğer son birkaç saniye içinde yazılmış dolu bir logcat dosyası zaten varsa ezme.
+                val existingFresh = targetFile.exists() &&
+                    targetFile.length() > 128L &&
+                    System.currentTimeMillis() - targetFile.lastModified() < 15_000L
+                if (existingFresh) return
+                if (!fallbackReport.isNullOrBlank()) {
+                    output.appendLine("(logd tamponu zaman aşımına uğradı — doğrudan yakalanan çökme raporu eklendi)")
+                    output.appendLine(fallbackReport)
+                }
+            }
+            targetFile.writeText(output.toString())
         } catch (_: Throwable) {
             try { process?.destroy() } catch (_: Throwable) {}
         }
@@ -322,22 +341,20 @@ object KitsugiCrashLogger {
 
             val body = when {
                 // Hangisi daha yeniyse onu göster: Java çökmesi mi, sessiz ölüm mü?
-                uncleanTime > 0 && uncleanTime >= primaryTime -> {
-                    val text = unclean.readText()
-                    val nativeTrace = NativeCrashBridge.readRecentNativeCrash(context, NativeCrashBridge.UNCLEAN_TRACE_MAX_AGE_MS)
-                    if (!nativeTrace.isNullOrBlank()) "$text\n\n▶ NATIVE ÇÖKME İZİ\n$nativeTrace" else text
-                }
-                primaryTime > 0 -> {
-                    val text = primary.readText()
-                    val nativeTrace = NativeCrashBridge.readRecentNativeCrash(context)
-                    if (!nativeTrace.isNullOrBlank()) "$text\n\n▶ NATIVE ÇÖKME İZİ\n$nativeTrace" else text
-                }
+                // NOT: unclean_exit.txt kendi oturumuna (prevPid) ait native izi zaten üretim anında içerir;
+                // burada tekrar PID doğrulamasız native_crash.txt eklemek eski günlerin bayat izini yapıştırıyordu.
+                uncleanTime > 0 && uncleanTime >= primaryTime -> unclean.readText()
+                primaryTime > 0 -> primary.readText()
                 stageBlock.isNotBlank() ->
                     "▶ UYGULAMA ANA EKRAN AÇILMADAN KAPANDI\n" +
                         "(Bu sürüm için kayıtlı Java çökme raporu yok — sessiz/native ölüm.\n" +
                         " Aşağıdaki başlatma aşaması izi son çalışan init adımını gösterir.)"
                 else -> {
-                    val nativeTrace = NativeCrashBridge.readRecentNativeCrash(context, NativeCrashBridge.UNCLEAN_TRACE_MAX_AGE_MS)
+                    val nativeTrace = NativeCrashBridge.readRecentNativeCrash(
+                        context = context,
+                        maxAgeMs = NativeCrashBridge.UNCLEAN_TRACE_MAX_AGE_MS,
+                        expectedPid = null
+                    )
                     if (!nativeTrace.isNullOrBlank()) "▶ NATIVE ÇÖKME İZİ\n$nativeTrace"
                     else "Henüz çökme kaydı bulunamadı."
                 }
@@ -526,8 +543,10 @@ object KitsugiCrashLogger {
                 .putBoolean("has_unclean_exit", false)
                 .commit()
         } catch (_: Throwable) {}
-        // Sessiz kapanma raporu "gösterildi" sayılır; geçmiş dosyasında kaydı kalır.
+        // Sessiz kapanma ve native iz "gösterildi" sayılır; geçmiş dosyasında kaydı kalır,
+        // bayat native_crash.txt sonraki oturumlara sızmaz.
         try { KitsugiSessionSupervisor.clearUncleanExitReport(context) } catch (_: Throwable) {}
+        try { NativeCrashBridge.clearNativeCrash(context) } catch (_: Throwable) {}
     }
 
     fun getLogcatCrashFile(context: Context): File = File(context.filesDir, LOGCAT_CRASH_FILE)

@@ -51,7 +51,7 @@ jobs:
           sudo swapon /swapfile || echo "swapon atlandı"
           mkdir -p ~/.gradle
           cat > ~/.gradle/gradle.properties << 'EOP'
-          org.gradle.jvmargs=-Xmx2g -Xms512m -Xss16m -XX:+UseG1GC -Dfile.encoding=UTF-8
+          org.gradle.jvmargs=-Xmx4g -Xms1g -Xss16m -XX:+UseG1GC -Dfile.encoding=UTF-8
           org.gradle.workers.max=1
           org.gradle.parallel=true
           org.gradle.daemon=true
@@ -60,14 +60,18 @@ jobs:
           kotlin.compiler.execution.strategy=daemon
           EOP
 
-      - name: 🧪 MAL cihaz ayrıştırıcı testleri + eklenti güncelleme testleri + 🔨 foss debug APK
+      - name: 🧪 MAL cihaz ayrıştırıcı testleri + eklenti güncelleme testleri + 🔨 foss debug & R8 release APK + DEX doğrulama
         run: |
           chmod +x gradlew
           set -o pipefail
-          # Eklenti güncelleme tespiti (sürüm + içerik parmak izi) ve depo ayna zinciri
-          # testleri de çalıştırılır: bu mantık sessizce bozulursa kullanıcı
-          # "güncellemeler görünmüyor" hatasını tekrar yaşar.
+          # Eklenti güncelleme tespiti (sürüm + içerik parmak izi), ayar migrasyon/yazmaç kalkanı
+          # ve çökme tanı testleri çalıştırılır; ardından hem Debug hem de R8 küçültmeli Release
+          # APK derlenip tüm classes*.dex buyruk akışları ikili düzeyde ART kurallarıyla doğrulanır.
           ./gradlew :app:testFossDebugUnitTest \
+            --tests 'com.kitsugi.animelist.core.diagnostics.*' \
+            --tests 'com.kitsugi.animelist.data.settings.*' \
+            --tests 'com.kitsugi.animelist.core.notifications.*' \
+            --tests 'com.kitsugi.animelist.core.player.*' \
             --tests 'com.kitsugi.animelist.data.remote.malweb.*' \
             --tests 'com.kitsugi.animelist.data.cloudstream.CsPluginUpdateCheckerTest' \
             --tests 'com.kitsugi.animelist.data.remote.CloudstreamRepoMirrorTest' \
@@ -86,17 +90,36 @@ jobs:
             --tests 'com.kitsugi.animelist.ui.components.HomeHeroPolicyTest' \
             --tests 'com.kitsugi.animelist.ui.components.HeroImageSelectionTest' \
             --tests 'com.kitsugi.animelist.ui.components.HomeHeroGestureModifiersTest' \
-            :app:assembleFossDebug --stacktrace --console=plain 2>&1 | tee build.log
+            :app:assembleFossDebug :app:assembleFossRelease --stacktrace --console=plain 2>&1 | tee build.log
+          python3 scripts/verify_apk_dex_bytecode.py \
+            app/build/outputs/apk/foss/debug/*.apk \
+            app/build/outputs/apk/foss/release/*.apk 2>&1 | tee -a build.log
         env:
           GRADLE_OPTS: -Dfile.encoding=UTF-8
 
-      - name: 📲 APK'yı yükle
+      - name: 📲 APK'ları yükle
         if: success()
         uses: actions/upload-artifact@v4
         with:
-          name: kitsugi-foss-debug-apk
-          path: app/build/outputs/apk/foss/debug/*.apk
+          name: kitsugi-foss-apks
+          path: |
+            app/build/outputs/apk/foss/debug/*.apk
+            app/build/outputs/apk/foss/release/*.apk
           retention-days: 7
+
+      - name: ✅ Başarılı derleme + DEX doğrulama kanıtını kontrol çalışmasına yaz
+        if: success()
+        run: |
+          SUMMARY=$(grep -E "\[DEX-OK\]|BUILD SUCCESSFUL" build.log 2>/dev/null | tail -n 20 | tr '\n' '|')
+          jq -n --arg sha "$GITHUB_SHA" --arg s "$SUMMARY" \
+            '{name:"dex-verification-proof", head_sha:$sha, status:"completed", conclusion:"success",
+              output:{title:"R8 Release & Debug DEX Bytecode Verification", summary:$s}}' > /tmp/check-run-ok.json
+          curl -sS -X POST \
+            -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+            -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            "https://api.github.com/repos/${{ github.repository }}/check-runs" \
+            -d @/tmp/check-run-ok.json | head -c 300
 
       - name: 🩺 Derleme günlüğünü yükle
         if: failure()

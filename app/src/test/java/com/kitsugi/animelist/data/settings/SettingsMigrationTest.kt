@@ -256,13 +256,13 @@ class SettingsMigrationTest {
     @Test
     fun `AppSettings dnsChoice 0 is system default`() {
         // 0 = System DNS – değer aralığı 0-7
-        val settings = AppSettings(dnsChoice = 0)
+        val settings = AppSettings(integrations = IntegrationsAndNotificationsSettings(dnsChoice = 0))
         assertEquals(0, settings.dnsChoice)
     }
 
     @Test
     fun `AppSettings dnsChoice 7 is valid (Canadian Shield)`() {
-        val settings = AppSettings(dnsChoice = 7)
+        val settings = AppSettings(integrations = IntegrationsAndNotificationsSettings(dnsChoice = 7))
         assertEquals(7, settings.dnsChoice)
     }
 }

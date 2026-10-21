@@ -4,22 +4,19 @@ import android.content.Context
 import android.content.Intent
 import android.os.Process
 import android.util.Log
+import java.util.concurrent.atomic.AtomicBoolean
 
 /**
  * KitsugiCrashHandler — uygulamanın TEK çökme giriş noktası.
  *
- * Tasarım kuralları (neden böyle?):
- *  1. **Hiçbir şeyi yutmaz, ama önce kanıtı yazar.** Önce minik "pending" işareti (bayrak dosyası +
- *     SharedPreferences) yazılır; rapor dosyaları sonra oluşturulur. Böylece rapor üretimi
- *     yarıda kalsa bile uygulama bir sonraki açılışta "çöktü" diyebilir.
- *  2. **Throwable yakalar** (Exception değil). StackOverflowError/OutOfMemoryError gibi hatalar
- *     `catch (e: Exception)` bloklarından kaçar ve raporun yazılmasını engelliyordu.
- *  3. **Ana iş parçacığını UYUTMAZ.** Eski kod `Thread.sleep(800)` ile ana thread'i bloke ediyordu;
- *     Android'in "activity'yi duraklat + yenisini başlat" el sıkışması tam bu sırada yapıldığı için
- *     çökme ekranı çoğu zaman hiç açılamıyordu. Artık çökme ekranı (ayrı süreç + ayrı görev) açılır
- *     ve eski süreç, arka plandaki bir bekçi thread tarafından (ya da doğrudan çökme ekranı
- *     tarafından) kapatılır.
- *  4. **Ana thread çökmesi asla bastırılmaz.**
+ * Tasarım kuralları:
+ *  1. **Hiçbir şeyi yutmaz, ama önce kanıtı yazar.**
+ *  2. **Throwable yakalar** (Exception değil — VerifyError/LinkageError/OutOfMemoryError/StackOverflowError dahil).
+ *  3. **Tek uçuş (single-flight) koruması:** Aynı süreçte birden fazla arka plan iş parçacığı aynı anda
+ *     çöktüğünde (ör. 10 coroutine worker'ın aynı anda patlaması), yalnızca İLK çökme (veya daha sonra
+ *     ana UI thread'i de çökerse bir kez de ön-plan yükseltmesi) rapor/logcat/MediaStore/Activity başlatma
+ *     işlemlerini yürütür; diğer iş parçacıkları dosyaları birbirinin üzerine yazıp bozamaz.
+ *  4. **Ana iş parçacığını UYUTMAZ.**
  */
 object KitsugiCrashHandler : Thread.UncaughtExceptionHandler {
 
@@ -28,13 +25,14 @@ object KitsugiCrashHandler : Thread.UncaughtExceptionHandler {
     @Volatile private var appContext: Context? = null
     @Volatile private var installed = false
 
+    private val primaryCrashHandled = AtomicBoolean(false)
+    private val foregroundCrashRecorded = AtomicBoolean(false)
+    private val reportLock = Any()
+
     // ── Kurulum ────────────────────────────────────────────────────────────────
 
     /** Application.attachBaseContext() içinden çağrılır: süreçteki en erken güvenli nokta. */
     fun install(context: Context) {
-        // DİKKAT: attachBaseContext() sırasında Context.getApplicationContext() henüz NULL
-        // dönebilir (LoadedApk.mApplication henüz atanmamıştır). Bu yüzden asla
-        // "applicationContext ?: return" YAPILMAZ — yoksa çökme yakalayıcı sessizce kurulmaz.
         val ctx: Context = context.applicationContext ?: context
         appContext = ctx
         if (!installed) {
@@ -78,42 +76,64 @@ object KitsugiCrashHandler : Thread.UncaughtExceptionHandler {
                 "${throwable.javaClass.simpleName}: ${throwable.message}", throwable)
 
         if (ctx == null) {
-            killSelf(delayMs = 200)
+            if (primaryCrashHandled.compareAndSet(false, true)) {
+                killSelf(delayMs = 200)
+            }
             return
         }
 
-        // ── 2a) EN ÖNCE SİNYALİ VER: bayrak dosyası + prefs (bir sonraki açılışta kesin görünür)
-        try {
-            KitsugiCrashLogger.markCrashPending(ctx, thread, throwable)
-        } catch (_: Throwable) {}
+        val isFirstCrashInProcess = primaryCrashHandled.compareAndSet(false, true)
+        val shouldRecordForegroundUpgrade = !isFirstCrashInProcess &&
+            isForegroundThread &&
+            foregroundCrashRecorded.compareAndSet(false, true)
 
-        // ── 2b) Eylem izini diske yaz (rapora gömülecek)
-        try { KitsugiSessionSupervisor.flushNow() } catch (_: Throwable) {}
-
-        // ── 2c) Native çökme izi var mı? (varsa rapora iliştir)
-        try { NativeCrashBridge.readNativeCrash(ctx) } catch (_: Throwable) {}
-
-        // ── 3) Raporu yaz — hata zincirini de değil, HİÇBİR ŞEYİ kaybetmeden
-        val report: String = try {
-            KitsugiCrashLogger.writeCrashReport(
-                context = ctx,
-                thread = thread,
-                throwable = throwable,
-                isForeground = isForegroundThread
-            )
-        } catch (t: Throwable) {
-            // Rapor üretimi başarısız olduysa en azından özeti elle kur
-            buildString {
-                appendLine("=== KİTSUGİ ÇÖKME (basit rapor) ===")
-                appendLine("Thread : ${thread.name} (anaThread=$isForegroundThread)")
-                appendLine("Hata   : ${throwable.javaClass.name}: ${throwable.message}")
-                appendLine("Rapor  : ayrıntılı rapor üretilemedi (${t.javaClass.simpleName}: ${t.message})")
-                appendLine(android.util.Log.getStackTraceString(throwable))
-            }
+        if (isForegroundThread) {
+            foregroundCrashRecorded.set(true)
         }
 
-        // ── 4) Logcat anlık görüntüsü (ağır iş — kanıt yazıldıktan SONRA)
-        try { KitsugiCrashLogger.captureLogcatSync(ctx) } catch (_: Throwable) {}
+        // Aynı anda çöken ikincil arka plan worker thread'leri: rapor/logcat dosyalarını ezmesin,
+        // MediaStore Downloads'a kopya dosya yağdırmasın ve ikinci kez Activity başlatmasın.
+        if (!isFirstCrashInProcess && !shouldRecordForegroundUpgrade) {
+            return
+        }
+
+        val report: String = synchronized(reportLock) {
+            // ── 2a) EN ÖNCE SİNYALİ VER: bayrak dosyası + prefs
+            try {
+                KitsugiCrashLogger.markCrashPending(ctx, thread, throwable)
+            } catch (_: Throwable) {}
+
+            // ── 2b) Eylem izini diske yaz
+            try { KitsugiSessionSupervisor.flushNow() } catch (_: Throwable) {}
+
+            // ── 3) Raporu senkron yaz
+            val builtReport = try {
+                KitsugiCrashLogger.writeCrashReport(
+                    context = ctx,
+                    thread = thread,
+                    throwable = throwable,
+                    isForeground = isForegroundThread
+                )
+            } catch (t: Throwable) {
+                buildString {
+                    appendLine("=== KİTSUGİ ÇÖKME (basit rapor) ===")
+                    appendLine("Thread : ${thread.name} (anaThread=$isForegroundThread)")
+                    appendLine("Hata   : ${throwable.javaClass.name}: ${throwable.message}")
+                    appendLine("Rapor  : ayrıntılı rapor üretilemedi (${t.javaClass.simpleName}: ${t.message})")
+                    appendLine(android.util.Log.getStackTraceString(throwable))
+                }
+            }
+
+            // ── 4) Logcat anlık görüntüsü (yalnızca ilk seferde, yeterli bekleme penceresiyle)
+            if (isFirstCrashInProcess) {
+                try { KitsugiCrashLogger.captureLogcatSync(ctx, builtReport) } catch (_: Throwable) {}
+            }
+            builtReport
+        }
+
+        if (!isFirstCrashInProcess) {
+            return
+        }
 
         // ── 5) Çökme ekranını BAŞKA bir süreçte ve BAŞKA bir görevde aç
         val started = try {
@@ -124,7 +144,6 @@ object KitsugiCrashHandler : Thread.UncaughtExceptionHandler {
         }
 
         // ── 6) Bekçi: bu süreç ölü bir ana thread ile asılı kalmasın.
-        //      Çökme ekranı ayağa kalkar kalkmaz bizi kendisi kapatır (crashed_pid).
         killSelf(delayMs = if (started) 4_000L else 600L)
     }
 
@@ -135,18 +154,12 @@ object KitsugiCrashHandler : Thread.UncaughtExceptionHandler {
             putExtra("has_crash", true)
             putExtra("crash_summary", report.take(64_000))
             putExtra("crashed_pid", Process.myPid())
-            // Sadece NEW_TASK: çökme ekranının kendi taskAffinity'si olduğu için
-            // kendi görevinde açılır ve ölmekte olan uygulama görevinin temizliğinden etkilenmez.
             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         }
         context.startActivity(intent)
         return true
     }
 
-    /**
-     * Bu süreci arka planda kapatır. Ana thread'i ASLA bloklamaz; aksi hâlde Android'in
-     * pencere/aktivite devir teslim mesajları işlenemez ve çökme ekranı açılmaz.
-     */
     private fun killSelf(delayMs: Long) {
         Thread({
             try {
