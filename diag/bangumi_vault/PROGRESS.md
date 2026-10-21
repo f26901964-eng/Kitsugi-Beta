@@ -2,7 +2,7 @@
 
 > **Bu dosya devir teslim dosyasıdır.** Yeni bir dal/şube işi buradan devralır.
 > Son güncelleme: **2026-10-21** · Chunk **001 + 002 + 003 + 004a** tamamlandı, uygulamaya işlendi.
-> Chunk 004a PR'ı: bu dal `arena/6131dd54-kitsugi-beta` (chunk 001+002+003'ü de taşır; PR numarası Bölüm 8'de)
+> Chunk 004a PR'ı: https://github.com/f26901964-eng/Kitsugi-Beta/pull/20 (**dal `arena/6131dd54-kitsugi-beta`; chunk 001+002+003'ü de taşır**)
 > Chunk 003 PR'ı: https://github.com/f26901964-eng/Kitsugi-Beta/pull/18 (dal `arena/6cb51a64-kitsugi-beta`)
 > ⚠ `main` bu dalın tabanından sonra ilerledi (2.4.321–324); yeni dal **`origin/main` ile birleştirilmiş** hâlde
 > `arena/6131dd54-kitsugi-beta` üzerinden devam eder. Chunk 003 dalı (`6cb51a64`) artık geride kaldı.
@@ -512,7 +512,8 @@ Chunk 004a için durumu (2026-10-21) → her satır **✅ tamam**:
 - [x] `PROGRESS.md` + `progress.json` güncellendi
 - [x] Drive'a yüklendi: PROGRESS.md, progress.json, decisions/canon.tsv,
       decisions/map_chunk_004a_orgs.tsv, decisions/org_global_names.tsv
-- [x] Git commit + push (dal `arena/6131dd54-kitsugi-beta`) + PR
+- [x] Git commit + push (dal `arena/6131dd54-kitsugi-beta`) + PR #20 açıldı
+      (https://github.com/f26901964-eng/Kitsugi-Beta/pull/20)
 - [ ] **Not (yerel derleme):** bu oturumda JDK/kotlinc kurulu değildi; `compile_check.sh`
       çalıştırılamadı. Kotlin tarafı yalnız `verify_bangumi_master.py` + `gen --check` +
       RAW parça bayt denetimiyle doğrulandı; asıl derleme CI'da (kotlinc adımı) koşar.
