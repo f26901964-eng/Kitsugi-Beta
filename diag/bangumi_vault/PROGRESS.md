@@ -100,11 +100,11 @@ Yeni Arena oturumunda, yeni dal açıldığında **birebir şu metni** yapışt�
 > `diag/bangumi_vault/PROGRESS.md` dosyasını oku — Bangumi VAULT kurum/etiket çeviri işinin
 > devir teslim dosyasıdır; hiçbir şeyi sıfırdan araştırma, her şey orada yazılı.
 >
-> **(0) Dal (KRİTİK — yeni checkout'ta dosyalar YOKSA önce bunu yap):** Chunk 001 + 002 + 003 + **004a**
+> **(0) Dal (KRİTİK — yeni checkout'ta dosyalar YOKSA önce bunu yap):** Chunk 001 + 002 + 003 + **004a + 004b**
 > çalışmasının tamamı **PR #21**'de, dal `arena/fbf31f34-kitsugi-beta` üzerinde
 > (**dal ucunu al**, sabit SHA'ya bağlanma).
-> Dal, `origin/main` 9ea3b46 üzerine merge edilmiş hâldedir; bu iş henüz `main`'de YOK.
-> Yeni oturumun dalı sabittir (ör. `arena/1b45adfd-kitsugi-beta`) ve `main`'den açıldıysa
+> Dal, `origin/main` 4ef8714 (v2.4.326) üzerine merge edilmiş hâldedir; bu iş henüz `main`'de YOK.
+> Yeni oturumun dalı sabittir (ör. `arena/xxxxxxx-kitsugi-beta`) ve `main`'den açıldıysa
 > `diag/bangumi_vault/` **boş gelir**. O zaman **kendi oturum dalında** şu iki komutu çalıştır
 > (fetch refspec kısıtlı olabilir, bu yüzden açık `src:dst` biçimi şart):
 >
@@ -125,7 +125,7 @@ Yeni Arena oturumunda, yeni dal açıldığında **birebir şu metni** yapışt�
 > (`1pZAOYsAnMjveNK6grdXjqV9IDM1TFaJp`, ~74 MB; `download_file` paralel çağrılarla,
 > `google_drive/` içine yazar, içeriği bağlama dökmez). `decisions/*.tsv` git'te zaten var.
 > Drive'daki vault JSON'ları **yalnız chunk 001 damgalıdır** → indirdikten sonra **mutlaka**
-> `python3 diag/bangumi_vault/scripts/apply_map.py` çalıştır (`--check` DEĞİL; chunk 002+003+004a
+> `python3 diag/bangumi_vault/scripts/apply_map.py` çalıştır (`--check` DEĞİL; chunk 002+003+004a+004b
 > kararlarını damgalar, kayıpsız). Sonra `verify_vault.py` ✅ olmalı:
 > **`3812 bangumi_* anahtar, 2453 vault kaydı, 3229 map satırı, 121284 damga`**.
 >
