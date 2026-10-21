@@ -1398,9 +1398,22 @@ class KitsugiCharacterClient {
     }
 
     internal data class TmdbCharacterEnrichmentDeps(
-        val resolveTmdbAnimeIds: suspend (Int, MediaType, String?) -> TmdbAnimeIdCandidates =
-            { tmdbId, type, imdb -> KitsugiIdResolver.resolveAllTmdbAnimeIds(tmdbId, type, imdb) },
-        val resolveSimklCrossIds: suspend (Int, MediaType, Int?, Int?) -> SimklCrossIds? = { tmdbId, type, _, hintMal ->
+        val resolveTmdbAnimeIds: suspend (Int, MediaType, String?) -> TmdbAnimeIdCandidates,
+        val resolveSimklCrossIds: suspend (Int, MediaType, Int?, Int?) -> SimklCrossIds?,
+        val fetchAniListMedia: suspend (JSONObject) -> Pair<List<AniCharInfo>, Int?>,
+        val searchAniListCharacter: suspend (String, Int?) -> AniCharInfo?,
+        val fetchShikimoriFast: suspend (Int, MediaType) -> List<KitsugiCharacter>,
+        val fetchJikanList: suspend (Int, MediaType) -> List<KitsugiCharacter>,
+        val searchJikanMalIds: suspend (List<String>, MediaType, Int?) -> List<Int>,
+        val fetchKitsuList: suspend (Int) -> List<KitsugiCharacter>,
+        val fetchBangumiList: suspend (Int?, List<String>, Int?) -> List<KitsugiCharacter>,
+        val fetchFandomPortraits: suspend (com.kitsugi.animelist.data.fandom.FandomSourceIds, Boolean, List<String>, List<String>) -> Map<String, String>,
+        val searchMultiSourcePortrait: suspend (String, Boolean) -> String?
+    )
+
+    private fun defaultEnrichmentDeps(): TmdbCharacterEnrichmentDeps = TmdbCharacterEnrichmentDeps(
+        resolveTmdbAnimeIds = { tmdbId, type, imdb -> KitsugiIdResolver.resolveAllTmdbAnimeIds(tmdbId, type, imdb) },
+        resolveSimklCrossIds = { tmdbId, type, _, hintMal ->
             runCatching {
                 val simklId = SimklApiClient().lookupSimklId(malId = hintMal, tmdbId = tmdbId, mediaType = type)
                 if (simklId != null && simklId > 0) {
@@ -1408,25 +1421,17 @@ class KitsugiCharacterClient {
                 } else null
             }.getOrNull()
         },
-        val fetchAniListMedia: suspend (JSONObject) -> Pair<List<AniCharInfo>, Int?> =
-            { vars -> fetchAniListMediaCharacters(vars) },
-        val searchAniListCharacter: suspend (String, Int?) -> AniCharInfo? =
-            { name, malId -> searchAniListCharacterByName(name, malId) },
-        val fetchShikimoriFast: suspend (Int, MediaType) -> List<KitsugiCharacter> =
-            { malId, type -> fetchShikimoriRolePortraitsFast(malId, type) },
-        val fetchJikanList: suspend (Int, MediaType) -> List<KitsugiCharacter> =
-            { malId, type -> fetchJikanCharacterList(malId, type) },
-        val searchJikanMalIds: suspend (List<String>, MediaType, Int?) -> List<Int> =
-            { titles, type, year -> searchJikanAnimeMalIdsByTitle(titles, type, year) },
-        val fetchKitsuList: suspend (Int) -> List<KitsugiCharacter> =
-            { kitsuId -> KitsuClient.fetchKitsuCharacters(kitsuId) },
-        val fetchBangumiList: suspend (Int?, List<String>, Int?) -> List<KitsugiCharacter> =
-            { bgmId, titles, year -> fetchBangumiSubjectPortraits(bgmId, titles, year) },
-        val fetchFandomPortraits: suspend (com.kitsugi.animelist.data.fandom.FandomSourceIds, Boolean, List<String>, List<String>) -> Map<String, String> =
-            { ids, isMovie, mediaTitles, missingCharNames ->
-                fetchFandomBatchPortraits(ids, isMovie, mediaTitles, missingCharNames)
-            },
-        val searchMultiSourcePortrait: suspend (String, Boolean) -> String? = { charName, allowAnimeCatalogs ->
+        fetchAniListMedia = { vars -> fetchAniListMediaCharacters(vars) },
+        searchAniListCharacter = { name, malId -> searchAniListCharacterByName(name, malId) },
+        fetchShikimoriFast = { malId, type -> fetchShikimoriRolePortraitsFast(malId, type) },
+        fetchJikanList = { malId, type -> fetchJikanCharacterList(malId, type) },
+        searchJikanMalIds = { titles, type, year -> searchJikanAnimeMalIdsByTitle(titles, type, year) },
+        fetchKitsuList = { kitsuId -> KitsuClient.fetchKitsuCharacters(kitsuId) },
+        fetchBangumiList = { bgmId, titles, year -> fetchBangumiSubjectPortraits(bgmId, titles, year) },
+        fetchFandomPortraits = { ids, isMovie, mediaTitles, missingCharNames ->
+            fetchFandomBatchPortraits(ids, isMovie, mediaTitles, missingCharNames)
+        },
+        searchMultiSourcePortrait = { charName, allowAnimeCatalogs ->
             KitsugiPersonImageAggregator.firstPortrait(
                 names = listOf(charName, primaryCharacterName(charName)).distinct(),
                 allowSingleTokenNames = true,
@@ -1543,7 +1548,7 @@ class KitsugiCharacterClient {
         hintAniListId: Int? = null,
         hintKitsuId: Int? = null,
         hintImdbId: String? = null,
-        deps: TmdbCharacterEnrichmentDeps = TmdbCharacterEnrichmentDeps()
+        deps: TmdbCharacterEnrichmentDeps = defaultEnrichmentDeps()
     ): List<KitsugiCharacter> {
         if (tmdbChars.isEmpty()) return tmdbChars
 
@@ -1768,7 +1773,7 @@ class KitsugiCharacterClient {
         titleCandidates: List<String>,
         expectedYear: Int?,
         allowAnimeCatalogs: Boolean,
-        deps: TmdbCharacterEnrichmentDeps = TmdbCharacterEnrichmentDeps()
+        deps: TmdbCharacterEnrichmentDeps = defaultEnrichmentDeps()
     ): List<KitsugiCharacter> {
         if (characters.none { it.imageUrl.isNullOrBlank() }) return characters
 
@@ -1854,7 +1859,7 @@ class KitsugiCharacterClient {
                 )
             }
             if (out.any { it.imageUrl.isNullOrBlank() }) {
-                KitsugiShikimoriClient.withResolvedCharacterPosters(out)
+                KitsugiShikimoriClient.fetchCharacters(mediaType, malId)
             } else {
                 out
             }
@@ -1898,7 +1903,7 @@ class KitsugiCharacterClient {
     private suspend fun searchKitsuAnimeIdByTitle(titleCandidates: List<String>): Int? {
         for (query in titleCandidates.map { it.trim() }.filter { it.length >= 2 }.distinct().take(2)) {
             val detail = runCatching { KitsuClient.fetchAnimeDetailByTitle(query) }.getOrNull() ?: continue
-            val rawId = detail.id.takeIf { it > 0 }?.let { if (it >= 300_000_000) it - 300_000_000 else it }
+            val rawId = detail.malId.takeIf { it > 0 }?.let { if (it >= 300_000_000) it - 300_000_000 else it }
             if (rawId != null && rawId > 0) return rawId
         }
         return null
@@ -1939,7 +1944,7 @@ class KitsugiCharacterClient {
                     val hit = page.data.firstOrNull { sub ->
                         val n1 = sub.name.lowercase().replace(Regex("[^\\p{L}\\p{N}]"), "")
                         val n2 = sub.nameCn.lowercase().replace(Regex("[^\\p{L}\\p{N}]"), "")
-                        val yearOk = expectedYear == null || sub.date.take(4).toIntOrNull()?.let { y ->
+                        val yearOk = expectedYear == null || sub.date?.take(4)?.toIntOrNull()?.let { y ->
                             kotlin.math.abs(y - expectedYear) <= 1
                         } ?: true
                         yearOk && normTarget.isNotEmpty() && (n1 == normTarget || n2 == normTarget)
@@ -2093,7 +2098,7 @@ class KitsugiCharacterClient {
         titleCandidates: List<String>,
         realMalId: Int?,
         aniListIds: List<Int> = emptyList(),
-        deps: TmdbCharacterEnrichmentDeps = TmdbCharacterEnrichmentDeps()
+        deps: TmdbCharacterEnrichmentDeps = defaultEnrichmentDeps()
     ): AniListEnrichResult {
         if (characters.isEmpty()) return AniListEnrichResult(characters, realMalId?.takeIf { it > 0 })
         val cleanTitles = titleCandidates
@@ -2320,7 +2325,7 @@ class KitsugiCharacterClient {
         characters: List<KitsugiCharacter>,
         realMalId: Int?,
         allowAnimeCatalogs: Boolean,
-        deps: TmdbCharacterEnrichmentDeps = TmdbCharacterEnrichmentDeps()
+        deps: TmdbCharacterEnrichmentDeps = defaultEnrichmentDeps()
     ): List<KitsugiCharacter> {
         val targetIndices = characters.indices
             .filter { idx ->
@@ -2526,7 +2531,7 @@ class KitsugiCharacterClient {
         }
     }
 
-    private data class AniCharInfo(
+    internal data class AniCharInfo(
         val id: Int,
         val full: String,
         val native: String?,

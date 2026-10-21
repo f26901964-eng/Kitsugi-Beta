@@ -184,7 +184,7 @@ class TmdbAnimeCharacterPortraitEnrichmentTest {
             searchMultiSourcePortrait = { _, _ -> null }
         )
 
-        val enriched = KitsugiCharacterClient.enrichTmdbCastCharacters(
+        val enriched = KitsugiCharacterClient().enrichTmdbCastCharacters(
             tmdbChars = tmdbCast,
             effectiveTmdbId = 372058,
             mediaType = MediaType.Movie,
@@ -267,7 +267,7 @@ class TmdbAnimeCharacterPortraitEnrichmentTest {
             }
         )
 
-        val enriched = KitsugiCharacterClient.enrichTmdbCastCharacters(
+        val enriched = KitsugiCharacterClient().enrichTmdbCastCharacters(
             tmdbChars = tvCast,
             effectiveTmdbId = 57911,
             mediaType = MediaType.TvShow,
@@ -315,7 +315,7 @@ class TmdbAnimeCharacterPortraitEnrichmentTest {
 
         // Specific Doraemon movie MAL ID 54925 is NOT in Doraemon's top popular media list:
         // must still return Doraemon instead of dropping him to "DO" initials!
-        val hit = KitsugiCharacterClient.parseBestAniListCharacterSearchHit(
+        val hit = KitsugiCharacterClient().parseBestAniListCharacterSearchHit(
             response = doraemonSearchResponse,
             name = "Doraemon",
             realMalId = 54925
