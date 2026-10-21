@@ -562,12 +562,13 @@ Dal: `arena/06f200e9-kitsugi-beta` · **PR #24**: https://github.com/f26901964-e
   `tools:keep="@string/bangumi_*"` release shrinker'ın dinamik adları silmesini önler.
   `resource_catalog.py` tüm TR/EN modüllerini birleştirerek yazıcı, draft, vault/master
   doğrulayıcı ve audit'e sunar; modül kapasitesi/ikiz/ad alanı/Gradle bağlantısı denetlenir.
-  Android resource link için yeni CI sonucu aşağıdaki kapanış notunda izlenir.
+  Android resource link yeni CI’da geçti; başarısız ilk koşu ile başarılı düzeltme
+  ayrımı Bölüm 8 PR #24 takip notunda tutulur.
 - TR ve EN'ye **38.269'ar yeni anahtar**; toplam **55.740 / 55.740**. Önceki
   **17.471** kaynağın görüntülenen değerleri korundu. Eski dört `@` önekli değerde yalnız
   Android kaçışı eklendi (`@OZ`, `@vitamin`, `@N-Factory`, `@can beat` → `\@...`);
   metin anlamı değişmedi. Yeni `@nifty`, `@sel_ple` için de kaynak referansı tuzağı önlendi.
-- Bilgi tabanı **1.984 → 2.198 (+214)**: **86** bilinen resmî Latin ad/varyant + **128**
+- Bilgi tabanı **1.984 → 2.197 (+213)**: **85** bilinen resmî Latin ad/varyant + **128**
   önceki bilgi tabanına dayalı hukuki/parantezli ad varyantı. Örnekler: Yuke's, Atelier D,
   NHK Educational, Koei Tecmo Games, Production Reed, Nippon TV, J-Wing ve bölgesel
   Japon yayıncıları; `(株)`, `株式会社`, parantez varyantları yalnız bilinen resmî ada bağlandı.
@@ -595,7 +596,8 @@ Dal: `arena/06f200e9-kitsugi-beta` · **PR #24**: https://github.com/f26901964-e
 - Vault/master/generator `--check` geçti; generator yazmasız **+0 / ~0** verdi.
   RAW **66 parça**, en büyük **49.999** modified-UTF-8 bayt (**<50.000**).
   Yerel JDK/kotlinc yoktur; sözlüklerin kotlinc derlemesi ilk CI koşusunda geçti.
-  Android resource-link düzeltmesi için yeni CI sonucu beklenir.
+  `d12c1bc` CI’da Android kaynak derleme/link ve uygulama derlemesi geçip test
+  çalıştırmasına ulaşıldı; `R$string` taşması düzeldi. APK/release/DEX başarısı iddia edilmez.
 - Ham JSON yedeği yalnız bu ortamda `/home/user/.cache/bangumi_raw/` konumundadır.
   Yeni ortamda Drive ham JSONlarını indir + git kararlarıyla `apply_map.py` çalıştır;
   git karar dosyaları Drive'dan üstündür. `google_drive/` repoda bırakılmadı.
@@ -618,14 +620,15 @@ python3 diag/bangumi_vault/scripts/verify_vault.py
 | **Toplam** | **57.371** | **56.052** | **1.319** |
 
 Roller JSON `role` alanına göre sayılır (komite önekli çapraz-rol kayıtlar dâhil).
-Canon **53.244**, bilgi tabanı **2.198**, done **57.371** veri satırı.
+Canon **53.244**, bilgi tabanı **2.197**, done **57.371** veri satırı.
 Drive’daki önceki **11.951** done satırı bayt içeriği korunarak yeni **45.420** satır eklendi;
 `progress.json` tarihsel metadata/özetleri korunup güncel statü/sonraki iş/sayaçları yenilendi.
 `translations_pending.tsv`: **62.957 veri satırı + 1 başlık = 62.958 fiziksel satır**;
 kurumlar bu pending tablosunda olmadığı için 005c ile sayı düşmez.
 
 Kurum **count ≥1 kararsız: 0**. Count **0: 376** kurum kaydı ayrı kalan kuyruktur;
-komiteler/diğer etiketler 007 kapsamındadır. Count=0 kurumları 005c kapsamına eklenmedi.
+komite kopyaları da rol mapleri üzerinden damgalandı (**1.229/1.229**, 8 SKIP).
+Count=0 kurumları 005c kapsamına eklenmedi.
 Etiket: 006 (20–99 · **4.027**) ve 007 (<20 · **59.510**) henüz yapılmadı.
 
 Master: **52.156** eşleme, gerçek çakışma **0**; TR/EN **55.740 / 55.740**,
@@ -705,7 +708,8 @@ işler, `translations_done.tsv` yazar, `translations_pending.tsv`'i düşer,
       Bu aralıkta **0 kararsız** kayıt kaldı.
 - [ ] **Chunk 006 — etiket count 20–99** (**4.027**): `scripts/worklist.py --min-count 20 --max-count 99`
       + elle karar (Bölüm 4)
-- [ ] **Chunk 007 — etiket kuyruğu <20** (**59.510**); committees (1.229) + üretici kişileri
+- [ ] **Chunk 007 — etiket kuyruğu <20** (**59.510**); count=0 kurum kuyruğu (**376**) ayrıca
+      değerlendirilecek. Committee kopyaları 005c sonrası **1.229/1.229 damgalı** (rol mapleriyle).
       (`as_is`/bilinen romanizasyonlar).
 - [ ] **Final** — kalan `translations_pending.tsv` tükendi mi? `verify_vault.py` ✅?
       PROGRESS.md + Drive + PR güncelle.
@@ -911,9 +915,10 @@ RAW sınırı **49.999** tutulur; tam 50.000'e izin veren eski üst sınır dara
 - [x] 18 birim testi ve map ezme / zorunlu min-count / boş damgalı bant koruyucuları geçti.
 - [x] RAW 66 parça; her parça <50.000 modified-UTF-8 bayt.
 - [x] Bölüm 2j, 2d, 5, 6 ve yeni-oturum talimatları güncellendi.
-- [ ] Drive kapanış dosyaları güncellendi.
+- [x] Drive kapanış dosyaları güncellendi; eski 9 map değişmedi (MD5 eşit), 005c mapleri ve
+      canon/bilgi tabanı/done/pending/progress/devir dosyaları senkronlandı.
 - [x] Commit + `arena/06f200e9-kitsugi-beta` dalına push + PR #24; numara başlık/2j’ye işlendi.
-- [ ] Commit sonrası `git diff --quiet` / `git diff --cached --quiet` temiz.
+- [x] Commit sonrası `git diff --quiet` / `git diff --cached --quiet` temiz.
 
 
 Chunk 005b için durumu (2026-10-21) → son satır hariç **✅ tamam**:
@@ -977,6 +982,27 @@ Chunk 004c için durumu (2026-10-21) → her satır **✅ tamam**:
 - [ ] **Not (yerel derleme):** bu oturumda JDK/kotlinc kurulu değildi; `compile_check.sh`
       çalıştırılamadı. Kotlin tarafı yalnız `verify_bangumi_master.py` + `gen --check` +
       RAW parça bayt denetimiyle doğrulandı; asıl derleme CI'da (kotlinc adımı) koşar.
+
+### PR #24 CI takip — 2026-10-21 (005c)
+
+- PR: https://github.com/f26901964-eng/Kitsugi-Beta/pull/24 (dal değişmedi).
+- İlk kod commit `030f88e`: `kotlinc` sözlük derlemesi başarılı; Android
+  `processFossDebugResources` **ClassTooLargeException: R$string** ile kırıldı.
+  Bu gerçek yeni hataydı; bilinen test sorunu diye geçiştirilmedi.
+- Düzeltme commit `d12c1bc`: üç non-transitive resource-only modül. CI Python verify
+  **başarılı (18 test dâhil)**; bağımsız sözlük `kotlinc` adımı **başarılı**.
+- Android koşusu https://github.com/f26901964-eng/Kitsugi-Beta/actions/runs/39583494085:
+  üç library `generateDebugRFile` + app `processFossDebugResources` **geçti**;
+  uygulama derlenip `testFossDebugUnitTest` çalıştırmasına ulaşıldı. Son hata:
+  **`MalNotificationsClientTest.mergesHistoryItemsWithRecentItemsAndDeduplicatesById`**
+  AssertionError. Kullanıcı talimatıyla MAL kodu/testi değiştirilmedi.
+- MASTER koşusu https://github.com/f26901964-eng/Kitsugi-Beta/actions/runs/39583503155:
+  verify + sözlük derlemesi geçti; **BangumiMasterDictionaryTest** adımı başarısız.
+  Önceki main/PR #23 bilinen hata notu korunur; bu koşunun ham test logları sandbox
+  dış-ağ kısıtı nedeniyle indirilemedi, yeni bir test beklentisi değişikliği yapılmadı.
+- Kaynak taşması çözüldü fakat **CI bütünü yeşil DEĞİLDİR**. Testler pipeline'ı
+  durdurduğu için debug APK / release R8 / DEX adımlarının tam başarısı doğrulanmadı.
+  PR merge edilmedi; bu sınır açıkça kullanıcıya bildirildi.
 
 ### PR #23 CI takip — 2026-10-21 (chunk 005a)
 
