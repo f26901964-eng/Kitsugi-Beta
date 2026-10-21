@@ -2,7 +2,7 @@
 
 Builds the three comparison sources the handoff requires before a tag decision:
 
-  1. `BangumiTagDictionary` groups (canon id -> TR/EN + every known label),
+  1. `BangumiTagDictionary` groups (`app/src/main/resources/bangumi/tags.tsv`),
   2. `decisions/canon.tsv` rows whose role is `tag`,
   3. the merged TR/EN resource catalog (app + resource-only shards).
 
@@ -18,6 +18,7 @@ from pathlib import Path
 VAULT = Path(__file__).resolve().parents[1]
 ROOT = VAULT.parents[1]
 TAG_DICT = ROOT / "app/src/main/java/com/kitsugi/animelist/utils/BangumiTagDictionary.kt"
+TAG_STORE = ROOT / "app/src/main/resources/bangumi/tags.tsv"
 CANON = VAULT / "decisions" / "canon.tsv"
 
 STRIP_CHARS = set(" \t\r\n\u3000.·・〜~!?'\"★☆✘✔「」『』《》（）()【】[]{}<>、,，:：;；/\\|+-_*#@&%^=…—–")
@@ -86,15 +87,29 @@ def _unquote(arg: str) -> str:
     return body.replace("${'$'}", "$").replace('\\"', '"').replace("\\'", "'")
 
 
-def load_dictionary() -> list[dict]:
-    """[(key, tr, en, [labels...])] for every g(...) group."""
-    source = TAG_DICT.read_text(encoding="utf-8")
+def load_dictionary_from_kotlin(path: Path = TAG_DICT) -> list[dict]:
+    """[(key, tr, en, [labels...])] for legacy g(...) calls in Kotlin source."""
+    source = path.read_text(encoding="utf-8")
     groups = []
     for match in re.finditer(r'\bg\("', source):
         body = _read_call(source, match.start())
         args = [_unquote(a) for a in _split_args(body)]
         groups.append({"id": args[0], "tr": args[1], "en": args[2], "labels": args[3:]})
     return groups
+
+
+def load_dictionary(store_path: Path | None = None) -> list[dict]:
+    """Load ordered tag groups from `bangumi/tags.tsv` (with Kotlin fallback)."""
+    target = store_path or TAG_STORE
+    if target.exists():
+        groups = []
+        for raw in target.read_text(encoding="utf-8").splitlines():
+            if not raw:
+                continue
+            parts = raw.split("\t")
+            groups.append({"id": parts[0], "tr": parts[1], "en": parts[2], "labels": parts[3:]})
+        return groups
+    return load_dictionary_from_kotlin()
 
 
 def load_canon() -> dict[tuple[str, str], dict]:

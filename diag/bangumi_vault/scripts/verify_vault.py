@@ -1,19 +1,16 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Bangumi VAULT doğrulayıcı.
+Bangumi VAULT doğrulayıcı (S3 veri deposu + dil kaynakları).
 
 Kontroller:
   1. values/strings.xml ↔ values-en/strings.xml `bangumi_*` anahtar simetrisi (BİREBİR).
-  2. vault → strings değer eşitliği (kararlı kayıtların tr/en'i dil dosyasında birebir).
+  2. vault → strings + tags.tsv + orgs.tsv değer eşitliği (mevcut kaynaklar ve TSV depoları birebir).
   3. canon.tsv ↔ map_chunk_*.tsv bütünlüğü (bilinmeyen canon_id / vault key yok).
   4. string_key başına tekil tr/en (birleşen kayıtlar çelişmemeli).
   5. translations_pending.tsv içinde kararlı key bulunmaması.
-  6. sözlük RAW satırlarında gölgeleme (aynı etiket iki ayrı anahtara gitmemeli).
+  6. tags.tsv + orgs.tsv doğrulaması ve gölgeleme denetimi (aynı etiket iki ayrı anahtara gitmemeli).
   7. TERS YÖN: her map_chunk_*.tsv satırının kararı vault JSON'larına damgalanmış mı.
-     (1-6 yalnız vault→strings yönüne bakar; bu yüzden damgasız/eski bir vault kopyası
-     sessizce geçiyordu. Drive'dan taze indirilen JSON'lar chunk geride kalabiliyor →
-     `apply_map.py` çalıştırılana dek bu kontrol kırılır. 2026-10-21'de eklendi.)
 
 Çıkış: 0 = temiz, 1 = hata.
 """
@@ -23,15 +20,19 @@ import json
 import re
 import sys
 from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 from android_strings import unescape
+import build_org_store
+import build_tag_store
 from resource_catalog import catalog_text
 
 VAULT = Path(__file__).resolve().parents[1]
 ROOT = VAULT.parents[1]
-UTILS = ROOT / "app/src/main/java/com/kitsugi/animelist/utils"
+TAG_STORE = ROOT / "app/src/main/resources/bangumi/tags.tsv"
+ORG_STORE = ROOT / "app/src/main/resources/bangumi/orgs.tsv"
 RES_TR = ROOT / "app/src/main/res/values/strings.xml"
 RES_EN = ROOT / "app/src/main/res/values-en/strings.xml"
-ORG_DICT = UTILS / "BangumiOrgDictionary.kt"
 
 ROLE_FILES = {
     "studio": "studios.json", "producer": "producers.json", "network": "networks.json",
@@ -54,16 +55,27 @@ if only_tr:
 if only_en:
     errors.append(f"yalnız EN'de {len(only_en)} anahtar: {only_en[:8]}")
 
-tr_vals = dict(re.findall(r'<string name="(bangumi_[^"]+)">(.*?)</string>', tr_src))
-en_vals = dict(re.findall(r'<string name="(bangumi_[^"]+)">(.*?)</string>', en_src))
+tr_vals = dict(re.findall(r'<string name="(bangumi_[^"]+)">(.*?)</string>', tr_src, re.S))
+en_vals = dict(re.findall(r'<string name="(bangumi_[^"]+)">(.*?)</string>', en_src, re.S))
 
+# Veri depolarını yükle ve doğrula
+tag_rows = build_tag_store.parse_store(TAG_STORE.read_text(encoding="utf-8"))
+errors.extend(f"tags.tsv: {e}" for e in build_tag_store.validate(tag_rows))
+tag_groups = {row[0]: (row[1], row[2]) for row in tag_rows if len(row) >= 3}
 
+org_rows = build_org_store.parse_store(ORG_STORE.read_text(encoding="utf-8"))
+errors.extend(f"orgs.tsv: {e}" for e in build_org_store.validate(org_rows))
+org_by_key: dict[str, tuple[str, str]] = {}
+for row in org_rows:
+    if len(row) >= 3:
+        tr_cell = row[3] if len(row) >= 4 else row[2]
+        org_by_key.setdefault(row[1], (tr_cell, row[2]))
 
-
-# 2-4) vault → strings
+# 2-4) vault → strings + veri depoları
 string_tr: dict[str, str] = {}
 string_en: dict[str, str] = {}
 tag_values: dict[str, tuple[str, str]] = {}
+org_keys_seen: set[str] = set()
 for role, fn in ROLE_FILES.items():
     with (VAULT / fn).open(encoding="utf-8") as f:
         data = json.load(f)
@@ -73,11 +85,14 @@ for role, fn in ROLE_FILES.items():
         if dec not in KEEP or not sk:
             continue
         t, e = rec.get("tr") or "", rec.get("en") or ""
-        if role == "tag" and rec.get("canon"):
+        rec_role = rec.get("role", role)
+        if rec_role == "tag" and rec.get("canon"):
             cid = rec["canon"]
             if cid in tag_values and tag_values[cid] != (t, e):
                 errors.append(f"{cid}: tag canon içinde çelişkili tr/en ({rec['key']})")
             tag_values[cid] = (t, e)
+        elif rec_role != "tag":
+            org_keys_seen.add(sk)
         if sk in string_tr and (string_tr[sk], string_en[sk]) != (t, e):
             errors.append(f"{sk}: vault içinde çelişkili tr/en ({rec['key']})")
         string_tr[sk], string_en[sk] = t, e
@@ -87,25 +102,26 @@ for role, fn in ROLE_FILES.items():
         if sk in en_vals and unescape(en_vals[sk]) != e:
             errors.append(f"{sk}: strings.xml EN değeri vault ile eşleşmiyor "
                           f"({'xml=' + en_vals[sk]!r} vs {'vault=' + e!r})")
-        if sk not in tr_vals:
-            errors.append(f"{sk}: vault kararlı ama strings.xml'te yok (vault_to_strings çalıştırılmalı)")
+        if rec_role != "tag" and sk not in tr_vals and sk not in org_by_key:
+            errors.append(f"{sk}: kararlı kurum ne strings.xml'de ne orgs.tsv'de var (vault_to_strings çalıştırılmalı)")
 
-# Tag display resolves bangumi_tag_<BangumiTagEntry.key> before its dictionary fallback.
-# Cross-role string_key values can be bangumi_studio_*/bangumi_publisher_*; those do not
-# satisfy the tag lookup on their own, so require the tag group and tag-specific resource too.
-tag_src = (UTILS / "BangumiTagDictionary.kt").read_text(encoding="utf-8")
-tag_groups = set(re.findall(r'\bg\("([a-z0-9_]+)"', tag_src))
 for cid, (t, e) in tag_values.items():
     tag_key = f"bangumi_tag_{cid}"
     if cid not in tag_groups:
-        errors.append(f"{cid}: stable tag has no BangumiTagDictionary group")
-    if tag_key not in tr_vals or tag_key not in en_vals:
-        errors.append(f"{tag_key}: tag lookup resource missing in TR/EN")
+        errors.append(f"{cid}: kararlı etiketin tags.tsv grubu yok (vault_to_strings çalıştırılmalı)")
         continue
-    if unescape(tr_vals[tag_key]) != t:
-        errors.append(f"{tag_key}: TR lookup value does not match tag canon")
-    if unescape(en_vals[tag_key]) != e:
-        errors.append(f"{tag_key}: EN lookup value does not match tag canon")
+    if tag_key in tr_vals or tag_key in en_vals:
+        if unescape(tr_vals.get(tag_key, "")) != t:
+            errors.append(f"{tag_key}: TR kaynak değeri tag canon ile eşleşmiyor")
+        if unescape(en_vals.get(tag_key, "")) != e:
+            errors.append(f"{tag_key}: EN kaynak değeri tag canon ile eşleşmiyor")
+    else:
+        if tag_groups[cid] != (t, e):
+            errors.append(f"{cid}: tags.tsv (TR, EN)={tag_groups[cid]!r} != vault {(t, e)!r}")
+
+for sk in org_keys_seen:
+    if sk in org_by_key and org_by_key[sk] != (string_tr[sk], string_en[sk]):
+        errors.append(f"{sk}: orgs.tsv (TR, EN)={org_by_key[sk]!r} != vault {(string_tr[sk], string_en[sk])!r}")
 
 # 3) canon ↔ map
 canon_pairs: set[tuple[str, str]] = set()
@@ -145,8 +161,6 @@ if pending.exists():
         errors.append(f"translations_pending içinde kararlı key: {overlap[:8]}")
 
 # 7) TERS YÖN: map_chunk_*.tsv kararları vault JSON'larına damgalanmış mı?
-# (yalnız kategori dosyaları değil, vault.json arşiv kopyaları da denetlenir —
-#  apply_map.py kararı TÜM kopyalara yazar)
 stamp_idx: dict[str, list[tuple[str, dict]]] = {}
 for role, fn in ROLE_FILES.items():
     with (VAULT / fn).open(encoding="utf-8") as f:
@@ -176,32 +190,6 @@ for path in sorted((VAULT / "decisions").glob("map_chunk_*.tsv")):
 if stale:
     errors.append(f"vault JSON'ları kararlardan GERİDE: {len(stale)} damga uyuşmazlığı "
                   f"→ apply_map.py çalıştırılmalı (ör. {stale[0]})")
-
-# 6) RAW gölgeleme
-org_src = ORG_DICT.read_text(encoding="utf-8")
-raw_decl = re.search(r'private val RAW = listOf\((.*?)\)\.joinToString\(""\)', org_src, re.S)
-if raw_decl:
-    raw_chunks = re.findall(r'"""(.*?)"""', raw_decl.group(1), re.S)
-    raw_body = "".join(raw_chunks)
-else:
-    legacy = re.search(r'private const val RAW = """\n?(.*?)"""', org_src, re.S)
-    raw_body = legacy.group(1) if legacy else None
-if raw_body is None:
-    errors.append("BangumiOrgDictionary RAW bloğu bulunamadı")
-else:
-    raw_body = raw_body.replace("${'$'}", "$")
-seen_label: dict[str, str] = {}
-if raw_body is not None:
-    for line in raw_body.splitlines():
-        parts = line.split("|")
-        if len(parts) != 3:
-            errors.append(f"RAW bozuk satır: {line[:60]}")
-            continue
-        lab, key, _ = parts
-        if lab in seen_label and seen_label[lab] != key:
-            errors.append(f"RAW gölgeleme: {lab!r} → {seen_label[lab]} ve {key}")
-        seen_label.setdefault(lab, key)
-
 
 if errors:
     print(f"❌ {len(errors)} hata:")

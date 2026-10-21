@@ -1,18 +1,15 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-BANGUMI MASTER doğrulama — Kotlin arama mantığını birebir simüle eder.
-
-Neden: `BangumiTagDictionary` "ilk yazım kazanır" (`first wins`) kuralıyla çalışır. Yeni gruplar
-listenin SONUNA eklendiği için, aynı etiketi taşıyan eski bir grup varsa yeni grup **gölgelenir**
-ve ekranda yanlış çip görünür. Bu betik her etiket için gerçek çözümlemeyi hesaplar.
+BANGUMI MASTER doğrulama — Kotlin arama mantığını (`bangumi/tags.tsv` + `bangumi/orgs.tsv`)
+birebir simüle eder.
 
 Kontroller:
-  1. tags.tsv: her satır (yeni + mevcut hedef) beklenen gruba çözülüyor mu?
+  1. diag/bangumi_master/tags.tsv: her satır beklenen gruba çözülüyor mu?
   2. §7.4 ekran görüntüsü boşlukları (催淚 · 京都 · AS · 続編)
-  3. orgs.tsv: her etiket beklenen `bangumi_*` anahtarına gidiyor mu? (çakışma raporu)
-  4. strings.xml: tr/en anahtar simetrisi + sözlük anahtarlarının kapsanması
-  5. BangumiOrgDictionary RAW bloğu ↔ orgs.tsv tutarlılığı
+  3. diag/bangumi_master/orgs.tsv: her etiket beklenen `bangumi_*` anahtarına gidiyor mu?
+  4. strings.xml + resource shards: TR/EN simetrisi + MASTER anahtarlarının kapsanması
+  5. app/src/main/resources/bangumi/tags.tsv ve orgs.tsv biçim/gölgeleme bütünlüğü
 
 Kullanım: python3 diag/bangumi_master/verify_bangumi_master.py
 Çıkış kodu 1 ise sorun var.
@@ -26,18 +23,19 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "diag/bangumi_vault/scripts"))
+import build_org_store
+import build_tag_store
 from resource_catalog import catalog_text, validate_catalog
+
 DIAG = ROOT / "diag" / "bangumi_master"
-TAG_DICT = ROOT / "app/src/main/java/com/kitsugi/animelist/utils/BangumiTagDictionary.kt"
-ORG_DICT = ROOT / "app/src/main/java/com/kitsugi/animelist/utils/BangumiOrgDictionary.kt"
+TAG_STORE = ROOT / "app/src/main/resources/bangumi/tags.tsv"
+ORG_STORE = ROOT / "app/src/main/resources/bangumi/orgs.tsv"
 RES_TR = ROOT / "app/src/main/res/values/strings.xml"
 RES_EN = ROOT / "app/src/main/res/values-en/strings.xml"
 
 problems: list[str] = validate_catalog(RES_TR)
 notes: list[str] = []
 
-
-# ── Kotlin mantığının kopyası ────────────────────────────────────────────────
 
 def normalize(value: str) -> str:
     if not value.strip():
@@ -61,69 +59,36 @@ def compact(value: str) -> str:
     return "".join(ch for ch in value if ch.isalnum()).lower()
 
 
-MAX_KOTLIN_CONSTANT_MUTF8_BYTES = 50_000
-
-
-def kotlin_mutf8_length(value: str) -> int:
-    """Return the class-file modified-UTF-8 size of a Kotlin/JVM string constant."""
-    size = 0
-    for char in value:
-        codepoint = ord(char)
-        if codepoint == 0:
-            size += 2
-        elif codepoint <= 0x7F:
-            size += 1
-        elif codepoint <= 0x7FF:
-            size += 2
-        elif codepoint <= 0xFFFF:
-            size += 3
-        else:
-            size += 6  # JVM strings encode supplementary characters as surrogate pairs.
-    return size
-
-
-def extract_org_raw(source: str) -> tuple[str, list[str]]:
-    """Extract joined RAW text and validate each generated literal fits the class-file limit."""
-    declaration = re.search(
-        r'private val RAW = listOf\((.*?)\)\.joinToString\(""\)', source, re.S)
-    if not declaration:
-        problems.append("BangumiOrgDictionary: parçalı RAW listOf bildirimi bulunamadı")
-        return "", []
-    chunks = re.findall(r'"""(.*?)"""', declaration.group(1), re.S)
-    if not chunks:
-        problems.append("BangumiOrgDictionary: RAW içinde Kotlin metin parçacığı bulunamadı")
-        return "", []
-    # The generator escapes a literal dollar in a Kotlin raw string as ${'$'}.
-    chunks = [chunk.replace("${'$'}", "$") for chunk in chunks]
-    for index, chunk in enumerate(chunks, start=1):
-        size = kotlin_mutf8_length(chunk)
-        if size > MAX_KOTLIN_CONSTANT_MUTF8_BYTES:
-            problems.append(
-                f"BangumiOrgDictionary RAW parçası {index} class-file sınırını aşıyor: {size} bayt")
-    return "".join(chunks).strip(), chunks
-
-
 def parse_groups() -> list[tuple[str, list[str]]]:
-    """BangumiTagDictionary.kt içindeki g(...) çağrılarını SIRAYLA döndürür."""
-    src = TAG_DICT.read_text(encoding="utf-8")
-    groups = []
-    for m in re.finditer(r'g\("([a-z0-9_]+)"\s*,\s*"((?:[^"\\]|\\.)*)"\s*,\s*"((?:[^"\\]|\\.)*)"((?:\s*,\s*"(?:[^"\\]|\\.)*")*)\)', src):
-        key = m.group(1)
-        names = [m.group(2), m.group(3)]
-        labels = names + [x.group(1) for x in re.finditer(r'"((?:[^"\\]|\\.)*)"', m.group(4) or "")]
-        groups.append((key, [l.replace('\\"', '"').replace("\\\\", "\\") for l in labels]))
-    return groups
+    """`bangumi/tags.tsv` içindeki grupları Kotlin `byLabel`/`byCompact` sırasıyla döndürür."""
+    if not TAG_STORE.exists():
+        problems.append(f"eksik etiket deposu: {TAG_STORE}")
+        return []
+    rows = build_tag_store.parse_store(TAG_STORE.read_text(encoding="utf-8"))
+    problems.extend(f"tags.tsv: {e}" for e in build_tag_store.validate(rows))
+    return [(r[0], r[3:] + [r[2], r[1]]) for r in rows if len(r) >= 3]
 
 
 def build_lookup(groups):
     by_label, by_compact = {}, {}
     for key, labels in groups:
-        for label in labels:
+        # Kotlin'de önce tüm grupların açık yazımları (`group.labels`), sonra adları (`en`, `tr`) işlenir
+        for label in labels[:-2]:
             k = normalize(label)
             if k and k not in by_label:
                 by_label[k] = key
     for key, labels in groups:
-        for label in labels:
+        for label in labels[-2:]:
+            k = normalize(label)
+            if k and k not in by_label:
+                by_label[k] = key
+    for key, labels in groups:
+        for label in labels[:-2]:
+            k = compact(label)
+            if len(k) >= 3 and k not in by_compact:
+                by_compact[k] = key
+    for key, labels in groups:
+        for label in labels[-2:]:
             k = compact(label)
             if len(k) >= 3 and k not in by_compact:
                 by_compact[k] = key
@@ -149,7 +114,7 @@ def entry_for(label: str, by_label, by_compact):
 
 groups = parse_groups()
 by_label, by_compact = build_lookup(groups)
-notes.append(f"BangumiTagDictionary: {len(groups)} grup ayrıştırıldı")
+notes.append(f"BangumiTagDictionary (tags.tsv): {len(groups)} grup ayrıştırıldı")
 
 tag_rows = [l.rstrip("\n").split("\t") for l in (DIAG / "tags.tsv").read_text(encoding="utf-8").splitlines()
             if l.strip() and not l.startswith("#")]
@@ -164,7 +129,6 @@ for key, tr, en, status, labels in tag_rows:
             problems.append(f"etiket gölgeleme: '{label}' → {got} (beklenen {expected})")
 notes.append(f"tags.tsv: {checked} etiket çözümlemesi doğrulandı")
 
-# §7.4 ekran görüntüsü boşlukları
 for label, expected in (("催淚", "tearjerker"), ("京都", "kyoto_animation"),
                         ("AS", "after_story"), ("続編", "sequel"),
                         ("催泪", "tearjerker"), ("催涙", "tearjerker")):
@@ -176,11 +140,18 @@ if entry_for("ASOBI", by_label, by_compact) is not None:
 
 # ── 2) Şirket sözlüğü ────────────────────────────────────────────────────────
 
-org_src = ORG_DICT.read_text(encoding="utf-8")
-raw, raw_chunks = extract_org_raw(org_src)
+if not ORG_STORE.exists():
+    problems.append(f"eksik şirket deposu: {ORG_STORE}")
+    raw_org_rows = []
+else:
+    raw_org_rows = build_org_store.parse_store(ORG_STORE.read_text(encoding="utf-8"))
+    problems.extend(f"orgs.tsv: {e}" for e in build_org_store.validate(raw_org_rows))
+
 org_by_label, org_by_compact, org_rows = {}, {}, []
-for line in raw.splitlines():
-    label, key, en = line.split("|")
+for row in raw_org_rows:
+    if len(row) < 3:
+        continue
+    label, key, en = row[0], row[1], row[2]
     org_rows.append((label, key, en))
     k = normalize(label)
     if k and k not in org_by_label:
@@ -188,11 +159,7 @@ for line in raw.splitlines():
     c = compact(label)
     if len(c) >= 3 and c not in org_by_compact:
         org_by_compact[c] = (key, en)
-notes.append(f"BangumiOrgDictionary: {len(org_rows)} eşleme satırı")
-notes.append(
-    f"BangumiOrgDictionary RAW: {len(raw_chunks)} parça; en büyük "
-    f"{max((kotlin_mutf8_length(chunk) for chunk in raw_chunks), default=0)} modified-UTF-8 bayt"
-)
+notes.append(f"BangumiOrgDictionary (orgs.tsv): {len(org_rows)} eşleme satırı")
 
 
 def org_for(value: str):
@@ -209,10 +176,10 @@ def org_for(value: str):
 
 
 org_lookup_fail, shadowed = [], defaultdict(list)
-for line in (DIAG / "orgs.tsv").read_text(encoding="utf-8").splitlines():
-    if not line.strip() or line.startswith("#"):
-        continue
-    key, role, tr, en, status, labels = line.split("\t")
+master_org_rows = [l.rstrip("\n").split("\t")
+                   for l in (DIAG / "orgs.tsv").read_text(encoding="utf-8").splitlines()
+                   if l.strip() and not l.startswith("#")]
+for key, role, tr, en, status, labels in master_org_rows:
     if status == "pending":
         continue
     for label in [l for l in labels.split(";") if l]:
@@ -221,19 +188,12 @@ for line in (DIAG / "orgs.tsv").read_text(encoding="utf-8").splitlines():
             org_lookup_fail.append(f"'{label}' → {got[0] if got else None} (beklenen {key})")
             if got:
                 shadowed[key].append((label, got[0]))
-# Aynı şirket birden çok rolde listelenebilir (ör. Production I.G hem stüdyo hem yapımcı,
-# bilibili hem yapımcı hem ağ). Latin ad AYNIYSA çakışma zararsızdır; FARKLIYSA gerçek hatadır.
+
 key_to_name = {}
 for label, key, en in org_rows:
     key_to_name.setdefault(key, en)
-# RAW'da hiç satırı kalmayan anahtarlar: aynı kurum birden çok rolde geçerken etiketleri
-# ikizi tarafından sahiplenilmiş olabilir (ilk yazım kazanır → bu anahtarın satırı düşer).
-# Latin ad o zaman dil dosyasından çözülür; aksi hâlde zararsız çok-rollü çakışma
-# "GERÇEK çakışma" diye raporlanıyordu (2026-10-21 düzeltmesi).
 _en_vals = dict(re.findall(r'<string name="([^"]+)">(.*?)</string>',
                            catalog_text(RES_EN), re.S))
-for _k in set(re.findall(r"\|(bangumi_(?:studio|producer|network|publisher|magazine)_[a-z0-9_]+)\|", raw)):
-    key_to_name.setdefault(_k, _en_vals.get(_k))
 for _k, _v in _en_vals.items():
     if _k.startswith("bangumi_") and _v.strip():
         key_to_name.setdefault(_k, _v.strip())
@@ -258,24 +218,23 @@ if tr_keys != en_keys:
                     f"EN'de fazla {sorted(en_keys - tr_keys)[:5]}")
 notes.append(f"strings.xml: TR {len(tr_keys)} · EN {len(en_keys)} kayıt (simetri {'OK' if tr_keys == en_keys else 'BOZUK'})")
 
-missing_res = [k for k, _ in groups if f"bangumi_tag_{k}" not in tr_keys]
+master_expected_tag_keys = {key for key, _tr, _en, status, _labels in tag_rows if status == "new"}
+missing_res = sorted(master_expected_tag_keys - tr_keys)
 if missing_res:
-    problems.append(f"sözlükte olup dil dosyasında olmayan etiket kaynağı ({len(missing_res)}): {missing_res[:8]}")
+    problems.append(f"MASTER etiketlerinde olup dil dosyasında olmayan kaynak ({len(missing_res)}): {missing_res[:8]}")
 
-org_missing = [l.split("|")[1] for l in raw.splitlines() if l.split("|")[1] not in tr_keys]
+master_expected_org_keys = {key for key, _role, _tr, _en, status, _labels in master_org_rows if status != "pending"}
+org_missing = sorted(master_expected_org_keys - tr_keys)
 if org_missing:
-    problems.append(f"şirket sözlüğünde olup dil dosyasında olmayan kaynak ({len(org_missing)}): {sorted(set(org_missing))[:8]}")
+    problems.append(f"MASTER şirketlerinde olup dil dosyasında olmayan kaynak ({len(org_missing)}): {org_missing[:8]}")
 
-# boş değer kontrolü
 for f, keys in ((RES_TR, tr_keys), (RES_EN, en_keys)):
     src = catalog_text(f)
     for m in re.finditer(r'<string name="(bangumi_(?:tag|studio|producer|network|publisher|magazine)_[^"]+)">(.*?)</string>', src):
         if not m.group(2).strip():
             problems.append(f"boş değer: {f.name}:{m.group(1)}")
 
-# ── 3b) Değer eşitliği — dil dosyaları TSV ile birebir aynı olmalı ───────────
-# Konvansiyon: values/ = TR sütunu, values-en/ = EN sütunu. Bu kontrol "TR değerin EN
-# dosyasına yazılması" gibi sınıfları yakalar (2026-10-11'de yaşandı: 58 kayıt).
+# ── 3b) Değer eşitliği — dil dosyaları MASTER TSV ile birebir aynı olmalı ────
 
 def xml_escape(value: str) -> str:
     out = value.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
@@ -301,10 +260,7 @@ for key, tr, en, status, _labels in tag_rows:
         problems.append(f"EN değeri uyuşmuyor: {key} → {en_values.get(key)!r} (tags.tsv: {en!r})")
         mismatched += 1
 
-org_tag_rows = [l.rstrip("\n").split("\t")
-                for l in (DIAG / "orgs.tsv").read_text(encoding="utf-8").splitlines()
-                if l.strip() and not l.startswith("#")]
-for key, _role, tr, en, status, _labels in org_tag_rows:
+for key, _role, tr, en, status, _labels in master_org_rows:
     if status == "pending":
         continue
     compared += 1
@@ -316,8 +272,6 @@ for key, _role, tr, en, status, _labels in org_tag_rows:
         mismatched += 1
 notes.append(f"dil dosyası değer eşitliği: {compared} kayıt TSV ile karşılaştırıldı"
              + (" (uyuşmazlık yok)" if not mismatched else f" · {mismatched} UYUŞMAZLIK"))
-
-# ── Rapor ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 
 for n in notes:
     print("•", n)

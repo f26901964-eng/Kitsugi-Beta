@@ -1,29 +1,33 @@
 name: 🎌 Bangumi MASTER Doğrulama
 
-# Bangumi sözlük üretimi + derleme + sözleşme testi.
-#
-# Üç katman, çünkü her biri farklı bir hata sınıfını yakalar:
-#   1. Python doğrulayıcı → simetri, değer eşitliği, gölgelenme, mükerrer kaynak adı
-#   2. kotlinc            → sözdizimi (Python doğrulayıcı bunu GÖRMEZ; geçmişte
-#                           virgülsüz eklenen g(...) bloğu derlemeyi kırmıştı)
-#   3. JUnit              → gerçek eşleştirme davranışı (AS ≠ ASOBI, 催淚 = 催泪 …)
-
 on:
   push:
     branches: ['arena/**', 'main']
     paths:
       - 'diag/bangumi_master/**'
+      - 'diag/bangumi_vault/scripts/**'
+      - 'bangumi-vault-resources-*/**'
+      - 'app/src/main/resources/bangumi/**'
       - 'app/src/main/java/com/kitsugi/animelist/utils/BangumiOrgDictionary.kt'
       - 'app/src/main/java/com/kitsugi/animelist/utils/BangumiTagDictionary.kt'
       - 'app/src/main/java/com/kitsugi/animelist/utils/KitsugiTranslations.kt'
       - 'app/src/main/res/values/strings.xml'
       - 'app/src/main/res/values-en/strings.xml'
       - 'app/src/test/java/com/kitsugi/animelist/utils/BangumiMasterDictionaryTest.kt'
+      - 'build.gradle.kts'
+      - 'settings.gradle.kts'
+      - 'gradle/libs.versions.toml'
       - '.github/workflows/bangumi-master.yml'
   pull_request:
     paths:
       - 'diag/bangumi_master/**'
+      - 'diag/bangumi_vault/scripts/**'
+      - 'bangumi-vault-resources-*/**'
+      - 'app/src/main/resources/bangumi/**'
       - 'app/src/main/java/com/kitsugi/animelist/utils/Bangumi*Dictionary.kt'
+      - 'build.gradle.kts'
+      - 'settings.gradle.kts'
+      - 'gradle/libs.versions.toml'
       - '.github/workflows/bangumi-master.yml'
   workflow_dispatch:
 
@@ -39,14 +43,16 @@ jobs:
       - name: 📥 Repo klonla
         uses: actions/checkout@v4
 
-      - name: 🐍 Python doğrulayıcı
+      - name: 🐍 Python doğrulayıcı + birim testleri
         run: |
           python3 --version
+          python3 -m unittest discover -s diag/bangumi_vault/scripts -p 'test_*.py'
           python3 diag/bangumi_master/verify_bangumi_master.py
+          python3 diag/bangumi_master/check_test_expectations.py
+          python3 scripts/check_bangumi_meta_tag_coverage.py
 
       - name: ♻️ Üreteç güncellik denetimi (--check)
         run: |
-          # Sözlük/dil dosyası elle düzenlenip üreteç çalıştırılmadıysa burada kırılır.
           python3 diag/bangumi_master/gen_bangumi_master.py --check
           if ! git diff --quiet; then
             echo "::error::Üreteç çıktısı depodan farklı — gen_bangumi_master.py çalıştırıp commit edin"
@@ -57,6 +63,9 @@ jobs:
   compile-and-test:
     runs-on: ubuntu-latest
     timeout-minutes: 45
+    permissions:
+      contents: read
+      checks: write
     steps:
       - name: 📥 Repo klonla
         uses: actions/checkout@v4
@@ -100,3 +109,33 @@ jobs:
           name: bangumi-master-test-log
           path: test.log
           retention-days: 7
+
+      - name: 🩺 Test hata özetini kontrol çalışmasına yaz
+        if: failure()
+        run: |
+          SUMMARY=$(grep -nE "^e: |FAILED|Execution failed|error:|Caused by|What went wrong|Compilation error|> Task .*(FAILED|failed)" test.log 2>/dev/null | tail -n 60 | cut -c1-400 | tr '\n' '|')
+          TESTDETAIL=$(python3 - <<'PYEOF' 2>/dev/null | tail -n 40 | cut -c1-600 | tr '\n' '|'
+          import glob, xml.etree.ElementTree as ET
+          for path in glob.glob("app/build/test-results/**/TEST-*.xml", recursive=True):
+              try:
+                  root = ET.parse(path).getroot()
+              except Exception:
+                  continue
+              for case in root.iter("testcase"):
+                  for fail in list(case.iter("failure")) + list(case.iter("error")):
+                      msg = (fail.get("message") or "").strip().replace("\n", " ")
+                      txt = (fail.text or "").strip().replace("\n", " ")[:400]
+                      print(f"{case.get('classname')} > {case.get('name')}: {msg} :: {txt}")
+          PYEOF
+          )
+          if [ -n "$TESTDETAIL" ]; then SUMMARY="${SUMMARY}||TEST-DETAIL|${TESTDETAIL}"; fi
+          if [ -z "$SUMMARY" ]; then SUMMARY=$(tail -c 2500 test.log 2>/dev/null | tr '\n' '|'); fi
+          jq -n --arg sha "$GITHUB_SHA" --arg s "$SUMMARY" \
+            '{name:"bangumi-test-summary", head_sha:$sha, status:"completed", conclusion:"neutral",
+              output:{title:"BangumiMasterDictionaryTest ozeti", summary:$s}}' > /tmp/check-run-bgm.json
+          curl -sS -X POST \
+            -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+            -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            "https://api.github.com/repos/${{ github.repository }}/check-runs" \
+            -d @/tmp/check-run-bgm.json | head -c 300

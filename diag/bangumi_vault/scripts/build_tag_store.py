@@ -1,31 +1,14 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Bangumi VAULT — etiket sözlüğünü KOD yerine VERİ olarak üretir (007 mimarisi).
+Bangumi VAULT — etiket sözlüğünü KOD yerine VERİ olarak üretir/doğrular (007 mimarisi).
 
-Neden?
-  `BangumiTagDictionary.kt` bugün 3.983 `g(...)` çağrısı taşıyor ve bu çağrıların
-  her string argümanı sınıf sabit havuzuna (constant pool) bir giriş yazıyor.
-  JVM sınırı sınıf başına **65.535** sabittir. 006 sonunda 14.623 literale
-  ulaşıldı; 007 (59.510 aday) bu tavana çarpar. Aynı şekilde Android kaynak
-  tablosunda tür başına **65.535** kaynak ID sınırı vardır ve 58.398/65.535 dolu.
-
-  Çözüm: sözlük verisi `app/src/main/resources/bangumi/tags.tsv` dosyasına taşınır;
-  Kotlin tarafı yalnızca bu dosyayı okuyup aynı `List<Group>` yapısını kurar.
-  Böylece iki tavan da kalkar, `byLabel`/`byCompact`/"ilk yazım kazanır" semantiği
-  birebir korunur.
-
-Dosya biçimi (UTF-8, LF, sekme ayraçlı, başlık yok):
+Dosya biçimi (`app/src/main/resources/bangumi/tags.tsv`, UTF-8, LF, başlık yok):
     <key> \t <tr> \t <en> \t <etiket> [ \t <etiket> ... ]
 
   * Sıra KORUNUR (ilk yazım kazanır semantiği sıraya bağlıdır).
   * Etiketlerde sekme/satır sonu bulunamaz (üreteç doğrular).
   * `#` ile başlayan satırlar yorumdur, boş satırlar atlanır.
-
-Kullanım:
-  python3 diag/bangumi_vault/scripts/build_tag_store.py --from-kotlin --out /tmp/tags.tsv
-  python3 diag/bangumi_vault/scripts/build_tag_store.py --check
-  python3 diag/bangumi_vault/scripts/build_tag_store.py --stats --out /tmp/tags.tsv
 """
 from __future__ import annotations
 
@@ -43,17 +26,16 @@ STORE = ROOT / "app/src/main/resources/bangumi/tags.tsv"
 
 
 def rows_from_kotlin() -> list[list[str]]:
-    """Mevcut `g(...)` çağrılarını TSV satırlarına çevirir (sıra korunur)."""
-    rows: list[list[str]] = []
-    for group in tag_index.load_dictionary():
-        rows.append([group["id"], group["tr"], group["en"], *group["labels"]])
-    return rows
+    """Mevcut sözlük gruplarını TSV satırlarına çevirir (sıra korunur)."""
+    kotlin_groups = tag_index.load_dictionary_from_kotlin()
+    groups = kotlin_groups if kotlin_groups else tag_index.load_dictionary()
+    return [[g["id"], g["tr"], g["en"], *g["labels"]] for g in groups]
 
 
 def parse_store(text: str) -> list[list[str]]:
     rows = []
     for raw in text.splitlines():
-        if not raw or raw.lstrip().startswith("#"):
+        if not raw:
             continue
         rows.append(raw.split("\t"))
     return rows
@@ -99,18 +81,22 @@ def stats(rows: list[list[str]]) -> str:
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--from-kotlin", action="store_true",
-                    help="g(...) çağrılarından üret (geçiş anı için)")
+                    help="varsa Kotlin g(...) çağrılarından, yoksa mevcut TSV'den oku")
     ap.add_argument("--out", default=str(STORE), help=f"çıktı yolu (varsayılan {STORE})")
     ap.add_argument("--check", action="store_true",
                     help="mevcut dosya üretilenle birebir aynı mı? (yazma yapmaz)")
     ap.add_argument("--stats", action="store_true")
     args = ap.parse_args()
 
-    if not args.from_kotlin:
-        print("--from-kotlin zorunlu: şu an tek kaynak mevcut Kotlin tablosu.", file=sys.stderr)
-        return 2
+    out = Path(args.out)
+    if args.from_kotlin:
+        rows = rows_from_kotlin()
+    else:
+        if not out.exists():
+            print(f"❌ eksik dosya: {out}", file=sys.stderr)
+            return 1
+        rows = parse_store(out.read_text(encoding="utf-8"))
 
-    rows = rows_from_kotlin()
     problems = validate(rows)
     if problems:
         for problem in problems[:20]:
@@ -118,7 +104,6 @@ def main() -> int:
         return 1
 
     text = render(rows)
-    out = Path(args.out)
 
     if args.check:
         if not out.exists():

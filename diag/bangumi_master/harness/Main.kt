@@ -48,6 +48,7 @@ fun main() {
     // politika: komite adları
     eq("光坂高校演劇部 → null", null, BangumiOrgDictionary.resourceKeyFor("光坂高校演劇部"))
     eq("PROJECT-XXX → null", null, BangumiOrgDictionary.resourceKeyFor("PROJECT-XXX"))
+    eq("tag boyut >= 3983", true, BangumiTagDictionary.size >= 3983)
     eq("boyut >= 900", true, BangumiOrgDictionary.size >= 900)
     println(if (fail == 0) "✅ TÜM KONTROLLER GEÇTİ (0 hata)" else "❌ $fail hata")
 }
