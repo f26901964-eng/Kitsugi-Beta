@@ -55,7 +55,8 @@ object KitsugiApiBase {
         // havuzunu paylaşıyor; REST aralığını kısaltmak toplamda 429 riskini artırır.
         "shikimori.io" to HostBudget(minIntervalMs = 450L, perMinute = 80),
         "shikimori.one" to HostBudget(minIntervalMs = 450L, perMinute = 80),
-        "shikimori.me" to HostBudget(minIntervalMs = 450L, perMinute = 80)
+        "shikimori.me" to HostBudget(minIntervalMs = 450L, perMinute = 80),
+        "shikimori.tv" to HostBudget(minIntervalMs = 450L, perMinute = 80)
     )
 
     /** Hosttaki (bütçesi olan) bütçeyi döndürür; yoksa null. */

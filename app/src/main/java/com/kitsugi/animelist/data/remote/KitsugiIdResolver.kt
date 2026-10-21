@@ -9,6 +9,7 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import com.kitsugi.animelist.data.fandom.WikidataClient
+import com.kitsugi.animelist.data.auth.ShikimoriApiClient
 import com.kitsugi.animelist.data.fandom.WikidataParsers
 import com.kitsugi.animelist.model.MediaType
 
@@ -382,14 +383,16 @@ object KitsugiIdResolver {
     /** Shikimori REST yanıtındaki `myanimelist_id` alanını okur (anime → manga sırasıyla). */
     private fun fetchMalIdFromShikimoriApi(shikimoriId: Int): Int? {
         for (endpoint in listOf("animes", "mangas")) {
-            val result = runCatching {
-                val url = URL("https://shikimori.io/api/$endpoint/$shikimoriId")
-                val response = KitsugiApiBase.executeGetRequest(url) ?: return@runCatching null
-                val json = JSONObject(response)
-                val v = json.optInt("myanimelist_id", -1)
-                if (v > 0) v else null
-            }.getOrNull()
-            if (result != null) return result
+            for (baseUrl in ShikimoriApiClient.baseUrlCandidates()) {
+                val result = runCatching {
+                    val url = URL("$baseUrl/api/$endpoint/$shikimoriId")
+                    val response = KitsugiApiBase.executeGetRequest(url) ?: return@runCatching null
+                    val json = JSONObject(response)
+                    val v = json.optInt("myanimelist_id", -1)
+                    if (v > 0) v else null
+                }.getOrNull()
+                if (result != null) return result
+            }
         }
         return null
     }

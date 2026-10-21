@@ -262,11 +262,11 @@ string-template hatası, yeni hata yok).
    öğe 0-ilerlemeyle eski status'ünde kalabilir. `add-to-list→dropped` alternatifi
    (topluluk workaround'u) yan-etki riskiyle ertelendi → kullanıcı kararı.
    (`ARASTIRMA_KAYNAK_SENKRON/05_SIMKL.md` §3)
-8. **Shikimori domain-fallback uygulanmadı**: `.io` bugünkü kullanım; `.tv` adayı yalnız
+8. ~~Shikimori domain-fallback uygulanmadı~~ **→ GİDERİLDİ (bu tur)**: `executeShikimori` erişim-hatasında .io→.one→.tv aday geçişi + çalışan-domain önbelleği; `KitsugiIdResolver` aday döngüsü; `.tv` bütçesi. Eski madde:: `.io` bugünkü kullanım; `.tv` adayı yalnız
    zayıf kaynaklardan (mirror sitesi) doğrulandı — tek-gerçek ilan edilmeden aday-listesi
    eklenmeyecek. `KitsugiIdResolver` `.io`'ya sabit. TR'de `.io` çalışıyor; risk
    ağırlıklı Rusya/engelli-ülkeler. (`04_SHIKIMORI.md`)
-9. **Kitsu host doğrulaması**: uygulama `kitsu.app`, resmi dokümanlar `kitsu.io`
+9. ~~Kitsu host doğrulaması~~ **→ GİTERİLDİ (bu tur)**: `kitsu.app↔kitsu.io` erişim-dönüşümlü fallback (yalnız erişim-hatalarında; kanonik-host tercihi belirsiz → ikisi de denenir). Eski madde:: uygulama `kitsu.app`, resmi dokümanlar `kitsu.io`
    (EverythingBox #330); ikisi de erişilebilirken fallback eklenmedi → kanonik-host
    teyidi bekliyor. (`03_KITSU.md` §1)
 10. **Bangumi "silme" semantiği belirsiz**: v0 DELETE koleksiyonu kaydı DROPPED'a düşürüyor
@@ -280,7 +280,7 @@ string-template hatası, yeni hata yok).
 13. **AniList finale-otomatik-tamamlama** kaynak-çelişkisi (2018 changelog vs 2026 geliştiriciler):
     otomatik-tamamlama eklenmedi, yerel-otorite korundu.
     Ayrıntı: `ARASTIRMA_KAYNAK_SENKRON/09_KENDI_VERITABANINA_YAZMA_HATALARI.md` + `10_YAZMA_SEMANTIGI_MATRISI.md` (tur-2).
-14. **Simkl per-second limit koruması yok** (resmi 10 GET/sn + 1 POST/sn; POST aşımı throtle-bloğu,
+14. ~~Simkl per-second limit koruması yok~~ **→ GİDERİLDİ (bu tur)**: `awaitSimklRateLimit` — GET≥120ms, POST≥1000ms (20 çağrı noktası). Eski madde: (resmi 10 GET/sn + 1 POST/sn; POST aşımı throtle-bloğu,
     sürekli aşım uyarı-sız askıya alma; `api.simkl.com` host-bütçesi yok) → sertleştirme adayı.
 15. **Simkl AUTH V1→V2 göçü**: V1 ~Nisan 2027'de emekli (V2 = yeni client_id + PKCE S256);
     Kitsugi hâlâ V1 (`oauth/token`/`oauth/pin`). V1 günlük kota tüm kullanıcıların ortak havuzu.
