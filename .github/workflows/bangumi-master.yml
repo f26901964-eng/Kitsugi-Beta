@@ -13,6 +13,8 @@ on:
     branches: ['arena/**', 'main']
     paths:
       - 'diag/bangumi_master/**'
+      - 'diag/bangumi_vault/scripts/**'
+      - 'bangumi-vault-resources-*/**'
       - 'app/src/main/java/com/kitsugi/animelist/utils/BangumiOrgDictionary.kt'
       - 'app/src/main/java/com/kitsugi/animelist/utils/BangumiTagDictionary.kt'
       - 'app/src/main/java/com/kitsugi/animelist/utils/KitsugiTranslations.kt'
@@ -23,6 +25,8 @@ on:
   pull_request:
     paths:
       - 'diag/bangumi_master/**'
+      - 'diag/bangumi_vault/scripts/**'
+      - 'bangumi-vault-resources-*/**'
       - 'app/src/main/java/com/kitsugi/animelist/utils/Bangumi*Dictionary.kt'
       - '.github/workflows/bangumi-master.yml'
   workflow_dispatch:
@@ -42,6 +46,7 @@ jobs:
       - name: 🐍 Python doğrulayıcı
         run: |
           python3 --version
+          python3 -m unittest discover -s diag/bangumi_vault/scripts -p 'test_*.py'
           python3 diag/bangumi_master/verify_bangumi_master.py
 
       - name: ♻️ Üreteç güncellik denetimi (--check)
