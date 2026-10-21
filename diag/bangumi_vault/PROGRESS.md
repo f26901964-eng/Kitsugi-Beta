@@ -767,7 +767,13 @@ işler, `translations_done.tsv` yazar, `translations_pending.tsv`'i düşer,
   - [x] 006_d: count 20–29 · 1.605 kayıt · 1.180 yeni canon
       `python3 scripts/worklist.py --min-count 20 --max-count 99` sonrası bu aralıkta
       **0 kararsız** kaldı.
-- [ ] **Chunk 007 — etiket kuyruğu <20** (**59.510**; en yüksek count 19). Bant planı:
+- [ ] **Chunk 007 — etiket kuyruğu <20** (**59.510**; en yüksek count 19).
+      ⚠ **ÖNCE OKU: `007_MIMARI_ARASTIRMA.md`.** Kapasite ölçümü: kaynak ID tavanı
+      (65.535/tür, bugün 58.398 dolu) ve JVM sabit havuzu (65.535/sınıf, bugün 14.623)
+      007'yi `as_is` politikasıyla kaldırmıyor. Çözüm kararı: etiket sözlüğü **Kotlin
+      kaynağından çıkıp `app/src/main/resources/bangumi/tags.tsv` verisine taşınır**
+      (S0 üreteci + kayıpsız tur testi hazır: `build_tag_store.py`, `test_tag_store.py`).
+      Kırpma/SKIP'e zorlama YOK; `as_is` kuralı aynen korunur. Bant planı:
       `19`, `15–18`, `11–14`, `8–10`, `6–7`, `4–5`, `3`, `2`, `1` (a…i) — her bant ayrı
       `map_chunk_007_x_tags.tsv` + kapanış zinciri. Count=0 kurum kuyruğu (**376**) ayrıca
       değerlendirilecek. Committee kopyaları 005c sonrası **1.229/1.229 damgalı**.
