@@ -6038,6 +6038,7 @@
     <string name="account_sync_source_failure">%1$s: %2$s</string>
     <string name="account_sync_sources_skipped">Skipped: %1$s</string>
     <string name="account_sync_fanout_blocked_bangumi">No verified MAL/AniList identity for this Bangumi entry; other sources were not updated</string>
+    <string name="account_sync_offline_identity_pending">Offline: identity could not be verified, will retry when connected</string>
     <string name="simkl_sync_untitled">(untitled)</string>
     <string name="simkl_sync_unsupported_warning">%1$d items could not be sent (unsupported type or missing ID/title): %2$s</string>
     <string name="simkl_sync_unsafe_identity_warning">%1$d anime entries were not sent because they had no verified Simkl/MAL ID. Title matching was skipped to prevent incorrect matches: %2$s</string>

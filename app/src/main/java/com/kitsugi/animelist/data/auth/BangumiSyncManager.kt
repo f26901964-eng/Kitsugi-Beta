@@ -115,7 +115,7 @@ object BangumiSyncManager {
         val rate = toBangumiRate(entry.score)
         // ani-gui #264 (A16): bilinen toplam varsa ilerleme onu aşıyorsa sıkıştır
         // (Bangumi ep/fen-count kontrolüne takılmasın); bilinmiyorsa dokunulmaz.
-        val progress = kotlin.math.minOf(entry.progress, entry.total?.takeIf { it > 0 } ?: Int.MAX_VALUE)
+        val progress = kotlin.math.min(entry.progress, entry.total?.takeIf { it > 0 } ?: Int.MAX_VALUE)
         val messages = mutableListOf<String>()
         val errors = mutableListOf<String>()
 

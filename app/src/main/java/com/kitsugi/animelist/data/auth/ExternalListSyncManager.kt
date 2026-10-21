@@ -140,10 +140,10 @@ object ExternalListSyncManager {
             // — yeniden deneme kimliği düzeltmez, hata olarak şişmesin).
             val rowSource = canonicalMediaSourceId(entry.source)
             var sourceIdentityVerified: Boolean? = null
-            fun crossWriteBlocked(target: String): Boolean {
+            suspend fun crossWriteBlocked(target: String): Boolean {
                 if (target == rowSource || realMalId == null) return false
                 sourceIdentityVerified?.let { return it }
-                val verified = runSyncCatching {
+                val verified = try {
                     CrossSyncIdentityGuard.verifyMalId(
                         malId = realMalId,
                         // Movie/TvShow MAL'de anime-namespace'inde yaşar ("movie"/"tv");
@@ -151,8 +151,10 @@ object ExternalListSyncManager {
                         mediaType = if (entry.type == MediaType.Manga) MediaType.Manga else MediaType.Anime,
                         localTitles = CrossSyncIdentityGuard.aliasesOf(entry),
                         localYear = entry.year
-                    )
-                }.getOrNull() is CrossSyncIdentityGuard.Verdict.Verified
+                    ) is CrossSyncIdentityGuard.Verdict.Verified
+                } catch (_: Exception) {
+                    false
+                }
                 sourceIdentityVerified = verified
                 return !verified
             }
@@ -546,10 +548,10 @@ object ExternalListSyncManager {
             // — yeniden deneme kimliği düzeltmez, hata olarak şişmesin).
             val rowSource = canonicalMediaSourceId(entry.source)
             var sourceIdentityVerified: Boolean? = null
-            fun crossWriteBlocked(target: String): Boolean {
+            suspend fun crossWriteBlocked(target: String): Boolean {
                 if (target == rowSource || realMalId == null) return false
                 sourceIdentityVerified?.let { return it }
-                val verified = runSyncCatching {
+                val verified = try {
                     CrossSyncIdentityGuard.verifyMalId(
                         malId = realMalId,
                         // Movie/TvShow MAL'de anime-namespace'inde yaşar ("movie"/"tv");
@@ -557,8 +559,10 @@ object ExternalListSyncManager {
                         mediaType = if (entry.type == MediaType.Manga) MediaType.Manga else MediaType.Anime,
                         localTitles = CrossSyncIdentityGuard.aliasesOf(entry),
                         localYear = entry.year
-                    )
-                }.getOrNull() is CrossSyncIdentityGuard.Verdict.Verified
+                    ) is CrossSyncIdentityGuard.Verdict.Verified
+                } catch (_: Exception) {
+                    false
+                }
                 sourceIdentityVerified = verified
                 return !verified
             }
