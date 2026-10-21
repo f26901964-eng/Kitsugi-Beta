@@ -55,6 +55,28 @@ Android `R$string` sınıfında 64K alan (DEX field) sınırına takılmamak iç
   3. TR/EN arayüzde `getStringResourceByName(key)` ile `strings.xml` değeri okunur.
   4. Kaynak yoksa `BangumiOrgDictionary.latinNameFor(cleaned)` → `toLatinStudioName()` → orijinal metin döner. Üretim komiteleri (`製作委員会` vb.) ve doğrulanmamış CJK özel adlar olduğu gibi korunur.
 
+### 1.4. Aşılan 5 Garip Teknik Sınırlama ve Korunması Zorunlu Çözüm Yöntemlerimiz
+Uygulamaya bu ölçekte (`106.580` `bangumi_*` anahtarı, `58.338` etiket grubu, `52.626` kurum eşlemesi) veri entegre edilirken karşılaşılan derleyici/런타임/depo sınırlamaları ve uyguladığımız kalıcı çözümler şunlardır (**yeni oturumda bu yapıların hiçbirini bozma**):
+
+1. **Android `R$string` 64K DEX Alan Sınırı (`TooManyFieldsException` / 65.535 Field Limit):**
+   - **Sorun:** `112.812` adet TR/EN `<string>` kaynağı tek `app` modülünde toplandığında Android derleyicisi `R$string` sınıfında 65.535 alan sınırını aşıp derlemeyi kırıyordu.
+   - **Uygulanan Yöntem:** Dil kaynakları **4 ayrı Gradle modülüne (shard)** bölündü (`app` + `bangumi-vault-resources-1` + `bangumi-vault-resources-2` + `bangumi-vault-resources-3`), `nonTransitiveRClass` korundu ve çalışma zamanında `R.string.*` sabit referansı yerine `context.resources.getIdentifier(name, "string", context.packageName)` + `ConcurrentHashMap` önbelleği (`bangumiTagResourceCache`) kullanıldı. Ayrıca **yeni XML ID üretmeme (`+0 XML ID`)** kuralıyla modül başına alan sayısı sabitlendi.
+2. **JVM 64 KB Metod Boyutu Sınırı (`MethodTooLargeException` — `BangumiTagDictionary.kt`):**
+   - **Sorun:** `58.338` etiket grubu tek bir `listOf(...)` veya `<clinit>` metodunda tanımlandığında JVM 64 KB bytecode sınırına takılıyordu.
+   - **Uygulanan Yöntem:** `vault_to_strings.py`, `BangumiTagDictionary.kt` içindeki grupları her biri en fazla **400 grup** içeren `groupChunk00()` .. `groupChunk145()` (`146` ayrı yardımcı metod) parçalarına böler ve `buildList` ile birleştirir.
+3. **JVM Constant-Pool 65.535 Bayt UTF-8 String Sınırı (`BangumiOrgDictionary.kt` RAW):**
+   - **Sorun:** `52.626` kurum eşleme satırı tek bir Kotlin string sabitinde tutulduğunda JVM `CONSTANT_Utf8_info` **65.535 modified-UTF-8 bayt** sınırını aşıyordu (CJK karakterler modified-UTF-8'de 3 bayt kaplar).
+   - **Uygulanan Yöntem:** `BangumiOrgDictionary.kt` içindeki `RAW` verisi `listOf(...)` altında **67 parçaya** bölündü ve her parça kesin olarak **≤ 50.000 modified-UTF-8 bayt** sınırının altında tutuldu (`verify_bangumi_master.py` her parçanın bayt boyutunu denetler).
+4. **Sınıf Yükleme (`<clinit>`) ve Bellek Tüketimi Sınırı (Sıkıştırılmış `RAW` + Lazy Çözümleme):**
+   - **Sorun:** `52.626` kurum eşlemesini derleme zamanında ayrı Kotlin nesneleri olarak üretmek hem `.dex` boyutunu hem sınıf yükleme süresini şişiriyordu.
+   - **Uygulanan Yöntem:** Kurum eşlemeleri `etiket|bangumi_<rol>_<key>|Latin Ad` biçiminde sıkıştırılmış metin satırları olarak tutulur ve ilk kullanımda `by lazy` ile bellekteki arama haritasına açılır.
+5. **Git / Arena 128 MB Yama Sınırı ve `gen_bangumi_master.py` Üzerine Yazma Koruması:**
+   - **Sorun A:** Toplamı ~130 MB olan 14 ham VAULT JSON/TSV dosyası (`vault.json`, `tags.json` vb.) Git geçmişini ve Arena yama sınırını aşıyordu.
+   - **Uygulanan Yöntem A:** 14 büyük veri dosyası `.gitignore`'da tutulup **Google Drive (`1pZAOYsAnMjveNK6grdXjqV9IDM1TFaJp`)** üzerinden senkronize edilir; Git'te yalnız derlenen `.kt` ve `strings.xml` dosyaları ile `canon.tsv` karar tablosu bulunur.
+   - **Sorun B:** `gen_bangumi_master.py` `--check` olmadan çalıştırılırsa `BangumiOrgDictionary.kt` şablondan yalnız `orgs.tsv` ile yeniden yazılıp VAULT'un 51.600+ RAW satırını siler.
+   - **Uygulanan Yöntem B:** Tüm güncellemeler yalnız `apply_009_batch.py --mirror-repair` → `apply_map.py` → `vault_to_strings.py` boru hattıyla yapılır; `gen_bangumi_master.py` **daima `--check` bayrağıyla** çalıştırılır.
+
+
 ---
 
 ## 2. Uygulamaya Entegrasyon Görev Listesi (TASK Planı)
