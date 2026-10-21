@@ -1,0 +1,887 @@
+# Bangumi VAULT — chunk 006_b · ETİKET haritası (count 40–59 · 884 kayıt)
+# Biçim: vault_key <TAB> canon_id|SKIP <TAB> not
+# Kişisel raf/puan, tarih/dönem, gürültü ve belirsiz kısaltmalar SKIP; bilinmeyen CJK adlar as_is.
+bangumi_tag_11_2	SKIP	doujin etkinlik numarası / tarih kodu
+bangumi_tag_18r	n_18r	Latin/CJK ad korundu (uydurma romanizasyon yok)
+bangumi_tag_1974	SKIP	yıl/dönem etiketi
+bangumi_tag_2001_2	SKIP	yıl/dönem etiketi
+bangumi_tag_20_5	SKIP	yıl/dönem etiketi
+bangumi_tag_aimer	aimer	Latin/CJK ad korundu (uydurma romanizasyon yok)
+bangumi_tag_cjk_0cdf25	SKIP	tek karakter
+bangumi_tag_cjk_176583	persona	resmî/global ad
+bangumi_tag_cjk_1b4a18	magical_girl_lyrical_nanoha	resmî/global ad
+bangumi_tag_cjk_276b81	haoliners	resmî/global ad
+bangumi_tag_cjk_41bae7	maria_sama_ga_miteru	resmî/global ad
+bangumi_tag_cjk_57cae0	akira_kamiya	resmî/global ad
+bangumi_tag_cjk_5e6fda	hiroaki_samura	resmî/global ad
+bangumi_tag_cjk_60b2e8	completed_novel	
+bangumi_tag_cjk_78795c	SKIP	gürültü/parça/anlamsız
+bangumi_tag_cjk_7991f1	junji_majima	resmî/global ad
+bangumi_tag_cjk_b6519e	extra_long	
+bangumi_tag_cjk_be7d1c	saki_hasemi	resmî/global ad
+bangumi_tag_cjk_cafb85	junichi_sato	resmî/global ad
+bangumi_tag_cjk_cc7bcf	mitsuru_adachi	resmî/global ad
+bangumi_tag_cjk_e57394	long_series	mevcut Uzun Soluklu Seri
+bangumi_tag_d_3	initial_d	resmî/global ad
+bangumi_tag_doujin_2	doujin	mevcut gruba normalize eşleşme
+bangumi_tag_gal_4	galgame	mevcut galgame grubu
+bangumi_tag_multi_volumes	multi_volumes	Latin/CJK ad korundu (uydurma romanizasyon yok)
+bangumi_tag_tag_2a889b	alicesoft	mevcut grup
+bangumi_tag_tag_358f67	betsucomi	resmî/global ad
+bangumi_tag_tag_82dba6	mary_jane	resmî/global ad
+bangumi_tag_tms_entertainment	tms	mevcut gruba normalize eşleşme
+bangumi_tag_vita	vita	Latin/CJK ad korundu (uydurma romanizasyon yok)
+bangumi_tag_00_2	SKIP	puan/sayı etiketi
+bangumi_tag_2006_10	SKIP	yıl/dönem etiketi
+bangumi_tag_2006_4	SKIP	yıl/dönem etiketi
+bangumi_tag_abelsoftware	abelsoftware	Latin/CJK ad korundu (uydurma romanizasyon yok)
+bangumi_tag_ceui	ceui	Latin/CJK ad korundu (uydurma romanizasyon yok)
+bangumi_tag_cjk_0264e9	ai_yazawa	resmî/global ad
+bangumi_tag_cjk_099b72	ichiko_ima	resmî/global ad
+bangumi_tag_cjk_0c49c7	SKIP	tek karakter
+bangumi_tag_cjk_1e758e	shonen_gahosha	resmî/global ad
+bangumi_tag_cjk_22a641	SKIP	özel ad — Latin yazımı doğrulanamadı
+bangumi_tag_cjk_30bbbe	valkyrie	
+bangumi_tag_cjk_3c0b5c	book_girl	resmî/global ad
+bangumi_tag_cjk_422967	ami_koshimizu	resmî/global ad
+bangumi_tag_cjk_517f29	SKIP	kişisel raf/puan/not
+bangumi_tag_cjk_6f30f9	bessatsu_margaret	resmî/global ad
+bangumi_tag_cjk_75ca57	ayane	resmî/global ad
+bangumi_tag_cjk_88594b	SKIP	kişisel raf/puan/not
+bangumi_tag_cjk_9777b6	taiyo_matsumoto	resmî/global ad
+bangumi_tag_cjk_c501af	miyuki_kitagawa	resmî/global ad
+bangumi_tag_cjk_dce82a	kazuma_kamachi	resmî/global ad
+bangumi_tag_cjk_f98795	japanese_otome	
+bangumi_tag_liar_soft	liar_soft	Latin/CJK ad korundu (uydurma romanizasyon yok)
+bangumi_tag_melodic_death	melodic_death	Latin/CJK ad korundu (uydurma romanizasyon yok)
+bangumi_tag_project_6	touhou_project	resmî/global ad
+bangumi_tag_tag_2740fc	tomoko_yamashita	resmî/global ad
+bangumi_tag_tag_72949b	SKIP	tek karakter
+bangumi_tag_tag_f345d5	ti_net	resmî/global ad
+bangumi_tag_1976_2	SKIP	yıl/dönem etiketi
+bangumi_tag_2015_11	SKIP	yıl/dönem etiketi
+bangumi_tag_2016_9	SKIP	yıl/dönem etiketi
+bangumi_tag_8_3	age_8_plus	
+bangumi_tag_bl2018	bl2018	Latin/CJK ad korundu (uydurma romanizasyon yok)
+bangumi_tag_cjk_053871	SKIP	kişisel raf/puan/not
+bangumi_tag_cjk_073b4d	mystery_manga	
+bangumi_tag_cjk_3c9593	SKIP	kişisel raf/puan/not
+bangumi_tag_cjk_4b65e3	kurone_mishima	resmî/global ad
+bangumi_tag_cjk_4e7040	hatsune_miku	resmî/global ad
+bangumi_tag_cjk_571fe8	tamiki_wakaki	resmî/global ad
+bangumi_tag_cjk_660327	SKIP	özel ad — Latin yazımı doğrulanamadı
+bangumi_tag_cjk_9626e0	kenjiro_hata	resmî/global ad
+bangumi_tag_cjk_97ddb9	SKIP	özel ad — Latin yazımı doğrulanamadı
+bangumi_tag_cjk_9b8019	horror_manga	
+bangumi_tag_cjk_9ce4f5	taiyo_tosho	resmî/global ad
+bangumi_tag_cjk_b0a65b	digital	
+bangumi_tag_cjk_b6ce81	for_women	
+bangumi_tag_cjk_c0b34a	SKIP	kişisel raf/puan/not
+bangumi_tag_cjk_ca499d	masaki_suda	resmî/global ad
+bangumi_tag_cjk_d52aeb	mayumi_tanaka	resmî/global ad
+bangumi_tag_cjk_e05e77	misato_fukuen	resmî/global ad
+bangumi_tag_cjk_e2f844	SKIP	kişisel raf/puan/not
+bangumi_tag_cjk_e40942	SKIP	özel ad — Latin yazımı doğrulanamadı
+bangumi_tag_cjk_e8a440	SKIP	kişisel raf/puan/not
+bangumi_tag_cjk_eefe26	nippon_ichi	resmî/global ad
+bangumi_tag_cjk_f1d786	irregular_at_magic_high_school	resmî/global ad
+bangumi_tag_cjk_fe131f	hack_and_slash	
+bangumi_tag_erogame	erogame	Latin/CJK ad korundu (uydurma romanizasyon yok)
+bangumi_tag_folk	folk	Latin/CJK ad korundu (uydurma romanizasyon yok)
+bangumi_tag_giga	giga	mevcut gruba normalize eşleşme
+bangumi_tag_lerche	lerche	Latin/CJK ad korundu (uydurma romanizasyon yok)
+bangumi_tag_mark_2	mark	Latin/CJK ad korundu (uydurma romanizasyon yok)
+bangumi_tag_more	more	Latin/CJK ad korundu (uydurma romanizasyon yok)
+bangumi_tag_psplus	psplus	Latin/CJK ad korundu (uydurma romanizasyon yok)
+bangumi_tag_shimamura	shimamura	Latin/CJK ad korundu (uydurma romanizasyon yok)
+bangumi_tag_sie	sie	Latin/CJK ad korundu (uydurma romanizasyon yok)
+bangumi_tag_tactical_shooter	tactical_shooter	Latin/CJK ad korundu (uydurma romanizasyon yok)
+bangumi_tag_warner_bros_animation	warner_bros_animation	Latin/CJK ad korundu (uydurma romanizasyon yok)
+bangumi_tag_1977	SKIP	yıl/dönem etiketi
+bangumi_tag_1_2	SKIP	gürültü/parça/anlamsız
+bangumi_tag_2019_02	SKIP	yıl/dönem etiketi
+bangumi_tag_85_89	SKIP	yıl/dönem etiketi
+bangumi_tag_cjk_10b005	monster_hunter	resmî/global ad
+bangumi_tag_cjk_159f11	sitcom	mevcut sitcom grubu
+bangumi_tag_cjk_29a184	rumi_okubo	resmî/global ad
+bangumi_tag_cjk_2a0308	familiar_of_zero	resmî/global ad
+bangumi_tag_cjk_2ed88c	tsubasa_reservoir_chronicle	resmî/global ad
+bangumi_tag_cjk_368392	yoshito_usui	resmî/global ad
+bangumi_tag_cjk_4fa6a3	yu_kobayashi	resmî/global ad
+bangumi_tag_cjk_6a8077	asahi_shimbun_publications	resmî/global ad
+bangumi_tag_cjk_77a156	naozumi_takahashi	resmî/global ad
+bangumi_tag_cjk_9420dd	supernatural	
+bangumi_tag_cjk_9441c0	miyu_matsuki	resmî/global ad
+bangumi_tag_cjk_99e92a	megami_tensei	resmî/global ad
+bangumi_tag_cjk_a08486	butler	
+bangumi_tag_cjk_ac2a12	tsukasa_hojo	resmî/global ad
+bangumi_tag_cjk_ad6fe7	wataru_maeguchi	resmî/global ad
+bangumi_tag_cjk_ae8a68	SKIP	özel ad — Latin yazımı doğrulanamadı
+bangumi_tag_cjk_cc9f78	dreamworks	resmî/global ad
+bangumi_tag_eb	eb	Latin/CJK ad korundu (uydurma romanizasyon yok)
+bangumi_tag_fav	fav	Latin/CJK ad korundu (uydurma romanizasyon yok)
+bangumi_tag_finalfantasy	final_fantasy	mevcut gruba normalize eşleşme
+bangumi_tag_gangan_2	shonen_gangan	resmî/global ad
+bangumi_tag_lisa	lisa	Latin/CJK ad korundu (uydurma romanizasyon yok)
+bangumi_tag_m_2	masochist	
+bangumi_tag_metalcore	metalcore	Latin/CJK ad korundu (uydurma romanizasyon yok)
+bangumi_tag_op_ed_3	anime_op_ed	
+bangumi_tag_pc	pc_otome	
+bangumi_tag_plight	plight	Latin/CJK ad korundu (uydurma romanizasyon yok)
+bangumi_tag_showtime	showtime	Latin/CJK ad korundu (uydurma romanizasyon yok)
+bangumi_tag_sidem	sidem	Latin/CJK ad korundu (uydurma romanizasyon yok)
+bangumi_tag_tag_078a38	anthology	
+bangumi_tag_tag_99e353	pripara	resmî/global ad
+bangumi_tag_1978	SKIP	yıl/dönem etiketi
+bangumi_tag_2019_5	SKIP	yıl/dönem etiketi
+bangumi_tag_2_5	SKIP	puan/sayı etiketi
+bangumi_tag_9_3	nine_volumes	
+bangumi_tag_cjk_17a48c	legend	
+bangumi_tag_cjk_3410b1	minami_tsuda	resmî/global ad
+bangumi_tag_cjk_3d43d5	yu_asakawa	resmî/global ad
+bangumi_tag_cjk_4804b8	SKIP	özel ad — Latin yazımı doğrulanamadı
+bangumi_tag_cjk_4c7aa7	arina_tanemura	resmî/global ad
+bangumi_tag_cjk_4da0e5	usamaru_furuya	resmî/global ad
+bangumi_tag_cjk_63bbdf	non_japanese_animation	
+bangumi_tag_cjk_6913fd	akari_kito	resmî/global ad
+bangumi_tag_cjk_703521	u17	resmî/global ad
+bangumi_tag_cjk_732b81	aki_misawa	resmî/global ad
+bangumi_tag_cjk_b9ee41	trails_series	resmî/global ad
+bangumi_tag_cjk_bb5421	kara_no_kyoukai	resmî/global ad
+bangumi_tag_cjk_c6abae	space_battleship_yamato	resmî/global ad
+bangumi_tag_cjk_d61e1e	doujin_game	mevcut grup
+bangumi_tag_cjk_d7e874	game_soundtrack	
+bangumi_tag_cjk_e8d29d	wild_development	
+bangumi_tag_cjk_eb9040	shonen_jump_plus	resmî/global ad
+bangumi_tag_cjk_fc3ef9	shin_oonuma	resmî/global ad
+bangumi_tag_duca	duca	Latin/CJK ad korundu (uydurma romanizasyon yok)
+bangumi_tag_gto	gto	Latin/CJK ad korundu (uydurma romanizasyon yok)
+bangumi_tag_hiy_2	hiy	Latin/CJK ad korundu (uydurma romanizasyon yok)
+bangumi_tag_honeyworks	honeyworks	Latin/CJK ad korundu (uydurma romanizasyon yok)
+bangumi_tag_lezhin	lezhin	Latin/CJK ad korundu (uydurma romanizasyon yok)
+bangumi_tag_nipponanimation	nipponanimation	Latin/CJK ad korundu (uydurma romanizasyon yok)
+bangumi_tag_roughsketch	roughsketch	Latin/CJK ad korundu (uydurma romanizasyon yok)
+bangumi_tag_2008_4	SKIP	yıl/dönem etiketi
+bangumi_tag_2010_7	SKIP	yıl/dönem etiketi
+bangumi_tag_2013_3	SKIP	yıl/dönem etiketi
+bangumi_tag_9_6	SKIP	puan/sayı etiketi
+bangumi_tag_a_9	SKIP	puan/raf/sayfa düzeni
+bangumi_tag_angelnote	angel_note	mevcut gruba normalize eşleşme
+bangumi_tag_banpresto	banpresto	Latin/CJK ad korundu (uydurma romanizasyon yok)
+bangumi_tag_cjk_016495	kaori_yuki	resmî/global ad
+bangumi_tag_cjk_296db0	shounen	mevcut shounen grubu
+bangumi_tag_cjk_37d468	SKIP	puan/raf/sayfa düzeni
+bangumi_tag_cjk_3894e2	SKIP	özel ad — Latin yazımı doğrulanamadı
+bangumi_tag_cjk_64b5de	higurashi	resmî/global ad
+bangumi_tag_cjk_650880	japanese_version	
+bangumi_tag_cjk_66e779	wataru_watanabe	resmî/global ad
+bangumi_tag_cjk_766b7b	sakura_wars	resmî/global ad
+bangumi_tag_cjk_85ed53	doujin_voice	
+bangumi_tag_cjk_9adf03	kaede_hondo	resmî/global ad
+bangumi_tag_cjk_9f9d36	mobile_phone	
+bangumi_tag_cjk_b58b94	SKIP	tek karakter
+bangumi_tag_cjk_b6f7d8	megumi_hayashibara	resmî/global ad
+bangumi_tag_cjk_d304c2	miyuki_hashimoto	resmî/global ad
+bangumi_tag_cjk_daa0de	time_killer	
+bangumi_tag_cjk_df072c	rie_takahashi	resmî/global ad
+bangumi_tag_cjk_f3b065	SKIP	kişisel raf/puan/not
+bangumi_tag_cjk_fd3b91	kazue_yamamoto	resmî/global ad
+bangumi_tag_cjk_ff4876	hetalia	resmî/global ad
+bangumi_tag_mcu	mcu	Latin/CJK ad korundu (uydurma romanizasyon yok)
+bangumi_tag_nintendoswitch	platform_switch	mevcut gruba normalize eşleşme
+bangumi_tag_ov	ov	Latin/CJK ad korundu (uydurma romanizasyon yok)
+bangumi_tag_quinrose	quinrose	Latin/CJK ad korundu (uydurma romanizasyon yok)
+bangumi_tag_tag_6b5af4	SKIP	özel ad — Latin yazımı doğrulanamadı
+bangumi_tag_tag_7aba07	SKIP	tek karakter
+bangumi_tag_tag_9177cc	aikatsu	resmî/global ad
+bangumi_tag_tag_9f758d	margaret	resmî/global ad
+bangumi_tag_tag_d7a848	ruroo	resmî/global ad
+bangumi_tag_zaq	zaq	Latin/CJK ad korundu (uydurma romanizasyon yok)
+bangumi_tag_12_2	twelve_volumes	
+bangumi_tag_2020_11	SKIP	yıl/dönem etiketi
+bangumi_tag_8bit	n_8bit	Latin/CJK ad korundu (uydurma romanizasyon yok)
+bangumi_tag_amazon	amazon	Latin/CJK ad korundu (uydurma romanizasyon yok)
+bangumi_tag_cjk_00ce20	SKIP	kişisel raf/puan/not
+bangumi_tag_cjk_07da6c	tomomi_mochizuki	resmî/global ad
+bangumi_tag_cjk_0d3b08	yasunori_matsumoto	resmî/global ad
+bangumi_tag_cjk_11bd5c	SKIP	kişisel raf/puan/not
+bangumi_tag_cjk_32de7e	inuyasha	resmî/global ad
+bangumi_tag_cjk_3f47b3	symphogear	resmî/global ad
+bangumi_tag_cjk_4565cf	hidenori_kusaka	resmî/global ad
+bangumi_tag_cjk_595236	narumi_kakinouchi	resmî/global ad
+bangumi_tag_cjk_7bc0b9	mami_kawada	resmî/global ad
+bangumi_tag_cjk_8da58f	minami_takayama	resmî/global ad
+bangumi_tag_cjk_98ba75	SKIP	kişisel raf/puan/not
+bangumi_tag_cjk_9db64a	journey_to_the_west	resmî/global ad
+bangumi_tag_cjk_b447ed	melodrama	
+bangumi_tag_cjk_bc3658	la_corda_doro	resmî/global ad
+bangumi_tag_cjk_c9efa0	creativity	
+bangumi_tag_cjk_ceef13	akitaro_daichi	resmî/global ad
+bangumi_tag_cjk_d0e7c4	lynn_okamoto	resmî/global ad
+bangumi_tag_cjk_d8fa17	SKIP	özel ad — Latin yazımı doğrulanamadı
+bangumi_tag_cjk_dca270	mobile_suit_gundam	resmî/global ad
+bangumi_tag_cjk_e9ce07	ryunosuke_kamiki	resmî/global ad
+bangumi_tag_cjk_f27d14	higurashi	resmî/global ad
+bangumi_tag_cjk_f90cf6	kenta_miyake	resmî/global ad
+bangumi_tag_cjk_fa140c	asia_do	resmî/global ad
+bangumi_tag_krkr	krkr	Latin/CJK ad korundu (uydurma romanizasyon yok)
+bangumi_tag_m	m	Latin/CJK ad korundu (uydurma romanizasyon yok)
+bangumi_tag_parthenon	parthenon	Latin/CJK ad korundu (uydurma romanizasyon yok)
+bangumi_tag_seven_arcs	seven_arcs	resmî/global ad
+bangumi_tag_tag_94836d	fumi_yoshinaga	resmî/global ad
+bangumi_tag_2021_02	SKIP	yıl/dönem etiketi
+bangumi_tag_20_2	SKIP	kişisel raf/puan/not
+bangumi_tag_5_10h	n_5_10h	Latin/CJK ad korundu (uydurma romanizasyon yok)
+bangumi_tag_bluegale	bluegale	Latin/CJK ad korundu (uydurma romanizasyon yok)
+bangumi_tag_cjk_40a18f	tomohisa_yamashita	resmî/global ad
+bangumi_tag_cjk_63eb48	nozomi_yamamoto	resmî/global ad
+bangumi_tag_cjk_7fa3a1	SKIP	özel ad — Latin yazımı doğrulanamadı
+bangumi_tag_cjk_810805	yuki_shimizu	resmî/global ad
+bangumi_tag_cjk_84eda5	shaft	resmî/global ad
+bangumi_tag_cjk_87378d	tomoki_kikuya	resmî/global ad
+bangumi_tag_cjk_af8379	tower_defense	
+bangumi_tag_cjk_ba9a73	chie_shinohara	resmî/global ad
+bangumi_tag_cjk_cc43b7	SKIP	özel ad — Latin yazımı doğrulanamadı
+bangumi_tag_cjk_d16449	SKIP	kişisel raf/puan/not
+bangumi_tag_cjk_d8e929	kogado_studio	resmî/global ad
+bangumi_tag_cjk_db5277	SKIP	kişisel raf/puan/not
+bangumi_tag_cjk_e2d606	yui_ishikawa	resmî/global ad
+bangumi_tag_cjk_e9647e	akira_amano	resmî/global ad
+bangumi_tag_cjk_eab619	SKIP	tek karakter
+bangumi_tag_cjk_f2810f	ao_jumonji	resmî/global ad
+bangumi_tag_ghibli_2	studio_ghibli	resmî/global ad
+bangumi_tag_guilty	guilty	Latin/CJK ad korundu (uydurma romanizasyon yok)
+bangumi_tag_ia	ia	Latin/CJK ad korundu (uydurma romanizasyon yok)
+bangumi_tag_inter	inter	Latin/CJK ad korundu (uydurma romanizasyon yok)
+bangumi_tag_miku	miku	Latin/CJK ad korundu (uydurma romanizasyon yok)
+bangumi_tag_movie_4	movie	mevcut gruba normalize eşleşme
+bangumi_tag_ova_3	ova	mevcut ova grubu
+bangumi_tag_piano	piano	mevcut gruba normalize eşleşme
+bangumi_tag_tag_14bbd3	king_records	resmî/global ad
+bangumi_tag_tag_22ee49	durarara	mevcut durarara grubu
+bangumi_tag_tag_d700b3	nakayoshi	resmî/global ad
+bangumi_tag_xboxone_ps4	xboxone_ps4	Latin/CJK ad korundu (uydurma romanizasyon yok)
+bangumi_tag_youngmagazine	weekly_young_magazine	mevcut weekly_young_magazine grubu
+bangumi_tag_yukacco	yukacco	Latin/CJK ad korundu (uydurma romanizasyon yok)
+bangumi_tag_2019_01	SKIP	yıl/dönem etiketi
+bangumi_tag_2020_01	SKIP	yıl/dönem etiketi
+bangumi_tag_2021_03	SKIP	yıl/dönem etiketi
+bangumi_tag_20_25	SKIP	yıl/dönem etiketi
+bangumi_tag_akabeisoft2	akabeisoft2	Latin/CJK ad korundu (uydurma romanizasyon yok)
+bangumi_tag_aran	aran	Latin/CJK ad korundu (uydurma romanizasyon yok)
+bangumi_tag_bigcomicspirits	big_comic_spirits	resmî/global ad
+bangumi_tag_cjk_0413aa	non_japanese_animated_film	
+bangumi_tag_cjk_106244	nisekoi	resmî/global ad
+bangumi_tag_cjk_12c9fe	SKIP	özel ad — Latin yazımı doğrulanamadı
+bangumi_tag_cjk_1322e3	ayaka_ohashi	resmî/global ad
+bangumi_tag_cjk_1cc22a	shinobu_ohtaka	resmî/global ad
+bangumi_tag_cjk_1fdbed	black_and_white	
+bangumi_tag_cjk_204828	younger_partner	mevcut grup
+bangumi_tag_cjk_298e19	kanae_ito	resmî/global ad
+bangumi_tag_cjk_3b7cc0	shinobu_kaitani	resmî/global ad
+bangumi_tag_cjk_3dea88	yasunori_mitsuda	resmî/global ad
+bangumi_tag_cjk_3e4e21	hideo_ishikawa	resmî/global ad
+bangumi_tag_cjk_40bb60	kei_mizusawa	resmî/global ad
+bangumi_tag_cjk_522d85	raising	
+bangumi_tag_cjk_54c336	SKIP	özel ad — Latin yazımı doğrulanamadı
+bangumi_tag_cjk_563ea2	satoshi_yaginuma	resmî/global ad
+bangumi_tag_cjk_70de5f	SKIP	kişisel raf/puan/not
+bangumi_tag_cjk_7d99d7	otome	mevcut otome grubu
+bangumi_tag_cjk_811d8f	SKIP	kişisel raf/puan/not
+bangumi_tag_cjk_8c3650	toshiki_inoue	resmî/global ad
+bangumi_tag_cjk_a325ff	SKIP	özel ad — Latin yazımı doğrulanamadı
+bangumi_tag_cjk_af5a2c	yuzusoft	resmî/global ad
+bangumi_tag_cjk_bf13fc	yurika_kubo	resmî/global ad
+bangumi_tag_cjk_cb6a66	sword_and_sorcery	
+bangumi_tag_cjk_d4803f	rihito_takarai	resmî/global ad
+bangumi_tag_cjk_dc58fc	kara_no_kyoukai	resmî/global ad
+bangumi_tag_cjk_dc8421	kei_sazane	resmî/global ad
+bangumi_tag_cjk_e50d9c	yoshimasa_fujisawa	resmî/global ad
+bangumi_tag_cjk_eb0d84	parkour	
+bangumi_tag_cjk_f4c692	movie_short	
+bangumi_tag_cjk_fb336e	akira_takizawa	resmî/global ad
+bangumi_tag_cjk_fd0da7	shoko_hidaka	resmî/global ad
+bangumi_tag_cjk_fe9f47	kei_toume	resmî/global ad
+bangumi_tag_cw	cw	Latin/CJK ad korundu (uydurma romanizasyon yok)
+bangumi_tag_gamefreak	gamefreak	Latin/CJK ad korundu (uydurma romanizasyon yok)
+bangumi_tag_kinemacitrus	kinemacitrus	Latin/CJK ad korundu (uydurma romanizasyon yok)
+bangumi_tag_tag_1347e7	tsukipro	resmî/global ad
+bangumi_tag_td	td	Latin/CJK ad korundu (uydurma romanizasyon yok)
+bangumi_tag_tpz	tpz	Latin/CJK ad korundu (uydurma romanizasyon yok)
+bangumi_tag_vm24	vm24	Latin/CJK ad korundu (uydurma romanizasyon yok)
+bangumi_tag_11_15	SKIP	yıl/dönem etiketi
+bangumi_tag_alive	alive	Latin/CJK ad korundu (uydurma romanizasyon yok)
+bangumi_tag_artland	artland	Latin/CJK ad korundu (uydurma romanizasyon yok)
+bangumi_tag_bnpictures	bnpictures	Latin/CJK ad korundu (uydurma romanizasyon yok)
+bangumi_tag_cjk_0cf9f0	pili_puppetry	resmî/global ad
+bangumi_tag_cjk_1d310a	insert_song	mevcut grup
+bangumi_tag_cjk_1f961e	pantyhose	
+bangumi_tag_cjk_21ef6c	softstar	resmî/global ad
+bangumi_tag_cjk_34ef6a	nippon_animation	resmî/global ad
+bangumi_tag_cjk_3ec253	yoshiki_nakamura	resmî/global ad
+bangumi_tag_cjk_3fea87	hirohiko_araki	resmî/global ad
+bangumi_tag_cjk_4e14f7	monthly_comic_dengeki_daioh	resmî/global ad
+bangumi_tag_cjk_529dbe	nobuo_tobita	resmî/global ad
+bangumi_tag_cjk_57aa77	mildly_erotic	
+bangumi_tag_cjk_5a93a2	SKIP	tek karakter
+bangumi_tag_cjk_6337e2	female_senpai	
+bangumi_tag_cjk_6d852e	ryo_mizuno	resmî/global ad
+bangumi_tag_cjk_a3a279	tomoko_ninomiya	resmî/global ad
+bangumi_tag_cjk_a48b28	SKIP	kişisel raf/puan/not
+bangumi_tag_cjk_a782e8	keiko_kinoshita	resmî/global ad
+bangumi_tag_cjk_abab71	SKIP	özel ad — Latin yazımı doğrulanamadı
+bangumi_tag_cjk_b395e0	ayahi_takagaki	resmî/global ad
+bangumi_tag_cjk_b480d4	taku_yashiro	resmî/global ad
+bangumi_tag_cjk_b6ce00	SKIP	kişisel raf/puan/not
+bangumi_tag_cjk_bcd861	SKIP	özel ad — Latin yazımı doğrulanamadı
+bangumi_tag_cjk_d3ba37	gosho_aoyama	resmî/global ad
+bangumi_tag_cjk_e49709	reiko_shimizu	resmî/global ad
+bangumi_tag_fans	fan_oriented	
+bangumi_tag_interheart	interheart	Latin/CJK ad korundu (uydurma romanizasyon yok)
+bangumi_tag_m3_2015_2	SKIP	doujin etkinlik numarası / tarih kodu
+bangumi_tag_microsoft	microsoft	Latin/CJK ad korundu (uydurma romanizasyon yok)
+bangumi_tag_oz_3	oz	Latin/CJK ad korundu (uydurma romanizasyon yok)
+bangumi_tag_production_4	ashi_productions	resmî/global ad
+bangumi_tag_queenbee	queenbee	Latin/CJK ad korundu (uydurma romanizasyon yok)
+bangumi_tag_sevenarcs	sevenarcs	Latin/CJK ad korundu (uydurma romanizasyon yok)
+bangumi_tag_superero	SKIP	gürültü/parça/anlamsız
+bangumi_tag_survivemore	survivemore	Latin/CJK ad korundu (uydurma romanizasyon yok)
+bangumi_tag_symphony	symphony	Latin/CJK ad korundu (uydurma romanizasyon yok)
+bangumi_tag_yuri_5	yuri	mevcut gruba normalize eşleşme
+bangumi_tag_11	eleven_volumes	
+bangumi_tag_6_10	SKIP	puan/sayı etiketi
+bangumi_tag_adv_2	text_adv	
+bangumi_tag_bang_dream	bang_dream	mevcut gruba normalize eşleşme
+bangumi_tag_cjk_0337ce	sahomi_koyama	resmî/global ad
+bangumi_tag_cjk_11941e	touhou_project	mevcut touhou_project grubu
+bangumi_tag_cjk_165585	my_teen_romantic_comedy_snafu	resmî/global ad
+bangumi_tag_cjk_16661d	ryu_fujisaki	resmî/global ad
+bangumi_tag_cjk_20c026	nobuo_uematsu	resmî/global ad
+bangumi_tag_cjk_2b71d7	kunihiko_yuyama	resmî/global ad
+bangumi_tag_cjk_358e14	SKIP	kişisel raf/puan/not
+bangumi_tag_cjk_3bf226	super_sentai	resmî/global ad
+bangumi_tag_cjk_522432	kei_tanaka	resmî/global ad
+bangumi_tag_cjk_55fea8	rie_kugimiya	resmî/global ad
+bangumi_tag_cjk_5b200d	tomoyuki_nakazawa	resmî/global ad
+bangumi_tag_cjk_5e6a64	miho_takeoka	resmî/global ad
+bangumi_tag_cjk_67635d	seimaru_amagi	resmî/global ad
+bangumi_tag_cjk_6797d1	SKIP	kişisel raf/puan/not
+bangumi_tag_cjk_6f97b6	macross	mevcut grup
+bangumi_tag_cjk_78b943	makoto_tateno	resmî/global ad
+bangumi_tag_cjk_7a5b91	SKIP	özel ad — Latin yazımı doğrulanamadı
+bangumi_tag_cjk_7cd28c	blizzard	resmî/global ad
+bangumi_tag_cjk_7d5218	soft_yuri	
+bangumi_tag_cjk_8be585	danganronpa	resmî/global ad
+bangumi_tag_cjk_acdb7c	keitaro_motonaga	resmî/global ad
+bangumi_tag_cjk_aedb52	mai_fuchigami	resmî/global ad
+bangumi_tag_cjk_af0e16	saori_onishi	resmî/global ad
+bangumi_tag_cjk_b42cad	junpei_fujita	resmî/global ad
+bangumi_tag_cjk_b72b4f	yasuhiro_nightow	resmî/global ad
+bangumi_tag_cjk_b81868	shinkichi_mitsumune	resmî/global ad
+bangumi_tag_cjk_c23a46	SKIP	özel ad — Latin yazımı doğrulanamadı
+bangumi_tag_cjk_c2470d	nihon_bungeisha	resmî/global ad
+bangumi_tag_cjk_c99272	anime_mirai	resmî/global ad
+bangumi_tag_cjk_cd9667	breast_milk	
+bangumi_tag_cjk_cdd4a3	shoji_meguro	resmî/global ad
+bangumi_tag_cjk_cde80a	tsuburaya	resmî/global ad
+bangumi_tag_cjk_ce130c	masami_okui	resmî/global ad
+bangumi_tag_cjk_d18144	kenshi_hirokane	resmî/global ad
+bangumi_tag_cjk_d1cde6	SKIP	tek karakter
+bangumi_tag_cjk_d2d7a4	yutaka_kono	resmî/global ad
+bangumi_tag_cjk_d55641	mizuki_kawashita	resmî/global ad
+bangumi_tag_cjk_d777fc	SKIP	kişisel raf/puan/not
+bangumi_tag_cjk_d7f3d3	music_adaptation	
+bangumi_tag_cjk_d928a9	takeshobo	resmî/global ad
+bangumi_tag_cjk_d9cc0f	beautiful_breasts	
+bangumi_tag_cjk_f0ef29	michiru_oshima	resmî/global ad
+bangumi_tag_cjk_f75c7e	manhwa	mevcut grup
+bangumi_tag_d_4	SKIP	tek karakter
+bangumi_tag_h_4	multi_volume_hentai	
+bangumi_tag_love_live	love_live	mevcut gruba normalize eşleşme
+bangumi_tag_million	million	Latin/CJK ad korundu (uydurma romanizasyon yok)
+bangumi_tag_sanzigen	sanzigen	Latin/CJK ad korundu (uydurma romanizasyon yok)
+bangumi_tag_srw	srw	Latin/CJK ad korundu (uydurma romanizasyon yok)
+bangumi_tag_studiocomet	studiocomet	Latin/CJK ad korundu (uydurma romanizasyon yok)
+bangumi_tag_symphonic	symphonic	Latin/CJK ad korundu (uydurma romanizasyon yok)
+bangumi_tag_tag_1ad779	danganronpa	resmî/global ad
+bangumi_tag_tag_25147b	SKIP	tek karakter
+bangumi_tag_tag_a94953	big_comic_spirits	resmî/global ad
+bangumi_tag_u_me_soft	SKIP	özel ad — Latin yazımı doğrulanamadı
+bangumi_tag_1990_3	SKIP	yıl/dönem etiketi
+bangumi_tag_6_5	SKIP	puan/sayı etiketi
+bangumi_tag_cjk_0affe3	SKIP	özel ad — Latin yazımı doğrulanamadı
+bangumi_tag_cjk_0b380e	heroic_legend_of_arslan	resmî/global ad
+bangumi_tag_cjk_1244ef	keiichiro_kawaguchi	resmî/global ad
+bangumi_tag_cjk_1a09c5	old_classic	
+bangumi_tag_cjk_293b3a	haruka_minami	resmî/global ad
+bangumi_tag_cjk_2b8beb	ai_otsuka	resmî/global ad
+bangumi_tag_cjk_30ff73	genre_sandbox	mevcut genre_sandbox grubu
+bangumi_tag_cjk_56c409	monster_girl	
+bangumi_tag_cjk_59d4d8	fumiko_orikasa	resmî/global ad
+bangumi_tag_cjk_5a465c	kisho_taniyama	resmî/global ad
+bangumi_tag_cjk_605ef9	asami_sanada	resmî/global ad
+bangumi_tag_cjk_62fbc6	manga_short_story	
+bangumi_tag_cjk_685c2f	crayon_shin_chan	resmî/global ad
+bangumi_tag_cjk_68b5ba	ai_nonaka	resmî/global ad
+bangumi_tag_cjk_750f12	nekoneko_soft	resmî/global ad
+bangumi_tag_cjk_7568c7	hayate_the_combat_butler	resmî/global ad
+bangumi_tag_cjk_83744e	space_battleship_yamato	resmî/global ad
+bangumi_tag_cjk_867504	SKIP	özel ad — Latin yazımı doğrulanamadı
+bangumi_tag_cjk_9bfc84	akio_watanabe	resmî/global ad
+bangumi_tag_cjk_9cba58	SKIP	tek karakter
+bangumi_tag_cjk_ad5097	masterpiece	mevcut masterpiece grubu
+bangumi_tag_cjk_ad9f53	hiro_mashima	mevcut hiro_mashima grubu
+bangumi_tag_cjk_ae5139	keitaro_motonaga	resmî/global ad
+bangumi_tag_cjk_b04f9d	pixel_art_puzzle	
+bangumi_tag_cjk_d3d71d	atmosphere	
+bangumi_tag_cjk_d6c27f	abandoned	
+bangumi_tag_cjk_e217b5	batman	resmî/global ad
+bangumi_tag_cjk_e6ab69	takayuki_yamada	resmî/global ad
+bangumi_tag_cjk_f72d32	shounen	mevcut shounen grubu
+bangumi_tag_cjk_fcb81f	heart_wrenching	mevcut heart_wrenching grubu
+bangumi_tag_cjk_fe1a76	life_and_death	
+bangumi_tag_cover	cover	Latin/CJK ad korundu (uydurma romanizasyon yok)
+bangumi_tag_da02	da02	Latin/CJK ad korundu (uydurma romanizasyon yok)
+bangumi_tag_dynamiccg	dynamiccg	Latin/CJK ad korundu (uydurma romanizasyon yok)
+bangumi_tag_earth_19999	earth_19999	Latin/CJK ad korundu (uydurma romanizasyon yok)
+bangumi_tag_gbc	gbc	Latin/CJK ad korundu (uydurma romanizasyon yok)
+bangumi_tag_l_arc_en_ciel	larc_en_ciel	resmî/global ad
+bangumi_tag_m3_2014_3	SKIP	doujin etkinlik numarası / tarih kodu
+bangumi_tag_production_3	tatsunoko_production	resmî/global ad
+bangumi_tag_tag_fcfdb2	etsuko_yakushimaru	resmî/global ad
+bangumi_tag_tamusic	tamusic	Latin/CJK ad korundu (uydurma romanizasyon yok)
+bangumi_tag_2002_3	SKIP	yıl/dönem etiketi
+bangumi_tag_2015_10_3	SKIP	yıl/dönem etiketi
+bangumi_tag_a_6	a	Latin/CJK ad korundu (uydurma romanizasyon yok)
+bangumi_tag_cjk_0373f8	healing_slice_of_life	
+bangumi_tag_cjk_0bbc2e	SKIP	puan/raf/sayfa düzeni
+bangumi_tag_cjk_169a0f	rie_tanaka	resmî/global ad
+bangumi_tag_cjk_199118	SKIP	kişisel raf/puan/not
+bangumi_tag_cjk_218461	shunsuke_tada	resmî/global ad
+bangumi_tag_cjk_262378	SKIP	gürültü/parça/anlamsız
+bangumi_tag_cjk_27275b	short_story_collection	
+bangumi_tag_cjk_2fb364	getsuku	resmî/global ad
+bangumi_tag_cjk_4dcbd5	kyo_shirodaira	resmî/global ad
+bangumi_tag_cjk_626eff	kensho_ono	resmî/global ad
+bangumi_tag_cjk_653fd5	k_on	resmî/global ad
+bangumi_tag_cjk_7118e1	SKIP	yetiskin başlık — ad korunmadı
+bangumi_tag_cjk_730aa9	keiichi_okabe	resmî/global ad
+bangumi_tag_cjk_86b76d	hiroshi_abe	resmî/global ad
+bangumi_tag_cjk_9190d0	old_classic	
+bangumi_tag_cjk_a11516	hiroaki_samura	resmî/global ad
+bangumi_tag_cjk_a6ea22	taku_kishimoto	resmî/global ad
+bangumi_tag_cjk_b8f769	SKIP	özel ad — Latin yazımı doğrulanamadı
+bangumi_tag_cjk_bad148	SKIP	tek karakter
+bangumi_tag_cjk_bff24f	SKIP	özel ad — Latin yazımı doğrulanamadı
+bangumi_tag_cjk_c6bc6b	footjob	
+bangumi_tag_cjk_d9676d	yoshiki_nakamura	resmî/global ad
+bangumi_tag_cjk_e595b7	aerial_combat	
+bangumi_tag_cjk_efcc0d	kaori_yuki	resmî/global ad
+bangumi_tag_cjk_f6f869	yuki_suetsugu	mevcut yuki_suetsugu grubu
+bangumi_tag_cjk_fef285	plagiarism	
+bangumi_tag_dc_comics_2	dc_comics	mevcut dc_comics grubu
+bangumi_tag_drama_4	otome_drama	
+bangumi_tag_ensemble	ensemble	Latin/CJK ad korundu (uydurma romanizasyon yok)
+bangumi_tag_ff_3	SKIP	belirsiz kısaltma
+bangumi_tag_greenbunny	greenbunny	Latin/CJK ad korundu (uydurma romanizasyon yok)
+bangumi_tag_op_3	anime_op	
+bangumi_tag_pencilpro	pencilpro	Latin/CJK ad korundu (uydurma romanizasyon yok)
+bangumi_tag_revo	revo	Latin/CJK ad korundu (uydurma romanizasyon yok)
+bangumi_tag_tag_639222	SKIP	tek karakter
+bangumi_tag_tva_2	tv	mevcut tv grubu
+bangumi_tag_2018_11	SKIP	yıl/dönem etiketi
+bangumi_tag_2019_08	SKIP	yıl/dönem etiketi
+bangumi_tag_aquaplus	aquaplus	Latin/CJK ad korundu (uydurma romanizasyon yok)
+bangumi_tag_atis	atis	Latin/CJK ad korundu (uydurma romanizasyon yok)
+bangumi_tag_cgss	cgss	Latin/CJK ad korundu (uydurma romanizasyon yok)
+bangumi_tag_cjk_2f5b85	takuya_kimura	resmî/global ad
+bangumi_tag_cjk_3215cf	shoji_gatoh	resmî/global ad
+bangumi_tag_cjk_325050	ai_maeda	resmî/global ad
+bangumi_tag_cjk_329ccc	real_mother	
+bangumi_tag_cjk_3ebab6	chiaki_ishikawa	resmî/global ad
+bangumi_tag_cjk_413591	fumihiko_shimo	resmî/global ad
+bangumi_tag_cjk_465718	legend_of_the_galactic_heroes	resmî/global ad
+bangumi_tag_cjk_4c6ae0	yoshihiko_umakoshi	resmî/global ad
+bangumi_tag_cjk_5064dd	yoshihiro_togashi	resmî/global ad
+bangumi_tag_cjk_56c2f4	masato_sakai	resmî/global ad
+bangumi_tag_cjk_596e02	shotaro_ishinomori	resmî/global ad
+bangumi_tag_cjk_5bee84	side_scroller	
+bangumi_tag_cjk_63e242	megumi_nakajima	mevcut megumi_nakajima grubu
+bangumi_tag_cjk_699fad	da_capo	resmî/global ad
+bangumi_tag_cjk_790227	katekyo_hitman_reborn	resmî/global ad
+bangumi_tag_cjk_7ded59	michiru_oshima	resmî/global ad
+bangumi_tag_cjk_7df219	platformer	
+bangumi_tag_cjk_7fcf42	video	
+bangumi_tag_cjk_888556	kirara	mevcut kirara grubu
+bangumi_tag_cjk_a602bd	masakazu_ishiguro	resmî/global ad
+bangumi_tag_cjk_b27670	call_of_duty	resmî/global ad
+bangumi_tag_cjk_b52d9f	famitsu_bunko	resmî/global ad
+bangumi_tag_cjk_b5e938	saki_fujita	resmî/global ad
+bangumi_tag_cjk_c7c344	kaoru_okubo	resmî/global ad
+bangumi_tag_cjk_cb0b62	dark	
+bangumi_tag_cjk_d46023	kiyono_yasuno	resmî/global ad
+bangumi_tag_cjk_dd6084	rhythm	
+bangumi_tag_cjk_e89cf1	oyuki_konno	resmî/global ad
+bangumi_tag_cjk_f72c12	kouji_seo	resmî/global ad
+bangumi_tag_cjk_fbb467	SKIP	tek karakter
+bangumi_tag_cjk_fddac9	ohta_publishing	resmî/global ad
+bangumi_tag_devil_seal	devil_seal	Latin/CJK ad korundu (uydurma romanizasyon yok)
+bangumi_tag_digimon_adventure02	digimon_adventure02	Latin/CJK ad korundu (uydurma romanizasyon yok)
+bangumi_tag_diomedea_2	diomedea	resmî/global ad
+bangumi_tag_g_t_s	g_t_s	Latin/CJK ad korundu (uydurma romanizasyon yok)
+bangumi_tag_soundhorizon	soundhorizon	Latin/CJK ad korundu (uydurma romanizasyon yok)
+bangumi_tag_square_enix_4	square_enix	mevcut gruba normalize eşleşme
+bangumi_tag_starry_sky_2	starry_sky	mevcut starry_sky grubu
+bangumi_tag_tag_4e8e75	ensemble_stars	resmî/global ad
+bangumi_tag_tag_4fe68e	anime_song	
+bangumi_tag_triangle	triangle	Latin/CJK ad korundu (uydurma romanizasyon yok)
+bangumi_tag_ynn	ynn	Latin/CJK ad korundu (uydurma romanizasyon yok)
+bangumi_tag_2013_08	SKIP	yıl/dönem etiketi
+bangumi_tag_2018_03	SKIP	yıl/dönem etiketi
+bangumi_tag_2020_04	SKIP	yıl/dönem etiketi
+bangumi_tag_2020_08	SKIP	yıl/dönem etiketi
+bangumi_tag_8_bit	n_8_bit	Latin/CJK ad korundu (uydurma romanizasyon yok)
+bangumi_tag_a_p_p_p	a_p_p_p	Latin/CJK ad korundu (uydurma romanizasyon yok)
+bangumi_tag_bl2017	bl2017	Latin/CJK ad korundu (uydurma romanizasyon yok)
+bangumi_tag_brain	brain	Latin/CJK ad korundu (uydurma romanizasyon yok)
+bangumi_tag_c75	SKIP	doujin etkinlik numarası / tarih kodu
+bangumi_tag_cjk_021624	kaori_nazuka	resmî/global ad
+bangumi_tag_cjk_0530e6	gods_and_demons	mevcut gods_and_demons grubu
+bangumi_tag_cjk_122c89	miyamoto_musashi	resmî/global ad
+bangumi_tag_cjk_1f4251	black_butler	resmî/global ad
+bangumi_tag_cjk_24fac5	non_mainstream	
+bangumi_tag_cjk_2e9ac4	chinese_style	
+bangumi_tag_cjk_43e0d8	SKIP	özel ad — Latin yazımı doğrulanamadı
+bangumi_tag_cjk_4978b0	SKIP	kişisel raf/puan/not
+bangumi_tag_cjk_546a15	manhua	mevcut manhua grubu
+bangumi_tag_cjk_59fa05	kazunari_ninomiya	resmî/global ad
+bangumi_tag_cjk_636cb9	rensuke_oshikiri	resmî/global ad
+bangumi_tag_cjk_639742	mitsuki_saiga	resmî/global ad
+bangumi_tag_cjk_79abd0	SKIP	kişisel raf/puan/not
+bangumi_tag_cjk_86bf04	shinji_takamatsu	resmî/global ad
+bangumi_tag_cjk_8ac9cc	yasuomi_umetsu	resmî/global ad
+bangumi_tag_cjk_96fefe	masterpiece	mevcut masterpiece grubu
+bangumi_tag_cjk_ae1eb0	dress_up	
+bangumi_tag_cjk_b3138a	SKIP	yetiskin başlık — ad korunmadı
+bangumi_tag_cjk_b615d0	the_legend_of_zelda	resmî/global ad
+bangumi_tag_cjk_b6ea10	yoshikazu_yasuhiko	resmî/global ad
+bangumi_tag_cjk_bb6f35	nozomu_sasaki	resmî/global ad
+bangumi_tag_cjk_c086b3	world	
+bangumi_tag_cjk_c3fe9c	ethnic_style	
+bangumi_tag_cjk_d25e78	SKIP	özel ad — Latin yazımı doğrulanamadı
+bangumi_tag_cjk_d70dbe	SKIP	özel ad — Latin yazımı doğrulanamadı
+bangumi_tag_cjk_dc7bd7	akihiro_yamada	resmî/global ad
+bangumi_tag_cjk_e0de84	microtransactions	
+bangumi_tag_cjk_e104a8	sci_fi	
+bangumi_tag_cjk_e28ea1	SKIP	gürültü/parça/anlamsız
+bangumi_tag_cjk_eaf890	hiroyuki_takei	resmî/global ad
+bangumi_tag_cjk_eb6072	mushoku_tensei	resmî/global ad
+bangumi_tag_cjk_f1221a	kengo_hanazawa	resmî/global ad
+bangumi_tag_cjk_f75538	tong_li	mevcut tong_li grubu
+bangumi_tag_cjk_f96d0e	tsukasa_fushimi	resmî/global ad
+bangumi_tag_cjk_fda8dc	autumn_season	
+bangumi_tag_digimon_2	digimon	mevcut gruba normalize eşleşme
+bangumi_tag_ef	ef	Latin/CJK ad korundu (uydurma romanizasyon yok)
+bangumi_tag_escu_de	escu_de	Latin/CJK ad korundu (uydurma romanizasyon yok)
+bangumi_tag_gal_6	galgame	mevcut galgame grubu
+bangumi_tag_granrodeo	granrodeo	Latin/CJK ad korundu (uydurma romanizasyon yok)
+bangumi_tag_jdk	jdk	Latin/CJK ad korundu (uydurma romanizasyon yok)
+bangumi_tag_k_on_3	k_on	K-ON! varyantı
+bangumi_tag_perfume	perfume	Latin/CJK ad korundu (uydurma romanizasyon yok)
+bangumi_tag_platform_pc_2	platform_pc	mevcut platform_pc grubu
+bangumi_tag_rbq	rbq	Latin/CJK ad korundu (uydurma romanizasyon yok)
+bangumi_tag_rng	rng	Latin/CJK ad korundu (uydurma romanizasyon yok)
+bangumi_tag_s_5	SKIP	gürültü/parça/anlamsız
+bangumi_tag_synergysp	synergysp	Latin/CJK ad korundu (uydurma romanizasyon yok)
+bangumi_tag_you	you	Latin/CJK ad korundu (uydurma romanizasyon yok)
+bangumi_tag_1972	SKIP	yıl/dönem etiketi
+bangumi_tag_2010_06	SKIP	yıl/dönem etiketi
+bangumi_tag_2013_12	SKIP	yıl/dönem etiketi
+bangumi_tag_angela	angela	Latin/CJK ad korundu (uydurma romanizasyon yok)
+bangumi_tag_c90	SKIP	doujin etkinlik numarası / tarih kodu
+bangumi_tag_cjk_0793f2	gakuto_mikumo	resmî/global ad
+bangumi_tag_cjk_108843	satoshi_yamamoto	resmî/global ad
+bangumi_tag_cjk_332f02	yozaburo_kanari	resmî/global ad
+bangumi_tag_cjk_33c043	rei_miyama	resmî/global ad
+bangumi_tag_cjk_371c04	chinese_drama	mevcut chinese_drama grubu
+bangumi_tag_cjk_3c1a7d	anthology_magazine	
+bangumi_tag_cjk_3e14d0	trails_from_zero	resmî/global ad
+bangumi_tag_cjk_413186	symphogear	resmî/global ad
+bangumi_tag_cjk_427547	oh_great	resmî/global ad
+bangumi_tag_cjk_45b935	SKIP	özel ad — Latin yazımı doğrulanamadı
+bangumi_tag_cjk_4e1bbe	teruyuki_kagawa	resmî/global ad
+bangumi_tag_cjk_5cbdd7	SKIP	özel ad — Latin yazımı doğrulanamadı
+bangumi_tag_cjk_6b0d39	anime_mirai	resmî/global ad
+bangumi_tag_cjk_6e96cd	physical_copy	
+bangumi_tag_cjk_71259d	SKIP	özel ad — Latin yazımı doğrulanamadı
+bangumi_tag_cjk_7d0b68	official_doujin	
+bangumi_tag_cjk_8aa795	subor	resmî/global ad
+bangumi_tag_cjk_9467c6	alice	jenerik ad — çeviri yok
+bangumi_tag_cjk_9719fe	SKIP	kişisel raf/durum etiketi
+bangumi_tag_cjk_a0b763	SKIP	tek karakter
+bangumi_tag_cjk_a9cf6d	kosaku_shima	resmî/global ad
+bangumi_tag_cjk_aaa5d7	non_text_adventure	
+bangumi_tag_cjk_bbd89c	SKIP	puan/raf/sayfa düzeni
+bangumi_tag_cjk_c2b9f4	SKIP	gürültü/parça/anlamsız
+bangumi_tag_cjk_c719f5	SKIP	özel ad — Latin yazımı doğrulanamadı
+bangumi_tag_cjk_d68352	kotono_mitsuishi	resmî/global ad
+bangumi_tag_cjk_dba820	SKIP	özel ad — Latin yazımı doğrulanamadı
+bangumi_tag_cjk_dce579	SKIP	kişisel raf/puan/not
+bangumi_tag_cjk_e0322e	megurine_luka	resmî/global ad
+bangumi_tag_cjk_e18ae2	historical_fiction	
+bangumi_tag_cjk_edbaff	maiko_iuchi	resmî/global ad
+bangumi_tag_cjk_f4feb4	SKIP	özel ad — Latin yazımı doğrulanamadı
+bangumi_tag_cjk_f5a0ad	catgirl	
+bangumi_tag_cjk_f63981	makoto_sanda	resmî/global ad
+bangumi_tag_elisa	elisa	Latin/CJK ad korundu (uydurma romanizasyon yok)
+bangumi_tag_mario	mario	Latin/CJK ad korundu (uydurma romanizasyon yok)
+bangumi_tag_ova_22	ova_22	Latin/CJK ad korundu (uydurma romanizasyon yok)
+bangumi_tag_swan	swan	Latin/CJK ad korundu (uydurma romanizasyon yok)
+bangumi_tag_tag_3560d1	vocal_album	
+bangumi_tag_tag_3dad1a	noizi_ito	resmî/global ad
+bangumi_tag_tnk	tnk	Latin/CJK ad korundu (uydurma romanizasyon yok)
+bangumi_tag_10_5	SKIP	özel ad — Latin yazımı doğrulanamadı
+bangumi_tag_200x	n_200x	Latin/CJK ad korundu (uydurma romanizasyon yok)
+bangumi_tag_2013_11	SKIP	yıl/dönem etiketi
+bangumi_tag_2020_02	SKIP	yıl/dönem etiketi
+bangumi_tag_actas	actas	Latin/CJK ad korundu (uydurma romanizasyon yok)
+bangumi_tag_afternoon	monthly_afternoon	mevcut monthly_afternoon grubu
+bangumi_tag_aph	aph	Latin/CJK ad korundu (uydurma romanizasyon yok)
+bangumi_tag_biblos	biblos	mevcut gruba normalize eşleşme
+bangumi_tag_choucho	choucho	Latin/CJK ad korundu (uydurma romanizasyon yok)
+bangumi_tag_cjk_16e9d5	kazuya_ichijo	resmî/global ad
+bangumi_tag_cjk_1c255e	toru_furuya	resmî/global ad
+bangumi_tag_cjk_24bd23	ai_shimizu	resmî/global ad
+bangumi_tag_cjk_26ac98	takayuki_hattori	resmî/global ad
+bangumi_tag_cjk_2760a8	childrens_literature	
+bangumi_tag_cjk_2f7334	elementary_student	
+bangumi_tag_cjk_469baf	yutaka_mizushima	resmî/global ad
+bangumi_tag_cjk_4b4463	doujin_animation	
+bangumi_tag_cjk_4ca8a3	noboru_takagi	resmî/global ad
+bangumi_tag_cjk_50064b	SKIP	tek karakter
+bangumi_tag_cjk_5bad11	heartwarming	
+bangumi_tag_cjk_654823	yamato_nase	resmî/global ad
+bangumi_tag_cjk_697572	castlevania	resmî/global ad
+bangumi_tag_cjk_75d706	daisuke_kishio	mevcut daisuke_kishio grubu
+bangumi_tag_cjk_8d5838	hero	
+bangumi_tag_cjk_9f4d22	kentaro_miura	resmî/global ad
+bangumi_tag_cjk_a1bccb	haruhiko_mikimoto	resmî/global ad
+bangumi_tag_cjk_a4cf58	miho_komatsu	resmî/global ad
+bangumi_tag_cjk_aa3240	anal_sex	
+bangumi_tag_cjk_b15dd9	SKIP	kişisel raf/puan/not
+bangumi_tag_cjk_c569b7	hideyuki_kurata	resmî/global ad
+bangumi_tag_cjk_d111ad	bondage	
+bangumi_tag_cjk_d2aff1	SKIP	tek karakter
+bangumi_tag_cjk_dd143c	seinen_manga	
+bangumi_tag_cjk_e2491e	naohito_fujiki	resmî/global ad
+bangumi_tag_cjk_f82136	virtual_idol_group	
+bangumi_tag_cjk_fddef2	SKIP	kişisel raf/puan/not
+bangumi_tag_davidproduction	davidproduction	Latin/CJK ad korundu (uydurma romanizasyon yok)
+bangumi_tag_dl_3	download_english	
+bangumi_tag_dle	dle	Latin/CJK ad korundu (uydurma romanizasyon yok)
+bangumi_tag_dq	dq	Latin/CJK ad korundu (uydurma romanizasyon yok)
+bangumi_tag_itv	itv	Latin/CJK ad korundu (uydurma romanizasyon yok)
+bangumi_tag_koeitecmo	koeitecmo	Latin/CJK ad korundu (uydurma romanizasyon yok)
+bangumi_tag_mac	mac	Latin/CJK ad korundu (uydurma romanizasyon yok)
+bangumi_tag_mages	mages	mevcut gruba normalize eşleşme
+bangumi_tag_motionanime	motionanime	Latin/CJK ad korundu (uydurma romanizasyon yok)
+bangumi_tag_pandorahearts	pandorahearts	Latin/CJK ad korundu (uydurma romanizasyon yok)
+bangumi_tag_tag_36c518	tsukiuta	mevcut tsukiuta grubu
+bangumi_tag_tag_8b5387	SKIP	anlamsız işaret
+bangumi_tag_tag_bb65fa	rune	resmî/global ad
+bangumi_tag_tag_f8b8a4	softcircle_courreges	resmî/global ad
+bangumi_tag_tom_h_ck	tom_h_ck	Latin/CJK ad korundu (uydurma romanizasyon yok)
+bangumi_tag_v_cinema	v_cinema	Latin/CJK ad korundu (uydurma romanizasyon yok)
+bangumi_tag_zero	zero	Latin/CJK ad korundu (uydurma romanizasyon yok)
+bangumi_tag_10	SKIP	puan/sayı etiketi
+bangumi_tag_1988_2	SKIP	yıl/dönem etiketi
+bangumi_tag_2007_10	SKIP	yıl/dönem etiketi
+bangumi_tag_2012_03	SKIP	yıl/dönem etiketi
+bangumi_tag_2015_12	SKIP	yıl/dönem etiketi
+bangumi_tag_2018_12_2	SKIP	yıl/dönem etiketi
+bangumi_tag_60_2	SKIP	yıl/dönem etiketi
+bangumi_tag_cjk_05e8a8	guro	mevcut guro grubu
+bangumi_tag_cjk_0ec88b	takeshi_kobayashi	resmî/global ad
+bangumi_tag_cjk_1126c2	japanese_game	
+bangumi_tag_cjk_118601	demon_lord	
+bangumi_tag_cjk_168a81	youkai	
+bangumi_tag_cjk_29ab80	pixel_art	mevcut grup
+bangumi_tag_cjk_2c2c2b	chiaki_kon	resmî/global ad
+bangumi_tag_cjk_3ffd96	suzuki_mirano	resmî/global ad
+bangumi_tag_cjk_488a19	future_diary	resmî/global ad
+bangumi_tag_cjk_49b475	gothic	
+bangumi_tag_cjk_4e69ed	sony	resmî/global ad
+bangumi_tag_cjk_5c681f	SKIP	kişisel raf/puan/not
+bangumi_tag_cjk_5dc52d	shinri_fuwa	resmî/global ad
+bangumi_tag_cjk_653e53	mitsuteru_yokoyama	resmî/global ad
+bangumi_tag_cjk_67509d	yuu_watase	resmî/global ad
+bangumi_tag_cjk_6755b1	morio_asaka	resmî/global ad
+bangumi_tag_cjk_69e73e	masaki_suda	resmî/global ad
+bangumi_tag_cjk_7379c9	profession	
+bangumi_tag_cjk_7745f9	yumi_hara	resmî/global ad
+bangumi_tag_cjk_77d699	aria_the_scarlet_ammo	resmî/global ad
+bangumi_tag_cjk_822ded	interactive_story	
+bangumi_tag_cjk_8954e6	ahegao	
+bangumi_tag_cjk_98365c	chinese_translated	
+bangumi_tag_cjk_9bacde	hong_kong_comics	
+bangumi_tag_cjk_b08890	design	
+bangumi_tag_cjk_b1ba6f	nobuyuki_fukumoto	resmî/global ad
+bangumi_tag_cjk_bbe8b4	accel_world	resmî/global ad
+bangumi_tag_cjk_bc41c7	oreimo	resmî/global ad
+bangumi_tag_cjk_beda62	black_stockings	mevcut black_stockings grubu
+bangumi_tag_cjk_cbdbc6	hiro_suzuhira	resmî/global ad
+bangumi_tag_cjk_cfce5a	lawyer	
+bangumi_tag_cjk_d541a4	noboru_yamaguchi	resmî/global ad
+bangumi_tag_cjk_d808f6	multitasking	
+bangumi_tag_cjk_da8ed5	SKIP	kişisel raf/puan/not
+bangumi_tag_cjk_dd7ddc	SKIP	özel ad — Latin yazımı doğrulanamadı
+bangumi_tag_cjk_dda842	hakuoki	resmî/global ad
+bangumi_tag_cjk_ebe3c3	joji_nakata	resmî/global ad
+bangumi_tag_cjk_f91459	hitsuji_de_oyasumi	resmî/global ad
+bangumi_tag_cjk_f94d0d	masaya_onosaka	resmî/global ad
+bangumi_tag_cjk_fd44bc	shoji_meguro	resmî/global ad
+bangumi_tag_cosplay_2	cosplay	cosplay
+bangumi_tag_cuvie	cuvie	Latin/CJK ad korundu (uydurma romanizasyon yok)
+bangumi_tag_famishin	famishin	Latin/CJK ad korundu (uydurma romanizasyon yok)
+bangumi_tag_fifthavenue	fifthavenue	Latin/CJK ad korundu (uydurma romanizasyon yok)
+bangumi_tag_flesh_blood	flesh_blood	Latin/CJK ad korundu (uydurma romanizasyon yok)
+bangumi_tag_flyingshine	flyingshine	Latin/CJK ad korundu (uydurma romanizasyon yok)
+bangumi_tag_free_2	free_to_play	mevcut gruba normalize eşleşme
+bangumi_tag_senya	senya	Latin/CJK ad korundu (uydurma romanizasyon yok)
+bangumi_tag_sp_2	drama_special	
+bangumi_tag_square	square	Latin/CJK ad korundu (uydurma romanizasyon yok)
+bangumi_tag_studio	studio_gokumi	resmî/global ad
+bangumi_tag_studio_2	studio_gokumi	resmî/global ad
+bangumi_tag_tag_916663	nanahira	resmî/global ad
+bangumi_tag_tag_e013a0	love_live_sunshine	resmî/global ad
+bangumi_tag_tag_e1820f	akira_kanbe	resmî/global ad
+bangumi_tag_tales_2	tales	Latin/CJK ad korundu (uydurma romanizasyon yok)
+bangumi_tag_ultraman	ultraman	mevcut gruba normalize eşleşme
+bangumi_tag_wit_studio_2	witstudio	mevcut gruba normalize eşleşme
+bangumi_tag_10_30h	n_10_30h	Latin/CJK ad korundu (uydurma romanizasyon yok)
+bangumi_tag_1969	SKIP	yıl/dönem etiketi
+bangumi_tag_1973	SKIP	yıl/dönem etiketi
+bangumi_tag_2013_06	SKIP	yıl/dönem etiketi
+bangumi_tag_2015_11_2	SKIP	yıl/dönem etiketi
+bangumi_tag_2020_10	SKIP	yıl/dönem etiketi
+bangumi_tag_adv	adv_game	
+bangumi_tag_bandai_2	bandai	BANDAI
+bangumi_tag_bishop	bishop	Latin/CJK ad korundu (uydurma romanizasyon yok)
+bangumi_tag_bl2013	bl2013	Latin/CJK ad korundu (uydurma romanizasyon yok)
+bangumi_tag_bunbun	bunbun	Latin/CJK ad korundu (uydurma romanizasyon yok)
+bangumi_tag_chatgpt	machine_translation	mevcut machine_translation grubu
+bangumi_tag_cjk_0404c3	eita	resmî/global ad
+bangumi_tag_cjk_070863	eita_mizuno	resmî/global ad
+bangumi_tag_cjk_0882c8	makoto_miyazaki	resmî/global ad
+bangumi_tag_cjk_0a407b	marvel_universe	resmî/global ad
+bangumi_tag_cjk_0c29ef	sho_kinugasa	resmî/global ad
+bangumi_tag_cjk_27b719	SKIP	kişisel raf/puan/not
+bangumi_tag_cjk_280163	SKIP	özel ad — Latin yazımı doğrulanamadı
+bangumi_tag_cjk_2c04dd	enlightenment	
+bangumi_tag_cjk_3351f6	takashi_watanabe	resmî/global ad
+bangumi_tag_cjk_3ae4ef	rica_matsumoto	resmî/global ad
+bangumi_tag_cjk_52d316	villainess	
+bangumi_tag_cjk_5355bc	moto_hagio	resmî/global ad
+bangumi_tag_cjk_623ad8	mai_goto	resmî/global ad
+bangumi_tag_cjk_709cf1	SKIP	kişisel raf/puan/not
+bangumi_tag_cjk_76a717	haruka_minami	resmî/global ad
+bangumi_tag_cjk_76f81b	SKIP	kişisel raf/puan/not
+bangumi_tag_cjk_820db6	SKIP	özel ad — Latin yazımı doğrulanamadı
+bangumi_tag_cjk_8f4850	SKIP	gürültü/parça/anlamsız
+bangumi_tag_cjk_937dea	SKIP	kişisel raf/puan/not
+bangumi_tag_cjk_95a232	satomi_arai	resmî/global ad
+bangumi_tag_cjk_a48825	kazuya_minekura	resmî/global ad
+bangumi_tag_cjk_a9b173	SKIP	özel ad — Latin yazımı doğrulanamadı
+bangumi_tag_cjk_afed59	takeru_satoh	resmî/global ad
+bangumi_tag_cjk_b51e0e	shiro_hamaguchi	resmî/global ad
+bangumi_tag_cjk_b96e78	beautiful_girl	
+bangumi_tag_cjk_ba4088	sparkly_key	resmî/global ad
+bangumi_tag_cjk_c554c7	chinatsu_akasaki	resmî/global ad
+bangumi_tag_cjk_c8e220	diao_ye_zong	resmî/global ad
+bangumi_tag_cjk_c900ad	yumi_uchiyama	resmî/global ad
+bangumi_tag_cjk_d1f9b0	godzilla	resmî/global ad
+bangumi_tag_cjk_d555d7	hype_song	
+bangumi_tag_cjk_d9fbfd	junya_enoki	resmî/global ad
+bangumi_tag_cjk_dc9a7a	japanese_literature	
+bangumi_tag_cjk_e0c29d	certain_scientific_railgun	resmî/global ad
+bangumi_tag_cjk_e20e09	jin_yong	resmî/global ad
+bangumi_tag_cjk_ef3127	anime_film_soundtrack	
+bangumi_tag_cjk_f03076	kazuki_sakuraba	resmî/global ad
+bangumi_tag_cjk_f2d3d8	isuna_hasekura	resmî/global ad
+bangumi_tag_dmm	dmm	Latin/CJK ad korundu (uydurma romanizasyon yok)
+bangumi_tag_gathering	gathering	Latin/CJK ad korundu (uydurma romanizasyon yok)
+bangumi_tag_level5	level5	Latin/CJK ad korundu (uydurma romanizasyon yok)
+bangumi_tag_may_n	may_n	resmî/global ad
+bangumi_tag_niconico	niconico	Latin/CJK ad korundu (uydurma romanizasyon yok)
+bangumi_tag_op_ed	oped	mevcut gruba normalize eşleşme
+bangumi_tag_persona	persona	resmî/global ad
+bangumi_tag_qr	qr	Latin/CJK ad korundu (uydurma romanizasyon yok)
+bangumi_tag_radio	radio	Latin/CJK ad korundu (uydurma romanizasyon yok)
+bangumi_tag_sorcerian	sorcerian	Latin/CJK ad korundu (uydurma romanizasyon yok)
+bangumi_tag_sphere	sphere	Latin/CJK ad korundu (uydurma romanizasyon yok)
+bangumi_tag_tag_10d6e8	SKIP	özel ad — Latin yazımı doğrulanamadı
+bangumi_tag_tag_471506	magi	resmî/global ad
+bangumi_tag_13_3	thirteen_volumes	
+bangumi_tag_2010_07	SKIP	yıl/dönem etiketi
+bangumi_tag_2011_12_2	SKIP	yıl/dönem etiketi
+bangumi_tag_2014_02	SKIP	yıl/dönem etiketi
+bangumi_tag_2015_12_2	SKIP	yıl/dönem etiketi
+bangumi_tag_2016_12_2	SKIP	yıl/dönem etiketi
+bangumi_tag_2019_11	SKIP	yıl/dönem etiketi
+bangumi_tag_4_8	SKIP	puan/sayı etiketi
+bangumi_tag_8_9	SKIP	puan/sayı etiketi
+bangumi_tag_alcot_3	alcot	Latin/CJK ad korundu (uydurma romanizasyon yok)
+bangumi_tag_alternative_rock	alternative_rock	Latin/CJK ad korundu (uydurma romanizasyon yok)
+bangumi_tag_bomtoon	bomtoon	Latin/CJK ad korundu (uydurma romanizasyon yok)
+bangumi_tag_cjk_0409b2	SKIP	kişisel raf/puan/not
+bangumi_tag_cjk_071778	aoi_tada	resmî/global ad
+bangumi_tag_cjk_109408	mamare_touno	resmî/global ad
+bangumi_tag_cjk_1a7fb8	SKIP	özel ad — Latin yazımı doğrulanamadı
+bangumi_tag_cjk_1fbc55	rie_tanaka	resmî/global ad
+bangumi_tag_cjk_3f69ad	honobu_yonezawa	resmî/global ad
+bangumi_tag_cjk_40599f	split_screen	
+bangumi_tag_cjk_42edf7	SKIP	kişisel raf/puan/not
+bangumi_tag_cjk_43b9ad	SKIP	gürültü/parça/anlamsız
+bangumi_tag_cjk_4c7dcc	steel_soul	
+bangumi_tag_cjk_5322b8	koji_morimoto	resmî/global ad
+bangumi_tag_cjk_541fe5	mystery	
+bangumi_tag_cjk_5cbee5	SKIP	kişisel raf/puan/not
+bangumi_tag_cjk_5de4a5	ichiro_mizuki	resmî/global ad
+bangumi_tag_cjk_64478d	rie_okamoto	resmî/global ad
+bangumi_tag_cjk_646dc9	toshiki_masuda	resmî/global ad
+bangumi_tag_cjk_65f004	mayu_shinjo	resmî/global ad
+bangumi_tag_cjk_7476ee	show_hayami	resmî/global ad
+bangumi_tag_cjk_7934b4	ryotaro_okijayu	resmî/global ad
+bangumi_tag_cjk_852e55	exclusive	
+bangumi_tag_cjk_9f891b	pili_puppetry	resmî/global ad
+bangumi_tag_cjk_ab5085	makoto_uezu	resmî/global ad
+bangumi_tag_cjk_b4217f	kurehito_misaki	resmî/global ad
+bangumi_tag_cjk_b85e1b	modoru_motoni	resmî/global ad
+bangumi_tag_cjk_bade9c	nobuyuki_abe	resmî/global ad
+bangumi_tag_cjk_c25d9d	koushi_tachibana	resmî/global ad
+bangumi_tag_cjk_c484b4	short_story_collection	
+bangumi_tag_cjk_c69bf9	mother_and_son	
+bangumi_tag_cjk_cd9c5c	shikidouji	resmî/global ad
+bangumi_tag_cjk_cf36ec	shakugan_no_shana	resmî/global ad
+bangumi_tag_cjk_d1e9ea	masataka_kubota	resmî/global ad
+bangumi_tag_cjk_da974c	katsura_izumi	resmî/global ad
+bangumi_tag_cjk_de061d	osamu_mukai	resmî/global ad
+bangumi_tag_cjk_e49c64	daiki_yamashita	resmî/global ad
+bangumi_tag_cjk_e4de21	SKIP	tek karakter
+bangumi_tag_cjk_ef90a0	hikaru_no_go	resmî/global ad
+bangumi_tag_cjk_f733ba	kankuro_kudo	resmî/global ad
+bangumi_tag_digimon_3	digimon	mevcut gruba normalize eşleşme
+bangumi_tag_eastnewsound	eastnewsound	Latin/CJK ad korundu (uydurma romanizasyon yok)
+bangumi_tag_gothic	gothic	
+bangumi_tag_house	house	Latin/CJK ad korundu (uydurma romanizasyon yok)
+bangumi_tag_k_on_2	k_on	k-on varyantı
+bangumi_tag_liquid	liquid	Latin/CJK ad korundu (uydurma romanizasyon yok)
+bangumi_tag_mc	mc	Latin/CJK ad korundu (uydurma romanizasyon yok)
+bangumi_tag_neoromance	neoromance	Latin/CJK ad korundu (uydurma romanizasyon yok)
+bangumi_tag_one	one	Latin/CJK ad korundu (uydurma romanizasyon yok)
+bangumi_tag_ost_4	anime_ost	
+bangumi_tag_square_enix	square_enix	mevcut gruba normalize eşleşme
+bangumi_tag_steam3070	steam3070	Latin/CJK ad korundu (uydurma romanizasyon yok)
+bangumi_tag_steins_gate_2	steins_gate	STEINS.GATE varyantı
+bangumi_tag_tag_2a1e26	yuzusoft	resmî/global ad
+bangumi_tag_web_3	web_manga	

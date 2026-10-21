@@ -7990,7 +7990,7 @@ Eklentiler ekranından eklenti etkinleştirin.</string>
     <string name="bangumi_producer_milky">Milky</string>
     <string name="bangumi_producer_mk">MK</string>
     <string name="bangumi_producer_nas">NAS</string>
-    <string name="bangumi_producer_oz">@OZ</string>
+    <string name="bangumi_producer_oz">\@OZ</string>
     <string name="bangumi_producer_p_6">本田P三</string>
     <string name="bangumi_producer_poro">PoRO</string>
     <string name="bangumi_producer_redalice">REDALiCE</string>
@@ -10198,7 +10198,7 @@ Eklentiler ekranından eklenti etkinleştirin.</string>
     <string name="bangumi_magazine_storia">まんがライフSTORIA</string>
     <string name="bangumi_magazine_sunday_gx">月刊Sunday GX</string>
     <string name="bangumi_magazine_sunday_s_super">少年Sunday S(Super)</string>
-    <string name="bangumi_magazine_vitamin_2">@vitamin</string>
+    <string name="bangumi_magazine_vitamin_2">\@vitamin</string>
     <string name="bangumi_magazine_web_38">トーチweb</string>
     <string name="bangumi_magazine_wing_2">月刊ガンガンWING</string>
     <string name="bangumi_magazine_you">YOU</string>
@@ -12006,7 +12006,7 @@ Eklentiler ekranından eklenti etkinleştirin.</string>
     <string name="bangumi_studio_monolith">MONOLITH软件</string>
     <string name="bangumi_studio_monster_games">Monster Games</string>
     <string name="bangumi_studio_moonstone_cherry">MOONSTONE Cherry</string>
-    <string name="bangumi_studio_n_factory">@N-Factory</string>
+    <string name="bangumi_studio_n_factory">\@N-Factory</string>
     <string name="bangumi_studio_nanawind">NanaWind</string>
     <string name="bangumi_studio_narrator">Narrator</string>
     <string name="bangumi_studio_natukon">natukon</string>
@@ -12172,7 +12172,7 @@ Eklentiler ekranından eklenti etkinleştirin.</string>
     <string name="bangumi_producer_blue_twinkle">Blue Twinkle</string>
     <string name="bangumi_producer_buzzg">buzzG</string>
     <string name="bangumi_producer_c_i">C&amp;Iエンタテインメント</string>
-    <string name="bangumi_producer_can_beat">@can beat</string>
+    <string name="bangumi_producer_can_beat">\@can beat</string>
     <string name="bangumi_producer_celeb">Celeb</string>
     <string name="bangumi_producer_charles_roven">Charles Roven</string>
     <string name="bangumi_producer_chataro">chataro</string>
@@ -17686,4 +17686,5 @@ Eklentiler ekranından eklenti etkinleştirin.</string>
     <string name="bangumi_magazine_zebel_2">コミックブレイドZEBEL</string>
     <string name="bangumi_magazine_zero_3">マンガZERO</string>
     <string name="bangumi_magazine_zero_sum_2">月刊《コミックZERO-SUM》</string>
-    <string name="bangumi_magazine_zero_sum_comics">ZERO-SUM COMICS</string></resources>
+    <string name="bangumi_magazine_zero_sum_comics">ZERO-SUM COMICS</string>
+</resources>

@@ -1,0 +1,884 @@
+0	SKIP				doujin etkinlik numarası / tarih kodu
+1	n_18r	18R	18R	as_is	Latin/CJK ad korundu (uydurma romanizasyon yok)
+2	SKIP				yıl/dönem etiketi
+3	SKIP				yıl/dönem etiketi
+4	SKIP				yıl/dönem etiketi
+5	aimer	Aimer	Aimer	as_is	Latin/CJK ad korundu (uydurma romanizasyon yok)
+6	SKIP				tek karakter
+7	persona	Persona	Persona	global	resmî/global ad
+8	magical_girl_lyrical_nanoha	Magical Girl Lyrical Nanoha	Magical Girl Lyrical Nanoha	global	resmî/global ad
+9	haoliners	Haoliners Animation	Haoliners Animation	global	resmî/global ad
+10	maria_sama_ga_miteru	Maria-sama ga Miteru	Maria-sama ga Miteru	global	resmî/global ad
+11	akira_kamiya	Akira Kamiya	Akira Kamiya	global	resmî/global ad
+12	hiroaki_samura	Hiroaki Samura	Hiroaki Samura	global	resmî/global ad
+13	completed_novel	Tamamlanmış Roman	Completed Novel	new	
+14	SKIP				gürültü/parça/anlamsız
+15	junji_majima	Junji Majima	Junji Majima	global	resmî/global ad
+16	extra_long	Aşırı Uzun	Extra Long	new	
+17	saki_hasemi	Saki Hasemi	Saki Hasemi	global	resmî/global ad
+18	junichi_sato	Junichi Sato	Junichi Sato	global	resmî/global ad
+19	mitsuru_adachi	Mitsuru Adachi	Mitsuru Adachi	global	resmî/global ad
+20	long_series	Uzun Soluklu Seri	Long Running	existing	mevcut Uzun Soluklu Seri
+21	initial_d	Initial D	Initial D	global	resmî/global ad
+22	doujin	Doujin Kaynak	Doujin	existing	mevcut gruba normalize eşleşme
+23	galgame	Galgame	Galge	existing	mevcut galgame grubu
+24	multi_volumes	multi-volumes	multi-volumes	as_is	Latin/CJK ad korundu (uydurma romanizasyon yok)
+25	alicesoft	ALICESOFT	ALICESOFT	existing	mevcut grup
+26	betsucomi	Betsucomi	Betsucomi	global	resmî/global ad
+27	mary_jane	Mary Jane	Mary Jane	global	resmî/global ad
+28	tms	TMS Entertainment	TMS Entertainment	existing	mevcut gruba normalize eşleşme
+29	vita	Vita	Vita	as_is	Latin/CJK ad korundu (uydurma romanizasyon yok)
+30	SKIP				puan/sayı etiketi
+31	SKIP				yıl/dönem etiketi
+32	SKIP				yıl/dönem etiketi
+33	abelsoftware	abelsoftware	abelsoftware	as_is	Latin/CJK ad korundu (uydurma romanizasyon yok)
+34	ceui	ceui	ceui	as_is	Latin/CJK ad korundu (uydurma romanizasyon yok)
+35	ai_yazawa	Ai Yazawa	Ai Yazawa	global	resmî/global ad
+36	ichiko_ima	Ichiko Ima	Ichiko Ima	global	resmî/global ad
+37	SKIP				tek karakter
+38	shonen_gahosha	Shonen Gahosha	Shonen Gahosha	global	resmî/global ad
+39	SKIP				özel ad — Latin yazımı doğrulanamadı
+40	valkyrie	Valkür	Valkyrie	new	
+41	book_girl	Book Girl	Book Girl	global	resmî/global ad
+42	ami_koshimizu	Ami Koshimizu	Ami Koshimizu	global	resmî/global ad
+43	SKIP				kişisel raf/puan/not
+44	bessatsu_margaret	Bessatsu Margaret	Bessatsu Margaret	global	resmî/global ad
+45	ayane	Ayane	Ayane	global	resmî/global ad
+46	SKIP				kişisel raf/puan/not
+47	taiyo_matsumoto	Taiyo Matsumoto	Taiyo Matsumoto	global	resmî/global ad
+48	miyuki_kitagawa	Miyuki Kitagawa	Miyuki Kitagawa	global	resmî/global ad
+49	kazuma_kamachi	Kazuma Kamachi	Kazuma Kamachi	global	resmî/global ad
+50	japanese_otome	Japon Otome Oyunu	Japanese Otome Game	new	
+51	liar_soft	Liar-soft	Liar-soft	as_is	Latin/CJK ad korundu (uydurma romanizasyon yok)
+52	melodic_death	melodic-death	melodic-death	as_is	Latin/CJK ad korundu (uydurma romanizasyon yok)
+53	touhou_project	Touhou Project	Touhou Project	global	resmî/global ad
+54	tomoko_yamashita	Tomoko Yamashita	Tomoko Yamashita	global	resmî/global ad
+55	SKIP				tek karakter
+56	ti_net	TI Net	TI Net	global	resmî/global ad
+57	SKIP				yıl/dönem etiketi
+58	SKIP				yıl/dönem etiketi
+59	SKIP				yıl/dönem etiketi
+60	age_8_plus	8+	8+	new	
+61	bl2018	BL2018	BL2018	as_is	Latin/CJK ad korundu (uydurma romanizasyon yok)
+62	SKIP				kişisel raf/puan/not
+63	mystery_manga	Gizem Mangası	Mystery Manga	new	
+64	SKIP				kişisel raf/puan/not
+65	kurone_mishima	Kurone Mishima	Kurone Mishima	global	resmî/global ad
+66	hatsune_miku	Hatsune Miku	Hatsune Miku	global	resmî/global ad
+67	tamiki_wakaki	Tamiki Wakaki	Tamiki Wakaki	global	resmî/global ad
+68	SKIP				özel ad — Latin yazımı doğrulanamadı
+69	kenjiro_hata	Kenjiro Hata	Kenjiro Hata	global	resmî/global ad
+70	SKIP				özel ad — Latin yazımı doğrulanamadı
+71	horror_manga	Korku Mangası	Horror Manga	new	
+72	taiyo_tosho	Taiyo Tosho	Taiyo Tosho	global	resmî/global ad
+73	digital	Dijital	Digital	new	
+74	for_women	Kadınlara Yönelik	For Women	new	
+75	SKIP				kişisel raf/puan/not
+76	masaki_suda	Masaki Suda	Masaki Suda	global	resmî/global ad
+77	mayumi_tanaka	Mayumi Tanaka	Mayumi Tanaka	global	resmî/global ad
+78	misato_fukuen	Misato Fukuen	Misato Fukuen	global	resmî/global ad
+79	SKIP				kişisel raf/puan/not
+80	SKIP				özel ad — Latin yazımı doğrulanamadı
+81	SKIP				kişisel raf/puan/not
+82	nippon_ichi	Nippon Ichi	Nippon Ichi	global	resmî/global ad
+83	irregular_at_magic_high_school	The Irregular at Magic High School	The Irregular at Magic High School	global	resmî/global ad
+84	hack_and_slash	Kılıç Kıyım	Hack and Slash	new	
+85	erogame	erogame	erogame	as_is	Latin/CJK ad korundu (uydurma romanizasyon yok)
+86	folk	folk	folk	as_is	Latin/CJK ad korundu (uydurma romanizasyon yok)
+87	giga	Giga	Giga	existing	mevcut gruba normalize eşleşme
+88	lerche	Lerche	Lerche	as_is	Latin/CJK ad korundu (uydurma romanizasyon yok)
+89	mark	mark	mark	as_is	Latin/CJK ad korundu (uydurma romanizasyon yok)
+90	more	MORE	MORE	as_is	Latin/CJK ad korundu (uydurma romanizasyon yok)
+91	psplus	PSPLUS	PSPLUS	as_is	Latin/CJK ad korundu (uydurma romanizasyon yok)
+92	shimamura	Shimamura	Shimamura	as_is	Latin/CJK ad korundu (uydurma romanizasyon yok)
+93	sie	SIE	SIE	as_is	Latin/CJK ad korundu (uydurma romanizasyon yok)
+94	tactical_shooter	Tactical_shooter	Tactical_shooter	as_is	Latin/CJK ad korundu (uydurma romanizasyon yok)
+95	warner_bros_animation	Warner.Bros.Animation	Warner.Bros.Animation	as_is	Latin/CJK ad korundu (uydurma romanizasyon yok)
+96	SKIP				yıl/dönem etiketi
+97	SKIP				gürültü/parça/anlamsız
+98	SKIP				yıl/dönem etiketi
+99	SKIP				yıl/dönem etiketi
+100	monster_hunter	Monster Hunter	Monster Hunter	global	resmî/global ad
+101	sitcom	Durum Komedisi	Sitcom	existing	mevcut sitcom grubu
+102	rumi_okubo	Rumi Okubo	Rumi Okubo	global	resmî/global ad
+103	familiar_of_zero	The Familiar of Zero	The Familiar of Zero	global	resmî/global ad
+104	tsubasa_reservoir_chronicle	Tsubasa: Reservoir Chronicle	Tsubasa: Reservoir Chronicle	global	resmî/global ad
+105	yoshito_usui	Yoshito Usui	Yoshito Usui	global	resmî/global ad
+106	yu_kobayashi	Yu Kobayashi	Yu Kobayashi	global	resmî/global ad
+107	asahi_shimbun_publications	Asahi Shimbun Publications	Asahi Shimbun Publications	global	resmî/global ad
+108	naozumi_takahashi	Naozumi Takahashi	Naozumi Takahashi	global	resmî/global ad
+109	supernatural	Doğaüstü	Supernatural	new	
+110	miyu_matsuki	Miyu Matsuki	Miyu Matsuki	global	resmî/global ad
+111	megami_tensei	Megami Tensei	Megami Tensei	global	resmî/global ad
+112	butler	Kâhya	Butler	new	
+113	tsukasa_hojo	Tsukasa Hojo	Tsukasa Hojo	global	resmî/global ad
+114	wataru_maeguchi	Wataru Maeguchi	Wataru Maeguchi	global	resmî/global ad
+115	SKIP				özel ad — Latin yazımı doğrulanamadı
+116	dreamworks	DreamWorks	DreamWorks	global	resmî/global ad
+117	eb	eb!	eb!	as_is	Latin/CJK ad korundu (uydurma romanizasyon yok)
+118	fav	Fav	Fav	as_is	Latin/CJK ad korundu (uydurma romanizasyon yok)
+119	final_fantasy	Final Fantasy	Final Fantasy	existing	mevcut gruba normalize eşleşme
+120	shonen_gangan	Shonen Gangan	Shonen Gangan	global	resmî/global ad
+121	lisa	LiSA	LiSA	as_is	Latin/CJK ad korundu (uydurma romanizasyon yok)
+122	masochist	Mazoşist	Masochist	new	
+123	metalcore	metalcore	metalcore	as_is	Latin/CJK ad korundu (uydurma romanizasyon yok)
+124	anime_op_ed	Anime OP/ED	Anime OP/ED	new	
+125	pc_otome	PC Otome Oyunu	PC Otome Game	new	
+126	plight	PLight	PLight	as_is	Latin/CJK ad korundu (uydurma romanizasyon yok)
+127	showtime	SHOWTIME	SHOWTIME	as_is	Latin/CJK ad korundu (uydurma romanizasyon yok)
+128	sidem	SideM	SideM	as_is	Latin/CJK ad korundu (uydurma romanizasyon yok)
+129	anthology	Antoloji	Anthology	new	
+130	pripara	PriPara	PriPara	global	resmî/global ad
+131	SKIP				yıl/dönem etiketi
+132	SKIP				yıl/dönem etiketi
+133	SKIP				puan/sayı etiketi
+134	nine_volumes	9 Cilt (Tamamlanmış)	9 Volumes (Complete)	new	
+135	legend	Efsane	Legend	new	
+136	minami_tsuda	Minami Tsuda	Minami Tsuda	global	resmî/global ad
+137	yu_asakawa	Yu Asakawa	Yu Asakawa	global	resmî/global ad
+138	SKIP				özel ad — Latin yazımı doğrulanamadı
+139	arina_tanemura	Arina Tanemura	Arina Tanemura	global	resmî/global ad
+140	usamaru_furuya	Usamaru Furuya	Usamaru Furuya	global	resmî/global ad
+141	non_japanese_animation	Japon Dışı Animasyon	Non-Japanese Animation	new	
+142	akari_kito	Akari Kito	Akari Kito	global	resmî/global ad
+143	u17	U17	U17	global	resmî/global ad
+144	aki_misawa	Aki Misawa	Aki Misawa	global	resmî/global ad
+145	trails_series	Trails Series	Trails Series	global	resmî/global ad
+146	kara_no_kyoukai	Kara no Kyoukai	Kara no Kyoukai	global	resmî/global ad
+147	space_battleship_yamato	Space Battleship Yamato	Space Battleship Yamato	global	resmî/global ad
+148	doujin_game	Doujin Oyun	Doujin Game	existing	mevcut grup
+149	game_soundtrack	Oyun Müzikleri	Game Soundtrack	new	
+150	wild_development	Beklenmedik Gelişme	Wild Development	new	
+151	shonen_jump_plus	Shonen Jump+	Shonen Jump+	global	resmî/global ad
+152	shin_oonuma	Shin Oonuma	Shin Oonuma	global	resmî/global ad
+153	duca	DUCA	DUCA	as_is	Latin/CJK ad korundu (uydurma romanizasyon yok)
+154	gto	GTO	GTO	as_is	Latin/CJK ad korundu (uydurma romanizasyon yok)
+155	hiy	|HiY|	|HiY|	as_is	Latin/CJK ad korundu (uydurma romanizasyon yok)
+156	honeyworks	HoneyWorks	HoneyWorks	as_is	Latin/CJK ad korundu (uydurma romanizasyon yok)
+157	lezhin	Lezhin	Lezhin	as_is	Latin/CJK ad korundu (uydurma romanizasyon yok)
+158	nipponanimation	NipponAnimation	NipponAnimation	as_is	Latin/CJK ad korundu (uydurma romanizasyon yok)
+159	roughsketch	RoughSketch	RoughSketch	as_is	Latin/CJK ad korundu (uydurma romanizasyon yok)
+160	SKIP				yıl/dönem etiketi
+161	SKIP				yıl/dönem etiketi
+162	SKIP				yıl/dönem etiketi
+163	SKIP				puan/sayı etiketi
+164	SKIP				puan/raf/sayfa düzeni
+165	angel_note	Angel Note	Angel Note	existing	mevcut gruba normalize eşleşme
+166	banpresto	BANPRESTO	BANPRESTO	as_is	Latin/CJK ad korundu (uydurma romanizasyon yok)
+167	kaori_yuki	Kaori Yuki	Kaori Yuki	global	resmî/global ad
+168	shounen	Shōnen	Shounen	existing	mevcut shounen grubu
+169	SKIP				puan/raf/sayfa düzeni
+170	SKIP				özel ad — Latin yazımı doğrulanamadı
+171	higurashi	Higurashi When They Cry	Higurashi When They Cry	global	resmî/global ad
+172	japanese_version	Japonca Sürüm	Japanese Version	new	
+173	wataru_watanabe	Wataru Watanabe	Wataru Watanabe	global	resmî/global ad
+174	sakura_wars	Sakura Wars	Sakura Wars	global	resmî/global ad
+175	doujin_voice	Doujin Ses	Doujin Voice	new	
+176	kaede_hondo	Kaede Hondo	Kaede Hondo	global	resmî/global ad
+177	mobile_phone	Cep Telefonu	Mobile Phone	new	
+178	SKIP				tek karakter
+179	megumi_hayashibara	Megumi Hayashibara	Megumi Hayashibara	global	resmî/global ad
+180	miyuki_hashimoto	Miyuki Hashimoto	Miyuki Hashimoto	global	resmî/global ad
+181	time_killer	Zaman Öldürücü	Time Killer	new	
+182	rie_takahashi	Rie Takahashi	Rie Takahashi	global	resmî/global ad
+183	SKIP				kişisel raf/puan/not
+184	kazue_yamamoto	Kazue Yamamoto	Kazue Yamamoto	global	resmî/global ad
+185	hetalia	Hetalia	Hetalia	global	resmî/global ad
+186	mcu	MCU	MCU	as_is	Latin/CJK ad korundu (uydurma romanizasyon yok)
+187	platform_switch	Nintendo Switch	Nintendo Switch	existing	mevcut gruba normalize eşleşme
+188	ov	OV	OV	as_is	Latin/CJK ad korundu (uydurma romanizasyon yok)
+189	quinrose	Quinrose	Quinrose	as_is	Latin/CJK ad korundu (uydurma romanizasyon yok)
+190	SKIP				özel ad — Latin yazımı doğrulanamadı
+191	SKIP				tek karakter
+192	aikatsu	Aikatsu!	Aikatsu!	global	resmî/global ad
+193	margaret	Margaret	Margaret	global	resmî/global ad
+194	ruroo	Ruroo	Ruroo	global	resmî/global ad
+195	zaq	zaq	zaq	as_is	Latin/CJK ad korundu (uydurma romanizasyon yok)
+196	twelve_volumes	12 Cilt (Tamamlanmış)	12 Volumes (Complete)	new	
+197	SKIP				yıl/dönem etiketi
+198	n_8bit	8bit	8bit	as_is	Latin/CJK ad korundu (uydurma romanizasyon yok)
+199	amazon	Amazon	Amazon	as_is	Latin/CJK ad korundu (uydurma romanizasyon yok)
+200	SKIP				kişisel raf/puan/not
+201	tomomi_mochizuki	Tomomi Mochizuki	Tomomi Mochizuki	global	resmî/global ad
+202	yasunori_matsumoto	Yasunori Matsumoto	Yasunori Matsumoto	global	resmî/global ad
+203	SKIP				kişisel raf/puan/not
+204	inuyasha	Inuyasha	Inuyasha	global	resmî/global ad
+205	symphogear	Symphogear	Symphogear	global	resmî/global ad
+206	hidenori_kusaka	Hidenori Kusaka	Hidenori Kusaka	global	resmî/global ad
+207	narumi_kakinouchi	Narumi Kakinouchi	Narumi Kakinouchi	global	resmî/global ad
+208	mami_kawada	Mami Kawada	Mami Kawada	global	resmî/global ad
+209	minami_takayama	Minami Takayama	Minami Takayama	global	resmî/global ad
+210	SKIP				kişisel raf/puan/not
+211	journey_to_the_west	Journey to the West	Journey to the West	global	resmî/global ad
+212	melodrama	Melodram	Melodrama	new	
+213	la_corda_doro	La Corda d'Oro	La Corda d'Oro	global	resmî/global ad
+214	creativity	Yaratıcılık	Creativity	new	
+215	akitaro_daichi	Akitaro Daichi	Akitaro Daichi	global	resmî/global ad
+216	lynn_okamoto	Lynn Okamoto	Lynn Okamoto	global	resmî/global ad
+217	SKIP				özel ad — Latin yazımı doğrulanamadı
+218	mobile_suit_gundam	Mobile Suit Gundam	Mobile Suit Gundam	global	resmî/global ad
+219	ryunosuke_kamiki	Ryunosuke Kamiki	Ryunosuke Kamiki	global	resmî/global ad
+220	higurashi	Higurashi When They Cry	Higurashi When They Cry	global	resmî/global ad
+221	kenta_miyake	Kenta Miyake	Kenta Miyake	global	resmî/global ad
+222	asia_do	Asia-do	Asia-do	global	resmî/global ad
+223	krkr	krkr	krkr	as_is	Latin/CJK ad korundu (uydurma romanizasyon yok)
+224	m	{M}	{M}	as_is	Latin/CJK ad korundu (uydurma romanizasyon yok)
+225	parthenon	PARTHENON	PARTHENON	as_is	Latin/CJK ad korundu (uydurma romanizasyon yok)
+226	seven_arcs	Seven Arcs	Seven Arcs	global	resmî/global ad
+227	fumi_yoshinaga	Fumi Yoshinaga	Fumi Yoshinaga	global	resmî/global ad
+228	SKIP				yıl/dönem etiketi
+229	SKIP				kişisel raf/puan/not
+230	n_5_10h	5-10h	5-10h	as_is	Latin/CJK ad korundu (uydurma romanizasyon yok)
+231	bluegale	BlueGale	BlueGale	as_is	Latin/CJK ad korundu (uydurma romanizasyon yok)
+232	tomohisa_yamashita	Tomohisa Yamashita	Tomohisa Yamashita	global	resmî/global ad
+233	nozomi_yamamoto	Nozomi Yamamoto	Nozomi Yamamoto	global	resmî/global ad
+234	SKIP				özel ad — Latin yazımı doğrulanamadı
+235	yuki_shimizu	Yuki Shimizu	Yuki Shimizu	global	resmî/global ad
+236	shaft	Shaft	Shaft	global	resmî/global ad
+237	tomoki_kikuya	Tomoki Kikuya	Tomoki Kikuya	global	resmî/global ad
+238	tower_defense	Kule Savunma	Tower Defense	new	
+239	chie_shinohara	Chie Shinohara	Chie Shinohara	global	resmî/global ad
+240	SKIP				özel ad — Latin yazımı doğrulanamadı
+241	SKIP				kişisel raf/puan/not
+242	kogado_studio	Kogado Studio	Kogado Studio	global	resmî/global ad
+243	SKIP				kişisel raf/puan/not
+244	yui_ishikawa	Yui Ishikawa	Yui Ishikawa	global	resmî/global ad
+245	akira_amano	Akira Amano	Akira Amano	global	resmî/global ad
+246	SKIP				tek karakter
+247	ao_jumonji	Ao Jumonji	Ao Jumonji	global	resmî/global ad
+248	studio_ghibli	Studio Ghibli	Studio Ghibli	global	resmî/global ad
+249	guilty	Guilty	Guilty	as_is	Latin/CJK ad korundu (uydurma romanizasyon yok)
+250	ia	IA	IA	as_is	Latin/CJK ad korundu (uydurma romanizasyon yok)
+251	inter	Inter	Inter	as_is	Latin/CJK ad korundu (uydurma romanizasyon yok)
+252	miku	miku	miku	as_is	Latin/CJK ad korundu (uydurma romanizasyon yok)
+253	movie	Film	Movie	existing	mevcut gruba normalize eşleşme
+254	ova	OVA	OVA	existing	mevcut ova grubu
+255	piano	Piyano	Piano	existing	mevcut gruba normalize eşleşme
+256	king_records	King Records	King Records	global	resmî/global ad
+257	durarara	Durarara!!	Durarara!!	existing	mevcut durarara grubu
+258	nakayoshi	Nakayoshi	Nakayoshi	global	resmî/global ad
+259	xboxone_ps4	XboxOne&PS4	XboxOne&PS4	as_is	Latin/CJK ad korundu (uydurma romanizasyon yok)
+260	weekly_young_magazine	Weekly Young Magazine	Weekly Young Magazine	existing	mevcut weekly_young_magazine grubu
+261	yukacco	yukacco	yukacco	as_is	Latin/CJK ad korundu (uydurma romanizasyon yok)
+262	SKIP				yıl/dönem etiketi
+263	SKIP				yıl/dönem etiketi
+264	SKIP				yıl/dönem etiketi
+265	SKIP				yıl/dönem etiketi
+266	akabeisoft2	AKABEiSOFT2	AKABEiSOFT2	as_is	Latin/CJK ad korundu (uydurma romanizasyon yok)
+267	aran	aran	aran	as_is	Latin/CJK ad korundu (uydurma romanizasyon yok)
+268	big_comic_spirits	Big Comic Spirits	Big Comic Spirits	global	resmî/global ad
+269	non_japanese_animated_film	Japon Dışı Animasyon Film	Non-Japanese Animated Film	new	
+270	nisekoi	Nisekoi	Nisekoi	global	resmî/global ad
+271	SKIP				özel ad — Latin yazımı doğrulanamadı
+272	ayaka_ohashi	Ayaka Ohashi	Ayaka Ohashi	global	resmî/global ad
+273	shinobu_ohtaka	Shinobu Ohtaka	Shinobu Ohtaka	global	resmî/global ad
+274	black_and_white	Siyah Beyaz	Black and White	new	
+275	younger_partner	Daha Genç Partner	Younger Partner	existing	mevcut grup
+276	kanae_ito	Kanae Ito	Kanae Ito	global	resmî/global ad
+277	shinobu_kaitani	Shinobu Kaitani	Shinobu Kaitani	global	resmî/global ad
+278	yasunori_mitsuda	Yasunori Mitsuda	Yasunori Mitsuda	global	resmî/global ad
+279	hideo_ishikawa	Hideo Ishikawa	Hideo Ishikawa	global	resmî/global ad
+280	kei_mizusawa	Kei Mizusawa	Kei Mizusawa	global	resmî/global ad
+281	raising	Yetiştirme	Raising	new	
+282	SKIP				özel ad — Latin yazımı doğrulanamadı
+283	satoshi_yaginuma	Satoshi Yaginuma	Satoshi Yaginuma	global	resmî/global ad
+284	SKIP				kişisel raf/puan/not
+285	otome	Otome	Otome	existing	mevcut otome grubu
+286	SKIP				kişisel raf/puan/not
+287	toshiki_inoue	Toshiki Inoue	Toshiki Inoue	global	resmî/global ad
+288	SKIP				özel ad — Latin yazımı doğrulanamadı
+289	yuzusoft	Yuzusoft	Yuzusoft	global	resmî/global ad
+290	yurika_kubo	Yurika Kubo	Yurika Kubo	global	resmî/global ad
+291	sword_and_sorcery	Kılıç ve Büyü	Sword and Sorcery	new	
+292	rihito_takarai	Rihito Takarai	Rihito Takarai	global	resmî/global ad
+293	kara_no_kyoukai	Kara no Kyoukai	Kara no Kyoukai	global	resmî/global ad
+294	kei_sazane	Kei Sazane	Kei Sazane	global	resmî/global ad
+295	yoshimasa_fujisawa	Yoshimasa Fujisawa	Yoshimasa Fujisawa	global	resmî/global ad
+296	parkour	Parkur	Parkour	new	
+297	movie_short	Film Kısa Filmi	Movie Short	new	
+298	akira_takizawa	Akira Takizawa	Akira Takizawa	global	resmî/global ad
+299	shoko_hidaka	Shoko Hidaka	Shoko Hidaka	global	resmî/global ad
+300	kei_toume	Kei Toume	Kei Toume	global	resmî/global ad
+301	cw	CW	CW	as_is	Latin/CJK ad korundu (uydurma romanizasyon yok)
+302	gamefreak	GAMEFREAK	GAMEFREAK	as_is	Latin/CJK ad korundu (uydurma romanizasyon yok)
+303	kinemacitrus	KINEMACITRUS	KINEMACITRUS	as_is	Latin/CJK ad korundu (uydurma romanizasyon yok)
+304	tsukipro	Tsukipro	Tsukipro	global	resmî/global ad
+305	td	TD	TD	as_is	Latin/CJK ad korundu (uydurma romanizasyon yok)
+306	tpz	tpz	tpz	as_is	Latin/CJK ad korundu (uydurma romanizasyon yok)
+307	vm24	VM24	VM24	as_is	Latin/CJK ad korundu (uydurma romanizasyon yok)
+308	SKIP				yıl/dönem etiketi
+309	alive	Alive	Alive	as_is	Latin/CJK ad korundu (uydurma romanizasyon yok)
+310	artland	ArtLand	ArtLand	as_is	Latin/CJK ad korundu (uydurma romanizasyon yok)
+311	bnpictures	BNPictures	BNPictures	as_is	Latin/CJK ad korundu (uydurma romanizasyon yok)
+312	pili_puppetry	Pili Puppetry	Pili Puppetry	global	resmî/global ad
+313	insert_song	Bölüm İçi Şarkı	Insert Song	existing	mevcut grup
+314	pantyhose	Külotlu Çorap	Pantyhose	new	
+315	softstar	Softstar Entertainment	Softstar Entertainment	global	resmî/global ad
+316	nippon_animation	Nippon Animation	Nippon Animation	global	resmî/global ad
+317	yoshiki_nakamura	Yoshiki Nakamura	Yoshiki Nakamura	global	resmî/global ad
+318	hirohiko_araki	Hirohiko Araki	Hirohiko Araki	global	resmî/global ad
+319	monthly_comic_dengeki_daioh	Monthly Comic Dengeki Daioh	Monthly Comic Dengeki Daioh	global	resmî/global ad
+320	nobuo_tobita	Nobuo Tobita	Nobuo Tobita	global	resmî/global ad
+321	mildly_erotic	Hafif Erotik	Mildly Erotic	new	
+322	SKIP				tek karakter
+323	female_senpai	Kıdemli Kız Öğrenci	Female Senior	new	
+324	ryo_mizuno	Ryo Mizuno	Ryo Mizuno	global	resmî/global ad
+325	tomoko_ninomiya	Tomoko Ninomiya	Tomoko Ninomiya	global	resmî/global ad
+326	SKIP				kişisel raf/puan/not
+327	keiko_kinoshita	Keiko Kinoshita	Keiko Kinoshita	global	resmî/global ad
+328	SKIP				özel ad — Latin yazımı doğrulanamadı
+329	ayahi_takagaki	Ayahi Takagaki	Ayahi Takagaki	global	resmî/global ad
+330	taku_yashiro	Taku Yashiro	Taku Yashiro	global	resmî/global ad
+331	SKIP				kişisel raf/puan/not
+332	SKIP				özel ad — Latin yazımı doğrulanamadı
+333	gosho_aoyama	Gosho Aoyama	Gosho Aoyama	global	resmî/global ad
+334	reiko_shimizu	Reiko Shimizu	Reiko Shimizu	global	resmî/global ad
+335	fan_oriented	Hayranlara Yönelik	Fan-Oriented	new	
+336	interheart	INTERHEART	INTERHEART	as_is	Latin/CJK ad korundu (uydurma romanizasyon yok)
+337	SKIP				doujin etkinlik numarası / tarih kodu
+338	microsoft	Microsoft	Microsoft	as_is	Latin/CJK ad korundu (uydurma romanizasyon yok)
+339	oz	@OZ	@OZ	as_is	Latin/CJK ad korundu (uydurma romanizasyon yok)
+340	ashi_productions	Ashi Productions	Ashi Productions	global	resmî/global ad
+341	queenbee	QueenBee	QueenBee	as_is	Latin/CJK ad korundu (uydurma romanizasyon yok)
+342	sevenarcs	SevenArcs	SevenArcs	as_is	Latin/CJK ad korundu (uydurma romanizasyon yok)
+343	SKIP				gürültü/parça/anlamsız
+344	survivemore	SURVIVEMORE	SURVIVEMORE	as_is	Latin/CJK ad korundu (uydurma romanizasyon yok)
+345	symphony	SYMPHONY	SYMPHONY	as_is	Latin/CJK ad korundu (uydurma romanizasyon yok)
+346	yuri	Yuri	Yuri	existing	mevcut gruba normalize eşleşme
+347	eleven_volumes	11 Cilt (Tamamlanmış)	11 Volumes (Complete)	new	
+348	SKIP				puan/sayı etiketi
+349	text_adv	Metin Macera	Text Adventure	new	
+350	bang_dream	BanG Dream!	BanG Dream!	existing	mevcut gruba normalize eşleşme
+351	sahomi_koyama	Sahomi Koyama	Sahomi Koyama	global	resmî/global ad
+352	touhou_project	Touhou Project	Touhou Project	existing	mevcut touhou_project grubu
+353	my_teen_romantic_comedy_snafu	My Teen Romantic Comedy SNAFU	My Teen Romantic Comedy SNAFU	global	resmî/global ad
+354	ryu_fujisaki	Ryu Fujisaki	Ryu Fujisaki	global	resmî/global ad
+355	nobuo_uematsu	Nobuo Uematsu	Nobuo Uematsu	global	resmî/global ad
+356	kunihiko_yuyama	Kunihiko Yuyama	Kunihiko Yuyama	global	resmî/global ad
+357	SKIP				kişisel raf/puan/not
+358	super_sentai	Super Sentai	Super Sentai	global	resmî/global ad
+359	kei_tanaka	Kei Tanaka	Kei Tanaka	global	resmî/global ad
+360	rie_kugimiya	Rie Kugimiya	Rie Kugimiya	global	resmî/global ad
+361	tomoyuki_nakazawa	Tomoyuki Nakazawa	Tomoyuki Nakazawa	global	resmî/global ad
+362	miho_takeoka	Miho Takeoka	Miho Takeoka	global	resmî/global ad
+363	seimaru_amagi	Seimaru Amagi	Seimaru Amagi	global	resmî/global ad
+364	SKIP				kişisel raf/puan/not
+365	macross	macross	macross	existing	mevcut grup
+366	makoto_tateno	Makoto Tateno	Makoto Tateno	global	resmî/global ad
+367	SKIP				özel ad — Latin yazımı doğrulanamadı
+368	blizzard	Blizzard	Blizzard	global	resmî/global ad
+369	soft_yuri	Yumuşak Yuri	Soft Yuri	new	
+370	danganronpa	Danganronpa	Danganronpa	global	resmî/global ad
+371	keitaro_motonaga	Keitaro Motonaga	Keitaro Motonaga	global	resmî/global ad
+372	mai_fuchigami	Mai Fuchigami	Mai Fuchigami	global	resmî/global ad
+373	saori_onishi	Saori Onishi	Saori Onishi	global	resmî/global ad
+374	junpei_fujita	Junpei Fujita	Junpei Fujita	global	resmî/global ad
+375	yasuhiro_nightow	Yasuhiro Nightow	Yasuhiro Nightow	global	resmî/global ad
+376	shinkichi_mitsumune	Shinkichi Mitsumune	Shinkichi Mitsumune	global	resmî/global ad
+377	SKIP				özel ad — Latin yazımı doğrulanamadı
+378	nihon_bungeisha	Nihon Bungeisha	Nihon Bungeisha	global	resmî/global ad
+379	anime_mirai	Anime Mirai	Anime Mirai	global	resmî/global ad
+380	breast_milk	Anne Sütü	Breast Milk	new	
+381	shoji_meguro	Shoji Meguro	Shoji Meguro	global	resmî/global ad
+382	tsuburaya	Tsuburaya Productions	Tsuburaya Productions	global	resmî/global ad
+383	masami_okui	Masami Okui	Masami Okui	global	resmî/global ad
+384	kenshi_hirokane	Kenshi Hirokane	Kenshi Hirokane	global	resmî/global ad
+385	SKIP				tek karakter
+386	yutaka_kono	Yutaka Kono	Yutaka Kono	global	resmî/global ad
+387	mizuki_kawashita	Mizuki Kawashita	Mizuki Kawashita	global	resmî/global ad
+388	SKIP				kişisel raf/puan/not
+389	music_adaptation	Müzik Uyarlaması	Music Adaptation	new	
+390	takeshobo	Takeshobo	Takeshobo	global	resmî/global ad
+391	beautiful_breasts	Güzel Göğüsler	Beautiful Breasts	new	
+392	michiru_oshima	Michiru Oshima	Michiru Oshima	global	resmî/global ad
+393	manhwa	Manhwa	Manhwa	existing	mevcut grup
+394	SKIP				tek karakter
+395	multi_volume_hentai	Çok Ciltli Hentai Manga	Multi-Volume Hentai Manga	new	
+396	love_live	Love Live!	Love Live!	existing	mevcut gruba normalize eşleşme
+397	million	MILLION	MILLION	as_is	Latin/CJK ad korundu (uydurma romanizasyon yok)
+398	sanzigen	SANZIGEN	SANZIGEN	as_is	Latin/CJK ad korundu (uydurma romanizasyon yok)
+399	srw	SRW	SRW	as_is	Latin/CJK ad korundu (uydurma romanizasyon yok)
+400	studiocomet	StudioComet	StudioComet	as_is	Latin/CJK ad korundu (uydurma romanizasyon yok)
+401	symphonic	symphonic	symphonic	as_is	Latin/CJK ad korundu (uydurma romanizasyon yok)
+402	danganronpa	Danganronpa	Danganronpa	global	resmî/global ad
+403	SKIP				tek karakter
+404	big_comic_spirits	Big Comic Spirits	Big Comic Spirits	global	resmî/global ad
+405	SKIP				özel ad — Latin yazımı doğrulanamadı
+406	SKIP				yıl/dönem etiketi
+407	SKIP				puan/sayı etiketi
+408	SKIP				özel ad — Latin yazımı doğrulanamadı
+409	heroic_legend_of_arslan	The Heroic Legend of Arslan	The Heroic Legend of Arslan	global	resmî/global ad
+410	keiichiro_kawaguchi	Keiichiro Kawaguchi	Keiichiro Kawaguchi	global	resmî/global ad
+411	old_classic	Eski Klasik	Old Classic	new	
+412	haruka_minami	Haruka Minami	Haruka Minami	global	resmî/global ad
+413	ai_otsuka	Ai Otsuka	Ai Otsuka	global	resmî/global ad
+414	genre_sandbox	Sandbox	Sandbox	existing	mevcut genre_sandbox grubu
+415	monster_girl	Canavar Kız	Monster Girl	new	
+416	fumiko_orikasa	Fumiko Orikasa	Fumiko Orikasa	global	resmî/global ad
+417	kisho_taniyama	Kisho Taniyama	Kisho Taniyama	global	resmî/global ad
+418	asami_sanada	Asami Sanada	Asami Sanada	global	resmî/global ad
+419	manga_short_story	Kısa Manga Öyküsü	Manga Short Story	new	
+420	crayon_shin_chan	Crayon Shin-chan	Crayon Shin-chan	global	resmî/global ad
+421	ai_nonaka	Ai Nonaka	Ai Nonaka	global	resmî/global ad
+422	nekoneko_soft	Nekoneko Soft	Nekoneko Soft	global	resmî/global ad
+423	hayate_the_combat_butler	Hayate the Combat Butler	Hayate the Combat Butler	global	resmî/global ad
+424	space_battleship_yamato	Space Battleship Yamato	Space Battleship Yamato	global	resmî/global ad
+425	SKIP				özel ad — Latin yazımı doğrulanamadı
+426	akio_watanabe	Akio Watanabe	Akio Watanabe	global	resmî/global ad
+427	SKIP				tek karakter
+428	masterpiece	Başyapıt	Masterpiece	existing	mevcut masterpiece grubu
+429	hiro_mashima	Hiro Mashima	Hiro Mashima	existing	mevcut hiro_mashima grubu
+430	keitaro_motonaga	Keitaro Motonaga	Keitaro Motonaga	global	resmî/global ad
+431	pixel_art_puzzle	Piksel Sanat Bulmaca	Pixel Art Puzzle	new	
+432	atmosphere	Atmosfer	Atmosphere	new	
+433	abandoned	Yarım Kalmış	Abandoned	new	
+434	batman	Batman	Batman	global	resmî/global ad
+435	takayuki_yamada	Takayuki Yamada	Takayuki Yamada	global	resmî/global ad
+436	shounen	Shōnen	Shounen	existing	mevcut shounen grubu
+437	heart_wrenching	Yürek Burkan	Heart-Wrenching	existing	mevcut heart_wrenching grubu
+438	life_and_death	Yaşam ve Ölüm	Life and Death	new	
+439	cover	COVER	COVER	as_is	Latin/CJK ad korundu (uydurma romanizasyon yok)
+440	da02	DA02	DA02	as_is	Latin/CJK ad korundu (uydurma romanizasyon yok)
+441	dynamiccg	DynamicCG	DynamicCG	as_is	Latin/CJK ad korundu (uydurma romanizasyon yok)
+442	earth_19999	Earth-19999	Earth-19999	as_is	Latin/CJK ad korundu (uydurma romanizasyon yok)
+443	gbc	GBC	GBC	as_is	Latin/CJK ad korundu (uydurma romanizasyon yok)
+444	larc_en_ciel	L'Arc-en-Ciel	L'Arc-en-Ciel	global	resmî/global ad
+445	SKIP				doujin etkinlik numarası / tarih kodu
+446	tatsunoko_production	Tatsunoko Production	Tatsunoko Production	global	resmî/global ad
+447	etsuko_yakushimaru	Etsuko Yakushimaru	Etsuko Yakushimaru	global	resmî/global ad
+448	tamusic	TAMUSIC	TAMUSIC	as_is	Latin/CJK ad korundu (uydurma romanizasyon yok)
+449	SKIP				yıl/dönem etiketi
+450	SKIP				yıl/dönem etiketi
+451	a	A-	A-	as_is	Latin/CJK ad korundu (uydurma romanizasyon yok)
+452	healing_slice_of_life	İyileştirici Günlük Yaşam	Healing Slice of Life	new	
+453	SKIP				puan/raf/sayfa düzeni
+454	rie_tanaka	Rie Tanaka	Rie Tanaka	global	resmî/global ad
+455	SKIP				kişisel raf/puan/not
+456	shunsuke_tada	Shunsuke Tada	Shunsuke Tada	global	resmî/global ad
+457	SKIP				gürültü/parça/anlamsız
+458	short_story_collection	Kısa Öykü Koleksiyonu	Short Story Collection	new	
+459	getsuku	Getsuku	Getsuku	global	resmî/global ad
+460	kyo_shirodaira	Kyo Shirodaira	Kyo Shirodaira	global	resmî/global ad
+461	kensho_ono	Kensho Ono	Kensho Ono	global	resmî/global ad
+462	k_on	K-On!	K-On!	global	resmî/global ad
+463	SKIP				yetiskin başlık — ad korunmadı
+464	keiichi_okabe	Keiichi Okabe	Keiichi Okabe	global	resmî/global ad
+465	hiroshi_abe	Hiroshi Abe	Hiroshi Abe	global	resmî/global ad
+466	old_classic	Eski Klasik	Old Classic	new	
+467	hiroaki_samura	Hiroaki Samura	Hiroaki Samura	global	resmî/global ad
+468	taku_kishimoto	Taku Kishimoto	Taku Kishimoto	global	resmî/global ad
+469	SKIP				özel ad — Latin yazımı doğrulanamadı
+470	SKIP				tek karakter
+471	SKIP				özel ad — Latin yazımı doğrulanamadı
+472	footjob	Ayakla Seks	Footjob	new	
+473	yoshiki_nakamura	Yoshiki Nakamura	Yoshiki Nakamura	global	resmî/global ad
+474	aerial_combat	Hava Savaşı	Aerial Combat	new	
+475	kaori_yuki	Kaori Yuki	Kaori Yuki	global	resmî/global ad
+476	yuki_suetsugu	Yuki Suetsugu	Yuki Suetsugu	existing	mevcut yuki_suetsugu grubu
+477	plagiarism	İntihal	Plagiarism	new	
+478	dc_comics	DC	DC	existing	mevcut dc_comics grubu
+479	otome_drama	Otome Draması	Otome Drama	new	
+480	ensemble	ensemble	ensemble	as_is	Latin/CJK ad korundu (uydurma romanizasyon yok)
+481	SKIP				belirsiz kısaltma
+482	greenbunny	GREENBUNNY	GREENBUNNY	as_is	Latin/CJK ad korundu (uydurma romanizasyon yok)
+483	anime_op	Anime Açılış	Anime OP	new	
+484	pencilpro	pencilpro	pencilpro	as_is	Latin/CJK ad korundu (uydurma romanizasyon yok)
+485	revo	revo	revo	as_is	Latin/CJK ad korundu (uydurma romanizasyon yok)
+486	SKIP				tek karakter
+487	tv	TV	TV	existing	mevcut tv grubu
+488	SKIP				yıl/dönem etiketi
+489	SKIP				yıl/dönem etiketi
+490	aquaplus	Aquaplus	Aquaplus	as_is	Latin/CJK ad korundu (uydurma romanizasyon yok)
+491	atis	Atis	Atis	as_is	Latin/CJK ad korundu (uydurma romanizasyon yok)
+492	cgss	CGSS	CGSS	as_is	Latin/CJK ad korundu (uydurma romanizasyon yok)
+493	takuya_kimura	Takuya Kimura	Takuya Kimura	global	resmî/global ad
+494	shoji_gatoh	Shoji Gatoh	Shoji Gatoh	global	resmî/global ad
+495	ai_maeda	Ai Maeda	Ai Maeda	global	resmî/global ad
+496	real_mother	Öz Anne	Real Mother	new	
+497	chiaki_ishikawa	Chiaki Ishikawa	Chiaki Ishikawa	global	resmî/global ad
+498	fumihiko_shimo	Fumihiko Shimo	Fumihiko Shimo	global	resmî/global ad
+499	legend_of_the_galactic_heroes	Legend of the Galactic Heroes	Legend of the Galactic Heroes	global	resmî/global ad
+500	yoshihiko_umakoshi	Yoshihiko Umakoshi	Yoshihiko Umakoshi	global	resmî/global ad
+501	yoshihiro_togashi	Yoshihiro Togashi	Yoshihiro Togashi	global	resmî/global ad
+502	masato_sakai	Masato Sakai	Masato Sakai	global	resmî/global ad
+503	shotaro_ishinomori	Shotaro Ishinomori	Shotaro Ishinomori	global	resmî/global ad
+504	side_scroller	Yan Kaydırmalı Platform	Side-Scrolling Platformer	new	
+505	megumi_nakajima	Megumi Nakajima	Megumi Nakajima	existing	mevcut megumi_nakajima grubu
+506	da_capo	Da Capo	Da Capo	global	resmî/global ad
+507	katekyo_hitman_reborn	Katekyo Hitman Reborn!	Katekyo Hitman Reborn!	global	resmî/global ad
+508	michiru_oshima	Michiru Oshima	Michiru Oshima	global	resmî/global ad
+509	platformer	Platform Oyunu	Platformer	new	
+510	video	Video	Video	new	
+511	kirara	Kirara	Kirara	existing	mevcut kirara grubu
+512	masakazu_ishiguro	Masakazu Ishiguro	Masakazu Ishiguro	global	resmî/global ad
+513	call_of_duty	Call of Duty	Call of Duty	global	resmî/global ad
+514	famitsu_bunko	Famitsu Bunko	Famitsu Bunko	global	resmî/global ad
+515	saki_fujita	Saki Fujita	Saki Fujita	global	resmî/global ad
+516	kaoru_okubo	Kaoru Okubo	Kaoru Okubo	global	resmî/global ad
+517	dark	Karanlık	Dark	new	
+518	kiyono_yasuno	Kiyono Yasuno	Kiyono Yasuno	global	resmî/global ad
+519	rhythm	Ritim	Rhythm	new	
+520	oyuki_konno	Oyuki Konno	Oyuki Konno	global	resmî/global ad
+521	kouji_seo	Kouji Seo	Kouji Seo	global	resmî/global ad
+522	SKIP				tek karakter
+523	ohta_publishing	Ohta Publishing	Ohta Publishing	global	resmî/global ad
+524	devil_seal	Devil-seal	Devil-seal	as_is	Latin/CJK ad korundu (uydurma romanizasyon yok)
+525	digimon_adventure02	Digimon_Adventure02	Digimon_Adventure02	as_is	Latin/CJK ad korundu (uydurma romanizasyon yok)
+526	diomedea	Diomedéa	Diomedéa	global	resmî/global ad
+527	g_t_s	G.T.S	G.T.S	as_is	Latin/CJK ad korundu (uydurma romanizasyon yok)
+528	soundhorizon	SoundHorizon	SoundHorizon	as_is	Latin/CJK ad korundu (uydurma romanizasyon yok)
+529	square_enix	Square Enix	Square Enix	existing	mevcut gruba normalize eşleşme
+530	starry_sky	Starry Sky	Starry Sky	existing	mevcut starry_sky grubu
+531	ensemble_stars	Ensemble Stars!	Ensemble Stars!	global	resmî/global ad
+532	anime_song	Anime Şarkısı	Anime Song	new	
+533	triangle	Triangle	Triangle	as_is	Latin/CJK ad korundu (uydurma romanizasyon yok)
+534	ynn	|YNN|	|YNN|	as_is	Latin/CJK ad korundu (uydurma romanizasyon yok)
+535	SKIP				yıl/dönem etiketi
+536	SKIP				yıl/dönem etiketi
+537	SKIP				yıl/dönem etiketi
+538	SKIP				yıl/dönem etiketi
+539	n_8_bit	8-Bit	8-Bit	as_is	Latin/CJK ad korundu (uydurma romanizasyon yok)
+540	a_p_p_p	A.P.P.P.	A.P.P.P.	as_is	Latin/CJK ad korundu (uydurma romanizasyon yok)
+541	bl2017	BL2017	BL2017	as_is	Latin/CJK ad korundu (uydurma romanizasyon yok)
+542	brain	Brain	Brain	as_is	Latin/CJK ad korundu (uydurma romanizasyon yok)
+543	SKIP				doujin etkinlik numarası / tarih kodu
+544	kaori_nazuka	Kaori Nazuka	Kaori Nazuka	global	resmî/global ad
+545	gods_and_demons	Tanrılar ve Şeytanlar	Gods and Demons	existing	mevcut gods_and_demons grubu
+546	miyamoto_musashi	Miyamoto Musashi	Miyamoto Musashi	global	resmî/global ad
+547	black_butler	Black Butler	Black Butler	global	resmî/global ad
+548	non_mainstream	Ana Akım Dışı	Non-Mainstream	new	
+549	chinese_style	Çin Tarzı	Chinese Style	new	
+550	SKIP				özel ad — Latin yazımı doğrulanamadı
+551	SKIP				kişisel raf/puan/not
+552	manhua	Manhua	Manhua	existing	mevcut manhua grubu
+553	kazunari_ninomiya	Kazunari Ninomiya	Kazunari Ninomiya	global	resmî/global ad
+554	rensuke_oshikiri	Rensuke Oshikiri	Rensuke Oshikiri	global	resmî/global ad
+555	mitsuki_saiga	Mitsuki Saiga	Mitsuki Saiga	global	resmî/global ad
+556	SKIP				kişisel raf/puan/not
+557	shinji_takamatsu	Shinji Takamatsu	Shinji Takamatsu	global	resmî/global ad
+558	yasuomi_umetsu	Yasuomi Umetsu	Yasuomi Umetsu	global	resmî/global ad
+559	masterpiece	Başyapıt	Masterpiece	existing	mevcut masterpiece grubu
+560	dress_up	Kıyafet Değiştirme	Dress-Up	new	
+561	SKIP				yetiskin başlık — ad korunmadı
+562	the_legend_of_zelda	The Legend of Zelda	The Legend of Zelda	global	resmî/global ad
+563	yoshikazu_yasuhiko	Yoshikazu Yasuhiko	Yoshikazu Yasuhiko	global	resmî/global ad
+564	nozomu_sasaki	Nozomu Sasaki	Nozomu Sasaki	global	resmî/global ad
+565	world	Dünya	World	new	
+566	ethnic_style	Etnik Tarz	Ethnic Style	new	
+567	SKIP				özel ad — Latin yazımı doğrulanamadı
+568	SKIP				özel ad — Latin yazımı doğrulanamadı
+569	akihiro_yamada	Akihiro Yamada	Akihiro Yamada	global	resmî/global ad
+570	microtransactions	Mikro Ödeme	Microtransactions	new	
+571	sci_fi	Bilim Kurgu	Sci-Fi	new	
+572	SKIP				gürültü/parça/anlamsız
+573	hiroyuki_takei	Hiroyuki Takei	Hiroyuki Takei	global	resmî/global ad
+574	mushoku_tensei	Mushoku Tensei	Mushoku Tensei	global	resmî/global ad
+575	kengo_hanazawa	Kengo Hanazawa	Kengo Hanazawa	global	resmî/global ad
+576	tong_li	Tong Li Publishing	Tong Li Publishing	existing	mevcut tong_li grubu
+577	tsukasa_fushimi	Tsukasa Fushimi	Tsukasa Fushimi	global	resmî/global ad
+578	autumn_season	Sonbahar Sezonu	Autumn Season	new	
+579	digimon	Digimon	Digimon	existing	mevcut gruba normalize eşleşme
+580	ef	ef	ef	as_is	Latin/CJK ad korundu (uydurma romanizasyon yok)
+581	escu_de	Escu:de	Escu:de	as_is	Latin/CJK ad korundu (uydurma romanizasyon yok)
+582	galgame	Galgame	Galge	existing	mevcut galgame grubu
+583	granrodeo	GRANRODEO	GRANRODEO	as_is	Latin/CJK ad korundu (uydurma romanizasyon yok)
+584	jdk	JDK	JDK	as_is	Latin/CJK ad korundu (uydurma romanizasyon yok)
+585	k_on	K-On!	K-On!	existing	K-ON! varyantı
+586	perfume	perfume	perfume	as_is	Latin/CJK ad korundu (uydurma romanizasyon yok)
+587	platform_pc	PC	PC	existing	mevcut platform_pc grubu
+588	rbq	RBQ	RBQ	as_is	Latin/CJK ad korundu (uydurma romanizasyon yok)
+589	rng	RNG	RNG	as_is	Latin/CJK ad korundu (uydurma romanizasyon yok)
+590	SKIP				gürültü/parça/anlamsız
+591	synergysp	SynergySP	SynergySP	as_is	Latin/CJK ad korundu (uydurma romanizasyon yok)
+592	you	You	You	as_is	Latin/CJK ad korundu (uydurma romanizasyon yok)
+593	SKIP				yıl/dönem etiketi
+594	SKIP				yıl/dönem etiketi
+595	SKIP				yıl/dönem etiketi
+596	angela	angela	angela	as_is	Latin/CJK ad korundu (uydurma romanizasyon yok)
+597	SKIP				doujin etkinlik numarası / tarih kodu
+598	gakuto_mikumo	Gakuto Mikumo	Gakuto Mikumo	global	resmî/global ad
+599	satoshi_yamamoto	Satoshi Yamamoto	Satoshi Yamamoto	global	resmî/global ad
+600	yozaburo_kanari	Yozaburo Kanari	Yozaburo Kanari	global	resmî/global ad
+601	rei_miyama	Rei Miyama	Rei Miyama	global	resmî/global ad
+602	chinese_drama	Çin Dizisi	Chinese Drama	existing	mevcut chinese_drama grubu
+603	anthology_magazine	Antoloji Dergisi	Anthology Magazine	new	
+604	trails_from_zero	Trails from Zero	Trails from Zero	global	resmî/global ad
+605	symphogear	Symphogear	Symphogear	global	resmî/global ad
+606	oh_great	Oh! Great	Oh! Great	global	resmî/global ad
+607	SKIP				özel ad — Latin yazımı doğrulanamadı
+608	teruyuki_kagawa	Teruyuki Kagawa	Teruyuki Kagawa	global	resmî/global ad
+609	SKIP				özel ad — Latin yazımı doğrulanamadı
+610	anime_mirai	Anime Mirai	Anime Mirai	global	resmî/global ad
+611	physical_copy	Fiziksel Kopya	Physical Copy	new	
+612	SKIP				özel ad — Latin yazımı doğrulanamadı
+613	official_doujin	Resmî Doujin	Official Doujin	new	
+614	subor	Subor	Subor	global	resmî/global ad
+615	alice	Alice	Alice	new	jenerik ad — çeviri yok
+616	SKIP				kişisel raf/durum etiketi
+617	SKIP				tek karakter
+618	kosaku_shima	Kosaku Shima	Kosaku Shima	global	resmî/global ad
+619	non_text_adventure	Metin Dışı Macera	Non-Text Adventure	new	
+620	SKIP				puan/raf/sayfa düzeni
+621	SKIP				gürültü/parça/anlamsız
+622	SKIP				özel ad — Latin yazımı doğrulanamadı
+623	kotono_mitsuishi	Kotono Mitsuishi	Kotono Mitsuishi	global	resmî/global ad
+624	SKIP				özel ad — Latin yazımı doğrulanamadı
+625	SKIP				kişisel raf/puan/not
+626	megurine_luka	Megurine Luka	Megurine Luka	global	resmî/global ad
+627	historical_fiction	Tarihi Kurgu	Historical Fiction	new	
+628	maiko_iuchi	Maiko Iuchi	Maiko Iuchi	global	resmî/global ad
+629	SKIP				özel ad — Latin yazımı doğrulanamadı
+630	catgirl	Kedi Kız	Catgirl	new	
+631	makoto_sanda	Makoto Sanda	Makoto Sanda	global	resmî/global ad
+632	elisa	ELISA	ELISA	as_is	Latin/CJK ad korundu (uydurma romanizasyon yok)
+633	mario	MARIO	MARIO	as_is	Latin/CJK ad korundu (uydurma romanizasyon yok)
+634	ova_22	OVA-22	OVA-22	as_is	Latin/CJK ad korundu (uydurma romanizasyon yok)
+635	swan	swan	swan	as_is	Latin/CJK ad korundu (uydurma romanizasyon yok)
+636	vocal_album	Vokal Albüm	Vocal Album	new	
+637	noizi_ito	Noizi Ito	Noizi Ito	global	resmî/global ad
+638	tnk	TNK	TNK	as_is	Latin/CJK ad korundu (uydurma romanizasyon yok)
+639	SKIP				özel ad — Latin yazımı doğrulanamadı
+640	n_200x	200x	200x	as_is	Latin/CJK ad korundu (uydurma romanizasyon yok)
+641	SKIP				yıl/dönem etiketi
+642	SKIP				yıl/dönem etiketi
+643	actas	Actas	Actas	as_is	Latin/CJK ad korundu (uydurma romanizasyon yok)
+644	monthly_afternoon	Monthly Afternoon	Monthly Afternoon	existing	mevcut monthly_afternoon grubu
+645	aph	APH	APH	as_is	Latin/CJK ad korundu (uydurma romanizasyon yok)
+646	biblos	Biblos	Biblos	existing	mevcut gruba normalize eşleşme
+647	choucho	ChouCho	ChouCho	as_is	Latin/CJK ad korundu (uydurma romanizasyon yok)
+648	kazuya_ichijo	Kazuya Ichijo	Kazuya Ichijo	global	resmî/global ad
+649	toru_furuya	Toru Furuya	Toru Furuya	global	resmî/global ad
+650	ai_shimizu	Ai Shimizu	Ai Shimizu	global	resmî/global ad
+651	takayuki_hattori	Takayuki Hattori	Takayuki Hattori	global	resmî/global ad
+652	childrens_literature	Çocuk Edebiyatı	Children's Literature	new	
+653	elementary_student	İlkokul Öğrencisi	Elementary Student	new	
+654	yutaka_mizushima	Yutaka Mizushima	Yutaka Mizushima	global	resmî/global ad
+655	doujin_animation	Doujin Animasyonu	Doujin Animation	new	
+656	noboru_takagi	Noboru Takagi	Noboru Takagi	global	resmî/global ad
+657	SKIP				tek karakter
+658	heartwarming	İç Isıtan	Heartwarming	new	
+659	yamato_nase	Yamato Nase	Yamato Nase	global	resmî/global ad
+660	castlevania	Castlevania	Castlevania	global	resmî/global ad
+661	daisuke_kishio	Daisuke Kishio	Daisuke Kishio	existing	mevcut daisuke_kishio grubu
+662	hero	Kahraman	Hero	new	
+663	kentaro_miura	Kentaro Miura	Kentaro Miura	global	resmî/global ad
+664	haruhiko_mikimoto	Haruhiko Mikimoto	Haruhiko Mikimoto	global	resmî/global ad
+665	miho_komatsu	Miho Komatsu	Miho Komatsu	global	resmî/global ad
+666	anal_sex	Anal Seks	Anal Sex	new	
+667	SKIP				kişisel raf/puan/not
+668	hideyuki_kurata	Hideyuki Kurata	Hideyuki Kurata	global	resmî/global ad
+669	bondage	Bağlama	Bondage	new	
+670	SKIP				tek karakter
+671	seinen_manga	Seinen Manga	Seinen Manga	new	
+672	naohito_fujiki	Naohito Fujiki	Naohito Fujiki	global	resmî/global ad
+673	virtual_idol_group	Sanal İdol Grubu	Virtual Idol Group	new	
+674	SKIP				kişisel raf/puan/not
+675	davidproduction	davidproduction	davidproduction	as_is	Latin/CJK ad korundu (uydurma romanizasyon yok)
+676	download_english	İngilizce Sürüm İndirme	Download English Version	new	
+677	dle	DLE	DLE	as_is	Latin/CJK ad korundu (uydurma romanizasyon yok)
+678	dq	DQ	DQ	as_is	Latin/CJK ad korundu (uydurma romanizasyon yok)
+679	itv	ITV	ITV	as_is	Latin/CJK ad korundu (uydurma romanizasyon yok)
+680	koeitecmo	Koeitecmo	Koeitecmo	as_is	Latin/CJK ad korundu (uydurma romanizasyon yok)
+681	mac	Mac	Mac	as_is	Latin/CJK ad korundu (uydurma romanizasyon yok)
+682	mages	MAGES.	MAGES.	existing	mevcut gruba normalize eşleşme
+683	motionanime	MotionAnime	MotionAnime	as_is	Latin/CJK ad korundu (uydurma romanizasyon yok)
+684	pandorahearts	PandoraHearts	PandoraHearts	as_is	Latin/CJK ad korundu (uydurma romanizasyon yok)
+685	tsukiuta	Tsukiuta.	Tsukiuta.	existing	mevcut tsukiuta grubu
+686	SKIP				anlamsız işaret
+687	rune	Rune	Rune	global	resmî/global ad
+688	softcircle_courreges	SoftCircleCourreges	SoftCircleCourreges	global	resmî/global ad
+689	tom_h_ck	Tom-H@ck	Tom-H@ck	as_is	Latin/CJK ad korundu (uydurma romanizasyon yok)
+690	v_cinema	V-cinema	V-cinema	as_is	Latin/CJK ad korundu (uydurma romanizasyon yok)
+691	zero	zero	zero	as_is	Latin/CJK ad korundu (uydurma romanizasyon yok)
+692	SKIP				puan/sayı etiketi
+693	SKIP				yıl/dönem etiketi
+694	SKIP				yıl/dönem etiketi
+695	SKIP				yıl/dönem etiketi
+696	SKIP				yıl/dönem etiketi
+697	SKIP				yıl/dönem etiketi
+698	SKIP				yıl/dönem etiketi
+699	guro	Guro	Guro	existing	mevcut guro grubu
+700	takeshi_kobayashi	Takeshi Kobayashi	Takeshi Kobayashi	global	resmî/global ad
+701	japanese_game	Japon Oyunu	Japanese Game	new	
+702	demon_lord	Şeytan Kral	Demon Lord	new	
+703	youkai	Youkai	Youkai	new	
+704	pixel_art	Piksel Sanatı	Pixel Art	existing	mevcut grup
+705	chiaki_kon	Chiaki Kon	Chiaki Kon	global	resmî/global ad
+706	suzuki_mirano	Suzuki Mirano	Suzuki Mirano	global	resmî/global ad
+707	future_diary	Future Diary	Future Diary	global	resmî/global ad
+708	gothic	Gotik	Gothic	new	
+709	sony	Sony	Sony	global	resmî/global ad
+710	SKIP				kişisel raf/puan/not
+711	shinri_fuwa	Shinri Fuwa	Shinri Fuwa	global	resmî/global ad
+712	mitsuteru_yokoyama	Mitsuteru Yokoyama	Mitsuteru Yokoyama	global	resmî/global ad
+713	yuu_watase	Yuu Watase	Yuu Watase	global	resmî/global ad
+714	morio_asaka	Morio Asaka	Morio Asaka	global	resmî/global ad
+715	masaki_suda	Masaki Suda	Masaki Suda	global	resmî/global ad
+716	profession	Meslek	Profession	new	
+717	yumi_hara	Yumi Hara	Yumi Hara	global	resmî/global ad
+718	aria_the_scarlet_ammo	Aria the Scarlet Ammo	Aria the Scarlet Ammo	global	resmî/global ad
+719	interactive_story	Etkileşimli Hikâye	Interactive Story	new	
+720	ahegao	Ahegao	Ahegao	new	
+721	chinese_translated	Çinceye Çevrildi	Chinese Translated	new	
+722	hong_kong_comics	Hong Kong Çizgi Romanı	Hong Kong Comics	new	
+723	design	Tasarım	Design	new	
+724	nobuyuki_fukumoto	Nobuyuki Fukumoto	Nobuyuki Fukumoto	global	resmî/global ad
+725	accel_world	Accel World	Accel World	global	resmî/global ad
+726	oreimo	Oreimo	Oreimo	global	resmî/global ad
+727	black_stockings	Siyah Çorap	Black Stockings	existing	mevcut black_stockings grubu
+728	hiro_suzuhira	Hiro Suzuhira	Hiro Suzuhira	global	resmî/global ad
+729	lawyer	Avukat	Lawyer	new	
+730	noboru_yamaguchi	Noboru Yamaguchi	Noboru Yamaguchi	global	resmî/global ad
+731	multitasking	Aynı Anda İki İş	Multitasking	new	
+732	SKIP				kişisel raf/puan/not
+733	SKIP				özel ad — Latin yazımı doğrulanamadı
+734	hakuoki	Hakuoki	Hakuoki	global	resmî/global ad
+735	joji_nakata	Joji Nakata	Joji Nakata	global	resmî/global ad
+736	hitsuji_de_oyasumi	Hitsuji de Oyasumi Series	Hitsuji de Oyasumi Series	global	resmî/global ad
+737	masaya_onosaka	Masaya Onosaka	Masaya Onosaka	global	resmî/global ad
+738	shoji_meguro	Shoji Meguro	Shoji Meguro	global	resmî/global ad
+739	cosplay	Cosplay	Cosplay	existing	cosplay
+740	cuvie	Cuvie	Cuvie	as_is	Latin/CJK ad korundu (uydurma romanizasyon yok)
+741	famishin	Famishin	Famishin	as_is	Latin/CJK ad korundu (uydurma romanizasyon yok)
+742	fifthavenue	FifthAvenue	FifthAvenue	as_is	Latin/CJK ad korundu (uydurma romanizasyon yok)
+743	flesh_blood	FLESH&BLOOD	FLESH&BLOOD	as_is	Latin/CJK ad korundu (uydurma romanizasyon yok)
+744	flyingshine	FlyingShine	FlyingShine	as_is	Latin/CJK ad korundu (uydurma romanizasyon yok)
+745	free_to_play	Ücretsiz	Free	existing	mevcut gruba normalize eşleşme
+746	senya	senya	senya	as_is	Latin/CJK ad korundu (uydurma romanizasyon yok)
+747	drama_special	Özel Drama	Drama Special	new	
+748	square	SQUARE	SQUARE	as_is	Latin/CJK ad korundu (uydurma romanizasyon yok)
+749	studio_gokumi	Studio Gokumi	Studio Gokumi	global	resmî/global ad
+750	studio_gokumi	Studio Gokumi	Studio Gokumi	global	resmî/global ad
+751	nanahira	Nanahira	Nanahira	global	resmî/global ad
+752	love_live_sunshine	Love Live! Sunshine!!	Love Live! Sunshine!!	global	resmî/global ad
+753	akira_kanbe	Akira Kanbe	Akira Kanbe	global	resmî/global ad
+754	tales	tales	tales	as_is	Latin/CJK ad korundu (uydurma romanizasyon yok)
+755	ultraman	Ultraman	Ultraman	existing	mevcut gruba normalize eşleşme
+756	witstudio	WITSTUDIO	WITSTUDIO	existing	mevcut gruba normalize eşleşme
+757	n_10_30h	10-30h	10-30h	as_is	Latin/CJK ad korundu (uydurma romanizasyon yok)
+758	SKIP				yıl/dönem etiketi
+759	SKIP				yıl/dönem etiketi
+760	SKIP				yıl/dönem etiketi
+761	SKIP				yıl/dönem etiketi
+762	SKIP				yıl/dönem etiketi
+763	adv_game	Macera Oyunu	Adventure Game	new	
+764	bandai	Bandai	Bandai	existing	BANDAI
+765	bishop	BISHOP	BISHOP	as_is	Latin/CJK ad korundu (uydurma romanizasyon yok)
+766	bl2013	BL2013	BL2013	as_is	Latin/CJK ad korundu (uydurma romanizasyon yok)
+767	bunbun	BUNBUN	BUNBUN	as_is	Latin/CJK ad korundu (uydurma romanizasyon yok)
+768	machine_translation	Makine Çevirisi	Machine Translation	existing	mevcut machine_translation grubu
+769	eita	Eita	Eita	global	resmî/global ad
+770	eita_mizuno	Eita Mizuno	Eita Mizuno	global	resmî/global ad
+771	makoto_miyazaki	Makoto Miyazaki	Makoto Miyazaki	global	resmî/global ad
+772	marvel_universe	Marvel Universe	Marvel Universe	global	resmî/global ad
+773	sho_kinugasa	Sho Kinugasa	Sho Kinugasa	global	resmî/global ad
+774	SKIP				kişisel raf/puan/not
+775	SKIP				özel ad — Latin yazımı doğrulanamadı
+776	enlightenment	Aydınlanma	Enlightenment	new	
+777	takashi_watanabe	Takashi Watanabe	Takashi Watanabe	global	resmî/global ad
+778	rica_matsumoto	Rica Matsumoto	Rica Matsumoto	global	resmî/global ad
+779	villainess	Kötü Kadın	Villainess	new	
+780	moto_hagio	Moto Hagio	Moto Hagio	global	resmî/global ad
+781	mai_goto	Mai Goto	Mai Goto	global	resmî/global ad
+782	SKIP				kişisel raf/puan/not
+783	haruka_minami	Haruka Minami	Haruka Minami	global	resmî/global ad
+784	SKIP				kişisel raf/puan/not
+785	SKIP				özel ad — Latin yazımı doğrulanamadı
+786	SKIP				gürültü/parça/anlamsız
+787	SKIP				kişisel raf/puan/not
+788	satomi_arai	Satomi Arai	Satomi Arai	global	resmî/global ad
+789	kazuya_minekura	Kazuya Minekura	Kazuya Minekura	global	resmî/global ad
+790	SKIP				özel ad — Latin yazımı doğrulanamadı
+791	takeru_satoh	Takeru Satoh	Takeru Satoh	global	resmî/global ad
+792	shiro_hamaguchi	Shiro Hamaguchi	Shiro Hamaguchi	global	resmî/global ad
+793	beautiful_girl	Güzel Kız	Beautiful Girl	new	
+794	sparkly_key	Sparkly Key Animation	Sparkly Key Animation	global	resmî/global ad
+795	chinatsu_akasaki	Chinatsu Akasaki	Chinatsu Akasaki	global	resmî/global ad
+796	diao_ye_zong	Diao Ye Zong	Diao Ye Zong	global	resmî/global ad
+797	yumi_uchiyama	Yumi Uchiyama	Yumi Uchiyama	global	resmî/global ad
+798	godzilla	Godzilla	Godzilla	global	resmî/global ad
+799	hype_song	Coşturan Şarkı	Hype Song	new	
+800	junya_enoki	Junya Enoki	Junya Enoki	global	resmî/global ad
+801	japanese_literature	Japon Edebiyatı	Japanese Literature	new	
+802	certain_scientific_railgun	A Certain Scientific Railgun	A Certain Scientific Railgun	global	resmî/global ad
+803	jin_yong	Jin Yong	Jin Yong	global	resmî/global ad
+804	anime_film_soundtrack	Anime Film Müzikleri	Anime Film Soundtrack	new	
+805	kazuki_sakuraba	Kazuki Sakuraba	Kazuki Sakuraba	global	resmî/global ad
+806	isuna_hasekura	Isuna Hasekura	Isuna Hasekura	global	resmî/global ad
+807	dmm	DMM	DMM	as_is	Latin/CJK ad korundu (uydurma romanizasyon yok)
+808	gathering	GATHERING	GATHERING	as_is	Latin/CJK ad korundu (uydurma romanizasyon yok)
+809	level5	Level5	Level5	as_is	Latin/CJK ad korundu (uydurma romanizasyon yok)
+810	may_n	May'n	May'n	global	resmî/global ad
+811	niconico	NICONICO	NICONICO	as_is	Latin/CJK ad korundu (uydurma romanizasyon yok)
+812	oped	OP+ED	OP+ED	existing	mevcut gruba normalize eşleşme
+813	persona	Persona	Persona	global	resmî/global ad
+814	qr	QR	QR	as_is	Latin/CJK ad korundu (uydurma romanizasyon yok)
+815	radio	Radio	Radio	as_is	Latin/CJK ad korundu (uydurma romanizasyon yok)
+816	sorcerian	Sorcerian	Sorcerian	as_is	Latin/CJK ad korundu (uydurma romanizasyon yok)
+817	sphere	sphere	sphere	as_is	Latin/CJK ad korundu (uydurma romanizasyon yok)
+818	SKIP				özel ad — Latin yazımı doğrulanamadı
+819	magi	Magi	Magi	global	resmî/global ad
+820	thirteen_volumes	13 Cilt (Tamamlanmış)	13 Volumes (Complete)	new	
+821	SKIP				yıl/dönem etiketi
+822	SKIP				yıl/dönem etiketi
+823	SKIP				yıl/dönem etiketi
+824	SKIP				yıl/dönem etiketi
+825	SKIP				yıl/dönem etiketi
+826	SKIP				yıl/dönem etiketi
+827	SKIP				puan/sayı etiketi
+828	SKIP				puan/sayı etiketi
+829	alcot	alcot	alcot	as_is	Latin/CJK ad korundu (uydurma romanizasyon yok)
+830	alternative_rock	Alternative_rock	Alternative_rock	as_is	Latin/CJK ad korundu (uydurma romanizasyon yok)
+831	bomtoon	Bomtoon	Bomtoon	as_is	Latin/CJK ad korundu (uydurma romanizasyon yok)
+832	SKIP				kişisel raf/puan/not
+833	aoi_tada	Aoi Tada	Aoi Tada	global	resmî/global ad
+834	mamare_touno	Mamare Touno	Mamare Touno	global	resmî/global ad
+835	SKIP				özel ad — Latin yazımı doğrulanamadı
+836	rie_tanaka	Rie Tanaka	Rie Tanaka	global	resmî/global ad
+837	honobu_yonezawa	Honobu Yonezawa	Honobu Yonezawa	global	resmî/global ad
+838	split_screen	Bölünmüş Ekran	Split-Screen	new	
+839	SKIP				kişisel raf/puan/not
+840	SKIP				gürültü/parça/anlamsız
+841	steel_soul	Çelik Ruh	Steel Soul	new	
+842	koji_morimoto	Koji Morimoto	Koji Morimoto	global	resmî/global ad
+843	mystery	Gizem	Mystery	new	
+844	SKIP				kişisel raf/puan/not
+845	ichiro_mizuki	Ichiro Mizuki	Ichiro Mizuki	global	resmî/global ad
+846	rie_okamoto	Rie Okamoto	Rie Okamoto	global	resmî/global ad
+847	toshiki_masuda	Toshiki Masuda	Toshiki Masuda	global	resmî/global ad
+848	mayu_shinjo	Mayu Shinjo	Mayu Shinjo	global	resmî/global ad
+849	show_hayami	Show Hayami	Show Hayami	global	resmî/global ad
+850	ryotaro_okijayu	Ryotaro Okiayu	Ryotaro Okiayu	global	resmî/global ad
+851	exclusive	Özel	Exclusive	new	
+852	pili_puppetry	Pili Puppetry	Pili Puppetry	global	resmî/global ad
+853	makoto_uezu	Makoto Uezu	Makoto Uezu	global	resmî/global ad
+854	kurehito_misaki	Kurehito Misaki	Kurehito Misaki	global	resmî/global ad
+855	modoru_motoni	Modoru Motoni	Modoru Motoni	global	resmî/global ad
+856	nobuyuki_abe	Nobuyuki Abe	Nobuyuki Abe	global	resmî/global ad
+857	koushi_tachibana	Koushi Tachibana	Koushi Tachibana	global	resmî/global ad
+858	short_story_collection	Kısa Öykü Koleksiyonu	Short Story Collection	new	
+859	mother_and_son	Anne ve Oğul	Mother and Son	new	
+860	shikidouji	Shikidouji	Shikidouji	global	resmî/global ad
+861	shakugan_no_shana	Shakugan no Shana	Shakugan no Shana	global	resmî/global ad
+862	masataka_kubota	Masataka Kubota	Masataka Kubota	global	resmî/global ad
+863	katsura_izumi	Katsura Izumi	Katsura Izumi	global	resmî/global ad
+864	osamu_mukai	Osamu Mukai	Osamu Mukai	global	resmî/global ad
+865	daiki_yamashita	Daiki Yamashita	Daiki Yamashita	global	resmî/global ad
+866	SKIP				tek karakter
+867	hikaru_no_go	Hikaru no Go	Hikaru no Go	global	resmî/global ad
+868	kankuro_kudo	Kankuro Kudo	Kankuro Kudo	global	resmî/global ad
+869	digimon	Digimon	Digimon	existing	mevcut gruba normalize eşleşme
+870	eastnewsound	EastNewSound	EastNewSound	as_is	Latin/CJK ad korundu (uydurma romanizasyon yok)
+871	gothic	Gotik	Gothic	new	
+872	house	house	house	as_is	Latin/CJK ad korundu (uydurma romanizasyon yok)
+873	k_on	K-On!	K-On!	existing	k-on varyantı
+874	liquid	Liquid	Liquid	as_is	Latin/CJK ad korundu (uydurma romanizasyon yok)
+875	mc	MC	MC	as_is	Latin/CJK ad korundu (uydurma romanizasyon yok)
+876	neoromance	Neoromance	Neoromance	as_is	Latin/CJK ad korundu (uydurma romanizasyon yok)
+877	one	One	One	as_is	Latin/CJK ad korundu (uydurma romanizasyon yok)
+878	anime_ost	Anime Müzikleri	Anime OST	new	
+879	square_enix	Square Enix	Square Enix	existing	mevcut gruba normalize eşleşme
+880	steam3070	Steam3070	Steam3070	as_is	Latin/CJK ad korundu (uydurma romanizasyon yok)
+881	steins_gate	Steins;Gate	Steins;Gate	existing	STEINS.GATE varyantı
+882	yuzusoft	Yuzusoft	Yuzusoft	global	resmî/global ad
+883	web_manga	Web Mangası	Web Manga	new	
