@@ -176,6 +176,7 @@ class ApiResultDetailViewModel(application: Application) : AndroidViewModel(appl
     private var currentFetchKey: String? = null
     private var lastResult: JikanSearchResult? = null
     private var synopsisTranslateJob: Job? = null
+    @Volatile private var charactersFetchedWithDetail: Boolean = false
 
     /** Çeviri işlerinin nesil sayacı — eski işlerin yüklenme durumunu kapatmasını engeller. */
     @Volatile private var translationGeneration = 0
@@ -183,6 +184,31 @@ class ApiResultDetailViewModel(application: Application) : AndroidViewModel(appl
     private var lastTargetLangSetting: String? = null
 
     init {
+        viewModelScope.launch {
+            DetailCache.characterPortraitVersion.collect {
+                val res = lastResult ?: return@collect
+                val cached = DetailCache.getMediaCharacters(res.source, res.malId)
+                val current = (_charactersState.value as? DetailTabState.Success)?.data
+                val base = current ?: cached ?: return@collect
+                var changed = false
+                val updated = base.map { ch ->
+                    val isActorDup = !ch.imageUrl.isNullOrBlank() && ch.imageUrl == ch.voiceActors.firstOrNull()?.imageUrl
+                    if (!ch.imageUrl.isNullOrBlank() && !isActorDup) {
+                        ch
+                    } else {
+                        val portrait = DetailCache.getCachedCharacterPortrait(ch.name)
+                        if (!portrait.isNullOrBlank() && portrait != ch.imageUrl) {
+                            changed = true
+                            ch.copy(imageUrl = portrait, isRealMediaRole = false)
+                        } else ch
+                    }
+                }
+                if (changed) {
+                    DetailCache.putMediaCharacters(res.source, res.malId, updated)
+                    _charactersState.value = DetailTabState.Success(updated)
+                }
+            }
+        }
         viewModelScope.launch {
             settingsDataStore.settingsFlow.collect { settings ->
                 val prevAuto = lastAutoTranslateSetting
@@ -344,6 +370,7 @@ class ApiResultDetailViewModel(application: Application) : AndroidViewModel(appl
         galleryTracker.reset()
 
         val cachedCharacters = DetailCache.getMediaCharacters(result.source, result.malId)
+        charactersFetchedWithDetail = cachedCharacters != null && cachedDetail != null
         if (cachedCharacters != null && cachedCharacters.isEmpty()) {
             DetailCache.removeMediaCharacters(result.source, result.malId)
             _charactersState.value = DetailTabState.Loading
@@ -710,6 +737,16 @@ class ApiResultDetailViewModel(application: Application) : AndroidViewModel(appl
                 }
             }
 
+            // Detail yüklendi → karakter sekmesi detay gelmeden önce çekildiyse ve eksik kurgusal
+            // portre varsa, artık tür/başlık/realMalId bilindiğinden karakter görsellerini tamamla.
+            val currentChars = (_charactersState.value as? DetailTabState.Success)?.data
+            if (!charactersFetchedWithDetail && currentChars != null &&
+                currentChars.any { it.imageUrl.isNullOrBlank() || it.isRealMediaRole }
+            ) {
+                DetailCache.removeMediaCharacters(result.source, result.malId)
+                loadTab(2, result, result.realMalId ?: finalDetail.realMalId, force = true)
+            }
+
             // Detail yüklendi → eğer TvShow/Anime ise ve episode state'i boş/loading ise,
             // artık tmdbId biliniyor — episode'ları otomatik olarak yeniden çek.
             val hasTvEps = result.type == com.kitsugi.animelist.model.MediaType.Anime ||
@@ -981,10 +1018,19 @@ class ApiResultDetailViewModel(application: Application) : AndroidViewModel(appl
                     }
                     2 -> {
                         val currentSuccess = _charactersState.value as? DetailTabState.Success
-                        val needsRefetch = currentSuccess == null ||
-                            (currentSuccess.data.isEmpty() && DetailCache.getMediaCharacters(result.source, malId) == null)
+                        val hasIncompleteCharacters = !charactersFetchedWithDetail &&
+                            _detailState.value != null &&
+                            currentSuccess != null &&
+                            currentSuccess.data.any { it.imageUrl.isNullOrBlank() || it.isRealMediaRole }
+                        val needsRefetch = force ||
+                            currentSuccess == null ||
+                            (currentSuccess.data.isEmpty() && DetailCache.getMediaCharacters(result.source, malId) == null) ||
+                            hasIncompleteCharacters
                         if (needsRefetch) {
-                            _charactersState.value = DetailTabState.Loading
+                            if (currentSuccess == null || currentSuccess.data.isEmpty()) {
+                                _charactersState.value = DetailTabState.Loading
+                            }
+                            val hadDetailAtFetch = _detailState.value != null
                             val resolvedTitle = _detailState.value?.title
                                 ?: _detailState.value?.titleEnglish
                                 ?: _detailState.value?.titleRomaji
@@ -1000,10 +1046,13 @@ class ApiResultDetailViewModel(application: Application) : AndroidViewModel(appl
                                     title = resolvedTitle
                                 )
                             } ?: run {
-                                _charactersState.value = DetailTabState.Error(tabFailureCode(result.source))
+                                if (currentSuccess == null || currentSuccess.data.isEmpty()) {
+                                    _charactersState.value = DetailTabState.Error(tabFailureCode(result.source))
+                                }
                                 return@launch
                             }
                             val data = fetched.value
+                            charactersFetchedWithDetail = hadDetailAtFetch
                             if (data.isNotEmpty()) {
                                 DetailCache.putMediaCharacters(result.source, malId, data)
                             }

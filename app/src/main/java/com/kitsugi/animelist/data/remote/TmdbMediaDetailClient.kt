@@ -228,6 +228,17 @@ internal object TmdbMediaDetailClient {
 
             val score100 = (rating * 10).toInt().coerceIn(0, 100)
             val tmdbTags = if (features.useBasicInfo) extractKeywords(finalJson, isMovie) else emptyList()
+            val countryOfOriginVal = run {
+                val originArr = finalJson.optJSONArray("origin_country")
+                val fromOrigin = if (originArr != null && originArr.length() > 0) {
+                    originArr.optString(0, "").trim().takeIf { it.isNotEmpty() }
+                } else null
+                fromOrigin ?: finalJson.optJSONArray("production_countries")
+                    ?.optJSONObject(0)
+                    ?.optString("iso_3166_1", "")
+                    ?.trim()
+                    ?.takeIf { it.isNotEmpty() }
+            }
 
             KitsugiMediaDetail(
                 synopsis = finalOverview,
@@ -273,7 +284,9 @@ internal object TmdbMediaDetailClient {
                 meanScore = score100.takeIf { features.useBasicInfo },
                 averageScore = score100.takeIf { features.useBasicInfo },
                 popularity = tmdbPopularity,
-                scoredBy = voteCount
+                scoredBy = voteCount,
+                countryOfOrigin = countryOfOriginVal,
+                originalLanguage = originalLang.takeIf { it.isNotBlank() }
             )
         } catch (e: Exception) {
             Log.e(TAG, "Error fetching TMDB details: ${e.message}", e)

@@ -56,6 +56,61 @@ object DetailCache {
 
     private val translations = BoundedCache<String, String>("detail.translations", 300)
 
+    /** Oturum boyunca çözülen kurgusal karakter portreleri (normalize karakter adı → URL). */
+    val resolvedCharacterPortraits = BoundedCache<String, String>("detail.characterPortraits", 1500)
+
+    /** Karakter portresi güncellendiğinde detay sekmelerinin anında haberdar olması için sayaç. */
+    private val _characterPortraitVersion = kotlinx.coroutines.flow.MutableStateFlow(0L)
+    val characterPortraitVersion: kotlinx.coroutines.flow.StateFlow<Long> = _characterPortraitVersion
+
+    private fun normalizePortraitKey(name: String): String =
+        name.lowercase()
+            .replace(Regex("\\s*\\((?:voice|uncredited|uncredited voice|seslendirme|ses|child)\\)", RegexOption.IGNORE_CASE), "")
+            .replace("ou", "o").replace("oo", "o").replace("oh", "o").replace("uu", "u")
+            .replace(Regex("[^\\p{L}\\p{N}]"), "")
+
+    fun getCachedCharacterPortrait(name: String): String? {
+        val key = normalizePortraitKey(name)
+        return if (key.length >= 2) resolvedCharacterPortraits[key] else null
+    }
+
+    /**
+     * Karakter detay sayfasında veya çapraz kaynakta doğrulanan portreyi kaydeder ve
+     * önbellekteki TMDB/Simkl karakter listelerinde görseli boş kalan kartlara anında işler.
+     */
+    fun propagateCharacterPortrait(name: String, imageUrl: String?) {
+        val url = imageUrl?.trim()?.takeIf { it.isNotEmpty() } ?: return
+        val targetKey = normalizePortraitKey(name)
+        if (targetKey.length < 2) return
+        resolvedCharacterPortraits[targetKey] = url
+
+        var updatedAny = false
+        for (cacheKey in mediaCharacters.keys.toList()) {
+            if (!cacheKey.startsWith("tmdb") && !cacheKey.startsWith("simkl")) continue
+            val existing = mediaCharacters[cacheKey] ?: continue
+            var changed = false
+            val patched = existing.map { char ->
+                val isActorDup = !char.imageUrl.isNullOrBlank() &&
+                    char.imageUrl == char.voiceActors.firstOrNull()?.imageUrl
+                if ((char.imageUrl.isNullOrBlank() || (!char.isRealMediaRole && isActorDup)) &&
+                    normalizePortraitKey(char.name) == targetKey
+                ) {
+                    changed = true
+                    char.copy(imageUrl = url)
+                } else {
+                    char
+                }
+            }
+            if (changed) {
+                mediaCharacters[cacheKey] = patched
+                updatedAny = true
+            }
+        }
+        if (updatedAny) {
+            _characterPortraitVersion.value = _characterPortraitVersion.value + 1L
+        }
+    }
+
     fun makeKey(source: String, id: Int, mediaType: String? = null): String {
         return if (!mediaType.isNullOrBlank()) {
             "${source.lowercase()}_${mediaType.lowercase()}_$id"

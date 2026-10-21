@@ -14,7 +14,15 @@ data class WikidataEntityClaims(
     /** Sitelinks: `enwiki` → "Crash Landing on You", `trwiki` → "Crash Landing on You (dizi)". */
     val wikipediaTitles: Map<String, String> = emptyMap(),
     /** P345 — IMDb kimliği (`tt1234567`), küçük harf. Yoksa null. */
-    val imdbId: String? = null
+    val imdbId: String? = null,
+    /** P4086 — MyAnimeList anime kimliği. */
+    val malAnimeId: Int? = null,
+    /** P8729 — AniList anime kimliği. */
+    val aniListAnimeId: Int? = null,
+    /** P11495 — Kitsu anime kimliği. */
+    val kitsuAnimeId: Int? = null,
+    /** P12095 / P5646 — Bangumi konu kimliği. */
+    val bangumiSubjectId: Int? = null
 )
 
 /**
@@ -84,7 +92,17 @@ object WikidataParsers {
                 imdbId = stringValues(claims, "P345")
                     .firstOrNull { IMDB_TITLE_ID.matches(it.trim()) }
                     ?.trim()
-                    ?.lowercase(java.util.Locale.ROOT)
+                    ?.lowercase(java.util.Locale.ROOT),
+                malAnimeId = stringValues(claims, "P4086")
+                    .firstNotNullOfOrNull { it.trim().toIntOrNull()?.takeIf { n -> n > 0 } },
+                aniListAnimeId = stringValues(claims, "P8729")
+                    .firstNotNullOfOrNull { it.trim().toIntOrNull()?.takeIf { n -> n > 0 } },
+                kitsuAnimeId = stringValues(claims, "P11495")
+                    .firstNotNullOfOrNull { it.trim().toIntOrNull()?.takeIf { n -> n > 0 } },
+                bangumiSubjectId = stringValues(claims, "P12095")
+                    .firstNotNullOfOrNull { it.trim().toIntOrNull()?.takeIf { n -> n > 0 } }
+                    ?: stringValues(claims, "P5646")
+                        .firstNotNullOfOrNull { it.trim().toIntOrNull()?.takeIf { n -> n > 0 } }
             )
         }
         return result

@@ -170,6 +170,7 @@ class MediaEntryDetailViewModel(application: Application) : AndroidViewModel(app
     private var lastEntry: MediaEntry? = null
     private var mangaMappingJob: Job? = null
     private var synopsisTranslateJob: Job? = null
+    @Volatile private var charactersFetchedWithDetail: Boolean = false
 
     /** Çeviri işlerinin nesil sayacı — eski işlerin yüklenme durumunu kapatmasını engeller. */
     @Volatile private var translationGeneration = 0
@@ -177,6 +178,32 @@ class MediaEntryDetailViewModel(application: Application) : AndroidViewModel(app
     private var lastTargetLangSetting: String? = null
 
     init {
+        viewModelScope.launch {
+            DetailCache.characterPortraitVersion.collect {
+                val entry = lastEntry ?: return@collect
+                val stableId = cacheIdentityOf(entry)
+                val cached = DetailCache.getMediaCharacters(entry.source, stableId)
+                val current = (_charactersState.value as? DetailTabState.Success)?.data
+                val base = current ?: cached ?: return@collect
+                var changed = false
+                val updated = base.map { ch ->
+                    val isActorDup = !ch.imageUrl.isNullOrBlank() && ch.imageUrl == ch.voiceActors.firstOrNull()?.imageUrl
+                    if (!ch.imageUrl.isNullOrBlank() && !isActorDup) {
+                        ch
+                    } else {
+                        val portrait = DetailCache.getCachedCharacterPortrait(ch.name)
+                        if (!portrait.isNullOrBlank() && portrait != ch.imageUrl) {
+                            changed = true
+                            ch.copy(imageUrl = portrait, isRealMediaRole = false)
+                        } else ch
+                    }
+                }
+                if (changed) {
+                    DetailCache.putMediaCharacters(entry.source, stableId, updated)
+                    _charactersState.value = DetailTabState.Success(updated)
+                }
+            }
+        }
         viewModelScope.launch {
             settingsDataStore.settingsFlow.collect { settings ->
                 val prevAuto = lastAutoTranslateSetting
@@ -354,6 +381,7 @@ class MediaEntryDetailViewModel(application: Application) : AndroidViewModel(app
         // Reset tab states to either cached values or Loading
         val malId = stableId
         val cachedCharacters = DetailCache.getMediaCharacters(entry.source, malId)
+        charactersFetchedWithDetail = cachedCharacters != null && cachedDetail != null
         if (cachedCharacters != null && cachedCharacters.isEmpty()) {
             DetailCache.removeMediaCharacters(entry.source, malId)
             _charactersState.value = DetailTabState.Loading
@@ -625,6 +653,14 @@ class MediaEntryDetailViewModel(application: Application) : AndroidViewModel(app
                         Log.e(TAG, "Fallback trailer resolution failed: ${e.message}")
                     }
                 }
+            }
+
+            val currentChars = (_charactersState.value as? DetailTabState.Success)?.data
+            if (!charactersFetchedWithDetail && currentChars != null &&
+                currentChars.any { it.imageUrl.isNullOrBlank() || it.isRealMediaRole }
+            ) {
+                DetailCache.removeMediaCharacters(entry.source, stableId)
+                loadTab(2, entry, detail.realMalId, force = true)
             }
 
             // Detay geldikten sonra logo yeniden seçilir: film/sezon ancak o zaman kesinleşir.
@@ -1273,14 +1309,14 @@ class MediaEntryDetailViewModel(application: Application) : AndroidViewModel(app
      * - Her veri çağrısı süre tavanıyla sınırlıdır; aksi hâlde yavaş bir zincir
      *   (ör. Shikimori → MAL eşlemesi → Jikan) sekmeyi sonsuza dek skeleton'da bırakır.
      */
-    fun loadTab(tabIndex: Int, entry: MediaEntry, realMalId: Int?) {
+    fun loadTab(tabIndex: Int, entry: MediaEntry, realMalId: Int?, force: Boolean = false) {
         val effectiveExternalId = externalIdOf(entry)
         // Tek uçuş anahtarı: aynı parametrelerle çalışan istek varsa yenisini başlatma;
         // parametreler iyileştiğinde (ör. detaydan gerçek MAL ID'si geldiğinde) ise
         // eski isteği iptal edip yeniden dene.
         val requestKey = "$effectiveExternalId|${realMalId ?: 0}"
         val running = tabJobs[tabIndex]
-        if (running != null && running.isActive && tabRequestKeys[tabIndex] == requestKey) return
+        if (!force && running != null && running.isActive && tabRequestKeys[tabIndex] == requestKey) return
         running?.cancel()
         tabRequestKeys[tabIndex] = requestKey
 
@@ -1302,10 +1338,19 @@ class MediaEntryDetailViewModel(application: Application) : AndroidViewModel(app
                     }
                     2 -> {
                         val currentSuccess = _charactersState.value as? DetailTabState.Success
-                        val needsRefetch = currentSuccess == null ||
-                            (currentSuccess.data.isEmpty() && DetailCache.getMediaCharacters(entry.source, malId) == null)
+                        val hasIncompleteCharacters = !charactersFetchedWithDetail &&
+                            _detailState.value != null &&
+                            currentSuccess != null &&
+                            currentSuccess.data.any { it.imageUrl.isNullOrBlank() || it.isRealMediaRole }
+                        val needsRefetch = force ||
+                            currentSuccess == null ||
+                            (currentSuccess.data.isEmpty() && DetailCache.getMediaCharacters(entry.source, malId) == null) ||
+                            hasIncompleteCharacters
                         if (needsRefetch) {
-                            _charactersState.value = DetailTabState.Loading
+                            if (currentSuccess == null || currentSuccess.data.isEmpty()) {
+                                _charactersState.value = DetailTabState.Loading
+                            }
+                            val hadDetailAtFetch = _detailState.value != null
                             val resolvedTitle = _detailState.value?.title
                                 ?: _detailState.value?.titleEnglish
                                 ?: _detailState.value?.titleRomaji
@@ -1320,10 +1365,13 @@ class MediaEntryDetailViewModel(application: Application) : AndroidViewModel(app
                                     title = resolvedTitle
                                 )
                             } ?: run {
-                                _charactersState.value = DetailTabState.Error(tabFailureCode(entry.source))
+                                if (currentSuccess == null || currentSuccess.data.isEmpty()) {
+                                    _charactersState.value = DetailTabState.Error(tabFailureCode(entry.source))
+                                }
                                 return@launch
                             }
                             val result = fetched.value
+                            charactersFetchedWithDetail = hadDetailAtFetch
                             if (result.isNotEmpty()) {
                                 DetailCache.putMediaCharacters(entry.source, malId, result)
                             }

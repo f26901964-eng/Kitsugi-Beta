@@ -25,6 +25,20 @@ data class ResolvedIds(
     val wikidataId: String? = null
 )
 
+/**
+ * Bir TMDB/Simkl yapımının eşleştiği tüm anime katalog kimlikleri (çok sezonlu dizilerde
+ * tüm sezonların MAL / AniList / Kitsu kimlikleri sırayla korunur).
+ */
+data class TmdbAnimeIdCandidates(
+    val malIds: List<Int> = emptyList(),
+    val aniListIds: List<Int> = emptyList(),
+    val kitsuIds: List<Int> = emptyList(),
+    val bangumiId: Int? = null,
+    val simklId: Int? = null,
+    val imdbId: String? = null,
+    val wikidataId: String? = null
+)
+
 object KitsugiIdResolver {
     private const val TAG = "KitsugiIdResolver"
 
@@ -33,6 +47,8 @@ object KitsugiIdResolver {
      * ARM ve Shikimori API'sine aynı ID için tekrar tekrar sorulmaz.
      */
     private val shikimoriMalIdCache = BoundedCache<Int, Int>("shikimori.malId", 3000)
+    private val malShikimoriIdCache = BoundedCache<Int, Int>("mal.shikimoriId", 3000)
+    private val tmdbAnimeCandidatesCache = BoundedCache<String, TmdbAnimeIdCandidates>("tmdb.animeIds", 1000)
     private const val SHIKIMORI_MAL_UNRESOLVED = 0
 
     /**
@@ -66,7 +82,15 @@ object KitsugiIdResolver {
         val cacheKey = "m=$malId|a=$aniListId|t=$tmdbId|mt=${mediaType?.name}|k=$kitsuId|b=$bangumiId|wd=$wikidataImdbFallback"
         resolvedIdsCache[cacheKey]?.let { return@withContext it }
         val result = resolveIdsUncached(malId, aniListId, tmdbId, mediaType, kitsuId, bangumiId, wikidataImdbFallback)
-        if (result.imdbId != null || result.kitsuId != null || result.tvdbId != null || result.tmdbId != null) {
+        // Yalnızca girdi tmdbId'nin kendisini geri yansıtan boş bir yanıtı (ör. geçici ağ arızası)
+        // kalıcı önbelleğe yazma; en az bir çapraz kimlik çözülmüş olmalı.
+        val hasCrossMapping = result.malId != null ||
+            result.aniListId != null ||
+            result.kitsuId != null ||
+            result.imdbId != null ||
+            result.tvdbId != null ||
+            (tmdbId == null && result.tmdbId != null)
+        if (hasCrossMapping) {
             resolvedIdsCache[cacheKey] = result
         }
         result
@@ -135,15 +159,15 @@ object KitsugiIdResolver {
         
         if (armJson == null) {
             if (isNonAnime) {
-                armJson = fetchArmJson("themoviedb", lookupTmdbId)
+                armJson = fetchArmJson("themoviedb", lookupTmdbId, mediaType)
                 if (armJson != null) {
                     Log.d(TAG, "Non-anime mapping prioritized: Successfully fetched ARM JSON for themoviedb: $lookupTmdbId -> $armJson")
                 } else {
-                    armJson = fetchArmJson("myanimelist", lookupMalId)
+                    armJson = fetchArmJson("myanimelist", lookupMalId, mediaType)
                     if (armJson != null) {
                         Log.d(TAG, "Successfully fetched ARM JSON for myanimelist: $lookupMalId -> $armJson")
                     } else {
-                        armJson = fetchArmJson("anilist", lookupAniListId)
+                        armJson = fetchArmJson("anilist", lookupAniListId, mediaType)
                         if (armJson != null) {
                             Log.d(TAG, "Successfully fetched ARM JSON for anilist: $lookupAniListId -> $armJson")
                         } else {
@@ -152,15 +176,15 @@ object KitsugiIdResolver {
                     }
                 }
             } else {
-                armJson = fetchArmJson("myanimelist", lookupMalId)
+                armJson = fetchArmJson("myanimelist", lookupMalId, mediaType)
                 if (armJson != null) {
                     Log.d(TAG, "Successfully fetched ARM JSON for myanimelist: $lookupMalId -> $armJson")
                 } else {
-                    armJson = fetchArmJson("anilist", lookupAniListId)
+                    armJson = fetchArmJson("anilist", lookupAniListId, mediaType)
                     if (armJson != null) {
                         Log.d(TAG, "Successfully fetched ARM JSON for anilist: $lookupAniListId -> $armJson")
                     } else {
-                        armJson = fetchArmJson("themoviedb", lookupTmdbId)
+                        armJson = fetchArmJson("themoviedb", lookupTmdbId, mediaType)
                         if (armJson != null) {
                             Log.d(TAG, "Successfully fetched ARM JSON for themoviedb: $lookupTmdbId -> $armJson")
                         } else {
@@ -171,8 +195,8 @@ object KitsugiIdResolver {
             }
         }
 
-        val imdbFromArm = armJson?.optNullableString("imdb")
-        val kitsuFromArm = armJson?.let {
+        var imdbFromArm = armJson?.optNullableString("imdb")
+        var kitsuFromArm = armJson?.let {
             val v = it.optInt("kitsu", -1)
             if (v > 0) v else null
         }
@@ -180,11 +204,11 @@ object KitsugiIdResolver {
             val v = it.optInt("themoviedb", -1)
             if (v > 0) v else null
         }
-        val aniListFromArm = armJson?.let {
+        var aniListFromArm = armJson?.let {
             val v = it.optInt("anilist", -1)
             if (v > 0) v else null
         }
-        val malFromArm = armJson?.let {
+        var malFromArm = armJson?.let {
             val v = it.optInt("myanimelist", -1)
             if (v > 0) v else null
         }
@@ -217,6 +241,33 @@ object KitsugiIdResolver {
             }
             if (!extIds.wikidataId.isNullOrBlank()) {
                 finalWikidata = extIds.wikidataId
+            }
+        }
+
+        // Eğer TMDB ID ARM'da doğrudan eşleşmediyse (ör. yeni anime filmleri / Doraemon filmleri),
+        // TMDB external_ids üzerinden gelen benzersiz IMDb ID ile ARM v2 `/api/v2/imdb` ucunu dene.
+        if (malFromArm == null && aniListFromArm == null && !finalImdb.isNullOrBlank()) {
+            val byImdb = fetchArmJsonString("imdb", finalImdb, mediaType, finalImdb)
+            if (byImdb != null) {
+                malFromArm = byImdb.optInt("myanimelist", -1).takeIf { it > 0 } ?: malFromArm
+                aniListFromArm = byImdb.optInt("anilist", -1).takeIf { it > 0 } ?: aniListFromArm
+                kitsuFromArm = byImdb.optInt("kitsu", -1).takeIf { it > 0 } ?: kitsuFromArm
+                imdbFromArm = byImdb.optNullableString("imdb") ?: imdbFromArm
+            }
+        }
+
+        // Hâlâ anime katalog kimliği yoksa TMDB'nin verdiği kesin Wikidata QID (P4086/P8729/P11495)
+        // kaydından oku: başlık tahmini yapmadan %100 kesin eşleşme sağlar.
+        if (malFromArm == null && lookupMalId == null && !finalWikidata.isNullOrBlank() &&
+            WikidataParsers.isQid(finalWikidata)
+        ) {
+            val wdClaims = runCatching {
+                WikidataClient.getEntities(listOf(finalWikidata))?.get(finalWikidata)
+            }.getOrNull()
+            if (wdClaims != null) {
+                malFromArm = wdClaims.malAnimeId ?: malFromArm
+                aniListFromArm = wdClaims.aniListAnimeId ?: aniListFromArm
+                kitsuFromArm = wdClaims.kitsuAnimeId ?: kitsuFromArm
             }
         }
 
@@ -304,78 +355,52 @@ object KitsugiIdResolver {
         resolveIds(malId, aniListId).imdbId
 
     /**
-     * MAL ID → Shikimori ID (ARM).
+     * MAL ID → Shikimori ID.
      *
-     * Shikimori REST endpoint'leri KENDİ numeric ID'lerini bekler. Jikan/MAL verisi
-     * Shikimori'ye fallback yaparken MAL ID'sini doğrudan geçmek YANLIŞ animenin
-     * karakter/ekip verisini döndürür — bu dönüşüm ile doğru ID sağlanır.
-     * Çözüm bulunamazsa null döner (çağıran taraf fallback'i atlar).
+     * NOT: ARM v2 şemasında (`BeeeQueue/arm-server`) `"shikimori"` alanı hiç yoktur —
+     * eski kod `optInt("shikimori", -1)` ile %100 `null` döndürüyordu. Shikimori anime/manga
+     * kataloğu MAL ile aynı kimlik uzayını paylaşır; `/api/animes/{malId}` yanıtındaki
+     * `myanimelist_id` (varsa) doğrulanarak önbelleğe alınır.
      */
     fun resolveShikimoriIdFromMal(malId: Int?): Int? {
-        if (malId == null || malId <= 0) return null
-        val shikiId = fetchArmJson("myanimelist", malId)?.let {
-            val v = it.optInt("shikimori", -1)
-            if (v > 0) v else null
+        if (malId == null || malId <= 0 || malId >= 100_000_000) return null
+        malShikimoriIdCache[malId]?.let { cached ->
+            return if (cached > 0) cached else null
         }
-        if (shikiId != null) {
-            Log.d(TAG, "MAL $malId → Shikimori $shikiId (ARM)")
-        } else {
-            Log.w(TAG, "Shikimori ID çözülmedi için MAL $malId (ARM haritası yok)")
-        }
-        return shikiId
+
+        val verified = runCatching {
+            val url = URL("https://shikimori.io/api/animes/$malId")
+            val response = KitsugiApiBase.executeGetRequest(url) ?: return@runCatching malId
+            val json = JSONObject(response)
+            val shikiId = json.optInt("id", malId).takeIf { it > 0 } ?: malId
+            val reportedMal = json.optInt("myanimelist_id", -1)
+            if (reportedMal <= 0 || reportedMal == malId) shikiId else null
+        }.getOrDefault(malId)
+
+        malShikimoriIdCache[malId] = verified ?: SHIKIMORI_MAL_UNRESOLVED
+        return verified
     }
 
     /**
-     * Shikimori ID → MAL ID (ARM).
-     *
-     * Shikimori arama sonuçlarında [JikanSearchResult.malId] Shikimori'nin kendi ID'sini
-     * taşır; MAL/AniList'e fallback (detay, logo, karakter VA birleştirmesi) için gerçek
-     * MAL ID'si çözülmesi gerekir. Shikimori detayındaki myanimelist_id önbellekte
-     * yoksa bu ARM dönüşümü kullanılır.
-     */
-    /**
      * Shikimori ID → MAL ID eşlemesi.
-     *
-     * ÖNEMLİ: Shikimori ID'si MAL ID'si DEĞİLDİR. Bu eşleme artık üç kademeli ve
-     * önbellekli çözülür; bulunamazsa `null` döner (eskiden çağıranlar Shikimori
-     * ID'sini MAL ID yerine kullanıp alakasız yapımların verisini çekiyordu):
-     *  1. Shikimori detay önbelleğindeki `myanimelist_id` (varsa hiç ağa çıkılmaz),
-     *  2. ARM haritası (`source=shikimori`),
-     *  3. doğrudan Shikimori REST yanıtındaki `myanimelist_id` (ARM'de harita yoksa).
+     *  1. Shikimori detay önbelleğindeki `myanimelist_id`,
+     *  2. Doğrudan Shikimori REST yanıtındaki `myanimelist_id`.
      */
     fun resolveMalIdFromShikimori(shikimoriId: Int?): Int? {
         if (shikimoriId == null || shikimoriId <= 0) return null
 
-        // 0. Bellek içi önbellek — her sekmede tekrar tekrar ağa çıkılmasın.
         shikimoriMalIdCache[shikimoriId]?.let { cached ->
             return if (cached > 0) cached else null
         }
 
-        // 1. Detay önbelleği (myanimelist_id zaten biliniyorsa)
         val fromDetailCache = DetailCache.getMediaDetail("shikimori", shikimoriId)?.realMalId?.takeIf { it > 0 }
         if (fromDetailCache != null) {
             shikimoriMalIdCache[shikimoriId] = fromDetailCache
-            Log.d(TAG, "Shikimori $shikimoriId → MAL $fromDetailCache (detay önbelleği)")
             return fromDetailCache
         }
 
-        // 2. Shikimori'nin KENDİ yanıtındaki `myanimelist_id` (yetkili kaynak; tek istek).
-        var malId = fetchMalIdFromShikimoriApi(shikimoriId)
-
-        // 3. Shikimori yanıt vermezse/alan boşsa ARM haritası.
-        if (malId == null) {
-            malId = fetchArmJson("shikimori", shikimoriId)?.let {
-                val v = it.optInt("myanimelist", -1)
-                if (v > 0) v else null
-            }
-        }
-
+        val malId = fetchMalIdFromShikimoriApi(shikimoriId)
         shikimoriMalIdCache[shikimoriId] = malId ?: SHIKIMORI_MAL_UNRESOLVED
-        if (malId != null) {
-            Log.d(TAG, "Shikimori $shikimoriId → MAL $malId")
-        } else {
-            Log.w(TAG, "Shikimori $shikimoriId için MAL eşlemesi bulunamadı (ARM + Shikimori API)")
-        }
         return malId
     }
 
@@ -394,42 +419,192 @@ object KitsugiIdResolver {
         return null
     }
 
-    /** Fetches the raw ARM JSON for a given source+id pair. Returns null on failure or missing id. */
-    private fun fetchArmJson(source: String, id: Int?): JSONObject? {
-        if (id == null || id <= 0) return null
-        val url = runCatching {
-            URL("https://arm.haglund.dev/api/v2/ids?source=$source&id=$id")
-        }.getOrNull()
-        if (url == null) {
-            Log.e(TAG, "fetchArmJson: Invalid URL construction for source=$source id=$id")
-            return null
+    /**
+     * Bir TMDB (veya biliniyorsa IMDb) kaydına karşılık gelen tüm anime katalog kimliklerini
+     * (çok sezonlu yapımlarda sezon 1, sezon 2 ... dâhil) tek seferde çözer.
+     */
+    suspend fun resolveAllTmdbAnimeIds(
+        tmdbId: Int,
+        mediaType: MediaType,
+        knownImdbId: String? = null
+    ): TmdbAnimeIdCandidates = withContext(Dispatchers.IO) {
+        if (tmdbId <= 0 || mediaType == MediaType.Manga) return@withContext TmdbAnimeIdCandidates()
+        val cacheKey = "${mediaType.name}:$tmdbId:${knownImdbId.orEmpty()}"
+        tmdbAnimeCandidatesCache[cacheKey]?.let { return@withContext it }
+
+        val isTv = mediaType == MediaType.TvShow
+        var extIds = fetchExternalIdsFromTmdb(tmdbId, isTv)
+        if (extIds.imdbId.isNullOrBlank() && extIds.wikidataId.isNullOrBlank() && extIds.tvdbId == null &&
+            mediaType == MediaType.Anime
+        ) {
+            extIds = fetchExternalIdsFromTmdb(tmdbId, true)
         }
-        return try {
-            val response = KitsugiApiBase.executeGetRequest(url)
-            if (response == null) {
-                Log.w(TAG, "fetchArmJson: Network failure or empty response for URL: $url")
-                return null
+        val effectiveImdb = knownImdbId?.takeIf { it.isNotBlank() } ?: extIds.imdbId
+        val wikidataId = extIds.wikidataId?.takeIf { it.isNotBlank() }
+
+        var relations = fetchArmRelations("themoviedb", tmdbId.toString(), mediaType, effectiveImdb)
+        if (relations.isEmpty() && !effectiveImdb.isNullOrBlank()) {
+            relations = fetchArmRelations("imdb", effectiveImdb, mediaType, effectiveImdb)
+        }
+
+        val malIds = LinkedHashSet<Int>()
+        val aniListIds = LinkedHashSet<Int>()
+        val kitsuIds = LinkedHashSet<Int>()
+        var simklId: Int? = null
+        var resolvedImdb = effectiveImdb
+        var bangumiId: Int? = null
+
+        for (rel in relations) {
+            rel.optInt("myanimelist", -1).takeIf { it in 1..99_999_999 }?.let { malIds += it }
+            rel.optInt("anilist", -1).takeIf { it > 0 }?.let { aniListIds += it }
+            rel.optInt("kitsu", -1).takeIf { it > 0 }?.let { kitsuIds += it }
+            if (simklId == null) simklId = rel.optInt("simkl", -1).takeIf { it > 0 }
+            if (resolvedImdb.isNullOrBlank()) resolvedImdb = rel.optNullableString("imdb")
+        }
+
+        // Wikidata QID üzerinden kesin dış kimlik takviyesi (P4086 MAL / P8729 AniList / P11495 Kitsu / Bangumi)
+        if (!wikidataId.isNullOrBlank() && WikidataParsers.isQid(wikidataId) &&
+            (malIds.isEmpty() || kitsuIds.isEmpty() || bangumiId == null)
+        ) {
+            val wdClaims = runCatching {
+                WikidataClient.getEntities(listOf(wikidataId))?.get(wikidataId)
+            }.getOrNull()
+            if (wdClaims != null) {
+                wdClaims.malAnimeId?.takeIf { it in 1..99_999_999 }?.let { malIds += it }
+                wdClaims.aniListAnimeId?.takeIf { it > 0 }?.let { aniListIds += it }
+                wdClaims.kitsuAnimeId?.takeIf { it > 0 }?.let { kitsuIds += it }
+                if (bangumiId == null) bangumiId = wdClaims.bangumiSubjectId
+                if (resolvedImdb.isNullOrBlank()) resolvedImdb = wdClaims.imdbId
             }
-            val trimmed = response.trim()
-            if (trimmed == "null" || trimmed == "[]" || trimmed.isEmpty()) {
-                Log.d(TAG, "fetchArmJson: Valid empty response (media not mapped/obscure) for URL: $url")
-                return null
+        }
+
+        val result = TmdbAnimeIdCandidates(
+            malIds = malIds.toList(),
+            aniListIds = aniListIds.toList(),
+            kitsuIds = kitsuIds.toList(),
+            bangumiId = bangumiId,
+            simklId = simklId,
+            imdbId = resolvedImdb,
+            wikidataId = wikidataId
+        )
+        if (result.malIds.isNotEmpty() || result.aniListIds.isNotEmpty() ||
+            result.kitsuIds.isNotEmpty() || result.bangumiId != null ||
+            !result.imdbId.isNullOrBlank() || !result.wikidataId.isNullOrBlank()
+        ) {
+            tmdbAnimeCandidatesCache[cacheKey] = result
+        }
+        result
+    }
+
+    /**
+     * ARM v2 OpenAPI kuralları (`BeeeQueue/arm-server`):
+     *  - `themoviedb`, `thetvdb`, `imdb` kaynakları 1:N eşleme döndürdüğü için `/api/v2/{source}?id={id}`
+     *    uçlarındadır (`/api/v2/ids?source=themoviedb` her zaman HTTP 400 döner!).
+     *  - Tekil anime katalog kaynakları (`myanimelist`, `anilist`, `kitsu`, `anidb`, ...)
+     *    `/api/v2/ids?source={source}&id={id}` ucundadır.
+     */
+    internal fun buildArmUrl(source: String, id: String): String {
+        val cleanSource = source.trim().lowercase()
+        val cleanId = id.trim()
+        return when (cleanSource) {
+            "themoviedb", "thetvdb", "imdb" -> "https://arm.haglund.dev/api/v2/$cleanSource?id=$cleanId"
+            else -> "https://arm.haglund.dev/api/v2/ids?source=$cleanSource&id=$cleanId"
+        }
+    }
+
+    /**
+     * ARM yanıtını (tekil nesne veya dizi) ayrıştırır ve beklenen medya türüne (`Movie` vs `TvShow`)
+     * göre sayısal TMDB ID çakışmalarını eler, en uygun kaydı (ör. Sezon 1 veya IMDb eşleşmesi) öne alır.
+     */
+    internal fun parseArmRelations(
+        rawBody: String?,
+        expectedMediaType: MediaType? = null,
+        expectedImdbId: String? = null
+    ): List<JSONObject> {
+        val trimmed = rawBody?.trim() ?: return emptyList()
+        if (trimmed.isEmpty() || trimmed == "null" || trimmed == "[]") return emptyList()
+
+        val rawList = mutableListOf<JSONObject>()
+        if (trimmed.startsWith("[")) {
+            val arr = runCatching { org.json.JSONArray(trimmed) }.getOrNull() ?: return emptyList()
+            for (i in 0 until arr.length()) {
+                arr.optJSONObject(i)?.let { rawList += it }
             }
-            // ARM may return an array with one element — unwrap it
-            if (trimmed.startsWith("[")) {
-                val arr = org.json.JSONArray(trimmed)
-                if (arr.length() == 0) {
-                    Log.d(TAG, "fetchArmJson: Empty array returned for URL: $url")
-                    return null
+        } else if (trimmed.startsWith("{")) {
+            val obj = runCatching { JSONObject(trimmed) }.getOrNull() ?: return emptyList()
+            if (obj.optInt("statusCode", 200) >= 400) return emptyList()
+            rawList += obj
+        }
+        if (rawList.isEmpty()) return emptyList()
+
+        val normImdb = expectedImdbId?.trim()?.lowercase()?.takeIf { it.startsWith("tt") }
+
+        val compatible = rawList.filter { rel ->
+            val relImdb = rel.optNullableString("imdb")?.trim()?.lowercase()
+            if (normImdb != null && relImdb == normImdb) return@filter true
+
+            val relMedia = rel.optNullableString("media")?.trim()?.uppercase().orEmpty()
+            val hasTmdbSeason = !rel.isNull("themoviedb-season") && rel.optInt("themoviedb-season", -1) > 0
+            when (expectedMediaType) {
+                MediaType.Movie -> {
+                    // TMDB movie/{id} ile tv/{id} çakışmasını engelle: TV sezonu olan kayıtları reddet.
+                    if (hasTmdbSeason) false
+                    else relMedia != "TV"
                 }
-                arr.optJSONObject(0)
-            } else {
-                JSONObject(trimmed)
+                MediaType.TvShow -> {
+                    relMedia != "MOVIE"
+                }
+                else -> true
             }
-        } catch (e: Exception) {
-            Log.e(TAG, "fetchArmJson: Exception occurred during fetch for source=$source ID=$id: ${e.message}", e)
-            null
         }
+
+        return compatible.sortedWith(
+            compareByDescending<JSONObject> { rel ->
+                normImdb != null && rel.optNullableString("imdb")?.trim()?.lowercase() == normImdb
+            }.thenBy { rel ->
+                val season = if (rel.isNull("themoviedb-season")) Int.MAX_VALUE else rel.optInt("themoviedb-season", Int.MAX_VALUE)
+                if (season <= 0) Int.MAX_VALUE else season
+            }
+        )
+    }
+
+    private fun fetchArmRelations(
+        source: String,
+        id: String?,
+        expectedMediaType: MediaType? = null,
+        expectedImdbId: String? = null
+    ): List<JSONObject> {
+        val cleanId = id?.trim()?.takeIf { it.isNotEmpty() } ?: return emptyList()
+        if (source == "shikimori") return emptyList() // ARM v2'de shikimori kaynağı yoktur
+        val url = runCatching { URL(buildArmUrl(source, cleanId)) }.getOrNull() ?: return emptyList()
+        return try {
+            val response = KitsugiApiBase.executeGetRequest(url) ?: return emptyList()
+            parseArmRelations(response, expectedMediaType, expectedImdbId)
+        } catch (e: Exception) {
+            Log.e(TAG, "fetchArmRelations: Exception for source=$source id=$cleanId: ${e.message}", e)
+            emptyList()
+        }
+    }
+
+    /** Fetches the best matching ARM JSON object for a given source+id pair. */
+    private fun fetchArmJson(
+        source: String,
+        id: Int?,
+        expectedMediaType: MediaType? = null,
+        expectedImdbId: String? = null
+    ): JSONObject? {
+        if (id == null || id <= 0) return null
+        return fetchArmRelations(source, id.toString(), expectedMediaType, expectedImdbId).firstOrNull()
+    }
+
+    private fun fetchArmJsonString(
+        source: String,
+        id: String?,
+        expectedMediaType: MediaType? = null,
+        expectedImdbId: String? = null
+    ): JSONObject? {
+        if (id.isNullOrBlank()) return null
+        return fetchArmRelations(source, id.trim(), expectedMediaType, expectedImdbId).firstOrNull()
     }
 
     private suspend fun resolveTmdbId(malId: Int?, aniListId: Int?, kitsuId: Int? = null): Int? = withContext(Dispatchers.IO) {
