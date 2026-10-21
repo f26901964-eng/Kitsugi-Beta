@@ -1031,3 +1031,64 @@ Chunk 002 için durumu (2026-10-21) → her satır **✅ tamam**:
 
 Sonraki chunk'lar için aynı liste geçerli; `gen_bangumi_master.py`'yi **`--check` olmadan
 çalıştırma** (Bölüm 7 ⚠).
+
+---
+
+## 2j) HANDOFF_010 oturumu (arena/e29a309c-kitsugi-beta · 2026-10-21)
+
+PR #29 (`arena/46189a1e-kitsugi-beta`) açık. Bu oturum yeni dal `arena/e29a309c-kitsugi-beta`
+üzerinde çalışır. Veri Drive klasöründen (1pZAOYs…) taze indirildi; **canon.tsv + map_chunk_005c_*
++ 006_* + 007_* + 008_orgs** Drive kopyasından senkronlandı (git sürümü chunk 005b'de kalmıştı).
+
+Sağlık zinciri sonrası taban durum:
+- `verify_vault.py`: ✅ **106.580** `bangumi_*` anahtar · **106.335** vault kaydı ·
+  **121.284** map satırı · **121.284** damga (HANDOFF_010 hedefi birebir).
+- `verify_bangumi_master.py`: ✅ 52.603 org eşleme · gerçek çakışma 0 · TR/EN 112.812
+  simetrik · RAW 67 parça, en büyük 50.000 bayt.
+- `gen_bangumi_master.py --check`: ✅ +0/+0 (yazma yok).
+- `check_bangumi_meta_tag_coverage.py`: ✅ 158/158.
+- `check_test_expectations.py`: 19 uyuşmazlık. 12'si bilinen betik sınırı (eski `o(...)`
+  biçimini aradığı için RAW döneminde org satırlarını 0 okuyor — PROGRESS Bölüm 7 / PR #23
+  notu). 7'si MASTER verisi ile test beklentisi uyuşmazlığı (`华语`/`華語` →
+  `area_chinese_speaking` cid'i ve "Chinese-speaking" EN değeri MASTER'da bu şekilde
+  tanımlı; `check_test_expectations.py` eski `chinese_speaking` bekliyor). Bu oturumda
+  MAL/Master koduna dokunulmadan bırakıldı (pre-existing regresyon değil; HANDOFF_010 §4
+  uyarınca MAL testleri kutsal).
+- Unittest: 0 test (dizinde `test_*.py` yok); exit 0.
+
+Araç değişiklikleri:
+- **Yeni betik: `scripts/apply_009_batch.py`** — HANDOFF_010 §3'te belirtilen 009 serisi
+  batch uygulayıcısı yazıldı: 6-sütun TSV (`rol<TAB>cid<TAB>eski_tr<TAB>yeni_tr<TAB>
+  yeni_en<TAB>origin`), eski-tr eşleşme denetimi (ikiz-engelli raporu), `--mirror-repair`
+  ile col-8 `bangumi_<rol>_<cid>` ayna satırlarını eşitleme, MASTER-kilit koruması
+  (`tags.tsv` new/existing ve `bangumi_org_*` cross-role), boş-son-sekme dahil orijinal
+  7/8-sütun biçimini koruma.
+- **`scripts/vault_to_strings.py` performans düzeltmesi**: 106K+ `<string>` için tek tek
+  regex `pat.search`/`recompile` çağrısı O(N·M) ~5+ dakikalık kasmaya yol açıyordu
+  (121.284 map satırıyla görüldü). Blok içeriği tek geçişte satır satır ayrıştırılarak
+  `<string>` güncellemesi ~5 saniyeye indi; `patch_tag_dict` için de tek geçişli ayrıştırma
+  uygulandı. Biçim/çıktı aynı kalır (geriye dönük uyumlu; eski küçük veri setlerinde de
+  çalışır).
+
+009 batch uygulamaları:
+- **009 Batch A (kavram çevirileri)** — 3 kayıt: `anime_op_ed` → "Anime Açılış ve Kapanış
+  Şarkıları"/"Anime OP/ED" (new), `hacker` → "Bilgisayar Korsanı"/"Hacker" (new),
+  `tank_combat` → "Tank Savaşı"/"Tank Combat" (new). Yeni XML ID eklenmedi (yerinde
+  güncelleme); mirror-repair temiz geçti.
+- **009 Batch B (veri düzeltmesi)** — 1 kayıt: `female_harem` TR "Ters Harem" →
+  "Kadın Haremi" (reverse_harem ile karışmıştı; MASTER kilitli değil).
+- Not: `area_chinese_speaking` "Çinçe" yazım hatası Drive canon'unda zaten "Çince" olarak
+  düzeltilmişti (EN "Chinese-speaking" MASTER tarafından belirlendiği için Türkçesi
+  düzeltildi, EN'ye dokunulmadı — MASTER-lock `apply_009_batch.py` tarafından korundu).
+
+Kalan iş (HANDOFF_010 §5 önceliği):
+1. Producer CJK kişi adları (ancak kesin bilinen resmî Latin yazımı olanlar; bu oturumda
+   üst 100 tarandı, neredeyse tümü küçük doujin çevresi/bilinmeyen kişi adı → `as_is`).
+2. Tag CJK sözlük v2 (`records_007_tags.json` üzerinde tam-eşleşme sözlük genişletmesi).
+3. Tag `tr==en` dip taraması (13K satır; çoğu özel ad/fandom jargonu, yalnız anlamlı
+   kavramlar Türkçeleştirilecek).
+4. Org uzun kuyruğu (düşük-count CJK kurum/kişi — yalnız %100 resmî Latin adı bilinenler).
+
+Drive senkron seti bu oturumda güncellendi: vault JSON'ları, `translations_done.tsv`,
+`translations_pending.tsv`, `progress.json`, `PROGRESS.md`, `HANDOFF_010.md`, `canon.tsv`,
+`org_global_names.tsv`, tüm `map_chunk_*.tsv`, `records_007_tags.json`.
