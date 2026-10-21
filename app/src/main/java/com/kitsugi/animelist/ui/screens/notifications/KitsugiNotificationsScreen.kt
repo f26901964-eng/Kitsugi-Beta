@@ -168,8 +168,11 @@ fun KitsugiNotificationsScreen(
     )
     val currentAniListFilter = AniListFilter.entries[aniListPagerState.currentPage]
 
-    // ── İlk yükleme — sayfa veya filtre değiştiğinde ──
-    LaunchedEffect(pagerState.currentPage, currentAniListFilter) {
+    // ── İlk yükleme — sayfa, filtre veya başlık dili değiştiğinde ──
+    // Bangumi koleksiyon/takvim uçları yalnızca özgün (CJK) başlığı döndürür; başlık dili
+    // ayarı değişince Bangumi sekmesi yeniden yüklenmezse eski dildeki/özgün başlık ekranda
+    // kalıcı kalır (bkz. kullanıcı bildirimi — "Bangumi'nin her yerde seçili dile uyması").
+    LaunchedEffect(pagerState.currentPage, currentAniListFilter, appSettings.titleLanguage) {
         when (pagerState.currentPage) {
             0 -> if (isAniListConnected) viewModel.loadAniList(
                 filter = currentAniListFilter,
@@ -180,7 +183,7 @@ fun KitsugiNotificationsScreen(
             2 -> if (isSimklConnected) viewModel.loadTmdbSimkl(mediaEntries)
             3 -> if (isKitsuConnected) viewModel.loadKitsu(mediaEntries)
             4 -> if (isShikimoriConnected) viewModel.loadShikimori(mediaEntries)
-            5 -> if (isBangumiConnected) viewModel.loadBangumi(mediaEntries)
+            5 -> if (isBangumiConnected) viewModel.loadBangumi(mediaEntries, appSettings.titleLanguage)
         }
     }
 
@@ -210,7 +213,7 @@ fun KitsugiNotificationsScreen(
             2 -> viewModel.loadTmdbSimkl(mediaEntries)
             3 -> viewModel.loadKitsu(mediaEntries)
             4 -> viewModel.loadShikimori(mediaEntries)
-            5 -> viewModel.loadBangumi(mediaEntries)
+            5 -> viewModel.loadBangumi(mediaEntries, appSettings.titleLanguage)
         }
     }
 

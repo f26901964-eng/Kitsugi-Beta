@@ -37,6 +37,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.compositeOver
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -47,8 +48,6 @@ import com.kitsugi.animelist.model.MediaType
 import com.kitsugi.animelist.model.WatchStatus
 import com.kitsugi.animelist.ui.theme.LocalKitsugiAccent
 import com.kitsugi.animelist.ui.theme.KitsugiColors
-import com.kitsugi.animelist.ui.utils.tvClickable
-import com.kitsugi.animelist.ui.components.KitsugiNsfwImage
 
 import com.kitsugi.animelist.utils.PreferenceHelpers.getDisplayTitle
 import com.kitsugi.animelist.utils.PreferenceHelpers.getDisplayScore
@@ -75,14 +74,30 @@ fun KitsugiMediaEntryCard(
     sourceBadges: List<String>? = null
 ) {
     val additionalSources = remember(entry.source, sourceBadges) {
-        val primarySource = canonicalSourceBadgeId(entry.source)
-        sourceBadges.orEmpty()
-            .map(::canonicalSourceBadgeId)
-            .filter { it.isNotBlank() && it != primarySource && KitsugiPlatformLogos.resFor(it) != null }
-            .distinct()
+        additionalLibraryBadgeSources(entry.source, sourceBadges)
+            .filter { KitsugiPlatformLogos.resFor(it) != null }
     }
+    val cardShape = RoundedCornerShape(
+        when (layoutId) {
+            "compact", "minimalist" -> 20.dp
+            "large" -> 28.dp
+            "grid_2col" -> 16.dp
+            else -> 24.dp
+        }
+    )
 
-    Column(modifier = modifier) {
+    // One frame contains both the content and its linked-source badges in every layout.
+    Card(
+        modifier = modifier
+            .kitsugiNeonGlow(cardShape)
+            .tvClickable(
+                shape = cardShape,
+                scaleFocused = if (layoutId == "grid_2col") 1.05f else 1.08f,
+                onClick = onClick
+            ),
+        shape = cardShape,
+        colors = CardDefaults.cardColors(containerColor = KitsugiColors.Surface)
+    ) {
         when (layoutId) {
             "compact" -> CompactMediaEntryCard(
                 entry = entry,
@@ -145,22 +160,13 @@ fun KitsugiMediaEntryCard(
         }
 
         if (additionalSources.isNotEmpty()) {
-            FlowRow(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(start = 8.dp, top = 5.dp, bottom = 2.dp),
-                horizontalArrangement = Arrangement.spacedBy(4.dp),
-                verticalArrangement = Arrangement.spacedBy(4.dp)
-            ) {
-                additionalSources.forEach { source ->
-                    KitsugiSourceBadge(source = source, size = 18.dp)
-                }
-            }
+            if (layoutId == "grid_2col") Spacer(Modifier.weight(1f))
+            LibrarySourceBadgeStrip(sources = additionalSources)
         }
     }
 }
 
-@OptIn(ExperimentalFoundationApi::class)
+@OptIn(ExperimentalFoundationApi::class, androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
 @Composable
 private fun CompactMediaEntryCard(
     entry: MediaEntry,
@@ -178,9 +184,7 @@ private fun CompactMediaEntryCard(
     val shape = RoundedCornerShape(20.dp)
     Card(
         modifier = modifier
-            .fillMaxWidth()
-            .kitsugiNeonGlow(shape)
-            .tvClickable(shape = shape, scaleFocused = 1.08f, onClick = onClick),
+            .fillMaxWidth(),
         shape = shape,
         colors = CardDefaults.cardColors(
             containerColor = KitsugiColors.Surface
@@ -270,25 +274,14 @@ private fun CompactMediaEntryCard(
 
                 Spacer(modifier = Modifier.height(6.dp))
 
-                Row(
-                    verticalAlignment = Alignment.CenterVertically
+                FlowRow(
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
-                    Box(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(999.dp))
-                            .background(statusColor.copy(alpha = 0.16f))
-                            .padding(horizontal = 8.dp, vertical = 3.dp)
-                    ) {
-                        Text(
-                            text = entry.status.localizedLabel(),
-                            color = statusColor,
-                            style = MaterialTheme.typography.labelSmall,
-                            fontWeight = FontWeight.Bold,
-                            maxLines = 1
-                        )
-                    }
-
-                    Spacer(modifier = Modifier.width(8.dp))
+                    StatusPill(
+                        text = entry.status.localizedLabel(),
+                        color = statusColor
+                    )
 
                     Text(
                         text = entryProgressText(entry),
@@ -298,7 +291,6 @@ private fun CompactMediaEntryCard(
 
                     if (!hideScores && (entry.score ?: 0) > 0) {
                         val displayScore = entry.getDisplayScore(scoreFormat, hideScores)
-                        Spacer(modifier = Modifier.width(8.dp))
                         ScorePill(
                             score = displayScore,
                             scoreFormat = scoreFormat
@@ -318,7 +310,7 @@ private fun CompactMediaEntryCard(
     }
 }
 
-@OptIn(ExperimentalFoundationApi::class)
+@OptIn(ExperimentalFoundationApi::class, androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
 @Composable
 private fun ComfortableMediaEntryCard(
     entry: MediaEntry,
@@ -336,9 +328,7 @@ private fun ComfortableMediaEntryCard(
     val shape = RoundedCornerShape(24.dp)
     Card(
         modifier = modifier
-            .fillMaxWidth()
-            .kitsugiNeonGlow(shape)
-            .tvClickable(shape = shape, scaleFocused = 1.08f, onClick = onClick),
+            .fillMaxWidth(),
         shape = shape,
         colors = CardDefaults.cardColors(
             containerColor = KitsugiColors.Surface
@@ -450,9 +440,9 @@ private fun ComfortableMediaEntryCard(
 
                 Spacer(modifier = Modifier.height(8.dp))
 
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                FlowRow(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
                     StatusPill(
                         text = entry.status.localizedLabel(),
@@ -467,7 +457,6 @@ private fun ComfortableMediaEntryCard(
 
                     if (!hideScores && (entry.score ?: 0) > 0) {
                         val displayScore = entry.getDisplayScore(scoreFormat, hideScores)
-                        Spacer(modifier = Modifier.width(8.dp))
                         ScorePill(
                             score = displayScore,
                             scoreFormat = scoreFormat
@@ -487,7 +476,7 @@ private fun ComfortableMediaEntryCard(
     }
 }
 
-@OptIn(ExperimentalFoundationApi::class)
+@OptIn(ExperimentalFoundationApi::class, androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
 @Composable
 private fun LargeMediaEntryCard(
     entry: MediaEntry,
@@ -506,9 +495,7 @@ private fun LargeMediaEntryCard(
     val shape = RoundedCornerShape(28.dp)
     Card(
         modifier = modifier
-            .fillMaxWidth()
-            .kitsugiNeonGlow(shape)
-            .tvClickable(shape = shape, scaleFocused = 1.08f, onClick = onClick),
+            .fillMaxWidth(),
         shape = shape,
         colors = CardDefaults.cardColors(
             containerColor = KitsugiColors.Surface
@@ -965,15 +952,17 @@ private fun StatusPill(
     Box(
         modifier = modifier
             .clip(RoundedCornerShape(999.dp))
-            .background(color.copy(alpha = 0.16f))
-            .padding(horizontal = 10.dp, vertical = 5.dp)
+            .background(color.copy(alpha = 0.12f).compositeOver(KitsugiColors.Surface))
+            .border(1.dp, color.copy(alpha = 0.35f), RoundedCornerShape(999.dp))
+            .padding(horizontal = 8.dp, vertical = 4.dp)
     ) {
         Text(
             text = text,
-            color = color,
+            color = KitsugiColors.TextPrimary,
             style = MaterialTheme.typography.labelSmall,
             fontWeight = FontWeight.Bold,
-            maxLines = 1
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
         )
     }
 }
@@ -1010,7 +999,8 @@ private fun EpisodeProgressBar(
 @Composable
 private fun ScorePill(
     score: String,
-    scoreFormat: String
+    scoreFormat: String,
+    modifier: Modifier = Modifier
 ) {
     val accentColor = LocalKitsugiAccent.current
     val trimmed = score.trim()
@@ -1025,19 +1015,16 @@ private fun ScorePill(
     }
     Text(
         text = label,
-        color = accentColor,
+        modifier = modifier
+            .clip(RoundedCornerShape(999.dp))
+            .background(KitsugiColors.Surface)
+            .border(1.dp, accentColor.copy(alpha = 0.3f), RoundedCornerShape(999.dp))
+            .padding(horizontal = 6.dp, vertical = 3.dp),
+        color = KitsugiColors.TextPrimary,
         style = MaterialTheme.typography.labelSmall,
         fontWeight = FontWeight.Bold,
         maxLines = 1
     )
-}
-
-private fun canonicalSourceBadgeId(source: String): String = when (source.trim().lowercase()) {
-    "al" -> "anilist"
-    "jikan", "myanimelist", "jikan (mal)", "mal (jikan)" -> "mal"
-    "shiki" -> "shikimori"
-    "themoviedb" -> "tmdb"
-    else -> source.trim().lowercase()
 }
 
 private fun statusColor(status: WatchStatus): Color {
@@ -1089,7 +1076,7 @@ private fun scoreText(entry: MediaEntry): String {
     }
 }
 
-@OptIn(ExperimentalFoundationApi::class)
+@OptIn(ExperimentalFoundationApi::class, androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
 @Composable
 private fun MinimalistMediaEntryCard(
     entry: MediaEntry,
@@ -1107,9 +1094,7 @@ private fun MinimalistMediaEntryCard(
     val shape = RoundedCornerShape(24.dp)
     Card(
         modifier = modifier
-            .fillMaxWidth()
-            .kitsugiNeonGlow(shape)
-            .tvClickable(shape = shape, scaleFocused = 1.08f, onClick = onClick),
+            .fillMaxWidth(),
         shape = shape,
         colors = CardDefaults.cardColors(
             containerColor = KitsugiColors.Surface
@@ -1200,9 +1185,9 @@ private fun MinimalistMediaEntryCard(
 
                 Spacer(modifier = Modifier.height(10.dp))
 
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                FlowRow(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
                     StatusPill(
                         text = entry.status.localizedLabel(),
@@ -1217,7 +1202,6 @@ private fun MinimalistMediaEntryCard(
 
                     if (!hideScores && (entry.score ?: 0) > 0) {
                         val displayScore = entry.getDisplayScore(scoreFormat, hideScores)
-                        Spacer(modifier = Modifier.width(8.dp))
                         ScorePill(
                             score = displayScore,
                             scoreFormat = scoreFormat
@@ -1270,10 +1254,8 @@ private fun PosterGridMediaEntryCard(
 
     Column(
         modifier = modifier
-            .kitsugiNeonGlow(cardShape)
             .clip(cardShape)
             .background(KitsugiColors.Surface)
-            .tvClickable(shape = cardShape, scaleFocused = 1.05f, onClick = onClick)
     ) {
         // ─── Poster görseli ─────────────────────────────────────────────────
         Box(
@@ -1295,23 +1277,13 @@ private fun PosterGridMediaEntryCard(
                 initialsStyle = MaterialTheme.typography.titleLarge
             )
 
-            // Durum rozeti — sağ üst köşe
-            Box(
+            StatusPill(
+                text = entry.status.localizedLabel(),
+                color = statusColor,
                 modifier = Modifier
                     .align(Alignment.TopEnd)
                     .padding(5.dp)
-                    .clip(RoundedCornerShape(7.dp))
-                    .background(statusColor.copy(alpha = 0.88f))
-                    .padding(horizontal = 5.dp, vertical = 2.dp)
-            ) {
-                Text(
-                    text = entry.status.localizedLabel(),
-                    color = KitsugiColors.Background,
-                    style = MaterialTheme.typography.labelSmall,
-                    fontWeight = FontWeight.Black,
-                    maxLines = 1
-                )
-            }
+            )
 
             // Platform kaynak rozeti — sol alt köşe
             KitsugiSourceBadge(
@@ -1321,24 +1293,11 @@ private fun PosterGridMediaEntryCard(
 
             // Puan rozeti — SAĞ alt köşe (gizlenmemişse ve puan varsa)
             if (!hideScores && (entry.score ?: 0) > 0) {
-                val scoreText = entry.getDisplayScore(scoreFormat, hideScores)
-                val badgeText = if (scoreText.startsWith("★")) scoreText else "★ $scoreText"
-                Box(
-                    modifier = Modifier
-                        .align(Alignment.BottomEnd)
-                        .padding(5.dp)
-                        .clip(RoundedCornerShape(7.dp))
-                        .background(KitsugiColors.Background.copy(alpha = 0.80f))
-                        .padding(horizontal = 5.dp, vertical = 2.dp)
-                ) {
-                    Text(
-                        text = badgeText,
-                        color = accentColor,
-                        style = MaterialTheme.typography.labelSmall,
-                        fontWeight = FontWeight.Bold,
-                        maxLines = 1
-                    )
-                }
+                ScorePill(
+                    score = entry.getDisplayScore(scoreFormat, hideScores),
+                    scoreFormat = scoreFormat,
+                    modifier = Modifier.align(Alignment.BottomEnd).padding(5.dp)
+                )
             }
 
             // Favori yıldızı — sol üst köşe
@@ -1348,12 +1307,12 @@ private fun PosterGridMediaEntryCard(
                         .align(Alignment.TopStart)
                         .padding(5.dp)
                         .clip(RoundedCornerShape(7.dp))
-                        .background(accentColor.copy(alpha = 0.88f))
+                        .background(accentColor)
                         .padding(horizontal = 5.dp, vertical = 2.dp)
                 ) {
                     Text(
                         text = "★",
-                        color = KitsugiColors.Background,
+                        color = KitsugiColors.OnAccent,
                         style = MaterialTheme.typography.labelSmall,
                         fontWeight = FontWeight.Black
                     )
@@ -1370,6 +1329,7 @@ private fun PosterGridMediaEntryCard(
                 color = KitsugiColors.TextPrimary,
                 style = MaterialTheme.typography.labelMedium,
                 fontWeight = FontWeight.Bold,
+                minLines = 2,
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis
             )

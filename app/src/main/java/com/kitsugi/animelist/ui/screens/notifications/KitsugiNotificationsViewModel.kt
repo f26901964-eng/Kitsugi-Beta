@@ -15,12 +15,17 @@ import com.kitsugi.animelist.data.auth.ShikimoriApiClient
 import com.kitsugi.animelist.data.notifications.NotificationArchiveStore
 import com.kitsugi.animelist.data.notifications.NotificationDiagnostics
 import com.kitsugi.animelist.data.remote.BangumiIdNamespace
+import com.kitsugi.animelist.data.remote.BangumiNameLocalizer
+import com.kitsugi.animelist.data.remote.BangumiSubjectTitleResolver
+import com.kitsugi.animelist.data.remote.BangumiTitleCache
 import com.kitsugi.animelist.data.remote.JikanSearchClient
 import com.kitsugi.animelist.data.remote.JikanSearchResult
 import com.kitsugi.animelist.data.remote.KitsugiAiringCalendarClient
 import com.kitsugi.animelist.data.remote.KitsugiAniListNotificationClient
 import com.kitsugi.animelist.data.remote.KitsugiBangumiDetailClient
 import com.kitsugi.animelist.data.remote.SimklCalendarClient
+import com.kitsugi.animelist.data.settings.SettingsDataStore
+import com.kitsugi.animelist.utils.PreferenceHelpers
 import com.kitsugi.animelist.data.remote.malweb.MalAccountMatch
 import com.kitsugi.animelist.data.remote.malweb.MalNotificationsClient
 import com.kitsugi.animelist.data.remote.malweb.MalNotificationsParseException
@@ -135,6 +140,7 @@ data class NotifDiagnosticsUiState(
 class KitsugiNotificationsViewModel(application: Application) : AndroidViewModel(application) {
 
     private val ctx: Context get() = getApplication<Application>().applicationContext
+    private val settingsDataStore = SettingsDataStore(application)
 
     // ── AniList ──
     private val _aniListStates = AniListFilter.entries.associateWith { MutableStateFlow(NotifUiState()) }
@@ -1143,7 +1149,74 @@ class KitsugiNotificationsViewModel(application: Application) : AndroidViewModel
         val updatedAtMs: Long?
     )
 
-    fun loadBangumi(mediaEntries: List<MediaEntry> = emptyList()) {
+    /**
+     * Bangumi `/v0/users/{username}/collections` ve yerel kayıtlar yalnızca özgün (çoğunlukla
+     * Japonca/Çince) başlığı sağlar; `BangumiSlimSubject.displayTitle` İngilizce/romaji alanı
+     * hiç içermez. Bu, Bildirimler → Bangumi sekmesinin seçili başlık dilini (ör. İngilizce)
+     * yok sayıp her zaman özgün adı göstermesine yol açıyordu (bkz. kullanıcı bildirimi).
+     *
+     * Listem/Profil sekmeleriyle aynı sözleşmeyi uygular: önce kalıcı [BangumiTitleCache]'den
+     * anında bir karşılık aranır, hâlâ CJK ise (veya İngilizce seçiliyken güvenilir İngilizce
+     * yoksa) [BangumiSubjectTitleResolver] ile arka planda çözülür ve sonuç kalıcı önbelleğe
+     * yazılır — aynı kayıt bir daha hangi ekranda görünürse görünsün seçilen dilde kalır.
+     */
+    private suspend fun resolveBangumiWatchingTitles(
+        watching: List<BangumiWatching>,
+        titleLanguage: String
+    ): Map<Int, String> {
+        if (watching.isEmpty()) return emptyMap()
+        val wantsLatin = !titleLanguage.equals("NATIVE", ignoreCase = true) &&
+            !titleLanguage.equals("JAPANESE_STAFF", ignoreCase = true)
+
+        val resolvedTitles = mutableMapOf<Int, String>()
+        val pendingRequests = mutableListOf<BangumiSubjectTitleResolver.Request>()
+        val uniqueWatching = watching.distinctBy { it.stableId }
+
+        for (w in uniqueWatching) {
+            // BangumiTitleCache her zaman GERÇEK subject_id (raw) ile anahtarlanır; bu
+            // ekrandaki `stableId` ise uygulama genelindeki offset'li kimliktir (bkz.
+            // BangumiIdNamespace). İkisini karıştırmak önbelleği hep ıskalardı.
+            val rawId = BangumiIdNamespace.rawIdOrNull(w.stableId)
+            val localized = BangumiNameLocalizer.entity(w.title)
+            val base = localized.displayFor(titleLanguage)
+            val cachedBest = BangumiTitleCache.localizedTitleFor(rawId, base, titleLanguage) ?: base
+            resolvedTitles[w.stableId] = cachedBest
+            if (!wantsLatin) continue
+
+            val cached = BangumiTitleCache.get(rawId)
+            val hasReliableEnglish = BangumiSubjectTitleResolver.hasReliableEnglish(
+                BangumiTitleCache.LatinTitles(
+                    localized.romaji ?: cached?.romaji,
+                    localized.english ?: cached?.english,
+                    localized.native ?: cached?.native
+                )
+            )
+            val needsEnglish = titleLanguage.equals("ENGLISH", ignoreCase = true) && !hasReliableEnglish
+            val needsAnyLatin = PreferenceHelpers.hasCjkCharacters(cachedBest)
+            if (needsEnglish || needsAnyLatin) {
+                BangumiSubjectTitleResolver.Request.fromRow(w.stableId, w.title, "anime")
+                    ?.let(pendingRequests::add)
+            }
+        }
+
+        if (wantsLatin && pendingRequests.isNotEmpty()) {
+            // Bildirimler sekmesi genelde zaten birkaç ağ çağrısı bekliyor (koleksiyon +
+            // çapraz kimlik + takvim); çözümleyici burada ÖN PLAN modunda (background=false)
+            // çalıştırılır ki ilk açılışta da doğru dil görünsün, sonraki ziyaretler önbellekten
+            // anında gelir.
+            runCatching { BangumiSubjectTitleResolver.resolve(pendingRequests, background = false) }
+            for (w in uniqueWatching) {
+                val rawId = BangumiIdNamespace.rawIdOrNull(w.stableId)
+                val base = resolvedTitles[w.stableId] ?: w.title
+                BangumiTitleCache.localizedTitleFor(rawId, base, titleLanguage)?.let {
+                    resolvedTitles[w.stableId] = it
+                }
+            }
+        }
+        return resolvedTitles
+    }
+
+    fun loadBangumi(mediaEntries: List<MediaEntry> = emptyList(), titleLanguage: String? = null) {
         if (_bangumi.value.isLoading) return
         viewModelScope.launch {
             _bangumi.value = NotifUiState(isLoading = true)
@@ -1152,6 +1225,8 @@ class KitsugiNotificationsViewModel(application: Application) : AndroidViewModel
                 val username = if (!token.isNullOrBlank()) {
                     runCatching { BangumiAuthStore.resolveUsername(ctx) }.getOrNull()
                 } else null
+                val resolvedTitleLanguage = titleLanguage
+                    ?: runCatching { settingsDataStore.settingsFlow.first().titleLanguage }.getOrDefault("ROMAJI")
 
                 val watching = mutableListOf<BangumiWatching>()
 
@@ -1202,9 +1277,18 @@ class KitsugiNotificationsViewModel(application: Application) : AndroidViewModel
                         }
                 }
 
+                // 2.5) Bangumi'nin koleksiyon/takvim uçları yalnızca özgün (Japonca/Çince) adı
+                // döndürür; seçili başlık diline uygun Latin karşılığı burada çözülür (bkz.
+                // BangumiProfileContent ile aynı sözleşme). Böylece Bildirimler sekmesi de
+                // Listem/Profil ile aynı başlığı gösterir.
+                val localizedBangumiTitles = resolveBangumiWatchingTitles(watching, resolvedTitleLanguage)
+                val watchingWithTitles = watching.map { w ->
+                    localizedBangumiTitles[w.stableId]?.let { w.copy(title = it) } ?: w
+                }
+
                 // 3) Çapraz kimlik → MAL ID (bellek + dosya önbellekli; paralel)
                 val resolved = coroutineScope {
-                    watching.take(50).map { w ->
+                    watchingWithTitles.take(50).map { w ->
                         async(Dispatchers.IO) {
                             val cross = runCatching {
                                 KitsugiBangumiDetailClient.resolveCrossIds(w.stableId, MediaType.Anime)

@@ -30,6 +30,10 @@ class YoutubeChunkedDataSourceFactory(
 
     override fun createDataSource(): DataSource {
         val upstream = DefaultHttpDataSource.Factory()
+            // YouTube signs stream URLs for a browser-like client. ExoPlayer's default
+            // User-Agent can be rejected or throttled even when extraction succeeded.
+            .setUserAgent("Mozilla/5.0 (Linux; Android 12; Android TV) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Safari/537.36")
+            .setDefaultRequestProperties(mapOf("Referer" to "https://www.youtube.com/"))
             .setConnectTimeoutMs(15_000)
             .setReadTimeoutMs(15_000)
             .setAllowCrossProtocolRedirects(true)
@@ -80,13 +84,28 @@ class YoutubeChunkedDataSourceFactory(
             currentChunkEnd = end
 
             // Append &range=start-end to the URL (YouTube's own range param, not HTTP Range header)
-            val rangedUri = spec.uri.buildUpon()
-                .appendQueryParameter("range", "$currentChunkStart-$currentChunkEnd")
-                .build()
+            // Some YouTube format URLs already contain a range parameter. Appending a
+            // second one makes the server honor the stale first range on every request,
+            // so seeking/reads beyond the first chunk can loop or stall at 00:00.
+            val rangedUri = if (spec.uri.getQueryParameter("range") != null) {
+                val builder = spec.uri.buildUpon().clearQuery()
+                for (paramName in spec.uri.queryParameterNames) {
+                    if (paramName != "range") {
+                        for (value in spec.uri.getQueryParameters(paramName)) {
+                            builder.appendQueryParameter(paramName, value)
+                        }
+                    }
+                }
+                builder.appendQueryParameter("range", "$currentChunkStart-$currentChunkEnd").build()
+            } else {
+                spec.uri.buildUpon()
+                    .appendQueryParameter("range", "$currentChunkStart-$currentChunkEnd")
+                    .build()
+            }
 
             val chunkedSpec = spec.buildUpon()
                 .setUri(rangedUri)
-                .setPosition(0)           // position within this chunk's response
+                .setPosition(0L)           // position within this chunk's response
                 .setLength(C.LENGTH_UNSET.toLong()) // let the server decide
                 .build()
 

@@ -598,6 +598,14 @@ fun MediaEntryDetailPage(
                                         activeGalleryCategory = category
                                         if (!galleryLoading) activeGalleryItems = galleryItems
                                         activeGalleryIndex = startIndex
+                                    },
+                                    onOpenSourceGallery = { source ->
+                                        val sourceItems = galleryItems.filter { it.source.equals(source, ignoreCase = true) }
+                                        if (sourceItems.isNotEmpty()) {
+                                            activeGalleryCategory = sourceItems.first().category
+                                            if (!galleryLoading) activeGalleryItems = sourceItems
+                                            activeGalleryIndex = 0
+                                        }
                                     }
                                 )
                             } else {

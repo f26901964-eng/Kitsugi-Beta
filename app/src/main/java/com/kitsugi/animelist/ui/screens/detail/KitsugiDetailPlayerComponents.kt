@@ -104,10 +104,12 @@ fun KitsugiYouTubePlayer(
     var playbackSource by remember(videoId) { mutableStateOf<TrailerPlaybackSource?>(null) }
     var isLoading by remember(videoId) { mutableStateOf(true) }
     var hasError by remember(videoId) { mutableStateOf(false) }
+    var retryCount by remember(videoId) { mutableIntStateOf(0) }
 
-    LaunchedEffect(videoId) {
+    LaunchedEffect(videoId, retryCount) {
         isLoading = true
         hasError = false
+        playbackSource = null
         try {
             val source = InAppYouTubeExtractor.shared
                 .extractPlaybackSource("https://www.youtube.com/watch?v=$videoId")
@@ -132,7 +134,17 @@ fun KitsugiYouTubePlayer(
             modifier = modifier.background(Color.Black),
             contentAlignment = Alignment.Center
         ) {
-            KitsugiPlasmaLoader(size = 46.dp)
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                KitsugiPlasmaLoader(size = 46.dp)
+                Text(
+                    text = stringResource(R.string.loading),
+                    color = Color.White.copy(alpha = 0.72f),
+                    style = MaterialTheme.typography.labelMedium
+                )
+            }
         }
     } else if (hasError || playbackSource == null) {
         Box(
@@ -151,14 +163,19 @@ fun KitsugiYouTubePlayer(
                     style = MaterialTheme.typography.bodyMedium,
                     fontWeight = FontWeight.Bold
                 )
-                KitsugiButton(
-                    onClick = {
-                        runCatching {
-                            uriHandler.openUri("https://www.youtube.com/watch?v=$videoId")
-                        }
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    KitsugiButton(onClick = { retryCount++ }) {
+                        Text(stringResource(R.string.action_retry), color = KitsugiColors.Background)
                     }
-                ) {
-                    Text(stringResource(R.string.inline_open_in_browser_eed20ab), color = KitsugiColors.Background)
+                    KitsugiButton(
+                        onClick = {
+                            runCatching {
+                                uriHandler.openUri("https://www.youtube.com/watch?v=$videoId")
+                            }
+                        }
+                    ) {
+                        Text(stringResource(R.string.inline_open_in_browser_eed20ab), color = KitsugiColors.Background)
+                    }
                 }
             }
         }
