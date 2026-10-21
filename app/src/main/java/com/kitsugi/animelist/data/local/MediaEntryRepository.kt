@@ -88,6 +88,7 @@ class MediaEntryRepository(
     ) {
         if (importedEntries.isEmpty()) {
             if (allowDelete) {
+                clearPendingJobsFor(source = source)
                 dao.deleteBySource(source)
             }
             return
@@ -148,6 +149,9 @@ class MediaEntryRepository(
         }
         // allowDelete=false must really mean NO deletion, including alleged title duplicates.
         val deletions = if (allowDelete) existing.filter { it.id !in matchedIds }.map { it.id } else emptyList()
+        // İçe aktarımda listeden DÜŞEN satırların bayat kuyruk işleri de düşürülür:
+        // eski kopya sonradan uzaklara geri yazılsa import taze veriyi silerdi.
+        if (deletions.isNotEmpty()) clearPendingJobsFor(entryIds = deletions)
         dao.smartImportTransaction(inserts.map { it.copy(id = 0).toEntity() }, updates.values.toList(), deletions)
 
         if (sourceNeedsAdultRescan(source)) {
@@ -186,6 +190,9 @@ class MediaEntryRepository(
             ) entry.copy(isAdult = true) else entry
         }
 
+        // Kaynak BAŞTAN yeniden yazılıyor: o kaynağın bayat bekleyen işleri (eski satır
+        // id'leri) temizlenmezse drain'de taze içe aktarımı ESKİ kopyayla ezerekti.
+        clearPendingJobsFor(source = source)
         dao.deleteBySource(source)
         insertAll(enriched)
 
@@ -230,6 +237,11 @@ class MediaEntryRepository(
         // silinir, yoksa silinen kayıt diğer kaynak sekmelerinde hayalet gibi kalıyordu.
         val siblingIds = entry?.let { findSiblingRows(it).map { sibling -> sibling.id } }.orEmpty()
 
+        // Yerelde silinen satırların BEKLEYEN kuyruk işleri düşürülür: sonradan drain
+        // edilen bayat bir UPDATE, az önce silinen kaydı uzaklarda GERİ DİRİTEBİLİRDİ
+        // (özellikle DELETE ilk denemede başarılıysa kuyruğa DELETE de düşmezdi).
+        clearPendingJobsFor(entryIds = listOf(id) + siblingIds)
+
         dao.deleteById(id)
         siblingIds.forEach { siblingId -> dao.deleteById(siblingId) }
 
@@ -239,6 +251,7 @@ class MediaEntryRepository(
     }
 
     suspend fun deleteBySource(source: String) {
+        clearPendingJobsFor(source = source)
         dao.deleteBySource(source)
     }
 
@@ -464,6 +477,32 @@ class MediaEntryRepository(
      * Aynı yerel kayıt + kaynak + tür + işlem için bekleyen kaydı temizle
      * (örn. çevrimiçiyken yeniden güncelleme yapınca eski UPDATE'i temizle)
      */
+    /**
+     * Yerelde silinen/yeniden yazılan satırların bekleyen kuyruk işlerini düşürür.
+     *
+     * [PendingSyncDrainer] işi JSON'daki `entry.id`'yle eşleştirir; satır silindikten
+     * sonra drain edilen bayat bir UPDATE, uzak kayda ESKİ yerel kopyayı geri yazar
+     * (silineni diriltir ya da taze içe aktarımı geri sürer). Yalnızca hedef satırların
+     * işleri silinir; başka kaynakların geçerli işleri kuyrukta kalır.
+     */
+    private suspend fun clearPendingJobsFor(
+        entryIds: Collection<Int> = emptyList(),
+        source: String? = null
+    ) {
+        val queueDao = pendingSyncDao ?: return
+        if (entryIds.isEmpty() && source == null) return
+        runSyncCatching {
+            queueDao.getAll().forEach { job ->
+                val matches = runSyncCatching {
+                    val json = org.json.JSONObject(job.entryJson)
+                    (entryIds.isNotEmpty() && json.optInt("id", -1) in entryIds) ||
+                        (source != null && json.optString("source").equals(source, ignoreCase = true))
+                }.getOrDefault(false)
+                if (matches) queueDao.deleteById(job.id)
+            }
+        }
+    }
+
     private suspend fun removeFromQueueIfPresent(entry: MediaEntry, operation: String) {
         val queueDao = pendingSyncDao ?: return
         val all = queueDao.getAll()

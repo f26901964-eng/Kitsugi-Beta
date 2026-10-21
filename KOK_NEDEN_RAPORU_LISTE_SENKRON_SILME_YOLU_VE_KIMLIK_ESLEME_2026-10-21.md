@@ -47,6 +47,7 @@ offset'leri) dikkate almıyordu.
 | 11 | Kuyrukta **5 denemeyi aşan işler bir daha hiç denenmiyordu** | Uzun çevrimdışı kalmış/5 kez başarısız olmuş ekleme-güncelleme-silme işi DB'de sonsuza kadar donuyor, işlem **kalıcı kayboluyordu** (entity sözü "bağlantı gelince yeniden denenir" idi ama kod öyle yapmıyordu) | `resetRetries()` + bağlantı geldiğinde `drainPendingQueue(freshBudget = true)`: oturum başına taze 5 deneme — iş asla donmaz, silinmez |
 | 12 | `deleteAll`/`replaceAll` (liste temizleme / yedek geri yükleme) **kuyruğu temizlemiyordu** | Bayat UPDATE işi, silinen/üzerine yazılan kayıtları uzaklara **geri diriltir** ya da taze yedeği eski kopyayla ezerek geri sürerdi | `clearAll()`: iki akışta da kuyruk temizlenir |
 | 13 | Simkl `removeRating` **taşıma/5xx hatalarını `false`'a gizliyordu** ve çağrıda yalnız log'lanıyordu | Çevrimdışıyken "puanı sil" işlemi sessizce kayboluyordu (kuyruğa hiç girmiyordu) | `removeRating`: taşıma/5xx → fırlat → `errors` → kuyruk; yalnız 4xx (zaten puan yok) sessiz |
+| 14 | Yerelde **sil/yeniden-yaz** yapan kalıplar bekleyen kuyruk işlerini temizlemiyordu | Silinen kardeş satırın/inline'dan düşen satırın bayat UPDATE'i drain edilince **uzak kayıt dirilir** ya da taze içe aktarım eski kopyayla geri sürülürdü | `clearPendingJobsFor(entryIds, source)`: `deleteById`(+kardeşler), `deleteBySource`, `smartImport` (düşenler + kaynak boşaltma), `replaceSourcePreservingAdultFlags` hepsinde temizlik |
 
 ---
 
@@ -217,9 +218,29 @@ Kanıtlanmamış sınır için spekülatif clamp eklenmedi.
 | `AppRoot.kt` | `isOnlineFlow` → `drainPendingQueue(freshBudget = true)` |
 | `data/remote/SimklApiClient.kt` | `removeRating`: taşıma/5xx fırlatır (kuyruk), 4xx sessiz |
 | `data/auth/SimklSyncManager.kt` | `removeRating` başarısızlığı → `errors` (kuyruğa girer) |
+| `data/local/MediaEntryRepository.kt` | `clearPendingJobsFor`: deleteById(+kardeş), deleteBySource, smartImport düşenleri, replaceSource — bayat iş bırakmaz |
 
 Dokunulmayan (bilerek): `CrossSyncIdentityGuard` (decode/cacheKey sözleşmesi v2.4.312'de oturdu),
-`CrossSyncReportFormatter`, `MediaEntryRepository`'nin başarı/hata sözleşmesi (k11–k12 hariç).
+`CrossSyncReportFormatter`, `MediaEntryRepository`'nin başarı/hata sözleşmesi (k11–k12, k14 hariç).
+
+---
+
+## Açık liste — bilinçli olarak kalanlar (gizlenmeyen sınırlar)
+
+1. **Derleme/CI testi bu ortamda koşulamadı** (JVM/Gradle yok): tree-sitter sözdizimi +
+   satır-satır diff denetimi + API sözleşmeleri kaynak üzerinden doğrulandı; sürümü açmadan
+   önce `assembleDebug` + `testDebugUnitTest` CI'dan geçmeli. **Tek açık halka budur.**
+2. **Toplu "Tümünü eşitle" hattı kuyruğa YAZMAZ** — kendi rapor/hata sayacıyla çalışır
+   (tasarım: kullanıcı yeniden çalıştırır); tekil ekle/düzenle/sil akışları kuyruğa yazar.
+   Sınıflandırma (atlandı/hata) her iki hatta da aynı sözleşmeyi kullanır.
+3. **"Listeyi temizle" (deleteAll) yalnız yereli siler** — uzaklara toplu silme göndermez
+   (ürün kararı); kuyruk da temizlenir (k12), bayat iş geri yazamaz.
+4. **İçe aktarım ile bekleyen kullanıcı düzenlemesinin çakışması**: kuyruk işi korunur (kullanıcı
+   niyeti kazanır); drain'de uzak değer kullanıcınınkine döner, sonraki içe aktarım yereli de
+   ona eşitle — yakınsama kullanıcı niyetine doğrudur. Çapraz çözüm mekanizması eklenmedi.
+5. **MAL'de toplam-bölüm doğrulaması kanıtı yok** (araştırıldı): spekülatif clamp eklenmedi;
+   kanıtlanmış tek sınır Kitsu 422'si korumalı.
+6. `CrossSyncEntryFactory`'nin üretim çağıranı yok (yalnız testleri var) — silinmedi.
 
 ---
 
