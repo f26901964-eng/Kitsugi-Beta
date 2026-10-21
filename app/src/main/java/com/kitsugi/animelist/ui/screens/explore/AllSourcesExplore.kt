@@ -1,6 +1,8 @@
 package com.kitsugi.animelist.ui.screens.explore
 
 import com.kitsugi.animelist.R
+import com.kitsugi.animelist.data.platform.PlatformErrorCode
+import com.kitsugi.animelist.data.platform.PlatformFailureRegistry
 import com.kitsugi.animelist.data.remote.JikanSearchResult
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.currentCoroutineContext
@@ -12,7 +14,8 @@ data class ExploreSourceState(
     val payload: ExplorePayload? = null,
     val isLoading: Boolean = false,
     val error: String? = null,
-    val isCached: Boolean = false
+    val isCached: Boolean = false,
+    val errorCode: PlatformErrorCode? = null
 )
 
 internal suspend fun loadExploreSource(
@@ -21,18 +24,21 @@ internal suspend fun loadExploreSource(
     fetch: suspend () -> ExplorePayload,
     readOffline: suspend () -> ExplorePayload?,
     timeoutMillis: Long = 60_000L,
-    context: android.content.Context? = null
+    context: android.content.Context? = null,
+    platformLabel: String? = null
 ): ExploreSourceState {
     val usableCache = cached?.takeIf { it.hasCatalogContent() }
     if (!forceRefresh && usableCache != null) return ExploreSourceState(payload = usableCache)
+    var fetchError: Throwable? = null
     try {
         val payload = withTimeoutOrNull(timeoutMillis) { fetch() }
         currentCoroutineContext().ensureActive()
         if (payload != null && payload.hasCatalogContent()) return ExploreSourceState(payload = payload)
     } catch (e: CancellationException) {
         throw e
-    } catch (_: Exception) {
+    } catch (e: Exception) {
         // Fall back per source, not by selecting a different platform.
+        fetchError = e
     }
     currentCoroutineContext().ensureActive()
     val offline = usableCache ?: try {
@@ -42,8 +48,10 @@ internal suspend fun loadExploreSource(
     } catch (_: Exception) {
         null
     }
+    val failureCode = PlatformFailureRegistry.reportAndResolve(platformLabel, fetchError)
     return ExploreSourceState(
         payload = offline,
+        errorCode = failureCode,
         error = if (offline != null) {
             (context ?: com.kitsugi.animelist.KitsugiApplication.getInstance())
                 ?.getString(R.string.explore_source_refresh_failed_cached)

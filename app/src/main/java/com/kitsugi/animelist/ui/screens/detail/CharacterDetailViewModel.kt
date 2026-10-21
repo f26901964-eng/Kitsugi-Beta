@@ -373,7 +373,7 @@ class CharacterDetailViewModel(application: Application) : AndroidViewModel(appl
                 }
                 Log.e(TAG, "fetchCharacterDetail error: ${err.message}", err)
                 if (currentFetchKey == expectedFetchKey && _state.value !is CharacterDetailState.Success) {
-                    _state.value = CharacterDetailState.Error(msg)
+                    _state.value = CharacterDetailState.Error(msg, com.kitsugi.animelist.data.platform.PlatformFailureRegistry.reportAndResolve(source, err))
                 }
             }.getOrNull()?.takeIf {
                 CharacterDetailIdentity.matchesExpectedDetail(source, name, isRealMediaRole, it)
@@ -411,7 +411,10 @@ class CharacterDetailViewModel(application: Application) : AndroidViewModel(appl
                 expectedFetchKey = expectedFetchKey
             )
         } else if (currentFetchKey == expectedFetchKey && _state.value !is CharacterDetailState.Success) {
-            _state.value = CharacterDetailState.Error(KitsugiStrings.get(R.string.karakter_detaylari_yuklenemedi))
+            _state.value = CharacterDetailState.Error(
+                KitsugiStrings.get(R.string.karakter_detaylari_yuklenemedi),
+                com.kitsugi.animelist.data.platform.PlatformFailureRegistry.currentOrUnknown(source),
+            )
         }
     }
 

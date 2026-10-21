@@ -16,6 +16,14 @@ internal fun detailDataTabIndexForPage(pageIndex: Int): Int? = when {
 
 sealed class DetailTabState<out T> {
     data object Loading : DetailTabState<Nothing>()
-    data object Error : DetailTabState<Nothing>()
+
+    /**
+     * Sekme yüklenemedi. [platformErrorCode], sekmeyi besleyen kaynağın `KTS-…` hata kodudur
+     * (bilinmiyorsa null); sekme bu kodu neden/çözüm açıklamasıyla gösterir.
+     */
+    data class Error(
+        val platformErrorCode: com.kitsugi.animelist.data.platform.PlatformErrorCode? = null,
+    ) : DetailTabState<Nothing>()
+
     data class Success<out T>(val data: T) : DetailTabState<T>()
 }

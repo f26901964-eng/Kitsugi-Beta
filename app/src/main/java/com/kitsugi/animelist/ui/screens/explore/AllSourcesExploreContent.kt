@@ -1,6 +1,7 @@
 package com.kitsugi.animelist.ui.screens.explore
 
 import com.kitsugi.animelist.ui.theme.gradient.CircularProgressIndicator
+import com.kitsugi.animelist.ui.components.PlatformErrorCodeChip
 import com.kitsugi.animelist.ui.theme.gradient.Icon
 import com.kitsugi.animelist.ui.theme.gradient.LinearProgressIndicator
 import com.kitsugi.animelist.ui.theme.gradient.Text
@@ -360,6 +361,7 @@ private fun SourceHeader(
                 modifier = Modifier.padding(top = 6.dp), color = KitsugiColors.TextSecondary, style = MaterialTheme.typography.bodySmall)
         } else if (state.error != null) {
             Text(state.error, Modifier.padding(top = 10.dp), color = KitsugiColors.TextSecondary, style = MaterialTheme.typography.bodySmall)
+            state.errorCode?.let { code -> PlatformErrorCodeChip(code = code, modifier = Modifier.padding(top = 6.dp)) }
             TextButton(onClick = onRetry) { Text(stringResource(R.string.explore_source_retry, platform.localizedShortName()), color = color) }
         } else if (sections.isEmpty()) {
             Text(stringResource(R.string.explore_source_no_matching_content), Modifier.padding(top = 10.dp),

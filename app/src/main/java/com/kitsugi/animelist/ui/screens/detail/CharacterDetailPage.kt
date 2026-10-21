@@ -5,6 +5,8 @@
 
 package com.kitsugi.animelist.ui.screens.detail
 
+import com.kitsugi.animelist.data.platform.PlatformErrorCode
+import com.kitsugi.animelist.ui.components.PlatformErrorExplanationBlock
 import com.kitsugi.animelist.ui.components.rememberDetailStickyHeaderVisible
 
 import androidx.compose.runtime.CompositionLocalProvider
@@ -121,7 +123,10 @@ import com.kitsugi.animelist.ui.screens.detail.wiki.FandomCharacterWikiViewModel
 
 sealed interface CharacterDetailState {
     object Loading : CharacterDetailState
-    data class Error(val message: String) : CharacterDetailState
+    data class Error(
+        val message: String,
+        val platformErrorCode: com.kitsugi.animelist.data.platform.PlatformErrorCode? = null,
+    ) : CharacterDetailState
     data class Success(val detail: KitsugiCharacterDetail) : CharacterDetailState
 }
 
@@ -220,6 +225,15 @@ fun CharacterDetailPage(
                             style = MaterialTheme.typography.bodyLarge,
                             fontWeight = FontWeight.Bold
                         )
+
+                        currentState.platformErrorCode?.let { code ->
+                            Spacer(modifier = Modifier.height(12.dp))
+                            PlatformErrorExplanationBlock(
+                                code = code,
+                                tint = KitsugiColors.AccentRed,
+                                modifier = Modifier.padding(horizontal = 8.dp),
+                            )
+                        }
                         Spacer(modifier = Modifier.height(16.dp))
                         TextButton(
                             onClick = {

@@ -3,6 +3,7 @@
 package com.kitsugi.animelist.ui.components
 
 import com.kitsugi.animelist.ui.theme.gradient.background
+import com.kitsugi.animelist.ui.components.PlatformErrorCodeChip
 import com.kitsugi.animelist.ui.utils.tvClickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -89,6 +90,7 @@ fun KitsugiApiSearchDialog(
     var errorMessage by rememberSaveable {
         mutableStateOf<String?>(null)
     }
+    var errorCode by remember { mutableStateOf<com.kitsugi.animelist.data.platform.PlatformErrorCode?>(null) }
 
     var results by remember {
         mutableStateOf<List<JikanSearchResult>>(emptyList())
@@ -104,6 +106,7 @@ fun KitsugiApiSearchDialog(
         coroutineScope.launch {
             isLoading = true
             errorMessage = null
+            errorCode = null
 
             runCatching {
                 apiClient.search(
@@ -118,6 +121,7 @@ fun KitsugiApiSearchDialog(
             }.onFailure { error ->
                 results = emptyList()
                 errorMessage = error.message ?: context.getString(R.string.source_search_api_failed)
+                errorCode = com.kitsugi.animelist.data.platform.PlatformFailureRegistry.reportAndResolve("mal", error)
             }
 
             isLoading = false
@@ -268,6 +272,9 @@ fun KitsugiApiSearchDialog(
                                         style = MaterialTheme.typography.bodySmall,
                                         fontWeight = FontWeight.SemiBold
                                     )
+                                    errorCode?.let { code ->
+                                        PlatformErrorCodeChip(code = code, modifier = Modifier.padding(top = 6.dp))
+                                    }
                                 }
                             }
                         }
@@ -442,6 +449,9 @@ fun KitsugiApiSearchDialog(
                                     style = MaterialTheme.typography.bodySmall,
                                     fontWeight = FontWeight.SemiBold
                                 )
+                                errorCode?.let { code ->
+                                    PlatformErrorCodeChip(code = code, modifier = Modifier.padding(top = 6.dp))
+                                }
                             }
                         }
                         }
@@ -588,6 +598,9 @@ fun KitsugiApiSearchDialog(
                                 style = MaterialTheme.typography.bodySmall,
                                 fontWeight = FontWeight.SemiBold
                             )
+                            errorCode?.let { code ->
+                                PlatformErrorCodeChip(code = code, modifier = Modifier.padding(top = 6.dp))
+                            }
                         }
 
                         if (results.isNotEmpty()) {

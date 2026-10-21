@@ -57,7 +57,8 @@ fun TvLoadingScreen(
 fun TvErrorScreen(
     message: String,
     onRetry: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    platformErrorCode: com.kitsugi.animelist.data.platform.PlatformErrorCode? = null,
 ) {
     Box(
         modifier = modifier.fillMaxSize(),
@@ -73,6 +74,10 @@ fun TvErrorScreen(
                 color = KitsugiColors.TextSecondary,
                 textAlign = TextAlign.Center
             )
+            platformErrorCode?.let { code ->
+                Spacer(modifier = Modifier.height(12.dp))
+                com.kitsugi.animelist.ui.components.PlatformErrorCodeChip(code = code)
+            }
             Spacer(modifier = Modifier.height(24.dp))
             Button(
                 onClick = onRetry,

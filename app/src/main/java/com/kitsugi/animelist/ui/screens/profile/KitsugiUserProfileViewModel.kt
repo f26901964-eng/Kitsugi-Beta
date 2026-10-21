@@ -1,6 +1,8 @@
 package com.kitsugi.animelist.ui.screens.profile
 
 import android.app.Application
+import com.kitsugi.animelist.data.platform.PlatformErrorCode
+import com.kitsugi.animelist.data.platform.PlatformFailureRegistry
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -33,6 +35,7 @@ import com.kitsugi.animelist.R
 data class OtherUserProfileState(
     val isLoading: Boolean = true,
     val error: String? = null,
+    val errorCode: PlatformErrorCode? = null,
     val userId: Int = 0,
     val name: String = "",
     val avatarUrl: String? = null,
@@ -295,7 +298,8 @@ class KitsugiUserProfileViewModel(application: Application) : AndroidViewModel(a
                 fetchSocial(token, id)
 
             } catch (e: Exception) {
-                _uiState.update { it.copy(isLoading = false, error = KitsugiStrings.get(R.string.profile_user_load_failed)) }
+                val failureCode = PlatformFailureRegistry.reportAndResolve("anilist", e)
+                _uiState.update { it.copy(isLoading = false, error = KitsugiStrings.get(R.string.profile_user_load_failed), errorCode = failureCode) }
             }
         }
     }
@@ -337,10 +341,12 @@ class KitsugiUserProfileViewModel(application: Application) : AndroidViewModel(a
                     )
                 }
             } catch (e: Exception) {
+                val failureCode = PlatformFailureRegistry.reportAndResolve("anilist", e)
                 _uiState.update {
                     it.copy(
                         isFollowLoading = false,
-                        error = KitsugiStrings.get(R.string.profile_follow_failed)
+                        error = KitsugiStrings.get(R.string.profile_follow_failed),
+                        errorCode = failureCode
                     )
                 }
             }

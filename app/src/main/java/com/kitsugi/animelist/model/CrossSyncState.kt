@@ -51,6 +51,8 @@ data class CrossSyncProgressState(
     /** Complete, unbounded run history used only after the sync finishes and for export. */
     val reportLogs: List<CrossSyncLogEntry> = emptyList(),
     val errorMessage: String? = null,
+    /** Hatanın platform hata kodu (KTS-...); yoksa null. */
+    val errorCode: com.kitsugi.animelist.data.platform.PlatformErrorCode? = null,
     val startedAt: Long? = null,
     val finishedAt: Long? = null,
     val reportSavedTo: String? = null

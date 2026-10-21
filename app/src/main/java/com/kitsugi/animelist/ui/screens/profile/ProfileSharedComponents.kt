@@ -6,6 +6,8 @@
 package com.kitsugi.animelist.ui.screens.profile
 
 import com.kitsugi.animelist.ui.theme.gradient.CircularProgressIndicator
+import com.kitsugi.animelist.data.platform.PlatformErrorCode
+import com.kitsugi.animelist.ui.components.PlatformErrorExplanationBlock
 import com.kitsugi.animelist.ui.theme.gradient.Icon
 import com.kitsugi.animelist.ui.theme.gradient.LinearProgressIndicator
 import com.kitsugi.animelist.ui.theme.gradient.Text
@@ -53,6 +55,7 @@ fun ExternalProfileWrapper(
     accentColor: Color,
     platformName: String,
     onRetry: (() -> Unit)? = null,
+    errorCode: PlatformErrorCode? = null,
     content: @Composable () -> Unit
 ) {
     if (!isConnected) {
@@ -76,7 +79,8 @@ fun ExternalProfileWrapper(
             ProfileServiceErrorCard(
                 platformName = platformName,
                 rawError = error.orEmpty(),
-                onRetry = onRetry
+                onRetry = onRetry,
+                platformErrorCode = errorCode
             )
         }
     } else {
@@ -88,7 +92,8 @@ fun ExternalProfileWrapper(
 private fun ProfileServiceErrorCard(
     platformName: String,
     rawError: String,
-    onRetry: (() -> Unit)? = null
+    onRetry: (() -> Unit)? = null,
+    platformErrorCode: PlatformErrorCode? = null
 ) {
     val summary = remember(rawError) { classifyProfileError(rawError) }
     val titleRes = when (summary.kind) {
@@ -202,6 +207,10 @@ private fun ProfileServiceErrorCard(
                 explanation = stringResource(englishExplanationRes),
                 accentColor = accentColor
             )
+
+            platformErrorCode?.let { code ->
+                PlatformErrorExplanationBlock(code = code, tint = KitsugiColors.AccentRed)
+            }
 
             if (onRetry != null) {
                 Spacer(Modifier.height(4.dp))

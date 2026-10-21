@@ -3,6 +3,8 @@ package com.kitsugi.animelist.data.auth
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
+import com.kitsugi.animelist.data.platform.PlatformErrorCode
+import com.kitsugi.animelist.data.platform.PlatformFailureRegistry
 import android.util.Log
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -138,8 +140,14 @@ object BangumiAuthManager {
                 }
                 BangumiAuthStore.clearPendingRedirectUri(context)
                 Log.e(TAG, message, error)
-                ExternalAuthManager.emitBangumiError(message)
-                withContext(Dispatchers.Main) { onError(message) }
+                val code = PlatformFailureRegistry.report(
+                    platformLabel = "bangumi",
+                    error = error,
+                    rawMessage = message,
+                ) ?: PlatformErrorCode.COM_1020
+                val codedMessage = "$message (${code.code})"
+                ExternalAuthManager.emitBangumiError(codedMessage)
+                withContext(Dispatchers.Main) { onError(codedMessage) }
             }
         }
     }

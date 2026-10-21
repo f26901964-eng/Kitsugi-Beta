@@ -288,7 +288,7 @@ class StaffDetailViewModel(application: Application) : AndroidViewModel(applicat
                 }
                 Log.e(TAG, "fetchStaffDetail error: ${err.message}", err)
                 if (_state.value !is StaffDetailState.Success) {
-                    _state.value = StaffDetailState.Error(msg)
+                    _state.value = StaffDetailState.Error(msg, com.kitsugi.animelist.data.platform.PlatformFailureRegistry.reportAndResolve(source, err))
                 }
             }.getOrNull()
         }
@@ -318,7 +318,10 @@ class StaffDetailViewModel(application: Application) : AndroidViewModel(applicat
             // Kimlik ada göre çözümlendiyse galeri de çözümlenmiş kimlikle istenir.
             buildStaffGallery(detail.id.takeIf { it > 0 } ?: staffId, source, detail.imageUrl)
         } else if (_state.value !is StaffDetailState.Success) {
-            _state.value = StaffDetailState.Error(KitsugiStrings.get(R.string.ekip_uyesi_detaylari_yuklenemedi))
+            _state.value = StaffDetailState.Error(
+                KitsugiStrings.get(R.string.ekip_uyesi_detaylari_yuklenemedi),
+                com.kitsugi.animelist.data.platform.PlatformFailureRegistry.currentOrUnknown(source),
+            )
         }
     }
 

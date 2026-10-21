@@ -1,6 +1,8 @@
 package com.kitsugi.animelist.ui.screens.explore
 
 import androidx.compose.runtime.getValue
+import com.kitsugi.animelist.data.platform.PlatformErrorCode
+import com.kitsugi.animelist.data.platform.PlatformFailureRegistry
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
@@ -27,6 +29,10 @@ class KitsugiAiringCalendarViewModel : ViewModel() {
         private set
 
     var errorMessage by mutableStateOf<String?>(null)
+        private set
+
+    /** Yükleme hatasının platform hata kodu (kaynak tanınamazsa son kaynak hatası). */
+    var platformErrorCode by mutableStateOf<PlatformErrorCode?>(null)
         private set
 
     /** Prevent an empty-state flash before the first LaunchedEffect starts fetching. */
@@ -69,6 +75,8 @@ class KitsugiAiringCalendarViewModel : ViewModel() {
         loadJob = viewModelScope.launch {
             isLoading = true
             errorMessage = null
+            platformErrorCode = null
+            val loadStartedAt = System.currentTimeMillis()
             try {
                 val schedule = client.fetchWeeklySchedule(accessToken, preferredSource)
                 weekSchedule.clear()
@@ -79,6 +87,12 @@ class KitsugiAiringCalendarViewModel : ViewModel() {
                 throw e
             } catch (e: Exception) {
                 hasLoaded = true
+                platformErrorCode = if (preferredSource != null) {
+                    PlatformFailureRegistry.reportAndResolve(preferredSource, e)
+                } else {
+                    PlatformFailureRegistry.mostRecentSince(loadStartedAt)?.code
+                        ?: PlatformErrorCode.COM_1020
+                }
                 val detail = e.message.orEmpty()
                 val context = KitsugiApplication.getInstance()
                 errorMessage = if (detail.isBlank()) {

@@ -1,6 +1,7 @@
 package com.kitsugi.animelist.ui.screens.manga
 
 import android.content.Context
+import com.kitsugi.animelist.data.manga.SourceFailureClassifier
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
@@ -51,6 +52,8 @@ class MangaDetailViewModel(
         val isLoadingChapters: Boolean = true,
         val chapters: List<ChapterRow> = emptyList(),
         val error: String? = null,
+        /** Hatanın manga kaynak kodu (KTS-SRC-...). */
+        val errorCode: String? = null,
         /** "Devam Et" için hedef bölüm; yoksa null (baştan okunur). */
         val resumeChapter: MangaChapter? = null
     )
@@ -103,7 +106,7 @@ class MangaDetailViewModel(
 
     fun loadChapters() {
         viewModelScope.launch {
-            _uiState.update { it.copy(isLoadingChapters = true, error = null) }
+            _uiState.update { it.copy(isLoadingChapters = true, error = null, errorCode = null) }
             var lastError: Exception? = null
             // Ağ gecikmelerine karşı 2 deneme yap
             repeat(2) attempt@{ attempt ->
@@ -141,7 +144,8 @@ class MangaDetailViewModel(
                             isLoadingChapters = false,
                             chapters = rows,
                             resumeChapter = resume,
-                            error = if (rows.isEmpty()) "Bu manga için bölüm bulunamadı." else null
+                            error = if (rows.isEmpty()) "Bu manga için bölüm bulunamadı." else null,
+                            errorCode = null
                         )
                     }
                     return@launch  // Başarılı — döngüden çık
@@ -156,7 +160,8 @@ class MangaDetailViewModel(
             _uiState.update {
                 it.copy(
                     isLoadingChapters = false,
-                    error = lastError?.localizedMessage ?: lastError?.message ?: "Bölümler yüklenemedi. Tekrar deneyin."
+                    error = lastError?.localizedMessage ?: lastError?.message ?: "Bölümler yüklenemedi. Tekrar deneyin.",
+                    errorCode = SourceFailureClassifier.classifyCode(lastError)
                 )
             }
         }

@@ -332,7 +332,8 @@ class StudioDetailViewModel(application: Application) : AndroidViewModel(applica
             _state.value = StudioDetailState.Error(
                 com.kitsugi.animelist.KitsugiApplication.getInstance()
                     ?.getString(com.kitsugi.animelist.R.string.studio_page_load_failed)
-                    ?: "Stüdyo detayları yüklenemedi."
+                    ?: "Stüdyo detayları yüklenemedi.",
+                com.kitsugi.animelist.data.platform.PlatformFailureRegistry.currentOrUnknown(source),
             )
         }
     }

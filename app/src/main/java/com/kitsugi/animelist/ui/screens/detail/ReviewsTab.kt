@@ -54,6 +54,8 @@ import kotlinx.coroutines.launch
 import androidx.compose.ui.res.stringResource
 import com.kitsugi.animelist.R
 import com.kitsugi.animelist.utils.KitsugiStrings
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Arrangement
 
 
 @Composable
@@ -395,12 +397,18 @@ fun ReviewsTabContent(
                     }
                 }
                 is DetailTabState.Error -> {
-                    Text(
-                        text = stringResource(R.string.inline_an_error_occurred_while_loading_4764095),
-                        color = KitsugiColors.AccentRed,
-                        style = MaterialTheme.typography.bodyMedium,
-                        modifier = Modifier.padding(vertical = 16.dp, horizontal = 14.dp)
-                    )
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Text(
+                            text = stringResource(R.string.inline_an_error_occurred_while_loading_4764095),
+                            color = KitsugiColors.AccentRed,
+                            style = MaterialTheme.typography.bodyMedium,
+                            modifier = Modifier.padding(vertical = 16.dp, horizontal = 14.dp)
+                        )
+                        DetailTabErrorCodeChip(platformErrorCode = state.platformErrorCode)
+                    }
                 }
                 is DetailTabState.Success -> {
                     if (reviewsList.isEmpty()) {

@@ -3,6 +3,8 @@
 package com.kitsugi.animelist.ui.screens.search
 
 import com.kitsugi.animelist.ui.theme.gradient.FloatingActionButton
+import com.kitsugi.animelist.ui.components.PlatformErrorCodeChip
+import com.kitsugi.animelist.ui.components.PlatformErrorExplanationBlock
 import com.kitsugi.animelist.ui.theme.gradient.Icon
 import com.kitsugi.animelist.ui.theme.gradient.Text
 
@@ -405,6 +407,24 @@ fun SearchScreen(
                 }
             }
 
+            // Kaynak hataları: hangi kaynağın bu aramayı etkilediğini kod rozetleriyle göster
+            if (!uiState.isLoading && uiState.sourceErrorCodes.isNotEmpty()) {
+                item {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .horizontalScroll(rememberScrollState())
+                            .padding(horizontal = 16.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        uiState.sourceErrorCodes.values.distinct().forEach { code ->
+                            PlatformErrorCodeChip(code = code)
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(8.dp))
+                }
+            }
+
             // Empty / Error State
             if (!uiState.isLoading && uiState.hasSearched && uiState.errorMessage != null) {
                 item {
@@ -413,6 +433,14 @@ fun SearchScreen(
                         subtitle = uiState.errorMessage,
                         icon = Icons.Rounded.SearchOff
                     )
+                    uiState.platformErrorCode?.let { code ->
+                        Spacer(modifier = Modifier.height(12.dp))
+                        PlatformErrorExplanationBlock(
+                            code = code,
+                            tint = KitsugiColors.AccentRed,
+                            modifier = Modifier.padding(horizontal = 16.dp)
+                        )
+                    }
                     Spacer(modifier = Modifier.height(16.dp))
                 }
             }

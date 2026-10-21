@@ -1,6 +1,7 @@
 package com.kitsugi.animelist.ui.screens.search
 
 import android.app.Application
+import com.kitsugi.animelist.data.platform.PlatformFailureRegistry
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.kitsugi.animelist.data.auth.BangumiApiClient
@@ -1169,6 +1170,22 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
         return list.distinct()
     }
 
+    /**
+     * Aramanın tamamı başarısız olduğunda kodu seçer. Tek kaynaklı aramada o kaynağın
+     * kaydı; "Tümü" aramasında bu süre içindeki en son kaynak hatası kullanılır.
+     */
+    private fun searchFailureCode(
+        engine: SearchSourceEngine,
+        error: Throwable,
+        startedAt: Long,
+    ): com.kitsugi.animelist.data.platform.PlatformErrorCode =
+        if (engine == SearchSourceEngine.ALL) {
+            PlatformFailureRegistry.mostRecentSince(startedAt)?.code
+                ?: com.kitsugi.animelist.data.platform.PlatformErrorCode.COM_1020
+        } else {
+            PlatformFailureRegistry.reportAndResolve(engine.id, error)
+        }
+
     fun search(resetPage: Boolean = true, seedResults: List<JikanSearchResult> = emptyList()) {
         val state = _uiState.value
         if (state.query.isBlank() && !state.hasFiltersApplied) {
@@ -1181,6 +1198,7 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
         // Bu çalışmanın nesli. Sonraki aramalar sayacı ilerletir; o anda hâlâ çalışan
         // (iptali yutan) eski çalışmalar UI durumuna yazamaz.
         val generation = searchGeneration.incrementAndGet()
+        val searchStartedAt = System.currentTimeMillis()
 
         val queryNotBlank = state.query.isNotBlank()
         val newHistoryItem = if (queryNotBlank) {
@@ -1195,6 +1213,8 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
             it.copy(
                 isLoading = true,
                 errorMessage = null,
+                platformErrorCode = null,
+                sourceErrorCodes = emptyMap(),
                 page = if (resetPage) 1 else it.page,
                 hasNextPage = true,
                 results = seedResults,
@@ -1237,18 +1257,23 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
                         hasSearched = true,
                         page = 1,
                         hasNextPage = hasNext,
-                        errorMessage = if (visible.isEmpty()) KitsugiStrings.get(R.string.inline_no_results_found_5d2ab77) else null
+                        errorMessage = if (visible.isEmpty()) KitsugiStrings.get(R.string.inline_no_results_found_5d2ab77) else null,
+                        sourceErrorCodes = PlatformFailureRegistry.failuresSince(searchStartedAt),
+                        platformErrorCode = null
                     )
                 }
                 if (searchGeneration.get() == generation) saveCurrentStateToCache()
             } catch (e: kotlinx.coroutines.CancellationException) {
                 throw e
             } catch (e: Exception) {
+                val failureCode = searchFailureCode(state.selectedEngine, e, searchStartedAt)
                 _uiState.update {
                     if (searchGeneration.get() != generation) return@update it
                     it.copy(
                         isLoading = false,
                         errorMessage = if (it.results.isEmpty()) e.message ?: KitsugiStrings.get(R.string.arama_sirasinda_bir_hata_olustu) else null,
+                        platformErrorCode = if (it.results.isEmpty()) failureCode else null,
+                        sourceErrorCodes = PlatformFailureRegistry.failuresSince(searchStartedAt),
                         hasNextPage = false
                     )
                 }

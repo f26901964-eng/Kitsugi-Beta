@@ -1,5 +1,8 @@
 package com.kitsugi.animelist.ui.screens.detail
 import com.kitsugi.animelist.ui.components.KitsugiButton
+import com.kitsugi.animelist.ui.components.PlatformErrorCodeChip
+import com.kitsugi.animelist.ui.components.PlatformErrorExplanationBlock
+import com.kitsugi.animelist.data.platform.PlatformErrorCode
 
 import com.kitsugi.animelist.ui.theme.gradient.background
 import androidx.compose.foundation.layout.Arrangement
@@ -327,7 +330,9 @@ internal fun DataUnavailableScreen(
     title: String,
     onBackClick: () -> Unit,
     onRetryClick: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    /** Kaynak hatasının `KTS-…` kodu; varsa neden ve çözüm açıklamasıyla birlikte gösterilir. */
+    platformErrorCode: PlatformErrorCode? = null,
 ) {
     Box(
         modifier = modifier
@@ -388,6 +393,14 @@ internal fun DataUnavailableScreen(
                 modifier = Modifier.padding(horizontal = 24.dp)
             )
 
+            platformErrorCode?.let { code ->
+                PlatformErrorExplanationBlock(
+                    code = code,
+                    tint = KitsugiColors.AccentRed,
+                    modifier = Modifier.padding(horizontal = 16.dp),
+                )
+            }
+
             Spacer(modifier = Modifier.height(8.dp))
 
             // Premium Kitsugi Button
@@ -402,6 +415,17 @@ internal fun DataUnavailableScreen(
                 )
             }
         }
+    }
+}
+
+/** Sekme hata bloğunun altında kaynak hata kodu rozeti; kod yoksa hiçbir şey çizmez. */
+@Composable
+internal fun DetailTabErrorCodeChip(
+    platformErrorCode: PlatformErrorCode?,
+    modifier: Modifier = Modifier,
+) {
+    platformErrorCode?.let { code ->
+        PlatformErrorCodeChip(code = code, modifier = modifier)
     }
 }
 

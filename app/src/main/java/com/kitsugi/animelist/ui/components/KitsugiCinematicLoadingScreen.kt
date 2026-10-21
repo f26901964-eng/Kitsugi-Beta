@@ -40,6 +40,7 @@ import com.kitsugi.animelist.ui.theme.LocalKitsugiAccent
 import com.kitsugi.animelist.ui.theme.KitsugiColors
 import androidx.compose.ui.res.stringResource
 import com.kitsugi.animelist.R
+import com.kitsugi.animelist.data.platform.PlatformErrorCode
 
 @Composable
 fun KitsugiCinematicLoadingScreen(
@@ -52,7 +53,9 @@ fun KitsugiCinematicLoadingScreen(
     blurAdultMedia: Boolean = false,
     source: String? = null,
     /** Company marks (for example TMDB studio logos) should be fitted instead of cropped. */
-    isLogoArtwork: Boolean = false
+    isLogoArtwork: Boolean = false,
+    /** Son detay isteğinin kaynak hatası (`KTS-…`); yeniden denemede de görünmeye devam eder. */
+    platformErrorCode: PlatformErrorCode? = null,
 ) {
     val accentColor = LocalKitsugiAccent.current
 
@@ -230,6 +233,10 @@ fun KitsugiCinematicLoadingScreen(
                     fontWeight = FontWeight.Bold,
                     letterSpacing = 1.5.sp
                 )
+            }
+            platformErrorCode?.let { code ->
+                Spacer(modifier = Modifier.height(12.dp))
+                PlatformErrorCodeChip(code = code)
             }
         }
     }

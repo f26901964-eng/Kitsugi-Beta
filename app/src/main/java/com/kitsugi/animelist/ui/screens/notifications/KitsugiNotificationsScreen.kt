@@ -61,6 +61,7 @@ import com.kitsugi.animelist.model.MediaEntry
 import com.kitsugi.animelist.ui.components.KitsugiPlatformLogo
 import com.kitsugi.animelist.ui.components.KitsugiPlasmaLoader
 import com.kitsugi.animelist.ui.components.PlatformErrorExplanationBlock
+import com.kitsugi.animelist.ui.components.PlatformErrorCodeChip
 import com.kitsugi.animelist.ui.theme.KitsugiColors
 import com.kitsugi.animelist.ui.theme.LocalKitsugiAccent
 import com.kitsugi.animelist.ui.utils.tvClickable
@@ -413,6 +414,11 @@ fun KitsugiNotificationsScreen(
                                         filterState.error != null && filterState.items.isEmpty() -> {
                                             val errText = filterState.error.orEmpty()
                                             item { CenteredEmptyState(errText) }
+                                            filterState.errorCode?.let { code ->
+                                                item(key = "filter_error_code_${filter}") {
+                                                    PlatformErrorCodeChip(code = code, modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp))
+                                                }
+                                            }
                                         }
                                         filterState.items.isEmpty() -> {
                                             item { CenteredEmptyState(stringResource(R.string.notif_empty_no_notifications)) }
@@ -734,6 +740,11 @@ private fun SourceNotifPage(
                 state.error != null && state.items.isEmpty() -> {
                     val errText = state.error.orEmpty()
                     item { CenteredEmptyState(errText) }
+                    state.errorCode?.let { code ->
+                        item(key = "state_error_code") {
+                            PlatformErrorCodeChip(code = code, modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp))
+                        }
+                    }
                 }
                 state.items.isEmpty() -> {
                     item { CenteredEmptyState(emptyMessage) }
@@ -775,6 +786,7 @@ private fun SourceNotifPage(
                                 TextButton(onClick = { onLoadMore?.invoke() }) {
                                     Text(stringResource(R.string.notif_mal_load_more_retry))
                                 }
+                                state.loadMoreErrorCode?.let { code -> PlatformErrorCodeChip(code = code) }
                             }
                         }
                     }
@@ -922,6 +934,7 @@ private fun NotificationDiagnosticsSheet(
             if (state.error != null) {
                 Spacer(Modifier.height(8.dp))
                 Text(text = state.error, color = androidx.compose.ui.graphics.Color(0xFFFF6B6B), fontSize = 12.sp)
+                state.errorCode?.let { code -> PlatformErrorCodeChip(code = code, modifier = Modifier.padding(top = 4.dp)) }
             }
 
             state.rows.forEach { row ->

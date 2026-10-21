@@ -1,6 +1,7 @@
 package com.kitsugi.animelist.ui.screens.manga
 
 import androidx.compose.runtime.getValue
+import com.kitsugi.animelist.data.manga.SourceFailureClassifier
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
@@ -20,6 +21,9 @@ class MangaViewModel : ViewModel() {
         private set
 
     var errorMessage by mutableStateOf<String?>(null)
+        private set
+    /** Hatanın manga kaynak kodu (KTS-SRC-...); yoksa null. */
+    var errorCode by mutableStateOf<String?>(null)
         private set
 
     var topManga by mutableStateOf<List<JikanSearchResult>>(emptyList())
@@ -45,6 +49,7 @@ class MangaViewModel : ViewModel() {
         viewModelScope.launch {
             isLoading = true
             errorMessage = null
+            errorCode = null
 
             runCatching {
                 val topDeferred = async { apiClient.topManga() }
@@ -62,6 +67,7 @@ class MangaViewModel : ViewModel() {
                 completedManga = result.third
             }.onFailure { error ->
                 errorMessage = error.message ?: KitsugiStrings.get(R.string.manga_listeleri_alinamadi)
+                errorCode = SourceFailureClassifier.classifyCode(error)
             }
 
             isLoading = false

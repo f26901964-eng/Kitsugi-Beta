@@ -3,7 +3,11 @@
 package com.kitsugi.animelist.ui.screens.profile
 
 import android.content.res.Configuration
+import com.kitsugi.animelist.data.platform.PlatformErrorCode
+import com.kitsugi.animelist.data.platform.PlatformFailureRegistry
+import com.kitsugi.animelist.ui.components.PlatformErrorCodeChip
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -101,6 +105,7 @@ fun PlatformUserProfileScreen(
     var kitsuState by remember(canonicalSource, userId, username) { mutableStateOf<KitsuProfileState?>(null) }
     var simklState by remember(canonicalSource, userId, username) { mutableStateOf<SimklProfileState?>(null) }
     var loadError by remember(canonicalSource, userId, username) { mutableStateOf<String?>(null) }
+    var loadErrorCode by remember(canonicalSource, userId, username) { mutableStateOf<PlatformErrorCode?>(null) }
     var isLoading by remember(canonicalSource, userId, username) { mutableStateOf(true) }
     var reloadTick by remember(canonicalSource, userId, username) { mutableStateOf(0) }
     val profileScope = rememberCoroutineScope()
@@ -108,6 +113,7 @@ fun PlatformUserProfileScreen(
     LaunchedEffect(canonicalSource, userId, username, reloadTick) {
         isLoading = true
         loadError = null
+        loadErrorCode = null
         val result = runCatching {
             when (canonicalSource) {
                 "kitsu" -> kitsuState = OtherUserProfileRepository.fetchKitsuUserState(userId, username, avatarUrl)
@@ -117,6 +123,7 @@ fun PlatformUserProfileScreen(
         }
         if (result.isFailure) {
             loadError = KitsugiStrings.get(R.string.profile_load_failed)
+            loadErrorCode = PlatformFailureRegistry.reportAndResolve(canonicalSource, result.exceptionOrNull())
         }
         isLoading = false
     }
@@ -196,11 +203,18 @@ fun PlatformUserProfileScreen(
                 }
                 loadError != null && malState == null && kitsuState == null && simklState == null -> {
                     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        Text(
-                            text = loadError ?: "",
-                            color = KitsugiColors.TextMuted,
-                            style = MaterialTheme.typography.bodyMedium
-                        )
+                        Column(
+                            modifier = Modifier.padding(24.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            Text(
+                                text = loadError ?: "",
+                                color = KitsugiColors.TextMuted,
+                                style = MaterialTheme.typography.bodyMedium
+                            )
+                            loadErrorCode?.let { code -> PlatformErrorCodeChip(code = code) }
+                        }
                     }
                 }
                 else -> {

@@ -1,6 +1,8 @@
 package com.kitsugi.animelist.ui.screens.explore
 
 import android.app.Application
+import com.kitsugi.animelist.data.platform.PlatformErrorCode
+import com.kitsugi.animelist.data.platform.PlatformFailureRegistry
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -115,6 +117,10 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
         private set
 
     var errorMessage by mutableStateOf<String?>(null)
+        private set
+
+    /** Sayfa hatasının platform hata kodu (Tümü sekmesinde tek bir kaynak yoktur). */
+    var platformErrorCode by mutableStateOf<PlatformErrorCode?>(null)
         private set
 
     /** Hatanın kaynağını belirtir — UI'da platforma özgü yönlendirme butonu göstermek için */
@@ -394,6 +400,7 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
         upcomingMediaTmdb = emptyList()
         // Simkl kullanıcı şeritlerini temizleme — platform değişiminde de gözüksün
         errorMessage = null
+        platformErrorCode = null
         exploreErrorType = ExploreErrorType.None
     }
 
@@ -468,6 +475,11 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
                     }
 
                     errorMessage = e.message ?: getApplication<Application>().getString(R.string.explore_source_unavailable)
+                    platformErrorCode = if (platformSnapshot == ExplorePlatform.ALL) {
+                        PlatformErrorCode.COM_1020
+                    } else {
+                        PlatformFailureRegistry.reportAndResolve(platformSnapshot.label, e)
+                    }
                     if (!isFallbackInProgress) {
                         isFallbackInProgress = true
                         val nextPlatform = if (platformSnapshot == ExplorePlatform.AniList) {
@@ -553,6 +565,7 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
             val cached = allSourceStates[platform]?.payload
             val needsFetch = forceRefresh || allSourceStates[platform]?.isCached == true || cached?.hasCatalogContent() != true
             val state = loadExploreSource(
+                platformLabel = platform.label,
                 cached = cached,
                 forceRefresh = needsFetch,
                 fetch = { fetchPlatform(platform, allowFallback = false).forSource(platform) },

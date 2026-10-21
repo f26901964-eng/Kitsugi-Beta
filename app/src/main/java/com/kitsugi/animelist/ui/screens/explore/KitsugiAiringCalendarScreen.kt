@@ -149,7 +149,8 @@ fun KitsugiAiringCalendarScreen(
             viewModel.errorMessage != null && viewModel.weekSchedule.isEmpty() -> {
                 AiringErrorState(
                     message = viewModel.errorMessage.orEmpty(),
-                    onRetry = { viewModel.loadSchedule(preferredSource = preferredSource, force = true) }
+                    onRetry = { viewModel.loadSchedule(preferredSource = preferredSource, force = true) },
+                    platformErrorCode = viewModel.platformErrorCode
                 )
             }
             else -> {
