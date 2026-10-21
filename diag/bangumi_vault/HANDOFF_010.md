@@ -149,3 +149,7 @@ düşen sırayla açık kavramları tam-eşleşmeli çöz; CJK kişi/seri/kurum 
 `as_is` kalır; son olarak org uzun kuyruğu. 007_b–007_i aralığında 43.313 CJK `as_is` kayıt
 vardır; bu **çeviri kotası değil**, aday havuzudur. Önce `PROGRESS.md` Bölüm 2k ve Drive restore
 notlarını oku; sırf sayı tamamlamak için tahminî romanizasyon/çeviri yapma.
+
+Güncel main tabanına taşınan bu devamın PR'ı **#31**'dir:
+https://github.com/f26901964-eng/Kitsugi-Beta/pull/31. Eski PR #30, farklı sabit olmayan head dalında
+(`arena/e29a309c-kitsugi-beta`) açık kaldı; bu oturumun kod değişikliği #31'de.

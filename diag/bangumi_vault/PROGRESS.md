@@ -1123,3 +1123,6 @@ kuyruğu. Yeni araştırma turu/romanizasyon tahmini yok.
 
 Bu oturumun çalışma ağacı, Arena'nın sabit aktif dalı `arena/2dcb1fce-kitsugi-beta` üzerinde
 ilerletildi; PR #30 başlığı/HEAD'i ayrı `arena/e29a309c-kitsugi-beta` dalında açık kaldı.
+
+PR #30 (`arena/e29a309c-kitsugi-beta`) açık bırakıldı. Güncel main tabanındaki bu port ve yeni
+batch'ler için aktif dal üzerinden **PR #31** açıldı: https://github.com/f26901964-eng/Kitsugi-Beta/pull/31.
