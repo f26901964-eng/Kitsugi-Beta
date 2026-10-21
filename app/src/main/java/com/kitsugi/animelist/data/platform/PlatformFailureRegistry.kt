@@ -100,6 +100,15 @@ object PlatformFailureRegistry {
     fun mostRecentSince(sinceMillis: Long): Failure? =
         latestByPlatform.values.filter { it.atMillis >= sinceMillis }.maxByOrNull { it.atMillis }
 
+    /**
+     * [sinceMillis] anından beri kaydedilen en son kaynak hatasının kodu; yoksa
+     * istisnanın kendisinden sınıflandırma. Platformu belli olmayan akışlar için.
+     */
+    fun resolveSince(sinceMillis: Long, error: Throwable?): PlatformErrorCode =
+        mostRecentSince(sinceMillis)?.code
+            ?: error?.let { PlatformErrorCatalog.classify(error = it) }
+            ?: PlatformErrorCode.COM_1020
+
     /** Test ve oturum sıfırlama için. */
     fun clear() {
         latestByPlatform.clear()

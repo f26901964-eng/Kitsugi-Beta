@@ -1,7 +1,9 @@
 package com.kitsugi.animelist.ui.screens.anime
 
 import androidx.compose.foundation.layout.Spacer
+import com.kitsugi.animelist.ui.components.PlatformErrorExplanationBlock
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import com.kitsugi.animelist.ui.theme.gradient.Text
@@ -81,6 +83,14 @@ fun AnimeScreen(
                 message = viewModel.errorMessage.orEmpty(),
                 onRetryClick = { viewModel.loadData(forceRefresh = true) }
             )
+            viewModel.platformErrorCode?.let { code ->
+                Spacer(modifier = Modifier.height(8.dp))
+                PlatformErrorExplanationBlock(
+                    code = code,
+                    tint = KitsugiColors.AccentRed,
+                    modifier = Modifier.padding(horizontal = 20.dp)
+                )
+            }
         }
 
         Spacer(modifier = Modifier.height(22.dp))

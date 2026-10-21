@@ -1,6 +1,8 @@
 package com.kitsugi.animelist.ui.screens.anime
 
 import androidx.compose.runtime.getValue
+import com.kitsugi.animelist.data.platform.PlatformErrorCode
+import com.kitsugi.animelist.data.platform.PlatformFailureRegistry
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
@@ -38,6 +40,10 @@ class AnimeViewModel : ViewModel() {
         loadData()
     }
 
+    /** Yükleme hatasının platform hata kodu. */
+    var platformErrorCode by mutableStateOf<PlatformErrorCode?>(null)
+        private set
+
     fun loadData(forceRefresh: Boolean = false) {
         if (isLoading) return
         if (isDataLoaded && !forceRefresh) return
@@ -45,6 +51,8 @@ class AnimeViewModel : ViewModel() {
         viewModelScope.launch {
             isLoading = true
             errorMessage = null
+            platformErrorCode = null
+            val loadStartedAt = System.currentTimeMillis()
 
             runCatching {
                 val topDeferred = async { apiClient.topAnime() }
@@ -62,6 +70,7 @@ class AnimeViewModel : ViewModel() {
                 upcomingAnime = result.third
             }.onFailure { error ->
                 errorMessage = error.message ?: KitsugiStrings.get(R.string.anime_listeleri_alinamadi)
+                platformErrorCode = PlatformFailureRegistry.resolveSince(loadStartedAt, error)
             }
 
             isLoading = false

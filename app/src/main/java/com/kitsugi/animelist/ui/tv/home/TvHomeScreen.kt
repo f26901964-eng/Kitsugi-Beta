@@ -105,7 +105,7 @@ fun TvHomeScreen(
 
     if (!homeStableGateReleased) {
         if (errorMessage != null && isEmpty) {
-            TvErrorScreen(message = errorMessage, onRetry = { exploreViewModel.loadData(forceRefresh = true) })
+            TvErrorScreen(message = errorMessage, onRetry = { exploreViewModel.loadData(forceRefresh = true) }, platformErrorCode = exploreViewModel.platformErrorCode)
         } else {
             TvLoadingScreen()
         }
@@ -114,7 +114,7 @@ fun TvHomeScreen(
 
     errorMessage?.let { error ->
         if (isEmpty) {
-            TvErrorScreen(message = error, onRetry = { exploreViewModel.loadData(forceRefresh = true) })
+            TvErrorScreen(message = error, onRetry = { exploreViewModel.loadData(forceRefresh = true) }, platformErrorCode = exploreViewModel.platformErrorCode)
             return
         }
     }
