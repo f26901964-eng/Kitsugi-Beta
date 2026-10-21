@@ -34,3 +34,6 @@ dependencyResolutionManagement {
 
 rootProject.name = "KitsugiAnimeList"
 include(":app")
+include(":bangumi-vault-resources-1")
+include(":bangumi-vault-resources-2")
+include(":bangumi-vault-resources-3")
