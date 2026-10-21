@@ -1,0 +1,569 @@
+# Bangumi VAULT — chunk 004a · ORG haritası (count 60-99 · 567 kayıt) — TASLAK (draft_org_map.py)
+# Biçim: vault_key <TAB> canon_id|SKIP <TAB> not
+bangumi_studio_quinrose	quinrose	Latin ad — as_is
+bangumi_studio_bn_pictures	bn_pictures	Latin ad — as_is
+bangumi_studio_cjk_bb6d89	intelligent_systems	global karşılık: インテリジェントシステムズ → Intelligent Systems
+bangumi_studio_devil_seal	devil_seal	Latin ad — as_is
+bangumi_studio_hal	hal_laboratory	global karşılık: HAL研究所 → HAL Laboratory
+bangumi_studio_cjk_b87071	koei	mevcut anahtara birleşim: bangumi_publisher_koei
+bangumi_studio_f_c	f_and_c	global karşılık: F&C → F&C
+bangumi_studio_nitro	nitro	Latin ad — as_is
+bangumi_studio_rejet	rejet	mevcut anahtara birleşim: bangumi_publisher_rejet
+bangumi_studio_chunsoft	chunsoft	Latin ad — as_is
+bangumi_studio_cjk_090fe6	softstar_entertainment	global karşılık: 大宇資訊 → Softstar Entertainment
+bangumi_studio_cjk_a066db	game_freak	global karşılık: ゲームフリーク → Game Freak
+bangumi_studio_cjk_c05e6d	tezuka_productions	global karşılık: 手塚プロダクション → Tezuka Productions
+bangumi_studio_d_o	d_o	Latin ad — as_is
+bangumi_studio_cjk_2c6108	tose	global karşılık: トーセ → TOSE
+bangumi_studio_cjk_bb65fa	rune	global karşılık: ルネ → Rune
+bangumi_studio_light	light	Latin ad — as_is
+bangumi_studio_cjk_582377	square_enix	mevcut anahtara birleşim: bangumi_producer_square_enix
+bangumi_studio_cjk_892355	ashi_productions	global karşılık: 葦プロダクション → Ashi Productions
+bangumi_studio_liquid	liquid	Latin ad — as_is
+bangumi_studio_idea_factory	idea_factory	mevcut anahtar: bangumi_studio_idea_factory
+bangumi_studio_atari	atari	mevcut anahtara birleşim: bangumi_publisher_atari
+bangumi_studio_cjk_fdd9ce	level5	mevcut anahtara birleşim: bangumi_producer_level5
+bangumi_studio_cjk_d1d06d	debonosu_works	global karşılık: でぼの巣製作所 → Debonosu Works
+bangumi_studio_cjk_701e80	studio_hibari	global karşılık: スタジオ雲雀 → Studio Hibari
+bangumi_studio_cjk_dd8967	eight_bit	global karşılık: エイトビット → Eight Bit
+bangumi_studio_f_c_co_ltd	f_and_c	global karşılık: エフアンドシー株式会社(F&C Co.,Ltd.) → F&C
+bangumi_studio_team_ninja	team_ninja	Latin ad — as_is
+bangumi_studio_cjk_5dfff8	studio_ghibli	global karşılık: スタジオジブリ → Studio Ghibli
+bangumi_studio_cjk_ba4088	sparkly_key_animation	global karşılık: 玄机科技 → Sparkly Key Animation
+bangumi_studio_cjk_18b689	fairytale	global karşılık: フェアリーテール → Fairytale
+bangumi_studio_y_o_u_c	y_o_u_c	Latin ad — as_is
+bangumi_studio_studio	gokumi	mevcut anahtar: bangumi_studio_gokumi
+bangumi_studio_1972_1984	atari	mevcut anahtara birleşim: bangumi_publisher_atari
+bangumi_studio_cjk_6b5cb9	yumeta_company	global karşılık: ゆめ太カンパニー → Yumeta Company
+bangumi_studio_cjk_9d8a29	bandai_namco_entertainment	mevcut anahtar: bangumi_studio_bandai_namco_entertainment
+bangumi_studio_cjk_d3fb85	cjk_d3fb85	bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+bangumi_studio_1st	1st	Latin ad — as_is
+bangumi_studio_artland	artland	Latin ad — as_is
+bangumi_studio_cjk_f484c5	ruby_party	global karşılık: ルビーパーティー → Ruby Party
+bangumi_studio_namco	namco	Latin ad — as_is
+bangumi_studio_anim	anim	Latin ad — as_is
+bangumi_studio_cjk_02a58c	kogado_studio	global karşılık: 工画堂スタジオ → Kogado Studio
+bangumi_studio_cjk_877422	cjk_877422	bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+bangumi_studio_cjk_b70a4e	SKIP	ad parçası/gürültü: グループ
+bangumi_studio_cjk_d1b576	mink	global karşılık: ミンク → Mink
+bangumi_studio_taito	taito_3	mevcut anahtara birleşim: bangumi_publisher_taito_3
+bangumi_studio_atelier_kaguya	atelier_kaguya	mevcut anahtar: bangumi_studio_atelier_kaguya
+bangumi_studio_cjk_0c8da0	actas	global karşılık: アクタス → Actas
+bangumi_studio_cjk_4cb388	arc_system_works	global karşılık: アークシステムワークス → Arc System Works
+bangumi_studio_inc	SKIP	ad parçası/gürültü: Inc.
+bangumi_studio_lilith	lilith	Latin ad — as_is
+bangumi_studio_cjk_1f054b	silky_s	global karşılık: シルキーズ → Silky's
+bangumi_studio_cjk_55baab	namco	global karşılık: 南梦宫 → Namco
+bangumi_studio_cjk_7e8c42	cjk_7e8c42	bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+bangumi_studio_g_gear_inc	g_gear_inc	Latin ad — as_is
+bangumi_studio_data_east	data_east	Latin ad — as_is
+bangumi_studio_david_production_2	david_production_2	Latin ad — as_is
+bangumi_studio_mages	mages	mevcut anahtara birleşim: bangumi_producer_mages
+bangumi_studio_parthenon	parthenon	Latin ad — as_is
+bangumi_studio_west_vision	west_vision	Latin ad — as_is
+bangumi_studio_cjk_3ffd96	cjk_3ffd96	bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+bangumi_studio_cjk_eddc38	xuse	global karşılık: ザウス → Xuse
+bangumi_studio_sie	sie_japan_studio	global karşılık: SIEジャパンスタジオ → SIE Japan Studio
+bangumi_studio_cjk_792038	compile_heart	global karşılık: コンパイルハート → Compile Heart
+bangumi_studio_cjk_9a537f	escu_de	global karşılık: エスクード → Escu:de
+bangumi_studio_falcom	nihon_falcom	mevcut anahtar: bangumi_studio_nihon_falcom
+bangumi_studio_hooksoft	hooksoft	Latin ad — as_is
+bangumi_studio_tryset	tryset	Latin ad — as_is
+bangumi_studio_circus	circus	Latin ad — as_is
+bangumi_studio_cjk_21a0a7	square_enix	mevcut anahtara birleşim: bangumi_producer_square_enix
+bangumi_studio_pin_point	pin_point	Latin ad — as_is
+bangumi_studio_studio_e_go	studio_e_go	Latin ad — as_is
+bangumi_studio_blizzard_entertainment	blizzard_entertainment	Latin ad — as_is
+bangumi_studio_cjk_11691e	cjk_11691e	bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+bangumi_studio_otomate	otomate	mevcut anahtar: bangumi_studio_otomate
+bangumi_studio_cjk_72344a	cjk_72344a	bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+bangumi_studio_cjk_e6277f	cjk_e6277f	bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+bangumi_studio_cjk_ee0895	cjk_ee0895	bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+bangumi_studio_ensemble	ensemble	Latin ad — as_is
+bangumi_studio_cjk_0362a2	hunex	global karşılık: ヒューネックス株式会社 → HuneX
+bangumi_studio_cjk_cc9308	SKIP	ad parçası/gürültü: スタジオ
+bangumi_studio_cjk_0571b5	bandai_namco_studios	global karşılık: バンダイナムコスタジオ → Bandai Namco Studios
+bangumi_studio_cjk_473280	nintendo_ead	mevcut anahtar: bangumi_studio_nintendo_ead
+bangumi_studio_ge	ge	Latin ad — as_is
+bangumi_studio_tt_games	tt_games	Latin ad — as_is
+bangumi_studio_whirlpool	whirlpool	Latin ad — as_is
+bangumi_studio_cjk_e706c6	cjk_e706c6	bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+bangumi_studio_cjk_98f60d	interheart	global karşılık: インターハート → INTERHEART
+bangumi_studio_cjk_d3eb8d	aquaplus	global karşılık: アクアプラス → Aquaplus
+bangumi_studio_flyingshine	flyingshine	Latin ad — as_is
+bangumi_studio_oneone1	oneone1	Latin ad — as_is
+bangumi_studio_cjk_450720	SKIP	ad parçası/gürültü: コウ
+bangumi_studio_cjk_7d9bdc	cjk_7d9bdc	bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+bangumi_studio_cjk_8f74ca	soft_world_international	global karşılık: 智冠科技 → Soft-World International
+bangumi_studio_cjk_c9d588	taito_3	mevcut anahtara birleşim: bangumi_publisher_taito_3
+bangumi_studio_cjk_27eca1	koei	mevcut anahtara birleşim: bangumi_publisher_koei
+bangumi_studio_cjk_a88e74	SKIP	ad parçası/gürültü: エム
+bangumi_studio_cjk_ac8abc	cjk_ac8abc	bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+bangumi_studio_cjk_e51f48	ubisoft	global karşılık: 育碧娱乐 → Ubisoft
+bangumi_studio_oz	oz	mevcut anahtara birleşim: bangumi_producer_oz
+bangumi_studio_rare	rare	Latin ad — as_is
+bangumi_studio_red_zone	red_zone	Latin ad — as_is
+bangumi_studio_zion	zion	Latin ad — as_is
+bangumi_studio_cartoon_network_studios	cartoon_network_studios	Latin ad — as_is
+bangumi_studio_cjk_23f03e	fromsoftware	global karşılık: フロム → FromSoftware
+bangumi_studio_cjk_269414	SKIP	ad parçası/gürültü: ソフトウェア
+bangumi_studio_cjk_a303f8	nintendo_spd	global karşılık: 任天堂企画制作本部 → Nintendo SPD
+bangumi_studio_cjk_b46cbf	fromsoftware	global karşılık: フロム・ソフトウェア → FromSoftware
+bangumi_studio_discovery	discovery	Latin ad — as_is
+bangumi_studio_bishop	bishop	Latin ad — as_is
+bangumi_studio_cjk_43b170	cjk_43b170	bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+bangumi_studio_cjk_ede060	azarashi_soft	global karşılık: あざらしそふと → Azarashi Soft
+bangumi_studio_snk	snk	mevcut anahtar: bangumi_studio_snk
+bangumi_producer_cjk_2f32cd	ascii	mevcut anahtara birleşim: bangumi_publisher_ascii
+bangumi_producer_masayoshi_minoshima	masayoshi_minoshima	Latin ad — as_is
+bangumi_producer_cjk_ba00c2	cjk_ba00c2	bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+bangumi_producer_queen_bee	queen_bee	Latin ad — as_is
+bangumi_producer_cjk_32b496	sunshine_corporation	global karşılık: サンシャインコーポレーション → Sunshine Corporation
+bangumi_producer_cjk_8d1faf	tms	mevcut anahtara birleşim: bangumi_studio_tms
+bangumi_producer_cjk_9be19c	cjk_9be19c	bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+bangumi_producer_cjk_b75dcb	takahiro_baba	global karşılık: 馬場隆博 → Takahiro Baba
+bangumi_producer_angel_note	angel_note	Latin ad — as_is
+bangumi_producer_cjk_e19cd0	cjk_e19cd0	bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+bangumi_producer_cjk_4115e1	cjk_4115e1	bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+bangumi_producer_cjk_8ecad3	bandai_namco_music_live	global karşılık: バンダイナムコミュージックライブ → Bandai Namco Music Live
+bangumi_producer_cjk_97ce47	cjk_97ce47	bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+bangumi_producer_cjk_ac5bfe	cjk_ac5bfe	bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+bangumi_producer_egg_firm	egg_firm	mevcut anahtara birleşim: bangumi_studio_egg_firm
+bangumi_producer_cjk_e6cbb7	seiji_okuda	global karşılık: 奥田誠治 → Seiji Okuda
+bangumi_producer_cjk_f1d8cc	cjk_f1d8cc	bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+bangumi_producer_show	show	Latin ad — as_is
+bangumi_producer_t_pazolite	t_pazolite	Latin ad — as_is
+bangumi_producer_cjk_14553d	square	mevcut anahtara birleşim: bangumi_studio_square
+bangumi_producer_cjk_502b07	SKIP	ad parçası/gürültü: ケイ
+bangumi_producer_cjk_67860b	cjk_67860b	bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+bangumi_producer_cjk_db7e2e	cjk_db7e2e	bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+bangumi_producer_cjk_faab0d	enix	mevcut anahtara birleşim: bangumi_studio_enix
+bangumi_producer_olm	olm	mevcut anahtara birleşim: bangumi_studio_olm
+bangumi_producer_cjk_c78144	cjk_c78144	bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+bangumi_producer_cjk_36e176	cjk_36e176	bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+bangumi_producer_cjk_4d66ec	cjk_4d66ec	bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+bangumi_producer_cjk_d30a5a	kazuma_miki	global karşılık: 三木一馬 → Kazuma Miki
+bangumi_producer_cjk_d3f4b7	toei_video	global karşılık: 東映ビデオ → Toei Video
+bangumi_producer_cjk_71d724	cjk_71d724	bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+bangumi_producer_cjk_d6b330	cjk_d6b330	bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+bangumi_producer_cjk_d73634	cjk_d73634	bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+bangumi_producer_cjk_b4ea02	shiro_sasaki	global karşılık: 佐々木史朗 → Shiro Sasaki
+bangumi_producer_cjk_c0ac6c	cjk_c0ac6c	bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+bangumi_producer_cjk_ee9d59	cjk_ee9d59	bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+bangumi_producer_cjk_36fc78	cjk_36fc78	bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+bangumi_producer_cjk_719fa2	cjk_719fa2	bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+bangumi_producer_cjk_d8e37a	cjk_d8e37a	bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+bangumi_producer_bs	bs_fuji	mevcut anahtara birleşim: bangumi_network_bs_fuji
+bangumi_producer_rinhee	rinhee	Latin ad — as_is
+bangumi_producer_cjk_29442c	cjk_29442c	bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+bangumi_producer_cjk_59c1ec	cjk_59c1ec	bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+bangumi_producer_cjk_69c94a	cjk_69c94a	bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+bangumi_producer_cjk_a1efa7	masuo_ueda	global karşılık: 植田益朗 → Masuo Ueda
+bangumi_producer_cjk_c966c2	cjk_c966c2	bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+bangumi_producer_cjk_e78870	SKIP	ad parçası/gürültü: エンターテイメント
+bangumi_producer_cjk_f74e6c	tms	mevcut anahtara birleşim: bangumi_studio_tms
+bangumi_producer_20th_century_fox	20th_century_fox	Latin ad — as_is
+bangumi_producer_cjk_d49c5a	genki_kawamura	global karşılık: 川村元気 → Genki Kawamura
+bangumi_producer_cjk_6927d6	shin_unozawa	global karşılık: 鵜之澤伸 → Shin Unozawa
+bangumi_producer_cjk_43f10f	cjk_43f10f	bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+bangumi_producer_cjk_d8bf26	jr_east_marketing_communications	global karşılık: ジェイアール東日本企画 → JR East Marketing & Communications
+bangumi_producer_cjk_ef3f4e	cjk_ef3f4e	bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+bangumi_producer_green_bunny	green_bunny	Latin ad — as_is
+bangumi_producer_cjk_0da812	cjk_0da812	bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+bangumi_producer_cjk_d3690b	cjk_d3690b	bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+bangumi_producer_cjk_e87f7d	cjk_e87f7d	bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+bangumi_producer_cjk_f79788	cjk_f79788	bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+bangumi_producer_worldpg_animation	worldpg_animation	Latin ad — as_is
+bangumi_producer_cjk_16a6cc	sammy	global karşılık: サミー → Sammy
+bangumi_producer_roughsketch	roughsketch	Latin ad — as_is
+bangumi_producer_artland	artland	Latin ad — as_is
+bangumi_producer_cjk_e6e6c5	cjk_e6e6c5	bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+bangumi_producer_custom_udon	custom_udon	Latin ad — as_is
+bangumi_producer_cjk_160fa8	kyodo_television	global karşılık: 共同テレビ → Kyodo Television
+bangumi_producer_cjk_c71da5	cjk_c71da5	bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+bangumi_producer_cjk_f7dabc	cjk_f7dabc	bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+bangumi_producer_sc	crunchyroll_sc_anime_fund	global karşılık: クランチロールSCアニメファンド → Crunchyroll SC Anime Fund
+bangumi_producer_cjk_3bce56	cjk_3bce56	bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+bangumi_producer_cjk_5c9b10	adk	mevcut anahtar: bangumi_producer_adk
+bangumi_producer_cjk_62a002	cjk_62a002	bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+bangumi_producer_cjk_faa2fa	cjk_faa2fa	bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+bangumi_producer_cjk_0bdfa1	cjk_0bdfa1	bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+bangumi_producer_cjk_6f10ba	cjk_6f10ba	bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+bangumi_producer_cjk_cc6062	cjk_cc6062	bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+bangumi_producer_cjk_da9dd6	cjk_da9dd6	bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+bangumi_producer_cjk_dd8967	eight_bit	global karşılık: エイトビット → Eight Bit
+bangumi_producer_cjk_6b82a2	cjk_6b82a2	bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+bangumi_producer_nitro	nitro	Latin ad — as_is
+bangumi_producer_arms	arms	mevcut anahtara birleşim: bangumi_studio_arms
+bangumi_producer_cjk_7af06f	cjk_7af06f	bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+bangumi_producer_cjk_e1dce6	cjk_e1dce6	bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+bangumi_producer_marvel_entertainment	marvel_entertainment	Latin ad — as_is
+bangumi_producer_cjk_447593	cjk_447593	bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+bangumi_producer_marvel_studios	marvel_studios	Latin ad — as_is
+bangumi_producer_cjk_898244	horipro	global karşılık: ホリプロ → Horipro
+bangumi_producer_cjk_9f01be	tetsuro_satomi	global karşılık: 里見哲朗 → Tetsuro Satomi
+bangumi_producer_cjk_bc033a	kyoto_animation	mevcut anahtara birleşim: bangumi_studio_kyoto_animation
+bangumi_producer_cjk_cc9308	SKIP	ad parçası/gürültü: スタジオ
+bangumi_producer_nbc	nbcuniversal	mevcut anahtar: bangumi_producer_nbcuniversal
+bangumi_producer_wit_studio	wit_studio	Latin ad — as_is
+bangumi_producer_cjk_157401	cjk_157401	bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+bangumi_producer_cjk_3ffd96	cjk_3ffd96	bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+bangumi_producer_cjk_74094a	cjk_74094a	bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+bangumi_producer_cjk_9bc42c	cjk_9bc42c	bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+bangumi_producer_cjk_aa45c4	cjk_aa45c4	bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+bangumi_producer_cjk_af43bc	cjk_af43bc	bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+bangumi_producer_cjk_b75904	cjk_b75904	bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+bangumi_producer_cjk_bade55	koichi_watanabe	global karşılık: 渡邊耕一 → Koichi Watanabe
+bangumi_producer_cjk_c418cb	cjk_c418cb	bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+bangumi_producer_columbia_pictures	columbia_pictures	Latin ad — as_is
+bangumi_producer_paramount_pictures	paramount_pictures	Latin ad — as_is
+bangumi_producer_ufotable	ufotable	mevcut anahtara birleşim: bangumi_studio_ufotable
+bangumi_producer_cjk_1e7be7	cjk_1e7be7	bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+bangumi_producer_cjk_c0ec7b	cjk_c0ec7b	bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+bangumi_producer_cjk_c25283	cjk_c25283	bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+bangumi_producer_cjk_d25f3f	cjk_d25f3f	bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+bangumi_producer_cjk_d35041	cjk_d35041	bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+bangumi_producer_dmm_pictures_2	dmm_pictures_2	Latin ad — as_is
+bangumi_producer_cjk_34e041	cjk_34e041	bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+bangumi_producer_cjk_40570a	nippon_shuppan_hanbai	global karşılık: 日本出版販売 → Nippon Shuppan Hanbai
+bangumi_producer_cjk_7e1286	cjk_7e1286	bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+bangumi_producer_cjk_ace846	cjk_ace846	bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+bangumi_producer_bs_5	bs_nippon	global karşılık: BS日本 → BS Nippon
+bangumi_producer_cjk_3a1704	cjk_3a1704	bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+bangumi_producer_cjk_5ebe34	toshio_suzuki	global karşılık: 鈴木敏夫 → Toshio Suzuki
+bangumi_producer_cjk_7cbedf	cjk_7cbedf	bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+bangumi_producer_cjk_9f9c17	adk	mevcut anahtar: bangumi_producer_adk
+bangumi_producer_cjk_d0e723	asahi_production	mevcut anahtara birleşim: bangumi_studio_asahi_production
+bangumi_producer_cjk_5f70fc	cjk_5f70fc	bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+bangumi_producer_cjk_9bc037	idea_factory	mevcut anahtara birleşim: bangumi_studio_idea_factory
+bangumi_producer_cjk_b34b93	cjk_b34b93	bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+bangumi_producer_cjk_efa73c	cjk_efa73c	bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+bangumi_producer_industrial_light_and_magic	industrial_light_and_magic	Latin ad — as_is
+bangumi_producer_one_s_work	one_s_work	Latin ad — as_is
+bangumi_producer_syrufit	syrufit	Latin ad — as_is
+bangumi_producer_cjk_5333ca	cjk_5333ca	bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+bangumi_producer_cjk_77cd43	cjk_77cd43	bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+bangumi_producer_cjk_892481	SKIP	ad parçası/gürültü: ピクチャーズ
+bangumi_producer_cjk_927e2b	minami_ichikawa	global karşılık: 市川南 → Minami Ichikawa
+bangumi_producer_cjk_b27b63	shinichiro_shirakura	global karşılık: 白倉伸一郎 → Shinichiro Shirakura
+bangumi_producer_cjk_db8419	nomad	mevcut anahtara birleşim: bangumi_studio_nomad
+bangumi_producer_gyao	gyao	mevcut anahtara birleşim: bangumi_network_gyao
+bangumi_producer_cjk_0842ea	kozo_morishita	global karşılık: 森下孝三 → Kozo Morishita
+bangumi_producer_cjk_1c9042	frontier_engine	global karşılık: フロンティアエンジン → Frontier Engine
+bangumi_producer_cjk_1c9587	cjk_1c9587	bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+bangumi_producer_cjk_98ad5a	cjk_98ad5a	bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+bangumi_producer_cjk_b2ab8e	cjk_b2ab8e	bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+bangumi_producer_cjk_c6b323	akio_mishima	global karşılık: 三嶋章夫 → Akio Mishima
+bangumi_producer_cjk_d6091b	yoshihisa_heishi	global karşılık: 瓶子吉久 → Yoshihisa Heishi
+bangumi_producer_cjk_e128a5	cjk_e128a5	bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+bangumi_producer_kddi	kddi	Latin ad — as_is
+bangumi_producer_starving_trancer	starving_trancer	Latin ad — as_is
+bangumi_producer_cjk_2a0d1c	cjk_2a0d1c	bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+bangumi_producer_cjk_3d4e01	cjk_3d4e01	bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+bangumi_producer_cjk_417ca2	cjk_417ca2	bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+bangumi_producer_cjk_4b6734	takahito_omori	global karşılık: 大森敬仁 → Takahito Omori
+bangumi_producer_cjk_bb6354	cjk_bb6354	bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+bangumi_producer_cjk_c73bbd	dwango	global karşılık: ドワンゴ → Dwango
+bangumi_producer_cjk_fa7a32	cjk_fa7a32	bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+bangumi_producer_mappa	mappa	mevcut anahtara birleşim: bangumi_studio_mappa
+bangumi_producer_ysk439	ysk439	Latin ad — as_is
+bangumi_producer_cjk_495edd	SKIP	ad parçası/gürültü: ミュージックエンタテインメント
+bangumi_producer_cjk_508dbd	cjk_508dbd	bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+bangumi_producer_cjk_661775	cjk_661775	bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+bangumi_producer_cjk_7514cd	SKIP	ad parçası/gürültü: ジェーン
+bangumi_producer_cjk_af4d75	SKIP	ad parçası/gürültü: エー
+bangumi_producer_cjk_fed8e8	SKIP	ad parçası/gürültü: メリー
+bangumi_producer_gp_8	gp_8	Latin ad — as_is
+bangumi_producer_n_o_syo	n_o_syo	Latin ad — as_is
+bangumi_producer_tvb	tvb	mevcut anahtara birleşim: bangumi_network_tvb
+bangumi_producer_bootleg	bootleg	Latin ad — as_is
+bangumi_producer_cjk_15a3e5	cjk_15a3e5	bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+bangumi_producer_cjk_1827f0	takahiro	global karşılık: タカヒロ → Takahiro
+bangumi_producer_cjk_9b7c74	cjk_9b7c74	bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+bangumi_producer_cjk_be1579	chihiro_kameyama	global karşılık: 亀山千広 → Chihiro Kameyama
+bangumi_producer_studio9maiami	studio9maiami	Latin ad — as_is
+bangumi_producer_universal_pictures	universal_pictures	Latin ad — as_is
+bangumi_network_fx	fx	Latin ad — as_is
+bangumi_network_nhk_e_2	nhk_e_tv	global karşılık: NHK Eテレ → NHK E-TV
+bangumi_network_showtime	showtime	Latin ad — as_is
+bangumi_network_amc	amc	Latin ad — as_is
+bangumi_network_bbc_2_2	bbc_2_2	Latin ad — as_is
+bangumi_network_cjk_24d3e2	tv_tokyo	mevcut anahtar: bangumi_network_tv_tokyo
+bangumi_network_cjk_3cded1	sunday_prime	global karşılık: 日曜プライム → Sunday Prime
+bangumi_network_cjk_3c0c18	saturday_drama	global karşılık: 土曜ドラマ → Saturday Drama
+bangumi_network_fox_2	fox_2	Latin ad — as_is
+bangumi_network_tnt	tnt	Latin ad — as_is
+bangumi_network_cw_2	cw_2	Latin ad — as_is
+bangumi_network_tbs_5	tbs	mevcut anahtar: bangumi_network_tbs
+bangumi_publisher_cjk_42e1e7	cjk_42e1e7	bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+bangumi_publisher_cjk_96c0e1	media_works_bunko	global karşılık: メディアワークス文庫 → Media Works Bunko
+bangumi_publisher_cjk_e29aea	cjk_e29aea	bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+bangumi_publisher_lila_c_records	lila_c_records	Latin ad — as_is
+bangumi_publisher_cjk_59e21e	cjk_59e21e	bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+bangumi_publisher_cjk_6a3d71	yamaha_music_communications	global karşılık: ヤマハミュージックコミュニケーションズ → Yamaha Music Communications
+bangumi_publisher_cjk_8c9f2f	SKIP	ad parçası/gürültü: エス
+bangumi_publisher_columbia_music_entertainment	columbia_music_entertainment	mevcut anahtar: bangumi_publisher_columbia_music_entertainment
+bangumi_publisher_cjk_087d08	nippon_crown	global karşılık: 日本クラウン → Nippon Crown
+bangumi_publisher_cjk_24ca48	chingwin_publishing	mevcut anahtar: bangumi_publisher_chingwin_publishing
+bangumi_publisher_cjk_30fe05	chuokoron_sha	global karşılık: 中央公論社 → Chuokoron-sha
+bangumi_publisher_cjk_6df754	cjk_6df754	bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+bangumi_publisher_dmarts	dmarts	Latin ad — as_is
+bangumi_publisher_tunaboni_collections	tunaboni_collections	Latin ad — as_is
+bangumi_publisher_twofive_records	twofive_records	Latin ad — as_is
+bangumi_publisher_cjk_17a618	giga	mevcut anahtara birleşim: bangumi_studio_giga
+bangumi_publisher_cjk_6c1d04	SKIP	ad parçası/gürültü: マガジンズ
+bangumi_publisher_gr8_records	gr8_records	Latin ad — as_is
+bangumi_publisher_air_label	air_label	Latin ad — as_is
+bangumi_publisher_cjk_426133	cjk_426133	bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+bangumi_publisher_cjk_7b5d91	bandai_visual	mevcut anahtara birleşim: bangumi_producer_bandai_visual
+bangumi_publisher_cjk_f9a7c2	cjk_f9a7c2	bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+bangumi_publisher_geneon_entertainment	geneon_entertainment	Latin ad — as_is
+bangumi_publisher_sony_music_direct	sony_music_direct	Latin ad — as_is
+bangumi_publisher_cjk_22e2c0	cjk_22e2c0	bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+bangumi_publisher_cjk_d0aef7	cjk_d0aef7	bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+bangumi_publisher_cjk_f5a7b4	cjk_f5a7b4	bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+bangumi_publisher_deep_silver	deep_silver	Latin ad — as_is
+bangumi_publisher_hikari_field	hikari_field	Latin ad — as_is
+bangumi_publisher_namco_2	namco_2	Latin ad — as_is
+bangumi_publisher_sync_art_s	sync_art_s	Latin ad — as_is
+bangumi_publisher_alice_s_emotion	alice_s_emotion	Latin ad — as_is
+bangumi_publisher_cjk_57fb13	cjk_57fb13	bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+bangumi_publisher_cjk_d420ed	star_entertainment	global karşılık: スターエンターテイメント → Star Entertainment
+bangumi_publisher_ddby	ddby	Latin ad — as_is
+bangumi_publisher_focus_home_interactive	focus_home_interactive	Latin ad — as_is
+bangumi_publisher_interchannel	interchannel	mevcut anahtar: bangumi_publisher_interchannel
+bangumi_publisher_cjk_58885f	polydor	global karşılık: ポリドール → Polydor
+bangumi_publisher_cjk_8f1b5a	konami	mevcut anahtara birleşim: bangumi_producer_konami
+bangumi_publisher_cjk_8a5998	cjk_8a5998	bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+bangumi_publisher_f_i_x_records	f_i_x_records	Latin ad — as_is
+bangumi_publisher_cjk_731382	kawade_shobo_shinsha	global karşılık: 河出書房新社 → Kawade Shobo Shinsha
+bangumi_publisher_cjk_d21edf	cjk_d21edf	bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+bangumi_publisher_paradox_interactive	paradox_interactive	Latin ad — as_is
+bangumi_publisher_cjk_dd2305	universal_sigma	global karşılık: ユニバーサル シグマ → Universal Sigma
+bangumi_publisher_games_workshop	games_workshop	Latin ad — as_is
+bangumi_publisher_bullet	bullet	Latin ad — as_is
+bangumi_publisher_cjk_05eeea	sony_music_entertainment	global karşılık: ソニーミュージックエンタテインメント → Sony Music Entertainment
+bangumi_publisher_cjk_b2b67b	victor_musical_industries	global karşılık: ビクター音楽産業 → Victor Musical Industries
+bangumi_publisher_cjk_c1ba39	hibiki_music	global karşılık: 響ミュージック → Hibiki Music
+bangumi_publisher_cjk_fe9052	capcom	mevcut anahtar: bangumi_publisher_capcom
+bangumi_publisher_playism	playism	Latin ad — as_is
+bangumi_publisher_chouchou	chouchou	Latin ad — as_is
+bangumi_publisher_cjk_0c25c4	team_shanghai_alice	global karşılık: 上海アリス幻樂団 → Team Shanghai Alice
+bangumi_publisher_cjk_b5d3ab	universal_music	global karşılık: ユニバーサル ミュージック → Universal Music
+bangumi_publisher_frame	frame	Latin ad — as_is
+bangumi_publisher_image_comics	image_comics	Latin ad — as_is
+bangumi_publisher_cjk_5537ca	cjk_5537ca	bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+bangumi_publisher_cjk_47dd2f	activision	mevcut anahtar: bangumi_publisher_activision
+bangumi_publisher_cjk_5e53f3	china_times_publishing	global karşılık: 時報文化 → China Times Publishing
+bangumi_publisher_cjk_cf0924	jitsugyo_no_nihon_sha	mevcut anahtar: bangumi_publisher_jitsugyo_no_nihon_sha
+bangumi_publisher_b6_3	houbunsha	mevcut anahtar: bangumi_publisher_houbunsha
+bangumi_publisher_b_gram_records	b_gram_records	Latin ad — as_is
+bangumi_publisher_blizzard_entertainment	blizzard_entertainment	Latin ad — as_is
+bangumi_publisher_cjk_c8e220	cjk_c8e220	bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+bangumi_publisher_dy	hakuhodo_dy_music_pictures	mevcut anahtara birleşim: bangumi_producer_hakuhodo_dy_music_pictures
+bangumi_publisher_warner_bros_interactive_entert	warner_bros_interactive_entert	Latin ad — as_is
+bangumi_publisher_cjk_1b4def	cjk_1b4def	bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+bangumi_publisher_cjk_2c78d8	kodansha_ranobe_bunko	global karşılık: 講談社ラノベ文庫 → Kodansha Ranobe Bunko
+bangumi_publisher_cjk_ad99df	otomate	mevcut anahtara birleşim: bangumi_studio_otomate
+bangumi_publisher_falcom	nihon_falcom	mevcut anahtar: bangumi_publisher_nihon_falcom
+bangumi_publisher_fortissimo	fortissimo	Latin ad — as_is
+bangumi_publisher_iron_attack	iron_attack	Latin ad — as_is
+bangumi_publisher_snk_2	snk	mevcut anahtara birleşim: bangumi_studio_snk
+bangumi_publisher_zero_a	zero_a	Latin ad — as_is
+bangumi_publisher_cjk_907ac8	cjk_907ac8	bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+bangumi_publisher_cjk_9c136d	gakken_publishing	global karşılık: 学研パブリッシング → Gakken Publishing
+bangumi_publisher_five_records	five_records	Latin ad — as_is
+bangumi_publisher_chouette	chouette	Latin ad — as_is
+bangumi_publisher_cjk_28d164	kosaido_publishing	global karşılık: 廣済堂出版 → Kosaido Publishing
+bangumi_publisher_cjk_4b28f8	furyu	global karşılık: フリュー → FURYU
+bangumi_publisher_cjk_4df308	konami_digital_entertainment	mevcut anahtar: bangumi_publisher_konami_digital_entertainment
+bangumi_publisher_lantis_k_m	lantis_k_m	Latin ad — as_is
+bangumi_publisher_marvelous_entertainment_inc_ld	marvelous_entertainment_inc_ld	Latin ad — as_is
+bangumi_publisher_melty_drop	melty_drop	Latin ad — as_is
+bangumi_publisher_cjk_8278db	kadokawa_group_publishing	mevcut anahtar: bangumi_publisher_kadokawa_group_publishing
+bangumi_publisher_cjk_88c2bb	cjk_88c2bb	bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+bangumi_publisher_cjk_bd7328	cjk_bd7328	bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+bangumi_publisher_cjk_37852c	emotion	global karşılık: エモーション → Emotion
+bangumi_publisher_cjk_58f84f	cjk_58f84f	bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+bangumi_publisher_spacelectro	spacelectro	Latin ad — as_is
+bangumi_publisher_basiscape_records	basiscape_records	Latin ad — as_is
+bangumi_publisher_cjk_9a1c20	SKIP	ad parçası/gürültü: 出版
+bangumi_publisher_eidos_interactive	eidos_interactive	Latin ad — as_is
+bangumi_publisher_unitone	unitone	Latin ad — as_is
+bangumi_publisher_cjk_5c6d72	cjk_5c6d72	bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+bangumi_publisher_cjk_aeebed	koei_tecmo	global karşılık: 光荣特库摩 → Koei Tecmo
+bangumi_publisher_cjk_b55b31	cjk_b55b31	bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+bangumi_publisher_cjk_bb9827	cjk_bb9827	bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+bangumi_publisher_dusk	dusk	Latin ad — as_is
+bangumi_publisher_ginger_records	ginger_records	Latin ad — as_is
+bangumi_publisher_gloryheaven	gloryheaven	Latin ad — as_is
+bangumi_publisher_supersweep	supersweep	Latin ad — as_is
+bangumi_publisher_velvet_voice	velvet_voice	Latin ad — as_is
+bangumi_publisher_cjk_59d083	SKIP	ad parçası/gürültü: コミックス
+bangumi_publisher_cjk_892481	SKIP	ad parçası/gürültü: ピクチャーズ
+bangumi_publisher_cjk_eb911b	cjk_eb911b	bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+bangumi_publisher_purple_software	purple_software	Latin ad — as_is
+bangumi_publisher_cjk_9ceb68	cjk_9ceb68	bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+bangumi_publisher_foxtail_grass_studio	foxtail_grass_studio	Latin ad — as_is
+bangumi_publisher_amg_music	amg_music	Latin ad — as_is
+bangumi_publisher_cjk_49bbcd	dreamusic_publishing	global karşılık: ドリーミュージックパブリッシング → Dreamusic Publishing
+bangumi_publisher_cjk_a45bdc	cjk_a45bdc	bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+bangumi_publisher_front_wing	front_wing	mevcut anahtara birleşim: bangumi_studio_front_wing
+bangumi_publisher_kagura_games	kagura_games	Latin ad — as_is
+bangumi_publisher_cjk_27eca1	koei	mevcut anahtar: bangumi_publisher_koei
+bangumi_publisher_cjk_44be1b	culturecom_holdings	global karşılık: 文化传信集团有限公司 → Culturecom Holdings
+bangumi_publisher_cjk_d0773e	seirinkogeisha	global karşılık: 青林工藝舎 → Seirinkogeisha
+bangumi_publisher_dc	dc_comics	mevcut anahtar: bangumi_publisher_dc_comics
+bangumi_publisher_felt	felt	Latin ad — as_is
+bangumi_publisher_shibayanrecords	shibayanrecords	Latin ad — as_is
+bangumi_publisher_zetima	zetima	Latin ad — as_is
+bangumi_publisher_cjk_254481	china_friendship_publishing	global karşılık: 中国友谊出版公司 → China Friendship Publishing
+bangumi_publisher_cjk_b9dce2	cjk_b9dce2	bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+bangumi_publisher_cjk_eb00d9	beijing_united_publishing	global karşılık: 北京联合出版公司 → Beijing United Publishing
+bangumi_publisher_kid	kid	mevcut anahtara birleşim: bangumi_studio_kid
+bangumi_publisher_sierra_entertainment	sierra_entertainment	Latin ad — as_is
+bangumi_publisher_yonder_voice	yonder_voice	Latin ad — as_is
+bangumi_publisher_atis_collection	atis_collection	Latin ad — as_is
+bangumi_publisher_cjk_0557bf	cjk_0557bf	bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+bangumi_publisher_cjk_1e22fe	mihoyo	global karşılık: 米哈游 → miHoYo
+bangumi_publisher_cjk_a2e607	cjk_a2e607	bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+bangumi_publisher_cjk_bd8719	bandai	mevcut anahtar: bangumi_publisher_bandai
+bangumi_publisher_cjk_ea4475	cjk_ea4475	bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+bangumi_publisher_cjk_f564ef	cjk_f564ef	bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+bangumi_publisher_innocent_grey	innocent_grey	Latin ad — as_is
+bangumi_publisher_cjk_e425bc	seirindo	global karşılık: 青林堂 → Seirindo
+bangumi_publisher_cjk_104a91	cjk_104a91	bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+bangumi_publisher_cjk_6c778a	otomate_record	global karşılık: オトメイトレコード → Otomate Record
+bangumi_publisher_cjk_ad487b	d_c_media	global karşılık: 디앤씨미디어 → D&C Media
+bangumi_publisher_cjk_bc033a	kyoto_animation	mevcut anahtara birleşim: bangumi_studio_kyoto_animation
+bangumi_publisher_geneon_music	geneon_music	Latin ad — as_is
+bangumi_publisher_janis	janis	Latin ad — as_is
+bangumi_publisher_tatshmusiccircle	tatshmusiccircle	Latin ad — as_is
+bangumi_publisher_attrielectrock	attrielectrock	Latin ad — as_is
+bangumi_publisher_cjk_8d527b	cjk_8d527b	bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+bangumi_publisher_cjk_d0c776	bandai_namco_arts	global karşılık: バンダイナムコアーツ → Bandai Namco Arts
+bangumi_publisher_cjk_ecaf41	harvest_publishing	global karşılık: ハーヴェスト出版 → Harvest Publishing
+bangumi_publisher_cjk_f75e0f	sharp_point_press	mevcut anahtar: bangumi_publisher_sharp_point_press
+bangumi_publisher_inc_2	SKIP	ad parçası/gürültü: INC.
+bangumi_publisher_lost_garden	lost_garden	Latin ad — as_is
+bangumi_publisher_south_of_heaven	south_of_heaven	Latin ad — as_is
+bangumi_publisher_cjk_e15053	cjk_e15053	bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+bangumi_publisher_cjk_f4cebb	enix	mevcut anahtar: bangumi_publisher_enix
+bangumi_publisher_frontier_works_inc_plc_m	frontier_works_inc_plc_m	Latin ad — as_is
+bangumi_publisher_marvel_comics	marvel_comics	Latin ad — as_is
+bangumi_publisher_mellow_yellow	mellow_yellow	Latin ad — as_is
+bangumi_publisher_minori	minori	Latin ad — as_is
+bangumi_publisher_rabbitcandy	rabbitcandy	Latin ad — as_is
+bangumi_publisher_cjk_29c895	takarajimasha	mevcut anahtar: bangumi_publisher_takarajimasha
+bangumi_publisher_cjk_8a4381	kadokawa_games	global karşılık: 角川ゲームス → Kadokawa Games
+bangumi_publisher_cjk_b97b44	storm	global karşılık: ストーム → Storm
+bangumi_publisher_cjk_be565a	fantasia_bunko	global karşılık: ファンタジア文庫 → Fantasia Bunko
+bangumi_publisher_cjk_e8df7d	shueisha_creative	global karşılık: 集英社クリエイティブ → Shueisha Creative
+bangumi_publisher_imperial_records	imperial_records	Latin ad — as_is
+bangumi_publisher_namco	namco	global karşılık: NAMCO → Namco
+bangumi_publisher_nexon	nexon	Latin ad — as_is
+bangumi_publisher_venerdi	venerdi	Latin ad — as_is
+bangumi_publisher_cjk_1e7af1	cjk_1e7af1	bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+bangumi_publisher_cjk_31828b	genkosha	global karşılık: 玄光社 → Genkosha
+bangumi_publisher_cjk_4f75db	cjk_4f75db	bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+bangumi_publisher_cjk_767cdb	cjk_767cdb	bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+bangumi_publisher_cjk_792038	compile_heart	global karşılık: コンパイルハート → Compile Heart
+bangumi_publisher_cjk_f48cab	cyberfront	global karşılık: サイバーフロント → CyberFront
+bangumi_publisher_iris_quartz	iris_quartz	Latin ad — as_is
+bangumi_publisher_shiravune	shiravune	Latin ad — as_is
+bangumi_publisher_silly_walker	silly_walker	Latin ad — as_is
+bangumi_publisher_valve	valve	Latin ad — as_is
+bangumi_publisher_cjk_0125b8	cjk_0125b8	bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+bangumi_publisher_cjk_5205fa	SKIP	ad parçası/gürültü: ジェイ
+bangumi_publisher_cjk_7f8345	ohmsha	global karşılık: オーム社 → Ohmsha
+bangumi_publisher_cjk_e51f48	ubisoft	global karşılık: 育碧娱乐 → Ubisoft
+bangumi_publisher_ubisoft	ubisoft	Latin ad — as_is
+bangumi_publisher_avex_mode	avex_mode	Latin ad — as_is
+bangumi_publisher_cjk_0f0756	SKIP	ad parçası/gürültü: 中国大陆
+bangumi_publisher_cjk_86a871	cjk_86a871	bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+bangumi_publisher_cjk_b1cf41	cjk_b1cf41	bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+bangumi_publisher_cjk_ba6549	asahi_shimbun_publications	mevcut anahtar: bangumi_publisher_asahi_shimbun_publications
+bangumi_publisher_get_in_the_ring	get_in_the_ring	Latin ad — as_is
+bangumi_publisher_illusion	illusion	mevcut anahtara birleşim: bangumi_studio_illusion
+bangumi_publisher_innocent_key	innocent_key	Latin ad — as_is
+bangumi_magazine_cjk_cf07b4	bilibili_comics	global karşılık: 哔哩哔哩漫画 → Bilibili Comics
+bangumi_magazine_margaret_2	margaret_2	Latin ad — as_is
+bangumi_magazine_cjk_325764	monthly_princess	global karşılık: 月刊プリンセス → Monthly Princess
+bangumi_magazine_cjk_3ae2b0	cjk_3ae2b0	bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+bangumi_magazine_two	monthly_morning_two	global karşılık: 月刊モーニングtwo → Monthly Morning Two
+bangumi_magazine_cjk_f237fa	manga_time_kirara_miracle	global karşılık: まんがタイムきららミラク → Manga Time Kirara Miracle
+bangumi_magazine_cjk_73c742	manga_time_jumbo	global karşılık: まんがタイムジャンボ → Manga Time Jumbo
+bangumi_magazine_cjk_e727b3	monthly_young_magazine	global karşılık: 月刊ヤングマガジン → Monthly Young Magazine
+bangumi_magazine_cookie	cookie	Latin ad — as_is
+bangumi_magazine_gangan_2	gangan	mevcut anahtar: bangumi_magazine_gangan
+bangumi_magazine_magazine_pocket	magazine_pocket	Latin ad — as_is
+bangumi_magazine_be	SKIP	ad parçası/gürültü: BE
+bangumi_magazine_melody	melody	Latin ad — as_is
+bangumi_magazine_cjk_adca91	cjk_adca91	bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+bangumi_magazine_cjk_2d976f	comic_gardo	global karşılık: コミックガルド → Comic Gardo
+bangumi_magazine_cjk_336012	super_jump	global karşılık: スーパージャンプ → Super Jump
+bangumi_magazine_cjk_41b5a4	kurage_bunch	global karşılık: くらげバンチ → Kurage Bunch
+bangumi_magazine_gx	monthly_sunday_gx	global karşılık: 月刊サンデーGX → Monthly Sunday GX
+bangumi_magazine_palcy_2	palcy_2	Latin ad — as_is
+bangumi_magazine_cjk_1b8f6c	SKIP	ad parçası/gürültü: 週刊
+bangumi_magazine_comp_ace	monthly_comp_ace	mevcut anahtar: bangumi_magazine_monthly_comp_ace
+bangumi_magazine_young_sunday	weekly_young_sunday	global karşılık: 周刊YOUNG SUNDAY → Weekly Young Sunday
+bangumi_magazine_cjk_4cf6f6	cjk_4cf6f6	bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+bangumi_magazine_cjk_d04762	monthly_shonen_champion	global karşılık: 月刊少年チャンピオン → Monthly Shonen Champion
+bangumi_magazine_cjk_e10d85	gundam_ace	global karşılık: ガンダムエース → Gundam Ace
+bangumi_magazine_comic_5	comic_meteor	global karşılık: COMICメテオ → Comic Meteor
+bangumi_magazine_magazine_2	bessatsu_shonen_magazine	mevcut anahtar: bangumi_magazine_bessatsu_shonen_magazine
+bangumi_magazine_s	shonen_sunday_s	global karşılık: 少年サンデーS → Shonen Sunday S
+bangumi_magazine_times	weekly_manga_times	global karşılık: 週刊漫画TIMES → Weekly Manga Times
+bangumi_magazine_comic_flapper_2	comic_flapper	mevcut anahtar: bangumi_magazine_comic_flapper
+bangumi_magazine_web_52	web_comic_gamma_plus	global karşılık: WEBコミックガンマぷらす → Web Comic Gamma Plus
+bangumi_magazine_gh	monthly_young_king_ours_gh	global karşılık: 月刊ヤングキングアワーズGH → Monthly Young King Ours GH
+bangumi_magazine_cjk_194b3c	comptiq	global karşılık: コンプティーク → Comptiq
+bangumi_magazine_cjk_420677	sunday_webry	global karşılık: サンデーうぇぶり → Sunday Webry
+bangumi_magazine_comic_16	comic_polaris	global karşılık: COMICポラリス → Comic Polaris
+bangumi_magazine_cjk_c1cdf7	monthly_comic_zenon	global karşılık: 月刊コミックゼノン → Monthly Comic Zenon
+bangumi_magazine_comic_21	comic_boost	global karşılık: comicブースト → Comic Boost
+bangumi_magazine_comic_gene	monthly_comic_gene	global karşılık: 月刊Comic GENE → Monthly Comic Gene
+bangumi_magazine_cjk_8ce9e8	monthly_spirits	global karşılık: 月刊!スピリッツ → Monthly Spirits
+bangumi_magazine_cjk_e52021	comic_clear	global karşılık: コミッククリア → Comic Clear
+bangumi_magazine_g_s	dengeki_g_s_comic	global karşılık: 電撃G'sコミック → Dengeki G's Comic
+bangumi_magazine_cjk_a68c74	comic_dengeki_daioh	global karşılık: コミック電撃だいおうじ → Comic Dengeki Daioh
+bangumi_magazine_flos_comic	flos_comic	Latin ad — as_is
+bangumi_magazine_sunday	sunday	Latin ad — as_is
+bangumi_magazine_ultra_jump_2	ultra_jump	mevcut anahtar: bangumi_magazine_ultra_jump
+bangumi_magazine_web_2	web_action	global karşılık: webアクション → Web Action
+bangumi_magazine_cjk_0b5a02	mystery_bonita	global karşılık: ミステリーボニータ → Mystery Bonita
+bangumi_magazine_comic_blade	comic_blade	Latin ad — as_is
+bangumi_magazine_web_7	web_comic_zenyon	global karşılık: WEBコミックぜにょん → Web Comic Zenyon
+bangumi_magazine_park	manga_park	global karşılık: マンガPark → Manga Park
+bangumi_magazine_princess	monthly_princess	global karşılık: 月刊Princess → Monthly Princess
+bangumi_magazine_cjk_c4eab0	young_magazine_third	global karşılık: ヤングマガジン サード → Young Magazine Third
+bangumi_magazine_morning_two	monthly_morning_two	global karşılık: 月刊Morning Two → Monthly Morning Two
+bangumi_magazine_love	SKIP	ad parçası/gürültü: LOVE
+bangumi_magazine_cjk_5dd44b	cjk_5dd44b	bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+bangumi_magazine_cjk_8e514e	yawaraka_spirits	global karşılık: やわらかスピリッツ → Yawaraka Spirits
+bangumi_magazine_cjk_d06b66	young_champion_retsu	global karşılık: ヤングチャンピオン烈 → Young Champion Retsu
+bangumi_magazine_cjk_bcc963	business_jump	global karşılık: ビジネスジャンプ → Business Jump
+bangumi_magazine_cjk_d0e442	weekly_manga_goraku	global karşılık: 週刊漫画ゴラク → Weekly Manga Goraku
+bangumi_magazine_comic_zero_sum_2	comic_zero_sum	mevcut anahtar: bangumi_magazine_comic_zero_sum
+bangumi_magazine_times_2	weekly_manga_times	global karşılık: 周刊漫画TIMES → Weekly Manga Times
+bangumi_magazine_fami_comic_clear	famitsu_comic_clear	global karşılık: Fami通Comic Clear → Famitsu Comic Clear
+bangumi_magazine_cjk_1b3e03	bessatsu_hana_to_yume	global karşılık: 別冊花とゆめ → Bessatsu Hana to Yume
+bangumi_magazine_cjk_02394c	jinjiang_literature_city	global karşılık: 晋江文学城 → Jinjiang Literature City
+bangumi_magazine_cjk_54c032	cjk_54c032	bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+bangumi_magazine_cjk_60035c	cjk_60035c	bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+bangumi_magazine_cjk_630b29	manga_time_original	global karşılık: まんがタイムオリジナル → Manga Time Original
+bangumi_magazine_cjk_720514	young_animal_arashi	global karşılık: ヤングアニマル嵐 → Young Animal Arashi
+bangumi_magazine_cjk_a3f883	SKIP	ad parçası/gürültü: スター
+bangumi_magazine_cjk_e478ae	cjk_e478ae	bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+bangumi_magazine_jump_square	jump_square	Latin ad — as_is
+bangumi_magazine_win	manga_life_win	global karşılık: まんがライフWIN → Manga Life Win
+bangumi_magazine_young_king_ours_gh	monthly_young_king_ours_gh	global karşılık: 月刊YOUNG KING OURS GH → Monthly Young King Ours GH
+bangumi_magazine_cjk_bba03e	manga_time_family	global karşılık: まんがタイムファミリー → Manga Time Family
+bangumi_magazine_cjk_49e0a0	cycomi	global karşılık: サイコミ → Cycomi
+bangumi_magazine_gold	princess_gold	global karşılık: プリンセスGOLD → Princess Gold
+bangumi_magazine_magazine_3	monthly_shonen_magazine	mevcut anahtar: bangumi_magazine_monthly_shonen_magazine
+bangumi_magazine_cjk_52b351	comic_gum	global karşılık: コミックガム → Comic Gum
+bangumi_magazine_cjk_78c204	cjk_78c204	bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+bangumi_magazine_gangan_joker	monthly_gangan_joker	global karşılık: 月刊GANGAN JOKER → Monthly Gangan Joker
+bangumi_magazine_mangaone	mangaone	Latin ad — as_is

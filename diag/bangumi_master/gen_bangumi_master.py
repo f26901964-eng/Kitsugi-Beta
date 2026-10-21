@@ -63,6 +63,53 @@ def kotlin_escape(value: str) -> str:
     return value.replace("$", "${'$'}")
 
 
+# JVM class-file CONSTANT_Utf8 entries are limited to 65,535 modified-UTF-8 bytes.
+# Keep generated raw-string chunks comfortably below that ceiling so the dictionary
+# keeps compiling as orgs.tsv grows.
+MAX_KOTLIN_CONSTANT_MUTF8_BYTES = 50_000
+
+
+def kotlin_mutf8_length(value: str) -> int:
+    """Return the class-file modified-UTF-8 size of a Kotlin/JVM string constant."""
+    size = 0
+    for char in value:
+        codepoint = ord(char)
+        if codepoint == 0:
+            size += 2
+        elif codepoint <= 0x7F:
+            size += 1
+        elif codepoint <= 0x7FF:
+            size += 2
+        elif codepoint <= 0xFFFF:
+            size += 3
+        else:
+            # JVM strings store supplementary Unicode code points as a surrogate pair.
+            size += 6
+    return size
+
+
+def render_kotlin_raw_chunks(lines: list[str]) -> str:
+    """Render raw dictionary lines as safe, adjacent Kotlin triple-quoted literals."""
+    chunks: list[list[str]] = []
+    current: list[str] = []
+    current_size = 0
+    for line in lines:
+        if '"""' in line:
+            raise SystemExit("org etiketi Kotlin üç-tırnaklı ham metin sınırlayıcısını içeriyor")
+        line_size = kotlin_mutf8_length(line + "\n")
+        if line_size > MAX_KOTLIN_CONSTANT_MUTF8_BYTES:
+            raise SystemExit("tek bir org satırı Kotlin sabit dizgesi sınırını aşıyor")
+        if current and current_size + line_size > MAX_KOTLIN_CONSTANT_MUTF8_BYTES:
+            chunks.append(current)
+            current = []
+            current_size = 0
+        current.append(line)
+        current_size += line_size
+    if current:
+        chunks.append(current)
+    return ",\n".join('        """' + "\n".join(chunk) + "\n" + '"""' for chunk in chunks)
+
+
 def read_rows(path: Path, width: int):
     rows = []
     for raw in path.read_text(encoding="utf-8").splitlines():
@@ -284,8 +331,10 @@ import java.util.Locale
  */
 internal object BangumiOrgDictionary {
 
-    private const val RAW = """
-%RAW%"""
+    // JVM CONSTANT_Utf8 strings cap at 65,535 modified-UTF-8 bytes; chunks stay below 50,000.
+    private val RAW = listOf(
+%RAW_CHUNKS%
+    ).joinToString("")
 
     /** `etiket|anahtar|küresel ad` satırları, tembel olarak ayrıştırılır. */
     private val rows: List<Triple<String, String, String>> by lazy {
@@ -367,7 +416,7 @@ internal object BangumiOrgDictionary {
 }
 '''
 
-ORG_DICT.write_text(ORG_TEMPLATE.replace("%RAW%", "\n".join(org_lines) + "\n"),
+ORG_DICT.write_text(ORG_TEMPLATE.replace("%RAW_CHUNKS%", render_kotlin_raw_chunks(org_lines)),
                     encoding="utf-8") if not CHECK_ONLY else None
 
 

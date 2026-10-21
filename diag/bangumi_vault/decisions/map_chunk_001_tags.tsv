@@ -1,0 +1,179 @@
+# Bangumi VAULT — chunk 001 · ETİKET haritası (count>=500 · 174 kayıt)
+# Biçim: vault_key <TAB> canon_id|SKIP <TAB> not
+# Karar kuralları: global karşılık (canon origin=global/existing) → birleşim;
+# çeviri (origin=new) → yeni kanon; özel ad/kısaltma → as_is/global Latin sabitleme;
+# yıl/tarih, kişisel raf etiketleri, spam/belirsiz → SKIP (ham gösterilir, dil dosyasına girmez).
+bangumi_tag_cjk_e6adc5	manga_series	漫画系列
+bangumi_tag_tag_59d083	comic_book	コミックス → çizgi roman kanonu
+bangumi_tag_bl_5	bl	BL漫画
+bangumi_tag_cjk_8d296d	tankobon	单行本
+bangumi_tag_bl_7	bl	BLコミック
+bangumi_tag_drama_2	drama	drama
+bangumi_tag_2015	SKIP	yıl etiketi
+bangumi_tag_ed	ending_theme	ED
+bangumi_tag_2016	SKIP	yıl etiketi
+bangumi_tag_2017	SKIP	yıl etiketi
+bangumi_tag_cjk_dc0e7c	japanese_manga	日本漫画
+bangumi_tag_2014	SKIP	yıl etiketi
+bangumi_tag_2018_2	SKIP	yıl etiketi
+bangumi_tag_cjk_c98fac	adult_manga	成年コミック
+bangumi_tag_op	opening_theme	OP
+bangumi_tag_gal	galgame	GAL
+bangumi_tag_2013	SKIP	yıl etiketi
+bangumi_tag_cjk_1d6cf8	nukige	拔作
+bangumi_tag_cjk_cc8bf4	touhou_project	東方
+bangumi_tag_2012	SKIP	yıl etiketi
+bangumi_tag_2019	SKIP	yıl etiketi
+bangumi_tag_single_2	single	single
+bangumi_tag_anime	anime	anime
+bangumi_tag_2020	SKIP	yıl etiketi
+bangumi_tag_2011	SKIP	yıl etiketi
+bangumi_tag_cjk_a1e237	tankobon	漫画单行本
+bangumi_tag_cjk_324d7d	chinese_scanlation	汉化
+bangumi_tag_cjk_ad4e91	compilation	合集
+bangumi_tag_cjk_f30784	hentai	里番
+bangumi_tag_steam	platform_steam	STEAM
+bangumi_tag_cjk_e683c8	big_breasts	巨乳
+bangumi_tag_2010	SKIP	yıl etiketi
+bangumi_tag_cjk_966e7c	series	系列
+bangumi_tag_1_3	SKIP	盘1 — fiziksel raf etiketi
+bangumi_tag_2009	SKIP	yıl etiketi
+bangumi_tag_cjk_d2be62	novel_series	小说系列
+bangumi_tag_cjk_91b536	adult_manga	成人漫画
+bangumi_tag_2021	SKIP	yıl etiketi
+bangumi_tag_cjk_66dea2	tankobon	漫画単行本
+bangumi_tag_2008	SKIP	yıl etiketi
+bangumi_tag_tag_4fa344	drama	ドラマ
+bangumi_tag_album_2	album	album
+bangumi_tag_cjk_ff875e	hentai	里 (里番 kısaltması)
+bangumi_tag_tva	tv	TVA
+bangumi_tag_2007	SKIP	yıl etiketi
+bangumi_tag_2022	SKIP	yıl etiketi
+bangumi_tag_tag_b66177	SKIP	¬ — anlamsız işaret
+bangumi_tag_cjk_2d7dff	loli	萝莉
+bangumi_tag_dramacd	radio_drama	dramaCD
+bangumi_tag_18x	restricted	18X
+bangumi_tag_blcd	blcd	BLCD
+bangumi_tag_ios	platform_ios	IOS
+bangumi_tag_2006	SKIP	yıl etiketi
+bangumi_tag_cjk_d4c4c5	doujin_music	同人音樂
+bangumi_tag_roda	SKIP	RoDa — belirsiz kısaltma
+bangumi_tag_cjk_c2f717	erotic	工口
+bangumi_tag_cjk_b7b800	touhou_project	东方 (basitleştirilmiş 東方)
+bangumi_tag_2005	SKIP	yıl etiketi
+bangumi_tag_cjk_8941e0	manga_volumes	漫画分卷
+bangumi_tag_cjk_74f3cf	solo_use	实用
+bangumi_tag_bl_4	bl_drama	BLドラマ
+bangumi_tag_cjk_250017	guro	猎奇
+bangumi_tag_cjk_8fdafd	all_ages	一般コミック
+bangumi_tag_cjk_d5367b	shoujo	少女マンガ
+bangumi_tag_2004	SKIP	yıl etiketi
+bangumi_tag_cjk_64647f	all_ages	一般向
+bangumi_tag_2016_2	SKIP	yıl etiketi (2016年)
+bangumi_tag_cjk_e07e6f	anisong	动漫主题曲
+bangumi_tag_crsg	SKIP	CrSg — belirsiz kısaltma
+bangumi_tag_cjk_06c9f4	doujin_music	同人音乐
+bangumi_tag_cjk_07a891	movie	动画电影
+bangumi_tag_cjk_c40db1	shoujo	少女漫
+bangumi_tag_2003	SKIP	yıl etiketi
+bangumi_tag_h	hentai	H
+bangumi_tag_cd_2	otome_drama_cd	乙女向けドラマCD
+bangumi_tag_jpop	jpop	JPOP
+bangumi_tag_cjk_2e55e7	married_woman	人妻
+bangumi_tag_cjk_4fa505	ln_volumes	轻小说分卷
+bangumi_tag_cjk_6d519a	eroge	黄油
+bangumi_tag_0	SKIP	非全0 — kişisel defter etiketi
+bangumi_tag_cjk_fa3c70	training	调教
+bangumi_tag_cjk_ef77a3	gintama	银魂
+bangumi_tag_4_7	SKIP	盘4 — fiziksel raf etiketi
+bangumi_tag_cjk_aa8098	little_sister	妹
+bangumi_tag_2023	SKIP	yıl etiketi
+bangumi_tag_cjk_daf783	SKIP	分 — anlamsız
+bangumi_tag_0_2	SKIP	全0 — kişisel defter etiketi
+bangumi_tag_cjk_65db74	gintama	银他妈 (Gintama takma adı)
+bangumi_tag_oped	oped	OPED
+bangumi_tag_tva_02	SKIP	TVA-02 — sezon raf etiketi
+bangumi_tag_cjk_38df85	album	音乐专辑
+bangumi_tag_2017_2	SKIP	yıl etiketi (2017年)
+bangumi_tag_cjk_b1a172	faithful_recreation	神还原
+bangumi_tag_cjk_f8ac7d	chinese_dub	中配
+bangumi_tag_cjk_29517c	SKIP	冷泉夜月 — fandub raf etiketi (kişi)
+bangumi_tag_cjk_34aa87	SKIP	陈绮贞 — fandub raf etiketi (kişi)
+bangumi_tag_cjk_41c62c	SKIP	陈老师 — fandub raf etiketi (kişi)
+bangumi_tag_cjk_95dc22	SKIP	银魂中配 — fandub raf etiketi
+bangumi_tag_cjk_7cad8b	shogakukan	小学館
+bangumi_tag_2002	SKIP	yıl etiketi
+bangumi_tag_cjk_bc4c08	japanese_style	日系
+bangumi_tag_cjk_44a62c	japanese_manga	日漫
+bangumi_tag_2_2	SKIP	盘2 — fiziksel raf etiketi
+bangumi_tag_2001	SKIP	yıl etiketi
+bangumi_tag_ova_2	ova	独立ova
+bangumi_tag_2015_2	SKIP	yıl etiketi (2015年)
+bangumi_tag_cjk_2cc5a3	indie_game	独立游戏
+bangumi_tag_cjk_b3d095	fanservice	卖肉
+bangumi_tag_2014_2	SKIP	yıl etiketi (2014年)
+bangumi_tag_cjk_f82777	japanese_film	日影
+bangumi_tag_cjk_34a696	humiliation	凌辱
+bangumi_tag_cjk_0cde91	shounen	少年漫画
+bangumi_tag_cjk_3760cc	anisong	动画歌曲
+bangumi_tag_bl_cd	blcd	BLドラマCD
+bangumi_tag_2018_3	SKIP	yıl etiketi (2018年)
+bangumi_tag_3_3	SKIP	盘3 — fiziksel raf etiketi
+bangumi_tag_cjk_51b4e6	game	普通游戏
+bangumi_tag_cjk_f37896	fanservice	肉
+bangumi_tag_game_2	game	GAME
+bangumi_tag_jump	jump	JUMP
+bangumi_tag_cjk_d81bb2	SKIP	无 — anlamsız
+bangumi_tag_nds	platform_nds	NDS
+bangumi_tag_cjk_56918a	otome_heart	乙女心
+bangumi_tag_cjk_29fcaf	SKIP	搜索用 — kişisel arama etiketi
+bangumi_tag_cjk_ce1e7c	SKIP	硬盘已存 — kişisel defter etiketi
+bangumi_tag_in	SKIP	IN — belirsiz
+bangumi_tag_cjk_aa1262	art_style	画风
+bangumi_tag_ps2	platform_ps2	PS2
+bangumi_tag_2013_2	SKIP	yıl etiketi (2013年)
+bangumi_tag_8cm	SKIP	8cm — fiziksel format raf etiketi
+bangumi_tag_cjk_550e7d	hakusensha	白泉社
+bangumi_tag_acg_2	acg	ACG
+bangumi_tag_2000	SKIP	yıl etiketi
+bangumi_tag_cjk_777985	short_anime	泡面
+bangumi_tag_cjk_0eac88	SKIP	库存 — kişisel defter etiketi
+bangumi_tag_cjk_276180	all_ages	一般向漫画
+bangumi_tag_3d_3	hentai	3D里番
+bangumi_tag_cjk_9eca0d	siscon	妹控
+bangumi_tag_cjk_a5b408	manga_volumes	日本漫画-分卷
+bangumi_tag_app	SKIP	APP — belirsiz
+bangumi_tag_2012_2	SKIP	yıl etiketi (2012年)
+bangumi_tag_2019_2	SKIP	yıl etiketi (2019年)
+bangumi_tag_cjk_0e9fb1	nintendo	任天堂
+bangumi_tag_cjk_06f009	yorie_horie	堀江由衣
+bangumi_tag_1999	SKIP	yıl etiketi
+bangumi_tag_cjk_e54fed	toei_animation	东映
+bangumi_tag_cjk_a1da7d	secret_situations	裏シチュ
+bangumi_tag_cjk_77d841	album	艺人专辑
+bangumi_tag_cjk_7975cb	single_volume	全一卷
+bangumi_tag_project	touhou_project	東方project
+bangumi_tag_cjk_2c38d9	houbunsha	芳文社
+bangumi_tag_cjk_90fee6	hatsune_miku	初音ミク
+bangumi_tag_cjk_59abf9	doujin	本子
+bangumi_tag_cjk_347adf	light_hearted	欢乐
+bangumi_tag_cjk_ecf7eb	SKIP	未分类 — organizasyon etiketi
+bangumi_tag_cjk_d75866	SKIP	补番 — kişisel izleme durumu
+bangumi_tag_cjk_3573c5	uncensored	无码
+bangumi_tag_cjk_b5b4eb	otome	乙女ゲーム
+bangumi_tag_vocal	vocal	VOCAL
+bangumi_tag_2011_2	SKIP	yıl etiketi (2011年)
+bangumi_tag_cjk_f6d1da	SKIP	视频通关 — kişisel izleme durumu
+bangumi_tag_5	SKIP	盘5 — fiziksel raf etiketi
+bangumi_tag_1998	SKIP	yıl etiketi
+bangumi_tag_90	nineties	90年代
+bangumi_tag_ova_02	SKIP	OVA-02 — cilt raf etiketi
+bangumi_tag_cjk_8606f2	yuri	轻百合
+bangumi_tag_lune_soft	lune_soft	lune-soft
+bangumi_tag_cjk_eef8fc	SKIP	补旧番 — kişisel izleme durumu
+bangumi_tag_2021_2	SKIP	yıl etiketi (2021年)
+bangumi_tag_cjk_4d3610	bl	基 (BL argosu)
+bangumi_tag_sunrise	sunrise_studio	SUNRISE
+bangumi_tag_2010_2	SKIP	yıl etiketi (2010年)
+bangumi_tag_cr	SKIP	CR — belirsiz kısaltma
+bangumi_tag_cg	cg	CG

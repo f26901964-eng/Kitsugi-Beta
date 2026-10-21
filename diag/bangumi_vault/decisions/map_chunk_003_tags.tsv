@@ -1,0 +1,494 @@
+# Bangumi VAULT — chunk 003 · ETİKET haritası (count 100–199 · 491 kayıt)
+# Biçim: vault_key <TAB> canon_id|SKIP <TAB> not
+# Kişisel raf/puan, tarih/dönem, gürültü ve belirsiz kısaltmalar SKIP; bilinmeyen CJK adlar as_is.
+bangumi_tag_c81	SKIP	doujin event number
+bangumi_tag_sunday_2	weekly_shonen_sunday	official magazine
+bangumi_tag_cd_8	SKIP	personal shelf/status/maintenance
+bangumi_tag_cx	SKIP	ambiguous abbreviation/overly vague label
+bangumi_tag_otomate	otomate	previously established cross-role tag canon
+bangumi_tag_olm	olm	animation studio
+bangumi_tag_cjk_0ab4bc	curvy	body-type descriptor
+bangumi_tag_cjk_1d18a5	masatomo_nakazawa	established creator/performer name
+bangumi_tag_cjk_218981	nao_toyama	established creator/performer name
+bangumi_tag_c83	SKIP	doujin event number
+bangumi_tag_cjk_c104f3	yuma_uchida	established creator/performer name
+bangumi_tag_1985	SKIP	year/month tag
+bangumi_tag_cjk_1f57f7	kazuhiko_inoue	established creator/performer name
+bangumi_tag_cjk_be7b4e	sports_manga	manga genre
+bangumi_tag_cjk_dd5dbd	SKIP	technical noise or release/status metadata
+bangumi_tag_lovelive	love_live	media franchise
+bangumi_tag_cjk_1b7888	rekka_katakiri	established creator/performer name
+bangumi_tag_cjk_4728b9	game_adaptation	existing tag group
+bangumi_tag_cjk_8f80af	shanghai_animation_film_studio	official studio name
+bangumi_tag_tag_74a099	SKIP	meaningless symbol/noise
+bangumi_tag_cjk_2abd69	cjk_2abd69	unknown CJK name; preserve raw without invented romanization
+bangumi_tag_cjk_03f847	kenji_nojima	established creator/performer name
+bangumi_tag_cjk_f41ff1	hiroki_takahashi	established creator/performer name
+bangumi_tag_jump_2	weekly_shonen_jump	existing Shueisha group
+bangumi_tag_10_3	SKIP	decade/range tag
+bangumi_tag_cjk_55967f	bl	existing tag group
+bangumi_tag_cjk_723245	shoujo	existing tag group
+bangumi_tag_cjk_7d97fd	otome	existing tag group
+bangumi_tag_cjk_cea7bc	mature_woman	character archetype
+bangumi_tag_masterup	masterup	game publisher brand
+bangumi_tag_1990s	SKIP	decade/range tag
+bangumi_tag_bl_drama	bl_drama	existing tag group
+bangumi_tag_cjk_fa462f	mini_game	game format
+bangumi_tag_sm	sadomasochism	established content concept
+bangumi_tag_tag_444a96	SKIP	meaningless symbol/noise
+bangumi_tag_cjk_2e7a58	aki_hata	established creator/performer name
+bangumi_tag_cjk_f4abbd	series	existing tag group
+bangumi_tag_cjk_f8dad4	manga	existing tag group
+bangumi_tag_otome_2	otome	existing tag group
+bangumi_tag_tag_865557	radio_program	media format
+bangumi_tag_2016_4	SKIP	year/month tag
+bangumi_tag_cjk_ca746b	SKIP	technical noise or release/status metadata
+bangumi_tag_cjk_fe885b	yuka_iguchi	established creator/performer name
+bangumi_tag_cjk_ad4895	SKIP	personal rating
+bangumi_tag_sfc	platform_sfc	Nintendo platform
+bangumi_tag_cjk_0dcc5d	soundtrack	existing tag group
+bangumi_tag_c85	SKIP	doujin event number
+bangumi_tag_cjk_6cbfc0	SKIP	personal shelf/status/maintenance
+bangumi_tag_cjk_8eb9e4	akita_shoten	publisher
+bangumi_tag_cjk_a5a992	otome	existing tag group
+bangumi_tag_shin_ei	shin_ei	studio
+bangumi_tag_2016_10	SKIP	year/month tag
+bangumi_tag_2018	SKIP	period metadata
+bangumi_tag_b_4	SKIP	ambiguous abbreviation/overly vague label
+bangumi_tag_cjk_0ba9bb	shounen	existing tag group
+bangumi_tag_cjk_3af83b	kamen_rider	media franchise
+bangumi_tag_cjk_87fc5f	younger_partner	relationship trope
+bangumi_tag_tag_32cdb3	SKIP	meaningless symbol/noise
+bangumi_tag_1986	SKIP	year/month tag
+bangumi_tag_ea	electronic_arts	game publisher
+bangumi_tag_lovelive_2	love_live	media franchise
+bangumi_tag_r_18	hentai	existing tag group
+bangumi_tag_cjk_10bc75	takuya_eguchi	established creator/performer name
+bangumi_tag_cjk_67f04a	miyu_irino	established creator/performer name
+bangumi_tag_c86	SKIP	doujin event number
+bangumi_tag_cjk_05da69	older_sister	character archetype
+bangumi_tag_cjk_4f8987	SKIP	personal shelf/status/maintenance
+bangumi_tag_f_c	f_and_c	game publisher
+bangumi_tag_tag_21a0a7	square_enix	previously established cross-role tag canon
+bangumi_tag_tag_256227	love_live	media franchise
+bangumi_tag_tag_edd075	core_magazine	publisher
+bangumi_tag_cjk_4ef30f	yoshimasa_hosoya	established creator/performer name
+bangumi_tag_2020_2029	SKIP	decade/range tag
+bangumi_tag_cjk_baf571	brother_complex	character/relationship trope
+bangumi_tag_cjk_f1b437	kaito_ishikawa	established creator/performer name
+bangumi_tag_jojo	jojo_bizarre_adventure	manga/anime franchise
+bangumi_tag_cjk_0d251e	movie	existing tag group
+bangumi_tag_cjk_e19505	SKIP	subjective evaluation/ranking/status
+bangumi_tag_hbo	hbo	global network brand; use HBO resource, not HBO Max
+bangumi_tag_koei	koei	game publisher
+bangumi_tag_pinkpineapple	pink_pineapple	previously established cross-role tag canon
+bangumi_tag_telly_show	tv_show	media format
+bangumi_tag_2001_3	SKIP	year/month tag
+bangumi_tag_cjk_bf080d	SKIP	personal shelf/status/maintenance
+bangumi_tag_cjk_d1ffeb	kisho_taniyama	established creator/performer name
+bangumi_tag_en	SKIP	ambiguous abbreviation/overly vague label
+bangumi_tag_loli_3	loli	existing tag group
+bangumi_tag_2018_10	SKIP	year/month tag
+bangumi_tag_cg_2	SKIP	personal shelf/status/maintenance
+bangumi_tag_cjk_d05268	suzuko_mimori	established creator/performer name
+bangumi_tag_tag_00880e	comic_book	existing tag group
+bangumi_tag_theme	theme_song	existing tag group
+bangumi_tag_2020_10_2	SKIP	year/month tag
+bangumi_tag_anime_ed	ending_theme	existing tag group
+bangumi_tag_cjk_261cc8	hisako_kanemoto	established creator/performer name
+bangumi_tag_cjk_406342	makoto_furukawa	established creator/performer name
+bangumi_tag_cjk_49cc01	cjk_49cc01	unknown CJK name; preserve raw without invented romanization
+bangumi_tag_cjk_b45e6c	japanese_drama	Japanese television drama
+bangumi_tag_cjk_e9e2fd	traditional_chinese_version	language/version label
+bangumi_tag_cjk_152e52	adult_manga	existing tag group
+bangumi_tag_ero_3	SKIP	ambiguous abbreviation/overly vague label
+bangumi_tag_hi_res	high_resolution_audio	audio quality format
+bangumi_tag_m3_33	SKIP	doujin event number
+bangumi_tag_cjk_aa2e79	SKIP	subjective evaluation/ranking/status
+bangumi_tag_im	SKIP	ambiguous abbreviation/overly vague label
+bangumi_tag_v_a	various_artists	music credit convention
+bangumi_tag_cjk_2bd76d	kenjiro_tsuda	established creator/performer name
+bangumi_tag_cjk_ade540	older_series	older/legacy series
+bangumi_tag_cjk_f967a4	young_girls_target	intended audience
+bangumi_tag_8_2	SKIP	personal rating
+bangumi_tag_cjk_0136d6	SKIP	ambiguous abbreviation/overly vague label
+bangumi_tag_cjk_118c90	SKIP	ambiguous abbreviation/overly vague label
+bangumi_tag_cjk_1fd2fb	kenichi_suzumura	established creator/performer name
+bangumi_tag_cjk_62a54e	madness	character/mood concept
+bangumi_tag_tmsentertainment	tms	studio
+bangumi_tag_touhou	touhou_project	existing tag group
+bangumi_tag_willplus	willplus	game publisher
+bangumi_tag_c79	SKIP	doujin event number
+bangumi_tag_milky	milky	producer
+bangumi_tag_2016_7	SKIP	year/month tag
+bangumi_tag_c78	SKIP	doujin event number
+bangumi_tag_cjk_7bef77	SKIP	personal shelf/status/maintenance
+bangumi_tag_cjk_8bcfb7	weekly_shonen_sunday	official magazine
+bangumi_tag_flash	SKIP	ambiguous abbreviation/overly vague label
+bangumi_tag_cjk_2caf47	youth_manga	manga genre
+bangumi_tag_cjk_568b4c	satoshi_hino	established creator/performer name
+bangumi_tag_nbgi	namco_bandai_games	game publisher
+bangumi_tag_tag_dcefae	SKIP	meaningless symbol/noise
+bangumi_tag_1984	SKIP	year/month tag
+bangumi_tag_cjk_4792c7	jojo_bizarre_adventure	manga/anime franchise
+bangumi_tag_cjk_a1654f	corruption	story trope
+bangumi_tag_cjk_ff7a1e	hypnosis	story/content theme
+bangumi_tag_1_6	single_volume	existing tag group
+bangumi_tag_cjk_907a6a	japanese_film	existing tag group
+bangumi_tag_ds	platform_nds	existing tag group
+bangumi_tag_libre	libre_publishing	existing tag group
+bangumi_tag_pc98	platform_pc98	NEC computer platform
+bangumi_tag_cjk_43b87e	mai_nakahara	established creator/performer name
+bangumi_tag_cjk_5dadeb	pokemon	existing tag group
+bangumi_tag_abc	abc	network
+bangumi_tag_cjk_081d87	SKIP	ambiguous abbreviation/overly vague label
+bangumi_tag_cjk_15c7d5	tomokazu_seki	established creator/performer name
+bangumi_tag_cjk_ccd7d3	toshiki_masuda	established creator/performer name
+bangumi_tag_cjk_d9c765	shizuka_ito	established creator/performer name
+bangumi_tag_xgp	SKIP	ambiguous abbreviation/overly vague label
+bangumi_tag_07	ryukishi07	established creator/performer name
+bangumi_tag_5_6	multi_volume	existing tag group
+bangumi_tag_cjk_4c75d3	light_novel	existing tag group
+bangumi_tag_cjk_65b683	atsushi_abe	established creator/performer name
+bangumi_tag_cjk_fa5f1b	hirohiko_araki	established creator/performer name
+bangumi_tag_get	SKIP	ambiguous abbreviation/overly vague label
+bangumi_tag_xebec	xebec	studio
+bangumi_tag_2000_2009	SKIP	decade/range tag
+bangumi_tag_cjk_3388b8	single_volume	existing tag group
+bangumi_tag_cjk_7f1932	tsubasa_yonaga	established creator/performer name
+bangumi_tag_cjk_b7bb92	SKIP	subjective evaluation/ranking/status
+bangumi_tag_cjk_e83b7d	keisuke_itagaki	established creator/performer name
+bangumi_tag_hardcore	hardcore	genre/content descriptor
+bangumi_tag_online	SKIP	ambiguous abbreviation/overly vague label
+bangumi_tag_cjk_2852b2	ken_narita	established creator/performer name
+bangumi_tag_cjk_72bf5b	gosho_aoyama	established creator/performer name
+bangumi_tag_web_2	web_novel	existing tag group
+bangumi_tag_2019_10	SKIP	year/month tag
+bangumi_tag_cjk_1800a5	animal_ears	character trait
+bangumi_tag_cjk_9c89a4	text_adventure	game format
+bangumi_tag_cjk_febed9	soma_saito	established creator/performer name
+bangumi_tag_2017_4	SKIP	year/month tag
+bangumi_tag_cjk_3a77aa	cjk_3a77aa	unknown CJK name; preserve raw without invented romanization
+bangumi_tag_cjk_b86bed	ryotaro_okiayu	established creator/performer name
+bangumi_tag_tag_565b20	meramipop	established creator/performer name
+bangumi_tag_bl_3	bl_novel	literary genre
+bangumi_tag_cjk_f6d5da	kaiosha	publisher
+bangumi_tag_erog_mu	eroge	existing tag group
+bangumi_tag_80s	SKIP	decade/range tag
+bangumi_tag_angelnote_2	angel_note	music/production brand
+bangumi_tag_bilibili_2	bilibili	existing tag group
+bangumi_tag_cjk_1622dc	SKIP	subjective evaluation/ranking/status
+bangumi_tag_cjk_6f14f7	tatsunoko	Tatsunoko Production Chinese name
+bangumi_tag_cjk_0461ce	adult_book	existing tag group
+bangumi_tag_cjk_b1f862	original_animation	production type
+bangumi_tag_cjk_c7281e	SKIP	personal shelf/status/maintenance
+bangumi_tag_m3_31	SKIP	doujin event number
+bangumi_tag_softhouse_seal	softhouse_seal	studio
+bangumi_tag_cjk_3ad896	childhood_series	series theme
+bangumi_tag_cjk_4175e4	SKIP	personal rating
+bangumi_tag_cjk_9aaf9f	open_world	game design
+bangumi_tag_cjk_9c8f19	inori_minase	established creator/performer name
+bangumi_tag_cjk_d6b18b	mikako_komatsu	established creator/performer name
+bangumi_tag_jump_3	weekly_shonen_jump	existing Shueisha group
+bangumi_tag_00_3	SKIP	decade/range tag
+bangumi_tag_cjk_047499	single_player	game mode
+bangumi_tag_cjk_c30f4c	original_drama_cd	audio drama type
+bangumi_tag_cjk_cf567b	voice_actor_song	music category
+bangumi_tag_production_i_g_2	production_ig	existing tag group
+bangumi_tag_cjk_2ec483	soundtrack	existing tag group
+bangumi_tag_cjk_3ebce1	older_sister_complex	relationship trope
+bangumi_tag_cjk_fc769e	SKIP	personal shelf/status/maintenance
+bangumi_tag_nbc	nbc	network
+bangumi_tag_2013_7	SKIP	year/month tag
+bangumi_tag_cjk_1057ba	SKIP	personal shelf/status/maintenance
+bangumi_tag_cjk_1ff400	english_patch_available	release feature
+bangumi_tag_2022_10	SKIP	year/month tag
+bangumi_tag_cjk_152caa	gintama	existing tag group
+bangumi_tag_cjk_3fc805	comedy_manga	manga genre
+bangumi_tag_cjk_aac795	official_setting_collection	book/publication format
+bangumi_tag_cjk_afa422	manga_series	existing tag group
+bangumi_tag_namco	namco	game publisher
+bangumi_tag_voc_loid	vocaloid	established Vocaloid spelling
+bangumi_tag_anime_op	opening_theme	existing tag group
+bangumi_tag_cjk_ab05f5	nukige	existing tag group
+bangumi_tag_cjk_f8dfed	SKIP	personal shelf/status/maintenance
+bangumi_tag_magazine_2	weekly_shonen_magazine	official magazine
+bangumi_tag_tag_5a0356	adult_manga	existing tag group
+bangumi_tag_bleach	bleach	manga/anime franchise
+bangumi_tag_cjk_da0fae	teacher_student_relationship	relationship trope
+bangumi_tag_2014_10	SKIP	year/month tag
+bangumi_tag_a_anime	SKIP	ambiguous abbreviation/overly vague label
+bangumi_tag_abo	omegaverse	established fandom term
+bangumi_tag_cjk_17aa7d	yoshimasa_hosoya	established creator/performer name
+bangumi_tag_cjk_18938a	long_series	work length
+bangumi_tag_dm	SKIP	ambiguous abbreviation/overly vague label
+bangumi_tag_elf_2	elf	existing tag group
+bangumi_tag_2015_7	SKIP	year/month tag
+bangumi_tag_c87	SKIP	doujin event number
+bangumi_tag_cjk_25a7f0	action	existing tag group
+bangumi_tag_cjk_3de06c	tv_asahi	existing tag group/resource (TV Asahi)
+bangumi_tag_cjk_d12806	anime_soundtrack	existing tag group
+bangumi_tag_miel	miel	studio
+bangumi_tag_cjk_2259be	split_release_marketing	release/marketing format
+bangumi_tag_cjk_227d3e	prince_of_tennis	media franchise
+bangumi_tag_cjk_86f139	oscars	film awards
+bangumi_tag_cjk_d57b6f	teacher	existing tag group
+bangumi_tag_tag_48c79f	libre_publishing	existing tag group
+bangumi_tag_2021_10	SKIP	year/month tag
+bangumi_tag_2022_7	SKIP	year/month tag
+bangumi_tag_bl_game	bl_game	game genre
+bangumi_tag_cjk_21e4bd	mother	character archetype
+bangumi_tag_cjk_2248bb	daisuke_namikawa	established creator/performer name
+bangumi_tag_cjk_5ac47e	spin_off	existing tag group
+bangumi_tag_cjk_956bfd	akita_shoten	publisher
+bangumi_tag_cjk_b7f673	compilation	existing tag group
+bangumi_tag_cjk_d3a1b5	sci_fi_manga	manga genre
+bangumi_tag_cjk_ebdf42	video_game_music	existing tag group
+bangumi_tag_f	SKIP	ambiguous abbreviation/overly vague label
+bangumi_tag_2013_4_2	SKIP	year/month tag
+bangumi_tag_2016_1	SKIP	year/month tag
+bangumi_tag_2021_1	SKIP	year/month tag
+bangumi_tag_cjk_140fa5	chinese_scanlation	existing tag group
+bangumi_tag_cjk_1f466f	genre_casual	existing tag group
+bangumi_tag_cjk_3c7426	SKIP	subjective evaluation/ranking/status
+bangumi_tag_cjk_d3a061	cjk_d3a061	unknown CJK name; preserve raw without invented romanization
+bangumi_tag_2015_10	SKIP	year/month tag
+bangumi_tag_a_1	a1_pictures	existing tag group
+bangumi_tag_gonzo	gonzo	studio
+bangumi_tag_manyo	manyo	composer/artist brand
+bangumi_tag_sho_comi	sho_comi	magazine
+bangumi_tag_xsx	SKIP	ambiguous abbreviation/overly vague label
+bangumi_tag_cjk_465081	borderline_content	content category
+bangumi_tag_cjk_ac80b6	group_sex	adult-content theme
+bangumi_tag_cjk_d25f3f	shin_ei	studio
+bangumi_tag_cjk_eff557	fujimi_shobo	publisher
+bangumi_tag_music_2	music	existing tag group
+bangumi_tag_wr	SKIP	ambiguous abbreviation/overly vague label
+bangumi_tag_cjk_1f8a4a	older_sister_type	character archetype
+bangumi_tag_m3_30	SKIP	doujin event number
+bangumi_tag_tag_652aea	SKIP	meaningless symbol/noise
+bangumi_tag_2013_10	SKIP	year/month tag
+bangumi_tag_arashi	arashi	Japanese music group
+bangumi_tag_cjk_13adbe	yui_sakakibara	established creator/performer name
+bangumi_tag_cjk_2d2d4b	heisei_playlist	music collection
+bangumi_tag_cjk_543423	three_kingdoms	historical/cultural franchise
+bangumi_tag_cjk_b2688d	cjk_b2688d	unknown CJK name; preserve raw without invented romanization
+bangumi_tag_dc	dc_comics	existing tag group
+bangumi_tag_m3_32	SKIP	doujin event number
+bangumi_tag_2015_4	SKIP	year/month tag
+bangumi_tag_cjk_2f6a93	junichi_suwabe	established creator/performer name
+bangumi_tag_cjk_8fbacc	gameplay	game design
+bangumi_tag_2014_4	SKIP	year/month tag
+bangumi_tag_cjk_8dec90	SKIP	personal shelf/status/maintenance
+bangumi_tag_cjk_afcb5f	yuri	existing tag group
+bangumi_tag_cjk_dea9ae	SKIP	technical noise or release/status metadata
+bangumi_tag_fate	fate_series	existing tag group
+bangumi_tag_ga	ga_2	publisher resource label preserved
+bangumi_tag_cjk_649112	daisuke_hirakawa	established creator/performer name
+bangumi_tag_cjk_842f9f	cjk_842f9f	unknown CJK name; preserve raw without invented romanization
+bangumi_tag_leaf	leaf	game publisher
+bangumi_tag_md	SKIP	ambiguous abbreviation/overly vague label
+bangumi_tag_meta_2	meta	existing tag group
+bangumi_tag_op_ed_2	oped	existing tag group
+bangumi_tag_2018_4	SKIP	year/month tag
+bangumi_tag_cjk_17a618	giga	studio
+bangumi_tag_cjk_551e4e	cjk_551e4e	unknown CJK name; preserve raw without invented romanization
+bangumi_tag_cjk_6c0fda	cjk_6c0fda	publisher resource preserves source name
+bangumi_tag_cjk_73542f	coercion	story/content theme
+bangumi_tag_cjk_84fa53	rina_sato	established creator/performer name
+bangumi_tag_collection	collection	collection/category label
+bangumi_tag_live	SKIP	ambiguous abbreviation/overly vague label
+bangumi_tag_sce	sony_computer_entertainment	game company
+bangumi_tag_cjk_226722	fairy_tail	manga/anime franchise
+bangumi_tag_cjk_3457f2	teacher	existing tag group
+bangumi_tag_cjk_612d6e	kazuhiro_fujita	established creator/performer name
+bangumi_tag_cjk_6d7790	moral_integrity	concept; preserve standard meaning
+bangumi_tag_cjk_b30bb6	super_sentai	media franchise
+bangumi_tag_lilith	lilith	game publisher
+bangumi_tag_marvel_2	marvel	existing tag group
+bangumi_tag_ntl	SKIP	ambiguous abbreviation/overly vague label
+bangumi_tag_ubisoft	ubisoft_entertainment	game publisher
+bangumi_tag_2014_7	SKIP	year/month tag
+bangumi_tag_cjk_acd3e4	shounen	existing tag group
+bangumi_tag_cjk_d74ce6	heartwarming	tone/style
+bangumi_tag_sp	tv_special	existing tag group
+bangumi_tag_cd	compact_disc	physical music/media format
+bangumi_tag_cjk_ccd396	michiko_yokote	established creator/performer name
+bangumi_tag_g_mu	game	existing tag group
+bangumi_tag_lala	lala	magazine
+bangumi_tag_ma	SKIP	ambiguous abbreviation/overly vague label
+bangumi_tag_top100	SKIP	subjective evaluation/ranking/status
+bangumi_tag_cjk_174f9f	anime	existing tag group
+bangumi_tag_olmteamota	olm_team_ota	studio division
+bangumi_tag_2013_5	SKIP	season tag
+bangumi_tag_2014_1	SKIP	year/month tag
+bangumi_tag_6	SKIP	personal rating
+bangumi_tag_cjk_45c18c	soichiro_hoshi	established creator/performer name
+bangumi_tag_cjk_5a9018	cjk_5a9018	unknown CJK name; preserve raw without invented romanization
+bangumi_tag_cjk_e32b58	utaite	existing tag group
+bangumi_tag_2021_4	SKIP	year/month tag
+bangumi_tag_2022_4	SKIP	year/month tag
+bangumi_tag_cjk_87c58d	arashi	Japanese music group
+bangumi_tag_cjk_f60a68	local_multiplayer	game mode
+bangumi_tag_cjk_fda0a4	yoshino_nanjo	established creator/performer name
+bangumi_tag_oto	SKIP	ambiguous abbreviation/overly vague label
+bangumi_tag_ova_oad	ova_oad	combined animation formats
+bangumi_tag_project_4	touhou_project	existing tag group
+bangumi_tag_tag_9e4d11	gust	studio
+bangumi_tag_alicesoft	alicesoft	game publisher
+bangumi_tag_cjk_d7619c	doujin_music	existing tag group
+bangumi_tag_cjk_de882d	SKIP	technical noise or release/status metadata
+bangumi_tag_kotoko	kotoko	singer
+bangumi_tag_2018_1	SKIP	year/month tag
+bangumi_tag_7_2	SKIP	personal rating
+bangumi_tag_cjk_558fe1	yasuharu_takanashi	established creator/performer name
+bangumi_tag_cjk_b37de7	koji_yusa	established creator/performer name
+bangumi_tag_cjk_df9c97	SKIP	ambiguous abbreviation/overly vague label
+bangumi_tag_jazz_2	jazz	existing tag group
+bangumi_tag_mv	music_video	existing tag group
+bangumi_tag_cjk_65a820	yoshitsugu_matsuoka	established creator/performer name
+bangumi_tag_cjk_708b73	gentosha	publisher/producer brand
+bangumi_tag_h_3	hentai	existing tag group
+bangumi_tag_cjk_2cf862	hirofumi_nojima	established creator/performer name
+bangumi_tag_cjk_6b9570	gameplay_video	video format
+bangumi_tag_cjk_885716	kantai_collection	game/media franchise
+bangumi_tag_cjk_97a9f6	risa_taneda	established creator/performer name
+bangumi_tag_cjk_b5b358	nao_toyama	established creator/performer name
+bangumi_tag_cjk_dcd6bf	browser_game	game platform
+bangumi_tag_t_rex	t_rex	studio
+bangumi_tag_2013_4	SKIP	season tag
+bangumi_tag_2017_10	SKIP	year/month tag
+bangumi_tag_2019_1	SKIP	year/month tag
+bangumi_tag_5pb_2	mages	legacy 5pb brand; current app canon is MAGES.
+bangumi_tag_cjk_a2a175	yusuke_kobayashi	established creator/performer name
+bangumi_tag_cjk_d02e7b	weekly_shonen_magazine	official magazine
+bangumi_tag_wiiu	platform_wii_u	Nintendo platform
+bangumi_tag_2020_1	SKIP	year/month tag
+bangumi_tag_cjk_36fe23	romance_manga	manga genre
+bangumi_tag_cjk_6b3a51	hiroki_yasumoto	established creator/performer name
+bangumi_tag_cjk_a0176b	akane_shinsha	publisher
+bangumi_tag_cjk_c59fff	tatsuhisa_suzuki	established creator/performer name
+bangumi_tag_cjk_ea1d9d	female_led_pursuit	relationship trope
+bangumi_tag_h_6	adult_manga	existing tag group
+bangumi_tag_a_1_pictures	a1_pictures	existing tag group
+bangumi_tag_cjk_057bd9	tohru_okawa	established creator/performer name
+bangumi_tag_cjk_977249	yuu_watase	established creator/performer name
+bangumi_tag_cjk_a9d464	SKIP	subjective evaluation/ranking/status
+bangumi_tag_cjk_f5a38e	sengoku_period	historical period
+bangumi_tag_noitamina	noitamina	anime programming block
+bangumi_tag_silverlink	silver_link	existing tag group
+bangumi_tag_tag_b62e80	frontier_works	producer
+bangumi_tag_cjk_5bf408	japanese_music	music origin
+bangumi_tag_cjk_9c89d3	small_breasts	character trait
+bangumi_tag_cjk_e288bf	sister_game	game genre
+bangumi_tag_cjk_fe2df0	SKIP	technical noise or release/status metadata
+bangumi_tag_s_2	muse_love_live	Love Live! idol group
+bangumi_tag_cjk_158a09	SKIP	technical noise or release/status metadata
+bangumi_tag_cjk_510f6e	satomi_sato	established creator/performer name
+bangumi_tag_cjk_6c691a	SKIP	personal shelf/status/maintenance
+bangumi_tag_cjk_c0b160	SKIP	personal shelf/status/maintenance
+bangumi_tag_cjk_f2ecce	young_lady	character archetype
+bangumi_tag_m3_28	SKIP	doujin event number
+bangumi_tag_power	SKIP	ambiguous abbreviation/overly vague label
+bangumi_tag_5pb	mages	legacy 5pb brand; current app canon is MAGES.
+bangumi_tag_c89	SKIP	doujin event number
+bangumi_tag_cjk_6a088a	single_volume	existing tag group
+bangumi_tag_cjk_cf2dd9	archaeology	subject tag
+bangumi_tag_cjk_ea1ba1	cjk_ea1ba1	unknown CJK name; preserve raw without invented romanization
+bangumi_tag_cjk_f3f96d	hitoma_iruma	established creator/performer name
+bangumi_tag_roguelike	genre_roguelike	existing tag group
+bangumi_tag_tag_6ee028	uta_no_prince_sama	media franchise
+bangumi_tag_tag_def12a	character_song	existing tag group
+bangumi_tag_2017_7_2	SKIP	year/month tag
+bangumi_tag_2021_7	SKIP	year/month tag
+bangumi_tag_2023_1	SKIP	year/month tag
+bangumi_tag_cjk_2f4e1f	masahiro_yamanaka	established creator/performer name
+bangumi_tag_cjk_34d7e2	ultraman	media franchise
+bangumi_tag_cjk_49ca17	cjk_49ca17	unknown CJK name; preserve raw without invented romanization
+bangumi_tag_cjk_7ad1b8	mobile_game	existing tag group
+bangumi_tag_cjk_ba4059	stealth	gameplay style
+bangumi_tag_cjk_e3447d	yu_gi_oh	media franchise
+bangumi_tag_cjk_f38ffe	cjk_f38ffe	unknown CJK name; preserve raw without invented romanization
+bangumi_tag_cjk_f93be8	shinichiro_miki	established creator/performer name
+bangumi_tag_tag_b69385	pretty_cure	media franchise
+bangumi_tag_1983	SKIP	year/month tag
+bangumi_tag_atlus	atlus	publisher
+bangumi_tag_cjk_28c369	SKIP	personal shelf/status/maintenance
+bangumi_tag_cjk_57f633	cjk_57f633	publisher resource preserves source name
+bangumi_tag_cjk_6410aa	fresh_tone	tone/style
+bangumi_tag_cjk_a17edf	mystery	existing tag group
+bangumi_tag_ive	i_ve	music publisher
+bangumi_tag_tag_1a8d28	ascii_media_works	publisher/producer brand
+bangumi_tag_tag_35a318	yanagi_nagi	established creator/performer name
+bangumi_tag_cjk_329820	SKIP	technical noise or release/status metadata
+bangumi_tag_cjk_367d3e	funny_faces	character expression
+bangumi_tag_cjk_4283a1	nihon_falcom	game publisher
+bangumi_tag_2018_7	SKIP	year/month tag
+bangumi_tag_cjk_48fd51	SKIP	personal shelf/status/maintenance
+bangumi_tag_cjk_4dc0b2	toshiyuki_toyonaga	established creator/performer name
+bangumi_tag_cjk_9de7ca	kanae_ito	established creator/performer name
+bangumi_tag_cjk_b488e9	nobuhiko_okamoto	established creator/performer name
+bangumi_tag_cjk_b48b61	pregnancy	existing tag group
+bangumi_tag_cjk_b78625	tokuma_shoten	publisher
+bangumi_tag_webtoon_2	webtoon	existing tag group
+bangumi_tag_ab2	SKIP	ambiguous abbreviation/overly vague label
+bangumi_tag_cjk_6c2f57	cjk_6c2f57	unknown CJK name; preserve raw without invented romanization
+bangumi_tag_onepiece_2	one_piece	existing tag group
+bangumi_tag_pop	pop_music	existing tag group
+bangumi_tag_bl_drama_2	bl_drama	existing tag group
+bangumi_tag_cjk_033e1f	older_sister	character archetype
+bangumi_tag_cjk_142c17	SKIP	personal shelf/status/maintenance
+bangumi_tag_cjk_2e4164	bl	existing tag group
+bangumi_tag_cjk_68a098	epic	story scale/tone
+bangumi_tag_cjk_a813b3	childhood_theme	theme
+bangumi_tag_cjk_bce0a7	cjk_bce0a7	unknown CJK name; preserve raw without invented romanization
+bangumi_tag_cjk_fc8bf2	copyright_free	publication/licensing status
+bangumi_tag_metroidvania	metroidvania	game genre
+bangumi_tag_c	SKIP	ambiguous abbreviation/overly vague label
+bangumi_tag_cjk_34f66a	cjk_34f66a	imprint resource preserves source name
+bangumi_tag_cjk_4e2567	kadokawa_sneaker_bunko	imprint
+bangumi_tag_cjk_6b628a	SKIP	subjective evaluation/ranking/status
+bangumi_tag_cjk_9b374b	go_nagai	established creator/performer name
+bangumi_tag_cjk_d19c87	illustration	publication/art format
+bangumi_tag_cjk_e26f6c	wani_magazine	publisher
+bangumi_tag_f_3	fujiko_fujio	existing tag group
+bangumi_tag_2015_1	SKIP	year/month tag
+bangumi_tag_cjk_0933e1	chinese_drama	existing tag group
+bangumi_tag_cjk_41399a	SKIP	subjective evaluation/ranking/status
+bangumi_tag_cjk_57dd09	kentaro_yabuki	established creator/performer name
+bangumi_tag_cjk_869c0e	minako_kotobuki	established creator/performer name
+bangumi_tag_cjk_88b7d4	turn_based	gameplay format
+bangumi_tag_cjk_94ba4d	SKIP	subjective evaluation/ranking/status
+bangumi_tag_cjk_f594a2	standalone_watchable	standalone presentation
+bangumi_tag_cjk_f96b0e	hitoma_iruma	established creator/performer name
+bangumi_tag_tag_c8121b	atelier_sakura	studio
+bangumi_tag_2022_1	SKIP	year/month tag
+bangumi_tag_6_3	multi_volume	existing tag group
+bangumi_tag_cjk_0c25c4	team_shanghai_alice	creator circle
+bangumi_tag_cjk_682b5e	twisted	story tone
+bangumi_tag_cjk_6e7810	ayako_kawasumi	established creator/performer name
+bangumi_tag_cjk_6ec84e	yuichiro_umehara	established creator/performer name
+bangumi_tag_cjk_aa84be	abuse	existing tag group
+bangumi_tag_cjk_bcb97f	small_scale	production/format size
+bangumi_tag_cjk_be7298	kurokos_basketball	media franchise
+bangumi_tag_cjk_bf8bd4	cjk_bf8bd4	publisher resource preserves source name
+bangumi_tag_cjk_e2d1cf	mai_ishihara	established creator/performer name
+bangumi_tag_cn	china	existing tag group
+bangumi_tag_tag_3f3bff	mediaworks	publisher/producer brand
+bangumi_tag_win	SKIP	ambiguous abbreviation/overly vague label
+bangumi_tag_cjk_1bfa91	other_publisher	publisher category
+bangumi_tag_cjk_3c68ec	hikaru_sugii	established creator/performer name
+bangumi_tag_cjk_54fbd0	artbook	existing tag group
+bangumi_tag_cjk_567d96	SKIP	personal rating
+bangumi_tag_cjk_c1f8bc	SKIP	personal shelf/status/maintenance
+bangumi_tag_cjk_da1fa8	erotic_novel	literary genre
+bangumi_tag_cjk_ed0f9a	akino_arai	established creator/performer name
+bangumi_tag_8	SKIP	bare numeric rating/status
+bangumi_tag_cjk_18dcaf	aya_uchida	established creator/performer name
+bangumi_tag_cjk_1d9bb6	sitcom	television genre
+bangumi_tag_cjk_3a2f90	tv	existing tag group
+bangumi_tag_cjk_74a0b6	tetsuya_kakihara	established creator/performer name
+bangumi_tag_cjk_7f1e7e	season_one	season metadata
+bangumi_tag_cjk_a45fb6	SKIP	ambiguous abbreviation/overly vague label
+bangumi_tag_cjk_c40fc3	koki_uchiyama	established creator/performer name
+bangumi_tag_cjk_d0a20f	fairy_tail	manga/anime franchise

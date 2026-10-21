@@ -1,0 +1,304 @@
+# Bangumi VAULT — chunk 002 · ETİKET haritası (count 200-499 · 297 kayıt)
+# Biçim: vault_key <TAB> canon_id|SKIP <TAB> not
+# Karar kuralları: global karşılık (canon origin=global/existing) → birleşim;
+# çeviri (origin=new) → yeni kanon; yıl/tarih, kişisel raf/puan etiketleri, anlamsız
+# işaretler ve belirsiz kısaltmalar → SKIP (ham gösterilir, dil dosyasına girmez).
+# Kişi adları YALNIZCA yerleşik Latin adı bilinenlerde çevrildi (uydurma romanizasyon yok);
+# doğrulanamayan kişi adları SKIP → ekranda ham kalır.
+bangumi_tag_cjk_91e32d	uncut_hentai	步兵裡番 → sansürsüz hentai
+bangumi_tag_jk	jk	JK → liseli kız fandom kısaltması
+bangumi_tag_cjk_8dd2f6	western_animation	美国动画 → sözlük western_animation (美國動畫 mevcut)
+bangumi_tag_cg_3	cg	动态CG → mevcut cg kanonu
+bangumi_tag_song	song	Song → şarkı
+bangumi_tag_cjk_9199a9	toshiyuki_morikawa	森川智之 → Toshiyuki Morikawa
+bangumi_tag_cjk_2ed3a2	hiro_shimono	下野紘 → Hiro Shimono
+bangumi_tag_2_3	multi_volume	全2卷 → çok ciltli
+bangumi_tag_cjk_373aa6	takeshi_kusao	草尾毅 → Takeshi Kusao
+bangumi_tag_2020_3	SKIP	yıl etiketi (2020年)
+bangumi_tag_cjk_fe5c38	SKIP	kişisel raf etiketi (删 = silindi)
+bangumi_tag_cjk_4f1b3d	tentacles	触手 → dokunaç
+bangumi_tag_cjk_6cebd1	taiwan_edition	台版 → Tayvan sürümü
+bangumi_tag_2010s	SKIP	onyıl etiketi
+bangumi_tag_cjk_1d11a0	chinese_animation	国产动画 → Çin animasyonu
+bangumi_tag_cjk_f28db9	tomoaki_maeno	前野智昭 → Tomoaki Maeno
+bangumi_tag_1997	SKIP	yıl etiketi
+bangumi_tag_cjk_ca2904	cel_animation	赛璐珞 → selüloit animasyon
+bangumi_tag_bl_2	bl	BL小説 → BL kanonu (tür birleşimi)
+bangumi_tag_1995	SKIP	yıl etiketi
+bangumi_tag_1996	SKIP	yıl etiketi
+bangumi_tag_cjk_4b8f63	kosuke_toriumi	鳥海浩輔 → Kosuke Toriumi
+bangumi_tag_cjk_c89be5	4koma	四格 → sözlük 4koma
+bangumi_tag_tag_dca409	manga	★マンガ → mevcut manga kanonu
+bangumi_tag_im_s	idolmaster	IM@S → The Idolmaster
+bangumi_tag_ps	platform_ps	PS → PlayStation
+bangumi_tag_cjk_416bbe	cour_series	季番 → tek sezonluk
+bangumi_tag_rm	SKIP	belirsiz kısaltma (RM)
+bangumi_tag_cjk_c97e0b	jun_fukuyama	福山潤 → Jun Fukuyama
+bangumi_tag_3dhentai	3dhentai	3DHentai → 3B yetişkin animasyon
+bangumi_tag_rejet	rejet	Rejet → publisher canon
+bangumi_tag_cjk_8cb713	kenichi_suzumura	鈴村健一 → Kenichi Suzumura
+bangumi_tag_cjk_e20ab7	daisuke_hirakawa	平川大輔 → Daisuke Hirakawa
+bangumi_tag_falcom_2	falcom	Falcom → publisher canon (Nihon Falcom)
+bangumi_tag_arcade	platform_arcade	ARCADE → sözlük platform_arcade
+bangumi_tag_cjk_117755	manga_volumes	複数巻 → manga ciltleri
+bangumi_tag_cjk_3b85b2	ryohei_kimura	木村良平 → Ryohei Kimura
+bangumi_tag_tvb	tvb	TVB → studio/network canon
+bangumi_tag_cjk_215fb8	toei_animation	東映アニメーション → toei_animation kanonu
+bangumi_tag_cjk_7bb1aa	uncut	步兵 → sansürsüz (mozaiksiz)
+bangumi_tag_robo_2	SKIP	belirsiz kısaltma (robo)
+bangumi_tag_anisong_2	anisong	anisong → mevcut anisong kanonu
+bangumi_tag_cjk_eaf894	ichijinsha	一迅社 → Ichijinsha
+bangumi_tag_cjk_57db4b	completed	已完结漫画 → sözlük completed (已完结 etiketi mevcut)
+bangumi_tag_2008_2	SKIP	yıl etiketi (2008年)
+bangumi_tag_cjk_718421	older_partner	年上 → büyük partner
+bangumi_tag_cjk_86f1e2	single_volume	單卷 → mevcut single_volume kanonu
+bangumi_tag_2d	uncut_hentai	2D里番 → 2B hentai
+bangumi_tag_ova_01	SKIP	kişisel raf etiketi (OVA-01)
+bangumi_tag_3_6	multi_volume	全3卷 → çok ciltli
+bangumi_tag_cjk_e2dee1	tatsuhisa_suzuki	鈴木達央 → Tatsuhisa Suzuki
+bangumi_tag_xbox360	platform_xbox	XBOX360 → sözlük platform_xbox (Xbox 360 etiketi mevcut)
+bangumi_tag_cjk_fe66d1	chinese_animation	中国动画 → Çin animasyonu
+bangumi_tag_cjk_7f05b9	takehito_koyasu	子安武人 → Takehito Koyasu
+bangumi_tag_2009_2	SKIP	yıl etiketi (2009年)
+bangumi_tag_cg_4	cg_gallery	CG通关 → CG galerisi
+bangumi_tag_movie_2	movie	movie → mevcut movie kanonu
+bangumi_tag_cjk_c839a3	tetsuya_kakihara	柿原徹也 → Tetsuya Kakihara
+bangumi_tag_interested	SKIP	kişisel durum etiketi (interested)
+bangumi_tag_aavg	SKIP	belirsiz kısaltma (AAVG)
+bangumi_tag_cjk_a2f072	western_style	欧美系 → Batı tarzı
+bangumi_tag_tag_780836	erotic	エロ → mevcut erotic kanonu
+bangumi_tag_cjk_0025ca	shinnosuke_tachibana	立花慎之介 → Shinnosuke Tachibana
+bangumi_tag_2022_2	SKIP	yıl etiketi (2022年)
+bangumi_tag_cjk_04c6c3	long_straight_hair	黑长直 → uzun düz saç
+bangumi_tag_madhouse_2	madhouse	MADHouse → sözlük madhouse
+bangumi_tag_2006_2	SKIP	yıl etiketi (2006年)
+bangumi_tag_bl_8	bl	【BL漫画】 → mevcut bl kanonu
+bangumi_tag_arc	platform_arcade	ARC → atari salonu (arcade) kısaltması
+bangumi_tag_cjk_48a414	fujoshi	腐 → fujoshi
+bangumi_tag_cjk_e1d17d	doujin_music	同人音楽 → doujin müzik
+bangumi_tag_kr	manga_time_kr_comics	まんがタイムKRコミックス → Manga Time KR Comics
+bangumi_tag_tag_78a2be	SKIP	anlamsız işaret (「✘」)
+bangumi_tag_cjk_e0a86e	official_chinese	官中 → resmî Çince
+bangumi_tag_production_i_g	production_ig	Production.I.G → sözlük production_ig
+bangumi_tag_tag_846186	video_tag	どうが → video
+bangumi_tag_cjk_dcb4a6	SKIP	kişi adı (霜月はるか) — doğrulanmış Latin adı yok, ham kalır
+bangumi_tag_2020s	SKIP	onyıl etiketi
+bangumi_tag_cjk_30bf9c	fanservice	肉番 → mevcut fanservice kanonu (肉 etiketi mevcut)
+bangumi_tag_2007_2	SKIP	yıl etiketi (2007年)
+bangumi_tag_fc	platform_fc	FC → Family Computer
+bangumi_tag_cjk_8f1861	SKIP	kişisel not (早期优秀作品 = erken dönem favorisi)
+bangumi_tag_cjk_6bbc16	SKIP	kişisel raf etiketi (已整理 = düzenlendi)
+bangumi_tag_cjk_e0c5c5	SKIP	kişisel raf etiketi (未确定)
+bangumi_tag_nintendo	nintendo	nintendo → mevcut tag kanonu
+bangumi_tag_vocaloid_3	vocaloid	★Vocaloid → sözlük vocaloid
+bangumi_tag_cjk_5142b3	koji_yusa	遊佐浩二 → Koji Yusa
+bangumi_tag_cjk_94ea01	SKIP	kişisel rozet (白金 = platin kupa)
+bangumi_tag_cjk_e270fd	insert_song	插入歌 → sözlük insert_song
+bangumi_tag_capcom	capcom	Capcom → publisher canon
+bangumi_tag_gba	platform_gba	GBA → Game Boy Advance
+bangumi_tag_cjk_f93786	black_stockings	黑丝 → siyah çorap
+bangumi_tag_cjk_62662b	katsuyuki_konishi	小西克幸 → Katsuyuki Konishi
+bangumi_tag_cjk_808e56	physical_release	实体 → fiziksel sürüm
+bangumi_tag_bk	SKIP	belirsiz kısaltma (BK)
+bangumi_tag_cjk_5cef59	SKIP	argo/belirsiz övgü (神曲)
+bangumi_tag_cjk_9d675a	SKIP	hakaret etiketi (糟糕 = berbat)
+bangumi_tag_fd	SKIP	belirsiz kısaltma (FD)
+bangumi_tag_bemani	bemani	bemani → BEMANI
+bangumi_tag_cjk_059367	yukari_tamura	田村ゆかり → Yukari Tamura
+bangumi_tag_cjk_1f6a06	manga_volume	マンガ(巻) → manga cildi
+bangumi_tag_mobile	platform_mobile	Mobile → mobil platform
+bangumi_tag_cjk_348d9a	SKIP	kişisel puan rozeti (七星 = 7 yıldız)
+bangumi_tag_tr_sr	SKIP	kullanıcı imzası (Tr₇Sr₊)
+bangumi_tag_cjk_2f6c90	single_volume	全一巻 → mevcut single_volume kanonu (全一巻 alias)
+bangumi_tag_tm	SKIP	belirsiz kısaltma (TM)
+bangumi_tag_1994	SKIP	yıl etiketi
+bangumi_tag_cjk_21e26d	dengeki_bunko	電撃文庫 → publisher canon (çapraz rol birleşimi)
+bangumi_tag_bl_10	bl	BL小说 → BL kanonu (basitleştirilmiş yazım)
+bangumi_tag_cjk_725b78	novel_volumes	分卷 → roman ciltleri
+bangumi_tag_cjk_d7c7ce	takashi_kondo	近藤隆 → Takashi Kondo
+bangumi_tag_trance	trance	trance → trance
+bangumi_tag_cjk_06cd79	chinese_animation	国创 → Çin yapımı animasyon
+bangumi_tag_indie	indie_game	indie → sözlük indie_game
+bangumi_tag_cc	SKIP	belirsiz kısaltma (CC)
+bangumi_tag_cjk_127b97	extreme_content	重口 → ağır içerik
+bangumi_tag_mf_j	mf_bunko_j	MF文庫J → publisher canon (çapraz rol birleşimi)
+bangumi_tag_80	SKIP	onyıl etiketi (80年代)
+bangumi_tag_cjk_3c9335	jun_fukuyama	福山润 → Jun Fukuyama (basitleştirilmiş yazım)
+bangumi_tag_cjk_ebeaf8	mamiko_noto	能登麻美子 → Mamiko Noto
+bangumi_tag_cjk_926a23	short_film	动画短片 → sözlük short_film
+bangumi_tag_2005_2	SKIP	yıl etiketi (2005年)
+bangumi_tag_cjk_6c81bf	SKIP	kişisel raf etiketi (未观看原作)
+bangumi_tag_ep	SKIP	belirsiz kısaltma (EP)
+bangumi_tag_1993	SKIP	yıl etiketi
+bangumi_tag_cjk_81124f	hiroyuki_yoshino	吉野裕行 → Hiroyuki Yoshino
+bangumi_tag_1	single_volume	1本完 → tek ciltlik
+bangumi_tag_cjk_b37ae3	public_affection	狗粮 → çifte doyurma
+bangumi_tag_vgm	video_game_music	VGM → oyun müziği
+bangumi_tag_hrpg	hrpg	HRPG → yetişkin RPG
+bangumi_tag_1992	SKIP	yıl etiketi
+bangumi_tag_sega	sega	SEGA → publisher canon
+bangumi_tag_undefined	SKIP	bozuk değer (undefined)
+bangumi_tag_cjk_6970aa	light_hearted	欢乐向 → mevcut light_hearted kanonu (欢乐 etiketi mevcut)
+bangumi_tag_bbc	bbc	BBC → küresel yayıncı adı
+bangumi_tag_cjk_7c16e0	SKIP	kişi adı (茶太) — doğrulanmış Latin adı yok, ham kalır
+bangumi_tag_cjk_c1104a	insert_song	插入曲 → sözlük insert_song
+bangumi_tag_tag_2b8941	fuji_tv	フジテレビ → network canon (çapraz rol birleşimi)
+bangumi_tag_cjk_48dfe7	SKIP	kişisel not (超高实用性 = öznel değerlendirme)
+bangumi_tag_cjk_fa696b	SKIP	kişisel raf etiketi (不确定)
+bangumi_tag_tag_119b7d	pink_pineapple	ピンクパイナップル → producer canon
+bangumi_tag_cjk_b56729	maid	女仆 → hizmetçi
+bangumi_tag_6_2	SKIP	sayısal raf etiketi (6)
+bangumi_tag_7_6	SKIP	sayısal raf etiketi (7)
+bangumi_tag_cjk_345948	doujin_game	同人游戏 → doujin oyun
+bangumi_tag_cjk_17ad04	idolmaster	偶像大师 → The Idolmaster
+bangumi_tag_2004_2	SKIP	yıl etiketi (2004年)
+bangumi_tag_cjk_6a1949	libre_publishing	リブレ出版 → Libre Publishing
+bangumi_tag_1991	SKIP	yıl etiketi
+bangumi_tag_h_2	adult_book	H本 → yetişkin kitap
+bangumi_tag_tag_98cccf	SKIP	anlamsız işaret (☆)
+bangumi_tag_tbs_2	tbs	tbs → sözlük tbs
+bangumi_tag_2023_3	SKIP	yıl etiketi (2023年)
+bangumi_tag_a_3	SKIP	belirsiz raf etiketi (A书)
+bangumi_tag_1989	SKIP	yıl etiketi
+bangumi_tag_v	vocaloid	v家 → sözlük vocaloid (V家 varyantı mevcut)
+bangumi_tag_1990	SKIP	yıl etiketi
+bangumi_tag_cjk_19ed64	manga_series	漫画シリーズ → manga serisi kanonu
+bangumi_tag_cjk_6bb447	junichi_suwabe	諏訪部順一 → Junichi Suwabe
+bangumi_tag_cjk_714ef1	dengeki_bunko	电击文库 → publisher canon (çapraz rol birleşimi)
+bangumi_tag_cjk_3c184c	medium_length	中篇 → orta uzunlukta
+bangumi_tag_cjk_c99bb5	single_volume	单卷 → mevcut single_volume kanonu
+bangumi_tag_remix	remix	Remix → remix
+bangumi_tag_cjk_ac76ba	single_volume	一卷全 → mevcut single_volume kanonu
+bangumi_tag_cjk_f5747f	SKIP	kişisel raf etiketi (存盘 = kaydedildi)
+bangumi_tag_squareenix	square_enix	SquareEnix → publisher canon
+bangumi_tag_studiodeen	studio_deen	studiodeen → sözlük studio_deen
+bangumi_tag_tms	tms	TMS → studio canon (TMS Entertainment)
+bangumi_tag_oped_2	oped	OPED插入歌 → mevcut oped kanonu (OP+ED)
+bangumi_tag_rpgmaker	rpg_maker	RPGMaker → RPG Maker
+bangumi_tag_cjk_c1c41b	ryotaro_okitsu	興津和幸 → Ryotaro Okitsu
+bangumi_tag_cjk_c40793	nobuhiko_okamoto	岡本信彦 → Nobuhiko Okamoto
+bangumi_tag_cjk_f46077	sweet	甜作 → tatlı yapım
+bangumi_tag_cjk_b3aa51	yuki_ono	小野友樹 → Yuki Ono
+bangumi_tag_bg	SKIP	belirsiz kısaltma (BG)
+bangumi_tag_cjk_027a13	standalone_movie	独立剧场版 → bağımsız film
+bangumi_tag_cjk_9bebf9	tankobon	轻小说单行本 → mevcut tankobon kanonu
+bangumi_tag_kenn	kenn	KENN → zaten Latin sanatçı adı
+bangumi_tag_cjk_c7a756	real_sister	实妹 → gerçek kız kardeş
+bangumi_tag_acg	acg	☆ACG → mevcut acg kanonu
+bangumi_tag_cjk_ccfe8c	matriarchy	母系 → anaerkil
+bangumi_tag_7	SKIP	kişisel puan etiketi (7分)
+bangumi_tag_cjk_3ba590	image_song	印象曲 → imaj şarkısı
+bangumi_tag_cjk_5af671	SKIP	kişisel raf etiketi (已购 = satın alındı)
+bangumi_tag_cjk_f62de1	takeshobo	竹書房 → Takeshobo (publisher canon)
+bangumi_tag_se	sound_effect	SE → ses efekti
+bangumi_tag_cjk_1c097b	little_sister	妹妹 → sözlük little_sister (妹 mevcut)
+bangumi_tag_cjk_71104c	shinshokan	新書館 → publisher canon (çapraz rol birleşimi)
+bangumi_tag_18	adult_content	18+ → yetişkin içerik
+bangumi_tag_cs	SKIP	belirsiz kısaltma (CS)
+bangumi_tag_j_pop_2	jpop	j-pop → mevcut jpop kanonu
+bangumi_tag_cjk_887cd8	joshuk	熟女 → olgun kadın
+bangumi_tag_cjk_8bf4be	natsuki_hanae	花江夏樹 → Natsuki Hanae
+bangumi_tag_cjk_88a964	short_story	超短篇 → sözlük short_story (短篇 etiketi mevcut)
+bangumi_tag_cjk_b9d479	singer	★歌い手 → sözlük singer (歌い手 etiketi mevcut)
+bangumi_tag_tag_62c288	SKIP	anlamsız işaret (「✔」)
+bangumi_tag_j_pop	jpop	★J-POP → mevcut jpop kanonu
+bangumi_tag_cjk_1d993e	young_girl	幼女 → küçük kız
+bangumi_tag_tag_91c756	SKIP	anlamsız işaret (ʙᴋ)
+bangumi_tag_tl	tl	TL → Teens Love türü
+bangumi_tag_aic	aic	AIC → producer canon (bangumi_studio_aic birleşimi)
+bangumi_tag_2000s	SKIP	onyıl etiketi
+bangumi_tag_cjk_10292f	eri_kitamura	喜多村英梨 → Eri Kitamura
+bangumi_tag_cjk_236ab3	doujin_hentai	同人里番 → doujin hentai
+bangumi_tag_konami	konami	Konami → publisher canon
+bangumi_tag_cjk_068d71	non_human	人外 → insan dışı
+bangumi_tag_cjk_60c9a2	SKIP	kişisel raf etiketi (已经购入 = satın alındı)
+bangumi_tag_cjk_02e915	SKIP	belirsiz kategori (その他 = diğer)
+bangumi_tag_cjk_6b793f	overpowered_lead	龙傲天 → yenilmez baş karakter
+bangumi_tag_cjk_cedcaa	kana_asumi	阿澄佳奈 → Kana Asumi
+bangumi_tag_18n	SKIP	belirsiz kısaltma (18N)
+bangumi_tag_cjk_095b61	yoshitsugu_matsuoka	松岡禎丞 → Yoshitsugu Matsuoka
+bangumi_tag_cjk_aa30af	manga_volumes	复数卷 → manga ciltleri
+bangumi_tag_cjk_a4fb84	SKIP	anlamsız tek karakter (本)
+bangumi_tag_eroge	eroge	EROGE → mevcut eroge kanonu
+bangumi_tag_tag_ad99df	otomate	オトメイト → studio canon (çapraz rol birleşimi)
+bangumi_tag_cjk_6728e4	live_action	実写化 → sözlük live_action
+bangumi_tag_cjk_71339b	toei_animation	東映 → mevcut toei_animation kanonu
+bangumi_tag_cjk_a246f6	SKIP	anlamsız tek karakter (总)
+bangumi_tag_nexton	nexton	NEXTON → oyun şirketi
+bangumi_tag_tag_ce138d	light_novel	ラノベ → sözlük light_novel (ライトノベル)
+bangumi_tag_appetite	appetite	Appetite → oyun markası
+bangumi_tag_1988	SKIP	yıl etiketi
+bangumi_tag_a_1pictures	a1_pictures	A-1Pictures → sözlük a1_pictures
+bangumi_tag_cjk_84d4fc	legend_of_heroes	英雄传说 → Legend of Heroes
+bangumi_tag_cjk_f4655d	raising_sim	养成 → yetiştirme simülasyonu
+bangumi_tag_4_9	multi_volume	全4卷 → çok ciltli
+bangumi_tag_c80_2	SKIP	doujin etkinlik numarası (C80)
+bangumi_tag_cjk_27eb06	anime_soundtrack	动漫原声带 → anime müziği kanonu
+bangumi_tag_cjk_c197cb	tenwen_kadokawa	天闻角川引进 → Tianwen Kadokawa
+bangumi_tag_cjk_2c0e77	female_vocals	女声 → kadın vokal
+bangumi_tag_cjk_66ee9d	novel	小説 → sözlük novel
+bangumi_tag_02	SKIP	kişisel raf etiketi (剧场版-02)
+bangumi_tag_cjk_d8cc8a	fujimi_fantasia_bunko	富士見ファンタジア文庫 → publisher canon
+bangumi_tag_cjk_f85d1a	SKIP	kişisel puan rozeti (八星 = 8 yıldız)
+bangumi_tag_c84	SKIP	doujin etkinlik numarası (c84)
+bangumi_tag_visualart	visual_art	VisualArt → VisualArt's
+bangumi_tag_cjk_2c9e08	two_cour_series	半年番 → iki sezonluk
+bangumi_tag_cjk_bdd383	loli_shota	正太 → shota
+bangumi_tag_cjk_3d832f	western_film	欧美电影 → Batı filmi
+bangumi_tag_cjk_962a91	daisuke_namikawa	浪川大輔 → Daisuke Namikawa
+bangumi_tag_cjk_9ca284	pokemon	口袋妖怪 → sözlük pokemon
+bangumi_tag_2003_2	SKIP	yıl etiketi (2003年)
+bangumi_tag_2010_2019	SKIP	yıl aralığı etiketi
+bangumi_tag_cjk_d527dc	childhood_friends	幼なじみ → sözlük childhood_friends (幼馴染 mevcut)
+bangumi_tag_wii	platform_wii	WII → Wii
+bangumi_tag_cjk_acd15c	novel_volumes	日本小说-分卷 → roman ciltleri
+bangumi_tag_studiopierrot	pierrot	StudioPierrot → sözlük pierrot
+bangumi_tag_cjk_6d8123	sweet	甜 → tatlı
+bangumi_tag_tag_013bf3	manga	만화 → manga (Korece yazım)
+bangumi_tag_cjk_b4cca9	ryota_osaka	逢坂良太 → Ryota Osaka
+bangumi_tag_cjk_b4e870	live_action	三次元 → canlı çekim (3 boyutlu/gerçek)
+bangumi_tag_cjk_f6d4fc	wataru_hatano	羽多野渉 → Wataru Hatano
+bangumi_tag_epic	SKIP	belirsiz kısaltma (EPIC)
+bangumi_tag_robo	SKIP	belirsiz kısaltma (ROBO)
+bangumi_tag_2012_6	SKIP	sezon etiketi (2012秋)
+bangumi_tag_cjk_86fd25	weekly_shonen_jump	週刊少年ジャンプ → Weekly Shonen Jump
+bangumi_tag_cjk_b32be1	uncut_hentai	步兵里番 → sansürsüz hentai (basitleştirilmiş)
+bangumi_tag_c82	SKIP	doujin etkinlik numarası (C82)
+bangumi_tag_cjk_3d7b95	uncut	无修正 → sözlük uncut (無修正 etiketi mevcut)
+bangumi_tag_falcom	falcom	falcom → publisher canon (Nihon Falcom)
+bangumi_tag_cjk_e27a9f	light_novel	日本轻小说 → sözlük light_novel
+bangumi_tag_cybele	cybele	Cybele → oyun markası
+bangumi_tag_cjk_8c2cd6	ys	伊苏 → Ys
+bangumi_tag_cjk_f589a6	daisuke_kishio	岸尾だいすけ → Daisuke Kishio
+bangumi_tag_cjk_6a0515	futanari	扶她 → futanari
+bangumi_tag_cjk_cba1d8	takuya_sato	佐藤拓也 → Takuya Sato
+bangumi_tag_20	SKIP	yüzyıl etiketi (20世纪)
+bangumi_tag_3a_2	SKIP	belirsiz kısaltma (3A)
+bangumi_tag_edm	edm	EDM → elektronik dans müziği
+bangumi_tag_tvsp	tv_special	TVSP → TV özel
+bangumi_tag_cjk_94c83b	mitsuru_adachi	あだち充 → Mitsuru Adachi (mangaka)
+bangumi_tag_1987	SKIP	yıl etiketi
+bangumi_tag_cjk_2cfab0	side_scrolling	横版 → yatay kaydırmalı
+bangumi_tag_cjk_b5abff	pokemon	精灵宝可梦 → sözlük pokemon
+bangumi_tag_cjk_ca4202	SKIP	kişi/kullanıcı adı (屹青)
+bangumi_tag_cjk_6fa81e	pixel_art	像素 → piksel sanatı
+bangumi_tag_cjk_f99ea6	ongoing	未完结漫画 → sözlük ongoing
+bangumi_tag_tag_b2d775	eroge	エロゲー → eroge kanonu
+bangumi_tag_2002_2	SKIP	yıl etiketi (2002年)
+bangumi_tag_cjk_04fa3e	uncut	無修 → sözlük uncut
+bangumi_tag_90s	SKIP	onyıl etiketi
+bangumi_tag_m3_29	SKIP	doujin etkinlik numarası (M3-29)
+bangumi_tag_cbs	cbs	CBS → network canon
+bangumi_tag_cjk_8af0e3	marina_inoue	井上麻里奈 → Marina Inoue
+bangumi_tag_o_s_t	soundtrack	O.S.T. → sözlük soundtrack
+bangumi_tag_cjk_0d6c44	kazuya_nakai	中井和哉 → Kazuya Nakai
+bangumi_tag_cjk_98d0ab	guro	鬼畜 → mevcut guro kanonu
+bangumi_tag_cjk_013572	tokuma_shoten	徳間書店 → publisher canon (çapraz rol birleşimi)
+bangumi_tag_cjk_013da9	english_translation	英译 → İngilizce çeviri
+bangumi_tag_cjk_89b2e7	shotaro_morikubo	森久保祥太郎 → Shotaro Morikubo
+bangumi_tag_gundam_2	gundam	GUNDAM → sözlük gundam
+bangumi_tag_cjk_91bd51	takuma_terashima	寺島拓篤 → Takuma Terashima
+bangumi_tag_cjk_b615be	SKIP	kişisel raf etiketi (已存 = kayıtlı)
+bangumi_tag_cjk_d3a335	SKIP	belirsiz etiket (人性)
+bangumi_tag_cjk_04ef82	shinichiro_miki	三木眞一郎 → Shinichiro Miki
+bangumi_tag_cjk_64c6fc	SKIP	belirsiz boyut etiketi (中型)

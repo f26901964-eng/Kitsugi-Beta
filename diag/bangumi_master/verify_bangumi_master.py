@@ -59,6 +59,48 @@ def compact(value: str) -> str:
     return "".join(ch for ch in value if ch.isalnum()).lower()
 
 
+MAX_KOTLIN_CONSTANT_MUTF8_BYTES = 50_000
+
+
+def kotlin_mutf8_length(value: str) -> int:
+    """Return the class-file modified-UTF-8 size of a Kotlin/JVM string constant."""
+    size = 0
+    for char in value:
+        codepoint = ord(char)
+        if codepoint == 0:
+            size += 2
+        elif codepoint <= 0x7F:
+            size += 1
+        elif codepoint <= 0x7FF:
+            size += 2
+        elif codepoint <= 0xFFFF:
+            size += 3
+        else:
+            size += 6  # JVM strings encode supplementary characters as surrogate pairs.
+    return size
+
+
+def extract_org_raw(source: str) -> tuple[str, list[str]]:
+    """Extract joined RAW text and validate each generated literal fits the class-file limit."""
+    declaration = re.search(
+        r'private val RAW = listOf\((.*?)\)\.joinToString\(""\)', source, re.S)
+    if not declaration:
+        problems.append("BangumiOrgDictionary: parçalı RAW listOf bildirimi bulunamadı")
+        return "", []
+    chunks = re.findall(r'"""(.*?)"""', declaration.group(1), re.S)
+    if not chunks:
+        problems.append("BangumiOrgDictionary: RAW içinde Kotlin metin parçacığı bulunamadı")
+        return "", []
+    # The generator escapes a literal dollar in a Kotlin raw string as ${'$'}.
+    chunks = [chunk.replace("${'$'}", "$") for chunk in chunks]
+    for index, chunk in enumerate(chunks, start=1):
+        size = kotlin_mutf8_length(chunk)
+        if size > MAX_KOTLIN_CONSTANT_MUTF8_BYTES:
+            problems.append(
+                f"BangumiOrgDictionary RAW parçası {index} class-file sınırını aşıyor: {size} bayt")
+    return "".join(chunks).strip(), chunks
+
+
 def parse_groups() -> list[tuple[str, list[str]]]:
     """BangumiTagDictionary.kt içindeki g(...) çağrılarını SIRAYLA döndürür."""
     src = TAG_DICT.read_text(encoding="utf-8")
@@ -133,7 +175,7 @@ if entry_for("ASOBI", by_label, by_compact) is not None:
 # ── 2) Şirket sözlüğü ────────────────────────────────────────────────────────
 
 org_src = ORG_DICT.read_text(encoding="utf-8")
-raw = org_src.split('private const val RAW = """')[1].split('"""')[0].strip()
+raw, raw_chunks = extract_org_raw(org_src)
 org_by_label, org_by_compact, org_rows = {}, {}, []
 for line in raw.splitlines():
     label, key, en = line.split("|")
@@ -145,6 +187,10 @@ for line in raw.splitlines():
     if len(c) >= 3 and c not in org_by_compact:
         org_by_compact[c] = (key, en)
 notes.append(f"BangumiOrgDictionary: {len(org_rows)} eşleme satırı")
+notes.append(
+    f"BangumiOrgDictionary RAW: {len(raw_chunks)} parça; en büyük "
+    f"{max((kotlin_mutf8_length(chunk) for chunk in raw_chunks), default=0)} modified-UTF-8 bayt"
+)
 
 
 def org_for(value: str):
@@ -178,6 +224,17 @@ for line in (DIAG / "orgs.tsv").read_text(encoding="utf-8").splitlines():
 key_to_name = {}
 for label, key, en in org_rows:
     key_to_name.setdefault(key, en)
+# RAW'da hiç satırı kalmayan anahtarlar: aynı kurum birden çok rolde geçerken etiketleri
+# ikizi tarafından sahiplenilmiş olabilir (ilk yazım kazanır → bu anahtarın satırı düşer).
+# Latin ad o zaman dil dosyasından çözülür; aksi hâlde zararsız çok-rollü çakışma
+# "GERÇEK çakışma" diye raporlanıyordu (2026-10-21 düzeltmesi).
+_en_vals = dict(re.findall(r'<string name="([^"]+)">(.*?)</string>',
+                           RES_EN.read_text(encoding="utf-8"), re.S))
+for _k in set(re.findall(r"\|(bangumi_(?:studio|producer|network|publisher|magazine)_[a-z0-9_]+)\|", raw)):
+    key_to_name.setdefault(_k, _en_vals.get(_k))
+for _k, _v in _en_vals.items():
+    if _k.startswith("bangumi_") and _v.strip():
+        key_to_name.setdefault(_k, _v.strip())
 real_conflicts = []
 for f in org_lookup_fail:
     label, got, expected = f.split("'")[1], f.split("→ ")[1].split(" (")[0], f.split("(beklenen ")[1].rstrip(")")
