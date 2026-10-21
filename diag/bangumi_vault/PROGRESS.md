@@ -2,8 +2,9 @@
 
 > **Bu dosya devir teslim dosyasıdır.** Yeni bir dal/şube işi buradan devralır.
 > Son güncelleme: **2026-10-21** · Chunk **001 + 002 + 003** tamamlandı, uygulamaya işlendi.
-> Chunk 002 PR'ı: https://github.com/f26901964-eng/Kitsugi-Beta/pull/16 (**bu dal — chunk 001'i de taşır**)
-> Chunk 001 PR'ı: https://github.com/f26901964-eng/Kitsugi-Beta/pull/15 (hâlâ AÇIK; #16 merge edilirse kapatılabilir)
+> Chunk 003 PR'ı: https://github.com/f26901964-eng/Kitsugi-Beta/pull/18 (**bu dal `arena/6cb51a64-kitsugi-beta`; chunk 001+002'yi de taşır**)
+> Chunk 002 PR'ı: https://github.com/f26901964-eng/Kitsugi-Beta/pull/16 (önceki kaynak dal)
+> Chunk 001 PR'ı: https://github.com/f26901964-eng/Kitsugi-Beta/pull/15
 > Drive klasörü: https://drive.google.com/drive/folders/1pZAOYsAnMjveNK6grdXjqV9IDM1TFaJp
 
 ---
@@ -89,9 +90,9 @@ Yeni Arena oturumunda, yeni dal açıldığında **birebir şu metni** yapışt�
 > `diag/bangumi_vault/PROGRESS.md` dosyasını oku — Bangumi VAULT çeviri işinin devir
 > teslim dosyasıdır; hiçbir şeyi sıfırdan araştırma, her şey orada yazılı.
 >
-> **(0) Dal:** Chunk 001+002 **PR #16**'da, Chunk 003 ise Arena dalı
-> `arena/6cb51a64-kitsugi-beta` üzerinde tamamlandı; bu chunk'lar henüz `main`'de değil.
-> Yeni bir daldan devam ediyorsan chunk 003 dosyalarını bu daldan, chunk 001+002
+> **(0) Dal:** Chunk 001+002 **PR #16**'da; Chunk 003 bu dalın **PR #18**'inde
+> (`arena/6cb51a64-kitsugi-beta`) tamamlandı; bu chunk'lar henüz `main`'de değil.
+> Yeni bir daldan devam ediyorsan chunk 003 dosyalarını PR #18'den, chunk 001+002
 > dosyalarını #16'dan port et; hiçbiri için araştırmayı baştan yapma. Ayrıntı: Bölüm 0a.
 >
 > **(1) Kurulum:** Bölüm 0b tablosuyla veri dosyalarını Drive klasöründen indir
@@ -438,7 +439,7 @@ Chunk 003 için durumu (2026-10-21) → her satır **✅ tamam**:
 - [x] Drive'a yüklendi: PROGRESS.md, progress.json, translations_pending.tsv, translations_done.tsv,
       decisions/canon.tsv, map_chunk_001_orgs.tsv, map_chunk_001_tags.tsv,
       map_chunk_002_tags.tsv, map_chunk_003_tags.tsv, org_global_names.tsv
-- [x] Git commit + push + PR açıldı (`arena/6cb51a64-kitsugi-beta`; PR bağlantısı bu dalın GitHub kaydında)
+- [x] Git commit + push + PR #18 açıldı (`arena/6cb51a64-kitsugi-beta`; https://github.com/f26901964-eng/Kitsugi-Beta/pull/18)
 
 Chunk 002 için durumu (2026-10-21) → her satır **✅ tamam**:
 
