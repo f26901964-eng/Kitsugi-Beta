@@ -1061,3 +1061,289 @@ Taito	Taito	taito_3	chunk 004a — global ad
 森羅万象	Shinra-Bansho	shinra_bansho
 ミュージックアソシエイテッドレコーズ	Music Associated Records	sony_music_associated_records
 东映	Toei Company	toei_company
+
+# ── CHUNK 004c (2026-10-21) — kurum count 20-34: resmî Latin adlar + ikiz kayıt birleştirme ──
+# ---- ikiz kayıt birleştirme (aynı ad → aynı canon_id; ikinci string anahtarı üretilmez) ----
+Konami	Konami	konami
+Namco	Namco	namco
+TYPE-MOON	TYPE-MOON	type_moon
+CHUNSOFT	CHUNSOFT	chunsoft
+CONNECT	CONNECT	connect
+PINE JAM	PINE JAM	pine_jam
+# ---- studio ----
+スタジオKAI	Studio KAI	studio_kai
+プラチナゲームズ	PlatinumGames	platinumgames
+ポリゴン・ピクチュアズ	Polygon Pictures	polygon_pictures
+方特动漫	Fantawild Animation	fantawild_animation
+华特·迪士尼动画工作室	Walt Disney Animation Studios	walt_disney_animation_studios
+AICスピリッツ	AIC Spirits	aic_spirits
+ピクチャーマジック	Picture Magic	picture_magic
+アートミック	Artmic	artmic
+朱夏	Shuka	shuka
+大火鸟文化	Big Firebird Culture	big_firebird_culture
+トレジャー	Treasure	treasure
+東京キッズ	Tokyo Kids	tokyo_kids
+펜타비전	Pentavision	pentavision
+アクワイア	Acquire	acquire
+淘米网络	Taomee	taomee
+ゲームアーツ	Game Arts	game_arts
+ナウプロダクション	Now Production	now_production
+レジスタ	Regista	regista
+光子工作室群	Lightspeed Studios	lightspeed_studios
+株式会社サイバード	CYBIRD	cybird
+Codemasters软件有限公司	Codemasters	codemasters
+アルケミスト	Alchemist	alchemist
+コンパイル	Compile	compile
+特库摩	Tecmo	tecmo
+B.B.スタジオ	B.B. Studio	b_b_studio
+エクスペリエンス	Experience	experience
+オーバーフロー	Overflow	overflow
+A・C・G・T	A.C.G.T	a_c_g_t
+テイルズスタジオ	Tales Studio	tales_studio
+バンプレソフト	Banpresto Soft	banpresto_soft
+日本动画公司	Nippon Animation	nippon_animation
+満福神社	Manpuku Jinja	manpuku_jinja
+1-UPスタジオ	1-UP Studio	1_up_studio
+エインシャント	Ancient	ancient
+オーバードーズ	OVERDOSE	overdose
+クロシェット	Clochette	clochette
+シルキーズプラス	Silky's Plus	silky_s_plus
+シルキーズSAKURA	Silky's SAKURA	silky_s_sakura
+ヴァニラウェア	Vanillaware	vanillaware
+ケイエスエス	KSS	kss
+开罗软件	Kairosoft	kairosoft
+Irem股份有限公司	Irem	irem
+シンソフィア	syn Sophia	syn_sophia
+スタジオ・ファンタジア	Studio Fantasia	studio_fantasia
+バイブリーアニメーションスタジオ	Bibury Animation Studios	bibury_animation_studios
+ヘキサドライブ	HexaDrive	hexadrive
+北极光工作室群	Aurora Studios	aurora_studios
+オーガスト	AUGUST	august
+ケイブ	CAVE	cave
+黄昏フロンティア	Twilight Frontier	twilight_frontier
+サンドロット	Sandlot	sandlot
+ういんどみる	Windmill	windmill
+アスリード	asread	asread
+スノードロップ	Snowdrop	snowdrop
+ラパントラック	Lapin Track	lapin_track
+スタジオライブ	Studio Live	studio_live
+studioぱれっと	Studio Palette	studio_palette
+アニメーションDo	Animation Do	animation_do
+EMTスクエアード	EMT Squared	emt_squared
+ミュージアムピクチャーズ	Museum Pictures	museum_pictures
+ディーライツ	d-rights	d_rights
+メディコス・エンタテインメント	Medicos Entertainment	medicos_entertainment
+# ---- publisher ----
+キューンレコード	Ki/oon Records	ki_oon_records
+キングレコード株式会社	King Records	king_records
+ポリスター	Polystar	polystar
+テイチクエンタテインメント	Teichiku Entertainment	teichiku_entertainment
+テレビ東京ミュージック	TV Tokyo Music	tv_tokyo_music
+バンダイナムコゲームス	Bandai Namco Games	bandai_namco_games
+勁文社	Keibunsha	keibunsha
+カプコン	Capcom	capcom
+音泉	Onsen	onsen
+マガジン・マガジン	Magazine Magazine	magazine_magazine
+ポリグラム	PolyGram	polygram
+加賀クリエイト	Kaga Create	kaga_create
+新潮文庫nex	Shincho Bunko nex	shincho_bunko_nex
+実業之日本 社	Jitsugyo no Nihon Sha	jitsugyo_no_nihon_sha
+遊戲橘子	Gamania	gamania
+飞鸟新社	Asuka Shinsha	asuka_shinsha
+(株)ランティス	Lantis	lantis
+サイトロン・デジタルコンテンツ	Scitron Digital Contents	scitron_digital_contents
+学研マーケティング	Gakken Marketing	gakken_marketing
+平凡社	Heibonsha	heibonsha
+日本皇冠	Nippon Crown	nippon_crown
+筑摩書房	Chikuma Shobo	chikuma_shobo
+金山软件	Kingsoft	kingsoft
+네오위즈	Neowiz	neowiz
+시공사	Sigongsa	sigongsa
+インペリアルレコード	Imperial Records	imperial_records
+キャラアニ	Chara-Ani	chara_ani
+デジキューブ	DigiCube	digicube
+레진코믹스(레진엔터테인먼트)	Lezhin Comics	lezhin_comics
+カッティング・エッジ	Cutting Edge	cutting_edge
+スターツ出版株式会社	Starts Publishing	starts_publishing
+スターツ出版文庫	Starts Publishing Bunko	starts_publishing_bunko
+翔泳社	Shoeisha	shoeisha
+花梨エンターテイメント	Karin Entertainment	karin_entertainment
+アスミック	Asmik	asmik
+ラポート	Rapport	rapport
+大日本絵画	Dai Nippon Kaiga	dai_nippon_kaiga
+美術出版社	Bijutsu Shuppansha	bijutsu_shuppansha
+青心社	Seishinsha	seishinsha
+黑马漫画	Dark Horse Comics	dark_horse_comics
+ソニー・ミュージックエンタテインメント	Sony Music Entertainment	sony_music_entertainment
+フォーライフ ミュージックエンタテイメント	For Life Music Entertainment	for_life_music_entertainment
+角川(主婦の友)	Kadokawa	kadokawa
+贝塞斯达软件公司	Bethesda Softworks	bethesda_softworks
+アップフロントワークス	Up-Front Works	up_front_works
+ジャレコ	Jaleco	jaleco
+ブシロードメディア	Bushiroad Media	bushiroad_media
+東立出版社有限公司	Tong Li Publishing	tong_li_publishing
+完美世界	Perfect World	perfect_world
+イーグルパブリシング	Eagle Publishing	eagle_publishing
+パイインターナショナル	PIE International	pie_international
+宝可梦股份有限公司	The Pokémon Company	the_pokemon_company
+新潮文庫	Shincho Bunko	shincho_bunko
+角川春樹事務所	Kadokawa Haruki Corporation	kadokawa_haruki_corporation
+角川游戏	Kadokawa Games	kadokawa_games
+ガンホー	GungHo	gungho
+スタジオディーエヌエー	Studio DNA	studio_dna
+ダブリューイーエー	WEA	wea
+臺灣東販	Taiwan Tohan	taiwan_tohan
+世界图书出版公司	World Publishing Corporation	world_publishing_corporation
+安徽少年儿童出版社	Anhui Juvenile & Children's Publishing House	anhui_juvenile_childrens_publishing_house
+上海人民美术出版社	Shanghai People's Fine Arts Publishing House	shanghai_people_s_fine_arts_publishing_house
+上海人民出版社	Shanghai People's Publishing House	shanghai_people_s_publishing_house
+上海译文出版社	Shanghai Translation Publishing House	shanghai_translation_publishing_house
+人民邮电出版社	Posts & Telecom Press	posts_telecom_press
+二十一世纪出版社	21st Century Publishing House	21st_century_publishing_house
+吉林美术出版社	Jilin Fine Arts Press	jilin_fine_arts_press
+长春出版社	Changchun Publishing House	changchun_publishing_house
+广州天闻角川动漫有限公司	Guangzhou Tianwen Kadokawa	guangzhou_tianwen_kadokawa
+白杨社	Poplar Publishing	poplar_publishing
+雅达利公司	Atari	atari
+雪乐山公司	Sierra Entertainment	sierra_entertainment
+メディアパル	Media Pal	media_pal
+メディア・パル	Media Pal	media_pal
+立東舎	Rittosha	rittosha
+創芸社	Sogeisha	sogeisha
+近代映画社	Kindai Eigasha	kindai_eigasha
+中国城市出版社	China City Press	china_city_press
+アブソードミュージックジャパン	Absord Music Japan	absord_music_japan
+# ---- network ----
+NHK総合テレビ	NHK General TV	nhk_general_tv
+中央电视台	China Central Television	cctv
+中央电视台少儿频道	CCTV Children's Channel	cctv_children_s_channel
+央视少儿	CCTV Children's Channel	cctv_children_s_channel
+ABC朝日放送	Asahi Broadcasting Corporation	abc_asahi
+北海道文化放送	Hokkaido Cultural Broadcasting	hokkaido_cultural_broadcasting
+北海道テレビ	Hokkaido Television Broadcasting	hokkaido_television_broadcasting
+テレビ西日本	Television Nishinippon	television_nishinippon
+テレビ静岡	TV Shizuoka	tv_shizuoka
+テレビ朝日系列	TV Asahi Network	tv_asahi_network
+フジテレビ系列	Fuji TV Network	fuji_tv_network
+TBS系列	TBS Network	tbs_network
+カンテレ	Kansai TV	kansai_tv
+サガテレビ	Saga TV	saga_tv
+岐阜放送	Gifu Broadcasting System	gifu_broadcasting_system
+千叶电视台	Chiba TV	chiba_tv
+仙台放送	Sendai Television	sendai_television
+炫动卡通	Toonmax TV	toonmax_tv
+日曜劇場	Sunday Theatre	sunday_theatre
+金曜ナイトドラマ	Friday Night Drama	friday_night_drama
+土曜プレミアム	Saturday Premium	saturday_premium
+ドラマ24	Drama 24	drama_24
+ドラマ10	Drama 10	drama_10
+# ---- magazine ----
+ヤングマガジンアッパーズ	Young Magazine Uppers	young_magazine_uppers
+月刊Magazine Z	Monthly Magazine Z	monthly_magazine_z
+月刊YOU	Monthly YOU	monthly_you
+ニュータイプエース	Newtype Ace	newtype_ace
+少年エースplus	Shonen Ace Plus	shonen_ace_plus
+月刊コミックラッシュ	Monthly Comic Rush	monthly_comic_rush
+COMICリュウWEB	Comic Ryu Web	comic_ryu_web
+きららベース	Kirara Base	kirara_base
+ザ マーガレット	The Margaret	the_margaret
+周刊Comic BUNCH	Weekly Comic Bunch	weekly_comic_bunch
+月刊Comic Garden	Monthly Comic Garden	monthly_comic_garden
+电击文库MAGAZINE	Dengeki Bunko Magazine	dengeki_bunko_magazine
+电击文库	Dengeki Bunko	dengeki_bunko
+まんがタイム	Manga Time	manga_time
+チャンピオンクロス	Champion Cross	champion_cross
+ネメシス	Nemesis	nemesis
+月刊少年Jump	Monthly Shonen Jump	monthly_shonen_jump
+ちゃおデラックス	Chao Deluxe	chao_deluxe
+コミックバンチweb	Comic Bunch Web	comic_bunch_web
+ジャンプルーキー！	Jump Rookie!	jump_rookie
+ミスターマガジン	Mister Magazine	mister_magazine
+月刊少年Rival	Monthly Shonen Rival	monthly_shonen_rival
+漫画サンデー	Manga Sunday	manga_sunday
+花LaLa online	Hana LaLa online	hana_lala_online
+このマンガがすごい！WEB	Kono Manga ga Sugoi! Web	kono_manga_ga_sugoi_web
+コミックトム	Comic Tom	comic_tom
+ピッコマ	Piccoma	piccoma
+月刊ブシロード	Monthly Bushiroad	monthly_bushiroad
+Vジャンプ	V Jump	v_jump
+グランドジャンプPREMIUM	Grand Jump Premium	grand_jump_premium
+ドラゴンマガジン	Dragon Magazine	dragon_magazine
+ヤングユー	Young You	young_you
+ジャンプSQ.19	Jump SQ.19	jump_sq_19
+別冊コロコロコミック	Bessatsu CoroCoro Comic	bessatsu_corocoro_comic
+月刊HERO'S	Monthly Hero's	monthly_hero_s
+月刊GANGAN WING	Monthly Gangan Wing	monthly_gangan_wing
+電撃hp	Dengeki hp	dengeki_hp
+S-Fマガジン	SF Magazine	sf_magazine
+コミックボンボン	Comic BonBon	comic_bonbon
+プレイコミック	Play Comic	play_comic
+月刊Comic RUSH	Monthly Comic Rush	monthly_comic_rush
+COMICフルール	Comic Fleur	comic_fleur
+WEBコミックガンマ	Web Comic Gamma	web_comic_gamma
+コミックブレイドMASAMUNE	Comic Blade Masamune	comic_blade_masamune
+ゼロサムWARD	Zero-Sum Ward	zero_sum_ward
+月刊ニュータイプ	Monthly Newtype	monthly_newtype
+電撃G's Festival! COMIC	Dengeki G's Festival! Comic	dengeki_g_s_festival_comic
+まんがタウン	Manga Town	manga_town
+プチプリンセス	Petit Princess	petit_princess
+ヤンマガWeb	YanMaga Web	yanmaga_web
+別册少年CHAMPION	Bessatsu Shonen Champion	bessatsu_shonen_champion
+月刊少年キャプテン	Monthly Shonen Captain	monthly_shonen_captain
+WEBコミックアクション	Web Comic Action	web_comic_action
+ガンガンパワード	Gangan Powered	gangan_powered
+ジーンLINE	Gene Line	gene_line
+ビーンズエース	Beans Ace	beans_ace
+ヤングドラゴンエイジ	Young Dragon Age	young_dragon_age
+ケロケロエース	Kerokero Ace	kerokero_ace
+コミックシーモア	Comic Cmoa	comic_cmoa
+コミック乱	Comic Ran	comic_ran
+月刊コミックバンチ	Monthly Comic Bunch	monthly_comic_bunch
+漫画Sunday	Manga Sunday	manga_sunday
+月刊COMIC avarus	Monthly Comic Avarus	monthly_comic_avarus
+コミックヘヴン	Comic Heaven	comic_heaven
+# ---- producer (kurumlar) ----
+フジテレビジョン	Fuji Television	fuji_television
+東急エージェンシー	Tokyu Agency	tokyu_agency
+集英社プロダクション	Shueisha Production	shueisha_production
+アニメシアターX	AT-X	at_x
+スロウカーブ	Slow Curve	slow_curve
+朝日放送テレビ	Asahi Broadcasting Television	asahi_broadcasting_television
+ジェイ・ストーム	J Storm	j_storm
+光线影业	Enlight Pictures	enlight_pictures
+キッズステーション	Kids Station	kids_station
+彩条屋	Coloroom Pictures	coloroom_pictures
+東京ムービー新社	Tokyo Movie Shinsha	tokyo_movie_shinsha
+宮城テレビ放送	Miyagi Television Broadcasting	miyagi_television_broadcasting
+広島テレビ放送	Hiroshima Television	hiroshima_television
+福岡放送	Fukuoka Broadcasting System	fukuoka_broadcasting_system
+丸井グループ	Marui Group	marui_group
+广东奥飞动漫文化股份有限公司	Guangdong Alpha Animation	guangdong_alpha_animation
+角川映画	Kadokawa Pictures	kadokawa_pictures
+NTTぷらら	NTT Plala	ntt_plala
+D.N.ドリームパートナーズ	D.N. Dream Partners	d_n_dream_partners
+サテライト	Satelight	satelight
+メディコス・エンタテインメント	Medicos Entertainment	medicos_entertainment
+# ---- producer (kişiler — yalnız resmî Latin yazımı bilinenler) ----
+宮本茂	Shigeru Miyamoto	shigeru_miyamoto
+三上真司	Shinji Mikami	shinji_mikami
+名越稔洋	Toshihiro Nagoshi	toshihiro_nagoshi
+手塚卓志	Takashi Tezuka	takashi_tezuka
+増田順一	Junichi Masuda	junichi_masuda
+辻本良三	Ryozo Tsujimoto	ryozo_tsujimoto
+久保雅一	Masakazu Kubo	masakazu_kubo
+徳間康快	Yasuyoshi Tokuma	yasuyoshi_tokuma
+田中謙介	Kensuke Tanaka	kensuke_tanaka
+下川直哉	Naoya Shimokawa	naoya_shimokawa
+安藝貴範	Takanori Aki	takanori_aki
+松浦裕暁	Hiroaki Matsuura	hiroaki_matsuura
+木村唯人	Yuito Kimura	yuito_kimura
+高木謙一郎	Kenichiro Takaki	kenichiro_takaki
+東伊里弥	Iriya Azuma	iriya_azuma
+# ---- chunk 004c: aynı varlığın Latin/raw varyantları (değer birliği — çelişki uyarısını kapatır) ----
+ACQUIRE	Acquire	acquire
+Wea	WEA	wea
+WEA	WEA	wea
+COMIC HEAVEN	Comic Heaven	comic_heaven
+GRAND JUMP PREMIUM	Grand Jump Premium	grand_jump_premium
+MANGA TIME	Manga Time	manga_time

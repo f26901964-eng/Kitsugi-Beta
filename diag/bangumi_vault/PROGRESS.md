@@ -1,8 +1,9 @@
 # Bangumi VAULT — İlerleme / Devam Planı
 
 > **Bu dosya devir teslim dosyasıdır.** Yeni bir dal/şube işi buradan devralır.
-> Son güncelleme: **2026-10-21** · Chunk **001 + 002 + 003 + 004a + 004b** tamamlandı, uygulamaya işlendi.
-> Chunk 004b PR'ı: https://github.com/f26901964-eng/Kitsugi-Beta/pull/21 (**dal `arena/fbf31f34-kitsugi-beta`; chunk 001+002+003+004a'yı da taşır, `main` v2.4.326 ile birleşik**)
+> Son güncelleme: **2026-10-21** · Chunk **001 + 002 + 003 + 004a + 004b + 004c** tamamlandı, uygulamaya işlendi.
+> Chunk 004c PR'ı: PR_NUM_PLACEHOLDER (**dal `arena/c54b58d5-kitsugi-beta`; chunk 001+002+003+004a+004b'yi de taşır, `main` v2.4.326 ile birleşik**)
+> Chunk 004b PR'ı: https://github.com/f26901964-eng/Kitsugi-Beta/pull/21 (dal `arena/fbf31f34-kitsugi-beta`; chunk 001+002+003+004a'yı da taşır, `main` v2.4.326 ile birleşik)
 > Chunk 004a PR'ı: https://github.com/f26901964-eng/Kitsugi-Beta/pull/20 (**dal `arena/6131dd54-kitsugi-beta`; chunk 001+002+003'ü de taşır**)
 > Chunk 003 PR'ı: https://github.com/f26901964-eng/Kitsugi-Beta/pull/18 (dal `arena/6cb51a64-kitsugi-beta`)
 > ⚠ `main` bu dalın tabanından sonra ilerledi (2.4.321–324); yeni dal **`origin/main` ile birleştirilmiş** hâlde
@@ -18,8 +19,8 @@
 Yeni bir dalda işe başlayan ajan SIFIRDAN araştırma yapmaz; şu sırayı izler:
 
 ### a) Dal kurulumu (KRİTİK)
-- **Güncel durum (2026-10-21, chunk 004b sonrası):** chunk 001 + 002 + 003 + **004a + 004b**'nin
-  tamamı dal `arena/fbf31f34-kitsugi-beta` · **PR #21** üzerinde (`origin/main` 4ef8714/v2.4.326
+- **Güncel durum (2026-10-21, chunk 004c sonrası):** chunk 001 + 002 + 003 + 004a + 004b + **004c**'nin
+  tamamı dal `arena/c54b58d5-kitsugi-beta` · **PR `PR_NUM_PLACEHOLDER`** üzerinde (`origin/main` 4ef8714/v2.4.326
   merge edilmiş). Hiçbiri `main`'de YOK. Yeni oturum dalı `main`'den açıldıysa dosyalar gelmez →
   Bölüm 0e'deki **iki komutla** (explicit refspec + `git reset --hard`) kendi dalına çek.
 - Önceki kaynak: chunk 001–004a işi dal `arena/6131dd54-kitsugi-beta` · **PR #20**'de
@@ -71,9 +72,9 @@ kopyası ne kadar eski olursa olsun **tek çalıştırmada** güncel duruma geli
 çalıştırıldı → 8 vault JSON'ının **8'i de bayt bayt eski hâline döndü** (round-trip kayıpsız),
 `translations_pending.tsv` 63.448 → 63.448 (mükerrer düşme yok).
 
-✅ **Chunk 003 sonrası güncel restore hedefi**: Drive JSONları hâlâ yalnız chunk 001
+✅ **Chunk 004c sonrası güncel restore hedefi**: Drive JSONları hâlâ yalnız chunk 001
 damgası taşır; güncel tüm map dosyalarıyla `apply_map.py` çalıştırılınca
-`verify_vault.py` 2.491 anahtar · 1.089 kayıt · 1.662 map · 121.284 damga vermelidir.
+`verify_vault.py` **5.132 anahtar · 3.795 kayıt · 4.743 map · 121.284 damga** vermelidir.
 
 Not: `apply_map.py --check` bu durumu **yakalamaz** (yalnız map→canon tutarlılığına bakar).
 Yakalayan şey `verify_vault.py`'nin 7. kontrolüdür (aşağıda).
@@ -100,8 +101,8 @@ Yeni Arena oturumunda, yeni dal açıldığında **birebir şu metni** yapışt�
 > `diag/bangumi_vault/PROGRESS.md` dosyasını oku — Bangumi VAULT kurum/etiket çeviri işinin
 > devir teslim dosyasıdır; hiçbir şeyi sıfırdan araştırma, her şey orada yazılı.
 >
-> **(0) Dal (KRİTİK — yeni checkout'ta dosyalar YOKSA önce bunu yap):** Chunk 001 + 002 + 003 + **004a + 004b**
-> çalışmasının tamamı **PR #21**'de, dal `arena/fbf31f34-kitsugi-beta` üzerinde
+> **(0) Dal (KRİTİK — yeni checkout'ta dosyalar YOKSA önce bunu yap):** Chunk 001 + 002 + 003 + 004a + 004b + **004c**
+> çalışmasının tamamı **PR `PR_NUM_PLACEHOLDER`**'de, dal `arena/c54b58d5-kitsugi-beta` üzerinde
 > (**dal ucunu al**, sabit SHA'ya bağlanma).
 > Dal, `origin/main` 4ef8714 (v2.4.326) üzerine merge edilmiş hâldedir; bu iş henüz `main`'de YOK.
 > Yeni oturumun dalı sabittir (ör. `arena/xxxxxxx-kitsugi-beta`) ve `main`'den açıldıysa
@@ -110,35 +111,37 @@ Yeni Arena oturumunda, yeni dal açıldığında **birebir şu metni** yapışt�
 >
 > ```bash
 > git fetch --no-tags origin \
->   refs/heads/arena/fbf31f34-kitsugi-beta:refs/remotes/origin/arena/fbf31f34-kitsugi-beta
-> git reset --hard refs/remotes/origin/arena/fbf31f34-kitsugi-beta
+>   refs/heads/arena/c54b58d5-kitsugi-beta:refs/remotes/origin/arena/c54b58d5-kitsugi-beta
+> git reset --hard refs/remotes/origin/arena/c54b58d5-kitsugi-beta
 > ```
 >
 > Bu dal `main`'in 2.4.326 sürümünü (MAL URL düzeltmeleri dâhil) zaten içerir; ayrıca
 > `git merge origin/main` gerekmez. Dal **adını değiştirme**; yalnız kendi dalının içeriğini
 > bu uca eşitle. Doğrulama: `ls diag/bangumi_vault/PROGRESS.md` görünmeli,
-> `git log --oneline -1` PR #21 ucunu göstermeli. Hiçbir chunk'ı yeniden araştırma/üretme.
+> `git log --oneline -1` PR `PR_NUM_PLACEHOLDER` ucunu göstermeli. Hiçbir chunk'ı yeniden araştırma/üretme.
 > `git reset --hard` kullanmak istemiyorsan alternatif: `git merge --ff-only` çalışmazsa
-> `git checkout refs/remotes/origin/arena/fbf31f34-kitsugi-beta -- .` + `git commit`.
+> `git checkout refs/remotes/origin/arena/c54b58d5-kitsugi-beta -- .` + `git commit`.
 >
 > **(1) Kurulum:** Bölüm 0b tablosuyla veri dosyalarını Drive klasöründen indir
 > (`1pZAOYsAnMjveNK6grdXjqV9IDM1TFaJp`, ~74 MB; `download_file` paralel çağrılarla,
 > `google_drive/` içine yazar, içeriği bağlama dökmez). `decisions/*.tsv` git'te zaten var.
 > Drive'daki vault JSON'ları **yalnız chunk 001 damgalıdır** → indirdikten sonra **mutlaka**
-> `python3 diag/bangumi_vault/scripts/apply_map.py` çalıştır (`--check` DEĞİL; chunk 002+003+004a+004b
+> `python3 diag/bangumi_vault/scripts/apply_map.py` çalıştır (`--check` DEĞİL; chunk 002+003+004a+004b+004c
 > kararlarını damgalar, kayıpsız). Sonra `verify_vault.py` ✅ olmalı:
-> **`3812 bangumi_* anahtar, 2453 vault kaydı, 3229 map satırı, 121284 damga`**.
+> **`5132 bangumi_* anahtar, 3795 vault kaydı, 4743 map satırı, 121284 damga`**.
 >
-> **(2) İş:** Bölüm 5'teki **ilk ☐** kutucuğu = **Chunk 004c — kurum count 20–34 (1.515 kayıt)**.
-> Sıra: `python3 diag/bangumi_vault/scripts/draft_org_map.py --chunk 004c --min-count 20 --max-count 34`
+> **(2) İş:** Bölüm 5'teki **ilk ☐** kutucuğu = **Chunk 005 — kurum count 1–19 kuyruğu + etiket count 20–99 (4.027)**.
+> Kurum için: `python3 diag/bangumi_vault/scripts/draft_org_map.py --chunk 005a --max-count 19`
 > → taslağı gözden geçir, `org_global_names.tsv`'ye **yalnız resmî Latin adı bilinen** kurum/kişileri
 > ekle → `apply_map.py --check && apply_map.py` → `vault_to_strings.py` → `verify_vault.py`.
-> Karar kalıpları için "Chunk 002 karar şablonu"nu (6 adım) ve Bölüm 2f'yi (chunk 004b örneği) kullan.
-> Not: `committee` rolü `draft_org_map.py` ORG_FILES'ta yok → 004c'deki tek committee kaydı elle eklenir.
+> Etiket için `scripts/worklist.py --min-count 20 --max-count 99` + elle karar (Bölüm 4).
+> Karar kalıpları için "Chunk 002 karar şablonu"nu (6 adım) ve Bölüm 2e/2f/2g'yi (kurum chunk örnekleri) kullan.
+> Not: `committee` rolü `draft_org_map.py` ORG_FILES'ta yok; kayıtlar `producers.json` ile aynı key'i
+> taşıyorsa taslak yine kapsar (004c'de böyle oldu), aksi hâlde satır elle eklenir.
 >
 > **(3) Kapanış (Bölüm 8):** tik at (☐→☑), Bölüm 2 tablosunu + kümülatif sayıları güncelle,
 > PROGRESS.md + progress.json + karar dosyalarını (canon.tsv, org_global_names.tsv,
-> map_chunk_004c_orgs.tsv) Drive'a yükle (aynı ad varsa `delete_file` + `upload_file`),
+> map_chunk_<chunk>_*.tsv) Drive'a yükle (aynı ad varsa `delete_file` + `upload_file`),
 > `verify_bangumi_master.py` + `gen_bangumi_master.py --check` + `git diff --quiet` ile CI'yı
 > yerelde simüle et, commit + push + PR aç (yeni PR'ın numarasını PROGRESS.md'ye yaz).
 >
@@ -155,12 +158,12 @@ Yeni Arena oturumunda, yeni dal açıldığında **birebir şu metni** yapışt�
 
 Kısa sürüm (dosya zaten çalışma alanında ve damgalıysa yeterli):
 **"`diag/bangumi_vault/PROGRESS.md`'yi oku, Bölüm 0 kurulumunu yap, Bölüm 5'teki sıradaki
-☐ chunk'ı (004c) bitir, Bölüm 8 kapanış listesini uygula."**
+☐ chunk'ı (005) bitir, Bölüm 8 kapanış listesini uygula."**
 
-Sıradaki chunk: **004c — kurum count 20–34 (1.515 kayıt: studio 358, producer 607, publisher 365,
-magazine 138, network 46, committee 1)**. Chunk 004b (35–59 · 1.000 kayıt) tamamlandı; `translations_pending.tsv`
-62.957 satır (kurum kayıtları pending'te yok). Chunk 004 üç parçaya bölündü:
-**004a 60–99 ✓**, **004b 35–59 ✓**, **004c 20–34 (1.515)**.
+Sıradaki chunk: **005 — kurum count 1–19 kuyruğu + etiket count 20–99 (4.027)**. Chunk 004c
+(20–34 · 1.514 benzersiz kayıt + committee kopyası) tamamlandı; `translations_pending.tsv`
+62.957 satır (kurum kayıtları pending'te yok). Chunk 004 dört parçaya bölündü:
+**004a 60–99 ✓**, **004b 35–59 ✓**, **004c 20–34 ✓**; kurumda count ≥20 kalmadı (kalan: 1–19 kuyruğu).
 
 ---
 
@@ -175,7 +178,7 @@ magazines, committees, vault, translations_pending.tsv) her etiket/kurum için:
    BangumiOrgDictionary + vault JSON karar alanları).
 4. Çalışma **parça parça (chunk)** ilerler; her turdan sonra bu dosya güncellenir.
 
-## 2. Mevcut durum — CHUNK 001 ✓ + CHUNK 002 ✓ + CHUNK 003 ✓ + CHUNK 004a ✓ + CHUNK 004b ✓
+## 2. Mevcut durum — CHUNK 001 ✓ + CHUNK 002 ✓ + CHUNK 003 ✓ + CHUNK 004a ✓ + CHUNK 004b ✓ + CHUNK 004c ✓
 
 ### 2a) CHUNK 001 (TAMAM ✓)
 
@@ -353,31 +356,110 @@ Araç değişiklikleri (geriye dönük uyumlu):
 - `scripts/draft_org_map.py`: `SKIP_NAMES` chunk 004b'de görülen ad parçaları/tek kana ile genişletildi
   (yukarıdaki 19 SKIP).
 
-### 2d) Kümülatif durum (chunk 001 + 002 + 003 + 004a + 004b)
+### 2g) CHUNK 004c (TAMAM ✓ · 2026-10-21) — kurum count 20–34
+
+| Rol | Kararlı | SKIP | Toplam |
+|---|---:|---:|---:|
+| studio | 357 | 1 | 358 |
+| producer | 599 | 8 | 607 |
+| publisher | 353 | 12 | 365 |
+| magazine | 136 | 2 | 138 |
+| network | 44 | 2 | 46 |
+| **Toplam** | **1.489** | **25** | **1.514** |
+
+1.514 benzersiz vault anahtarı işlendi (Bölüm 5'teki 1.515 sayısı, `committees.json`'daki
+aynı key'in kopyasını ayrı sayıyordu). 1.489 kararlı kaydın `canon.tsv` origin dağılımı:
+**global 282 · as_is 1.097** (410 Latin + 687 bilinmeyen CJK) **· existing 110**
+(6 doğrudan + **104 roller arası birleşim**).
+
+- **global (282)**: `org_global_names.tsv` bilgi tabanına bu chunk'ta **+271** resmî Latin ad
+  eklendi (1.045 → **1.316** veri satırı). Örnekler: `スタジオKAI`→Studio KAI,
+  `プラチナゲームズ`→PlatinumGames, `ポリゴン・ピクチュアズ`→Polygon Pictures, `朱夏`→Shuka,
+  `ヴァニラウェア`→Vanillaware, `ヘキサドライブ`→HexaDrive, `バイブリーアニメーションスタジオ`→
+  Bibury Animation Studios, `開罗软件`→Kairosoft, `淘米网络`→Taomee, `光子工作室群`→Lightspeed
+  Studios, `华特·迪士尼动画工作室`→Walt Disney Animation Studios, `黑马漫画`→Dark Horse Comics,
+  `宝可梦股份有限公司`→The Pokémon Company, `游戏橘子`→Gamania, `キングレコード株式会社`→King Records,
+  `ソニー・ミュージックエンタテインメント`→Sony Music Entertainment, `东立出版社有限公司`→Tong Li
+  Publishing, `中央电视台`→China Central Television (CCTV), `NHK総合テレビ`→NHK General TV,
+  `ABC朝日放送`→Asahi Broadcasting Corporation, `カンテレ`→Kansai TV; dergi kanonu:
+  `ヤングマガジンアッパーズ`→Young Magazine Uppers, `月刊Comic Garden`→Monthly Comic Garden,
+  `电击文库MAGAZINE`→Dengeki Bunko Magazine, `ヤンマガWeb`→YanMaga Web, `コミックシーモア`→Comic Cmoa.
+  Kişilerde yalnız resmî Latin yazımı bilinenler (15): Shigeru Miyamoto, Shinji Mikami,
+  Toshihiro Nagoshi, Takashi Tezuka, Junichi Masuda, Ryozo Tsujimoto, Masakazu Kubo,
+  Yasuyoshi Tokuma, Kensuke Tanaka, Naoya Shimokawa, Takanori Aki, Hiroaki Matsuura,
+  Yuito Kimura, Kenichiro Takaki, Iriya Azuma.
+- **existing (110)**: mevcut string anahtarına birleşim — `東映`→`bangumi_studio_toei_animation`,
+  `コーエー`→`bangumi_publisher_koei`, `フロム`→`bangumi_studio_fromsoftware`,
+  `白組`→`bangumi_studio_shirogumi`, `アスリード`→`bangumi_studio_asread`,
+  `레진코믹스(레진엔터테인먼트)`→`bangumi_magazine_lezhin_comics`,
+  `キッズステーション`→`bangumi_network_kids_station`. Bu 104 kayıt TR/EN değerlerini
+  **dil dosyasından birebir** korur.
+- **as_is (1.097)**: 410 Latin ad (marka/kısaltma) + 687 bilinmeyen CJK (romanizasyon
+  **uydurulmadı**). Latin `as_is` örnekleri: TYPE-MOON, CUBE, VISUAL ARTS, TGL, feng, qureate,
+  Hulotte, Gameloft, Rusty Lake, Yostar Pictures, GEEKTOYS, bomtoon, Piccoma…
+- **SKIP (25)**: ad parçası/gürültü — `メディア`(×2), `ジャパン`, `エム`, `ビデオ`, `エル`,
+  `ユニバーサル`, `グループ`, `オー`, `エヌ`, `ティー`, `ソフトウェア`, `エー`, `エフ`,
+  bölge etiketi `台湾`, `USA`, URL parçası `http:`(×2), hukuki kısaltma `LLC`, belirsiz `PC`/`SE`/`ESP`,
+  `発売元:モモグレ` (yayıncı öneki), `(オトメドラマ)` (parantez gürültüsü), `インディーズ・メーカー`.
+
+İkiz kayıt birleştirmeleri ve elle düzeltmeler:
+- Aynı varlığın Latin/raw varyantları aynı `canon_id`'ye bağlandı → ikinci string anahtarı
+  üretilmedi: **Konami → konami**, **Namco → namco**, **TYPE-MOON → type_moon**,
+  **CHUNSOFT → chunsoft**, **CONNECT → connect**, **PINE JAM → pine_jam**,
+  `ACQUIRE`/`Wea`/`COMIC HEAVEN`/`GRAND JUMP PREMIUM`/`MANGA TIME` (değer birliği).
+- Yanlış otomatik birleşimler elle düzeltildi (üçü de **yeni** canon satırı aldı):
+  `漫画SHOW` → artık prodüktör `Show隈部` anahtarına değil `manga_show`'a;
+  `ジャンプGIGA` → studio `Giga` anahtarına değil `jump_giga` (Jump GIGA)`'ya;
+  `ALcotハニカム` → `alcot_honey_comb` (ALcot ile karışmıyor; resmî Latin yazımı
+  doğrulanamadığı için `as_is`).
+- **committee notu**: `draft_org_map.py` `ORG_FILES`'ta `committee` yok, ancak 004c'deki tek
+  committee kaydı (`MY PROJECT`, count 23) `producers.json`'da **aynı key** ile yer aldığı için
+  taslak onu producer rolünde kapsadı; `apply_map.py` anahtar bazlı damgaladığı için
+  `committees.json` kopyası da işlendi → ayrı elle satır **gerekmedi**.
+
+Uygulama çıktıları (`verify_vault.py` + `verify_bangumi_master.py` ile doğrulandı ✅):
+
+- `values/strings.xml` + `values-en/strings.xml`: **+1.320 TR / +1.320 EN** `<string>`
+  (toplam 11.311/11.311; mevcut değer üzerine yazma **0**).
+- `BangumiOrgDictionary.kt` RAW: **+1.540 satır** (3.473 → **5.013**; **6 parça**,
+  en büyük 49.990 bayt < 50.000). `BangumiTagDictionary.kt`: **+0 grup, +0 etiket**.
+- `decisions/canon.tsv`: **+1.422 satır** (2.582 → **4.004**) · `map_chunk_004c_orgs.tsv`: **1.514 satır**.
+- `decisions/org_global_names.tsv`: **+271 satır** (1.045 → 1.316).
+- `translations_done.tsv`: 1.662 → **4.743** · `translations_pending.tsv`: **değişmedi** (62.957;
+  kurum kayıtları pending'te yok).
+
+Araç değişiklikleri (geriye dönük uyumlu):
+- `scripts/draft_org_map.py`: `SKIP_NAMES` chunk 004c'de bölge/şablon gürültüsü, URL parçası,
+  hukuki kısaltma, belirsiz kısaltma ve tek kana ile genişletildi (yukarıdaki 25 SKIP).
+
+### 2d) Kümülatif durum (chunk 001 + 002 + 003 + 004a + 004b + 004c)
 
 ```
 python3 diag/bangumi_vault/scripts/verify_vault.py
-✅ TÜM KONTROLLER GEÇTİ — 3812 bangumi_* anahtar, 2453 vault kaydı, 3229 map satırı, 121284 damga denetlendi
+✅ TÜM KONTROLLER GEÇTİ — 5132 bangumi_* anahtar, 3795 vault kaydı, 4743 map satırı, 121284 damga denetlendi
 ```
 
 | Rol | Toplam kayıt | Karar satırı (canon + SKIP) | Kararlı canon | SKIP |
 |---|---:|---:|---:|---:|
 | tag | 64.499 | **962** | **675** | 287 |
-| studio | 12.391 | 387 | 373 | 14 |
-| producer | 24.825 | 657 | 642 | 15 |
-| publisher | 13.227 | 852 | 820 | 32 |
-| magazine | 3.995 | 324 | 318 | 6 |
-| network | 2.347 | 47 | 47 | 0 |
-| committee | 1.229 | 0 | 0 | 0 |
-| **Toplam** | | **3.229** | **2.875** | **354** |
+| studio | 12.391 | 745 | 730 | 15 |
+| producer | 24.825 | 1.264 | 1.241 | 23 |
+| publisher | 13.227 | 1.217 | 1.173 | 44 |
+| magazine | 3.995 | 462 | 454 | 8 |
+| network | 2.347 | 93 | 91 | 2 |
+| committee | 1.229 | 0 (1 kopya) | 0 | 0 |
+| **Toplam** | | **4.743** | **4.364** | **379** |
 
-Kurum kalan iş yükü (kararsız): count 60–99 → **0**, count 35–59 → **0**, count 20–34 → **1.515**,
-count 1–19 → kalan kuyruk (chunk 001–003 kararlarından sonra). Etiket kalan iş yükü:
-count 20–99 → **4.027**, count <20 → **59.510** (toplam **63.537**). `translations_pending.tsv` = **62.957** satır.
+`committee` satırındaki tek kayıt `producers.json` ile aynı key'i taşıdığı için map satırı
+producer altında sayılır (`progress.json`'da her iki rolde de "decided" görünür → toplam 4.744).
+
+Kurum kalan iş yükü (kararsız): count ≥20 → **0** (60–99 ✓, 35–59 ✓, 20–34 ✓), count 1–19 →
+kalan kuyruk. Etiket kalan iş yükü: count 20–99 → **4.027**, count <20 → **59.510**
+(toplam **63.537**). `translations_pending.tsv` = **62.957** satır.
 
 `python3 diag/bangumi_master/verify_bangumi_master.py` → **✅ Tüm kontroller geçti**
-(3.473 eşleme · aynı-ad rol çakışması 62 · gerçek çakışma 0; TagDictionary 1.325 grup;
-TR/EN 9.991/9.991; RAW 5 parça, en büyük 49.990 bayt). `gen_bangumi_master.py --check`
+(5.013 eşleme · aynı-ad rol çakışması 62 · gerçek çakışma 0; TagDictionary 1.325 grup;
+TR/EN 11.311/11.311; RAW 6 parça, en büyük 49.990 bayt). `gen_bangumi_master.py --check`
 de yazma yapmadan temiz geçti.
 
 ## 3. Karar sözlüğü (her yeni dal bunu bilmeli)
@@ -432,12 +514,14 @@ işler, `translations_done.tsv` yazar, `translations_pending.tsv`'i düşer,
 - [x] **Chunk 004b** — kurum count **35–59** (1.000 kayıt: 981 kararlı + 19 SKIP) →
       uygulamaya işlendi ✅ (2026-10-21; ayrıntı Bölüm 2f). `worklist.py --min-count 35
       --max-count 59` sonrası bu aralıkta **0** kayıt kaldı.
-- [ ] **Chunk 004c** — kurum count **20–34** (**1.515** kayıt: studio 358, producer 607,
-      publisher 365, magazine 138, network 46, committee 1). Komut:
-      `python3 scripts/draft_org_map.py --chunk 004c --min-count 20 --max-count 34`
-      (committee rolü `draft_org_map.py` ORG_FILES'ta yok → tek kayıt elle eklenir).
-- [ ] **Chunk 005+** — etiket count 20–99 (**4.027**), sonra kuyruk (<20 → **59.510**);
-      kurum 1–19; committees (1.229) + üretici kişileri (`as_is`/bilinen romanizasyonlar).
+- [x] **Chunk 004c** — kurum count **20–34** (**1.514** benzersiz kayıt: 1.489 kararlı + 25 SKIP;
+      studio 358, producer 607, publisher 365, magazine 138, network 46; committee kaydı
+      `producers.json` ile aynı key'de olduğu için kapsandı) → uygulamaya işlendi ✅
+      (2026-10-21; ayrıntı Bölüm 2g). Taslak: `python3 scripts/draft_org_map.py --chunk 004c
+      --min-count 20 --max-count 34`. Bu aralıkta **0** kayıt kaldı.
+- [ ] **Chunk 005+** — kurum count **1–19** kuyruğu (`--chunk 005a --max-count 19`);
+      etiket count 20–99 (**4.027**), sonra kuyruk (<20 → **59.510**);
+      committees (1.229) + üretici kişileri (`as_is`/bilinen romanizasyonlar).
 - [ ] **Final** — kalan `translations_pending.tsv` tükendi mi? `verify_vault.py` ✅?
       PROGRESS.md + Drive + PR güncelle.
 
@@ -513,6 +597,26 @@ Her chunk aynı pipeline'ı izler (Bölüm 0d). Bilinmeyen kişi/kurumlar `as_is
   Shirakura). Okunuşu tahmin edilen adlar `as_is` kalır — kural: romanizasyon uydurulmaz.
   Bu chunk'ta `producer` 161 kaydın 110'u `as_is`.
 
+- **Chunk 004c — ikiz kayıt disiplini**: vault'ta aynı varlık birden çok kez geçiyor
+  (Latin anahtar + `cjk_<hash>` anahtarı). Latin/raw varyantlar bilgi tabanına **aynı
+  `canon_id`** ile eklenerek tek string anahtarında toplanır (Konami, Namco, TYPE-MOON,
+  CHUNSOFT, CONNECT, PINE JAM). Bu yapılmazsa `konami`/`konami_2`, `pine_jam`/`pine_jam_2`
+  gibi ikinci anahtarlar doğar. Her chunk sonunda "aynı ad → farklı cid" taraması yapılmalı.
+- **Chunk 004c — cid çakışması tuzağı**: `key` sonekinden türetilen `canon_id` tesadüfen
+  başka bir varlığın anahtarına denk gelebilir. Bu chunk'ta üç yanlış birleşim yakalandı:
+  `漫画SHOW`→prodüktör `Show隈部` (`bangumi_producer_show`), `ジャンプGIGA`→studio `Giga`
+  (`bangumi_studio_giga`), `ALcotハニカム`→`ALcot` (`bangumi_studio_alcot_2`). Ders: taslakta
+  `mevcut anahtara birleşim` notu görülen her satırda **hedef anahtarın değeri** gözle
+  doğrulanmalı (`record adı ≈ kanon değeri` denetimi).
+- **Chunk 004c — `committee` rolü**: `committees.json` kayıtları `role: producer` taşıyabiliyor
+  ve `producers.json`/`vault.json` ile **aynı key**'i paylaşabiliyor. Böyle kayıtlar
+  `draft_org_map.py` tarafından producer rolünde kapsanır ve `apply_map.py` anahtar bazlı
+  damgaladığı için tüm kopyalar işlenir; `ORG_FILES`'a `committee` eklemek gerekmez.
+- **Chunk 004c — SKIP genişlemesi**: `台湾` (bölge etiketi; 004a'daki `中国大陆` ile aynı çizgi),
+  `http:` (URL parçası), `LLC`/`PC`/`SE`/`ESP` (belirsiz kısaltma), `エフ` (tek kana),
+  `発売元:モモグレ` (yayıncı öneki), `(オトメドラマ)` (parantez gürültüsü),
+  `インディーズ・メーカー` (indies maker) SKIP; `draft_org_map.py` `SKIP_NAMES`'e eklendi.
+
 ## 7. Bilinen teknik notlar
 
 - Sandbox'ta doğrudan ağ YOK (yalnız `github.com` + `api.github.com` + paket depoları);
@@ -580,6 +684,25 @@ Her chunk aynı pipeline'ı izler (Bölüm 0d). Bilinmeyen kişi/kurumlar `as_is
      Böylece roller arası kaynak kullanan etiketler de gerçek UI lookup zincirinde çözülür.
 
 ## 8. Kapanış kontrol listesi (chunk sonlarında)
+
+Chunk 004c için durumu (2026-10-21) → her satır **✅ tamam**:
+
+- [x] `draft_org_map.py --chunk 004c --min-count 20 --max-count 34` → 1.514 map + 1.422 canon satırı
+      (taslak gözden geçirildi; +271 bilgi tabanı satırı, 3 yanlış birleşim düzeltildi)
+- [x] `apply_map.py --check` temiz (4.004 canon · 4.743 map · 4.364 canon + 379 skip)
+- [x] `verify_vault.py` ✅ (5.132 `bangumi_*` anahtar · 3.795 vault kaydı · 4.743 map satırı · 121.284 damga)
+- [x] `verify_bangumi_master.py` ✅ (5.013 eşleme · gerçek çakışma 0 · TR/EN 11.311/11.311)
+- [x] CI üreteç denetimi: `gen_bangumi_master.py --check` yazma yapmadan temiz; `git diff --quiet` sonrası ek değişiklik yok
+- [x] `strings.xml` geçerli XML; `bangumi_*` anahtarlarında yinelenen yok, TR/EN simetrik (11.311 = 11.311)
+- [x] RAW parça sınırı: 6 parça, en büyük **49.990** bayt (< 50.000 modified-UTF-8)
+- [x] `PROGRESS.md` + `progress.json` güncellendi
+- [x] Drive'a yüklendi: PROGRESS.md, progress.json, decisions/canon.tsv,
+      decisions/map_chunk_004c_orgs.tsv, decisions/org_global_names.tsv,
+      translations_done.tsv, translations_pending.tsv
+- [x] Git commit + push (dal `arena/c54b58d5-kitsugi-beta`) + PR `PR_NUM_PLACEHOLDER` açıldı
+- [ ] **Not (yerel derleme):** bu oturumda JDK/kotlinc kurulu değildi; `compile_check.sh`
+      çalıştırılamadı. Kotlin tarafı yalnız `verify_bangumi_master.py` + `gen --check` +
+      RAW parça bayt denetimiyle doğrulandı; asıl derleme CI'da (kotlinc adımı) koşar.
 
 Chunk 004a için durumu (2026-10-21) → her satır **✅ tamam**:
 

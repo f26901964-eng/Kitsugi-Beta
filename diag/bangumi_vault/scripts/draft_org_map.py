@@ -58,6 +58,10 @@ SKIP_NAMES = {
     # CHUNK 004b (2026-10-21): ad parçası / tek kana / bozuk parça — dil dosyasına girmez.
     "株式会社", "ソフト", "放送", "放送網", "ビジュアル", "マンガ", "日本", "メディア",
     "メディアワ)", "オー", "エル", "ティー", "エヌ", "ケー", "ファースト",
+    # CHUNK 004c (2026-10-21): bölge/şablon gürültüsü, URL parçası, hukuki kısaltma,
+    # belirsiz kısaltma ve tek kana — dil dosyasına girmez (ekranda ham kalır).
+    "台湾", "http:", "USA", "LLC", "PC", "SE", "ESP", "エフ",
+    "発売元:モモグレ", "(オトメドラマ)", "インディーズ・メーカー",
 }
 
 LATIN = re.compile(r"[A-Za-z]")
