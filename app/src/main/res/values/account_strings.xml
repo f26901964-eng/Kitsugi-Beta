@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="account_email">E-posta</string>
+    <string name="account_signed_out_subtitle">Giriş yaparak verilerini cihazlar arasında eşitle.</string>
+    <string name="account_loading_session">Kayıtlı oturum kontrol ediliyor…</string>
+    <string name="account_refresh_failed">Oturum yenilenemedi. İnternet bağlantını kontrol et veya yeniden giriş yap. Yerel kasa silinmedi.</string>
+    <string name="account_vault_checking">Şifreli kasa kontrol ediliyor…</string>
+    <string name="account_vault_ready_check_pending">Kasa bu cihazda açık. Bulut yedeği kontrol edilecek.</string>
+    <string name="account_vault_ready_backup_off">Kasa açık; şifreli hesap yedeklemesi kapalı.</string>
+    <string name="account_vault_locked_hint">Hesabına giriş yapılmış, ancak şifreli kasa bu cihazda kilitli. Kasayı açmak için Kitsugi şifreni doğrula. Arama geçmişi ve bildirim arşivi kasadan bağımsız eşitlenebilir.</string>
+    <string name="account_sync_selected_hint">Yalnızca açık olan kategoriler eşitlenir. Arama geçmişi ve bildirim arşivi sunucuda hesabına özel erişim kurallarıyla korunur; uçtan uca şifreli değildir. Bağlı hesap token\'ları ve taşınabilir ayarlar şifreli kasada tutulur.</string>
+    <string name="account_sync_none_selected">Eşitleme kategorileri kapalı; hiçbir veri gönderilmedi.</string>
+    <string name="account_sync_completed">Tamamlandı: %1$s</string>
+    <string name="account_signed_in">Giriş yapıldı.</string>
+    <string name="account_created">Hesap oluşturuldu.</string>
+    <string name="account_signin_failed">Giriş başarısız</string>
+    <string name="account_signup_failed">Kayıt başarısız</string>
+    <string name="account_signout_failed">Çıkış başarısız</string>
+    <string name="account_settings_failed">Ayar kaydedilemedi</string>
+    <string name="account_password_verify_failed">Şifre doğrulanamadı</string>
+    <string name="account_password_change_failed">Şifre işlemi tamamlanamadı</string>
+    <string name="account_password_change_retry">Ağ kesildiyse yeni şifreyle giriş yapmayı dene; eski şifre hâlâ geçerliyse aynı yeni şifreyle işlemi tekrar et.</string>
+    <string name="account_registration_password_rule">Yeni şifren en az 8 karakter olmalı ve iki alanda da aynı olmalı.</string>
+    <string name="account_password_confirmation">Şifreyi tekrar gir</string>
+    <string name="account_prompt_sign_up">Hesabın yok mu? Kayıt ol</string>
+    <string name="account_resend_confirmation">Doğrulama e-postasını yeniden gönder</string>
+    <string name="account_resend_countdown">Yeniden göndermek için %1$d sn bekle</string>
+    <string name="account_confirmation_sent">Adres doğrulama bekliyorsa e-posta gönderildi. Gelen kutunu ve spam klasörünü kontrol et. Bağlantıyı kaydı başlattığın cihazda aç; e-postan zaten doğrulanmışsa normal giriş yap.</string>
+    <string name="account_confirmation_send_failed">Doğrulama e-postası gönderilemedi</string>
+    <string name="account_confirmation_success">E-posta doğrulandı. Ayarlar → Kitsugi Hesabı bölümünde şifreni doğrulayarak şifreli kasayı açabilirsin.</string>
+    <string name="account_confirmation_manual_login">E-posta bağlantısı uygulamaya döndü. E-postan onaylandıysa Ayarlar → Kitsugi Hesabı bölümünden e-posta ve şifrenle giriş yap. Gerekirse yeni bir doğrulama e-postası iste.</string>
+    <string name="account_confirmation_invalid">Doğrulama bağlantısı geçersiz veya süresi dolmuş. E-postan zaten onaylandıysa normal giriş yap; aksi hâlde yeni doğrulama e-postası iste.</string>
+    <string name="account_conflict_keep_device">%1$s için bu cihazdaki hesap bilgileri korunacak. Diğer servislerin değişiklikleri birleştirilir. Bulut yedeği bu sırada değişmişse işlem durdurulur.</string>
+    <string name="account_conflict_keep_cloud">%1$s için buluttaki hesap bilgileri korunacak. Diğer servislerin değişiklikleri birleştirilir. Bulut yedeği bu sırada değişmişse işlem durdurulur.</string>
+</resources>

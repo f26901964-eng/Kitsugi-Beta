@@ -5,23 +5,36 @@ import androidx.work.*
 import io.github.jan.supabase.auth.auth
 import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.flow.first
 
 /** Work data contains only an owner ID, never credentials, passwords or vault keys. */
 class VaultBackupWorker(context: Context, params: WorkerParameters) : CoroutineWorker(context, params) {
     override suspend fun doWork(): Result {
         val owner = inputData.getString("owner") ?: return Result.failure()
-        if (LocalVaultKeyStore.owner(applicationContext) != owner) return Result.success()
-        val auth = KitsugiAccountClient.client.auth
-        try { auth.awaitInitialization() }
-        catch (e: CancellationException) { throw e }
-        catch (e: Exception) { return Result.retry() }
-        val current = auth.currentUserOrNull()?.id ?: return Result.retry()
-        if (owner != current) return Result.success() // Never send A's queued job into B's account.
-        val result = LinkedAccountVault.backupNow(applicationContext, expectedOwner = owner)
-        return when (result.exceptionOrNull()) {
-            null -> Result.success()
-            is VaultConflictException, is VaultLockedException -> Result.failure() // User action required.
-            else -> Result.retry() // Network/server errors retain work across process death and reboot.
+        return try {
+            // Cancelling WorkManager is asynchronous. Recheck the persisted switch
+            // when the job actually runs, also after a process death or reboot.
+            val settings = com.kitsugi.animelist.data.settings.SettingsDataStore(applicationContext)
+                .settingsFlow.first()
+            if (!settings.accountBackupEnabled) return Result.success()
+            if (LocalVaultKeyStore.owner(applicationContext) != owner) return Result.success()
+            val auth = KitsugiAccountClient.client.auth
+            auth.awaitInitialization()
+            val current = auth.currentUserOrNull()?.id ?: return Result.retry()
+            if (owner != current) return Result.success()
+            val result = LinkedAccountVault.backupNow(applicationContext, expectedOwner = owner, automatic = true)
+            when (result.exceptionOrNull()) {
+                null -> Result.success()
+                is VaultConflictException, is VaultLockedException, is AccountSessionChangedException -> Result.failure()
+                is LinkageError -> Result.failure()
+                else -> Result.retry()
+            }
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: LinkageError) {
+            Result.failure()
+        } catch (e: Exception) {
+            Result.retry()
         }
     }
 

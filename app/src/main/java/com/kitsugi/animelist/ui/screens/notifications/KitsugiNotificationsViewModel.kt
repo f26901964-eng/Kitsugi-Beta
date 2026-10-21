@@ -5,7 +5,6 @@ import android.content.Context
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.kitsugi.animelist.R
-import com.kitsugi.animelist.data.account.KitsugiAccountRepository
 import com.kitsugi.animelist.data.auth.BangumiApiClient
 import com.kitsugi.animelist.data.auth.BangumiAuthStore
 import com.kitsugi.animelist.data.auth.ExternalAuthManager
@@ -214,13 +213,7 @@ class KitsugiNotificationsViewModel(application: Application) : AndroidViewModel
         if (live.isEmpty()) return
         NotificationArchiveStore.mergeSourceAsync(ctx, source, live.map { it.toArchived() })
 
-        // Bulut yedeği — giriş yoksa sessizce atlanır; akış asla beklemez.
-        if (KitsugiAccountRepository.isLoggedIn()) {
-            viewModelScope.launch(Dispatchers.IO) {
-                runCatching { KitsugiAccountRepository.pushNotificationArchive(ctx) }
-                    .onFailure { android.util.Log.w("KitsugiNotif", "Arşiv buluta yazılamadı: ${it.message}") }
-            }
-        }
+        // Cloud sync is scheduled by the store AFTER its local write completes.
     }
 
     /**

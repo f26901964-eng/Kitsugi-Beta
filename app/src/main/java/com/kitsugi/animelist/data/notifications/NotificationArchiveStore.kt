@@ -2,6 +2,8 @@ package com.kitsugi.animelist.data.notifications
 
 import android.content.Context
 import android.util.Log
+import com.kitsugi.animelist.data.account.KitsugiAccountRepository
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -10,6 +12,7 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonObject
 import java.io.File
 
 /**
@@ -99,36 +102,33 @@ object NotificationArchiveStore {
      */
     fun mergeSourceAsync(ctx: Context, source: String, fresh: List<ArchivedNotif>) {
         if (fresh.isEmpty()) return
+        val owner = KitsugiAccountRepository.currentUserId()
         ioScope.launch {
             try {
                 mutex.withLock { mergeLocked(ctx, source, fresh) }
+                // The previous caller launched an upload before this asynchronous write
+                // finished, repeatedly backing up the PREVIOUS archive instead.
+                KitsugiAccountRepository.onNotificationArchiveChanged(ctx, owner)
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
-                Log.w(TAG, "Arşiv birleştirilemedi ($source): ${e.message}")
+                Log.w(TAG, "Arşiv birleştirilemedi ($source): ${e.javaClass.simpleName}")
             }
         }
     }
 
-    /**
-     * Senkron birleştirme — bulut kayıtları yerelle birleştirilirken
-     * (KitsugiAccountRepository) dosya erişimini tekile indirir.
-     */
-    fun mergeSourcesBlocking(
+    /** Suspend instead of runBlocking: account synchronization never blocks the UI thread. */
+    suspend fun mergeSources(
         ctx: Context,
         entries: Map<String, List<ArchivedNotif>>
-    ): Map<String, List<ArchivedNotif>> {
-        if (entries.isEmpty()) return loadAll(ctx)
-        return kotlinx.coroutines.runBlocking {
-            mutex.withLock {
-                val current = readLocked(ctx)
-                val mergedSources = current.sources.toMutableMap()
-                entries.forEach { (source, fresh) ->
-                    mergedSources[source] = mergeLists(mergedSources[source].orEmpty(), fresh)
-                }
-                val updated = ArchiveFile(version = 1, sources = mergedSources)
-                writeLocked(ctx, updated)
-                mergedSources
-            }
+    ): Map<String, List<ArchivedNotif>> = mutex.withLock {
+        val current = readLocked(ctx)
+        val mergedSources = current.sources.toMutableMap()
+        entries.forEach { (source, fresh) ->
+            mergedSources[source] = mergeLists(mergedSources[source].orEmpty(), fresh)
         }
+        if (entries.isNotEmpty()) writeLocked(ctx, ArchiveFile(version = 1, sources = mergedSources))
+        mergedSources
     }
 
     /** Kaynağın arşivini sıfırlar (test/geliştirme için; arayüzden çağrılmaz). */
@@ -156,8 +156,9 @@ object NotificationArchiveStore {
             val text = file.readText()
             if (text.isBlank()) ArchiveFile() else json.decodeFromString(ArchiveFile.serializer(), text)
         } catch (e: Exception) {
-            Log.w(TAG, "Arşiv dosyası bozuk, sıfırlanıyor: ${e.message}")
-            ArchiveFile()
+            // Never overwrite the cloud or the only local copy with an empty archive
+            // just because decoding failed. UI-only loadAll may still show an empty list.
+            throw IllegalStateException("Yerel bildirim arşivi okunamadı; mevcut yedek korundu.", e)
         }
     }
 
@@ -165,10 +166,7 @@ object NotificationArchiveStore {
         val file = archiveFile(ctx)
         val tmp = File(file.parentFile, file.name + ".tmp")
         tmp.writeText(json.encodeToString(ArchiveFile.serializer(), archive))
-        if (!tmp.renameTo(file)) {
-            file.delete()
-            tmp.renameTo(file)
-        }
+        check(tmp.renameTo(file)) { "Bildirim arşivi kaydedilemedi; önceki dosya korundu." }
     }
 
     /**
@@ -202,8 +200,18 @@ object NotificationArchiveStore {
     )
 
     /** Yerel arşivi buluta yazılabilir JSON öğesine çevirir. */
-    fun toJsonElement(ctx: Context): JsonElement =
-        json.encodeToJsonElement(CloudArchive.serializer(), CloudArchive(loadAll(ctx)))
+    suspend fun toJsonElement(ctx: Context): JsonElement = mutex.withLock {
+        json.encodeToJsonElement(CloudArchive.serializer(), CloudArchive(readLocked(ctx).sources))
+    }
+
+    /** Strict cloud decoding: a corrupt response must fail sync, not erase the backup. */
+    fun fromCloudJsonElement(element: JsonElement?): Map<String, List<ArchivedNotif>> {
+        if (element == null) return emptyMap()
+        require(element is JsonObject && (element.isEmpty() || "sources" in element)) {
+            "Buluttaki bildirim arşivi tanınamadı; mevcut yedek korundu."
+        }
+        return json.decodeFromJsonElement(CloudArchive.serializer(), element).sources
+    }
 
     /** Buluttan gelen JSON öğesini arşiv kayıtlarına çözer; bozuk veri boş harita. */
     fun fromJsonElement(element: JsonElement?): Map<String, List<ArchivedNotif>> {

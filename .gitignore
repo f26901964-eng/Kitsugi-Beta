@@ -52,3 +52,6 @@ __pycache__/
 /diag/bangumi_vault/VAULT_README.md
 # worklist.py çıktısı yeniden üretilebilir ara dosyadır (tam liste 63k satır → repo şişmesi)
 /diag/bangumi_vault/worklists/
+
+# Isolated PostgreSQL account regression tests
+/scripts/account-tests/node_modules/
