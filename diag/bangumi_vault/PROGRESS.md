@@ -1031,3 +1031,136 @@ Chunk 002 için durumu (2026-10-21) → her satır **✅ tamam**:
 
 Sonraki chunk'lar için aynı liste geçerli; `gen_bangumi_master.py`'yi **`--check` olmadan
 çalıştırma** (Bölüm 7 ⚠).
+
+---
+
+## 2j) HANDOFF_010 oturumu (arena/e29a309c-kitsugi-beta · 2026-10-21)
+
+PR #29 (`arena/46189a1e-kitsugi-beta`) açık. Bu oturum yeni dal `arena/e29a309c-kitsugi-beta`
+üzerinde çalışır. Veri Drive klasöründen (1pZAOYs…) taze indirildi; **canon.tsv + map_chunk_005c_*
++ 006_* + 007_* + 008_orgs** Drive kopyasından senkronlandı (git sürümü chunk 005b'de kalmıştı).
+
+Sağlık zinciri sonrası taban durum:
+- `verify_vault.py`: ✅ **106.580** `bangumi_*` anahtar · **106.335** vault kaydı ·
+  **121.284** map satırı · **121.284** damga (HANDOFF_010 hedefi birebir).
+- `verify_bangumi_master.py`: ✅ 52.603 org eşleme · gerçek çakışma 0 · TR/EN 112.812
+  simetrik · RAW 67 parça, en büyük 50.000 bayt.
+- `gen_bangumi_master.py --check`: ✅ +0/+0 (yazma yok).
+- `check_bangumi_meta_tag_coverage.py`: ✅ 158/158.
+- `check_test_expectations.py`: 19 uyuşmazlık. 12'si bilinen betik sınırı (eski `o(...)`
+  biçimini aradığı için RAW döneminde org satırlarını 0 okuyor — PROGRESS Bölüm 7 / PR #23
+  notu). 7'si MASTER verisi ile test beklentisi uyuşmazlığı (`华语`/`華語` →
+  `area_chinese_speaking` cid'i ve "Chinese-speaking" EN değeri MASTER'da bu şekilde
+  tanımlı; `check_test_expectations.py` eski `chinese_speaking` bekliyor). Bu oturumda
+  MAL/Master koduna dokunulmadan bırakıldı (pre-existing regresyon değil; HANDOFF_010 §4
+  uyarınca MAL testleri kutsal).
+- Unittest: 0 test (dizinde `test_*.py` yok); exit 0.
+
+Araç değişiklikleri:
+- **Yeni betik: `scripts/apply_009_batch.py`** — HANDOFF_010 §3'te belirtilen 009 serisi
+  batch uygulayıcısı yazıldı: 6-sütun TSV (`rol<TAB>cid<TAB>eski_tr<TAB>yeni_tr<TAB>
+  yeni_en<TAB>origin`), eski-tr eşleşme denetimi (ikiz-engelli raporu), `--mirror-repair`
+  ile col-8 `bangumi_<rol>_<cid>` ayna satırlarını eşitleme, MASTER-kilit koruması
+  (`tags.tsv` new/existing ve `bangumi_org_*` cross-role), boş-son-sekme dahil orijinal
+  7/8-sütun biçimini koruma.
+- **`scripts/vault_to_strings.py` performans düzeltmesi**: 106K+ `<string>` için tek tek
+  regex `pat.search`/`recompile` çağrısı O(N·M) ~5+ dakikalık kasmaya yol açıyordu
+  (121.284 map satırıyla görüldü). Blok içeriği tek geçişte satır satır ayrıştırılarak
+  `<string>` güncellemesi ~5 saniyeye indi; `patch_tag_dict` için de tek geçişli ayrıştırma
+  uygulandı. Biçim/çıktı aynı kalır (geriye dönük uyumlu; eski küçük veri setlerinde de
+  çalışır).
+
+009 batch uygulamaları:
+- **009 Batch A (kavram çevirileri)** — 3 kayıt: `anime_op_ed` → "Anime Açılış ve Kapanış
+  Şarkıları"/"Anime OP/ED" (new), `hacker` → "Bilgisayar Korsanı"/"Hacker" (new),
+  `tank_combat` → "Tank Savaşı"/"Tank Combat" (new). Yeni XML ID eklenmedi (yerinde
+  güncelleme); mirror-repair temiz geçti.
+- **009 Batch B (veri düzeltmesi)** — 1 kayıt: `female_harem` TR "Ters Harem" →
+  "Kadın Haremi" (reverse_harem ile karışmıştı; MASTER kilitli değil).
+- Not: `area_chinese_speaking` "Çinçe" yazım hatası Drive canon'unda zaten "Çince" olarak
+  düzeltilmişti (EN "Chinese-speaking" MASTER tarafından belirlendiği için Türkçesi
+  düzeltildi, EN'ye dokunulmadı — MASTER-lock `apply_009_batch.py` tarafından korundu).
+
+Kalan iş (HANDOFF_010 §5 önceliği):
+1. Producer CJK kişi adları (ancak kesin bilinen resmî Latin yazımı olanlar; bu oturumda
+   üst 100 tarandı, neredeyse tümü küçük doujin çevresi/bilinmeyen kişi adı → `as_is`).
+2. Tag CJK sözlük v2 (`records_007_tags.json` üzerinde tam-eşleşme sözlük genişletmesi).
+3. Tag `tr==en` dip taraması (13K satır; çoğu özel ad/fandom jargonu, yalnız anlamlı
+   kavramlar Türkçeleştirilecek).
+4. Org uzun kuyruğu (düşük-count CJK kurum/kişi — yalnız %100 resmî Latin adı bilinenler).
+
+Drive senkron seti bu oturumda güncellendi: vault JSON'ları, `translations_done.tsv`,
+`translations_pending.tsv`, `progress.json`, `PROGRESS.md`, `HANDOFF_010.md`, `canon.tsv`,
+`org_global_names.tsv`, tüm `map_chunk_*.tsv`, `records_007_tags.json`.
+
+## 2k) 009 serisi devam oturumu — producer 006 + tag 007b (2026-10-21)
+
+HANDOFF_010 sırası korunarak producer kişi adları → 007_b etiketleri işlendi. Her iki batch
+mevcut canon satırlarını yerinde güncelledi; **yeni XML ID yok**.
+
+- **Producer 006 (4 kayıt, origin=global):** `青柳昌行`→Masayuki Aoyagi,
+  `渡辺繁`→Shigeru Watanabe, `森下勝司`→Katsushi Morishita,
+  `落越友則`→Tomonori Ochikoshi. CID ve eski TR değerleri `canon.tsv`/Drive restore verisinden
+  eşleştirildi; aynı Latin adlar `org_global_names.tsv`'ye kaynak notuyla eklendi.
+- **Tag 007b (2 kayıt, origin=new):** `优秀的氛围`→İyi Atmosfer / Good Atmosphere;
+  `画风美`→Güzel Çizim Tarzı / Beautiful Art Style. Bunlar açık anlamlı betimleyici kavramlar;
+  özel adlar, belirsiz ifadeler ve fandom jargonu `as_is` bırakıldı.
+- `translations_done.tsv` 6 mevcut satırda güncellendi; `translations_pending.tsv` 0 satır.
+- `apply_009_batch.py --mirror-repair` zorunlu adımı her batch sonrası çalıştırıldı.
+  Bu altı canon'un cross-role ayna kaydı yoktu; mirror-repair temiz/no-op.
+- Sağlık zinciri: `apply_map.py --check` + `apply_map.py` ✅ · `vault_to_strings.py` ✅ ·
+  `verify_vault.py` ✅ **106580 anahtar / 106335 vault / 121284 map / 121284 damga** ·
+  `verify_bangumi_master.py` ✅ **52607 org eşleme, çakışma 0, TR/EN 112812 simetrik** ·
+  `gen_bangumi_master.py --check` ✅ · meta tag coverage **158/158**.
+- `check_test_expectations.py`: 19 bilinen uyuşmazlık (12 RAW eski-parser sınırı, 7 eski test
+  beklentisi); MAL/Master test ve kodlarına dokunulmadı. Unittest keşfi 0 test buldu, OK.
+
+**Sıradaki iş:** producer kuyruğunda sadece resmî Latin yazımı kesin doğrulanabilen kişi kalemleri;
+sonra 007_b→007_i'yi count azalan sırada sürdür. Drive `records_007_tags.json` içinde bu aralıktaki
+kararsız `as_is` CJK toplamı 43.313; bu sayı çeviri hedefi değildir (özel ad/fandom terimleri
+korunur), tam-eşleşmeli anlam sözlüğüyle açık kavramlar seçilir. Sonrasında düşük-count org uzun
+kuyruğu. Yeni araştırma turu/romanizasyon tahmini yok.
+
+Bu oturumun çalışma ağacı, Arena'nın sabit aktif dalı `arena/2dcb1fce-kitsugi-beta` üzerinde
+ilerletildi; PR #30 başlığı/HEAD'i ayrı `arena/e29a309c-kitsugi-beta` dalında açık kaldı.
+
+PR #30 (`arena/e29a309c-kitsugi-beta`) açık bırakıldı. Güncel main tabanındaki bu port ve yeni
+batch'ler için aktif dal üzerinden **PR #31** açıldı: https://github.com/f26901964-eng/Kitsugi-Beta/pull/31.
+
+## 2l) 009 serisi devam — tag 007b batch 002 (2026-10-21)
+
+Count azalan sırada 007_b'den üç açık kavram işlendi; hepsi yerinde `origin=new` güncellemesi,
+yeni XML ID yok:
+- `轮奸` → **Toplu Tecavüz / Gang Rape** (açık içerik kavramı).
+- `剧情性` → **Olay Örgüsü Odaklı / Plot-Driven**.
+- `❀一般向け` → **Genel Kitleye Yönelik / General Audience**.
+
+Batch dosyası `worklists/009_decisions_007b_tags_002.tsv`; zorunlu mirror-repair ayrı repair
+worklist'iyle çalıştırıldı (ayna satırı farkı yok). Apply-map → strings → vault → MASTER → gen
+`--check` → meta coverage zinciri tamamı yeşil; son sayılar değişmedi:
+106580 / 106335 / 121284 / 121284, MASTER 0 çakışma ve TR/EN 112812 simetrik, coverage 158/158.
+`translations_done.tsv` üç mevcut satırda güncellendi; pending 0. 007_b–007_i havuzunda
+kalan CJK `as_is`: **43.310** (hedef/kota değil; adlar ve fandom jargonu korunur).
+
+## 2m) 009 serisi devam — tag 007b batch 003 (2026-10-21)
+
+Count azalan sırayı koruyarak 007_b'deki açık global adlar ve iki net betimleyici kavram yerinde
+uygulandı (7 satır, yeni XML ID yok):
+- `アクアプラス` → **Aquaplus / Aquaplus** (`global`; `org_global_names.tsv` ile eşleşti).
+- `スパイク・チュンソフト` → **Spike Chunsoft / Spike Chunsoft** (`global`; mevcut resmî Latin adı).
+- `动视` → **Activision / Activision** (`global`; mevcut `org_global_names.tsv` karşılığı).
+- `□HOYO-MiX` → **HOYO-MiX / HOYO-MiX** (`global`; mevcut resmi yapımcı yazımı).
+- `Innocent_Grey` → **Innocent Grey / Innocent Grey** (`global`; resmi Latin marka boşluğu düzeltildi).
+- `好画风` → **İyi Çizim Tarzı / Good Art Style** (`new`).
+- `无节操` → **Utanmaz / Shameless** (`new`).
+
+Batch `worklists/009_decisions_007b_tags_003.tsv` ile uygulandı; mandatory `--mirror-repair`
+0 ayna farkı buldu. `translations_done.tsv`'de yedi mevcut satır güncellendi. `apply_map.py`
++ `vault_to_strings.py` + `verify_vault.py` + MASTER verifier + generator `--check` + meta
+coverage zinciri yeşil: 106580 key / 106335 vault / 121284 map ve damga; 52607 org mapping,
+gerçek çakışma 0, TR/EN 112812 simetrik, coverage 158/158.
+
+Havuz sayısı artık canlı `tags.json` taramasıyla tanımlanıyor: 007_b–007_i içinde `decision=as_is`
+ve TR alanında Han/Kana CJK kod noktası olan **43.185** kayıt. Önceki 43.310/43.313 yaklaşık
+sayımı farklı kesit/metrik kullandığından bu tanım baz alındı; sayı kota değildir. Özel adlar ve
+fandom jargonu `as_is` kalır.
