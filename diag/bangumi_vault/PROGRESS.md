@@ -1030,10 +1030,24 @@ RAW sınırı **49.999** tutulur; tam 50.000'e izin veren eski üst sınır dara
 
 `005c_a/b/c` mapleri ve `org_global_names.tsv` bu turda **değişmedi**, yeniden yüklenmedi.
 
-**CI durumu:** gerçek CI bu chunk'ta **çalıştırılmadı/izlenmedi**; PR açıldıktan sonra
-sonuç ayrıca raporlanacak. Bilinen kırıklar (PR #24'ten devreden):
-`MalNotificationsClientTest.…ById` AssertionError ve `BangumiMasterDictionaryTest`.
-Bu ikisi 006 kapsamında **değiştirilmedi** (MAL testleri kural gereği dokunulmaz).
+**CI durumu (2026-10-21, gerçek koşular — ölçüldü, varsayılmadı):**
+
+| Koşu | Dal | Sonuç |
+|---|---|---|
+| `39589748851` / `39589197313` | `arena/8a37df7c-kitsugi-beta` (PR #25) | `verify` ✅ · `compile-and-test` ❌ (`🧪 BangumiMasterDictionaryTest` adımı) |
+| `39583503155` (PR #24) | `arena/06f200e9-kitsugi-beta` | `verify` ✅ · `compile-and-test` ❌ — **aynı adım** |
+| `39579279060` | **`main`** | `verify` ✅ · `compile-and-test` ❌ — **aynı adım** |
+
+* `verify` işi CI'da geçti → `unittest` **23/23**, `verify_bangumi_master.py`, `gen --check` + `git diff` temiz.
+* `compile-and-test` işi `verify`den bağımsız ve **`main`'de de aynı adımda kırık** → 006 kaynaklı
+  regresyon **değil**; ancak **hata metni doğrulanmadı**: bu sandbox'ta ne koşu günlüğü ne de
+  `bangumi-master-test-log` artefaktı indirilebiliyor (imzalı URL'ler allowlist dışında).
+  `main`/PR #24/PR #25 için görünen tek ortak işaret, adımın `exit code 1` ile bitmesi.
+* Yerel telafi denetimi: testin **tüm** iddiaları (`BangumiTagDictionary` 3.983 grup ve
+  `BangumiOrgDictionary` 52.176 satır üzerinde "ilk yazım kazanır" + normalize/compact kuralları
+  Python ile birebir taklit edilerek) tek tek denendi → **hepsi geçiyor**; yani kırık bir etiket/
+  şirket eşlemesine işaret eden bir kanıt yok. Yine de **"CI yeşil" DENMEZ**.
+* Ayrı iş: `🏗️ Android Derleme Doğrulama (geçici)` de `main`'de (`39585497128`) kırık.
 
 ### 005c kapanış (2026-10-21)
 - [x] Üç alt bant işlendi; count 1–4 kararsız 0; önceki chunk'lar yeniden işlenmedi.
