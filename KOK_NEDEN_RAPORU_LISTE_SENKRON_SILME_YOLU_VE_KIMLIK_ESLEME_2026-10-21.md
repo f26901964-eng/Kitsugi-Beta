@@ -280,6 +280,12 @@ string-template hatası, yeni hata yok).
 13. **AniList finale-otomatik-tamamlama** kaynak-çelişkisi (2018 changelog vs 2026 geliştiriciler):
     otomatik-tamamlama eklenmedi, yerel-otorite korundu.
     Ayrıntı: `ARASTIRMA_KAYNAK_SENKRON/09_KENDI_VERITABANINA_YAZMA_HATALARI.md` + `10_YAZMA_SEMANTIGI_MATRISI.md` (tur-2).
+14. **Simkl per-second limit koruması yok** (resmi 10 GET/sn + 1 POST/sn; POST aşımı throtle-bloğu,
+    sürekli aşım uyarı-sız askıya alma; `api.simkl.com` host-bütçesi yok) → sertleştirme adayı.
+15. **Simkl AUTH V1→V2 göçü**: V1 ~Nisan 2027'de emekli (V2 = yeni client_id + PKCE S256);
+    Kitsugi hâlâ V1 (`oauth/token`/`oauth/pin`). V1 günlük kota tüm kullanıcıların ortak havuzu.
+16. **Bölüm-clamp kural seti** (ani-gui #264 sınıflandırması) delilsiz eklenmedi — Açık-5 ile aynı
+    karar noktası. Ayrıntı: `11_BIRINCI_EL_RESMI_DOKUMANLAR.md` + `12_KOPYALAR_ID_VE_BOLUM_ESLEME.md` (tur-3).
 
 ---
 
