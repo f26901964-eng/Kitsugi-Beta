@@ -1,4 +1,4 @@
-# Kitsugi Beta v2.4.334
+# Kitsugi Beta v2.4.335
 
 ## 🇹🇷 Türkçe
 
