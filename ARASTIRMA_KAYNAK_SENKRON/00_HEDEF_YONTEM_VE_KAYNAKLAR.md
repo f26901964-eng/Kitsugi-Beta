@@ -22,7 +22,8 @@
 | `10_YAZMA_SEMANTIGI_MATRISI.md` | Kaynak-bazlı yazma kuralları matrisi (ölçek/tarih/otomatik-geçiş/idempotency/watermark/limit) |
 | `11_BIRINCI_EL_RESMI_DOKUMANLAR.md` | Tur-3: dokümanların TAM okuması — Simkl 10GET/1POST-s + V1→V2 (Nisan-2027), UTC/1970-placeholder kuralları, AniList 200-errors, Kitsu/Bangumi repo madenleri + araştırma sınırları |
 | `12_KOPYALAR_ID_VE_BOLUM_ESLEME.md` |
-| `13_SIMKL_V2_GOC_PLANI.md` | A15 göçünün tek kılavuzu: V1 ölümü ~Nisan-2027, PKCE S256, kota rejimi, 8 adımlı kontrol listesi (kayıt = kullanıcı) | Tur-3: 8-kategorili bölüm-eşleme taksonomisi, kopya-kayıt sınıfları, ID-strict rehberi + Kitsugi denetim tablosu |
+| `13_SIMKL_V2_GOC_PLANI.md` |
+| `14_CAPRAZ_ESITLEME_DENETIMI.md` | Çapraz eşitleme derin denetimi: FAZ1-3 akış haritası, yanlış-eşleşme katmanları + kapatılan 5-hedef kapısı (crossWriteBlocked), üstüne-yazma semantiği, araştırmadan özelliğe eşleme, açık sınırlar | A15 göçünün tek kılavuzu: V1 ölümü ~Nisan-2027, PKCE S256, kota rejimi, 8 adımlı kontrol listesi (kayıt = kullanıcı) | Tur-3: 8-kategorili bölüm-eşleme taksonomisi, kopya-kayıt sınıfları, ID-strict rehberi + Kitsugi denetim tablosu |
 
 ## Anahtar ölçüt (arşiv boyunca tekrar eden 8 sistemik neden — özet)
 1. **Resmi-yazısız / yanlış-yazılmış rate limit** (AniList: doküman 90/dk, gerçek 30/dk).

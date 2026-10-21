@@ -293,6 +293,16 @@ string-template hatası, yeni hata yok).
     round-3'tten var; Kitsu 422-on-squeeze + MAL pre-clamp zaten korumalı; AniList
     toleranslı → dokunulmadı. Ayrıntı: `11_…` + `12_…` (tur-3).
 
+17. **Çapraz eşitlemekte yanlış eşleşme koruması 5/6 hedefte YOKTU** → **GİTERİLDİ (bu
+    tur)**: `CrossSyncIdentityGuard` doktrini ("her çapraz yazma yolu doğrulamalı") yalnız
+    AniList yolunda çalışıyordu; `ExternalListSyncManager`'e `crossWriteBlocked` önkapısı
+    eklendi (sync 6 hedef + delete 6 koşul/gate): doğrulanmayan çapraz yazım/silme
+    `OUTCOME_SKIPPED_IDENTITY` ile ATLANIR (mesaj: `cross_sync_reason_identity_unverified`),
+    yerel kaynak-kendisine yazım serbest, doğrulama önbellekli/tek-sefer. Ayrıca FAZ1-3
+    akış haritası + üstüne-yazma semantiği denetimi: `ARASTIRMA_KAYNAK_SENKRON/14_CAPRAZ_ESITLEME_DENETIMI.md`.
+    Kalanlar (açık): fabrika üretim-ölü (6/16), yeniden-adlandırılan başlık alias'ı,
+    FAZ2 alan-kazanan satır okuması, CI.
+
 ---
 
 ## Doğrulama durumu

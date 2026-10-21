@@ -129,6 +129,33 @@ object ExternalListSyncManager {
             persistNewlyResolvedIds(context, entry, identity)
 
             val realMalId = identity.malId
+            // ── Çapraz-yazım kimlik önkapısı (CrossSyncIdentityGuard doktrini) ──────
+            // Guard'ın kendi dokümanı: "her çapraz hesaplı yazma yolu, kaynak MAL
+            // kimliğini resmî katalogda başlık/tür/yıl ile yeniden doğrulamalıdır".
+            // Bu kapı tarihsel olarak yalnız AniList yolunda çalışıyordu; diğer beş
+            // hedef tek-hatalı bir mapping ile yanlış eserin durumunu/puanını/tarihini/
+            // bölümünü ezebilirdi ("sürekli yanlış eşleşmeler" şikâyeti). Satırın KENDİ
+            // kaynağına yazım kapı-dışı; doğrulama önbellekli, sefer başına bir kez.
+            // Rejected/Unverifiable → ATLANDI (OUTCOME_SKIPPED_IDENTITY; kuyruğa girmez
+            // — yeniden deneme kimliği düzeltmez, hata olarak şişmesin).
+            val rowSource = canonicalMediaSourceId(entry.source)
+            var sourceIdentityVerified: Boolean? = null
+            fun crossWriteBlocked(target: String): Boolean {
+                if (target == rowSource || realMalId == null) return false
+                sourceIdentityVerified?.let { return it }
+                val verified = runSyncCatching {
+                    CrossSyncIdentityGuard.verifyMalId(
+                        malId = realMalId,
+                        // Movie/TvShow MAL'de anime-namespace'inde yaşar ("movie"/"tv");
+                        // guard'ın Anime kümesi bu tipleri kapsar. Manga hariç Anime'ye sabit.
+                        mediaType = if (entry.type == MediaType.Manga) MediaType.Manga else MediaType.Anime,
+                        localTitles = CrossSyncIdentityGuard.aliasesOf(entry),
+                        localYear = entry.year
+                    )
+                }.getOrNull() is CrossSyncIdentityGuard.Verdict.Verified
+                sourceIdentityVerified = verified
+                return !verified
+            }
 
             // ── AniList Senkronizasyonu (Anime & Manga) ──────────────────────────
             if (!syncEnabledAniList) {
@@ -139,6 +166,9 @@ object ExternalListSyncManager {
                 outcomes["AniList"] = OUTCOME_SKIPPED_TYPE
             } else if (!allowFanOut) {
                 outcomes["AniList"] = OUTCOME_SKIPPED_IDENTITY
+            } else if (crossWriteBlocked("anilist")) {
+                outcomes["AniList"] = OUTCOME_SKIPPED_IDENTITY
+                skipped.add(context.getString(R.string.cross_sync_reason_identity_unverified, realMalId.toString()))
             } else {
                 runSyncCatching {
                     PlatformRateLimiter.acquire("anilist")
@@ -211,6 +241,9 @@ object ExternalListSyncManager {
                 outcomes["MyAnimeList"] = OUTCOME_NOT_CONNECTED
             } else if (!CrossSyncPolicy.supportsMal(entry.type) || !allowFanOut) {
                 outcomes["MyAnimeList"] = if (allowFanOut) OUTCOME_SKIPPED_TYPE else OUTCOME_SKIPPED_IDENTITY
+            } else if (crossWriteBlocked("mal")) {
+                outcomes["MyAnimeList"] = OUTCOME_SKIPPED_IDENTITY
+                skipped.add(context.getString(R.string.cross_sync_reason_identity_unverified, realMalId.toString()))
             } else if (realMalId == null) {
                 outcomes["MyAnimeList"] = OUTCOME_SKIPPED_IDENTITY
                 skipped.add(context.getString(R.string.account_sync_no_valid_mal_id))
@@ -238,6 +271,9 @@ object ExternalListSyncManager {
                 outcomes["Simkl"] = OUTCOME_NOT_CONNECTED
             } else if (!CrossSyncPolicy.supportsSimkl(entry.type) || !allowFanOut) {
                 outcomes["Simkl"] = if (allowFanOut) OUTCOME_SKIPPED_TYPE else OUTCOME_SKIPPED_IDENTITY
+            } else if (crossWriteBlocked("simkl")) {
+                outcomes["Simkl"] = OUTCOME_SKIPPED_IDENTITY
+                skipped.add(context.getString(R.string.cross_sync_reason_identity_unverified, realMalId.toString()))
             } else {
                 runSyncCatching {
                     PlatformRateLimiter.acquire("simkl")
@@ -272,6 +308,9 @@ object ExternalListSyncManager {
                 outcomes["Kitsu"] = OUTCOME_NOT_CONNECTED
             } else if (!CrossSyncPolicy.supportsKitsu(entry.type) || !allowFanOut) {
                 outcomes["Kitsu"] = if (allowFanOut) OUTCOME_SKIPPED_TYPE else OUTCOME_SKIPPED_IDENTITY
+            } else if (crossWriteBlocked("kitsu")) {
+                outcomes["Kitsu"] = OUTCOME_SKIPPED_IDENTITY
+                skipped.add(context.getString(R.string.cross_sync_reason_identity_unverified, realMalId.toString()))
             } else {
                 runSyncCatching {
                     PlatformRateLimiter.acquire("kitsu")
@@ -309,6 +348,9 @@ object ExternalListSyncManager {
                 outcomes["Shikimori"] = OUTCOME_NOT_CONNECTED
             } else if (!CrossSyncPolicy.supportsShikimori(entry.type) || !allowFanOut) {
                 outcomes["Shikimori"] = if (allowFanOut) OUTCOME_SKIPPED_TYPE else OUTCOME_SKIPPED_IDENTITY
+            } else if (crossWriteBlocked("shikimori")) {
+                outcomes["Shikimori"] = OUTCOME_SKIPPED_IDENTITY
+                skipped.add(context.getString(R.string.cross_sync_reason_identity_unverified, realMalId.toString()))
             } else if (realMalId == null && identity.shikimoriId == null) {
                 outcomes["Shikimori"] = OUTCOME_SKIPPED_IDENTITY
                 skipped.add(context.getString(R.string.account_sync_shikimori_id_not_found, entry.title))
@@ -354,6 +396,9 @@ object ExternalListSyncManager {
                 outcomes["Bangumi"] = OUTCOME_NOT_CONNECTED
             } else if (!CrossSyncPolicy.supportsBangumi(entry.type)) {
                 outcomes["Bangumi"] = OUTCOME_SKIPPED_TYPE
+            } else if (crossWriteBlocked("bangumi")) {
+                outcomes["Bangumi"] = OUTCOME_SKIPPED_IDENTITY
+                skipped.add(context.getString(R.string.cross_sync_reason_identity_unverified, realMalId.toString()))
             } else {
                 runSyncCatching {
                     PlatformRateLimiter.acquire("bangumi")
@@ -490,9 +535,36 @@ object ExternalListSyncManager {
             val remoteEntry = withResolvedIds(entry, identity)
 
             val realMalId = identity.malId
+            // ── Çapraz-yazım kimlik önkapısı (CrossSyncIdentityGuard doktrini) ──────
+            // Guard'ın kendi dokümanı: "her çapraz hesaplı yazma yolu, kaynak MAL
+            // kimliğini resmî katalogda başlık/tür/yıl ile yeniden doğrulamalıdır".
+            // Bu kapı tarihsel olarak yalnız AniList yolunda çalışıyordu; diğer beş
+            // hedef tek-hatalı bir mapping ile yanlış eserin durumunu/puanını/tarihini/
+            // bölümünü ezebilirdi ("sürekli yanlış eşleşmeler" şikâyeti). Satırın KENDİ
+            // kaynağına yazım kapı-dışı; doğrulama önbellekli, sefer başına bir kez.
+            // Rejected/Unverifiable → ATLANDI (OUTCOME_SKIPPED_IDENTITY; kuyruğa girmez
+            // — yeniden deneme kimliği düzeltmez, hata olarak şişmesin).
+            val rowSource = canonicalMediaSourceId(entry.source)
+            var sourceIdentityVerified: Boolean? = null
+            fun crossWriteBlocked(target: String): Boolean {
+                if (target == rowSource || realMalId == null) return false
+                sourceIdentityVerified?.let { return it }
+                val verified = runSyncCatching {
+                    CrossSyncIdentityGuard.verifyMalId(
+                        malId = realMalId,
+                        // Movie/TvShow MAL'de anime-namespace'inde yaşar ("movie"/"tv");
+                        // guard'ın Anime kümesi bu tipleri kapsar. Manga hariç Anime'ye sabit.
+                        mediaType = if (entry.type == MediaType.Manga) MediaType.Manga else MediaType.Anime,
+                        localTitles = CrossSyncIdentityGuard.aliasesOf(entry),
+                        localYear = entry.year
+                    )
+                }.getOrNull() is CrossSyncIdentityGuard.Verdict.Verified
+                sourceIdentityVerified = verified
+                return !verified
+            }
             val isAnimeOrManga = entry.type == MediaType.Anime || entry.type == MediaType.Manga
 
-            if (syncEnabledAniList && !aniListToken.isNullOrBlank() && isAnimeOrManga && allowFanOut) {
+            if (syncEnabledAniList && !aniListToken.isNullOrBlank() && isAnimeOrManga && allowFanOut && !crossWriteBlocked("anilist")) {
                 runSyncCatching {
                     PlatformRateLimiter.acquire("anilist")
                     AniListSyncManager.deleteAniListEntry(
@@ -515,10 +587,10 @@ object ExternalListSyncManager {
                     }
                 }
             } else {
-                outcomes["AniList"] = deleteGateOutcome(syncEnabledAniList, !aniListToken.isNullOrBlank(), isAnimeOrManga && allowFanOut)
+                outcomes["AniList"] = deleteGateOutcome(syncEnabledAniList, !aniListToken.isNullOrBlank(), isAnimeOrManga && allowFanOut && !crossWriteBlocked("anilist"))
             }
 
-            if (syncEnabledMal && !malToken.isNullOrBlank() && isAnimeOrManga && realMalId != null && allowFanOut) {
+            if (syncEnabledMal && !malToken.isNullOrBlank() && isAnimeOrManga && realMalId != null && allowFanOut && !crossWriteBlocked("mal")) {
                 runSyncCatching {
                     PlatformRateLimiter.acquire("mal")
                     MalSyncManager.deleteMalEntry(
@@ -534,13 +606,13 @@ object ExternalListSyncManager {
                     errors.add(context.getString(R.string.account_sync_delete_error, "MAL", error.message ?: context.getString(R.string.account_sync_unknown_error)))
                 }
             } else {
-                outcomes["MyAnimeList"] = deleteGateOutcome(syncEnabledMal, !malToken.isNullOrBlank(), isAnimeOrManga && allowFanOut && realMalId != null)
+                outcomes["MyAnimeList"] = deleteGateOutcome(syncEnabledMal, !malToken.isNullOrBlank(), isAnimeOrManga && allowFanOut && realMalId != null && !crossWriteBlocked("mal"))
                 if (realMalId == null && syncEnabledMal && !malToken.isNullOrBlank() && isAnimeOrManga) {
                     skipped.add(context.getString(R.string.account_sync_no_valid_mal_id))
                 }
             }
 
-            if (syncEnabledSimkl && !simklToken.isNullOrBlank() && entry.type != MediaType.Manga && allowFanOut) {
+            if (syncEnabledSimkl && !simklToken.isNullOrBlank() && entry.type != MediaType.Manga && allowFanOut && !crossWriteBlocked("simkl")) {
                 runSyncCatching {
                     PlatformRateLimiter.acquire("simkl")
                     SimklSyncManager.deleteEntryFromSimkl(context, remoteEntry, knownMalId = identity.malId)
@@ -565,10 +637,10 @@ object ExternalListSyncManager {
                     errors.add(context.getString(R.string.account_sync_delete_error, "Simkl", error.message ?: context.getString(R.string.account_sync_unknown_error)))
                 }
             } else {
-                outcomes["Simkl"] = deleteGateOutcome(syncEnabledSimkl, !simklToken.isNullOrBlank(), entry.type != MediaType.Manga && allowFanOut)
+                outcomes["Simkl"] = deleteGateOutcome(syncEnabledSimkl, !simklToken.isNullOrBlank(), entry.type != MediaType.Manga && allowFanOut && !crossWriteBlocked("simkl"))
             }
 
-            if (syncEnabledKitsu && !kitsuToken.isNullOrBlank() && isAnimeOrManga && allowFanOut) {
+            if (syncEnabledKitsu && !kitsuToken.isNullOrBlank() && isAnimeOrManga && allowFanOut && !crossWriteBlocked("kitsu")) {
                 runSyncCatching {
                     PlatformRateLimiter.acquire("kitsu")
                     KitsuSyncManager.deleteEntryFromKitsu(
@@ -599,11 +671,11 @@ object ExternalListSyncManager {
                     errors.add(context.getString(R.string.account_sync_delete_error, "Kitsu", error.message ?: context.getString(R.string.account_sync_unknown_error)))
                 }
             } else {
-                outcomes["Kitsu"] = deleteGateOutcome(syncEnabledKitsu, !kitsuToken.isNullOrBlank(), isAnimeOrManga && allowFanOut)
+                outcomes["Kitsu"] = deleteGateOutcome(syncEnabledKitsu, !kitsuToken.isNullOrBlank(), isAnimeOrManga && allowFanOut && !crossWriteBlocked("kitsu"))
             }
 
             val shikimoriHasTarget = realMalId != null || identity.shikimoriId != null
-            if (syncEnabledShikimori && !shikimoriToken.isNullOrBlank() && isAnimeOrManga && allowFanOut && shikimoriHasTarget) {
+            if (syncEnabledShikimori && !shikimoriToken.isNullOrBlank() && isAnimeOrManga && allowFanOut && shikimoriHasTarget && !crossWriteBlocked("shikimori")) {
                 runSyncCatching {
                     PlatformRateLimiter.acquire("shikimori")
                     ShikimoriSyncManager.deleteEntryFromShikimori(context, remoteEntry, knownMalId = identity.malId)
@@ -634,14 +706,14 @@ object ExternalListSyncManager {
                 outcomes["Shikimori"] = deleteGateOutcome(
                     syncEnabledShikimori,
                     !shikimoriToken.isNullOrBlank(),
-                    isAnimeOrManga && allowFanOut && shikimoriHasTarget
+                    isAnimeOrManga && allowFanOut && shikimoriHasTarget && !crossWriteBlocked("shikimori")
                 )
                 if (!shikimoriHasTarget && syncEnabledShikimori && !shikimoriToken.isNullOrBlank() && isAnimeOrManga) {
                     skipped.add(context.getString(R.string.account_sync_shikimori_id_not_found, entry.title))
                 }
             }
 
-            if (syncEnabledBangumi && !bangumiToken.isNullOrBlank() && BangumiSyncManager.supportsMediaType(entry.type)) {
+            if (syncEnabledBangumi && !bangumiToken.isNullOrBlank() && BangumiSyncManager.supportsMediaType(entry.type) && !crossWriteBlocked("bangumi")) {
                 runSyncCatching {
                     PlatformRateLimiter.acquire("bangumi")
                     BangumiSyncManager.deleteEntryFromBangumi(
@@ -674,7 +746,7 @@ object ExternalListSyncManager {
                 outcomes["Bangumi"] = deleteGateOutcome(
                     syncEnabledBangumi,
                     !bangumiToken.isNullOrBlank(),
-                    BangumiSyncManager.supportsMediaType(entry.type)
+                    BangumiSyncManager.supportsMediaType(entry.type) && !crossWriteBlocked("bangumi")
                 )
             }
 
