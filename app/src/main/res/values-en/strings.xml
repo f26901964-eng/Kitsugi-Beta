@@ -8862,6 +8862,22 @@
     <string name="stream_filter_clear">Clear filters</string>
     <string name="stream_filter_empty_title">No results</string>
     <string name="stream_filter_empty_desc">criteria returned no video streams.</string>
+    <!-- MAL Notification Filters (myanimelist.net/notification sidebar) -->
+    <string name="mal_notif_filter_all">All</string>
+    <string name="mal_notif_filter_related">New Related Anime</string>
+    <string name="mal_notif_filter_airing">Now Airing</string>
+    <string name="mal_notif_filter_friend">Friend Requests</string>
+    <string name="mal_notif_filter_profile">Profile Comments</string>
+    <string name="mal_notif_filter_blog">Blog Comments</string>
+    <string name="mal_notif_filter_forum_quote">Forum Quotes</string>
+    <string name="mal_notif_filter_mention">Mentions</string>
+    <string name="mal_notif_filter_watched">Watched Topics</string>
+    <string name="mal_notif_filter_club">Club Messages</string>
+    <string name="mal_notif_filter_payment">Payment</string>
+    <string name="mal_notif_filter_empty">No notifications in this category</string>
+    <string name="mal_notif_count_badge">%1$d</string>
+    <string name="mal_notif_filter_hint">Filter by category — same as the MAL sidebar</string>
+
     <string name="stream_play_failed_title">Player could not start</string>
     <string name="stream_play_failed_generic">The player could not start. Try another source or retry.</string>
     <string name="stream_play_failed_body">Playback could not start: %1$s</string>

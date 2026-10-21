@@ -297,18 +297,33 @@ internal object MalNotificationsWebPager {
             }).slice(0, 4);
           }
           function clickLoadMore() {
-            var controls = Array.prototype.slice.call(document.querySelectorAll(
-              '[data-action*="more"], [class*="load-more"], [class*="show-more"], button, a[role="button"]'
+            // MAL'ın "View more" düğmesi div/span/a/button herhangi biri olabilir — metinle bul.
+            var allCandidates = Array.prototype.slice.call(document.querySelectorAll(
+              'button, a, div, span, [role="button"], [data-action*="more"], [class*="more"], [class*="load-more"], [class*="show-more"]'
             ));
-            var button = controls.find(function(control) {
-              var label = ((control.innerText || control.getAttribute('aria-label') || '') + ' ' +
+            var button = allCandidates.find(function(control) {
+              var label = ((control.innerText || control.textContent || control.getAttribute('aria-label') || '') + ' ' +
                 (control.className || '')).toLowerCase();
-              return /load\s*more|show\s*more|older|daha\s*(fazla|eski)/i.test(label) && !control.disabled;
+              return /view\s*more|load\s*more|show\s*more|older|daha\s*(fazla|eski)|devam/i.test(label) && !control.disabled && control.offsetParent !== null;
             });
+            if (!button) {
+              // MAL'ın bilinen View more kapsayıcısı: en alttaki "View more" metnini içeren tıklanabilir eleman
+              var possible = Array.prototype.slice.call(document.querySelectorAll('body *')).filter(function(el){
+                var t = (el.innerText || '').trim().toLowerCase();
+                return t === 'view more' || t === 'view more (45)' || (t.indexOf('view more') >=0 && el.children.length === 0);
+              });
+              button = possible.find(function(el){ return el.offsetParent !== null; });
+            }
             if (button && !button.disabled && !button.__kitsugiLoadPending) {
               button.__kitsugiLoadPending = true;
               button.click();
+              // Bazı MAL temalarında click event'i parent'a delege edilir — parent'ı da tıkla
+              if (button.parentElement) {
+                try { button.parentElement.click(); } catch(e){}
+              }
+              return true;
             }
+            return false;
           }
           function step() {
             var feed = currentFeed();

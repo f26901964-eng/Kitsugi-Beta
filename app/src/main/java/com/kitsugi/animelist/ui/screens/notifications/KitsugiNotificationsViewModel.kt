@@ -25,6 +25,8 @@ import com.kitsugi.animelist.data.remote.malweb.MalAccountMatch
 import com.kitsugi.animelist.data.remote.malweb.MalNotificationsClient
 import com.kitsugi.animelist.data.remote.malweb.MalNotificationsParseException
 import com.kitsugi.animelist.data.remote.malweb.MalWebSessionRequiredException
+import com.kitsugi.animelist.data.remote.malweb.MalNotificationCategory
+import com.kitsugi.animelist.data.remote.malweb.MalNotificationWebEndpoints
 import com.kitsugi.animelist.data.remote.malweb.MalWebSessionStore
 import com.kitsugi.animelist.model.MediaEntry
 import com.kitsugi.animelist.model.MediaType
@@ -69,6 +71,8 @@ data class NotifItem(
     val mediaId: Int? = null,
     val activityId: Int? = null,
     val mediaType: String? = null,
+    val typeIdentifier: String? = null,
+    val categoryName: String? = null,
     /**
      * Bildirimin işaret ettiği medyanın GERÇEK adı (varsa).
      *
@@ -148,6 +152,17 @@ class KitsugiNotificationsViewModel(application: Application) : AndroidViewModel
     private val _mal = MutableStateFlow(NotifUiState())
     private var malReloadQueued = false
     val mal: StateFlow<NotifUiState> = _mal.asStateFlow()
+
+    // MAL kategori filtresi — sol menüyle aynı (All / New Related Anime 39 / Now Airing 4 …)
+    private val _malCategory = MutableStateFlow(MalNotificationCategory.ALL)
+    val malCategory: StateFlow<MalNotificationCategory> = _malCategory.asStateFlow()
+
+    /** MAL için ham (filtresiz) liste — filtre değişiminde yeniden çekilmeden filtrelenir. */
+    private var malUnfilteredItems: List<NotifItem> = emptyList()
+    private var malUnfilteredNotice: String? = null
+    private var malRawHasMore: Boolean = false
+    private var malRawPage: Int = 1
+    private var malRawNextPageUrl: String? = null
 
     // ── TMDB+Simkl ──
     private val _tmdbSimkl = MutableStateFlow(NotifUiState())
@@ -242,7 +257,9 @@ class KitsugiNotificationsViewModel(application: Application) : AndroidViewModel
             imageUrl = imageUrl,
             mediaId = mediaId,
             mediaType = mediaType,
-            mediaTitle = mediaTitle
+            mediaTitle = mediaTitle,
+            typeIdentifier = typeIdentifier,
+            categoryName = categoryName
         )
 
     private fun NotificationArchiveStore.ArchivedNotif.toNotifItem(): NotifItem =
@@ -256,6 +273,8 @@ class KitsugiNotificationsViewModel(application: Application) : AndroidViewModel
             mediaId = mediaId,
             mediaType = mediaType,
             mediaTitle = mediaTitle,
+            typeIdentifier = typeIdentifier,
+            categoryName = categoryName,
             source = source
         )
 
@@ -447,18 +466,16 @@ class KitsugiNotificationsViewModel(application: Application) : AndroidViewModel
                     } else {
                         ctx.getString(R.string.notif_notice_mal_web_feed, mapped.size)
                     }
-                    _mal.value = NotifUiState(
+                    setMalStateWithFilter(
                         items = merged,
                         isLoading = false,
-                        // Daha eski bildirimler varsa kaydırdıkça denenir (bkz. loadMalMore).
                         hasMore = feed.hasNextPage,
                         page = feed.page,
                         nextPageUrl = feed.nextPageUrl,
-                        loadMoreError = null,
                         notice = feedNotice,
-                        requiresMalWebLogin = false,
-                        malOAuthUsername = identity.username,
-                        malWebUsername = feed.sessionUsername
+                        requiresLogin = false,
+                        oauthUser = identity.username,
+                        webUser = feed.sessionUsername
                     )
                     return@launch
                 }
@@ -491,12 +508,12 @@ class KitsugiNotificationsViewModel(application: Application) : AndroidViewModel
                         calendarNotice
                     )
                 }
-                _mal.value = NotifUiState(
+                setMalStateWithFilter(
                     items = archiveAndMerge("MyAnimeList", calendarItems),
                     isLoading = false,
                     hasMore = false,
                     notice = notice,
-                    requiresMalWebLogin = needsWebLogin
+                    requiresLogin = needsWebLogin
                 )
             } catch (e: CancellationException) {
                 throw e
@@ -537,17 +554,19 @@ class KitsugiNotificationsViewModel(application: Application) : AndroidViewModel
                     return@launch
                 }
 
-                val existingIds = current.items.map { it.id }.toSet()
-                val nextPage = current.page + 1
+                val existingIds = malUnfilteredItems.map { it.id }.toSet()
+                val nextPage = malRawPage + 1
                 val feed = MalNotificationsClient.fetchMore(
                     context = ctx,
                     cookieHeader = cookie,
                     page = nextPage,
-                    nextPageUrl = current.nextPageUrl,
-                    knownIds = existingIds
+                    nextPageUrl = malRawNextPageUrl,
+                    knownIds = existingIds,
+                    category = _malCategory.value.takeIf { it != MalNotificationCategory.ALL }
                 )
                 if (feed == null) {
                     _mal.value = current.copy(isLoading = false, hasMore = false, loadMoreError = null)
+                    malRawHasMore = false
                     return@launch
                 }
 
@@ -583,13 +602,22 @@ class KitsugiNotificationsViewModel(application: Application) : AndroidViewModel
                     .map { it.toNotifItem() }
                 if (fresh.isEmpty()) {
                     _mal.value = current.copy(isLoading = false, hasMore = false, loadMoreError = null)
+                    malRawHasMore = false
                 } else {
                     writeArchive("MyAnimeList", fresh)
-                    val items = (current.items + fresh)
+                    val mergedUnfiltered = (malUnfilteredItems + fresh)
                         .distinctBy { it.id }
                         .sortedWith(compareByDescending<NotifItem> { it.tsMs ?: Long.MIN_VALUE })
+                    // Ham listeyi güncelle ve filtreyi yeniden uygula
+                    malUnfilteredItems = mergedUnfiltered
+                    malRawHasMore = feed.hasNextPage
+                    malRawPage = feed.page
+                    malRawNextPageUrl = feed.nextPageUrl
+                    val category = _malCategory.value
+                    val filtered = if (category == MalNotificationCategory.ALL) mergedUnfiltered
+                    else mergedUnfiltered.filter { item -> category.typeIdentifiers.any { it.equals(item.typeIdentifier, ignoreCase = true) } }
                     _mal.value = current.copy(
-                        items = items,
+                        items = filtered,
                         isLoading = false,
                         hasMore = feed.hasNextPage,
                         page = feed.page,
@@ -598,6 +626,8 @@ class KitsugiNotificationsViewModel(application: Application) : AndroidViewModel
                         malWebUsername = feed.sessionUsername,
                         loadMoreError = null
                     )
+                    // Arşivlenmiş ham listeyi de güncelle
+                    malUnfilteredItems = mergedUnfiltered
                 }
             } catch (e: CancellationException) {
                 throw e
@@ -669,6 +699,90 @@ class KitsugiNotificationsViewModel(application: Application) : AndroidViewModel
         /** MAL OAuth jetonu mevcut mu? (ad okunamasa bile jeton var olabilir) */
         val tokenAvailable: Boolean
     )
+
+    // ── MAL Kategori Filtresi ────────────────────────────────────────────────
+
+    /**
+     * MAL bildirimlerini sol menüdeki gibi kategoriye göre filtreler.
+     * Filtreleme **istemci tarafındadır** — sunucu filtrelemeyi desteklemiyorsa bile doğru sonuç verir.
+     * Sayılar ekran görüntülerindeki gibi (All 45, Related 39, Airing 4…) hesaplanır.
+     */
+    fun setMalFilter(category: MalNotificationCategory) {
+        if (_malCategory.value == category) return
+        _malCategory.value = category
+        applyMalFilter()
+    }
+
+    fun getMalCategoryCounts(): Map<MalNotificationCategory, Int> {
+        if (malUnfilteredItems.isEmpty()) return emptyMap()
+        val counts = mutableMapOf<MalNotificationCategory, Int>()
+        MalNotificationCategory.entries.forEach { counts[it] = 0 }
+        counts[MalNotificationCategory.ALL] = malUnfilteredItems.size
+        for (item in malUnfilteredItems) {
+            val cat = MalNotificationCategory.fromTypeIdentifier(item.typeIdentifier)
+            if (cat != MalNotificationCategory.ALL) {
+                counts[cat] = (counts[cat] ?: 0) + 1
+            }
+        }
+        // Boş kategoriler de gösterilsin ki kullanıcı filtrelerin varlığını görsün
+        return counts
+    }
+
+    private fun applyMalFilter() {
+        val category = _malCategory.value
+        val filtered = if (category == MalNotificationCategory.ALL) {
+            malUnfilteredItems
+        } else {
+            malUnfilteredItems.filter { item ->
+                category.typeIdentifiers.any { it.equals(item.typeIdentifier, ignoreCase = true) }
+            }
+        }
+        val current = _mal.value
+        // Filtre değişiminde sayfalama korunur (ham değerler), ancak liste filtrelenir
+        _mal.value = current.copy(
+            items = filtered,
+            // Filtreli görünümde "daha fazla yükle" ham listenin devamı varsa gösterilir
+            hasMore = malRawHasMore,
+            notice = malUnfilteredNotice
+        )
+    }
+
+    private fun setMalStateWithFilter(
+        items: List<NotifItem>,
+        isLoading: Boolean = false,
+        hasMore: Boolean = false,
+        page: Int = 1,
+        nextPageUrl: String? = null,
+        notice: String? = null,
+        requiresLogin: Boolean = false,
+        mismatch: Boolean = false,
+        oauthUser: String? = null,
+        webUser: String? = null,
+        error: String? = null
+    ) {
+        // Ham veriyi sakla — filtre değişiminde yeniden çekmeden uygulanır
+        malUnfilteredItems = items
+        malUnfilteredNotice = notice
+        malRawHasMore = hasMore
+        malRawPage = page
+        malRawNextPageUrl = nextPageUrl
+        val category = _malCategory.value
+        val filtered = if (category == MalNotificationCategory.ALL) items
+        else items.filter { item -> category.typeIdentifiers.any { it.equals(item.typeIdentifier, ignoreCase = true) } }
+        _mal.value = NotifUiState(
+            items = filtered,
+            isLoading = isLoading,
+            hasMore = hasMore,
+            page = page,
+            nextPageUrl = nextPageUrl,
+            notice = notice,
+            requiresMalWebLogin = requiresLogin,
+            malAccountMismatch = mismatch,
+            malOAuthUsername = oauthUser,
+            malWebUsername = webUser,
+            error = error
+        )
+    }
 
     /**
      * Bağlı MAL OAuth hesabının kullanıcı adını okur.
@@ -782,8 +896,8 @@ class KitsugiNotificationsViewModel(application: Application) : AndroidViewModel
             isUnread = !isRead,
             mediaId = mediaId,
             mediaType = mediaType,
-            // Detay yönlendirmesi ve arşiv, kart başlığından bağımsız olarak medyanın
-            // gerçek adını taşır.
+            typeIdentifier = typeIdentifier,
+            categoryName = categoryName,
             mediaTitle = mediaTitle,
             userName = friendName ?: commentUserName ?: quoteUserName ?: postedUserName ?: senderName,
             userAvatarUrl = imageUrl,

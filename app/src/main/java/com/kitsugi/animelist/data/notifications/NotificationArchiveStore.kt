@@ -61,7 +61,9 @@ object NotificationArchiveStore {
          * Medyanın gerçek adı (kategori adı olmayan). Arşivden gelen kayıtlar da doğru
          * başlıkla detay açabilsin diye saklanır; eski arşiv dosyalarında bulunmaz.
          */
-        val mediaTitle: String? = null
+        val mediaTitle: String? = null,
+        val typeIdentifier: String? = null,
+        val categoryName: String? = null
     )
 
     @Serializable
