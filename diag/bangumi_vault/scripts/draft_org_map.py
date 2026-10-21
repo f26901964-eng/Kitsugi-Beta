@@ -62,6 +62,10 @@ SKIP_NAMES = {
     # belirsiz kısaltma ve tek kana — dil dosyasına girmez (ekranda ham kalır).
     "台湾", "http:", "USA", "LLC", "PC", "SE", "ESP", "エフ",
     "発売元:モモグレ", "(オトメドラマ)", "インディーズ・メーカー",
+    # CHUNK 005a (2026-10-21): bölge etiketi / jenerik kelime / kesik ad — dil dosyasına girmez.
+    "台灣",
+    # CHUNK 005a (2026-10-21): bölge etiketi / jenerik kelime / kesik ad — dil dosyasına girmez.
+    "上海", "北京", "北美", "韩国", "(日本)", "中心", "最初版", "新装版", "増刊", "半月刊", "システム", "パブリッシャーズ", "アニメーションスタジオ", "エンタープライズ", "グローバル", "文化传播有限公司", "制作统括：", "发行", "企画协力：", "；宣传制片人：", "；製作協力：", ")；制作制片人：", "発売元:ひつじぐも", "(羽根ロム+α)", "△○□×", "【チーム", "10)", "電撃「マ 王", "→", ")→", "&フラワー", "(パルシィ)", "ヤング", "コミック", "オンライン", "レコード", "テレビ",
 }
 
 LATIN = re.compile(r"[A-Za-z]")

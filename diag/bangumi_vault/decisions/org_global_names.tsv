@@ -1347,3 +1347,397 @@ WEA	WEA	wea
 COMIC HEAVEN	Comic Heaven	comic_heaven
 GRAND JUMP PREMIUM	Grand Jump Premium	grand_jump_premium
 MANGA TIME	Manga Time	manga_time
+
+# ── CHUNK 005a (2026-10-21) ─────────────────────────────────────────────
+富士电视台	Fuji TV	fuji_tv	chunk 005a — TV — Çince ad, resmî Latin
+富士台	Fuji TV	fuji_tv	chunk 005a — TV — kısa ad
+朝日电视台	TV Asahi	tv_asahi	chunk 005a — TV — Çince ad
+日本テレビ系列	Nippon TV	ntv	chunk 005a — TV — resmî Latin (NTV)
+ＴＢＳテレビ	TBS	tbs	chunk 005a — TV — resmî Latin
+毎日放送	Mainichi Broadcasting System	mbs	chunk 005a — TV — resmî Latin (MBS)
+名古屋テレビ	Me-Tele	me_tele	chunk 005a — TV — resmî Latin
+メ～テレ	Me-Tele	me_tele	chunk 005a — TV — resmî Latin
+メ〜テレ	Me-Tele	me_tele	chunk 005a — TV — resmî Latin
+北海道放送	Hokkaido Broadcasting	hbc	chunk 005a — TV — resmî Latin (HBC)
+札幌テレビ放送	Sapporo TV Broadcasting	stv	chunk 005a — TV — resmî Latin (STV)
+テレビユー福島	TV-U Fukushima		chunk 005a — TV — resmî Latin
+テレビユー山形	TV-U Yamagata		chunk 005a — TV — resmî Latin
+テレビ熊本	TV Kumamoto	tkb	chunk 005a — TV — resmî Latin (TKU)
+テレビ新広島	TV Shin Hiroshima	tss	chunk 005a — TV — resmî Latin (TSS)
+テレビ愛媛	TV Ehime	eit	chunk 005a — TV — resmî Latin (EBC)
+福島テレビ	Fukushima TV	ftv	chunk 005a — TV — resmî Latin (FTV)
+秋田テレビ	Akita TV	akt	chunk 005a — TV — resmî Latin (AKT)
+宮崎放送	Miyazaki Broadcasting	mrt	chunk 005a — TV — resmî Latin (MRT)
+鹿児島テレビ	Kagoshima TV	kts	chunk 005a — TV — resmî Latin (KTS)
+長崎放送	Nagasaki Broadcasting	nagasaki_broadcasting	chunk 005a — TV — resmî Latin (NBC Nagasaki)
+長崎文化放送	Nagasaki Cultural Broadcasting	ncc	chunk 005a — TV — resmî Latin (NCC)
+新潟放送	Niigata Broadcasting	bsn	chunk 005a — TV — resmî Latin (BSN)
+びわ湖放送	Biwako Broadcasting	biwako_broadcasting	chunk 005a — TV — resmî Latin (BBC Biwako)
+大分放送	Oita Broadcasting	obs	chunk 005a — TV — resmî Latin (OBS)
+南日本放送	Minaminihon Broadcasting	minaminihon_broadcasting	chunk 005a — TV — resmî Latin (MBC)
+三重テレビ放送	Mie TV	mie_tv	chunk 005a — TV — resmî Latin (MTV Mie)
+ぎふチャン	Gifu Chan		chunk 005a — TV — resmî Latin
+チバテレ	Chiba TV		chunk 005a — TV — resmî Latin
+さくらんぼテレビ	Sakuranbo TV		chunk 005a — TV — resmî Latin
+ＢＳ日テレ	BS Nippon TV		chunk 005a — TV — resmî Latin
+スカパー	SKY PerfecTV!	skyperfectv	chunk 005a — TV — resmî Latin
+文化放送	Nippon Cultural Broadcasting	bunka_hoso	chunk 005a — Radyo — resmî Latin (JOQR)
+英国广播公司	BBC	bbc	chunk 005a — TV — British Broadcasting Corporation
+上海广播电视台	Shanghai Media Group		chunk 005a — TV — resmî Latin (SMG)
+中央电视台综合频道	CCTV-1	cctv_1	chunk 005a — TV — resmî Latin
+央视少儿频道	CCTV-14	cctv_14	chunk 005a — TV — resmî Latin
+安徽卫视	Anhui TV		chunk 005a — TV — resmî Latin
+華視	Chinese Television System	cts	chunk 005a — TV — resmî Latin (CTS)
+無綫電視翡翠台	TVB Jade	tvb_jade	chunk 005a — TV — resmî Latin
+电视广播有限公司	Television Broadcasts Limited	tvb	chunk 005a — TV — resmî Latin (TVB)
+香港电视广播有限公司	Television Broadcasts Limited	tvb	chunk 005a — TV — resmî Latin (TVB)
+搜狐视频	Sohu Video		chunk 005a — Video platformu
+搜狐	Sohu		chunk 005a — Video platformu
+土豆	Tudou		chunk 005a — Video platformu
+乐视	LeTV	letv	chunk 005a — Video platformu
+腾讯	Tencent	tencent	chunk 005a — Şirket / video platformu
+网易漫画	NetEase Comics		chunk 005a — Webtoon platformu
+大河ドラマ	Taiga Drama		chunk 005a — TV kuşağı — resmî Latin
+金曜プレミアム	Friday Premium		chunk 005a — TV kuşağı — resmî Latin
+土曜ワイド劇場	Saturday Wide Theater		chunk 005a — TV kuşağı — resmî Latin
+ミステリースペシャル	Mystery Special		chunk 005a — TV kuşağı — resmî Latin
+フジテレビ「ノイタミナ」	Fuji TV Noitamina	noitamina	chunk 005a — TV kuşağı — resmî Latin
+日本サンライズ	Sunrise	sunrise	chunk 005a — Stüdyo — resmî Latin
+スタジオぴえろ	Studio Pierrot	studio_pierrot	chunk 005a — Stüdyo — resmî Latin
+ボンズ	BONES	bones	chunk 005a — Stüdyo — resmî Latin
+マッドハウス	Madhouse	madhouse	chunk 005a — Stüdyo — resmî Latin
+吉卜力工作室	Studio Ghibli	studio_ghibli	chunk 005a — Stüdyo — resmî Latin
+スタジオ地図	Studio Chizu		chunk 005a — Stüdyo — resmî Latin
+スタジオコロリド	Studio Colorido		chunk 005a — Stüdyo — resmî Latin
+ジェノスタジオ	Geno Studio		chunk 005a — Stüdyo — resmî Latin
+パッショーネ	Passione		chunk 005a — Stüdyo — resmî Latin
+横浜アニメーションラボ	Yokohama Animation Lab		chunk 005a — Stüdyo — resmî Latin
+ミルパンセ	Millepensee		chunk 005a — Stüdyo — resmî Latin
+スタジオジュニオ	Studio Junio		chunk 005a — Stüdyo — resmî Latin
+トライアングルスタッフ	Triangle Staff		chunk 005a — Stüdyo — resmî Latin
+アニメアール	Anime R	anime_r	chunk 005a — Stüdyo — resmî Latin
+虫プロダクション	Mushi Production		chunk 005a — Stüdyo — resmî Latin
+東京ムービー	Tokyo Movie		chunk 005a — Stüdyo — eski ad
+キョクイチ東京ムービー	Kyokuichi Tokyo Movie		chunk 005a — Stüdyo — resmî Latin
+東映動画	Toei Doga	toei_doga	chunk 005a — Stüdyo — eski ad (Toei Animation)
+日本テレネット	Telenet Japan		chunk 005a — Oyun stüdyosu — resmî Latin
+国際映画社	Kokusai Eiga-sha		chunk 005a — Stüdyo — resmî Latin
+アームス	ARMS	arms	chunk 005a — Stüdyo — resmî Latin
+スタジオメビウス	Studio Mebius		chunk 005a — Stüdyo — resmî Latin
+オクルトノボル	Okuruto Noboru		chunk 005a — Stüdyo — resmî Latin
+ドメリカ	Domerica		chunk 005a — Stüdyo — resmî Latin
+アルボアニメーション	Arbo Animation		chunk 005a — Stüdyo — resmî Latin
+颱風グラフィックス	Typhoon Graphics		chunk 005a — Stüdyo — resmî Latin
+カナバングラフィックス	Kanaban Graphics		chunk 005a — Stüdyo — resmî Latin
+ムークアニメーション	Mook Animation		chunk 005a — Stüdyo — resmî Latin
+スタジオマトリックス	Studio Matrix		chunk 005a — Stüdyo — resmî Latin
+ランドック・スタジオ	LandQ Studios		chunk 005a — Stüdyo — resmî Latin
+ランドック	LandQ Studios		chunk 005a — Stüdyo — resmî Latin
+エクラアニマル	Ekura Animal		chunk 005a — Stüdyo — resmî Latin
+ステイプルエンタテインメント	Staple Entertainment		chunk 005a — Stüdyo — resmî Latin
+ピカンテサーカス	Picante Circus		chunk 005a — Stüdyo — resmî Latin
+あんずワークス	Anzu Works		chunk 005a — Stüdyo — resmî Latin
+オフィスクレッシェンド	Office Crescendo		chunk 005a — Yapım şirketi — resmî Latin
+ギークピクチュアズ	GEEK PICTURES		chunk 005a — Yapım şirketi — resmî Latin
+クロノギアクリエイティヴ	Chrono Gear Creative		chunk 005a — Stüdyo — resmî Latin
+トライネットエンタテインメント	TriNet Entertainment		chunk 005a — Stüdyo — resmî Latin
+ベガエンタテイメント	Vega Entertainment		chunk 005a — Stüdyo — resmî Latin
+ワオワールド	WAO World		chunk 005a — Stüdyo — resmî Latin
+エイケン	Eiken		chunk 005a — Stüdyo — resmî Latin
+エイティング	Eighting		chunk 005a — Stüdyo — resmî Latin
+ぎゃろっぷ	Gallop		chunk 005a — Stüdyo — resmî Latin
+アクセスゲームズ	Access Games		chunk 005a — Oyun stüdyosu — resmî Latin
+グレッゾ	Grezzo		chunk 005a — Oyun stüdyosu — resmî Latin
+ガンバリオン	Ganbarion		chunk 005a — Oyun stüdyosu — resmî Latin
+ウィンキーソフト	Winkysoft		chunk 005a — Oyun stüdyosu — resmî Latin
+スパイク・チュンソフト	Spike Chunsoft		chunk 005a — Oyun stüdyosu — resmî Latin
+フランスパン	French-Bread	french_bread	chunk 005a — Oyun stüdyosu — resmî Latin
+インティ・クリエイツ	Inti Creates		chunk 005a — Oyun stüdyosu — resmî Latin
+ピラミッド	Pyramid		chunk 005a — Oyun stüdyosu — resmî Latin
+ナムコ・テイルズスタジオ	Namco Tales Studio		chunk 005a — Oyun stüdyosu — resmî Latin
+ナムコエンターテインメント	Bandai Namco Entertainment		chunk 005a — Oyun şirketi — resmî Latin
+メディア・ビジョン	Media.Vision	media_vision	chunk 005a — Oyun stüdyosu — resmî Latin
+ネクスエンタテインメント	Nex Entertainment		chunk 005a — Oyun stüdyosu — resmî Latin
+トランス・アーツ	Trans Arts		chunk 005a — Stüdyo — resmî Latin
+テクノソフト	Technosoft		chunk 005a — Oyun stüdyosu — resmî Latin
+アリスソフト	AliceSoft	alicesoft	chunk 005a — Oyun markası — resmî Latin
+ニトロプラス	Nitroplus	nitroplus	chunk 005a — Oyun markası — resmî Latin
+ガイナックス	Gainax	gainax	chunk 005a — Stüdyo — resmî Latin
+ブシロード	Bushiroad	bushiroad	chunk 005a — Şirket — resmî Latin
+ガンホー・オンライン・エンターテイメント	GungHo Online Entertainment		chunk 005a — Oyun şirketi — resmî Latin
+コナミ	Konami	konami	chunk 005a — Oyun şirketi — resmî Latin
+スクウェアエニックス	Square Enix	square_enix	chunk 005a — Oyun şirketi — resmî Latin
+株式会社スクウェア	Square	square	chunk 005a — Oyun şirketi — resmî Latin
+株式会社マーベラス	Marvelous	marvelous	chunk 005a — Oyun şirketi — resmî Latin
+マーベラスエンターテイメント	Marvelous Entertainment		chunk 005a — Oyun şirketi — resmî Latin
+株式会社ガスト	Gust	gust	chunk 005a — Oyun şirketi — resmî Latin
+株式会社プロトタイプ	Prototype	prototype	chunk 005a — Oyun şirketi — resmî Latin
+エンターブレイン	Enterbrain	enterbrain	chunk 005a — Yayıncı — resmî Latin
+アソビモ	ASOBIMO	asobimo	chunk 005a — Oyun şirketi — resmî Latin
+グリー	GREE	gree	chunk 005a — Şirket — resmî Latin
+グリーエンターテインメント	GREE Entertainment		chunk 005a — Şirket — resmî Latin
+シブサワ・コウ	Shibusawa Kou	shibusawa_kou	chunk 005a — Marka — resmî Latin
+ミレニアムキッチン	Millennium Kitchen		chunk 005a — Oyun stüdyosu — resmî Latin
+代々木アニメーション学院	Yoyogi Animation Academy		chunk 005a — Okul — resmî Latin
+アミューズメントメディア総合学院	Amusement Media Academy		chunk 005a — Okul — resmî Latin
+キティ・フィルム	Kitty Films		chunk 005a — Stüdyo — resmî Latin
+東北新社	Tohokushinsha Film Corporation		chunk 005a — Şirket — resmî Latin
+ダイナミック企画	Dynamic Planning		chunk 005a — Şirket — resmî Latin
+アニマックス	Animax		chunk 005a — Kanal — resmî Latin
+アニマックスブロードキャスト・ジャパン	Animax Broadcast Japan		chunk 005a — Kanal — resmî Latin
+ハピネットファントム	Happinet Phantom Studios		chunk 005a — Dağıtımcı — resmî Latin
+ハピネットファントム・スタジオ	Happinet Phantom Studio		chunk 005a — Stüdyo — resmî Latin
+創通エージェンシー	Sotsu Agency		chunk 005a — Ajans — resmî Latin
+東京テアトル	Tokyo Theatres		chunk 005a — Şirket — resmî Latin
+セディックインターナショナル	Sedic International		chunk 005a — Şirket — resmî Latin
+クロックワークス	Clockworks		chunk 005a — Dağıtımcı — resmî Latin
+コスミックインターナショナル	Cosmic International		chunk 005a — Şirket — resmî Latin
+プリンセスソフト	PrincessSoft		chunk 005a — Oyun markası — resmî Latin
+マリンエンタテイメント	Marine Entertainment		chunk 005a — Şirket — resmî Latin
+アミューズソフトエンタテインメント	Amuse Soft Entertainment		chunk 005a — Şirket — resmî Latin
+トミー	Tomy		chunk 005a — Oyuncak şirketi — resmî Latin
+宝开游戏	PopCap Games		chunk 005a — Oyun şirketi — resmî Latin
+财宝公司	Treasure		chunk 005a — Oyun şirketi — resmî Latin (Treasure Co.)
+白金工作室	PlatinumGames		chunk 005a — Oyun stüdyosu — resmî Latin
+威尔乌	Valve		chunk 005a — Oyun şirketi — resmî Latin
+暴雪娱乐	Blizzard Entertainment		chunk 005a — Oyun şirketi — resmî Latin
+网石游戏	Netmarble		chunk 005a — Oyun şirketi — resmî Latin
+纳克森	Nexon		chunk 005a — Oyun şirketi — resmî Latin
+鹰角网络	Hypergryph		chunk 005a — Oyun şirketi — resmî Latin
+叠纸游戏	Papergames		chunk 005a — Oyun şirketi — resmî Latin
+莉莉丝游戏	Lilith Games		chunk 005a — Oyun şirketi — resmî Latin
+心动网络	XD Network		chunk 005a — Oyun şirketi — resmî Latin (X.D. Network)
+心动网络股份有限公司	XD Network		chunk 005a — Oyun şirketi — resmî Latin
+505游戏	505 Games		chunk 005a — Oyun yayıncısı — resmî Latin
+第九城市	The9		chunk 005a — Oyun şirketi — resmî Latin
+策略第一	Strategy First		chunk 005a — Oyun yayıncısı — resmî Latin
+目标软件	Object Software		chunk 005a — Oyun stüdyosu — resmî Latin
+宇峻奥汀科技有限公司	UserJoy Technology		chunk 005a — Oyun şirketi — resmî Latin
+中华网龙	Chinese Gamer International		chunk 005a — Oyun şirketi — resmî Latin
+中華網龍	Chinese Gamer International		chunk 005a — Oyun şirketi — resmî Latin
+鈊象電子	International Games System		chunk 005a — Oyun şirketi — resmî Latin (IGS)
+河洛工作室	Heluo Studio		chunk 005a — Oyun stüdyosu — resmî Latin
+阿德曼工作室	Aardman Animations		chunk 005a — Animasyon stüdyosu — resmî Latin
+草蜢工作室	Grasshopper Manufacture		chunk 005a — Oyun stüdyosu — resmî Latin
+海底囚人	Funamusea		chunk 005a — Oyun yapımcısı — resmî Latin takma ad
+任天堂企划开发本部	Nintendo EAD		chunk 005a — Nintendo bölümü — resmî Latin
+索尼互动娱乐日本工作室	SIE Japan Studio		chunk 005a — Sony stüdyosu — resmî Latin
+魔方工作室群	MoreFun Studio Group		chunk 005a — Tencent stüdyosu — resmî Latin
+追光动画	Light Chaser Animation Studios		chunk 005a — Animasyon stüdyosu — resmî Latin
+原力动画	Original Force		chunk 005a — Animasyon stüdyosu — resmî Latin
+环球数码	Global Digital Creations		chunk 005a — Animasyon stüdyosu — resmî Latin (GDC)
+环球数码媒体科技研究 深圳 有限公司	Global Digital Creations		chunk 005a — Animasyon stüdyosu — resmî Latin (GDC)
+米粒影业	Mili Pictures		chunk 005a — Animasyon stüdyosu — resmî Latin
+猫眼影业	Maoyan Pictures		chunk 005a — Film şirketi — resmî Latin
+华纳兄弟娱乐公司	Warner Bros. Entertainment		chunk 005a — Film şirketi — resmî Latin
+梦工厂动画	DreamWorks Animation		chunk 005a — Animasyon stüdyosu — resmî Latin
+漫威娱乐	Marvel Entertainment		chunk 005a — Şirket — resmî Latin
+安纳布尔纳互动	Annapurna Interactive		chunk 005a — Oyun yayıncısı — resmî Latin
+广东原创动力文化传播有限公司	Creative Power Entertaining		chunk 005a — Animasyon stüdyosu — resmî Latin
+上海宽娱数码科技有限公司	Shanghai Kuanyu Digital Technology		chunk 005a — Bilibili işletme şirketi — resmî Latin
+上海炫动	Shanghai Toonmax Media		chunk 005a — Animasyon şirketi — resmî Latin
+央视动画有限公司	CCTV Animation		chunk 005a — Animasyon stüdyosu — resmî Latin
+央视动画	CCTV Animation		chunk 005a — Animasyon stüdyosu — resmî Latin
+央视动漫集团	CCTV Animation Group		chunk 005a — Animasyon grubu — resmî Latin
+竹書房	Takeshobo		chunk 005a — Yayıncı — resmî Latin
+大映	Daiei		chunk 005a — Film şirketi — resmî Latin
+東宝株式会社	Toho	toho	chunk 005a — Şirket — resmî Latin
+东宝株式会社	Toho	toho	chunk 005a — Şirket — resmî Latin
+毎日新聞社	Mainichi Shimbun		chunk 005a — Gazete — resmî Latin
+産業経済新聞社	Sankei Shimbun		chunk 005a — Gazete — resmî Latin
+読売新聞	Yomiuri Shimbun		chunk 005a — Gazete — resmî Latin
+東京ニュース通信社	Tokyo News Tsushinsha		chunk 005a — Yayıncı — resmî Latin
+博報堂	Hakuhodo		chunk 005a — Reklam ajansı — resmî Latin
+パルコ	PARCO		chunk 005a — Şirket — resmî Latin
+丸紅	Marubeni		chunk 005a — Ticaret şirketi — resmî Latin
+中外鉱業	Chugai Mining		chunk 005a — Şirket — resmî Latin
+ニューギン	Newgin		chunk 005a — Şirket — resmî Latin
+総合ビジョン	Sogo Vision		chunk 005a — Şirket — resmî Latin
+旭通信社	Asatsu		chunk 005a — Reklam ajansı — resmî Latin
+木下グループ	Kinoshita Group		chunk 005a — Şirket — resmî Latin
+ローソンエンタテインメント	Lawson Entertainment		chunk 005a — Şirket — resmî Latin
+まんだらけ	Mandarake		chunk 005a — Şirket — resmî Latin
+壽屋	Kotobukiya	kotobukiya	chunk 005a — Şirket — resmî Latin
+學研	Gakken		chunk 005a — Yayıncı — resmî Latin
+学研教育出版	Gakken Education Publishing		chunk 005a — Yayıncı — resmî Latin
+岩波書店	Iwanami Shoten		chunk 005a — Yayıncı — resmî Latin
+青土社	Seidosha		chunk 005a — Yayıncı — resmî Latin
+福音館書店	Fukuinkan Shoten		chunk 005a — Yayıncı — resmî Latin
+偕成社	Kaiseisha		chunk 005a — Yayıncı — resmî Latin
+文芸社	Bungeisha		chunk 005a — Yayıncı — resmî Latin
+新紀元社	Shinkigensha		chunk 005a — Yayıncı — resmî Latin
+成美堂出版	Seibido Publishing		chunk 005a — Yayıncı — resmî Latin
+中経出版	Chukei Publishing		chunk 005a — Yayıncı — resmî Latin
+マイウェイ出版	My Way Publishing		chunk 005a — Yayıncı — resmî Latin
+ミリオン出版	Million Publishing		chunk 005a — Yayıncı — resmî Latin
+綜合図書	Sogo Tosho		chunk 005a — Yayıncı — resmî Latin
+综合图书	Sogo Tosho		chunk 005a — Yayıncı — resmî Latin
+インフォレスト	INFOREST		chunk 005a — Yayıncı — resmî Latin
+イカロス出版	Ikaros Publishing		chunk 005a — Yayıncı — resmî Latin
+イーストプレス	East Press		chunk 005a — Yayıncı — resmî Latin
+ガイドワークス	Guide Works		chunk 005a — Yayıncı — resmî Latin
+ゴマブックス	Goma Books		chunk 005a — Yayıncı — resmî Latin
+ポット出版	Pot Publishing		chunk 005a — Yayıncı — resmî Latin
+エムディエヌコーポレーション	MdN Corporation		chunk 005a — Yayıncı — resmî Latin
+Ｊパブリッシング	J Publishing		chunk 005a — Yayıncı — resmî Latin
+晋遊舎	Shinyusha		chunk 005a — Yayıncı — resmî Latin
+晋游舍	Shinyusha		chunk 005a — Yayıncı — resmî Latin
+*講談社	Kodansha	kodansha	chunk 005a — Yayıncı — resmî Latin
+*小学館	Shogakukan	shogakukan	chunk 005a — Yayıncı — resmî Latin
+湖南文艺出版社	Hunan Literature and Art Publishing House		chunk 005a — Yayıncı — resmî Latin
+长江少年儿童出版社	Changjiang Children's Press		chunk 005a — Yayıncı — resmî Latin
+重庆出版社	Chongqing Publishing House		chunk 005a — Yayıncı — resmî Latin
+天津人民出版社	Tianjin People's Publishing House		chunk 005a — Yayıncı — resmî Latin
+天津人民美术出版社	Tianjin People's Fine Arts Publishing House		chunk 005a — Yayıncı — resmî Latin
+上海文化出版社	Shanghai Culture Publishing House		chunk 005a — Yayıncı — resmî Latin
+上海文艺出版社	Shanghai Literature and Art Publishing House		chunk 005a — Yayıncı — resmî Latin
+江苏文艺出版社	Jiangsu Literature and Art Publishing House		chunk 005a — Yayıncı — resmî Latin
+云南美术出版社	Yunnan Fine Arts Publishing House		chunk 005a — Yayıncı — resmî Latin
+湖北少年儿童出版社	Hubei Children's Press		chunk 005a — Yayıncı — resmî Latin
+北方妇女儿童出版社	Northern Women and Children Publishing House		chunk 005a — Yayıncı — resmî Latin
+中国少年儿童出版社	China Children's Press		chunk 005a — Yayıncı — resmî Latin
+四川文艺出版社	Sichuan Literature and Art Publishing House		chunk 005a — Yayıncı — resmî Latin
+接力出版社	Jieli Publishing House		chunk 005a — Yayıncı — resmî Latin
+新世界出版社	New World Press		chunk 005a — Yayıncı — resmî Latin
+文化发展出版社	Cultural Development Press		chunk 005a — Yayıncı — resmî Latin
+北京工艺美术出版社	Beijing Arts and Crafts Publishing House		chunk 005a — Yayıncı — resmî Latin
+东贩	Tohan		chunk 005a — Dağıtımcı — resmî Latin
+台湾东贩	Taiwan Tohan		chunk 005a — Dağıtımcı — resmî Latin
+台湾东立出版社	Tong Li Publishing		chunk 005a — Yayıncı — resmî Latin
+東立香港	Tong Li Hong Kong		chunk 005a — Yayıncı — resmî Latin
+電撃コミックス	Dengeki Comics		chunk 005a — Dergi/imprint — resmî Latin
+電撃萌王	Dengeki Moeoh		chunk 005a — Dergi — resmî Latin
+电击萌王	Dengeki Moeoh		chunk 005a — Dergi — resmî Latin
+*电击文库	Dengeki Bunko	dengeki_bunko	chunk 005a — Imprint — resmî Latin
+アニメージュ	Animage		chunk 005a — Dergi — resmî Latin
+メガミマガジン	Megami Magazine		chunk 005a — Dergi — resmî Latin
+コンプエース	Comp Ace		chunk 005a — Dergi — resmî Latin
+ウルトラジャンプ	Ultra Jump		chunk 005a — Dergi — resmî Latin
+月刊少年マガジン+	Monthly Shonen Magazine+		chunk 005a — Dergi — resmî Latin
+月刊ドラゴンマガジン	Monthly Dragon Magazine		chunk 005a — Dergi — resmî Latin
+月刊コミックフラッパー	Monthly Comic Flapper		chunk 005a — Dergi — resmî Latin
+月刊コミックブレイド	Monthly Comic Blade		chunk 005a — Dergi — resmî Latin
+月刊サンデージェネックス	Monthly Sunday Gene-X		chunk 005a — Dergi — resmî Latin
+週刊マーガレット	Weekly Margaret		chunk 005a — Dergi — resmî Latin
+週刊少女コミック	Weekly Shojo Comic		chunk 005a — Dergi — resmî Latin
+別冊ビバプリンセス	Bessatsu Viva Princess		chunk 005a — Dergi — resmî Latin
+別冊ヤングチャンピオン	Bessatsu Young Champion		chunk 005a — Dergi — resmî Latin
+別冊漫画ゴラク	Bessatsu Manga Goraku		chunk 005a — Dergi — resmî Latin
+漫画ゴラクスペシャル	Manga Goraku Special		chunk 005a — Dergi — resmî Latin
+週刊アスキー	Weekly ASCII		chunk 005a — Dergi — resmî Latin
+ニコニコ漫画	Nico Nico Manga		chunk 005a — Dergi — resmî Latin
+コミックアンリアル	Comic Unreal		chunk 005a — Dergi — resmî Latin
+まんが王国	Manga Kingdom		chunk 005a — Dergi — resmî Latin
+めちゃコミック	Mecha Comic		chunk 005a — Dergi — resmî Latin
+マガポケ	Manga Pocket		chunk 005a — Dergi — resmî Latin
+最強ジャンプ	Saikyo Jump		chunk 005a — Dergi — resmî Latin
+集英社オレンジ文庫	Shueisha Orange Bunko		chunk 005a — Imprint — resmî Latin
+集英社スーパーダッシュ文庫	Shueisha Super Dash Bunko		chunk 005a — Imprint — resmî Latin
+スーパーダッシュ文庫	Super Dash Bunko		chunk 005a — Imprint — resmî Latin
+富士見ミステリー文庫	Fujimi Mystery Bunko		chunk 005a — Imprint — resmî Latin
+角川ビーンズ文庫	Kadokawa Beans Bunko		chunk 005a — Imprint — resmî Latin
+ルルル文庫	Lululu Bunko		chunk 005a — Imprint — resmî Latin
+モンスター文庫	Monster Bunko		chunk 005a — Imprint — resmî Latin
+ヒーロー文庫	Hero Bunko		chunk 005a — Imprint — resmî Latin
+講談社文庫	Kodansha Bunko		chunk 005a — Imprint — resmî Latin
+文春文庫	Bunshun Bunko		chunk 005a — Imprint — resmî Latin
+富士見L文庫	Fujimi L Bunko	fujimi_l_bunko	chunk 005a — Imprint — resmî Latin
+THE花与梦	THE Hana to Yume	the_hana_to_yume	chunk 005a — Dergi — resmî Latin
+ジャンプLIVE	Jump LIVE	jump_live	chunk 005a — Dijital dergi — resmî Latin
+Z会	Z-Kai	z_kai	chunk 005a — Eğitim şirketi — resmî Latin
+娘TYPE	Nyan Type	nyan_type	chunk 005a — Dergi — resmî Latin
+週刊ヤングジャンプ	Weekly Young Jump		chunk 005a — Dergi — resmî Latin
+月刊ヤングジャンプ	Monthly Young Jump		chunk 005a — Dergi — resmî Latin
+ビッグコミックオリジナル増刊	Big Comic Original Zokan		chunk 005a — Dergi — resmî Latin
+月刊ドラゴンジュニア	Monthly Dragon Junior		chunk 005a — Dergi — resmî Latin
+少年キング	Shonen King		chunk 005a — Dergi — resmî Latin
+なかよしラブリー	Nakayoshi Lovely		chunk 005a — Dergi — resmî Latin
+コミックメガストア	Comic MegaStore		chunk 005a — Dergi — resmî Latin
+ビーボーイコミックスデラックス	Be Boy Comics Deluxe		chunk 005a — Dergi — resmî Latin
+ラブきゅんコミック	Love Kyun Comic		chunk 005a — Dergi — resmî Latin
+ウルトラジャンプエッグ	Ultra Jump Egg		chunk 005a — Dergi — resmî Latin
+花音コミックス	Kanon Comics		chunk 005a — Dergi — resmî Latin
+まんがくらぶオリジナル	Manga Club Original		chunk 005a — Dergi — resmî Latin
+月刊ステンシル	Monthly Stencil		chunk 005a — Dergi — resmî Latin
+麗人	Reijin		chunk 005a — Dergi — resmî Latin
+ココハナ	Cocohana		chunk 005a — Dergi — resmî Latin
+少女フレンド	Shojo Friend		chunk 005a — Dergi — resmî Latin
+サスペリアミステリー	Suspiria Mystery		chunk 005a — Dergi — resmî Latin
+メガストア	MegaStore		chunk 005a — Dergi — resmî Latin
+ハレム	Harem		chunk 005a — Dergi — resmî Latin
+わぁい!	Waaai!		chunk 005a — Dergi — resmî Latin
+月刊ファルコムマガジン	Monthly Falcom Magazine		chunk 005a — Dergi — resmî Latin
+アルティマエース	Altima Ace		chunk 005a — Dergi — resmî Latin
+月刊エースネクスト	Monthly Ace Next		chunk 005a — Dergi — resmî Latin
+マトグロッソ	Matogrosso		chunk 005a — Dergi — resmî Latin
+コミックタタン	Comic Tatan		chunk 005a — Dergi — resmî Latin
+コミックトレイル	Comic Trail		chunk 005a — Dergi — resmî Latin
+マンガハック	Manga Hack		chunk 005a — Dergi — resmî Latin
+ひらり	Hirari		chunk 005a — Dergi — resmî Latin
+ゆるよん	Yuruyon		chunk 005a — Dergi — resmî Latin
+MAHO FILM	MAHO FILM	maho_film	chunk 005a — İkiz birleşim (studio+n producer)
+NUT	NUT	nut	chunk 005a — İkiz birleşim (studio+producer)
+DMM GAMES	DMM GAMES	dmm_games	chunk 005a — İkiz birleşim (studio+publisher)
+パイオニアLDC	Pioneer LDC	pioneer_ldc	chunk 005a — İkiz birleşim (studio+producer)
+BANDAI	Bandai	bandai	chunk 005a — İkiz birleşim (publisher×2)
+Bandai	Bandai	bandai	chunk 005a — İkiz birleşim
+lezhin	Lezhin	lezhin	chunk 005a — İkiz birleşim (magazine×2)
+Lezhin	Lezhin	lezhin	chunk 005a — İkiz birleşim
+J. J. Abrams	J. J. Abrams	j_j_abrams	chunk 005a — İkiz birleşim (kişi)
+J.J.Abrams	J. J. Abrams	j_j_abrams	chunk 005a — İkiz birleşim (kişi)
+新海誠	Makoto Shinkai		chunk 005a — Yönetmen — resmî Latin
+坂口博信	Hironobu Sakaguchi		chunk 005a — Oyun tasarımcısı — resmî Latin
+稲船敬二	Keiji Inafune		chunk 005a — Oyun tasarımcısı — resmî Latin
+小島秀夫	Hideo Kojima		chunk 005a — Oyun tasarımcısı — resmî Latin
+巧舟	Shu Takumi		chunk 005a — Oyun tasarımcısı — resmî Latin
+横井軍平	Gunpei Yokoi		chunk 005a — Oyun tasarımcısı — resmî Latin
+岡田斗司夫	Toshio Okada		chunk 005a — Yapımcı — resmî Latin
+近藤季洋	Toshihiro Kondo		chunk 005a — Yapımcı — resmî Latin
+角川春樹	Haruki Kadokawa		chunk 005a — Yapımcı — resmî Latin
+村濱章司	Shoji Murahama		chunk 005a — Yapımcı — resmî Latin
+坂本賀勇	Yoshio Sakamoto		chunk 005a — Oyun tasarımcısı — resmî Latin
+青沼英二	Eiji Aonuma		chunk 005a — Oyun tasarımcısı — resmî Latin
+竹田玄洋	Genyo Takeda		chunk 005a — Oyun tasarımcısı — resmî Latin
+野上恒	Hisashi Nogami		chunk 005a — Oyun tasarımcısı — resmî Latin
+菅野よう子	Yoko Kanno		chunk 005a — Besteci — resmî Latin
+澤野弘之	Hiroyuki Sawano		chunk 005a — Besteci — resmî Latin
+虚淵玄	Gen Urobuchi		chunk 005a — Senarist — resmî Latin
+奈須きのこ	Kinoko Nasu		chunk 005a — Senarist — resmî Latin
+松本零士	Leiji Matsumoto		chunk 005a — Mangaka — resmî Latin
+出渕裕	Yutaka Izubuchi		chunk 005a — Yönetmen — resmî Latin
+谷口悟朗	Goro Taniguchi		chunk 005a — Yönetmen — resmî Latin
+川原礫	Reki Kawahara		chunk 005a — Yazar — resmî Latin
+新房昭之	Akiyuki Shinbo		chunk 005a — Yönetmen — resmî Latin
+石黒昇	Noboru Ishiguro		chunk 005a — Yönetmen — resmî Latin
+中島かずき	Kazuki Nakashima		chunk 005a — Senarist — resmî Latin
+大川七瀬	Nanase Ohkawa		chunk 005a — Senarist — resmî Latin
+吉田直樹	Naoki Yoshida		chunk 005a — Oyun yapımcısı — resmî Latin
+稲葉敦志	Atsushi Inaba		chunk 005a — Oyun yapımcısı — resmî Latin
+川上量生	Nobuo Kawakami		chunk 005a — Yönetici — resmî Latin
+鳥嶋和彦	Kazuhiko Torishima		chunk 005a — Editör — resmî Latin
+高橋良輔	Ryosuke Takahashi		chunk 005a — Yönetmen — resmî Latin
+大塚雅彦	Masahiko Otsuka		chunk 005a — Yapımcı — resmî Latin
+舛本和也	Kazuya Masumoto		chunk 005a — Yapımcı — resmî Latin
+西村義明	Yoshiaki Nishimura		chunk 005a — Yapımcı — resmî Latin
+太田克史	Katsushi Ota		chunk 005a — Editör — resmî Latin
+かんざきひろ	Hiro Kanzaki		chunk 005a — İllüstratör — resmî Latin
+神崎广	Hiro Kanzaki		chunk 005a — İllüstratör — resmî Latin
+円谷英二	Eiji Tsuburaya		chunk 005a — Özel efekt — resmî Latin
+手塚治	Osamu Tezuka	osamu_tezuka	chunk 005a — Mangaka — resmî Latin
+田中谦介	Kensuke Tanaka	kensuke_tanaka	chunk 005a — Yapımcı — resmî Latin
+小高和剛	Kazutaka Kodaka		chunk 005a — Senarist — resmî Latin
+大川博	Hiroshi Okawa		chunk 005a — Toei kurucusu — resmî Latin
+黄伟明	Huang Weiming		chunk 005a — Yönetmen — resmî Latin (pinyin)
+于正	Yu Zheng		chunk 005a — Yapımcı — resmî Latin (pinyin)
+王晶	Wong Jing		chunk 005a — Yönetmen — resmî Latin
+张纪中	Zhang Jizhong		chunk 005a — Yapımcı — resmî Latin (pinyin)
+刘家豪	Lau Ka-ho		chunk 005a — Yapımcı — resmî Latin
+劉家豪	Lau Ka-ho		chunk 005a — Yapımcı — resmî Latin
+姚壯憲	Yao Zhuangxian		chunk 005a — Oyun tasarımcısı — resmî Latin (pinyin)
+黄一孟	Huang Yimeng		chunk 005a — XD kurucusu — resmî Latin (pinyin)
+岸田教団&THE明星ロケッツ	Kishida Kyoudan & The Akeboshi Rockets	kishida_kyoudan_the_akeboshi_rockets	chunk 005a — Müzik grubu — resmî Latin
+ぴあ	PIA	pia	chunk 005a — Bilet şirketi — resmî Latin
+犬と猫	Inu to Neko	inu_to_neko	chunk 005a — Doujin — resmî Latin
+犬与猫	Inu to Neko	inu_to_neko	chunk 005a — Doujin — resmî Latin
+姫屋ソフト	Himeya Soft		chunk 005a — Marka — resmî Latin
+姬屋软	Himeya Soft		chunk 005a — Marka — resmî Latin

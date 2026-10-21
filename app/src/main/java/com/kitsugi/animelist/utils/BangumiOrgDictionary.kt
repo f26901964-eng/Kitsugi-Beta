@@ -5046,6 +5046,2795 @@ WHITE SOFT|bangumi_studio_white_soft|WHITE SOFT
 ういんどみる|bangumi_studio_windmill|Windmill
 WitchFlame|bangumi_studio_witchflame|WitchFlame
 ZIGZAG|bangumi_studio_zigzag|ZIGZAG
+まんが4コマKINGSぱれっと[|bangumi_magazine_4_kings_3|まんが4コマKINGSぱれっと[
+月刊ACE NEXT|bangumi_magazine_ace_next|月刊ACE NEXT
+花ゆめAi|bangumi_magazine_ai|花ゆめAi
+アルティマエース|bangumi_magazine_altima_ace|Altima Ace
+Altima Ace|bangumi_magazine_altima_ace|Altima Ace
+アニメージュ|bangumi_magazine_animage|Animage
+Animage|bangumi_magazine_animage|Animage
+月刊ASUKA|bangumi_magazine_asuka_2|月刊ASUKA
+ASUKA|bangumi_magazine_asuka_3|ASUKA
+ビーボーイコミックスデラックス|bangumi_magazine_be_boy_comics_deluxe|Be Boy Comics Deluxe
+Be Boy Comics Deluxe|bangumi_magazine_be_boy_comics_deluxe|Be Boy Comics Deluxe
+別冊漫画ゴラク|bangumi_magazine_bessatsu_manga_goraku|Bessatsu Manga Goraku
+Bessatsu Manga Goraku|bangumi_magazine_bessatsu_manga_goraku|Bessatsu Manga Goraku
+別冊ビバプリンセス|bangumi_magazine_bessatsu_viva_princess|Bessatsu Viva Princess
+Bessatsu Viva Princess|bangumi_magazine_bessatsu_viva_princess|Bessatsu Viva Princess
+別冊ヤングチャンピオン|bangumi_magazine_bessatsu_young_champion|Bessatsu Young Champion
+Bessatsu Young Champion|bangumi_magazine_bessatsu_young_champion|Bessatsu Young Champion
+BGM|bangumi_magazine_bgm|BGM
+少年 Big Comic|bangumi_magazine_big_comic|少年 Big Comic
+BIG COMIC ORIGINAL 增刊|bangumi_magazine_big_comic_original|BIG COMIC ORIGINAL 增刊
+ビッグコミックオリジナル増刊|bangumi_magazine_big_comic_original_zokan|Big Comic Original Zokan
+Big Comic Original Zokan|bangumi_magazine_big_comic_original_zokan|Big Comic Original Zokan
+.Bloom|bangumi_magazine_bloom|.Bloom
+ヤングキングBULL|bangumi_magazine_bull|ヤングキングBULL
+月刊少年Captain|bangumi_magazine_captain|月刊少年Captain
+CHAMPION CROSS|bangumi_magazine_champion_cross|Champion Cross
+Chara Selection|bangumi_magazine_chara_selection|Chara Selection
+Charles Comics|bangumi_magazine_charles_comics|Charles Comics
+ChuChu|bangumi_magazine_chuchu|ChuChu
+ねこぱんち|bangumi_magazine_cjk_0b2025|ねこぱんち
+くろふねピクシブ|bangumi_magazine_cjk_0c1b28|くろふねピクシブ
+龙漫少年星期天|bangumi_magazine_cjk_132a12|龙漫少年星期天
+クロフネ|bangumi_magazine_cjk_13a1e7|クロフネ
+デンプレコミック|bangumi_magazine_cjk_154ac8|デンプレコミック
+デンシバーズ(→|bangumi_magazine_cjk_16850a|デンシバーズ(→
+水曜日のシリウス (ニコニコ静画)|bangumi_magazine_cjk_187a6a|水曜日のシリウス (ニコニコ静画)
+小説野性時代|bangumi_magazine_cjk_1edca0|小説野性時代
+もっと!|bangumi_magazine_cjk_2c563a|もっと!
+コミックチャージ|bangumi_magazine_cjk_2e67b1|コミックチャージ
+男朋友|bangumi_magazine_cjk_305933|男朋友
+龙杂志|bangumi_magazine_cjk_326dc7|龙杂志
+ピクシブエッセイ|bangumi_magazine_cjk_423ca1|ピクシブエッセイ
+龙少年漫画月刊|bangumi_magazine_cjk_453c5f|龙少年漫画月刊
+漫客|bangumi_magazine_cjk_475841|漫客
+漫画世界|bangumi_magazine_cjk_53252f|漫画世界
+天漫·轻小说|bangumi_magazine_cjk_53528a|天漫·轻小说
+コミッククリエ|bangumi_magazine_cjk_57e33c|コミッククリエ
+最前線|bangumi_magazine_cjk_592055|最前線
+ダンガン|bangumi_magazine_cjk_5d4ac1|ダンガン
+ガレット|bangumi_magazine_cjk_5f0273|ガレット
+コミック夢幻転生|bangumi_magazine_cjk_5f3cc7|コミック夢幻転生
+水曜日はまったりダッシュエックスコミック (|bangumi_magazine_cjk_62a406|水曜日はまったりダッシュエックスコミック (
+ひらり、|bangumi_magazine_cjk_746130|ひらり、
+(マグコミ)|bangumi_magazine_cjk_7638b8|(マグコミ)
+ヤングマガジン海賊版|bangumi_magazine_cjk_796069|ヤングマガジン海賊版
+最漫画|bangumi_magazine_cjk_7d3459|最漫画
+青年龙时代|bangumi_magazine_cjk_7ee1f4|青年龙时代
+青騎士|bangumi_magazine_cjk_80015d|青騎士
+新少年快報|bangumi_magazine_cjk_813f70|新少年快報
+マンガミー|bangumi_magazine_cjk_918be6|マンガミー
+いち*ラキ|bangumi_magazine_cjk_946eaf|いち*ラキ
+ラバコ|bangumi_magazine_cjk_969f9b|ラバコ
+龍少年|bangumi_magazine_cjk_99592c|龍少年
+コロコロアニキ|bangumi_magazine_cjk_9a48b2|コロコロアニキ
+スーパーダッシュ＆ゴー!|bangumi_magazine_cjk_9c6fd1|スーパーダッシュ＆ゴー!
+エースアサルト|bangumi_magazine_cjk_a0737f|エースアサルト
+玛格丽特漫画半月刊|bangumi_magazine_cjk_a38e47|玛格丽特漫画半月刊
+トランススイッチ|bangumi_magazine_cjk_b4bcc3|トランススイッチ
+瑪格麗特|bangumi_magazine_cjk_bb742c|瑪格麗特
+日更计划|bangumi_magazine_cjk_bd20b0|日更计划
+少年ビッグコミック|bangumi_magazine_cjk_c67871|少年ビッグコミック
+コミック乱ツインズ|bangumi_magazine_cjk_db70bb|コミック乱ツインズ
+ふらっとヒーローズ|bangumi_magazine_cjk_de7fea|ふらっとヒーローズ
+主任がゆく！スペシャル|bangumi_magazine_cjk_e1184c|主任がゆく！スペシャル
+ツー|bangumi_magazine_cjk_e3c9b9|ツー
+どこでもヤングチャンピオン|bangumi_magazine_cjk_e4c9a3|どこでもヤングチャンピオン
+青骑士|bangumi_magazine_cjk_f1fafb|青骑士
+ゼノン編集部|bangumi_magazine_cjk_f49516|ゼノン編集部
+別冊ドラゴンエイジ→|bangumi_magazine_cjk_f61969|別冊ドラゴンエイジ→
+サウス|bangumi_magazine_cjk_fd9bbc|サウス
+Cobalt|bangumi_magazine_cobalt|Cobalt
+ココハナ|bangumi_magazine_cocohana|Cocohana
+COM|bangumi_magazine_com|COM
+COMICすもも|bangumi_magazine_comic|COMICすもも
+COMIC快乐天|bangumi_magazine_comic_14|COMIC快乐天
+comicキャンドール|bangumi_magazine_comic_22|comicキャンドール
+comic|bangumi_magazine_comic_26|comic
+COMIC失楽天|bangumi_magazine_comic_3|COMIC失楽天
+comicエスタス|bangumi_magazine_comic_42|comicエスタス
+COMIC BAVEL|bangumi_magazine_comic_bavel|COMIC BAVEL
+月刊Comic BOM BOM|bangumi_magazine_comic_bom_bom|月刊Comic BOM BOM
+COMIC BRIDGE|bangumi_magazine_comic_bridge|COMIC BRIDGE
+月刊Comic BUNCH|bangumi_magazine_comic_bunch_3|月刊Comic BUNCH
+comic魔法のiらんど|bangumi_magazine_comic_i|comic魔法のiらんど
+COMIC@LOID|bangumi_magazine_comic_loid|COMIC@LOID
+コミックメガストア|bangumi_magazine_comic_megastore|Comic MegaStore
+Comic MegaStore|bangumi_magazine_comic_megastore|Comic MegaStore
+COMIC MUJIN|bangumi_magazine_comic_mujin|COMIC MUJIN
+COMIC SEED!|bangumi_magazine_comic_seed|COMIC SEED!
+コミックタタン|bangumi_magazine_comic_tatan|Comic Tatan
+Comic Tatan|bangumi_magazine_comic_tatan|Comic Tatan
+コミックトレイル|bangumi_magazine_comic_trail|Comic Trail
+Comic Trail|bangumi_magazine_comic_trail|Comic Trail
+コミックアンリアル|bangumi_magazine_comic_unreal|Comic Unreal
+Comic Unreal|bangumi_magazine_comic_unreal|Comic Unreal
+月刊COMIC ZERO-SUM|bangumi_magazine_comic_zero_sum_4|月刊COMIC ZERO-SUM
+月刊Comic ZERO-SUM 増刊 WARD|bangumi_magazine_comic_zero_sum_ward|月刊Comic ZERO-SUM 増刊 WARD
+コンプエース|bangumi_magazine_comp_ace|Comp Ace
+Comp Ace|bangumi_magazine_comp_ace|Comp Ace
+CRAFT|bangumi_magazine_craft|CRAFT
+Dモーニング|bangumi_magazine_d|Dモーニング
+新書館Dear+|bangumi_magazine_dear|Dear+
+電撃萌王|bangumi_magazine_dengeki_moeoh|Dengeki Moeoh
+Dengeki Moeoh|bangumi_magazine_dengeki_moeoh|Dengeki Moeoh
+电击萌王|bangumi_magazine_dengeki_moeoh|Dengeki Moeoh
+Denplay Comic|bangumi_magazine_denplay_comic|Denplay Comic
+ヤングアニマルDensi|bangumi_magazine_densi|ヤングアニマルDensi
+Dokiッ!|bangumi_magazine_doki|Dokiッ!
+月刊Dragon Junior|bangumi_magazine_dragon_junior|月刊Dragon Junior
+DX|bangumi_magazine_dx|DX
+ミステリーDX|bangumi_magazine_dx_6|ミステリーDX
+EDEN|bangumi_magazine_eden|EDEN
+月刊FALCOM MAGAZINE|bangumi_magazine_falcom_magazine|月刊FALCOM MAGAZINE
+Febri|bangumi_magazine_febri|Febri
+FEEL FREE|bangumi_magazine_feel_free|FEEL FREE
+Fellows!|bangumi_magazine_fellows_5|Fellows!
+FlexComixネクスト|bangumi_magazine_flexcomix|FlexComixネクスト
+FlexComix NEXT|bangumi_magazine_flexcomix_next|FlexComix NEXT
+(FLOSコミック)|bangumi_magazine_flos_2|(FLOSコミック)
+少女Friend|bangumi_magazine_friend_2|少女Friend
+Gファンタジーコミックス|bangumi_magazine_g_2|Gファンタジーコミックス
+GコミAnothers|bangumi_magazine_g_anothers|GコミAnothers
+GANMA!(ガンマ)|bangumi_magazine_ganma_2|GANMA!(ガンマ)
+电击大王GENESIS|bangumi_magazine_genesis_2|电击大王GENESIS
+别册漫画GORAKU|bangumi_magazine_goraku|别册漫画GORAKU
+GUNDAM ACE|bangumi_magazine_gundam_ace_2|GUNDAM ACE
+GUSH COMICS|bangumi_magazine_gush_comics|GUSH COMICS
+ハレム|bangumi_magazine_harem|Harem
+Harem|bangumi_magazine_harem|Harem
+ひらり|bangumi_magazine_hirari|Hirari
+Hirari|bangumi_magazine_hirari|Hirari
+电击hp|bangumi_magazine_hp_4|电击hp
+マンガJam|bangumi_magazine_jam|マンガJam
+ヤングアンリアルJINGAI|bangumi_magazine_jingai|ヤングアンリアルJINGAI
+JUMP 改|bangumi_magazine_jump_4|JUMP 改
+最强JUMP|bangumi_magazine_jump_5|最强JUMP
+ジャンプLIVE|bangumi_magazine_jump_live|Jump LIVE
+Jump LIVE|bangumi_magazine_jump_live|Jump LIVE
+JUMP SQ 增刊 JUMP SQ.19|bangumi_magazine_jump_sq_jump_sq_19|JUMP SQ 增刊 JUMP SQ.19
+花音コミックス|bangumi_magazine_kanon_comics|Kanon Comics
+Kanon Comics|bangumi_magazine_kanon_comics|Kanon Comics
+""",
+        """モーニングKC|bangumi_magazine_kc_6|モーニングKC
+少年KING|bangumi_magazine_king|少年KING
+月刊KiSSCA|bangumi_magazine_kissca|月刊KiSSCA
+恋結 KoiYui|bangumi_magazine_koiyui|恋結 KoiYui
+KTOON|bangumi_magazine_ktoon|KTOON
+Lガールズ|bangumi_magazine_l_girls|Lガールズ
+lezhin|bangumi_magazine_lezhin|Lezhin
+Lezhin|bangumi_magazine_lezhin|Lezhin
+Love Jossie|bangumi_magazine_love_jossie|Love Jossie
+ラブきゅんコミック|bangumi_magazine_love_kyun_comic|Love Kyun Comic
+Love Kyun Comic|bangumi_magazine_love_kyun_comic|Love Kyun Comic
+Love Silky|bangumi_magazine_love_silky|Love Silky
+ホラーM|bangumi_magazine_m|ホラーM
+月刊少年Magazine PLUS|bangumi_magazine_magazine_plus|月刊少年Magazine PLUS
+MAGCOMI(マグコミ)|bangumi_magazine_magcomi_2|MAGCOMI(マグコミ)
+MAGxiv|bangumi_magazine_magxiv|MAGxiv
+まんがくらぶオリジナル|bangumi_magazine_manga_club_original|Manga Club Original
+Manga Club Original|bangumi_magazine_manga_club_original|Manga Club Original
+漫画ゴラクスペシャル|bangumi_magazine_manga_goraku_special|Manga Goraku Special
+Manga Goraku Special|bangumi_magazine_manga_goraku_special|Manga Goraku Special
+マンガハック|bangumi_magazine_manga_hack|Manga Hack
+Manga Hack|bangumi_magazine_manga_hack|Manga Hack
+まんが王国|bangumi_magazine_manga_kingdom|Manga Kingdom
+Manga Kingdom|bangumi_magazine_manga_kingdom|Manga Kingdom
+MANGA pixiv|bangumi_magazine_manga_pixiv|MANGA pixiv
+マガポケ|bangumi_magazine_manga_pocket|Manga Pocket
+Manga Pocket|bangumi_magazine_manga_pocket|Manga Pocket
+月刊MANGA TOWN|bangumi_magazine_manga_town|Manga Town
+マンガボックス (MangaBox)|bangumi_magazine_mangabox_2|マンガボックス (MangaBox)
+マトグロッソ|bangumi_magazine_matogrosso|Matogrosso
+Matogrosso|bangumi_magazine_matogrosso|Matogrosso
+めちゃコミック|bangumi_magazine_mecha_comic|Mecha Comic
+Mecha Comic|bangumi_magazine_mecha_comic|Mecha Comic
+メガミマガジン|bangumi_magazine_megami_magazine|Megami Magazine
+Megami Magazine|bangumi_magazine_megami_magazine|Megami Magazine
+メガストア|bangumi_magazine_megastore|MegaStore
+MegaStore|bangumi_magazine_megastore|MegaStore
+MIKU-Pack|bangumi_magazine_miku_pack|MIKU-Pack
+月刊エースネクスト|bangumi_magazine_monthly_ace_next|Monthly Ace Next
+Monthly Ace Next|bangumi_magazine_monthly_ace_next|Monthly Ace Next
+月刊コミックブレイド|bangumi_magazine_monthly_comic_blade|Monthly Comic Blade
+Monthly Comic Blade|bangumi_magazine_monthly_comic_blade|Monthly Comic Blade
+月刊コミックフラッパー|bangumi_magazine_monthly_comic_flapper|Monthly Comic Flapper
+Monthly Comic Flapper|bangumi_magazine_monthly_comic_flapper|Monthly Comic Flapper
+月刊ドラゴンジュニア|bangumi_magazine_monthly_dragon_junior|Monthly Dragon Junior
+Monthly Dragon Junior|bangumi_magazine_monthly_dragon_junior|Monthly Dragon Junior
+月刊ドラゴンマガジン|bangumi_magazine_monthly_dragon_magazine|Monthly Dragon Magazine
+Monthly Dragon Magazine|bangumi_magazine_monthly_dragon_magazine|Monthly Dragon Magazine
+月刊ファルコムマガジン|bangumi_magazine_monthly_falcom_magazine|Monthly Falcom Magazine
+Monthly Falcom Magazine|bangumi_magazine_monthly_falcom_magazine|Monthly Falcom Magazine
+月刊少年マガジン+|bangumi_magazine_monthly_shonen_magazine|Monthly Shonen Magazine
+月刊ステンシル|bangumi_magazine_monthly_stencil|Monthly Stencil
+Monthly Stencil|bangumi_magazine_monthly_stencil|Monthly Stencil
+月刊サンデージェネックス|bangumi_magazine_monthly_sunday_gene_x|Monthly Sunday Gene-X
+Monthly Sunday Gene-X|bangumi_magazine_monthly_sunday_gene_x|Monthly Sunday Gene-X
+月刊ヤングジャンプ|bangumi_magazine_monthly_young_jump|Monthly Young Jump
+Monthly Young Jump|bangumi_magazine_monthly_young_jump|Monthly Young Jump
+なかよしラブリー|bangumi_magazine_nakayoshi_lovely|Nakayoshi Lovely
+Nakayoshi Lovely|bangumi_magazine_nakayoshi_lovely|Nakayoshi Lovely
+网易漫画|bangumi_magazine_netease_comics|NetEase Comics
+NetEase Comics|bangumi_magazine_netease_comics|NetEase Comics
+ニコニコ漫画|bangumi_magazine_nico_nico_manga|Nico Nico Manga
+Nico Nico Manga|bangumi_magazine_nico_nico_manga|Nico Nico Manga
+娘TYPE|bangumi_magazine_nyan_type|Nyan Type
+Nyan Type|bangumi_magazine_nyan_type|Nyan Type
+office YOU|bangumi_magazine_office_you|office YOU
+Oh!スーパージャンプ|bangumi_magazine_oh|Oh!スーパージャンプ
+Ohta Web Comic|bangumi_magazine_ohta_web_comic|Ohta Web Comic
+OPERA|bangumi_magazine_opera|OPERA
+ビーボーイP!|bangumi_magazine_p|ビーボーイP!
+ラブコフレ perfume|bangumi_magazine_perfume|ラブコフレ perfume
+Pinkcherie ピンクシェリー|bangumi_magazine_pinkcherie|Pinkcherie ピンクシェリー
+ガンガンpixiv|bangumi_magazine_pixiv_18|ガンガンpixiv
+百合姬@Pixiv|bangumi_magazine_pixiv_9|百合姬@Pixiv
+Qpa|bangumi_magazine_qpa|Qpa
+麗人|bangumi_magazine_reijin|Reijin
+Reijin|bangumi_magazine_reijin|Reijin
+Renta!|bangumi_magazine_renta|Renta!
+ridibooks|bangumi_magazine_ridibooks_2|ridibooks
+コミック百合姫S|bangumi_magazine_s_2|コミック百合姫S
+無敵恋愛S*girl|bangumi_magazine_s_girl|無敵恋愛S*girl
+最強ジャンプ|bangumi_magazine_saikyo_jump|Saikyo Jump
+Saikyo Jump|bangumi_magazine_saikyo_jump|Saikyo Jump
+少女フレンド|bangumi_magazine_shojo_friend|Shojo Friend
+Shojo Friend|bangumi_magazine_shojo_friend|Shojo Friend
+少年キング|bangumi_magazine_shonen_king|Shonen King
+Shonen King|bangumi_magazine_shonen_king|Shonen King
+Silky|bangumi_magazine_silky|Silky
+STORIA|bangumi_magazine_storia|まんがライフSTORIA
+Storia|bangumi_magazine_storia|まんがライフSTORIA
+まんがライフSTORIA´(|bangumi_magazine_storia_2|まんがライフSTORIA´(
+月刊Sunday GENE-X|bangumi_magazine_sunday_gene_x|月刊Sunday GENE-X
+サスペリアミステリー|bangumi_magazine_suspiria_mystery|Suspiria Mystery
+Suspiria Mystery|bangumi_magazine_suspiria_mystery|Suspiria Mystery
+TENMA COMICS LO|bangumi_magazine_tenma_comics_lo|TENMA COMICS LO
+Touch+|bangumi_magazine_touch|Touch+
+ウルトラジャンプエッグ|bangumi_magazine_ultra_jump_egg|Ultra Jump Egg
+Ultra Jump Egg|bangumi_magazine_ultra_jump_egg|Ultra Jump Egg
+Vコミ|bangumi_magazine_v_2|Vコミ
+わぁい!|bangumi_magazine_waaai|Waaai!
+Waaai!|bangumi_magazine_waaai|Waaai!
+WEBコミックハイ!|bangumi_magazine_web_12|WEBコミックハイ!
+電撃コミックWEB|bangumi_magazine_web_40|電撃コミックWEB
+Webゴラク|bangumi_magazine_web_47|Webゴラク
+楽園web増刊|bangumi_magazine_web_8|楽園web増刊
+週刊アスキー|bangumi_magazine_weekly_ascii|Weekly ASCII
+Weekly ASCII|bangumi_magazine_weekly_ascii|Weekly ASCII
+週刊マーガレット|bangumi_magazine_weekly_margaret|Weekly Margaret
+Weekly Margaret|bangumi_magazine_weekly_margaret|Weekly Margaret
+週刊少女コミック|bangumi_magazine_weekly_shojo_comic|Weekly Shojo Comic
+Weekly Shojo Comic|bangumi_magazine_weekly_shojo_comic|Weekly Shojo Comic
+WINGS|bangumi_magazine_wings_3|WINGS
+XOY|bangumi_magazine_xoy|XOY
+you|bangumi_magazine_you|YOU
+别册Young Champion|bangumi_magazine_young_champion_2|别册Young Champion
+ゆるよん|bangumi_magazine_yuruyon|Yuruyon
+Yuruyon|bangumi_magazine_yuruyon|Yuruyon
+ZENON编辑部|bangumi_magazine_zenon|ZENON编辑部
+ヤングアニマルZERO|bangumi_magazine_zero_4|ヤングアニマルZERO
+月曜21時枠連続ドラマ|bangumi_network_21_3|月曜21時枠連続ドラマ
+月曜21時枠ドラマ|bangumi_network_21_4|月曜21時枠ドラマ
+水曜21時枠刑事ドラマ|bangumi_network_21_5|水曜21時枠刑事ドラマ
+ブレイクマンデー24|bangumi_network_24_6|ブレイクマンデー24
+ドラマ25|bangumi_network_25|ドラマ25
+木ドラ25|bangumi_network_25_2|木ドラ25
+金曜8時のドラマ|bangumi_network_8|金曜8時のドラマ
+A&E|bangumi_network_a_e|A&E
+秋田テレビ|bangumi_network_akt|Akita TV
+Akita TV|bangumi_network_akt|Akita TV
+Amazon|bangumi_network_amazon|Amazon
+安徽卫视|bangumi_network_anhui_tv|Anhui TV
+Anhui TV|bangumi_network_anhui_tv|Anhui TV
+ANIMAX|bangumi_network_animax_2|ANIMAX
+aTV|bangumi_network_atv_2|aTV
+BANDAI CHANNEL|bangumi_network_bandai_channel_2|BANDAI CHANNEL
+BBC ONE|bangumi_network_bbc_one_2|BBC ONE
+BBC Three|bangumi_network_bbc_three|BBC Three
+びわ湖放送|bangumi_network_biwako_broadcasting|Biwako Broadcasting
+Biwako Broadcasting|bangumi_network_biwako_broadcasting|Biwako Broadcasting
+ＢＳ日テレ|bangumi_network_bs_nippon_tv|BS Nippon TV
+BS Nippon TV|bangumi_network_bs_nippon_tv|BS Nippon TV
+新潟放送|bangumi_network_bsn|Niigata Broadcasting
+Niigata Broadcasting|bangumi_network_bsn|Niigata Broadcasting
+哥伦比亚广播公司 CBS|bangumi_network_cbs_2|哥伦比亚广播公司 CBS
+CCTV-1|bangumi_network_cctv_1|CCTV-1
+中央电视台综合频道|bangumi_network_cctv_1|CCTV-1
+央视少儿频道|bangumi_network_cctv_14|CCTV-14
+CCTV-14|bangumi_network_cctv_14|CCTV-14
+CCTV-8|bangumi_network_cctv_8|CCTV-8
+チバテレ|bangumi_network_chiba_tv|Chiba TV
+Cinemax|bangumi_network_cinemax|Cinemax
+真夜中ドラマ|bangumi_network_cjk_1ba229|真夜中ドラマ
+ニコニコチャンネル|bangumi_network_cjk_2fe74e|ニコニコチャンネル
+月曜プレミア８|bangumi_network_cjk_37361b|月曜プレミア８
+每日放送|bangumi_network_cjk_3c847f|每日放送
+シンドラ|bangumi_network_cjk_4841bf|シンドラ
+よるドラ|bangumi_network_cjk_48bd20|よるドラ
+富士|bangumi_network_cjk_7d9b64|富士
+ドラマ特区|bangumi_network_cjk_885bcb|ドラマ特区
+プレミアムよるドラマ|bangumi_network_cjk_8e43ba|プレミアムよるドラマ
+ドラマ特別企画|bangumi_network_cjk_9013e1|ドラマ特別企画
+ドラマパラビ|bangumi_network_cjk_940090|ドラマパラビ
+朝日|bangumi_network_cjk_bf10ce|朝日
+木曜ミステリー|bangumi_network_cjk_f76c04|木曜ミステリー
+土曜ナイトドラマ|bangumi_network_cjk_fe266b|土曜ナイトドラマ
+華視|bangumi_network_cts|Chinese Television System
+Chinese Television System|bangumi_network_cts|Chinese Television System
+CX|bangumi_network_cx|CX
+Discovery Channel|bangumi_network_discovery_channel|Discovery Channel
+ドラマL|bangumi_network_drama_l|ドラマL
+dTV|bangumi_network_dtv|dTV
+E4|bangumi_network_e4|E4
+テレビ愛媛|bangumi_network_eit|TV Ehime
+TV Ehime|bangumi_network_eit|TV Ehime
+EX|bangumi_network_ex|EX
+金曜プレミアム|bangumi_network_friday_premium|Friday Premium
+Friday Premium|bangumi_network_friday_premium|Friday Premium
+福島テレビ|bangumi_network_ftv|FTV
+富士台|bangumi_network_fuji_tv|Fuji Television
+ぎふチャン|bangumi_network_gifu_chan|Gifu Chan
+Gifu Chan|bangumi_network_gifu_chan|Gifu Chan
+J:COMテレビ|bangumi_network_j_com|J:COMテレビ
+韩国KBS电视台|bangumi_network_kbs_3|韩国KBS电视台
+鹿児島テレビ|bangumi_network_kts|Kagoshima TV
+Kagoshima TV|bangumi_network_kts|Kagoshima TV
+乐视|bangumi_network_letv|LeTV
+LeTV|bangumi_network_letv|LeTV
+韩国MBC电视台|bangumi_network_mbc|韩国MBC电视台
+Me-Tele|bangumi_network_me_tele|Me-Tele
+メ〜テレ|bangumi_network_me_tele|Me-Tele
+三重テレビ放送|bangumi_network_mie_tv|Mie TV
+南日本放送|bangumi_network_minaminihon_broadcasting|Minaminihon Broadcasting
+Minaminihon Broadcasting|bangumi_network_minaminihon_broadcasting|Minaminihon Broadcasting
+宮崎放送|bangumi_network_mrt|Miyazaki Broadcasting
+Miyazaki Broadcasting|bangumi_network_mrt|Miyazaki Broadcasting
+ミステリースペシャル|bangumi_network_mystery_special|Mystery Special
+Mystery Special|bangumi_network_mystery_special|Mystery Special
+長崎放送|bangumi_network_nagasaki_broadcasting|Nagasaki Broadcasting
+Nagasaki Broadcasting|bangumi_network_nagasaki_broadcasting|Nagasaki Broadcasting
+National Geographic|bangumi_network_national_geographic|National Geographic
+長崎文化放送|bangumi_network_ncc|Nagasaki Cultural Broadcasting
+Nagasaki Cultural Broadcasting|bangumi_network_ncc|Nagasaki Cultural Broadcasting
+NHK BS2|bangumi_network_nhk_bs2_2|NHK BS2
+NHK-Eテレ|bangumi_network_nhk_e|NHK-Eテレ
+フジテレビ「ノイタミナ」|bangumi_network_noitamina|Fuji TV Noitamina
+Fuji TV Noitamina|bangumi_network_noitamina|Fuji TV Noitamina
+日本テレビ系列|bangumi_network_ntv|Nippon TV
+大分放送|bangumi_network_obs|Oita Broadcasting
+Oita Broadcasting|bangumi_network_obs|Oita Broadcasting
+さくらんぼテレビ|bangumi_network_sakuranbo_tv|Sakuranbo TV
+Sakuranbo TV|bangumi_network_sakuranbo_tv|Sakuranbo TV
+土曜ワイド劇場|bangumi_network_saturday_wide_theater|Saturday Wide Theater
+Saturday Wide Theater|bangumi_network_saturday_wide_theater|Saturday Wide Theater
+韩国SBS电视台|bangumi_network_sbs|韩国SBS电视台
+Showcase|bangumi_network_showcase|Showcase
+Sky|bangumi_network_sky|Sky
+搜狐|bangumi_network_sohu|Sohu
+Sohu|bangumi_network_sohu|Sohu
+搜狐视频|bangumi_network_sohu_video|Sohu Video
+Sohu Video|bangumi_network_sohu_video|Sohu Video
+大河ドラマ|bangumi_network_taiga_drama|Taiga Drama
+Taiga Drama|bangumi_network_taiga_drama|Taiga Drama
+ＴＢＳテレビ|bangumi_network_tbs|TBS
+The CW Television Network|bangumi_network_the_cw_television_network|The CW Television Network
+木曜ドラマF|bangumi_network_thursday_drama_f|木曜ドラマF
+テレビ熊本|bangumi_network_tkb|TV Kumamoto
+TV Kumamoto|bangumi_network_tkb|TV Kumamoto
+TOKYO MX1|bangumi_network_tokyo_mx1|TOKYO MX1
+Travel Channel|bangumi_network_travel_channel|Travel Channel
+テレビ新広島|bangumi_network_tss|TV Shin Hiroshima
+TV Shin Hiroshima|bangumi_network_tss|TV Shin Hiroshima
+土豆|bangumi_network_tudou|Tudou
+Tudou|bangumi_network_tudou|Tudou
+テレビユー福島|bangumi_network_tv_u_fukushima|TV-U Fukushima
+TV-U Fukushima|bangumi_network_tv_u_fukushima|TV-U Fukushima
+テレビユー山形|bangumi_network_tv_u_yamagata|TV-U Yamagata
+TV-U Yamagata|bangumi_network_tv_u_yamagata|TV-U Yamagata
+香港电视广播有限公司|bangumi_network_tvb|TVB
+無綫電視翡翠台|bangumi_network_tvb_jade|TVB Jade
+TVB Jade|bangumi_network_tvb_jade|TVB Jade
+tvN|bangumi_network_tvn_4|tvN
+独立UHF局|bangumi_network_uhf_2|独立UHF局
+フジテレビ「＋Ultra」|bangumi_network_ultra_2|フジテレビ「＋Ultra」
+UPN|bangumi_network_upn|UPN
+Wナイト|bangumi_network_w|Wナイト
+www.cbs.com|bangumi_network_www_cbs_com|www.cbs.com
+youtube|bangumi_network_youtube_6|youtube
+2匹目のどぜう|bangumi_producer_2|2匹目のどぜう
+梅麻呂3D|bangumi_producer_3d|梅麻呂3D
+オコイス8番|bangumi_producer_8_2|オコイス8番
+A THIRD DIMENSION|bangumi_producer_a_third_dimension|A THIRD DIMENSION
+AC部|bangumi_producer_ac|AC部
+ADKマーケティング|bangumi_producer_adk_7|ADKマーケティング
+ADKマーケティング・ソリューションズ|bangumi_producer_adk_8|ADKマーケティング・ソリューションズ
+新房昭之|bangumi_producer_akiyuki_shinbo|Akiyuki Shinbo
+Akiyuki Shinbo|bangumi_producer_akiyuki_shinbo|Akiyuki Shinbo
+AMGエンタテインメント|bangumi_producer_amg|AMGエンタテインメント
+Amuse Soft Entertainment|bangumi_producer_amuse_soft_entertainment|Amuse Soft Entertainment
+アミューズメントメディア総合学院|bangumi_producer_amusement_media_academy|Amusement Media Academy
+Amusement Media Academy|bangumi_producer_amusement_media_academy|Amusement Media Academy
+Andrew Stanton|bangumi_producer_andrew_stanton|Andrew Stanton
+ANIMAC|bangumi_producer_animac|ANIMAC
+アニマックスブロードキャスト・ジャパン|bangumi_producer_animax_broadcast_japan|Animax Broadcast Japan
+Animax Broadcast Japan|bangumi_producer_animax_broadcast_japan|Animax Broadcast Japan
+アニメアール|bangumi_producer_anime_r|Anime R
+Anime R|bangumi_producer_anime_r|Anime R
+あんずワークス|bangumi_producer_anzu_works|Anzu Works
+Anzu Works|bangumi_producer_anzu_works|Anzu Works
+AQUA ARIS|bangumi_producer_aqua_aris|AQUA ARIS
+Arbo Animation|bangumi_producer_arbo_animation|Arbo Animation
+ASATSU|bangumi_producer_asatsu|Asatsu
+Asatsu|bangumi_producer_asatsu|Asatsu
+旭通信社|bangumi_producer_asatsu|Asatsu
+ASKASK|bangumi_producer_askask|ASKASK
+稲葉敦志|bangumi_producer_atsushi_inaba|Atsushi Inaba
+Atsushi Inaba|bangumi_producer_atsushi_inaba|Atsushi Inaba
+Aura Qualic|bangumi_producer_aura_qualic|Aura Qualic
+Avi Arad|bangumi_producer_avi_arad|Avi Arad
+Be Loop|bangumi_producer_be_loop|Be Loop
+blue eyes|bangumi_producer_blue_eyes|blue eyes
+Blue Twinkle|bangumi_producer_blue_twinkle|Blue Twinkle
+文化放送|bangumi_producer_bunka_hoso|Nippon Cultural Broadcasting
+Nippon Cultural Broadcasting|bangumi_producer_bunka_hoso|Nippon Cultural Broadcasting
+buzzG|bangumi_producer_buzzg|buzzG
+C&Iエンタテインメント|bangumi_producer_c_i|C&Iエンタテインメント
+@can beat|bangumi_producer_can_beat|@can beat
+CCTV Animation Group|bangumi_producer_cctv_animation_group|CCTV Animation Group
+Celeb|bangumi_producer_celeb|Celeb
+Charles Roven|bangumi_producer_charles_roven|Charles Roven
+chataro|bangumi_producer_chataro|chataro
+ChezEddy|bangumi_producer_chezeddy|ChezEddy
+クロノギアクリエイティヴ|bangumi_producer_chrono_gear_creative|Chrono Gear Creative
+Chrono Gear Creative|bangumi_producer_chrono_gear_creative|Chrono Gear Creative
+中外鉱業|bangumi_producer_chugai_mining|Chugai Mining
+Chugai Mining|bangumi_producer_chugai_mining|Chugai Mining
+CINEMA PARADISE|bangumi_producer_cinema_paradise|CINEMA PARADISE
+近藤成一|bangumi_producer_cjk_019bc7|近藤成一
+林郁美|bangumi_producer_cjk_02e940|林郁美
+太田賢司|bangumi_producer_cjk_033f27|太田賢司
+米澤明|bangumi_producer_cjk_0402f8|米澤明
+佐藤敦|bangumi_producer_cjk_042575|佐藤敦
+贺梦凡|bangumi_producer_cjk_04cf16|贺梦凡
+青木正久|bangumi_producer_cjk_050054|青木正久
+太田豊紀|bangumi_producer_cjk_05d568|太田豊紀
+星野孝太|bangumi_producer_cjk_05e735|星野孝太
+樋口宗久|bangumi_producer_cjk_0703ef|樋口宗久
+國府田崇裕|bangumi_producer_cjk_08304b|國府田崇裕
+小林宙|bangumi_producer_cjk_0844e7|小林宙
+風間亮|bangumi_producer_cjk_084e65|風間亮
+高橋豊|bangumi_producer_cjk_0888ce|高橋豊
+北村京子|bangumi_producer_cjk_08dae5|北村京子
+金澤勝眞|bangumi_producer_cjk_096500|金澤勝眞
+高澤邦仁|bangumi_producer_cjk_09c6a8|高澤邦仁
+平山亨|bangumi_producer_cjk_09f216|平山亨
+壺田重夫|bangumi_producer_cjk_0ad109|壺田重夫
+田上リサ|bangumi_producer_cjk_0ae0e5|田上リサ
+中川慎子|bangumi_producer_cjk_0b1112|中川慎子
+浦井孝行|bangumi_producer_cjk_0b29c7|浦井孝行
+次屋尚|bangumi_producer_cjk_0b7311|次屋尚
+艺画开天|bangumi_producer_cjk_0d22c5|艺画开天
+和佐野健一|bangumi_producer_cjk_0d4f8f|和佐野健一
+上間康弘|bangumi_producer_cjk_0d8594|上間康弘
+飯嶋浩次|bangumi_producer_cjk_0f8467|飯嶋浩次
+間取美帆|bangumi_producer_cjk_0fb17e|間取美帆
+尾形英夫|bangumi_producer_cjk_0ffc39|尾形英夫
+加藤正俊|bangumi_producer_cjk_101502|加藤正俊
+上坂陽一郎|bangumi_producer_cjk_1018b0|上坂陽一郎
+佐藤道明|bangumi_producer_cjk_10251f|佐藤道明
+小泉守|bangumi_producer_cjk_109f89|小泉守
+铅元素动画|bangumi_producer_cjk_10eeeb|铅元素动画
+齋藤隆行|bangumi_producer_cjk_11313a|齋藤隆行
+钱倪成|bangumi_producer_cjk_11b14d|钱倪成
+清瀬貴央|bangumi_producer_cjk_11ceef|清瀬貴央
+佐藤允紀|bangumi_producer_cjk_133662|佐藤允紀
+髙石明彦|bangumi_producer_cjk_138a5a|髙石明彦
+榎本美華|bangumi_producer_cjk_142874|榎本美華
+梶淳 テレビ朝日|bangumi_producer_cjk_14b176|梶淳 テレビ朝日
+須山博一|bangumi_producer_cjk_14f4f2|須山博一
+倉地雄大|bangumi_producer_cjk_1562ac|倉地雄大
+ドリマックス|bangumi_producer_cjk_156ef8|ドリマックス
+海原望|bangumi_producer_cjk_15a769|海原望
+大友寿也|bangumi_producer_cjk_15b685|大友寿也
+秋元孝之|bangumi_producer_cjk_164dd9|秋元孝之
+伊藤整|bangumi_producer_cjk_16634b|伊藤整
+山崎宏太|bangumi_producer_cjk_166958|山崎宏太
+近藤泰介|bangumi_producer_cjk_168a82|近藤泰介
+渡部正和|bangumi_producer_cjk_16e75c|渡部正和
+佐藤凉一|bangumi_producer_cjk_170c27|佐藤凉一
+小野仁|bangumi_producer_cjk_172660|小野仁
+フジクリエイティブコーポレーション|bangumi_producer_cjk_175078|フジクリエイティブコーポレーション
+遠藤純一|bangumi_producer_cjk_17695d|遠藤純一
+内海五月|bangumi_producer_cjk_18fe39|内海五月
+松永裕一|bangumi_producer_cjk_191b0b|松永裕一
+安部正次郎|bangumi_producer_cjk_196644|安部正次郎
+四次方动画|bangumi_producer_cjk_197986|四次方动画
+瀬下恵介|bangumi_producer_cjk_197c4e|瀬下恵介
+鈴木麻里|bangumi_producer_cjk_19c81e|鈴木麻里
+山本早苗|bangumi_producer_cjk_19f2e5|山本早苗
+広瀬春奈|bangumi_producer_cjk_1a11be|広瀬春奈
+小林真一郎|bangumi_producer_cjk_1a1e77|小林真一郎
+大川武宏|bangumi_producer_cjk_1a4f5f|大川武宏
+松川裕也|bangumi_producer_cjk_1a6427|松川裕也
+動画革命東京|bangumi_producer_cjk_1a6eb0|動画革命東京
+梓宏文化|bangumi_producer_cjk_1a71c1|梓宏文化
+淡路徹|bangumi_producer_cjk_1ab35e|淡路徹
+河原正信|bangumi_producer_cjk_1ae257|河原正信
+横山和夫|bangumi_producer_cjk_1b1286|横山和夫
+ソニー・ピクチャーズ エンタテインメント|bangumi_producer_cjk_1bd47f|ソニー・ピクチャーズ エンタテインメント
+魏江涛|bangumi_producer_cjk_1bedb1|魏江涛
+中尾亜由子|bangumi_producer_cjk_1c38be|中尾亜由子
+山本輝|bangumi_producer_cjk_1c6c8c|山本輝
+空下元|bangumi_producer_cjk_1ce29e|空下元
+鶴岡信哉|bangumi_producer_cjk_1df94d|鶴岡信哉
+谷本千明|bangumi_producer_cjk_1ea9b6|谷本千明
+内山聖子|bangumi_producer_cjk_1eb8de|内山聖子
+寺田悠輔|bangumi_producer_cjk_1edbf1|寺田悠輔
+後藤博幸|bangumi_producer_cjk_1ee53a|後藤博幸
+高篠秀一|bangumi_producer_cjk_1ee675|高篠秀一
+张宇|bangumi_producer_cjk_1fed6d|张宇
+海部正樹|bangumi_producer_cjk_203e4a|海部正樹
+旗野義文|bangumi_producer_cjk_204aa2|旗野義文
+佐々木基 テレビ朝日|bangumi_producer_cjk_209b4f|佐々木基 テレビ朝日
+宮河恭夫|bangumi_producer_cjk_20a38e|宮河恭夫
+紺野アスタ|bangumi_producer_cjk_20ef1f|紺野アスタ
+刘桂美|bangumi_producer_cjk_214944|刘桂美
+哔梦|bangumi_producer_cjk_217166|哔梦
+大路菜央|bangumi_producer_cjk_21747c|大路菜央
+木下直哉|bangumi_producer_cjk_217bc1|木下直哉
+塚越隆行|bangumi_producer_cjk_21b3b6|塚越隆行
+オービー企画|bangumi_producer_cjk_228901|オービー企画
+け～まる|bangumi_producer_cjk_229fbf|け～まる
+西浦陽一|bangumi_producer_cjk_2324e7|西浦陽一
+篠笥和也|bangumi_producer_cjk_236588|篠笥和也
+船津浩一|bangumi_producer_cjk_239369|船津浩一
+金羊社|bangumi_producer_cjk_23a386|金羊社
+寺田貴信|bangumi_producer_cjk_245436|寺田貴信
+沢倉麗|bangumi_producer_cjk_2474e6|沢倉麗
+郭勇|bangumi_producer_cjk_24eff3|郭勇
+金子敦史|bangumi_producer_cjk_24f50f|金子敦史
+下坂英男|bangumi_producer_cjk_25002a|下坂英男
+田口翔一朗|bangumi_producer_cjk_250a53|田口翔一朗
+竹内雅人|bangumi_producer_cjk_253d58|竹内雅人
+瀬波里梨|bangumi_producer_cjk_25556e|瀬波里梨
+野瀬和也|bangumi_producer_cjk_25f5a4|野瀬和也
+荒木元道|bangumi_producer_cjk_261c0d|荒木元道
+鈴木径男|bangumi_producer_cjk_265db8|鈴木径男
+押田裕一|bangumi_producer_cjk_266add|押田裕一
+伊藤響|bangumi_producer_cjk_26cb5b|伊藤響
+橋本かおり|bangumi_producer_cjk_270e2c|橋本かおり
+鈴木香織|bangumi_producer_cjk_27452a|鈴木香織
+黃偉聲|bangumi_producer_cjk_2799de|黃偉聲
+廣部琢之|bangumi_producer_cjk_27bfd3|廣部琢之
+广东明星创意动画有限公司|bangumi_producer_cjk_281986|广东明星创意动画有限公司
+守屋竜史|bangumi_producer_cjk_289a3d|守屋竜史
+松本明子|bangumi_producer_cjk_2949ec|松本明子
+田村学|bangumi_producer_cjk_2980df|田村学
+飯田和孝|bangumi_producer_cjk_29a564|飯田和孝
+御影|bangumi_producer_cjk_2a0ec2|御影
+唐朝|bangumi_producer_cjk_2ab5f0|唐朝
+武田智哉|bangumi_producer_cjk_2b70ab|武田智哉
+丁立清|bangumi_producer_cjk_2ba706|丁立清
+麻生一宏|bangumi_producer_cjk_2bb556|麻生一宏
+浅沼誠|bangumi_producer_cjk_2bd684|浅沼誠
+堀越徹|bangumi_producer_cjk_2cfc5e|堀越徹
+都築伸一郎|bangumi_producer_cjk_2f26a9|都築伸一郎
+小田ツヨシ|bangumi_producer_cjk_2f690b|小田ツヨシ
+藤野麻耶|bangumi_producer_cjk_2f781e|藤野麻耶
+五条下位|bangumi_producer_cjk_2fce29|五条下位
+株式会社シーエー|bangumi_producer_cjk_30362d|株式会社シーエー
+隈元優介|bangumi_producer_cjk_303a17|隈元優介
+渡辺直樹|bangumi_producer_cjk_314c6a|渡辺直樹
+森井佑介|bangumi_producer_cjk_318636|森井佑介
+今西和人|bangumi_producer_cjk_31d1cc|今西和人
+宮腰徹|bangumi_producer_cjk_3259c0|宮腰徹
+布施等|bangumi_producer_cjk_329c7f|布施等
+佐藤圭介|bangumi_producer_cjk_32b771|佐藤圭介
+潘嘉德|bangumi_producer_cjk_32cf0a|潘嘉德
+南寛将|bangumi_producer_cjk_32f99b|南寛将
+清水美佳|bangumi_producer_cjk_33785b|清水美佳
+スタヂオちょめちょめ|bangumi_producer_cjk_3389d8|スタヂオちょめちょめ
+峯健司|bangumi_producer_cjk_33ecac|峯健司
+島村達雄|bangumi_producer_cjk_342d1c|島村達雄
+渡辺勝也|bangumi_producer_cjk_3529d5|渡辺勝也
+ショウゲート[|bangumi_producer_cjk_35ad44|ショウゲート[
+吉岡富夫|bangumi_producer_cjk_35b9cb|吉岡富夫
+石原直樹|bangumi_producer_cjk_35ddc9|石原直樹
+内田明理|bangumi_producer_cjk_36972e|内田明理
+藤本鈴子|bangumi_producer_cjk_375114|藤本鈴子
+赤坂泰基|bangumi_producer_cjk_384c9f|赤坂泰基
+薄井勝太郎|bangumi_producer_cjk_386367|薄井勝太郎
+横田守|bangumi_producer_cjk_391729|横田守
+若松央樹|bangumi_producer_cjk_3975cd|若松央樹
+林加都恵|bangumi_producer_cjk_39fd63|林加都恵
+永森裕二|bangumi_producer_cjk_3a1ca1|永森裕二
+神田エミイ亜希子|bangumi_producer_cjk_3add80|神田エミイ亜希子
+横田清|bangumi_producer_cjk_3b8c89|横田清
+霜田一寿|bangumi_producer_cjk_3b9cc4|霜田一寿
+難波利昭|bangumi_producer_cjk_3baa19|難波利昭
+永瀬智人|bangumi_producer_cjk_3c1b1d|永瀬智人
+湯浅隆明|bangumi_producer_cjk_3c1b71|湯浅隆明
+山口雅俊|bangumi_producer_cjk_3ca326|山口雅俊
+莊偉建|bangumi_producer_cjk_3cca5c|莊偉建
+東仲恵吾|bangumi_producer_cjk_3dcdb1|東仲恵吾
+藤本款|bangumi_producer_cjk_3de0b9|藤本款
+木曽貴美子|bangumi_producer_cjk_3dfdc7|木曽貴美子
+髙橋正弘|bangumi_producer_cjk_3e1d04|髙橋正弘
+スタジオたくらんけ|bangumi_producer_cjk_3e3f98|スタジオたくらんけ
+林志華|bangumi_producer_cjk_3e51cd|林志華
+遠藤一樹|bangumi_producer_cjk_3ef677|遠藤一樹
+片岡義朗|bangumi_producer_cjk_3feceb|片岡義朗
+亀山俊樹|bangumi_producer_cjk_3ff3be|亀山俊樹
+鈴木貴昭|bangumi_producer_cjk_405901|鈴木貴昭
+立花耕|bangumi_producer_cjk_40750c|立花耕
+橘亮祐|bangumi_producer_cjk_40d436|橘亮祐
+日野亮|bangumi_producer_cjk_40ff62|日野亮
+三宅蒼色|bangumi_producer_cjk_410f80|三宅蒼色
+金子義雄|bangumi_producer_cjk_42088c|金子義雄
+萩原崇|bangumi_producer_cjk_42368d|萩原崇
+山川秀樹|bangumi_producer_cjk_42373f|山川秀樹
+アニマックスブロードキャスト|bangumi_producer_cjk_424d32|アニマックスブロードキャスト
+太田雅晴|bangumi_producer_cjk_42783b|太田雅晴
+佐藤裕士|bangumi_producer_cjk_42c128|佐藤裕士
+熊谷理恵|bangumi_producer_cjk_4310ad|熊谷理恵
+松本英晃|bangumi_producer_cjk_432c78|松本英晃
+溝口大悟|bangumi_producer_cjk_435084|溝口大悟
+新井恵介|bangumi_producer_cjk_43815c|新井恵介
+櫻井雄一|bangumi_producer_cjk_43b755|櫻井雄一
+関拓也|bangumi_producer_cjk_43c4fb|関拓也
+川越恒|bangumi_producer_cjk_43d239|川越恒
+小川悦司|bangumi_producer_cjk_44526b|小川悦司
+梅田正勝|bangumi_producer_cjk_44ccdc|梅田正勝
+ポニーキャニオンエンタープライズ|bangumi_producer_cjk_451e22|ポニーキャニオンエンタープライズ
+安井一成|bangumi_producer_cjk_454ed8|安井一成
+本橋研一|bangumi_producer_cjk_45c614|本橋研一
+保住圭|bangumi_producer_cjk_462b90|保住圭
+蜜丘潤|bangumi_producer_cjk_469c7c|蜜丘潤
+白石直子|bangumi_producer_cjk_46a7ac|白石直子
+横山賢二|bangumi_producer_cjk_46c7eb|横山賢二
+林洋平|bangumi_producer_cjk_46f36d|林洋平
+鍋島進二|bangumi_producer_cjk_46fdcd|鍋島進二
+上田智輝|bangumi_producer_cjk_470a8d|上田智輝
+新福恭平|bangumi_producer_cjk_4717bd|新福恭平
+はとりあゆむ|bangumi_producer_cjk_477851|はとりあゆむ
+安藤圭一|bangumi_producer_cjk_480c5f|安藤圭一
+張乾文|bangumi_producer_cjk_48a811|張乾文
+七條敬三|bangumi_producer_cjk_48d3a8|七條敬三
+小红帽国际动画|bangumi_producer_cjk_494ffd|小红帽国际动画
+松村幸治|bangumi_producer_cjk_496d88|松村幸治
+淀明子|bangumi_producer_cjk_498920|淀明子
+藤本一彦|bangumi_producer_cjk_49bb35|藤本一彦
+長谷川友紀|bangumi_producer_cjk_4a89ff|長谷川友紀
+佐藤真紀|bangumi_producer_cjk_4b76d5|佐藤真紀
+古澤佳寛|bangumi_producer_cjk_4bb6e0|古澤佳寛
+賀部匠美|bangumi_producer_cjk_4bc2a5|賀部匠美
+山田弘子|bangumi_producer_cjk_4c1380|山田弘子
+外﨑真|bangumi_producer_cjk_4c2a56|外﨑真
+山中拓也|bangumi_producer_cjk_4cd4b5|山中拓也
+加藤章|bangumi_producer_cjk_4d4177|加藤章
+岡部紳二|bangumi_producer_cjk_4d8c86|岡部紳二
+川本晃生|bangumi_producer_cjk_4de620|川本晃生
+ピクセルビー|bangumi_producer_cjk_4e0f84|ピクセルビー
+李尚鎭|bangumi_producer_cjk_4e5082|李尚鎭
+大島満|bangumi_producer_cjk_4e77c1|大島満
+堂山昌司|bangumi_producer_cjk_4f1719|堂山昌司
+諸澤昌男|bangumi_producer_cjk_4f355c|諸澤昌男
+祖父江里奈|bangumi_producer_cjk_4f935f|祖父江里奈
+服部宣之|bangumi_producer_cjk_4fc473|服部宣之
+土屋慎一|bangumi_producer_cjk_50c67b|土屋慎一
+易巧|bangumi_producer_cjk_50d6f5|易巧
+鶴岡陽太|bangumi_producer_cjk_5123c4|鶴岡陽太
+那須田淳|bangumi_producer_cjk_51cc23|那須田淳
+都築歩|bangumi_producer_cjk_520dd3|都築歩
+荒木人美|bangumi_producer_cjk_521627|荒木人美
+吉田博彦|bangumi_producer_cjk_5251f2|吉田博彦
+鷲崎健太|bangumi_producer_cjk_5268a4|鷲崎健太
+円谷皐|bangumi_producer_cjk_5282f0|円谷皐
+清原誠巳|bangumi_producer_cjk_5292db|清原誠巳
+平山博志|bangumi_producer_cjk_5362ee|平山博志
+高橋賢太郎|bangumi_producer_cjk_536a42|高橋賢太郎
+加藤友季子|bangumi_producer_cjk_536d86|加藤友季子
+久松大地|bangumi_producer_cjk_53c85a|久松大地
+増田克人|bangumi_producer_cjk_53de37|増田克人
+土屋潤一郎|bangumi_producer_cjk_541d6b|土屋潤一郎
+橋爪駿輝|bangumi_producer_cjk_547b56|橋爪駿輝
+兼光一博|bangumi_producer_cjk_54944f|兼光一博
+かずきふみ|bangumi_producer_cjk_54d55e|かずきふみ
+本木夏|bangumi_producer_cjk_54e023|本木夏
+福山亮一|bangumi_producer_cjk_54e3cb|福山亮一
+井上千尋 テレビ朝日|bangumi_producer_cjk_54fac1|井上千尋 テレビ朝日
+ひよ|bangumi_producer_cjk_556a41|ひよ
+須磨直樹|bangumi_producer_cjk_55c482|須磨直樹
+桜庭丸男|bangumi_producer_cjk_55f711|桜庭丸男
+安堂雪菜|bangumi_producer_cjk_562141|安堂雪菜
+森雅弘|bangumi_producer_cjk_56952d|森雅弘
+陈明达|bangumi_producer_cjk_56b725|陈明达
+福室達也|bangumi_producer_cjk_56c56a|福室達也
+张毅君|bangumi_producer_cjk_573324|张毅君
+佐藤光紀|bangumi_producer_cjk_573587|佐藤光紀
+李竹兵|bangumi_producer_cjk_5765e6|李竹兵
+高橋佳那子|bangumi_producer_cjk_57a21e|高橋佳那子
+大西文二|bangumi_producer_cjk_57ba3c|大西文二
+水谷圭 テレビ朝日|bangumi_producer_cjk_57c911|水谷圭 テレビ朝日
+森亮介|bangumi_producer_cjk_57e510|森亮介
+野崎康次|bangumi_producer_cjk_57e67c|野崎康次
+天宮りつ|bangumi_producer_cjk_58d755|天宮りつ
+桑名真吾|bangumi_producer_cjk_595690|桑名真吾
+小見山慎二|bangumi_producer_cjk_5983c1|小見山慎二
+なかひろ|bangumi_producer_cjk_59a190|なかひろ
+岡田昭彦|bangumi_producer_cjk_59c0ee|岡田昭彦
+植田もとき|bangumi_producer_cjk_5a6ff3|植田もとき
+草ヶ谷大輔|bangumi_producer_cjk_5ab472|草ヶ谷大輔
+水雨月冰璃|bangumi_producer_cjk_5ae874|水雨月冰璃
+宇都宮裕人|bangumi_producer_cjk_5b483d|宇都宮裕人
+泊懋|bangumi_producer_cjk_5b73f3|泊懋
+ビームエンタテインメント|bangumi_producer_cjk_5b7945|ビームエンタテインメント
+ウェルシンク|bangumi_producer_cjk_5bd212|ウェルシンク
+柳井寛史|bangumi_producer_cjk_5d0302|柳井寛史
+松山雅則|bangumi_producer_cjk_5d9d7e|松山雅則
+中村陽介|bangumi_producer_cjk_5db8b3|中村陽介
+山下智治|bangumi_producer_cjk_5e4093|山下智治
+高橋朋宏|bangumi_producer_cjk_5e4cbc|高橋朋宏
+株式会社ニノヤ|bangumi_producer_cjk_5ea95e|株式会社ニノヤ
+动画革命东京|bangumi_producer_cjk_5f3d58|动画革命东京
+亀井修|bangumi_producer_cjk_5f708e|亀井修
+上野勲|bangumi_producer_cjk_5fd6a8|上野勲
+じゅうしぃまんご～|bangumi_producer_cjk_605624|じゅうしぃまんご～
+吉澤隆|bangumi_producer_cjk_60a362|吉澤隆
+森山義秀|bangumi_producer_cjk_610c0d|森山義秀
+平体雄二|bangumi_producer_cjk_612108|平体雄二
+青木泰憲|bangumi_producer_cjk_614335|青木泰憲
+村上仁之|bangumi_producer_cjk_61552d|村上仁之
+河本浩一|bangumi_producer_cjk_618ce2|河本浩一
+油井卓也|bangumi_producer_cjk_61a8de|油井卓也
+高谷与志人|bangumi_producer_cjk_61bb25|高谷与志人
+大久保明子|bangumi_producer_cjk_61bd57|大久保明子
+山本又一朗|bangumi_producer_cjk_62595c|山本又一朗
+岩瀬安輝|bangumi_producer_cjk_62dc4c|岩瀬安輝
+細田邦治|bangumi_producer_cjk_62f880|細田邦治
+アブジャン|bangumi_producer_cjk_63c598|アブジャン
+米川贤一|bangumi_producer_cjk_64bed9|米川贤一
+中村直樹|bangumi_producer_cjk_651973|中村直樹
+ヨコシネ ディー アイ エー|bangumi_producer_cjk_654614|ヨコシネ ディー アイ エー
+グルーヴ|bangumi_producer_cjk_6554cc|グルーヴ
+服部優太|bangumi_producer_cjk_656cf5|服部優太
+市野直親|bangumi_producer_cjk_65b104|市野直親
+土方真|bangumi_producer_cjk_65c269|土方真
+野口和紀|bangumi_producer_cjk_65c9c5|野口和紀
+大高健生|bangumi_producer_cjk_664659|大高健生
+宮城惣次|bangumi_producer_cjk_667ee4|宮城惣次
+村上恒一(|bangumi_producer_cjk_669e2d|村上恒一(
+神部宗之|bangumi_producer_cjk_66c3af|神部宗之
+東芝エンタテインメント|bangumi_producer_cjk_66e5af|東芝エンタテインメント
+海道司|bangumi_producer_cjk_66e81f|海道司
+児島宏明|bangumi_producer_cjk_67199c|児島宏明
+金城綾香|bangumi_producer_cjk_6754b9|金城綾香
+伊藤泰斗|bangumi_producer_cjk_6872f6|伊藤泰斗
+本橋浩一|bangumi_producer_cjk_68fdbd|本橋浩一
+永野優希|bangumi_producer_cjk_692797|永野優希
+李阳|bangumi_producer_cjk_6944d9|李阳
+阿部謙三|bangumi_producer_cjk_699727|阿部謙三
+松嵜義之|bangumi_producer_cjk_69cf5f|松嵜義之
+笹木孝弘|bangumi_producer_cjk_69cfe1|笹木孝弘
+中本健二|bangumi_producer_cjk_6a9ac1|中本健二
+栗尾和真|bangumi_producer_cjk_6abf08|栗尾和真
+浅間陽介|bangumi_producer_cjk_6b2798|浅間陽介
+丸山俊平|bangumi_producer_cjk_6b359f|丸山俊平
+南川達馬|bangumi_producer_cjk_6b5a69|南川達馬
+山野詠子|bangumi_producer_cjk_6b87ff|山野詠子
+新倉俊哉|bangumi_producer_cjk_6b8d3f|新倉俊哉
+原徹|bangumi_producer_cjk_6b99f6|原徹
+筒井亥彦|bangumi_producer_cjk_6bd576|筒井亥彦
+佐藤現 東映ビデオ|bangumi_producer_cjk_6bde61|佐藤現 東映ビデオ
+李永進|bangumi_producer_cjk_6c9bf1|李永進
+飯島弘光|bangumi_producer_cjk_6cd279|飯島弘光
+宮城夢乃|bangumi_producer_cjk_6cee89|宮城夢乃
+小野田壮吉|bangumi_producer_cjk_6d1903|小野田壮吉
+北京写乐美术艺术品有限公司|bangumi_producer_cjk_6defcf|北京写乐美术艺术品有限公司
+石渡章博|bangumi_producer_cjk_6f1f40|石渡章博
+石山貴大|bangumi_producer_cjk_6f4617|石山貴大
+桑原佳子|bangumi_producer_cjk_6fb47e|桑原佳子
+森田圭|bangumi_producer_cjk_6fe0c0|森田圭
+家庭菜園|bangumi_producer_cjk_6ffc28|家庭菜園
+布鲁斯·提姆|bangumi_producer_cjk_706799|布鲁斯·提姆
+日笠淳|bangumi_producer_cjk_7091b8|日笠淳
+乙川将志|bangumi_producer_cjk_70dff6|乙川将志
+野田楓子|bangumi_producer_cjk_7102e7|野田楓子
+山﨑剛|bangumi_producer_cjk_715e4f|山﨑剛
+林辰朗|bangumi_producer_cjk_71b815|林辰朗
+菅野ひろゆき|bangumi_producer_cjk_71fcf7|菅野ひろゆき
+長谷川巽|bangumi_producer_cjk_71fee6|長谷川巽
+北川俊樹|bangumi_producer_cjk_726277|北川俊樹
+平野隆|bangumi_producer_cjk_72a27e|平野隆
+三宅容介|bangumi_producer_cjk_72cd17|三宅容介
+肥田光久|bangumi_producer_cjk_72e7b0|肥田光久
+住友英司|bangumi_producer_cjk_730244|住友英司
+河西秀幸|bangumi_producer_cjk_733dc1|河西秀幸
+細字慶一|bangumi_producer_cjk_73cc55|細字慶一
+三田圭志|bangumi_producer_cjk_73ec85|三田圭志
+浅尾芳宣|bangumi_producer_cjk_745369|浅尾芳宣
+周嘉伟|bangumi_producer_cjk_74564c|周嘉伟
+ガンジス|bangumi_producer_cjk_7482e2|ガンジス
+小田玲奈|bangumi_producer_cjk_74bb5c|小田玲奈
+丸亮二|bangumi_producer_cjk_74c2ce|丸亮二
+菅原弘文|bangumi_producer_cjk_753ec5|菅原弘文
+魅力动画|bangumi_producer_cjk_75b58f|魅力动画
+佐野亜裕美|bangumi_producer_cjk_7601a5|佐野亜裕美
+速达|bangumi_producer_cjk_766d5f|速达
+山田公平|bangumi_producer_cjk_76c7ad|山田公平
+大野実|bangumi_producer_cjk_76f92f|大野実
+萬波賢|bangumi_producer_cjk_778cc0|萬波賢
+若林豪|bangumi_producer_cjk_77a904|若林豪
+千葉博己|bangumi_producer_cjk_77b258|千葉博己
+唐礼|bangumi_producer_cjk_77c7fc|唐礼
+蛭田成一|bangumi_producer_cjk_77ff25|蛭田成一
+富岡哲也|bangumi_producer_cjk_7882f3|富岡哲也
+国立康秀|bangumi_producer_cjk_78fe05|国立康秀
+波田野瞬|bangumi_producer_cjk_792b9e|波田野瞬
+堤天心|bangumi_producer_cjk_79f2f1|堤天心
+イメージハウス|bangumi_producer_cjk_79ff1f|イメージハウス
+万维猫动画|bangumi_producer_cjk_7a0331|万维猫动画
+橋本真英|bangumi_producer_cjk_7b08e3|橋本真英
+大倉寛子|bangumi_producer_cjk_7b29d9|大倉寛子
+梅原勝|bangumi_producer_cjk_7b2ea1|梅原勝
+尾崎武士|bangumi_producer_cjk_7b642e|尾崎武士
+佐藤奏太|bangumi_producer_cjk_7b6f50|佐藤奏太
+佐々木基|bangumi_producer_cjk_7b7635|佐々木基
+關永忠|bangumi_producer_cjk_7be0b8|關永忠
+大西良昌|bangumi_producer_cjk_7c39c8|大西良昌
+井上千尋|bangumi_producer_cjk_7c7227|井上千尋
+植田文郎|bangumi_producer_cjk_7caa86|植田文郎
+水月紗鳥|bangumi_producer_cjk_7d00c9|水月紗鳥
+清田創也|bangumi_producer_cjk_7d53fd|清田創也
+太田大|bangumi_producer_cjk_7d8b5a|太田大
+高橋剛史|bangumi_producer_cjk_7dbed5|高橋剛史
+工藤啓介|bangumi_producer_cjk_7e108e|工藤啓介
+有賀健|bangumi_producer_cjk_7e9f55|有賀健
+山田香穂|bangumi_producer_cjk_7ede98|山田香穂
+永野雅彦|bangumi_producer_cjk_7ee96b|永野雅彦
+西崎義展|bangumi_producer_cjk_7f14d8|西崎義展
+壺田重三|bangumi_producer_cjk_7f6f7f|壺田重三
+伊藤耕一郎|bangumi_producer_cjk_7fc09b|伊藤耕一郎
+大垣一穂|bangumi_producer_cjk_80aacf|大垣一穂
+アセンション|bangumi_producer_cjk_80ad4b|アセンション
+安藤盛治|bangumi_producer_cjk_80e7b3|安藤盛治
+久保秀彰|bangumi_producer_cjk_80eb95|久保秀彰
+田代早苗|bangumi_producer_cjk_80f733|田代早苗
+はなかっぱプロジェクト|bangumi_producer_cjk_813584|はなかっぱプロジェクト
+フロンティア|bangumi_producer_cjk_815aeb|フロンティア
+ネオメディア|bangumi_producer_cjk_82367d|ネオメディア
+別紙壮一|bangumi_producer_cjk_826761|別紙壮一
+日高功|bangumi_producer_cjk_82b804|日高功
+糀谷智司|bangumi_producer_cjk_833c22|糀谷智司
+小松茂明|bangumi_producer_cjk_839ce9|小松茂明
+井口健一|bangumi_producer_cjk_83bde7|井口健一
+小板橋司|bangumi_producer_cjk_84744e|小板橋司
+ボイジヤーホールデイングス|bangumi_producer_cjk_850f54|ボイジヤーホールデイングス
+ぽこもぷれみあむ|bangumi_producer_cjk_859d41|ぽこもぷれみあむ
+加藤長輝|bangumi_producer_cjk_86b820|加藤長輝
+番泰之|bangumi_producer_cjk_86c667|番泰之
+秋本武英|bangumi_producer_cjk_8709a9|秋本武英
+佐藤敦司|bangumi_producer_cjk_87531d|佐藤敦司
+罗嘉|bangumi_producer_cjk_877a27|罗嘉
+株式会社インターネット|bangumi_producer_cjk_879f57|株式会社インターネット
+源生哲雄|bangumi_producer_cjk_87a27c|源生哲雄
+林直孝|bangumi_producer_cjk_87b65d|林直孝
+櫻井圭記|bangumi_producer_cjk_8804d9|櫻井圭記
+神田修吉|bangumi_producer_cjk_886179|神田修吉
+馬場英雄|bangumi_producer_cjk_8877a8|馬場英雄
+シー|bangumi_producer_cjk_8880ce|シー
+田淵俊彦|bangumi_producer_cjk_8886b8|田淵俊彦
+稲田秀樹|bangumi_producer_cjk_88a955|稲田秀樹
+斎春雄|bangumi_producer_cjk_88c18a|斎春雄
+松谷浩明|bangumi_producer_cjk_88c9d7|松谷浩明
+青木絵理子|bangumi_producer_cjk_88ce93|青木絵理子
+蔵本昌也|bangumi_producer_cjk_88d47e|蔵本昌也
+佐藤俊彦|bangumi_producer_cjk_89c0ce|佐藤俊彦
+新宿五郎|bangumi_producer_cjk_8a60fa|新宿五郎
+濱名一哉|bangumi_producer_cjk_8b6ba7|濱名一哉
+福永佳祐|bangumi_producer_cjk_8bc717|福永佳祐
+神谷浩|bangumi_producer_cjk_8bf0a2|神谷浩
+マーマレード★スター|bangumi_producer_cjk_8c56e2|マーマレード★スター
+渡辺裕介|bangumi_producer_cjk_8d1183|渡辺裕介
+古賀誠一|bangumi_producer_cjk_8d1a00|古賀誠一
+京谷知美|bangumi_producer_cjk_8d6747|京谷知美
+薛小明|bangumi_producer_cjk_8e0da0|薛小明
+高田慎二郎|bangumi_producer_cjk_8e0f75|高田慎二郎
+さかいあきお|bangumi_producer_cjk_8e18ae|さかいあきお
+马场隆博|bangumi_producer_cjk_8e5a56|马场隆博
+鳥海尽三|bangumi_producer_cjk_8e7e2b|鳥海尽三
+上海宸垣文化传播有限公司|bangumi_producer_cjk_8f37d7|上海宸垣文化传播有限公司
+古里尚丈|bangumi_producer_cjk_8f4fe7|古里尚丈
+小川翼|bangumi_producer_cjk_8fd2e5|小川翼
+藤原利紀|bangumi_producer_cjk_8fedc1|藤原利紀
+漆間宏一|bangumi_producer_cjk_9050fb|漆間宏一
+岩田祐二|bangumi_producer_cjk_91300a|岩田祐二
+長谷川洋|bangumi_producer_cjk_91dac6|長谷川洋
+鹿嶌舜|bangumi_producer_cjk_922d49|鹿嶌舜
+浅野敦也|bangumi_producer_cjk_923bd2|浅野敦也
+森下和清|bangumi_producer_cjk_924e51|森下和清
+杨晓轩|bangumi_producer_cjk_9349ff|杨晓轩
+渡辺信也|bangumi_producer_cjk_93625b|渡辺信也
+椿宜和|bangumi_producer_cjk_93a388|椿宜和
+大槻宏美|bangumi_producer_cjk_93acf4|大槻宏美
+辻俊一|bangumi_producer_cjk_93ddbb|辻俊一
+山西太平|bangumi_producer_cjk_93e96c|山西太平
+田雪姣|bangumi_producer_cjk_93ec19|田雪姣
+松村俊輔|bangumi_producer_cjk_944f51|松村俊輔
+中野和雄|bangumi_producer_cjk_94a02b|中野和雄
+加藤章一|bangumi_producer_cjk_94ad6e|加藤章一
+中澤工|bangumi_producer_cjk_9523ac|中澤工
+稲垣敬文|bangumi_producer_cjk_95dea6|稲垣敬文
+武田邦裕|bangumi_producer_cjk_96206c|武田邦裕
+渡邉浩仁|bangumi_producer_cjk_966bef|渡邉浩仁
+土居由直|bangumi_producer_cjk_969d4a|土居由直
+戚其義|bangumi_producer_cjk_96c79f|戚其義
+橋本芙美|bangumi_producer_cjk_96eecb|橋本芙美
+王媛|bangumi_producer_cjk_980491|王媛
+瀬戸敬太|bangumi_producer_cjk_9805fa|瀬戸敬太
+恋純ほたる|bangumi_producer_cjk_98bfe2|恋純ほたる
+トーハン|bangumi_producer_cjk_993dcf|トーハン
+高橋和也|bangumi_producer_cjk_9983d5|高橋和也
+张淳|bangumi_producer_cjk_99cadd|张淳
+大川博史|bangumi_producer_cjk_9ae6f9|大川博史
+後藤靖彦|bangumi_producer_cjk_9af443|後藤靖彦
+佐野航|bangumi_producer_cjk_9be981|佐野航
+飯田義弘|bangumi_producer_cjk_9cbafa|飯田義弘
+齋藤優一郎|bangumi_producer_cjk_9cff1e|齋藤優一郎
+琉姫アルナ|bangumi_producer_cjk_9db00f|琉姫アルナ
+奥山真吾|bangumi_producer_cjk_9deada|奥山真吾
+黒田悠生|bangumi_producer_cjk_9e02d7|黒田悠生
+大塚宏樹|bangumi_producer_cjk_9e270a|大塚宏樹
+岡田武士|bangumi_producer_cjk_9e9db7|岡田武士
+中野利幸|bangumi_producer_cjk_9ea2c7|中野利幸
+九里一平|bangumi_producer_cjk_9ed281|九里一平
+高揚帆|bangumi_producer_cjk_9f07f5|高揚帆
+蜜蜂社|bangumi_producer_cjk_9f744d|蜜蜂社
+松原達也|bangumi_producer_cjk_a01486|松原達也
+木田和哉|bangumi_producer_cjk_a0bcaf|木田和哉
+王天林|bangumi_producer_cjk_a0c01f|王天林
+小岐須泰世|bangumi_producer_cjk_a15673|小岐須泰世
+安齋富夫|bangumi_producer_cjk_a1af3d|安齋富夫
+矢田晃一 東映エージエンシー|bangumi_producer_cjk_a1c599|矢田晃一 東映エージエンシー
+渋谷晃尚|bangumi_producer_cjk_a1c85e|渋谷晃尚
+米沢圭亮|bangumi_producer_cjk_a25d36|米沢圭亮
+筆谷芳行|bangumi_producer_cjk_a285b8|筆谷芳行
+高橋亮平|bangumi_producer_cjk_a2bf99|高橋亮平
+村崎孝行|bangumi_producer_cjk_a2d015|村崎孝行
+クラージュ|bangumi_producer_cjk_a3208a|クラージュ
+吉田健二|bangumi_producer_cjk_a34043|吉田健二
+池本昌仁|bangumi_producer_cjk_a3eaab|池本昌仁
+山下聡|bangumi_producer_cjk_a67097|山下聡
+島村真輔|bangumi_producer_cjk_a678ad|島村真輔
+柏木真|bangumi_producer_cjk_a6d126|柏木真
+井上衛|bangumi_producer_cjk_a72c25|井上衛
+清水優人|bangumi_producer_cjk_a7d2c2|清水優人
+吉岡拓也|bangumi_producer_cjk_a8ef0f|吉岡拓也
+清家優輝|bangumi_producer_cjk_a90149|清家優輝
+向井達矢|bangumi_producer_cjk_a9416f|向井達矢
+渡辺良介|bangumi_producer_cjk_a95640|渡辺良介
+藤尾勉|bangumi_producer_cjk_a9e9ef|藤尾勉
+吉川斌|bangumi_producer_cjk_aa022a|吉川斌
+高橋望|bangumi_producer_cjk_aa4df5|高橋望
+遠田孝一|bangumi_producer_cjk_aafa2b|遠田孝一
+清田穣二|bangumi_producer_cjk_ab3a26|清田穣二
+唐云康|bangumi_producer_cjk_aba16b|唐云康
+吉田剛|bangumi_producer_cjk_ac0fd1|吉田剛
+ヘバラキ|bangumi_producer_cjk_ac1a3f|ヘバラキ
+池田東陽|bangumi_producer_cjk_ad099d|池田東陽
+下山潤|bangumi_producer_cjk_ad3d9e|下山潤
+神崎良|bangumi_producer_cjk_ade1ad|神崎良
+磯山敦|bangumi_producer_cjk_ae053a|磯山敦
+神通勉|bangumi_producer_cjk_ae1cc2|神通勉
+成田明浩|bangumi_producer_cjk_ae3cd3|成田明浩
+根本侑果|bangumi_producer_cjk_aea060|根本侑果
+菊池雄一郎|bangumi_producer_cjk_aed921|菊池雄一郎
+西啓|bangumi_producer_cjk_af050e|西啓
+諏訪豊|bangumi_producer_cjk_af57e5|諏訪豊
+河井敬介|bangumi_producer_cjk_af7afe|河井敬介
+大平将史|bangumi_producer_cjk_af981e|大平将史
+黄思齐|bangumi_producer_cjk_afbb52|黄思齐
+近藤文吾|bangumi_producer_cjk_b0b2d5|近藤文吾
+宇佐美廉|bangumi_producer_cjk_b12ea1|宇佐美廉
+早坂一将|bangumi_producer_cjk_b14c48|早坂一将
+土肥範子|bangumi_producer_cjk_b1a180|土肥範子
+魏本娜|bangumi_producer_cjk_b1e507|魏本娜
+別所孝治|bangumi_producer_cjk_b201b2|別所孝治
+立石啓介|bangumi_producer_cjk_b2320c|立石啓介
+林宏之|bangumi_producer_cjk_b25642|林宏之
+山科誠|bangumi_producer_cjk_b2835a|山科誠
+千葉行利|bangumi_producer_cjk_b38b21|千葉行利
+アトリエこぶ|bangumi_producer_cjk_b3a095|アトリエこぶ
+榎本歩光|bangumi_producer_cjk_b3e5a0|榎本歩光
+和田薫|bangumi_producer_cjk_b3efa7|和田薫
+加藤晋一朗|bangumi_producer_cjk_b41162|加藤晋一朗
+金苗将宏|bangumi_producer_cjk_b42094|金苗将宏
+大島和樹|bangumi_producer_cjk_b43996|大島和樹
+小松幸敏|bangumi_producer_cjk_b4601c|小松幸敏
+丸山真哉|bangumi_producer_cjk_b49a2f|丸山真哉
+河野英裕|bangumi_producer_cjk_b4b22d|河野英裕
+細貝康介|bangumi_producer_cjk_b4e371|細貝康介
+本川耕平|bangumi_producer_cjk_b51b6b|本川耕平
+金丸裕|bangumi_producer_cjk_b56e3d|金丸裕
+市川和弘|bangumi_producer_cjk_b5ca10|市川和弘
+スタジオグラム|bangumi_producer_cjk_b6c210|スタジオグラム
+羽鳥健一|bangumi_producer_cjk_b76be7|羽鳥健一
+佐藤貴博|bangumi_producer_cjk_b7ee47|佐藤貴博
+陈晓璐|bangumi_producer_cjk_b8c7b7|陈晓璐
+沢登昌樹|bangumi_producer_cjk_ba318e|沢登昌樹
+冨田功一郎|bangumi_producer_cjk_ba6949|冨田功一郎
+服部健太郎|bangumi_producer_cjk_bad225|服部健太郎
+前田健太|bangumi_producer_cjk_bb0cc2|前田健太
+苏州炫酷文化传播有限公司|bangumi_producer_cjk_bb0da7|苏州炫酷文化传播有限公司
+久米憲司|bangumi_producer_cjk_bb94ba|久米憲司
+李辉|bangumi_producer_cjk_bba6b3|李辉
+李筱婷|bangumi_producer_cjk_bba9e3|李筱婷
+山田良輔|bangumi_producer_cjk_bbaae6|山田良輔
+崎田康平|bangumi_producer_cjk_bc74c5|崎田康平
+楽音舎|bangumi_producer_cjk_bcd7cd|楽音舎
+武田京市|bangumi_producer_cjk_bd306b|武田京市
+鄺業生|bangumi_producer_cjk_bd3ad3|鄺業生
+松井千夏|bangumi_producer_cjk_bd860c|松井千夏
+小川正和|bangumi_producer_cjk_bdb812|小川正和
+管爱如|bangumi_producer_cjk_be4ed4|管爱如
+岡恒成|bangumi_producer_cjk_be7f62|岡恒成
+岡正|bangumi_producer_cjk_bead57|岡正
+""",
+        """渡辺忠美|bangumi_producer_cjk_beb14c|渡辺忠美
+満田かずほ|bangumi_producer_cjk_c00f9c|満田かずほ
+五十嵐慶|bangumi_producer_cjk_c02441|五十嵐慶
+杜刚阳|bangumi_producer_cjk_c0a8f6|杜刚阳
+成河広明|bangumi_producer_cjk_c10f77|成河広明
+中沢利洋|bangumi_producer_cjk_c15b10|中沢利洋
+石塚正俊|bangumi_producer_cjk_c1f796|石塚正俊
+中谷諭史|bangumi_producer_cjk_c1fd22|中谷諭史
+内田順久|bangumi_producer_cjk_c27f9f|内田順久
+ミュージックコミュニケーションズ|bangumi_producer_cjk_c290ea|ミュージックコミュニケーションズ
+佐藤昭司|bangumi_producer_cjk_c2b4da|佐藤昭司
+川島永次|bangumi_producer_cjk_c2bb3c|川島永次
+小川慶人|bangumi_producer_cjk_c31d52|小川慶人
+井元隆佑|bangumi_producer_cjk_c31de4|井元隆佑
+遠藤正樹|bangumi_producer_cjk_c3eb53|遠藤正樹
+有迫俊彦|bangumi_producer_cjk_c4099c|有迫俊彦
+佐川直子|bangumi_producer_cjk_c41a72|佐川直子
+松永康佑|bangumi_producer_cjk_c48488|松永康佑
+瀬尾順|bangumi_producer_cjk_c4883f|瀬尾順
+武井英彦|bangumi_producer_cjk_c4ab94|武井英彦
+平野強|bangumi_producer_cjk_c4ea54|平野強
+田中快|bangumi_producer_cjk_c58bac|田中快
+祁答院慎|bangumi_producer_cjk_c5a93f|祁答院慎
+貸川聡子|bangumi_producer_cjk_c5e13f|貸川聡子
+後藤庸介|bangumi_producer_cjk_c64ad5|後藤庸介
+蔡明宏|bangumi_producer_cjk_c6e842|蔡明宏
+デジタル|bangumi_producer_cjk_c7786c|デジタル
+磯山晶|bangumi_producer_cjk_c7b2a4|磯山晶
+新島夕|bangumi_producer_cjk_c7d4fd|新島夕
+町隆幸|bangumi_producer_cjk_c8a3f2|町隆幸
+小菅秀徳|bangumi_producer_cjk_c93a83|小菅秀徳
+森川真行|bangumi_producer_cjk_c95696|森川真行
+岡田美穂|bangumi_producer_cjk_c9a037|岡田美穂
+松岡雄浩|bangumi_producer_cjk_c9acea|松岡雄浩
+長松谷太郎|bangumi_producer_cjk_ca09c3|長松谷太郎
+中間利彦|bangumi_producer_cjk_ca7302|中間利彦
+元信克則|bangumi_producer_cjk_caaa41|元信克則
+池袋ダラーズ|bangumi_producer_cjk_cb4d3f|池袋ダラーズ
+贾磊|bangumi_producer_cjk_cb888e|贾磊
+佐々木雄人|bangumi_producer_cjk_cb91a8|佐々木雄人
+ラッココツコツアニメーション|bangumi_producer_cjk_cc9fa9|ラッココツコツアニメーション
+佐野弘明|bangumi_producer_cjk_ccd9d3|佐野弘明
+岡野真紀子|bangumi_producer_cjk_cd8153|岡野真紀子
+豊福陽子|bangumi_producer_cjk_cd8e80|豊福陽子
+大嶋実句|bangumi_producer_cjk_cdc874|大嶋実句
+森田大児|bangumi_producer_cjk_cdda7f|森田大児
+福井雄太|bangumi_producer_cjk_ce0c65|福井雄太
+稲垣亮祐|bangumi_producer_cjk_ce264c|稲垣亮祐
+朱贝宁|bangumi_producer_cjk_cecf9d|朱贝宁
+神木優|bangumi_producer_cjk_cf0c69|神木優
+黒岩康文|bangumi_producer_cjk_cf80cb|黒岩康文
+森下俊一|bangumi_producer_cjk_cfb3d1|森下俊一
+水野綾子|bangumi_producer_cjk_d05b4a|水野綾子
+弘森魚|bangumi_producer_cjk_d07824|弘森魚
+中尾幸彦|bangumi_producer_cjk_d10100|中尾幸彦
+西村謙人|bangumi_producer_cjk_d16c5e|西村謙人
+宏梦卡通|bangumi_producer_cjk_d219c2|宏梦卡通
+でじたろう|bangumi_producer_cjk_d31fc4|でじたろう
+新井順子|bangumi_producer_cjk_d333b9|新井順子
+本間道幸|bangumi_producer_cjk_d33839|本間道幸
+アールケイ|bangumi_producer_cjk_d35fbb|アールケイ
+伊藤拓己|bangumi_producer_cjk_d36c2d|伊藤拓己
+一泽映画|bangumi_producer_cjk_d41250|一泽映画
+和田和久|bangumi_producer_cjk_d415ac|和田和久
+柴宏和|bangumi_producer_cjk_d444eb|柴宏和
+川口典孝|bangumi_producer_cjk_d45e6f|川口典孝
+丸山裕之|bangumi_producer_cjk_d46adf|丸山裕之
+高塚新吾|bangumi_producer_cjk_d4cf15|高塚新吾
+田宮武|bangumi_producer_cjk_d4e13f|田宮武
+山田賢志郎|bangumi_producer_cjk_d51304|山田賢志郎
+トロイメライアニメーションスタジオ|bangumi_producer_cjk_d5b434|トロイメライアニメーションスタジオ
+李添勝|bangumi_producer_cjk_d6d48a|李添勝
+河瀬光|bangumi_producer_cjk_d6fb1c|河瀬光
+发飙的蜗牛|bangumi_producer_cjk_d72e06|发飙的蜗牛
+蒔田光治|bangumi_producer_cjk_d7a49d|蒔田光治
+子安喜美子|bangumi_producer_cjk_d82333|子安喜美子
+大貫一雄|bangumi_producer_cjk_d8a5d4|大貫一雄
+細川修|bangumi_producer_cjk_d91bd4|細川修
+納谷僚介|bangumi_producer_cjk_d93e10|納谷僚介
+片山悠樹|bangumi_producer_cjk_d94cef|片山悠樹
+鈴木亜希乃|bangumi_producer_cjk_d9b940|鈴木亜希乃
+庄司隆三|bangumi_producer_cjk_d9c787|庄司隆三
+向井悠樹|bangumi_producer_cjk_da252f|向井悠樹
+山本暎一|bangumi_producer_cjk_da9c37|山本暎一
+永富大地|bangumi_producer_cjk_db50cb|永富大地
+黄磊|bangumi_producer_cjk_dbcf61|黄磊
+釜秀樹→塩入大介→山中一孝|bangumi_producer_cjk_dc87a2|釜秀樹→塩入大介→山中一孝
+金田大輔|bangumi_producer_cjk_dcd1cd|金田大輔
+井上めぐみ|bangumi_producer_cjk_dce737|井上めぐみ
+牟田口新一郎|bangumi_producer_cjk_dd3a6c|牟田口新一郎
+鈴木孝明|bangumi_producer_cjk_dd8df9|鈴木孝明
+平岡利介|bangumi_producer_cjk_dd99a3|平岡利介
+米沢恵美|bangumi_producer_cjk_ddadaa|米沢恵美
+张弘|bangumi_producer_cjk_ddd2d5|张弘
+トライフォース|bangumi_producer_cjk_de53d3|トライフォース
+長谷川博哉|bangumi_producer_cjk_de5ea9|長谷川博哉
+高見義雄|bangumi_producer_cjk_de8c74|高見義雄
+仲寿和|bangumi_producer_cjk_ded97f|仲寿和
+シロガネーゼ侯爵|bangumi_producer_cjk_df2fc3|シロガネーゼ侯爵
+龚磊|bangumi_producer_cjk_df5e45|龚磊
+梁文志|bangumi_producer_cjk_e02b16|梁文志
+池上昌平|bangumi_producer_cjk_e04f46|池上昌平
+加藤良雄|bangumi_producer_cjk_e18d19|加藤良雄
+栗原美和子|bangumi_producer_cjk_e1c276|栗原美和子
+林瑛介|bangumi_producer_cjk_e23a49|林瑛介
+松野千鶴子|bangumi_producer_cjk_e24028|松野千鶴子
+紫煉|bangumi_producer_cjk_e24490|紫煉
+長部聡介|bangumi_producer_cjk_e25da4|長部聡介
+鈴間広枝|bangumi_producer_cjk_e25fb7|鈴間広枝
+内山雅博|bangumi_producer_cjk_e2a4f9|内山雅博
+五箇公貴|bangumi_producer_cjk_e2baa3|五箇公貴
+八神和彦|bangumi_producer_cjk_e39bed|八神和彦
+高野宏一|bangumi_producer_cjk_e44a4c|高野宏一
+ラビットゲート|bangumi_producer_cjk_e4a640|ラビットゲート
+田中辰弥|bangumi_producer_cjk_e57162|田中辰弥
+山本晃久|bangumi_producer_cjk_e57aa6|山本晃久
+松本整|bangumi_producer_cjk_e57b08|松本整
+目黒正之|bangumi_producer_cjk_e5a7d9|目黒正之
+木村純一|bangumi_producer_cjk_e5cec1|木村純一
+淡野正|bangumi_producer_cjk_e63f09|淡野正
+中田康孝|bangumi_producer_cjk_e6a568|中田康孝
+渋谷未来|bangumi_producer_cjk_e6ccfa|渋谷未来
+瀬古口拓也|bangumi_producer_cjk_e703b5|瀬古口拓也
+坪井信人|bangumi_producer_cjk_e7126e|坪井信人
+テック|bangumi_producer_cjk_e7c2be|テック
+見留多佳城|bangumi_producer_cjk_e7f43d|見留多佳城
+小笠原由記|bangumi_producer_cjk_e8497a|小笠原由記
+蔡东青|bangumi_producer_cjk_e9133e|蔡东青
+中野伸二|bangumi_producer_cjk_e96ff2|中野伸二
+橋本信太郎|bangumi_producer_cjk_e97117|橋本信太郎
+吉成孝昌|bangumi_producer_cjk_e98b47|吉成孝昌
+斎藤朋之|bangumi_producer_cjk_e9a5dd|斎藤朋之
+池田慎一|bangumi_producer_cjk_e9b16a|池田慎一
+石井龍|bangumi_producer_cjk_ea576c|石井龍
+菅野あゆみ|bangumi_producer_cjk_ea9cab|菅野あゆみ
+岡美鶴|bangumi_producer_cjk_eac7e6|岡美鶴
+松原一哲|bangumi_producer_cjk_eaea69|松原一哲
+袁峰|bangumi_producer_cjk_eaed86|袁峰
+春名剛生|bangumi_producer_cjk_eaf58c|春名剛生
+横田正明|bangumi_producer_cjk_eb308f|横田正明
+妄想実現めでぃあ|bangumi_producer_cjk_eb71e6|妄想実現めでぃあ
+藤村智子|bangumi_producer_cjk_ebb2c5|藤村智子
+今川寛隆|bangumi_producer_cjk_ec193b|今川寛隆
+高野希義|bangumi_producer_cjk_eca4e4|高野希義
+阿部勇|bangumi_producer_cjk_eccb37|阿部勇
+佐藤徹|bangumi_producer_cjk_ed0756|佐藤徹
+安田孝一|bangumi_producer_cjk_ee26f0|安田孝一
+山田兼司|bangumi_producer_cjk_ee2dd4|山田兼司
+古郡真也|bangumi_producer_cjk_ee982f|古郡真也
+下梶谷敦|bangumi_producer_cjk_eea49b|下梶谷敦
+尾崎雅之|bangumi_producer_cjk_eeb909|尾崎雅之
+汐口武史|bangumi_producer_cjk_ef11c7|汐口武史
+峠田浩|bangumi_producer_cjk_ef9190|峠田浩
+日本ビクター|bangumi_producer_cjk_efb8b8|日本ビクター
+八田真一郎|bangumi_producer_cjk_efcd9d|八田真一郎
+杨璐|bangumi_producer_cjk_f02aff|杨璐
+マウス|bangumi_producer_cjk_f06a95|マウス
+宮本典博|bangumi_producer_cjk_f0dfcf|宮本典博
+吉岡大輔|bangumi_producer_cjk_f16c87|吉岡大輔
+まつい|bangumi_producer_cjk_f25f28|まつい
+宮崎慎一|bangumi_producer_cjk_f262c5|宮崎慎一
+守屋光春|bangumi_producer_cjk_f2dc6a|守屋光春
+瀬戸口克陽|bangumi_producer_cjk_f2ef52|瀬戸口克陽
+本多史典|bangumi_producer_cjk_f2f852|本多史典
+瀬名快伸|bangumi_producer_cjk_f30bfa|瀬名快伸
+広沢二郎|bangumi_producer_cjk_f31705|広沢二郎
+笠間寿高|bangumi_producer_cjk_f33a8a|笠間寿高
+キュー|bangumi_producer_cjk_f348e7|キュー
+福原慶匡|bangumi_producer_cjk_f34e7e|福原慶匡
+山本喜彦|bangumi_producer_cjk_f3891e|山本喜彦
+神直利|bangumi_producer_cjk_f41448|神直利
+吉田雄哉|bangumi_producer_cjk_f41e01|吉田雄哉
+丁寧|bangumi_producer_cjk_f446de|丁寧
+エンゼルフィッシュ|bangumi_producer_cjk_f478a7|エンゼルフィッシュ
+田辺勇人|bangumi_producer_cjk_f4c543|田辺勇人
+沉默的章鱼|bangumi_producer_cjk_f530ff|沉默的章鱼
+入江祥雄|bangumi_producer_cjk_f564ab|入江祥雄
+柴田邦彦|bangumi_producer_cjk_f59d66|柴田邦彦
+志太駿介|bangumi_producer_cjk_f5ac8d|志太駿介
+足立和紀|bangumi_producer_cjk_f5c513|足立和紀
+藤文|bangumi_producer_cjk_f651c8|藤文
+江口浩平|bangumi_producer_cjk_f65c46|江口浩平
+西安摩摩信息技术有限公司|bangumi_producer_cjk_f660ad|西安摩摩信息技术有限公司
+高石明彦|bangumi_producer_cjk_f6d159|高石明彦
+森田昇|bangumi_producer_cjk_f6e2d2|森田昇
+闫丽华|bangumi_producer_cjk_f718dd|闫丽华
+杉山豊|bangumi_producer_cjk_f819b9|杉山豊
+狩野雄太|bangumi_producer_cjk_f838ef|狩野雄太
+小野川隆|bangumi_producer_cjk_fa0535|小野川隆
+宮西哲也|bangumi_producer_cjk_fa2078|宮西哲也
+渡辺僚一|bangumi_producer_cjk_fa827d|渡辺僚一
+瑛理楴花|bangumi_producer_cjk_fb2c6a|瑛理楴花
+潘琳琳|bangumi_producer_cjk_fb54a2|潘琳琳
+内田健二|bangumi_producer_cjk_fbdb18|内田健二
+大貫佑介|bangumi_producer_cjk_fbfdf1|大貫佑介
+スタジオ フラッド|bangumi_producer_cjk_fc0852|スタジオ フラッド
+松竹梅|bangumi_producer_cjk_fc6a5d|松竹梅
+磯部真彩|bangumi_producer_cjk_fc90e6|磯部真彩
+上田メタヲ|bangumi_producer_cjk_fe33e7|上田メタヲ
+エムケイ座|bangumi_producer_cjk_fe4176|エムケイ座
+石塚清和|bangumi_producer_cjk_fe4d45|石塚清和
+泉水いこ|bangumi_producer_cjk_ff3271|泉水いこ
+ドライブ|bangumi_producer_cjk_ff6e91|ドライブ
+鹿内植|bangumi_producer_cjk_ffbf79|鹿内植
+CLAPコミックス|bangumi_producer_clap|CLAP
+Constantin Film|bangumi_producer_constantin_film|Constantin Film
+cosMo@暴走P|bangumi_producer_cosmo_p|cosMo@暴走P
+丸山博雄 CP|bangumi_producer_cp_20|丸山博雄 CP
+黒田徹也 CP|bangumi_producer_cp_23|黒田徹也 CP
+伊藤響 CP|bangumi_producer_cp_3|伊藤響 CP
+大和健太郎 CP|bangumi_producer_cp_31|大和健太郎 CP
+五十嵐文郎 CP|bangumi_producer_cp_32|五十嵐文郎 CP
+前西和成 CP|bangumi_producer_cp_38|前西和成 CP
+佐藤凉一 CP|bangumi_producer_cp_43|佐藤凉一 CP
+阿部真士 CP|bangumi_producer_cp_64|阿部真士 CP
+太田哲夫 CP|bangumi_producer_cp_66|太田哲夫 CP
+广东原创动力文化传播有限公司|bangumi_producer_creative_power_entertaining|Creative Power Entertaining
+crouka|bangumi_producer_crouka|crouka
+CTW|bangumi_producer_ctw|CTW
+マイシアターD.D.|bangumi_producer_d_d|マイシアターD.D.
+大映|bangumi_producer_daiei|Daiei
+Daiei|bangumi_producer_daiei|Daiei
+Dave Filoni|bangumi_producer_dave_filoni|Dave Filoni
+Dixie Flatline|bangumi_producer_dixie_flatline|Dixie Flatline
+DJ OKAWARI|bangumi_producer_dj_okawari|DJ OKAWARI
+DJ Shimamura|bangumi_producer_dj_shimamura|DJ Shimamura
+DJ TECHNORCH|bangumi_producer_dj_technorch|DJ TECHNORCH
+DJ WILDPARTY|bangumi_producer_dj_wildparty|DJ WILDPARTY
+ダイナミック企画|bangumi_producer_dynamic_planning|Dynamic Planning
+Dynamic Planning|bangumi_producer_dynamic_planning|Dynamic Planning
+青沼英二|bangumi_producer_eiji_aonuma|Eiji Aonuma
+Eiji Aonuma|bangumi_producer_eiji_aonuma|Eiji Aonuma
+円谷英二|bangumi_producer_eiji_tsuburaya|Eiji Tsuburaya
+Eiji Tsuburaya|bangumi_producer_eiji_tsuburaya|Eiji Tsuburaya
+エクラアニマル|bangumi_producer_ekura_animal|Ekura Animal
+Ekura Animal|bangumi_producer_ekura_animal|Ekura Animal
+emon|bangumi_producer_emon|emon
+内山聖子 EP|bangumi_producer_ep_7|内山聖子 EP
+EXILE HIRO|bangumi_producer_exile_hiro|EXILE HIRO
+FLAT STUDIO|bangumi_producer_flat_studio|FLAT STUDIO
+Garry|bangumi_producer_garry|Garry
+ギークピクチュアズ|bangumi_producer_geek_pictures|GEEK PICTURES
+GEEK PICTURES|bangumi_producer_geek_pictures|GEEK PICTURES
+虚淵玄|bangumi_producer_gen_urobuchi|Gen Urobuchi
+Gen Urobuchi|bangumi_producer_gen_urobuchi|Gen Urobuchi
+GENCO|bangumi_producer_genco_2|GENCO
+Geno Studio|bangumi_producer_geno_studio|Geno Studio
+竹田玄洋|bangumi_producer_genyo_takeda|Genyo Takeda
+Genyo Takeda|bangumi_producer_genyo_takeda|Genyo Takeda
+Geoff Johns|bangumi_producer_geoff_johns|Geoff Johns
+GOLD BEAR|bangumi_producer_gold_bear|GOLD BEAR
+谷口悟朗|bangumi_producer_goro_taniguchi|Goro Taniguchi
+Goro Taniguchi|bangumi_producer_goro_taniguchi|Goro Taniguchi
+黒田徹也 GP|bangumi_producer_gp_2|黒田徹也 GP
+グリー|bangumi_producer_gree|GREE
+GREE|bangumi_producer_gree|GREE
+グリーエンターテインメント|bangumi_producer_gree_entertainment|GREE Entertainment
+GREE Entertainment|bangumi_producer_gree_entertainment|GREE Entertainment
+横井軍平|bangumi_producer_gunpei_yokoi|Gunpei Yokoi
+Gunpei Yokoi|bangumi_producer_gunpei_yokoi|Gunpei Yokoi
+博報堂|bangumi_producer_hakuhodo|Hakuhodo
+Hakuhodo|bangumi_producer_hakuhodo|Hakuhodo
+Hanil|bangumi_producer_hanil|Hanil
+ハピネットファントム・スタジオ|bangumi_producer_happinet_phantom_studio|Happinet Phantom Studio
+Happinet Phantom Studio|bangumi_producer_happinet_phantom_studio|Happinet Phantom Studio
+ハピネットファントム|bangumi_producer_happinet_phantom_studios|Happinet Phantom Studios
+Happinet Phantom Studios|bangumi_producer_happinet_phantom_studios|Happinet Phantom Studios
+Happy Elements|bangumi_producer_happy_elements|Happy Elements
+角川春樹|bangumi_producer_haruki_kadokawa|Haruki Kadokawa
+Haruki Kadokawa|bangumi_producer_haruki_kadokawa|Haruki Kadokawa
+Headphone-Tokyo|bangumi_producer_headphone_tokyo|Headphone-Tokyo
+Hedonist|bangumi_producer_hedonist|Hedonist
+小島秀夫|bangumi_producer_hideo_kojima|Hideo Kojima
+Hideo Kojima|bangumi_producer_hideo_kojima|Hideo Kojima
+HiLLS|bangumi_producer_hills|HiLLS
+神崎广|bangumi_producer_hiro_kanzaki|Hiro Kanzaki
+Hiro Kanzaki|bangumi_producer_hiro_kanzaki|Hiro Kanzaki
+かんざきひろ|bangumi_producer_hiro_kanzaki|Hiro Kanzaki
+坂口博信|bangumi_producer_hironobu_sakaguchi|Hironobu Sakaguchi
+Hironobu Sakaguchi|bangumi_producer_hironobu_sakaguchi|Hironobu Sakaguchi
+大川博|bangumi_producer_hiroshi_okawa|Hiroshi Okawa
+Hiroshi Okawa|bangumi_producer_hiroshi_okawa|Hiroshi Okawa
+澤野弘之|bangumi_producer_hiroyuki_sawano|Hiroyuki Sawano
+Hiroyuki Sawano|bangumi_producer_hiroyuki_sawano|Hiroyuki Sawano
+野上恒|bangumi_producer_hisashi_nogami|Hisashi Nogami
+Hisashi Nogami|bangumi_producer_hisashi_nogami|Hisashi Nogami
+黄伟明|bangumi_producer_huang_weiming|Huang Weiming
+Huang Weiming|bangumi_producer_huang_weiming|Huang Weiming
+黄一孟|bangumi_producer_huang_yimeng|Huang Yimeng
+Huang Yimeng|bangumi_producer_huang_yimeng|Huang Yimeng
+鹰角网络|bangumi_producer_hypergryph|Hypergryph
+Hypergryph|bangumi_producer_hypergryph|Hypergryph
+I&Sファクトリー|bangumi_producer_i_s|I&Sファクトリー
+IMAGICA Lab.|bangumi_producer_imagica_lab|IMAGICA Lab.
+Initial-N|bangumi_producer_initial_n|Initial-N
+Ivory Tower|bangumi_producer_ivory_tower|Ivory Tower
+J.J.Abrams|bangumi_producer_j_j_abrams|J. J. Abrams
+J. J. Abrams|bangumi_producer_j_j_abrams|J. J. Abrams
+JY Animation|bangumi_producer_jy_animation|JY Animation
+kamome sano|bangumi_producer_kamome_sano|kamome sano
+Kate|bangumi_producer_kate|Kate
+Kathleen Kennedy|bangumi_producer_kathleen_kennedy|Kathleen Kennedy
+太田克史|bangumi_producer_katsushi_ota|Katsushi Ota
+Katsushi Ota|bangumi_producer_katsushi_ota|Katsushi Ota
+鳥嶋和彦|bangumi_producer_kazuhiko_torishima|Kazuhiko Torishima
+Kazuhiko Torishima|bangumi_producer_kazuhiko_torishima|Kazuhiko Torishima
+中島かずき|bangumi_producer_kazuki_nakashima|Kazuki Nakashima
+Kazuki Nakashima|bangumi_producer_kazuki_nakashima|Kazuki Nakashima
+小高和剛|bangumi_producer_kazutaka_kodaka|Kazutaka Kodaka
+Kazutaka Kodaka|bangumi_producer_kazutaka_kodaka|Kazutaka Kodaka
+舛本和也|bangumi_producer_kazuya_masumoto|Kazuya Masumoto
+Kazuya Masumoto|bangumi_producer_kazuya_masumoto|Kazuya Masumoto
+稲船敬二|bangumi_producer_keiji_inafune|Keiji Inafune
+Keiji Inafune|bangumi_producer_keiji_inafune|Keiji Inafune
+Kenichi Chiba|bangumi_producer_kenichi_chiba|Kenichi Chiba
+田中谦介|bangumi_producer_kensuke_tanaka|Kensuke Tanaka
+奈須きのこ|bangumi_producer_kinoko_nasu|Kinoko Nasu
+Kinoko Nasu|bangumi_producer_kinoko_nasu|Kinoko Nasu
+木下グループ|bangumi_producer_kinoshita_group|Kinoshita Group
+Kinoshita Group|bangumi_producer_kinoshita_group|Kinoshita Group
+キティ・フィルム|bangumi_producer_kitty_films|Kitty Films
+Kitty Films|bangumi_producer_kitty_films|Kitty Films
+KLab株式会社|bangumi_producer_klab|KLab株式会社
+KOBATYU|bangumi_producer_kobatyu|KOBATYU
+Kyokuichi Tokyo Movie|bangumi_producer_kyokuichi_tokyo_movie|Kyokuichi Tokyo Movie
+L.|bangumi_producer_l|L.
+ランドック・スタジオ|bangumi_producer_landq_studios|LandQ Studios
+ランドック|bangumi_producer_landq_studios|LandQ Studios
+劉家豪|bangumi_producer_lau_ka_ho|Lau Ka-ho
+Lau Ka-ho|bangumi_producer_lau_ka_ho|Lau Ka-ho
+Lauren Shuler Donner|bangumi_producer_lauren_shuler_donner|Lauren Shuler Donner
+ローソンエンタテインメント|bangumi_producer_lawson_entertainment|Lawson Entertainment
+Lawson Entertainment|bangumi_producer_lawson_entertainment|Lawson Entertainment
+Le Dos-on|bangumi_producer_le_dos_on|Le Dos-on
+松本零士|bangumi_producer_leiji_matsumoto|Leiji Matsumoto
+Leiji Matsumoto|bangumi_producer_leiji_matsumoto|Leiji Matsumoto
+Light Chaser Animation Studios|bangumi_producer_light_chaser_animation_studios|Light Chaser Animation Studios
+Lionel Wigram|bangumi_producer_lionel_wigram|Lionel Wigram
+m.o.e.|bangumi_producer_m_o_e|m.o.e.
+MaF|bangumi_producer_maf|MaF
+毎日新聞社|bangumi_producer_mainichi_shimbun|Mainichi Shimbun
+Mainichi Shimbun|bangumi_producer_mainichi_shimbun|Mainichi Shimbun
+猫眼影业|bangumi_producer_maoyan_pictures|Maoyan Pictures
+Maoyan Pictures|bangumi_producer_maoyan_pictures|Maoyan Pictures
+丸紅|bangumi_producer_marubeni|Marubeni
+Marubeni|bangumi_producer_marubeni|Marubeni
+漫威娱乐|bangumi_producer_marvel_entertainment|Marvel Entertainment
+株式会社マーベラス|bangumi_producer_marvelous|Marvelous
+大塚雅彦|bangumi_producer_masahiko_otsuka|Masahiko Otsuka
+Masahiko Otsuka|bangumi_producer_masahiko_otsuka|Masahiko Otsuka
+MAYA AKAI|bangumi_producer_maya_akai|MAYA AKAI
+MiMiA Cute|bangumi_producer_mimia_cute|MiMiA Cute
+蜜 Mitsu|bangumi_producer_mitsu_2|蜜 Mitsu
+MiYAMO|bangumi_producer_miyamo|MiYAMO
+Mook Animation|bangumi_producer_mook_animation|Mook Animation
+MOONROCK|bangumi_producer_moonrock|MOONROCK
+MS Pictures|bangumi_producer_ms_pictures|MS Pictures
+NADA HOLDINGS|bangumi_producer_nada_holdings|NADA HOLDINGS
+NAMU PLUS|bangumi_producer_namu_plus|NAMU PLUS
+大川七瀬|bangumi_producer_nanase_ohkawa|Nanase Ohkawa
+Nanase Ohkawa|bangumi_producer_nanase_ohkawa|Nanase Ohkawa
+吉田直樹|bangumi_producer_naoki_yoshida|Naoki Yoshida
+Naoki Yoshida|bangumi_producer_naoki_yoshida|Naoki Yoshida
+nekutsu|bangumi_producer_nekutsu|nekutsu
+New Line Cinema|bangumi_producer_new_line_cinema|New Line Cinema
+ニューギン|bangumi_producer_newgin|Newgin
+Newgin|bangumi_producer_newgin|Newgin
+Nickelodeon Movies|bangumi_producer_nickelodeon_movies|Nickelodeon Movies
+NLsoft|bangumi_producer_nlsoft|NLsoft
+石黒昇|bangumi_producer_noboru_ishiguro|Noboru Ishiguro
+Noboru Ishiguro|bangumi_producer_noboru_ishiguro|Noboru Ishiguro
+川上量生|bangumi_producer_nobuo_kawakami|Nobuo Kawakami
+Nobuo Kawakami|bangumi_producer_nobuo_kawakami|Nobuo Kawakami
+オフィスクレッシェンド|bangumi_producer_office_crescendo|Office Crescendo
+Office Crescendo|bangumi_producer_office_crescendo|Office Crescendo
+opiumud|bangumi_producer_opiumud|opiumud
+Opiumud Studio|bangumi_producer_opiumud_studio|Opiumud Studio
+手塚治|bangumi_producer_osamu_tezuka|Osamu Tezuka
+Osamu Tezuka|bangumi_producer_osamu_tezuka|Osamu Tezuka
+OSTER project|bangumi_producer_oster_project|OSTER project
+ぽわぽわP|bangumi_producer_p_22|ぽわぽわP
+パルコ|bangumi_producer_parco|PARCO
+PARCO|bangumi_producer_parco|PARCO
+ぴあ|bangumi_producer_pia|PIA
+PIA|bangumi_producer_pia|PIA
+ピカンテサーカス|bangumi_producer_picante_circus|Picante Circus
+Picante Circus|bangumi_producer_picante_circus|Picante Circus
+Pioneer LDC|bangumi_producer_pioneer_ldc|Pioneer LDC
+project lights|bangumi_producer_project_lights|project lights
+Rasmus Faber|bangumi_producer_rasmus_faber|Rasmus Faber
+川原礫|bangumi_producer_reki_kawahara|Reki Kawahara
+Reki Kawahara|bangumi_producer_reki_kawahara|Reki Kawahara
+ROBOT|bangumi_producer_robot|Robot
+高橋良輔|bangumi_producer_ryosuke_takahashi|Ryosuke Takahashi
+Ryosuke Takahashi|bangumi_producer_ryosuke_takahashi|Ryosuke Takahashi
+竜騎士07|bangumi_producer_ryukishi07|Ryukishi07
+Ryukishi07|bangumi_producer_ryukishi07|Ryukishi07
+sasakure.UK|bangumi_producer_sasakure_uk|sasakure.UK
+SCA-自|bangumi_producer_sca|SCA-自
+Screen Gems|bangumi_producer_screen_gems|Screen Gems
+セディックインターナショナル|bangumi_producer_sedic_international|Sedic International
+Sedic International|bangumi_producer_sedic_international|Sedic International
+上海广播电视台|bangumi_producer_shanghai_media_group|Shanghai Media Group
+Shanghai Media Group|bangumi_producer_shanghai_media_group|Shanghai Media Group
+上海炫动|bangumi_producer_shanghai_toonmax_media|Shanghai Toonmax Media
+Shanghai Toonmax Media|bangumi_producer_shanghai_toonmax_media|Shanghai Toonmax Media
+村濱章司|bangumi_producer_shoji_murahama|Shoji Murahama
+Shoji Murahama|bangumi_producer_shoji_murahama|Shoji Murahama
+巧舟|bangumi_producer_shu_takumi|Shu Takumi
+Shu Takumi|bangumi_producer_shu_takumi|Shu Takumi
+Simon Kinberg|bangumi_producer_simon_kinberg|Simon Kinberg
+スカパー|bangumi_producer_skyperfectv|SKY PerfecTV!
+SKY PerfecTV!|bangumi_producer_skyperfectv|SKY PerfecTV!
+Soft Garage|bangumi_producer_soft_garage|Soft Garage
+総合ビジョン|bangumi_producer_sogo_vision|Sogo Vision
+Sogo Vision|bangumi_producer_sogo_vision|Sogo Vision
+Sony Pictures Television|bangumi_producer_sony_pictures_television|Sony Pictures Television
+創通エージェンシー|bangumi_producer_sotsu_agency|Sotsu Agency
+Stan Lee|bangumi_producer_stan_lee|Stan Lee
+ステイプルエンタテインメント|bangumi_producer_staple_entertainment|Staple Entertainment
+Staple Entertainment|bangumi_producer_staple_entertainment|Staple Entertainment
+Studio34|bangumi_producer_studio34|Studio34
+スタジオ地図|bangumi_producer_studio_chizu|Studio Chizu
+Studio Chizu|bangumi_producer_studio_chizu|Studio Chizu
+Studio Giants|bangumi_producer_studio_giants|Studio Giants
+studio hb|bangumi_producer_studio_hb|studio hb
+Studio Junio|bangumi_producer_studio_junio|Studio Junio
+スタジオマトリックス|bangumi_producer_studio_matrix|Studio Matrix
+Studio Matrix|bangumi_producer_studio_matrix|Studio Matrix
+スタジオぴえろ|bangumi_producer_studio_pierrot|Studio Pierrot
+札幌テレビ放送|bangumi_producer_stv|Sapporo TV Broadcasting
+Sapporo TV Broadcasting|bangumi_producer_stv|Sapporo TV Broadcasting
+TAP|bangumi_producer_tap|TAP
+Tencent Japan|bangumi_producer_tencent_japan|Tencent Japan
+The Donners' Company|bangumi_producer_the_donners_company|The Donners' Company
+東映動画|bangumi_producer_toei_doga|Toei Doga
+Toei Doga|bangumi_producer_toei_doga|Toei Doga
+東宝株式会社|bangumi_producer_toho|TOHO
+东宝株式会社|bangumi_producer_toho|TOHO
+TOKYO FM|bangumi_producer_tokyo_fm|TOKYO FM
+Tokyo Movie|bangumi_producer_tokyo_movie|Tokyo Movie
+東京テアトル|bangumi_producer_tokyo_theatres|Tokyo Theatres
+Tokyo Theatres|bangumi_producer_tokyo_theatres|Tokyo Theatres
+Tom Clancy|bangumi_producer_tom_clancy|Tom Clancy
+Tomohiko Togashi|bangumi_producer_tomohiko_togashi|Tomohiko Togashi
+近藤季洋|bangumi_producer_toshihiro_kondo|Toshihiro Kondo
+Toshihiro Kondo|bangumi_producer_toshihiro_kondo|Toshihiro Kondo
+岡田斗司夫|bangumi_producer_toshio_okada|Toshio Okada
+Toshio Okada|bangumi_producer_toshio_okada|Toshio Okada
+Triple A|bangumi_producer_triple_a|Triple A
+TSG Entertainment|bangumi_producer_tsg_entertainment|TSG Entertainment
+TYO|bangumi_producer_tyo|TYO
+颱風グラフィックス|bangumi_producer_typhoon_graphics|Typhoon Graphics
+Village Roadshow Pictures|bangumi_producer_village_roadshow_pictures|Village Roadshow Pictures
+Vince Zampella|bangumi_producer_vince_zampella|Vince Zampella
+void|bangumi_producer_void|void
+华纳兄弟娱乐公司|bangumi_producer_warner_bros_entertainment|Warner Bros. Entertainment
+Warner Bros. Television|bangumi_producer_warner_bros_television|Warner Bros. Television
+王晶|bangumi_producer_wong_jing|Wong Jing
+Wong Jing|bangumi_producer_wong_jing|Wong Jing
+wowaka|bangumi_producer_wowaka|wowaka
+WOWMAX|bangumi_producer_wowmax|WOWMAX
+心动网络|bangumi_producer_xd_network|XD Network
+XD Network|bangumi_producer_xd_network|XD Network
+XIO|bangumi_producer_xio|XIO
+姚壯憲|bangumi_producer_yao_zhuangxian|Yao Zhuangxian
+Yao Zhuangxian|bangumi_producer_yao_zhuangxian|Yao Zhuangxian
+菅野よう子|bangumi_producer_yoko_kanno|Yoko Kanno
+Yoko Kanno|bangumi_producer_yoko_kanno|Yoko Kanno
+読売新聞|bangumi_producer_yomiuri_shimbun|Yomiuri Shimbun
+Yomiuri Shimbun|bangumi_producer_yomiuri_shimbun|Yomiuri Shimbun
+西村義明|bangumi_producer_yoshiaki_nishimura|Yoshiaki Nishimura
+Yoshiaki Nishimura|bangumi_producer_yoshiaki_nishimura|Yoshiaki Nishimura
+坂本賀勇|bangumi_producer_yoshio_sakamoto|Yoshio Sakamoto
+Yoshio Sakamoto|bangumi_producer_yoshio_sakamoto|Yoshio Sakamoto
+Yostar|bangumi_producer_yostar|Yostar
+代々木アニメーション学院|bangumi_producer_yoyogi_animation_academy|Yoyogi Animation Academy
+Yoyogi Animation Academy|bangumi_producer_yoyogi_animation_academy|Yoyogi Animation Academy
+于正|bangumi_producer_yu_zheng|Yu Zheng
+Yu Zheng|bangumi_producer_yu_zheng|Yu Zheng
+出渕裕|bangumi_producer_yutaka_izubuchi|Yutaka Izubuchi
+Yutaka Izubuchi|bangumi_producer_yutaka_izubuchi|Yutaka Izubuchi
+Z会|bangumi_producer_z_kai|Z-Kai
+Z-Kai|bangumi_producer_z_kai|Z-Kai
+张纪中|bangumi_producer_zhang_jizhong|Zhang Jizhong
+Zhang Jizhong|bangumi_producer_zhang_jizhong|Zhang Jizhong
+11 bit studios|bangumi_publisher_11_bit_studios|11 bit studios
+雅达利 1984-1996|bangumi_publisher_1984_1996|雅达利 1984-1996
+1st PLACE|bangumi_publisher_1st_place|1st PLACE
+3D Realms|bangumi_publisher_3d_realms|3D Realms
+505游戏|bangumi_publisher_505_games|505 Games
+5150|bangumi_publisher_5150|5150
+7uta.com|bangumi_publisher_7uta_com|7uta.com
+芳文社; A5版|bangumi_publisher_a5|芳文社; A5版
+A-chromatic color|bangumi_publisher_a_chromatic_color|A-chromatic color
+A-HEAD|bangumi_publisher_a_head|A-HEAD
+A Inc.|bangumi_publisher_a_inc|A Inc.
+A.S.A.B|bangumi_publisher_a_s_a_b|A.S.A.B
+ABSOLUTE CASTAWAY|bangumi_publisher_absolute_castaway|ABSOLUTE CASTAWAY
+ACTKEY CO.|bangumi_publisher_actkey_co|ACTKEY CO.
+ACTKEY CO., LTD.|bangumi_publisher_actkey_co_ltd|ACTKEY CO., LTD.
+Aftergrow|bangumi_publisher_aftergrow|Aftergrow
+AIR AGENCY|bangumi_publisher_air_agency|AIR AGENCY
+Aksys Games|bangumi_publisher_aksys_games|Aksys Games
+Alawar|bangumi_publisher_alawar|Alawar
+Amanita Design|bangumi_publisher_amanita_design|Amanita Design
+アミューズソフトエンタテインメント|bangumi_publisher_amuse_soft_entertainment|Amuse Soft Entertainment
+Android|bangumi_publisher_android_2|Android
+Animage Records|bangumi_publisher_animage_records|Animage Records
+Aniplex (music)|bangumi_publisher_aniplex_music|Aniplex (music)
+安纳布尔纳互动|bangumi_publisher_annapurna_interactive|Annapurna Interactive
+AQUAELIE|bangumi_publisher_aquaelie|AQUAELIE
+aromarie|bangumi_publisher_aromarie|aromarie
+Arte Refact|bangumi_publisher_arte_refact|Arte Refact
+artePOP(아르테팝)|bangumi_publisher_artepop|artePOP(아르테팝)
+아르테팝(artePOP)|bangumi_publisher_artepop_2|아르테팝(artePOP)
+As|bangumi_publisher_as|As
+Assaultdoor|bangumi_publisher_assaultdoor|Assaultdoor
+Atari Corporation|bangumi_publisher_atari_corporation|Atari Corporation
+aura|bangumi_publisher_aura|aura
+avex tune|bangumi_publisher_avex_tune|avex tune
+AVTechNO!|bangumi_publisher_avtechno|AVTechNO!
+Azure&Sands|bangumi_publisher_azure_sands|Azure&Sands
+Azurite|bangumi_publisher_azurite|Azurite
+BANDAI|bangumi_publisher_bandai|Bandai
+BANDAI NAMCO Games Inc.|bangumi_publisher_bandai_namco_games_inc|BANDAI NAMCO Games Inc.
+Barbarian On The Groove|bangumi_publisher_barbarian_on_the_groove|Barbarian On The Groove
+Beamdog|bangumi_publisher_beamdog|Beamdog
+BEBENIA|bangumi_publisher_bebenia|BEBENIA
+北京工艺美术出版社|bangumi_publisher_beijing_arts_and_crafts_publishing_house|Beijing Arts and Crafts Publishing House
+Beijing Arts and Crafts Publishing House|bangumi_publisher_beijing_arts_and_crafts_publishing_house|Beijing Arts and Crafts Publishing House
+Being|bangumi_publisher_being|Being
+Bellwood Records|bangumi_publisher_bellwood_records|Bellwood Records
+BinaryMixx Records|bangumi_publisher_binarymixx_records|BinaryMixx Records
+Black Prince With Rose|bangumi_publisher_black_prince_with_rose|Black Prince With Rose
+BLANKFIELD|bangumi_publisher_blankfield|BLANKFIELD
+BMGビクター|bangumi_publisher_bmg_2|BMGビクター
+BMG JAPAN Inc.|bangumi_publisher_bmg_japan_inc|BMG JAPAN Inc.
+BOOM! Box|bangumi_publisher_boom_box|BOOM! Box
+BOOST ON|bangumi_publisher_boost_on|BOOST ON
+BounDEE by SSNW|bangumi_publisher_boundee_by_ssnw|BounDEE by SSNW
+文芸社|bangumi_publisher_bungeisha|Bungeisha
+Bungeisha|bangumi_publisher_bungeisha|Bungeisha
+文春文庫|bangumi_publisher_bunshun_bunko|Bunshun Bunko
+Bunshun Bunko|bangumi_publisher_bunshun_bunko|Bunshun Bunko
+Bushiroad Music Publishing|bangumi_publisher_bushiroad_music_publishing|Bushiroad Music Publishing
+CANDY CUBE|bangumi_publisher_candy_cube|CANDY CUBE
+Capitol|bangumi_publisher_capitol|Capitol
+CC*=Style|bangumi_publisher_cc_style|CC*=Style
+长江少年儿童出版社|bangumi_publisher_changjiang_children_s_press|Changjiang Children's Press
+Changjiang Children's Press|bangumi_publisher_changjiang_children_s_press|Changjiang Children's Press
+中国少年儿童出版社|bangumi_publisher_china_children_s_press|China Children's Press
+China Children's Press|bangumi_publisher_china_children_s_press|China Children's Press
+重庆出版社|bangumi_publisher_chongqing_publishing_house|Chongqing Publishing House
+Chongqing Publishing House|bangumi_publisher_chongqing_publishing_house|Chongqing Publishing House
+Chucklefish|bangumi_publisher_chucklefish|Chucklefish
+中経出版|bangumi_publisher_chukei_publishing|Chukei Publishing
+Chukei Publishing|bangumi_publisher_chukei_publishing|Chukei Publishing
+Cis-Trance|bangumi_publisher_cis_trance|Cis-Trance
+大然出版社|bangumi_publisher_cjk_008376|大然出版社
+ハイランド|bangumi_publisher_cjk_00cf7e|ハイランド
+原动力文化|bangumi_publisher_cjk_02e7d3|原动力文化
+轻语工作室|bangumi_publisher_cjk_02f481|轻语工作室
+羽っ鳥もさく共和国|bangumi_publisher_cjk_0455bf|羽っ鳥もさく共和国
+雪桜草|bangumi_publisher_cjk_048805|雪桜草
+中山市世宇动漫科技有限公司|bangumi_publisher_cjk_087704|中山市世宇动漫科技有限公司
+灵潭社|bangumi_publisher_cjk_088787|灵潭社
+ジュリアン|bangumi_publisher_cjk_089cf5|ジュリアン
+イノライ|bangumi_publisher_cjk_091de9|イノライ
+서울문화사(만화)|bangumi_publisher_cjk_0a295d|서울문화사(만화)
+メディアレモラス|bangumi_publisher_cjk_0bc38f|メディアレモラス
+ふゆーじょんぷろだくと|bangumi_publisher_cjk_0fba2f|ふゆーじょんぷろだくと
+子ノ刻咄|bangumi_publisher_cjk_1063aa|子ノ刻咄
+非可逆リズム|bangumi_publisher_cjk_11c8f4|非可逆リズム
+クレバスランプ|bangumi_publisher_cjk_123dc1|クレバスランプ
+永恆艾莉絲工坊|bangumi_publisher_cjk_143936|永恆艾莉絲工坊
+三才ブックス|bangumi_publisher_cjk_14f6f7|三才ブックス
+アイエムエー|bangumi_publisher_cjk_179877|アイエムエー
+あおば出版|bangumi_publisher_cjk_19b891|あおば出版
+旅人计划|bangumi_publisher_cjk_1af457|旅人计划
+네오카툰|bangumi_publisher_cjk_1e885b|네오카툰
+ベルウッドレコード|bangumi_publisher_cjk_1e90f2|ベルウッドレコード
+龙马|bangumi_publisher_cjk_1ead8d|龙马
+舞风|bangumi_publisher_cjk_1f85bc|舞风
+岡垣正志＆フレンズ|bangumi_publisher_cjk_2250bd|岡垣正志＆フレンズ
+平心出版社|bangumi_publisher_cjk_23c636|平心出版社
+きゃべつそふと|bangumi_publisher_cjk_254a17|きゃべつそふと
+銘顯文化|bangumi_publisher_cjk_2703e7|銘顯文化
+小学館ミュージック&デジタルエンタテイメント|bangumi_publisher_cjk_270b23|小学館ミュージック&デジタルエンタテイメント
+ガレットワークス|bangumi_publisher_cjk_2ed18b|ガレットワークス
+대원문화출판사|bangumi_publisher_cjk_324283|대원문화출판사
+ブラザース|bangumi_publisher_cjk_32bf5f|ブラザース
+ブランノワール|bangumi_publisher_cjk_33d0bd|ブランノワール
+ノーザンミュージック|bangumi_publisher_cjk_34d8cf|ノーザンミュージック
+エンターテインメント|bangumi_publisher_cjk_356096|エンターテインメント
+天使出版|bangumi_publisher_cjk_35a56f|天使出版
+ファンハウス|bangumi_publisher_cjk_38a0e4|ファンハウス
+さかばと|bangumi_publisher_cjk_39cbad|さかばと
+イーブックイニシアティブジャパン|bangumi_publisher_cjk_3ad89f|イーブックイニシアティブジャパン
+天然ジェミニ|bangumi_publisher_cjk_3b459b|天然ジェミニ
+黒い令嬢|bangumi_publisher_cjk_3b518a|黒い令嬢
+ジー|bangumi_publisher_cjk_3bb11b|ジー
+ミュージックワゴン|bangumi_publisher_cjk_3bc524|ミュージックワゴン
+エンタテイメント|bangumi_publisher_cjk_3c9bcc|エンタテイメント
+岩崎書店|bangumi_publisher_cjk_3d8f56|岩崎書店
+真善美|bangumi_publisher_cjk_3e4342|真善美
+北京娱乐通科技发展有限公司|bangumi_publisher_cjk_3f23fb|北京娱乐通科技发展有限公司
+がるまにオリジナル|bangumi_publisher_cjk_45b950|がるまにオリジナル
+ヅァインレコーズ|bangumi_publisher_cjk_460831|ヅァインレコーズ
+凤凰游戏|bangumi_publisher_cjk_474dbe|凤凰游戏
+黄斑马|bangumi_publisher_cjk_4a7d2b|黄斑马
+大角虫|bangumi_publisher_cjk_4f1ba6|大角虫
+オーマガトキ|bangumi_publisher_cjk_4fd5a1|オーマガトキ
+東宝ミュージック|bangumi_publisher_cjk_501a05|東宝ミュージック
+圓神出版社|bangumi_publisher_cjk_504173|圓神出版社
+漢堂國際資訊|bangumi_publisher_cjk_5204ff|漢堂國際資訊
+九尾社|bangumi_publisher_cjk_522a1f|九尾社
+平和出版|bangumi_publisher_cjk_5585d6|平和出版
+プライエイド|bangumi_publisher_cjk_575f2e|プライエイド
+ジーダス|bangumi_publisher_cjk_590009|ジーダス
+吟遊夜会|bangumi_publisher_cjk_599778|吟遊夜会
+テスラカイト|bangumi_publisher_cjk_5e94e2|テスラカイト
+東北ペネット|bangumi_publisher_cjk_5ef9cb|東北ペネット
+精讯数字网络科技有限公司|bangumi_publisher_cjk_5f3075|精讯数字网络科技有限公司
+ホームエンターテイメント|bangumi_publisher_cjk_5f9043|ホームエンターテイメント
+대원|bangumi_publisher_cjk_5fab13|대원
+레진코믹스|bangumi_publisher_cjk_603dbf|레진코믹스
+楽楽出版|bangumi_publisher_cjk_637417|楽楽出版
+코리아하우스콘텐츠|bangumi_publisher_cjk_655b04|코리아하우스콘텐츠
+モノクローム|bangumi_publisher_cjk_66b369|モノクローム
+ぱじゃまエクスタシー|bangumi_publisher_cjk_696cc5|ぱじゃまエクスタシー
+太白文艺出版社|bangumi_publisher_cjk_6c52aa|太白文艺出版社
+소란북스|bangumi_publisher_cjk_6cad5e|소란북스
+雷霆游戏|bangumi_publisher_cjk_70361b|雷霆游戏
+邱海燕|bangumi_publisher_cjk_724f8b|邱海燕
+株式会社ビーグラム|bangumi_publisher_cjk_7372a7|株式会社ビーグラム
+花梨ミュージック|bangumi_publisher_cjk_7500b9|花梨ミュージック
+북폴리오|bangumi_publisher_cjk_77c55a|북폴리오
+うさころにー|bangumi_publisher_cjk_783ed8|うさころにー
+蜂蜜小熊|bangumi_publisher_cjk_7987ad|蜂蜜小熊
+大辣|bangumi_publisher_cjk_7b0f08|大辣
+フィールドワイ|bangumi_publisher_cjk_7fb28e|フィールドワイ
+あなざーでぃめんしょん|bangumi_publisher_cjk_802414|あなざーでぃめんしょん
+汐文社|bangumi_publisher_cjk_838e13|汐文社
+ありんこマート|bangumi_publisher_cjk_8541e2|ありんこマート
+战火互娱|bangumi_publisher_cjk_863608|战火互娱
+サンライズミュージック|bangumi_publisher_cjk_8720c5|サンライズミュージック
+ニャーシャカ|bangumi_publisher_cjk_8753e7|ニャーシャカ
+イマジニア スクウェア|bangumi_publisher_cjk_88f796|イマジニア スクウェア
+赛科|bangumi_publisher_cjk_8909ea|赛科
+ブラザース映画|bangumi_publisher_cjk_89ae37|ブラザース映画
+東芝イーエムアイ(|bangumi_publisher_cjk_8a7fce|東芝イーエムアイ(
+ユウノウミ|bangumi_publisher_cjk_8aba8a|ユウノウミ
+秋水社|bangumi_publisher_cjk_8c44a7|秋水社
+蓋亞文化|bangumi_publisher_cjk_8cad61|蓋亞文化
+虫プロ商事|bangumi_publisher_cjk_8ea6f4|虫プロ商事
+ブルブルブルワリー|bangumi_publisher_cjk_8f21b1|ブルブルブルワリー
+シリカ編集部|bangumi_publisher_cjk_8f58d5|シリカ編集部
+スターレコード|bangumi_publisher_cjk_91f135|スターレコード
+イエティ|bangumi_publisher_cjk_927201|イエティ
+神椿|bangumi_publisher_cjk_94c711|神椿
+哈珀·柯林斯 日本|bangumi_publisher_cjk_9a650a|哈珀·柯林斯 日本
+宝丽金|bangumi_publisher_cjk_9b7815|宝丽金
+ソフトライン|bangumi_publisher_cjk_9d8fb6|ソフトライン
+シグマ|bangumi_publisher_cjk_9da6c6|シグマ
+ネコ|bangumi_publisher_cjk_9e189d|ネコ
+文艺春秋|bangumi_publisher_cjk_a037b3|文艺春秋
+春秋|bangumi_publisher_cjk_a2041e|春秋
+華霞魅|bangumi_publisher_cjk_a2d617|華霞魅
+趣味工房胡萝卜酒|bangumi_publisher_cjk_a36e31|趣味工房胡萝卜酒
+インテルフィン|bangumi_publisher_cjk_a4088e|インテルフィン
+我导|bangumi_publisher_cjk_a44475|我导
+平裝本出版|bangumi_publisher_cjk_a46023|平裝本出版
+カラーズ|bangumi_publisher_cjk_a497bd|カラーズ
+南琪|bangumi_publisher_cjk_a64854|南琪
+クラリスディスク|bangumi_publisher_cjk_a842d3|クラリスディスク
+新纪元社|bangumi_publisher_cjk_a88b74|新纪元社
+大江户宅急便|bangumi_publisher_cjk_a8fbd1|大江户宅急便
+いえろ〜ぜぶら|bangumi_publisher_cjk_b2249b|いえろ〜ぜぶら
+元気|bangumi_publisher_cjk_b41ff1|元気
+参ヶ崎|bangumi_publisher_cjk_b5e0f9|参ヶ崎
+北京新天地|bangumi_publisher_cjk_b5f980|北京新天地
+レコーズ|bangumi_publisher_cjk_b620c2|レコーズ
+コロムビアミュージックエンタテインメント株式会社|bangumi_publisher_cjk_b7159c|コロムビアミュージックエンタテインメント株式会社
+八月|bangumi_publisher_cjk_b72639|八月
+雄飛|bangumi_publisher_cjk_ba3f10|雄飛
+日升音乐|bangumi_publisher_cjk_ba6483|日升音乐
+猫のゆりかご|bangumi_publisher_cjk_bad304|猫のゆりかご
+マーキュリー|bangumi_publisher_cjk_bc02e3|マーキュリー
+フォーライフミュージックエンタテイメント|bangumi_publisher_cjk_bc1372|フォーライフミュージックエンタテイメント
+학산문화사(만화)|bangumi_publisher_cjk_bc629b|학산문화사(만화)
+メサイヤ|bangumi_publisher_cjk_bdb08b|メサイヤ
+はちみつくまさん|bangumi_publisher_cjk_be7b2b|はちみつくまさん
+トマト組|bangumi_publisher_cjk_bf3e95|トマト組
+鮮鮮文化|bangumi_publisher_cjk_bf541c|鮮鮮文化
+文化放送エクステンド|bangumi_publisher_cjk_bf7b4f|文化放送エクステンド
+データム|bangumi_publisher_cjk_c07df5|データム
+フォーライフミュージックエンタテインメント|bangumi_publisher_cjk_c0de41|フォーライフミュージックエンタテインメント
+乐乐出版|bangumi_publisher_cjk_c13596|乐乐出版
+パブリッシング|bangumi_publisher_cjk_c207d9|パブリッシング
+ユニゾンシフト：ブロッサム|bangumi_publisher_cjk_c29b0c|ユニゾンシフト：ブロッサム
+トライエム|bangumi_publisher_cjk_c3892b|トライエム
+ベストセラーズ|bangumi_publisher_cjk_c649b8|ベストセラーズ
+ミュージックレーベルズ|bangumi_publisher_cjk_c8067a|ミュージックレーベルズ
+フェアベル|bangumi_publisher_cjk_c81c3e|フェアベル
+ゼロ|bangumi_publisher_cjk_c9f092|ゼロ
+바이브릿지|bangumi_publisher_cjk_ca1e4f|바이브릿지
+ソフトバンク クリエイティブ|bangumi_publisher_cjk_ca624f|ソフトバンク クリエイティブ
+からあげサイクル|bangumi_publisher_cjk_ca8c15|からあげサイクル
+サイネリア|bangumi_publisher_cjk_cbfa95|サイネリア
+おいしいごはん|bangumi_publisher_cjk_cd1796|おいしいごはん
+온다|bangumi_publisher_cjk_ce2724|온다
+ソルマーレ編集部|bangumi_publisher_cjk_ce4533|ソルマーレ編集部
+龙渊网络|bangumi_publisher_cjk_ce47af|龙渊网络
+中国连环画出版社|bangumi_publisher_cjk_ced079|中国连环画出版社
+日本テレビ音楽|bangumi_publisher_cjk_cf3cc9|日本テレビ音楽
+よしもとアール|bangumi_publisher_cjk_cf5ad4|よしもとアール
+ドリーミュージック|bangumi_publisher_cjk_d0dbdf|ドリーミュージック
+山下書店|bangumi_publisher_cjk_d124e1|山下書店
+鉄腕トカゲ探知機|bangumi_publisher_cjk_d22c90|鉄腕トカゲ探知機
+鮮鮮文化事業有限公司|bangumi_publisher_cjk_d49bbd|鮮鮮文化事業有限公司
+バウンディ|bangumi_publisher_cjk_d4b74c|バウンディ
+天狗ノ舞|bangumi_publisher_cjk_d62472|天狗ノ舞
+あらいぐまファクトリー|bangumi_publisher_cjk_d70840|あらいぐまファクトリー
+学研|bangumi_publisher_cjk_d81cbe|学研
+北京寰宇之星软件有限公司|bangumi_publisher_cjk_d9145c|北京寰宇之星软件有限公司
+エース)|bangumi_publisher_cjk_d9d109|エース)
+だんだん組|bangumi_publisher_cjk_db82f7|だんだん組
+光収容の倉庫|bangumi_publisher_cjk_dba331|光収容の倉庫
+东京创元社|bangumi_publisher_cjk_de890b|东京创元社
+대원앤북|bangumi_publisher_cjk_e12087|대원앤북
+光風社出版|bangumi_publisher_cjk_e247c5|光風社出版
+ジャニーズ|bangumi_publisher_cjk_e2a476|ジャニーズ
+루트미디어|bangumi_publisher_cjk_e4cd3b|루트미디어
+星猫音楽|bangumi_publisher_cjk_e51651|星猫音楽
+あいりゅ|bangumi_publisher_cjk_e52d6a|あいりゅ
+シュールレアチーズ|bangumi_publisher_cjk_e53171|シュールレアチーズ
+桜詩舎|bangumi_publisher_cjk_e6f4ef|桜詩舎
+ティーワイエンタテインメント|bangumi_publisher_cjk_e89f7a|ティーワイエンタテインメント
+アンド|bangumi_publisher_cjk_e91477|アンド
+ソニー・マガジンズ|bangumi_publisher_cjk_ea4640|ソニー・マガジンズ
+アース出版局|bangumi_publisher_cjk_ea9f11|アース出版局
+虹色論理|bangumi_publisher_cjk_eaa91e|虹色論理
+桃园书房|bangumi_publisher_cjk_ec23b2|桃园书房
+ミリカ|bangumi_publisher_cjk_ec75f0|ミリカ
+日販アイ・ピー・エス|bangumi_publisher_cjk_eeec8d|日販アイ・ピー・エス
+ソニーミュージック|bangumi_publisher_cjk_f33732|ソニーミュージック
+日本索尼音乐国际|bangumi_publisher_cjk_f40e4c|日本索尼音乐国际
+メロピュア|bangumi_publisher_cjk_f4dcd4|メロピュア
+角川アーキテクチャ|bangumi_publisher_cjk_f6deab|角川アーキテクチャ
+桃雛|bangumi_publisher_cjk_f76652|桃雛
+樱花社|bangumi_publisher_cjk_f850a3|樱花社
+モエールパブリッシング|bangumi_publisher_cjk_f97a38|モエールパブリッシング
+オトメバコ|bangumi_publisher_cjk_fd3161|オトメバコ
+ミディ|bangumi_publisher_cjk_fee9ab|ミディ
+Clockworks|bangumi_publisher_clockworks|Clockworks
+CLOCKWORKS TRACER|bangumi_publisher_clockworks_tracer|CLOCKWORKS TRACER
+Coconut Island|bangumi_publisher_coconut_island|Coconut Island
+CODE-49|bangumi_publisher_code_49|CODE-49
+Colorful Cube|bangumi_publisher_colorful_cube|Colorful Cube
+Colourful Records|bangumi_publisher_colourful_records|Colourful Records
+Columbia Songs|bangumi_publisher_columbia_songs|Columbia Songs
+＜echo＞PROJECT|bangumi_publisher_committee_echo_project|＜echo＞PROJECT
+Confetto|bangumi_publisher_confetto|Confetto
+cosmic☆factory|bangumi_publisher_cosmic_factory_2|cosmic☆factory
+コスミックインターナショナル|bangumi_publisher_cosmic_international|Cosmic International
+Cosmic International|bangumi_publisher_cosmic_international|Cosmic International
+Cosmic record|bangumi_publisher_cosmic_record_2|Cosmic record
+Crazy Voltage|bangumi_publisher_crazy_voltage|Crazy Voltage
+CreateSpace Independent Publishing Platform|bangumi_publisher_createspace_independent_publis|CreateSpace Independent Publishing Platform
+Crew Lab|bangumi_publisher_crew_lab|Crew Lab
+Crypton Future Media|bangumi_publisher_crypton_future_media|Crypton Future Media
+CTBR|bangumi_publisher_ctbr|CTBR
+Cue Egg Label|bangumi_publisher_cue_egg_label_2|Cue Egg Label
+CUFFS|bangumi_publisher_cuffs|CUFFS
+文化发展出版社|bangumi_publisher_cultural_development_press|Cultural Development Press
+Cultural Development Press|bangumi_publisher_cultural_development_press|Cultural Development Press
+cutting edge|bangumi_publisher_cutting_edge|Cutting Edge
+CYTOKINE|bangumi_publisher_cytokine|CYTOKINE
+디앤씨미디어(주)(D&C미디어)|bangumi_publisher_d_c_2|디앤씨미디어(주)(D&C미디어)
+DANGEN Entertainment|bangumi_publisher_dangen_entertainment|DANGEN Entertainment
+dat file records|bangumi_publisher_dat_file_records|dat file records
+DC|bangumi_publisher_dc_2|DC
+DC COMICS|bangumi_publisher_dc_comics_2|DC COMICS
+DeareaD Inc.|bangumi_publisher_dearead_inc|DeareaD Inc.
+Degica|bangumi_publisher_degica|Degica
+Delcourt|bangumi_publisher_delcourt|Delcourt
+Demetori|bangumi_publisher_demetori|Demetori
+*电击文库|bangumi_publisher_dengeki_bunko|Dengeki Bunko
+電撃コミックス|bangumi_publisher_dengeki_comics|Dengeki Comics
+Dengeki Comics|bangumi_publisher_dengeki_comics|Dengeki Comics
+Destruction|bangumi_publisher_destruction|Destruction
+DIVEIIentertainment|bangumi_publisher_diveiientertainment|DIVEIIentertainment
+djgenki.net|bangumi_publisher_djgenki_net|djgenki.net
+DMM游戏|bangumi_publisher_dmm|DMM游戏
+DMM GAMES|bangumi_publisher_dmm_games|DMM GAMES
+Domina Games|bangumi_publisher_domina_games|Domina Games
+Doubleday|bangumi_publisher_doubleday|Doubleday
+dramatic create|bangumi_publisher_dramatic_create|dramatic create
+Draw the Emotional|bangumi_publisher_draw_the_emotional|Draw the Emotional
+DTXFiles.nmk|bangumi_publisher_dtxfiles_nmk|DTXFiles.nmk
+Earth Star Records|bangumi_publisher_earth_star_records|Earth Star Records
+イーストプレス|bangumi_publisher_east_press|East Press
+Easy Tech|bangumi_publisher_easy_tech|Easy Tech
+EDP|bangumi_publisher_edp|EDP
+efs|bangumi_publisher_efs|efs
+ELECTROCUTICA|bangumi_publisher_electrocutica|ELECTROCUTICA
+EMI Import|bangumi_publisher_emi_import|EMI Import
+EMI MUSIC JAPAN(TO)(M)|bangumi_publisher_emi_music_japan_to_m|EMI MUSIC JAPAN(TO)(M)
+EMI Records|bangumi_publisher_emi_records|EMI Records
+Endorfin.|bangumi_publisher_endorfin|Endorfin.
+ERJ(SME)(M)|bangumi_publisher_erj_sme_m|ERJ(SME)(M)
+Erotes Studio|bangumi_publisher_erotes_studio|Erotes Studio
+ETERNAL|bangumi_publisher_eternal|ETERNAL
+FABTONE|bangumi_publisher_fabtone|FABTONE
+Fantagraphics|bangumi_publisher_fantagraphics|Fantagraphics
+Fantagraphics Books|bangumi_publisher_fantagraphics_books|Fantagraphics Books
+FARM RECORDS|bangumi_publisher_farm_records_2|FARM RECORDS
+Fellow Traveller|bangumi_publisher_fellow_traveller|Fellow Traveller
+first smile entertainment|bangumi_publisher_first_smile_entertainment|first smile entertainment
+FLAME|bangumi_publisher_flame|FLAME
+Floating Cloud|bangumi_publisher_floating_cloud|Floating Cloud
+Flyhigh Works|bangumi_publisher_flyhigh_works|Flyhigh Works
+forest|bangumi_publisher_forest|forest
+Freebird Games|bangumi_publisher_freebird_games|Freebird Games
+富士見L文庫|bangumi_publisher_fujimi_l_bunko|Fujimi L Bunko
+""",
+        """Fujimi L Bunko|bangumi_publisher_fujimi_l_bunko|Fujimi L Bunko
+富士見ミステリー文庫|bangumi_publisher_fujimi_mystery_bunko|Fujimi Mystery Bunko
+Fujimi Mystery Bunko|bangumi_publisher_fujimi_mystery_bunko|Fujimi Mystery Bunko
+福音館書店|bangumi_publisher_fukuinkan_shoten|Fukuinkan Shoten
+Fukuinkan Shoten|bangumi_publisher_fukuinkan_shoten|Fukuinkan Shoten
+Further Ahead Of Warp|bangumi_publisher_further_ahead_of_warp|Further Ahead Of Warp
+学研教育出版|bangumi_publisher_gakken_education_publishing|Gakken Education Publishing
+Gakken Education Publishing|bangumi_publisher_gakken_education_publishing|Gakken Education Publishing
+Gamera Game|bangumi_publisher_gamera_game|Gamera Game
+Genius.Inc|bangumi_publisher_genius_inc|Genius.Inc
+geometric rose|bangumi_publisher_geometric_rose|geometric rose
+Girl's short hair|bangumi_publisher_girl_s_short_hair|Girl's short hair
+GIZA(J)(M)|bangumi_publisher_giza_j_m|GIZA(J)(M)
+glassmoon|bangumi_publisher_glassmoon|glassmoon
+ゴマブックス|bangumi_publisher_goma_books|Goma Books
+Goma Books|bangumi_publisher_goma_books|Goma Books
+gr8! records|bangumi_publisher_gr8_records_2|gr8! records
+ガイドワークス|bangumi_publisher_guide_works|Guide Works
+Guide Works|bangumi_publisher_guide_works|Guide Works
+ガンホー・オンライン・エンターテイメント|bangumi_publisher_gungho_online_entertainment|GungHo Online Entertainment
+GungHo Online Entertainment|bangumi_publisher_gungho_online_entertainment|GungHo Online Entertainment
+HAPPY I SCREAM!!|bangumi_publisher_happy_i_scream|HAPPY I SCREAM!!
+ヒーロー文庫|bangumi_publisher_hero_bunko|Hero Bunko
+Hero Bunko|bangumi_publisher_hero_bunko|Hero Bunko
+HOBiGIRLS|bangumi_publisher_hobigirls|HOBiGIRLS
+HolicWorksDISC BLUE|bangumi_publisher_holicworksdisc_blue|HolicWorksDISC BLUE
+HolicWorksDISC PINK|bangumi_publisher_holicworksdisc_pink|HolicWorksDISC PINK
+Hollywood Records|bangumi_publisher_hollywood_records|Hollywood Records
+HoneyWorks|bangumi_publisher_honeyworks_2|HoneyWorks
+HPQ|bangumi_publisher_hpq|HPQ
+湖北少年儿童出版社|bangumi_publisher_hubei_children_s_press|Hubei Children's Press
+Hubei Children's Press|bangumi_publisher_hubei_children_s_press|Hubei Children's Press
+Human Error|bangumi_publisher_human_error|Human Error
+湖南文艺出版社|bangumi_publisher_hunan_literature_and_art_publishing_house|Hunan Literature and Art Publishing House
+Hunan Literature and Art Publishing House|bangumi_publisher_hunan_literature_and_art_publishing_house|Hunan Literature and Art Publishing House
+Idea & Design Works Llc|bangumi_publisher_idea_design_works_llc|Idea & Design Works Llc
+iDOL Street|bangumi_publisher_idol_street|iDOL Street
+IDW Publishing|bangumi_publisher_idw_publishing|IDW Publishing
+Iemitsu.|bangumi_publisher_iemitsu|Iemitsu.
+ii|bangumi_publisher_ii|ii
+イカロス出版|bangumi_publisher_ikaros_publishing|Ikaros Publishing
+Ikaros Publishing|bangumi_publisher_ikaros_publishing|Ikaros Publishing
+Imperial Circus Dead Decadence|bangumi_publisher_imperial_circus_dead_decadence|Imperial Circus Dead Decadence
+Imports|bangumi_publisher_imports|Imports
+inc.( C)(M)|bangumi_publisher_inc_c_m|inc.( C)(M)
+INC(VAP)(M)|bangumi_publisher_inc_vap_m|INC(VAP)(M)
+俺++(Includeore)|bangumi_publisher_includeore|俺++(Includeore)
+インフォレスト|bangumi_publisher_inforest|INFOREST
+INFOREST|bangumi_publisher_inforest|INFOREST
+Interscope Records|bangumi_publisher_interscope_records|Interscope Records
+岩波書店|bangumi_publisher_iwanami_shoten|Iwanami Shoten
+Iwanami Shoten|bangumi_publisher_iwanami_shoten|Iwanami Shoten
+Ｊパブリッシング|bangumi_publisher_j_publishing|J Publishing
+J Publishing|bangumi_publisher_j_publishing|J Publishing
+JAST USA|bangumi_publisher_jast_usa|JAST USA
+江苏文艺出版社|bangumi_publisher_jiangsu_literature_and_art_publishing_house|Jiangsu Literature and Art Publishing House
+Jiangsu Literature and Art Publishing House|bangumi_publisher_jiangsu_literature_and_art_publishing_house|Jiangsu Literature and Art Publishing House
+接力出版社|bangumi_publisher_jieli_publishing_house|Jieli Publishing House
+Jieli Publishing House|bangumi_publisher_jieli_publishing_house|Jieli Publishing House
+K2E†Cradle|bangumi_publisher_k2e_cradle|K2E†Cradle
+K@keru Records|bangumi_publisher_k_keru_records|K@keru Records
+KAエスマ文庫|bangumi_publisher_ka|KAエスマ文庫
+*kadokawa|bangumi_publisher_kadokawa_24|*kadokawa
+KADOKAWA(エンターブレイン)|bangumi_publisher_kadokawa_6|KADOKAWA(エンターブレイン)
+角川ビーンズ文庫|bangumi_publisher_kadokawa_beans_bunko|Kadokawa Beans Bunko
+Kadokawa Beans Bunko|bangumi_publisher_kadokawa_beans_bunko|Kadokawa Beans Bunko
+回路 -kairo-|bangumi_publisher_kairo|回路 -kairo-
+偕成社|bangumi_publisher_kaiseisha|Kaiseisha
+Kaiseisha|bangumi_publisher_kaiseisha|Kaiseisha
+Kakao Games|bangumi_publisher_kakao_games|Kakao Games
+KARENT|bangumi_publisher_karent_2|KARENT
+KeyMusic|bangumi_publisher_keymusic|KeyMusic
+岸田教団&THE明星ロケッツ|bangumi_publisher_kishida_kyoudan_the_akeboshi_rockets|Kishida Kyoudan & The Akeboshi Rockets
+Kishida Kyoudan & The Akeboshi Rockets|bangumi_publisher_kishida_kyoudan_the_akeboshi_rockets|Kishida Kyoudan & The Akeboshi Rockets
+KNS Entertainment|bangumi_publisher_kns_entertainment|KNS Entertainment
+*講談社|bangumi_publisher_kodansha|Kodansha
+講談社文庫|bangumi_publisher_kodansha_bunko|Kodansha Bunko
+Kodansha Bunko|bangumi_publisher_kodansha_bunko|Kodansha Bunko
+Kota-rocK|bangumi_publisher_kota_rock|Kota-rocK
+壽屋|bangumi_publisher_kotobukiya|Kotobukiya
+Kotobukiya|bangumi_publisher_kotobukiya|Kotobukiya
+KRE(SME)(M)|bangumi_publisher_kre_sme_m|KRE(SME)(M)
+LA KIA|bangumi_publisher_la_kia|LA KIA
+Lady Wizard(Reiko Murakami)|bangumi_publisher_lady_wizard_reiko_murakami|Lady Wizard(Reiko Murakami)
+Laplacian|bangumi_publisher_laplacian|Laplacian
+Larian Studios|bangumi_publisher_larian_studios|Larian Studios
+Last Note.|bangumi_publisher_last_note|Last Note.
+Libyus Music|bangumi_publisher_libyus_music|Libyus Music
+莉莉丝游戏|bangumi_publisher_lilith_games|Lilith Games
+Lilith Games|bangumi_publisher_lilith_games|Lilith Games
+Little氷華|bangumi_publisher_little|Little
+little white snow|bangumi_publisher_little_white_snow|little white snow
+LOVE×TRAX Office|bangumi_publisher_love_trax_office|LOVE×TRAX Office
+ルルル文庫|bangumi_publisher_lululu_bunko|Lululu Bunko
+Lululu Bunko|bangumi_publisher_lululu_bunko|Lululu Bunko
+MAG Garden|bangumi_publisher_mag_garden_2|MAG Garden
+まんだらけ|bangumi_publisher_mandarake|Mandarake
+Mandarake|bangumi_publisher_mandarake|Mandarake
+marble sky records|bangumi_publisher_marble_sky_records|marble sky records
+マリンエンタテイメント|bangumi_publisher_marine_entertainment|Marine Entertainment
+マーベラスエンターテイメント|bangumi_publisher_marvelous_entertainment|Marvelous Entertainment
+Matador Records|bangumi_publisher_matador_records|Matador Records
+Materia Collective|bangumi_publisher_materia_collective|Materia Collective
+エムディエヌコーポレーション|bangumi_publisher_mdn_corporation|MdN Corporation
+MdN Corporation|bangumi_publisher_mdn_corporation|MdN Corporation
+MEDIANET PICTURES|bangumi_publisher_medianet_pictures|MEDIANET PICTURES
+Mellow Head(PLC)(M)|bangumi_publisher_mellow_head_plc_m|Mellow Head(PLC)(M)
+メディアファクトリー (MFコミックス ジーンシリーズ)|bangumi_publisher_mf|メディアファクトリー (MFコミックス ジーンシリーズ)
+MF文库J|bangumi_publisher_mf_j|MF文库J
+Microids|bangumi_publisher_microids|Microids
+MicroProse|bangumi_publisher_microprose|MicroProse
+Microsoft Game Studios|bangumi_publisher_microsoft_game_studios|Microsoft Game Studios
+Might and Delight|bangumi_publisher_might_and_delight|Might and Delight
+ミリオン出版|bangumi_publisher_million_publishing|Million Publishing
+Million Publishing|bangumi_publisher_million_publishing|Million Publishing
+Minstrel|bangumi_publisher_minstrel|Minstrel
+MintLip|bangumi_publisher_mintlip|MintLip
+mirai works|bangumi_publisher_mirai_works|mirai works
+MME|bangumi_publisher_mme|MME
+Mods Crisis ∞|bangumi_publisher_mods_crisis|Mods Crisis ∞
+モンスター文庫|bangumi_publisher_monster_bunko|Monster Bunko
+Monster Bunko|bangumi_publisher_monster_bunko|Monster Bunko
+moon-bunny entertainment|bangumi_publisher_moon_bunny_entertainment|moon-bunny entertainment
+MOSAIC.WAV|bangumi_publisher_mosaic_wav|MOSAIC.WAV
+MOtOLOiD|bangumi_publisher_motoloid|MOtOLOiD
+movic|bangumi_publisher_movic_3|movic
+music|bangumi_publisher_music_2|music
+MW RECORDS|bangumi_publisher_mw_records|MW RECORDS
+マイウェイ出版|bangumi_publisher_my_way_publishing|My Way Publishing
+My Way Publishing|bangumi_publisher_my_way_publishing|My Way Publishing
+NCsoft|bangumi_publisher_ncsoft|NCsoft
+NECアベニュー|bangumi_publisher_nec_2|NECアベニュー
+NEKO WORKs|bangumi_publisher_neko_works|NEKO WORKs
+NekoNyan|bangumi_publisher_nekonyan|NekoNyan
+网石游戏|bangumi_publisher_netmarble|Netmarble
+新世界出版社|bangumi_publisher_new_world_press|New World Press
+New World Press|bangumi_publisher_new_world_press|New World Press
+纳克森|bangumi_publisher_nexon|NEXON
+NExT Studios|bangumi_publisher_next_studios|NExT Studios
+NHK出版|bangumi_publisher_nhk_2|NHK出版
+Nicalis|bangumi_publisher_nicalis|Nicalis
+Nickel|bangumi_publisher_nickel|Nickel
+Nippon Columbia Co.|bangumi_publisher_nippon_columbia_co|Nippon Columbia Co.
+ニトロプラス|bangumi_publisher_nitroplus|Nitroplus
+Nitroplus|bangumi_publisher_nitroplus|Nitroplus
+北方妇女儿童出版社|bangumi_publisher_northern_women_and_children_publishing_house|Northern Women and Children Publishing House
+Northern Women and Children Publishing House|bangumi_publisher_northern_women_and_children_publishing_house|Northern Women and Children Publishing House
+NTT出版|bangumi_publisher_ntt|NTT出版
+ういんどみる Oasis|bangumi_publisher_oasis|ういんどみる Oasis
+Object Software|bangumi_publisher_object_software|Object Software
+Operetta Due|bangumi_publisher_operetta_due|Operetta Due
+Operetta Quattro|bangumi_publisher_operetta_quattro|Operetta Quattro
+Operetta Tre|bangumi_publisher_operetta_tre|Operetta Tre
+OrangeCoffee|bangumi_publisher_orangecoffee|OrangeCoffee
+OTAKU Plan|bangumi_publisher_otaku_plan|OTAKU Plan
+Palm Beach|bangumi_publisher_palm_beach|Palm Beach
+Papergames|bangumi_publisher_papergames|Papergames
+(PC)|bangumi_publisher_pc_6|(PC)
+Perpetual Blue|bangumi_publisher_perpetual_blue|Perpetual Blue
+PetaBits Records|bangumi_publisher_petabits_records|PetaBits Records
+PID|bangumi_publisher_pid|PID
+Plug In Digital|bangumi_publisher_plug_in_digital|Plug In Digital
+PolyphonicBranch|bangumi_publisher_polyphonicbranch|PolyphonicBranch
+ポット出版|bangumi_publisher_pot_publishing|Pot Publishing
+Pot Publishing|bangumi_publisher_pot_publishing|Pot Publishing
+Primary|bangumi_publisher_primary|Primary
+Primula|bangumi_publisher_primula|Primula
+プリンセスソフト|bangumi_publisher_princesssoft|PrincessSoft
+PrincessSoft|bangumi_publisher_princesssoft|PrincessSoft
+東方Project|bangumi_publisher_project|東方Project
+株式会社プロトタイプ|bangumi_publisher_prototype|Prototype
+Prototype|bangumi_publisher_prototype|Prototype
+(PSP)|bangumi_publisher_psp_3|(PSP)
+Psycho Filth Records|bangumi_publisher_psycho_filth_records|Psycho Filth Records
+ケロQ|bangumi_publisher_q|ケロQ
+Q-BIT|bangumi_publisher_q_bit|Q-BIT
+R45°~右斜め45度~プロジェクト|bangumi_publisher_r45_45|R45°~右斜め45度~プロジェクト
+R and C|bangumi_publisher_r_and_c|R and C
+Random House|bangumi_publisher_random_house_2|Random House
+Red Barrels|bangumi_publisher_red_barrels|Red Barrels
+Register6|bangumi_publisher_register6|Register6
+Reilly & Britton|bangumi_publisher_reilly_britton|Reilly & Britton
+Rigel Theatre|bangumi_publisher_rigel_theatre|Rigel Theatre
+Riot Games|bangumi_publisher_riot_games|Riot Games
+Riverside|bangumi_publisher_riverside|Riverside
+rouge|bangumi_publisher_rouge|rouge
+s09m|bangumi_publisher_s09m|s09m
+S-STYLE|bangumi_publisher_s_style|S-STYLE
+Sacrifice|bangumi_publisher_sacrifice|Sacrifice
+産業経済新聞社|bangumi_publisher_sankei_shimbun|Sankei Shimbun
+Sankei Shimbun|bangumi_publisher_sankei_shimbun|Sankei Shimbun
+SAVE THE QUEEN|bangumi_publisher_save_the_queen|SAVE THE QUEEN
+Scholastic Paperbacks|bangumi_publisher_scholastic_paperbacks|Scholastic Paperbacks
+SCHOLE INC.|bangumi_publisher_schole_inc|SCHOLE INC.
+SDR|bangumi_publisher_sdr|SDR
+SE(SME)(M)|bangumi_publisher_se_sme_m|SE(SME)(M)
+成美堂出版|bangumi_publisher_seibido_publishing|Seibido Publishing
+Seibido Publishing|bangumi_publisher_seibido_publishing|Seibido Publishing
+青土社|bangumi_publisher_seidosha|Seidosha
+Seidosha|bangumi_publisher_seidosha|Seidosha
+SEVEN SEAS MUSIC|bangumi_publisher_seven_seas_music|SEVEN SEAS MUSIC
+上海文化出版社|bangumi_publisher_shanghai_culture_publishing_house|Shanghai Culture Publishing House
+Shanghai Culture Publishing House|bangumi_publisher_shanghai_culture_publishing_house|Shanghai Culture Publishing House
+上海宽娱数码科技有限公司|bangumi_publisher_shanghai_kuanyu_digital_technology|Shanghai Kuanyu Digital Technology
+Shanghai Kuanyu Digital Technology|bangumi_publisher_shanghai_kuanyu_digital_technology|Shanghai Kuanyu Digital Technology
+上海文艺出版社|bangumi_publisher_shanghai_literature_and_art_publishing_house|Shanghai Literature and Art Publishing House
+Shanghai Literature and Art Publishing House|bangumi_publisher_shanghai_literature_and_art_publishing_house|Shanghai Literature and Art Publishing House
+晋游舍|bangumi_publisher_shinyusha|Shinyusha
+Shinyusha|bangumi_publisher_shinyusha|Shinyusha
+*小学館|bangumi_publisher_shogakukan|Shogakukan
+集英社オレンジ文庫|bangumi_publisher_shueisha_orange_bunko|Shueisha Orange Bunko
+Shueisha Orange Bunko|bangumi_publisher_shueisha_orange_bunko|Shueisha Orange Bunko
+集英社スーパーダッシュ文庫|bangumi_publisher_shueisha_super_dash_bunko|Shueisha Super Dash Bunko
+Shueisha Super Dash Bunko|bangumi_publisher_shueisha_super_dash_bunko|Shueisha Super Dash Bunko
+四川文艺出版社|bangumi_publisher_sichuan_literature_and_art_publishing_house|Sichuan Literature and Art Publishing House
+Sichuan Literature and Art Publishing House|bangumi_publisher_sichuan_literature_and_art_publishing_house|Sichuan Literature and Art Publishing House
+Side Connection Music|bangumi_publisher_side_connection_music|Side Connection Music
+signum|bangumi_publisher_signum|signum
+Sister's Spread-i|bangumi_publisher_sister_s_spread_i|Sister's Spread-i
+SMA(SME)(M)|bangumi_publisher_sma_sme_m|SMA(SME)(M)
+SME・ビジュアルワークス|bangumi_publisher_sme_2|SME・ビジュアルワークス
+Smilegate Entertainment|bangumi_publisher_smilegate_entertainment|Smilegate Entertainment
+SMJ|bangumi_publisher_smj|SMJ
+SMR(SME)(M)|bangumi_publisher_smr_sme_m|SMR(SME)(M)
+So-net|bangumi_publisher_so_net|So-net
+综合图书|bangumi_publisher_sogo_tosho|Sogo Tosho
+Sogo Tosho|bangumi_publisher_sogo_tosho|Sogo Tosho
+綜合図書|bangumi_publisher_sogo_tosho|Sogo Tosho
+SONIC GROOVE|bangumi_publisher_sonic_groove|SONIC GROOVE
+Sony Music Distribution inc. (JDS) =music =|bangumi_publisher_sony_music_distribution_inc_jd|Sony Music Distribution inc. (JDS) =music =
+SP-time|bangumi_publisher_sp_time|SP-time
+Sphere|bangumi_publisher_sphere|Sphere
+Spike Chunsoft|bangumi_publisher_spike_chunsoft|Spike Chunsoft
+Splitter Verlag|bangumi_publisher_splitter_verlag|Splitter Verlag
+株式会社スクウェア|bangumi_publisher_square|Square
+スクウェアエニックス|bangumi_publisher_square_enix|Square Enix
+Star Light Jazz Trio|bangumi_publisher_star_light_jazz_trio|Star Light Jazz Trio
+Star Rose Label|bangumi_publisher_star_rose_label|Star Rose Label
+Storytime Garden～S～|bangumi_publisher_storytime_garden_s|Storytime Garden～S～
+STPR Records|bangumi_publisher_stpr_records|STPR Records
+策略第一|bangumi_publisher_strategy_first|Strategy First
+Stratiotes|bangumi_publisher_stratiotes|Stratiotes
+studio CHANT|bangumi_publisher_studio_chant|studio CHANT
+Studio Mebius|bangumi_publisher_studio_mebius|Studio Mebius
+STUDIO WASABI|bangumi_publisher_studio_wasabi|STUDIO WASABI
+Stygian Riverside|bangumi_publisher_stygian_riverside|Stygian Riverside
+Sumthing Else Music Works|bangumi_publisher_sumthing_else_music_works|Sumthing Else Music Works
+スーパーダッシュ文庫|bangumi_publisher_super_dash_bunko|Super Dash Bunko
+Super Dash Bunko|bangumi_publisher_super_dash_bunko|Super Dash Bunko
+SUPERSONIC|bangumi_publisher_supersonic|SUPERSONIC
+sweet ampoule|bangumi_publisher_sweet_ampoule|sweet ampoule
+Syawase Works|bangumi_publisher_syawase_works|Syawase Works
+T.Piacere|bangumi_publisher_t_piacere|T.Piacere
+台湾东贩|bangumi_publisher_taiwan_tohan|Taiwan Tohan
+TATAMI Stugiwo|bangumi_publisher_tatami_stugiwo|TATAMI Stugiwo
+Technosoft|bangumi_publisher_technosoft|Technosoft
+第九城市|bangumi_publisher_the9|The9
+The9|bangumi_publisher_the9|The9
+岸田教团&THE明星Rockets|bangumi_publisher_the_rockets|岸田教团&THE明星Rockets
+天津人民美术出版社|bangumi_publisher_tianjin_people_s_fine_arts_publishing_house|Tianjin People's Fine Arts Publishing House
+Tianjin People's Fine Arts Publishing House|bangumi_publisher_tianjin_people_s_fine_arts_publishing_house|Tianjin People's Fine Arts Publishing House
+天津人民出版社|bangumi_publisher_tianjin_people_s_publishing_house|Tianjin People's Publishing House
+Tianjin People's Publishing House|bangumi_publisher_tianjin_people_s_publishing_house|Tianjin People's Publishing House
+Titan Comics|bangumi_publisher_titan_comics|Titan Comics
+Toge Productions|bangumi_publisher_toge_productions|Toge Productions
+东贩|bangumi_publisher_tohan|Tohan
+Tohan|bangumi_publisher_tohan|Tohan
+東京ニュース通信社|bangumi_publisher_tokyo_news_tsushinsha|Tokyo News Tsushinsha
+Tokyo News Tsushinsha|bangumi_publisher_tokyo_news_tsushinsha|Tokyo News Tsushinsha
+トミー|bangumi_publisher_tomy|Tomy
+Tomy|bangumi_publisher_tomy|Tomy
+東立香港|bangumi_publisher_tong_li_hong_kong|Tong Li Hong Kong
+Tong Li Hong Kong|bangumi_publisher_tong_li_hong_kong|Tong Li Hong Kong
+台湾东立出版社|bangumi_publisher_tong_li_publishing|Tong Li Publishing
+Tripwire Interactive|bangumi_publisher_tripwire_interactive|Tripwire Interactive
+TRNKY|bangumi_publisher_trnky|TRNKY
+Tutti Sound|bangumi_publisher_tutti_sound|Tutti Sound
+twinkle|bangumi_publisher_twinkle_2|twinkle
+U&R records|bangumi_publisher_u_r_records|U&R records
+U-Rythmix records|bangumi_publisher_u_rythmix_records|U-Rythmix records
+ultraCeep|bangumi_publisher_ultraceep|ultraCeep
+Under Rain|bangumi_publisher_under_rain|Under Rain
+Universal|bangumi_publisher_universal|Universal
+UNIVERSAL J(P)(M)|bangumi_publisher_universal_j_p_m|UNIVERSAL J(P)(M)
+Universal Music Publishing Japan|bangumi_publisher_universal_music_publishing_jap|Universal Music Publishing Japan
+UNIVERSAL SIGMA(P)(M)|bangumi_publisher_universal_sigma_p_m|UNIVERSAL SIGMA(P)(M)
+University Of Minnesota Press|bangumi_publisher_university_of_minnesota_press|University Of Minnesota Press
+VAGUEDGE|bangumi_publisher_vaguedge|VAGUEDGE
+威尔乌|bangumi_publisher_valve|Valve
+Velvet Voice bouquet|bangumi_publisher_velvet_voice_bouquet|Velvet Voice bouquet
+Velvet Voice petit|bangumi_publisher_velvet_voice_petit|Velvet Voice petit
+Vertigo|bangumi_publisher_vertigo|Vertigo
+ビジュアルアーツ|bangumi_publisher_visual_art|VisualArt's
+VisualArt's|bangumi_publisher_visual_art|VisualArt's
+Voltage of Imagination|bangumi_publisher_voltage_of_imagination|Voltage of Imagination
+WaterTower Music|bangumi_publisher_watertower_music_2|WaterTower Music
+WordGear|bangumi_publisher_wordgear|WordGear
+心动网络股份有限公司|bangumi_publisher_xd_network|XD Network
+YAMAYURI|bangumi_publisher_yamayuri|YAMAYURI
+云南美术出版社|bangumi_publisher_yunnan_fine_arts_publishing_house|Yunnan Fine Arts Publishing House
+Yunnan Fine Arts Publishing House|bangumi_publisher_yunnan_fine_arts_publishing_house|Yunnan Fine Arts Publishing House
+ZOMBILiCA|bangumi_publisher_zombilica|ZOMBILiCA
+10mile|bangumi_studio_10mile|10mile
+げーせん18|bangumi_studio_18|げーせん18
+20th Century Fox Animation|bangumi_studio_20th_century_fox_animation|20th Century Fox Animation
+2by3 Games|bangumi_studio_2by3_games|2by3 Games
+2K Czech|bangumi_studio_2k_czech|2K Czech
+343 Industries|bangumi_studio_343_industries|343 Industries
+梅麻吕3D|bangumi_studio_3d_4|梅麻吕3D
+3rdEye|bangumi_studio_3rdeye|3rdEye
+5th Cell|bangumi_studio_5th_cell|5th Cell
+第8スタジオ|bangumi_studio_8_3|第8スタジオ
+Aardman Animations|bangumi_studio_aardman_animations|Aardman Animations
+阿德曼工作室|bangumi_studio_aardman_animations|Aardman Animations
+アクセスゲームズ|bangumi_studio_access_games|Access Games
+Access Games|bangumi_studio_access_games|Access Games
+ADELTA|bangumi_studio_adelta|ADELTA
+AHAAN|bangumi_studio_ahaan|AHAAN
+AIC Build|bangumi_studio_aic_build|AIC Build
+AIC Digital|bangumi_studio_aic_digital|AIC Digital
+AIC PLUS+|bangumi_studio_aic_plus|AIC PLUS+
+Alfa System|bangumi_studio_alfa_system|Alfa System
+アリスソフト|bangumi_studio_alicesoft|ALICESOFT
+ALL-TiME|bangumi_studio_all_time|ALL-TiME
+ALPHADREAM|bangumi_studio_alphadream|ALPHADREAM
+Ambrella|bangumi_studio_ambrella|Ambrella
+AMEDEO|bangumi_studio_amedeo|AMEDEO
+Amplitude Studios|bangumi_studio_amplitude_studios|Amplitude Studios
+An*tique|bangumi_studio_an_tique|An*tique
+Ange|bangumi_studio_ange|Ange
+APPLE PIE|bangumi_studio_apple_pie|APPLE PIE
+アルボアニメーション|bangumi_studio_arbo_animation|Arbo Animation
+Argonauts|bangumi_studio_argonauts|Argonauts
+Aries|bangumi_studio_aries|Aries
+アームス|bangumi_studio_arms|ARMS
+Arms|bangumi_studio_arms_2|Arms
+AsicxArt|bangumi_studio_asicxart|AsicxArt
+アソビモ|bangumi_studio_asobimo|ASOBIMO
+ASOBIMO|bangumi_studio_asobimo|ASOBIMO
+Asobo Studio|bangumi_studio_asobo_studio|Asobo Studio
+AT-2 Project|bangumi_studio_at_2_project|AT-2 Project
+Ateam|bangumi_studio_ateam|Ateam
+Avalanche Studios|bangumi_studio_avalanche_studios|Avalanche Studios
+B-cluster|bangumi_studio_b_cluster|B-cluster
+BAKKEN RECORD|bangumi_studio_bakken_record|BAKKEN RECORD
+ナムコエンターテインメント|bangumi_studio_bandai_namco_entertainment|Bandai Namco Entertainment
+BARE＆BUNNY|bangumi_studio_bare_bunny|BARE＆BUNNY
+BAROQUPID|bangumi_studio_baroqupid|BAROQUPID
+Beenox|bangumi_studio_beenox|Beenox
+Berkshire Yorkshire|bangumi_studio_berkshire_yorkshire|Berkshire Yorkshire
+Berserker|bangumi_studio_berserker|Berserker
+Big Huge Games|bangumi_studio_big_huge_games|Big Huge Games
+Black Isle Studios|bangumi_studio_black_isle_studios|Black Isle Studios
+暴雪娱乐|bangumi_studio_blizzard_entertainment|Blizzard Entertainment
+Bloober Team|bangumi_studio_bloober_team|Bloober Team
+Bloom Mushroom|bangumi_studio_bloom_mushroom|Bloom Mushroom
+Blue Arrow Garden|bangumi_studio_blue_arrow_garden|Blue Arrow Garden
+blue mica|bangumi_studio_blue_mica|blue mica
+Bluepoint Games|bangumi_studio_bluepoint_games|Bluepoint Games
+Bohemia Interactive|bangumi_studio_bohemia_interactive|Bohemia Interactive
+Bonbee！|bangumi_studio_bonbee|Bonbee！
+bones|bangumi_studio_bones_2|bones
+Brace Yourself Games|bangumi_studio_brace_yourself_games|Brace Yourself Games
+Brain's･Base|bangumi_studio_brain_s_base_2|Brain's･Base
+Cabbit|bangumi_studio_cabbit|Cabbit
+CAGE|bangumi_studio_cage|CAGE
+Capybara Games|bangumi_studio_capybara_games|Capybara Games
+Carol Works|bangumi_studio_carol_works|Carol Works
+CatCap Studio|bangumi_studio_catcap_studio|CatCap Studio
+catwalk|bangumi_studio_catwalk|catwalk
+Cavedog Entertainment|bangumi_studio_cavedog_entertainment|Cavedog Entertainment
+央视动画有限公司|bangumi_studio_cctv_animation|CCTV Animation
+CCTV Animation|bangumi_studio_cctv_animation|CCTV Animation
+央视动画|bangumi_studio_cctv_animation|CCTV Animation
+央视动漫集团|bangumi_studio_cctv_animation_group|CCTV Animation Group
+CHAOS-R|bangumi_studio_chaos_r|CHAOS-R
+中華網龍|bangumi_studio_chinese_gamer_international|Chinese Gamer International
+Chinese Gamer International|bangumi_studio_chinese_gamer_international|Chinese Gamer International
+CiNG|bangumi_studio_cing|CiNG
+Circletempo|bangumi_studio_circletempo|Circletempo
+さくらぷりん|bangumi_studio_cjk_0178b4|さくらぷりん
+アイン|bangumi_studio_cjk_017c72|アイン
+しゃくなげ|bangumi_studio_cjk_0886f2|しゃくなげ
+アンダームーン|bangumi_studio_cjk_0995f0|アンダームーン
+熊的选民|bangumi_studio_cjk_0b5890|熊的选民
+シャウトデザインワークス|bangumi_studio_cjk_0ce7b3|シャウトデザインワークス
+萌雛|bangumi_studio_cjk_1066c9|萌雛
+すみっこソフト|bangumi_studio_cjk_10c187|すみっこソフト
+天工艺彩|bangumi_studio_cjk_13b8be|天工艺彩
+小疯映画|bangumi_studio_cjk_148470|小疯映画
+スワンマニア|bangumi_studio_cjk_17e152|スワンマニア
+フォグ|bangumi_studio_cjk_190127|フォグ
+はむはむソフト|bangumi_studio_cjk_191a54|はむはむソフト
+創美研究所|bangumi_studio_cjk_1971e8|創美研究所
+アパダッシュ|bangumi_studio_cjk_1b5d7a|アパダッシュ
+上海今日动画影视制作有限公司|bangumi_studio_cjk_1bafb8|上海今日动画影视制作有限公司
+エヌディーキューブ|bangumi_studio_cjk_1da8bd|エヌディーキューブ
+銀灯|bangumi_studio_cjk_207f71|銀灯
+はきか|bangumi_studio_cjk_21db17|はきか
+スミレ|bangumi_studio_cjk_22f213|スミレ
+舞之动画|bangumi_studio_cjk_23b572|舞之动画
+株式会社イチカラム|bangumi_studio_cjk_25f310|株式会社イチカラム
+クエスト|bangumi_studio_cjk_271e77|クエスト
+ティンクルベル|bangumi_studio_cjk_2a0b53|ティンクルベル
+インカローズ|bangumi_studio_cjk_2d234b|インカローズ
+アリバイ|bangumi_studio_cjk_2d65b2|アリバイ
+チームグリグリ|bangumi_studio_cjk_2d706f|チームグリグリ
+とこはな|bangumi_studio_cjk_310b8c|とこはな
+上海淘米网络科技有限公司|bangumi_studio_cjk_314ae3|上海淘米网络科技有限公司
+杭州路行动画设计有限公司|bangumi_studio_cjk_325ef3|杭州路行动画设计有限公司
+乌鸦软件|bangumi_studio_cjk_34232f|乌鸦软件
+じゃむさんっぽいど|bangumi_studio_cjk_3763a9|じゃむさんっぽいど
+きなこの山|bangumi_studio_cjk_377322|きなこの山
+しらたま|bangumi_studio_cjk_3916ed|しらたま
+苏州乐志软件|bangumi_studio_cjk_39f4a8|苏州乐志软件
+グラスホッパー|bangumi_studio_cjk_3f453e|グラスホッパー
+ソニア|bangumi_studio_cjk_415375|ソニア
+株式会社ハップ|bangumi_studio_cjk_429ac0|株式会社ハップ
+クリメニア|bangumi_studio_cjk_432841|クリメニア
+渦女屋本舗|bangumi_studio_cjk_44f9c6|渦女屋本舗
+パステル|bangumi_studio_cjk_453d22|パステル
+スタジオ奪|bangumi_studio_cjk_45b935|スタジオ奪
+エスソフト|bangumi_studio_cjk_466228|エスソフト
+くんかくんか帝国|bangumi_studio_cjk_497bfc|くんかくんか帝国
+启缘映画|bangumi_studio_cjk_4de233|启缘映画
+電視廣播有限公司|bangumi_studio_cjk_4fc670|電視廣播有限公司
+タペタム牛乳|bangumi_studio_cjk_5171f7|タペタム牛乳
+松根マサト|bangumi_studio_cjk_54511a|松根マサト
+乐元素|bangumi_studio_cjk_54720e|乐元素
+牛奶社|bangumi_studio_cjk_54774c|牛奶社
+おとこの娘倶楽部|bangumi_studio_cjk_55729f|おとこの娘倶楽部
+ダンデライオン|bangumi_studio_cjk_56db91|ダンデライオン
+カルチュア|bangumi_studio_cjk_5723ec|カルチュア
+暗黒劇場|bangumi_studio_cjk_573e2b|暗黒劇場
+モード|bangumi_studio_cjk_576b51|モード
+キャビア|bangumi_studio_cjk_58ef39|キャビア
+其卡通|bangumi_studio_cjk_59495a|其卡通
+自転車創業|bangumi_studio_cjk_59f79d|自転車創業
+广州千骐动漫有限公司|bangumi_studio_cjk_5fbbce|广州千骐动漫有限公司
+みなとカーニバル|bangumi_studio_cjk_5fffce|みなとカーニバル
+パルム|bangumi_studio_cjk_60b510|パルム
+レッド・エンタテインメント|bangumi_studio_cjk_660d93|レッド・エンタテインメント
+穴蔵|bangumi_studio_cjk_6a6e44|穴蔵
+まどそふと|bangumi_studio_cjk_6a9ac2|まどそふと
+みさくらなんこつハースニール|bangumi_studio_cjk_6b49ad|みさくらなんこつハースニール
+樱桃软|bangumi_studio_cjk_6bb4c2|樱桃软
+エム・エス・シー|bangumi_studio_cjk_6c7c2f|エム・エス・シー
+スタジオねこキック|bangumi_studio_cjk_6d45df|スタジオねこキック
+インレ|bangumi_studio_cjk_6f24a9|インレ
+游戏羔羊制作组|bangumi_studio_cjk_6f4eab|游戏羔羊制作组
+サークルゴリッチュ|bangumi_studio_cjk_6fe80e|サークルゴリッチュ
+郎猫儿|bangumi_studio_cjk_725ad4|郎猫儿
+铸梦动画|bangumi_studio_cjk_7374c7|铸梦动画
+地獄カバ(沼から現れた)|bangumi_studio_cjk_751daa|地獄カバ(沼から現れた)
+みるくぱい|bangumi_studio_cjk_75d62d|みるくぱい
+皮乐|bangumi_studio_cjk_76acab|皮乐
+裏束|bangumi_studio_cjk_7726b0|裏束
+にくきゅう|bangumi_studio_cjk_77a1e1|にくきゅう
+みこにそみ|bangumi_studio_cjk_77e73a|みこにそみ
+レイ・デュース|bangumi_studio_cjk_77fa8b|レイ・デュース
+风荣社|bangumi_studio_cjk_78f15d|风荣社
+白露社|bangumi_studio_cjk_79e690|白露社
+イージー|bangumi_studio_cjk_7aa56a|イージー
+白濁系カウパー|bangumi_studio_cjk_7b5678|白濁系カウパー
+自宅すたじお|bangumi_studio_cjk_7bca98|自宅すたじお
+幻创映画馆|bangumi_studio_cjk_7c2618|幻创映画馆
+あせろら|bangumi_studio_cjk_7cf29a|あせろら
+鬼谷原创|bangumi_studio_cjk_7de864|鬼谷原创
+凝羽动画|bangumi_studio_cjk_7f5ac5|凝羽动画
+ろど|bangumi_studio_cjk_7f717a|ろど
+美遊|bangumi_studio_cjk_821e8f|美遊
+プラリネ|bangumi_studio_cjk_829286|プラリネ
+だーくワン！|bangumi_studio_cjk_84fabf|だーくワン！
+虚拟印象工作室|bangumi_studio_cjk_85c6a4|虚拟印象工作室
+未完童话|bangumi_studio_cjk_8e60a1|未完童话
+スタジオジャム|bangumi_studio_cjk_8f5c71|スタジオジャム
+七彩绘色|bangumi_studio_cjk_90543d|七彩绘色
+可憐ソフト|bangumi_studio_cjk_90870d|可憐ソフト
+オペラハウス|bangumi_studio_cjk_90cad3|オペラハウス
+グラシアス|bangumi_studio_cjk_928518|グラシアス
+ブリキの時計|bangumi_studio_cjk_952299|ブリキの時計
+サンクチュアリ|bangumi_studio_cjk_9639e1|サンクチュアリ
+裏ぴろちゃき|bangumi_studio_cjk_963ef1|裏ぴろちゃき
+ステージなな|bangumi_studio_cjk_969ac6|ステージなな
+ヘクセンハウス|bangumi_studio_cjk_9838f6|ヘクセンハウス
+ネル|bangumi_studio_cjk_98c445|ネル
+ジニアス|bangumi_studio_cjk_99bb84|ジニアス
+レッドレーベル|bangumi_studio_cjk_9b0b72|レッドレーベル
+豆丸|bangumi_studio_cjk_9fc86c|豆丸
+台灣香蕉王|bangumi_studio_cjk_a0c29a|台灣香蕉王
+宁波卡酷动画制作有限公司|bangumi_studio_cjk_a0c2b2|宁波卡酷动画制作有限公司
+ウィルプラス|bangumi_studio_cjk_a20b60|ウィルプラス
+茅野真奈|bangumi_studio_cjk_a2ab42|茅野真奈
+ピンキィソフト ミッドナイトムーンメディア|bangumi_studio_cjk_a303ca|ピンキィソフト ミッドナイトムーンメディア
+羊おじさん倶楽部|bangumi_studio_cjk_a33f5d|羊おじさん倶楽部
+郷愁花屋|bangumi_studio_cjk_a3499a|郷愁花屋
+スタジオ カメ|bangumi_studio_cjk_a65088|スタジオ カメ
+劇団近未来|bangumi_studio_cjk_a7bfe2|劇団近未来
+阿塞罗拉|bangumi_studio_cjk_aa4367|阿塞罗拉
+哈尔滨智慧动画艺术有限公司|bangumi_studio_cjk_aa88df|哈尔滨智慧动画艺术有限公司
+バグシステム|bangumi_studio_cjk_aaf648|バグシステム
+プラネットエンターテイメント|bangumi_studio_cjk_ac2e46|プラネットエンターテイメント
+ランカース|bangumi_studio_cjk_ac5b81|ランカース
+アクセント|bangumi_studio_cjk_ac6bbe|アクセント
+搜尼阿|bangumi_studio_cjk_afeafd|搜尼阿
+九五年动画|bangumi_studio_cjk_b09629|九五年动画
+落叶岛项目组|bangumi_studio_cjk_b16724|落叶岛项目组
+家私头|bangumi_studio_cjk_b1d69a|家私头
+アルテピアッツァ|bangumi_studio_cjk_b2626a|アルテピアッツァ
+アボガドパワーズ|bangumi_studio_cjk_b40167|アボガドパワーズ
+ま～まれぇど|bangumi_studio_cjk_b4ab6e|ま～まれぇど
+ぽいずん|bangumi_studio_cjk_ba32c2|ぽいずん
+创美研究所|bangumi_studio_cjk_bb03bb|创美研究所
+エムサイズ|bangumi_studio_cjk_bc63e7|エムサイズ
+マウントポジション|bangumi_studio_cjk_bd7a86|マウントポジション
+じぃすぽっと|bangumi_studio_cjk_bdbb5f|じぃすぽっと
+デュース|bangumi_studio_cjk_be5097|デュース
+ジャスト|bangumi_studio_cjk_bf0761|ジャスト
+ココ|bangumi_studio_cjk_bf309e|ココ
+マニファクチュア|bangumi_studio_cjk_c005a9|マニファクチュア
+智乐堂|bangumi_studio_cjk_c04432|智乐堂
+シリウス|bangumi_studio_cjk_c82959|シリウス
+筆柿そふと|bangumi_studio_cjk_c86c5a|筆柿そふと
+トマソン|bangumi_studio_cjk_c94e27|トマソン
+イージー・フイルム|bangumi_studio_cjk_c966c4|イージー・フイルム
+あみそ組|bangumi_studio_cjk_cb8225|あみそ組
+赤いトンボ|bangumi_studio_cjk_cbfe5a|赤いトンボ
+西山映画|bangumi_studio_cjk_cd7bdb|西山映画
+夜兔游戏|bangumi_studio_cjk_cdc7bf|夜兔游戏
+火狗創意有限公司|bangumi_studio_cjk_ce2d74|火狗創意有限公司
+アンサー|bangumi_studio_cjk_cf179d|アンサー
+寒木春华|bangumi_studio_cjk_cfd0d4|寒木春华
+アメノムラクモ|bangumi_studio_cjk_cff2a9|アメノムラクモ
+黄昏边境|bangumi_studio_cjk_d24c8c|黄昏边境
+百漫|bangumi_studio_cjk_d4bbf0|百漫
+私立樱桃小学校|bangumi_studio_cjk_d4e60d|私立樱桃小学校
+ヤオヨロズ|bangumi_studio_cjk_d765f1|ヤオヨロズ
+サキュレント|bangumi_studio_cjk_d87884|サキュレント
+フイルム|bangumi_studio_cjk_da07f4|フイルム
+ソノリティ株式会社|bangumi_studio_cjk_da3b97|ソノリティ株式会社
+らぱぷる|bangumi_studio_cjk_db1fbd|らぱぷる
+伊地幹|bangumi_studio_cjk_db3b35|伊地幹
+すいかやさん。|bangumi_studio_cjk_dc87ca|すいかやさん。
+シュガービーンズ|bangumi_studio_cjk_dcb114|シュガービーンズ
+传奇游戏|bangumi_studio_cjk_dd3a52|传奇游戏
+少女奪え|bangumi_studio_cjk_de3f3c|少女奪え
+ジュエリー|bangumi_studio_cjk_e08854|ジュエリー
+ハイクオソフト|bangumi_studio_cjk_e2bad9|ハイクオソフト
+幻創映画館|bangumi_studio_cjk_e2f40c|幻創映画館
+あそびごころ。|bangumi_studio_cjk_e5864a|あそびごころ。
+リリクス|bangumi_studio_cjk_e5d4d6|リリクス
+はっぴーすとろべりー|bangumi_studio_cjk_e63c3a|はっぴーすとろべりー
+あうぐ|bangumi_studio_cjk_e64eae|あうぐ
+下唇|bangumi_studio_cjk_e704a6|下唇
+リリス|bangumi_studio_cjk_e763a1|リリス
+咕咚动漫工作室|bangumi_studio_cjk_e7b9ac|咕咚动漫工作室
+莓坊主|bangumi_studio_cjk_e7c710|莓坊主
+ちぇりーそふと|bangumi_studio_cjk_e7cca5|ちぇりーそふと
+アガハリ|bangumi_studio_cjk_eaaac4|アガハリ
+銀のベル|bangumi_studio_cjk_eb7e29|銀のベル
+蒸汽工场|bangumi_studio_cjk_ec8045|蒸汽工场
+红渊|bangumi_studio_cjk_ed099c|红渊
+ソラ|bangumi_studio_cjk_ed21f6|ソラ
+功夫动漫|bangumi_studio_cjk_edd113|功夫动漫
+ウグイスカグラ|bangumi_studio_cjk_edf9a6|ウグイスカグラ
+黒彩黄泉路|bangumi_studio_cjk_ee2b6a|黒彩黄泉路
+上海变月文化传播有限公司|bangumi_studio_cjk_ee4ba4|上海变月文化传播有限公司
+オーサリングヘヴン|bangumi_studio_cjk_ef7af1|オーサリングヘヴン
+智乐|bangumi_studio_cjk_ef7b7f|智乐
+视美精典|bangumi_studio_cjk_f417e9|视美精典
+舞花|bangumi_studio_cjk_f4a591|舞花
+たぬきそふと|bangumi_studio_cjk_f4c3d7|たぬきそふと
+ソンム製作所|bangumi_studio_cjk_f5cc98|ソンム製作所
+アルファ|bangumi_studio_cjk_f6832b|アルファ
+ウィッチクラフト|bangumi_studio_cjk_f8eb39|ウィッチクラフト
+スタジオポーク|bangumi_studio_cjk_f9756f|スタジオポーク
+洛水花原|bangumi_studio_cjk_f9caeb|洛水花原
+丹尼动画|bangumi_studio_cjk_fb16b0|丹尼动画
+上海欣雨动画设计有限公司|bangumi_studio_cjk_fb4206|上海欣雨动画设计有限公司
+蛇ノ道ハ蛇ソフト|bangumi_studio_cjk_fc24cb|蛇ノ道ハ蛇ソフト
+ヒューマン|bangumi_studio_cjk_fc2c17|ヒューマン
+苺坊主|bangumi_studio_cjk_fcbafb|苺坊主
+声影动漫|bangumi_studio_cjk_fd1c99|声影动漫
+ひよこソフト|bangumi_studio_cjk_fe4abe|ひよこソフト
+CLOVER|bangumi_studio_clover|CLOVER
+colors|bangumi_studio_colors|colors
+Colossal Order|bangumi_studio_colossal_order|Colossal Order
+SPACE PROJECT|bangumi_studio_committee_space_project|SPACE PROJECT
+COSMIC CUTE|bangumi_studio_cosmic_cute|COSMIC CUTE
+Cosmillica|bangumi_studio_cosmillica|Cosmillica
+Crepe|bangumi_studio_crepe|Crepe
+Cronus|bangumi_studio_cronus|Cronus
+Croteam|bangumi_studio_croteam|Croteam
+CUBETYPE|bangumi_studio_cubetype|CUBETYPE
+Cybergate Technology Limited|bangumi_studio_cybergate_technology_limited|Cybergate Technology Limited
+Cyc|bangumi_studio_cyc|Cyc
+CYC NO-NOS|bangumi_studio_cyc_no_nos|CYC NO-NOS
+DARKNESS|bangumi_studio_darkness|DARKNESS
+Deck13|bangumi_studio_deck13|Deck13
+DEEP ZONE|bangumi_studio_deep_zone|DEEP ZONE
+DELiGHTWORKS|bangumi_studio_delightworks|DELiGHTWORKS
+Digital Eclipse|bangumi_studio_digital_eclipse|Digital Eclipse
+デジタルGパワー|bangumi_studio_digital_g_power|デジタルGパワー
+Dingo|bangumi_studio_dingo|Dingo
+DISCOVERY MARS|bangumi_studio_discovery_mars|DISCOVERY MARS
+ドメリカ|bangumi_studio_domerica|Domerica
+Domerica|bangumi_studio_domerica|Domerica
+Dontnod Entertainment|bangumi_studio_dontnod_entertainment|Dontnod Entertainment
+Double Soft Cream|bangumi_studio_double_soft_cream|Double Soft Cream
+DreamSoft|bangumi_studio_dreamsoft|DreamSoft
+Drei|bangumi_studio_drei|Drei
+DrinkBox Studios|bangumi_studio_drinkbox_studios|DrinkBox Studios
+DWARFSOFT|bangumi_studio_dwarfsoft|DWARFSOFT
+(EA Canada)|bangumi_studio_ea_canada_2|(EA Canada)
+EA Los Angeles|bangumi_studio_ea_los_angeles|EA Los Angeles
+EDGES LLC.|bangumi_studio_edges_llc|EDGES LLC.
+Eidos Montreal|bangumi_studio_eidos_montreal|Eidos Montreal
+エイティング|bangumi_studio_eighting|Eighting
+Eighting|bangumi_studio_eighting|Eighting
+エイケン|bangumi_studio_eiken|Eiken
+Eiken|bangumi_studio_eiken|Eiken
+Empress|bangumi_studio_empress|Empress
+ENISHIYA|bangumi_studio_enishiya|ENISHIYA
+ensemble SWEET|bangumi_studio_ensemble_sweet|ensemble SWEET
+ESC-APE by|bangumi_studio_esc_ape_by|ESC-APE by
+Etoiles|bangumi_studio_etoiles|Etoiles
+eufonie|bangumi_studio_eufonie|eufonie
+Eugen Systems|bangumi_studio_eugen_systems|Eugen Systems
+Euphony Production|bangumi_studio_euphony_production|Euphony Production
+evoLL|bangumi_studio_evoll|evoLL
+f4samurai|bangumi_studio_f4samurai|f4samurai
+FC01|bangumi_studio_fc01|FC01
+Firefly Studios|bangumi_studio_firefly_studios|Firefly Studios
+Fizz|bangumi_studio_fizz|Fizz
+flap|bangumi_studio_flap|flap
+Flight-Plan|bangumi_studio_flight_plan|Flight-Plan
+Flying Wild Hog|bangumi_studio_flying_wild_hog|Flying Wild Hog
+FlyingShine黒|bangumi_studio_flyingshine_2|FlyingShine黒
+FlyingShine黑|bangumi_studio_flyingshine_3|FlyingShine黑
+Forgotten Empires|bangumi_studio_forgotten_empires|Forgotten Empires
+フランスパン|bangumi_studio_french_bread|French-Bread
+French-Bread|bangumi_studio_french_bread|French-Bread
+Frontier Developments|bangumi_studio_frontier_developments|Frontier Developments
+FULLTIME|bangumi_studio_fulltime|FULLTIME
+海底囚人|bangumi_studio_funamusea|Funamusea
+Funamusea|bangumi_studio_funamusea|Funamusea
+Funcom|bangumi_studio_funcom|Funcom
+福島GAINAX|bangumi_studio_gainax_2|福島GAINAX
+Galette|bangumi_studio_galette|Galette
+ガンバリオン|bangumi_studio_ganbarion|Ganbarion
+Ganbarion|bangumi_studio_ganbarion|Ganbarion
+Gas Powered Games|bangumi_studio_gas_powered_games|Gas Powered Games
+GATLING CAT|bangumi_studio_gatling_cat|GATLING CAT
+GEN|bangumi_studio_gen|GEN
+ジェノスタジオ|bangumi_studio_geno_studio|Geno Studio
+Giggle Game|bangumi_studio_giggle_game|Giggle Game
+GLacé|bangumi_studio_glac|GLacé
+环球数码|bangumi_studio_global_digital_creations|Global Digital Creations
+Global Digital Creations|bangumi_studio_global_digital_creations|Global Digital Creations
+环球数码媒体科技研究 深圳 有限公司|bangumi_studio_global_digital_creations|Global Digital Creations
+GLOBE|bangumi_studio_globe|GLOBE
+GloriaWorks|bangumi_studio_gloriaworks|GloriaWorks
+GOKU-RAKU|bangumi_studio_goku_raku|GOKU-RAKU
+草蜢工作室|bangumi_studio_grasshopper_manufacture|Grasshopper Manufacture
+Grasshopper Manufacture|bangumi_studio_grasshopper_manufacture|Grasshopper Manufacture
+グレッゾ|bangumi_studio_grezzo|Grezzo
+Grezzo|bangumi_studio_grezzo|Grezzo
+GROOVER|bangumi_studio_groover|GROOVER
+Guerrilla Games|bangumi_studio_guerrilla_games|Guerrilla Games
+GuiltyN|bangumi_studio_guiltyn|GuiltyN
+株式会社ガスト|bangumi_studio_gust|Gust
+Haemimont Games|bangumi_studio_haemimont_games|Haemimont Games
+Halfbrick Studios|bangumi_studio_halfbrick_studios|Halfbrick Studios
+HARD|bangumi_studio_hard|HARD
+HARUKAZE|bangumi_studio_harukaze|HARUKAZE
+Hearts|bangumi_studio_hearts|Hearts
+河洛工作室|bangumi_studio_heluo_studio|Heluo Studio
+Heluo Studio|bangumi_studio_heluo_studio|Heluo Studio
+Hending|bangumi_studio_hending|Hending
+Hidden Path Entertainment|bangumi_studio_hidden_path_entertainment|Hidden Path Entertainment
+High Moon Studios|bangumi_studio_high_moon_studios|High Moon Studios
+姫屋ソフト|bangumi_studio_himeya_soft|Himeya Soft
+Himeya Soft|bangumi_studio_himeya_soft|Himeya Soft
+姬屋软|bangumi_studio_himeya_soft|Himeya Soft
+Honky-Tonk Pumpkin|bangumi_studio_honky_tonk_pumpkin|Honky-Tonk Pumpkin
+Human Corporation|bangumi_studio_human_corporation|Human Corporation
+Hydrozoa Works|bangumi_studio_hydrozoa_works|Hydrozoa Works
+Image & Form|bangumi_studio_image_form|Image & Form
+include|bangumi_studio_include|include
+鈊象電子|bangumi_studio_international_games_system|International Games System
+International Games System|bangumi_studio_international_games_system|International Games System
+インティ・クリエイツ|bangumi_studio_inti_creates|Inti Creates
+犬と猫|bangumi_studio_inu_to_neko|Inu to Neko
+Inu to Neko|bangumi_studio_inu_to_neko|Inu to Neko
+犬与猫|bangumi_studio_inu_to_neko|Inu to Neko
+inXile Entertainment|bangumi_studio_inxile_entertainment|inXile Entertainment
+Ion Storm|bangumi_studio_ion_storm|Ion Storm
+Ironhide Game Studio|bangumi_studio_ironhide_game_studio|Ironhide Game Studio
+Irrational Games|bangumi_studio_irrational_games|Irrational Games
+JAST|bangumi_studio_jast|JAST
+KAI|bangumi_studio_kai_2|KAI
+Kalmia8|bangumi_studio_kalmia8|Kalmia8
+カナバングラフィックス|bangumi_studio_kanaban_graphics|Kanaban Graphics
+Kanaban Graphics|bangumi_studio_kanaban_graphics|Kanaban Graphics
+KENZsoft|bangumi_studio_kenzsoft|KENZsoft
+KICHUREA|bangumi_studio_kichurea|KICHUREA
+Kiwiwalks|bangumi_studio_kiwiwalks|Kiwiwalks
+KOJIMA PRODUCTIONS|bangumi_studio_kojima_productions|KOJIMA PRODUCTIONS
+国際映画社|bangumi_studio_kokusai_eiga_sha|Kokusai Eiga-sha
+Kokusai Eiga-sha|bangumi_studio_kokusai_eiga_sha|Kokusai Eiga-sha
+キョクイチ東京ムービー|bangumi_studio_kyokuichi_tokyo_movie|Kyokuichi Tokyo Movie
+Lady Wizard|bangumi_studio_lady_wizard|Lady Wizard
+LIBIDO|bangumi_studio_libido|LIBIDO
+ブルゲLIGHT|bangumi_studio_light_3|ブルゲLIGHT
+追光动画|bangumi_studio_light_chaser_animation_studios|Light Chaser Animation Studios
+LiLiTH mist|bangumi_studio_lilith_mist|LiLiTH mist
+LION HEART|bangumi_studio_lion_heart|LION HEART
+Lionhead Studios|bangumi_studio_lionhead_studios|Lionhead Studios
+Littlewitch|bangumi_studio_littlewitch|Littlewitch
+Looking Glass Studios|bangumi_studio_looking_glass_studios|Looking Glass Studios
+Lost Script|bangumi_studio_lost_script|Lost Script
+Love Delivery|bangumi_studio_love_delivery|Love Delivery
+LoyaltyGame B.V.|bangumi_studio_loyaltygame_b_v|LoyaltyGame B.V.
+Luxury|bangumi_studio_luxury|Luxury
+M de PINK|bangumi_studio_m_de_pink|M de PINK
+MachineGames|bangumi_studio_machinegames|MachineGames
+Mad Head Games|bangumi_studio_mad_head_games|Mad Head Games
+Magical☆Girl|bangumi_studio_magical_girl|Magical☆Girl
+MAHO FILM|bangumi_studio_maho_film|Maho Film
+新海誠|bangumi_studio_makoto_shinkai|Makoto Shinkai
+Makoto Shinkai|bangumi_studio_makoto_shinkai|Makoto Shinkai
+mana|bangumi_studio_mana|mana
+Massive Entertainment|bangumi_studio_massive_entertainment|Massive Entertainment
+Media Molecule|bangumi_studio_media_molecule|Media Molecule
+メディア・ビジョン|bangumi_studio_media_vision|Media.Vision
+Media.Vision|bangumi_studio_media_vision|Media.Vision
+MercurySteam|bangumi_studio_mercurysteam|MercurySteam
+Meteor|bangumi_studio_meteor|Meteor
+MGM Animation|bangumi_studio_mgm_animation|MGM Animation
+米粒影业|bangumi_studio_mili_pictures|Mili Pictures
+Mili Pictures|bangumi_studio_mili_pictures|Mili Pictures
+milimili:AMUSE CRAFT EROTICA|bangumi_studio_milimili_amuse_craft_erotica|milimili:AMUSE CRAFT EROTICA
+ミレニアムキッチン|bangumi_studio_millennium_kitchen|Millennium Kitchen
+Millennium Kitchen|bangumi_studio_millennium_kitchen|Millennium Kitchen
+Mink EGO|bangumi_studio_mink_ego|Mink EGO
+mirai|bangumi_studio_mirai|mirai
+MISTWALKER|bangumi_studio_mistwalker|MISTWALKER
+α-MODEL|bangumi_studio_model|α-MODEL
+Mojiken Studio|bangumi_studio_mojiken_studio|Mojiken Studio
+moko|bangumi_studio_moko|moko
+MONOLITH软件|bangumi_studio_monolith|MONOLITH软件
+Monster Games|bangumi_studio_monster_games|Monster Games
+ムークアニメーション|bangumi_studio_mook_animation|Mook Animation
+MOONSTONE Cherry|bangumi_studio_moonstone_cherry|MOONSTONE Cherry
+魔方工作室群|bangumi_studio_morefun_studio_group|MoreFun Studio Group
+MoreFun Studio Group|bangumi_studio_morefun_studio_group|MoreFun Studio Group
+@N-Factory|bangumi_studio_n_factory|@N-Factory
+ナムコ・テイルズスタジオ|bangumi_studio_namco_tales_studio|Namco Tales Studio
+Namco Tales Studio|bangumi_studio_namco_tales_studio|Namco Tales Studio
+NanaWind|bangumi_studio_nanawind|NanaWind
+Narrator|bangumi_studio_narrator|Narrator
+natukon|bangumi_studio_natukon|natukon
+NCS|bangumi_studio_ncs|NCS
+Neople|bangumi_studio_neople|Neople
+Neowiz Music Cafe|bangumi_studio_neowiz_music_cafe|Neowiz Music Cafe
+NetherRealm Studios|bangumi_studio_netherrealm_studios|NetherRealm Studios
+Neverland Co.,Ltd.|bangumi_studio_neverland_co_ltd|Neverland Co.,Ltd.
+ネクスエンタテインメント|bangumi_studio_nex_entertainment|Nex Entertainment
+Nex Entertainment|bangumi_studio_nex_entertainment|Nex Entertainment
+Nifflas|bangumi_studio_nifflas|Nifflas
+Nightdive Studios|bangumi_studio_nightdive_studios|Nightdive Studios
+NIGORO|bangumi_studio_nigoro|NIGORO
+Ninja Theory|bangumi_studio_ninja_theory|Ninja Theory
+任天堂企划开发本部|bangumi_studio_nintendo_ead|Nintendo EAD
+Noesis|bangumi_studio_noesis|Noesis
+non color|bangumi_studio_non_color|non color
+NOVECT|bangumi_studio_novect|NOVECT
+NPC小組|bangumi_studio_npc|NPC小組
+NUT|bangumi_studio_nut|Nut
+目标软件|bangumi_studio_object_software|Object Software
+オクルトノボル|bangumi_studio_okuruto_noboru|Okuruto Noboru
+Okuruto Noboru|bangumi_studio_okuruto_noboru|Okuruto Noboru
+OLE-M|bangumi_studio_ole_m|OLE-M
+onomatope*|bangumi_studio_onomatope|onomatope*
+onomatope* raspberry|bangumi_studio_onomatope_raspberry|onomatope* raspberry
+OperaHouse|bangumi_studio_operahouse|OperaHouse
+OPTiM|bangumi_studio_optim|OPTiM
+原力动画|bangumi_studio_original_force|Original Force
+Original Force|bangumi_studio_original_force|Original Force
+Pandemic Studios|bangumi_studio_pandemic_studios|Pandemic Studios
+叠纸游戏|bangumi_studio_papergames|Papergames
+Parasol|bangumi_studio_parasol|Parasol
+PARTHENON ZERO|bangumi_studio_parthenon_zero|PARTHENON ZERO
+People Can Fly|bangumi_studio_people_can_fly|People Can Fly
+Physical Room C.S.K.|bangumi_studio_physical_room_c_s_k|Physical Room C.S.K.
+PiAS|bangumi_studio_pias|PiAS
+白金工作室|bangumi_studio_platinumgames|PlatinumGames
+Playground Games|bangumi_studio_playground_games|Playground Games
+POISON|bangumi_studio_poison|POISON
+宝开游戏|bangumi_studio_popcap_games|PopCap Games
+Portion|bangumi_studio_portion|Portion
+PrimeTime|bangumi_studio_primetime|PrimeTime
+Princess Sugar|bangumi_studio_princess_sugar|Princess Sugar
+虫Production|bangumi_studio_production_2|虫Production
+龙之子Production|bangumi_studio_production_4|龙之子Production
+PULLTOP LATTE|bangumi_studio_pulltop_latte|PULLTOP LATTE
+pure more|bangumi_studio_pure_more|pure more
+ピラミッド|bangumi_studio_pyramid|Pyramid
+Pyramid|bangumi_studio_pyramid|Pyramid
+Pyro Studios|bangumi_studio_pyro_studios|Pyro Studios
+Q Entertainment|bangumi_studio_q_entertainment|Q Entertainment
+Radical Entertainment|bangumi_studio_radical_entertainment|Radical Entertainment
+raiL soft|bangumi_studio_rail_soft|raiL soft
+Rateblack|bangumi_studio_rateblack|Rateblack
+Re:verse|bangumi_studio_re_verse|Re:verse
+REAL|bangumi_studio_real|REAL
+Red Dog Culture House|bangumi_studio_red_dog_culture_house|Red Dog Culture House
+Remedy Entertainment|bangumi_studio_remedy_entertainment|Remedy Entertainment
+Respawn Entertainment|bangumi_studio_respawn_entertainment|Respawn Entertainment
+REVOROOT|bangumi_studio_revoroot|REVOROOT
+Ricotta|bangumi_studio_ricotta|Ricotta
+Ripe|bangumi_studio_ripe|Ripe
+Ritual Entertainment|bangumi_studio_ritual_entertainment|Ritual Entertainment
+Rocksteady Studios|bangumi_studio_rocksteady_studios|Rocksteady Studios
+""",
+        """Rolling Star|bangumi_studio_rolling_star|Rolling Star
+root|bangumi_studio_root|root
+rootnuko|bangumi_studio_rootnuko|rootnuko
+Rovio Entertainment|bangumi_studio_rovio_entertainment|Rovio Entertainment
+Sage|bangumi_studio_sage|Sage
+SandalDash|bangumi_studio_sandaldash|SandalDash
+SEACOXX|bangumi_studio_seacoxx|SEACOXX
+seal-tutu|bangumi_studio_seal_tutu|seal-tutu
+SEVEN WONDER|bangumi_studio_seven_wonder|SEVEN WONDER
+シブサワ・コウ|bangumi_studio_shibusawa_kou|Shibusawa Kou
+Shibusawa Kou|bangumi_studio_shibusawa_kou|Shibusawa Kou
+SHIFT UP|bangumi_studio_shift_up|SHIFT UP
+Shining Star Lily’s|bangumi_studio_shining_star_lily_s|Shining Star Lily’s
+SHION|bangumi_studio_shion|SHION
+索尼互动娱乐日本工作室|bangumi_studio_sie_japan_studio|SIE Japan Studio
+Silver Bullet|bangumi_studio_silver_bullet|Silver Bullet
+Simogo|bangumi_studio_simogo|Simogo
+Sirius|bangumi_studio_sirius|Sirius
+Softmax|bangumi_studio_softmax|Softmax
+Software|bangumi_studio_software_2|Software
+sol-fa-soft|bangumi_studio_sol_fa_soft|sol-fa-soft
+SOLA DIGITAL ARTS|bangumi_studio_sola_digital_arts|SOLA DIGITAL ARTS
+SPIEL|bangumi_studio_spiel|SPIEL
+スパイク・チュンソフト|bangumi_studio_spike_chunsoft|Spike Chunsoft
+Spin Master|bangumi_studio_spin_master|Spin Master
+Splash Damage|bangumi_studio_splash_damage|Splash Damage
+Starbreeze Studios|bangumi_studio_starbreeze_studios|Starbreeze Studios
+狼烟动画STUDIO|bangumi_studio_studio_10|狼烟动画STUDIO
+STUDIO邪恋|bangumi_studio_studio_11|STUDIO邪恋
+Studio DaDaShow|bangumi_studio_studio_dadashow|Studio DaDaShow
+吉卜力工作室|bangumi_studio_studio_ghibli|Studio Ghibli
+スタジオジュニオ|bangumi_studio_studio_junio|Studio Junio
+スタジオメビウス|bangumi_studio_studio_mebius|Studio Mebius
+Studio Ring|bangumi_studio_studio_ring|Studio Ring
+studio VOLN|bangumi_studio_studio_voln|studio VOLN
+Sucker Punch Productions|bangumi_studio_sucker_punch_productions|Sucker Punch Productions
+SugarBoy|bangumi_studio_sugarboy|SugarBoy
+日本サンライズ|bangumi_studio_sunrise|Sunrise
+SUNRISE|bangumi_studio_sunrise|Sunrise
+SUNRISE BEYOND|bangumi_studio_sunrise_beyond|SUNRISE BEYOND
+Supermassive Games|bangumi_studio_supermassive_games|Supermassive Games
+Sweet Basil|bangumi_studio_sweet_basil|Sweet Basil
+Sweet HEART|bangumi_studio_sweet_heart|Sweet HEART
+T34工作室|bangumi_studio_t34|T34工作室
+TakeOut|bangumi_studio_takeout|TakeOut
+TARHS Entertainment|bangumi_studio_tarhs_entertainment|TARHS Entertainment
+Tarsier Studios|bangumi_studio_tarsier_studios|Tarsier Studios
+ルネ Team Bitters|bangumi_studio_team_bitters|ルネ Team Bitters
+TEAM Gassa-Q|bangumi_studio_team_gassa_q|TEAM Gassa-Q
+TEAM HEARTBEAT|bangumi_studio_team_heartbeat|TEAM HEARTBEAT
+Team Kato|bangumi_studio_team_kato|Team Kato
+.teamMM|bangumi_studio_teammm|.teamMM
+Techland|bangumi_studio_techland|Techland
+テクノソフト|bangumi_studio_technosoft|Technosoft
+日本テレネット|bangumi_studio_telenet_japan|Telenet Japan
+Telenet Japan|bangumi_studio_telenet_japan|Telenet Japan
+TerraLunar|bangumi_studio_terralunar|TerraLunar
+TetraScope|bangumi_studio_tetrascope|TetraScope
+TETRATECH|bangumi_studio_tetratech|TETRATECH
+TIARAMODE|bangumi_studio_tiaramode|TIARAMODE
+TimeGate Studios|bangumi_studio_timegate_studios|TimeGate Studios
+Tinkle Position|bangumi_studio_tinkle_position|Tinkle Position
+TMS娱乐|bangumi_studio_tms_2|TMS娱乐
+Tohokushinsha Film Corporation|bangumi_studio_tohokushinsha_film_corporation|Tohokushinsha Film Corporation
+Tomovies|bangumi_studio_tomovies|Tomovies
+トッパツプラン Top Arts Plan|bangumi_studio_top_arts_plan|トッパツプラン Top Arts Plan
+TOUCHABLE|bangumi_studio_touchable|TOUCHABLE
+トランス・アーツ|bangumi_studio_trans_arts|Trans Arts
+Trans Arts|bangumi_studio_trans_arts|Trans Arts
+财宝公司|bangumi_studio_treasure|Treasure
+Tribute Games|bangumi_studio_tribute_games|Tribute Games
+トライネットエンタテインメント|bangumi_studio_trinet_entertainment|TriNet Entertainment
+TriNet Entertainment|bangumi_studio_trinet_entertainment|TriNet Entertainment
+Triumph Studios|bangumi_studio_triumph_studios|Triumph Studios
+Trois|bangumi_studio_trois|Trois
+Trush|bangumi_studio_trush|Trush
+TRYSET Break|bangumi_studio_tryset_break|TRYSET Break
+Turn 10 Studios|bangumi_studio_turn_10_studios|Turn 10 Studios
+unicorn-a|bangumi_studio_unicorn_a|unicorn-a
+URAN|bangumi_studio_uran|URAN
+宇峻奥汀科技有限公司|bangumi_studio_userjoy_technology|UserJoy Technology
+Ustwo|bangumi_studio_ustwo|Ustwo
+Visual Arts|bangumi_studio_visual_arts_2|Visual Arts
+Visual Concepts|bangumi_studio_visual_concepts|Visual Concepts
+Visualworks|bangumi_studio_visualworks|Visualworks
+VividColor|bangumi_studio_vividcolor|VividColor
+VRIDGE|bangumi_studio_vridge|VRIDGE
+Westone Bit Entertainment|bangumi_studio_westone_bit_entertainment|Westone Bit Entertainment
+White Cyc|bangumi_studio_white_cyc|White Cyc
+ウィンキーソフト|bangumi_studio_winkysoft|Winkysoft
+Winkysoft|bangumi_studio_winkysoft|Winkysoft
+Wright Flyer Studios|bangumi_studio_wright_flyer_studios|Wright Flyer Studios
+Yatagarasu|bangumi_studio_yatagarasu|Yatagarasu
+縁 -yukari-|bangumi_studio_yukari|縁 -yukari-
+缘 -yukari-|bangumi_studio_yukari_2|缘 -yukari-
+Zachtronics|bangumi_studio_zachtronics|Zachtronics
+領域ZERO|bangumi_studio_zero_2|領域ZERO
+Zone-Sama|bangumi_studio_zone_sama|Zone-Sama
+ZUN Soft|bangumi_studio_zun_soft|ZUN Soft
 """
     ).joinToString("")
 
