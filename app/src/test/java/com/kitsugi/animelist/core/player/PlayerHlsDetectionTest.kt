@@ -32,6 +32,11 @@ class PlayerHlsDetectionTest {
                 "https://manifest.googlevideo.com/api/manifest/hls_playlist/expire/123/id/abc"
             )
         )
+        assertTrue(
+            PlayerMediaSourceFactory.isHlsUrl(
+                "https://manifest.googlevideo.com/api/manifest/hls_variant/expire/123/id/abc"
+            )
+        )
         assertFalse(
             PlayerMediaSourceFactory.isHlsUrl("https://manifest.googlevideo.com/api/manifest/dash/id/abc")
         )

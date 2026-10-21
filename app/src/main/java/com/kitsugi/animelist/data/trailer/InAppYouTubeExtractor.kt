@@ -30,9 +30,6 @@ import java.util.concurrent.atomic.AtomicReference
 
 private const val TAG = "InAppYouTubeExtractor"
 private const val EXTRACTOR_TIMEOUT_MS = 30_000L
-private const val DEFAULT_USER_AGENT =
-    "Mozilla/5.0 (Linux; Android 12; Android TV) AppleWebKit/537.36 " +
-        "(KHTML, like Gecko) Chrome/133.0.0.0 Safari/537.36"
 private const val PREFERRED_SEPARATE_CLIENT = "android_vr"
 
 private val VIDEO_ID_REGEX = Regex("^[a-zA-Z0-9_-]{11}$")
@@ -70,25 +67,17 @@ private data class StreamCandidate(
     val ext: String
 )
 
-private data class ManifestBestVariant(
-    val url: String,
-    val width: Int,
-    val height: Int,
-    val bandwidth: Long
-)
-
 private data class ManifestCandidate(
     val client: String,
-    val priority: Int,
     val manifestUrl: String,
-    val selectedVariantUrl: String,
+    val width: Int,
     val height: Int,
     val bandwidth: Long
 )
 
 private val DEFAULT_HEADERS = mapOf(
     "accept-language" to "en-US,en;q=0.9",
-    "user-agent" to DEFAULT_USER_AGENT
+    "user-agent" to YouTubeRequestPolicy.STREAM_USER_AGENT
 )
 
 private val CLIENTS = listOf(
@@ -448,21 +437,23 @@ class InAppYouTubeExtractor {
         }
 
         var bestManifest: ManifestCandidate? = null
-        for ((clientKey, priority, manifestUrl) in manifestUrls) {
+        for ((clientKey, _, manifestUrl) in manifestUrls) {
             try {
                 val variant = parseHlsManifest(manifestUrl) ?: continue
                 val candidate = ManifestCandidate(
                     client = clientKey,
-                    priority = priority,
                     manifestUrl = manifestUrl,
-                    selectedVariantUrl = variant.url,
+                    width = variant.width,
                     height = variant.height,
                     bandwidth = variant.bandwidth
                 )
                 if (
                     bestManifest == null ||
                     candidate.height > bestManifest.height ||
-                    (candidate.height == bestManifest.height && candidate.bandwidth > bestManifest.bandwidth)
+                    (candidate.height == bestManifest.height && candidate.bandwidth > bestManifest.bandwidth) ||
+                    (candidate.height == bestManifest.height &&
+                        candidate.bandwidth == bestManifest.bandwidth &&
+                        candidate.width > bestManifest.width)
                 ) {
                     bestManifest = candidate
                 }
@@ -603,114 +594,16 @@ class InAppYouTubeExtractor {
         return parsed ?: emptyMap<String, Any>()
     }
 
-    private suspend fun parseHlsManifest(manifestUrl: String): ManifestBestVariant? {
+    private suspend fun parseHlsManifest(manifestUrl: String): YouTubeHlsManifestInfo? {
         val response = performRequest(
             url = manifestUrl,
             method = "GET",
-            headers = DEFAULT_HEADERS
+            headers = YouTubeRequestPolicy.youtubePlaybackHeaders(DEFAULT_HEADERS)
         )
         if (!response.ok) {
             throw IllegalStateException("Failed to fetch HLS manifest (${response.status})")
         }
-
-        val lines = response.body
-            .lineSequence()
-            .map { it.trim() }
-            .filter { it.isNotBlank() }
-            .toList()
-
-        var bestVariant: ManifestBestVariant? = null
-
-        for (i in lines.indices) {
-            val line = lines[i]
-            if (!line.startsWith("#EXT-X-STREAM-INF:")) continue
-
-            val attrs = parseHlsAttributeList(line)
-            val nextLine = lines.getOrNull(i + 1) ?: continue
-            if (nextLine.startsWith("#")) continue
-
-            val resolution = attrs["RESOLUTION"].orEmpty()
-            val (width, height) = parseResolution(resolution)
-            val bandwidth = attrs["BANDWIDTH"]?.toLongOrNull() ?: 0L
-
-            val candidate = ManifestBestVariant(
-                url = absolutizeUrl(manifestUrl, nextLine),
-                width = width,
-                height = height,
-                bandwidth = bandwidth
-            )
-
-            if (
-                bestVariant == null ||
-                candidate.height > bestVariant.height ||
-                (candidate.height == bestVariant.height && candidate.bandwidth > bestVariant.bandwidth) ||
-                (
-                    candidate.height == bestVariant.height &&
-                        candidate.bandwidth == bestVariant.bandwidth &&
-                        candidate.width > bestVariant.width
-                    )
-            ) {
-                bestVariant = candidate
-            }
-        }
-
-        return bestVariant
-    }
-
-    private fun parseHlsAttributeList(line: String): Map<String, String> {
-        val index = line.indexOf(':')
-        if (index == -1) return emptyMap()
-
-        val raw = line.substring(index + 1)
-        val out = LinkedHashMap<String, String>()
-        val key = StringBuilder()
-        val value = StringBuilder()
-        var inKey = true
-        var inQuote = false
-
-        for (ch in raw) {
-            if (inKey) {
-                if (ch == '=') {
-                    inKey = false
-                } else {
-                    key.append(ch)
-                }
-                continue
-            }
-
-            if (ch == '"') {
-                inQuote = !inQuote
-                continue
-            }
-
-            if (ch == ',' && !inQuote) {
-                val k = key.toString().trim()
-                if (k.isNotEmpty()) {
-                    out[k] = value.toString().trim()
-                }
-                key.clear()
-                value.clear()
-                inKey = true
-                continue
-            }
-
-            value.append(ch)
-        }
-
-        val lastKey = key.toString().trim()
-        if (lastKey.isNotEmpty()) {
-            out[lastKey] = value.toString().trim()
-        }
-
-        return out
-    }
-
-    private fun parseResolution(raw: String): Pair<Int, Int> {
-        val parts = raw.split('x')
-        if (parts.size != 2) return 0 to 0
-        val width = parts[0].toIntOrNull() ?: 0
-        val height = parts[1].toIntOrNull() ?: 0
-        return width to height
+        return YouTubeHlsManifestParser.parse(manifestUrl, response.body)
     }
 
     private fun parseQualityLabel(label: String?): Int? {
@@ -763,7 +656,7 @@ class InAppYouTubeExtractor {
      * Returns null if no CDN node responds successfully (all return 403/timeout).
      */
     private suspend fun resolveReachableUrl(url: String): String? {
-        if (!url.contains("googlevideo.com")) return url
+        if (!YouTubeRequestPolicy.isGoogleVideoUrl(url)) return url
         val uri = Uri.parse(url)
         val mnParam = uri.getQueryParameter("mn") ?: return url
         val servers = mnParam.split(",").map { it.trim() }.filter { it.isNotBlank() }
@@ -819,7 +712,7 @@ class InAppYouTubeExtractor {
                 .url(url)
                 .get()
                 .header("Range", "bytes=0-0")
-                .headers(buildHeaders(DEFAULT_HEADERS))
+                .headers(buildHeaders(YouTubeRequestPolicy.youtubePlaybackHeaders(DEFAULT_HEADERS)))
                 .build()
             val code = executeCallCancellable(probeClient.newCall(request)) { response -> response.code }
             code == 200 || code == 206
@@ -828,12 +721,6 @@ class InAppYouTubeExtractor {
         } catch (_: Exception) {
             false
         }
-    }
-
-    private fun absolutizeUrl(baseUrl: String, maybeRelative: String): String {
-        return runCatching {
-            URL(URL(baseUrl), maybeRelative).toString()
-        }.getOrElse { maybeRelative }
     }
 
     private fun summarizeUrl(url: String): String {
@@ -915,7 +802,7 @@ class InAppYouTubeExtractor {
             }
         }
         if (source.keys.none { it.equals("User-Agent", ignoreCase = true) }) {
-            headers.add("User-Agent", DEFAULT_USER_AGENT)
+            headers.add("User-Agent", YouTubeRequestPolicy.STREAM_USER_AGENT)
         }
         return headers.build()
     }

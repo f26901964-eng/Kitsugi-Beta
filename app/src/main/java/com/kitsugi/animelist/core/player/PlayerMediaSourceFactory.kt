@@ -21,6 +21,7 @@ import com.kitsugi.animelist.core.player.dvmkv.DolbyVisionCompatibility
 import com.kitsugi.animelist.data.cloudstream.CsVideoInterceptorFactory
 import com.kitsugi.animelist.data.settings.AppSettings
 import com.kitsugi.animelist.data.settings.Dv7HandlingMode
+import com.kitsugi.animelist.data.trailer.YouTubeRequestPolicy
 import com.kitsugi.animelist.data.trailer.YoutubeChunkedDataSourceFactory
 import java.util.Locale
 
@@ -246,26 +247,41 @@ class PlayerMediaSourceFactory(
     ): MediaSource {
         val mediaItem = mediaItemOverride ?: buildMediaItem(videoUrl, subtitles)
 
-        // YouTube-style dual-stream (video + audio)
         val activeExtractorsFactory = customExtractorsFactory ?: extractorsFactory
+        val isYouTubeSource = YouTubeRequestPolicy.shouldUseYouTubeDataSource(
+            videoUrl = videoUrl,
+            audioUrl = audioUrl,
+            isCloudstream = isCS
+        )
+        val dsFactory = if (isYouTubeSource) {
+            val isHls = isHlsUrl(videoUrl)
+            val chunkRanges = YouTubeRequestPolicy.shouldUseChunkedGoogleVideoRanges(
+                videoUrl = videoUrl,
+                audioUrl = audioUrl,
+                isCloudstream = isCS,
+                isHls = isHls
+            )
+            Log.d(TAG, "Using YouTube DataSource: hls=$isHls, chunkedRanges=$chunkRanges")
+            YoutubeChunkedDataSourceFactory(
+                chunkGoogleVideoStreams = chunkRanges,
+                requestHeaders = YouTubeRequestPolicy.youtubePlaybackHeaders(headers)
+            )
+        } else {
+            buildDataSourceFactory(
+                addonName = addonName,
+                headers = headers,
+                videoUrl = videoUrl,
+                streamTitle = streamTitle,
+                isCS = isCS,
+                qualityValue = qualityValue
+            )
+        }
+
+        // For HLS, the YouTube DataSource deliberately sends signed playlists/segments
+        // unchanged with the required YouTube headers; query-range chunking is reserved for
+        // progressive googlevideo video/audio streams.
         if (!audioUrl.isNullOrBlank()) {
             Log.d(TAG, "Building MergingMediaSource (YouTube/dual-stream)")
-            // ÖNEMLİ: Ses parçası da VİDEO ile aynı DataSource/başlık zincirini kullanmalı.
-            // Eskiden burada koşulsuz YoutubeChunkedDataSourceFactory kullanılıyordu; CS
-            // kaynaklarında Referer/Cookie/UA ve video interceptor'ı ses isteğine hiç
-            // uygulanmıyor, ses 403 alınca görüntü sessiz kalıyordu.
-            val dsFactory = if (!isCS && headers.isEmpty()) {
-                YoutubeChunkedDataSourceFactory()
-            } else {
-                buildDataSourceFactory(
-                    addonName    = addonName,
-                    headers      = headers,
-                    videoUrl     = videoUrl,
-                    streamTitle  = streamTitle,
-                    isCS         = isCS,
-                    qualityValue = qualityValue
-                )
-            }
             val factory = DefaultMediaSourceFactory(dsFactory, activeExtractorsFactory)
             customSubtitleParserFactory?.let {
                 factory.setSubtitleParserFactory(it)
@@ -277,14 +293,6 @@ class PlayerMediaSourceFactory(
         }
 
         // Standard progressive / adaptive
-        val dsFactory = buildDataSourceFactory(
-            addonName   = addonName,
-            headers     = headers,
-            videoUrl    = videoUrl,
-            streamTitle = streamTitle,
-            isCS        = isCS,
-            qualityValue = qualityValue
-        )
         Log.d(TAG, "Building standard MediaSource: $videoUrl")
         val factory = DefaultMediaSourceFactory(dsFactory, activeExtractorsFactory)
         customSubtitleParserFactory?.let {
@@ -350,7 +358,8 @@ class PlayerMediaSourceFactory(
             // manifest.googlevideo.com/api/manifest/hls_playlist/... with no .m3u8
             // suffix. Without explicit HLS MIME, Media3 treats it as progressive media,
             // leaving the inline player at 00:00 / 00:00.
-            if ((clean.contains("manifest.googlevideo.com") && clean.contains("hls_playlist")) ||
+            if ((clean.contains("manifest.googlevideo.com") &&
+                    (clean.contains("hls_playlist") || clean.contains("hls_variant"))) ||
                 clean.contains(".m3u8") || clean.contains("m3u8") ||
                 clean.contains("master.txt") || clean.contains("playlist.txt") ||
                 clean.contains("video.txt") || clean.contains("tracks.txt") ||

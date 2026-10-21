@@ -1,7 +1,6 @@
 package com.kitsugi.animelist.ui.screens.detail
 import com.kitsugi.animelist.ui.components.KitsugiButton
 
-import android.net.Uri
 import android.util.Log
 import com.kitsugi.animelist.ui.components.KitsugiDetailReveal
 import com.kitsugi.animelist.ui.components.animateDetailContentSize
@@ -12,6 +11,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import com.kitsugi.animelist.ui.screens.detail.components.SharedTrailerOverlay
+import com.kitsugi.animelist.data.trailer.YouTubeRequestPolicy
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
@@ -42,6 +42,7 @@ import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -52,8 +53,6 @@ import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
-import androidx.media3.datasource.DefaultHttpDataSource
-import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import com.kitsugi.animelist.ui.screens.fullscreen.KitsugiFullscreenPlayerActivity
 import com.kitsugi.animelist.ui.theme.LocalKitsugiAccent
 import com.kitsugi.animelist.ui.theme.KitsugiColors
@@ -64,6 +63,8 @@ import com.kitsugi.animelist.core.player.engine.MpvPlayerEngine
 import androidx.compose.runtime.collectAsState
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.withTimeoutOrNull
 import androidx.compose.ui.res.stringResource
 import com.kitsugi.animelist.R
 import com.kitsugi.animelist.utils.KitsugiStrings
@@ -215,7 +216,7 @@ fun ThemePlayerContainer(
     val uriHandler = LocalUriHandler.current
 
     var isPlayerError by remember(url) { mutableStateOf(false) }
-    var isPlayerLoading by remember(url) { mutableStateOf(false) }
+    var isPlayerLoading by remember(url) { mutableStateOf(true) }
     var retryTrigger by remember(url) { mutableStateOf(0) }
 
     val videoId = remember(url) { extractYouTubeId(url) }
@@ -228,20 +229,17 @@ fun ThemePlayerContainer(
         val appSettings = appSettingsState.value
         val safeSettings = remember(appSettings) { appSettings ?: com.kitsugi.animelist.data.settings.AppSettings() }
 
-        // Kullanıcı tercihi "MPV" ise satır içi oynatıcı da MPV ile başlar.
-        // (Eskiden tercih yok sayılıp her zaman Media3 başlatılıyor, MPV'ye ancak hata
-        // sonrası geçiliyordu.)
-        // Ayarlar yüklenmeden varsayılan "MPV"ye düşmeyelim: tercih okunana kadar Media3,
-        // tercih geldiğinde motor bir kez yeniden seçilir.
-        var activeEngineType by remember(url, appSettings?.playerPreference) {
-            mutableStateOf(
-                if (appSettings?.playerPreference.equals("MPV", ignoreCase = true)) {
-                    PlayerEngineType.MPV
-                } else {
-                    PlayerEngineType.MEDIA3
-                }
-            )
+        // Honor the normal player preference first, then try the other built-in engine once
+        // on an explicit error or a startup that never reaches READY.
+        val preferredEngineType = if (appSettings?.playerPreference.equals("MPV", ignoreCase = true)) {
+            PlayerEngineType.MPV
+        } else {
+            PlayerEngineType.MEDIA3
         }
+        var activeEngineType by remember(url, appSettings?.playerPreference) {
+            mutableStateOf(preferredEngineType)
+        }
+        var didTryAlternateEngine by remember(url, appSettings?.playerPreference) { mutableStateOf(false) }
         val playerEngine = remember(context, activeEngineType, url) {
             when (activeEngineType) {
                 PlayerEngineType.MPV -> MpvPlayerEngine(context, safeSettings)
@@ -249,18 +247,33 @@ fun ThemePlayerContainer(
             }
         }
 
-        var isPlayingState by remember { mutableStateOf(false) }
-        var currentPosition by remember { mutableStateOf(0L) }
-        var duration by remember { mutableStateOf(0L) }
+        var isPlayingState by remember(url) { mutableStateOf(false) }
+        var currentPosition by remember(url) { mutableStateOf(0L) }
+        var duration by remember(url) { mutableStateOf(0L) }
+        var playerState by remember(playerEngine) { mutableStateOf(PlayerEngine.State.IDLE) }
         val engineTypeForPlayer = activeEngineType
-        // Uygulama alt sekmeye / arka plana alındığında oynatıcıyı durdurur.
         val resumedState = rememberInlinePlayerResumed()
+
+        fun switchToAlternateEngine(failedEngine: PlayerEngineType, reason: String) {
+            if (failedEngine != activeEngineType) return
+            if (!didTryAlternateEngine) {
+                didTryAlternateEngine = true
+                val alternate = failedEngine.alternateInlineEngine()
+                Log.w("ThemePlayerContainer", "$failedEngine did not start ($reason); trying $alternate")
+                activeEngineType = alternate
+            } else {
+                Log.e("ThemePlayerContainer", "Both inline engines failed for $url ($reason)")
+                isPlayerLoading = false
+                isPlayerError = true
+            }
+        }
 
         DisposableEffect(playerEngine) {
             var released = false
             val listener = object : PlayerEngine.Listener {
                 override fun onStateChanged(state: PlayerEngine.State) {
                     if (released) return
+                    playerState = state
                     isPlayingState = playerEngine.isPlaying
                     isPlayerLoading = state == PlayerEngine.State.BUFFERING
                 }
@@ -269,12 +282,7 @@ fun ThemePlayerContainer(
                     if (released) return
                     isPlayerLoading = false
                     Log.e("ThemePlayerContainer", "Oynatma hatası: $errorMsg (kod: $errorCode)")
-                    if (engineTypeForPlayer == PlayerEngineType.MEDIA3) {
-                        Log.d("ThemePlayerContainer", "ExoPlayer failed, switching to MPV")
-                        activeEngineType = PlayerEngineType.MPV
-                    } else {
-                        isPlayerError = true
-                    }
+                    switchToAlternateEngine(engineTypeForPlayer, errorMsg)
                 }
 
                 override fun onPositionChanged(positionMs: Long, durationMs: Long) {
@@ -297,7 +305,6 @@ fun ThemePlayerContainer(
             }
         }
 
-        // Arka plana geçildiğinde dur; geri dönünce kendiliğinden başlatma.
         LaunchedEffect(resumedState.value, playerEngine) {
             if (!resumedState.value) {
                 runCatching { playerEngine.pause() }
@@ -306,27 +313,37 @@ fun ThemePlayerContainer(
         }
 
         LaunchedEffect(url, retryTrigger, activeEngineType) {
+            val attemptedEngine = engineTypeForPlayer
             isPlayerError = false
             isPlayerLoading = true
+            playerState = PlayerEngine.State.BUFFERING
             try {
-                playerEngine.prepare(
-                    videoUrl = url,
-                    startPositionMs = currentPosition
-                )
-                // Hazırlık sürerken uygulama arka plana gittiyse oynatmaya başlama.
-                if (resumedState.value) playerEngine.play() else runCatching { playerEngine.pause() }
+                val reachedReady = withTimeoutOrNull(INLINE_PLAYER_START_TIMEOUT_MS) {
+                    playerEngine.prepare(
+                        videoUrl = url,
+                        headers = YouTubeRequestPolicy.headersForInlineUrl(url),
+                        startPositionMs = currentPosition
+                    )
+                    if (!resumedState.value) {
+                        runCatching { playerEngine.pause() }
+                        isPlayingState = false
+                        false
+                    } else {
+                        playerEngine.play()
+                        snapshotFlow { playerState }.first { it.isInlinePlaybackReady() }
+                        true
+                    }
+                }
+                if (reachedReady == null) {
+                    switchToAlternateEngine(attemptedEngine, "startup timeout (${INLINE_PLAYER_START_TIMEOUT_MS}ms)")
+                }
             } catch (e: CancellationException) {
-                // Closing or replacing this row cancels prepare; do not trigger MPV fallback.
+                // Closing or replacing this row cancels prepare; do not trigger a false fallback.
                 throw e
             } catch (e: Exception) {
-                if (engineTypeForPlayer != activeEngineType) return@LaunchedEffect
+                if (attemptedEngine != activeEngineType) return@LaunchedEffect
                 Log.e("ThemePlayerContainer", "Prepare error", e)
-                if (engineTypeForPlayer == PlayerEngineType.MEDIA3) {
-                    activeEngineType = PlayerEngineType.MPV
-                } else {
-                    isPlayerError = true
-                    isPlayerLoading = false
-                }
+                switchToAlternateEngine(attemptedEngine, e.message ?: e.javaClass.simpleName)
             }
         }
 
@@ -365,21 +382,29 @@ fun ThemePlayerContainer(
                     )
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         KitsugiButton(
-                            onClick = { retryTrigger++ },
+                            onClick = {
+                                didTryAlternateEngine = false
+                                activeEngineType = preferredEngineType
+                                retryTrigger++
+                            },
                             colors = ButtonDefaults.buttonColors(containerColor = accentColor)
                         ) {
                             Text("Tekrar Dene", color = com.kitsugi.animelist.ui.theme.onAccentColor(accentColor))
                         }
                         KitsugiButton(
                             onClick = {
-                                val q = java.net.URLEncoder.encode(url, "UTF-8")
-                                runCatching { uriHandler.openUri("https://www.youtube.com/results?search_query=$q") }
+                                val target = if (videoId != null) {
+                                    "https://www.youtube.com/watch?v=$videoId"
+                                } else {
+                                    url
+                                }
+                                runCatching { uriHandler.openUri(target) }
                             },
                             colors = ButtonDefaults.buttonColors(
                                 containerColor = Color.White.copy(alpha = 0.15f)
                             )
                         ) {
-                            Text("YouTube", color = Color.White)
+                            Text(if (videoId != null) "YouTube" else "Kaynağı Aç", color = Color.White)
                         }
                     }
                 }
@@ -399,7 +424,8 @@ fun ThemePlayerContainer(
                         playerEngine.pause()
                         KitsugiFullscreenPlayerActivity.startWithStreamUrls(
                             context = context,
-                            videoUrl = url
+                            videoUrl = url,
+                            headers = YouTubeRequestPolicy.headersForInlineUrl(url)
                         )
                     }
                 ) {

@@ -1,7 +1,6 @@
 package com.kitsugi.animelist.ui.screens.detail
 import com.kitsugi.animelist.ui.components.KitsugiButton
 
-import android.net.Uri
 import android.util.Log
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.tween
@@ -31,7 +30,6 @@ import androidx.compose.material.icons.rounded.FastRewind
 import androidx.compose.material.icons.rounded.Fullscreen
 import androidx.compose.material.icons.rounded.Pause
 import androidx.compose.material.icons.rounded.PlayArrow
-import com.kitsugi.animelist.ui.theme.gradient.CircularProgressIndicator
 import com.kitsugi.animelist.ui.components.KitsugiPlasmaLoader
 import com.kitsugi.animelist.ui.theme.gradient.Icon
 import androidx.compose.material3.MaterialTheme
@@ -46,6 +44,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -59,7 +58,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import com.kitsugi.animelist.data.trailer.InAppYouTubeExtractor
 import com.kitsugi.animelist.data.trailer.TrailerPlaybackSource
-import com.kitsugi.animelist.data.trailer.YoutubeChunkedDataSourceFactory
+import com.kitsugi.animelist.data.trailer.YouTubeRequestPolicy
 import com.kitsugi.animelist.ui.screens.fullscreen.KitsugiFullscreenPlayerActivity
 import com.kitsugi.animelist.ui.theme.LocalKitsugiAccent
 import com.kitsugi.animelist.ui.theme.KitsugiColors
@@ -70,6 +69,8 @@ import com.kitsugi.animelist.core.player.engine.MpvPlayerEngine
 import androidx.compose.runtime.collectAsState
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.withTimeoutOrNull
 import androidx.compose.ui.res.stringResource
 import com.kitsugi.animelist.R
 
@@ -186,11 +187,8 @@ fun KitsugiYouTubePlayer(
         val appSettings = appSettingsState.value
         val safeSettings = remember(appSettings) { appSettings ?: com.kitsugi.animelist.data.settings.AppSettings() }
 
-        // Kullanıcı tercihi "MPV" ise satır içi oynatıcı da MPV ile başlar.
-        // (Eskiden tercih yok sayılıp her zaman Media3 başlatılıyor, MPV'ye ancak hata
-        // sonrası geçiliyordu.)
-        // Ayarlar yüklenmeden varsayılan "MPV"ye düşmeyelim: tercih okunana kadar Media3,
-        // tercih geldiğinde motor bir kez yeniden seçilir.
+        // The configured engine remains the first attempt; either engine now has a bounded
+        // startup window and the other engine is tried once if the stream stalls or errors.
         var activeEngineType by remember(videoId, appSettings?.playerPreference) {
             mutableStateOf(
                 if (appSettings?.playerPreference.equals("MPV", ignoreCase = true)) {
@@ -200,6 +198,7 @@ fun KitsugiYouTubePlayer(
                 }
             )
         }
+        var didTryAlternateEngine by remember(videoId, appSettings?.playerPreference) { mutableStateOf(false) }
         val playerEngine = remember(context, activeEngineType, videoId) {
             when (activeEngineType) {
                 PlayerEngineType.MPV -> MpvPlayerEngine(context, safeSettings)
@@ -207,29 +206,40 @@ fun KitsugiYouTubePlayer(
             }
         }
 
-        var isPlayingState by remember { mutableStateOf(false) }
-        var currentPosition by remember { mutableStateOf(0L) }
-        var duration by remember { mutableStateOf(0L) }
+        var isPlayingState by remember(videoId) { mutableStateOf(false) }
+        var currentPosition by remember(videoId) { mutableStateOf(0L) }
+        var duration by remember(videoId) { mutableStateOf(0L) }
+        var playerState by remember(playerEngine) { mutableStateOf(PlayerEngine.State.IDLE) }
         val engineTypeForPlayer = activeEngineType
-        // Uygulama alt sekmeye / arka plana alındığında oynatıcıyı durdurur.
         val resumedState = rememberInlinePlayerResumed()
+
+        fun switchToAlternateEngine(failedEngine: PlayerEngineType, reason: String) {
+            if (failedEngine != activeEngineType) return
+            if (!didTryAlternateEngine) {
+                didTryAlternateEngine = true
+                val alternate = failedEngine.alternateInlineEngine()
+                Log.w("KitsugiYouTubePlayer", "$failedEngine did not start ($reason); trying $alternate")
+                activeEngineType = alternate
+            } else {
+                Log.e("KitsugiYouTubePlayer", "Both inline engines failed for $videoId ($reason)")
+                hasError = true
+            }
+        }
 
         DisposableEffect(playerEngine) {
             var released = false
             val listener = object : PlayerEngine.Listener {
                 override fun onStateChanged(state: PlayerEngine.State) {
-                    if (!released) isPlayingState = playerEngine.isPlaying
+                    if (!released) {
+                        playerState = state
+                        isPlayingState = playerEngine.isPlaying
+                    }
                 }
 
                 override fun onPlaybackError(errorCode: Int, errorMsg: String, cause: Throwable?) {
                     if (released) return
                     Log.e("KitsugiYouTubePlayer", "Playback error: $errorMsg (code: $errorCode)")
-                    if (engineTypeForPlayer == PlayerEngineType.MEDIA3) {
-                        Log.d("KitsugiYouTubePlayer", "ExoPlayer failed, switching to MPV")
-                        activeEngineType = PlayerEngineType.MPV
-                    } else {
-                        hasError = true
-                    }
+                    switchToAlternateEngine(engineTypeForPlayer, errorMsg)
                 }
 
                 override fun onPositionChanged(positionMs: Long, durationMs: Long) {
@@ -261,25 +271,36 @@ fun KitsugiYouTubePlayer(
         }
 
         LaunchedEffect(source, activeEngineType) {
+            val attemptedEngine = engineTypeForPlayer
+            playerState = PlayerEngine.State.BUFFERING
             try {
-                playerEngine.prepare(
-                    videoUrl = source.videoUrl,
-                    audioUrl = source.audioUrl,
-                    startPositionMs = currentPosition
-                )
-                // Hazırlık sürerken uygulama arka plana gittiyse oynatmaya başlama.
-                if (resumedState.value) playerEngine.play() else runCatching { playerEngine.pause() }
+                val reachedReady = withTimeoutOrNull(INLINE_PLAYER_START_TIMEOUT_MS) {
+                    playerEngine.prepare(
+                        videoUrl = source.videoUrl,
+                        audioUrl = source.audioUrl,
+                        headers = YouTubeRequestPolicy.headersForInlineUrl(source.videoUrl),
+                        startPositionMs = currentPosition
+                    )
+                    if (!resumedState.value) {
+                        runCatching { playerEngine.pause() }
+                        isPlayingState = false
+                        false
+                    } else {
+                        playerEngine.play()
+                        snapshotFlow { playerState }.first { it.isInlinePlaybackReady() }
+                        true
+                    }
+                }
+                if (reachedReady == null) {
+                    switchToAlternateEngine(attemptedEngine, "startup timeout (${INLINE_PLAYER_START_TIMEOUT_MS}ms)")
+                }
             } catch (e: CancellationException) {
-                // The player can be disposed while a prepare is awaiting IO work.
+                // The player can be disposed while prepare or network IO is in flight.
                 throw e
             } catch (e: Exception) {
-                if (engineTypeForPlayer != activeEngineType) return@LaunchedEffect
+                if (attemptedEngine != activeEngineType) return@LaunchedEffect
                 Log.e("KitsugiYouTubePlayer", "Prepare error", e)
-                if (engineTypeForPlayer == PlayerEngineType.MEDIA3) {
-                    activeEngineType = PlayerEngineType.MPV
-                } else {
-                    hasError = true
-                }
+                switchToAlternateEngine(attemptedEngine, e.message ?: e.javaClass.simpleName)
             }
         }
 
@@ -309,16 +330,27 @@ fun KitsugiYouTubePlayer(
                 KitsugiFullscreenPlayerActivity.startWithStreamUrls(
                     context = context,
                     videoUrl = source.videoUrl,
-                    audioUrl = source.audioUrl
+                    audioUrl = source.audioUrl,
+                    headers = YouTubeRequestPolicy.headersForInlineUrl(source.videoUrl)
                 )
             }
         ) {
-            AndroidView(
-                factory = { ctx ->
-                    playerEngine.createVideoView(ctx)
-                },
-                modifier = Modifier.fillMaxSize()
-            )
+            Box(modifier = Modifier.fillMaxSize()) {
+                AndroidView(
+                    factory = { ctx ->
+                        playerEngine.createVideoView(ctx)
+                    },
+                    modifier = Modifier.fillMaxSize()
+                )
+                if (playerState == PlayerEngine.State.BUFFERING) {
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        KitsugiPlasmaLoader(size = 38.dp)
+                    }
+                }
+            }
         }
     }
 }

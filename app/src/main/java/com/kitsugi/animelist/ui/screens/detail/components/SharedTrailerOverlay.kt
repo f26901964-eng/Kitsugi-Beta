@@ -1,4 +1,4 @@
-﻿package com.kitsugi.animelist.ui.screens.detail.components
+package com.kitsugi.animelist.ui.screens.detail.components
 import com.kitsugi.animelist.ui.theme.gradient.CircularProgressIndicator
 import com.kitsugi.animelist.ui.components.KitsugiButton
 
@@ -30,6 +30,7 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.media3.common.MediaItem
+import androidx.media3.common.MimeTypes
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
@@ -38,7 +39,9 @@ import androidx.media3.exoplayer.source.MergingMediaSource
 import androidx.media3.ui.PlayerView
 import com.kitsugi.animelist.data.trailer.InAppYouTubeExtractor
 import com.kitsugi.animelist.data.trailer.TrailerPlaybackSource
+import com.kitsugi.animelist.data.trailer.YouTubeRequestPolicy
 import com.kitsugi.animelist.data.trailer.YoutubeChunkedDataSourceFactory
+import com.kitsugi.animelist.core.player.PlayerMediaSourceFactory
 import com.kitsugi.animelist.ui.screens.detail.rememberInlinePlayerResumed
 import com.kitsugi.animelist.ui.theme.KitsugiColors
 import kotlinx.coroutines.CancellationException
@@ -122,15 +125,25 @@ fun SharedTrailerOverlay(
         exoPlayer.stop()
         exoPlayer.clearMediaItems()
 
-        val factory = YoutubeChunkedDataSourceFactory()
+        val isHls = PlayerMediaSourceFactory.isHlsUrl(source.videoUrl)
+        val factory = YoutubeChunkedDataSourceFactory(
+            chunkGoogleVideoStreams = !isHls,
+            requestHeaders = YouTubeRequestPolicy.headersForInlineUrl(source.videoUrl)
+        )
         val mediaSourceFactory = DefaultMediaSourceFactory(factory)
+        val videoItem = MediaItem.Builder()
+            .setUri(Uri.parse(source.videoUrl))
+            .apply { if (isHls) setMimeType(MimeTypes.APPLICATION_M3U8) }
+            .build()
+        val videoSource = mediaSourceFactory.createMediaSource(videoItem)
 
         if (!source.audioUrl.isNullOrBlank() && source.audioUrl != source.videoUrl) {
-            val videoSrc = mediaSourceFactory.createMediaSource(MediaItem.fromUri(Uri.parse(source.videoUrl)))
-            val audioSrc = mediaSourceFactory.createMediaSource(MediaItem.fromUri(Uri.parse(source.audioUrl)))
-            exoPlayer.setMediaSource(MergingMediaSource(videoSrc, audioSrc))
+            val audioSource = mediaSourceFactory.createMediaSource(MediaItem.fromUri(Uri.parse(source.audioUrl)))
+            exoPlayer.setMediaSource(MergingMediaSource(videoSource, audioSource))
         } else {
-            exoPlayer.setMediaItem(MediaItem.fromUri(Uri.parse(source.videoUrl)))
+            // setMediaItem() would use ExoPlayer's default factory and silently bypass the
+            // YouTube headers, HLS MIME type, and range policy configured above.
+            exoPlayer.setMediaSource(videoSource)
         }
         exoPlayer.prepare()
     }
