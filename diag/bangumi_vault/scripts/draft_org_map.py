@@ -49,6 +49,12 @@ SKIP_NAMES = {
     "マガジン", "メーカー", "プレス", "インディーズ", "インディーズレーベル",
     "インディペンデントレーベル", "パブリッシャー", "ホーム", "ビデオ", "マーケティング",
     "Inc", "GOLD", "ワーナー", "44℃梅毒", "ピクチャーズ株式会社(Music)", "ユニバーサル",
+    # CHUNK 004a (2026-10-21): ad parçası / bölge / belirsiz tek kana — dil dosyasına girmez.
+    # Not: bunlar kurum adının kendisi DEĞİL, adın bir parçası (ör. "XX エンターテイメント").
+    "INC.", "Inc.", "出版", "コミックス", "ピクチャーズ", "スタジオ", "グループ", "エンターテイメント",
+    "ミュージックエンタテインメント", "ソフトウェア", "マガジンズ",
+    "エー", "ジェイ", "ジェーン", "メリー", "ケイ", "エス", "エム", "コウ",
+    "スター", "週刊", "中国大陆", "BE", "LOVE",
 }
 
 LATIN = re.compile(r"[A-Za-z]")
@@ -89,6 +95,9 @@ def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--chunk", required=True)
     ap.add_argument("--min-count", type=int, default=100)
+    # DÜZELTME (2026-10-21): chunk 004+ kurum bantlarını (ör. 60-99) bölerek işlemek için
+    # üst sınır eklendi. Varsayılan None = eski davranış (üst sınır yok).
+    ap.add_argument("--max-count", type=int, default=None)
     args = ap.parse_args()
 
     know = load_knowledge()
@@ -100,7 +109,10 @@ def main() -> int:
         with (VAULT / fn).open(encoding="utf-8") as f:
             records = json.load(f)
         for rec in sorted(records, key=lambda r: (-(r.get("count") or 0), r["key"])):
-            if rec.get("decision") or (rec.get("count") or 0) < args.min_count:
+            count = rec.get("count") or 0
+            if rec.get("decision") or count < args.min_count:
+                continue
+            if args.max_count is not None and count > args.max_count:
                 continue
             name = rec.get("tr") or ""
             if name in SKIP_NAMES:
@@ -153,8 +165,10 @@ def main() -> int:
             canon_rows.setdefault(ck, (tr_en[0], tr_en[1], origin, note, string_key))
 
     out = DEC / f"map_chunk_{args.chunk}_orgs.tsv"
-    lines = ["# Bangumi VAULT — chunk %s · ORG haritası (count>=%d · %d kayıt) — TASLAK (draft_org_map.py)"
-             % (args.chunk, args.min_count, len(map_rows)),
+    band = "count>=%d" % args.min_count if args.max_count is None else \
+        "count %d-%d" % (args.min_count, args.max_count)
+    lines = ["# Bangumi VAULT — chunk %s · ORG haritası (%s · %d kayıt) — TASLAK (draft_org_map.py)"
+             % (args.chunk, band, len(map_rows)),
              "# Biçim: vault_key <TAB> canon_id|SKIP <TAB> not"]
     lines += [f"{k}\t{c}\t{n}" for k, c, n in map_rows]
     out.write_text("\n".join(lines) + "\n", encoding="utf-8")

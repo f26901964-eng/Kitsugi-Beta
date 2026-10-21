@@ -1161,3 +1161,506 @@ yuka_iguchi	tag	Yuka Iguchi	Yuka Iguchi	global	井口裕香	established creator/
 yuma_uchida	tag	Yuma Uchida	Yuma Uchida	global	内田雄馬	established creator/performer name
 yusuke_kobayashi	tag	Yusuke Kobayashi	Yusuke Kobayashi	global	小林裕介	established creator/performer name
 yuu_watase	tag	Yuu Watase	Yuu Watase	global	渡瀬悠宇	established creator/performer name
+
+# ── ORG kanonları (chunk 004a · draft_org_map.py) ──────────────────────────
+bessatsu_hana_to_yume	magazine	Bessatsu Hana to Yume	Bessatsu Hana to Yume	global		global karşılık: 別冊花とゆめ → Bessatsu Hana to Yume
+bessatsu_shonen_magazine	magazine	Bessatsu Shonen Magazine	Bessatsu Shonen Magazine	existing		mevcut anahtar: bangumi_magazine_bessatsu_shonen_magazine
+bilibili_comics	magazine	Bilibili Comics	Bilibili Comics	global		global karşılık: 哔哩哔哩漫画 → Bilibili Comics
+business_jump	magazine	Business Jump	Business Jump	global		global karşılık: ビジネスジャンプ → Business Jump
+cjk_3ae2b0	magazine	知音漫客	知音漫客	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+cjk_4cf6f6	magazine	漫友	漫友	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+cjk_54c032	magazine	星少女漫画月刊	星少女漫画月刊	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+cjk_5dd44b	magazine	咚漫	咚漫	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+cjk_60035c	magazine	コミック アース	コミック アース	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+cjk_78c204	magazine	ジーンピクシブ	ジーンピクシブ	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+cjk_adca91	magazine	漫画王	漫画王	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+cjk_e478ae	magazine	星少女	星少女	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+comic_blade	magazine	Comic BLADE	Comic BLADE	as_is		Latin ad — as_is
+comic_boost	magazine	Comic Boost	Comic Boost	global		global karşılık: comicブースト → Comic Boost
+comic_clear	magazine	Comic Clear	Comic Clear	global		global karşılık: コミッククリア → Comic Clear
+comic_dengeki_daioh	magazine	Comic Dengeki Daioh	Comic Dengeki Daioh	global		global karşılık: コミック電撃だいおうじ → Comic Dengeki Daioh
+comic_flapper	magazine	Comic Flapper	Comic Flapper	existing		mevcut anahtar: bangumi_magazine_comic_flapper
+comic_gardo	magazine	Comic Gardo	Comic Gardo	global		global karşılık: コミックガルド → Comic Gardo
+comic_gum	magazine	Comic Gum	Comic Gum	global		global karşılık: コミックガム → Comic Gum
+comic_meteor	magazine	Comic Meteor	Comic Meteor	global		global karşılık: COMICメテオ → Comic Meteor
+comic_polaris	magazine	Comic Polaris	Comic Polaris	global		global karşılık: COMICポラリス → Comic Polaris
+comic_zero_sum	magazine	Monthly Comic Zero-Sum	Monthly Comic Zero-Sum	existing		mevcut anahtar: bangumi_magazine_comic_zero_sum
+comptiq	magazine	Comptiq	Comptiq	global		global karşılık: コンプティーク → Comptiq
+cookie	magazine	Cookie	Cookie	as_is		Latin ad — as_is
+cycomi	magazine	Cycomi	Cycomi	global		global karşılık: サイコミ → Cycomi
+dengeki_g_s_comic	magazine	Dengeki G's Comic	Dengeki G's Comic	global		global karşılık: 電撃G'sコミック → Dengeki G's Comic
+famitsu_comic_clear	magazine	Famitsu Comic Clear	Famitsu Comic Clear	global		global karşılık: Fami通Comic Clear → Famitsu Comic Clear
+flos_comic	magazine	Flos Comic	Flos Comic	as_is		Latin ad — as_is
+gangan	magazine	Gangan	Gangan	existing		mevcut anahtar: bangumi_magazine_gangan
+gundam_ace	magazine	Gundam Ace	Gundam Ace	global		global karşılık: ガンダムエース → Gundam Ace
+jinjiang_literature_city	magazine	Jinjiang Literature City	Jinjiang Literature City	global		global karşılık: 晋江文学城 → Jinjiang Literature City
+jump_square	magazine	Jump Square	Jump Square	as_is		Latin ad — as_is
+kurage_bunch	magazine	Kurage Bunch	Kurage Bunch	global		global karşılık: くらげバンチ → Kurage Bunch
+magazine_pocket	magazine	Magazine Pocket	Magazine Pocket	as_is		Latin ad — as_is
+manga_life_win	magazine	Manga Life Win	Manga Life Win	global		global karşılık: まんがライフWIN → Manga Life Win
+manga_park	magazine	Manga Park	Manga Park	global		global karşılık: マンガPark → Manga Park
+manga_time_family	magazine	Manga Time Family	Manga Time Family	global		global karşılık: まんがタイムファミリー → Manga Time Family
+manga_time_jumbo	magazine	Manga Time Jumbo	Manga Time Jumbo	global		global karşılık: まんがタイムジャンボ → Manga Time Jumbo
+manga_time_kirara_miracle	magazine	Manga Time Kirara Miracle	Manga Time Kirara Miracle	global		global karşılık: まんがタイムきららミラク → Manga Time Kirara Miracle
+manga_time_original	magazine	Manga Time Original	Manga Time Original	global		global karşılık: まんがタイムオリジナル → Manga Time Original
+mangaone	magazine	MangaONE	MangaONE	as_is		Latin ad — as_is
+margaret_2	magazine	别册Margaret	别册Margaret	as_is		Latin ad — as_is
+melody	magazine	MELODY	MELODY	as_is		Latin ad — as_is
+monthly_comic_gene	magazine	Monthly Comic Gene	Monthly Comic Gene	global		global karşılık: 月刊Comic GENE → Monthly Comic Gene
+monthly_comic_zenon	magazine	Monthly Comic Zenon	Monthly Comic Zenon	global		global karşılık: 月刊コミックゼノン → Monthly Comic Zenon
+monthly_gangan_joker	magazine	Monthly Gangan Joker	Monthly Gangan Joker	global		global karşılık: 月刊GANGAN JOKER → Monthly Gangan Joker
+monthly_morning_two	magazine	Monthly Morning Two	Monthly Morning Two	global		global karşılık: 月刊モーニングtwo → Monthly Morning Two
+monthly_princess	magazine	Monthly Princess	Monthly Princess	global		global karşılık: 月刊プリンセス → Monthly Princess
+monthly_shonen_champion	magazine	Monthly Shonen Champion	Monthly Shonen Champion	global		global karşılık: 月刊少年チャンピオン → Monthly Shonen Champion
+monthly_shonen_magazine	magazine	Monthly Shonen Magazine	Monthly Shonen Magazine	existing		mevcut anahtar: bangumi_magazine_monthly_shonen_magazine
+monthly_spirits	magazine	Monthly Spirits	Monthly Spirits	global		global karşılık: 月刊!スピリッツ → Monthly Spirits
+monthly_sunday_gx	magazine	Monthly Sunday GX	Monthly Sunday GX	global		global karşılık: 月刊サンデーGX → Monthly Sunday GX
+monthly_young_king_ours_gh	magazine	Monthly Young King Ours GH	Monthly Young King Ours GH	global		global karşılık: 月刊ヤングキングアワーズGH → Monthly Young King Ours GH
+monthly_young_magazine	magazine	Monthly Young Magazine	Monthly Young Magazine	global		global karşılık: 月刊ヤングマガジン → Monthly Young Magazine
+mystery_bonita	magazine	Mystery Bonita	Mystery Bonita	global		global karşılık: ミステリーボニータ → Mystery Bonita
+palcy_2	magazine	Palcy	Palcy	as_is		Latin ad — as_is
+princess_gold	magazine	Princess Gold	Princess Gold	global		global karşılık: プリンセスGOLD → Princess Gold
+shonen_sunday_s	magazine	Shonen Sunday S	Shonen Sunday S	global		global karşılık: 少年サンデーS → Shonen Sunday S
+sunday	magazine	里Sunday	里Sunday	as_is		Latin ad — as_is
+sunday_webry	magazine	Sunday Webry	Sunday Webry	global		global karşılık: サンデーうぇぶり → Sunday Webry
+super_jump	magazine	Super Jump	Super Jump	global		global karşılık: スーパージャンプ → Super Jump
+ultra_jump	magazine	Ultra Jump	Ultra Jump	existing		mevcut anahtar: bangumi_magazine_ultra_jump
+web_action	magazine	Web Action	Web Action	global		global karşılık: webアクション → Web Action
+web_comic_gamma_plus	magazine	Web Comic Gamma Plus	Web Comic Gamma Plus	global		global karşılık: WEBコミックガンマぷらす → Web Comic Gamma Plus
+web_comic_zenyon	magazine	Web Comic Zenyon	Web Comic Zenyon	global		global karşılık: WEBコミックぜにょん → Web Comic Zenyon
+weekly_manga_goraku	magazine	Weekly Manga Goraku	Weekly Manga Goraku	global		global karşılık: 週刊漫画ゴラク → Weekly Manga Goraku
+weekly_manga_times	magazine	Weekly Manga Times	Weekly Manga Times	global		global karşılık: 週刊漫画TIMES → Weekly Manga Times
+weekly_young_sunday	magazine	Weekly Young Sunday	Weekly Young Sunday	global		global karşılık: 周刊YOUNG SUNDAY → Weekly Young Sunday
+yawaraka_spirits	magazine	Yawaraka Spirits	Yawaraka Spirits	global		global karşılık: やわらかスピリッツ → Yawaraka Spirits
+young_animal_arashi	magazine	Young Animal Arashi	Young Animal Arashi	global		global karşılık: ヤングアニマル嵐 → Young Animal Arashi
+young_champion_retsu	magazine	Young Champion Retsu	Young Champion Retsu	global		global karşılık: ヤングチャンピオン烈 → Young Champion Retsu
+young_magazine_third	magazine	Young Magazine Third	Young Magazine Third	global		global karşılık: ヤングマガジン サード → Young Magazine Third
+amc	network	AMC	AMC	as_is		Latin ad — as_is
+bbc_2_2	network	BBC 2	BBC 2	as_is		Latin ad — as_is
+cw_2	network	CW	CW	as_is		Latin ad — as_is
+fox_2	network	Fox	Fox	as_is		Latin ad — as_is
+fx	network	FX	FX	as_is		Latin ad — as_is
+nhk_e_tv	network	NHK E-TV	NHK E-TV	global		global karşılık: NHK Eテレ → NHK E-TV
+saturday_drama	network	Saturday Drama	Saturday Drama	global		global karşılık: 土曜ドラマ → Saturday Drama
+showtime	network	Showtime	Showtime	as_is		Latin ad — as_is
+sunday_prime	network	Sunday Prime	Sunday Prime	global		global karşılık: 日曜プライム → Sunday Prime
+tbs	network	TBS	TBS	existing		mevcut anahtar: bangumi_network_tbs
+tnt	network	TNT	TNT	as_is		Latin ad — as_is
+20th_century_fox	producer	20th Century Fox	20th Century Fox	as_is		Latin ad — as_is
+adk	producer	ADK	ADK	existing		mevcut anahtar: bangumi_producer_adk
+akio_mishima	producer	Akio Mishima	Akio Mishima	global		global karşılık: 三嶋章夫 → Akio Mishima
+angel_note	producer	Angel Note	Angel Note	as_is		Latin ad — as_is
+arms	producer	ARMS	ARMS	existing		mevcut anahtara birleşim: bangumi_studio_arms	bangumi_studio_arms
+artland	producer	ARTLAND	ARTLAND	as_is		Latin ad — as_is
+asahi_production	producer	Asahi Production	Asahi Production	existing		mevcut anahtara birleşim: bangumi_studio_asahi_production	bangumi_studio_asahi_production
+ascii	producer	ASCII	ASCII	existing		mevcut anahtara birleşim: bangumi_publisher_ascii	bangumi_publisher_ascii
+bandai_namco_music_live	producer	Bandai Namco Music Live	Bandai Namco Music Live	global		global karşılık: バンダイナムコミュージックライブ → Bandai Namco Music Live
+bootleg	producer	BOOTLEG	BOOTLEG	as_is		Latin ad — as_is
+bs_fuji	producer	BS Fuji	BS Fuji	existing		mevcut anahtara birleşim: bangumi_network_bs_fuji	bangumi_network_bs_fuji
+bs_nippon	producer	BS Nippon	BS Nippon	global		global karşılık: BS日本 → BS Nippon
+chihiro_kameyama	producer	Chihiro Kameyama	Chihiro Kameyama	global		global karşılık: 亀山千広 → Chihiro Kameyama
+cjk_0bdfa1	producer	難波秀行	難波秀行	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+cjk_0da812	producer	菊島憲文	菊島憲文	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+cjk_157401	producer	川瀬浩平	川瀬浩平	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+cjk_15a3e5	producer	日影工房	日影工房	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+cjk_1c9587	producer	室井瑛一	室井瑛一	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+cjk_1e7be7	producer	弓矢政法	弓矢政法	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+cjk_29442c	producer	三宅将典	三宅将典	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+cjk_2a0d1c	producer	松下洋子	松下洋子	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+cjk_34e041	producer	岩野貢	岩野貢	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+cjk_36e176	producer	ばにぃうぉ〜か〜	ばにぃうぉ〜か〜	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+cjk_36fc78	producer	大森慎司	大森慎司	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+cjk_3a1704	producer	古川陽子	古川陽子	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+cjk_3bce56	producer	田村淳一郎	田村淳一郎	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+cjk_3d4e01	producer	木下哲哉	木下哲哉	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+cjk_3ffd96	producer	鈴木みら乃	鈴木みら乃	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+cjk_4115e1	producer	酒匂暢彦	酒匂暢彦	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+cjk_417ca2	producer	田部谷昌宏	田部谷昌宏	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+cjk_43f10f	producer	松田章男	松田章男	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+cjk_447593	producer	中原龙太郎	中原龙太郎	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+cjk_4d66ec	producer	丸山創	丸山創	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+cjk_508dbd	producer	里見治紀	里見治紀	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+cjk_5333ca	producer	吉沼忍	吉沼忍	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+cjk_59c1ec	producer	矢鴇つかさ	矢鴇つかさ	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+cjk_5f70fc	producer	三浦亨	三浦亨	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+cjk_62a002	producer	伊藤敦	伊藤敦	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+cjk_661775	producer	篠原宏康	篠原宏康	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+cjk_67860b	producer	ふじけん	ふじけん	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+cjk_69c94a	producer	鶴田直一	鶴田直一	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+cjk_6b82a2	producer	堀江拓	堀江拓	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+cjk_6f10ba	producer	長谷川嘉範	長谷川嘉範	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+cjk_719fa2	producer	中村伸一	中村伸一	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+cjk_71d724	producer	塩谷佳之	塩谷佳之	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+cjk_74094a	producer	タツノコプロ	タツノコプロ	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+cjk_77cd43	producer	藤原組長	藤原組長	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+cjk_7af06f	producer	比嘉勇二	比嘉勇二	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+cjk_7cbedf	producer	北村州識	北村州識	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+cjk_7e1286	producer	青井宏之	青井宏之	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+cjk_97ce47	producer	ノーツ	ノーツ	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+cjk_98ad5a	producer	松田啓次	松田啓次	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+cjk_9b7c74	producer	彗星社	彗星社	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+cjk_9bc42c	producer	永谷敬之	永谷敬之	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+cjk_9be19c	producer	アニメアンテナ委員会	アニメアンテナ委員会	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+cjk_aa45c4	producer	柏田真一郎	柏田真一郎	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+cjk_ac5bfe	producer	西出将之	西出将之	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+cjk_ace846	producer	先川幸矢	先川幸矢	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+cjk_af43bc	producer	渡瀬昌太	渡瀬昌太	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+cjk_b2ab8e	producer	鎌田肇	鎌田肇	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+cjk_b34b93	producer	岡村和佳菜	岡村和佳菜	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+cjk_b75904	producer	小笠原宗紀	小笠原宗紀	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+cjk_ba00c2	producer	むらかみてるあき	むらかみてるあき	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+cjk_bb6354	producer	越中おさむ	越中おさむ	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+cjk_c0ac6c	producer	堀内大示	堀内大示	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+cjk_c0ec7b	producer	城疋砂馬也	城疋砂馬也	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+cjk_c25283	producer	沢辺伸政	沢辺伸政	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+cjk_c418cb	producer	濵田健二	濵田健二	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+cjk_c71da5	producer	吉田眞人	吉田眞人	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+cjk_c78144	producer	小倉充俊	小倉充俊	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+cjk_c966c2	producer	山崎史紀	山崎史紀	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+cjk_cc6062	producer	笹山逸刀斎	笹山逸刀斎	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+cjk_d25f3f	producer	シンエイ動画	シンエイ動画	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+cjk_d35041	producer	隣人	隣人	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+cjk_d3690b	producer	张圣晏	张圣晏	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+cjk_d6b330	producer	天音	天音	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+cjk_d73634	producer	大熊一成	大熊一成	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+cjk_d8e37a	producer	臼井久人	臼井久人	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+cjk_da9dd6	producer	角田真敏	角田真敏	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+cjk_db7e2e	producer	高見洋平	高見洋平	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+cjk_e128a5	producer	松下卓也	松下卓也	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+cjk_e19cd0	producer	尾形光広	尾形光広	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+cjk_e1dce6	producer	酒井伸和	酒井伸和	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+cjk_e6e6c5	producer	細谷伸之	細谷伸之	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+cjk_e87f7d	producer	伊藤誠	伊藤誠	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+cjk_ee9d59	producer	佘媛媛	佘媛媛	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+cjk_ef3f4e	producer	中原龍太郎	中原龍太郎	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+cjk_efa73c	producer	河本紗知	河本紗知	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+cjk_f1d8cc	producer	東不可止	東不可止	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+cjk_f79788	producer	太多秀太	太多秀太	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+cjk_f7dabc	producer	高木勝裕	高木勝裕	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+cjk_fa7a32	producer	乱交太郎	乱交太郎	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+cjk_faa2fa	producer	湯川淳	湯川淳	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+columbia_pictures	producer	Columbia Pictures	Columbia Pictures	as_is		Latin ad — as_is
+crunchyroll_sc_anime_fund	producer	Crunchyroll SC Anime Fund	Crunchyroll SC Anime Fund	global		global karşılık: クランチロールSCアニメファンド → Crunchyroll SC Anime Fund
+custom_udon	producer	Custom Udon	Custom Udon	as_is		Latin ad — as_is
+dmm_pictures_2	producer	DMM Pictures	DMM Pictures	as_is		Latin ad — as_is
+dwango	producer	Dwango	Dwango	global		global karşılık: ドワンゴ → Dwango
+egg_firm	producer	egg firm	egg firm	existing		mevcut anahtara birleşim: bangumi_studio_egg_firm	bangumi_studio_egg_firm
+eight_bit	producer	Eight Bit	Eight Bit	global		global karşılık: エイトビット → Eight Bit
+enix	producer	Enix	Enix	existing		mevcut anahtara birleşim: bangumi_studio_enix	bangumi_studio_enix
+frontier_engine	producer	Frontier Engine	Frontier Engine	global		global karşılık: フロンティアエンジン → Frontier Engine
+genki_kawamura	producer	Genki Kawamura	Genki Kawamura	global		global karşılık: 川村元気 → Genki Kawamura
+gp_8	producer	関拓也 GP	関拓也 GP	as_is		Latin ad — as_is
+green_bunny	producer	GREEN BUNNY	GREEN BUNNY	as_is		Latin ad — as_is
+gyao	producer	GYAO!	GYAO!	existing		mevcut anahtara birleşim: bangumi_network_gyao	bangumi_network_gyao
+horipro	producer	Horipro	Horipro	global		global karşılık: ホリプロ → Horipro
+idea_factory	producer	Idea Factory	Idea Factory	existing		mevcut anahtara birleşim: bangumi_studio_idea_factory	bangumi_studio_idea_factory
+industrial_light_and_magic	producer	Industrial Light and Magic	Industrial Light and Magic	as_is		Latin ad — as_is
+jr_east_marketing_communications	producer	JR East Marketing & Communications	JR East Marketing & Communications	global		global karşılık: ジェイアール東日本企画 → JR East Marketing & Communications
+kazuma_miki	producer	Kazuma Miki	Kazuma Miki	global		global karşılık: 三木一馬 → Kazuma Miki
+kddi	producer	KDDI	KDDI	as_is		Latin ad — as_is
+koichi_watanabe	producer	Koichi Watanabe	Koichi Watanabe	global		global karşılık: 渡邊耕一 → Koichi Watanabe
+kozo_morishita	producer	Kozo Morishita	Kozo Morishita	global		global karşılık: 森下孝三 → Kozo Morishita
+kyodo_television	producer	Kyodo Television	Kyodo Television	global		global karşılık: 共同テレビ → Kyodo Television
+kyoto_animation	producer	Kyoto Animation	Kyoto Animation	existing		mevcut anahtara birleşim: bangumi_studio_kyoto_animation	bangumi_studio_kyoto_animation
+mappa	producer	MAPPA	MAPPA	existing		mevcut anahtara birleşim: bangumi_studio_mappa	bangumi_studio_mappa
+marvel_entertainment	producer	Marvel Entertainment	Marvel Entertainment	as_is		Latin ad — as_is
+marvel_studios	producer	Marvel Studios	Marvel Studios	as_is		Latin ad — as_is
+masayoshi_minoshima	producer	Masayoshi Minoshima	Masayoshi Minoshima	as_is		Latin ad — as_is
+masuo_ueda	producer	Masuo Ueda	Masuo Ueda	global		global karşılık: 植田益朗 → Masuo Ueda
+minami_ichikawa	producer	Minami Ichikawa	Minami Ichikawa	global		global karşılık: 市川南 → Minami Ichikawa
+n_o_syo	producer	N.O.-SYO	N.O.-SYO	as_is		Latin ad — as_is
+nbcuniversal	producer	NBCUniversal Entertainment Japan	NBCUniversal Entertainment Japan	existing		mevcut anahtar: bangumi_producer_nbcuniversal
+nippon_shuppan_hanbai	producer	Nippon Shuppan Hanbai	Nippon Shuppan Hanbai	global		global karşılık: 日本出版販売 → Nippon Shuppan Hanbai
+nitro	producer	Nitro+	Nitro+	as_is		Latin ad — as_is
+nomad	producer	Nomad	Nomad	existing		mevcut anahtara birleşim: bangumi_studio_nomad	bangumi_studio_nomad
+olm	producer	OLM	OLM	existing		mevcut anahtara birleşim: bangumi_studio_olm	bangumi_studio_olm
+one_s_work	producer	One's work	One's work	as_is		Latin ad — as_is
+paramount_pictures	producer	Paramount Pictures	Paramount Pictures	as_is		Latin ad — as_is
+queen_bee	producer	Queen Bee	Queen Bee	as_is		Latin ad — as_is
+rinhee	producer	Rinhee	Rinhee	as_is		Latin ad — as_is
+roughsketch	producer	RoughSketch	RoughSketch	as_is		Latin ad — as_is
+sammy	producer	Sammy	Sammy	global		global karşılık: サミー → Sammy
+seiji_okuda	producer	Seiji Okuda	Seiji Okuda	global		global karşılık: 奥田誠治 → Seiji Okuda
+shin_unozawa	producer	Shin Unozawa	Shin Unozawa	global		global karşılık: 鵜之澤伸 → Shin Unozawa
+shinichiro_shirakura	producer	Shinichiro Shirakura	Shinichiro Shirakura	global		global karşılık: 白倉伸一郎 → Shinichiro Shirakura
+shiro_sasaki	producer	Shiro Sasaki	Shiro Sasaki	global		global karşılık: 佐々木史朗 → Shiro Sasaki
+show	producer	Show隈部	Show隈部	as_is		Latin ad — as_is
+square	producer	Square	Square	existing		mevcut anahtara birleşim: bangumi_studio_square	bangumi_studio_square
+starving_trancer	producer	Starving Trancer	Starving Trancer	as_is		Latin ad — as_is
+studio9maiami	producer	studio9MAiami	studio9MAiami	as_is		Latin ad — as_is
+sunshine_corporation	producer	Sunshine Corporation	Sunshine Corporation	global		global karşılık: サンシャインコーポレーション → Sunshine Corporation
+syrufit	producer	Syrufit	Syrufit	as_is		Latin ad — as_is
+t_pazolite	producer	t+pazolite	t+pazolite	as_is		Latin ad — as_is
+takahiro	producer	Takahiro	Takahiro	global		global karşılık: タカヒロ → Takahiro
+takahiro_baba	producer	Takahiro Baba	Takahiro Baba	global		global karşılık: 馬場隆博 → Takahiro Baba
+takahito_omori	producer	Takahito Omori	Takahito Omori	global		global karşılık: 大森敬仁 → Takahito Omori
+tetsuro_satomi	producer	Tetsuro Satomi	Tetsuro Satomi	global		global karşılık: 里見哲朗 → Tetsuro Satomi
+tms	producer	TMS Entertainment	TMS Entertainment	existing		mevcut anahtara birleşim: bangumi_studio_tms	bangumi_studio_tms
+toei_video	producer	Toei Video	Toei Video	global		global karşılık: 東映ビデオ → Toei Video
+toshio_suzuki	producer	Toshio Suzuki	Toshio Suzuki	global		global karşılık: 鈴木敏夫 → Toshio Suzuki
+tvb	producer	TVB	TVB	existing		mevcut anahtara birleşim: bangumi_network_tvb	bangumi_network_tvb
+ufotable	producer	ufotable	ufotable	existing		mevcut anahtara birleşim: bangumi_studio_ufotable	bangumi_studio_ufotable
+universal_pictures	producer	Universal Pictures	Universal Pictures	as_is		Latin ad — as_is
+wit_studio	producer	WIT STUDIO	WIT STUDIO	as_is		Latin ad — as_is
+worldpg_animation	producer	WORLDPG ANIMATION	WORLDPG ANIMATION	as_is		Latin ad — as_is
+yoshihisa_heishi	producer	Yoshihisa Heishi	Yoshihisa Heishi	global		global karşılık: 瓶子吉久 → Yoshihisa Heishi
+ysk439	producer	YsK439	YsK439	as_is		Latin ad — as_is
+air_label	publisher	AIR LABEL	AIR LABEL	as_is		Latin ad — as_is
+alice_s_emotion	publisher	ALiCE'S EMOTiON	ALiCE'S EMOTiON	as_is		Latin ad — as_is
+amg_music	publisher	AMG MUSIC	AMG MUSIC	as_is		Latin ad — as_is
+atis_collection	publisher	Atis collection	Atis collection	as_is		Latin ad — as_is
+attrielectrock	publisher	Attrielectrock	Attrielectrock	as_is		Latin ad — as_is
+avex_mode	publisher	avex mode	avex mode	as_is		Latin ad — as_is
+b_gram_records	publisher	B-Gram RECORDS	B-Gram RECORDS	as_is		Latin ad — as_is
+bandai_namco_arts	publisher	Bandai Namco Arts	Bandai Namco Arts	global		global karşılık: バンダイナムコアーツ → Bandai Namco Arts
+bandai_visual	publisher	Bandai Visual	Bandai Visual	existing		mevcut anahtara birleşim: bangumi_producer_bandai_visual	bangumi_producer_bandai_visual
+basiscape_records	publisher	Basiscape Records	Basiscape Records	as_is		Latin ad — as_is
+beijing_united_publishing	publisher	Beijing United Publishing	Beijing United Publishing	global		global karşılık: 北京联合出版公司 → Beijing United Publishing
+blizzard_entertainment	publisher	Blizzard Entertainment	Blizzard Entertainment	as_is		Latin ad — as_is
+bullet	publisher	BULLET	BULLET	as_is		Latin ad — as_is
+china_friendship_publishing	publisher	China Friendship Publishing	China Friendship Publishing	global		global karşılık: 中国友谊出版公司 → China Friendship Publishing
+china_times_publishing	publisher	China Times Publishing	China Times Publishing	global		global karşılık: 時報文化 → China Times Publishing
+chouchou	publisher	chouchou	chouchou	as_is		Latin ad — as_is
+chouette	publisher	Chouette	Chouette	as_is		Latin ad — as_is
+chuokoron_sha	publisher	Chuokoron-sha	Chuokoron-sha	global		global karşılık: 中央公論社 → Chuokoron-sha
+cjk_0125b8	publisher	长鸿	长鸿	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+cjk_0557bf	publisher	正文社	正文社	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+cjk_104a91	publisher	小学館サービス	小学館サービス	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+cjk_1b4def	publisher	蒼竜社	蒼竜社	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+cjk_1e7af1	publisher	文华社	文华社	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+cjk_22e2c0	publisher	尚禾文化	尚禾文化	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+cjk_426133	publisher	天照社	天照社	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+cjk_42e1e7	publisher	天下出版社	天下出版社	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+cjk_4f75db	publisher	梶迫小道具店	梶迫小道具店	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+cjk_5537ca	publisher	ミュージックレコーズ	ミュージックレコーズ	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+cjk_57fb13	publisher	桜桃書房	桜桃書房	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+cjk_58f84f	publisher	スタイル	スタイル	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+cjk_59e21e	publisher	はちみつれもん	はちみつれもん	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+cjk_5c6d72	publisher	新星出版社	新星出版社	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+cjk_6df754	publisher	角川アニメ	角川アニメ	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+cjk_767cdb	publisher	荒御灵	荒御灵	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+cjk_86a871	publisher	創美社	創美社	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+cjk_88c2bb	publisher	発熱巫女〜ず	発熱巫女〜ず	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+cjk_8a5998	publisher	哔哩哔哩游戏	哔哩哔哩游戏	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+cjk_8d527b	publisher	ダブリルムーン	ダブリルムーン	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+cjk_907ac8	publisher	道玄坂書房	道玄坂書房	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+cjk_9ceb68	publisher	スコラマガジン	スコラマガジン	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+cjk_a2e607	publisher	ディファレンシア	ディファレンシア	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+cjk_a45bdc	publisher	荒御霊	荒御霊	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+cjk_b1cf41	publisher	삼양출판사(만화)	삼양출판사(만화)	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+cjk_b55b31	publisher	久保書店	久保書店	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+cjk_b9dce2	publisher	子弹社	子弹社	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+cjk_bb9827	publisher	재미주의	재미주의	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+cjk_bd7328	publisher	ぴずやの独房	ぴずやの独房	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+cjk_c8e220	publisher	凋叶棕	凋叶棕	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+cjk_d0aef7	publisher	うんちく商事	うんちく商事	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+cjk_d21edf	publisher	キャラモモ	キャラモモ	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+cjk_e15053	publisher	東京三世社	東京三世社	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+cjk_e29aea	publisher	笠倉	笠倉	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+cjk_ea4475	publisher	华纳家庭音乐	华纳家庭音乐	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+cjk_eb911b	publisher	橙光游戏	橙光游戏	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+cjk_f564ef	publisher	ミュージックディストリビューション	ミュージックディストリビューション	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+cjk_f5a7b4	publisher	長鴻	長鴻	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+cjk_f9a7c2	publisher	日販アイ	日販アイ	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+compile_heart	publisher	Compile Heart	Compile Heart	global		global karşılık: コンパイルハート → Compile Heart
+culturecom_holdings	publisher	Culturecom Holdings	Culturecom Holdings	global		global karşılık: 文化传信集团有限公司 → Culturecom Holdings
+cyberfront	publisher	CyberFront	CyberFront	global		global karşılık: サイバーフロント → CyberFront
+d_c_media	publisher	D&C Media	D&C Media	global		global karşılık: 디앤씨미디어 → D&C Media
+ddby	publisher	DDBY	DDBY	as_is		Latin ad — as_is
+deep_silver	publisher	Deep Silver	Deep Silver	as_is		Latin ad — as_is
+dmarts	publisher	dmARTS	dmARTS	as_is		Latin ad — as_is
+dreamusic_publishing	publisher	Dreamusic Publishing	Dreamusic Publishing	global		global karşılık: ドリーミュージックパブリッシング → Dreamusic Publishing
+dusk	publisher	Dusk	Dusk	as_is		Latin ad — as_is
+eidos_interactive	publisher	Eidos Interactive	Eidos Interactive	as_is		Latin ad — as_is
+emotion	publisher	Emotion	Emotion	global		global karşılık: エモーション → Emotion
+f_i_x_records	publisher	F.I.X. Records	F.I.X. Records	as_is		Latin ad — as_is
+fantasia_bunko	publisher	Fantasia Bunko	Fantasia Bunko	global		global karşılık: ファンタジア文庫 → Fantasia Bunko
+felt	publisher	FELT	FELT	as_is		Latin ad — as_is
+five_records	publisher	Five Records	Five Records	as_is		Latin ad — as_is
+focus_home_interactive	publisher	Focus Home Interactive	Focus Home Interactive	as_is		Latin ad — as_is
+fortissimo	publisher	fortissimo	fortissimo	as_is		Latin ad — as_is
+foxtail_grass_studio	publisher	Foxtail-Grass Studio	Foxtail-Grass Studio	as_is		Latin ad — as_is
+frame	publisher	FRAME	FRAME	as_is		Latin ad — as_is
+front_wing	publisher	Front Wing	Front Wing	existing		mevcut anahtara birleşim: bangumi_studio_front_wing	bangumi_studio_front_wing
+frontier_works_inc_plc_m	publisher	Frontier Works Inc.(PLC)(M)	Frontier Works Inc.(PLC)(M)	as_is		Latin ad — as_is
+furyu	publisher	FURYU	FURYU	global		global karşılık: フリュー → FURYU
+gakken_publishing	publisher	Gakken Publishing	Gakken Publishing	global		global karşılık: 学研パブリッシング → Gakken Publishing
+games_workshop	publisher	Games Workshop	Games Workshop	as_is		Latin ad — as_is
+geneon_entertainment	publisher	Geneon Entertainment	Geneon Entertainment	as_is		Latin ad — as_is
+geneon_music	publisher	Geneon =music=	Geneon =music=	as_is		Latin ad — as_is
+genkosha	publisher	Genkosha	Genkosha	global		global karşılık: 玄光社 → Genkosha
+get_in_the_ring	publisher	GET IN THE RING	GET IN THE RING	as_is		Latin ad — as_is
+giga	publisher	Giga	Giga	existing		mevcut anahtara birleşim: bangumi_studio_giga	bangumi_studio_giga
+ginger_records	publisher	Ginger Records	Ginger Records	as_is		Latin ad — as_is
+gloryheaven	publisher	GloryHeaven	GloryHeaven	as_is		Latin ad — as_is
+gr8_records	publisher	gr8!records	gr8!records	as_is		Latin ad — as_is
+hakuhodo_dy_music_pictures	publisher	Hakuhodo DY Music & Pictures	Hakuhodo DY Music & Pictures	existing		mevcut anahtara birleşim: bangumi_producer_hakuhodo_dy_music_pictures	bangumi_producer_hakuhodo_dy_music_pictures
+harvest_publishing	publisher	Harvest Publishing	Harvest Publishing	global		global karşılık: ハーヴェスト出版 → Harvest Publishing
+hibiki_music	publisher	Hibiki Music	Hibiki Music	global		global karşılık: 響ミュージック → Hibiki Music
+hikari_field	publisher	HIKARI FIELD	HIKARI FIELD	as_is		Latin ad — as_is
+houbunsha	publisher	Houbunsha	Houbunsha	existing		mevcut anahtar: bangumi_publisher_houbunsha
+illusion	publisher	Illusion	Illusion	existing		mevcut anahtara birleşim: bangumi_studio_illusion	bangumi_studio_illusion
+image_comics	publisher	Image Comics	Image Comics	as_is		Latin ad — as_is
+imperial_records	publisher	Imperial Records	Imperial Records	as_is		Latin ad — as_is
+innocent_grey	publisher	Innocent Grey	Innocent Grey	as_is		Latin ad — as_is
+innocent_key	publisher	Innocent Key	Innocent Key	as_is		Latin ad — as_is
+iris_quartz	publisher	iris quartz	iris quartz	as_is		Latin ad — as_is
+iron_attack	publisher	IRON ATTACK!	IRON ATTACK!	as_is		Latin ad — as_is
+janis	publisher	JANIS	JANIS	as_is		Latin ad — as_is
+kadokawa_games	publisher	Kadokawa Games	Kadokawa Games	global		global karşılık: 角川ゲームス → Kadokawa Games
+kagura_games	publisher	Kagura Games	Kagura Games	as_is		Latin ad — as_is
+kawade_shobo_shinsha	publisher	Kawade Shobo Shinsha	Kawade Shobo Shinsha	global		global karşılık: 河出書房新社 → Kawade Shobo Shinsha
+kid	publisher	KID	KID	existing		mevcut anahtara birleşim: bangumi_studio_kid	bangumi_studio_kid
+kodansha_ranobe_bunko	publisher	Kodansha Ranobe Bunko	Kodansha Ranobe Bunko	global		global karşılık: 講談社ラノベ文庫 → Kodansha Ranobe Bunko
+koei_tecmo	publisher	Koei Tecmo	Koei Tecmo	global		global karşılık: 光荣特库摩 → Koei Tecmo
+kosaido_publishing	publisher	Kosaido Publishing	Kosaido Publishing	global		global karşılık: 廣済堂出版 → Kosaido Publishing
+kyoto_animation	publisher	Kyoto Animation	Kyoto Animation	existing		mevcut anahtara birleşim: bangumi_studio_kyoto_animation	bangumi_studio_kyoto_animation
+lantis_k_m	publisher	Lantis(K)(M)	Lantis(K)(M)	as_is		Latin ad — as_is
+lila_c_records	publisher	LiLA'c Records	LiLA'c Records	as_is		Latin ad — as_is
+lost_garden	publisher	Lost Garden	Lost Garden	as_is		Latin ad — as_is
+marvel_comics	publisher	Marvel Comics	Marvel Comics	as_is		Latin ad — as_is
+marvelous_entertainment_inc_ld	publisher	Marvelous Entertainment Inc.LDC(PLC)(M)	Marvelous Entertainment Inc.LDC(PLC)(M)	as_is		Latin ad — as_is
+media_works_bunko	publisher	Media Works Bunko	Media Works Bunko	global		global karşılık: メディアワークス文庫 → Media Works Bunko
+mellow_yellow	publisher	MELLOW YELLOW	MELLOW YELLOW	as_is		Latin ad — as_is
+melty_drop	publisher	Melty Drop	Melty Drop	as_is		Latin ad — as_is
+mihoyo	publisher	miHoYo	miHoYo	global		global karşılık: 米哈游 → miHoYo
+minori	publisher	minori	minori	as_is		Latin ad — as_is
+namco	publisher	Namco	Namco	global		global karşılık: NAMCO → Namco
+namco_2	publisher	Namco	Namco	as_is		Latin ad — as_is
+nexon	publisher	NEXON	NEXON	as_is		Latin ad — as_is
+nippon_crown	publisher	Nippon Crown	Nippon Crown	global		global karşılık: 日本クラウン → Nippon Crown
+ohmsha	publisher	Ohmsha	Ohmsha	global		global karşılık: オーム社 → Ohmsha
+otomate	publisher	Otomate	Otomate	existing		mevcut anahtara birleşim: bangumi_studio_otomate	bangumi_studio_otomate
+otomate_record	publisher	Otomate Record	Otomate Record	global		global karşılık: オトメイトレコード → Otomate Record
+paradox_interactive	publisher	Paradox Interactive	Paradox Interactive	as_is		Latin ad — as_is
+playism	publisher	PLAYISM	PLAYISM	as_is		Latin ad — as_is
+polydor	publisher	Polydor	Polydor	global		global karşılık: ポリドール → Polydor
+purple_software	publisher	Purple Software	Purple Software	as_is		Latin ad — as_is
+rabbitcandy	publisher	Rabbitcandy	Rabbitcandy	as_is		Latin ad — as_is
+seirindo	publisher	Seirindo	Seirindo	global		global karşılık: 青林堂 → Seirindo
+seirinkogeisha	publisher	Seirinkogeisha	Seirinkogeisha	global		global karşılık: 青林工藝舎 → Seirinkogeisha
+shibayanrecords	publisher	ShibayanRecords	ShibayanRecords	as_is		Latin ad — as_is
+shiravune	publisher	Shiravune	Shiravune	as_is		Latin ad — as_is
+shueisha_creative	publisher	Shueisha Creative	Shueisha Creative	global		global karşılık: 集英社クリエイティブ → Shueisha Creative
+sierra_entertainment	publisher	Sierra Entertainment	Sierra Entertainment	as_is		Latin ad — as_is
+silly_walker	publisher	Silly Walker	Silly Walker	as_is		Latin ad — as_is
+snk	publisher	SNK	SNK	existing		mevcut anahtara birleşim: bangumi_studio_snk	bangumi_studio_snk
+sony_music_direct	publisher	Sony Music Direct	Sony Music Direct	as_is		Latin ad — as_is
+sony_music_entertainment	publisher	Sony Music Entertainment	Sony Music Entertainment	global		global karşılık: ソニーミュージックエンタテインメント → Sony Music Entertainment
+south_of_heaven	publisher	SOUTH OF HEAVEN	SOUTH OF HEAVEN	as_is		Latin ad — as_is
+spacelectro	publisher	Spacelectro	Spacelectro	as_is		Latin ad — as_is
+star_entertainment	publisher	Star Entertainment	Star Entertainment	global		global karşılık: スターエンターテイメント → Star Entertainment
+storm	publisher	Storm	Storm	global		global karşılık: ストーム → Storm
+supersweep	publisher	SuperSweep	SuperSweep	as_is		Latin ad — as_is
+sync_art_s	publisher	SYNC.ART'S	SYNC.ART'S	as_is		Latin ad — as_is
+tatshmusiccircle	publisher	TatshMusicCircle	TatshMusicCircle	as_is		Latin ad — as_is
+team_shanghai_alice	publisher	Team Shanghai Alice	Team Shanghai Alice	global		global karşılık: 上海アリス幻樂団 → Team Shanghai Alice
+tunaboni_collections	publisher	Tunaboni Collections	Tunaboni Collections	as_is		Latin ad — as_is
+twofive_records	publisher	TWOFIVE RECORDS	TWOFIVE RECORDS	as_is		Latin ad — as_is
+ubisoft	publisher	Ubisoft	Ubisoft	global		global karşılık: 育碧娱乐 → Ubisoft
+unitone	publisher	Unitone	Unitone	as_is		Latin ad — as_is
+universal_music	publisher	Universal Music	Universal Music	global		global karşılık: ユニバーサル ミュージック → Universal Music
+universal_sigma	publisher	Universal Sigma	Universal Sigma	global		global karşılık: ユニバーサル シグマ → Universal Sigma
+valve	publisher	Valve	Valve	as_is		Latin ad — as_is
+velvet_voice	publisher	Velvet Voice	Velvet Voice	as_is		Latin ad — as_is
+venerdi	publisher	Venerdi	Venerdi	as_is		Latin ad — as_is
+victor_musical_industries	publisher	Victor Musical Industries	Victor Musical Industries	global		global karşılık: ビクター音楽産業 → Victor Musical Industries
+warner_bros_interactive_entert	publisher	Warner Bros. Interactive Entertainment	Warner Bros. Interactive Entertainment	as_is		Latin ad — as_is
+yamaha_music_communications	publisher	Yamaha Music Communications	Yamaha Music Communications	global		global karşılık: ヤマハミュージックコミュニケーションズ → Yamaha Music Communications
+yonder_voice	publisher	Yonder Voice	Yonder Voice	as_is		Latin ad — as_is
+zero_a	publisher	ZERO-A	ZERO-A	as_is		Latin ad — as_is
+zetima	publisher	ZETIMA	ZETIMA	as_is		Latin ad — as_is
+1st	studio	スタジオ1st	スタジオ1st	as_is		Latin ad — as_is
+actas	studio	Actas	Actas	global		global karşılık: アクタス → Actas
+anim	studio	ANIM	ANIM	as_is		Latin ad — as_is
+aquaplus	studio	Aquaplus	Aquaplus	global		global karşılık: アクアプラス → Aquaplus
+arc_system_works	studio	Arc System Works	Arc System Works	global		global karşılık: アークシステムワークス → Arc System Works
+artland	studio	ARTLAND	ARTLAND	as_is		Latin ad — as_is
+ashi_productions	studio	Ashi Productions	Ashi Productions	global		global karşılık: 葦プロダクション → Ashi Productions
+atari	studio	Atari	Atari	existing		mevcut anahtara birleşim: bangumi_publisher_atari	bangumi_publisher_atari
+azarashi_soft	studio	Azarashi Soft	Azarashi Soft	global		global karşılık: あざらしそふと → Azarashi Soft
+bandai_namco_studios	studio	Bandai Namco Studios	Bandai Namco Studios	global		global karşılık: バンダイナムコスタジオ → Bandai Namco Studios
+bishop	studio	BISHOP	BISHOP	as_is		Latin ad — as_is
+blizzard_entertainment	studio	Blizzard Entertainment	Blizzard Entertainment	as_is		Latin ad — as_is
+bn_pictures	studio	BN Pictures	BN Pictures	as_is		Latin ad — as_is
+cartoon_network_studios	studio	Cartoon Network Studios	Cartoon Network Studios	as_is		Latin ad — as_is
+chunsoft	studio	CHUNSOFT	CHUNSOFT	as_is		Latin ad — as_is
+circus	studio	CIRCUS	CIRCUS	as_is		Latin ad — as_is
+cjk_11691e	studio	タック	タック	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+cjk_3ffd96	studio	鈴木みら乃	鈴木みら乃	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+cjk_43b170	studio	若鸿文化	若鸿文化	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+cjk_72344a	studio	エレクトリップ	エレクトリップ	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+cjk_7d9bdc	studio	シブサワ	シブサワ	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+cjk_7e8c42	studio	柴油地雷	柴油地雷	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+cjk_877422	studio	癸乙夜	癸乙夜	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+cjk_ac8abc	studio	極フェロ	極フェロ	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+cjk_d3fb85	studio	妖精传说	妖精传说	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+cjk_e6277f	studio	橘子班	橘子班	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+cjk_e706c6	studio	わるきゅ〜れ	わるきゅ〜れ	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+cjk_ee0895	studio	クレージュエース	クレージュエース	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+compile_heart	studio	Compile Heart	Compile Heart	global		global karşılık: コンパイルハート → Compile Heart
+d_o	studio	D.O.	D.O.	as_is		Latin ad — as_is
+data_east	studio	Data East	Data East	as_is		Latin ad — as_is
+david_production_2	studio	david production	david production	as_is		Latin ad — as_is
+debonosu_works	studio	Debonosu Works	Debonosu Works	global		global karşılık: でぼの巣製作所 → Debonosu Works
+devil_seal	studio	Devil-seal	Devil-seal	as_is		Latin ad — as_is
+discovery	studio	DISCOVERY	DISCOVERY	as_is		Latin ad — as_is
+eight_bit	studio	Eight Bit	Eight Bit	global		global karşılık: エイトビット → Eight Bit
+ensemble	studio	ensemble	ensemble	as_is		Latin ad — as_is
+escu_de	studio	Escu:de	Escu:de	global		global karşılık: エスクード → Escu:de
+f_and_c	studio	F&C	F&C	global		global karşılık: F&C → F&C
+fairytale	studio	Fairytale	Fairytale	global		global karşılık: フェアリーテール → Fairytale
+flyingshine	studio	FlyingShine	FlyingShine	as_is		Latin ad — as_is
+fromsoftware	studio	FromSoftware	FromSoftware	global		global karşılık: フロム → FromSoftware
+g_gear_inc	studio	G.Gear.inc	G.Gear.inc	as_is		Latin ad — as_is
+game_freak	studio	Game Freak	Game Freak	global		global karşılık: ゲームフリーク → Game Freak
+ge	studio	âge	âge	as_is		Latin ad — as_is
+gokumi	studio	Studio Gokumi	Studio Gokumi	existing		mevcut anahtar: bangumi_studio_gokumi
+hal_laboratory	studio	HAL Laboratory	HAL Laboratory	global		global karşılık: HAL研究所 → HAL Laboratory
+hooksoft	studio	HOOKSOFT	HOOKSOFT	as_is		Latin ad — as_is
+hunex	studio	HuneX	HuneX	global		global karşılık: ヒューネックス株式会社 → HuneX
+intelligent_systems	studio	Intelligent Systems	Intelligent Systems	global		global karşılık: インテリジェントシステムズ → Intelligent Systems
+interheart	studio	INTERHEART	INTERHEART	global		global karşılık: インターハート → INTERHEART
+koei	studio	Koei	Koei	existing		mevcut anahtara birleşim: bangumi_publisher_koei	bangumi_publisher_koei
+kogado_studio	studio	Kogado Studio	Kogado Studio	global		global karşılık: 工画堂スタジオ → Kogado Studio
+level5	studio	Level-5	Level-5	existing		mevcut anahtara birleşim: bangumi_producer_level5	bangumi_producer_level5
+light	studio	light	light	as_is		Latin ad — as_is
+lilith	studio	LiLiTH	LiLiTH	as_is		Latin ad — as_is
+liquid	studio	Liquid	Liquid	as_is		Latin ad — as_is
+mages	studio	MAGES.	MAGES.	existing		mevcut anahtara birleşim: bangumi_producer_mages	bangumi_producer_mages
+mink	studio	Mink	Mink	global		global karşılık: ミンク → Mink
+namco	studio	Namco	Namco	as_is		Latin ad — as_is
+nintendo_spd	studio	Nintendo SPD	Nintendo SPD	global		global karşılık: 任天堂企画制作本部 → Nintendo SPD
+nitro	studio	Nitro+	Nitro+	as_is		Latin ad — as_is
+oneone1	studio	ONEONE1	ONEONE1	as_is		Latin ad — as_is
+oz	studio	@OZ	@OZ	existing		mevcut anahtara birleşim: bangumi_producer_oz	bangumi_producer_oz
+parthenon	studio	Parthenon	Parthenon	as_is		Latin ad — as_is
+pin_point	studio	Pin-Point	Pin-Point	as_is		Latin ad — as_is
+quinrose	studio	QuinRose	QuinRose	as_is		Latin ad — as_is
+rare	studio	Rare	Rare	as_is		Latin ad — as_is
+red_zone	studio	RED-ZONE	RED-ZONE	as_is		Latin ad — as_is
+rejet	studio	Rejet	Rejet	existing		mevcut anahtara birleşim: bangumi_publisher_rejet	bangumi_publisher_rejet
+ruby_party	studio	Ruby Party	Ruby Party	global		global karşılık: ルビーパーティー → Ruby Party
+rune	studio	Rune	Rune	global		global karşılık: ルネ → Rune
+sie_japan_studio	studio	SIE Japan Studio	SIE Japan Studio	global		global karşılık: SIEジャパンスタジオ → SIE Japan Studio
+silky_s	studio	Silky's	Silky's	global		global karşılık: シルキーズ → Silky's
+soft_world_international	studio	Soft-World International	Soft-World International	global		global karşılık: 智冠科技 → Soft-World International
+softstar_entertainment	studio	Softstar Entertainment	Softstar Entertainment	global		global karşılık: 大宇資訊 → Softstar Entertainment
+sparkly_key_animation	studio	Sparkly Key Animation	Sparkly Key Animation	global		global karşılık: 玄机科技 → Sparkly Key Animation
+square_enix	studio	Square Enix	Square Enix	existing		mevcut anahtara birleşim: bangumi_producer_square_enix	bangumi_producer_square_enix
+studio_e_go	studio	Studio e.go!	Studio e.go!	as_is		Latin ad — as_is
+studio_ghibli	studio	Studio Ghibli	Studio Ghibli	global		global karşılık: スタジオジブリ → Studio Ghibli
+studio_hibari	studio	Studio Hibari	Studio Hibari	global		global karşılık: スタジオ雲雀 → Studio Hibari
+taito_3	studio	Taito	Taito	existing		mevcut anahtara birleşim: bangumi_publisher_taito_3	bangumi_publisher_taito_3
+team_ninja	studio	Team NINJA	Team NINJA	as_is		Latin ad — as_is
+tezuka_productions	studio	Tezuka Productions	Tezuka Productions	global		global karşılık: 手塚プロダクション → Tezuka Productions
+tose	studio	TOSE	TOSE	global		global karşılık: トーセ → TOSE
+tryset	studio	TRYSET	TRYSET	as_is		Latin ad — as_is
+tt_games	studio	TT Games	TT Games	as_is		Latin ad — as_is
+ubisoft	studio	Ubisoft	Ubisoft	global		global karşılık: 育碧娱乐 → Ubisoft
+west_vision	studio	West Vision	West Vision	as_is		Latin ad — as_is
+whirlpool	studio	Whirlpool	Whirlpool	as_is		Latin ad — as_is
+xuse	studio	Xuse	Xuse	global		global karşılık: ザウス → Xuse
+y_o_u_c	studio	Y.O.U.C	Y.O.U.C	as_is		Latin ad — as_is
+yumeta_company	studio	Yumeta Company	Yumeta Company	global		global karşılık: ゆめ太カンパニー → Yumeta Company
+zion	studio	ZION	ZION	as_is		Latin ad — as_is

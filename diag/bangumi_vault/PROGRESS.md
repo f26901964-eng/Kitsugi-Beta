@@ -1,8 +1,11 @@
 # Bangumi VAULT — İlerleme / Devam Planı
 
 > **Bu dosya devir teslim dosyasıdır.** Yeni bir dal/şube işi buradan devralır.
-> Son güncelleme: **2026-10-21** · Chunk **001 + 002 + 003** tamamlandı, uygulamaya işlendi.
-> Chunk 003 PR'ı: https://github.com/f26901964-eng/Kitsugi-Beta/pull/18 (**bu dal `arena/6cb51a64-kitsugi-beta`; chunk 001+002'yi de taşır**)
+> Son güncelleme: **2026-10-21** · Chunk **001 + 002 + 003 + 004a** tamamlandı, uygulamaya işlendi.
+> Chunk 004a PR'ı: bu dal `arena/6131dd54-kitsugi-beta` (chunk 001+002+003'ü de taşır; PR numarası Bölüm 8'de)
+> Chunk 003 PR'ı: https://github.com/f26901964-eng/Kitsugi-Beta/pull/18 (dal `arena/6cb51a64-kitsugi-beta`)
+> ⚠ `main` bu dalın tabanından sonra ilerledi (2.4.321–324); yeni dal **`origin/main` ile birleştirilmiş** hâlde
+> `arena/6131dd54-kitsugi-beta` üzerinden devam eder. Chunk 003 dalı (`6cb51a64`) artık geride kaldı.
 > Chunk 002 PR'ı: https://github.com/f26901964-eng/Kitsugi-Beta/pull/16 (önceki kaynak dal)
 > Chunk 001 PR'ı: https://github.com/f26901964-eng/Kitsugi-Beta/pull/15
 > Drive klasörü: https://drive.google.com/drive/folders/1pZAOYsAnMjveNK6grdXjqV9IDM1TFaJp
@@ -120,8 +123,9 @@ Kısa sürüm (dosya zaten çalışma alanında ve damgalıysa yeterli):
 **"`diag/bangumi_vault/PROGRESS.md`'yi oku, Bölüm 0 kurulumunu yap, Bölüm 5'teki sıradaki
 ☐ chunk'ı bitir, Bölüm 8 kapanış listesini uygula."**
 
-Sıradaki chunk: **004 — kurum count 20–99 (3.082 kayıt)**. Chunk 003 tamamlandı;
-`translations_pending.tsv` artık 62.957 satır.
+Sıradaki chunk: **004b — kurum count 35–59 (1.000 kayıt)**. Chunk 004a (kurum count 60–99)
+tamamlandı; `translations_pending.tsv` 62.957 satır (kurum kayıtları pending'te yok).
+Chunk 004 üç parçaya bölündü: **004a 60–99 ✓**, **004b 35–59 (1.000)**, **004c 20–34 (1.515)**.
 
 ---
 
@@ -217,30 +221,79 @@ Uygulama çıktıları (`verify_vault.py` + `verify_bangumi_master.py` ile doğr
 - `decisions/org_global_names.tsv`: **+114 satır** (77 kişi + 37 marka/seri/kurum).
 - `translations_done.tsv`: 1.171 → **1.662** · `translations_pending.tsv`: 63.448 → **62.957**.
 
-### 2d) Kümülatif durum (chunk 001 + 002 + 003)
+### 2e) CHUNK 004a (TAMAM ✓ · 2026-10-21) — kurum count 60–99
+
+Chunk 004 (kurum count 20–99 · 3.082 kayıt) üç parçaya bölündü; ilk parça 004a:
+
+| Rol | Kararlı | SKIP | Toplam |
+|---|---:|---:|---:|
+| studio | 108 | 6 | 114 |
+| producer | 161 | 8 | 169 |
+| publisher | 183 | 8 | 191 |
+| magazine | 77 | 4 | 81 |
+| network | 12 | 0 | 12 |
+| **Toplam** | **541** | **26** | **567** |
+
+541 kararlı kaydın `canon.tsv` origin dağılımı: **global 189 · as_is 300 · existing 52**.
+
+- **global (189)**: resmî Latin adı bilinen marka/kurum/kişi. Örnekler: `スタジオジブリ`→Studio Ghibli,
+  `ゲームフリーク`→Game Freak, `手塚プロダクション`→Tezuka Productions, `アクアプラス`→Aquaplus,
+  `アークシステムワークス`→Arc System Works, `日本クラウン`→Nippon Crown, `河出書房新社`→Kawade Shobo
+  Shinsha, `廣済堂出版`→Kosaido Publishing, `智冠科技`→Soft-World International, `米哈游`→miHoYo,
+  `ディ앤씨미디어`→D&C Media; dergi kanonu: `月刊少年GANGAN`→Monthly Shonen Gangan,
+  `くらげバンチ`→Kurage Bunch, `サンデーうぇぶり`→Sunday Webry, `ガンダムエース`→Gundam Ace …
+  Kişi adları yalnız **resmî Latin yazımı bilinenlerde** alındı (Toshio Suzuki, Seiji Okuda,
+  Kazuma Miki, Genki Kawamura, Shinichiro Shirakura, Kozo Morishita, Shin Unozawa, Tetsuro Satomi …).
+- **existing (52)**: mevcut string anahtarına birleşim — `トムス`/`トムス・エンタテインメント`→`bangumi_studio_tms`,
+  `アスキー`→`bangumi_publisher_ascii`, `コーエー`/`光荣`→`bangumi_publisher_koei`, `青文`→`bangumi_publisher_chingwin_publishing`,
+  `尖端出版社`→`bangumi_publisher_sharp_point_press`, `太东`/`Taito`→`bangumi_publisher_taito_3`, `戯画`→`bangumi_studio_giga` …
+  (13 kayıt başka roldeki anahtara bağlandı; TR/EN değerleri **dil dosyasından birebir** korunur.)
+- **as_is (300)**: bilinmeyen CJK kurum/kişi — romanizasyon **uydurulmadı** (139'u `cjk_<hash>` anahtarı).
+- **SKIP (26)**: ad parçası/gürültü (`スタジオ`, `出版`, `コミックス`, `ピクチャーズ`, `エンターテイメント`,
+  `グループ`, `ソフトウェア`, `Inc.`, `INC.`, tek kana `エー`/`ジェイ`/`メリー`/`ケイ`/`エム`/`コウ`/`エス`,
+  `週刊`, `中国大陆` bölge etiketi, belirsiz `BE`/`LOVE`/`スター`/`マガジンズ`).
+
+Uygulama çıktıları (`verify_vault.py` + `verify_bangumi_master.py` ile doğrulandı ✅):
+
+- `values/strings.xml` + `values-en/strings.xml`: **+457 TR / +457 EN** `<string>` (TR/EN toplamı 9.113/9.113;
+  mevcut değer üzerine yazma **0**).
+- `BangumiOrgDictionary.kt` RAW: **+632 satır** (1.733 → 2.365; hâlâ 3 parça, en büyük parça 49.976 bayt < 50.000).
+- `BangumiTagDictionary.kt`: **+0 grup, +0 etiket** (bu chunk yalnız kurum).
+- `decisions/canon.tsv`: **+501 satır** (1.145 → 1.646) · `map_chunk_004a_orgs.tsv`: **567 satır**.
+- `decisions/org_global_names.tsv`: **+199 satır** (yeni tanınan resmî Latin adlar).
+- `translations_done.tsv` / `translations_pending.tsv`: **değişmedi** (kurum kayıtları pending'te yok; 62.957).
+
+Araç değişiklikleri (geriye dönük uyumlu):
+- `scripts/draft_org_map.py`: **`--max-count`** eklendi (kurum bantlarını `--min-count 60 --max-count 99`
+  gibi bölerek işlemek için; varsayılan `None` = eski davranış). `SKIP_NAMES` listesi chunk 004a'da
+  görülen ad parçalarıyla genişletildi.
+
+### 2d) Kümülatif durum (chunk 001 + 002 + 003 + 004a)
 
 ```
 python3 diag/bangumi_vault/scripts/verify_vault.py
-✅ TÜM KONTROLLER GEÇTİ — 2491 bangumi_* anahtar, 1089 vault kaydı, 1662 map satırı, 121284 damga denetlendi
+✅ TÜM KONTROLLER GEÇTİ — 2948 bangumi_* anahtar, 1568 vault kaydı, 2229 map satırı, 121284 damga denetlendi
 ```
 
 | Rol | Toplam kayıt | Karar satırı (canon + SKIP) | Kararlı canon | SKIP |
 |---|---:|---:|---:|---:|
 | tag | 64.499 | **962** | **675** | 287 |
-| studio | 12.391 | 63 | 62 | 1 |
-| producer | 24.825 | 126 | 123 | 3 |
-| publisher | 13.227 | 373 | 355 | 18 |
-| magazine | 3.995 | 127 | 127 | 0 |
-| network | 2.347 | 11 | 11 | 0 |
+| studio | 12.391 | 177 | 170 | 7 |
+| producer | 24.825 | 295 | 284 | 11 |
+| publisher | 13.227 | 564 | 538 | 26 |
+| magazine | 3.995 | 208 | 204 | 4 |
+| network | 2.347 | 23 | 23 | 0 |
 | committee | 1.229 | 0 | 0 | 0 |
-| **Toplam** | | **1.662** | **1.353** | **309** |
+| **Toplam** | | **2.229** | **1.894** | **335** |
 
-Etiket kalan iş yükü (kararsız): count 100–199 → **0**, count 20–99 → **4.027**,
-count <20 → **59.510** (toplam **63.537**). `translations_pending.tsv` = **62.957** satır.
+Kurum kalan iş yükü (kararsız): count 60–99 → **0**, count 35–59 → **1.000**, count 20–34 → **1.515**,
+count 1–19 → kalan kuyruk (chunk 001–003 kararlarından sonra). Etiket kalan iş yükü:
+count 20–99 → **4.027**, count <20 → **59.510** (toplam **63.537**). `translations_pending.tsv` = **62.957** satır.
 
 `python3 diag/bangumi_master/verify_bangumi_master.py` → **✅ Tüm kontroller geçti**
-(1.733 eşleme · aynı-ad rol çakışması 62 · gerçek çakışma 0; TagDictionary 1.325 grup;
-TR/EN 8.628/8.628). `gen_bangumi_master.py --check` de yazma yapmadan temiz geçti.
+(2.365 eşleme · aynı-ad rol çakışması 62 · gerçek çakışma 0; TagDictionary 1.325 grup;
+TR/EN 9.113/9.113; RAW 3 parça, en büyük 49.976 bayt). `gen_bangumi_master.py --check`
+de yazma yapmadan temiz geçti.
 
 
 
@@ -269,7 +322,8 @@ python3 scripts/worklist.py --dump ROLE N        # ilk N kaydı ekrana dök (ell
 
 # 2) KARAR: decisions/canon.tsv'e kanon satırı + decisions/map_chunk_XXX_*.tsv'e map satırı
 #    - elle (önerilen: etiket chunk'ları) ya da
-#    - python3 scripts/draft_org_map.py --chunk XXX --min-count N   (kurum taslağı, bilgi tabanı ile)
+#    - python3 scripts/draft_org_map.py --chunk XXX --min-count N [--max-count M]
+#      (kurum taslağı, bilgi tabanı ile; chunk 004+ bantları M ile bölünür)
 
 # 3) uygula + doğrula
 python3 scripts/apply_map.py --check && python3 scripts/apply_map.py
@@ -289,11 +343,18 @@ işler, `translations_done.tsv` yazar, `translations_pending.tsv`'i düşer,
 - [x] **Chunk 003** — etiket count 100–199 (**491** kayıt: 355 kararlı + 136 SKIP) →
       uygulamaya işlendi ✅ (2026-10-21; ayrıntı Bölüm 2c). `worklist.py --min-count 100`
       sonrası bu aralıkta **0** kayıt kaldı.
-- [ ] **Chunk 004** — kurumlar count 20–99 (tüm roller, **3.082** kayıt: studio 682,
-      producer 1.138, publisher 844, magazine 335, network 82, committee 1).
-      `python3 scripts/draft_org_map.py --chunk 004 --min-count 20` taslak üretir;
-      `org_global_names.tsv` yeni tanınan adlarla zenginleştirilip gözden geçirilir.
-      ⚠ Bu chunk 3.000+ kayıt olduğu için alt parçalara bölmek (004a/004b/…) önerilir.
+- [x] **Chunk 004a** — kurum count **60–99** (567 kayıt: 541 kararlı + 26 SKIP) →
+      uygulamaya işlendi ✅ (2026-10-21; ayrıntı Bölüm 2e). `worklist.py --min-count 60`
+      sonrası bu aralıkta **0** kayıt kaldı.
+- [ ] **Chunk 004b** — kurum count **35–59** (**1.000** kayıt: studio 210, producer 362,
+      publisher 288, magazine 116, network 24). Komut:
+      `python3 scripts/draft_org_map.py --chunk 004b --min-count 35 --max-count 59`.
+      `org_global_names.tsv` yeni tanınan resmî Latin adlarla zenginleştirilir; kişilerde
+      yalnız Latin yazımı **bilinenler** alınır, gerisi `as_is`.
+- [ ] **Chunk 004c** — kurum count **20–34** (**1.515** kayıt: studio 358, producer 607,
+      publisher 365, magazine 138, network 46, committee 1). Komut:
+      `python3 scripts/draft_org_map.py --chunk 004c --min-count 20 --max-count 34`
+      (committee rolü `draft_org_map.py` ORG_FILES'ta yok → tek kayıt elle eklenir).
 - [ ] **Chunk 005+** — etiket count 20–99 (**4.027**), sonra kuyruk (<20 → **59.510**);
       kurum 1–19; committees (1.229) + üretici kişileri (`as_is`/bilinen romanizasyonlar).
 - [ ] **Final** — kalan `translations_pending.tsv` tükendi mi? `verify_vault.py` ✅?
@@ -360,6 +421,16 @@ Her chunk aynı pipeline'ı izler (Bölüm 0d). Bilinmeyen kişi/kurumlar `as_is
   `koji_yusa` / `eri_kitamura` olarak düzeltildi. Ders: canon_id'yi kişinin **Latin
   adından** üret, ham adın okunuşundan değil; düzeltme yapılınca pipeline'ı temelden
   yeniden çalıştır (yalnız `--check` değil) yoksa **bayat string anahtarı kalır**.
+
+- **Chunk 004a — SKIP kuralı genişledi**: kurum adının *kendisi* olmayan parçalar (`スタジオ`,
+  `出版`, `コミックス`, `ピクチャーズ`, `エンターテイメント`, `グループ`, `ソフトウェア`,
+  `Inc.`/`INC.`), tek kana belirsizlikleri (`エー`, `ジェイ`, `ジェーン`, `メリー`, `ケイ`, `エム`,
+  `コウ`, `エス`), `週刊` ve bölge etiketi `中国大陆` SKIP. Bunlar `draft_org_map.py` içindeki
+  `SKIP_NAMES`'e eklendi (chunk 004b/004c'de de geçerli).
+- **Chunk 004a — kişi politikası**: `producer` kayıtlarının çoğu kişi adı; yalnız resmî Latin
+  yazımı **bilinen** kişiler `global` alındı (ör. Toshio Suzuki, Kozo Morishita, Shinichiro
+  Shirakura). Okunuşu tahmin edilen adlar `as_is` kalır — kural: romanizasyon uydurulmaz.
+  Bu chunk'ta `producer` 161 kaydın 110'u `as_is`.
 
 ## 7. Bilinen teknik notlar
 
@@ -428,6 +499,23 @@ Her chunk aynı pipeline'ı izler (Bölüm 0d). Bilinmeyen kişi/kurumlar `as_is
      Böylece roller arası kaynak kullanan etiketler de gerçek UI lookup zincirinde çözülür.
 
 ## 8. Kapanış kontrol listesi (chunk sonlarında)
+
+Chunk 004a için durumu (2026-10-21) → her satır **✅ tamam**:
+
+- [x] `draft_org_map.py --chunk 004a --min-count 60 --max-count 99` → 567 map + 501 canon satırı
+- [x] `apply_map.py --check` temiz (1.646 canon · 2.229 map · 1.894 canon + 335 skip)
+- [x] `verify_vault.py` ✅ (2.948 `bangumi_*` anahtar · 1.568 vault kaydı · 2.229 map satırı · 121.284 damga)
+- [x] `verify_bangumi_master.py` ✅ (2.365 eşleme · gerçek çakışma 0 · TR/EN 9.113/9.113)
+- [x] CI üreteç denetimi: `gen_bangumi_master.py --check` yazma yapmadan temiz
+- [x] `strings.xml` geçerli XML; `bangumi_*` anahtarlarında yinelenen yok, TR/EN simetrik (9.113 = 9.113)
+- [x] RAW parça sınırı: 3 parça, en büyük **49.976** bayt (< 50.000 modified-UTF-8)
+- [x] `PROGRESS.md` + `progress.json` güncellendi
+- [x] Drive'a yüklendi: PROGRESS.md, progress.json, decisions/canon.tsv,
+      decisions/map_chunk_004a_orgs.tsv, decisions/org_global_names.tsv
+- [x] Git commit + push (dal `arena/6131dd54-kitsugi-beta`) + PR
+- [ ] **Not (yerel derleme):** bu oturumda JDK/kotlinc kurulu değildi; `compile_check.sh`
+      çalıştırılamadı. Kotlin tarafı yalnız `verify_bangumi_master.py` + `gen --check` +
+      RAW parça bayt denetimiyle doğrulandı; asıl derleme CI'da (kotlinc adımı) koşar.
 
 Chunk 003 için durumu (2026-10-21) → her satır **✅ tamam**:
 

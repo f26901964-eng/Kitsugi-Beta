@@ -585,3 +585,206 @@ noitaminA	noitaminA	noitamina	Chunk 003 — anime programming block
 艦これ	Kantai Collection	kantai_collection	Chunk 003 — game/media franchise
 超级战队	Super Sentai	super_sentai	Chunk 003 — media franchise
 黒子のバスケ	Kuroko's Basketball	kurokos_basketball	Chunk 003 — media franchise
+
+# ── CHUNK 004a (org count 60–99) · 2026-10-21 ─────────────────────────────
+# Yalnız resmî/küresel Latin adı BİLİNEN kurum ve kişiler. Bilinmeyen CJK adlar
+# buraya girmez (as_is kalır). canon_id boşsa slug(latin_ad) kullanılır.
+月刊プリンセス	Monthly Princess		chunk 004a — global ad
+月刊Princess	Monthly Princess		chunk 004a — global ad
+月刊モーニングtwo	Monthly Morning Two		chunk 004a — global ad
+月刊Morning Two	Monthly Morning Two		chunk 004a — global ad
+まんがタイムきららミラク	Manga Time Kirara Miracle		chunk 004a — global ad
+まんがタイムジャンボ	Manga Time Jumbo		chunk 004a — global ad
+月刊ヤングマガジン	Monthly Young Magazine		chunk 004a — global ad
+月刊少年GANGAN	Monthly Shonen Gangan	gangan	chunk 004a — global ad
+コミックガルド	Comic Gardo		chunk 004a — global ad
+スーパージャンプ	Super Jump		chunk 004a — global ad
+くらげバンチ	Kurage Bunch		chunk 004a — global ad
+月刊サンデーGX	Monthly Sunday GX		chunk 004a — global ad
+月刊Comp-Ace	Monthly Comp Ace	monthly_comp_ace	chunk 004a — global ad
+周刊YOUNG SUNDAY	Weekly Young Sunday		chunk 004a — global ad
+月刊少年チャンピオン	Monthly Shonen Champion		chunk 004a — global ad
+ガンダムエース	Gundam Ace		chunk 004a — global ad
+COMICメテオ	Comic Meteor		chunk 004a — global ad
+别册少年MAGAZINE	Bessatsu Shonen Magazine	bessatsu_shonen_magazine	chunk 004a — global ad
+少年サンデーS	Shonen Sunday S		chunk 004a — global ad
+週刊漫画TIMES	Weekly Manga Times		chunk 004a — global ad
+周刊漫画TIMES	Weekly Manga Times		chunk 004a — global ad
+月刊COMIC FLAPPER	Monthly Comic Flapper	comic_flapper	chunk 004a — global ad
+WEBコミックガンマぷらす	Web Comic Gamma Plus		chunk 004a — global ad
+月刊ヤングキングアワーズGH	Monthly Young King Ours GH		chunk 004a — global ad
+月刊YOUNG KING OURS GH	Monthly Young King Ours GH		chunk 004a — global ad
+コンプティーク	Comptiq		chunk 004a — global ad
+サンデーうぇぶり	Sunday Webry		chunk 004a — global ad
+COMICポラリス	Comic Polaris		chunk 004a — global ad
+月刊コミックゼノン	Monthly Comic Zenon		chunk 004a — global ad
+comicブースト	Comic Boost		chunk 004a — global ad
+月刊Comic GENE	Monthly Comic Gene		chunk 004a — global ad
+月刊!スピリッツ	Monthly Spirits		chunk 004a — global ad
+コミッククリア	Comic Clear		chunk 004a — global ad
+電撃G'sコミック	Dengeki G's Comic		chunk 004a — global ad
+コミック電撃だいおうじ	Comic Dengeki Daioh		chunk 004a — global ad
+月刊Ultra Jump	Monthly Ultra Jump	ultra_jump	chunk 004a — global ad
+webアクション	Web Action		chunk 004a — global ad
+ミステリーボニータ	Mystery Bonita		chunk 004a — global ad
+WEBコミックぜにょん	Web Comic Zenyon		chunk 004a — global ad
+マンガPark	Manga Park		chunk 004a — global ad
+ヤングマガジン サード	Young Magazine Third		chunk 004a — global ad
+やわらかスピリッツ	Yawaraka Spirits		chunk 004a — global ad
+ヤングチャンピオン烈	Young Champion Retsu		chunk 004a — global ad
+ビジネスジャンプ	Business Jump		chunk 004a — global ad
+週刊漫画ゴラク	Weekly Manga Goraku		chunk 004a — global ad
+月刊Comic ZERO-SUM	Monthly Comic Zero-Sum	comic_zero_sum	chunk 004a — global ad
+Fami通Comic Clear	Famitsu Comic Clear		chunk 004a — global ad
+別冊花とゆめ	Bessatsu Hana to Yume		chunk 004a — global ad
+晋江文学城	Jinjiang Literature City		chunk 004a — global ad
+まんがタイムオリジナル	Manga Time Original		chunk 004a — global ad
+ヤングアニマル嵐	Young Animal Arashi		chunk 004a — global ad
+まんがライフWIN	Manga Life Win		chunk 004a — global ad
+まんがタイムファミリー	Manga Time Family		chunk 004a — global ad
+サイコミ	Cycomi		chunk 004a — global ad
+プリンセスGOLD	Princess Gold		chunk 004a — global ad
+月刊少年Magazine	Monthly Shonen Magazine	monthly_shonen_magazine	chunk 004a — global ad
+コミックガム	Comic Gum		chunk 004a — global ad
+月刊GANGAN JOKER	Monthly Gangan Joker		chunk 004a — global ad
+別冊Margaret	Bessatsu Margaret	bessatsu_margaret	chunk 004a — global ad
+哔哩哔哩漫画	Bilibili Comics	bilibili_comics	chunk 004a — global ad
+NHK Eテレ	NHK E-TV		chunk 004a — global ad
+テレビ東京系列	TV Tokyo	tv_tokyo	chunk 004a — global ad
+日曜プライム	Sunday Prime		chunk 004a — global ad
+土曜ドラマ	Saturday Drama		chunk 004a — global ad
+TBS系	TBS	tbs	chunk 004a — global ad
+サンシャインコーポレーション	Sunshine Corporation		chunk 004a — global ad
+バンダイナムコミュージックライブ	Bandai Namco Music Live		chunk 004a — global ad
+東映ビデオ	Toei Video		chunk 004a — global ad
+BSフジ	BS Fuji	bs_fuji	chunk 004a — global ad
+トムス・エンタテインメント	TMS Entertainment	tms	chunk 004a — global ad
+ジェイアール東日本企画	JR East Marketing & Communications		chunk 004a — global ad
+サミー	Sammy		chunk 004a — global ad
+クランチロールSCアニメファンド	Crunchyroll SC Anime Fund		chunk 004a — global ad
+アサツー ディ	ADK	adk	chunk 004a — global ad
+アサツー ディ・ケイ	ADK	adk	chunk 004a — global ad
+エイトビット	Eight Bit		chunk 004a — global ad
+ホリプロ	Horipro		chunk 004a — global ad
+日本出版販売	Nippon Shuppan Hanbai		chunk 004a — global ad
+BS日本	BS Nippon	bs_nippon	chunk 004a — global ad
+旭プロダクション	Asahi Production	asahi_production	chunk 004a — global ad
+ノーマッド	Nomad	nomad	chunk 004a — global ad
+フロンティアエンジン	Frontier Engine		chunk 004a — global ad
+ドワンゴ	Dwango		chunk 004a — global ad
+共同テレビ	Kyodo Television		chunk 004a — global ad
+タカヒロ	Takahiro		chunk 004a — global ad
+馬場隆博	Takahiro Baba		chunk 004a — global ad
+奥田誠治	Seiji Okuda		chunk 004a — global ad
+三木一馬	Kazuma Miki		chunk 004a — global ad
+川村元気	Genki Kawamura		chunk 004a — global ad
+鈴木敏夫	Toshio Suzuki		chunk 004a — global ad
+市川南	Minami Ichikawa		chunk 004a — global ad
+白倉伸一郎	Shinichiro Shirakura		chunk 004a — global ad
+亀山千広	Chihiro Kameyama		chunk 004a — global ad
+森下孝三	Kozo Morishita		chunk 004a — global ad
+佐々木史朗	Shiro Sasaki		chunk 004a — global ad
+植田益朗	Masuo Ueda		chunk 004a — global ad
+鵜之澤伸	Shin Unozawa		chunk 004a — global ad
+里見哲朗	Tetsuro Satomi		chunk 004a — global ad
+渡邊耕一	Koichi Watanabe		chunk 004a — global ad
+瓶子吉久	Yoshihisa Heishi		chunk 004a — global ad
+大森敬仁	Takahito Omori		chunk 004a — global ad
+三嶋章夫	Akio Mishima		chunk 004a — global ad
+メディアワークス文庫	Media Works Bunko		chunk 004a — global ad
+ヤマハミュージックコミュニケーションズ	Yamaha Music Communications		chunk 004a — global ad
+日本クラウン	Nippon Crown		chunk 004a — global ad
+青文	Ching Win Publishing	chingwin_publishing	chunk 004a — global ad
+中央公論社	Chuokoron-sha		chunk 004a — global ad
+バンダイビジュアル	Bandai Visual	bandai_visual	chunk 004a — global ad
+スターエンターテイメント	Star Entertainment		chunk 004a — global ad
+ポリドール	Polydor		chunk 004a — global ad
+河出書房新社	Kawade Shobo Shinsha		chunk 004a — global ad
+ユニバーサル シグマ	Universal Sigma		chunk 004a — global ad
+ソニーミュージックエンタテインメント	Sony Music Entertainment		chunk 004a — global ad
+ビクター音楽産業	Victor Musical Industries		chunk 004a — global ad
+響ミュージック	Hibiki Music		chunk 004a — global ad
+ユニバーサル ミュージック	Universal Music		chunk 004a — global ad
+动视	Activision	activision	chunk 004a — global ad
+時報文化	China Times Publishing		chunk 004a — global ad
+实业之日本社	Jitsugyo no Nihon Sha	jitsugyo_no_nihon_sha	chunk 004a — global ad
+芳文社; B6版	Houbunsha	houbunsha	chunk 004a — global ad
+講談社ラノベ文庫	Kodansha Ranobe Bunko		chunk 004a — global ad
+日本Falcom	Nihon Falcom	nihon_falcom	chunk 004a — global ad
+学研パブリッシング	Gakken Publishing		chunk 004a — global ad
+廣済堂出版	Kosaido Publishing		chunk 004a — global ad
+フリュー	FURYU		chunk 004a — global ad
+科乐美数码娱乐	Konami Digital Entertainment	konami_digital_entertainment	chunk 004a — global ad
+(角川グループパブリッシング)	Kadokawa Group Publishing	kadokawa_group_publishing	chunk 004a — global ad
+エモーション	Emotion		chunk 004a — global ad
+光荣特库摩	Koei Tecmo	koei_tecmo	chunk 004a — global ad
+ドリーミュージックパブリッシング	Dreamusic Publishing		chunk 004a — global ad
+光荣	Koei	koei	chunk 004a — global ad
+文化传信集团有限公司	Culturecom Holdings		chunk 004a — global ad
+青林工藝舎	Seirinkogeisha		chunk 004a — global ad
+DC漫画	DC Comics	dc_comics	chunk 004a — global ad
+中国友谊出版公司	China Friendship Publishing		chunk 004a — global ad
+北京联合出版公司	Beijing United Publishing		chunk 004a — global ad
+米哈游	miHoYo		chunk 004a — global ad
+万代	Bandai	bandai	chunk 004a — global ad
+青林堂	Seirindo		chunk 004a — global ad
+オトメイトレコード	Otomate Record		chunk 004a — global ad
+디앤씨미디어	D&C Media		chunk 004a — global ad
+京都アニメーション	Kyoto Animation	kyoto_animation	chunk 004a — global ad
+バンダイナムコアーツ	Bandai Namco Arts		chunk 004a — global ad
+ハーヴェスト出版	Harvest Publishing		chunk 004a — global ad
+尖端出版社	Sharp Point Press	sharp_point_press	chunk 004a — global ad
+艾尼克斯	Enix	enix	chunk 004a — global ad
+宝岛社	Takarajimasha	takarajimasha	chunk 004a — global ad
+角川ゲームス	Kadokawa Games		chunk 004a — global ad
+ストーム	Storm		chunk 004a — global ad
+ファンタジア文庫	Fantasia Bunko		chunk 004a — global ad
+集英社クリエイティブ	Shueisha Creative		chunk 004a — global ad
+玄光社	Genkosha		chunk 004a — global ad
+コンパイルハート	Compile Heart		chunk 004a — global ad
+サイバーフロント	CyberFront		chunk 004a — global ad
+オーム社	Ohmsha		chunk 004a — global ad
+育碧娱乐	Ubisoft	ubisoft	chunk 004a — global ad
+朝日新闻出版	Asahi Shimbun Publications	asahi_shimbun_publications	chunk 004a — global ad
+インテリジェントシステムズ	Intelligent Systems		chunk 004a — global ad
+HAL研究所	HAL Laboratory		chunk 004a — global ad
+大宇資訊	Softstar Entertainment		chunk 004a — global ad
+ゲームフリーク	Game Freak		chunk 004a — global ad
+手塚プロダクション	Tezuka Productions		chunk 004a — global ad
+トーセ	TOSE		chunk 004a — global ad
+ルネ	Rune		chunk 004a — global ad
+葦プロダクション	Ashi Productions		chunk 004a — global ad
+レベルファイブ	Level-5	level5	chunk 004a — global ad
+でぼの巣製作所	Debonosu Works		chunk 004a — global ad
+スタジオ雲雀	Studio Hibari		chunk 004a — global ad
+エフアンドシー株式会社(F&C Co.,Ltd.)	F&C	f_and_c	chunk 004a — global ad (mevcut F&C kanonuna birleşim)
+スタジオジブリ	Studio Ghibli		chunk 004a — global ad
+玄机科技	Sparkly Key Animation		chunk 004a — global ad
+フェアリーテール	Fairytale		chunk 004a — global ad
+Studio五組	Studio Gokumi	gokumi	chunk 004a — global ad
+雅达利 1972-1984	Atari	atari	chunk 004a — global ad
+ゆめ太カンパニー	Yumeta Company		chunk 004a — global ad
+ルビーパーティー	Ruby Party		chunk 004a — global ad
+工画堂スタジオ	Kogado Studio		chunk 004a — global ad
+ミンク	Mink		chunk 004a — global ad
+アクタス	Actas		chunk 004a — global ad
+アークシステムワークス	Arc System Works		chunk 004a — global ad
+シルキーズ	Silky's		chunk 004a — global ad
+南梦宫	Namco		chunk 004a — global ad
+ザウス	Xuse		chunk 004a — global ad
+SIEジャパンスタジオ	SIE Japan Studio		chunk 004a — global ad
+エスクード	Escu:de		chunk 004a — global ad
+スクウェア・エニックス	Square Enix	square_enix	chunk 004a — global ad
+ヒューネックス株式会社	HuneX		chunk 004a — global ad
+バンダイナムコスタジオ	Bandai Namco Studios		chunk 004a — global ad
+任天堂企画開発本部	Nintendo EAD	nintendo_ead	chunk 004a — global ad
+インターハート	INTERHEART		chunk 004a — global ad
+アクアプラス	Aquaplus		chunk 004a — global ad
+智冠科技	Soft-World International		chunk 004a — global ad
+太东	Taito	taito_3	chunk 004a — global ad
+Taito	Taito	taito_3	chunk 004a — global ad
+フロム	FromSoftware		chunk 004a — global ad
+フロム・ソフトウェア	FromSoftware		chunk 004a — global ad
+任天堂企画制作本部	Nintendo SPD		chunk 004a — global ad
+あざらしそふと	Azarashi Soft		chunk 004a — global ad
+株式会社SNK	SNK	snk	chunk 004a — global ad
