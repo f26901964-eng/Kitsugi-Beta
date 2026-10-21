@@ -178,6 +178,17 @@ for line in (DIAG / "orgs.tsv").read_text(encoding="utf-8").splitlines():
 key_to_name = {}
 for label, key, en in org_rows:
     key_to_name.setdefault(key, en)
+# RAW'da hiç satırı kalmayan anahtarlar: aynı kurum birden çok rolde geçerken etiketleri
+# ikizi tarafından sahiplenilmiş olabilir (ilk yazım kazanır → bu anahtarın satırı düşer).
+# Latin ad o zaman dil dosyasından çözülür; aksi hâlde zararsız çok-rollü çakışma
+# "GERÇEK çakışma" diye raporlanıyordu (2026-10-21 düzeltmesi).
+_en_vals = dict(re.findall(r'<string name="([^"]+)">(.*?)</string>',
+                           RES_EN.read_text(encoding="utf-8"), re.S))
+for _k in set(re.findall(r"\|(bangumi_(?:studio|producer|network|publisher|magazine)_[a-z0-9_]+)\|", raw)):
+    key_to_name.setdefault(_k, _en_vals.get(_k))
+for _k, _v in _en_vals.items():
+    if _k.startswith("bangumi_") and _v.strip():
+        key_to_name.setdefault(_k, _v.strip())
 real_conflicts = []
 for f in org_lookup_fail:
     label, got, expected = f.split("'")[1], f.split("→ ")[1].split(" (")[0], f.split("(beklenen ")[1].rstrip(")")
