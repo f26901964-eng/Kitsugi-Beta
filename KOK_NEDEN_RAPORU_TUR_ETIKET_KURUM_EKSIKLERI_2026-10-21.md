@@ -330,6 +330,7 @@ dosyasına yazılıyordu; alan doluydu ama ad Türkçe/İngilizce arayüzde okun
 | KN-25 | 18 `bangumi_tag_cjk_*` etiketi sözlükte CJK TR/EN ile duruyordu | Etiket çipinde Çince ad | `BangumiTagDictionary.kt` TR/EN alanları Latin adla değiştirildi |
 | KN-26 | Arayüz metinlerinde kaynak etiket parantez içinde bırakılmıştı | `(在看)`, `(条目)`, `(打格子)`, `"允许"`, `收藏`, `小说/画集` … 18 metin | `fix_cjk_ui_strings.py` |
 | KN-27 | Bazı adlar `「Sunflower Studio」` gibi sarılı geliyordu | Adın parçası olmayan tırnak ekranda | `strip_wrapping()` (kurum adı normalizasyonu) |
+| KN-28 | İlk turda Çince adlar kakasi'de tek heceye düşüp **kalıcılaştı** (`电击魔王` → `Maou`) | 397 hatalı ad | Üretici Latin alanına değil kaynak etikete bakar; `髙→高` eşlemesi |
 
 ### Kural
 

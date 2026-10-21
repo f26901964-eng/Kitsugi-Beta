@@ -34,6 +34,10 @@ metni dahil). Öncesi/sonrası CJK satır sayısı: **5.245 → 0** (TR), **5.24
 
 #### 2) Yöntem — uydurma çeviri yok
 
+9.457 anahtarın dağılımı: **4.259** anahtarın kaynağında zaten resmî Latin yazım var
+(`京都アニメーション` + `Kyoto Animation`), **65** dergi öneki türetildi, **5.133** ad
+romanize edildi.
+
 Sıra şu:
 
 1. **Resmî/yerleşik Latin ad** — sözlükte aynı şirketin Latin yazımı zaten varsa (diğer kaynaklardan
@@ -46,6 +50,11 @@ Sıra şu:
 4. **Olduğu gibi** — ad zaten Latin ise (`BONES`, `A-1 Pictures`) dokunulmaz.
 
 Çözülemeyen anahtar: **0**.
+
+> **İkinci geçiş:** ilk turda bazı Çince adlar kakasi'de tek heceye düşüp kalıcılaşmıştı
+> (`电击魔王` → `Maou`, `张圣晏` → `An`). Üretici artık Latin alanına değil **kaynak etikete**
+> bakıp her tur yeniden türetiyor; 397 değer düzeltildi (`Dian Ji Mo Wang`, `Zhang Sheng Yan`)
+> ve `髙→高` uyumluluk eşlemesi eklendi (`髙橋竜` → `Takahashi Ryuu`).
 
 #### 3) TR ve EN **aynı** Latin yazımı kullanıyor
 

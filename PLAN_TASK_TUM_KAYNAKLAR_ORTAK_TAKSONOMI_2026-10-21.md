@@ -236,6 +236,7 @@ etiket anahtarının TR ve EN dil dosyalarındaki yazımı tek bir kurala bağla
 | T44 | TR + EN dil dosyalarına ve `BangumiOrgDictionary.kt` 3. alanına senkron | ✅ | `values/strings.xml`, `values-en/strings.xml`, `BangumiOrgDictionary.kt` |
 | T45 | 18 CJK etiket anahtarının `BangumiTagDictionary.kt` TR/EN alanlarına Latin ad | ✅ | `BangumiTagDictionary.kt`, `tag_latin.tsv` |
 | T46 | Arayüz metinlerinde kalan Çince açıklama parantezlerinin temizliği | ✅ | `scripts/fix_cjk_ui_strings.py` |
+| T47 | Üretici kaynak etiketten yeniden türetir (kalıcı hatalı romanizasyonu düzeltir) | ✅ | `sync_org_latin_strings.py` |
 
 ### Kurallar
 

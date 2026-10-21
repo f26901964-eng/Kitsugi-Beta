@@ -151,7 +151,7 @@ def _clean(value: str) -> str:
 
 
 # Romanizasyon kütüphanelerinin tanımadığı uyumluluk ideografları (Japonca adlarda sık).
-COMPAT_MAP = {"\ufa11": "\u5d0e", "\ufa19": "\u9ad9", "\ufa0c": "\u795e"}
+COMPAT_MAP = {"\ufa11": "\u5d0e", "\ufa19": "\u9ad9", "\ufa0c": "\u795e", "\u9ad9": "\u9ad8"}
 
 
 def romanize(text: str) -> str:
@@ -347,29 +347,38 @@ def main() -> int:
     for key, entries in by_key.items():
         if not key.startswith(ORG_PREFIXES + TAG_PREFIXES):
             continue
-        current = entries[0][2]
-        chosen, method = current, "keep"
-        # Her satır için dene: ilk resmî eşleşme kazanır.
-        for label, _k, latin in entries:
-            candidate, candidate_method = best_latin(label, latin, alias_index)
-            if candidate_method == "official":
-                chosen, method = candidate, "official"
+        chosen, method = "", "unresolved"
+
+        # 1) Kaynakta Latin yazım varsa (resmî ad) o kazanır: `京都アニメーション` + `Kyoto Animation`.
+        for label, _k, _l in entries:
+            label = label.strip()
+            if label and not CJK.search(label):
+                chosen, method = strip_wrapping(label), "official"
                 break
-            if candidate_method == "keep" and method == "keep":
-                chosen = candidate
-            elif candidate_method == "prefix" and method != "official":
-                chosen, method = candidate, "prefix"
-            elif candidate_method == "romanized" and method not in ("official", "prefix"):
-                chosen, method = candidate, "romanized"
-            elif candidate_method == "unresolved" and method == "keep":
-                chosen, method = candidate, "unresolved"
-        if CJK.search(chosen):
-            # Hâlâ CJK: etiketlerden birini romanize etmeyi son kez dene.
+
+        # 2) Dergi öneki: `月刊アフタヌーン` → `Monthly Afternoon`.
+        if not chosen:
+            for label, _k, _l in entries:
+                for prefix, replacement in MAGAZINE_PREFIXES:
+                    if not label.startswith(prefix):
+                        continue
+                    rest = romanize(label[len(prefix):].strip())
+                    if rest and not CJK.search(rest):
+                        chosen, method = f"{replacement} {strip_wrapping(rest)}", "prefix"
+                        break
+                if chosen:
+                    break
+
+        # 3) Romanizasyon: yalnız CJK etiket varsa (Japonca → Hepburn, Çince → pinyin, Korece → RR).
+        #    Daha önceki turlarda yazılmış Latin alan ARTIK GÜVENİLMEZ (hatalı romanizasyon
+        #    kalıcılaşabiliyor); bu yüzden her tur etiketten yeniden türetilir.
+        if not chosen:
             for label, _k, _l in entries:
                 candidate = romanize(label)
                 if candidate and not CJK.search(candidate):
-                    chosen, method = candidate, "romanized"
+                    chosen, method = strip_wrapping(candidate), "romanized"
                     break
+
         latin_by_key[key] = chosen
         methods[method] = methods.get(method, 0) + 1
 
